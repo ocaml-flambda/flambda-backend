@@ -1,52 +1,8 @@
 File "lib2_client.ml", line 19, characters 11-36:
 19 | module _ = F (struct type t = T end)
                 ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This functor has type Fatal error: exception Persistent_env.Error(_)
-Raised at Persistent_env.error in file "ocaml/typing/persistent_env.ml", line 41, characters 16-33
-Called from Persistent_env.process_pers_struct in file "ocaml/typing/persistent_env.ml", line 243, characters 2-737
-Called from Persistent_env.acknowledge_pers_struct in file "ocaml/typing/persistent_env.ml", line 271, characters 11-58
-Called from Persistent_env.find_pers_struct in file "ocaml/typing/persistent_env.ml", line 305, characters 17-64
-Called from Persistent_env.find in file "ocaml/typing/persistent_env.ml", line 359, characters 6-55
-Called from Env.lookup_ident_module in file "ocaml/typing/env.ml", line 2939, characters 16-54
-Called from Env.lookup_module_components in file "ocaml/typing/env.ml", line 3096, characters 23-71
-Called from Env.lookup_structure_components in file "ocaml/typing/env.ml", line 3108, characters 20-70
-Called from Env.lookup_dot_module in file "ocaml/typing/env.ml", line 3197, characters 17-68
-Called from Env.lookup_module in file "ocaml/typing/env.ml", line 3188, characters 23-66
-Called from Printtyp.rewrite_double_underscore_paths in file "ocaml/typing/printtyp.ml", line 499, characters 12-50
-Called from Printtyp.rewrite_double_underscore_paths in file "ocaml/typing/printtyp.ml", line 488, characters 10-47
-Called from Printtyp.tree_of_path in file "ocaml/typing/printtyp.ml", line 552, characters 25-74
-Called from Printtyp.tree_of_typexp.pr_typ in file "ocaml/typing/printtyp.ml", line 1331, characters 26-53
-Called from Printtyp.tree_of_type_decl in file "ocaml/typing/printtyp.ml", line 1780, characters 12-34
-Called from Printtyp.tree_of_type_declaration in file "ocaml/typing/printtyp.ml", line 1849, characters 13-38
-Called from Printtyp.trees_of_recursive_sigitem_group.display in file "ocaml/typing/printtyp.ml", line 2441, characters 52-81
-Called from Stdlib__List.map in file "list.ml", line 87, characters 15-19
-Called from Stdlib__Fun.protect in file "fun.ml", line 37, characters 8-15
-Re-raised at Stdlib__Fun.protect in file "fun.ml", line 42, characters 6-52
-Called from Printtyp.trees_of_recursive_sigitem_group in file "ocaml/typing/printtyp.ml", line 2448, characters 6-62
-Called from Misc.try_finally in file "ocaml/utils/misc.ml", line 31, characters 8-15
-Re-raised at Misc.try_finally in file "ocaml/utils/misc.ml", line 45, characters 10-56
-Called from Printtyp.tree_of_signature_rec.collect_trees_of_rec_group in file "ocaml/typing/printtyp.ml", line 2419, characters 10-108
-Called from Stdlib__List.fold_left_map.aux in file "list.ml", line 300, characters 22-30
-Called from Printtyp.tree_of_signature_rec in file "ocaml/typing/printtyp.ml", line 2437, characters 6-74
-Called from Printtyp.tree_of_signature.(fun) in file "ocaml/typing/printtyp.ml", line 2404, characters 26-83
-Called from Printtyp.wrap_env in file "ocaml/typing/printtyp.ml", line 2227, characters 13-22
-Called from Printtyp.tree_of_modtype in file "ocaml/typing/printtyp.ml", line 2357, characters 21-51
-Called from Printtyp.wrap_env in file "ocaml/typing/printtyp.ml", line 2227, characters 13-22
-Called from Printtyp.tree_of_modtype in file "ocaml/typing/printtyp.ml", line 2362, characters 16-61
-Called from Printtyp.modtype in file "ocaml/typing/printtyp.ml", line 2505, characters 50-71
-Called from Stdlib__Format.output_acc in file "format.ml", line 1361, characters 4-20
-Called from Stdlib__Format.output_acc in file "format.ml", line 1371, characters 32-48
-Called from Stdlib__Format.output_acc in file "format.ml", line 1361, characters 4-20
-Called from Stdlib__Format.output_acc in file "format.ml", line 1371, characters 32-48
-Called from Stdlib__Format.output_acc in file "format.ml", line 1373, characters 32-48
-Called from Stdlib__Format.output_acc in file "format.ml", line 1361, characters 4-20
-Called from Stdlib__Format.output_acc in file "format.ml", line 1361, characters 4-20
-Called from Stdlib__Format.kfprintf.(fun) in file "format.ml", line 1422, characters 16-34
-Called from Stdlib__Format.output_acc in file "format.ml", line 1374, characters 32-48
-Called from Stdlib__Format.output_acc in file "format.ml", line 1374, characters 32-48
-Called from Stdlib__Format.output_acc in file "format.ml", line 1361, characters 4-20
-Called from Stdlib__Format.output_acc in file "format.ml", line 1361, characters 4-20
-Called from Stdlib__Format.kfprintf.(fun) in file "format.ml", line 1422, characters 16-34
-Called from Location.print_updating_num_loc_lines in file "ocaml/parsing/location.ml", line 193, characters 2-11
-Called from Optmaindriver.main in file "driver/optmaindriver.ml", line 154, characters 4-35
-Called from Flambda_backend_main in file "driver/flambda_backend_main.ml", line 5, characters 7-140
+Error: This functor has type
+       functor (T : sig type t end) ->
+         sig type t = Lib1_client__X.t val f : T.t -> unit end
+       The parameter cannot be eliminated in the result type.
+       Please bind the argument to a module identifier.
