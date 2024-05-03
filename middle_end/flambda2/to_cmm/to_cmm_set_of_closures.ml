@@ -173,16 +173,17 @@ end = struct
                      Tagged_immediate
                 then C.Update_kind.tagged_immediates
                 else C.Update_kind.pointers
-              | Naked_number Naked_int32
-              (* Int32s are not tightly packed, but we write all 64 bits for
-                 backwards compatability. *)
               | Naked_number Naked_immediate
               | Naked_number Naked_int64
               | Naked_number Naked_nativeint ->
                 C.Update_kind.naked_int64s
               | Naked_number Naked_float -> C.Update_kind.naked_floats
-              | Naked_number Naked_float32 -> C.Update_kind.naked_float32_fields
               | Naked_number Naked_vec128 -> C.Update_kind.naked_vec128_fields
+              (* Int32s/Float32s are not tightly packed, so we only write the
+                 bottom 32 bits of the slot. The upper bits will be zero as the
+                 closure block is static. *)
+              | Naked_number Naked_int32 -> C.Update_kind.naked_int32_fields
+              | Naked_number Naked_float32 -> C.Update_kind.naked_float32_fields
               | Region | Rec_info ->
                 Misc.fatal_errorf "Unexpected value slot kind."
             in
