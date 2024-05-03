@@ -854,7 +854,7 @@ let zero_alloc_lookup_table =
                 arity; loc; });
     (["assume"; "error"],
      fun arity loc ->
-       Assume { property; strict = false; never_returns_normally = true;
+       Assume { property; strict = true; never_returns_normally = true;
                 never_raises = true;
                 arity; loc; });
     (["ignore"], fun _ _ -> Ignore_assert_all property)
