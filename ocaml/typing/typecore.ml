@@ -355,6 +355,8 @@ type expected_mode =
 
     tuple_modes : Value.r list;
     (** For t in tuple_modes, t <= regional_to_global mode *)
+
+    tuple_materialized : bool;
   }
 
 type position_and_mode = {
@@ -437,12 +439,14 @@ let apply_modality
       |> Value.meet_with (Comonadic Linearity) Linearity.Const.Many
   | Global_flag.Unrestricted -> mode
 
-let mode_default mode =
+let mode_default ?(tuple_materialized = true) mode =
   { position = RNontail;
     closure_context = None;
     mode = Value.disallow_left mode;
     strictly_local = false;
-    tuple_modes = [] }
+    tuple_modes = [];
+    tuple_materialized;
+  }
 
 let mode_legacy = mode_default Value.legacy
 
@@ -498,7 +502,7 @@ let mode_strictly_local expected_mode =
 
 let mode_coerce mode expected_mode =
   let mode = Value.meet [expected_mode.mode; mode] in
-  { expected_mode with mode; tuple_modes = [] }
+  { expected_mode with mode; tuple_modes = []; tuple_materialized = true }
 
 let mode_tailcall_function mode =
   { (mode_default mode) with
@@ -519,10 +523,11 @@ let mode_partial_application expected_mode =
 let mode_trywith expected_mode =
   { expected_mode with position = RNontail }
 
-let mode_tuple mode tuple_modes =
+let mode_tuple mode tuple_modes ~materialized =
   let tuple_modes = Value.List.disallow_left tuple_modes in
   { (mode_default mode) with
-    tuple_modes }
+    tuple_modes;
+    tuple_materialized = materialized }
 
 (** Takes [marg:Alloc.lr] extracted from the arrow type and returns the real
 mode of argument, after taking into consideration partial application and
@@ -577,15 +582,18 @@ let escape ~loc ~env ~reason m =
 
 type expected_pat_mode =
   { mode : Value.l;
-    tuple_modes : Value.l list; }
+    tuple_modes : Value.l list;
+    tuple_materialized : bool; }
 
-let simple_pat_mode mode =
-  { mode = Value.disallow_right mode; tuple_modes = [] }
+let simple_pat_mode ?(tuple_materialized = true) mode =
+  { mode = Value.disallow_right mode; tuple_modes = [];
+    tuple_materialized;
+  }
 
-let tuple_pat_mode mode tuple_modes =
+let tuple_pat_mode mode tuple_modes ~materialized =
   let mode = Value.disallow_right mode in
   let tuple_modes = Value.List.disallow_right tuple_modes in
-  { mode; tuple_modes }
+  { mode; tuple_modes; tuple_materialized = materialized }
 
 let allocations : Alloc.r list ref = Local_store.s_ref []
 
@@ -1255,7 +1263,8 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
     Tpat_alias(p1,_, _, _, _) -> build_as_type_and_mode ~refine ~mode env p1
   | Tpat_tuple pl ->
       let labeled_tyl =
-        List.map (fun (label, p) -> label, build_as_type env p) pl in
+        List.map (fun (label, p, _) -> label, build_as_type env p) pl
+      in
       newty (Ttuple labeled_tyl), mode
   | Tpat_construct(_, cstr, pl, vto) ->
       let priv = (cstr.cstr_private = Private) in
@@ -1415,22 +1424,29 @@ let reorder_pat loc env patl closed labeled_tl expected_ty =
 let solve_Ppat_tuple ~refine ~alloc_mode loc env args expected_ty =
   let arity = List.length args in
   let arg_modes =
-    if List.compare_length_with alloc_mode.tuple_modes arity = 0 then
-      alloc_mode.tuple_modes
+    if List.compare_length_with alloc_mode.tuple_modes arity = 0
+    then alloc_mode.tuple_modes
+    else List.init arity (fun _ -> alloc_mode.mode)
+  in
+  let make_jkind_and_sort =
+    if alloc_mode.tuple_materialized
+    then (fun () ->
+      let jkind = Jkind.value ~why:Element_of_representable_tuple in
+      let sort = Jkind.Sort.for_element_of_representable_tuple in
+      jkind, sort)
     else
-      List.init arity (fun _ -> alloc_mode.mode)
+      (fun () -> Jkind.of_new_sort_var ~why:Element_of_local_tuple)
   in
   let ann =
-    (* CR layouts v5: restriction to value here to be relaxed. *)
     List.map2
       (fun (label, p) mode ->
-        ( label,
-          p,
-          newgenvar (Jkind.value ~why:Tuple_element),
-          simple_pat_mode mode ))
+        let jkind, sort = make_jkind_and_sort () in
+        (label, p, newgenvar jkind, sort, simple_pat_mode mode))
       args arg_modes
   in
-  let ty = newgenty (Ttuple (List.map (fun (lbl, _, t, _) -> lbl, t) ann)) in
+  let ty =
+    newgenty (Ttuple (List.map (fun (lbl, _, t, _, _) -> lbl, t) ann))
+  in
   let expected_ty = generic_instance expected_ty in
   unify_pat_types ~refine loc env ty expected_ty;
   ann
@@ -2417,14 +2433,15 @@ and type_pat_aux
       solve_Ppat_tuple ~refine ~alloc_mode loc env args expected_ty
     in
     let pl =
-      List.map (fun (lbl, p, t, alloc_mode) ->
-        lbl, type_pat tps Value ~alloc_mode p t)
+      List.map (fun (lbl, p, t, sort, alloc_mode) ->
+        lbl, type_pat tps Value ~alloc_mode p t, sort)
         spl_ann
     in
     rvp {
       pat_desc = Tpat_tuple pl;
       pat_loc = loc; pat_extra=[];
-      pat_type = newty (Ttuple (List.map (fun (lbl, p) -> lbl, p.pat_type) pl));
+      pat_type =
+        newty (Ttuple (List.map (fun (lbl, p, _) -> lbl, p.pat_type) pl));
       pat_attributes = sp.ppat_attributes;
       pat_env = !env }
   in
@@ -2914,18 +2931,43 @@ let type_self_pattern env spat =
 
 type pat_tuple_arity =
   | Not_local_tuple
-  | Maybe_local_tuple
-  | Local_tuple of int
+  | Maybe_local_tuple of { bound_as_ident : bool }
+  | Local_tuple of { arity : int; bound_as_ident : bool }
+  (* For [bound_as_ident]: A pattern [a] binds a matched tuple as an ident,
+     whereas a tuple pattern [x, y, z] does not bind a matched tuple as an
+     ident. This isn't relevant for modes but it does matter for unboxed types:
+     we only allow tuples of non-values that we think aren't bound as idents.
+  *)
+
+let bind_pat_tuple_arity_as_ident x =
+  match x with
+  | Not_local_tuple -> x
+  | Maybe_local_tuple { bound_as_ident } ->
+      if bound_as_ident then x else Maybe_local_tuple { bound_as_ident = true }
+  | Local_tuple { bound_as_ident; arity } ->
+      if bound_as_ident then x else Local_tuple { bound_as_ident = true; arity }
 
 let combine_pat_tuple_arity a b =
   match a, b with
   | Not_local_tuple, _ -> Not_local_tuple
   | _, Not_local_tuple -> Not_local_tuple
-  | Maybe_local_tuple, Maybe_local_tuple -> Maybe_local_tuple
-  | Maybe_local_tuple, Local_tuple _ -> b
-  | Local_tuple _, Maybe_local_tuple -> a
-  | Local_tuple ai, Local_tuple bi ->
-      if ai = bi then a
+  | Maybe_local_tuple { bound_as_ident = bound_as_ident_a },
+    Maybe_local_tuple _ ->
+      if bound_as_ident_a then a else b
+  | Maybe_local_tuple { bound_as_ident = a_bound },
+    Local_tuple       { bound_as_ident = b_bound; arity } ->
+      if b_bound || not a_bound then b
+      else Local_tuple { arity; bound_as_ident = true }
+  | Local_tuple       { bound_as_ident = a_bound; arity },
+    Maybe_local_tuple { bound_as_ident = b_bound } ->
+      if a_bound || not b_bound then a
+      else Local_tuple { arity; bound_as_ident = true }
+  | Local_tuple { arity = ai; bound_as_ident = a_bound },
+    Local_tuple { arity = bi; bound_as_ident = b_bound } ->
+      if ai = bi && (a_bound || not b_bound) then a
+      else if ai = bi then (
+        assert (not a_bound);
+        b)
       else Not_local_tuple
 
 let rec pat_tuple_arity spat =
@@ -2933,29 +2975,39 @@ let rec pat_tuple_arity spat =
   | Some (jpat, _attrs) -> pat_tuple_arity_jane_syntax jpat
   | None      ->
   match spat.ppat_desc with
-  | Ppat_tuple args -> Local_tuple (List.length args)
-  | Ppat_any | Ppat_exception _ | Ppat_var _ -> Maybe_local_tuple
+  | Ppat_tuple args ->
+      Local_tuple { arity = List.length args; bound_as_ident = false }
+  | Ppat_any | Ppat_exception _ ->
+      Maybe_local_tuple { bound_as_ident = false }
+  | Ppat_var _ ->
+      Maybe_local_tuple { bound_as_ident = true }
   | Ppat_constant _
   | Ppat_interval _ | Ppat_construct _ | Ppat_variant _
   | Ppat_record _ | Ppat_array _ | Ppat_type _ | Ppat_lazy _
   | Ppat_unpack _ | Ppat_extension _ -> Not_local_tuple
   | Ppat_or(sp1, sp2) ->
       combine_pat_tuple_arity (pat_tuple_arity sp1) (pat_tuple_arity sp2)
-  | Ppat_constraint(p, _) | Ppat_open(_, p) | Ppat_alias(p, _) -> pat_tuple_arity p
+  | Ppat_constraint(p, _) | Ppat_open(_, p) -> pat_tuple_arity p
+  | Ppat_alias(p, _) -> bind_pat_tuple_arity_as_ident (pat_tuple_arity p)
 
 and pat_tuple_arity_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array _) -> Not_local_tuple
   | Jpat_layout (Lpat_constant _) -> Not_local_tuple
-  | Jpat_tuple (args, _) -> Local_tuple (List.length args)
+  | Jpat_tuple (args, _) ->
+      Local_tuple { arity = List.length args; bound_as_ident = false }
 
 let rec cases_tuple_arity cases =
   match cases with
-  | [] -> Maybe_local_tuple
+  | [] -> Maybe_local_tuple { bound_as_ident = false }
   | { pc_lhs; _ } :: rest ->
     match pat_tuple_arity pc_lhs with
     | Not_local_tuple -> Not_local_tuple
     | arity -> combine_pat_tuple_arity arity (cases_tuple_arity rest)
 
+let exp_tuple_arity sexp =
+  match sexp.pexp_desc with
+  | Pexp_tuple arity -> Some (List.length arity)
+  | _ -> None
 
 (** In [check_counter_example_pat], we will check a counter-example candidate
     produced by Parmatch. This is a pattern that represents a set of values by
@@ -3161,14 +3213,18 @@ let rec check_counter_example_pat
       k @@ solve_expected (mp (Tpat_constant cst) ~pat_type:(type_constant cst))
   | Tpat_tuple tpl ->
       let tpl_ann =
-        solve_Ppat_tuple ~refine ~alloc_mode loc env tpl
+        solve_Ppat_tuple ~refine ~alloc_mode loc env
+          (List.map (fun (lbl, p, _sort) -> lbl, p) tpl)
           expected_ty
       in
-      map_fold_cont (fun (l,p,t,_) k -> check_rec p t (fun p -> k (l, p)))
+      List.iter2
+         (fun (_, _, s1) (_, _, _, s2, _) -> assert (Jkind.Sort.equate s1 s2))
+         tpl tpl_ann;
+      map_fold_cont (fun (l,p,t,s,_) k -> check_rec p t (fun p -> k (l, p, s)))
         tpl_ann
         (fun pl ->
            mkp k (Tpat_tuple pl)
-             ~pat_type:(newty (Ttuple (List.map (fun (l,p) -> (l,p.pat_type))
+             ~pat_type:(newty (Ttuple(List.map (fun (l,p,_) -> (l,p.pat_type))
                                          pl))))
   | Tpat_construct(cstr_lid, constr, targs, _) ->
       if constr.cstr_generalized && must_backtrack_on_gadt then
@@ -3757,7 +3813,7 @@ let rec is_nonexpansive exp =
         ) cases
   | Texp_probe {handler} -> is_nonexpansive handler
   | Texp_tuple (el, _) ->
-      List.for_all (fun (_,e) -> is_nonexpansive e) el
+      List.for_all (fun (_,e,_) -> is_nonexpansive e) el
   | Texp_construct(_, _, el, _) ->
       List.for_all is_nonexpansive el
   | Texp_variant(_, arg) -> is_nonexpansive_opt (Option.map fst arg)
@@ -4062,7 +4118,8 @@ let rec approx_type env sty =
       let mret = Alloc.newvar () in
       newty (Tarrow ((p,marg,mret), newmono arg, ret, commu_ok))
   | Ptyp_tuple args ->
-      newty (Ttuple (List.map (fun t -> None, approx_type env t) args))
+      let args = List.map (fun t -> None, approx_type env t) args in
+      newty (Ttuple args)
   | Ptyp_constr (lid, ctl) ->
       let path, decl = Env.lookup_type ~use:false ~loc:lid.loc lid.txt env in
       if List.length ctl <> decl.type_arity
@@ -4078,8 +4135,9 @@ and approx_type_jst env _attrs : Jane_syntax.Core_type.t -> _ = function
   | Jtyp_layout (Ltyp_poly _) -> approx_type_default ()
   | Jtyp_layout (Ltyp_alias _) -> approx_type_default ()
   | Jtyp_tuple args ->
-      newty
-        (Ttuple (List.map (fun (label, t) -> label, approx_type env t) args))
+      let args = List.map (fun (label, t) -> label, approx_type env t) args
+      in
+      newty (Ttuple args)
 
 let type_pattern_approx_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array _
@@ -4208,7 +4266,10 @@ and type_approx_aux_jane_syntax
 
 and type_tuple_approx (env: Env.t) loc ty_expected l =
   let labeled_tys = List.map
-    (fun (label, _) -> label, newvar (Jkind.value ~why:Tuple_element)) l
+    (fun (label, _) ->
+      label,
+      newvar (Jkind.value ~why:Element_of_representable_tuple))
+    l
   in
   let ty = newty (Ttuple labeled_tys) in
   begin try unify env ty ty_expected with Unify err ->
@@ -5006,22 +5067,32 @@ let vb_pat_constraint
   in
   vb.pvb_attributes, spat
 
-let pat_modes ~force_toplevel rec_mode_var (attrs, spat) =
+let pat_modes ~force_toplevel ~tuple_scrutinee rec_mode_var (attrs, spat) =
   let pat_mode, exp_mode =
     if force_toplevel
     then simple_pat_mode Value.legacy, mode_legacy
     else match rec_mode_var with
     | None -> begin
+        let materialized ~bound_as_ident =
+          bound_as_ident || not tuple_scrutinee
+        in
         match pat_tuple_arity spat with
-        | Not_local_tuple | Maybe_local_tuple ->
+        | Not_local_tuple ->
             let mode = Value.newvar () in
             simple_pat_mode mode, mode_default mode
-        | Local_tuple arity ->
+        | Maybe_local_tuple { bound_as_ident; _ } ->
+            let mode = Value.newvar () in
+            let tuple_materialized = materialized ~bound_as_ident in
+            simple_pat_mode mode ~tuple_materialized,
+            mode_default mode ~tuple_materialized
+        | Local_tuple { arity; bound_as_ident } ->
             let modes = List.init arity (fun _ -> Value.newvar ()) in
             let mode =
               value_regional_to_local (fst (Value.newvar_above (Value.join modes)))
             in
-            tuple_pat_mode mode modes, mode_tuple mode modes
+            let materialized = materialized ~bound_as_ident in
+            tuple_pat_mode mode modes ~materialized,
+            mode_tuple mode modes ~materialized
       end
     | Some mode ->
         simple_pat_mode mode, mode_default mode
@@ -5447,15 +5518,26 @@ and type_expect_
         exp_env = env }
   | Pexp_match(sarg, caselist) ->
       let arg_pat_mode, arg_expected_mode =
+        let tuple_scrutinee = Option.is_some (exp_tuple_arity sarg) in
+        let materialized ~bound_as_ident =
+          bound_as_ident || not tuple_scrutinee
+        in
         match cases_tuple_arity caselist with
-        | Not_local_tuple | Maybe_local_tuple ->
+        | Not_local_tuple ->
           let mode = Value.newvar () in
           simple_pat_mode mode, mode_default mode
-        | Local_tuple arity ->
+        | Maybe_local_tuple { bound_as_ident } ->
+          let mode = Value.newvar () in
+          let tuple_materialized = materialized ~bound_as_ident in
+          simple_pat_mode mode ~tuple_materialized,
+          mode_default mode ~tuple_materialized
+        | Local_tuple { arity; bound_as_ident } ->
           let modes = List.init arity (fun _ -> Value.newvar ()) in
           let mode, _ = Value.newvar_above (Value.join modes) in
           let mode = value_regional_to_local mode in
-          tuple_pat_mode mode modes, mode_tuple mode modes
+          let materialized = materialized ~bound_as_ident in
+          tuple_pat_mode mode modes ~materialized,
+          mode_tuple mode modes ~materialized
       in
       let arg, sort =
         with_local_level begin fun () ->
@@ -6255,7 +6337,8 @@ and type_expect_
         | [] -> spat_acc, ty_acc, ty_acc_sort
         | { pbop_pat = spat; _} :: rest ->
             (* CR layouts v5: eliminate value requirement *)
-            let ty = newvar (Jkind.value ~why:Tuple_element) in
+            let ty_jkind = Jkind.value ~why:Element_of_representable_tuple in
+            let ty = newvar ty_jkind in
             let loc = Location.ghostify slet.pbop_op.loc in
             let spat_acc = Ast_helper.Pat.tuple ~loc [spat_acc; spat] in
             let ty_acc = newty (Ttuple [None, ty_acc; None, ty]) in
@@ -6274,7 +6357,8 @@ and type_expect_
               | [] ->
                 Jkind.of_new_sort_var ~why:Function_argument
               (* CR layouts v5: eliminate value requirement for tuple elements *)
-              | _ -> Jkind.value ~why:Tuple_element, Jkind.Sort.value
+              | _ -> Jkind.value ~why:Element_of_representable_tuple,
+                     Jkind.Sort.value
             in
             loop slet.pbop_pat (newvar initial_jkind) initial_sort sands
           in
@@ -7716,34 +7800,50 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
   let arity = List.length sexpl in
   assert (arity >= 2);
   let alloc_mode, argument_mode = register_allocation_value_mode expected_mode.mode in
-  (* CR layouts v5: non-values in tuples *)
-  let labeled_subtypes =
-    List.map (fun (label, _) -> label,
-                                newgenvar (Jkind.value ~why:Tuple_element))
-    sexpl
+  (* CR layouts v5: proper support for non-values in tuples; not just
+     the [Element_of_local_tuple] hack.
+  *)
+  let make_jkind_and_sort =
+    if expected_mode.tuple_materialized then
+      (fun () ->
+        let jkind = Jkind.value ~why:Element_of_representable_tuple in
+        let sort = Jkind.Sort.for_element_of_representable_tuple in
+        jkind, sort)
+    else
+      (fun () -> Jkind.of_new_sort_var ~why:Element_of_local_tuple)
   in
-  let to_unify = newgenty (Ttuple labeled_subtypes) in
+  let labeled_subtypes =
+    List.map (fun (label, _) ->
+        let jkind, sort = make_jkind_and_sort () in
+        (label, newgenvar jkind, sort))
+      sexpl
+  in
+  let to_unify =
+    newgenty (Ttuple (List.map (fun (l, ty, _) -> l, ty) labeled_subtypes))
+  in
   with_explanation explanation (fun () ->
     unify_exp_types loc env to_unify (generic_instance ty_expected));
   let argument_modes =
     if List.compare_length_with expected_mode.tuple_modes arity = 0 then
       expected_mode.tuple_modes
-    else List.init arity (fun _ -> argument_mode)
+    else
+      List.init arity (fun _ -> argument_mode)
   in
   let types_and_modes = List.combine labeled_subtypes argument_modes in
   let expl =
     List.map2
-      (fun (label, body) ((_, ty), argument_mode) ->
-        let argument_mode = mode_default argument_mode in
-        let argument_mode = expect_mode_cross env ty argument_mode in
-          (label, type_expect env argument_mode body (mk_expected ty)))
+      (fun (label, body) ((_, ty, sort), argument_mode) ->
+         let argument_mode = mode_default argument_mode in
+         let argument_mode = expect_mode_cross env ty argument_mode in
+         (label, type_expect env argument_mode body (mk_expected ty), sort))
       sexpl types_and_modes
   in
   re {
     exp_desc = Texp_tuple (expl, alloc_mode);
     exp_loc = loc; exp_extra = [];
     (* Keep sharing *)
-    exp_type = newty (Ttuple (List.map (fun (label, e) -> label, e.exp_type) expl));
+    exp_type =
+      newty (Ttuple (List.map (fun (l, e, _) -> l, e.exp_type) expl));
     exp_attributes = attributes;
     exp_env = env }
 
@@ -8349,8 +8449,15 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
     | Recursive -> Some Value.legacy
     | Nonrecursive -> None
   in
-  let spatl = List.map vb_pat_constraint spat_sexp_list in
-  let spatl = List.map (pat_modes ~force_toplevel rec_mode_var) spatl in
+  let spatl =
+    List.map (fun vb ->
+        let spat = vb_pat_constraint vb in
+        let tuple_scrutinee =
+          Option.is_some (exp_tuple_arity (vb_exp_constraint vb))
+        in
+        pat_modes ~force_toplevel ~tuple_scrutinee rec_mode_var spat)
+      spat_sexp_list
+  in
   let attrs_list = List.map (fun (attrs, _, _, _) -> attrs) spatl in
   let is_recursive = (rec_flag = Recursive) in
 

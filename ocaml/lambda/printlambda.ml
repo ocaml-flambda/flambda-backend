@@ -307,16 +307,17 @@ let record_rep ppf r = match r with
   | Record_mixed _ -> fprintf ppf "mixed"
 
 let block_shape ppf shape = match shape with
-  | None | Some [] -> ()
-  | Some l when List.for_all ((=) Pgenval) l -> ()
-  | Some [elt] ->
+  | Representable | Representable_with_shape [] -> ()
+  | Representable_with_shape l when List.for_all ((=) Pgenval) l -> ()
+  | Representable_with_shape [elt] ->
       Format.fprintf ppf " (%a)" field_kind elt
-  | Some (h :: t) ->
+  | Representable_with_shape (h :: t) ->
       Format.fprintf ppf " (%a" field_kind h;
       List.iter (fun elt ->
           Format.fprintf ppf ",%a" field_kind elt)
         t;
       Format.fprintf ppf ")"
+  | Unrepresentable -> Format.fprintf ppf "<unrepresentable>"
 
 let flat_element ppf : flat_element -> unit = fun x ->
   pp_print_string ppf (Types.flat_element_to_lowercase_string x)

@@ -99,8 +99,12 @@ let convert_init_or_assign (i_or_a : L.initialization_or_assignment) :
 
 let convert_block_shape (shape : L.block_shape) ~num_fields =
   match shape with
-  | None -> List.init num_fields (fun _field -> K.With_subkind.any_value)
-  | Some shape ->
+  | Unrepresentable ->
+    Misc.fatal_error
+      "Flambda_arity.of_block_shape: unrepresentable block unexpectedly not \
+       optimized out by lambda"
+  | Representable -> List.init num_fields (fun _field -> K.With_subkind.any_value)
+  | Representable_with_shape shape ->
     let shape_length = List.length shape in
     if num_fields <> shape_length
     then

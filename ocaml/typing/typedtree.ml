@@ -87,7 +87,8 @@ and 'k pattern_desc =
   | Tpat_alias :
       value general_pattern * Ident.t * string loc * Uid.t * Mode.Value.l -> value pattern_desc
   | Tpat_constant : constant -> value pattern_desc
-  | Tpat_tuple : (string option * value general_pattern) list -> value pattern_desc
+  | Tpat_tuple : (string option * value general_pattern * Jkind.sort) list ->
+      value pattern_desc
   | Tpat_construct :
       Longident.t loc * constructor_description * value general_pattern list
       * (Ident.t loc list * core_type) option ->
@@ -153,7 +154,7 @@ and expression_desc =
         Mode.Locality.l * Zero_alloc_utils.Assume_info.t
   | Texp_match of expression * Jkind.sort * computation case list * partial
   | Texp_try of expression * value case list
-  | Texp_tuple of (string option * expression) list * Mode.Alloc.r
+  | Texp_tuple of (string option * expression * Jkind.sort) list * Mode.Alloc.r
   | Texp_construct of
       Longident.t loc * constructor_description * expression list * Mode.Alloc.r option
   | Texp_variant of label * (expression * Mode.Alloc.r) option
@@ -864,7 +865,7 @@ let shallow_iter_pattern_desc
   : type k . pattern_action -> k pattern_desc -> unit
   = fun f -> function
   | Tpat_alias(p, _, _, _, _) -> f.f p
-  | Tpat_tuple patl -> List.iter (fun (_, p) -> f.f p) patl
+  | Tpat_tuple patl -> List.iter (fun (_, p, _) -> f.f p) patl
   | Tpat_construct(_, _, patl, _) -> List.iter f.f patl
   | Tpat_variant(_, pat, _) -> Option.iter f.f pat
   | Tpat_record (lbl_pat_list, _) ->
@@ -886,7 +887,7 @@ let shallow_map_pattern_desc
   | Tpat_alias (p1, id, s, uid, m) ->
       Tpat_alias (f.f p1, id, s, uid, m)
   | Tpat_tuple pats ->
-      Tpat_tuple (List.map (fun (label, pat) -> label, f.f pat) pats)
+      Tpat_tuple (List.map (fun (label, pat, sort) -> label, f.f pat, sort) pats)
   | Tpat_record (lpats, closed) ->
       Tpat_record (List.map (fun (lid, l,p) -> lid, l, f.f p) lpats, closed)
   | Tpat_construct (lid, c, pats, ty) ->
@@ -999,9 +1000,7 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
       (* Cases where the inner things must be value: *)
       | Tpat_variant (_, pat, _) -> Option.iter (loop f Jkind.Sort.value) pat
       | Tpat_tuple patl ->
-        List.iter (fun (_, pat) -> loop f Jkind.Sort.value pat) patl
-        (* CR layouts v5: tuple case to change when we allow non-values in
-           tuples *)
+        List.iter (fun (_, pat, sort) -> loop f sort pat) patl
       | Tpat_array (_, arg_sort, patl) -> List.iter (loop f arg_sort) patl
       | Tpat_lazy p | Tpat_exception p -> loop f Jkind.Sort.value p
       (* Cases without variables: *)

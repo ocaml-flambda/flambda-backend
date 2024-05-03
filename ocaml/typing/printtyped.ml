@@ -340,9 +340,10 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
       pattern i ppf p1;
       pattern i ppf p2;
 
-and labeled_pattern : type k . _ -> _ -> string option * k general_pattern -> unit =
-  fun i ppf (label, x) ->
+and labeled_pattern : type k . _ -> _ -> _ * k general_pattern * _ -> unit =
+  fun i ppf (label, x, sort) ->
     tuple_component_label i ppf label;
+    line i ppf "%a\n" Jkind.Sort.format sort;
     pattern i ppf x
 
 and pattern_extra i ppf (extra_pat, _, attrs) =
@@ -1148,9 +1149,10 @@ and label_x_apply_arg i ppf (l, e) =
   arg_label (i+1) ppf l;
   (match e with Omitted _ -> () | Arg (e, _) -> expression (i+1) ppf e)
 
-and labeled_expression i ppf (l, e) =
+and labeled_expression i ppf (l, e, sort) =
   line i ppf "<tuple component>\n";
   tuple_component_label i ppf l;
+  line (i+1) ppf "%a\n" Jkind.Sort.format sort;
   expression (i+1) ppf e;
 
 and ident_x_expression_def i ppf (l, e) =

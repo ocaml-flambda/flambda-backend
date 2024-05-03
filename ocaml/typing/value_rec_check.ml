@@ -679,8 +679,17 @@ let rec expression : Typedtree.expression -> term_judg =
           else Dereference
         in
         join [expression e; list arg args] << app_mode
-    | Texp_tuple (exprs, _) ->
-      list expression (List.map snd exprs) << Guard
+    | Texp_tuple (elems, _) ->
+        let m =
+          if List.for_all (fun (_, _, sort) ->
+                match Jkind.Sort.get_default_value sort with
+                | Value | Void -> true
+                | Word | Bits32 | Bits64 | Float32 | Float64 -> false)
+              elems
+          then Guard
+          else Dereference
+        in
+        list expression (List.map Misc.snd3 elems) << m
     | Texp_array (_, elt_sort, exprs, _) ->
       list expression exprs << array_mode exp elt_sort
     | Texp_list_comprehension { comp_body; comp_clauses } ->

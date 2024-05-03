@@ -283,7 +283,7 @@ module Sort = struct
 
   let for_lazy_body = value
 
-  let for_tuple_element = value
+  let for_element_of_representable_tuple = value
 
   let for_variant_arg = value
 

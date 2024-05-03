@@ -993,7 +993,7 @@ let rec pattern_match_tuple pat values =
     Ienv.Extension.disjunct ext0 ext1, UF.choose uf0 uf1
   | Tpat_tuple pats ->
     List.map2
-      (fun (_, pat) value ->
+      (fun (_, pat, _) value ->
         let paths =
           match Value.paths value with
           | None -> Paths.fresh ()
@@ -1082,7 +1082,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     let uf_read = Paths.mark_implicit_borrow_memory_address Read occ paths in
     let ext, uf_args =
       List.mapi
-        (fun i (_, arg) ->
+        (fun i (_, arg, _) ->
           let paths = Paths.tuple_field i paths in
           pattern_match_single arg paths)
         args
@@ -1250,7 +1250,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     (* we don't know how much of e will be run; safe to assume all of them *)
     UF.seq uf_body uf_cases
   | Texp_tuple (es, _) ->
-    UF.pars (List.map (fun (_, e) -> check_uniqueness_exp ienv e) es)
+    UF.pars (List.map (fun (_, e, _) -> check_uniqueness_exp ienv e) es)
   | Texp_construct (_, _, es, _) ->
     UF.pars (List.map (fun e -> check_uniqueness_exp ienv e) es)
   | Texp_variant (_, None) -> UF.unused
@@ -1421,7 +1421,7 @@ and check_uniqueness_exp_for_match ienv exp : value_to_match * UF.t =
   | Texp_tuple (es, _) ->
     let values, ufs =
       List.split
-        (List.map (fun (_, e) -> check_uniqueness_exp_as_value ienv e) es)
+        (List.map (fun (_, e, _) -> check_uniqueness_exp_as_value ienv e) es)
     in
     Match_tuple values, UF.pars ufs
   | _ ->

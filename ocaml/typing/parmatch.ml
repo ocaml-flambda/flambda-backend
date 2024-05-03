@@ -64,6 +64,11 @@ let extra_pat =
       Uid.internal_not_actually_unique, Mode.Value.disallow_right Mode.Value.max))
     Ctype.none Env.empty
 
+let tuple_equal tup1 tup2 =
+  List.equal (fun (lbl1, sort1) (lbl2, sort2) ->
+      (lbl1 : string option) = lbl2
+      && Jkind.Sort.equate sort1 sort2)
+  tup1 tup2
 
 (*******************)
 (* Coherence check *)
@@ -176,7 +181,7 @@ let all_coherent column =
           | Const_unboxed_float32 _
           | Const_string _), _ -> false
       end
-    | Tuple l1, Tuple l2 -> l1 = l2
+    | Tuple tup1, Tuple tup2 -> tuple_equal tup1 tup2
     | Record (lbl1 :: _), Record (lbl2 :: _) ->
       Array.length lbl1.lbl_all = Array.length lbl2.lbl_all
     | Array (am1, _, _), Array (am2, _, _) -> am1 = am2
@@ -364,7 +369,7 @@ module Compat
 
   and tuple_compat labeled_ps labeled_qs = match labeled_ps,labeled_qs with
   | [], [] -> true
-  | (p_label, p)::labeled_ps, (q_label, q)::labeled_qs ->
+  | (p_label, p, _)::labeled_ps, (q_label, q, _)::labeled_qs ->
       Option.equal String.equal p_label q_label
       && compat p q && tuple_compat labeled_ps labeled_qs
   | _,_    -> false
@@ -415,7 +420,7 @@ let simple_match d h =
   | Constant c1, Constant c2 -> const_compare c1 c2 = 0
   | Lazy, Lazy -> true
   | Record _, Record _ -> true
-  | Tuple len1, Tuple len2 -> len1 = len2
+  | Tuple tup1, Tuple tup2 -> tuple_equal tup1 tup2
   | Array (am1, _, len1), Array (am2, _, len2) -> am1 = am2 && len1 = len2
   | _, Any -> true
   | _, _ -> false
@@ -540,10 +545,10 @@ let rec read_args xs r = match xs,r with
 
 let do_set_args ~erase_mutable q r = match q with
 | {pat_desc = Tpat_tuple omegas} ->
-    let args,rest = read_args (List.map snd omegas) r in
+    let args,rest = read_args (List.map snd3 omegas) r in
     make_pat
       (Tpat_tuple
-        (List.map2 (fun (lbl, _) arg -> lbl, arg) omegas args))
+        (List.map2 (fun (lbl, _, sort) arg -> lbl, arg, sort) omegas args))
       q.pat_type q.pat_env::rest
 | {pat_desc = Tpat_record (omegas,closed)} ->
     let args,rest = read_args omegas r in
@@ -903,7 +908,9 @@ let pats_of_type env ty =
   | Has_no_typedecl ->
       begin match get_desc (Ctype.expand_head env ty) with
         Ttuple tl ->
-          [make_pat (Tpat_tuple (List.map (fun (lbl, _) -> lbl, omega) tl))
+          [make_pat
+             (Tpat_tuple
+              (List.map (fun (lbl, _) -> lbl, omega, Jkind.Sort.new_var ()) tl))
             ty env]
       | _ -> [omega]
       end
@@ -1141,7 +1148,8 @@ let rec has_instance p = match p.pat_desc with
   | Tpat_or (p1,p2,_) -> has_instance p1 || has_instance p2
   | Tpat_construct (_,_,ps, _) | Tpat_array (_, _, ps) ->
       has_instances ps
-  | Tpat_tuple labeled_ps -> has_instances (List.map snd labeled_ps)
+  | Tpat_tuple labeled_ps ->
+      has_instances (List.map (fun (_, p, _) -> p) labeled_ps)
   | Tpat_record (lps,_) -> has_instances (List.map (fun (_,_,x) -> x) lps)
   | Tpat_lazy p
     -> has_instance p
@@ -1801,9 +1809,11 @@ and le_pats ps qs =
 
 and le_tuple_pats labeled_ps labeled_qs =
   match labeled_ps, labeled_qs with
-    (p_label, p)::labeled_ps, (q_label, q)::labeled_qs ->
+    (p_label, p, _p_sort)::labeled_ps, (q_label, q, _q_sort)::labeled_qs ->
       Option.equal String.equal p_label q_label
-      && le_pat p q && le_tuple_pats labeled_ps labeled_qs
+      && le_pat p q
+      (* && Jkind.Sort.equate p_sort q_sort *)
+      && le_tuple_pats labeled_ps labeled_qs
   | _, _ -> true
 
 let get_mins le ps =
@@ -1883,9 +1893,10 @@ and record_lubs l1 l2 =
 
 and tuple_lubs ps qs = match ps,qs with
 | [], [] -> []
-| (p_label, p)::ps, (q_label, q)::qs
-      when Option.equal String.equal p_label q_label ->
-    (p_label, lub p q) :: tuple_lubs ps qs
+| (p_label, p, p_sort)::ps, (q_label, q, _q_sort)::qs
+      when Option.equal String.equal p_label q_label
+        (* && Jkind.Sort.equate p_sort q_sort -> *) ->
+    (p_label, lub p q, p_sort) :: tuple_lubs ps qs
 | _,_ -> raise Empty
 
 and lubs ps qs = match ps,qs with
@@ -2031,7 +2042,7 @@ let rec collect_paths_from_pat r p = match p.pat_desc with
       ps
 | Tpat_any|Tpat_var _|Tpat_constant _| Tpat_variant (_,None,_) -> r
 | Tpat_tuple ps ->
-    List.fold_left (fun r (_, p) -> collect_paths_from_pat r p) r ps
+    List.fold_left (fun r (_, p, _) -> collect_paths_from_pat r p) r ps
 | Tpat_array (_, _, ps) | Tpat_construct (_, {cstr_tag=Extension _}, ps, _)->
     List.fold_left collect_paths_from_pat r ps
 | Tpat_record (lps,_) ->
@@ -2172,7 +2183,7 @@ let inactive ~partial pat =
             -> true
           end
         | Tpat_tuple ps ->
-            List.for_all (fun (_,p) -> loop p) ps
+            List.for_all (fun (_,p,_) -> loop p) ps
         | Tpat_construct (_, _, ps, _) | Tpat_array (Immutable, _, ps) ->
             List.for_all (fun p -> loop p) ps
         | Tpat_alias (p,_,_,_,_) | Tpat_variant (_, Some p, _) ->

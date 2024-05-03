@@ -853,6 +853,9 @@ end = struct
          ([@@layout_poly] forces all variables of layout 'any' to be@ \
          representable at call sites)"
     | Array_element -> fprintf ppf "it's the type of an array element"
+    | Element_of_local_tuple ->
+      fprintf ppf
+        "it's the type of an element of a tuple that need not be materialized"
 
   let rec format_annotation_context ppf : annotation_context -> unit = function
     | Type_declaration p ->
@@ -914,7 +917,8 @@ end = struct
   let format_value_creation_reason ppf : value_creation_reason -> _ = function
     | Class_let_binding ->
       fprintf ppf "it's the type of a let-bound variable in a class expression"
-    | Tuple_element -> fprintf ppf "it's the type of a tuple element"
+    | Element_of_representable_tuple ->
+      fprintf ppf "it's the type of a tuple element"
     | Probe -> format_with_notify_js ppf "it's a probe"
     | Object -> fprintf ppf "it's the type of an object"
     | Instance_variable -> fprintf ppf "it's the type of an instance variable"
@@ -1277,6 +1281,7 @@ module Debug_printers = struct
     | Optional_arg_default -> fprintf ppf "Optional_arg_default"
     | Layout_poly_in_external -> fprintf ppf "Layout_poly_in_external"
     | Array_element -> fprintf ppf "Array_element"
+    | Element_of_local_tuple -> fprintf ppf "Element_of_local_tuple"
 
   let rec annotation_context ppf : annotation_context -> unit = function
     | Type_declaration p -> fprintf ppf "Type_declaration %a" Path.print p
@@ -1317,7 +1322,8 @@ module Debug_printers = struct
 
   let value_creation_reason ppf : value_creation_reason -> _ = function
     | Class_let_binding -> fprintf ppf "Class_let_binding"
-    | Tuple_element -> fprintf ppf "Tuple_element"
+    | Element_of_representable_tuple ->
+      fprintf ppf "Element_of_representable_tuple"
     | Probe -> fprintf ppf "Probe"
     | Object -> fprintf ppf "Object"
     | Instance_variable -> fprintf ppf "Instance_variable"
