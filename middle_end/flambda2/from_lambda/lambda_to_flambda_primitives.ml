@@ -1000,6 +1000,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
     let tag = Tag.Scannable.create_exn tag in
+    let shape = P.Mixed_block_kind.from_lambda shape in
     [Variadic (Make_mixed_block (tag, shape, mutability, mode), args)]
   | Pmakearray (lambda_array_kind, mutability, mode), _ -> (
     let args = List.flatten args in
@@ -1422,7 +1423,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         | Mread_flat_suffix read ->
           Flat_suffix
             (match read with
-            | Flat_read flat_element -> flat_element
+            | Flat_read flat_element ->
+              P.Mixed_block_flat_element.from_lambda flat_element
             | Flat_read_float _ -> Float)
       in
       Mixed { tag = Unknown; field_kind; size = Unknown }
@@ -1483,7 +1485,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             | Mwrite_value_prefix immediate_or_pointer ->
               Value_prefix
                 (convert_block_access_field_kind immediate_or_pointer)
-            | Mwrite_flat_suffix flat -> Flat_suffix flat);
+            | Mwrite_flat_suffix flat ->
+              Flat_suffix (P.Mixed_block_flat_element.from_lambda flat));
           size = Unknown;
           tag = Unknown
         }

@@ -156,6 +156,7 @@ let make_mixed_block ~dbg tag shape alloc_mode args =
   check_alloc_fields args;
   let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
   let tag = Tag.Scannable.to_int tag in
+  let shape = P.Mixed_block_kind.to_lambda shape in
   C.make_mixed_alloc ~mode dbg tag shape args
 
 let array_length ~dbg arr (kind : P.Array_kind.t) =

@@ -467,7 +467,7 @@ let block_access_kind ppf (access_kind : block_access_kind) =
     | Value_prefix Immediate -> Format.fprintf ppf "@ imm"
     | Flat_suffix flat ->
       Format.fprintf ppf "@ %s"
-        (String.lowercase_ascii (Types.flat_element_to_string flat))
+        (Flambda_primitive.Mixed_block_flat_element.to_string flat)
   in
   match access_kind with
   | Values { field_kind; tag; size } ->

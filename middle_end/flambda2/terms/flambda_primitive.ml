@@ -58,21 +58,94 @@ module Block_kind = struct
     match t with Values _ -> K.value | Naked_floats -> K.naked_float
 end
 
-module Mixed_block_kind = struct
-  type t = Lambda.mixed_block_shape
+module Mixed_block_flat_element = struct
+  type t =
+    | Imm
+    | Float
+    | Float64
+    | Bits32
+    | Bits64
+    | Word
 
-  let print_flat_element ppf (e : Lambda.flat_element) =
-    Format.fprintf ppf "%s" (Types.flat_element_to_string e)
+  let from_lambda : Lambda.flat_element -> t = function
+    | Imm -> Imm
+    | Float -> Float
+    | Float64 -> Float64
+    | Bits32 -> Bits32
+    | Bits64 -> Bits64
+    | Word -> Word
+
+  let to_lambda : t -> Lambda.flat_element = function
+    | Imm -> Imm
+    | Float -> Float
+    | Float64 -> Float64
+    | Bits32 -> Bits32
+    | Bits64 -> Bits64
+    | Word -> Word
+
+  let to_string = function
+    | Imm -> "Imm"
+    | Float -> "Float"
+    | Float64 -> "Float64"
+    | Bits32 -> "Bits32"
+    | Bits64 -> "Bits64"
+    | Word -> "Word"
+
+  let compare t1 t2 =
+    match t1, t2 with
+    | Imm, Imm
+    | Float, Float
+    | Float64, Float64
+    | Word, Word
+    | Bits32, Bits32
+    | Bits64, Bits64 ->
+      0
+    | Imm, _ -> -1
+    | _, Imm -> 1
+    | Float, _ -> -1
+    | _, Float -> 1
+    | Float64, _ -> -1
+    | _, Float64 -> 1
+    | Word, _ -> -1
+    | _, Word -> 1
+    | Bits32, _ -> -1
+    | _, Bits32 -> 1
+
+  let print ppf t = Format.fprintf ppf "%s" (to_string t)
+
+  let element_kind = function
+    | Imm -> K.value
+    | Float | Float64 -> K.naked_float
+    | Bits32 -> K.naked_int32
+    | Bits64 -> K.naked_int64
+    | Word -> K.naked_nativeint
+end
+
+module Mixed_block_kind = struct
+  type t =
+    { value_prefix_len : int;
+      (* We use an array just so we can index into the middle. *)
+      flat_suffix : Mixed_block_flat_element.t array
+    }
+
+  let from_lambda { Lambda.value_prefix_len; flat_suffix } =
+    { value_prefix_len;
+      flat_suffix = Array.map Mixed_block_flat_element.from_lambda flat_suffix
+    }
+
+  let to_lambda { value_prefix_len; flat_suffix } : Lambda.mixed_block_shape =
+    { value_prefix_len;
+      flat_suffix = Array.map Mixed_block_flat_element.to_lambda flat_suffix
+    }
 
   let print ppf ({ value_prefix_len; flat_suffix } : t) =
     Format.fprintf ppf "[|@ ";
     Format.fprintf ppf "Value (x%d);@ " value_prefix_len;
     Array.iter
-      (fun elem -> Format.fprintf ppf "%a;@ " print_flat_element elem)
+      (fun elem ->
+        Format.fprintf ppf "%a;@ " Mixed_block_flat_element.print elem)
       flat_suffix;
     Format.fprintf ppf "|]"
-
-  let compare_flat_element = Types.compare_flat_element
 
   let compare (t1 : t) (t2 : t) =
     let components (t : t) =
@@ -82,24 +155,18 @@ module Mixed_block_kind = struct
     let v1, a1 = components t1 in
     let v2, a2 = components t2 in
     match Int.compare v1 v2 with
-    | 0 -> Misc.Stdlib.Array.compare compare_flat_element a1 a2
+    | 0 -> Misc.Stdlib.Array.compare Mixed_block_flat_element.compare a1 a2
     | cmp -> cmp
 
   let length ({ value_prefix_len; flat_suffix } : t) =
     value_prefix_len + Array.length flat_suffix
 
-  let flat_element_kind (flat_element : Lambda.flat_element) =
-    match flat_element with
-    | Imm -> K.value
-    | Float | Float64 -> K.naked_float
-    | Bits32 -> K.naked_int32
-    | Bits64 -> K.naked_int64
-    | Word -> K.naked_nativeint
-
-  let element_kind i (shape : t) =
-    match Lambda.get_mixed_block_element shape i with
-    | Value_prefix -> K.value
-    | Flat_suffix flat_element -> flat_element_kind flat_element
+  let element_kind i { value_prefix_len; flat_suffix } =
+    if i < 0 then Misc.fatal_errorf "Negative index: %d" i;
+    if i < value_prefix_len
+    then K.value
+    else
+      Mixed_block_flat_element.element_kind flat_suffix.(i - value_prefix_len)
 
   let fold_left f init t =
     let result = ref init in
@@ -371,7 +438,7 @@ end
 module Mixed_block_access_field_kind = struct
   type t =
     | Value_prefix of Block_access_field_kind.t
-    | Flat_suffix of Lambda.flat_element
+    | Flat_suffix of Mixed_block_flat_element.t
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
@@ -386,20 +453,20 @@ module Mixed_block_access_field_kind = struct
           "@[<hov 1>(Flat_suffix \
            @[<hov 1>(flat_element@ %a)@]\
            )@]"
-          Printlambda.flat_element flat_element
+          Mixed_block_flat_element.print flat_element
 
   let compare t1 t2 =
     match t1, t2 with
     | Value_prefix field_kind1, Value_prefix field_kind2 ->
       Block_access_field_kind.compare field_kind1 field_kind2
     | Flat_suffix element_kind1, Flat_suffix element_kind2 ->
-      Stdlib.compare element_kind1 element_kind2
+      Mixed_block_flat_element.compare element_kind1 element_kind2
     | Value_prefix _, Flat_suffix _ -> -1
     | Flat_suffix _, Value_prefix _ -> 1
 
   let to_element_kind = function
     | Value_prefix _ -> K.value
-    | Flat_suffix flat -> Mixed_block_kind.flat_element_kind flat
+    | Flat_suffix flat -> Mixed_block_flat_element.element_kind flat
 end
 
 module Block_access_kind = struct
@@ -1801,7 +1868,7 @@ type variadic_primitive =
   | Make_array of Array_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_mixed_block of
       Tag.Scannable.t
-      * Lambda.mixed_block_shape
+      * Mixed_block_kind.t
       * Mutability.t
       * Alloc_mode.For_allocations.t
 
