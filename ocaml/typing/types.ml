@@ -38,7 +38,7 @@ and type_expr = transient_expr
 and type_desc =
   | Tvar of { name : string option; jkind : jkind }
   | Tarrow of arrow_desc * type_expr * type_expr * commutable
-  | Ttuple of (string option * type_expr) list
+  | Ttuple of (string option * type_expr * Jkind.sort) list
   | Tconstr of Path.t * type_expr list * abbrev_memo ref
   | Tobject of type_expr * (Path.t * type_expr list) option ref
   | Tfield of string * field_kind * type_expr * type_expr
@@ -1183,3 +1183,6 @@ let undo_compress (changes, _old) =
             Transient_expr.set_desc ty desc; r := !next
         | _ -> ())
         log
+
+let dummy_type_list tys =
+  Ttuple (List.map (fun ty -> None, ty, Jkind.Sort.value) tys)

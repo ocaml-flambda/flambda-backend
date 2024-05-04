@@ -1263,7 +1263,7 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
     Tpat_alias(p1,_, _, _, _) -> build_as_type_and_mode ~refine ~mode env p1
   | Tpat_tuple pl ->
       let labeled_tyl =
-        List.map (fun (label, p, _) -> label, build_as_type env p) pl
+        List.map (fun (label, p, sort) -> label, build_as_type env p, sort) pl
       in
       newty (Ttuple labeled_tyl), mode
   | Tpat_construct(_, cstr, pl, vto) ->
@@ -1403,7 +1403,7 @@ let extract_or_mk_pat label rem closed =
     [closed] flag to the typedtree)
    *)
 let reorder_pat loc env patl closed labeled_tl expected_ty =
-  let take_next (taken, rem) (label, _) =
+  let take_next (taken, rem) (label, _, _) =
     match extract_or_mk_pat label rem closed with
     | Some (pat, rem) -> (label, pat) :: taken, rem
     | None ->
@@ -1445,7 +1445,8 @@ let solve_Ppat_tuple ~refine ~alloc_mode loc env args expected_ty =
       args arg_modes
   in
   let ty =
-    newgenty (Ttuple (List.map (fun (lbl, _, t, _, _) -> lbl, t) ann))
+    newgenty
+      (Ttuple (List.map (fun (lbl, _, t, sort, _) -> lbl, t, sort) ann))
   in
   let expected_ty = generic_instance expected_ty in
   unify_pat_types ~refine loc env ty expected_ty;
@@ -1483,9 +1484,11 @@ let solve_constructor_annotation tps env name_list sty ty_args ty_ex =
         [ty2]
     | _ ->
         unify_pat_types cty.ctyp_loc env ty1
-          (newty (Ttuple (List.map (fun t -> None, t) ty_args)));
+          (newty
+            (Ttuple
+              (List.map (fun t -> None, t, Jkind.Sort.new_var ()) ty_args)));
         match get_desc (expand_head !env ty2) with
-          Ttuple tyl -> (List.map snd tyl)
+          Ttuple tyl -> (List.map snd3 tyl)
         | _ -> assert false
   in
   if ids <> [] then ignore begin
@@ -2441,7 +2444,7 @@ and type_pat_aux
       pat_desc = Tpat_tuple pl;
       pat_loc = loc; pat_extra=[];
       pat_type =
-        newty (Ttuple (List.map (fun (lbl, p, _) -> lbl, p.pat_type) pl));
+        newty (Ttuple (List.map (fun (lbl, p, s) -> lbl, p.pat_type, s) pl));
       pat_attributes = sp.ppat_attributes;
       pat_env = !env }
   in
@@ -3224,7 +3227,7 @@ let rec check_counter_example_pat
         tpl_ann
         (fun pl ->
            mkp k (Tpat_tuple pl)
-             ~pat_type:(newty (Ttuple(List.map (fun (l,p,_) -> (l,p.pat_type))
+             ~pat_type:(newty (Ttuple(List.map (fun (l,p,s) -> (l,p.pat_type,s))
                                          pl))))
   | Tpat_construct(cstr_lid, constr, targs, _) ->
       if constr.cstr_generalized && must_backtrack_on_gadt then
@@ -4118,7 +4121,13 @@ let rec approx_type env sty =
       let mret = Alloc.newvar () in
       newty (Tarrow ((p,marg,mret), newmono arg, ret, commu_ok))
   | Ptyp_tuple args ->
-      let args = List.map (fun t -> None, approx_type env t) args in
+      let args =
+        List.map
+          (fun t ->
+            None, approx_type env t,
+            Jkind.Sort.for_element_of_representable_tuple)
+          args
+      in
       newty (Ttuple args)
   | Ptyp_constr (lid, ctl) ->
       let path, decl = Env.lookup_type ~use:false ~loc:lid.loc lid.txt env in
@@ -4135,7 +4144,12 @@ and approx_type_jst env _attrs : Jane_syntax.Core_type.t -> _ = function
   | Jtyp_layout (Ltyp_poly _) -> approx_type_default ()
   | Jtyp_layout (Ltyp_alias _) -> approx_type_default ()
   | Jtyp_tuple args ->
-      let args = List.map (fun (label, t) -> label, approx_type env t) args
+      let args =
+        List.map
+          (fun (label, t) ->
+            label, approx_type env t,
+            Jkind.Sort.for_element_of_representable_tuple)
+          args
       in
       newty (Ttuple args)
 
@@ -4268,15 +4282,15 @@ and type_tuple_approx (env: Env.t) loc ty_expected l =
   let labeled_tys = List.map
     (fun (label, _) ->
       label,
-      newvar (Jkind.value ~why:Element_of_representable_tuple))
-    l
+      newvar (Jkind.value ~why:Element_of_representable_tuple),
+      Jkind.Sort.for_element_of_representable_tuple) l
   in
   let ty = newty (Ttuple labeled_tys) in
   begin try unify env ty ty_expected with Unify err ->
     raise(Error(loc, env, Expr_type_clash (err, None, None)))
   end;
   List.iter2
-    (fun (_, e) (_, ty) -> type_approx env e ty)
+    (fun (_, e) (_, ty, _) -> type_approx env e ty)
     l labeled_tys
 
 and type_approx_function =
@@ -6338,10 +6352,11 @@ and type_expect_
         | { pbop_pat = spat; _} :: rest ->
             (* CR layouts v5: eliminate value requirement *)
             let ty_jkind = Jkind.value ~why:Element_of_representable_tuple in
+            let ty_sort = Jkind.sort_of_jkind ty_jkind in
             let ty = newvar ty_jkind in
             let loc = Location.ghostify slet.pbop_op.loc in
             let spat_acc = Ast_helper.Pat.tuple ~loc [spat_acc; spat] in
-            let ty_acc = newty (Ttuple [None, ty_acc; None, ty]) in
+            let ty_acc = newty (Ttuple [None, ty_acc, ty_acc_sort; None, ty, ty_sort]) in
             loop spat_acc ty_acc Jkind.Sort.value rest
       in
       let op_path, op_desc, op_type, spat_params, ty_params, param_sort,
@@ -7818,9 +7833,7 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
         (label, newgenvar jkind, sort))
       sexpl
   in
-  let to_unify =
-    newgenty (Ttuple (List.map (fun (l, ty, _) -> l, ty) labeled_subtypes))
-  in
+  let to_unify = newgenty (Ttuple labeled_subtypes) in
   with_explanation explanation (fun () ->
     unify_exp_types loc env to_unify (generic_instance ty_expected));
   let argument_modes =
@@ -7843,7 +7856,7 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
     exp_loc = loc; exp_extra = [];
     (* Keep sharing *)
     exp_type =
-      newty (Ttuple (List.map (fun (l, e, _) -> l, e.exp_type) expl));
+      newty (Ttuple (List.map (fun (l, e, s) -> l, e.exp_type, s) expl));
     exp_attributes = attributes;
     exp_env = env }
 

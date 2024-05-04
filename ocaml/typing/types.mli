@@ -84,7 +84,7 @@ and type_desc =
       See [commutable] for the last argument. The argument
       type must be a [Tpoly] node *)
 
-  | Ttuple of (string option * type_expr) list
+  | Ttuple of (string option * type_expr * Jkind.sort) list
   (** [Ttuple [None, t1; ...; None, tn]] ==> [t1 * ... * tn]
       [Ttuple [Some "l1", t1; ...; Some "ln", tn]] ==> [l1:t1 * ... * ln:tn]
 
@@ -936,3 +936,5 @@ val set_univar: type_expr option ref -> type_expr -> unit
 val link_kind: inside:field_kind -> field_kind -> unit
 val link_commu: inside:commutable -> commutable -> unit
 val set_commu_ok: commutable -> unit
+
+val dummy_type_list: type_expr list -> type_desc

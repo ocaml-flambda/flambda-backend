@@ -910,7 +910,7 @@ let pats_of_type env ty =
         Ttuple tl ->
           [make_pat
              (Tpat_tuple
-              (List.map (fun (lbl, _) -> lbl, omega, Jkind.Sort.new_var ()) tl))
+              (List.map (fun (lbl, _, sort) -> lbl, omega, sort) tl))
             ty env]
       | _ -> [omega]
       end

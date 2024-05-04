@@ -416,22 +416,27 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
           value_kind_of_value_jkind decl.type_jkind
         | Type_open -> num_nodes_visited, Pgenval
     end
-  | Ttuple labeled_fields ->
+  | Ttuple fields ->
     if cannot_proceed () then
+      num_nodes_visited, Pgenval
+    else if
+      List.exists
+        (fun (_, _, sort) ->
+          Jkind.Sort.get_default_value sort <> Jkind.Sort.Value)
+        fields
+    then
+      (* CR layouts v5: We should do better than this when we properly support
+         tuples of unboxed things. *)
       num_nodes_visited, Pgenval
     else
       fallback_if_missing_cmi ~default:(num_nodes_visited, Pgenval) (fun () ->
         let visited = Numbers.Int.Set.add (get_id ty) visited in
         let depth = depth + 1 in
         let num_nodes_visited, fields =
-          List.fold_left_map (fun num_nodes_visited (_, field) ->
+          List.fold_left_map (fun num_nodes_visited (_, field, _) ->
             let num_nodes_visited = num_nodes_visited + 1 in
-            (* CR layouts v5 - this is fine because voids are not allowed in
-               tuples.  When they are, we'll need to make sure that elements
-               are values before recurring.
-            *)
             value_kind env ~loc ~visited ~depth ~num_nodes_visited field)
-            num_nodes_visited labeled_fields
+            num_nodes_visited fields
         in
         num_nodes_visited,
         Pvariant { consts = []; non_consts = [0, Constructor_uniform fields] })

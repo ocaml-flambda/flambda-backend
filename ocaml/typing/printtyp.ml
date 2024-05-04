@@ -617,7 +617,7 @@ let rec raw_type ppf ty =
     fprintf ppf "@[<1>{id=%d;level=%d;scope=%d;desc=@,%a}@]" ty.id ty.level
       ty.scope raw_type_desc ty.desc
   end
-and labeled_type ppf (label, ty) =
+and tuple_elem ppf (label, ty, _) =
   begin match label with
     | Some s -> fprintf ppf "label=\"%s\" " s
     | None -> ()
@@ -625,7 +625,7 @@ and labeled_type ppf (label, ty) =
   raw_type ppf ty
 
 and raw_type_list tl = raw_list raw_type tl
-and labeled_type_list tl = raw_list labeled_type tl
+and tuple_elem_list tl = raw_list tuple_elem tl
 and raw_lid_type_list tl =
   raw_list (fun ppf (lid, typ) ->
              fprintf ppf "(@,%a,@,%a)" longident lid raw_type typ)
@@ -642,7 +642,7 @@ and raw_type_desc ppf = function
         raw_type t1 raw_type t2
         (if is_commu_ok c then "Cok" else "Cunknown")
   | Ttuple tl ->
-      fprintf ppf "@[<1>Ttuple@,%a@]" labeled_type_list tl
+      fprintf ppf "@[<1>Ttuple@,%a@]" tuple_elem_list tl
   | Tconstr (p, tl, abbrev) ->
       fprintf ppf "@[<hov1>Tconstr(@,%a,@,%a,@,%a)@]" path p
         raw_type_list tl
@@ -1452,7 +1452,7 @@ and tree_of_typlist mode tyl =
   List.map (tree_of_typexp mode Alloc.Const.legacy) tyl
 
 and tree_of_labeled_typlist mode tyl =
-  List.map (fun (label, ty) -> label, tree_of_typexp mode Alloc.Const.legacy ty) tyl
+  List.map (fun (label, ty, _) -> label, tree_of_typexp mode Alloc.Const.legacy ty) tyl
 
 and tree_of_typ_gf (ty, gf) =
   let gf =
@@ -1592,11 +1592,11 @@ let filter_params tyl =
     List.fold_left
       (fun tyl ty ->
         if List.exists (eq_type ty) tyl
-        then newty2 ~level:generic_level (Ttuple [None, ty]) :: tyl
+        then newty2 ~level:generic_level (dummy_type_list [ty]) :: tyl
         else ty :: tyl)
       (* Two parameters might be identical due to a constraint but we need to
          print them differently in order to make the output syntactically valid.
-         We use [Ttuple [ty]] because it is printed as [ty]. *)
+         We use [dummy_type_list [ty]] because it is printed as [ty]. *)
       (* Replacing fold_left by fold_right does not work! *)
       [] tyl
   in List.rev params
