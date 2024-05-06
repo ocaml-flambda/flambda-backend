@@ -145,7 +145,7 @@ type primitive =
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
-  | Pmakemixedblock of mutable_flag * mixed_block_shape * alloc_mode
+  | Pmakemixedblock of int * mutable_flag * mixed_block_shape * alloc_mode
   | Pfield of int * immediate_or_pointer * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
@@ -354,7 +354,7 @@ and mixed_block_write =
   | Mwrite_value_prefix of immediate_or_pointer
   | Mwrite_flat_suffix of flat_element
 
-and mixed_block_shape = Types.mixed_record_shape =
+and mixed_block_shape = Types.mixed_product_shape =
   { value_prefix_len : int;
     flat_suffix : flat_element array;
   }
@@ -838,7 +838,11 @@ let layout_block = Pvalue Pgenval
 let layout_list =
   Pvalue (Pvariant { consts = [0] ;
                      non_consts = [0, Constructor_uniform [Pgenval; Pgenval]] })
-let layout_field = Pvalue Pgenval
+let layout_tuple_element = Pvalue Pgenval
+let layout_value_field = Pvalue Pgenval
+let layout_tmc_field = Pvalue Pgenval
+let layout_optional_arg = Pvalue Pgenval
+let layout_variant_arg = Pvalue Pgenval
 let layout_exception = Pvalue Pgenval
 let layout_function = Pvalue Pgenval
 let layout_object = Pvalue Pgenval
@@ -1239,17 +1243,17 @@ let transl_prim mod_name name =
   | exception Not_found ->
       fatal_error ("Primitive " ^ name ^ " not found.")
 
-let transl_mixed_record_shape : Types.mixed_record_shape -> mixed_block_shape =
+let transl_mixed_product_shape : Types.mixed_product_shape -> mixed_block_shape =
   fun x -> x
 
 let count_mixed_block_values_and_floats =
   Types.count_mixed_record_values_and_floats
 
-type mixed_block_element = Types.mixed_record_element =
+type mixed_block_element = Types.mixed_product_element =
   | Value_prefix
   | Flat_suffix of flat_element
 
-let get_mixed_block_element = Types.get_mixed_record_element
+let get_mixed_block_element = Types.get_mixed_product_element
 
 (* Compile a sequence of expressions *)
 
@@ -1623,7 +1627,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pmakeblock (_, _, _, m) -> Some m
   | Pmakefloatblock (_, m) -> Some m
   | Pmakeufloatblock (_, m) -> Some m
-  | Pmakemixedblock (_, _, m) -> Some m
+  | Pmakemixedblock (_, _, _, m) -> Some m
   | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _ -> None
   | Pfloatfield (_, _, m) -> Some m
   | Pufloatfield _ -> None
@@ -1770,7 +1774,7 @@ let array_ref_kind_result_layout = function
   | Pintarray_ref -> layout_int
   | Pfloatarray_ref _ -> layout_boxed_float Pfloat64
   | Punboxedfloatarray_ref bf -> layout_unboxed_float bf
-  | Pgenarray_ref _ | Paddrarray_ref -> layout_field
+  | Pgenarray_ref _ | Paddrarray_ref -> layout_value_field
   | Punboxedintarray_ref Pint32 -> layout_unboxed_int32
   | Punboxedintarray_ref Pint64 -> layout_unboxed_int64
   | Punboxedintarray_ref Pnativeint -> layout_unboxed_nativeint
@@ -1793,7 +1797,7 @@ let primitive_result_layout (p : primitive) =
   | Pmakeblock _ | Pmakefloatblock _ | Pmakearray _ | Pduprecord _
   | Pmakeufloatblock _ | Pmakemixedblock _
   | Pduparray _ | Pbigarraydim _ | Pobj_dup -> layout_block
-  | Pfield _ | Pfield_computed _ -> layout_field
+  | Pfield _ | Pfield_computed _ -> layout_value_field
   | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)
   | Pmake_unboxed_product layouts -> layout_unboxed_product layouts
   | Pfloatfield _ -> layout_boxed_float Pfloat64
@@ -1806,7 +1810,7 @@ let primitive_result_layout (p : primitive) =
   | Punbox_float float_kind -> Punboxed_float float_kind
   | Pmixedfield (_, kind, _) -> begin
       match kind with
-      | Mread_value_prefix _ -> layout_field
+      | Mread_value_prefix _ -> layout_value_field
       | Mread_flat_suffix proj -> begin
           match proj with
           | Flat_read_imm -> layout_int

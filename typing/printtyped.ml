@@ -186,9 +186,11 @@ let tag ppf = let open Types in function
 let variant_representation i ppf = let open Types in function
   | Variant_unboxed ->
     line i ppf "Variant_unboxed\n"
-  | Variant_boxed jkinds ->
+  | Variant_boxed cstrs ->
     line i ppf "Variant_boxed %a\n"
-      (array (i+1) (fun _ ppf -> jkind_array (i+1) ppf)) jkinds
+      (array (i+1) (fun _ ppf (_cstr, jkinds) ->
+         jkind_array (i+1) ppf jkinds))
+      cstrs
   | Variant_extensible -> line i ppf "Variant_inlined\n"
 
 let flat_element i ppf = let open Types in function

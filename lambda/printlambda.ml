@@ -415,15 +415,15 @@ let primitive ppf = function
   | Pmakeufloatblock (Mutable, mode) ->
      fprintf ppf "make%sufloatblock Mutable"
         (alloc_mode_if_local mode)
-  | Pmakemixedblock (Immutable, abs, mode) ->
-      fprintf ppf "make%amixedblock Immutable%a"
-        alloc_mode mode mixed_block_shape abs
-  | Pmakemixedblock (Immutable_unique, abs, mode) ->
-     fprintf ppf "make%amixedblock Immutable_unique%a"
-        alloc_mode mode mixed_block_shape abs
-  | Pmakemixedblock (Mutable, abs, mode) ->
-     fprintf ppf "make%amixedblock Mutable%a"
-        alloc_mode mode mixed_block_shape abs
+  | Pmakemixedblock (tag, Immutable, abs, mode) ->
+      fprintf ppf "make%amixedblock %i Immutable%a"
+        alloc_mode mode tag mixed_block_shape abs
+  | Pmakemixedblock (tag, Immutable_unique, abs, mode) ->
+     fprintf ppf "make%amixedblock %i Immutable_unique%a"
+        alloc_mode mode tag mixed_block_shape abs
+  | Pmakemixedblock (tag, Mutable, abs, mode) ->
+     fprintf ppf "make%amixedblock %i Mutable%a"
+        alloc_mode mode tag mixed_block_shape abs
   | Pfield (n, ptr, sem) ->
       let instr =
         match ptr, sem with

@@ -39,7 +39,7 @@ type primitive =
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
-  | Pmakemixedblock of mutable_flag * Lambda.mixed_block_shape * alloc_mode
+  | Pmakemixedblock of int * mutable_flag * Lambda.mixed_block_shape * alloc_mode
   | Pfield of int * layout * immediate_or_pointer * mutable_flag
   | Pfield_computed
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
@@ -260,7 +260,7 @@ let result_layout (p : primitive) =
   | Pmakeufloatblock _ | Pmakemixedblock _
   | Pduparray _ | Pbigarraydim _ -> Lambda.layout_block
   | Pfield _ | Pfield_computed | Pmixedfield (_, Mread_value_prefix _) ->
-      Lambda.layout_field
+      Lambda.layout_value_field
   | Pfloatfield _ -> Lambda.layout_boxed_float Pfloat64
   | Pfloatofint (bf, _)
   | Pnegfloat (bf, _) | Pabsfloat (bf, _)

@@ -5732,7 +5732,7 @@ and type_expect_
           match label.lbl_repres with
           | Record_float -> true
           | Record_mixed mixed -> begin
-              match Types.get_mixed_record_element mixed label.lbl_num with
+              match Types.get_mixed_product_element mixed label.lbl_num with
               | Flat_suffix Float -> true
               | Flat_suffix (Float64 | Imm) -> false
               | Value_prefix -> false
