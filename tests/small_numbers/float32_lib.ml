@@ -233,7 +233,19 @@ let () =
     let cm, ci = CF32.frexp f in
     bit_eq m cm;
     assert (i = ci)
-  )
+  );
+  let m, i = F32.frexp 0.0s in
+  assert (m = 0.0s && i = 0);
+  let m, i = F32.frexp 1.0s in
+  assert (m = 0.5s && i = 1);
+  let m, i = F32.frexp (-1.0s) in
+  assert (m = (-0.5s) && i = 1);
+  let m, i = F32.frexp 0.5s in
+  assert (m = 0.5s && i = 0);
+  let m, i = F32.frexp (-0.5s) in
+  assert (m = (-0.5s) && i = 0);
+  let m, i = F32.frexp (1024.0s) in
+  assert (m = (0.5s) && i = 11);
 ;;
 
 let () =
@@ -242,7 +254,19 @@ let () =
     let cf1, cf2 = CF32.modf f in
     bit_eq f1 cf1;
     bit_eq f2 cf2
-  )
+  );
+  let f1, f2 = F32.modf 0.0s in
+  assert (f1 = 0.0s && f2 = 0.0s);
+  let f1, f2 = F32.modf 1.0s in
+  assert (f1 = 0.0s && f2 = 1.0s);
+  let f1, f2 = F32.modf (-1.0s) in
+  assert (f1 = 0.0s && f2 = (-1.0s));
+  let f1, f2 = F32.modf 0.5s in
+  assert (f1 = 0.5s && f2 = 0.0s);
+  let f1, f2 = F32.modf (-0.5s) in
+  assert (f1 = (-0.5s) && f2 = 0.0s);
+  let f1, f2 = F32.modf (1024.0s) in
+  assert (f1 = 0.0s && f2 = 1024.0s)
 ;;
 
 let () =
@@ -269,7 +293,19 @@ let () =
     let cf = CF32.ldexp f i in
     let f = F32.ldexp f i in
     bit_eq f cf
-  )
+  );
+  let f = F32.ldexp 0.0s 0 in
+  assert (f = 0.0s);
+  let f = F32.ldexp 1.0s 1 in
+  assert (f = 2.0s);
+  let f = F32.ldexp (-1.0s) 1 in
+  assert (f = (-2.0s));
+  let f = F32.ldexp 0.5s 3 in
+  assert (f = 4.0s);
+  let f = F32.ldexp (-0.5s) 3 in
+  assert (f = (-4.0s));
+  let f = F32.ldexp 2.0s 9 in
+  assert (f = 1024.0s);
 ;;
 
 let () =
