@@ -266,7 +266,7 @@ Line 1, characters 12-23:
 1 | type t5_6 = A of t_word [@@unboxed];;
                 ^^^^^^^^^^^
 Error: Type t_word has layout word.
-       Variants may not yet contain types of this layout.
+       Unboxed variants may not yet contain types of this layout.
 |}];;
 
 type ('a : word) t5_7 = A of int

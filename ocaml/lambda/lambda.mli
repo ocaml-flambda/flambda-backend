@@ -102,7 +102,7 @@ type primitive =
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
-  | Pmakemixedblock of mutable_flag * mixed_block_shape * alloc_mode
+  | Pmakemixedblock of int * mutable_flag * mixed_block_shape * alloc_mode
   | Pfield of int * immediate_or_pointer * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
@@ -720,8 +720,17 @@ val layout_boxed_float : boxed_float -> layout
 val layout_unboxed_float : boxed_float -> layout
 val layout_boxedint : boxed_integer -> layout
 val layout_boxed_vector : Primitive.boxed_vector -> layout
-(* A layout that is Pgenval because it is the field of a block *)
-val layout_field : layout
+(* A layout that is Pgenval because it is the field of a tuple *)
+val layout_tuple_element : layout
+(* A layout that is Pgenval because it is the arg of a polymorphic variant *)
+val layout_variant_arg : layout
+(* A layout that is Pgenval because it is the field of a block being considered
+   for the tmc transformation
+*)
+val layout_tmc_field : layout
+(* A layout that is Pgenval because it is an optional argument *)
+val layout_optional_arg : layout
+val layout_value_field : layout
 val layout_lazy : layout
 val layout_lazy_contents : layout
 (* A layout that is Pgenval because we are missing layout polymorphism *)
@@ -780,7 +789,7 @@ val transl_value_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_extension_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_class_path: scoped_location -> Env.t -> Path.t -> lambda
 
-val transl_mixed_record_shape: Types.mixed_record_shape -> mixed_block_shape
+val transl_mixed_product_shape: Types.mixed_product_shape -> mixed_block_shape
 val count_mixed_block_values_and_floats : mixed_block_shape -> int * int
 
 type mixed_block_element =

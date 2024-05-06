@@ -144,10 +144,11 @@ let make_array ~dbg kind alloc_mode args =
   | Naked_nativeints ->
     C.allocate_unboxed_nativeint_array ~elements:args mode dbg
 
-let make_mixed_block ~dbg shape alloc_mode args =
+let make_mixed_block ~dbg tag shape alloc_mode args =
   check_alloc_fields args;
   let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
-  C.make_mixed_alloc ~mode dbg shape args
+  let tag = Tag.Scannable.to_int tag in
+  C.make_mixed_alloc ~mode dbg tag shape args
 
 let array_length ~dbg arr (kind : P.Array_kind.t) =
   match kind with
@@ -792,8 +793,8 @@ let variadic_primitive _env dbg f args =
   match (f : P.variadic_primitive) with
   | Make_block (kind, _mut, alloc_mode) -> make_block ~dbg kind alloc_mode args
   | Make_array (kind, _mut, alloc_mode) -> make_array ~dbg kind alloc_mode args
-  | Make_mixed_block (shape, _mut, alloc_mode) ->
-    make_mixed_block ~dbg shape alloc_mode args
+  | Make_mixed_block (tag, shape, _mut, alloc_mode) ->
+    make_mixed_block ~dbg tag shape alloc_mode args
 
 let arg ?consider_inlining_effectful_expressions ~dbg env res simple =
   C.simple ?consider_inlining_effectful_expressions ~dbg env res simple

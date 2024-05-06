@@ -554,12 +554,12 @@ and abstract_reason =
     Abstract_def
   | Abstract_rec_check_regularity       (* See Typedecl.transl_type_decl *)
 
-(* A mixed record contains a prefix of values followed by a non-empty suffix of
-   "flat" elements. Intuitively, a flat element is one that need not be scanned
-   by the garbage collector.
+(* A mixed product contains a possibly-empty prefix of values followed by a
+   non-empty suffix of "flat" elements. Intuitively, a flat element is one that
+   need not be scanned by the garbage collector.
 *)
 and flat_element = Imm | Float | Float64
-and mixed_record_shape =
+and mixed_product_shape =
   { value_prefix_len : int;
     (* We use an array just so we can index into the middle. *)
     flat_suffix : flat_element array;
@@ -576,19 +576,31 @@ and record_representation =
   (* All fields are [float#]s.  Same runtime representation as [Record_float],
      but operations on these (e.g., projection, update) work with unboxed floats
      rather than boxed floats. *)
-  | Record_mixed of mixed_record_shape
+  | Record_mixed of mixed_product_shape
   (* The record contains a mix of values and unboxed elements. The block
      is tagged such that polymorphic operations will not work.
   *)
 
-(* For unboxed variants, we record the jkind of the mandatory single argument.
-   For boxed variants, we record the jkinds for the arguments of each
-   constructor.  For boxed inlined records, this is just a length 1 array with
-   the jkind of the record itself, not the jkinds of each field.  *)
 and variant_representation =
   | Variant_unboxed
-  | Variant_boxed of jkind array array
+  | Variant_boxed of (constructor_representation * Jkind.t array) array
+  (* The outer array has an element for each constructor. Each inner array
+     has a jkind for each argument of the corresponding constructor.
+
+     A constructor with a boxed inlined record constructor has a length-1 inner
+     array. Its single element is the jkind of the record itself. (It doesn't
+     have a jkind for each field.)
+  *)
   | Variant_extensible
+
+and constructor_representation =
+  | Constructor_uniform_value
+  (* A constant constructor or a constructor all of whose fields are values.
+     This is named 'uniform_value' to distinguish from the 'Constructor_uniform'
+     of [lambda.mli], which can also represent all-flat-float records.
+  *)
+  | Constructor_mixed of mixed_product_shape
+  (* A constructor that has some non-value fields. *)
 
 and label_declaration =
   {
@@ -627,6 +639,7 @@ type extension_constructor =
     ext_type_params: type_expr list;
     ext_args: constructor_arguments;
     ext_arg_jkinds: Jkind.t array;
+    ext_shape: constructor_representation;
     ext_constant: bool;
     ext_ret_type: type_expr option;
     ext_private: private_flag;
@@ -793,6 +806,10 @@ type constructor_description =
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
     cstr_repr: variant_representation;  (* Repr of the outer variant *)
+    (* CR layouts v5.1: this duplicates information from [cstr_arg_jkinds].
+       We might be able to move the jkind array into this type.
+    *)
+    cstr_shape: constructor_representation; (* Repr of the constructor itself *)
     cstr_constant: bool;                (* True if all args are void *)
     cstr_consts: int;                   (* Number of constant constructors *)
     cstr_nonconsts: int;                (* Number of non-const constructors *)
@@ -856,14 +873,15 @@ val bound_value_identifiers: signature -> Ident.t list
 
 val signature_item_id : signature_item -> Ident.t
 
-val count_mixed_record_values_and_floats : mixed_record_shape -> int * int
+val count_mixed_record_values_and_floats : mixed_product_shape -> int * int
 
-type mixed_record_element =
+type mixed_product_element =
   | Value_prefix
   | Flat_suffix of flat_element
 
 (** Raises if the int is out of bounds. *)
-val get_mixed_record_element : mixed_record_shape -> int -> mixed_record_element
+val get_mixed_product_element :
+  mixed_product_shape -> int -> mixed_product_element
 
 (**** Utilities for backtracking ****)
 

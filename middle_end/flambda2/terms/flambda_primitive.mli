@@ -170,7 +170,8 @@ module Block_access_kind : sig
         }
     | Naked_floats of { size : Targetint_31_63.t Or_unknown.t }
     | Mixed of
-        { size : Targetint_31_63.t Or_unknown.t;
+        { tag : Tag.Scannable.t Or_unknown.t;
+          size : Targetint_31_63.t Or_unknown.t;
           field_kind : Mixed_block_access_field_kind.t
         }
 
@@ -452,7 +453,10 @@ type variadic_primitive =
   | Make_block of Block_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_array of Array_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_mixed_block of
-      Lambda.mixed_block_shape * Mutability.t * Alloc_mode.For_allocations.t
+      Tag.Scannable.t
+      * Lambda.mixed_block_shape
+      * Mutability.t
+      * Alloc_mode.For_allocations.t
 (* CR mshinwell: Invariant checks -- e.g. that the number of arguments matches
    [num_dimensions] *)
 

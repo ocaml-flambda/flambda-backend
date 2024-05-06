@@ -298,11 +298,12 @@ val make_alloc :
 val make_float_alloc :
   mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
 
-(** Allocate an mixed block of the corresponding shape.  Initial values of
-    the flat suffix should be provided unboxed. *)
+(** Allocate an mixed block of the corresponding tag and shape. Initial values
+    of the flat suffix should be provided unboxed. *)
 val make_mixed_alloc :
   mode:Lambda.alloc_mode ->
   Debuginfo.t ->
+  int ->
   Lambda.mixed_block_shape ->
   expression list ->
   expression
