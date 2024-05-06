@@ -144,6 +144,8 @@ let output_primitive_table outchan =
 
 (* Translate structured constants *)
 
+(* We cannot use the [float32] type in the compiler, so we represent it as an
+   opaque [Obj.t]. This is sufficient for interfacing with the runtime. *)
 external float32_of_string : string -> Obj.t = "caml_float32_of_string"
 
 let rec transl_const = function
