@@ -403,6 +403,9 @@ and expression_extra i ppf x attrs =
             (fun loc -> Printf.sprintf "\"%s\"" loc.txt)
             modes.txt));
       attributes i ppf attrs;
+  | Texp_stack ->
+      line i ppf "Texp_stack\n";
+      attributes i ppf attrs
 
 and alloc_mode: type l r. _ -> _ -> (l * r) Mode.Alloc.t -> _
   = fun i ppf m -> line i ppf "alloc_mode %a\n" (Mode.Alloc.print ()) m

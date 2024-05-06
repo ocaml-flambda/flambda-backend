@@ -127,6 +127,7 @@ and exp_extra =
   | Texp_poly of core_type option
   | Texp_newtype of string * Jkind.annotation option
   | Texp_mode_coerce of Jane_syntax.Mode_expr.t
+  | Texp_stack
 
 and arg_label = Types.arg_label =
   | Nolabel

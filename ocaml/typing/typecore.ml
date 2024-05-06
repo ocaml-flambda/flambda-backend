@@ -237,6 +237,8 @@ type error =
   | Modes_on_pattern
   | Invalid_label_for_src_pos of arg_label
   | Nonoptional_call_pos_label of string
+  | Cannot_stack_allocate
+  | Not_allocation
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -3980,7 +3982,7 @@ end = struct
       | Pexp_setfield _ | Pexp_array _ | Pexp_while _ | Pexp_for _ | Pexp_send _
       | Pexp_new _ | Pexp_setinstvar _ | Pexp_override _ | Pexp_assert _
       | Pexp_lazy _ | Pexp_object _ | Pexp_pack _ | Pexp_function _ | Pexp_fun _
-      | Pexp_letop _ | Pexp_extension _ | Pexp_unreachable ->
+      | Pexp_letop _ | Pexp_extension _ | Pexp_unreachable | Pexp_stack _ ->
           Not e.pexp_loc
       | Pexp_let(_, _, e) | Pexp_sequence(_, e) | Pexp_constraint(e, _)
       | Pexp_coerce(e, _, _) | Pexp_letmodule(_, _, e) | Pexp_letexception(_, e)
@@ -6451,6 +6453,25 @@ and type_expect_
            exp_type = instance ty_expected;
            exp_attributes = sexp.pexp_attributes;
            exp_env = env }
+  | Pexp_stack e ->
+      let exp = type_expect env expected_mode e ty_expected_explained in
+      begin match exp.exp_desc with
+      | Texp_function { alloc_mode; _} | Texp_tuple (_, alloc_mode)
+      | Texp_construct (_, _, _, Some alloc_mode)
+      | Texp_variant (_, Some (_, alloc_mode))
+      | Texp_record {alloc_mode = Some alloc_mode; _}
+      | Texp_array (_, _, _, alloc_mode)
+      | Texp_field (_, _, _, Boxing (alloc_mode, _)) ->
+        begin match Locality.submode Locality.local
+          (Alloc.proj (Comonadic Areality) alloc_mode) with
+        | Ok () -> ()
+        | Error _ -> raise (Error (exp.exp_loc, env, Cannot_stack_allocate))
+        end
+      | _ ->
+        raise (Error (exp.exp_loc, env, Not_allocation))
+      end;
+      let exp_extra = (Texp_stack, loc, []) :: exp.exp_extra in
+      {exp with exp_extra}
 
 and expression_constraint pexp =
   { type_without_constraint = (fun env expected_mode ->
@@ -10255,6 +10276,12 @@ let report_error ~loc env = function
     Location.errorf ~loc
       "@[the argument labeled '%s' is a [%%call_pos] argument, filled in @ \
          automatically if ommitted. It cannot be passed with '?'.@]" label
+  | Cannot_stack_allocate ->
+      Location.errorf ~loc
+        "This allocation cannot be on stack."
+  | Not_allocation ->
+      Location.errorf ~loc
+        "This expression is not an allocation."
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env_error env

@@ -303,6 +303,8 @@ type error =
   | Modes_on_pattern
   | Invalid_label_for_src_pos of arg_label
   | Nonoptional_call_pos_label of string
+  | Cannot_stack_allocate
+  | Not_allocation
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
