@@ -72,7 +72,7 @@ let rec make_optimistic_decision ~depth ~recursive tenv ~param_type : U.decision
   let param_kind_is_not_value =
     match T.kind param_type with
     | Value -> false
-    | Naked_number _ | Region | Rec_info -> true
+    | Nullable_value | Naked_number _ | Region | Rec_info -> true
   in
   if param_type_is_alias_to_symbol
   then Do_not_unbox Not_beneficial

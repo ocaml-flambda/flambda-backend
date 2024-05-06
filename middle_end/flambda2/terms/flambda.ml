@@ -1375,6 +1375,7 @@ module Named = struct
     let simple =
       match kind with
       | Value -> Simple.const_zero
+      | Nullable_value -> Simple.null
       | Naked_number Naked_immediate ->
         Simple.const (Reg_width_const.naked_immediate Targetint_31_63.zero)
       | Naked_number Naked_float ->

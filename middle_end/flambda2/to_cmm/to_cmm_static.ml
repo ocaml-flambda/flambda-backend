@@ -24,6 +24,7 @@ module R = To_cmm_result
 
 let static_value res v =
   match (v : Field_of_static_block.t) with
+  | Null -> C.cint 0n
   | Symbol s -> C.symbol_address (R.symbol res s)
   | Dynamically_computed _ -> C.cint 1n
   | Tagged_immediate i ->
@@ -40,7 +41,7 @@ let rec static_block_updates symb env res acc i = function
   | [] -> env, res, acc
   | sv :: r -> (
     match (sv : Field_of_static_block.t) with
-    | Symbol _ | Tagged_immediate _ ->
+    | Null | Symbol _ | Tagged_immediate _ ->
       static_block_updates symb env res acc (i + 1) r
     | Dynamically_computed (var, dbg) ->
       let env, res, acc =

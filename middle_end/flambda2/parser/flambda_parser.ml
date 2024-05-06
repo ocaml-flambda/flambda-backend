@@ -2410,7 +2410,7 @@ module Tables = struct
 # 2411 "flambda_parser_in.ml"
         ) = 
 # 489 "flambda_parser.mly"
-    ( Any_value )
+    ( Value )
 # 2415 "flambda_parser_in.ml"
          in
         {

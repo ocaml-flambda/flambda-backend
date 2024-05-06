@@ -120,6 +120,7 @@ let rec extract_letop_patterns n pat =
 (** Mapping functions. *)
 
 let constant = function
+  | Const_null -> Misc.fatal_error "mshinwell: or_null frontend"
   | Const_char c -> `Parsetree (Pconst_char c)
   | Const_string (s,loc,d) -> `Parsetree (Pconst_string (s,loc,d))
   | Const_int i -> `Parsetree (Pconst_integer (Int.to_string i, None))

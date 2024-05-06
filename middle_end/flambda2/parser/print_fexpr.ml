@@ -457,14 +457,16 @@ let block_access_kind ppf (access_kind : block_access_kind) =
   in
   let pp_field_kind ppf (field_kind : block_access_field_kind) =
     match field_kind with
-    | Any_value -> ()
+    | Value -> ()
     | Immediate -> Format.fprintf ppf "@ imm"
   in
   let pp_mixed_field_kind ppf
       (field_kind : Flambda_primitive.Mixed_block_access_field_kind.t) =
     match field_kind with
-    | Value_prefix Any_value -> ()
+    | Value_prefix Value -> ()
     | Value_prefix Immediate -> Format.fprintf ppf "@ imm"
+    | Value_prefix (Nullable_value _) ->
+      Misc.fatal_error "Nullable_value not supported"
     | Flat_suffix Float -> Format.fprintf ppf "@ float"
     | Flat_suffix Imm -> Format.fprintf ppf "@ imm"
     | Flat_suffix Float64 -> Format.fprintf ppf "@ float64"

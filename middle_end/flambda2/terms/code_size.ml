@@ -146,7 +146,7 @@ let block_load (kind : Flambda_primitive.Block_access_kind.t) =
 let array_load (kind : Flambda_primitive.Array_kind.t) =
   match kind with
   | Immediates -> 1 (* cadda + load *)
-  | Naked_floats | Values -> 1
+  | Naked_floats | Values | Nullable_values _ -> 1
   | Naked_int32s | Naked_int64s | Naked_nativeints ->
     (* more computation is needed because of the representation using a custom
        block *)
@@ -166,8 +166,11 @@ let block_set (kind : Flambda_primitive.Block_access_kind.t)
 
 let array_set (kind : Flambda_primitive.Array_set_kind.t) =
   match kind with
-  | Values (Assignment Heap) -> does_not_need_caml_c_call_extcall_size
-  | Values (Assignment Local | Initialization) -> 1
+  | Values (Assignment Heap) | Nullable_values (Assignment Heap, _) ->
+    does_not_need_caml_c_call_extcall_size
+  | Values (Assignment Local | Initialization)
+  | Nullable_values ((Assignment Local | Initialization), _) ->
+    1
   | Immediates | Naked_floats -> 1
   | Naked_int32s | Naked_int64s | Naked_nativeints -> 2 (* as above *)
 
@@ -343,8 +346,8 @@ let unary_prim_size prim =
   | Array_length array_kind -> (
     match array_kind with
     | Array_kind
-        (Immediates | Values | Naked_floats | Naked_int64s | Naked_nativeints)
-      ->
+        ( Immediates | Values | Nullable_values _ | Naked_floats | Naked_int64s
+        | Naked_nativeints ) ->
       array_length_size
     | Array_kind Naked_int32s ->
       (* There is a dynamic check here to see if the array has an odd or even
@@ -372,6 +375,7 @@ let unary_prim_size prim =
   | Obj_dup -> needs_caml_c_call_extcall_size + 1
   | Get_header -> 2
   | Atomic_load _ -> 1
+  | Coerce_to_null | Coerce_to_non_null -> 0
 
 let binary_prim_size prim =
   match (prim : Flambda_primitive.binary_primitive) with

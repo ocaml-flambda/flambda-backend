@@ -756,7 +756,6 @@ let simplify_constant_constructor = function
    probably trigger it. For other layouts, we raise an error.
 *)
 let glb_array_type loc t1 t2 =
-
   match t1, t2 with
   (* Handle unboxed array kinds which should only match with themselves.
 
@@ -786,6 +785,14 @@ let glb_array_type loc t1 t2 =
   (* No GLB; only used in the [Obj.magic] case *)
   | Pfloatarray, (Paddrarray | Pintarray)
   | (Paddrarray | Pintarray), Pfloatarray -> t1
+
+  (* XXX mshinwell: check *)
+  | Pnullablearray t1, Pnullablearray t2 ->
+    Pnullablearray (Typeopt.value_kind_union t1 t2)
+  | Pnullablearray _, _ | _, Pnullablearray _ ->
+    Misc.fatal_errorf "unexpected array kind in glb: %s vs. %s"
+      (Printlambda.array_kind t1)
+      (Printlambda.array_kind t2)
 
   (* Compute the correct GLB *)
   | Pgenarray, x | x, Pgenarray -> x
@@ -827,7 +834,15 @@ let glb_array_ref_type loc t1 t2 =
 
   (* Compute the correct GLB *)
 
-  (* Pgenarray >= _ *)
+  (* XXX mshinwell: check *)
+  | Pnullablearray_ref vk1, Pnullablearray vk2 ->
+    Pnullablearray_ref (Typeopt.value_kind_union vk1 vk2)
+  | Pnullablearray_ref _, _ | _, Pnullablearray _ ->
+    Misc.fatal_errorf "unexpected array kind in glb_array_ref_type: %a vs. %s"
+      Printlambda.array_ref_kind t1
+      (Printlambda.array_kind t2)
+
+  (* Pgenarray >= _ (except Pnullablearray _) *)
   | (Pgenarray_ref _ as x), Pgenarray -> x
   | Pgenarray_ref _, Pintarray -> Pintarray_ref
   | Pgenarray_ref _, Paddrarray -> Paddrarray_ref
@@ -878,6 +893,14 @@ let glb_array_set_type loc t1 t2 =
   | (Paddrarray_set _ | Pintarray_set), Pfloatarray -> t1
 
   (* Compute the correct GLB *)
+
+  (* XXX mshinwell: check *)
+  | Pnullablearray_set (mode, t1), Pnullablearray t2 ->
+    Pnullablearray_set (mode, Typeopt.value_kind_union t1 t2)
+  | Pnullablearray_set _, _ | _, Pnullablearray _ ->
+    Misc.fatal_errorf "unexpected array kind in glb_array_set_type: %a vs. %s"
+      Printlambda.array_set_kind t1
+      (Printlambda.array_kind t2)
 
   (* Pgenarray >= _ *)
   | (Pgenarray_set _ as x), Pgenarray -> x
@@ -1468,13 +1491,14 @@ let lambda_primitive_needs_event_after = function
   | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
   | Pbytessetu
   | Pmakearray ((Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray _
-      | Punboxedintarray _), _, _)
+      | Punboxedintarray _ | Pnullablearray _), _, _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer _ | Popaque _
   | Pdls_get
   | Pobj_magic _ | Punbox_float _ | Punbox_int _
+  | Pcoerce_to_null | Pcoerce_to_non_null
   (* These don't allocate in bytecode; they're just identity functions: *)
   | Pbox_float (_, _) | Pbox_int _
     -> false

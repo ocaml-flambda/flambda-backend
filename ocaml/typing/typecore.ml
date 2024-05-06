@@ -616,7 +616,8 @@ let optimise_allocations () =
 (* Typing of constants *)
 
 let type_constant: Typedtree.constant -> type_expr = function
-    Const_int _ -> instance Predef.type_int
+  | Const_null -> Misc.fatal_error "or_null typing"
+  | Const_int _ -> instance Predef.type_int
   | Const_char _ -> instance Predef.type_char
   | Const_string _ -> instance Predef.type_string
   | Const_float _ -> instance Predef.type_float

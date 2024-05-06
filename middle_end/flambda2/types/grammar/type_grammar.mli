@@ -31,6 +31,7 @@ end
 
 type t = private
   | Value of head_of_kind_value Type_descr.t
+  | Nullable_value of head_of_kind_nullable_value Type_descr.t
   | Naked_immediate of head_of_kind_naked_immediate Type_descr.t
   | Naked_float32 of head_of_kind_naked_float32 Type_descr.t
   | Naked_float of head_of_kind_naked_float Type_descr.t
@@ -66,6 +67,10 @@ and head_of_kind_value = private
         contents : array_contents Or_unknown.t;
         alloc_mode : Alloc_mode.For_types.t
       }
+
+and head_of_kind_nullable_value = private
+  | Null
+  | Non_null of t
 
 and head_of_kind_naked_immediate = private
   | Naked_immediates of Targetint_31_63.Set.t
@@ -182,6 +187,8 @@ val is_obviously_unknown : t -> bool
 
 val bottom_value : t
 
+val bottom_nullable_value : t
+
 val bottom_naked_immediate : t
 
 val bottom_naked_float32 : t
@@ -201,6 +208,8 @@ val bottom_rec_info : t
 val bottom_region : t
 
 val any_value : t
+
+val any_nullable_value : t
 
 val any_naked_immediate : t
 
@@ -286,6 +295,10 @@ val tag_immediate : t -> t
 val is_int_for_scrutinee : scrutinee:Simple.t -> t
 
 val get_tag_for_block : block:Simple.t -> t
+
+val null : t
+
+val non_null : t -> t
 
 val create_variant :
   is_unique:bool ->
@@ -523,6 +536,8 @@ end
 module Descr : sig
   type t = private
     | Value of head_of_kind_value Type_descr.Descr.t Or_unknown_or_bottom.t
+    | Nullable_value of
+        head_of_kind_nullable_value Type_descr.Descr.t Or_unknown_or_bottom.t
     | Naked_immediate of
         head_of_kind_naked_immediate Type_descr.Descr.t Or_unknown_or_bottom.t
     | Naked_float32 of
@@ -546,6 +561,8 @@ val descr : t -> Descr.t
 
 val create_from_head_value : head_of_kind_value -> t
 
+val create_from_head_nullable_value : head_of_kind_nullable_value -> t
+
 val create_from_head_naked_immediate : head_of_kind_naked_immediate -> t
 
 val create_from_head_naked_float32 : head_of_kind_naked_float32 -> t
@@ -566,6 +583,11 @@ val create_from_head_region : head_of_kind_region -> t
 
 val apply_coercion_head_of_kind_value :
   head_of_kind_value -> Coercion.t -> head_of_kind_value Or_bottom.t
+
+val apply_coercion_head_of_kind_nullable_value :
+  head_of_kind_nullable_value ->
+  Coercion.t ->
+  head_of_kind_nullable_value Or_bottom.t
 
 val apply_coercion_head_of_kind_naked_immediate :
   head_of_kind_naked_immediate ->
@@ -639,6 +661,14 @@ module Head_of_kind_value : sig
     array_contents Or_unknown.t ->
     Alloc_mode.For_types.t ->
     t
+end
+
+module Head_of_kind_nullable_value : sig
+  type t = head_of_kind_nullable_value
+
+  val null : t
+
+  val create_non_null : flambda_type -> t
 end
 
 module Head_of_kind_naked_immediate : sig

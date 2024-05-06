@@ -164,7 +164,7 @@ Caml_inline void pb_fill_mode(prefetch_buffer_t *pb)
 
 Caml_inline void pb_push(prefetch_buffer_t* pb, value v)
 {
-  CAMLassert(Is_block(v) && !Is_young(v));
+  CAMLassert(v != Val_null && Is_block(v) && !Is_young(v));
   CAMLassert(v != Debug_free_major);
   CAMLassert(pb->enqueued < pb->dequeued + PREFETCH_BUFFER_SIZE);
 
@@ -677,9 +677,9 @@ static void mark_stack_prune(struct mark_stack* stk);
 #ifdef DEBUG
 #define Is_markable(v) \
     (CAMLassert (v != Debug_free_major), \
-     Is_block(v) && !Is_young(v))
+     (v != Val_null) && Is_block(v) && !Is_young(v))
 #else
-#define Is_markable(v) (Is_block(v) && !Is_young(v))
+#define Is_markable(v) (v != Val_null && Is_block(v) && !Is_young(v))
 #endif
 
 static void realloc_mark_stack (struct mark_stack* stk)
@@ -756,6 +756,7 @@ static intnat mark_stack_push_block(struct mark_stack* stk, value block)
   }
 
   CAMLassert(Has_status_val(block, caml_global_heap_state.MARKED));
+  CAMLassert(block != Val_null);
   CAMLassert(Is_block(block) && !Is_young(block));
   CAMLassert(Tag_val(block) != Infix_tag);
   CAMLassert(Tag_val(block) < No_scan_tag);
@@ -1043,7 +1044,7 @@ static scanning_action_flags darken_scanning_flags = 0;
 
 void caml_darken_cont(value cont)
 {
-  CAMLassert(Is_block(cont) && !Is_young(cont) && Tag_val(cont) == Cont_tag);
+  CAMLassert(cont != Val_null && Is_block(cont) && !Is_young(cont) && Tag_val(cont) == Cont_tag);
   {
     SPIN_WAIT {
       header_t hd = atomic_load_relaxed(Hp_atomic_val(cont));
@@ -1133,10 +1134,10 @@ static intnat ephe_mark (intnat budget, uintnat for_cycle,
     for (i = CAML_EPHE_FIRST_KEY; alive_data && i < size; i++) {
       key = Field(v, i);
     ephemeron_again:
-      if (key != caml_ephe_none && Is_block(key)) {
+      if (key != caml_ephe_none && key != Val_null && Is_block(key)) {
         if (Tag_val(key) == Forward_tag) {
           f = Forward_val(key);
-          if (Is_block(f)) {
+          if (f != Val_null && Is_block(f)) {
             if (Tag_val(f) == Forward_tag || Tag_val(f) == Lazy_tag ||
                 Tag_val(f) == Forcing_tag || Tag_val(f) == Double_tag) {
               /* Do not short-circuit the pointer */
@@ -1156,7 +1157,7 @@ static intnat ephe_mark (intnat budget, uintnat for_cycle,
     budget -= Whsize_wosize(i);
 
     if (force_alive || alive_data) {
-      if (data != caml_ephe_none && Is_block(data)) {
+      if (data != caml_ephe_none && data != Val_null && Is_block(data)) {
         caml_darken (domain_state, data, 0);
       }
       Ephe_link(v) = domain_state->ephe_info->live;

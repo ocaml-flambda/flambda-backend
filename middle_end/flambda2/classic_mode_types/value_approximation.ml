@@ -19,6 +19,7 @@
 type 'code t =
   | Value_unknown
   | Value_symbol of Symbol.t
+  | Value_null
   | Value_int of Targetint_31_63.t
   | Closure_approximation of
       { code_id : Code_id.t;
@@ -33,6 +34,7 @@ type 'code t =
 let rec print fmt = function
   | Value_unknown -> Format.fprintf fmt "?"
   | Value_symbol sym -> Symbol.print fmt sym
+  | Value_null -> Format.fprintf fmt "null"
   | Value_int i -> Targetint_31_63.print fmt i
   | Closure_approximation { code_id; _ } ->
     Format.fprintf fmt "[%a]" Code_id.print code_id
@@ -49,13 +51,13 @@ let rec print fmt = function
 
 let is_unknown = function
   | Value_unknown -> true
-  | Value_symbol _ | Value_int _ | Closure_approximation _
+  | Value_symbol _ | Value_null | Value_int _ | Closure_approximation _
   | Block_approximation _ ->
     false
 
 let rec free_names ~code_free_names approx =
   match approx with
-  | Value_unknown | Value_int _ -> Name_occurrences.empty
+  | Value_unknown | Value_null | Value_int _ -> Name_occurrences.empty
   | Value_symbol sym -> Name_occurrences.singleton_symbol sym Name_mode.normal
   | Block_approximation (_tag, approxs, _) ->
     Array.fold_left

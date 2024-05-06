@@ -377,7 +377,7 @@ let nullop (nullop : Fexpr.nullop) : Flambda_primitive.nullary_primitive =
 
 let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with
-  | Array_length ak -> Array_length ak
+  | Array_length _ -> Misc.fatal_error "TBD" (*-> Array_length ak *)
   | Boolean_not -> Boolean_not
   | Box_number (bk, alloc) ->
     Box_number (bk, alloc_mode_for_allocations env alloc)
@@ -422,14 +422,11 @@ let block_access_kind (ak : Fexpr.block_access_kind) :
     | Some s -> Known (s |> Targetint_31_63.of_int64)
   in
   match ak with
-  | Values { field_kind; tag; size = s } ->
-    let tag : Tag.Scannable.t Or_unknown.t =
-      match tag with
-      | Some tag -> Known (tag |> tag_scannable)
-      | None -> Unknown
-    in
-    let size = size s in
-    Values { field_kind; tag; size }
+  | Values _ ->
+    Misc.fatal_error "TBD"
+    (* { field_kind; tag; size = s } -> let tag : Tag.Scannable.t Or_unknown.t =
+       match tag with | Some tag -> Known (tag |> tag_scannable) | None ->
+       Unknown in let size = size s in Values { field_kind; tag; size } *)
   | Naked_floats { size = s } ->
     let size = size s in
     Naked_floats { size }
@@ -439,7 +436,8 @@ let block_access_kind (ak : Fexpr.block_access_kind) :
 
 let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   match binop with
-  | Array_load (ak, width, mut) -> Array_load (ak, width, mut)
+  | Array_load _ ->
+    Misc.fatal_error "TBD" (* (ak, width, mut) -> Array_load (ak, width, mut) *)
   | Block_load (ak, mutability) -> Block_load (block_access_kind ak, mutability)
   | Phys_equal op -> Phys_equal op
   | Infix op -> infix_binop op

@@ -486,7 +486,7 @@ block_access_kind:
 ;
 
 block_access_field_kind:
-  | { Any_value }
+  | { Value }
   | KWD_IMM { Immediate }
 
 size_opt:

@@ -37,6 +37,8 @@ val must_be_symbol : t -> (Symbol.t * Coercion.t) option
 
 val must_be_name : t -> (Name.t * Coercion.t) option
 
+val null : t
+
 (** The constant representating the given number of type "int". *)
 val const_int : Targetint_31_63.t -> t
 

@@ -156,7 +156,7 @@ let preserve_tailcall_for_prim = function
   | Pprobe_is_enabled _ | Pobj_dup
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
-  | Pdls_get ->
+  | Pdls_get | Pcoerce_to_null | Pcoerce_to_non_null ->
       false
 
 (* Add a Kpop N instruction in front of a continuation *)
@@ -535,12 +535,14 @@ let comp_primitive stack_info p sz args =
      [Parrayset{s,u}]). *)
   | Parrayrefs (Pgenarray_ref _, index_kind)
   | Parrayrefs ((Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _
-                  | Punboxedfloatarray_ref Pfloat64 | Punboxedintarray_ref _),
+                  | Punboxedfloatarray_ref Pfloat64 | Punboxedintarray_ref _
+                  | Pnullablearray_ref _),
                 (Punboxed_int_index _ as index_kind)) ->
       Kccall(array_primitive index_kind "caml_array_get", 2)
   | Parrayrefs ((Punboxedfloatarray_ref Pfloat64 | Pfloatarray_ref _), Ptagged_int_index) ->
       Kccall("caml_floatarray_get", 2)
-  | Parrayrefs ((Punboxedintarray_ref _ | Paddrarray_ref | Pintarray_ref),
+  | Parrayrefs ((Punboxedintarray_ref _ | Paddrarray_ref | Pintarray_ref
+                 | Pnullablearray_ref _),
                 Ptagged_int_index) ->
       Kccall("caml_array_get_addr", 2)
   | Parrayrefs (Punboxedfloatarray_ref Pfloat32, _) ->
@@ -548,13 +550,15 @@ let comp_primitive stack_info p sz args =
         Printlambda.primitive p
   | Parraysets (Pgenarray_set _, index_kind)
   | Parraysets ((Paddrarray_set _ | Pintarray_set | Pfloatarray_set
-                  | Punboxedfloatarray_set Pfloat64 | Punboxedintarray_set _),
+                  | Punboxedfloatarray_set Pfloat64 | Punboxedintarray_set _
+                  | Pnullablearray_set _),
                 (Punboxed_int_index _ as index_kind)) ->
       Kccall(array_primitive index_kind "caml_array_set", 3)
   | Parraysets ((Punboxedfloatarray_set Pfloat64 | Pfloatarray_set),
                 Ptagged_int_index) ->
       Kccall("caml_floatarray_set", 3)
-  | Parraysets ((Punboxedintarray_set _ | Paddrarray_set _ | Pintarray_set),
+  | Parraysets ((Punboxedintarray_set _ | Paddrarray_set _ | Pintarray_set
+                 | Pnullablearray_set _),
                 Ptagged_int_index) ->
     Kccall("caml_array_set_addr", 3)
   | Parraysets (Punboxedfloatarray_set Pfloat32, _) ->
@@ -562,7 +566,8 @@ let comp_primitive stack_info p sz args =
         Printlambda.primitive p
   | Parrayrefu (Pgenarray_ref _, index_kind)
   | Parrayrefu ((Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _
-                | Punboxedfloatarray_ref Pfloat64 | Punboxedintarray_ref _),
+                | Punboxedfloatarray_ref Pfloat64 | Punboxedintarray_ref _
+                | Pnullablearray_ref _),
                 (Punboxed_int_index _ as index_kind)) ->
       Kccall(array_primitive index_kind "caml_array_unsafe_get", 2)
   | Parrayrefu ((Punboxedfloatarray_ref Pfloat64 | Pfloatarray_ref _), Ptagged_int_index) ->
@@ -570,16 +575,19 @@ let comp_primitive stack_info p sz args =
   | Parrayrefu (Punboxedfloatarray_ref Pfloat32, _) ->
       Misc.fatal_errorf "Cannot use primitive %a for unboxed arrays in bytecode"
         Printlambda.primitive p
-  | Parrayrefu ((Punboxedintarray_ref _ | Paddrarray_ref | Pintarray_ref),
+  | Parrayrefu ((Punboxedintarray_ref _ | Paddrarray_ref | Pintarray_ref
+                 | Pnullablearray_ref _),
                 Ptagged_int_index) -> Kgetvectitem
   | Parraysetu (Pgenarray_set _, index_kind)
   | Parraysetu ((Paddrarray_set _ | Pintarray_set | Pfloatarray_set
-                | Punboxedfloatarray_set Pfloat64 | Punboxedintarray_set _),
+                | Punboxedfloatarray_set Pfloat64 | Punboxedintarray_set _
+                | Pnullablearray_set _),
                 (Punboxed_int_index _ as index_kind)) ->
       Kccall(array_primitive index_kind "caml_array_unsafe_set", 3)
   | Parraysetu ((Punboxedfloatarray_set Pfloat64 | Pfloatarray_set), Ptagged_int_index) ->
       Kccall("caml_floatarray_unsafe_set", 3)
-  | Parraysetu ((Punboxedintarray_set _ | Paddrarray_set _ | Pintarray_set),
+  | Parraysetu ((Punboxedintarray_set _ | Paddrarray_set _ | Pintarray_set
+                 | Pnullablearray_set _),
                 Ptagged_int_index) -> Ksetvectitem
   | Parraysetu (Punboxedfloatarray_set Pfloat32, _) ->
       Misc.fatal_errorf "Cannot use primitive %a for unboxed arrays in bytecode"
@@ -677,6 +685,7 @@ let comp_primitive stack_info p sz args =
   | Pprobe_is_enabled _
   | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
   | Pmake_unboxed_product _ | Punboxed_product_field _
+  | Pcoerce_to_null | Pcoerce_to_non_null
     ->
       fatal_error "Bytegen.comp_primitive"
 
@@ -947,7 +956,7 @@ let rec comp_expr stack_info env exp sz cont =
       begin match kind with
       (* arrays of unboxed types have the same representation
          as the boxed ones on bytecode *)
-      | Pintarray | Paddrarray | Punboxedintarray _ ->
+      | Pintarray | Paddrarray | Punboxedintarray _ | Pnullablearray _ ->
           comp_args stack_info env args sz
             (Kmakeblock(List.length args, 0) :: cont)
       | Pfloatarray | Punboxedfloatarray Pfloat64 ->

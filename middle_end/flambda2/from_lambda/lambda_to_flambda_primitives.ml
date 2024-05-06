@@ -87,7 +87,7 @@ let standard_int_or_float_of_boxed_integer (bint : L.boxed_integer) :
   | Pint64 -> Naked_int64
 
 let convert_block_access_field_kind i_or_p : P.Block_access_field_kind.t =
-  match i_or_p with L.Immediate -> Immediate | L.Pointer -> Any_value
+  match i_or_p with L.Immediate -> Immediate | L.Pointer -> Value
 
 let convert_init_or_assign (i_or_a : L.initialization_or_assignment) :
     P.Init_or_assign.t =
@@ -126,6 +126,10 @@ let convert_array_kind (kind : L.array_kind) : converted_array_kind =
   | Pgenarray ->
     check_float_array_optimisation_enabled "Pgenarray";
     Float_array_opt_dynamic
+  | Pnullablearray vk ->
+    Array_kind
+      (Nullable_values
+         (K.Subkind.create (K.With_subkind.from_lambda_value_kind vk)))
   | Paddrarray -> Array_kind Values
   | Pintarray -> Array_kind Immediates
   | Pfloatarray | Punboxedfloatarray Pfloat64 -> Array_kind Naked_floats
@@ -146,6 +150,7 @@ module Array_ref_kind = struct
   type t =
     | Immediates
     | Values
+    | Nullable_values of K.Subkind.t
     | Naked_floats_to_be_boxed of L.alloc_mode
     | Naked_floats
     | Naked_int32s
@@ -169,6 +174,10 @@ let convert_array_ref_kind (kind : L.array_ref_kind) : converted_array_ref_kind
 
        check_float_array_optimisation_enabled (); *)
     Float_array_opt_dynamic_ref mode
+  | Pnullablearray_ref vk ->
+    Array_ref_kind
+      (Nullable_values
+         (K.Subkind.create (K.With_subkind.from_lambda_value_kind vk)))
   | Paddrarray_ref -> Array_ref_kind Values
   | Pintarray_ref -> Array_ref_kind Immediates
   | Pfloatarray_ref mode -> Array_ref_kind (Naked_floats_to_be_boxed mode)
@@ -185,6 +194,8 @@ let convert_array_ref_kind_for_length array_ref_kind : P.Array_kind_for_length.t
   match convert_array_ref_kind array_ref_kind with
   | Float_array_opt_dynamic_ref _ -> Float_array_opt_dynamic
   | Array_ref_kind Values -> Array_kind Values
+  | Array_ref_kind (Nullable_values subkind) ->
+    Array_kind (Nullable_values subkind)
   | Array_ref_kind Immediates -> Array_kind Immediates
   | Array_ref_kind (Naked_floats | Naked_floats_to_be_boxed _) ->
     Array_kind Naked_floats
@@ -196,6 +207,7 @@ module Array_set_kind = struct
   type t =
     | Immediates
     | Values of P.Init_or_assign.t
+    | Nullable_values of P.Init_or_assign.t * K.Subkind.t
     | Naked_floats
     | Naked_floats_to_be_unboxed
     | Naked_int32s
@@ -212,6 +224,8 @@ let convert_intermediate_array_set_kind (kind : Array_set_kind.t) :
   match kind with
   | Immediates -> Immediates
   | Values init_or_assign -> Values init_or_assign
+  | Nullable_values (init_or_assign, subkind) ->
+    Nullable_values (init_or_assign, subkind)
   | Naked_floats | Naked_floats_to_be_unboxed -> Naked_floats
   | Naked_int32s -> Naked_int32s
   | Naked_int64s -> Naked_int64s
@@ -225,6 +239,11 @@ let convert_array_set_kind (kind : L.array_set_kind) : converted_array_set_kind
 
        check_float_array_optimisation_enabled (); *)
     Float_array_opt_dynamic_set (Alloc_mode.For_assignments.from_lambda mode)
+  | Pnullablearray_set (mode, vk) ->
+    Array_set_kind
+      (Nullable_values
+         ( Assignment (Alloc_mode.For_assignments.from_lambda mode),
+           K.Subkind.create (K.With_subkind.from_lambda_value_kind vk) ))
   | Paddrarray_set mode ->
     Array_set_kind
       (Values (Assignment (Alloc_mode.For_assignments.from_lambda mode)))
@@ -243,6 +262,8 @@ let convert_array_set_kind_for_length array_set_kind : P.Array_kind_for_length.t
   match convert_array_set_kind array_set_kind with
   | Float_array_opt_dynamic_set _ -> Float_array_opt_dynamic
   | Array_set_kind (Values _) -> Array_kind Values
+  | Array_set_kind (Nullable_values (_, subkind)) ->
+    Array_kind (Nullable_values subkind)
   | Array_set_kind Immediates -> Array_kind Immediates
   | Array_set_kind (Naked_floats | Naked_floats_to_be_unboxed) ->
     Array_kind Naked_floats
@@ -260,6 +281,9 @@ let convert_array_kind_to_duplicate_array_kind (kind : L.array_kind) :
   | Pgenarray ->
     check_float_array_optimisation_enabled "Pgenarray";
     Float_array_opt_dynamic
+  | Pnullablearray vk ->
+    let subkind = K.Subkind.create (K.With_subkind.from_lambda_value_kind vk) in
+    Duplicate_array_kind (Nullable_values subkind)
   | Paddrarray -> Duplicate_array_kind Values
   | Pintarray -> Duplicate_array_kind Immediates
   | Pfloatarray | Punboxedfloatarray Pfloat64 ->
@@ -597,9 +621,10 @@ let array_vector_access_validity_condition array ~size_int
     match array_kind with
     | Naked_floats | Immediates | Naked_int64s | Naked_nativeints -> 2
     | Naked_int32s -> 4
-    | Values ->
+    | Values | Nullable_values _ ->
       Misc.fatal_error
-        "Attempted to load/store a SIMD vector from/to a value array."
+        "Attempted to load/store a SIMD vector from/to a value or nullable \
+         value array."
   in
   let length_untagged =
     untag_int (H.Prim (Unary (Array_length (Array_kind array_kind), array)))
@@ -668,7 +693,7 @@ let bigarray_box_or_tag_raw_value_to_read kind alloc_mode =
       what
   in
   match P.Bigarray_kind.element_kind kind with
-  | Value -> Fun.id
+  | Value | Nullable_value -> Fun.id
   | Naked_number Naked_immediate -> fun arg -> H.Unary (Tag_immediate, Prim arg)
   | Naked_number Naked_float32 ->
     fun arg -> H.Unary (Box_number (Naked_float32, alloc_mode), Prim arg)
@@ -691,7 +716,7 @@ let bigarray_unbox_or_untag_value_to_store kind =
       what
   in
   match P.Bigarray_kind.element_kind kind with
-  | Value -> Fun.id
+  | Value | Nullable_value -> Fun.id
   | Naked_number Naked_immediate ->
     fun arg -> H.Prim (Unary (Untag_immediate, arg))
   | Naked_number Naked_float32 ->
@@ -814,6 +839,8 @@ let array_load_unsafe ~array ~index (array_ref_kind : Array_ref_kind.t)
   match array_ref_kind with
   | Immediates -> Binary (Array_load (Immediates, Scalar, Mutable), array, index)
   | Values -> Binary (Array_load (Values, Scalar, Mutable), array, index)
+  | Nullable_values subkind ->
+    Binary (Array_load (Nullable_values subkind, Scalar, Mutable), array, index)
   | Naked_floats_to_be_boxed mode ->
     box_float mode
       (Binary (Array_load (Naked_floats, Scalar, Mutable), array, index))
@@ -831,8 +858,8 @@ let array_set_unsafe ~array ~index ~new_value
     (array_set_kind : Array_set_kind.t) : H.expr_primitive =
   let new_value =
     match array_set_kind with
-    | Immediates | Values _ | Naked_floats | Naked_int32s | Naked_int64s
-    | Naked_nativeints ->
+    | Immediates | Values _ | Nullable_values _ | Naked_floats | Naked_int32s
+    | Naked_int64s | Naked_nativeints ->
       new_value
     | Naked_floats_to_be_unboxed -> unbox_float new_value
   in
@@ -1007,7 +1034,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     | Array_kind array_kind ->
       let args =
         match lambda_array_kind with
-        | Pgenarray | Paddrarray | Pintarray
+        | Pnullablearray _ | Pgenarray | Paddrarray | Pintarray
         | Punboxedfloatarray (Pfloat64 | Pfloat32)
         | Punboxedintarray (Pint32 | Pint64 | Pnativeint) ->
           args
@@ -1186,7 +1213,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           arg ) ]
   | Pfield_computed sem, [[obj]; [field]] ->
     let block_access : P.Block_access_kind.t =
-      Values { tag = Unknown; size = Unknown; field_kind = Any_value }
+      Values { tag = Unknown; size = Unknown; field_kind = Value }
     in
     [ Binary
         (Block_load (block_access, convert_field_read_semantics sem), obj, field)
@@ -1383,7 +1410,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let mutability = convert_field_read_semantics sem in
     let block_access : P.Block_access_kind.t =
-      Values { tag = Unknown; size = Unknown; field_kind = Any_value }
+      Values { tag = Unknown; size = Unknown; field_kind = Value }
     in
     [Binary (Block_load (block_access, mutability), arg, Simple field)]
   | Pfloatfield (field, sem, mode), [[arg]] ->
@@ -1415,7 +1442,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       let field_kind : P.Mixed_block_access_field_kind.t =
         match read with
         (* CR mshinwell: make use of the int-or-ptr flag (new in OCaml 5)? *)
-        | Mread_value_prefix _int_or_pointer -> Value_prefix Any_value
+        | Mread_value_prefix _int_or_pointer -> Value_prefix Value
         | Mread_flat_suffix read ->
           Flat_suffix
             (match read with
@@ -1838,6 +1865,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [Ternary (Atomic_compare_and_set, atomic, old_value, new_value)]
   | Patomic_fetch_add, [[atomic]; [i]] ->
     [Binary (Atomic_fetch_and_add, atomic, i)]
+  | Pcoerce_to_null, [[arg]] -> [Unary (Coerce_to_null, arg)]
+  | Pcoerce_to_non_null, [[arg]] -> [Unary (Coerce_to_non_null, arg)]
   | ( ( Pmodint Unsafe
       | Pdivbint { is_safe = Unsafe; size = _; mode = _ }
       | Pmodbint { is_safe = Unsafe; size = _; mode = _ }
@@ -1867,7 +1896,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Punbox_float Pfloat64
       | Pbox_float (Pfloat64, _)
       | Punbox_int _ | Pbox_int _ | Punboxed_product_field _ | Pget_header _
-      | Pufloatfield _ | Patomic_load _ | Pmixedfield _ ),
+      | Pufloatfield _ | Patomic_load _ | Pmixedfield _ | Pcoerce_to_null
+      | Pcoerce_to_non_null ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \
@@ -1894,13 +1924,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Punboxed_float_array_load_128 _ | Punboxed_int32_array_load_128 _
       | Punboxed_int64_array_load_128 _ | Punboxed_nativeint_array_load_128 _
       | Parrayrefu
-          ( ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref
-            | Pfloatarray_ref _ | Punboxedfloatarray_ref _
+          ( ( Pnullablearray_ref _ | Pgenarray_ref _ | Paddrarray_ref
+            | Pintarray_ref | Pfloatarray_ref _ | Punboxedfloatarray_ref _
             | Punboxedintarray_ref _ ),
             _ )
       | Parrayrefs
-          ( ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref
-            | Pfloatarray_ref _ | Punboxedfloatarray_ref _
+          ( ( Pnullablearray_ref _ | Pgenarray_ref _ | Paddrarray_ref
+            | Pintarray_ref | Pfloatarray_ref _ | Punboxedfloatarray_ref _
             | Punboxedintarray_ref _ ),
             _ )
       | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _ | Patomic_exchange
@@ -1916,13 +1946,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Printlambda.primitive prim H.print_list_of_lists_of_simple_or_prim args
   | ( ( Psetfield_computed _ | Pbytessetu | Pbytessets
       | Parraysetu
-          ( ( Pgenarray_set _ | Paddrarray_set _ | Pintarray_set
-            | Pfloatarray_set | Punboxedfloatarray_set _
+          ( ( Pnullablearray_set _ | Pgenarray_set _ | Paddrarray_set _
+            | Pintarray_set | Pfloatarray_set | Punboxedfloatarray_set _
             | Punboxedintarray_set _ ),
             _ )
       | Parraysets
-          ( ( Pgenarray_set _ | Paddrarray_set _ | Pintarray_set
-            | Pfloatarray_set | Punboxedfloatarray_set _
+          ( ( Pnullablearray_set _ | Pgenarray_set _ | Paddrarray_set _
+            | Pintarray_set | Pfloatarray_set | Punboxedfloatarray_set _
             | Punboxedintarray_set _ ),
             _ )
       | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _

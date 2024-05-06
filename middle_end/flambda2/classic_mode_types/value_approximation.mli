@@ -19,6 +19,7 @@
 type 'code t =
   | Value_unknown
   | Value_symbol of Symbol.t
+  | Value_null
   | Value_int of Targetint_31_63.t
   | Closure_approximation of
       { code_id : Code_id.t;

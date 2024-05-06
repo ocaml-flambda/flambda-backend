@@ -302,6 +302,8 @@ type primitive =
   | Pget_header of alloc_mode
   (* Fetching domain-local state *)
   | Pdls_get
+  | Pcoerce_to_null
+  | Pcoerce_to_non_null
 
 and extern_repr =
   | Same_as_ocaml_repr of Jkind.Sort.const
@@ -332,6 +334,7 @@ and value_kind =
 
 and layout =
   | Ptop
+  | Pnullable_value of value_kind
   | Pvalue of value_kind
   | Punboxed_float of boxed_float
   | Punboxed_int of boxed_integer
@@ -367,11 +370,13 @@ and constructor_shape =
       }
 
 and array_kind =
-    Pgenarray | Paddrarray | Pintarray | Pfloatarray
+  | Pnullablearray of value_kind
+  | Pgenarray | Paddrarray | Pintarray | Pfloatarray
   | Punboxedfloatarray of unboxed_float
   | Punboxedintarray of unboxed_integer
 
 and array_ref_kind =
+  | Pnullablearray_ref of value_kind
   | Pgenarray_ref of alloc_mode
   | Paddrarray_ref
   | Pintarray_ref
@@ -380,6 +385,7 @@ and array_ref_kind =
   | Punboxedintarray_ref of unboxed_integer
 
 and array_set_kind =
+  | Pnullablearray_set of modify_mode * value_kind
   | Pgenarray_set of modify_mode
   | Paddrarray_set of modify_mode
   | Pintarray_set
@@ -527,6 +533,7 @@ let rec compatible_layout x y =
   match x, y with
   | Pbottom, _
   | _, Pbottom -> true
+  | Pnullable_value _, Pnullable_value _ -> true
   | Pvalue _, Pvalue _ -> true
   | Punboxed_float f1, Punboxed_float f2 -> equal_boxed_float f1 f2
   | Punboxed_int bi1, Punboxed_int bi2 ->
@@ -537,8 +544,8 @@ let rec compatible_layout x y =
       && List.for_all2 compatible_layout layouts1 layouts2
   | Ptop, Ptop -> true
   | Ptop, _ | _, Ptop -> false
-  | (Pvalue _ | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _ |
-     Punboxed_product _), _ ->
+  | (Pnullable_value _ | Pvalue _ | Punboxed_float _ | Punboxed_int _
+     | Punboxed_vector _ | Punboxed_product _), _ ->
       false
 
 let must_be_value layout =
@@ -839,6 +846,7 @@ let layout_list =
   Pvalue (Pvariant { consts = [0] ;
                      non_consts = [0, Constructor_uniform [Pgenval; Pgenval]] })
 let layout_field = Pvalue Pgenval
+let layout_nullable_field value_kind = Pnullable_value value_kind
 let layout_exception = Pvalue Pgenval
 let layout_function = Pvalue Pgenval
 let layout_object = Pvalue Pgenval
@@ -875,6 +883,7 @@ let layout_boxed_vector : Primitive.boxed_vector -> layout = function
 let layout_lazy = Pvalue Pgenval
 let layout_lazy_contents = Pvalue Pgenval
 let layout_any_value = Pvalue Pgenval
+let layout_any_nullable_value = Pnullable_value Pgenval
 let layout_letrec = layout_any_value
 let layout_probe_arg = Pvalue Pgenval
 let layout_unboxed_product layouts = Punboxed_product layouts
@@ -1663,9 +1672,9 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pduparray _ -> Some alloc_heap
   | Parraylength _ -> None
   | Parraysetu _ | Parraysets _
-  | Parrayrefu ((Paddrarray_ref | Pintarray_ref
+  | Parrayrefu ((Pnullablearray_ref _ | Paddrarray_ref | Pintarray_ref
       | Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _)
-  | Parrayrefs ((Paddrarray_ref | Pintarray_ref
+  | Parrayrefs ((Pnullablearray_ref _ | Paddrarray_ref | Pintarray_ref
       | Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _) -> None
   | Parrayrefu ((Pgenarray_ref m | Pfloatarray_ref m), _)
   | Parrayrefs ((Pgenarray_ref m | Pfloatarray_ref m), _) -> Some m
@@ -1731,9 +1740,12 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Patomic_exchange
   | Patomic_cas
   | Patomic_fetch_add
-  | Pdls_get -> None
+  | Pdls_get
+  | Pcoerce_to_null
+  | Pcoerce_to_non_null -> None
 
 let constant_layout: constant -> layout = function
+  | Const_null -> Pnullable_value Pgenval
   | Const_int _ | Const_char _ -> Pvalue Pintval
   | Const_string _ -> Pvalue Pgenval
   | Const_int32 _ -> Pvalue (Pboxedintval Pint32)
@@ -1767,6 +1779,7 @@ let layout_of_extern_repr : extern_repr -> _ = function
     end
 
 let array_ref_kind_result_layout = function
+  | Pnullablearray_ref value_kind -> layout_nullable_field value_kind
   | Pintarray_ref -> layout_int
   | Pfloatarray_ref _ -> layout_boxed_float Pfloat64
   | Punboxedfloatarray_ref bf -> layout_unboxed_float bf
@@ -1901,7 +1914,9 @@ let primitive_result_layout (p : primitive) =
   | Patomic_exchange
   | Patomic_cas
   | Patomic_fetch_add
-  | Pdls_get -> layout_any_value
+  | Pdls_get
+  | Pcoerce_to_non_null -> layout_any_value
+  | Pcoerce_to_null -> layout_any_nullable_value
 
 let compute_expr_layout free_vars_kind lam =
   let rec compute_expr_layout kinds = function
@@ -1942,6 +1957,7 @@ let compute_expr_layout free_vars_kind lam =
   compute_expr_layout Ident.Map.empty lam
 
 let array_ref_kind mode = function
+  | Pnullablearray value_kind -> Pnullablearray_ref value_kind
   | Pgenarray -> Pgenarray_ref mode
   | Paddrarray -> Paddrarray_ref
   | Pintarray -> Pintarray_ref
@@ -1950,6 +1966,7 @@ let array_ref_kind mode = function
   | Punboxedfloatarray float_kind -> Punboxedfloatarray_ref float_kind
 
 let array_set_kind mode = function
+  | Pnullablearray value_kind -> Pnullablearray_set (mode, value_kind)
   | Pgenarray -> Pgenarray_set mode
   | Paddrarray -> Paddrarray_set mode
   | Pintarray -> Pintarray_set

@@ -27,6 +27,8 @@ module Expanded_type : sig
 
   val create_value : Type_grammar.head_of_kind_value -> t
 
+  val create_nullable_value : Type_grammar.head_of_kind_nullable_value -> t
+
   val create_naked_immediate : Type_grammar.head_of_kind_naked_immediate -> t
 
   val create_naked_float32 : Type_grammar.head_of_kind_naked_float32 -> t
@@ -61,6 +63,7 @@ module Expanded_type : sig
 
   type descr = private
     | Value of Type_grammar.head_of_kind_value
+    | Nullable_value of Type_grammar.head_of_kind_nullable_value
     | Naked_immediate of Type_grammar.head_of_kind_naked_immediate
     | Naked_float32 of Type_grammar.head_of_kind_naked_float32
     | Naked_float of Type_grammar.head_of_kind_naked_float
@@ -75,6 +78,8 @@ module Expanded_type : sig
 
   type descr_oub = private
     | Value of Type_grammar.head_of_kind_value Or_unknown_or_bottom.t
+    | Nullable_value of
+        Type_grammar.head_of_kind_nullable_value Or_unknown_or_bottom.t
     | Naked_immediate of
         Type_grammar.head_of_kind_naked_immediate Or_unknown_or_bottom.t
     | Naked_float32 of
@@ -96,6 +101,7 @@ module Expanded_type : sig
 end = struct
   type descr =
     | Value of TG.head_of_kind_value
+    | Nullable_value of TG.head_of_kind_nullable_value
     | Naked_immediate of TG.head_of_kind_naked_immediate
     | Naked_float32 of TG.head_of_kind_naked_float32
     | Naked_float of TG.head_of_kind_naked_float
@@ -114,6 +120,9 @@ end = struct
   let descr t = t.descr
 
   let create_value head = { kind = K.value; descr = Ok (Value head) }
+
+  let create_nullable_value head =
+    { kind = K.nullable_value; descr = Ok (Nullable_value head) }
 
   let create_naked_immediate head =
     { kind = K.naked_immediate; descr = Ok (Naked_immediate head) }
@@ -165,6 +174,15 @@ end = struct
         match TG.apply_coercion_head_of_kind_value head coercion with
         | Bottom -> create_bottom K.value
         | Ok head -> create_value head))
+    | Nullable_value Unknown -> create_unknown K.nullable_value
+    | Nullable_value Bottom -> create_bottom K.nullable_value
+    | Nullable_value (Ok (No_alias head)) -> (
+      match coercion with
+      | None -> create_nullable_value head
+      | Some coercion -> (
+        match TG.apply_coercion_head_of_kind_nullable_value head coercion with
+        | Bottom -> create_bottom K.nullable_value
+        | Ok head -> create_nullable_value head))
     | Naked_immediate Unknown -> create_unknown K.naked_immediate
     | Naked_immediate Bottom -> create_bottom K.naked_immediate
     | Naked_immediate (Ok (No_alias head)) -> (
@@ -247,6 +265,7 @@ end = struct
         | Bottom -> create_bottom K.region
         | Ok head -> create_region head))
     | Value (Ok (Equals _))
+    | Nullable_value (Ok (Equals _))
     | Naked_immediate (Ok (Equals _))
     | Naked_float (Ok (Equals _))
     | Naked_float32 (Ok (Equals _))
@@ -265,6 +284,7 @@ end = struct
     | Ok descr -> (
       match descr with
       | Value head -> TG.create_from_head_value head
+      | Nullable_value head -> TG.create_from_head_nullable_value head
       | Naked_immediate head -> TG.create_from_head_naked_immediate head
       | Naked_float32 head -> TG.create_from_head_naked_float32 head
       | Naked_float head -> TG.create_from_head_naked_float head
@@ -277,6 +297,8 @@ end = struct
 
   type descr_oub =
     | Value of Type_grammar.head_of_kind_value Or_unknown_or_bottom.t
+    | Nullable_value of
+        Type_grammar.head_of_kind_nullable_value Or_unknown_or_bottom.t
     | Naked_immediate of
         Type_grammar.head_of_kind_naked_immediate Or_unknown_or_bottom.t
     | Naked_float32 of
@@ -299,6 +321,7 @@ end = struct
     | Unknown -> (
       match t.kind with
       | Value -> Value Unknown
+      | Nullable_value -> Nullable_value Unknown
       | Naked_number Naked_immediate -> Naked_immediate Unknown
       | Naked_number Naked_float32 -> Naked_float32 Unknown
       | Naked_number Naked_float -> Naked_float Unknown
@@ -311,6 +334,7 @@ end = struct
     | Bottom -> (
       match t.kind with
       | Value -> Value Bottom
+      | Nullable_value -> Nullable_value Bottom
       | Naked_number Naked_immediate -> Naked_immediate Bottom
       | Naked_number Naked_float32 -> Naked_float32 Bottom
       | Naked_number Naked_float -> Naked_float Bottom
@@ -321,6 +345,7 @@ end = struct
       | Rec_info -> Rec_info Bottom
       | Region -> Region Bottom)
     | Ok (Value head) -> Value (Ok head)
+    | Ok (Nullable_value head) -> Nullable_value (Ok head)
     | Ok (Naked_immediate head) -> Naked_immediate (Ok head)
     | Ok (Naked_float32 head) -> Naked_float32 (Ok head)
     | Ok (Naked_float head) -> Naked_float (Ok head)
@@ -350,6 +375,7 @@ let expand_head_of_alias_type env kind
   Simple.pattern_match simple
     ~const:(fun const ->
       match Reg_width_const.descr const with
+      | Null -> ET.create_nullable_value TG.Head_of_kind_nullable_value.null
       | Naked_immediate i ->
         ET.create_naked_immediate
           (TG.Head_of_kind_naked_immediate.create_naked_immediate i)

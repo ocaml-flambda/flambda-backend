@@ -20,7 +20,8 @@ open Types
 open Mode
 
 type constant =
-    Const_int of int
+  | Const_null
+  | Const_int of int
   | Const_char of char
   | Const_string of string * Location.t * string option
   | Const_float of string

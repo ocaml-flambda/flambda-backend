@@ -97,9 +97,14 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     ~block ~index =
   let mutability = Mutability.to_asttypes mutability in
   match kind with
-  | Mixed { field_kind = Value_prefix Any_value; _ }
-  | Values { field_kind = Any_value; _ } ->
+  | Mixed { field_kind = Value_prefix Value; _ }
+  | Values { field_kind = Value; _ } ->
     C.get_field_computed Pointer mutability ~block ~index dbg
+  | Values { field_kind = Nullable_value subkind; _ }
+  | Mixed { field_kind = Value_prefix (Nullable_value subkind); _ } ->
+    if K.Subkind.is_immediate_for_gc subkind
+    then C.get_field_computed Immediate mutability ~block ~index dbg
+    else C.get_field_computed Pointer mutability ~block ~index dbg
   | Mixed { field_kind = Value_prefix Immediate; _ }
   | Values { field_kind = Immediate; _ } ->
     C.get_field_computed Immediate mutability ~block ~index dbg
@@ -114,9 +119,15 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
   let init_or_assign = P.Init_or_assign.to_lambda init in
   let expr =
     match kind with
-    | Mixed { field_kind = Value_prefix Any_value; _ }
-    | Values { field_kind = Any_value; _ } ->
+    | Mixed { field_kind = Value_prefix Value; _ }
+    | Values { field_kind = Value; _ } ->
       C.setfield_computed Pointer init_or_assign block index new_value dbg
+    | Values { field_kind = Nullable_value subkind; _ }
+    | Mixed { field_kind = Value_prefix (Nullable_value subkind); _ } ->
+      if K.Subkind.is_immediate_for_gc subkind
+      then C.setfield_computed Pointer init_or_assign block index new_value dbg
+      else
+        C.setfield_computed Immediate init_or_assign block index new_value dbg
     | Mixed { field_kind = Value_prefix Immediate; _ }
     | Values { field_kind = Immediate; _ } ->
       C.setfield_computed Immediate init_or_assign block index new_value dbg
@@ -136,7 +147,7 @@ let make_array ~dbg kind alloc_mode args =
   check_alloc_fields args;
   let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
   match (kind : P.Array_kind.t) with
-  | Immediates | Values -> C.make_alloc ~mode dbg 0 args
+  | Immediates | Values | Nullable_values _ -> C.make_alloc ~mode dbg 0 args
   | Naked_floats ->
     C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
   | Naked_int32s -> C.allocate_unboxed_int32_array ~elements:args mode dbg
@@ -151,7 +162,7 @@ let make_mixed_block ~dbg shape alloc_mode args =
 
 let array_length ~dbg arr (kind : P.Array_kind.t) =
   match kind with
-  | Immediates | Values | Naked_floats ->
+  | Immediates | Values | Nullable_values _ | Naked_floats ->
     (* [Paddrarray] may be a lie sometimes, but we know for certain that the bit
        width of floats is equal to the machine word width (see flambda2.ml). *)
     assert (C.wordsize_shift = C.numfloat_shift);
@@ -193,6 +204,14 @@ let array_load ~dbg (kind : P.Array_kind.t)
   | (Naked_int64s | Naked_nativeints), Scalar ->
     C.unboxed_int64_or_nativeint_array_ref arr index dbg
   | Values, Scalar -> C.addr_array_ref arr index dbg
+  | Nullable_values subkind, Scalar -> (
+    match K.With_subkind.subkind (K.Subkind.to_with_subkind subkind) with
+    | Tagged_immediate -> C.int_array_ref arr index dbg
+    | Anything | Boxed_float32 | Boxed_float | Boxed_int32 | Boxed_int64
+    | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
+    | Immediate_array | Value_array | Generic_array | Unboxed_int32_array
+    | Unboxed_int64_array | Unboxed_nativeint_array | Nullable_array _ ->
+      C.addr_array_ref arr index dbg)
   | Naked_floats, Scalar -> C.unboxed_float_array_ref arr index dbg
   | Naked_int32s, Scalar -> C.unboxed_int32_array_ref arr index dbg
   | (Immediates | Naked_floats), Vec128 ->
@@ -201,8 +220,9 @@ let array_load ~dbg (kind : P.Array_kind.t)
     array_load_128 ~dbg ~element_width_log2:3 ~has_custom_ops:true arr index
   | Naked_int32s, Vec128 ->
     array_load_128 ~dbg ~element_width_log2:2 ~has_custom_ops:true arr index
-  | Values, Vec128 ->
-    Misc.fatal_error "Attempted to load a SIMD vector from a value array."
+  | (Values | Nullable_values _), Vec128 ->
+    Misc.fatal_errorf "Attempted to load a SIMD vector from an array of kind %a"
+      P.Array_kind.print kind
 
 let addr_array_store init ~arr ~index ~new_value dbg =
   match (init : P.Init_or_assign.t) with
@@ -216,6 +236,14 @@ let array_set ~dbg (kind : P.Array_set_kind.t)
     match kind, accessor_width with
     | Immediates, Scalar -> C.int_array_set arr index new_value dbg
     | Values init, Scalar -> addr_array_store init ~arr ~index ~new_value dbg
+    | Nullable_values (init, subkind), Scalar -> (
+      match K.With_subkind.subkind (K.Subkind.to_with_subkind subkind) with
+      | Tagged_immediate -> C.int_array_set arr index new_value dbg
+      | Anything | Boxed_float32 | Boxed_float | Boxed_int32 | Boxed_int64
+      | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
+      | Immediate_array | Value_array | Generic_array | Unboxed_int32_array
+      | Unboxed_int64_array | Unboxed_nativeint_array | Nullable_array _ ->
+        addr_array_store init ~arr ~index ~new_value dbg)
     | Naked_floats, Scalar -> C.float_array_set arr index new_value dbg
     | Naked_int32s, Scalar ->
       C.unboxed_int32_array_set arr ~index ~new_value dbg
@@ -230,8 +258,10 @@ let array_set ~dbg (kind : P.Array_set_kind.t)
     | Naked_int32s, Vec128 ->
       array_set_128 ~dbg ~element_width_log2:2 ~has_custom_ops:true arr index
         new_value
-    | Values _, Vec128 ->
-      Misc.fatal_error "Attempted to store a SIMD vector to a value array."
+    | (Values _ | Nullable_values _), Vec128 ->
+      Misc.fatal_errorf
+        "Attempted to store a SIMD vector to an array of kind %a"
+        P.Array_set_kind.print kind
   in
   C.return_unit dbg expr
 
@@ -746,10 +776,13 @@ let unary_primitive env res dbg f arg =
   | Atomic_load block_access_kind ->
     let imm_or_ptr : Lambda.immediate_or_pointer =
       match block_access_kind with
-      | Any_value -> Pointer
+      | Value -> Pointer
+      | Nullable_value subkind ->
+        if K.Subkind.is_immediate_for_gc subkind then Immediate else Pointer
       | Immediate -> Immediate
     in
     None, res, C.atomic_load ~dbg imm_or_ptr arg
+  | Coerce_to_null | Coerce_to_non_null -> None, res, arg
 
 let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with

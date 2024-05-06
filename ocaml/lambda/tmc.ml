@@ -927,6 +927,9 @@ let rec choice ctx t =
     | Pobj_magic _
     | Pprobe_is_enabled _
 
+    (* nor things relating to or_null *)
+    | Pcoerce_to_null | Pcoerce_to_non_null
+
     (* operations returning boxed values could be considered
        constructions someday *)
     | Pbintofint _ | Pintofbint _

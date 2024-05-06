@@ -176,7 +176,7 @@ type simple =
   | Const of const
   | Coerce of simple * coercion
 
-type array_kind = Flambda_primitive.Array_kind.t =
+type array_kind =
   | Immediates
   | Values
   | Naked_floats
@@ -198,8 +198,8 @@ type generic_array_specialisation =
   | Full_of_immediates
   | Full_of_arbitrary_values_but_not_floats
 
-type block_access_field_kind = Flambda_primitive.Block_access_field_kind.t =
-  | Any_value
+type block_access_field_kind =
+  | Value
   | Immediate
 
 type block_access_kind =
@@ -271,7 +271,7 @@ type unary_int_arith_op = Flambda_primitive.unary_int_arith_op =
   | Neg
   | Swap_byte_endianness
 
-type array_kind_for_length = Flambda_primitive.Array_kind_for_length.t =
+type array_kind_for_length =
   | Array_kind of array_kind
   | Float_array_opt_dynamic
 

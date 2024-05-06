@@ -38,7 +38,7 @@ type to_lift =
   | Immutable_int32_array of { fields : Int32.t list }
   | Immutable_int64_array of { fields : Int64.t list }
   | Immutable_nativeint_array of { fields : Targetint_32_64.t list }
-  | Immutable_value_array of { fields : Simple.t list }
+  | Immutable_value_or_nullable_value_array of { fields : Simple.t list }
   | Empty_array of Empty_array_kind.t
 
 type reification_result =
@@ -63,7 +63,7 @@ let try_to_reify_fields env ~var_allowed alloc_mode ~field_types =
             ~symbol:(fun _sym ~coercion:_ -> Some simple)
             ~const:(fun const ->
               match Reg_width_const.descr const with
-              | Tagged_immediate _imm -> Some simple
+              | Null | Tagged_immediate _ -> Some simple
               | Naked_immediate _ | Naked_float _ | Naked_float32 _
               | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _
               | Naked_nativeint _ ->
@@ -358,6 +358,7 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
        *         function_types_with_value_slots Value_slot.Map.empty
        *     in
        *     Lift_set_of_closures { function_slot; function_types; value_slots } *)
+    | Nullable_value _ -> try_canonical_simple ()
     | Naked_immediate (Ok (Naked_immediates imms)) -> (
       match Targetint_31_63.Set.get_singleton imms with
       | None -> try_canonical_simple ()
@@ -517,12 +518,13 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
         | Ok element_kind -> (
           let kind = Flambda_kind.With_subkind.kind element_kind in
           match kind with
-          | Value -> (
+          | Value | Nullable_value -> (
             match
               try_to_reify_fields env ~var_allowed alloc_mode
                 ~field_types:fields
             with
-            | Some fields -> Lift (Immutable_value_array { fields })
+            | Some fields ->
+              Lift (Immutable_value_or_nullable_value_array { fields })
             | None -> try_canonical_simple ())
           | Naked_number Naked_float ->
             Lift_array_of_naked_floats.lift env ~fields ~try_canonical_simple

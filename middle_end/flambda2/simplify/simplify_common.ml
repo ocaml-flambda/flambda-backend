@@ -80,7 +80,7 @@ let project_tuple ~dbg ~size ~field tuple =
   let module BAK = P.Block_access_kind in
   let bak : BAK.t =
     Values
-      { field_kind = Any_value;
+      { field_kind = Value;
         tag = Known Tag.Scannable.zero;
         size = Known (Targetint_31_63.of_int size)
       }
@@ -351,6 +351,24 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
     | Known_result true | Need_meet -> Ok array_kind
     | Known_result false | Invalid -> Bottom
   in
+  let[@inline] try_to_specialise_to_immediates ~is_nullable : _ Or_bottom.t =
+    (* Try to specialise to immediates *)
+    match T.prove_is_immediates_array typing_env array_ty with
+    | Proved () ->
+      (* Specialise the array operation to [Immediates]. *)
+      if is_nullable
+      then
+        Ok
+          (P.Array_kind.Nullable_values
+             (K.Subkind.create K.With_subkind.tagged_immediate))
+      else Ok P.Array_kind.Immediates
+    | Unknown when is_nullable -> Ok array_kind
+    | Unknown -> (
+      (* Check for float arrays *)
+      match T.meet_is_naked_number_array typing_env array_ty Naked_float with
+      | Known_result false | Need_meet -> Ok array_kind
+      | Known_result true | Invalid -> Bottom)
+  in
   match array_kind with
   | Naked_floats -> for_naked_number Naked_float
   | Naked_int32s -> for_naked_number Naked_int32
@@ -362,17 +380,10 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
     match T.meet_is_naked_number_array typing_env array_ty Naked_float with
     | Known_result false | Need_meet -> Ok array_kind
     | Known_result true | Invalid -> Bottom)
-  | Values -> (
-    (* Try to specialise to immediates *)
-    match T.prove_is_immediates_array typing_env array_ty with
-    | Proved () ->
-      (* Specialise the array operation to [Immediates]. *)
-      Ok P.Array_kind.Immediates
-    | Unknown -> (
-      (* Check for float arrays *)
-      match T.meet_is_naked_number_array typing_env array_ty Naked_float with
-      | Known_result false | Need_meet -> Ok array_kind
-      | Known_result true | Invalid -> Bottom))
+  | Values -> try_to_specialise_to_immediates ~is_nullable:false
+  | Nullable_values _ ->
+    (* XXX use the subkind we have in the nullable case? *)
+    try_to_specialise_to_immediates ~is_nullable:true
 
 let add_symbol_projection dacc ~projected_from projection ~projection_bound_to
     ~kind =

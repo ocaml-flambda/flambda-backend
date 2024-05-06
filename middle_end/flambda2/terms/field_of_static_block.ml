@@ -15,6 +15,7 @@
 (**************************************************************************)
 
 type t =
+  | Null
   | Symbol of Symbol.t
   | Tagged_immediate of Targetint_31_63.t
   | Dynamically_computed of Variable.t * Debuginfo.t
@@ -24,10 +25,13 @@ include Container_types.Make (struct
 
   let compare t1 t2 =
     match t1, t2 with
+    | Null, Null -> 0
     | Symbol s1, Symbol s2 -> Symbol.compare s1 s2
     | Tagged_immediate t1, Tagged_immediate t2 -> Targetint_31_63.compare t1 t2
     | Dynamically_computed (v1, _dbg1), Dynamically_computed (v2, _dbg2) ->
       Variable.compare v1 v2
+    | Null, _ -> -1
+    | _, Null -> 1
     | Symbol _, Tagged_immediate _ -> -1
     | Tagged_immediate _, Symbol _ -> 1
     | Symbol _, Dynamically_computed _ -> -1
@@ -39,6 +43,7 @@ include Container_types.Make (struct
 
   let hash t =
     match t with
+    | Null -> Hashtbl.hash "NULL"
     | Symbol symbol -> Hashtbl.hash (0, Symbol.hash symbol)
     | Tagged_immediate immediate ->
       Hashtbl.hash (1, Targetint_31_63.hash immediate)
@@ -46,6 +51,8 @@ include Container_types.Make (struct
 
   let print ppf t =
     match t with
+    | Null ->
+      Format.fprintf ppf "%tNull%t" Flambda_colours.null Flambda_colours.pop
     | Symbol symbol ->
       Format.fprintf ppf "%t%a%t" Flambda_colours.symbol Symbol.print symbol
         Flambda_colours.pop
@@ -59,7 +66,7 @@ end)
 
 let apply_renaming t renaming =
   match t with
-  | Tagged_immediate _ -> t
+  | Null | Tagged_immediate _ -> t
   | Symbol symbol ->
     let symbol' = Renaming.apply_symbol renaming symbol in
     if symbol == symbol' then t else Symbol symbol'
@@ -72,13 +79,13 @@ let free_names t =
   | Dynamically_computed (var, _dbg) ->
     Name_occurrences.singleton_variable var Name_mode.normal
   | Symbol sym -> Name_occurrences.singleton_symbol sym Name_mode.normal
-  | Tagged_immediate _ -> Name_occurrences.empty
+  | Null | Tagged_immediate _ -> Name_occurrences.empty
 
 let ids_for_export t =
   match t with
   | Dynamically_computed (var, _dbg) ->
     Ids_for_export.add_variable Ids_for_export.empty var
   | Symbol sym -> Ids_for_export.add_symbol Ids_for_export.empty sym
-  | Tagged_immediate _ -> Ids_for_export.empty
+  | Null | Tagged_immediate _ -> Ids_for_export.empty
 
 let tagged_immediate i = Tagged_immediate i

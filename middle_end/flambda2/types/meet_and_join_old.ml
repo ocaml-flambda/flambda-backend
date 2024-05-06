@@ -293,6 +293,11 @@ and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
   | Value head1, Value head2 ->
     let<+ head, env_extension = meet_head_of_kind_value env head1 head2 in
     ET.create_value head, env_extension
+  | Nullable_value head1, Nullable_value head2 ->
+    let<+ head, env_extension =
+      meet_head_of_kind_nullable_value env head1 head2
+    in
+    ET.create_nullable_value head, env_extension
   | Naked_immediate head1, Naked_immediate head2 ->
     let<+ head, env_extension =
       meet_head_of_kind_naked_immediate env head1 head2
@@ -328,9 +333,9 @@ and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
   | Region head1, Region head2 ->
     let<+ head, env_extension = meet_head_of_kind_region env head1 head2 in
     ET.create_region head, env_extension
-  | ( ( Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-      | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _
-      | Rec_info _ | Region _ ),
+  | ( ( Value _ | Nullable_value _ | Naked_immediate _ | Naked_float _
+      | Naked_float32 _ | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _
+      | Naked_nativeint _ | Rec_info _ | Region _ ),
       _ ) ->
     assert false
 
@@ -432,6 +437,16 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     (* This assumes that all the different constructors are incompatible. This
        could break very hard for dubious uses of Obj. *)
     Bottom
+
+and meet_head_of_kind_nullable_value env
+    (head1 : TG.head_of_kind_nullable_value)
+    (head2 : TG.head_of_kind_nullable_value) : _ Or_bottom.t =
+  match head1, head2 with
+  | Null, Null -> Ok (TG.Head_of_kind_nullable_value.null, TEE.empty)
+  | Null, Non_null _ | Non_null _, Null -> Bottom
+  | Non_null ty1, Non_null ty2 ->
+    let<+ ty, env_extension = meet env ty1 ty2 in
+    TG.Head_of_kind_nullable_value.create_non_null ty, env_extension
 
 and meet_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
     (array_contents2 : TG.array_contents Or_unknown.t)
@@ -1140,6 +1155,9 @@ and join_expanded_head env kind (expanded1 : ET.t) (expanded2 : ET.t) : ET.t =
       | Value head1, Value head2 ->
         let>+ head = join_head_of_kind_value env head1 head2 in
         ET.create_value head
+      | Nullable_value head1, Nullable_value head2 ->
+        let>+ head = join_head_of_kind_nullable_value env head1 head2 in
+        ET.create_nullable_value head
       | Naked_immediate head1, Naked_immediate head2 ->
         let>+ head = join_head_of_kind_naked_immediate env head1 head2 in
         ET.create_naked_immediate head
@@ -1167,9 +1185,9 @@ and join_expanded_head env kind (expanded1 : ET.t) (expanded2 : ET.t) : ET.t =
       | Region head1, Region head2 ->
         let>+ head = join_head_of_kind_region env head1 head2 in
         ET.create_region head
-      | ( ( Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-          | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _
-          | Rec_info _ | Region _ ),
+      | ( ( Value _ | Nullable_value _ | Naked_immediate _ | Naked_float _
+          | Naked_float32 _ | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _
+          | Naked_nativeint _ | Rec_info _ | Region _ ),
           _ ) ->
         assert false
     in
@@ -1255,6 +1273,19 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
       | Closures _ | String _ | Array _ ),
       _ ) ->
     Unknown
+
+and join_head_of_kind_nullable_value env
+    (head1 : TG.head_of_kind_nullable_value)
+    (head2 : TG.head_of_kind_nullable_value) :
+    TG.head_of_kind_nullable_value Or_unknown.t =
+  match head1, head2 with
+  | Null, Null -> Known TG.Head_of_kind_nullable_value.null
+  | Null, Non_null _ | Non_null _, Null ->
+    (* XXX maybe have an "Either" case - see Type_grammar *)
+    Unknown
+  | Non_null ty1, Non_null ty2 ->
+    let>+ ty = join env ty1 ty2 in
+    TG.Head_of_kind_nullable_value.create_non_null ty
 
 and join_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
     (array_contents2 : TG.array_contents Or_unknown.t)

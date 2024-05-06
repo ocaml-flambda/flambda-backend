@@ -248,7 +248,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         | Naked_number
             ( Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint
             | Naked_vec128 | Naked_float32 )
-        | Value | Rec_info | Region ->
+        | Value | Nullable_value | Rec_info | Region ->
           fun _dbg cmm -> cmm)
       | _ ->
         (* CR gbury: update when unboxed tuples are used *)
@@ -699,6 +699,7 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
         let dummy_value =
           match K.With_subkind.kind kind with
           | Value -> C.int ~dbg 1
+          | Nullable_value -> C.int ~dbg 0
           | Naked_number Naked_float -> C.float ~dbg 0.
           | Naked_number Naked_float32 -> C.float32 ~dbg 0.
           | Naked_number

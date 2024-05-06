@@ -22,6 +22,8 @@ module Expanded_type : sig
 
   val create_value : Type_grammar.head_of_kind_value -> t
 
+  val create_nullable_value : Type_grammar.head_of_kind_nullable_value -> t
+
   val create_naked_immediate : Type_grammar.head_of_kind_naked_immediate -> t
 
   val create_naked_float32 : Type_grammar.head_of_kind_naked_float32 -> t
@@ -56,6 +58,7 @@ module Expanded_type : sig
 
   type descr = private
     | Value of Type_grammar.head_of_kind_value
+    | Nullable_value of Type_grammar.head_of_kind_nullable_value
     | Naked_immediate of Type_grammar.head_of_kind_naked_immediate
     | Naked_float32 of Type_grammar.head_of_kind_naked_float32
     | Naked_float of Type_grammar.head_of_kind_naked_float
@@ -70,6 +73,8 @@ module Expanded_type : sig
 
   type descr_oub = private
     | Value of Type_grammar.head_of_kind_value Or_unknown_or_bottom.t
+    | Nullable_value of
+        Type_grammar.head_of_kind_nullable_value Or_unknown_or_bottom.t
     | Naked_immediate of
         Type_grammar.head_of_kind_naked_immediate Or_unknown_or_bottom.t
     | Naked_float32 of

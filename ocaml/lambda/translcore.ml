@@ -696,6 +696,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   raise Not_constant    (* can this really happen? *)
                 | Punboxedfloatarray _ | Punboxedintarray _ ->
                   Misc.fatal_error "Use flambda2 for unboxed arrays"
+                | Pnullablearray _ ->
+                  Misc.fatal_error "Use flambda2 for nullable arrays"
             in
             if Types.is_mutable amut then duparray_to_mutable const else const
         end
