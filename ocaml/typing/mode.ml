@@ -25,18 +25,6 @@ type nonrec disallowed = disallowed
 
 type nonrec equate_step = equate_step
 
-module Global_flag = struct
-  type t =
-    | Global
-    | Unrestricted
-
-  let compare flag0 flag1 =
-    match flag0, flag1 with
-    | Global, Unrestricted -> -1
-    | Unrestricted, Global -> 1
-    | Global, Global | Unrestricted, Unrestricted -> 0
-end
-
 module type BiHeyting = sig
   (** Extend the [Lattice] interface with operations of bi-Heyting algebras *)
 
@@ -1036,8 +1024,8 @@ module Lattices_mono = struct
     match maybe_compose dst f g with Some m -> m | None -> Compose (f, g)
 
   let rec left_adjoint :
-      type a b l.
-      b obj -> (a, b, l * allowed) morph -> (b, a, allowed * disallowed) morph =
+      type a b l l'.
+      b obj -> (a, b, l * allowed) morph -> (b, a, l' * disallowed) morph =
    fun dst f ->
     match f with
     | Id -> Id
@@ -1066,8 +1054,8 @@ module Lattices_mono = struct
       Map_comonadic f'
 
   and right_adjoint :
-      type a b r.
-      b obj -> (a, b, allowed * r) morph -> (b, a, disallowed * allowed) morph =
+      type a b r r'.
+      b obj -> (a, b, allowed * r) morph -> (b, a, disallowed * r') morph =
    fun dst f ->
     match f with
     | Id -> Id
@@ -1336,10 +1324,8 @@ let regional_to_global m =
   S.Positive.via_monotone Locality.Obj.obj C.Regional_to_global m
 
 module Comonadic_with_regionality = struct
-  module Const = C.Comonadic_with_regionality
-
   module Obj = struct
-    type const = Const.t
+    type const = C.Comonadic_with_regionality.t
 
     module Solver = S.Positive
 
@@ -1348,13 +1334,31 @@ module Comonadic_with_regionality = struct
 
   include Common (Obj)
 
-  type error = Error : (Const.t, 'a) C.Axis.t * 'a Solver.error -> error
+  type error = Error : (Obj.const, 'a) C.Axis.t * 'a Solver.error -> error
 
   type equate_error = equate_step * error
 
   open Obj
 
   let proj_obj ax = C.proj_obj ax obj
+
+  module Const = struct
+    include C.Comonadic_with_regionality
+
+    let max_with ax c = Axis.update ax c max
+
+    let min_axis ax =
+      let obj = proj_obj ax in
+      C.min obj
+
+    let max_axis ax =
+      let obj = proj_obj ax in
+      C.max obj
+
+    let le_axis ax a b =
+      let obj = proj_obj ax in
+      C.le obj a b
+  end
 
   let proj ax m = Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
 
@@ -1376,17 +1380,19 @@ module Comonadic_with_regionality = struct
 
   let legacy = of_const Const.legacy
 
-  (* overriding to report the offending axis *)
+  (** Finds the offending axis in an error *)
+  let axis_of_error { left = reg0, lin0; right = reg1, lin1 } : error =
+    if Regionality.Const.le reg0 reg1
+    then
+      if Linearity.Const.le lin0 lin1
+      then assert false
+      else Error (Linearity, { left = lin0; right = lin1 })
+    else Error (Areality, { left = reg0; right = reg1 })
+
   let submode_log m0 m1 ~log : _ result =
     match submode_log m0 m1 ~log with
     | Ok () -> Ok ()
-    | Error { left = reg0, lin0; right = reg1, lin1 } ->
-      if Regionality.Const.le reg0 reg1
-      then
-        if Linearity.Const.le lin0 lin1
-        then assert false
-        else Error (Error (Linearity, { left = lin0; right = lin1 }))
-      else Error (Error (Areality, { left = reg0; right = reg1 }))
+    | Error e -> Error (axis_of_error e)
 
   let submode a b = try_with_log (submode_log a b)
 
@@ -1395,14 +1401,8 @@ module Comonadic_with_regionality = struct
 end
 
 module Comonadic_with_locality = struct
-  module Const = struct
-    include C.Comonadic_with_locality
-
-    let eq a b = le a b && le b a
-  end
-
   module Obj = struct
-    type const = Const.t
+    type const = C.Comonadic_with_locality.t
 
     module Solver = S.Positive
 
@@ -1411,13 +1411,19 @@ module Comonadic_with_locality = struct
 
   include Common (Obj)
 
-  type error = Error : (Const.t, 'a) C.Axis.t * 'a Solver.error -> error
+  type error = Error : (Obj.const, 'a) C.Axis.t * 'a Solver.error -> error
 
   type equate_error = equate_step * error
 
   open Obj
 
   let proj_obj ax = C.proj_obj ax obj
+
+  module Const = struct
+    include C.Comonadic_with_locality
+
+    let eq a b = le a b && le b a
+  end
 
   let proj ax m = Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
 
@@ -1463,10 +1469,8 @@ module Comonadic_with_locality = struct
 end
 
 module Monadic = struct
-  module Const = C.Monadic
-
   module Obj = struct
-    type const = Const.t
+    type const = C.Monadic_op.t
 
     (* Negative solver on the opposite of monadic should give the monadic
        fragment with original ordering *)
@@ -1477,13 +1481,31 @@ module Monadic = struct
 
   include Common (Obj)
 
-  type error = Error : (Const.t, 'a) C.Axis.t * 'a Solver.error -> error
+  type error = Error : (Obj.const, 'a) C.Axis.t * 'a Solver.error -> error
 
   type equate_error = equate_step * error
 
   open Obj
 
   let proj_obj ax = C.proj_obj ax obj
+
+  module Const = struct
+    include C.Monadic
+
+    let min_with ax c = Axis.update ax c min
+
+    let min_axis ax =
+      let obj = proj_obj ax in
+      C.max obj
+
+    let max_axis ax =
+      let obj = proj_obj ax in
+      C.min obj
+
+    let le_axis ax a b =
+      let obj = proj_obj ax in
+      C.le obj b a
+  end
 
   let proj ax m = Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
 
@@ -1513,14 +1535,16 @@ module Monadic = struct
 
   let legacy = of_const Const.legacy
 
+  let axis_of_error { left = uni0, (); right = uni1, () } : error =
+    if Uniqueness.Const.le uni0 uni1
+    then assert false
+    else Error (Uniqueness, { left = uni0; right = uni1 })
+
   (* overriding to report the offending axis *)
   let submode_log m0 m1 ~log : _ result =
     match submode_log m0 m1 ~log with
     | Ok () -> Ok ()
-    | Error { left = uni0, (); right = uni1, () } ->
-      if Uniqueness.Const.le uni0 uni1
-      then assert false
-      else Error (Error (Uniqueness, { left = uni0; right = uni1 }))
+    | Error e -> Error (axis_of_error e)
 
   let submode a b = try_with_log (submode_log a b)
 
@@ -1552,6 +1576,14 @@ module Value = struct
     | Comonadic :
         (Comonadic.Const.t, 'a) Axis.t
         -> (('a, 'd) mode_comonadic, 'a, 'd) axis
+
+  (* let eq_axis: type m0 a0 d0 m1 a1 d1.
+     (m0, a0, d0) axis -> (m1, a1, d1) axis -> (a0, a1) Misc.eq option
+     = fun ax0 ax1 -> match ax0, ax1 with
+     | Monadic ax0, Monadic ax1 -> (match Axis.eq ax0 ax1 with | None -> None | Some Refl -> Some Refl)
+     | Comonadic ax0, Comonadic ax1 -> (match Axis.eq ax0 ax1 with | None -> None | Some Refl -> Some Refl)
+     | Monadic _, Comonadic _ -> None
+     | Comonadic _, Monadic _ -> None *)
 
   let proj_obj : type m a d. (m, a, d) axis -> a C.obj = function
     | Monadic ax -> Monadic.proj_obj ax
@@ -1626,6 +1658,24 @@ module Value = struct
      fun ax ppf a ->
       let obj = proj_obj ax in
       C.print obj ppf a
+
+    let le_axis : type m a d. (m, a, d) axis -> a -> a -> bool =
+     fun ax m0 m1 ->
+      match ax with
+      | Comonadic ax -> Comonadic.le_axis ax m0 m1
+      | Monadic ax -> Monadic.le_axis ax m0 m1
+
+    let min_axis : type m a d. (m, a, d) axis -> a = function
+      | Comonadic ax -> Comonadic.min_axis ax
+      | Monadic ax -> Monadic.min_axis ax
+
+    let max_axis : type m a d. (m, a, d) axis -> a = function
+      | Comonadic ax -> Comonadic.max_axis ax
+      | Monadic ax -> Monadic.max_axis ax
+
+    let split = split
+
+    let merge = merge
   end
 
   let min = { comonadic = Comonadic.min; monadic = Monadic.min }
@@ -2067,6 +2117,9 @@ module Alloc = struct
     { comonadic; monadic }
 
   module Const = struct
+    let monadic_to_comonadic_min m =
+      C.apply Comonadic.Obj.obj C.Monadic_to_comonadic_min m
+
     type t = (Locality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
 
     module Monadic = Monadic.Const
@@ -2129,22 +2182,6 @@ module Alloc = struct
       let uniqueness = diff Uniqueness.Const.le m0.uniqueness m1.uniqueness in
       { locality; linearity; uniqueness }
 
-    (** See [Alloc.close_over] for explanation. *)
-    let close_over m =
-      let { monadic; comonadic } = split m in
-      let comonadic =
-        Comonadic.join comonadic
-          (C.monadic_to_comonadic_min C.Comonadic_with_locality monadic)
-      in
-      let monadic = Monadic.min in
-      merge { comonadic; monadic }
-
-    (** See [Alloc.partial_apply] for explanation. *)
-    let partial_apply m =
-      let { comonadic; _ } = split m in
-      let monadic = Monadic.min in
-      merge { comonadic; monadic }
-
     let print_axis : type m a d. (m, a, d) axis -> _ -> a -> unit =
      fun ax ppf a ->
       let obj = proj_obj ax in
@@ -2176,28 +2213,6 @@ module Alloc = struct
     let monadic = Monadic.zap_to_legacy monadic in
     let comonadic = Comonadic.zap_to_legacy comonadic in
     merge { monadic; comonadic }
-
-  (** This is about partially applying [A -> B -> C] to [A] and getting [B ->
-    C]. [comonadic] and [monadic] constutute the mode of [A], and we need to
-    give the lower bound mode of [B -> C]. *)
-  let close_over { comonadic; monadic } =
-    let comonadic = Comonadic.disallow_right comonadic in
-    (* The comonadic of the returned function is constrained by the monadic of the closed argument via the dualizing morphism. *)
-    let comonadic1 = monadic_to_comonadic_min monadic in
-    (* It's also constrained by the comonadic of the closed argument. *)
-    let comonadic = Comonadic.join [comonadic; comonadic1] in
-    (* The returned function crosses all monadic axes that we know of
-       (uniqueness/contention). *)
-    let monadic = Monadic.disallow_right Monadic.min in
-    { comonadic; monadic }
-
-  (** Similar to above, but we are given the mode of [A -> B -> C], and need to
-      give the lower bound mode of [B -> C]. *)
-  let partial_apply { comonadic; _ } =
-    (* The returned function crosses all monadic axes that we know of. *)
-    let monadic = Monadic.disallow_right Monadic.min in
-    let comonadic = Comonadic.disallow_right comonadic in
-    { comonadic; monadic }
 end
 
 module Const = struct
@@ -2239,3 +2254,310 @@ let value_to_alloc_r2l m =
       (Map_comonadic Regional_to_local) comonadic
   in
   { comonadic; monadic }
+
+module Modality = struct
+  type ('m, 'a) raw =
+    | Meet_with : 'a -> (('a, 'l * 'r) mode_comonadic, 'a) raw
+    | Join_with : 'a -> (('a, 'l * 'r) mode_monadic, 'a) raw
+
+  type t = Atom : ('m, 'a, _) Value.axis * ('m, 'a) raw -> t
+
+  let is_id (Atom (ax, a)) =
+    match a with
+    | Join_with c -> Value.Const.le_axis ax c (Value.Const.min_axis ax)
+    | Meet_with c -> Value.Const.le_axis ax (Value.Const.max_axis ax) c
+
+  let print ppf = function
+    | Atom (ax, Join_with c) ->
+      Format.fprintf ppf "join_with(%a)" (C.print (Value.proj_obj ax)) c
+    | Atom (ax, Meet_with c) ->
+      Format.fprintf ppf "meet_with(%a)" (C.print (Value.proj_obj ax)) c
+
+  module Monadic = struct
+    module Mode = Value.Monadic
+    module Const = Mode.Const
+
+    type t = Join_const : Const.t -> t
+
+    type 'a axis = (Const.t, 'a) Axis.t
+
+    type error =
+      | Error : 'a axis * (('a, _) mode_monadic, 'a) raw Solver.error -> error
+
+    let sub_log left right ~log:_ : (unit, error) Result.t =
+      match left, right with
+      | Join_const c0, Join_const c1 ->
+        if Const.le c0 c1
+        then Ok ()
+        else
+          let (Error (ax, { left; right })) =
+            Mode.axis_of_error { left = c0; right = c1 }
+          in
+          Error (Error (ax, { left = Join_with left; right = Join_with right }))
+
+    let id = Join_const Const.min
+
+    let cons : type a l r. a axis -> ((a, l * r) mode_monadic, a) raw -> t -> t
+        =
+     fun ax a t ->
+      match a, t with
+      | Join_with c0, Join_const c ->
+        Join_const (Const.join (Const.min_with ax c0) c)
+      | Meet_with _, Join_const _ -> assert false
+
+    let morph_of : type l r. t -> (Const.t, Const.t, l * r) C.morph = function
+      (* Monadic fragment is flipped *)
+      | Join_const c -> C.Meet_with c
+
+    let apply : type l r. t -> (l * r) Mode.t -> (l * r) Mode.t =
+     fun t x ->
+      let morph = morph_of t in
+      Mode.Obj.Solver.via_monotone Mode.Obj.obj morph x
+
+    let to_list = function
+      | Join_const c ->
+        [ (let ax : _ Axis.t = Uniqueness in
+           Atom (Monadic ax, Join_with (Axis.proj ax c))) ]
+
+    let print ppf = function
+      | Join_const c -> Format.fprintf ppf "join_const(%a)" Const.print c
+  end
+
+  module Comonadic = struct
+    module Mode = Value.Comonadic
+    module Const = Mode.Const
+
+    type t = Meet_const : Const.t -> t
+
+    type 'a axis = (Const.t, 'a) Axis.t
+
+    type error =
+      | Error : 'a axis * (('a, _) mode_comonadic, 'a) raw Solver.error -> error
+
+    let sub_log left right ~log:_ : (unit, error) Result.t =
+      match left, right with
+      | Meet_const c0, Meet_const c1 ->
+        if Const.le c0 c1
+        then Ok ()
+        else
+          let (Error (ax, { left; right })) =
+            Mode.axis_of_error { left = c0; right = c1 }
+          in
+          Error (Error (ax, { left = Meet_with left; right = Meet_with right }))
+
+    let id = Meet_const Const.max
+
+    let cons :
+        type a l r. a axis -> ((a, l * r) mode_comonadic, a) raw -> t -> t =
+     fun ax a t ->
+      match a, t with
+      | Meet_with c0, Meet_const c ->
+        Meet_const (Const.meet (Const.max_with ax c0) c)
+      | Join_with _, Meet_const _ -> assert false
+
+    let morph_of : type l r. t -> (Const.t, Const.t, l * r) C.morph = function
+      | Meet_const c -> C.Meet_with c
+
+    let apply : type l r. t -> (l * r) Mode.t -> (l * r) Mode.t =
+     fun t x ->
+      let morph = morph_of t in
+      Mode.Obj.Solver.via_monotone Mode.Obj.obj morph x
+
+    let to_list = function
+      | Meet_const c ->
+        [ (let ax : _ Axis.t = Areality in
+           Atom (Comonadic ax, Meet_with (Axis.proj ax c)));
+          (let ax : _ Axis.t = Linearity in
+           Atom (Comonadic ax, Meet_with (Axis.proj ax c))) ]
+
+    let print ppf = function
+      | Meet_const c -> Format.fprintf ppf "meet_const(%a)" Const.print c
+  end
+
+  module Value = struct
+    type t = (Monadic.t, Comonadic.t) monadic_comonadic
+
+    let apply t { monadic; comonadic } =
+      let monadic = Monadic.apply t.monadic monadic in
+      let comonadic = Comonadic.apply t.comonadic comonadic in
+      { monadic; comonadic }
+
+    type error =
+      | Error : ('m, 'a, _) Value.axis * ('m, 'a) raw Solver.error -> error
+
+    let sub_log : t -> t -> log:_ -> (unit, error) Result.t =
+     fun t0 t1 ~log ->
+      match Monadic.sub_log t0.monadic t1.monadic ~log with
+      | Error (Error (ax, e)) -> Error (Error (Monadic ax, e))
+      | Ok () -> (
+        match Comonadic.sub_log t0.comonadic t1.comonadic ~log with
+        | Ok () -> Ok ()
+        | Error (Error (ax, e)) -> Error (Error (Comonadic ax, e)))
+
+    let sub l r = try_with_log (sub_log l r)
+
+    type equate_error = equate_step * error
+
+    let equate m0 m1 = try_with_log (equate_from_submode sub_log m0 m1)
+
+    let id = { monadic = Monadic.id; comonadic = Comonadic.id }
+
+    let cons (Atom (ax, a)) t =
+      match ax with
+      | Monadic ax ->
+        let monadic = Monadic.cons ax a t.monadic in
+        { t with monadic }
+      | Comonadic ax ->
+        let comonadic = Comonadic.cons ax a t.comonadic in
+        { t with comonadic }
+
+    let singleton a = cons a id
+
+    let join_meet { monadic; comonadic } =
+      let monadic = Monadic.Join_const monadic in
+      let comonadic = Comonadic.Meet_const comonadic in
+      { monadic; comonadic }
+
+    let to_list { monadic; comonadic } =
+      Comonadic.to_list comonadic @ Monadic.to_list monadic
+
+    let print ppf ({ monadic; comonadic } : t) =
+      Format.fprintf ppf "%a,%a" Monadic.print monadic Comonadic.print comonadic
+  end
+end
+
+module Crossing = struct
+  module Monadic = struct
+    module Mode = Value.Monadic
+    module Const = Mode.Const
+
+    (* The monadic fragment is flipped, so many of the following definitions are
+       flipped too.*)
+    type t =
+      { left : (Const.t, Const.t, disallowed * allowed) C.morph;
+        right : (Const.t, Const.t, allowed * disallowed) C.morph
+      }
+
+    let apply_left : type l r. t -> (l * r) Mode.t -> (l * disallowed) Mode.t =
+     fun { left; _ } m ->
+      Mode.Obj.Solver.via_monotone Mode.Obj.obj (C.allow_right left)
+        (Mode.disallow_right m)
+
+    let apply_right : type l r. t -> (l * r) Mode.t -> (disallowed * r) Mode.t =
+     fun { right; _ } m ->
+      Mode.Obj.Solver.via_monotone Mode.Obj.obj (C.allow_left right)
+        (Mode.disallow_left m)
+
+    let none = { left = C.Id; right = C.Id }
+
+    let modality modality { left; right } =
+      let f = Modality.Monadic.morph_of modality in
+      let f_r = C.left_adjoint Mode.Obj.obj f in
+      let f_l = C.right_adjoint Mode.Obj.obj f in
+      let right =
+        C.compose Mode.Obj.obj
+          (C.compose Mode.Obj.obj f_r right)
+          (C.disallow_right f)
+      in
+      let left =
+        C.compose Mode.Obj.obj
+          (C.compose Mode.Obj.obj f_l left)
+          (C.disallow_left f)
+      in
+      { left; right }
+  end
+
+  module Comonadic = struct
+    module Mode = Value.Comonadic
+    module Const = Mode.Const
+
+    type t =
+      { left : (Const.t, Const.t, allowed * disallowed) C.morph;
+        right : (Const.t, Const.t, disallowed * allowed) C.morph
+      }
+
+    let apply_left : type l r. t -> (l * r) Mode.t -> (l * disallowed) Mode.t =
+     fun { left; _ } m ->
+      Mode.Obj.Solver.via_monotone Mode.Obj.obj (C.allow_left left)
+        (Mode.disallow_right m)
+
+    let apply_right : type l r. t -> (l * r) Mode.t -> (disallowed * r) Mode.t =
+     fun { right; _ } m ->
+      Mode.Obj.Solver.via_monotone Mode.Obj.obj (C.allow_right right)
+        (Mode.disallow_left m)
+
+    let apply_left_alloc :
+        type l r.
+        t -> (l * r) Alloc.Comonadic.t -> (l * disallowed) Alloc.Comonadic.t =
+     fun { left; _ } m ->
+      let open Alloc.Comonadic in
+      let f = C.Map_comonadic C.Locality_as_regionality in
+      let f_l = C.left_adjoint Mode.Obj.obj f in
+      disallow_right m
+      |> Mode.Obj.Solver.via_monotone Mode.Obj.obj f
+      |> Mode.Obj.Solver.via_monotone Mode.Obj.obj (C.allow_left left)
+      |> Obj.Solver.via_monotone Obj.obj f_l
+
+    let apply_right_alloc :
+        type l r.
+        t -> (l * r) Alloc.Comonadic.t -> (disallowed * r) Alloc.Comonadic.t =
+     fun { right; _ } m ->
+      let open Alloc.Comonadic in
+      let f = C.Map_comonadic C.Locality_as_regionality in
+      let f_r = C.right_adjoint Mode.Obj.obj f in
+      disallow_left m
+      |> Mode.Obj.Solver.via_monotone Mode.Obj.obj f
+      |> Mode.Obj.Solver.via_monotone Mode.Obj.obj (C.allow_right right)
+      |> Obj.Solver.via_monotone Obj.obj f_r
+
+    let none = { left = C.Id; right = C.Id }
+
+    let modality modality { left; right } =
+      let f = Modality.Comonadic.morph_of modality in
+      let f_l = C.left_adjoint Mode.Obj.obj f in
+      let f_r = C.right_adjoint Mode.Obj.obj f in
+      let right =
+        C.compose Mode.Obj.obj
+          (C.compose Mode.Obj.obj f_r right)
+          (C.disallow_left f)
+      in
+      let left =
+        C.compose Mode.Obj.obj
+          (C.compose Mode.Obj.obj f_l left)
+          (C.disallow_right f)
+      in
+      { left; right }
+  end
+
+  type t = (Monadic.t, Comonadic.t) monadic_comonadic
+
+  let apply_left t { monadic; comonadic } =
+    let monadic = Monadic.apply_left t.monadic monadic in
+    let comonadic = Comonadic.apply_left t.comonadic comonadic in
+    { monadic; comonadic }
+
+  let apply_right t { monadic; comonadic } =
+    let monadic = Monadic.apply_right t.monadic monadic in
+    let comonadic = Comonadic.apply_right t.comonadic comonadic in
+    { monadic; comonadic }
+
+  let apply_left_alloc t { monadic; comonadic } =
+    let monadic = Monadic.apply_left t.monadic monadic in
+    let comonadic = Comonadic.apply_left_alloc t.comonadic comonadic in
+    { monadic; comonadic }
+
+  let apply_right_alloc t { monadic; comonadic } =
+    let monadic = Monadic.apply_right t.monadic monadic in
+    let comonadic = Comonadic.apply_right_alloc t.comonadic comonadic in
+    { monadic; comonadic }
+
+  let none =
+    let monadic = Monadic.none in
+    let comonadic = Comonadic.none in
+    { monadic; comonadic }
+
+  let modality m { monadic; comonadic } =
+    let monadic = Monadic.modality m.monadic monadic in
+    let comonadic = Comonadic.modality m.comonadic comonadic in
+    { monadic; comonadic }
+end

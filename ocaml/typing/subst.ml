@@ -402,7 +402,7 @@ let label_declaration copy_scope s l =
   {
     ld_id = l.ld_id;
     ld_mutable = l.ld_mutable;
-    ld_global = l.ld_global;
+    ld_modalities = l.ld_modalities;
     ld_jkind = apply_prepare_jkind s l.ld_jkind l.ld_loc;
     ld_type = typexp copy_scope s l.ld_loc l.ld_type;
     ld_loc = loc s l.ld_loc;

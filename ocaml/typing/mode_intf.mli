@@ -89,14 +89,6 @@ module type Common = sig
 end
 
 module type S = sig
-  module Global_flag : sig
-    type t =
-      | Global
-      | Unrestricted
-
-    val compare : t -> t -> int
-  end
-
   type changes
 
   val undo_changes : changes -> unit
@@ -285,6 +277,10 @@ module type S = sig
 
       (** Prints a constant on any axis. *)
       val print_axis : ('m, 'a, 'd) axis -> Format.formatter -> 'a -> unit
+
+      val split : t -> (Monadic.Const.t, Comonadic.Const.t) monadic_comonadic
+
+      val merge : (Monadic.Const.t, Comonadic.Const.t) monadic_comonadic -> t
     end
 
     type error = Error : ('m, 'a, 'd) axis * 'a Solver.error -> error
@@ -387,14 +383,12 @@ module type S = sig
       a0] for axes where [a] is [a0] and [b] isn't. *)
       val diff : t -> t -> Option.t
 
-      (** Similar to [Alloc.close_over] but for constants *)
-      val close_over : t -> t
-
-      (** Similar to [Alloc.partial_apply] but for constants *)
-      val partial_apply : t -> t
-
       (** Prints a constant on any axis. *)
       val print_axis : ('m, 'a, 'd) axis -> Format.formatter -> 'a -> unit
+
+      (** Dualize a monadic fragment to the comonadic fragment, and set the
+          areality axis to min. *)
+      val monadic_to_comonadic_min : Monadic.Const.t -> Comonadic.Const.t
     end
 
     type error = Error : ('m, 'a, 'd) axis * 'a Solver.error -> error
@@ -425,17 +419,10 @@ module type S = sig
 
     val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 
-    (* The following two are about the scenario where we partially apply a
-       function [A -> B -> C] to [A] and get back [B -> C]. The mode of the
-       three are constrained. *)
-
-    (** Returns the lower bound needed for [B -> C] in relation to [A] *)
-    val close_over :
-      (('l * allowed) Monadic.t, (allowed * 'r) Comonadic.t) monadic_comonadic ->
-      l
-
-    (** Returns the lower bound needed for [B -> C] in relation to [A -> B -> C] *)
-    val partial_apply : (allowed * 'r) t -> l
+    (** Dualize a monadic fragment to the comonadic fragment, and set the
+          areality axis to min. *)
+    val monadic_to_comonadic_min :
+      ('l * 'r) Monadic.t -> ('r * disallowed) Comonadic.t
   end
 
   module Const : sig
@@ -462,4 +449,103 @@ module type S = sig
 
   (** Similar to [regional_to_global], behaves as identity on other axes *)
   val value_to_alloc_r2g : ('l * 'r) Value.t -> ('l * 'r) Alloc.t
+
+  module Modality : sig
+    type ('m, 'a) raw =
+      | Meet_with : 'a -> (('a, 'd) mode_comonadic, 'a) raw
+          (** [Meet_with c] takes [x] and returns [meet c x]. [c] can be [max]
+          in which case it's the identity modality. *)
+      | Join_with : 'a -> (('a, 'd) mode_monadic, 'a) raw
+          (** [Join_with c] takes [x] and returns [join c x]. [c] can be [min]
+          in which case it's the identity modality. *)
+
+    (** An atom modality is a [raw] accompanied by the axis it acts on. *)
+    type t = Atom : ('m, 'a, _) Value.axis * ('m, 'a) raw -> t
+
+    (** Test if the given modality is the identity modality. *)
+    val is_id : t -> bool
+
+    (** Printing for debugging *)
+    val print : Format.formatter -> t -> unit
+
+    module Value : sig
+      type atom
+
+      (** A modality that acts on [Value] modes. Conceptually it is a sequnce of
+          [atom] that acts on individual axes. *)
+      type t
+
+      (** The identity modality. *)
+      val id : t
+
+      (** Apply a modality on mode. *)
+      val apply : t -> ('l * 'r) Value.t -> ('l * 'r) Value.t
+
+      (** [cons m t] returns the modality that is [m] after [t]. *)
+      val cons : atom -> t -> t
+
+      (** [singleton m] returns the modality containing only [m]. *)
+      val singleton : atom -> t
+
+      (** [join_meet {monadic; comonadic}] returns the modality
+        [join_with(monadic)] and [meet_with(comonadic)]. This is only used by
+        [jkind.ml]. *)
+      val join_meet :
+        (Value.Monadic.Const.t, Value.Comonadic.Const.t) monadic_comonadic -> t
+
+      (** Returns the list of [atom] in the given modality. The list is
+          commutative. *)
+      val to_list : t -> atom list
+
+      type error =
+        | Error : ('m, 'a, _) Value.axis * ('m, 'a) raw Solver.error -> error
+
+      (** [sub t0 t1] checks that [t0 <= t1].
+          Definition: [t0 <= t1] iff [forall a. t0(a) <= t1(a)].
+
+          In case of failure, [Error (ax, {left; right})] is returned, where
+          [ax] is the axis on which the modalities disagree. [left] is the
+          projection of [t0] on [ax], and [right] is the projection of [t1] on
+          [ax]. *)
+      val sub : t -> t -> (unit, error) Result.t
+
+      type nonrec equate_error = equate_step * error
+
+      (** [equate t0 t1] checks that [t0 = t1].
+          Definition: [t0 = t1] iff [t0 <= t1] and [t1 <= t0]. *)
+      val equate : t -> t -> (unit, equate_error) Result.t
+
+      (** Printing for debugging. *)
+      val print : Format.formatter -> t -> unit
+    end
+    with type atom := t
+  end
+
+  module Crossing : sig
+    (** Represents a crossing of [Value.t] modes. *)
+    type t
+
+    (** [apply_left t m] gives the lowest variant of [m] as allowed by [t]. *)
+    val apply_left : t -> ('l * 'r) Value.t -> ('l * disallowed) Value.t
+
+    (** [apply_right t m] gives the highest variant of [m] as allowed by [t]. *)
+    val apply_right : t -> ('l * 'r) Value.t -> (disallowed * 'r) Value.t
+
+    (** Similar to [apply_left] but via [alloc_as_value]. Concretely,
+        [alloc_as_value(apply_left_alloc t m)
+         = apply_left t (alloc_as_value m)] *)
+    val apply_left_alloc : t -> ('l * 'r) Alloc.t -> ('l * disallowed) Alloc.t
+
+    (** Similar to [apply_right] but via [alloc_as_value]. Concretely,
+        [alloc_as_value(apply_right_alloc t m)
+         = apply_right t (alloc_as_value m)] *)
+    val apply_right_alloc : t -> ('l * 'r) Alloc.t -> (disallowed * 'r) Alloc.t
+
+    (** The crossing that does nothing. *)
+    val none : t
+
+    (** [modality m t] gives the crossing of [a @@ m] where type [a] has
+    crossing [t]. *)
+    val modality : Modality.Value.t -> t -> t
+  end
 end

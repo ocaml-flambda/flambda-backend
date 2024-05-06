@@ -186,7 +186,7 @@ type existential_treatment =
 
 val instance_constructor: existential_treatment ->
         constructor_description ->
-        (type_expr * Global_flag.t) list * type_expr * type_expr list
+        (type_expr * Modality.Value.t) list * type_expr * type_expr list
         (* Same, for a constructor. Also returns existentials. *)
 val instance_parameterized_type:
         ?keep_names:bool ->
@@ -211,6 +211,23 @@ val prim_mode :
 val instance_prim:
         Primitive.description -> type_expr ->
         type_expr * Mode.Locality.lr option * Jkind.Sort.t option
+
+val mode_cross_left : Env.t -> type_expr -> ('l * 'r) Alloc.t -> ('l * disallowed) Alloc.t
+
+val mode_cross_right : Env.t -> type_expr -> ('l * 'r) Alloc.t -> (disallowed * 'r) Alloc.t
+
+(* The following two are about the scenario where we partially apply a function
+[A -> B -> C] to [A] and get back [B -> C]. The mode of the three are
+constrained. *)
+
+(** Returns the lower bound needed for [B -> C] in relation to [A] *)
+val close_over :
+        (('l * allowed) Alloc.Monadic.t,
+        (allowed * 'r) Alloc.Comonadic.t) monadic_comonadic
+        -> Alloc.l
+
+(** Returns the lower bound needed for [B -> C] in relation to [A -> B -> C] *)
+val partial_apply : (allowed * 'r) Alloc.t -> Alloc.l
 
 (** Given (a @ m1 -> b -> c) @ m0, where [m0] and [m1] are modes expressed by
     user-syntax, [curry_mode m0 m1] gives the mode we implicitly interpret b->c

@@ -423,19 +423,6 @@ let value_regional_to_local mode =
   |> value_to_alloc_r2l
   |> alloc_as_value
 
-(* Describes how a modality affects field projection. Returns the mode
-   of the projection given the mode of the record. *)
-let apply_modality
-  : type l r. _ -> (l * r) Value.t -> (l * r) Value.t
-  = fun global_flag mode ->
-  match global_flag with
-  | Global_flag.Global ->
-      mode
-      |> Value.meet_with (Comonadic Areality) Regionality.Const.Global
-      |> Value.join_with (Monadic Uniqueness) Uniqueness.Const.Shared
-      |> Value.meet_with (Comonadic Linearity) Linearity.Const.Many
-  | Global_flag.Unrestricted -> mode
-
 let mode_default mode =
   { position = RNontail;
     closure_context = None;
@@ -447,7 +434,7 @@ let mode_legacy = mode_default Value.legacy
 
 let mode_modality modality expected_mode =
   expected_mode.mode
-  |> apply_modality modality
+  |> Modality.Value.apply modality
   |> mode_default
 
 (* used when entering a function;
@@ -784,35 +771,17 @@ let has_poly_constraint spat =
 
 (** Mode cross a left mode *)
 let mode_cross_left env ty mode =
-  let mode =
-    if not (is_principal ty) then mode else
-    let jkind = type_jkind_purely env ty in
-    let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-    let upper_bounds = Const.alloc_as_value upper_bounds in
-    Value.meet_const upper_bounds mode
-  in
-  mode |> Value.disallow_right
-
-(** Mode cross a mode whose monadic fragment is a right mode, and whose comonadic
-    fragment is a left mode. *)
-let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
-  let monadic = Alloc.Monadic.disallow_left monadic in
-  let comonadic = Alloc.Comonadic.disallow_right comonadic in
-  if not (is_principal ty) then { monadic; comonadic } else
+  if not (is_principal ty) then mode |> Value.disallow_right else
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  let upper_bounds = Alloc.Const.split upper_bounds in
-  let comonadic = Alloc.Comonadic.meet_const upper_bounds.comonadic comonadic in
-  let monadic = Alloc.Monadic.imply upper_bounds.monadic monadic in
-  { monadic; comonadic }
+  let crossing = Jkind.get_mode_crossing jkind in
+  Crossing.apply_left crossing mode
 
 (** Mode cross a right mode *)
 let expect_mode_cross env ty (expected_mode : expected_mode) =
   if not (is_principal ty) then expected_mode else
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  let upper_bounds = Const.alloc_as_value upper_bounds in
-  let mode = Value.imply upper_bounds expected_mode.mode in
+  let crossing = Jkind.get_mode_crossing jkind in
+  let mode = Crossing.apply_right crossing expected_mode.mode in
   (* - [strict_local] doesn't need to be updated, because it's only relavant for
      functions, which don't cross locality.
      - [mode_tuples] doesn't need to be updated, because [mode] being higher
@@ -863,13 +832,15 @@ let mutable_mode m0 =
   in
   m0 |> Const.alloc_as_value |> Value.of_const
 
-(** Takes the mutability on a field, and expected mode of the record (adjusted
-    for allocation), check that the construction would be allowed. *)
-let check_construct_mutability mutability (argument_mode : expected_mode) =
+(** Takes the modality and mutability on a field, and expected mode of the field
+    (adjusted for allocation, modality and mode crossing of the field type
+    without modality), check that the construction would be allowed. *)
+let check_construct_mutability modality mutability (argument_mode : expected_mode) =
   match mutability with
   | Immutable -> ()
   | Mutable m0 ->
       let m0 = mutable_mode m0 in
+      let m0 = Modality.Value.apply modality m0 in
       match Value.submode m0 argument_mode.mode with
       | Ok () -> ()
       | Error _ ->
@@ -2378,11 +2349,11 @@ and type_pat_aux
        shouldn't be too bad.  We can inline this when we upstream this code and
        combine the two array pattern constructors. *)
     let ty_elt, arg_sort = solve_Ppat_array ~refine loc env mutability expected_ty in
-    let modalities : Global_flag.t =
-      (* CR zqian: decouple mutable and global modality *)
-      if Types.is_mutable mutability then Global else Unrestricted
+    let modalities =
+      if Types.is_mutable mutability then Typemode.mutable_implied_modalities
+      else Modality.Value.id
     in
-    let alloc_mode = apply_modality modalities alloc_mode.mode in
+    let alloc_mode = Modality.Value.apply modalities alloc_mode.mode in
     let alloc_mode = simple_pat_mode alloc_mode in
     let pl = List.map (fun p -> type_pat ~alloc_mode tps Value p ty_elt) spl in
     rvp {
@@ -2625,7 +2596,7 @@ and type_pat_aux
       let args =
         List.map2
           (fun p (ty, gf) ->
-             let alloc_mode = apply_modality gf alloc_mode.mode in
+             let alloc_mode = Modality.Value.apply gf alloc_mode.mode in
              let alloc_mode = simple_pat_mode alloc_mode in
              type_pat ~alloc_mode tps Value p ty)
           sargs (List.combine ty_args_ty ty_args_gf)
@@ -2668,7 +2639,7 @@ and type_pat_aux
       let type_label_pat (label_lid, label, sarg) =
         let ty_arg =
           solve_Ppat_record_field ~refine loc env label label_lid record_ty in
-        let mode = apply_modality label.lbl_global alloc_mode.mode in
+        let mode = Modality.Value.apply label.lbl_modalities alloc_mode.mode in
         let alloc_mode = simple_pat_mode mode in
         (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
       in
@@ -2691,7 +2662,8 @@ and type_pat_aux
       let lbl_a_list = List.map type_label_pat lbl_a_list in
       rvp @@ solve_expected (make_record_pat lbl_a_list)
   | Ppat_array spl ->
-      type_pat_array (Mutable Alloc.Comonadic.Const.legacy) spl sp.ppat_attributes
+      type_pat_array (Mutable Alloc.Comonadic.Const.legacy)
+         spl sp.ppat_attributes
   | Ppat_or(sp1, sp2) ->
       (* Reset pattern forces for just [tps2] because later we append
          [tps1] and [tps2]'s pattern forces, and we don't want to
@@ -3695,8 +3667,8 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret args =
              in
              let closed_args = new_closed_args @ closed_args in
              let open_args = [] in
-             let mode_closed_args = List.map Alloc.close_over closed_args in
-             let mode_partial_fun = Alloc.partial_apply mode_fun in
+             let mode_closed_args = List.map close_over closed_args in
+             let mode_partial_fun = partial_apply mode_fun in
              let mode_closure, _ =
                Alloc.newvar_above (Alloc.join
                 (mode_partial_fun:: mode_closed_args))
@@ -5614,8 +5586,14 @@ and type_expect_
           None, expected_mode
       in
       let type_label_exp ((_, label, _) as x) =
-        check_construct_mutability label.lbl_mut argument_mode;
-        let argument_mode = mode_modality label.lbl_global argument_mode in
+        let argument_mode =
+          argument_mode
+          |> mode_modality label.lbl_modalities
+        (* Duplicated mode-crossing for [label.lbl_arg]: once here, another time
+           in [type_label_exp] calling [type_argument]. *)
+          |> expect_mode_cross env label.lbl_arg
+        in
+        check_construct_mutability label.lbl_modalities label.lbl_mut argument_mode;
         type_label_exp true env argument_mode loc ty_record x
       in
       let lbl_exp_list = List.map type_label_exp lbl_a_list in
@@ -5676,11 +5654,13 @@ and type_expect_
                   unify_exp_types loc env ty_arg1 ty_arg2;
                   with_explanation (fun () ->
                     unify_exp_types loc env (instance ty_expected) ty_res2);
-                  let mode = apply_modality lbl.lbl_global mode in
-                  check_construct_mutability lbl.lbl_mut argument_mode;
+                  let mode = Modality.Value.apply lbl.lbl_modalities mode in
                   let argument_mode =
-                    mode_modality lbl.lbl_global argument_mode
+                    argument_mode
+                    |> mode_modality lbl.lbl_modalities
+                    |> expect_mode_cross env lbl.lbl_arg
                   in
+                  check_construct_mutability lbl.lbl_modalities lbl.lbl_mut argument_mode;
                   submode ~loc ~env mode argument_mode;
                   Kept (ty_arg1, lbl.lbl_mut,
                         unique_use ~loc ~env mode argument_mode.mode)
@@ -5726,7 +5706,7 @@ and type_expect_
           ty_arg
         end ~post:generalize_structure
       in
-      let mode = apply_modality label.lbl_global rmode in
+      let mode = Modality.Value.apply label.lbl_modalities rmode in
       let boxing : texp_field_boxing =
         let is_float_boxing =
           match label.lbl_repres with
@@ -5770,7 +5750,7 @@ and type_expect_
         match label.lbl_mut with
         | Mutable m0 ->
           let mode = mutable_mode m0 |> mode_default in
-          let mode = mode_modality label.lbl_global mode in
+          let mode = mode_modality label.lbl_modalities mode in
           type_label_exp false env mode loc ty_record (lid, label, snewval)
         | Immutable ->
           raise(Error(loc, env, Label_not_mutable lid.txt))
@@ -6799,16 +6779,17 @@ and type_function
                      uses the [arg_mode.comonadic] as a left mode, and
                      [arg_mode.monadic] as a right mode, hence they need to be
                      mode-crossed differently. *)
-                  let arg_mode = alloc_mode_cross_to_max_min env ty_arg arg_mode in
                   begin match
-                    Alloc.submode (Alloc.close_over arg_mode) fun_alloc_mode
+                    Alloc.submode
+                      (Ctype.mode_cross_left env ty_arg (close_over arg_mode))
+                      fun_alloc_mode
                   with
                     | Ok () -> ()
                     | Error e ->
                       raise (Error(loc_fun, env, Uncurried_function_escapes e))
                   end;
                   begin match
-                    Alloc.submode (Alloc.partial_apply alloc_mode) fun_alloc_mode
+                    Alloc.submode (partial_apply alloc_mode) fun_alloc_mode
                   with
                     | Ok () -> ()
                     | Error e ->
@@ -8723,20 +8704,22 @@ and type_generic_array
   =
   let alloc_mode, argument_mode = register_allocation expected_mode in
   let type_, modalities =
-    (* CR zqian: decouple mutable and global *)
     if Types.is_mutable mutability then
-      Predef.type_array, Global_flag.Global
+      Predef.type_array, Typemode.mutable_implied_modalities
     else
-      Predef.type_iarray, Global_flag.Unrestricted
+      Predef.type_iarray, Modality.Value.id
   in
-  check_construct_mutability mutability argument_mode;
-  let argument_mode = mode_modality modalities argument_mode in
   let jkind, elt_sort = Jkind.of_new_sort_var ~why:Array_element in
   let ty = newgenvar jkind in
   let to_unify = type_ ty in
   with_explanation explanation (fun () ->
     unify_exp_types loc env to_unify (generic_instance ty_expected));
-  let argument_mode = expect_mode_cross env ty argument_mode in
+  let argument_mode =
+    argument_mode
+    |> mode_modality modalities
+    |> expect_mode_cross env ty
+  in
+  check_construct_mutability modalities mutability argument_mode;
   let argl =
     List.map
       (fun sarg -> type_expect env argument_mode sarg (mk_expected ty))

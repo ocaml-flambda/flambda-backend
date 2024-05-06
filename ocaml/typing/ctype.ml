@@ -1588,12 +1588,46 @@ let with_locality locality m =
   Alloc.submode_exn (Alloc.meet_with (Comonadic Areality) Locality.Const.min m) m';
   m'
 
-let curry_mode alloc arg : Alloc.Const.t =
-  let acc =
-    Alloc.Const.join
-      (Alloc.Const.close_over arg)
-      (Alloc.Const.partial_apply alloc)
+(** This is about partially applying [A -> B -> C] to [A] and getting [B ->
+  C]. [comonadic] and [monadic] constutute the mode of [A], and we need to
+  give the lower bound mode of [B -> C]. *)
+let close_over { comonadic; monadic } =
+  let comonadic = Alloc.Comonadic.disallow_right comonadic in
+  (* The comonadic of the returned function is constrained by the monadic of the closed argument via the dualizing morphism. *)
+  let comonadic1 = Alloc.monadic_to_comonadic_min monadic in
+  (* It's also constrained by the comonadic of the closed argument. *)
+  let comonadic = Alloc.Comonadic.join [comonadic; comonadic1] in
+  (* The returned function crosses all monadic axes that we know of
+      (uniqueness/contention). *)
+  let monadic = Alloc.Monadic.disallow_right Alloc.Monadic.min in
+  { comonadic; monadic }
+
+(** Similar to above, but we are given the mode of [A -> B -> C], and need to
+    give the lower bound mode of [B -> C]. *)
+let partial_apply { comonadic; _ } =
+  (* The returned function crosses all monadic axes that we know of. *)
+  let monadic = Alloc.Monadic.disallow_right Alloc.Monadic.min in
+  let comonadic = Alloc.Comonadic.disallow_right comonadic in
+  { comonadic; monadic }
+
+(** See [Alloc.close_over] for explanation. *)
+let close_over_const m =
+  let { monadic; comonadic } = Alloc.Const.split m in
+  let comonadic =
+    Alloc.Comonadic.Const.join comonadic
+      (Alloc.Const.monadic_to_comonadic_min monadic)
   in
+  let monadic = Alloc.Monadic.Const.min in
+  Alloc.Const.merge { comonadic; monadic }
+
+(** See [Alloc.partial_apply] for explanation. *)
+let partial_apply_const m =
+  let { comonadic; _ } = Alloc.Const.split m in
+  let monadic = Alloc.Monadic.Const.min in
+  Alloc.Const.merge { comonadic; monadic }
+
+let curry_mode alloc arg : Alloc.Const.t =
+  let acc = Alloc.Const.join (close_over_const arg) (partial_apply_const alloc) in
   (* For A -> B -> C, we always interpret (B -> C) to be of shared. This is the
     legacy mode which helps with legacy compatibility. Arrow types cross
     uniqueness so we are not losing too much expressvity here. One
@@ -1616,8 +1650,8 @@ let rec instance_prim_locals locals mvar macc finalret ty =
      let macc =
        Alloc.join [
         Alloc.disallow_right mret;
-        Alloc.close_over marg;
-        Alloc.partial_apply macc
+        close_over marg;
+        partial_apply macc
        ]
      in
      let mret =
@@ -3150,7 +3184,7 @@ and mcomp_record_description type_pairs env =
         mcomp type_pairs env l1.ld_type l2.ld_type;
         if Ident.name l1.ld_id = Ident.name l2.ld_id &&
            l1.ld_mutable = l2.ld_mutable &&
-           l1.ld_global = l2.ld_global
+           l1.ld_modalities = l2.ld_modalities
         then iter xs ys
         else raise Incompatible
     | [], [] -> ()
@@ -5598,8 +5632,8 @@ let mode_cross_left env ty mode =
      the types here aren't principal. In any case, leaving the check out
      now; will return and figure this out later. *)
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  Alloc.meet_const upper_bounds mode
+  let crossing = Jkind.get_mode_crossing jkind in
+  Crossing.apply_left_alloc crossing mode
 
 (* CR layouts v2.8: merge with Typecore.expect_mode_cross when [Value]
    and [Alloc] get unified *)
@@ -5607,8 +5641,8 @@ let mode_cross_right env ty mode =
   (* CR layouts v2.8: This should probably check for principality. See
      similar comment in [mode_cross_left]. *)
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  Alloc.imply upper_bounds mode
+  let crossing = Jkind.get_mode_crossing jkind in
+  Crossing.apply_right_alloc crossing mode
 
 let rec build_subtype env (visited : transient_expr list)
     (loops : (int * type_expr) list) posi level t =
