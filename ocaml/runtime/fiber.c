@@ -778,6 +778,10 @@ static void rewrite_frame_pointers(struct stack_info *old_stack,
 
 int caml_try_realloc_stack(asize_t required_space)
 {
+#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+  (void) required_space;
+  abort();
+#else
   struct stack_info *old_stack, *new_stack;
   asize_t wsize;
   int stack_used;
@@ -857,6 +861,7 @@ int caml_try_realloc_stack(asize_t required_space)
   caml_free_stack(old_stack);
   Caml_state->current_stack = new_stack;
   return 1;
+#endif
 }
 
 struct stack_info* caml_alloc_main_stack (uintnat init_wsize)
