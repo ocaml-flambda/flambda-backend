@@ -119,9 +119,10 @@ COMPILERLIBS_SOURCES=\
   typing/mode.ml \
   typing/path.ml \
   typing/shape.ml \
-  typing/jkind.ml \
+  typing/jkind_types.ml \
   typing/primitive.ml \
   typing/types.ml \
+  typing/jkind.ml \
   typing/typedtree.ml \
   typing/btype.ml \
   typing/subst.ml \

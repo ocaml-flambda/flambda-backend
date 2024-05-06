@@ -87,10 +87,11 @@ TYPING = \
   typing/solver.cmo \
   typing/path.cmo \
   typing/mode.cmo \
-  typing/jkind.cmo \
+  typing/jkind_types.cmo \
   typing/primitive.cmo \
   typing/shape.cmo \
   typing/types.cmo \
+  typing/jkind.cmo \
   typing/btype.cmo \
   typing/oprint.cmo \
   typing/subst.cmo \

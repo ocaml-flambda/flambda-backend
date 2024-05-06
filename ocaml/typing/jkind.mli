@@ -42,7 +42,7 @@
    https://github.com/goldfirere/flambda-backend/commit/d802597fbdaaa850e1ed9209a1305c5dcdf71e17
    first, which was reisenberg's attempt to do so. *)
 module Externality : sig
-  type t =
+  type t = Jkind_types.Externality.t =
     | External (* not managed by the garbage collector *)
     | External64 (* not managed by the garbage collector on 64-bit systems *)
     | Internal (* managed by the garbage collector *)
@@ -54,10 +54,10 @@ module Sort : sig
   (** A sort classifies how a type is represented at runtime. Every concrete
       jkind has a sort, and knowing the sort is sufficient for knowing the
       calling convention of values of a given type. *)
-  type t
+  type t = Jkind_types.Sort.t
 
   (** These are the constant sorts -- fully determined and without variables *)
-  type const =
+  type const = Jkind_types.Sort.const =
     | Void  (** No run time representation at all *)
     | Value  (** Standard ocaml value representation *)
     | Float64  (** Unboxed 64-bit floats *)
@@ -66,7 +66,7 @@ module Sort : sig
     | Bits64  (** Unboxed 64-bit integers *)
 
   (** A sort variable that can be unified during type-checking. *)
-  type var
+  type var = Jkind_types.Sort.var
 
   (** Create a new sort variable that can be unified. *)
   val new_var : unit -> t
@@ -113,7 +113,7 @@ module Sort : sig
   val get_default_value : t -> const
 
   (** To record changes to sorts, for use with `Types.{snapshot, backtrack}` *)
-  type change
+  type change = Jkind_types.Sort.change
 
   val change_log : (change -> unit) ref
 
@@ -183,22 +183,19 @@ type sort = Sort.t
     layout of "classical" OCaml values used by the upstream compiler. *)
 module Layout : sig
   module Const : sig
-    type t =
-      | Sort of Sort.const
-      | Any
-      | Non_null_value
+    type t = (Types.type_expr, Sort.const) Jkind_types.Layout.layout
   end
 end
 
 (** A Jkind.t is a full description of the runtime representation of values
     of a given type. It includes sorts, but also the abstract top jkind
     [Any] and subjkinds of other sorts, such as [Immediate]. *)
-type t
+type t = Types.type_expr Jkind_types.t
 
 (******************************)
 (* errors *)
 
-type concrete_jkind_reason =
+type concrete_jkind_reason = Jkind_types.concrete_jkind_reason =
   | Match
   | Constructor_declaration of int
   | Label_declaration of Ident.t
@@ -218,7 +215,7 @@ type concrete_jkind_reason =
   | Layout_poly_in_external
   | Array_element
 
-type annotation_context =
+type annotation_context = Jkind_types.annotation_context =
   | Type_declaration of Path.t
   | Type_parameter of Path.t * string option
   | Newtype_declaration of string
@@ -228,7 +225,7 @@ type annotation_context =
   | Type_wildcard of Location.t
   | With_error_message of string * annotation_context
 
-type value_creation_reason =
+type value_creation_reason = Jkind_types.value_creation_reason =
   | Class_let_binding
   | Tuple_element
   | Probe
@@ -269,18 +266,19 @@ type value_creation_reason =
   | Recmod_fun_arg
   | Unknown of string (* CR layouts: get rid of these *)
 
-type immediate_creation_reason =
+type immediate_creation_reason = Jkind_types.immediate_creation_reason =
   | Empty_record
   | Enumeration
   | Primitive of Ident.t
   | Immediate_polymorphic_variant
 
-type immediate64_creation_reason = Separability_check
+type immediate64_creation_reason = Jkind_types.immediate64_creation_reason =
+  | Separability_check
 
 (* CR layouts v5: make new void_creation_reasons *)
-type void_creation_reason = |
+type void_creation_reason = Jkind_types.void_creation_reason = |
 
-type any_creation_reason =
+type any_creation_reason = Jkind_types.any_creation_reason =
   | Missing_cmi of Path.t
   | Initial_typedecl_env
   | Dummy_jkind
@@ -293,15 +291,19 @@ type any_creation_reason =
   | Unification_var
   | Array_type_argument
 
-type float64_creation_reason = Primitive of Ident.t
+type float64_creation_reason = Jkind_types.float64_creation_reason =
+  | Primitive of Ident.t
 
-type word_creation_reason = Primitive of Ident.t
+type word_creation_reason = Jkind_types.word_creation_reason =
+  | Primitive of Ident.t
 
-type bits32_creation_reason = Primitive of Ident.t
+type bits32_creation_reason = Jkind_types.bits32_creation_reason =
+  | Primitive of Ident.t
 
-type bits64_creation_reason = Primitive of Ident.t
+type bits64_creation_reason = Jkind_types.bits64_creation_reason =
+  | Primitive of Ident.t
 
-type creation_reason =
+type creation_reason = Jkind_types.creation_reason =
   | Annotated of annotation_context * Location.t
   | Missing_cmi of Path.t
   | Value_creation of value_creation_reason
@@ -323,7 +325,7 @@ type creation_reason =
   (* [position] is 1-indexed *)
   | Generalized of Ident.t option * Location.t
 
-type interact_reason =
+type interact_reason = Jkind_types.interact_reason =
   | Gadt_equation of Path.t
   | Tyvar_refinement_intersection
   (* CR layouts: this needs to carry a type_expr, but that's loopy *)
@@ -372,7 +374,7 @@ end
 
 (** Constant jkinds are used both for user-written annotations and within
     the type checker when we know a jkind has no variables *)
-type const =
+type const = Jkind_types.const =
   | Any
   | Value
   | Void
@@ -434,7 +436,7 @@ val of_new_sort : why:concrete_jkind_reason -> t
 val of_const : why:creation_reason -> const -> t
 
 (** The typed jkind together with its user-written annotation. *)
-type annotation = const * Jane_asttypes.jkind_annotation
+type annotation = Jkind_types.annotation
 
 val of_annotation :
   context:annotation_context -> Jane_asttypes.jkind_annotation -> t * annotation

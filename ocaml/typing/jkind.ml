@@ -13,12 +13,13 @@
 (**************************************************************************)
 
 open Mode
+open Jkind_types
 
 [@@@warning "+9"]
 
 (* CR layouts v2.8: remove this *)
 module Legacy = struct
-  type const =
+  type const = Jkind_types.const =
     | Any
     | Value
     | Void
@@ -88,7 +89,7 @@ end
    compile a manipulation (storing, passing, etc) of a runtime value. *)
 module Sort = struct
   (* CR layouts v2.8: Refactor to use a Const module *)
-  type const =
+  type const = Jkind_types.Sort.const =
     | Void
     | Value
     | Float64
@@ -96,7 +97,7 @@ module Sort = struct
     | Bits32
     | Bits64
 
-  type t =
+  type t = Jkind_types.Sort.t =
     | Var of var
     | Const of const
 
@@ -107,9 +108,13 @@ module Sort = struct
 
   let change_log : (change -> unit) ref = ref (fun _ -> ())
 
+  let () = Types.jkind_sort_change_log := change_log
+
   let log_change change = !change_log change
 
   let undo_change (v, t_op) = v := t_op
+
+  let () = Types.jkind_sort_undo_change := undo_change
 
   let var_name : var -> string =
     let next_id = ref 1 in
@@ -283,6 +288,8 @@ module Sort = struct
     | Bits64, (Value | Void | Float64 | Word | Bits32) ->
       false
 
+  let () = Primitive.jkind_sort_equal_const := equal_const
+
   let rec is_void_defaulting = function
     | Const Void -> true
     | Var v -> (
@@ -376,6 +383,8 @@ end
 
 type sort = Sort.t
 
+type type_expr = Types.type_expr
+
 (* A *layout* of a type describes the way values of that type are stored at
    runtime, including details like width, register convention, calling
    convention, etc. A layout may be *representable* or *unrepresentable*.  The
@@ -383,11 +392,12 @@ type sort = Sort.t
    unrepresentable layout. The only unrepresentable layout is `any`, which is
    the top of the layout lattice. *)
 module Layout = struct
+  open Jkind_types.Layout
+
+  type nonrec 'sort layout = (type_expr, 'sort) layout
+
   module Const = struct
-    type t =
-      | Sort of Sort.const
-      | Any
-      | Non_null_value
+    type t = Sort.const layout
 
     let max = Any
 
@@ -398,7 +408,7 @@ module Layout = struct
       | Non_null_value, Non_null_value -> true
       | (Any | Sort _ | Non_null_value), _ -> false
 
-    let sub c1 c2 : Misc.Le_result.t =
+    let sub (c1 : t) (c2 : t) : Misc.Le_result.t =
       match c1, c2 with
       | _ when equal c1 c2 -> Equal
       | _, Any -> Less
@@ -407,11 +417,6 @@ module Layout = struct
       | (Any | Sort _), Non_null_value -> Not_le
       | (Any | Sort _ | Non_null_value), Sort _ -> Not_le
   end
-
-  type t =
-    | Sort of Sort.t
-    | Any
-    | Non_null_value
 
   let max = Any
 
@@ -474,7 +479,7 @@ module Layout = struct
 end
 
 module Externality = struct
-  type t =
+  type t = Jkind_types.Externality.t =
     | External
     | External64
     | Internal
@@ -622,11 +627,7 @@ module Desc = struct
 end
 
 module Jkind_desc = struct
-  type t =
-    { layout : Layout.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Externality.t
-    }
+  open Jkind_types.Jkind_desc
 
   let max =
     { layout = Layout.max;
@@ -788,7 +789,7 @@ module Jkind_desc = struct
 end
 
 (*** reasons for jkinds **)
-type concrete_jkind_reason =
+type concrete_jkind_reason = Jkind_types.concrete_jkind_reason =
   | Match
   | Constructor_declaration of int
   | Label_declaration of Ident.t
@@ -808,7 +809,7 @@ type concrete_jkind_reason =
   | Layout_poly_in_external
   | Array_element
 
-type value_creation_reason =
+type value_creation_reason = Jkind_types.value_creation_reason =
   | Class_let_binding
   | Tuple_element
   | Probe
@@ -849,17 +850,18 @@ type value_creation_reason =
   | Recmod_fun_arg
   | Unknown of string
 
-type immediate_creation_reason =
+type immediate_creation_reason = Jkind_types.immediate_creation_reason =
   | Empty_record
   | Enumeration
   | Primitive of Ident.t
   | Immediate_polymorphic_variant
 
-type immediate64_creation_reason = Separability_check
+type immediate64_creation_reason = Jkind_types.immediate64_creation_reason =
+  | Separability_check
 
-type void_creation_reason = |
+type void_creation_reason = Jkind_types.void_creation_reason = |
 
-type any_creation_reason =
+type any_creation_reason = Jkind_types.any_creation_reason =
   | Missing_cmi of Path.t
   | Initial_typedecl_env
   | Dummy_jkind
@@ -869,15 +871,19 @@ type any_creation_reason =
   | Unification_var
   | Array_type_argument
 
-type float64_creation_reason = Primitive of Ident.t
+type float64_creation_reason = Jkind_types.float64_creation_reason =
+  | Primitive of Ident.t
 
-type word_creation_reason = Primitive of Ident.t
+type word_creation_reason = Jkind_types.word_creation_reason =
+  | Primitive of Ident.t
 
-type bits32_creation_reason = Primitive of Ident.t
+type bits32_creation_reason = Jkind_types.bits32_creation_reason =
+  | Primitive of Ident.t
 
-type bits64_creation_reason = Primitive of Ident.t
+type bits64_creation_reason = Jkind_types.bits64_creation_reason =
+  | Primitive of Ident.t
 
-type annotation_context =
+type annotation_context = Jkind_types.annotation_context =
   | Type_declaration of Path.t
   | Type_parameter of Path.t * string option
   | Newtype_declaration of string
@@ -887,7 +893,7 @@ type annotation_context =
   | Type_wildcard of Location.t
   | With_error_message of string * annotation_context
 
-type creation_reason =
+type creation_reason = Jkind_types.creation_reason =
   | Annotated of annotation_context * Location.t
   | Missing_cmi of Path.t
   | Value_creation of value_creation_reason
@@ -909,7 +915,7 @@ type creation_reason =
   (* [position] is 1-indexed *)
   | Generalized of Ident.t option * Location.t
 
-type interact_reason =
+type interact_reason = Jkind_types.interact_reason =
   | Gadt_equation of Path.t
   | Tyvar_refinement_intersection
   (* CR layouts: this needs to carry a type_expr, but that's loopy *)
@@ -921,20 +927,8 @@ type interact_reason =
    This is a natural consequence of producing this history by comparing
    jkinds.
 *)
-type history =
-  | Interact of
-      { reason : interact_reason;
-        lhs_jkind : Jkind_desc.t;
-        lhs_history : history;
-        rhs_jkind : Jkind_desc.t;
-        rhs_history : history
-      }
-  | Creation of creation_reason
 
-type t =
-  { jkind : Jkind_desc.t;
-    history : history
-  }
+type t = type_expr Jkind_types.t
 
 let fresh_jkind jkind ~why = { jkind; history = Creation why }
 
@@ -1597,6 +1591,8 @@ let equate_or_equal ~allow_mutation { jkind = jkind1; history = _ }
 
 (* CR layouts v2.8: Switch this back to ~allow_mutation:false *)
 let equal = equate_or_equal ~allow_mutation:true
+
+let () = Types.jkind_equal := equal
 
 let equate = equate_or_equal ~allow_mutation:true
 

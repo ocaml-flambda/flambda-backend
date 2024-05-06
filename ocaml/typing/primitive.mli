@@ -27,7 +27,7 @@ type boxed_vector = Pvec128 of vec128_type
    of a primitive *)
 type native_repr =
   | Repr_poly
-  | Same_as_ocaml_repr of Jkind.Sort.const
+  | Same_as_ocaml_repr of Jkind_types.Sort.const
   | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
@@ -136,3 +136,10 @@ type error =
   | Invalid_native_repr_for_primitive of string
 
 exception Error of Location.t * error
+
+(* jkind depends on types defined in this file, but Jkind.Sort.equal_const is required
+   to implement equal_native_repr. When jkind.ml is loaded, it fills this ref with
+   the definition of Jkind.Sort.equal_const *)
+(** INTERNAL USE ONLY
+    jkind.ml should fill this ref with the definition of Jkind.Sort.equal_const *)
+val jkind_sort_equal_const : (Jkind_types.Sort.const -> Jkind_types.Sort.const -> bool) ref
