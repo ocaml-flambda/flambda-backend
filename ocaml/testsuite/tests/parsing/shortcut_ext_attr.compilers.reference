@@ -699,7 +699,7 @@
           [
             ""
           ]
-          modes
+          modalities
           []
     ]
   structure_item (shortcut_ext_attr.ml[86,1759+0]..[86,1759+21]) ghost
@@ -801,7 +801,7 @@
                     Ptyp_constr "t" (shortcut_ext_attr.ml[98,1965+20]..[98,1965+21])
                     []
                   []
-                  modes
+                  modalities
                   []
             ]
           signature_item (shortcut_ext_attr.ml[99,1987+2]..[99,1987+31]) ghost
@@ -818,7 +818,7 @@
                   [
                     ""
                   ]
-                  modes
+                  modalities
                   []
             ]
           signature_item (shortcut_ext_attr.ml[101,2020+2]..[102,2045+20]) ghost

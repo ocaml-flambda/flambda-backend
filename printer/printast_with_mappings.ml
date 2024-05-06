@@ -151,6 +151,11 @@ let arg_label i ppf = function
 let typevars ppf vs =
   List.iter (fun x -> fprintf ppf " %a" Pprintast.tyvar x.txt) vs
 
+let modalities i ppf modes =
+  list i string_loc ppf (
+    List.map (Location.map (fun (Modality x) -> x)) modes
+  )
+
 let modes i ppf modes =
   list i string_loc ppf (
     List.map (Location.map (fun (Mode x) -> x)) modes
@@ -427,7 +432,7 @@ and value_description i ppf x =
   attributes i ppf x.pval_attributes;
   core_type (i+1) ppf x.pval_type;
   list (i+1) string ppf x.pval_prim;
-  modes (i+1) ppf x.pval_modes;
+  modalities (i+1) ppf x.pval_modalities;
   )
 
 and type_parameter i ppf (x, _variance) = core_type i ppf x
@@ -948,19 +953,18 @@ and constructor_decl i ppf
 
 and constructor_argument i ppf {pca_modalities; pca_type; pca_loc} =
   line i ppf "%a\n" fmt_location pca_loc;
-  list (i+1) string_loc ppf (
-    List.map (Location.map (fun (Modality x) -> x)) pca_modalities
-  );
+  modalities (i+1) ppf pca_modalities;
   core_type (i+1) ppf pca_type
 
 and constructor_arguments i ppf = function
   | Pcstr_tuple l -> list i constructor_argument ppf l
   | Pcstr_record l -> list i label_decl ppf l
 
-and label_decl i ppf {pld_name; pld_mutable; pld_type; pld_loc; pld_attributes}=
+and label_decl i ppf {pld_name; pld_mutable; pld_type; pld_loc; pld_attributes; pld_modalities}=
   line i ppf "%a\n" fmt_location pld_loc;
   attributes i ppf pld_attributes;
   line (i+1) ppf "%a\n" fmt_mutable_flag pld_mutable;
+  modalities (i+1) ppf pld_modalities;
   line (i+1) ppf "%a" fmt_string_loc pld_name;
   core_type (i+1) ppf pld_type
 

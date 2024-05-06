@@ -370,6 +370,18 @@ let modalities_type pty ctxt f pca =
   | m ->
     pp f "%a %a" legacy_modalities m (pty ctxt) pca.pca_type
 
+let modality f m =
+  let {txt = Modality txt; _} = m in
+  pp_print_string f txt
+
+let modalities f m =
+  pp_print_list ~pp_sep:(fun f () -> pp f " ") modality f m
+
+let maybe_type_atat_modalities pty ctxt f (c, m) =
+  match m with
+  | _ :: _ -> pp f "%a@ %@%@@ %a" (pty ctxt) c modalities m
+  | [] -> pty ctxt f c
+
 (* c ['a,'b] *)
 let rec class_params_def ctxt f =  function
   | [] -> ()
@@ -1073,7 +1085,7 @@ and floating_attribute ctxt f a =
 and value_description ctxt f x =
   (* note: value_description has an attribute field,
            but they're already printed by the callers this method *)
-  pp f "@[<hov2>%a%a@]" (maybe_type_atat_modes core_type ctxt) (x.pval_type, x.pval_modes)
+  pp f "@[<hov2>%a%a@]" (maybe_type_atat_modalities core_type ctxt) (x.pval_type, x.pval_modalities)
     (fun f x ->
        if x.pval_prim <> []
        then pp f "@ =@ %a" (list constant_string) x.pval_prim

@@ -2657,6 +2657,9 @@ let error_if_containing_unexpected_jkind prim env cty ty =
 
 (* Translate a value declaration *)
 let transl_value_decl env loc valdecl =
+  match valdecl.pval_modalities with
+  | x :: _ -> raise (Error(x.loc, Modalities_on_value_description))
+  | _ ->
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
   (* CR layouts v5: relax this to check for representability. *)
   begin match Ctype.constrain_type_jkind env cty.ctyp_type

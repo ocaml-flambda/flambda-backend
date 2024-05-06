@@ -152,10 +152,6 @@ let mk_attr ~loc name payload =
   Builtin_attributes.(register_attr Parser name);
   Attr.mk ~loc name payload
 
-(* For modes-related attributes, no need to call [register_attr] because they
-result from native syntax which is only parsed at proper places that are
-guaranteed to be used. *)
-
 let mkpat_with_modes ~loc ~pat ~cty ~modes =
   match cty, modes with
   | None, [] -> pat
@@ -3110,11 +3106,10 @@ let_binding_body_no_punning:
          version, even though we are creating a slightly different [core_type].
       *)
       { let exp, poly =
-          (* CR cgunn: at least one of these uses of modes is probably wrong *)
-          wrap_type_annotation ~loc:$sloc ~modes ~typloc:$loc($6) $4 $6 $9
+          wrap_type_annotation ~loc:$sloc ~modes:[] ~typloc:$loc($6) $4 $6 $9
         in
         let loc = ($startpos($1), $endpos($6)) in
-        (ghpat ~loc (Ppat_constraint($1, Some poly, modes)), exp, None, modes)
+        (ghpat ~loc (Ppat_constraint($1, Some poly, [])), exp, None, modes)
        }
   | pattern_no_exn EQUAL seq_expr
       { ($1, $3, None, []) }
@@ -3614,10 +3609,10 @@ simple_pattern_not_ident:
   | extension
       { Ppat_extension $1 }
   ) { $1 }
-  | LPAREN pattern at_mode_expr RPAREN
-      { mkpat ~loc:$sloc (Ppat_constraint($2, None, $3)) }
-  | LPAREN pattern COLON core_type optional_atat_mode_expr RPAREN
-      { mkpat ~loc:$sloc (Ppat_constraint($2, Some $4, $5)) }
+  | LPAREN pattern modes=at_mode_expr RPAREN
+      { mkpat ~loc:$sloc (Ppat_constraint($2, None, modes)) }
+  | LPAREN pattern COLON core_type modes=optional_atat_mode_expr RPAREN
+      { mkpat ~loc:$sloc (Ppat_constraint($2, Some $4, modes)) }
 ;
 
 simple_delimited_pattern:
@@ -3685,12 +3680,12 @@ value_description:
   id = mkrhs(val_ident)
   COLON
   ty = possibly_poly(core_type)
-  modes = optional_atat_mode_expr
+  modalities = optional_atat_modalities_expr
   attrs2 = post_item_attributes
     { let attrs = attrs1 @ attrs2 in
       let loc = make_loc $sloc in
       let docs = symbol_docs $sloc in
-      Val.mk id ty ~modes ~attrs ~loc ~docs,
+      Val.mk id ty ~modalities ~attrs ~loc ~docs,
       ext }
 ;
 

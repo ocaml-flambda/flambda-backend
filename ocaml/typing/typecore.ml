@@ -831,14 +831,10 @@ let expect_mode_cross env ty (expected_mode : expected_mode) =
      won't violate the invariant. *)
   { expected_mode with mode }
 
-(* Value binding elaboration can insert alloc mode attributes on the forged
-   [Pexp_constraint] node. Use this function to detect
-   and remove these inserted attributes.
-*)
 let mode_annots_from_pat pat =
   let modes =
     match pat.ppat_desc with
-    | Ppat_constraint (_, _, m) -> m
+    | Ppat_constraint (_, _, modes) -> modes
     | _ -> []
   in
   Typemode.transl_mode_annots modes
@@ -4625,7 +4621,8 @@ let rec is_inferred sexp =
   match Jane_syntax.Expression.of_ast sexp with
   | Some (jexp, _attrs) -> is_inferred_jane_syntax jexp
   | None      -> match sexp.pexp_desc with
-  | Pexp_ident _ | Pexp_apply _ | Pexp_field _ | Pexp_constraint _
+  | Pexp_ident _ | Pexp_apply _ | Pexp_field _
+  | Pexp_constraint (_, Some _, _)
   | Pexp_coerce _ | Pexp_send _ | Pexp_new _ -> true
   | Pexp_sequence (_, e) | Pexp_open (_, e) -> is_inferred e
   | Pexp_ifthenelse (_, e1, Some e2) -> is_inferred e1 && is_inferred e2
@@ -5840,10 +5837,7 @@ and type_expect_
   | Pexp_constraint (sarg, None, modes) ->
       let expected_mode = type_expect_mode ~loc ~env ~modes expected_mode in
       let exp = type_expect env expected_mode sarg (mk_expected ty_expected ?explanation) in
-      rue {
-        exp with
-        exp_env = env
-      }
+      exp
   | Pexp_constraint (sarg, Some sty, modes) ->
       let (ty, exp_extra) =
         type_constraint env sty (Typemode.transl_alloc_mode modes)

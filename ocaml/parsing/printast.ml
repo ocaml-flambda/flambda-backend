@@ -135,6 +135,12 @@ let typevars ppf vs =
     (* Don't use Pprintast.tyvar, as that causes a dependency cycle with
        Jane_syntax, which depends on this module for debugging. *)
 
+let modalities i ppf modalities =
+  line i ppf "modalities\n";
+  list i string_loc ppf (
+    List.map (Location.map (fun (Modality x) -> x)) modalities
+  )
+
 let modes i ppf modes =
   line i ppf "modes\n";
   list i string_loc ppf (
@@ -401,7 +407,7 @@ and value_description i ppf x =
   attributes i ppf x.pval_attributes;
   core_type (i+1) ppf x.pval_type;
   list (i+1) string ppf x.pval_prim;
-  modes (i+1) ppf x.pval_modes
+  modalities (i+1) ppf x.pval_modalities
 
 and type_parameter i ppf (x, _variance) = core_type i ppf x
 
@@ -894,11 +900,6 @@ and constructor_decl i ppf
   attributes i ppf pcd_attributes;
   constructor_arguments (i+1) ppf pcd_args;
   option (i+1) core_type ppf pcd_res
-
-and modalities i ppf modalities =
-  list i string_loc ppf (
-    List.map (Location.map (fun (Modality x) -> x)) modalities
-  );
 
 and constructor_argument i ppf {pca_modalities; pca_type; pca_loc} =
   line i ppf "%a\n" fmt_location pca_loc;

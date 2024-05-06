@@ -62,6 +62,7 @@
                 "A" (hash_ambiguity.ml[15,425+12]..[15,425+13])
                 [
                   (hash_ambiguity.ml[15,425+17]..[15,425+26])
+                    modalities
                     []
                     core_type (hash_ambiguity.ml[15,425+17]..[15,425+26])
                       Ptyp_class "list" (hash_ambiguity.ml[15,425+22]..[15,425+26])
@@ -95,11 +96,13 @@
                 "A" (hash_ambiguity.ml[17,453+12]..[17,453+13])
                 [
                   (hash_ambiguity.ml[17,453+17]..[17,453+20])
+                    modalities
                     []
                     core_type (hash_ambiguity.ml[17,453+17]..[17,453+20])
                       Ptyp_constr "int" (hash_ambiguity.ml[17,453+17]..[17,453+20])
                       []
                   (hash_ambiguity.ml[17,453+23]..[17,453+32])
+                    modalities
                     []
                     core_type (hash_ambiguity.ml[17,453+23]..[17,453+32])
                       Ptyp_class "list" (hash_ambiguity.ml[17,453+28]..[17,453+32])

@@ -111,7 +111,6 @@ local [File "_none_", line 1, characters 4-10]
 
 ------------------------------
 foo [File "_none_", line 1, characters 42-45]
-bar [File "_none_", line 1, characters 49-52] hello [File "_none_", line 1, characters 53-58]
 [
   structure_item ([1,0+0]..[1,0+75])
     Pstr_module
@@ -143,7 +142,7 @@ bar [File "_none_", line 1, characters 49-52] hello [File "_none_", line 1, char
                     "foo" ([1,0+42]..[1,0+45])
                   ]
                 []
-                modes
+                modalities
                 [
                   "bar" ([1,0+49]..[1,0+52])
                   "hello" ([1,0+53]..[1,0+58])
