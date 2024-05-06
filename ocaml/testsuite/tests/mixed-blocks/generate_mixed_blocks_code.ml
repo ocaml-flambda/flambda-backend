@@ -294,6 +294,7 @@ end
 module Mixed_variant = struct
   type constructor =
     { name : string;
+      index : int;
       args : field_or_arg_type list;
     }
 
@@ -302,7 +303,7 @@ module Mixed_variant = struct
     ; constructors : constructor list
     }
 
-  let of_constructor name { cstr_prefix; cstr_suffix } =
+  let of_constructor name { cstr_prefix; cstr_suffix } index =
     let num_args, prefix_args =
       List.fold_left_map
         cstr_prefix
@@ -330,7 +331,7 @@ module Mixed_variant = struct
           i+1, arg)
     in
     let args = prefix_args @ suffix_args in
-    { name; args }
+    { name; args; index }
   ;;
 
   let of_variant index cstrs =
@@ -338,7 +339,7 @@ module Mixed_variant = struct
       Nonempty_list.to_list cstrs
       |> List.mapi ~f:(fun i cstr ->
         let name = sprintf "%c" (Char.chr (Char.code 'A' + i)) in
-        of_constructor name cstr)
+        of_constructor name cstr i)
     in
     { index; constructors; }
 
@@ -456,6 +457,10 @@ module Value = struct
         [ Mixed_variant.check_field_integrity c ~index:v.index
             ~catchall:(List.length v.constructors > 1)
         ]
+
+  let tag = function
+    | Record _ -> 0
+    | Constructor (_, c) -> c.index
 end
 
 module Type = struct
@@ -578,14 +583,18 @@ let expect_failure f =
   | Unexpected_success -> assert false
   | _ -> ()
 
-let try_hash x =
+let hash_expect_failure x =
   expect_failure (fun () -> ignore (Hashtbl.hash x : int))
 
-let try_compare x y =
+let compare_expect_failure x y =
   expect_failure (fun () -> ignore (compare (T x) (T y) : int));
   expect_failure (fun () -> ignore ((T x) = (T y) : bool))
 
-let try_marshal t =
+let compare_expect_success x y =
+  ignore (compare (T x) (T y) : int);
+  ignore ((T x) = (T y) : bool)
+
+let marshal_expect_failure t =
   expect_failure (fun () -> output_value oc t)|};
   line
     {|
@@ -637,16 +646,24 @@ let check_reachable_words expected actual message =
          sprintf "(%s : %s)" (Value.value t) (Value.type_ t))
        |> String.concat ~sep:" ");
     seq_print_in_test "    - Marshaling";
-    per_value (fun t -> line "try_marshal %s;" (Value.value t));
+    per_value (fun t -> line "marshal_expect_failure %s;" (Value.value t));
     seq_print_in_test "    - Hashing";
-    per_value (fun t -> line "try_hash %s;" (Value.value t));
+    per_value (fun t -> line "hash_expect_failure %s;" (Value.value t));
     if n > 1
     then (
       seq_print_in_test "    - Comparing";
       per_value_staircase (fun t1 t2 ->
-          line "try_compare %s %s;"
-            (Value.value t1)
-            (Value.value t2)));
+        let fn_name =
+          (* Polymorphic compare only raises an exception if
+             the tags don't match.
+          *)
+          if Value.tag t1 = Value.tag t2
+          then "compare_expect_failure"
+          else "compare_expect_success"
+       in
+        line "%s %s %s;" fn_name
+          (Value.value t1)
+          (Value.value t2)));
     seq_print_in_test "    - Checking field values";
     per_value (fun t ->
         List.iter (Value.check_field_integrity t) ~f:(line "%s"));
