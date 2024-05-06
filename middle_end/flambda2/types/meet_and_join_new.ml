@@ -1716,8 +1716,8 @@ and join_row_like :
       join_shape:('shape -> 'shape -> 'shape Or_unknown.t) ->
       merge_map_known:
         (('row_tag ->
-         ('lattice, 'shape, 'maps_to) TG.Row_like_case.t option ->
-         ('lattice, 'shape, 'maps_to) TG.Row_like_case.t option ->
+         ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option ->
+         ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option ->
          ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option) ->
         'known ->
         'known ->
@@ -1771,11 +1771,16 @@ and join_row_like :
         in
         TG.Row_like_case.create ~maps_to ~index ~env_extension)
   in
-  let join_knowns case1 case2 :
+  let join_knowns
+      (case1 :
+        ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option)
+      (case2 :
+        ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option) :
       ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option =
     match case1, case2 with
     | None, None -> None
-    | Some case1, None -> (
+    | Some Unknown, _ | _, Some Unknown -> Some Unknown
+    | Some (Known case1), None -> (
       let only_case1 () =
         (* cf. Type_descr.join_head_or_unknown_or_bottom, we need to join these
            to ensure that free variables not present in the target env are
@@ -1793,7 +1798,7 @@ and join_row_like :
       match other2 with
       | Bottom -> only_case1 ()
       | Ok other_case -> Some (join_case join_env case1 other_case))
-    | None, Some case2 -> (
+    | None, Some (Known case2) -> (
       let only_case2 () =
         (* See at the other bottom case *)
         let join_env =
@@ -1808,7 +1813,8 @@ and join_row_like :
       match other1 with
       | Bottom -> only_case2 ()
       | Ok other_case -> Some (join_case join_env other_case case2))
-    | Some case1, Some case2 -> Some (join_case join_env case1 case2)
+    | Some (Known case1), Some (Known case2) ->
+      Some (join_case join_env case1 case2)
   in
   let known =
     merge_map_known
@@ -1853,22 +1859,11 @@ and join_row_like_for_blocks env
   let join_shape shape1 shape2 : _ Or_unknown.t =
     if K.Block_shape.equal shape1 shape2 then Known shape1 else Unknown
   in
-  let merge_map_known join_case known1 known2 =
-    Tag.Map.merge
-      (fun tag (case1 : _ Or_unknown.t option) (case2 : _ Or_unknown.t option) :
-           _ Or_unknown.t option ->
-        match case1, case2 with
-        | None, case | case, None -> case
-        | Some Unknown, Some _ | Some _, Some Unknown -> Some Unknown
-        | Some (Known case1), Some (Known case2) ->
-          join_case tag (Some case1) (Some case2))
-      known1 known2
-  in
   Or_unknown.map
     (join_row_like ~join_maps_to:join_int_indexed_product
        ~equal_index:TG.Block_size.equal ~inter_index:TG.Block_size.inter
-       ~join_shape ~merge_map_known env ~known1 ~known2 ~other1 ~other2)
-    ~f:(fun (known_tags, other_tags) ->
+       ~join_shape ~merge_map_known:Tag.Map.merge env ~known1 ~known2 ~other1
+       ~other2) ~f:(fun (known_tags, other_tags) ->
       let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
       TG.Row_like_for_blocks.create_raw ~known_tags ~other_tags ~alloc_mode)
 
@@ -1880,17 +1875,13 @@ and join_row_like_for_closures env
   let merge_map_known join_case known1 known2 =
     Function_slot.Map.merge
       (fun function_slot case1 case2 ->
-        match case1, case2 with
-        | None, case | case, None -> case
-        | Some case1, Some case2 -> (
-          match
-            (join_case function_slot (Some case1) (Some case2)
-              : _ Or_unknown.t option)
-          with
-          | None -> None
-          | Some (Known case) -> Some case
-          | Some Unknown ->
-            Misc.fatal_error "Join row_like case for closures returned Unknown"))
+        let case1 = Option.map (fun case -> Or_unknown.Known case) case1 in
+        let case2 = Option.map (fun case -> Or_unknown.Known case) case2 in
+        match (join_case function_slot case1 case2 : _ Or_unknown.t option) with
+        | None -> None
+        | Some (Known case) -> Some case
+        | Some Unknown ->
+          Misc.fatal_error "Join row_like case for closures returned Unknown")
       known1 known2
   in
   match
