@@ -231,18 +231,18 @@ let () =
     let f = F32.ldexp u i in
     bit_eq f cf
   );
-  let f = F32.ldexp 0.0s 0 in
-  assert (f = 0.0s);
-  let f = F32.ldexp 1.0s 1 in
-  assert (f = 2.0s);
-  let f = F32.ldexp (-1.0s) 1 in
-  assert (f = (-2.0s));
-  let f = F32.ldexp 0.5s 3 in
-  assert (f = 4.0s);
-  let f = F32.ldexp (-0.5s) 3 in
-  assert (f = (-4.0s));
-  let f = F32.ldexp 2.0s 9 in
-  assert (f = 1024.0s);
+  let f = F32.ldexp #0.0s 0 in
+  assert (F32.equal f #0.0s);
+  let f = F32.ldexp #1.0s 1 in
+  assert (F32.equal f #2.0s);
+  let f = F32.ldexp (-#1.0s) 1 in
+  assert (F32.equal f (-#2.0s));
+  let f = F32.ldexp #0.5s 3 in
+  assert (F32.equal f #4.0s);
+  let f = F32.ldexp (-#0.5s) 3 in
+  assert (F32.equal f (-#4.0s));
+  let f = F32.ldexp #2.0s 9 in
+  assert (F32.equal f #1024.0s);
 ;;
 
 let () =
