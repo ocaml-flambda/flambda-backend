@@ -1,7 +1,7 @@
 
 (* Tests for the float32 otherlib  *)
 
-module F32 = Alpha.Float32_u
+module F32 = Beta.Float32_u
 
 external box_int32 : int32# -> (int32[@local_opt]) = "%box_int32"
 external unbox_int32 : (int32[@local_opt]) -> int32# = "%unbox_int32"

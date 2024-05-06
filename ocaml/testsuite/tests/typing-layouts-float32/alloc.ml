@@ -1,8 +1,8 @@
 (* TEST
  flambda2;
  {
-   include alpha;
-   flags = "-extension-universe alpha";
+   include beta;
+   flags = "-extension-universe beta";
    native;
  }
 *)
@@ -15,7 +15,7 @@
    floats. *)
 
 module Float32_u = struct
-  include Alpha.Float32_u
+  include Beta.Float32_u
 
   let ( + ) = add
   let ( - ) = sub
