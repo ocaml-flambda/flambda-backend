@@ -90,14 +90,18 @@ void caml_garbage_collection(void)
   }
 }
 
+#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+
+#if !defined(POSIX_SIGNALS)
+#error "stack checks cannot be disabled if POSIX signals are not available"
+#endif
+
 #define DECLARE_SIGNAL_HANDLER(name) \
   static void name(int sig, siginfo_t * info, ucontext_t * context)
 
 #define SET_SIGACT(sigact,name)                                       \
   sigact.sa_sigaction = (void (*)(int,siginfo_t *,void *)) (name);    \
   sigact.sa_flags = SA_SIGINFO
-
-#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
 
 CAMLextern void caml_raise_stack_overflow_nat(void);
 
