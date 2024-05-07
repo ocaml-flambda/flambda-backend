@@ -152,7 +152,7 @@ module A5 = struct
 end
 
 (* A6: shows that "assume error" is not enough to prove "strict",
-   because the call to [string_of_int] is not known to not diverge.
+   because the call to [string_of_int] may allocate and is not known to not diverge.
 *)
 module A6 = struct
   let[@inline never][@local never] h s = [Random.int s ; Random.int s]
