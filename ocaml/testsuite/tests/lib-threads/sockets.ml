@@ -27,6 +27,7 @@ let server sock =
     ignore(Thread.create serve_connection s)
   done
 
+let mutex = Mutex.create ()
 let lines = ref []
 
 let client (addr, msg) =
@@ -36,7 +37,9 @@ let client (addr, msg) =
   let buf = Bytes.make 1024 ' ' in
   ignore(Unix.write_substring sock msg 0 (String.length msg));
   let n = Unix.read sock buf 0 (Bytes.length buf) in
-  lines := (Bytes.sub buf 0 n) :: !lines
+  Mutex.lock mutex;
+  lines := (Bytes.sub buf 0 n) :: !lines;
+  Mutex.unlock mutex
 
 let () =
   let addr = Unix.ADDR_INET(Unix.inet_addr_loopback, 0) in
