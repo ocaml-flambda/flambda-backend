@@ -59,7 +59,7 @@ static void init_startup_params(void)
     if (rlimit.rlim_cur == RLIM_INFINITY) {
       init_main_stack_wsz = Max_stack_def;
     } else {
-      init_main_stack_wsz = rlimit.rlim_cur;
+      init_main_stack_wsz = Wsize_bsize(rlimit.rlim_cur);
     }
   }
   if (init_main_stack_wsz > Max_stack_def) {
