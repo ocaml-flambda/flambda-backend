@@ -27,6 +27,8 @@ let server sock =
     ignore(Thread.create serve_connection s)
   done
 
+let lines = ref []
+
 let client (addr, msg) =
   let sock =
     Unix.socket (Unix.domain_of_sockaddr addr) Unix.SOCK_STREAM 0 in
@@ -34,9 +36,9 @@ let client (addr, msg) =
   let buf = Bytes.make 1024 ' ' in
   ignore(Unix.write_substring sock msg 0 (String.length msg));
   let n = Unix.read sock buf 0 (Bytes.length buf) in
-  print_bytes (Bytes.sub buf 0 n); flush stdout
+  lines := (Bytes.sub buf 0 n) :: !lines
 
-let _ =
+let () =
   let addr = Unix.ADDR_INET(Unix.inet_addr_loopback, 0) in
   let sock =
     Unix.socket (Unix.domain_of_sockaddr addr) Unix.SOCK_STREAM 0 in
@@ -45,6 +47,9 @@ let _ =
   let addr = Unix.getsockname sock in
   Unix.listen sock 5;
   ignore (Thread.create server sock);
-  ignore (Thread.create client (addr, "Client #1\n"));
+  let client1 = Thread.create client (addr, "Client #1\n") in
   Thread.delay 0.05;
-  client (addr, "Client #2\n")
+  client (addr, "Client #2\n");
+  Thread.join client1;
+  List.iter print_bytes (List.sort Bytes.compare !lines);
+  flush stdout
