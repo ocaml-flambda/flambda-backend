@@ -278,9 +278,6 @@ end = struct
 
   let pp_top ~witnesses ppf w = Format.fprintf ppf "(top%a)" (pp_w ~witnesses) w
 
-  let meet _ _ =
-    Misc.fatal_error "Meet is not implemented and shouldn't be needed."
-
   (** Variables with witnesses *)
   module Vars : sig
     type t
@@ -1248,6 +1245,18 @@ end = struct
     | (Var _ | Join _ | Transform _), _ | _, (Var _ | Join _ | Transform _) ->
       assert false
 
+  let meet t1 t2 =
+    match t1, t2 with
+    | Bot, Bot -> Bot
+    | Safe, Safe -> Safe
+    | Top w1, Top w2 -> Top (Witnesses.meet w1 w2)
+    | Safe, Bot | Bot, Safe -> Bot
+    | Top _, Bot | Bot, Top _ -> Bot
+    | Top _, Safe | Safe, Top _ -> Safe
+    | (Var _ | Transform _ | Join _), _ | _, (Var _ | Transform _ | Join _) ->
+      Misc.fatal_error
+        "Meet of unresolved is not implemented and shouldn't be needed."
+
   let apply t ~env =
     let get env var w =
       match env var with
@@ -2054,7 +2063,9 @@ end = struct
     let v = find_callee t callee ~desc dbg w in
     let effect =
       match Metadata.assume_value dbg ~can_raise:true w with
-      | Some v' -> Value.meet v v'
+      | Some v' ->
+        assert (Value.is_resolved v');
+        if Value.is_resolved v then Value.meet v v' else v'
       | None -> v
     in
     transform t ~next ~exn ~effect desc dbg
