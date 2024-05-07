@@ -842,7 +842,7 @@ let bind_params { backend; mutable_vars; _ } loc fdesc params args funct body =
                    primitive (see [simplif_prim_pure]) *)
                 a, Uprim(P.Pmakeblock(0, Immutable, kind, mode),
                          [Uvar (VP.var p1')], dbg),
-                Lambda.layout_field
+                Lambda.layout_value_field
             | _ ->
                 a1, Uvar (VP.var p1'), layout1
           in

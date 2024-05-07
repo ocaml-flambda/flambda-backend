@@ -83,7 +83,8 @@ module Make (Witnesses : WS) : sig
     val relaxed : Witnesses.t -> t
 
     (** Constructs a value from a user annotation. The witness will be empty. *)
-    val of_annotation : strict:bool -> never_returns_normally:bool -> t
+    val of_annotation :
+      strict:bool -> never_returns_normally:bool -> never_raises:bool -> t
 
     val print : witnesses:bool -> Format.formatter -> t -> unit
 
@@ -113,7 +114,8 @@ module Assume_info : sig
 
   val none : t
 
-  val create : strict:bool -> never_returns_normally:bool -> t
+  val create :
+    strict:bool -> never_returns_normally:bool -> never_raises:bool -> t
 
   val compare : t -> t -> int
 

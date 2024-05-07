@@ -437,8 +437,11 @@ let constructor_tag ~prepare_jkind loc = function
 (* called only when additional_action is [Prepare_for_saving] *)
 let variant_representation ~prepare_jkind loc = function
   | Variant_unboxed -> Variant_unboxed
-  | Variant_boxed layss ->
-    Variant_boxed (Array.map (Array.map (prepare_jkind loc)) layss)
+  | Variant_boxed cstrs_and_jkinds  ->
+    Variant_boxed
+      (Array.map
+         (fun (cstr, jkinds) -> cstr, Array.map (prepare_jkind loc) jkinds)
+         cstrs_and_jkinds)
   | Variant_extensible -> Variant_extensible
 
 (* called only when additional_action is [Prepare_for_saving] *)
@@ -577,6 +580,7 @@ let extension_constructor' copy_scope s ext =
           Array.map (prepare_jkind ext.ext_loc) ext.ext_arg_jkinds
       | Duplicate_variables | No_action -> ext.ext_arg_jkinds
     end;
+    ext_shape = ext.ext_shape;
     ext_constant = ext.ext_constant;
     ext_ret_type =
       Option.map (typexp copy_scope s ext.ext_loc) ext.ext_ret_type;

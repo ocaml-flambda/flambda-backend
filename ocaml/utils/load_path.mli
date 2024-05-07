@@ -37,7 +37,7 @@ module Dir : sig
 
   val create : hidden:bool -> string -> t
 
-  val files : t -> string list
+  val basenames : t -> string list
   (** All the files in that directory. This doesn't include files in
       sub-directories of this directory. *)
 end

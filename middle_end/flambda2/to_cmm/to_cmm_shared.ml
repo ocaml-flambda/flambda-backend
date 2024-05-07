@@ -89,7 +89,9 @@ let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
     | Unboxed_nativeint_array | Value_array | Generic_array ->
       Word_val)
   | Naked_number (Naked_int64 | Naked_nativeint | Naked_immediate) -> Word_int
-  | Naked_number Naked_int32 -> Thirtytwo_signed
+  | Naked_number Naked_int32 ->
+    (* This only reads and writes 32 bits, but will sign extend upon reading. *)
+    Thirtytwo_signed
   | Naked_number Naked_float -> Double
   | Naked_number Naked_float32 -> Single { reg = Float32 }
   | Naked_number Naked_vec128 ->
@@ -183,6 +185,9 @@ let const_static cst =
            (tag_targetint (Targetint_31_63.to_targetint i))) ]
   | Naked_float f -> [cfloat (Numeric_types.Float_by_bit_pattern.to_float f)]
   | Naked_float32 f ->
+    (* Here we are relying on the data section being zero initialized to
+       maintain the invariant that statically-allocated float32 values are zero
+       padded. *)
     [cfloat32 (Numeric_types.Float32_by_bit_pattern.to_float f)]
   | Naked_int32 i -> [cint (Nativeint.of_int32 i)]
   (* We don't compile flambda-backend in 32-bit mode, so nativeint is 64
@@ -261,19 +266,32 @@ let invalid res ~message =
 
 module Update_kind = struct
   type kind =
-    | Value
+    | Pointer
+    | Immediate
     | Naked_int32
     | Naked_int64
     | Naked_float
     | Naked_float32
     | Naked_vec128
 
+  (* The [stride] is the number of bytes by which an [index] supplied to
+     [make_update], below, needs to be multiplied to get the byte offset into
+     the corresponding block. Note that [stride] may be smaller than the width
+     of the value being written, for example in the [Naked_vec128] case, where
+     addressing is still field-based but the values being written actually
+     occupy two fields. *)
   type t =
     { kind : kind;
       stride : int
     }
 
-  let values = { kind = Value; stride = Arch.size_addr }
+  let () =
+    assert (Arch.size_addr = 8);
+    assert (Arch.size_float = 8)
+
+  let pointers = { kind = Pointer; stride = Arch.size_addr }
+
+  let tagged_immediates = { kind = Immediate; stride = Arch.size_addr }
 
   let naked_int32s = { kind = Naked_int32; stride = 4 }
 
@@ -292,44 +310,57 @@ module Update_kind = struct
   let naked_vec128_fields = { kind = Naked_vec128; stride = Arch.size_addr }
 end
 
-let make_update env res dbg (kind : Update_kind.t) ~symbol var ~index
-    ~prev_updates =
+let make_update env res dbg ({ kind; stride } : Update_kind.t) ~symbol var
+    ~index ~prev_updates =
   let To_cmm_env.{ env; res; expr = { cmm; free_vars; effs } } =
     To_cmm_env.inline_variable env res var
   in
   let cmm =
-    let must_use_setfield =
-      match kind.kind with
-      | Value -> Some Lambda.Pointer
-      | Naked_int32 | Naked_int64 | Naked_float | Naked_float32 | Naked_vec128
-        ->
-        (* The GC never sees these fields, so we can avoid using
-           [caml_initialize]. This is important as it significantly reduces the
-           complexity of the statically-allocated inconstant unboxed int32 array
-           case, which otherwise would have to use 64-bit writes. *)
-        None
+    let must_use_setfield : Lambda.immediate_or_pointer option =
+      (* The 4 GC does not need to see static field updates, but the 5 GC must,
+         due to differences in how global roots are handled. *)
+      if not Config.runtime5
+      then None
+      else
+        match kind with
+        | Pointer -> Some Pointer
+        | Immediate ->
+          (* See [caml_initialize]; we can avoid this function in this case. *)
+          None
+        | Naked_int32 | Naked_int64 | Naked_float | Naked_float32 | Naked_vec128
+          ->
+          (* The GC never sees these fields, so we can avoid using
+             [caml_initialize]. This is important as it significantly reduces
+             the complexity of the statically-allocated inconstant unboxed int32
+             array case, which otherwise would have to use 64-bit writes. *)
+          None
     in
     match must_use_setfield with
     | Some imm_or_ptr ->
-      assert (kind.stride = Arch.size_addr);
+      assert (stride = Arch.size_addr);
       Cmm_helpers.setfield index imm_or_ptr Root_initialization symbol cmm dbg
     | None ->
       let memory_chunk : Cmm.memory_chunk =
-        match kind.kind with
-        | Value -> Misc.fatal_errorf "update_kind requires using setfield."
-        | Naked_int32 -> Thirtytwo_signed
+        match kind with
+        | Pointer -> Word_val
+        | Immediate -> Word_int
+        | Naked_int32 ->
+          (* Cmm expressions representing int32 values are always sign extended.
+             By using [Word_int] in the "fields" cases (see [Update_kind],
+             above) we maintain the convention that 32-bit integers in 64-bit
+             fields are sign extended. *)
+          if stride > 4 then Word_int else Thirtytwo_signed
         | Naked_int64 -> Word_int
         | Naked_float -> Double
-        | Naked_float32 -> Single { reg = Float32 }
+        | Naked_float32 ->
+          (* In the case where [kind.stride > 4] we are relying on the fact that
+             the data section is zero initialized, in order that the high 32
+             bits of the 64-bit field are deterministic, which is important for
+             build reproducibility. *)
+          Single { reg = Float32 }
         | Naked_vec128 -> Onetwentyeight_unaligned
       in
-      let addr =
-        if index * kind.stride = 0
-        then symbol
-        else
-          Cmm.(
-            Cop (Cadda, [symbol; Cconst_int (index * kind.stride, dbg)], dbg))
-      in
+      let addr = strided_field_address symbol ~stride ~index dbg in
       store ~dbg memory_chunk Initialization ~addr ~new_value:cmm
   in
   let update =

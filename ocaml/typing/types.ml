@@ -275,8 +275,8 @@ and abstract_reason =
     Abstract_def
   | Abstract_rec_check_regularity
 
-and flat_element = Imm | Float | Float64
-and mixed_record_shape =
+and flat_element = Imm | Float | Float64 | Bits32 | Bits64 | Word
+and mixed_product_shape =
   { value_prefix_len : int;
     flat_suffix : flat_element array;
   }
@@ -287,12 +287,16 @@ and record_representation =
   | Record_boxed of Jkind.t array
   | Record_float
   | Record_ufloat
-  | Record_mixed of mixed_record_shape
+  | Record_mixed of mixed_product_shape
 
 and variant_representation =
   | Variant_unboxed
-  | Variant_boxed of jkind array array
+  | Variant_boxed of (constructor_representation * Jkind.t array) array
   | Variant_extensible
+
+and constructor_representation =
+  | Constructor_uniform_value
+  | Constructor_mixed of mixed_product_shape
 
 and label_declaration =
   {
@@ -325,6 +329,7 @@ type extension_constructor =
     ext_type_params: type_expr list;
     ext_args: constructor_arguments;
     ext_arg_jkinds: Jkind.t array;
+    ext_shape: constructor_representation;
     ext_constant: bool;
     ext_ret_type: type_expr option;
     ext_private: private_flag;
@@ -545,6 +550,7 @@ type constructor_description =
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
     cstr_repr: variant_representation;  (* Repr of the outer variant *)
+    cstr_shape: constructor_representation; (* Repr of the constructor itself *)
     cstr_constant: bool;                (* True if all args are void *)
     cstr_consts: int;                   (* Number of constant constructors *)
     cstr_nonconsts: int;                (* Number of non-const constructors *)
@@ -563,20 +569,55 @@ let equal_tag t1 t2 =
   | Extension (path1,_), Extension (path2,_) -> Path.same path1 path2
   | (Ordinary _ | Extension _), _ -> false
 
+let equal_flat_element e1 e2 =
+  match e1, e2 with
+  | Imm, Imm | Float64, Float64 | Float, Float
+  | Word, Word | Bits32, Bits32 | Bits64, Bits64
+    -> true
+  | (Imm | Float64 | Float | Word | Bits32 | Bits64), _ -> false
+
+let compare_flat_element e1 e2 =
+  match e1, e2 with
+  | Imm, Imm | Float, Float | Float64, Float64
+  | Word, Word | Bits32, Bits32 | Bits64, Bits64
+    -> 0
+  | Imm, _ -> -1
+  | _, Imm -> 1
+  | Float, _ -> -1
+  | _, Float -> 1
+  | Float64, _ -> -1
+  | _, Float64 -> 1
+  | Word, _ -> -1
+  | _, Word -> 1
+  | Bits32, _ -> -1
+  | _, Bits32 -> 1
+
+let equal_mixed_product_shape r1 r2 = r1 == r2 ||
+  (* Warning 9 alerts us if we add another field *)
+  let[@warning "+9"] { value_prefix_len = l1; flat_suffix = s1 } = r1
+  and                { value_prefix_len = l2; flat_suffix = s2 } = r2
+  in
+  l1 = l2 && Misc.Stdlib.Array.equal equal_flat_element s1 s2
+
+let equal_constructor_representation r1 r2 = r1 == r2 || match r1, r2 with
+  | Constructor_uniform_value, Constructor_uniform_value -> true
+  | Constructor_mixed mx1, Constructor_mixed mx2 ->
+      equal_mixed_product_shape mx1 mx2
+  | (Constructor_mixed _ | Constructor_uniform_value), _ -> false
+
 let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
   | Variant_unboxed, Variant_unboxed ->
       true
-  | Variant_boxed lays1, Variant_boxed lays2 ->
-      Misc.Stdlib.Array.equal (Misc.Stdlib.Array.equal Jkind.equal) lays1 lays2
+  | Variant_boxed cstrs_and_jkinds1, Variant_boxed cstrs_and_jkinds2 ->
+      Misc.Stdlib.Array.equal (fun (cstr1, jkinds1) (cstr2, jkinds2) ->
+          equal_constructor_representation cstr1 cstr2
+          && Misc.Stdlib.Array.equal Jkind.equal jkinds1 jkinds2)
+        cstrs_and_jkinds1
+        cstrs_and_jkinds2
   | Variant_extensible, Variant_extensible ->
       true
   | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
       false
-
-let equal_flat_element e1 e2 =
-  match e1, e2 with
-  | Imm, Imm | Float64, Float64 | Float, Float -> true
-  | (Imm | Float64 | Float), _ -> false
 
 let equal_record_representation r1 r2 = match r1, r2 with
   | Record_unboxed, Record_unboxed ->
@@ -589,10 +630,7 @@ let equal_record_representation r1 r2 = match r1, r2 with
       true
   | Record_ufloat, Record_ufloat ->
       true
-  | Record_mixed { value_prefix_len = l1; flat_suffix = s1 },
-    Record_mixed { value_prefix_len = l2; flat_suffix = s2 }
-    [@warning "+9"] (* get alerted if we add another field *) ->
-      l1 = l2 && Misc.Stdlib.Array.equal equal_flat_element s1 s2
+  | Record_mixed mx1, Record_mixed mx2 -> equal_mixed_product_shape mx1 mx2
   | (Record_unboxed | Record_inlined _ | Record_boxed _ | Record_float
     | Record_ufloat | Record_mixed _), _ ->
       false
@@ -670,23 +708,30 @@ let signature_item_id = function
   | Sig_class_type (id, _, _, _)
     -> id
 
-let count_mixed_record_values_and_floats { value_prefix_len; flat_suffix } =
-  Array.fold_left
-    (fun (values, floats) elem ->
-      match elem with
-      | Imm -> (values+1, floats)
-      | Float | Float64 -> (values, floats+1))
-    (value_prefix_len, 0)
-    flat_suffix
-
-type mixed_record_element =
+type mixed_product_element =
   | Value_prefix
   | Flat_suffix of flat_element
 
-let get_mixed_record_element { value_prefix_len; flat_suffix } i =
+let get_mixed_product_element { value_prefix_len; flat_suffix } i =
   if i < 0 then Misc.fatal_errorf "Negative index: %d" i;
   if i < value_prefix_len then Value_prefix
   else Flat_suffix flat_suffix.(i - value_prefix_len)
+
+let flat_element_to_string = function
+  | Imm -> "Imm"
+  | Float -> "Float"
+  | Float64 -> "Float64"
+  | Bits32 -> "Bits32"
+  | Bits64 -> "Bits64"
+  | Word -> "Word"
+
+let flat_element_to_lowercase_string = function
+  | Imm -> "imm"
+  | Float -> "float"
+  | Float64 -> "float64"
+  | Bits32 -> "bits32"
+  | Bits64 -> "bits64"
+  | Word -> "word"
 
 (**** Definitions for backtracking ****)
 

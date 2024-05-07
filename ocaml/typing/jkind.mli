@@ -143,9 +143,9 @@ module Sort : sig
 
   val for_tuple_element : t
 
-  val for_record : t
+  val for_variant_arg : t
 
-  val for_constructor_arg : t
+  val for_record : t
 
   val for_block_element : t
 

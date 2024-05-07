@@ -360,10 +360,17 @@ module Stdlib = struct
       in
       helper chars str []
 
-    let split_last_exn str ~split_on =
+    let split_once str ~idx =
       let n = String.length str in
+      String.sub str 0 idx, String.sub str (idx + 1) (n - idx - 1)
+
+    let split_last_exn str ~split_on =
       let ridx = String.rindex str split_on in
-      String.sub str 0 ridx, String.sub str (ridx + 1) (n - ridx - 1)
+      split_once str ~idx:ridx
+
+    let split_first_exn str ~split_on =
+      let idx = String.index str split_on in
+      split_once str ~idx
 
     let starts_with ~prefix s =
       let len_s = length s

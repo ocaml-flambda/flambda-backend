@@ -76,6 +76,8 @@ val require_global: Compilation_unit.t -> unit
 
 val read_library_info: string -> library_infos
 
+val record_external_symbols : unit -> unit
+
 (* CR mshinwell: see comment in .ml
 val ensure_sharing_between_cmi_and_cmx_imports :
   (_ * (Compilation_unit.t * _) option) list ->

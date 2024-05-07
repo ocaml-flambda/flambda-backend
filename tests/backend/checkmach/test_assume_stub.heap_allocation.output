@@ -1,0 +1,11 @@
+File "test_assume_stub.ml", line 20, characters 7-17:
+Error: Annotation check for zero_alloc failed on function Test_assume_stub.A3.overapplied (camlTest_assume_stub.overapplied_HIDE_STAMP)
+
+File "test_assume_stub.ml", line 20, characters 37-74:
+Error: called function may allocate (indirect tailcall)
+
+File "test_assume_stub.ml", line 34, characters 7-17:
+Error: Annotation check for zero_alloc failed on function Test_assume_stub.A4.baz (camlTest_assume_stub.baz_HIDE_STAMP)
+
+File "test_assume_stub.ml", line 35, characters 4-58:
+Error: called function may allocate (indirect tailcall)
