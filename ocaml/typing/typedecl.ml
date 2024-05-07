@@ -1101,12 +1101,15 @@ let check_abbrev env sdecl (id, decl) =
    same issue as with arrows. *)
 let check_representable ~why ~allow_unboxed env loc kloc typ =
   match Ctype.type_sort ~why env typ with
-  (* CR layouts v3: This is a convenient place to rule out [float#] in
-     structures for now, as it is called on all the types in declared blocks in
-     kinds, and only them.  But when we have a real mixed block restriction, it
-     can't be done here because we're just looking at one type.  *)
-  (* CR layouts v2.5: This rules out float# in [@@unboxed] types.  No real need
-     to rule that out - I just haven't had time to write tests for it yet. *)
+  (* CR layouts v3: This is a convenient place to rule out non-value types in
+     structures that don't support them yet. (A callsite passes
+     [~allow_unboxed:true] to indicate that non-value types are allowed.)
+     When we support mixed blocks everywhere, this [check_representable]
+     will have outlived its usefulness and we can delete it.
+  *)
+  (* CR layouts v2.5: This rules out non-value types in [@@unboxed] types. No
+     real need to rule that out - I just haven't had time to write tests for it
+     yet. *)
   | Ok s -> begin
       match Jkind.Sort.get_default_value s with
       (* All calls to this are part of [update_decl_jkind], which happens after
