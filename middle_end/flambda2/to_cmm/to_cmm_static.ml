@@ -43,6 +43,8 @@ let rec static_block_updates symb env res acc i = function
     | Symbol _ | Tagged_immediate _ ->
       static_block_updates symb env res acc (i + 1) r
     | Dynamically_computed (var, dbg) ->
+      (* CR mshinwell/mslater: It would be nice to know if [var] is an
+         immediate. *)
       let env, res, acc =
         C.make_update env res dbg C.Update_kind.pointers
           ~symbol:(C.symbol ~dbg symb) var ~index:i ~prev_updates:acc
@@ -206,7 +208,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let transl = Numeric_types.Float32_by_bit_pattern.to_float in
     let structured f = Cmmgen_state.Const_float32 f in
     let res, env, updates =
-      static_boxed_number ~kind:C.Update_kind.naked_float32s ~env ~symbol
+      static_boxed_number ~kind:C.Update_kind.naked_float32_fields ~env ~symbol
         ~default ~emit:C.emit_float32_constant ~transl ~structured v res updates
     in
     env, res, updates
@@ -222,7 +224,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
   | Block_like symbol, Boxed_int32 v ->
     let structured i = Cmmgen_state.Const_int32 i in
     let res, env, updates =
-      static_boxed_number ~kind:C.Update_kind.naked_int32s ~env ~symbol
+      static_boxed_number ~kind:C.Update_kind.naked_int32_fields ~env ~symbol
         ~default:0l ~emit:C.emit_int32_constant ~transl:Fun.id ~structured v res
         updates
     in

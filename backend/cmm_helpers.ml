@@ -3218,9 +3218,11 @@ let emit_string_constant_fields s cont =
   Cstring s :: Cskip n :: Cint8 n :: cont
 
 let emit_boxed_int32_constant_fields n cont =
-  let n = Nativeint.of_int32 n in
-  Csymbol_address (global_symbol caml_int32_ops)
-  :: Cint32 n :: Cint32 0n :: cont
+  let n =
+    (* This will sign extend. *)
+    Nativeint.of_int32 n
+  in
+  Csymbol_address (global_symbol caml_int32_ops) :: Cint n :: cont
 
 let emit_boxed_int64_constant_fields n cont =
   let lo = Int64.to_nativeint n in

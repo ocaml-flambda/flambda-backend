@@ -93,28 +93,28 @@ module Update_kind : sig
 
   val tagged_immediates : t
 
-  (* Tightly packed; the byte offset is [index * 4]. *)
+  (** Tightly packed; the byte offset is [index * 4]. *)
   val naked_int32s : t
 
-  (* Assumes each field is a word; the byte offset is [index * addr_size]. *)
+  (** Assumes each field is a word; the byte offset is [index * addr_size]. *)
   val naked_int32_fields : t
 
-  (* Tightly packed; the byte offset is [index * 8]. *)
+  (** Tightly packed; the byte offset is [index * 8]. *)
   val naked_int64s : t
 
-  (* Tightly packed; the byte offset is [index * size_float]. *)
+  (** Tightly packed; the byte offset is [index * size_float]. *)
   val naked_floats : t
 
-  (* Tightly packed; the byte offset is [index * 4]. *)
+  (** Tightly packed; the byte offset is [index * 4]. *)
   val naked_float32s : t
 
-  (* Assumes each field is a word; the byte offset is [index * addr_size]. *)
+  (** Assumes each field is a word; the byte offset is [index * addr_size]. *)
   val naked_float32_fields : t
 
-  (* Assumes each field is two words; the byte offset is [index * 16]. *)
+  (** Assumes each field is two words; the byte offset is [index * 16]. *)
   val naked_vec128s : t
 
-  (* Assumes each field is a word; the byte offset is [index * addr_size]. *)
+  (** Assumes each field is a word; the byte offset is [index * addr_size]. *)
   val naked_vec128_fields : t
 end
 
