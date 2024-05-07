@@ -410,8 +410,12 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         else Rc_normal
       in
       let lam =
+        let loc =
+          map_scopes (update_assume_zero_alloc ~assume_zero_alloc)
+            (of_location ~scopes e.exp_loc)
+        in
         Translprim.transl_primitive_application
-          (of_location ~scopes e.exp_loc) p e.exp_env prim_type
+          loc p e.exp_env prim_type
           ~poly_mode:pmode ~poly_sort:psort
           path prim_exp args (List.map fst arg_exps) position
       in
