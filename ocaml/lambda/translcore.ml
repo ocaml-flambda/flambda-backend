@@ -1206,6 +1206,9 @@ and transl_apply ~scopes
         Lsend(k, lmet, lobj, largs @ args, pos, mode, loc, result_layout)
     | Lapply ({ ap_region_close = (Rc_normal | Rc_nontail) } as ap),
       (Rc_normal | Rc_nontail) ->
+        let loc =
+          map_scopes (update_assume_zero_alloc ~assume_zero_alloc) loc
+        in
         Lapply
           {ap with ap_args = ap.ap_args @ args; ap_loc = loc;
                    ap_region_close = pos; ap_mode = mode; ap_result_layout = result_layout }
