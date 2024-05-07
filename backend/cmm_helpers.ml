@@ -1249,7 +1249,6 @@ let get_field_computed imm_or_ptr mutability ~block ~index dbg =
 (* Getters for unboxed int fields *)
 
 let get_field_unboxed_int32 mutability ~block ~index dbg =
-  (* CR mixed blocks: Could a backend person check the "signed"? *)
   let memory_chunk = Thirtytwo_signed in
   (* CR layouts v5.1: We'll need to vary log2_size_addr to efficiently pack
    * int32s *)
