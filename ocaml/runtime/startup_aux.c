@@ -53,7 +53,8 @@ static void init_startup_params(void)
   uintnat init_main_stack_wsz;
   struct rlimit rlimit;
   if (getrlimit(RLIMIT_STACK, &rlimit)) {
-    init_main_stack_wsz = Wsize_bsize(Stack_init_bsize);
+    // default value, retrieved from a recent system (May 2024)
+    init_main_stack_wsz = Wsize_bsize(8192 * 1024);
   } else {
     if (rlimit.rlim_cur == RLIM_INFINITY) {
       init_main_stack_wsz = Max_stack_def;

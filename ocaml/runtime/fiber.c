@@ -55,7 +55,8 @@ uintnat caml_get_init_stack_wsize (int thread_stack_wsz)
   uintnat init_stack_wsize =
     thread_stack_wsz < 0
     ? caml_params->init_main_stack_wsz
-    : caml_params->init_thread_stack_wsz > 0 ? caml_params->init_thread_stack_wsz : thread_stack_wsz;
+    : caml_params->init_thread_stack_wsz > 0
+    ? caml_params->init_thread_stack_wsz : thread_stack_wsz;
 #else
   (void) thread_stack_wsz;
   uintnat init_stack_wsize = Wsize_bsize(Stack_init_bsize);
