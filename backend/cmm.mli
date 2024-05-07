@@ -321,6 +321,7 @@ type codegen_option =
   | No_CSE
   | Use_linscan_regalloc
   | Assume of { property: property; strict: bool; never_returns_normally: bool;
+                never_raises: bool;
                 loc: Location.t }
   | Check of { property: property; strict: bool; loc: Location.t }
 

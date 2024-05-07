@@ -2816,7 +2816,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                 | Default_check | Ignore_assert_all _ -> Default_check
                 | Check _ -> zero_alloc
                 | Assume { property; strict; arity; loc;
-                           never_returns_normally = _ } ->
+                           never_returns_normally = _;
+                           never_raises = _} ->
                   Check { strict; property; arity; loc; opt = false }
               in
               let (first_loc, _, _) = List.hd id_info in

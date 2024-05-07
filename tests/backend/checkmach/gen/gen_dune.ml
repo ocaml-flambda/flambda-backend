@@ -179,4 +179,6 @@ let () =
     ~exit_code:2 "test_signatures_separate_b";
   print_test_expected_output ~cutoff:default_cutoff
     ~extra_dep:None ~exit_code:2 "test_assume_inlining";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_dep:None ~exit_code:2 "test_assume_error";
   ()
