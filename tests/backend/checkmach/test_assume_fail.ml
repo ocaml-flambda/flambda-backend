@@ -94,7 +94,7 @@ let[@zero_alloc strict] test68 x =
    So far, we haven't seen the need for it in a real example.
 *)
 
-(* CR gyorsh: the check passes on g0 and fails on g1-g3 below, even though the
+(* CR gyorsh: the check passes on g0,g2,g3 and fails on g1 below, even though the
    generated code is exactly the same in all four cases.  The difference is because
    "assume" is not propagated on partial applications. There is no misplaced
    attribute warning. This is the same behavior as for "@inlined" annotations.
