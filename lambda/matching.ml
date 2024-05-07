@@ -100,7 +100,6 @@ module Scoped_location = Debuginfo.Scoped_location
 
 type error =
   | Void_layout
-  | Illegal_record_field of Jkind.const
 
 exception Error of Location.t * error
 
@@ -111,20 +110,6 @@ let jkind_layout_default_to_value_and_check_not_void loc jkind =
   | Void -> raise (Error (loc, Void_layout))
   | _ -> ()
 ;;
-
-(* CR layouts v5: This function is only used for sanity checking the
-   typechecker.  When we allow arbitrary layouts in structures, it will have
-   outlived its usefulness and should be deleted. *)
-let check_record_field_jkind lbl =
-  match Jkind.(get_default_value lbl.lbl_jkind), lbl.lbl_repres with
-  | (Value | Immediate | Immediate64 | Non_null_value), _ -> ()
-  | Float64, (Record_ufloat | Record_mixed _) -> ()
-  | Float64, (Record_boxed _ | Record_inlined _
-             | Record_unboxed | Record_float) ->
-    raise (Error (lbl.lbl_loc, Illegal_record_field Float64))
-  | (Any | Void | Word | Bits32 | Bits64) as c, _ ->
-    (* CR layouts v2.1: support unboxed ints here *)
-    raise (Error (lbl.lbl_loc, Illegal_record_field c))
 
 (*
    Compatibility predicate that considers potential rebindings of constructors
@@ -1824,12 +1809,11 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
             | Flat_suffix flat ->
                 let flat_read =
                   match flat with
-                  | Imm -> Flat_read_imm
-                  | Float64 -> Flat_read_float64
                   | Float ->
                       Misc.fatal_error
                         "unexpected flat float of layout value in \
-                          constructor field"
+                         constructor field"
+                  | non_float -> flat_read_non_float non_float
                 in
                 Mread_flat_suffix flat_read
           in
@@ -2136,7 +2120,7 @@ let record_matching_line num_fields lbl_pat_list =
   List.iter (fun (_, lbl, pat) ->
     (* CR layouts v5: This void sanity check can be removed when we add proper
        void support (or whenever we remove `lbl_pos_void`) *)
-    check_record_field_jkind lbl;
+    jkind_layout_default_to_value_and_check_not_void pat.pat_loc lbl.lbl_jkind;
     patv.(lbl.lbl_pos) <- pat)
     lbl_pat_list;
   Array.to_list patv
@@ -2163,7 +2147,8 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
       rem
     else
       let lbl = all_labels.(pos) in
-      check_record_field_jkind lbl;
+      jkind_layout_default_to_value_and_check_not_void
+        head.pat_loc lbl.lbl_jkind;
       let ptr = Typeopt.maybe_pointer_type head.pat_env lbl.lbl_arg in
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
       let lbl_layout = Typeopt.layout_of_sort lbl.lbl_loc lbl_sort in
@@ -2196,11 +2181,11 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
               else
                 let read =
                   match flat_suffix.(pos - value_prefix_len) with
-                  | Imm -> Flat_read_imm
-                  | Float64 -> Flat_read_float64
+                  | Imm | Float64 | Bits32 | Bits64 | Word as non_float ->
+                      flat_read_non_float non_float
                   | Float ->
                       (* TODO: could optimise to Alloc_local sometimes *)
-                      Flat_read_float alloc_heap
+                      flat_read_float alloc_heap
                 in
                 Mread_flat_suffix read
             in
@@ -4187,11 +4172,6 @@ let report_error ppf = function
       fprintf ppf
         "Void layout detected in translation:@ Please report this error to \
          the Jane Street compilers team."
-  | Illegal_record_field c ->
-      fprintf ppf
-        "Sort %s detected where value was expected in a record field:@ Please \
-         report this error to the Jane Street compilers team."
-        (Jkind.string_of_const c)
 
 let () =
   Location.register_error_of_exn

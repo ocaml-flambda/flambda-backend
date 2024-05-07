@@ -498,3 +498,4 @@ Line 1, characters 31-41:
 Error: Type float# has layout float64.
        Inlined records may not yet contain types of this layout.
 |}]
+

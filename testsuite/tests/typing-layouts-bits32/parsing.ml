@@ -19,8 +19,8 @@ type t = C of int32#;;
 Line 1, characters 9-20:
 1 | type t = C of int32#;;
              ^^^^^^^^^^^
-Error: Type int32# has layout bits32.
-       Variants may not yet contain types of this layout.
+Error: The enabled layouts extension does not allow for mixed constructors.
+       You must enable -extension layouts_alpha to use this feature.
 |}];;
 
 type t = C : int32# -> t;;
@@ -28,8 +28,8 @@ type t = C : int32# -> t;;
 Line 1, characters 9-24:
 1 | type t = C : int32# -> t;;
              ^^^^^^^^^^^^^^^
-Error: Type int32# has layout bits32.
-       Variants may not yet contain types of this layout.
+Error: The enabled layouts extension does not allow for mixed constructors.
+       You must enable -extension layouts_alpha to use this feature.
 |}];;
 
 (* int32# works as an argument to normal type constructors, not just
