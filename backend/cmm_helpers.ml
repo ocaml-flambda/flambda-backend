@@ -47,6 +47,7 @@ let caml_black = Nativeint.shift_left (Nativeint.of_int 3) 8
 
 let caml_local =
   Nativeint.shift_left (Nativeint.of_int (if Config.runtime5 then 3 else 2)) 8
+
 (* cf. runtime/caml/gc.h *)
 
 (* Loads *)
@@ -1250,6 +1251,11 @@ let get_field_computed imm_or_ptr mutability ~block ~index dbg =
 
 let get_field_unboxed_int32 mutability ~block ~index dbg =
   let memory_chunk = Thirtytwo_signed in
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed int32 fields only supported on little-endian architectures";
   (* CR layouts v5.1: We'll need to vary log2_size_addr to efficiently pack
    * int32s *)
   let field_address = array_indexing log2_size_addr block index dbg in
@@ -1265,6 +1271,11 @@ let get_field_unboxed_int64_or_nativeint mutability ~block ~index dbg =
 (* Setters for unboxed int fields *)
 
 let setfield_unboxed_int32 arr ofs newval dbg =
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed int32 fields only supported on little-endian architectures";
   (* CR layouts v5.1: We will need to vary log2_size_addr when int32 fields are
      efficiently packed. *)
   return_unit dbg
