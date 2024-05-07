@@ -387,30 +387,6 @@ let print_instr b = function
   | TZCNT (arg1, arg2) -> i2_s b "tzcnt" arg1 arg2
   | SSE42 CRC32 (arg1, arg2) -> i2_s b "crc32" arg1 arg2
 
-(* bug:
-   https://sourceware.org/binutils/docs-2.22/as/i386_002dBugs.html#i386_002dBugs
-
-   The AT&T syntax has a bug for fsub/fdiv/fsubr/fdivr instructions when
-   the source register is %st and the destination is %st(i).  In those
-   case, AT&T use fsub (resp. fsubr) in place of fsubr (resp. fsub),
-   and idem for fdiv/fdivr.
-
-   Concretely, AT&T syntax interpretation of:
-
-      fsub  %st, %st(3)
-
-   should normally be:
-
-      %st(3) := %st(3) - %st
-
-   but it should actually be interpreted as:
-
-      %st(3) := %st - %st(3)
-
-   which means the FSUBR instruction should be used.
-*)
-
-
 let print_line b = function
   | Ins instr -> print_instr b instr
 
