@@ -305,8 +305,8 @@ module Update_kind = struct
   let naked_vec128_fields = { kind = Naked_vec128; stride = Arch.size_addr }
 end
 
-let make_update env res dbg (kind : Update_kind.t) ~symbol var ~index
-    ~prev_updates =
+let make_update env res dbg ({ kind; stride } : Update_kind.t) ~symbol var
+    ~index ~prev_updates =
   let To_cmm_env.{ env; res; expr = { cmm; free_vars; effs } } =
     To_cmm_env.inline_variable env res var
   in
@@ -317,7 +317,7 @@ let make_update env res dbg (kind : Update_kind.t) ~symbol var ~index
       if not Config.runtime5
       then None
       else
-        match kind.kind with
+        match kind with
         | Pointer -> Some Pointer
         | Immediate -> Some Immediate
         | Naked_int32 | Naked_int64 | Naked_float | Naked_float32 | Naked_vec128
@@ -330,18 +330,18 @@ let make_update env res dbg (kind : Update_kind.t) ~symbol var ~index
     in
     match must_use_setfield with
     | Some imm_or_ptr ->
-      assert (kind.stride = Arch.size_addr);
+      assert (stride = Arch.size_addr);
       Cmm_helpers.setfield index imm_or_ptr Root_initialization symbol cmm dbg
     | None ->
       let memory_chunk : Cmm.memory_chunk =
-        match kind.kind with
+        match kind with
         | Pointer | Immediate -> Word_val
         | Naked_int32 ->
           (* Cmm expressions representing int32 values are always sign extended.
              By using [Word_int] in the "fields" cases (see [Update_kind],
              above) we maintain the convention that 32-bit integers in 64-bit
              fields are sign extended. *)
-          if kind.stride > 4 then Word_int else Thirtytwo_signed
+          if stride > 4 then Word_int else Thirtytwo_signed
         | Naked_int64 -> Word_int
         | Naked_float -> Double
         | Naked_float32 ->
@@ -353,7 +353,7 @@ let make_update env res dbg (kind : Update_kind.t) ~symbol var ~index
           Single { reg = Float32 }
         | Naked_vec128 -> Onetwentyeight_unaligned
       in
-      let addr = strided_field_address symbol ~stride:kind.stride ~index dbg in
+      let addr = strided_field_address symbol ~stride ~index dbg in
       store ~dbg memory_chunk Initialization ~addr ~new_value:cmm
   in
   let update =
