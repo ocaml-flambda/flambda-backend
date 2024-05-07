@@ -7,8 +7,10 @@ module Field = struct
       | Value_slot of Value_slot.t
       | Function_slot of Function_slot.t
       | Code_of_closure
+      | Is_int
+      | Get_tag
 
-    let compare t1 t2 =
+    let compare t1 t2 = compare t1 t2 (* TODOOOOOOOOOOO
       match t1, t2 with
       | Block n1, Block n2 -> Int.compare n1 n2
       | Value_slot v1, Value_slot v2 -> Value_slot.compare v1 v2
@@ -19,7 +21,7 @@ module Field = struct
       | Value_slot _, (Function_slot _ | Code_of_closure) -> -1
       | (Function_slot _ | Code_of_closure), Value_slot _ -> 1
       | Function_slot _, Code_of_closure -> -1
-      | Code_of_closure, Function_slot _ -> 1
+      | Code_of_closure, Function_slot _ -> 1 *)
 
     let equal a b = compare a b = 0
 
@@ -30,6 +32,8 @@ module Field = struct
       | Value_slot s -> Format.fprintf ppf "%a" Value_slot.print s
       | Function_slot f -> Format.fprintf ppf "%a" Function_slot.print f
       | Code_of_closure -> Format.fprintf ppf "Code"
+      | Is_int -> Format.fprintf ppf "Is_int"
+      | Get_tag -> Format.fprintf ppf "Get_tag"
   end
 
   include M

@@ -6,6 +6,8 @@ module Field : sig
     | Value_slot of Value_slot.t
     | Function_slot of Function_slot.t
     | Code_of_closure
+    | Is_int
+    | Get_tag
 
   val equal : t -> t -> bool
 

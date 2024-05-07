@@ -410,7 +410,7 @@ let fixpoint (graph_new : Global_flow_graph.fun_graph) =
       if not (Hashtbl.mem result_topo k) then
         Format.eprintf "NOT BOTTOM: %a@." Code_id_or_name.print k;
     ) _result; *)
-  (* Format.eprintf "RESULT: %a@." pp_result result_topo; *)
+  if Sys.getenv_opt "TOTO" <> None then Format.eprintf "RESULT: %a@." pp_result result_topo; 
   (* if Sys.getenv_opt "TOTO" <> None then ( Format.eprintf "TOPO:@.%a@.@."
      pp_result result_topo; Format.eprintf "NORMAL:@.%a@.@." pp_result result);
      if not (Dep_solver_safe.equal_result result_topo result) then begin

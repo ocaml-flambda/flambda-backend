@@ -686,6 +686,16 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
           | Some (field, block) ->
             default_bp acc (Graph.Dep.Field (Block field, block))
         end
+        | Unary (Is_int _, arg) ->
+          Simple.pattern_match arg
+            ~name:(fun name ~coercion:_ ->
+                default_bp acc (Graph.Dep.Field (Is_int, name)))
+            ~const:(fun _ -> ())
+        | Unary (Get_tag, arg) ->
+          Simple.pattern_match arg
+            ~name:(fun name ~coercion:_ ->
+                default_bp acc (Graph.Dep.Field (Get_tag, name)))
+            ~const:(fun _ -> ())
         | prim ->
           let () =
             match Flambda_primitive.effects_and_coeffects prim with
