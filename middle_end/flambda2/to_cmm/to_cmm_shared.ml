@@ -336,10 +336,21 @@ let make_update env res dbg (kind : Update_kind.t) ~symbol var ~index
       let memory_chunk : Cmm.memory_chunk =
         match kind.kind with
         | Pointer | Immediate -> Word_val
-        | Naked_int32 -> Thirtytwo_signed
+        | Naked_int32 ->
+          (* Cmm expressions representing int32 values are always sign extended.
+             By using [Word_int] in the "fields" cases (see [Update_kind],
+             above) we maintain the convention that 32-bit integers in 64-bit
+             fields are sign extended. *)
+          if kind.stride > 4 then Word_int else Thirtytwo_signed
         | Naked_int64 -> Word_int
         | Naked_float -> Double
-        | Naked_float32 -> Single { reg = Float32 }
+        | Naked_float32 ->
+          (* XXX need to check that other float32 places do zero initialize *)
+          (* In the case where [kind.stride > 4] we are relying on the fact that
+             the data section is zero initialized, in order that the high 32
+             bits of the 64-bit field are deterministic, which is important for
+             build reproducibility. *)
+          Single { reg = Float32 }
         | Naked_vec128 -> Onetwentyeight_unaligned
       in
       let addr = strided_field_address symbol ~stride:kind.stride ~index dbg in
