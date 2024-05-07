@@ -58,30 +58,94 @@ module Block_kind = struct
     match t with Values _ -> K.value | Naked_floats -> K.naked_float
 end
 
-module Mixed_block_kind = struct
-  type t = Lambda.mixed_block_shape
+module Mixed_block_flat_element = struct
+  type t =
+    | Imm
+    | Float
+    | Float64
+    | Bits32
+    | Bits64
+    | Word
 
-  let print_flat_element ppf (e : Lambda.flat_element) =
-    match e with
-    | Imm -> Format.fprintf ppf "Imm"
-    | Float -> Format.fprintf ppf "Float"
-    | Float64 -> Format.fprintf ppf "Float64"
+  let from_lambda : Lambda.flat_element -> t = function
+    | Imm -> Imm
+    | Float -> Float
+    | Float64 -> Float64
+    | Bits32 -> Bits32
+    | Bits64 -> Bits64
+    | Word -> Word
+
+  let to_lambda : t -> Lambda.flat_element = function
+    | Imm -> Imm
+    | Float -> Float
+    | Float64 -> Float64
+    | Bits32 -> Bits32
+    | Bits64 -> Bits64
+    | Word -> Word
+
+  let to_string = function
+    | Imm -> "Imm"
+    | Float -> "Float"
+    | Float64 -> "Float64"
+    | Bits32 -> "Bits32"
+    | Bits64 -> "Bits64"
+    | Word -> "Word"
+
+  let compare t1 t2 =
+    match t1, t2 with
+    | Imm, Imm
+    | Float, Float
+    | Float64, Float64
+    | Word, Word
+    | Bits32, Bits32
+    | Bits64, Bits64 ->
+      0
+    | Imm, _ -> -1
+    | _, Imm -> 1
+    | Float, _ -> -1
+    | _, Float -> 1
+    | Float64, _ -> -1
+    | _, Float64 -> 1
+    | Word, _ -> -1
+    | _, Word -> 1
+    | Bits32, _ -> -1
+    | _, Bits32 -> 1
+
+  let print ppf t = Format.fprintf ppf "%s" (to_string t)
+
+  let element_kind = function
+    | Imm -> K.value
+    | Float | Float64 -> K.naked_float
+    | Bits32 -> K.naked_int32
+    | Bits64 -> K.naked_int64
+    | Word -> K.naked_nativeint
+end
+
+module Mixed_block_kind = struct
+  type t =
+    { value_prefix_len : int;
+      (* We use an array just so we can index into the middle. *)
+      flat_suffix : Mixed_block_flat_element.t array
+    }
+
+  let from_lambda { Lambda.value_prefix_len; flat_suffix } =
+    { value_prefix_len;
+      flat_suffix = Array.map Mixed_block_flat_element.from_lambda flat_suffix
+    }
+
+  let to_lambda { value_prefix_len; flat_suffix } : Lambda.mixed_block_shape =
+    { value_prefix_len;
+      flat_suffix = Array.map Mixed_block_flat_element.to_lambda flat_suffix
+    }
 
   let print ppf ({ value_prefix_len; flat_suffix } : t) =
     Format.fprintf ppf "[|@ ";
     Format.fprintf ppf "Value (x%d);@ " value_prefix_len;
     Array.iter
-      (fun elem -> Format.fprintf ppf "%a;@ " print_flat_element elem)
+      (fun elem ->
+        Format.fprintf ppf "%a;@ " Mixed_block_flat_element.print elem)
       flat_suffix;
     Format.fprintf ppf "|]"
-
-  let compare_flat_element e1 e2 =
-    match (e1 : Lambda.flat_element), (e2 : Lambda.flat_element) with
-    | Imm, Imm | Float, Float | Float64, Float64 -> 0
-    | Imm, _ -> -1
-    | _, Imm -> 1
-    | Float, _ -> -1
-    | _, Float -> 1
 
   let compare (t1 : t) (t2 : t) =
     let components (t : t) =
@@ -91,19 +155,18 @@ module Mixed_block_kind = struct
     let v1, a1 = components t1 in
     let v2, a2 = components t2 in
     match Int.compare v1 v2 with
-    | 0 -> Misc.Stdlib.Array.compare compare_flat_element a1 a2
+    | 0 -> Misc.Stdlib.Array.compare Mixed_block_flat_element.compare a1 a2
     | cmp -> cmp
 
   let length ({ value_prefix_len; flat_suffix } : t) =
     value_prefix_len + Array.length flat_suffix
 
-  let element_kind i ({ value_prefix_len; flat_suffix } : t) =
+  let element_kind i { value_prefix_len; flat_suffix } =
+    if i < 0 then Misc.fatal_errorf "Negative index: %d" i;
     if i < value_prefix_len
     then K.value
     else
-      match flat_suffix.(i - value_prefix_len) with
-      | Imm -> K.value
-      | Float | Float64 -> K.naked_float
+      Mixed_block_flat_element.element_kind flat_suffix.(i - value_prefix_len)
 
   let fold_left f init t =
     let result = ref init in
@@ -375,7 +438,7 @@ end
 module Mixed_block_access_field_kind = struct
   type t =
     | Value_prefix of Block_access_field_kind.t
-    | Flat_suffix of Lambda.flat_element
+    | Flat_suffix of Mixed_block_flat_element.t
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
@@ -390,16 +453,20 @@ module Mixed_block_access_field_kind = struct
           "@[<hov 1>(Flat_suffix \
            @[<hov 1>(flat_element@ %a)@]\
            )@]"
-          Printlambda.flat_element flat_element
+          Mixed_block_flat_element.print flat_element
 
   let compare t1 t2 =
     match t1, t2 with
     | Value_prefix field_kind1, Value_prefix field_kind2 ->
       Block_access_field_kind.compare field_kind1 field_kind2
     | Flat_suffix element_kind1, Flat_suffix element_kind2 ->
-      Stdlib.compare element_kind1 element_kind2
+      Mixed_block_flat_element.compare element_kind1 element_kind2
     | Value_prefix _, Flat_suffix _ -> -1
     | Flat_suffix _, Value_prefix _ -> 1
+
+  let to_element_kind = function
+    | Value_prefix _ -> K.value
+    | Flat_suffix flat -> Mixed_block_flat_element.element_kind flat
 end
 
 module Block_access_kind = struct
@@ -411,7 +478,8 @@ module Block_access_kind = struct
         }
     | Naked_floats of { size : Targetint_31_63.t Or_unknown.t }
     | Mixed of
-        { size : Targetint_31_63.t Or_unknown.t;
+        { tag : Tag.Scannable.t Or_unknown.t;
+          size : Targetint_31_63.t Or_unknown.t;
           field_kind : Mixed_block_access_field_kind.t
         }
 
@@ -433,12 +501,14 @@ module Block_access_kind = struct
           @[<hov 1>(size@ %a)@]\
           )@]"
         (Or_unknown.print Targetint_31_63.print) size
-    | Mixed { size; field_kind } ->
+    | Mixed { tag; size; field_kind } ->
       Format.fprintf ppf
         "@[<hov 1>(Mixed@ \
+          @[<hov 1>(tag@ %a)@]@ \
           @[<hov 1>(size@ %a)@]@ \
           @[<hov 1>(field_kind@ %a)@]\
           )@]"
+        (Or_unknown.print Tag.Scannable.print) tag
         (Or_unknown.print Targetint_31_63.print) size
         Mixed_block_access_field_kind.print field_kind
 
@@ -446,11 +516,8 @@ module Block_access_kind = struct
     match t with
     | Values _ -> K.value
     | Naked_floats _ -> K.naked_float
-    | Mixed { field_kind; _ } -> (
-      match field_kind with
-      | Value_prefix _ -> K.value
-      | Flat_suffix Imm -> K.value
-      | Flat_suffix (Float | Float64) -> K.naked_float)
+    | Mixed { field_kind; _ } ->
+      Mixed_block_access_field_kind.to_element_kind field_kind
 
   let element_subkind_for_load t =
     match t with
@@ -464,7 +531,10 @@ module Block_access_kind = struct
     | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
       match field_kind with
       | Imm -> K.With_subkind.tagged_immediate
-      | Float | Float64 -> K.With_subkind.naked_float)
+      | Float | Float64 -> K.With_subkind.naked_float
+      | Bits32 -> K.With_subkind.naked_int32
+      | Bits64 -> K.With_subkind.naked_int64
+      | Word -> K.With_subkind.naked_nativeint)
 
   let element_kind_for_set = element_kind_for_load
 
@@ -482,12 +552,16 @@ module Block_access_kind = struct
         else Block_access_field_kind.compare field_kind1 field_kind2
     | Naked_floats { size = size1 }, Naked_floats { size = size2 } ->
       Or_unknown.compare Targetint_31_63.compare size1 size2
-    | ( Mixed { size = size1; field_kind = field_kind1 },
-        Mixed { size = size2; field_kind = field_kind2 } ) ->
-      let c = Or_unknown.compare Targetint_31_63.compare size1 size2 in
+    | ( Mixed { tag = tag1; size = size1; field_kind = field_kind1 },
+        Mixed { tag = tag2; size = size2; field_kind = field_kind2 } ) ->
+      let c = Or_unknown.compare Tag.Scannable.compare tag1 tag2 in
       if c <> 0
       then c
-      else Mixed_block_access_field_kind.compare field_kind1 field_kind2
+      else
+        let c = Or_unknown.compare Targetint_31_63.compare size1 size2 in
+        if c <> 0
+        then c
+        else Mixed_block_access_field_kind.compare field_kind1 field_kind2
     | Naked_floats _, Mixed _ -> -1
     | Mixed _, Naked_floats _ -> 1
     | Values _, _ -> -1
@@ -1817,27 +1891,30 @@ type variadic_primitive =
   | Make_block of Block_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_array of Array_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_mixed_block of
-      Lambda.mixed_block_shape * Mutability.t * Alloc_mode.For_allocations.t
+      Tag.Scannable.t
+      * Mixed_block_kind.t
+      * Mutability.t
+      * Alloc_mode.For_allocations.t
 
 let variadic_primitive_eligible_for_cse p ~args =
   match p with
   | Make_block (_, _, Local _)
   | Make_array (_, Immutable, Local _)
-  | Make_mixed_block (_, _, Local _) ->
+  | Make_mixed_block (_, _, _, Local _) ->
     false
   | Make_block (_, Immutable, Heap)
   | Make_array (_, Immutable, _)
-  | Make_mixed_block (_, Immutable, Heap) ->
+  | Make_mixed_block (_, _, Immutable, Heap) ->
     (* See comment in [unary_primitive_eligible_for_cse], above, on [Box_number]
        case. *)
     List.exists (fun arg -> Simple.is_var arg) args
   | Make_block (_, Immutable_unique, _)
   | Make_array (_, Immutable_unique, _)
-  | Make_mixed_block (_, Immutable_unique, _) ->
+  | Make_mixed_block (_, _, Immutable_unique, _) ->
     false
   | Make_block (_, Mutable, _)
   | Make_array (_, Mutable, _)
-  | Make_mixed_block (_, Mutable, _) ->
+  | Make_mixed_block (_, _, Mutable, _) ->
     false
 
 let compare_variadic_primitive p1 p2 =
@@ -1862,16 +1939,20 @@ let compare_variadic_primitive p1 p2 =
       if c <> 0
       then c
       else Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
-  | ( Make_mixed_block (kind1, mut1, alloc_mode1),
-      Make_mixed_block (kind2, mut2, alloc_mode2) ) ->
-    let c = Mixed_block_kind.compare kind1 kind2 in
+  | ( Make_mixed_block (tag1, kind1, mut1, alloc_mode1),
+      Make_mixed_block (tag2, kind2, mut2, alloc_mode2) ) ->
+    let c = Tag.Scannable.compare tag1 tag2 in
     if c <> 0
     then c
     else
-      let c = Stdlib.compare mut1 mut2 in
+      let c = Mixed_block_kind.compare kind1 kind2 in
       if c <> 0
       then c
-      else Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
+      else
+        let c = Stdlib.compare mut1 mut2 in
+        if c <> 0
+        then c
+        else Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
   | Make_array _, Make_mixed_block _ -> -1
   | Make_mixed_block _, Make_array _ -> 1
   | Make_block _, _ -> -1
@@ -1888,9 +1969,9 @@ let print_variadic_primitive ppf p =
   | Make_array (kind, mut, alloc_mode) ->
     fprintf ppf "@[<hov 1>(Make_array@ %a@ %a@ %a)@]" Array_kind.print kind
       Mutability.print mut Alloc_mode.For_allocations.print alloc_mode
-  | Make_mixed_block (kind, mut, alloc_mode) ->
-    fprintf ppf "@[<hov 1>(Make_mixed_block@ %a@ %a@ %a)@]"
-      Mixed_block_kind.print kind Mutability.print mut
+  | Make_mixed_block (tag, kind, mut, alloc_mode) ->
+    fprintf ppf "@[<hov 1>(Make_mixed_block %a@ %a@ %a@ %a)@]"
+      Tag.Scannable.print tag Mixed_block_kind.print kind Mutability.print mut
       Alloc_mode.For_allocations.print alloc_mode
 
 let args_kind_of_variadic_primitive p : arg_kinds =
@@ -1899,7 +1980,7 @@ let args_kind_of_variadic_primitive p : arg_kinds =
     Variadic_all_of_kind (Block_kind.element_kind kind)
   | Make_array (kind, _, _) ->
     Variadic_all_of_kind (Array_kind.element_kind_for_primitive kind)
-  | Make_mixed_block (kind, _, _) ->
+  | Make_mixed_block (_, kind, _, _) ->
     Variadic
       (List.init (Mixed_block_kind.length kind) (fun i ->
            Mixed_block_kind.element_kind i kind))
@@ -1912,7 +1993,7 @@ let effects_and_coeffects_of_variadic_primitive p =
   match p with
   | Make_block (_, mut, alloc_mode)
   | Make_array (_, mut, alloc_mode)
-  | Make_mixed_block (_, mut, alloc_mode) ->
+  | Make_mixed_block (_, _, mut, alloc_mode) ->
     let coeffects : Coeffects.t =
       match alloc_mode with
       | Heap -> Coeffects.No_coeffects
@@ -1930,7 +2011,7 @@ let free_names_variadic_primitive p =
     Alloc_mode.For_allocations.free_names alloc_mode
   | Make_array (_kind, _mut, alloc_mode) ->
     Alloc_mode.For_allocations.free_names alloc_mode
-  | Make_mixed_block (_kind, _mut, alloc_mode) ->
+  | Make_mixed_block (_tag, _kind, _mut, alloc_mode) ->
     Alloc_mode.For_allocations.free_names alloc_mode
 
 let apply_renaming_variadic_primitive p renaming =
@@ -1945,13 +2026,13 @@ let apply_renaming_variadic_primitive p renaming =
       Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
     in
     if alloc_mode == alloc_mode' then p else Make_array (kind, mut, alloc_mode')
-  | Make_mixed_block (kind, mut, alloc_mode) ->
+  | Make_mixed_block (tag, kind, mut, alloc_mode) ->
     let alloc_mode' =
       Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
     in
     if alloc_mode == alloc_mode'
     then p
-    else Make_mixed_block (kind, mut, alloc_mode')
+    else Make_mixed_block (tag, kind, mut, alloc_mode')
 
 let ids_for_export_variadic_primitive p =
   match p with
@@ -1959,7 +2040,7 @@ let ids_for_export_variadic_primitive p =
     Alloc_mode.For_allocations.ids_for_export alloc_mode
   | Make_array (_kind, _mut, alloc_mode) ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
-  | Make_mixed_block (_kind, _mut, alloc_mode) ->
+  | Make_mixed_block (_tag, _kind, _mut, alloc_mode) ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
 
 type t =

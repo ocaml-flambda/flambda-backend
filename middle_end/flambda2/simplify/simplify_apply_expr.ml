@@ -88,7 +88,8 @@ let simplify_direct_tuple_application ~simplify_expr dacc apply
     (* The code for the function being applied has exactly as many parameters as
        there are components of the tuple (which is the first element of
        [Apply.args apply]). The components must be of kind [Value] (in Lambda,
-       [layout_field]) and therefore cannot be unboxed products themselves. *)
+       [layout_tuple_element]) and therefore cannot be unboxed products
+       themselves. *)
     Flambda_arity.cardinal_unarized
       (Code_metadata.params_arity callee's_code_metadata)
   in

@@ -58,7 +58,7 @@ let[@zero_alloc strict] test61 x = test60 x
 (* allocations on the path to a call labeled [@zero_alloc assume never_returns_normally]
    do not count for the normal check, but do count for the strict check *)
 
-let[@inline never] test62 x = [x;x]
+let[@inline never] test62 x = if List.length x > 0 then [x;x] else failwith (string_of_int (List.length x))
 
 let[@zero_alloc] test63 x =
   let p = [x;x+1] in

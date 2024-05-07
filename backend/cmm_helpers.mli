@@ -155,6 +155,12 @@ val return_unit : Debuginfo.t -> expression -> expression
 (** Non-atomic load of a mutable field *)
 val mk_load_mut : memory_chunk -> operation
 
+(** [strided_field_address ptr ~index ~stride dbg] returns an expression for the
+    address of the [index]th field of the block pointed to by [ptr]. The field
+    width is determined by [stride]. *)
+val strided_field_address :
+  expression -> index:int -> stride:int -> Debuginfo.t -> expression
+
 (** [field_address ptr n dbg] returns an expression for the address of the [n]th
     field of the block pointed to by [ptr].  [memory_chunk] is only used for
     computation of the field width; it defaults to a memory chunk matching the
@@ -301,11 +307,12 @@ val make_alloc :
 val make_float_alloc :
   mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
 
-(** Allocate an mixed block of the corresponding shape.  Initial values of
-    the flat suffix should be provided unboxed. *)
+(** Allocate an mixed block of the corresponding tag and shape. Initial values
+    of the flat suffix should be provided unboxed. *)
 val make_mixed_alloc :
   mode:Lambda.alloc_mode ->
   Debuginfo.t ->
+  int ->
   Lambda.mixed_block_shape ->
   expression list ->
   expression
@@ -998,3 +1005,31 @@ val unboxed_int64_or_nativeint_array_set :
   new_value:expression ->
   Debuginfo.t ->
   expression
+
+(** {2 Getters and setters for unboxed int fields of mixed blocks} *)
+
+(** The argument structure for getters is parallel to [get_field_computed]. *)
+
+val get_field_unboxed_int32 :
+  Asttypes.mutable_flag ->
+  block:expression ->
+  index:expression ->
+  Debuginfo.t ->
+  expression
+
+val get_field_unboxed_int64_or_nativeint :
+  Asttypes.mutable_flag ->
+  block:expression ->
+  index:expression ->
+  Debuginfo.t ->
+  expression
+
+(** The argument structure for setters is parallel to [setfield_computed].
+   [immediate_or_pointer] is not needed as the layout is implied from the name,
+   and [initialization_or_assignment] is not needed as unboxed ints can always be
+   assigned without caml_modify (etc.).
+ *)
+
+val setfield_unboxed_int32 : ternary_primitive
+
+val setfield_unboxed_int64_or_nativeint : ternary_primitive

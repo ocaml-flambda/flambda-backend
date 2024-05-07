@@ -117,8 +117,10 @@ let zero_alloc za1 za2 =
     | Default_check | Ignore_assert_all _ -> ZA.Assume_info.Value.top ()
     | Check { strict; _ } ->
       ZA.Assume_info.Value.of_annotation ~strict ~never_returns_normally:false
-    | Assume { strict; never_returns_normally } ->
+        ~never_raises:false
+    | Assume { strict; never_returns_normally; never_raises; } ->
       ZA.Assume_info.Value.of_annotation ~strict ~never_returns_normally
+        ~never_raises
   in
   let v1 = abstract_value za1 in
   let v2 = abstract_value za2 in

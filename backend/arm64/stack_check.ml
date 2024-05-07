@@ -18,8 +18,14 @@
 
 let stack_threshold_size = Config.stack_threshold * 8 (* bytes *)
 
+let stack_offset = 0
+
+let trap_size = 16
+
 let linear : Linear.fundecl -> Linear.fundecl =
  fun fundecl ->
   match Config.runtime5 with
   | false -> fundecl
-  | true -> Misc.fatal_error "stack checks are not supported on arm64"
+  | true ->
+    Emitaux.add_stack_checks_if_needed fundecl ~stack_offset
+      ~stack_threshold_size ~trap_size
