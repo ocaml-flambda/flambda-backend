@@ -1226,8 +1226,8 @@ module Element_repr = struct
       | Immediate -> Imm_element
       | Float64 -> Unboxed_element Float64
       | Float32 ->
-          (* CR mslater: (float32) float32# records *)
-          Misc.fatal_error "Unboxed float32 is not yet supported in mixed blocks."
+        (* CR mslater: (float32) float32# records *)
+        raise (Error (loc, Invalid_jkind_in_block (ty, Float32, Mixed_product)))
       | Word -> Unboxed_element Word
       | Bits32 -> Unboxed_element Bits32
       | Bits64 -> Unboxed_element Bits64

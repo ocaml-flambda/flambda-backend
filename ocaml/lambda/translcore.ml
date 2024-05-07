@@ -55,7 +55,10 @@ let layout_pat sort p = layout p.pat_env p.pat_loc sort p.pat_type
 
 let check_record_field_sort loc sort =
   match Jkind.Sort.get_default_value sort with
-  | Value | Float64 | Float32 | Bits32 | Bits64 | Word -> ()
+  | Value | Float64 | Bits32 | Bits64 | Word -> ()
+  | Float32 ->
+    (* CR mslater: (float32) float32# records *)
+    Misc.fatal_error "Found unboxed float32 record field."
   | Void -> raise (Error (loc, Illegal_void_record_field))
 
 (* Forward declaration -- to be filled in by Translmod.transl_module *)

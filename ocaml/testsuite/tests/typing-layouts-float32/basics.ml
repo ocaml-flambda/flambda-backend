@@ -202,11 +202,11 @@ Error: This type ('b : value) should be an instance of type ('a : float32)
    records. *)
 type t5_1 = { x : t_float32 };;
 [%%expect{|
-Line 1, characters 14-27:
+Line 1, characters 0-29:
 1 | type t5_1 = { x : t_float32 };;
-                  ^^^^^^^^^^^^^
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Type t_float32 has layout float32.
-       Records may not yet contain types of this layout.
+       Structures with non-value elements may not yet contain types of this layout.
 |}];;
 
 (* CR layouts 2.5: allow this *)
@@ -225,7 +225,7 @@ Line 1, characters 12-26:
 1 | type t5_4 = A of t_float32;;
                 ^^^^^^^^^^^^^^
 Error: Type t_float32 has layout float32.
-       Variants may not yet contain types of this layout.
+       Structures with non-value elements may not yet contain types of this layout.
 |}];;
 
 type t5_5 = A of int * t_float32;;
@@ -234,7 +234,7 @@ Line 1, characters 12-32:
 1 | type t5_5 = A of int * t_float32;;
                 ^^^^^^^^^^^^^^^^^^^^
 Error: Type t_float32 has layout float32.
-       Variants may not yet contain types of this layout.
+       Structures with non-value elements may not yet contain types of this layout.
 |}];;
 
 type t5_6 = A of t_float32 [@@unboxed];;
@@ -243,7 +243,7 @@ Line 1, characters 12-26:
 1 | type t5_6 = A of t_float32 [@@unboxed];;
                 ^^^^^^^^^^^^^^
 Error: Type t_float32 has layout float32.
-       Variants may not yet contain types of this layout.
+       Unboxed variants may not yet contain types of this layout.
 |}];;
 
 type ('a : float32) t5_7 = A of int
@@ -254,7 +254,7 @@ Line 2, characters 27-34:
 2 | type ('a : float32) t5_8 = A of 'a;;
                                ^^^^^^^
 Error: Type 'a has layout float32.
-       Variants may not yet contain types of this layout.
+       Structures with non-value elements may not yet contain types of this layout.
 |}]
 
 type ('a : float32, 'b : float32) t5_9 = {x : 'a; y : 'b; z : 'a}
@@ -262,48 +262,48 @@ type ('a : float32, 'b : float32) t5_9 = {x : 'a; y : 'b; z : 'a}
 type 'a t5_10 = 'a t_float32_id
 and 'a t5_11 = {x : 'a t5_10; y : 'a}
 [%%expect{|
-Line 1, characters 42-49:
+Line 1, characters 0-65:
 1 | type ('a : float32, 'b : float32) t5_9 = {x : 'a; y : 'b; z : 'a}
-                                              ^^^^^^^
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Type 'a has layout float32.
-       Records may not yet contain types of this layout.
+       Structures with non-value elements may not yet contain types of this layout.
 |}];;
 
 type ('a : float32) t5_12 = {x : 'a; y : float32#};;
 [%%expect{|
-Line 1, characters 29-36:
+Line 1, characters 0-50:
 1 | type ('a : float32) t5_12 = {x : 'a; y : float32#};;
-                                 ^^^^^^^
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Type 'a has layout float32.
-       Records may not yet contain types of this layout.
+       Structures with non-value elements may not yet contain types of this layout.
 |}];;
 
 type ('a : float32) t5_13 = {x : 'a; y : float32#};;
 [%%expect{|
-Line 1, characters 29-36:
+Line 1, characters 0-50:
 1 | type ('a : float32) t5_13 = {x : 'a; y : float32#};;
-                                 ^^^^^^^
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Type 'a has layout float32.
-       Records may not yet contain types of this layout.
+       Structures with non-value elements may not yet contain types of this layout.
 |}];;
 
 (* Mixed records are allowed, but are prohibited outside of alpha. *)
 type 'a t5_14 = {x : 'a; y : float32#};;
 [%%expect{|
-Line 1, characters 25-37:
+Line 1, characters 0-38:
 1 | type 'a t5_14 = {x : 'a; y : float32#};;
-                             ^^^^^^^^^^^^
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Type float32# has layout float32.
-       Records may not yet contain types of this layout.
+       Structures with non-value elements may not yet contain types of this layout.
 |}];;
 
 type ufref = { mutable contents : float32# };;
 [%%expect{|
-Line 1, characters 15-42:
+Line 1, characters 0-44:
 1 | type ufref = { mutable contents : float32# };;
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Type float32# has layout float32.
-       Records may not yet contain types of this layout.
+       Structures with non-value elements may not yet contain types of this layout.
 |}];;
 
 (****************************************************)
@@ -583,7 +583,7 @@ Line 3, characters 14-28:
 3 | type t11_1 += A of t_float32;;
                   ^^^^^^^^^^^^^^
 Error: Type t_float32 has layout float32.
-       Variants may not yet contain types of this layout.
+       Structures with non-value elements may not yet contain types of this layout.
 |}]
 
 type t11_1 += B of float32#;;
@@ -592,7 +592,7 @@ Line 1, characters 14-27:
 1 | type t11_1 += B of float32#;;
                   ^^^^^^^^^^^^^
 Error: Type float32# has layout float32.
-       Variants may not yet contain types of this layout.
+       Structures with non-value elements may not yet contain types of this layout.
 |}]
 
 type ('a : float32) t11_2 = ..
@@ -608,7 +608,7 @@ Line 5, characters 17-24:
 5 | type 'a t11_2 += B of 'a;;
                      ^^^^^^^
 Error: Type 'a has layout float32.
-       Variants may not yet contain types of this layout.
+       Structures with non-value elements may not yet contain types of this layout.
 |}]
 
 (***************************************)

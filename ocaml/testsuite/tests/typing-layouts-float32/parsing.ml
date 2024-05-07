@@ -27,7 +27,7 @@ Line 1, characters 9-22:
 1 | type t = C of float32#;;
              ^^^^^^^^^^^^^
 Error: Type float32# has layout float32.
-       Variants may not yet contain types of this layout.
+       Structures with non-value elements may not yet contain types of this layout.
 |}];;
 
 type t = C : float32# -> t;;
@@ -36,7 +36,7 @@ Line 1, characters 9-26:
 1 | type t = C : float32# -> t;;
              ^^^^^^^^^^^^^^^^^
 Error: Type float32# has layout float32.
-       Variants may not yet contain types of this layout.
+       Structures with non-value elements may not yet contain types of this layout.
 |}];;
 
 (* float32# works as an argument to normal type constructors, not just classes,
