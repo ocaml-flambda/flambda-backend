@@ -355,10 +355,12 @@ let unary_int_arith_primitive _env dbg kind op arg =
   | Naked_int64, Swap_byte_endianness -> C.bbswap Pint64 arg dbg
   | Naked_nativeint, Swap_byte_endianness -> C.bbswap Pnativeint arg dbg
 
-let unary_float_arith_primitive _env dbg op arg =
-  match (op : P.unary_float_arith_op) with
-  | Abs -> C.float_abs ~dbg arg
-  | Neg -> C.float_neg ~dbg arg
+let unary_float_arith_primitive _env dbg width op arg =
+  match (width : P.float_bitwidth), (op : P.unary_float_arith_op) with
+  | Float64, Abs -> C.float_abs ~dbg arg
+  | Float64, Neg -> C.float_neg ~dbg arg
+  | Float32, Abs -> C.float32_abs ~dbg arg
+  | Float32, Neg -> C.float32_neg ~dbg arg
 
 let arithmetic_conversion dbg src dst arg =
   let open K.Standard_int_or_float in
@@ -603,24 +605,36 @@ let binary_int_comp_primitive_yielding_int _env dbg _kind
       "Translation of [Int_comp] yielding an integer -1, 0 or 1 in unsigned \
        mode is not yet implemented"
 
-let binary_float_arith_primitive _env dbg op x y =
-  match (op : P.binary_float_arith_op) with
-  | Add -> C.float_add ~dbg x y
-  | Sub -> C.float_sub ~dbg x y
-  | Mul -> C.float_mul ~dbg x y
-  | Div -> C.float_div ~dbg x y
+let binary_float_arith_primitive _env dbg w op x y =
+  match (w : P.float_bitwidth), (op : P.binary_float_arith_op) with
+  | Float64, Add -> C.float_add ~dbg x y
+  | Float64, Sub -> C.float_sub ~dbg x y
+  | Float64, Mul -> C.float_mul ~dbg x y
+  | Float64, Div -> C.float_div ~dbg x y
+  | Float32, Add -> C.float32_add ~dbg x y
+  | Float32, Sub -> C.float32_sub ~dbg x y
+  | Float32, Mul -> C.float32_mul ~dbg x y
+  | Float32, Div -> C.float32_div ~dbg x y
 
-let binary_float_comp_primitive _env dbg op x y =
-  match (op : unit P.comparison) with
-  | Eq -> C.float_eq ~dbg x y
-  | Neq -> C.float_neq ~dbg x y
-  | Lt () -> C.float_lt ~dbg x y
-  | Gt () -> C.float_gt ~dbg x y
-  | Le () -> C.float_le ~dbg x y
-  | Ge () -> C.float_ge ~dbg x y
+let binary_float_comp_primitive _env dbg w op x y =
+  match (w : P.float_bitwidth), (op : unit P.comparison) with
+  | Float64, Eq -> C.float_eq ~dbg x y
+  | Float64, Neq -> C.float_neq ~dbg x y
+  | Float64, Lt () -> C.float_lt ~dbg x y
+  | Float64, Gt () -> C.float_gt ~dbg x y
+  | Float64, Le () -> C.float_le ~dbg x y
+  | Float64, Ge () -> C.float_ge ~dbg x y
+  | Float32, Eq -> C.float32_eq ~dbg x y
+  | Float32, Neq -> C.float32_neq ~dbg x y
+  | Float32, Lt () -> C.float32_lt ~dbg x y
+  | Float32, Gt () -> C.float32_gt ~dbg x y
+  | Float32, Le () -> C.float32_le ~dbg x y
+  | Float32, Ge () -> C.float32_ge ~dbg x y
 
-let binary_float_comp_primitive_yielding_int _env dbg x y =
-  C.mk_compare_floats_untagged dbg x y
+let binary_float_comp_primitive_yielding_int _env dbg w x y =
+  match (w : P.float_bitwidth) with
+  | Float64 -> C.mk_compare_floats_untagged dbg x y
+  | Float32 -> C.mk_compare_float32s_untagged dbg x y
 
 (* Primitives *)
 
@@ -671,7 +685,8 @@ let unary_primitive env res dbg f arg =
     None, res, C.opaque arg dbg
   | Int_arith (kind, op) ->
     None, res, unary_int_arith_primitive env dbg kind op arg
-  | Float_arith op -> None, res, unary_float_arith_primitive env dbg op arg
+  | Float_arith (width, op) ->
+    None, res, unary_float_arith_primitive env dbg width op arg
   | Num_conv { src; dst } ->
     let extra, expr = arithmetic_conversion dbg src dst arg in
     extra, res, expr
@@ -777,11 +792,11 @@ let binary_primitive env dbg f x y =
     binary_int_comp_primitive env dbg kind cmp x y
   | Int_comp (kind, Yielding_int_like_compare_functions signed) ->
     binary_int_comp_primitive_yielding_int env dbg kind signed x y
-  | Float_arith op -> binary_float_arith_primitive env dbg op x y
-  | Float_comp (Yielding_bool cmp) ->
-    binary_float_comp_primitive env dbg cmp x y
-  | Float_comp (Yielding_int_like_compare_functions ()) ->
-    binary_float_comp_primitive_yielding_int env dbg x y
+  | Float_arith (w, op) -> binary_float_arith_primitive env dbg w op x y
+  | Float_comp (w, Yielding_bool cmp) ->
+    binary_float_comp_primitive env dbg w cmp x y
+  | Float_comp (w, Yielding_int_like_compare_functions ()) ->
+    binary_float_comp_primitive_yielding_int env dbg w x y
   | Bigarray_get_alignment align -> C.bigstring_get_alignment x y align dbg
   | Atomic_exchange -> C.atomic_exchange ~dbg x y
   | Atomic_fetch_and_add -> C.atomic_fetch_and_add ~dbg x y
