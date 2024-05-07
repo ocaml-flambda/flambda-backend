@@ -1182,7 +1182,7 @@ let assert_mixed_product_support =
      the all-0 pattern, and we must subtract 2 instead. *)
   let max_value_prefix_len = (1 lsl required_reserved_header_bits) - 2 in
   fun loc mixed_product_kind ~value_prefix_len ->
-    let required_layouts_level = Language_extension.Alpha in
+    let required_layouts_level = Language_extension.Beta in
     if not (Language_extension.is_at_least Layouts required_layouts_level) then
       raise (Error (loc, Illegal_mixed_product
                       (Insufficient_level { required_layouts_level;

@@ -2,9 +2,6 @@
  flambda2;
  {
    expect;
- }{
-   flags = "-extension layouts_beta";
-   expect;
  }
 *)
 
@@ -228,7 +225,7 @@ Line 1, characters 12-26:
 1 | type t5_4 = A of t_float64;;
                 ^^^^^^^^^^^^^^
 Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension layouts_beta to use this feature.
 |}];;
 
 type t5_5 = A of int * t_float64;;
@@ -237,7 +234,7 @@ Line 1, characters 12-32:
 1 | type t5_5 = A of int * t_float64;;
                 ^^^^^^^^^^^^^^^^^^^^
 Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension layouts_beta to use this feature.
 |}];;
 
 type t5_6 = A of t_float64 [@@unboxed];;
@@ -257,7 +254,7 @@ Line 2, characters 27-34:
 2 | type ('a : float64) t5_8 = A of 'a;;
                                ^^^^^^^
 Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension layouts_beta to use this feature.
 |}]
 
 type ('a : float64, 'b : float64) t5_9 = {x : 'a; y : 'b; z : 'a}
@@ -299,7 +296,7 @@ Line 1, characters 0-36:
 1 | type 'a t5_14 = {x : 'a; y : float#};;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension layouts_beta to use this feature.
 |}];;
 
 type ufref = { mutable contents : float# };;
@@ -586,7 +583,7 @@ Line 3, characters 14-28:
 3 | type t11_1 += A of t_float64;;
                   ^^^^^^^^^^^^^^
 Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension layouts_beta to use this feature.
 |}]
 
 type t11_1 += B of float#;;
@@ -595,7 +592,7 @@ Line 1, characters 14-25:
 1 | type t11_1 += B of float#;;
                   ^^^^^^^^^^^
 Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension layouts_beta to use this feature.
 |}]
 
 type ('a : float64) t11_2 = ..
@@ -611,7 +608,7 @@ Line 5, characters 17-24:
 5 | type 'a t11_2 += B of 'a;;
                      ^^^^^^^
 Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension layouts_beta to use this feature.
 |}]
 
 (* Some extensible variants aren't supported, though. *)

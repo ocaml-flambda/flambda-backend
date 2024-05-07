@@ -20,7 +20,7 @@ Line 1, characters 9-24:
 1 | type t = C of nativeint#;;
              ^^^^^^^^^^^^^^^
 Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension layouts_beta to use this feature.
 |}];;
 
 type t = C : nativeint# -> t;;
@@ -29,7 +29,7 @@ Line 1, characters 9-28:
 1 | type t = C : nativeint# -> t;;
              ^^^^^^^^^^^^^^^^^^^
 Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension layouts_beta to use this feature.
 |}];;
 
 (* nativeint# works as an argument to normal type constructors, not just
