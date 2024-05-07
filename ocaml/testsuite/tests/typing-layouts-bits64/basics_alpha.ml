@@ -42,6 +42,13 @@ type t5_5 = A of int * t_bits64;;
 type t5_5 = A of int * t_bits64
 |}];;
 
+type ('a : bits64) t5_7 = A of int
+type ('a : bits64) t5_8 = A of 'a;;
+[%%expect{|
+type ('a : bits64) t5_7 = A of int
+type ('a : bits64) t5_8 = A of 'a
+|}]
+
 (* not allowed: value in flat suffix *)
 type 'a t_disallowed = A of t_bits64 * 'a
 
@@ -80,13 +87,6 @@ type 'a t11_2 += B of 'a;;
 type ('a : bits64) t11_2 = ..
 type 'a t11_2 += A of int
 type 'a t11_2 += B of 'a
-|}]
-
-type ('a : bits64) t5_7 = A of int
-type ('a : bits64) t5_8 = A of 'a;;
-[%%expect{|
-type ('a : bits64) t5_7 = A of int
-type ('a : bits64) t5_8 = A of 'a
 |}]
 
 (* not allowed: value in flat suffix *)

@@ -73,6 +73,20 @@ Error: The enabled layouts extension does not allow for mixed constructors.
        You must enable -extension layouts_alpha to use this feature.
 |}]
 
+(* not allowed: value in flat suffix *)
+type 'a t_disallowed = A of t_word * 'a
+
+[%%expect{|
+Line 1, characters 23-39:
+1 | type 'a t_disallowed = A of t_word * 'a
+                           ^^^^^^^^^^^^^^^^
+Error: Expected all flat constructor arguments after non-value argument,
+       t_word, but found boxed argument, 'a.
+|}]
+
+(***************************************************)
+(* Test 11: Allow word in some extensible variants *)
+
 type t11_1 = ..
 
 type t11_1 += A of t_word;;
@@ -84,9 +98,6 @@ Line 3, characters 14-25:
 Error: The enabled layouts extension does not allow for mixed constructors.
        You must enable -extension layouts_alpha to use this feature.
 |}]
-
-(***************************************************)
-(* Test 11: Allow word in some extensible variants *)
 
 type t11_1 += B of nativeint#;;
 [%%expect{|
@@ -113,3 +124,13 @@ Error: The enabled layouts extension does not allow for mixed constructors.
        You must enable -extension layouts_alpha to use this feature.
 |}]
 
+(* not allowed: value in flat suffix *)
+type 'a t11_2 += C : 'a * 'b -> 'a t11_2
+
+[%%expect{|
+Line 1, characters 17-40:
+1 | type 'a t11_2 += C : 'a * 'b -> 'a t11_2
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+Error: Expected all flat constructor arguments after non-value argument, 'a,
+       but found boxed argument, 'b.
+|}]

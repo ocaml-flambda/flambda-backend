@@ -62,6 +62,17 @@ Error: The enabled layouts extension does not allow for mixed constructors.
        You must enable -extension layouts_alpha to use this feature.
 |}];;
 
+type ('a : bits64) t5_7 = A of int
+type ('a : bits64) t5_8 = A of 'a;;
+[%%expect{|
+type ('a : bits64) t5_7 = A of int
+Line 2, characters 26-33:
+2 | type ('a : bits64) t5_8 = A of 'a;;
+                              ^^^^^^^
+Error: The enabled layouts extension does not allow for mixed constructors.
+       You must enable -extension layouts_alpha to use this feature.
+|}]
+
 
 
 (*****************************************************)
@@ -105,14 +116,13 @@ Error: The enabled layouts extension does not allow for mixed constructors.
        You must enable -extension layouts_alpha to use this feature.
 |}]
 
-type ('a : bits64) t5_7 = A of int
-type ('a : bits64) t5_8 = A of 'a;;
-[%%expect{|
-type ('a : bits64) t5_7 = A of int
-Line 2, characters 26-33:
-2 | type ('a : bits64) t5_8 = A of 'a;;
-                              ^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_alpha to use this feature.
-|}]
+(* not allowed: value in flat suffix *)
+type 'a t11_2 += C : 'a * 'b -> 'a t11_2
 
+[%%expect{|
+Line 1, characters 17-40:
+1 | type 'a t11_2 += C : 'a * 'b -> 'a t11_2
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+Error: Expected all flat constructor arguments after non-value argument, 'a,
+       but found boxed argument, 'b.
+|}]

@@ -49,14 +49,6 @@ type ('a : word) t5_7 = A of int
 type ('a : word) t5_8 = A of 'a
 |}]
 
-type t11_1 = ..
-
-type t11_1 += A of t_word;;
-[%%expect{|
-type t11_1 = ..
-type t11_1 += A of t_word
-|}]
-
 (* not allowed: value in flat suffix *)
 type 'a t_disallowed = A of t_word * 'a
 
@@ -70,6 +62,14 @@ Error: Expected all flat constructor arguments after non-value argument,
 
 (***************************************************)
 (* Test 11: Allow word in some extensible variants *)
+
+type t11_1 = ..
+
+type t11_1 += A of t_word;;
+[%%expect{|
+type t11_1 = ..
+type t11_1 += A of t_word
+|}]
 
 type t11_1 += B of nativeint#;;
 [%%expect{|
