@@ -34,14 +34,7 @@ type fun_graph =
     used : (Code_id_or_name.t, unit) Hashtbl.t
   }
 
-type graph =
-  { toplevel_graph : fun_graph;
-    function_graphs : (Code_id.t, fun_graph) Hashtbl.t
-  }
-
 val pp_used_fun_graph : Format.formatter -> fun_graph -> unit
-
-val pp_used : Format.formatter -> graph -> unit
 
 val create : unit -> fun_graph
 

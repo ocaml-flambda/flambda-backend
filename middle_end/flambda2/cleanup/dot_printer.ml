@@ -135,20 +135,15 @@ module P = struct
           ~ctx code_id ppf fungraph)
       fundeps
 
-  let all_edges ~ctx ppf (t : Graph.graph) =
-    edges ~ctx ppf t.toplevel_graph;
-    Hashtbl.iter (fun _ fungraph -> edges ~ctx ppf fungraph) t.function_graphs
-
   let print ~ctx ~print_name ppf
-      ((code_dep, t) : code_dep Code_id.Map.t * Graph.graph) =
+      ((_code_dep, t) : code_dep Code_id.Map.t * Graph.fun_graph) =
     let all_cdep = Code_id_or_name.Set.empty in
     (* TODO: clean cdep, not useful anymore *)
     Flambda_colours.without_colours ~f:(fun () ->
         Format.fprintf ppf
-          "subgraph cluster_%d { label=\"%s\"@\n%a@\n%a@\n%a}@." ctx print_name
-          (nodes ~all_cdep ~ctx) t.toplevel_graph
-          (print_fundeps ~all_cdep ~code_dep ~ctx)
-          t.function_graphs (all_edges ~ctx) t)
+          "subgraph cluster_%d { label=\"%s\"@\n%a@\n%a}@." ctx print_name
+          (nodes ~all_cdep ~ctx) t
+          (edges ~ctx) t)
 end
 
 let print_dep dep =

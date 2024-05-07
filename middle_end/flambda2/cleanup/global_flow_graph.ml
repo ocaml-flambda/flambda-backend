@@ -109,11 +109,6 @@ type fun_graph =
     used : (Code_id_or_name.t, unit) Hashtbl.t
   }
 
-type graph =
-  { toplevel_graph : fun_graph;
-    function_graphs : (Code_id.t, fun_graph) Hashtbl.t
-  }
-
 let pp_used_fun_graph ppf (graph : fun_graph) =
   let elts = List.of_seq @@ Hashtbl.to_seq graph.used in
   let pp ppf l =
@@ -124,14 +119,6 @@ let pp_used_fun_graph ppf (graph : fun_graph) =
     Format.pp_print_list ~pp_sep pp ppf l
   in
   Format.fprintf ppf "{ %a }" pp elts
-
-let pp_used ppf (graph : graph) =
-  Format.fprintf ppf "toplevel: %a@ " pp_used_fun_graph graph.toplevel_graph;
-  Hashtbl.iter
-    (fun code_id graph ->
-      Format.fprintf ppf "%a: %a@ " Code_id.print code_id pp_used_fun_graph
-        graph)
-    graph.function_graphs
 
 let create () = { name_to_dep = Hashtbl.create 100; used = Hashtbl.create 100 }
 

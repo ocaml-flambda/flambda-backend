@@ -398,8 +398,7 @@ end
 
 module Solver = Make_Fixpoint (Graph)
 
-let fixpoint graph_old (graph_new : Global_flow_graph.fun_graph) =
-  let _result = Dep_solver_safe.fixpoint graph_old in
+let fixpoint (graph_new : Global_flow_graph.fun_graph) =
   let result_topo = Hashtbl.create 17 in
   let uses =
     graph_new.Global_flow_graph.used |> Hashtbl.to_seq_keys |> List.of_seq
@@ -407,6 +406,10 @@ let fixpoint graph_old (graph_new : Global_flow_graph.fun_graph) =
   in
   Solver.fixpoint_topo graph_new uses result_topo;
   Solver.check_fixpoint graph_new uses result_topo;
+  (* Hashtbl.iter (fun k _ ->
+      if not (Hashtbl.mem result_topo k) then
+        Format.eprintf "NOT BOTTOM: %a@." Code_id_or_name.print k;
+    ) _result; *)
   (* Format.eprintf "RESULT: %a@." pp_result result_topo; *)
   (* if Sys.getenv_opt "TOTO" <> None then ( Format.eprintf "TOPO:@.%a@.@."
      pp_result result_topo; Format.eprintf "NORMAL:@.%a@.@." pp_result result);
