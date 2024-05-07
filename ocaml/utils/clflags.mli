@@ -51,6 +51,14 @@ val set_int_arg :
 val set_float_arg :
     int option -> Float_arg_helper.parsed ref -> float -> float option -> unit
 
+module Libloc : sig
+  type t = {
+    path: string;
+    libs: string list;
+    hidden_libs: string list
+  }
+end
+
 val objfiles : string list ref
 val ccobjs : string list ref
 val dllibs : string list ref
@@ -59,6 +67,7 @@ val compile_only : bool ref
 val output_name : string option ref
 val include_dirs : string list ref
 val hidden_include_dirs : string list ref
+val libloc : Libloc.t list ref
 val no_std_include : bool ref
 val no_cwd : bool ref
 val print_types : bool ref

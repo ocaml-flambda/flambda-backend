@@ -347,13 +347,13 @@ module Sort = struct
 
   let for_record = value
 
-  let for_constructor_arg = value
-
   let for_object = value
 
   let for_lazy_body = value
 
   let for_tuple_element = value
+
+  let for_variant_arg = value
 
   let for_instance_var = value
 

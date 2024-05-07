@@ -137,3 +137,10 @@ val preproc_stack_check:
   frame_size:int ->
   trap_size:int ->
   preproc_stack_check_result
+
+val add_stack_checks_if_needed:
+  Linear.fundecl ->
+  stack_offset:int ->
+  stack_threshold_size:int ->
+  trap_size:int ->
+  Linear.fundecl

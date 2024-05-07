@@ -141,10 +141,9 @@ let constructor_shape print_value_kind ppf shape =
        | _ :: _ ->
            fprintf ppf ";@%a"
              (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@")
-              (fun ppf -> function
-                  | Imm -> fprintf ppf "[imm]"
-                  | Float -> fprintf ppf "[float]"
-                  | Float64 -> fprintf ppf "[float64]"))
+              (fun ppf flat_element ->
+                fprintf ppf "[%s]"
+                    (Types.flat_element_to_lowercase_string flat_element)))
              flat_fields)
 
 let tag_and_constructor_shape print_value_kind ppf (tag, shape) =
@@ -317,15 +316,13 @@ let block_shape ppf shape = match shape with
         t;
       Format.fprintf ppf ")"
 
-let flat_element ppf : flat_element -> unit = function
-  | Imm -> pp_print_string ppf "int"
-  | Float -> pp_print_string ppf "float"
-  | Float64 -> pp_print_string ppf "float64"
+let flat_element ppf : flat_element -> unit = fun x ->
+  pp_print_string ppf (Types.flat_element_to_lowercase_string x)
 
 let flat_element_read ppf : flat_element_read -> unit = function
-  | Flat_read_imm -> pp_print_string ppf "int"
+  | Flat_read flat ->
+      pp_print_string ppf (Types.flat_element_to_lowercase_string flat)
   | Flat_read_float m -> fprintf ppf "float[%a]" alloc_mode m
-  | Flat_read_float64 -> pp_print_string ppf "float64"
 
 let mixed_block_read ppf : mixed_block_read -> unit = function
   | Mread_value_prefix Immediate -> pp_print_string ppf "value_int"
@@ -415,15 +412,15 @@ let primitive ppf = function
   | Pmakeufloatblock (Mutable, mode) ->
      fprintf ppf "make%sufloatblock Mutable"
         (alloc_mode_if_local mode)
-  | Pmakemixedblock (Immutable, abs, mode) ->
-      fprintf ppf "make%amixedblock Immutable%a"
-        alloc_mode mode mixed_block_shape abs
-  | Pmakemixedblock (Immutable_unique, abs, mode) ->
-     fprintf ppf "make%amixedblock Immutable_unique%a"
-        alloc_mode mode mixed_block_shape abs
-  | Pmakemixedblock (Mutable, abs, mode) ->
-     fprintf ppf "make%amixedblock Mutable%a"
-        alloc_mode mode mixed_block_shape abs
+  | Pmakemixedblock (tag, Immutable, abs, mode) ->
+      fprintf ppf "make%amixedblock %i Immutable%a"
+        alloc_mode mode tag mixed_block_shape abs
+  | Pmakemixedblock (tag, Immutable_unique, abs, mode) ->
+     fprintf ppf "make%amixedblock %i Immutable_unique%a"
+        alloc_mode mode tag mixed_block_shape abs
+  | Pmakemixedblock (tag, Mutable, abs, mode) ->
+     fprintf ppf "make%amixedblock %i Mutable%a"
+        alloc_mode mode tag mixed_block_shape abs
   | Pfield (n, ptr, sem) ->
       let instr =
         match ptr, sem with

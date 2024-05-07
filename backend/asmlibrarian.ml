@@ -96,7 +96,8 @@ let create_archive file_list lib_name =
              li_imports_cmx =
                mk_bitmap cmxs cmx_index unit.ui_imports_cmx
                  ~find:Compilation_unit.Tbl.find
-                 ~get_name:Import_info.cu })
+                 ~get_name:Import_info.cu;
+             li_external_symbols = Array.of_list unit.ui_external_symbols })
          descr_list
        in
        let infos =

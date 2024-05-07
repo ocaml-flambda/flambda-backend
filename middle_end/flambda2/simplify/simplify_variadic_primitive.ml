@@ -202,13 +202,10 @@ let simplify_make_array (array_kind : P.Array_kind.t)
     SPR.create named ~try_reify:true dacc
 
 let simplify_make_mixed_block ~original_prim ~kind
-    ~(mutable_or_immutable : Mutability.t) alloc_mode dacc ~original_term dbg
-    ~args_with_tys ~result_var =
-  simplify_make_block ~original_prim
-    ~mutable_or_immutable
-      (* CR mixed blocks v1: [Tag.zero] will need to change when we allow mixed
-         blocks in inline records. *)
-    ~block_shape:(Mixed kind) Tag.zero alloc_mode dacc ~original_term dbg
+    ~(mutable_or_immutable : Mutability.t) tag alloc_mode dacc ~original_term
+    dbg ~args_with_tys ~result_var =
+  simplify_make_block ~original_prim ~mutable_or_immutable
+    ~block_shape:(Mixed kind) tag alloc_mode dacc ~original_term dbg
     ~args_with_tys ~result_var
 
 let simplify_variadic_primitive dacc original_prim (prim : P.variadic_primitive)
@@ -226,8 +223,9 @@ let simplify_variadic_primitive dacc original_prim (prim : P.variadic_primitive)
         alloc_mode
     | Make_array (array_kind, mutable_or_immutable, alloc_mode) ->
       simplify_make_array array_kind ~mutable_or_immutable alloc_mode
-    | Make_mixed_block (kind, mutable_or_immutable, alloc_mode) ->
-      simplify_make_mixed_block ~original_prim ~kind ~mutable_or_immutable
+    | Make_mixed_block (tag, kind, mutable_or_immutable, alloc_mode) ->
+      let tag = Tag.Scannable.to_tag tag in
+      simplify_make_mixed_block ~original_prim tag ~kind ~mutable_or_immutable
         alloc_mode
   in
   simplifier dacc ~original_term dbg ~args_with_tys ~result_var

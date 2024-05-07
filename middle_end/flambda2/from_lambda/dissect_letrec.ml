@@ -247,7 +247,10 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
             (id, def) :: defs, Lambda.Lvar id :: args)
         args ([], [])
     in
-    let arg_layout = Typeopt.layout_union layout_field layout_block in
+    (* [arg_layout] is more general than any of the possible layouts of [args]:
+       The arguments to [Pmakeblock]/[Pmakearray] are value fields, and the
+       argument to [Pduprecord] is a block. *)
+    let arg_layout = Typeopt.layout_union layout_value_field layout_block in
     (* Bytecode evaluates effects in blocks from right to left, so reverse defs
        to preserve evaluation order. Relevant test: letrec/evaluation_order_3 *)
     let lam =
@@ -271,7 +274,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
     match current_let with
     | Some cl -> build_block cl (List.length args) Flat_float_record lam letrec
     | None -> dead_code lam letrec)
-  | Lprim (Pmakemixedblock (_, shape, mode), args, _) -> (
+  | Lprim (Pmakemixedblock (_, _, shape, mode), args, _) -> (
     assert_not_local ~lam mode;
     match current_let with
     | Some cl -> build_block cl (List.length args) (Mixed shape) lam letrec
@@ -293,7 +296,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       | Record_float | Record_ufloat ->
         build_block cl size Flat_float_record arg letrec
       | Record_mixed mixed ->
-        let mixed = Lambda.transl_mixed_record_shape mixed in
+        let mixed = Lambda.transl_mixed_product_shape mixed in
         build_block cl size (Mixed mixed) arg letrec
       | Record_inlined (Extension _, _)
       | Record_inlined (Ordinary _, (Variant_unboxed | Variant_extensible))

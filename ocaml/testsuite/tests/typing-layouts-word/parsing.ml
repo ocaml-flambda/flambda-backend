@@ -19,8 +19,8 @@ type t = C of nativeint#;;
 Line 1, characters 9-24:
 1 | type t = C of nativeint#;;
              ^^^^^^^^^^^^^^^
-Error: Type nativeint# has layout word.
-       Variants may not yet contain types of this layout.
+Error: The enabled layouts extension does not allow for mixed constructors.
+       You must enable -extension layouts_beta to use this feature.
 |}];;
 
 type t = C : nativeint# -> t;;
@@ -28,8 +28,8 @@ type t = C : nativeint# -> t;;
 Line 1, characters 9-28:
 1 | type t = C : nativeint# -> t;;
              ^^^^^^^^^^^^^^^^^^^
-Error: Type nativeint# has layout word.
-       Variants may not yet contain types of this layout.
+Error: The enabled layouts extension does not allow for mixed constructors.
+       You must enable -extension layouts_beta to use this feature.
 |}];;
 
 (* nativeint# works as an argument to normal type constructors, not just
