@@ -860,6 +860,11 @@ let complex_im c dbg =
 
 let return_unit dbg c = Csequence (c, Cconst_int (1, dbg))
 
+let strided_field_address ptr ~index ~stride dbg =
+  if index * stride = 0
+  then ptr
+  else Cop (Cadda, [ptr; Cconst_int (index * stride, dbg)], dbg)
+
 let field_address ?(memory_chunk = Word_val) ptr n dbg =
   if n = 0
   then ptr
@@ -3260,9 +3265,11 @@ let emit_string_constant_fields s cont =
   Cstring s :: Cskip n :: Cint8 n :: cont
 
 let emit_boxed_int32_constant_fields n cont =
-  let n = Nativeint.of_int32 n in
-  Csymbol_address (global_symbol caml_int32_ops)
-  :: Cint32 n :: Cint32 0n :: cont
+  let n =
+    (* This will sign extend. *)
+    Nativeint.of_int32 n
+  in
+  Csymbol_address (global_symbol caml_int32_ops) :: Cint n :: cont
 
 let emit_boxed_int64_constant_fields n cont =
   let lo = Int64.to_nativeint n in
@@ -3272,6 +3279,9 @@ let emit_boxed_nativeint_constant_fields n cont =
   Csymbol_address (global_symbol caml_nativeint_ops) :: Cint n :: cont
 
 let emit_float32_constant symb f cont =
+  (* Here we are relying on the fact that the data section is zero initialized
+     by just using [Csingle] and not worrying about the high 64 bits of the
+     relevant field. *)
   emit_block symb boxedfloat32_header
     (Csymbol_address (global_symbol caml_float32_ops) :: Csingle f :: cont)
 

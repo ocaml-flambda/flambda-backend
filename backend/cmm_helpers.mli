@@ -152,6 +152,12 @@ val return_unit : Debuginfo.t -> expression -> expression
 (** Non-atomic load of a mutable field *)
 val mk_load_mut : memory_chunk -> operation
 
+(** [strided_field_address ptr ~index ~stride dbg] returns an expression for the
+    address of the [index]th field of the block pointed to by [ptr]. The field
+    width is determined by [stride]. *)
+val strided_field_address :
+  expression -> index:int -> stride:int -> Debuginfo.t -> expression
+
 (** [field_address ptr n dbg] returns an expression for the address of the [n]th
     field of the block pointed to by [ptr].  [memory_chunk] is only used for
     computation of the field width; it defaults to a memory chunk matching the
