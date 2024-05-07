@@ -2186,9 +2186,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
   in
   let inlining_decision =
     if Flambda_features.classic_mode ()
-    then Inlining.definition_inlining_decision inline cost_metrics
-    else if stub
-    then Function_decl_inlining_decision_type.Stub
+    then Inlining.definition_inlining_decision inline cost_metrics ~stub
     else Function_decl_inlining_decision_type.Not_yet_decided
   in
   let loopify : Loopify_attribute.t =
