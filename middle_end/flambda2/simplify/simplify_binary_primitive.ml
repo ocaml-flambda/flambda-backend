@@ -16,8 +16,6 @@
 
 open! Simplify_import
 module A = Number_adjuncts
-module Float_by_bit_pattern = Numeric_types.Float_by_bit_pattern
-module Float32_by_bit_pattern = Numeric_types.Float32_by_bit_pattern
 
 type 'a binary_arith_outcome_for_one_side_only =
   | Exactly of 'a
@@ -754,185 +752,117 @@ end)
 module Binary_float_arith = Binary_arith_like (Float_ops_for_binary_arith)
 module Binary_float32_arith = Binary_arith_like (Float32_ops_for_binary_arith)
 
-module Float_ops_for_binary_comp : sig
+module Float_ops_for_binary_comp_gen (Float : sig
+  module F : Numeric_types.Float_by_bit_pattern
+
+  val arg_kind : K.Standard_int_or_float.t
+
+  val prover : T.Typing_env.t -> T.t -> F.Set.t T.meet_shortcut
+end) : sig
   include Binary_arith_like_sig with type op = unit P.comparison_behaviour
 end = struct
-  module F = Float_by_bit_pattern
+  module F = Float.F
   module Lhs = F
   module Rhs = F
   module Result = Targetint_31_63
 
   type op = unit P.comparison_behaviour
+
+  let arg_kind = Float.arg_kind
+
+  let result_kind = K.naked_immediate
+
+  let ok_to_evaluate denv = DE.propagating_float_consts denv
+
+  let prover_lhs = Float.prover
+
+  let prover_rhs = Float.prover
+
+  let unknown (op : op) =
+    match op with
+    | Yielding_bool _ -> T.these_naked_immediates Targetint_31_63.all_bools
+    | Yielding_int_like_compare_functions () ->
+      T.these_naked_immediates Targetint_31_63.zero_one_and_minus_one
+
+  let these = T.these_naked_immediates
+
+  let term imm : Named.t =
+    Named.create_simple (Simple.const (Reg_width_const.naked_immediate imm))
+
+  module Pair = F.Pair
+
+  let cross_product = F.cross_product
+
+  let op (op : op) n1 n2 =
+    match op with
+    | Yielding_bool op -> (
+      let has_nan = F.is_any_nan n1 || F.is_any_nan n2 in
+      let bool b = Targetint_31_63.bool b in
+      match op with
+      | Eq -> Some (bool (F.IEEE_semantics.equal n1 n2))
+      | Neq -> Some (bool (not (F.IEEE_semantics.equal n1 n2)))
+      | Lt () ->
+        if has_nan
+        then Some (bool false)
+        else Some (bool (F.IEEE_semantics.compare n1 n2 < 0))
+      | Gt () ->
+        if has_nan
+        then Some (bool false)
+        else Some (bool (F.IEEE_semantics.compare n1 n2 > 0))
+      | Le () ->
+        if has_nan
+        then Some (bool false)
+        else Some (bool (F.IEEE_semantics.compare n1 n2 <= 0))
+      | Ge () ->
+        if has_nan
+        then Some (bool false)
+        else Some (bool (F.IEEE_semantics.compare n1 n2 >= 0)))
+    | Yielding_int_like_compare_functions () ->
+      let int i = Targetint_31_63.of_int i in
+      let c = F.IEEE_semantics.compare n1 n2 in
+      if c < 0
+      then Some (int (-1))
+      else if c = 0
+      then Some (int 0)
+      else Some (int 1)
+
+  let result_of_comparison_with_nan (op : unit P.comparison) =
+    match op with
+    | Neq -> Exactly Targetint_31_63.bool_true
+    | Eq | Lt () | Gt () | Le () | Ge () -> Exactly Targetint_31_63.bool_false
+
+  let op_lhs_unknown (op : op) ~rhs : _ binary_arith_outcome_for_one_side_only =
+    match op with
+    | Yielding_bool op ->
+      if F.is_any_nan rhs
+      then result_of_comparison_with_nan op
+      else Cannot_simplify
+    | Yielding_int_like_compare_functions () -> Cannot_simplify
+
+  let op_rhs_unknown (op : op) ~lhs : _ binary_arith_outcome_for_one_side_only =
+    match op with
+    | Yielding_bool op ->
+      if F.is_any_nan lhs
+      then result_of_comparison_with_nan op
+      else Cannot_simplify
+    | Yielding_int_like_compare_functions () -> Cannot_simplify
+end
+
+module Float_ops_for_binary_comp = Float_ops_for_binary_comp_gen (struct
+  module F = Numeric_types.Float_by_bit_pattern
 
   let arg_kind = K.Standard_int_or_float.Naked_float
 
-  let result_kind = K.naked_immediate
+  let prover = T.meet_naked_floats
+end)
 
-  let ok_to_evaluate denv = DE.propagating_float_consts denv
-
-  let prover_lhs = T.meet_naked_floats
-
-  let prover_rhs = T.meet_naked_floats
-
-  let unknown (op : op) =
-    match op with
-    | Yielding_bool _ -> T.these_naked_immediates Targetint_31_63.all_bools
-    | Yielding_int_like_compare_functions () ->
-      T.these_naked_immediates Targetint_31_63.zero_one_and_minus_one
-
-  let these = T.these_naked_immediates
-
-  let term imm : Named.t =
-    Named.create_simple (Simple.const (Reg_width_const.naked_immediate imm))
-
-  module Pair = F.Pair
-
-  let cross_product = F.cross_product
-
-  let op (op : op) n1 n2 =
-    match op with
-    | Yielding_bool op -> (
-      let has_nan = F.is_any_nan n1 || F.is_any_nan n2 in
-      let bool b = Targetint_31_63.bool b in
-      match op with
-      | Eq -> Some (bool (F.IEEE_semantics.equal n1 n2))
-      | Neq -> Some (bool (not (F.IEEE_semantics.equal n1 n2)))
-      | Lt () ->
-        if has_nan
-        then Some (bool false)
-        else Some (bool (F.IEEE_semantics.compare n1 n2 < 0))
-      | Gt () ->
-        if has_nan
-        then Some (bool false)
-        else Some (bool (F.IEEE_semantics.compare n1 n2 > 0))
-      | Le () ->
-        if has_nan
-        then Some (bool false)
-        else Some (bool (F.IEEE_semantics.compare n1 n2 <= 0))
-      | Ge () ->
-        if has_nan
-        then Some (bool false)
-        else Some (bool (F.IEEE_semantics.compare n1 n2 >= 0)))
-    | Yielding_int_like_compare_functions () ->
-      let int i = Targetint_31_63.of_int i in
-      let c = F.IEEE_semantics.compare n1 n2 in
-      if c < 0
-      then Some (int (-1))
-      else if c = 0
-      then Some (int 0)
-      else Some (int 1)
-
-  let result_of_comparison_with_nan (op : unit P.comparison) =
-    match op with
-    | Neq -> Exactly Targetint_31_63.bool_true
-    | Eq | Lt () | Gt () | Le () | Ge () -> Exactly Targetint_31_63.bool_false
-
-  let op_lhs_unknown (op : op) ~rhs : _ binary_arith_outcome_for_one_side_only =
-    match op with
-    | Yielding_bool op ->
-      if F.is_any_nan rhs
-      then result_of_comparison_with_nan op
-      else Cannot_simplify
-    | Yielding_int_like_compare_functions () -> Cannot_simplify
-
-  let op_rhs_unknown (op : op) ~lhs : _ binary_arith_outcome_for_one_side_only =
-    match op with
-    | Yielding_bool op ->
-      if F.is_any_nan lhs
-      then result_of_comparison_with_nan op
-      else Cannot_simplify
-    | Yielding_int_like_compare_functions () -> Cannot_simplify
-end
-
-module Float32_ops_for_binary_comp : sig
-  include Binary_arith_like_sig with type op = unit P.comparison_behaviour
-end = struct
-  module F = Float32_by_bit_pattern
-  module Lhs = F
-  module Rhs = F
-  module Result = Targetint_31_63
-
-  type op = unit P.comparison_behaviour
+module Float32_ops_for_binary_comp = Float_ops_for_binary_comp_gen (struct
+  module F = Numeric_types.Float32_by_bit_pattern
 
   let arg_kind = K.Standard_int_or_float.Naked_float32
 
-  let result_kind = K.naked_immediate
-
-  let ok_to_evaluate denv = DE.propagating_float_consts denv
-
-  let prover_lhs = T.meet_naked_float32s
-
-  let prover_rhs = T.meet_naked_float32s
-
-  let unknown (op : op) =
-    match op with
-    | Yielding_bool _ -> T.these_naked_immediates Targetint_31_63.all_bools
-    | Yielding_int_like_compare_functions () ->
-      T.these_naked_immediates Targetint_31_63.zero_one_and_minus_one
-
-  let these = T.these_naked_immediates
-
-  let term imm : Named.t =
-    Named.create_simple (Simple.const (Reg_width_const.naked_immediate imm))
-
-  module Pair = F.Pair
-
-  let cross_product = F.cross_product
-
-  let op (op : op) n1 n2 =
-    match op with
-    | Yielding_bool op -> (
-      let has_nan = F.is_any_nan n1 || F.is_any_nan n2 in
-      let bool b = Targetint_31_63.bool b in
-      match op with
-      | Eq -> Some (bool (F.IEEE_semantics.equal n1 n2))
-      | Neq -> Some (bool (not (F.IEEE_semantics.equal n1 n2)))
-      | Lt () ->
-        if has_nan
-        then Some (bool false)
-        else Some (bool (F.IEEE_semantics.compare n1 n2 < 0))
-      | Gt () ->
-        if has_nan
-        then Some (bool false)
-        else Some (bool (F.IEEE_semantics.compare n1 n2 > 0))
-      | Le () ->
-        if has_nan
-        then Some (bool false)
-        else Some (bool (F.IEEE_semantics.compare n1 n2 <= 0))
-      | Ge () ->
-        if has_nan
-        then Some (bool false)
-        else Some (bool (F.IEEE_semantics.compare n1 n2 >= 0)))
-    | Yielding_int_like_compare_functions () ->
-      let int i = Targetint_31_63.of_int i in
-      let c = F.IEEE_semantics.compare n1 n2 in
-      if c < 0
-      then Some (int (-1))
-      else if c = 0
-      then Some (int 0)
-      else Some (int 1)
-
-  let result_of_comparison_with_nan (op : unit P.comparison) =
-    match op with
-    | Neq -> Exactly Targetint_31_63.bool_true
-    | Eq | Lt () | Gt () | Le () | Ge () -> Exactly Targetint_31_63.bool_false
-
-  let op_lhs_unknown (op : op) ~rhs : _ binary_arith_outcome_for_one_side_only =
-    match op with
-    | Yielding_bool op ->
-      if F.is_any_nan rhs
-      then result_of_comparison_with_nan op
-      else Cannot_simplify
-    | Yielding_int_like_compare_functions () -> Cannot_simplify
-
-  let op_rhs_unknown (op : op) ~lhs : _ binary_arith_outcome_for_one_side_only =
-    match op with
-    | Yielding_bool op ->
-      if F.is_any_nan lhs
-      then result_of_comparison_with_nan op
-      else Cannot_simplify
-    | Yielding_int_like_compare_functions () -> Cannot_simplify
-end
+  let prover = T.meet_naked_float32s
+end)
 
 module Binary_float_comp = Binary_arith_like (Float_ops_for_binary_comp)
 module Binary_float32_comp = Binary_arith_like (Float32_ops_for_binary_comp)
