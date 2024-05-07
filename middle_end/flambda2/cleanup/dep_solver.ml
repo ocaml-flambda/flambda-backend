@@ -188,6 +188,14 @@ module Make_Fixpoint (G : Graph) = struct
     Array.iter
       (fun component -> fixpoint_component graph state component)
       components
+
+  let check_fixpoint (graph : G.graph) (roots : Node.Set.t) (state : G.state) =
+    Node.Set.iter (fun root -> assert (G.less_equal state G.top (G.get state root))) roots;
+    G.fold_nodes graph (fun node () ->
+        G.fold_edges graph node (fun dep () ->
+            assert (G.less_equal state (G.propagate state node (G.get state node) dep) (G.get state (G.target dep)))
+          ) ()
+      ) ()
 end
 
 (** Represents the part of a value that can be accessed *)
@@ -364,10 +372,13 @@ module Solver = Make_Fixpoint (Graph)
 let fixpoint graph_old (graph_new : Global_flow_graph.fun_graph) =
   let _result = Dep_solver_safe.fixpoint graph_old in
   let result_topo = Hashtbl.create 17 in
-  Solver.fixpoint_topo graph_new
+  let uses = 
     (graph_new.Global_flow_graph.used |> Hashtbl.to_seq_keys |> List.of_seq
    |> Code_id_or_name.Set.of_list)
+      in
+      Solver.fixpoint_topo graph_new uses
     result_topo;
+      Solver.check_fixpoint graph_new uses result_topo;
   (* Format.eprintf "RESULT: %a@." pp_result result_topo; *)
 (*
   if Sys.getenv_opt "TOTO" <> None
