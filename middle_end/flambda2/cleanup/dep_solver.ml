@@ -25,6 +25,8 @@ module type Graph = sig
 
   val is_bottom : elt -> bool
 
+  val elt_deps : elt -> Node.Set.t
+
   val join : state -> elt -> elt -> elt
 
   val widen : state -> old:elt -> elt -> elt
@@ -120,6 +122,7 @@ module Make_Fixpoint (G : Graph) = struct
          that is, the elements of [ids] that are not already in [q]. *)
       let in_loop = Node.Set.of_list ids in
       let q_s = ref Node.Set.empty in
+      let to_recompute_deps = Hashtbl.create 17 in
       List.iter (fun id -> Queue.push id q) ids;
       let push n =
         if Node.Set.mem n !q_s
@@ -144,8 +147,12 @@ module Make_Fixpoint (G : Graph) = struct
                   let widened = G.widen state ~old propagated in
                   if not (G.less_equal state widened old)
                   then (
+                    let new_deps = G.elt_deps widened in
+                    Node.Set.iter (fun elt_dep -> Hashtbl.replace to_recompute_deps elt_dep (Node.Set.add target (Option.value ~default:Node.Set.empty (Hashtbl.find_opt to_recompute_deps elt_dep)))) new_deps;
                     G.set state target widened;
-                    push target)
+                    push target;
+                    (match Hashtbl.find_opt to_recompute_deps target with None -> () | Some elt_deps -> Node.Set.iter push elt_deps)
+                  )
                 end
                 else G.set state target (G.join state old propagated))
             ()
@@ -189,14 +196,13 @@ type elt =
   | Fields of Code_id_or_name.Set.t Field.Map.t
   | Bottom  (** Value not accessed *)
 
-(*
-let rec pp_elt ppf elt =
+let pp_elt ppf elt =
   match elt with
   | Top -> Format.pp_print_string ppf "⊤"
   | Bottom -> Format.pp_print_string ppf "⊥"
-  | Fields { depth; fields } ->
-    Format.fprintf ppf "%d{ %a }" depth (Field.Map.print pp_elt) fields
-*)
+  | Fields fields ->
+    Format.fprintf ppf "{ %a }" (Field.Map.print Code_id_or_name.Set.print) fields
+
 
 let less_equal_elt e1 e2 =
   match e1, e2 with
@@ -215,6 +221,11 @@ let less_equal_elt e1 e2 =
              None)
            f1 f2);
       !ok
+
+let elt_deps elt =
+  match elt with
+  | Bottom | Top -> Code_id_or_name.Set.empty
+  | Fields f -> Field.Map.fold (fun _ v acc -> Code_id_or_name.Set.union v acc) f Code_id_or_name.Set.empty
 
 let join_elt e1 e2 =
   if e1 == e2
@@ -288,7 +299,7 @@ let propagate_top uses (dep : dep) : bool =
 
 type result = (Code_id_or_name.t, elt) Hashtbl.t
 
-(*
+
 let pp_result ppf (res : result) =
   let elts = List.of_seq @@ Hashtbl.to_seq res in
   let pp ppf l =
@@ -299,8 +310,6 @@ let pp_result ppf (res : result) =
     Format.pp_print_list ~pp_sep pp ppf l
   in
   Format.fprintf ppf "@[<hov 2>{@ %a@ }@]" pp elts
-*)
-let pp_result _ppf _res = assert false
 
 module Graph = struct
   type graph = Global_flow_graph.fun_graph
@@ -331,6 +340,8 @@ module Graph = struct
 
   let is_bottom = function Bottom -> true | Top | Fields _ -> false
 
+  let elt_deps = elt_deps
+
   let widen _ ~old:elt1 elt2 = join_elt elt1 elt2
 
   let join _ elt1 elt2 = join_elt elt1 elt2
@@ -357,7 +368,8 @@ let fixpoint graph_old (graph_new : Global_flow_graph.fun_graph) =
     (graph_new.Global_flow_graph.used |> Hashtbl.to_seq_keys |> List.of_seq
    |> Code_id_or_name.Set.of_list)
     result_topo;
-  (*
+  (* Format.eprintf "RESULT: %a@." pp_result result_topo; *)
+(*
   if Sys.getenv_opt "TOTO" <> None
   then (
     Format.eprintf "TOPO:@.%a@.@." pp_result result_topo;
