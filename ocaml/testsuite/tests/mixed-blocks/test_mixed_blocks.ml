@@ -1,10 +1,10 @@
 (* TEST
  flambda2;
  {
-   flags = "-extension layouts_alpha";
+   flags = "-extension layouts_beta";
    native;
  }{
-   flags = "-extension layouts_alpha";
+   flags = "-extension layouts_beta";
    bytecode;
  }
 *)

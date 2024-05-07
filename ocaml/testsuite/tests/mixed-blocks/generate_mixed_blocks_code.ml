@@ -558,7 +558,7 @@ let main n ~bytecode =
     List.iter2 values (List.tl values @ [ List.hd values]) ~f
   in
   line {|(* TEST
- flags = "-extension layouts_alpha";|};
+ flags = "-extension layouts_beta";|};
   if bytecode then (
     line {| bytecode;|};
   ) else (

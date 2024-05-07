@@ -1,11 +1,16 @@
 (* TEST
  flambda2;
- flags = "-extension layouts_alpha";
- expect;
+ {
+   flags = "-extension layouts_alpha";
+   expect;
+ }{
+   flags = "-extension layouts_beta";
+   expect;
+ }
 *)
 
 (* This test is almost entirely a copy of [basics.ml], except
-   with different output for some layouts-alpha features.
+   with different output for some layouts-beta features.
    You should diff this file against [basics.ml] to see what's
    different.
 *)
