@@ -183,6 +183,9 @@ let const_static cst =
            (tag_targetint (Targetint_31_63.to_targetint i))) ]
   | Naked_float f -> [cfloat (Numeric_types.Float_by_bit_pattern.to_float f)]
   | Naked_float32 f ->
+    (* Here we are relying on the data section being zero initialized to
+       maintain the invariant that statically-allocated float32 values are zero
+       padded. *)
     [cfloat32 (Numeric_types.Float32_by_bit_pattern.to_float f)]
   | Naked_int32 i -> [cint (Nativeint.of_int32 i)]
   (* We don't compile flambda-backend in 32-bit mode, so nativeint is 64
@@ -345,7 +348,6 @@ let make_update env res dbg ({ kind; stride } : Update_kind.t) ~symbol var
         | Naked_int64 -> Word_int
         | Naked_float -> Double
         | Naked_float32 ->
-          (* XXX need to check that other float32 places do zero initialize *)
           (* In the case where [kind.stride > 4] we are relying on the fact that
              the data section is zero initialized, in order that the high 32
              bits of the 64-bit field are deterministic, which is important for

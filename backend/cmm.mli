@@ -333,6 +333,13 @@ type fundecl =
     fun_dbg : Debuginfo.t;
   }
 
+(** When data items that are less than 64 bits wide occur in blocks, whose
+    fields are 64-bits wide, the following rules apply:
+
+    - For int32, the value is sign extended.
+    - For float32, the value is zero extended.  It is ok to rely on
+      zero-initialization of the data section to achieve this.
+*)
 type data_item =
     Cdefine_symbol of symbol
   | Cint8 of int
