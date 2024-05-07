@@ -37,7 +37,7 @@
 #include "caml/stack.h"
 #include "caml/frame_descriptors.h"
 #endif
-#ifdef USE_MMAP_MAP_STACK
+#if defined(USE_MMAP_MAP_STACK) || !defined(STACK_CHECKS_ENABLED)
 #include <sys/mman.h>
 #endif
 
