@@ -1349,9 +1349,10 @@ AS_CASE([$host],
     [has_native_backend=yes; arch=riscv; model=riscv64; system=linux]
 )
 
+# Disabling of stack checks is only supported on amd64.
 AS_IF([test x"$enable_stack_checks" = xyes],
   [AC_DEFINE([STACK_CHECKS_ENABLED])],
-  [AS_IF([$arch64],
+  [AS_IF([test x"$arch" != xamd64],
     [AC_DEFINE([STACK_CHECKS_ENABLED])],
     [])])
 

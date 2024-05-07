@@ -15595,7 +15595,7 @@ then :
   printf "%s\n" "#define STACK_CHECKS_ENABLED 1" >>confdefs.h
 
 else $as_nop
-  if $arch64
+  if test x"$arch" != xamd64
 then :
   printf "%s\n" "#define STACK_CHECKS_ENABLED 1" >>confdefs.h
 
