@@ -20,7 +20,7 @@ Line 1, characters 9-20:
 1 | type t = C of int32#;;
              ^^^^^^^^^^^
 Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension layouts_beta to use this feature.
 |}];;
 
 type t = C : int32# -> t;;
@@ -29,7 +29,7 @@ Line 1, characters 9-24:
 1 | type t = C : int32# -> t;;
              ^^^^^^^^^^^^^^^
 Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension layouts_beta to use this feature.
 |}];;
 
 (* int32# works as an argument to normal type constructors, not just

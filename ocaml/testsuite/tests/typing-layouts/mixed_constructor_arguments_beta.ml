@@ -1,4 +1,5 @@
 (* TEST
+ flags = "-extension layouts_beta";
  expect;
 *)
 
@@ -15,21 +16,13 @@ type t_ext = ..
 type t_cstr_boxed_float = A of float * float#
 
 [%%expect{|
-Line 1, characters 26-45:
-1 | type t_cstr_boxed_float = A of float * float#
-                              ^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type t_cstr_boxed_float = A of float * float#
 |}];;
 
 type t_ext += A of float * float#
 
 [%%expect{|
-Line 1, characters 14-33:
-1 | type t_ext += A of float * float#
-                  ^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type t_ext += A of float * float#
 |}];;
 
 (* The fact that the float args aren't flat is evidenced by the fact this
@@ -108,21 +101,13 @@ Error: Expected all flat constructor arguments after non-value argument,
 type t_cstr_boxed_float = A of float * float# * int
 
 [%%expect{|
-Line 1, characters 26-51:
-1 | type t_cstr_boxed_float = A of float * float# * int
-                              ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type t_cstr_boxed_float = A of float * float# * int
 |}];;
 
 type t_ext += A of float * float# * int
 
 [%%expect{|
-Line 1, characters 14-39:
-1 | type t_ext += A of float * float# * int
-                  ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type t_ext += A of float * float# * int
 |}];;
 
 (* The third field can't be flat because a non-float/float# field [d] appears.*)
@@ -192,21 +177,13 @@ Error: Expected all flat constructor arguments after non-value argument,
 type t_cstr_flat_int = A of float# * float# * int
 
 [%%expect{|
-Line 1, characters 23-49:
-1 | type t_cstr_flat_int = A of float# * float# * int
-                           ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type t_cstr_flat_int = A of float# * float# * int
 |}];;
 
 type t_ext += A of float# * float# * int
 
 [%%expect{|
-Line 1, characters 14-40:
-1 | type t_ext += A of float# * float# * int
-                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type t_ext += A of float# * float# * int
 |}];;
 
 type t_cstr_flat_int_multi =
@@ -217,11 +194,12 @@ type t_cstr_flat_int_multi =
   | E of int * float# * int * float#
 
 [%%expect{|
-Line 2, characters 2-30:
-2 |   | A of float# * float# * int
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type t_cstr_flat_int_multi =
+    A of float# * float# * int
+  | B of int
+  | C of float# * int
+  | D of float# * int * float#
+  | E of int * float# * int * float#
 |}];;
 
 type t_ext +=
@@ -232,42 +210,31 @@ type t_ext +=
   | E of int * float# * int * float#
 
 [%%expect{|
-Line 2, characters 2-30:
-2 |   | A of float# * float# * int
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type t_ext +=
+    A of float# * float# * int
+  | B of int
+  | C of float# * int
+  | D of float# * int * float#
+  | E of int * float# * int * float#
 |}];;
 
 (* Parameterized types *)
 
 type ('a : float64) t_cstr_param1 = A of string * 'a
 [%%expect{|
-Line 1, characters 36-52:
-1 | type ('a : float64) t_cstr_param1 = A of string * 'a
-                                        ^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type ('a : float64) t_cstr_param1 = A of string * 'a
 |}];;
 
 type ('a : float64) t_cstr_param_ext1 = ..
 type 'a t_cstr_param_ext1 += A of string * 'a
 [%%expect{|
 type ('a : float64) t_cstr_param_ext1 = ..
-Line 2, characters 29-45:
-2 | type 'a t_cstr_param_ext1 += A of string * 'a
-                                 ^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type 'a t_cstr_param_ext1 += A of string * 'a
 |}];;
 
 type ('a : float64, 'b : immediate) t_cstr_param2 = A of string * 'a * 'b
 [%%expect{|
-Line 1, characters 52-73:
-1 | type ('a : float64, 'b : immediate) t_cstr_param2 = A of string * 'a * 'b
-                                                        ^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type ('a : float64, 'b : immediate) t_cstr_param2 = A of string * 'a * 'b
 |}];;
 
 type ('a : float64, 'b : immediate) t_cstr_param_ext2 = ..
@@ -275,11 +242,7 @@ type ('a, 'b) t_cstr_param_ext2 += A of string * 'a * 'b;;
 
 [%%expect{|
 type ('a : float64, 'b : immediate) t_cstr_param_ext2 = ..
-Line 2, characters 35-56:
-2 | type ('a, 'b) t_cstr_param_ext2 += A of string * 'a * 'b;;
-                                       ^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type ('a, 'b) t_cstr_param_ext2 += A of string * 'a * 'b
 |}];;
 
 type 'a t_cstr_bad_value_after_float = C of float# * 'a
@@ -328,11 +291,10 @@ and 'a t_imm = 'a t_immediate_id
 and ('a : float64, 'b : immediate, 'ptr) t_cstr2 =
   A of 'ptr * 'a * 'a t_float * 'b * 'b t_imm
 [%%expect{|
-Line 4, characters 2-45:
-4 |   A of 'ptr * 'a * 'a t_float * 'b * 'b t_imm
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type ('a : float64) t_float = 'a t_float64_id
+and ('a : immediate) t_imm = 'a t_immediate_id
+and ('a : float64, 'b : immediate, 'ptr) t_cstr2 =
+    A of 'ptr * 'a * 'a t_float * 'b * 'b t_imm
 |}];;
 
 (* There is a cap on the number of fields in the scannable prefix. *)
@@ -385,8 +347,7 @@ Lines 3-36, characters 2-16:
 34 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr * ptr *
 35 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr *
 36 |     int * float#
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+Error: Mixed constructors may contain at most 254 value fields prior to the flat suffix, but this one contains 255.
 |}];;
 
 type t_ext +=
@@ -436,8 +397,7 @@ Lines 2-35, characters 2-16:
 33 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr * ptr *
 34 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr *
 35 |     int * float#
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+Error: Mixed constructors may contain at most 254 value fields prior to the flat suffix, but this one contains 255.
 |}];;
 
 (* GADT syntax *)
@@ -455,11 +415,9 @@ type ('a : any) t_gadt_any =
   | B : 'b tv -> 'a t_gadt_any
 
 [%%expect {|
-Line 2, characters 2-30:
-2 |   | A : 'a tf -> 'a t_gadt_any
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type ('a : any) t_gadt_any =
+    A : ('a : float64). 'a tf -> 'a t_gadt_any
+  | B : 'b tv -> 'a t_gadt_any
 |}]
 
 type ('a : any) t_gadt_any_multiple_fields =
@@ -467,11 +425,9 @@ type ('a : any) t_gadt_any_multiple_fields =
   | B : 'b tv * float# -> 'a t_gadt_any_multiple_fields
 
 [%%expect {|
-Line 2, characters 2-55:
-2 |   | A : float# * 'a tf -> 'a t_gadt_any_multiple_fields
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type ('a : any) t_gadt_any_multiple_fields =
+    A : ('a : float64). float# * 'a tf -> 'a t_gadt_any_multiple_fields
+  | B : 'b tv * float# -> 'a t_gadt_any_multiple_fields
 |}]
 
 type ('a : any) t_gadt_any_bad =
@@ -498,4 +454,3 @@ Line 1, characters 31-41:
 Error: Type float# has layout float64.
        Inlined records may not yet contain types of this layout.
 |}]
-

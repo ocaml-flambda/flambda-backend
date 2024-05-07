@@ -1,11 +1,11 @@
 (* TEST
- reference = "${test_source_directory}/unboxed_floats_alpha.reference";
+ reference = "${test_source_directory}/unboxed_floats_beta.reference";
  flambda2;
  {
-   flags = "-extension layouts_alpha";
+   flags = "-extension layouts_beta";
    native;
  }{
-   flags = "-extension layouts_alpha";
+   flags = "-extension layouts_beta";
    bytecode;
  }
 *)
@@ -13,7 +13,7 @@
 (* This should be read as a continuation of the [unboxed_floats.ml] test.
    We can't put them there because:
      - [unboxed_floats.ml] is run at all maturities, but
-     - these tests use features that only are enabled at the alpha maturity.
+     - these tests use features that only are enabled at the beta maturity.
 
    Once mixed blocks move to the "stable" maturity level, we can
    move these tests there.
