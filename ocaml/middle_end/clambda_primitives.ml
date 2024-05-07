@@ -271,8 +271,12 @@ let result_layout (p : primitive) =
   | Punbox_float bf -> Punboxed_float bf
   | Pmixedfield (_, Mread_flat_suffix shape) -> begin
       match shape with
-      | Flat_read_imm | Flat_read_float _ -> Lambda.layout_any_value
-      | Flat_read_float64 -> Lambda.layout_unboxed_float Pfloat64
+      | Flat_read Imm -> Lambda.layout_int
+      | Flat_read Float | Flat_read_float _ -> Lambda.layout_any_value
+      | Flat_read Float64 -> Lambda.layout_unboxed_float Pfloat64
+      | Flat_read Bits32 -> Lambda.Punboxed_int Pint32
+      | Flat_read Bits64 -> Lambda.Punboxed_int Pint64
+      | Flat_read Word -> Lambda.Punboxed_int Pnativeint
     end
   | Pccall { prim_native_repr_res = _, repr_res } -> Lambda.layout_of_extern_repr repr_res
   | Praise _ -> Lambda.layout_bottom

@@ -160,7 +160,11 @@ let block_set (kind : Flambda_primitive.Block_access_kind.t)
   | Values _, (Assignment Local | Initialization) -> 1 (* cadda + store *)
   | Naked_floats _, (Assignment _ | Initialization) -> 1
   | ( Mixed
-        { field_kind = Value_prefix _ | Flat_suffix (Imm | Float | Float64); _ },
+        { field_kind =
+            ( Value_prefix _
+            | Flat_suffix (Imm | Float | Float64 | Bits32 | Bits64 | Word) );
+          _
+        },
       (Assignment _ | Initialization) ) ->
     1
 

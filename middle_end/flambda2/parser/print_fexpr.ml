@@ -465,9 +465,9 @@ let block_access_kind ppf (access_kind : block_access_kind) =
     match field_kind with
     | Value_prefix Any_value -> ()
     | Value_prefix Immediate -> Format.fprintf ppf "@ imm"
-    | Flat_suffix Float -> Format.fprintf ppf "@ float"
-    | Flat_suffix Imm -> Format.fprintf ppf "@ imm"
-    | Flat_suffix Float64 -> Format.fprintf ppf "@ float64"
+    | Flat_suffix flat ->
+      Format.fprintf ppf "@ %s"
+        (Flambda_primitive.Mixed_block_flat_element.to_string flat)
   in
   match access_kind with
   | Values { field_kind; tag; size } ->
