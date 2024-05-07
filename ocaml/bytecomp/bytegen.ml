@@ -239,7 +239,7 @@ let rec size_of_lambda env = function
   | Lprim (Pmakearray (Pfloatarray, _, _), args, _)
   | Lprim (Pmakefloatblock _, args, _) ->
       RHS_floatblock (List.length args)
-  | Lprim (Pmakemixedblock (_, _, _), args, _) ->
+  | Lprim (Pmakemixedblock (_, _, _, _), args, _) ->
       RHS_faux_mixedblock (List.length args)
   | Lprim (Pmakearray (Pgenarray, _, _), _, _) ->
      (* Pgenarray is excluded from recursive bindings by the
@@ -929,7 +929,7 @@ let rec comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmakefloatblock (List.length args) :: cont)
-  | Lprim(Pmakemixedblock (_, shape, _), args, loc) ->
+  | Lprim(Pmakemixedblock (tag, _, shape, _), args, loc) ->
       (* There is no notion of a mixed block at runtime in bytecode. Further,
          source-level unboxed types are represented as boxed in bytecode, so
          no ceremony is needed to box values before inserting them into
@@ -938,10 +938,7 @@ let rec comp_expr stack_info env exp sz cont =
       let total_len = shape.value_prefix_len + Array.length shape.flat_suffix in
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
-        (* CR mixed blocks v1: We will need to use the actual tag instead of [0]
-           once mixed blocks can have non-zero tags.
-        *)
-        (Kmake_faux_mixedblock (total_len, 0) :: cont)
+        (Kmake_faux_mixedblock (total_len, tag) :: cont)
   | Lprim((Pmakearray (kind, _, _)) as p, args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       begin match kind with

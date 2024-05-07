@@ -159,11 +159,11 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
       let mut = mut_to_string mut in
       let name = "make" ^ mode ^ "ufloat" ^ mut in
       fprintf ppf "%s" name
-  | Pmakemixedblock(mut, shape, mode) ->
+  | Pmakemixedblock(tag, mut, shape, mode) ->
       let mode = mode_to_string mode in
       let mut = mut_to_string mut in
       let name = "make" ^ mode ^ "ufloat" ^ mut in
-      fprintf ppf "%s %a" name Printlambda.mixed_block_shape shape
+      fprintf ppf "%s %i%a" name tag Printlambda.mixed_block_shape shape
   | Pfield (n, layout, ptr, mut) ->
       let instr =
         match ptr, mut with

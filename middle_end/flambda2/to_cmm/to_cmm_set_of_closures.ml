@@ -16,6 +16,7 @@
 open! Flambda.Import
 module Env = To_cmm_env
 module Ece = Effects_and_coeffects
+module KS = Flambda_kind.With_subkind
 module R = To_cmm_result
 
 module C = struct
@@ -165,8 +166,29 @@ end = struct
                 closure_symbol_for_updates;
                 _
               } ->
+            let update_kind =
+              let module UK = C.Update_kind in
+              match KS.kind kind with
+              | Value ->
+                if KS.Subkind.equal (KS.subkind kind) Tagged_immediate
+                then UK.tagged_immediates
+                else UK.pointers
+              | Naked_number Naked_immediate
+              | Naked_number Naked_int64
+              | Naked_number Naked_nativeint ->
+                UK.naked_int64s
+              | Naked_number Naked_float -> UK.naked_floats
+              | Naked_number Naked_vec128 -> UK.naked_vec128_fields
+              (* The "fields" update kinds are used because we are writing into
+                 a 64-bit slot, and wish to initialize the whole. *)
+              | Naked_number Naked_int32 -> UK.naked_int32_fields
+              | Naked_number Naked_float32 -> UK.naked_float32_fields
+              | Region | Rec_info ->
+                Misc.fatal_errorf "Unexpected value slot kind for %a: %a"
+                  Value_slot.print value_slot KS.print kind
+            in
             let env, res, updates =
-              C.make_update env res dbg Word_val
+              C.make_update env res dbg update_kind
                 ~symbol:(C.symbol ~dbg closure_symbol_for_updates)
                 v
                 ~index:(slot_offset - function_slot_offset_for_updates)
@@ -327,11 +349,12 @@ let transl_property : Check_attribute.Property.t -> Cmm.property = function
 let transl_check_attrib : Check_attribute.t -> Cmm.codegen_option list =
   function
   | Default_check -> []
-  | Assume { property; strict; never_returns_normally; loc } ->
+  | Assume { property; strict; never_returns_normally; never_raises; loc } ->
     [ Assume
         { property = transl_property property;
           strict;
           never_returns_normally;
+          never_raises;
           loc
         } ]
   | Check { property; strict; loc } ->

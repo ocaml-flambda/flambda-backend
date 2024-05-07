@@ -18,6 +18,10 @@
 
 (* Emission of ARM assembly code, 64-bit mode *)
 
+(* Correctness: carefully consider any use of [Config], [Clflags],
+   [Flambda_backend_flags] and shared variables.
+   For details, see [asmgen.mli]. *)
+
 open Misc
 open Cmm
 open Arch
