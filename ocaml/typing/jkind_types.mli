@@ -45,7 +45,7 @@ module Sort : sig
   (* We need to expose these details for use in [Jkind] *)
 
   (* Comments in [Jkind_intf.ml] *)
-  type const =
+  type base =
     | Void
     | Value
     | Float64
@@ -54,14 +54,27 @@ module Sort : sig
     | Bits32
     | Bits64
 
+  val to_string_base : base -> string
+
+  val equal_base : base -> base -> bool
+
+  type const =
+    | Const_base of base
+    | Const_product of const list
+
   type t =
     | Var of var
-    | Const of const
+    | Base of base
+    | Product of t list
 
-  and var = t option ref
+  and var
 
   include
-    Jkind_intf.Sort with type t := t and type var := var and type const := const
+    Jkind_intf.Sort
+      with type t := t
+       and type var := var
+       and type base := base
+       and type const := const
 
   val set_change_log : (change -> unit) -> unit
 
@@ -69,6 +82,7 @@ module Sort : sig
     | Unequal
     | Equal_mutated_first
     | Equal_mutated_second
+    | Equal_mutated_both
     | Equal_no_mutation
 
   val equate_tracking_mutation : t -> t -> equate_result
@@ -81,10 +95,14 @@ end
 module Layout : sig
   type 'sort layout =
     | Sort of 'sort
+    | Product of 'sort layout list
     | Any
 
   module Const : sig
-    type t = Sort.const layout
+    type t =
+      | Any
+      | Base of Sort.base
+      | Product of t list
 
     module Legacy : sig
       type t =
@@ -101,6 +119,7 @@ module Layout : sig
         | Word
         | Bits32
         | Bits64
+        | Product of t list
     end
   end
 

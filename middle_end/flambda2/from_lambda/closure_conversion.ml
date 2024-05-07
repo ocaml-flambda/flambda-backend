@@ -604,7 +604,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
       K.With_subkind.(
         kind
           (from_lambda_values_and_unboxed_numbers_only
-             (Typeopt.layout_of_const_sort sort)))
+             (Typeopt.layout_of_base_sort sort)))
     | Unboxed_float Pfloat64 -> K.naked_float
     | Unboxed_float Pfloat32 -> K.naked_float32
     | Unboxed_integer Pnativeint -> K.naked_nativeint

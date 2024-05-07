@@ -55,8 +55,8 @@ val transl_primitive_application :
     [poly_sort] must be [Some sort] when [Repr_poly] is given. It will produce
     fatal error if it's [None].  *)
 val sort_of_native_repr :
-  poly_sort:Jkind.Sort.t option ->
-  Primitive.native_repr -> Jkind.Sort.const
+  loc:Location.t -> poly_sort:Jkind.Sort.t option ->
+  Primitive.native_repr -> Jkind.Sort.base
 
 (* Errors *)
 
@@ -64,6 +64,7 @@ type error =
   | Unknown_builtin_primitive of string
   | Wrong_arity_builtin_primitive of string
   | Invalid_floatarray_glb
+  | Unexpected_product_in_prim of Jkind.Sort.const
 
 exception Error of Location.t * error
 

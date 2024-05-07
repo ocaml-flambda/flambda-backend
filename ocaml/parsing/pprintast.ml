@@ -421,6 +421,7 @@ and jkind ctxt f k = match (k : Jane_syntax.Jkind.t) with
   | With (t, ty) ->
     pp f "%a with %a" (jkind ctxt) t (core_type ctxt) ty
   | Kind_of ty -> pp f "kind_of_ %a" (core_type ctxt) ty
+  | Product ts -> pp f "(%a)" (list (jkind ctxt) ~sep:"@;&@;") ts
 
 and jkind_annotation ctxt f annot = jkind ctxt f annot.txt
 

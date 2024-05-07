@@ -92,6 +92,16 @@ and type_desc =
       [Ttuple [Some "l1", t1; None, t2; Some "l3", t3]] ==> [l1:t1 * t2 * l3:t3]
   *)
 
+  | Tunboxed_tuple of (string option * type_expr) list
+  (** [Tunboxed_tuple [None, t1; ...; None, tn]] ==> [#(t1 * ... * tn)]
+      [Tunboxed_tuple [Some "l1", t1; ...; Some "ln", tn]]
+                  ==> [#(l1:t1 * ... * ln:tn)]
+
+      Any mix of labeled and unlabeled components also works:
+      [Tunboxed_tuple [Some "l1", t1; None, t2; Some "l3", t3]]
+           ==> [#(l1:t1 * t2 * l3:t3)]
+  *)
+
   | Tconstr of Path.t * type_expr list * abbrev_memo ref
   (** [Tconstr (`A.B.t', [t1;...;tn], _)] ==> [(t1,...,tn) A.B.t]
       The last parameter keep tracks of known expansions, see [abbrev_memo]. *)

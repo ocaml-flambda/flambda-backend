@@ -714,6 +714,20 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
         (List.map (fun t -> (None, t)) stl)
     in
     ctyp desc typ
+  | Ptyp_unboxed_tuple stl ->
+    Jane_syntax_parsing.assert_extension_enabled ~loc Layouts
+      Language_extension.Beta;
+    (* XXX modes *)
+    let tl =
+      List.map
+        (fun (label, t) -> label, transl_type env ~policy ~row_context mode t)
+        stl
+    in
+    let ctyp_type =
+      newty (Tunboxed_tuple
+               (List.map (fun (label, ctyp) -> label, ctyp.ctyp_type) tl))
+    in
+    ctyp (Ttyp_unboxed_tuple tl) ctyp_type
   | Ptyp_constr(lid, stl) ->
       let (path, decl) = Env.lookup_type ~loc:lid.loc lid.txt env in
       let stl =
@@ -1468,7 +1482,8 @@ let report_error env ppf = function
         (Jkind.format_history ~intro:(
           dprintf "But it was inferred to have %t"
             (fun ppf -> match Jkind.get inferred_jkind with
-            | Const c -> fprintf ppf "kind %a" Jkind.Const.format c
+            | (Const _ | Product _) as d ->
+              fprintf ppf "kind %a" Jkind.Desc.format d
             | Var _ -> fprintf ppf "a representable kind")))
         inferred_jkind
   | Multiple_constraints_on_type s ->

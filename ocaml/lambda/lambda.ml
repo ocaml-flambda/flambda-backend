@@ -334,7 +334,7 @@ type primitive =
   | Pdls_get
 
 and extern_repr =
-  | Same_as_ocaml_repr of Jkind.Sort.const
+  | Same_as_ocaml_repr of Jkind.Sort.base
   | Unboxed_float of boxed_float
   | Unboxed_vector of Primitive.boxed_vector
   | Unboxed_integer of Primitive.boxed_integer
