@@ -343,8 +343,49 @@ let () =
 ;;
 
 let () =
+  try ignore (F32.of_string ""); assert false;
+  with Failure msg -> assert (msg = "float32_of_string");
+  try ignore (F32.of_string "a"); assert false;
+  with Failure msg -> assert (msg = "float32_of_string");
+  try ignore (F32.of_string "0.0.0"); assert false;
+  with Failure msg -> assert (msg = "float32_of_string");
+  try ignore (F32.of_string "0xzz"); assert false;
+  with Failure msg -> assert (msg = "float32_of_string");
+  try ignore (F32.of_string "1e10.0"); assert false;
+  with Failure msg -> assert (msg = "float32_of_string");
+  assert (Option.is_none (F32.of_string_opt ""));
+  assert (Option.is_none (F32.of_string_opt "a"));
+  assert (Option.is_none (F32.of_string_opt "0.0.0"));
+  assert (Option.is_none (F32.of_string_opt "0xzz"));
+  assert (Option.is_none (F32.of_string_opt "1e10.0"));
+;;
+
+external format : string -> float32 -> string = "caml_format_float32"
+
+(* [to_string] calls format with "%.9g"; these are some additional format string tests. *)
+let () =
+  assert ((format "%.0g" 0.1234s) = "0.1");
+  assert ((format "%.1g" 0.1234s) = "0.1");
+  assert ((format "%.2g" 0.1234s) = "0.12");
+  assert ((format "%.3g" 0.1234s) = "0.123");
+  assert ((format "%f" 0.1234s) = "0.123400");
+  assert ((format "%f" 1024.s) = "1024.000000");
+  assert ((format "%f" 1e10s) = "10000000000.000000");
+  assert ((format "%g" 1e20s) = "1e+20");
+  assert ((format "%g" 1e-20s) = "1e-20");
+  assert ((format "%f" F32.infinity) = "inf");
+  assert ((format "%f" F32.neg_infinity) = "-inf");
+  assert ((format "%f" F32.nan) = "nan");
+;;
+
+external format : string -> float32 -> string = "caml_format_float32"
+
+let () =
   CF32.check_float32s (fun f _ ->
     bit_eq (F32.of_string (F32.to_string f)) f;
+    match (F32.of_string_opt (F32.to_string f)) with
+    | None -> assert false
+    | Some f' -> bit_eq f f'
   );
   let check s f = bit_eq (F32.of_string s) f in
   check "0.0" 0.0s;

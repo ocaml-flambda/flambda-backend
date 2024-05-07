@@ -169,7 +169,7 @@ end = struct
       List.fold_right (fun binding body ->
           match binding with
           | None -> body
-          | Some (v, lam) -> Llet(Strict, Lambda.layout_field, v, lam, body)
+          | Some (v, lam) -> Llet(Strict, Lambda.layout_tmc_field, v, lam, body)
         ) bindings body in
     fun ~block_id constr body ->
     bind_list ~block_id ~arg_offset:0 constr.before @@ fun vbefore ->
@@ -915,7 +915,9 @@ let rec choice ctx t =
     (* we don't handle { foo with x = ...; y = recursive-call } *)
     | Pduprecord _
 
-    (* we don't handle all-float records or mixed blocks *)
+    (* we don't handle all-float records or mixed blocks. If we
+       did, we'd need to remove references to Lambda.layout_tmc_field
+    *)
     | Pmakefloatblock _
     | Pmakeufloatblock _
     | Pmakemixedblock _

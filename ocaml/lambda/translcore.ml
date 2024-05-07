@@ -30,7 +30,7 @@ type error =
     Free_super_var
   | Unreachable_reached
   | Bad_probe_layout of Ident.t
-  | Illegal_record_field of Jkind.Sort.const
+  | Illegal_void_record_field
   | Void_sort of type_expr
 
 exception Error of Location.t * error
@@ -53,31 +53,13 @@ let sort_must_not_be_void loc ty sort =
 let layout_exp sort e = layout e.exp_env e.exp_loc sort e.exp_type
 let layout_pat sort p = layout p.pat_env p.pat_loc sort p.pat_type
 
-(* This is `Lambda.must_be_value` for the special case of record fields, where
-   we allow the unboxed float layout.  Its result is never actually used in that
-   case - it would be fine to return garbage.
-*)
-let record_field_kind l =
-  match l with
-  | Punboxed_float Pfloat64 -> Pboxedfloatval Pfloat64
-  | _ -> must_be_value l
-
-(* CR layouts v5: This function is only used for sanity checking the
-   typechecker.  When we allow arbitrary layouts in structures, it will have
-   outlived its usefulness and should be deleted. *)
-let check_record_field_sort loc sort repres =
-  match Jkind.Sort.get_default_value sort, repres with
-  | Value, _ -> ()
-  | Float64, (Record_ufloat | Record_mixed _) -> ()
-  | Float64, (Record_boxed _ | Record_inlined _
-             | Record_unboxed | Record_float) ->
-    raise (Error (loc, Illegal_record_field Float64))
-  | Void, _ ->
-    raise (Error (loc, Illegal_record_field Void))
-  | (Word | Float32 | Bits32 | Bits64 as const), _ ->
-    (* CR layouts v2.1: support unboxed ints here *)
-    (* CR mslater: (float32) float32# in records *)
-    raise (Error (loc, Illegal_record_field const))
+let check_record_field_sort loc sort =
+  match Jkind.Sort.get_default_value sort with
+  | Value | Float64 | Bits32 | Bits64 | Word -> ()
+  | Float32 ->
+    (* CR mslater: (float32) float32# records *)
+    Misc.fatal_error "Found unboxed float32 record field."
+  | Void -> raise (Error (loc, Illegal_void_record_field))
 
 (* Forward declaration -- to be filled in by Translmod.transl_module *)
 let transl_module =
@@ -431,8 +413,12 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         else Rc_normal
       in
       let lam =
+        let loc =
+          map_scopes (update_assume_zero_alloc ~assume_zero_alloc)
+            (of_location ~scopes e.exp_loc)
+        in
         Translprim.transl_primitive_application
-          (of_location ~scopes e.exp_loc) p e.exp_env prim_type
+          loc p e.exp_env prim_type
           ~poly_mode:pmode ~poly_sort:psort
           path prim_exp args (List.map fst arg_exps) position
       in
@@ -476,7 +462,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                return_layout)
   | Texp_tuple (el, alloc_mode) ->
       let ll, shape =
-        transl_list_with_shape ~scopes
+        transl_value_list_with_shape ~scopes
           (List.map (fun (_, a) -> (a, Jkind.Sort.for_tuple_element)) el)
       in
       begin try
@@ -488,41 +474,88 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
               (of_location ~scopes e.exp_loc))
       end
   | Texp_construct(_, cstr, args, alloc_mode) ->
-      let ll, shape =
-        transl_list_with_shape ~scopes
-          (List.map (fun a -> (a, Jkind.Sort.for_constructor_arg)) args)
+      let args_with_sorts =
+        List.mapi (fun i e ->
+            let sort = Jkind.sort_of_jkind cstr.cstr_arg_jkinds.(i) in
+            e, sort)
+          args
+      in
+      let ll =
+        List.map (fun (e, sort) -> transl_exp ~scopes sort e) args_with_sorts
       in
       if cstr.cstr_inlined <> None then begin match ll with
         | [x] -> x
         | _ -> assert false
       end else begin match cstr.cstr_tag, cstr.cstr_repr with
       | Ordinary {runtime_tag}, _ when cstr.cstr_constant ->
+          assert (args_with_sorts = []);
           (* CR layouts v5: This could have void args, but for now we've ruled
-             that out with the jkind check in transl_list_with_shape *)
+             that out by checking that the sort list is empty *)
           Lconst(const_int runtime_tag)
       | Ordinary _, Variant_unboxed ->
           (match ll with [v] -> v | _ -> assert false)
       | Ordinary {runtime_tag}, Variant_boxed _ ->
-          begin try
-            Lconst(Const_block(runtime_tag, List.map extract_constant ll))
-          with Not_constant ->
-            Lprim(Pmakeblock(runtime_tag, Immutable, Some shape,
-                             transl_alloc_mode_r (Option.get alloc_mode)),
-                  ll,
-                  of_location ~scopes e.exp_loc)
+          let const_block =
+            match cstr.cstr_shape with
+            | Constructor_mixed _ ->
+                (* CR layouts v5.1: We should support structured constants for
+                   blocks containing unboxed float literals.
+                *)
+                None
+            | Constructor_uniform_value -> (
+                match List.map extract_constant ll with
+                | exception Not_constant -> None
+                | constant ->
+                    Some (Lconst(Const_block(runtime_tag, constant))))
+          in
+          begin match const_block with
+          | Some const_block -> const_block
+          | None ->
+            let alloc_mode = transl_alloc_mode_r (Option.get alloc_mode) in
+            let makeblock =
+              match cstr.cstr_shape with
+              | Constructor_uniform_value ->
+                  let shape =
+                    List.map (fun (e, sort) ->
+                        Lambda.must_be_value (layout_exp sort e))
+                      args_with_sorts
+                  in
+                  Pmakeblock(runtime_tag, Immutable, Some shape, alloc_mode)
+              | Constructor_mixed shape ->
+                  let shape = Lambda.transl_mixed_product_shape shape in
+                  Pmakemixedblock(runtime_tag, Immutable, shape, alloc_mode)
+            in
+            Lprim (makeblock, ll, of_location ~scopes e.exp_loc)
           end
       | Extension (path, _), Variant_extensible ->
           let lam = transl_extension_path
                       (of_location ~scopes e.exp_loc) e.exp_env path in
           if cstr.cstr_constant
-          then
+          then (
+            assert (args_with_sorts = []);
             (* CR layouts v5: This could have void args, but for now we've ruled
-               that out with the jkind check in transl_list_with_shape. *)
-            lam
+               that out by checking that the sort list is empty *)
+            lam)
           else
-            Lprim(Pmakeblock(0, Immutable, Some (Pgenval :: shape),
-                             transl_alloc_mode_r (Option.get alloc_mode)),
-                  lam :: ll, of_location ~scopes e.exp_loc)
+            let alloc_mode = transl_alloc_mode_r (Option.get alloc_mode) in
+            let makeblock =
+              match cstr.cstr_shape with
+              | Constructor_uniform_value ->
+                  let shape =
+                    List.map (fun (e, sort) ->
+                        Lambda.must_be_value (layout_exp sort e))
+                      args_with_sorts
+                  in
+                  Pmakeblock(0, Immutable, Some (Pgenval :: shape),
+                            alloc_mode)
+              | Constructor_mixed shape ->
+                  let shape = Lambda.transl_mixed_product_shape shape in
+                  let shape =
+                    { shape with value_prefix_len = shape.value_prefix_len + 1 }
+                  in
+                  Pmakemixedblock(0, Immutable, shape, alloc_mode)
+            in
+            Lprim (makeblock, lam :: ll, of_location ~scopes e.exp_loc)
       | Extension _, (Variant_boxed _ | Variant_unboxed)
       | Ordinary _, Variant_extensible -> assert false
       end
@@ -553,7 +586,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
-      check_record_field_sort id.loc lbl_sort lbl.lbl_repres;
+      check_record_field_sort id.loc lbl_sort;
       begin match lbl.lbl_repres with
           Record_boxed _ | Record_inlined (_, Variant_boxed _) ->
           Lprim (Pfield (lbl.lbl_pos, maybe_pointer e, sem), [targ],
@@ -581,16 +614,15 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             else
               let flat_read =
                 match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-                | Imm -> Flat_read_imm
-                | Float64 -> Flat_read_float64
                 | Float ->
                   (match float with
                     | Boxing (mode, _) ->
-                        Flat_read_float (transl_alloc_mode_r mode)
+                        flat_read_float (transl_alloc_mode_r mode)
                     | Non_boxing _ ->
                         Misc.fatal_error
                           "expected typechecking to make [float] boxing mode\
                           \ present for float field read")
+                | non_float -> flat_read_non_float non_float
               in
               Mread_flat_suffix flat_read
           in
@@ -603,7 +635,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
          Probably we should add a sort to `Texp_setfield` in the typed tree,
          then. *)
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
-      check_record_field_sort id.loc lbl_sort lbl.lbl_repres;
+      check_record_field_sort id.loc lbl_sort;
       let mode =
         Assignment (transl_modify_mode arg_mode)
       in
@@ -623,12 +655,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             if lbl.lbl_num < value_prefix_len then
               Mwrite_value_prefix (maybe_pointer newval)
             else
-              let flat_element =
-                match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-                | Imm -> Imm
-                | Float -> Float
-                | Float64 -> Float64
-              in
+              let flat_element = flat_suffix.(lbl.lbl_num - value_prefix_len) in
               Mwrite_flat_suffix flat_element
            in
            Psetmixedfield(lbl.lbl_pos, write, mode)
@@ -1105,7 +1132,7 @@ and transl_list_with_layout ~scopes expr_list =
     expr_list
 
 (* Will raise if a list element has a non-value layout. *)
-and transl_list_with_shape ~scopes expr_list =
+and transl_value_list_with_shape ~scopes expr_list =
   let transl_with_shape (e, sort) =
     let shape = Lambda.must_be_value (layout_exp sort e) in
     transl_exp ~scopes sort e, shape
@@ -1685,9 +1712,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
            let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
            match definition with
            | Kept (typ, mut, _) ->
-               let field_kind =
-                 record_field_kind (layout env lbl.lbl_loc lbl_sort typ)
-               in
+               let field_layout = layout env lbl.lbl_loc lbl_sort typ in
                let sem =
                  if Types.is_mutable mut then Reads_vary else Reads_agree
                in
@@ -1711,13 +1736,12 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                     else
                       let read =
                         match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-                        | Imm -> Flat_read_imm
                         | Float ->
                             (* See the handling of [Record_float] above for
                                 why we choose Alloc_heap.
                             *)
-                            Flat_read_float alloc_heap
-                        | Float64 -> Flat_read_float64
+                            flat_read_float alloc_heap
+                        | non_float -> flat_read_non_float non_float
                       in
                       Mread_flat_suffix read
                    in
@@ -1725,10 +1749,10 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                in
                Lprim(access, [Lvar init_id],
                      of_location ~scopes loc),
-               field_kind
+               field_layout
            | Overridden (_lid, expr) ->
-               let field_kind = record_field_kind (layout_exp lbl_sort expr) in
-               transl_exp ~scopes lbl_sort expr, field_kind)
+               let field_layout = layout_exp lbl_sort expr in
+               transl_exp ~scopes lbl_sort expr, field_layout)
         fields
     in
     let ll, shape = List.split (Array.to_list lv) in
@@ -1749,10 +1773,9 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         | Record_float ->
             Lconst(Const_float_block(List.map extract_float cl))
         | Record_ufloat | Record_mixed _ ->
-            (* CR layouts v2.5: When we add unboxed float literals, we may need
-               to do something here.  (Currrently this case isn't reachable for
-               `float#` records because `extact_constant` will have raised
-               `Not_constant`.) *)
+            (* CR layouts v5.1: We should support structured constants for
+               blocks containing unboxed float literals.
+            *)
             raise Not_constant
         | Record_inlined (_, Variant_extensible)
         | Record_inlined (Extension _, _) ->
@@ -1761,8 +1784,10 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         let loc = of_location ~scopes loc in
         match repres with
           Record_boxed _ ->
+            let shape = List.map must_be_value shape in
             Lprim(Pmakeblock(0, mut, Some shape, Option.get mode), ll, loc)
         | Record_inlined (Ordinary {runtime_tag}, Variant_boxed _) ->
+            let shape = List.map must_be_value shape in
             Lprim(Pmakeblock(runtime_tag, mut, Some shape, Option.get mode),
                   ll, loc)
         | Record_unboxed | Record_inlined (Ordinary _, Variant_unboxed) ->
@@ -1772,6 +1797,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         | Record_ufloat ->
             Lprim(Pmakeufloatblock (mut, Option.get mode), ll, loc)
         | Record_inlined (Extension (path, _), Variant_extensible) ->
+            let shape = List.map must_be_value shape in
             let slot = transl_extension_path loc env path in
             Lprim(Pmakeblock(0, mut, Some (Pgenval :: shape), Option.get mode),
                   slot :: ll, loc)
@@ -1779,8 +1805,8 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         | Record_inlined (Ordinary _, Variant_extensible) ->
             assert false
         | Record_mixed shape ->
-            let shape = transl_mixed_record_shape shape in
-            Lprim (Pmakemixedblock (mut, shape, Option.get mode), ll, loc)
+            let shape = transl_mixed_product_shape shape in
+            Lprim (Pmakemixedblock (0, mut, shape, Option.get mode), ll, loc)
     in
     begin match opt_init_expr with
       None -> lam
@@ -1794,7 +1820,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     let update_field cont (lbl, definition) =
       (* CR layouts v5: allow more unboxed types here. *)
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
-      check_record_field_sort lbl.lbl_loc lbl_sort lbl.lbl_repres;
+      check_record_field_sort lbl.lbl_loc lbl_sort;
       match definition with
       | Kept _ -> cont
       | Overridden (_lid, expr) ->
@@ -1820,10 +1846,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                     Mwrite_value_prefix ptr
                   else
                     let flat_element =
-                      match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-                      | Imm -> Imm
-                      | Float -> Float
-                      | Float64 -> Float64
+                      flat_suffix.(lbl.lbl_num - value_prefix_len)
                     in
                     Mwrite_flat_suffix flat_element
                 in
@@ -2088,11 +2111,10 @@ let report_error ppf = function
   | Bad_probe_layout id ->
       fprintf ppf "Variables in probe handlers must have jkind value, \
                    but %s in this handler does not." (Ident.name id)
-  | Illegal_record_field c ->
+  | Illegal_void_record_field ->
       fprintf ppf
-        "Sort %a detected where value was expected in a record field:@ Please \
+        "Void sort detected where value was expected in a record field:@ Please \
          report this error to the Jane Street compilers team."
-        Jkind.Sort.format (Jkind.Sort.of_const c)
   | Void_sort ty ->
       fprintf ppf
         "Void detected in translation for type %a:@ Please report this error \

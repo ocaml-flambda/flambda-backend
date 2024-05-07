@@ -27,9 +27,10 @@ module String = Misc.Stdlib.String
 type native_repr_kind = Unboxed | Untagged
 
 type jkind_sort_loc =
-  | Cstr_tuple
-  | Record
-  | Unboxed_record
+  | Cstr_tuple of { unboxed : bool }
+  | Record of { unboxed : bool }
+  | Inlined_record of { unboxed : bool }
+  | Mixed_product
   | External
   | External_with_layout_poly
 
@@ -42,18 +43,35 @@ and reaching_type_step =
   | Expands_to of type_expr * type_expr
   | Contains of type_expr * type_expr
 
-type mixed_record_violation =
-  | Runtime_support_not_enabled
+module Mixed_product_kind = struct
+  type t =
+    | Record
+    | Cstr_tuple
+
+  let to_plural_string = function
+    | Record -> "records"
+    | Cstr_tuple -> "constructors"
+end
+
+type mixed_product_violation =
+  | Runtime_support_not_enabled of Mixed_product_kind.t
   | Value_prefix_too_long of
       { value_prefix_len : int;
         max_value_prefix_len : int;
+        mixed_product_kind : Mixed_product_kind.t;
       }
   | Flat_field_expected of
       { boxed_lbl : Ident.t;
         non_value_lbl : Ident.t;
       }
+  | Flat_constructor_arg_expected of
+      { boxed_arg : type_expr;
+        non_value_arg : type_expr;
+      }
   | Insufficient_level of
-      { required_layouts_level : Language_extension.maturity }
+      { required_layouts_level : Language_extension.maturity;
+        mixed_product_kind : Mixed_product_kind.t;
+      }
 
 type bad_jkind_inference_location =
   | Check_constraints
@@ -105,7 +123,7 @@ type error =
   | Jkind_empty_record
   | Non_value_in_sig of Jkind.Violation.t * string * type_expr
   | Invalid_jkind_in_block of type_expr * Jkind.Sort.const * jkind_sort_loc
-  | Illegal_mixed_record of mixed_record_violation
+  | Illegal_mixed_product of mixed_product_violation
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
@@ -776,14 +794,20 @@ let transl_declaration env sdecl (id, uid) =
             Variant_unboxed, any
           else
             (* We mark all arg jkinds "any" here.  They are updated later,
-               after the circular type checks make it safe to check jkinds. *)
+               after the circular type checks make it safe to check jkinds.
+               Likewise, [Constructor_uniform_value] is potentially wrong
+               and will be updated later.
+            *)
             Variant_boxed (
               Array.map
                 (fun cstr ->
-                   match Types.(cstr.cd_args) with
-                   | Cstr_tuple args ->
-                     Array.make (List.length args) any
-                   | Cstr_record _ -> [| any |])
+                   let jkinds =
+                     match Types.(cstr.cd_args) with
+                     | Cstr_tuple args ->
+                       Array.make (List.length args) any
+                     | Cstr_record _ -> [| any |]
+                   in
+                   Constructor_uniform_value, jkinds)
                 (Array.of_list cstrs)
             ),
             Jkind.value ~why:Boxed_variant
@@ -1075,28 +1099,26 @@ let check_abbrev env sdecl (id, decl) =
    should be replaced with checks at the places where values of those types are
    constructed.  We've been conservative here in the first version. This is the
    same issue as with arrows. *)
-let check_representable ~why ~allow_float env loc kloc typ =
+let check_representable ~why ~allow_unboxed env loc kloc typ =
   match Ctype.type_sort ~why env typ with
-  (* CR layouts v3: This is a convenient place to rule out [float#] in
-     structures for now, as it is called on all the types in declared blocks in
-     kinds, and only them.  But when we have a real mixed block restriction, it
-     can't be done here because we're just looking at one type.  *)
-  (* CR layouts v2.5: This rules out float# in [@@unboxed] types.  No real need
-     to rule that out - I just haven't had time to write tests for it yet. *)
+  (* CR layouts v3: This is a convenient place to rule out non-value types in
+     structures that don't support them yet. (A callsite passes
+     [~allow_unboxed:true] to indicate that non-value types are allowed.)
+     When we support mixed blocks everywhere, this [check_representable]
+     will have outlived its usefulness and we can delete it.
+  *)
+  (* CR layouts v2.5: This rules out non-value types in [@@unboxed] types. No
+     real need to rule that out - I just haven't had time to write tests for it
+     yet. *)
   | Ok s -> begin
       match Jkind.Sort.get_default_value s with
       (* All calls to this are part of [update_decl_jkind], which happens after
          all the defaulting, so we don't expect this actually defaults the
          sort - we just want the [const]. *)
       | Void | Value -> ()
-      | Float64 when allow_float -> ()
-      (* CR layouts v2.5: If we want to hold back [float#] records from the
-         maturity progression of [float64], we can add a check here. *)
-      | (Float64 | Float32 | Word | Bits32 | Bits64 as const) ->
-        (* CR layouts v2.1: Consider changing the allow_float parameter to
-           allow unboxed ints. *)
-        (* CR mslater: (float32) float32# in records *)
-        raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
+      | Float64 | Float32 | Word | Bits32 | Bits64 as const ->
+          if not allow_unboxed then
+            raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
     end
   | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
 
@@ -1106,7 +1128,7 @@ let check_representable ~why ~allow_float env loc kloc typ =
 *)
 (* [update_label_jkinds] additionally returns whether all the jkinds
    were void *)
-let update_label_jkinds env loc lbls named =
+let update_label_jkinds env loc lbls named ~is_inlined =
   (* [named] is [Some jkinds] for top-level records (we will update the
      jkinds) and [None] for inlined records. *)
   (* CR layouts v5: it wouldn't be too hard to support records that are all
@@ -1116,10 +1138,15 @@ let update_label_jkinds env loc lbls named =
     | None -> fun _ _ -> ()
     | Some jkinds -> fun idx jkind -> jkinds.(idx) <- jkind
   in
+  let kloc =
+    if is_inlined
+    then Inlined_record { unboxed = false }
+    else Record { unboxed = false }
+  in
   let lbls =
     List.mapi (fun idx (Types.{ld_type; ld_id; ld_loc} as lbl) ->
       check_representable ~why:(Label_declaration ld_id)
-        ~allow_float:(Option.is_some named) env ld_loc Record ld_type;
+        ~allow_unboxed:(Option.is_some named) env ld_loc kloc ld_type;
       let ld_jkind = Ctype.type_jkind env ld_type in
       update idx ld_jkind;
       {lbl with ld_jkind}
@@ -1137,34 +1164,193 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
   match cd_args with
   | Types.Cstr_tuple tys ->
     List.iteri (fun idx (ty,_) ->
-      check_representable ~why:(Constructor_declaration idx) ~allow_float:false
-        env loc Cstr_tuple ty;
+      check_representable ~why:(Constructor_declaration idx) ~allow_unboxed:true
+        env loc (Cstr_tuple { unboxed = false }) ty;
       jkinds.(idx) <- Ctype.type_jkind env ty) tys;
     cd_args, Array.for_all Jkind.is_void_defaulting jkinds
   | Types.Cstr_record lbls ->
-    let lbls, all_void = update_label_jkinds env loc lbls None in
+    let lbls, all_void =
+      update_label_jkinds env loc lbls None ~is_inlined:true
+    in
     jkinds.(0) <- Jkind.value ~why:Boxed_record;
     Types.Cstr_record lbls, all_void
 
-let assert_mixed_record_support =
+let assert_mixed_product_support =
   let required_reserved_header_bits = 8 in
   (* Why 2? We'd subtract 1 if the mixed block encoding could use all 8 bits of
      the prefix. But the all-0 prefix means "not a mixed block", so we can't use
      the all-0 pattern, and we must subtract 2 instead. *)
   let max_value_prefix_len = (1 lsl required_reserved_header_bits) - 2 in
-  fun loc ~value_prefix_len ->
-    let required_layouts_level = Language_extension.Alpha in
+  fun loc mixed_product_kind ~value_prefix_len ->
+    let required_layouts_level = Language_extension.Beta in
     if not (Language_extension.is_at_least Layouts required_layouts_level) then
-      raise (Error (loc, Illegal_mixed_record
-                          (Insufficient_level { required_layouts_level })));
+      raise (Error (loc, Illegal_mixed_product
+                      (Insufficient_level { required_layouts_level;
+                                            mixed_product_kind;
+                                          })));
     if Config.reserved_header_bits < required_reserved_header_bits then
-      raise (Error (loc, Illegal_mixed_record Runtime_support_not_enabled));
+      raise (Error (loc, Illegal_mixed_product
+                      (Runtime_support_not_enabled
+                        mixed_product_kind)));
     if value_prefix_len > max_value_prefix_len then
       raise
         (Error (loc,
-                Illegal_mixed_record
+                Illegal_mixed_product
                   (Value_prefix_too_long
-                     { value_prefix_len; max_value_prefix_len })))
+                     { value_prefix_len; max_value_prefix_len;
+                       mixed_product_kind })))
+
+(* [Element_repr] is used to classify whether something is a "mixed product"
+   (a mixed record or mixed variant constructor), meaning that some of the
+   fields are unboxed in a way that isnt encoded in the usual short numeric tag.
+   "Element" refers to a constructor argument or record field.
+*)
+module Element_repr = struct
+  type unboxed_element =
+    | Float64
+    | Bits32
+    | Bits64
+    | Word
+
+  type t =
+    | Unboxed_element of unboxed_element
+    | Imm_element
+    | Float_element
+    | Value_element
+    | Element_without_runtime_component of { loc : Location.t; ty : type_expr }
+
+  let classify env loc ty jkind =
+    if is_float env ty then Float_element
+    else match Jkind.get_default_value jkind with
+      | Value | Immediate64 | Non_null_value -> Value_element
+      | Immediate -> Imm_element
+      | Float64 -> Unboxed_element Float64
+      | Float32 ->
+        (* CR mslater: (float32) float32# records *)
+        raise (Error (loc, Invalid_jkind_in_block (ty, Float32, Mixed_product)))
+      | Word -> Unboxed_element Word
+      | Bits32 -> Unboxed_element Bits32
+      | Bits64 -> Unboxed_element Bits64
+      | Void -> Element_without_runtime_component { loc; ty }
+      | Any ->
+          Misc.fatal_error "Element_repr.classify: unexpected Any"
+
+  let unboxed_to_flat : unboxed_element -> flat_element = function
+    | Float64 -> Float64
+    | Bits32 -> Bits32
+    | Bits64 -> Bits64
+    | Word -> Word
+
+  let to_flat : _ -> flat_element option = function
+    | Imm_element -> Some Imm
+    | Unboxed_element unboxed -> Some (unboxed_to_flat unboxed)
+    (* CR layouts v7: Supporting void with mixed blocks will require
+       updating some assumptions in lambda, e.g. the translation
+       of [value_prefix_len]. *)
+    | Element_without_runtime_component { loc; ty } ->
+        raise (Error (loc, Invalid_jkind_in_block (ty, Void, Mixed_product)))
+    | Float_element | Value_element -> None
+
+  (* Compute the [flat_suffix] field of a mixed block record kind. *)
+  let mixed_product_flat_suffix ts ~on_flat_field_expected =
+    let rec find_flat_suffix ts =
+      match ts with
+      | [] -> None
+      | (t1, t1_extra) :: ts ->
+          match t1 with
+          | Unboxed_element unboxed ->
+              let suffix =
+                List.map (fun (t2, t2_extra) ->
+                    match to_flat t2 with
+                    | Some flat -> flat
+                    | None ->
+                        on_flat_field_expected
+                          ~non_value:t1_extra
+                          ~boxed:t2_extra)
+                  ts
+              in
+              Some (`Continue (unboxed_to_flat unboxed :: suffix))
+          | Float_element
+          | Imm_element
+          | Value_element as repr -> begin
+              match find_flat_suffix ts with
+              | None -> None
+              | Some `Stop _ as stop -> stop
+              | Some `Continue suffix ->
+                  Some (
+                    match to_flat repr with
+                    | None -> `Stop suffix
+                    | Some flat -> `Continue (flat :: suffix))
+            end
+          (* CR layouts v7: Supporting void with mixed blocks will require
+             updating some assumptions in lambda, e.g. the translation
+             of [value_prefix_len]. *)
+          | Element_without_runtime_component { loc; ty } -> begin
+              match find_flat_suffix ts with
+              | None -> None
+              | Some _ ->
+                  raise (Error (loc,
+                    Invalid_jkind_in_block (ty, Void, Mixed_product)))
+            end
+    in
+    match find_flat_suffix ts with
+    | None -> None
+    | Some (`Continue flat_suffix | `Stop flat_suffix) ->
+        Some (Array.of_list flat_suffix)
+end
+
+let update_constructor_representation
+    env (cd_args : Types.constructor_arguments) arg_jkinds ~loc
+  =
+  let flat_suffix =
+    let arg_jkinds = Array.to_list arg_jkinds in
+    match cd_args with
+    | Cstr_tuple arg_types_and_modes ->
+        let arg_reprs =
+          List.map2 (fun (arg_type, _mode) arg_jkind ->
+            Element_repr.classify env loc arg_type arg_jkind, arg_type)
+            arg_types_and_modes arg_jkinds
+        in
+        Element_repr.mixed_product_flat_suffix arg_reprs
+          ~on_flat_field_expected:(fun ~non_value ~boxed ->
+              let violation =
+                Flat_constructor_arg_expected
+                  { non_value_arg = non_value;
+                    boxed_arg = boxed;
+                  }
+              in
+              raise (Error (loc, Illegal_mixed_product violation)))
+    | Cstr_record fields ->
+        (* CR layouts v5.1: Mixed inline records are rejected in
+           [update_label_jkinds] so this apparent "support" is misleading.
+           This will be resolved soon by adding support for mixed inline
+           records.
+        *)
+        let arg_reprs =
+          List.map (fun ld ->
+              Element_repr.classify env loc ld.Types.ld_type ld.ld_jkind, ld)
+            fields
+        in
+        Element_repr.mixed_product_flat_suffix arg_reprs
+          ~on_flat_field_expected:(fun ~non_value ~boxed ->
+            let violation =
+              Flat_field_expected
+                { non_value_lbl = non_value.Types.ld_id;
+                  boxed_lbl = boxed.Types.ld_id;
+                }
+            in
+            raise (Error (non_value.Types.ld_loc,
+                          Illegal_mixed_product violation)))
+  in
+  match flat_suffix with
+  | None -> Constructor_uniform_value
+  | Some flat_suffix ->
+      let value_prefix_len =
+        Array.length arg_jkinds - Array.length flat_suffix
+      in
+      assert_mixed_product_support loc Cstr_tuple ~value_prefix_len;
+      Constructor_mixed { value_prefix_len; flat_suffix }
+
 
 (* This function updates jkind stored in kinds with more accurate jkinds.
    It is called after the circularity checks and the delayed jkind checks
@@ -1177,161 +1363,121 @@ let assert_mixed_record_support =
 *)
 let update_decl_jkind env dpath decl =
   let open struct
-    (* For tracking what types appear in record blocks. The field [x]
-       tracks whether there is a record field whose most-precise layout
-       is [x]. (For example, [values] may be [false] even if [imms] is [true].)
-    *)
-    type element_reprs =
-      {  mutable values : bool; (* also includes [imm64] *)
+    (* For tracking what types appear in record blocks. *)
+    type element_repr_summary =
+      {  mutable values : bool; (* excludes [imm], but includes [imm64] *)
          mutable imms : bool;
          mutable floats: bool;
-         (* float is not technically a 'layout', contrary to the comment above.
-            For purposes of this record, [floats] tracks whether any field
+         (* For purposes of this record, [floats] tracks whether any field
             has layout value and is known to be a float.
          *)
-         mutable float64s : bool }
-
-    type element_repr =
-      | Imm_element
-      | Flat_float64_element
-      | Float_element
-      | Value_element
-      | Element_without_runtime_component
-
-    let element_repr_to_flat : _ -> flat_element option = function
-      | Imm_element -> Some Imm
-      | Flat_float64_element -> Some Float64
-      (* CR layouts v7: Eventually void components will have no runtime width.
-         We return [Some Imm] as a nonsense placeholder for now. (No record
-         with a void field can be compiled past lambda.)
-      *)
-      | Element_without_runtime_component -> Some Imm
-      | Float_element | Value_element -> None
+         mutable float64s : bool;
+         mutable non_float64_unboxed_fields : bool;
+      }
   end in
-
-  (* Compute the [flat_suffix] field of a mixed block record kind. *)
-  let find_mixed_block_flat_suffix =
-    let rec find_flat_suffix classifications =
-      match classifications with
-      | [] -> Misc.fatal_error "Expected at least one Float64"
-      | (ld, c) :: classifications ->
-          match c with
-          | Flat_float64_element ->
-              let suffix =
-                List.map (fun (repr_ld, repr) ->
-                    match element_repr_to_flat repr with
-                    | Some flat -> flat
-                    | None ->
-                        let violation =
-                          Flat_field_expected
-                            { boxed_lbl = repr_ld.Types.ld_id;
-                              non_value_lbl = ld.Types.ld_id;
-                            }
-                        in
-                        raise (Error (repr_ld.Types.ld_loc,
-                                      Illegal_mixed_record violation)))
-                  classifications
-              in
-              `Continue (Float64 :: suffix)
-          | Float_element
-          | Imm_element
-          | Value_element
-          | Element_without_runtime_component as repr -> begin
-              match find_flat_suffix classifications with
-              | `Stop _ as stop -> stop
-              | `Continue suffix -> begin
-                  match element_repr_to_flat repr with
-                  | None -> `Stop suffix
-                  | Some flat -> `Continue (flat :: suffix)
-                end
-            end
-    in
-    fun classifications ->
-      let (`Continue flat_suffix | `Stop flat_suffix) =
-        find_flat_suffix classifications
-      in
-      Array.of_list flat_suffix
-  in
 
   (* returns updated labels, updated rep, and updated jkind *)
   let update_record_kind loc lbls rep =
     match lbls, rep with
     | [Types.{ld_type; ld_id; ld_loc} as lbl], Record_unboxed ->
-      check_representable ~why:(Label_declaration ld_id) ~allow_float:false
-        env ld_loc Unboxed_record ld_type;
+      check_representable ~why:(Label_declaration ld_id) ~allow_unboxed:false
+        env ld_loc (Record { unboxed = true }) ld_type;
       let ld_jkind = Ctype.type_jkind env ld_type in
       [{lbl with ld_jkind}], Record_unboxed, ld_jkind
     | _, Record_boxed jkinds ->
-      let lbls, all_void = update_label_jkinds env loc lbls (Some jkinds) in
+      let lbls, all_void =
+        update_label_jkinds env loc lbls (Some jkinds) ~is_inlined:false
+      in
       let jkind = Jkind.for_boxed_record ~all_void in
-      let classify (lbl : Types.label_declaration) jkind =
-        if is_float env lbl.ld_type then Float_element
-        else match Jkind.get_default_value jkind with
-          | Value | Immediate64 | Non_null_value -> Value_element
-          | Immediate -> Imm_element
-          | Float64 -> Flat_float64_element
-          | Void -> Element_without_runtime_component
-          | Word | Bits32 | Bits64 ->
-              Misc.fatal_error
-                "Typedecl.update_record_kind: no support for unboxed ints"
-          | Float32 ->
-              (* CR mslater: (float32) float32# in records *)
-              Misc.fatal_error
-                "Typedecl.update_record_kind: no support for unboxed float32"
-          | Any ->
-              Misc.fatal_error "Typedecl.update_record_kind: unexpected Any"
+      let reprs =
+        List.mapi
+          (fun i lbl ->
+             Element_repr.classify env loc lbl.Types.ld_type jkinds.(i), lbl)
+          lbls
       in
-      let classifications =
-        List.mapi (fun i lbl -> lbl, classify lbl jkinds.(i)) lbls
-      in
-      let element_reprs =
-        { values = false; imms = false; floats = false; float64s = false }
+      let repr_summary =
+        { values = false; imms = false; floats = false; float64s = false;
+          non_float64_unboxed_fields = false;
+        }
       in
       List.iter
-        (fun (_lbl, repr) ->
+        (fun ((repr : Element_repr.t), _lbl) ->
            match repr with
-           | Float_element -> element_reprs.floats <- true
-           | Imm_element -> element_reprs.imms <- true
-           | Flat_float64_element -> element_reprs.float64s <- true
-           | Value_element -> element_reprs.values <- true
-           | Element_without_runtime_component -> ())
-        classifications;
+           | Float_element -> repr_summary.floats <- true
+           | Imm_element -> repr_summary.imms <- true
+           | Unboxed_element Float64 -> repr_summary.float64s <- true
+           | Unboxed_element (Bits32 | Bits64 | Word) ->
+               repr_summary.non_float64_unboxed_fields <- true
+           | Value_element -> repr_summary.values <- true
+           | Element_without_runtime_component _ -> ())
+        reprs;
       let rep =
-        match[@warning "+9"] element_reprs with
-        | { values = false; imms = false; floats = true ; float64s = true  } ->
-            (* We store mixed float/float64 records as flat if there are no
-                non-float fields.
-            *)
+        match repr_summary with
+        (* We store mixed float/float64 records as flat if there are no
+            non-float fields.
+        *)
+        | { values = false; imms = false; floats = true;
+            float64s = true; non_float64_unboxed_fields = false; }
+          [@warning "+9"] ->
             let flat_suffix =
               List.map
-                (fun (_, c) ->
-                  match c with
+                (fun ((repr : Element_repr.t), _lbl) ->
+                  match repr with
                   | Float_element -> Float
-                  | Flat_float64_element -> Float64
-                  | Element_without_runtime_component -> Imm
-                  | Imm_element | Value_element ->
+                  | Unboxed_element Float64 -> Float64
+                  | Element_without_runtime_component { ty; loc } ->
+                      raise (Error (loc,
+                        Invalid_jkind_in_block (ty, Void, Mixed_product)))
+                  | Unboxed_element _ | Imm_element | Value_element ->
                       Misc.fatal_error "Expected only floats and float64s")
-                classifications
+                reprs
               |> Array.of_list
             in
-            assert_mixed_record_support loc ~value_prefix_len:0;
+            assert_mixed_product_support loc Record ~value_prefix_len:0;
             Record_mixed { value_prefix_len = 0; flat_suffix }
-        | { values = true ; imms = _    ; floats = _    ; float64s = true  }
-        | { values = _    ; imms = true ; floats = _    ; float64s = true  } ->
-            let flat_suffix = find_mixed_block_flat_suffix classifications in
+        (* For other mixed blocks, float fields are stored as flat
+           only when they're unboxed.
+        *)
+        | { values = true; float64s = true }
+        | { imms = true; float64s = true }
+        | { non_float64_unboxed_fields = true } ->
+            let flat_suffix =
+              Element_repr.mixed_product_flat_suffix reprs
+                ~on_flat_field_expected:(fun ~non_value ~boxed ->
+                  let violation =
+                    Flat_field_expected
+                      { non_value_lbl = non_value.Types.ld_id;
+                        boxed_lbl = boxed.Types.ld_id;
+                      }
+                  in
+                  raise (Error (boxed.Types.ld_loc,
+                                Illegal_mixed_product violation)))
+            in
+            let flat_suffix =
+              match flat_suffix with
+              | Some x -> x
+              | None -> Misc.fatal_error "expected mixed block"
+            in
             let value_prefix_len =
               Array.length jkinds - Array.length flat_suffix
             in
-            assert_mixed_record_support loc ~value_prefix_len;
+            assert_mixed_product_support loc Record ~value_prefix_len;
             Record_mixed { value_prefix_len; flat_suffix }
-        | { values = true ; imms = _    ; floats = _    ; float64s = false }
-        | { values = _    ; imms = true ; floats = _    ; float64s = false } ->
-          rep
-        | { values = false; imms = false; floats = true ; float64s = false } ->
+        (* value-only records are stored as boxed records *)
+        | { values = true; float64s = false; non_float64_unboxed_fields = false }
+        | { imms = true; float64s = false; non_float64_unboxed_fields = false }
+          -> rep
+        (* All-float and all-float64 records are stored as flat float records.
+        *)
+        | { values = false; imms = false; floats = true ; float64s = false;
+            non_float64_unboxed_fields = false } ->
           Record_float
-        | { values = false; imms = false; floats = false; float64s = true  } ->
+        | { values = false; imms = false; floats = false; float64s = true;
+            non_float64_unboxed_fields = false } ->
           Record_ufloat
-        | { values = false; imms = false; floats = false; float64s = false } ->
+        | { values = false; imms = false; floats = false; float64s = false;
+            non_float64_unboxed_fields = false }
+          [@warning "+9"] ->
           Misc.fatal_error "Typedecl.update_record_kind: empty record"
       in
       lbls, rep, jkind
@@ -1351,13 +1497,14 @@ let update_decl_jkind env dpath decl =
         match cd_args with
         | Cstr_tuple [ty,_] -> begin
             check_representable ~why:(Constructor_declaration 0)
-              ~allow_float:false env cd_loc Cstr_tuple ty;
+              ~allow_unboxed:false env cd_loc (Cstr_tuple { unboxed = true }) ty;
             let jkind = Ctype.type_jkind env ty in
             cstrs, Variant_unboxed, jkind
           end
         | Cstr_record [{ld_type; ld_id; ld_loc} as lbl] -> begin
             check_representable ~why:(Label_declaration ld_id)
-              ~allow_float:false env ld_loc Record ld_type;
+              ~allow_unboxed:false env ld_loc (Inlined_record { unboxed = true })
+              ld_type;
             let ld_jkind = Ctype.type_jkind env ld_type in
             [{ cstr with Types.cd_args =
                            Cstr_record [{ lbl with ld_jkind }] }],
@@ -1366,12 +1513,29 @@ let update_decl_jkind env dpath decl =
         | (Cstr_tuple ([] | _ :: _ :: _) | Cstr_record ([] | _ :: _ :: _)) ->
           assert false
       end
-    | cstrs, Variant_boxed jkinds ->
+    | cstrs, Variant_boxed cstr_shapes ->
       let (_,cstrs,all_voids) =
         List.fold_left (fun (idx,cstrs,all_voids) cstr ->
+          let arg_jkinds =
+            match cstr_shapes.(idx) with
+            | Constructor_uniform_value, arg_jkinds -> arg_jkinds
+            | Constructor_mixed _, _ ->
+                fatal_error
+                  "Typedecl.update_variant_kind doesn't expect mixed \
+                   constructor as input"
+          in
           let cd_args, all_void =
             update_constructor_arguments_jkinds env cstr.Types.cd_loc
-              cstr.Types.cd_args jkinds.(idx)
+              cstr.Types.cd_args arg_jkinds
+          in
+          let cstr_repr =
+            update_constructor_representation env cd_args arg_jkinds
+              ~loc:cstr.Types.cd_loc
+          in
+          let () =
+            match cstr_repr with
+            | Constructor_uniform_value -> ()
+            | Constructor_mixed _ -> cstr_shapes.(idx) <- cstr_repr, arg_jkinds
           in
           let cstr = { cstr with Types.cd_args } in
           (idx+1,cstr::cstrs,all_voids && all_void)
@@ -2042,7 +2206,10 @@ let transl_extension_constructor_decl
   let args, constant =
     update_constructor_arguments_jkinds env loc args jkinds
   in
-  args, jkinds, constant, ret_type,
+  let constructor_shape =
+    update_constructor_representation env args jkinds ~loc
+  in
+  args, jkinds, constructor_shape, constant, ret_type,
   Text_decl(tvars, targs, tret_type)
 
 let transl_extension_constructor_jst env type_path _type_params
@@ -2056,7 +2223,7 @@ let transl_extension_constructor ~scope env type_path type_params
                                  typext_params priv sext =
   let id = Ident.create_scoped ~scope sext.pext_name.txt in
   let loc = sext.pext_loc in
-  let args, arg_jkinds, constant, ret_type, kind =
+  let args, arg_jkinds, shape, constant, ret_type, kind =
     match Jane_syntax.Extension_constructor.of_ast sext with
     | Some (jext, attrs) ->
       transl_extension_constructor_jst
@@ -2152,7 +2319,8 @@ let transl_extension_constructor ~scope env type_path type_params
               in
               Types.Cstr_record lbls
         in
-        args, cdescr.cstr_arg_jkinds, cdescr.cstr_constant, ret_type,
+        args, cdescr.cstr_arg_jkinds, cdescr.cstr_shape,
+        cdescr.cstr_constant, ret_type,
         Text_rebind(path, lid)
   in
   let ext =
@@ -2160,6 +2328,7 @@ let transl_extension_constructor ~scope env type_path type_params
       ext_type_params = typext_params;
       ext_args = args;
       ext_arg_jkinds = arg_jkinds;
+      ext_shape = shape;
       ext_constant = constant;
       ext_ret_type = ret_type;
       ext_private = priv;
@@ -3368,15 +3537,19 @@ let report_error ppf = function
   | Jkind_sort {kloc; typ; err} ->
     let s =
       match kloc with
-      | Cstr_tuple -> "Constructor argument types"
-      | Record -> "Record element types"
-      | Unboxed_record -> "Unboxed record element types"
+      | Mixed_product -> "Structures with non-value elements"
+      | Cstr_tuple _ -> "Constructor argument types"
+      | Inlined_record { unboxed = false }
+      | Record { unboxed = false } -> "Record element types"
+      | Inlined_record { unboxed = true }
+      | Record { unboxed = true } -> "Unboxed record element types"
       | External -> "Types in an external"
       | External_with_layout_poly -> "Types in an external"
     in
     let extra =
       match kloc with
-      | Cstr_tuple | Record | Unboxed_record | External -> dprintf ""
+      | Mixed_product
+      | Cstr_tuple _ | Record _ | Inlined_record _ | External -> dprintf ""
       | External_with_layout_poly -> dprintf
         "@ (locally-scoped type variables with layout 'any' are@ \
           made representable by [@@layout_poly])"
@@ -3394,15 +3567,19 @@ let report_error ppf = function
   | Invalid_jkind_in_block (typ, sort_const, lloc) ->
     let struct_desc =
       match lloc with
-      | Cstr_tuple -> "Variants"
-      | Record -> "Records"
-      | Unboxed_record -> "Unboxed records"
+      | Mixed_product -> "Structures with non-value elements"
+      | Inlined_record { unboxed = false } -> "Inlined records"
+      | Inlined_record { unboxed = true } -> "Unboxed inlined records"
+      | Record { unboxed = false } -> "Records"
+      | Record { unboxed = true }-> "Unboxed records"
+      | Cstr_tuple { unboxed = false } -> "Variants"
+      | Cstr_tuple { unboxed = true } -> "Unboxed variants"
       | External | External_with_layout_poly -> assert false
     in
     fprintf ppf
       "@[Type %a has layout %a.@ %s may not yet contain types of this layout.@]"
       Printtyp.type_expr typ Jkind.Sort.format_const sort_const struct_desc
-  | Illegal_mixed_record error -> begin
+  | Illegal_mixed_product error -> begin
       match error with
       | Flat_field_expected { boxed_lbl; non_value_lbl } ->
           fprintf ppf
@@ -3410,15 +3587,24 @@ let report_error ppf = function
             \ @[but found boxed field, %s.@]"
             (Ident.name non_value_lbl)
             (Ident.name boxed_lbl)
-      | Runtime_support_not_enabled ->
+      | Flat_constructor_arg_expected { boxed_arg; non_value_arg } ->
           fprintf ppf
-            "@[This OCaml runtime doesn't support mixed records.@]"
-      | Value_prefix_too_long { value_prefix_len; max_value_prefix_len } ->
+            "@[Expected all flat constructor arguments after non-value \
+             argument, %a,@]@,@ @[but found boxed argument, %a.@]"
+            Printtyp.type_expr non_value_arg
+            Printtyp.type_expr boxed_arg
+      | Runtime_support_not_enabled mixed_product_kind ->
           fprintf ppf
-            "@[Mixed records may contain at most %d value fields prior to the\
+            "@[This OCaml runtime doesn't support mixed %s.@]"
+            (Mixed_product_kind.to_plural_string mixed_product_kind)
+      | Value_prefix_too_long
+          { value_prefix_len; max_value_prefix_len; mixed_product_kind } ->
+          fprintf ppf
+            "@[Mixed %s may contain at most %d value fields prior to the\
             \ flat suffix, but this one contains %d.@]"
+            (Mixed_product_kind.to_plural_string mixed_product_kind)
             max_value_prefix_len value_prefix_len
-      | Insufficient_level { required_layouts_level } -> (
+      | Insufficient_level { required_layouts_level; mixed_product_kind } -> (
         let hint ppf =
           Format.fprintf ppf "You must enable -extension %s to use this feature."
             (Language_extension.to_command_line_string Layouts
@@ -3430,8 +3616,9 @@ let report_error ppf = function
             "@[<v>The appropriate layouts extension is not enabled.@;%t@]" hint
         | true ->
           fprintf ppf
-            "@[<v>The enabled layouts extension does not allow for mixed records.@;\
+            "@[<v>The enabled layouts extension does not allow for mixed %s.@;\
              %t@]"
+            (Mixed_product_kind.to_plural_string mixed_product_kind)
             hint)
     end
   | Bad_unboxed_attribute msg ->

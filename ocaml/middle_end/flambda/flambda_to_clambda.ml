@@ -518,7 +518,7 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
     let block, _block_layout = subst_var env block in
     Uprim (Pfield (index, layout, ptr, mut),
       [check_field t block index None], dbg),
-    Lambda.layout_field
+    Lambda.layout_value_field
   | Prim (Psetfield (index, maybe_ptr, init), [block; new_value], dbg) ->
     let block, _block_layout = subst_var env block in
     let new_value, _new_value_layout = subst_var env new_value in

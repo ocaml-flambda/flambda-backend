@@ -985,19 +985,23 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
     [Variadic (Make_block (Naked_floats, mutability, mode), args)]
-  | Pmakemixedblock (mutability, shape, mode), _ ->
+  | Pmakemixedblock (tag, mutability, shape, mode), _ ->
     let args = List.flatten args in
     let args =
       List.mapi
         (fun i arg ->
           match Lambda.get_mixed_block_element shape i with
-          | Value_prefix | Flat_suffix (Float64 | Imm) -> arg
+          | Value_prefix | Flat_suffix (Float64 | Imm | Bits32 | Bits64 | Word)
+            ->
+            arg
           | Flat_suffix Float -> unbox_float arg)
         args
     in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
-    [Variadic (Make_mixed_block (shape, mutability, mode), args)]
+    let tag = Tag.Scannable.create_exn tag in
+    let shape = P.Mixed_block_kind.from_lambda shape in
+    [Variadic (Make_mixed_block (tag, shape, mutability, mode), args)]
   | Pmakearray (lambda_array_kind, mutability, mode), _ -> (
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -1457,19 +1461,17 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         | Mread_flat_suffix read ->
           Flat_suffix
             (match read with
-            | Flat_read_imm -> Imm
-            | Flat_read_float _ -> Float
-            | Flat_read_float64 -> Float64)
+            | Flat_read flat_element ->
+              P.Mixed_block_flat_element.from_lambda flat_element
+            | Flat_read_float _ -> Float)
       in
-      Mixed { field_kind; size = Unknown }
+      Mixed { tag = Unknown; field_kind; size = Unknown }
     in
     let block_access : H.expr_primitive =
       Binary (Block_load (block_access, mutability), arg, Simple field)
     in
     match read with
-    | Mread_value_prefix _
-    | Mread_flat_suffix (Flat_read_imm | Flat_read_float64) ->
-      [block_access]
+    | Mread_value_prefix _ | Mread_flat_suffix (Flat_read _) -> [block_access]
     | Mread_flat_suffix (Flat_read_float mode) ->
       [box_float mode block_access ~current_region])
   | ( Psetfield (index, immediate_or_pointer, initialization_or_assignment),
@@ -1521,14 +1523,18 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             | Mwrite_value_prefix immediate_or_pointer ->
               Value_prefix
                 (convert_block_access_field_kind immediate_or_pointer)
-            | Mwrite_flat_suffix flat -> Flat_suffix flat);
-          size = Unknown
+            | Mwrite_flat_suffix flat ->
+              Flat_suffix (P.Mixed_block_flat_element.from_lambda flat));
+          size = Unknown;
+          tag = Unknown
         }
     in
     let init_or_assign = convert_init_or_assign initialization_or_assignment in
     let value =
       match write with
-      | Mwrite_value_prefix _ | Mwrite_flat_suffix (Imm | Float64) -> value
+      | Mwrite_value_prefix _
+      | Mwrite_flat_suffix (Imm | Float64 | Bits32 | Bits64 | Word) ->
+        value
       | Mwrite_flat_suffix Float -> unbox_float value
     in
     [ Ternary

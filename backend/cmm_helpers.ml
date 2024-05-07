@@ -47,6 +47,7 @@ let caml_black = Nativeint.shift_left (Nativeint.of_int 3) 8
 
 let caml_local =
   Nativeint.shift_left (Nativeint.of_int (if Config.runtime5 then 3 else 2)) 8
+
 (* cf. runtime/caml/gc.h *)
 
 (* Loads *)
@@ -850,6 +851,11 @@ let complex_im c dbg =
 
 let return_unit dbg c = Csequence (c, Cconst_int (1, dbg))
 
+let strided_field_address ptr ~index ~stride dbg =
+  if index * stride = 0
+  then ptr
+  else Cop (Cadda, [ptr; Cconst_int (index * stride, dbg)], dbg)
+
 let field_address ?(memory_chunk = Word_val) ptr n dbg =
   if n = 0
   then ptr
@@ -1237,6 +1243,50 @@ let get_field_computed imm_or_ptr mutability ~block ~index dbg =
   Cop
     (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
 
+(* Getters for unboxed int fields *)
+
+let get_field_unboxed_int32 mutability ~block ~index dbg =
+  let memory_chunk = Thirtytwo_signed in
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed int32 fields only supported on little-endian architectures";
+  (* CR layouts v5.1: We'll need to vary log2_size_addr to efficiently pack
+   * int32s *)
+  let field_address = array_indexing log2_size_addr block index dbg in
+  Cop
+    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
+
+let get_field_unboxed_int64_or_nativeint mutability ~block ~index dbg =
+  let memory_chunk = Word_int in
+  let field_address = array_indexing log2_size_addr block index dbg in
+  Cop
+    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
+
+(* Setters for unboxed int fields *)
+
+let setfield_unboxed_int32 arr ofs newval dbg =
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed int32 fields only supported on little-endian architectures";
+  (* CR layouts v5.1: We will need to vary log2_size_addr when int32 fields are
+     efficiently packed. *)
+  return_unit dbg
+    (Cop
+       ( Cstore (Thirtytwo_signed, Assignment),
+         [array_indexing log2_size_addr arr ofs dbg; newval],
+         dbg ))
+
+let setfield_unboxed_int64_or_nativeint arr ofs newval dbg =
+  return_unit dbg
+    (Cop
+       ( Cstore (Word_int, Assignment),
+         [array_indexing log2_size_addr arr ofs dbg; newval],
+         dbg ))
+
 (* String length *)
 
 (* Length of string block *)
@@ -1506,7 +1556,7 @@ let make_float_alloc ~mode dbg tag args =
     (List.length args * size_float / size_addr)
     args
 
-let make_mixed_alloc ~mode dbg shape args =
+let make_mixed_alloc ~mode dbg tag shape args =
   let ({ value_prefix_len; flat_suffix } : Lambda.mixed_block_shape) = shape in
   (* args with shape [Float] must already have been unboxed. *)
   let set_fn idx arr ofs newval dbg =
@@ -1516,19 +1566,21 @@ let make_mixed_alloc ~mode dbg shape args =
       match flat_suffix.(idx - value_prefix_len) with
       | Imm -> int_array_set arr ofs newval dbg
       | Float | Float64 -> float_array_set arr ofs newval dbg
+      | Bits32 -> setfield_unboxed_int32 arr ofs newval dbg
+      | Bits64 | Word -> setfield_unboxed_int64_or_nativeint arr ofs newval dbg
   in
   let size =
-    let values, floats = Lambda.count_mixed_block_values_and_floats shape in
-    if size_float <> size_addr
-    then
-      Misc.fatal_error
-        "Unable to compile mixed blocks on a platform where a float is not the \
-         same width as a value.";
-    values + floats
+    (* CR layouts 5.1: When we pack int32s more efficiently, this code will need
+       to change. *)
+    value_prefix_len + Array.length flat_suffix
   in
+  if size_float <> size_addr
+  then
+    Misc.fatal_error
+      "Unable to compile mixed blocks on a platform where a float is not the \
+       same width as a value.";
   make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_len) ~mode
-    (* CR mixed blocks v1: Support inline record args to variants. *)
-    set_fn dbg Obj.first_non_constant_constructor_tag size args
+    set_fn dbg tag size args
 
 (* Record application and currying functions *)
 
@@ -3204,9 +3256,11 @@ let emit_string_constant_fields s cont =
   Cstring s :: Cskip n :: Cint8 n :: cont
 
 let emit_boxed_int32_constant_fields n cont =
-  let n = Nativeint.of_int32 n in
-  Csymbol_address (global_symbol caml_int32_ops)
-  :: Cint32 n :: Cint32 0n :: cont
+  let n =
+    (* This will sign extend. *)
+    Nativeint.of_int32 n
+  in
+  Csymbol_address (global_symbol caml_int32_ops) :: Cint n :: cont
 
 let emit_boxed_int64_constant_fields n cont =
   let lo = Int64.to_nativeint n in
@@ -3216,6 +3270,9 @@ let emit_boxed_nativeint_constant_fields n cont =
   Csymbol_address (global_symbol caml_nativeint_ops) :: Cint n :: cont
 
 let emit_float32_constant symb f cont =
+  (* Here we are relying on the fact that the data section is zero initialized
+     by just using [Csingle] and not worrying about the high 64 bits of the
+     relevant field. *)
   emit_block symb boxedfloat32_header
     (Csymbol_address (global_symbol caml_float32_ops) :: Csingle f :: cont)
 

@@ -83,9 +83,9 @@ COMPILERLIBS_SOURCES=\
   utils/numbers.ml \
   utils/arg_helper.ml \
   utils/local_store.ml \
+  utils/clflags.ml \
   utils/load_path.ml \
   utils/zero_alloc_annotations.ml \
-  utils/clflags.ml \
   utils/debug.ml \
   utils/language_extension_kernel.ml \
   utils/language_extension.ml \
