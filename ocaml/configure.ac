@@ -100,9 +100,6 @@ AS_IF([test x"$enable_runtime5" = xyes],
 AC_ARG_ENABLE([stack_checks],
   [AS_HELP_STRING([--enable-stack_checks],
     [Enable stack checks])])
-AS_IF([test x"$enable_stack_checks" = xyes],
-      [AC_DEFINE([STACK_CHECKS_ENABLED])],
-      [])
 
 ## Output variables
 
@@ -1351,6 +1348,12 @@ AS_CASE([$host],
   [riscv64-*-linux*],
     [has_native_backend=yes; arch=riscv; model=riscv64; system=linux]
 )
+
+AS_IF([test x"$enable_stack_checks" = xyes],
+  [AC_DEFINE([STACK_CHECKS_ENABLED])],
+  [AS_IF([$arch64],
+    [AC_DEFINE([STACK_CHECKS_ENABLED])],
+    [])])
 
 native_cflags=''
 native_cppflags="-DTARGET_${arch} -DMODEL_${model} -DSYS_${system}"

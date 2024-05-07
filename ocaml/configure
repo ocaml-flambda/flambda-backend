@@ -3258,11 +3258,6 @@ then :
   enableval=$enable_stack_checks;
 fi
 
-if test x"$enable_stack_checks" = xyes
-then :
-  printf "%s\n" "#define STACK_CHECKS_ENABLED 1" >>confdefs.h
-
-fi
 
 ## Output variables
 
@@ -15594,6 +15589,18 @@ fi ;; #(
   *) :
      ;;
 esac
+
+if test x"$enable_stack_checks" = xyes
+then :
+  printf "%s\n" "#define STACK_CHECKS_ENABLED 1" >>confdefs.h
+
+else $as_nop
+  if $arch64
+then :
+  printf "%s\n" "#define STACK_CHECKS_ENABLED 1" >>confdefs.h
+
+fi
+fi
 
 native_cflags=''
 native_cppflags="-DTARGET_${arch} -DMODEL_${model} -DSYS_${system}"
