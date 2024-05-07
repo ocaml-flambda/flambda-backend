@@ -393,6 +393,16 @@ let mk_value_binding ~vb_pat ~vb_expr ~vb_attributes =
     vb_sort = Jkind.Sort.value;
   }
 
+let mk_value_description ~val_type ~val_kind ~val_attributes =
+  {
+    val_type;
+    val_kind;
+    val_loc = Location.none;
+    val_attributes;
+    val_uid = Uid.internal_not_actually_unique;
+    val_zero_alloc = Default_check;
+  }
+
 let mkTtyp_any = Ttyp_var (None, None)
 let mkTtyp_var s = Ttyp_var (Some s, None)
 

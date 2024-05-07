@@ -118,9 +118,9 @@ let rec declare_const acc (const : Lambda.structured_constant) :
   | Const_base (Const_float c) ->
     let c = Numeric_types.Float_by_bit_pattern.create (float_of_string c) in
     register_const acc (SC.boxed_float (Const c)) "float"
-  | Const_base (Const_float32 _c) ->
-    (* CR mslater: (float32) middle end support *)
-    assert false
+  | Const_base (Const_float32 c) ->
+    let c = Numeric_types.Float32_by_bit_pattern.create (float_of_string c) in
+    register_const acc (SC.boxed_float32 (Const c)) "float32"
   | Const_base (Const_int32 c) ->
     register_const acc (SC.boxed_int32 (Const c)) "int32"
   | Const_base (Const_int64 c) ->
@@ -256,8 +256,8 @@ let find_value_approximation env simple =
     ~const:(fun const ->
       match Reg_width_const.descr const with
       | Tagged_immediate i -> Value_approximation.Value_int i
-      | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-      | Naked_vec128 _ | Naked_nativeint _ ->
+      | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+      | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ ->
         Value_approximation.Value_unknown)
 
 let find_value_approximation_through_symbol acc env simple =
@@ -322,8 +322,8 @@ module Inlining = struct
           ~are_rebuilding_terms decision;
         res
 
-  let make_inlined_body acc ~callee ~region_inlined_into ~params ~args
-      ~my_closure ~my_region ~my_depth ~body ~free_names_of_body
+  let make_inlined_body acc ~callee ~called_code_id ~region_inlined_into ~params
+      ~args ~my_closure ~my_region ~my_depth ~body ~free_names_of_body
       ~exn_continuation ~return_continuation ~apply_exn_continuation
       ~apply_return_continuation ~apply_depth ~apply_dbg =
     let rec_info =
@@ -355,16 +355,20 @@ module Inlining = struct
       acc, Expr.apply_renaming body renaming
     in
     let acc, body =
-      Inlining_helpers.make_inlined_body ~callee ~region_inlined_into ~params
-        ~args ~my_closure ~my_region ~my_depth ~rec_info ~body:(acc, body)
-        ~exn_continuation ~return_continuation ~apply_exn_continuation
-        ~apply_return_continuation ~bind_params ~bind_depth ~apply_renaming
+      Inlining_helpers.make_inlined_body ~callee ~called_code_id
+        ~region_inlined_into ~params ~args ~my_closure ~my_region ~my_depth
+        ~rec_info ~body:(acc, body) ~exn_continuation ~return_continuation
+        ~apply_exn_continuation ~apply_return_continuation ~bind_params
+        ~bind_depth ~apply_renaming
+    in
+    let inlined_debuginfo =
+      Inlined_debuginfo.create ~called_code_id ~apply_dbg
     in
     Let_with_acc.create acc
       (Bound_pattern.singleton
          (VB.create (Variable.create "inlined_dbg") Name_mode.normal))
       (Named.create_prim
-         (Nullary (Enter_inlined_apply { dbg = apply_dbg }))
+         (Nullary (Enter_inlined_apply { dbg = inlined_debuginfo }))
          Debuginfo.none)
       ~body
 
@@ -421,7 +425,8 @@ module Inlining = struct
           | Known free_names -> free_names
         in
         let make_inlined_body =
-          make_inlined_body ~callee ~region_inlined_into
+          make_inlined_body ~callee ~called_code_id:(Code.code_id code)
+            ~region_inlined_into
             ~params:(Bound_parameters.vars params)
             ~args ~my_closure ~my_region ~my_depth ~body ~free_names_of_body
             ~exn_continuation ~return_continuation ~apply_depth ~apply_dbg
@@ -512,8 +517,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     | _, Same_as_ocaml_repr _ -> None
     | _, Unboxed_float Pfloat64 -> Some (P.Box_number (Naked_float, alloc_mode))
     | _, Unboxed_float Pfloat32 ->
-      (* CR mslater: (float32) middle end support *)
-      assert false
+      Some (P.Box_number (Naked_float32, alloc_mode))
     | _, Unboxed_integer Pnativeint ->
       Some (P.Box_number (Naked_nativeint, alloc_mode))
     | _, Unboxed_integer Pint32 -> Some (P.Box_number (Naked_int32, alloc_mode))
@@ -542,9 +546,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
           (from_lambda_values_and_unboxed_numbers_only
              (Typeopt.layout_of_const_sort sort)))
     | Unboxed_float Pfloat64 -> K.naked_float
-    | Unboxed_float Pfloat32 ->
-      (* CR mslater: (float32) middle end support *)
-      assert false
+    | Unboxed_float Pfloat32 -> K.naked_float32
     | Unboxed_integer Pnativeint -> K.naked_nativeint
     | Unboxed_integer Pint32 -> K.naked_int32
     | Unboxed_integer Pint64 -> K.naked_int64
@@ -634,9 +636,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
           match arg_repr with
           | _, Same_as_ocaml_repr _ -> None
           | _, Unboxed_float Pfloat64 -> Some (P.Unbox_number Naked_float)
-          | _, Unboxed_float Pfloat32 ->
-            (* CR mslater: (float32) middle end support *)
-            assert false
+          | _, Unboxed_float Pfloat32 -> Some (P.Unbox_number Naked_float32)
           | _, Unboxed_integer Pnativeint ->
             Some (P.Unbox_number Naked_nativeint)
           | _, Unboxed_integer Pint32 -> Some (P.Unbox_number Naked_int32)
@@ -830,6 +830,7 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats _
       | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat _
       | Pfloatofint (_, _)
+      | Pfloatoffloat32 _ | Pfloat32offloat _
       | Pnegfloat (_, _)
       | Pabsfloat (_, _)
       | Paddfloat (_, _)
@@ -1014,6 +1015,22 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
            generated. *)
         body acc body_env
       | _ -> (
+        (match defining_expr with
+        | Prim (prim, _) ->
+          let kind = Flambda_kind.With_subkind.kind kind in
+          let result_kind =
+            match Flambda_primitive.result_kind prim with
+            | Unit -> Flambda_kind.value
+            | Singleton result_kind -> result_kind
+          in
+          if not (Flambda_kind.equal kind result_kind)
+          then
+            Misc.fatal_errorf
+              "Incompatible kinds when binding %a: this variable has kind %a, \
+               but is bound to the result of %a which has kind %a@."
+              Variable.print var Flambda_kind.print kind Flambda_primitive.print
+              prim Flambda_kind.print result_kind
+        | Simple _ | Static_consts _ | Set_of_closures _ | Rec_info _ -> ());
         let bound_pattern =
           Bound_pattern.singleton (VB.create var Name_mode.normal)
         in
@@ -2119,19 +2136,22 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
   let contains_subfunctions = Acc.seen_a_function acc in
   let cost_metrics = Acc.cost_metrics acc in
   let inline : Inline_attribute.t =
-    (* We make a decision based on [fallback_inlining_heuristic] here to try to
-       mimic Closure's behaviour as closely as possible, particularly when there
-       are functions involving constant closures, which are not lifted during
-       Closure (but will prevent inlining) but will likely have been lifted by
-       our other check in [Inlining_cost] (thus preventing us seeing they were
-       originally there). Note that while Closure never marks as inlinable
-       functions in a set a recursive definitions with more than one function,
-       we do not try to reproduce this particular property and can mark as
-       inlinable such functions. *)
-    if contains_subfunctions
-       && Flambda_features.Expert.fallback_inlining_heuristic ()
-    then Never_inline
-    else Inline_attribute.from_lambda (Function_decl.inline decl)
+    match Inline_attribute.from_lambda (Function_decl.inline decl) with
+    | (Always_inline | Available_inline | Never_inline) as attr -> attr
+    | (Unroll _ | Default_inline) as attr ->
+      (* We make a decision based on [fallback_inlining_heuristic] here to try
+         to mimic Closure's behaviour as closely as possible, particularly when
+         there are functions involving constant closures, which are not lifted
+         during Closure (but will prevent inlining) but will likely have been
+         lifted by our other check in [Inlining_cost] (thus preventing us seeing
+         they were originally there). Note that while Closure never marks as
+         inlinable functions in a set a recursive definitions with more than one
+         function, we do not try to reproduce this particular property and can
+         mark as inlinable such functions. *)
+      if contains_subfunctions
+         && Flambda_features.Expert.fallback_inlining_heuristic ()
+      then (* CR vlaviron: Store reason *) Never_inline
+      else attr
   in
   let free_names_of_body = Acc.free_names acc in
   let params_and_body =
@@ -2239,7 +2259,9 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
     else meta
   in
   let acc = Acc.add_code ~code_id ~code acc in
-  let acc = Acc.with_seen_a_function acc true in
+  let acc =
+    if has_lifted_closure then acc else Acc.with_seen_a_function acc true
+  in
   ( acc,
     ( Function_slot.Map.add function_slot approx by_function_slot,
       function_code_ids ) )

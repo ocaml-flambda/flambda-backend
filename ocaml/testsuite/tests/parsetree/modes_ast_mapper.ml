@@ -2,10 +2,10 @@
  include ocamlcommon;
 *)
 
-let mode_to_string (modes : Asttypes.mode Location.loc list) =
+let mode_to_string (modes : Parsetree.mode Location.loc list) =
   List.map
     (fun (m : _ Location.loc) ->
-       let (Asttypes.Mode s) = m.txt in
+       let (Parsetree.Mode s) = m.txt in
        Format.asprintf "%s [%a]" s Location.print_loc m.loc
     )
     modes

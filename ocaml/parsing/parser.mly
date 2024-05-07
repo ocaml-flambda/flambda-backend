@@ -828,7 +828,7 @@ module Constant : sig
   type loc := Lexing.position * Lexing.position
 
   val value : Parsetree.constant -> t
-  val unboxed : loc:loc -> Jane_syntax.Layouts.constant -> t
+  val unboxed : Jane_syntax.Layouts.constant -> t
   val to_expression : loc:loc -> t -> expression
   val to_pattern : loc:loc -> t -> pattern
 end = struct
@@ -838,13 +838,7 @@ end = struct
 
   let value x = Value x
 
-  let assert_unboxed_literals ~loc =
-    Language_extension.(
-      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Stable)
-
-  let unboxed ~loc x =
-    assert_unboxed_literals ~loc:(make_loc loc);
-    Unboxed x
+  let unboxed x = Unboxed x
 
   let to_expression ~loc : t -> expression = function
     | Value const_value ->
@@ -871,7 +865,7 @@ let with_sign sign num =
 let unboxed_int sloc int_loc sign (n, m) =
   match m with
   | Some m ->
-      Constant.unboxed ~loc:int_loc (Integer (with_sign sign n, m))
+      Constant.unboxed (Integer (with_sign sign n, m))
   | None ->
       if Language_extension.is_enabled unboxed_literals_extension then
         raise
@@ -879,19 +873,12 @@ let unboxed_int sloc int_loc sign (n, m) =
       else
         not_expecting sloc "line number directive"
 
-let unboxed_float sloc sign (f, m) =
-  Constant.unboxed ~loc:sloc (Float (with_sign sign f, m))
-
-(* Unboxed float type *)
-
-let assert_unboxed_type ~loc =
-    Language_extension.(
-      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Stable)
+let unboxed_float sign (f, m) =
+  Constant.unboxed (Float (with_sign sign f, m))
 
 (* Invariant: [lident] must end with an [Lident] that ends with a ["#"]. *)
 let unboxed_type sloc lident tys =
   let loc = make_loc sloc in
-  assert_unboxed_type ~loc;
   Ptyp_constr (mkloc lident loc, tys)
 %}
 
@@ -4025,7 +4012,6 @@ generalized_constructor_arguments:
 
 constructor_arguments:
   | tys = inline_separated_nonempty_llist(STAR, constructor_argument)
-    %prec below_HASH
       { Pcstr_tuple tys }
   | LBRACE label_declarations RBRACE
       { Pcstr_record $2 }
@@ -4387,8 +4373,9 @@ atat_mode_expr:
 %inline modalities:
   | modality+ { $1 }
 
-%inline optional_atat_modalities_expr:
-  | { [] }
+optional_atat_modalities_expr:
+  | %prec below_HASH
+    { [] }
   | ATAT modalities { $2 }
   | ATAT error { expecting $loc($2) "modality expression" }
 ;
@@ -4603,7 +4590,7 @@ value_constant:
 ;
 unboxed_constant:
   | HASH_INT          { unboxed_int $sloc $sloc Positive $1 }
-  | HASH_FLOAT        { unboxed_float $sloc Positive $1 }
+  | HASH_FLOAT        { unboxed_float Positive $1 }
 ;
 constant:
     value_constant    { Constant.value $1 }
@@ -4620,9 +4607,9 @@ signed_constant:
     signed_value_constant { Constant.value $1 }
   | unboxed_constant      { $1 }
   | MINUS HASH_INT        { unboxed_int $sloc $loc($2) Negative $2 }
-  | MINUS HASH_FLOAT      { unboxed_float $sloc Negative $2 }
+  | MINUS HASH_FLOAT      { unboxed_float Negative $2 }
   | PLUS HASH_INT         { unboxed_int $sloc $loc($2) Positive $2 }
-  | PLUS HASH_FLOAT       { unboxed_float $sloc Positive $2 }
+  | PLUS HASH_FLOAT       { unboxed_float Positive $2 }
 ;
 
 /* Identifiers and long identifiers */

@@ -32,7 +32,7 @@ open Misc
    of these infos *)
 
 (* Declare machtype here to avoid depending on [Cmm]. *)
-type machtype_component = Val | Addr | Int | Float | Vec128
+type machtype_component = Val | Addr | Int | Float | Vec128 | Float32
 type machtype = machtype_component array
 
 type apply_fn := machtype list * machtype * Lambda.alloc_mode
@@ -56,7 +56,9 @@ type unit_infos =
     mutable ui_generic_fns: generic_fns;  (* Generic functions needed *)
     mutable ui_export_info: Flambda2_cmx.Flambda_cmx_format.t option;
     mutable ui_checks: Checks.t;
-    mutable ui_force_link: bool }         (* Always linked *)
+    mutable ui_force_link: bool;          (* Always linked *)
+    mutable ui_external_symbols: string list; (* Set of external symbols *)
+  }
 
 type unit_infos_raw =
   { uir_unit: Compilation_unit.t;
@@ -71,6 +73,7 @@ type unit_infos_raw =
                                       relative to byte immediately after
                                       this record *)
     uir_sections_length: int;      (* Byte length of all sections *)
+    uir_external_symbols: string array;
   }
 
 (* Each .a library has a matching .cmxa file that provides the following
@@ -82,7 +85,9 @@ type lib_unit_info =
     li_defines: Compilation_unit.t list;
     li_force_link: bool;
     li_imports_cmi : Bitmap.t;  (* subset of lib_imports_cmi *)
-    li_imports_cmx : Bitmap.t } (* subset of lib_imports_cmx *)
+    li_imports_cmx : Bitmap.t;  (* subset of lib_imports_cmx *)
+    li_external_symbols: string array;
+  }
 
 type library_infos =
   { lib_imports_cmi: Import_info.t array;

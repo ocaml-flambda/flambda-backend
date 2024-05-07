@@ -242,6 +242,9 @@ module Stdlib : sig
     (** Splits on the last occurrence of the given character. *)
     val split_last_exn : string -> split_on:char -> string * string
 
+    (** Splits on the first occurence of the given character. *)
+    val split_first_exn : string -> split_on:char -> string * string
+
     val starts_with : prefix:string -> string -> bool
     val ends_with : suffix:string -> string -> bool
   end
@@ -895,3 +898,5 @@ end
 type filepath = string
 
 type alerts = string Stdlib.String.Map.t
+
+val remove_double_underscores : string -> string

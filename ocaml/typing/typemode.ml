@@ -1,4 +1,3 @@
-open Asttypes
 open Location
 open Mode
 
@@ -13,7 +12,7 @@ let transl_mode_annots modes =
   let rec loop (acc : Alloc.Const.Option.t) = function
     | [] -> acc
     | m :: rest ->
-      let { txt = Mode txt; loc } = m in
+      let { txt = Mode txt; loc } = (m : Parsetree.mode loc) in
       let acc : Alloc.Const.Option.t =
         match txt with
         (* CR zqian: We should interpret other mode names (global, shared, once)
@@ -40,7 +39,7 @@ let transl_global_flags modalities =
   let rec loop (acc : Global_flag.t Location.loc) = function
     | [] -> acc
     | m :: rest ->
-      let ({ txt; loc }) = (m : Asttypes.modality Location.loc) in
+      let { txt; loc } = (m : Parsetree.modality loc) in
       let acc : Global_flag.t Location.loc =
         let (Modality txt) = txt in
         match txt with

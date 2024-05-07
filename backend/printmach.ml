@@ -43,12 +43,13 @@ let reg ppf r =
     fprintf ppf "%s" (Reg.name r)
   else
     fprintf ppf "%s"
-      (match r.typ with
+      (match (r.typ : machtype_component) with
       | Val -> "V"
       | Addr -> "A"
       | Int -> "I"
       | Float -> "F"
-      | Vec128 -> "X");
+      | Vec128 -> "X"
+      | Float32 -> "S");
   fprintf ppf "/%i" r.stamp;
   loc
     ~wrap_out:(fun ppf f -> fprintf ppf "[%t]" f)
@@ -165,6 +166,7 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Ispill -> fprintf ppf "%a (spill)" regs arg
   | Ireload -> fprintf ppf "%a (reload)" regs arg
   | Iconst_int n -> fprintf ppf "%s" (Nativeint.to_string n)
+  | Iconst_float32 f -> fprintf ppf "%Fs" (Int32.float_of_bits f)
   | Iconst_float f -> fprintf ppf "%F" (Int64.float_of_bits f)
   | Iconst_symbol s -> fprintf ppf "\"%s\"" s.sym_name
   | Iconst_vec128 {high; low} -> fprintf ppf "%016Lx:%016Lx" high low
@@ -229,8 +231,12 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Ivectorcast Bits128 ->
     fprintf ppf "vec128->vec128 %a"
     reg arg.(0)
-  | Iscalarcast Float_of_int -> fprintf ppf "int->float %a" reg arg.(0)
-  | Iscalarcast Float_to_int -> fprintf ppf "float->int %a" reg arg.(0)
+  | Iscalarcast (Float_of_int Float64) -> fprintf ppf "int->float %a" reg arg.(0)
+  | Iscalarcast (Float_to_int Float64) -> fprintf ppf "float->int %a" reg arg.(0)
+  | Iscalarcast (Float_of_int Float32) -> fprintf ppf "int->float32 %a" reg arg.(0)
+  | Iscalarcast (Float_to_int Float32) -> fprintf ppf "float32->int %a" reg arg.(0)
+  | Iscalarcast (Float_of_float32) -> fprintf ppf "float32->float %a" reg arg.(0)
+  | Iscalarcast (Float_to_float32) -> fprintf ppf "float->float32 %a" reg arg.(0)
   | Iscalarcast (V128_of_scalar ty) ->
     fprintf ppf "scalar->%s %a"
       (Primitive.vec128_name ty) reg arg.(0)

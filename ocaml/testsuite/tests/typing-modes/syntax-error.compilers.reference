@@ -91,7 +91,7 @@ Error: Syntax error: modality expression expected.
 Line 4, characters 0-1:
 4 | }
     ^
-Error: Syntax error
+Error: Syntax error: modality expression expected.
 Line 2, characters 21-22:
 2 | let foo ?(local_ x @ = 42) () = () ;;
                          ^

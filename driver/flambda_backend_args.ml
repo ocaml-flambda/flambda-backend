@@ -102,10 +102,10 @@ let mk_heap_reduction_threshold f =
 ;;
 
 let mk_zero_alloc_check f =
-  let annotations = Clflags.Annotations.(List.map to_string all) in
+  let annotations = Zero_alloc_annotations.(List.map to_string all) in
   "-zero-alloc-check", Arg.Symbol (annotations, f),
   " Check that annotated functions do not allocate \
-   and do not have indirect calls. "^Clflags.Annotations.doc
+   and do not have indirect calls. "^Zero_alloc_annotations.doc
 
 let mk_dcheckmach f =
   "-dcheckmach", Arg.Unit f, " (undocumented)"
@@ -567,6 +567,13 @@ let mk_restrict_to_upstream_dwarf f =
 let mk_no_restrict_to_upstream_dwarf f =
   "-gno-upstream-dwarf", Arg.Unit f, " Emit potentially more DWARF information than the upstream compiler"
 
+let mk_dwarf_inlined_frames f =
+  "-gdwarf-inlined-frames", Arg.Unit f, " Emit DWARF inlined frame information"
+
+let mk_no_dwarf_inlined_frames f =
+  "-gno-dwarf-inlined-frames", Arg.Unit f,
+  " Do not emit DWARF inlined frame information"
+
 let mk_dwarf_for_startup_file f =
   "-gstartup", Arg.Unit f, " Emit potentially more DWARF information\n\
     \     for the startup file than the upstream compiler\n\
@@ -933,7 +940,7 @@ module Flambda_backend_options_impl = struct
     Flambda_backend_flags.heap_reduction_threshold := x
 
   let zero_alloc_check s =
-    match Clflags.Annotations.of_string s with
+    match Zero_alloc_annotations.of_string s with
     | None -> () (* this should not occur as we use Arg.Symbol *)
     | Some a ->
       Clflags.zero_alloc_check := a
@@ -1114,6 +1121,8 @@ end
 module type Debugging_options = sig
   val restrict_to_upstream_dwarf : unit -> unit
   val no_restrict_to_upstream_dwarf : unit -> unit
+  val dwarf_inlined_frames : unit -> unit
+  val no_dwarf_inlined_frames : unit -> unit
   val dwarf_for_startup_file : unit -> unit
   val no_dwarf_for_startup_file : unit -> unit
   val gdwarf_may_alter_codegen : unit -> unit
@@ -1125,6 +1134,8 @@ module Make_debugging_options (F : Debugging_options) = struct
   let list3 = [
     mk_restrict_to_upstream_dwarf F.restrict_to_upstream_dwarf;
     mk_no_restrict_to_upstream_dwarf F.no_restrict_to_upstream_dwarf;
+    mk_dwarf_inlined_frames F.dwarf_inlined_frames;
+    mk_no_dwarf_inlined_frames F.no_dwarf_inlined_frames;
     mk_dwarf_for_startup_file F.dwarf_for_startup_file;
     mk_no_dwarf_for_startup_file F.no_dwarf_for_startup_file;
     mk_gdwarf_may_alter_codegen F.gdwarf_may_alter_codegen;
@@ -1138,6 +1149,10 @@ module Debugging_options_impl = struct
     Debugging.restrict_to_upstream_dwarf := true
   let no_restrict_to_upstream_dwarf () =
     Debugging.restrict_to_upstream_dwarf := false
+  let dwarf_inlined_frames () =
+    Debugging.dwarf_inlined_frames := true
+  let no_dwarf_inlined_frames () =
+    Debugging.dwarf_inlined_frames := false
   let dwarf_for_startup_file () =
     Debugging.dwarf_for_startup_file := true
   let no_dwarf_for_startup_file () =
@@ -1214,7 +1229,7 @@ module Extra_params = struct
     | "basic-block-sections" -> set' Flambda_backend_flags.basic_block_sections
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "zero-alloc-check" ->
-      (match Clflags.Annotations.of_string v with
+      (match Zero_alloc_annotations.of_string v with
        | Some a -> Clflags.zero_alloc_check := a; true
        | None ->
          raise

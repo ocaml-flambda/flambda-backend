@@ -89,6 +89,7 @@ val invalid :
 type update_kind =
   | Word_val
   | Word_int
+  | Single of { reg : Cmm.float_width }
   | Double
   | Thirtytwo_signed
   | Onetwentyeight_unaligned

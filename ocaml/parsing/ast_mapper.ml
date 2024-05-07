@@ -29,8 +29,8 @@ module String = Misc.Stdlib.String
 type mapper = {
   attribute: mapper -> attribute -> attribute;
   attributes: mapper -> attribute list -> attribute list;
-  modes : mapper -> Asttypes.mode loc list -> Asttypes.mode loc list;
-  modalities : mapper -> Asttypes.modality loc list -> Asttypes.modality loc list;
+  modes : mapper -> mode loc list -> mode loc list;
+  modalities : mapper -> modality loc list -> modality loc list;
   binding_op: mapper -> binding_op -> binding_op;
   case: mapper -> case -> case;
   cases: mapper -> case list -> case list;

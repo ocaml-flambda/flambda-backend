@@ -201,6 +201,17 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
         set_of_closures
     in
     env, res, updates
+  | Block_like symbol, Boxed_float32 v ->
+    let default = Numeric_types.Float32_by_bit_pattern.zero in
+    let transl = Numeric_types.Float32_by_bit_pattern.to_float in
+    let structured f = Cmmgen_state.Const_float32 f in
+    let res, env, updates =
+      static_boxed_number
+        ~kind:(Single { reg = Float32 })
+        ~env ~symbol ~default ~emit:C.emit_float32_constant ~transl ~structured
+        v res updates
+    in
+    env, res, updates
   | Block_like symbol, Boxed_float v ->
     let default = Numeric_types.Float_by_bit_pattern.zero in
     let transl = Numeric_types.Float_by_bit_pattern.to_float in
@@ -295,6 +306,9 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let header = C.black_block_header 0 0 in
     let block = C.emit_block sym header [] in
     env, R.set_data res block, updates
+  | Block_like _s, Empty_array Naked_float32s ->
+    (* CR mslater: (float32) unboxed arrays *)
+    assert false
   | Block_like s, Empty_array Naked_int32s ->
     let block =
       C.emit_block (R.symbol res s)
@@ -325,8 +339,9 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
       "[Set_of_closures] values cannot be bound by [Block_like] bindings:@ %a"
       SC.print static_const
   | ( (Code _ | Set_of_closures _),
-      ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_vec128 _
-      | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
+      ( Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
+      | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
+      | Immutable_float_block _ | Immutable_float_array _
       | Immutable_int32_array _ | Immutable_int64_array _
       | Immutable_nativeint_array _ | Immutable_value_array _ | Empty_array _
       | Mutable_string _ | Immutable_string _ ) ) ->

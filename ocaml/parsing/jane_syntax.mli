@@ -170,7 +170,7 @@ module N_ary_functions : sig
       [let local_ f x : int -> int = ...].
   *)
   type function_constraint =
-    { mode_annotations : Asttypes.mode Location.loc list;
+    { mode_annotations : Parsetree.mode Location.loc list;
       type_constraint : type_constraint
     }
 

@@ -1,8 +1,0 @@
-# @configure_input@
-
-version = "@VERSION@"
-description = "Upstream-compatible extensions library"
-archive(byte) = "upstream_compatible.cma"
-archive(native) = "upstream_compatible.cmxa"
-plugin(byte) = "upstream_compatible.cma"
-plugin(native) = "upstream_compatible.cmxs"

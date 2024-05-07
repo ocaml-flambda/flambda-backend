@@ -110,6 +110,7 @@ type error =
   | Polymorphic_class_parameter
   | Non_value_binding of string * Jkind.Violation.t
   | Non_value_let_binding of string * Jkind.sort
+  | Nonoptional_call_pos_label of string
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -446,7 +447,7 @@ and class_type_aux env virt self_scope scty =
         match l with
         | Position _ -> ctyp Ttyp_call_pos (Ctype.newconstr Predef.path_lexing_position [])
         | Optional _ | Labelled _ | Nolabel ->
-          transl_simple_type ~new_var_jkind:Any env ~closed:false Alloc.Const.legacy sty 
+          transl_simple_type ~new_var_jkind:Any env ~closed:false Alloc.Const.legacy sty
       in
       let ty = cty.ctyp_type in
       let ty =
@@ -489,6 +490,7 @@ let enter_ancestor_met ~loc name ~sign ~meths ~cl_num ~ty ~attrs met_env =
   let desc =
     { val_type = ty; val_kind = kind;
       val_attributes = attrs;
+      val_zero_alloc = Builtin_attributes.Default_check;
       Types.val_loc = loc;
       val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
   in
@@ -504,6 +506,7 @@ let add_self_met loc id sign self_var_kind vars cl_num
   let desc =
     { val_type = ty; val_kind = kind;
       val_attributes = attrs;
+      val_zero_alloc = Builtin_attributes.Default_check;
       Types.val_loc = loc;
       val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
   in
@@ -520,6 +523,7 @@ let add_instance_var_met loc label id sign cl_num attrs met_env =
     { val_type = ty; val_kind = kind;
       val_attributes = attrs;
       Types.val_loc = loc;
+      val_zero_alloc = Builtin_attributes.Default_check;
       val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
   in
   Env.add_value id desc met_env
@@ -1266,10 +1270,10 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       if not_nolabel_function cl.cl_type then begin
         match l with
         | Nolabel | Labelled _ -> ()
-        | Optional _ -> 
+        | Optional _ ->
           Location.prerr_warning pat.pat_loc
             Warnings.Unerasable_optional_argument;
-        | Position _ -> 
+        | Position _ ->
           Location.prerr_warning pat.pat_loc
             Warnings.Unerasable_position_argument;
       end;
@@ -1350,7 +1354,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                        (not optional && l' = Nolabel)
                     then
                       (remaining_sargs, use_arg sarg l')
-                    else if optional && label_is_absent_in_remaining_args () 
+                    else if optional && label_is_absent_in_remaining_args ()
                     then (sargs, eliminate_optional_arg ())
                     else if Btype.is_position l && label_is_absent_in_remaining_args ()
                     then (sargs, eliminate_position_arg ())
@@ -1359,10 +1363,17 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
               end else
                 match Btype.extract_label name sargs with
                 | Some (l', sarg, _, remaining_sargs) ->
-                    if not optional && Btype.is_optional l' then
-                      Location.prerr_warning sarg.pexp_loc
-                        (Warnings.Nonoptional_label
-                           (Printtyp.string_of_label l));
+                    if not optional && Btype.is_optional l' then (
+                      let label = Printtyp.string_of_label l in
+                      if Btype.is_position l then
+                        raise
+                          (Error
+                             ( sarg.pexp_loc
+                             , val_env
+                             , Nonoptional_call_pos_label label))
+                      else
+                        Location.prerr_warning sarg.pexp_loc
+                          (Warnings.Nonoptional_label label));
                     remaining_sargs, use_arg sarg l'
                 | None ->
                     let is_erased () = List.mem_assoc Nolabel sargs in
@@ -1414,7 +1425,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
         Typecore.type_let In_class_def val_env rec_flag sdefs in
       let (vals, met_env) =
         List.fold_right
-          (fun (id, modes_and_sorts) (vals, met_env) ->
+          (fun (id, modes_and_sorts, _) (vals, met_env) ->
              List.iter
                (fun (loc, mode, sort) ->
                   Typecore.escape ~loc ~env:val_env ~reason:Other mode;
@@ -1447,6 +1458,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                {val_type = expr.exp_type;
                 val_kind = Val_ivar (Immutable, cl_num);
                 val_attributes = [];
+                val_zero_alloc = Builtin_attributes.Default_check;
                 Types.val_loc = vd.val_loc;
                 val_uid = vd.val_uid;
                }
@@ -1455,7 +1467,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
              ((id', expr)
               :: vals,
               Env.add_value id' desc met_env))
-          (let_bound_idents_with_modes_and_sorts defs)
+          (let_bound_idents_with_modes_sorts_and_checks defs)
           ([], met_env)
       in
       let cl = class_expr cl_num val_env met_env virt self_scope scl' in
@@ -2328,6 +2340,10 @@ let report_error env ppf = function
       "@[The types of variables bound by a 'let' in a class function@ \
        must have layout value. Instead, %s's type has layout %a.@]"
       nm Jkind.Sort.format sort
+  | Nonoptional_call_pos_label label ->
+    fprintf ppf
+      "@[the argument labeled '%s' is a [%%call_pos] argument, filled in @ \
+         automatically if ommitted. It cannot be passed with '?'.@]" label
 
 let report_error env ppf err =
   Printtyp.wrap_printing_env ~error:true

@@ -34,15 +34,14 @@ jobs:
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
 
-          - name: flambda2_debug_runtime_nnp
-            config: --enable-middle-end=flambda2 --disable-naked-pointers
+          - name: flambda2_o3
+            config: --enable-middle-end=flambda2
             os: ubuntu-latest
             build_ocamlparam: ''
-            use_runtime: d
-            ocamlrunparam: "v=0,V=1"
+            ocamlparam: '_,O3=1'
 
-          - name: flambda2_nnp_o3
-            config: --enable-middle-end=flambda2 --disable-naked-pointers
+          - name: flambda2_o3_heap
+            config: --enable-middle-end=flambda2 --disable-stack-allocation
             os: ubuntu-latest
             build_ocamlparam: ''
             ocamlparam: '_,O3=1'
@@ -60,9 +59,13 @@ jobs:
             ocamlparam: '_,Oclassic=1'
             disable_testcases: 'ocaml/testsuite/tests/typing-local/regression_cmm_unboxing.ml ocaml/testsuite/tests/int64-unboxing/test.ml'
 
+          # CR ccasinghino: We encountered build errors (missing autoconf, and
+          # then other errors) when `macos-latest` started referring to version
+          # 14.  So we've put a fixed version below for now, but we should
+          # eventually fix this.
           - name: flambda2_macos
             config: --enable-middle-end=flambda2 --disable-warn-error
-            os: macos-latest
+            os: macos-12
 
           - name: irc
             config: --enable-middle-end=flambda2

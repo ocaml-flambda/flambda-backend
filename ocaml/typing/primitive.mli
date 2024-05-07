@@ -102,6 +102,7 @@ val vec128_name: vec128_type -> string
 
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 val equal_boxed_float : boxed_float -> boxed_float -> bool
+val equal_vec128_type : vec128_type -> vec128_type -> bool
 val equal_boxed_vector_size : boxed_vector -> boxed_vector -> bool
 val equal_native_repr : native_repr -> native_repr -> bool
 val equal_effects : effects -> effects -> bool

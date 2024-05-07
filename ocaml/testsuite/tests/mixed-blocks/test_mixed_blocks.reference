@@ -76,3 +76,4 @@ Test 3, (float#+imm) records in recursive groups:
   f: -10.60
 Test 4: sum (33670) = 33670.000
   at end, sum (33670) = 33670.000
+Test 5: result (42) = 42.000 = 42.000 = 42.000 = 42.000

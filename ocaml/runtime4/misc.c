@@ -58,6 +58,8 @@ void caml_failed_assert (char * expr, char_os * file_os, int line)
 void caml_set_fields (value v, uintnat start, uintnat filler)
 {
   mlsize_t i;
+  /* We use Wosize_val instead of Scannable_wosize_val because it's fine to set
+     even unscannable fields. */
   for (i = start; i < Wosize_val (v); i++){
     Field (v, i) = (value) filler;
   }
