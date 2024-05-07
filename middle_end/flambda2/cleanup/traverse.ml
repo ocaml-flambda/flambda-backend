@@ -275,7 +275,7 @@ end = struct
           (Graph.Dep.Contains (Code_id_or_name.code_id code_id));
         Graph.add_dep t.deps2
           (Code_id_or_name.name name)
-          (Graph.Dep.Block (Code_of_closure, (Code_id_or_name.code_id code_id))))
+          (Graph.Dep.Block (Code_of_closure, Code_id_or_name.code_id code_id)))
       t.set_of_closures_dep;
     t.deps1, t.deps2
 end
@@ -315,9 +315,7 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
     else
       let deps =
         Graph.Dep.Use (Code_id_or_name.var exn)
-        :: List.map
-             (fun var -> Graph.Dep.Use (Code_id_or_name.var var))
-             return
+        :: List.map (fun var -> Graph.Dep.Use (Code_id_or_name.var var)) return
       in
       List.iter
         (fun dep ->
@@ -608,7 +606,8 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
     in
     let default acc =
       Name_occurrences.fold_names
-        ~f:(fun () free_name -> default_bp acc (Graph.Dep.Use (Code_id_or_name.name free_name)))
+        ~f:(fun () free_name ->
+          default_bp acc (Graph.Dep.Use (Code_id_or_name.name free_name)))
         ~init:()
         (Flambda.Named.free_names defining_expr)
     in
@@ -926,6 +925,10 @@ let run (unit : Flambda_unit.t) =
   in
   let deps = Acc.deps acc in
   let kinds = Acc.kinds acc in
-  let graph = { Global_flow_graph.toplevel_graph = snd deps; function_graphs = Hashtbl.create 0 } in
+  let graph =
+    { Global_flow_graph.toplevel_graph = snd deps;
+      function_graphs = Hashtbl.create 0
+    }
+  in
   let () = if debug_print then Dot.print_dep (Acc.code_deps acc, graph) in
   holed, deps, kinds

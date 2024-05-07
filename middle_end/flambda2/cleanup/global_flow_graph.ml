@@ -76,8 +76,8 @@ module Dep = struct
       | Propagate (n1, m1), Propagate (n2, m2) ->
         let c = Name.compare n1 n2 in
         if c <> 0 then c else Name.compare m1 m2
-      | ( ( Alias _ | Use _ | Contains _ | Field _ | Block _
-          | Alias_if_def _ | Propagate _ ),
+      | ( ( Alias _ | Use _ | Contains _ | Field _ | Block _ | Alias_if_def _
+          | Propagate _ ),
           _ ) ->
         Int.compare (numbering t1) (numbering t2)
 
@@ -151,7 +151,9 @@ let add_opaque_let_dependency t bp fv =
   let f () bound_to =
     Name_occurrences.fold_names fv
       ~f:(fun () dep ->
-        insert tbl (Code_id_or_name.name bound_to) (Dep.Use (Code_id_or_name.name dep)))
+        insert tbl
+          (Code_id_or_name.name bound_to)
+          (Dep.Use (Code_id_or_name.name dep)))
       ~init:()
   in
   Name_occurrences.fold_names bound_to ~f ~init:()

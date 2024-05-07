@@ -148,11 +148,18 @@ module Make_Fixpoint (G : Graph) = struct
                   if not (G.less_equal state widened old)
                   then (
                     let new_deps = G.elt_deps widened in
-                    Node.Set.iter (fun elt_dep -> Hashtbl.replace to_recompute_deps elt_dep (Node.Set.add target (Option.value ~default:Node.Set.empty (Hashtbl.find_opt to_recompute_deps elt_dep)))) new_deps;
+                    Node.Set.iter
+                      (fun elt_dep ->
+                        Hashtbl.replace to_recompute_deps elt_dep
+                          (Node.Set.add target
+                             (Option.value ~default:Node.Set.empty
+                                (Hashtbl.find_opt to_recompute_deps elt_dep))))
+                      new_deps;
                     G.set state target widened;
                     push target;
-                    (match Hashtbl.find_opt to_recompute_deps target with None -> () | Some elt_deps -> Node.Set.iter push elt_deps)
-                  )
+                    match Hashtbl.find_opt to_recompute_deps target with
+                    | None -> ()
+                    | Some elt_deps -> Node.Set.iter push elt_deps)
                 end
                 else G.set state target (G.join state old propagated))
             ()
@@ -190,12 +197,19 @@ module Make_Fixpoint (G : Graph) = struct
       components
 
   let check_fixpoint (graph : G.graph) (roots : Node.Set.t) (state : G.state) =
-    Node.Set.iter (fun root -> assert (G.less_equal state G.top (G.get state root))) roots;
-    G.fold_nodes graph (fun node () ->
-        G.fold_edges graph node (fun dep () ->
-            assert (G.less_equal state (G.propagate state node (G.get state node) dep) (G.get state (G.target dep)))
-          ) ()
-      ) ()
+    Node.Set.iter
+      (fun root -> assert (G.less_equal state G.top (G.get state root)))
+      roots;
+    G.fold_nodes graph
+      (fun node () ->
+        G.fold_edges graph node
+          (fun dep () ->
+            assert (
+              G.less_equal state
+                (G.propagate state node (G.get state node) dep)
+                (G.get state (G.target dep))))
+          ())
+      ()
 end
 
 (** Represents the part of a value that can be accessed *)
@@ -209,15 +223,17 @@ let pp_elt ppf elt =
   | Top -> Format.pp_print_string ppf "⊤"
   | Bottom -> Format.pp_print_string ppf "⊥"
   | Fields fields ->
-    Format.fprintf ppf "{ %a }" (Field.Map.print Code_id_or_name.Set.print) fields
-
+    Format.fprintf ppf "{ %a }"
+      (Field.Map.print Code_id_or_name.Set.print)
+      fields
 
 let less_equal_elt e1 e2 =
   match e1, e2 with
   | Bottom, _ | _, Top -> true
   | (Top | Fields _), Bottom | Top, Fields _ -> false
   | Fields f1, Fields f2 ->
-    if f1 == f2 then true
+    if f1 == f2
+    then true
     else
       let ok = ref true in
       ignore
@@ -233,7 +249,10 @@ let less_equal_elt e1 e2 =
 let elt_deps elt =
   match elt with
   | Bottom | Top -> Code_id_or_name.Set.empty
-  | Fields f -> Field.Map.fold (fun _ v acc -> Code_id_or_name.Set.union v acc) f Code_id_or_name.Set.empty
+  | Fields f ->
+    Field.Map.fold
+      (fun _ v acc -> Code_id_or_name.Set.union v acc)
+      f Code_id_or_name.Set.empty
 
 let join_elt e1 e2 =
   if e1 == e2
@@ -243,7 +262,10 @@ let join_elt e1 e2 =
     | Bottom, e | e, Bottom -> e
     | Top, _ | _, Top -> Top
     | Fields f1, Fields f2 ->
-      Fields (Field.Map.union (fun _ e1 e2 -> Some (Code_id_or_name.Set.union e1 e2)) f1 f2)
+      Fields
+        (Field.Map.union
+           (fun _ e1 e2 -> Some (Code_id_or_name.Set.union e1 e2))
+           f1 f2)
 
 let target (dep : dep) : Code_id_or_name.t =
   match dep with
@@ -261,9 +283,7 @@ let propagate uses (k : Code_id_or_name.t) (elt : elt) (dep : dep) : elt =
   | Top | Fields _ -> begin
     match dep with
     | Alias _ -> elt
-    | Contains _ -> (
-        assert false
-      )
+    | Contains _ -> assert false
     | Use _ -> Top
     | Field (f, _) ->
       Fields (Field.Map.singleton f (Code_id_or_name.Set.singleton k))
@@ -271,9 +291,19 @@ let propagate uses (k : Code_id_or_name.t) (elt : elt) (dep : dep) : elt =
       match elt with
       | Bottom -> assert false
       | Top -> Top
-      | Fields fields -> (
-          let elems = match Field.Map.find_opt f fields with None -> Code_id_or_name.Set.empty | Some s -> s in
-          Code_id_or_name.Set.fold (fun n acc -> join_elt acc (match Hashtbl.find_opt uses n with None -> Bottom | Some e -> e)) elems Bottom)
+      | Fields fields ->
+        let elems =
+          match Field.Map.find_opt f fields with
+          | None -> Code_id_or_name.Set.empty
+          | Some s -> s
+        in
+        Code_id_or_name.Set.fold
+          (fun n acc ->
+            join_elt acc
+              (match Hashtbl.find_opt uses n with
+              | None -> Bottom
+              | Some e -> e))
+          elems Bottom
     end
     | Alias_if_def (_, c) -> begin
       match Hashtbl.find_opt uses (Code_id_or_name.code_id c) with
@@ -306,7 +336,6 @@ let propagate_top uses (dep : dep) : bool =
   end
 
 type result = (Code_id_or_name.t, elt) Hashtbl.t
-
 
 let pp_result ppf (res : result) =
   let elts = List.of_seq @@ Hashtbl.to_seq res in
@@ -372,26 +401,18 @@ module Solver = Make_Fixpoint (Graph)
 let fixpoint graph_old (graph_new : Global_flow_graph.fun_graph) =
   let _result = Dep_solver_safe.fixpoint graph_old in
   let result_topo = Hashtbl.create 17 in
-  let uses = 
-    (graph_new.Global_flow_graph.used |> Hashtbl.to_seq_keys |> List.of_seq
-   |> Code_id_or_name.Set.of_list)
-      in
-      Solver.fixpoint_topo graph_new uses
-    result_topo;
-      Solver.check_fixpoint graph_new uses result_topo;
+  let uses =
+    graph_new.Global_flow_graph.used |> Hashtbl.to_seq_keys |> List.of_seq
+    |> Code_id_or_name.Set.of_list
+  in
+  Solver.fixpoint_topo graph_new uses result_topo;
+  Solver.check_fixpoint graph_new uses result_topo;
   (* Format.eprintf "RESULT: %a@." pp_result result_topo; *)
-(*
-  if Sys.getenv_opt "TOTO" <> None
-  then (
-    Format.eprintf "TOPO:@.%a@.@." pp_result result_topo;
-    Format.eprintf "NORMAL:@.%a@.@." pp_result result);
-  if not (Dep_solver_safe.equal_result result_topo result)
-  then begin
-    Format.printf "NOT EQUAL:@.%a@.XXX@.%a@.END@.XXXXXXX@.DIFF:@." pp_result
-      result_topo pp_result result;
-    Dep_solver_safe.print_diff result result_topo;
-    assert false
-  end;
-  assert (Dep_solver_safe.equal_result result_topo result);
-  *)
+  (* if Sys.getenv_opt "TOTO" <> None then ( Format.eprintf "TOPO:@.%a@.@."
+     pp_result result_topo; Format.eprintf "NORMAL:@.%a@.@." pp_result result);
+     if not (Dep_solver_safe.equal_result result_topo result) then begin
+     Format.printf "NOT EQUAL:@.%a@.XXX@.%a@.END@.XXXXXXX@.DIFF:@." pp_result
+     result_topo pp_result result; Dep_solver_safe.print_diff result
+     result_topo; assert false end; assert (Dep_solver_safe.equal_result
+     result_topo result); *)
   result_topo

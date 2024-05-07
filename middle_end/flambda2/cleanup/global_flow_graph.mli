@@ -8,6 +8,7 @@ module Field : sig
     | Code_of_closure
 
   val equal : t -> t -> bool
+
   val print : Format.formatter -> t -> unit
 
   module Map : Container_types.Map with type key = t
