@@ -312,7 +312,7 @@ type t17 = { a : float;
              mutable f : float# }
 
 (* Construction *)
-let t17_1 = { a = 3.14;
+let t17_1 = { a = 3.17;
               b = 13;
               c = Float_u.of_float 7.31;
               d = Float_u.of_float 1.41;
