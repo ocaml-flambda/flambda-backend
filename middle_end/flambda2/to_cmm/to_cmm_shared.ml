@@ -87,7 +87,9 @@ let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
     | Unboxed_nativeint_array | Value_array | Generic_array ->
       Word_val)
   | Naked_number (Naked_int64 | Naked_nativeint | Naked_immediate) -> Word_int
-  | Naked_number Naked_int32 -> Thirtytwo_signed
+  | Naked_number Naked_int32 ->
+    (* This only reads and writes 32 bits, but will sign extend upon reading. *)
+    Thirtytwo_signed
   | Naked_number Naked_float -> Double
   | Naked_number Naked_float32 -> Single { reg = Float32 }
   | Naked_number Naked_vec128 ->
@@ -267,10 +269,20 @@ module Update_kind = struct
     | Naked_float32
     | Naked_vec128
 
+  (* The [stride] is the number of bytes by which an [index] supplied to
+     [make_update], below, needs to be multiplied to get the byte offset into
+     the corresponding block. Note that [stride] may be smaller than the width
+     of the value being written, for example in the [Naked_vec128] case, where
+     addressing is still field-based but the values being written actually
+     occupy two fields. *)
   type t =
     { kind : kind;
       stride : int
     }
+
+  let () =
+    assert (Arch.size_addr = 8);
+    assert (Arch.size_float = 8)
 
   let pointers = { kind = Pointer; stride = Arch.size_addr }
 
@@ -299,15 +311,15 @@ let make_update env res dbg (kind : Update_kind.t) ~symbol var ~index
     To_cmm_env.inline_variable env res var
   in
   let cmm =
-    let must_use_setfield =
-      (* The 4 GC does not need to see static field updates, as static blocks
-         are global roots. The 5 GC must. *)
+    let must_use_setfield : Lambda.immediate_or_pointer option =
+      (* The 4 GC does not need to see static field updates, but the 5 GC must,
+         due to differences in how global roots are handled. *)
       if not Config.runtime5
       then None
       else
         match kind.kind with
-        | Pointer -> Some Lambda.Pointer
-        | Immediate -> Some Lambda.Immediate
+        | Pointer -> Some Pointer
+        | Immediate -> Some Immediate
         | Naked_int32 | Naked_int64 | Naked_float | Naked_float32 | Naked_vec128
           ->
           (* The GC never sees these fields, so we can avoid using
