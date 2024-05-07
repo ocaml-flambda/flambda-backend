@@ -19,8 +19,8 @@ type t = C of int64#;;
 Line 1, characters 9-20:
 1 | type t = C of int64#;;
              ^^^^^^^^^^^
-Error: Type int64# has layout bits64.
-       Variants may not yet contain types of this layout.
+Error: The enabled layouts extension does not allow for mixed constructors.
+       You must enable -extension layouts_beta to use this feature.
 |}];;
 
 type t = C : int64# -> t;;
@@ -28,8 +28,8 @@ type t = C : int64# -> t;;
 Line 1, characters 9-24:
 1 | type t = C : int64# -> t;;
              ^^^^^^^^^^^^^^^
-Error: Type int64# has layout bits64.
-       Variants may not yet contain types of this layout.
+Error: The enabled layouts extension does not allow for mixed constructors.
+       You must enable -extension layouts_beta to use this feature.
 |}];;
 
 (* int64# works as an argument to normal type constructors, not just
