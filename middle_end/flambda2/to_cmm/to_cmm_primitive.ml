@@ -108,7 +108,9 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     match field_kind with
     | Imm -> C.get_field_computed Immediate mutability ~block ~index dbg
     | Float | Float64 ->
-      (* CR layouts v5.1: We should use the mutability here. *)
+      (* CR layouts v5.1: We should use the mutability here to generate
+         better code if the load is immutable.
+       *)
       C.unboxed_float_array_ref block index dbg
     | Bits32 -> C.get_field_unboxed_int32 mutability ~block ~index dbg
     | Bits64 | Word ->
