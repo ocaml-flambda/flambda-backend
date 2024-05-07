@@ -20,14 +20,11 @@ type t5_1 = { x : t_bits32 };;
 type t5_1 = { x : t_bits32; }
 |}];;
 
-(* CR layouts v5: this should work *)
 type t5_2 = { y : int; x : t_bits32 };;
 [%%expect{|
 type t5_2 = { y : int; x : t_bits32; }
 |}];;
 
-(* CR layouts: this runs afoul of the mixed block restriction, but should work
-   once we relax that. *)
 type t5_2' = { y : string; x : t_bits32 };;
 [%%expect{|
 type t5_2' = { y : string; x : t_bits32; }
@@ -48,6 +45,17 @@ type ('a : bits32) t5_8 = A of 'a;;
 [%%expect{|
 type ('a : bits32) t5_7 = A of int
 type ('a : bits32) t5_8 = A of 'a
+|}]
+
+(* not allowed: value in flat suffix *)
+type 'a t_disallowed = A of t_bits32 * 'a
+
+[%%expect{|
+Line 1, characters 23-41:
+1 | type 'a t_disallowed = A of t_bits32 * 'a
+                           ^^^^^^^^^^^^^^^^^^
+Error: Expected all flat constructor arguments after non-value argument,
+       t_bits32, but found boxed argument, 'a.
 |}]
 
 (* Test 11: Extensible variants *)
@@ -77,3 +85,13 @@ type 'a t11_2 += A of int
 type 'a t11_2 += B of 'a
 |}]
 
+(* not allowed: value in flat suffix *)
+type 'a t11_2 += C : 'a * 'b -> 'a t11_2
+
+[%%expect{|
+Line 1, characters 17-40:
+1 | type 'a t11_2 += C : 'a * 'b -> 'a t11_2
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+Error: Expected all flat constructor arguments after non-value argument, 'a,
+       but found boxed argument, 'b.
+|}]

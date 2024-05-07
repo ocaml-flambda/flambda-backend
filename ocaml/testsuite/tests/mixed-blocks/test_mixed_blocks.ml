@@ -10,7 +10,7 @@
 *)
 
 (*****************************************)
-(* Prelude: Functions on unboxed floats. *)
+(* Prelude: Functions on unboxed numbers *)
 
 module Float_u = struct
   include Stdlib__Float_u

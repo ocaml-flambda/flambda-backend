@@ -57,6 +57,17 @@ type t11_1 = ..
 type t11_1 += A of t_word
 |}]
 
+(* not allowed: value in flat suffix *)
+type 'a t_disallowed = A of t_word * 'a
+
+[%%expect{|
+Line 1, characters 23-39:
+1 | type 'a t_disallowed = A of t_word * 'a
+                           ^^^^^^^^^^^^^^^^
+Error: Expected all flat constructor arguments after non-value argument,
+       t_word, but found boxed argument, 'a.
+|}]
+
 (***************************************************)
 (* Test 11: Allow word in some extensible variants *)
 
@@ -77,3 +88,13 @@ type 'a t11_2 += A of int
 type 'a t11_2 += B of 'a
 |}]
 
+(* not allowed: value in flat suffix *)
+type 'a t11_2 += C : 'a * 'b -> 'a t11_2
+
+[%%expect{|
+Line 1, characters 17-40:
+1 | type 'a t11_2 += C : 'a * 'b -> 'a t11_2
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+Error: Expected all flat constructor arguments after non-value argument, 'a,
+       but found boxed argument, 'b.
+|}]
