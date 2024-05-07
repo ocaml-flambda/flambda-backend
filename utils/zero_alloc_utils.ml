@@ -137,8 +137,9 @@ module Make (Witnesses : WS) = struct
 
     let relaxed w = { nor = V.Safe; exn = V.Top w; div = V.Top w }
 
-    let of_annotation ~strict ~never_returns_normally =
+    let of_annotation ~strict ~never_returns_normally ~never_raises =
       let res = if strict then safe else relaxed Witnesses.empty in
+      let res = if never_raises then { res with exn = V.Bot } else res in
       if never_returns_normally then { res with nor = V.Bot } else res
 
     let print ~witnesses ppf { nor; exn; div } =
@@ -211,8 +212,8 @@ module Assume_info = struct
 
   let none = No_assume
 
-  let create ~strict ~never_returns_normally =
-    Assume (Value.of_annotation ~strict ~never_returns_normally)
+  let create ~strict ~never_returns_normally ~never_raises =
+    Assume (Value.of_annotation ~strict ~never_returns_normally ~never_raises)
 
   let get_value t = match t with No_assume -> None | Assume v -> Some v
 
