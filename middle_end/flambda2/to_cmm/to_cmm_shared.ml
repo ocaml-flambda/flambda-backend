@@ -322,7 +322,9 @@ let make_update env res dbg ({ kind; stride } : Update_kind.t) ~symbol var
       else
         match kind with
         | Pointer -> Some Pointer
-        | Immediate -> Some Immediate
+        | Immediate ->
+          (* See [caml_initialize]; we can avoid this function in this case. *)
+          None
         | Naked_int32 | Naked_int64 | Naked_float | Naked_float32 | Naked_vec128
           ->
           (* The GC never sees these fields, so we can avoid using
@@ -338,7 +340,8 @@ let make_update env res dbg ({ kind; stride } : Update_kind.t) ~symbol var
     | None ->
       let memory_chunk : Cmm.memory_chunk =
         match kind with
-        | Pointer | Immediate -> Word_val
+        | Pointer -> Word_val
+        | Immediate -> Word_int
         | Naked_int32 ->
           (* Cmm expressions representing int32 values are always sign extended.
              By using [Word_int] in the "fields" cases (see [Update_kind],
