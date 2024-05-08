@@ -5,17 +5,17 @@ Boxed:
   estimate: 3.141699
   allocations: Allocated
 Construction (40 bytes for record):
-  allocated bytes: 24.00
+  allocated bytes: 40.00
   a: 3.14
-  b: 6.28
-  c: 0.00
-  d: 0.00
+  b: 42.00
+  c: 6.28
+  d: 4.14
 Manipulation (0 bytes):
   allocated bytes: 0.00
   a: 3.14
-  b: -21.10
-  c: 0.00
-  d: 9.42
+  b: -14.82
+  c: 6.28
+  d: 45.14
 CSE test (0 bytes):
   allocated bytes: 0.00
 Float32 literals:
