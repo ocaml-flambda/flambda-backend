@@ -292,6 +292,15 @@ CAMLnoreturn_end;
 
 value caml_make_unhandled_effect_exn (value effect);
 
+#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+// mmap does not seem to guarantee it will always return a page-aligned
+// address as per some man pages from a few years ago (more recent man
+// pages seem to indicate the alignment is guaranteed), hence the last
+// part of the expression below to add an offset guaranteeing alignment
+#define Protected_stack_page(block, page_size) \
+  (((char*) (block)) + (page_size) + (page_size) - ((uintnat) ((char*) (block)) % (page_size)))
+#endif
+
 #endif /* CAML_INTERNALS */
 
 #endif /* CAML_FIBER_H */

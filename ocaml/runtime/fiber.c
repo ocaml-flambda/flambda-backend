@@ -166,7 +166,7 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
     munmap(block, len);
     return NULL;
   }
-  if (mprotect((char *) block + page_size, page_size, PROT_NONE)) {
+  if (mprotect(Protected_stack_page(block, page_size), page_size, PROT_NONE)) {
     munmap(block, len);
     return NULL;
   }
@@ -884,7 +884,7 @@ void caml_free_stack (struct stack_info* stack)
 #ifndef USE_MMAP_MAP_STACK
 #if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
   int page_size = getpagesize();
-  mprotect((void *) ((char *) stack + page_size),
+  mprotect((void *) Protected_stack_page(stack, page_size),
            page_size,
            PROT_READ | PROT_WRITE);
 #endif

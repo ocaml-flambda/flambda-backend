@@ -141,7 +141,7 @@ void caml_stash_backtrace_wrapper(value exn, char* rsp, char* trapsp) {
    * exception from a segfault... */
   struct stack_info *block = Caml_state->current_stack;
   int page_size = getpagesize();
-  char* protected_low = (char *) block + page_size;
+  char* protected_low = Protected_stack_page(block, page_size);
   char* protected_high = protected_low + page_size;
   if ((rsp >= protected_low) && (rsp < protected_high)) {
     return;

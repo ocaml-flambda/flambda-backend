@@ -111,7 +111,7 @@ DECLARE_SIGNAL_HANDLER(segv_handler)
   struct stack_info *block = Caml_state->current_stack;
   char* fault_addr = info->si_addr;
   int page_size = getpagesize();
-  char* protected_low = (char *) block + page_size;
+  char* protected_low = Protected_stack_page(block, page_size);
   char* protected_high = protected_low + page_size;
   if ((fault_addr >= protected_low) && (fault_addr < protected_high)) {
     context->uc_mcontext.gregs[REG_RIP]= (greg_t) &caml_raise_stack_overflow_nat;
