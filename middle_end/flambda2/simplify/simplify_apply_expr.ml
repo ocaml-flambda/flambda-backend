@@ -436,7 +436,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   in
   let expr, dacc =
     match new_closure_alloc_mode_and_first_complex_local_param with
-    | Bottom -> Expr.create_invalid (Closure_type_was_invalid apply), dacc
+    | Bottom ->
+      Expr.create_invalid (Partial_application_mode_mismatch apply), dacc
     | Ok (new_closure_alloc_mode, first_complex_local_param) ->
       (match closure_alloc_mode_from_type with
       | Heap_or_local -> ()

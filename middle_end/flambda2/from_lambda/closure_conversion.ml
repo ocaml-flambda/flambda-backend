@@ -2724,7 +2724,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
     (* This can happen in a dead GADT match case. *)
     ( acc,
       Expr.create_invalid
-        (Closure_type_was_invalid_classic_mode
+        (Partial_application_mode_mismatch_in_lambda
            (Debuginfo.from_location apply.loc)) )
   else
     let function_declarations =
