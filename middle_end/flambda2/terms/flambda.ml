@@ -1439,6 +1439,7 @@ module Invalid = struct
     | Apply_cont_of_unreachable_continuation of Continuation.t
     | Defining_expr_of_let of Bound_pattern.t * Named.t
     | Closure_type_was_invalid of Apply_expr.t
+    | Closure_type_was_invalid_classic_mode of Debuginfo.t
     | Calling_local_returning_closure_with_normal_apply of Apply_expr.t
     | Zero_switch_arms
     | Code_not_rebuilt
@@ -1464,6 +1465,11 @@ module Invalid = struct
       Format.asprintf
         "@[<hov 1>(Closure_type_was_invalid@ @[<hov 1>(apply_expr@ %a)@])@]"
         Apply_expr.print apply_expr
+    | Closure_type_was_invalid_classic_mode dbg ->
+      Format.asprintf
+        "@[<hov 1>(Closure_type_was_invalid_classic_mode@ @[<hov 1>(dbg@ \
+         %a)@])@]"
+        Debuginfo.print_compact dbg
     | Calling_local_returning_closure_with_normal_apply apply_expr ->
       Format.asprintf
         "@[<hov 1>(Calling_local_returning_closure_with_normal_apply@ @[<hov \

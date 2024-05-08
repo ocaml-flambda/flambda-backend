@@ -2721,35 +2721,38 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   in
   if not (Lambda.sub_mode closure_alloc_mode apply.IR.mode)
   then
-    Misc.fatal_errorf "Partial application of %a with wrong mode at %s"
-      Ident.print apply.IR.func
-      (Debuginfo.Scoped_location.string_of_scoped_location apply.IR.loc);
-  let function_declarations =
-    [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~function_slot
-        ~kind:
-          (Lambda.Curried
-             { nlocal =
-                 Flambda_arity.num_params missing_arity
-                 - first_complex_local_param
-             })
-        ~params ~params_arity ~removed_params:Ident.Set.empty
-        ~return:result_arity ~calling_convention:Normal_calling_convention
-        ~return_continuation ~exn_continuation ~my_region:apply.region
-        ~body:fbody ~attr ~loc:apply.loc ~free_idents_of_body
-        ~closure_alloc_mode ~first_complex_local_param ~result_mode
-        ~contains_no_escaping_local_allocs Recursive.Non_recursive ]
-  in
-  let body acc env =
-    let arg = find_simple_from_id env wrapper_id in
-    let acc, apply_cont =
-      Apply_cont_with_acc.create acc
-        ~args_approx:[find_value_approximation env arg]
-        apply_continuation ~args:[arg] ~dbg:Debuginfo.none
+    (* This can happen in a dead GADT match case. *)
+    ( acc,
+      Expr.create_invalid
+        (Closure_type_was_invalid_classic_mode
+           (Debuginfo.from_location apply.loc)) )
+  else
+    let function_declarations =
+      [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~function_slot
+          ~kind:
+            (Lambda.Curried
+               { nlocal =
+                   Flambda_arity.num_params missing_arity
+                   - first_complex_local_param
+               })
+          ~params ~params_arity ~removed_params:Ident.Set.empty
+          ~return:result_arity ~calling_convention:Normal_calling_convention
+          ~return_continuation ~exn_continuation ~my_region:apply.region
+          ~body:fbody ~attr ~loc:apply.loc ~free_idents_of_body
+          ~closure_alloc_mode ~first_complex_local_param ~result_mode
+          ~contains_no_escaping_local_allocs Recursive.Non_recursive ]
     in
-    Expr_with_acc.create_apply_cont acc apply_cont
-  in
-  close_let_rec acc env ~function_declarations ~body
-    ~current_region:apply.region
+    let body acc env =
+      let arg = find_simple_from_id env wrapper_id in
+      let acc, apply_cont =
+        Apply_cont_with_acc.create acc
+          ~args_approx:[find_value_approximation env arg]
+          apply_continuation ~args:[arg] ~dbg:Debuginfo.none
+      in
+      Expr_with_acc.create_apply_cont acc apply_cont
+    in
+    close_let_rec acc env ~function_declarations ~body
+      ~current_region:apply.region
 
 let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
     ~remaining_arity ~result_mode =
