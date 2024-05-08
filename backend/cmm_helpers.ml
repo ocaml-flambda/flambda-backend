@@ -1261,7 +1261,7 @@ let get_field_unboxed_int32 mutability ~block ~index dbg =
 let get_field_unboxed_float32 mutability ~block ~index dbg =
   let memory_chunk = Single { reg = Float32 } in
   (* CR layouts v5.1: We'll need to vary log2_size_addr to efficiently pack
-   * int32s *)
+   * float32s *)
   let field_address = array_indexing log2_size_addr block index dbg in
   Cop
     (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
@@ -1588,8 +1588,8 @@ let make_mixed_alloc ~mode dbg tag shape args =
       | Bits64 | Word -> setfield_unboxed_int64_or_nativeint arr ofs newval dbg
   in
   let size =
-    (* CR layouts 5.1: When we pack int32s more efficiently, this code will need
-       to change. *)
+    (* CR layouts 5.1: When we pack int32s/float32s more efficiently, this code
+       will need to change. *)
     value_prefix_len + Array.length flat_suffix
   in
   if size_float <> size_addr
