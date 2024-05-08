@@ -1017,6 +1017,13 @@ val get_field_unboxed_int32 :
   Debuginfo.t ->
   expression
 
+val get_field_unboxed_float32 :
+  Asttypes.mutable_flag ->
+  block:expression ->
+  index:expression ->
+  Debuginfo.t ->
+  expression
+
 val get_field_unboxed_int64_or_nativeint :
   Asttypes.mutable_flag ->
   block:expression ->
@@ -1031,5 +1038,7 @@ val get_field_unboxed_int64_or_nativeint :
  *)
 
 val setfield_unboxed_int32 : ternary_primitive
+
+val setfield_unboxed_float32 : ternary_primitive
 
 val setfield_unboxed_int64_or_nativeint : ternary_primitive

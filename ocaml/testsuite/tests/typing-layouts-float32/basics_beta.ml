@@ -1,9 +1,18 @@
 (* TEST
  flambda2;
  {
-   flags = "-extension small_numbers";
+   flags = "-extension layouts_alpha -extension small_numbers";
+   expect;
+ }{
+   flags = "-extension layouts_beta -extension small_numbers";
    expect;
  }
+*)
+
+(* This test is almost entirely a copy of [basics.ml], except
+   with different output for some layouts-beta features.
+   You should diff this file against [basics.ml] to see what's
+   different.
 *)
 
 (* This file contains typing tests for the layout [float32].
@@ -194,19 +203,15 @@ Error: This type ('b : value) should be an instance of type ('a : float32)
          it's the type of a tuple element.
 |}]
 
-(****************************************************************************)
-(* Test 5: Can't be put in structures in typedecls, except certain records. *)
+(*****************************************)
+(* Test 5: Can be put in some structures *)
 
 (* all-float32 records are allowed, as are some records that mix float32 and
-   value fields. See [tests/typing-layouts/mixed_records.ml] for tests of mixed
-   records. *)
+  value fields. See [tests/typing-layouts/mixed_records.ml] for tests of mixed
+  records. *)
 type t5_1 = { x : t_float32 };;
 [%%expect{|
-Line 1, characters 0-29:
-1 | type t5_1 = { x : t_float32 };;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_beta to use this feature.
+type t5_1 = { x : t_float32; }
 |}];;
 
 (* CR layouts 2.5: allow this *)
@@ -219,22 +224,18 @@ Error: Type t_float32 has layout float32.
        Unboxed records may not yet contain types of this layout.
 |}];;
 
+(* all-float32 constructor args are also allowed, as are some constructors that
+  mix float32 and value fields. These are only allowed in alpha, though. See
+  [tests/typing-layouts/mixed_constructor_args.ml] for tests of mixed
+  constructor args. *)
 type t5_4 = A of t_float32;;
 [%%expect{|
-Line 1, characters 12-26:
-1 | type t5_4 = A of t_float32;;
-                ^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type t5_4 = A of t_float32
 |}];;
 
 type t5_5 = A of int * t_float32;;
 [%%expect{|
-Line 1, characters 12-32:
-1 | type t5_5 = A of int * t_float32;;
-                ^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type t5_5 = A of int * t_float32
 |}];;
 
 type t5_6 = A of t_float32 [@@unboxed];;
@@ -250,11 +251,7 @@ type ('a : float32) t5_7 = A of int
 type ('a : float32) t5_8 = A of 'a;;
 [%%expect{|
 type ('a : float32) t5_7 = A of int
-Line 2, characters 27-34:
-2 | type ('a : float32) t5_8 = A of 'a;;
-                               ^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type ('a : float32) t5_8 = A of 'a
 |}]
 
 type ('a : float32, 'b : float32) t5_9 = {x : 'a; y : 'b; z : 'a}
@@ -262,48 +259,36 @@ type ('a : float32, 'b : float32) t5_9 = {x : 'a; y : 'b; z : 'a}
 type 'a t5_10 = 'a t_float32_id
 and 'a t5_11 = {x : 'a t5_10; y : 'a}
 [%%expect{|
-Line 1, characters 0-65:
-1 | type ('a : float32, 'b : float32) t5_9 = {x : 'a; y : 'b; z : 'a}
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_beta to use this feature.
+type ('a : float32, 'b : float32) t5_9 = { x : 'a; y : 'b; z : 'a; }
+Line 4, characters 20-28:
+4 | and 'a t5_11 = {x : 'a t5_10; y : 'a}
+                        ^^^^^^^^
+Error: Layout mismatch in final type declaration consistency check.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         The layout of 'a is float32, because
+           of the definition of t_float32_id at line 2, characters 0-37.
+         But the layout of 'a must overlap with value, because
+           it instantiates an unannotated type parameter of t5_11, defaulted to layout value.
+       A good next step is to add a layout annotation on a parameter to
+       the declaration where this error is reported.
 |}];;
 
 type ('a : float32) t5_12 = {x : 'a; y : float32#};;
 [%%expect{|
-Line 1, characters 0-50:
-1 | type ('a : float32) t5_12 = {x : 'a; y : float32#};;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_beta to use this feature.
+type ('a : float32) t5_12 = { x : 'a; y : float32#; }
 |}];;
 
 type ('a : float32) t5_13 = {x : 'a; y : float32#};;
 [%%expect{|
-Line 1, characters 0-50:
-1 | type ('a : float32) t5_13 = {x : 'a; y : float32#};;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_beta to use this feature.
-|}];;
-
-(* Mixed records are allowed, but are prohibited outside of alpha. *)
-type 'a t5_14 = {x : 'a; y : float32#};;
-[%%expect{|
-Line 1, characters 0-38:
-1 | type 'a t5_14 = {x : 'a; y : float32#};;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_beta to use this feature.
+type ('a : float32) t5_13 = { x : 'a; y : float32#; }
 |}];;
 
 type ufref = { mutable contents : float32# };;
 [%%expect{|
-Line 1, characters 0-44:
-1 | type ufref = { mutable contents : float32# };;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_beta to use this feature.
+type ufref = { mutable contents : float32#; }
 |}];;
 
 (****************************************************)
@@ -489,13 +474,13 @@ val f9_3 : unit -> float32# t_float32_id = <fun>
 (* Test 10: Invalid uses of float32 and externals *)
 
 (* Valid uses of float32 in externals are tested elsewhere - this is just a test
-   for uses the typechecker should reject.  In particular
-   - if using a non-value layout in an external, you must supply separate
-     bytecode and native code implementations,
-   - if using a non-value layout in an external, you may not use the old-style
-     unboxed float directive, and
-   - [@unboxed] is allowed on unboxed types but has no effect. Same is not
-     true for [@untagged].
+  for uses the typechecker should reject.  In particular
+  - if using a non-value layout in an external, you must supply separate
+    bytecode and native code implementations,
+  - if using a non-value layout in an external, you may not use the old-style
+    unboxed float directive, and
+  - [@unboxed] is allowed on unboxed types but has no effect. Same is not
+    true for [@untagged].
 *)
 
 external f10_1 : int -> bool -> float32# = "foo";;
@@ -516,19 +501,19 @@ Error: The native code version of the primitive is mandatory
        for types with non-value layouts.
 |}];;
 
-external f10_3 : float32 -> t_float32  = "foo" "bar" "float";;
+external f10_3 : float -> t_float32  = "foo" "bar" "float";;
 [%%expect{|
-Line 1, characters 0-60:
-1 | external f10_3 : float32 -> t_float32  = "foo" "bar" "float";;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-58:
+1 | external f10_3 : float -> t_float32  = "foo" "bar" "float";;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Cannot use "float" in conjunction with types of non-value layouts.
 |}];;
 
-external f10_4 : int -> float32# -> float32  = "foo" "bar" "float";;
+external f10_4 : int -> float32# -> float  = "foo" "bar" "float";;
 [%%expect{|
-Line 1, characters 0-66:
-1 | external f10_4 : int -> float32# -> float32  = "foo" "bar" "float";;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-64:
+1 | external f10_4 : int -> float32# -> float  = "foo" "bar" "float";;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Cannot use "float" in conjunction with types of non-value layouts.
 |}];;
 
@@ -571,28 +556,22 @@ Line 1, characters 29-37:
 Error: Don't know how to untag this type. Only int can be untagged.
 |}];;
 
-(*******************************************************)
-(* Test 11: Don't allow float32 in extensible variants *)
+(******************************************************)
+(* Test 11: Allow float32 in some extensible variants *)
+
+(* Currently these are only supported in alpha *)
 
 type t11_1 = ..
 
 type t11_1 += A of t_float32;;
 [%%expect{|
 type t11_1 = ..
-Line 3, characters 14-28:
-3 | type t11_1 += A of t_float32;;
-                  ^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type t11_1 += A of t_float32
 |}]
 
 type t11_1 += B of float32#;;
 [%%expect{|
-Line 1, characters 14-27:
-1 | type t11_1 += B of float32#;;
-                  ^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type t11_1 += B of float32#
 |}]
 
 type ('a : float32) t11_2 = ..
@@ -604,11 +583,19 @@ type 'a t11_2 += B of 'a;;
 [%%expect{|
 type ('a : float32) t11_2 = ..
 type 'a t11_2 += A of int
-Line 5, characters 17-24:
-5 | type 'a t11_2 += B of 'a;;
-                     ^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type 'a t11_2 += B of 'a
+|}]
+
+(* Some extensible variants aren't supported, though. *)
+
+type t11_1 += C of t_float32 * string;;
+
+[%%expect{|
+Line 1, characters 14-37:
+1 | type t11_1 += C of t_float32 * string;;
+                  ^^^^^^^^^^^^^^^^^^^^^^^
+Error: Expected all flat constructor arguments after non-value argument,
+       t_float32, but found boxed argument, string.
 |}]
 
 (***************************************)
@@ -777,7 +764,7 @@ Error: m1 must have a type of layout value because it is captured by an object.
 (* Test 13: Ad-hoc polymorphic operations don't work on float32 yet. *)
 
 (* CR layouts v5: Remember to handle the case of calling these on structures
-   containing other layouts. *)
+  containing other layouts. *)
 
 let f13_1 (x : t_float32) = x = x;;
 [%%expect{|
@@ -830,3 +817,91 @@ Error: This expression has type t_float32
        But the layout of t_float32 must be a sublayout of value, because
          of layout requirements from an imported definition.
 |}];;
+
+(***********************************************************)
+(* Test 14: unboxed float32 records work like normal records *)
+
+module FU = struct
+
+  external of_float32 : (float32[@local_opt]) -> float32# = "%unbox_float32"
+
+  external to_float32 : float32# -> (float32[@local_opt]) = "%box_float32"
+
+  external sub :
+  (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
+  = "%subfloat32"
+
+  external add :
+  (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
+  = "%addfloat32"
+
+  let[@inline always] sub x y = of_float32 (sub (to_float32 x) (to_float32 y))
+
+  let[@inline always] add x y = of_float32 (add (to_float32 x) (to_float32 y))
+end
+
+type t14_1 = { x : float32#; y : float32# }
+
+(* pattern matching *)
+let f14_1 {x;y} = FU.sub x y
+
+(* construction *)
+let r14 = { x = #3.14s; y = #2.72s }
+
+let sum14_1 = FU.to_float32 (f14_1 r14)
+
+(* projection *)
+let f14_2 ({y;_} as r) = FU.sub r.x y
+
+let sum14_2 = FU.to_float32 (f14_1 r14)
+
+type t14_2 = { mutable a : float32#; b : float32#; mutable c : float32# }
+
+let f14_3 ({b; c; _} as r) =
+  (* pure record update *)
+  let r' = { r with b = #20.0s; c = r.a } in
+  (* mutation *)
+  r.a <- FU.sub r.a r'.b;
+  r'.a <- #42.0s;
+  r'
+
+let a, b, c, a', b', c' =
+  let r = {a = #3.1s; b = -#0.42s; c = #27.7s } in
+  let r' = f14_3 r in
+  FU.to_float32 r.a,
+  FU.to_float32 r.b,
+  FU.to_float32 r.c,
+  FU.to_float32 r'.a,
+  FU.to_float32 r'.b,
+  FU.to_float32 r'.c
+
+let f14_4 r =
+  let {x; y} = r in
+  FU.add x y
+
+
+[%%expect{|
+module FU :
+  sig
+    external of_float32 : (float32 [@local_opt]) -> float32#
+      = "%unbox_float32"
+    external to_float32 : float32# -> (float32 [@local_opt]) = "%box_float32"
+    val sub : float32# -> float32# -> float32#
+    val add : float32# -> float32# -> float32#
+  end
+type t14_1 = { x : float32#; y : float32#; }
+val f14_1 : t14_1 -> float32# = <fun>
+val r14 : t14_1 = {x = <abstr>; y = <abstr>}
+val sum14_1 : float32 = 0.420000076s
+val f14_2 : t14_1 -> float32# = <fun>
+val sum14_2 : float32 = 0.420000076s
+type t14_2 = { mutable a : float32#; b : float32#; mutable c : float32#; }
+val f14_3 : t14_2 -> t14_2 = <fun>
+val a : float32 = -16.8999996s
+val b : float32 = -0.419999987s
+val c : float32 = 27.7000008s
+val a' : float32 = 42.s
+val b' : float32 = 20.s
+val c' : float32 = 3.0999999s
+val f14_4 : t14_1 -> float32# = <fun>
+|}]

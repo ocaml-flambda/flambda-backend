@@ -4,3 +4,19 @@ Unboxed:
 Boxed:
   estimate: 3.141699
   allocations: Allocated
+Construction (40 bytes for record):
+  allocated bytes: 24.00
+  a: 3.14
+  b: 6.28
+  c: 0.00
+  d: 0.00
+Manipulation (0 bytes):
+  allocated bytes: 0.00
+  a: 3.14
+  b: -21.10
+  c: 0.00
+  d: 9.42
+CSE test (0 bytes):
+  allocated bytes: 0.00
+Float32 literals:
+  allocated bytes: 0.00
