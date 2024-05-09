@@ -59,7 +59,6 @@ STDLIB_MODULE_BASENAMES = \
   array \
   iarray \
   float \
-  float_u \
   int32 \
   int32_u \
   nativeint \
