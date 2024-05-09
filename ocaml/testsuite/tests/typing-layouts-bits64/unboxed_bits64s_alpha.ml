@@ -1,4 +1,5 @@
 (* TEST
+ include stable;
  flambda2;
  {
    flags = "-extension layouts_alpha";
@@ -22,7 +23,7 @@
 (* Prelude: Functions on unboxed int64s. *)
 
 module Int64_u = struct
-  include Stdlib__Int64_u
+  include Stable.Int64_u
 
   let ( + ) = add
   let ( - ) = sub

@@ -1,8 +1,10 @@
-(* TEST *)
+(* TEST
+ include stable;
+*)
 
-module Int64_u = Stdlib__Int64_u
-module Int32_u = Stdlib__Int32_u
-module Nativeint_u = Stdlib__Nativeint_u
+module Int64_u = Stable.Int64_u
+module Int32_u = Stable.Int32_u
+module Nativeint_u = Stable.Nativeint_u
 
 (* Print all individual successful tests; used for debugging, as it will cause
    this test to fail *)
