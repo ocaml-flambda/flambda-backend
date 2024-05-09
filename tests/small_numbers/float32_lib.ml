@@ -1,7 +1,7 @@
 
 (* Tests for the float32 otherlib  *)
 
-module F32 = Alpha.Float32
+module F32 = Beta.Float32
 
 module CF32 = struct
   type t = float32

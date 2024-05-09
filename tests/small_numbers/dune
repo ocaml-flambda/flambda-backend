@@ -12,10 +12,10 @@
 (executables
  (names float32_builtin float32_lib float32_u_lib)
  (modules float32_builtin float32_lib float32_u_lib)
- (libraries alpha)
+ (libraries beta)
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -extension-universe alpha)))
+  (:standard -extension-universe beta)))
 
 (rule
  (enabled_if
@@ -64,12 +64,12 @@
   float32_builtin_internal
   float32_lib_internal
   float32_u_lib_internal)
- (libraries alpha)
+ (libraries beta)
  (enabled_if
   (<> %{system} macosx))
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -extension-universe alpha -internal-assembler)))
+  (:standard -extension-universe beta -internal-assembler)))
 
 (rule
  (enabled_if

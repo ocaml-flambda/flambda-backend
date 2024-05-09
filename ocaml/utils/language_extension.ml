@@ -79,7 +79,7 @@ module Exist_pair = struct
     | Pair (Layouts, m) -> m
     | Pair (SIMD, ()) -> Stable
     | Pair (Labeled_tuples, ()) -> Stable
-    | Pair (Small_numbers, ()) -> Alpha
+    | Pair (Small_numbers, ()) -> Beta
 
   let is_erasable : t -> bool = function Pair (ext, _) -> is_erasable ext
 
