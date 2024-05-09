@@ -30,10 +30,13 @@ module type Dataflow_direction_S = sig
      dataflow direction into account). *)
   val edges_out : Cfg.basic_block -> Label.t Seq.t
 
+  type context
+
   val transfer_block :
     update_instr:(int -> instr_domain -> unit) ->
     Transfer_domain.t ->
     Cfg.basic_block ->
+    context ->
     transfer_image
 end
 
@@ -43,6 +46,8 @@ module type Dataflow_S = sig
   type work_state
 
   type instr_domain
+
+  type context
 
   val create :
     Cfg.t ->
@@ -54,13 +59,14 @@ module type Dataflow_S = sig
 
   val get_res_instr_exn : work_state -> instr_domain Instr.Tbl.t
 
-  val run : max_iteration:int -> work_state -> (unit, unit) Result.t
+  val run : max_iteration:int -> work_state -> context -> (unit, unit) Result.t
 end
 
 module Make_dataflow (D : Dataflow_direction_S) :
   Dataflow_S
     with type Transfer_domain.t = D.Transfer_domain.t
-     and type instr_domain = D.instr_domain = struct
+     and type instr_domain = D.instr_domain
+     and type context = D.context = struct
   module Transfer_domain = D.Transfer_domain
 
   module WorkSet : sig
@@ -121,6 +127,8 @@ module Make_dataflow (D : Dataflow_direction_S) :
     }
 
   type instr_domain = D.instr_domain
+
+  type context = D.context
 
   type priority_helper =
     { label : Label.t;
@@ -225,7 +233,7 @@ module Make_dataflow (D : Dataflow_direction_S) :
 
   let get_res_instr_exn t = Option.get t.map_instr
 
-  let run ~max_iteration work_state =
+  let run ~max_iteration work_state context =
     let iteration = ref 0 in
     while
       (not (WorkSet.is_empty work_state.queue)) && !iteration < max_iteration
@@ -238,7 +246,7 @@ module Make_dataflow (D : Dataflow_direction_S) :
       in
       let transfer_result =
         D.transfer_block ~update_instr:(update_instr work_state) current_value
-          current_block
+          current_block context
       in
       Seq.iter
         (fun successor ->
@@ -273,33 +281,38 @@ end
 module type Forward_transfer = sig
   type domain
 
+  type context
+
   type image =
     { normal : domain;
       exceptional : domain
     }
 
-  val basic : domain -> Cfg.basic Cfg.instruction -> domain
+  val basic : domain -> Cfg.basic Cfg.instruction -> context -> domain
 
-  val terminator : domain -> Cfg.terminator Cfg.instruction -> image
+  val terminator : domain -> Cfg.terminator Cfg.instruction -> context -> image
 end
 
 module type Forward_S = sig
   type domain
 
+  type context
+
   val run :
     Cfg.t ->
     ?max_iteration:int ->
     init:domain ->
-    unit ->
+    context ->
     (domain Label.Tbl.t, unit) result
 end
 
 module Forward (D : Domain_S) (T : Forward_transfer with type domain = D.t) :
-  Forward_S with type domain = D.t = struct
+  Forward_S with type domain = D.t and type context = T.context = struct
   module Direction :
     Dataflow_direction_S
       with type Transfer_domain.t = D.t
-       and type instr_domain = D.t = struct
+       and type instr_domain = D.t
+       and type context = T.context = struct
     module Transfer_domain : Transfer_domain_S with type t = D.t = struct
       include D
     end
@@ -328,14 +341,17 @@ module Forward (D : Domain_S) (T : Forward_transfer with type domain = D.t) :
       then D.join old_value transfer_result.exceptional
       else D.join old_value transfer_result.normal
 
+    type context = T.context
+
     let transfer_block :
         update_instr:(int -> instr_domain -> unit) ->
         Transfer_domain.t ->
         Cfg.basic_block ->
+        context ->
         transfer_image =
-     fun ~update_instr value block ->
+     fun ~update_instr value block context ->
       let transfer f g acc (instr : _ Cfg.instruction) =
-        let res = f acc instr in
+        let res = f acc instr context in
         update_instr instr.id (g res);
         res
       in
@@ -350,13 +366,15 @@ module Forward (D : Domain_S) (T : Forward_transfer with type domain = D.t) :
 
   type domain = D.t
 
+  type context = T.context
+
   let run :
       Cfg.t ->
       ?max_iteration:int ->
       init:domain ->
-      unit ->
+      context ->
       (domain Label.Tbl.t, unit) result =
-   fun cfg ?(max_iteration = max_int) ~init () ->
+   fun cfg ?(max_iteration = max_int) ~init context ->
     let work_state =
       Dataflow_impl.create cfg
         ~init:(fun block ->
@@ -365,7 +383,7 @@ module Forward (D : Domain_S) (T : Forward_transfer with type domain = D.t) :
           else None)
         ~store_instr:false
     in
-    Dataflow_impl.run ~max_iteration work_state
+    Dataflow_impl.run ~max_iteration work_state context
     |> Result.map (fun () -> Dataflow_impl.get_res_block work_state)
 end
 
@@ -381,21 +399,27 @@ module type Backward_transfer = sig
 
   type error
 
-  val basic : domain -> Cfg.basic Cfg.instruction -> (domain, error) result
+  type context
+
+  val basic :
+    domain -> Cfg.basic Cfg.instruction -> context -> (domain, error) result
 
   val terminator :
     domain ->
     exn:domain ->
     Cfg.terminator Cfg.instruction ->
+    context ->
     (domain, error) result
 
-  val exception_ : domain -> (domain, error) result
+  val exception_ : domain -> context -> (domain, error) result
 end
 
 module type Backward_S = sig
   type domain
 
   type error
+
+  type context
 
   type _ map =
     | Block : domain Label.Tbl.t map
@@ -407,12 +431,15 @@ module type Backward_S = sig
     ?max_iteration:int ->
     init:domain ->
     map:'a map ->
-    unit ->
+    context ->
     ('a, error) Dataflow_result.t
 end
 
 module Backward (D : Domain_S) (T : Backward_transfer with type domain = D.t) :
-  Backward_S with type domain = D.t and type error = T.error = struct
+  Backward_S
+    with type domain = D.t
+     and type error = T.error
+     and type context = T.context = struct
   type error = T.error
 
   exception Dataflow_aborted of error
@@ -430,7 +457,8 @@ module Backward (D : Domain_S) (T : Backward_transfer with type domain = D.t) :
   module Direction :
     Dataflow_direction_S
       with type Transfer_domain.t = transfer_domain
-       and type instr_domain = D.t = struct
+       and type instr_domain = D.t
+       and type context = T.context = struct
     module Transfer_domain : Transfer_domain_S with type t = transfer_domain =
     struct
       type t = transfer_domain =
@@ -462,27 +490,31 @@ module Backward (D : Domain_S) (T : Backward_transfer with type domain = D.t) :
       then { old_value with exn = D.join old_value.exn transfer_result }
       else { old_value with normal = D.join old_value.normal transfer_result }
 
+    type context = T.context
+
     let transfer_block :
         update_instr:(int -> instr_domain -> unit) ->
         Transfer_domain.t ->
         Cfg.basic_block ->
+        context ->
         transfer_image =
-     fun ~update_instr { normal; exn } block ->
+     fun ~update_instr { normal; exn } block context ->
       let transfer (instr : _ Cfg.instruction) value =
         let value = unwrap_transfer_result value in
         update_instr instr.id value;
         value
       in
       let value =
-        transfer block.terminator (T.terminator normal ~exn block.terminator)
+        transfer block.terminator
+          (T.terminator normal ~exn block.terminator context)
       in
       let value =
         DLL.fold_right block.body ~init:value ~f:(fun instr value ->
-            transfer instr (T.basic value instr))
+            transfer instr (T.basic value instr context))
       in
       let value =
         if block.is_trap_handler
-        then value |> T.exception_ |> unwrap_transfer_result
+        then T.exception_ value context |> unwrap_transfer_result
         else value
       in
       value
@@ -491,6 +523,8 @@ module Backward (D : Domain_S) (T : Backward_transfer with type domain = D.t) :
   module Dataflow_impl = Make_dataflow (Direction)
 
   type domain = D.t
+
+  type context = T.context
 
   type _ map =
     | Block : domain Label.Tbl.t map
@@ -503,9 +537,9 @@ module Backward (D : Domain_S) (T : Backward_transfer with type domain = D.t) :
       ?max_iteration:int ->
       init:domain ->
       map:a map ->
-      unit ->
+      context ->
       (a, error) Dataflow_result.t =
-   fun cfg ?(max_iteration = max_int) ~init ~map () ->
+   fun cfg ?(max_iteration = max_int) ~init ~map context ->
     let store_instr = match map with Block -> false | Both | Instr -> true in
     let work_state =
       Dataflow_impl.create cfg
@@ -524,7 +558,7 @@ module Backward (D : Domain_S) (T : Backward_transfer with type domain = D.t) :
       | Both -> get_res_instr (), get_res_block ()
     in
     try
-      match Dataflow_impl.run ~max_iteration work_state with
+      match Dataflow_impl.run ~max_iteration work_state context with
       | Ok () -> Ok (get_result ())
       | Error () -> Max_iterations_reached
     with Dataflow_aborted error -> Aborted (get_result (), error)
