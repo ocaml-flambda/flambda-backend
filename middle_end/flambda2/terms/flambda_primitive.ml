@@ -1500,9 +1500,9 @@ type binary_float_arith_op =
   | Mul
   | Div
 
-let print_binary_float_arith_op ppf w o =
+let print_binary_float_arith_op ppf width op =
   let fprintf = Format.fprintf in
-  match w, o with
+  match width, op with
   | Float64, Add -> fprintf ppf "+."
   | Float64, Sub -> fprintf ppf "-."
   | Float64, Mul -> fprintf ppf "*."
@@ -1596,11 +1596,11 @@ let compare_binary_primitive p1 p2 =
   | Int_comp (kind1, comp_behaviour1), Int_comp (kind2, comp_behaviour2) ->
     let c = K.Standard_int.compare kind1 kind2 in
     if c <> 0 then c else Stdlib.compare comp_behaviour1 comp_behaviour2
-  | Float_arith (w1, op1), Float_arith (w2, op2) ->
-    let c = Stdlib.compare w1 w2 in
+  | Float_arith (width1, op1), Float_arith (width2, op2) ->
+    let c = Stdlib.compare width1 width2 in
     if c <> 0 then c else Stdlib.compare op1 op2
-  | Float_comp (w1, comp1), Float_comp (w2, comp2) ->
-    let c = Stdlib.compare w1 w2 in
+  | Float_comp (width1, comp1), Float_comp (width2, comp2) ->
+    let c = Stdlib.compare width1 width2 in
     if c <> 0 then c else Stdlib.compare comp1 comp2
   | Bigarray_get_alignment align1, Bigarray_get_alignment align2 ->
     Int.compare align1 align2
@@ -1637,8 +1637,8 @@ let print_binary_primitive ppf p =
   | Int_shift (_k, op) -> print_int_shift_op ppf op
   | Int_comp (_, comp_behaviour) ->
     print_comparison_and_behaviour print_signed_or_unsigned ppf comp_behaviour
-  | Float_arith (w, op) -> print_binary_float_arith_op ppf w op
-  | Float_comp (_w, comp_behaviour) ->
+  | Float_arith (width, op) -> print_binary_float_arith_op ppf width op
+  | Float_comp (_width, comp_behaviour) ->
     print_comparison_and_behaviour (fun _ppf () -> ()) ppf comp_behaviour;
     fprintf ppf "."
   | Bigarray_get_alignment align ->
