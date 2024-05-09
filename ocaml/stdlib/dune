@@ -57,7 +57,6 @@
 (install
  (files
   Makefile.config
-  ocaml_compiler_internal_params
   camlheader
   camlheaderd
   camlheaderi
