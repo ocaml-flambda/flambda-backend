@@ -87,6 +87,7 @@
     mode_intf
     mode
     typemode
+    jkind_intf
     jkind_types
     primitive
     types
@@ -184,6 +185,7 @@
 (copy_files ../../typing/ident.ml)
 (copy_files ../../typing/path.ml)
 (copy_files ../../typing/jkind.ml)
+(copy_files ../../typing/jkind_intf.ml)
 (copy_files ../../typing/jkind_types.ml)
 (copy_files ../../typing/primitive.ml)
 (copy_files ../../typing/shape.ml)
@@ -253,6 +255,7 @@
 (copy_files ../../typing/ident.mli)
 (copy_files ../../typing/path.mli)
 (copy_files ../../typing/jkind.mli)
+(copy_files ../../typing/jkind_intf.mli)
 (copy_files ../../typing/jkind_types.mli)
 (copy_files ../../typing/primitive.mli)
 (copy_files ../../typing/shape.mli)
@@ -370,6 +373,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Solver.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Mode.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Typemode.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind_intf.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind_types.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Types.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Attr_helper.cmo
@@ -453,6 +457,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Solver.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Mode.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Typemode.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind_intf.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind_types.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Types.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Attr_helper.cmx
