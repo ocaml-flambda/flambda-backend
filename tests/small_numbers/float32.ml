@@ -263,3 +263,50 @@ let () = (* Marshal *)
     assert (CFloat32.bits_to_int r = CFloat32.bits_to_int readr)
   )
 ;;
+
+let () = (* Literals *)
+  let check s f =
+    (* Not true if the literal was just below a float64 value exactly halfway
+       between two float32s *)
+    assert (s = Float32.of_float f)
+  in
+  check 0.0s 0.0;
+  check 1.0s 1.0;
+  check 0.5s 0.5;
+  check 1234.1234s 1234.1234;
+  check 0.s 0.;
+  check 1e10s 1e10;
+  check 1e-9_8s 1e-9_8;
+  check 1e+1s 1e+1;
+  check 1.12345e+12s 1.12345e+12;
+  check 0x2_2p+0s 0x22p+0;
+  check 0x2p+0s 0x2p+0;
+  check 0x3p+0s 0x3p+0;
+  check 0x5p+0s 0x5p+0;
+  check 0x1.4p+0s 0x1.4p+0;
+  check 0xcp-4s 0xcp-4;
+  check 0x1p-4s 0x1p-4;
+  check 0x1p+0s 0x1p+0;
+  check 0x0p+0s 0x0p+0;
+  check 0xf.f___ffffp+124s 0xf.fffffp+124;
+  check 0xf.ffffffffffff8p+1020s 0xf.ffffffffffff8p+1020;
+  check 0x4p-128s 0x4p-128;
+  check 0x1p-252s 0x1p-252;
+  check 0x4p-1024s 0x4p-1024;
+  check 0x8p-972s 0x8p-972;
+  check 0xf.fff_f_e_000001p+252s 0xf.ff_ffe_00_0001p+252;
+  check 0x2.fffp+12s 0x2.fffp+12;
+  check 0x1.000002p+0s 0x1.000002p+0;
+  check 0x1.ffffp-24s 0x1.ffffp-24;
+  check 0x2._fff006p+12s 0x2._fff006p+12;
+  check 0x1.fffp+0s 0x1.fffp+0;
+  check 0x1.00001p+0s 0x1.00001p+0;
+  check 0xc.d5e6fp+1_24s 0xc.d5e6fp+1_24;
+  check 0x2.6af378p-128s 0x2.6af378p-128;
+  check 0x5p-128s 0x5p-128;
+  check 0x1____p-128s 0x1p-128;
+  check 0x8p-152s 0x8p-152;
+  check 0x8p-4s 0x8p-4;
+  check 0x8p+124s 0x8p+124;
+  ()
+;;

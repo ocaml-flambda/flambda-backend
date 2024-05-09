@@ -202,6 +202,7 @@ type error =
   | Extension_not_enabled : _ Language_extension.t -> error
   | Literal_overflow of string
   | Unknown_literal of string * char
+  | Float32_literal of string
   | Illegal_letrec_pat
   | Illegal_letrec_expr
   | Illegal_class_expr
@@ -680,6 +681,9 @@ let constant : Parsetree.constant -> (Typedtree.constant, error) result =
   | Pconst_char c -> Ok (Const_char c)
   | Pconst_string (s,loc,d) -> Ok (Const_string (s,loc,d))
   | Pconst_float (f,None)-> Ok (Const_float f)
+  | Pconst_float (f,Some 's') ->
+    if Language_extension.is_enabled Small_numbers then Ok (Const_float32 f)
+    else Error (Float32_literal f)
   | Pconst_float (f,Some c) -> Error (Unknown_literal (f, c))
 
 let constant_or_raise env loc cst =
@@ -690,7 +694,12 @@ let constant_or_raise env loc cst =
 let unboxed_constant : Jane_syntax.Layouts.constant -> (Typedtree.constant, error) result
   = function
   | Float (f, None) -> Ok (Const_unboxed_float f)
-  | Float (x, Some c) -> Error (Unknown_literal (Misc.format_as_unboxed_literal x, c))
+  | Float (f, Some 's') ->
+    (* CR mslater: (float32) unboxed *)
+    if Language_extension.is_enabled Small_numbers then assert false
+    else Error (Float32_literal (Misc.format_as_unboxed_literal f))
+  | Float (x, Some c) ->
+    Error (Unknown_literal (Misc.format_as_unboxed_literal x, c))
   | Integer (i, suffix) ->
     begin match constant_integer i ~suffix with
       | Ok (Int32 v) -> Ok (Const_unboxed_int32 v)
@@ -10079,6 +10088,9 @@ let report_error ~loc env = function
         ty
   | Unknown_literal (n, m) ->
       Location.errorf ~loc "Unknown modifier '%c' for literal %s%c" m n m
+  | Float32_literal f ->
+      Location.errorf ~loc "Found 32-bit float literal %ss, but float32 is not enabled. \
+                            You must enable -extension small_numbers to use this feature." f
   | Illegal_letrec_pat ->
       Location.errorf ~loc
         "Only variables are allowed as left-hand side of `let rec'"
