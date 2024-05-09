@@ -132,6 +132,17 @@ let mk_checkmach_details_cutoff f =
      | No_details -> 0
      | At_most n -> n)
 
+
+let mk_checkmach_join f =
+  "-checkmach-join", Arg.Int f,
+  Printf.sprintf " How many abstract paths before losing precision \
+                  (default %d, negative to fail instead of widening, \
+                  0 to keep all)"
+    (match Flambda_backend_flags.default_checkmach_join with
+     | Keep_all -> 0
+     | Widen n -> n
+     | Error n -> -n)
+
 let mk_function_layout f =
   let layouts = Flambda_backend_flags.Function_layout.(List.map to_string all) in
   let default = Flambda_backend_flags.Function_layout.(to_string default) in
@@ -665,6 +676,7 @@ module type Flambda_backend_options = sig
   val disable_checkmach : unit -> unit
   val disable_precise_checkmach : unit -> unit
   val checkmach_details_cutoff : int -> unit
+  val checkmach_join : int -> unit
 
   val function_layout : string -> unit
   val disable_poll_insertion : unit -> unit
@@ -783,6 +795,7 @@ struct
     mk_disable_checkmach F.disable_checkmach;
     mk_disable_precise_checkmach F.disable_precise_checkmach;
     mk_checkmach_details_cutoff F.checkmach_details_cutoff;
+    mk_checkmach_join F.checkmach_join;
 
     mk_function_layout F.function_layout;
     mk_disable_poll_insertion F.disable_poll_insertion;
@@ -955,6 +968,14 @@ module Flambda_backend_options_impl = struct
       else At_most n
     in
     Flambda_backend_flags.checkmach_details_cutoff := c
+
+  let checkmach_join n =
+    let c : Flambda_backend_flags.checkmach_join =
+      if n < 0 then Error (-n)
+      else if n = 0 then Keep_all
+      else Widen n
+    in
+    Flambda_backend_flags.checkmach_join := c
 
   let function_layout s =
     match Flambda_backend_flags.Function_layout.of_string s with
@@ -1242,6 +1263,13 @@ module Extra_params = struct
       begin match Compenv.check_int ppf name v with
       | Some i ->
         Flambda_backend_options_impl.checkmach_details_cutoff i
+      | None -> ()
+      end;
+      true
+    | "checkmach-join" ->
+      begin match Compenv.check_int ppf name v with
+      | Some i ->
+        Flambda_backend_options_impl.checkmach_join i
       | None -> ()
       end;
       true

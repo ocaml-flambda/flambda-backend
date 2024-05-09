@@ -49,6 +49,14 @@ type checkmach_details_cutoff =
 val checkmach_details_cutoff : checkmach_details_cutoff ref
 val default_checkmach_details_cutoff : checkmach_details_cutoff
 
+type checkmach_join =
+  | Keep_all
+  | Widen of int  (* n > 0 *)
+  | Error of int (* n > 0 *)
+
+val checkmach_join : checkmach_join ref
+val default_checkmach_join : checkmach_join
+
 module Function_layout : sig
   type t =
     | Topological
