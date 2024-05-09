@@ -327,7 +327,7 @@ let init_toplevel () =
     let crcintfs =
       try
         (Obj.magic (sect.read_struct Bytesections.Name.CRCS)
-         : Import_info.t array)
+         : Import_info.Intf.t array)
       with Not_found -> [| |] in
     (* Done *)
     sect.close_reader();

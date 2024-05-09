@@ -30,7 +30,7 @@ type 'sg cmi_infos_generic = {
     cmi_name : Compilation_unit.Name.t;
     cmi_kind : kind;
     cmi_sign : 'sg;
-    cmi_crcs : Import_info.t array;
+    cmi_crcs : Import_info.Intf.t array;
     cmi_flags : pers_flags list;
 }
 

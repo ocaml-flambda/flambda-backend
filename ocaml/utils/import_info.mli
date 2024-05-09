@@ -29,31 +29,11 @@ module CU := Compilation_unit
    here, or somewhere alongside, rather than being duplicated around the
    tree. *)
 
-(** Either an interface (.cmi) or implementation (.cmo/x) import. Should be
-    avoided in new code, in preference to [Intf.t] or [Impl.t]. *)
-type t
-
-val create : CU.Name.t -> crc_with_unit:(CU.t * string) option -> t
-
-val create_normal : CU.t -> crc:string option -> t
-
-val name : t -> CU.Name.t
-
-(** This function will cause a fatal error if a [CU.t] was not provided when the
-    supplied value of type [t] was created. *)
-val cu : t -> CU.t
-
-val crc : t -> string option
-
-val has_name : t -> name:CU.Name.t -> bool
-
-val dummy : t
-
 (** The preferred API to use for interface imports. An interface import might be
     a parameter, in which case it has a CRC but no [CU.t] (since a [CU.t] is for
     an implementation). *)
 module Intf : sig
-  type nonrec t = t
+  type t
 
   val create_normal : CU.Name.t -> CU.t -> crc:Digest.t -> t
 
@@ -92,7 +72,7 @@ module Intf : sig
 end
 
 module Impl : sig
-  type nonrec t = t
+  type t
 
   (** The import info for an implementation we depend on and whose .cmx we actually
       loaded. *)

@@ -63,7 +63,7 @@ type can_load_cmis =
 
 type pers_struct = {
   ps_is_param: bool;
-  ps_crcs: Import_info.t array;
+  ps_crcs: Import_info.Intf.t array;
   ps_filename: string;
   ps_visibility: Load_path.visibility;
 }
@@ -390,10 +390,10 @@ let crc_of_unit penv f name =
   | Some (_, crc) -> crc
   | None ->
     let (ps, _pm) = find_pers_struct ~allow_hidden:true penv f true name in
-    match Array.find_opt (Import_info.has_name ~name) ps.ps_crcs with
+    match Array.find_opt (Import_info.Intf.has_name ~name) ps.ps_crcs with
     | None -> assert false
     | Some import_info ->
-      match Import_info.crc import_info with
+      match Import_info.Intf.crc import_info with
       | None -> assert false
       | Some crc -> crc
 

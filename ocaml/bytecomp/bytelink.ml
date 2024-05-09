@@ -199,7 +199,7 @@ let check_consistency file_name cu =
   begin try
     Array.iter
       (fun import ->
-        let name = Import_info.name import in
+        let name = Import_info.Intf.name import in
         let nonalias = Import_info.Intf.nonalias import in
         interfaces := name :: !interfaces;
         match nonalias with

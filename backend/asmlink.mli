@@ -28,8 +28,8 @@ val call_linker_shared: ?native_toplevel:bool -> string list -> string -> unit
 
 val reset : unit -> unit
 val check_consistency: filepath -> Cmx_format.unit_infos -> Digest.t -> unit
-val extract_crc_interfaces: unit -> Import_info.t list
-val extract_crc_implementations: unit -> Import_info.t list
+val extract_crc_interfaces: unit -> Import_info.Intf.t list
+val extract_crc_implementations: unit -> Import_info.Impl.t list
 
 type error =
   | File_not_found of filepath
