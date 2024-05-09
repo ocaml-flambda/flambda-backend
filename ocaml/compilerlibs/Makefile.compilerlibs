@@ -87,6 +87,7 @@ TYPING = \
   typing/solver.cmo \
   typing/path.cmo \
   typing/mode.cmo \
+  typing/jkind_intf.cmo \
   typing/jkind_types.cmo \
   typing/primitive.cmo \
   typing/shape.cmo \

@@ -187,6 +187,7 @@
 (copy_files ../../typing/jkind.ml)
 (copy_files ../../typing/jkind_intf.ml)
 (copy_files ../../typing/jkind_types.ml)
+(copy_files ../../typing/jkind_intf.ml)
 (copy_files ../../typing/primitive.ml)
 (copy_files ../../typing/shape.ml)
 (copy_files ../../typing/solver.ml)
