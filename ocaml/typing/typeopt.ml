@@ -156,6 +156,7 @@ let classify env loc ty sort : classification =
       assert false
   end
   | Float64 -> Unboxed_float Pfloat64
+  | Float32 -> Unboxed_float Pfloat32
   | Bits32 -> Unboxed_int Pint32
   | Bits64 -> Unboxed_int Pint64
   | Word -> Unboxed_int Pnativeint
@@ -238,7 +239,7 @@ let value_kind_of_value_jkind jkind =
   | Immediate64 ->
     if !Clflags.native_code && Sys.word_size = 64 then Pintval else Pgenval
   | Non_null_value -> Pgenval
-  | Any | Void | Float64 | Word | Bits32 | Bits64 -> assert false
+  | Any | Void | Float64 | Float32 | Word | Bits32 | Bits64 -> assert false
 
 (* [value_kind] has a pre-condition that it is only called on values.  With the
    current set of sort restrictions, there are two reasons this invariant may
@@ -668,7 +669,10 @@ let[@inline always] layout_of_const_sort_generic ~value_kind ~error
     Lambda.Punboxed_int Pint32
   | Bits64 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_int Pint64
-  | (Void | Float64 | Word | Bits32 | Bits64 as const) ->
+  | Float32 when Language_extension.(is_at_least Layouts Stable) &&
+                 Language_extension.(is_enabled Small_numbers) ->
+    Lambda.Punboxed_float Pfloat32
+  | (Void | Float64 | Float32 | Word | Bits32 | Bits64 as const) ->
     error const
 
 let layout env loc sort ty =
@@ -678,7 +682,7 @@ let layout env loc sort ty =
     ~error:(function
       | Value -> assert false
       | Void -> raise (Error (loc, Non_value_sort (Jkind.Sort.void,ty)))
-      | (Float64 | Word | Bits32 | Bits64 as const) ->
+      | (Float64 | Float32 | Word | Bits32 | Bits64 as const) ->
         raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Stable, Some ty))))
 
 let layout_of_sort loc sort =
@@ -688,7 +692,7 @@ let layout_of_sort loc sort =
     ~error:(function
     | Value -> assert false
     | Void -> raise (Error (loc, Non_value_sort_unknown_ty Jkind.Sort.void))
-    | (Float64 | Word | Bits32 | Bits64 as const) ->
+    | (Float64 | Float32 | Word | Bits32 | Bits64 as const) ->
       raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Stable, None))))
 
 let layout_of_const_sort s =

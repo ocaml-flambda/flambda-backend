@@ -1116,7 +1116,7 @@ let check_representable ~why ~allow_unboxed env loc kloc typ =
          all the defaulting, so we don't expect this actually defaults the
          sort - we just want the [const]. *)
       | Void | Value -> ()
-      | Float64 | Word | Bits32 | Bits64 as const ->
+      | Float64 | Float32 | Word | Bits32 | Bits64 as const ->
           if not allow_unboxed then
             raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
     end
@@ -1225,6 +1225,9 @@ module Element_repr = struct
       | Value | Immediate64 | Non_null_value -> Value_element
       | Immediate -> Imm_element
       | Float64 -> Unboxed_element Float64
+      | Float32 ->
+        (* CR mslater: (float32) float32# records *)
+        raise (Error (loc, Invalid_jkind_in_block (ty, Float32, Mixed_product)))
       | Word -> Unboxed_element Word
       | Bits32 -> Unboxed_element Bits32
       | Bits64 -> Unboxed_element Bits64

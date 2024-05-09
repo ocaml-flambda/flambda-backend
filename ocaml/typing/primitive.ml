@@ -598,6 +598,10 @@ let prim_has_valid_reprs ~loc prim =
       exactly [Same_as_ocaml_repr Float64; Same_as_ocaml_repr Value]
     | "%unbox_float" ->
       exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Float64]
+    | "%box_float32" ->
+      exactly [Same_as_ocaml_repr Float32; Same_as_ocaml_repr Value]
+    | "%unbox_float32" ->
+      exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Float32]
     | "%box_nativeint" ->
       exactly [Same_as_ocaml_repr Word; Same_as_ocaml_repr Value]
     | "%unbox_nativeint" ->
