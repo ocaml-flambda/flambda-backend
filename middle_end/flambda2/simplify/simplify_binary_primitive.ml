@@ -607,7 +607,7 @@ module Binary_int_comp_int64 = Binary_arith_like (Int_ops_for_binary_comp_int64)
 module Binary_int_comp_nativeint =
   Binary_arith_like (Int_ops_for_binary_comp_nativeint)
 
-module Float_ops_for_binary_arith_gen (Float : sig
+module Float_ops_for_binary_arith_gen (FP : sig
   module F : Numeric_types.Float_by_bit_pattern
 
   val width : Flambda_primitive.float_bitwidth
@@ -626,28 +626,28 @@ module Float_ops_for_binary_arith_gen (Float : sig
 end) : sig
   include Binary_arith_like_sig with type op = P.binary_float_arith_op
 end = struct
-  module F = Float.F
+  module F = FP.F
   module Lhs = F
   module Rhs = F
   module Result = F
 
   type op = P.binary_float_arith_op
 
-  let arg_kind = Float.arg_kind
+  let arg_kind = FP.arg_kind
 
-  let result_kind = Float.result_kind
+  let result_kind = FP.result_kind
 
   let ok_to_evaluate denv = DE.propagating_float_consts denv
 
-  let prover_lhs = Float.prover
+  let prover_lhs = FP.prover
 
-  let prover_rhs = Float.prover
+  let prover_rhs = FP.prover
 
-  let unknown _ = Float.unknown
+  let unknown _ = FP.unknown
 
-  let these = Float.these
+  let these = FP.these
 
-  let term f = Named.create_simple (Simple.const (Float.const f))
+  let term f = Named.create_simple (Simple.const (FP.const f))
 
   module Pair = F.Pair
 
@@ -684,7 +684,7 @@ end = struct
         [@z3 check_float_binary_neutral `Mul 1.0 `Left]
       else if F.equal this_side F.minus_one
       then
-        Float_negation_of_the_other_side Float.width
+        Float_negation_of_the_other_side FP.width
         [@z3 check_float_binary_opposite `Mul (-1.0) `Left]
         [@z3 check_float_binary_opposite `Mul (-1.0) `Right]
       else Cannot_simplify
@@ -700,7 +700,7 @@ end = struct
       then The_other_side [@z3 check_float_binary_neutral `Div 1.0 `Right]
       else if F.equal rhs F.minus_one
       then
-        Float_negation_of_the_other_side Float.width
+        Float_negation_of_the_other_side FP.width
         [@z3 check_float_binary_opposite `Div (-1.0) `Right]
       else Cannot_simplify
 
@@ -752,7 +752,7 @@ end)
 module Binary_float_arith = Binary_arith_like (Float_ops_for_binary_arith)
 module Binary_float32_arith = Binary_arith_like (Float32_ops_for_binary_arith)
 
-module Float_ops_for_binary_comp_gen (Float : sig
+module Float_ops_for_binary_comp_gen (FP : sig
   module F : Numeric_types.Float_by_bit_pattern
 
   val arg_kind : K.Standard_int_or_float.t
@@ -761,22 +761,22 @@ module Float_ops_for_binary_comp_gen (Float : sig
 end) : sig
   include Binary_arith_like_sig with type op = unit P.comparison_behaviour
 end = struct
-  module F = Float.F
+  module F = FP.F
   module Lhs = F
   module Rhs = F
   module Result = Targetint_31_63
 
   type op = unit P.comparison_behaviour
 
-  let arg_kind = Float.arg_kind
+  let arg_kind = FP.arg_kind
 
   let result_kind = K.naked_immediate
 
   let ok_to_evaluate denv = DE.propagating_float_consts denv
 
-  let prover_lhs = Float.prover
+  let prover_lhs = FP.prover
 
-  let prover_rhs = Float.prover
+  let prover_rhs = FP.prover
 
   let unknown (op : op) =
     match op with

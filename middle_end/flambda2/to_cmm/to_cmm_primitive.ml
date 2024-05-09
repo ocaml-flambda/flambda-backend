@@ -607,8 +607,8 @@ let binary_int_comp_primitive_yielding_int _env dbg _kind
       "Translation of [Int_comp] yielding an integer -1, 0 or 1 in unsigned \
        mode is not yet implemented"
 
-let binary_float_arith_primitive _env dbg w op x y =
-  match (w : P.float_bitwidth), (op : P.binary_float_arith_op) with
+let binary_float_arith_primitive _env dbg width op x y =
+  match (width : P.float_bitwidth), (op : P.binary_float_arith_op) with
   | Float64, Add -> C.float_add ~dbg x y
   | Float64, Sub -> C.float_sub ~dbg x y
   | Float64, Mul -> C.float_mul ~dbg x y
@@ -618,8 +618,8 @@ let binary_float_arith_primitive _env dbg w op x y =
   | Float32, Mul -> C.float32_mul ~dbg x y
   | Float32, Div -> C.float32_div ~dbg x y
 
-let binary_float_comp_primitive _env dbg w op x y =
-  match (w : P.float_bitwidth), (op : unit P.comparison) with
+let binary_float_comp_primitive _env dbg width op x y =
+  match (width : P.float_bitwidth), (op : unit P.comparison) with
   | Float64, Eq -> C.float_eq ~dbg x y
   | Float64, Neq -> C.float_neq ~dbg x y
   | Float64, Lt () -> C.float_lt ~dbg x y
@@ -633,8 +633,8 @@ let binary_float_comp_primitive _env dbg w op x y =
   | Float32, Le () -> C.float32_le ~dbg x y
   | Float32, Ge () -> C.float32_ge ~dbg x y
 
-let binary_float_comp_primitive_yielding_int _env dbg w x y =
-  match (w : P.float_bitwidth) with
+let binary_float_comp_primitive_yielding_int _env dbg width x y =
+  match (width : P.float_bitwidth) with
   | Float64 -> C.mk_compare_floats_untagged dbg x y
   | Float32 -> C.mk_compare_float32s_untagged dbg x y
 
@@ -794,11 +794,11 @@ let binary_primitive env dbg f x y =
     binary_int_comp_primitive env dbg kind cmp x y
   | Int_comp (kind, Yielding_int_like_compare_functions signed) ->
     binary_int_comp_primitive_yielding_int env dbg kind signed x y
-  | Float_arith (w, op) -> binary_float_arith_primitive env dbg w op x y
-  | Float_comp (w, Yielding_bool cmp) ->
-    binary_float_comp_primitive env dbg w cmp x y
-  | Float_comp (w, Yielding_int_like_compare_functions ()) ->
-    binary_float_comp_primitive_yielding_int env dbg w x y
+  | Float_arith (width, op) -> binary_float_arith_primitive env dbg width op x y
+  | Float_comp (width, Yielding_bool cmp) ->
+    binary_float_comp_primitive env dbg width cmp x y
+  | Float_comp (width, Yielding_int_like_compare_functions ()) ->
+    binary_float_comp_primitive_yielding_int env dbg width x y
   | Bigarray_get_alignment align -> C.bigstring_get_alignment x y align dbg
   | Atomic_exchange -> C.atomic_exchange ~dbg x y
   | Atomic_fetch_and_add -> C.atomic_fetch_and_add ~dbg x y

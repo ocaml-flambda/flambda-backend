@@ -205,7 +205,9 @@ end = struct
         updates )
     | Function_slot { size; function_slot; last_function_slot } -> (
       let code_id = Function_slot.Map.find function_slot decls in
-      let code_symbol = R.symbol_of_code_id res code_id in
+      let code_symbol =
+        R.symbol_of_code_id res code_id ~currently_in_inlined_body:false
+      in
       let (kind, params_ty, result_ty), closure_code_pointers, dbg =
         get_func_decl_params_arity env code_id
       in
@@ -415,7 +417,9 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
     @
     if Flambda_features.optimize_for_speed () then [] else [Cmm.Reduce_code_size]
   in
-  let fun_sym = R.symbol_of_code_id res code_id in
+  let fun_sym =
+    R.symbol_of_code_id res code_id ~currently_in_inlined_body:false
+  in
   let fun_poll =
     Env.get_code_metadata env code_id
     |> Code_metadata.poll_attribute |> Poll_attribute.to_lambda

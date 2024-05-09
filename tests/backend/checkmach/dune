@@ -18,6 +18,19 @@
  (alias  runtest)
  (action (copy test_all_opt.ml test_all_opt3.ml)))
 
+
+(rule
+ (alias  runtest)
+ (action (copy test_bounded_join.ml test_bounded_join2.ml )))
+
+(rule
+ (alias  runtest)
+ (action (copy test_bounded_join.ml test_bounded_join3.ml )))
+
+(rule
+ (alias  runtest)
+ (action (copy test_bounded_join.ml test_bounded_join4.ml )))
+
 ;; Tests whose outputs differ depending on stack_allocation configuration flag.
 ;; This condition is not expressible in "enable_if" clause
 ;; because dune does not support %{config:stack_allocation} yet.
@@ -38,3 +51,4 @@
         else
            cp test_assume_stub.heap_allocation.output test_assume_stub.output
         fi"))))
+

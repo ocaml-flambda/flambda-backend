@@ -27,6 +27,8 @@
 extern "C" {
 #endif
 
+CAMLextern void caml_init_nat_signals(void);
+
 CAMLextern void caml_enter_blocking_section (void);
 CAMLextern void caml_enter_blocking_section_no_pending (void);
 CAMLextern void caml_leave_blocking_section (void);
