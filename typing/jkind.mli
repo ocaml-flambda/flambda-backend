@@ -61,6 +61,7 @@ module Sort : sig
     | Void  (** No run time representation at all *)
     | Value  (** Standard ocaml value representation *)
     | Float64  (** Unboxed 64-bit floats *)
+    | Float32  (** Unboxed 32-bit floats *)
     | Word  (** Unboxed native-size integers *)
     | Bits32  (** Unboxed 32-bit integers *)
     | Bits64  (** Unboxed 64-bit integers *)
@@ -80,6 +81,8 @@ module Sort : sig
   val value : t
 
   val float64 : t
+
+  val float32 : t
 
   val word : t
 
@@ -295,6 +298,8 @@ type any_creation_reason =
 
 type float64_creation_reason = Primitive of Ident.t
 
+type float32_creation_reason = Primitive of Ident.t
+
 type word_creation_reason = Primitive of Ident.t
 
 type bits32_creation_reason = Primitive of Ident.t
@@ -310,6 +315,7 @@ type creation_reason =
   | Void_creation of void_creation_reason
   | Any_creation of any_creation_reason
   | Float64_creation of float64_creation_reason
+  | Float32_creation of float32_creation_reason
   | Word_creation of word_creation_reason
   | Bits32_creation of bits32_creation_reason
   | Bits64_creation of bits64_creation_reason
@@ -379,6 +385,7 @@ type const =
   | Immediate64
   | Immediate
   | Float64
+  | Float32
   | Word
   | Bits32
   | Bits64
@@ -411,6 +418,9 @@ val immediate : why:immediate_creation_reason -> t
 
 (** This is the jkind of unboxed 64-bit floats.  They have sort Float64. *)
 val float64 : why:float64_creation_reason -> t
+
+(** This is the jkind of unboxed 32-bit floats.  They have sort Float32. *)
+val float32 : why:float32_creation_reason -> t
 
 (** This is the jkind of unboxed native-sized integers. They have sort Word. *)
 val word : why:word_creation_reason -> t
