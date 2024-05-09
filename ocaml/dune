@@ -67,6 +67,7 @@
           (run cat %{input-file})))
        parser)))
  (library_flags -linkall)
+ (libraries flambda2_floats)
  (modules_without_implementation
    annot asttypes cmo_format outcometree parsetree debug_event solver_intf mode_intf)
  (modules

@@ -347,6 +347,7 @@
    %{dep:middle_end/flambda2/import/flambda2_import.a}
    %{dep:middle_end/flambda2/ui/flambda2_ui.a}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.a}
+   %{dep:middle_end/flambda2/numbers/floats/flambda2_floats.a}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.a}
    %{dep:middle_end/flambda2/kinds/flambda2_kinds.a}
    %{dep:middle_end/flambda2/identifiers/flambda2_identifiers.a}
@@ -383,6 +384,7 @@
    %{dep:middle_end/flambda2/import/flambda2_import.cma}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cma}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cma}
+   %{dep:middle_end/flambda2/numbers/floats/flambda2_floats.cma}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.cma}
    %{dep:middle_end/flambda2/kinds/flambda2_kinds.cma}
    %{dep:middle_end/flambda2/identifiers/flambda2_identifiers.cma}
@@ -419,6 +421,7 @@
    %{dep:middle_end/flambda2/import/flambda2_import.cmxa}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cmxa}
+   %{dep:middle_end/flambda2/numbers/floats/flambda2_floats.cmxa}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.cmxa}
    %{dep:middle_end/flambda2/kinds/flambda2_kinds.cmxa}
    %{dep:middle_end/flambda2/identifiers/flambda2_identifiers.cmxa}
@@ -462,12 +465,12 @@
   (external/gc-timings/libgc_timings_stubs.a
    as
    compiler-libs/libgc_timings_stubs_native.a)
-  (middle_end/flambda2/numbers/libflambda2_numbers_stubs.a
+  (middle_end/flambda2/numbers/floats/libflambda2_floats_stubs.a
    as
-   compiler-libs/libflambda2_numbers_stubs.a)
-  (middle_end/flambda2/numbers/libflambda2_numbers_stubs.a
+   compiler-libs/libflambda2_floats_stubs.a)
+  (middle_end/flambda2/numbers/floats/libflambda2_floats_stubs.a
    as
-   compiler-libs/libflambda2_numbers_stubs_native.a)
+   compiler-libs/libflambda2_floats_stubs_native.a)
   ; for special_dune compat
   (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
   (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)

@@ -193,7 +193,7 @@ value compiler_float32_to_float_boxed(value i)
 static int compiler_float32_of_hex(const char * s, const char * end, float * res)
 {
   /* See caml_float_of_hex */
-  int64_t m = 0;                /* the mantissa - top 24 bits at most */
+  int64_t m = 0;                /* the mantissa - top 60 bits at most */
   int n_bits = 0;               /* total number of bits read */
   int m_bits = 0;               /* number of bits in mantissa */
   int x_bits = 0;               /* number of bits after mantissa */
@@ -240,12 +240,12 @@ static int compiler_float32_of_hex(const char * s, const char * end, float * res
       else return -1;           /* bad digit */
       n_bits += 4;
       if (d == 0 && m == 0) break; /* leading zeros are skipped */
-      if (m_bits < 24) {
+      if (m_bits < 60) {
         /* There is still room in m.  Add this digit to the mantissa. */
         m = (m << 4) + d;
         m_bits += 4;
       } else {
-        /* We've already collected 24 significant bits in m.
+        /* We've already collected 60 significant bits in m.
            Now all we care about is whether there is a nonzero bit
            after. In this case, round m to odd so that the later
            rounding of m to FP produces the correct result. */
@@ -258,7 +258,7 @@ static int compiler_float32_of_hex(const char * s, const char * end, float * res
   }
   if (n_bits == 0) return -1;
   /* Convert mantissa to FP.  We use a signed conversion because we can
-     (m has 24 bits at most) and because it is faster
+     (m has 60 bits at most) and because it is faster
      on several architectures. */
   f = (float) (int64_t) m;
   /* Adjust exponent to take decimal point and extra digits into account */
@@ -333,4 +333,16 @@ CAMLprim value compiler_float32_format(value fmt, value arg)
   RESTORE_LOCALE;
 
   return res;
+}
+
+// These replace the OCaml runtime versions for use under ocaml/ in the dune build.
+// They must have the same name as in the runtime because building ocaml/ with the
+// upstream build system calls it by name.
+
+CAMLweakdef value caml_float32_of_string(value vs) {
+  return compiler_float32_of_string(vs);
+}
+
+CAMLweakdef value caml_format_float32(value fmt, value arg) {
+  return compiler_float32_format(fmt, arg);
 }

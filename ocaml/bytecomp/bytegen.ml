@@ -868,7 +868,8 @@ let rec comp_expr stack_info env exp sz cont =
       end
   | Lprim((Popaque _ | Pobj_magic _), [arg], _) ->
       comp_expr stack_info env arg sz cont
-  | Lprim((Pbox_float (Pfloat64, _) | Punbox_float Pfloat64), [arg], _) ->
+  | Lprim((Pbox_float ((Pfloat64 | Pfloat32), _)
+  | Punbox_float (Pfloat64 | Pfloat32)), [arg], _) ->
       comp_expr stack_info env arg sz cont
   | Lprim((Pbox_int _ | Punbox_int _), [arg], _) ->
       comp_expr stack_info env arg sz cont
