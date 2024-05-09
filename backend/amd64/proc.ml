@@ -488,7 +488,7 @@ let destroyed_at_oper = function
   | Iop(Ispecific(Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
                  | Ipause | Iprefetch _
-                 | Ifloatarithmem (_, _) | Ifloatsqrtf _ | Ibswap _))
+                 | Ifloatarithmem (_, _, _) | Ifloatsqrtf (_, _) | Ibswap _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
               | Ipopcnt | Iclz _ | Ictz _ ))
   | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl
@@ -662,7 +662,8 @@ let max_register_pressure =
     consumes ~int:(1 + num_destroyed_by_plt_stub) ~float:0
   | Iintop(Icomp _) | Iintop_imm((Icomp _), _) ->
     consumes ~int:1 ~float:0
-  | Istore(Single { reg = Float64 }, _, _) | Ifloatop (Icompf _) ->
+  | Istore(Single { reg = Float64 }, _, _)
+  | Ifloatop ((Float64 | Float32), Icompf _) ->
     consumes ~int:0 ~float:1
   | Ispecific(Isimd op) ->
     (match Simd_proc.register_behavior op with
@@ -688,7 +689,8 @@ let max_register_pressure =
             | Single { reg = Float32 } | Double
             | Onetwentyeight_aligned | Onetwentyeight_unaligned),
             _, _)
-  | Imove | Ispill | Ireload | Ifloatop (Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf)
+  | Imove | Ispill | Ireload
+  | Ifloatop ((Float64 | Float32), (Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf))
   | Icsel _
   | Ivalueofint | Iintofvalue | Ivectorcast _ | Iscalarcast _
   | Iconst_int _ | Iconst_float _ | Iconst_float32 _
@@ -698,7 +700,8 @@ let max_register_pressure =
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
              | Irdtsc | Irdpmc | Istore_int (_, _, _)
              | Ilfence | Isfence | Imfence
-             | Ioffset_loc (_, _) | Ifloatarithmem (_, _) | Ifloatsqrtf _
+             | Ioffset_loc (_, _) | Ifloatarithmem (_, _, _)
+             | Ifloatsqrtf (_, _)
              | Ibswap _)
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
   | Ibeginregion | Iendregion | Idls_get
@@ -794,7 +797,7 @@ let operation_supported = function
   | Cbswap _
   | Cclz _ | Cctz _
   | Ccmpi _ | Caddv | Cadda | Ccmpa _
-  | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
+  | Cnegf _ | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _
   | Cvalueofint | Cintofvalue
   | Ccmpf _
   | Craise _

@@ -245,12 +245,13 @@ type operation =
   | Ccmpi of integer_comparison
   | Caddv | Cadda
   | Ccmpa of integer_comparison
-  | Cnegf | Cabsf
-  | Caddf | Csubf | Cmulf | Cdivf
+  | Cnegf of float_width | Cabsf of float_width
+  | Caddf of float_width | Csubf of float_width
+  | Cmulf of float_width | Cdivf of float_width
   | Cvalueofint | Cintofvalue
   | Cvectorcast of vector_cast
   | Cscalarcast of scalar_cast
-  | Ccmpf of float_comparison
+  | Ccmpf of float_width * float_comparison
   | Craise of Lambda.raise_kind
   | Cprobe of { name: string; handler_code_sym: string; enabled_at_init: bool }
   | Cprobe_is_enabled of { name: string }

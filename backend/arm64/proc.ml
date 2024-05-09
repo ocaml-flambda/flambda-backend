@@ -486,6 +486,9 @@ let init () = ()
 let operation_supported = function
   | Cclz _ | Cctz _ | Cpopcnt
   | Cprefetch _ | Catomic _
+  (* CR mslater: (float32) arm64 *)
+  | Cnegf Float32 | Cabsf Float32 | Caddf Float32
+  | Csubf Float32 | Cmulf Float32 | Cdivf Float32
   | Cvectorcast _ | Cscalarcast (Float_of_float32 | Float_to_float32 |
                                  Float_to_int Float32 | Float_of_int Float32 |
                                  V128_of_scalar _ | V128_to_scalar _)
@@ -495,7 +498,8 @@ let operation_supported = function
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Ccmpi _ | Caddv | Cadda | Ccmpa _
-  | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
+  | Cnegf Float64 | Cabsf Float64 | Caddf Float64
+  | Csubf Float64 | Cmulf Float64 | Cdivf Float64
   | Cintofvalue | Cvalueofint
   | Cscalarcast (Float_of_int Float64 | Float_to_int Float64)
   | Ccmpf _

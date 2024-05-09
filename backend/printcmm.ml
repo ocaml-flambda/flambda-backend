@@ -216,12 +216,18 @@ let operation d = function
   | Caddv -> "+v"
   | Cadda -> "+a"
   | Ccmpa c -> Printf.sprintf "%sa" (integer_comparison c)
-  | Cnegf -> "~f"
-  | Cabsf -> "absf"
-  | Caddf -> "+f"
-  | Csubf -> "-f"
-  | Cmulf -> "*f"
-  | Cdivf -> "/f"
+  | Cnegf Float64 -> "~f"
+  | Cabsf Float64 -> "absf"
+  | Caddf Float64 -> "+f"
+  | Csubf Float64 -> "-f"
+  | Cmulf Float64 -> "*f"
+  | Cdivf Float64 -> "/f"
+  | Cnegf Float32 -> "~f32"
+  | Cabsf Float32 -> "absf32"
+  | Caddf Float32 -> "+f32"
+  | Csubf Float32 -> "-f32"
+  | Cmulf Float32 -> "*f32"
+  | Cdivf Float32 -> "/f32"
   | Ccsel ret_typ ->
     to_string "csel %a" machtype ret_typ
   | Cvalueofint -> "valueofint"
@@ -238,7 +244,8 @@ let operation d = function
     Printf.sprintf "%s->scalar" (Primitive.vec128_name ty)
   | Cscalarcast (V128_of_scalar ty) ->
     Printf.sprintf "scalar->%s" (Primitive.vec128_name ty)
-  | Ccmpf c -> Printf.sprintf "%sf" (float_comparison c)
+  | Ccmpf (Float64, c) -> Printf.sprintf "%sf" (float_comparison c)
+  | Ccmpf (Float32, c) -> Printf.sprintf "%sf32" (float_comparison c)
   | Craise k -> Lambda.raise_kind k ^ location d
   | Cprobe { name; handler_code_sym; enabled_at_init; } ->
     Printf.sprintf "probe[%s %s%s]" name handler_code_sym

@@ -68,14 +68,17 @@ type prefetch_info = {
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
+type float_width = Cmm.float_width
+
 type specific_operation =
     Ilea of addressing_mode             (* "lea" gives scaled adds *)
   | Istore_int of nativeint * addressing_mode * bool
                                         (* Store an integer constant *)
   | Ioffset_loc of int * addressing_mode (* Add a constant to a location *)
-  | Ifloatarithmem of float_operation * addressing_mode
+  | Ifloatarithmem of float_width * float_operation * addressing_mode
                                        (* Float arith operation with memory *)
-  | Ifloatsqrtf of addressing_mode     (* Float square root from memory *)
+  | Ifloatsqrtf of float_width * addressing_mode
+                                       (* Float square root from memory *)
   | Ibswap of { bitwidth: bswap_bitwidth; } (* endianness conversion *)
   | Isextend32                         (* 32 to 64 bit conversion with sign
                                           extension *)
@@ -95,7 +98,10 @@ type specific_operation =
       }
 
 and float_operation =
-    Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv
+  | Ifloatadd
+  | Ifloatsub
+  | Ifloatmul
+  | Ifloatdiv
 
 val equal_specific_operation : specific_operation -> specific_operation -> bool
 

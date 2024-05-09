@@ -454,6 +454,8 @@ module Make_simplify_float_arith_op (FP : sig
   val meet : T.Typing_env.t -> T.t -> F.Set.t T.meet_shortcut
 
   val these : F.Set.t -> T.t
+
+  val kind : K.t
 end) =
 struct
   let simplify (op : P.unary_float_arith_op) dacc ~original_term ~arg:_ ~arg_ty
@@ -474,7 +476,7 @@ struct
       let dacc = DA.add_variable dacc result_var ty in
       SPR.create original_term ~try_reify:true dacc
     | Known_result _ | Need_meet ->
-      SPR.create_unknown dacc ~result_var K.naked_float ~original_term
+      SPR.create_unknown dacc ~result_var FP.kind ~original_term
     | Invalid -> SPR.create_invalid dacc
 end
 
@@ -484,6 +486,8 @@ module Simplify_float_arith_op = Make_simplify_float_arith_op (struct
   let meet = T.meet_naked_floats
 
   let these = T.these_naked_floats
+
+  let kind = K.naked_float
 end)
 
 module Simplify_float32_arith_op = Make_simplify_float_arith_op (struct
@@ -492,6 +496,8 @@ module Simplify_float32_arith_op = Make_simplify_float_arith_op (struct
   let meet = T.meet_naked_float32s
 
   let these = T.these_naked_float32s
+
+  let kind = K.naked_float32
 end)
 
 let simplify_float_arith_op = Simplify_float_arith_op.simplify

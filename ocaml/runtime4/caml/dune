@@ -92,6 +92,7 @@
     (s.h as caml/s.h)
     (signals.h as caml/signals.h)
     (simd.h as caml/simd.h)
+    (float32.h as caml/float32.h)
     (skiplist.h as caml/skiplist.h)
     (signals_machdep.h as caml/signals_machdep.h)
     (stack.h as caml/stack.h)

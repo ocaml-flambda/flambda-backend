@@ -163,7 +163,7 @@ let unary_operation_argument_or_result_on_stack
 
 let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   begin match instr.desc with
-  | Op (Floatop (Iaddf | Isubf | Imulf | Idivf)) ->
+  | Op (Floatop (_, (Iaddf | Isubf | Imulf | Idivf))) ->
     may_use_stack_operand_for_second_argument map instr ~num_args:2 ~res_is_fst:true
   | Op (Specific (Isimd op)) ->
     (match Simd_proc.register_behavior op with
@@ -227,13 +227,13 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Op (Specific (Irdtsc | Irdpmc))
   | Op (Intop (Ipopcnt | Iclz _| Ictz _))
   | Op (Intop_atomic _)
-  | Op (Move | Spill | Reload | Floatop (Inegf | Iabsf | Icompf _)
+  | Op (Move | Spill | Reload | Floatop (_, (Inegf | Iabsf | Icompf _))
        | Const_float _ | Const_float32 _  | Const_vec128 _
        | Stackoffset _ | Load _ | Store _ | Name_for_debugger _ | Probe_is_enabled _
        | Valueofint | Intofvalue | Opaque | Begin_region | End_region | Dls_get | Poll | Alloc _)
   | Op (Specific (Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _)
-                 | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
+                 | Ioffset_loc (_, _) | Ifloatarithmem (_, _, _)
                  | Ipause
                  | Iprefetch _
                  | Ibswap _ | Ifloatsqrtf _))
