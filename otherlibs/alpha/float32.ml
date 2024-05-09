@@ -100,11 +100,11 @@ external to_float : (float32[@local_opt]) -> float = "%floatoffloat32"
 
 external of_bits : (int32[@local_opt]) -> float32
   = "caml_float32_of_bits_bytecode" "caml_float32_of_bits"
-  [@@unboxed] [@@noalloc]
+  [@@unboxed] [@@noalloc] [@@builtin]
 
 external to_bits : (float32[@local_opt]) -> int32
   = "caml_float32_to_bits_bytecode" "caml_float32_to_bits"
-  [@@unboxed] [@@noalloc]
+  [@@unboxed] [@@noalloc] [@@builtin]
 
 external of_string : string -> float32 = "caml_float32_of_string"
 
@@ -126,7 +126,7 @@ external classify_float : (float32[@unboxed]) -> fpclass
   [@@noalloc]
 
 external sqrt : float32 -> float32 = "caml_sqrt_float32_bytecode" "sqrtf"
-  [@@unboxed] [@@noalloc]
+  [@@unboxed] [@@noalloc] [@@builtin]
 
 external cbrt : float32 -> float32 = "caml_cbrt_float32_bytecode" "cbrtf"
   [@@unboxed] [@@noalloc]

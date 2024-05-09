@@ -186,15 +186,17 @@ external to_int : (float32[@local_opt]) -> int = "%intoffloat32"
 
 external of_bits : (int32[@local_opt]) -> float32
   = "caml_float32_of_bits_bytecode" "caml_float32_of_bits"
-  [@@unboxed] [@@noalloc]
+  [@@unboxed] [@@noalloc] [@@builtin]
 (** Convert a 32-bit float to a 32-bit integer, preserving the value's
-    bit pattern. *)
+    bit pattern.
+    The amd64 flambda-backend compiler translates this call to MOVD. *)
 
 external to_bits : (float32[@local_opt]) -> int32
   = "caml_float32_to_bits_bytecode" "caml_float32_to_bits"
-  [@@unboxed] [@@noalloc]
+  [@@unboxed] [@@noalloc] [@@builtin]
 (** Convert a 32-bit integer to a 32-bit float, preserving the value's
-    bit pattern. *)
+    bit pattern.
+    The amd64 flambda-backend compiler translates this call to MOVD. *)
 
 external of_string : string -> float32 = "caml_float32_of_string"
 (** Convert the given string to a float.  The string is read in decimal
@@ -237,8 +239,9 @@ external classify_float : (float32[@unboxed]) -> fpclass
     normal, subnormal, zero, infinite, or not a number. *)
 
 external sqrt : float32 -> float32 = "caml_sqrt_float32_bytecode" "sqrtf"
-  [@@unboxed] [@@noalloc]
-(** Square root. *)
+  [@@unboxed] [@@noalloc] [@@builtin]
+(** Square root.
+    The amd64 flambda-backend compiler translates this call to SQRTSS. *)
 
 external cbrt : float32 -> float32 = "caml_cbrt_float32_bytecode" "cbrtf"
   [@@unboxed] [@@noalloc]
