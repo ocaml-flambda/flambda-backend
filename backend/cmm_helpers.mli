@@ -1006,7 +1006,8 @@ val unboxed_int64_or_nativeint_array_set :
   Debuginfo.t ->
   expression
 
-(** {2 Getters and setters for unboxed int fields of mixed blocks} *)
+(** {2 Getters and setters for unboxed int and float32 fields of mixed
+    blocks} *)
 
 (** The argument structure for getters is parallel to [get_field_computed]. *)
 
