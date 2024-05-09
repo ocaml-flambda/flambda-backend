@@ -752,7 +752,7 @@ end)
 module Binary_float_arith = Binary_arith_like (Float_ops_for_binary_arith)
 module Binary_float32_arith = Binary_arith_like (Float32_ops_for_binary_arith)
 
-module Float_ops_for_binary_comp_gen (Float : sig
+module Float_ops_for_binary_comp_gen (FP : sig
   module F : Numeric_types.Float_by_bit_pattern
 
   val arg_kind : K.Standard_int_or_float.t
@@ -761,22 +761,22 @@ module Float_ops_for_binary_comp_gen (Float : sig
 end) : sig
   include Binary_arith_like_sig with type op = unit P.comparison_behaviour
 end = struct
-  module F = Float.F
+  module F = FP.F
   module Lhs = F
   module Rhs = F
   module Result = Targetint_31_63
 
   type op = unit P.comparison_behaviour
 
-  let arg_kind = Float.arg_kind
+  let arg_kind = FP.arg_kind
 
   let result_kind = K.naked_immediate
 
   let ok_to_evaluate denv = DE.propagating_float_consts denv
 
-  let prover_lhs = Float.prover
+  let prover_lhs = FP.prover
 
-  let prover_rhs = Float.prover
+  let prover_rhs = FP.prover
 
   let unknown (op : op) =
     match op with
