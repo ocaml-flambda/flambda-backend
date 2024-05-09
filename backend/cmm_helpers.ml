@@ -1258,14 +1258,6 @@ let get_field_unboxed_int32 mutability ~block ~index dbg =
   Cop
     (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
 
-let get_field_unboxed_float32 mutability ~block ~index dbg =
-  let memory_chunk = Single { reg = Float32 } in
-  (* CR layouts v5.1: We'll need to vary log2_size_addr to efficiently pack
-   * float32s *)
-  let field_address = array_indexing log2_size_addr block index dbg in
-  Cop
-    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
-
 let get_field_unboxed_int64_or_nativeint mutability ~block ~index dbg =
   let memory_chunk = Word_int in
   let field_address = array_indexing log2_size_addr block index dbg in
@@ -1288,19 +1280,29 @@ let setfield_unboxed_int32 arr ofs newval dbg =
          [array_indexing log2_size_addr arr ofs dbg; newval],
          dbg ))
 
+let setfield_unboxed_int64_or_nativeint arr ofs newval dbg =
+  return_unit dbg
+    (Cop
+       ( Cstore (Word_int, Assignment),
+         [array_indexing log2_size_addr arr ofs dbg; newval],
+         dbg ))
+
+(* Getters and setters for unboxed float32 fields *)
+
+let get_field_unboxed_float32 mutability ~block ~index dbg =
+  let memory_chunk = Single { reg = Float32 } in
+  (* CR layouts v5.1: We'll need to vary log2_size_addr to efficiently pack
+   * float32s *)
+  let field_address = array_indexing log2_size_addr block index dbg in
+  Cop
+    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
+
 let setfield_unboxed_float32 arr ofs newval dbg =
   (* CR layouts v5.1: We will need to vary log2_size_addr when float32 fields
      are efficiently packed. *)
   return_unit dbg
     (Cop
        ( Cstore (Single { reg = Float32 }, Assignment),
-         [array_indexing log2_size_addr arr ofs dbg; newval],
-         dbg ))
-
-let setfield_unboxed_int64_or_nativeint arr ofs newval dbg =
-  return_unit dbg
-    (Cop
-       ( Cstore (Word_int, Assignment),
          [array_indexing log2_size_addr arr ofs dbg; newval],
          dbg ))
 
