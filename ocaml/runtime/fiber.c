@@ -155,7 +155,7 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
              < page_size);
   // We need two clear pages in order to be able to guarantee we can create
   // a guard page which is page-aligned.
-  size_t len = (num_pages + 3) * page_size;
+  size_t len = (num_pages + 4) * page_size;
 
   // Stack layout (higher addresses are at the top):
   //
