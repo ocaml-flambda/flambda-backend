@@ -106,6 +106,8 @@ val enter_inlined_apply : t -> Inlined_debuginfo.t -> t
 (** Set the inlined debuginfo. *)
 val set_inlined_debuginfo : t -> Inlined_debuginfo.t -> t
 
+val currently_in_inlined_body : t -> bool
+
 (** {2 Continuations} *)
 
 (** Returns the return continuation of the environment. *)

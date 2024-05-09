@@ -448,43 +448,55 @@ let simplify_reinterpret_int64_as_float dacc ~original_term ~arg:_ ~arg_ty
     SPR.create original_term ~try_reify:false dacc
   | Invalid -> SPR.create_invalid dacc
 
-let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
-    ~arg:_ ~arg_ty ~result_var =
-  let module F = Numeric_types.Float_by_bit_pattern in
-  let denv = DA.denv dacc in
-  let proof = T.meet_naked_floats (DE.typing_env denv) arg_ty in
-  match proof with
-  | Known_result fs when DE.propagating_float_consts denv ->
-    assert (not (Float.Set.is_empty fs));
-    let f =
-      match op with Abs -> F.IEEE_semantics.abs | Neg -> F.IEEE_semantics.neg
-    in
-    let possible_results = F.Set.map f fs in
-    let ty = T.these_naked_floats possible_results in
-    let dacc = DA.add_variable dacc result_var ty in
-    SPR.create original_term ~try_reify:true dacc
-  | Known_result _ | Need_meet ->
-    SPR.create_unknown dacc ~result_var K.naked_float ~original_term
-  | Invalid -> SPR.create_invalid dacc
+module Make_simplify_float_arith_op (FP : sig
+  module F : Numeric_types.Float_by_bit_pattern
 
-let simplify_float32_arith_op (op : P.unary_float_arith_op) dacc ~original_term
-    ~arg:_ ~arg_ty ~result_var =
-  let module F = Numeric_types.Float32_by_bit_pattern in
-  let denv = DA.denv dacc in
-  let proof = T.meet_naked_float32s (DE.typing_env denv) arg_ty in
-  match proof with
-  | Known_result fs when DE.propagating_float_consts denv ->
-    assert (not (Float32.Set.is_empty fs));
-    let f =
-      match op with Abs -> F.IEEE_semantics.abs | Neg -> F.IEEE_semantics.neg
-    in
-    let possible_results = F.Set.map f fs in
-    let ty = T.these_naked_float32s possible_results in
-    let dacc = DA.add_variable dacc result_var ty in
-    SPR.create original_term ~try_reify:true dacc
-  | Known_result _ | Need_meet ->
-    SPR.create_unknown dacc ~result_var K.naked_float32 ~original_term
-  | Invalid -> SPR.create_invalid dacc
+  val meet : T.Typing_env.t -> T.t -> F.Set.t T.meet_shortcut
+
+  val these : F.Set.t -> T.t
+end) =
+struct
+  let simplify (op : P.unary_float_arith_op) dacc ~original_term ~arg:_ ~arg_ty
+      ~result_var =
+    let module F = FP.F in
+    let denv = DA.denv dacc in
+    let proof = FP.meet (DE.typing_env denv) arg_ty in
+    match proof with
+    | Known_result fs when DE.propagating_float_consts denv ->
+      assert (not (F.Set.is_empty fs));
+      let f =
+        match op with
+        | Abs -> F.IEEE_semantics.abs
+        | Neg -> F.IEEE_semantics.neg
+      in
+      let possible_results = F.Set.map f fs in
+      let ty = FP.these possible_results in
+      let dacc = DA.add_variable dacc result_var ty in
+      SPR.create original_term ~try_reify:true dacc
+    | Known_result _ | Need_meet ->
+      SPR.create_unknown dacc ~result_var K.naked_float ~original_term
+    | Invalid -> SPR.create_invalid dacc
+end
+
+module Simplify_float_arith_op = Make_simplify_float_arith_op (struct
+  module F = Float
+
+  let meet = T.meet_naked_floats
+
+  let these = T.these_naked_floats
+end)
+
+module Simplify_float32_arith_op = Make_simplify_float_arith_op (struct
+  module F = Float32
+
+  let meet = T.meet_naked_float32s
+
+  let these = T.these_naked_float32s
+end)
+
+let simplify_float_arith_op = Simplify_float_arith_op.simplify
+
+let simplify_float32_arith_op = Simplify_float32_arith_op.simplify
 
 let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
   (* CR mshinwell: see CRs in lambda_to_flambda_primitives.ml

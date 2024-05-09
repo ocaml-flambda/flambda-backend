@@ -160,7 +160,10 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         args @ [callee]
       else args
     in
-    let code_sym = To_cmm_result.symbol_of_code_id res code_id in
+    let code_sym =
+      To_cmm_result.symbol_of_code_id res code_id
+        ~currently_in_inlined_body:(Env.currently_in_inlined_body env)
+    in
     match Apply.probe apply with
     | None ->
       ( C.direct_call ~dbg
