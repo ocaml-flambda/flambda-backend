@@ -1,3 +1,5 @@
-module Float_u = Stdlib__Float_u
+module Float_u = Float_u
+module Int32_u = Int32_u
+module Int64_u = Int64_u
 module Iarray = Stdlib__Iarray
 module IarrayLabels = Stdlib__IarrayLabels
