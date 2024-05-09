@@ -151,11 +151,11 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
 
   // If we were using this for arm64, another 8 bytes is needed before
   // the struct stack_handler.
-  CAML_STATIC_ASSERT(sizeof(struct stack_info) + 8 + sizeof(struct stack_handler)
-    < page_size);
+  CAMLassert(sizeof(struct stack_info) + 8 + sizeof(struct stack_handler)
+             < page_size);
   // We need two clear pages in order to be able to guarantee we can create
   // a guard page which is page-aligned.
-  len = (num_pages + 3) * page_size;
+  size_t len = (num_pages + 3) * page_size;
 
   // Stack layout (higher addresses are at the top):
   //
@@ -194,7 +194,7 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
   }
 
   // Assert that the guard page does not impinge on the actual stack area.
-  CAMLassert(block + len - (sizeof(struct stack_handler) + 8 + bsize)
+  CAMLassert((char*) block + len - (sizeof(struct stack_handler) + 8 + bsize)
     >= Protected_stack_page(block, page_size) + page_size);
 
   block->size = len;
