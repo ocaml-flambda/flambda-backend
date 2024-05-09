@@ -1,6 +1,7 @@
 (* TEST
    flags = "-extension layouts_beta";
    flambda2;
+   include stable;
    {
    native;
    }{
@@ -11,10 +12,7 @@
 (*****************************************)
 (* Prelude: Functions on unboxed numbers *)
 
-module Float_u = Stdlib__Float_u
-module Int32_u = Stdlib__Int32_u
-module Int64_u = Stdlib__Int64_u
-module Nativeint_u = Stdlib__Nativeint_u
+open Stable
 
 let print_floatu prefix x = Printf.printf "%s: %.2f\n" prefix (Float_u.to_float x)
 let print_float prefix x = Printf.printf "%s: %.2f\n" prefix x
