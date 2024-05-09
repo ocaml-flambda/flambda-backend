@@ -204,7 +204,7 @@ Error: This type ('b : value) should be an instance of type ('a : float32)
 |}]
 
 (*****************************************)
-(* Test 5: Can be put in some structures *)
+(* Test 5: float32 in structures *)
 
 (* all-float32 records are allowed, as are some records that mix float32 and
   value fields. See [tests/typing-layouts/mixed_records.ml] for tests of mixed
@@ -224,10 +224,6 @@ Error: Type t_float32 has layout float32.
        Unboxed records may not yet contain types of this layout.
 |}];;
 
-(* all-float32 constructor args are also allowed, as are some constructors that
-  mix float32 and value fields. These are only allowed in alpha, though. See
-  [tests/typing-layouts/mixed_constructor_args.ml] for tests of mixed
-  constructor args. *)
 type t5_4 = A of t_float32;;
 [%%expect{|
 type t5_4 = A of t_float32
@@ -501,19 +497,19 @@ Error: The native code version of the primitive is mandatory
        for types with non-value layouts.
 |}];;
 
-external f10_3 : float -> t_float32  = "foo" "bar" "float";;
+external f10_3 : float32 -> t_float32  = "foo" "bar" "float";;
 [%%expect{|
-Line 1, characters 0-58:
-1 | external f10_3 : float -> t_float32  = "foo" "bar" "float";;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-60:
+1 | external f10_3 : float32 -> t_float32  = "foo" "bar" "float";;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Cannot use "float" in conjunction with types of non-value layouts.
 |}];;
 
-external f10_4 : int -> float32# -> float  = "foo" "bar" "float";;
+external f10_4 : int -> float32# -> float32  = "foo" "bar" "float";;
 [%%expect{|
-Line 1, characters 0-64:
-1 | external f10_4 : int -> float32# -> float  = "foo" "bar" "float";;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-66:
+1 | external f10_4 : int -> float32# -> float32  = "foo" "bar" "float";;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Cannot use "float" in conjunction with types of non-value layouts.
 |}];;
 
@@ -556,10 +552,8 @@ Line 1, characters 29-37:
 Error: Don't know how to untag this type. Only int can be untagged.
 |}];;
 
-(******************************************************)
-(* Test 11: Allow float32 in some extensible variants *)
-
-(* Currently these are only supported in alpha *)
+(*******************************************************)
+(* Test 11: float32 in extensible variants *)
 
 type t11_1 = ..
 
@@ -585,8 +579,6 @@ type ('a : float32) t11_2 = ..
 type 'a t11_2 += A of int
 type 'a t11_2 += B of 'a
 |}]
-
-(* Some extensible variants aren't supported, though. *)
 
 type t11_1 += C of t_float32 * string;;
 

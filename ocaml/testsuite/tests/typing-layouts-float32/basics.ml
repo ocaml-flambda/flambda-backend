@@ -194,8 +194,8 @@ Error: This type ('b : value) should be an instance of type ('a : float32)
          it's the type of a tuple element.
 |}]
 
-(****************************************************************************)
-(* Test 5: Can't be put in structures in typedecls, except certain records. *)
+(*****************************************)
+(* Test 5: float32 in structures *)
 
 (* all-float32 records are allowed, as are some records that mix float32 and
    value fields. See [tests/typing-layouts/mixed_records.ml] for tests of mixed
@@ -572,7 +572,7 @@ Error: Don't know how to untag this type. Only int can be untagged.
 |}];;
 
 (*******************************************************)
-(* Test 11: Don't allow float32 in extensible variants *)
+(* Test 11: float32 in extensible variants *)
 
 type t11_1 = ..
 
