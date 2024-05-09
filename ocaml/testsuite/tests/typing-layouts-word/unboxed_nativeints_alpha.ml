@@ -1,4 +1,5 @@
 (* TEST
+ include stable;
  flambda2;
  {
    flags = "-extension layouts_alpha";
@@ -22,7 +23,7 @@
 (* Prelude: Functions on unboxed nativeints. *)
 
 module Nativeint_u = struct
-  include Stdlib__Nativeint_u
+  include Stable.Nativeint_u
 
   let ( + ) = add
   let ( - ) = sub
