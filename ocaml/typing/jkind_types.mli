@@ -21,7 +21,8 @@
    meant to be filled by types defined in `types.ml(i)`. `jkind.ml(i)`
    redefines the types from this file `types.ml` with the type variables
    instantiated. `types.ml` also redefines the types from this file
-   with the type variables instantiated, but only for internal use. *)
+   with the type variables instantiated, but only for internal use.
+   All definitions here are commented in jkind.ml or jkind.mli. *)
 
 module Sort : sig
   type const =
