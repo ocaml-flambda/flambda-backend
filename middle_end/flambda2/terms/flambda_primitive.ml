@@ -1214,7 +1214,7 @@ let print_unary_primitive ppf p =
       Flambda_kind.Standard_int_or_float.print_lowercase dst
   | Boolean_not -> fprintf ppf "Boolean_not"
   | Reinterpret_int64_as_float -> fprintf ppf "Reinterpret_int64_as_float"
-  | Float_arith (w, o) -> print_unary_float_arith_op ppf w o
+  | Float_arith (width, op) -> print_unary_float_arith_op ppf width op
   | Array_length ak ->
     fprintf ppf "(Array_length %a)" Array_kind_for_length.print ak
   | Bigarray_length { dimension } ->
