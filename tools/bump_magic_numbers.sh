@@ -11,9 +11,6 @@ if [ "$(git status --porcelain --untracked-files=no)" != "" ]; then
   exit 1
 fi
 
-git clean -dfX
-(cd ocaml && ./configure && make -j8 coldstart && make -j8 coreall)
-
 # Unfortunately the "e" modifier appears not to work except for replacing
 # a whole line
 
@@ -33,4 +30,3 @@ $sed -i \
   -e 's/^    "Caml\([0-9][0-9][0-9][0-9]\)\([a-zA-Z]\)\(5[0-9][0-9]\)"/echo "    \\"Caml\1\2$((\3 + 1))\\""/ge' \
   ocaml/utils/config.common.ml
 
-(cd ocaml && make -j8 coreall && make -j8 bootstrap)

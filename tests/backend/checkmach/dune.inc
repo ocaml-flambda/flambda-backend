@@ -997,3 +997,79 @@
  (enabled_if (= %{context_name} "main"))
  (deps test_assume_stub.output test_assume_stub.output.corrected)
  (action (diff test_assume_stub.output test_assume_stub.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_bounded_join.output.corrected)
+ (deps (:ml test_bounded_join.ml) filter_fatal_error.sh)
+ (action
+   (with-outputs-to test_bounded_join.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -checkmach-join -2 -checkmach-details-cutoff 20 -O3))
+    (run "./filter_fatal_error.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_bounded_join.output test_bounded_join.output.corrected)
+ (action (diff test_bounded_join.output test_bounded_join.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_bounded_join2.output.corrected)
+ (deps (:ml test_bounded_join2.ml) filter.sh)
+ (action
+   (with-outputs-to test_bounded_join2.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -checkmach-join 2 -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_bounded_join2.output test_bounded_join2.output.corrected)
+ (action (diff test_bounded_join2.output test_bounded_join2.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_bounded_join3.output.corrected)
+ (deps (:ml test_bounded_join3.ml) filter.sh)
+ (action
+   (with-outputs-to test_bounded_join3.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -checkmach-join 0 -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_bounded_join3.output test_bounded_join3.output.corrected)
+ (action (diff test_bounded_join3.output test_bounded_join3.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_bounded_join4.output.corrected)
+ (deps (:ml test_bounded_join4.ml) filter.sh)
+ (action
+   (with-outputs-to test_bounded_join4.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -checkmach-join 0 -checkmach-details-cutoff 3 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_bounded_join4.output test_bounded_join4.output.corrected)
+ (action (diff test_bounded_join4.output test_bounded_join4.output.corrected)))

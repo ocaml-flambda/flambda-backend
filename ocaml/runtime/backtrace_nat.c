@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "caml/alloc.h"
 #include "caml/backtrace.h"
@@ -130,6 +131,34 @@ void caml_stash_backtrace(value exn, uintnat pc, char * sp, char* trapsp)
     /* Stop when we reach the current exception handler */
     if (sp > trapsp) return;
   }
+}
+
+void caml_stash_backtrace_wrapper(value exn, char* rsp, char* trapsp)
+{
+#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+  /* If we get an rsp that lies in the guard page, just do nothing - using rsp
+   * would trigger another segfault, and we are probably in the process of
+   * raising the exception from a segfault.  In any case this behaviour seems
+   * consistent with runtime4, where no backtrace appears to be available at
+   * this point. */
+  struct stack_info *block = Caml_state->current_stack;
+  int page_size = getpagesize();
+  char* protected_low = Protected_stack_page(block, page_size);
+  char* protected_high = protected_low + page_size;
+  if ((rsp >= protected_low) && (rsp < protected_high)) {
+    return;
+  }
+#endif
+  char* pc;
+  char* sp;
+#ifdef WITH_FRAME_POINTERS
+  pc = rsp + 8;
+  sp = rsp + 16;
+#else
+  pc = rsp;
+  sp = rsp + 8;
+#endif
+  caml_stash_backtrace(exn, *((uintnat*) pc), sp, trapsp);
 }
 
 /* minimum size to allocate a backtrace (in slots) */
