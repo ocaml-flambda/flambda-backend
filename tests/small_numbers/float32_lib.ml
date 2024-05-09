@@ -450,3 +450,11 @@ let () =
   check "0x1.00000200000000000001p+0" 0x1.00000200000000000001p+0s;
   check "0x1.000003p+0" 0x1.000003p+0s;
 ;;
+
+let () = (* Cast & sqrt-with-memory intrinsics (see selection.ml) *)
+  CF32.check_float32s (fun f _ ->
+    bit_eq (F32.sqrt (Sys.opaque_identity f)) (CF32.sqrt f);
+    assert (F32.to_bits (Sys.opaque_identity f) = CF32.to_bits f);
+    bit_eq (F32.of_bits (CF32.to_bits f)) f;
+  )
+;;

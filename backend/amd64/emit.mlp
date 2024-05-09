@@ -801,33 +801,21 @@ let emit_global_label s =
 let move (src : Reg.t) (dst : Reg.t) =
   if src.loc <> dst.loc then
     begin match src.typ, src.loc, dst.typ, dst.loc with
-    | (Float | Float32), Reg.Reg _, (Float | Float32), Reg.Reg _
-    | Vec128, _, Vec128, _ ->
-      (* Vec128 stack slots are always aligned. *)
+    | Float, Reg _, Float, Reg _
+    | Float32, Reg _, Float32, Reg _
+    | Vec128, _, Vec128, _ (* Vec128 stack slots are always aligned. *) ->
       I.movapd (reg src) (reg dst)
     | Float, _, Float, _ ->
       I.movsd (reg src) (reg dst)
     | Float32, _, Float32, _ ->
       I.movss (reg src) (reg dst)
-    | Float, _, Int, _ | Int, _, Float, _ ->
-      (* CR-soon gyorsh: this case is used by the bits_of_float/float_of_bits intrinsics.
-         They should instead generate a separate Ispecific and this case should be
-         removed. *)
-      I.movq (reg src) (reg dst)
     | (Int | Val | Addr), _, (Int | Val | Addr), _ ->
       I.mov (reg src) (reg dst)
-    | Vec128, _, _, _ | _, _, Vec128, _ ->
+    | (Float | Float32 | Vec128 | Int | Val | Addr), _, _, _ ->
       Misc.fatal_errorf
-        "Illegal move between a vector and non-vector register (%s to %s)\n"
-        (Reg.name src) (Reg.name dst)
-    | Float32, _, _, _ | _, _, Float32, _ ->
-      Misc.fatal_errorf
-        "Illegal move between a float32 and non-float32 register (%s to %s)\n"
-        (Reg.name src) (Reg.name dst)
-    | Float, _, (Val | Addr), _ | (Val | Addr), _, Float, _ ->
-      Misc.fatal_errorf
-        "Illegal move between a float and val/addr register (%s to %s)\n"
-        (Reg.name src) (Reg.name dst)
+        "Illegal move between registers of differing types (%s:%a to %s:%a)\n"
+        (Reg.name src) Printcmm.machtype_component src.typ
+        (Reg.name dst) Printcmm.machtype_component dst.typ
     end
 
 let stack_to_stack_move (src : Reg.t) (dst : Reg.t) =
@@ -1068,6 +1056,10 @@ let emit_simd_instr op i =
     if arg i 0 <> res i 0 then
       I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
     I.sqrtsd (arg i 0) (res i 0)
+  | SSE2 Sqrt_scalar_f32 ->
+    if arg i 0 <> res i 0 then
+      I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
+    I.sqrtss (arg i 0) (res i 0)
   | SSE2 Sqrt_f64 -> I.sqrtpd (arg i 0) (res i 0)
   | SSE2 Add_i8 -> I.paddb (arg i 1) (res i 0)
   | SSE2 Add_i16 -> I.paddw (arg i 1) (res i 0)
@@ -1128,6 +1120,10 @@ let emit_simd_instr op i =
   | SSE2 I16_to_unsigned_i8 -> I.packuswb (arg i 1) (res i 0)
   | SSE2 I32_to_unsigned_i16 -> I.packusdw (arg i 1) (res i 0)
   | SSE2 Cast_scalar_f64_i64 -> I.cvtsd2si (arg i 0) (res i 0)
+  | SSE2 Bit_cast_f64_i64 -> I.movq (arg i 0) (res i 0)
+  | SSE2 Bit_cast_i64_f64 -> I.movq (arg i 0) (res i 0)
+  | SSE2 Bit_cast_f32_i32 -> I.movd (arg i 0) (res32 i 0)
+  | SSE2 Bit_cast_i32_f32 -> I.movd (arg32 i 0) (res i 0)
   | SSE2 SLL_i16 -> I.psllw (arg i 1) (res i 0)
   | SSE2 SLL_i32 -> I.pslld (arg i 1) (res i 0)
   | SSE2 SLL_i64 -> I.psllq (arg i 1) (res i 0)
@@ -1636,12 +1632,6 @@ let emit_instr ~first ~fallthrough i =
       I.bswap (res32 i 0);
   | Lop(Ispecific(Ibswap { bitwidth = Sixtyfour })) ->
       I.bswap (res i 0)
-  | Lop(Ispecific(Ifloatsqrtf (Float64, addr))) ->
-      I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
-      I.sqrtsd (addressing addr REAL8 i 0) (res i 0)
-  | Lop(Ispecific(Ifloatsqrtf (Float32, _addr))) ->
-      (* CR mslater: (float32) Ifloatsqrtf Float32 *)
-      Misc.fatal_error "Ifloatsqrtf Float32 should never be generated."
   | Lop(Ispecific(Isextend32)) ->
       I.movsxd (arg32 i 0) (res i 0)
   | Lop(Ispecific(Izextend32)) ->

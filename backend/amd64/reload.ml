@@ -187,7 +187,7 @@ method! reload_operation op arg res =
   | Iintop_atomic _
   | Ispecific  (Isextend32 | Izextend32 | Ilea _
                | Istore_int (_, _, _)
-               | Ioffset_loc (_, _) | Ifloatarithmem (_, _, _) | Ifloatsqrtf _
+               | Ioffset_loc (_, _) | Ifloatarithmem (_, _, _)
                | Ipause
                | Ilfence | Isfence | Imfence
                | Iprefetch _ | Ibswap _)

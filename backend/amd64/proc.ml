@@ -488,7 +488,7 @@ let destroyed_at_oper = function
   | Iop(Ispecific(Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
                  | Ipause | Iprefetch _
-                 | Ifloatarithmem (_, _, _) | Ifloatsqrtf (_, _) | Ibswap _))
+                 | Ifloatarithmem (_, _, _) | Ibswap _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
               | Ipopcnt | Iclz _ | Ictz _ ))
   | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl
@@ -563,7 +563,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Begin_region
        | End_region
        | Specific (Ilea _ | Istore_int _ | Ioffset_loc _
-                  | Ifloatarithmem _ | Ifloatsqrtf _ | Ibswap _
+                  | Ifloatarithmem _ | Ibswap _
                   | Isextend32 | Izextend32 | Ipause
                   | Iprefetch _ | Ilfence | Isfence | Imfence)
        | Name_for_debugger _ | Dls_get)
@@ -591,7 +591,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   | Call {op = Indirect | Direct _; _} ->
     all_phys_regs ()
   | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isextend32 | Izextend32
-                       | Ifloatarithmem _ | Ifloatsqrtf _ | Irdtsc | Irdpmc | Ipause
+                       | Ifloatarithmem _ | Irdtsc | Irdpmc | Ipause
                        | Isimd _ | Ilfence | Isfence | Imfence
                        | Istore_int (_, _, _) | Ioffset_loc (_, _)
                        | Iprefetch _); _ } ->
@@ -621,7 +621,7 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
   | Call {op = Indirect | Direct _; _} ->
     true
   | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isextend32 | Izextend32
-                       | Ifloatarithmem _ | Ifloatsqrtf _ | Irdtsc | Irdpmc | Ipause
+                       | Ifloatarithmem _ | Irdtsc | Irdpmc | Ipause
                        | Isimd _ | Ilfence | Isfence | Imfence
                        | Istore_int (_, _, _) | Ioffset_loc (_, _)
                        | Iprefetch _); _ } ->
@@ -701,7 +701,6 @@ let max_register_pressure =
              | Irdtsc | Irdpmc | Istore_int (_, _, _)
              | Ilfence | Isfence | Imfence
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _, _)
-             | Ifloatsqrtf (_, _)
              | Ibswap _)
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
   | Ibeginregion | Iendregion | Idls_get
