@@ -148,11 +148,29 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
   size_t bsize = Bsize_wsize(wosize);
   int page_size = getpagesize();
   int num_pages = (bsize + page_size - 1) / page_size;
-  bsize = (num_pages + 2) * page_size;
-  size_t len = sizeof(struct stack_info) +
-               bsize +
-               8 /* for alignment to 16-bytes, needed for arm64 */ +
-               sizeof(struct stack_handler);
+
+  // If we were using this for arm64, another 8 bytes is needed before
+  // the struct stack_handler.
+  CAML_STATIC_ASSERT(sizeof(struct stack_info) + 8 + sizeof(struct stack_handler)
+    < page_size);
+  // We need two clear pages in order to be able to guarantee we can create
+  // a guard page which is page-aligned.
+  len = (num_pages + 3) * page_size;
+
+  // Stack layout (higher addresses are at the top):
+  //
+  // --------------------
+  // struct stack_handler
+  // 8 bytes on arm64
+  // --------------------
+  // the stack itself
+  // -------------------- <- page-aligned
+  // guard page
+  // -------------------- <- page-aligned
+  // ... (for alignment)
+  // struct stack_info
+  // -------------------- <- block, possibly unaligned
+
   struct stack_info* block;
   block = mmap(NULL, len, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK,
                -1, 0);
@@ -174,6 +192,11 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
     munmap(block, len);
     return NULL;
   }
+
+  // Assert that the guard page does not impinge on the actual stack area.
+  CAMLassert(block + len - (sizeof(struct stack_handler) + 8 + bsize)
+    >= Protected_stack_page(block, page_size) + page_size);
+
   block->size = len;
   return block;
 #else
