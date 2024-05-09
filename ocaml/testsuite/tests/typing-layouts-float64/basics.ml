@@ -1,5 +1,6 @@
 (* TEST
  flambda2;
+ include stable;
  {
    expect;
  }
@@ -11,6 +12,11 @@
    [alloc] tests in this directory.  The type [float#] here is used as a
    convenient example of a concrete [float64] type in some tests, but its
    behavior isn't the primary purpose of this test. *)
+
+#directory "+stable"
+#load "stable.cma"
+[%%expect {|
+|}];;
 
 type t_float64 : float64
 type ('a : float64) t_float64_id = 'a
@@ -845,7 +851,7 @@ Error: This expression has type t_float64
 (***********************************************************)
 (* Test 14: unboxed float records work like normal records *)
 
-module FU = Stdlib__Float_u
+module FU = Stable.Float_u
 
 type t14_1 = { x : float#; y : float# }
 
@@ -888,7 +894,7 @@ let f14_4 r =
 
 
 [%%expect{|
-module FU = Stdlib__Float_u
+module FU = Stable.Float_u
 type t14_1 = { x : float#; y : float#; }
 val f14_1 : t14_1 -> float# = <fun>
 val r14 : t14_1 = {x = <abstr>; y = <abstr>}
