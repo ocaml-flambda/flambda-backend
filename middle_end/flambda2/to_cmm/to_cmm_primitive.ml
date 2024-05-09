@@ -605,8 +605,8 @@ let binary_int_comp_primitive_yielding_int _env dbg _kind
       "Translation of [Int_comp] yielding an integer -1, 0 or 1 in unsigned \
        mode is not yet implemented"
 
-let binary_float_arith_primitive _env dbg w op x y =
-  match (w : P.float_bitwidth), (op : P.binary_float_arith_op) with
+let binary_float_arith_primitive _env dbg width op x y =
+  match (width : P.float_bitwidth), (op : P.binary_float_arith_op) with
   | Float64, Add -> C.float_add ~dbg x y
   | Float64, Sub -> C.float_sub ~dbg x y
   | Float64, Mul -> C.float_mul ~dbg x y
@@ -616,8 +616,8 @@ let binary_float_arith_primitive _env dbg w op x y =
   | Float32, Mul -> C.float32_mul ~dbg x y
   | Float32, Div -> C.float32_div ~dbg x y
 
-let binary_float_comp_primitive _env dbg w op x y =
-  match (w : P.float_bitwidth), (op : unit P.comparison) with
+let binary_float_comp_primitive _env dbg width op x y =
+  match (width : P.float_bitwidth), (op : unit P.comparison) with
   | Float64, Eq -> C.float_eq ~dbg x y
   | Float64, Neq -> C.float_neq ~dbg x y
   | Float64, Lt () -> C.float_lt ~dbg x y
@@ -631,8 +631,8 @@ let binary_float_comp_primitive _env dbg w op x y =
   | Float32, Le () -> C.float32_le ~dbg x y
   | Float32, Ge () -> C.float32_ge ~dbg x y
 
-let binary_float_comp_primitive_yielding_int _env dbg w x y =
-  match (w : P.float_bitwidth) with
+let binary_float_comp_primitive_yielding_int _env dbg width x y =
+  match (width : P.float_bitwidth) with
   | Float64 -> C.mk_compare_floats_untagged dbg x y
   | Float32 -> C.mk_compare_float32s_untagged dbg x y
 
