@@ -60,11 +60,8 @@ STDLIB_MODULE_BASENAMES = \
   iarray \
   float \
   int32 \
-  int32_u \
   nativeint \
-  nativeint_u \
   int64 \
-  int64_u \
   lexing \
   parsing \
   set \

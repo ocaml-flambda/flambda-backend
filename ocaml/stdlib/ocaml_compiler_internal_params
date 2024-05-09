@@ -1,6 +1,0 @@
-ocaml/stdlib/nativeint_u.mli : extension = layouts_alpha
-ocaml/stdlib/nativeint_u.ml : extension = layouts_alpha
-ocaml/stdlib/int32_u.mli : extension = layouts_alpha
-ocaml/stdlib/int32_u.ml : extension = layouts_alpha
-ocaml/stdlib/int64_u.mli : extension = layouts_alpha
-ocaml/stdlib/int64_u.ml : extension = layouts_alpha
