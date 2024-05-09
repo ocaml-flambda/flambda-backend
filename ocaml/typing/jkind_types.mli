@@ -40,6 +40,10 @@ module Sort : sig
   and var = t option ref
 
   type change = var * t option
+
+  val change_log : (change -> unit) ref
+
+  val undo_change : change -> unit
 end
 
 module Layout : sig

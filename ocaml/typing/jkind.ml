@@ -106,15 +106,11 @@ module Sort = struct
   (* To record changes to sorts, for use with `Types.{snapshot, backtrack}` *)
   type change = var * t option
 
-  let change_log : (change -> unit) ref = ref (fun _ -> ())
-
-  let () = Types.jkind_sort_change_log := change_log
+  let change_log = Jkind_types.Sort.change_log
 
   let log_change change = !change_log change
 
-  let undo_change (v, t_op) = v := t_op
-
-  let () = Types.jkind_sort_undo_change := undo_change
+  let undo_change = Jkind_types.Sort.undo_change
 
   let var_name : var -> string =
     let next_id = ref 1 in
@@ -1592,7 +1588,7 @@ let equate_or_equal ~allow_mutation { jkind = jkind1; history = _ }
 (* CR layouts v2.8: Switch this back to ~allow_mutation:false *)
 let equal = equate_or_equal ~allow_mutation:true
 
-let () = Types.jkind_equal := equal
+let () = Types.set_jkind_equal equal
 
 let equate = equate_or_equal ~allow_mutation:true
 

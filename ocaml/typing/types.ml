@@ -99,18 +99,13 @@ and _ commutable_gen =
 
 and jkind = type_expr Jkind_types.t
 
-(* jkind depends on types defined in this file, but some functions defined in jkind.ml
-   are required here. When jkind.ml is loaded, it fills these refs with the definitions
-   of the corresponding functions. *)
-(* Corresponds to Jkind.Sort.change_log *)
-let jkind_sort_change_log = ref (ref (fun _ ->
-    failwith "jkind_sort_change_log should be set by jkind.ml"))
-(* Corresponds to Jkind.Sort.undo_change *)
-let jkind_sort_undo_change = ref (fun _ ->
-    failwith "jkind_sort_undo_change should be set by jkind.ml")
-(* Corresponds to Jkind.equal *)
+(* jkind depends on types defined in this file, but Jkind.equal is required
+   here. When jkind.ml is loaded, it calls set_jkind_equal to fill a ref to the
+   function. *)
+(** Corresponds to [Jkind.equal] *)
 let jkind_equal = ref (fun _ _ ->
     failwith "jkind_equal should be set by jkind.ml")
+let set_jkind_equal f = jkind_equal := f
 
 module TransientTypeOps = struct
   type t = type_expr
@@ -751,7 +746,7 @@ let log_change ch =
 
 let () =
   Mode.set_append_changes (fun changes -> log_change (Cmodes !changes));
-  !jkind_sort_change_log := (fun change -> log_change (Csort change))
+  Jkind_types.Sort.change_log := (fun change -> log_change (Csort change))
 
 (* constructor and accessors for [field_kind] *)
 
@@ -1001,7 +996,7 @@ let undo_change = function
   | Ccommu (Cvar r)  -> r.commu <- Cunknown
   | Cuniv  (r, v)    -> r := v
   | Cmodes c          -> Mode.undo_changes c
-  | Csort change -> !jkind_sort_undo_change change
+  | Csort change -> Jkind_types.Sort.undo_change change
 
 type snapshot = changes ref * int
 let last_snapshot = Local_store.s_ref 0

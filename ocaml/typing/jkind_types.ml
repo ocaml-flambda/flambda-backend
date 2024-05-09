@@ -28,6 +28,10 @@ module Sort = struct
   and var = t option ref
 
   type change = var * t option
+
+  let change_log : (change -> unit) ref = ref (fun _ -> ())
+
+  let undo_change (v, t_op) = v := t_op
 end
 
 module Layout = struct

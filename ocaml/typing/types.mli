@@ -221,23 +221,12 @@ and abbrev_memo =
 (* CR layouts v2.8: Say more here. *)
 and jkind = type_expr Jkind_types.t
 
-(* jkind depends on types defined in this file, but some functions defined in
-   jkind.ml are required here. When jkind.ml is loaded, it fills these refs with
-   the definitions of the corresponding functions. *)
-
+(* jkind depends on types defined in this file, but Jkind.equal is required
+   here. When jkind.ml is loaded, it calls set_jkind_equal to fill a ref to the
+   function. *)
 (** INTERNAL USE ONLY
-    jkind.ml should fill this ref with the definition of
-    Jkind.Sort.change_log *)
-val jkind_sort_change_log : (Jkind_types.Sort.change -> unit) ref ref
-
-(** INTERNAL USE ONLY
-    jkind.ml should fill this ref with the definition of
-    Jkind.Sort.undo_change *)
-val jkind_sort_undo_change : (Jkind_types.Sort.change -> unit) ref
-
-(** INTERNAL USE ONLY
-    jkind.ml should fill this ref with the definition of Jkind.equal *)
-val jkind_equal : (jkind -> jkind -> bool) ref
+    jkind.ml should call this with the definition of Jkind.equal *)
+val set_jkind_equal : (jkind -> jkind -> bool) -> unit
 
 val is_commu_ok: commutable -> bool
 val commu_ok: commutable
