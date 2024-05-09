@@ -238,8 +238,8 @@ exception Error_forward of Location.error
 type in_function =
   { ty_fun: type_expected;
     loc_fun: Location.t;
-    (** [region_locked] is whether the function has its own region. *)
-    region_locked: bool;
+    (** [region] is whether the function has its own region. *)
+    region: bool;
   }
 
 let error_of_filter_arrow_failure ~explanation ~first ty_fun
@@ -450,12 +450,12 @@ let mode_modality modality expected_mode =
   |> apply_modality modality
   |> mode_default
 
-(* used when entering a function;
-mode is the mode of the function region *)
-let mode_return mode =
-  { (mode_default (meet_regional mode)) with
+(** Given the return mode of a function (that has a region), return the expected
+    mode of the function body inside that region. *)
+let mode_function_body expected_mode =
+  { (mode_default (meet_regional expected_mode.mode)) with
     position = RTail (Regionality.disallow_left
-      (Value.proj (Comonadic Areality) mode), FTail);
+      (Value.proj (Comonadic Areality) expected_mode.mode), FTail);
     closure_context = Some Return;
   }
 
@@ -573,6 +573,29 @@ let submode ~loc ~env ?(reason = Other) ?shared_context mode expected_mode =
 
 let escape ~loc ~env ~reason m =
   submode ~loc ~env ~reason m mode_legacy
+
+type is_function_cases =
+  | Normal_cases (** The cases belong to a reguar pattern match *)
+  | Function_cases of bool
+    (** The cases consistute a function, where [bool] indicates whether or not
+        the function has a region. *)
+
+(** Given [env] and [ret_mode], returns a new [env] and [ret_mode] which is used
+    to type check the function body. This is influenced by whether or not the
+    function has region. *)
+let enter_function_body ~region ~loc env ret_mode =
+  if region then
+    Env.add_region_lock env, mode_function_body ret_mode
+  else begin
+    (* if the function has no region, we force the ret_mode to be local *)
+    match
+      Regionality.submode
+        Regionality.local
+        (Value.proj (Comonadic Areality) ret_mode.mode)
+    with
+    | Ok () -> env, ret_mode
+    | Error _ -> raise (Error (loc, env, Function_returns_local))
+  end
 
 type expected_pat_mode =
   { mode : Value.l;
@@ -4776,7 +4799,7 @@ type split_function_ty =
 *)
 let split_function_ty
     env (expected_mode : expected_mode) ty_expected loc ~arg_label ~has_poly
-    ~mode_annots ~in_function ~is_first_val_param ~is_final_val_param
+    ~mode_annots ~in_function ~is_first_val_param
   =
   let alloc_mode =
       (* Unlike most allocations which can be the highest mode allowed by
@@ -4790,7 +4813,7 @@ let split_function_ty
   in
   if expected_mode.strictly_local then
     Locality.submode_exn Locality.local (Alloc.proj (Comonadic Areality) alloc_mode);
-  let { ty_fun = { ty = ty_fun; explanation }; loc_fun; region_locked } =
+  let { ty_fun = { ty = ty_fun; explanation }; loc_fun; _ } =
     in_function
   in
   let separate = !Clflags.principal || Env.has_local_constraints env in
@@ -4833,36 +4856,13 @@ let split_function_ty
     match is_first_val_param with
     | false -> env
     | true ->
-        let env =
-          Env.add_closure_lock
-            ?closure_context:expected_mode.closure_context
-            (alloc_as_value alloc_mode).comonadic
-            env
-        in
-        if region_locked then Env.add_region_lock env
-        else env
+        Env.add_closure_lock
+          ?closure_context:expected_mode.closure_context
+          (alloc_as_value alloc_mode).comonadic
+          env
   in
   let ret_value_mode = alloc_as_value ret_mode in
-  let expected_inner_mode =
-    if not is_final_val_param then
-      (* no need to check mode crossing in this case because ty_res always a
-      function *)
-      mode_default ret_value_mode
-    else
-      let ret_value_mode =
-        if region_locked then mode_return ret_value_mode
-        else begin
-          (* if the function has no region, we force the ret_mode to be local *)
-          match
-            Locality.submode Locality.local (Alloc.proj (Comonadic Areality) ret_mode)
-          with
-          | Ok () -> mode_default ret_value_mode
-          | Error _ -> raise (Error (loc_fun, env, Function_returns_local))
-        end
-      in
-      let ret_value_mode = expect_mode_cross env ty_ret ret_value_mode in
-      ret_value_mode
-  in
+  let expected_inner_mode = mode_default ret_value_mode in
   let ty_arg_mono =
     if has_poly then ty_arg
     else begin
@@ -4874,10 +4874,7 @@ let split_function_ty
       end
     end
   in
-  let arg_value_mode =
-    if region_locked then alloc_to_value_l2r arg_mode
-    else Value.disallow_right (alloc_as_value arg_mode)
-  in
+  let arg_value_mode = Value.disallow_right (alloc_as_value arg_mode) in
   let expected_pat_mode = simple_pat_mode arg_value_mode in
   let type_sort ~why ty =
     match Ctype.type_sort ~why env ty with
@@ -6299,7 +6296,7 @@ and type_expect_
       let scase = Ast_helper.Exp.case spat_params sbody in
       let cases, partial =
         type_cases Value body_env
-          (simple_pat_mode Value.legacy) (mode_return Value.legacy)
+          (simple_pat_mode Value.legacy) (mode_function_body mode_legacy)
           ty_params (mk_expected ty_func_result)
           ~check_if_total:true loc [scase]
       in
@@ -6641,7 +6638,7 @@ and type_function
   : type_function_result
   =
   let open Jane_syntax.N_ary_functions in
-  let { ty_fun; loc_fun; _ } = in_function in
+  let { ty_fun; loc_fun; region } = in_function in
   (* The "rest of the function" extends from the start of the first parameter
      to the end of the overall function. The parser does not construct such
      a location so we forge one for type errors.
@@ -6698,20 +6695,6 @@ and type_function
       && not (Language_extension.is_enabled Polymorphic_parameters) then
         raise (Typetexp.Error (loc, env,
                                Unsupported_extension Polymorphic_parameters));
-      let is_final_val_param =
-        match body with
-        | Pfunction_cases _ -> false
-        | Pfunction_body _ ->
-            (* This may appear quadratic but it's actually linear when amortized
-               over the outer call to [type_function], as we visit each
-               [Pparam_newtype] only once. *)
-            List.for_all
-              (fun { pparam_desc } ->
-                match pparam_desc with
-                | Pparam_val _ -> false
-                | Pparam_newtype _ -> true)
-              rest
-      in
       let env,
           { filtered_arrow = { ty_arg; arg_mode; ty_ret; ret_mode };
             arg_sort; ret_sort;
@@ -6719,7 +6702,7 @@ and type_function
             alloc_mode;
           } =
         split_function_ty env expected_mode ty_expected loc
-          ~is_first_val_param:first ~is_final_val_param
+          ~is_first_val_param:first
           ~arg_label:typed_arg_label ~in_function ~has_poly ~mode_annots
       in
       (* [ty_arg_internal] is the type of the parameter viewed internally
@@ -6789,13 +6772,8 @@ and type_function
               in
               let curry =
                 match fun_alloc_mode with
-                (* See the comment on the [fun_alloc_mode] field for its
-                   corralation to [is_final_val_param]. *)
-                | None ->
-                  assert(is_final_val_param);
-                  Final_arg
+                | None -> Final_arg
                 | Some fun_alloc_mode ->
-                  assert(not is_final_val_param);
                   (* Handle mode crossing of [arg_mode]. Note that [close_over]
                      uses the [arg_mode.comonadic] as a left mode, and
                      [arg_mode.monadic] as a right mode, hence they need to be
@@ -6890,6 +6868,10 @@ and type_function
     let exp_type, body, fun_alloc_mode, ret_info =
       match body with
       | Pfunction_body body ->
+          let env, expected_mode =
+            enter_function_body ~region ~loc env expected_mode
+          in
+          let expected_mode = expect_mode_cross env ty_expected expected_mode in
           let body =
             match body_constraint with
             | None -> type_expect env expected_mode body (mk_expected ty_expected)
@@ -8152,9 +8134,10 @@ and map_half_typed_cases
 (* Typing of match cases *)
 and type_cases
     : type k . k pattern_category ->
-           _ -> _ -> _ -> _ -> _ -> check_if_total:bool -> _ -> Parsetree.case list ->
+           _ -> _ -> ?function_case:_ -> _ -> _ -> _ -> check_if_total:bool
+           -> _ -> Parsetree.case list ->
            k case list * partial
-  = fun category env pat_mode expr_mode
+  = fun category env pat_mode ?(function_case=Normal_cases) expr_mode
         ty_arg ty_res_explained ~check_if_total loc caselist ->
   let { ty = ty_res; explanation } = ty_res_explained in
   let caselist =
@@ -8168,6 +8151,12 @@ and type_cases
     ~type_body:begin
       fun { pc_guard; pc_rhs } pat ~ext_env ~ty_expected ~ty_infer
           ~contains_gadt:_ ->
+        let ext_env, expr_mode =
+          match function_case with
+          | Normal_cases -> ext_env, expr_mode
+          | Function_cases region ->
+              enter_function_body ~region ~loc ext_env expr_mode
+        in
         let guard =
           match pc_guard with
           | None -> None
@@ -8176,6 +8165,7 @@ and type_cases
               (type_expect ext_env mode_max scond
                 (mk_expected ~explanation:When_guard Predef.type_bool))
         in
+        let expr_mode = expect_mode_cross ext_env ty_expected expr_mode in
         let exp =
           type_expect ext_env expr_mode pc_rhs (mk_expected ?explanation ty_expected)
         in
@@ -8211,12 +8201,13 @@ and type_function_cases_expect
         } =
       split_function_ty env expected_mode ty_expected loc ~arg_label:Nolabel
         ~in_function ~has_poly:false ~mode_annots:Mode.Alloc.Const.Option.none
-        ~is_first_val_param:first ~is_final_val_param:true
+        ~is_first_val_param:first
     in
+    let {region; _} = in_function in
     let cases, partial =
       type_cases Value env
-        expected_pat_mode expected_inner_mode ty_arg_mono (mk_expected ty_ret)
-        ~check_if_total:true loc cases
+        expected_pat_mode ~function_case:(Function_cases region) expected_inner_mode ty_arg_mono
+        (mk_expected ty_ret) ~check_if_total:true loc cases
     in
     let ty_fun =
       instance
@@ -8801,11 +8792,11 @@ and type_n_ary_function
       ~explanation ~attributes
       ((params, constraint_, body) : Jane_syntax.N_ary_functions.expression)
     =
-    let region_locked = not (Is_local_returning.function_body body) in
+    let region = not (Is_local_returning.function_body body) in
     let in_function =
       { ty_fun = mk_expected (instance ty_expected) ?explanation;
         loc_fun = loc;
-        region_locked;
+        region;
       }
     in
     let { function_ = exp_type, result_params, body;
@@ -8904,7 +8895,7 @@ and type_n_ary_function
     re
       { exp_desc =
           Texp_function
-            { params; body; region = region_locked; ret_sort;
+            { params; body; region; ret_sort;
               alloc_mode = Mode.Alloc.disallow_left fun_alloc_mode; ret_mode;
               zero_alloc
             };
@@ -10227,7 +10218,7 @@ let report_error ~loc env = function
         "Optional parameters cannot be polymorphic"
   | Function_returns_local ->
       Location.errorf ~loc
-        "This function is local-returning, but was expected otherwise."
+        "This function body is local-returning, but was expected otherwise."
   | Tail_call_local_returning ->
       Location.errorf ~loc
         "@[This application is local-returning, but is at the tail@ \
