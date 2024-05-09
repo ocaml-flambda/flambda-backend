@@ -1140,8 +1140,8 @@ let compare_unary_primitive p1 p2 =
   | Num_conv { src = src1; dst = dst1 }, Num_conv { src = src2; dst = dst2 } ->
     let c = K.Standard_int_or_float.compare src1 src2 in
     if c <> 0 then c else K.Standard_int_or_float.compare dst1 dst2
-  | Float_arith (w1, op1), Float_arith (w2, op2) ->
-    let c = Stdlib.compare w1 w2 in
+  | Float_arith (width1, op1), Float_arith (width2, op2) ->
+    let c = Stdlib.compare width1 width2 in
     if c <> 0 then c else Stdlib.compare op1 op2
   | Array_length ak1, Array_length ak2 -> Array_kind_for_length.compare ak1 ak2
   | Bigarray_length { dimension = dim1 }, Bigarray_length { dimension = dim2 }
