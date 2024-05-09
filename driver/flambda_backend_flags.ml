@@ -46,6 +46,14 @@ type checkmach_details_cutoff =
 let default_checkmach_details_cutoff = At_most 20
 let checkmach_details_cutoff = ref default_checkmach_details_cutoff
                                        (* -checkmach-details-cutoff n *)
+type checkmach_join =
+  | Keep_all
+  | Widen of int  (* n > 0 *)
+  | Error of int (* n > 0 *)
+
+let default_checkmach_join = Widen 100
+let checkmach_join = ref default_checkmach_join
+                              (* -checkmach-precise-join-threshold n *)
 module Function_layout = struct
   type t =
     | Topological

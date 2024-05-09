@@ -121,3 +121,6 @@ let runtime5 = "@enable_runtime5@" = "yes"
 
 let reserved_header_bits =
   if runtime5 then @reserved_header_bits@ else @profinfo_width@
+
+let no_stack_checks = "@enable_stack_checks@" <> "yes"
+

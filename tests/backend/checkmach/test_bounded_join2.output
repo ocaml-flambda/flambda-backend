@@ -1,0 +1,2 @@
+File "test_bounded_join2.ml", line 8, characters 5-15:
+Error: Annotation check for zero_alloc failed on function Test_bounded_join2.foo (camlTest_bounded_join2.foo_HIDE_STAMP)

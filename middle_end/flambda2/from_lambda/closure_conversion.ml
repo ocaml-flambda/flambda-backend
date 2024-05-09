@@ -2136,22 +2136,19 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
   let contains_subfunctions = Acc.seen_a_function acc in
   let cost_metrics = Acc.cost_metrics acc in
   let inline : Inline_attribute.t =
-    match Inline_attribute.from_lambda (Function_decl.inline decl) with
-    | (Always_inline | Available_inline | Never_inline) as attr -> attr
-    | (Unroll _ | Default_inline) as attr ->
-      (* We make a decision based on [fallback_inlining_heuristic] here to try
-         to mimic Closure's behaviour as closely as possible, particularly when
-         there are functions involving constant closures, which are not lifted
-         during Closure (but will prevent inlining) but will likely have been
-         lifted by our other check in [Inlining_cost] (thus preventing us seeing
-         they were originally there). Note that while Closure never marks as
-         inlinable functions in a set a recursive definitions with more than one
-         function, we do not try to reproduce this particular property and can
-         mark as inlinable such functions. *)
-      if contains_subfunctions
-         && Flambda_features.Expert.fallback_inlining_heuristic ()
-      then (* CR vlaviron: Store reason *) Never_inline
-      else attr
+    (* We make a decision based on [fallback_inlining_heuristic] here to try to
+       mimic Closure's behaviour as closely as possible, particularly when there
+       are functions involving constant closures, which are not lifted during
+       Closure (but will prevent inlining) but will likely have been lifted by
+       our other check in [Inlining_cost] (thus preventing us seeing they were
+       originally there). Note that while Closure never marks as inlinable
+       functions in a set a recursive definitions with more than one function,
+       we do not try to reproduce this particular property and can mark as
+       inlinable such functions. *)
+    if contains_subfunctions
+       && Flambda_features.Expert.fallback_inlining_heuristic ()
+    then Never_inline
+    else Inline_attribute.from_lambda (Function_decl.inline decl)
   in
   let free_names_of_body = Acc.free_names acc in
   let params_and_body =
@@ -2259,9 +2256,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
     else meta
   in
   let acc = Acc.add_code ~code_id ~code acc in
-  let acc =
-    if has_lifted_closure then acc else Acc.with_seen_a_function acc true
-  in
+  let acc = Acc.with_seen_a_function acc true in
   ( acc,
     ( Function_slot.Map.add function_slot approx by_function_slot,
       function_code_ids ) )
@@ -2726,35 +2721,38 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   in
   if not (Lambda.sub_mode closure_alloc_mode apply.IR.mode)
   then
-    Misc.fatal_errorf "Partial application of %a with wrong mode at %s"
-      Ident.print apply.IR.func
-      (Debuginfo.Scoped_location.string_of_scoped_location apply.IR.loc);
-  let function_declarations =
-    [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~function_slot
-        ~kind:
-          (Lambda.Curried
-             { nlocal =
-                 Flambda_arity.num_params missing_arity
-                 - first_complex_local_param
-             })
-        ~params ~params_arity ~removed_params:Ident.Set.empty
-        ~return:result_arity ~calling_convention:Normal_calling_convention
-        ~return_continuation ~exn_continuation ~my_region:apply.region
-        ~body:fbody ~attr ~loc:apply.loc ~free_idents_of_body
-        ~closure_alloc_mode ~first_complex_local_param ~result_mode
-        ~contains_no_escaping_local_allocs Recursive.Non_recursive ]
-  in
-  let body acc env =
-    let arg = find_simple_from_id env wrapper_id in
-    let acc, apply_cont =
-      Apply_cont_with_acc.create acc
-        ~args_approx:[find_value_approximation env arg]
-        apply_continuation ~args:[arg] ~dbg:Debuginfo.none
+    (* This can happen in a dead GADT match case. *)
+    ( acc,
+      Expr.create_invalid
+        (Partial_application_mode_mismatch_in_lambda
+           (Debuginfo.from_location apply.loc)) )
+  else
+    let function_declarations =
+      [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~function_slot
+          ~kind:
+            (Lambda.Curried
+               { nlocal =
+                   Flambda_arity.num_params missing_arity
+                   - first_complex_local_param
+               })
+          ~params ~params_arity ~removed_params:Ident.Set.empty
+          ~return:result_arity ~calling_convention:Normal_calling_convention
+          ~return_continuation ~exn_continuation ~my_region:apply.region
+          ~body:fbody ~attr ~loc:apply.loc ~free_idents_of_body
+          ~closure_alloc_mode ~first_complex_local_param ~result_mode
+          ~contains_no_escaping_local_allocs Recursive.Non_recursive ]
     in
-    Expr_with_acc.create_apply_cont acc apply_cont
-  in
-  close_let_rec acc env ~function_declarations ~body
-    ~current_region:apply.region
+    let body acc env =
+      let arg = find_simple_from_id env wrapper_id in
+      let acc, apply_cont =
+        Apply_cont_with_acc.create acc
+          ~args_approx:[find_value_approximation env arg]
+          apply_continuation ~args:[arg] ~dbg:Debuginfo.none
+      in
+      Expr_with_acc.create_apply_cont acc apply_cont
+    in
+    close_let_rec acc env ~function_declarations ~body
+      ~current_region:apply.region
 
 let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
     ~remaining_arity ~result_mode =
