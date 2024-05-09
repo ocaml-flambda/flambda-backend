@@ -13,15 +13,19 @@
 (**************************************************************************)
 
 (** You should use the types defined in [Jkind] (which redefines the
-   types in this file) rather than using this file directly. *)
+   types in this file) rather than using this file directly, unless you
+   are in [Types] or [Primitive]. *)
 
 (* This module defines types used in the module Jkind. This is to avoid
-   a mutual dependency between jkind.ml(i) and types.ml(i). Polymorphic
-   versions of types are defined here, with type parameters that are
-   meant to be filled by types defined in `types.ml(i)`. `jkind.ml(i)`
-   redefines the types from this file `types.ml` with the type variables
-   instantiated. `types.ml` also redefines the types from this file
-   with the type variables instantiated, but only for internal use.
+   a mutual dependencies between jkind.ml(i) and types.ml(i) and bewteen
+   jkind.ml(i) and primitive.ml(i). Polymorphic versions of types are defined
+   here, with type parameters that are meant to be filled by types defined in
+   types.ml(i). jkind.ml(i) redefines the types from this file types.ml
+   with the type variables instantiated. types.ml also redefines the types
+   from this file with the type variables instantiated, but only for internal
+   use. primitive.ml(i) uses the type [Jkind.const], and types.ml(i) depends on
+   prmitive.ml(i), so [Jkind.const] is defined here and primitive.ml(i) also
+   uses this module.
    All definitions here are commented in jkind.ml or jkind.mli. *)
 
 module Sort : sig
