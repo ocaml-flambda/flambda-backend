@@ -883,9 +883,9 @@ type unary_float_arith_op =
   | Abs
   | Neg
 
-let print_unary_float_arith_op ppf w o =
+let print_unary_float_arith_op ppf width op =
   let fprintf = Format.fprintf in
-  match w, o with
+  match width, op with
   | Float64, Abs -> fprintf ppf "abs"
   | Float64, Neg -> fprintf ppf "~-"
   | Float32, Abs -> fprintf ppf "Float32.abs"
