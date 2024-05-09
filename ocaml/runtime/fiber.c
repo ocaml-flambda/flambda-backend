@@ -154,7 +154,8 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
                8 /* for alignment to 16-bytes, needed for arm64 */ +
                sizeof(struct stack_handler);
   struct stack_info* block;
-  block = mmap(NULL, len, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+  block = mmap(NULL, len, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK,
+               -1, 0);
   if (block == MAP_FAILED) {
     return NULL;
   }
@@ -166,6 +167,9 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
     munmap(block, len);
     return NULL;
   }
+
+  // Note that there is no assumption here on the alignment of the return
+  // value from [mmap].  See the definition of [Protected_stack_page].
   if (mprotect(Protected_stack_page(block, page_size), page_size, PROT_NONE)) {
     munmap(block, len);
     return NULL;

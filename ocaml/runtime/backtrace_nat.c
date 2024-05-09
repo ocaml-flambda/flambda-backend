@@ -133,12 +133,14 @@ void caml_stash_backtrace(value exn, uintnat pc, char * sp, char* trapsp)
   }
 }
 
-void caml_stash_backtrace_wrapper(value exn, char* rsp, char* trapsp) {
+void caml_stash_backtrace_wrapper(value exn, char* rsp, char* trapsp)
+{
 #if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
-  /* if we have protected part of the memory, and get an rsp in the
-   * protected range, just do nothing - using rsp would trigger another
-   * segfault, while we are probably in the process of raising the
-   * exception from a segfault... */
+  /* If we get an rsp that lies in the guard page, just do nothing - using rsp
+   * would trigger another segfault, and we are probably in the process of
+   * raising the exception from a segfault.  In any case this behaviour seems
+   * consistent with runtime4, where no backtrace appears to be available at
+   * this point. */
   struct stack_info *block = Caml_state->current_stack;
   int page_size = getpagesize();
   char* protected_low = Protected_stack_page(block, page_size);

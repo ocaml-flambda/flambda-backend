@@ -549,9 +549,14 @@ FUNCTION(G(caml_raise_stack_overflow_nat))
 CFI_STARTPROC
         CFI_SIGNAL_FRAME
         ENTER_FUNCTION
-LBL(caml_raise_stack_overflow_nat):
         SAVE_ALL_REGS
         movq    %r15, Caml_state(gc_regs)
+        /* We assume that we are always on the OCaml stack at this point.
+           The SIGSEGV handler doesn't actually check that the faulting
+           address lies in OCaml code, so it seems theoretically possible
+           for the code here to be reached via a segfault from C, but
+           in practice this seems most unlikely.  The current situation will
+           suffice as this patch is only a temporary measure in any case. */
         SWITCH_OCAML_TO_C
         C_call (GCALL(caml_raise_stack_overflow))
         SWITCH_C_TO_OCAML

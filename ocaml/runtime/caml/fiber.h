@@ -298,7 +298,8 @@ value caml_make_unhandled_effect_exn (value effect);
 // pages seem to indicate the alignment is guaranteed), hence the last
 // part of the expression below to add an offset guaranteeing alignment
 #define Protected_stack_page(block, page_size) \
-  (((char*) (block)) + (page_size) + (page_size) - ((uintnat) ((char*) (block)) % (page_size)))
+  (((char*) (block)) + (page_size) + (page_size) - \
+   ((uintnat) ((char*) (block)) % (page_size)))
 #endif
 
 #endif /* CAML_INTERNALS */
