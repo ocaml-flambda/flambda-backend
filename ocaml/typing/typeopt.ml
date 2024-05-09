@@ -26,6 +26,7 @@ type error =
   | Sort_without_extension of
       Jkind.Sort.t * Language_extension.maturity * type_expr option
   | Non_value_sort_unknown_ty of Jkind.Sort.t
+  | Small_number_sort_without_extension of Jkind.Sort.t * type_expr option
   | Not_a_sort of type_expr * Jkind.Violation.t
   | Unsupported_sort of Jkind.Sort.const
 
@@ -156,6 +157,7 @@ let classify env loc ty sort : classification =
       assert false
   end
   | Float64 -> Unboxed_float Pfloat64
+  | Float32 -> Unboxed_float Pfloat32
   | Bits32 -> Unboxed_int Pint32
   | Bits64 -> Unboxed_int Pint64
   | Word -> Unboxed_int Pnativeint
@@ -238,7 +240,7 @@ let value_kind_of_value_jkind jkind =
   | Immediate64 ->
     if !Clflags.native_code && Sys.word_size = 64 then Pintval else Pgenval
   | Non_null_value -> Pgenval
-  | Any | Void | Float64 | Word | Bits32 | Bits64 -> assert false
+  | Any | Void | Float64 | Float32 | Word | Bits32 | Bits64 -> assert false
 
 (* [value_kind] has a pre-condition that it is only called on values.  With the
    current set of sort restrictions, there are two reasons this invariant may
@@ -668,7 +670,10 @@ let[@inline always] layout_of_const_sort_generic ~value_kind ~error
     Lambda.Punboxed_int Pint32
   | Bits64 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_int Pint64
-  | (Void | Float64 | Word | Bits32 | Bits64 as const) ->
+  | Float32 when Language_extension.(is_at_least Layouts Stable) &&
+                 Language_extension.(is_enabled Small_numbers) ->
+    Lambda.Punboxed_float Pfloat32
+  | (Void | Float64 | Float32 | Word | Bits32 | Bits64 as const) ->
     error const
 
 let layout env loc sort ty =
@@ -678,6 +683,8 @@ let layout env loc sort ty =
     ~error:(function
       | Value -> assert false
       | Void -> raise (Error (loc, Non_value_sort (Jkind.Sort.void,ty)))
+      | (Float32 as const) ->
+        raise (Error (loc, Small_number_sort_without_extension (Jkind.Sort.of_const const, Some ty)))
       | (Float64 | Word | Bits32 | Bits64 as const) ->
         raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Stable, Some ty))))
 
@@ -688,6 +695,8 @@ let layout_of_sort loc sort =
     ~error:(function
     | Value -> assert false
     | Void -> raise (Error (loc, Non_value_sort_unknown_ty Jkind.Sort.void))
+    | (Float32 as const) ->
+      raise (Error (loc, Small_number_sort_without_extension (Jkind.Sort.of_const const, None)))
     | (Float64 | Word | Bits32 | Bits64 as const) ->
       raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Stable, None))))
 
@@ -740,6 +749,7 @@ let classify_lazy_argument : Typedtree.expression ->
   fun e -> match e.exp_desc with
     | Texp_constant
         ( Const_int _ | Const_char _ | Const_string _
+        | Const_float32 _ (* There is no float32 array optimization *)
         | Const_int32 _ | Const_int64 _ | Const_nativeint _ )
     | Texp_function _
     | Texp_construct (_, {cstr_arity = 0}, _, _) ->
@@ -817,6 +827,26 @@ let report_error ppf = function
          build file.@ \
          Otherwise, please report this error to the Jane Street compilers team."
         (Language_extension.to_command_line_string Layouts maturity)
+  | Small_number_sort_without_extension (sort, ty) ->
+      fprintf ppf "Non-value layout %a detected" Jkind.Sort.format sort;
+      begin match ty with
+      | None -> ()
+      | Some ty -> fprintf ppf " as sort for type@ %a" Printtyp.type_expr ty
+      end;
+      let extension, verb, flags =
+        match Language_extension.(is_at_least Layouts Stable),
+              Language_extension.(is_enabled Small_numbers) with
+        | false, true -> " layouts", "is", "this flag"
+        | true, false -> " small_numbers", "is", "this flag"
+        | false, false -> "s layouts and small numbers", "are", "these flags"
+        | true, true -> assert false
+      in
+      fprintf ppf
+        ",@ but this requires the extension%s, which %s not enabled.@ \
+         If you intended to use this layout, please add %s to your \
+         build file.@ \
+         Otherwise, please report this error to the Jane Street compilers team."
+        extension verb flags
   | Not_a_sort (ty, err) ->
       fprintf ppf "A representable layout is required here.@ %a"
         (Jkind.Violation.report_with_offender

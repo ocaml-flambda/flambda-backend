@@ -342,11 +342,11 @@ and layout =
 and block_shape =
   value_kind list option
 
-and flat_element = Types.flat_element = Imm | Float | Float64
+and flat_element = Types.flat_element =
+    Imm | Float | Float64 | Bits32 | Bits64 | Word
 and flat_element_read =
-  | Flat_read_imm
+  | Flat_read of flat_element (* invariant: not [Float] *)
   | Flat_read_float of alloc_mode
-  | Flat_read_float64
 and mixed_block_read =
   | Mread_value_prefix of immediate_or_pointer
   | Mread_flat_suffix of flat_element_read
@@ -472,13 +472,6 @@ let join_boxed_vector_layout v1 v2 =
   match v1, v2 with
   | Pvec128 v1, Pvec128 v2 -> Punboxed_vector (Pvec128 (join_vec128_types v1 v2))
 
-let equal_flat_element e1 e2 =
-  match e1, e2 with
-  | Imm, Imm -> true
-  | Float, Float -> true
-  | Float64, Float64 -> true
-  | (Imm | Float | Float64), _ -> false
-
 let rec equal_value_kind x y =
   match x, y with
   | Pgenval, Pgenval -> true
@@ -513,7 +506,7 @@ and equal_constructor_shape x y =
       List.length p1 = List.length p2
       && List.for_all2 equal_value_kind p1 p2
       && List.length s1 = List.length s2
-      && List.for_all2 equal_flat_element s1 s2
+      && List.for_all2 Types.equal_flat_element s1 s2
   | (Constructor_uniform _ | Constructor_mixed _), _ -> false
 
 let equal_layout x y =
@@ -647,6 +640,7 @@ type check_attribute = Builtin_attributes.check_attribute =
   | Assume of { property: property;
                 strict: bool;
                 never_returns_normally: bool;
+                never_raises: bool;
                 arity: int;
                 loc: Location.t;
               }
@@ -1246,14 +1240,19 @@ let transl_prim mod_name name =
 let transl_mixed_product_shape : Types.mixed_product_shape -> mixed_block_shape =
   fun x -> x
 
-let count_mixed_block_values_and_floats =
-  Types.count_mixed_record_values_and_floats
-
 type mixed_block_element = Types.mixed_product_element =
   | Value_prefix
   | Flat_suffix of flat_element
 
 let get_mixed_block_element = Types.get_mixed_product_element
+
+let flat_read_non_float flat_element =
+  match flat_element with
+  | Float -> Misc.fatal_error "flat_element_read_non_float Float"
+  | Imm | Float64 | Bits32 | Bits64 | Word as flat_element ->
+      Flat_read flat_element
+
+let flat_read_float alloc_mode = Flat_read_float alloc_mode
 
 (* Compile a sequence of expressions *)
 
@@ -1635,7 +1634,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
       match read with
       | Mread_value_prefix _ -> None
       | Mread_flat_suffix (Flat_read_float m) -> Some m
-      | Mread_flat_suffix (Flat_read_float64 | Flat_read_imm) -> None
+      | Mread_flat_suffix (Flat_read _) -> None
     end
   | Psetfloatfield _ -> None
   | Psetufloatfield _ -> None
@@ -1749,6 +1748,7 @@ let constant_layout: constant -> layout = function
   | Const_float _ -> Pvalue (Pboxedfloatval Pfloat64)
   | Const_float32 _ -> Pvalue (Pboxedfloatval Pfloat32)
   | Const_unboxed_float _ -> Punboxed_float Pfloat64
+  | Const_unboxed_float32 _ -> Punboxed_float Pfloat32
 
 let structured_constant_layout = function
   | Const_base const -> constant_layout const
@@ -1764,6 +1764,7 @@ let layout_of_extern_repr : extern_repr -> _ = function
     begin match s with
     | Value -> layout_any_value
     | Float64 -> layout_unboxed_float Pfloat64
+    | Float32 -> layout_unboxed_float Pfloat32
     | Word -> layout_unboxed_nativeint
     | Bits32 -> layout_unboxed_int32
     | Bits64 -> layout_unboxed_int64
@@ -1778,6 +1779,20 @@ let array_ref_kind_result_layout = function
   | Punboxedintarray_ref Pint32 -> layout_unboxed_int32
   | Punboxedintarray_ref Pint64 -> layout_unboxed_int64
   | Punboxedintarray_ref Pnativeint -> layout_unboxed_nativeint
+
+let layout_of_mixed_field (kind : mixed_block_read) =
+  match kind with
+  | Mread_value_prefix _ -> layout_value_field
+  | Mread_flat_suffix (Flat_read_float (_ : alloc_mode)) ->
+      layout_boxed_float Pfloat64
+  | Mread_flat_suffix (Flat_read proj) ->
+      match proj with
+      | Imm -> layout_int
+      | Float64 -> layout_unboxed_float Pfloat64
+      | Bits32 -> layout_unboxed_int32
+      | Bits64 -> layout_unboxed_int64
+      | Word -> layout_unboxed_nativeint
+      | Float -> layout_boxed_float Pfloat64
 
 let primitive_result_layout (p : primitive) =
   assert !Clflags.native_code;
@@ -1808,16 +1823,7 @@ let primitive_result_layout (p : primitive) =
   | Pbox_float (f, _) -> layout_boxed_float f
   | Pufloatfield _ -> Punboxed_float Pfloat64
   | Punbox_float float_kind -> Punboxed_float float_kind
-  | Pmixedfield (_, kind, _) -> begin
-      match kind with
-      | Mread_value_prefix _ -> layout_value_field
-      | Mread_flat_suffix proj -> begin
-          match proj with
-          | Flat_read_imm -> layout_int
-          | Flat_read_float _ -> layout_boxed_float Pfloat64
-          | Flat_read_float64 -> layout_unboxed_float Pfloat64
-        end
-    end
+  | Pmixedfield (_, kind, _) -> layout_of_mixed_field kind
   | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_extern_repr repr_res
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot

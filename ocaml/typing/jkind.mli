@@ -127,6 +127,7 @@ type const = Jkind_types.const =
   | Immediate64
   | Immediate
   | Float64
+  | Float32
   | Word
   | Bits32
   | Bits64
@@ -159,6 +160,9 @@ val immediate : why:immediate_creation_reason -> t
 
 (** This is the jkind of unboxed 64-bit floats.  They have sort Float64. *)
 val float64 : why:float64_creation_reason -> t
+
+(** This is the jkind of unboxed 32-bit floats.  They have sort Float32. *)
+val float32 : why:float32_creation_reason -> t
 
 (** This is the jkind of unboxed native-sized integers. They have sort Word. *)
 val word : why:word_creation_reason -> t

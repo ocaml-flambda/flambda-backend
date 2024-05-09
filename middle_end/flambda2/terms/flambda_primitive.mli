@@ -62,8 +62,34 @@ module Array_kind_for_length : sig
     | Float_array_opt_dynamic
 end
 
+module Mixed_block_flat_element : sig
+  type t =
+    | Imm
+    | Float
+    | Float64
+    | Bits32
+    | Bits64
+    | Word
+
+  val from_lambda : Lambda.flat_element -> t
+
+  val to_string : t -> string
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+end
+
 module Mixed_block_kind : sig
-  type t = Lambda.mixed_block_shape
+  type t =
+    { value_prefix_len : int;
+      (* We use an array just so we can index into the middle. *)
+      flat_suffix : Mixed_block_flat_element.t array
+    }
+
+  val from_lambda : Lambda.mixed_block_shape -> t
+
+  val to_lambda : t -> Lambda.mixed_block_shape
 
   val print : Format.formatter -> t -> unit
 
@@ -154,7 +180,7 @@ end
 module Mixed_block_access_field_kind : sig
   type t =
     | Value_prefix of Block_access_field_kind.t
-    | Flat_suffix of Lambda.flat_element
+    | Flat_suffix of Mixed_block_flat_element.t
 
   val print : Format.formatter -> t -> unit
 
@@ -253,6 +279,10 @@ type array_accessor_width =
   | Scalar
   | Vec128
 
+type float_bitwidth =
+  | Float32
+  | Float64
+
 type string_like_value =
   | String
   | Bytes
@@ -335,7 +365,7 @@ type unary_primitive =
         kind : Flambda_kind.t
       }
   | Int_arith of Flambda_kind.Standard_int.t * unary_int_arith_op
-  | Float_arith of unary_float_arith_op
+  | Float_arith of float_bitwidth * unary_float_arith_op
   | Num_conv of
       { src : Flambda_kind.Standard_int_or_float.t;
         dst : Flambda_kind.Standard_int_or_float.t
@@ -434,8 +464,8 @@ type binary_primitive =
   | Int_shift of Flambda_kind.Standard_int.t * int_shift_op
   | Int_comp of
       Flambda_kind.Standard_int.t * signed_or_unsigned comparison_behaviour
-  | Float_arith of binary_float_arith_op
-  | Float_comp of unit comparison_behaviour
+  | Float_arith of float_bitwidth * binary_float_arith_op
+  | Float_comp of float_bitwidth * unit comparison_behaviour
   | Bigarray_get_alignment of int
   | Atomic_exchange
   | Atomic_fetch_and_add
@@ -454,7 +484,7 @@ type variadic_primitive =
   | Make_array of Array_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_mixed_block of
       Tag.Scannable.t
-      * Lambda.mixed_block_shape
+      * Mixed_block_kind.t
       * Mutability.t
       * Alloc_mode.For_allocations.t
 (* CR mshinwell: Invariant checks -- e.g. that the number of arguments matches

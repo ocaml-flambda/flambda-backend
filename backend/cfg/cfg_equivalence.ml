@@ -239,8 +239,9 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
     when Mach.equal_integer_operation left_op right_op
          && Int.equal left_imm right_imm ->
     ()
-  | Floatop left_op, Floatop right_op
-    when Mach.equal_float_operation left_op right_op ->
+  | Floatop (left_w, left_op), Floatop (right_w, right_op)
+    when Mach.equal_float_width left_w right_w
+         && Mach.equal_float_operation left_op right_op ->
     ()
   | Valueofint, Valueofint -> ()
   | Intofvalue, Intofvalue -> ()
@@ -438,8 +439,9 @@ let check_terminator_instruction :
       Truth_test { ifso = ifso2; ifnot = ifnot2 } ) ->
     State.add_to_explore state ifso1 ifso2;
     State.add_to_explore state ifnot1 ifnot2
-  | ( Float_test { lt = lt1; eq = eq1; gt = gt1; uo = uo1 },
-      Float_test { lt = lt2; eq = eq2; gt = gt2; uo = uo2 } ) ->
+  | ( Float_test { width = w1; lt = lt1; eq = eq1; gt = gt1; uo = uo1 },
+      Float_test { width = w2; lt = lt2; eq = eq2; gt = gt2; uo = uo2 } )
+    when Cmm.equal_float_width w1 w2 ->
     State.add_to_explore state lt1 lt2;
     State.add_to_explore state eq1 eq2;
     State.add_to_explore state gt1 gt2;

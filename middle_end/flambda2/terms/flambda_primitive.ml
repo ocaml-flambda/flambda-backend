@@ -58,30 +58,94 @@ module Block_kind = struct
     match t with Values _ -> K.value | Naked_floats -> K.naked_float
 end
 
-module Mixed_block_kind = struct
-  type t = Lambda.mixed_block_shape
+module Mixed_block_flat_element = struct
+  type t =
+    | Imm
+    | Float
+    | Float64
+    | Bits32
+    | Bits64
+    | Word
 
-  let print_flat_element ppf (e : Lambda.flat_element) =
-    match e with
-    | Imm -> Format.fprintf ppf "Imm"
-    | Float -> Format.fprintf ppf "Float"
-    | Float64 -> Format.fprintf ppf "Float64"
+  let from_lambda : Lambda.flat_element -> t = function
+    | Imm -> Imm
+    | Float -> Float
+    | Float64 -> Float64
+    | Bits32 -> Bits32
+    | Bits64 -> Bits64
+    | Word -> Word
+
+  let to_lambda : t -> Lambda.flat_element = function
+    | Imm -> Imm
+    | Float -> Float
+    | Float64 -> Float64
+    | Bits32 -> Bits32
+    | Bits64 -> Bits64
+    | Word -> Word
+
+  let to_string = function
+    | Imm -> "Imm"
+    | Float -> "Float"
+    | Float64 -> "Float64"
+    | Bits32 -> "Bits32"
+    | Bits64 -> "Bits64"
+    | Word -> "Word"
+
+  let compare t1 t2 =
+    match t1, t2 with
+    | Imm, Imm
+    | Float, Float
+    | Float64, Float64
+    | Word, Word
+    | Bits32, Bits32
+    | Bits64, Bits64 ->
+      0
+    | Imm, _ -> -1
+    | _, Imm -> 1
+    | Float, _ -> -1
+    | _, Float -> 1
+    | Float64, _ -> -1
+    | _, Float64 -> 1
+    | Word, _ -> -1
+    | _, Word -> 1
+    | Bits32, _ -> -1
+    | _, Bits32 -> 1
+
+  let print ppf t = Format.fprintf ppf "%s" (to_string t)
+
+  let element_kind = function
+    | Imm -> K.value
+    | Float | Float64 -> K.naked_float
+    | Bits32 -> K.naked_int32
+    | Bits64 -> K.naked_int64
+    | Word -> K.naked_nativeint
+end
+
+module Mixed_block_kind = struct
+  type t =
+    { value_prefix_len : int;
+      (* We use an array just so we can index into the middle. *)
+      flat_suffix : Mixed_block_flat_element.t array
+    }
+
+  let from_lambda { Lambda.value_prefix_len; flat_suffix } =
+    { value_prefix_len;
+      flat_suffix = Array.map Mixed_block_flat_element.from_lambda flat_suffix
+    }
+
+  let to_lambda { value_prefix_len; flat_suffix } : Lambda.mixed_block_shape =
+    { value_prefix_len;
+      flat_suffix = Array.map Mixed_block_flat_element.to_lambda flat_suffix
+    }
 
   let print ppf ({ value_prefix_len; flat_suffix } : t) =
     Format.fprintf ppf "[|@ ";
     Format.fprintf ppf "Value (x%d);@ " value_prefix_len;
     Array.iter
-      (fun elem -> Format.fprintf ppf "%a;@ " print_flat_element elem)
+      (fun elem ->
+        Format.fprintf ppf "%a;@ " Mixed_block_flat_element.print elem)
       flat_suffix;
     Format.fprintf ppf "|]"
-
-  let compare_flat_element e1 e2 =
-    match (e1 : Lambda.flat_element), (e2 : Lambda.flat_element) with
-    | Imm, Imm | Float, Float | Float64, Float64 -> 0
-    | Imm, _ -> -1
-    | _, Imm -> 1
-    | Float, _ -> -1
-    | _, Float -> 1
 
   let compare (t1 : t) (t2 : t) =
     let components (t : t) =
@@ -91,19 +155,18 @@ module Mixed_block_kind = struct
     let v1, a1 = components t1 in
     let v2, a2 = components t2 in
     match Int.compare v1 v2 with
-    | 0 -> Misc.Stdlib.Array.compare compare_flat_element a1 a2
+    | 0 -> Misc.Stdlib.Array.compare Mixed_block_flat_element.compare a1 a2
     | cmp -> cmp
 
   let length ({ value_prefix_len; flat_suffix } : t) =
     value_prefix_len + Array.length flat_suffix
 
-  let element_kind i ({ value_prefix_len; flat_suffix } : t) =
+  let element_kind i { value_prefix_len; flat_suffix } =
+    if i < 0 then Misc.fatal_errorf "Negative index: %d" i;
     if i < value_prefix_len
     then K.value
     else
-      match flat_suffix.(i - value_prefix_len) with
-      | Imm -> K.value
-      | Float | Float64 -> K.naked_float
+      Mixed_block_flat_element.element_kind flat_suffix.(i - value_prefix_len)
 
   let fold_left f init t =
     let result = ref init in
@@ -375,7 +438,7 @@ end
 module Mixed_block_access_field_kind = struct
   type t =
     | Value_prefix of Block_access_field_kind.t
-    | Flat_suffix of Lambda.flat_element
+    | Flat_suffix of Mixed_block_flat_element.t
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
@@ -390,16 +453,20 @@ module Mixed_block_access_field_kind = struct
           "@[<hov 1>(Flat_suffix \
            @[<hov 1>(flat_element@ %a)@]\
            )@]"
-          Printlambda.flat_element flat_element
+          Mixed_block_flat_element.print flat_element
 
   let compare t1 t2 =
     match t1, t2 with
     | Value_prefix field_kind1, Value_prefix field_kind2 ->
       Block_access_field_kind.compare field_kind1 field_kind2
     | Flat_suffix element_kind1, Flat_suffix element_kind2 ->
-      Stdlib.compare element_kind1 element_kind2
+      Mixed_block_flat_element.compare element_kind1 element_kind2
     | Value_prefix _, Flat_suffix _ -> -1
     | Flat_suffix _, Value_prefix _ -> 1
+
+  let to_element_kind = function
+    | Value_prefix _ -> K.value
+    | Flat_suffix flat -> Mixed_block_flat_element.element_kind flat
 end
 
 module Block_access_kind = struct
@@ -449,11 +516,8 @@ module Block_access_kind = struct
     match t with
     | Values _ -> K.value
     | Naked_floats _ -> K.naked_float
-    | Mixed { field_kind; _ } -> (
-      match field_kind with
-      | Value_prefix _ -> K.value
-      | Flat_suffix Imm -> K.value
-      | Flat_suffix (Float | Float64) -> K.naked_float)
+    | Mixed { field_kind; _ } ->
+      Mixed_block_access_field_kind.to_element_kind field_kind
 
   let element_subkind_for_load t =
     match t with
@@ -467,7 +531,10 @@ module Block_access_kind = struct
     | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
       match field_kind with
       | Imm -> K.With_subkind.tagged_immediate
-      | Float | Float64 -> K.With_subkind.naked_float)
+      | Float | Float64 -> K.With_subkind.naked_float
+      | Bits32 -> K.With_subkind.naked_int32
+      | Bits64 -> K.With_subkind.naked_int64
+      | Word -> K.With_subkind.naked_nativeint)
 
   let element_kind_for_set = element_kind_for_load
 
@@ -794,6 +861,10 @@ let print_array_accessor_width ppf = function
   | Scalar -> Format.fprintf ppf "scalar"
   | Vec128 -> Format.fprintf ppf "vec128"
 
+type float_bitwidth =
+  | Float32
+  | Float64
+
 type num_dimensions = int
 
 let print_num_dimensions ppf d = Format.fprintf ppf "%d" d
@@ -812,9 +883,13 @@ type unary_float_arith_op =
   | Abs
   | Neg
 
-let print_unary_float_arith_op ppf o =
+let print_unary_float_arith_op ppf width op =
   let fprintf = Format.fprintf in
-  match o with Abs -> fprintf ppf "abs" | Neg -> fprintf ppf "~-"
+  match width, op with
+  | Float64, Abs -> fprintf ppf "abs"
+  | Float64, Neg -> fprintf ppf "~-"
+  | Float32, Abs -> fprintf ppf "Float32.abs"
+  | Float32, Neg -> fprintf ppf "Float32.~-"
 
 type arg_kinds =
   | Variadic of K.t list
@@ -944,7 +1019,7 @@ type unary_primitive =
         kind : K.t
       }
   | Int_arith of Flambda_kind.Standard_int.t * unary_int_arith_op
-  | Float_arith of unary_float_arith_op
+  | Float_arith of float_bitwidth * unary_float_arith_op
   | Num_conv of
       { src : Flambda_kind.Standard_int_or_float.t;
         dst : Flambda_kind.Standard_int_or_float.t
@@ -1065,7 +1140,9 @@ let compare_unary_primitive p1 p2 =
   | Num_conv { src = src1; dst = dst1 }, Num_conv { src = src2; dst = dst2 } ->
     let c = K.Standard_int_or_float.compare src1 src2 in
     if c <> 0 then c else K.Standard_int_or_float.compare dst1 dst2
-  | Float_arith op1, Float_arith op2 -> Stdlib.compare op1 op2
+  | Float_arith (width1, op1), Float_arith (width2, op2) ->
+    let c = Stdlib.compare width1 width2 in
+    if c <> 0 then c else Stdlib.compare op1 op2
   | Array_length ak1, Array_length ak2 -> Array_kind_for_length.compare ak1 ak2
   | Bigarray_length { dimension = dim1 }, Bigarray_length { dimension = dim2 }
     ->
@@ -1137,7 +1214,7 @@ let print_unary_primitive ppf p =
       Flambda_kind.Standard_int_or_float.print_lowercase dst
   | Boolean_not -> fprintf ppf "Boolean_not"
   | Reinterpret_int64_as_float -> fprintf ppf "Reinterpret_int64_as_float"
-  | Float_arith o -> print_unary_float_arith_op ppf o
+  | Float_arith (width, op) -> print_unary_float_arith_op ppf width op
   | Array_length ak ->
     fprintf ppf "(Array_length %a)" Array_kind_for_length.print ak
   | Bigarray_length { dimension } ->
@@ -1177,7 +1254,8 @@ let arg_kind_of_unary_primitive p =
   | Num_conv { src; dst = _ } -> K.Standard_int_or_float.to_kind src
   | Boolean_not -> K.value
   | Reinterpret_int64_as_float -> K.naked_int64
-  | Float_arith _ -> K.naked_float
+  | Float_arith (Float64, _) -> K.naked_float
+  | Float_arith (Float32, _) -> K.naked_float32
   | Array_length _ | Bigarray_length _ -> K.value
   | Unbox_number _ | Untag_immediate -> K.value
   | Box_number (kind, _) -> K.Boxable_number.unboxed_kind kind
@@ -1205,7 +1283,8 @@ let result_kind_of_unary_primitive p : result_kind =
   | Num_conv { src = _; dst } -> Singleton (K.Standard_int_or_float.to_kind dst)
   | Boolean_not -> Singleton K.value
   | Reinterpret_int64_as_float -> Singleton K.naked_float
-  | Float_arith _ -> Singleton K.naked_float
+  | Float_arith (Float64, _) -> Singleton K.naked_float
+  | Float_arith (Float32, _) -> Singleton K.naked_float32
   | Array_length _ -> Singleton K.value
   | Bigarray_length _ -> Singleton K.naked_immediate
   | Unbox_number kind -> Singleton (K.Boxable_number.unboxed_kind kind)
@@ -1253,7 +1332,7 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   | Int_arith (_, (Neg | Swap_byte_endianness))
   | Num_conv _ | Boolean_not | Reinterpret_int64_as_float ->
     No_effects, No_coeffects, Strict
-  | Float_arith (Abs | Neg) ->
+  | Float_arith (_width, (Abs | Neg)) ->
     (* Float operations are not really pure since they actually access the
        globally mutable rounding mode, which can be changed (but only from C
        code). The Flambda_features.float_const_prop tracks whether we are
@@ -1421,13 +1500,17 @@ type binary_float_arith_op =
   | Mul
   | Div
 
-let print_binary_float_arith_op ppf o =
+let print_binary_float_arith_op ppf width op =
   let fprintf = Format.fprintf in
-  match o with
-  | Add -> fprintf ppf "+."
-  | Sub -> fprintf ppf "-."
-  | Mul -> fprintf ppf "*."
-  | Div -> fprintf ppf "/."
+  match width, op with
+  | Float64, Add -> fprintf ppf "+."
+  | Float64, Sub -> fprintf ppf "-."
+  | Float64, Mul -> fprintf ppf "*."
+  | Float64, Div -> fprintf ppf "/."
+  | Float32, Add -> fprintf ppf "Float32.+."
+  | Float32, Sub -> fprintf ppf "Float32.-."
+  | Float32, Mul -> fprintf ppf "Float32.*."
+  | Float32, Div -> fprintf ppf "Float32./."
 
 type binary_primitive =
   | Block_load of Block_access_kind.t * Mutability.t
@@ -1439,8 +1522,8 @@ type binary_primitive =
   | Int_shift of Flambda_kind.Standard_int.t * int_shift_op
   | Int_comp of
       Flambda_kind.Standard_int.t * signed_or_unsigned comparison_behaviour
-  | Float_arith of binary_float_arith_op
-  | Float_comp of unit comparison_behaviour
+  | Float_arith of float_bitwidth * binary_float_arith_op
+  | Float_comp of float_bitwidth * unit comparison_behaviour
   | Bigarray_get_alignment of int
   | Atomic_exchange
   | Atomic_fetch_and_add
@@ -1513,8 +1596,12 @@ let compare_binary_primitive p1 p2 =
   | Int_comp (kind1, comp_behaviour1), Int_comp (kind2, comp_behaviour2) ->
     let c = K.Standard_int.compare kind1 kind2 in
     if c <> 0 then c else Stdlib.compare comp_behaviour1 comp_behaviour2
-  | Float_arith op1, Float_arith op2 -> Stdlib.compare op1 op2
-  | Float_comp comp1, Float_comp comp2 -> Stdlib.compare comp1 comp2
+  | Float_arith (width1, op1), Float_arith (width2, op2) ->
+    let c = Stdlib.compare width1 width2 in
+    if c <> 0 then c else Stdlib.compare op1 op2
+  | Float_comp (width1, comp1), Float_comp (width2, comp2) ->
+    let c = Stdlib.compare width1 width2 in
+    if c <> 0 then c else Stdlib.compare comp1 comp2
   | Bigarray_get_alignment align1, Bigarray_get_alignment align2 ->
     Int.compare align1 align2
   | ( ( Block_load _ | Array_load _ | String_or_bigstring_load _
@@ -1550,8 +1637,8 @@ let print_binary_primitive ppf p =
   | Int_shift (_k, op) -> print_int_shift_op ppf op
   | Int_comp (_, comp_behaviour) ->
     print_comparison_and_behaviour print_signed_or_unsigned ppf comp_behaviour
-  | Float_arith op -> print_binary_float_arith_op ppf op
-  | Float_comp comp_behaviour ->
+  | Float_arith (width, op) -> print_binary_float_arith_op ppf width op
+  | Float_comp (_width, comp_behaviour) ->
     print_comparison_and_behaviour (fun _ppf () -> ()) ppf comp_behaviour;
     fprintf ppf "."
   | Bigarray_get_alignment align ->
@@ -1576,7 +1663,10 @@ let args_kind_of_binary_primitive p =
   | Int_comp (kind, _) ->
     let kind = K.Standard_int.to_kind kind in
     kind, kind
-  | Float_arith _ | Float_comp _ -> K.naked_float, K.naked_float
+  | Float_arith (Float64, _) | Float_comp (Float64, _) ->
+    K.naked_float, K.naked_float
+  | Float_arith (Float32, _) | Float_comp (Float32, _) ->
+    K.naked_float32, K.naked_float32
   | Bigarray_get_alignment _ -> bigstring_kind, K.naked_immediate
   | Atomic_exchange | Atomic_fetch_and_add -> K.value, K.value
 
@@ -1595,7 +1685,8 @@ let result_kind_of_binary_primitive p : result_kind =
   | Bigarray_load (_, kind, _) -> Singleton (Bigarray_kind.element_kind kind)
   | Int_arith (kind, _) | Int_shift (kind, _) ->
     Singleton (K.Standard_int.to_kind kind)
-  | Float_arith _ -> Singleton K.naked_float
+  | Float_arith (Float64, _) -> Singleton K.naked_float
+  | Float_arith (Float32, _) -> Singleton K.naked_float32
   | Phys_equal _ | Int_comp _ | Float_comp _ -> Singleton K.naked_immediate
   | Bigarray_get_alignment _ -> Singleton K.naked_immediate
   | Atomic_exchange | Atomic_fetch_and_add -> Singleton K.value
@@ -1614,7 +1705,7 @@ let effects_and_coeffects_of_binary_primitive p : Effects_and_coeffects.t =
     No_effects, No_coeffects, Strict
   | Int_shift _ -> No_effects, No_coeffects, Strict
   | Int_comp _ -> No_effects, No_coeffects, Strict
-  | Float_arith (Add | Sub | Mul | Div) ->
+  | Float_arith (_width, (Add | Sub | Mul | Div)) ->
     (* See comments for Unary Float_arith *)
     if Flambda_features.float_const_prop ()
     then No_effects, No_coeffects, Strict
@@ -1801,7 +1892,7 @@ type variadic_primitive =
   | Make_array of Array_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_mixed_block of
       Tag.Scannable.t
-      * Lambda.mixed_block_shape
+      * Mixed_block_kind.t
       * Mutability.t
       * Alloc_mode.For_allocations.t
 

@@ -14,7 +14,6 @@
 
 (* This module contains definitions that we do not otherwise need to repeat
    between the various Jkind modules. See comment in jkind_types.mli. *)
-
 module type Sort = sig
   (** A sort classifies how a type is represented at runtime. Every concrete
       jkind has a sort, and knowing the sort is sufficient for knowing the
@@ -26,6 +25,7 @@ module type Sort = sig
     | Void  (** No run time representation at all *)
     | Value  (** Standard ocaml value representation *)
     | Float64  (** Unboxed 64-bit floats *)
+    | Float32  (** Unboxed 32-bit floats *)
     | Word  (** Unboxed native-size integers *)
     | Bits32  (** Unboxed 32-bit integers *)
     | Bits64  (** Unboxed 64-bit integers *)
@@ -45,6 +45,8 @@ module type Sort = sig
   val value : t
 
   val float64 : t
+
+  val float32 : t
 
   val word : t
 
@@ -235,6 +237,8 @@ module History = struct
 
   type float64_creation_reason = Primitive of Ident.t
 
+  type float32_creation_reason = Primitive of Ident.t
+
   type word_creation_reason = Primitive of Ident.t
 
   type bits32_creation_reason = Primitive of Ident.t
@@ -250,6 +254,7 @@ module History = struct
     | Void_creation of void_creation_reason
     | Any_creation of any_creation_reason
     | Float64_creation of float64_creation_reason
+    | Float32_creation of float32_creation_reason
     | Word_creation of word_creation_reason
     | Bits32_creation of bits32_creation_reason
     | Bits64_creation of bits64_creation_reason

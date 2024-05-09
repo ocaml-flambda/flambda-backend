@@ -171,7 +171,10 @@ let oper_result_type = function
     Ccmpi _ | Ccmpa _ | Ccmpf _ -> typ_int
   | Caddv -> typ_val
   | Cadda -> typ_addr
-  | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf -> typ_float
+  | Cnegf Float64 | Cabsf Float64 | Caddf Float64
+  | Csubf Float64 | Cmulf Float64 | Cdivf Float64 -> typ_float
+  | Cnegf Float32 | Cabsf Float32 | Caddf Float32
+  | Csubf Float32 | Cmulf Float32 | Cdivf Float32 -> typ_float32
   | Ccsel ty -> ty
   | Cvalueofint -> typ_val
   | Cintofvalue -> typ_int
@@ -492,11 +495,11 @@ method is_simple_expr = function
       | Cprefetch _ | Cbeginregion | Cendregion -> false (* avoid reordering *)
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor
-      | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
+      | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf _
       | Cclz _ | Cctz _ | Cpopcnt
       | Cbswap _
       | Ccsel _
-      | Cabsf | Caddf | Csubf | Cmulf | Cdivf
+      | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _
       | Cvectorcast _ | Cscalarcast _
       | Cvalueofint | Cintofvalue
       | Ctuple_field _
@@ -553,8 +556,8 @@ method effects_of exp =
       | Cbswap _
       | Ccsel _
       | Cclz _ | Cctz _ | Cpopcnt
-      | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf | Cabsf
-      | Caddf | Csubf | Cmulf | Cdivf
+      | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _
+      | Cnegf _ | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _
       | Cvectorcast _ | Cscalarcast _
       | Cvalueofint | Cintofvalue | Ccmpf _ ->
         EC.none
@@ -669,16 +672,16 @@ method select_operation op args _dbg =
   | (Caddv, _) -> self#select_arith_comm Iadd args
   | (Cadda, _) -> self#select_arith_comm Iadd args
   | (Ccmpa comp, _) -> self#select_arith_comp (Iunsigned comp) args
-  | (Ccmpf comp, _) -> (Ifloatop(Icompf comp), args)
+  | (Ccmpf (w, comp), _) -> (Ifloatop(w, Icompf comp), args)
   | (Ccsel _, [cond; ifso; ifnot]) ->
      let (cond, earg) = self#select_condition cond in
      (Icsel cond, [ earg; ifso; ifnot ])
-  | (Cnegf, _) -> (Ifloatop Inegf, args)
-  | (Cabsf, _) -> (Ifloatop Iabsf, args)
-  | (Caddf, _) -> (Ifloatop Iaddf, args)
-  | (Csubf, _) -> (Ifloatop Isubf, args)
-  | (Cmulf, _) -> (Ifloatop Imulf, args)
-  | (Cdivf, _) -> (Ifloatop Idivf, args)
+  | (Cnegf w, _) -> (Ifloatop (w, Inegf), args)
+  | (Cabsf w, _) -> (Ifloatop (w, Iabsf), args)
+  | (Caddf w, _) -> (Ifloatop (w, Iaddf), args)
+  | (Csubf w, _) -> (Ifloatop (w, Isubf), args)
+  | (Cmulf w, _) -> (Ifloatop (w, Imulf), args)
+  | (Cdivf w, _) -> (Ifloatop (w, Idivf), args)
   | (Cvalueofint, _) -> (Ivalueofint, args)
   | (Cintofvalue, _) -> (Iintofvalue, args)
   | (Cvectorcast cast, _) -> (Ivectorcast cast, args)
@@ -740,8 +743,8 @@ method select_condition = function
       (Iinttest_imm(Iunsigned(swap_integer_comparison cmp), n), arg2)
   | Cop(Ccmpa cmp, args, _) ->
       (Iinttest(Iunsigned cmp), Ctuple args)
-  | Cop(Ccmpf cmp, args, _) ->
-      (Ifloattest cmp, Ctuple args)
+  | Cop(Ccmpf (width, cmp), args, _) ->
+      (Ifloattest (width, cmp), Ctuple args)
   | Cop(Cand, [arg; Cconst_int (1, _)], _) ->
       (Ioddtest, arg)
   | arg ->
@@ -1023,7 +1026,7 @@ method emit_expr_aux (env:environment) exp ~bound_name : Reg.t array option =
               let bytes = size_expr env (Ctuple new_args) in
               let alloc_words = (bytes + Arch.size_addr - 1) / Arch.size_addr in
               let op =
-                Ialloc { bytes;
+                Ialloc { bytes = alloc_words * Arch.size_addr;
                          dbginfo = [{alloc_words; alloc_dbg = dbg}];
                          mode }
               in

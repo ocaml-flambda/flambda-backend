@@ -74,7 +74,7 @@ module S = struct
           size : Cmm.atomic_bitwidth;
           addr : Arch.addressing_mode
         }
-    | Floatop of Mach.float_operation
+    | Floatop of Mach.float_width * Mach.float_operation
     | Csel of Mach.test
     | Valueofint
     | Intofvalue
@@ -123,7 +123,8 @@ module S = struct
       outcomes of comparison include "unordered" (see e.g. x86-64 emitter) when
       the arguments involve NaNs. *)
   type float_test =
-    { lt : Label.t;
+    { width : Cmm.float_width;
+      lt : Label.t;
       eq : Label.t;
       gt : Label.t;
       uo : Label.t  (** if at least one of x or y is NaN *)

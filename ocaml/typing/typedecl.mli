@@ -78,6 +78,7 @@ type jkind_sort_loc =
   | Cstr_tuple of { unboxed : bool }
   | Record of { unboxed : bool }
   | Inlined_record of { unboxed : bool }
+  | Mixed_product
   | External
   | External_with_layout_poly
 

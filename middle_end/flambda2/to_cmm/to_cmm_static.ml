@@ -21,6 +21,7 @@ end
 
 module SC = Static_const
 module R = To_cmm_result
+module UK = C.Update_kind
 
 let static_value res v =
   match (v : Field_of_static_block.t) with
@@ -43,8 +44,10 @@ let rec static_block_updates symb env res acc i = function
     | Symbol _ | Tagged_immediate _ ->
       static_block_updates symb env res acc (i + 1) r
     | Dynamically_computed (var, dbg) ->
+      (* CR mshinwell/mslater: It would be nice to know if [var] is an
+         immediate. *)
       let env, res, acc =
-        C.make_update env res dbg Word_val ~symbol:(C.symbol ~dbg symb) var
+        C.make_update env res dbg UK.pointers ~symbol:(C.symbol ~dbg symb) var
           ~index:i ~prev_updates:acc
       in
       static_block_updates symb env res acc (i + 1) r)
@@ -63,10 +66,10 @@ let rec static_unboxed_int_array_updates symb env res acc maybe_int32 i =
     | Const _ ->
       static_unboxed_int_array_updates symb env res acc maybe_int32 (i + 1) r
     | Var (var, dbg) ->
-      let kind : C.update_kind =
+      let kind =
         match maybe_int32 with
-        | Int64_or_nativeint -> Word_int
-        | Int32 -> Thirtytwo_signed
+        | Int64_or_nativeint -> UK.naked_int64s
+        | Int32 -> UK.naked_int32s
       in
       let env, res, acc =
         C.make_update env res dbg kind ~symbol:(C.symbol ~dbg symb) var ~index:i
@@ -81,8 +84,8 @@ let rec static_float_array_updates symb env res acc i = function
     | Const _ -> static_float_array_updates symb env res acc (i + 1) r
     | Var (var, dbg) ->
       let env, res, acc =
-        C.make_update env res dbg Double ~symbol:(C.symbol ~dbg symb) var
-          ~index:i ~prev_updates:acc
+        C.make_update env res dbg UK.naked_floats ~symbol:(C.symbol ~dbg symb)
+          var ~index:i ~prev_updates:acc
       in
       static_float_array_updates symb env res acc (i + 1) r)
 
@@ -206,10 +209,8 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let transl = Numeric_types.Float32_by_bit_pattern.to_float in
     let structured f = Cmmgen_state.Const_float32 f in
     let res, env, updates =
-      static_boxed_number
-        ~kind:(Single { reg = Float32 })
-        ~env ~symbol ~default ~emit:C.emit_float32_constant ~transl ~structured
-        v res updates
+      static_boxed_number ~kind:UK.naked_float32_fields ~env ~symbol ~default
+        ~emit:C.emit_float32_constant ~transl ~structured v res updates
     in
     env, res, updates
   | Block_like symbol, Boxed_float v ->
@@ -217,21 +218,21 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let transl = Numeric_types.Float_by_bit_pattern.to_float in
     let structured f = Cmmgen_state.Const_float f in
     let res, env, updates =
-      static_boxed_number ~kind:Double ~env ~symbol ~default
+      static_boxed_number ~kind:UK.naked_floats ~env ~symbol ~default
         ~emit:C.emit_float_constant ~transl ~structured v res updates
     in
     env, res, updates
   | Block_like symbol, Boxed_int32 v ->
     let structured i = Cmmgen_state.Const_int32 i in
     let res, env, updates =
-      static_boxed_number ~kind:Word_int ~env ~symbol ~default:0l
+      static_boxed_number ~kind:UK.naked_int32_fields ~env ~symbol ~default:0l
         ~emit:C.emit_int32_constant ~transl:Fun.id ~structured v res updates
     in
     env, res, updates
   | Block_like symbol, Boxed_int64 v ->
     let structured i = Cmmgen_state.Const_int64 i in
     let res, env, updates =
-      static_boxed_number ~kind:Word_int ~env ~symbol ~default:0L
+      static_boxed_number ~kind:UK.naked_int64s ~env ~symbol ~default:0L
         ~emit:C.emit_int64_constant ~transl:Fun.id ~structured v res updates
     in
     env, res, updates
@@ -240,7 +241,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let transl = C.nativeint_of_targetint in
     let structured i = Cmmgen_state.Const_nativeint i in
     let res, env, updates =
-      static_boxed_number ~kind:Word_int ~env ~symbol ~default
+      static_boxed_number ~kind:UK.naked_int64s ~env ~symbol ~default
         ~emit:C.emit_nativeint_constant ~transl ~structured v res updates
     in
     env, res, updates
@@ -258,7 +259,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let res, env, updates =
       (* Unaligned because boxed vec128 constants are not aligned during code
          emission. Aligning them would complicate block layout. *)
-      static_boxed_number ~kind:Onetwentyeight_unaligned ~env ~symbol ~default
+      static_boxed_number ~kind:UK.naked_vec128s ~env ~symbol ~default
         ~emit:C.emit_vec128_constant ~transl ~structured v res updates
     in
     env, res, updates

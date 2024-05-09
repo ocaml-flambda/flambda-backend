@@ -31,6 +31,8 @@ type integer_operation =
   | Ipopcnt
   | Icomp of integer_comparison
 
+type float_width = Cmm.float_width
+
 type float_comparison = Cmm.float_comparison
 
 type float_operation =
@@ -56,7 +58,7 @@ type test =
   | Ifalsetest
   | Iinttest of integer_comparison
   | Iinttest_imm of integer_comparison * int
-  | Ifloattest of float_comparison
+  | Ifloattest of float_width * float_comparison
   | Ioddtest
   | Ieventest
 
@@ -89,7 +91,7 @@ type operation =
   | Iintop_imm of integer_operation * int
   | Iintop_atomic of { op : Cmm.atomic_op; size : Cmm.atomic_bitwidth;
                        addr : Arch.addressing_mode }
-  | Ifloatop of float_operation
+  | Ifloatop of float_width * float_operation
   | Icsel of test
   | Ivalueofint | Iintofvalue
   | Ivectorcast of Cmm.vector_cast
@@ -370,6 +372,8 @@ let equal_integer_operation left right =
   -> false
 
 let equal_float_comparison = Cmm.equal_float_comparison
+
+let equal_float_width = Cmm.equal_float_width
 
 let equal_float_operation left right =
   match left, right with

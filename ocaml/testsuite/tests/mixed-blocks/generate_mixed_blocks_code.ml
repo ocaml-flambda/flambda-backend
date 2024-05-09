@@ -13,6 +13,10 @@ let sprintf = Printf.sprintf
 module List = ListLabels
 module String = StringLabels
 
+let list_product xs ys =
+  List.concat_map xs ~f:(fun x ->
+    List.map ys ~f:(fun y -> (x, y)))
+
 module Nonempty_list = struct
   type 'a t = ( :: ) of 'a * 'a list
 
@@ -26,32 +30,59 @@ module Nonempty_list = struct
   let map t ~f = of_list (List.map (to_list t) ~f) |> Option.get
 end
 
-let rec enumeration_of_list enumeration_of_x =
+let rec list_enumeration enumeration_of_x =
   Seq.cons [] (fun () ->
     let f =
-      Seq.product (enumeration_of_list enumeration_of_x) enumeration_of_x
+      Seq.product (list_enumeration enumeration_of_x) enumeration_of_x
       |> Seq.map (fun (xs, x) -> x :: xs)
     in
     f ())
 ;;
 
-let enumeration_of_nonempty_list enumeration_of_x =
-  enumeration_of_list enumeration_of_x |> Seq.filter_map Nonempty_list.of_list
+(* The difference between [list_enumeration (List.to_seq xs)]
+   and [list_enumeration_of_list xs] is that [list_enumeration_of_list xs]
+   more eagerly cycles through elements of [xs] (given that it knows it's
+   finite). [list_enumeration] has to round-robin because the sequence
+   it's given might be infinite.
+*)
+let rec list_enumeration_of_list list =
+  Seq.cons [] (fun () ->
+    let f =
+      list_enumeration_of_list list
+      |> Seq.concat_map (fun xs ->
+          List.to_seq (List.map list ~f:(fun x -> x :: xs)))
+    in
+    f ())
+;;
+
+let nonempty_list_enumeration enumeration_of_x =
+  list_enumeration enumeration_of_x |> Seq.filter_map Nonempty_list.of_list
+;;
+
+let nonempty_list_enumeration_of_list xs =
+  list_enumeration_of_list xs |> Seq.filter_map Nonempty_list.of_list
 ;;
 
 type flat_element =
   | Imm
-  | Float_u
+  | Float64
   | Float
+  | Bits32
+  | Bits64
+  | Word
 
 let flat_element_is_float = function
-  | Float_u | Float -> true
-  | Imm -> false
+  | Float64 | Float -> true
+  | Imm | Bits32 | Bits64 | Word -> false
+
+let flat_element_is_unboxed = function
+  | Float64 | Bits32 | Bits64 | Word -> true
+  | Imm | Float -> false
 
 let flat_element_is = ((=) : flat_element -> flat_element -> bool)
 let flat_element_is_not = ((<>) : flat_element -> flat_element -> bool)
 
-let all_of_flat_element = [ Imm; Float_u; Float ]
+let all_of_flat_element = [ Imm; Float64; Float; Bits32; Bits64; Word ]
 
 type value_element =
   | Str
@@ -73,16 +104,12 @@ let is_mutable = function
   | Immutable -> false
 ;;
 
-let enumeration_of_flat_element = List.to_seq all_of_flat_element
-let enumeration_of_value_element = List.to_seq all_of_value_element
-let enumeration_of_mutability = List.to_seq all_of_mutability
-
 type prefix = (value_element * mutability) list
 type suffix = (flat_element * mutability) Nonempty_list.t
 
-let enumeration_of_prefix enumeration_of_mutability =
-  enumeration_of_list
-    (Seq.product enumeration_of_value_element enumeration_of_mutability)
+let enumeration_of_prefix all_of_mutability =
+  list_enumeration_of_list
+    (list_product all_of_value_element all_of_mutability)
   |> Seq.filter (fun prefix ->
     match List.rev prefix with
     | [] -> true
@@ -91,30 +118,30 @@ let enumeration_of_prefix enumeration_of_mutability =
 ;;
 
 let enumeration_of_suffix_except_all_floats_mixed
-    enumeration_of_mutability
+    all_of_mutability
   : _ Seq.t
   =
   let flat_element_except_float =
-    enumeration_of_flat_element
-    |> Seq.filter (flat_element_is_not Float)
+    all_of_flat_element
+    |> List.filter ~f:(flat_element_is_not Float)
   in
-  enumeration_of_nonempty_list
-    (Seq.product flat_element_except_float enumeration_of_mutability)
+  nonempty_list_enumeration_of_list
+    (list_product all_of_flat_element all_of_mutability)
   |> Seq.filter (fun suffix ->
     List.exists (Nonempty_list.to_list suffix) ~f:(fun (elem, _) ->
-      flat_element_is Float_u elem))
+      flat_element_is_unboxed elem))
 ;;
 
 let enumeration_of_all_floats_mixed_suffix =
   let float_flat_element =
-    enumeration_of_flat_element
-    |> Seq.filter flat_element_is_float
+    all_of_flat_element
+    |> List.filter ~f:flat_element_is_float
   in
-  enumeration_of_nonempty_list
-    (Seq.product float_flat_element enumeration_of_mutability)
+  nonempty_list_enumeration_of_list
+    (list_product float_flat_element all_of_mutability)
   |> Seq.filter (fun suffix ->
       let suffix = Nonempty_list.to_list suffix in
-      List.exists suffix ~f:(fun (elem, _) -> flat_element_is Float_u elem)
+      List.exists suffix ~f:(fun (elem, _) -> flat_element_is Float64 elem)
       && List.exists suffix ~f:(fun (elem, _) -> flat_element_is Float elem))
 
 type block =
@@ -123,15 +150,15 @@ type block =
   }
 
 let enumeration_of_mixed_blocks_except_all_floats_mixed
-    enumeration_of_mutability
+    all_of_mutability
   =
   Seq.product
-   (enumeration_of_prefix enumeration_of_mutability)
-   (enumeration_of_suffix_except_all_floats_mixed enumeration_of_mutability)
+   (enumeration_of_prefix all_of_mutability)
+   (enumeration_of_suffix_except_all_floats_mixed all_of_mutability)
   |> Seq.filter (fun (prefix, suffix) ->
       let all_float_u_suffix =
         List.for_all (Nonempty_list.to_list suffix)
-          ~f:(fun (elem, _) -> flat_element_is Float_u elem)
+          ~f:(fun (elem, _) -> flat_element_is Float64 elem)
       in
       let all_float_prefix =
         List.for_all prefix
@@ -147,22 +174,20 @@ type constructor =
 type variant = constructor Nonempty_list.t
 
 let enumeration_of_mixed_variants =
-  let enumeration_of_mutability =
-    List.to_seq [ `Mutability_not_relevant ]
-  in
+  let all_of_mutability = [ `Mutability_not_relevant ] in
   Seq.product
-    (enumeration_of_prefix enumeration_of_mutability)
-    (enumeration_of_suffix_except_all_floats_mixed enumeration_of_mutability)
+    (enumeration_of_prefix all_of_mutability)
+    (enumeration_of_suffix_except_all_floats_mixed all_of_mutability)
   |> Seq.map (fun (prefix, suffix) ->
       let ignore_mut (x, `Mutability_not_relevant) = x in
       { cstr_prefix = List.map prefix ~f:ignore_mut;
         cstr_suffix = Nonempty_list.map suffix ~f:ignore_mut;
       })
-  |> enumeration_of_nonempty_list
+  |> nonempty_list_enumeration
 
 let enumeration_of_mixed_blocks_except_all_floats_mixed =
   enumeration_of_mixed_blocks_except_all_floats_mixed
-    enumeration_of_mutability
+    all_of_mutability
   |> Seq.map (fun (prefix, suffix) -> { prefix; suffix })
 
 
@@ -174,8 +199,65 @@ let enumeration_of_all_floats_mixed_blocks =
 type field_or_arg_type =
   | Imm
   | Float
-  | Float_u
+  | Float64
   | Str
+  | Bits32
+  | Bits64
+  | Word
+
+let type_to_creation_function = function
+  | Imm -> "create_int ()"
+  | Float -> "create_float ()"
+  | Float64 -> "create_float_u ()"
+  | Bits32 -> "create_int32_u ()"
+  | Bits64 -> "create_int64_u ()"
+  | Word -> "create_nativeint_u ()"
+  | Str -> "create_string ()"
+
+let type_to_string = function
+  | Imm -> "int"
+  | Float -> "float"
+  | Float64 -> "float#"
+  | Bits32 -> "int32#"
+  | Bits64 -> "int64#"
+  | Word -> "nativeint#"
+  | Str -> "string"
+
+let type_to_field_integrity_check type_ ~access1 ~access2 ~message =
+  let checker, transformation =
+    match type_ with
+    | Str -> "check_string", None
+    | Imm -> "check_int", None
+    | Float -> "check_float", None
+    | Float64 -> "check_float", Some "Stdlib__Float_u.to_float"
+    | Bits32 -> "check_int32", Some "Stdlib__Int32_u.to_int32"
+    | Bits64 -> "check_int64", Some "Stdlib__Int64_u.to_int64"
+    | Word -> "check_int", Some "Stdlib__Nativeint_u.to_int"
+  in
+  let transform access =
+    match transformation with
+    | None -> access
+    | Some f -> sprintf "(%s %s)" f access
+  in
+  sprintf
+    "%s %s %s ~message:\"%s\";"
+    checker
+    (transform access1)
+    (transform access2)
+    (String.escaped message)
+
+let value_element_to_type : value_element -> field_or_arg_type = function
+  | Imm -> Imm
+  | Float -> Float
+  | Str -> Str
+
+let flat_element_to_type : flat_element -> field_or_arg_type = function
+  | Imm -> Imm
+  | Float -> Float
+  | Float64 -> Float64
+  | Bits64 -> Bits64
+  | Bits32 -> Bits32
+  | Word -> Word
 
 module Mixed_record = struct
   type field =
@@ -192,8 +274,8 @@ module Mixed_record = struct
   let is_all_floats t =
     List.for_all t.fields ~f:(fun field ->
         match field.type_ with
-        | Imm | Str -> false
-        | Float | Float_u -> true)
+        | Imm | Str | Bits32 | Bits64 | Word -> false
+        | Float | Float64 -> true)
 
   let of_block index { prefix; suffix } =
     let num_fields, prefix_fields =
@@ -202,11 +284,17 @@ module Mixed_record = struct
         ~init:0
         ~f:(fun i ((elem : value_element), mutability) ->
           let mutable_ = is_mutable mutability in
-          let field =
+          let name =
             match elem with
-            | Imm -> { type_ = Imm; name = sprintf "imm%d" i; mutable_ }
-            | Float -> { type_ = Float; name = sprintf "float%d" i; mutable_ }
-            | Str -> { type_ = Str; name = sprintf "str%d" i; mutable_ }
+            | Imm -> "imm"
+            | Float -> "float"
+            | Str -> "str"
+          in
+          let field =
+            { type_ = value_element_to_type elem;
+              name = sprintf "%s%i" name i;
+              mutable_;
+            }
           in
           i+1, field)
     in
@@ -216,13 +304,20 @@ module Mixed_record = struct
         ~init:num_fields
         ~f:(fun i ((elem : flat_element), mutability) ->
           let mutable_ = is_mutable mutability in
-          let field =
+          let name =
             match elem with
-            | Imm -> { type_ = Imm; name = sprintf "imm%d" i; mutable_ }
-            | Float ->
-                { type_ = Float; name = sprintf "float%d" i; mutable_ }
-            | Float_u ->
-                { type_ = Float_u; name = sprintf "float_u%d" i; mutable_ }
+            | Imm -> "imm"
+            | Bits32 -> "i32_"
+            | Bits64 -> "i64_"
+            | Word -> "n"
+            | Float -> "float"
+            | Float64 -> "float_u"
+          in
+          let field =
+            { type_ = flat_element_to_type elem;
+              name = sprintf "%s%i" name i;
+              mutable_;
+            }
           in
           i+1, field)
     in
@@ -244,11 +339,7 @@ module Mixed_record = struct
               "%s%s : %s"
               (if mutable_ then "mutable " else "")
               name
-              (match type_ with
-               | Imm -> "int"
-               | Float -> "float"
-               | Float_u -> "float#"
-               | Str -> "string"))))
+              (type_to_string type_))))
   ;;
 
   let record_value t =
@@ -258,36 +349,17 @@ module Mixed_record = struct
          sprintf
            "%s = %s"
            name
-           (match type_ with
-            | Imm -> "create_int ()"
-            | Float -> "create_float ()"
-            | Float_u -> "create_float_u ()"
-            | Str -> "create_string ()")))
+           (type_to_creation_function type_)))
     |> sprintf "{ %s }"
   ;;
 
   let check_field_integrity t =
     List.map t.fields ~f:(fun field ->
-      let checker, transformation =
-        match field.type_ with
-        | Str -> "check_string", None
-        | Imm -> "check_int", None
-        | Float -> "check_float", None
-        | Float_u -> "check_float", Some "Stdlib__Float_u.to_float"
-      in
-      let transform value field =
-        let access = sprintf "%s.%s" value field in
-        match transformation with
-        | None -> access
-        | Some f -> sprintf "(%s %s)" f access
-      in
-      sprintf
-        "%s %s %s ~message:\"%s.%s\";"
-        checker
-        (transform (value t) field.name)
-        (transform (value t ~base:"t_orig") field.name)
-        (value t)
-        field.name)
+      type_to_field_integrity_check
+        field.type_
+        ~access1:(sprintf "%s.%s" (value t) field.name)
+        ~access2:(sprintf "%s.%s" (value t ~base:"t_orig") field.name)
+        ~message:(sprintf "%s.%s" (value t) field.name))
   ;;
 end
 
@@ -304,31 +376,11 @@ module Mixed_variant = struct
     }
 
   let of_constructor name { cstr_prefix; cstr_suffix } index =
-    let num_args, prefix_args =
-      List.fold_left_map
-        cstr_prefix
-        ~init:0
-        ~f:(fun i (elem : value_element) ->
-          let arg =
-            match elem with
-            | Imm -> Imm
-            | Float -> Float
-            | Str -> Str
-          in
-          i+1, arg)
-    in
-    let _, suffix_args =
-      List.fold_left_map
+    let prefix_args = List.map cstr_prefix ~f:value_element_to_type in
+    let suffix_args =
+      List.map
         (Nonempty_list.to_list cstr_suffix)
-        ~init:num_args
-        ~f:(fun i (elem : flat_element) ->
-          let arg =
-            match elem with
-            | Imm -> Imm
-            | Float -> Float
-            | Float_u -> Float_u
-          in
-          i+1, arg)
+        ~f:flat_element_to_type
     in
     let args = prefix_args @ suffix_args in
     { name; args; index }
@@ -349,12 +401,7 @@ module Mixed_variant = struct
       cstr.name
       (String.concat
          ~sep:" * "
-         (List.map cstr.args ~f:(fun type_ ->
-            match type_ with
-              | Imm -> "int"
-              | Float -> "float"
-              | Float_u -> "float#"
-              | Str -> "string")))
+         (List.map cstr.args ~f:type_to_string))
   ;;
 
   let type_ { index; _ } = sprintf "t%d" index
@@ -366,12 +413,7 @@ module Mixed_variant = struct
       (let args_str =
         String.concat
         ~sep:", "
-        (List.map args ~f:(fun type_ ->
-            match type_ with
-            | Imm -> "create_int ()"
-            | Float -> "create_float ()"
-            | Float_u -> "create_float_u ()"
-            | Str -> "create_string ()"))
+        (List.map args ~f:type_to_creation_function)
         in
         match args with
         | [] -> args_str
@@ -401,27 +443,12 @@ module Mixed_variant = struct
     cstr.name (arg_vars cstr ~base:"a")
     cstr.name (arg_vars cstr ~base:"b")
     (String.concat ~sep:"\n"
-       (List.mapi cstr.args ~f:(fun i (arg : field_or_arg_type) ->
-          let checker, transformation =
-            match arg with
-            | Str -> "check_string", None
-            | Imm -> "check_int", None
-            | Float -> "check_float", None
-            | Float_u -> "check_float", Some "Stdlib__Float_u.to_float"
-          in
-          let transform base =
-            let access = arg_var i ~base in
-            match transformation with
-            | None -> access
-            | Some f -> sprintf "(%s %s)" f access
-          in
-          sprintf
-            "%s %s %s ~message:\"%s.%i\";"
-            checker
-            (transform "a")
-            (transform "b")
-            (value cstr)
-            i)))
+       (List.mapi cstr.args ~f:(fun i type_ ->
+          type_to_field_integrity_check
+            type_
+            ~access1:(arg_var i ~base:"a")
+            ~access2:(arg_var i ~base:"b")
+            ~message:(sprintf "%s.%i" (value cstr) i))))
     (if catchall then "| _ -> assert false" else "")
   ;;
 end
@@ -531,7 +558,7 @@ let main n ~bytecode =
     List.iter2 values (List.tl values @ [ List.hd values]) ~f
   in
   line {|(* TEST
- flags = "-extension layouts_alpha";|};
+ flags = "-extension layouts_beta";|};
   if bytecode then (
     line {| bytecode;|};
   ) else (
@@ -546,6 +573,9 @@ let main n ~bytecode =
   line {|let create_int () = Random.int 0x3FFF_FFFF|};
   line {|let create_float () = Random.float Float.max_float|};
   line {|let create_float_u () = Stdlib__Float_u.of_float (create_float ())|};
+  line {|let create_int32_u () = Stdlib__Int32_u.of_int32 (Random.int32 0x7FFF_FFFFl)|};
+  line {|let create_int64_u () = Stdlib__Int64_u.of_int64 (Random.int64 0x7FFF_FFFF_FFFF_FFFFL)|};
+  line {|let create_nativeint_u () = Stdlib__Nativeint_u.of_nativeint (Random.nativeint 0x7FFF_FFFF_FFFF_FFFFn)|};
   line
     {|let check_gen ~equal ~to_string ~message y1 y2 =
   if equal y1 y2 then () else
@@ -558,6 +588,12 @@ let main n ~bytecode =
   line
    {|let check_float =
   check_gen ~equal:Float.equal ~to_string:Float.to_string|};
+  line
+   {|let check_int32 =
+  check_gen ~equal:Int32.equal ~to_string:Int32.to_string|};
+  line
+   {|let check_int64 =
+  check_gen ~equal:Int64.equal ~to_string:Int64.to_string|};
   line "";
   line "(* Helper functions for testing polymorphic copying. *)";
   line
@@ -628,9 +664,11 @@ let check_reachable_words expected actual message =
     | Record record ->
       let field = List.hd record.fields in
       line
-        "let %s = { %s with %s = %s.%s };;"
+        "let %s = { %s%s = %s.%s };;"
         (Value.value t ~base:"t_orig")
-        (Value.value t)
+        (match record.fields with
+         | [_] -> ""
+         | _ -> sprintf "%s with " (Value.value t))
         field.name
         (Value.value t)
         field.name);
@@ -680,14 +718,18 @@ let check_reachable_words expected actual message =
           (List.map t.fields ~f:(fun (field : Mixed_record.field) ->
             match field.type_ with
             | Imm -> ""
-            | Float_u ->
+            | Float64 ->
                 (* In bytecode, these fields aren't boxed and thus contribute
                     two words to the reachable words (the header and the
                     single-field payload).
                 *)
                 if not bytecode then "" else " + 2"
+            | Bits64 | Bits32 | Word ->
+              (* Same as float64, except these are custom blocks in bytecode,
+                 which involve still another field. *)
+                if not bytecode then "" else " + 3"
             | Float ->
-                (* The bytecode condition is the same as commented for [Float_u].
+                (* The bytecode condition is the same as commented for [Float64].
                     Additionally, if the record is not all floats, then this field
                     is stored boxed.
                 *)

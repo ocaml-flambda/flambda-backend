@@ -201,7 +201,7 @@ let linearize_terminator cfg_with_layout (func : string) start
       emit_bool (Ieventest, ifso) (Ioddtest, ifnot), None
     | Truth_test { ifso; ifnot } ->
       emit_bool (Itruetest, ifso) (Ifalsetest, ifnot), None
-    | Float_test { lt; eq; gt; uo } -> (
+    | Float_test { width; lt; eq; gt; uo } -> (
       let successor_labels =
         Label.Set.singleton lt |> Label.Set.add gt |> Label.Set.add eq
         |> Label.Set.add uo
@@ -246,7 +246,7 @@ let linearize_terminator cfg_with_layout (func : string) start
             (fun (c, lbl) ->
               if Label.equal lbl last
               then None
-              else Some (L.Lcondbranch (Ifloattest c, lbl)))
+              else Some (L.Lcondbranch (Ifloattest (width, c), lbl)))
             any
         in
         branches @ branch_or_fallthrough [] last, None

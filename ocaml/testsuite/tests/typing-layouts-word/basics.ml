@@ -200,37 +200,10 @@ Error: This type ('b : value) should be an instance of type ('a : word)
 |}]
 
 (****************************************************)
-(* Test 5: Can't be put in structures in typedecls. *)
+(* Test 5: Allowed in some structures in typedecls. *)
 
-type t5_1 = { x : t_word };;
-[%%expect{|
-Line 1, characters 14-24:
-1 | type t5_1 = { x : t_word };;
-                  ^^^^^^^^^^
-Error: Type t_word has layout word.
-       Records may not yet contain types of this layout.
-|}];;
-
-(* CR layouts v5: this should work *)
-type t5_2 = { y : int; x : t_word };;
-[%%expect{|
-Line 1, characters 23-33:
-1 | type t5_2 = { y : int; x : t_word };;
-                           ^^^^^^^^^^
-Error: Type t_word has layout word.
-       Records may not yet contain types of this layout.
-|}];;
-
-(* CR layouts: this runs afoul of the mixed block restriction, but should work
-   once we relax that. *)
-type t5_2' = { y : string; x : t_word };;
-[%%expect{|
-Line 1, characters 27-37:
-1 | type t5_2' = { y : string; x : t_word };;
-                               ^^^^^^^^^^
-Error: Type t_word has layout word.
-       Records may not yet contain types of this layout.
-|}];;
+(* See [basics_alpha.ml] and [basics_beta.ml] for these -- we'll move them back
+   in once mixed blocks are out of beta. *)
 
 (* CR layouts 2.5: allow this *)
 type t5_3 = { x : t_word } [@@unboxed];;
@@ -242,24 +215,6 @@ Error: Type t_word has layout word.
        Unboxed records may not yet contain types of this layout.
 |}];;
 
-type t5_4 = A of t_word;;
-[%%expect{|
-Line 1, characters 12-23:
-1 | type t5_4 = A of t_word;;
-                ^^^^^^^^^^^
-Error: Type t_word has layout word.
-       Variants may not yet contain types of this layout.
-|}];;
-
-type t5_5 = A of int * t_word;;
-[%%expect{|
-Line 1, characters 12-29:
-1 | type t5_5 = A of int * t_word;;
-                ^^^^^^^^^^^^^^^^^
-Error: Type t_word has layout word.
-       Variants may not yet contain types of this layout.
-|}];;
-
 type t5_6 = A of t_word [@@unboxed];;
 [%%expect{|
 Line 1, characters 12-23:
@@ -268,17 +223,6 @@ Line 1, characters 12-23:
 Error: Type t_word has layout word.
        Unboxed variants may not yet contain types of this layout.
 |}];;
-
-type ('a : word) t5_7 = A of int
-type ('a : word) t5_8 = A of 'a;;
-[%%expect{|
-type ('a : word) t5_7 = A of int
-Line 2, characters 24-31:
-2 | type ('a : word) t5_8 = A of 'a;;
-                            ^^^^^^^
-Error: Type 'a has layout word.
-       Variants may not yet contain types of this layout.
-|}]
 
 (****************************************************)
 (* Test 6: Can't be put at top level of signatures. *)
@@ -517,45 +461,10 @@ Line 1, characters 29-39:
 Error: Don't know how to untag this type. Only int can be untagged.
 |}];;
 
-(*******************************************************)
-(* Test 11: Don't allow word in extensible variants *)
+(***************************************************)
+(* Test 11: Allow word in some extensible variants *)
 
-type t11_1 = ..
-
-type t11_1 += A of t_word;;
-[%%expect{|
-type t11_1 = ..
-Line 3, characters 14-25:
-3 | type t11_1 += A of t_word;;
-                  ^^^^^^^^^^^
-Error: Type t_word has layout word.
-       Variants may not yet contain types of this layout.
-|}]
-
-type t11_1 += B of nativeint#;;
-[%%expect{|
-Line 1, characters 14-29:
-1 | type t11_1 += B of nativeint#;;
-                  ^^^^^^^^^^^^^^^
-Error: Type nativeint# has layout word.
-       Variants may not yet contain types of this layout.
-|}]
-
-type ('a : word) t11_2 = ..
-
-type 'a t11_2 += A of int
-
-type 'a t11_2 += B of 'a;;
-
-[%%expect{|
-type ('a : word) t11_2 = ..
-type 'a t11_2 += A of int
-Line 5, characters 17-24:
-5 | type 'a t11_2 += B of 'a;;
-                     ^^^^^^^
-Error: Type 'a has layout word.
-       Variants may not yet contain types of this layout.
-|}]
+(* See [basics_alpha.ml] and [basics_beta.ml] *)
 
 (***************************************)
 (* Test 12: word in objects/classes *)

@@ -17,6 +17,7 @@ module Sort = struct
     | Void
     | Value
     | Float64
+    | Float32
     | Word
     | Bits32
     | Bits64
@@ -32,17 +33,12 @@ module Sort = struct
     | Void, Void
     | Value, Value
     | Float64, Float64
+    | Float32, Float32
     | Word, Word
     | Bits32, Bits32
     | Bits64, Bits64 ->
       true
-    | Void, (Value | Float64 | Word | Bits32 | Bits64)
-    | Value, (Void | Float64 | Word | Bits32 | Bits64)
-    | Float64, (Value | Void | Word | Bits32 | Bits64)
-    | Word, (Value | Void | Float64 | Bits32 | Bits64)
-    | Bits32, (Value | Void | Float64 | Word | Bits64)
-    | Bits64, (Value | Void | Float64 | Word | Bits32) ->
-      false
+    | (Void | Value | Float64 | Float32 | Word | Bits32 | Bits64), _ -> false
 
   (* To record changes to sorts, for use with `Types.{snapshot, backtrack}` *)
   type change = var * t option
@@ -79,6 +75,8 @@ module Sort = struct
 
   let float64 = Const Float64
 
+  let float32 = Const Float32
+
   let word = Const Word
 
   let bits32 = Const Bits32
@@ -91,6 +89,7 @@ module Sort = struct
     | Void -> void
     | Value -> value
     | Float64 -> float64
+    | Float32 -> float32
     | Word -> word
     | Bits32 -> bits32
     | Bits64 -> bits64
@@ -117,6 +116,8 @@ module Sort = struct
 
   let memoized_float64 : t option = Some (Const Float64)
 
+  let memoized_float32 : t option = Some (Const Float32)
+
   let memoized_word : t option = Some (Const Word)
 
   let memoized_bits32 : t option = Some (Const Bits32)
@@ -127,6 +128,7 @@ module Sort = struct
     | Value -> memoized_value
     | Void -> memoized_void
     | Float64 -> memoized_float64
+    | Float32 -> memoized_float32
     | Word -> memoized_word
     | Bits32 -> memoized_bits32
     | Bits64 -> memoized_bits64
@@ -165,11 +167,12 @@ module Sort = struct
     | Void, Void
     | Value, Value
     | Float64, Float64
+    | Float32, Float32
     | Word, Word
     | Bits32, Bits32
     | Bits64, Bits64 ->
       Equal_no_mutation
-    | (Void | Value | Float64 | Word | Bits32 | Bits64), _ -> Unequal
+    | (Void | Value | Float64 | Float32 | Word | Bits32 | Bits64), _ -> Unequal
 
   let rec equate_var_const v1 c2 =
     match !v1 with
@@ -219,7 +222,7 @@ module Sort = struct
         set v some_value;
         false
       | Some s -> is_void_defaulting s)
-    | Const (Value | Float64 | Word | Bits32 | Bits64) -> false
+    | Const (Value | Float64 | Float32 | Word | Bits32 | Bits64) -> false
 
   (*** pretty printing ***)
 
@@ -227,6 +230,7 @@ module Sort = struct
     | Value -> "value"
     | Void -> "void"
     | Float64 -> "float64"
+    | Float32 -> "float32"
     | Word -> "word"
     | Bits32 -> "bits32"
     | Bits64 -> "bits64"
@@ -251,6 +255,7 @@ module Sort = struct
           | Void -> "Void"
           | Value -> "Value"
           | Float64 -> "Float64"
+          | Float32 -> "Float32"
           | Word -> "Word"
           | Bits32 -> "Bits32"
           | Bits64 -> "Bits64")
@@ -355,6 +360,7 @@ type const =
   | Immediate64
   | Immediate
   | Float64
+  | Float32
   | Word
   | Bits32
   | Bits64

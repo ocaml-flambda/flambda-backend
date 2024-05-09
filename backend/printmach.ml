@@ -149,7 +149,7 @@ let test' ?(print_reg = reg) tst ppf arg =
   | Ifalsetest -> fprintf ppf "not %a" reg arg.(0)
   | Iinttest cmp -> fprintf ppf "%a%s%a" reg arg.(0) (intcomp cmp) reg arg.(1)
   | Iinttest_imm(cmp, n) -> fprintf ppf "%a%s%i" reg arg.(0) (intcomp cmp) n
-  | Ifloattest cmp ->
+  | Ifloattest (_, cmp) ->
       fprintf ppf "%a %s %a"
        reg arg.(0) (Printcmm.float_comparison cmp) reg arg.(1)
   | Ieventest -> fprintf ppf "%a & 1 == 0" reg arg.(0)
@@ -219,9 +219,10 @@ let operation' ?(print_reg = reg) op arg ppf res =
       (Printcmm.atomic_bitwidth size)
       (Arch.print_addressing reg addr) (Array.sub arg 1 (Array.length arg - 1))
       reg arg.(0)
-  | Ifloatop (Icompf _ | Iaddf | Isubf | Imulf | Idivf as op) ->
+  | Ifloatop (_, (Icompf _ | Iaddf | Isubf | Imulf | Idivf as op)) ->
     fprintf ppf "%a %a %a" reg arg.(0) floatop op reg arg.(1)
-  | Ifloatop (Inegf | Iabsf as op) -> fprintf ppf "%a %a" floatop op reg arg.(0)
+  | Ifloatop (_, (Inegf | Iabsf as op)) ->
+    fprintf ppf "%a %a" floatop op reg arg.(0)
   | Icsel tst ->
     let len = Array.length arg in
     fprintf ppf "csel %a ? %a : %a"

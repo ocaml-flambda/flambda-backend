@@ -49,6 +49,7 @@ module Sort : sig
     | Void
     | Value
     | Float64
+    | Float32
     | Word
     | Bits32
     | Bits64
@@ -108,6 +109,7 @@ type const =
   | Immediate64
   | Immediate
   | Float64
+  | Float32
   | Word
   | Bits32
   | Bits64

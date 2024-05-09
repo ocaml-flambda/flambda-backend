@@ -25,9 +25,11 @@ let rec struct_const ppf = function
   | Const_base(Const_string (s, _, _)) -> fprintf ppf "%S" s
   | Const_immstring s -> fprintf ppf "#%S" s
   | Const_base(Const_float f) -> fprintf ppf "%s" f
-  | Const_base(Const_float32 f) -> fprintf ppf "%s" f
+  | Const_base(Const_float32 f) -> fprintf ppf "%ss" f
   | Const_base(Const_unboxed_float f) ->
       fprintf ppf "%s" (Misc.format_as_unboxed_literal f)
+  | Const_base(Const_unboxed_float32 f) ->
+      fprintf ppf "%ss" (Misc.format_as_unboxed_literal f)
   | Const_base(Const_int32 n) -> fprintf ppf "%lil" n
   | Const_base(Const_int64 n) -> fprintf ppf "%LiL" n
   | Const_base(Const_nativeint n) -> fprintf ppf "%nin" n
@@ -141,10 +143,9 @@ let constructor_shape print_value_kind ppf shape =
        | _ :: _ ->
            fprintf ppf ";@%a"
              (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@")
-              (fun ppf -> function
-                  | Imm -> fprintf ppf "[imm]"
-                  | Float -> fprintf ppf "[float]"
-                  | Float64 -> fprintf ppf "[float64]"))
+              (fun ppf flat_element ->
+                fprintf ppf "[%s]"
+                    (Types.flat_element_to_lowercase_string flat_element)))
              flat_fields)
 
 let tag_and_constructor_shape print_value_kind ppf (tag, shape) =
@@ -317,15 +318,13 @@ let block_shape ppf shape = match shape with
         t;
       Format.fprintf ppf ")"
 
-let flat_element ppf : flat_element -> unit = function
-  | Imm -> pp_print_string ppf "int"
-  | Float -> pp_print_string ppf "float"
-  | Float64 -> pp_print_string ppf "float64"
+let flat_element ppf : flat_element -> unit = fun x ->
+  pp_print_string ppf (Types.flat_element_to_lowercase_string x)
 
 let flat_element_read ppf : flat_element_read -> unit = function
-  | Flat_read_imm -> pp_print_string ppf "int"
+  | Flat_read flat ->
+      pp_print_string ppf (Types.flat_element_to_lowercase_string flat)
   | Flat_read_float m -> fprintf ppf "float[%a]" alloc_mode m
-  | Flat_read_float64 -> pp_print_string ppf "float64"
 
 let mixed_block_read ppf : mixed_block_read -> unit = function
   | Mread_value_prefix Immediate -> pp_print_string ppf "value_int"

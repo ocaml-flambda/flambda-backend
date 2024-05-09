@@ -69,6 +69,7 @@ let fmt_constant f x =
   | Const_float (s) -> fprintf f "Const_float %s" s
   | Const_float32 (s) -> fprintf f "Const_float32 %s" s;
   | Const_unboxed_float (s) -> fprintf f "Const_unboxed_float %s" s
+  | Const_unboxed_float32 (s) -> fprintf f "Const_unboxed_float32 %s" s
   | Const_int32 (i) -> fprintf f "Const_int32 %ld" i
   | Const_int64 (i) -> fprintf f "Const_int64 %Ld" i
   | Const_nativeint (i) -> fprintf f "Const_nativeint %nd" i
@@ -193,10 +194,8 @@ let variant_representation i ppf = let open Types in function
       cstrs
   | Variant_extensible -> line i ppf "Variant_inlined\n"
 
-let flat_element i ppf = let open Types in function
-  | Imm -> line i ppf "Immediate\n"
-  | Float -> line i ppf "Float\n"
-  | Float64 -> line i ppf "Float64\n"
+let flat_element i ppf flat_element =
+  line i ppf "%s\n" (Types.flat_element_to_string flat_element)
 
 let record_representation i ppf = let open Types in function
   | Record_unboxed ->

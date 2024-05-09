@@ -160,7 +160,11 @@ let block_set (kind : Flambda_primitive.Block_access_kind.t)
   | Values _, (Assignment Local | Initialization) -> 1 (* cadda + store *)
   | Naked_floats _, (Assignment _ | Initialization) -> 1
   | ( Mixed
-        { field_kind = Value_prefix _ | Flat_suffix (Imm | Float | Float64); _ },
+        { field_kind =
+            ( Value_prefix _
+            | Flat_suffix (Imm | Float | Float64 | Bits32 | Bits64 | Word) );
+          _
+        },
       (Assignment _ | Initialization) ) ->
     1
 
@@ -319,9 +323,9 @@ let int_comparison_like_compare_functions (kind : Flambda_kind.Standard_int.t)
   | Naked_nativeint ->
     4
 
-let binary_float_arith_primitive _op = 2
+let binary_float_arith_primitive _width _op = 2
 
-let binary_float_comp_primitive _op = 2
+let binary_float_comp_primitive _width _op = 2
 
 (* Primitives sizes *)
 
@@ -388,9 +392,10 @@ let binary_prim_size prim =
   | Int_comp (kind, Yielding_bool cmp) -> binary_int_comp_primitive kind cmp
   | Int_comp (kind, Yielding_int_like_compare_functions signedness) ->
     int_comparison_like_compare_functions kind signedness
-  | Float_arith op -> binary_float_arith_primitive op
-  | Float_comp (Yielding_bool cmp) -> binary_float_comp_primitive cmp
-  | Float_comp (Yielding_int_like_compare_functions ()) -> 8
+  | Float_arith (width, op) -> binary_float_arith_primitive width op
+  | Float_comp (width, Yielding_bool cmp) ->
+    binary_float_comp_primitive width cmp
+  | Float_comp (_width, Yielding_int_like_compare_functions ()) -> 8
   | Bigarray_get_alignment _ -> 3 (* load data + add index + and *)
   | Atomic_exchange | Atomic_fetch_and_add ->
     does_not_need_caml_c_call_extcall_size

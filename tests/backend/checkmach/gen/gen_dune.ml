@@ -39,7 +39,8 @@ let () =
 |};
     Buffer.output_buffer Out_channel.stdout buf
   in
-  let print_test_expected_output ?(extra_flags="-zero-alloc-check default")
+  let print_test_expected_output ?(filter="filter.sh")
+        ?(extra_flags="-zero-alloc-check default")
         ?output ~cutoff ~extra_dep ~exit_code name =
     let extra_deps =
       match extra_dep with
@@ -59,6 +60,7 @@ let () =
       | "exit_code" -> string_of_int exit_code
       | "cutoff" -> string_of_int cutoff
       | "extra_flags" -> extra_flags
+      | "filter" -> filter
       | _ -> assert false
     in
     Buffer.clear buf;
@@ -67,14 +69,14 @@ let () =
 (rule
  ${enabled_if}
  (targets ${output}.corrected)
- (deps ${extra_deps} filter.sh)
+ (deps ${extra_deps} ${filter})
  (action
    (with-outputs-to ${output}.corrected
     (pipe-outputs
     (with-accepted-exit-codes ${exit_code}
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
           ${extra_flags} -checkmach-details-cutoff ${cutoff} -O3))
-    (run "./filter.sh")
+    (run "./${filter}")
    ))))
 
 (rule
@@ -179,4 +181,20 @@ let () =
     ~exit_code:2 "test_signatures_separate_b";
   print_test_expected_output ~cutoff:default_cutoff
     ~extra_dep:None ~exit_code:2 "test_assume_inlining";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_dep:None ~exit_code:2 "test_assume_error";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_dep:None ~exit_code:2 "test_assume_stub";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check default -checkmach-join -2"
+    ~extra_dep:None ~exit_code:2 ~filter:"filter_fatal_error.sh" "test_bounded_join";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check default -checkmach-join 2"
+    ~extra_dep:None ~exit_code:2 "test_bounded_join2";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check default -checkmach-join 0"
+    ~extra_dep:None ~exit_code:2 "test_bounded_join3";
+  print_test_expected_output ~cutoff:3
+    ~extra_flags:"-zero-alloc-check default -checkmach-join 0"
+    ~extra_dep:None ~exit_code:2 "test_bounded_join4";
   ()

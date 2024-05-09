@@ -8,8 +8,7 @@ module List = ListLabels
 
 let fatal = Misc.fatal_errorf
 
-(* CR-soon xclerc for xclerc: switch back to `false`. *)
-let debug = true
+let debug = false
 
 type doms = Label.t Label.Tbl.t
 

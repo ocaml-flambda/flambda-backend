@@ -202,6 +202,7 @@ type error =
   | Extension_not_enabled : _ Language_extension.t -> error
   | Literal_overflow of string
   | Unknown_literal of string * char
+  | Float32_literal of string
   | Illegal_letrec_pat
   | Illegal_letrec_expr
   | Illegal_class_expr
@@ -622,6 +623,7 @@ let type_constant: Typedtree.constant -> type_expr = function
   | Const_float _ -> instance Predef.type_float
   | Const_float32 _ -> instance Predef.type_float32
   | Const_unboxed_float _ -> instance Predef.type_unboxed_float
+  | Const_unboxed_float32 _ -> instance Predef.type_unboxed_float32
   | Const_int32 _ -> instance Predef.type_int32
   | Const_int64 _ -> instance Predef.type_int64
   | Const_nativeint _ -> instance Predef.type_nativeint
@@ -680,6 +682,9 @@ let constant : Parsetree.constant -> (Typedtree.constant, error) result =
   | Pconst_char c -> Ok (Const_char c)
   | Pconst_string (s,loc,d) -> Ok (Const_string (s,loc,d))
   | Pconst_float (f,None)-> Ok (Const_float f)
+  | Pconst_float (f,Some 's') ->
+    if Language_extension.is_enabled Small_numbers then Ok (Const_float32 f)
+    else Error (Float32_literal f)
   | Pconst_float (f,Some c) -> Error (Unknown_literal (f, c))
 
 let constant_or_raise env loc cst =
@@ -690,7 +695,11 @@ let constant_or_raise env loc cst =
 let unboxed_constant : Jane_syntax.Layouts.constant -> (Typedtree.constant, error) result
   = function
   | Float (f, None) -> Ok (Const_unboxed_float f)
-  | Float (x, Some c) -> Error (Unknown_literal (Misc.format_as_unboxed_literal x, c))
+  | Float (f, Some 's') ->
+    if Language_extension.is_enabled Small_numbers then Ok (Const_unboxed_float32 f)
+    else Error (Float32_literal (Misc.format_as_unboxed_literal f))
+  | Float (x, Some c) ->
+    Error (Unknown_literal (Misc.format_as_unboxed_literal x, c))
   | Integer (i, suffix) ->
     begin match constant_integer i ~suffix with
       | Ok (Int32 v) -> Ok (Const_unboxed_int32 v)
@@ -5087,6 +5096,7 @@ let zero_alloc_of_application ~num_args attrs funct =
           property = Zero_alloc;
           strict = c.strict;
           never_returns_normally = false;
+          never_raises = false;
           arity = c.arity;
           loc = c.loc
         }
@@ -5734,7 +5744,7 @@ and type_expect_
           | Record_mixed mixed -> begin
               match Types.get_mixed_product_element mixed label.lbl_num with
               | Flat_suffix Float -> true
-              | Flat_suffix (Float64 | Imm) -> false
+              | Flat_suffix (Float64 | Imm | Bits32 | Bits64 | Word) -> false
               | Value_prefix -> false
             end
           | _ -> false
@@ -10078,6 +10088,9 @@ let report_error ~loc env = function
         ty
   | Unknown_literal (n, m) ->
       Location.errorf ~loc "Unknown modifier '%c' for literal %s%c" m n m
+  | Float32_literal f ->
+      Location.errorf ~loc "Found 32-bit float literal %ss, but float32 is not enabled. \
+                            You must enable -extension small_numbers to use this feature." f
   | Illegal_letrec_pat ->
       Location.errorf ~loc
         "Only variables are allowed as left-hand side of `let rec'"
