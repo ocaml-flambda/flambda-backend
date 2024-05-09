@@ -207,8 +207,8 @@ and expression =
    }
 
 and exp_extra =
-  | Texp_constraint of core_type
-        (** E : T *)
+  | Texp_constraint of core_type option * Parsetree.mode loc list
+        (** E : T @@ M *)
   | Texp_coerce of core_type option * core_type
         (** E :> T           [Texp_coerce (None, T)]
             E : T0 :> T      [Texp_coerce (Some T0, T)]
@@ -217,10 +217,6 @@ and exp_extra =
         (** Used for method bodies. *)
   | Texp_newtype of string * Jkind.annotation option
         (** fun (type t : immediate) ->  *)
-
-(* CR modes: Consider fusing [Texp_mode_coerce] and [Texp_constraint] when
-   the syntax changes.
-*)
 
 and arg_label = Types.arg_label =
   | Nolabel

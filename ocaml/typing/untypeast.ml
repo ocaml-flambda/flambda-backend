@@ -454,9 +454,8 @@ let exp_extra sub (extra, loc, attrs) sexp =
         Pexp_coerce (sexp,
                      Option.map (sub.typ sub) cty1,
                      sub.typ sub cty2)
-    | Texp_constraint cty ->
-        (* CR cgunn: recover mode constraint info here *)
-        Pexp_constraint (sexp, Some (sub.typ sub cty), [])
+    | Texp_constraint (cty, modes) ->
+        Pexp_constraint (sexp, Option.map (sub.typ sub) cty, modes)
     | Texp_poly cto -> Pexp_poly (sexp, Option.map (sub.typ sub) cto)
     | Texp_newtype (s, None) ->
         Pexp_newtype (add_loc s, sexp)
@@ -562,16 +561,15 @@ let expression sub exp =
                 match exp_extra with
                 | Some (Texp_coerce (ty1, ty2)) ->
                     Some
-                      (Pcoerce (Option.map (sub.typ sub) ty1, sub.typ sub ty2))
-                | Some (Texp_constraint ty) ->
-                    Some (Pconstraint (sub.typ sub ty))
-                | Some (Texp_poly _ | Texp_newtype _)
+                      (Pcoerce (Option.map (sub.typ sub) ty1, sub.typ sub ty2), [])
+                | Some (Texp_constraint (Some ty, modes)) ->
+                    Some (Pconstraint (sub.typ sub ty), modes)
+                | Some (Texp_poly _ | Texp_newtype _) | Some (Texp_constraint (None, _))
                 | None -> None
               in
               let constraint_ =
                 Option.map
-                  (fun x -> { mode_annotations = [];
-                              type_constraint = x })
+                  (fun (type_constraint, mode_annotations) -> { mode_annotations; type_constraint })
                   constraint_
               in
               Pfunction_cases (cases, loc, attributes), constraint_

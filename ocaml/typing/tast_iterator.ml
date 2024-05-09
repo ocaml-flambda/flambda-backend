@@ -277,7 +277,7 @@ let pat
       sub.pat sub p2
 
 let extra sub = function
-  | Texp_constraint cty -> sub.typ sub cty
+  | Texp_constraint (cty, _modes) -> Option.iter (sub.typ sub) cty
   | Texp_coerce (cty1, cty2) ->
       Option.iter (sub.typ sub) cty1;
       sub.typ sub cty2

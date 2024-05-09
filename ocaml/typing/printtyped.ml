@@ -378,10 +378,13 @@ and function_body i ppf (body : function_body) =
 
 and expression_extra i ppf x attrs =
   match x with
-  | Texp_constraint ct ->
+  | Texp_constraint (ct, modes) ->
       line i ppf "Texp_constraint\n";
       attributes i ppf attrs;
-      core_type i ppf ct;
+      option i core_type ppf ct;
+      list i string ppf (
+        List.map (fun {txt = Parsetree.Mode x; _} -> x) modes
+      )
   | Texp_coerce (cto1, cto2) ->
       line i ppf "Texp_coerce\n";
       attributes i ppf attrs;

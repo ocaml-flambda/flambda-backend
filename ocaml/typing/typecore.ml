@@ -5881,7 +5881,7 @@ and type_expect_
       let exp = type_expect env expected_mode sarg (mk_expected ty_expected ?explanation) in
       exp
   | Pexp_constraint (sarg, Some sty, modes) ->
-      let (ty, exp_extra) =
+      let (ty, extra_cty) =
         type_constraint env sty (Typemode.transl_alloc_mode modes)
       in
       let expected_mode = type_expect_mode ~loc ~env ~modes expected_mode in
@@ -5897,7 +5897,8 @@ and type_expect_
         exp_type = ty';
         exp_attributes = arg.exp_attributes;
         exp_env = env;
-        exp_extra = (exp_extra, loc, sexp.pexp_attributes) :: arg.exp_extra;
+        exp_extra = (Texp_constraint (Some extra_cty, modes), loc, sexp.pexp_attributes)
+                    :: arg.exp_extra;
       }
   | Pexp_coerce(sarg, sty, sty') ->
       let arg, ty', exp_extra =
@@ -6531,7 +6532,7 @@ and type_constraint env sty type_mode =
     end
       ~post:(fun cty -> generalize_structure cty.ctyp_type)
   in
-  cty.ctyp_type, Texp_constraint cty
+  cty.ctyp_type, cty
 
 (** Types a body in the scope of a coercion (:>) or a constraint (:), and
     unifies the inferred type with the expected type.
@@ -6551,8 +6552,8 @@ and type_constraint_expect
         type_coerce constraint_arg env expected_mode loc ty_constrain ty_coerce
           type_mode ~loc_arg
     | Pconstraint ty_constrain ->
-        let ty, exp_extra = type_constraint env ty_constrain type_mode in
-        constraint_arg.type_with_constraint env expected_mode ty, ty, exp_extra
+        let ty, extra_cty = type_constraint env ty_constrain type_mode in
+        constraint_arg.type_with_constraint env expected_mode ty, ty, Texp_constraint (Some extra_cty, [])
   in
   unify_exp_types loc env ty (instance ty_expected);
   ret, ty, exp_extra
