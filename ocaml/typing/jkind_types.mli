@@ -26,6 +26,19 @@
    use. primitive.ml(i) uses the type [Jkind.const], and types.ml(i) depends on
    prmitive.ml(i), so [Jkind.const] is defined here and primitive.ml(i) also
    uses this module.
+
+   Dependency chain without Jkind_types:
+         _____________________
+         |         |         |
+         |         |         V
+   Primitive <-- Types <-- Jkind
+
+   Dependency chain with Jkind_types:
+        ______________________________________
+        |                          |         |
+        V                          |         |
+   Jkind_types <-- Primitive <-- Types <-- Jkind
+
    All definitions here are commented in jkind.ml or jkind.mli. *)
 
 module Sort : sig
