@@ -428,8 +428,8 @@ infix_binop:
   | o = binary_int_arith_op { Int_arith o }
   | c = int_comp { Int_comp (c Signed) }
   | s = int_shift { Int_shift s }
-  | o = binary_float_arith_op { Float_arith o }
-  | c = float_comp { Float_comp c }
+  | o = binary_float_arith_op { Float_arith (Float64, o) }
+  | c = float_comp { Float_comp (Float64, c) }
 ;
 
 prefix_binop:

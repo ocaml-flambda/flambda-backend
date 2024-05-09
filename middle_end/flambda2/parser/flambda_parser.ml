@@ -4784,7 +4784,7 @@ module Tables = struct
 # 4785 "flambda_parser_in.ml"
         ) = 
 # 431 "flambda_parser.mly"
-                              ( Float_arith o )
+                              ( Float_arith (Float64, o) )
 # 4789 "flambda_parser_in.ml"
          in
         {
@@ -4817,7 +4817,7 @@ module Tables = struct
 # 4818 "flambda_parser_in.ml"
         ) = 
 # 432 "flambda_parser.mly"
-                   ( Float_comp c )
+                   ( Float_comp (Float64, c) )
 # 4822 "flambda_parser_in.ml"
          in
         {
