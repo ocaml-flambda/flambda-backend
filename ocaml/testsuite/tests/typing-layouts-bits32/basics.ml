@@ -13,7 +13,7 @@
 (* This file contains typing tests for the layout [bits32].
 
    Runtime tests for the type [int32#] can be found in the
-   [unboxed_int32], [alloc], and [stdlib__int32_u] tests in this
+   [unboxed_int32], [alloc], and [int32_u] tests in this
    directory.  The type [int32#] here is used as a convenient example of a
    concrete [bits32] type in some tests, but its behavior isn't the primary
    purpose of this test. *)
