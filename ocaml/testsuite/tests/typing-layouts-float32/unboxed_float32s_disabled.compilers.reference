@@ -1,3 +1,0 @@
-/usr/local/home/mslater/git-workspaces/flambda-backend/_runtest/ocamlc: Cannot enable extension small_numbers: incompatible with flag -extension-universe no_extensions.
-Usage: ocamlc <options> <files>
-Try 'ocamlc --help' for more information.
