@@ -70,7 +70,9 @@ end
     [Any] and subjkinds of other sorts, such as [Immediate]. *)
 type t = Types.type_expr Jkind_types.t
 
-include module type of Jkind_intf.History
+include module type of struct
+  include Jkind_intf.History
+end
 
 (******************************)
 (* errors *)
