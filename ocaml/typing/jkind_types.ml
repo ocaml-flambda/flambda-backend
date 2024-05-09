@@ -27,6 +27,23 @@ module Sort = struct
 
   and var = t option ref
 
+  let equal_const c1 c2 =
+    match c1, c2 with
+    | Void, Void
+    | Value, Value
+    | Float64, Float64
+    | Word, Word
+    | Bits32, Bits32
+    | Bits64, Bits64 ->
+      true
+    | Void, (Value | Float64 | Word | Bits32 | Bits64)
+    | Value, (Void | Float64 | Word | Bits32 | Bits64)
+    | Float64, (Value | Void | Word | Bits32 | Bits64)
+    | Word, (Value | Void | Float64 | Bits32 | Bits64)
+    | Bits32, (Value | Void | Float64 | Word | Bits64)
+    | Bits64, (Value | Void | Float64 | Word | Bits32) ->
+      false
+
   type change = var * t option
 
   let change_log : (change -> unit) ref = ref (fun _ -> ())

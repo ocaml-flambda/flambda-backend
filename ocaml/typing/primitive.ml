@@ -18,12 +18,6 @@
 open Misc
 open Parsetree
 
-(* jkind depends on types defined in this file, but Jkind.Sort.equal_const is required
-   to implement equal_native_repr. When jkind.ml is loaded, it fills this ref with
-   the definition of Jkind.Sort.equal_const *)
-let jkind_sort_equal_const = ref (fun _ _ ->
-    failwith "jkind_sort_equal_const should be set by jkind.ml")
-
 type boxed_integer = Pnativeint | Pint32 | Pint64
 
 type vec128_type = Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2
@@ -387,7 +381,7 @@ let equal_native_repr nr1 nr2 =
                | Untagged_int | Unboxed_vector _ | Same_as_ocaml_repr _)
   | (Unboxed_float _ | Unboxed_integer _
     | Untagged_int | Unboxed_vector _ | Same_as_ocaml_repr _), Repr_poly -> false
-  | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 -> !jkind_sort_equal_const s1 s2
+  | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 -> Jkind_types.Sort.equal_const s1 s2
   | Same_as_ocaml_repr _,
     (Unboxed_float _ | Unboxed_integer _ | Untagged_int |
      Unboxed_vector _) -> false

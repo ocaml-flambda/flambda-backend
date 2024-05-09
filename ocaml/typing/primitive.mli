@@ -136,10 +136,3 @@ type error =
   | Invalid_native_repr_for_primitive of string
 
 exception Error of Location.t * error
-
-(* jkind depends on types defined in this file, but Jkind.Sort.equal_const is required
-   to implement equal_native_repr. When jkind.ml is loaded, it fills this ref with
-   the definition of Jkind.Sort.equal_const *)
-(** INTERNAL USE ONLY
-    jkind.ml should fill this ref with the definition of Jkind.Sort.equal_const *)
-val jkind_sort_equal_const : (Jkind_types.Sort.const -> Jkind_types.Sort.const -> bool) ref

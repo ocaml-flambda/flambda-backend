@@ -39,6 +39,8 @@ module Sort : sig
 
   and var = t option ref
 
+  val equal_const : const -> const -> bool
+
   type change = var * t option
 
   val change_log : (change -> unit) ref

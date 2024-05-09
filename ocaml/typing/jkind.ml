@@ -267,24 +267,7 @@ module Sort = struct
     | Unequal -> false
     | Equal_mutated_first | Equal_mutated_second | Equal_no_mutation -> true
 
-  let equal_const c1 c2 =
-    match c1, c2 with
-    | Void, Void
-    | Value, Value
-    | Float64, Float64
-    | Word, Word
-    | Bits32, Bits32
-    | Bits64, Bits64 ->
-      true
-    | Void, (Value | Float64 | Word | Bits32 | Bits64)
-    | Value, (Void | Float64 | Word | Bits32 | Bits64)
-    | Float64, (Value | Void | Word | Bits32 | Bits64)
-    | Word, (Value | Void | Float64 | Bits32 | Bits64)
-    | Bits32, (Value | Void | Float64 | Word | Bits64)
-    | Bits64, (Value | Void | Float64 | Word | Bits32) ->
-      false
-
-  let () = Primitive.jkind_sort_equal_const := equal_const
+  let equal_const = Jkind_types.Sort.equal_const
 
   let rec is_void_defaulting = function
     | Const Void -> true
