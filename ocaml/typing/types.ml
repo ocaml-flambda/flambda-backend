@@ -746,7 +746,7 @@ let log_change ch =
 
 let () =
   Mode.set_append_changes (fun changes -> log_change (Cmodes !changes));
-  Jkind_types.Sort.change_log := (fun change -> log_change (Csort change))
+  Jkind_types.Sort.set_change_log (fun change -> log_change (Csort change))
 
 (* constructor and accessors for [field_kind] *)
 

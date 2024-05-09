@@ -2,6 +2,7 @@ jkind.ml
 jkind.mli
 jkind_types.ml
 jkind_types.mli
+jkind_intf.ml
 uniqueness_analysis.ml
 uniqueness_analysis.mli
 mode_intf.mli

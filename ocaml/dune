@@ -87,7 +87,7 @@
 
    ;; TYPING
    ident path jkind primitive shape shape_reduce types btype oprint subst predef datarepr
-   cmi_format persistent_env env errortrace mode jkind_types
+   cmi_format persistent_env env errortrace mode jkind_types jkind_intf
    typedtree printtyped ctype printtyp includeclass mtype envaux includecore
    tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
    includemod includemod_errorprinter
