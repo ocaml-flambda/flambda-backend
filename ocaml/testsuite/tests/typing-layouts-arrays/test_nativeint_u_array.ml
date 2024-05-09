@@ -1,6 +1,7 @@
 (* TEST
  readonly_files = "gen_u_array.ml test_gen_u_array.ml";
  modules = "${readonly_files}";
+ include stable;
  flambda2;
  {
    bytecode;
@@ -72,7 +73,7 @@ module Nativeint_u_array_boxed = Test_gen_u_array.Make_boxed (struct
   module M = Nativeint_u_array
   module I = Nativeint_I
   module E = struct
-    open Stdlib__Nativeint_u
+    open Stable.Nativeint_u
     let to_boxed x = to_nativeint (x ())
     let of_boxed x () = of_nativeint x
   end
@@ -188,7 +189,7 @@ let () =
 
 (* expression and patterns *)
 let () =
-  let ( = ) = Stdlib__Nativeint_u.equal in
+  let ( = ) = Stable.Nativeint_u.equal in
   (* match statement *)
   let d = [| #1n; #2n |] in
   (match d with

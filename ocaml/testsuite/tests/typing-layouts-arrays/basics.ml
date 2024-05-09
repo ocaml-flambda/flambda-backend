@@ -13,6 +13,11 @@
 (* Tests around type-checking arrays of unboxed types. Tests around
    compilation correctness should go somewhere else. *)
 
+#directory "+stable"
+#load "stable.cma"
+[%%expect {|
+|}];;
+
 (*******************************************)
 (* Test 1: Support unboxed types in arrays *)
 
@@ -219,15 +224,15 @@ module M6_1 = struct
     | [| _; _; z |] -> z
     | _ -> assert false
 
-  let _ =  assert (Stdlib__Int32_u.equal #42l (get_third [| #0l; #1l; #42l |]))
+  let _ =  assert (Stable.Int32_u.equal #42l (get_third [| #0l; #1l; #42l |]))
 
-  let _ =  assert (Stdlib__Int64_u.equal #42L (get_third [| #0L; #1L; #42L |]))
+  let _ =  assert (Stable.Int64_u.equal #42L (get_third [| #0L; #1L; #42L |]))
 end
 
 [%%expect{|
-Line 11, characters 60-63:
-11 |   let _ =  assert (Stdlib__Int64_u.equal #42L (get_third [| #0L; #1L; #42L |]))
-                                                                 ^^^
+Line 11, characters 59-62:
+11 |   let _ =  assert (Stable.Int64_u.equal #42L (get_third [| #0L; #1L; #42L |]))
+                                                                ^^^
 Error: This expression has type int64# but an expression was expected of type
          ('a : bits32)
        The layout of int64# is bits64, because
