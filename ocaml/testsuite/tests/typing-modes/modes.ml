@@ -5,25 +5,25 @@
 (* Let bindings *)
 let local_ foo : string @@ unique = "hello"
 [%%expect{|
-Line 1, characters 4-43:
+Line 1, characters 36-43:
 1 | let local_ foo : string @@ unique = "hello"
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                        ^^^^^^^
 Error: This value escapes its region.
 |}]
 
 let local_ foo @ unique = "hello"
 [%%expect{|
-Line 1, characters 4-33:
+Line 1, characters 26-33:
 1 | let local_ foo @ unique = "hello"
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                              ^^^^^^^
 Error: This value escapes its region.
 |}]
 
 let local_ foo : 'a. 'a -> 'a @@ unique = fun x -> x
 [%%expect{|
-Line 1, characters 4-52:
+Line 1, characters 42-52:
 1 | let local_ foo : 'a. 'a -> 'a @@ unique = fun x -> x
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                              ^^^^^^^^^^
 Error: This value escapes its region.
 |}]
 
@@ -34,17 +34,17 @@ val foo : 'a -> 'a = <fun>
 
 let (x, y) @ local unique = "hello", "world"
 [%%expect{|
-Line 1, characters 4-44:
+Line 1, characters 28-44:
 1 | let (x, y) @ local unique = "hello", "world"
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                ^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
 |}]
 
 let (x, y) : _ @@ local unique = "hello", "world"
 [%%expect{|
-Line 1, characters 4-49:
+Line 1, characters 33-49:
 1 | let (x, y) : _ @@ local unique = "hello", "world"
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                     ^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
 |}]
 
@@ -167,13 +167,15 @@ type r = local_ once_ unique_ string -> local_ once_ unique_ string
 
 type r = local_ string * y:string @ unique once -> local_ string * w:string @ once
 [%%expect{|
-type r = local_ once_ unique_ string * string -> local_ once_ string * string
+type r =
+    local_ once_ unique_ string * y:string -> local_ once_ string * w:string
 |}]
 
 type r = x:local_ string * y:string @ unique once -> local_ string * w:string @ once
 [%%expect{|
 type r =
-    x:local_ once_ unique_ string * string -> local_ once_ string * string
+    x:local_ once_ unique_ string * y:string -> local_ once_
+    string * w:string
 |}]
 
 
@@ -261,9 +263,9 @@ val foo : ?x:local_ once_ unique_ int -> unit -> unit = <fun>
 
 let foo ?(local_ x : 'a. 'a -> 'a @@ unique once) = ()
 [%%expect{|
-Line 1, characters 17-48:
+Line 1, characters 8-49:
 1 | let foo ?(local_ x : 'a. 'a -> 'a @@ unique once) = ()
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Optional parameters cannot be polymorphic
 |}]
 
@@ -279,31 +281,10 @@ val foo : ?x:local_ once_ unique_ int * int -> unit -> unit = <fun>
 
 let foo ?x:(local_ (x,y) : 'a.'a->'a @@ unique once) () = ()
 [%%expect{|
-Line 1, characters 19-36:
+Line 1, characters 8-52:
 1 | let foo ?x:(local_ (x,y) : 'a.'a->'a @@ unique once) () = ()
-                       ^^^^^^^^^^^^^^^^^
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Optional parameters cannot be polymorphic
-|}]
-
-(* note: Legacy mode syntax is not parsed for patterns *)
-
-(* CR zqian: currently all patterns, except those directly as function
-   arguments, DO NOT pick up modes during type checking. This should be fixed in
-   another PR. Here, we test that they at least parse. *)
-let foo ((x @ unique once), (y@local unique)) = x + y
-[%%expect{|
-Line 1, characters 14-25:
-1 | let foo ((x @ unique once), (y@local unique)) = x + y
-                  ^^^^^^^^^^^
-Error: Mode annotations on patterns are not supported yet.
-|}]
-
-let foo ((x : _ @@ unique once), (y : _ @@ local unique)) = x + y
-[%%expect{|
-Line 1, characters 19-30:
-1 | let foo ((x : _ @@ unique once), (y : _ @@ local unique)) = x + y
-                       ^^^^^^^^^^^
-Error: Mode annotations on patterns are not supported yet.
 |}]
 
 (* let-bound function *)
@@ -338,8 +319,8 @@ module type S = sig
   val x : string -> string @ local @@ foo bar
 end
 [%%expect{|
-Line 2, characters 38-45:
+Line 2, characters 38-41:
 2 |   val x : string -> string @ local @@ foo bar
-                                          ^^^^^^^
+                                          ^^^
 Error: Modalities on value descriptions are not supported yet.
 |}]

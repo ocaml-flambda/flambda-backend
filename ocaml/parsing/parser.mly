@@ -2583,31 +2583,41 @@ labeled_simple_pattern:
       { (Labelled (fst $2), None, snd $2) }
   | LABEL simple_pattern
       { (Labelled $1, None, $2) }
+  | LABEL LPAREN modes0=optional_mode_expr_legacy x=let_pattern_required_modes RPAREN
+    { let pat, cty, modes = x in
+      (Labelled $1, None,
+       mkpat_with_modes ~loc:$sloc ~pat ~cty ~modes:(modes0 @ modes))
+    }
   | LABEL LPAREN modes=mode_expr_legacy pat=pattern RPAREN
       { (Labelled $1, None,
          mkpat_with_modes ~loc:$sloc ~pat ~cty:None ~modes)
       }
   | simple_pattern
       { (Nolabel, None, $1) }
-  | LPAREN modes0=mode_expr_legacy x=let_pattern RPAREN
-      { let pat, cty, modes = x in
-        (Nolabel, None,
-         mkpat_with_modes ~loc:$sloc ~pat ~cty ~modes:(modes0 @ modes))
-      }
-  | LABEL LPAREN x=poly_pattern RPAREN
-    { let pat, cty, modes = x in
-      (Labelled $1, None,
-       mkpat_with_modes ~loc:$sloc ~pat ~cty ~modes)
-    }
-  | LABEL LPAREN modes0=mode_expr_legacy x=poly_pattern RPAREN
-      { let pat, cty, modes = x in
-        (Labelled $1, None,
-         mkpat_with_modes ~loc:$sloc ~pat ~cty ~modes:(modes0 @ modes))
-      }
-  | LPAREN x=poly_pattern RPAREN
-      { let pat, cty, modes = x in
+  | LPAREN modes=mode_expr_legacy x=let_pattern_no_modes RPAREN
+      { let pat, cty = x in
         (Nolabel, None,
          mkpat_with_modes ~loc:$sloc ~pat ~cty ~modes)
+      }
+  | LPAREN modes0=optional_mode_expr_legacy x=let_pattern_required_modes RPAREN
+      { let pat, cty, modes = x in
+        (Nolabel, None,
+        mkpat_with_modes ~loc:$sloc ~pat ~cty ~modes:(modes0 @ modes))
+      }
+  | LABEL LPAREN x=poly_pattern_no_modes RPAREN
+      { let pat, cty = x in
+        (Labelled $1, None,
+        mkpat_with_modes ~loc:$sloc ~pat ~cty ~modes:[])
+      }
+  | LABEL LPAREN modes=mode_expr_legacy x=poly_pattern_no_modes RPAREN
+      { let pat, cty = x in
+        (Labelled $1, None,
+         mkpat_with_modes ~loc:$sloc ~pat ~cty ~modes)
+      }
+  | LPAREN x=poly_pattern_no_modes RPAREN
+      { let pat, cty = x in
+        (Nolabel, None,
+         mkpat_with_modes ~loc:$sloc ~pat ~cty ~modes:[])
       }
 ;
 
@@ -2646,23 +2656,45 @@ label_let_pattern:
       { ($1.Location.txt, mkpat ~loc:$sloc (Ppat_var $1)) }
 ;
 let_pattern:
-    pat=pattern modes=optional_at_mode_expr
-      { pat, None, modes }
-  | pat=pattern COLON cty=core_type modes=optional_atat_mode_expr
-      { pat, Some cty, modes }
-  | poly_pattern
-      { $1 }
+    x=let_pattern_awaiting_at_modes modes=optional_at_mode_expr
+    { let pat, cty = x in pat, cty, modes }
+  | x=let_pattern_awaiting_atat_modes modes=optional_atat_mode_expr
+    { let pat, cty = x in pat, cty, modes }
+  | LPAREN let_pattern_required_modes RPAREN { $2 }
 ;
 
-%inline poly_pattern:
+let_pattern_required_modes:
+    x=let_pattern_awaiting_at_modes modes=at_mode_expr
+    { let pat, cty = x in pat, cty, modes }
+  | x=let_pattern_awaiting_atat_modes modes=atat_mode_expr
+    { let pat, cty = x in pat, cty, modes }
+  | LPAREN let_pattern_required_modes RPAREN { $2 }
+;
+
+let_pattern_no_modes:
+    x=let_pattern_awaiting_at_modes { x }
+  | x=let_pattern_awaiting_atat_modes { x }
+;
+
+%inline let_pattern_awaiting_atat_modes:
+    pat=pattern COLON cty=core_type
+    { pat, Some cty }
+  | poly_pattern_no_modes
+    { $1 }
+;
+
+%inline let_pattern_awaiting_at_modes:
+    pat=pattern { pat, None }
+;
+
+%inline poly_pattern_no_modes:
    pat = pattern
    COLON
    cty = mktyp_jane_syntax_ltyp(bound_vars = typevar_list
                                 DOT
                                 inner_type = core_type
          { Jane_syntax.Layouts.Ltyp_poly { bound_vars; inner_type } })
-   modes = optional_atat_mode_expr
-   { pat, Some cty, modes }
+   { pat, Some cty }
 ;
 
 %inline indexop_expr(dot, index, right):
@@ -3596,10 +3628,24 @@ simple_pattern_not_ident:
   | extension
       { Ppat_extension $1 }
   ) { $1 }
-  | LPAREN pattern modes=at_mode_expr RPAREN
-      { mkpat ~loc:$sloc (Ppat_constraint($2, None, modes)) }
-  | LPAREN pattern COLON core_type modes=optional_atat_mode_expr RPAREN
-      { mkpat ~loc:$sloc (Ppat_constraint($2, Some $4, modes)) }
+  (* CR modes: when modes on patterns are fully supported, replace the below
+     cases with these two *)
+  (* | LPAREN pattern modes=at_mode_expr RPAREN
+   *     { mkpat ~loc:$sloc (Ppat_constraint($2, None, modes)) }
+   * | LPAREN pattern COLON core_type modes=optional_atat_mode_expr RPAREN
+   *     { mkpat ~loc:$sloc (Ppat_constraint($2, Some $4, modes)) } *)
+  | LPAREN pattern COLON core_type RPAREN
+    { mkpat ~loc:$sloc (Ppat_constraint($2, Some $4, [])) }
+  (* CR cgunn: figure out how to get these errors to work without reduce/reduce
+     conflicts *)
+  (* | LPAREN pattern COLON core_type ATAT error
+   *   {
+   *     raise (Syntaxerr.Error (Syntaxerr.Modes_on_pattern (make_loc $sloc)))
+   *   }
+   * | LPAREN pattern AT error
+   *   {
+   *     raise (Syntaxerr.Error (Syntaxerr.Modes_on_pattern (make_loc $sloc)))
+   *   } *)
 ;
 
 simple_delimited_pattern:

@@ -228,7 +228,6 @@ type error =
   | Exclave_returns_not_local
   | Unboxed_int_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
-  | Modes_on_pattern
   | Invalid_label_for_src_pos of arg_label
   | Nonoptional_call_pos_label of string
 
@@ -10219,9 +10218,6 @@ let report_error ~loc env = function
         "@[Function arguments and returns must be representable.@]@ %a"
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
-  | Modes_on_pattern ->
-      Location.errorf ~loc
-        "@[Mode annotations on patterns are not supported yet.@]"
   | Invalid_label_for_src_pos arg_label ->
       Location.errorf ~loc
         "A position argument must not be %s."

@@ -77,7 +77,8 @@ type ('a : immediate) for_layouts = 'a;;
 
 (* parameters *)
 let f (local_ unique_ x) ~(local_ once_ y) ~z:(unique_ once_ z)
-  ?foo:(local_ unique_ once_ w = 1) () = ();;
+      ?foo:(local_ unique_ once_ w = 1)
+      ?bar:(local_ w : int = 1) () = ();;
 
 (* bindings *)
 let g () =
