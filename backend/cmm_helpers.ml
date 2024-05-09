@@ -1290,6 +1290,11 @@ let setfield_unboxed_int64_or_nativeint arr ofs newval dbg =
 (* Getters and setters for unboxed float32 fields *)
 
 let get_field_unboxed_float32 mutability ~block ~index dbg =
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed float32 fields only supported on little-endian architectures";
   let memory_chunk = Single { reg = Float32 } in
   (* CR layouts v5.1: We'll need to vary log2_size_addr to efficiently pack
    * float32s *)
@@ -1298,6 +1303,11 @@ let get_field_unboxed_float32 mutability ~block ~index dbg =
     (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
 
 let setfield_unboxed_float32 arr ofs newval dbg =
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed float32 fields only supported on little-endian architectures";
   (* CR layouts v5.1: We will need to vary log2_size_addr when float32 fields
      are efficiently packed. *)
   return_unit dbg

@@ -72,7 +72,7 @@ type flat_element =
   | Bits64
   | Word
 
-let flat_element_is_float = function
+let allowed_in_flat_float_block = function
   | Float64 | Float -> true
   | Imm | Float32 | Bits32 | Bits64 | Word -> false
 
@@ -136,7 +136,7 @@ let enumeration_of_suffix_except_all_floats_mixed
 let enumeration_of_all_floats_mixed_suffix =
   let float_flat_element =
     all_of_flat_element
-    |> List.filter ~f:flat_element_is_float
+    |> List.filter ~f:allowed_in_flat_float_block
   in
   nonempty_list_enumeration_of_list
     (list_product float_flat_element all_of_mutability)

@@ -19,7 +19,6 @@ Test (pattern matching).
   4.000
   17.000
   3.000
-  3.000
   174.000
   -20.000
   42.000
@@ -28,13 +27,13 @@ Test (pattern matching).
   36.000
   47.800
   -10.000
+  1.200
 Test (pattern matching, recursive closure).
   Contents of fields:
   7.000
   4.000
   17.000
   3.000
-  3.000
   174.000
   -20.000
   42.000
@@ -43,3 +42,4 @@ Test (pattern matching, recursive closure).
   36.000
   47.800
   -10.000
+  1.200
