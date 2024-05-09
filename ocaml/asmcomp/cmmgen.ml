@@ -363,6 +363,7 @@ let exttype_of_sort (s : Jkind.Sort.const) =
   | Bits32 -> XInt32
   | Bits64 -> XInt64
   | Void -> Misc.fatal_error "Cmmgen.exttype_of_sort: void encountered"
+  | Float32 -> Misc.fatal_error "Cmmgen.exttype_of_sort: float32 encountered"
 
 let machtype_of_sort (s : Jkind.Sort.const) =
   match s with
@@ -370,6 +371,7 @@ let machtype_of_sort (s : Jkind.Sort.const) =
   | Float64 -> typ_float
   | Word | Bits32 | Bits64 -> typ_int
   | Void -> Misc.fatal_error "Cmmgen.machtype_of_sort: void encountered"
+  | Float32 -> Misc.fatal_error "Cmmgen.machtype_of_sort: float32 encountered"
 
 let is_unboxed_number_cmm ~strict cmm =
   let r = ref No_result in

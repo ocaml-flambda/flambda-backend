@@ -53,6 +53,7 @@ type close_functions_result =
 type declare_const_result =
   | Field of Field_of_static_block.t
   | Unboxed_float of Numeric_types.Float_by_bit_pattern.t
+  | Unboxed_float32 of Numeric_types.Float32_by_bit_pattern.t
   | Unboxed_int32 of Numeric_types.Int32.t
   | Unboxed_int64 of Numeric_types.Int64.t
   | Unboxed_nativeint of Targetint_32_64.t
@@ -111,8 +112,11 @@ let rec declare_const acc (const : Lambda.structured_constant) :
   | Const_base (Const_char c) ->
     acc, Field (Tagged_immediate (Targetint_31_63.of_char c)), "char"
   | Const_base (Const_unboxed_float c) ->
-    let c = Numeric_types.Float_by_bit_pattern.create (float_of_string c) in
+    let c = Numeric_types.Float_by_bit_pattern.of_string c in
     acc, Unboxed_float c, "unboxed_float"
+  | Const_base (Const_unboxed_float32 c) ->
+    let c = Numeric_types.Float32_by_bit_pattern.of_string c in
+    acc, Unboxed_float32 c, "unboxed_float32"
   | Const_base (Const_string (s, _, _)) ->
     register_const acc (SC.immutable_string s) "immstring"
   | Const_base (Const_float c) ->
@@ -165,8 +169,8 @@ let rec declare_const acc (const : Lambda.structured_constant) :
           let acc, f, _ = declare_const acc c in
           match f with
           | Field f -> acc, f
-          | Unboxed_float _ | Unboxed_int32 _ | Unboxed_int64 _
-          | Unboxed_nativeint _ ->
+          | Unboxed_float _ | Unboxed_float32 _ | Unboxed_int32 _
+          | Unboxed_int64 _ | Unboxed_nativeint _ ->
             Misc.fatal_errorf
               "Unboxed constants are not allowed inside of Const_block: %a"
               Printlambda.structured_constant const)
@@ -190,6 +194,11 @@ let close_const0 acc (const : Lambda.structured_constant) =
       Simple.const (Reg_width_const.naked_float f),
       name,
       Flambda_kind.With_subkind.naked_float )
+  | Unboxed_float32 f ->
+    ( acc,
+      Simple.const (Reg_width_const.naked_float32 f),
+      name,
+      Flambda_kind.With_subkind.naked_float32 )
   | Unboxed_int32 i ->
     ( acc,
       Simple.const (Reg_width_const.naked_int32 i),
