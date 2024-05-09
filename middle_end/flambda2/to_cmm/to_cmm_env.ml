@@ -267,6 +267,9 @@ let set_inlined_debuginfo t inlined_debuginfo = { t with inlined_debuginfo }
 let add_inlined_debuginfo t dbg =
   Inlined_debuginfo.rewrite t.inlined_debuginfo dbg
 
+let currently_in_inlined_body t =
+  not (Inlined_debuginfo.is_none t.inlined_debuginfo)
+
 (* Continuations *)
 
 let return_continuation env = env.return_continuation
