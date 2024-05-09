@@ -288,14 +288,7 @@ module Sort = struct
     | Bits32, Bits32
     | Bits64, Bits64 ->
       true
-    | Void, (Value | Float64 | Float32 | Word | Bits32 | Bits64)
-    | Value, (Void | Float64 | Float32 | Word | Bits32 | Bits64)
-    | Float64, (Value | Float32 | Void | Word | Bits32 | Bits64)
-    | Float32, (Value | Void | Float64 | Word | Bits32 | Bits64)
-    | Word, (Value | Void | Float64 | Float32 | Bits32 | Bits64)
-    | Bits32, (Value | Void | Float64 | Float32 | Word | Bits64)
-    | Bits64, (Value | Void | Float64 | Float32 | Word | Bits32) ->
-      false
+    | (Void | Value | Float64 | Float32 | Word | Bits32 | Bits64), _ -> false
 
   let rec is_void_defaulting = function
     | Const Void -> true
