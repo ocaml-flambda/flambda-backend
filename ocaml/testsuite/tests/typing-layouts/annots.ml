@@ -7,6 +7,11 @@
  }
 *)
 
+#directory "+stable"
+#load "stable.cma"
+[%%expect {|
+|}];;
+
 type t_value : value
 type t_imm : immediate
 type t_imm64 : immediate64
@@ -295,7 +300,7 @@ val f : r -> int = <fun>
 |}]
 
 type rf = { fieldf : ('a : float64). 'a -> 'a }
-let f { fieldf } = fieldf (Stdlib__Float_u.of_float 3.14);;
+let f { fieldf } = fieldf (Stable.Float_u.of_float 3.14);;
 [%%expect {|
 type rf = { fieldf : ('a : float64). 'a -> 'a; }
 val f : rf -> float# = <fun>

@@ -7,6 +7,10 @@
  }
 *)
 
+#directory "+stable"
+#load "stable.cma"
+[%%expect {|
+|}];;
 
 type t_value : value
 type t_imm   : immediate
@@ -107,7 +111,7 @@ module M1 = struct
 
   type q = t s
 
-  let f1 () : 'a s = { a = fun x -> Stdlib__Float_u.abs x }
+  let f1 () : 'a s = { a = fun x -> Stable.Float_u.abs x }
   let f2 () : 'a s = { a = fun x -> x ^ "!" }
   let f3 () : 'a s = { a = fun x -> x + 1 }
 end;;
@@ -130,7 +134,7 @@ module M1 = struct
 
   type q = t s
 
-  let f1 () : 'a s = A (fun x -> Stdlib__Float_u.abs x)
+  let f1 () : 'a s = A (fun x -> Stable.Float_u.abs x)
   let f2 () : 'a s = A (fun x -> x ^ "!")
   let f3 () : 'a s = A (fun x -> x + 1)
 end;;
@@ -153,7 +157,7 @@ module M1 = struct
 
   type q = t s
 
-  let f1 () : 'a s = A { a = fun x -> Stdlib__Float_u.abs x }
+  let f1 () : 'a s = A { a = fun x -> Stable.Float_u.abs x }
   let f2 () : 'a s = A { a = fun x -> x ^ "!" }
   let f3 () : 'a s = A { a = fun x -> x + 1 }
 end;;
@@ -179,7 +183,7 @@ module M1 = struct
   let f0 () = A {a = (fun x y -> x)}
   let f1 () = A {a = (fun x y -> x + 1)}
   let f2 () = A {a = (fun x y -> x ^ "!")}
-  let f3 () = A {a = (fun x y -> Stdlib__Float_u.abs x)}
+  let f3 () = A {a = (fun x y -> Stable.Float_u.abs x)}
   let f4 () = A {a = (fun x y -> x + y)}
   let f5 () = A {a = (fun x y -> x ^ y)}
 end;;
@@ -208,7 +212,7 @@ module M1 = struct
   let f0 () = A (fun x y -> x)
   let f1 () = A (fun x y -> x + 1)
   let f2 () = A (fun x y -> x ^ "!")
-  let f3 () = A (fun x y -> Stdlib__Float_u.abs x)
+  let f3 () = A (fun x y -> Stable.Float_u.abs x)
   let f4 () = A (fun x y -> x + y)
   let f5 () = A (fun x y -> x ^ y)
 end
@@ -246,13 +250,13 @@ module type S1 =
 module M1 = struct
   type ('a : any) s = A : { a: 'a -> 'b -> 'a } -> 'a s
 
-  let f1 () = A {a = (fun x y -> Stdlib__Float_u.abs x)}
+  let f1 () = A {a = (fun x y -> Stable.Float_u.abs x)}
 end;;
 
 [%%expect{|
-Line 4, characters 53-54:
-4 |   let f1 () = A {a = (fun x y -> Stdlib__Float_u.abs x)}
-                                                         ^
+Line 4, characters 52-53:
+4 |   let f1 () = A {a = (fun x y -> Stable.Float_u.abs x)}
+                                                        ^
 Error: This expression has type ('a : value)
        but an expression was expected of type float#
        The layout of float# is float64, because
@@ -280,13 +284,13 @@ module type S1 =
 module M1 = struct
   type ('a : any) s = A : ('a -> 'b -> 'a) -> 'a s
 
-  let f1 () = A (fun x y -> Stdlib__Float_u.abs x)
+  let f1 () = A (fun x y -> Stable.Float_u.abs x)
 end;;
 
 [%%expect{|
-Line 4, characters 48-49:
-4 |   let f1 () = A (fun x y -> Stdlib__Float_u.abs x)
-                                                    ^
+Line 4, characters 47-48:
+4 |   let f1 () = A (fun x y -> Stable.Float_u.abs x)
+                                                   ^
 Error: This expression has type ('a : value)
        but an expression was expected of type float#
        The layout of float# is float64, because
@@ -298,13 +302,13 @@ Error: This expression has type ('a : value)
 module M1 = struct
   type ('a : any) s = A : ('a : any) 'b. { a: 'a -> 'b -> 'a } -> 'a s
 
-  let f6 () = A {a = (fun x y -> Stdlib__Float_u.add x y)}
+  let f6 () = A {a = (fun x y -> Stable.Float_u.add x y)}
 end;;
 
 [%%expect{|
-Line 4, characters 55-56:
-4 |   let f6 () = A {a = (fun x y -> Stdlib__Float_u.add x y)}
-                                                           ^
+Line 4, characters 54-55:
+4 |   let f6 () = A {a = (fun x y -> Stable.Float_u.add x y)}
+                                                          ^
 Error: This expression has type ('a : value)
        but an expression was expected of type float#
        The layout of float# is float64, because
@@ -316,13 +320,13 @@ Error: This expression has type ('a : value)
 module M1 = struct
   type ('a : any) s = A : ('a : any) 'b. ('a -> 'b -> 'a) -> 'a s
 
-  let f6 () = A (fun x y -> Stdlib__Float_u.add x y)
+  let f6 () = A (fun x y -> Stable.Float_u.add x y)
 end;;
 
 [%%expect{|
-Line 4, characters 50-51:
-4 |   let f6 () = A (fun x y -> Stdlib__Float_u.add x y)
-                                                      ^
+Line 4, characters 49-50:
+4 |   let f6 () = A (fun x y -> Stable.Float_u.add x y)
+                                                     ^
 Error: This expression has type ('a : value)
        but an expression was expected of type float#
        The layout of float# is float64, because
@@ -714,9 +718,9 @@ Error: Polymorphic variant constructor argument types must have layout value.
 module M8_2f = struct
   let foo x =
     match x with
-    | `Baz 42 -> Stdlib__Float_u.of_float 3.14
+    | `Baz 42 -> Stable.Float_u.of_float 3.14
     | `Bar v -> v
-    | `Bas i -> Stdlib__Float_u.of_float 3.14
+    | `Bas i -> Stable.Float_u.of_float 3.14
 end;;
 [%%expect {|
 Line 5, characters 16-17:
@@ -2158,14 +2162,14 @@ module M6 : sig
   val f : ('a. 'a -> unit) -> unit
 end = struct
   let f (g : ('a : any). 'a -> unit) =
-    ignore (g (Stdlib__Float_u.of_float 3.14)); ignore (g "hello"); ignore (g 5); ()
+    ignore (g (Stable.Float_u.of_float 3.14)); ignore (g "hello"); ignore (g 5); ()
 end
 
 [%%expect{|
 Lines 3-6, characters 6-3:
 3 | ......struct
 4 |   let f (g : ('a : any). 'a -> unit) =
-5 |     ignore (g (Stdlib__Float_u.of_float 3.14)); ignore (g "hello"); ignore (g 5); ()
+5 |     ignore (g (Stable.Float_u.of_float 3.14)); ignore (g "hello"); ignore (g 5); ()
 6 | end
 Error: Signature mismatch:
        Modules do not match:

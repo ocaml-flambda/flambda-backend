@@ -1,5 +1,6 @@
 (* TEST
  flags = "-extension layouts_beta";
+ include stable;
  flambda2;
  {
    native;
@@ -11,10 +12,7 @@
 (*****************************************)
 (* Prelude: Functions on unboxed floats. *)
 
-module Float_u = Stdlib__Float_u
-module Int32_u = Stdlib__Int32_u
-module Int64_u = Stdlib__Int64_u
-module Nativeint_u = Stdlib__Nativeint_u
+open Stable
 
 let test_float s f =
   Format.printf "%s: %f\n" s (Float_u.to_float f); Format.print_flush ()

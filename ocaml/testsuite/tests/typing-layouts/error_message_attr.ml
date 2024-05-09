@@ -3,10 +3,15 @@
  expect;
 *)
 
-module Float_u = Stdlib__Float_u
+#directory "+stable"
+#load "stable.cma"
+[%%expect {|
+|}];;
+
+module Float_u = Stable.Float_u
 
 [%%expect{|
-module Float_u = Stdlib__Float_u
+module Float_u = Stable.Float_u
 |}]
 
 (* Needs a string payload *)

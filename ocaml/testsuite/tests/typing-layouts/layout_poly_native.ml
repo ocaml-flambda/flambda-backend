@@ -1,5 +1,6 @@
 (* TEST
  flags = "-extension layouts";
+ include stable;
  flambda2;
  {
    native;
@@ -16,10 +17,10 @@ external[@layout_poly] apply : ('a : any) ('b : any). ('a -> 'b) -> 'a -> 'b = "
 external[@layout_poly] revapply : ('a : any) ('b : any). 'a -> ('a -> 'b) -> 'b = "%revapply"
 
 type t_any : any
-module N = Stdlib__Nativeint_u
-module I32 = Stdlib__Int32_u
-module I64 = Stdlib__Int64_u
-module F = Stdlib__Float_u
+module N = Stable.Nativeint_u
+module I32 = Stable.Int32_u
+module I64 = Stable.Int64_u
+module F = Stable.Float_u
 let () =
    (* id (assert false : t_any); *)
   Printf.printf "%s\n" (N.to_string (id #1n));
