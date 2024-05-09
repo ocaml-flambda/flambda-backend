@@ -296,3 +296,33 @@ let[@zero_alloc strict] test54 x =
     (test42 [@zero_alloc assume strict]) x
   in
   test55 x
+
+
+module Test1 = struct
+  let[@inline never][@local never] h s = [Random.int s ; Random.int s]
+
+  let[@inline never][@local never][@zero_alloc] g x =
+    if x < 0 then Sys.opaque_identity (x+1) else raise (Failure (string_of_int x))
+
+  let[@inline never][@local never] handle_exn exn =
+    (match exn with
+     | Failure s -> print_string s; print_newline ()
+     | _ -> failwith "Boo");
+    0
+  ;;
+
+  (* An exception raise by [g x] is caught and not reraised in [handle_exn]. If
+     [handle_exn] returns normally, then an allocation on exceptional return from [g x] is
+     an allocations on the normal return from [f]. This causes the check to fail on
+     [f]. To avoid it, we can annotate [handle_exn] with "assume error". The intent is
+     that [handler_exn] is an error handling function and any allocations on the path that
+     includes it (before or after it) should be ignored for the "relaxed" check of [f].
+     The actual implementation is "assume error" never returns normally and therefore we
+     can show that [f] never allocates on normal returns.  *)
+  let[@zero_alloc] f x =
+    match g x with
+    | exception exn ->
+      (handle_exn[@zero_alloc assume error]) exn
+      |> h |> List.hd  (* ignore this allocation *)
+    | answer -> (answer * 2)
+end

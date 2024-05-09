@@ -189,4 +189,20 @@ let () =
         ~prefixes:["extension."; "jane."; "test."])
       (fun () -> check_all_printed_attributes_and_extensions_start_with text
                     ~prefix:"test"));
+  (* Additionally check that merely parsing doesn't attempt
+     to check extensions enabledness. This is actually an important property.
+     That's because ppxes run the parser code in a separate process from the
+     compiler, and ppxes always enable extensions to the max. So checks
+     in the parser are ineffective in a common mode of running the
+     compiler.
+  *)
+  Language_extension.disable_all ();
+  match from_file Parse.implementation "source_jane_street.ml" with
+  | (_ : _ list) -> ()
+  | exception _ ->
+      print_endline
+        "Failed to parse with all extensions disabled after successfully\
+        \ parsing with all extensions enabled. Does the parser check for\
+        \ extension enabledness, which is almost certainly a bug? (See the\
+        \ comment by this test.)"
 ;;

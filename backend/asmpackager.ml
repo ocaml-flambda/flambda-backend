@@ -205,6 +205,7 @@ let build_package_cmx members cmxfile =
           List.exists (fun info -> info.ui_force_link) units;
       ui_export_info;
       ui_checks;
+      ui_external_symbols = union (List.map (fun info -> info.ui_external_symbols) units);
     } in
   Compilenv.write_unit_info pkg_infos cmxfile
 

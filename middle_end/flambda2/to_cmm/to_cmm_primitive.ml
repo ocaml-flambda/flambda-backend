@@ -107,7 +107,13 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
   | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
     match field_kind with
     | Imm -> C.get_field_computed Immediate mutability ~block ~index dbg
-    | Float | Float64 -> C.unboxed_float_array_ref block index dbg)
+    | Float | Float64 ->
+      (* CR layouts v5.1: We should use the mutability here to generate better
+         code if the load is immutable. *)
+      C.unboxed_float_array_ref block index dbg
+    | Bits32 -> C.get_field_unboxed_int32 mutability ~block ~index dbg
+    | Bits64 | Word ->
+      C.get_field_unboxed_int64_or_nativeint mutability ~block ~index dbg)
 
 let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     ~block ~index ~new_value =
@@ -125,7 +131,10 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
       match field_kind with
       | Imm ->
         C.setfield_computed Immediate init_or_assign block index new_value dbg
-      | Float | Float64 -> C.float_array_set block index new_value dbg)
+      | Float | Float64 -> C.float_array_set block index new_value dbg
+      | Bits32 -> C.setfield_unboxed_int32 block index new_value dbg
+      | Bits64 | Word ->
+        C.setfield_unboxed_int64_or_nativeint block index new_value dbg)
   in
   C.return_unit dbg expr
 
@@ -144,10 +153,12 @@ let make_array ~dbg kind alloc_mode args =
   | Naked_nativeints ->
     C.allocate_unboxed_nativeint_array ~elements:args mode dbg
 
-let make_mixed_block ~dbg shape alloc_mode args =
+let make_mixed_block ~dbg tag shape alloc_mode args =
   check_alloc_fields args;
   let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
-  C.make_mixed_alloc ~mode dbg shape args
+  let tag = Tag.Scannable.to_int tag in
+  let shape = P.Mixed_block_kind.to_lambda shape in
+  C.make_mixed_alloc ~mode dbg tag shape args
 
 let array_length ~dbg arr (kind : P.Array_kind.t) =
   match kind with
@@ -792,8 +803,8 @@ let variadic_primitive _env dbg f args =
   match (f : P.variadic_primitive) with
   | Make_block (kind, _mut, alloc_mode) -> make_block ~dbg kind alloc_mode args
   | Make_array (kind, _mut, alloc_mode) -> make_array ~dbg kind alloc_mode args
-  | Make_mixed_block (shape, _mut, alloc_mode) ->
-    make_mixed_block ~dbg shape alloc_mode args
+  | Make_mixed_block (tag, shape, _mut, alloc_mode) ->
+    make_mixed_block ~dbg tag shape alloc_mode args
 
 let arg ?consider_inlining_effectful_expressions ~dbg env res simple =
   C.simple ?consider_inlining_effectful_expressions ~dbg env res simple

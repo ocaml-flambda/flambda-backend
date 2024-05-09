@@ -230,6 +230,7 @@ type error =
   | Function_type_not_rep of type_expr * Jkind.Violation.t
   | Modes_on_pattern
   | Invalid_label_for_src_pos of arg_label
+  | Nonoptional_call_pos_label of string
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -3637,9 +3638,19 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                   may_warn sarg.pexp_loc
                     (Warnings.Not_principal "commuting this argument")
                 end;
-                if not optional && is_optional l' then
-                  Location.prerr_warning sarg.pexp_loc
-                    (Warnings.Nonoptional_label (Printtyp.string_of_label l));
+                if not optional && is_optional l' then (
+                  let label = Printtyp.string_of_label l in
+                  if is_position l
+                  then
+                    raise
+                      (Error
+                         ( sarg.pexp_loc
+                         , env
+                         , Nonoptional_call_pos_label label))
+                  else
+                    Location.prerr_warning
+                      sarg.pexp_loc
+                      (Warnings.Nonoptional_label label));
                 remaining_sargs, use_arg ~commuted sarg l'
             | None ->
                 sargs,
@@ -5045,6 +5056,45 @@ let add_check_attribute expr attributes =
     end
   | _ -> expr
 
+let zero_alloc_of_application ~num_args attrs funct =
+  let zero_alloc =
+    Builtin_attributes.get_property_attribute ~in_signature:false
+      ~default_arity:num_args attrs Zero_alloc
+  in
+  let zero_alloc =
+    match zero_alloc with
+    | Assume _ | Ignore_assert_all _ | Check _ ->
+      (* The user wrote a zero_alloc attribute on the application - keep it.
+         (Note that `ignore` and `check` aren't really allowed here, and will be
+         rejected by the call to `Builtin_attributes.assume_zero_alloc` below.)
+       *)
+      zero_alloc
+    | Default_check ->
+      (* We assume the call is zero_alloc if the function is known to be
+         zero_alloc. If the function is zero_alloc opt, then we need to be sure
+         that the opt checks were run to license this assumption. We judge
+         whether the opt checks were run based on the argument to the
+         [-zero-alloc-check] command line flag. *)
+      let use_opt =
+        match !Clflags.zero_alloc_check with
+        | Check_default | No_check -> false
+        | Check_all | Check_opt_only -> true
+      in
+      match funct.exp_desc with
+      | Texp_ident (_, _, { val_zero_alloc = (Check c); _ }, _, _)
+        when c.arity = num_args && (use_opt || not c.opt) ->
+        Builtin_attributes.Assume {
+          property = Zero_alloc;
+          strict = c.strict;
+          never_returns_normally = false;
+          never_raises = false;
+          arity = c.arity;
+          loc = c.loc
+        }
+      | _ -> Builtin_attributes.Default_check
+  in
+  Builtin_attributes.assume_zero_alloc ~is_check_allowed:false zero_alloc
+
 let rec type_exp ?recarg env expected_mode sexp =
   (* We now delegate everything to type_expect *)
   type_expect ?recarg env expected_mode sexp
@@ -5373,12 +5423,8 @@ and type_expect_
         type_application env loc expected_mode pm funct funct_mode sargs rt
       in
       let assume_zero_alloc =
-        let default_arity = List.length args in
-        let zero_alloc =
-          Builtin_attributes.get_property_attribute ~in_signature:false
-            ~default_arity sfunct.pexp_attributes Zero_alloc
-        in
-        Builtin_attributes.assume_zero_alloc ~is_check_allowed:false zero_alloc
+        zero_alloc_of_application ~num_args:(List.length args)
+          sfunct.pexp_attributes funct
       in
 
       rue {
@@ -5687,9 +5733,9 @@ and type_expect_
           match label.lbl_repres with
           | Record_float -> true
           | Record_mixed mixed -> begin
-              match Types.get_mixed_record_element mixed label.lbl_num with
+              match Types.get_mixed_product_element mixed label.lbl_num with
               | Flat_suffix Float -> true
-              | Flat_suffix (Float64 | Imm) -> false
+              | Flat_suffix (Float64 | Imm | Bits32 | Bits64 | Word) -> false
               | Value_prefix -> false
             end
           | _ -> false
@@ -10204,9 +10250,13 @@ let report_error ~loc env = function
         | Nolabel -> "unlabelled"
         | Optional _ -> "optional"
         | Labelled _ | Position _ -> assert false )
+  | Nonoptional_call_pos_label label ->
+    Location.errorf ~loc
+      "@[the argument labeled '%s' is a [%%call_pos] argument, filled in @ \
+         automatically if ommitted. It cannot be passed with '?'.@]" label
 
 let report_error ~loc env err =
-  Printtyp.wrap_printing_env ~error:true env
+  Printtyp.wrap_printing_env_error env
     (fun () -> report_error ~loc env err)
 
 let () =

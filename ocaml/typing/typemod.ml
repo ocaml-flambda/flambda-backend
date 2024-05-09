@@ -2816,7 +2816,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                 | Default_check | Ignore_assert_all _ -> Default_check
                 | Check _ -> zero_alloc
                 | Assume { property; strict; arity; loc;
-                           never_returns_normally = _ } ->
+                           never_returns_normally = _;
+                           never_raises = _} ->
                   Check { strict; property; arity; loc; opt = false }
               in
               let (first_loc, _, _) = List.hd id_info in
@@ -3874,7 +3875,7 @@ let report_error ~loc _env = function
         "Cannot compile an implementation with -as-parameter."
 
 let report_error env ~loc err =
-  Printtyp.wrap_printing_env ~error:true env
+  Printtyp.wrap_printing_env_error env
     (fun () -> report_error env ~loc err)
 
 let () =

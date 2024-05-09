@@ -856,4 +856,144 @@
  (deps stop_after_typing.ml)
  (target stop_after_typing.cmi)
  (enabled_if (= %{context_name} "main"))
- (action (run %{bin:ocamlopt.opt} stop_after_typing.ml -g -c -stop-after typing -O3 -warn-error +a)))
+ (action (run %{bin:ocamlopt.opt} stop_after_typing.ml -g -c -opaque -stop-after typing -O3 -warn-error +a)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_signatures_functors.output.corrected)
+ (deps (:ml test_signatures_functors.ml) filter.sh)
+ (action
+   (with-outputs-to test_signatures_functors.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_signatures_functors.output test_signatures_functors.output.corrected)
+ (action (diff test_signatures_functors.output test_signatures_functors.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_signatures_first_class_modules.output.corrected)
+ (deps (:ml test_signatures_first_class_modules.ml) filter.sh)
+ (action
+   (with-outputs-to test_signatures_first_class_modules.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_signatures_first_class_modules.output test_signatures_first_class_modules.output.corrected)
+ (action (diff test_signatures_first_class_modules.output test_signatures_first_class_modules.output.corrected)))
+
+(rule
+ (alias runtest)
+ (deps test_signatures_separate_a.ml)
+ (target test_signatures_separate_a.cmi)
+ (enabled_if (= %{context_name} "main"))
+ (action (run %{bin:ocamlopt.opt} test_signatures_separate_a.ml -g -c -opaque -stop-after typing -O3 -warn-error +a)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_signatures_separate.output.corrected)
+ (deps test_signatures_separate_a.cmi (:ml test_signatures_separate_b.ml) filter.sh)
+ (action
+   (with-outputs-to test_signatures_separate.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_signatures_separate.output test_signatures_separate.output.corrected)
+ (action (diff test_signatures_separate.output test_signatures_separate.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_signatures_separate.opt.output.corrected)
+ (deps test_signatures_separate_a.cmi (:ml test_signatures_separate_b.ml) filter.sh)
+ (action
+   (with-outputs-to test_signatures_separate.opt.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check all -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_signatures_separate.opt.output test_signatures_separate.opt.output.corrected)
+ (action (diff test_signatures_separate.opt.output test_signatures_separate.opt.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_assume_inlining.output.corrected)
+ (deps (:ml test_assume_inlining.ml) filter.sh)
+ (action
+   (with-outputs-to test_assume_inlining.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_assume_inlining.output test_assume_inlining.output.corrected)
+ (action (diff test_assume_inlining.output test_assume_inlining.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_assume_error.output.corrected)
+ (deps (:ml test_assume_error.ml) filter.sh)
+ (action
+   (with-outputs-to test_assume_error.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_assume_error.output test_assume_error.output.corrected)
+ (action (diff test_assume_error.output test_assume_error.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_assume_stub.output.corrected)
+ (deps (:ml test_assume_stub.ml) filter.sh)
+ (action
+   (with-outputs-to test_assume_stub.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_assume_stub.output test_assume_stub.output.corrected)
+ (action (diff test_assume_stub.output test_assume_stub.output.corrected)))

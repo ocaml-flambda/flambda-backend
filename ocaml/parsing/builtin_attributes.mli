@@ -257,6 +257,11 @@ type check_attribute =
   | Assume of { property: property;
                 strict: bool;
                 never_returns_normally: bool;
+                never_raises: bool;
+                (* [never_raises=true] the function never returns
+                   via an exception. The function (directly or transitively)
+                   may raise exceptions that do not escape, i.e.,
+                   handled before the function returns. *)
                 arity: int;
                 loc: Location.t;
               }

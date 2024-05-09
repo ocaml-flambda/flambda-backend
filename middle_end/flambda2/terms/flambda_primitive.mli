@@ -62,8 +62,34 @@ module Array_kind_for_length : sig
     | Float_array_opt_dynamic
 end
 
+module Mixed_block_flat_element : sig
+  type t =
+    | Imm
+    | Float
+    | Float64
+    | Bits32
+    | Bits64
+    | Word
+
+  val from_lambda : Lambda.flat_element -> t
+
+  val to_string : t -> string
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+end
+
 module Mixed_block_kind : sig
-  type t = Lambda.mixed_block_shape
+  type t =
+    { value_prefix_len : int;
+      (* We use an array just so we can index into the middle. *)
+      flat_suffix : Mixed_block_flat_element.t array
+    }
+
+  val from_lambda : Lambda.mixed_block_shape -> t
+
+  val to_lambda : t -> Lambda.mixed_block_shape
 
   val print : Format.formatter -> t -> unit
 
@@ -154,7 +180,7 @@ end
 module Mixed_block_access_field_kind : sig
   type t =
     | Value_prefix of Block_access_field_kind.t
-    | Flat_suffix of Lambda.flat_element
+    | Flat_suffix of Mixed_block_flat_element.t
 
   val print : Format.formatter -> t -> unit
 
@@ -170,7 +196,8 @@ module Block_access_kind : sig
         }
     | Naked_floats of { size : Targetint_31_63.t Or_unknown.t }
     | Mixed of
-        { size : Targetint_31_63.t Or_unknown.t;
+        { tag : Tag.Scannable.t Or_unknown.t;
+          size : Targetint_31_63.t Or_unknown.t;
           field_kind : Mixed_block_access_field_kind.t
         }
 
@@ -452,7 +479,10 @@ type variadic_primitive =
   | Make_block of Block_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_array of Array_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_mixed_block of
-      Lambda.mixed_block_shape * Mutability.t * Alloc_mode.For_allocations.t
+      Tag.Scannable.t
+      * Mixed_block_kind.t
+      * Mutability.t
+      * Alloc_mode.For_allocations.t
 (* CR mshinwell: Invariant checks -- e.g. that the number of arguments matches
    [num_dimensions] *)
 
