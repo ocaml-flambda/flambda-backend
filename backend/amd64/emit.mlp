@@ -474,31 +474,44 @@ let emit_call_safety_errors () =
 type stack_realloc = {
   sc_label : Label.t; (* Label of the reallocation code. *)
   sc_return : Label.t; (* Label to return to after reallocation. *)
-  sc_max_frame_size_in_bytes : int; (* Size for reallocation. *)
+  sc_size_in_bytes : int; (* Size for reallocation. *)
 }
 
-let stack_realloc = ref (None : stack_realloc option)
+let stack_realloc = ref ([] : stack_realloc list)
 
 let clear_stack_realloc () =
-  stack_realloc := None
+  stack_realloc := []
 
 let emit_stack_realloc () =
-  begin match !stack_realloc with
-  | None -> ()
-  | Some { sc_label; sc_return; sc_max_frame_size_in_bytes; } -> begin
-      def_label sc_label;
-      (* Pass the desired frame size on the stack, since all of the
-         argument-passing registers may be in use.
-         Also serves to align the stack properly before the call *)
-      I.push (int (Config.stack_threshold + sc_max_frame_size_in_bytes / 8));
-      cfi_adjust_cfa_offset 8;
-      (* measured in words *)
-      emit_call (Cmm.global_symbol "caml_call_realloc_stack");
-      I.add (int 8) rsp;
-      cfi_adjust_cfa_offset (-8);
-      I.jmp (label sc_return)
-    end
-  end
+  List.iter
+    (fun { sc_label; sc_return; sc_size_in_bytes; } ->
+       def_label sc_label;
+       (* Pass the desired frame size on the stack, since all of the
+          argument-passing registers may be in use.
+          Also serves to align the stack properly before the call *)
+       I.push (int (Config.stack_threshold + sc_size_in_bytes / 8));
+       cfi_adjust_cfa_offset 8;
+       (* measured in words *)
+       emit_call (Cmm.global_symbol "caml_call_realloc_stack");
+       I.add (int 8) rsp;
+       cfi_adjust_cfa_offset (-8);
+       I.jmp (label sc_return))
+    !stack_realloc
+
+let emit_stack_check ~size_in_bytes ~save_registers =
+  let overflow = new_label () and ret = new_label () in
+  let threshold_offset = Domainstate.stack_ctx_words * 8 + Stack_check.stack_threshold_size in
+  if save_registers then I.push r10;
+  I.lea (mem64 NONE (-(size_in_bytes + threshold_offset)) RSP) r10;
+  I.cmp (domain_field Domainstate.Domain_current_stack) r10;
+  if save_registers then I.pop r10;
+  I.jb (label overflow);
+  def_label ret;
+  stack_realloc := {
+    sc_label = overflow;
+    sc_return = ret;
+    sc_size_in_bytes = size_in_bytes;
+  } :: !stack_realloc
 
 (* Record jump tables *)
 type jump_table =
@@ -1866,20 +1879,7 @@ let emit_instr ~first ~fallthrough i =
           I.jmp r11
     end
   | Lstackcheck { max_frame_size_bytes; } ->
-    let save_registers = not first in
-    let overflow = new_label () and ret = new_label () in
-    let threshold_offset = Domainstate.stack_ctx_words * 8 + Stack_check.stack_threshold_size in
-    if save_registers then I.push r10;
-    I.lea (mem64 NONE (-(max_frame_size_bytes + threshold_offset)) RSP) r10;
-    I.cmp (domain_field Domainstate.Domain_current_stack) r10;
-    if save_registers then I.pop r10;
-    I.jb (label overflow);
-    def_label ret;
-    stack_realloc := Some {
-      sc_label = overflow;
-      sc_return = ret;
-      sc_max_frame_size_in_bytes = max_frame_size_bytes;
-    }
+    emit_stack_check ~size_in_bytes:max_frame_size_bytes ~save_registers:(not first)
 
 let rec emit_all ~first ~fallthrough i =
   match i.desc with
@@ -1943,7 +1943,7 @@ let fundecl fundecl =
   D.label (label_name (emit_symbol fundecl.fun_name));
   emit_debug_info fundecl.fun_dbg;
   cfi_startproc ();
-  if Config.runtime5 && !Clflags.runtime_variant = "d" then begin
+  if Config.runtime5 && (not Config.no_stack_checks) && !Clflags.runtime_variant = "d" then begin
     emit_call (Cmm.global_symbol "caml_assert_stack_invariants");
   end;
   emit_all ~first:true ~fallthrough:true fundecl.fun_body;
@@ -2209,6 +2209,8 @@ let emit_probe_handler_wrapper p =
   let padding = if ((wrapper_frame_size k) mod 16) = 0 then 0 else 8 in
   let n = k + padding in
   (* Allocate stack space *)
+  if Config.runtime5 && (not Config.no_stack_checks) && (n >= Stack_check.stack_threshold_size) then
+    emit_stack_check ~size_in_bytes:n ~save_registers:true;
   emit_stack_offset n;
   (* Save all live hard registers *)
   let offset = aux_offset + tmp_offset + loc_offset in
