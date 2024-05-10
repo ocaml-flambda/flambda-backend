@@ -2183,7 +2183,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
               else
                 let read =
                   match flat_suffix.(pos - value_prefix_len) with
-                  | Imm | Float64 | Bits32 | Bits64 | Word as non_float ->
+                  | Imm | Float64 | Float32 | Bits32 | Bits64 | Word as non_float ->
                       flat_read_non_float non_float
                   | Float ->
                       (* TODO: could optimise to Alloc_local sometimes *)

@@ -3,9 +3,6 @@
  {
    flags = "-extension layouts_beta -extension small_numbers";
    expect;
- }{
-   flags = "-extension small_numbers";
-   expect;
  }
 *)
 
@@ -23,20 +20,12 @@ val f : float32# -> unit = <fun>
 
 type t = C of float32#;;
 [%%expect {|
-Line 1, characters 9-22:
-1 | type t = C of float32#;;
-             ^^^^^^^^^^^^^
-Error: Type float32# has layout float32.
-       Structures with non-value elements may not yet contain types of this layout.
+type t = C of float32#
 |}];;
 
 type t = C : float32# -> t;;
 [%%expect {|
-Line 1, characters 9-26:
-1 | type t = C : float32# -> t;;
-             ^^^^^^^^^^^^^^^^^
-Error: Type float32# has layout float32.
-       Structures with non-value elements may not yet contain types of this layout.
+type t = C : float32# -> t
 |}];;
 
 (* float32# works as an argument to normal type constructors, not just classes,

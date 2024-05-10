@@ -343,7 +343,7 @@ and block_shape =
   value_kind list option
 
 and flat_element = Types.flat_element =
-    Imm | Float | Float64 | Bits32 | Bits64 | Word
+    Imm | Float | Float64 | Float32 | Bits32 | Bits64 | Word
 and flat_element_read =
   | Flat_read of flat_element (* invariant: not [Float] *)
   | Flat_read_float of alloc_mode
@@ -1249,7 +1249,7 @@ let get_mixed_block_element = Types.get_mixed_product_element
 let flat_read_non_float flat_element =
   match flat_element with
   | Float -> Misc.fatal_error "flat_element_read_non_float Float"
-  | Imm | Float64 | Bits32 | Bits64 | Word as flat_element ->
+  | Imm | Float64 | Float32 | Bits32 | Bits64 | Word as flat_element ->
       Flat_read flat_element
 
 let flat_read_float alloc_mode = Flat_read_float alloc_mode
@@ -1789,6 +1789,7 @@ let layout_of_mixed_field (kind : mixed_block_read) =
       match proj with
       | Imm -> layout_int
       | Float64 -> layout_unboxed_float Pfloat64
+      | Float32 -> layout_unboxed_float Pfloat32
       | Bits32 -> layout_unboxed_int32
       | Bits64 -> layout_unboxed_int64
       | Word -> layout_unboxed_nativeint
