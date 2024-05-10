@@ -72,10 +72,6 @@ COMPILERLIBS_INTFS=\
   file_formats/cmxs_format.mli \
   bytecomp/debug_event.mli
 
-# .ml files from compilerlibs that don't have a corresponding .mli file.
-COMPILERLIBS_ML_ONLY=\
-  typing/jkind_intf.ml
-
 # .ml files from compilerlibs that have corresponding .mli files.
 COMPILERLIBS_SOURCES=\
   utils/runtimetags.ml \
@@ -163,10 +159,6 @@ $(LOCAL_SRC)/Makefile: $(LOCAL_SRC)/Makefile.copy-sources Makefile
           echo "$(LOCAL_SRC)/$$(basename $$ml)i: $(ROOTDIR)/$${ml}i" \
             >> $@; \
         done && \
-	for ml in $(COMPILERLIBS_ML_ONLY); do \
-	  echo "$(LOCAL_SRC)/$$(basename $ml): $(ROOTDIR)/$$ml" \
-	    >> $@; \
-	done && \
 	for mli in $(COMPILERLIBS_INTFS); do \
           echo "$(LOCAL_SRC)/$$(basename $$mli): $(ROOTDIR)/$$mli" \
             >> $@; \
@@ -180,8 +172,6 @@ $(LOCAL_SRC)/Makefile: $(LOCAL_SRC)/Makefile.copy-sources Makefile
 
 COMPILERLIBS_SOURCES_NO_DIRS=$(notdir $(COMPILERLIBS_SOURCES))
 
-COMPILERLIBS_ML_ONLY_NO_DIRS=$(notdir $(COMPILERLIBS_ML_ONLY))
-
 COMPILERLIBS_INTFS_NO_DIRS=$(notdir $(COMPILERLIBS_INTFS))
 
 COMPILERLIBS_INTFS_BASE_NAMES=$(basename $(COMPILERLIBS_INTFS_NO_DIRS))
@@ -191,7 +181,7 @@ COMPILERLIBS_INTFS_ML_NO_DIRS=$(addsuffix .ml, $(COMPILERLIBS_INTFS_BASE_NAMES))
 COMPILERLIBS_COPIED_INTFS=\
   $(addprefix $(LOCAL_SRC)/, $(COMPILERLIBS_INTFS_ML_NO_DIRS))
 
-COMPILERLIBS_COPIED_SOURCES_WITH_MLIS=\
+COMPILERLIBS_COPIED_SOURCES=\
   $(addprefix $(LOCAL_SRC)/, $(COMPILERLIBS_SOURCES_NO_DIRS)) \
   $(COMPILERLIBS_COPIED_INTFS)
 
@@ -199,11 +189,7 @@ COMPILERLIBS_SOURCES_INTFS=\
   $(addsuffix i, $(COMPILERLIBS_SOURCES))
 
 COMPILERLIBS_COPIED_SOURCES_INTFS=\
-  $(addsuffix i, $(COMPILERLIBS_COPIED_SOURCES_WITH_MLIS))
-
-COMPILERLIBS_COPIED_SOURCES=\
-  $(COMPILERLIBS_COPIED_SOURCES) \
-  $(addprefix $(LOCAL_SRC)/, $(COMPILERLIBS_ML_ONLY_NO_DIRS))
+  $(addsuffix i, $(COMPILERLIBS_COPIED_SOURCES))
 
 # $(LOCAL_SRC)/Makefile uses the variables above in dependencies, so must be
 # include'd after they've been defined.
