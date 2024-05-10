@@ -102,11 +102,9 @@ open Asttypes
 open Typedtree
 open Types
 
-exception Illegal_expr
-
 (** {1 Static or dynamic size} *)
 
-type sd = Static | Dynamic
+type sd = Value_rec_types.recursive_binding_kind
 
 let is_ref : Types.value_description -> bool = function
   | { Types.val_kind =
@@ -142,17 +140,27 @@ let classify_expression : Typedtree.expression -> sd =
     The first definition can be allowed (`y` has a statically-known
     size) but the second one is unsound (`y` has no statically-known size).
   *)
-  let rec classify_expression env e = match e.exp_desc with
+  let rec classify_expression env e : sd =
+    match e.exp_desc with
     (* binding and variable cases *)
     | Texp_let (rec_flag, vb, e) ->
         let env = classify_value_bindings rec_flag env vb in
+        classify_expression env e
+    | Texp_letmodule (Some mid, _, _, mexp, e) ->
+        (* Note on module presence:
+           For absent modules (i.e. module aliases), the module being bound
+           does not have a physical representation, but its size can still be
+           derived from the alias itself, so we can re-use the same code as
+           for modules that are present. *)
+        let size = classify_module_expression env mexp in
+        let env = Ident.add mid size env in
         classify_expression env e
     | Texp_ident (path, _, _, _, _) ->
         classify_path env path
 
     (* non-binding cases *)
     | Texp_open (_, e)
-    | Texp_letmodule (_, _, _, _, e)
+    | Texp_letmodule (None, _, _, _, e)
     | Texp_sequence (_, _, e)
     | Texp_letexception (_, e)
     | Texp_exclave e ->
@@ -166,7 +174,31 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_record { representation = Record_unboxed;
                     fields = [| _, Overridden (_,e) |] } ->
         classify_expression env e
+    | Texp_record { representation = Record_ufloat; _ } ->
+        Dynamic
     | Texp_record _ ->
+        Static
+
+    | Texp_variant _
+    | Texp_tuple _
+    | Texp_extension_constructor _
+    | Texp_constant _
+    | Texp_src_pos ->
+        Static
+
+    | Texp_for _
+    | Texp_setfield _
+    | Texp_while _
+    | Texp_setinstvar _ ->
+        (* Unit-returning expressions *)
+        Static
+
+    | Texp_unreachable ->
+        Static
+
+    | Texp_probe _
+    | Texp_probe_is_enabled _ ->
+        (* CR vlaviron: Dynamic would probably be a better choice *)
         Static
 
     | Texp_apply ({exp_desc = Texp_ident (_, _, vd, Id_prim _, _)}, _, _, _, _)
@@ -178,27 +210,33 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_apply _ ->
         Dynamic
 
-    | Texp_for _
-    | Texp_constant _
+    | Texp_array _ ->
+        Static
+    | Texp_pack mexp ->
+        classify_module_expression env mexp
+    | Texp_function _ ->
+        Static
+    | Texp_lazy e ->
+      (* The code below was copied (in part) from translcore.ml *)
+      begin match Typeopt.classify_lazy_argument e with
+      | `Constant_or_function ->
+        (* A constant expr (of type <> float if [Config.flat_float_array] is
+           true) gets compiled as itself. *)
+          classify_expression env e
+      | `Float_that_cannot_be_shortcut
+      | `Identifier `Forward_value ->
+          (* Forward blocks *)
+          Static
+      | `Identifier `Other ->
+          classify_expression env e
+      | `Other ->
+          (* other cases compile to a lazy block holding a function *)
+          Static
+      end
+
     | Texp_new _
     | Texp_instvar _
-    | Texp_tuple _
-    | Texp_array _
-    | Texp_variant _
-    | Texp_setfield _
-    | Texp_while _
-    | Texp_setinstvar _
-    | Texp_pack _
     | Texp_object _
-    | Texp_function _
-    | Texp_lazy _
-    | Texp_unreachable
-    | Texp_extension_constructor _
-    | Texp_probe _
-    | Texp_probe_is_enabled _
-    | Texp_src_pos ->
-        Static
-
     | Texp_match _
     | Texp_list_comprehension _
     | Texp_array_comprehension _
@@ -234,7 +272,7 @@ let classify_expression : Typedtree.expression -> sd =
           env
     in
     List.fold_left add_value_binding env bindings
-  and classify_path env = function
+  and classify_path env : _ -> Value_rec_types.recursive_binding_kind = function
     | Path.Pident x ->
         begin
           try Ident.find_same x env
@@ -249,7 +287,7 @@ let classify_expression : Typedtree.expression -> sd =
                 For non-local identifiers it might be reasonable (although
                 not completely clear) to consider them Static (they have
                 already been evaluated), but for the others we must
-                under-approximate with Dynamic.
+                under-approximate with Not_recursive.
 
                 This could be fixed by a more complete implementation.
             *)
@@ -260,6 +298,33 @@ let classify_expression : Typedtree.expression -> sd =
             classify_expression could be extend to compute module
             shapes more precisely *)
         Dynamic
+  and classify_module_expression env mexp : sd =
+    match mexp.mod_desc with
+    | Tmod_ident (path, _) ->
+        classify_path env path
+    | Tmod_structure _ ->
+        Static
+    | Tmod_functor _ ->
+        Static
+    | Tmod_apply _ ->
+        Dynamic
+    | Tmod_apply_unit _ ->
+        Dynamic
+    | Tmod_constraint (mexp, _, _, coe) ->
+        begin match coe with
+        | Tcoerce_none ->
+            classify_module_expression env mexp
+        | Tcoerce_structure _ ->
+            Static
+        | Tcoerce_functor _ ->
+            Static
+        | Tcoerce_primitive _ ->
+            Misc.fatal_error "letrec: primitive coercion on a module"
+        | Tcoerce_alias _ ->
+            Misc.fatal_error "letrec: alias coercion on a module"
+        end
+    | Tmod_unpack (e, _) ->
+        classify_expression env e
   in classify_expression Ident.empty
 
 
@@ -1333,21 +1398,25 @@ and is_destructuring_pattern : type k . k general_pattern -> bool =
     | Tpat_or (l,r,_) ->
         is_destructuring_pattern l || is_destructuring_pattern r
 
-let is_valid_recursive_expression idlist expr =
+let is_valid_recursive_expression idlist expr : sd option =
   match expr.exp_desc with
   | Texp_function _ ->
      (* Fast path: functions can never have invalid recursive references *)
-     true
+     Some Static
   | _ ->
-     match classify_expression expr with
-     | Static ->
-        (* The expression has known size *)
-        let ty = expression expr Return in
-        Env.unguarded ty idlist = []
-     | Dynamic ->
-        (* The expression has unknown size *)
-        let ty = expression expr Return in
-        Env.unguarded ty idlist = [] && Env.dependent ty idlist = []
+     let rkind = classify_expression expr in
+     let is_valid =
+       match rkind with
+       | Static ->
+         (* The expression has known size or is constant *)
+         let ty = expression expr Return in
+         Env.unguarded ty idlist = []
+       | Dynamic ->
+         (* The expression has unknown size *)
+         let ty = expression expr Return in
+         Env.unguarded ty idlist = [] && Env.dependent ty idlist = []
+     in
+     if is_valid then Some rkind else None
 
 (* A class declaration may contain let-bindings. If they are recursive,
    their validity will already be checked by [is_valid_recursive_expression]

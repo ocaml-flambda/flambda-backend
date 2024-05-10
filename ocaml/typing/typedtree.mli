@@ -686,7 +686,7 @@ and structure_item_desc =
 
 and module_binding =
     {
-     mb_id: Ident.t option;
+     mb_id: Ident.t option; (** [None] for [module _ = struct ... end] *)
      mb_name: string option loc;
      mb_uid: Uid.t;
      mb_presence: Types.module_presence;
@@ -699,6 +699,7 @@ and value_binding =
   {
     vb_pat: pattern;
     vb_expr: expression;
+    vb_rec_kind: Value_rec_types.recursive_binding_kind;
     vb_sort: Jkind.sort;
     vb_attributes: attributes;
     vb_loc: Location.t;
@@ -710,7 +711,19 @@ and module_coercion =
                          (Ident.t * int * module_coercion) list
   | Tcoerce_functor of module_coercion * module_coercion
   | Tcoerce_primitive of primitive_coercion
+  (** External declaration coerced to a regular value.
+      {[
+        module M : sig val ext : a -> b end =
+        struct external ext : a -> b = "my_c_function" end
+      ]}
+      Only occurs inside a [Tcoerce_structure] coercion. *)
   | Tcoerce_alias of Env.t * Path.t * module_coercion
+  (** Module alias coerced to a regular module.
+      {[
+        module M : sig module Sub : T end =
+        struct module Sub = Some_alias end
+      ]}
+      Only occurs inside a [Tcoerce_structure] coercion. *)
 
 and module_type =
   { mty_desc: module_type_desc;

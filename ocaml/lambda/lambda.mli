@@ -351,7 +351,7 @@ and block_shape =
   value_kind list option
 
 and flat_element = Types.flat_element =
-    Imm | Float | Float64 | Bits32 | Bits64 | Word
+    Imm | Float | Float64 | Float32 | Bits32 | Bits64 | Word
 and flat_element_read = private
   | Flat_read of flat_element (* invariant: not [Float] *)
   | Flat_read_float of alloc_mode
@@ -595,7 +595,7 @@ type lambda =
   | Lfunction of lfunction
   | Llet of let_kind * layout * Ident.t * lambda * lambda
   | Lmutlet of layout * Ident.t * lambda * lambda
-  | Lletrec of (Ident.t * lambda) list * lambda
+  | Lletrec of rec_binding list * lambda
   | Lprim of primitive * lambda list * scoped_location
   | Lswitch of lambda * lambda_switch * scoped_location * layout
 (* switch on strings, clauses are sorted by string order,
@@ -618,6 +618,14 @@ type lambda =
   | Lifused of Ident.t * lambda
   | Lregion of lambda * layout
   | Lexclave of lambda
+
+and rec_binding = {
+  id : Ident.t;
+  def : lfunction;
+  (* Generic recursive bindings have been removed from Lambda in 5.2.
+     [Value_rec_compiler.compile_letrec] deals with transforming generic
+     definitions into basic Lambda code. *)
+}
 
 and lfunction = private
   { kind: function_kind;
@@ -746,6 +754,10 @@ val layout_unboxed_product : layout list -> layout
 val layout_top : layout
 val layout_bottom : layout
 
+
+(** [dummy_constant] produces a placeholder value with a recognizable
+    bit pattern (currently 0xBBBB in its tagged form) *)
+val dummy_constant: lambda
 val name_lambda: let_kind -> lambda -> layout -> (Ident.t -> lambda) -> lambda
 val name_lambda_list: (lambda * layout) list -> (lambda list -> lambda) -> lambda
 
@@ -760,6 +772,18 @@ val lfunction :
   ret_mode:alloc_mode ->
   region:bool ->
   lambda
+
+val lfunction' :
+  kind:function_kind ->
+  params:lparam list ->
+  return:layout ->
+  body:lambda ->
+  attr:function_attribute -> (* specified with [@inline] attribute *)
+  loc:scoped_location ->
+  mode:alloc_mode ->
+  ret_mode:alloc_mode ->
+  region:bool ->
+  lfunction
 
 
 val iter_head_constructor: (lambda -> unit) -> lambda -> unit
@@ -826,12 +850,15 @@ val rename : Ident.t Ident.Map.t -> lambda -> lambda
 (** A version of [subst] specialized for the case where we're just renaming
     idents. *)
 
-val duplicate : lambda -> lambda
+val duplicate_function : lfunction -> lfunction
 (** Duplicate a term, freshening all locally-bound identifiers. *)
 
 val map : (lambda -> lambda) -> lambda -> lambda
   (** Bottom-up rewriting, applying the function on
       each node from the leaves to the root. *)
+
+val map_lfunction : (lambda -> lambda) -> lfunction -> lfunction
+  (** Apply the given transformation on the function's body *)
 
 val shallow_map  :
   tail:(lambda -> lambda) ->

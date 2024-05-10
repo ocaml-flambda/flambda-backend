@@ -1208,6 +1208,7 @@ let assert_mixed_product_support =
 module Element_repr = struct
   type unboxed_element =
     | Float64
+    | Float32
     | Bits32
     | Bits64
     | Word
@@ -1225,9 +1226,7 @@ module Element_repr = struct
       | Value | Immediate64 | Non_null_value -> Value_element
       | Immediate -> Imm_element
       | Float64 -> Unboxed_element Float64
-      | Float32 ->
-        (* CR mslater: (float32) float32# records *)
-        raise (Error (loc, Invalid_jkind_in_block (ty, Float32, Mixed_product)))
+      | Float32 -> Unboxed_element Float32
       | Word -> Unboxed_element Word
       | Bits32 -> Unboxed_element Bits32
       | Bits64 -> Unboxed_element Bits64
@@ -1237,6 +1236,7 @@ module Element_repr = struct
 
   let unboxed_to_flat : unboxed_element -> flat_element = function
     | Float64 -> Float64
+    | Float32 -> Float32
     | Bits32 -> Bits32
     | Bits64 -> Bits64
     | Word -> Word
@@ -1406,7 +1406,7 @@ let update_decl_jkind env dpath decl =
            | Float_element -> repr_summary.floats <- true
            | Imm_element -> repr_summary.imms <- true
            | Unboxed_element Float64 -> repr_summary.float64s <- true
-           | Unboxed_element (Bits32 | Bits64 | Word) ->
+           | Unboxed_element (Float32 | Bits32 | Bits64 | Word) ->
                repr_summary.non_float64_unboxed_fields <- true
            | Value_element -> repr_summary.values <- true
            | Element_without_runtime_component _ -> ())

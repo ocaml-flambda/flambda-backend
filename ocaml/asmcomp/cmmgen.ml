@@ -20,7 +20,6 @@
 open Misc
 open Asttypes
 open Primitive
-open Types
 open Lambda
 open Clambda
 open Clambda_primitives
@@ -151,72 +150,6 @@ let get_field env mut layout ptr n dbg =
           dbg
   in
   get_field_gen_given_memory_chunk memory_chunk mut ptr n dbg
-
-type rhs_kind =
-  | RHS_block of Lambda.alloc_mode * int
-  | RHS_infix of { blocksize : int; offset : int; blockmode: Lambda.alloc_mode }
-  | RHS_floatblock of Lambda.alloc_mode * int
-  | RHS_nonrec
-
-let rec expr_size env = function
-  | Uvar id ->
-      begin try V.find_same id env with Not_found -> RHS_nonrec end
-  | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
-      (* should all have the same mode *)
-      let fn_mode = (List.hd functions).mode in
-      List.iter (fun f -> assert (Lambda.eq_mode fn_mode f.mode)) functions;
-      RHS_block (fn_mode,
-                 fundecls_size functions + List.length not_scanned_slots
-                 + List.length scanned_slots)
-  | Ulet(_str, _kind, id, exp, body) ->
-      expr_size (V.add (VP.var id) (expr_size env exp) env) body
-  | Uletrec(bindings, body) ->
-      let env =
-        List.fold_right
-          (fun (id, exp) env -> V.add (VP.var id) (expr_size env exp) env)
-          bindings env
-      in
-      expr_size env body
-  | Uprim(Pmakeblock (_, _, _, mode), args, _) ->
-      RHS_block (mode, List.length args)
-  | Uprim(Pmakeufloatblock (_, mode), args, _) ->
-      RHS_floatblock (mode, List.length args)
-  | Uprim(Pmakearray((Paddrarray | Pintarray), _, mode), args, _) ->
-      RHS_block (mode, List.length args)
-  | Uprim(Pmakearray(Pfloatarray, _, mode), args, _) ->
-      RHS_floatblock (mode, List.length args)
-  | Uprim(Pmakearray(Pgenarray, _, _mode), _, _) ->
-     (* Pgenarray is excluded from recursive bindings by the
-        check in Translcore.check_recursive_lambda *)
-     RHS_nonrec
-  | Uprim (Pduprecord ((Record_boxed _ | Record_inlined (_, Variant_boxed _)),
-                       sz), _, _) ->
-      RHS_block (Lambda.alloc_heap, sz)
-  | Uprim (Pduprecord ((Record_unboxed
-                       | Record_inlined (_, Variant_unboxed)),
-                       _), _, _) ->
-      assert false
-  | Uprim (Pduprecord (Record_inlined (_, Variant_extensible), sz), _, _) ->
-      RHS_block (Lambda.alloc_heap, sz + 1)
-  | Uprim (Pduprecord ((Record_float | Record_ufloat), sz), _, _) ->
-      RHS_floatblock (Lambda.alloc_heap, sz)
-  | Uprim (Pccall { prim_name; _ }, closure::_, _)
-        when prim_name = "caml_check_value_is_closure" ->
-      (* Used for "-clambda-checks". *)
-      expr_size env closure
-  | Usequence(_exp, exp') ->
-      expr_size env exp'
-  | Uoffset (exp, offset) ->
-      (match expr_size env exp with
-      | RHS_block (blockmode, blocksize) ->
-         RHS_infix { blocksize; offset; blockmode }
-      | RHS_nonrec -> RHS_nonrec
-      | _ -> assert false)
-  | Uregion exp ->
-      expr_size env exp
-  | Uexclave exp ->
-      expr_size env exp
-  | _ -> RHS_nonrec
 
 (* Translate structured constants to Cmm data items *)
 
@@ -560,8 +493,6 @@ let rec transl env e =
           Some defining_expr
       in
       Cphantom_let (var, defining_expr, transl env body)
-  | Uletrec(bindings, body) ->
-      transl_letrec env bindings (transl env body)
 
   (* Primitives *)
   | Uprim(prim, args, dbg) ->
@@ -1650,51 +1581,6 @@ and transl_switch dbg (kind : Cmm.kind_for_unboxing) env arg index cases = match
 | _ ->
     let cases = Array.map (transl env) cases in
     transl_switch_clambda dbg kind arg index cases
-
-and transl_letrec env bindings cont =
-  let dbg = Debuginfo.none in
-  let bsz =
-    List.map (fun (id, exp) -> (id, exp, expr_size V.empty exp))
-      bindings
-  in
-  let op_alloc prim args =
-    Cop(Cextcall(prim, typ_val, [], true), args, dbg) in
-  let rec init_blocks = function
-    | [] -> fill_nonrec bsz
-    | (_, _,
-       (RHS_block (Alloc_local, _) |
-        RHS_infix {blockmode=Alloc_local; _} |
-        RHS_floatblock (Alloc_local, _))) :: _ ->
-      Misc.fatal_error "Invalid stack allocation found"
-    | (id, _exp, RHS_block (Alloc_heap, sz)) :: rem ->
-        Clet(id, op_alloc "caml_alloc_dummy" [int_const dbg sz],
-          init_blocks rem)
-    | (id, _exp, RHS_infix { blocksize; offset; blockmode=Alloc_heap }) :: rem ->
-        Clet(id, op_alloc "caml_alloc_dummy_infix"
-             [int_const dbg blocksize; int_const dbg offset],
-             init_blocks rem)
-    | (id, _exp, RHS_floatblock (Alloc_heap, sz)) :: rem ->
-        Clet(id, op_alloc "caml_alloc_dummy_float" [int_const dbg sz],
-          init_blocks rem)
-    | (id, _exp, RHS_nonrec) :: rem ->
-        Clet (id, Cconst_int (1, dbg), init_blocks rem)
-  and fill_nonrec = function
-    | [] -> fill_blocks bsz
-    | (_id, _exp,
-       (RHS_block _ | RHS_infix _ | RHS_floatblock _)) :: rem ->
-        fill_nonrec rem
-    | (id, exp, RHS_nonrec) :: rem ->
-        Clet(id, transl env exp, fill_nonrec rem)
-  and fill_blocks = function
-    | [] -> cont
-    | (id, exp, (RHS_block _ | RHS_infix _ | RHS_floatblock _)) :: rem ->
-        let op =
-          Cop(Cextcall("caml_update_dummy", typ_void, [], false),
-              [Cvar (VP.var id); transl env exp], dbg) in
-        Csequence(op, fill_blocks rem)
-    | (_id, _exp, RHS_nonrec) :: rem ->
-        fill_blocks rem
-  in init_blocks bsz
 
 (* Translate a function definition *)
 

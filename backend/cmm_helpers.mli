@@ -1006,11 +1006,19 @@ val unboxed_int64_or_nativeint_array_set :
   Debuginfo.t ->
   expression
 
-(** {2 Getters and setters for unboxed int fields of mixed blocks} *)
+(** {2 Getters and setters for unboxed int and float32 fields of mixed
+    blocks} *)
 
 (** The argument structure for getters is parallel to [get_field_computed]. *)
 
 val get_field_unboxed_int32 :
+  Asttypes.mutable_flag ->
+  block:expression ->
+  index:expression ->
+  Debuginfo.t ->
+  expression
+
+val get_field_unboxed_float32 :
   Asttypes.mutable_flag ->
   block:expression ->
   index:expression ->
@@ -1031,5 +1039,7 @@ val get_field_unboxed_int64_or_nativeint :
  *)
 
 val setfield_unboxed_int32 : ternary_primitive
+
+val setfield_unboxed_float32 : ternary_primitive
 
 val setfield_unboxed_int64_or_nativeint : ternary_primitive

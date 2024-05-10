@@ -283,7 +283,7 @@ and abstract_reason =
     Abstract_def
   | Abstract_rec_check_regularity
 
-and flat_element = Imm | Float | Float64 | Bits32 | Bits64 | Word
+and flat_element = Imm | Float | Float64 | Float32 | Bits32 | Bits64 | Word
 and mixed_product_shape =
   { value_prefix_len : int;
     flat_suffix : flat_element array;
@@ -579,14 +579,14 @@ let equal_tag t1 t2 =
 
 let equal_flat_element e1 e2 =
   match e1, e2 with
-  | Imm, Imm | Float64, Float64 | Float, Float
+  | Imm, Imm | Float64, Float64 | Float32, Float32 | Float, Float
   | Word, Word | Bits32, Bits32 | Bits64, Bits64
     -> true
-  | (Imm | Float64 | Float | Word | Bits32 | Bits64), _ -> false
+  | (Imm | Float64 | Float32 | Float | Word | Bits32 | Bits64), _ -> false
 
 let compare_flat_element e1 e2 =
   match e1, e2 with
-  | Imm, Imm | Float, Float | Float64, Float64
+  | Imm, Imm | Float, Float | Float64, Float64 | Float32, Float32
   | Word, Word | Bits32, Bits32 | Bits64, Bits64
     -> 0
   | Imm, _ -> -1
@@ -595,6 +595,8 @@ let compare_flat_element e1 e2 =
   | _, Float -> 1
   | Float64, _ -> -1
   | _, Float64 -> 1
+  | Float32, _ -> -1
+  | _, Float32 -> 1
   | Word, _ -> -1
   | _, Word -> 1
   | Bits32, _ -> -1
@@ -728,6 +730,7 @@ let get_mixed_product_element { value_prefix_len; flat_suffix } i =
 let flat_element_to_string = function
   | Imm -> "Imm"
   | Float -> "Float"
+  | Float32 -> "Float32"
   | Float64 -> "Float64"
   | Bits32 -> "Bits32"
   | Bits64 -> "Bits64"
@@ -736,6 +739,7 @@ let flat_element_to_string = function
 let flat_element_to_lowercase_string = function
   | Imm -> "imm"
   | Float -> "float"
+  | Float32 -> "float32"
   | Float64 -> "float64"
   | Bits32 -> "bits32"
   | Bits64 -> "bits64"

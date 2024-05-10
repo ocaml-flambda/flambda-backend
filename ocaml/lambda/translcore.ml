@@ -55,10 +55,7 @@ let layout_pat sort p = layout p.pat_env p.pat_loc sort p.pat_type
 
 let check_record_field_sort loc sort =
   match Jkind.Sort.get_default_value sort with
-  | Value | Float64 | Bits32 | Bits64 | Word -> ()
-  | Float32 ->
-    (* CR mslater: (float32) float32# records *)
-    Misc.fatal_error "Found unboxed float32 record field."
+  | Value | Float64 | Float32 | Bits32 | Bits64 | Word -> ()
   | Void -> raise (Error (loc, Illegal_void_record_field))
 
 (* Forward declaration -- to be filled in by Translmod.transl_module *)
@@ -1649,7 +1646,7 @@ and transl_let ~scopes ~return_layout ?(add_regions=false) ?(in_structure=false)
       let rec transl = function
         [] ->
           fun body -> body
-      | {vb_pat=pat; vb_expr=expr; vb_sort=sort; vb_attributes; vb_loc}
+      | {vb_pat=pat; vb_expr=expr; vb_sort=sort; vb_rec_kind=_; vb_attributes; vb_loc}
         :: rem ->
           let lam =
             transl_bound_exp ~scopes ~in_structure pat sort expr vb_loc vb_attributes
@@ -1671,16 +1668,17 @@ and transl_let ~scopes ~return_layout ?(add_regions=false) ?(in_structure=false)
             | _ -> assert false)
         pat_expr_list in
       let transl_case
-            {vb_expr=expr; vb_sort; vb_attributes; vb_loc; vb_pat} id =
-        let lam =
+            {vb_expr=expr; vb_sort; vb_attributes; vb_rec_kind = rkind;
+             vb_loc; vb_pat} id =
+        let def =
           transl_bound_exp ~scopes ~in_structure vb_pat vb_sort expr vb_loc vb_attributes
         in
-        let lam =
-          if add_regions then maybe_region_exp vb_sort expr lam else lam
+        let def =
+          if add_regions then maybe_region_exp vb_sort expr def else def
         in
-        (id, lam) in
+        ( id, rkind, def ) in
       let lam_bds = List.map2 transl_case pat_expr_list idlist in
-      fun body -> Lletrec(lam_bds, body)
+      fun body -> Value_rec_compiler.compile_letrec lam_bds body
 
 and transl_setinstvar ~scopes loc self var expr =
   Lprim(Psetfield_computed (maybe_pointer expr, Assignment modify_heap),

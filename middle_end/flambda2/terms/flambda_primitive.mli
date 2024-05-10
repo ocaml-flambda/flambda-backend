@@ -67,6 +67,7 @@ module Mixed_block_flat_element : sig
     | Imm
     | Float
     | Float64
+    | Float32
     | Bits32
     | Bits64
     | Word

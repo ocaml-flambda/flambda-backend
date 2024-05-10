@@ -582,8 +582,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                         | Flat_suffix Imm -> `Continue (O.field obj pos)
                         | Flat_suffix (Float | Float64) ->
                             `Continue (O.repr (O.double_field obj pos))
-                        | Flat_suffix (Bits32 | Bits64 | Word) ->
-                            `Stop (Oval_stuff "<bits>")
+                        | Flat_suffix (Float32 | Bits32 | Bits64 | Word) ->
+                            `Stop (Oval_stuff "<abstr>")
                       in
                       match fld with
                       | `Continue fld ->
