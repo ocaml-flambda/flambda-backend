@@ -176,8 +176,14 @@ let compute_static_size lam =
     | Lifused _ -> Constant
     | Lregion (e, _) ->
       compute_expression_size env e
-    | Lexclave e ->
-      compute_expression_size env e
+    | Lexclave _ ->
+      (* Lexclave should only occur in tail position of a function.
+         Since we only compute sizes for let-bound definitions, we should never
+         reach this case.
+         This justifies using [assert false] instead of [dynamic_size ()],
+         the latter meaning that [Value_rec_check] should have forbidden that case.
+      *)
+      assert false
   and compute_and_join_sizes env branches =
     List.fold_left (fun size branch ->
         join_sizes size (compute_expression_size env branch))
@@ -331,8 +337,7 @@ let compute_static_size lam =
     | Pdls_get ->
         dynamic_size ()
 
-    (* Note: the primitives below are not present upstream,
-       so they haven't been reviewed *)
+    (* Primitives specific to flambda-backend *)
     | Pmakefloatblock (_, _) ->
         let size = List.length args in
         Block (Float_record size)
