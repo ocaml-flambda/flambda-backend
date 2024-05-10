@@ -794,17 +794,22 @@ let cc =
 
 let run_expect_once input_file principal log env =
   let expect_flags = Sys.safe_getenv "EXPECT_FLAGS" in
-  let repo_root = "-repo-root " ^ Ocaml_directories.srcdir in
   let principal_flag = if principal then "-principal" else "" in
   let commandline =
   [
     Ocaml_commands.ocamlrun_expect_test;
     expect_flags;
+    Ocaml_flags.toplevel_default_flags;
+    Ocaml_flags.stdlib;
+    directory_flags env;
+    Ocaml_flags.include_toplevel_directory;
     flags env;
-    repo_root;
     principal_flag;
+    libraries Bytecode env;
+    binary_modules Bytecode env;
     input_file
-  ] in
+  ]
+  in
   let exit_status =
     Actions_helpers.run_cmd ~environment:default_ocaml_env log env commandline
   in

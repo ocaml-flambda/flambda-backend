@@ -313,8 +313,20 @@ let process_expect_file fname =
   let correction = eval_expect_file fname ~file_contents in
   write_corrected ~file:corrected_fname ~file_contents correction
 
-let repo_root = ref None
 let keep_original_error_size = ref false
+let preload_objects = ref []
+let main_file = ref None
+
+let read_anonymous_arg fname =
+  if Filename.check_suffix fname ".cmo"
+          || Filename.check_suffix fname ".cma"
+  then preload_objects := fname :: !preload_objects
+else
+  match !main_file with
+  | None -> main_file := Some fname
+  | Some _ ->
+    Printf.eprintf "expect_test: multiple input files\n";
+    exit 2
 
 let main fname =
   if not !keep_original_error_size then
@@ -324,19 +336,18 @@ let main fname =
        ~len:(Array.length Sys.argv - !Arg.current));
   (* Ignore OCAMLRUNPARAM=b to be reproducible *)
   Printexc.record_backtrace false;
-  if not !Clflags.no_std_include then begin
-    match !repo_root with
-    | None -> ()
-    | Some dir ->
-        (* If we pass [-repo-root], use the stdlib from inside the
-           compiler, not the installed one. We use
-           [Compenv.last_include_dirs] to make sure that the stdlib
-           directory is the last one. *)
-        Clflags.no_std_include := true;
-        Compenv.last_include_dirs := [Filename.concat dir "stdlib"]
-  end;
   Compmisc.init_path ();
   Toploop.initialize_toplevel_env ();
+  let objects = List.rev (!preload_objects) in
+  let successfully_loaded =
+    List.for_all
+      ~f:(Topeval.load_file false Format.err_formatter)
+      objects
+  in
+  if not successfully_loaded then (
+    Printf.eprintf "expect_test: failed to load objects\n";
+    exit 2;
+  );
   (* We are in interactive mode and should record directive error on stdout *)
   Sys.interactive := true;
   process_expect_file fname;
@@ -347,15 +358,12 @@ module Options = Main_args.Make_bytetop_options (struct
   let _stdin () = (* disabled *) ()
   let _args = Arg.read_arg
   let _args0 = Arg.read_arg0
-  let anonymous s = main s
+  let anonymous s = read_anonymous_arg s
 end);;
 
 let args =
   Arg.align
-    ( [ "-repo-root", Arg.String (fun s -> repo_root := Some s),
-        "<dir> root of the OCaml repository. This causes the tool to use \
-         the stdlib from the current source tree rather than the installed one."
-      ; "-keep-original-error-size", Arg.Set keep_original_error_size,
+    ( [ "-keep-original-error-size", Arg.Set keep_original_error_size,
         " truncate long error messages as the compiler would"
       ] @ Options.list
     )
@@ -366,9 +374,12 @@ let usage = "Usage: expect_test <options> [script-file [arguments]]\n\
 let () =
   Clflags.color := Some Misc.Color.Never;
   try
-    Arg.parse args main usage;
-    Printf.eprintf "expect_test: no input file\n";
-    exit 2
+    Arg.parse args read_anonymous_arg usage;
+    match !main_file with
+    | Some fname -> main fname
+    | None ->
+      Printf.eprintf "expect_test: no input file\n";
+      exit 2
   with exn ->
     Location.report_exception Format.err_formatter exn;
     exit 2
