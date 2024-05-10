@@ -48,6 +48,18 @@ type basic_block =
 type codegen_option =
   | Reduce_code_size
   | No_CSE
+  | Assume of
+      { property : Cmm.property;
+        strict : bool;
+        never_returns_normally : bool;
+        never_raises : bool;
+        loc : Location.t
+      }
+  | Check of
+      { property : Cmm.property;
+        strict : bool;
+        loc : Location.t
+      }
 
 let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
  fun cmm_options ->
@@ -57,7 +69,12 @@ let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
     match hd with
     | No_CSE -> No_CSE :: of_cmm_codegen_option tl
     | Reduce_code_size -> Reduce_code_size :: of_cmm_codegen_option tl
-    | Use_linscan_regalloc | Assume _ | Check _ -> of_cmm_codegen_option tl)
+    | Assume { property; strict; never_returns_normally; never_raises; loc } ->
+      Assume { property; strict; never_returns_normally; never_raises; loc }
+      :: of_cmm_codegen_option tl
+    | Check { property; strict; loc } ->
+      Check { property; strict; loc } :: of_cmm_codegen_option tl
+    | Use_linscan_regalloc -> of_cmm_codegen_option tl)
 
 type t =
   { blocks : basic_block Label.Tbl.t;
