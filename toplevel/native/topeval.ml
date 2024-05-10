@@ -148,6 +148,7 @@ let name_expression ~loc ~attrs sort exp =
    let vb =
      { vb_pat = pat;
        vb_expr = exp;
+       vb_rec_kind = Dynamic;
        vb_sort = sort;
        vb_attributes = attrs;
        vb_loc = loc; }

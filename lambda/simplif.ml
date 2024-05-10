@@ -23,6 +23,13 @@ open Debuginfo.Scoped_location
 
 exception Real_reference
 
+let check_function_escape id lfun =
+  (* Check that the identifier is not one of the parameters *)
+  let param_is_id { name; _ } = Ident.same id name in
+  assert (not (List.exists param_is_id lfun.params));
+  if Ident.Set.mem id (Lambda.free_variables lfun.body) then
+    raise Real_reference
+
 let rec eliminate_ref id = function
     Lvar v as lam ->
       if Ident.same v id then raise Real_reference else lam
@@ -30,17 +37,16 @@ let rec eliminate_ref id = function
   | Lapply ap ->
       Lapply{ap with ap_func = eliminate_ref id ap.ap_func;
                      ap_args = List.map (eliminate_ref id) ap.ap_args}
-  | Lfunction _ as lam ->
-      if Ident.Set.mem id (free_variables lam)
-      then raise Real_reference
-      else lam
+  | Lfunction lfun as lam ->
+      check_function_escape id lfun;
+      lam
   | Llet(str, kind, v, e1, e2) ->
       Llet(str, kind, v, eliminate_ref id e1, eliminate_ref id e2)
   | Lmutlet(kind, v, e1, e2) ->
       Lmutlet(kind, v, eliminate_ref id e1, eliminate_ref id e2)
   | Lletrec(idel, e2) ->
-      Lletrec(List.map (fun (v, e) -> (v, eliminate_ref id e)) idel,
-              eliminate_ref id e2)
+      List.iter (fun rb -> check_function_escape id rb.def) idel;
+      Lletrec(idel, eliminate_ref id e2)
   | Lprim(Pfield (0, _, _), [Lvar v], _) when Ident.same v id ->
       Lmutvar id
   | Lprim(Psetfield(0, _, _), [Lvar v; e], _) when Ident.same v id ->
@@ -135,7 +141,7 @@ let simplify_exits lam =
   | Lmutlet(_kind, _v, l1, l2) ->
       count ~try_depth l2; count ~try_depth l1
   | Lletrec(bindings, body) ->
-      List.iter (fun (_v, l) -> count ~try_depth l) bindings;
+      List.iter (fun { def = { body } } -> count ~try_depth body) bindings;
       count ~try_depth body
   | Lprim(_p, ll, _) -> List.iter (count ~try_depth) ll
   | Lswitch(l, sw, _loc, _kind) ->
@@ -232,16 +238,25 @@ let simplify_exits lam =
   | Lapply ap ->
       Lapply{ap with ap_func = simplif ~layout:None ~try_depth ap.ap_func;
                      ap_args = List.map (simplif ~layout:None ~try_depth) ap.ap_args}
-  | Lfunction{kind; params; return; mode; ret_mode; region; body = l; attr; loc} ->
-     lfunction ~kind ~params ~return ~mode ~region ~ret_mode
-       ~body:(simplif ~layout:None ~try_depth l) ~attr ~loc
+  | Lfunction lfun ->
+      Lfunction (map_lfunction (simplif ~layout:None ~try_depth) lfun)
   | Llet(str, kind, v, l1, l2) ->
       Llet(str, kind, v, simplif ~layout:None ~try_depth l1, simplif ~layout ~try_depth l2)
   | Lmutlet(kind, v, l1, l2) ->
       Lmutlet(kind, v, simplif ~layout:None ~try_depth l1, simplif ~layout ~try_depth l2)
   | Lletrec(bindings, body) ->
-      Lletrec(List.map (fun (v, l) -> (v, simplif ~layout:None ~try_depth l)) bindings,
-      simplif ~layout ~try_depth body)
+      let bindings =
+        List.map (fun ({ def = {kind; params; return; body = l; attr; loc;
+                                mode; ret_mode; region} }
+                       as rb) ->
+                   let def =
+                     lfunction' ~kind ~params ~return ~mode ~ret_mode ~region
+                       ~body:(simplif ~layout:None ~try_depth l) ~attr ~loc
+                   in
+                   { rb with def })
+          bindings
+      in
+      Lletrec(bindings, simplif ~layout ~try_depth body)
   | Lprim(p, ll, loc) -> begin
     let ll = List.map (simplif ~layout:None ~try_depth) ll in
     match p, ll with
@@ -453,7 +468,7 @@ let simplify_lets lam =
      count bv l1;
      count bv l2
   | Lletrec(bindings, body) ->
-      List.iter (fun (_v, l) -> count bv l) bindings;
+      List.iter (fun { def } -> count bv def.body) bindings;
       count bv body
   | Lprim(_p, ll, _) -> List.iter (count bv) ll
   | Lswitch(l, sw, _loc, _kind) ->
@@ -610,7 +625,12 @@ let simplify_lets lam =
   | Llet(str, kind, v, l1, l2) -> mklet str kind v (simplif l1) (simplif l2)
   | Lmutlet(kind, v, l1, l2) -> mkmutlet kind v (simplif l1) (simplif l2)
   | Lletrec(bindings, body) ->
-      Lletrec(List.map (fun (v, l) -> (v, simplif l)) bindings, simplif body)
+      let bindings =
+        List.map (fun rb ->
+            { rb with def = map_lfunction simplif rb.def }
+          ) bindings
+      in
+      Lletrec(bindings, simplif body)
   | Lprim(p, ll, loc) -> Lprim(p, List.map simplif ll, loc)
   | Lswitch(l, sw, loc, kind) ->
       let new_l = simplif l
@@ -680,14 +700,14 @@ let rec emit_tail_infos is_tail lambda =
       end;
       emit_tail_infos false ap.ap_func;
       list_emit_tail_infos false ap.ap_args
-  | Lfunction {body = lam} ->
-      emit_tail_infos true lam
+  | Lfunction lfun ->
+      emit_tail_infos_lfunction is_tail lfun
   | Llet (_, _k, _, lam, body)
   | Lmutlet (_k, _, lam, body) ->
       emit_tail_infos false lam;
       emit_tail_infos is_tail body
   | Lletrec (bindings, body) ->
-      List.iter (fun (_, lam) -> emit_tail_infos false lam) bindings;
+      List.iter (fun { def } -> emit_tail_infos_lfunction is_tail def) bindings;
       emit_tail_infos is_tail body
   | Lprim ((Pbytes_to_string | Pbytes_of_string |
             Parray_to_iarray | Parray_of_iarray),
@@ -751,6 +771,10 @@ and list_emit_tail_infos_fun f is_tail =
   List.iter (fun x -> emit_tail_infos is_tail (f x))
 and list_emit_tail_infos is_tail =
   List.iter (emit_tail_infos is_tail)
+and emit_tail_infos_lfunction _is_tail lfun =
+  (* Tail call annotations are only meaningful with respect to the
+     current function; so entering a function resets the [is_tail] flag *)
+  emit_tail_infos true lfun.body
 
 (* Split a function with default parameters into a wrapper and an
    inner function.  The wrapper fills in missing optional parameters
@@ -839,11 +863,11 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
         let body = Lambda.rename subst body in
         let body = if add_region then Lregion (body, return) else body in
         let inner_fun =
-          lfunction ~kind:(Curried {nlocal=0})
+          lfunction' ~kind:(Curried {nlocal=0})
             ~params:new_ids
             ~return ~body ~attr ~loc ~mode ~ret_mode ~region:true
         in
-        (wrapper_body, (inner_id, inner_fun))
+        (wrapper_body, { id = inner_id; def = inner_fun })
   in
   try
     (* TODO: enable this optimisation even in the presence of local returns *)
@@ -854,9 +878,14 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
     end;
     let body, inner = aux [] false body in
     let attr = { default_stub_attribute with check = attr.check } in
-    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region:true); inner]
+    [{ id = fun_id;
+       def = lfunction' ~kind ~params ~return ~body ~attr ~loc
+           ~mode ~ret_mode ~region:true };
+     inner]
   with Exit ->
-    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region:orig_region)]
+    [{ id = fun_id;
+       def = lfunction' ~kind ~params ~return ~body ~attr ~loc
+           ~mode ~ret_mode ~region:orig_region }]
 
 (* Simplify local let-bound functions: if all occurrences are
    fully-applied function calls in the same "tail scope", replace the

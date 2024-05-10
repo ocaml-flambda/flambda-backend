@@ -90,6 +90,7 @@
     jkind
     primitive
     types
+    value_rec_types
     btype
     lazy_backtrack
     zero_alloc_utils
@@ -129,6 +130,7 @@
     debug_event
     solver_intf
     mode_intf
+    value_rec_types
     ))
 
 ;(install
@@ -263,6 +265,7 @@
 (copy_files ../../typing/predef.mli)
 (copy_files ../../typing/datarepr.mli)
 (copy_files ../../typing/typedtree.mli)
+(copy_files ../../typing/value_rec_types.mli)
 (copy_files ../../file_formats/cmi_format.mli)
 (copy_files ../../typing/persistent_env.mli)
 (copy_files ../../typing/env.mli)

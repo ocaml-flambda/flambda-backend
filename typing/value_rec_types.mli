@@ -2,10 +2,9 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*          Jerome Vouillon, projet Cristal, INRIA Rocquencourt           *)
+(*                         Vincent Laviron, OCamlPro                      *)
 (*                                                                        *)
-(*   Copyright 1996 Institut National de Recherche en Informatique et     *)
-(*     en Automatique.                                                    *)
+(*   Copyright 2023 OCamlPro, SAS                                         *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -13,19 +12,16 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Typedtree
-open Lambda
-open Debuginfo.Scoped_location
+(** Types related to the compilation of value let-recs (non-functional
+     recursive definitions) *)
 
-val transl_class :
-  scopes:scopes -> Ident.t list -> Ident.t ->
-  string list -> class_expr -> Asttypes.virtual_flag ->
-  lambda * Value_rec_types.recursive_binding_kind
-
-type error = Tags of string * string
-
-exception Error of Location.t * error
-
-open Format
-
-val report_error: formatter -> error -> unit
+(** The kind of recursive bindings, as computed by
+    [Value_rec_check.classify_expression] *)
+type recursive_binding_kind =
+| Static
+  (** Bindings for which some kind of pre-allocation scheme is possible.
+      The expression is allowed to be recursive, as long as its definition does
+      not inspect recursively defined values. *)
+| Dynamic
+  (** Bindings for which pre-allocation is not possible.
+      The expression is not allowed to refer to any recursive variable. *)
