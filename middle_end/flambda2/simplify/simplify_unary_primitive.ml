@@ -16,6 +16,7 @@
 
 open! Simplify_import
 module A = Number_adjuncts
+module Float32 = Numeric_types.Float32_by_bit_pattern
 module Float = Numeric_types.Float_by_bit_pattern
 module Int32 = Numeric_types.Int32
 module Int64 = Numeric_types.Int64
@@ -43,8 +44,9 @@ let simplify_project_function_slot ~move_from ~move_to ~min_name_mode dacc
            ~this_function_slot:move_from closures)
       ~result_var ~result_kind:K.value
 
-let simplify_project_value_slot function_slot value_slot kind ~min_name_mode
-    dacc ~original_term ~arg:closure ~arg_ty:closure_ty ~result_var =
+let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
+    ~original_term ~arg:closure ~arg_ty:closure_ty ~result_var =
+  let kind = Value_slot.kind value_slot in
   let result =
     (* We try a faster method before falling back to [simplify_projection]. *)
     match
@@ -98,6 +100,10 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
       ( T.boxed_float_alias_to ~naked_float:result_var'
           (Alloc_mode.For_types.unknown ()),
         K.naked_float )
+    | Naked_float32 ->
+      ( T.boxed_float32_alias_to ~naked_float32:result_var'
+          (Alloc_mode.For_types.unknown ()),
+        K.naked_float32 )
     | Naked_int32 ->
       ( T.boxed_int32_alias_to ~naked_int32:result_var'
           (Alloc_mode.For_types.unknown ()),
@@ -165,6 +171,7 @@ let simplify_box_number (boxable_number_kind : K.Boxable_number.t) alloc_mode
   let ty =
     let alloc_mode = Alloc_mode.For_allocations.as_type alloc_mode in
     match boxable_number_kind with
+    | Naked_float32 -> T.box_float32 naked_number_ty alloc_mode
     | Naked_float -> T.box_float naked_number_ty alloc_mode
     | Naked_int32 -> T.box_int32 naked_number_ty alloc_mode
     | Naked_int64 -> T.box_int64 naked_number_ty alloc_mode
@@ -215,8 +222,11 @@ let simplify_get_tag dacc ~original_term ~arg:scrutinee ~arg_ty:scrutinee_ty
   simplify_is_int_or_get_tag dacc ~original_term ~scrutinee ~scrutinee_ty
     ~result_var ~make_shape:(fun block -> T.get_tag_for_block ~block)
 
-let simplify_array_length dacc ~original_term ~arg:_ ~arg_ty:array_ty
-    ~result_var =
+let simplify_array_length _array_kind dacc ~original_term ~arg:_
+    ~arg_ty:array_ty ~result_var =
+  (* CR mshinwell: we could make use of [array_kind], but maybe not for much.
+     Need to be careful in the float case because of the float array
+     optimisation (see lambda_to_flambda_primitives.ml and flambda2.ml). *)
   let result = Simple.var (Bound_var.var result_var) in
   Simplify_common.simplify_projection dacc ~original_term
     ~deconstructing:array_ty
@@ -327,6 +337,15 @@ module Make_simplify_int_conv (N : A.Number_kind) = struct
             let these = T.these_naked_immediates
           end) in
           M.result
+        | Naked_float32 ->
+          let module M = For_kind [@inlined hint] (struct
+            module Result_num = Float32
+
+            let num_to_result_num = Num.to_naked_float32
+
+            let these = T.these_naked_float32s
+          end) in
+          M.result
         | Naked_float ->
           let module M = For_kind [@inlined hint] (struct
             module Result_num = Float
@@ -374,6 +393,7 @@ module Simplify_int_conv_tagged_immediate =
 module Simplify_int_conv_naked_immediate =
   Make_simplify_int_conv (A.For_naked_immediates)
 module Simplify_int_conv_naked_float = Make_simplify_int_conv (A.For_floats)
+module Simplify_int_conv_naked_float32 = Make_simplify_int_conv (A.For_float32s)
 module Simplify_int_conv_naked_int32 = Make_simplify_int_conv (A.For_int32s)
 module Simplify_int_conv_naked_int64 = Make_simplify_int_conv (A.For_int64s)
 module Simplify_int_conv_naked_nativeint =
@@ -428,24 +448,61 @@ let simplify_reinterpret_int64_as_float dacc ~original_term ~arg:_ ~arg_ty
     SPR.create original_term ~try_reify:false dacc
   | Invalid -> SPR.create_invalid dacc
 
-let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
-    ~arg:_ ~arg_ty ~result_var =
-  let module F = Numeric_types.Float_by_bit_pattern in
-  let denv = DA.denv dacc in
-  let proof = T.meet_naked_floats (DE.typing_env denv) arg_ty in
-  match proof with
-  | Known_result fs when DE.propagating_float_consts denv ->
-    assert (not (Float.Set.is_empty fs));
-    let f =
-      match op with Abs -> F.IEEE_semantics.abs | Neg -> F.IEEE_semantics.neg
-    in
-    let possible_results = F.Set.map f fs in
-    let ty = T.these_naked_floats possible_results in
-    let dacc = DA.add_variable dacc result_var ty in
-    SPR.create original_term ~try_reify:true dacc
-  | Known_result _ | Need_meet ->
-    SPR.create_unknown dacc ~result_var K.naked_float ~original_term
-  | Invalid -> SPR.create_invalid dacc
+module Make_simplify_float_arith_op (FP : sig
+  module F : Numeric_types.Float_by_bit_pattern
+
+  val meet : T.Typing_env.t -> T.t -> F.Set.t T.meet_shortcut
+
+  val these : F.Set.t -> T.t
+
+  val kind : K.t
+end) =
+struct
+  let simplify (op : P.unary_float_arith_op) dacc ~original_term ~arg:_ ~arg_ty
+      ~result_var =
+    let module F = FP.F in
+    let denv = DA.denv dacc in
+    let proof = FP.meet (DE.typing_env denv) arg_ty in
+    match proof with
+    | Known_result fs when DE.propagating_float_consts denv ->
+      assert (not (F.Set.is_empty fs));
+      let f =
+        match op with
+        | Abs -> F.IEEE_semantics.abs
+        | Neg -> F.IEEE_semantics.neg
+      in
+      let possible_results = F.Set.map f fs in
+      let ty = FP.these possible_results in
+      let dacc = DA.add_variable dacc result_var ty in
+      SPR.create original_term ~try_reify:true dacc
+    | Known_result _ | Need_meet ->
+      SPR.create_unknown dacc ~result_var FP.kind ~original_term
+    | Invalid -> SPR.create_invalid dacc
+end
+
+module Simplify_float_arith_op = Make_simplify_float_arith_op (struct
+  module F = Float
+
+  let meet = T.meet_naked_floats
+
+  let these = T.these_naked_floats
+
+  let kind = K.naked_float
+end)
+
+module Simplify_float32_arith_op = Make_simplify_float_arith_op (struct
+  module F = Float32
+
+  let meet = T.meet_naked_float32s
+
+  let these = T.these_naked_float32s
+
+  let kind = K.naked_float32
+end)
+
+let simplify_float_arith_op = Simplify_float_arith_op.simplify
+
+let simplify_float32_arith_op = Simplify_float32_arith_op.simplify
 
 let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
   (* CR mshinwell: see CRs in lambda_to_flambda_primitives.ml
@@ -465,7 +522,9 @@ let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
   (* CR mshinwell: see CRs in lambda_to_flambda_primitives.ml
 
      assert (Flambda_features.flat_float_array ()); *)
-  match T.meet_is_flat_float_array (DA.typing_env dacc) arg_ty with
+  match
+    T.meet_is_naked_number_array (DA.typing_env dacc) arg_ty Naked_float
+  with
   | Known_result is_flat_float_array ->
     let imm = Targetint_31_63.bool is_flat_float_array in
     let ty = T.this_naked_immediate imm in
@@ -578,6 +637,7 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
     let boxer =
       match boxable_number with
       | Naked_float -> T.box_float
+      | Naked_float32 -> T.box_float32
       | Naked_int32 -> T.box_int32
       | Naked_int64 -> T.box_int64
       | Naked_nativeint -> T.box_nativeint
@@ -617,8 +677,8 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
   let original_term = Named.create_prim original_prim dbg in
   let simplifier =
     match prim with
-    | Project_value_slot { project_from; value_slot; kind } ->
-      simplify_project_value_slot project_from value_slot ~min_name_mode kind
+    | Project_value_slot { project_from; value_slot } ->
+      simplify_project_value_slot project_from value_slot ~min_name_mode
     | Project_function_slot { move_from; move_to } ->
       simplify_project_function_slot ~move_from ~move_to ~min_name_mode
     | Unbox_number boxable_number_kind ->
@@ -629,7 +689,7 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Untag_immediate -> simplify_untag_immediate
     | Is_int { variant_only } -> simplify_is_int ~variant_only
     | Get_tag -> simplify_get_tag
-    | Array_length -> simplify_array_length
+    | Array_length array_kind -> simplify_array_length array_kind
     | String_length _ -> simplify_string_length
     | Int_arith (kind, op) -> (
       match kind with
@@ -638,11 +698,13 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
       | Naked_int32 -> Unary_int_arith_naked_int32.simplify op
       | Naked_int64 -> Unary_int_arith_naked_int64.simplify op
       | Naked_nativeint -> Unary_int_arith_naked_nativeint.simplify op)
-    | Float_arith op -> simplify_float_arith_op op
+    | Float_arith (Float64, op) -> simplify_float_arith_op op
+    | Float_arith (Float32, op) -> simplify_float32_arith_op op
     | Num_conv { src; dst } -> (
       match src with
       | Tagged_immediate -> Simplify_int_conv_tagged_immediate.simplify ~dst
       | Naked_immediate -> Simplify_int_conv_naked_immediate.simplify ~dst
+      | Naked_float32 -> Simplify_int_conv_naked_float32.simplify ~dst
       | Naked_float -> Simplify_int_conv_naked_float.simplify ~dst
       | Naked_int32 -> Simplify_int_conv_naked_int32.simplify ~dst
       | Naked_int64 -> Simplify_int_conv_naked_int64.simplify ~dst

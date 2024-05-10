@@ -1,12 +1,17 @@
 (* TEST
-   * native
-     flags = "-extension layouts_alpha"
-   * bytecode
-     flags = "-extension layouts_alpha"
-   * native
-     flags = "-extension layouts_beta"
-   * bytecode
-     flags = "-extension layouts_beta"
+ {
+   flags = "-extension layouts_alpha";
+   native;
+ }{
+   flags = "-extension layouts_alpha";
+   bytecode;
+ }{
+   flags = "-extension layouts_beta";
+   native;
+ }{
+   flags = "-extension layouts_beta";
+   bytecode;
+ }
 *)
 
 module Float_u = Stdlib__Float_u

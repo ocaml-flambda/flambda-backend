@@ -174,7 +174,8 @@ let primitive (p : Clambda_primitives.primitive) (args, approxs)
       | Pbswap16 -> S.const_int_expr expr (S.swap16 x)
       | Pisint -> S.const_bool_expr expr true
       | Poffsetint y -> S.const_int_expr expr (x + y)
-      | Pfloatofint _ when fpc -> S.const_float_expr expr (float_of_int x)
+      | Pfloatofint (Pfloat64, _) when fpc ->
+        S.const_float_expr expr (float_of_int x)
       | Pbintofint (Pnativeint,_) ->
         S.const_boxed_int_expr expr Nativeint (Nativeint.of_int x)
       | Pbintofint (Pint32,_) -> S.const_boxed_int_expr expr Int32 (Int32.of_int x)
@@ -208,19 +209,19 @@ let primitive (p : Clambda_primitives.primitive) (args, approxs)
       end
     | [Value_float (Some x)] when fpc ->
       begin match p with
-      | Pintoffloat -> S.const_int_expr expr (int_of_float x)
-      | Pnegfloat _ -> S.const_float_expr expr (-. x)
-      | Pabsfloat _ -> S.const_float_expr expr (abs_float x)
+      | Pintoffloat Pfloat64 -> S.const_int_expr expr (int_of_float x)
+      | Pnegfloat (Pfloat64, _) -> S.const_float_expr expr (-. x)
+      | Pabsfloat (Pfloat64, _) -> S.const_float_expr expr (abs_float x)
       | _ -> expr, A.value_unknown Other, C.Benefit.zero
       end
     | [Value_float (Some n1); Value_float (Some n2)] when fpc ->
       begin match p with
-      | Paddfloat _ -> S.const_float_expr expr (n1 +. n2)
-      | Psubfloat _ -> S.const_float_expr expr (n1 -. n2)
-      | Pmulfloat _ -> S.const_float_expr expr (n1 *. n2)
-      | Pdivfloat _ -> S.const_float_expr expr (n1 /. n2)
-      | Pfloatcomp c  -> S.const_float_comparison_expr expr c n1 n2
-      | Pcompare_floats -> S.const_int_expr expr (Float.compare n1 n2)
+      | Paddfloat (Pfloat64, _) -> S.const_float_expr expr (n1 +. n2)
+      | Psubfloat (Pfloat64, _) -> S.const_float_expr expr (n1 -. n2)
+      | Pmulfloat (Pfloat64, _) -> S.const_float_expr expr (n1 *. n2)
+      | Pdivfloat (Pfloat64, _) -> S.const_float_expr expr (n1 /. n2)
+      | Pfloatcomp (Pfloat64, c)  -> S.const_float_comparison_expr expr c n1 n2
+      | Pcompare_floats Pfloat64 -> S.const_int_expr expr (Float.compare n1 n2)
       | _ -> expr, A.value_unknown Other, C.Benefit.zero
       end
     | [A.Value_boxed_int(A.Nativeint, n)] ->

@@ -12,7 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-40-42"]
 
 (* SIMD instruction selection for AMD64 *)
 
@@ -26,23 +26,8 @@ exception Error of error
 let bad_immediate fmt =
   Format.kasprintf (fun msg -> raise (Error (Bad_immediate msg))) fmt
 
-(* This will need to be expanded with the addition of three and four argument
-   operations in AVX2 and AVX512. *)
-type register_behavior =
-  | R_to_fst
-  | R_to_R
-  | R_to_RM
-  | RM_to_R
-  | R_R_to_fst
-  | R_RM_to_fst
-  | R_RM_xmm0_to_fst
-  | R_RM_rax_rdx_to_rcx
-  | R_RM_to_rcx
-  | R_RM_rax_rdx_to_xmm0
-  | R_RM_to_xmm0
-
 (* Assumes untagged int *)
-let extract_constant args name ~max =
+let[@ocaml.warning "-4"] extract_constant args name ~max =
   match args with
   | Cmm.Cconst_int (i, _) :: args ->
     if i < 0 || i > max
@@ -73,13 +58,22 @@ let float_rounding_of_int = function
   | i -> bad_immediate "Invalid float rounding immediate: %d" i
 
 let select_operation_clmul op args =
-  if not !Arch.clmul_support
+  if not (Arch.Extension.enabled CLMUL)
   then None
   else
     match op with
     | "caml_clmul_int64x2" ->
       let i, args = extract_constant args ~max:31 op in
       Some (Clmul_64 i, args)
+    | _ -> None
+
+let select_operation_bmi2 op args =
+  if not (Arch.Extension.enabled BMI2)
+  then None
+  else
+    match op with
+    | "caml_bmi2_int64_extract_bits" -> Some (Extract_64, args)
+    | "caml_bmi2_int64_deposit_bits" -> Some (Deposit_64, args)
     | _ -> None
 
 let select_operation_sse op args =
@@ -108,10 +102,15 @@ let select_operation_sse op args =
 
 let select_operation_sse2 op args =
   match op with
-  | "caml_sse2_cast_float64_int64" -> Some (Cast_scalar_f64_i64, args)
+  | "caml_int64_bits_of_float_unboxed" -> Some (Bit_cast_f64_i64, args)
+  | "caml_int64_bits_to_float_unboxed" -> Some (Bit_cast_i64_f64, args)
+  | "caml_float32_of_bits" -> Some (Bit_cast_i32_f32, args)
+  | "caml_float32_to_bits" -> Some (Bit_cast_f32_i32, args)
+  | "caml_sse2_float64_sqrt" | "sqrt" -> Some (Sqrt_scalar_f64, args)
+  | "caml_sse2_float32_sqrt" | "sqrtf" -> Some (Sqrt_scalar_f32, args)
   | "caml_sse2_float64_max" -> Some (Max_scalar_f64, args)
   | "caml_sse2_float64_min" -> Some (Min_scalar_f64, args)
-  | "caml_sse2_float64_sqrt" -> Some (Sqrt_scalar_f64, args)
+  | "caml_sse2_cast_float64_int64" -> Some (Cast_scalar_f64_i64, args)
   | "caml_sse2_float64x2_sqrt" -> Some (Sqrt_f64, args)
   | "caml_sse2_int8x16_add" -> Some (Add_i8, args)
   | "caml_sse2_int16x8_add" -> Some (Add_i16, args)
@@ -226,10 +225,14 @@ let select_operation_sse2 op args =
   | "caml_sse2_vec128_interleave_low_16" -> Some (Interleave_low_16, args)
   | "caml_sse2_vec128_interleave_high_64" -> Some (Interleave_high_64, args)
   | "caml_sse2_vec128_interleave_low_64" -> Some (Interleave_low_64, args)
+  | "caml_sse2_int16x8_mul_high" -> Some (Mulhi_i16, args)
+  | "caml_sse2_int16x8_mul_high_unsigned" -> Some (Mulhi_unsigned_i16, args)
+  | "caml_sse2_int16x8_mul_low" -> Some (Mullo_i16, args)
+  | "caml_sse2_int16x8_mul_hadd_int32x4" -> Some (Mul_hadd_i16_to_i32, args)
   | _ -> None
 
 let select_operation_sse3 op args =
-  if not !Arch.sse3_support
+  if not (Arch.Extension.enabled SSE3)
   then None
   else
     match op with
@@ -245,7 +248,7 @@ let select_operation_sse3 op args =
     | _ -> None
 
 let select_operation_ssse3 op args =
-  if not !Arch.ssse3_support
+  if not (Arch.Extension.enabled SSSE3)
   then None
   else
     match op with
@@ -265,10 +268,12 @@ let select_operation_ssse3 op args =
     | "caml_ssse3_vec128_align_right_bytes" ->
       let i, args = extract_constant args ~max:31 op in
       Some (Alignr_i8 i, args)
+    | "caml_ssse3_int8x16_mul_unsigned_hadd_saturating_int16x8" ->
+      Some (Mul_unsigned_hadd_saturating_i8_to_i16, args)
     | _ -> None
 
 let select_operation_sse41 op args =
-  if not !Arch.sse41_support
+  if not (Arch.Extension.enabled SSE4_1)
   then None
   else
     match op with
@@ -348,10 +353,11 @@ let select_operation_sse41 op args =
       let i, args = extract_constant args ~max:7 op in
       Some (Multi_sad_unsigned_i8 i, args)
     | "caml_sse41_int16x8_minpos_unsigned" -> Some (Minpos_unsigned_i16, args)
+    | "caml_sse41_int32x4_mul_low" -> Some (Mullo_i32, args)
     | _ -> None
 
 let select_operation_sse42 op args =
-  if not !Arch.sse42_support
+  if not (Arch.Extension.enabled SSE4_2)
   then None
   else
     match op with
@@ -408,6 +414,7 @@ let select_simd_instr op args =
   in
   None
   |> or_else select_operation_clmul (fun (op, args) -> CLMUL op, args)
+  |> or_else select_operation_bmi2 (fun (op, args) -> BMI2 op, args)
   |> or_else select_operation_sse (fun (op, args) -> SSE op, args)
   |> or_else select_operation_sse2 (fun (op, args) -> SSE2 op, args)
   |> or_else select_operation_sse3 (fun (op, args) -> SSE3 op, args)
@@ -419,95 +426,13 @@ let select_operation op args =
   select_simd_instr op args
   |> Option.map (fun (op, args) -> Mach.(Ispecific (Isimd op), args))
 
-let register_behavior_clmul = function Clmul_64 _ -> R_RM_to_fst
-
-let register_behavior_sse = function
-  | Cmp_f32 _ | Add_f32 | Sub_f32 | Mul_f32 | Div_f32 | Max_f32 | Min_f32
-  | Interleave_low_32 | Interleave_high_32 | Shuffle_32 _ ->
-    R_RM_to_fst
-  | Rcp_f32 | Sqrt_f32 | Rsqrt_f32 -> RM_to_R
-  | High_64_to_low_64 | Low_64_to_high_64 -> R_R_to_fst
-  | Movemask_32 -> R_to_R
-
-let register_behavior_sse2 = function
-  | Add_i8 | Add_i16 | Add_i32 | Add_i64 | Add_f64 | Add_saturating_i8
-  | Min_scalar_f64 | Max_scalar_f64 | Add_saturating_i16
-  | Add_saturating_unsigned_i8 | Add_saturating_unsigned_i16 | Sub_i8 | Sub_i16
-  | Sub_i32 | Sub_i64 | Sub_f64 | Sub_saturating_i8 | Sub_saturating_i16
-  | Sub_saturating_unsigned_i8 | Sub_saturating_unsigned_i16 | Max_unsigned_i8
-  | Max_i16 | Max_f64 | Min_unsigned_i8 | Min_i16 | Min_f64 | Mul_f64 | Div_f64
-  | And_bits | Andnot_bits | Or_bits | Xor_bits | Cmpeq_i8 | Cmpeq_i16
-  | Cmpeq_i32 | Cmpgt_i8 | Cmpgt_i16 | Cmpgt_i32 | Cmp_f64 _ | SLL_i16 | SLL_i32
-  | SLL_i64 | SRL_i16 | SRL_i32 | SRL_i64 | SRA_i16 | SRA_i32 | Avg_unsigned_i8
-  | Avg_unsigned_i16 | SAD_unsigned_i8 | Shuffle_64 _ | Interleave_high_8
-  | Interleave_high_16 | Interleave_high_64 | Interleave_low_8
-  | Interleave_low_16 | Interleave_low_64 | I16_to_i8 | I32_to_i16
-  | I16_to_unsigned_i8 | I32_to_unsigned_i16 ->
-    R_RM_to_fst
-  | Shuffle_high_16 _ | Shuffle_low_16 _ | I32_to_f64 | I32_to_f32 | F64_to_i32
-  | Cast_scalar_f64_i64 | F64_to_f32 | F32_to_i32 | F32_to_f64 | Sqrt_f64 ->
-    RM_to_R
-  | SLLi_i16 _ | SLLi_i32 _ | SLLi_i64 _ | SRLi_i16 _ | SRLi_i32 _ | SRLi_i64 _
-  | SRAi_i16 _ | SRAi_i32 _ | Shift_left_bytes _ | Shift_right_bytes _ ->
-    R_to_fst
-  | Movemask_8 | Movemask_64 -> R_to_R
-  | Sqrt_scalar_f64 -> (* Backwards compatibility *) R_to_R
-
-let register_behavior_sse3 = function
-  | Addsub_f32 | Addsub_f64 | Hadd_f32 | Hadd_f64 | Hsub_f32 | Hsub_f64 ->
-    R_RM_to_fst
-  | Dup_low_64 | Dup_odd_32 | Dup_even_32 -> RM_to_R
-
-let register_behavior_ssse3 = function
-  | Hadd_i16 | Hadd_i32 | Hadd_saturating_i16 | Hsub_i16 | Hsub_i32
-  | Hsub_saturating_i16 | Mulsign_i8 | Mulsign_i16 | Mulsign_i32 | Shuffle_8
-  | Alignr_i8 _ ->
-    R_RM_to_fst
-  | Abs_i8 | Abs_i16 | Abs_i32 -> RM_to_R
-
-let register_behavior_sse41 = function
-  | Blend_16 _ | Blend_32 _ | Blend_64 _ | Cmpeq_i64 | Dp_f32 _ | Dp_f64 _
-  | Max_i8 | Max_i32 | Max_unsigned_i16 | Max_unsigned_i32 | Min_i8 | Min_i32
-  | Min_unsigned_i16 | Min_unsigned_i32 | Insert_i8 _ | Insert_i16 _
-  | Insert_i32 _ | Insert_i64 _ | Multi_sad_unsigned_i8 _ ->
-    R_RM_to_fst
-  | I8_sx_i16 | I8_sx_i32 | I8_sx_i64 | I16_sx_i32 | I16_sx_i64 | I32_sx_i64
-  | I8_zx_i16 | I8_zx_i32 | I8_zx_i64 | I16_zx_i32 | I16_zx_i64 | I32_zx_i64
-  | Round_f64 _ | Round_f32 _ | Minpos_unsigned_i16 | Round_scalar_f64 _ ->
-    RM_to_R
-  | Blendv_8 | Blendv_32 | Blendv_64 -> R_RM_xmm0_to_fst
-  | Extract_i64 _ | Extract_i32 _ -> R_to_RM
-  | Extract_i8 _ | Extract_i16 _ ->
-    (* CR mslater: (SIMD): replace once we have int8/int16/float32 *)
-    R_to_R
-
-let register_behavior_sse42 = function
-  | Crc32_64 | Cmpgt_i64 -> R_RM_to_fst
-  | Cmpestrm _ -> R_RM_rax_rdx_to_xmm0
-  | Cmpistrm _ -> R_RM_to_xmm0
-  | Cmpestra _ | Cmpestrc _ | Cmpestri _ | Cmpestro _ | Cmpestrs _ | Cmpestrz _
-    ->
-    R_RM_rax_rdx_to_rcx
-  | Cmpistra _ | Cmpistrc _ | Cmpistri _ | Cmpistro _ | Cmpistrs _ | Cmpistrz _
-    ->
-    R_RM_to_rcx
-
-let register_behavior = function
-  | CLMUL op -> register_behavior_clmul op
-  | SSE op -> register_behavior_sse op
-  | SSE2 op -> register_behavior_sse2 op
-  | SSE3 op -> register_behavior_sse3 op
-  | SSSE3 op -> register_behavior_ssse3 op
-  | SSE41 op -> register_behavior_sse41 op
-  | SSE42 op -> register_behavior_sse42 op
-
 let pseudoregs_for_operation op arg res =
   let rax = Proc.phys_reg Int 0 in
   let rcx = Proc.phys_reg Int 5 in
   let rdx = Proc.phys_reg Int 4 in
   let xmm0v () = Proc.phys_reg Vec128 100 in
-  match register_behavior op with
-  | R_to_R | RM_to_R | R_to_RM -> arg, res
+  match Simd_proc.register_behavior op with
+  | R_to_R | RM_to_R | R_to_RM | R_RM_to_R -> arg, res
   | R_to_fst ->
     (* arg.(0) and res.(0) must be the same *)
     [| res.(0) |], res

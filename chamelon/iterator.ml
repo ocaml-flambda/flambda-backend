@@ -55,7 +55,10 @@ let step_minimizer c minimize cur_file map ~pos ~len =
   let r =
     if changed then (
       update_output map;
-      if raise_error c then New_state map else Change_removes_error)
+      if raise_error c then (
+        save_outputs map;
+        New_state map)
+      else Change_removes_error)
     else No_more_changes
   in
   let () =

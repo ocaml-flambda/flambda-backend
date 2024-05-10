@@ -22,11 +22,11 @@ end
 
 type t =
   | Default_check
-  | Ignore_assert_all of Property.t
   | Assume of
       { property : Property.t;
         strict : bool;
         never_returns_normally : bool;
+        never_raises : bool;
         loc : Location.t
       }
   | Check of
@@ -38,47 +38,65 @@ type t =
 let print ppf t =
   match t with
   | Default_check -> ()
-  | Ignore_assert_all property ->
-    Format.fprintf ppf "@[ignore %a@]" Property.print property
-  | Assume { property; strict; never_returns_normally; loc = _ } ->
-    Format.fprintf ppf "@[assume_%a%s%s@]" Property.print property
+  | Assume { property; strict; never_returns_normally; never_raises; loc = _ }
+    ->
+    Format.fprintf ppf "@[assume_%a%s%s%s@]" Property.print property
       (if strict then "_strict" else "")
       (if never_returns_normally then "_never_returns_normally" else "")
+      (if never_raises then "_never_raises" else "")
   | Check { property; strict; loc = _ } ->
     Format.fprintf ppf "@[assert_%a%s@]" Property.print property
       (if strict then "_strict" else "")
 
-let from_lambda : Lambda.check_attribute -> t = function
-  | Default_check -> Default_check
-  | Ignore_assert_all p -> Ignore_assert_all (Property.from_lambda p)
-  | Assume { property; strict; never_returns_normally; loc } ->
+let from_lambda : Lambda.check_attribute -> Location.t -> t =
+ fun a loc ->
+  match a with
+  | Default_check ->
+    if !Clflags.zero_alloc_check_assert_all
+       && Builtin_attributes.is_check_enabled ~opt:false Zero_alloc
+    then Check { property = Zero_alloc; strict = false; loc }
+    else Default_check
+  | Ignore_assert_all Zero_alloc -> Default_check
+  | Assume
+      { property; strict; never_returns_normally; never_raises; loc; arity = _ }
+    ->
     Assume
       { property = Property.from_lambda property;
         strict;
         never_returns_normally;
+        never_raises;
         loc
       }
-  | Check { property; strict; opt; loc } ->
-    if Lambda.is_check_enabled ~opt property
+  | Check { property; strict; opt; loc; arity = _ } ->
+    if Builtin_attributes.is_check_enabled ~opt property
     then Check { property = Property.from_lambda property; strict; loc }
     else Default_check
 
 let equal x y =
   match x, y with
   | Default_check, Default_check -> true
-  | Ignore_assert_all p1, Ignore_assert_all p2 -> Property.equal p1 p2
   | ( Check { property = p1; strict = s1; loc = loc1 },
       Check { property = p2; strict = s2; loc = loc2 } ) ->
     Property.equal p1 p2 && Bool.equal s1 s2 && Location.compare loc1 loc2 = 0
   | ( Assume
-        { property = p1; strict = s1; never_returns_normally = n1; loc = loc1 },
+        { property = p1;
+          strict = s1;
+          never_returns_normally = n1;
+          never_raises = r1;
+          loc = loc1
+        },
       Assume
-        { property = p2; strict = s2; never_returns_normally = n2; loc = loc2 }
-    ) ->
+        { property = p2;
+          strict = s2;
+          never_returns_normally = n2;
+          never_raises = r2;
+          loc = loc2
+        } ) ->
     Property.equal p1 p2 && Bool.equal s1 s2 && Bool.equal n1 n2
+    && Bool.equal r1 r2
     && Location.compare loc1 loc2 = 0
-  | (Default_check | Ignore_assert_all _ | Check _ | Assume _), _ -> false
+  | (Default_check | Check _ | Assume _), _ -> false
 
 let is_default : t -> bool = function
   | Default_check -> true
-  | Ignore_assert_all _ | Check _ | Assume _ -> false
+  | Check _ | Assume _ -> false

@@ -79,7 +79,7 @@ let check_closure t ulam named : Clambda.ulambda =
   if not !Clflags.clambda_checks then ulam
   else
     let desc =
-      Primitive.simple_on_values ~name:"caml_check_value_is_closure"
+      Lambda.simple_prim_on_values ~name:"caml_check_value_is_closure"
         ~arity:2 ~alloc:false
     in
     let str = Format.asprintf "%a" Flambda.print_named named in
@@ -108,7 +108,7 @@ let check_field t ulam pos named_opt : Clambda.ulambda =
   if not !Clflags.clambda_checks then ulam
   else
     let desc =
-      Primitive.simple_on_values ~name:"caml_check_field_access"
+      Lambda.simple_prim_on_values ~name:"caml_check_field_access"
         ~arity:3 ~alloc:false
     in
     let str =
@@ -518,7 +518,7 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
     let block, _block_layout = subst_var env block in
     Uprim (Pfield (index, layout, ptr, mut),
       [check_field t block index None], dbg),
-    Lambda.layout_field
+    Lambda.layout_value_field
   | Prim (Psetfield (index, maybe_ptr, init), [block; new_value], dbg) ->
     let block, _block_layout = subst_var env block in
     let new_value, _new_value_layout = subst_var env new_value in
@@ -710,7 +710,7 @@ and to_clambda_set_of_closures t env
           Misc.fatal_error
             "[Pbottom] should have been eliminated as dead code \
              and not stored in a closure."
-        | Punboxed_float -> true
+        | Punboxed_float _ -> true
         | Punboxed_int _ -> true
         | Punboxed_vector _ -> true
         | Pvalue Pintval -> true

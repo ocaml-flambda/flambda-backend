@@ -1,5 +1,4 @@
-(* TEST
-*)
+(* TEST *)
 
 let native =
   match Sys.backend_type with

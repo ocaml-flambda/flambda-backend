@@ -1,6 +1,5 @@
 [@@@ocaml.warning "-fragile-match"]
 
-open! Int_replace_polymorphic_compare
 open! Flambda
 
 (* General notes on comparison
@@ -241,10 +240,10 @@ let subst_unary_primitive env (p : Flambda_primitive.unary_primitive) :
     let move_from = subst_function_slot env move_from in
     let move_to = subst_function_slot env move_to in
     Project_function_slot { move_from; move_to }
-  | Project_value_slot { project_from; value_slot; kind } ->
+  | Project_value_slot { project_from; value_slot } ->
     let project_from = subst_function_slot env project_from in
     let value_slot = subst_value_slot env value_slot in
-    Project_value_slot { project_from; value_slot; kind }
+    Project_value_slot { project_from; value_slot }
   | _ -> p
 
 let subst_primitive env (p : Flambda_primitive.t) : Flambda_primitive.t =
@@ -639,26 +638,15 @@ let unary_prim_ops env (prim_op1 : Flambda_primitive.unary_primitive)
            Flambda_primitive.Project_function_slot
              { move_from = move_from1'; move_to = move_to1' })
   | ( Project_value_slot
-        { project_from = function_slot1;
-          value_slot = value_slot1;
-          kind = kind1
-        },
+        { project_from = function_slot1; value_slot = value_slot1 },
       Project_value_slot
-        { project_from = function_slot2;
-          value_slot = value_slot2;
-          kind = kind2
-        } ) ->
-    triples ~f1:function_slots ~f2:value_slots
-      ~f3:(Comparator.of_predicate Flambda_kind.With_subkind.equal)
-      env
-      (function_slot1, value_slot1, kind1)
-      (function_slot2, value_slot2, kind2)
-    |> Comparison.map ~f:(fun (function_slot1', value_slot1', kind1') ->
+        { project_from = function_slot2; value_slot = value_slot2 } ) ->
+    pairs ~f1:function_slots ~f2:value_slots env
+      (function_slot1, value_slot1)
+      (function_slot2, value_slot2)
+    |> Comparison.map ~f:(fun (function_slot1', value_slot1') ->
            Flambda_primitive.Project_value_slot
-             { project_from = function_slot1';
-               value_slot = value_slot1';
-               kind = kind1'
-             })
+             { project_from = function_slot1'; value_slot = value_slot1' })
   | _, _ ->
     if Flambda_primitive.equal_unary_primitive prim_op1 prim_op2
     then Equivalent
@@ -947,9 +935,25 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
         { approximant =
             Call_kind.method_call kind1 ~obj:(subst_simple env obj1) alloc_mode1
         }
-  | ( C_call { alloc = alloc1; is_c_builtin = _ },
-      C_call { alloc = alloc2; is_c_builtin = _ } ) ->
-    if Bool.equal alloc1 alloc2
+  | ( C_call
+        { needs_caml_c_call = needs_caml_c_call1;
+          is_c_builtin = is_c_builtin1;
+          effects = effects1;
+          coeffects = coeffects1;
+          alloc_mode = alloc_mode1
+        },
+      C_call
+        { needs_caml_c_call = needs_caml_c_call2;
+          is_c_builtin = is_c_builtin2;
+          effects = effects2;
+          coeffects = coeffects2;
+          alloc_mode = alloc_mode2
+        } ) ->
+    if Bool.equal needs_caml_c_call1 needs_caml_c_call2
+       && Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2 = 0
+       && Bool.equal is_c_builtin1 is_c_builtin2
+       && Effects.compare effects1 effects2 = 0
+       && Coeffects.compare coeffects1 coeffects2 = 0
     then Equivalent
     else Different { approximant = call_kind1 }
   | _, _ -> Different { approximant = call_kind1 }

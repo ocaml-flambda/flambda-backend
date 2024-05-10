@@ -43,6 +43,7 @@ let rec select_addr exp =
       let (a, n) = select_addr arg in
       if Misc.no_overflow_sub n m then (a, n - m) else default
   | Cop(Clsl, [arg; Cconst_int((1|2|3 as shift), _)], _) ->
+      let default = (Ascale (arg, 1 lsl shift), 0) in
       begin match select_addr arg with
         (Alinear e, n) ->
         if Misc.no_overflow_lsl n shift
@@ -53,6 +54,7 @@ let rec select_addr exp =
       end
   | Cop(Cmuli, [arg; Cconst_int((2|4|8 as mult), _)], _)
   | Cop(Cmuli, [Cconst_int((2|4|8 as mult), _); arg], _) ->
+      let default = (Ascale (arg, mult), 0) in
       begin match select_addr arg with
         (Alinear e, n) ->
         if Misc.no_overflow_mul n mult
@@ -95,7 +97,8 @@ let _xmm0v () = phys_reg Vec128 100
 let pseudoregs_for_operation op arg res =
   match op with
   (* Two-address binary operations: arg.(0) and res.(0) must be the same *)
-  Iintop(Iadd|Isub|Imul|Iand|Ior|Ixor) | Iaddf|Isubf|Imulf|Idivf ->
+  | Iintop(Iadd|Isub|Imul|Iand|Ior|Ixor)
+  | Ifloatop((Float32|Float64), (Iaddf|Isubf|Imulf|Idivf)) ->
       ([|res.(0); arg.(1)|], res)
   | Iintop_atomic {op = Compare_and_swap; size = _; addr = _} ->
       (* first arg must be rax *)
@@ -109,7 +112,7 @@ let pseudoregs_for_operation op arg res =
       (arg, res)
   (* One-address unary operations: arg.(0) and res.(0) must be the same *)
   | Iintop_imm((Iadd|Isub|Imul|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr), _)
-  | Iabsf | Inegf
+  | Ifloatop((Float64 | Float32), (Iabsf | Inegf))
   | Ispecific(Ibswap { bitwidth = (Thirtytwo | Sixtyfour) }) ->
       (res, res)
   (* For xchg, args must be a register allowing access to high 8 bit register
@@ -120,7 +123,7 @@ let pseudoregs_for_operation op arg res =
      rdx. *)
   | Iintop(Imulh _) ->
       ([| rax; arg.(1) |], [| rdx |])
-  | Ispecific(Ifloatarithmem(_,_)) ->
+  | Ispecific(Ifloatarithmem(_,_,_)) ->
       let arg' = Array.copy arg in
       arg'.(0) <- res.(0);
       (arg', res)
@@ -134,7 +137,7 @@ let pseudoregs_for_operation op arg res =
       ([| rax; rcx |], [| rax |])
   | Iintop(Imod) ->
       ([| rax; rcx |], [| rdx |])
-  | Icompf cond ->
+  | Ifloatop(Float64, Icompf cond) ->
     (* CR gyorsh: make this optimization as a separate PR. *)
       (* We need to temporarily store the result of the comparison in a
          float register, but we don't want to clobber any of the inputs
@@ -144,6 +147,11 @@ let pseudoregs_for_operation op arg res =
          register, which makes it more likely an extra mov would be added
          to transfer the argument to the fixed register. *)
       let treg = Reg.create Float in
+      let _,is_swapped = float_cond_and_need_swap cond in
+      (if is_swapped then [| arg.(0); treg |] else [| treg; arg.(1) |])
+    , [| res.(0); treg |]
+  | Ifloatop(Float32, Icompf cond) ->
+      let treg = Reg.create Float32 in
       let _,is_swapped = float_cond_and_need_swap cond in
       (if is_swapped then [| arg.(0); treg |] else [| treg; arg.(1) |])
     , [| res.(0); treg |]
@@ -160,15 +168,15 @@ let pseudoregs_for_operation op arg res =
     arg.(len-1) <- res.(0);
     (arg, res)
   (* Other instructions are regular *)
-  | Iintop (Ipopcnt|Iclz _|Ictz _|Icomp _|Icheckbound|Icheckalign _)
-  | Iintop_imm ((Imulh _|Idiv|Imod|Icomp _|Icheckbound|Icheckalign _
+  | Iintop (Ipopcnt|Iclz _|Ictz _|Icomp _)
+  | Iintop_imm ((Imulh _|Idiv|Imod|Icomp _
                 |Ipopcnt|Iclz _|Ictz _), _)
   | Ispecific (Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
               |Ipause|Ilfence|Isfence|Imfence
-              |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc|Iprefetch _)
-  | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Ivalueofint|Iintofvalue
+              |Ioffset_loc (_, _)|Irdtsc|Iprefetch _)
+  | Imove|Ispill|Ireload|Ivalueofint|Iintofvalue
   | Ivectorcast _ | Iscalarcast _
-  | Iconst_int _|Iconst_float _|Iconst_vec128 _
+  | Iconst_int _|Iconst_float32 _|Iconst_float _|Iconst_vec128 _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
   | Iextcall _|Istackoffset _|Iload _ | Istore (_, _, _)|Ialloc _
   | Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _ | Iopaque
@@ -212,7 +220,7 @@ inherit Selectgen.selector_generic as super
 
 method! is_immediate op n =
   match op with
-  | Iadd | Isub | Imul | Iand | Ior | Ixor | Icomp _ | Icheckbound ->
+  | Iadd | Isub | Imul | Iand | Ior | Ixor | Icomp _  ->
       is_immediate n
   | _ ->
       super#is_immediate op n
@@ -262,12 +270,12 @@ method! select_store is_assign addr exp =
   | (Cconst_natint (n, _dbg)) when is_immediate_natint n ->
       (Ispecific(Istore_int(n, addr, is_assign)), Ctuple [])
   | Cconst_int _ | Cconst_vec128 _
-  | Cconst_natint (_, _) | Cconst_float (_, _) | Cconst_symbol (_, _)
-  | Cvar _ | Clet (_, _, _) | Clet_mut (_, _, _, _) | Cphantom_let (_, _, _)
-  | Cassign (_, _) | Ctuple _ | Cop (_, _, _) | Csequence (_, _)
-  | Cifthenelse (_, _, _, _, _, _, _) | Cswitch (_, _, _, _, _) | Ccatch (_, _, _, _)
-  | Cexit (_, _, _) | Ctrywith (_, _, _, _, _, _)
-  | Cregion _ | Ctail _
+  | Cconst_natint (_, _) | Cconst_float32 (_, _) | Cconst_float (_, _)
+  | Cconst_symbol (_, _) | Cvar _ | Clet (_, _, _) | Clet_mut (_, _, _, _)
+  | Cphantom_let (_, _, _) | Cassign (_, _) | Ctuple _ | Cop (_, _, _)
+  | Csequence (_, _) | Cifthenelse (_, _, _, _, _, _, _)
+  | Cswitch (_, _, _, _, _) | Ccatch (_, _, _, _) | Cexit (_, _, _)
+  | Ctrywith (_, _, _, _, _, _)
     ->
       super#select_store is_assign addr exp
 
@@ -282,60 +290,27 @@ method! select_operation op args dbg =
          arg) -> (Ispecific(Ilea addr), [arg])
       end
   (* Recognize float arithmetic with memory. *)
-  | Caddf ->
-      self#select_floatarith true Iaddf Ifloatadd args
-  | Csubf ->
-      self#select_floatarith false Isubf Ifloatsub args
-  | Cmulf ->
-      self#select_floatarith true Imulf Ifloatmul args
-  | Cdivf ->
-      self#select_floatarith false Idivf Ifloatdiv args
-  (* Special cases overriding C implementations. *)
-  | Cextcall { func = "sqrt"; alloc = false; } ->
-     begin match args with
-       [Cop(Cload { memory_chunk = Double as chunk; _}, [loc], _dbg)] ->
-         let (addr, arg) = self#select_addressing chunk loc in
-         (Ispecific(Ifloatsqrtf addr), [arg])
-     | [arg] ->
-         (Ispecific Simd.(Isimd (SSE2 Sqrt_scalar_f64)), [arg])
-     | _ ->
-         assert false
-    end
-  | Cextcall { func = "caml_int64_bits_of_float_unboxed"; alloc = false;
-               ty = [|Int|]; ty_args = [XFloat] } ->
-      (match args with
-        | [Cop(Cload { memory_chunk = Double; mutability = mut; is_atomic }, [loc], _dbg)] ->
-        let c = Word_int in
-        let (addr, arg) = self#select_addressing c loc in
-        Iload { memory_chunk = c;
-                addressing_mode = addr;
-                mutability = mut;
-                is_atomic; }, [arg]
-      | _ -> Imove, args)
-  | Cextcall { func = "caml_int64_float_of_bits_unboxed"; alloc = false;
-               ty = [|Float|]; ty_args = [XInt64] } ->
-      (match args with
-      | [Cop(Cload { memory_chunk = Word_int; mutability = mut; is_atomic }, [loc], _dbg)] ->
-        let c = Double in
-        let (addr, arg) = self#select_addressing c loc in
-        Iload { memory_chunk = c;
-                addressing_mode = addr;
-                mutability = mut;
-                is_atomic; }, [arg]
-      | _ -> Imove, args)
+  | Caddf width ->
+      self#select_floatarith true width Iaddf Ifloatadd args
+  | Csubf width ->
+      self#select_floatarith false width Isubf Ifloatsub args
+  | Cmulf width ->
+      self#select_floatarith true width Imulf Ifloatmul args
+  | Cdivf width ->
+      self#select_floatarith false width Idivf Ifloatdiv args
+  (* Special cases overriding C implementations (regardless of [@@builtin]). *)
+  | Cextcall { func = ("sqrt" as func); _ }
+  | Cextcall { func = ("caml_int64_bits_of_float_unboxed" as func); _ }
+  | Cextcall { func = ("caml_int64_float_of_bits_unboxed" as func); _ }
   (* x86 intrinsics ([@@builtin]) *)
-  | Cextcall { func; builtin = true; ty = ret; ty_args = _; } ->
-      begin match func, ret with
-      | "caml_rdtsc_unboxed", [|Int|] -> Ispecific Irdtsc, args
-      | "caml_rdpmc_unboxed", [|Int|] -> Ispecific Irdpmc, args
-      | "caml_pause_hint", ([|Val|] | [| |]) ->
-         Ispecific Ipause, args
-      | "caml_load_fence", ([|Val|] | [| |]) ->
-         Ispecific Ilfence, args
-      | "caml_store_fence", ([|Val|] | [| |]) ->
-         Ispecific Isfence, args
-      | "caml_memory_fence", ([|Val|] | [| |]) ->
-         Ispecific Imfence, args
+  | Cextcall { func; builtin = true; _ } ->
+      begin match func with
+      | "caml_rdtsc_unboxed" -> Ispecific Irdtsc, args
+      | "caml_rdpmc_unboxed" -> Ispecific Irdpmc, args
+      | "caml_pause_hint" -> Ispecific Ipause, args
+      | "caml_load_fence" -> Ispecific Ilfence, args
+      | "caml_store_fence" -> Ispecific Isfence, args
+      | "caml_memory_fence" -> Ispecific Imfence, args
       | _ ->
         (match Simd_selection.select_operation func args with
          | Some (op, args) -> op, args
@@ -375,13 +350,13 @@ method! select_operation op args dbg =
       (* Emit prefetch for read hint when prefetchw is not supported.
          Matches the behavior of gcc's __builtin_prefetch *)
       let is_write =
-        if is_write && not !prefetchw_support
+        if is_write && not (Arch.Extension.enabled PREFETCHW)
         then false
         else is_write
       in
       let locality : Arch.prefetch_temporal_locality_hint =
         match select_locality locality with
-        | Moderate when is_write && not !prefetchwt1_support -> High
+        | Moderate when is_write && not (Arch.Extension.enabled PREFETCHWT1) -> High
         | l -> l
       in
       let addr, eloc =
@@ -392,19 +367,21 @@ method! select_operation op args dbg =
 
 (* Recognize float arithmetic with mem *)
 
-method select_floatarith commutative regular_op mem_op args =
-  match args with
-    [arg1; Cop(Cload { memory_chunk = Double as chunk; _ }, [loc2], _)] ->
+method select_floatarith commutative width regular_op mem_op args =
+  match width, args with
+  | Float64, [arg1; Cop(Cload { memory_chunk = Double as chunk; _ }, [loc2], _)]
+  | Float32, [arg1; Cop(Cload { memory_chunk = Single { reg = Float32 } as chunk; _ }, [loc2], _)] ->
       let (addr, arg2) = self#select_addressing chunk loc2 in
-      (Ispecific(Ifloatarithmem(mem_op, addr)),
+      (Ispecific(Ifloatarithmem(width, mem_op, addr)),
                  [arg1; arg2])
-  | [Cop(Cload { memory_chunk = Double as chunk; _}, [loc1], _); arg2]
+  | Float64, [Cop(Cload { memory_chunk = Double as chunk; _}, [loc1], _); arg2]
+  | Float32, [Cop(Cload { memory_chunk = Single { reg = Float32 } as chunk; _}, [loc1], _); arg2]
         when commutative ->
       let (addr, arg1) = self#select_addressing chunk loc1 in
-      (Ispecific(Ifloatarithmem(mem_op, addr)),
+      (Ispecific(Ifloatarithmem(width, mem_op, addr)),
                  [arg2; arg1])
-  | [arg1; arg2] ->
-      (regular_op, [arg1; arg2])
+  | _, [arg1; arg2] ->
+      (Ifloatop (width, regular_op), [arg1; arg2])
   | _ ->
       assert false
 

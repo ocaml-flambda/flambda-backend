@@ -1,8 +1,6 @@
 (* TEST
-   ocamlopt_flags += " -O3 "
-
-   * skip
-     reason = "OCaml 5 only"
+ ocamlopt_flags += " -O3 ";
+ runtime5;
 *)
 
 (*

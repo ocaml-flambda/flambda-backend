@@ -233,7 +233,17 @@ val with_cmm_invariants : bool
 (** Whether the invariants checks for Cmm are enabled *)
 
 val reserved_header_bits : int
-(** How many bits of a block's header are reserved *)
+(** How many bits of a block's header are reserved. This is correct
+   regardless of whether we're in runtime 4 or runtime 5.
+
+   In runtime 5, this corresponds to the HEADER_RESERVED_BITS C preprocessor
+   macro. In runtime 4, this corresponds to the PROFINFO_WIDTH C preprocessor
+   macro. Both of these are unconditionally set to a constant by the configure
+   script in order to enable mixed block support.
+ *)
+
+val custom_ops_struct_size : int
+(** Size in bytes of the custom operations structure. *)
 
 val flat_float_array : bool
 (** Whether the compiler and runtime automagically flatten float
@@ -279,6 +289,9 @@ val ar_supports_response_files: bool
 val runtime5 : bool
 (** [true] if using the OCaml 5.x runtime, [false] if using the
     OCaml 4.14 runtime. *)
+
+val no_stack_checks : bool
+(** [true] if stack checks are disabled; used only if [runtime5] is [true]. *)
 
 (** Access to configuration values *)
 val print_config : out_channel -> unit

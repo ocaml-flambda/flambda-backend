@@ -123,6 +123,21 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       (fun kinds -> List.map C.extended_machtype_of_kind kinds |> Array.concat)
       args_arity
   in
+  let split_args () =
+    let rec aux args args_arity =
+      match args_arity, args with
+      | [], [] -> []
+      | [], _ :: _ ->
+        Misc.fatal_errorf
+          "[split_args]: [args] and [args_ty] do not have compatible lengths"
+      | kinds :: args_arity, args ->
+        let group, rest =
+          Misc.Stdlib.List.map2_prefix (fun _kind arg -> arg) kinds args
+        in
+        C.make_tuple group :: aux rest args_arity
+    in
+    aux args args_arity
+  in
   let return_ty = C.extended_machtype_of_return_arity return_arity in
   match Apply.call_kind apply with
   | Function { function_call = Direct code_id; alloc_mode = _ } -> (
@@ -145,7 +160,10 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         args @ [callee]
       else args
     in
-    let code_sym = To_cmm_result.symbol_of_code_id res code_id in
+    let code_sym =
+      To_cmm_result.symbol_of_code_id res code_id
+        ~currently_in_inlined_body:(Env.currently_in_inlined_body env)
+    in
     match Apply.probe apply with
     | None ->
       ( C.direct_call ~dbg
@@ -175,7 +193,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     ( C.indirect_call ~dbg return_ty pos
         (Alloc_mode.For_allocations.to_lambda alloc_mode)
-        callee args_ty args,
+        callee args_ty (split_args ()),
       free_vars,
       env,
       res,
@@ -203,7 +221,8 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         env,
         res,
         Ece.all )
-  | Call_kind.C_call { alloc; is_c_builtin } ->
+  | Call_kind.C_call
+      { needs_caml_c_call; is_c_builtin; effects; coeffects; alloc_mode = _ } ->
     fail_if_probe apply;
     let callee =
       match callee_simple with
@@ -231,7 +250,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         | Naked_number Naked_int32 -> C.sign_extend_32
         | Naked_number
             ( Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint
-            | Naked_vec128 )
+            | Naked_vec128 | Naked_float32 )
         | Value | Rec_info | Region ->
           fun _dbg cmm -> cmm)
       | _ ->
@@ -244,8 +263,11 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         (Flambda_arity.unarize (Apply.args_arity apply)
         |> List.map K.With_subkind.kind)
     in
+    let effects = To_cmm_effects.transl_c_call_effects effects in
+    let coeffects = To_cmm_effects.transl_c_call_coeffects coeffects in
     ( wrap dbg
-        (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args callee
+        (C.extcall ~dbg ~alloc:needs_caml_c_call ~is_c_builtin ~effects
+           ~coeffects ~returns ~ty_args callee
            (C.Extended_machtype.to_machtype return_ty)
            args),
       free_vars,
@@ -272,7 +294,8 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     let free_vars = Backend_var.Set.union free_vars obj_free_vars in
     let kind = Call_kind.Method_kind.to_lambda kind in
     let alloc_mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
-    ( C.send kind callee obj args args_ty return_ty (pos, alloc_mode) dbg,
+    ( C.send kind callee obj (split_args ()) args_ty return_ty (pos, alloc_mode)
+        dbg,
       free_vars,
       env,
       res,
@@ -373,7 +396,7 @@ let translate_jump_to_continuation ~dbg_with_inlined:dbg env res apply types
       | None -> []
       | Some (Pop { exn_handler; _ }) ->
         let cont = Env.get_cmm_continuation env exn_handler in
-        [Cmm.Pop (Pop_specific cont)]
+        [Cmm.Pop cont]
       | Some (Push { exn_handler }) ->
         let cont = Env.get_cmm_continuation env exn_handler in
         [Cmm.Push cont]
@@ -401,7 +424,7 @@ let translate_jump_to_return_continuation ~dbg_with_inlined:dbg env res apply
   | Some (Pop { exn_handler; _ }) ->
     let cont = Env.get_cmm_continuation env exn_handler in
     let cmm, free_vars =
-      wrap (C.trap_return return_value [Cmm.Pop (Pop_specific cont)]) free_vars
+      wrap (C.trap_return return_value [Cmm.Pop cont]) free_vars
     in
     cmm, free_vars, res
   | Some (Push _) ->
@@ -666,7 +689,7 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
      Env.add_inlined_debuginfo to it *)
   let dbg = Debuginfo.none in
   let trywith =
-    C.trywith ~dbg ~kind:(Delayed catch_id) ~body ~exn_var ~handler ()
+    C.trywith ~dbg ~body ~exn_var ~handler_cont:catch_id ~handler ()
   in
   (* Define and initialize the mutable Cmm variables for extra args *)
   let cmm =
@@ -680,6 +703,7 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
           match K.With_subkind.kind kind with
           | Value -> C.int ~dbg 1
           | Naked_number Naked_float -> C.float ~dbg 0.
+          | Naked_number Naked_float32 -> C.float32 ~dbg 0.
           | Naked_number
               (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) ->
             C.int ~dbg 0

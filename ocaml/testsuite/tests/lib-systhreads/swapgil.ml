@@ -1,12 +1,9 @@
 (* TEST
-modules = "swapgil_stubs.c"
-* runtime5
-** skip
-* runtime4
-** hassysthreads
-include systhreads
-*** hasunix
-**** native
+ modules = "swapgil_stubs.c";
+ include systhreads;
+ hassysthreads;
+ hasunix;
+ native;
 *)
 
 external setup : unit -> unit = "swap_gil_setup"

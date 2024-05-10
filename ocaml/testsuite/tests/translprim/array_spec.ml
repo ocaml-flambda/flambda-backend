@@ -1,20 +1,23 @@
 (* TEST
-   * setup-ocamlc.byte-build-env
-   ** ocamlc.byte
-      flags = "-dlambda -dno-unique-ids"
-   *** flat-float-array
-   **** stack-allocation
-   ***** check-ocamlc.byte-output
-         compiler_reference =
-           "${test_source_directory}/array_spec.stack.flat.reference"
-   **** no-stack-allocation
-   ***** check-ocamlc.byte-output
-         compiler_reference =
-           "${test_source_directory}/array_spec.heap.flat.reference"
-   *** no-flat-float-array
-   **** check-ocamlc.byte-output
-        compiler_reference =
-          "${test_source_directory}/array_spec.compilers.no-flat.reference"
+ setup-ocamlc.byte-build-env;
+ flags = "-dlambda -dno-unique-ids";
+ ocamlc.byte;
+ {
+   flat-float-array;
+   {
+     stack-allocation;
+     compiler_reference = "${test_source_directory}/array_spec.stack.flat.reference";
+     check-ocamlc.byte-output;
+   }{
+     no-stack-allocation;
+     compiler_reference = "${test_source_directory}/array_spec.heap.flat.reference";
+     check-ocamlc.byte-output;
+   }
+ }{
+   no-flat-float-array;
+   compiler_reference = "${test_source_directory}/array_spec.compilers.no-flat.reference";
+   check-ocamlc.byte-output;
+ }
 *)
 
 external len : 'a array -> int = "%array_length"

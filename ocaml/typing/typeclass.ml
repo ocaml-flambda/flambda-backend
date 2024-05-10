@@ -103,13 +103,14 @@ type error =
   | Non_collapsable_conjunction of
       Ident.t * Types.class_declaration * Errortrace.unification_error
   | Self_clash of Errortrace.unification_error
-  | Mutability_mismatch of string * mutable_flag
+  | Mutability_mismatch of string * Asttypes.mutable_flag
   | No_overriding of string * string
   | Duplicate of string * string
   | Closing_self_type of class_signature
   | Polymorphic_class_parameter
   | Non_value_binding of string * Jkind.Violation.t
   | Non_value_let_binding of string * Jkind.sort
+  | Nonoptional_call_pos_label of string
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -261,9 +262,9 @@ let unify_delayed_method_type loc env label ty expected_ty=
       raise(Error(loc, env, Field_type_mismatch ("method", label, trace)))
 
 let type_constraint val_env sty sty' loc =
-  let cty  = transl_simple_type val_env ~closed:false Alloc.Const.legacy sty in
+  let cty  = transl_simple_type ~new_var_jkind:Any val_env ~closed:false Alloc.Const.legacy sty in
   let ty = cty.ctyp_type in
-  let cty' = transl_simple_type val_env ~closed:false Alloc.Const.legacy sty' in
+  let cty' = transl_simple_type ~new_var_jkind:Sort val_env ~closed:false Alloc.Const.legacy sty' in
   let ty' = cty'.ctyp_type in
   begin
     try Ctype.unify val_env ty ty' with Ctype.Unify err ->
@@ -308,7 +309,7 @@ let rec class_type_field env sign self_scope ctf =
   | Pctf_val ({txt=lab}, mut, virt, sty) ->
       mkctf_with_attrs
         (fun () ->
-          let cty = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
+          let cty = transl_simple_type ~new_var_jkind:Sort env ~closed:false Alloc.Const.legacy sty in
           let ty = cty.ctyp_type in
           begin match
             Ctype.constrain_type_jkind
@@ -343,7 +344,7 @@ let rec class_type_field env sign self_scope ctf =
                  ) :: !delayed_meth_specs;
                Tctf_method (lab, priv, virt, returned_cty)
            | _ ->
-               let cty = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
+               let cty = transl_simple_type ~new_var_jkind:Any env ~closed:false Alloc.Const.legacy sty in
                let ty = cty.ctyp_type in
                add_method loc env lab priv virt ty sign;
                Tctf_method (lab, priv, virt, cty))
@@ -367,7 +368,7 @@ and class_signature virt env pcsig self_scope loc =
   (* Introduce a dummy method preventing self type from being closed. *)
   Ctype.add_dummy_method env ~scope:self_scope sign;
 
-  let self_cty = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
+  let self_cty = transl_simple_type ~new_var_jkind:Any env ~closed:false Alloc.Const.legacy sty in
   let self_type = self_cty.ctyp_type in
   begin try
     Ctype.unify env self_type sign.csig_self
@@ -417,7 +418,7 @@ and class_type_aux env virt self_scope scty =
                                                    List.length styl)));
       let ctys = List.map2
         (fun sty ty ->
-          let cty' = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
+          let cty' = transl_simple_type ~new_var_jkind:Any env ~closed:false Alloc.Const.legacy sty in
           let ty' = cty'.ctyp_type in
           begin
            try Ctype.unify env ty' ty with Ctype.Unify err ->
@@ -437,7 +438,17 @@ and class_type_aux env virt self_scope scty =
       cltyp (Tcty_signature clsig) typ
 
   | Pcty_arrow (l, sty, scty) ->
-      let cty = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
+      let ctyp ctyp_desc ctyp_type =
+        { ctyp_desc; ctyp_type; ctyp_env = env;
+          ctyp_loc = sty.ptyp_loc; ctyp_attributes = sty.ptyp_attributes }
+      in
+      let l = transl_label l (Some sty) in
+      let cty =
+        match l with
+        | Position _ -> ctyp Ttyp_call_pos (Ctype.newconstr Predef.path_lexing_position [])
+        | Optional _ | Labelled _ | Nolabel ->
+          transl_simple_type ~new_var_jkind:Any env ~closed:false Alloc.Const.legacy sty
+      in
       let ty = cty.ctyp_type in
       let ty =
         if Btype.is_optional l
@@ -479,6 +490,7 @@ let enter_ancestor_met ~loc name ~sign ~meths ~cl_num ~ty ~attrs met_env =
   let desc =
     { val_type = ty; val_kind = kind;
       val_attributes = attrs;
+      val_zero_alloc = Builtin_attributes.Default_check;
       Types.val_loc = loc;
       val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
   in
@@ -494,6 +506,7 @@ let add_self_met loc id sign self_var_kind vars cl_num
   let desc =
     { val_type = ty; val_kind = kind;
       val_attributes = attrs;
+      val_zero_alloc = Builtin_attributes.Default_check;
       Types.val_loc = loc;
       val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
   in
@@ -510,6 +523,7 @@ let add_instance_var_met loc label id sign cl_num attrs met_env =
     { val_type = ty; val_kind = kind;
       val_attributes = attrs;
       Types.val_loc = loc;
+      val_zero_alloc = Builtin_attributes.Default_check;
       val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
   in
   Env.add_value id desc met_env
@@ -531,7 +545,7 @@ type intermediate_class_field =
         attributes : attribute list; }
   | Virtual_val of
       { label : string loc;
-        mut : mutable_flag;
+        mut : Asttypes.mutable_flag;
         id : Ident.t;
         cty : core_type;
         already_declared : bool;
@@ -539,7 +553,7 @@ type intermediate_class_field =
         attributes : attribute list; }
   | Concrete_val of
       { label : string loc;
-        mut : mutable_flag;
+        mut : Asttypes.mutable_flag;
         id : Ident.t;
         override : override_flag;
         definition : expression;
@@ -670,7 +684,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
         (fun () ->
            let cty =
              Ctype.with_local_level_if_principal
-               (fun () -> Typetexp.transl_simple_type val_env
+               (fun () -> Typetexp.transl_simple_type ~new_var_jkind:Any val_env
                             ~closed:false Alloc.Const.legacy styp)
                ~post:(fun cty -> Ctype.generalize_structure cty.ctyp_type)
            in
@@ -760,7 +774,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
       with_attrs
         (fun () ->
            let sty = Ast_helper.Typ.force_poly sty in
-           let cty = transl_simple_type val_env ~closed:false Alloc.Const.legacy sty in
+           let cty = transl_simple_type ~new_var_jkind:Any val_env ~closed:false Alloc.Const.legacy sty in
            let ty = cty.ctyp_type in
            add_method loc val_env label.txt priv Virtual ty sign;
            let field =
@@ -800,7 +814,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
              | Some sty ->
                  let sty = Ast_helper.Typ.force_poly sty in
                  let cty' =
-                   Typetexp.transl_simple_type val_env ~closed:false Alloc.Const.legacy sty
+                   Typetexp.transl_simple_type ~new_var_jkind:Any val_env ~closed:false Alloc.Const.legacy sty
                  in
                  cty'.ctyp_type
            in
@@ -1118,7 +1132,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       if Path.same decl.cty_path unbound_class then
         raise(Error(scl.pcl_loc, val_env, Unbound_class_2 lid.txt));
       let tyl = List.map
-          (fun sty -> transl_simple_type val_env ~closed:false Alloc.Const.legacy sty)
+          (fun sty -> transl_simple_type ~new_var_jkind:Any val_env ~closed:false Alloc.Const.legacy sty)
           styl
       in
       let (params, clty) =
@@ -1207,6 +1221,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       in
       class_expr cl_num val_env met_env virt self_scope sfun
   | Pcl_fun (l, None, spat, scl') ->
+      let l, spat = Typetexp.transl_label_from_pat l spat in
       if Typecore.has_poly_constraint spat then
         raise(Error(spat.ppat_loc, val_env, Polymorphic_class_parameter));
       let (pat, pv, val_env', met_env) =
@@ -1252,9 +1267,16 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       let cl =
         Ctype.with_raised_nongen_level
           (fun () -> class_expr cl_num val_env' met_env virt self_scope scl') in
-      if Btype.is_optional l && not_nolabel_function cl.cl_type then
-        Location.prerr_warning pat.pat_loc
-          Warnings.Unerasable_optional_argument;
+      if not_nolabel_function cl.cl_type then begin
+        match l with
+        | Nolabel | Labelled _ -> ()
+        | Optional _ ->
+          Location.prerr_warning pat.pat_loc
+            Warnings.Unerasable_optional_argument;
+        | Position _ ->
+          Location.prerr_warning pat.pat_loc
+            Warnings.Unerasable_position_argument;
+      end;
       rc {cl_desc = Tcl_fun (l, pat, pv, cl, partial);
           cl_loc = scl.pcl_loc;
           cl_type = Cty_arrow
@@ -1280,7 +1302,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
         !Clflags.classic ||
         let labels = nonopt_labels [] cl.cl_type in
         List.length labels = List.length sargs &&
-        List.for_all (fun (l,_) -> l = Nolabel) sargs &&
+        List.for_all (fun (l,_) -> l = Parsetree.Nolabel) sargs &&
         List.exists (fun l -> l <> Nolabel) labels &&
         begin
           Location.prerr_warning
@@ -1303,55 +1325,67 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                   let arg = Typecore.type_argument val_env sarg ty ty0 in
                   arg, Jkind.Sort.value
                 else
-                  let ty' = Typecore.extract_option_type val_env ty
-                  and ty0' = Typecore.extract_option_type val_env ty0 in
-                  let arg = Typecore.type_argument val_env sarg ty' ty0' in
-                  Typecore.option_some val_env arg Mode.Value.legacy,
+                  Typecore.type_option_some val_env sarg ty ty0,
                   (* CR layouts v5: Change the sort when options can hold
                      non-values. *)
                   Jkind.Sort.value
               )
             in
             let eliminate_optional_arg () =
-              Arg (Typecore.option_none val_env ty0 Location.none,
+              Arg (Typecore.type_option_none val_env ty0 Location.none,
                    (* CR layouts v5: Change the sort when options can hold
                       non-values. *)
                    Jkind.Sort.value
                   )
+            in
+            let eliminate_position_arg () =
+              let arg = Typecore.src_pos (Location.ghostify scl.pcl_loc) [] val_env in
+              Arg (arg, Jkind.Sort.value)
             in
             let remaining_sargs, arg =
               if ignore_labels then begin
                 match sargs with
                 | [] -> assert false
                 | (l', sarg) :: remaining_sargs ->
+                    let label_is_absent_in_remaining_args () =
+                      not (List.exists (fun (l, _) -> name = Btype.label_name l) remaining_sargs)
+                    in
                     if name = Btype.label_name l' ||
                        (not optional && l' = Nolabel)
                     then
                       (remaining_sargs, use_arg sarg l')
-                    else if
-                      optional &&
-                      not (List.exists (fun (l, _) -> name = Btype.label_name l)
-                             remaining_sargs)
-                    then
-                      (sargs, eliminate_optional_arg ())
+                    else if optional && label_is_absent_in_remaining_args ()
+                    then (sargs, eliminate_optional_arg ())
+                    else if Btype.is_position l && label_is_absent_in_remaining_args ()
+                    then (sargs, eliminate_position_arg ())
                     else
                       raise(Error(sarg.pexp_loc, val_env, Apply_wrong_label l'))
               end else
                 match Btype.extract_label name sargs with
                 | Some (l', sarg, _, remaining_sargs) ->
-                    if not optional && Btype.is_optional l' then
-                      Location.prerr_warning sarg.pexp_loc
-                        (Warnings.Nonoptional_label
-                           (Printtyp.string_of_label l));
+                    if not optional && Btype.is_optional l' then (
+                      let label = Printtyp.string_of_label l in
+                      if Btype.is_position l then
+                        raise
+                          (Error
+                             ( sarg.pexp_loc
+                             , val_env
+                             , Nonoptional_call_pos_label label))
+                      else
+                        Location.prerr_warning sarg.pexp_loc
+                          (Warnings.Nonoptional_label label));
                     remaining_sargs, use_arg sarg l'
                 | None ->
+                    let is_erased () = List.mem_assoc Nolabel sargs in
                     sargs,
-                    if Btype.is_optional l && List.mem_assoc Nolabel sargs then
+                    if Btype.is_optional l && is_erased () then
                       eliminate_optional_arg ()
+                    else if Btype.is_position l && is_erased () then
+                      eliminate_position_arg ()
                     else begin
-                      let mode_closure = Mode.Alloc.legacy in
-                      let mode_arg = Mode.Alloc.legacy in
-                      let mode_ret = Mode.Alloc.legacy in
+                      let mode_closure = Mode.Alloc.disallow_left Mode.Alloc.legacy in
+                      let mode_arg = Mode.Alloc.disallow_right Mode.Alloc.legacy in
+                      let mode_ret = Mode.Alloc.disallow_right Mode.Alloc.legacy in
                       let sort_arg = Jkind.Sort.value in
                       Omitted { mode_closure; mode_arg; mode_ret; sort_arg }
                     end
@@ -1377,6 +1411,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       in
       let (args, cty) =
         let (_, ty_fun0) = Ctype.instance_class [] cl.cl_type in
+        let sargs = List.map (fun (label, e) -> transl_label label None, e) sargs in
         type_args [] [] cl.cl_type ty_fun0 sargs
       in
       rc {cl_desc = Tcl_apply (cl, args);
@@ -1390,7 +1425,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
         Typecore.type_let In_class_def val_env rec_flag sdefs in
       let (vals, met_env) =
         List.fold_right
-          (fun (id, modes_and_sorts) (vals, met_env) ->
+          (fun (id, modes_and_sorts, _) (vals, met_env) ->
              List.iter
                (fun (loc, mode, sort) ->
                   Typecore.escape ~loc ~env:val_env ~reason:Other mode;
@@ -1423,6 +1458,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                {val_type = expr.exp_type;
                 val_kind = Val_ivar (Immutable, cl_num);
                 val_attributes = [];
+                val_zero_alloc = Builtin_attributes.Default_check;
                 Types.val_loc = vd.val_loc;
                 val_uid = vd.val_uid;
                }
@@ -1431,7 +1467,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
              ((id', expr)
               :: vals,
               Env.add_value id' desc met_env))
-          (let_bound_idents_with_modes_and_sorts defs)
+          (let_bound_idents_with_modes_sorts_and_checks defs)
           ([], met_env)
       in
       let cl = class_expr cl_num val_env met_env virt self_scope scl' in
@@ -1506,15 +1542,19 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
 (* of optional parameters                                         *)
 
 let var_option =
-  Predef.type_option (Btype.newgenvar (Jkind.value ~why:Type_argument))
+  Predef.type_option (Btype.newgenvar Predef.option_argument_jkind)
 
 let rec approx_declaration cl =
   match cl.pcl_desc with
-    Pcl_fun (l, _, _, cl) ->
+    Pcl_fun (l, _, pat, cl) ->
+      let l, _ = Typetexp.transl_label_from_pat l pat in
       let arg =
-        if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar (Jkind.value ~why:Class_argument)
-        (* CR layouts: use of value here may be relaxed when we update
+        match l with
+        | Optional _ -> Ctype.instance var_option
+        | Position _ -> Ctype.instance Predef.type_lexing_position
+        | Labelled _ | Nolabel ->
+          Ctype.newvar (Jkind.value ~why:Class_term_argument)
+          (* CR layouts: use of value here may be relaxed when we update
            classes to work with jkinds *)
       in
       let arg = Ctype.newmono arg in
@@ -1529,10 +1569,11 @@ let rec approx_declaration cl =
 
 let rec approx_description ct =
   match ct.pcty_desc with
-    Pcty_arrow (l, _, ct) ->
+    Pcty_arrow (l, core_type, ct) ->
+      let l = transl_label l (Some core_type) in
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar (Jkind.value ~why:Class_argument)
+        else Ctype.newvar (Jkind.value ~why:Class_term_argument)
         (* CR layouts: use of value here may be relaxed when we
            relax jkinds in classes *)
       in
@@ -1544,10 +1585,12 @@ let rec approx_description ct =
 
 (*******************************)
 
-let temp_abbrev loc arity uid =
+let temp_abbrev loc id arity uid =
   let params = ref [] in
-  for _i = 1 to arity do
-    params := Ctype.newvar (Jkind.value ~why:Type_argument) :: !params
+  for i = 1 to arity do
+    params := Ctype.newvar (Jkind.value ~why:(
+      Type_argument {parent_path = Path.Pident id; position = i; arity})
+    ) :: !params
   done;
   let ty = Ctype.newobj (Ctype.newvar (Jkind.value ~why:Object)) in
   let ty_td =
@@ -1574,9 +1617,9 @@ let initial_env define_class approx
     (res, env) (cl, id, ty_id, obj_id, uid) =
   (* Temporary abbreviations *)
   let arity = List.length cl.pci_params in
-  let (obj_params, obj_ty, obj_td) = temp_abbrev cl.pci_loc arity uid in
+  let (obj_params, obj_ty, obj_td) = temp_abbrev cl.pci_loc obj_id arity uid in
   let env = Env.add_type ~check:true obj_id obj_td env in
-  let (cl_params, cl_ty, cl_td) = temp_abbrev cl.pci_loc arity uid in
+  let (cl_params, cl_ty, cl_td) = temp_abbrev cl.pci_loc ty_id arity uid in
 
   (* Temporary type for the class constructor *)
   let constr_type =
@@ -1644,7 +1687,7 @@ let class_infos define_class kind
                we should lift this restriction. Doing so causes bad error messages
                today, so we wait for tomorrow. *)
             Ctype.unify env param.ctyp_type
-              (Ctype.newvar (Jkind.value ~why:Class_argument));
+              (Ctype.newvar (Jkind.value ~why:Class_type_argument));
             (param, v)
           with Already_bound ->
             raise(Error(sty.ptyp_loc, env, Repeated_parameter))
@@ -2095,7 +2138,8 @@ let approx_class_declarations env sdecls =
 
 open Format
 
-let non_virtual_string_of_kind = function
+let non_virtual_string_of_kind (t : kind) =
+  match t with
   | Object -> "object"
   | Class -> "non-virtual class"
   | Class_type -> "non-virtual class type"
@@ -2263,8 +2307,10 @@ let report_error env ppf = function
            fprintf ppf "but actually has type")
   | Mutability_mismatch (_lab, mut) ->
       let mut1, mut2 =
-        if mut = Immutable then "mutable", "immutable"
-        else "immutable", "mutable" in
+        match mut with
+        | Immutable -> "mutable", "immutable"
+        | Mutable -> "immutable", "mutable"
+      in
       fprintf ppf
         "@[The instance variable is %s;@ it cannot be redefined as %s@]"
         mut1 mut2
@@ -2294,6 +2340,10 @@ let report_error env ppf = function
       "@[The types of variables bound by a 'let' in a class function@ \
        must have layout value. Instead, %s's type has layout %a.@]"
       nm Jkind.Sort.format sort
+  | Nonoptional_call_pos_label label ->
+    fprintf ppf
+      "@[the argument labeled '%s' is a [%%call_pos] argument, filled in @ \
+         automatically if ommitted. It cannot be passed with '?'.@]" label
 
 let report_error env ppf err =
   Printtyp.wrap_printing_env ~error:true

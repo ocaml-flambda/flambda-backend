@@ -25,7 +25,7 @@
  **********************************************************************************)
 
 let should_be_escaped = function
-  | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' -> false
+  | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' | '.' -> false
   | _c -> true
 
 module Thing = struct
@@ -46,6 +46,8 @@ include Thing
 include Identifiable.Make (Thing)
 
 let create name = name
+
+let to_raw_string t = t
 
 let escape name =
   let escaped_nb = ref 0 in

@@ -121,6 +121,7 @@ type block_type =
   | Normal of int
   (* tag *)
   | Flat_float_record
+  | Mixed of Lambda.mixed_block_shape
 
 type block =
   { block_type : block_type;
@@ -171,7 +172,7 @@ let lsequence (lam1, lam2) =
   [@@ocaml.warning "-fragile-match"]
 
 let caml_update_dummy_prim =
-  Primitive.simple_on_values ~name:"caml_update_dummy" ~arity:2 ~alloc:true
+  Lambda.simple_prim_on_values ~name:"caml_update_dummy" ~arity:2 ~alloc:true
 
 let update_dummy var expr =
   Lprim (Pccall caml_update_dummy_prim, [Lvar var; expr], Loc_unknown)
@@ -246,7 +247,10 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
             (id, def) :: defs, Lambda.Lvar id :: args)
         args ([], [])
     in
-    let arg_layout = Typeopt.layout_union layout_field layout_block in
+    (* [arg_layout] is more general than any of the possible layouts of [args]:
+       The arguments to [Pmakeblock]/[Pmakearray] are value fields, and the
+       argument to [Pduprecord] is a block. *)
+    let arg_layout = Typeopt.layout_union layout_value_field layout_block in
     (* Bytecode evaluates effects in blocks from right to left, so reverse defs
        to preserve evaluation order. Relevant test: letrec/evaluation_order_3 *)
     let lam =
@@ -270,6 +274,11 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
     match current_let with
     | Some cl -> build_block cl (List.length args) Flat_float_record lam letrec
     | None -> dead_code lam letrec)
+  | Lprim (Pmakemixedblock (_, _, shape, mode), args, _) -> (
+    assert_not_local ~lam mode;
+    match current_let with
+    | Some cl -> build_block cl (List.length args) (Mixed shape) lam letrec
+    | None -> dead_code lam letrec)
   | Lprim (Pduprecord (kind, size), args, _) -> (
     match current_let with
     | Some cl -> (
@@ -286,6 +295,9 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
         build_block cl (size + 1) (Normal 0) arg letrec
       | Record_float | Record_ufloat ->
         build_block cl size Flat_float_record arg letrec
+      | Record_mixed mixed ->
+        let mixed = Lambda.transl_mixed_product_shape mixed in
+        build_block cl size (Mixed mixed) arg letrec
       | Record_inlined (Extension _, _)
       | Record_inlined (Ordinary _, (Variant_unboxed | Variant_extensible))
       | Record_unboxed ->
@@ -563,16 +575,29 @@ let dissect_letrec ~bindings ~body ~free_vars_kind =
       }
   in
   let preallocations =
+    let alloc_normal_dummy cfun size =
+      let desc = Lambda.simple_prim_on_values ~name:cfun ~arity:1 ~alloc:true in
+      let size : lambda = Lconst (Const_base (Const_int size)) in
+      Lprim (Pccall desc, [size], Loc_unknown)
+    in
+    let alloc_mixed_dummy cfun (shape : Lambda.mixed_block_shape) size =
+      let size = Lconst (Const_base (Const_int size)) in
+      let value_prefix_len =
+        Lconst (Const_base (Const_int shape.value_prefix_len))
+      in
+      let desc = Lambda.simple_prim_on_values ~name:cfun ~arity:2 ~alloc:true in
+      Lprim (Pccall desc, [size; value_prefix_len], Loc_unknown)
+    in
     List.map
       (fun (id, { block_type; size }) ->
-        let fn =
+        let ccall =
           match block_type with
-          | Normal _tag -> "caml_alloc_dummy"
-          | Flat_float_record -> "caml_alloc_dummy_float"
+          | Normal _tag -> alloc_normal_dummy "caml_alloc_dummy" size
+          | Flat_float_record ->
+            alloc_normal_dummy "caml_alloc_dummy_float" size
+          | Mixed shape -> alloc_mixed_dummy "caml_alloc_dummy_mixed" shape size
         in
-        let desc = Primitive.simple_on_values ~name:fn ~arity:1 ~alloc:true in
-        let size : lambda = Lconst (Const_base (Const_int size)) in
-        id, Lprim (Pccall desc, [size], Loc_unknown))
+        id, ccall)
       letrec.blocks
   in
   let body = if not letrec.needs_region then body else Lexclave body in

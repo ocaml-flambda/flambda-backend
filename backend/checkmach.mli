@@ -53,8 +53,6 @@ module Witness : sig
     | Indirect_tailcall
     | Direct_call of { callee : string }
     | Direct_tailcall of { callee : string }
-    | Missing_summary of { callee : string }
-    | Forward_call of { callee : string }
     | Extcall of { callee : string }
     | Arch_specific
     | Probe of
@@ -94,3 +92,5 @@ end
 type iter_witnesses = (string -> Witnesses.components -> unit) -> unit
 
 val iter_witnesses : iter_witnesses
+
+val is_check_enabled : Cmm.codegen_option list -> string -> Debuginfo.t -> bool

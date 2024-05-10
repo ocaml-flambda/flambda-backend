@@ -21,6 +21,10 @@ let boxed_integer_name = function
   | Lambda.Pint32 -> "int32"
   | Lambda.Pint64 -> "int64"
 
+let boxed_float_name = function
+  | Lambda.Pfloat64 -> "float"
+  | Lambda.Pfloat32 -> "float32"
+
 let boxed_integer_mark name = function
   | Lambda.Pnativeint -> Printf.sprintf "Nativeint.%s" name
   | Lambda.Pint32 -> Printf.sprintf "Int32.%s" name
@@ -30,8 +34,45 @@ let alloc_kind = function
   | Lambda.Alloc_heap -> ""
   | Lambda.Alloc_local -> "[L]"
 
+let float_comparison = function
+  | Lambda.CFeq -> "=="
+  | Lambda.CFneq -> "!="
+  | Lambda.CFlt -> "<"
+  | Lambda.CFnlt -> "!<"
+  | Lambda.CFle -> "<="
+  | Lambda.CFnle -> "!<="
+  | Lambda.CFgt -> ">"
+  | Lambda.CFngt -> "!>"
+  | Lambda.CFge -> ">="
+  | Lambda.CFnge -> "!>="
+
 let print_boxed_integer name ppf bi m =
   fprintf ppf "%s%s" (boxed_integer_mark name bi) (alloc_kind m)
+
+let unboxed_integer_mark name bi m =
+  match bi with
+  | Lambda.Pnativeint -> Printf.sprintf "Nativeint_u.%s%s" name (alloc_kind m)
+  | Lambda.Pint32 -> Printf.sprintf "Int32_u.%s%s" name (alloc_kind m)
+  | Lambda.Pint64 -> Printf.sprintf "Int64_u.%s%s" name (alloc_kind m)
+
+let print_unboxed_integer name ppf bi m =
+  fprintf ppf "%s" (unboxed_integer_mark name bi m);;
+
+let boxed_float_mark name bf m =
+  match bf with
+  | Lambda.Pfloat64 -> Printf.sprintf "Float.%s%s" name (alloc_kind m)
+  | Lambda.Pfloat32 -> Printf.sprintf "Float32.%s%s" name (alloc_kind m)
+
+let print_boxed_float name ppf bf m =
+  fprintf ppf "%s" (boxed_float_mark name bf m);;
+
+let unboxed_float_mark name bf m =
+  match bf with
+  | Lambda.Pfloat64 -> Printf.sprintf "Float_u.%s%s" name (alloc_kind m)
+  | Lambda.Pfloat32 -> Printf.sprintf "Float32_u.%s%s" name (alloc_kind m)
+
+let print_unboxed_float name ppf bf m =
+  fprintf ppf "%s" (unboxed_float_mark name bf m);;
 
 let array_kind array_kind =
   let open Lambda in
@@ -40,6 +81,11 @@ let array_kind array_kind =
   | Paddrarray -> "addr"
   | Pintarray -> "int"
   | Pfloatarray -> "float"
+  | Punboxedfloatarray Pfloat64 -> "unboxed_float"
+  | Punboxedfloatarray Pfloat32 -> "unboxed_float32"
+  | Punboxedintarray Pint32 -> "unboxed_int32"
+  | Punboxedintarray Pint64 -> "unboxed_int64"
+  | Punboxedintarray Pnativeint -> "unboxed_nativeint"
 
 let pp_array_ref_kind ppf k =
   let open Lambda in
@@ -52,6 +98,11 @@ let pp_array_ref_kind ppf k =
   | Paddrarray_ref -> fprintf ppf "addr"
   | Pintarray_ref -> fprintf ppf "int"
   | Pfloatarray_ref mode -> fprintf ppf "float%a" pp_mode mode
+  | Punboxedfloatarray_ref Pfloat64 -> fprintf ppf "unboxed_float"
+  | Punboxedfloatarray_ref Pfloat32 -> fprintf ppf "unboxed_float32"
+  | Punboxedintarray_ref Pint32 -> fprintf ppf "unboxed_int32"
+  | Punboxedintarray_ref Pint64 -> fprintf ppf "unboxed_int64"
+  | Punboxedintarray_ref Pnativeint -> fprintf ppf "unboxed_nativeint"
 
 let pp_array_set_kind ppf k =
   let open Lambda in
@@ -64,6 +115,11 @@ let pp_array_set_kind ppf k =
   | Paddrarray_set mode -> fprintf ppf "addr%a" pp_mode mode
   | Pintarray_set -> fprintf ppf "int"
   | Pfloatarray_set -> fprintf ppf "float"
+  | Punboxedfloatarray_set Pfloat64 -> fprintf ppf "unboxed_float"
+  | Punboxedfloatarray_set Pfloat32 -> fprintf ppf "unboxed_float32"
+  | Punboxedintarray_set Pint32 -> fprintf ppf "unboxed_int32"
+  | Punboxedintarray_set Pint64 -> fprintf ppf "unboxed_int64"
+  | Punboxedintarray_set Pnativeint -> fprintf ppf "unboxed_nativeint"
 
 let access_size size =
   let open Clambda_primitives in
@@ -81,33 +137,33 @@ let access_safety safety =
 let primitive ppf (prim:Clambda_primitives.primitive) =
   let open Lambda in
   let open Clambda_primitives in
+  let mode_to_string = function
+    | Alloc_heap -> ""
+    | Alloc_local -> "local"
+  in
+  let mut_to_string = function
+    | Immutable -> "block"
+    | Immutable_unique -> "block_unique"
+    | Mutable -> "mutable"
+  in
   match prim with
   | Pread_symbol sym ->
       fprintf ppf "read_symbol %s" sym
   | Pmakeblock(tag, mut, shape, mode) ->
-      let mode = match mode with
-        | Alloc_heap -> ""
-        | Alloc_local -> "local"
-      in
-      let mut = match mut with
-        | Immutable -> "block"
-        | Immutable_unique -> "block_unique"
-        | Mutable -> "mutable"
-      in
+      let mode = mode_to_string mode in
+      let mut = mut_to_string mut in
       let name = "make" ^ mode ^ mut in
       fprintf ppf "%s %i%a" name tag Printlambda.block_shape shape
   | Pmakeufloatblock(mut, mode) ->
-      let mode = match mode with
-        | Alloc_heap -> ""
-        | Alloc_local -> "local"
-      in
-      let mut = match mut with
-        | Immutable -> "block"
-        | Immutable_unique -> "block_unique"
-        | Mutable -> "mutable"
-      in
+      let mode = mode_to_string mode in
+      let mut = mut_to_string mut in
       let name = "make" ^ mode ^ "ufloat" ^ mut in
       fprintf ppf "%s" name
+  | Pmakemixedblock(tag, mut, shape, mode) ->
+      let mode = mode_to_string mode in
+      let mut = mut_to_string mut in
+      let name = "make" ^ mode ^ "ufloat" ^ mut in
+      fprintf ppf "%s %i%a" name tag Printlambda.mixed_block_shape shape
   | Pfield (n, layout, ptr, mut) ->
       let instr =
         match ptr, mut with
@@ -149,6 +205,9 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pfloatfield (n, Alloc_heap) -> fprintf ppf "floatfield %i" n
   | Pfloatfield (n, Alloc_local) -> fprintf ppf "floatfieldlocal %i" n
   | Pufloatfield n -> fprintf ppf "ufloatfield %i" n
+  | Pmixedfield (n, shape) ->
+    fprintf ppf "mixedfield %i %a"
+      n Printlambda.mixed_block_read shape
   | Psetfloatfield (n, init) ->
       let init =
         match init with
@@ -167,6 +226,16 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
         | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
       fprintf ppf "setufloatfield%s %i" init n
+  | Psetmixedfield (n, shape, init) ->
+      let init =
+        match init with
+        | Heap_initialization -> "(heap-init)"
+        | Root_initialization -> "(root-init)"
+        | Assignment Modify_heap -> ""
+        | Assignment Modify_maybe_stack -> "(maybe-stack)"
+      in
+      fprintf ppf "setufloatfield%s %i %a"
+        init n Printlambda.mixed_block_write shape
   | Pduprecord (rep, size) ->
       fprintf ppf "duprecord %a %i" Printlambda.record_rep rep size
   | Prunstack -> fprintf ppf "runstack"
@@ -194,21 +263,23 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pasrint -> fprintf ppf "asr"
   | Pintcomp(cmp) -> Printlambda.integer_comparison ppf cmp
   | Pcompare_ints -> fprintf ppf "compare_ints"
-  | Pcompare_floats -> fprintf ppf "compare_floats"
+  | Pcompare_floats bf -> fprintf ppf "compare_floats %s" (boxed_float_name bf)
   | Pcompare_bints bi -> fprintf ppf "compare_bints %s" (boxed_integer_name bi)
   | Poffsetint n -> fprintf ppf "%i+" n
   | Poffsetref n -> fprintf ppf "+:=%i"n
-  | Pintoffloat -> fprintf ppf "int_of_float"
-  | Pfloatofint m -> fprintf ppf "float_of_int%s" (alloc_kind m)
-  | Pnegfloat m -> fprintf ppf "~.%s" (alloc_kind m)
-  | Pabsfloat m -> fprintf ppf "abs.%s" (alloc_kind m)
-  | Paddfloat m -> fprintf ppf "+.%s" (alloc_kind m)
-  | Psubfloat m -> fprintf ppf "-.%s" (alloc_kind m)
-  | Pmulfloat m -> fprintf ppf "*.%s" (alloc_kind m)
-  | Pdivfloat m -> fprintf ppf "/.%s" (alloc_kind m)
-  | Pfloatcomp(cmp) -> Printlambda.float_comparison ppf cmp
-  | Punboxed_float_comp(cmp) ->
-    fprintf ppf "%a (unboxed)" Printlambda.float_comparison cmp
+  | Pintoffloat bf -> fprintf ppf "int_of_%s" (boxed_float_name bf)
+  | Pfloatofint (bf,m) ->
+      fprintf ppf "%s_of_int%s" (boxed_float_name bf) (alloc_kind m)
+  | Pabsfloat (bf,m) -> print_boxed_float "abs" ppf bf m
+  | Pnegfloat (bf,m) -> print_boxed_float "neg" ppf bf m
+  | Paddfloat (bf,m) -> print_boxed_float "add" ppf bf m
+  | Psubfloat (bf,m) -> print_boxed_float "sub" ppf bf m
+  | Pmulfloat (bf,m) -> print_boxed_float "mul" ppf bf m
+  | Pdivfloat (bf,m) -> print_boxed_float "div" ppf bf m
+  | Pfloatcomp (bf,cmp) ->
+      print_boxed_float (float_comparison cmp) ppf bf alloc_heap
+  | Punboxed_float_comp (bf,cmp) ->
+      print_unboxed_float (float_comparison cmp) ppf bf alloc_heap
   | Pstringlength -> fprintf ppf "string.length"
   | Pstringrefu -> fprintf ppf "string.unsafe_get"
   | Pstringrefs -> fprintf ppf "string.get"
@@ -266,6 +337,12 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pbintcomp(bi, Cgt) -> print_boxed_integer ">" ppf bi alloc_heap
   | Pbintcomp(bi, Cle) -> print_boxed_integer "<=" ppf bi alloc_heap
   | Pbintcomp(bi, Cge) -> print_boxed_integer ">=" ppf bi alloc_heap
+  | Punboxed_int_comp(bi, Ceq) -> print_unboxed_integer "==" ppf bi alloc_heap
+  | Punboxed_int_comp(bi, Cne) -> print_unboxed_integer "!=" ppf bi alloc_heap
+  | Punboxed_int_comp(bi, Clt) -> print_unboxed_integer "<" ppf bi alloc_heap
+  | Punboxed_int_comp(bi, Cgt) -> print_unboxed_integer ">" ppf bi alloc_heap
+  | Punboxed_int_comp(bi, Cle) -> print_unboxed_integer "<=" ppf bi alloc_heap
+  | Punboxed_int_comp(bi, Cge) -> print_unboxed_integer ">=" ppf bi alloc_heap
   | Pbigarrayref(unsafe, _n, kind, layout) ->
       Printlambda.print_bigarray "get" unsafe kind ppf layout
   | Pbigarrayset(unsafe, _n, kind, layout) ->
@@ -297,8 +374,9 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Patomic_fetch_add -> fprintf ppf "atomic_fetch_add"
   | Popaque -> fprintf ppf "opaque"
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
-  | Pbox_float m -> fprintf ppf "box_float.%s" (alloc_kind m)
-  | Punbox_float -> fprintf ppf "unbox_float"
+  | Pbox_float (bf,m) ->
+      fprintf ppf "box_%s.%s" (boxed_float_name bf) (alloc_kind m)
+  | Punbox_float bf -> fprintf ppf "unbox_%s" (boxed_float_name bf)
   | Pbox_int (bi, m) ->
     fprintf ppf "box_%s.%s" (boxed_integer_name bi) (alloc_kind m)
   | Punbox_int bi -> fprintf ppf "unbox_%s" (boxed_integer_name bi)

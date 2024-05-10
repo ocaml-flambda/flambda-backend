@@ -178,6 +178,7 @@ static void do_compaction (intnat new_allocation_policy)
 
         while (Is_gray_hd (q)) q = * dptr (q);
         wosz = Wosize_hd (q);
+        mlsize_t  scannable_wosz = Scannable_wosize_hd (q);
         if (Is_white_hd (q)){
           t = Tag_hd (q);
           CAMLassert (t != Infix_tag);
@@ -188,7 +189,7 @@ static void do_compaction (intnat new_allocation_policy)
             }else{
               first_field = 0;
             }
-            for (i = first_field; i < wosz; i++){
+            for (i = first_field; i < scannable_wosz; i++){
               invert_pointer_at ((word *) &Field (v,i));
             }
           }

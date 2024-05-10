@@ -1,12 +1,13 @@
 (* TEST
-   include ocamlcommon
-   flags = "-I ${ocamlsrcdir}/parsing"
+ include ocamlcommon;
+ flags = "-I ${ocamlsrcdir}/parsing";
 *)
 
 (******************************************************************************)
 (* Setup *)
 
-let () = Language_extension.enable_maximal ();;
+let () = Language_extension.set_universe_and_enable_all
+  Language_extension.Universe.maximal;;
 
 module Example = struct
   open Parsetree
@@ -16,6 +17,23 @@ module Example = struct
     let located =  Location.mknoloc
     let parse p str = p (Lexing.from_string str)
   end
+
+  let modality_record  = parse module_expr
+    "struct \
+      type t = {global_ x : string; global_ y : int} \
+     end"
+  let modality_cstrarg = parse module_expr
+    "struct \
+      type t = Foo of global_ string * global_ string \
+      type u = Foo : global_ string * global_ string -> u \
+     end"
+
+  let modality_val  = parse module_type
+    "sig \
+      val t : string -> string @ local @@ foo bar \
+     end"
+
+  let local_exp = parse expression "let x = foo (local_ x) in local_ y"
 
   let longident        = parse longident "No.Longidents.Require.extensions"
   let expression       = parse expression "[x for x = 1 to 10]"
@@ -123,6 +141,12 @@ end = struct
     Test.setup ()
   ;;
 
+  let modality_record = test "modality_record" module_expr Example.modality_record
+  let modality_cstrarg = test "modality_cstrarg" module_expr Example.modality_cstrarg
+  let modality_val = test "modality_val" module_type Example.modality_val
+
+  let local_exp = test "local_exp" expression Example.local_exp
+
   let longident = test "longident" longident Example.longident
   let expression = test "expression" expression Example.expression
   let pattern = test "pattern" pattern Example.pattern
@@ -159,7 +183,8 @@ module _ =
   Print_all
     (struct
       let name = "All extensions enabled"
-      let setup () = Language_extension.enable_maximal ()
+      let setup () = Language_extension.set_universe_and_enable_all
+        Language_extension.Universe.maximal
     end)
     ()
 ;;
@@ -171,7 +196,7 @@ module _ =
   Print_all
     (struct
       let name = "Extensions disallowed"
-      let setup () = Language_extension.disallow_extensions ()
+      let setup () = Language_extension.set_universe_and_enable_all No_extensions
     end)
     ()
 ;;

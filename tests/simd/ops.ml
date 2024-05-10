@@ -464,6 +464,7 @@ module Int32s = struct
 
     external max_unsigned : t -> t -> t = "caml_vec128_unreachable" "uint32_max" [@@noalloc] [@@unboxed]
     external min_unsigned : t -> t -> t = "caml_vec128_unreachable" "uint32_min" [@@noalloc] [@@unboxed]
+    external mul_low : t -> t -> t = "caml_vec128_unreachable" "int32_mul_low" [@@noalloc] [@@unboxed]
 
     external cvt_si16 : (t [@unboxed]) -> (int [@untagged]) = "caml_vec128_unreachable" "int32_si16" [@@noalloc]
     external cvt_su16 : (t [@unboxed]) -> (int [@untagged]) = "caml_vec128_unreachable" "int32_su16" [@@noalloc]
@@ -544,6 +545,15 @@ module Int16 = struct
 
     external logand : t -> t -> t = "caml_vec128_unreachable" "int16_logand"
         [@@noalloc] [@@untagged]
+
+    external mul_high : t -> t -> t = "caml_vec128_unreachable" "int16_mul_high"
+        [@@noalloc] [@@untagged]
+    external mul_high_unsigned : t -> t -> t = "caml_vec128_unreachable" "int16_mul_high_unsigned"
+        [@@noalloc] [@@untagged]
+    external mul_low : t -> t -> t = "caml_vec128_unreachable" "int16_mul_low"
+        [@@noalloc] [@@untagged]
+    external mul_i32 : (t[@untagged]) -> (t[@untagged]) -> (int32[@unboxed]) = "caml_vec128_unreachable" "int16_mul_i32"
+        [@@noalloc]
 
     external cvtsx_i32 : (t [@untagged]) -> (int32 [@unboxed]) = "caml_vec128_unreachable" "int16_sxi32" [@@noalloc]
     external cvtzx_i32 : (t [@untagged]) -> (int32 [@unboxed]) = "caml_vec128_unreachable" "int16_zxi32" [@@noalloc]
@@ -629,6 +639,8 @@ module Int8 = struct
     external cmpeq : t -> t -> t = "caml_vec128_unreachable" "int8_cmpeq"
         [@@noalloc] [@@untagged]
     external cmpgt : t -> t -> t = "caml_vec128_unreachable" "int8_cmpgt"
+        [@@noalloc] [@@untagged]
+    external mulu_i16 : t -> t -> t = "caml_vec128_unreachable" "int8_mulu_i16"
         [@@noalloc] [@@untagged]
 
     external avgu : t -> t -> t = "caml_vec128_unreachable" "int8_avgu"
@@ -821,6 +833,7 @@ module Float32x4 = struct
         [@@noalloc] [@@unboxed] [@@builtin]
 
     let () =
+      Test_helpers.run_if_not_under_rosetta2 ~f:(fun () ->
         Float32.check_floats (fun f0 f1 ->
             failmsg := (fun () -> Printf.printf "%f | %f\n%!" (Int32.float_of_bits f0) (Int32.float_of_bits f1));
             let fv0 = Float32.to_float32x4 f0 f0 f1 f1 in
@@ -848,6 +861,7 @@ module Float32x4 = struct
             eq (float32x4_low_int64 result) (float32x4_high_int64 result)
                (float32x4_low_int64 expect) (float32x4_high_int64 expect)
         );
+      )
     ;;
 
     external dp : (int [@untagged]) -> (t [@unboxed]) -> (t [@unboxed]) -> (t [@unboxed]) = "caml_vec128_unreachable" "caml_sse41_float32x4_dp"
@@ -1024,6 +1038,7 @@ module Float64x2 = struct
         [@@noalloc] [@@unboxed] [@@builtin]
 
     let () =
+      Test_helpers.run_if_not_under_rosetta2 ~f:(fun () ->
         Float64.check_floats (fun f0 f1 ->
             failmsg := (fun () -> Printf.printf "%f | %f\n%!" f0 f1);
             let fv0 = to_float64x2 f0 f0 in
@@ -1051,6 +1066,7 @@ module Float64x2 = struct
             eq (float64x2_low_int64 result) (float64x2_high_int64 result)
                (float64x2_low_int64 expect) (float64x2_high_int64 expect)
         );
+      )
     ;;
 
     external dp : (int [@untagged]) -> (t [@unboxed]) -> (t [@unboxed]) -> (t [@unboxed]) = "caml_vec128_unreachable" "caml_sse41_float64x2_dp"
@@ -1279,6 +1295,9 @@ module Int32x4 = struct
     external cvt_su16 : t -> t -> int16x8 = "caml_vec128_unreachable" "caml_sse2_cvt_int32x4_int16x8_saturating_unsigned"
         [@@noalloc] [@@unboxed] [@@builtin]
 
+    external mul_low : t -> t -> t = "caml_vec128_unreachable" "caml_sse41_int32x4_mul_low"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
     let check_binop scalar vector i0 i1 =
         failmsg := (fun () -> Printf.printf "%08lx | %08lx\n%!" i0 i1);
         let r0 = scalar i0 i1 in
@@ -1299,6 +1318,7 @@ module Int32x4 = struct
         Int32s.check_ints (check_binop Int32.min min);
         Int32s.check_ints (check_binop Int32s.max_unsigned max_unsigned);
         Int32s.check_ints (check_binop Int32s.min_unsigned min_unsigned);
+        Int32s.check_ints (check_binop Int32s.mul_low mul_low);
         Int32s.check_ints (fun l r ->
             failmsg := (fun () -> Printf.printf "%08lx << %08lx\n%!" l r);
             let v = Int32s.of_int32s l r l r in
@@ -1590,6 +1610,18 @@ module Int16x8 = struct
     external minposu : t -> t = "caml_vec128_unreachable" "caml_sse41_int16x8_minpos_unsigned"
         [@@noalloc] [@@unboxed] [@@builtin]
 
+    external mul_high : t -> t -> t = "caml_vec128_unreachable" "caml_sse2_int16x8_mul_high"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external mul_high_unsigned : t -> t -> t = "caml_vec128_unreachable" "caml_sse2_int16x8_mul_high_unsigned"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external mul_low : t -> t -> t = "caml_vec128_unreachable" "caml_sse2_int16x8_mul_low"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external mul_hadd_i32 : t -> t -> int32x4 = "caml_vec128_unreachable" "caml_sse2_int16x8_mul_hadd_int32x4"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
     let check_binop scalar vector i0 i1 =
         failmsg := (fun () -> Printf.printf "%04x | %04x\n%!" i0 i1);
         let r0 = scalar i0 i1 in
@@ -1614,6 +1646,9 @@ module Int16x8 = struct
         Int16.check_ints (check_binop Int16.minu minu);
         Int16.check_ints (check_binop Int16.cmpeq cmpeq);
         Int16.check_ints (check_binop Int16.cmpgt cmpgt);
+        Int16.check_ints (check_binop Int16.mul_high mul_high);
+        Int16.check_ints (check_binop Int16.mul_high_unsigned mul_high_unsigned);
+        Int16.check_ints (check_binop Int16.mul_low mul_low);
         Int16.check_ints (fun l r ->
             failmsg := (fun () -> Printf.printf "%04x|%04x cvt_sx_i64\n%!" l r);
             let v = Int16.of_ints l r 0 0 0 0 0 0 in
@@ -1747,6 +1782,16 @@ module Int16x8 = struct
             let expect = Int64.(logor (shift_left (of_int idx |> logand 0x3L) 16) (of_int min_v |> logand 0xffffL)) in
             eq (int16x8_low_int64 result) (int16x8_high_int64 result)
             expect 0L
+        );
+        Int16.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%04x|%04x mul_hadd_i32\n%!" l r);
+            let v0 = Int16.of_ints l l r r l l r r in
+            let v1 = Int16.of_ints r r l l r r l l in
+            let result = mul_hadd_i32 v0 v1 in
+            let sum = Int32.add (Int16.mul_i32 l r) (Int16.mul_i32 l r) in
+            let expect = Int32s.of_int32s sum sum sum sum in
+            eq (int32x4_low_int64 result) (int32x4_high_int64 result)
+            (int32x4_low_int64 expect) (int32x4_high_int64 expect)
         );
     ;;
 
@@ -1953,6 +1998,9 @@ module Int8x16 = struct
     external msadu : (int [@untagged]) -> (t [@unboxed]) -> (t [@unboxed]) -> (int16x8 [@unboxed])  = "caml_vec128_unreachable" "caml_sse41_int8x16_multi_sad_unsigned"
         [@@noalloc] [@@builtin]
 
+    external mul_unsigned_hadd_saturating_i16 : t -> t -> int16x8 = "caml_vec128_unreachable" "caml_ssse3_int8x16_mul_unsigned_hadd_saturating_int16x8"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
     let check_binop scalar vector i0 i1 =
         failmsg := (fun () -> Printf.printf "%02x | %02x\n%!" i0 i1);
         let r0 = scalar i0 i1 in
@@ -2083,6 +2131,17 @@ module Int8x16 = struct
             let lr = 2 * Int8.diffu l r in
             let expect = Int16.of_ints lr lr lr lr lr lr lr lr in
             eq (int16x8_low_int64 result) (int16x8_low_int64 result)
+            (int16x8_low_int64 expect) (int16x8_high_int64 expect)
+        );
+        Int16.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%04x|%04x mul_unsigned_hadd_saturating_i16\n%!" l r);
+            let v0 = Int8.of_ints l l  r r  l l  r r in
+            let v1 = Int8.of_ints l r  l r  l r  l r in
+            let result = mul_unsigned_hadd_saturating_i16 v0 v1 in
+            let sum0 = Int16.adds (Int8.mulu_i16 l l) (Int8.mulu_i16 l r) in
+            let sum1 = Int16.adds (Int8.mulu_i16 r l) (Int8.mulu_i16 r r) in
+            let expect = Int16.of_ints sum0 sum1 sum0 sum1 sum0 sum1 sum0 sum1  in
+            eq (int16x8_low_int64 result) (int16x8_high_int64 result)
             (int16x8_low_int64 expect) (int16x8_high_int64 expect)
         );
     ;;

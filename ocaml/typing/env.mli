@@ -16,12 +16,8 @@
 (* Environment handling *)
 
 open Types
+open Mode
 open Misc
-
-val register_uid : Uid.t -> loc:Location.t -> attributes:Parsetree.attribute list -> unit
-
-val get_uid_to_loc_tbl : unit -> Location.t Types.Uid.Tbl.t
-val get_uid_to_attributes_tbl : unit ->  Parsetree.attribute list Types.Uid.Tbl.t
 
 type value_unbound_reason =
   | Val_unbound_instance_variable
@@ -34,7 +30,7 @@ type module_unbound_reason =
 
 type summary =
     Env_empty
-  | Env_value of summary * Ident.t * value_description * Mode.Value.t
+  | Env_value of summary * Ident.t * value_description * Mode.Value.l
   | Env_type of summary * Ident.t * type_declaration
   | Env_extension of summary * Ident.t * extension_constructor
   | Env_module of summary * Ident.t * module_presence * module_declaration
@@ -198,10 +194,6 @@ type shared_context =
   | Probe
   | Lazy
 
-type closure_error =
-  | Locality of closure_context option
-  | Linearity
-
 type lookup_error =
   | Unbound_value of Longident.t * unbound_value_hint
   | Unbound_type of Longident.t
@@ -225,7 +217,7 @@ type lookup_error =
   | Cannot_scrape_alias of Longident.t * Path.t
   | Local_value_escaping of Longident.t * escaping_context
   | Once_value_used_in of Longident.t * shared_context
-  | Value_used_in_closure of Longident.t * closure_error
+  | Value_used_in_closure of Longident.t * Mode.Value.Comonadic.error * closure_context option
   | Local_value_used_in_exclave of Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
 
@@ -252,7 +244,7 @@ val lookup_error: Location.t -> t -> lookup_error -> 'a
     hints are immediately available. *)
 val lookup_value:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
-  Path.t * value_description * Mode.Value.t * shared_context option
+  Path.t * value_description * Mode.Value.l * shared_context option
 val lookup_type:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * type_declaration
@@ -347,14 +339,16 @@ val make_copy_of_types: t -> (t -> t)
 (* Insertion by identifier *)
 
 val add_value_lazy:
-    ?check:(string -> Warnings.t) -> ?mode:(Mode.Value.t) ->
+    ?check:(string -> Warnings.t) -> ?mode:((allowed * 'r) Mode.Value.t) ->
     Ident.t -> Subst.Lazy.value_description -> t -> t
 val add_value:
-    ?check:(string -> Warnings.t) -> ?mode:(Mode.Value.t) ->
+    ?check:(string -> Warnings.t) -> ?mode:((allowed * 'r) Mode.Value.t) ->
     Ident.t -> Types.value_description -> t -> t
-val add_type: check:bool -> Ident.t -> type_declaration -> t -> t
+val add_type:
+    check:bool -> ?shape:Shape.t -> Ident.t -> type_declaration -> t -> t
 val add_extension:
-  check:bool -> rebind:bool -> Ident.t -> extension_constructor -> t -> t
+  check:bool -> ?shape:Shape.t -> rebind:bool -> Ident.t ->
+  extension_constructor -> t -> t
 val add_module: ?arg:bool -> ?shape:Shape.t ->
   Ident.t -> module_presence -> module_type -> t -> t
 val add_module_lazy: update_summary:bool ->
@@ -451,8 +445,8 @@ val add_escape_lock : escaping_context -> t -> t
     `unique` variables beyond the lock can still be accessed, but will be
     relaxed to `shared` *)
 val add_share_lock : shared_context -> t -> t
-val add_closure_lock : ?closure_context:closure_context -> Mode.Locality.t
-  -> Mode.Linearity.t -> t -> t
+val add_closure_lock : ?closure_context:closure_context
+  -> ('l_ * allowed) Mode.Value.Comonadic.t -> t -> t
 val add_region_lock : t -> t
 val add_exclave_lock : t -> t
 val add_unboxed_lock : t -> t
@@ -474,15 +468,14 @@ val read_signature:
            Results: signature. If [add_binding] is true, creates an entry for
            the module in the environment. *)
 val save_signature:
-  alerts:alerts -> signature -> Compilation_unit.t -> filepath
-  -> Cmi_format.cmi_infos_lazy
-        (* Arguments: signature, module name, file name. *)
+  alerts:alerts -> signature -> Compilation_unit.t -> Cmi_format.kind
+  -> filepath -> Cmi_format.cmi_infos_lazy
+        (* Arguments: signature, module name, module kind, file name. *)
 val save_signature_with_imports:
-  alerts:alerts -> signature -> Compilation_unit.t -> filepath
-  -> Import_info.t array
-  -> Cmi_format.cmi_infos_lazy
-        (* Arguments: signature, module name, file name,
-           imported units with their CRCs. *)
+  alerts:alerts -> signature -> Compilation_unit.t -> Cmi_format.kind
+  -> filepath -> Import_info.t array -> Cmi_format.cmi_infos_lazy
+        (* Arguments: signature, module name, module kind,
+           file name, imported units with their CRCs. *)
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: Compilation_unit.Name.t -> Digest.t
@@ -498,6 +491,10 @@ val is_imported_opaque: Compilation_unit.Name.t -> bool
 
 (* [register_import_as_opaque md] registers [md] as an opaque imported module *)
 val register_import_as_opaque: Compilation_unit.Name.t -> unit
+
+(* [is_parameter_unit md] returns true if [md] was compiled with
+   -as-parameter *)
+val is_parameter_unit: Compilation_unit.Name.t -> bool
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)

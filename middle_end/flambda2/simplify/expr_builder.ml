@@ -536,8 +536,8 @@ let create_let_symbols uacc lifted_constant ~body =
                   Values { tag = Unknown; size = Unknown; field_kind }
                 | Naked_number Naked_float -> Naked_floats { size = Unknown }
                 | Naked_number
-                    ( Naked_immediate | Naked_nativeint | Naked_int32
-                    | Naked_vec128 | Naked_int64 )
+                    ( Naked_float32 | Naked_immediate | Naked_nativeint
+                    | Naked_int32 | Naked_vec128 | Naked_int64 )
                 | Region | Rec_info ->
                   Misc.fatal_errorf
                     "Unexpected kind %a for symbol projection: %a"
@@ -546,8 +546,7 @@ let create_let_symbols uacc lifted_constant ~body =
               in
               Binary (Block_load (block_access_kind, Immutable), symbol, index)
             | Project_value_slot { project_from; value_slot } ->
-              Unary
-                (Project_value_slot { project_from; value_slot; kind }, symbol)
+              Unary (Project_value_slot { project_from; value_slot }, symbol)
           in
           ( Named.create_prim prim Debuginfo.none,
             coercion_from_proj_to_var,
@@ -831,9 +830,14 @@ let rewrite_fixed_arity_apply uacc ~use_id arity apply =
     in
     uacc, RE.create_apply (UA.are_rebuilding_terms uacc) apply
   in
-  match Apply.continuation apply with
-  | Never_returns -> make_apply apply
-  | Return cont ->
+  match use_id, Apply.continuation apply with
+  | _, Never_returns -> make_apply apply
+  | None, Return _ ->
+    Misc.fatal_errorf
+      "Expr_builder.rewrite_fixed_arity_apply: got no use_id for the return \
+       continuation but the apply could return:@ %a@."
+      Apply.print apply
+  | Some use_id, Return cont ->
     rewrite_fixed_arity_continuation uacc cont ~use_id arity
       ~around:(fun uacc return_cont ->
         let exn_cont =

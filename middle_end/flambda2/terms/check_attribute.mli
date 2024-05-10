@@ -16,11 +16,11 @@ end
 
 type t =
   | Default_check
-  | Ignore_assert_all of Property.t
   | Assume of
       { property : Property.t;
         strict : bool;
         never_returns_normally : bool;
+        never_raises : bool;
         loc : Location.t
       }
   | Check of
@@ -35,4 +35,4 @@ val equal : t -> t -> bool
 
 val is_default : t -> bool
 
-val from_lambda : Lambda.check_attribute -> t
+val from_lambda : Lambda.check_attribute -> Location.t -> t

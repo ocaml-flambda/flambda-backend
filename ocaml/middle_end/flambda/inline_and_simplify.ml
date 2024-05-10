@@ -1118,6 +1118,8 @@ and simplify_named env r (tree : Flambda.named) : Flambda.named * R.t =
               Misc.fatal_errorf "Assignment of a float to a specialised \
                                  non-float array: %a"
                 Flambda.print_named tree
+            | Punboxedfloatarray_set _ | Punboxedintarray_set _ ->
+              Misc.fatal_errorf "Unboxed arrays not supported"
           in
           match A.descr block_approx, A.descr value_approx with
           | (Value_float_array _, _) -> check (); Lambda.Pfloatarray_set

@@ -12,7 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* This module is named Jkind, with a 'y', to distinguish jkinds
+(* This module is named Jkind, with a 'j', to distinguish jkinds
    as used here from type kinds (which might be abstract or record or variant,
    etc.). This is clearly far from ideal, but the current scheme has these
    positives:
@@ -31,6 +31,25 @@
    * It is very easy to search for and replace when we have a better name.
 *)
 
+(* The externality mode. This tracks whether or not an expression is external
+   to the type checker; something external to the type checker can be skipped
+   during garbage collection.
+
+   This will eventually be incorporated into the mode
+   solver, but it is defined here because we do not yet track externalities
+   on expressions, just in jkinds. *)
+(* CR externals: Move to mode.ml. But see
+   https://github.com/goldfirere/flambda-backend/commit/d802597fbdaaa850e1ed9209a1305c5dcdf71e17
+   first, which was reisenberg's attempt to do so. *)
+module Externality : sig
+  type t =
+    | External (* not managed by the garbage collector *)
+    | External64 (* not managed by the garbage collector on 64-bit systems *)
+    | Internal (* managed by the garbage collector *)
+
+  val le : t -> t -> bool
+end
+
 module Sort : sig
   (** A sort classifies how a type is represented at runtime. Every concrete
       jkind has a sort, and knowing the sort is sufficient for knowing the
@@ -42,6 +61,9 @@ module Sort : sig
     | Void  (** No run time representation at all *)
     | Value  (** Standard ocaml value representation *)
     | Float64  (** Unboxed 64-bit floats *)
+    | Word  (** Unboxed native-size integers *)
+    | Bits32  (** Unboxed 32-bit integers *)
+    | Bits64  (** Unboxed 64-bit integers *)
 
   (** A sort variable that can be unified during type-checking. *)
   type var
@@ -59,6 +81,12 @@ module Sort : sig
 
   val float64 : t
 
+  val word : t
+
+  val bits32 : t
+
+  val bits64 : t
+
   (** These names are generated lazily and only when this function is called,
       and are not guaranteed to be efficient to create *)
   val var_name : var -> string
@@ -70,6 +98,8 @@ module Sort : sig
   val equal_const : const -> const -> bool
 
   val format : Format.formatter -> t -> unit
+
+  val format_const : Format.formatter -> const -> unit
 
   (** Defaults any variables to value; leaves other sorts alone *)
   val default_to_value : t -> unit
@@ -110,15 +140,15 @@ module Sort : sig
 
   val for_tuple_element : t
 
-  val for_record : t
+  val for_variant_arg : t
 
-  val for_constructor_arg : t
+  val for_record : t
 
   val for_block_element : t
 
   val for_array_get_result : t
 
-  val for_array_element : t
+  val for_array_comprehension_element : t
 
   val for_list_element : t
 
@@ -146,19 +176,19 @@ end
 
 type sort = Sort.t
 
-(* This module describes jkinds, which classify types. Jkinds are arranged
-   in the following lattice:
-
-   {[
-               any
-             /    \
-          value  void
-            |
-        immediate64
-            |
-        immediate
-   ]}
-*)
+(** The layout of a type describes its memory layout. A layout is either the
+    indeterminate [Any], a sort, which is a concrete memory layout, or
+    [Non_null_value], which is a sublayout of the sort [Value] describing types
+    that do not allow the concrete value null. [Non_null_value] is also the
+    layout of "classical" OCaml values used by the upstream compiler. *)
+module Layout : sig
+  module Const : sig
+    type t =
+      | Sort of Sort.const
+      | Any
+      | Non_null_value
+  end
+end
 
 (** A Jkind.t is a full description of the runtime representation of values
     of a given type. It includes sorts, but also the abstract top jkind
@@ -172,33 +202,36 @@ type concrete_jkind_reason =
   | Match
   | Constructor_declaration of int
   | Label_declaration of Ident.t
-  | Unannotated_type_parameter
+  | Unannotated_type_parameter of Path.t
   | Record_projection
   | Record_assignment
   | Let_binding
   | Function_argument
   | Function_result
   | Structure_item_expression
-  | V1_safety_check
   | External_argument
   | External_result
   | Statement
+  | Wildcard
+  | Unification_var
+  | Optional_arg_default
+  | Layout_poly_in_external
+  | Array_element
 
 type annotation_context =
   | Type_declaration of Path.t
   | Type_parameter of Path.t * string option
-  | With_constraint of string
   | Newtype_declaration of string
   | Constructor_type_parameter of Path.t * string
   | Univar of string
   | Type_variable of string
   | Type_wildcard of Location.t
+  | With_error_message of string * annotation_context
 
 type value_creation_reason =
   | Class_let_binding
   | Tuple_element
   | Probe
-  | Package_hack
   | Object
   | Instance_variable
   | Object_field
@@ -207,7 +240,12 @@ type value_creation_reason =
   | Boxed_variant
   | Extensible_variant
   | Primitive of Ident.t
-  | Type_argument (* CR layouts: Should this take a Path.t? *)
+  | Type_argument of
+      { parent_path : Path.t;
+        position : int;
+        arity : int
+      }
+  (* [position] is 1-indexed *)
   | Tuple
   | Row_variable
   | Polymorphic_variant
@@ -219,11 +257,11 @@ type value_creation_reason =
   | Univar
   | Polymorphic_variant_field
   | Default_type_jkind
-  | Float_record_field
   | Existential_type_variable
-  | Array_element
+  | Array_comprehension_element
   | Lazy_expression
-  | Class_argument
+  | Class_type_argument
+  | Class_term_argument
   | Structure_element
   | Debug_printer_argument
   | V1_safety_check
@@ -236,39 +274,54 @@ type immediate_creation_reason =
   | Enumeration
   | Primitive of Ident.t
   | Immediate_polymorphic_variant
-  | Gc_ignorable_check
-  | Value_kind
 
-type immediate64_creation_reason =
-  | Local_mode_cross_check
-  | Gc_ignorable_check
-  | Separability_check
+type immediate64_creation_reason = Separability_check
 
-type void_creation_reason = V1_safety_check
+(* CR layouts v5: make new void_creation_reasons *)
+type void_creation_reason = |
 
 type any_creation_reason =
   | Missing_cmi of Path.t
-  | Wildcard
-  | Unification_var
   | Initial_typedecl_env
   | Dummy_jkind
     (* This is used when the jkind is about to get overwritten;
        key example: when creating a fresh tyvar that is immediately
        unified to correct levels *)
   | Type_expression_call
+  | Inside_of_Tarrow
+  | Wildcard
+  | Unification_var
+  | Array_type_argument
 
 type float64_creation_reason = Primitive of Ident.t
 
+type word_creation_reason = Primitive of Ident.t
+
+type bits32_creation_reason = Primitive of Ident.t
+
+type bits64_creation_reason = Primitive of Ident.t
+
 type creation_reason =
   | Annotated of annotation_context * Location.t
+  | Missing_cmi of Path.t
   | Value_creation of value_creation_reason
   | Immediate_creation of immediate_creation_reason
   | Immediate64_creation of immediate64_creation_reason
   | Void_creation of void_creation_reason
   | Any_creation of any_creation_reason
   | Float64_creation of float64_creation_reason
+  | Word_creation of word_creation_reason
+  | Bits32_creation of bits32_creation_reason
+  | Bits64_creation of bits64_creation_reason
   | Concrete_creation of concrete_jkind_reason
   | Imported
+  | Imported_type_argument of
+      { parent_path : Path.t;
+        position : int;
+        arity : int
+      }
+  (* [position] is 1-indexed *)
+  | Generalized of Ident.t option * Location.t
 
 type interact_reason =
   | Gadt_equation of Path.t
@@ -283,10 +336,9 @@ module Violation : sig
 
   type t
 
-  val of_ : violation -> t
+  (** Set [?missing_cmi] to mark [t] as having arisen from a missing cmi *)
 
-  (** Mark a [t] as having arisen from a missing cmi *)
-  val record_missing_cmi : missing_cmi_for:Path.t -> t -> t
+  val of_ : ?missing_cmi:Path.t -> violation -> t
 
   (** Is this error from a missing cmi? *)
   val is_missing_cmi : t -> bool
@@ -327,6 +379,10 @@ type const =
   | Immediate64
   | Immediate
   | Float64
+  | Word
+  | Bits32
+  | Bits64
+  | Non_null_value
 
 val const_of_user_written_annotation :
   context:annotation_context -> Jane_asttypes.jkind_annotation -> const
@@ -355,6 +411,15 @@ val immediate : why:immediate_creation_reason -> t
 
 (** This is the jkind of unboxed 64-bit floats.  They have sort Float64. *)
 val float64 : why:float64_creation_reason -> t
+
+(** This is the jkind of unboxed native-sized integers. They have sort Word. *)
+val word : why:word_creation_reason -> t
+
+(** This is the jkind of unboxed 32-bit integers. They have sort Bits32. *)
+val bits32 : why:bits32_creation_reason -> t
+
+(** This is the jkind of unboxed 64-bit integers. They have sort Bits64. *)
+val bits64 : why:bits64_creation_reason -> t
 
 (******************************)
 (* construction *)
@@ -448,6 +513,16 @@ val is_void_defaulting : t -> bool
     jkinds - raises on Any. *)
 val sort_of_jkind : t -> sort
 
+(** Gets the layout of a jkind; returns [None] if the layout is still unknown.
+    Never does mutation. *)
+val get_layout : t -> Layout.Const.t option
+
+(** Gets the maximum modes for types of this jkind. *)
+val get_modal_upper_bounds : t -> Mode.Alloc.Const.t
+
+(** Gets the maximum mode on the externality axis for types of this jkind. *)
+val get_externality_upper_bound : t -> Externality.t
+
 (*********************************)
 (* pretty printing *)
 
@@ -466,6 +541,13 @@ val format_history :
 (** Provides the [Printtyp.path] formatter back up the dependency chain to
     this module. *)
 val set_printtyp_path : (Format.formatter -> Path.t -> unit) -> unit
+
+(******************************)
+(* history *)
+
+val has_imported_history : t -> bool
+
+val update_reason : t -> creation_reason -> t
 
 (******************************)
 (* relations *)
@@ -491,14 +573,13 @@ val equal : t -> t -> bool
     intersection of the two, not something that modifies the second jkind. *)
 val intersection : reason:interact_reason -> t -> t -> (t, Violation.t) Result.t
 
-(** [sub t1 t2] returns [Ok ()] iff [t1] is a subjkind of
-  of [t2].  The current hierarchy is:
+(** [sub t1 t2] says whether [t1] is a subjkind of [t2]. Might update
+    either [t1] or [t2] to make their layouts equal.*)
+val sub : t -> t -> bool
 
-  Any > Sort Value > Immediate64 > Immediate
-  Any > Sort Void
-
-  Returns [Error _] if the coercion is not possible. *)
-val sub : t -> t -> (unit, Violation.t) result
+(** [sub_or_error t1 t2] returns [Ok ()] iff [t1] is a subjkind of
+  of [t2]. Otherwise returns an appropriate error to report to the user. *)
+val sub_or_error : t -> t -> (unit, Violation.t) result
 
 (** Like [sub], but returns the subjkind with an updated history. *)
 val sub_with_history : t -> t -> (t, Violation.t) result

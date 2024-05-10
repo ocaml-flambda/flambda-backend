@@ -69,6 +69,13 @@ type basic_block =
            trap stack. *)
   }
 
+(* Subset of Cmm.codegen_option. *)
+type codegen_option =
+  | Reduce_code_size
+  | No_CSE
+
+val of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list
+
 (** Control Flow Graph of a function. *)
 type t = private
   { blocks : basic_block Label.Tbl.t;  (** Map from labels to blocks *)
@@ -77,10 +84,11 @@ type t = private
         (** Function arguments. When Cfg is constructed from Linear, this
             information is not needed (Linear.fundecl does not have fun_args
             field) and [fun_args] is an empty array as a dummy value. *)
+    fun_codegen_options : codegen_option list;
+        (** Code generation options passed from Cmm. *)
     fun_dbg : Debuginfo.t;  (** Dwarf debug info for function entry. *)
     entry_label : Label.t;
         (** This label must be the first in all layouts of this cfg. *)
-    fun_fast : bool;  (** Precomputed based on cmmgen information. *)
     fun_contains_calls : bool;  (** Precomputed at selection time. *)
     fun_num_stack_slots : int array
         (** Precomputed at register allocation time *)
@@ -89,8 +97,8 @@ type t = private
 val create :
   fun_name:string ->
   fun_args:Reg.t array ->
+  fun_codegen_options:codegen_option list ->
   fun_dbg:Debuginfo.t ->
-  fun_fast:bool ->
   fun_contains_calls:bool ->
   fun_num_stack_slots:int array ->
   t
@@ -114,6 +122,8 @@ val replace_successor_labels :
 val can_raise_interproc : basic_block -> bool
 
 val first_instruction_id : basic_block -> int
+
+val first_instruction_stack_offset : basic_block -> int
 
 val mem_block : t -> Label.t -> bool
 
@@ -154,14 +164,10 @@ val print_instruction :
    exception handling. It has a lot of redundancy and the result of the
    computation is not used.
 
-   Redundancy: linear_to_cfg reconstructs intraprocedural exception handling
-   stacks from linear IR and annotates each block with this information.
-   However, CFG instructions still include the original push/poptraps from
-   Linear.
-
-   To remove these push/poptraps from CFG IR, we need to split blocks at every
-   push/poptrap. Then, we can annotate the blocks with the top of the trap
-   stack, instead of carrying the copy of the stack. *)
+   CFG instructions still include push/poptraps. To remove these push/poptraps
+   from CFG IR, we need to split blocks at every push/poptrap. Then, we can
+   annotate the blocks with the top of the trap stack, instead of carrying the
+   copy of the stack. *)
 
 (* CR-someday gyorsh: store label after separately and update after
    reordering. *)
@@ -181,3 +187,19 @@ val string_of_irc_work_list : irc_work_list -> string
 val dump_basic : Format.formatter -> basic -> unit
 
 val dump_terminator : ?sep:string -> Format.formatter -> terminator -> unit
+
+val make_instruction :
+  desc:'a ->
+  ?arg:Reg.t array ->
+  ?res:Reg.t array ->
+  ?dbg:Debuginfo.t ->
+  ?fdo:Fdo_info.t ->
+  ?live:Reg.Set.t ->
+  stack_offset:int ->
+  id:int ->
+  ?irc_work_list:irc_work_list ->
+  ?ls_order:int ->
+  ?available_before:Reg_availability_set.t option ->
+  ?available_across:Reg_availability_set.t option ->
+  unit ->
+  'a instruction

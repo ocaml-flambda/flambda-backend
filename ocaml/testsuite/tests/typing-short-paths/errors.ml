@@ -1,6 +1,6 @@
 (* TEST
-   flags = " -short-paths "
-   * expect
+ flags = " -short-paths ";
+ expect;
 *)
 
 module M = struct type t = T end
@@ -86,9 +86,9 @@ Line 1, characters 0-75:
 1 | module rec A : sig type t = B.t -> int end = struct type t = B.t -> int end
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of A.t contains a cycle:
-         B.t -> int contains B.t,
-         B.t = B.t,
-         B.t = B.t -> int,
-         B.t -> int contains B.t,
-         B.t = B.t
+         A.t -> int contains A.t,
+         A.t = A.t,
+         A.t = A.t -> int,
+         A.t -> int contains A.t,
+         A.t = A.t
 |}]

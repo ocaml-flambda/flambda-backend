@@ -1,6 +1,6 @@
 (* TEST
-   flags += "-extension unique"
- * expect
+ flags += "-extension unique";
+ expect;
 *)
 
 (* This file tests the interaction between a module/class and its surrounding environment *)
@@ -19,7 +19,7 @@ val unique_id : unique_ 'a -> unit = <fun>
 Line 8, characters 20-21:
 8 |   val bar = unique_ x
                         ^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
   Hint: This identifier cannot be used uniquely,
   because it is defined in a class.
 |}]
@@ -149,5 +149,5 @@ module M : sig val foo : string end
 Line 7, characters 12-17:
 7 |   unique_id M.foo
                 ^^^^^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
 |}]

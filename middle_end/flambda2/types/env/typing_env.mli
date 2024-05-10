@@ -95,11 +95,18 @@ module Join_env : sig
   val already_joining : t -> Simple.t -> Simple.t -> bool
 end
 
-type meet_type =
+type meet_type_new =
+  t -> Type_grammar.t -> Type_grammar.t -> (Type_grammar.t * t) Or_bottom.t
+
+type meet_type_old =
   Meet_env.t ->
   Type_grammar.t ->
   Type_grammar.t ->
   (Type_grammar.t * Typing_env_extension.t) Or_bottom.t
+
+type meet_type =
+  | New of meet_type_new
+  | Old of meet_type_old
 
 val print : Format.formatter -> t -> unit
 
@@ -107,6 +114,8 @@ val create :
   resolver:(Compilation_unit.t -> Serializable.t option) ->
   get_imported_names:(unit -> Name.Set.t) ->
   t
+
+val is_bottom : t -> bool
 
 val closure_env : t -> t
 
@@ -124,6 +133,9 @@ val add_definition : t -> Bound_name.t -> Flambda_kind.t -> t
 (** The caller is to ensure that the supplied type is the most precise available
     for the given name. *)
 val add_equation : t -> Name.t -> Type_grammar.t -> meet_type:meet_type -> t
+
+val add_equation_strict :
+  t -> Name.t -> Type_grammar.t -> meet_type:meet_type -> t Or_bottom.t
 
 val add_definitions_of_params : t -> params:Bound_parameters.t -> t
 
@@ -163,6 +175,12 @@ val mem_simple : ?min_name_mode:Name_mode.t -> t -> Simple.t -> bool
    then adding equations in the wrong order can make equations disappear. *)
 val add_env_extension : t -> Typing_env_extension.t -> meet_type:meet_type -> t
 
+val add_env_extension_maybe_bottom :
+  t -> Typing_env_extension.t -> meet_type:meet_type -> t
+
+val add_env_extension_strict :
+  t -> Typing_env_extension.t -> meet_type:meet_type -> t Or_bottom.t
+
 val add_env_extension_with_extra_variables :
   t -> Typing_env_extension.With_extra_variables.t -> meet_type:meet_type -> t
 
@@ -201,5 +219,7 @@ val code_age_relation : t -> Code_age_relation.t
 val with_code_age_relation : t -> Code_age_relation.t -> t
 
 val cut : t -> cut_after:Scope.t -> Typing_env_level.t
+
+val cut_as_extension : t -> cut_after:Scope.t -> Typing_env_extension.t
 
 val free_names_transitive : t -> Type_grammar.t -> Name_occurrences.t

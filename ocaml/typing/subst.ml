@@ -101,6 +101,10 @@ let with_additional_action (config : additional_action_config) s =
         let immediate = Jkind.of_const Immediate ~why:reason in
         let immediate64 = Jkind.of_const Immediate64 ~why:reason in
         let float64 = Jkind.of_const Float64 ~why:reason in
+        let word = Jkind.of_const Word ~why:reason in
+        let bits32 = Jkind.of_const Bits32 ~why:reason in
+        let bits64 = Jkind.of_const Bits64 ~why:reason in
+        let non_null_value = Jkind.of_const Non_null_value ~why:reason in
         let prepare_jkind loc lay =
           match Jkind.get lay with
           | Const Any -> any
@@ -109,6 +113,10 @@ let with_additional_action (config : additional_action_config) s =
           | Const Immediate -> immediate
           | Const Immediate64 -> immediate64
           | Const Float64 -> float64
+          | Const Word -> word
+          | Const Bits32 -> bits32
+          | Const Bits64 -> bits64
+          | Const Non_null_value -> non_null_value
           | Var _ -> raise(Error (loc, Unconstrained_jkind_variable))
         in
         Prepare_for_saving prepare_jkind
@@ -427,8 +435,11 @@ let constructor_tag ~prepare_jkind loc = function
 (* called only when additional_action is [Prepare_for_saving] *)
 let variant_representation ~prepare_jkind loc = function
   | Variant_unboxed -> Variant_unboxed
-  | Variant_boxed layss ->
-    Variant_boxed (Array.map (Array.map (prepare_jkind loc)) layss)
+  | Variant_boxed cstrs_and_jkinds  ->
+    Variant_boxed
+      (Array.map
+         (fun (cstr, jkinds) -> cstr, Array.map (prepare_jkind loc) jkinds)
+         cstrs_and_jkinds)
   | Variant_extensible -> Variant_extensible
 
 (* called only when additional_action is [Prepare_for_saving] *)
@@ -439,8 +450,7 @@ let record_representation ~prepare_jkind loc = function
                     variant_representation ~prepare_jkind loc variant_rep)
   | Record_boxed lays ->
       Record_boxed (Array.map (prepare_jkind loc) lays)
-  | Record_float -> Record_float
-  | Record_ufloat -> Record_ufloat
+  | (Record_float | Record_ufloat | Record_mixed _) as rep -> rep
 
 let type_declaration' copy_scope s decl =
   { type_params = List.map (typexp copy_scope s decl.type_loc) decl.type_params;
@@ -568,6 +578,7 @@ let extension_constructor' copy_scope s ext =
           Array.map (prepare_jkind ext.ext_loc) ext.ext_arg_jkinds
       | Duplicate_variables | No_action -> ext.ext_arg_jkinds
     end;
+    ext_shape = ext.ext_shape;
     ext_constant = ext.ext_constant;
     ext_ret_type =
       Option.map (typexp copy_scope s ext.ext_loc) ext.ext_ret_type;
@@ -733,6 +744,7 @@ let rec subst_lazy_value_description s descr =
   { val_type = Wrap.substitute ~compose Keep s descr.val_type;
     val_kind = descr.val_kind;
     val_loc = loc s descr.val_loc;
+    val_zero_alloc = descr.val_zero_alloc;
     val_attributes = attrs s descr.val_attributes;
     val_uid = descr.val_uid;
   }

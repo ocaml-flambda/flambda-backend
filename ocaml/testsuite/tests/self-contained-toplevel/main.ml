@@ -1,21 +1,21 @@
 (* TEST
-readonly_files = "foo.ml gen_cached_cmi.ml input.ml"
-* setup-ocamlc.byte-build-env
-** ocamlc.byte
-module = "foo.ml"
-*** ocaml with ocamlcommon
-ocaml_script_as_argument = "true"
-test_file = "gen_cached_cmi.ml"
-arguments = "cached_cmi.ml"
-**** ocamlc.byte
-module = ""
-program = "${test_build_directory}/main.exe"
-libraries += "ocamlbytecomp ocamltoplevel"
-all_modules = "foo.cmo cached_cmi.ml main.ml"
-***** run
-set OCAMLLIB="${ocamlsrcdir}/stdlib"
-arguments = "input.ml"
-****** check-program-output
+ readonly_files = "foo.ml gen_cached_cmi.ml input.ml";
+ setup-ocamlc.byte-build-env;
+ module = "foo.ml";
+ ocamlc.byte;
+ ocaml_script_as_argument = "true";
+ test_file = "gen_cached_cmi.ml";
+ arguments = "cached_cmi.ml";
+ ocaml with ocamlcommon;
+ module = "";
+ program = "${test_build_directory}/main.exe";
+ libraries += "ocamlbytecomp ocamltoplevel";
+ all_modules = "foo.cmo cached_cmi.ml main.ml";
+ ocamlc.byte;
+ set OCAMLLIB = "${ocamlsrcdir}/stdlib";
+ arguments = "input.ml";
+ run;
+ check-program-output;
 *)
 
 let () =
@@ -26,11 +26,12 @@ let () =
   Persistent_signature.load := (fun ~allow_hidden ~unit_name ->
     match unit_name |> Compilation_unit.Name.to_string with
     | "Foo" ->
-      let {Cmi_format.cmi_name; cmi_sign; cmi_crcs; cmi_flags} =
+      let {Cmi_format.cmi_name; cmi_kind; cmi_sign; cmi_crcs; cmi_flags} =
         Marshal.from_string Cached_cmi.foo 0
       in
       let cmi =
         { Cmi_format.cmi_name;
+          cmi_kind;
           cmi_sign = Subst.Lazy.of_signature cmi_sign;
           cmi_crcs;
           cmi_flags

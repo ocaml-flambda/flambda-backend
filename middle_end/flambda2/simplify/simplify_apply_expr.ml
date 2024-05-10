@@ -88,7 +88,8 @@ let simplify_direct_tuple_application ~simplify_expr dacc apply
     (* The code for the function being applied has exactly as many parameters as
        there are components of the tuple (which is the first element of
        [Apply.args apply]). The components must be of kind [Value] (in Lambda,
-       [layout_field]) and therefore cannot be unboxed products themselves. *)
+       [layout_tuple_element]) and therefore cannot be unboxed products
+       themselves. *)
     Flambda_arity.cardinal_unarized
       (Code_metadata.params_arity callee's_code_metadata)
   in
@@ -179,15 +180,7 @@ let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
    * in *)
   let apply = if erase_callee then Apply.erase_callee apply else apply in
   let uacc, expr =
-    match use_id with
-    | None ->
-      let uacc =
-        UA.add_free_names uacc (Apply.free_names apply)
-        |> UA.notify_added ~code_size:(Code_size.apply apply)
-      in
-      uacc, RE.create_apply (UA.are_rebuilding_terms uacc) apply
-    | Some use_id ->
-      EB.rewrite_fixed_arity_apply uacc ~use_id result_arity apply
+    EB.rewrite_fixed_arity_apply uacc ~use_id result_arity apply
   in
   after_rebuild expr uacc
 
@@ -418,7 +411,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   (* The allocation mode of the closure is directly determined by the alloc_mode
      of the application. We check here that it is consistent with
      [first_complex_local_param]. *)
-  let new_closure_alloc_mode, first_complex_local_param =
+  let new_closure_alloc_mode_and_first_complex_local_param : _ Or_bottom.t =
     if num_non_unarized_args <= first_complex_local_param
     then
       (* At this point, we *have* to allocate the closure on the heap, even if
@@ -433,254 +426,269 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
          partial closure made by the first application. Due to this, the first
          application must have a closure allocated on the heap as well, even
          though it was with a local alloc_mode. *)
-      ( Alloc_mode.For_allocations.heap,
-        first_complex_local_param - num_non_unarized_args )
+      Ok
+        ( Alloc_mode.For_allocations.heap,
+          first_complex_local_param - num_non_unarized_args )
     else
       match (apply_alloc_mode : Alloc_mode.For_allocations.t) with
-      | Heap ->
-        Misc.fatal_errorf
-          "Partial application of %a with wrong mode:@.apply = \
-           %a@callee's_code_metadata = %a@."
-          Code_id.print callee's_code_id Apply.print apply Code_metadata.print
-          callee's_code_metadata
-      | Local _ -> apply_alloc_mode, 0
+      | Heap -> (* This can happen in dead GADT match cases. *) Bottom
+      | Local _ -> Ok (apply_alloc_mode, 0)
   in
-  (match closure_alloc_mode_from_type with
-  | Heap_or_local -> ()
-  | Heap -> ()
-  | Local -> (
-    match (new_closure_alloc_mode : Alloc_mode.For_allocations.t) with
-    | Local _ -> ()
-    | Heap ->
-      Misc.fatal_errorf
-        "New closure alloc mode cannot be [Heap] when existing closure alloc \
-         mode is [Local]: direct partial application:@ %a"
-        Apply.print apply));
-  let result_mode = Code_metadata.result_mode callee's_code_metadata in
-  let wrapper_taking_remaining_args, dacc, code_id, code =
-    let return_continuation = Continuation.create () in
-    let remaining_params =
-      List.map
-        (fun kind ->
-          let param = Variable.create "param" in
-          Bound_parameter.create param kind)
-        (Flambda_arity.unarize remaining_param_arity)
-      |> Bound_parameters.create
-    in
-    let _, remaining_params_alloc_modes =
-      Misc.Stdlib.List.split_at (List.length args) param_modes
-    in
-    let open struct
-      (* An argument or the callee, with information about its entry in the
-         closure, if any. If the argument is a constant or uncoerced symbol, we
-         don't need to put it in the closure. *)
-      (* CR-someday lmaurer: Also allow coerced symbols to be left out of the
-         closure. Would require putting any depth variables in the closure,
-         which is desirable but currently not possible. This workaround -
-         binding the coerced symbol in the closure - wastes a bit of memory, and
-         it has the effect of turning the callee from a symbol into a variable.
-         Fortunately, the reconstituted [Apply_expr] should retain the original
-         call kind, so it will remain a direct call. *)
-      type applied_value =
-        | Const of Reg_width_const.t
-        | Symbol of Symbol.t
-        | In_closure of
-            { var : Variable.t;
-              (* name to bind to projected variable *)
-              value : Simple.t;
-              (* value to store in closure *)
-              value_slot : Value_slot.t
-            }
-    end in
-    let mk_value_slot kind =
-      Value_slot.create compilation_unit ~name:"arg" kind
-    in
-    let applied_value (value, kind) =
-      Simple.pattern_match' value
-        ~const:(fun const -> Const const)
-        ~symbol:(fun symbol ~coercion ->
-          if Coercion.is_id coercion
-          then Symbol symbol
-          else
-            let var = Variable.create "symbol" in
-            if not (K.equal (K.With_subkind.kind kind) K.value)
-            then
-              Misc.fatal_errorf
-                "Simple %a which is a symbol should be of kind Value"
-                Simple.print value;
-            In_closure { var; value; value_slot = mk_value_slot kind })
-        ~var:(fun var ~coercion:_ ->
-          In_closure { var; value; value_slot = mk_value_slot kind })
-    in
-    let applied_callee =
-      match Apply.callee apply with
-      | None -> None
-      | Some callee -> Some (applied_value (callee, K.With_subkind.any_value))
-    in
-    let applied_unarized_args = List.map applied_value applied_unarized_args in
-    let applied_values =
-      match applied_callee with
-      | None -> applied_unarized_args
-      | Some applied_callee -> applied_callee :: applied_unarized_args
-    in
-    let my_closure = Variable.create "my_closure" in
-    let my_region = Variable.create "my_region" in
-    let my_depth = Variable.create "my_depth" in
-    let exn_continuation =
-      Apply.exn_continuation apply |> Exn_continuation.without_extra_args
-    in
-    let apply_alloc_mode =
-      Alloc_mode.For_allocations.from_lambda result_mode
-        ~current_region:my_region
-    in
-    let call_kind =
-      Call_kind.direct_function_call callee's_code_id apply_alloc_mode
-    in
-    let body, cost_metrics_of_body, free_names =
-      (* [free_names] is going to be the free names of the whole resulting
-         function params and body (i.e. as seen from outside the lambda). *)
-      let arg = function
-        | Const const -> Simple.const const
-        | Symbol symbol -> Simple.symbol symbol
-        | In_closure { var; _ } -> Simple.var var
+  let expr, dacc =
+    match new_closure_alloc_mode_and_first_complex_local_param with
+    | Bottom ->
+      Expr.create_invalid (Partial_application_mode_mismatch apply), dacc
+    | Ok (new_closure_alloc_mode, first_complex_local_param) ->
+      (match closure_alloc_mode_from_type with
+      | Heap_or_local -> ()
+      | Heap -> ()
+      | Local -> (
+        match (new_closure_alloc_mode : Alloc_mode.For_allocations.t) with
+        | Local _ -> ()
+        | Heap ->
+          Misc.fatal_errorf
+            "New closure alloc mode cannot be [Heap] when existing closure \
+             alloc mode is [Local]: direct partial application:@ %a"
+            Apply.print apply));
+      let result_mode = Code_metadata.result_mode callee's_code_metadata in
+      let wrapper_taking_remaining_args, dacc, code_id, code =
+        let return_continuation = Continuation.create () in
+        let remaining_params =
+          List.map
+            (fun kind ->
+              let param = Variable.create "param" in
+              Bound_parameter.create param kind)
+            (Flambda_arity.unarize remaining_param_arity)
+          |> Bound_parameters.create
+        in
+        let _, remaining_params_alloc_modes =
+          Misc.Stdlib.List.split_at (List.length args) param_modes
+        in
+        let open struct
+          (* An argument or the callee, with information about its entry in the
+             closure, if any. If the argument is a constant or uncoerced symbol,
+             we don't need to put it in the closure. *)
+          (* CR-someday lmaurer: Also allow coerced symbols to be left out of
+             the closure. Would require putting any depth variables in the
+             closure, which is desirable but currently not possible. This
+             workaround - binding the coerced symbol in the closure - wastes a
+             bit of memory, and it has the effect of turning the callee from a
+             symbol into a variable. Fortunately, the reconstituted [Apply_expr]
+             should retain the original call kind, so it will remain a direct
+             call. *)
+          type applied_value =
+            | Const of Reg_width_const.t
+            | Symbol of Symbol.t
+            | In_closure of
+                { var : Variable.t;
+                  (* name to bind to projected variable *)
+                  value : Simple.t;
+                  (* value to store in closure *)
+                  value_slot : Value_slot.t
+                }
+        end in
+        let mk_value_slot kind =
+          Value_slot.create compilation_unit ~name:"arg" kind
+        in
+        let applied_value (value, kind) =
+          Simple.pattern_match' value
+            ~const:(fun const -> Const const)
+            ~symbol:(fun symbol ~coercion ->
+              if Coercion.is_id coercion
+              then Symbol symbol
+              else
+                let var = Variable.create "symbol" in
+                if not (K.equal (K.With_subkind.kind kind) K.value)
+                then
+                  Misc.fatal_errorf
+                    "Simple %a which is a symbol should be of kind Value"
+                    Simple.print value;
+                In_closure { var; value; value_slot = mk_value_slot kind })
+            ~var:(fun var ~coercion:_ ->
+              In_closure { var; value; value_slot = mk_value_slot kind })
+        in
+        let applied_callee =
+          match Apply.callee apply with
+          | None -> None
+          | Some callee ->
+            Some (applied_value (callee, K.With_subkind.any_value))
+        in
+        let applied_unarized_args =
+          List.map applied_value applied_unarized_args
+        in
+        let applied_values =
+          match applied_callee with
+          | None -> applied_unarized_args
+          | Some applied_callee -> applied_callee :: applied_unarized_args
+        in
+        let my_closure = Variable.create "my_closure" in
+        let my_region = Variable.create "my_region" in
+        let my_depth = Variable.create "my_depth" in
+        let exn_continuation =
+          Apply.exn_continuation apply |> Exn_continuation.without_extra_args
+        in
+        let apply_alloc_mode =
+          Alloc_mode.For_allocations.from_lambda result_mode
+            ~current_region:my_region
+        in
+        let call_kind =
+          Call_kind.direct_function_call callee's_code_id apply_alloc_mode
+        in
+        let body, cost_metrics_of_body, free_names =
+          (* [free_names] is going to be the free names of the whole resulting
+             function params and body (i.e. as seen from outside the lambda). *)
+          let arg = function
+            | Const const -> Simple.const const
+            | Symbol symbol -> Simple.symbol symbol
+            | In_closure { var; _ } -> Simple.var var
+          in
+          let callee = Option.map arg applied_callee in
+          let args =
+            List.map arg applied_unarized_args
+            @ Bound_parameters.simples remaining_params
+          in
+          let full_application =
+            Apply.create ~callee ~continuation:(Return return_continuation)
+              exn_continuation ~args ~args_arity:param_arity
+              ~return_arity:result_arity ~call_kind dbg ~inlined:Default_inlined
+              ~inlining_state:(Apply.inlining_state apply)
+              ~position:Normal ~probe:None
+              ~relative_history:Inlining_history.Relative.empty
+          in
+          let cost_metrics =
+            Cost_metrics.from_size (Code_size.apply full_application)
+          in
+          List.fold_left
+            (fun (expr, cost_metrics, free_names) applied_value ->
+              match applied_value with
+              | Const _ | Symbol _ -> expr, cost_metrics, free_names
+              | In_closure { var; value_slot; value = _ } ->
+                let arg = VB.create var Name_mode.normal in
+                let prim =
+                  P.Unary
+                    ( Project_value_slot
+                        { project_from = wrapper_function_slot; value_slot },
+                      Simple.var my_closure )
+                in
+                let cost_metrics_of_defining_expr =
+                  Cost_metrics.from_size (Code_size.prim prim)
+                in
+                let free_names =
+                  NO.add_value_slot_in_projection free_names value_slot
+                    NM.normal
+                in
+                let expr =
+                  Let.create
+                    (Bound_pattern.singleton arg)
+                    (Named.create_prim prim dbg)
+                    ~body:expr ~free_names_of_body:Unknown
+                  |> Expr.create_let
+                in
+                ( expr,
+                  Cost_metrics.( + ) cost_metrics
+                    (Cost_metrics.increase_due_to_let_expr ~is_phantom:false
+                       ~cost_metrics_of_defining_expr),
+                  free_names ))
+            ( Expr.create_apply full_application,
+              cost_metrics,
+              Apply.free_names full_application
+              |> NO.without_names_or_continuations )
+            (List.rev applied_values)
+        in
+        let params_and_body =
+          (* Note that [exn_continuation] has no extra args -- see above. *)
+          Function_params_and_body.create ~return_continuation
+            ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
+            remaining_params ~body ~my_closure ~my_region ~my_depth
+            ~free_names_of_body:Unknown
+        in
+        let name =
+          Function_slot.to_string callee's_function_slot ^ "_partial"
+        in
+        let absolute_history, relative_history =
+          DE.inlining_history_tracker (DA.denv dacc)
+          |> Inlining_history.Tracker.fundecl
+               ~function_relative_history:Inlining_history.Relative.empty ~dbg
+               ~name
+        in
+        let code_id =
+          Code_id.create ~name (Compilation_unit.get_current_exn ())
+        in
+        (* We could create better result types by combining the types for the
+           first arguments with the result types from the called function.
+           However given that stubs are supposed to be inlined, and the inner
+           full application will come with the expected result types, it's not
+           going to be particularly useful. *)
+        let code : Static_const_or_code.t =
+          let code =
+            Code.create code_id ~params_and_body
+              ~free_names_of_params_and_body:free_names ~newer_version_of:None
+              ~params_arity:remaining_param_arity
+              ~param_modes:remaining_params_alloc_modes
+              ~first_complex_local_param ~result_arity ~result_types:Unknown
+              ~result_mode
+              ~contains_no_escaping_local_allocs:
+                (Code_metadata.contains_no_escaping_local_allocs
+                   callee's_code_metadata)
+              ~stub:true ~inline:Default_inline ~poll_attribute:Default
+              ~check:Check_attribute.Default_check ~is_a_functor:false
+              ~is_opaque:false ~recursive ~cost_metrics:cost_metrics_of_body
+              ~inlining_arguments:(DE.inlining_arguments (DA.denv dacc))
+              ~dbg ~is_tupled:false
+              ~is_my_closure_used:
+                (Function_params_and_body.is_my_closure_used params_and_body)
+              ~inlining_decision:Stub ~absolute_history ~relative_history
+              ~loopify:Never_loopify
+          in
+          Static_const_or_code.create_code code
+        in
+        let function_decls =
+          Function_declarations.create
+            (Function_slot.Lmap.singleton wrapper_function_slot code_id)
+        in
+        let value_slots =
+          List.filter_map
+            (fun value ->
+              match value with
+              | Const _ | Symbol _ -> None
+              | In_closure { value_slot; value; var = _ } ->
+                Some (value_slot, value))
+            applied_values
+          |> Value_slot.Map.of_list
+        in
+        ( Set_of_closures.create ~value_slots new_closure_alloc_mode
+            function_decls,
+          dacc,
+          code_id,
+          code )
       in
-      let callee = Option.map arg applied_callee in
-      let args =
-        List.map arg applied_unarized_args
-        @ Bound_parameters.simples remaining_params
+      let apply_cont =
+        Apply_cont.create apply_continuation ~args:[Simple.var wrapper_var] ~dbg
       in
-      let full_application =
-        Apply.create ~callee ~continuation:(Return return_continuation)
-          exn_continuation ~args ~args_arity:param_arity
-          ~return_arity:result_arity ~call_kind dbg ~inlined:Default_inlined
-          ~inlining_state:(Apply.inlining_state apply)
-          ~position:Normal ~probe:None
-          ~relative_history:Inlining_history.Relative.empty
+      let expr =
+        let wrapper_var = VB.create wrapper_var Name_mode.normal in
+        let bound_vars = [wrapper_var] in
+        let bound = Bound_pattern.set_of_closures bound_vars in
+        let body =
+          Let.create bound
+            (Named.create_set_of_closures wrapper_taking_remaining_args)
+            ~body:(Expr.create_apply_cont apply_cont)
+            ~free_names_of_body:Unknown
+          |> Expr.create_let
+        in
+        let bound_static =
+          Bound_static.singleton (Bound_static.Pattern.code code_id)
+        in
+        let static_consts = Static_const_group.create [code] in
+        (* Since we are only generating a "let code" binding and not a "let
+           symbol", it doesn't matter if we are not at toplevel. *)
+        Let.create
+          (Bound_pattern.static bound_static)
+          (Named.create_static_consts static_consts)
+          ~body ~free_names_of_body:Unknown
+        |> Expr.create_let
       in
-      let cost_metrics =
-        Cost_metrics.from_size (Code_size.apply full_application)
-      in
-      List.fold_left
-        (fun (expr, cost_metrics, free_names) applied_value ->
-          match applied_value with
-          | Const _ | Symbol _ -> expr, cost_metrics, free_names
-          | In_closure { var; value_slot; value = _ } ->
-            let arg = VB.create var Name_mode.normal in
-            let kind = Value_slot.kind value_slot in
-            let prim =
-              P.Unary
-                ( Project_value_slot
-                    { project_from = wrapper_function_slot; value_slot; kind },
-                  Simple.var my_closure )
-            in
-            let cost_metrics_of_defining_expr =
-              Cost_metrics.from_size (Code_size.prim prim)
-            in
-            let free_names =
-              NO.add_value_slot_in_projection free_names value_slot NM.normal
-            in
-            let expr =
-              Let.create
-                (Bound_pattern.singleton arg)
-                (Named.create_prim prim dbg)
-                ~body:expr ~free_names_of_body:Unknown
-              |> Expr.create_let
-            in
-            ( expr,
-              Cost_metrics.( + ) cost_metrics
-                (Cost_metrics.increase_due_to_let_expr ~is_phantom:false
-                   ~cost_metrics_of_defining_expr),
-              free_names ))
-        ( Expr.create_apply full_application,
-          cost_metrics,
-          Apply.free_names full_application |> NO.without_names_or_continuations
-        )
-        (List.rev applied_values)
-    in
-    let params_and_body =
-      (* Note that [exn_continuation] has no extra args -- see above. *)
-      Function_params_and_body.create ~return_continuation
-        ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
-        remaining_params ~body ~my_closure ~my_region ~my_depth
-        ~free_names_of_body:Unknown
-    in
-    let name = Function_slot.to_string callee's_function_slot ^ "_partial" in
-    let absolute_history, relative_history =
-      DE.inlining_history_tracker (DA.denv dacc)
-      |> Inlining_history.Tracker.fundecl
-           ~function_relative_history:Inlining_history.Relative.empty ~dbg ~name
-    in
-    let code_id = Code_id.create ~name (Compilation_unit.get_current_exn ()) in
-    (* We could create better result types by combining the types for the first
-       arguments with the result types from the called function. However given
-       that stubs are supposed to be inlined, and the inner full application
-       will come with the expected result types, it's not going to be
-       particularly useful. *)
-    let code : Static_const_or_code.t =
-      let code =
-        Code.create code_id ~params_and_body
-          ~free_names_of_params_and_body:free_names ~newer_version_of:None
-          ~params_arity:remaining_param_arity
-          ~param_modes:remaining_params_alloc_modes ~first_complex_local_param
-          ~result_arity ~result_types:Unknown ~result_mode
-          ~contains_no_escaping_local_allocs:
-            (Code_metadata.contains_no_escaping_local_allocs
-               callee's_code_metadata)
-          ~stub:true ~inline:Default_inline ~poll_attribute:Default
-          ~check:Check_attribute.Default_check ~is_a_functor:false
-          ~is_opaque:false ~recursive ~cost_metrics:cost_metrics_of_body
-          ~inlining_arguments:(DE.inlining_arguments (DA.denv dacc))
-          ~dbg ~is_tupled:false
-          ~is_my_closure_used:
-            (Function_params_and_body.is_my_closure_used params_and_body)
-          ~inlining_decision:Stub ~absolute_history ~relative_history
-          ~loopify:Never_loopify
-      in
-      Static_const_or_code.create_code code
-    in
-    let function_decls =
-      Function_declarations.create
-        (Function_slot.Lmap.singleton wrapper_function_slot code_id)
-    in
-    let value_slots =
-      List.filter_map
-        (fun value ->
-          match value with
-          | Const _ | Symbol _ -> None
-          | In_closure { value_slot; value; var = _ } -> Some (value_slot, value))
-        applied_values
-      |> Value_slot.Map.of_list
-    in
-    ( Set_of_closures.create ~value_slots new_closure_alloc_mode function_decls,
-      dacc,
-      code_id,
-      code )
-  in
-  let apply_cont =
-    Apply_cont.create apply_continuation ~args:[Simple.var wrapper_var] ~dbg
-  in
-  let expr =
-    let wrapper_var = VB.create wrapper_var Name_mode.normal in
-    let bound_vars = [wrapper_var] in
-    let bound = Bound_pattern.set_of_closures bound_vars in
-    let body =
-      Let.create bound
-        (Named.create_set_of_closures wrapper_taking_remaining_args)
-        ~body:(Expr.create_apply_cont apply_cont)
-        ~free_names_of_body:Unknown
-      |> Expr.create_let
-    in
-    let bound_static =
-      Bound_static.singleton (Bound_static.Pattern.code code_id)
-    in
-    let static_consts = Static_const_group.create [code] in
-    (* Since we are only generating a "let code" binding and not a "let symbol",
-       it doesn't matter if we are not at toplevel. *)
-    Let.create
-      (Bound_pattern.static bound_static)
-      (Named.create_static_consts static_consts)
-      ~body ~free_names_of_body:Unknown
-    |> Expr.create_let
+      expr, dacc
   in
   let down_to_up dacc ~rebuild =
     down_to_up dacc ~rebuild:(fun uacc ~after_rebuild ->
@@ -862,12 +870,6 @@ let rebuild_function_call_where_callee's_type_unavailable apply call_kind
 let simplify_function_call_where_callee's_type_unavailable dacc apply
     (call : Call_kind.Function_call.t) ~apply_alloc_mode ~down_to_up =
   fail_if_probe apply;
-  let cont =
-    match Apply.continuation apply with
-    | Never_returns ->
-      Misc.fatal_error "cannot simplify an application that never returns"
-    | Return continuation -> continuation
-  in
   let denv = DA.denv dacc in
   if Are_rebuilding_terms.are_rebuilding (DE.are_rebuilding_terms denv)
   then
@@ -876,6 +878,18 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
       ~tracker:(DE.inlining_history_tracker denv)
       ~apply ();
   let env_at_use = denv in
+  let dacc, use_id =
+    match Apply.continuation apply with
+    | Never_returns -> dacc, None
+    | Return continuation ->
+      let dacc, use_id =
+        DA.record_continuation_use dacc continuation
+          (Non_inlinable { escaping = true })
+          ~env_at_use
+          ~arg_types:(T.unknown_types_from_arity (Apply.return_arity apply))
+      in
+      dacc, Some use_id
+  in
   let dacc, exn_cont_use_id =
     DA.record_continuation_use dacc
       (Exn_continuation.exn_handler (Apply.exn_continuation apply))
@@ -884,12 +898,6 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
       ~arg_types:
         (T.unknown_types_from_arity
            (Exn_continuation.arity (Apply.exn_continuation apply)))
-  in
-  let dacc, use_id =
-    DA.record_continuation_use dacc cont
-      (Non_inlinable { escaping = true })
-      ~env_at_use
-      ~arg_types:(T.unknown_types_from_arity (Apply.return_arity apply))
   in
   let call_kind =
     match call with
@@ -904,8 +912,7 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
       Call_kind.indirect_function_call_known_arity apply_alloc_mode
   in
   let dacc =
-    record_free_names_of_apply_as_used ~use_id:(Some use_id) ~exn_cont_use_id
-      dacc apply
+    record_free_names_of_apply_as_used ~use_id ~exn_cont_use_id dacc apply
   in
   down_to_up dacc
     ~rebuild:
@@ -1050,7 +1057,8 @@ let rebuild_method_call apply ~use_id ~exn_cont_use_id uacc ~after_rebuild =
       apply
   in
   let uacc, expr =
-    EB.rewrite_fixed_arity_apply uacc ~use_id (Apply.return_arity apply) apply
+    EB.rewrite_fixed_arity_apply uacc ~use_id:(Some use_id)
+      (Apply.return_arity apply) apply
   in
   after_rebuild expr uacc
 
@@ -1109,15 +1117,7 @@ let rebuild_c_call apply ~use_id ~exn_cont_use_id ~return_arity uacc
       apply
   in
   let uacc, expr =
-    match use_id with
-    | Some use_id ->
-      EB.rewrite_fixed_arity_apply uacc ~use_id return_arity apply
-    | None ->
-      let uacc =
-        UA.add_free_names uacc (Apply.free_names apply)
-        |> UA.notify_added ~code_size:(Code_size.apply apply)
-      in
-      uacc, RE.create_apply (UA.are_rebuilding_terms uacc) apply
+    EB.rewrite_fixed_arity_apply uacc ~use_id return_arity apply
   in
   after_rebuild expr uacc
 
@@ -1210,7 +1210,13 @@ let simplify_apply ~simplify_expr dacc apply ~down_to_up =
           apply
     in
     simplify_method_call dacc apply ~callee_ty ~kind ~obj ~arg_types ~down_to_up
-  | C_call { alloc = _; is_c_builtin = _ } ->
+  | C_call
+      { needs_caml_c_call = _;
+        is_c_builtin = _;
+        effects = _;
+        coeffects = _;
+        alloc_mode = _
+      } ->
     let callee_ty =
       match callee_ty with
       | Some callee_ty -> callee_ty

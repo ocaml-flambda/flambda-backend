@@ -64,6 +64,7 @@ let asm = boot_cannot_call "the assembler"
 let asm_cfi_supported = false
 let with_frame_pointers = false
 let reserved_header_bits = 0
+let custom_ops_struct_size = 64
 let ext_exe = ".ex_The boot compiler should not be using Config.ext_exe"
 let ext_obj = ".o_The boot compiler cannot process C objects"
 let ext_asm = ".s_The boot compiler should not be using Config.ext_asm"
@@ -77,5 +78,6 @@ let ar_supports_response_files = true
 
 (* mshinwell: at present always use runtime4 for bootstrap *)
 let runtime5 = false
+let no_stack_checks = false
 (* This setting is only for bootstrap, does not affect dune-built compilers: *)
 let naked_pointers = false

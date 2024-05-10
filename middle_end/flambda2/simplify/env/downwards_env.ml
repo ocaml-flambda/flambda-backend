@@ -31,7 +31,7 @@ type get_imported_code = unit -> Exported_code.t
 type t =
   { round : int;
     typing_env : TE.t;
-    inlined_debuginfo : Debuginfo.t;
+    inlined_debuginfo : Inlined_debuginfo.t;
     can_inline : bool;
     inlining_state : Inlining_state.t;
     propagating_float_consts : bool;
@@ -48,11 +48,6 @@ type t =
     inlining_history_tracker : Inlining_history.Tracker.t;
     loopify_state : Loopify_state.t
   }
-
-let print_debuginfo ppf dbg =
-  if Debuginfo.is_none dbg
-  then Format.pp_print_string ppf "None"
-  else Debuginfo.print_compact ppf dbg
 
 let [@ocamlformat "disable"] print ppf { round; typing_env;
                 inlined_debuginfo; can_inline;
@@ -84,7 +79,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
       )@]"
     round
     TE.print typing_env
-    print_debuginfo inlined_debuginfo
+    Inlined_debuginfo.print inlined_debuginfo
     can_inline
     Inlining_state.print inlining_state
     propagating_float_consts
@@ -112,7 +107,7 @@ let create ~round ~(resolver : resolver)
   in
   { round;
     typing_env;
-    inlined_debuginfo = Debuginfo.none;
+    inlined_debuginfo = Inlined_debuginfo.none;
     can_inline = true;
     inlining_state = Inlining_state.default ~round;
     propagating_float_consts;
@@ -193,7 +188,7 @@ let enter_set_of_closures
     } =
   { round;
     typing_env = TE.closure_env typing_env;
-    inlined_debuginfo = Debuginfo.none;
+    inlined_debuginfo = Inlined_debuginfo.none;
     can_inline;
     inlining_state;
     propagating_float_consts;
@@ -461,12 +456,6 @@ let define_code t ~code_id ~code =
   let all_code = Code_id.Map.add code_id code t.all_code in
   { t with typing_env; all_code }
 
-let set_inlined_debuginfo t dbg = { t with inlined_debuginfo = dbg }
-
-let get_inlined_debuginfo t = t.inlined_debuginfo
-
-let add_inlined_debuginfo t dbg = Debuginfo.inline t.inlined_debuginfo dbg
-
 let cse t = t.cse
 
 let comparison_results t = t.comparison_results
@@ -519,6 +508,21 @@ let set_inlining_arguments arguments t =
     inlining_state = Inlining_state.with_arguments arguments t.inlining_state
   }
 
+(* CR mshinwell/gbury: we might be dropping [Enter_inlined_apply] context here
+   when mixing code compiled in classic and Simplify modes *)
+
+let set_inlined_debuginfo t ~from =
+  { t with inlined_debuginfo = from.inlined_debuginfo }
+
+let merge_inlined_debuginfo t ~from_apply_expr =
+  { t with
+    inlined_debuginfo =
+      Inlined_debuginfo.merge t.inlined_debuginfo ~from_apply_expr
+  }
+
+let add_inlined_debuginfo t dbg =
+  Inlined_debuginfo.rewrite t.inlined_debuginfo dbg
+
 let enter_inlined_apply ~called_code ~apply ~was_inline_always t =
   let arguments =
     Inlining_state.arguments t.inlining_state
@@ -543,8 +547,12 @@ let enter_inlined_apply ~called_code ~apply ~was_inline_always t =
         in
         Inlining_state.increment_depth t.inlining_state ~by)
   in
+  let inlined_debuginfo =
+    Inlined_debuginfo.create ~called_code_id:(Code.code_id called_code)
+      ~apply_dbg:(Apply.dbg apply)
+  in
   { t with
-    inlined_debuginfo = Apply.dbg apply;
+    inlined_debuginfo;
     inlining_state;
     inlining_history_tracker =
       Inlining_history.Tracker.enter_inlined_apply

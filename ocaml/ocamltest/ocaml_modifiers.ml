@@ -93,6 +93,18 @@ let dynlink =
 let str = make_library_modifier
   "str" [compiler_subdir ["otherlibs"; "str"]]
 
+let upstream_compatible = make_library_modifier
+  "upstream_compatible" [compiler_subdir ["otherlibs"; "upstream_compatible"]]
+
+let stable = make_library_modifier
+  "stable" [compiler_subdir ["otherlibs"; "stable"]]
+
+let beta = make_library_modifier
+  "beta" [compiler_subdir ["otherlibs"; "beta"]]
+
+let alpha = make_library_modifier
+  "alpha" [compiler_subdir ["otherlibs"; "alpha"]]
+
 let systhreads =
   unix @
   (make_library_modifier
@@ -135,6 +147,10 @@ let _ =
   register_modifiers "unix" unix;
   register_modifiers "dynlink" dynlink;
   register_modifiers "str" str;
+  register_modifiers "upstream_compatible" upstream_compatible;
+  register_modifiers "stable" stable;
+  register_modifiers "beta" beta;
+  register_modifiers "alpha" alpha;
   List.iter
     (fun archive -> register_modifiers archive (compilerlibs_archive archive))
     [

@@ -38,8 +38,6 @@ let disable_extend_live = ref false
    collected in [avail_at_exit].) *)
 let avail_at_exit = Hashtbl.create 42
 
-let avail_at_raise = ref RAS.Unreachable
-
 let current_trap_stack = ref M.Uncaught
 
 let augment_availability_at_exit nfail avail_before =
@@ -56,23 +54,8 @@ let augment_availability_at_exit nfail avail_before =
 
 let augment_availability_at_raise avail =
   match !current_trap_stack with
-  | Uncaught | Generic_trap _ ->
-    avail_at_raise := RAS.inter avail !avail_at_raise
+  | Uncaught -> ()
   | Specific_trap (label, _) -> augment_availability_at_exit label avail
-
-let setup_avail_at_raise kind =
-  match (kind : Cmm.trywith_kind) with
-  | Regular ->
-    let res = !avail_at_raise in
-    avail_at_raise := RAS.Unreachable;
-    res
-  | Delayed _ -> !avail_at_raise
-(* This result will not be used *)
-
-let restore_avail_at_raise kind saved_avail_at_raise =
-  match (kind : Cmm.trywith_kind) with
-  | Regular -> avail_at_raise := saved_avail_at_raise
-  | Delayed _ -> ()
 
 let check_invariants (instr : M.instruction) ~all_regs_that_might_be_named
     ~(avail_before : RAS.t) =
@@ -239,10 +222,9 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
         Some (ok avail_across), ok avail_after
       | Iop
           (( Icall_ind | Icall_imm _ | Ialloc _ | Ipoll _ | Iprobe _
-           | Iconst_int _ | Iconst_float _ | Iconst_vec128 _ | Iconst_symbol _
-           | Iextcall _ | Istackoffset _ | Iload _ | Istore _ | Iintop _
-           | Iintop_imm _ | Iintop_atomic _ | Icompf _ | Inegf | Iabsf | Iaddf
-           | Isubf | Imulf | Idivf | Icsel _ | Ifloatofint | Iintoffloat
+           | Iconst_int _ | Iconst_float _ | Iconst_float32 _ | Iconst_vec128 _
+           | Iconst_symbol _ | Iextcall _ | Istackoffset _ | Iload _ | Istore _
+           | Iintop _ | Iintop_imm _ | Iintop_atomic _ | Ifloatop _ | Icsel _
            | Ivalueofint | Iintofvalue | Iopaque | Ispecific _ | Iscalarcast _
            | Ivectorcast _ | Iprobe_is_enabled _ | Ibeginregion | Iendregion
            | Idls_get ) as op) ->
@@ -288,7 +270,7 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
                 let reg_is_of_type_addr =
                   match (RD.reg reg).typ with
                   | Addr -> true
-                  | Val | Int | Float | Vec128 -> false
+                  | Val | Int | Float | Vec128 | Float32 -> false
                 in
                 if remains_available
                    || (not (extend_live ()))
@@ -302,10 +284,9 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
                   false))
               avail_before
           | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _
-          | Iconst_vec128 _ | Iconst_symbol _ | Itailcall_ind | Itailcall_imm _
-          | Iextcall _ | Istackoffset _ | Iload _ | Istore _ | Iintop _
-          | Iintop_imm _ | Iintop_atomic _ | Icompf _ | Inegf | Iabsf | Iaddf
-          | Isubf | Imulf | Idivf | Icsel _ | Ifloatofint | Iintoffloat
+          | Iconst_float32 _ | Iconst_vec128 _ | Iconst_symbol _ | Itailcall_ind
+          | Itailcall_imm _ | Iextcall _ | Istackoffset _ | Iload _ | Istore _
+          | Iintop _ | Iintop_imm _ | Iintop_atomic _ | Ifloatop _ | Icsel _
           | Ivalueofint | Iintofvalue | Iopaque | Ispecific _ | Iscalarcast _
           | Ivectorcast _ | Iname_for_debugger _ | Iprobe_is_enabled _
           | Ibeginregion | Idls_get ->
@@ -421,21 +402,14 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
         let avail_before = ok avail_before in
         augment_availability_at_exit nfail avail_before;
         None, unreachable
-      | Itrywith (body, kind, (ts, handler)) ->
-        (match kind with
-        | Regular -> ()
-        | Delayed nfail -> Hashtbl.add avail_at_exit nfail unreachable);
-        let saved_avail_at_raise = setup_avail_at_raise kind in
+      | Itrywith (body, nfail, (ts, handler)) ->
+        Hashtbl.add avail_at_exit nfail unreachable;
         let avail_before = ok avail_before in
         let after_body =
           available_regs body ~all_regs_that_might_be_named ~avail_before
         in
         let avail_before_handler =
-          let with_exn_bucket =
-            match kind with
-            | Regular -> !avail_at_raise
-            | Delayed nfail -> Hashtbl.find avail_at_exit nfail
-          in
+          let with_exn_bucket = Hashtbl.find avail_at_exit nfail in
           match (with_exn_bucket : RAS.t) with
           | Unreachable -> unreachable
           | Ok avail_at_raise ->
@@ -449,7 +423,6 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
             in
             ok with_anonymous_exn_bucket
         in
-        restore_avail_at_raise kind saved_avail_at_raise;
         let saved_trap_stack = !current_trap_stack in
         current_trap_stack := ts;
         let avail_after =
@@ -458,9 +431,7 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
                ~avail_before:avail_before_handler)
         in
         current_trap_stack := saved_trap_stack;
-        (match kind with
-        | Regular -> ()
-        | Delayed nfail -> Hashtbl.remove avail_at_exit nfail);
+        Hashtbl.remove avail_at_exit nfail;
         None, avail_after
       | Iraise _ ->
         let avail_before = ok avail_before in
@@ -503,7 +474,6 @@ let fundecl (f : M.fundecl) =
   if !Clflags.debug && not !Dwarf_flags.restrict_to_upstream_dwarf
   then (
     assert (Hashtbl.length avail_at_exit = 0);
-    avail_at_raise := RAS.Unreachable;
     current_trap_stack := M.Uncaught;
     disable_extend_live := false;
     let fun_args = R.set_of_array f.fun_args in
