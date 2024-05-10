@@ -13,12 +13,13 @@
 (**************************************************************************)
 
 open Mode
+open Jkind_types
 
 [@@@warning "+9"]
 
 (* CR layouts v2.8: remove this *)
 module Legacy = struct
-  type const =
+  type const = Jkind_types.const =
     | Any
     | Value
     | Void
@@ -90,300 +91,11 @@ end
 
 (* A *sort* is the information the middle/back ends need to be able to
    compile a manipulation (storing, passing, etc) of a runtime value. *)
-module Sort = struct
-  (* CR layouts v2.8: Refactor to use a Const module *)
-  type const =
-    | Void
-    | Value
-    | Float64
-    | Float32
-    | Word
-    | Bits32
-    | Bits64
-
-  type t =
-    | Var of var
-    | Const of const
-
-  and var = t option ref
-
-  (* To record changes to sorts, for use with `Types.{snapshot, backtrack}` *)
-  type change = var * t option
-
-  let change_log : (change -> unit) ref = ref (fun _ -> ())
-
-  let log_change change = !change_log change
-
-  let undo_change (v, t_op) = v := t_op
-
-  let var_name : var -> string =
-    let next_id = ref 1 in
-    let named = ref [] in
-    fun v ->
-      match List.assq_opt v !named with
-      | Some name -> name
-      | None ->
-        let id = !next_id in
-        let name = "'_representable_layout_" ^ Int.to_string id in
-        next_id := id + 1;
-        named := (v, name) :: !named;
-        name
-
-  let set : var -> t option -> unit =
-   fun v t_op ->
-    log_change (v, !v);
-    v := t_op
-
-  let void = Const Void
-
-  let value = Const Value
-
-  let float64 = Const Float64
-
-  let float32 = Const Float32
-
-  let word = Const Word
-
-  let bits32 = Const Bits32
-
-  let bits64 = Const Bits64
-
-  let some_value = Some value
-
-  let of_const = function
-    | Void -> void
-    | Value -> value
-    | Float64 -> float64
-    | Float32 -> float32
-    | Word -> word
-    | Bits32 -> bits32
-    | Bits64 -> bits64
-
-  let of_var v = Var v
-
-  let new_var () = Var (ref None)
-
-  (* Post-condition: If the result is a [Var v], then [!v] is [None]. *)
-  let rec get : t -> t = function
-    | Const _ as t -> t
-    | Var r as t -> (
-      match !r with
-      | None -> t
-      | Some s ->
-        let result = get s in
-        if result != s then set r (Some result);
-        (* path compression *)
-        result)
-
-  let memoized_value : t option = Some (Const Value)
-
-  let memoized_void : t option = Some (Const Void)
-
-  let memoized_float64 : t option = Some (Const Float64)
-
-  let memoized_float32 : t option = Some (Const Float32)
-
-  let memoized_word : t option = Some (Const Word)
-
-  let memoized_bits32 : t option = Some (Const Bits32)
-
-  let memoized_bits64 : t option = Some (Const Bits64)
-
-  let[@inline] get_memoized = function
-    | Value -> memoized_value
-    | Void -> memoized_void
-    | Float64 -> memoized_float64
-    | Float32 -> memoized_float32
-    | Word -> memoized_word
-    | Bits32 -> memoized_bits32
-    | Bits64 -> memoized_bits64
-
-  let rec get_default_value : t -> const = function
-    | Const c -> c
-    | Var r -> (
-      match !r with
-      | None ->
-        set r memoized_value;
-        Value
-      | Some s ->
-        let result = get_default_value s in
-        set r (get_memoized result);
-        (* path compression *)
-        result)
-
-  let default_to_value t = ignore (get_default_value t)
-
-  (***********************)
-  (* equality *)
-
-  type equate_result =
-    | Unequal
-    | Equal_mutated_first
-    | Equal_mutated_second
-    | Equal_no_mutation
-
-  let swap_equate_result = function
-    | Equal_mutated_first -> Equal_mutated_second
-    | Equal_mutated_second -> Equal_mutated_first
-    | (Unequal | Equal_no_mutation) as r -> r
-
-  let equal_const_const c1 c2 =
-    match c1, c2 with
-    | Void, Void
-    | Value, Value
-    | Float64, Float64
-    | Float32, Float32
-    | Word, Word
-    | Bits32, Bits32
-    | Bits64, Bits64 ->
-      Equal_no_mutation
-    | (Void | Value | Float64 | Float32 | Word | Bits32 | Bits64), _ -> Unequal
-
-  let rec equate_var_const v1 c2 =
-    match !v1 with
-    | Some s1 -> equate_sort_const s1 c2
-    | None ->
-      set v1 (Some (of_const c2));
-      Equal_mutated_first
-
-  and equate_var v1 s2 =
-    match s2 with
-    | Const c2 -> equate_var_const v1 c2
-    | Var v2 -> equate_var_var v1 v2
-
-  and equate_var_var v1 v2 =
-    if v1 == v2
-    then Equal_no_mutation
-    else
-      match !v1, !v2 with
-      | Some s1, _ -> swap_equate_result (equate_var v2 s1)
-      | _, Some s2 -> equate_var v1 s2
-      | None, None ->
-        set v1 (Some (of_var v2));
-        Equal_mutated_first
-
-  and equate_sort_const s1 c2 =
-    match s1 with
-    | Const c1 -> equal_const_const c1 c2
-    | Var v1 -> equate_var_const v1 c2
-
-  let equate_tracking_mutation s1 s2 =
-    match s1 with
-    | Const c1 -> swap_equate_result (equate_sort_const s2 c1)
-    | Var v1 -> equate_var v1 s2
-
-  (* Don't expose whether or not mutation happened; we just need that for [Jkind] *)
-  let equate s1 s2 =
-    match equate_tracking_mutation s1 s2 with
-    | Unequal -> false
-    | Equal_mutated_first | Equal_mutated_second | Equal_no_mutation -> true
-
-  let equal_const c1 c2 =
-    match c1, c2 with
-    | Void, Void
-    | Value, Value
-    | Float64, Float64
-    | Float32, Float32
-    | Word, Word
-    | Bits32, Bits32
-    | Bits64, Bits64 ->
-      true
-    | (Void | Value | Float64 | Float32 | Word | Bits32 | Bits64), _ -> false
-
-  let rec is_void_defaulting = function
-    | Const Void -> true
-    | Var v -> (
-      match !v with
-      (* CR layouts v5: this should probably default to void now *)
-      | None ->
-        set v some_value;
-        false
-      | Some s -> is_void_defaulting s)
-    | Const (Value | Float64 | Float32 | Word | Bits32 | Bits64) -> false
-
-  (*** pretty printing ***)
-
-  let string_of_const = function
-    | Value -> "value"
-    | Void -> "void"
-    | Float64 -> "float64"
-    | Float32 -> "float32"
-    | Word -> "word"
-    | Bits32 -> "bits32"
-    | Bits64 -> "bits64"
-
-  let to_string s =
-    match get s with Var v -> var_name v | Const c -> string_of_const c
-
-  let format ppf t = Format.fprintf ppf "%s" (to_string t)
-
-  let format_const ppf const = Format.fprintf ppf "%s" (string_of_const const)
-
-  (*** debug printing **)
-
-  module Debug_printers = struct
-    open Format
-
-    let rec t ppf = function
-      | Var v -> fprintf ppf "Var %a" var v
-      | Const c ->
-        fprintf ppf
-          (match c with
-          | Void -> "Void"
-          | Value -> "Value"
-          | Float64 -> "Float64"
-          | Float32 -> "Float32"
-          | Word -> "Word"
-          | Bits32 -> "Bits32"
-          | Bits64 -> "Bits64")
-
-    and opt_t ppf = function
-      | Some s -> fprintf ppf "Some %a" t s
-      | None -> fprintf ppf "None"
-
-    and var ppf v = fprintf ppf "{ contents = %a }" opt_t !v
-  end
-
-  let for_function = value
-
-  let for_predef_value = value
-
-  let for_block_element = value
-
-  let for_probe_body = value
-
-  let for_poly_variant = value
-
-  let for_record = value
-
-  let for_object = value
-
-  let for_lazy_body = value
-
-  let for_tuple_element = value
-
-  let for_variant_arg = value
-
-  let for_instance_var = value
-
-  let for_class_arg = value
-
-  let for_method = value
-
-  let for_initializer = value
-
-  let for_module = value
-
-  let for_tuple = value
-
-  let for_array_get_result = value
-
-  let for_array_comprehension_element = value
-
-  let for_list_element = value
-end
+module Sort = Jkind_types.Sort
 
 type sort = Sort.t
+
+type type_expr = Types.type_expr
 
 (* A *layout* of a type describes the way values of that type are stored at
    runtime, including details like width, register convention, calling
@@ -392,11 +104,12 @@ type sort = Sort.t
    unrepresentable layout. The only unrepresentable layout is `any`, which is
    the top of the layout lattice. *)
 module Layout = struct
+  open Jkind_types.Layout
+
+  type nonrec 'sort layout = (type_expr, 'sort) layout
+
   module Const = struct
-    type t =
-      | Sort of Sort.const
-      | Any
-      | Non_null_value
+    type t = Sort.const layout
 
     let max = Any
 
@@ -407,7 +120,7 @@ module Layout = struct
       | Non_null_value, Non_null_value -> true
       | (Any | Sort _ | Non_null_value), _ -> false
 
-    let sub c1 c2 : Misc.Le_result.t =
+    let sub (c1 : t) (c2 : t) : Misc.Le_result.t =
       match c1, c2 with
       | _ when equal c1 c2 -> Equal
       | _, Any -> Less
@@ -416,11 +129,6 @@ module Layout = struct
       | (Any | Sort _), Non_null_value -> Not_le
       | (Any | Sort _ | Non_null_value), Sort _ -> Not_le
   end
-
-  type t =
-    | Sort of Sort.t
-    | Any
-    | Non_null_value
 
   let max = Any
 
@@ -485,7 +193,7 @@ module Layout = struct
 end
 
 module Externality = struct
-  type t =
+  type t = Jkind_types.Externality.t =
     | External
     | External64
     | Internal
@@ -634,11 +342,7 @@ module Desc = struct
 end
 
 module Jkind_desc = struct
-  type t =
-    { layout : Layout.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Externality.t
-    }
+  open Jkind_types.Jkind_desc
 
   let max =
     { layout = Layout.max;
@@ -806,157 +510,10 @@ module Jkind_desc = struct
   end
 end
 
-(*** reasons for jkinds **)
-type concrete_jkind_reason =
-  | Match
-  | Constructor_declaration of int
-  | Label_declaration of Ident.t
-  | Unannotated_type_parameter of Path.t
-  | Record_projection
-  | Record_assignment
-  | Let_binding
-  | Function_argument
-  | Function_result
-  | Structure_item_expression
-  | External_argument
-  | External_result
-  | Statement
-  | Wildcard
-  | Unification_var
-  | Optional_arg_default
-  | Layout_poly_in_external
-  | Array_element
+(* CR layouts v2.8: refactor not to be an [include], but a proper module *)
+include Jkind_intf.History
 
-type value_creation_reason =
-  | Class_let_binding
-  | Tuple_element
-  | Probe
-  | Object
-  | Instance_variable
-  | Object_field
-  | Class_field
-  | Boxed_record
-  | Boxed_variant
-  | Extensible_variant
-  | Primitive of Ident.t
-  | Type_argument of
-      { parent_path : Path.t;
-        position : int;
-        arity : int
-      }
-    (* [position] is 1-indexed *)
-  | Tuple
-  | Row_variable
-  | Polymorphic_variant
-  | Arrow
-  | Tfield
-  | Tnil
-  | First_class_module
-  | Separability_check
-  | Univar
-  | Polymorphic_variant_field
-  | Default_type_jkind
-  | Existential_type_variable
-  | Array_comprehension_element
-  | Lazy_expression
-  | Class_type_argument
-  | Class_term_argument
-  | Structure_element
-  | Debug_printer_argument
-  | V1_safety_check
-  | Captured_in_object
-  | Recmod_fun_arg
-  | Unknown of string
-
-type immediate_creation_reason =
-  | Empty_record
-  | Enumeration
-  | Primitive of Ident.t
-  | Immediate_polymorphic_variant
-
-type immediate64_creation_reason = Separability_check
-
-type void_creation_reason = |
-
-type any_creation_reason =
-  | Missing_cmi of Path.t
-  | Initial_typedecl_env
-  | Dummy_jkind
-  | Type_expression_call
-  | Inside_of_Tarrow
-  | Wildcard
-  | Unification_var
-  | Array_type_argument
-
-type float64_creation_reason = Primitive of Ident.t
-
-type float32_creation_reason = Primitive of Ident.t
-
-type word_creation_reason = Primitive of Ident.t
-
-type bits32_creation_reason = Primitive of Ident.t
-
-type bits64_creation_reason = Primitive of Ident.t
-
-type annotation_context =
-  | Type_declaration of Path.t
-  | Type_parameter of Path.t * string option
-  | Newtype_declaration of string
-  | Constructor_type_parameter of Path.t * string
-  | Univar of string
-  | Type_variable of string
-  | Type_wildcard of Location.t
-  | With_error_message of string * annotation_context
-
-type creation_reason =
-  | Annotated of annotation_context * Location.t
-  | Missing_cmi of Path.t
-  | Value_creation of value_creation_reason
-  | Immediate_creation of immediate_creation_reason
-  | Immediate64_creation of immediate64_creation_reason
-  | Void_creation of void_creation_reason
-  | Any_creation of any_creation_reason
-  | Float64_creation of float64_creation_reason
-  | Float32_creation of float32_creation_reason
-  | Word_creation of word_creation_reason
-  | Bits32_creation of bits32_creation_reason
-  | Bits64_creation of bits64_creation_reason
-  | Concrete_creation of concrete_jkind_reason
-  | Imported
-  | Imported_type_argument of
-      { parent_path : Path.t;
-        position : int;
-        arity : int
-      }
-  (* [position] is 1-indexed *)
-  | Generalized of Ident.t option * Location.t
-
-type interact_reason =
-  | Gadt_equation of Path.t
-  | Tyvar_refinement_intersection
-  (* CR layouts: this needs to carry a type_expr, but that's loopy *)
-  | Subjkind
-
-(* A history of conditions placed on a jkind.
-
-   INVARIANT: at most one sort variable appears in this history.
-   This is a natural consequence of producing this history by comparing
-   jkinds.
-*)
-type history =
-  | Interact of
-      { reason : interact_reason;
-        lhs_jkind : Jkind_desc.t;
-        lhs_history : history;
-        rhs_jkind : Jkind_desc.t;
-        rhs_history : history
-      }
-  | Creation of creation_reason
-
-type t =
-  { jkind : Jkind_desc.t;
-    history : history
-  }
+type t = type_expr Jkind_types.t
 
 let fresh_jkind jkind ~why = { jkind; history = Creation why }
 
@@ -1629,6 +1186,8 @@ let equate_or_equal ~allow_mutation { jkind = jkind1; history = _ }
 
 (* CR layouts v2.8: Switch this back to ~allow_mutation:false *)
 let equal = equate_or_equal ~allow_mutation:true
+
+let () = Types.set_jkind_equal equal
 
 let equate = equate_or_equal ~allow_mutation:true
 
