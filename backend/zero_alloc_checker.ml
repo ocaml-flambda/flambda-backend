@@ -1392,6 +1392,9 @@ module Annotation : sig
 
   val find : Cmm.codegen_option list -> string -> Debuginfo.t -> t option
 
+  val of_cfg :
+    Cfg.codegen_option list -> Cmm.property -> string -> Debuginfo.t -> t option
+
   val expected_value : t -> Value.t
 
   (** [valid t value] returns true if and only if the [value] satisfies the annotation,
@@ -1477,6 +1480,39 @@ end = struct
                 loc
               }
           | Reduce_code_size | No_CSE | Use_linscan_regalloc -> None)
+        codegen_options
+    in
+    match a with
+    | [] -> None
+    | [p] -> Some p
+    | _ :: _ ->
+      Misc.fatal_errorf "Unexpected duplicate annotation %a for %s"
+        Debuginfo.print_compact dbg fun_name ()
+
+  let of_cfg codegen_options spec fun_name dbg =
+    let a =
+      List.filter_map
+        (fun (c : Cfg.codegen_option) ->
+          match c with
+          | Check { property; strict; loc } when property = spec ->
+            Some
+              { strict;
+                assume = false;
+                never_returns_normally = false;
+                never_raises = false;
+                loc
+              }
+          | Assume
+              { property; strict; never_returns_normally; never_raises; loc }
+            when property = spec ->
+            Some
+              { strict;
+                assume = true;
+                never_returns_normally;
+                never_raises;
+                loc
+              }
+          | Check _ | Assume _ | Reduce_code_size | No_CSE -> None)
         codegen_options
     in
     match a with
@@ -1904,6 +1940,14 @@ module Analysis : sig
   (** Check one function. *)
   val fundecl :
     Mach.fundecl ->
+    future_funcnames:String.Set.t ->
+    Unit_info.t ->
+    Unresolved_dependencies.t ->
+    Format.formatter ->
+    unit
+
+  val cfg :
+    Cfg.t ->
     future_funcnames:String.Set.t ->
     Unit_info.t ->
     Unresolved_dependencies.t ->
@@ -2481,6 +2525,35 @@ end = struct
     let check_body t = check_instr t fd.fun_body in
     check_fun fd.fun_name fd.fun_dbg a check_body ~future_funcnames unit_info
       unresolved_deps ppf
+
+  let cfg (fd : Cfg.t) ~future_funcnames unit_info unresolved_deps ppf =
+    let a =
+      Annotation.of_cfg fd.fun_codegen_options S.property fd.fun_name fd.fun_dbg
+    in
+    let check_body t =
+      (* CR gyorsh: initialize loops with [Value.Diverges] *)
+      match
+        Check_cfg_backward.run fd ~init:Value.bot ~exnescape:Value.exn_escape
+          ~map:Instr t
+      with
+      | Ok map ->
+        let entry_block = Cfg.get_block_exn fd fd.entry_label in
+        let res =
+          Cfg_dataflow.Instr.Tbl.find map (Cfg.first_instruction_id entry_block)
+        in
+        report t res ~msg:"Check_cfg_backward result" ~desc:"fundecl" fd.fun_dbg;
+        res
+      | Aborted _ -> Misc.fatal_errorf "Analyzing function %s" fd.fun_name ()
+      | Max_iterations_reached ->
+        let res = Value.top Witnesses.empty in
+        report t res
+          ~msg:
+            "Can't reach fixpoint in max iterations, conservatively return Top"
+          ~desc:"fundecl" fd.fun_dbg;
+        res
+    in
+    check_fun fd.fun_name fd.fun_dbg a check_body ~future_funcnames unit_info
+      unresolved_deps ppf
 end
 
 (** Information about the current unit. *)
@@ -2491,6 +2564,11 @@ let unresolved_deps = Unresolved_dependencies.create ()
 let fundecl ppf_dump ~future_funcnames fd =
   Analysis.fundecl fd ~future_funcnames unit_info unresolved_deps ppf_dump;
   fd
+
+let cfg ppf_dump ~future_funcnames cl =
+  let cfg = Cfg_with_layout.cfg cl in
+  Check_zero_alloc.cfg cfg ~future_funcnames unit_info unresolved_deps ppf_dump;
+  cl
 
 let reset_unit_info () =
   Unit_info.reset unit_info;

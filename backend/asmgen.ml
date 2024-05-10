@@ -277,12 +277,12 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ Profile.record ~accumulate:true "polling"
        (Polling.instrument_fundecl ~future_funcnames:funcnames)
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_polling
-  ++ Profile.record ~accumulate:true "zero_alloc_checker"
-       (Zero_alloc_checker.fundecl ~future_funcnames:funcnames ppf_dump)
   ++ (fun fd ->
       match !Flambda_backend_flags.cfg_cse_optimize with
       | false ->
         fd
+        ++ Profile.record ~accumulate:true "zero_alloc_checker"
+             (Zero_alloc_checker.fundecl ~future_funcnames:funcnames ppf_dump)
         ++ pass_dump_if ppf_dump dump_combine "Before allocation combining"
         ++ Profile.record ~accumulate:true "comballoc" Comballoc.fundecl
         ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_combine
@@ -311,6 +311,8 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
               | false -> cfg_with_layout
               | true ->
                 cfg_with_layout
+                ++ Profile.record ~accumulate:true "cfg_zero_alloc_checker"
+                     (Zero_alloc_checker.cfg ~future_funcnames:funcnames ppf_dump)
                 ++ Profile.record ~accumulate:true "cfg_comballoc" Cfg_comballoc.run
                 ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg_combine
                 ++ Profile.record ~accumulate:true "cfg_cse" CSE.cfg_with_layout
