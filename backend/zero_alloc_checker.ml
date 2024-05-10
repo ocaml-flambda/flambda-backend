@@ -2432,22 +2432,20 @@ end = struct
         unresolved_deps;
     propagate ~callee:caller unit_info unresolved_deps ppf
 
-  let fundecl (f : Mach.fundecl) ~future_funcnames unit_info unresolved_deps ppf
-      =
+  let check_fun fun_name fun_dbg a check_body ~future_funcnames unit_info
+      unresolved_deps ppf =
     let check () =
-      let fun_name = f.fun_name in
-      let a = Annotation.find f.fun_codegen_options fun_name f.fun_dbg in
       let t = create ppf fun_name future_funcnames unit_info a in
       let really_check () =
-        let res = check_instr t f.fun_body in
-        report t res ~msg:"finished" ~desc:"fundecl" f.fun_dbg;
+        let res = check_body t in
+        report t res ~msg:"finished" ~desc:"fundecl" fun_dbg;
         if (not t.keep_witnesses) && Value.is_resolved res
         then (
           let { Witnesses.nor; exn; div } = Value.get_witnesses res in
           assert (Witnesses.is_empty nor);
           assert (Witnesses.is_empty exn);
           assert (Witnesses.is_empty div));
-        Unit_info.record unit_info fun_name res f.fun_dbg a;
+        Unit_info.record unit_info fun_name res fun_dbg a;
         add_unresolved_dependencies fun_name unit_info unresolved_deps t.ppf;
         report_unit_info ppf unit_info ~msg:"after record"
       in
@@ -2458,22 +2456,31 @@ end = struct
              the summary is top. *)
           Unit_info.record unit_info fun_name
             (Value.top Witnesses.empty)
-            f.fun_dbg a
+            fun_dbg a
         else really_check ()
       in
       match a with
       | Some a when Annotation.is_assume a ->
         let expected_value = Annotation.expected_value a in
-        report t expected_value ~msg:"assumed" ~desc:"fundecl" f.fun_dbg;
-        Unit_info.record unit_info fun_name expected_value f.fun_dbg None
+        report t expected_value ~msg:"assumed" ~desc:"fundecl" fun_dbg;
+        Unit_info.record unit_info fun_name expected_value fun_dbg None
       | None -> really_check ()
       | Some a ->
         let expected_value = Annotation.expected_value a in
-        report t expected_value ~msg:"assert" ~desc:"fundecl" f.fun_dbg;
+        report t expected_value ~msg:"assert" ~desc:"fundecl" fun_dbg;
         (* Only keep witnesses for functions that need checking. *)
         really_check ()
     in
     Profile.record_call ~accumulate:true ("check " ^ analysis_name) check
+
+  let fundecl (fd : Mach.fundecl) ~future_funcnames unit_info unresolved_deps
+      ppf =
+    let a =
+      Annotation.find fd.fun_codegen_options S.property fd.fun_name fd.fun_dbg
+    in
+    let check_body t = check_instr t fd.fun_body in
+    check_fun fd.fun_name fd.fun_dbg a check_body ~future_funcnames unit_info
+      unresolved_deps ppf
 end
 
 (** Information about the current unit. *)
