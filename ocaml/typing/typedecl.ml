@@ -3214,7 +3214,7 @@ let explain_unbound_single ppf tv ty =
           Rpresent (Some t) -> t
         | Reither (_,[t],_) -> t
         | Reither (_,tl,_) -> Btype.newgenty (dummy_type_list tl)
-        | _ -> Btype.newgenty (Ttuple[]))
+        | _ -> Btype.newgenty (Ttuple([], Representable)))
         "case" (fun (lab,_) -> "`" ^ lab ^ " of ")
   | _ -> trivial ty
 

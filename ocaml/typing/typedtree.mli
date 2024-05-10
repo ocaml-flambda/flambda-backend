@@ -126,7 +126,8 @@ and 'k pattern_desc =
         (** P as a *)
   | Tpat_constant : constant -> value pattern_desc
         (** 1, 'a', "true", 1.0, 1l, 1L, 1n *)
-  | Tpat_tuple : (string option * value general_pattern * Jkind.sort) list ->
+  | Tpat_tuple :
+      (string option * value general_pattern) list * Types.tuple_shape ->
       value pattern_desc
         (** (P1, ..., Pn)             [(None,P1,_); ...; (None,Pn,_)])
             (L1:P1, ... Ln:Pn)        [(Some L1,P1,_); ...; (Some Ln,Pn,_)])
@@ -312,14 +313,15 @@ and expression_desc =
          *)
   | Texp_try of expression * value case list
         (** try E with P1 -> E1 | ... | PN -> EN *)
-  | Texp_tuple of (string option * expression * Jkind.sort) list * Mode.Alloc.r
+  | Texp_tuple of (string option * expression) list * Mode.Alloc.r
+                  * Types.tuple_shape
         (** [Texp_tuple(el)] represents
             - [(E1, ..., En)]
-              when [el] is [(None, E1, _);...;(None, En, _)],
+              when [el] is [(None, E1);...;(None, En)],
             - [(L1:E1, ..., Ln:En)]
-              when [el] is [(Some L1, E1, _);...;(Some Ln, En, _)],
+              when [el] is [(Some L1, E1);...;(Some Ln, En)],
             - Any mix, e.g. [(L1: E1, E2)]
-              when [el] is [(Some L1, E1, _); (None, E2, _)]
+              when [el] is [(Some L1, E1); (None, E2)]
           *)
   | Texp_construct of
       Longident.t loc * Types.constructor_description *

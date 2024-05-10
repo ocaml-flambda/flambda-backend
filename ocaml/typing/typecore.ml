@@ -1261,11 +1261,11 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
     fst (build_as_type_and_mode ~refine ~mode env p) in
   match p.pat_desc with
     Tpat_alias(p1,_, _, _, _) -> build_as_type_and_mode ~refine ~mode env p1
-  | Tpat_tuple pl ->
+  | Tpat_tuple (pl, shape) ->
       let labeled_tyl =
-        List.map (fun (label, p, sort) -> label, build_as_type env p, sort) pl
+        List.map (fun (label, p) -> label, build_as_type env p) pl
       in
-      newty (Ttuple labeled_tyl), mode
+      newty (Ttuple (labeled_tyl, shape)), mode
   | Tpat_construct(_, cstr, pl, vto) ->
       let priv = (cstr.cstr_private = Private) in
       let mode =
@@ -1403,7 +1403,7 @@ let extract_or_mk_pat label rem closed =
     [closed] flag to the typedtree)
    *)
 let reorder_pat loc env patl closed labeled_tl expected_ty =
-  let take_next (taken, rem) (label, _, _) =
+  let take_next (taken, rem) (label, _) =
     match extract_or_mk_pat label rem closed with
     | Some (pat, rem) -> (label, pat) :: taken, rem
     | None ->
@@ -1428,29 +1428,34 @@ let solve_Ppat_tuple ~refine ~alloc_mode loc env args expected_ty =
     then alloc_mode.tuple_modes
     else List.init arity (fun _ -> alloc_mode.mode)
   in
-  let make_jkind_and_sort =
+  let shape, jkinds  =
     if alloc_mode.tuple_materialized
-    then (fun () ->
-      let jkind = Jkind.value ~why:Element_of_representable_tuple in
-      let sort = Jkind.Sort.for_element_of_representable_tuple in
-      jkind, sort)
+    then Representable,
+         List.map
+           (fun _ -> Jkind.value ~why:Element_of_representable_tuple)
+           args
     else
-      (fun () -> Jkind.of_new_sort_var ~why:Element_of_local_tuple)
+      let jkinds, sorts =
+        List.map
+          (fun _ -> Jkind.of_new_sort_var ~why:Element_of_local_tuple)
+          args
+        |> List.split
+      in
+      Unrepresentable (Array.of_list sorts), jkinds
   in
   let ann =
     List.map2
-      (fun (label, p) mode ->
-        let jkind, sort = make_jkind_and_sort () in
-        (label, p, newgenvar jkind, sort, simple_pat_mode mode))
-      args arg_modes
+      (fun (label, p) (jkind, mode) ->
+        (label, p, newgenvar jkind, simple_pat_mode mode))
+      args (List.combine jkinds arg_modes)
   in
   let ty =
     newgenty
-      (Ttuple (List.map (fun (lbl, _, t, sort, _) -> lbl, t, sort) ann))
+      (Ttuple (List.map (fun (lbl, _, t, _) -> lbl, t) ann, shape))
   in
   let expected_ty = generic_instance expected_ty in
   unify_pat_types ~refine loc env ty expected_ty;
-  ann
+  ann, shape
 
 let solve_constructor_annotation tps env name_list sty ty_args ty_ex =
   let expansion_scope = get_gadt_equations_level () in
@@ -1486,9 +1491,10 @@ let solve_constructor_annotation tps env name_list sty ty_args ty_ex =
         unify_pat_types cty.ctyp_loc env ty1
           (newty
             (Ttuple
-              (List.map (fun t -> None, t, Jkind.Sort.new_var ()) ty_args)));
+              (List.map (fun t -> None, t) ty_args,
+               Representable)));
         match get_desc (expand_head !env ty2) with
-          Ttuple tyl -> (List.map snd3 tyl)
+          Ttuple (tyl, _) -> (List.map snd tyl)
         | _ -> assert false
   in
   if ids <> [] then ignore begin
@@ -2424,7 +2430,7 @@ and type_pat_aux
     let args =
       match get_desc (expand_head !env expected_ty) with
       (* If it's a principally-known tuple pattern, try to reorder *)
-      | Ttuple labeled_tl when is_principal expected_ty ->
+      | Ttuple (labeled_tl, _) when is_principal expected_ty ->
         reorder_pat loc env spl closed labeled_tl expected_ty
       (* If not, it's not allowed to be open (partial) *)
       | _ ->
@@ -2432,19 +2438,20 @@ and type_pat_aux
         | Open -> raise (Error (loc, !env, Partial_tuple_pattern_bad_type))
         | Closed -> spl
     in
-    let spl_ann =
+    let spl_ann, shape =
       solve_Ppat_tuple ~refine ~alloc_mode loc env args expected_ty
     in
     let pl =
-      List.map (fun (lbl, p, t, sort, alloc_mode) ->
-        lbl, type_pat tps Value ~alloc_mode p t, sort)
+      List.map (fun (lbl, p, t, alloc_mode) ->
+        lbl, type_pat tps Value ~alloc_mode p t)
         spl_ann
     in
     rvp {
-      pat_desc = Tpat_tuple pl;
+      pat_desc = Tpat_tuple (pl, shape);
       pat_loc = loc; pat_extra=[];
       pat_type =
-        newty (Ttuple (List.map (fun (lbl, p, s) -> lbl, p.pat_type, s) pl));
+        newty (Ttuple (List.map (fun (lbl, p) -> lbl, p.pat_type) pl,
+                       shape));
       pat_attributes = sp.ppat_attributes;
       pat_env = !env }
   in
@@ -3214,21 +3221,26 @@ let rec check_counter_example_pat
         | `Jane_syntax cst -> unboxed_constant_or_raise !env loc cst
       in
       k @@ solve_expected (mp (Tpat_constant cst) ~pat_type:(type_constant cst))
-  | Tpat_tuple tpl ->
-      let tpl_ann =
-        solve_Ppat_tuple ~refine ~alloc_mode loc env
-          (List.map (fun (lbl, p, _sort) -> lbl, p) tpl)
-          expected_ty
+  | Tpat_tuple (tpl, shape) ->
+      let tpl_ann, shape' =
+        solve_Ppat_tuple ~refine ~alloc_mode loc env tpl expected_ty
       in
-      List.iter2
-         (fun (_, _, s1) (_, _, _, s2, _) -> assert (Jkind.Sort.equate s1 s2))
-         tpl tpl_ann;
-      map_fold_cont (fun (l,p,t,s,_) k -> check_rec p t (fun p -> k (l, p, s)))
+      let () =
+        match shape, shape' with
+        | Representable, Representable -> ()
+        | Unrepresentable sorts, Unrepresentable sorts' ->
+           Array.iter2
+             (fun s1 s2 -> assert (Jkind.Sort.equate s1 s2))
+             sorts sorts'
+        | (Representable | Unrepresentable _), _ -> assert false
+      in
+      map_fold_cont (fun (l,p,t,_) k -> check_rec p t (fun p -> k (l, p)))
         tpl_ann
         (fun pl ->
-           mkp k (Tpat_tuple pl)
-             ~pat_type:(newty (Ttuple(List.map (fun (l,p,s) -> (l,p.pat_type,s))
-                                         pl))))
+           mkp k (Tpat_tuple (pl, shape))
+             ~pat_type:(newty (Ttuple(List.map (fun (l,p) -> (l,p.pat_type))
+                                        pl,
+                                      shape))))
   | Tpat_construct(cstr_lid, constr, targs, _) ->
       if constr.cstr_generalized && must_backtrack_on_gadt then
         raise Need_backtrack;
@@ -3815,8 +3827,8 @@ let rec is_nonexpansive exp =
            && not (contains_exception_pat c_lhs)
         ) cases
   | Texp_probe {handler} -> is_nonexpansive handler
-  | Texp_tuple (el, _) ->
-      List.for_all (fun (_,e,_) -> is_nonexpansive e) el
+  | Texp_tuple (el, _, _) ->
+      List.for_all (fun (_,e) -> is_nonexpansive e) el
   | Texp_construct(_, _, el, _) ->
       List.for_all is_nonexpansive el
   | Texp_variant(_, arg) -> is_nonexpansive_opt (Option.map fst arg)
@@ -4122,13 +4134,12 @@ let rec approx_type env sty =
       newty (Tarrow ((p,marg,mret), newmono arg, ret, commu_ok))
   | Ptyp_tuple args ->
       let args =
-        List.map
-          (fun t ->
-            None, approx_type env t,
-            Jkind.Sort.for_element_of_representable_tuple)
-          args
+        List.map (fun t -> None, approx_type env t) args
       in
-      newty (Ttuple args)
+      (* CR layouts v5: The user will want to be able to write a tuple
+         type that mentions non-value types.
+      *)
+      newty (Ttuple (args, Representable))
   | Ptyp_constr (lid, ctl) ->
       let path, decl = Env.lookup_type ~use:false ~loc:lid.loc lid.txt env in
       if List.length ctl <> decl.type_arity
@@ -4146,12 +4157,10 @@ and approx_type_jst env _attrs : Jane_syntax.Core_type.t -> _ = function
   | Jtyp_tuple args ->
       let args =
         List.map
-          (fun (label, t) ->
-            label, approx_type env t,
-            Jkind.Sort.for_element_of_representable_tuple)
+          (fun (label, t) -> label, approx_type env t)
           args
       in
-      newty (Ttuple args)
+      newty (Ttuple (args, Representable))
 
 let type_pattern_approx_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array _
@@ -4282,15 +4291,15 @@ and type_tuple_approx (env: Env.t) loc ty_expected l =
   let labeled_tys = List.map
     (fun (label, _) ->
       label,
-      newvar (Jkind.value ~why:Element_of_representable_tuple),
-      Jkind.Sort.for_element_of_representable_tuple) l
+      newvar (Jkind.value ~why:Element_of_representable_tuple))
+    l
   in
-  let ty = newty (Ttuple labeled_tys) in
+  let ty = newty (Ttuple (labeled_tys, Representable)) in
   begin try unify env ty ty_expected with Unify err ->
     raise(Error(loc, env, Expr_type_clash (err, None, None)))
   end;
   List.iter2
-    (fun (_, e) (_, ty, _) -> type_approx env e ty)
+    (fun (_, e) (_, ty) -> type_approx env e ty)
     l labeled_tys
 
 and type_approx_function =
@@ -6352,11 +6361,12 @@ and type_expect_
         | { pbop_pat = spat; _} :: rest ->
             (* CR layouts v5: eliminate value requirement *)
             let ty_jkind = Jkind.value ~why:Element_of_representable_tuple in
-            let ty_sort = Jkind.sort_of_jkind ty_jkind in
             let ty = newvar ty_jkind in
             let loc = Location.ghostify slet.pbop_op.loc in
             let spat_acc = Ast_helper.Pat.tuple ~loc [spat_acc; spat] in
-            let ty_acc = newty (Ttuple [None, ty_acc, ty_acc_sort; None, ty, ty_sort]) in
+            let ty_acc =
+              newty (Ttuple ([None, ty_acc; None, ty], Representable))
+            in
             loop spat_acc ty_acc Jkind.Sort.value rest
       in
       let op_path, op_desc, op_type, spat_params, ty_params, param_sort,
@@ -7818,22 +7828,26 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
   (* CR layouts v5: proper support for non-values in tuples; not just
      the [Element_of_local_tuple] hack.
   *)
-  let make_jkind_and_sort =
+  let shape, jkinds =
     if expected_mode.tuple_materialized then
-      (fun () ->
-        let jkind = Jkind.value ~why:Element_of_representable_tuple in
-        let sort = Jkind.Sort.for_element_of_representable_tuple in
-        jkind, sort)
+      Representable,
+      List.map (fun _ ->
+          Jkind.value ~why:Element_of_representable_tuple)
+        sexpl
     else
-      (fun () -> Jkind.of_new_sort_var ~why:Element_of_local_tuple)
+      let jkinds, sorts =
+        List.map (fun _ ->
+            Jkind.of_new_sort_var ~why:Element_of_local_tuple)
+          sexpl
+        |> List.split
+      in
+      Unrepresentable (Array.of_list sorts), jkinds
   in
   let labeled_subtypes =
-    List.map (fun (label, _) ->
-        let jkind, sort = make_jkind_and_sort () in
-        (label, newgenvar jkind, sort))
-      sexpl
+    List.map2 (fun (label, _) jkind -> (label, newgenvar jkind))
+      sexpl jkinds
   in
-  let to_unify = newgenty (Ttuple labeled_subtypes) in
+  let to_unify = newgenty (Ttuple (labeled_subtypes, shape)) in
   with_explanation explanation (fun () ->
     unify_exp_types loc env to_unify (generic_instance ty_expected));
   let argument_modes =
@@ -7845,18 +7859,19 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
   let types_and_modes = List.combine labeled_subtypes argument_modes in
   let expl =
     List.map2
-      (fun (label, body) ((_, ty, sort), argument_mode) ->
+      (fun (label, body) ((_, ty), argument_mode) ->
          let argument_mode = mode_default argument_mode in
          let argument_mode = expect_mode_cross env ty argument_mode in
-         (label, type_expect env argument_mode body (mk_expected ty), sort))
+         (label, type_expect env argument_mode body (mk_expected ty)))
       sexpl types_and_modes
   in
   re {
-    exp_desc = Texp_tuple (expl, alloc_mode);
+    exp_desc = Texp_tuple (expl, alloc_mode, shape);
     exp_loc = loc; exp_extra = [];
     (* Keep sharing *)
     exp_type =
-      newty (Ttuple (List.map (fun (l, e, s) -> l, e.exp_type, s) expl));
+      newty (Ttuple (List.map (fun (l, e) -> l, e.exp_type) expl,
+                     shape));
     exp_attributes = attributes;
     exp_env = env }
 

@@ -1143,7 +1143,6 @@ and transl_type_aux_tuple env ~policy ~row_context stl =
          label, transl_type env ~policy ~row_context Alloc.Const.legacy t)
       stl
   in
-  let elem_sort = Jkind.Sort.for_element_of_representable_tuple in
   let elem_jkind = Jkind.value ~why:Element_of_representable_tuple in
   List.iter (fun (_, {ctyp_type; ctyp_loc}) ->
     (* CR layouts v5: remove value requirement *)
@@ -1156,8 +1155,8 @@ and transl_type_aux_tuple env ~policy ~row_context stl =
     ctys;
   let ctyp_type =
     newty
-      (Ttuple
-        (List.map (fun (lbl, ctyp) -> lbl, ctyp.ctyp_type, elem_sort) ctys))
+      (Ttuple (List.map (fun (lbl, ctyp) -> lbl, ctyp.ctyp_type) ctys,
+               Representable))
   in
   Ttyp_tuple ctys, ctyp_type
 

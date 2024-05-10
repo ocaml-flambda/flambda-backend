@@ -52,7 +52,7 @@ module Simple = struct
   type view = [
     | `Any
     | `Constant of constant
-    | `Tuple of (string option * pattern * Jkind.sort) list
+    | `Tuple of (string option * pattern) list * tuple_shape
     | `Construct of
         Longident.t loc * constructor_description * pattern list
     | `Variant of label * pattern option * row_desc ref
@@ -93,8 +93,8 @@ module General = struct
        `Alias (p, id, str, uid, mode)
     | Tpat_constant cst ->
        `Constant cst
-    | Tpat_tuple ps ->
-       `Tuple ps
+    | Tpat_tuple (ps, shape) ->
+       `Tuple (ps, shape)
     | Tpat_construct (cstr, cstr_descr, args, _) ->
        `Construct (cstr, cstr_descr, args)
     | Tpat_variant (cstr, arg, row_desc) ->
@@ -113,7 +113,7 @@ module General = struct
     | `Var (id, str, uid, mode) -> Tpat_var (id, str, uid, mode)
     | `Alias (p, id, str, uid, mode) -> Tpat_alias (p, id, str, uid, mode)
     | `Constant cst -> Tpat_constant cst
-    | `Tuple ps -> Tpat_tuple ps
+    | `Tuple (ps, shape) -> Tpat_tuple (ps, shape)
     | `Construct (cstr, cst_descr, args) ->
        Tpat_construct (cstr, cst_descr, args, None)
     | `Variant (cstr, arg, row_desc) ->
@@ -137,11 +137,13 @@ end
 (* the head constructor of a simple pattern *)
 
 module Head : sig
+  type tuple = string option list * tuple_shape
+
   type desc =
     | Any
     | Construct of constructor_description
     | Constant of constant
-    | Tuple of (string option * Jkind.sort) list
+    | Tuple of tuple
     | Record of label_description list
     | Variant of
         { tag: label; has_arg: bool;
@@ -161,12 +163,16 @@ module Head : sig
   val to_omega_pattern : t -> pattern
 
   val omega : t
+
+  val equate_tuple : tuple -> tuple -> bool
 end = struct
+  type tuple = string option list * tuple_shape
+
   type desc =
     | Any
     | Construct of constructor_description
     | Constant of constant
-    | Tuple of (string option * Jkind.sort) list
+    | Tuple of tuple
     | Record of label_description list
     | Variant of
         { tag: label; has_arg: bool;
@@ -183,9 +189,8 @@ end = struct
     let deconstruct_desc = function
       | `Any -> Any, []
       | `Constant c -> Constant c, []
-      | `Tuple args ->
-          Tuple (List.map (fun (lbl, _, sort) -> lbl, sort) args),
-                (List.map (fun (_, p, _) -> p) args)
+      | `Tuple (args, shape) ->
+          Tuple (List.map fst args, shape), (List.map snd args)
       | `Construct (_, c, args) ->
           Construct c, args
       | `Variant (tag, arg, cstr_row) ->
@@ -217,7 +222,7 @@ end = struct
       | Any -> 0
       | Constant _ -> 0
       | Construct c -> c.cstr_arity
-      | Tuple l -> List.length l
+      | Tuple (l, _) -> List.length l
       | Array (_, _, n) -> n
       | Record l -> List.length l
       | Variant { has_arg; _ } -> if has_arg then 1 else 0
@@ -230,8 +235,8 @@ end = struct
       | Any -> Tpat_any
       | Lazy -> Tpat_lazy omega
       | Constant c -> Tpat_constant c
-      | Tuple lbls ->
-          Tpat_tuple (List.map (fun (lbl, sort) -> lbl, omega, sort) lbls)
+      | Tuple (lbls, shape) ->
+          Tpat_tuple (List.map (fun lbl -> lbl, omega) lbls, shape)
       | Array (am, arg_sort, n) -> Tpat_array (am, arg_sort, omegas n)
       | Construct c ->
           let lid_loc = mkloc (Longident.Lident c.cstr_name) in
@@ -254,4 +259,13 @@ end = struct
     }
 
   let omega = { omega with pat_desc = Any }
+
+  let equate_tuple (elems1, shape1) (elems2, shape2) =
+    List.equal ((=) : string option -> _ -> bool)
+      elems1 elems2
+    && match shape1, shape2 with
+    | Representable, Representable -> true
+    | Unrepresentable sorts1, Unrepresentable sorts2 ->
+        Misc.Stdlib.Array.equal Jkind.Sort.equate sorts1 sorts2
+    | (Representable | Unrepresentable _), _ -> false
 end

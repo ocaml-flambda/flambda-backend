@@ -238,10 +238,7 @@ let mk_add_type add_type
   add_type type_ident decl env
 
 let ttuple tys =
-  Ttuple (
-    List.map
-      (fun ty -> None, ty, Jkind.Sort.for_element_of_representable_tuple)
-      tys)
+  Ttuple (List.map (fun ty -> None, ty) tys, Representable)
 
 (* CR layouts: Changes will be needed here as we add support for the built-ins
    to work with non-values, and as we relax the mixed block restriction. *)

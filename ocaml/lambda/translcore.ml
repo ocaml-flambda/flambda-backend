@@ -457,22 +457,27 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                Matching.for_trywith ~scopes ~return_layout e.exp_loc (Lvar id)
                  (transl_cases_try ~scopes sort pat_expr_list),
                return_layout)
-  | Texp_tuple (el, alloc_mode) ->
-      let ll = List.map (fun (_lbl, e, sort) -> transl_exp ~scopes sort e) el in
+  | Texp_tuple (el, alloc_mode, shape) ->
+      let ll =
+        List.mapi (fun i (_lbl, e) ->
+            let sort = index_tuple_shape shape i in
+            transl_exp ~scopes sort e) el
+      in
       let shape =
-        let rec get_shape ~rev_acc = function
-          | [] -> Representable_with_shape (List.rev rev_acc)
-          | (_lbl, e, sort) :: rest ->
-              (* CR layouts v5: We can update this when we can represent tuples
-                 of non-values. For now, any tuple that contains a non-value is
-                 one that the type-checker is predicting that translation will
-                 optimize out.
-              *)
-              match layout_exp sort e with
-              | Pvalue value_kind -> get_shape rest ~rev_acc:(value_kind :: rev_acc)
-              | _ -> Unrepresentable
-        in
-        get_shape el ~rev_acc:[]
+        (* CR layouts v5: We can update this when we can represent tuples
+           of non-values. For now, any tuple that contains a non-value is
+           one that the type-checker is predicting that translation will
+           optimize out.
+        *)
+        match shape with
+        | Representable ->
+            Representable_with_shape
+              (List.map (fun (_, e) ->
+                   Lambda.must_be_value
+                     (layout_exp
+                        Jkind.Sort.for_element_of_representable_tuple e))
+                 el)
+        | Unrepresentable _sorts -> Unrepresentable
       in
       let maybe_constant =
         match shape with
@@ -1143,10 +1148,12 @@ and pure_module m =
 and transl_list ~scopes expr_list =
   List.map (fun (exp, sort) -> transl_exp ~scopes sort exp) expr_list
 
-and transl_list_with_layout ~scopes expr_list =
-  List.map (fun (exp, sort) -> transl_exp ~scopes sort exp,
-                               sort,
-                               layout_exp sort exp)
+and transl_list_with_layout ~scopes expr_list shape =
+  List.mapi (fun i exp ->
+      let sort = index_tuple_shape shape i in
+      transl_exp ~scopes sort exp,
+      sort,
+      layout_exp sort exp)
     expr_list
 
 and transl_guard ~scopes guard rhs_sort rhs =
@@ -1367,7 +1374,7 @@ and transl_tupled_function
   match eligible_cases with
   | Some
       (cases, partial,
-       ({ pat_desc = Tpat_tuple pl } as arg_pat), arg_mode, arg_sort)
+       ({ pat_desc = Tpat_tuple (pl, _) } as arg_pat), arg_mode, arg_sort)
     when is_alloc_heap mode
       && is_alloc_heap (transl_alloc_mode_l arg_mode)
       && !Clflags.native_code
@@ -1969,29 +1976,29 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
   in
   let classic =
     match arg, exn_cases with
-    | {exp_desc = Texp_tuple (argl, alloc_mode)}, [] ->
+    | {exp_desc = Texp_tuple (argl, alloc_mode, shape)}, [] ->
       assert (static_handlers = []);
       let mode = transl_alloc_mode_r alloc_mode in
-      let argl =
-        List.map (fun (_, a, sort) -> (a, sort)) argl
-      in
+      let argl = List.map snd argl in
       Matching.for_multiple_match ~scopes ~return_layout e.exp_loc
-        (transl_list_with_layout ~scopes argl) mode val_cases partial
-    | {exp_desc = Texp_tuple (argl, alloc_mode)}, _ :: _ ->
-        let argl =
-          List.map (fun (_, a, sort) -> (a, sort)) argl
-        in
+        (transl_list_with_layout ~scopes argl shape) mode val_cases partial
+    | {exp_desc = Texp_tuple (argl, alloc_mode, shape)}, _ :: _ ->
+        let argl = List.map snd argl in
         let val_ids, lvars =
-          List.map
-            (fun (arg,s) ->
-               let layout = layout_exp s arg in
+          List.mapi
+            (fun i arg ->
+               let sort = index_tuple_shape shape i in
+               let layout = layout_exp sort arg in
                let id = Typecore.name_pattern "val" [] in
-               (id, layout), (Lvar id, s, layout))
+               (id, layout), (Lvar id, sort, layout))
             argl
           |> List.split
         in
         let mode = transl_alloc_mode_r alloc_mode in
-        static_catch (transl_list ~scopes argl) val_ids
+        let argl_with_sorts =
+          List.mapi (fun i arg -> (arg, index_tuple_shape shape i)) argl
+        in
+        static_catch (transl_list ~scopes argl_with_sorts) val_ids
           (Matching.for_multiple_match ~scopes ~return_layout e.exp_loc
              lvars mode val_cases partial)
     | arg, [] ->

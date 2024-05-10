@@ -304,8 +304,11 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
       value_mode i ppf m;
       pattern i ppf p;
   | Tpat_constant (c) -> line i ppf "Tpat_constant %a\n" fmt_constant c;
-  | Tpat_tuple (l) ->
-      line i ppf "Tpat_tuple\n";
+  | Tpat_tuple (l, shape) ->
+      line i ppf "Tpat_tuple%s\n"
+        (match shape with
+         | Representable -> ""
+         | Unrepresentable _ -> " \"Unrepresentable\"");
       list i labeled_pattern ppf l;
   | Tpat_construct (li, _, po, vto) ->
       line i ppf "Tpat_construct %a\n" fmt_longident li;
@@ -340,10 +343,9 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
       pattern i ppf p1;
       pattern i ppf p2;
 
-and labeled_pattern : type k . _ -> _ -> _ * k general_pattern * _ -> unit =
-  fun i ppf (label, x, sort) ->
+and labeled_pattern : type k . _ -> _ -> _ * k general_pattern -> unit =
+  fun i ppf (label, x) ->
     tuple_component_label i ppf label;
-    line i ppf "%a\n" Jkind.Sort.format sort;
     pattern i ppf x
 
 and pattern_extra i ppf (extra_pat, _, attrs) =
@@ -467,8 +469,11 @@ and expression i ppf x =
       line i ppf "Texp_try\n";
       expression i ppf e;
       list i case ppf l;
-  | Texp_tuple (l, am) ->
-      line i ppf "Texp_tuple\n";
+  | Texp_tuple (l, am, shape) ->
+      line i ppf "Texp_tuple%s\n"
+        (match shape with
+         | Representable -> ""
+         | Unrepresentable _ -> " \"Unrepresentable\"");
       alloc_mode i ppf am;
       list i labeled_expression ppf l;
   | Texp_construct (li, _, eo, am) ->
@@ -1149,10 +1154,9 @@ and label_x_apply_arg i ppf (l, e) =
   arg_label (i+1) ppf l;
   (match e with Omitted _ -> () | Arg (e, _) -> expression (i+1) ppf e)
 
-and labeled_expression i ppf (l, e, sort) =
+and labeled_expression i ppf (l, e) =
   line i ppf "<tuple component>\n";
   tuple_component_label i ppf l;
-  line (i+1) ppf "%a\n" Jkind.Sort.format sort;
   expression (i+1) ppf e;
 
 and ident_x_expression_def i ppf (l, e) =

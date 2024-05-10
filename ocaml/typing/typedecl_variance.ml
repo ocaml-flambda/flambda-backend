@@ -64,8 +64,8 @@ let compute_variance env visited vari ty =
       Tarrow (_, ty1, ty2, _) ->
         compute_variance_rec (Variance.conjugate vari) ty1;
         compute_same ty2
-    | Ttuple tl ->
-        List.iter (fun (_,t,_) -> compute_same t) tl
+    | Ttuple (tl, _) ->
+        List.iter (fun (_,t) -> compute_same t) tl
     | Tconstr (path, tl, _) ->
         let open Variance in
         if tl = [] then () else begin

@@ -84,7 +84,7 @@ and type_desc =
       See [commutable] for the last argument. The argument
       type must be a [Tpoly] node *)
 
-  | Ttuple of (string option * type_expr * Jkind.sort) list
+  | Ttuple of (string option * type_expr) list * tuple_shape
   (** [Ttuple [None, t1; ...; None, tn]] ==> [t1 * ... * tn]
       [Ttuple [Some "l1", t1; ...; Some "ln", tn]] ==> [l1:t1 * ... * ln:tn]
 
@@ -160,7 +160,15 @@ and arg_label =
 and arrow_desc =
   arg_label * Mode.Alloc.lr * Mode.Alloc.lr
 
-
+(** The type-checker chooses the [Unrepresentable] shape for a tuple
+    if it believes that translation will lead to no tuple actually
+    being materialized at runtime.
+*)
+and tuple_shape =
+  | Unrepresentable of Jkind_types.Sort.t array
+  (** This sort list is of the same length as the element list
+      it is stored alongside in [Ttuple]/[Texp_tuple]/[Tpat_tuple]. *)
+  | Representable
 
 and fixed_explanation =
   | Univar of type_expr (** The row type was bound to an univar *)
@@ -892,6 +900,8 @@ val equal_flat_element : flat_element -> flat_element -> bool
 val compare_flat_element : flat_element -> flat_element -> int
 val flat_element_to_string : flat_element -> string
 val flat_element_to_lowercase_string : flat_element -> string
+
+val index_tuple_shape : tuple_shape -> int -> Jkind_types.Sort.t
 
 (**** Utilities for backtracking ****)
 

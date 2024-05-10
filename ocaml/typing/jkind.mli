@@ -50,7 +50,10 @@ module Externality : sig
   val le : t -> t -> bool
 end
 
-module Sort : Jkind_intf.Sort with type const = Jkind_types.Sort.const
+module Sort :
+  Jkind_intf.Sort
+    with type t = Jkind_types.Sort.t
+     and type const = Jkind_types.Sort.const
 
 type sort = Sort.t
 

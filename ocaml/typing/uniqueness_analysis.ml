@@ -991,9 +991,9 @@ let rec pattern_match_tuple pat values =
     let ext0, uf0 = pattern_match_tuple pat0 values in
     let ext1, uf1 = pattern_match_tuple pat1 values in
     Ienv.Extension.disjunct ext0 ext1, UF.choose uf0 uf1
-  | Tpat_tuple pats ->
+  | Tpat_tuple (pats, _) ->
     List.map2
-      (fun (_, pat, _) value ->
+      (fun (_, pat) value ->
         let paths =
           match Value.paths value with
           | None -> Paths.fresh ()
@@ -1078,11 +1078,11 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     let paths = Paths.fresh () in
     let ext, uf_arg = pattern_match_single arg paths in
     ext, UF.par uf_force uf_arg
-  | Tpat_tuple args ->
+  | Tpat_tuple (args, _) ->
     let uf_read = Paths.mark_implicit_borrow_memory_address Read occ paths in
     let ext, uf_args =
       List.mapi
-        (fun i (_, arg, _) ->
+        (fun i (_, arg) ->
           let paths = Paths.tuple_field i paths in
           pattern_match_single arg paths)
         args
@@ -1249,8 +1249,8 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     let uf_cases = check_uniqueness_cases ienv value cases in
     (* we don't know how much of e will be run; safe to assume all of them *)
     UF.seq uf_body uf_cases
-  | Texp_tuple (es, _) ->
-    UF.pars (List.map (fun (_, e, _) -> check_uniqueness_exp ienv e) es)
+  | Texp_tuple (es, _, _) ->
+    UF.pars (List.map (fun (_, e) -> check_uniqueness_exp ienv e) es)
   | Texp_construct (_, _, es, _) ->
     UF.pars (List.map (fun e -> check_uniqueness_exp ienv e) es)
   | Texp_variant (_, None) -> UF.unused
@@ -1418,10 +1418,10 @@ and check_uniqueness_exp_as_value ienv exp : Value.t * UF.t =
 (** take typed expression, do some parsing and returns [value_to_match] *)
 and check_uniqueness_exp_for_match ienv exp : value_to_match * UF.t =
   match exp.exp_desc with
-  | Texp_tuple (es, _) ->
+  | Texp_tuple (es, _, _) ->
     let values, ufs =
       List.split
-        (List.map (fun (_, e, _) -> check_uniqueness_exp_as_value ienv e) es)
+        (List.map (fun (_, e) -> check_uniqueness_exp_as_value ienv e) es)
     in
     Match_tuple values, UF.pars ufs
   | _ ->

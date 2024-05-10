@@ -63,7 +63,7 @@ let rec pretty_val : type k . _ -> k general_pattern -> _ = fun ppf v ->
   | Tpat_any -> fprintf ppf "_"
   | Tpat_var (x,_,_,_) -> fprintf ppf "%s" (Ident.name x)
   | Tpat_constant c -> fprintf ppf "%s" (pretty_const c)
-  | Tpat_tuple vs ->
+  | Tpat_tuple (vs, _) ->
       fprintf ppf "@[(%a)@]" (pretty_list pretty_labeled_val ",") vs
   | Tpat_construct (_, cstr, [], _) ->
       fprintf ppf "%s" cstr.cstr_name
@@ -150,7 +150,7 @@ and pretty_list : type k . (_ -> k -> _) -> _ -> _ -> k list -> _ =
 
 and pretty_vals sep = pretty_list pretty_val sep
 
-and pretty_labeled_val ppf (l, p, _sort) =
+and pretty_labeled_val ppf (l, p) =
   begin match l with
   | Some s -> fprintf ppf "~%s:" s
   | None -> ()
