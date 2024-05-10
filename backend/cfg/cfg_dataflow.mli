@@ -106,6 +106,7 @@ module type Backward_S = sig
   val run :
     Cfg.t ->
     ?max_iteration:int ->
+    ?exnescape:domain ->
     init:domain ->
     map:'a map ->
     context ->
