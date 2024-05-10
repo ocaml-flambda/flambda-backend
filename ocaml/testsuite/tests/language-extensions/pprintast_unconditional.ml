@@ -34,6 +34,10 @@ module Example = struct
      end"
 
   let local_exp = parse expression "let x = foo (local_ x) in local_ y"
+  let fun_with_modes_on_arg = parse expression
+    "let f (a @ local) ~(b @ local) ?(c @ local) \
+          ?(d @ local = 1) ~e:(e @ local) ?f:(f @ local = 2) \
+           () = () in f"
 
   let longident        = parse longident "No.Longidents.Require.extensions"
   let expression       = parse expression "[x for x = 1 to 10]"
@@ -147,6 +151,7 @@ end = struct
   let modality_val = test "modality_val" module_type Example.modality_val
 
   let local_exp = test "local_exp" expression Example.local_exp
+  let fun_with_modes_on_arg = test "fun_with_modes_on_arg" expression Example.fun_with_modes_on_arg
 
   let longident = test "longident" longident Example.longident
   let expression = test "expression" expression Example.expression

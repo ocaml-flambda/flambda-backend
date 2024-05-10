@@ -17,6 +17,11 @@ modality_val: sig val t : string -> string @ local @@ foo bar end
 
 local_exp: let x = foo (local_ x) in (local_ y)
 
+fun_with_modes_on_arg:
+  let f (a @ local) ~b:(b @ local) ?c:(c @ local) ?d:((d @ local)= 1)
+    ~e:(e @ local) ?f:((f @ local)= 2) () = () in
+  f
+
 longident: No.Longidents.Require.extensions
 
 expression: [x for x = 1 to 10]
@@ -89,6 +94,11 @@ modality_cstrarg:
 modality_val: sig val t : string -> string @ local @@ foo bar end
 
 local_exp: let x = foo (local_ x) in (local_ y)
+
+fun_with_modes_on_arg:
+  let f (a @ local) ~b:(b @ local) ?c:(c @ local) ?d:((d @ local)= 1)
+    ~e:(e @ local) ?f:((f @ local)= 2) () = () in
+  f
 
 longident: No.Longidents.Require.extensions
 
