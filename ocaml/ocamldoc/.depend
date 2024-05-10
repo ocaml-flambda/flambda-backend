@@ -761,6 +761,7 @@ odoc_sig.cmo : \
     ../parsing/longident.cmi \
     ../parsing/location.cmi \
     ../typing/jkind.cmi \
+    ../typing/jkind_types.cmi \
     ../parsing/jane_syntax.cmi \
     ../typing/ident.cmi \
     ../typing/ctype.cmi \
@@ -788,6 +789,7 @@ odoc_sig.cmx : \
     ../parsing/longident.cmx \
     ../parsing/location.cmx \
     ../typing/jkind.cmx \
+    ../typing/jkind_types.cmx \
     ../parsing/jane_syntax.cmx \
     ../typing/ident.cmx \
     ../typing/ctype.cmx \
