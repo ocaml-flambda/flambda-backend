@@ -47,7 +47,11 @@ module Raw = struct
     List.fold_left (fun acc (k, v) -> String.Map.add k v acc) String.Map.empty e
 
   let print t =
-    let print (name, v) = Printf.printf "\t\t%s = %#x\n" name v in
+    let zero_div v = v land lnot 0x30 in
+    let print (name, v) =
+      let v = zero_div v in
+      if v = 0 then () else Printf.printf "\t\t%s = %#x\n" name v
+    in
     (* CR gyorsh: move encode/decode here somehow for noalloc *)
     Printf.printf "Function summaries for static checks:\n";
     List.iter print t.zero_alloc
