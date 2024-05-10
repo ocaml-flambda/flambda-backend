@@ -2472,6 +2472,156 @@ end = struct
     check_fun fd.fun_name fd.fun_dbg a check_body ~future_funcnames unit_info
       unresolved_deps ppf
 
+  module Check_cfg_backward = struct
+    module Value = struct
+      include Value
+
+      let less_equal t1 t2 = lessequal t1 t2
+    end
+
+    module Backward_transfer = struct
+      type domain = Value.t
+
+      type context = t
+
+      type error = unit
+
+      let transform_specific t s ~next ~exn dbg =
+        let can_raise = Arch.operation_can_raise s in
+        let effect =
+          let w = create_witnesses t Arch_specific dbg in
+          match Metadata.assume_value dbg ~can_raise w with
+          | Some v -> v
+          | None -> S.transform_specific w s
+        in
+        transform t ~next ~exn ~effect "Arch.specific_operation" dbg
+
+      let transform_tailcall_imm t func dbg =
+        (* Sound to ignore [next] and [exn] because the call never returns. *)
+        let w = create_witnesses t (Direct_tailcall { callee = func }) dbg in
+        transform_call t ~next:Value.normal_return ~exn:Value.exn_escape func w
+          ~desc:("direct tailcall to " ^ func)
+          dbg
+
+      let operation t ~next (op : Cfg.operation) dbg =
+        match op with
+        | Move | Spill | Reload | Const_int _ | Const_float32 _ | Const_float _
+        | Const_symbol _ | Const_vec128 _ | Load _ | Floatop _ | Vectorcast _
+        | Scalarcast _
+        | Intop_imm
+            ( ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
+              | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ ),
+              _ )
+        | Intop
+            ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
+            | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ )
+        | Csel _ ->
+          assert (Cfg.is_pure_operation op);
+          next
+        | Name_for_debugger _ | Valueofint | Intofvalue | Stackoffset _
+        | Probe_is_enabled _ | Opaque | Begin_region | End_region
+        | Intop_atomic _ | Store _ ->
+          next
+        | Poll ->
+          (* Ignore poll points even though they may trigger an allocations,
+             because otherwise all loops would be considered allocating when
+             poll insertion is enabled. [@poll error] should be used instead. *)
+          next
+        | Alloc { mode = Alloc_local; _ } -> next
+        | Alloc { mode = Alloc_heap; bytes; dbginfo } ->
+          let w = create_witnesses t (Alloc { bytes; dbginfo }) dbg in
+          let effect =
+            match Metadata.assume_value dbg ~can_raise:false w with
+            | Some effect -> effect
+            | None -> Value.{ nor = V.top w; exn = V.bot; div = V.bot }
+          in
+          transform t ~effect ~next ~exn:Value.bot "heap allocation" dbg
+        | Specific s -> transform_specific t s ~next ~exn:Value.bot dbg
+        | Dls_get -> Misc.fatal_error "Idls_get not supported"
+
+      let basic next (i : Cfg.basic Cfg.instruction) t : (domain, error) result
+          =
+        match i.desc with
+        | Op op -> Ok (operation t ~next op i.dbg)
+        | Pushtrap _ | Poptrap ->
+          (* treated as no-op here, flow and handling of exceptions is
+             encorporated into the blocks and edges of the CFG *)
+          Ok next
+        | Reloadretaddr | Prologue | Stack_check _ -> Ok next
+
+      let terminator next ~exn (i : Cfg.terminator Cfg.instruction) t =
+        let dbg = i.dbg in
+        match i.desc with
+        | Never -> assert false
+        | Return -> Value.normal_return
+        | Raise Raise_notrace ->
+          (* [raise_notrace] is typically used for control flow, not for
+             indicating an error. Therefore, we do not ignore any allocation on
+             paths to it. The following conservatively assumes that normal and
+             exn Returns are reachable. *)
+          Value.join exn Value.safe
+        | Raise (Raise_reraise | Raise_regular) -> exn
+        | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+        | Switch _ ->
+          assert (not (Cfg.can_raise_terminator i.desc));
+          next
+        | Tailcall_self _ ->
+          (* CR gyorsh: show this be treated as a jump, without affecting the
+             summary? *)
+          transform_tailcall_imm t t.current_fun_name dbg
+        | Tailcall_func (Direct { sym_name; _ }) ->
+          transform_tailcall_imm t sym_name dbg
+        | Tailcall_func Indirect ->
+          (* Sound to ignore [next] and [exn] because the call never returns. *)
+          let w = create_witnesses t Indirect_tailcall dbg in
+          transform_top t ~next:Value.normal_return ~exn:Value.exn_escape w
+            "indirect tailcall" dbg
+        | Call_no_return { alloc = false; _ } ->
+          (* Sound to ignore [next] and [exn] because the call never returns or
+             raises. *)
+          Value.bot
+        | Call_no_return { alloc = true; func_symbol = func; _ } ->
+          (* Sound to ignore [next] because the call never returns. *)
+          (* CR gyorsh: we do not currently generate this, but may later. *)
+          let w = create_witnesses t (Extcall { callee = func }) dbg in
+          transform_top t ~next:Value.bot ~exn w
+            ("external call to " ^ func)
+            dbg
+        | Prim { op = External { alloc = false; _ }; _ } ->
+          (* Sound to ignore [exn] because external call marked as noalloc does
+             not raise. *)
+          next
+        | Prim { op = External { alloc = true; func_symbol = func; _ }; _ } ->
+          let w = create_witnesses t (Extcall { callee = func }) dbg in
+          transform_top t ~next ~exn w ("external call to " ^ func) dbg
+        | Prim { op = Probe { name; handler_code_sym; enabled_at_init = _ }; _ }
+          ->
+          let desc =
+            Printf.sprintf "probe %s handler %s" name handler_code_sym
+          in
+          let w = create_witnesses t (Probe { name; handler_code_sym }) dbg in
+          transform_call t ~next ~exn handler_code_sym w ~desc dbg
+        | Call { op = Indirect; _ } ->
+          let w = create_witnesses t Indirect_call dbg in
+          transform_top t ~next ~exn w "indirect call" dbg
+        | Call { op = Direct { sym_name = func; _ }; _ } ->
+          let w = create_witnesses t (Direct_call { callee = func }) dbg in
+          transform_call t ~next ~exn func w ~desc:("direct call to " ^ func)
+            dbg
+        | Specific_can_raise { op = s; _ } ->
+          transform_specific t s ~next ~exn dbg
+
+      let terminator next ~exn (i : Cfg.terminator Cfg.instruction) t =
+        Ok (terminator next ~exn i t)
+
+      let exception_ next _t : (domain, error) result =
+        (* enter trap handler *)
+        Ok next
+    end
+
+    include Cfg_dataflow.Backward (Value) (Backward_transfer)
+  end
+
   let cfg (fd : Cfg.t) ~future_funcnames unit_info unresolved_deps ppf =
     let a =
       Annotation.of_cfg fd.fun_codegen_options S.property fd.fun_name fd.fun_dbg
