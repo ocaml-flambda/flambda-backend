@@ -73,6 +73,16 @@ type basic_block =
 type codegen_option =
   | Reduce_code_size
   | No_CSE
+  | Assume_zero_alloc of
+      { strict : bool;
+        never_returns_normally : bool;
+        never_raises : bool;
+        loc : Location.t
+      }
+  | Check_zero_alloc of
+      { strict : bool;
+        loc : Location.t
+      }
 
 val of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list
 

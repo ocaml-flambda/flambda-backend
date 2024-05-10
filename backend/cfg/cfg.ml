@@ -48,6 +48,16 @@ type basic_block =
 type codegen_option =
   | Reduce_code_size
   | No_CSE
+  | Assume_zero_alloc of
+      { strict : bool;
+        never_returns_normally : bool;
+        never_raises : bool;
+        loc : Location.t
+      }
+  | Check_zero_alloc of
+      { strict : bool;
+        loc : Location.t
+      }
 
 let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
  fun cmm_options ->
@@ -57,8 +67,12 @@ let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
     match hd with
     | No_CSE -> No_CSE :: of_cmm_codegen_option tl
     | Reduce_code_size -> Reduce_code_size :: of_cmm_codegen_option tl
-    | Use_linscan_regalloc | Assume_zero_alloc _ | Check_zero_alloc _ ->
-      of_cmm_codegen_option tl)
+    | Assume_zero_alloc { strict; never_returns_normally; never_raises; loc } ->
+      Assume_zero_alloc { strict; never_returns_normally; never_raises; loc }
+      :: of_cmm_codegen_option tl
+    | Check_zero_alloc { strict; loc } ->
+      Check_zero_alloc { strict; loc } :: of_cmm_codegen_option tl
+    | Use_linscan_regalloc -> of_cmm_codegen_option tl)
 
 type t =
   { blocks : basic_block Label.Tbl.t;
