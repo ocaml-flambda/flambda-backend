@@ -68,7 +68,7 @@ end
 (** A Jkind.t is a full description of the runtime representation of values
     of a given type. It includes sorts, but also the abstract top jkind
     [Any] and subjkinds of other sorts, such as [Immediate]. *)
-type t = Types.type_expr Jkind_types.t
+type t
 
 include module type of struct
   include Jkind_intf.History
