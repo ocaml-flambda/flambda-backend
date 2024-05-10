@@ -429,6 +429,7 @@ module type Backward_S = sig
   val run :
     Cfg.t ->
     ?max_iteration:int ->
+    ?exnescape:domain ->
     init:domain ->
     map:'a map ->
     context ->
@@ -535,17 +536,20 @@ module Backward (D : Domain_S) (T : Backward_transfer with type domain = D.t) :
       type a.
       Cfg.t ->
       ?max_iteration:int ->
+      ?exnescape:domain ->
       init:domain ->
       map:a map ->
       context ->
       (a, error) Dataflow_result.t =
-   fun cfg ?(max_iteration = max_int) ~init ~map context ->
+   fun cfg ?(max_iteration = max_int) ?(exnescape = D.bot) ~init ~map context ->
     let store_instr = match map with Block -> false | Both | Instr -> true in
-    let work_state =
-      Dataflow_impl.create cfg
-        ~init:(fun _ -> Some { normal = init; exn = D.bot })
-        ~store_instr
+    let init b =
+      Some
+        { normal = init;
+          exn = (if Cfg.can_raise_interproc b then exnescape else D.bot)
+        }
     in
+    let work_state = Dataflow_impl.create cfg ~init ~store_instr in
     let get_result () : a =
       let get_res_block () =
         Label.Tbl.map (Dataflow_impl.get_res_block work_state)
