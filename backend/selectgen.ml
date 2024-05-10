@@ -206,8 +206,9 @@ let size_component : machtype_component -> int = function
   | Int -> Arch.size_int
   | Float -> Arch.size_float
   | Float32 ->
-    assert (Arch.size_float = 8);
-    Arch.size_float / 2
+    (* CR layouts v5.1: reconsider when float32 fields are efficiently packed.
+       Note that packed float32# arrays are handled via a separate path. *)
+    Arch.size_float
   | Vec128 -> Arch.size_vec128
 
 let size_machtype mty =
@@ -222,10 +223,11 @@ let size_expr (env:environment) exp =
       Cconst_int _ | Cconst_natint _ -> Arch.size_int
     | Cconst_symbol _ ->
         Arch.size_addr
-    | Cconst_float32 _ ->
-      assert (Arch.size_float = 8);
-      Arch.size_float / 2
     | Cconst_float _ -> Arch.size_float
+    | Cconst_float32 _ ->
+      (* CR layouts v5.1: reconsider when float32 fields are efficiently packed.
+         Note that packed float32# arrays are handled via a separate path. *)
+      Arch.size_float
     | Cconst_vec128 _ -> Arch.size_vec128
     | Cvar id ->
         begin try

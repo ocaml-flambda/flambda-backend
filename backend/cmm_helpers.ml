@@ -1287,6 +1287,35 @@ let setfield_unboxed_int64_or_nativeint arr ofs newval dbg =
          [array_indexing log2_size_addr arr ofs dbg; newval],
          dbg ))
 
+(* Getters and setters for unboxed float32 fields *)
+
+let get_field_unboxed_float32 mutability ~block ~index dbg =
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed float32 fields only supported on little-endian architectures";
+  let memory_chunk = Single { reg = Float32 } in
+  (* CR layouts v5.1: We'll need to vary log2_size_addr to efficiently pack
+   * float32s *)
+  let field_address = array_indexing log2_size_addr block index dbg in
+  Cop
+    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
+
+let setfield_unboxed_float32 arr ofs newval dbg =
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed float32 fields only supported on little-endian architectures";
+  (* CR layouts v5.1: We will need to vary log2_size_addr when float32 fields
+     are efficiently packed. *)
+  return_unit dbg
+    (Cop
+       ( Cstore (Single { reg = Float32 }, Assignment),
+         [array_indexing log2_size_addr arr ofs dbg; newval],
+         dbg ))
+
 (* String length *)
 
 (* Length of string block *)
@@ -1566,12 +1595,13 @@ let make_mixed_alloc ~mode dbg tag shape args =
       match flat_suffix.(idx - value_prefix_len) with
       | Imm -> int_array_set arr ofs newval dbg
       | Float | Float64 -> float_array_set arr ofs newval dbg
+      | Float32 -> setfield_unboxed_float32 arr ofs newval dbg
       | Bits32 -> setfield_unboxed_int32 arr ofs newval dbg
       | Bits64 | Word -> setfield_unboxed_int64_or_nativeint arr ofs newval dbg
   in
   let size =
-    (* CR layouts 5.1: When we pack int32s more efficiently, this code will need
-       to change. *)
+    (* CR layouts 5.1: When we pack int32s/float32s more efficiently, this code
+       will need to change. *)
     value_prefix_len + Array.length flat_suffix
   in
   if size_float <> size_addr

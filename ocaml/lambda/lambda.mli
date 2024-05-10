@@ -351,7 +351,7 @@ and block_shape =
   value_kind list option
 
 and flat_element = Types.flat_element =
-    Imm | Float | Float64 | Bits32 | Bits64 | Word
+    Imm | Float | Float64 | Float32 | Bits32 | Bits64 | Word
 and flat_element_read = private
   | Flat_read of flat_element (* invariant: not [Float] *)
   | Flat_read_float of alloc_mode
