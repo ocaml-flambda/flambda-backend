@@ -45,7 +45,7 @@ define dune_main_context
   (profile $(main_build_profile))
   (paths
     (PATH ("$(CURDIR)/_build/_bootinstall/bin" :standard))
-    (OCAMLLIB ("$(CURDIR)/_build/install/runtime_stdlib/lib/ocaml_runtime_stdlib")))
+    (OCAMLLIB ("$(CURDIR)/_build/runtime_stdlib_install/lib/ocaml_runtime_stdlib")))
   (env (_
     (flags (:standard -warn-error +A))
     (env-vars ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
@@ -70,8 +70,12 @@ boot-runtest: boot-compiler
 
 runtime-stdlib: boot-compiler
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_runstd) --only-package=ocaml_runtime_stdlib @install
-#	dune does not believe the compiler can make .cmxs unless the following file exists
-	@touch _build/install/runtime_stdlib/lib/ocaml_runtime_stdlib/dynlink.cmxa
+	rm -rf _build/runtime_stdlib_install
+# Dune 3.11+ clears `_build/install` before building, move the runtime stdlib
+# to a separate directory.
+	$(cpl) -R _build/install/runtime_stdlib _build/runtime_stdlib_install
+# Dune does not believe the compiler can make .cmxs unless the following file exists.
+	@touch _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/dynlink.cmxa
 
 compiler: runtime-stdlib
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_main) --only-package=ocaml @install \
@@ -164,9 +168,10 @@ cpl=$(if $(filter linux,$(SYSTEM)),cp -l,cp -L)
 _install: compiler
 	rm -rf _install
 	mkdir -p _install/{bin,lib/ocaml}
-	$(cpl) _build/install/{runtime_stdlib,main}/bin/* _install/bin/
+	$(cpl) _build/runtime_stdlib_install/bin/* _install/bin/
+	$(cpl) _build/install/main/bin/* _install/bin/
 	( cd _install/bin; for i in *.opt; do ln -s $$i $${i%.opt}; done )
-	$(cpl) -R _build/install/runtime_stdlib/lib/ocaml_runtime_stdlib/* _install/lib/ocaml/
+	$(cpl) -R _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/* _install/lib/ocaml/
 	rm -f _install/lib/ocaml/{META,dune-package,Makefile.config,dynlink.cmxa}
 	$(cpl) -R _build/install/main/lib/ocaml/* _install/lib/ocaml/
 	if [ "x$(legacy_layout)" == "xyes" ] ; \
