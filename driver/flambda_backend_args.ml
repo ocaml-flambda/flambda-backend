@@ -672,10 +672,10 @@ module type Flambda_backend_options = sig
   val heap_reduction_threshold : int -> unit
   val zero_alloc_check : string -> unit
   val dzero_alloc : unit -> unit
-  val disable_zero_alloc : unit -> unit
-  val disable_precise_zero_alloc : unit -> unit
-  val zero_alloc_details_cutoff : int -> unit
-  val zero_alloc_join : int -> unit
+  val disable_zero_alloc_checker : unit -> unit
+  val disable_precise_zero_alloc_checker : unit -> unit
+  val zero_alloc_checker_details_cutoff : int -> unit
+  val zero_alloc_checker_join : int -> unit
 
   val function_layout : string -> unit
   val disable_poll_insertion : unit -> unit
@@ -969,13 +969,13 @@ module Flambda_backend_options_impl = struct
     in
     Flambda_backend_flags.zero_alloc_checker_details_cutoff := c
 
-  let checkmach_join n =
-    let c : Flambda_backend_flags.checkmach_join =
+  let zero_alloc_checker_join n =
+    let c : Flambda_backend_flags.zero_alloc_checker_join =
       if n < 0 then Error (-n)
       else if n = 0 then Keep_all
       else Widen n
     in
-    Flambda_backend_flags.checkmach_join := c
+    Flambda_backend_flags.zero_alloc_checker_join := c
 
   let function_layout s =
     match Flambda_backend_flags.Function_layout.of_string s with
@@ -1266,10 +1266,10 @@ module Extra_params = struct
       | None -> ()
       end;
       true
-    | "checkmach-join" ->
+    | "zero-alloc-checker-join" ->
       begin match Compenv.check_int ppf name v with
       | Some i ->
-        Flambda_backend_options_impl.checkmach_join i
+        Flambda_backend_options_impl.zero_alloc_checker_join i
       | None -> ()
       end;
       true

@@ -698,8 +698,8 @@ let is_zero_alloc_check_enabled ~opt =
   | Check_default -> not opt
   | Check_opt_only -> opt
 
-let is_zero_alloc_attribute = function
-  | Zero_alloc -> [ ["zero_alloc"; "ocaml.zero_alloc"], true ]
+let is_zero_alloc_attribute =
+  [ ["zero_alloc"; "ocaml.zero_alloc"], true ]
 
 let get_payload get_from_exp =
   let open Parsetree in
@@ -860,12 +860,12 @@ let parse_zero_alloc_payload ~loc ~arity ~warn ~empty payload =
   | _ :: _ ->
     let payload = List.sort String.compare payload in
     match List.assoc_opt payload zero_alloc_lookup_table with
-    | None -> warn (); Default_check
+    | None -> warn ();  Default_zero_alloc
     | Some ca -> ca arity loc
 
 let parse_zero_alloc_attribute ~is_arity_allowed ~default_arity attr =
   match attr with
-  | None -> Default_check
+  | None -> Default_zero_alloc
   | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload} ->
     let warn () =
       let ( %> ) f g x = g (f x) in
@@ -881,7 +881,7 @@ let parse_zero_alloc_attribute ~is_arity_allowed ~default_arity attr =
       Check { strict = false; opt = false; arity; loc; }
     in
     match get_optional_payload get_ids_and_constants_from_exp payload with
-    | Error () -> warn (); Default_check
+    | Error () -> warn (); Default_zero_alloc
     | Ok None -> empty default_arity
     | Ok (Some payload) ->
       let arity, payload =
@@ -898,29 +898,29 @@ let parse_zero_alloc_attribute ~is_arity_allowed ~default_arity attr =
       in
       parse_zero_alloc_payload ~loc ~arity ~warn ~empty:(empty arity) payload
 
-let get_zero_alloc_attribute ~in_signature ~default_arity l p =
+let get_zero_alloc_attribute ~in_signature ~default_arity l =
   let attr = find_attribute is_zero_alloc_attribute l in
   let res =
       parse_zero_alloc_attribute ~is_arity_allowed:in_signature ~default_arity
         attr
   in
   (match attr, res with
-   | None, Default_check -> ()
-   | _, Default_check -> ()
+   | None, Default_zero_alloc -> ()
+   | _, Default_zero_alloc -> ()
    | None, (Check _ | Assume _ | Ignore_assert_all) -> assert false
    | Some _, Ignore_assert_all -> ()
    | Some _, Assume _ -> ()
    | Some attr, Check { opt; _ } ->
-     if not in_signature && is_check_enabled ~opt p && !Clflags.native_code then
+     if not in_signature && is_zero_alloc_check_enabled ~opt && !Clflags.native_code then
        (* The warning for unchecked functions will not trigger if the check is
           requested through the [@@@zero_alloc all] top-level annotation rather
           than through the function annotation [@zero_alloc]. *)
-       register_property attr.attr_name);
+       register_zero_alloc_attribute attr.attr_name);
    res
 
 let assume_zero_alloc ~is_check_allowed check : Zero_alloc_utils.Assume_info.t =
   match check with
-  | Default_check -> Zero_alloc_utils.Assume_info.none
+  | Default_zero_alloc -> Zero_alloc_utils.Assume_info.none
   | Ignore_assert_all -> Zero_alloc_utils.Assume_info.none
   | Assume { strict; never_returns_normally; never_raises; } ->
     Zero_alloc_utils.Assume_info.create ~strict ~never_returns_normally ~never_raises

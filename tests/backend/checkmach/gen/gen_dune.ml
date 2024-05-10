@@ -17,7 +17,7 @@ let () =
  (alias   runtest)
  ${enabled_if}
  (deps ${deps})
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c ${extra_flags} -dcse -dzero-alloc-checker -dump-into-file -O3 -warn-error +a)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c ${extra_flags} -dcse -dzero-alloc -dump-into-file -O3 -warn-error +a)))
 |};
     Buffer.output_buffer Out_channel.stdout buf
   in
@@ -186,15 +186,15 @@ let () =
   print_test_expected_output ~cutoff:default_cutoff
     ~extra_dep:None ~exit_code:2 "test_assume_stub";
   print_test_expected_output ~cutoff:default_cutoff
-    ~extra_flags:"-zero-alloc-check default -checkmach-join -2"
+    ~extra_flags:"-zero-alloc-check default -zero-alloc-checker-join -2"
     ~extra_dep:None ~exit_code:2 ~filter:"filter_fatal_error.sh" "test_bounded_join";
   print_test_expected_output ~cutoff:default_cutoff
-    ~extra_flags:"-zero-alloc-check default -checkmach-join 2"
+    ~extra_flags:"-zero-alloc-check default -zero-alloc-checker-join 2"
     ~extra_dep:None ~exit_code:2 "test_bounded_join2";
   print_test_expected_output ~cutoff:default_cutoff
-    ~extra_flags:"-zero-alloc-check default -checkmach-join 0"
+    ~extra_flags:"-zero-alloc-check default -zero-alloc-checker-join 0"
     ~extra_dep:None ~exit_code:2 "test_bounded_join3";
   print_test_expected_output ~cutoff:3
-    ~extra_flags:"-zero-alloc-check default -checkmach-join 0"
+    ~extra_flags:"-zero-alloc-check default -zero-alloc-checker-join 0"
     ~extra_dep:None ~exit_code:2 "test_bounded_join4";
   ()

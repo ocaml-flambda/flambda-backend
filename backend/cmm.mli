@@ -318,7 +318,7 @@ type codegen_option =
   | Reduce_code_size
   | No_CSE
   | Use_linscan_regalloc
-  | Assume of { strict: bool; never_returns_normally: bool;
+  | Assume_zero_alloc of { strict: bool; never_returns_normally: bool;
                 never_raises: bool;
                 loc: Location.t }
   | Check_zero_alloc of { strict: bool; loc: Location.t }

@@ -29,5 +29,4 @@ val equal : t -> t -> bool
 
 val is_default : t -> bool
 
-val from_lambda : Lambda.zero_aloc_attribute -> Location.t -> t
-
+val from_lambda : Lambda.zero_alloc_attribute -> Location.t -> t

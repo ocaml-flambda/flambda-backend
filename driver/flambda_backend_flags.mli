@@ -49,13 +49,13 @@ type zero_alloc_checker_details_cutoff =
 val zero_alloc_checker_details_cutoff : zero_alloc_checker_details_cutoff ref
 val default_zero_alloc_checker_details_cutoff : zero_alloc_checker_details_cutoff
 
-type checkmach_join =
+type zero_alloc_checker_join =
   | Keep_all
   | Widen of int  (* n > 0 *)
   | Error of int (* n > 0 *)
 
-val checkmach_join : checkmach_join ref
-val default_checkmach_join : checkmach_join
+val zero_alloc_checker_join : zero_alloc_checker_join ref
+val default_zero_alloc_checker_join : zero_alloc_checker_join
 
 module Function_layout : sig
   type t =

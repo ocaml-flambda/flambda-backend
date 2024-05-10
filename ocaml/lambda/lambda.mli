@@ -501,7 +501,7 @@ type poll_attribute =
   | Error_poll (* [@poll error] *)
   | Default_poll (* no [@poll] attribute *)
 
-type zero_alloc_attribute = Builtin_attributes.check_attribute =
+type zero_alloc_attribute = Builtin_attributes.zero_alloc_attribute =
   | Default_zero_alloc
   | Ignore_assert_all
   | Check of { strict: bool;

@@ -1094,7 +1094,7 @@ let add_pattern_variables ?check ?check_as env pv =
        Env.add_value ?check ~mode:pv_mode pv_id
          {val_type = pv_type; val_kind = Val_reg; Types.val_loc = pv_loc;
           val_attributes = pv_attributes;
-          val_zero_alloc = Builtin_attributes.Default_check;
+          val_zero_alloc = Builtin_attributes.Default_zero_alloc;
           val_uid = pv_uid
          } env
     )
@@ -2878,7 +2878,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
             { val_type = pv_type
             ; val_kind = Val_reg
             ; val_attributes = pv_attributes
-            ; val_zero_alloc = Builtin_attributes.Default_check
+            ; val_zero_alloc = Builtin_attributes.Default_zero_alloc
             ; val_loc = pv_loc
             ; val_uid = pv_uid
             }
@@ -2889,7 +2889,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
             { val_type = pv_type
             ; val_kind = Val_ivar (Immutable, cl_num)
             ; val_attributes = pv_attributes
-            ; val_zero_alloc = Builtin_attributes.Default_check
+            ; val_zero_alloc = Builtin_attributes.Default_zero_alloc
             ; val_loc = pv_loc
             ; val_uid = pv_uid
             }
@@ -5030,35 +5030,29 @@ let pat_modes ~force_toplevel rec_mode_var (attrs, spat) =
 
 let add_check_attribute expr attributes =
   let open Builtin_attributes in
-  let to_string = function
-    | Zero_alloc -> "zero_alloc"
-  in
-  let to_string : check_attribute -> string = function
-    | Check { property; strict; loc = _} ->
-      Printf.sprintf "assert %s%s"
-        (to_string property)
+  let to_string : zero_alloc_attribute -> string = function
+    | Check { strict; loc = _} ->
+      Printf.sprintf "assert zero_alloc%s"
         (if strict then " strict" else "")
-    | Assume { property; strict; loc = _} ->
-      Printf.sprintf "assume %s%s"
-        (to_string property)
+    | Assume { strict; loc = _} ->
+      Printf.sprintf "assume zero_alloc %s"
         (if strict then " strict" else "")
-    | Ignore_assert_all property ->
-      Printf.sprintf "ignore %s" (to_string property)
-    | Default_check -> assert false
+    | Ignore_assert_all ->
+      Printf.sprintf "ignore_zero_alloc"
+    | Default_zero_alloc -> assert false
   in
   match expr.exp_desc with
   | Texp_function fn ->
     let default_arity = function_arity fn.params fn.body in
     let za =
-      get_property_attribute ~in_signature:false ~default_arity attributes
-        Zero_alloc
+      get_zero_alloc_attribute ~in_signature:false ~default_arity attributes
     in
     begin match za with
-    | Default_check -> expr
-    | (Ignore_assert_all _ | Check _ | Assume _) as check ->
+    | Default_zero_alloc -> expr
+    | (Ignore_assert_all | Check _ | Assume _) as check ->
       begin match fn.zero_alloc with
-      | Default_check -> ()
-      | Ignore_assert_all _ | Assume _ | Check _ ->
+      | Default_zero_alloc -> ()
+      | Ignore_assert_all | Assume _ | Check _ ->
         Location.prerr_warning expr.exp_loc
           (Warnings.Duplicated_attribute (to_string fn.zero_alloc));
       end;
@@ -5069,18 +5063,18 @@ let add_check_attribute expr attributes =
 
 let zero_alloc_of_application ~num_args attrs funct =
   let zero_alloc =
-    Builtin_attributes.get_property_attribute ~in_signature:false
-      ~default_arity:num_args attrs Zero_alloc
+    Builtin_attributes.get_zero_alloc_attribute ~in_signature:false
+      ~default_arity:num_args attrs
   in
   let zero_alloc =
     match zero_alloc with
-    | Assume _ | Ignore_assert_all _ | Check _ ->
+    | Assume _ | Ignore_assert_all | Check _ ->
       (* The user wrote a zero_alloc attribute on the application - keep it.
          (Note that `ignore` and `check` aren't really allowed here, and will be
          rejected by the call to `Builtin_attributes.assume_zero_alloc` below.)
        *)
       zero_alloc
-    | Default_check ->
+    | Default_zero_alloc ->
       (* We assume the call is zero_alloc if the function is known to be
          zero_alloc. If the function is zero_alloc opt, then we need to be sure
          that the opt checks were run to license this assumption. We judge
@@ -5095,14 +5089,13 @@ let zero_alloc_of_application ~num_args attrs funct =
       | Texp_ident (_, _, { val_zero_alloc = (Check c); _ }, _, _)
         when c.arity = num_args && (use_opt || not c.opt) ->
         Builtin_attributes.Assume {
-          property = Zero_alloc;
           strict = c.strict;
           never_returns_normally = false;
           never_raises = false;
           arity = c.arity;
           loc = c.loc
         }
-      | _ -> Builtin_attributes.Default_check
+      | _ -> Builtin_attributes.Default_zero_alloc
   in
   Builtin_attributes.assume_zero_alloc ~is_check_allowed:false zero_alloc
 
@@ -7445,7 +7438,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         let desc =
           { val_type = ty; val_kind = Val_reg;
             val_attributes = [];
-            val_zero_alloc = Builtin_attributes.Default_check;
+            val_zero_alloc = Builtin_attributes.Default_zero_alloc;
             val_loc = Location.none;
             val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
           }
@@ -7510,7 +7503,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
               ret_sort;
               alloc_mode;
               region = false;
-              zero_alloc = Default_check
+              zero_alloc = Default_zero_alloc
             }
         }
       in
@@ -8911,8 +8904,8 @@ and type_n_ary_function
               (filter_ty_ret_exn ret_ty Nolabel ~force_tpoly:true : type_expr)
     end;
     let zero_alloc =
-      Builtin_attributes.get_property_attribute ~in_signature:false
-        ~default_arity:syntactic_arity attributes Zero_alloc
+      Builtin_attributes.get_zero_alloc_attribute ~in_signature:false
+        ~default_arity:syntactic_arity attributes
     in
     re
       { exp_desc =

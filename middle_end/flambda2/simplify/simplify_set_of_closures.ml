@@ -510,8 +510,8 @@ let simplify_function context ~outer_dacc function_slot code_id
     let never_delete =
       match Code_metadata.check code_metadata with
       | Default_check -> !Clflags.zero_alloc_check_assert_all
-      | Assume  _  -> false
-      | Check _  -> true
+      | Assume _ -> false
+      | Check _ -> true
     in
     if never_delete then Code_id.Set.singleton code_id else Code_id.Set.empty
   in

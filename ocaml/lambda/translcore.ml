@@ -1603,7 +1603,7 @@ and transl_function ~in_new_scope ~scopes e params body
            ~scopes e.exp_loc repr ~region params body)
   in
   let attr =
-    { function_attribute_disallowing_arity_fusion with check = zero_alloc }
+    { function_attribute_disallowing_arity_fusion with zero_alloc }
   in
   let loc = of_location ~scopes e.exp_loc in
   let body = if region then maybe_region_layout return body else body in

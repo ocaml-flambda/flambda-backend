@@ -47,14 +47,14 @@ let default_zero_alloc_checker_details_cutoff = At_most 20
 let zero_alloc_checker_details_cutoff = ref default_zero_alloc_checker_details_cutoff
                                        (* -zero-alloc-checker-details-cutoff n *)
 
-type checkmach_join =
+type zero_alloc_checker_join =
   | Keep_all
   | Widen of int  (* n > 0 *)
   | Error of int (* n > 0 *)
 
-let default_checkmach_join = Widen 100
-let checkmach_join = ref default_checkmach_join
-                              (* -checkmach-precise-join-threshold n *)
+let default_zero_alloc_checker_join = Widen 100
+let zero_alloc_checker_join = ref default_zero_alloc_checker_join
+                              (* -zero-alloc-checker-join n *)
 
 module Function_layout = struct
   type t =

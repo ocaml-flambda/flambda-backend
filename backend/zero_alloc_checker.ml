@@ -1467,7 +1467,8 @@ end = struct
                 never_raises = false;
                 loc
               }
-          | Assume_zero_alloc { never_returns_normally; never_raises; loc } ->
+          | Assume_zero_alloc
+              { strict; never_returns_normally; never_raises; loc } ->
             Some
               { strict;
                 assume = true;
@@ -1853,7 +1854,11 @@ end = struct
      in cmx and memory consumption Compilenv. Different components have
      different frequencies of Top/Bot. The most likely value is encoded as None
      (i.e., not stored). *)
-  let encode (v : V.t) = match v with Top _ -> 0 | Safe -> 1 | Bot -> 2
+  let encode (v : V.t) =
+    V.match_with v
+      ~top:(fun _ -> 0)
+      ~safe:1 ~bot:2
+      ~unresolved:(fun () -> assert false)
 
   (* Witnesses are not used across functions and not stored in cmx. Witnesses
      that appear in a function's summary are only used for error messages about
@@ -1862,9 +1867,9 @@ end = struct
   let decoded_witness = Witnesses.empty
 
   let decode = function
-    | 0 -> V.Top decoded_witness
-    | 1 -> V.Safe
-    | 2 -> V.Bot
+    | 0 -> V.top decoded_witness
+    | 1 -> V.safe
+    | 2 -> V.bot
     | n -> Misc.fatal_errorf "Zero_alloc_checker cannot decode %d" n
 
   let encode (v : Value.t) : Checks.value =
@@ -2110,10 +2115,10 @@ end = struct
   (** Summary of target specific operations. *)
   let transform_specific w s =
     (* Conservatively assume that operation can return normally. *)
-    let nor = if Arch.operation_allocates s then V.Top w else V.Safe in
-    let exn = if Arch.operation_can_raise s then nor else V.Bot in
+    let nor = if Arch.operation_allocates s then V.top w else V.safe in
+    let exn = if Arch.operation_can_raise s then nor else V.bot in
     (* Assume that the operation does not diverge. *)
-    let div = V.Bot in
+    let div = V.bot in
     { Value.nor; exn; div }
 
   let transform_operation t (op : Mach.operation) ~next ~exn dbg =

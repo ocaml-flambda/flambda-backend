@@ -2004,7 +2004,7 @@ let tree_of_value_description id decl =
   in
   let attrs =
     match decl.val_zero_alloc with
-    | Default_check | Ignore_assert_all _ -> []
+    | Default_zero_alloc | Ignore_assert_all -> []
     | Check { strict; opt; arity; _ } ->
       [{ oattr_name =
            String.concat ""
