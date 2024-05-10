@@ -390,6 +390,7 @@ let mk_value_binding ~vb_pat ~vb_expr ~vb_attributes =
     vb_pat;
     vb_expr;
     vb_attributes;
+    vb_rec_kind = Dynamic;
     vb_loc = Location.none;
     vb_sort = Jkind.Sort.value;
   }

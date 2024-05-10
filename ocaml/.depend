@@ -1503,29 +1503,6 @@ typing/printtyped.cmx : \
     typing/printtyped.cmi
 typing/printtyped.cmi : \
     typing/typedtree.cmi
-typing/rec_check.cmo : \
-    typing/types.cmi \
-    typing/typeopt.cmi \
-    typing/typedtree.cmi \
-    typing/primitive.cmi \
-    typing/path.cmi \
-    lambda/lambda.cmi \
-    typing/ident.cmi \
-    parsing/asttypes.cmi \
-    typing/rec_check.cmi
-typing/rec_check.cmx : \
-    typing/types.cmx \
-    typing/typeopt.cmx \
-    typing/typedtree.cmx \
-    typing/primitive.cmx \
-    typing/path.cmx \
-    lambda/lambda.cmx \
-    typing/ident.cmx \
-    parsing/asttypes.cmi \
-    typing/rec_check.cmi
-typing/rec_check.cmi : \
-    typing/typedtree.cmi \
-    typing/ident.cmi
 typing/shape.cmo : \
     typing/path.cmi \
     utils/misc.cmi \
@@ -1764,6 +1741,7 @@ typing/typeclass.cmi : \
 typing/typecore.cmo : \
     utils/zero_alloc_utils.cmi \
     utils/warnings.cmi \
+    typing/value_rec_check.cmi \
     typing/untypeast.cmi \
     typing/uniqueness_analysis.cmi \
     typing/typetexp.cmi \
@@ -1773,7 +1751,6 @@ typing/typecore.cmo : \
     typing/typedecl.cmi \
     typing/subst.cmi \
     typing/shape.cmi \
-    typing/rec_check.cmi \
     typing/printtyp.cmi \
     typing/printpat.cmi \
     typing/primitive.cmi \
@@ -1806,6 +1783,7 @@ typing/typecore.cmo : \
 typing/typecore.cmx : \
     utils/zero_alloc_utils.cmx \
     utils/warnings.cmx \
+    typing/value_rec_check.cmx \
     typing/untypeast.cmx \
     typing/uniqueness_analysis.cmx \
     typing/typetexp.cmx \
@@ -1815,7 +1793,6 @@ typing/typecore.cmx : \
     typing/typedecl.cmx \
     typing/subst.cmx \
     typing/shape.cmx \
-    typing/rec_check.cmx \
     typing/printtyp.cmx \
     typing/printpat.cmx \
     typing/primitive.cmx \
@@ -2031,6 +2008,7 @@ typing/typedecl_variance.cmi : \
     parsing/asttypes.cmi
 typing/typedtree.cmo : \
     utils/zero_alloc_utils.cmi \
+    typing/value_rec_types.cmi \
     typing/types.cmi \
     typing/shape.cmi \
     typing/primitive.cmi \
@@ -2049,6 +2027,7 @@ typing/typedtree.cmo : \
     typing/typedtree.cmi
 typing/typedtree.cmx : \
     utils/zero_alloc_utils.cmx \
+    typing/value_rec_types.cmi \
     typing/types.cmx \
     typing/shape.cmx \
     typing/primitive.cmx \
@@ -2067,6 +2046,7 @@ typing/typedtree.cmx : \
     typing/typedtree.cmi
 typing/typedtree.cmi : \
     utils/zero_alloc_utils.cmi \
+    typing/value_rec_types.cmi \
     typing/types.cmi \
     typing/shape.cmi \
     typing/primitive.cmi \
@@ -2421,8 +2401,36 @@ typing/untypeast.cmi : \
     parsing/longident.cmi \
     parsing/location.cmi \
     parsing/jane_syntax.cmi
-bytecomp/bytegen.cmo : \
+typing/value_rec_check.cmo : \
+    typing/value_rec_types.cmi \
     typing/types.cmi \
+    typing/typeopt.cmi \
+    typing/typedtree.cmi \
+    typing/primitive.cmi \
+    typing/path.cmi \
+    utils/misc.cmi \
+    lambda/lambda.cmi \
+    typing/ident.cmi \
+    parsing/asttypes.cmi \
+    typing/value_rec_check.cmi
+typing/value_rec_check.cmx : \
+    typing/value_rec_types.cmi \
+    typing/types.cmx \
+    typing/typeopt.cmx \
+    typing/typedtree.cmx \
+    typing/primitive.cmx \
+    typing/path.cmx \
+    utils/misc.cmx \
+    lambda/lambda.cmx \
+    typing/ident.cmx \
+    parsing/asttypes.cmi \
+    typing/value_rec_check.cmi
+typing/value_rec_check.cmi : \
+    typing/value_rec_types.cmi \
+    typing/typedtree.cmi \
+    typing/ident.cmi
+typing/value_rec_types.cmi :
+bytecomp/bytegen.cmo : \
     lambda/switch.cmi \
     typing/subst.cmi \
     lambda/printlambda.cmi \
@@ -2440,7 +2448,6 @@ bytecomp/bytegen.cmo : \
     parsing/asttypes.cmi \
     bytecomp/bytegen.cmi
 bytecomp/bytegen.cmx : \
-    typing/types.cmx \
     lambda/switch.cmx \
     typing/subst.cmx \
     lambda/printlambda.cmx \
@@ -3128,7 +3135,6 @@ asmcomp/cmm_invariants.cmx : \
 asmcomp/cmm_invariants.cmi : \
     asmcomp/cmm.cmi
 asmcomp/cmmgen.cmo : \
-    typing/types.cmi \
     middle_end/printclambda_primitives.cmi \
     typing/primitive.cmi \
     utils/misc.cmi \
@@ -3148,7 +3154,6 @@ asmcomp/cmmgen.cmo : \
     asmcomp/afl_instrument.cmi \
     asmcomp/cmmgen.cmi
 asmcomp/cmmgen.cmx : \
-    typing/types.cmx \
     middle_end/printclambda_primitives.cmx \
     typing/primitive.cmx \
     utils/misc.cmx \
@@ -4311,6 +4316,7 @@ lambda/translattribute.cmi : \
     parsing/location.cmi \
     lambda/lambda.cmi
 lambda/translclass.cmo : \
+    typing/value_rec_types.cmi \
     typing/types.cmi \
     typing/typeopt.cmi \
     typing/typedtree.cmi \
@@ -4329,6 +4335,7 @@ lambda/translclass.cmo : \
     parsing/asttypes.cmi \
     lambda/translclass.cmi
 lambda/translclass.cmx : \
+    typing/value_rec_types.cmi \
     typing/types.cmx \
     typing/typeopt.cmx \
     typing/typedtree.cmx \
@@ -4347,6 +4354,7 @@ lambda/translclass.cmx : \
     parsing/asttypes.cmi \
     lambda/translclass.cmi
 lambda/translclass.cmi : \
+    typing/value_rec_types.cmi \
     typing/typedtree.cmi \
     parsing/location.cmi \
     lambda/lambda.cmi \
@@ -4355,6 +4363,7 @@ lambda/translclass.cmi : \
     parsing/asttypes.cmi
 lambda/translcore.cmo : \
     utils/zero_alloc_utils.cmi \
+    lambda/value_rec_compiler.cmi \
     typing/types.cmi \
     typing/typeopt.cmi \
     typing/typedtree.cmi \
@@ -4390,6 +4399,7 @@ lambda/translcore.cmo : \
     lambda/translcore.cmi
 lambda/translcore.cmx : \
     utils/zero_alloc_utils.cmx \
+    lambda/value_rec_compiler.cmx \
     typing/types.cmx \
     typing/typeopt.cmx \
     typing/typedtree.cmx \
@@ -4435,6 +4445,7 @@ lambda/translcore.cmi : \
     lambda/debuginfo.cmi \
     parsing/asttypes.cmi
 lambda/translmod.cmo : \
+    lambda/value_rec_compiler.cmi \
     typing/types.cmi \
     typing/typedtree.cmi \
     lambda/translprim.cmi \
@@ -4461,6 +4472,7 @@ lambda/translmod.cmo : \
     parsing/asttypes.cmi \
     lambda/translmod.cmi
 lambda/translmod.cmx : \
+    lambda/value_rec_compiler.cmx \
     typing/types.cmx \
     typing/typedtree.cmx \
     lambda/translprim.cmx \
@@ -4587,6 +4599,26 @@ lambda/translprim.cmi : \
     typing/ident.cmi \
     typing/env.cmi \
     utils/compilation_unit.cmi
+lambda/value_rec_compiler.cmo : \
+    typing/value_rec_types.cmi \
+    utils/misc.cmi \
+    utils/lazy_backtrack.cmi \
+    lambda/lambda.cmi \
+    typing/ident.cmi \
+    lambda/debuginfo.cmi \
+    lambda/value_rec_compiler.cmi
+lambda/value_rec_compiler.cmx : \
+    typing/value_rec_types.cmi \
+    utils/misc.cmx \
+    utils/lazy_backtrack.cmx \
+    lambda/lambda.cmx \
+    typing/ident.cmx \
+    lambda/debuginfo.cmx \
+    lambda/value_rec_compiler.cmi
+lambda/value_rec_compiler.cmi : \
+    typing/value_rec_types.cmi \
+    lambda/lambda.cmi \
+    typing/ident.cmi
 file_formats/cmi_format.cmo : \
     typing/types.cmi \
     typing/subst.cmi \
@@ -5973,7 +6005,6 @@ middle_end/flambda/invariant_params.cmi : \
     middle_end/flambda/flambda.cmi
 middle_end/flambda/lift_code.cmo : \
     middle_end/variable.cmi \
-    utils/strongly_connected_components.cmi \
     middle_end/flambda/base_types/mutable_variable.cmi \
     lambda/lambda.cmi \
     utils/int_replace_polymorphic_compare.cmi \
@@ -5983,7 +6014,6 @@ middle_end/flambda/lift_code.cmo : \
     middle_end/flambda/lift_code.cmi
 middle_end/flambda/lift_code.cmx : \
     middle_end/variable.cmx \
-    utils/strongly_connected_components.cmx \
     middle_end/flambda/base_types/mutable_variable.cmx \
     lambda/lambda.cmx \
     utils/int_replace_polymorphic_compare.cmx \
@@ -6047,24 +6077,18 @@ middle_end/flambda/lift_let_to_initialize_symbol.cmo : \
     middle_end/flambda/base_types/tag.cmi \
     middle_end/symbol_utils.cmi \
     utils/symbol.cmi \
-    lambda/lambda.cmi \
-    middle_end/internal_variable_names.cmi \
     utils/int_replace_polymorphic_compare.cmi \
     middle_end/flambda/flambda_utils.cmi \
     middle_end/flambda/flambda.cmi \
-    lambda/debuginfo.cmi \
     middle_end/flambda/lift_let_to_initialize_symbol.cmi
 middle_end/flambda/lift_let_to_initialize_symbol.cmx : \
     middle_end/variable.cmx \
     middle_end/flambda/base_types/tag.cmx \
     middle_end/symbol_utils.cmx \
     utils/symbol.cmx \
-    lambda/lambda.cmx \
-    middle_end/internal_variable_names.cmx \
     utils/int_replace_polymorphic_compare.cmx \
     middle_end/flambda/flambda_utils.cmx \
     middle_end/flambda/flambda.cmx \
-    lambda/debuginfo.cmx \
     middle_end/flambda/lift_let_to_initialize_symbol.cmi
 middle_end/flambda/lift_let_to_initialize_symbol.cmi : \
     middle_end/flambda/flambda.cmi \

@@ -131,18 +131,20 @@ TYPING = \
   typing/typedecl.cmo \
   typing/typeopt.cmo \
   typing/uniqueness_analysis.cmo \
-  typing/rec_check.cmo \
+  typing/value_rec_check.cmo \
   typing/typecore.cmo \
   typing/typeclass.cmo \
   typing/typemod.cmo
 TYPING_CMI = \
   typing/annot.cmi \
+  typing/value_rec_types.cmi \
   typing/outcometree.cmi
 
 LAMBDA = \
   lambda/printlambda.cmo \
   lambda/switch.cmo \
   lambda/matching.cmo \
+  lambda/value_rec_compiler.cmo \
   lambda/translmode.cmo \
   lambda/transl_comprehension_utils.cmo \
   lambda/transl_array_comprehension.cmo \

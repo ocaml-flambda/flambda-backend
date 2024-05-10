@@ -2,11 +2,9 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*      Pierre Chambart, Vincent Laviron and Louis Gesbert, OCamlPro      *)
-(*           Mark Shinwell and Leo White, Jane Street Europe              *)
+(*               Jeremy Yallop, University of Cambridge                   *)
 (*                                                                        *)
-(*   Copyright 2018 OCamlPro SAS                                          *)
-(*   Copyright 2018 Jane Street Group LLC                                 *)
+(*   Copyright 2017 Jeremy Yallop                                         *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,17 +12,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Compile let-rec defining non-function values into separate allocation and
-    assignments. *)
+val is_valid_recursive_expression :
+  Ident.t list ->
+  Typedtree.expression ->
+  Value_rec_types.recursive_binding_kind option
 
-type dissected =
-  | Dissected of Lambda.lambda
-  | Unchanged
-
-(** [dissect_letrec] assumes that bindings have not been dissected yet. In
-    particular, that no arguments of function call are recursive. *)
-val dissect_letrec :
-  bindings:(Ident.t * Lambda.lambda) list ->
-  body:Lambda.lambda ->
-  free_vars_kind:(Ident.t -> Lambda.layout option) ->
-  dissected
+val is_valid_class_expr : Ident.t list -> Typedtree.class_expr -> bool
