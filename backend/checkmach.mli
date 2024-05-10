@@ -41,6 +41,12 @@ val fundecl :
   Mach.fundecl ->
   Mach.fundecl
 
+val cfg :
+  Format.formatter ->
+  future_funcnames:Misc.Stdlib.String.Set.t ->
+  Cfg_with_layout.t ->
+  Cfg_with_layout.t
+
 (** When the check fails, [Witness.t] represents an instruction that does
     not satisfy the property. *)
 module Witness : sig
