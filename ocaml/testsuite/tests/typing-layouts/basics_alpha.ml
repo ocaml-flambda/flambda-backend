@@ -762,7 +762,7 @@ module M9_9 (X : sig
   end) =
 struct
   match 3, X.vr.vr_void with
-  | _ -> 42
+  | _, _ -> 42
 end;;
 [%%expect {|
 Line 5, characters 11-23:
