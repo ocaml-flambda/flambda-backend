@@ -294,7 +294,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               Oval_stuff "<poly>"
           | Tarrow _ ->
               Oval_stuff "<fun>"
-          | Ttuple(tys) ->
+          | Ttuple(tys, _) ->
               Oval_tuple (tree_of_tuple_elem_list 0 depth obj tys)
           | Tconstr(path, [ty_arg], _)
             when Path.same path Predef.path_list ->
@@ -598,9 +598,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       and tree_of_tuple_elem_list start depth obj tys =
         let rec tree_list i = function
           | [] -> []
-          | (label, ty, sort) :: labeled_tys ->
-              (* CR layouts v5: improve printing for tuples of non-values *)
-              assert (Jkind.Sort.get_default_value sort = Jkind.Sort.Value);
+          | (label, ty) :: labeled_tys ->
               let tree = nest tree_of_val (depth - 1) (O.field obj i) ty in
               (label, tree) :: tree_list (i + 1) labeled_tys in
       tree_list start tys

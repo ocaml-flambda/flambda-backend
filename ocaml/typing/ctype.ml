@@ -152,8 +152,10 @@ let compare_tuple_shapes shape1 shape2 ~on_failure =
           if not (Jkind.Sort.equate sort1 sort2)
           then on_failure ())
         sorts1 sorts2
-  | Unrepresentable _, Representable
-  | Representable, Unrepresentable _ -> on_failure ()
+  | Unrepresentable _, Representable ->
+      failwith "First arg was unrepresentable, second was not"
+  | Representable, Unrepresentable _ ->
+      failwith "First arg was representable, second was not"
 
 (* Helper for handling the Ttuple constructor arg *)
 let compare_tuple_elem_list_gen env tl1 shape1 tl2 shape2 f ~on_failure =

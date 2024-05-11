@@ -117,13 +117,13 @@ let rec expression event env = function
   | E_item(arg, n) ->
       let (v, ty) = expression event env arg in
       begin match get_desc (Ctype.expand_head_opt env ty) with
-        Ttuple ty_list ->
+        Ttuple (ty_list, _) ->
           if n < 1 || n > List.length ty_list
           then raise(Error(Tuple_index(ty, List.length ty_list, n)))
           (* CR labeled tuples: handle labels in debugger (also see "E_field"
              case) *)
           else (Debugcom.Remote_value.field v (n-1),
-                snd3 (List.nth ty_list (n-1)))
+                snd (List.nth ty_list (n-1)))
       | Tconstr(path, [ty_arg], _) when Path.same path Predef.path_array ->
           let size = Debugcom.Remote_value.size v in
           if n >= size

@@ -1421,7 +1421,7 @@ let reorder_pat loc env patl closed labeled_tl expected_ty =
 
 (* This assumes the [args] have already been reordered according to the
    [expected_ty], if needed.  *)
-let solve_Ppat_tuple ~refine ~alloc_mode loc env args expected_ty =
+let solve_Ppat_tuple ~refine loc env args alloc_mode expected_ty =
   let arity = List.length args in
   let arg_modes =
     if List.compare_length_with alloc_mode.tuple_modes arity = 0
@@ -2439,7 +2439,7 @@ and type_pat_aux
         | Closed -> spl
     in
     let spl_ann, shape =
-      solve_Ppat_tuple ~refine ~alloc_mode loc env args expected_ty
+      solve_Ppat_tuple ~refine loc env args alloc_mode expected_ty
     in
     let pl =
       List.map (fun (lbl, p, t, alloc_mode) ->
@@ -3175,12 +3175,12 @@ let enter_nonsplit_or info =
   in { info with splitting_mode }
 
 let rec check_counter_example_pat
-          ~info ~env type_pat_state tp expected_ty k =
+          ~info ~env type_pat_state tp am expected_ty k =
   let check_rec ?(info=info) ?(env=env) =
     check_counter_example_pat ~info ~env type_pat_state in
+  let new_mode () = simple_pat_mode Value.min in
   let loc = tp.pat_loc in
   let refine = Some true in
-  let alloc_mode = simple_pat_mode Value.min in
   let solve_expected (x : pattern) : pattern =
     unify_pat ~refine env x (instance expected_ty);
     x
@@ -3203,7 +3203,7 @@ let rec check_counter_example_pat
       begin match Parmatch.pats_of_type !env expected_ty with
       | [] -> raise Empty_branch
       | [{pat_desc = Tpat_any}] -> k' ()
-      | [tp] -> check_rec ~info:(decrease 1) tp expected_ty k
+      | [tp] -> check_rec ~info:(decrease 1) tp am expected_ty k
       | tp :: tpl ->
           if must_backtrack_on_gadt then raise Need_backtrack;
           let tp =
@@ -3211,9 +3211,9 @@ let rec check_counter_example_pat
               (fun tp tp' -> {tp with pat_desc = Tpat_or (tp, tp', None)})
               tp tpl
           in
-          check_rec ~info:(decrease 5) tp expected_ty k
+          check_rec ~info:(decrease 5) tp am expected_ty k
       end
-  | Tpat_alias (p, _, _, _, _) -> check_rec ~info p expected_ty k
+  | Tpat_alias (p, _, _, _, _) -> check_rec ~info p am expected_ty k
   | Tpat_constant cst ->
       let cst =
         match Untypeast.constant cst with
@@ -3223,7 +3223,7 @@ let rec check_counter_example_pat
       k @@ solve_expected (mp (Tpat_constant cst) ~pat_type:(type_constant cst))
   | Tpat_tuple (tpl, shape) ->
       let tpl_ann, shape' =
-        solve_Ppat_tuple ~refine ~alloc_mode loc env tpl expected_ty
+        solve_Ppat_tuple ~refine loc env tpl am expected_ty
       in
       let () =
         match shape, shape' with
@@ -3234,7 +3234,8 @@ let rec check_counter_example_pat
              sorts sorts'
         | (Representable | Unrepresentable _), _ -> assert false
       in
-      map_fold_cont (fun (l,p,t,_) k -> check_rec p t (fun p -> k (l, p)))
+      map_fold_cont (fun (l,p,t,_) k ->
+          check_rec p (new_mode ()) t (fun p -> k (l, p)))
         tpl_ann
         (fun pl ->
            mkp k (Tpat_tuple (pl, shape))
@@ -3249,7 +3250,7 @@ let rec check_counter_example_pat
           expected_ty
       in
       map_fold_cont
-        (fun (p,t) -> check_rec p t)
+        (fun (p,t) -> check_rec p (new_mode ()) t)
         (List.combine targs ty_args)
         (fun args ->
           mkp k (Tpat_construct(cstr_lid, constr, args, existential_ctyp)))
@@ -3262,7 +3263,7 @@ let rec check_counter_example_pat
       in begin
         (* PR#6235: propagate type information *)
         match targ, arg_type with
-          Some p, [ty] -> check_rec p ty (fun p -> k (Some p))
+          Some p, [ty] -> check_rec p (new_mode ()) ty (fun p -> k (Some p))
         | _            -> k None
       end
   | Tpat_record(fields, closed) ->
@@ -3270,14 +3271,14 @@ let rec check_counter_example_pat
       let type_label_pat (label_lid, label, targ) k =
         let ty_arg =
           solve_Ppat_record_field ~refine loc env label label_lid record_ty in
-        check_rec targ ty_arg (fun arg -> k (label_lid, label, arg))
+        check_rec targ (new_mode ()) ty_arg (fun arg -> k (label_lid, label, arg))
       in
       map_fold_cont type_label_pat fields
         (fun fields -> mkp k (Tpat_record (fields, closed)))
   | Tpat_array (mut, original_arg_sort, tpl) ->
       let ty_elt, arg_sort = solve_Ppat_array ~refine loc env mut expected_ty in
       assert (Jkind.Sort.equate original_arg_sort arg_sort);
-      map_fold_cont (fun p -> check_rec p ty_elt) tpl
+      map_fold_cont (fun p -> check_rec p (new_mode ()) ty_elt) tpl
         (fun pl -> mkp k (Tpat_array (mut, arg_sort, pl)))
   | Tpat_or(tp1, tp2, _) ->
       (* We are in counter-example mode, but try to avoid backtracking *)
@@ -3288,13 +3289,13 @@ let rec check_counter_example_pat
       let state = save_state env in
       let split_or tp =
         let type_alternative pat =
-          set_state state env; check_rec pat expected_ty k in
+          set_state state env; check_rec pat am expected_ty k in
         find_valid_alternative type_alternative tp
       in
       if must_split then split_or tp else
       let check_rec_result env tp : (_, abort_reason) result =
         let info = enter_nonsplit_or info in
-        match check_rec ~info tp expected_ty ~env (fun x -> x) with
+        match check_rec ~info tp am expected_ty ~env (fun x -> x) with
         | res -> Ok res
         | exception Need_backtrack -> Error Adds_constraints
         | exception Empty_branch -> Error Empty
@@ -3322,24 +3323,25 @@ let rec check_counter_example_pat
   | Tpat_lazy tp1 ->
       let nv = solve_Ppat_lazy ~refine loc env expected_ty in
       (* do not explode under lazy: PR#7421 *)
-      check_rec ~info:(no_explosion info) tp1 nv
+      check_rec ~info:(no_explosion info) tp1 (new_mode ()) nv
         (fun p1 -> mkp k (Tpat_lazy p1))
 
 let check_counter_example_pat ~counter_example_args
-    ?(lev=get_current_level()) env tp expected_ty =
+    ?(lev=get_current_level()) env tp alloc_mode expected_ty =
   (* [check_counter_example_pat] doesn't use [type_pat_state] in an interesting
      way -- one of the functions it calls writes an entry into
      [tps_pattern_forces] -- so we can just ignore module patterns. *)
   let type_pat_state = create_type_pat_state Modules_ignored in
   Misc.protect_refs [Misc.R (gadt_equations_level, Some lev)] (fun () ->
     check_counter_example_pat
-      ~info:counter_example_args ~env type_pat_state tp expected_ty (fun x -> x)
+      ~info:counter_example_args ~env type_pat_state tp alloc_mode expected_ty
+      (fun x -> x)
     )
 
 (* this function is passed to Partial.parmatch
    to type check gadt nonexhaustiveness *)
 let partial_pred ~lev ~splitting_mode ?(explode=0)
-      env expected_ty p =
+      env alloc_mode expected_ty p =
   let env = ref env in
   let state = save_state env in
   let counter_example_args =
@@ -3350,7 +3352,7 @@ let partial_pred ~lev ~splitting_mode ?(explode=0)
   try
     let typed_p =
       check_counter_example_pat ~lev ~counter_example_args env p
-        expected_ty
+        alloc_mode expected_ty
     in
     set_state state env;
     (* types are invalidated but we don't need them here *)
@@ -3360,22 +3362,22 @@ let partial_pred ~lev ~splitting_mode ?(explode=0)
     None
 
 let check_partial
-      ?(lev=get_current_level ()) env expected_ty loc cases
+      ?(lev=get_current_level ()) env alloc_mode expected_ty loc cases
   =
   let explode = match cases with [_] -> 5 | _ -> 0 in
   let splitting_mode = Refine_or {inside_nonsplit_or = false} in
   Parmatch.check_partial
-    (partial_pred ~lev ~splitting_mode ~explode env expected_ty)
+    (partial_pred ~lev ~splitting_mode ~explode env alloc_mode expected_ty)
     loc cases
 
 let check_unused
-      ?(lev=get_current_level ()) env expected_ty cases
+      ?(lev=get_current_level ()) env am expected_ty cases
   =
   Parmatch.check_unused
     (fun refute pat ->
       match
         partial_pred ~lev ~splitting_mode:Backtrack_or ~explode:5
-          env expected_ty pat
+          env am expected_ty pat
       with
         Some pat' when refute ->
           raise (Error (pat.pat_loc, env, Unrefuted_pattern pat'))
@@ -5096,24 +5098,16 @@ let pat_modes ~force_toplevel ~tuple_scrutinee rec_mode_var (attrs, spat) =
     then simple_pat_mode Value.legacy, mode_legacy
     else match rec_mode_var with
     | None -> begin
-        let materialized ~bound_as_ident =
-          bound_as_ident || not tuple_scrutinee
-        in
         match pat_tuple_arity spat with
-        | Not_local_tuple ->
+        | Not_local_tuple | Maybe_local_tuple _ ->
             let mode = Value.newvar () in
             simple_pat_mode mode, mode_default mode
-        | Maybe_local_tuple { bound_as_ident; _ } ->
-            let mode = Value.newvar () in
-            let tuple_materialized = materialized ~bound_as_ident in
-            simple_pat_mode mode ~tuple_materialized,
-            mode_default mode ~tuple_materialized
         | Local_tuple { arity; bound_as_ident } ->
             let modes = List.init arity (fun _ -> Value.newvar ()) in
             let mode =
               value_regional_to_local (fst (Value.newvar_above (Value.join modes)))
             in
-            let materialized = materialized ~bound_as_ident in
+            let materialized = bound_as_ident || not tuple_scrutinee in
             tuple_pat_mode mode modes ~materialized,
             mode_tuple mode modes ~materialized
       end
@@ -5542,23 +5536,15 @@ and type_expect_
   | Pexp_match(sarg, caselist) ->
       let arg_pat_mode, arg_expected_mode =
         let tuple_scrutinee = Option.is_some (exp_tuple_arity sarg) in
-        let materialized ~bound_as_ident =
-          bound_as_ident || not tuple_scrutinee
-        in
         match cases_tuple_arity caselist with
-        | Not_local_tuple ->
+        | Not_local_tuple | Maybe_local_tuple _ ->
           let mode = Value.newvar () in
           simple_pat_mode mode, mode_default mode
-        | Maybe_local_tuple { bound_as_ident } ->
-          let mode = Value.newvar () in
-          let tuple_materialized = materialized ~bound_as_ident in
-          simple_pat_mode mode ~tuple_materialized,
-          mode_default mode ~tuple_materialized
         | Local_tuple { arity; bound_as_ident } ->
           let modes = List.init arity (fun _ -> Value.newvar ()) in
           let mode, _ = Value.newvar_above (Value.join modes) in
           let mode = value_regional_to_local mode in
-          let materialized = materialized ~bound_as_ident in
+          let materialized = bound_as_ident || not tuple_scrutinee in
           tuple_pat_mode mode modes ~materialized,
           mode_tuple mode modes ~materialized
       in
@@ -8259,7 +8245,7 @@ and map_half_typed_cases
     raise (Error (loc, env, No_value_clauses));
   let partial =
     if check_if_total then
-      check_partial ~lev env ty_arg_check loc val_cases
+      check_partial ~lev env pat_mode ty_arg_check loc val_cases
     else
       Partial
   in
@@ -8268,8 +8254,9 @@ and map_half_typed_cases
       check_absent_variant branch_env (as_comp_pattern category typed_pat)
     ) half_typed_cases;
     with_level_if delayed ~level:lev begin fun () ->
-      check_unused ~lev env ty_arg_check val_cases ;
-      check_unused ~lev env Predef.type_exn exn_cases ;
+      check_unused ~lev env pat_mode ty_arg_check val_cases ;
+      (* CR nroberts: pat_mode onthe next line is wrong *)
+      check_unused ~lev env pat_mode Predef.type_exn exn_cases ;
     end;
   in
   if contains_polyvars then
@@ -8591,16 +8578,17 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
                 exp, None)
       in
       List.iter2
-        (fun (_, pat, _) (attrs, exp) ->
+        (fun (_, pat, _) (attrs, exp, pat_mode) ->
           Builtin_attributes.warning_scope ~ppwarning:false attrs
             (fun () ->
               let case = Parmatch.typed_case (case pat exp) in
-              ignore(check_partial env pat.pat_type pat.pat_loc
+              ignore(check_partial env pat_mode pat.pat_type pat.pat_loc
                        [case] : Typedtree.partial)
             )
         )
         mode_pat_typ_list
-        (List.map2 (fun (attrs, _, _, _) (e, _) -> attrs, e) spatl exp_list);
+        (List.map2 (fun (attrs, pat_mode, _, _) (e, _) -> attrs, e, pat_mode)
+          spatl exp_list);
       (mode_pat_typ_list, exp_list, new_env, mvs, sorts,
        List.map (fun pv -> { pv with pv_type = instance pv.pv_type}) pvs)
     end
@@ -10428,7 +10416,8 @@ let () =
 
 (* drop the need to call [Parmatch.typed_case] from the external API *)
 let check_partial ?lev a b c cases =
-  check_partial ?lev a b c (List.map Parmatch.typed_case cases)
+  let am = simple_pat_mode Value.min in
+  check_partial ?lev a am b c (List.map Parmatch.typed_case cases)
 
 (* drop unnecessary arguments from the external API
    and check for uniqueness *)

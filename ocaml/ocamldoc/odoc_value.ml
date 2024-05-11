@@ -87,10 +87,10 @@ let dummy_parameter_list typ =
   let liste_param = parameter_list_from_arrows typ in
   let rec iter (label, t) =
     match Types.get_desc t with
-    | Types.Ttuple l ->
+    | Types.Ttuple (l, _) ->
         if label = Types.Nolabel then
           Odoc_parameter.Tuple
-            (List.map (fun t2 -> iter (Types.Nolabel, t2)) (List.map Misc.snd3 l), t)
+            (List.map (fun t2 -> iter (Types.Nolabel, t2)) (List.map snd l), t)
         else
           (* if there is a label, then we don't want to decompose the tuple *)
           Odoc_parameter.Simple_name
