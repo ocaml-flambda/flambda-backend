@@ -4,8 +4,8 @@ cmm_builtins.ml
 cmm_builtins.mli
 checks.ml
 checks.mli
-checkmach.ml
-checkmach.mli
+zero_alloc_checker.ml
+zero_alloc_checker.mli
 cfg/**/*.ml
 cfg/**/*.mli
 asm_targets/**/*.ml

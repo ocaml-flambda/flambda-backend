@@ -850,7 +850,7 @@ module Function_decls = struct
 
     let is_opaque t = t.attr.is_opaque
 
-    let check_attribute t = t.attr.check
+    let zero_alloc_attribute t = t.attr.zero_alloc
 
     let stub t = t.attr.stub
 

@@ -621,24 +621,19 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
-type property = Builtin_attributes.property =
-  | Zero_alloc
-
 type poll_attribute =
   | Error_poll (* [@poll error] *)
   | Default_poll (* no [@poll] attribute *)
 
-type check_attribute = Builtin_attributes.check_attribute =
-  | Default_check
-  | Ignore_assert_all of property
-  | Check of { property: property;
-               strict: bool;
+type zero_alloc_attribute = Builtin_attributes.zero_alloc_attribute =
+  | Default_zero_alloc
+  | Ignore_assert_all
+  | Check of { strict: bool;
                opt: bool;
                arity: int;
                loc: Location.t;
              }
-  | Assume of { property: property;
-                strict: bool;
+  | Assume of { strict: bool;
                 never_returns_normally: bool;
                 never_raises: bool;
                 arity: int;
@@ -673,7 +668,7 @@ type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
   local: local_attribute;
-  check : check_attribute;
+  zero_alloc : zero_alloc_attribute;
   poll: poll_attribute;
   loop: loop_attribute;
   is_a_functor: bool;
@@ -896,7 +891,7 @@ let default_function_attribute = {
   inline = Default_inline;
   specialise = Default_specialise;
   local = Default_local;
-  check = Default_check ;
+  zero_alloc = Default_zero_alloc ;
   poll = Default_poll;
   loop = Default_loop;
   is_a_functor = false;
@@ -915,7 +910,7 @@ let default_function_attribute = {
 }
 
 let default_stub_attribute =
-  { default_function_attribute with stub = true; check = Ignore_assert_all Zero_alloc }
+  { default_function_attribute with stub = true; zero_alloc = Ignore_assert_all }
 
 let default_param_attribute = { unbox_param = false }
 

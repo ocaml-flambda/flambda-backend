@@ -9,23 +9,17 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-(** Annotations on function declaration (not call sites) *)
-module Property : sig
-  type t = Zero_alloc
-end
-
+(** [@zero_alloc ...] annotations on function declaration (not call sites) *)
 type t =
   | Default_check
   | Assume of
-      { property : Property.t;
-        strict : bool;
+      { strict : bool;
         never_returns_normally : bool;
         never_raises : bool;
         loc : Location.t
       }
   | Check of
-      { property : Property.t;
-        strict : bool;
+      { strict : bool;
         loc : Location.t
       }
 
@@ -35,4 +29,4 @@ val equal : t -> t -> bool
 
 val is_default : t -> bool
 
-val from_lambda : Lambda.check_attribute -> Location.t -> t
+val from_lambda : Lambda.zero_alloc_attribute -> Location.t -> t

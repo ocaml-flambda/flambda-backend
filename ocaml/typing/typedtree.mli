@@ -266,7 +266,7 @@ and expression_desc =
         ret_sort : Jkind.sort;
         alloc_mode : Mode.Alloc.r;
         (* Mode at which the closure is allocated *)
-        zero_alloc : Builtin_attributes.check_attribute
+        zero_alloc : Builtin_attributes.zero_alloc_attribute
         (* zero-alloc attributes *)
       }
       (** fun P0 P1 -> function p1 -> e1 | p2 -> e2  (body = Tfunction_cases _)
@@ -1136,7 +1136,7 @@ val let_bound_idents_full:
 val let_bound_idents_with_modes_sorts_and_checks:
   value_binding list
   -> (Ident.t * (Location.t * Mode.Value.l * Jkind.sort) list
-              * Builtin_attributes.check_attribute) list
+              * Builtin_attributes.zero_alloc_attribute) list
 
 (** Alpha conversion of patterns *)
 val alpha_pat:

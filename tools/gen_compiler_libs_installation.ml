@@ -19,7 +19,7 @@ let () =
       | "relocation_table", (".cmt" | ".cmi" | ".cmti" | ".cmx")
       | "symbol_entry", (".cmt" | ".cmi" | ".cmti" | ".cmx") ->
         None
-      | "checkmach", ".mli" -> Some "mach_checks"
+      | "zero_alloc_checker", ".mli" -> Some "mach_checks"
       | "cSE", (".cmi" | ".cmt" | ".cmx") -> Some "CSE"
       | "cSEgen", (".cmi" | ".cmt" | ".cmti" | ".cmx") -> Some "CSEgen"
       | _, _ -> Some prefix

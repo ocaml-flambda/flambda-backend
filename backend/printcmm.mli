@@ -34,5 +34,4 @@ val fundecl : formatter -> Cmm.fundecl -> unit
 val data : formatter -> Cmm.data_item list -> unit
 val phrase : formatter -> Cmm.phrase -> unit
 val temporal_locality : Cmm.prefetch_temporal_locality_hint -> string
-val property_to_string : Cmm.property -> string
 val print_codegen_options : formatter -> Cmm.codegen_option list -> unit

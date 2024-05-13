@@ -934,22 +934,18 @@ let name_of_primitive = function
   | Parray_to_iarray -> "Parray_to_iarray"
   | Pget_header _ -> "Pget_header"
 
-let check_attribute ppf check =
-  let check_property = function
-    | Zero_alloc -> "zero_alloc"
-  in
+let zero_alloc_attribute ppf check =
   match check with
-  | Default_check -> ()
-  | Ignore_assert_all p ->
-    fprintf ppf "ignore assert all %s@ " (check_property p)
-  | Assume {property=p; strict; never_returns_normally; loc = _} ->
-    fprintf ppf "assume_%s%s%s@ "
-      (check_property p)
+  | Default_zero_alloc -> ()
+  | Ignore_assert_all ->
+    fprintf ppf "ignore assert all zero_alloc@ "
+  | Assume {strict; never_returns_normally; loc = _} ->
+    fprintf ppf "assume_zero_alloc%s%s@ "
       (if strict then "_strict" else "")
       (if never_returns_normally then "_never_returns_normally" else "")
-  | Check {property=p; strict; loc = _; opt} ->
-    fprintf ppf "assert_%s%s%s@ "
-      (check_property p) (if opt then "_opt" else "")
+  | Check {strict; loc = _; opt} ->
+    fprintf ppf "assert_zero_alloc%s%s@ "
+      (if opt then "_opt" else "")
       (if strict then "_strict" else "")
 
 let function_attribute ppf t =
@@ -974,7 +970,7 @@ let function_attribute ppf t =
   | Always_local -> fprintf ppf "always_local@ "
   | Never_local -> fprintf ppf "never_local@ "
   end;
-  check_attribute ppf t.check;
+  zero_alloc_attribute ppf t.zero_alloc;
   if t.tmc_candidate then
     fprintf ppf "tail_mod_cons@ ";
   begin match t.loop with

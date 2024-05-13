@@ -143,6 +143,6 @@ let implementation ~hook_parse_tree ~hook_typed_tree info ~backend =
       end;
     end;
     if not (Clflags.(should_stop_after Compiler_pass.Selection)) then
-      Builtin_attributes.warn_unchecked_property ();
+      Builtin_attributes.warn_unchecked_zero_alloc_attribute ();
     Warnings.check_fatal ();
   )

@@ -392,21 +392,17 @@ and sequence ppf = function
 
 and expression ppf e = fprintf ppf "%a" expr e
 
-let property_to_string : Cmm.property -> string = function
-  | Zero_alloc -> "zero_alloc"
-
 let codegen_option = function
   | Reduce_code_size -> "reduce_code_size"
   | No_CSE -> "no_cse"
   | Use_linscan_regalloc -> "linscan"
-  | Assume { property; strict; never_returns_normally = _; loc = _ } ->
-    Printf.sprintf "assume_%s%s%s"
-      (property_to_string property)
+  | Assume_zero_alloc { strict; never_returns_normally; never_raises; loc = _ } ->
+    Printf.sprintf "assume_zero_alloc_%s%s%s"
       (if strict then "_strict" else "")
-      (if strict then "_never_returns_normally" else "")
-  | Check { property; strict; loc = _ } ->
-    Printf.sprintf "assert_%s%s"
-      (property_to_string property)
+      (if never_returns_normally then "_never_returns_normally" else "")
+      (if never_raises then "_never_raises" else "")
+  | Check_zero_alloc { strict; loc = _ } ->
+    Printf.sprintf "assert_zero_alloc%s"
       (if strict then "_strict" else "")
 
 let print_codegen_options ppf l =
