@@ -325,7 +325,7 @@ let read_anonymous_arg fname =
   match !main_file with
   | None -> main_file := Some fname
   | Some _ ->
-    Printf.eprintf "expect_test: multiple input files\n";
+    Printf.eprintf "expect_test: multiple input source files\n";
     exit 2
 
 let main fname =
