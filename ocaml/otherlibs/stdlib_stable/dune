@@ -13,7 +13,7 @@
 ;**************************************************************************
 
 (library
- (name stable)
+ (name stdlib_stable)
  (wrapped false)
  (modes byte native)
  (flags
@@ -37,10 +37,10 @@
 (install
  (files
   (glob_files
-   (*.{cmxa,a,cmxs,cma,mli} with_prefix stable))
+   (*.{cmxa,a,cmxs,cma,mli} with_prefix stdlib_stable))
   (glob_files
-   (.stable.objs/byte/*.{cmi,cmt,cmti} with_prefix stable))
+   (.stdlib_stable.objs/byte/*.{cmi,cmt,cmti} with_prefix stdlib_stable))
   (glob_files
-   (.stable.objs/native/*.cmx with_prefix stable)))
+   (.stdlib_stable.objs/native/*.cmx with_prefix stdlib_stable)))
  (section lib)
  (package ocaml))

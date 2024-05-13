@@ -13,7 +13,7 @@
 ;**************************************************************************
 
 (library
- (name upstream_compatible)
+ (name stdlib_upstream_compatible)
  (wrapped false)
  (modes byte native)
  (flags
@@ -37,12 +37,14 @@
 (install
  (files
   (glob_files
-   (*.{cmxa,a,cmxs,cma,mli} with_prefix upstream_compatible))
+   (*.{cmxa,a,cmxs,cma,mli} with_prefix stdlib_upstream_compatible))
   (glob_files
-   (.upstream_compatible.objs/byte/*.{cmi,cmt,cmti}
+   (.stdlib_upstream_compatible.objs/byte/*.{cmi,cmt,cmti}
     with_prefix
-    upstream_compatible))
+    stdlib_upstream_compatible))
   (glob_files
-   (.upstream_compatible.objs/native/*.cmx with_prefix upstream_compatible)))
+   (.stdlib_upstream_compatible.objs/native/*.cmx
+    with_prefix
+    stdlib_upstream_compatible)))
  (section lib)
  (package ocaml))

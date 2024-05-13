@@ -13,7 +13,7 @@
 ;**************************************************************************
 
 (library
- (name alpha)
+ (name stdlib_alpha)
  (wrapped false)
  (modes byte native)
  (flags
@@ -37,10 +37,10 @@
 (install
  (files
   (glob_files
-   (*.{cmxa,a,cmxs,cma,mli} with_prefix alpha))
+   (*.{cmxa,a,cmxs,cma,mli} with_prefix stdlib_alpha))
   (glob_files
-   (.alpha.objs/byte/*.{cmi,cmt,cmti} with_prefix alpha))
+   (.stdlib_alpha.objs/byte/*.{cmi,cmt,cmti} with_prefix stdlib_alpha))
   (glob_files
-   (.alpha.objs/native/*.cmx with_prefix alpha)))
+   (.stdlib_alpha.objs/native/*.cmx with_prefix stdlib_alpha)))
  (section lib)
  (package ocaml))

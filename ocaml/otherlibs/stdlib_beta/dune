@@ -13,7 +13,7 @@
 ;**************************************************************************
 
 (library
- (name beta)
+ (name stdlib_beta)
  (wrapped false)
  (modes byte native)
  (flags
@@ -37,10 +37,10 @@
 (install
  (files
   (glob_files
-   (*.{cmxa,a,cmxs,cma,mli} with_prefix beta))
+   (*.{cmxa,a,cmxs,cma,mli} with_prefix stdlib_beta))
   (glob_files
-   (.beta.objs/byte/*.{cmi,cmt,cmti} with_prefix beta))
+   (.stdlib_beta.objs/byte/*.{cmi,cmt,cmti} with_prefix stdlib_beta))
   (glob_files
-   (.beta.objs/native/*.cmx with_prefix beta)))
+   (.stdlib_beta.objs/native/*.cmx with_prefix stdlib_beta)))
  (section lib)
  (package ocaml))
