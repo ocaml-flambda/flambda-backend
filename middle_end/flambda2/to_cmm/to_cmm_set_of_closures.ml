@@ -354,7 +354,7 @@ let transl_check_attrib : Zero_alloc_attribute.t -> Cmm.codegen_option list =
 
 (* Translation of the bodies of functions. *)
 
-let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
+let params_and_body0 env res code_id ~fun_dbg ~zero_alloc_attribute ~return_continuation
     ~exn_continuation params ~body ~my_closure
     ~(is_my_closure_used : _ Or_unknown.t) ~my_region ~translate_expr =
   let params =
@@ -403,7 +403,7 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
     else fun_body
   in
   let fun_flags =
-    transl_check_attrib check
+    transl_check_attrib zero_alloc_attribute
     @
     if Flambda_features.optimize_for_speed () then [] else [Cmm.Reduce_code_size]
   in
@@ -416,7 +416,7 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
   in
   C.fundecl fun_sym fun_params fun_body fun_flags fun_dbg fun_poll, res
 
-let params_and_body env res code_id p ~fun_dbg ~check ~translate_expr =
+let params_and_body env res code_id p ~fun_dbg ~zero_alloc_attribute ~translate_expr =
   Function_params_and_body.pattern_match p
     ~f:(fun
          ~return_continuation
@@ -430,7 +430,7 @@ let params_and_body env res code_id p ~fun_dbg ~check ~translate_expr =
          ~free_names_of_body:_
        ->
       try
-        params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
+        params_and_body0 env res code_id ~fun_dbg ~zero_alloc_attribute ~return_continuation
           ~exn_continuation params ~body ~my_closure ~is_my_closure_used
           ~my_region ~translate_expr
       with Misc.Fatal_error as e ->

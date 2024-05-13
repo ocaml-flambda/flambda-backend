@@ -631,7 +631,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
                 (Code_metadata.contains_no_escaping_local_allocs
                    callee's_code_metadata)
               ~stub:true ~inline:Default_inline ~poll_attribute:Default
-              ~check:Zero_alloc_attribute.Default_check ~is_a_functor:false
+              ~zero_alloc_attribute:Zero_alloc_attribute.Default_check ~is_a_functor:false
               ~is_opaque:false ~recursive ~cost_metrics:cost_metrics_of_body
               ~inlining_arguments:(DE.inlining_arguments (DA.denv dacc))
               ~dbg ~is_tupled:false

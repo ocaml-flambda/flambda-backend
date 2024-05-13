@@ -1856,7 +1856,7 @@ let make_unboxed_function_wrapper acc function_slot params params_arity
       ~stub:true ~inline:Inline_attribute.Default_inline
       ~poll_attribute:
         (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
-      ~check:
+      ~zero_alloc_attribute:
         (Zero_alloc_attribute.from_lambda
            (Function_decl.zero_alloc_attribute decl)
            (Debuginfo.Scoped_location.to_location (Function_decl.loc decl)))
@@ -2224,7 +2224,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
       ~stub ~inline
       ~poll_attribute:
         (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
-      ~check:
+      ~zero_alloc_attribute:
         (Zero_alloc_attribute.from_lambda
            (Function_decl.zero_alloc_attribute decl)
            (Debuginfo.Scoped_location.to_location (Function_decl.loc decl)))
@@ -2354,7 +2354,7 @@ let close_functions acc external_env ~current_region function_declarations =
         let poll_attribute =
           Poll_attribute.from_lambda (Function_decl.poll_attribute decl)
         in
-        let check =
+        let zero_alloc_attribute =
           Zero_alloc_attribute.from_lambda
             (Function_decl.zero_alloc_attribute decl)
             (Debuginfo.Scoped_location.to_location (Function_decl.loc decl))
@@ -2374,7 +2374,7 @@ let close_functions acc external_env ~current_region function_declarations =
             ~result_mode:(Function_decl.result_mode decl)
             ~contains_no_escaping_local_allocs:
               (Function_decl.contains_no_escaping_local_allocs decl)
-            ~stub:(Function_decl.stub decl) ~inline:Never_inline ~check
+            ~stub:(Function_decl.stub decl) ~inline:Never_inline ~zero_alloc_attribute
             ~poll_attribute
             ~is_a_functor:(Function_decl.is_a_functor decl)
             ~is_opaque:(Function_decl.is_opaque decl)
