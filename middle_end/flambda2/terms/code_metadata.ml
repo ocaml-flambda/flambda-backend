@@ -157,9 +157,9 @@ type 'a create_type =
 let createk k code_id ~newer_version_of ~params_arity ~param_modes
     ~first_complex_local_param ~result_arity ~result_types ~result_mode
     ~contains_no_escaping_local_allocs ~stub ~(inline : Inline_attribute.t)
-    ~zero_alloc_attribute ~poll_attribute ~is_a_functor ~is_opaque ~recursive ~cost_metrics
-    ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision
-    ~absolute_history ~relative_history ~loopify =
+    ~zero_alloc_attribute ~poll_attribute ~is_a_functor ~is_opaque ~recursive
+    ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used
+    ~inlining_decision ~absolute_history ~relative_history ~loopify =
   (match stub, inline with
   | true, (Available_inline | Never_inline | Default_inline)
   | ( false,

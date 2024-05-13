@@ -2374,8 +2374,8 @@ let close_functions acc external_env ~current_region function_declarations =
             ~result_mode:(Function_decl.result_mode decl)
             ~contains_no_escaping_local_allocs:
               (Function_decl.contains_no_escaping_local_allocs decl)
-            ~stub:(Function_decl.stub decl) ~inline:Never_inline ~zero_alloc_attribute
-            ~poll_attribute
+            ~stub:(Function_decl.stub decl) ~inline:Never_inline
+            ~zero_alloc_attribute ~poll_attribute
             ~is_a_functor:(Function_decl.is_a_functor decl)
             ~is_opaque:(Function_decl.is_opaque decl)
             ~recursive:(Function_decl.recursive decl)
