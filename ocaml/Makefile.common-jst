@@ -192,15 +192,6 @@ _install: compiler
 	done
 	mkdir _install/lib/stublibs
 
-	# Re-export extension libraries under old names
-	for universe in upstream_compatible stable beta alpha ; do \
-	$(cpl) -R _install/lib/ocaml/stdlib_$${universe} _install/lib/ocaml/$${universe}; \
-	  for ext in cmxa a cmxs cma mli cmi cmt cmti cmx ; do \
-	    mv _install/lib/ocaml/$${universe}/stdlib_$${universe}.$${ext} \
-		   _install/lib/ocaml/$${universe}/$${universe}.$${ext} ; \
-	  done ; \
-	done
-
 	find _build/main/ \( -name "flambda2*.cmi" \
           -or -name "flambda2*.cmti" -or -name "flambda2*.cmt" \) \
           -exec cp -f {} _install/lib/ocaml/compiler-libs \;
