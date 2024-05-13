@@ -217,19 +217,24 @@ end = struct
         Ece.pure,
         updates )
     | Function_slot { size; function_slot; last_function_slot } -> (
-        let code_id = (Function_slot.Map.find function_slot decls  : Function_declarations.code_id_in_function_declaration) in
-        let acc =
-          match for_static_sets with
-          | None -> acc
-          | Some { closure_symbols; _ } ->
-            let function_symbol =
-              Function_slot.Map.find function_slot closure_symbols
-            in
-            List.rev_append (P.define_symbol (R.symbol res function_symbol)) acc
-        in
+      let code_id =
+        (Function_slot.Map.find function_slot decls
+          : Function_declarations.code_id_in_function_declaration)
+      in
+      let acc =
+        match for_static_sets with
+        | None -> acc
+        | Some { closure_symbols; _ } ->
+          let function_symbol =
+            Function_slot.Map.find function_slot closure_symbols
+          in
+          List.rev_append (P.define_symbol (R.symbol res function_symbol)) acc
+      in
       match code_id with
       | Code_id code_id -> (
-        let code_symbol = R.symbol_of_code_id res ~currently_in_inlined_body:false code_id in
+        let code_symbol =
+          R.symbol_of_code_id res ~currently_in_inlined_body:false code_id
+        in
         let (kind, params_ty, result_ty), closure_code_pointers, dbg =
           get_func_decl_params_arity env code_id
         in

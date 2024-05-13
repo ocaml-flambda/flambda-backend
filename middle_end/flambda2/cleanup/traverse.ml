@@ -138,8 +138,7 @@ end = struct
 
   let cont_dep ~denv:_ pat dep t =
     Simple.pattern_match dep
-      ~name:(fun name ~coercion:_ ->
-        Graph.add_cont_dep t.deps pat name)
+      ~name:(fun name ~coercion:_ -> Graph.add_cont_dep t.deps pat name)
       ~const:(fun _ -> ())
 
   let func_param_dep ~denv:_ param arg t =
@@ -147,8 +146,7 @@ end = struct
       ~param:(Bound_parameter.var param)
       ~arg:(Name.var arg)
 
-  let root v t =
-    Graph.add_use t.deps (Code_id_or_name.var v)
+  let root v t = Graph.add_use t.deps (Code_id_or_name.var v)
 
   let used ~denv dep t =
     Simple.pattern_match dep
@@ -205,8 +203,7 @@ end = struct
         List.iter2
           (fun param arg ->
             Simple.pattern_match arg
-              ~name:(fun name ~coercion:_ ->
-                add_cond_dep param name)
+              ~name:(fun name ~coercion:_ -> add_cond_dep param name)
               ~const:(fun _ -> ()))
           code_dep.params apply_params;
         (match apply_closure with
@@ -220,8 +217,7 @@ end = struct
         | None -> ()
         | Some apply_return ->
           List.iter2
-            (fun arg param ->
-              add_cond_dep param (Name.var arg))
+            (fun arg param -> add_cond_dep param (Name.var arg))
             code_dep.return apply_return);
         add_cond_dep apply_exn (Name.var code_dep.exn))
       t.apply_deps;
@@ -689,12 +685,12 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
         | Unary (Is_int _, arg) ->
           Simple.pattern_match arg
             ~name:(fun name ~coercion:_ ->
-                default_bp acc (Graph.Dep.Field (Is_int, name)))
+              default_bp acc (Graph.Dep.Field (Is_int, name)))
             ~const:(fun _ -> ())
         | Unary (Get_tag, arg) ->
           Simple.pattern_match arg
             ~name:(fun name ~coercion:_ ->
-                default_bp acc (Graph.Dep.Field (Get_tag, name)))
+              default_bp acc (Graph.Dep.Field (Get_tag, name)))
             ~const:(fun _ -> ())
         | prim ->
           let () =

@@ -140,10 +140,8 @@ module P = struct
     let all_cdep = Code_id_or_name.Set.empty in
     (* TODO: clean cdep, not useful anymore *)
     Flambda_colours.without_colours ~f:(fun () ->
-        Format.fprintf ppf
-          "subgraph cluster_%d { label=\"%s\"@\n%a@\n%a}@." ctx print_name
-          (nodes ~all_cdep ~ctx) t
-          (edges ~ctx) t)
+        Format.fprintf ppf "subgraph cluster_%d { label=\"%s\"@\n%a@\n%a}@." ctx
+          print_name (nodes ~all_cdep ~ctx) t (edges ~ctx) t)
 end
 
 let print_dep dep =
