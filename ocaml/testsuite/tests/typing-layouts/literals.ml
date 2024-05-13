@@ -7,7 +7,10 @@
 (*****************************************)
 (* Prelude: Functions on unboxed floats. *)
 
-open Stable
+module Float_u = Stable.Float_u
+module Int32_u = Stable.Int32_u
+module Int64_u = Stable.Int64_u
+module Nativeint_u = Stable.Nativeint_u
 
 let test_float s f =
   Format.printf "%s: %f\n" s (Float_u.to_float f); Format.print_flush ()
@@ -19,6 +22,10 @@ let test_nativeint s f =
   Format.printf "%s: %s\n" s (Nativeint_u.to_string f); Format.print_flush ()
 
 [%%expect{|
+module Float_u = Stable.Float_u
+module Int32_u = Stable.Int32_u
+module Int64_u = Stable.Int64_u
+module Nativeint_u = Stable.Nativeint_u
 val test_float : string -> float# -> unit = <fun>
 val test_int32 : string -> int32# -> unit = <fun>
 val test_int64 : string -> int64# -> unit = <fun>

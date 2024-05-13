@@ -13,7 +13,10 @@
 (*****************************************)
 (* Prelude: Functions on unboxed numbers *)
 
-open Stable
+module Float_u = Stable.Float_u
+module Int32_u = Stable.Int32_u
+module Int64_u = Stable.Int64_u
+module Nativeint_u = Stable.Nativeint_u
 
 (******************************)
 (* Test: large mixed blocks *)
