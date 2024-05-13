@@ -371,7 +371,7 @@ thoroughly (e.g. `git clean -dfX`) before reconfiguring with a different prefix.
 Then build the compiler with the command `make _install` (this is the default
 target plus some setup in preparation for installation). As usual when building,
 a 4.14 compiler (and dune and menhir) need to be in the path. See the warning above
-about the version of and menhir to use.
+about the version of menhir to use.
 
 Now the build part is done, we don't need to stay in the build environment
 anymore; the switch creation will likely replace it if your terminal is setup
