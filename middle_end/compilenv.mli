@@ -50,12 +50,12 @@ val need_send_fun:
         (* Record the need of a currying (resp. application,
            message sending) function with the given arity *)
 
-val cached_checks : Checks.t
+val cached_zero_alloc_info : Zero_alloc_info.t
         (* Return cached information about functions
            (from other complication units) that satisfy certain properties. *)
 
-val cache_checks : Checks.t -> unit
-        (* [cache_checks c] adds [c] to [cached_checks] *)
+val cache_zero_alloc_info : Zero_alloc_info.t -> unit
+        (* [cache_zero_alloc_info c] adds [c] to [cached_zero_alloc_info] *)
 
 val new_const_symbol : unit -> string
 

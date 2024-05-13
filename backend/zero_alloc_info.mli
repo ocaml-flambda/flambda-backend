@@ -1,4 +1,5 @@
-(** Symbols of function that pass certain checks for special properties. *)
+(** Function summaries computed by zero_alloc analysis
+    and encoded as integers for storing in .cmx files. *)
 
 type value = int option
 
