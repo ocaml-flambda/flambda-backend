@@ -1,15 +1,11 @@
 (* TEST
+ include stable;
  flags = "-extension layouts_beta";
  expect;
 *)
 
 (*****************************************)
 (* Prelude: Functions on unboxed floats. *)
-
-#directory "+stable"
-#load "stable.cma"
-[%%expect {|
-|}];;
 
 open Stable
 

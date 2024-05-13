@@ -1,4 +1,5 @@
 (* TEST
+ include stable;
  flambda2;
  {
    flags = "-extension layouts_alpha";
@@ -12,11 +13,6 @@
 *)
 (* Tests around type-checking arrays of unboxed types. Tests around
    compilation correctness should go somewhere else. *)
-
-#directory "+stable"
-#load "stable.cma"
-[%%expect {|
-|}];;
 
 (*******************************************)
 (* Test 1: Support unboxed types in arrays *)

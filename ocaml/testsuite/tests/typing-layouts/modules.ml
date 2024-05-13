@@ -1,4 +1,5 @@
 (* TEST
+ include stable;
  {
    expect;
  }{
@@ -6,11 +7,6 @@
    expect;
  }
 *)
-
-#directory "+stable"
-#load "stable.cma"
-[%%expect {|
-|}];;
 
 type t_value : value
 type t_imm   : immediate

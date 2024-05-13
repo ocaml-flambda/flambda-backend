@@ -1,4 +1,5 @@
 (* TEST
+ include stable;
  {
    flags = "-extension layouts";
    expect;
@@ -7,11 +8,6 @@
    expect;
  }
 *)
-
-#directory "+stable"
-#load "stable.cma"
-[%%expect {|
-|}];;
 
 module F = Stable.Float_u
 

@@ -1,6 +1,7 @@
 (* TEST
  readonly_files = "float_u_array.ml";
  modules = "${readonly_files}";
+ include stable;
  flambda2;
  {
    flags = "-extension comprehensions -extension layouts_alpha";
@@ -15,11 +16,6 @@
 *)
 (* Failing array comprehension tests. Delete this file and move tests
    to [exp_and_pat.ml] when the feature is implemented.*)
-
-#directory "+stable"
-#load "stable.cma"
-[%%expect {|
-|}];;
 
 module Float_u = Stable.Float_u
 let of_int = Float_u.of_int
