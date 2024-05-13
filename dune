@@ -101,6 +101,7 @@
   deadcode
   emit
   emitaux
+  fdo_info
   generic_fns
   interf
   interval
@@ -116,7 +117,6 @@
   printcmm
   printlinear
   printmach
-  zero_alloc_checker
   proc
   simd
   simd_selection
@@ -144,7 +144,7 @@
   x86_gas
   x86_masm
   x86_proc
-  fdo_info
+  zero_alloc_checker
   ;; asmcomp/cfg
   cfg
   cfg_intf
