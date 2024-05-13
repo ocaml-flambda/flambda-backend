@@ -1004,11 +1004,7 @@ let default_iterator =
           iter_loc this (s : Jane_syntax.Jkind.Const.t :> _ loc)
         | Mod (t, mode_list) ->
           this.jkind_annotation this t;
-          List.iter
-            (fun m ->
-              iter_loc this
-                (m : Jane_syntax.Mode_expr.Const.t :> _ loc))
-            mode_list
+          this.modes this mode_list
         | With (t, ty) ->
           this.jkind_annotation this t;
           this.typ this ty

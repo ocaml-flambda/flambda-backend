@@ -105,7 +105,6 @@ COMPILERLIBS_SOURCES=\
   parsing/printast.ml \
   parsing/syntaxerr.ml \
   parsing/ast_helper.ml \
-  parsing/jane_asttypes.ml \
   parsing/jane_syntax_parsing.ml \
   parsing/jane_syntax.ml \
   parsing/ast_iterator.ml \

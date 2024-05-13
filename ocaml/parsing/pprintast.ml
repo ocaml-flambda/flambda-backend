@@ -353,21 +353,13 @@ and jkind ctxt f k = match (k : Jane_syntax.Jkind.t) with
   | Default -> pp f "_"
   | Primitive_layout_or_abbreviation s ->
     pp f "%s" (s : Jane_syntax.Jkind.Const.t :> _ loc).txt
-  | Mod (t, mode_list) ->
+  | Mod (t, { txt = mode_list }) ->
     begin match mode_list with
     | [] -> Misc.fatal_error "malformed jkind annotation"
     | _ :: _ ->
-      let mode_string =
-        List.map
-          (fun m ->
-            let {txt; _} =
-              (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc)
-            in
-            txt)
-          mode_list
-        |> String.concat " "
-      in
-      pp f "%a mod %s" (jkind ctxt) t mode_string
+      pp f "%a mod %a"
+        (jkind ctxt) t
+        (pp_print_list ~pp_sep:pp_print_space mode) mode_list
     end
   | With (t, ty) ->
     pp f "%a with %a" (jkind ctxt) t (core_type ctxt) ty

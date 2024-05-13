@@ -1125,17 +1125,7 @@ let default_mapper =
         in
         Primitive_layout_or_abbreviation (Jkind.Const.mk txt loc)
       | Mod (t, mode_list) ->
-        Mod (
-          this.jkind_annotation this t,
-          List.map
-            (fun m ->
-              let {txt; loc} =
-                map_loc this
-                  (m : Mode_expr.Const.t :> _ loc)
-              in
-              Mode_expr.Const.mk txt loc)
-            mode_list
-        )
+        Mod (this.jkind_annotation this t, this.modes this mode_list)
       | With (t, ty) ->
         With (this.jkind_annotation this t, this.typ this ty)
       | Kind_of ty -> Kind_of (this.typ this ty));

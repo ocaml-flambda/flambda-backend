@@ -515,7 +515,7 @@ module Jkind = struct
   type t =
     | Default
     | Primitive_layout_or_abbreviation of Const.t
-    | Mod of t * Mode_expr.Const.t list
+    | Mod of t * Mode_expr.t
     | With of t * core_type
     | Kind_of of core_type
 
@@ -577,8 +577,8 @@ module Jkind = struct
       let mode_list_item =
         struct_item_of_attr
           { attr_name = Location.mknoloc (prefix ^ "mod");
-            attr_payload = Mode_expr.Const.list_as_payload mode_list;
-            attr_loc = Location.none
+            attr_payload = Mode_expr.Const.list_as_payload mode_list.txt;
+            attr_loc = mode_list.loc
           }
       in
       struct_item_of_list "mod" [to_structure_item t; mode_list_item] t_loc.loc
@@ -589,9 +589,6 @@ module Jkind = struct
     | Kind_of ty ->
       struct_item_of_list "kind_of" [struct_item_of_type ty] t_loc.loc
 
-  (* let rec to_structure_item t_loc = function
-     | Primitive_layout_or_abbreviation const_jkind
-     | *)
   let rec of_structure_item item =
     let bind = Option.bind in
     let ret loc v = Some (Location.mkloc v loc) in
@@ -603,7 +600,7 @@ module Jkind = struct
               let mode_list =
                 Mode_expr.Const.list_from_payload ~loc attr.attr_payload
               in
-              ret loc (Mod (t, mode_list))))
+              ret loc (Mod (t, { txt = mode_list; loc = attr.attr_loc }))))
     | Some ("with", [item_of_t; item_of_ty], loc) ->
       bind (of_structure_item item_of_t) (fun { txt = t } ->
           bind (struct_item_to_type item_of_ty) (fun ty ->

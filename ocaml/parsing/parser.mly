@@ -3879,7 +3879,7 @@ jkind:
           (fun {txt; loc} -> Jane_syntax.Mode_expr.Const.mk txt loc)
           $3
       in
-      Jane_syntax.Jkind.Mod ($1, mode_list)
+      Jane_syntax.Jkind.Mod ($1, mkrhs mode_list $loc($3))
     }
   | jkind WITH core_type {
       Jane_syntax.Jkind.With ($1, $3)
