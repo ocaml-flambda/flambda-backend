@@ -263,7 +263,7 @@ install_for_test: _install
          $(cpl) stdlib/dynlink/dynlink* otherlibs/dynlink; \
          $(cpl) stdlib/str/{lib,}str* otherlibs/str; \
 	 for universe in upstream_compatible stable beta alpha ; do \
-	    mkdir -p otherlibs/{stdlib_,}$${universe}; \
+		mkdir -p otherlibs/{stdlib_,}$${universe}; \
 		$(cpl) stdlib/stdlib_$${universe}/* otherlibs/stdlib_$${universe}; \
 		$(cpl) stdlib/$${universe}/* otherlibs/$${universe}; \
 	 done; \
