@@ -117,7 +117,7 @@ module M1 :
     type t : any
     type ('a : any) s = { a : 'a -> 'a; }
     type q = t s
-    val f1 : unit -> float# s
+    val f1 : unit -> Stdlib__Float_u.t s
     val f2 : unit -> string s
     val f3 : unit -> int s
   end
@@ -140,7 +140,7 @@ module M1 :
     type t : any
     type ('a : any) s = A of ('a -> 'a)
     type q = t s
-    val f1 : unit -> float# s
+    val f1 : unit -> Stdlib__Float_u.t s
     val f2 : unit -> string s
     val f3 : unit -> int s
   end
@@ -163,7 +163,7 @@ module M1 :
     type t : any
     type ('a : any) s = A of { a : 'a -> 'a; }
     type q = t s
-    val f1 : unit -> float# s
+    val f1 : unit -> Stdlib__Float_u.t s
     val f2 : unit -> string s
     val f3 : unit -> int s
   end
@@ -192,7 +192,7 @@ module M1 :
     val f0 : unit -> 'a s
     val f1 : unit -> int s
     val f2 : unit -> string s
-    val f3 : unit -> float# s
+    val f3 : unit -> Stdlib__Float_u.t s
     val f4 : unit -> int s
     val f5 : unit -> string s
   end
@@ -221,7 +221,7 @@ module M1 :
     val f0 : unit -> 'a s
     val f1 : unit -> int s
     val f2 : unit -> string s
-    val f3 : unit -> float# s
+    val f3 : unit -> Stdlib__Float_u.t s
     val f4 : unit -> int s
     val f5 : unit -> string s
   end
@@ -254,10 +254,10 @@ Line 4, characters 53-54:
 4 |   let f1 () = A {a = (fun x y -> Stdlib__Float_u.abs x)}
                                                          ^
 Error: This expression has type ('a : value)
-       but an expression was expected of type float#
-       The layout of float# is float64, because
+       but an expression was expected of type Stdlib__Float_u.t = float#
+       The layout of Stdlib__Float_u.t is float64, because
          it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value, because
+       But the layout of Stdlib__Float_u.t must be a sublayout of value, because
          of the definition of s at line 2, characters 2-55.
 |}]
 
@@ -288,10 +288,10 @@ Line 4, characters 48-49:
 4 |   let f1 () = A (fun x y -> Stdlib__Float_u.abs x)
                                                     ^
 Error: This expression has type ('a : value)
-       but an expression was expected of type float#
-       The layout of float# is float64, because
+       but an expression was expected of type Stdlib__Float_u.t = float#
+       The layout of Stdlib__Float_u.t is float64, because
          it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value, because
+       But the layout of Stdlib__Float_u.t must be a sublayout of value, because
          of the definition of s at line 2, characters 2-50.
 |}]
 
@@ -306,10 +306,10 @@ Line 4, characters 55-56:
 4 |   let f6 () = A {a = (fun x y -> Stdlib__Float_u.add x y)}
                                                            ^
 Error: This expression has type ('a : value)
-       but an expression was expected of type float#
-       The layout of float# is float64, because
+       but an expression was expected of type Stdlib__Float_u.t = float#
+       The layout of Stdlib__Float_u.t is float64, because
          it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value, because
+       But the layout of Stdlib__Float_u.t must be a sublayout of value, because
          of the definition of s at line 2, characters 2-70.
 |}]
 
@@ -324,10 +324,10 @@ Line 4, characters 50-51:
 4 |   let f6 () = A (fun x y -> Stdlib__Float_u.add x y)
                                                       ^
 Error: This expression has type ('a : value)
-       but an expression was expected of type float#
-       The layout of float# is float64, because
+       but an expression was expected of type Stdlib__Float_u.t = float#
+       The layout of Stdlib__Float_u.t is float64, because
          it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value, because
+       But the layout of Stdlib__Float_u.t must be a sublayout of value, because
          of the definition of s at line 2, characters 2-65.
 |}]
 
@@ -723,10 +723,10 @@ Line 5, characters 16-17:
 5 |     | `Bar v -> v
                     ^
 Error: This expression has type ('a : value)
-       but an expression was expected of type float#
-       The layout of float# is float64, because
+       but an expression was expected of type Stdlib__Float_u.t = float#
+       The layout of Stdlib__Float_u.t is float64, because
          it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value, because
+       But the layout of Stdlib__Float_u.t must be a sublayout of value, because
          it's the type of the field of a polymorphic variant.
 |}];;
 
