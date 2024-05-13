@@ -264,8 +264,8 @@ install_for_test: _install
          $(cpl) stdlib/str/{lib,}str* otherlibs/str; \
 	 for universe in upstream_compatible stable beta alpha ; do \
 	    mkdir -p otherlibs/{stdlib_,}$${universe}; \
-   		$(cpl) stdlib/stdlib_$${universe}/* otherlibs/stdlib_$${universe}; \
-     	$(cpl) stdlib/$${universe}/* otherlibs/$${universe}; \
+		$(cpl) stdlib/stdlib_$${universe}/* otherlibs/stdlib_$${universe}; \
+		$(cpl) stdlib/$${universe}/* otherlibs/$${universe}; \
 	 done; \
      if [[ x"$(RUNTIME_DIR)" = x"runtime" ]]; then \
 	     $(cpl) stdlib/runtime_events/{lib,}runtime_events* otherlibs/runtime_events; \
