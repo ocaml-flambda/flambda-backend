@@ -321,7 +321,7 @@ let read_anonymous_arg fname =
   if Filename.check_suffix fname ".cmo"
           || Filename.check_suffix fname ".cma"
   then preload_objects := fname :: !preload_objects
-else
+  else
   match !main_file with
   | None -> main_file := Some fname
   | Some _ ->
