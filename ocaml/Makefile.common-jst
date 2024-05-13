@@ -192,6 +192,15 @@ _install: compiler
 	done
 	mkdir _install/lib/stublibs
 
+	# Re-export extension libraries under old names
+	for universe in upstream_compatible stable beta alpha ; do \
+	$(cpl) -R _install/lib/ocaml/stdlib_$${universe} _install/lib/ocaml/$${universe}; \
+	  for ext in cmxa a cmxs cma mli cmi cmt cmti cmx ; do \
+	    mv _install/lib/ocaml/$${universe}/stdlib_$${universe}.$${ext} \
+		   _install/lib/ocaml/$${universe}/$${universe}.$${ext} ; \
+	  done ; \
+	done
+
 	find _build/main/ \( -name "flambda2*.cmi" \
           -or -name "flambda2*.cmti" -or -name "flambda2*.cmt" \) \
           -exec cp -f {} _install/lib/ocaml/compiler-libs \;
@@ -263,10 +272,10 @@ install_for_test: _install
          $(cpl) stdlib/unix/{lib,}unix* otherlibs/unix; \
          $(cpl) stdlib/dynlink/dynlink* otherlibs/dynlink; \
          $(cpl) stdlib/str/{lib,}str* otherlibs/str; \
-         $(cpl) stdlib/upstream_compatible/* otherlibs/upstream_compatible; \
-         $(cpl) stdlib/stable/* otherlibs/stable; \
-         $(cpl) stdlib/beta/* otherlibs/beta; \
-         $(cpl) stdlib/alpha/* otherlibs/alpha; \
+	 for universe in upstream_compatible stable beta alpha ; do \
+   		$(cpl) -R stdlib/stdlib_$${universe} otherlibs/stlib_$${universe}; \
+     	$(cpl) -R stdlib/$${universe} otherlibs/$${universe}; \
+	 done; \
      if [[ x"$(RUNTIME_DIR)" = x"runtime" ]]; then \
 	     $(cpl) stdlib/runtime_events/{lib,}runtime_events* otherlibs/runtime_events; \
      fi; \
