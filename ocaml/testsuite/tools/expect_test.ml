@@ -322,11 +322,11 @@ let read_anonymous_arg fname =
   if Filename.check_suffix fname ".cmo"
           || Filename.check_suffix fname ".cma"
   then preload_objects := fname :: !preload_objects
-else
+  else
   match !main_file with
   | None -> main_file := Some fname
   | Some _ ->
-    Printf.eprintf "expect_test: multiple input files\n";
+    Printf.eprintf "expect_test: multiple input source files\n";
     exit 2
 
 let main fname =
