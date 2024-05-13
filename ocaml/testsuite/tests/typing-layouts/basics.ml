@@ -1,7 +1,10 @@
 (* TEST
-   * expect
-   * expect
-   flags = "-extension layouts_beta"
+ {
+   expect;
+ }{
+   flags = "-extension layouts_beta";
+   expect;
+ }
 *)
 
 
@@ -27,6 +30,15 @@ Line 1, characters 15-19:
 Error: Layout void is more experimental than allowed by the enabled layouts extension.
        You must enable -extension layouts_alpha to use this feature.
 |}];;
+
+type t_non_null_value : non_null_value;;
+[%%expect{|
+Line 1, characters 24-38:
+1 | type t_non_null_value : non_null_value;;
+                            ^^^^^^^^^^^^^^
+Error: Layout non_null_value is more experimental than allowed by the enabled layouts extension.
+       You must enable -extension layouts_alpha to use this feature.
+|}]
 
 (******************************************************************)
 (* Test 1: Allow non-representable function args/returns in types *)
@@ -363,7 +375,7 @@ Error: This expression has type t_any but an expression was expected of type
        The layout of t_any is any, because
          of the definition of t_any at line 5, characters 0-18.
        But the layout of t_any must be representable, because
-         it's the type of a function result.
+         we must know concretely how to return a function result.
 |}];;
 
 let f1 (x : t_any) = ();;
@@ -377,7 +389,7 @@ Error: This pattern matches values of type t_any
        The layout of t_any is any, because
          of the definition of t_any at line 5, characters 0-18.
        But the layout of t_any must be representable, because
-         it's the type of a function argument.
+         we must know concretely how to pass a function argument.
 |}];;
 
 (*****************************************************)
@@ -1186,8 +1198,8 @@ Error: Variables bound in a class must have layout value.
          it's the type of an instance variable.
 |}];;
 
-(***********************************************************)
-(* Test 13: built-in type constructors work only on values *)
+(*************************************************************************)
+(* Test 13: built-in type constructors and support for non-value layouts *)
 
 (* CR layouts v5: Bring the void versions over from basics_alpha *)
 
@@ -1322,27 +1334,12 @@ Error: This expression has type ('a : value)
 (* array *)
 type t13f = t_float64 array;;
 [%%expect{|
-Line 1, characters 12-21:
-1 | type t13f = t_float64 array;;
-                ^^^^^^^^^
-Error: This type t_float64 should be an instance of type ('a : value)
-       The layout of t_float64 is float64, because
-         of the definition of t_float64 at line 4, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value, because
-         the type argument of array has layout value.
+type t13f = t_float64 array
 |}];;
 
 let x13f (v : t_float64) = [| v |];;
 [%%expect{|
-Line 1, characters 30-31:
-1 | let x13f (v : t_float64) = [| v |];;
-                                  ^
-Error: This expression has type t_float64
-       but an expression was expected of type ('a : value)
-       The layout of t_float64 is float64, because
-         of the definition of t_float64 at line 4, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value, because
-         it's the type of an array element.
+val x13f : t_float64 -> t_float64 array = <fun>
 |}];;
 
 let x13f v =
@@ -1350,15 +1347,7 @@ let x13f v =
   | [| v |] -> f_id v
   | _ -> assert false
 [%%expect{|
-Line 3, characters 20-21:
-3 |   | [| v |] -> f_id v
-                        ^
-Error: This expression has type ('a : value)
-       but an expression was expected of type t_float64
-       The layout of t_float64 is float64, because
-         of the definition of t_float64 at line 4, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value, because
-         it's the type of an array element.
+val x13f : t_float64 array -> t_float64 = <fun>
 |}];;
 
 (****************************************************************************)

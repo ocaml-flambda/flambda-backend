@@ -62,6 +62,47 @@ module Array_kind_for_length : sig
     | Float_array_opt_dynamic
 end
 
+module Mixed_block_flat_element : sig
+  type t =
+    | Imm
+    | Float
+    | Float64
+    | Float32
+    | Bits32
+    | Bits64
+    | Word
+
+  val from_lambda : Lambda.flat_element -> t
+
+  val to_string : t -> string
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+end
+
+module Mixed_block_kind : sig
+  type t =
+    { value_prefix_len : int;
+      (* We use an array just so we can index into the middle. *)
+      flat_suffix : Mixed_block_flat_element.t array
+    }
+
+  val from_lambda : Lambda.mixed_block_shape -> t
+
+  val to_lambda : t -> Lambda.mixed_block_shape
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+
+  val fold_left : ('a -> Flambda_kind.t -> 'a) -> 'a -> t -> 'a
+
+  val element_kind : int -> t -> Flambda_kind.t
+
+  val length : t -> int
+end
+
 module Init_or_assign : sig
   type t =
     | Initialization
@@ -101,6 +142,11 @@ module Duplicate_block_kind : sig
           length : Targetint_31_63.t
         }
     | Naked_floats of { length : Targetint_31_63.t }
+    | Mixed
+        (** We could store tag/length (or other relevant fields) on [Mixed],
+            but we don't because the fields of [t] are currently only used for
+            printing.
+        *)
 
   val print : Format.formatter -> t -> unit
 
@@ -132,6 +178,16 @@ module Block_access_field_kind : sig
   val compare : t -> t -> int
 end
 
+module Mixed_block_access_field_kind : sig
+  type t =
+    | Value_prefix of Block_access_field_kind.t
+    | Flat_suffix of Mixed_block_flat_element.t
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+end
+
 module Block_access_kind : sig
   type t =
     | Values of
@@ -140,6 +196,11 @@ module Block_access_kind : sig
           field_kind : Block_access_field_kind.t
         }
     | Naked_floats of { size : Targetint_31_63.t Or_unknown.t }
+    | Mixed of
+        { tag : Tag.Scannable.t Or_unknown.t;
+          size : Targetint_31_63.t Or_unknown.t;
+          field_kind : Mixed_block_access_field_kind.t
+        }
 
   val print : Format.formatter -> t -> unit
 
@@ -219,6 +280,10 @@ type array_accessor_width =
   | Scalar
   | Vec128
 
+type float_bitwidth =
+  | Float32
+  | Float64
+
 type string_like_value =
   | String
   | Bytes
@@ -254,7 +319,7 @@ type nullary_primitive =
   | Begin_try_region
       (** Starting delimiter of local allocation region, when used for a "try"
           body. *)
-  | Enter_inlined_apply of { dbg : Debuginfo.t }
+  | Enter_inlined_apply of { dbg : Inlined_debuginfo.t }
       (** Used in classic mode to denote the start of an inlined function body.
           This is then used in to_cmm to correctly add inlined debuginfo. *)
 
@@ -301,7 +366,7 @@ type unary_primitive =
         kind : Flambda_kind.t
       }
   | Int_arith of Flambda_kind.Standard_int.t * unary_int_arith_op
-  | Float_arith of unary_float_arith_op
+  | Float_arith of float_bitwidth * unary_float_arith_op
   | Num_conv of
       { src : Flambda_kind.Standard_int_or_float.t;
         dst : Flambda_kind.Standard_int_or_float.t
@@ -400,8 +465,8 @@ type binary_primitive =
   | Int_shift of Flambda_kind.Standard_int.t * int_shift_op
   | Int_comp of
       Flambda_kind.Standard_int.t * signed_or_unsigned comparison_behaviour
-  | Float_arith of binary_float_arith_op
-  | Float_comp of unit comparison_behaviour
+  | Float_arith of float_bitwidth * binary_float_arith_op
+  | Float_comp of float_bitwidth * unit comparison_behaviour
   | Bigarray_get_alignment of int
   | Atomic_exchange
   | Atomic_fetch_and_add
@@ -418,6 +483,11 @@ type ternary_primitive =
 type variadic_primitive =
   | Make_block of Block_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_array of Array_kind.t * Mutability.t * Alloc_mode.For_allocations.t
+  | Make_mixed_block of
+      Tag.Scannable.t
+      * Mixed_block_kind.t
+      * Mutability.t
+      * Alloc_mode.For_allocations.t
 (* CR mshinwell: Invariant checks -- e.g. that the number of arguments matches
    [num_dimensions] *)
 

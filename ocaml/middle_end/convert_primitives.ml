@@ -30,6 +30,8 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       Pmakearray (Pfloatarray, mutability, mode)
   | Pmakeufloatblock (mutability, mode) ->
       Pmakeufloatblock (mutability, mode)
+  | Pmakemixedblock (tag, mutability, abs, mode) ->
+      Pmakemixedblock (tag, mutability, abs, mode)
   | Pfield (field, imm_or_pointer, sem) ->
       let sem : Lambda.mutable_flag =
         match sem with
@@ -48,6 +50,10 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pufloatfield (field, _sem) -> Pufloatfield field
   | Psetufloatfield (field, init_or_assign) ->
       Psetufloatfield (field, init_or_assign)
+  | Pmixedfield (field, shape, _sem) ->
+      Pmixedfield (field, shape)
+  | Psetmixedfield (field, shape, init_or_assign) ->
+      Psetmixedfield (field, shape, init_or_assign)
   | Pduprecord (repr, size) -> Pduprecord (repr, size)
   | Pmake_unboxed_product _
   | Punboxed_product_field _ -> Misc.fatal_error "TODO"
@@ -99,10 +105,10 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pmakearray (kind, mutability, mode) -> Pmakearray (kind, mutability, mode)
   | Pduparray (kind, mutability) -> Pduparray (kind, mutability)
   | Parraylength kind -> Parraylength kind
-  | Parrayrefu rkind -> Parrayrefu rkind
-  | Parraysetu skind -> Parraysetu skind
-  | Parrayrefs rkind -> Parrayrefs rkind
-  | Parraysets skind -> Parraysets skind
+  | Parrayrefu (rkind, Ptagged_int_index) -> Parrayrefu rkind
+  | Parraysetu (skind, Ptagged_int_index) -> Parraysetu skind
+  | Parrayrefs (rkind, Ptagged_int_index) -> Parrayrefs rkind
+  | Parraysets (skind, Ptagged_int_index) -> Parraysets skind
   | Pisint _ -> Pisint
   | Pisout -> Pisout
   | Pcvtbint (src, dest, m) -> Pcvtbint (src, dest, m)
@@ -186,6 +192,8 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pbox_int (bi, m) -> Pbox_int (bi, m)
   | Pget_header m -> Pget_header m
   | Pdls_get -> Pdls_get
+  | Pfloat32offloat _
+  | Pfloatoffloat32 _
   | Pobj_magic _
   | Pbytes_to_string
   | Pbytes_of_string
@@ -219,6 +227,10 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Punboxed_int32_array_set_128 _
   | Punboxed_int64_array_set_128 _
   | Punboxed_nativeint_array_set_128 _
+  | Parrayrefu (_, Punboxed_int_index _)
+  | Parraysetu (_, Punboxed_int_index _)
+  | Parrayrefs (_, Punboxed_int_index _)
+  | Parraysets (_, Punboxed_int_index _)
     ->
       Misc.fatal_errorf "lambda primitive %a can't be converted to \
                          clambda primitive"

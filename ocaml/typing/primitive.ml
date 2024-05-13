@@ -28,7 +28,7 @@ type boxed_vector = Pvec128 of vec128_type
 
 type native_repr =
   | Repr_poly
-  | Same_as_ocaml_repr of Jkind.Sort.const
+  | Same_as_ocaml_repr of Jkind_types.Sort.const
   | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
@@ -358,6 +358,16 @@ let equal_boxed_float f1 f2 =
   | Pfloat64, Pfloat64 -> true
   | (Pfloat32 | Pfloat64), _ -> false
 
+let equal_vec128_type v1 v2 =
+  match v1, v2 with
+  | Int8x16, Int8x16 -> true
+  | Int16x8, Int16x8 -> true
+  | Int32x4, Int32x4 -> true
+  | Int64x2, Int64x2 -> true
+  | Float32x4, Float32x4 -> true
+  | Float64x2, Float64x2 -> true
+  | (Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2), _ -> false
+
 let equal_boxed_vector_size bi1 bi2 =
   (* For the purposes of layouts/native representations,
      all 128-bit vector types are equal. *)
@@ -371,7 +381,7 @@ let equal_native_repr nr1 nr2 =
                | Untagged_int | Unboxed_vector _ | Same_as_ocaml_repr _)
   | (Unboxed_float _ | Unboxed_integer _
     | Untagged_int | Unboxed_vector _ | Same_as_ocaml_repr _), Repr_poly -> false
-  | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 -> Jkind.Sort.equal_const s1 s2
+  | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 -> Jkind_types.Sort.equal_const s1 s2
   | Same_as_ocaml_repr _,
     (Unboxed_float _ | Unboxed_integer _ | Untagged_int |
      Unboxed_vector _) -> false
@@ -517,10 +527,81 @@ let prim_has_valid_reprs ~loc prim =
         any;
         is (Same_as_ocaml_repr Value)]
 
+    | "%array_safe_get_indexed_by_int64#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Bits64);
+        any]
+    | "%array_safe_set_indexed_by_int64#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Bits64);
+        any;
+        is (Same_as_ocaml_repr Value)]
+    | "%array_unsafe_get_indexed_by_int64#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Bits64);
+        any]
+    | "%array_unsafe_set_indexed_by_int64#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Bits64);
+        any;
+        is (Same_as_ocaml_repr Value)]
+    | "%array_safe_get_indexed_by_int32#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Bits32);
+        any]
+    | "%array_safe_set_indexed_by_int32#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Bits32);
+        any;
+        is (Same_as_ocaml_repr Value)]
+    | "%array_unsafe_get_indexed_by_int32#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Bits32);
+        any]
+    | "%array_unsafe_set_indexed_by_int32#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Bits32);
+        any;
+        is (Same_as_ocaml_repr Value)]
+    | "%array_safe_get_indexed_by_nativeint#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Word);
+        any]
+    | "%array_safe_set_indexed_by_nativeint#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Word);
+        any;
+        is (Same_as_ocaml_repr Value)]
+    | "%array_unsafe_get_indexed_by_nativeint#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Word);
+        any]
+    | "%array_unsafe_set_indexed_by_nativeint#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Word);
+        any;
+        is (Same_as_ocaml_repr Value)]
+
     | "%box_float" ->
       exactly [Same_as_ocaml_repr Float64; Same_as_ocaml_repr Value]
     | "%unbox_float" ->
       exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Float64]
+    | "%box_float32" ->
+      exactly [Same_as_ocaml_repr Float32; Same_as_ocaml_repr Value]
+    | "%unbox_float32" ->
+      exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Float32]
     | "%box_nativeint" ->
       exactly [Same_as_ocaml_repr Word; Same_as_ocaml_repr Value]
     | "%unbox_nativeint" ->
@@ -533,6 +614,66 @@ let prim_has_valid_reprs ~loc prim =
       exactly [Same_as_ocaml_repr Bits64; Same_as_ocaml_repr Value]
     | "%unbox_int64" ->
       exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Bits64]
+
+    (* Bigstring primitives *)
+    | "%caml_bigstring_get32#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits32]
+    | "%caml_bigstring_get32u#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits32]
+    | "%caml_bigstring_get64#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits64]
+    | "%caml_bigstring_get64u#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits64]
+
+    (* CR layouts: add these when we have unboxed simd layouts *)
+    (* | "%caml_bigstring_getu128#" ->
+    | "%caml_bigstring_getu128u#" ->
+    | "%caml_bigstring_geta128#" ->
+    | "%caml_bigstring_geta128u#" -> *)
+
+    | "%caml_bigstring_set32#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits32;
+        Same_as_ocaml_repr Value]
+    | "%caml_bigstring_set32u#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits32;
+        Same_as_ocaml_repr Value]
+    | "%caml_bigstring_set64#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits64;
+        Same_as_ocaml_repr Value]
+    | "%caml_bigstring_set64u#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits64;
+        Same_as_ocaml_repr Value]
+
+    (* CR layouts: add these when we have unboxed simd layouts *)
+    (* | "%caml_bigstring_setu128#" ->
+    | "%caml_bigstring_setu128u#" ->
+    | "%caml_bigstring_seta128#" ->
+    | "%caml_bigstring_seta128u#" -> *)
+
     | name when is_builtin_prim_name name ->
       no_non_value_repr
 
@@ -565,7 +706,19 @@ let prim_can_contain_jkind_any prim =
   | "%array_safe_get"
   | "%array_safe_set"
   | "%array_unsafe_get"
-  | "%array_unsafe_set" -> false
+  | "%array_unsafe_set"
+  | "%array_safe_get_indexed_by_int64#"
+  | "%array_safe_set_indexed_by_int64#"
+  | "%array_unsafe_get_indexed_by_int64#"
+  | "%array_unsafe_set_indexed_by_int64#"
+  | "%array_safe_get_indexed_by_int32#"
+  | "%array_safe_set_indexed_by_int32#"
+  | "%array_unsafe_get_indexed_by_int32#"
+  | "%array_unsafe_set_indexed_by_int32#"
+  | "%array_safe_get_indexed_by_nativeint#"
+  | "%array_safe_set_indexed_by_nativeint#"
+  | "%array_unsafe_get_indexed_by_nativeint#"
+  | "%array_unsafe_set_indexed_by_nativeint#" -> false
   | _ -> true
 
 let report_error ppf err =

@@ -89,15 +89,20 @@ let arith_conversion_size src dst =
   | Naked_int64, Naked_int32
   | Naked_int64, (Naked_nativeint | Naked_immediate)
   | Naked_int64, Naked_float
+  | Naked_int64, Naked_float32
     when arch32 ->
     does_not_need_caml_c_call_extcall_size + 1 (* arg *)
   | Tagged_immediate, Naked_int64
   | Naked_int32, Naked_int64
   | (Naked_nativeint | Naked_immediate), Naked_int64
   | Naked_float, Naked_int64
+  | Naked_float32, Naked_int64
     when arch32 ->
     needs_caml_c_call_extcall_size + 1 (* arg *) + 1 (* unbox *)
   | Naked_float, Naked_float -> 0
+  | Naked_float32, Naked_float32 -> 0
+  | Naked_float, Naked_float32 -> 1
+  | Naked_float32, Naked_float -> 1
   | ( (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate),
       Tagged_immediate ) ->
     1
@@ -112,31 +117,31 @@ let arith_conversion_size src dst =
   | ( Naked_immediate,
       (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate) ) ->
     0
-  | Tagged_immediate, Naked_float -> 1
-  | (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint), Naked_float
-    ->
+  | Tagged_immediate, (Naked_float | Naked_float32) -> 1
+  | ( (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint),
+      (Naked_float | Naked_float32) ) ->
     1
-  | Naked_float, Tagged_immediate -> 1
-  | Naked_float, (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
-    ->
+  | (Naked_float | Naked_float32), Tagged_immediate -> 1
+  | ( (Naked_float | Naked_float32),
+      (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) ) ->
     1
 
 let unbox_number kind =
   match (kind : Flambda_kind.Boxable_number.t) with
-  | Naked_float | Naked_vec128 -> 1 (* 1 load *)
+  | Naked_float | Naked_float32 | Naked_vec128 -> 1 (* 1 load *)
   | Naked_int64 when arch32 -> 4 (* 2 Cadda + 2 loads *)
   | Naked_int32 | Naked_int64 | Naked_nativeint -> 2
 (* Cadda + load *)
 
 let box_number kind =
   match (kind : Flambda_kind.Boxable_number.t) with
-  | Naked_float | Naked_vec128 -> alloc_size (* 1 alloc *)
+  | Naked_float | Naked_float32 | Naked_vec128 -> alloc_size (* 1 alloc *)
   | Naked_int32 when not arch32 -> 1 + alloc_size (* shift/sextend + alloc *)
   | Naked_int32 | Naked_int64 | Naked_nativeint -> alloc_size
 (* alloc *)
 
 let block_load (kind : Flambda_primitive.Block_access_kind.t) =
-  match kind with Values _ | Naked_floats _ -> 1
+  match kind with Values _ | Naked_floats _ | Mixed _ -> 1
 
 let array_load (kind : Flambda_primitive.Array_kind.t) =
   match kind with
@@ -154,6 +159,15 @@ let block_set (kind : Flambda_primitive.Block_access_kind.t)
     does_not_need_caml_c_call_extcall_size (* caml_modify *)
   | Values _, (Assignment Local | Initialization) -> 1 (* cadda + store *)
   | Naked_floats _, (Assignment _ | Initialization) -> 1
+  | ( Mixed
+        { field_kind =
+            ( Value_prefix _
+            | Flat_suffix
+                (Imm | Float | Float64 | Float32 | Bits32 | Bits64 | Word) );
+          _
+        },
+      (Assignment _ | Initialization) ) ->
+    1
 
 let array_set (kind : Flambda_primitive.Array_set_kind.t) =
   match kind with
@@ -310,9 +324,9 @@ let int_comparison_like_compare_functions (kind : Flambda_kind.Standard_int.t)
   | Naked_nativeint ->
     4
 
-let binary_float_arith_primitive _op = 2
+let binary_float_arith_primitive _width _op = 2
 
-let binary_float_comp_primitive _op = 2
+let binary_float_comp_primitive _width _op = 2
 
 (* Primitives sizes *)
 
@@ -379,9 +393,10 @@ let binary_prim_size prim =
   | Int_comp (kind, Yielding_bool cmp) -> binary_int_comp_primitive kind cmp
   | Int_comp (kind, Yielding_int_like_compare_functions signedness) ->
     int_comparison_like_compare_functions kind signedness
-  | Float_arith op -> binary_float_arith_primitive op
-  | Float_comp (Yielding_bool cmp) -> binary_float_comp_primitive cmp
-  | Float_comp (Yielding_int_like_compare_functions ()) -> 8
+  | Float_arith (width, op) -> binary_float_arith_primitive width op
+  | Float_comp (width, Yielding_bool cmp) ->
+    binary_float_comp_primitive width cmp
+  | Float_comp (_width, Yielding_int_like_compare_functions ()) -> 8
   | Bigarray_get_alignment _ -> 3 (* load data + add index + and *)
   | Atomic_exchange | Atomic_fetch_and_add ->
     does_not_need_caml_c_call_extcall_size
@@ -402,7 +417,8 @@ let variadic_prim_size prim args =
   | Make_block (_, _mut, _alloc_mode)
   (* CR mshinwell: I think Make_array for a generic array ("Anything") is more
      expensive than the other cases *)
-  | Make_array (_, _mut, _alloc_mode) ->
+  | Make_array (_, _mut, _alloc_mode)
+  | Make_mixed_block (_, _, _mut, _alloc_mode) ->
     alloc_size + List.length args
 
 let prim (prim : Flambda_primitive.t) =

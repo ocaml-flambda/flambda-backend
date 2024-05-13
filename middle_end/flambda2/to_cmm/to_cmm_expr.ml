@@ -160,7 +160,10 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         args @ [callee]
       else args
     in
-    let code_sym = To_cmm_result.symbol_of_code_id res code_id in
+    let code_sym =
+      To_cmm_result.symbol_of_code_id res code_id
+        ~currently_in_inlined_body:(Env.currently_in_inlined_body env)
+    in
     match Apply.probe apply with
     | None ->
       ( C.direct_call ~dbg
@@ -247,7 +250,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         | Naked_number Naked_int32 -> C.sign_extend_32
         | Naked_number
             ( Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint
-            | Naked_vec128 )
+            | Naked_vec128 | Naked_float32 )
         | Value | Rec_info | Region ->
           fun _dbg cmm -> cmm)
       | _ ->
@@ -700,6 +703,7 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
           match K.With_subkind.kind kind with
           | Value -> C.int ~dbg 1
           | Naked_number Naked_float -> C.float ~dbg 0.
+          | Naked_number Naked_float32 -> C.float32 ~dbg 0.
           | Naked_number
               (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) ->
             C.int ~dbg 0

@@ -442,7 +442,8 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       ~result_arity ~result_types ~result_mode:(Code.result_mode code)
       ~contains_no_escaping_local_allocs:
         (Code.contains_no_escaping_local_allocs code)
-      ~stub:(Code.stub code) ~inline:(Code.inline code) ~check:(Code.check code)
+      ~stub:(Code.stub code) ~inline:(Code.inline code)
+      ~zero_alloc_attribute:(Code.zero_alloc_attribute code)
       ~poll_attribute:(Code.poll_attribute code) ~is_a_functor ~is_opaque
       ~recursive:(Code.recursive code) ~cost_metrics ~inlining_arguments
       ~dbg:(Code.dbg code) ~is_tupled:(Code.is_tupled code) ~is_my_closure_used
@@ -508,11 +509,10 @@ let simplify_function context ~outer_dacc function_slot code_id
   let code_ids_to_never_delete_this_set =
     let code_metadata = Code_or_metadata.code_metadata code_or_metadata in
     let never_delete =
-      match Code_metadata.check code_metadata with
+      match Code_metadata.zero_alloc_attribute code_metadata with
       | Default_check -> !Clflags.zero_alloc_check_assert_all
-      | Ignore_assert_all Zero_alloc -> false
-      | Assume { property = Zero_alloc; _ } -> false
-      | Check { property = Zero_alloc; _ } -> true
+      | Assume _ -> false
+      | Check _ -> true
     in
     if never_delete then Code_id.Set.singleton code_id else Code_id.Set.empty
   in

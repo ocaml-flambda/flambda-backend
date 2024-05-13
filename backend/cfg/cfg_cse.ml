@@ -67,7 +67,9 @@ class cse_generic =
     method class_of_operation : Cfg.operation -> op_class =
       function
       | Move | Spill | Reload -> assert false (* treated specially *)
-      | Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _ -> Op_pure
+      | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+      | Const_vec128 _ ->
+        Op_pure
       | Opaque -> assert false (* treated specially *)
       | Stackoffset _ -> Op_other
       | Load { mutability; is_atomic; memory_chunk = _; addressing_mode = _ } ->
@@ -84,8 +86,7 @@ class cse_generic =
       | Intop _ -> Op_pure
       | Intop_imm (_, _) -> Op_pure
       | Intop_atomic _ -> Op_store true
-      | Compf _ | Csel _ | Negf | Absf | Addf | Subf | Mulf | Divf
-      | Scalarcast _ | Floatofint | Intoffloat | Valueofint | Intofvalue
+      | Floatop _ | Csel _ | Scalarcast _ | Valueofint | Intofvalue
       | Vectorcast _ ->
         Op_pure
       | Specific _ -> Op_other
@@ -109,7 +110,7 @@ class cse_generic =
       fun state n cell ->
         let i = DLL.value cell in
         match i.desc with
-        | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> n
+        | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> n
         | Op (Move | Spill | Reload) ->
           (* For moves, we associate the same value number to the result reg as
              to the argument reg. *)

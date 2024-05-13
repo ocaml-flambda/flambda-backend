@@ -59,8 +59,16 @@ CAMLprim value caml_ephe_create (value len)
     caml_invalid_argument ("Weak.create");
   res = caml_alloc_shr (size, Abstract_tag);
 
-  Ephe_link(res) = domain_state->ephe_info->live;
-  domain_state->ephe_info->live = res;
+  /* The new ephemeron needs to be added to:
+       live, if marking has started, to be marked next cycle
+       todo, if marking has not started, to be marked this cycle */
+  if (caml_marking_started()) {
+    Ephe_link(res) = domain_state->ephe_info->live;
+    domain_state->ephe_info->live = res;
+  } else {
+    Ephe_link(res) = domain_state->ephe_info->todo;
+    domain_state->ephe_info->todo = res;
+  }
   for (i = CAML_EPHE_DATA_OFFSET; i < size; i++)
     Field(res, i) = caml_ephe_none;
   /* run memprof callbacks */
@@ -255,7 +263,8 @@ static value ephe_get_field (value e, mlsize_t offset)
   if (elt == caml_ephe_none) {
     res = Val_none;
   } else {
-    caml_darken (Caml_state, elt, 0);
+    if (caml_marking_started())
+      caml_darken (Caml_state, elt, 0);
     res = caml_alloc_small (1, Tag_some);
     Field(res, 0) = elt;
   }
@@ -284,7 +293,7 @@ CAMLprim value caml_weak_get (value ar, value n)
 
 static void ephe_copy_and_darken(value from, value to)
 {
-  mlsize_t i = 0; /* size of non-scannable prefix */
+  mlsize_t scan_from, scan_to;
 
   CAMLassert(Is_block(from));
   CAMLassert(Is_block(to));
@@ -293,24 +302,34 @@ static void ephe_copy_and_darken(value from, value to)
   CAMLassert(Wosize_val(from) == Wosize_val(to));
 
   if (Tag_val(from) > No_scan_tag) {
-    i = Wosize_val(to);
+    scan_from = Wosize_val(from);
+    scan_to = scan_from;
   }
   else if (Tag_val(from) == Closure_tag) {
-    i = Start_env_closinfo(Closinfo_val(from));
+    scan_from = Start_env_closinfo(Closinfo_val(from));
+    scan_to = Wosize_val(from);
+  }
+  else {
+    scan_from = 0;
+    scan_to = Scannable_wosize_val(from);
   }
 
   /* Copy non-scannable prefix */
-  memcpy (Bp_val(to), Bp_val(from), Bsize_wsize(i));
+  memcpy (Bp_val(to), Bp_val(from), Bsize_wsize(scan_from));
 
   /* Copy and darken scannable fields */
   caml_domain_state* domain_state = Caml_state;
-  mlsize_t to_size = Wosize_val(to);
-  while (i < to_size) {
+  for (mlsize_t i = scan_from; i < scan_to; i++) {
     value field = Field(from, i);
-    caml_darken (domain_state, field, 0);
+    if (caml_marking_started())
+      caml_darken (domain_state, field, 0);
     Store_field(to, i, field);
-    ++ i;
   }
+
+  /* Copy non-scannable suffix */
+  memcpy (Op_val(to)   + scan_to,
+          Op_val(from) + scan_to,
+          Bsize_wsize(Wosize_val(from) - scan_to));
 }
 
 static value ephe_get_field_copy (value e, mlsize_t offset)
@@ -357,7 +376,8 @@ static value ephe_get_field_copy (value e, mlsize_t offset)
     /* This allocation could provoke a GC, which could change the
        * header or size of val (e.g. in a finalizer). So we go around
        * the loop to read val again. */
-    copy = caml_alloc (Wosize_val(val), Tag_val(val));
+    copy = caml_alloc_with_reserved (Wosize_val(val), Tag_val(val),
+                                     Reserved_val(val));
     val = Val_unit;
   }
 
@@ -469,7 +489,8 @@ CAMLprim value caml_ephe_blit_key (value es, value ofs,
 CAMLprim value caml_ephe_blit_data (value es, value ed)
 {
   ephe_blit_field (es, CAML_EPHE_DATA_OFFSET, ed, CAML_EPHE_DATA_OFFSET, 1);
-  caml_darken(0, Field(ed, CAML_EPHE_DATA_OFFSET), 0);
+  if (caml_marking_started())
+    caml_darken(0, Field(ed, CAML_EPHE_DATA_OFFSET), 0);
   /* [ed] may be in [Caml_state->ephe_info->live] list. The data value may be
      unmarked. The ephemerons on the live list are not scanned during ephemeron
      marking. Hence, unconditionally darken the data value. */

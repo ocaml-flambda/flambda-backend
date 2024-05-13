@@ -154,7 +154,8 @@ let oper_result_type = function
   | Cload {memory_chunk} ->
       begin match memory_chunk with
       | Word_val -> typ_val
-      | Single | Double -> typ_float
+      | Single { reg = Float64 } | Double -> typ_float
+      | Single { reg = Float32 } -> typ_float32
       | Onetwentyeight_aligned | Onetwentyeight_unaligned -> typ_vec128
       | _ -> typ_int
       end
@@ -170,15 +171,21 @@ let oper_result_type = function
     Ccmpi _ | Ccmpa _ | Ccmpf _ -> typ_int
   | Caddv -> typ_val
   | Cadda -> typ_addr
-  | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf -> typ_float
+  | Cnegf Float64 | Cabsf Float64 | Caddf Float64
+  | Csubf Float64 | Cmulf Float64 | Cdivf Float64 -> typ_float
+  | Cnegf Float32 | Cabsf Float32 | Caddf Float32
+  | Csubf Float32 | Cmulf Float32 | Cdivf Float32 -> typ_float32
   | Ccsel ty -> ty
-  | Cfloatofint -> typ_float
-  | Cintoffloat -> typ_int
   | Cvalueofint -> typ_val
   | Cintofvalue -> typ_int
   | Cvectorcast Bits128 -> typ_vec128
+  | Cscalarcast (Float_of_float32 | Float_of_int Float64) -> typ_float
+  | Cscalarcast (Float_to_float32 | Float_of_int Float32) -> typ_float32
+  | Cscalarcast (Float_to_int (Float64 | Float32)) -> typ_int
   | Cscalarcast (V128_of_scalar _) -> typ_vec128
-  | Cscalarcast (V128_to_scalar (Float64x2 | Float32x4)) -> typ_float
+  | Cscalarcast (V128_to_scalar (Float64x2 | Float32x4)) ->
+    (* CR mslater: (SIMD) replace once we have unboxed float32 *)
+    typ_float
   | Cscalarcast (V128_to_scalar (Int8x16 | Int16x8 | Int32x4 | Int64x2)) -> typ_int
   | Craise _ -> typ_void
   | Cprobe _ -> typ_void
@@ -194,10 +201,14 @@ let oper_result_type = function
 (* Infer the size in bytes of the result of an expression whose evaluation
    may be deferred (cf. [emit_parts]). *)
 
-let size_component = function
+let size_component : machtype_component -> int = function
   | Val | Addr -> Arch.size_addr
   | Int -> Arch.size_int
   | Float -> Arch.size_float
+  | Float32 ->
+    (* CR layouts v5.1: reconsider when float32 fields are efficiently packed.
+       Note that packed float32# arrays are handled via a separate path. *)
+    Arch.size_float
   | Vec128 -> Arch.size_vec128
 
 let size_machtype mty =
@@ -213,6 +224,10 @@ let size_expr (env:environment) exp =
     | Cconst_symbol _ ->
         Arch.size_addr
     | Cconst_float _ -> Arch.size_float
+    | Cconst_float32 _ ->
+      (* CR layouts v5.1: reconsider when float32 fields are efficiently packed.
+         Note that packed float32# arrays are handled via a separate path. *)
+      Arch.size_float
     | Cconst_vec128 _ -> Arch.size_vec128
     | Cvar id ->
         begin try
@@ -459,6 +474,7 @@ class virtual selector_generic = object (self : 'self)
 method is_simple_expr = function
     Cconst_int _ -> true
   | Cconst_natint _ -> true
+  | Cconst_float32 _ -> true
   | Cconst_float _ -> true
   | Cconst_symbol _ -> true
   | Cconst_vec128 _ -> true
@@ -481,11 +497,11 @@ method is_simple_expr = function
       | Cprefetch _ | Cbeginregion | Cendregion -> false (* avoid reordering *)
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor
-      | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
+      | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf _
       | Cclz _ | Cctz _ | Cpopcnt
       | Cbswap _
       | Ccsel _
-      | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
+      | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _
       | Cvectorcast _ | Cscalarcast _
       | Cvalueofint | Cintofvalue
       | Ctuple_field _
@@ -509,8 +525,8 @@ method is_simple_expr = function
 method effects_of exp =
   let module EC = Effect_and_coeffect in
   match exp with
-  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cconst_vec128 _
-  | Cvar _ -> EC.none
+  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ -> EC.none
   | Ctuple el -> EC.join_list_map el self#effects_of
   | Clet (_id, arg, body) | Clet_mut (_id, _, arg, body) ->
     EC.join (self#effects_of arg) (self#effects_of body)
@@ -542,8 +558,8 @@ method effects_of exp =
       | Cbswap _
       | Ccsel _
       | Cclz _ | Cctz _ | Cpopcnt
-      | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf | Cabsf
-      | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
+      | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _
+      | Cnegf _ | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _
       | Cvectorcast _ | Cscalarcast _
       | Cvalueofint | Cintofvalue | Ccmpf _ ->
         EC.none
@@ -658,18 +674,16 @@ method select_operation op args _dbg =
   | (Caddv, _) -> self#select_arith_comm Iadd args
   | (Cadda, _) -> self#select_arith_comm Iadd args
   | (Ccmpa comp, _) -> self#select_arith_comp (Iunsigned comp) args
-  | (Ccmpf comp, _) -> (Icompf comp, args)
+  | (Ccmpf (w, comp), _) -> (Ifloatop(w, Icompf comp), args)
   | (Ccsel _, [cond; ifso; ifnot]) ->
      let (cond, earg) = self#select_condition cond in
      (Icsel cond, [ earg; ifso; ifnot ])
-  | (Cnegf, _) -> (Inegf, args)
-  | (Cabsf, _) -> (Iabsf, args)
-  | (Caddf, _) -> (Iaddf, args)
-  | (Csubf, _) -> (Isubf, args)
-  | (Cmulf, _) -> (Imulf, args)
-  | (Cdivf, _) -> (Idivf, args)
-  | (Cfloatofint, _) -> (Ifloatofint, args)
-  | (Cintoffloat, _) -> (Iintoffloat, args)
+  | (Cnegf w, _) -> (Ifloatop (w, Inegf), args)
+  | (Cabsf w, _) -> (Ifloatop (w, Iabsf), args)
+  | (Caddf w, _) -> (Ifloatop (w, Iaddf), args)
+  | (Csubf w, _) -> (Ifloatop (w, Isubf), args)
+  | (Cmulf w, _) -> (Ifloatop (w, Imulf), args)
+  | (Cdivf w, _) -> (Ifloatop (w, Idivf), args)
   | (Cvalueofint, _) -> (Ivalueofint, args)
   | (Cintofvalue, _) -> (Iintofvalue, args)
   | (Cvectorcast cast, _) -> (Ivectorcast cast, args)
@@ -731,8 +745,8 @@ method select_condition = function
       (Iinttest_imm(Iunsigned(swap_integer_comparison cmp), n), arg2)
   | Cop(Ccmpa cmp, args, _) ->
       (Iinttest(Iunsigned cmp), Ctuple args)
-  | Cop(Ccmpf cmp, args, _) ->
-      (Ifloattest cmp, Ctuple args)
+  | Cop(Ccmpf (width, cmp), args, _) ->
+      (Ifloattest (width, cmp), Ctuple args)
   | Cop(Cand, [arg; Cconst_int (1, _)], _) ->
       (Ioddtest, arg)
   | arg ->
@@ -830,6 +844,9 @@ method emit_expr_aux (env:environment) exp ~bound_name : Reg.t array option =
   | Cconst_natint (n, _dbg) ->
       let r = self#regs_for typ_int in
       ret (self#insert_op env (Iconst_int n) [||] r)
+  | Cconst_float32 (n, _dbg) ->
+      let r = self#regs_for typ_float32 in
+      ret (self#insert_op env (Iconst_float32 (Int32.bits_of_float n)) [||] r)
   | Cconst_float (n, _dbg) ->
       let r = self#regs_for typ_float in
       ret (self#insert_op env (Iconst_float (Int64.bits_of_float n)) [||] r)
@@ -1009,16 +1026,15 @@ method emit_expr_aux (env:environment) exp ~bound_name : Reg.t array option =
           | Ialloc { bytes = _; mode } ->
               let rd = self#regs_for typ_val in
               let bytes = size_expr env (Ctuple new_args) in
-              assert (bytes mod Arch.size_addr = 0);
-              let alloc_words = bytes / Arch.size_addr in
+              let alloc_words = (bytes + Arch.size_addr - 1) / Arch.size_addr in
               let op =
-                Ialloc { bytes;
+                Ialloc { bytes = alloc_words * Arch.size_addr;
                          dbginfo = [{alloc_words; alloc_dbg = dbg}];
                          mode }
               in
               self#insert_debug env (Iop op) dbg [||] rd;
               add_naming_op_for_bound_name rd;
-              self#emit_stores env new_args rd;
+              self#emit_stores env dbg new_args rd;
               set_traps_for_raise env;
               ret rd
           | Iprobe _ ->
@@ -1446,7 +1462,7 @@ method insert_move_extcall_arg env _ty_arg src dst =
      for example a "32-bit move" instruction for int32 arguments. *)
   self#insert_moves env src dst
 
-method emit_stores env data regs_addr =
+method emit_stores env dbg data regs_addr =
   let a =
     ref (Arch.offset_addressing Arch.identity_addressing (-Arch.size_int)) in
   List.iter
@@ -1461,19 +1477,21 @@ method emit_stores env data regs_addr =
                 let r = regs.(i) in
                 let kind = match r.typ with
                   | Float -> Double
+                  | Float32 -> Single { reg = Float32 }
                   | Vec128 ->
                     (* 128-bit memory operations are default unaligned. Aligned (big)array
                        operations are handled separately via cmm. *)
                     Onetwentyeight_unaligned
                   | Val | Addr | Int ->  Word_val
                 in
-                self#insert env
+                self#insert_debug env
                             (Iop(Istore(kind, !a, false)))
+                            dbg
                             (Array.append [|r|] regs_addr) [||];
                 a := Arch.offset_addressing !a (size_component r.typ)
               done
           | _ ->
-              self#insert env (Iop op) (Array.append regs regs_addr) [||];
+              self#insert_debug env (Iop op) dbg (Array.append regs regs_addr) [||];
               a := Arch.offset_addressing !a (size_expr env e))
     data
 
@@ -1713,7 +1731,8 @@ method emit_tail (env:environment) exp =
         Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" exn_cont
       end
   | Cop _
-  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cconst_vec128 _
+  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_symbol _ | Cconst_vec128 _
   | Cvar _
   | Cassign _
   | Ctuple _
@@ -1734,7 +1753,8 @@ method private emit_tail_sequence ?at_start env exp =
 method emit_fundecl ~future_funcnames f =
   current_function_name := f.Cmm.fun_name.sym_name;
   current_function_is_check_enabled :=
-    Checkmach.is_check_enabled f.Cmm.fun_codegen_options f.Cmm.fun_name.sym_name f.Cmm.fun_dbg;
+    Zero_alloc_checker.is_check_enabled f.Cmm.fun_codegen_options
+      f.Cmm.fun_name.sym_name f.Cmm.fun_dbg;
   let num_regs_per_arg = Array.make (List.length f.Cmm.fun_args) 0 in
   let rargs =
     List.mapi

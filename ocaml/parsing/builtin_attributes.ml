@@ -32,20 +32,20 @@ let mark_used t = Attribute_table.remove unused_attrs t
 *)
 let attr_order a1 a2 = Location.compare a1.loc a2.loc
 
-let unchecked_properties = Attribute_table.create 1
-let mark_property_checked txt loc =
-  Attribute_table.remove unchecked_properties { txt; loc }
-let register_property attr =
-    Attribute_table.replace unchecked_properties attr ()
-let warn_unchecked_property () =
+let unchecked_zero_alloc_attributes = Attribute_table.create 1
+let mark_zero_alloc_attribute_checked txt loc =
+  Attribute_table.remove unchecked_zero_alloc_attributes { txt; loc }
+let register_zero_alloc_attribute attr =
+    Attribute_table.replace unchecked_zero_alloc_attributes attr ()
+let warn_unchecked_zero_alloc_attribute () =
     (* When using -i, attributes will not have been translated, so we can't
      warn about missing ones. *)
   if !Clflags.print_types then ()
   else
-  let keys = List.of_seq (Attribute_table.to_seq_keys unchecked_properties) in
+  let keys = List.of_seq (Attribute_table.to_seq_keys unchecked_zero_alloc_attributes) in
   let keys = List.sort attr_order keys in
   List.iter (fun sloc ->
-    Location.prerr_warning sloc.loc (Warnings.Unchecked_property_attribute sloc.txt))
+    Location.prerr_warning sloc.loc (Warnings.Unchecked_zero_alloc_attribute))
     keys
 
 let warn_unused () =
@@ -219,6 +219,8 @@ let error_of_extension ext =
       | _ ->
           Location.errorf ~loc "Invalid syntax for extension '%s'." txt
       end
+  | ({txt = "call_pos"; loc}, _) ->
+      Location.errorf ~loc "[%%call_pos] can only exist as the type of a labelled argument"
   | ({txt; loc}, _) ->
       Location.errorf ~loc "Uninterpreted extension '%s'." txt
 
@@ -447,6 +449,20 @@ let filter_attributes ?(mark=true) (nms_and_conds : Attributes_filter.t) attrs =
       nms_and_conds
   ) attrs
 
+let find_attribute ?mark_used p attributes =
+  let inline_attribute =
+    filter_attributes ?mark:mark_used p attributes
+  in
+  let attr =
+    match inline_attribute with
+    | [] -> None
+    | [attr] -> Some attr
+    | attr :: {Parsetree.attr_name = {txt;loc}; _} :: _ ->
+      Location.prerr_warning loc (Warnings.Duplicated_attribute txt);
+      Some attr
+  in
+  attr
+
 let when_attribute_is nms attr ~f =
   if List.mem attr.attr_name.txt nms then begin
     mark_used attr.attr_name;
@@ -587,10 +603,10 @@ let parse_attribute_with_ident_payload attr ~name ~f =
 let zero_alloc_attribute (attr : Parsetree.attribute)  =
   parse_attribute_with_ident_payload attr
     ~name:"zero_alloc" ~f:(function
-      | "check" -> Clflags.zero_alloc_check := Clflags.Annotations.Check_default
-      | "check_opt" -> Clflags.zero_alloc_check := Clflags.Annotations.Check_opt_only
-      | "check_all" -> Clflags.zero_alloc_check := Clflags.Annotations.Check_all
-      | "check_none" -> Clflags.zero_alloc_check := Clflags.Annotations.No_check
+      | "check" -> Clflags.zero_alloc_check := Zero_alloc_annotations.Check_default
+      | "check_opt" -> Clflags.zero_alloc_check := Zero_alloc_annotations.Check_opt_only
+      | "check_all" -> Clflags.zero_alloc_check := Zero_alloc_annotations.Check_all
+      | "check_none" -> Clflags.zero_alloc_check := Zero_alloc_annotations.No_check
       | "all" ->
         Clflags.zero_alloc_check_assert_all := true
       | _ ->
@@ -659,3 +675,265 @@ let error_message_attr l =
       end
     | _ -> None in
   List.find_map inner l
+
+type zero_alloc_attribute =
+  | Default_zero_alloc
+  | Ignore_assert_all
+  | Check of { strict: bool;
+               opt: bool;
+               arity: int;
+               loc: Location.t;
+             }
+  | Assume of { strict: bool;
+                never_returns_normally: bool;
+                never_raises: bool;
+                arity: int;
+                loc: Location.t;
+              }
+
+let is_zero_alloc_check_enabled ~opt =
+  match !Clflags.zero_alloc_check with
+  | No_check -> false
+  | Check_all -> true
+  | Check_default -> not opt
+  | Check_opt_only -> opt
+
+let is_zero_alloc_attribute =
+  [ ["zero_alloc"; "ocaml.zero_alloc"], true ]
+
+let get_payload get_from_exp =
+  let open Parsetree in
+  function
+  | PStr [{pstr_desc = Pstr_eval (exp, [])}] -> get_from_exp exp
+  | _ -> Result.Error ()
+
+let get_optional_payload get_from_exp =
+  let open Parsetree in
+  function
+  | PStr [] -> Result.Ok None
+  | other -> Result.map Option.some (get_payload get_from_exp other)
+
+let get_int_from_exp =
+  let open Parsetree in
+  function
+    | { pexp_desc = Pexp_constant (Pconst_integer(s, None)) } ->
+        begin match Misc.Int_literal_converter.int s with
+        | n -> Result.Ok n
+        | exception (Failure _) -> Result.Error ()
+        end
+    | _ -> Result.Error ()
+
+let get_construct_from_exp =
+  let open Parsetree in
+  function
+    | { pexp_desc =
+          Pexp_construct ({ txt = Longident.Lident constr }, None) } ->
+        Result.Ok constr
+    | _ -> Result.Error ()
+
+let get_bool_from_exp exp =
+  Result.bind (get_construct_from_exp exp)
+    (function
+      | "true" -> Result.Ok true
+      | "false" -> Result.Ok false
+      | _ -> Result.Error ())
+
+let get_int_payload = get_payload get_int_from_exp
+let get_optional_bool_payload = get_optional_payload get_bool_from_exp
+
+let get_id_from_exp =
+  let open Parsetree in
+  function
+  | { pexp_desc = Pexp_ident { txt = Longident.Lident id } } -> Result.Ok id
+  | _ -> Result.Error ()
+
+let get_id_or_constant_from_exp =
+  let open Parsetree in
+  function
+  | { pexp_desc = Pexp_ident { txt = Longident.Lident id } } -> Result.Ok id
+  | { pexp_desc = Pexp_constant (Pconst_integer (s,None)) } -> Result.Ok s
+  | _ -> Result.Error ()
+
+let get_ids_and_constants_from_exp exp =
+  let open Parsetree in
+  (match exp with
+   | { pexp_desc = Pexp_apply (exp, args) } ->
+     get_id_or_constant_from_exp exp ::
+     List.map (function
+       | (Asttypes.Nolabel, arg) -> get_id_or_constant_from_exp arg
+       | (_, _) -> Result.Error ())
+       args
+   | _ -> [get_id_or_constant_from_exp exp])
+  |> List.fold_left (fun acc r ->
+    match acc, r with
+    | Result.Ok ids, Ok id -> Result.Ok (id::ids)
+    | (Result.Error _ | Ok _), _ -> Result.Error ())
+    (Ok [])
+  |> Result.map List.rev
+
+let parse_optional_id_payload txt loc ~empty cases payload =
+  let[@local] warn () =
+    let ( %> ) f g x = g (f x) in
+    let msg =
+      cases
+      |> List.map (fst %> Printf.sprintf "'%s'")
+      |> String.concat ", "
+      |> Printf.sprintf "It must be either %s or empty"
+    in
+    Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg));
+    Error ()
+  in
+  match get_optional_payload get_id_from_exp payload with
+  | Error () -> warn ()
+  | Ok None -> Ok empty
+  | Ok (Some id) ->
+      match List.assoc_opt id cases with
+      | Some r -> Ok r
+      | None -> warn ()
+
+(* Looks for `arity n` in payload. If present, this returns `n` and an updated
+   payload with `arity n` removed. Note it may change the order of the payload,
+   which is fine because we sort it later. *)
+let filter_arity payload =
+  let is_arity s1 s2 =
+    match s1 with
+    | "arity" -> int_of_string_opt s2
+    | _ -> None
+  in
+  let rec find_arity acc payload =
+    match payload with
+    | [] | [_] -> None
+    | s1 :: ((s2 :: payload) as payload') ->
+      begin match is_arity s1 s2 with
+      | Some n -> Some (n, acc @ payload)
+      | None -> find_arity (s1 :: acc) payload'
+      end
+  in
+  find_arity [] payload
+
+let zero_alloc_lookup_table =
+  (* These are the possible payloads (sans arity) paired with a function that
+     returns the corresponding check_attribute, given the arity and the loc. *)
+  [
+    (["assume"],
+     fun arity loc ->
+       Assume { strict = false; never_returns_normally = false;
+                never_raises = false;
+                arity; loc; });
+    (["strict"],
+     fun arity loc ->
+       Check { strict = true; opt = false; arity; loc; });
+    (["opt"],
+     fun arity loc ->
+       Check { strict = false; opt = true; arity; loc; });
+    (["opt"; "strict"; ],
+     fun arity loc ->
+       Check { strict = true; opt = true; arity; loc; });
+    (["assume"; "strict"],
+     fun arity loc ->
+       Assume { strict = true; never_returns_normally = false;
+                never_raises = false;
+                arity; loc; });
+    (["assume"; "never_returns_normally"],
+     fun arity loc ->
+       Assume {  strict = false; never_returns_normally = true;
+                never_raises = false;
+                arity; loc; });
+    (["assume"; "never_returns_normally"; "strict"],
+     fun arity loc ->
+       Assume { strict = true; never_returns_normally = true;
+                never_raises = false;
+                arity; loc; });
+    (["assume"; "error"],
+     fun arity loc ->
+       Assume { strict = true; never_returns_normally = true;
+                never_raises = true;
+                arity; loc; });
+    (["ignore"], fun _ _ -> Ignore_assert_all)
+  ]
+
+let parse_zero_alloc_payload ~loc ~arity ~warn ~empty payload =
+  (* This parses the remainder of the payload after arity has been parsed
+     out. *)
+  match payload with
+  | [] -> empty
+  | _ :: _ ->
+    let payload = List.sort String.compare payload in
+    match List.assoc_opt payload zero_alloc_lookup_table with
+    | None -> warn ();  Default_zero_alloc
+    | Some ca -> ca arity loc
+
+let parse_zero_alloc_attribute ~is_arity_allowed ~default_arity attr =
+  match attr with
+  | None -> Default_zero_alloc
+  | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload} ->
+    let warn () =
+      let ( %> ) f g x = g (f x) in
+      let msg =
+        zero_alloc_lookup_table
+        |> List.map (fst %> String.concat " " %> Printf.sprintf "'%s'")
+        |> String.concat ", "
+        |> Printf.sprintf "It must be either %s or empty"
+      in
+      Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg))
+    in
+    let empty arity =
+      Check { strict = false; opt = false; arity; loc; }
+    in
+    match get_optional_payload get_ids_and_constants_from_exp payload with
+    | Error () -> warn (); Default_zero_alloc
+    | Ok None -> empty default_arity
+    | Ok (Some payload) ->
+      let arity, payload =
+        match filter_arity payload with
+        | None -> default_arity, payload
+        | Some (user_arity, payload) ->
+          if is_arity_allowed then
+            user_arity, payload
+          else
+            (warn_payload loc txt
+               "The \"arity\" field is only supported on \"zero_alloc\" in \
+                signatures";
+             default_arity, payload)
+      in
+      parse_zero_alloc_payload ~loc ~arity ~warn ~empty:(empty arity) payload
+
+let get_zero_alloc_attribute ~in_signature ~default_arity l =
+  let attr = find_attribute is_zero_alloc_attribute l in
+  let res =
+      parse_zero_alloc_attribute ~is_arity_allowed:in_signature ~default_arity
+        attr
+  in
+  (match attr, res with
+   | None, Default_zero_alloc -> ()
+   | _, Default_zero_alloc -> ()
+   | None, (Check _ | Assume _ | Ignore_assert_all) -> assert false
+   | Some _, Ignore_assert_all -> ()
+   | Some _, Assume _ -> ()
+   | Some attr, Check { opt; _ } ->
+     if not in_signature && is_zero_alloc_check_enabled ~opt && !Clflags.native_code then
+       (* The warning for unchecked functions will not trigger if the check is
+          requested through the [@@@zero_alloc all] top-level annotation rather
+          than through the function annotation [@zero_alloc]. *)
+       register_zero_alloc_attribute attr.attr_name);
+   res
+
+let assume_zero_alloc ~is_check_allowed check : Zero_alloc_utils.Assume_info.t =
+  match check with
+  | Default_zero_alloc -> Zero_alloc_utils.Assume_info.none
+  | Ignore_assert_all -> Zero_alloc_utils.Assume_info.none
+  | Assume { strict; never_returns_normally; never_raises; } ->
+    Zero_alloc_utils.Assume_info.create ~strict ~never_returns_normally ~never_raises
+  | Check { loc; _ } ->
+    if not is_check_allowed then begin
+      let name = "zero_alloc" in
+      let msg = "Only the following combinations are supported in this context: \
+                 'zero_alloc assume', \
+                 `zero_alloc assume strict`, \
+                 `zero_alloc assume error`,\
+                 `zero_alloc assume never_returns_normally`,\
+                 `zero_alloc assume never_returns_normally strict`."
+      in
+      Location.prerr_warning loc (Warnings.Attribute_payload (name, msg))
+    end;
+    Zero_alloc_utils.Assume_info.none

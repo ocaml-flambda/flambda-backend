@@ -121,6 +121,9 @@ let ghloc ~loc d = { txt = d; loc = ghost_loc loc }
 let ghstr ~loc d = Str.mk ~loc:(ghost_loc loc) d
 let ghsig ~loc d = Sig.mk ~loc:(ghost_loc loc) d
 
+let ghexpvar ~loc name =
+  ghexp ~loc (Pexp_ident (mkrhs (Lident name) loc))
+
 let mkinfix arg1 op arg2 =
   Pexp_apply(op, [Nolabel, arg1; Nolabel, arg2])
 
@@ -859,7 +862,7 @@ module Constant : sig
   type loc := Lexing.position * Lexing.position
 
   val value : Parsetree.constant -> t
-  val unboxed : loc:loc -> Jane_syntax.Layouts.constant -> t
+  val unboxed : Jane_syntax.Layouts.constant -> t
   val to_expression : loc:loc -> t -> expression
   val to_pattern : loc:loc -> t -> pattern
 end = struct
@@ -869,13 +872,7 @@ end = struct
 
   let value x = Value x
 
-  let assert_unboxed_literals ~loc =
-    Language_extension.(
-      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Stable)
-
-  let unboxed ~loc x =
-    assert_unboxed_literals ~loc:(make_loc loc);
-    Unboxed x
+  let unboxed x = Unboxed x
 
   let to_expression ~loc : t -> expression = function
     | Value const_value ->
@@ -902,7 +899,7 @@ let with_sign sign num =
 let unboxed_int sloc int_loc sign (n, m) =
   match m with
   | Some m ->
-      Constant.unboxed ~loc:int_loc (Integer (with_sign sign n, m))
+      Constant.unboxed (Integer (with_sign sign n, m))
   | None ->
       if Language_extension.is_enabled unboxed_literals_extension then
         raise
@@ -910,19 +907,12 @@ let unboxed_int sloc int_loc sign (n, m) =
       else
         not_expecting sloc "line number directive"
 
-let unboxed_float sloc sign (f, m) =
-  Constant.unboxed ~loc:sloc (Float (with_sign sign f, m))
-
-(* Unboxed float type *)
-
-let assert_unboxed_type ~loc =
-    Language_extension.(
-      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Stable)
+let unboxed_float sign (f, m) =
+  Constant.unboxed (Float (with_sign sign f, m))
 
 (* Invariant: [lident] must end with an [Lident] that ends with a ["#"]. *)
 let unboxed_type sloc lident tys =
   let loc = make_loc sloc in
-  assert_unboxed_type ~loc;
   Ptyp_constr (mkloc lident loc, tys)
 %}
 
@@ -3167,7 +3157,7 @@ let_binding_body:
       { let p,e,c,attrs = $1 in (p,e,c,false), attrs }
 /* BEGIN AVOID */
   | val_ident %prec below_HASH
-      { (mkpatvar ~loc:$loc $1, mkexpvar ~loc:$loc $1, None, true), [] }
+      { (mkpatvar ~loc:$loc $1, ghexpvar ~loc:$loc $1, None, true), [] }
   (* The production that allows puns is marked so that [make list-parse-errors]
      does not attempt to exploit it. That would be problematic because it
      would then generate bindings such as [let x], which are rejected by the
@@ -3209,7 +3199,7 @@ letop_binding_body:
       { (pat, exp) }
   | val_ident
       (* Let-punning *)
-      { (mkpatvar ~loc:$loc $1, mkexpvar ~loc:$loc $1) }
+      { (mkpatvar ~loc:$loc $1, ghexpvar ~loc:$loc $1) }
   (* CR zqian: support mode annotation on letop. *)
   | pat = simple_pattern COLON typ = core_type EQUAL exp = seq_expr
       { let loc = ($startpos(pat), $endpos(typ)) in
@@ -3551,9 +3541,10 @@ pattern_no_exn:
       { let loc = $loc(label) in
         Some label, mkpatvar ~loc label }
   | TILDE LPAREN label = LIDENT COLON cty = core_type RPAREN
-      { let loc = $loc(label) in
-        let pat = mkpatvar ~loc label in
-        Some label, mkpat_opt_constraint ~loc pat (Some cty) }
+      { let lbl_loc = $loc(label) in
+        let pat_loc = $startpos($2), $endpos in
+        let pat = mkpatvar ~loc:lbl_loc label in
+        Some label, mkpat_opt_constraint ~loc:pat_loc pat (Some cty) }
 
 labeled_tuple_pat_element_list(self):
   | labeled_tuple_pat_element_list(self) COMMA labeled_tuple_pat_element(self)
@@ -4635,7 +4626,7 @@ value_constant:
 ;
 unboxed_constant:
   | HASH_INT          { unboxed_int $sloc $sloc Positive $1 }
-  | HASH_FLOAT        { unboxed_float $sloc Positive $1 }
+  | HASH_FLOAT        { unboxed_float Positive $1 }
 ;
 constant:
     value_constant    { Constant.value $1 }
@@ -4652,9 +4643,9 @@ signed_constant:
     signed_value_constant { Constant.value $1 }
   | unboxed_constant      { $1 }
   | MINUS HASH_INT        { unboxed_int $sloc $loc($2) Negative $2 }
-  | MINUS HASH_FLOAT      { unboxed_float $sloc Negative $2 }
+  | MINUS HASH_FLOAT      { unboxed_float Negative $2 }
   | PLUS HASH_INT         { unboxed_int $sloc $loc($2) Positive $2 }
-  | PLUS HASH_FLOAT       { unboxed_float $sloc Positive $2 }
+  | PLUS HASH_FLOAT       { unboxed_float Positive $2 }
 ;
 
 /* Identifiers and long identifiers */

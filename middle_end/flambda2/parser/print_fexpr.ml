@@ -128,6 +128,7 @@ let naked_number_kind ppf (nnk : Flambda_kind.Naked_number_kind.t) =
   @@
   match nnk with
   | Naked_immediate -> "imm"
+  | Naked_float32 -> "float32"
   | Naked_float -> "float"
   | Naked_int32 -> "int32"
   | Naked_int64 -> "int64"
@@ -140,6 +141,7 @@ let rec subkind ppf (k : subkind) =
   | Anything -> str "val"
   | Float_block { num_fields } -> Format.fprintf ppf "float ^ %d" num_fields
   | Boxed_float -> str "float boxed"
+  | Boxed_float32 -> str "float32 boxed"
   | Boxed_int32 -> str "int32 boxed"
   | Boxed_int64 -> str "int64 boxed"
   | Boxed_nativeint -> str "nativeint boxed"
@@ -207,6 +209,7 @@ let convertible_type ppf (t : standard_int_or_float) =
     match t with
     | Tagged_immediate -> "imm tagged"
     | Naked_immediate -> "imm"
+    | Naked_float32 -> "float32"
     | Naked_float -> "float"
     | Naked_int32 -> "int32"
     | Naked_int64 -> "int64"
@@ -254,6 +257,7 @@ let const ppf (c : Fexpr.const) =
   | Naked_immediate i -> Format.fprintf ppf "%si" i
   | Tagged_immediate i -> Format.fprintf ppf "%s" i
   | Naked_float f -> float ppf f
+  | Naked_float32 f -> Format.fprintf ppf "%hs" f
   | Naked_int32 i -> Format.fprintf ppf "%lil" i
   | Naked_int64 i -> Format.fprintf ppf "%LiL" i
   | Naked_nativeint i -> Format.fprintf ppf "%Lin" i
@@ -295,6 +299,7 @@ let empty_array_kind ~space ppf (ak : empty_array_kind) =
   let str =
     match ak with
     | Values_or_immediates_or_naked_floats -> None
+    | Naked_float32s -> Some "float32"
     | Naked_int32s -> Some "int32"
     | Naked_int64s -> Some "int64"
     | Naked_nativeints -> Some "nativeint"
@@ -332,6 +337,7 @@ let static_data ppf : static_data -> unit = function
       tag
       (pp_comma_list field_of_block)
       elts
+  | Boxed_float32 (Const f) -> Format.fprintf ppf "%hs" f
   | Boxed_float (Const f) -> Format.fprintf ppf "%h" f
   | Boxed_int32 (Const i) -> Format.fprintf ppf "%lil" i
   | Boxed_int64 (Const i) -> Format.fprintf ppf "%LiL" i
@@ -339,6 +345,7 @@ let static_data ppf : static_data -> unit = function
   | Boxed_vec128 (Const { high; low }) ->
     Format.fprintf ppf "vec128[%016Lx:%016Lx]" high low
   | Boxed_float (Var v) -> boxed_variable ppf v ~kind:"float"
+  | Boxed_float32 (Var v) -> boxed_variable ppf v ~kind:"float32"
   | Boxed_int32 (Var v) -> boxed_variable ppf v ~kind:"int32"
   | Boxed_int64 (Var v) -> boxed_variable ppf v ~kind:"int64"
   | Boxed_nativeint (Var v) -> boxed_variable ppf v ~kind:"nativeint"
@@ -418,29 +425,44 @@ let int_shift_op ppf (s : int_shift_op) =
   Format.pp_print_string ppf
   @@ match s with Lsl -> "lsl" | Lsr -> "lsr" | Asr -> "asr"
 
-let binary_float_arith_op ppf (o : binary_float_arith_op) =
-  Format.pp_print_string ppf
-  @@ match o with Add -> "+." | Sub -> "-." | Mul -> "*." | Div -> "/."
-
-let float_comp ppf (o : unit comparison_behaviour) =
+let binary_float_arith_op ppf (w : float_bitwidth) (o : binary_float_arith_op) =
   Format.pp_print_string ppf
   @@
-  match o with
-  | Yielding_bool Eq -> "=."
-  | Yielding_bool Neq -> "<>."
-  | Yielding_bool (Lt ()) -> "<."
-  | Yielding_bool (Gt ()) -> ">."
-  | Yielding_bool (Le ()) -> "<=."
-  | Yielding_bool (Ge ()) -> ">=."
-  | Yielding_int_like_compare_functions () -> "?"
+  match w, o with
+  | Float64, Add -> "+."
+  | Float64, Sub -> "-."
+  | Float64, Mul -> "*."
+  | Float64, Div -> "/."
+  | Float32, Add -> "Float32.+."
+  | Float32, Sub -> "Float32.-."
+  | Float32, Mul -> "Float32.*."
+  | Float32, Div -> "Float32./."
+
+let float_comp ppf (w : float_bitwidth) (o : unit comparison_behaviour) =
+  Format.pp_print_string ppf
+  @@
+  match w, o with
+  | Float64, Yielding_bool Eq -> "=."
+  | Float64, Yielding_bool Neq -> "<>."
+  | Float64, Yielding_bool (Lt ()) -> "<."
+  | Float64, Yielding_bool (Gt ()) -> ">."
+  | Float64, Yielding_bool (Le ()) -> "<=."
+  | Float64, Yielding_bool (Ge ()) -> ">=."
+  | Float32, Yielding_bool Eq -> "Float32.=."
+  | Float32, Yielding_bool Neq -> "Float32.<>."
+  | Float32, Yielding_bool (Lt ()) -> "Float32.<."
+  | Float32, Yielding_bool (Gt ()) -> "Float32.>."
+  | Float32, Yielding_bool (Le ()) -> "Float32.<=."
+  | Float32, Yielding_bool (Ge ()) -> "Float32.>=."
+  | (Float64 | Float32), Yielding_int_like_compare_functions () -> "?"
 
 let infix_binop ppf (b : infix_binop) =
   match b with
   | Int_arith o -> binary_int_arith_op ppf o
   | Int_comp c -> int_comp ppf c
   | Int_shift s -> int_shift_op ppf s
-  | Float_arith o -> binary_float_arith_op ppf o
-  | Float_comp c -> float_comp ppf c
+  | Float_arith (w, o) -> binary_float_arith_op ppf w o
+  | Float_comp (w, c) -> float_comp ppf w c
 
 let block_access_kind ppf (access_kind : block_access_kind) =
   let pp_size ppf (size : Int64.t option) =
@@ -453,12 +475,25 @@ let block_access_kind ppf (access_kind : block_access_kind) =
     | Any_value -> ()
     | Immediate -> Format.fprintf ppf "@ imm"
   in
+  let pp_mixed_field_kind ppf
+      (field_kind : Flambda_primitive.Mixed_block_access_field_kind.t) =
+    match field_kind with
+    | Value_prefix Any_value -> ()
+    | Value_prefix Immediate -> Format.fprintf ppf "@ imm"
+    | Flat_suffix flat ->
+      Format.fprintf ppf "@ %s"
+        (Flambda_primitive.Mixed_block_flat_element.to_string flat)
+  in
   match access_kind with
   | Values { field_kind; tag; size } ->
     Format.fprintf ppf "%a%a%a" pp_field_kind field_kind
       (pp_option ~space:Before (pp_like "tag(%a)" Format.pp_print_int))
       tag pp_size size
   | Naked_floats { size } -> Format.fprintf ppf "@ float%a" pp_size size
+  | Mixed { tag; field_kind; size } ->
+    Format.fprintf ppf "%a%a%a" pp_mixed_field_kind field_kind
+      (pp_option ~space:Before (pp_like "tag(%a)" Format.pp_print_int))
+      tag pp_size size
 
 let string_accessor_width ppf saw =
   Format.fprintf ppf "%s"
@@ -526,6 +561,7 @@ let unop ppf u =
   let box_or_unbox verb_not_imm (bk : box_kind) =
     let print verb obj = Format.fprintf ppf "%%%s_%s" verb obj in
     match bk with
+    | Naked_float32 -> print verb_not_imm "float32"
     | Naked_float -> print verb_not_imm "float"
     | Naked_int32 -> print verb_not_imm "int32"
     | Naked_int64 -> print verb_not_imm "int64"

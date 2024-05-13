@@ -1,16 +1,23 @@
 (* TEST
-   modules = "c_functions.c"
-   * flambda2
-   ** native
-   ** bytecode
-   ** native
-   flags = "-extension layouts_alpha"
-   ** bytecode
-   flags = "-extension layouts_alpha"
-   ** native
-   flags = "-extension layouts_beta"
-   ** bytecode
-   flags = "-extension layouts_beta"
+ modules = "c_functions.c";
+ flambda2;
+ {
+   native;
+ }{
+   bytecode;
+ }{
+   flags = "-extension layouts_alpha";
+   native;
+ }{
+   flags = "-extension layouts_alpha";
+   bytecode;
+ }{
+   flags = "-extension layouts_beta";
+   native;
+ }{
+   flags = "-extension layouts_beta";
+   bytecode;
+ }
 *)
 
 (* This file tests using external C functions with nativeint#. *)

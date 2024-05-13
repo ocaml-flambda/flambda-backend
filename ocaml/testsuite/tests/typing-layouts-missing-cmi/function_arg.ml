@@ -1,14 +1,13 @@
 (* TEST
-
-readonly_files = "function_a.ml function_b.ml"
-* setup-ocamlc.byte-build-env
-** ocamlc.byte
-module = "function_a.ml"
-*** ocamlc.byte
-module = "function_b.ml"
-**** script
-script = "rm -f function_a.cmi"
-***** expect
+ readonly_files = "function_a.ml function_b.ml";
+ setup-ocamlc.byte-build-env;
+ module = "function_a.ml";
+ ocamlc.byte;
+ module = "function_b.ml";
+ ocamlc.byte;
+ script = "rm -f function_a.cmi";
+ script;
+ expect;
 *)
 
 #directory "ocamlc.byte";;
@@ -27,7 +26,7 @@ Error: Function arguments and returns must be representable.
        The layout of Function_a.t is any, because
          the .cmi file for Function_a.t is missing.
        But the layout of Function_a.t must be representable, because
-         it's the type of a function argument.
+         we must know concretely how to pass a function argument.
        No .cmi file found containing Function_a.t.
        Hint: Adding "function_a" to your dependencies might help.
 |}]
@@ -42,7 +41,7 @@ Error: Function arguments and returns must be representable.
        The layout of Function_a.t is any, because
          the .cmi file for Function_a.t is missing.
        But the layout of Function_a.t must be representable, because
-         it's the type of a function argument.
+         we must know concretely how to pass a function argument.
        No .cmi file found containing Function_a.t.
        Hint: Adding "function_a" to your dependencies might help.
 |}]
@@ -57,7 +56,7 @@ Error: Function arguments and returns must be representable.
        The layout of Function_a.t is any, because
          the .cmi file for Function_a.t is missing.
        But the layout of Function_a.t must be representable, because
-         it's the type of a function argument.
+         we must know concretely how to pass a function argument.
        No .cmi file found containing Function_a.t.
        Hint: Adding "function_a" to your dependencies might help.
 |}]
@@ -72,7 +71,7 @@ Error: Function arguments and returns must be representable.
        The layout of Function_a.t is any, because
          the .cmi file for Function_a.t is missing.
        But the layout of Function_a.t must be representable, because
-         it's the type of a function result.
+         we must know concretely how to return a function result.
        No .cmi file found containing Function_a.t.
        Hint: Adding "function_a" to your dependencies might help.
 |}]
@@ -89,7 +88,7 @@ Error: Function arguments and returns must be representable.
        The layout of Function_a.t is any, because
          the .cmi file for Function_a.t is missing.
        But the layout of Function_a.t must be representable, because
-         it's the type of a function argument.
+         we must know concretely how to pass a function argument.
        No .cmi file found containing Function_a.t.
        Hint: Adding "function_a" to your dependencies might help.
 |}]
@@ -106,7 +105,7 @@ Error: Function arguments and returns must be representable.
        The layout of Function_a.t is any, because
          the .cmi file for Function_a.t is missing.
        But the layout of Function_a.t must be representable, because
-         it's the type of a function result.
+         we must know concretely how to return a function result.
        No .cmi file found containing Function_a.t.
        Hint: Adding "function_a" to your dependencies might help.
 |}]

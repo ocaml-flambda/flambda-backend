@@ -211,6 +211,9 @@ module Stdlib : sig
     (** Compare two arrays for equality, using the supplied predicate for
         element equality *)
 
+    val compare : ('a -> 'a -> int) -> 'a array -> 'a array -> int
+    (** Compare two arrays, using the supplied predicate for element equality *)
+
     val map_sharing : ('a -> 'a) -> 'a array -> 'a array
     (** [map_sharing f a] is [map f a]. If for all elements of the array
         [f e == e] then [map_sharing f a == a] *)
@@ -238,6 +241,9 @@ module Stdlib : sig
 
     (** Splits on the last occurrence of the given character. *)
     val split_last_exn : string -> split_on:char -> string * string
+
+    (** Splits on the first occurence of the given character. *)
+    val split_first_exn : string -> split_on:char -> string * string
 
     val starts_with : prefix:string -> string -> bool
     val ends_with : suffix:string -> string -> bool
@@ -892,3 +898,5 @@ end
 type filepath = string
 
 type alerts = string Stdlib.String.Map.t
+
+val remove_double_underscores : string -> string

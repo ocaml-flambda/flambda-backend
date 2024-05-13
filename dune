@@ -101,6 +101,7 @@
   deadcode
   emit
   emitaux
+  fdo_info
   generic_fns
   interf
   interval
@@ -116,12 +117,12 @@
   printcmm
   printlinear
   printmach
-  checkmach
   proc
   simd
   simd_selection
   simd_reload
   simd_proc
+  stack_check
   reg
   reload
   reloadgen
@@ -143,7 +144,7 @@
   x86_gas
   x86_masm
   x86_proc
-  fdo_info
+  zero_alloc_checker
   ;; asmcomp/cfg
   cfg
   cfg_intf
@@ -158,6 +159,7 @@
   cfg_loop_infos
   cfg_to_linear_desc
   cfg_cse
+  cfg_stack_checks
   eliminate_dead_code
   disconnect_block
   eliminate_dead_blocks
@@ -195,6 +197,7 @@
   available_regs
   compute_ranges
   compute_ranges_intf
+  inlined_frame_ranges
   is_parameter
   reg_availability_set
   reg_with_debug_info
@@ -203,8 +206,10 @@
   ;; This code has a lot of dependencies into ocamloptcomp, so we just
   ;; build it as part of that library.
   dwarf
+  dwarf_abstract_instances
   dwarf_compilation_unit
   dwarf_concrete_instances
+  dwarf_inlined_frames
   dwarf_name_laundry
   dwarf_reg_locations
   dwarf_state
@@ -342,6 +347,7 @@
    %{dep:middle_end/flambda2/import/flambda2_import.a}
    %{dep:middle_end/flambda2/ui/flambda2_ui.a}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.a}
+   %{dep:middle_end/flambda2/numbers/floats/flambda2_floats.a}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.a}
    %{dep:middle_end/flambda2/kinds/flambda2_kinds.a}
    %{dep:middle_end/flambda2/identifiers/flambda2_identifiers.a}
@@ -378,6 +384,7 @@
    %{dep:middle_end/flambda2/import/flambda2_import.cma}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cma}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cma}
+   %{dep:middle_end/flambda2/numbers/floats/flambda2_floats.cma}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.cma}
    %{dep:middle_end/flambda2/kinds/flambda2_kinds.cma}
    %{dep:middle_end/flambda2/identifiers/flambda2_identifiers.cma}
@@ -414,6 +421,7 @@
    %{dep:middle_end/flambda2/import/flambda2_import.cmxa}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cmxa}
+   %{dep:middle_end/flambda2/numbers/floats/flambda2_floats.cmxa}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.cmxa}
    %{dep:middle_end/flambda2/kinds/flambda2_kinds.cmxa}
    %{dep:middle_end/flambda2/identifiers/flambda2_identifiers.cmxa}
@@ -444,6 +452,7 @@
 
 (install
  (files
+  (ocaml/compilerlibs/META as compiler-libs/META)
   (external/owee/libcompiler_owee_stubs.a
    as
    compiler-libs/libcompiler_owee_stubs.a)
@@ -456,6 +465,12 @@
   (external/gc-timings/libgc_timings_stubs.a
    as
    compiler-libs/libgc_timings_stubs_native.a)
+  (middle_end/flambda2/numbers/floats/libflambda2_floats_stubs.a
+   as
+   compiler-libs/libflambda2_floats_stubs.a)
+  (middle_end/flambda2/numbers/floats/libflambda2_floats_stubs.a
+   as
+   compiler-libs/libflambda2_floats_stubs_native.a)
   ; for special_dune compat
   (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
   (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)

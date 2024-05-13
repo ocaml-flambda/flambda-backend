@@ -1,6 +1,6 @@
 (* TEST
-   * expect
-   flags = "-extension unique"
+ flags = "-extension unique";
+ expect;
 *)
 
 module Hidden_string : sig
@@ -31,6 +31,25 @@ end
 module Hidden_string : sig type t val hide : string -> t end
 module Hidden_int : sig type t : immediate val hide : int -> t end
 module Hidden_float_u : sig type t : float64 val hide : float# -> t end
+|}]
+
+module Immediate : sig
+  val id : ('a : immediate). 'a -> 'a
+  val ignore : ('a : immediate). 'a -> unit
+  val unique : ('a : immediate). unique_ 'a -> 'a
+end = struct
+  let id x = x
+  let ignore _ = ()
+  let unique (unique_ x) = x
+end
+
+[%%expect{|
+module Immediate :
+  sig
+    val id : ('a : immediate). 'a -> 'a
+    val ignore : ('a : immediate). 'a -> unit
+    val unique : ('a : immediate). unique_ 'a -> 'a
+  end
 |}]
 
 module Float_u : sig
@@ -64,7 +83,7 @@ let string_escape = let local_ x : string = "hello" in x
 Line 1, characters 55-56:
 1 | let string_escape = let local_ x : string = "hello" in x
                                                            ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let int_escape = let local_ x : int = 5 in x
@@ -79,7 +98,7 @@ let string_list_escape = let local_ x : string list = ["hi";"bye"] in x
 Line 1, characters 70-71:
 1 | let string_list_escape = let local_ x : string list = ["hi";"bye"] in x
                                                                           ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let int_list_escape = let local_ x : int list = [4;5] in x
@@ -88,7 +107,7 @@ let int_list_escape = let local_ x : int list = [4;5] in x
 Line 1, characters 57-58:
 1 | let int_list_escape = let local_ x : int list = [4;5] in x
                                                              ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let hidden_string_escape =
@@ -98,7 +117,7 @@ let hidden_string_escape =
 Line 2, characters 65-66:
 2 |   let local_ x : Hidden_string.t = Hidden_string.hide "hello" in x
                                                                      ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let hidden_int_escape =
@@ -117,7 +136,7 @@ let hidden_string_list_escape =
 Line 4, characters 5-6:
 4 |   in x
          ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let hidden_int_list_escape =
@@ -129,7 +148,7 @@ let hidden_int_list_escape =
 Line 4, characters 5-6:
 4 |   in x
          ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let float_escape = let local_ x : float = 3.14 in x
@@ -138,27 +157,20 @@ let float_escape = let local_ x : float = 3.14 in x
 Line 1, characters 50-51:
 1 | let float_escape = let local_ x : float = 3.14 in x
                                                       ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
-let float_u_escape = let local_ x : float# = #3.14 in x
+let float_u_escape () = let local_ x : float# = #3.14 in x
 
-(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-Line 1, characters 54-55:
-1 | let float_u_escape = let local_ x : float# = #3.14 in x
-                                                          ^
-Error: This value escapes its region
+val float_u_escape : unit -> float# = <fun>
 |}]
 
-let hidden_float_u_escape =
+let hidden_float_u_escape () =
   let local_ x : Hidden_float_u.t = Hidden_float_u.hide #3.14 in x
 
 [%%expect{|
-Line 2, characters 65-66:
-2 |   let local_ x : Hidden_float_u.t = Hidden_float_u.hide #3.14 in x
-                                                                     ^
-Error: This value escapes its region
+val hidden_float_u_escape : unit -> Hidden_float_u.t = <fun>
 |}]
 
 let float_u_record_escape =
@@ -168,7 +180,7 @@ let float_u_record_escape =
 Line 2, characters 63-64:
 2 |   let local_ x : float_u_record = { x = #3.14; y = #2.718 } in x
                                                                    ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let float_u_record_list_escape =
@@ -178,7 +190,19 @@ let float_u_record_list_escape =
 Line 2, characters 45-46:
 2 |   let local_ x : float_u_record list = [] in x
                                                  ^
-Error: This value escapes its region
+Error: This value escapes its region.
+|}]
+
+type r = {x : float; y : float}
+
+let foo () =
+  let local_ r = {x = 3.0; y = 4.0} in
+  (* [r.x] is allocated global and can escape. *)
+  r.x
+
+[%%expect{|
+type r = { x : float; y : float; }
+val foo : unit -> float = <fun>
 |}]
 
 let function_escape = let local_ x : int -> int = fun y -> y in x
@@ -187,7 +211,7 @@ let function_escape = let local_ x : int -> int = fun y -> y in x
 Line 1, characters 64-65:
 1 | let function_escape = let local_ x : int -> int = fun y -> y in x
                                                                     ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let function_list_escape =
@@ -197,7 +221,7 @@ let function_list_escape =
 Line 2, characters 71-72:
 2 |   let local_ x : (int -> int) list = [(fun y -> y); fun z -> z + 1] in x
                                                                            ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let string_duplicate = let once_ x : string = "hello" in Fun.id x
@@ -207,7 +231,7 @@ let string_duplicate = let once_ x : string = "hello" in Fun.id x
 Line 1, characters 64-65:
 1 | let string_duplicate = let once_ x : string = "hello" in Fun.id x
                                                                     ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let int_duplicate = let once_ x : int = 5 in Fun.id x
@@ -223,7 +247,7 @@ let string_list_duplicate = let once_ x : string list = ["hi";"bye"] in Fun.id x
 Line 1, characters 79-80:
 1 | let string_list_duplicate = let once_ x : string list = ["hi";"bye"] in Fun.id x
                                                                                    ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let int_list_duplicate = let once_ x : int list = [4;5] in Fun.id x
@@ -233,7 +257,7 @@ let int_list_duplicate = let once_ x : int list = [4;5] in Fun.id x
 Line 1, characters 66-67:
 1 | let int_list_duplicate = let once_ x : int list = [4;5] in Fun.id x
                                                                       ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let hidden_string_duplicate =
@@ -243,7 +267,7 @@ let hidden_string_duplicate =
 Line 2, characters 71-72:
 2 |   let once_ x : Hidden_string.t = Hidden_string.hide "hello" in Fun.id x
                                                                            ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let hidden_int_duplicate =
@@ -262,7 +286,7 @@ let hidden_string_list_duplicate =
 Line 4, characters 12-13:
 4 |   in Fun.id x
                 ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let hidden_int_list_duplicate =
@@ -275,7 +299,7 @@ let hidden_int_list_duplicate =
 Line 4, characters 12-13:
 4 |   in Fun.id x
                 ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let float_duplicate = let once_ x : float = 3.14 in Fun.id x
@@ -285,27 +309,20 @@ let float_duplicate = let once_ x : float = 3.14 in Fun.id x
 Line 1, characters 59-60:
 1 | let float_duplicate = let once_ x : float = 3.14 in Fun.id x
                                                                ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
-let float_u_duplicate = let once_ x : float# = #3.14 in Float_u.id x
+let float_u_duplicate () = let once_ x : float# = #3.14 in Float_u.id x
 
-(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-Line 1, characters 67-68:
-1 | let float_u_duplicate = let once_ x : float# = #3.14 in Float_u.id x
-                                                                       ^
-Error: Found a once value where a many value was expected
+val float_u_duplicate : unit -> float# = <fun>
 |}]
 
-let hidden_float_u_duplicate =
+let hidden_float_u_duplicate () =
   let once_ x : Hidden_float_u.t = Hidden_float_u.hide #3.14 in Float_u.id x
 
 [%%expect{|
-Line 2, characters 75-76:
-2 |   let once_ x : Hidden_float_u.t = Hidden_float_u.hide #3.14 in Float_u.id x
-                                                                               ^
-Error: Found a once value where a many value was expected
+val hidden_float_u_duplicate : unit -> Hidden_float_u.t = <fun>
 |}]
 
 let float_u_record_duplicate =
@@ -316,7 +333,7 @@ let float_u_record_duplicate =
 Line 2, characters 69-70:
 2 |   let once_ x : float_u_record = { x = #3.14; y = #2.718 } in Fun.id x
                                                                          ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let float_u_record_list_duplicate =
@@ -327,7 +344,7 @@ let float_u_record_list_duplicate =
 Line 2, characters 51-52:
 2 |   let once_ x : float_u_record list = [] in Fun.id x
                                                        ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let function_duplicate = let once_ x : int -> int = fun y -> y in Fun.id x
@@ -336,7 +353,7 @@ let function_duplicate = let once_ x : int -> int = fun y -> y in Fun.id x
 Line 1, characters 73-74:
 1 | let function_duplicate = let once_ x : int -> int = fun y -> y in Fun.id x
                                                                              ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let function_list_duplicate =
@@ -346,7 +363,7 @@ let function_list_duplicate =
 Line 2, characters 77-78:
 2 |   let once_ x : (int -> int) list = [(fun y -> y); fun z -> z + 1] in Fun.id x
                                                                                  ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let unique (unique_ x) = x
@@ -417,7 +434,7 @@ let hidden_string_unshare =
 Line 2, characters 75-76:
 2 |   let x : Hidden_string.t = Hidden_string.hide "hello" in ignore x; unique x
                                                                                ^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
 |}]
 
 let hidden_int_unshare =
@@ -444,7 +461,7 @@ let hidden_string_list_unshare =
 Line 4, characters 22-23:
 4 |   in ignore x; unique x
                           ^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
 |}]
 
 let hidden_int_list_unshare =
@@ -477,29 +494,50 @@ Line 1, characters 51-52:
 
 |}]
 
-let float_u_unshare = let x : float# = #3.14 in Float_u.ignore x; Float_u.unique x
+(* CR layouts v2.8: The following should pass, even in principal mode, because the
+argument kind is known to cross mode. *)
 
-(* CR layouts v2.8: this should succeed *)
+let float_u_unshare () = let x : float# = #3.14 in Float_u.ignore x; Float_u.unique x
+
 [%%expect{|
-Line 1, characters 81-82:
-1 | let float_u_unshare = let x : float# = #3.14 in Float_u.ignore x; Float_u.unique x
-                                                                                     ^
+val float_u_unshare : unit -> float# = <fun>
+|}, Principal{|
+Line 1, characters 84-85:
+1 | let float_u_unshare () = let x : float# = #3.14 in Float_u.ignore x; Float_u.unique x
+                                                                                        ^
 Error: This value is used here as unique, but it has already been used:
-Line 1, characters 63-64:
-1 | let float_u_unshare = let x : float# = #3.14 in Float_u.ignore x; Float_u.unique x
-                                                                   ^
+Line 1, characters 66-67:
+1 | let float_u_unshare () = let x : float# = #3.14 in Float_u.ignore x; Float_u.unique x
+                                                                      ^
 
 |}]
 
-let hidden_float_u_unshare =
+let imm_escape () = Immediate.id (local_ 42) [@nontail]
+
+[%%expect{|
+val imm_escape : unit -> int = <fun>
+|}, Principal{|
+Line 1, characters 33-44:
+1 | let imm_escape () = Immediate.id (local_ 42) [@nontail]
+                                     ^^^^^^^^^^^
+Error: This value escapes its region.
+|}]
+
+let hidden_float_u_unshare () =
   let x : Hidden_float_u.t = Hidden_float_u.hide #3.14 in
   Float_u.ignore x; Float_u.unique x
 
 [%%expect{|
+val hidden_float_u_unshare : unit -> Hidden_float_u.t = <fun>
+|}, Principal{|
 Line 3, characters 35-36:
 3 |   Float_u.ignore x; Float_u.unique x
                                        ^
-Error: Found a shared value where a unique value was expected
+Error: This value is used here as unique, but it has already been used:
+Line 3, characters 17-18:
+3 |   Float_u.ignore x; Float_u.unique x
+                     ^
+
 |}]
 
 let float_u_record_unshare =
@@ -556,4 +594,14 @@ Line 2, characters 71-72:
 2 |   let x : (int -> int) list = [(fun y -> y); fun z -> z + 1] in ignore x; unique x
                                                                            ^
 
+|}]
+
+(* CR layouts: this should succeed. *)
+let foo : (string -> string) -> (string -> string) @ unique
+  = fun f -> f
+[%%expect{|
+Line 2, characters 13-14:
+2 |   = fun f -> f
+                 ^
+Error: This value is shared but expected to be unique.
 |}]

@@ -59,6 +59,27 @@ end
 
 val valid_tyvar_name : string -> bool
 
+(** [transl_label lbl ty] produces a Typedtree argument label for an argument
+    with label [lbl] and type [ty].
+
+    Position arguments ([lbl:[%call_pos] -> ...]) are parsed as
+    {{!Parsetree.arg_label.Labelled}[Labelled l]}. This function converts them
+    to {{!Types.arg_label.Position}[Position l]} when the type is of the form
+    [[%call_pos]]. *)
+val transl_label :
+        Parsetree.arg_label -> Parsetree.core_type option -> Types.arg_label
+
+(** Produces a Typedtree argument label, as well as the pattern corresponding
+    to the argument. [transl_label lbl pat] is equal to:
+
+    - [Position l, P] when [lbl] is {{!Parsetree.arg_label.Labelled}[Labelled l]}
+      and [pat] represents [(P : [%call_pos])]
+    - [transl_label lbl None, pat] otherwise.
+  *)
+val transl_label_from_pat :
+        Parsetree.arg_label -> Parsetree.pattern
+        -> Types.arg_label * Parsetree.pattern
+
 (* Note about [new_var_jkind]
 
    This is exposed as an option because the same initialization doesn't work in all
@@ -148,6 +169,7 @@ type error =
       {vloc : sort_loc; typ : type_expr; err : Jkind.Violation.t}
   | Bad_jkind_annot of type_expr * Jkind.Violation.t
   | Did_you_mean_unboxed of Longident.t
+  | Invalid_label_for_call_pos of Parsetree.arg_label
 
 exception Error of Location.t * Env.t * error
 

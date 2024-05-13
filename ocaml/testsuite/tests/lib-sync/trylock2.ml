@@ -1,5 +1,5 @@
 (* TEST
-   * runtime5
+ runtime5;
 *)
 
 (* Test Mutex.try_lock *)

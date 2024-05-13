@@ -44,14 +44,13 @@ let rec find_next_allocation : cell option -> allocation option =
     match instr.desc with
     | Op (Alloc { bytes; dbginfo; mode }) -> Some { bytes; dbginfo; mode; cell }
     | Op
-        ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_symbol _
-        | Const_vec128 _ | Stackoffset _ | Load _ | Store _ | Intop _
-        | Intop_imm _ | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf
-        | Compf _ | Csel _ | Floatofint | Intoffloat | Valueofint | Intofvalue
-        | Vectorcast _ | Scalarcast _ | Probe_is_enabled _ | Opaque
-        | Begin_region | End_region | Specific _ | Name_for_debugger _ | Dls_get
-        | Poll )
-    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
+        ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_float32 _
+        | Const_symbol _ | Const_vec128 _ | Stackoffset _ | Load _ | Store _
+        | Intop _ | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _
+        | Valueofint | Intofvalue | Vectorcast _ | Scalarcast _
+        | Probe_is_enabled _ | Opaque | Begin_region | End_region | Specific _
+        | Name_for_debugger _ | Dls_get | Poll )
+    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
       find_next_allocation (DLL.next cell))
 
 (* [find_compatible_allocations cell ~curr_mode ~curr_size] returns the
@@ -93,18 +92,18 @@ let find_compatible_allocations :
         | Lambda.Alloc_heap ->
           loop allocations (DLL.next cell) ~curr_mode ~curr_size)
       | Op Poll -> return ()
-      | Reloadretaddr | Poptrap | Prologue | Pushtrap _ ->
+      | Reloadretaddr | Poptrap | Prologue | Pushtrap _ | Stack_check _ ->
         (* CR-soon xclerc for xclerc: is it too conservative? (note: only the
            `Pushtrap` case may be too conservative) *)
         { allocations = List.rev allocations; next_cell = Some cell }
       | Op
-          ( Move | Spill | Reload | Negf | Absf | Addf | Subf | Mulf | Divf
-          | Floatofint | Intoffloat | Valueofint | Intofvalue | Vectorcast _
-          | Opaque | Const_int _ | Const_float _ | Const_vec128 _
-          | Const_symbol _ | Stackoffset _ | Load _
+          ( Move | Spill | Reload | Floatop _ | Valueofint | Intofvalue
+          | Vectorcast _ | Opaque | Const_int _ | Const_float _
+          | Const_float32 _ | Const_vec128 _ | Const_symbol _ | Stackoffset _
+          | Load _
           | Store (_, _, _)
-          | Compf _ | Csel _ | Specific _ | Name_for_debugger _
-          | Probe_is_enabled _ | Scalarcast _ | Dls_get
+          | Csel _ | Specific _ | Name_for_debugger _ | Probe_is_enabled _
+          | Scalarcast _ | Dls_get
           | Intop
               ( Iadd | Isub | Imul | Idiv | Imod | Iand | Ior | Ixor | Ilsl
               | Ilsr | Iasr | Ipopcnt | Imulh _ | Iclz _ | Ictz _ | Icomp _ )

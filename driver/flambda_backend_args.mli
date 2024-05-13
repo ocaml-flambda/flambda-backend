@@ -40,6 +40,9 @@ module type Flambda_backend_options = sig
   val cfg_cse_optimize : unit -> unit
   val no_cfg_cse_optimize : unit -> unit
 
+  val cfg_stack_checks : unit -> unit
+  val no_cfg_stack_checks : unit -> unit
+
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
 
@@ -48,9 +51,12 @@ module type Flambda_backend_options = sig
 
   val heap_reduction_threshold : int -> unit
   val zero_alloc_check : string -> unit
-  val dcheckmach : unit -> unit
-  val disable_checkmach : unit -> unit
-  val checkmach_details_cutoff : int -> unit
+
+  val dzero_alloc : unit -> unit
+  val disable_zero_alloc_checker : unit -> unit
+  val disable_precise_zero_alloc_checker : unit -> unit
+  val zero_alloc_checker_details_cutoff : int -> unit
+  val zero_alloc_checker_join : int -> unit
 
   val function_layout : string -> unit
   val disable_poll_insertion : unit -> unit
@@ -135,6 +141,8 @@ end
 module type Debugging_options = sig
   val restrict_to_upstream_dwarf : unit -> unit
   val no_restrict_to_upstream_dwarf : unit -> unit
+  val dwarf_inlined_frames : unit -> unit
+  val no_dwarf_inlined_frames : unit -> unit
   val dwarf_for_startup_file : unit -> unit
   val no_dwarf_for_startup_file : unit -> unit
   val gdwarf_may_alter_codegen : unit -> unit

@@ -120,6 +120,7 @@ let basic_or_terminator_of_operation :
   | Ispill -> Basic (Op Spill)
   | Ireload -> Basic (Op Reload)
   | Iconst_int i -> Basic (Op (Const_int i))
+  | Iconst_float32 f -> Basic (Op (Const_float32 f))
   | Iconst_float f -> Basic (Op (Const_float f))
   | Iconst_symbol s -> Basic (Op (Const_symbol s))
   | Iconst_vec128 bits -> Basic (Op (Const_vec128 bits))
@@ -171,15 +172,9 @@ let basic_or_terminator_of_operation :
   | Iintop_atomic { op; size; addr } ->
     Basic (Op (Intop_atomic { op; size; addr }))
   | Icsel tst -> Basic (Op (Csel tst))
-  | Icompf comp -> Basic (Op (Compf comp))
-  | Inegf -> Basic (Op Negf)
-  | Iabsf -> Basic (Op Absf)
-  | Iaddf -> Basic (Op Addf)
-  | Isubf -> Basic (Op Subf)
-  | Imulf -> Basic (Op Mulf)
-  | Idivf -> Basic (Op Divf)
-  | Ifloatofint -> Basic (Op Floatofint)
-  | Iintoffloat -> Basic (Op Intoffloat)
+  | Ifloatop (w, Icompf comp) -> Basic (Op (Floatop (w, Icompf comp)))
+  | Ifloatop (w, ((Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf) as op)) ->
+    Basic (Op (Floatop (w, op)))
   | Ivalueofint -> Basic (Op Valueofint)
   | Iintofvalue -> Basic (Op Intofvalue)
   | Ivectorcast cast -> Basic (Op (Vectorcast cast))
@@ -210,11 +205,12 @@ let basic_or_terminator_of_operation :
   | Idls_get -> Basic (Op Dls_get)
 
 let float_test_of_float_comparison :
+    Cmm.float_width ->
     Cmm.float_comparison ->
     label_false:Label.t ->
     label_true:Label.t ->
     Cfg.float_test =
- fun comparison ~label_false ~label_true ->
+ fun width comparison ~label_false ~label_true ->
   let lt, eq, gt, uo =
     match comparison with
     | CFeq -> label_false, label_true, label_false, label_false
@@ -228,7 +224,7 @@ let float_test_of_float_comparison :
     | CFge -> label_false, label_true, label_true, label_false
     | CFnge -> label_true, label_false, label_false, label_true
   in
-  { lt; eq; gt; uo }
+  { width; lt; eq; gt; uo }
 
 let int_test_of_integer_comparison :
     Cmm.integer_comparison ->
@@ -267,9 +263,9 @@ let terminator_of_test :
   | Iinttest comparison -> Int_test (int_test comparison None)
   | Iinttest_imm (comparison, value) ->
     Int_test (int_test comparison (Some value))
-  | Ifloattest comparison ->
+  | Ifloattest (w, comparison) ->
     Float_test
-      (float_test_of_float_comparison comparison ~label_false ~label_true)
+      (float_test_of_float_comparison w comparison ~label_false ~label_true)
   | Ioddtest -> Parity_test { ifso = label_false; ifnot = label_true }
   | Ieventest -> Parity_test { ifso = label_true; ifnot = label_false }
 
@@ -628,15 +624,17 @@ module Stack_offset_and_exn = struct
       | _ :: traps -> stack_offset, traps)
     | Op (Stackoffset n) -> stack_offset + n, traps
     | Op
-        ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_symbol _
-        | Const_vec128 _ | Load _ | Store _ | Intop _ | Intop_imm _
-        | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
-        | Floatofint | Intoffloat | Valueofint | Csel _ | Intofvalue
-        | Scalarcast _ | Vectorcast _ | Probe_is_enabled _ | Opaque
+        ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_float32 _
+        | Const_symbol _ | Const_vec128 _ | Load _ | Store _ | Intop _
+        | Intop_imm _ | Intop_atomic _ | Floatop _ | Valueofint | Csel _
+        | Intofvalue | Scalarcast _ | Vectorcast _ | Probe_is_enabled _ | Opaque
         | Begin_region | End_region | Specific _ | Name_for_debugger _ | Dls_get
         | Poll | Alloc _ )
     | Reloadretaddr | Prologue ->
       stack_offset, traps
+    | Stack_check _ ->
+      Misc.fatal_error
+        "Cfgize.Stack_offset_and_exn.process_basic: unexpected stack check"
 
   (* The argument [stack_offset] has a different meaning from the field
      [stack_offset] of Cfg's basic_blocks and instructions. The argument

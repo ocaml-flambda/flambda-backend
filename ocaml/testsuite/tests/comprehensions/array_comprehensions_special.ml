@@ -1,6 +1,6 @@
 (* TEST
-   flags = "-extension comprehensions"
-   * expect
+ flags = "-extension comprehensions";
+ expect;
 *)
 
 (* Tests for special array comprehension behavior that don't have a direct

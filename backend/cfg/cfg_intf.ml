@@ -55,6 +55,7 @@ module S = struct
     | Spill
     | Reload
     | Const_int of nativeint (* CR-someday xclerc: change to `Targetint.t` *)
+    | Const_float32 of int32
     | Const_float of int64
     | Const_symbol of Cmm.symbol
     | Const_vec128 of Cmm.vec128_bits
@@ -73,16 +74,8 @@ module S = struct
           size : Cmm.atomic_bitwidth;
           addr : Arch.addressing_mode
         }
-    | Negf
-    | Absf
-    | Addf
-    | Subf
-    | Mulf
-    | Divf
-    | Compf of Mach.float_comparison (* CR gyorsh: can merge with float_test? *)
+    | Floatop of Mach.float_width * Mach.float_operation
     | Csel of Mach.test
-    | Floatofint
-    | Intoffloat
     | Valueofint
     | Intofvalue
     | Vectorcast of Cmm.vector_cast
@@ -130,7 +123,8 @@ module S = struct
       outcomes of comparison include "unordered" (see e.g. x86-64 emitter) when
       the arguments involve NaNs. *)
   type float_test =
-    { lt : Label.t;
+    { width : Cmm.float_width;
+      lt : Label.t;
       eq : Label.t;
       gt : Label.t;
       uo : Label.t  (** if at least one of x or y is NaN *)
@@ -170,6 +164,7 @@ module S = struct
     | Pushtrap of { lbl_handler : Label.t }
     | Poptrap
     | Prologue
+    | Stack_check of { max_frame_size_bytes : int }
 
   type 'a with_label_after =
     { op : 'a;

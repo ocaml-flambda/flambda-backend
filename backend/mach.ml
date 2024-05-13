@@ -31,7 +31,13 @@ type integer_operation =
   | Ipopcnt
   | Icomp of integer_comparison
 
+type float_width = Cmm.float_width
+
 type float_comparison = Cmm.float_comparison
+
+type float_operation =
+  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Icompf of float_comparison
 
 type mutable_flag = Immutable | Mutable
 
@@ -52,7 +58,7 @@ type test =
   | Ifalsetest
   | Iinttest of integer_comparison
   | Iinttest_imm of integer_comparison * int
-  | Ifloattest of float_comparison
+  | Ifloattest of float_width * float_comparison
   | Ioddtest
   | Ieventest
 
@@ -61,6 +67,7 @@ type operation =
   | Ispill
   | Ireload
   | Iconst_int of nativeint
+  | Iconst_float32 of int32
   | Iconst_float of int64
   | Iconst_vec128 of Cmm.vec128_bits
   | Iconst_symbol of Cmm.symbol
@@ -84,10 +91,8 @@ type operation =
   | Iintop_imm of integer_operation * int
   | Iintop_atomic of { op : Cmm.atomic_op; size : Cmm.atomic_bitwidth;
                        addr : Arch.addressing_mode }
-  | Icompf of float_comparison
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Ifloatop of float_width * float_operation
   | Icsel of test
-  | Ifloatofint | Iintoffloat
   | Ivalueofint | Iintofvalue
   | Ivectorcast of Cmm.vector_cast
   | Iscalarcast of Cmm.scalar_cast
@@ -188,14 +193,14 @@ let rec instr_iter f i =
           instr_iter f body; instr_iter f handler; instr_iter f i.next
       | Iraise _ -> ()
       | Iop (Imove | Ispill | Ireload
-            | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
+            | Iconst_int _ | Iconst_float32 _ | Iconst_float _
+            | Iconst_symbol _ | Iconst_vec128 _
             | Icall_ind | Icall_imm _ | Iextcall _ | Istackoffset _
             | Iload _ | Istore _ | Ialloc _
             | Iintop _ | Iintop_imm _ | Iintop_atomic _
-            | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-            | Icompf _
+            | Ifloatop _
             | Icsel _ | Iscalarcast _
-            | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _
+            | Ivalueofint | Iintofvalue | Ivectorcast _
             | Ispecific _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
             | Iopaque
             | Ibeginregion | Iendregion | Ipoll _ | Idls_get) ->
@@ -216,11 +221,11 @@ let operation_is_pure = function
                | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _), _)
   | Iintop(Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
-  | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-  | Icompf _
+  | Imove | Ispill | Ireload | Ifloatop _
   | Icsel _
-  | Ifloatofint | Iintoffloat | Ivectorcast _ | Iscalarcast _
-  | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
+  | Ivectorcast _ | Iscalarcast _
+  | Iconst_int _ | Iconst_float _ | Iconst_float32 _
+  | Iconst_symbol _ | Iconst_vec128 _
   | Iload _ -> true
   | Iname_for_debugger _ -> false
 
@@ -235,11 +240,11 @@ let operation_can_raise op =
   | Iintop(Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
   | Iintop_atomic _
-  | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-  | Icompf _
+  | Imove | Ispill | Ireload | Ifloatop _
   | Icsel _ | Iscalarcast _
-  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _
-  | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
+  | Ivalueofint | Iintofvalue | Ivectorcast _
+  | Iconst_int _ | Iconst_float _ | Iconst_float32 _
+  | Iconst_symbol _ | Iconst_vec128 _
   | Istackoffset _ | Istore _  | Iload _ | Iname_for_debugger _
   | Itailcall_imm _ | Itailcall_ind
   | Iopaque | Ibeginregion | Iendregion
@@ -365,3 +370,25 @@ let equal_integer_operation left right =
   | Icomp _, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
              | Ilsl | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt)
   -> false
+
+let equal_float_comparison = Cmm.equal_float_comparison
+
+let equal_float_width = Cmm.equal_float_width
+
+let equal_float_operation left right =
+  match left, right with
+  | Inegf, Inegf -> true
+  | Iabsf, Iabsf -> true
+  | Iaddf, Iaddf -> true
+  | Isubf, Isubf -> true
+  | Imulf, Imulf -> true
+  | Idivf, Idivf -> true
+  | Icompf left, Icompf right -> equal_float_comparison left right
+  | Inegf, (Iabsf | Iaddf | Isubf | Imulf | Idivf | Icompf _)
+  | Iabsf, (Inegf | Iaddf | Isubf | Imulf | Idivf | Icompf _)
+  | Iaddf, (Inegf | Iabsf | Isubf | Imulf | Idivf | Icompf _)
+  | Isubf, (Inegf | Iabsf | Iaddf | Imulf | Idivf | Icompf _)
+  | Imulf, (Inegf | Iabsf | Iaddf | Isubf | Idivf | Icompf _)
+  | Idivf, (Inegf | Iabsf | Iaddf | Isubf | Imulf | Icompf _)
+  | Icompf _, (Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf)
+    -> false

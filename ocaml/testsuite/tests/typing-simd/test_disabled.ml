@@ -1,5 +1,6 @@
 (* TEST
-   * expect
+ flags = "-no-extension simd";
+ expect;
 *)
 
 type t = int8x16;;

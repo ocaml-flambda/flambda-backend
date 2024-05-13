@@ -53,6 +53,7 @@ type close_functions_result =
 type declare_const_result =
   | Field of Field_of_static_block.t
   | Unboxed_float of Numeric_types.Float_by_bit_pattern.t
+  | Unboxed_float32 of Numeric_types.Float32_by_bit_pattern.t
   | Unboxed_int32 of Numeric_types.Int32.t
   | Unboxed_int64 of Numeric_types.Int64.t
   | Unboxed_nativeint of Targetint_32_64.t
@@ -111,16 +112,19 @@ let rec declare_const acc (const : Lambda.structured_constant) :
   | Const_base (Const_char c) ->
     acc, Field (Tagged_immediate (Targetint_31_63.of_char c)), "char"
   | Const_base (Const_unboxed_float c) ->
-    let c = Numeric_types.Float_by_bit_pattern.create (float_of_string c) in
+    let c = Numeric_types.Float_by_bit_pattern.of_string c in
     acc, Unboxed_float c, "unboxed_float"
+  | Const_base (Const_unboxed_float32 c) ->
+    let c = Numeric_types.Float32_by_bit_pattern.of_string c in
+    acc, Unboxed_float32 c, "unboxed_float32"
   | Const_base (Const_string (s, _, _)) ->
     register_const acc (SC.immutable_string s) "immstring"
   | Const_base (Const_float c) ->
     let c = Numeric_types.Float_by_bit_pattern.create (float_of_string c) in
     register_const acc (SC.boxed_float (Const c)) "float"
-  | Const_base (Const_float32 _c) ->
-    (* CR mslater: (float32) middle end support *)
-    assert false
+  | Const_base (Const_float32 c) ->
+    let c = Numeric_types.Float32_by_bit_pattern.create (float_of_string c) in
+    register_const acc (SC.boxed_float32 (Const c)) "float32"
   | Const_base (Const_int32 c) ->
     register_const acc (SC.boxed_int32 (Const c)) "int32"
   | Const_base (Const_int64 c) ->
@@ -165,8 +169,8 @@ let rec declare_const acc (const : Lambda.structured_constant) :
           let acc, f, _ = declare_const acc c in
           match f with
           | Field f -> acc, f
-          | Unboxed_float _ | Unboxed_int32 _ | Unboxed_int64 _
-          | Unboxed_nativeint _ ->
+          | Unboxed_float _ | Unboxed_float32 _ | Unboxed_int32 _
+          | Unboxed_int64 _ | Unboxed_nativeint _ ->
             Misc.fatal_errorf
               "Unboxed constants are not allowed inside of Const_block: %a"
               Printlambda.structured_constant const)
@@ -190,6 +194,11 @@ let close_const0 acc (const : Lambda.structured_constant) =
       Simple.const (Reg_width_const.naked_float f),
       name,
       Flambda_kind.With_subkind.naked_float )
+  | Unboxed_float32 f ->
+    ( acc,
+      Simple.const (Reg_width_const.naked_float32 f),
+      name,
+      Flambda_kind.With_subkind.naked_float32 )
   | Unboxed_int32 i ->
     ( acc,
       Simple.const (Reg_width_const.naked_int32 i),
@@ -256,8 +265,8 @@ let find_value_approximation env simple =
     ~const:(fun const ->
       match Reg_width_const.descr const with
       | Tagged_immediate i -> Value_approximation.Value_int i
-      | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-      | Naked_vec128 _ | Naked_nativeint _ ->
+      | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+      | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ ->
         Value_approximation.Value_unknown)
 
 let find_value_approximation_through_symbol acc env simple =
@@ -322,8 +331,8 @@ module Inlining = struct
           ~are_rebuilding_terms decision;
         res
 
-  let make_inlined_body acc ~callee ~region_inlined_into ~params ~args
-      ~my_closure ~my_region ~my_depth ~body ~free_names_of_body
+  let make_inlined_body acc ~callee ~called_code_id ~region_inlined_into ~params
+      ~args ~my_closure ~my_region ~my_depth ~body ~free_names_of_body
       ~exn_continuation ~return_continuation ~apply_exn_continuation
       ~apply_return_continuation ~apply_depth ~apply_dbg =
     let rec_info =
@@ -355,16 +364,20 @@ module Inlining = struct
       acc, Expr.apply_renaming body renaming
     in
     let acc, body =
-      Inlining_helpers.make_inlined_body ~callee ~region_inlined_into ~params
-        ~args ~my_closure ~my_region ~my_depth ~rec_info ~body:(acc, body)
-        ~exn_continuation ~return_continuation ~apply_exn_continuation
-        ~apply_return_continuation ~bind_params ~bind_depth ~apply_renaming
+      Inlining_helpers.make_inlined_body ~callee ~called_code_id
+        ~region_inlined_into ~params ~args ~my_closure ~my_region ~my_depth
+        ~rec_info ~body:(acc, body) ~exn_continuation ~return_continuation
+        ~apply_exn_continuation ~apply_return_continuation ~bind_params
+        ~bind_depth ~apply_renaming
+    in
+    let inlined_debuginfo =
+      Inlined_debuginfo.create ~called_code_id ~apply_dbg
     in
     Let_with_acc.create acc
       (Bound_pattern.singleton
          (VB.create (Variable.create "inlined_dbg") Name_mode.normal))
       (Named.create_prim
-         (Nullary (Enter_inlined_apply { dbg = apply_dbg }))
+         (Nullary (Enter_inlined_apply { dbg = inlined_debuginfo }))
          Debuginfo.none)
       ~body
 
@@ -421,7 +434,8 @@ module Inlining = struct
           | Known free_names -> free_names
         in
         let make_inlined_body =
-          make_inlined_body ~callee ~region_inlined_into
+          make_inlined_body ~callee ~called_code_id:(Code.code_id code)
+            ~region_inlined_into
             ~params:(Bound_parameters.vars params)
             ~args ~my_closure ~my_region ~my_depth ~body ~free_names_of_body
             ~exn_continuation ~return_continuation ~apply_depth ~apply_dbg
@@ -512,8 +526,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     | _, Same_as_ocaml_repr _ -> None
     | _, Unboxed_float Pfloat64 -> Some (P.Box_number (Naked_float, alloc_mode))
     | _, Unboxed_float Pfloat32 ->
-      (* CR mslater: (float32) middle end support *)
-      assert false
+      Some (P.Box_number (Naked_float32, alloc_mode))
     | _, Unboxed_integer Pnativeint ->
       Some (P.Box_number (Naked_nativeint, alloc_mode))
     | _, Unboxed_integer Pint32 -> Some (P.Box_number (Naked_int32, alloc_mode))
@@ -542,9 +555,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
           (from_lambda_values_and_unboxed_numbers_only
              (Typeopt.layout_of_const_sort sort)))
     | Unboxed_float Pfloat64 -> K.naked_float
-    | Unboxed_float Pfloat32 ->
-      (* CR mslater: (float32) middle end support *)
-      assert false
+    | Unboxed_float Pfloat32 -> K.naked_float32
     | Unboxed_integer Pnativeint -> K.naked_nativeint
     | Unboxed_integer Pint32 -> K.naked_int32
     | Unboxed_integer Pint64 -> K.naked_int64
@@ -634,9 +645,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
           match arg_repr with
           | _, Same_as_ocaml_repr _ -> None
           | _, Unboxed_float Pfloat64 -> Some (P.Unbox_number Naked_float)
-          | _, Unboxed_float Pfloat32 ->
-            (* CR mslater: (float32) middle end support *)
-            assert false
+          | _, Unboxed_float Pfloat32 -> Some (P.Unbox_number Naked_float32)
           | _, Unboxed_integer Pnativeint ->
             Some (P.Unbox_number Naked_nativeint)
           | _, Unboxed_integer Pint32 -> Some (P.Unbox_number Naked_int32)
@@ -795,8 +804,9 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Some exn_continuation -> exn_continuation
     in
     close_raise0 acc env ~raise_kind ~arg ~dbg exn_continuation
-  | (Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _ | Pmakearray _), []
-    ->
+  | ( ( Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _ | Pmakearray _
+      | Pmakemixedblock _ ),
+      [] ) ->
     (* Special case for liftable empty block or array *)
     let acc, sym =
       match prim with
@@ -814,6 +824,8 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
         Misc.fatal_error "Unexpected empty float block in [Closure_conversion]"
       | Pmakeufloatblock _ ->
         Misc.fatal_error "Unexpected empty float# block in [Closure_conversion]"
+      | Pmakemixedblock _ ->
+        Misc.fatal_error "Unexpected empty mixed block in [Closure_conversion]"
       | Pmakearray (array_kind, _, _mode) ->
         let array_kind = Empty_array_kind.of_lambda array_kind in
         register_const0 acc (Static_const.empty_array array_kind) "empty_array"
@@ -822,11 +834,12 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _
       | Pfloatfield _ | Psetfloatfield _ | Pduprecord _ | Pccall _ | Praise _
       | Pufloatfield _ | Psetufloatfield _ | Psequand | Psequor | Pnot | Pnegint
-      | Paddint | Psubint | Pmulint | Pdivint _ | Pmodint _ | Pandint | Porint
-      | Pxorint | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
-      | Pcompare_floats _ | Pcompare_bints _ | Poffsetint _ | Poffsetref _
-      | Pintoffloat _
+      | Pmixedfield _ | Psetmixedfield _ | Paddint | Psubint | Pmulint
+      | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
+      | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats _
+      | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat _
       | Pfloatofint (_, _)
+      | Pfloatoffloat32 _ | Pfloat32offloat _
       | Pnegfloat (_, _)
       | Pabsfloat (_, _)
       | Paddfloat (_, _)
@@ -1011,6 +1024,22 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
            generated. *)
         body acc body_env
       | _ -> (
+        (match defining_expr with
+        | Prim (prim, _) ->
+          let kind = Flambda_kind.With_subkind.kind kind in
+          let result_kind =
+            match Flambda_primitive.result_kind prim with
+            | Unit -> Flambda_kind.value
+            | Singleton result_kind -> result_kind
+          in
+          if not (Flambda_kind.equal kind result_kind)
+          then
+            Misc.fatal_errorf
+              "Incompatible kinds when binding %a: this variable has kind %a, \
+               but is bound to the result of %a which has kind %a@."
+              Variable.print var Flambda_kind.print kind Flambda_primitive.print
+              prim Flambda_kind.print result_kind
+        | Simple _ | Static_consts _ | Set_of_closures _ | Rec_info _ -> ());
         let bound_pattern =
           Bound_pattern.singleton (VB.create var Name_mode.normal)
         in
@@ -1827,7 +1856,10 @@ let make_unboxed_function_wrapper acc function_slot params params_arity
       ~stub:true ~inline:Inline_attribute.Default_inline
       ~poll_attribute:
         (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
-      ~check:(Check_attribute.from_lambda (Function_decl.check_attribute decl))
+      ~zero_alloc_attribute:
+        (Zero_alloc_attribute.from_lambda
+           (Function_decl.zero_alloc_attribute decl)
+           (Debuginfo.Scoped_location.to_location (Function_decl.loc decl)))
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~is_opaque:false ~recursive ~newer_version_of:None ~cost_metrics
       ~inlining_arguments:(Inlining_arguments.create ~round:0)
@@ -2113,19 +2145,22 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
   let contains_subfunctions = Acc.seen_a_function acc in
   let cost_metrics = Acc.cost_metrics acc in
   let inline : Inline_attribute.t =
-    (* We make a decision based on [fallback_inlining_heuristic] here to try to
-       mimic Closure's behaviour as closely as possible, particularly when there
-       are functions involving constant closures, which are not lifted during
-       Closure (but will prevent inlining) but will likely have been lifted by
-       our other check in [Inlining_cost] (thus preventing us seeing they were
-       originally there). Note that while Closure never marks as inlinable
-       functions in a set a recursive definitions with more than one function,
-       we do not try to reproduce this particular property and can mark as
-       inlinable such functions. *)
-    if contains_subfunctions
-       && Flambda_features.Expert.fallback_inlining_heuristic ()
-    then Never_inline
-    else Inline_attribute.from_lambda (Function_decl.inline decl)
+    match Inline_attribute.from_lambda (Function_decl.inline decl) with
+    | (Always_inline | Available_inline | Never_inline) as attr -> attr
+    | (Unroll _ | Default_inline) as attr ->
+      (* We make a decision based on [fallback_inlining_heuristic] here to try
+         to mimic Closure's behaviour as closely as possible, particularly when
+         there are functions involving constant closures, which are not lifted
+         during Closure (but will prevent inlining) but will likely have been
+         lifted by our other check in [Inlining_cost] (thus preventing us seeing
+         they were originally there). Note that while Closure never marks as
+         inlinable functions in a set a recursive definitions with more than one
+         function, we do not try to reproduce this particular property and can
+         mark as inlinable such functions. *)
+      if contains_subfunctions
+         && Flambda_features.Expert.fallback_inlining_heuristic ()
+      then (* CR vlaviron: Store reason *) Never_inline
+      else attr
   in
   let free_names_of_body = Acc.free_names acc in
   let params_and_body =
@@ -2160,9 +2195,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
   in
   let inlining_decision =
     if Flambda_features.classic_mode ()
-    then Inlining.definition_inlining_decision inline cost_metrics
-    else if stub
-    then Function_decl_inlining_decision_type.Stub
+    then Inlining.definition_inlining_decision inline cost_metrics ~stub
     else Function_decl_inlining_decision_type.Not_yet_decided
   in
   let loopify : Loopify_attribute.t =
@@ -2191,7 +2224,10 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
       ~stub ~inline
       ~poll_attribute:
         (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
-      ~check:(Check_attribute.from_lambda (Function_decl.check_attribute decl))
+      ~zero_alloc_attribute:
+        (Zero_alloc_attribute.from_lambda
+           (Function_decl.zero_alloc_attribute decl)
+           (Debuginfo.Scoped_location.to_location (Function_decl.loc decl)))
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~is_opaque:(Function_decl.is_opaque decl)
       ~recursive ~newer_version_of:None ~cost_metrics
@@ -2230,7 +2266,9 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
     else meta
   in
   let acc = Acc.add_code ~code_id ~code acc in
-  let acc = Acc.with_seen_a_function acc true in
+  let acc =
+    if has_lifted_closure then acc else Acc.with_seen_a_function acc true
+  in
   ( acc,
     ( Function_slot.Map.add function_slot approx by_function_slot,
       function_code_ids ) )
@@ -2316,8 +2354,10 @@ let close_functions acc external_env ~current_region function_declarations =
         let poll_attribute =
           Poll_attribute.from_lambda (Function_decl.poll_attribute decl)
         in
-        let check =
-          Check_attribute.from_lambda (Function_decl.check_attribute decl)
+        let zero_alloc_attribute =
+          Zero_alloc_attribute.from_lambda
+            (Function_decl.zero_alloc_attribute decl)
+            (Debuginfo.Scoped_location.to_location (Function_decl.loc decl))
         in
         let cost_metrics = Cost_metrics.zero in
         let dbg = Debuginfo.from_location (Function_decl.loc decl) in
@@ -2334,8 +2374,8 @@ let close_functions acc external_env ~current_region function_declarations =
             ~result_mode:(Function_decl.result_mode decl)
             ~contains_no_escaping_local_allocs:
               (Function_decl.contains_no_escaping_local_allocs decl)
-            ~stub:(Function_decl.stub decl) ~inline:Never_inline ~check
-            ~poll_attribute
+            ~stub:(Function_decl.stub decl) ~inline:Never_inline
+            ~zero_alloc_attribute ~poll_attribute
             ~is_a_functor:(Function_decl.is_a_functor decl)
             ~is_opaque:(Function_decl.is_opaque decl)
             ~recursive:(Function_decl.recursive decl)
@@ -2667,7 +2707,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
       { inline = Default_inline;
         specialise = Default_specialise;
         local = Default_local;
-        check = Default_check;
+        zero_alloc = Default_zero_alloc;
         loop = Default_loop;
         is_a_functor = false;
         is_opaque = false;
@@ -2693,35 +2733,38 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   in
   if not (Lambda.sub_mode closure_alloc_mode apply.IR.mode)
   then
-    Misc.fatal_errorf "Partial application of %a with wrong mode at %s"
-      Ident.print apply.IR.func
-      (Debuginfo.Scoped_location.string_of_scoped_location apply.IR.loc);
-  let function_declarations =
-    [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~function_slot
-        ~kind:
-          (Lambda.Curried
-             { nlocal =
-                 Flambda_arity.num_params missing_arity
-                 - first_complex_local_param
-             })
-        ~params ~params_arity ~removed_params:Ident.Set.empty
-        ~return:result_arity ~calling_convention:Normal_calling_convention
-        ~return_continuation ~exn_continuation ~my_region:apply.region
-        ~body:fbody ~attr ~loc:apply.loc ~free_idents_of_body
-        ~closure_alloc_mode ~first_complex_local_param ~result_mode
-        ~contains_no_escaping_local_allocs Recursive.Non_recursive ]
-  in
-  let body acc env =
-    let arg = find_simple_from_id env wrapper_id in
-    let acc, apply_cont =
-      Apply_cont_with_acc.create acc
-        ~args_approx:[find_value_approximation env arg]
-        apply_continuation ~args:[arg] ~dbg:Debuginfo.none
+    (* This can happen in a dead GADT match case. *)
+    ( acc,
+      Expr.create_invalid
+        (Partial_application_mode_mismatch_in_lambda
+           (Debuginfo.from_location apply.loc)) )
+  else
+    let function_declarations =
+      [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~function_slot
+          ~kind:
+            (Lambda.Curried
+               { nlocal =
+                   Flambda_arity.num_params missing_arity
+                   - first_complex_local_param
+               })
+          ~params ~params_arity ~removed_params:Ident.Set.empty
+          ~return:result_arity ~calling_convention:Normal_calling_convention
+          ~return_continuation ~exn_continuation ~my_region:apply.region
+          ~body:fbody ~attr ~loc:apply.loc ~free_idents_of_body
+          ~closure_alloc_mode ~first_complex_local_param ~result_mode
+          ~contains_no_escaping_local_allocs Recursive.Non_recursive ]
     in
-    Expr_with_acc.create_apply_cont acc apply_cont
-  in
-  close_let_rec acc env ~function_declarations ~body
-    ~current_region:apply.region
+    let body acc env =
+      let arg = find_simple_from_id env wrapper_id in
+      let acc, apply_cont =
+        Apply_cont_with_acc.create acc
+          ~args_approx:[find_value_approximation env arg]
+          apply_continuation ~args:[arg] ~dbg:Debuginfo.none
+      in
+      Expr_with_acc.create_apply_cont acc apply_cont
+    in
+    close_let_rec acc env ~function_declarations ~body
+      ~current_region:apply.region
 
 let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
     ~remaining_arity ~result_mode =

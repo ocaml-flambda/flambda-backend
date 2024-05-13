@@ -25,16 +25,25 @@ val program: formatter -> program -> unit
 val primitive: formatter -> primitive -> unit
 val name_of_primitive : primitive -> string
 val variant_kind : (formatter -> value_kind -> unit) ->
-  formatter -> consts:int list -> non_consts:(int * value_kind list) list ->
+  formatter -> consts:int list -> non_consts:(int * constructor_shape) list ->
   unit
 val value_kind : formatter -> value_kind -> unit
 val value_kind' : formatter -> value_kind -> unit
 val layout : formatter -> layout -> unit
 val block_shape : formatter -> value_kind list option -> unit
+val flat_element : formatter -> flat_element -> unit
+val flat_element_read : formatter -> flat_element_read -> unit
+val mixed_block_read : formatter -> mixed_block_read -> unit
+val mixed_block_write : formatter -> mixed_block_write -> unit
+val mixed_block_shape : formatter -> mixed_block_shape -> unit
 val record_rep : formatter -> Types.record_representation -> unit
 val print_bigarray :
   string -> bool -> Lambda.bigarray_kind -> formatter ->
   Lambda.bigarray_layout -> unit
-val check_attribute : formatter -> check_attribute -> unit
+val zero_alloc_attribute : formatter -> zero_alloc_attribute -> unit
 val alloc_mode : formatter -> alloc_mode -> unit
 val array_kind : array_kind -> string
+
+val tag_and_constructor_shape :
+  (formatter -> value_kind -> unit) ->
+  formatter -> int * constructor_shape -> unit

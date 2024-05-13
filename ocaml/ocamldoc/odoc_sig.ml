@@ -440,7 +440,7 @@ module Analyser =
       let comment_opt = analyze_alerts comment_opt ld_attributes in
       {
         rf_name = field_name ;
-        rf_mutable = mutable_flag = Mutable ;
+        rf_mutable = Types.is_mutable mutable_flag;
         rf_type = Odoc_env.subst_type env type_expr ;
         rf_text = comment_opt
       }
@@ -1851,10 +1851,10 @@ module Analyser =
           in
           ([], Class_structure (inher_l, ele))
 
-      | (Parsetree.Pcty_arrow (parse_label, _, pclass_type), Types.Cty_arrow (label, type_expr, class_type)) ->
+      | (Parsetree.Pcty_arrow (parse_label, type_, pclass_type), Types.Cty_arrow (label, type_expr, class_type)) ->
           (* label = string. In signature, there is no parameter names inside tuples *)
           (* if label = "", no label . Here we have the information to determine if a label is explicit or not. *)
-          if parse_label = label then
+          if (Typetexp.transl_label parse_label (Some type_)) = label then
             (
              let new_param = Simple_name
                  {

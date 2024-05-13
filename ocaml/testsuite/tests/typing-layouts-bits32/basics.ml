@@ -1,9 +1,13 @@
 (* TEST
-   * expect
-   * expect
-   flags = "-extension layouts_alpha"
-   * expect
-   flags = "-extension layouts_beta"
+ {
+   expect;
+ }{
+   flags = "-extension layouts_alpha";
+   expect;
+ }{
+   flags = "-extension layouts_beta";
+   expect;
+ }
 *)
 
 (* This file contains typing tests for the layout [bits32].
@@ -195,38 +199,13 @@ Error: This type ('b : value) should be an instance of type ('a : bits32)
          it's the type of a tuple element.
 |}]
 
-(****************************************************)
-(* Test 5: Can't be put in structures in typedecls. *)
+(*********************************************************)
+(* Test 5: Allowed in some structures in typedecls. *)
 
-type t5_1 = { x : t_bits32 };;
-[%%expect{|
-Line 1, characters 14-26:
-1 | type t5_1 = { x : t_bits32 };;
-                  ^^^^^^^^^^^^
-Error: Type t_bits32 has layout bits32.
-       Records may not yet contain types of this layout.
-|}];;
-
-(* CR layouts v5: this should work *)
-type t5_2 = { y : int; x : t_bits32 };;
-[%%expect{|
-Line 1, characters 23-35:
-1 | type t5_2 = { y : int; x : t_bits32 };;
-                           ^^^^^^^^^^^^
-Error: Type t_bits32 has layout bits32.
-       Records may not yet contain types of this layout.
-|}];;
-
-(* CR layouts: this runs afoul of the mixed block restriction, but should work
-   once we relax that. *)
-type t5_2' = { y : string; x : t_bits32 };;
-[%%expect{|
-Line 1, characters 27-39:
-1 | type t5_2' = { y : string; x : t_bits32 };;
-                               ^^^^^^^^^^^^
-Error: Type t_bits32 has layout bits32.
-       Records may not yet contain types of this layout.
-|}];;
+(* For the structures they can be put in, see [basics_alpha.ml].
+   They're separate because mixed blocks requires alpha at the
+   moment.
+ *)
 
 (* CR layouts 2.5: allow this *)
 type t5_3 = { x : t_bits32 } [@@unboxed];;
@@ -238,43 +217,14 @@ Error: Type t_bits32 has layout bits32.
        Unboxed records may not yet contain types of this layout.
 |}];;
 
-type t5_4 = A of t_bits32;;
-[%%expect{|
-Line 1, characters 12-25:
-1 | type t5_4 = A of t_bits32;;
-                ^^^^^^^^^^^^^
-Error: Type t_bits32 has layout bits32.
-       Variants may not yet contain types of this layout.
-|}];;
-
-type t5_5 = A of int * t_bits32;;
-[%%expect{|
-Line 1, characters 12-31:
-1 | type t5_5 = A of int * t_bits32;;
-                ^^^^^^^^^^^^^^^^^^^
-Error: Type t_bits32 has layout bits32.
-       Variants may not yet contain types of this layout.
-|}];;
-
 type t5_6 = A of t_bits32 [@@unboxed];;
 [%%expect{|
 Line 1, characters 12-25:
 1 | type t5_6 = A of t_bits32 [@@unboxed];;
                 ^^^^^^^^^^^^^
 Error: Type t_bits32 has layout bits32.
-       Variants may not yet contain types of this layout.
+       Unboxed variants may not yet contain types of this layout.
 |}];;
-
-type ('a : bits32) t5_7 = A of int
-type ('a : bits32) t5_8 = A of 'a;;
-[%%expect{|
-type ('a : bits32) t5_7 = A of int
-Line 2, characters 26-33:
-2 | type ('a : bits32) t5_8 = A of 'a;;
-                              ^^^^^^^
-Error: Type 'a has layout bits32.
-       Variants may not yet contain types of this layout.
-|}]
 
 (****************************************************)
 (* Test 6: Can't be put at top level of signatures. *)
@@ -515,45 +465,11 @@ Error: Don't know how to untag this type. Only int can be untagged.
 |}];;
 
 (*******************************************************)
-(* Test 11: Don't allow bits32 in extensible variants *)
+(* Test 11: Allow bits32 in some extensible variants *)
 
-type t11_1 = ..
-
-type t11_1 += A of t_bits32;;
-[%%expect{|
-type t11_1 = ..
-Line 3, characters 14-27:
-3 | type t11_1 += A of t_bits32;;
-                  ^^^^^^^^^^^^^
-Error: Type t_bits32 has layout bits32.
-       Variants may not yet contain types of this layout.
-|}]
-
-type t11_1 += B of int32#;;
-[%%expect{|
-Line 1, characters 14-25:
-1 | type t11_1 += B of int32#;;
-                  ^^^^^^^^^^^
-Error: Type int32# has layout bits32.
-       Variants may not yet contain types of this layout.
-|}]
-
-type ('a : bits32) t11_2 = ..
-
-type 'a t11_2 += A of int
-
-type 'a t11_2 += B of 'a;;
-
-[%%expect{|
-type ('a : bits32) t11_2 = ..
-type 'a t11_2 += A of int
-Line 5, characters 17-24:
-5 | type 'a t11_2 += B of 'a;;
-                     ^^^^^^^
-Error: Type 'a has layout bits32.
-       Variants may not yet contain types of this layout.
-|}]
-
+(* See [basics_alpha.ml] for these while mixed blocks are
+   in alpha.
+*)
 (***************************************)
 (* Test 12: bits32 in objects/classes *)
 

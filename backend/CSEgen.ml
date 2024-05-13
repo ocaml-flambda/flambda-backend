@@ -56,7 +56,8 @@ class cse_generic = object (self)
 method class_of_operation op =
   match op with
   | Imove | Ispill | Ireload -> assert false   (* treated specially *)
-  | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _ -> Op_pure
+  | Iconst_int _ | Iconst_float32 _ | Iconst_float _
+  | Iconst_symbol _ | Iconst_vec128 _ -> Op_pure
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Iextcall _ | Iprobe _ | Iopaque -> assert false  (* treated specially *)
   | Istackoffset _ -> Op_other
@@ -71,10 +72,10 @@ method class_of_operation op =
   | Iintop _ -> Op_pure
   | Iintop_imm(_, _) -> Op_pure
   | Iintop_atomic _ -> Op_store true
-  | Icompf _
+  | Ifloatop _
   | Icsel _
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf | Iscalarcast _
-  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _ -> Op_pure
+  | Iscalarcast _
+  | Ivalueofint | Iintofvalue | Ivectorcast _ -> Op_pure
   | Ispecific _ -> Op_other
   | Iname_for_debugger _ -> Op_other
   | Iprobe_is_enabled _ -> Op_other

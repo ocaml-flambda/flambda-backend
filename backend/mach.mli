@@ -35,6 +35,12 @@ type integer_operation =
 
 type float_comparison = Cmm.float_comparison
 
+type float_width = Cmm.float_width
+
+type float_operation =
+  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Icompf of float_comparison
+
 type mutable_flag = Immutable | Mutable
 
 val of_ast_mutable_flag : Asttypes.mutable_flag -> mutable_flag
@@ -45,7 +51,7 @@ type test =
   | Ifalsetest
   | Iinttest of integer_comparison
   | Iinttest_imm of integer_comparison * int
-  | Ifloattest of float_comparison
+  | Ifloattest of float_width * float_comparison
   | Ioddtest
   | Ieventest
 
@@ -54,6 +60,7 @@ type operation =
   | Ispill
   | Ireload
   | Iconst_int of nativeint
+  | Iconst_float32 of int32
   | Iconst_float of int64
   | Iconst_vec128 of Cmm.vec128_bits
   | Iconst_symbol of Cmm.symbol
@@ -78,10 +85,8 @@ type operation =
   | Iintop_imm of integer_operation * int
   | Iintop_atomic of { op : Cmm.atomic_op; size : Cmm.atomic_bitwidth;
                        addr : Arch.addressing_mode }
-  | Icompf of float_comparison
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Ifloatop of float_width * float_operation
   | Icsel of test
-  | Ifloatofint | Iintoffloat
   | Ivalueofint | Iintofvalue
   | Ivectorcast of Cmm.vector_cast
   | Iscalarcast of Cmm.scalar_cast
@@ -158,3 +163,7 @@ val equal_trap_stack : trap_stack -> trap_stack -> bool
 
 val equal_integer_comparison : integer_comparison -> integer_comparison -> bool
 val equal_integer_operation : integer_operation -> integer_operation -> bool
+
+val equal_float_width : float_width -> float_width -> bool
+val equal_float_comparison : float_comparison -> float_comparison -> bool
+val equal_float_operation : float_operation -> float_operation -> bool

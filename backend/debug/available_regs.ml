@@ -222,10 +222,9 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
         Some (ok avail_across), ok avail_after
       | Iop
           (( Icall_ind | Icall_imm _ | Ialloc _ | Ipoll _ | Iprobe _
-           | Iconst_int _ | Iconst_float _ | Iconst_vec128 _ | Iconst_symbol _
-           | Iextcall _ | Istackoffset _ | Iload _ | Istore _ | Iintop _
-           | Iintop_imm _ | Iintop_atomic _ | Icompf _ | Inegf | Iabsf | Iaddf
-           | Isubf | Imulf | Idivf | Icsel _ | Ifloatofint | Iintoffloat
+           | Iconst_int _ | Iconst_float _ | Iconst_float32 _ | Iconst_vec128 _
+           | Iconst_symbol _ | Iextcall _ | Istackoffset _ | Iload _ | Istore _
+           | Iintop _ | Iintop_imm _ | Iintop_atomic _ | Ifloatop _ | Icsel _
            | Ivalueofint | Iintofvalue | Iopaque | Ispecific _ | Iscalarcast _
            | Ivectorcast _ | Iprobe_is_enabled _ | Ibeginregion | Iendregion
            | Idls_get ) as op) ->
@@ -271,7 +270,7 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
                 let reg_is_of_type_addr =
                   match (RD.reg reg).typ with
                   | Addr -> true
-                  | Val | Int | Float | Vec128 -> false
+                  | Val | Int | Float | Vec128 | Float32 -> false
                 in
                 if remains_available
                    || (not (extend_live ()))
@@ -285,10 +284,9 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
                   false))
               avail_before
           | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _
-          | Iconst_vec128 _ | Iconst_symbol _ | Itailcall_ind | Itailcall_imm _
-          | Iextcall _ | Istackoffset _ | Iload _ | Istore _ | Iintop _
-          | Iintop_imm _ | Iintop_atomic _ | Icompf _ | Inegf | Iabsf | Iaddf
-          | Isubf | Imulf | Idivf | Icsel _ | Ifloatofint | Iintoffloat
+          | Iconst_float32 _ | Iconst_vec128 _ | Iconst_symbol _ | Itailcall_ind
+          | Itailcall_imm _ | Iextcall _ | Istackoffset _ | Iload _ | Istore _
+          | Iintop _ | Iintop_imm _ | Iintop_atomic _ | Ifloatop _ | Icsel _
           | Ivalueofint | Iintofvalue | Iopaque | Ispecific _ | Iscalarcast _
           | Ivectorcast _ | Iname_for_debugger _ | Iprobe_is_enabled _
           | Ibeginregion | Idls_get ->

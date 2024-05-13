@@ -108,6 +108,8 @@ CAMLexport value caml_alloc_custom_mem(const struct custom_operations * ops,
   mlsize_t max_minor =
     Bsize_wsize (Caml_state->minor_heap_wsz) / 100 * caml_custom_minor_ratio;
   value v = alloc_custom_gen (ops, bsz, mem, max_major, mem_minor, max_minor);
+  size_t mem_words = (mem + sizeof(value) - 1) / sizeof(value);
+  caml_memprof_sample_block(v, mem_words, mem_words, CAML_MEMPROF_SRC_CUSTOM);
   return v;
 }
 
@@ -178,4 +180,5 @@ void caml_init_custom_operations(void)
   caml_register_custom_operations(&caml_nativeint_ops);
   caml_register_custom_operations(&caml_int64_ops);
   caml_register_custom_operations(&caml_ba_ops);
+  caml_register_custom_operations(&caml_float32_ops);
 }

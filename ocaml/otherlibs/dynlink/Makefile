@@ -68,6 +68,7 @@ COMPILERLIBS_INTFS=\
   typing/solver_intf.mli \
   typing/mode_intf.mli \
   typing/outcometree.mli \
+  typing/value_rec_types.mli \
   file_formats/cmo_format.mli \
   file_formats/cmxs_format.mli \
   bytecomp/debug_event.mli
@@ -83,8 +84,9 @@ COMPILERLIBS_SOURCES=\
   utils/numbers.ml \
   utils/arg_helper.ml \
   utils/local_store.ml \
-  utils/load_path.ml \
   utils/clflags.ml \
+  utils/load_path.ml \
+  utils/zero_alloc_annotations.ml \
   utils/debug.ml \
   utils/language_extension_kernel.ml \
   utils/language_extension.ml \
@@ -99,6 +101,7 @@ COMPILERLIBS_SOURCES=\
   utils/linkage_name.ml \
   utils/symbol.ml \
   utils/lazy_backtrack.ml \
+  utils/zero_alloc_utils.ml \
   parsing/location.ml \
   parsing/longident.ml \
   parsing/docstrings.ml \
@@ -116,9 +119,10 @@ COMPILERLIBS_SOURCES=\
   typing/mode.ml \
   typing/path.ml \
   typing/shape.ml \
-  typing/jkind.ml \
+  typing/jkind_types.ml \
   typing/primitive.ml \
   typing/types.ml \
+  typing/jkind.ml \
   typing/typedtree.ml \
   typing/btype.ml \
   typing/subst.ml \
@@ -127,6 +131,7 @@ COMPILERLIBS_SOURCES=\
   file_formats/cmi_format.ml \
   typing/persistent_env.ml \
   typing/env.ml \
+  typing/shape_reduce.ml \
   lambda/debuginfo.ml \
   lambda/lambda.ml \
   lambda/runtimedef.ml \

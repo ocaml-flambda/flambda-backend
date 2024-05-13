@@ -130,7 +130,7 @@ end = struct
   let tmc_placeholder =
     (* we choose a placeholder whose tagged representation will be
        reconizable. *)
-    Lconst (Const_base (Const_int (0xBBBB / 2)))
+    Lambda.dummy_constant
 
   let with_placeholder constr (body : offset destination -> lambda) =
     let k_with_placeholder =
@@ -169,7 +169,7 @@ end = struct
       List.fold_right (fun binding body ->
           match binding with
           | None -> body
-          | Some (v, lam) -> Llet(Strict, Lambda.layout_field, v, lam, body)
+          | Some (v, lam) -> Llet(Strict, Lambda.layout_tmc_field, v, lam, body)
         ) bindings body in
     fun ~block_id constr body ->
     bind_list ~block_id ~arg_offset:0 constr.before @@ fun vbefore ->
@@ -879,6 +879,7 @@ let rec choice ctx t =
     | Psetfield _ | Psetfield_computed _
     | Pfloatfield _ | Psetfloatfield _
     | Pufloatfield _ | Psetufloatfield _
+    | Pmixedfield _  | Psetmixedfield _
     | Pccall _
     | Praise _
     | Pnot
@@ -888,6 +889,7 @@ let rec choice ctx t =
     | Pintcomp _ | Punboxed_int_comp _
     | Poffsetint _ | Poffsetref _
     | Pintoffloat _ | Pfloatofint (_, _)
+    | Pfloatoffloat32 _ | Pfloat32offloat _
     | Pnegfloat (_, _) | Pabsfloat (_, _)
     | Paddfloat (_, _) | Psubfloat (_, _)
     | Pmulfloat (_, _) | Pdivfloat (_, _)
@@ -913,9 +915,12 @@ let rec choice ctx t =
     (* we don't handle { foo with x = ...; y = recursive-call } *)
     | Pduprecord _
 
-    (* we don't handle all-float records *)
+    (* we don't handle all-float records or mixed blocks. If we
+       did, we'd need to remove references to Lambda.layout_tmc_field
+    *)
     | Pmakefloatblock _
     | Pmakeufloatblock _
+    | Pmakemixedblock _
 
     (* nor unboxed products *)
     | Pmake_unboxed_product _ | Punboxed_product_field _
@@ -985,20 +990,43 @@ and traverse ctx = function
   | lam ->
       shallow_map ~tail:(traverse ctx) ~non_tail:(traverse ctx) lam
 
+and traverse_lfunction ctx lfun =
+  map_lfunction (traverse ctx) lfun
+
 and traverse_let outer_ctx var def =
   let inner_ctx = declare_binding outer_ctx (var, def) in
-  let bindings = traverse_binding outer_ctx inner_ctx (var, def) in
+  let bindings =
+    traverse_let_binding outer_ctx inner_ctx var def
+  in
   inner_ctx, bindings
 
 and traverse_letrec ctx bindings =
-  let ctx = List.fold_left declare_binding ctx bindings in
-  let bindings = List.concat_map (traverse_binding ctx ctx) bindings in
+  let ctx =
+    List.fold_left (fun ctx { id; def } ->
+        declare_binding ctx (id, Lfunction def)
+      ) ctx bindings
+  in
+  let bindings =
+    List.concat_map (traverse_letrec_binding ctx) bindings
+  in
   ctx, bindings
 
-and traverse_binding outer_ctx inner_ctx (var, def) =
+and traverse_let_binding outer_ctx inner_ctx var def =
   match find_candidate def with
-  | None -> [(var, traverse outer_ctx def)]
+  | None -> [ var, traverse outer_ctx def ]
   | Some lfun ->
+      let functions = make_dps_variant var inner_ctx outer_ctx lfun in
+      List.map (fun (var, lfun) -> var, Lfunction lfun) functions
+
+and traverse_letrec_binding ctx { id; def } =
+  if def.attr.tmc_candidate
+  then
+    let functions = make_dps_variant id ctx ctx def in
+    List.map (fun (id, def) -> { id; def }) functions
+  else
+    [ { id; def = traverse_lfunction ctx def } ]
+
+and make_dps_variant var inner_ctx outer_ctx (lfun : lfunction) =
   let special = Ident.Map.find var inner_ctx.specialized in
   let fun_choice = choice outer_ctx ~tail:true lfun.body in
   if fun_choice.Choice.tmc_calls = [] then
@@ -1008,7 +1036,7 @@ and traverse_binding outer_ctx inner_ctx (var, def) =
   let direct =
     let { kind; params; return; body = _; attr; loc; mode; ret_mode; region } = lfun in
     let body = Choice.direct fun_choice in
-    lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region in
+    lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region in
   let dps =
     let dst_param = {
       var = Ident.create_local "dst";
@@ -1028,7 +1056,7 @@ and traverse_binding outer_ctx inner_ctx (var, def) =
          (* Prepending arguments does not affect nlocal *)
          k
     in
-    Lambda.duplicate @@ lfunction
+    Lambda.duplicate_function @@ lfunction'
       ~kind
       ~params
       ~return:lfun.return
@@ -1040,7 +1068,7 @@ and traverse_binding outer_ctx inner_ctx (var, def) =
       ~region:true
   in
   let dps_var = special.dps_id in
-  [(var, direct); (dps_var, dps)]
+  [var, direct; dps_var, dps]
 
 and traverse_list ctx terms =
   List.map (traverse ctx) terms

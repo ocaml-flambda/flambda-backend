@@ -33,8 +33,8 @@ type constant =
   | Const_string of string * Location.t * string option
   | Const_float of string
   | Const_float32 of string
-  (* CR mslater: (float32) unboxed float32 *)
   | Const_unboxed_float of string
+  | Const_unboxed_float32 of string
   | Const_int32 of int32
   | Const_int64 of int64
   (* CR mshinwell: This should use [Targetint.t] not [nativeint] *)
@@ -71,6 +71,14 @@ type _ pattern_category =
 type unique_barrier = Mode.Uniqueness.r option
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
+
+type texp_field_boxing =
+  | Boxing of Mode.Alloc.r * unique_use
+  (** Projection requires boxing. [unique_use] describes the usage of the
+      unboxed field as argument to boxing. *)
+  | Non_boxing of unique_use
+  (** Projection does not require boxing. [unique_use] describes the usage of
+      the field as the result of direct projection. *)
 
 val shared_many_use : unique_use
 
@@ -155,7 +163,7 @@ and 'k pattern_desc =
             Invariant: n > 0
          *)
   | Tpat_array :
-      mutable_flag * Jkind.sort * value general_pattern list -> value pattern_desc
+      Types.mutability * Jkind.sort * value general_pattern list -> value pattern_desc
         (** [| P1; ...; Pn |]    (flag = Mutable)
             [: P1; ...; Pn :]    (flag = Immutable) *)
   | Tpat_lazy : value general_pattern -> value pattern_desc
@@ -216,6 +224,12 @@ and exp_extra =
    the syntax changes.
 *)
 
+and arg_label = Types.arg_label =
+  | Nolabel
+  | Labelled of string
+  | Optional of string
+  | Position of string
+
 (** Jkinds in the typed tree: Compilation of the typed tree to lambda
     sometimes requires jkind information.  Our approach is to
     propagate jkind information inward during compilation.  This
@@ -250,8 +264,10 @@ and expression_desc =
         (* Mode where the function allocates, ie local for a function of
            type 'a -> local_ 'b, and heap for a function of type 'a -> 'b *)
         ret_sort : Jkind.sort;
-        alloc_mode : Mode.Alloc.r
+        alloc_mode : Mode.Alloc.r;
         (* Mode at which the closure is allocated *)
+        zero_alloc : Builtin_attributes.zero_alloc_attribute
+        (* zero-alloc attributes *)
       }
       (** fun P0 P1 -> function p1 -> e1 | p2 -> e2  (body = Tfunction_cases _)
           fun P0 P1 -> E                             (body = Tfunction_body _)
@@ -263,7 +279,8 @@ and expression_desc =
           saturated with n arguments.
       *)
   | Texp_apply of
-      expression * (arg_label * apply_arg) list * apply_position * Mode.Locality.l
+      expression * (arg_label * apply_arg) list * apply_position *
+        Mode.Locality.l * Zero_alloc_utils.Assume_info.t
         (** E0 ~l1:E1 ... ~ln:En
 
             The expression can be Omitted if the expression is abstracted over
@@ -278,7 +295,11 @@ and expression_desc =
                         [(Nolabel, Omitted _);
                          (Labelled "y", Some (Texp_constant Const_int 3))
                         ])
-         *)
+
+            The [Zero_alloc_utils.Assume_info.t] records the optional
+            [@zero_alloc assume] attribute that may appear on applications.  If
+            that attribute is absent, it is [Assume_info.none].
+          *)
   | Texp_match of expression * Jkind.sort * computation case list * partial
         (** match E0 with
             | P1 -> E1
@@ -333,17 +354,16 @@ and expression_desc =
             in which case it does not need allocation.
           *)
   | Texp_field of expression * Longident.t loc * Types.label_description *
-      unique_use * Mode.Alloc.r option
-    (** [alloc_mode] is the allocation mode of the result; available ONLY
-        only when getting a (float) field from a [Record_float] record
-      *)
+      texp_field_boxing
+    (** [texp_field_boxing] provides extra information depending on if the
+        projection requires boxing. *)
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc *
       Types.label_description * expression
     (** [alloc_mode] translates to the [modify_mode] of the record *)
-  | Texp_array of mutable_flag * expression list * Mode.Alloc.r
+  | Texp_array of Types.mutability * Jkind.Sort.t * expression list * Mode.Alloc.r
   | Texp_list_comprehension of comprehension
-  | Texp_array_comprehension of mutable_flag * comprehension
+  | Texp_array_comprehension of Types.mutability * Jkind.sort * comprehension
   | Texp_ifthenelse of expression * expression * expression option
   | Texp_sequence of expression * Jkind.sort * expression
   | Texp_while of {
@@ -390,6 +410,10 @@ and expression_desc =
   | Texp_probe of { name:string; handler:expression; enabled_at_init:bool }
   | Texp_probe_is_enabled of { name:string }
   | Texp_exclave of expression
+  | Texp_src_pos
+    (* A source position value which has been automatically inferred, either
+       as a result of [%call_pos] occuring in an expression, or omission of a
+       Position argument in function application *)
 
 and function_curry =
   | More_args of { partial_mode : Mode.Alloc.l }
@@ -441,8 +465,13 @@ and function_body =
 
 and function_cases =
   { fc_cases: value case list;
+    fc_env : Env.t;
+    (** [fc_env] contains entries from all parameters except
+        for the last one being matched by the cases.
+    *)
     fc_arg_mode: Mode.Alloc.l;
     fc_arg_sort: Jkind.sort;
+    fc_ret_type : Types.type_expr;
     fc_partial: partial;
     fc_param: Ident.t;
     fc_loc: Location.t;
@@ -503,7 +532,7 @@ and 'k case =
     }
 
 and record_label_definition =
-  | Kept of Types.type_expr * mutable_flag * unique_use
+  | Kept of Types.type_expr * Types.mutability * unique_use
   | Overridden of Longident.t loc * expression
 
 and binding_op =
@@ -657,8 +686,9 @@ and structure_item_desc =
 
 and module_binding =
     {
-     mb_id: Ident.t option;
+     mb_id: Ident.t option; (** [None] for [module _ = struct ... end] *)
      mb_name: string option loc;
+     mb_uid: Uid.t;
      mb_presence: Types.module_presence;
      mb_expr: module_expr;
      mb_attributes: attributes;
@@ -669,6 +699,7 @@ and value_binding =
   {
     vb_pat: pattern;
     vb_expr: expression;
+    vb_rec_kind: Value_rec_types.recursive_binding_kind;
     vb_sort: Jkind.sort;
     vb_attributes: attributes;
     vb_loc: Location.t;
@@ -680,7 +711,19 @@ and module_coercion =
                          (Ident.t * int * module_coercion) list
   | Tcoerce_functor of module_coercion * module_coercion
   | Tcoerce_primitive of primitive_coercion
+  (** External declaration coerced to a regular value.
+      {[
+        module M : sig val ext : a -> b end =
+        struct external ext : a -> b = "my_c_function" end
+      ]}
+      Only occurs inside a [Tcoerce_structure] coercion. *)
   | Tcoerce_alias of Env.t * Path.t * module_coercion
+  (** Module alias coerced to a regular module.
+      {[
+        module M : sig module Sub : T end =
+        struct module Sub = Some_alias end
+      ]}
+      Only occurs inside a [Tcoerce_structure] coercion. *)
 
 and module_type =
   { mty_desc: module_type_desc;
@@ -741,6 +784,7 @@ and module_declaration =
     {
      md_id: Ident.t option;
      md_name: string option loc;
+     md_uid: Uid.t;
      md_presence: Types.module_presence;
      md_type: module_type;
      md_attributes: attributes;
@@ -751,6 +795,7 @@ and module_substitution =
     {
      ms_id: Ident.t;
      ms_name: string loc;
+     ms_uid: Uid.t;
      ms_manifest: Path.t;
      ms_txt: Longident.t loc;
      ms_attributes: attributes;
@@ -761,6 +806,7 @@ and module_type_declaration =
     {
      mtd_id: Ident.t;
      mtd_name: string loc;
+     mtd_uid: Uid.t;
      mtd_type: module_type option;
      mtd_attributes: attributes;
      mtd_loc: Location.t;
@@ -829,6 +875,9 @@ and core_type_desc =
   | Ttyp_variant of row_field list * closed_flag * label list option
   | Ttyp_poly of (string * Jkind.annotation option) list * core_type
   | Ttyp_package of package_type
+  | Ttyp_call_pos
+      (** [Ttyp_call_pos] represents the type of the value of a Position
+          argument ([lbl:[%call_pos] -> ...]). *)
 
 and package_type = {
   pack_path : Path.t;
@@ -892,7 +941,8 @@ and label_declaration =
     {
      ld_id: Ident.t;
      ld_name: string loc;
-     ld_mutable: mutable_flag;
+     ld_uid: Uid.t;
+     ld_mutable: Types.mutability;
      ld_global: Mode.Global_flag.t;
      ld_type: core_type;
      ld_loc: Location.t;
@@ -903,6 +953,7 @@ and constructor_declaration =
     {
      cd_id: Ident.t;
      cd_name: string loc;
+     cd_uid: Uid.t;
      cd_vars: (string * Jkind.annotation option) list;
      cd_args: constructor_arguments;
      cd_res: core_type option;
@@ -1021,6 +1072,23 @@ type implementation = {
     structure.
 *)
 
+type item_declaration =
+  | Value of value_description
+  | Value_binding of value_binding
+  | Type of type_declaration
+  | Constructor of constructor_declaration
+  | Extension_constructor of extension_constructor
+  | Label of label_declaration
+  | Module of module_declaration
+  | Module_substitution of module_substitution
+  | Module_binding of module_binding
+  | Module_type of module_type_declaration
+  | Class of class_declaration
+  | Class_type of class_type_declaration
+(** [item_declaration] groups together items that correspond to the syntactic
+    category of "declarations" which include types, values, modules, etc.
+    declarations in signatures and their definitions in implementations. *)
+
 (* Auxiliary functions over the a.s.t. *)
 
 (** [as_computation_pattern p] is a computation pattern with description
@@ -1052,9 +1120,23 @@ val exists_pattern: (pattern -> bool) -> pattern -> bool
 val let_bound_idents: value_binding list -> Ident.t list
 val let_bound_idents_full:
     value_binding list -> (Ident.t * string loc * Types.type_expr * Uid.t) list
-val let_bound_idents_with_modes_and_sorts:
+
+(* [let_bound_idents_with_modes_sorts_and_checks] finds all the idents in the
+   let bindings and computes their modes, sorts, and whether they have any check
+   attributes (zero_alloc).
+
+   Note that:
+   * The list associated with each ident can only have more than one element in
+     the case of or pattern, where the ident is bound on both sides.
+   * We return just one check_attribute per identifier, because this attribute
+     can only be something other than [Default_check] in the case of a simple
+     variable pattern bound to a function (in which case the list will also
+     have just one element).
+*)
+val let_bound_idents_with_modes_sorts_and_checks:
   value_binding list
-  -> (Ident.t * (Location.t * Mode.Value.l * Jkind.sort) list) list
+  -> (Ident.t * (Location.t * Mode.Value.l * Jkind.sort) list
+              * Builtin_attributes.zero_alloc_attribute) list
 
 (** Alpha conversion of patterns *)
 val alpha_pat:
@@ -1068,7 +1150,7 @@ val pat_bound_idents_with_types:
   'k general_pattern -> (Ident.t * Types.type_expr) list
 val pat_bound_idents_full:
   Jkind.sort -> 'k general_pattern
-  -> (Ident.t * string loc * Types.type_expr * Jkind.sort) list
+  -> (Ident.t * string loc * Types.type_expr * Types.Uid.t * Jkind.sort) list
 
 (** Splits an or pattern into its value (left) and exception (right) parts. *)
 val split_pattern:
@@ -1077,3 +1159,6 @@ val split_pattern:
 (** Whether an expression looks nice as the subject of a sentence in a error
     message. *)
 val exp_is_nominal : expression -> bool
+
+(** Calculates the syntactic arity of a function based on its parameters and body. *)
+val function_arity : function_param list -> function_body -> int

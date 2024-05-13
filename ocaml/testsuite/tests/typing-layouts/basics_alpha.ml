@@ -1,6 +1,6 @@
 (* TEST
-   flags = "-extension layouts_alpha"
-   * expect
+ flags = "-extension layouts_alpha";
+ expect;
 *)
 
 type t_any   : any
@@ -9,6 +9,7 @@ type t_imm   : immediate
 type t_imm64 : immediate64
 type t_float64 : float64
 type t_void  : void
+type t_non_null_value : non_null_value
 
 type void_variant = VV of t_void
 type void_record = {vr_void : t_void; vr_int : int}
@@ -21,6 +22,7 @@ type t_imm : immediate
 type t_imm64 : immediate64
 type t_float64 : float64
 type t_void : void
+type t_non_null_value : non_null_value
 type void_variant = VV of t_void
 type void_record = { vr_void : t_void; vr_int : int; }
 type void_unboxed_record = { vur_void : t_void; } [@@unboxed]
@@ -104,7 +106,7 @@ Error: This expression has type t_any but an expression was expected of type
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-18.
        But the layout of t_any must be representable, because
-         it's the type of a function result.
+         we must know concretely how to return a function result.
 |}];;
 
 let f1 (x : t_any) = ();;
@@ -118,7 +120,7 @@ Error: This pattern matches values of type t_any
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-18.
        But the layout of t_any must be representable, because
-         it's the type of a function argument.
+         we must know concretely how to pass a function argument.
 |}];;
 
 (*****************************************************)
@@ -142,10 +144,17 @@ Error: This pattern matches values of type t_any
 module type S = sig
   val f1 : t_value -> t_value
   val f2 : t_imm -> t_imm64
+
+  val f3 : t_non_null_value -> t_non_null_value
 end;;
 
 [%%expect{|
-module type S = sig val f1 : t_value -> t_value val f2 : t_imm -> t_imm64 end
+module type S =
+  sig
+    val f1 : t_value -> t_value
+    val f2 : t_imm -> t_imm64
+    val f3 : t_non_null_value -> t_non_null_value
+  end
 |}];;
 
 module type S2 = sig
@@ -271,6 +280,19 @@ Error: This expression has type string but an expression was expected of type
          of the definition of id_for_imms at line 1, characters 16-35.
 |}]
 
+type ('a : non_null_value) non_null_id = 'a
+
+type my_non_null = t_non_null_value non_null_id
+
+let id_for_non_nulls (x : 'a non_null_id) = x;;
+[%%expect{|
+type ('a : non_null_value) non_null_id = 'a
+type my_non_null = t_non_null_value non_null_id
+val id_for_non_nulls :
+  ('a : non_null_value). 'a non_null_id -> 'a non_null_id = <fun>
+|}]
+
+
 (************************************)
 (* Test 4: parameters and recursion *)
 type ('a : immediate) t4
@@ -348,6 +370,28 @@ type s4 = string t4
 and ('a : any) t4
 |}];;
 
+(* CR layouts v3: all default value types except for ['a Or_null.t]
+   should have layout [non_null_value], but it's not implemented yet. *)
+type s4 = string t4
+and ('a : non_null_value) t4;;
+[%%expect{|
+Line 1, characters 10-16:
+1 | type s4 = string t4
+              ^^^^^^
+Error: This type string should be an instance of type ('a : non_null_value)
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of non_null_value, because
+         of the annotation on 'a in the declaration of the type t4.
+|}];;
+
+type s4 = t_non_null_value t4
+and ('a : non_null_value) t4;;
+[%%expect{|
+type s4 = t_non_null_value t4
+and ('a : non_null_value) t4
+|}];;
+
 (************************************************************)
 (* Test 5: You can touch a void, but not return it directly *)
 
@@ -376,9 +420,9 @@ let id5 : 'a void5 -> 'a void5 = function
 
 [%%expect{|
 type ('a : void) void5 = Void5 of 'a
-Line 4, characters 15-22:
+Lines 3-4, characters 33-22:
+3 | .................................function
 4 |   | Void5 x -> Void5 x
-                   ^^^^^^^
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of 'a is void, because
@@ -429,9 +473,11 @@ Error: Non-value layout void detected in [Typeopt.layout] as sort for type
 (* Test 6: explicitly polymorphic types *)
 type ('a : immediate) t6_imm = T6imm of 'a
 type ('a : value) t6_val = T6val of 'a;;
+type ('a : non_null_value) t6_nonnull = T6nonnull of 'a;;
 [%%expect{|
 type ('a : immediate) t6_imm = T6imm of 'a
 type 'a t6_val = T6val of 'a
+type ('a : non_null_value) t6_nonnull = T6nonnull of 'a
 |}];;
 
 let ignore_val6 : 'a . 'a -> unit =
@@ -453,6 +499,20 @@ Error: This definition has type 'b -> unit which is less general than
        But the layout of 'a must be a sublayout of immediate, because
          of the definition of t6_imm at line 1, characters 0-42.
 |}];;
+
+let ignore_nonnull6 : 'a . 'a -> unit =
+  fun a -> let _ = T6nonnull a in ();;
+[%%expect{|
+Line 2, characters 2-36:
+2 |   fun a -> let _ = T6nonnull a in ();;
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This definition has type 'b -> unit which is less general than
+         'a. 'a -> unit
+       The layout of 'a is value, because
+         it is or unifies with an unannotated universal variable.
+       But the layout of 'a must be a sublayout of non_null_value, because
+         of the definition of t6_nonnull at line 3, characters 0-55.
+|}]
 
 let o6 = object
   method ignore_imm6 : 'a . 'a -> unit =
@@ -571,6 +631,16 @@ Error: Polymorphic variant constructor argument types must have layout value.
          of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value, because
          it's the type of the field of a polymorphic variant.
+|}]
+
+module M8_6 = struct
+  type foo = [ `Foo of int | `Baz of t_non_null_value | `Bar of string ];;
+end;;
+[%%expect{|
+module M8_6 :
+  sig
+    type foo = [ `Bar of string | `Baz of t_non_null_value | `Foo of int ]
+  end
 |}]
 
 (************************************************)
@@ -705,6 +775,13 @@ Error: This expression has type t_void but an expression was expected of type
        But the layout of t_void must be a sublayout of value, because
          it's the type of a tuple element.
 |}];;
+
+module M9_10 = struct
+  type foo = int * t_non_null_value * string;;
+end;;
+[%%expect {|
+module M9_10 : sig type foo = int * t_non_null_value * string end
+|}]
 
 (*************************************************)
 (* Test 10: jkinds are checked by "more general" *)
@@ -881,6 +958,21 @@ Error: The type constraints are not consistent.
          it's the type of an object field.
 |}];;
 
+module M11_7 = struct
+  type ('a : non_null_value) t = { x : int; v : 'a }
+  type t' = < m : t_non_null_value >
+
+  let f t = t.v # foo
+end;;
+[%%expect{|
+module M11_7 :
+  sig
+    type ('a : non_null_value) t = { x : int; v : 'a; }
+    type t' = < m : t_non_null_value >
+    val f : < foo : 'a; .. > t -> 'a
+  end
+|}]
+
 (*******************************************************************)
 (* Test 12: class parameters and bound vars must have jkind value *)
 
@@ -1011,8 +1103,20 @@ Error: Variables bound in a class must have layout value.
          it's the type of an instance variable.
 |}];;
 
-(***********************************************************)
-(* Test 13: built-in type constructors work only on values *)
+module M12_8 = struct
+  class virtual foobar = object
+    val virtual xyz : t_non_null_value
+  end
+end;;
+[%%expect{|
+module M12_8 :
+  sig
+    class virtual foobar : object val virtual xyz : t_non_null_value end
+  end
+|}]
+
+(*************************************************************************)
+(* Test 13: built-in type constructors and support for non-value layouts *)
 
 (* lazy *)
 type t13 = t_void Lazy.t;;
@@ -1054,6 +1158,18 @@ Error: This expression has type ('a : value)
        But the layout of t_void must be a sublayout of value, because
          it's the type of a lazy expression.
 |}];;
+
+type t13 = t_non_null_value Lazy.t
+let x13 (x : t_non_null_value) = lazy x;;
+let y13 x : t_non_null_value =
+  match x with
+  | lazy x -> x
+;;
+[%%expect{|
+type t13 = t_non_null_value Lazy.t
+val x13 : t_non_null_value -> t_non_null_value lazy_t = <fun>
+val y13 : t_non_null_value lazy_t -> t_non_null_value = <fun>
+|}]
 
 (* option *)
 (* CR layouts v5: allow this *)
@@ -1098,6 +1214,19 @@ Error: This expression has type ('a : value)
          the type argument of option has layout value.
 |}];;
 
+type t13 = t_non_null_value option
+let x13 (x : t_non_null_value) = Some x;;
+let y13 x : t_non_null_value =
+  match x with
+  | Some x -> x
+  | None -> assert false
+;;
+[%%expect{|
+type t13 = t_non_null_value option
+val x13 : t_non_null_value -> t_non_null_value option = <fun>
+val y13 : t_non_null_value option -> t_non_null_value = <fun>
+|}]
+
 (* list *)
 (* CR layouts: should work after relaxing the mixed block restriction. *)
 type t13 = t_void list;;
@@ -1141,31 +1270,33 @@ Error: This expression has type ('a : value)
          the type argument of list has layout value.
 |}];;
 
+
+type t13 = t_non_null_value list
+let x13 (x : t_non_null_value) = [x];;
+let y13 x : t_non_null_value =
+  match x with
+  | [x] -> x
+  | _ -> assert false
+;;
+[%%expect{|
+type t13 = t_non_null_value list
+val x13 : t_non_null_value -> t_non_null_value list = <fun>
+val y13 : t_non_null_value list -> t_non_null_value = <fun>
+|}]
+
 (* array *)
 (* CR layouts v4: should work *)
 type t13 = t_void array;;
 [%%expect{|
-Line 1, characters 11-17:
-1 | type t13 = t_void array;;
-               ^^^^^^
-Error: This type t_void should be an instance of type ('a : value)
-       The layout of t_void is void, because
-         of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value, because
-         the type argument of array has layout value.
+type t13 = t_void array
 |}];;
 
 let x13 (VV v) = [| v |];;
 [%%expect{|
-Line 1, characters 20-21:
+Line 1, characters 17-24:
 1 | let x13 (VV v) = [| v |];;
-                        ^
-Error: This expression has type t_void but an expression was expected of type
-         ('a : value)
-       The layout of t_void is void, because
-         of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value, because
-         it's the type of an array element.
+                     ^^^^^^^
+Error: Layout void is not supported yet.
 |}];;
 
 let x13 v =
@@ -1173,16 +1304,31 @@ let x13 v =
   | [| v |] -> VV v
   | _ -> assert false
 [%%expect{|
-Line 3, characters 18-19:
+Lines 2-4, characters 2-21:
+2 | ..match v with
 3 |   | [| v |] -> VV v
-                      ^
-Error: This expression has type ('a : value)
-       but an expression was expected of type t_void
+4 |   | _ -> assert false
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
          of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value, because
-         it's the type of an array element.
+         it has to be value for the V1 safety check.
 |}];;
+
+type t13 = t_non_null_value array
+let x13 (x : t_non_null_value) = [|x|];;
+let y13 x : t_non_null_value =
+  match x with
+  | [|x|] -> x
+  | _ -> assert false
+;;
+[%%expect{|
+type t13 = t_non_null_value array
+val x13 : t_non_null_value -> t_non_null_value array = <fun>
+val y13 : t_non_null_value array -> t_non_null_value = <fun>
+|}]
+
 
 (****************************************************************************)
 (* Test 14: Examples motivating the trick with the manifest in [enter_type] *)

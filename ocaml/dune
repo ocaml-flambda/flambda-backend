@@ -67,8 +67,9 @@
           (run cat %{input-file})))
        parser)))
  (library_flags -linkall)
+ (libraries flambda2_floats)
  (modules_without_implementation
-   annot asttypes cmo_format outcometree parsetree debug_event solver_intf mode_intf)
+   annot value_rec_types asttypes cmo_format outcometree parsetree debug_event solver_intf mode_intf)
  (modules
    ;; UTILS
    config build_path_prefix_map misc identifiable numbers arg_helper clflags
@@ -77,6 +78,7 @@
    local_store target_system compilation_unit import_info linkage_name symbol
    lazy_backtrack diffing diffing_with_keys
    language_extension_kernel language_extension
+   zero_alloc_utils zero_alloc_annotations
 
    ;; PARSING
    location longident docstrings printast syntaxerr ast_helper
@@ -85,13 +87,13 @@
    jane_syntax ; manual update: mli only files asttypes parsetree
 
    ;; TYPING
-   ident path jkind primitive shape types btype oprint subst predef datarepr
-   cmi_format persistent_env env errortrace mode
+   ident path jkind primitive shape shape_reduce types btype oprint subst predef datarepr
+   cmi_format persistent_env env errortrace mode jkind_types jkind_intf
    typedtree printtyped ctype printtyp includeclass mtype envaux includecore
    tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
    includemod includemod_errorprinter
-   typemode typetexp patterns printpat parmatch stypes typedecl typeopt rec_check
-   typecore solver_intf solver mode_intf mode uniqueness_analysis
+   typemode typetexp patterns printpat parmatch stypes typedecl typeopt
+   value_rec_check typecore solver_intf solver mode_intf mode uniqueness_analysis
    typeclass typemod typedecl_variance typedecl_properties
    typedecl_separability cmt2annot
    ; manual update: mli only files
@@ -99,6 +101,7 @@
 
    ;; lambda/
    debuginfo lambda matching printlambda runtimedef runtimetags tmc simplif switch
+   value_rec_compiler
    translmode
    transl_comprehension_utils
    transl_array_comprehension transl_list_comprehension
@@ -110,7 +113,7 @@
    ;; some of COMP
    pparse main_args compenv compmisc makedepend compile_common
    ; manual update: mli only files
-   annot asttypes cmo_format outcometree parsetree debug_event
+   annot value_rec_types asttypes cmo_format outcometree parsetree debug_event
  ))
 
 (library
@@ -247,6 +250,7 @@
     (identifiable.mli as compiler-libs/identifiable.mli)
     (numbers.mli as compiler-libs/numbers.mli)
     (arg_helper.mli as compiler-libs/arg_helper.mli)
+    (zero_alloc_annotations.mli as compiler-libs/zero_alloc_annotations.mli)
     (clflags.mli as compiler-libs/clflags.mli)
     (language_extension.mli as compiler-libs/language_extension.mli)
     (profile.mli as compiler-libs/profile.mli)
@@ -281,6 +285,7 @@
     (ident.mli as compiler-libs/ident.mli)
     (path.mli as compiler-libs/path.mli)
     (jkind.mli as compiler-libs/jkind.mli)
+    (jkind_types.mli as compiler-libs/jkind_types.mli)
     (primitive.mli as compiler-libs/primitive.mli)
     (types.mli as compiler-libs/types.mli)
     (btype.mli as compiler-libs/btype.mli)
@@ -315,7 +320,7 @@
     (stypes.mli as compiler-libs/stypes.mli)
     (typedecl.mli as compiler-libs/typedecl.mli)
     (typeopt.mli as compiler-libs/typeopt.mli)
-    (rec_check.mli as compiler-libs/rec_check.mli)
+    (value_rec_check.mli as compiler-libs/value_rec_check.mli)
     (typecore.mli as compiler-libs/typecore.mli)
     (solver.mli as compiler-libs/solver.mli)
     (mode.mli as compiler-libs/mode.mli)
@@ -333,6 +338,7 @@
     (printlambda.mli as compiler-libs/printlambda.mli)
     (runtimedef.mli as compiler-libs/runtimedef.mli)
     (runtimetags.mli as compiler-libs/runtimetags.mli)
+    (value_rec_compiler.mli as compiler-libs/value_rec_compiler.mli)
     (simplif.mli as compiler-libs/simplif.mli)
     (switch.mli as compiler-libs/switch.mli)
     (translmode.mli as compiler-libs/translmode.mli)
@@ -358,5 +364,6 @@
     (compilation_unit.mli as compiler-libs/compilation_unit.mli)
     (linkage_name.mli as compiler-libs/linkage_name.mli)
     (symbol.mli as compiler-libs/symbol.mli)
+    (zero_alloc_utils.mli as compiler-libs/zero_alloc_utils.mli)
 
   ))

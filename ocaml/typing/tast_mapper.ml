@@ -374,15 +374,16 @@ let function_body sub body =
       Tfunction_body (sub.expr sub body)
   | Tfunction_cases
       { fc_cases; fc_partial; fc_param; fc_loc; fc_exp_extra; fc_attributes;
-        fc_arg_mode; fc_arg_sort; }
+        fc_arg_mode; fc_arg_sort; fc_env; fc_ret_type; }
     ->
       let fc_loc = sub.location sub fc_loc in
       let fc_attributes = sub.attributes sub fc_attributes in
       let fc_cases = List.map (sub.case sub) fc_cases in
       let fc_exp_extra = Option.map (extra sub) fc_exp_extra in
+      let fc_env = sub.env sub fc_env in
       Tfunction_cases
         { fc_cases; fc_partial; fc_param; fc_loc; fc_exp_extra; fc_attributes;
-          fc_arg_mode; fc_arg_sort; }
+          fc_arg_mode; fc_arg_sort; fc_env; fc_ret_type; }
 
 let expr sub x =
   let extra x = extra sub x in
@@ -434,18 +435,20 @@ let expr sub x =
     | Texp_let (rec_flag, list, exp) ->
         let (rec_flag, list) = sub.value_bindings sub (rec_flag, list) in
         Texp_let (rec_flag, list, sub.expr sub exp)
-    | Texp_function { params; body; alloc_mode; region; ret_mode; ret_sort } ->
+    | Texp_function { params; body; alloc_mode; region; ret_mode; ret_sort;
+                      zero_alloc } ->
         let params = List.map (function_param sub) params in
         let body = function_body sub body in
-        Texp_function { params; body; alloc_mode; region; ret_mode; ret_sort }
-    | Texp_apply (exp, list, pos, am) ->
+        Texp_function { params; body; alloc_mode; region; ret_mode; ret_sort;
+                        zero_alloc }
+    | Texp_apply (exp, list, pos, am, za) ->
         Texp_apply (
           sub.expr sub exp,
           List.map (function
             | (lbl, Arg (exp, sort)) -> (lbl, Arg (sub.expr sub exp, sort))
             | (lbl, Omitted o) -> (lbl, Omitted o))
             list,
-          pos, am
+          pos, am, za
         )
     | Texp_match (exp, sort, cases, p) ->
         Texp_match (
@@ -477,8 +480,8 @@ let expr sub x =
           extended_expression = Option.map (sub.expr sub) extended_expression;
           alloc_mode
         }
-    | Texp_field (exp, lid, ld, mode, am) ->
-        Texp_field (sub.expr sub exp, map_loc sub lid, ld, mode, am)
+    | Texp_field (exp, lid, ld, float) ->
+        Texp_field (sub.expr sub exp, map_loc sub lid, ld, float)
     | Texp_setfield (exp1, am, lid, ld, exp2) ->
         Texp_setfield (
           sub.expr sub exp1,
@@ -487,12 +490,12 @@ let expr sub x =
           ld,
           sub.expr sub exp2
         )
-    | Texp_array (amut, list, alloc_mode) ->
-        Texp_array (amut, List.map (sub.expr sub) list, alloc_mode)
+    | Texp_array (amut, sort, list, alloc_mode) ->
+        Texp_array (amut, sort, List.map (sub.expr sub) list, alloc_mode)
     | Texp_list_comprehension comp ->
         Texp_list_comprehension (map_comprehension comp)
-    | Texp_array_comprehension (amut, comp) ->
-        Texp_array_comprehension (amut, map_comprehension comp)
+    | Texp_array_comprehension (amut, sort, comp) ->
+        Texp_array_comprehension (amut, sort, map_comprehension comp)
     | Texp_ifthenelse (exp1, exp2, expo) ->
         Texp_ifthenelse (
           sub.expr sub exp1,
@@ -588,6 +591,7 @@ let expr sub x =
     | Texp_probe_is_enabled _ as e -> e
     | Texp_exclave exp ->
         Texp_exclave (sub.expr sub exp)
+    | Texp_src_pos -> Texp_src_pos
   in
   let exp_attributes = sub.attributes sub x.exp_attributes in
   {x with exp_loc; exp_extra; exp_desc; exp_env; exp_attributes}
@@ -866,7 +870,7 @@ let typ sub x =
   let ctyp_env = sub.env sub x.ctyp_env in
   let ctyp_desc =
     match x.ctyp_desc with
-    | Ttyp_var (_,None) as d -> d
+    | (Ttyp_var (_,None) | Ttyp_call_pos) as d -> d
     | Ttyp_var (s, Some jkind) ->
         Ttyp_var (s, Some (sub.jkind_annotation sub jkind))
     | Ttyp_arrow (label, ct1, ct2) ->
@@ -965,7 +969,8 @@ let value_binding sub x =
   let vb_pat = sub.pat sub x.vb_pat in
   let vb_expr = sub.expr sub x.vb_expr in
   let vb_attributes = sub.attributes sub x.vb_attributes in
-  {vb_loc; vb_pat; vb_expr; vb_attributes; vb_sort = x.vb_sort}
+  let vb_rec_kind = x.vb_rec_kind in
+  {vb_loc; vb_pat; vb_expr; vb_attributes; vb_sort = x.vb_sort; vb_rec_kind}
 
 let env _sub x = x
 

@@ -47,6 +47,7 @@ let caml_black = Nativeint.shift_left (Nativeint.of_int 3) 8
 
 let caml_local =
   Nativeint.shift_left (Nativeint.of_int (if Config.runtime5 then 3 else 2)) 8
+
 (* cf. runtime/caml/gc.h *)
 
 (* Loads *)
@@ -64,18 +65,95 @@ let mk_load_atomic memory_chunk =
 
 let floatarray_tag dbg = Cconst_int (Obj.double_array_tag, dbg)
 
+type t =
+  | Scan_all
+  | Scan_prefix of int
+
+module Mixed_block_support : sig
+  val assert_mixed_block_support : unit -> unit
+
+  val make_header : Nativeint.t -> scannable_prefix:int -> Nativeint.t
+end = struct
+  (* CR mixed blocks v1: This "8" is duplicated in [typedecl.ml]. We should fix
+     up this duplication when we make the "8" configurable. *)
+  let required_reserved_header_bits = 8
+
+  let required_addr_size_bits = 64
+
+  (* Many of these checks are duplicated *)
+
+  (* CR mixed blocks v1: This is also duplicated in [typedecl.ml]. *)
+  (* Why 2? We'd subtract 1 if the mixed block encoding could use all 8 bits of
+     the prefix. But the all-0 prefix means "not a mixed block", so we can't use
+     the all-0 pattern, and we must subtract 2 instead. *)
+  let max_scannable_prefix = (1 lsl required_reserved_header_bits) - 2
+
+  let max_header =
+    (1 lsl (required_addr_size_bits - required_reserved_header_bits)) - 1
+    |> Nativeint.of_int
+
+  let assert_mixed_block_support =
+    lazy
+      (if not Config.native_compiler
+       then Misc.fatal_error "Mixed blocks are only supported in native code";
+       let reserved_header_bits = Config.reserved_header_bits in
+       let addr_size_bits = Arch.size_addr * 8 in
+       match
+         ( reserved_header_bits = required_reserved_header_bits,
+           addr_size_bits = required_addr_size_bits )
+       with
+       | true, true -> ()
+       | false, true ->
+         Misc.fatal_errorf
+           "Need %d reserved header bits for mixed blocks; got %d"
+           required_reserved_header_bits reserved_header_bits
+       | _, false ->
+         Misc.fatal_errorf
+           "Mixed blocks only supported on %d bit platforms; got %d"
+           required_addr_size_bits addr_size_bits)
+
+  let assert_mixed_block_support () = Lazy.force assert_mixed_block_support
+
+  let make_header header ~scannable_prefix =
+    assert_mixed_block_support ();
+    if scannable_prefix > max_scannable_prefix
+    then
+      Misc.fatal_errorf "Scannable prefix too big (%d > %d)" scannable_prefix
+        max_scannable_prefix;
+    (* This means we crash the compiler if someone tries to write a mixed record
+       with too many fields, but you effectively can't: you'd need something
+       like 2^46 fields. *)
+    if header > max_header
+    then
+      Misc.fatal_errorf
+        "Header too big for the mixed block encoding to be added (%nd > %nd)"
+        header max_header;
+    Nativeint.add
+      (Nativeint.shift_left
+         (Nativeint.of_int (scannable_prefix + 1))
+         (required_addr_size_bits - required_reserved_header_bits))
+      header
+end
+
 (* CR mshinwell: update to use NOT_MARKABLE terminology *)
-let block_header tag sz =
-  Nativeint.add
-    (Nativeint.shift_left (Nativeint.of_int sz) 10)
-    (Nativeint.of_int tag)
+let block_header ?(scannable_prefix = Scan_all) tag sz =
+  let hdr =
+    Nativeint.add
+      (Nativeint.shift_left (Nativeint.of_int sz) 10)
+      (Nativeint.of_int tag)
+  in
+  match scannable_prefix with
+  | Scan_all -> hdr
+  | Scan_prefix scannable_prefix ->
+    Mixed_block_support.make_header hdr ~scannable_prefix
 
 (* Static data corresponding to "value"s must be marked black in case we are in
    no-naked-pointers mode. See [caml_darken] and the code below that emits
    structured constants and static module definitions. *)
 let black_block_header tag sz = Nativeint.logor (block_header tag sz) caml_black
 
-let local_block_header tag sz = Nativeint.logor (block_header tag sz) caml_local
+let local_block_header ?scannable_prefix tag sz =
+  Nativeint.logor (block_header ?scannable_prefix tag sz) caml_local
 
 let white_closure_header sz = block_header Obj.closure_tag sz
 
@@ -84,6 +162,10 @@ let black_closure_header sz = black_block_header Obj.closure_tag sz
 let local_closure_header sz = local_block_header Obj.closure_tag sz
 
 let infix_header ofs = block_header Obj.infix_tag ofs
+
+let boxedfloat32_header = block_header Obj.custom_tag 2
+
+let boxedfloat32_local_header = local_block_header Obj.custom_tag 2
 
 let float_header = block_header Obj.double_tag (size_float / size_addr)
 
@@ -125,6 +207,8 @@ let custom_header ~size = block_header Obj.custom_tag size
 
 let custom_local_header ~size = local_block_header Obj.custom_tag size
 
+let caml_float32_ops = "caml_float32_ops"
+
 let caml_nativeint_ops = "caml_nativeint_ops"
 
 let caml_int32_ops = "caml_int32_ops"
@@ -158,6 +242,11 @@ let closure_info ~(arity : arity) ~startenv ~is_last =
   closure_info'
     ~arity:(arity.function_kind, arity.params_layout)
     ~startenv ~is_last
+
+let alloc_boxedfloat32_header mode dbg =
+  match mode with
+  | Lambda.Alloc_heap -> Cconst_natint (boxedfloat32_header, dbg)
+  | Lambda.Alloc_local -> Cconst_natint (boxedfloat32_local_header, dbg)
 
 let alloc_float_header mode dbg =
   match mode with
@@ -356,8 +445,10 @@ let mk_not dbg cmm =
       tag_int
         (Cop (Ccmpa (negate_integer_comparison cmp), [c1; c2], dbg''))
         dbg'
-    | Cop (Ccmpf cmp, [c1; c2], dbg'') ->
-      tag_int (Cop (Ccmpf (negate_float_comparison cmp), [c1; c2], dbg'')) dbg'
+    | Cop (Ccmpf (w, cmp), [c1; c2], dbg'') ->
+      tag_int
+        (Cop (Ccmpf (w, negate_float_comparison cmp), [c1; c2], dbg''))
+        dbg'
     | _ ->
       (* 0 -> 3, 1 -> 1 *)
       Cop
@@ -388,13 +479,13 @@ let mk_compare_ints dbg a1 a2 =
     int_const dbg Nativeint.(compare c1 (of_int c2))
   | a1, a2 -> tag_int (mk_compare_ints_untagged dbg a1 a2) dbg
 
-let mk_compare_floats_untagged dbg a1 a2 =
+let mk_compare_floats_gen ~tag_result ~width dbg a1 a2 =
   bind "float_cmp" a2 (fun a2 ->
       bind "float_cmp" a1 (fun a1 ->
-          let op1 = Cop (Ccmpf CFgt, [a1; a2], dbg) in
-          let op2 = Cop (Ccmpf CFlt, [a1; a2], dbg) in
-          let op3 = Cop (Ccmpf CFeq, [a1; a1], dbg) in
-          let op4 = Cop (Ccmpf CFeq, [a2; a2], dbg) in
+          let op1 = Cop (Ccmpf (width, CFgt), [a1; a2], dbg) in
+          let op2 = Cop (Ccmpf (width, CFlt), [a1; a2], dbg) in
+          let op3 = Cop (Ccmpf (width, CFeq), [a1; a1], dbg) in
+          let op4 = Cop (Ccmpf (width, CFeq), [a2; a2], dbg) in
           (* If both operands a1 and a2 are not NaN, then op3 = op4 = 1, and the
              result is op1 - op2.
 
@@ -408,29 +499,18 @@ let mk_compare_floats_untagged dbg a1 a2 =
              Therefore, op3 is 0 if and only if a1 is NaN, and op4 is 0 if and
              only if a2 is NaN. See also caml_float_compare_unboxed in
              runtime/floats.c *)
-          add_int (sub_int op1 op2 dbg) (sub_int op3 op4 dbg) dbg))
+          let result =
+            add_int (sub_int op1 op2 dbg) (sub_int op3 op4 dbg) dbg
+          in
+          if tag_result then tag_int result dbg else result))
 
-let mk_compare_floats dbg a1 a2 =
-  bind "float_cmp" a2 (fun a2 ->
-      bind "float_cmp" a1 (fun a1 ->
-          let op1 = Cop (Ccmpf CFgt, [a1; a2], dbg) in
-          let op2 = Cop (Ccmpf CFlt, [a1; a2], dbg) in
-          let op3 = Cop (Ccmpf CFeq, [a1; a1], dbg) in
-          let op4 = Cop (Ccmpf CFeq, [a2; a2], dbg) in
-          (* If both operands a1 and a2 are not NaN, then op3 = op4 = 1, and the
-             result is op1 - op2.
+let mk_compare_floats = mk_compare_floats_gen ~tag_result:true ~width:Float64
 
-             If at least one of the operands is NaN, then op1 = op2 = 0, and the
-             result is op3 - op4, which orders NaN before other values.
+let mk_compare_floats_untagged =
+  mk_compare_floats_gen ~tag_result:false ~width:Float64
 
-             To detect if the operand is NaN, we use the property: for all x,
-             NaN is not equal to x, even if x is NaN.
-
-             Therefore, op3 is 0 if and only if a1 is NaN, and op4 is 0 if and
-             only if a2 is NaN.
-
-             See also caml_float_compare_unboxed in runtime/floats.c *)
-          tag_int (add_int (sub_int op1 op2 dbg) (sub_int op3 op4 dbg) dbg) dbg))
+let mk_compare_float32s_untagged =
+  mk_compare_floats_gen ~tag_result:false ~width:Float32
 
 let create_loop body dbg =
   let cont = Lambda.next_raise_count () in
@@ -692,6 +772,34 @@ let test_bool dbg cmm =
 
 (* Float *)
 
+let box_float32 dbg mode exp =
+  Cop
+    ( Calloc mode,
+      [ alloc_boxedfloat32_header mode dbg;
+        Cconst_symbol (global_symbol caml_float32_ops, dbg);
+        exp ],
+      dbg )
+
+let unbox_float32 dbg =
+  map_tail ~kind:Any (function
+    | Cop (Calloc _, [Cconst_natint (hdr, _); _ops; c], _)
+      when Nativeint.equal hdr boxedfloat32_header
+           || Nativeint.equal hdr boxedfloat32_local_header ->
+      c
+    | Cconst_symbol (s, _dbg) as cmm -> (
+      match Cmmgen_state.structured_constant_of_sym s.sym_name with
+      | Some (Const_float32 x) -> Cconst_float32 (x, dbg) (* or keep _dbg? *)
+      | _ ->
+        Cop
+          ( mk_load_immut (Single { reg = Float32 }),
+            [Cop (Cadda, [cmm; Cconst_int (size_addr, dbg)], dbg)],
+            dbg ))
+    | cmm ->
+      Cop
+        ( mk_load_immut (Single { reg = Float32 }),
+          [Cop (Cadda, [cmm; Cconst_int (size_addr, dbg)], dbg)],
+          dbg ))
+
 let box_float dbg m c = Cop (Calloc m, [alloc_float_header m dbg; c], dbg)
 
 let unbox_float dbg =
@@ -743,6 +851,11 @@ let complex_im c dbg =
 
 let return_unit dbg c = Csequence (c, Cconst_int (1, dbg))
 
+let strided_field_address ptr ~index ~stride dbg =
+  if index * stride = 0
+  then ptr
+  else Cop (Cadda, [ptr; Cconst_int (index * stride, dbg)], dbg)
+
 let field_address ?(memory_chunk = Word_val) ptr n dbg =
   if n = 0
   then ptr
@@ -752,7 +865,7 @@ let field_address ?(memory_chunk = Word_val) ptr n dbg =
       | Byte_unsigned | Byte_signed -> 1
       | Sixteen_unsigned | Sixteen_signed -> 2
       | Thirtytwo_unsigned | Thirtytwo_signed -> 4
-      | Single ->
+      | Single { reg = Float64 | Float32 } ->
         assert (size_float = 8);
         (* unclear what to do if this is false *)
         size_float / 2
@@ -1130,6 +1243,79 @@ let get_field_computed imm_or_ptr mutability ~block ~index dbg =
   Cop
     (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
 
+(* Getters for unboxed int fields *)
+
+let get_field_unboxed_int32 mutability ~block ~index dbg =
+  let memory_chunk = Thirtytwo_signed in
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed int32 fields only supported on little-endian architectures";
+  (* CR layouts v5.1: We'll need to vary log2_size_addr to efficiently pack
+   * int32s *)
+  let field_address = array_indexing log2_size_addr block index dbg in
+  Cop
+    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
+
+let get_field_unboxed_int64_or_nativeint mutability ~block ~index dbg =
+  let memory_chunk = Word_int in
+  let field_address = array_indexing log2_size_addr block index dbg in
+  Cop
+    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
+
+(* Setters for unboxed int fields *)
+
+let setfield_unboxed_int32 arr ofs newval dbg =
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed int32 fields only supported on little-endian architectures";
+  (* CR layouts v5.1: We will need to vary log2_size_addr when int32 fields are
+     efficiently packed. *)
+  return_unit dbg
+    (Cop
+       ( Cstore (Thirtytwo_signed, Assignment),
+         [array_indexing log2_size_addr arr ofs dbg; newval],
+         dbg ))
+
+let setfield_unboxed_int64_or_nativeint arr ofs newval dbg =
+  return_unit dbg
+    (Cop
+       ( Cstore (Word_int, Assignment),
+         [array_indexing log2_size_addr arr ofs dbg; newval],
+         dbg ))
+
+(* Getters and setters for unboxed float32 fields *)
+
+let get_field_unboxed_float32 mutability ~block ~index dbg =
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed float32 fields only supported on little-endian architectures";
+  let memory_chunk = Single { reg = Float32 } in
+  (* CR layouts v5.1: We'll need to vary log2_size_addr to efficiently pack
+   * float32s *)
+  let field_address = array_indexing log2_size_addr block index dbg in
+  Cop
+    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
+
+let setfield_unboxed_float32 arr ofs newval dbg =
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed float32 fields only supported on little-endian architectures";
+  (* CR layouts v5.1: We will need to vary log2_size_addr when float32 fields
+     are efficiently packed. *)
+  return_unit dbg
+    (Cop
+       ( Cstore (Single { reg = Float32 }, Assignment),
+         [array_indexing log2_size_addr arr ofs dbg; newval],
+         dbg ))
+
 (* String length *)
 
 (* Length of string block *)
@@ -1196,6 +1382,7 @@ module Extended_machtype_component = struct
     | Any_int
     | Float
     | Vec128
+    | Float32
 
   let of_machtype_component (component : machtype_component) =
     match component with
@@ -1204,6 +1391,7 @@ module Extended_machtype_component = struct
     | Int -> Any_int
     | Float -> Float
     | Vec128 -> Vec128
+    | Float32 -> Float32
 
   let to_machtype_component t : machtype_component =
     match t with
@@ -1212,6 +1400,7 @@ module Extended_machtype_component = struct
     | Tagged_int | Any_int -> Int
     | Float -> Float
     | Vec128 -> Vec128
+    | Float32 -> Float32
 
   let change_tagged_int_to_val t : machtype_component =
     match t with
@@ -1221,6 +1410,7 @@ module Extended_machtype_component = struct
     | Any_int -> Int
     | Float -> Float
     | Vec128 -> Vec128
+    | Float32 -> Float32
 end
 
 module Extended_machtype = struct
@@ -1233,6 +1423,8 @@ module Extended_machtype = struct
   let typ_any_int = [| Extended_machtype_component.Any_int |]
 
   let typ_float = [| Extended_machtype_component.Float |]
+
+  let typ_float32 = [| Extended_machtype_component.Float32 |]
 
   let typ_vec128 = [| Extended_machtype_component.Vec128 |]
 
@@ -1253,9 +1445,7 @@ module Extended_machtype = struct
     | Pbottom ->
       Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
     | Punboxed_float Pfloat64 -> typ_float
-    | Punboxed_float Pfloat32 ->
-      (* CR mslater: (float32) backend support *)
-      assert false
+    | Punboxed_float Pfloat32 -> typ_float32
     | Punboxed_vector (Pvec128 _) -> typ_vec128
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
@@ -1279,6 +1469,7 @@ let machtype_identifier t =
     | Int -> 'I'
     | Float -> 'F'
     | Vec128 -> 'X'
+    | Float32 -> 'S'
     | Addr ->
       Misc.fatal_error "[Addr] is forbidden inside arity for generic functions"
   in
@@ -1318,15 +1509,16 @@ let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
 
 (* Allocation *)
 
-let make_alloc_generic ~mode set_fn dbg tag wordsize args =
+let make_alloc_generic ?(scannable_prefix = Scan_all) ~mode set_fn dbg tag
+    wordsize args =
   (* allocs of size 0 must be statically allocated else the Gc will bug *)
   assert (List.compare_length_with args 0 > 0);
   if Lambda.is_local_mode mode || wordsize <= Config.max_young_wosize
   then
     let hdr =
       match mode with
-      | Lambda.Alloc_local -> local_block_header tag wordsize
-      | Lambda.Alloc_heap -> block_header tag wordsize
+      | Lambda.Alloc_local -> local_block_header ~scannable_prefix tag wordsize
+      | Lambda.Alloc_heap -> block_header ~scannable_prefix tag wordsize
     in
     Cop (Calloc mode, Cconst_natint (hdr, dbg) :: args, dbg)
   else
@@ -1335,17 +1527,25 @@ let make_alloc_generic ~mode set_fn dbg tag wordsize args =
       | [] -> Cvar id
       | e1 :: el ->
         Csequence
-          ( set_fn (Cvar id) (Cconst_int (idx, dbg)) e1 dbg,
-            fill_fields (idx + 2) el )
+          ( set_fn idx (Cvar id) (int_const dbg idx) e1 dbg,
+            fill_fields (idx + 1) el )
+    in
+    let caml_alloc_func, caml_alloc_args =
+      match Config.runtime5, scannable_prefix with
+      | true, Scan_all -> "caml_alloc_shr_check_gc", [wordsize; tag]
+      | false, Scan_all -> "caml_alloc", [wordsize; tag]
+      | true, Scan_prefix prefix_len ->
+        Mixed_block_support.assert_mixed_block_support ();
+        "caml_alloc_mixed_shr_check_gc", [wordsize; tag; prefix_len]
+      | false, Scan_prefix prefix_len ->
+        Mixed_block_support.assert_mixed_block_support ();
+        "caml_alloc_mixed", [wordsize; tag; prefix_len]
     in
     Clet
       ( VP.create id,
         Cop
           ( Cextcall
-              { func =
-                  (if Config.runtime5
-                  then "caml_alloc_shr_check_gc"
-                  else "caml_alloc");
+              { func = caml_alloc_func;
                 ty = typ_val;
                 alloc = true;
                 builtin = false;
@@ -1354,32 +1554,63 @@ let make_alloc_generic ~mode set_fn dbg tag wordsize args =
                 coeffects = Has_coeffects;
                 ty_args = []
               },
-            [Cconst_int (wordsize, dbg); Cconst_int (tag, dbg)],
+            List.map (fun arg -> Cconst_int (arg, dbg)) caml_alloc_args,
             dbg ),
-        fill_fields 1 args )
+        fill_fields 0 args )
+
+let addr_array_init arr ofs newval dbg =
+  Cop
+    ( Cextcall
+        { func = "caml_initialize";
+          ty = typ_void;
+          alloc = false;
+          builtin = false;
+          returns = true;
+          effects = Arbitrary_effects;
+          coeffects = Has_coeffects;
+          ty_args = []
+        },
+      [array_indexing log2_size_addr arr ofs dbg; newval],
+      dbg )
 
 let make_alloc ~mode dbg tag args =
-  let addr_array_init arr ofs newval dbg =
-    Cop
-      ( Cextcall
-          { func = "caml_initialize";
-            ty = typ_void;
-            alloc = false;
-            builtin = false;
-            returns = true;
-            effects = Arbitrary_effects;
-            coeffects = Has_coeffects;
-            ty_args = []
-          },
-        [array_indexing log2_size_addr arr ofs dbg; newval],
-        dbg )
-  in
-  make_alloc_generic ~mode addr_array_init dbg tag (List.length args) args
+  make_alloc_generic ~mode
+    (fun _ arr ofs newval dbg -> addr_array_init arr ofs newval dbg)
+    dbg tag (List.length args) args
 
 let make_float_alloc ~mode dbg tag args =
-  make_alloc_generic ~mode float_array_set dbg tag
+  make_alloc_generic ~mode
+    (fun _ -> float_array_set)
+    dbg tag
     (List.length args * size_float / size_addr)
     args
+
+let make_mixed_alloc ~mode dbg tag shape args =
+  let ({ value_prefix_len; flat_suffix } : Lambda.mixed_block_shape) = shape in
+  (* args with shape [Float] must already have been unboxed. *)
+  let set_fn idx arr ofs newval dbg =
+    if idx < value_prefix_len
+    then addr_array_init arr ofs newval dbg
+    else
+      match flat_suffix.(idx - value_prefix_len) with
+      | Imm -> int_array_set arr ofs newval dbg
+      | Float | Float64 -> float_array_set arr ofs newval dbg
+      | Float32 -> setfield_unboxed_float32 arr ofs newval dbg
+      | Bits32 -> setfield_unboxed_int32 arr ofs newval dbg
+      | Bits64 | Word -> setfield_unboxed_int64_or_nativeint arr ofs newval dbg
+  in
+  let size =
+    (* CR layouts 5.1: When we pack int32s/float32s more efficiently, this code
+       will need to change. *)
+    value_prefix_len + Array.length flat_suffix
+  in
+  if size_float <> size_addr
+  then
+    Misc.fatal_error
+      "Unable to compile mixed blocks on a platform where a float is not the \
+       same width as a value.";
+  make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_len) ~mode
+    set_fn dbg tag size args
 
 (* Record application and currying functions *)
 
@@ -1442,7 +1673,7 @@ let bigarray_elt_size_in_bytes : Lambda.bigarray_kind -> int = function
 
 let bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk = function
   | Pbigarray_unknown -> assert false
-  | Pbigarray_float32 -> Single
+  | Pbigarray_float32 -> Single { reg = Float64 }
   | Pbigarray_float64 -> Double
   | Pbigarray_sint8 -> Byte_signed
   | Pbigarray_uint8 -> Byte_unsigned
@@ -1452,7 +1683,7 @@ let bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk = function
   | Pbigarray_int64 -> Word_int
   | Pbigarray_caml_int -> Word_int
   | Pbigarray_native_int -> Word_int
-  | Pbigarray_complex32 -> Single
+  | Pbigarray_complex32 -> Single { reg = Float64 }
   | Pbigarray_complex64 -> Double
 
 (* the three functions below assume 64-bit words *)
@@ -2588,21 +2819,27 @@ let ints_per_vec128 = size_vec128 / Arch.size_int
 let machtype_stored_size t =
   Array.fold_left
     (fun cur c ->
-      match c with
+      match (c : machtype_component) with
       | Addr -> Misc.fatal_error "[Addr] cannot be stored"
       | Val | Int -> cur + 1
       | Float -> cur + ints_per_float
+      | Float32 ->
+        (* Float32 slots still take up a full word *)
+        cur + 1
       | Vec128 -> cur + ints_per_vec128)
     0 t
 
 let machtype_non_scanned_size t =
   Array.fold_left
     (fun cur c ->
-      match c with
+      match (c : machtype_component) with
       | Addr -> Misc.fatal_error "[Addr] cannot be stored"
       | Val -> cur
       | Int -> cur + 1
       | Float -> cur + ints_per_float
+      | Float32 ->
+        (* Float32 slots still take up a full word *)
+        cur + 1
       | Vec128 -> cur + ints_per_vec128)
     0 t
 
@@ -2612,8 +2849,8 @@ let value_slot_given_machtype vs =
   let non_scanned, scanned =
     List.partition
       (fun (_, c) ->
-        match c with
-        | Int | Float | Vec128 -> true
+        match (c : machtype_component) with
+        | Int | Float | Float32 | Vec128 -> true
         | Val -> false
         | Addr -> assert false)
       vs
@@ -2627,12 +2864,16 @@ let read_from_closure_given_machtype t clos base_offset dbg =
   let _, l =
     List.fold_left_map
       (fun (non_scanned_pos, scanned_pos) c ->
-        match c with
+        match (c : machtype_component) with
         | Int ->
           (non_scanned_pos + 1, scanned_pos), load Word_int non_scanned_pos
         | Float ->
           ( (non_scanned_pos + ints_per_float, scanned_pos),
             load Double non_scanned_pos )
+        | Float32 ->
+          (* Float32 slots still take up a full word *)
+          ( (non_scanned_pos + 1, scanned_pos),
+            load (Single { reg = Float32 }) non_scanned_pos )
         | Vec128 ->
           (* Vectors stored in closures may not be 16-byte aligned. *)
           ( (non_scanned_pos + ints_per_vec128, scanned_pos),
@@ -2836,7 +3077,7 @@ let arraylength kind arg dbg =
        Punboxedfloatarray *)
     Cop (Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
   | Punboxedfloatarray Pfloat32 ->
-    (* CR mslater: (float32) array support *)
+    (* CR mslater: (float32) unboxed arrays *)
     assert false
   | Punboxedintarray Pint64 | Punboxedintarray Pnativeint ->
     unboxed_int64_or_nativeint_array_length arg dbg
@@ -3045,9 +3286,11 @@ let emit_string_constant_fields s cont =
   Cstring s :: Cskip n :: Cint8 n :: cont
 
 let emit_boxed_int32_constant_fields n cont =
-  let n = Nativeint.of_int32 n in
-  Csymbol_address (global_symbol caml_int32_ops)
-  :: Cint32 n :: Cint32 0n :: cont
+  let n =
+    (* This will sign extend. *)
+    Nativeint.of_int32 n
+  in
+  Csymbol_address (global_symbol caml_int32_ops) :: Cint n :: cont
 
 let emit_boxed_int64_constant_fields n cont =
   let lo = Int64.to_nativeint n in
@@ -3055,6 +3298,13 @@ let emit_boxed_int64_constant_fields n cont =
 
 let emit_boxed_nativeint_constant_fields n cont =
   Csymbol_address (global_symbol caml_nativeint_ops) :: Cint n :: cont
+
+let emit_float32_constant symb f cont =
+  (* Here we are relying on the fact that the data section is zero initialized
+     by just using [Csingle] and not worrying about the high 64 bits of the
+     relevant field. *)
+  emit_block symb boxedfloat32_header
+    (Csymbol_address (global_symbol caml_float32_ops) :: Csingle f :: cont)
 
 let emit_float_constant symb f cont =
   emit_block symb float_header (Cdouble f :: cont)
@@ -3293,6 +3543,8 @@ let symbol ~dbg sym = Cconst_symbol (sym, dbg)
 
 let float ~dbg f = Cconst_float (f, dbg)
 
+let float32 ~dbg f = Cconst_float32 (f, dbg)
+
 let int32 ~dbg i = natint_const_untagged dbg (Nativeint.of_int32 i)
 
 (* CR Gbury: this conversion int64 -> nativeint is potentially unsafe when
@@ -3307,10 +3559,10 @@ let letin v ~defining_expr ~body =
   match body with
   | Cvar v' when Backend_var.same (Backend_var.With_provenance.var v) v' ->
     defining_expr
-  | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _
-  | Cconst_vec128 _ | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _
-  | Ctuple _ | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _
-  | Cexit _ | Ctrywith _ ->
+  | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_symbol _ | Cconst_vec128 _ | Clet _ | Clet_mut _ | Cphantom_let _
+  | Cassign _ | Ctuple _ | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _
+  | Ccatch _ | Cexit _ | Ctrywith _ ->
     Clet (v, defining_expr, body)
 
 let letin_mut v ty e body = Clet_mut (v, ty, e, body)
@@ -3351,9 +3603,17 @@ let unary op ~dbg x = Cop (op, [x], dbg)
 
 let binary op ~dbg x y = Cop (op, [x; y], dbg)
 
-let int_of_float = unary Cintoffloat
+let int_of_float = unary (Cscalarcast (Float_to_int Float64))
 
-let float_of_int = unary Cfloatofint
+let float_of_int = unary (Cscalarcast (Float_of_int Float64))
+
+let int_of_float32 = unary (Cscalarcast (Float_to_int Float32))
+
+let float32_of_int = unary (Cscalarcast (Float_of_int Float32))
+
+let float32_of_float = unary (Cscalarcast Float_to_float32)
+
+let float_of_float32 = unary (Cscalarcast Float_of_float32)
 
 let lsl_int_caml_raw ~dbg arg1 arg2 =
   incr_int (lsl_int (decr_int arg1 dbg) arg2 dbg) dbg
@@ -3439,29 +3699,53 @@ let ugt = binary (Ccmpa Cgt)
 
 let uge = binary (Ccmpa Cge)
 
-let float_abs = unary Cabsf
+let float_abs = unary (Cabsf Float64)
 
-let float_neg = unary Cnegf
+let float_neg = unary (Cnegf Float64)
 
-let float_add = binary Caddf
+let float_add = binary (Caddf Float64)
 
-let float_sub = binary Csubf
+let float_sub = binary (Csubf Float64)
 
-let float_mul = binary Cmulf
+let float_mul = binary (Cmulf Float64)
 
-let float_div = binary Cdivf
+let float_div = binary (Cdivf Float64)
 
-let float_eq = binary (Ccmpf CFeq)
+let float_eq = binary (Ccmpf (Float64, CFeq))
 
-let float_neq = binary (Ccmpf CFneq)
+let float_neq = binary (Ccmpf (Float64, CFneq))
 
-let float_lt = binary (Ccmpf CFlt)
+let float_lt = binary (Ccmpf (Float64, CFlt))
 
-let float_le = binary (Ccmpf CFle)
+let float_le = binary (Ccmpf (Float64, CFle))
 
-let float_gt = binary (Ccmpf CFgt)
+let float_gt = binary (Ccmpf (Float64, CFgt))
 
-let float_ge = binary (Ccmpf CFge)
+let float_ge = binary (Ccmpf (Float64, CFge))
+
+let float32_abs = unary (Cabsf Float32)
+
+let float32_neg = unary (Cnegf Float32)
+
+let float32_add = binary (Caddf Float32)
+
+let float32_sub = binary (Csubf Float32)
+
+let float32_mul = binary (Cmulf Float32)
+
+let float32_div = binary (Cdivf Float32)
+
+let float32_eq = binary (Ccmpf (Float32, CFeq))
+
+let float32_neq = binary (Ccmpf (Float32, CFneq))
+
+let float32_lt = binary (Ccmpf (Float32, CFlt))
+
+let float32_le = binary (Ccmpf (Float32, CFle))
+
+let float32_gt = binary (Ccmpf (Float32, CFgt))
+
+let float32_ge = binary (Ccmpf (Float32, CFge))
 
 let beginregion ~dbg = Cop (Cbeginregion, [], dbg)
 
@@ -3553,6 +3837,8 @@ let infix_field_address ~dbg ptr n =
 
 let cint i = Cmm.Cint i
 
+let cfloat32 f = Cmm.Csingle f
+
 let cfloat f = Cmm.Cdouble f
 
 let cvec128 bits = Cmm.Cvec128 bits
@@ -3593,38 +3879,17 @@ let cmm_arith_size (e : Cmm.expression) =
     | _ -> 0
   in
   match e with
-  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cvar _
-  | Cconst_vec128 _ ->
+  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_symbol _ | Cvar _ | Cconst_vec128 _ ->
     Some 0
   | Cop _ -> Some (cmm_arith_size0 e)
   | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Csequence _
   | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ ->
     None
 
-let transl_property : Lambda.property -> Cmm.property = function
-  | Zero_alloc -> Zero_alloc
-
-let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
-  | Default_check -> []
-  | Ignore_assert_all p -> [Ignore_assert_all (transl_property p)]
-  | Assume { property; strict; never_returns_normally; loc } ->
-    [ Assume
-        { property = transl_property property;
-          strict;
-          never_returns_normally;
-          loc
-        } ]
-  | Check { property; strict; loc; opt } ->
-    if Lambda.is_check_enabled ~opt property
-    then [Check { property = transl_property property; strict; loc }]
-    else []
-
 let kind_of_layout (layout : Lambda.layout) =
   match layout with
-  | Pvalue (Pboxedfloatval Pfloat64) -> Boxed_float
-  | Pvalue (Pboxedfloatval Pfloat32) ->
-    (* CR mslater: (float32) backend support *)
-    assert false
+  | Pvalue (Pboxedfloatval bf) -> Boxed_float bf
   | Pvalue (Pboxedintval bi) -> Boxed_integer bi
   | Pvalue (Pboxedvectorval vi) -> Boxed_vector vi
   | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
@@ -3756,3 +4021,6 @@ let allocate_unboxed_int64_array =
 
 let allocate_unboxed_nativeint_array =
   allocate_unboxed_int64_or_nativeint_array custom_ops_unboxed_nativeint_array
+
+(* Drop internal optional arguments from exported interface *)
+let block_header x y = block_header x y

@@ -22,7 +22,7 @@ open Types
    found in; it's used by [type_forcing_context], which see. *)
 type comprehension_type =
   | List_comprehension
-  | Array_comprehension of mutable_flag
+  | Array_comprehension of mutability
 
 (* This variant is used to print improved error messages, and does not affect
    the behavior of the typechecker itself.
@@ -151,11 +151,11 @@ val type_argument:
         Env.t -> Parsetree.expression ->
         type_expr -> type_expr -> Typedtree.expression
 
-val option_some:
-  Env.t -> Typedtree.expression -> ('l * Mode.allowed) Mode.Value.t -> Typedtree.expression
-val option_none:
-  Env.t -> type_expr -> Location.t -> Typedtree.expression
-val extract_option_type: Env.t -> type_expr -> type_expr
+val type_option_some:
+        Env.t -> Parsetree.expression ->
+        type_expr-> type_expr -> Typedtree.expression
+val type_option_none:
+        Env.t -> type_expr -> Location.t -> Typedtree.expression
 val generalizable: int -> type_expr -> bool
 val generalize_structure_exp: Typedtree.expression -> unit
 val reset_delayed_checks: unit -> unit
@@ -268,6 +268,7 @@ type error =
   | Extension_not_enabled : _ Language_extension.t -> error
   | Literal_overflow of string
   | Unknown_literal of string * char
+  | Float32_literal of string
   | Illegal_letrec_pat
   | Illegal_letrec_expr
   | Illegal_class_expr
@@ -281,8 +282,8 @@ type error =
   | Submode_failed of
       Mode.Value.error * submode_reason *
       Env.closure_context option * Env.shared_context option
-  | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
-  | Param_mode_mismatch of type_expr * Mode.Alloc.equate_error
+  | Local_application_complete of arg_label * [`Prefix|`Single_arg|`Entire_apply]
+  | Param_mode_mismatch of Mode.Alloc.equate_error
   | Uncurried_function_escapes of Mode.Alloc.error
   | Local_return_annotation_mismatch of Location.t
   | Function_returns_local
@@ -294,6 +295,8 @@ type error =
   | Unboxed_int_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
   | Modes_on_pattern
+  | Invalid_label_for_src_pos of arg_label
+  | Nonoptional_call_pos_label of string
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -324,6 +327,9 @@ val type_package:
 
 val constant: Parsetree.constant -> (Typedtree.constant, error) result
 
-val check_recursive_bindings : Env.t -> Typedtree.value_binding list -> unit
+val annotate_recursive_bindings :
+  Env.t -> Typedtree.value_binding list -> Typedtree.value_binding list
 val check_recursive_class_bindings :
   Env.t -> Ident.t list -> Typedtree.class_expr list -> unit
+
+val src_pos : Location.t -> Typedtree.attributes -> Env.t -> Typedtree.expression

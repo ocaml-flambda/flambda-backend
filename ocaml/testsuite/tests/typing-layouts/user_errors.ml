@@ -1,6 +1,6 @@
 (* TEST
-   flags = "-extension layouts_alpha"
-   * expect
+ flags = "-extension layouts_alpha";
+ expect;
 *)
 
 (* This test makes sure that [type t : unboxed = manifest] doesn't get

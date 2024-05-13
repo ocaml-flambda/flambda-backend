@@ -25,9 +25,11 @@ let rec struct_const ppf = function
   | Const_base(Const_string (s, _, _)) -> fprintf ppf "%S" s
   | Const_immstring s -> fprintf ppf "#%S" s
   | Const_base(Const_float f) -> fprintf ppf "%s" f
-  | Const_base(Const_float32 f) -> fprintf ppf "%s" f
+  | Const_base(Const_float32 f) -> fprintf ppf "%ss" f
   | Const_base(Const_unboxed_float f) ->
       fprintf ppf "%s" (Misc.format_as_unboxed_literal f)
+  | Const_base(Const_unboxed_float32 f) ->
+      fprintf ppf "%ss" (Misc.format_as_unboxed_literal f)
   | Const_base(Const_int32 n) -> fprintf ppf "%lil" n
   | Const_base(Const_int64 n) -> fprintf ppf "%LiL" n
   | Const_base(Const_nativeint n) -> fprintf ppf "%nin" n
@@ -83,6 +85,13 @@ let array_ref_kind ppf k =
   | Punboxedintarray_ref Pint64 -> fprintf ppf "unboxed_int64"
   | Punboxedintarray_ref Pnativeint -> fprintf ppf "unboxed_nativeint"
 
+let array_index_kind ppf k =
+  match k with
+  | Ptagged_int_index -> fprintf ppf "int"
+  | Punboxed_int_index Pint32 -> fprintf ppf "unboxed_int32"
+  | Punboxed_int_index Pint64 -> fprintf ppf "unboxed_int64"
+  | Punboxed_int_index Pnativeint -> fprintf ppf "unboxed_nativeint"
+
 let array_set_kind ppf k =
   let pp_mode ppf = function
     | Modify_heap -> ()
@@ -117,18 +126,40 @@ let boxed_float_name = function
   | Pfloat64 -> "float"
   | Pfloat32 -> "float32"
 
-let variant_kind print_contents ppf ~consts ~non_consts =
+let constructor_shape print_value_kind ppf shape =
+  let value_fields, flat_fields  =
+    match shape with
+    | Constructor_uniform fields -> fields, []
+    | Constructor_mixed { value_prefix; flat_suffix } ->
+        value_prefix, flat_suffix
+  in
+  fprintf ppf "%a%t"
+    (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
+       print_value_kind)
+    value_fields
+    (fun ppf ->
+       match flat_fields with
+       | [] -> ()
+       | _ :: _ ->
+           fprintf ppf ";@%a"
+             (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@")
+              (fun ppf flat_element ->
+                fprintf ppf "[%s]"
+                    (Types.flat_element_to_lowercase_string flat_element)))
+             flat_fields)
+
+let tag_and_constructor_shape print_value_kind ppf (tag, shape) =
+  fprintf ppf "@[<hov 1>[%d:@ %a]@]"
+    tag
+    (constructor_shape print_value_kind)
+    shape
+
+let variant_kind print_value_kind ppf ~consts ~non_consts =
   fprintf ppf "@[<hov 1>[(consts (%a))@ (non_consts (%a))]@]"
     (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_int)
     consts
     (Format.pp_print_list ~pp_sep:Format.pp_print_space
-      (fun ppf (tag, fields) ->
-        fprintf ppf "@[<hov 1>[%d:@ %a]@]"
-          tag
-          (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
-            print_contents)
-          fields
-      ))
+      (tag_and_constructor_shape print_value_kind))
     non_consts
 
 let rec value_kind ppf = function
@@ -200,12 +231,7 @@ let field_kind ppf = function
       (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_int)
       consts
       (Format.pp_print_list ~pp_sep:Format.pp_print_space
-        (fun ppf (tag, fields) ->
-          fprintf ppf "@[<hov 1>[%d:@ %a]@]"
-            tag
-            (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
-              value_kind') fields
-        ))
+        (tag_and_constructor_shape value_kind'))
       non_consts
 
 let alloc_kind = function
@@ -278,6 +304,7 @@ let record_rep ppf r = match r with
   | Record_inlined _ -> fprintf ppf "inlined"
   | Record_float -> fprintf ppf "float"
   | Record_ufloat -> fprintf ppf "ufloat"
+  | Record_mixed _ -> fprintf ppf "mixed"
 
 let block_shape ppf shape = match shape with
   | None | Some [] -> ()
@@ -290,6 +317,43 @@ let block_shape ppf shape = match shape with
           Format.fprintf ppf ",%a" field_kind elt)
         t;
       Format.fprintf ppf ")"
+
+let flat_element ppf : flat_element -> unit = fun x ->
+  pp_print_string ppf (Types.flat_element_to_lowercase_string x)
+
+let flat_element_read ppf : flat_element_read -> unit = function
+  | Flat_read flat ->
+      pp_print_string ppf (Types.flat_element_to_lowercase_string flat)
+  | Flat_read_float m -> fprintf ppf "float[%a]" alloc_mode m
+
+let mixed_block_read ppf : mixed_block_read -> unit = function
+  | Mread_value_prefix Immediate -> pp_print_string ppf "value_int"
+  | Mread_value_prefix Pointer -> pp_print_string ppf "value"
+  | Mread_flat_suffix flat -> flat_element_read ppf flat
+
+let mixed_block_write ppf : mixed_block_write -> unit = function
+  | Mwrite_value_prefix Immediate -> pp_print_string ppf "value_int"
+  | Mwrite_value_prefix Pointer -> pp_print_string ppf "value"
+  | Mwrite_flat_suffix flat -> flat_element ppf flat
+
+let mixed_block_shape ppf { value_prefix_len; flat_suffix } =
+  begin match value_prefix_len with
+    | 0 -> ()
+    | n -> fprintf ppf " (prefix=%d)" n
+  end;
+  match Array.length flat_suffix with
+  | 0 -> ()
+  | 1 ->
+      fprintf ppf " (%a)" flat_element (flat_suffix.(0))
+  | _ -> begin
+    Array.iteri (fun i elt ->
+      if i = 0 then
+        fprintf ppf " (%a" flat_element elt
+      else
+        fprintf ppf ",%a" flat_element elt)
+      flat_suffix;
+    fprintf ppf ")"
+  end
 
 let integer_comparison ppf = function
   | Ceq -> fprintf ppf "=="
@@ -350,6 +414,15 @@ let primitive ppf = function
   | Pmakeufloatblock (Mutable, mode) ->
      fprintf ppf "make%sufloatblock Mutable"
         (alloc_mode_if_local mode)
+  | Pmakemixedblock (tag, Immutable, abs, mode) ->
+      fprintf ppf "make%amixedblock %i Immutable%a"
+        alloc_mode mode tag mixed_block_shape abs
+  | Pmakemixedblock (tag, Immutable_unique, abs, mode) ->
+     fprintf ppf "make%amixedblock %i Immutable_unique%a"
+        alloc_mode mode tag mixed_block_shape abs
+  | Pmakemixedblock (tag, Mutable, abs, mode) ->
+     fprintf ppf "make%amixedblock %i Mutable%a"
+        alloc_mode mode tag mixed_block_shape abs
   | Pfield (n, ptr, sem) ->
       let instr =
         match ptr, sem with
@@ -394,6 +467,9 @@ let primitive ppf = function
   | Pufloatfield (n, sem) ->
       fprintf ppf "ufloatfield%a %i"
         field_read_semantics sem n
+  | Pmixedfield (n, read, sem) ->
+      fprintf ppf "mixedfield%a %i %a"
+        field_read_semantics sem n mixed_block_read read
   | Psetfloatfield (n, init) ->
       let init =
         match init with
@@ -412,6 +488,16 @@ let primitive ppf = function
         | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
       fprintf ppf "setufloatfield%s %i" init n
+  | Psetmixedfield (n, write, init) ->
+      let init =
+        match init with
+        | Heap_initialization -> "(heap-init)"
+        | Root_initialization -> "(root-init)"
+        | Assignment Modify_heap -> ""
+        | Assignment Modify_maybe_stack -> "(maybe-stack)"
+      in
+      fprintf ppf "setmixedfield%s %i %a"
+        init n mixed_block_write write
   | Pduprecord (rep, size) -> fprintf ppf "duprecord %a %i" record_rep rep size
   | Prunstack -> fprintf ppf "runstack"
   | Pperform -> fprintf ppf "perform"
@@ -448,6 +534,8 @@ let primitive ppf = function
   | Pcompare_bints bi -> fprintf ppf "compare_bints %s" (boxed_integer_name bi)
   | Poffsetint n -> fprintf ppf "%i+" n
   | Poffsetref n -> fprintf ppf "+:=%i"n
+  | Pfloatoffloat32 m -> print_boxed_float "float_of_float32" ppf Pfloat32 m
+  | Pfloat32offloat m -> print_boxed_float "float32_of_float" ppf Pfloat64 m
   | Pintoffloat bf -> fprintf ppf "int_of_%s" (boxed_float_name bf)
   | Pfloatofint (bf,m) ->
       fprintf ppf "%s_of_int%s" (boxed_float_name bf) (alloc_kind m)
@@ -482,10 +570,18 @@ let primitive ppf = function
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
   | Pduparray (k, Immutable_unique) ->
       fprintf ppf "duparray_unique[%s]" (array_kind k)
-  | Parrayrefu rk -> fprintf ppf "array.unsafe_get[%a]" array_ref_kind rk
-  | Parraysetu sk -> fprintf ppf "array.unsafe_set[%a]" array_set_kind sk
-  | Parrayrefs rk -> fprintf ppf "array.get[%a]" array_ref_kind rk
-  | Parraysets sk -> fprintf ppf "array.set[%a]" array_set_kind sk
+  | Parrayrefu (rk, idx) -> fprintf ppf "array.unsafe_get[%a indexed by %a]"
+                              array_ref_kind rk
+                              array_index_kind idx
+  | Parraysetu (sk, idx) -> fprintf ppf "array.unsafe_set[%a indexed by %a]"
+                              array_set_kind sk
+                              array_index_kind idx
+  | Parrayrefs (rk, idx) -> fprintf ppf "array.get[%a indexed by %a]"
+                              array_ref_kind rk
+                              array_index_kind idx
+  | Parraysets (sk, idx) -> fprintf ppf "array.set[%a indexed by %a]"
+                              array_set_kind sk
+                              array_index_kind idx
   | Pctconst c ->
      let const_name = match c with
        | Big_endian -> "big_endian"
@@ -690,6 +786,7 @@ let name_of_primitive = function
   | Pmakeblock _ -> "Pmakeblock"
   | Pmakefloatblock _ -> "Pmakefloatblock"
   | Pmakeufloatblock _ -> "Pmakeufloatblock"
+  | Pmakemixedblock _ -> "Pmakemixedblock"
   | Pfield _ -> "Pfield"
   | Pfield_computed _ -> "Pfield_computed"
   | Psetfield _ -> "Psetfield"
@@ -698,6 +795,8 @@ let name_of_primitive = function
   | Psetfloatfield _ -> "Psetfloatfield"
   | Pufloatfield _ -> "Pufloatfield"
   | Psetufloatfield _ -> "Psetufloatfield"
+  | Pmixedfield _ -> "Pmixedfield"
+  | Psetmixedfield _ -> "Psetmixedfield"
   | Pduprecord _ -> "Pduprecord"
   | Pmake_unboxed_product _ -> "Pmake_unboxed_product"
   | Punboxed_product_field _ -> "Punboxed_product_field"
@@ -724,6 +823,8 @@ let name_of_primitive = function
   | Pcompare_bints _ -> "Pcompare"
   | Poffsetint _ -> "Poffsetint"
   | Poffsetref _ -> "Poffsetref"
+  | Pfloatoffloat32 _ -> "Pfloatoffloat32"
+  | Pfloat32offloat _ -> "Pfloat32offloat"
   | Pintoffloat _ -> "Pintoffloat"
   | Pfloatofint (_, _) -> "Pfloatofint"
   | Pnegfloat (_, _) -> "Pnegfloat"
@@ -833,22 +934,18 @@ let name_of_primitive = function
   | Parray_to_iarray -> "Parray_to_iarray"
   | Pget_header _ -> "Pget_header"
 
-let check_attribute ppf check =
-  let check_property = function
-    | Zero_alloc -> "zero_alloc"
-  in
+let zero_alloc_attribute ppf check =
   match check with
-  | Default_check -> ()
-  | Ignore_assert_all p ->
-    fprintf ppf "ignore assert all %s@ " (check_property p)
-  | Assume {property=p; strict; never_returns_normally; loc = _} ->
-    fprintf ppf "assume_%s%s%s@ "
-      (check_property p)
+  | Default_zero_alloc -> ()
+  | Ignore_assert_all ->
+    fprintf ppf "ignore assert all zero_alloc@ "
+  | Assume {strict; never_returns_normally; loc = _} ->
+    fprintf ppf "assume_zero_alloc%s%s@ "
       (if strict then "_strict" else "")
       (if never_returns_normally then "_never_returns_normally" else "")
-  | Check {property=p; strict; loc = _; opt} ->
-    fprintf ppf "assert_%s%s%s@ "
-      (check_property p) (if opt then "_opt" else "")
+  | Check {strict; loc = _; opt} ->
+    fprintf ppf "assert_zero_alloc%s%s@ "
+      (if opt then "_opt" else "")
       (if strict then "_strict" else "")
 
 let function_attribute ppf t =
@@ -873,7 +970,7 @@ let function_attribute ppf t =
   | Always_local -> fprintf ppf "always_local@ "
   | Never_local -> fprintf ppf "never_local@ "
   end;
-  check_attribute ppf t.check;
+  zero_alloc_attribute ppf t.zero_alloc;
   if t.tmc_candidate then
     fprintf ppf "tail_mod_cons@ ";
   begin match t.loop with
@@ -935,34 +1032,8 @@ let rec lam ppf = function
         apply_inlined_attribute ap.ap_inlined
         apply_specialised_attribute ap.ap_specialised
         apply_probe ap.ap_probe
-  | Lfunction{kind; params; return; body; attr; ret_mode; mode} ->
-      let pr_params ppf params =
-        match kind with
-        | Curried {nlocal} ->
-            fprintf ppf "@ {nlocal = %d}" nlocal;
-            List.iter (fun (p : Lambda.lparam) ->
-                let { unbox_param } = p.attributes in
-                fprintf ppf "@ %a%s%a%s"
-                  Ident.print p.name (alloc_kind p.mode) layout p.layout
-                  (if unbox_param then "[@unboxable]" else "")
-              ) params
-        | Tupled ->
-            fprintf ppf " (";
-            let first = ref true in
-            List.iter
-              (fun (p : Lambda.lparam) ->
-                 let { unbox_param } = p.attributes in
-                 if !first then first := false else fprintf ppf ",@ ";
-                 Ident.print ppf p.name;
-                 Format.fprintf ppf "%s" (alloc_kind p.mode);
-                 layout ppf p.layout;
-                 if unbox_param then Format.fprintf ppf "[@unboxable]"
-              )
-              params;
-            fprintf ppf ")" in
-      fprintf ppf "@[<2>(function%s%a@ %a%a%a)@]"
-        (alloc_kind mode) pr_params params
-        function_attribute attr return_kind (ret_mode, return) lam body
+  | Lfunction lfun ->
+      lfunction ppf lfun
   | Llet _ | Lmutlet _ as expr ->
       let let_kind = begin function
         | Llet(str,_,_,_,_) ->
@@ -988,9 +1059,9 @@ let rec lam ppf = function
       let bindings ppf id_arg_list =
         let spc = ref false in
         List.iter
-          (fun (id, l) ->
+          (fun { id; def } ->
             if !spc then fprintf ppf "@ " else spc := true;
-            fprintf ppf "@[<2>%a@ %a@]" Ident.print id lam l)
+            fprintf ppf "@[<2>%a@ %a@]" Ident.print id lfunction def)
           id_arg_list in
       fprintf ppf
         "@[<2>(letrec@ (@[<hv 1>%a@])@ %a)@]" bindings id_arg_list lam body
@@ -1113,6 +1184,36 @@ and sequence ppf = function
       fprintf ppf "%a@ %a" sequence l1 sequence l2
   | l ->
       lam ppf l
+
+and lfunction ppf {kind; params; return; body; attr; ret_mode; mode} =
+  let pr_params ppf params =
+    match kind with
+    | Curried {nlocal} ->
+        fprintf ppf "@ {nlocal = %d}" nlocal;
+        List.iter (fun (p : Lambda.lparam) ->
+            let { unbox_param } = p.attributes in
+            fprintf ppf "@ %a%s%a%s"
+              Ident.print p.name (alloc_kind p.mode) layout p.layout
+              (if unbox_param then "[@unboxable]" else "")
+          ) params
+    | Tupled ->
+        fprintf ppf " (";
+        let first = ref true in
+        List.iter
+          (fun (p : Lambda.lparam) ->
+             let { unbox_param } = p.attributes in
+             if !first then first := false else fprintf ppf ",@ ";
+             Ident.print ppf p.name;
+             Format.fprintf ppf "%s" (alloc_kind p.mode);
+             layout ppf p.layout;
+             if unbox_param then Format.fprintf ppf "[@unboxable]"
+          )
+          params;
+        fprintf ppf ")" in
+  fprintf ppf "@[<2>(function%s%a@ %a%a%a)@]"
+    (alloc_kind mode) pr_params params
+    function_attribute attr return_kind (ret_mode, return) lam body
+
 
 let structured_constant = struct_const
 

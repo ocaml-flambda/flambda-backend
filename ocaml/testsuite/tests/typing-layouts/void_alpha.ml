@@ -1,6 +1,6 @@
 (* TEST
-   flags = "-extension layouts_alpha"
-   * expect
+ flags = "-extension layouts_alpha";
+ expect;
 *)
 (* CR layouts v5: when we add the ability to make actual void types, eliminate
    the uses of Obj.magic from this file *)
@@ -211,14 +211,17 @@ type void_variant =
     }
 val r : '_weak2 list ref = {contents = []}
 val cons_r : '_weak2 -> unit = <fun>
-Lines 19-25, characters 5-23:
-19 | .....A ((cons_r 10; a1),
+Lines 17-35, characters 10-27:
+17 | ..........function
+18 |   | A (a1, a2, x, v, z, b1, b2) ->
+19 |      A ((cons_r 10; a1),
 20 |         (cons_r 8; {v = ((cons_r 9; a2).v)}),
 21 |         (cons_r 7; x),
-22 |         (cons_r 5; {v = ((cons_r 6; v).v)}),
-23 |         (cons_r 4; z),
-24 |         (cons_r 2; {v = ((cons_r 3; b1).v)}),
-25 |         (cons_r 1; b2))
+...
+32 |        v = (cons_r 5; {v = ((cons_r 6; v).v)});
+33 |        z = (cons_r 4; z);
+34 |        b1 = (cons_r 2; {v = ((cons_r 3; b1).v)});
+35 |        b2 = (cons_r 1; b2)}
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because

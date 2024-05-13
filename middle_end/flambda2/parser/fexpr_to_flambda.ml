@@ -246,11 +246,14 @@ let tag_scannable (tag : Fexpr.tag_scannable) : Tag.Scannable.t =
 
 let immediate i = i |> Targetint_32_64.of_string |> Targetint_31_63.of_targetint
 
+let float32 f = f |> Numeric_types.Float32_by_bit_pattern.create
+
 let float f = f |> Numeric_types.Float_by_bit_pattern.create
 
 let rec subkind : Fexpr.subkind -> Flambda_kind.With_subkind.Subkind.t =
   function
   | Anything -> Anything
+  | Boxed_float32 -> Boxed_float32
   | Boxed_float -> Boxed_float
   | Boxed_int32 -> Boxed_int32
   | Boxed_int64 -> Boxed_int64
@@ -295,6 +298,7 @@ let const (c : Fexpr.const) : Reg_width_const.t =
   | Tagged_immediate i -> Reg_width_const.tagged_immediate (i |> immediate)
   | Naked_immediate i -> Reg_width_const.naked_immediate (i |> immediate)
   | Naked_float f -> Reg_width_const.naked_float (f |> float)
+  | Naked_float32 f -> Reg_width_const.naked_float32 (f |> float32)
   | Naked_int32 i -> Reg_width_const.naked_int32 i
   | Naked_int64 i -> Reg_width_const.naked_int64 i
   | Naked_nativeint i -> Reg_width_const.naked_nativeint (i |> targetint)
@@ -407,8 +411,8 @@ let infix_binop (binop : Fexpr.infix_binop) : Flambda_primitive.binary_primitive
   | Int_arith o -> Int_arith (Tagged_immediate, o)
   | Int_comp c -> Int_comp (Tagged_immediate, c)
   | Int_shift s -> Int_shift (Tagged_immediate, s)
-  | Float_arith o -> Float_arith o
-  | Float_comp c -> Float_comp c
+  | Float_arith (w, o) -> Float_arith (w, o)
+  | Float_comp (w, c) -> Float_comp (w, c)
 
 let block_access_kind (ak : Fexpr.block_access_kind) :
     Flambda_primitive.Block_access_kind.t =
@@ -429,6 +433,14 @@ let block_access_kind (ak : Fexpr.block_access_kind) :
   | Naked_floats { size = s } ->
     let size = size s in
     Naked_floats { size }
+  | Mixed { tag; size = s; field_kind } ->
+    let tag : Tag.Scannable.t Or_unknown.t =
+      match tag with
+      | Some tag -> Known (tag |> tag_scannable)
+      | None -> Unknown
+    in
+    let s = size s in
+    Mixed { tag; size = s; field_kind }
 
 let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   match binop with
@@ -760,6 +772,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           let tag = tag_scannable tag in
           static_const
             (SC.block tag mutability (List.map (field_of_block env) args))
+        | Boxed_float32 f ->
+          static_const (SC.boxed_float32 (or_variable float32 env f))
         | Boxed_float f ->
           static_const (SC.boxed_float (or_variable float env f))
         | Boxed_int32 i ->
@@ -910,7 +924,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             ~first_complex_local_param:(Flambda_arity.num_params params_arity)
             ~result_arity ~result_types:Unknown ~result_mode
             ~contains_no_escaping_local_allocs:false ~stub:false ~inline
-            ~check:Default_check
+            ~zero_alloc_attribute:Default_check
               (* CR gyorsh: should [check] be set properly? *)
             ~is_a_functor:false ~is_opaque:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)

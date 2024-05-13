@@ -8,8 +8,7 @@ module List = ListLabels
 
 let fatal = Misc.fatal_errorf
 
-(* CR-soon xclerc for xclerc: switch back to `false`. *)
-let debug = true
+let debug = false
 
 type doms = Label.t Label.Tbl.t
 
@@ -21,7 +20,8 @@ type dominator_tree =
   }
 
 type t =
-  { doms : doms;
+  { entry_label : Label.t;
+    doms : doms;
     dominance_frontiers : dominance_frontiers;
     dominator_forest : dominator_tree list
   }
@@ -309,7 +309,10 @@ let invariant_dominance_frontiers : Cfg.t -> doms -> dominance_frontiers -> unit
         frontier_labels)
     dominance_frontiers
 
-(* See Figure 5 in the cited article. *)
+(* See Figure 5 in the cited article, the only difference is that because of
+   dead code, there is a second condition to the while loop: the loop stops if
+   it reaches a block which is its own immediate dominator (this means we have
+   reached a "dead" entry point). *)
 let compute_dominance_frontiers (cfg : Cfg.t) (doms : doms) :
     dominance_frontiers =
   let res = Label.Tbl.create (Label.Tbl.length doms) in
@@ -317,7 +320,7 @@ let compute_dominance_frontiers (cfg : Cfg.t) (doms : doms) :
     (fun label _idom -> Label.Tbl.replace res label Label.Set.empty)
     doms;
   Label.Tbl.iter
-    (fun label _idom ->
+    (fun label idom ->
       let block = Cfg.get_block_exn cfg label in
       let predecessor_labels = Cfg.predecessor_labels block in
       match predecessor_labels with
@@ -325,14 +328,18 @@ let compute_dominance_frontiers (cfg : Cfg.t) (doms : doms) :
       | _ :: _ :: _ ->
         List.iter predecessor_labels ~f:(fun predecessor_label ->
             let runner = ref predecessor_label in
-            while not (Label.equal !runner (Label.Tbl.find doms label)) do
+            let continue = ref true in
+            while (not (Label.equal !runner idom)) && !continue do
               let curr =
                 match Label.Tbl.find_opt res !runner with
                 | None -> Label.Set.empty
                 | Some set -> set
               in
               Label.Tbl.replace res !runner (Label.Set.add label curr);
-              runner := Label.Tbl.find doms !runner
+              let next_runner = Label.Tbl.find doms !runner in
+              if Label.equal !runner next_runner
+              then continue := false
+              else runner := next_runner
             done))
     doms;
   if debug then invariant_dominance_frontiers cfg doms res;
@@ -411,7 +418,7 @@ let build : Cfg.t -> t =
   let doms = compute_doms cfg in
   let dominance_frontiers = compute_dominance_frontiers cfg doms in
   let dominator_forest = compute_dominator_forest cfg doms in
-  { doms; dominance_frontiers; dominator_forest }
+  { entry_label = cfg.entry_label; doms; dominance_frontiers; dominator_forest }
 
 let is_dominating t left right = is_dominating t.doms left right
 
@@ -426,6 +433,18 @@ let find_dominance_frontier t label =
       label
 
 let dominator_forest t = t.dominator_forest
+
+let dominator_tree_for_entry_point t =
+  match
+    List.find_opt t.dominator_forest ~f:(fun tree ->
+        Label.equal tree.label t.entry_label)
+  with
+  | None ->
+    fatal
+      "Cfg_dominators.dominator_tree_for_entry_point: no tree for entry point \
+       (label %d)"
+      t.entry_label
+  | Some tree -> tree
 
 let iter_breadth_dominator_forest t ~f =
   List.iter t.dominator_forest ~f:(fun dominator_tree ->

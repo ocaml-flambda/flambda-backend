@@ -1583,10 +1583,31 @@ let prim_mode mvar = function
     put in [mode.ml] *)
 let with_locality locality m =
   let m' = Alloc.newvar () in
-  Locality.equate_exn (Alloc.locality m') locality;
-  Alloc.submode_exn m' (Alloc.set_locality_max m);
-  Alloc.submode_exn (Alloc.set_locality_min m) m';
+  Locality.equate_exn (Alloc.proj (Comonadic Areality) m') locality;
+  Alloc.submode_exn m' (Alloc.join_with (Comonadic Areality) Locality.Const.max m);
+  Alloc.submode_exn (Alloc.meet_with (Comonadic Areality) Locality.Const.min m) m';
   m'
+
+let curry_mode alloc arg : Alloc.Const.t =
+  let acc =
+    Alloc.Const.join
+      (Alloc.Const.close_over arg)
+      (Alloc.Const.partial_apply alloc)
+  in
+  (* For A -> B -> C, we always interpret (B -> C) to be of shared. This is the
+    legacy mode which helps with legacy compatibility. Arrow types cross
+    uniqueness so we are not losing too much expressvity here. One
+    counter-example is:
+
+    let g : (A -> B -> C) = ...
+    let f (g : A -> unique_ (B -> C)) = ...
+
+    And [f g] would not work, as mode crossing doesn't work deeply into arrows.
+    Our answer to this issue is that, the author of f shouldn't ask B -> C to be
+    unique_. Instead, they should leave it as default which is shared, and mode
+    crossing it to unique at the location where B -> C is a real value (instead
+    of the return of a function). *)
+  {acc with uniqueness=Uniqueness.Const.Shared}
 
 let rec instance_prim_locals locals mvar macc finalret ty =
   match locals, get_desc ty with
@@ -2292,8 +2313,9 @@ let () =
       | None -> ()
     in
     Some (Location.errorf ~loc
-      "@[Usage of layout immediate/immediate64%a can't be erased.@;\
-      This error is produced due to the use of -only-erasable-extensions.@]"
+      "@[Usage of layout immediate/immediate64%a can't be erased \
+      for compatibility with upstream OCaml.@; This error is produced due to \
+      the use of -extension-universe (no_extensions|upstream_compatible).@]"
       format_id id)
   | _ -> None)
 
@@ -2901,6 +2923,11 @@ let rec expands_to_datatype env ty =
       end
   | _ -> false
 
+let equivalent_with_nolabels l1 l2 =
+  l1 = l2 || (match l1, l2 with
+  | (Nolabel | Labelled _), (Nolabel | Labelled _) -> true
+  | _ -> false)
+
 (* [mcomp] tests if two types are "compatible" -- i.e., if they could ever
    unify.  (This is distinct from [eqtype], which checks if two types *are*
    exactly the same.)  This is used to decide whether GADT cases are
@@ -2935,7 +2962,7 @@ let rec mcomp type_pairs env t1 t2 =
         | (_, Tvar _)  ->
             ()
         | (Tarrow ((l1,_,_), t1, u1, _), Tarrow ((l2,_,_), t2, u2, _))
-          when l1 = l2 || not (is_optional l1 || is_optional l2) ->
+          when equivalent_with_nolabels l1 l2 ->
             mcomp type_pairs env t1 t2;
             mcomp type_pairs env u1 u2;
         | (Ttuple tl1, Ttuple tl2) ->
@@ -3495,7 +3522,7 @@ and unify3 env t1 t1' t2 t2' =
            when
              (l1 = l2 ||
               (!Clflags.classic || in_pattern_mode ()) &&
-               not (is_optional l1 || is_optional l2)) ->
+               equivalent_with_nolabels l1 l2) ->
           unify_alloc_mode_for Unify a1 a2;
           unify_alloc_mode_for Unify r1 r2;
           unify  env t1 t2; unify env  u1 u2;
@@ -4037,6 +4064,8 @@ let filter_arrow env t l ~force_tpoly =
               (Tconstr(Predef.path_option,
                        [newvar2 level Predef.option_argument_jkind],
                        ref Mnil))
+          else if is_position l then
+            newty2 ~level (Tconstr (Predef.path_lexing_position, [], ref Mnil))
           else
             newvar2 level k_arg
         in
@@ -4076,7 +4105,8 @@ let filter_arrow env t l ~force_tpoly =
       link_type t t';
       arrow_desc
   | Tarrow((l', arg_mode, ret_mode), ty_arg, ty_ret, _) ->
-      if l = l' || !Clflags.classic && l = Nolabel && not (is_optional l')
+      if l = l' || !Clflags.classic && l = Nolabel &&
+        equivalent_with_nolabels l l'
       then
         { ty_arg; arg_mode; ty_ret; ret_mode }
       else raise (Filter_arrow_failed
@@ -4309,7 +4339,7 @@ type add_instance_variable_failure =
 
 exception Add_instance_variable_failed of add_instance_variable_failure
 
-let check_mutability mut mut' =
+let check_mutability (mut : mutable_flag) (mut' : mutable_flag) =
   match mut, mut' with
   | Mutable, Mutable -> ()
   | Immutable, Immutable -> ()
@@ -4590,7 +4620,7 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
           | (Tarrow ((l1,a1,r1), t1, u1, _),
              Tarrow ((l2,a2,r2), t2, u2, _)) when
                (l1 = l2
-                || !Clflags.classic && not (is_optional l1 || is_optional l2)) ->
+                || !Clflags.classic && equivalent_with_nolabels l1 l2) ->
               moregen inst_nongen (neg_variance variance) type_pairs env t1 t2;
               moregen inst_nongen variance type_pairs env u1 u2;
               moregen_alloc_mode (neg_variance variance) a1 a2;
@@ -5016,7 +5046,7 @@ let rec eqtype rename type_pairs subst env t1 t2 =
           | (Tarrow ((l1,a1,r1), t1, u1, _),
              Tarrow ((l2,a2,r2), t2, u2, _)) when
                (l1 = l2
-                || !Clflags.classic && not (is_optional l1 || is_optional l2)) ->
+                || !Clflags.classic && equivalent_with_nolabels l1 l2) ->
               eqtype rename type_pairs subst env t1 t2;
               eqtype rename type_pairs subst env u1 u2;
               eqtype_alloc_mode a1 a2;
@@ -5286,10 +5316,10 @@ let match_class_sig_shape ~strict sign1 sign2 =
   in
   let errors =
     Vars.fold
-      (fun lab (mut, vr, _) err ->
+      (fun lab ((mut:Asttypes.mutable_flag), vr, _) err ->
          match Vars.find lab sign1.csig_vars with
          | exception Not_found -> CM_Missing_value lab::err
-         | (mut', vr', _) ->
+         | ((mut':Asttypes.mutable_flag), vr', _) ->
              match mut', mut with
              | Immutable, Mutable -> CM_Non_mutable_value lab::err
              | _, _ ->
@@ -5559,10 +5589,8 @@ let build_submode posi m =
   if posi then build_submode_pos (Alloc.allow_left m)
   else build_submode_neg (Alloc.allow_right m)
 
-(* CR layouts v2.8: use the meet-with-constant morphism when available *)
 (* CR layouts v2.8: merge with Typecore.mode_cross_left when [Value] and
    [Alloc] get unified *)
-(* The approach here works only for 2-element modal axes. *)
 let mode_cross_left env ty mode =
   (* CR layouts v2.8: The old check didn't check for principality, and so
      this one doesn't either. I think it should. But actually test results
@@ -5571,49 +5599,16 @@ let mode_cross_left env ty mode =
      now; will return and figure this out later. *)
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  let mode = Alloc.disallow_right mode in
-  let mode =
-    if Locality.Const.le upper_bounds.locality Locality.Const.min
-    then Alloc.set_locality_min mode
-    else mode
-  in
-  let mode =
-    if Linearity.Const.le upper_bounds.linearity Linearity.Const.min
-    then Alloc.set_linearity_min mode
-    else mode
-  in
-  let mode =
-    if Uniqueness.Const.le upper_bounds.uniqueness Uniqueness.Const.min
-    then Alloc.set_uniqueness_min mode
-    else mode
-  in
-  mode
+  Alloc.meet_const upper_bounds mode
 
 (* CR layouts v2.8: merge with Typecore.expect_mode_cross when [Value]
    and [Alloc] get unified *)
-(* The approach here works only for 2-element modal axes. *)
 let mode_cross_right env ty mode =
   (* CR layouts v2.8: This should probably check for principality. See
      similar comment in [mode_cross_left]. *)
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  let mode = Alloc.disallow_left mode in
-  let mode =
-    if Locality.Const.le upper_bounds.locality Locality.Const.min
-    then Alloc.set_locality_max mode
-    else mode
-  in
-  let mode =
-    if Linearity.Const.le upper_bounds.linearity Linearity.Const.min
-    then Alloc.set_linearity_max mode
-    else mode
-  in
-  let mode =
-    if Uniqueness.Const.le upper_bounds.uniqueness Uniqueness.Const.min
-    then Alloc.set_uniqueness_max mode
-    else mode
-  in
-  mode
+  Alloc.imply upper_bounds mode
 
 let rec build_subtype env (visited : transient_expr list)
     (loops : (int * type_expr) list) posi level t =
@@ -5859,7 +5854,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
         (trace, t1, t2, !univar_pairs)::cstrs
     | (Tarrow((l1,a1,r1), t1, u1, _),
        Tarrow((l2,a2,r2), t2, u2, _)) when l1 = l2
-      || !Clflags.classic && not (is_optional l1 || is_optional l2) ->
+      || !Clflags.classic && equivalent_with_nolabels l1 l2 ->
         let cstrs =
           subtype_rec
             env
@@ -6502,6 +6497,7 @@ let nondep_extension_constructor env ids ext =
         ext_type_params = type_params;
         ext_args = args;
         ext_arg_jkinds = ext.ext_arg_jkinds;
+        ext_shape = ext.ext_shape;
         ext_constant = ext.ext_constant;
         ext_ret_type = ret_type;
         ext_private = ext.ext_private;

@@ -29,12 +29,14 @@ let rec_flag ppf = function
   | Nonrecursive -> ()
   | Recursive -> fprintf ppf " rec"
 
-let machtype_component ppf = function
+let machtype_component ppf (ty : machtype_component) =
+  match ty with
   | Val -> fprintf ppf "val"
   | Addr -> fprintf ppf "addr"
   | Int -> fprintf ppf "int"
   | Float -> fprintf ppf "float"
   | Vec128 -> fprintf ppf "vec128"
+  | Float32 -> fprintf ppf "float32"
 
 let machtype ppf mty =
   match Array.length mty with
@@ -49,6 +51,7 @@ let exttype ppf = function
   | XInt32 -> fprintf ppf "int32"
   | XInt64 -> fprintf ppf "int64"
   | XFloat -> fprintf ppf "float"
+  | XFloat32 -> fprintf ppf "float32"
   | XVec128 -> fprintf ppf "vec128"
 
 let extcall_signature ppf (ty_res, ty_args) =
@@ -103,7 +106,8 @@ let chunk = function
   | Onetwentyeight_aligned -> "aligned vec128"
   | Word_int -> "int"
   | Word_val -> "val"
-  | Single -> "float32"
+  | Single { reg = Float64 } -> "float32_as_float64"
+  | Single { reg = Float32 } -> "float32"
   | Double -> "float64"
 
 let atomic_bitwidth : Cmm.atomic_bitwidth -> string = function
@@ -212,25 +216,36 @@ let operation d = function
   | Caddv -> "+v"
   | Cadda -> "+a"
   | Ccmpa c -> Printf.sprintf "%sa" (integer_comparison c)
-  | Cnegf -> "~f"
-  | Cabsf -> "absf"
-  | Caddf -> "+f"
-  | Csubf -> "-f"
-  | Cmulf -> "*f"
-  | Cdivf -> "/f"
+  | Cnegf Float64 -> "~f"
+  | Cabsf Float64 -> "absf"
+  | Caddf Float64 -> "+f"
+  | Csubf Float64 -> "-f"
+  | Cmulf Float64 -> "*f"
+  | Cdivf Float64 -> "/f"
+  | Cnegf Float32 -> "~f32"
+  | Cabsf Float32 -> "absf32"
+  | Caddf Float32 -> "+f32"
+  | Csubf Float32 -> "-f32"
+  | Cmulf Float32 -> "*f32"
+  | Cdivf Float32 -> "/f32"
   | Ccsel ret_typ ->
     to_string "csel %a" machtype ret_typ
-  | Cfloatofint -> "floatofint"
-  | Cintoffloat -> "intoffloat"
   | Cvalueofint -> "valueofint"
   | Cintofvalue -> "intofvalue"
   | Cvectorcast Bits128 ->
     Printf.sprintf "vec128->vec128"
+  | Cscalarcast (Float_to_int Float64) -> "float->int"
+  | Cscalarcast (Float_of_int Float64) -> "int->float"
+  | Cscalarcast (Float_to_int Float32) -> "float32->int"
+  | Cscalarcast (Float_of_int Float32) -> "int->float32"
+  | Cscalarcast (Float_to_float32) -> "float->float32"
+  | Cscalarcast (Float_of_float32) -> "float32->float"
   | Cscalarcast (V128_to_scalar ty) ->
     Printf.sprintf "%s->scalar" (Primitive.vec128_name ty)
   | Cscalarcast (V128_of_scalar ty) ->
     Printf.sprintf "scalar->%s" (Primitive.vec128_name ty)
-  | Ccmpf c -> Printf.sprintf "%sf" (float_comparison c)
+  | Ccmpf (Float64, c) -> Printf.sprintf "%sf" (float_comparison c)
+  | Ccmpf (Float32, c) -> Printf.sprintf "%sf32" (float_comparison c)
   | Craise k -> Lambda.raise_kind k ^ location d
   | Cprobe { name; handler_code_sym; enabled_at_init; } ->
     Printf.sprintf "probe[%s %s%s]" name handler_code_sym
@@ -252,6 +267,7 @@ let rec expr ppf = function
   | Cconst_natint (n, _dbg) ->
     fprintf ppf "%s" (Nativeint.to_string n)
   | Cconst_vec128 ({low; high}, _dbg) -> fprintf ppf "%016Lx:%016Lx" high low
+  | Cconst_float32 (n, _dbg) -> fprintf ppf "%Fs" n
   | Cconst_float (n, _dbg) -> fprintf ppf "%F" n
   | Cconst_symbol (s, _dbg) -> fprintf ppf "%a:\"%s\"" is_global s.sym_global s.sym_name
   | Cvar id -> V.print ppf id
@@ -376,23 +392,17 @@ and sequence ppf = function
 
 and expression ppf e = fprintf ppf "%a" expr e
 
-let property_to_string : Cmm.property -> string = function
-  | Zero_alloc -> "zero_alloc"
-
 let codegen_option = function
   | Reduce_code_size -> "reduce_code_size"
   | No_CSE -> "no_cse"
   | Use_linscan_regalloc -> "linscan"
-  | Ignore_assert_all property ->
-    Printf.sprintf "ignore %s" (property_to_string property)
-  | Assume { property; strict; never_returns_normally = _; loc = _ } ->
-    Printf.sprintf "assume_%s%s%s"
-      (property_to_string property)
+  | Assume_zero_alloc { strict; never_returns_normally; never_raises; loc = _ } ->
+    Printf.sprintf "assume_zero_alloc_%s%s%s"
       (if strict then "_strict" else "")
-      (if strict then "_never_returns_normally" else "")
-  | Check { property; strict; loc = _ } ->
-    Printf.sprintf "assert_%s%s"
-      (property_to_string property)
+      (if never_returns_normally then "_never_returns_normally" else "")
+      (if never_raises then "_never_raises" else "")
+  | Check_zero_alloc { strict; loc = _ } ->
+    Printf.sprintf "assert_zero_alloc%s"
       (if strict then "_strict" else "")
 
 let print_codegen_options ppf l =

@@ -17,26 +17,50 @@ let () =
  (alias   runtest)
  ${enabled_if}
  (deps ${deps})
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c ${extra_flags} -dcse -dcheckmach -dump-into-file -O3 -warn-error +a)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c ${extra_flags} -dcse -dzero-alloc -dump-into-file -O3 -warn-error +a)))
 |};
     Buffer.output_buffer Out_channel.stdout buf
   in
-  let print_test_expected_output ?(extra_flags="-zero-alloc-check default") ~cutoff ~extra_dep ~exit_code name =
-    let ml_deps =
-      let s =
-        match extra_dep with
-        | None -> ""
-        | Some s -> s^" "
-      in
-      Printf.sprintf {|(:ml %s%s.ml)|} s name
-    in
+  let print_cmi_target name =
     let subst = function
       | "enabled_if" -> enabled_if
       | "name" -> name
-      | "ml_deps" -> ml_deps
+      | _ -> "assert false"
+    in
+    Buffer.clear buf;
+    Buffer.add_substitute buf subst
+    {|
+(rule
+ (alias runtest)
+ (deps ${name}.ml)
+ (target ${name}.cmi)
+ ${enabled_if}
+ (action (run %{bin:ocamlopt.opt} ${name}.ml -g -c -opaque -stop-after typing -O3 -warn-error +a)))
+|};
+    Buffer.output_buffer Out_channel.stdout buf
+  in
+  let print_test_expected_output ?(filter="filter.sh")
+        ?(extra_flags="-zero-alloc-check default")
+        ?output ~cutoff ~extra_dep ~exit_code name =
+    let extra_deps =
+      match extra_dep with
+      | None -> Printf.sprintf {|(:ml %s.ml)|} name
+      | Some s ->
+        if String.ends_with ~suffix:".ml" s
+        || String.ends_with ~suffix:".mli" s
+        then Printf.sprintf {|(:ml %s %s.ml)|} s name
+        else Printf.sprintf {|%s (:ml %s.ml)|} s name
+    in
+    let output = Option.value output ~default:(name ^ ".output") in
+    let subst = function
+      | "enabled_if" -> enabled_if
+      | "name" -> name
+      | "output" -> output
+      | "extra_deps" -> extra_deps
       | "exit_code" -> string_of_int exit_code
       | "cutoff" -> string_of_int cutoff
       | "extra_flags" -> extra_flags
+      | "filter" -> filter
       | _ -> assert false
     in
     Buffer.clear buf;
@@ -44,22 +68,22 @@ let () =
     {|
 (rule
  ${enabled_if}
- (targets ${name}.output.corrected)
- (deps ${ml_deps} filter.sh)
+ (targets ${output}.corrected)
+ (deps ${extra_deps} ${filter})
  (action
-   (with-outputs-to ${name}.output.corrected
+   (with-outputs-to ${output}.corrected
     (pipe-outputs
     (with-accepted-exit-codes ${exit_code}
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          ${extra_flags} -checkmach-details-cutoff ${cutoff} -O3))
-    (run "./filter.sh")
+          ${extra_flags} -zero-alloc-checker-details-cutoff ${cutoff} -O3))
+    (run "./${filter}")
    ))))
 
 (rule
  (alias   runtest)
  ${enabled_if}
- (deps ${name}.output ${name}.output.corrected)
- (action (diff ${name}.output ${name}.output.corrected)))
+ (deps ${output} ${output}.corrected)
+ (action (diff ${output} ${output}.corrected)))
 |};
     Buffer.output_buffer Out_channel.stdout buf
   in
@@ -109,7 +133,7 @@ let () =
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "t1";
   (* deleting dead functions works *)
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:(Some "test_warning199.mli") ~exit_code:0 "test_warning199";
-  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_never_returns_normally";
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:0 "test_never_returns_normally";
   print_test_expected_output ~extra_flags:"-zero-alloc-check opt" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail22";
   print_test_expected_output ~extra_flags:"-zero-alloc-check opt" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail23";
   print_test ~extra_flags:"-zero-alloc-check opt" "test_zero_alloc_opt1.ml";
@@ -117,11 +141,60 @@ let () =
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_assume_fail";
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_assume_on_call";
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_misplaced_assume";
-  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:0 "test_misplaced_attr";
   print_test_expected_output ~extra_flags:"-zero-alloc-check all" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_attr_check";
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_attr_check_all";
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_attr_check_opt";
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:0 "test_attr_check_none";
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail24";
-  print_test "test_raise_message.ml";
+  print_test ~extra_flags:"-zero-alloc-check default -function-layout topological"  "test_raise_message.ml";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check default -disable-precise-zero-alloc-checker -function-layout source"
+    ~extra_dep:None ~exit_code:2 "fail25";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check default -disable-zero-alloc-checker -function-layout source"
+    ~extra_dep:None ~exit_code:2 "fail26";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check default"
+    ~extra_dep:None ~exit_code:2 "test_all_opt";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check all"
+    ~extra_dep:None ~exit_code:2 "test_all_opt2";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check opt"
+    ~extra_dep:None ~exit_code:2 "test_all_opt3";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_dep:None ~exit_code:2 "test_arity";
+  print_cmi_target "stop_after_typing";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_dep:None ~exit_code:2 "test_signatures_functors";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_dep:None ~exit_code:2 "test_signatures_first_class_modules";
+  print_cmi_target "test_signatures_separate_a";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~output:"test_signatures_separate.output"
+    ~extra_dep:(Some "test_signatures_separate_a.cmi")
+    ~exit_code:2 "test_signatures_separate_b";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~output:"test_signatures_separate.opt.output"
+    ~extra_flags:"-zero-alloc-check all"
+    ~extra_dep:(Some "test_signatures_separate_a.cmi")
+    ~exit_code:2 "test_signatures_separate_b";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_dep:None ~exit_code:2 "test_assume_inlining";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_dep:None ~exit_code:2 "test_assume_error";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_dep:None ~exit_code:2 "test_assume_stub";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check default -zero-alloc-checker-join -2"
+    ~extra_dep:None ~exit_code:2 ~filter:"filter_fatal_error.sh" "test_bounded_join";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check default -zero-alloc-checker-join 2"
+    ~extra_dep:None ~exit_code:2 "test_bounded_join2";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check default -zero-alloc-checker-join 0"
+    ~extra_dep:None ~exit_code:2 "test_bounded_join3";
+  print_test_expected_output ~cutoff:3
+    ~extra_flags:"-zero-alloc-check default -zero-alloc-checker-join 0"
+    ~extra_dep:None ~exit_code:2 "test_bounded_join4";
   ()

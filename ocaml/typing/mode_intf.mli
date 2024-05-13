@@ -14,6 +14,9 @@
 
 open Solver_intf
 
+(* While all our lattices are bi-Heyting algebras (see [mode.ml]), the extra
+   structure is not directly useful to the user, so we only expose the basic
+   lattice structure. *)
 module type Lattice = sig
   type t
 
@@ -80,34 +83,12 @@ module type Common = sig
 
   val newvar_below : ('l * allowed) t -> ('l_ * 'r) t * bool
 
-  val print :
-    ?raw:bool ->
-    ?verbose:bool ->
-    unit ->
-    Format.formatter ->
-    ('l * 'r) t ->
-    unit
-
-  val zap_to_floor : (allowed * 'r) t -> Const.t
-
-  val zap_to_ceil : ('l * allowed) t -> Const.t
-
-  val check_const : ('l * 'r) t -> Const.t option
+  val print : ?verbose:bool -> unit -> Format.formatter -> ('l * 'r) t -> unit
 
   val of_const : Const.t -> ('l * 'r) t
 end
 
 module type S = sig
-  module Axis : sig
-    type t =
-      [ `Locality
-      | `Regionality
-      | `Uniqueness
-      | `Linearity ]
-
-    val to_string : t -> string
-  end
-
   module Global_flag : sig
     type t =
       | Global
@@ -126,6 +107,12 @@ module type S = sig
 
   type nonrec disallowed = disallowed
 
+  type nonrec equate_step = equate_step
+
+  type ('a, 'd) mode_monadic constraint 'd = 'l * 'r
+
+  type ('a, 'd) mode_comonadic constraint 'd = 'l * 'r
+
   type ('a, 'b) monadic_comonadic =
     { monadic : 'a;
       comonadic : 'b
@@ -142,13 +129,35 @@ module type S = sig
 
     type error = Const.t Solver.error
 
-    include Common with module Const := Const and type error := error
+    include
+      Common
+        with module Const := Const
+         and type error := error
+         and type 'd t = (Const.t, 'd) mode_comonadic
 
     val global : lr
 
     val local : lr
 
-    val zap_to_legacy : (allowed * 'r) t -> Const.t
+    val zap_to_floor : (allowed * 'r) t -> Const.t
+
+    val zap_to_ceil : ('l * allowed) t -> Const.t
+
+    module Guts : sig
+      (** This module exposes some functions that allow callers to inspect modes
+      directly, which could be useful for error printing and dev tools (such as
+      merlin). Any usage of this in type checking should be pondered. *)
+
+      (** Returns [Some c] if the given mode has been constrained to constant
+          [c]. see notes on [get_floor] in [solver_intf.mli] for cautions. *)
+      val check_const : (allowed * allowed) t -> Const.t option
+
+      (** Similar to [check_const] but doesn't run the further constraining
+          needed for precise bounds. As a result, it is inexpensive and returns
+          a conservative result. I.e., it might return [None] for
+          fully-constrained modes. *)
+      val check_const_conservative : ('l * 'r) t -> Const.t option
+    end
   end
 
   module Regionality : sig
@@ -163,15 +172,17 @@ module type S = sig
 
     type error = Const.t Solver.error
 
-    include Common with module Const := Const and type error := error
+    include
+      Common
+        with module Const := Const
+         and type error := error
+         and type 'd t = (Const.t, 'd) mode_comonadic
 
     val global : lr
 
     val regional : lr
 
     val local : lr
-
-    val zap_to_legacy : (allowed * 'r) t -> Const.t
   end
 
   module Linearity : sig
@@ -185,13 +196,15 @@ module type S = sig
 
     type error = Const.t Solver.error
 
-    include Common with module Const := Const and type error := error
+    include
+      Common
+        with module Const := Const
+         and type error := error
+         and type 'd t = (Const.t, 'd) mode_comonadic
 
     val many : lr
 
     val once : lr
-
-    val zap_to_legacy : (allowed * 'r) t -> Const.t
   end
 
   module Uniqueness : sig
@@ -205,46 +218,76 @@ module type S = sig
 
     type error = Const.t Solver.error
 
-    include Common with module Const := Const and type error := error
+    include
+      Common
+        with module Const := Const
+         and type error := error
+         and type 'd t = (Const.t, 'd) mode_monadic
 
     val shared : lr
 
     val unique : lr
+  end
 
-    val zap_to_legacy : ('l * allowed) t -> Const.t
+  type 'a comonadic_with = private 'a * Linearity.Const.t
+
+  type monadic = private Uniqueness.Const.t * unit
+
+  module Axis : sig
+    (** ('p, 'r) t represents a projection from a product of type ['p] to an
+    element of type ['r]. *)
+    type ('p, 'r) t =
+      | Areality : ('a comonadic_with, 'a) t
+      | Linearity : ('areality comonadic_with, Linearity.Const.t) t
+      | Uniqueness : (monadic, Uniqueness.Const.t) t
+
+    val print : Format.formatter -> ('p, 'r) t -> unit
   end
 
   (** The most general mode. Used in most type checking,
       including in value bindings in [Env] *)
   module Value : sig
     module Monadic : sig
-      include Common with type error = [`Uniqueness of Uniqueness.error]
+      module Const : Lattice with type t = monadic
 
-      val check_const : ('l * 'r) t -> Uniqueness.Const.t option
+      include Common with module Const := Const
     end
 
     module Comonadic : sig
-      include
-        Common
-          with type error =
-            [ `Regionality of Regionality.error
-            | `Linearity of Linearity.error ]
+      module Const : Lattice with type t = Regionality.Const.t comonadic_with
 
-      val check_const :
-        ('l * 'r) t -> Regionality.Const.t option * Linearity.Const.t option
+      type error = Error : (Const.t, 'a) Axis.t * 'a Solver.error -> error
 
-      val linearity : ('l * 'r) t -> ('l * 'r) Linearity.t
+      include Common with type error := error and module Const := Const
     end
 
-    module Const :
-      Lattice
-        with type t =
-          Regionality.Const.t * Linearity.Const.t * Uniqueness.Const.t
+    (** Represents a mode axis in this product whose constant is ['a], and
+        whose variable is ['m] given the allowness ['d]. *)
+    type ('m, 'a, 'd) axis =
+      | Monadic :
+          (Monadic.Const.t, 'a) Axis.t
+          -> (('a, 'd) mode_monadic, 'a, 'd) axis
+      | Comonadic :
+          (Comonadic.Const.t, 'a) Axis.t
+          -> (('a, 'd) mode_comonadic, 'a, 'd) axis
 
-    type error =
-      [ `Regionality of Regionality.error
-      | `Uniqueness of Uniqueness.error
-      | `Linearity of Linearity.error ]
+    type ('a, 'b, 'c) modes =
+      { regionality : 'a;
+        linearity : 'b;
+        uniqueness : 'c
+      }
+
+    module Const : sig
+      include
+        Lattice
+          with type t =
+            (Regionality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
+
+      (** Prints a constant on any axis. *)
+      val print_axis : ('m, 'a, 'd) axis -> Format.formatter -> 'a -> unit
+    end
+
+    type error = Error : ('m, 'a, 'd) axis * 'a Solver.error -> error
 
     type 'd t = ('d Monadic.t, 'd Comonadic.t) monadic_comonadic
 
@@ -259,52 +302,21 @@ module type S = sig
       include Allow_disallow with type (_, _, 'd) sided = 'd t list
     end
 
-    (* some overriding *)
-    val print :
-      ?raw:bool ->
-      ?verbose:bool ->
-      unit ->
-      Format.formatter ->
-      ('l * 'r) t ->
-      unit
+    val proj : ('m, 'a, 'l * 'r) axis -> ('l * 'r) t -> 'm
 
-    val check_const :
-      ('l * 'r) t ->
-      Regionality.Const.t option
-      * Linearity.Const.t option
-      * Uniqueness.Const.t option
+    val max_with : ('m, 'a, 'l * 'r) axis -> 'm -> (disallowed * 'r) t
 
-    val regionality : ('l * 'r) t -> ('l * 'r) Regionality.t
+    val min_with : ('m, 'a, 'l * 'r) axis -> 'm -> ('l * disallowed) t
 
-    val uniqueness : ('l * 'r) t -> ('l * 'r) Uniqueness.t
+    val meet_with : (_, 'a, _) axis -> 'a -> ('l * 'r) t -> ('l * 'r) t
 
-    val linearity : ('l * 'r) t -> ('l * 'r) Linearity.t
+    val join_with : (_, 'a, _) axis -> 'a -> ('l * 'r) t -> ('l * 'r) t
 
-    val max_with_uniqueness : ('l * 'r) Uniqueness.t -> (disallowed * 'r) t
+    val comonadic_to_monadic : ('l * 'r) Comonadic.t -> ('r * 'l) Monadic.t
 
-    val min_with_uniqueness : ('l * 'r) Uniqueness.t -> ('l * disallowed) t
+    val meet_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
 
-    val min_with_regionality : ('l * 'r) Regionality.t -> ('l * disallowed) t
-
-    val max_with_regionality : ('l * 'r) Regionality.t -> (disallowed * 'r) t
-
-    val min_with_linearity : ('l * 'r) Linearity.t -> ('l * disallowed) t
-
-    val max_with_linearity : ('l * 'r) Linearity.t -> (disallowed * 'r) t
-
-    val set_regionality_min : ('l * 'r) t -> ('l * disallowed) t
-
-    val set_regionality_max : ('l * 'r) t -> (disallowed * 'r) t
-
-    val set_linearity_min : ('l * 'r) t -> ('l * disallowed) t
-
-    val set_linearity_max : ('l * 'r) t -> (disallowed * 'r) t
-
-    val set_uniqueness_min : ('l * 'r) t -> ('l * disallowed) t
-
-    val set_uniqueness_max : ('l * 'r) t -> (disallowed * 'r) t
-
-    val zap_to_legacy : lr -> Const.t
+    val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
   end
 
   (** The mode on arrow types. Compared to [Value], it contains the [Locality]
@@ -312,39 +324,50 @@ module type S = sig
       and would be hard to understand if it involves [Regionality]. *)
   module Alloc : sig
     module Monadic : sig
-      include Common with type error = [`Uniqueness of Uniqueness.error]
+      module Const : Lattice with type t = monadic
 
-      val set_uniqueness_max : ('l * 'r) t -> (disallowed * 'r) t
+      include Common with module Const := Const
 
-      val check_const : ('l * 'r) t -> Uniqueness.Const.t option
+      val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
     end
 
     module Comonadic : sig
-      include
-        Common
-          with type error =
-            [ `Locality of Locality.error
-            | `Linearity of Linearity.error ]
+      module Const : sig
+        include Lattice with type t = Locality.Const.t comonadic_with
 
-      val set_locality_min : ('l * 'r) t -> ('l * disallowed) t
+        val eq : t -> t -> bool
+      end
 
-      val set_linearity_min : ('l * 'r) t -> ('l * disallowed) t
+      include Common with module Const := Const
 
-      val check_const :
-        ('l * 'r) t -> Locality.Const.t option * Linearity.Const.t option
+      val meet_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
     end
 
-    module Const : sig
-      type ('loc, 'lin, 'uni) modes =
-        { locality : 'loc;
-          linearity : 'lin;
-          uniqueness : 'uni
-        }
+    (** Represents a mode axis in this product whose constant is ['a], and
+        whose variable is ['m] given the allowness ['d]. *)
+    type ('m, 'a, 'd) axis =
+      | Monadic :
+          (Monadic.Const.t, 'a) Axis.t
+          -> (('a, 'd) mode_monadic, 'a, 'd) axis
+      | Comonadic :
+          (Comonadic.Const.t, 'a) Axis.t
+          -> (('a, 'd) mode_comonadic, 'a, 'd) axis
 
+    type ('loc, 'lin, 'uni) modes =
+      { locality : 'loc;
+        linearity : 'lin;
+        uniqueness : 'uni
+      }
+
+    module Const : sig
       include
         Lattice
           with type t =
             (Locality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
+
+      val split : t -> (Monadic.Const.t, Comonadic.Const.t) monadic_comonadic
+
+      val merge : (Monadic.Const.t, Comonadic.Const.t) monadic_comonadic -> t
 
       module Option : sig
         type some = t
@@ -360,17 +383,21 @@ module type S = sig
         val value : t -> default:some -> some
       end
 
+      (** [diff a b] returns [None] for axes where [a] and [b] match, and [Some
+      a0] for axes where [a] is [a0] and [b] isn't. *)
+      val diff : t -> t -> Option.t
+
       (** Similar to [Alloc.close_over] but for constants *)
       val close_over : t -> t
 
       (** Similar to [Alloc.partial_apply] but for constants *)
       val partial_apply : t -> t
+
+      (** Prints a constant on any axis. *)
+      val print_axis : ('m, 'a, 'd) axis -> Format.formatter -> 'a -> unit
     end
 
-    type error =
-      [ `Locality of Locality.error
-      | `Uniqueness of Uniqueness.error
-      | `Linearity of Linearity.error ]
+    type error = Error : ('m, 'a, 'd) axis * 'a Solver.error -> error
 
     type 'd t = ('d Monadic.t, 'd Comonadic.t) monadic_comonadic
 
@@ -380,48 +407,23 @@ module type S = sig
          and type error := error
          and type 'd t := 'd t
 
-    (* some overriding *)
-    val print :
-      ?raw:bool ->
-      ?verbose:bool ->
-      unit ->
-      Format.formatter ->
-      ('l * 'r) t ->
-      unit
+    val proj : ('m, 'a, 'l * 'r) axis -> ('l * 'r) t -> 'm
 
-    val check_const : ('l * 'r) t -> Const.Option.t
+    val max_with : ('m, 'a, 'l * 'r) axis -> 'm -> (disallowed * 'r) t
 
-    val locality : ('l * 'r) t -> ('l * 'r) Locality.t
+    val min_with : ('m, 'a, 'l * 'r) axis -> 'm -> ('l * disallowed) t
 
-    val uniqueness : ('l * 'r) t -> ('l * 'r) Uniqueness.t
+    val meet_with : (_, 'a, _) axis -> 'a -> ('l * 'r) t -> ('l * 'r) t
 
-    val linearity : ('l * 'r) t -> ('l * 'r) Linearity.t
-
-    val max_with_uniqueness : ('l * 'r) Uniqueness.t -> (disallowed * 'r) t
-
-    val min_with_uniqueness : ('l * 'r) Uniqueness.t -> ('l * disallowed) t
-
-    val min_with_locality : ('l * 'r) Locality.t -> ('l * disallowed) t
-
-    val max_with_locality : ('l * 'r) Locality.t -> (disallowed * 'r) t
-
-    val min_with_linearity : ('l * 'r) Linearity.t -> ('l * disallowed) t
-
-    val max_with_linearity : ('l * 'r) Linearity.t -> (disallowed * 'r) t
-
-    val set_locality_min : ('l * 'r) t -> ('l * disallowed) t
-
-    val set_locality_max : ('l * 'r) t -> (disallowed * 'r) t
-
-    val set_linearity_min : ('l * 'r) t -> ('l * disallowed) t
-
-    val set_linearity_max : ('l * 'r) t -> (disallowed * 'r) t
-
-    val set_uniqueness_min : ('l * 'r) t -> ('l * disallowed) t
-
-    val set_uniqueness_max : ('l * 'r) t -> (disallowed * 'r) t
+    val join_with : (_, 'a, _) axis -> 'a -> ('l * 'r) t -> ('l * 'r) t
 
     val zap_to_legacy : lr -> Const.t
+
+    val zap_to_ceil : ('l * allowed) t -> Const.t
+
+    val meet_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
+
+    val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 
     (* The following two are about the scenario where we partially apply a
        function [A -> B -> C] to [A] and get back [B -> C]. The mode of the
@@ -436,11 +438,9 @@ module type S = sig
     val partial_apply : (allowed * 'r) t -> l
   end
 
-  (** Returns the linearity dual to the given uniqueness *)
-  val unique_to_linear : ('l * 'r) Uniqueness.t -> ('r * 'l) Linearity.t
-
-  (** Returns the uniqueness dual to the given linearity *)
-  val linear_to_unique : ('l * 'r) Linearity.t -> ('r * 'l) Uniqueness.t
+  module Const : sig
+    val alloc_as_value : Alloc.Const.t -> Value.Const.t
+  end
 
   (** Converts regional to local, identity otherwise *)
   val regional_to_local : ('l * 'r) Regionality.t -> ('l * 'r) Locality.t
@@ -462,9 +462,4 @@ module type S = sig
 
   (** Similar to [regional_to_global], behaves as identity on other axes *)
   val value_to_alloc_r2g : ('l * 'r) Value.t -> ('l * 'r) Alloc.t
-
-  module Const : sig
-    (** Returns the linearity dual to the given uniqueness *)
-    val unique_to_linear : Uniqueness.Const.t -> Linearity.Const.t
-  end
 end

@@ -113,9 +113,10 @@ type t =
   | Tmc_breaks_tailcall                     (* 72 *)
   | Generative_application_expects_unit     (* 73 *)
 (* Flambda_backend specific warnings: numbers should go down from 199 *)
+  | Unerasable_position_argument            (* 188 *)
   | Unnecessarily_partial_tuple_pattern     (* 189 *)
   | Probe_name_too_long of string           (* 190 *)
-  | Unchecked_property_attribute of string  (* 199 *)
+  | Unchecked_zero_alloc_attribute          (* 199 *)
   | Unboxing_impossible                     (* 210 *)
   | Redundant_modality of string            (* 250 *)
 

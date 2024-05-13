@@ -74,9 +74,7 @@ module Component_for_creation = struct
     match layout with
     | Pvalue vk -> Singleton (KS.from_lambda_value_kind vk)
     | Punboxed_float Pfloat64 -> Singleton KS.naked_float
-    | Punboxed_float Pfloat32 ->
-      (* CR mslater: (float32) middle end support *)
-      assert false
+    | Punboxed_float Pfloat32 -> Singleton KS.naked_float32
     | Punboxed_int Pint32 -> Singleton KS.naked_int32
     | Punboxed_int Pint64 -> Singleton KS.naked_int64
     | Punboxed_int Pnativeint -> Singleton KS.naked_nativeint

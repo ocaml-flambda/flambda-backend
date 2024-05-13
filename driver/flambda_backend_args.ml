@@ -63,6 +63,12 @@ let mk_cfg_cse_optimize f =
 let mk_no_cfg_cse_optimize f =
   "-no-cfg-cse-optimize", Arg.Unit f, " Do not apply CSE optimizations to CFG"
 
+let mk_cfg_stack_checks f =
+  "-cfg-stack-checks", Arg.Unit f, " Insert the stack checks on the CFG representation"
+
+let mk_no_cfg_stack_checks f =
+    "-no-cfg-stack-checks", Arg.Unit f, " Insert the stack checks on the linear representation"
+
 let mk_reorder_blocks_random f =
   "-reorder-blocks-random",
   Arg.Int f,
@@ -96,29 +102,45 @@ let mk_heap_reduction_threshold f =
 ;;
 
 let mk_zero_alloc_check f =
-  let annotations = Clflags.Annotations.(List.map to_string all) in
+  let annotations = Zero_alloc_annotations.(List.map to_string all) in
   "-zero-alloc-check", Arg.Symbol (annotations, f),
   " Check that annotated functions do not allocate \
-   and do not have indirect calls. "^Clflags.Annotations.doc
+   and do not have indirect calls. "^Zero_alloc_annotations.doc
 
-let mk_dcheckmach f =
-  "-dcheckmach", Arg.Unit f, " (undocumented)"
+let mk_dzero_alloc f =
+  "-dzero-alloc", Arg.Unit f, " (undocumented)"
 
-let mk_disable_checkmach f =
-  "-disable-checkmach", Arg.Unit f,
+let mk_disable_zero_alloc_checker f =
+  "-disable-zero-alloc-checker", Arg.Unit f,
   " Conservatively assume that all functions may allocate, without checking. \
     Disables computation of zero_alloc function summaries, \
     unlike \"-zero-alloc-check none\" which disables checking of zero_alloc annotations)"
 
-let mk_checkmach_details_cutoff f =
-  "-checkmach-details-cutoff", Arg.Int f,
+let mk_disable_precise_zero_alloc_checker f =
+  "-disable-precise-zero-alloc-checker", Arg.Unit f,
+  " Conservatively assume that all forward calls and mutually recursive functions may \
+    allocate. Disables fixed point computation of summaries for these functions. \
+    Intended as a temporary workaround when precise analysis is too expensive."
+
+let mk_zero_alloc_checker_details_cutoff f =
+  "-zero-alloc-checker-details-cutoff", Arg.Int f,
   Printf.sprintf " Do not show more than this number of error locations \
                   in each function that fails the check \
                   (default %d, negative to show all)"
-    (match Flambda_backend_flags.default_checkmach_details_cutoff with
+    (match Flambda_backend_flags.default_zero_alloc_checker_details_cutoff with
      | Keep_all -> (-1)
      | No_details -> 0
      | At_most n -> n)
+
+let mk_zero_alloc_checker_join f =
+  "-zero-alloc-checker-join", Arg.Int f,
+  Printf.sprintf " How many abstract paths before losing precision \
+                  (default %d, negative to fail instead of widening, \
+                  0 to keep all)"
+    (match Flambda_backend_flags.default_zero_alloc_checker_join with
+     | Keep_all -> 0
+     | Widen n -> n
+     | Error n -> -n)
 
 let mk_function_layout f =
   let layouts = Flambda_backend_flags.Function_layout.(List.map to_string all) in
@@ -555,6 +577,13 @@ let mk_restrict_to_upstream_dwarf f =
 let mk_no_restrict_to_upstream_dwarf f =
   "-gno-upstream-dwarf", Arg.Unit f, " Emit potentially more DWARF information than the upstream compiler"
 
+let mk_dwarf_inlined_frames f =
+  "-gdwarf-inlined-frames", Arg.Unit f, " Emit DWARF inlined frame information"
+
+let mk_no_dwarf_inlined_frames f =
+  "-gno-dwarf-inlined-frames", Arg.Unit f,
+  " Do not emit DWARF inlined frame information"
+
 let mk_dwarf_for_startup_file f =
   "-gstartup", Arg.Unit f, " Emit potentially more DWARF information\n\
     \     for the startup file than the upstream compiler\n\
@@ -631,6 +660,9 @@ module type Flambda_backend_options = sig
   val cfg_cse_optimize : unit -> unit
   val no_cfg_cse_optimize : unit -> unit
 
+  val cfg_stack_checks : unit -> unit
+  val no_cfg_stack_checks : unit -> unit
+
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
 
@@ -639,9 +671,11 @@ module type Flambda_backend_options = sig
 
   val heap_reduction_threshold : int -> unit
   val zero_alloc_check : string -> unit
-  val dcheckmach : unit -> unit
-  val disable_checkmach : unit -> unit
-  val checkmach_details_cutoff : int -> unit
+  val dzero_alloc : unit -> unit
+  val disable_zero_alloc_checker : unit -> unit
+  val disable_precise_zero_alloc_checker : unit -> unit
+  val zero_alloc_checker_details_cutoff : int -> unit
+  val zero_alloc_checker_join : int -> unit
 
   val function_layout : string -> unit
   val disable_poll_insertion : unit -> unit
@@ -745,6 +779,9 @@ struct
     mk_cfg_cse_optimize F.cfg_cse_optimize;
     mk_no_cfg_cse_optimize F.no_cfg_cse_optimize;
 
+    mk_cfg_stack_checks F.cfg_stack_checks;
+    mk_no_cfg_stack_checks F.no_cfg_stack_checks;
+
     mk_reorder_blocks_random F.reorder_blocks_random;
     mk_basic_block_sections F.basic_block_sections;
 
@@ -753,9 +790,12 @@ struct
 
     mk_heap_reduction_threshold F.heap_reduction_threshold;
     mk_zero_alloc_check F.zero_alloc_check;
-    mk_dcheckmach F.dcheckmach;
-    mk_disable_checkmach F.disable_checkmach;
-    mk_checkmach_details_cutoff F.checkmach_details_cutoff;
+
+    mk_dzero_alloc F.dzero_alloc;
+    mk_disable_zero_alloc_checker F.disable_zero_alloc_checker;
+    mk_disable_precise_zero_alloc_checker F.disable_precise_zero_alloc_checker;
+    mk_zero_alloc_checker_details_cutoff F.zero_alloc_checker_details_cutoff;
+    mk_zero_alloc_checker_join F.zero_alloc_checker_join;
 
     mk_function_layout F.function_layout;
     mk_disable_poll_insertion F.disable_poll_insertion;
@@ -888,6 +928,9 @@ module Flambda_backend_options_impl = struct
   let cfg_cse_optimize = set' Flambda_backend_flags.cfg_cse_optimize
   let no_cfg_cse_optimize = clear' Flambda_backend_flags.cfg_cse_optimize
 
+  let cfg_stack_checks = set' Flambda_backend_flags.cfg_stack_checks
+  let no_cfg_stack_checks = clear' Flambda_backend_flags.cfg_stack_checks
+
   let reorder_blocks_random seed =
     Flambda_backend_flags.reorder_blocks_random := Some seed
   let basic_block_sections () =
@@ -910,20 +953,29 @@ module Flambda_backend_options_impl = struct
     Flambda_backend_flags.heap_reduction_threshold := x
 
   let zero_alloc_check s =
-    match Clflags.Annotations.of_string s with
+    match Zero_alloc_annotations.of_string s with
     | None -> () (* this should not occur as we use Arg.Symbol *)
     | Some a ->
       Clflags.zero_alloc_check := a
 
-  let dcheckmach = set' Flambda_backend_flags.dump_checkmach
-  let disable_checkmach = set' Flambda_backend_flags.disable_checkmach
-  let checkmach_details_cutoff n =
-    let c : Flambda_backend_flags.checkmach_details_cutoff =
+  let dzero_alloc = set' Flambda_backend_flags.dump_zero_alloc
+  let disable_zero_alloc_checker = set' Flambda_backend_flags.disable_zero_alloc_checker
+  let disable_precise_zero_alloc_checker = set' Flambda_backend_flags.disable_precise_zero_alloc_checker
+  let zero_alloc_checker_details_cutoff n =
+    let c : Flambda_backend_flags.zero_alloc_checker_details_cutoff =
       if n < 0 then Keep_all
       else if n = 0 then No_details
       else At_most n
     in
-    Flambda_backend_flags.checkmach_details_cutoff := c
+    Flambda_backend_flags.zero_alloc_checker_details_cutoff := c
+
+  let zero_alloc_checker_join n =
+    let c : Flambda_backend_flags.zero_alloc_checker_join =
+      if n < 0 then Error (-n)
+      else if n = 0 then Keep_all
+      else Widen n
+    in
+    Flambda_backend_flags.zero_alloc_checker_join := c
 
   let function_layout s =
     match Flambda_backend_flags.Function_layout.of_string s with
@@ -1090,6 +1142,8 @@ end
 module type Debugging_options = sig
   val restrict_to_upstream_dwarf : unit -> unit
   val no_restrict_to_upstream_dwarf : unit -> unit
+  val dwarf_inlined_frames : unit -> unit
+  val no_dwarf_inlined_frames : unit -> unit
   val dwarf_for_startup_file : unit -> unit
   val no_dwarf_for_startup_file : unit -> unit
   val gdwarf_may_alter_codegen : unit -> unit
@@ -1101,6 +1155,8 @@ module Make_debugging_options (F : Debugging_options) = struct
   let list3 = [
     mk_restrict_to_upstream_dwarf F.restrict_to_upstream_dwarf;
     mk_no_restrict_to_upstream_dwarf F.no_restrict_to_upstream_dwarf;
+    mk_dwarf_inlined_frames F.dwarf_inlined_frames;
+    mk_no_dwarf_inlined_frames F.no_dwarf_inlined_frames;
     mk_dwarf_for_startup_file F.dwarf_for_startup_file;
     mk_no_dwarf_for_startup_file F.no_dwarf_for_startup_file;
     mk_gdwarf_may_alter_codegen F.gdwarf_may_alter_codegen;
@@ -1114,6 +1170,10 @@ module Debugging_options_impl = struct
     Debugging.restrict_to_upstream_dwarf := true
   let no_restrict_to_upstream_dwarf () =
     Debugging.restrict_to_upstream_dwarf := false
+  let dwarf_inlined_frames () =
+    Debugging.dwarf_inlined_frames := true
+  let no_dwarf_inlined_frames () =
+    Debugging.dwarf_inlined_frames := false
   let dwarf_for_startup_file () =
     Debugging.dwarf_for_startup_file := true
   let no_dwarf_for_startup_file () =
@@ -1180,6 +1240,7 @@ module Extra_params = struct
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
     | "cfg-cse-optimize" -> set' Flambda_backend_flags.cfg_cse_optimize
+    | "cfg-stack-checks" -> set' Flambda_backend_flags.cfg_stack_checks
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "davail" -> set' Flambda_backend_flags.davail
     | "dranges" -> set' Flambda_backend_flags.dranges
@@ -1189,18 +1250,26 @@ module Extra_params = struct
     | "basic-block-sections" -> set' Flambda_backend_flags.basic_block_sections
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "zero-alloc-check" ->
-      (match Clflags.Annotations.of_string v with
+      (match Zero_alloc_annotations.of_string v with
        | Some a -> Clflags.zero_alloc_check := a; true
        | None ->
          raise
            (Arg.Bad
               (Printf.sprintf "Unexpected value %s for %s" v name)))
-    | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
-    | "disable-checkmach" -> set' Flambda_backend_flags.disable_checkmach
-    | "checkmach-details-cutoff" ->
+    | "dump-zero-alloc" -> set' Flambda_backend_flags.dump_zero_alloc
+    | "disable-zero-alloc-checker" -> set' Flambda_backend_flags.disable_zero_alloc_checker
+    | "disable-precise-zero-alloc-checker" -> set' Flambda_backend_flags.disable_precise_zero_alloc_checker
+    | "zero-alloc-checker-details-cutoff" ->
       begin match Compenv.check_int ppf name v with
       | Some i ->
-        Flambda_backend_options_impl.checkmach_details_cutoff i
+        Flambda_backend_options_impl.zero_alloc_checker_details_cutoff i
+      | None -> ()
+      end;
+      true
+    | "zero-alloc-checker-join" ->
+      begin match Compenv.check_int ppf name v with
+      | Some i ->
+        Flambda_backend_options_impl.zero_alloc_checker_join i
       | None -> ()
       end;
       true

@@ -16,6 +16,7 @@
 
 open! Simplify_import
 module A = Number_adjuncts
+module Float32 = Numeric_types.Float32_by_bit_pattern
 module Float = Numeric_types.Float_by_bit_pattern
 module Int32 = Numeric_types.Int32
 module Int64 = Numeric_types.Int64
@@ -99,6 +100,10 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
       ( T.boxed_float_alias_to ~naked_float:result_var'
           (Alloc_mode.For_types.unknown ()),
         K.naked_float )
+    | Naked_float32 ->
+      ( T.boxed_float32_alias_to ~naked_float32:result_var'
+          (Alloc_mode.For_types.unknown ()),
+        K.naked_float32 )
     | Naked_int32 ->
       ( T.boxed_int32_alias_to ~naked_int32:result_var'
           (Alloc_mode.For_types.unknown ()),
@@ -166,6 +171,7 @@ let simplify_box_number (boxable_number_kind : K.Boxable_number.t) alloc_mode
   let ty =
     let alloc_mode = Alloc_mode.For_allocations.as_type alloc_mode in
     match boxable_number_kind with
+    | Naked_float32 -> T.box_float32 naked_number_ty alloc_mode
     | Naked_float -> T.box_float naked_number_ty alloc_mode
     | Naked_int32 -> T.box_int32 naked_number_ty alloc_mode
     | Naked_int64 -> T.box_int64 naked_number_ty alloc_mode
@@ -331,6 +337,15 @@ module Make_simplify_int_conv (N : A.Number_kind) = struct
             let these = T.these_naked_immediates
           end) in
           M.result
+        | Naked_float32 ->
+          let module M = For_kind [@inlined hint] (struct
+            module Result_num = Float32
+
+            let num_to_result_num = Num.to_naked_float32
+
+            let these = T.these_naked_float32s
+          end) in
+          M.result
         | Naked_float ->
           let module M = For_kind [@inlined hint] (struct
             module Result_num = Float
@@ -378,6 +393,7 @@ module Simplify_int_conv_tagged_immediate =
 module Simplify_int_conv_naked_immediate =
   Make_simplify_int_conv (A.For_naked_immediates)
 module Simplify_int_conv_naked_float = Make_simplify_int_conv (A.For_floats)
+module Simplify_int_conv_naked_float32 = Make_simplify_int_conv (A.For_float32s)
 module Simplify_int_conv_naked_int32 = Make_simplify_int_conv (A.For_int32s)
 module Simplify_int_conv_naked_int64 = Make_simplify_int_conv (A.For_int64s)
 module Simplify_int_conv_naked_nativeint =
@@ -432,24 +448,61 @@ let simplify_reinterpret_int64_as_float dacc ~original_term ~arg:_ ~arg_ty
     SPR.create original_term ~try_reify:false dacc
   | Invalid -> SPR.create_invalid dacc
 
-let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
-    ~arg:_ ~arg_ty ~result_var =
-  let module F = Numeric_types.Float_by_bit_pattern in
-  let denv = DA.denv dacc in
-  let proof = T.meet_naked_floats (DE.typing_env denv) arg_ty in
-  match proof with
-  | Known_result fs when DE.propagating_float_consts denv ->
-    assert (not (Float.Set.is_empty fs));
-    let f =
-      match op with Abs -> F.IEEE_semantics.abs | Neg -> F.IEEE_semantics.neg
-    in
-    let possible_results = F.Set.map f fs in
-    let ty = T.these_naked_floats possible_results in
-    let dacc = DA.add_variable dacc result_var ty in
-    SPR.create original_term ~try_reify:true dacc
-  | Known_result _ | Need_meet ->
-    SPR.create_unknown dacc ~result_var K.naked_float ~original_term
-  | Invalid -> SPR.create_invalid dacc
+module Make_simplify_float_arith_op (FP : sig
+  module F : Numeric_types.Float_by_bit_pattern
+
+  val meet : T.Typing_env.t -> T.t -> F.Set.t T.meet_shortcut
+
+  val these : F.Set.t -> T.t
+
+  val kind : K.t
+end) =
+struct
+  let simplify (op : P.unary_float_arith_op) dacc ~original_term ~arg:_ ~arg_ty
+      ~result_var =
+    let module F = FP.F in
+    let denv = DA.denv dacc in
+    let proof = FP.meet (DE.typing_env denv) arg_ty in
+    match proof with
+    | Known_result fs when DE.propagating_float_consts denv ->
+      assert (not (F.Set.is_empty fs));
+      let f =
+        match op with
+        | Abs -> F.IEEE_semantics.abs
+        | Neg -> F.IEEE_semantics.neg
+      in
+      let possible_results = F.Set.map f fs in
+      let ty = FP.these possible_results in
+      let dacc = DA.add_variable dacc result_var ty in
+      SPR.create original_term ~try_reify:true dacc
+    | Known_result _ | Need_meet ->
+      SPR.create_unknown dacc ~result_var FP.kind ~original_term
+    | Invalid -> SPR.create_invalid dacc
+end
+
+module Simplify_float_arith_op = Make_simplify_float_arith_op (struct
+  module F = Float
+
+  let meet = T.meet_naked_floats
+
+  let these = T.these_naked_floats
+
+  let kind = K.naked_float
+end)
+
+module Simplify_float32_arith_op = Make_simplify_float_arith_op (struct
+  module F = Float32
+
+  let meet = T.meet_naked_float32s
+
+  let these = T.these_naked_float32s
+
+  let kind = K.naked_float32
+end)
+
+let simplify_float_arith_op = Simplify_float_arith_op.simplify
+
+let simplify_float32_arith_op = Simplify_float32_arith_op.simplify
 
 let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
   (* CR mshinwell: see CRs in lambda_to_flambda_primitives.ml
@@ -584,6 +637,7 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
     let boxer =
       match boxable_number with
       | Naked_float -> T.box_float
+      | Naked_float32 -> T.box_float32
       | Naked_int32 -> T.box_int32
       | Naked_int64 -> T.box_int64
       | Naked_nativeint -> T.box_nativeint
@@ -644,11 +698,13 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
       | Naked_int32 -> Unary_int_arith_naked_int32.simplify op
       | Naked_int64 -> Unary_int_arith_naked_int64.simplify op
       | Naked_nativeint -> Unary_int_arith_naked_nativeint.simplify op)
-    | Float_arith op -> simplify_float_arith_op op
+    | Float_arith (Float64, op) -> simplify_float_arith_op op
+    | Float_arith (Float32, op) -> simplify_float32_arith_op op
     | Num_conv { src; dst } -> (
       match src with
       | Tagged_immediate -> Simplify_int_conv_tagged_immediate.simplify ~dst
       | Naked_immediate -> Simplify_int_conv_naked_immediate.simplify ~dst
+      | Naked_float32 -> Simplify_int_conv_naked_float32.simplify ~dst
       | Naked_float -> Simplify_int_conv_naked_float.simplify ~dst
       | Naked_int32 -> Simplify_int_conv_naked_int32.simplify ~dst
       | Naked_int64 -> Simplify_int_conv_naked_int64.simplify ~dst

@@ -57,8 +57,7 @@ let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
     match hd with
     | No_CSE -> No_CSE :: of_cmm_codegen_option tl
     | Reduce_code_size -> Reduce_code_size :: of_cmm_codegen_option tl
-    | Use_linscan_regalloc | Ignore_assert_all Zero_alloc | Assume _ | Check _
-      ->
+    | Use_linscan_regalloc | Assume_zero_alloc _ | Check_zero_alloc _ ->
       of_cmm_codegen_option tl)
 
 type t =
@@ -99,7 +98,7 @@ let successor_labels_normal ti =
   | Always l -> Label.Set.singleton l
   | Parity_test { ifso; ifnot } | Truth_test { ifso; ifnot } ->
     Label.Set.singleton ifso |> Label.Set.add ifnot
-  | Float_test { lt; gt; eq; uo } ->
+  | Float_test { width = _; lt; gt; eq; uo } ->
     Label.Set.singleton lt |> Label.Set.add gt |> Label.Set.add eq
     |> Label.Set.add uo
   | Int_test { lt; gt; eq; imm = _; is_signed = _ } ->
@@ -149,8 +148,8 @@ let replace_successor_labels t ~normal ~exn block ~f =
         Truth_test { ifso = f ifso; ifnot = f ifnot }
       | Int_test { lt; eq; gt; is_signed; imm } ->
         Int_test { lt = f lt; eq = f eq; gt = f gt; is_signed; imm }
-      | Float_test { lt; eq; gt; uo } ->
-        Float_test { lt = f lt; eq = f eq; gt = f gt; uo = f uo }
+      | Float_test { width; lt; eq; gt; uo } ->
+        Float_test { width; lt = f lt; eq = f eq; gt = f gt; uo = f uo }
       | Switch labels -> Switch (Array.map f labels)
       | Tailcall_self { destination } ->
         Tailcall_self { destination = f destination }
@@ -193,10 +192,18 @@ let get_block_exn t label =
 
 let can_raise_interproc block = block.can_raise && Option.is_none block.exn
 
-let first_instruction_id (block : basic_block) : int =
+type 'a instr_mapper = { f : 'b. 'b instruction -> 'a } [@@unboxed]
+
+let map_first_instruction (block : basic_block) (t : 'a instr_mapper) =
   match DLL.hd block.body with
-  | None -> block.terminator.id
-  | Some first_instr -> first_instr.id
+  | None -> t.f block.terminator
+  | Some first_instr -> t.f first_instr
+
+let first_instruction_id (block : basic_block) : int =
+  map_first_instruction block { f = (fun instr -> instr.id) }
+
+let first_instruction_stack_offset (block : basic_block) : int =
+  map_first_instruction block { f = (fun instr -> instr.stack_offset) }
 
 let fun_name t = t.fun_name
 
@@ -259,6 +266,8 @@ let dump_op ppf = function
   | Spill -> Format.fprintf ppf "spill"
   | Reload -> Format.fprintf ppf "reload"
   | Const_int n -> Format.fprintf ppf "const_int %nd" n
+  | Const_float32 f ->
+    Format.fprintf ppf "const_float32 %Fs" (Int32.float_of_bits f)
   | Const_float f -> Format.fprintf ppf "const_float %F" (Int64.float_of_bits f)
   | Const_symbol s -> Format.fprintf ppf "const_symbol %s" s.sym_name
   | Const_vec128 { high; low } ->
@@ -270,19 +279,20 @@ let dump_op ppf = function
   | Intop_imm (op, n) -> Format.fprintf ppf "intop %s %d" (intop op) n
   | Intop_atomic { op; size = _; addr = _ } ->
     Format.fprintf ppf "intop atomic %s" (intop_atomic op)
-  | Negf -> Format.fprintf ppf "negf"
-  | Absf -> Format.fprintf ppf "absf"
-  | Addf -> Format.fprintf ppf "addf"
-  | Subf -> Format.fprintf ppf "subf"
-  | Mulf -> Format.fprintf ppf "mulf"
-  | Divf -> Format.fprintf ppf "divf"
-  | Compf _ -> Format.fprintf ppf "compf"
+  | Floatop (Float64, op) ->
+    Format.fprintf ppf "floatop %a" Printmach.floatop op
+  | Floatop (Float32, op) ->
+    Format.fprintf ppf "float32op %a" Printmach.floatop op
   | Csel _ -> Format.fprintf ppf "csel"
-  | Floatofint -> Format.fprintf ppf "floattoint"
-  | Intoffloat -> Format.fprintf ppf "intoffloat"
   | Valueofint -> Format.fprintf ppf "valueofint"
   | Intofvalue -> Format.fprintf ppf "intofvalue"
   | Vectorcast Bits128 -> Format.fprintf ppf "vec128->vec128"
+  | Scalarcast (Float_of_int Float64) -> Format.fprintf ppf "int->float"
+  | Scalarcast (Float_to_int Float64) -> Format.fprintf ppf "float->int"
+  | Scalarcast (Float_of_int Float32) -> Format.fprintf ppf "int->float32"
+  | Scalarcast (Float_to_int Float32) -> Format.fprintf ppf "float32->int"
+  | Scalarcast Float_of_float32 -> Format.fprintf ppf "float32->float"
+  | Scalarcast Float_to_float32 -> Format.fprintf ppf "float->float32"
   | Scalarcast (V128_to_scalar ty) ->
     Format.fprintf ppf "%s->scalar" (Primitive.vec128_name ty)
   | Scalarcast (V128_of_scalar ty) ->
@@ -308,6 +318,8 @@ let dump_basic ppf (basic : basic) =
   | Pushtrap { lbl_handler } -> fprintf ppf "Pushtrap handler=%d" lbl_handler
   | Poptrap -> fprintf ppf "Poptrap"
   | Prologue -> fprintf ppf "Prologue"
+  | Stack_check { max_frame_size_bytes } ->
+    fprintf ppf "Stack_check size=%d" max_frame_size_bytes
 
 let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
     ?(specific_can_raise = fun ppf _ -> Format.fprintf ppf "specific_can_raise")
@@ -340,7 +352,7 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
     fprintf ppf "if even%s goto %d%selse goto %d" first_arg ifso sep ifnot
   | Truth_test { ifso; ifnot } ->
     fprintf ppf "if true%s goto %d%selse goto %d" first_arg ifso sep ifnot
-  | Float_test { lt; eq; gt; uo } ->
+  | Float_test { width = _; lt; eq; gt; uo } ->
     fprintf ppf "if%s <%s goto %d%s" first_arg second_arg lt sep;
     fprintf ppf "if%s =%s goto %d%s" first_arg second_arg eq sep;
     fprintf ppf "if%s >%s goto %d%s" first_arg second_arg gt sep;
@@ -469,6 +481,7 @@ let is_pure_operation : operation -> bool = function
   | Spill -> true
   | Reload -> true
   | Const_int _ -> true
+  | Const_float32 _ -> true
   | Const_float _ -> true
   | Const_symbol _ -> true
   | Const_vec128 _ -> true
@@ -478,16 +491,8 @@ let is_pure_operation : operation -> bool = function
   | Intop _ -> true
   | Intop_imm _ -> true
   | Intop_atomic _ -> false
-  | Negf -> true
-  | Absf -> true
-  | Addf -> true
-  | Subf -> true
-  | Mulf -> true
-  | Divf -> true
-  | Compf _ -> true
+  | Floatop _ -> true
   | Csel _ -> true
-  | Floatofint -> true
-  | Intoffloat -> true
   | Vectorcast _ -> true
   | Scalarcast _ -> true
   (* Conservative to ensure valueofint/intofvalue are not eliminated before
@@ -523,6 +528,9 @@ let is_pure_basic : basic -> bool = function
        ensured that it wouldn't modify the stack pointer (e.g. there are no used
        local stack slots nor calls). *)
     false
+  | Stack_check _ ->
+    (* May reallocate the stack. *)
+    false
 
 let same_location (r1 : Reg.t) (r2 : Reg.t) =
   Reg.same_loc r1 r2
@@ -545,13 +553,13 @@ let is_noop_move instr =
       let ifnot = instr.arg.(len - 1) in
       Reg.same_loc instr.res.(0) ifso && Reg.same_loc instr.res.(0) ifnot)
   | Op
-      ( Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
-      | Stackoffset _ | Load _ | Store _ | Intop _ | Intop_imm _
-      | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
-      | Floatofint | Intoffloat | Opaque | Valueofint | Intofvalue
-      | Scalarcast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
-      | Begin_region | End_region | Dls_get | Poll | Alloc _ )
-  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
+      ( Const_int _ | Const_float _ | Const_float32 _ | Const_symbol _
+      | Const_vec128 _ | Stackoffset _ | Load _ | Store _ | Intop _
+      | Intop_imm _ | Intop_atomic _ | Floatop _ | Opaque | Valueofint
+      | Intofvalue | Scalarcast _ | Probe_is_enabled _ | Specific _
+      | Name_for_debugger _ | Begin_region | End_region | Dls_get | Poll
+      | Alloc _ )
+  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
     false
 
 let set_stack_offset (instr : _ instruction) stack_offset =
@@ -568,3 +576,21 @@ let string_of_irc_work_list = function
   | Frozen -> "frozen"
   | Work_list -> "work_list"
   | Active -> "active"
+
+let make_instruction ~desc ?(arg = [||]) ?(res = [||]) ?(dbg = Debuginfo.none)
+    ?(fdo = Fdo_info.none) ?(live = Reg.Set.empty) ~stack_offset ~id
+    ?(irc_work_list = Unknown_list) ?(ls_order = 0) ?(available_before = None)
+    ?(available_across = None) () =
+  { desc;
+    arg;
+    res;
+    dbg;
+    fdo;
+    live;
+    stack_offset;
+    id;
+    irc_work_list;
+    ls_order;
+    available_before;
+    available_across
+  }

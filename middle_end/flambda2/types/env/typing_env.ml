@@ -106,7 +106,9 @@ type t =
        list *)
     current_level : One_level.t;
     next_binding_time : Binding_time.t;
-    min_binding_time : Binding_time.t (* Earlier variables have mode In_types *)
+    min_binding_time : Binding_time.t;
+        (* Earlier variables have mode In_types *)
+    is_bottom : bool
   }
 
 and serializable =
@@ -122,6 +124,10 @@ let is_empty t =
   && (match t.prev_levels with [] -> true | _ :: _ -> false)
   && Symbol.Set.is_empty t.defined_symbols
 
+let make_bottom t = { t with is_bottom = true }
+
+let is_bottom t = t.is_bottom
+
 let aliases t =
   Cached_level.aliases (One_level.just_after_level t.current_level)
 
@@ -130,9 +136,12 @@ let [@ocamlformat "disable"] print ppf
       ({ resolver = _; binding_time_resolver = _;get_imported_names = _;
          prev_levels; current_level; next_binding_time = _;
          defined_symbols; code_age_relation; min_binding_time;
+         is_bottom;
        } as t) =
   if is_empty t then
     Format.pp_print_string ppf "Empty"
+  else if is_bottom then
+    Format.pp_print_string ppf "Bottom"
   else
     let levels =
       current_level :: prev_levels
@@ -371,7 +380,8 @@ let create ~resolver ~get_imported_names =
     next_binding_time = Binding_time.earliest_var;
     defined_symbols = Symbol.Set.empty;
     code_age_relation = Code_age_relation.empty;
-    min_binding_time = Binding_time.earliest_var
+    min_binding_time = Binding_time.earliest_var;
+    is_bottom = false
   }
 
 let increment_scope t =
@@ -486,9 +496,9 @@ let find_with_binding_time_and_mode' t name kind =
              (see [Cached_level.clean_for_export]) *)
           type_and_binding_time))
   | found ->
-    let ty, _ = found in
+    let ty, binding_time_and_mode = found in
     check_optional_kind_matches name ty kind;
-    found
+    if t.is_bottom then MTC.bottom_like ty, binding_time_and_mode else found
 
 (* This version doesn't check min_binding_time. This ensures that no allocation
    occurs when we're not interested in the name mode. *)
@@ -922,7 +932,8 @@ and add_env_extension_with_extra_variables t
     ~variable:(fun var kind t ->
       add_variable_definition t var kind Name_mode.in_types)
     ~equation:(fun name ty t ->
-      add_equation ~raise_on_bottom:true t name ty ~meet_type)
+      try add_equation ~raise_on_bottom:true t name ty ~meet_type
+      with Bottom_equation -> make_bottom t)
     env_extension t
 
 let add_env_extension_from_level t level ~meet_type : t =
@@ -933,7 +944,9 @@ let add_env_extension_from_level t level ~meet_type : t =
   in
   let t =
     Name.Map.fold
-      (fun name ty t -> add_equation ~raise_on_bottom:true t name ty ~meet_type)
+      (fun name ty t ->
+        try add_equation ~raise_on_bottom:true t name ty ~meet_type
+        with Bottom_equation -> make_bottom t)
       (TEL.equations level) t
   in
   Variable.Map.fold
@@ -942,19 +955,29 @@ let add_env_extension_from_level t level ~meet_type : t =
     t
 
 let add_equation_strict t name ty ~meet_type : _ Or_bottom.t =
-  try Ok (add_equation ~raise_on_bottom:true t name ty ~meet_type)
-  with Bottom_equation -> Bottom
+  if t.is_bottom
+  then Bottom
+  else
+    try Ok (add_equation ~raise_on_bottom:true t name ty ~meet_type)
+    with Bottom_equation -> Bottom
 
 let add_env_extension_strict t env_extension ~meet_type : _ Or_bottom.t =
-  try Ok (add_env_extension ~raise_on_bottom:true t env_extension ~meet_type)
-  with Bottom_equation -> Bottom
+  if t.is_bottom
+  then Bottom
+  else
+    try Ok (add_env_extension ~raise_on_bottom:true t env_extension ~meet_type)
+    with Bottom_equation -> Bottom
 
 let add_env_extension_maybe_bottom t env_extension ~meet_type =
   add_env_extension ~raise_on_bottom:false t env_extension ~meet_type
 
-let add_equation = add_equation ~raise_on_bottom:true
+let add_equation t name ty ~meet_type =
+  try add_equation ~raise_on_bottom:true t name ty ~meet_type
+  with Bottom_equation -> make_bottom t
 
-let add_env_extension = add_env_extension ~raise_on_bottom:true
+let add_env_extension t env_extension ~meet_type =
+  try add_env_extension ~raise_on_bottom:true t env_extension ~meet_type
+  with Bottom_equation -> make_bottom t
 
 let add_definitions_of_params t ~params =
   List.fold_left
@@ -1348,15 +1371,17 @@ end = struct
             ~const:(fun const ->
               match Reg_width_const.descr const with
               | Tagged_immediate i -> VA.Value_int i
-              | Naked_immediate _ | Naked_float _ | Naked_int32 _
-              | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _ ->
+              | Naked_immediate _ | Naked_float _ | Naked_float32 _
+              | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _
+              | Naked_nativeint _ ->
                 VA.Value_unknown)
             ~var:(fun _ ~coercion:_ -> VA.Value_unknown)
             ~symbol:(fun symbol ~coercion:_ -> VA.Value_symbol symbol)
         | Ok (No_alias head) -> (
           match head with
-          | Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
-          | Boxed_vec128 _ | Boxed_nativeint _ | String _ | Array _ ->
+          | Mutable_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
+          | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | String _
+          | Array _ ->
             Value_unknown
           | Closures { by_function_slot; alloc_mode = _ } -> (
             match TG.Row_like_for_closures.get_singleton by_function_slot with
@@ -1397,8 +1422,9 @@ end = struct
                 in
                 Block_approximation (tag, Array.of_list fields, alloc_mode)
             else Value_unknown))
-      | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-      | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+      | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+      | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _
+      | Region _ ->
         assert false
     in
     let symbol_ty, _binding_time_and_mode =

@@ -270,6 +270,20 @@ module Stdlib = struct
       in
       loop 0
 
+    let compare compare arr1 arr2 =
+      let len1 = Array.length arr1 in
+      let len2 = Array.length arr2 in
+      if len1 <> len2 then
+        Int.compare len1 len2
+      else
+        let rec loop i =
+          if i >= len1 then 0
+          else
+            let cmp = compare arr1.(i) arr2.(i) in
+            if cmp <> 0 then cmp else loop (i + 1)
+        in
+        loop 0
+
     let map_sharing f a =
       let same = ref true in
       let f' x =
@@ -346,10 +360,17 @@ module Stdlib = struct
       in
       helper chars str []
 
-    let split_last_exn str ~split_on =
+    let split_once str ~idx =
       let n = String.length str in
+      String.sub str 0 idx, String.sub str (idx + 1) (n - idx - 1)
+
+    let split_last_exn str ~split_on =
       let ridx = String.rindex str split_on in
-      String.sub str 0 ridx, String.sub str (ridx + 1) (n - ridx - 1)
+      split_once str ~idx:ridx
+
+    let split_first_exn str ~split_on =
+      let idx = String.index str split_on in
+      split_once str ~idx
 
     let starts_with ~prefix s =
       let len_s = length s
@@ -1429,3 +1450,24 @@ end
 module type T4 = sig
   type ('a, 'b, 'c, 'd) t
 end
+
+let remove_double_underscores s =
+  let len = String.length s in
+  let buf = Buffer.create len in
+  let skip = ref false in
+  let rec loop i =
+    if i < len
+    then (
+      let c = String.get s i in
+      if c = '.' then skip := true;
+      if (not !skip) && c = '_' && i + 1 < len && String.get s (i + 1) = '_'
+      then (
+        Buffer.add_char buf '.';
+        skip := true;
+        loop (i + 2))
+      else (
+        Buffer.add_char buf c;
+        loop (i + 1)))
+  in
+  loop 0;
+  Buffer.contents buf

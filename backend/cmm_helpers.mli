@@ -127,10 +127,17 @@ val mk_compare_ints_untagged :
 val mk_compare_floats_untagged :
   Debuginfo.t -> expression -> expression -> expression
 
+val mk_compare_float32s_untagged :
+  Debuginfo.t -> expression -> expression -> expression
+
 (** Convert a tagged integer into a raw integer with boolean meaning *)
 val test_bool : Debuginfo.t -> expression -> expression
 
 (** Float boxing and unboxing *)
+val box_float32 : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
+
+val unbox_float32 : Debuginfo.t -> expression -> expression
+
 val box_float : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
 
 val unbox_float : Debuginfo.t -> expression -> expression
@@ -147,6 +154,12 @@ val return_unit : Debuginfo.t -> expression -> expression
 
 (** Non-atomic load of a mutable field *)
 val mk_load_mut : memory_chunk -> operation
+
+(** [strided_field_address ptr ~index ~stride dbg] returns an expression for the
+    address of the [index]th field of the block pointed to by [ptr]. The field
+    width is determined by [stride]. *)
+val strided_field_address :
+  expression -> index:int -> stride:int -> Debuginfo.t -> expression
 
 (** [field_address ptr n dbg] returns an expression for the address of the [n]th
     field of the block pointed to by [ptr].  [memory_chunk] is only used for
@@ -249,6 +262,7 @@ module Extended_machtype_component : sig
     | Any_int
     | Float
     | Vec128
+    | Float32
 end
 
 module Extended_machtype : sig
@@ -261,6 +275,8 @@ module Extended_machtype : sig
   val typ_any_int : t
 
   val typ_float : t
+
+  val typ_float32 : t
 
   val typ_void : t
 
@@ -290,6 +306,16 @@ val make_alloc :
 (** Allocate a block of unboxed floats with the given tag *)
 val make_float_alloc :
   mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
+
+(** Allocate an mixed block of the corresponding tag and shape. Initial values
+    of the flat suffix should be provided unboxed. *)
+val make_mixed_alloc :
+  mode:Lambda.alloc_mode ->
+  Debuginfo.t ->
+  int ->
+  Lambda.mixed_block_shape ->
+  expression list ->
+  expression
 
 (** Sys.opaque_identity *)
 val opaque : expression -> Debuginfo.t -> expression
@@ -515,6 +541,8 @@ val cdefine_symbol : symbol -> data_item list
 val emit_block : symbol -> nativeint -> data_item list -> data_item list
 
 (** Emit specific kinds of constant blocks as data items *)
+val emit_float32_constant : symbol -> float -> data_item list -> data_item list
+
 val emit_float_constant : symbol -> float -> data_item list -> data_item list
 
 val emit_string_constant : symbol -> string -> data_item list -> data_item list
@@ -550,6 +578,9 @@ val symbol : dbg:Debuginfo.t -> Cmm.symbol -> Cmm.expression
 
 (** Create a constant float expression. *)
 val float : dbg:Debuginfo.t -> float -> expression
+
+(** Create a constant float32 expression. *)
+val float32 : dbg:Debuginfo.t -> float -> expression
 
 (** Create a constant int expression. *)
 val int : dbg:Debuginfo.t -> int -> expression
@@ -652,10 +683,19 @@ val lsr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
     first argument by. *)
 val asr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
+(** Conversions functions between integers and floats. *)
+
 val int_of_float : dbg:Debuginfo.t -> expression -> expression
 
-(** Conversions functions between integers and floats. *)
 val float_of_int : dbg:Debuginfo.t -> expression -> expression
+
+val int_of_float32 : dbg:Debuginfo.t -> expression -> expression
+
+val float32_of_int : dbg:Debuginfo.t -> expression -> expression
+
+val float32_of_float : dbg:Debuginfo.t -> expression -> expression
+
+val float_of_float32 : dbg:Debuginfo.t -> expression -> expression
 
 val eq : dbg:Debuginfo.t -> expression -> expression -> expression
 
@@ -686,6 +726,8 @@ val uge : dbg:Debuginfo.t -> expression -> expression -> expression
 (** Asbolute value on floats. *)
 val float_abs : dbg:Debuginfo.t -> expression -> expression
 
+val float32_abs : dbg:Debuginfo.t -> expression -> expression
+
 (** Arithmetic negation on floats. *)
 val float_neg : dbg:Debuginfo.t -> expression -> expression
 
@@ -695,10 +737,22 @@ val float_sub : dbg:Debuginfo.t -> expression -> expression -> expression
 
 val float_mul : dbg:Debuginfo.t -> expression -> expression -> expression
 
+val float32_neg : dbg:Debuginfo.t -> expression -> expression
+
+val float32_add : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_sub : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_mul : dbg:Debuginfo.t -> expression -> expression -> expression
+
 (** Float arithmetic operations. *)
 val float_div : dbg:Debuginfo.t -> expression -> expression -> expression
 
 val float_eq : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_div : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_eq : dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Float arithmetic (dis)equality of cmm expressions. Returns an untagged
     integer (either 0 or 1) to represent the result of the comparison. *)
@@ -710,9 +764,19 @@ val float_le : dbg:Debuginfo.t -> expression -> expression -> expression
 
 val float_gt : dbg:Debuginfo.t -> expression -> expression -> expression
 
+val float32_neq : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_lt : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_le : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_gt : dbg:Debuginfo.t -> expression -> expression -> expression
+
 (** Float arithmetic comparisons on cmm expressions. Returns an untagged integer
     (either 0 or 1) to represent the result of the comparison. *)
 val float_ge : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_ge : dbg:Debuginfo.t -> expression -> expression -> expression
 
 val beginregion : dbg:Debuginfo.t -> expression
 
@@ -806,6 +870,9 @@ val infix_field_address : dbg:Debuginfo.t -> expression -> int -> expression
 (** Static integer. *)
 val cint : nativeint -> data_item
 
+(** Static float32. *)
+val cfloat32 : float -> data_item
+
 (** Static float. *)
 val cfloat : float -> data_item
 
@@ -850,8 +917,6 @@ val gc_root_table : Cmm.symbol list -> phrase
    If [None] is returned, that means "no estimate available". The expression
    should be assumed to be potentially large. *)
 val cmm_arith_size : expression -> int option
-
-val transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list
 
 (* CR lmaurer: Return [Linkage_name.t] instead *)
 val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string
@@ -940,3 +1005,41 @@ val unboxed_int64_or_nativeint_array_set :
   new_value:expression ->
   Debuginfo.t ->
   expression
+
+(** {2 Getters and setters for unboxed int and float32 fields of mixed
+    blocks} *)
+
+(** The argument structure for getters is parallel to [get_field_computed]. *)
+
+val get_field_unboxed_int32 :
+  Asttypes.mutable_flag ->
+  block:expression ->
+  index:expression ->
+  Debuginfo.t ->
+  expression
+
+val get_field_unboxed_float32 :
+  Asttypes.mutable_flag ->
+  block:expression ->
+  index:expression ->
+  Debuginfo.t ->
+  expression
+
+val get_field_unboxed_int64_or_nativeint :
+  Asttypes.mutable_flag ->
+  block:expression ->
+  index:expression ->
+  Debuginfo.t ->
+  expression
+
+(** The argument structure for setters is parallel to [setfield_computed].
+   [immediate_or_pointer] is not needed as the layout is implied from the name,
+   and [initialization_or_assignment] is not needed as unboxed ints can always be
+   assigned without caml_modify (etc.).
+ *)
+
+val setfield_unboxed_int32 : ternary_primitive
+
+val setfield_unboxed_float32 : ternary_primitive
+
+val setfield_unboxed_int64_or_nativeint : ternary_primitive

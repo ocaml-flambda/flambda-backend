@@ -145,14 +145,17 @@ type primitive =
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
+  | Pmakemixedblock of int * mutable_flag * mixed_block_shape * alloc_mode
   | Pfield of int * immediate_or_pointer * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
   | Pufloatfield of int * field_read_semantics
+  | Pmixedfield of int * mixed_block_read * field_read_semantics
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
+  | Psetmixedfield of int * mixed_block_write * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
@@ -180,6 +183,8 @@ type primitive =
   | Poffsetint of int
   | Poffsetref of int
   (* Float operations *)
+  | Pfloatoffloat32 of alloc_mode
+  | Pfloat32offloat of alloc_mode
   | Pintoffloat of boxed_float
   | Pfloatofint of boxed_float * alloc_mode
   | Pnegfloat of boxed_float * alloc_mode
@@ -197,10 +202,10 @@ type primitive =
   | Pmakearray of array_kind * mutable_flag * alloc_mode
   | Pduparray of array_kind * mutable_flag
   | Parraylength of array_kind
-  | Parrayrefu of array_ref_kind
-  | Parraysetu of array_set_kind
-  | Parrayrefs of array_ref_kind
-  | Parraysets of array_set_kind
+  | Parrayrefu of array_ref_kind * array_index_kind
+  | Parraysetu of array_set_kind * array_index_kind
+  | Parrayrefs of array_ref_kind * array_index_kind
+  | Parraysets of array_set_kind * array_index_kind
   (* Test if the argument is a block or an immediate integer *)
   | Pisint of { variant_only : bool }
   (* Test if the (integer) argument is outside an interval *)
@@ -320,7 +325,7 @@ and value_kind =
   | Pboxedintval of boxed_integer
   | Pvariant of {
       consts : int list;
-      non_consts : (int * value_kind list) list;
+      non_consts : (int * constructor_shape) list;
     }
   | Parrayval of array_kind
   | Pboxedvectorval of boxed_vector
@@ -336,6 +341,30 @@ and layout =
 
 and block_shape =
   value_kind list option
+
+and flat_element = Types.flat_element =
+    Imm | Float | Float64 | Float32 | Bits32 | Bits64 | Word
+and flat_element_read =
+  | Flat_read of flat_element (* invariant: not [Float] *)
+  | Flat_read_float of alloc_mode
+and mixed_block_read =
+  | Mread_value_prefix of immediate_or_pointer
+  | Mread_flat_suffix of flat_element_read
+and mixed_block_write =
+  | Mwrite_value_prefix of immediate_or_pointer
+  | Mwrite_flat_suffix of flat_element
+
+and mixed_block_shape = Types.mixed_product_shape =
+  { value_prefix_len : int;
+    flat_suffix : flat_element array;
+  }
+
+and constructor_shape =
+  | Constructor_uniform of value_kind list
+  | Constructor_mixed of
+      { value_prefix : value_kind list;
+        flat_suffix : flat_element list;
+      }
 
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
@@ -357,6 +386,10 @@ and array_set_kind =
   | Pfloatarray_set
   | Punboxedfloatarray_set of unboxed_float
   | Punboxedintarray_set of unboxed_integer
+
+and array_index_kind =
+  | Ptagged_int_index
+  | Punboxed_int_index of unboxed_integer
 
 and boxed_float = Primitive.boxed_float =
   | Pfloat64
@@ -456,13 +489,25 @@ let rec equal_value_kind x y =
     let non_consts1 = List.sort compare_by_tag non_consts1 in
     let non_consts2 = List.sort compare_by_tag non_consts2 in
     List.equal Int.equal consts1 consts2
-      && List.equal (fun (tag1, fields1) (tag2, fields2) ->
+      && List.equal (fun (tag1, cstr1) (tag2, cstr2) ->
              Int.equal tag1 tag2
-             && List.length fields1 = List.length fields2
-             && List.for_all2 equal_value_kind fields1 fields2)
+             && equal_constructor_shape cstr1 cstr2)
            non_consts1 non_consts2
   | (Pgenval | Pboxedfloatval _ | Pboxedintval _ | Pintval | Pvariant _
       | Parrayval _ | Pboxedvectorval _), _ -> false
+
+and equal_constructor_shape x y =
+  match x, y with
+  | Constructor_uniform fields1, Constructor_uniform fields2 ->
+      List.length fields1 = List.length fields2
+      && List.for_all2 equal_value_kind fields1 fields2
+  | Constructor_mixed { value_prefix = p1; flat_suffix = s1 },
+    Constructor_mixed { value_prefix = p2; flat_suffix = s2 } ->
+      List.length p1 = List.length p2
+      && List.for_all2 equal_value_kind p1 p2
+      && List.length s1 = List.length s2
+      && List.for_all2 Types.equal_flat_element s1 s2
+  | (Constructor_uniform _ | Constructor_mixed _), _ -> false
 
 let equal_layout x y =
   match x, y with
@@ -576,25 +621,23 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
-type property =
-  | Zero_alloc
-
 type poll_attribute =
   | Error_poll (* [@poll error] *)
   | Default_poll (* no [@poll] attribute *)
 
-type check_attribute =
-  | Default_check
-  | Ignore_assert_all of property
-  | Check of { property: property;
-               strict: bool;
+type zero_alloc_attribute = Builtin_attributes.zero_alloc_attribute =
+  | Default_zero_alloc
+  | Ignore_assert_all
+  | Check of { strict: bool;
                opt: bool;
+               arity: int;
                loc: Location.t;
              }
-  | Assume of { property: property;
-                strict: bool;
-                loc: Location.t;
+  | Assume of { strict: bool;
                 never_returns_normally: bool;
+                never_raises: bool;
+                arity: int;
+                loc: Location.t;
               }
 
 type loop_attribute =
@@ -625,7 +668,7 @@ type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
   local: local_attribute;
-  check : check_attribute;
+  zero_alloc : zero_alloc_attribute;
   poll: poll_attribute;
   loop: loop_attribute;
   is_a_functor: bool;
@@ -657,7 +700,7 @@ type lambda =
   | Lfunction of lfunction
   | Llet of let_kind * layout * Ident.t * lambda * lambda
   | Lmutlet of layout * Ident.t * lambda * lambda
-  | Lletrec of (Ident.t * lambda) list * lambda
+  | Lletrec of rec_binding list * lambda
   | Lprim of primitive * lambda list * scoped_location
   | Lswitch of lambda * lambda_switch * scoped_location * layout
   | Lstringswitch of
@@ -677,6 +720,11 @@ type lambda =
   | Lifused of Ident.t * lambda
   | Lregion of lambda * layout
   | Lexclave of lambda
+
+and rec_binding = {
+  id : Ident.t;
+  def : lfunction;
+}
 
 and lfunction =
   { kind: function_kind;
@@ -745,12 +793,14 @@ let const_int n = Const_base (Const_int n)
 
 let const_unit = const_int 0
 
+let dummy_constant = Lconst (const_int (0xBBBB / 2))
+
 let max_arity () =
   if !Clflags.native_code then 126 else max_int
   (* 126 = 127 (the maximal number of parameters supported in C--)
            - 1 (the hidden parameter containing the environment) *)
 
-let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
+let lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
   assert (List.length params <= max_arity ());
   (* A curried function type with n parameters has n arrows. Of these,
      the first [n-nlocal] have return mode Heap, while the remainder
@@ -773,7 +823,11 @@ let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
      if not region then assert (nlocal >= 1);
      if is_local_mode mode then assert (nlocal = nparams)
   end;
-  Lfunction { kind; params; return; body; attr; loc; mode; ret_mode; region }
+  { kind; params; return; body; attr; loc; mode; ret_mode; region }
+
+let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
+  Lfunction
+    (lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region)
 
 let lambda_unit = Lconst const_unit
 
@@ -782,8 +836,13 @@ let layout_int = Pvalue Pintval
 let layout_array kind = Pvalue (Parrayval kind)
 let layout_block = Pvalue Pgenval
 let layout_list =
-  Pvalue (Pvariant { consts = [0] ; non_consts = [0, [Pgenval; Pgenval]] })
-let layout_field = Pvalue Pgenval
+  Pvalue (Pvariant { consts = [0] ;
+                     non_consts = [0, Constructor_uniform [Pgenval; Pgenval]] })
+let layout_tuple_element = Pvalue Pgenval
+let layout_value_field = Pvalue Pgenval
+let layout_tmc_field = Pvalue Pgenval
+let layout_optional_arg = Pvalue Pgenval
+let layout_variant_arg = Pvalue Pgenval
 let layout_exception = Pvalue Pgenval
 let layout_function = Pvalue Pgenval
 let layout_object = Pvalue Pgenval
@@ -832,7 +891,7 @@ let default_function_attribute = {
   inline = Default_inline;
   specialise = Default_specialise;
   local = Default_local;
-  check = Default_check ;
+  zero_alloc = Default_zero_alloc ;
   poll = Default_poll;
   loop = Default_loop;
   is_a_functor = false;
@@ -851,7 +910,7 @@ let default_function_attribute = {
 }
 
 let default_stub_attribute =
-  { default_function_attribute with stub = true; check = Ignore_assert_all Zero_alloc }
+  { default_function_attribute with stub = true; zero_alloc = Ignore_assert_all }
 
 let default_param_attribute = { unbox_param = false }
 
@@ -987,7 +1046,7 @@ let shallow_iter ~tail ~non_tail:f = function
       f arg; tail body
   | Lletrec(decl, body) ->
       tail body;
-      List.iter (fun (_id, exp) -> f exp) decl
+      List.iter (fun { def } -> f (Lfunction def)) decl
   | Lprim (Psequand, [l1; l2], _)
   | Lprim (Psequor, [l1; l2], _) ->
       f l1;
@@ -1048,8 +1107,12 @@ let rec free_variables = function
         (free_variables arg)
         (Ident.Set.remove id (free_variables body))
   | Lletrec(decl, body) ->
-      let set = free_variables_list (free_variables body) (List.map snd decl) in
-      Ident.Set.diff set (Ident.Set.of_list (List.map fst decl))
+      let set =
+        free_variables_list (free_variables body)
+          (List.map (fun { def } -> Lfunction def) decl)
+      in
+      Ident.Set.diff set
+        (Ident.Set.of_list (List.map (fun { id } -> id) decl))
   | Lprim(_p, args, _loc) ->
       free_variables_list Ident.Set.empty args
   | Lswitch(arg, sw,_,_) ->
@@ -1184,6 +1247,23 @@ let transl_prim mod_name name =
   | exception Not_found ->
       fatal_error ("Primitive " ^ name ^ " not found.")
 
+let transl_mixed_product_shape : Types.mixed_product_shape -> mixed_block_shape =
+  fun x -> x
+
+type mixed_block_element = Types.mixed_product_element =
+  | Value_prefix
+  | Flat_suffix of flat_element
+
+let get_mixed_block_element = Types.get_mixed_product_element
+
+let flat_read_non_float flat_element =
+  match flat_element with
+  | Float -> Misc.fatal_error "flat_element_read_non_float Float"
+  | Imm | Float64 | Float32 | Bits32 | Bits64 | Word as flat_element ->
+      Flat_read flat_element
+
+let flat_read_float alloc_mode = Flat_read_float alloc_mode
+
 (* Compile a sequence of expressions *)
 
 let rec make_sequence fn = function
@@ -1196,12 +1276,17 @@ let rec make_sequence fn = function
    Assumes that the image of the substitution is out of reach
    of the bound variables of the lambda-term (no capture). *)
 
-let subst update_env ?(freshen_bound_variables = false) s input_lam =
+type substitution_functions = {
+  subst_lambda : lambda -> lambda;
+  subst_lfunction : lfunction -> lfunction;
+}
+
+let build_substs update_env ?(freshen_bound_variables = false) s =
   (* [s] contains a partial substitution for the free variables of the
-     input term [input_lam].
+     input term.
 
      During our traversal of the term we maintain a second environment
-     [l] with all the bound variables of [input_lam] in the current
+     [l] with all the bound variables of the input term in the current
      scope, mapped to either themselves or freshened versions of
      themselves when [freshen_bound_variables] is set. *)
   let bind id l =
@@ -1219,6 +1304,12 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
         let name', l = bind p.name l in
         ({ p with name = name' } :: params' , l)
       ) params ([], l)
+  in
+  let bind_rec ids l =
+    List.fold_right (fun rb (ids', l) ->
+        let id', l = bind rb.id l in
+        ({ rb with id = id' } :: ids' , l)
+      ) ids ([], l)
   in
   let rec subst s l lam =
     match lam with
@@ -1244,8 +1335,7 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
         Lapply{ap with ap_func = subst s l ap.ap_func;
                       ap_args = subst_list s l ap.ap_args}
     | Lfunction lf ->
-        let params, l' = bind_params lf.params l in
-        Lfunction {lf with params; body = subst s l' lf.body}
+        Lfunction (subst_lfun s l lf)
     | Llet(str, k, id, arg, body) ->
         let id, l' = bind id l in
         Llet(str, k, id, subst s l arg, subst s l' body)
@@ -1253,7 +1343,7 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
         let id, l' = bind id l in
         Lmutlet(k, id, subst s l arg, subst s l' body)
     | Lletrec(decl, body) ->
-        let decl, l' = bind_many decl l in
+        let decl, l' = bind_rec decl l in
         Lletrec(List.map (subst_decl s l') decl, subst s l' body)
     | Lprim(p, args, loc) -> Lprim(p, subst_list s l args, loc)
     | Lswitch(arg, sw, loc,kind) ->
@@ -1328,14 +1418,22 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
     | Lexclave e ->
         Lexclave (subst s l e)
   and subst_list s l li = List.map (subst s l) li
-  and subst_decl s l (id, exp) = (id, subst s l exp)
+  and subst_decl s l decl = { decl with def = subst_lfun s l decl.def }
+  and subst_lfun s l lf =
+    let params, l' = bind_params lf.params l in
+    { lf with params; body = subst s l' lf.body }
   and subst_case s l (key, case) = (key, subst s l case)
   and subst_strcase s l (key, case) = (key, subst s l case)
   and subst_opt s l = function
     | None -> None
     | Some e -> Some (subst s l e)
   in
-  subst s Ident.Map.empty input_lam
+  { subst_lambda = (fun lam -> subst s Ident.Map.empty lam);
+    subst_lfunction = (fun lfun -> subst_lfun s Ident.Map.empty lfun);
+  }
+
+let subst update_env ?freshen_bound_variables s =
+  (build_substs update_env ?freshen_bound_variables s).subst_lambda
 
 let rename idmap lam =
   let update_env oldid vd env =
@@ -1345,12 +1443,16 @@ let rename idmap lam =
   let s = Ident.Map.map (fun new_id -> Lvar new_id) idmap in
   subst update_env s lam
 
-let duplicate lam =
-  subst
-    (fun _ _ env -> env)
-    ~freshen_bound_variables:true
-    Ident.Map.empty
-    lam
+let duplicate_function =
+  (build_substs
+     (fun _ _ env -> env)
+     ~freshen_bound_variables:true
+     Ident.Map.empty).subst_lfunction
+
+let map_lfunction f { kind; params; return; body; attr; loc;
+                      mode; ret_mode; region } =
+  let body = f body in
+  { kind; params; return; body; attr; loc; mode; ret_mode; region }
 
 let shallow_map ~tail ~non_tail:f = function
   | Lvar _
@@ -1370,15 +1472,18 @@ let shallow_map ~tail ~non_tail:f = function
         ap_specialised;
         ap_probe;
       }
-  | Lfunction { kind; params; return; body; attr; loc; mode; ret_mode; region } ->
-      Lfunction { kind; params; return; body = f body; attr; loc;
-                  mode; ret_mode; region }
+  | Lfunction lfun ->
+      Lfunction (map_lfunction f lfun)
   | Llet (str, layout, v, e1, e2) ->
       Llet (str, layout, v, f e1, tail e2)
   | Lmutlet (layout, v, e1, e2) ->
       Lmutlet (layout, v, f e1, tail e2)
   | Lletrec (idel, e2) ->
-      Lletrec (List.map (fun (v, e) -> (v, f e)) idel, tail e2)
+      Lletrec
+        (List.map (fun rb ->
+             { rb with def = map_lfunction f rb.def })
+            idel,
+         tail e2)
   | Lprim (Psequand as p, [l1; l2], loc)
   | Lprim (Psequor as p, [l1; l2], loc) ->
       Lprim(p, [f l1; tail l2], loc)
@@ -1556,11 +1661,19 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pmakeblock (_, _, _, m) -> Some m
   | Pmakefloatblock (_, m) -> Some m
   | Pmakeufloatblock (_, m) -> Some m
+  | Pmakemixedblock (_, _, _, m) -> Some m
   | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _ -> None
   | Pfloatfield (_, _, m) -> Some m
   | Pufloatfield _ -> None
+  | Pmixedfield (_, read, _) -> begin
+      match read with
+      | Mread_value_prefix _ -> None
+      | Mread_flat_suffix (Flat_read_float m) -> Some m
+      | Mread_flat_suffix (Flat_read _) -> None
+    end
   | Psetfloatfield _ -> None
   | Psetufloatfield _ -> None
+  | Psetmixedfield _ -> None
   | Pduprecord _ -> Some alloc_heap
   | Pmake_unboxed_product _ | Punboxed_product_field _ -> None
   | Pccall p -> alloc_mode_of_primitive_description p
@@ -1576,6 +1689,8 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Poffsetref _ -> None
   | Pintoffloat _ -> None
   | Pfloatofint (_, m) -> Some m
+  | Pfloatoffloat32 m -> Some m
+  | Pfloat32offloat m -> Some m
   | Pnegfloat (_, m) | Pabsfloat (_, m)
   | Paddfloat (_, m) | Psubfloat (_, m)
   | Pmulfloat (_, m) | Pdivfloat (_, m) -> Some m
@@ -1586,12 +1701,12 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pduparray _ -> Some alloc_heap
   | Parraylength _ -> None
   | Parraysetu _ | Parraysets _
-  | Parrayrefu (Paddrarray_ref | Pintarray_ref
-      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _)
-  | Parrayrefs (Paddrarray_ref | Pintarray_ref
-      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _) -> None
-  | Parrayrefu (Pgenarray_ref m | Pfloatarray_ref m)
-  | Parrayrefs (Pgenarray_ref m | Pfloatarray_ref m) -> Some m
+  | Parrayrefu ((Paddrarray_ref | Pintarray_ref
+      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _)
+  | Parrayrefs ((Paddrarray_ref | Pintarray_ref
+      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _) -> None
+  | Parrayrefu ((Pgenarray_ref m | Pfloatarray_ref m), _)
+  | Parrayrefs ((Pgenarray_ref m | Pfloatarray_ref m), _) -> Some m
   | Pisint _ | Pisout -> None
   | Pintofbint _ -> None
   | Pbintofint (_,m)
@@ -1668,6 +1783,7 @@ let constant_layout: constant -> layout = function
   | Const_float _ -> Pvalue (Pboxedfloatval Pfloat64)
   | Const_float32 _ -> Pvalue (Pboxedfloatval Pfloat32)
   | Const_unboxed_float _ -> Punboxed_float Pfloat64
+  | Const_unboxed_float32 _ -> Punboxed_float Pfloat32
 
 let structured_constant_layout = function
   | Const_base const -> constant_layout const
@@ -1683,6 +1799,7 @@ let layout_of_extern_repr : extern_repr -> _ = function
     begin match s with
     | Value -> layout_any_value
     | Float64 -> layout_unboxed_float Pfloat64
+    | Float32 -> layout_unboxed_float Pfloat32
     | Word -> layout_unboxed_nativeint
     | Bits32 -> layout_unboxed_int32
     | Bits64 -> layout_unboxed_int64
@@ -1693,10 +1810,25 @@ let array_ref_kind_result_layout = function
   | Pintarray_ref -> layout_int
   | Pfloatarray_ref _ -> layout_boxed_float Pfloat64
   | Punboxedfloatarray_ref bf -> layout_unboxed_float bf
-  | Pgenarray_ref _ | Paddrarray_ref -> layout_field
+  | Pgenarray_ref _ | Paddrarray_ref -> layout_value_field
   | Punboxedintarray_ref Pint32 -> layout_unboxed_int32
   | Punboxedintarray_ref Pint64 -> layout_unboxed_int64
   | Punboxedintarray_ref Pnativeint -> layout_unboxed_nativeint
+
+let layout_of_mixed_field (kind : mixed_block_read) =
+  match kind with
+  | Mread_value_prefix _ -> layout_value_field
+  | Mread_flat_suffix (Flat_read_float (_ : alloc_mode)) ->
+      layout_boxed_float Pfloat64
+  | Mread_flat_suffix (Flat_read proj) ->
+      match proj with
+      | Imm -> layout_int
+      | Float64 -> layout_unboxed_float Pfloat64
+      | Float32 -> layout_unboxed_float Pfloat32
+      | Bits32 -> layout_unboxed_int32
+      | Bits64 -> layout_unboxed_int64
+      | Word -> layout_unboxed_nativeint
+      | Float -> layout_boxed_float Pfloat64
 
 let primitive_result_layout (p : primitive) =
   assert !Clflags.native_code;
@@ -1704,7 +1836,7 @@ let primitive_result_layout (p : primitive) =
   | Popaque layout | Pobj_magic layout -> layout
   | Pbytes_to_string | Pbytes_of_string -> layout_string
   | Pignore | Psetfield _ | Psetfield_computed _ | Psetfloatfield _ | Poffsetref _
-  | Psetufloatfield _
+  | Psetufloatfield _ | Psetmixedfield _
   | Pbytessetu | Pbytessets | Parraysetu _ | Parraysets _ | Pbigarrayset _
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pbigstring_set_128 _
@@ -1714,17 +1846,20 @@ let primitive_result_layout (p : primitive) =
     -> layout_unit
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> layout_module_field
   | Pmakeblock _ | Pmakefloatblock _ | Pmakearray _ | Pduprecord _
-  | Pmakeufloatblock _
+  | Pmakeufloatblock _ | Pmakemixedblock _
   | Pduparray _ | Pbigarraydim _ | Pobj_dup -> layout_block
-  | Pfield _ | Pfield_computed _ -> layout_field
+  | Pfield _ | Pfield_computed _ -> layout_value_field
   | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)
   | Pmake_unboxed_product layouts -> layout_unboxed_product layouts
   | Pfloatfield _ -> layout_boxed_float Pfloat64
+  | Pfloatoffloat32 _ -> layout_boxed_float Pfloat64
+  | Pfloat32offloat _ -> layout_boxed_float Pfloat32
   | Pfloatofint (f, _) | Pnegfloat (f, _) | Pabsfloat (f, _)
   | Paddfloat (f, _) | Psubfloat (f, _) | Pmulfloat (f, _) | Pdivfloat (f, _)
   | Pbox_float (f, _) -> layout_boxed_float f
   | Pufloatfield _ -> Punboxed_float Pfloat64
   | Punbox_float float_kind -> Punboxed_float float_kind
+  | Pmixedfield (_, kind, _) -> layout_of_mixed_field kind
   | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_extern_repr repr_res
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot
@@ -1743,7 +1878,7 @@ let primitive_result_layout (p : primitive) =
   | Pstring_load_16 _ | Pbytes_load_16 _ | Pbigstring_load_16 _
   | Pprobe_is_enabled _ | Pbswap16
     -> layout_int
-  | Parrayrefu array_ref_kind | Parrayrefs array_ref_kind ->
+  | Parrayrefu (array_ref_kind, _) | Parrayrefs (array_ref_kind, _) ->
     array_ref_kind_result_layout array_ref_kind
   | Pbintofint (bi, _) | Pcvtbint (_,bi,_)
   | Pnegbint (bi, _) | Paddbint (bi, _) | Psubbint (bi, _)
@@ -1780,7 +1915,7 @@ let primitive_result_layout (p : primitive) =
       begin match kind with
       | Pbigarray_unknown -> layout_any_value
       | Pbigarray_float32 ->
-        (* CR mslater: (float32) bigarrays *)
+        (* float32 bigarrays return 64-bit floats for backward compatibility. *)
         layout_boxed_float Pfloat64
       | Pbigarray_float64 -> layout_boxed_float Pfloat64
       | Pbigarray_sint8 | Pbigarray_uint8
@@ -1832,7 +1967,7 @@ let compute_expr_layout free_vars_kind lam =
       compute_expr_layout (Ident.Map.add id kind kinds) body
     | Lletrec(defs, body) ->
       let kinds =
-        List.fold_left (fun kinds (id, _) -> Ident.Map.add id layout_letrec kinds)
+        List.fold_left (fun kinds { id } -> Ident.Map.add id layout_letrec kinds)
           kinds defs
       in
       compute_expr_layout kinds body
@@ -1867,16 +2002,6 @@ let array_set_kind mode = function
   | Pfloatarray -> Pfloatarray_set
   | Punboxedintarray int_kind -> Punboxedintarray_set int_kind
   | Punboxedfloatarray float_kind -> Punboxedfloatarray_set float_kind
-
-let is_check_enabled ~opt property =
-  match property with
-  | Zero_alloc ->
-    match !Clflags.zero_alloc_check with
-    | No_check -> false
-    | Check_all -> true
-    | Check_default -> not opt
-    | Check_opt_only -> opt
-
 
 let may_allocate_in_region lam =
   (* loop_region raises, if the lambda might allocate in parent region *)

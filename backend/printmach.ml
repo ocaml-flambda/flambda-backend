@@ -43,12 +43,13 @@ let reg ppf r =
     fprintf ppf "%s" (Reg.name r)
   else
     fprintf ppf "%s"
-      (match r.typ with
+      (match (r.typ : machtype_component) with
       | Val -> "V"
       | Addr -> "A"
       | Int -> "I"
       | Float -> "F"
-      | Vec128 -> "X");
+      | Vec128 -> "X"
+      | Float32 -> "S");
   fprintf ppf "/%i" r.stamp;
   loc
     ~wrap_out:(fun ppf f -> fprintf ppf "[%t]" f)
@@ -104,9 +105,6 @@ let intcomp = function
   | Isigned c -> Printf.sprintf " %ss " (Printcmm.integer_comparison c)
   | Iunsigned c -> Printf.sprintf " %su " (Printcmm.integer_comparison c)
 
-let floatcomp c =
-    Printf.sprintf " %sf " (Printcmm.float_comparison c)
-
 let is_unary_op = function
   | Iclz _
   | Ictz _
@@ -134,6 +132,16 @@ let intop = function
   | Ipopcnt -> "popcnt "
   | Icomp cmp -> intcomp cmp
 
+let floatop ppf op =
+  match op with
+  | Iaddf -> fprintf ppf "+."
+  | Isubf -> fprintf ppf "-."
+  | Imulf -> fprintf ppf "*."
+  | Idivf -> fprintf ppf "/."
+  | Iabsf -> fprintf ppf "abs"
+  | Inegf -> fprintf ppf "neg"
+  | Icompf cmp -> fprintf ppf "%s" (Printcmm.float_comparison cmp)
+
 let test' ?(print_reg = reg) tst ppf arg =
   let reg = print_reg in
   match tst with
@@ -141,9 +149,9 @@ let test' ?(print_reg = reg) tst ppf arg =
   | Ifalsetest -> fprintf ppf "not %a" reg arg.(0)
   | Iinttest cmp -> fprintf ppf "%a%s%a" reg arg.(0) (intcomp cmp) reg arg.(1)
   | Iinttest_imm(cmp, n) -> fprintf ppf "%a%s%i" reg arg.(0) (intcomp cmp) n
-  | Ifloattest cmp ->
-      fprintf ppf "%a%s%a"
-       reg arg.(0) (floatcomp cmp) reg arg.(1)
+  | Ifloattest (_, cmp) ->
+      fprintf ppf "%a %s %a"
+       reg arg.(0) (Printcmm.float_comparison cmp) reg arg.(1)
   | Ieventest -> fprintf ppf "%a & 1 == 0" reg arg.(0)
   | Ioddtest -> fprintf ppf "%a & 1 == 1" reg arg.(0)
 
@@ -158,6 +166,7 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Ispill -> fprintf ppf "%a (spill)" regs arg
   | Ireload -> fprintf ppf "%a (reload)" regs arg
   | Iconst_int n -> fprintf ppf "%s" (Nativeint.to_string n)
+  | Iconst_float32 f -> fprintf ppf "%Fs" (Int32.float_of_bits f)
   | Iconst_float f -> fprintf ppf "%F" (Int64.float_of_bits f)
   | Iconst_symbol s -> fprintf ppf "\"%s\"" s.sym_name
   | Iconst_vec128 {high; low} -> fprintf ppf "%016Lx:%016Lx" high low
@@ -210,24 +219,25 @@ let operation' ?(print_reg = reg) op arg ppf res =
       (Printcmm.atomic_bitwidth size)
       (Arch.print_addressing reg addr) (Array.sub arg 1 (Array.length arg - 1))
       reg arg.(0)
-  | Icompf cmp -> fprintf ppf "%a%s%a" reg arg.(0) (floatcomp cmp) reg arg.(1)
-  | Inegf -> fprintf ppf "-f %a" reg arg.(0)
-  | Iabsf -> fprintf ppf "absf %a" reg arg.(0)
-  | Iaddf -> fprintf ppf "%a +f %a" reg arg.(0) reg arg.(1)
-  | Isubf -> fprintf ppf "%a -f %a" reg arg.(0) reg arg.(1)
-  | Imulf -> fprintf ppf "%a *f %a" reg arg.(0) reg arg.(1)
-  | Idivf -> fprintf ppf "%a /f %a" reg arg.(0) reg arg.(1)
+  | Ifloatop (_, (Icompf _ | Iaddf | Isubf | Imulf | Idivf as op)) ->
+    fprintf ppf "%a %a %a" reg arg.(0) floatop op reg arg.(1)
+  | Ifloatop (_, (Inegf | Iabsf as op)) ->
+    fprintf ppf "%a %a" floatop op reg arg.(0)
   | Icsel tst ->
     let len = Array.length arg in
     fprintf ppf "csel %a ? %a : %a"
       (test tst) arg reg arg.(len-2) reg arg.(len-1)
-  | Ifloatofint -> fprintf ppf "floatofint %a" reg arg.(0)
-  | Iintoffloat -> fprintf ppf "intoffloat %a" reg arg.(0)
   | Ivalueofint -> fprintf ppf "valueofint %a" reg arg.(0)
   | Iintofvalue -> fprintf ppf "intofvalue %a" reg arg.(0)
   | Ivectorcast Bits128 ->
     fprintf ppf "vec128->vec128 %a"
-      reg arg.(0)
+    reg arg.(0)
+  | Iscalarcast (Float_of_int Float64) -> fprintf ppf "int->float %a" reg arg.(0)
+  | Iscalarcast (Float_to_int Float64) -> fprintf ppf "float->int %a" reg arg.(0)
+  | Iscalarcast (Float_of_int Float32) -> fprintf ppf "int->float32 %a" reg arg.(0)
+  | Iscalarcast (Float_to_int Float32) -> fprintf ppf "float32->int %a" reg arg.(0)
+  | Iscalarcast (Float_of_float32) -> fprintf ppf "float32->float %a" reg arg.(0)
+  | Iscalarcast (Float_to_float32) -> fprintf ppf "float->float32 %a" reg arg.(0)
   | Iscalarcast (V128_of_scalar ty) ->
     fprintf ppf "scalar->%s %a"
       (Primitive.vec128_name ty) reg arg.(0)

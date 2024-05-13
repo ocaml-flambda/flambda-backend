@@ -40,19 +40,6 @@ let value_declarations  : unit usage_tbl ref = s_table Types.Uid.Tbl.create 16
 let type_declarations   : unit usage_tbl ref = s_table Types.Uid.Tbl.create 16
 let module_declarations : unit usage_tbl ref = s_table Types.Uid.Tbl.create 16
 
-let uid_to_loc : Location.t Types.Uid.Tbl.t ref =
-  s_table Types.Uid.Tbl.create 16
-
-let uid_to_attributes : Parsetree.attribute list Types.Uid.Tbl.t ref =
-  s_table Types.Uid.Tbl.create 16
-
-let register_uid uid ~loc ~attributes =
-  Types.Uid.Tbl.add !uid_to_loc uid loc;
-  Types.Uid.Tbl.add !uid_to_attributes uid attributes
-
-let get_uid_to_loc_tbl () = !uid_to_loc
-let get_uid_to_attributes_tbl () = !uid_to_attributes
-
 type constructor_usage = Positive | Pattern | Exported_private | Exported
 type constructor_usages =
   {
@@ -123,13 +110,13 @@ let label_usage_complaint priv mut lu
   | Asttypes.Private, _ ->
       if lu.lu_projection then None
       else Some Unused
-  | Asttypes.Public, Asttypes.Immutable -> begin
+  | Asttypes.Public, Types.Immutable -> begin
       match lu.lu_projection, lu.lu_construct with
       | true, _ -> None
       | false, false -> Some Unused
       | false, true -> Some Not_read
     end
-  | Asttypes.Public, Asttypes.Mutable -> begin
+  | Asttypes.Public, Types.Mutable _ -> begin
       match lu.lu_projection, lu.lu_mutation, lu.lu_construct with
       | true, true, _ -> None
       | false, false, false -> Some Unused
@@ -1042,7 +1029,6 @@ let reset_declaration_caches () =
   Types.Uid.Tbl.clear !module_declarations;
   Types.Uid.Tbl.clear !used_constructors;
   Types.Uid.Tbl.clear !used_labels;
-  Types.Uid.Tbl.clear !uid_to_loc;
   ()
 
 let reset_cache ~preserve_persistent_env =
@@ -1354,6 +1340,10 @@ let find_shape env (ns : Shape.Sig_component_kind.t) id =
   match ns with
   | Type ->
       (IdTbl.find_same id env.types).tda_shape
+  | Constructor ->
+      Shape.leaf ((TycompTbl.find_same id env.constrs).cda_description.cstr_uid)
+  | Label ->
+      Shape.leaf ((TycompTbl.find_same id env.labels).lbl_uid)
   | Extension_constructor ->
       (TycompTbl.find_same id env.constrs).cda_shape
   | Value ->
@@ -2477,8 +2467,6 @@ let enter_signature_and_shape ~scope ~parent_shape mod_shape sg env =
 let add_value_lazy = add_value_lazy ?shape:None
 let add_value ?check ?mode id vd =
   add_value_lazy ?check ?mode id (Subst.Lazy.of_value_description vd)
-let add_type = add_type ?shape:None
-let add_extension = add_extension ?shape:None
 let add_class = add_class ?shape:None
 let add_cltype = add_cltype ?shape:None
 let add_modtype_lazy = add_modtype_lazy ?shape:None
@@ -2681,7 +2669,7 @@ let unit_name_of_filename fn =
   | _ -> None
 
 let persistent_structures_of_dir dir =
-  Load_path.Dir.files dir
+  Load_path.Dir.basenames dir
   |> List.to_seq
   |> Seq.filter_map unit_name_of_filename
   |> String.Set.of_seq
@@ -2721,7 +2709,9 @@ let initial =
 let add_language_extension_types env =
   let add ext f env  =
     match Language_extension.is_enabled ext with
-    | true -> f (add_type ~check:false) env
+    | true ->
+      (* CR-someday poechsel: Pass a correct shape here *)
+      f (add_type ?shape:None ~check:false) env
     | false -> env
   in
   lazy
@@ -2958,7 +2948,7 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
 let escape_mode ~errors ~env ~loc id vmode escaping_context =
   match
   Mode.Regionality.submode
-    (Mode.Value.regionality vmode)
+    (Mode.Value.proj (Comonadic Areality) vmode)
     (Mode.Regionality.global)
   with
   | Ok () -> ()
@@ -2969,35 +2959,36 @@ let escape_mode ~errors ~env ~loc id vmode escaping_context =
 let share_mode ~errors ~env ~loc id vmode shared_context =
   match
     Mode.Linearity.submode
-      (Mode.Value.linearity vmode)
+      (Mode.Value.proj (Comonadic Linearity) vmode)
       Mode.Linearity.many
   with
   | Error _ ->
       may_lookup_error errors loc env
         (Once_value_used_in (id, shared_context))
-  | Ok () -> Mode.Value.join [Mode.Value.min_with_uniqueness Mode.Uniqueness.shared; vmode]
+  | Ok () -> Mode.Value.join [Mode.Value.min_with (Monadic Uniqueness) Mode.Uniqueness.shared; vmode]
 
-let closure_mode ~errors ~env ~loc id vmode closure_context comonadic =
+let closure_mode ~errors ~env ~loc id {Mode.monadic; comonadic}
+  closure_context comonadic0 : Mode.Value.l =
   begin
     match
-      Mode.Value.Comonadic.submode vmode.Mode.comonadic comonadic
+      Mode.Value.Comonadic.submode comonadic comonadic0
     with
     | Error e ->
         may_lookup_error errors loc env
           (Value_used_in_closure (id, e, closure_context))
     | Ok () -> ()
   end;
-  let uniqueness =
-    Mode.Uniqueness.join
-      [ Mode.Value.uniqueness vmode;
-        Mode.linear_to_unique (Mode.Value.Comonadic.linearity comonadic) ]
+  let monadic =
+    Mode.Value.Monadic.join
+      [ monadic;
+        Mode.Value.comonadic_to_monadic comonadic0 ]
   in
-  Mode.Value.join [Mode.Value.min_with_uniqueness uniqueness; vmode]
+  {monadic; comonadic}
 
 let exclave_mode ~errors ~env ~loc id vmode =
   match
   Mode.Regionality.submode
-    (Mode.Value.regionality vmode)
+    (Mode.Value.proj (Comonadic Areality) vmode)
     Mode.Regionality.regional
 with
 | Ok () -> vmode |> Mode.value_to_alloc_r2l |> Mode.alloc_as_value
@@ -3961,15 +3952,15 @@ let report_lookup_error _loc env ppf = function
   | Value_used_in_closure (lid, error, context) ->
       let e0, e1 =
         match error with
-        | `Regionality _ -> "local", "might escape"
-        | `Linearity _ -> "once", "is many"
+        | Error (Areality, _) -> "local", "might escape"
+        | Error (Linearity, _) -> "once", "is many"
       in
       fprintf ppf
       "@[The value %a is %s, so cannot be used \
             inside a closure that %s.@]"
       !print_longident lid e0 e1;
       begin match error, context with
-      | `Regionality _, Some Tailcall_argument ->
+      | Error (Areality, _), Some Tailcall_argument ->
          fprintf ppf "@.@[Hint: The closure might escape because it \
                           is an argument to a tail call@]"
       | _ -> ()

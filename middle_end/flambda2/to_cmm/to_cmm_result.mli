@@ -34,7 +34,8 @@ val create : module_symbol:Symbol.t -> reachable_names:Name_occurrences.t -> t
 val symbol : t -> Symbol.t -> Cmm.symbol
 
 (** Produce the Cmm function symbol for a piece of code. *)
-val symbol_of_code_id : t -> Code_id.t -> Cmm.symbol
+val symbol_of_code_id :
+  t -> Code_id.t -> currently_in_inlined_body:bool -> Cmm.symbol
 
 (** Create a Cmm symbol, not arising from a [Symbol.t]. *)
 val raw_symbol : t -> global:Cmm.is_global -> string -> t * Cmm.symbol

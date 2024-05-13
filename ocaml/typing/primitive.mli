@@ -27,7 +27,7 @@ type boxed_vector = Pvec128 of vec128_type
    of a primitive *)
 type native_repr =
   | Repr_poly
-  | Same_as_ocaml_repr of Jkind.Sort.const
+  | Same_as_ocaml_repr of Jkind_types.Sort.const
   | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
@@ -102,6 +102,7 @@ val vec128_name: vec128_type -> string
 
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 val equal_boxed_float : boxed_float -> boxed_float -> bool
+val equal_vec128_type : vec128_type -> vec128_type -> bool
 val equal_boxed_vector_size : boxed_vector -> boxed_vector -> bool
 val equal_native_repr : native_repr -> native_repr -> bool
 val equal_effects : effects -> effects -> bool

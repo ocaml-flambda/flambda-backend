@@ -102,14 +102,20 @@ type primitive =
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
+  | Pmakemixedblock of int * mutable_flag * mixed_block_shape * alloc_mode
   | Pfield of int * immediate_or_pointer * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
   | Pufloatfield of int * field_read_semantics
+  | Pmixedfield of int * mixed_block_read * field_read_semantics
+  (* [Pmixedfield] is an access to either the flat suffix or value prefix of a
+     mixed record.
+  *)
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
+  | Psetmixedfield of int * mixed_block_write * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
@@ -139,6 +145,9 @@ type primitive =
   | Poffsetint of int
   | Poffsetref of int
   (* Float operations *)
+  (* CR mslater: (float32) use a single cast primitive *)
+  | Pfloatoffloat32 of alloc_mode
+  | Pfloat32offloat of alloc_mode
   | Pintoffloat of boxed_float
   | Pfloatofint of boxed_float * alloc_mode
   | Pnegfloat of boxed_float * alloc_mode
@@ -159,10 +168,10 @@ type primitive =
       The arguments of [Pduparray] give the kind and mutability of the
       array being *produced* by the duplication. *)
   | Parraylength of array_kind
-  | Parrayrefu of array_ref_kind
-  | Parraysetu of array_set_kind
-  | Parrayrefs of array_ref_kind
-  | Parraysets of array_set_kind
+  | Parrayrefu of array_ref_kind * array_index_kind
+  | Parraysetu of array_set_kind * array_index_kind
+  | Parrayrefs of array_ref_kind * array_index_kind
+  | Parraysets of array_set_kind * array_index_kind
   (* Test if the argument is a block or an immediate integer *)
   | Pisint of { variant_only : bool }
   (* Test if the (integer) argument is outside an interval *)
@@ -308,6 +317,10 @@ and array_set_kind =
   | Punboxedfloatarray_set of unboxed_float
   | Punboxedintarray_set of unboxed_integer
 
+and array_index_kind =
+  | Ptagged_int_index
+  | Punboxed_int_index of unboxed_integer
+
 and value_kind =
   | Pgenval
   | Pintval
@@ -315,7 +328,7 @@ and value_kind =
   | Pboxedintval of boxed_integer
   | Pvariant of {
       consts : int list;
-      non_consts : (int * value_kind list) list;
+      non_consts : (int * constructor_shape) list;
       (** [non_consts] must be non-empty.  For constant variants [Pintval]
           must be used.  This causes a small loss of precision but it is not
           expected to be significant. *)
@@ -336,6 +349,31 @@ and layout =
 
 and block_shape =
   value_kind list option
+
+and flat_element = Types.flat_element =
+    Imm | Float | Float64 | Float32 | Bits32 | Bits64 | Word
+and flat_element_read = private
+  | Flat_read of flat_element (* invariant: not [Float] *)
+  | Flat_read_float of alloc_mode
+and mixed_block_read =
+  | Mread_value_prefix of immediate_or_pointer
+  | Mread_flat_suffix of flat_element_read
+and mixed_block_write =
+  | Mwrite_value_prefix of immediate_or_pointer
+  | Mwrite_flat_suffix of flat_element
+
+and mixed_block_shape =
+  { value_prefix_len : int;
+    (* We use an array just so we can index into the middle. *)
+    flat_suffix : flat_element array;
+  }
+
+and constructor_shape =
+  | Constructor_uniform of value_kind list
+  | Constructor_mixed of
+      { value_prefix : value_kind list;
+        flat_suffix : flat_element list;
+      }
 
 and boxed_float = Primitive.boxed_float =
   | Pfloat64
@@ -459,30 +497,28 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
-type property =
-  | Zero_alloc
-
 type poll_attribute =
   | Error_poll (* [@poll error] *)
   | Default_poll (* no [@poll] attribute *)
 
-type check_attribute =
-  | Default_check
-  | Ignore_assert_all of property
-  | Check of { property: property;
-               strict: bool;
+type zero_alloc_attribute = Builtin_attributes.zero_alloc_attribute =
+  | Default_zero_alloc
+  | Ignore_assert_all
+  | Check of { strict: bool;
                (* [strict=true] property holds on all paths.
                   [strict=false] if the function returns normally,
                   then the property holds (but property violations on
                   exceptional returns or divering loops are ignored).
                   This definition may not be applicable to new properties. *)
                opt: bool;
+               arity: int;
                loc: Location.t;
              }
-  | Assume of { property: property;
-                strict: bool;
-                loc: Location.t;
+  | Assume of { strict: bool;
                 never_returns_normally: bool;
+                never_raises: bool;
+                arity: int;
+                loc: Location.t;
               }
 
 type loop_attribute =
@@ -520,7 +556,7 @@ type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
   local: local_attribute;
-  check : check_attribute;
+  zero_alloc : zero_alloc_attribute;
   poll: poll_attribute;
   loop: loop_attribute;
   is_a_functor: bool;
@@ -554,7 +590,7 @@ type lambda =
   | Lfunction of lfunction
   | Llet of let_kind * layout * Ident.t * lambda * lambda
   | Lmutlet of layout * Ident.t * lambda * lambda
-  | Lletrec of (Ident.t * lambda) list * lambda
+  | Lletrec of rec_binding list * lambda
   | Lprim of primitive * lambda list * scoped_location
   | Lswitch of lambda * lambda_switch * scoped_location * layout
 (* switch on strings, clauses are sorted by string order,
@@ -577,6 +613,14 @@ type lambda =
   | Lifused of Ident.t * lambda
   | Lregion of lambda * layout
   | Lexclave of lambda
+
+and rec_binding = {
+  id : Ident.t;
+  def : lfunction;
+  (* Generic recursive bindings have been removed from Lambda in 5.2.
+     [Value_rec_compiler.compile_letrec] deals with transforming generic
+     definitions into basic Lambda code. *)
+}
 
 and lfunction = private
   { kind: function_kind;
@@ -680,8 +724,17 @@ val layout_boxed_float : boxed_float -> layout
 val layout_unboxed_float : boxed_float -> layout
 val layout_boxedint : boxed_integer -> layout
 val layout_boxed_vector : Primitive.boxed_vector -> layout
-(* A layout that is Pgenval because it is the field of a block *)
-val layout_field : layout
+(* A layout that is Pgenval because it is the field of a tuple *)
+val layout_tuple_element : layout
+(* A layout that is Pgenval because it is the arg of a polymorphic variant *)
+val layout_variant_arg : layout
+(* A layout that is Pgenval because it is the field of a block being considered
+   for the tmc transformation
+*)
+val layout_tmc_field : layout
+(* A layout that is Pgenval because it is an optional argument *)
+val layout_optional_arg : layout
+val layout_value_field : layout
 val layout_lazy : layout
 val layout_lazy_contents : layout
 (* A layout that is Pgenval because we are missing layout polymorphism *)
@@ -696,6 +749,10 @@ val layout_unboxed_product : layout list -> layout
 val layout_top : layout
 val layout_bottom : layout
 
+
+(** [dummy_constant] produces a placeholder value with a recognizable
+    bit pattern (currently 0xBBBB in its tagged form) *)
+val dummy_constant: lambda
 val name_lambda: let_kind -> lambda -> layout -> (Ident.t -> lambda) -> lambda
 val name_lambda_list: (lambda * layout) list -> (lambda list -> lambda) -> lambda
 
@@ -710,6 +767,18 @@ val lfunction :
   ret_mode:alloc_mode ->
   region:bool ->
   lambda
+
+val lfunction' :
+  kind:function_kind ->
+  params:lparam list ->
+  return:layout ->
+  body:lambda ->
+  attr:function_attribute -> (* specified with [@inline] attribute *)
+  loc:scoped_location ->
+  mode:alloc_mode ->
+  ret_mode:alloc_mode ->
+  region:bool ->
+  lfunction
 
 
 val iter_head_constructor: (lambda -> unit) -> lambda -> unit
@@ -740,6 +809,19 @@ val transl_value_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_extension_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_class_path: scoped_location -> Env.t -> Path.t -> lambda
 
+val transl_mixed_product_shape: Types.mixed_product_shape -> mixed_block_shape
+
+type mixed_block_element =
+  | Value_prefix
+  | Flat_suffix of flat_element
+
+(** Raises if the int is out of bounds. *)
+val get_mixed_block_element : mixed_block_shape -> int -> mixed_block_element
+
+(** Raises if [flat_element] is float. *)
+val flat_read_non_float : flat_element -> flat_element_read
+val flat_read_float : alloc_mode -> flat_element_read
+
 val make_sequence: ('a -> lambda) -> 'a list -> lambda
 
 val subst:
@@ -763,12 +845,15 @@ val rename : Ident.t Ident.Map.t -> lambda -> lambda
 (** A version of [subst] specialized for the case where we're just renaming
     idents. *)
 
-val duplicate : lambda -> lambda
+val duplicate_function : lfunction -> lfunction
 (** Duplicate a term, freshening all locally-bound identifiers. *)
 
 val map : (lambda -> lambda) -> lambda -> lambda
   (** Bottom-up rewriting, applying the function on
       each node from the leaves to the root. *)
+
+val map_lfunction : (lambda -> lambda) -> lfunction -> lfunction
+  (** Apply the given transformation on the function's body *)
 
 val shallow_map  :
   tail:(lambda -> lambda) ->
@@ -863,7 +948,6 @@ val array_ref_kind : alloc_mode -> array_kind -> array_ref_kind
 
 (** The mode will be discarded if unnecessary for the given [array_kind] *)
 val array_set_kind : modify_mode -> array_kind -> array_set_kind
-val is_check_enabled : opt:bool -> property -> bool
 
 (* Returns true if the given lambda can allocate on the local stack *)
 val may_allocate_in_region : lambda -> bool

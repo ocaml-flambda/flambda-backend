@@ -20,6 +20,12 @@ open Asttypes
 open Types
 open Typedtree
 
+type error = Float32_match
+
+exception Error of error
+
+let raise_matched_float32 () = raise (Error Float32_match)
+
 type 'pattern parmatch_case =
   { pattern : 'pattern;
     has_guard : bool;
@@ -154,6 +160,7 @@ let all_coherent column =
         | Const_float _, Const_float _
         | Const_float32 _, Const_float32 _
         | Const_unboxed_float _, Const_unboxed_float _
+        | Const_unboxed_float32 _, Const_unboxed_float32 _
         | Const_string _, Const_string _ -> true
         | ( Const_char _
           | Const_int _
@@ -166,6 +173,7 @@ let all_coherent column =
           | Const_float _
           | Const_float32 _
           | Const_unboxed_float _
+          | Const_unboxed_float32 _
           | Const_string _), _ -> false
       end
     | Tuple l1, Tuple l2 -> l1 = l2
@@ -271,13 +279,14 @@ let const_compare x y =
   | Const_unboxed_float f1, Const_unboxed_float f2
   | Const_float f1, Const_float f2 ->
       Stdlib.compare (float_of_string f1) (float_of_string f2)
+  | Const_unboxed_float32 _, _
+  | Const_float32 _, _ -> raise_matched_float32 ()
   | Const_string (s1, _, _), Const_string (s2, _, _) ->
       String.compare s1 s2
   | (Const_int _
     |Const_char _
     |Const_string (_, _, _)
     |Const_float _
-    |Const_float32 _
     |Const_unboxed_float _
     |Const_int32 _
     |Const_int64 _
@@ -541,10 +550,7 @@ let do_set_args ~erase_mutable q r = match q with
     make_pat
       (Tpat_record
          (List.map2 (fun (lid, lbl,_) arg ->
-           if
-             erase_mutable &&
-             (match lbl.lbl_mut with
-             | Mutable -> true | Immutable -> false)
+           if erase_mutable && Types.is_mutable lbl.lbl_mut
            then
              lid, lbl, omega
            else
@@ -1111,6 +1117,8 @@ let build_other ext env =
                     | _ -> assert false)
             (function f -> Tpat_constant(Const_unboxed_float (string_of_float f)))
             0.0 (fun f -> f +. 1.0) d env
+      | Constant Const_float32 _
+      | Constant Const_unboxed_float32 _ -> raise_matched_float32 ()
       | Array (am, arg_sort, _) ->
           let all_lengths =
             List.map
@@ -2150,7 +2158,7 @@ let inactive ~partial pat =
   | Total -> begin
       let rec loop pat =
         match pat.pat_desc with
-        | Tpat_lazy _ | Tpat_array (Mutable, _, _) ->
+        | Tpat_lazy _ | Tpat_array (Mutable _, _, _) ->
           false
         | Tpat_any | Tpat_var _ | Tpat_variant (_, None, _) ->
             true
@@ -2158,9 +2166,9 @@ let inactive ~partial pat =
             match c with
             | Const_string _
             | Const_int _ | Const_char _ | Const_float _ | Const_float32 _
-            | Const_unboxed_float _ | Const_int32 _ | Const_int64 _
-            | Const_nativeint _ | Const_unboxed_int32 _ | Const_unboxed_int64 _
-            | Const_unboxed_nativeint _
+            | Const_unboxed_float _ | Const_unboxed_float32 _ | Const_int32 _
+            | Const_int64 _ | Const_nativeint _ | Const_unboxed_int32 _
+            | Const_unboxed_int64 _ | Const_unboxed_nativeint _
             -> true
           end
         | Tpat_tuple ps ->
@@ -2457,3 +2465,11 @@ let check_ambiguous_bindings =
             ns
       in
       ignore (List.fold_left check_case [] cases)
+
+let report_error ppf = function
+  | Float32_match -> Format.pp_print_string ppf "float32 literal patterns are not supported."
+
+let () =
+  Location.register_error_of_exn (function
+    | Error err -> Some (Location.error_of_printer_file report_error err)
+    | _ -> None)

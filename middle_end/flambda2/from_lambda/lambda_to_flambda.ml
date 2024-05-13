@@ -173,6 +173,7 @@ let rec try_to_find_location (lam : L.lambda) =
   match lam with
   | Lprim (_, _, loc)
   | Lfunction { loc; _ }
+  | Lletrec ({ def = { loc; _ }; _ } :: _, _)
   | Lapply { ap_loc = loc; _ }
   | Lfor { for_loc = loc; _ }
   | Lswitch (_, _, loc, _)
@@ -182,7 +183,6 @@ let rec try_to_find_location (lam : L.lambda) =
     loc
   | Llet (_, _, _, lam, _)
   | Lmutlet (_, _, lam, _)
-  | Lletrec ((_, lam) :: _, _)
   | Lifthenelse (lam, _, _, _)
   | Lstaticcatch (lam, _, _, _)
   | Lstaticraise (_, lam :: _)
@@ -622,10 +622,12 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pmakefloatblock _ | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
   | Pmakeufloatblock _ | Pufloatfield _ | Psetufloatfield _ | Psequand | Psequor
-  | Pnot | Pnegint | Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint
-  | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats _
-  | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat _
+  | Pmixedfield _ | Psetmixedfield _ | Pmakemixedblock _ | Pnot | Pnegint
+  | Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint | Plsrint
+  | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+  | Poffsetint _ | Poffsetref _ | Pintoffloat _
   | Pfloatofint (_, _)
+  | Pfloatoffloat32 _ | Pfloat32offloat _
   | Pnegfloat (_, _)
   | Pabsfloat (_, _)
   | Paddfloat (_, _)
@@ -844,7 +846,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           User_visible (Simple (Var temp_id)) ~body)
   | Llet ((Strict | Alias | StrictOpt), _, fun_id, Lfunction func, body) ->
     (* This case is here to get function names right. *)
-    let bindings = cps_function_bindings env [fun_id, L.Lfunction func] in
+    let bindings = cps_function_bindings env [L.{ id = fun_id; def = func }] in
     let body acc ccenv = cps acc env ccenv body k k_exn in
     let let_expr =
       List.fold_left
@@ -965,20 +967,11 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
    *   CC.close_let acc ccenv id User_visible value_kind (Simple value) ~body
    * in
    * cps_non_tail_simple acc env ccenv defining_expr k k_exn *)
-  | Lletrec (bindings, body) -> (
-    let free_vars_kind id =
-      let _, kind_with_subkind = CCenv.find_var ccenv id in
-      Some
-        (Flambda_kind.to_lambda
-           (Flambda_kind.With_subkind.kind kind_with_subkind))
-    in
-    match Dissect_letrec.dissect_letrec ~bindings ~body ~free_vars_kind with
-    | Unchanged ->
-      let function_declarations = cps_function_bindings env bindings in
-      let body acc ccenv = cps acc env ccenv body k k_exn in
-      CC.close_let_rec acc ccenv ~function_declarations ~body
-        ~current_region:(Env.current_region env)
-    | Dissected lam -> cps acc env ccenv lam k k_exn)
+  | Lletrec (bindings, body) ->
+    let function_declarations = cps_function_bindings env bindings in
+    let body acc ccenv = cps acc env ccenv body k k_exn in
+    CC.close_let_rec acc ccenv ~function_declarations ~body
+      ~current_region:(Env.current_region env)
   | Lprim (prim, args, loc) -> (
     match[@ocaml.warning "-fragile-match"] prim with
     | Praise raise_kind -> (
@@ -1420,49 +1413,42 @@ and cps_non_tail_list_core acc env ccenv (lams : L.lambda list)
           k_exn)
       k_exn
 
-and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
+and cps_function_bindings env (bindings : Lambda.rec_binding list) =
   let bindings_with_wrappers =
     List.map
-      (fun [@ocaml.warning "-fragile-match"] (fun_id, binding) ->
-        match binding with
-        | L.Lfunction
-            { kind;
-              params;
-              body = fbody;
-              attr;
-              loc;
-              ret_mode;
-              mode;
-              region;
-              return;
-              _
-            } -> (
-          match
-            Simplif.split_default_wrapper ~id:fun_id ~kind ~params ~body:fbody
-              ~return ~attr ~loc ~ret_mode ~mode ~region
-          with
-          | [(id, L.Lfunction lfun)] -> [id, lfun]
-          | [(id1, L.Lfunction lfun1); (id2, L.Lfunction lfun2)] ->
-            [id1, lfun1; id2, lfun2]
-          | [(_, _)] | [(_, _); (_, _)] ->
-            Misc.fatal_errorf
-              "Expected `Lfunction` terms from [split_default_wrapper] when \
-               translating:@ %a"
-              Printlambda.lambda binding
-          | _ ->
-            Misc.fatal_errorf
-              "Unexpected return value from [split_default_wrapper] when \
-               translating:@ %a"
-              Printlambda.lambda binding)
-        | _ ->
+      (fun L.
+             { id = fun_id;
+               def =
+                 { kind;
+                   params;
+                   body = fbody;
+                   attr;
+                   loc;
+                   ret_mode;
+                   mode;
+                   region;
+                   return;
+                   _
+                 }
+             } ->
+        match
+          Simplif.split_default_wrapper ~id:fun_id ~kind ~params ~body:fbody
+            ~return ~attr ~loc ~ret_mode ~mode ~region
+        with
+        | [{ id; def = lfun }] -> [id, lfun]
+        | [{ id = id1; def = lfun1 }; { id = id2; def = lfun2 }] ->
+          [id1, lfun1; id2, lfun2]
+        | [] | _ :: _ :: _ :: _ ->
           Misc.fatal_errorf
-            "Only [Lfunction] expressions are permitted in function bindings \
-             upon entry to CPS conversion: %a"
-            Printlambda.lambda binding)
+            "Unexpected return value from [split_default_wrapper] when \
+             translating:@ %a"
+            Ident.print fun_id)
       bindings
   in
   let free_idents, directed_graph =
-    let fun_ids = Ident.Set.of_list (List.map fst bindings) in
+    let fun_ids =
+      Ident.Set.of_list (List.map (fun { L.id; _ } -> id) bindings)
+    in
     List.fold_left
       (fun (free_ids, graph) (fun_id, ({ body; _ } : L.lfunction)) ->
         let free_ids_of_body = Lambda.free_variables body in
@@ -1507,13 +1493,18 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
   in
   let unboxing_kind (layout : Lambda.layout) :
       Function_decl.unboxing_kind option =
-    match layout with
-    | Pvalue (Pvariant { consts = []; non_consts = [(0, field_kinds)] }) ->
+    match[@warning "-fragile-match"] layout with
+    | Pvalue
+        (Pvariant
+          { consts = []; non_consts = [(0, Constructor_uniform field_kinds)] })
+      ->
       Some
         (Fields_of_block_with_tag_zero
            (List.map Flambda_kind.With_subkind.from_lambda_value_kind
               field_kinds))
-    | Pvalue (Pvariant { consts = []; non_consts = [(tag, field_kinds)] })
+    | Pvalue
+        (Pvariant
+          { consts = []; non_consts = [(tag, Constructor_uniform field_kinds)] })
       when tag = Obj.double_array_tag ->
       assert (
         List.for_all
@@ -1521,16 +1512,13 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
             match kind with
             | Pboxedfloatval Pfloat64 -> true
             | Pboxedfloatval Pfloat32
-            (* CR mshinwell: should this unboxing apply for Pfloat32? *)
             | Pgenval | Pintval | Pboxedintval _ | Pvariant _ | Parrayval _
             | Pboxedvectorval _ ->
               false)
           field_kinds);
       Some (Unboxed_float_record (List.length field_kinds))
     | Pvalue (Pboxedfloatval Pfloat64) -> Some (Unboxed_number Naked_float)
-    | Pvalue (Pboxedfloatval Pfloat32) ->
-      (* CR mslater: (float32) middle end support *)
-      assert false
+    | Pvalue (Pboxedfloatval Pfloat32) -> Some (Unboxed_number Naked_float32)
     | Pvalue (Pboxedintval bi) ->
       let bn : Flambda_kind.Boxable_number.t =
         match bi with
@@ -1785,7 +1773,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
             CC.close_switch acc ccenv ~condition_dbg scrutinee_tag block_switch
           in
           CC.close_let acc ccenv
-            [scrutinee_tag, Flambda_kind.With_subkind.naked_immediate]
+            [scrutinee_tag, Flambda_kind.With_subkind.tagged_immediate]
             Not_user_visible (Get_tag scrutinee) ~body
         in
         if switch.sw_numblocks = 0
@@ -1811,7 +1799,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
             in
             let region = Env.current_region env in
             CC.close_let acc ccenv
-              [is_scrutinee_int, Flambda_kind.With_subkind.naked_immediate]
+              [is_scrutinee_int, Flambda_kind.With_subkind.tagged_immediate]
               Not_user_visible
               (Prim
                  { prim = Pisint { variant_only = true };

@@ -79,6 +79,7 @@ extern const struct custom_operations caml_nativeint_ops;
 extern const struct custom_operations caml_int32_ops;
 extern const struct custom_operations caml_int64_ops;
 extern const struct custom_operations caml_ba_ops;
+extern const struct custom_operations caml_float32_ops;
 #endif /* CAML_INTERNALS */
 
 #ifdef __cplusplus

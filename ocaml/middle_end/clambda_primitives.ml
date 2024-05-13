@@ -39,6 +39,7 @@ type primitive =
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
+  | Pmakemixedblock of int * mutable_flag * Lambda.mixed_block_shape * alloc_mode
   | Pfield of int * layout * immediate_or_pointer * mutable_flag
   | Pfield_computed
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
@@ -47,6 +48,8 @@ type primitive =
   | Psetfloatfield of int * initialization_or_assignment
   | Pufloatfield of int
   | Psetufloatfield of int * initialization_or_assignment
+  | Pmixedfield of int * Lambda.mixed_block_read
+  | Psetmixedfield of int * Lambda.mixed_block_write * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Context switches *)
   | Prunstack
@@ -187,7 +190,7 @@ and value_kind = Lambda.value_kind =
   | Pboxedintval of boxed_integer
   | Pvariant of {
       consts : int list;
-      non_consts : (int * value_kind list) list;
+      non_consts : (int * Lambda.constructor_shape) list;
     }
   | Parrayval of array_kind
   | Pboxedvectorval of boxed_vector
@@ -250,13 +253,14 @@ let equal (x: primitive) (y: primitive) = x = y
 let result_layout (p : primitive) =
   match p with
   | Psetfield _ | Psetfield_computed _ | Psetfloatfield _ | Poffsetref _
-  | Psetufloatfield _
+  | Psetufloatfield _ | Psetmixedfield _
   | Pbytessetu | Pbytessets | Parraysetu _ | Parraysets _ | Pbigarrayset _
     -> Lambda.layout_unit
   | Pmakeblock _ | Pmakearray _ | Pduprecord _
-  | Pmakeufloatblock _
+  | Pmakeufloatblock _ | Pmakemixedblock _
   | Pduparray _ | Pbigarraydim _ -> Lambda.layout_block
-  | Pfield _ | Pfield_computed -> Lambda.layout_field
+  | Pfield _ | Pfield_computed | Pmixedfield (_, Mread_value_prefix _) ->
+      Lambda.layout_value_field
   | Pfloatfield _ -> Lambda.layout_boxed_float Pfloat64
   | Pfloatofint (bf, _)
   | Pnegfloat (bf, _) | Pabsfloat (bf, _)
@@ -265,6 +269,15 @@ let result_layout (p : primitive) =
   | Pbox_float (bf, _) -> Lambda.layout_boxed_float bf
   | Pufloatfield _ -> Punboxed_float Pfloat64
   | Punbox_float bf -> Punboxed_float bf
+  | Pmixedfield (_, Mread_flat_suffix shape) -> begin
+      match shape with
+      | Flat_read Imm -> Lambda.layout_int
+      | Flat_read Float | Flat_read_float _ -> Lambda.layout_any_value
+      | Flat_read Float64 -> Lambda.layout_unboxed_float Pfloat64
+      | Flat_read Bits32 -> Lambda.Punboxed_int Pint32
+      | Flat_read Bits64 -> Lambda.Punboxed_int Pint64
+      | Flat_read Word -> Lambda.Punboxed_int Pnativeint
+    end
   | Pccall { prim_native_repr_res = _, repr_res } -> Lambda.layout_of_extern_repr repr_res
   | Praise _ -> Lambda.layout_bottom
   | Psequor | Psequand | Pnot

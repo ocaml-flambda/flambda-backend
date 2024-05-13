@@ -1,11 +1,14 @@
 (* TEST
-   include unix
-   * skip
-   reason = "CR ocaml 5 domains: re-enable this test"
-   ** libunix
-   *** bytecode
-   *** native
- *)
+ include unix;
+ reason = "CR ocaml 5 domains: re-enable this test";
+ skip;
+ libunix;
+ {
+   bytecode;
+ }{
+   native;
+ }
+*)
 
 let () = Random.init 42
 

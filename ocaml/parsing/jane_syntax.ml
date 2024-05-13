@@ -1481,6 +1481,13 @@ module Labeled_tuples = struct
       labeled_components, ptyp_attributes
     | _ -> Desugaring_error.raise typ.ptyp_loc Malformed
 
+  (* We wrap labeled tuple expressions in an additional extension node
+     so that tools that inspect the OCaml syntax tree are less likely
+     to treat a labeled tuple as a regular tuple.
+  *)
+  let labeled_tuple_extension_node_name =
+    Embedded_name.of_feature feature [] |> Embedded_name.to_string
+
   let expr_of ~loc el =
     match check_for_any_label el with
     | No_labels el -> Ast_helper.Exp.tuple ~loc el
@@ -1489,7 +1496,10 @@ module Labeled_tuples = struct
       Expression.make_entire_jane_syntax ~loc feature (fun () ->
           let names = List.map (fun (label, _) -> string_of_label label) el in
           Expression.make_jane_syntax feature names
-          @@ Ast_helper.Exp.tuple (List.map snd el))
+          @@ Ast_helper.Exp.apply
+               (Ast_helper.Exp.extension
+                  (Location.mknoloc labeled_tuple_extension_node_name, PStr []))
+               [Nolabel, Ast_helper.Exp.tuple (List.map snd el)])
 
   (* Returns remaining unconsumed attributes *)
   let of_expr expr =
@@ -1497,7 +1507,10 @@ module Labeled_tuples = struct
       expand_labeled_tuple_extension expr.pexp_loc expr.pexp_attributes
     in
     match expr.pexp_desc with
-    | Pexp_tuple components ->
+    | Pexp_apply
+        ( { pexp_desc = Pexp_extension (name, PStr []) },
+          [(Nolabel, { pexp_desc = Pexp_tuple components; _ })] )
+      when String.equal name.txt labeled_tuple_extension_node_name ->
       if List.length labels <> List.length components
       then Desugaring_error.raise expr.pexp_loc Malformed;
       let labeled_components =

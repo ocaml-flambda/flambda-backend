@@ -239,17 +239,10 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
     when Mach.equal_integer_operation left_op right_op
          && Int.equal left_imm right_imm ->
     ()
-  | Negf, Negf -> ()
-  | Absf, Absf -> ()
-  | Addf, Addf -> ()
-  | Subf, Subf -> ()
-  | Mulf, Mulf -> ()
-  | Divf, Divf -> ()
-  | Compf left_comp, Compf right_comp
-    when Cmm.equal_float_comparison left_comp right_comp ->
+  | Floatop (left_w, left_op), Floatop (right_w, right_op)
+    when Mach.equal_float_width left_w right_w
+         && Mach.equal_float_operation left_op right_op ->
     ()
-  | Floatofint, Floatofint -> ()
-  | Intoffloat, Intoffloat -> ()
   | Valueofint, Valueofint -> ()
   | Intofvalue, Intofvalue -> ()
   | ( Probe_is_enabled { name = expected_name },
@@ -346,6 +339,10 @@ let check_basic : State.t -> location -> Cfg.basic -> Cfg.basic -> unit =
     State.add_to_explore state expected_lbl_handler result_lbl_handler
   | Poptrap, Poptrap -> ()
   | Prologue, Prologue -> ()
+  | ( Stack_check { max_frame_size_bytes = expected_max_frame_size_bytes },
+      Stack_check { max_frame_size_bytes = result_max_frame_size_bytes } ) ->
+    if expected_max_frame_size_bytes <> result_max_frame_size_bytes
+    then different location "stack check"
   | _ -> different location "basic"
  [@@ocaml.warning "-4"]
 
@@ -400,6 +397,7 @@ let check_basic_instruction :
     | Pushtrap _ -> false
     | Poptrap -> false
     | Prologue -> false
+    | Stack_check _ -> false
   in
   check_instruction ~check_live ~check_dbg ~check_arg:true idx location expected
     result
@@ -441,8 +439,9 @@ let check_terminator_instruction :
       Truth_test { ifso = ifso2; ifnot = ifnot2 } ) ->
     State.add_to_explore state ifso1 ifso2;
     State.add_to_explore state ifnot1 ifnot2
-  | ( Float_test { lt = lt1; eq = eq1; gt = gt1; uo = uo1 },
-      Float_test { lt = lt2; eq = eq2; gt = gt2; uo = uo2 } ) ->
+  | ( Float_test { width = w1; lt = lt1; eq = eq1; gt = gt1; uo = uo1 },
+      Float_test { width = w2; lt = lt2; eq = eq2; gt = gt2; uo = uo2 } )
+    when Cmm.equal_float_width w1 w2 ->
     State.add_to_explore state lt1 lt2;
     State.add_to_explore state eq1 eq2;
     State.add_to_explore state gt1 gt2;

@@ -46,6 +46,8 @@ let instruction ppf = function
       fprintf ppf "@[<10>\tconst@ %a@]" Printlambda.structured_constant cst
   | Kmakeblock(n, m) ->
       fprintf ppf "\tmakeblock %i, %i" n m
+  | Kmake_faux_mixedblock(n, m) ->
+      fprintf ppf "\tmake_faux_mixedblock %i, %i" n m
   | Kmakefloatblock(n) ->
       fprintf ppf "\tmakefloatblock %i" n
   | Kgetfield n -> fprintf ppf "\tgetfield %i" n

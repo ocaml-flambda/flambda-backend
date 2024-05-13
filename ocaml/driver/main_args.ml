@@ -45,6 +45,13 @@ let mk_binannot_cms f =
   "-bin-annot-cms", Arg.Unit f, " Save shapes in <filename>.cms"
 ;;
 
+let mk_binannot_occurrences f =
+  "-bin-annot-occurrences", Arg.Unit f,
+  " Store every occurrence of a bound name in the .cmt file.\n\
+    This information can be used by external tools to provide\n\
+    features such as project-wide occurrences. This flag has\n\
+    no effect in the absence of '-bin-annot'."
+
 let mk_c f =
   "-c", Arg.Unit f, " Compile only (do not link)"
 
@@ -157,6 +164,20 @@ let mk_H f =
   "-H", Arg.String f,
   "<dir>  Add <dir> to the list of \"hidden\" include directories\n\
  \     (Like -I, but the program can not directly reference these dependencies)"
+
+let mk_libloc f =
+  "-libloc", Arg.String f, "<dir>:<libs>:<hidden_libs>  Add .libloc directory configuration.\n\
+  \    .libloc directory is alternative (to -I and -H flags) way of telling\n\
+  \    compiler where to find files. Each `.libloc` directory should have a\n\
+  \    structure of `.libloc/<lib>/cmi-cmx`, where `<lib>` is a library name\n\
+  \    and `cmi-cmx` is a file where each line is of format `<filename> <path>`\n\
+  \    telling compiler that <filename> for library <lib> is accessible\n\
+  \    at <path>. If <path> is relative, then it is relative to a parent directory\n\
+  \    of a `.libloc` directory.\n\
+  \    <libs> and <hidden_libs> are comma-separated lists of libraries, to let\n\
+  \    compiler know which libraries should be accessible via this `.libloc`\n\
+  \    directory. Difference between <libs> and <hidden_libs> is the same as\n\
+  \    the difference between -I and -H flags"
 
 let mk_impl f =
   "-impl", Arg.String f, "<file>  Compile <file> as a .ml file"
@@ -334,6 +355,9 @@ let mk_app_funct f =
 
 let mk_no_app_funct f =
   "-no-app-funct", Arg.Unit f, " Deactivate applicative functors"
+
+let mk_directory f =
+  "-directory", Arg.String f, " Directory to use for debug reporting like source code location reporting"
 
 let mk_no_check_prims f =
   "-no-check-prims", Arg.Unit f, " Do not check runtime for primitives"
@@ -660,7 +684,8 @@ let mk_no_extension f =
 
 let mk_disable_all_extensions f =
   "-disable-all-extensions", Arg.Unit f,
-  "  Disable all extensions, wherever they have been specified; this\n\
+  "  Legacy, use [-extension-universe no_extensions].\n\
+  \    Disable all extensions, wherever they have been specified; this\n\
   \    flag overrides prior uses of the -extension flag, disables any\n\
   \    extensions that are enabled by default, and causes future uses of\n\
   \    the -extension flag to raise an error."
@@ -675,13 +700,23 @@ let mk_only_erasable_extensions f =
     String.concat ", "
   in
 "-only-erasable-extensions", Arg.Unit f,
-  "  Disable all extensions that cannot be \"erased\" to attributes,\n\
+  " Legacy, use [-extension-universe upstream_compatible].\n\
+  \    Disable all extensions that cannot be \"erased\" to attributes,\n\
   \    wherever they have been specified; this flag overrides prior\n\
   \    contradictory uses of the -extension flag, raises an error on\n\
   \    future such uses, and disables any such extensions that are\n\
   \    enabled by default.\n\
   \    (Erasable extensions: " ^ erasable_extensions ^ ")"
 ;;
+
+let mk_extension_universe f =
+  let available_extension_universes =
+    Language_extension.Universe.(List.map to_string all)
+in
+"-extension-universe", Arg.Symbol (available_extension_universes, f),
+  " Set the extension universe and enable all extensions in it. Each universe\n\
+  \    allows a set of extensions, and every successive universe includes \n\
+  \    the previous one."
 
 let mk_dump_dir f =
   "-dump-dir", Arg.String f,
@@ -859,15 +894,18 @@ module type Common_options = sig
   val _alert : string -> unit
   val _I : string -> unit
   val _H : string -> unit
+  val _libloc : string -> unit
   val _labels : unit -> unit
   val _alias_deps : unit -> unit
   val _no_alias_deps : unit -> unit
   val _app_funct : unit -> unit
   val _no_app_funct : unit -> unit
+  val _directory : string -> unit
   val _disable_all_extensions : unit -> unit
   val _only_erasable_extensions : unit -> unit
   val _extension : string -> unit
   val _no_extension : string -> unit
+  val _extension_universe : string -> unit
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit
@@ -925,6 +963,7 @@ module type Compiler_options = sig
   val _as_parameter : unit -> unit
   val _binannot : unit -> unit
   val _binannot_cms : unit -> unit
+  val _binannot_occurrences : unit -> unit
   val _c : unit -> unit
   val _cc : string -> unit
   val _cclib : string -> unit
@@ -1124,6 +1163,7 @@ struct
     mk_as_parameter F._as_parameter;
     mk_binannot F._binannot;
     mk_binannot_cms F._binannot_cms;
+    mk_binannot_occurrences F._binannot_occurrences;
     mk_c F._c;
     mk_cc F._cc;
     mk_cclib F._cclib;
@@ -1142,6 +1182,7 @@ struct
     mk_dtypes F._annot;
     mk_extension F._extension;
     mk_no_extension F._no_extension;
+    mk_extension_universe F._extension_universe;
     mk_for_pack_byt F._for_pack;
     mk_g_byt F._g;
     mk_no_g F._no_g;
@@ -1149,6 +1190,7 @@ struct
     mk_i F._i;
     mk_I F._I;
     mk_H F._H;
+    mk_libloc F._libloc;
     mk_impl F._impl;
     mk_intf F._intf;
     mk_intf_suffix F._intf_suffix;
@@ -1166,6 +1208,7 @@ struct
     mk_no_alias_deps F._no_alias_deps;
     mk_app_funct F._app_funct;
     mk_no_app_funct F._no_app_funct;
+    mk_directory F._directory;
     mk_no_check_prims F._no_check_prims;
     mk_noassert F._noassert;
     mk_noautolink_byt F._noautolink;
@@ -1252,16 +1295,19 @@ struct
     mk_alert F._alert;
     mk_I F._I;
     mk_H F._H;
+    mk_libloc F._libloc;
     mk_init F._init;
     mk_labels F._labels;
     mk_alias_deps F._alias_deps;
     mk_no_alias_deps F._no_alias_deps;
     mk_app_funct F._app_funct;
     mk_no_app_funct F._no_app_funct;
+    mk_directory F._directory;
     mk_disable_all_extensions F._disable_all_extensions;
     mk_only_erasable_extensions F._only_erasable_extensions;
     mk_extension F._extension;
     mk_no_extension F._no_extension;
+    mk_extension_universe F._extension_universe;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
     mk_nolabels F._nolabels;
@@ -1333,6 +1379,7 @@ struct
     mk_as_parameter F._as_parameter;
     mk_binannot F._binannot;
     mk_binannot_cms F._binannot_cms;
+    mk_binannot_occurrences F._binannot_occurrences;
     mk_inline_branch_factor F._inline_branch_factor;
     mk_c F._c;
     mk_cc F._cc;
@@ -1351,6 +1398,7 @@ struct
     mk_only_erasable_extensions F._only_erasable_extensions;
     mk_extension F._extension;
     mk_no_extension F._no_extension;
+    mk_extension_universe F._extension_universe;
     mk_for_pack_opt F._for_pack;
     mk_g_opt F._g;
     mk_no_g F._no_g;
@@ -1362,6 +1410,7 @@ struct
     mk_i F._i;
     mk_I F._I;
     mk_H F._H;
+    mk_libloc F._libloc;
     mk_impl F._impl;
     mk_inline F._inline;
     mk_inline_toplevel F._inline_toplevel;
@@ -1387,6 +1436,7 @@ struct
     mk_linscan F._linscan;
     mk_app_funct F._app_funct;
     mk_no_app_funct F._no_app_funct;
+    mk_directory F._directory;
     mk_no_float_const_prop F._no_float_const_prop;
     mk_noassert F._noassert;
     mk_noautolink_opt F._noautolink;
@@ -1506,6 +1556,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_compact F._compact;
     mk_I F._I;
     mk_H F._H;
+    mk_libloc F._libloc;
     mk_init F._init;
     mk_inline F._inline;
     mk_inline_toplevel F._inline_toplevel;
@@ -1526,10 +1577,12 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_linscan F._linscan;
     mk_app_funct F._app_funct;
     mk_no_app_funct F._no_app_funct;
+    mk_directory F._directory;
     mk_disable_all_extensions F._disable_all_extensions;
     mk_only_erasable_extensions F._only_erasable_extensions;
     mk_extension F._extension;
     mk_no_extension F._no_extension;
+    mk_extension_universe F._extension_universe;
     mk_no_float_const_prop F._no_float_const_prop;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
@@ -1620,6 +1673,7 @@ struct
     mk_alert F._alert;
     mk_I F._I;
     mk_H F._H;
+    mk_libloc F._libloc;
     mk_impl F._impl;
     mk_intf F._intf;
     mk_intf_suffix F._intf_suffix;
@@ -1634,6 +1688,7 @@ struct
     mk_only_erasable_extensions F._only_erasable_extensions;
     mk_extension F._extension;
     mk_no_extension F._no_extension;
+    mk_extension_universe F._extension_universe;
     mk_noassert F._noassert;
     mk_nolabels F._nolabels;
     mk_nostdlib F._nostdlib;
@@ -1728,17 +1783,23 @@ module Default = struct
     let _no_absname = clear Clflags.absname
     let _no_alias_deps = set transparent_modules
     let _no_app_funct = clear applicative_functors
+    let _directory d = Clflags.directory := Some d
     let _no_principal = clear principal
     let _no_rectypes = clear recursive_types
     let _no_strict_formats = clear strict_formats
     let _no_strict_sequence = clear strict_sequence
     let _no_unboxed_types = clear unboxed_types
     let _no_verbose_types = clear verbose_types
-    let _disable_all_extensions = Language_extension.disallow_extensions
+    let _disable_all_extensions =
+      Language_extension.(fun () ->
+        set_universe_and_enable_all No_extensions)
     let _only_erasable_extensions =
-      Language_extension.restrict_to_erasable_extensions
+      Language_extension.(fun () ->
+        set_universe_and_enable_all Upstream_compatible)
     let _extension s = Language_extension.(enable_of_string_exn s)
     let _no_extension s = Language_extension.(disable_of_string_exn s)
+    let _extension_universe s =
+      Language_extension.(set_universe_and_enable_all_of_string_exn s)
     let _noassert = set noassert
     let _nolabels = set classic
     let _nostdlib = set no_std_include
@@ -1765,6 +1826,18 @@ module Default = struct
     include Common
     let _I dir = include_dirs := dir :: (!include_dirs)
     let _H dir = hidden_include_dirs := dir :: (!hidden_include_dirs)
+    let _libloc s =
+      match String.split_on_char ':' s with
+      | [ path; libs; hidden_libs ] ->
+        let split libs =
+          match libs |> String.split_on_char ',' with
+          | [ "" ] -> []
+          | libs -> libs
+        in
+        let libs = split libs in
+        let hidden_libs = split hidden_libs in
+        libloc := { Libloc.path; libs; hidden_libs } :: !libloc
+      | _ -> Compenv.fatal "Incorrect -libloc format, expected: <path>:<lib1>,<lib2>,...:<hidden_lib1>,<hidden_lib2>,..."
     let _color = Misc.set_or_ignore color_reader.parse color
     let _dlambda = set dump_lambda
     let _dparsetree = set dump_parsetree
@@ -1890,6 +1963,7 @@ module Default = struct
     let _as_parameter = set as_parameter
     let _binannot = set binary_annotations
     let _binannot_cms = set binary_annotations_cms
+    let _binannot_occurrences = set store_occurrences
     let _c = set compile_only
     let _cc s = c_compiler := (Some s)
     let _cclib s = Compenv.defer (ProcessObjects (Misc.rev_split_words s))
@@ -2019,6 +2093,7 @@ module Default = struct
          Odoc_global.hidden_include_dirs :=
            (s :: (!Odoc_global.hidden_include_dirs))
       *) ()
+    let _libloc(_:string) = ()
     let _impl (_:string) =
       (* placeholder:
          Odoc_global.files := ((!Odoc_global.files) @ [Odoc_global.Impl_file s])

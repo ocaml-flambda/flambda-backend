@@ -86,7 +86,7 @@ let (pass_to_cfg : Cfg_format.cfg_unit_info Compiler_pass_map.t) =
   |> Compiler_pass_map.add Compiler_pass.Selection (new_cfg_unit_info ())
 
 let reset () =
-  Checkmach.reset_unit_info ();
+  Zero_alloc_checker.reset_unit_info ();
   start_from_emit := false;
   Compiler_pass_map.iter (fun pass (cfg_unit_info : Cfg_format.cfg_unit_info) ->
     if should_save_ir_after pass then begin
@@ -277,8 +277,8 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ Profile.record ~accumulate:true "polling"
        (Polling.instrument_fundecl ~future_funcnames:funcnames)
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_polling
-  ++ Profile.record ~accumulate:true "checkmach"
-       (Checkmach.fundecl ~future_funcnames:funcnames ppf_dump)
+  ++ Profile.record ~accumulate:true "zero_alloc_checker"
+       (Zero_alloc_checker.fundecl ~future_funcnames:funcnames ppf_dump)
   ++ (fun fd ->
       match !Flambda_backend_flags.cfg_cse_optimize with
       | false ->
@@ -335,6 +335,10 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
              we would have to recompute it here. Recomputing it here breaks the CI because
              the liveness_analysis algorithm does not work properly after register allocation. *)
         ++ Profile.record ~accumulate:true "peephole_optimize_cfg" Peephole_optimize.peephole_optimize_cfg
+        ++ (fun (cfg_with_layout : Cfg_with_layout.t) ->
+          match !Flambda_backend_flags.cfg_stack_checks with
+          | false -> cfg_with_layout
+          | true -> Cfg_stack_checks.cfg cfg_with_layout)
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg
         ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
              (reorder_blocks_random ppf_dump)
@@ -376,6 +380,10 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
                 ~simplify_terminators:true)
         ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg
         ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After cfgize"
+        ++ (fun (cfg_with_layout : Cfg_with_layout.t) ->
+          match !Flambda_backend_flags.cfg_stack_checks with
+          | false -> cfg_with_layout
+          | true -> Cfg_stack_checks.cfg cfg_with_layout)
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg
         ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
              (reorder_blocks_random ppf_dump)
@@ -385,6 +393,10 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
   ++ Profile.record ~accumulate:true "save_linear" save_linear
+  ++ (fun (fd : Linear.fundecl) ->
+    match !Flambda_backend_flags.cfg_stack_checks with
+    | false -> Stack_check.linear fd
+    | true -> fd)
   ++ Profile.record ~accumulate:true "emit_fundecl" emit_fundecl
 
 let compile_data dl =
@@ -448,9 +460,9 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
        Misc.try_finally
          (fun () ->
             gen ();
-            Checkmach.record_unit_info ppf_dump;
+            Zero_alloc_checker.record_unit_info ppf_dump;
             Compiler_hooks.execute Compiler_hooks.Check_allocations
-              Checkmach.iter_witnesses;
+              Zero_alloc_checker.iter_witnesses;
             write_ir output_prefix)
          ~always:(fun () ->
              if create_asm then close_out !Emitaux.output_channel)
@@ -521,6 +533,7 @@ let compile_implementation unix ?toplevel ~pipeline
     (fun () ->
       Compilation_unit.Set.iter Compilenv.require_global
         program.required_globals;
+      Compilenv.record_external_symbols ();
       match pipeline with
       | Direct_to_cmm direct_to_cmm ->
         let cmm_phrases =

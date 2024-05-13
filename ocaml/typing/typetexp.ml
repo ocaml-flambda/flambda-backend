@@ -91,6 +91,7 @@ type error =
       {vloc : sort_loc; typ : type_expr; err : Jkind.Violation.t}
   | Bad_jkind_annot of type_expr * Jkind.Violation.t
   | Did_you_mean_unboxed of Longident.t
+  | Invalid_label_for_call_pos of Parsetree.arg_label
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -598,6 +599,29 @@ let check_arg_type styp =
     | _ -> ()
   end
 
+let transl_label (label : Parsetree.arg_label)
+    (arg_opt : Parsetree.core_type option) =
+  match label, arg_opt with
+  | Labelled l, Some { ptyp_desc = Ptyp_extension ({txt="call_pos"; _}, _); _}
+      -> Position l
+  | _, Some ({ ptyp_desc = Ptyp_extension ({txt="call_pos"; _}, _); _} as arg)
+      -> raise (Error (arg.ptyp_loc, Env.empty, Invalid_label_for_call_pos label))
+  | Labelled l, _ -> Labelled l
+  | Optional l, _ -> Optional l
+  | Nolabel, _ -> Nolabel
+
+let transl_label_from_pat (label : Parsetree.arg_label)
+    (pat : Parsetree.pattern) =
+  let label, inner_pat = match pat with
+  | {ppat_desc = Ppat_constraint (inner_pat, ty); _} ->
+      (* If the argument is a constraint, translate the label using the
+          type information. Otherwise, it can't be a Position argument, so
+          we don't care about the argument type *)
+      transl_label label (Some ty), inner_pat
+  | _ -> transl_label label None, pat
+  in
+  label, if Btype.is_position label then inner_pat else pat
+
 let enrich_with_attributes attrs annotation_context =
   match Builtin_attributes.error_message_attr attrs with
   | Some msg -> Jkind.With_error_message (msg, annotation_context)
@@ -646,18 +670,13 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
         match args with
         | (l, arg_mode, arg) :: rest ->
           check_arg_type arg;
-          let arg_cty = transl_type env ~policy ~row_context arg_mode arg in
-          let {locality; linearity; _} : Alloc.Const.t =
-            Alloc.Const.join
-              (Alloc.Const.close_over arg_mode)
-              (Alloc.Const.partial_apply acc_mode)
+          let l = transl_label l (Some arg) in
+          let arg_cty =
+            if Btype.is_position l then
+              ctyp Ttyp_call_pos (newconstr Predef.path_lexing_position [])
+            else transl_type env ~policy ~row_context arg_mode arg
           in
-          (* Arrow types cross uniqueness axis. Therefore, when user writes an
-          A -> B -> C (to be used as constraint on something), we should make
-          (B -> C) shared. A proper way to do this is via modal kinds. *)
-          let acc_mode : Alloc.Const.t
-            = {locality; linearity; uniqueness=Uniqueness.Const.Shared}
-          in
+          let acc_mode = curry_mode acc_mode arg_mode in
           let ret_mode =
             match rest with
             | [] -> ret_mode
@@ -1494,6 +1513,12 @@ let report_error env ppf = function
   | Did_you_mean_unboxed lid ->
     fprintf ppf "@[%a isn't a class type.@ \
                  Did you mean the unboxed type %a#?@]" longident lid longident lid
+  | Invalid_label_for_call_pos arg_label ->
+      fprintf ppf "A position argument must not be %s."
+        (match arg_label with
+        | Nolabel -> "unlabelled"
+        | Optional _ -> "optional"
+        | Labelled _ -> assert false )
 
 let () =
   Location.register_error_of_exn

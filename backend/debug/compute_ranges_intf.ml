@@ -216,6 +216,8 @@ module type S = sig
     (** The label at the start of the range. *)
     val start_pos : t -> Linear.label
 
+    (* CR mshinwell: use Targetint.t *)
+
     (** How many bytes from the label at [start_pos] the range actually
         commences. If this value is zero, then the first byte of the range has
         the address of the label given by [start_pos]. *)
@@ -251,6 +253,13 @@ module type S = sig
 
     (** Fold over all subranges within the given range. *)
     val fold : t -> init:'a -> f:('a -> Subrange.t -> 'a) -> 'a
+
+    type get_singleton = private
+      | No_ranges
+      | One_subrange of Subrange.t
+      | More_than_one_subrange
+
+    val get_singleton : t -> get_singleton
   end
 
   (** The type holding information on computed ranges. *)

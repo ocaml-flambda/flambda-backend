@@ -18,6 +18,10 @@
 
 (* Emission of ARM assembly code, 64-bit mode *)
 
+(* Correctness: carefully consider any use of [Config], [Clflags],
+   [Flambda_backend_flags] and shared variables.
+   For details, see [asmgen.mli]. *)
+
 open Misc
 open Cmm
 open Arch
@@ -38,8 +42,8 @@ let reg_trap_ptr = phys_reg Int 23 (* x26 *)
 let reg_alloc_ptr = phys_reg Int 24 (* x27 *)
 let reg_tmp1 = phys_reg Int 26 (* x16 *)
 let reg_x8 = phys_reg Int 8 (* x8 *)
-let _reg_stack_arg_begin = phys_reg Int 17  (* x20 *)
-let _reg_stack_arg_end  = phys_reg Int 18 (* x21 *)
+let reg_stack_arg_begin = phys_reg Int 17  (* x20 *)
+let reg_stack_arg_end  = phys_reg Int 18 (* x21 *)
 
 
 (* Output a label *)
@@ -100,30 +104,24 @@ let prologue_required = ref false
 let contains_calls = ref false
 
 let initial_stack_offset () =
-    8 * num_stack_slots.(0) +
-    8 * num_stack_slots.(1) +
-    (if !contains_calls then 8 else 0)
+  Proc.initial_stack_offset ~contains_calls:!contains_calls
+    ~num_stack_slots
 
 let frame_size () =
-  let sz =
-    !stack_offset +
-    initial_stack_offset ()
-  in Misc.align sz 16
+  Proc.frame_size
+    ~stack_offset:!stack_offset
+    ~contains_calls:!contains_calls
+    ~num_stack_slots
 
-let slot_offset loc cl =
-  match loc with
-    Incoming n ->
-      assert (n >= 0);
-      frame_size() + n
-  | Local n ->
-      !stack_offset +
-      (if cl = 0
-       then n * 8
-       else num_stack_slots.(0) * 8 + n * 8)
-  | Outgoing n ->
-      assert (n >= 0);
-      n
-  | Domainstate _ -> assert false (* not a satck slot *)
+let slot_offset loc stack_class =
+  let offset =
+    Proc.slot_offset loc ~stack_class ~stack_offset:!stack_offset
+      ~fun_contains_calls:!contains_calls ~fun_num_stack_slots:num_stack_slots
+  in
+  match offset with
+  | Bytes_relative_to_stack_pointer n -> n
+  | Bytes_relative_to_domainstate_pointer _ ->
+    Misc.fatal_errorf "Not a stack slot"
 
 (* Output a stack reference *)
 
@@ -187,6 +185,48 @@ let call_gc_sites = ref ([] : gc_call list)
 let emit_call_gc gc =
   `{emit_label gc.gc_lbl}:	bl	{emit_symbol "caml_call_gc"}\n`;
   `{emit_label gc.gc_frame_lbl}:	b	{emit_label gc.gc_return_lbl}\n`
+
+(* Record calls to local stack reallocation *)
+
+type local_realloc_call =
+  { lr_lbl: label;
+    lr_return_lbl: label;
+    lr_dbg: Debuginfo.t
+  }
+
+let local_realloc_sites = ref ([] : local_realloc_call list)
+
+let emit_local_realloc lr =
+  `{emit_label lr.lr_lbl}:\n`;
+  `	{emit_debug_info lr.lr_dbg}\n`;
+  `	bl	{emit_symbol "caml_call_local_realloc"}\n`;
+  `	b	{emit_label lr.lr_return_lbl}\n`
+
+(* Local stack reallocation *)
+
+type stack_realloc = {
+  sc_label : Label.t; (* Label of the reallocation code. *)
+  sc_return : Label.t; (* Label to return to after reallocation. *)
+  sc_max_frame_size_in_bytes : int; (* Size for reallocation. *)
+}
+
+let stack_realloc = ref (None : stack_realloc option)
+
+let clear_stack_realloc () =
+  stack_realloc := None
+
+let emit_stack_realloc () =
+  match !stack_realloc with
+  | None -> ()
+  | Some { sc_label; sc_return; sc_max_frame_size_in_bytes; } ->
+    `{emit_label sc_label}:\n`;
+    (* Pass the desired frame size on the stack, since all of the
+       argument-passing registers may be in use. *)
+    `    mov {emit_reg reg_tmp1}, #{emit_int sc_max_frame_size_in_bytes}\n`;
+    `    stp {emit_reg reg_tmp1}, x30, [sp, #-16]!\n`;
+    `    bl {emit_symbol "caml_call_realloc_stack"}\n`;
+    `    ldp {emit_reg reg_tmp1}, x30, [sp], #16\n`;
+    `    b {emit_label sc_return}\n`
 
 (* Names of various instructions *)
 
@@ -374,7 +414,7 @@ let num_call_gc_points instr =
   let rec loop instr call_gc =
     match instr.desc with
     | Lend -> call_gc
-    | Lop (Ialloc _) when !fastcode_flag ->
+    | Lop (Ialloc { mode = Alloc_heap; _ }) when !fastcode_flag ->
       loop instr.next (call_gc + 1)
     | Lop (Ipoll _) ->
       loop instr.next (call_gc + 1)
@@ -449,11 +489,14 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Imove | Ispill | Ireload) -> 1
     | Lop (Iconst_int n) ->
       num_instructions_for_intconst n
+    | Lop (Iconst_float32 _) ->
+      (* CR mslater: (float32) arm64 *)
+      Misc.fatal_error "float32 is not supported on this architecture"
     | Lop (Iconst_float _) -> 2
     | Lop (Iconst_symbol _) -> 2
     | Lop (Iconst_vec128 _) ->
       (* CR mslater: (SIMD) arm64 *)
-      Misc.fatal_error "128-bit vectors are not supported on this architecture"
+      Misc.fatal_error "SIMD is not supported on this architecture"
     | Lop (Iintop_atomic _) ->
       (* Never generated; builtins are not yet translated to atomics *)
       assert false
@@ -463,14 +506,14 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Itailcall_imm { func; _ }) ->
       if func.sym_name = !function_name then 1 else epilogue_size ()
     | Lop (Iextcall {alloc; stack_ofs} ) ->
-      if stack_ofs > 0 then 5
+      if Config.runtime5 && stack_ofs > 0 then 5
       else if alloc then 3
       else 5
     | Lop (Istackoffset _) -> 2
     | Lop (Iload  { memory_chunk; addressing_mode; is_atomic }) ->
       let based = match addressing_mode with Iindexed _ -> 0 | Ibased _ -> 1
       and barrier = if is_atomic then 1 else 0
-      and single = match memory_chunk with Single -> 2 | _ -> 1 in
+      and single = match memory_chunk with Single { reg = Float64 } -> 2 | _ -> 1 in
       based + barrier + single
     | Lop (Istore (memory_chunk, addressing_mode, assignment)) ->
       let based = match addressing_mode with Iindexed _ -> 0 | Ibased _ -> 1
@@ -478,8 +521,9 @@ module BR = Branch_relaxation.Make (struct
         match memory_chunk, assignment with
         | (Word_int | Word_val), true -> 1
         | _ -> 0
-      and single = match memory_chunk with Single -> 2 | _ -> 1 in
+      and single = match memory_chunk with Single { reg = Float64 } -> 2 | _ -> 1 in
       based + barrier + single
+    | Lop (Ialloc { mode = Alloc_local; _ }) -> 9
     | Lop (Ialloc _) when !fastcode_flag -> 5
     | Lop (Ispecific (Ifar_alloc _)) when !fastcode_flag -> 6
     | Lop (Ipoll _) -> 3
@@ -491,20 +535,35 @@ module BR = Branch_relaxation.Make (struct
       | _ -> 1 + num_instructions_for_intconst (Nativeint.of_int num_bytes)
       end
     | Lop (Icsel _) -> 4
-    | Lop (Ibeginregion | Iendregion) ->
-       Misc.fatal_error "Local allocations not supported on this architecture"
+    | Lop (Ibeginregion | Iendregion) -> 1
     | Lop (Iintop (Icomp _)) -> 2
-    | Lop (Icompf _) -> 2
+    | Lop (Ifloatop (Float64, Icompf _)) -> 2
+    | Lop (Ifloatop (Float32, Icompf _)) ->
+      (* CR mslater: (float32) arm64 *)
+      Misc.fatal_error "float32 is not supported on this architecture"
     | Lop (Iintop_imm (Icomp _, _)) -> 2
     | Lop (Iintop Imod) -> 2
     | Lop (Iintop (Imulh _)) -> 1
     | Lop (Iintop _) -> 1
     | Lop (Iintop_imm _) -> 1
-    | Lop (Ifloatofint | Iintoffloat | Iabsf | Inegf | Ispecific Isqrtf) -> 1
+    | Lop (Ifloatop (Float64, (Iabsf | Inegf)) | Ispecific Isqrtf) -> 1
+    | Lop (Ifloatop (Float32, (Iabsf | Inegf))) ->
+      (* CR mslater: (float32) arm64 *)
+      Misc.fatal_error "float32 is not supported on this architecture"
     | Lop (Ivalueofint | Iintofvalue) -> 1
     | Lop (Ivectorcast _) -> 1
-    | Lop (Iscalarcast _) -> 1
-    | Lop (Iaddf | Isubf | Imulf | Idivf | Ispecific Inegmulf) -> 1
+    | Lop (Iscalarcast (Float_of_int Float64 | Float_to_int Float64)) -> 1
+    | Lop (Iscalarcast (Float_of_int Float32 | Float_to_int Float32 |
+                        Float_of_float32 | Float_to_float32)) ->
+      (* CR mslater: (float32) arm64 *)
+      Misc.fatal_error "float32 is not supported on this architecture"
+    | Lop (Iscalarcast (V128_of_scalar _ | V128_to_scalar _)) ->
+      (* CR mslater: (SIMD) arm64 *)
+      Misc.fatal_error "SIMD is not supported on this architecture"
+    | Lop (Ifloatop (Float64, (Iaddf | Isubf | Imulf | Idivf)) | Ispecific Inegmulf) -> 1
+    | Lop (Ifloatop (Float32, (Iaddf | Isubf | Imulf | Idivf))) ->
+      (* CR mslater: (float32) arm64 *)
+      Misc.fatal_error "float32 is not supported on this architecture"
     | Lop (Iopaque) -> 0
     | Lop (Ispecific (Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf)) -> 1
     | Lop (Ispecific (Ishiftarith _)) -> 1
@@ -546,6 +605,7 @@ module BR = Branch_relaxation.Make (struct
       | Lambda.Raise_reraise -> 1
       | Lambda.Raise_notrace -> 4
       end
+    | Lstackcheck _ -> 5
 
   let relax_poll ~return_label =
     Lop (Ispecific (Ifar_poll { return_label }))
@@ -568,44 +628,68 @@ let name_for_float_comparison = function
 
 (* Output the assembly code for allocation. *)
 
-let assembly_code_for_allocation i ~n ~far ~dbginfo =
-  let lbl_frame =
-    record_frame_label i.live (Dbg_alloc dbginfo)
-  in
-  if !fastcode_flag then begin
-    let lbl_after_alloc = new_label() in
-    let lbl_call_gc = new_label() in
-    (* n is at most Max_young_whsize * 8, i.e. currently 0x808,
-       so it is reasonable to assume n < 0x1_000.  This makes
-       the generated code simpler. *)
-    assert (16 <= n && n < 0x1_000 && n land 0x7 = 0);
-    let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
-    `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`;
-    `	sub	{emit_reg reg_alloc_ptr}, {emit_reg reg_alloc_ptr}, #{emit_int n}\n`;
-    `	cmp	{emit_reg reg_alloc_ptr}, {emit_reg reg_tmp1}\n`;
-    if not far then begin
-      `	b.lo	{emit_label lbl_call_gc}\n`
-    end else begin
-      let lbl = new_label () in
-      `	b.cs	{emit_label lbl}\n`;
-      `	b	{emit_label lbl_call_gc}\n`;
-      `{emit_label lbl}:\n`
-    end;
-    `{emit_label lbl_after_alloc}:`;
-    `	add	{emit_reg i.res.(0)}, {emit_reg reg_alloc_ptr}, #8\n`;
-    call_gc_sites :=
-      { gc_lbl = lbl_call_gc;
-        gc_return_lbl = lbl_after_alloc;
-        gc_frame_lbl = lbl_frame } :: !call_gc_sites
+let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
+  if local then begin
+    let r = i.res.(0) in
+    let module DS = Domainstate in
+    let domain_local_sp_offset = DS.(idx_of_field Domain_local_sp) * 8 in
+    let domain_local_limit_offset = DS.(idx_of_field Domain_local_limit) * 8 in
+    let domain_local_top_offset = DS.(idx_of_field Domain_local_top) * 8 in
+    `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_limit_offset}]\n`;
+    `	ldr	{emit_reg r}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_sp_offset}]\n`;
+    `	sub	{emit_reg r}, {emit_reg r}, #{emit_int n}\n`;
+    `	str	{emit_reg r}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_sp_offset}]\n`;
+    `	cmp	{emit_reg r}, {emit_reg reg_tmp1}\n`;
+    let lbl_call = new_label () in
+    `	b.lt	{emit_label lbl_call}\n`;
+    let lbl_after_alloc = new_label () in
+    `{emit_label lbl_after_alloc}:\n`;
+    `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_top_offset}]\n`;
+    `	add	{emit_reg r}, {emit_reg r}, {emit_reg reg_tmp1}\n`;
+    `	add	{emit_reg r}, {emit_reg r}, #{emit_int 8}\n`;
+    local_realloc_sites :=
+      { lr_lbl = lbl_call;
+        lr_dbg = i.dbg;
+        lr_return_lbl = lbl_after_alloc } :: !local_realloc_sites
   end else begin
-    begin match n with
-    | 16 -> `	bl	{emit_symbol "caml_alloc1"}\n`
-    | 24 -> `	bl	{emit_symbol "caml_alloc2"}\n`
-    | 32 -> `	bl	{emit_symbol "caml_alloc3"}\n`
-    | _  -> emit_intconst reg_x8 (Nativeint.of_int n);
-            `	bl	{emit_symbol "caml_allocN"}\n`
-    end;
-    `{emit_label lbl_frame}:	add	{emit_reg i.res.(0)}, {emit_reg reg_alloc_ptr}, #8\n`
+    let lbl_frame =
+      record_frame_label i.live (Dbg_alloc dbginfo)
+    in
+    if !fastcode_flag then begin
+      let lbl_after_alloc = new_label() in
+      let lbl_call_gc = new_label() in
+      (* n is at most Max_young_whsize * 8, i.e. currently 0x808,
+         so it is reasonable to assume n < 0x1_000.  This makes
+         the generated code simpler. *)
+      assert (16 <= n && n < 0x1_000 && n land 0x7 = 0);
+      let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
+      `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`;
+      `	sub	{emit_reg reg_alloc_ptr}, {emit_reg reg_alloc_ptr}, #{emit_int n}\n`;
+      `	cmp	{emit_reg reg_alloc_ptr}, {emit_reg reg_tmp1}\n`;
+      if not far then begin
+        `	b.lo	{emit_label lbl_call_gc}\n`
+      end else begin
+        let lbl = new_label () in
+        `	b.cs	{emit_label lbl}\n`;
+        `	b	{emit_label lbl_call_gc}\n`;
+        `{emit_label lbl}:\n`
+      end;
+      `{emit_label lbl_after_alloc}:`;
+      `	add	{emit_reg i.res.(0)}, {emit_reg reg_alloc_ptr}, #8\n`;
+      call_gc_sites :=
+        { gc_lbl = lbl_call_gc;
+          gc_return_lbl = lbl_after_alloc;
+          gc_frame_lbl = lbl_frame } :: !call_gc_sites
+    end else begin
+      begin match n with
+      | 16 -> `	bl	{emit_symbol "caml_alloc1"}\n`
+      | 24 -> `	bl	{emit_symbol "caml_alloc2"}\n`
+      | 32 -> `	bl	{emit_symbol "caml_alloc3"}\n`
+      | _  -> emit_intconst reg_x8 (Nativeint.of_int n);
+              `	bl	{emit_symbol "caml_allocN"}\n`
+      end;
+      `{emit_label lbl_frame}:	add	{emit_reg i.res.(0)}, {emit_reg reg_alloc_ptr}, #8\n`
+    end
   end
 
 let assembly_code_for_poll i ~far ~return_label =
@@ -695,9 +779,17 @@ let emit_instr i =
     | Lop(Iintop_atomic _) ->
       (* Never generated; builtins are not yet translated to atomics *)
       assert false
-    | Lop(Ivectorcast _ | Iscalarcast _) ->
-      (* Never generated; SIMD instructions are not yet translated *)
-      assert false
+    | Lop(Iscalarcast (Float_to_int Float64)) ->
+        `	fcvtzs {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+    | Lop(Iscalarcast (Float_of_int Float64)) ->
+        `	scvtf	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+     | Lop (Iscalarcast (Float_of_int Float32 | Float_to_int Float32 |
+                         Float_of_float32 | Float_to_float32)) ->
+        (* CR mslater: (float32) arm64 *)
+        Misc.fatal_error "float32 not supported on this architecture"
+    | Lop(Iscalarcast (V128_of_scalar _ | V128_to_scalar _) | Ivectorcast _) ->
+        (* CR mslater: (SIMD) arm64 *)
+        Misc.fatal_error "SIMD is not supported on this architecture"
     | Lop(Imove | Ispill | Ireload) ->
         move i.arg.(0) i.res.(0)
     | Lop(Ispecific Imove32) ->
@@ -715,6 +807,9 @@ let emit_instr i =
         end
     | Lop(Iconst_int n) ->
         emit_intconst i.res.(0) n
+    | Lop (Iconst_float32 _) ->
+        (* CR mslater: (float32) arm64 *)
+        Misc.fatal_error "float32 is not supported on this architecture"
     | Lop(Iconst_float f) ->
         if f = 0L then
           `	fmov	{emit_reg i.res.(0)}, xzr\n`
@@ -725,8 +820,8 @@ let emit_instr i =
           emit_load_literal i.res.(0) lbl
         end
     | Lop(Iconst_vec128 _) ->
-      (* CR mslater: (SIMD) arm64 *)
-      Misc.fatal_error "128-bit vectors are not supported on this architecture"
+        (* CR mslater: (SIMD) arm64 *)
+        Misc.fatal_error "SIMD is not supported on this architecture"
     | Lop(Iconst_symbol s) ->
         emit_load_symbol_addr i.res.(0) s.sym_name
     | Lop(Icall_ind) ->
@@ -744,15 +839,14 @@ let emit_instr i =
           | Some tailrec_entry_point -> `	b	{emit_label tailrec_entry_point}\n`
         else
           output_epilogue (fun () -> `	b	{emit_symbol func.sym_name}\n`)
-    | Lop(Iextcall {func; alloc; stack_ofs = _}) ->
-        (* BACKPORT BEGIN *)
-        (*if stack_ofs > 0 then begin
+    | Lop(Iextcall {func; alloc; stack_ofs}) ->
+        if Config.runtime5 && stack_ofs > 0 then begin
           `	mov	{emit_reg reg_stack_arg_begin}, sp\n`;
           `	add	{emit_reg reg_stack_arg_end}, sp, #{emit_int (Misc.align stack_ofs 16)}\n`;
           emit_load_symbol_addr reg_x8 func;
           `	bl	{emit_symbol "caml_c_call_stack_args"}\n`;
           `{record_frame i.live (Dbg_other i.dbg)}\n`
-        end else*) if alloc then begin
+        end else if alloc then begin
           emit_load_symbol_addr reg_x8 func;
           `	bl	{emit_symbol "caml_c_call"}\n`;
           `{record_frame i.live (Dbg_other i.dbg)}\n`
@@ -760,17 +854,20 @@ let emit_instr i =
           (* store ocaml stack in the frame pointer register
              NB: no need to store previous x29 because OCaml frames don't
              maintain frame pointer *)
-          (*`	mov	x29, sp\n`;
-          cfi_remember_state ();
-          cfi_def_cfa_register ~reg:29;
-          let offset = Domainstate.(idx_of_field Domain_c_stack) * 8 in
-          `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, {emit_int offset}]\n`;
-             `	mov	sp, {emit_reg reg_tmp1}\n`; *)
+          if Config.runtime5 then begin
+            `	mov	x29, sp\n`;
+            cfi_remember_state ();
+            cfi_def_cfa_register ~reg:29;
+            let offset = Domainstate.(idx_of_field Domain_c_stack) * 8 in
+            `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, {emit_int offset}]\n`;
+              `	mov	sp, {emit_reg reg_tmp1}\n`
+          end;
           `	bl	{emit_symbol func}\n`;
-          (*`	mov	sp, x29\n`;
-          cfi_restore_state ()*)
+          if Config.runtime5 then begin
+            `	mov	sp, x29\n`;
+          end;
+          cfi_restore_state ()
         end
-      (* BACKPORT END *)
     | Lop(Istackoffset n) ->
         assert (n mod 16 = 0);
         emit_stack_adjustment (-n);
@@ -798,7 +895,7 @@ let emit_instr i =
             `	ldr	{emit_wreg dst}, {emit_addressing addressing_mode base}\n`
         | Thirtytwo_signed ->
             `	ldrsw	{emit_reg dst}, {emit_addressing addressing_mode base}\n`
-        | Single ->
+        | Single { reg = Float64 } ->
             `	ldr	s7, {emit_addressing addressing_mode base}\n`;
             `	fcvt	{emit_reg dst}, s7\n`
         | Word_int | Word_val ->
@@ -810,6 +907,9 @@ let emit_instr i =
             `	ldr	{emit_reg dst}, {emit_addressing addressing_mode base}\n`
         | Double ->
                       `	ldr	{emit_reg dst}, {emit_addressing addressing_mode base}\n`
+        | Single { reg = Float32 } ->
+            (* CR mslater: (float32) arm64 *)
+            fatal_error "arm64: got float32 memory chunk"
         | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
             (* CR mslater: (SIMD) arm64 *)
             fatal_error "arm64: got 128 bit memory chunk"
@@ -832,7 +932,7 @@ let emit_instr i =
             `	strh	{emit_wreg src}, {emit_addressing addr base}\n`
         | Thirtytwo_unsigned | Thirtytwo_signed ->
             `	str	{emit_wreg src}, {emit_addressing addr base}\n`
-        | Single ->
+        | Single { reg = Float64 } ->
             `	fcvt	s7, {emit_reg src}\n`;
             `	str	s7, {emit_addressing addr base}\n`;
         | Word_int | Word_val ->
@@ -841,16 +941,25 @@ let emit_instr i =
             `	str	{emit_reg src}, {emit_addressing addr base}\n`
         | Double ->
           `	str	{emit_reg src}, {emit_addressing addr base}\n`
+        | Single { reg = Float32 } ->
+            (* CR mslater: (float32) arm64 *)
+            fatal_error "arm64: got float32 memory chunk"
         | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
             (* CR mslater: (SIMD) arm64 *)
             fatal_error "arm64: got 128 bit memory chunk"
         end
     | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_heap }) ->
-        assembly_code_for_allocation i ~n ~far:false ~dbginfo
+        assembly_code_for_allocation i ~n ~local:false ~far:false ~dbginfo
     | Lop(Ispecific (Ifar_alloc { bytes = n; dbginfo })) ->
-        assembly_code_for_allocation i ~n ~far:true ~dbginfo
-    | Lop(Ialloc { mode = Alloc_local } | Ibeginregion | Iendregion) ->
-       Misc.fatal_error "Local allocations not supported on this architecture"
+        assembly_code_for_allocation i ~n ~local:false ~far:true ~dbginfo
+    | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_local }) ->
+        assembly_code_for_allocation i ~n ~local:true ~far:false ~dbginfo
+    | Lop(Ibeginregion) ->
+        let offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
+        `	ldr	{emit_reg i.res.(0)}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`
+    | Lop(Iendregion) ->
+        let offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
+        `	str	{emit_reg i.arg.(0)}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`
     | Lop(Ipoll { return_label }) ->
         assembly_code_for_poll i ~far:false ~return_label
     | Lop(Ispecific (Ifar_poll { return_label })) ->
@@ -862,10 +971,13 @@ let emit_instr i =
     | Lop(Iintop(Icomp cmp)) ->
         `	cmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
         `	cset	{emit_reg i.res.(0)}, {emit_string (name_for_comparison cmp)}\n`
-    | Lop(Icompf cmp) ->
+    | Lop(Ifloatop(Float64, Icompf cmp)) ->
         let comp = name_for_float_comparison cmp in
         `	fcmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
         `	cset	{emit_reg i.res.(0)}, {emit_string comp}\n`
+    | Lop(Ifloatop(Float32, Icompf _)) ->
+        (* CR mslater: (float32) arm64 *)
+        Misc.fatal_error "float32 is not supported on this architecture"
     | Lop(Iintop_imm(Icomp cmp, n)) ->
         emit_cmpimm i.arg.(0) n;
         `	cset	{emit_reg i.res.(0)}, {emit_string (name_for_comparison cmp)}\n`
@@ -882,15 +994,16 @@ let emit_instr i =
     | Lop(Iintop_imm(op, n)) ->
         let instr = name_for_int_operation op in
         `	{emit_string instr}     {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, #{emit_int n}\n`
-    | Lop(Ifloatofint | Iintoffloat | Iabsf | Inegf | Ispecific Isqrtf as op) ->
+    | Lop(Ifloatop (Float64, (Iabsf | Inegf)) | Ispecific Isqrtf as op) ->
         let instr = (match op with
-                     | Ifloatofint      -> "scvtf"
-                     | Iintoffloat      -> "fcvtzs"
-                     | Iabsf            -> "fabs"
-                     | Inegf            -> "fneg"
-                     | Ispecific Isqrtf -> "fsqrt"
-                     | _                -> assert false) in
+                     | Ifloatop (Float64, Iabsf) -> "fabs"
+                     | Ifloatop (Float64, Inegf) -> "fneg"
+                     | Ispecific Isqrtf          -> "fsqrt"
+                     | _                         -> assert false) in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+    | Lop(Ifloatop (Float32, (Iabsf | Inegf))) ->
+        (* CR mslater: (float32) arm64 *)
+        Misc.fatal_error "float32 is not supported on this architecture"
     | Lop(Ivalueofint | Iintofvalue) ->
         let src = i.arg.(0) and dst = i.res.(0) in
         if src.loc <> dst.loc then begin
@@ -904,15 +1017,18 @@ let emit_instr i =
           | _ ->
               assert false
         end
-    | Lop(Iaddf | Isubf | Imulf | Idivf | Ispecific Inegmulf as op) ->
+    | Lop(Ifloatop (Float64, (Iaddf | Isubf | Imulf | Idivf)) | Ispecific Inegmulf as op) ->
         let instr = (match op with
-                     | Iaddf              -> "fadd"
-                     | Isubf              -> "fsub"
-                     | Imulf              -> "fmul"
-                     | Idivf              -> "fdiv"
-                     | Ispecific Inegmulf -> "fnmul"
-                     | _                  -> assert false) in
+                     | Ifloatop (Float64, Iaddf) -> "fadd"
+                     | Ifloatop (Float64, Isubf) -> "fsub"
+                     | Ifloatop (Float64, Imulf) -> "fmul"
+                     | Ifloatop (Float64, Idivf) -> "fdiv"
+                     | Ispecific Inegmulf        -> "fnmul"
+                     | _                         -> assert false) in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
+    | Lop(Ifloatop (Float32, (Iaddf | Isubf | Imulf | Idivf))) ->
+        (* CR mslater: (float32) arm64 *)
+        Misc.fatal_error "float32 is not supported on this architecture"
     | Lop(Ispecific(Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf as op)) ->
         let instr = (match op with
                      | Imuladdf    -> "fmadd"
@@ -953,11 +1069,10 @@ let emit_instr i =
     | Lop (Iprobe _ | Iprobe_is_enabled _) ->
       fatal_error ("Probes not supported.")
     | Lop(Idls_get) ->
-      (* BACKPORT BEGIN *)
-      fatal_error ("Idls_get not supported.")
-      (*let offset = Domainstate.(idx_of_field Domain_dls_root) * 8 in
-      `	ldr	{emit_reg i.res.(0)}, [{emit_reg reg_domain_state_ptr}, {emit_int offset}]\n`*)
-      (* BACKPORT END *)
+      if Config.runtime5 then
+        let offset = Domainstate.(idx_of_field Domain_dls_root) * 8 in
+        `	ldr	{emit_reg i.res.(0)}, [{emit_reg reg_domain_state_ptr}, {emit_int offset}]\n`
+      else Misc.fatal_error "Dls is not supported in runtime4."
     | Lop (Icsel tst) ->
       let len = Array.length i.arg in
       let ifso = i.arg.(len - 2) in
@@ -980,7 +1095,10 @@ let emit_instr i =
             let comp = name_for_comparison cmp in
             emit_cmpimm i.arg.(0) n;
             `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, {emit_string comp}\n`
-        | Ifloattest cmp ->
+        | Ifloattest (Float32, _cmp) ->
+            (* CR mslater: (float32) arm64 *)
+            Misc.fatal_error "float32 is not supported on this architecture"
+        | Ifloattest (Float64, cmp) ->
             let comp = name_for_float_comparison cmp in
             `	fcmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
             `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(3)}, {emit_string comp}\n`
@@ -1013,7 +1131,10 @@ let emit_instr i =
             emit_cmpimm i.arg.(0) n;
             let comp = name_for_comparison cmp in
             `	b.{emit_string comp}	{emit_label lbl}\n`
-        | Ifloattest cmp ->
+        | Ifloattest (Float32, _cmp) ->
+            (* CR mslater: (float32) arm64 *)
+            Misc.fatal_error "float32 is not supported on this architecture"
+        | Ifloattest (Float64, cmp) ->
             let comp = name_for_float_comparison cmp in
             `	fcmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
             `	b.{emit_string comp}	{emit_label lbl}\n`
@@ -1088,7 +1209,24 @@ let emit_instr i =
           `	ldr	{emit_reg reg_tmp1}, [sp, #8]\n`;
           `	ldr	{emit_reg reg_trap_ptr}, [sp], 16\n`;
           `	br	{emit_reg reg_tmp1}\n`
-        end
+      end
+    | Lstackcheck { max_frame_size_bytes; } ->
+      let overflow = new_label () and ret = new_label () in
+      let threshold_offset =
+        Domainstate.stack_ctx_words * 8 + Stack_check.stack_threshold_size
+      in
+      let f = max_frame_size_bytes + threshold_offset in
+      let offset = Domainstate.(idx_of_field Domain_current_stack) * 8 in
+      `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`;
+      emit_addimm reg_tmp1 reg_tmp1 f;
+      `	cmp	sp, {emit_reg reg_tmp1}\n`;
+      `	bcc	{emit_label overflow}\n`;
+      `{emit_label ret}:`;
+      stack_realloc := Some {
+        sc_label = overflow;
+        sc_return = ret;
+        sc_max_frame_size_in_bytes = max_frame_size_bytes;
+      }
 
 (* Emission of an instruction sequence *)
 
@@ -1109,6 +1247,8 @@ let fundecl fundecl =
   float_literals := [];
   stack_offset := 0;
   call_gc_sites := [];
+  local_realloc_sites := [];
+  clear_stack_realloc ();
   for i = 0 to Proc.num_stack_slot_classes - 1 do
     num_stack_slots.(i) <- fundecl.fun_num_stack_slots.(i);
   done;
@@ -1118,56 +1258,17 @@ let fundecl fundecl =
   `	.align	3\n`;
   `	.globl	{emit_symbol fundecl.fun_name}\n`;
   emit_symbol_type emit_symbol fundecl.fun_name "function";
-  (* Dynamic stack checking *)
-  (* BACKPORT BEGIN *)
-  (*let stack_threshold_size = Config.stack_threshold * 8 in (* bytes *)
-  let { max_frame_size; contains_nontail_calls} =
-    preproc_stack_check
-      ~fun_body:fundecl.fun_body ~frame_size:(frame_size env) ~trap_size:16
-  in
-  let handle_overflow, stack_check_size =
-    if contains_nontail_calls || max_frame_size >= stack_threshold_size then begin
-      let overflow = new_label () in
-      `{emit_label overflow}:\n`;
-      (* Pass the desired frame size on the stack, since all of the
-        argument-passing registers may be in use. *)
-      let s = (Config.stack_threshold + max_frame_size / 8) in
-      `    mov {emit_reg reg_tmp1}, #{emit_int s}\n`;
-      `    stp {emit_reg reg_tmp1}, x30, [sp, #-16]!\n`;
-      `    bl {emit_symbol "caml_call_realloc_stack"}\n`;
-      `    ldp {emit_reg reg_tmp1}, x30, [sp], #16\n`;
-      (* fall through function entry point *)
-      Some overflow, 5
-    end else
-      None, 0 in*)
   `{emit_symbol fundecl.fun_name}:\n`;
   emit_debug_info fundecl.fun_dbg;
   cfi_startproc();
-  (* BACKPORT BEGIN *)
-  (*begin match handle_overflow with
-    | None -> ()
-    | Some overflow ->
-      let threshold_offset = Domainstate.stack_ctx_words * 8 + stack_threshold_size in
-      let f = max_frame_size + threshold_offset in
-      let offset = Domainstate.(idx_of_field Domain_current_stack) * 8 in
-      `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`;
-      emit_addimm reg_tmp1 reg_tmp1 f;
-      `	cmp	sp, {emit_reg reg_tmp1}\n`;
-      `	bcc	{emit_label overflow}\n`
-  end;*)
-  (* BACKPORT END *)
   let num_call_gc = num_call_gc_points fundecl.fun_body in
-  let max_out_of_line_code_offset =
-    (* BACKPORT BEGIN *)
-    (*max_out_of_line_code_offset ~num_call_gc
-      stack_check_size +*)
-    (* BACKPORT END *)
-    max_out_of_line_code_offset ~num_call_gc
-  in
+  let max_out_of_line_code_offset = max_out_of_line_code_offset ~num_call_gc in
   BR.relax fundecl.fun_body ~max_out_of_line_code_offset;
 
   emit_all fundecl.fun_body;
   List.iter emit_call_gc !call_gc_sites;
+  List.iter emit_local_realloc !local_realloc_sites;
+  emit_stack_realloc ();
   assert (List.length !call_gc_sites = num_call_gc);
   (match fun_end_label with
    | None -> ()
@@ -1198,7 +1299,7 @@ let emit_item = function
   | Cdouble f -> emit_float64_directive ".quad" (Int64.bits_of_float f)
   | Cvec128 _ ->
     (* CR mslater: (SIMD) arm64 *)
-    Misc.fatal_error "128-bit vectors not supported on this architecture"
+    Misc.fatal_error "SIMD is not supported on this architecture"
   | Csymbol_address s -> `	.quad	{emit_symbol s.sym_name}\n`
   | Csymbol_offset (s, o) -> `	.quad	{emit_symbol s.sym_name}+{emit_int o}\n`
   | Cstring s -> emit_string_directive "	.ascii  " s
@@ -1209,6 +1310,126 @@ let data l =
   `	.data\n`;
   `	.align  3\n`;
   List.iter emit_item l
+
+let emit_line str = emit_string (str ^ "\n")
+
+let file_emitter ~file_num ~file_name =
+  emit_line (Printf.sprintf ".file %d %S" file_num file_name)
+
+let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
+  module Asm_targets.Asm_directives.Make(struct
+    let emit_line = emit_line
+
+    let get_file_num file_name =
+      Emitaux.get_file_num ~file_emitter file_name
+
+    let debugging_comments_in_asm_files =
+      !Flambda_backend_flags.dasm_comments
+
+    module D = struct
+      type constant =
+        | Int64 of Int64.t
+        | Label of string
+        | Add of constant * constant
+        | Sub of constant * constant
+
+      let rec string_of_constant const =
+        match const with
+        | Int64 n -> Int64.to_string n
+        | Label s -> s
+        | Add (c1, c2) ->
+          Printf.sprintf "(%s + %s)"
+            (string_of_constant c1) (string_of_constant c2)
+        | Sub (c1, c2) ->
+          Printf.sprintf "(%s - %s)"
+            (string_of_constant c1) (string_of_constant c2)
+
+      let const_int64 num = Int64 num
+      let const_label str = Label str
+      let const_add c1 c2 = Add (c1, c2)
+      let const_sub c1 c2 = Sub (c1, c2)
+
+      type data_type =
+        | NONE
+        | DWORD
+        | QWORD
+        | VEC128
+
+      let file = file_emitter
+
+      let loc ~file_num ~line ~col ?discriminator () =
+        ignore discriminator;
+        emit_line (Printf.sprintf ".loc %d %d %d" file_num line col)
+
+      let comment str =
+        emit_line (Printf.sprintf "; %s" str)
+
+      let label ?data_type str =
+        let _ = data_type in
+        emit_line (Printf.sprintf "%s:" str)
+
+      let section ?delayed:_ name flags args =
+        match name, flags, args with
+        | [".data" ], _, _ -> emit_line "\t.data"
+        | [".text" ], _, _ -> emit_line "\t.text"
+        | name, flags, args ->
+          emit_string (Printf.sprintf "\t.section %s"
+            (String.concat "," name));
+          begin match flags with
+          | None -> ()
+          | Some flags -> emit_string (Printf.sprintf ",%S" flags)
+          end;
+          begin match args with
+          | [] -> ()
+          | _ ->
+            emit_string (Printf.sprintf ",%s" (String.concat "," args))
+          end;
+          emit_string "\n"
+
+      let text () = emit_line "\t.text"
+
+      let new_line () = emit_line ""
+
+      let global sym = emit_line (Printf.sprintf "\t.globl %s" sym)
+
+      let protected sym =
+        if not macosx then emit_line (Printf.sprintf "\t.protected %s" sym)
+
+      let type_ sym typ_ = emit_line (Printf.sprintf "\t.type %s,%s" sym typ_)
+
+      let byte const =
+        emit_line
+          (Printf.sprintf "\t.byte %s" (string_of_constant const))
+
+      let word const =
+        emit_line
+          (Printf.sprintf "\t.short %s" (string_of_constant const))
+
+      let long const =
+        emit_line
+          (Printf.sprintf "\t.long %s" (string_of_constant const))
+
+      let qword const =
+        emit_line
+          (Printf.sprintf "\t.quad %s" (string_of_constant const))
+
+      let bytes str =
+        emit_line (Printf.sprintf "\t.ascii %S" str)
+
+      let uleb128 const =
+        emit_line
+          (Printf.sprintf "\t.uleb128 %s" (string_of_constant const))
+
+      let sleb128 const =
+        emit_line
+          (Printf.sprintf "\t.sleb128 %s" (string_of_constant const))
+
+      let direct_assignment var const =
+        emit_line
+          (Printf.sprintf "\t.set %s,%s" var (string_of_constant const))
+    end
+  end)
+)
 
 (* Beginning / end of an assembly file *)
 
@@ -1232,9 +1453,12 @@ let begin_assembly _unix =
     `	nop\n`;
     `	.align	3\n`
   end;
-  ()
+  let lbl_end = Cmm_helpers.make_symbol "code_end" in
+  Emitaux.Dwarf_helpers.begin_dwarf ~build_asm_directives
+    ~code_begin:lbl_begin ~code_end:lbl_end
+    ~file_emitter
 
-let end_assembly _dwarf =
+let end_assembly () =
   let lbl_end = Cmm_helpers.make_symbol "code_end" in
   emit_named_text_section lbl_end;
   `	.globl	{emit_symbol lbl_end}\n`;
@@ -1267,6 +1491,8 @@ let end_assembly _dwarf =
       efa_string = (fun s -> emit_string_directive "	.asciz	" s) };
   emit_symbol_type emit_symbol lbl "object";
   emit_symbol_size lbl;
+  if not !Flambda_backend_flags.internal_assembler then
+    Emitaux.Dwarf_helpers.emit_dwarf ();
   begin match Config.system with
   | "linux" ->
       (* Mark stack as non-executable *)

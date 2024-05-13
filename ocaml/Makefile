@@ -631,10 +631,8 @@ runtime4_COMMON_C_SOURCES = \
   hash \
   instrtrace \
   intern \
-  interp \
   ints \
   io \
-  isa \
   lexing \
   main \
   major_gc \
@@ -650,6 +648,7 @@ runtime4_COMMON_C_SOURCES = \
   prng \
   signals \
   simd \
+  float32 \
   skiplist \
   startup_aux \
   str \
@@ -674,8 +673,7 @@ runtime4_NATIVE_ONLY_C_SOURCES = \
   fail_nat \
   roots_nat \
   startup_nat \
-  signals_nat \
-  isa
+  signals_nat
 
 # Runtime system source files (v5)
 
@@ -704,7 +702,6 @@ runtime_COMMON_C_SOURCES = \
   intern \
   ints \
   io \
-  isa \
   lexing \
   lf_skiplist \
   main \
@@ -725,6 +722,7 @@ runtime_COMMON_C_SOURCES = \
   shared_heap \
   signals \
   simd \
+  float32 \
   skiplist \
   startup_aux \
   str \
@@ -747,8 +745,7 @@ runtime_NATIVE_ONLY_C_SOURCES = \
   fail_nat \
   frame_descriptors \
   startup_nat \
-  signals_nat \
-  isa
+  signals_nat
 
 # The runtime system
 
@@ -1471,14 +1468,14 @@ tools/ocamldep$(EXE): OC_BYTECODE_LINKFLAGS += -compat-32
 ocamlprof_LIBRARIES =
 ocamlprof_MODULES = \
   config build_path_prefix_map misc identifiable numbers arg_helper \
-  local_store load_path clflags terminfo warnings location longident \
-  docstrings syntaxerr ast_helper camlinternalMenhirLib parser pprintast \
-  lexer parse ocamlprof
+  local_store  zero_alloc_annotations clflags load_path terminfo warnings \
+  location longident docstrings syntaxerr ast_helper camlinternalMenhirLib \
+  parser pprintast lexer parse ocamlprof
 
 ocamlcp_ocamloptp_MODULES = \
   config build_path_prefix_map misc profile warnings identifiable numbers \
-  arg_helper local_store load_path clflags terminfo location ccomp compenv \
-  main_args ocamlcp_common
+  arg_helper local_store zero_alloc_annotations clflags load_path terminfo \
+  location ccomp compenv main_args ocamlcp_common zero_alloc_annotations
 
 ocamlcp_LIBRARIES =
 ocamlcp_MODULES = $(ocamlcp_ocamloptp_MODULES) ocamlcp
@@ -1495,7 +1492,7 @@ ocamlmklib_MODULES = config build_path_prefix_map misc ocamlmklib
 ocamlmktop_LIBRARIES =
 ocamlmktop_MODULES = \
   config build_path_prefix_map misc identifiable numbers arg_helper \
-  local_store load_path clflags profile ccomp ocamlmktop
+  local_store zero_alloc_annotations clflags load_path profile ccomp ocamlmktop
 
 # Reading cmt files
 

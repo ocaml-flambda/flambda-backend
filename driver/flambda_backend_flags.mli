@@ -26,6 +26,8 @@ val cfg_peephole_optimize: bool ref
 
 val cfg_cse_optimize: bool ref
 
+val cfg_stack_checks : bool ref
+
 val reorder_blocks_random : int option ref
 val basic_block_sections : bool ref
 
@@ -33,19 +35,27 @@ val dasm_comments : bool ref
 
 val default_heap_reduction_threshold : int
 val heap_reduction_threshold : int ref
-val dump_checkmach : bool ref
-val disable_checkmach : bool ref
-
+val dump_zero_alloc : bool ref
+val disable_zero_alloc_checker : bool ref
+val disable_precise_zero_alloc_checker : bool ref
 val davail : bool ref
 val dranges : bool ref
 
-type checkmach_details_cutoff =
+type zero_alloc_checker_details_cutoff =
   | Keep_all
   | At_most of int  (* n > 0 *)
   | No_details
 
-val checkmach_details_cutoff : checkmach_details_cutoff ref
-val default_checkmach_details_cutoff : checkmach_details_cutoff
+val zero_alloc_checker_details_cutoff : zero_alloc_checker_details_cutoff ref
+val default_zero_alloc_checker_details_cutoff : zero_alloc_checker_details_cutoff
+
+type zero_alloc_checker_join =
+  | Keep_all
+  | Widen of int  (* n > 0 *)
+  | Error of int (* n > 0 *)
+
+val zero_alloc_checker_join : zero_alloc_checker_join ref
+val default_zero_alloc_checker_join : zero_alloc_checker_join
 
 module Function_layout : sig
   type t =
