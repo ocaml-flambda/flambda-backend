@@ -227,24 +227,9 @@ end = struct
             in
             List.rev_append (P.define_symbol (R.symbol res function_symbol)) acc
         in
-        match code_id with
-        | Code_id code_id ->
-      let code_symbol = R.symbol_of_code_id res code_id ~currently_in_inlined_body:false in
-      let (kind, params_ty, result_ty), closure_code_pointers, dbg =
-        get_func_decl_params_arity env code_id
-      in
-      let acc =
-        match for_static_sets with
-        | None -> acc
-        | Some { closure_symbols; _ } ->
-          let function_symbol =
-            Function_slot.Map.find function_slot closure_symbols
-          in
-          List.rev_append (P.define_symbol (R.symbol res function_symbol)) acc
-      in
       match code_id with
       | Code_id code_id -> (
-        let code_symbol = R.symbol_of_code_id res code_id in
+        let code_symbol = R.symbol_of_code_id res ~currently_in_inlined_body:false code_id in
         let (kind, params_ty, result_ty), closure_code_pointers, dbg =
           get_func_decl_params_arity env code_id
         in
@@ -255,7 +240,7 @@ end = struct
         (* We build here the **reverse** list of fields for the function slot *)
         match closure_code_pointers with
         | Full_application_only ->
-          if size <> 2
+          if size < 2
           then
             Misc.fatal_errorf
               "fill_slot: Function slot %a is of size %d, but it is used to \
@@ -264,6 +249,13 @@ end = struct
               Function_slot.print function_slot size Code_id.print code_id;
           let acc =
             P.int ~dbg closure_info :: P.term_of_symbol ~dbg code_symbol :: acc
+          in
+          let acc =
+            if size > 2
+            then (
+              assert (size = 3);
+              P.int ~dbg 0n :: acc)
+            else acc
           in
           ( acc,
             Backend_var.Set.empty,
