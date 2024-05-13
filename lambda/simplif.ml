@@ -877,7 +877,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
     | _ -> assert orig_region
     end;
     let body, inner = aux [] false body in
-    let attr = { default_stub_attribute with check = attr.check } in
+    let attr = { default_stub_attribute with zero_alloc = attr.zero_alloc } in
     [{ id = fun_id;
        def = lfunction' ~kind ~params ~return ~body ~attr ~loc
            ~mode ~ret_mode ~region:true };

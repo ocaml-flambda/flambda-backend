@@ -2814,12 +2814,12 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                    the signature. *)
                 let open Builtin_attributes in
                 match[@warning "+9"] zero_alloc with
-                | Default_check | Ignore_assert_all _ -> Default_check
+                | Default_zero_alloc | Ignore_assert_all -> Default_zero_alloc
                 | Check _ -> zero_alloc
-                | Assume { property; strict; arity; loc;
+                | Assume { strict; arity; loc;
                            never_returns_normally = _;
                            never_raises = _} ->
-                  Check { strict; property; arity; loc; opt = false }
+                  Check { strict; arity; loc; opt = false }
               in
               let (first_loc, _, _) = List.hd id_info in
               Signature_names.check_value names first_loc id;

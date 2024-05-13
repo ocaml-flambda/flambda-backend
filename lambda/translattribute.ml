@@ -195,7 +195,6 @@ let get_opaque_attribute l =
   let attr = find_attribute is_opaque_attribute l in
   parse_opaque_attribute attr
 
-
 let get_poll_attribute l =
   let attr = find_attribute is_poll_attribute l in
   parse_poll_attribute attr

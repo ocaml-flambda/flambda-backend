@@ -1030,7 +1030,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         { inline = Never_inline;
           specialise = Always_specialise;
           local = Never_local;
-          check = Default_check;
+          zero_alloc = Default_zero_alloc;
           loop = Never_loop;
           is_a_functor = false;
           is_opaque = false;
@@ -1603,7 +1603,7 @@ and transl_function ~in_new_scope ~scopes e params body
            ~scopes e.exp_loc repr ~region params body)
   in
   let attr =
-    { function_attribute_disallowing_arity_fusion with check = zero_alloc }
+    { function_attribute_disallowing_arity_fusion with zero_alloc }
   in
   let loc = of_location ~scopes e.exp_loc in
   let body = if region then maybe_region_layout return body else body in
