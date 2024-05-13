@@ -313,6 +313,7 @@ let process_expect_file fname =
   let correction = eval_expect_file fname ~file_contents in
   write_corrected ~file:corrected_fname ~file_contents correction
 
+let repo_root = ref None
 let keep_original_error_size = ref false
 let preload_objects = ref []
 let main_file = ref None
@@ -336,18 +337,26 @@ let main fname =
        ~len:(Array.length Sys.argv - !Arg.current));
   (* Ignore OCAMLRUNPARAM=b to be reproducible *)
   Printexc.record_backtrace false;
-  Compmisc.init_path ();
+  if not !Clflags.no_std_include then begin
+    match !repo_root with
+    | None -> ()
+    | Some dir ->
+        (* If we pass [-repo-root], use the stdlib from inside the
+           compiler, not the installed one. We use
+           [Compenv.last_include_dirs] to make sure that the stdlib
+           directory is the last one. *)
+        Clflags.no_std_include := true;
+        Compenv.last_include_dirs := [Filename.concat dir "stdlib"]
+  end;
+  Compmisc.init_path ~auto_include:Load_path.no_auto_include ();
   Toploop.initialize_toplevel_env ();
   let objects = List.rev (!preload_objects) in
-  let successfully_loaded =
-    List.for_all
-      ~f:(Topeval.load_file false Format.err_formatter)
-      objects
-  in
-  if not successfully_loaded then (
-    Printf.eprintf "expect_test: failed to load objects\n";
-    exit 2;
-  );
+  List.iter objects ~f:(fun obj_fname ->
+    match Topeval.load_file false Format.err_formatter obj_fname with
+    | true -> ()
+    | false ->
+      Printf.eprintf "expect_test: failed to load object %s\n" obj_fname;
+      exit 2);
   (* We are in interactive mode and should record directive error on stdout *)
   Sys.interactive := true;
   process_expect_file fname;
@@ -363,7 +372,10 @@ end);;
 
 let args =
   Arg.align
-    ( [ "-keep-original-error-size", Arg.Set keep_original_error_size,
+    ( [ "-repo-root", Arg.String (fun s -> repo_root := Some s),
+        "<dir> root of the OCaml repository. This causes the tool to use \
+         the stdlib from the current source tree rather than the installed one."
+      ; "-keep-original-error-size", Arg.Set keep_original_error_size,
         " truncate long error messages as the compiler would"
       ] @ Options.list
     )
