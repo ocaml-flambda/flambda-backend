@@ -16,6 +16,8 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
+type t = float32#
+
 external box_float : float# -> (float[@local_opt]) = "%box_float"
 
 external unbox_float : (float[@local_opt]) -> float# = "%unbox_float"
@@ -24,9 +26,9 @@ external box_int32 : int32# -> (int32[@local_opt]) = "%box_int32"
 
 external unbox_int32 : (int32[@local_opt]) -> int32# = "%unbox_int32"
 
-external to_float32 : float32# -> (float32[@local_opt]) = "%box_float32"
+external to_float32 : t -> (float32[@local_opt]) = "%box_float32"
 
-external of_float32 : (float32[@local_opt]) -> float32# = "%unbox_float32"
+external of_float32 : (float32[@local_opt]) -> t = "%unbox_float32"
 
 (* CR layouts: Investigate whether it's worth making these things externals.
    Are there situations where the middle-end won't inline them and remove the
@@ -166,8 +168,6 @@ let[@inline always] copy_sign x y = of_float32 (Float32.copy_sign (to_float32 x)
 let[@inline always] sign_bit x = Float32.sign_bit (to_float32 x)
 
 let[@inline always] ldexp x i = of_float32 (Float32.ldexp (to_float32 x) i)
-
-type t = float32#
 
 let[@inline always] compare x y = Float32.compare (to_float32 x) (to_float32 y)
 

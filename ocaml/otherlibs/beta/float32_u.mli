@@ -33,119 +33,122 @@ open! Stdlib
     ([+.], [-.], [*.], [/.]) with [nan] as an argument return [nan], ...
 *)
 
+type t = float32#
+(** An alias for the type of unboxed 32-bit floating-point numbers. *)
+
 (* CR layouts v5: add back all the constants in this module (e.g., [zero] and
    [infinity]) when we we support [float32]s in structures. *)
 
 (* Unboxed-specific stuff at the top. *)
-external to_float32 : float32# -> (float32[@local_opt]) = "%box_float32"
+external to_float32 : t -> (float32[@local_opt]) = "%box_float32"
 (** Box a [float32#] *)
 
-external of_float32 : (float32[@local_opt]) -> float32# = "%unbox_float32"
+external of_float32 : (float32[@local_opt]) -> t = "%unbox_float32"
 (** Unbox a boxed [float32] *)
 
 (* Below here, everything also appears in [Float32], though most things are
    externals in that module. *)
 
-val neg : float32# -> float32#
+val neg : t -> t
 (** Unary negation. *)
 
-val add : float32# -> float32# -> float32#
+val add : t -> t -> t
 (** Floating-point addition. *)
 
-val sub : float32# -> float32# -> float32#
+val sub : t -> t -> t
 (** Floating-point subtraction. *)
 
-val mul : float32# -> float32# -> float32#
+val mul : t -> t -> t
 (** Floating-point multiplication. *)
 
-val div : float32# -> float32# -> float32#
+val div : t -> t -> t
 (** Floating-point division. *)
 
-val pow : float32# -> float32# -> float32#
+val pow : t -> t -> t
 (** Exponentiation. *)
 
 (** Floating-point arithmetic operator overloads. *)
 module Operators : sig
-  val ( ~-. ) : float32# -> float32#
+  val ( ~-. ) : t -> t
   (** Unary negation. *)
 
-  val ( +. ) : float32# -> float32# -> float32#
+  val ( +. ) : t -> t -> t
   (** Floating-point addition. *)
 
-  val ( -. ) : float32# -> float32# -> float32#
+  val ( -. ) : t -> t -> t
   (** Floating-point subtraction. *)
 
-  val ( *. ) : float32# -> float32# -> float32#
+  val ( *. ) : t -> t -> t
   (** Floating-point multiplication. *)
 
-  val ( /. ) : float32# -> float32# -> float32#
+  val ( /. ) : t -> t -> t
   (** Floating-point division. *)
 
-  val ( ** ) : float32# -> float32# -> float32#
+  val ( ** ) : t -> t -> t
   (** Exponentiation. *)
 end
 
-val fma : float32# -> float32# -> float32# -> float32#
+val fma : t -> t -> t -> t
 (** [fma x y z] returns [x * y + z], with a best effort for computing
    this expression with a single rounding, using either hardware
    instructions (providing full IEEE compliance) or a software
    emulation. *)
 
-val rem : float32# -> float32# -> float32#
+val rem : t -> t -> t
 (** [rem a b] returns the remainder of [a] with respect to [b].  The returned
     value is [a -. n *. b], where [n] is the quotient [a /. b] rounded towards
     zero to an integer. *)
 
-val succ : float32# -> float32#
+val succ : t -> t
 (** [succ x] returns the floating point number right after [x] i.e.,
    the smallest floating-point number greater than [x].  See also
    {!next_after}. *)
 
-val pred : float32# -> float32#
+val pred : t -> t
 (** [pred x] returns the floating-point number right before [x] i.e.,
    the greatest floating-point number smaller than [x].  See also
    {!next_after}. *)
 
-val abs : float32# -> float32#
+val abs : t -> t
 (** [abs f] returns the absolute value of [f]. *)
 
-val is_finite : float32# -> bool
+val is_finite : t -> bool
 (** [is_finite x] is [true] if and only if [x] is finite i.e., not infinite and
     not {!nan}. *)
 
-val is_infinite : float32# -> bool
+val is_infinite : t -> bool
 (** [is_infinite x] is [true] if and only if [x] is {!infinity} or
     {!neg_infinity}. *)
 
-val is_nan : float32# -> bool
+val is_nan : t -> bool
 (** [is_nan x] is [true] if and only if [x] is not a number (see {!nan}). *)
 
-val is_integer : float32# -> bool
+val is_integer : t -> bool
 (** [is_integer x] is [true] if and only if [x] is an integer. *)
 
-val of_int : int -> float32#
+val of_int : int -> t
 (** Convert an integer to floating-point. *)
 
-val to_int : float32# -> int
+val to_int : t -> int
 (** Truncate the given floating-point number to an integer.
     The result is unspecified if the argument is [nan] or falls outside the
     range of representable integers. *)
 
-val of_float : float# -> float32#
+val of_float : float# -> t
 (** Convert a 64-bit float to the nearest 32-bit float. *)
 
-val to_float : float32# -> float#
+val to_float : t -> float#
 (** Convert a 32-bit float to a 64-bit float. *)
 
-val of_bits : int32# -> float32#
+val of_bits : int32# -> t
 (** Convert a 32-bit float to a 32-bit integer, preserving the value's
     bit pattern. *)
 
-val to_bits : float32# -> int32#
+val to_bits : t -> int32#
 (** Convert a 32-bit integer to a 32-bit float, preserving the value's
     bit pattern. *)
 
-val of_string : string -> float32#
+val of_string : string -> t
 (** Convert the given string to a float.  The string is read in decimal
     (by default) or in hexadecimal (marked by [0x] or [0X]).
     The format of decimal floating-point numbers is
@@ -164,7 +167,7 @@ val of_string : string -> float32#
 
 (* CR layouts v5: Add [of_string_opt] when we allow float32s in structures. *)
 
-val to_string : float32# -> string
+val to_string : t -> string
 (** Return a string representation of a floating-point number.
 
     This conversion can involve a loss of precision. For greater control over
@@ -181,110 +184,110 @@ type fpclass = Stdlib.fpclass =
 (** The five classes of floating-point numbers, as determined by
     the {!classify_float} function. *)
 
-val classify_float : float32# -> fpclass
+val classify_float : t -> fpclass
 (** Return the class of the given floating-point number:
     normal, subnormal, zero, infinite, or not a number. *)
 
-val sqrt : float32# -> float32#
+val sqrt : t -> t
 (** Square root. *)
 
-val cbrt : float32# -> float32#
+val cbrt : t -> t
 (** Cube root. *)
 
-val exp : float32# -> float32#
+val exp : t -> t
 (** Exponential. *)
 
-val exp2 : float32# -> float32#
+val exp2 : t -> t
 (** Base 2 exponential function. *)
 
-val log : float32# -> float32#
+val log : t -> t
 (** Natural logarithm. *)
 
-val log10 : float32# -> float32#
+val log10 : t -> t
 (** Base 10 logarithm. *)
 
-val log2 : float32# -> float32#
+val log2 : t -> t
 (** Base 2 logarithm. *)
 
-val expm1 : float32# -> float32#
+val expm1 : t -> t
 (** [expm1 x] computes [exp x -. #1.0s], giving numerically-accurate results
     even if [x] is close to [#0.0s]. *)
 
-val log1p : float32# -> float32#
+val log1p : t -> t
 (** [log1p x] computes [log(#1.0s +. x)] (natural logarithm),
     giving numerically-accurate results even if [x] is close to [#0.0s]. *)
 
-val cos : float32# -> float32#
+val cos : t -> t
 (** Cosine.  Argument is in radians. *)
 
-val sin : float32# -> float32#
+val sin : t -> t
 (** Sine.  Argument is in radians. *)
 
-val tan : float32# -> float32#
+val tan : t -> t
 (** Tangent.  Argument is in radians. *)
 
-val acos : float32# -> float32#
+val acos : t -> t
 (** Arc cosine.  The argument must fall within the range [[-1.0s, 1.0s]].
     Result is in radians and is between [0.0s] and [pi]. *)
 
-val asin : float32# -> float32#
+val asin : t -> t
 (** Arc sine.  The argument must fall within the range [[-1.0s, 1.0s]].
     Result is in radians and is between [-pi/2] and [pi/2]. *)
 
-val atan : float32# -> float32#
+val atan : t -> t
 (** Arc tangent.
     Result is in radians and is between [-pi/2] and [pi/2]. *)
 
-val atan2 : float32# -> float32# -> float32#
+val atan2 : t -> t -> t
 (** [atan2 y x] returns the arc tangent of [y /. x].  The signs of [x]
     and [y] are used to determine the quadrant of the result.
     Result is in radians and is between [-pi] and [pi]. *)
 
-val hypot : float32# -> float32# -> float32#
+val hypot : t -> t -> t
 (** [hypot x y] returns [sqrt(x *. x + y *. y)], that is, the length
     of the hypotenuse of a right-angled triangle with sides of length
     [x] and [y], or, equivalently, the distance of the point [(x,y)]
     to origin.  If one of [x] or [y] is infinite, returns [infinity]
     even if the other is [nan]. *)
 
-val cosh : float32# -> float32#
+val cosh : t -> t
 (** Hyperbolic cosine.  Argument is in radians. *)
 
-val sinh : float32# -> float32#
+val sinh : t -> t
 (** Hyperbolic sine.  Argument is in radians. *)
 
-val tanh : float32# -> float32#
+val tanh : t -> t
 (** Hyperbolic tangent.  Argument is in radians. *)
 
-val acosh : float32# -> float32#
+val acosh : t -> t
 (** Hyperbolic arc cosine.  The argument must fall within the range
     [[1.0s, inf]].
     Result is in radians and is between [0.0s] and [inf]. *)
 
-val asinh : float32# -> float32#
+val asinh : t -> t
 (** Hyperbolic arc sine.  The argument and result range over the entire
     real line.
     Result is in radians. *)
 
-val atanh : float32# -> float32#
+val atanh : t -> t
 (** Hyperbolic arc tangent.  The argument must fall within the range
     [[-1.0s, 1.0s]].
     Result is in radians and ranges over the entire real line. *)
 
-val erf : float32# -> float32#
+val erf : t -> t
 (** Error function.  The argument ranges over the entire real line.
     The result is always within [[-1.0s, 1.0s]]. *)
 
-val erfc : float32# -> float32#
+val erfc : t -> t
 (** Complementary error function ([erfc x = 1 - erf x]).
     The argument ranges over the entire real line.
     The result is always within [[-1.0s, 1.0s]]. *)
 
-val trunc : float32# -> float32#
+val trunc : t -> t
 (** [trunc x] rounds [x] to the nearest integer whose absolute value is
     less than or equal to [x]. *)
 
-val round : float32# -> float32#
+val round : t -> t
 (** [round x] rounds [x] to the nearest integer with ties (fractional
    values of 0.5) rounded away from zero, regardless of the current
    rounding direction.  If [x] is an integer, [#+0.s], [#-0.s], [nan], or
@@ -293,18 +296,18 @@ val round : float32# -> float32#
    On 64-bit mingw-w64, this function may be emulated owing to a bug in the
    C runtime library (CRT) on this platform. *)
 
-val ceil : float32# -> float32#
+val ceil : t -> t
 (** Round above to an integer value.
     [ceil f] returns the least integer value greater than or equal to [f].
     The result is returned as a float. *)
 
-val floor : float32# -> float32#
+val floor : t -> t
 (** Round below to an integer value.
     [floor f] returns the greatest integer value less than or
     equal to [f].
     The result is returned as a float. *)
 
-val next_after : float32# -> float32# -> float32#
+val next_after : t -> t -> t
 (** [next_after x y] returns the next representable floating-point
    value following [x] in the direction of [y].  More precisely, if
    [y] is greater (resp. less) than [x], it returns the smallest
@@ -316,13 +319,13 @@ val next_after : float32# -> float32# -> float32#
    If [x] is the smallest denormalized positive number,
    [next_after x #0. = #0.] *)
 
-val copy_sign : float32# -> float32# -> float32#
+val copy_sign : t -> t -> t
 (** [copy_sign x y] returns a float whose absolute value is that of [x]
     and whose sign is that of [y].  If [x] is [nan], returns [nan].
     If [y] is [nan], returns either [x] or [-. x], but it is not
     specified which. *)
 
-val sign_bit : float32# -> bool
+val sign_bit : t -> bool
 (** [sign_bit x] is [true] if and only if the sign bit of [x] is set.
     For example [sign_bit #1.] and [signbit #0.] are [false] while
     [sign_bit #-1.] and [sign_bit #-0.] are [true]. *)
@@ -330,11 +333,8 @@ val sign_bit : float32# -> bool
 (* CR layouts v5: add back [frexp], [modf], [min_max] and [min_max_num] when we
    have float32s in structures. *)
 
-val ldexp : float32# -> int -> float32#
+val ldexp : t -> int -> t
 (** [ldexp x n] returns [x *. #2 ** n]. *)
-
-type t = float32#
-(** An alias for the type of unboxed floating-point numbers. *)
 
 val compare: t -> t -> int
 (** [compare x y] returns [0] if [x] is equal to [y], a negative integer if [x]
@@ -350,7 +350,7 @@ val min : t -> t -> t
 (** [min x y] returns the minimum of [x] and [y].  It returns [nan]
     when [x] or [y] is [nan].  Moreover [min #-0.s #+0.s = #-0.s] *)
 
-val max : float32# -> float32# -> float32#
+val max : t -> t -> t
 (** [max x y] returns the maximum of [x] and [y].  It returns [nan]
     when [x] or [y] is [nan].  Moreover [max #-0.s #+0.s = #+0.s] *)
 

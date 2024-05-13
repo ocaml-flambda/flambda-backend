@@ -17,9 +17,11 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-external to_int32 : int32# -> (int32[@local_opt]) = "%box_int32"
+type t = int32#
 
-external of_int32 : (int32[@local_opt]) -> int32# = "%unbox_int32"
+external to_int32 : t -> (int32[@local_opt]) = "%box_int32"
+
+external of_int32 : (int32[@local_opt]) -> t = "%unbox_int32"
 
 let[@inline always] neg x = of_int32 (Int32.neg (to_int32 x))
 
@@ -81,8 +83,6 @@ let[@inline always] float_of_bits x = Int32.float_of_bits (to_int32 x)
 let[@inline always] of_string x = of_int32 (Int32.of_string x)
 
 let[@inline always] to_string x = (Int32.to_string[@inlined]) (to_int32 x)
-
-type t = int32#
 
 let[@inline always] compare x y =
   (Int32.compare[@inlined]) (to_int32 x) (to_int32 y)

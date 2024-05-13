@@ -29,6 +29,9 @@ open! Stdlib
    [nativeint#] are wrapping, not truncating.
 *)
 
+type t = nativeint#
+(** An alias for the type of unboxed native integers. *)
+
 (* CR layouts v2.1: add back this comment to the above when we support
    literals.
 
@@ -41,10 +44,10 @@ open! Stdlib
 *)
 
 (* Unboxed-specific stuff at the top. *)
-external to_nativeint : nativeint# -> (nativeint[@local_opt]) = "%box_nativeint"
+external to_nativeint : t -> (nativeint[@local_opt]) = "%box_nativeint"
 (** Box a [nativeint#] *)
 
-external of_nativeint : (nativeint[@local_opt]) -> nativeint# =
+external of_nativeint : (nativeint[@local_opt]) -> t =
   "%unbox_nativeint"
 (** Unbox a boxed [nativeint] *)
 
@@ -65,30 +68,30 @@ external of_nativeint : (nativeint[@local_opt]) -> nativeint# =
  * val minus_one : nativeint#
  * (** The unboxed native integer -1.*) *)
 
-val neg : nativeint# -> nativeint#
+val neg : t -> t
 (** Unary negation. *)
 
-val add : nativeint# -> nativeint# -> nativeint#
+val add : t -> t -> t
 (** Addition. *)
 
-val sub : nativeint# -> nativeint# -> nativeint#
+val sub : t -> t -> t
 (** Subtraction. *)
 
-val mul : nativeint# -> nativeint# -> nativeint#
+val mul : t -> t -> t
 (** Multiplication. *)
 
-val div : nativeint# -> nativeint# -> nativeint#
+val div : t -> t -> t
 (** Integer division. This division rounds the real quotient of
    its arguments towards zero, as specified for {!Stdlib.(/)}.
 
    @raise Division_by_zero if the second
    argument is zero. *)
 
-val unsigned_div : nativeint# -> nativeint# -> nativeint#
+val unsigned_div : t -> t -> t
 (** Same as {!div}, except that arguments and result are interpreted as {e
     unsigned} unboxed native integers. *)
 
-val rem : nativeint# -> nativeint# -> nativeint#
+val rem : t -> t -> t
 (** Integer remainder.  If [y] is not zero, the result
    of [Nativeint_u.rem x y] satisfies the following properties:
    [Nativeint_u.zero <= Nativeint_u.rem x y < Nativeint_u.abs y] and
@@ -96,19 +99,19 @@ val rem : nativeint# -> nativeint# -> nativeint#
                         (Nativeint_u.rem x y)].
    If [y = 0], [Nativeint_u.rem x y] raises [Division_by_zero]. *)
 
-val unsigned_rem : nativeint# -> nativeint# -> nativeint#
+val unsigned_rem : t -> t -> t
 (** Same as {!rem}, except that arguments and result are interpreted as {e
     unsigned} unboxed native integers. *)
 
-val succ : nativeint# -> nativeint#
+val succ : t -> t
 (** Successor.
    [Nativeint_u.succ x] is [Nativeint_u.add x Nativeint_u.one]. *)
 
-val pred : nativeint# -> nativeint#
+val pred : t -> t
 (** Predecessor.
    [Nativeint_u.pred x] is [Nativeint_u.sub x Nativeint_u.one]. *)
 
-val abs : nativeint# -> nativeint#
+val abs : t -> t
 (** Return the absolute value of its argument. *)
 
 val size : int
@@ -125,31 +128,31 @@ val size : int
  *    either -2{^31} on a 32-bit platform,
  *    or -2{^63} on a 64-bit platform. *) *)
 
-val logand : nativeint# -> nativeint# -> nativeint#
+val logand : t -> t -> t
 (** Bitwise logical and. *)
 
-val logor : nativeint# -> nativeint# -> nativeint#
+val logor : t -> t -> t
 (** Bitwise logical or. *)
 
-val logxor : nativeint# -> nativeint# -> nativeint#
+val logxor : t -> t -> t
 (** Bitwise logical exclusive or. *)
 
-val lognot : nativeint# -> nativeint#
+val lognot : t -> t
 (** Bitwise logical negation. *)
 
-val shift_left : nativeint# -> int -> nativeint#
+val shift_left : t -> int -> t
 (** [Nativeint_u.shift_left x y] shifts [x] to the left by [y] bits.
    The result is unspecified if [y < 0] or [y >= bitsize],
    where [bitsize] is [#32] on a 32-bit platform and
    [#64] on a 64-bit platform. *)
 
-val shift_right : nativeint# -> int -> nativeint#
+val shift_right : t -> int -> t
 (** [Nativeint_u.shift_right x y] shifts [x] to the right by [y] bits.
    This is an arithmetic shift: the sign bit of [x] is replicated
    and inserted in the vacated bits.
    The result is unspecified if [y < 0] or [y >= bitsize]. *)
 
-val shift_right_logical : nativeint# -> int -> nativeint#
+val shift_right_logical : t -> int -> t
 (** [Nativeint_u.shift_right_logical x y] shifts [x] to the right
    by [y] bits.
    This is a logical shift: zeroes are inserted in the vacated bits
@@ -157,53 +160,53 @@ val shift_right_logical : nativeint# -> int -> nativeint#
    The result is unspecified if [y < 0] or [y >= bitsize]. *)
 
 
-val of_int : int -> nativeint#
+val of_int : int -> t
 (** Convert the given integer (type [int]) to an unboxed native integer
    (type [nativeint#]). *)
 
-val to_int : nativeint# -> int
+val to_int : t -> int
 (** Convert the given unboxed native integer (type [nativeint#]) to an
    integer (type [int]).  The high-order bit is lost during
    the conversion. *)
 
-val unsigned_to_int : nativeint# -> int option
+val unsigned_to_int : t -> int option
 (** Same as {!to_int}, but interprets the argument as an {e unsigned} integer.
     Returns [None] if the unsigned value of the argument cannot fit into an
     [int]. *)
 
-val of_float : float -> nativeint#
+val of_float : float -> t
 (** Convert the given floating-point number to an unboxed native integer,
    discarding the fractional part (truncate towards 0).
    If the truncated floating-point number is outside the range
    \[{!Nativeint_u.min_int}, {!Nativeint_u.max_int}\], no exception is raised,
    and an unspecified, platform-dependent integer is returned. *)
 
-val to_float : nativeint# -> float
+val to_float : t -> float
 (** Convert the given unboxed native integer to a floating-point number. *)
 
-val of_int32 : int32 -> nativeint#
+val of_int32 : int32 -> t
 (** Convert the given 32-bit integer (type [int32])
    to an unboxed native integer. *)
 
-val to_int32 : nativeint# -> int32
+val to_int32 : t -> int32
 (** Convert the given unboxed native integer to a
    32-bit integer (type [int32]).  On 64-bit platforms,
    the 64-bit unboxed native integer is taken modulo 2{^32},
    i.e. the top 32 bits are lost.  On 32-bit platforms,
    the conversion is exact. *)
 
-val of_int32_u : int32# -> nativeint#
+val of_int32_u : int32# -> t
 (** Convert the given unboxed 32-bit integer (type [int32])
    to an unboxed native integer. *)
 
-val to_int32_u : nativeint# -> int32#
+val to_int32_u : t -> int32#
 (** Convert the given unboxed native integer to an unboxed
    32-bit integer (type [int32]).  On 64-bit platforms,
    the 64-bit unboxed native integer is taken modulo 2{^32},
    i.e. the top 32 bits are lost.  On 32-bit platforms,
    the conversion is exact. *)
 
-val of_string : string -> nativeint#
+val of_string : string -> t
 (** Convert the given string to an unboxed native integer.
    The string is read in decimal (by default, or if the string
    begins with [0u]) or in hexadecimal, octal or binary if the
@@ -218,14 +221,11 @@ val of_string : string -> nativeint#
    a valid representation of an integer, or if the integer represented
    exceeds the range of integers representable in type [nativeint]. *)
 
-(* val of_string_opt: string -> nativeint# option
+(* val of_string_opt: string -> t option
  * (** Same as [of_string], but return [None] instead of raising. *) *)
 
-val to_string : nativeint# -> string
+val to_string : t -> string
 (** Return the string representation of its argument, in decimal. *)
-
-type t = nativeint#
-(** An alias for the type of unboxed native integers. *)
 
 val compare: t -> t -> int
 (** The comparison function for unboxed native integers, with the same
