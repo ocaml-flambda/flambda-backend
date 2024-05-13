@@ -9,7 +9,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-(** Annotations [@zero_alloc ...] on function declaration (not call sites) *)
+(** [@zero_alloc ...] annotations on function declaration (not call sites) *)
 type t =
   | Default_check
   | Assume of

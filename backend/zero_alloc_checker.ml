@@ -1847,7 +1847,7 @@ module Compilenv_utils : sig
   *)
   val get_value_opt : string -> Value.t option
 
-  (** [set_value f v] record the value of the function named [f] in [Compilenv]. *)
+  (** [set_value f v] records the value of the function named [f] in [Compilenv]. *)
   val set_value : string -> Value.t -> unit
 end = struct
   (* Compact the mapping from function name to Value.t to reduce size of Checks
@@ -1885,15 +1885,10 @@ end = struct
       let div = decode ((d lsr 4) land 3) in
       { nor; exn; div }
 
-  (** [set_value f v] record the value of the function named [f] in [Compilenv]. *)
   let set_value s (v : Value.t) =
     let checks = (Compilenv.current_unit_infos ()).ui_checks in
     Checks.set_value checks s (encode v)
 
-  (** [get_value_opt f] returns the value recorded for function [f] in [Compilenv],
-      either because the check passed or because of user-defined "assume" annotation.
-      If [f] was compiled with checks disabled, returns None.
-  *)
   let get_value_opt s =
     let checks = Compilenv.cached_checks in
     match Checks.get_value checks s with

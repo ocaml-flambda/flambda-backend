@@ -397,7 +397,7 @@ let codegen_option = function
   | No_CSE -> "no_cse"
   | Use_linscan_regalloc -> "linscan"
   | Assume_zero_alloc { strict; never_returns_normally; never_raises; loc = _ } ->
-    Printf.sprintf "assume_%s%s%s"
+    Printf.sprintf "assume_zero_alloc_%s%s%s"
       (if strict then "_strict" else "")
       (if never_returns_normally then "_never_returns_normally" else "")
       (if never_raises then "_never_raises" else "")

@@ -5032,13 +5032,13 @@ let add_check_attribute expr attributes =
   let open Builtin_attributes in
   let to_string : zero_alloc_attribute -> string = function
     | Check { strict; loc = _} ->
-      Printf.sprintf "assert zero_alloc%s"
+      Printf.sprintf "assert_zero_alloc%s"
         (if strict then " strict" else "")
     | Assume { strict; loc = _} ->
-      Printf.sprintf "assume zero_alloc %s"
+      Printf.sprintf "assume_zero_alloc%s"
         (if strict then " strict" else "")
     | Ignore_assert_all ->
-      Printf.sprintf "ignore_zero_alloc"
+      "ignore_zero_alloc"
     | Default_zero_alloc -> assert false
   in
   match expr.exp_desc with
