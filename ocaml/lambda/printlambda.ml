@@ -182,7 +182,7 @@ and value_kind' ppf = function
   | Pvariant { consts; non_consts; } ->
     variant_kind value_kind' ppf ~consts ~non_consts
 
-let rec layout is_top ppf layout_ =
+let rec layout' is_top ppf layout_ =
   match layout_ with
   | Pvalue k -> (if is_top then value_kind else value_kind') ppf k
   | Ptop -> fprintf ppf "[top]"
@@ -191,11 +191,11 @@ let rec layout is_top ppf layout_ =
   | Punboxed_int bi -> fprintf ppf "[unboxed_%s]" (boxed_integer_name bi)
   | Punboxed_vector (Pvec128 v) -> fprintf ppf "[unboxed_%s]" (vec128_name v)
   | Punboxed_product layouts ->
-    fprintf ppf "@[<hov 1>[%a]@]"
-      (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ") (layout false))
+    fprintf ppf "@[<hov 1>#(%a)@]"
+      (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ") (layout' false))
       layouts
 
-let layout ppf layout_ = layout true ppf layout_
+let layout ppf layout_ = layout' true ppf layout_
 
 let return_kind ppf (mode, kind) =
   let smode = alloc_mode_if_local mode in
@@ -504,11 +504,13 @@ let primitive ppf = function
   | Presume -> fprintf ppf "resume"
   | Preperform -> fprintf ppf "reperform"
   | Pmake_unboxed_product layouts ->
-      fprintf ppf "make_unboxed_product [%a]"
-        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") layout) layouts
+      fprintf ppf "make_unboxed_product #(%a)"
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") (layout' false))
+        layouts
   | Punboxed_product_field (n, layouts) ->
-      fprintf ppf "unboxed_product_field %d [%a]" n
-        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") layout) layouts
+      fprintf ppf "unboxed_product_field %d #(%a)" n
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") (layout' false))
+        layouts
   | Pccall p -> fprintf ppf "%s" p.prim_name
   | Praise k -> fprintf ppf "%s" (Lambda.raise_kind k)
   | Psequand -> fprintf ppf "&&"
