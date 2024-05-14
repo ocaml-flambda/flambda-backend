@@ -17,9 +17,11 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-external to_nativeint : nativeint# -> (nativeint[@local_opt]) = "%box_nativeint"
+type t = nativeint#
 
-external of_nativeint : (nativeint[@local_opt]) -> nativeint# =
+external to_nativeint : t -> (nativeint[@local_opt]) = "%box_nativeint"
+
+external of_nativeint : (nativeint[@local_opt]) -> t =
   "%unbox_nativeint"
 
 let[@inline always] neg x = of_nativeint (Nativeint.neg (to_nativeint x))
@@ -104,8 +106,6 @@ let[@inline always] of_string x = of_nativeint (Nativeint.of_string x)
 
 let[@inline always] to_string x =
   (Nativeint.to_string[@inlined]) (to_nativeint x)
-
-type t = nativeint#
 
 let[@inline always] compare x y =
   (Nativeint.compare[@inlined]) (to_nativeint x) (to_nativeint y)

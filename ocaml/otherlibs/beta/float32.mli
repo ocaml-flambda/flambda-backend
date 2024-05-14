@@ -31,110 +31,97 @@
 type t = float32
 (** An alias for the type of 32-bit floating-point numbers. *)
 
-val zero : float32
+val zero : t
 (** The floating point 0.s *)
 
-val one : float32
+val one : t
 (** The floating-point 1.s *)
 
-val minus_one : float32
+val minus_one : t
 (** The floating-point -1.s *)
 
-external neg : (float32[@local_opt]) -> (float32[@local_opt]) = "%negfloat32"
+external neg : (t[@local_opt]) -> (t[@local_opt]) = "%negfloat32"
 (** Unary negation. *)
 
-external add :
-  (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
+external add : (t[@local_opt]) -> (t[@local_opt]) -> (t[@local_opt])
   = "%addfloat32"
 (** Floating-point addition. *)
 
-external sub :
-  (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
+external sub : (t[@local_opt]) -> (t[@local_opt]) -> (t[@local_opt])
   = "%subfloat32"
 (** Floating-point subtraction. *)
 
-external mul :
-  (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
+external mul : (t[@local_opt]) -> (t[@local_opt]) -> (t[@local_opt])
   = "%mulfloat32"
 (** Floating-point multiplication. *)
 
-external div :
-  (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
+external div : (t[@local_opt]) -> (t[@local_opt]) -> (t[@local_opt])
   = "%divfloat32"
 (** Floating-point division. *)
 
-external pow : float32 -> float32 -> float32
-  = "caml_power_float32_bytecode" "powf"
+external pow : t -> t -> t = "caml_power_float32_bytecode" "powf"
   [@@unboxed] [@@noalloc]
 (** Exponentiation. *)
 
 (** Floating-point arithmetic operator overloads. *)
 module Operators : sig
-  external ( ~-. ) : (float32[@local_opt]) -> (float32[@local_opt])
-    = "%negfloat32"
+  external ( ~-. ) : (t[@local_opt]) -> (t[@local_opt]) = "%negfloat32"
   (** Unary negation. *)
 
-  external ( +. ) :
-    (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
+  external ( +. ) : (t[@local_opt]) -> (t[@local_opt]) -> (t[@local_opt])
     = "%addfloat32"
   (** Floating-point addition. *)
 
-  external ( -. ) :
-    (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
+  external ( -. ) : (t[@local_opt]) -> (t[@local_opt]) -> (t[@local_opt])
     = "%subfloat32"
   (** Floating-point subtraction. *)
 
-  external ( *. ) :
-    (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
+  external ( *. ) : (t[@local_opt]) -> (t[@local_opt]) -> (t[@local_opt])
     = "%mulfloat32"
   (** Floating-point multiplication. *)
 
-  external ( /. ) :
-    (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
+  external ( /. ) : (t[@local_opt]) -> (t[@local_opt]) -> (t[@local_opt])
     = "%divfloat32"
   (** Floating-point division. *)
 
-  external ( ** ) : float32 -> float32 -> float32
-    = "caml_power_float32_bytecode" "powf"
+  external ( ** ) : t -> t -> t = "caml_power_float32_bytecode" "powf"
     [@@unboxed] [@@noalloc]
   (** Exponentiation. *)
 end
 
-external fma : float32 -> float32 -> float32 -> float32
-  = "caml_fma_float32_bytecode" "fmaf"
+external fma : t -> t -> t -> t = "caml_fma_float32_bytecode" "fmaf"
   [@@unboxed] [@@noalloc]
 (** [fma x y z] returns [x * y + z], with a best effort for computing
    this expression with a single rounding, using either hardware
    instructions (providing full IEEE compliance) or a software
    emulation. *)
 
-external rem : float32 -> float32 -> float32
-  = "caml_fmod_float32_bytecode" "fmodf"
+external rem : t -> t -> t = "caml_fmod_float32_bytecode" "fmodf"
   [@@unboxed] [@@noalloc]
 (** [rem a b] returns the remainder of [a] with respect to [b].  The returned
     value is [a -. n *. b], where [n] is the quotient [a /. b] rounded towards
     zero to an integer. *)
 
-val succ : float32 -> float32
+val succ : t -> t
 (** [succ x] returns the floating point number right after [x] i.e.,
    the smallest floating-point number greater than [x].  See also
    {!next_after}. *)
 
-val pred : float32 -> float32
+val pred : t -> t
 (** [pred x] returns the floating-point number right before [x] i.e.,
    the greatest floating-point number smaller than [x].  See also
    {!next_after}. *)
 
-external abs : (float32[@local_opt]) -> (float32[@local_opt]) = "%absfloat32"
+external abs : (t[@local_opt]) -> (t[@local_opt]) = "%absfloat32"
 (** [abs f] returns the absolute value of [f]. *)
 
-val infinity : float32
+val infinity : t
 (** Positive infinity. *)
 
-val neg_infinity : float32
+val neg_infinity : t
 (** Negative infinity. *)
 
-val nan : float32
+val nan : t
 (** A special floating-point value denoting the result of an
     undefined operation such as [0.0s /. 0.0s].  Stands for
     'not a number'.  Any floating-point operation with [nan] as
@@ -143,62 +130,62 @@ val nan : float32
     [=], [<], [<=], [>] and [>=] return [false] and [<>] returns [true]
     if one or both of their arguments is [nan]. *)
 
-val pi : float32
+val pi : t
 (** The constant pi. *)
 
-val max_float : float32
+val max_float : t
 (** The largest positive finite value of type [float32]. *)
 
-val min_float : float32
+val min_float : t
 (** The smallest positive, non-zero, non-denormalized value of type [float32]. *)
 
-val epsilon : float32
+val epsilon : t
 (** The difference between [1.0s] and the smallest exactly representable
     floating-point number greater than [1.0s]. *)
 
-val is_finite : float32 -> bool
+val is_finite : t -> bool
 (** [is_finite x] is [true] if and only if [x] is finite i.e., not infinite and
    not {!nan}. *)
 
-val is_infinite : float32 -> bool
+val is_infinite : t -> bool
 (** [is_infinite x] is [true] if and only if [x] is {!infinity} or
     {!neg_infinity}. *)
 
-val is_nan : float32 -> bool
+val is_nan : t -> bool
 (** [is_nan x] is [true] if and only if [x] is not a number (see {!nan}). *)
 
-val is_integer : float32 -> bool
+val is_integer : t -> bool
 (** [is_integer x] is [true] if and only if [x] is an integer. *)
 
-external of_float : (float[@local_opt]) -> float32 = "%float32offloat"
+external of_float : (float[@local_opt]) -> t = "%float32offloat"
 (** Convert a 64-bit float to the nearest representable 32-bit float. *)
 
-external to_float : (float32[@local_opt]) -> float = "%floatoffloat32"
+external to_float : (t[@local_opt]) -> float = "%floatoffloat32"
 (** Convert a 32-bit float to a 64-bit float. *)
 
-external of_int : int -> float32 = "%float32ofint"
+external of_int : int -> t = "%float32ofint"
 (** Convert an integer to floating-point. *)
 
-external to_int : (float32[@local_opt]) -> int = "%intoffloat32"
+external to_int : (t[@local_opt]) -> int = "%intoffloat32"
 (** Truncate the given floating-point number to an integer.
     The result is unspecified if the argument is [nan] or falls outside the
     range of representable integers. *)
 
-external of_bits : (int32[@local_opt]) -> float32
+external of_bits : (int32[@local_opt]) -> t
   = "caml_float32_of_bits_bytecode" "caml_float32_of_bits"
   [@@unboxed] [@@noalloc] [@@builtin]
 (** Convert a 32-bit float to a 32-bit integer, preserving the value's
     bit pattern.
     The amd64 flambda-backend compiler translates this call to MOVD. *)
 
-external to_bits : (float32[@local_opt]) -> int32
+external to_bits : (t[@local_opt]) -> int32
   = "caml_float32_to_bits_bytecode" "caml_float32_to_bits"
   [@@unboxed] [@@noalloc] [@@builtin]
 (** Convert a 32-bit integer to a 32-bit float, preserving the value's
     bit pattern.
     The amd64 flambda-backend compiler translates this call to MOVD. *)
 
-external of_string : string -> float32 = "caml_float32_of_string"
+external of_string : string -> t = "caml_float32_of_string"
 (** Convert the given string to a float.  The string is read in decimal
     (by default) or in hexadecimal (marked by [0x] or [0X]).
     The format of decimal floating-point numbers is
@@ -215,10 +202,10 @@ external of_string : string -> float32 = "caml_float32_of_string"
     @raise Failure if the given string is not a valid
     representation of a float32. *)
 
-val of_string_opt : string -> float32 option
+val of_string_opt : string -> t option
 (** Same as [of_string], but returns [None] instead of raising. *)
 
-val to_string : float32 -> string
+val to_string : t -> string
 (** Return a string representation of a floating-point number.
 
     This conversion does not involve a loss of precision. *)
@@ -232,87 +219,85 @@ type fpclass = Stdlib.fpclass =
   | FP_infinite  (** Number is positive or negative infinity *)
   | FP_nan  (** Not a number: result of an undefined operation *)
 
-external classify_float : (float32[@unboxed]) -> fpclass
+external classify_float : (t[@unboxed]) -> fpclass
   = "caml_classify_float32_bytecode" "caml_classify_float32"
   [@@noalloc]
 (** Return the class of the given floating-point number:
     normal, subnormal, zero, infinite, or not a number. *)
 
-external sqrt : float32 -> float32 = "caml_sqrt_float32_bytecode" "sqrtf"
+external sqrt : t -> t = "caml_sqrt_float32_bytecode" "sqrtf"
   [@@unboxed] [@@noalloc] [@@builtin]
 (** Square root.
     The amd64 flambda-backend compiler translates this call to SQRTSS. *)
 
-external cbrt : float32 -> float32 = "caml_cbrt_float32_bytecode" "cbrtf"
+external cbrt : t -> t = "caml_cbrt_float32_bytecode" "cbrtf"
   [@@unboxed] [@@noalloc]
 (** Cube root. *)
 
-external exp : float32 -> float32 = "caml_exp_float32_bytecode" "expf"
+external exp : t -> t = "caml_exp_float32_bytecode" "expf"
   [@@unboxed] [@@noalloc]
 (** Exponential. *)
 
-external exp2 : float32 -> float32 = "caml_exp2_float32_bytecode" "exp2f"
+external exp2 : t -> t = "caml_exp2_float32_bytecode" "exp2f"
   [@@unboxed] [@@noalloc]
 (** Base 2 exponential function. *)
 
-external log : float32 -> float32 = "caml_log_float32_bytecode" "logf"
+external log : t -> t = "caml_log_float32_bytecode" "logf"
   [@@unboxed] [@@noalloc]
 (** Natural logarithm. *)
 
-external log10 : float32 -> float32 = "caml_log10_float32_bytecode" "log10f"
+external log10 : t -> t = "caml_log10_float32_bytecode" "log10f"
   [@@unboxed] [@@noalloc]
 (** Base 10 logarithm. *)
 
-external log2 : float32 -> float32 = "caml_log2_float32_bytecode" "log2f"
+external log2 : t -> t = "caml_log2_float32_bytecode" "log2f"
   [@@unboxed] [@@noalloc]
 (** Base 2 logarithm. *)
 
-external expm1 : float32 -> float32 = "caml_expm1_float32_bytecode" "expm1f"
+external expm1 : t -> t = "caml_expm1_float32_bytecode" "expm1f"
   [@@unboxed] [@@noalloc]
 (** [expm1 x] computes [exp x -. 1.0], giving numerically-accurate results
     even if [x] is close to [0.0]. *)
 
-external log1p : float32 -> float32 = "caml_log1p_float32_bytecode" "log1pf"
+external log1p : t -> t = "caml_log1p_float32_bytecode" "log1pf"
   [@@unboxed] [@@noalloc]
 (** [log1p x] computes [log(1.0 +. x)] (natural logarithm),
     giving numerically-accurate results even if [x] is close to [0.0]. *)
 
-external cos : float32 -> float32 = "caml_cos_float32_bytecode" "cosf"
+external cos : t -> t = "caml_cos_float32_bytecode" "cosf"
   [@@unboxed] [@@noalloc]
 (** Cosine.  Argument is in radians. *)
 
-external sin : float32 -> float32 = "caml_sin_float32_bytecode" "sinf"
+external sin : t -> t = "caml_sin_float32_bytecode" "sinf"
   [@@unboxed] [@@noalloc]
 (** Sine.  Argument is in radians. *)
 
-external tan : float32 -> float32 = "caml_tan_float32_bytecode" "tanf"
+external tan : t -> t = "caml_tan_float32_bytecode" "tanf"
   [@@unboxed] [@@noalloc]
 (** Tangent.  Argument is in radians. *)
 
-external acos : float32 -> float32 = "caml_acos_float32_bytecode" "acosf"
+external acos : t -> t = "caml_acos_float32_bytecode" "acosf"
   [@@unboxed] [@@noalloc]
 (** Arc cosine.  The argument must fall within the range [[-1.0, 1.0]].
     Result is in radians and is between [0.0] and [pi]. *)
 
-external asin : float32 -> float32 = "caml_asin_float32_bytecode" "asinf"
+external asin : t -> t = "caml_asin_float32_bytecode" "asinf"
   [@@unboxed] [@@noalloc]
 (** Arc sine.  The argument must fall within the range [[-1.0, 1.0]].
     Result is in radians and is between [-pi/2] and [pi/2]. *)
 
-external atan : float32 -> float32 = "caml_atan_float32_bytecode" "atanf"
+external atan : t -> t = "caml_atan_float32_bytecode" "atanf"
   [@@unboxed] [@@noalloc]
 (** Arc tangent.
     Result is in radians and is between [-pi/2] and [pi/2]. *)
 
-external atan2 : float32 -> float32 -> float32
-  = "caml_atan2_float32_bytecode" "atan2f"
+external atan2 : t -> t -> t = "caml_atan2_float32_bytecode" "atan2f"
   [@@unboxed] [@@noalloc]
 (** [atan2 y x] returns the arc tangent of [y /. x].  The signs of [x]
     and [y] are used to determine the quadrant of the result.
     Result is in radians and is between [-pi] and [pi]. *)
 
-external hypot : float32 -> float32 -> float32
-  = "caml_hypot_float32_bytecode" "hypotf"
+external hypot : t -> t -> t = "caml_hypot_float32_bytecode" "hypotf"
   [@@unboxed] [@@noalloc]
 (** [hypot x y] returns [sqrt(x *. x +. y *. y)], that is, the length
     of the hypotenuse of a right-angled triangle with sides of length
@@ -320,53 +305,53 @@ external hypot : float32 -> float32 -> float32
     to origin.  If one of [x] or [y] is infinite, returns [infinity]
     even if the other is [nan]. *)
 
-external cosh : float32 -> float32 = "caml_cosh_float32_bytecode" "coshf"
+external cosh : t -> t = "caml_cosh_float32_bytecode" "coshf"
   [@@unboxed] [@@noalloc]
 (** Hyperbolic cosine.  Argument is in radians. *)
 
-external sinh : float32 -> float32 = "caml_sinh_float32_bytecode" "sinhf"
+external sinh : t -> t = "caml_sinh_float32_bytecode" "sinhf"
   [@@unboxed] [@@noalloc]
 (** Hyperbolic sine.  Argument is in radians. *)
 
-external tanh : float32 -> float32 = "caml_tanh_float32_bytecode" "tanhf"
+external tanh : t -> t = "caml_tanh_float32_bytecode" "tanhf"
   [@@unboxed] [@@noalloc]
 (** Hyperbolic tangent.  Argument is in radians. *)
 
-external acosh : float32 -> float32 = "caml_acosh_float32_bytecode" "acoshf"
+external acosh : t -> t = "caml_acosh_float32_bytecode" "acoshf"
   [@@unboxed] [@@noalloc]
 (** Hyperbolic arc cosine.  The argument must fall within the range
     [[1.0, inf]].
     Result is in radians and is between [0.0] and [inf]. *)
 
-external asinh : float32 -> float32 = "caml_asinh_float32_bytecode" "asinhf"
+external asinh : t -> t = "caml_asinh_float32_bytecode" "asinhf"
   [@@unboxed] [@@noalloc]
 (** Hyperbolic arc sine.  The argument and result range over the entire
     real line.
     Result is in radians. *)
 
-external atanh : float32 -> float32 = "caml_atanh_float32_bytecode" "atanhf"
+external atanh : t -> t = "caml_atanh_float32_bytecode" "atanhf"
   [@@unboxed] [@@noalloc]
 (** Hyperbolic arc tangent.  The argument must fall within the range
     [[-1.0, 1.0]].
     Result is in radians and ranges over the entire real line. *)
 
-external erf : float32 -> float32 = "caml_erf_float32_bytecode" "erff"
+external erf : t -> t = "caml_erf_float32_bytecode" "erff"
   [@@unboxed] [@@noalloc]
 (** Error function.  The argument ranges over the entire real line.
     The result is always within [[-1.0, 1.0]]. *)
 
-external erfc : float32 -> float32 = "caml_erfc_float32_bytecode" "erfcf"
+external erfc : t -> t = "caml_erfc_float32_bytecode" "erfcf"
   [@@unboxed] [@@noalloc]
 (** Complementary error function ([erfc x = 1 - erf x]).
     The argument ranges over the entire real line.
     The result is always within [[-1.0, 1.0]]. *)
 
-external trunc : float32 -> float32 = "caml_trunc_float32_bytecode" "truncf"
+external trunc : t -> t = "caml_trunc_float32_bytecode" "truncf"
   [@@unboxed] [@@noalloc]
 (** [trunc x] rounds [x] to the nearest integer whose absolute value is
    less than or equal to [x]. *)
 
-external round : float32 -> float32 = "caml_round_float32_bytecode" "roundf"
+external round : t -> t = "caml_round_float32_bytecode" "roundf"
   [@@unboxed] [@@noalloc]
 (** [round x] rounds [x] to the nearest integer with ties (fractional
    values of 0.5s) rounded away from zero, regardless of the current
@@ -376,20 +361,20 @@ external round : float32 -> float32 = "caml_round_float32_bytecode" "roundf"
    On 64-bit mingw-w64, this function may be emulated owing to a bug in the
    C runtime library (CRT) on this platform. *)
 
-external ceil : float32 -> float32 = "caml_ceil_float32_bytecode" "ceilf"
+external ceil : t -> t = "caml_ceil_float32_bytecode" "ceilf"
   [@@unboxed] [@@noalloc]
 (** Round above to an integer value.
     [ceil f] returns the least integer value greater than or equal to [f].
     The result is returned as a float32. *)
 
-external floor : float32 -> float32 = "caml_floor_float32_bytecode" "floorf"
+external floor : t -> t = "caml_floor_float32_bytecode" "floorf"
   [@@unboxed] [@@noalloc]
 (** Round below to an integer value.
     [floor f] returns the greatest integer value less than or
     equal to [f].
     The result is returned as a float32. *)
 
-external next_after : float32 -> float32 -> float32
+external next_after : t -> t -> t
   = "caml_nextafter_float32_bytecode" "nextafterf"
   [@@unboxed] [@@noalloc]
 (** [next_after x y] returns the next representable floating-point
@@ -403,79 +388,78 @@ external next_after : float32 -> float32 -> float32
    If [x] is the smallest denormalized positive number,
    [next_after x 0.s = 0.s] *)
 
-external copy_sign : float32 -> float32 -> float32
-  = "caml_copysign_float32_bytecode" "copysignf"
+external copy_sign : t -> t -> t = "caml_copysign_float32_bytecode" "copysignf"
   [@@unboxed] [@@noalloc]
 (** [copy_sign x y] returns a float whose absolute value is that of [x]
     and whose sign is that of [y].  If [x] is [nan], returns [nan].
     If [y] is [nan], returns either [x] or [-. x], but it is not
     specified which. *)
 
-external sign_bit : (float32[@unboxed]) -> bool
+external sign_bit : (t[@unboxed]) -> bool
   = "caml_signbit_float32_bytecode" "caml_signbit_float32"
   [@@noalloc]
 (** [sign_bit x] is [true] if and only if the sign bit of [x] is set.
     For example [sign_bit 1.] and [signbit 0.] are [false] while
     [sign_bit (-1.)] and [sign_bit (-0.)] are [true]. *)
 
-external frexp : float32 -> float32 * int = "caml_frexp_float32"
+external frexp : t -> t * int = "caml_frexp_float32"
 (** [frexp f] returns the pair of the significant
     and the exponent of [f].  When [f] is zero, the
     significant [x] and the exponent [n] of [f] are equal to
     zero.  When [f] is non-zero, they are defined by
     [f = x *. 2 ** n] and [0.5 <= x < 1.0]. *)
 
-external ldexp : (float32[@unboxed]) -> (int[@untagged]) -> (float32[@unboxed])
+external ldexp : (t[@unboxed]) -> (int[@untagged]) -> (t[@unboxed])
   = "caml_ldexp_float32_bytecode" "caml_ldexp_float32"
   [@@noalloc]
 (** [ldexp x n] returns [x *. 2 ** n]. *)
 
-external modf : float32 -> float32 * float32 = "caml_modf_float32"
+external modf : t -> t * t = "caml_modf_float32"
 (** [modf f] returns the pair of the fractional and integral
     part of [f]. *)
 
-val compare : float32 -> float32 -> int
+val compare : t -> t -> int
 (** [compare x y] returns [0] if [x] is equal to [y], a negative integer if [x]
     is less than [y], and a positive integer if [x] is greater than
     [y]. [compare] treats [nan] as equal to itself and less than any other float
     value.  This treatment of [nan] ensures that [compare] defines a total
     ordering relation.  *)
 
-val equal : float32 -> float32 -> bool
+val equal : t -> t -> bool
 (** The equal function for floating-point numbers, compared using {!compare}. *)
 
-val min : float32 -> float32 -> float32
+val min : t -> t -> t
 (** [min x y] returns the minimum of [x] and [y].  It returns [nan]
    when [x] or [y] is [nan].  Moreover [min (-0.s) (+0.s) = -0.s] *)
 
-val max : float32 -> float32 -> float32
+val max : t -> t -> t
 (** [max x y] returns the maximum of [x] and [y].  It returns [nan]
    when [x] or [y] is [nan].  Moreover [max (-0.s) (+0.s) = +0.s] *)
 
-val min_max : float32 -> float32 -> float32 * float32
+val min_max : t -> t -> t * t
 (** [min_max x y] is [(min x y, max x y)], just more efficient. *)
 
-val min_num : float32 -> float32 -> float32
+val min_num : t -> t -> t
 (** [min_num x y] returns the minimum of [x] and [y] treating [nan] as
    missing values.  If both [x] and [y] are [nan], [nan] is returned.
    Moreover [min_num (-0.s) (+0.s) = -0.s] *)
 
-val max_num : float32 -> float32 -> float32
+val max_num : t -> t -> t
 (** [max_num x y] returns the maximum of [x] and [y] treating [nan] as
    missing values.  If both [x] and [y] are [nan] [nan] is returned.
    Moreover [max_num (-0.s) (+0.s) = +0.s] *)
 
-val min_max_num : float32 -> float32 -> float32 * float32
+val min_max_num : t -> t -> t * t
 (** [min_max_num x y] is [(min_num x y, max_num x y)], just more
    efficient.  Note that in particular [min_max_num x nan = (x, x)]
    and [min_max_num nan y = (y, y)]. *)
 
-val seeded_hash : int -> float32 -> int
+val seeded_hash : int -> t -> int
 (** A seeded hash function for floats, with the same output value as
     {!Hashtbl.seeded_hash}. This function allows this module to be passed as
     argument to the functor {!Hashtbl.MakeSeeded}. *)
 
-val hash : float32 -> int
+val hash : t -> int
 (** An unseeded hash function for floats, with the same output value as
     {!Hashtbl.hash}. This function allows this module to be passed as argument
     to the functor {!Hashtbl.Make}. *)
