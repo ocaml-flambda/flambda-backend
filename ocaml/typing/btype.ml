@@ -265,7 +265,7 @@ let fold_row f init row =
 let iter_row f row =
   fold_row (fun () v -> f v) () row
 
-let fold_type_expr f init ty =
+let fold_type_expr ?(allow_tsubst=false) f init ty =
   match get_desc ty with
     Tvar _              -> init
   | Tarrow (_, ty1, ty2, _) ->
@@ -284,20 +284,21 @@ let fold_type_expr f init ty =
       let result = f init ty1 in
       f result ty2
   | Tnil                -> init
-  | Tlink _
-  | Tsubst _            -> assert false
+  | Tlink _ -> assert false
+  | Tsubst (_ty, _oty)    ->
+    assert allow_tsubst; init
   | Tunivar _           -> init
   | Tpoly (ty, tyl)     ->
     let result = f init ty in
     List.fold_left f result tyl
   | Tpackage (_, fl)  ->
     List.fold_left (fun result (_n, ty) -> f result ty) init fl
-  | Tfunctor (_, (_, fl), ty) ->
+  | Tfunctor (_, _, (_, fl), ty) ->
       let res = List.fold_left (fun result (_n, ty) -> f result ty) init fl in
       f res ty
 
-let iter_type_expr f ty =
-  fold_type_expr (fun () v -> f v) () ty
+let iter_type_expr ?(allow_tsubst=false) f ty =
+  fold_type_expr ~allow_tsubst (fun () v -> f v) () ty
 
 let rec iter_abbrev f = function
     Mnil                   -> ()
@@ -414,7 +415,7 @@ let type_iterators =
     match get_desc ty with
       Tconstr (p, _, _)
     | Tobject (_, {contents=Some (p, _)})
-    | Tfunctor (_, (p, _), _)
+    | Tfunctor (_, _, (p, _), _)
     | Tpackage (p, _) ->
         it.it_path p
     | Tvariant row ->
@@ -472,8 +473,8 @@ let rec copy_type_desc ?(keep_names=false) f = function
       let tyl = List.map f tyl in
       Tpoly (f ty, tyl)
   | Tpackage (p, fl)  -> Tpackage (p, List.map (fun (n, ty) -> (n, f ty)) fl)
-  | Tfunctor (id, (p, fl), ty) ->
-      Tfunctor (id, (p, List.map (fun (n, ty) -> (n, f ty)) fl), f ty)    
+  | Tfunctor (l, id, (p, fl), ty) ->
+      Tfunctor (l, id, (p, List.map (fun (n, ty) -> (n, f ty)) fl), f ty)    
 
 (* Utilities for copying *)
 

@@ -242,7 +242,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
         build_object_init ~scopes cl_table obj params inh_init obj_init cl
       in
       let oexprs = List.map (fun (l, arg) -> match arg with
-        | Arg (e, s) -> (l, Arg (Targ_expr (e, s)))
+        | Arg (e, s) -> (l, Arg (e, s))
         | Omitted o -> (l, Omitted o)) oexprs
       in
       (inh_init, transl_apply ~scopes ~result_layout:layout_object obj_init oexprs Loc_unknown)
@@ -534,10 +534,6 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
   | Tcl_apply (cl, oexprs) ->
       let path, path_lam, obj_init =
         transl_class_rebind ~scopes obj_init cl vf in
-      let oexprs = List.map (fun (l, arg) -> match arg with
-      | Arg (e, s) -> (l, Arg (Targ_expr (e, s)))
-      | Omitted o -> (l, Omitted o)) oexprs
-      in
       (path, path_lam, transl_apply ~scopes ~result_layout:layout_class obj_init oexprs Loc_unknown)
   | Tcl_let (rec_flag, defs, _vals, cl) ->
       let path, path_lam, obj_init =

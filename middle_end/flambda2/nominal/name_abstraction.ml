@@ -83,19 +83,19 @@ module Make (Bindable : Bindable.S) (Term : Term) = struct
   let[@inline always] pattern_match (bindable, term) ~f =
     pattern_match
       (module Bindable)
-      (bindable, term) ~f ~apply_renaming_to_term:Term.apply_renaming
+      (bindable, term) ~apply_renaming_to_term:Term.apply_renaming ~f
 
   let[@inline always] pattern_match_for_printing (bindable, term) ~f =
     pattern_match_for_printing
       (module Bindable)
-      (bindable, term) ~f ~apply_renaming_to_term:Term.apply_renaming
+      (bindable, term) ~apply_renaming_to_term:Term.apply_renaming ~f
 
   let[@inline always] pattern_match_pair (bindable0, term0) (bindable1, term1)
       ~f =
     pattern_match_pair
       (module Bindable)
-      (bindable0, term0) (bindable1, term1) ~f
-      ~apply_renaming_to_term:Term.apply_renaming
+      (bindable0, term0) (bindable1, term1)
+      ~apply_renaming_to_term:Term.apply_renaming ~f
 
   let apply_renaming t renaming =
     apply_renaming

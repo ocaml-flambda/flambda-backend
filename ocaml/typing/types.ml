@@ -49,7 +49,7 @@ and type_desc =
   | Tunivar of { name : string option; jkind : jkind }
   | Tpoly of type_expr * type_expr list
   | Tpackage of Path.t * (Longident.t * type_expr) list
-  | Tfunctor of Ident.t
+  | Tfunctor of arrow_desc * Ident.unscoped
                 * (Path.t * (Longident.t * type_expr) list) * type_expr
 
 and arg_label =
@@ -762,6 +762,7 @@ type change =
   | Cuniv : type_expr option ref * type_expr option -> change
   | Cmodes : Mode.changes -> change
   | Csort : Jkind_types.Sort.change -> change
+  | Cunscoped: Ident.change -> change
 
 type changes =
     Change of change * changes ref
@@ -777,7 +778,8 @@ let log_change ch =
 
 let () =
   Mode.set_append_changes (fun changes -> log_change (Cmodes !changes));
-  Jkind_types.Sort.set_change_log (fun change -> log_change (Csort change))
+  Jkind_types.Sort.set_change_log (fun change -> log_change (Csort change));
+  Ident.change_log := (fun change -> log_change (Cunscoped change))
 
 (* constructor and accessors for [field_kind] *)
 
@@ -1028,6 +1030,7 @@ let undo_change = function
   | Cuniv  (r, v)    -> r := v
   | Cmodes c          -> Mode.undo_changes c
   | Csort change -> Jkind_types.Sort.undo_change change
+  | Cunscoped change -> Ident.undo_change change
 
 type snapshot = changes ref * int
 let last_snapshot = Local_store.s_ref 0

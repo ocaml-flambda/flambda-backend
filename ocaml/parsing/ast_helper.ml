@@ -71,7 +71,7 @@ module Typ = struct
   let variant ?loc ?attrs a b c = mk ?loc ?attrs (Ptyp_variant (a, b, c))
   let poly ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_poly (a, b))
   let package ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_package (a, b))
-  let functor_ ?loc ?attrs a b c = mk ?loc ?attrs (Ptyp_functor (a, b, c))
+  let functor_ ?loc ?attrs a b c d = mk ?loc ?attrs (Ptyp_functor (a, b, c, d))
   let extension ?loc ?attrs a = mk ?loc ?attrs (Ptyp_extension a)
 
   let force_poly t =
@@ -127,9 +127,9 @@ module Typ = struct
             Ptyp_package(longident,List.map (fun (n,typ) -> (n,loop typ) ) lst)
         | Ptyp_extension (s, arg) ->
             Ptyp_extension (s, arg)
-        | Ptyp_functor (name, (longident, lst), codomain) ->
+        | Ptyp_functor (lbl, name, (longident, lst), codomain) ->
             Ptyp_functor
-                (name,
+                (lbl, name,
                 (longident, List.map (fun (n, typ) -> (n, loop typ)) lst),
                 loop codomain)
       in
@@ -196,7 +196,6 @@ module Exp = struct
   let let_ ?loc ?attrs a b c = mk ?loc ?attrs (Pexp_let (a, b, c))
   let fun_ ?loc ?attrs a b c d = mk ?loc ?attrs (Pexp_fun (a, b, c, d))
   let function_ ?loc ?attrs a = mk ?loc ?attrs (Pexp_function a)
-  let functor_ ?loc ?attrs a b c = mk ?loc ?attrs (Pexp_functor (a, b, c))
   let apply ?loc ?attrs a b = mk ?loc ?attrs (Pexp_apply (a, b))
   let match_ ?loc ?attrs a b = mk ?loc ?attrs (Pexp_match (a, b))
   let try_ ?loc ?attrs a b = mk ?loc ?attrs (Pexp_try (a, b))
@@ -245,9 +244,6 @@ module Exp = struct
       pbop_exp = exp;
       pbop_loc = loc;
     }
-
-  let arg_expr expr = Parg_expr expr
-  let arg_mod mexpr = Parg_module mexpr
 end
 
 module Mty = struct

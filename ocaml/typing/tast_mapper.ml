@@ -21,7 +21,6 @@ open Typedtree
 
 type mapper =
   {
-    argument : mapper -> argument -> argument;
     attribute : mapper -> attribute -> attribute;
     attributes : mapper -> attributes -> attributes;
     binding_op: mapper -> binding_op -> binding_op;
@@ -338,8 +337,6 @@ let function_param sub
   let fp_kind =
     match fp_kind with
     | Tparam_pat pat -> Tparam_pat (sub.pat sub pat)
-    | Tparam_module (pat, pack) ->
-      Tparam_module (sub.pat sub pat, sub.package_type sub pack)
     | Tparam_optional_default (pat, expr, sort) ->
       let pat = sub.pat sub pat in
       let expr = sub.expr sub expr in
@@ -448,7 +445,7 @@ let expr sub x =
         Texp_apply (
           sub.expr sub exp,
           List.map (function
-            | (lbl, Arg arg) -> (lbl, Arg (sub.argument sub arg))
+            | (lbl, Arg (exp, sort)) -> (lbl, Arg (sub.expr sub exp, sort))
             | (lbl, Omitted o) -> (lbl, Omitted o))
             list,
           pos, am, za
@@ -610,12 +607,6 @@ let binding_op sub x =
   let bop_loc = sub.location sub x.bop_loc in
   let bop_op_name = map_loc sub x.bop_op_name in
   { x with bop_loc; bop_op_name; bop_exp = sub.expr sub x.bop_exp }
-
-let argument sub = function
-  | Targ_module me ->
-      Targ_module (sub.module_expr sub me)
-  | Targ_expr (e, sort) ->
-      Targ_expr (sub.expr sub e, sort)
 
 let signature sub x =
   let sig_final_env = sub.env sub x.sig_final_env in
@@ -905,8 +896,8 @@ let typ sub x =
         Ttyp_poly (List.map (var_jkind sub) vars, sub.typ sub ct)
     | Ttyp_package pack ->
         Ttyp_package (sub.package_type sub pack)
-    | Ttyp_functor (id, pack, t) ->
-        Ttyp_functor (map_loc sub id,
+    | Ttyp_functor (lbl, id, pack, t) ->
+        Ttyp_functor (lbl, map_loc sub id,
                       sub.package_type sub pack, sub.typ sub t)
   in
   let ctyp_attributes = sub.attributes sub x.ctyp_attributes in
@@ -990,7 +981,6 @@ let jkind_annotation sub (c, l) = (c, map_loc sub l)
 
 let default =
   {
-    argument;
     attribute;
     attributes;
     binding_op;
