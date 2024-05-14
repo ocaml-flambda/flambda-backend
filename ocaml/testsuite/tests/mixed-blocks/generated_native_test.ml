@@ -1,6 +1,7 @@
 (* TEST
  flags = "-extension layouts_beta -extension small_numbers";
  include beta;
+ include stable;
  flambda2;
  native;
 *)
@@ -11,11 +12,11 @@ let create_string () = String.make (Random.int 100) 'a'
 let create_int () = Random.int 0x3FFF_FFFF
 let create_float () = Random.float Float.max_float
 let create_float32 () = Beta.Float32.of_float (Random.float Float.max_float)
-let create_float_u () = Stdlib__Float_u.of_float (create_float ())
+let create_float_u () = Stable.Float_u.of_float (create_float ())
 let create_float32_u () = Beta.Float32_u.of_float32 (create_float32 ())
-let create_int32_u () = Stdlib__Int32_u.of_int32 (Random.int32 0x7FFF_FFFFl)
-let create_int64_u () = Stdlib__Int64_u.of_int64 (Random.int64 0x7FFF_FFFF_FFFF_FFFFL)
-let create_nativeint_u () = Stdlib__Nativeint_u.of_nativeint (Random.nativeint 0x7FFF_FFFF_FFFF_FFFFn)
+let create_int32_u () = Stable.Int32_u.of_int32 (Random.int32 0x7FFF_FFFFl)
+let create_int64_u () = Stable.Int64_u.of_int64 (Random.int64 0x7FFF_FFFF_FFFF_FFFFL)
+let create_nativeint_u () = Stable.Nativeint_u.of_nativeint (Random.nativeint 0x7FFF_FFFF_FFFF_FFFFn)
 let check_gen ~equal ~to_string ~message y1 y2 =
   if equal y1 y2 then () else
     failwith
@@ -1804,7 +1805,7 @@ let t_orig149_B = t149_B;;
   check_string t19.str0 t_orig19.str0 ~message:"t19.str0";
   check_float (Stable.Float_u.to_float t19.float_u1) (Stable.Float_u.to_float t_orig19.float_u1) ~message:"t19.float_u1";
   check_string t20.str0 t_orig20.str0 ~message:"t20.str0";
-  check_float (Stdlib__Float_u.to_float t20.float_u1) (Stdlib__Float_u.to_float t_orig20.float_u1) ~message:"t20.float_u1";
+  check_float (Stable.Float_u.to_float t20.float_u1) (Stable.Float_u.to_float t_orig20.float_u1) ~message:"t20.float_u1";
   check_float32 (Beta.Float32_u.to_float32 t21.float32_u0) (Beta.Float32_u.to_float32 t_orig21.float32_u0) ~message:"t21.float32_u0";
   check_string t22.str0 t_orig22.str0 ~message:"t22.str0";
   check_float (Stable.Float_u.to_float t22.float_u1) (Stable.Float_u.to_float t_orig22.float_u1) ~message:"t22.float_u1";
@@ -1815,7 +1816,7 @@ let t_orig149_B = t149_B;;
   check_float32 (Beta.Float32_u.to_float32 t25.float32_u1) (Beta.Float32_u.to_float32 t_orig25.float32_u1) ~message:"t25.float32_u1";
   check_string t26.str0 t_orig26.str0 ~message:"t26.str0";
   check_float32 (Beta.Float32_u.to_float32 t26.float32_u1) (Beta.Float32_u.to_float32 t_orig26.float32_u1) ~message:"t26.float32_u1";
-  check_int32 (Stdlib__Int32_u.to_int32 t27.i32_0) (Stdlib__Int32_u.to_int32 t_orig27.i32_0) ~message:"t27.i32_0";
+  check_int32 (Stable.Int32_u.to_int32 t27.i32_0) (Stable.Int32_u.to_int32 t_orig27.i32_0) ~message:"t27.i32_0";
   check_string t28.str0 t_orig28.str0 ~message:"t28.str0";
   check_string t28.str1 t_orig28.str1 ~message:"t28.str1";
   check_float (Stable.Float_u.to_float t28.float_u2) (Stable.Float_u.to_float t_orig28.float_u2) ~message:"t28.float_u2";
@@ -1824,8 +1825,8 @@ let t_orig149_B = t149_B;;
   check_string t30.str0 t_orig30.str0 ~message:"t30.str0";
   check_float32 (Beta.Float32_u.to_float32 t30.float32_u1) (Beta.Float32_u.to_float32 t_orig30.float32_u1) ~message:"t30.float32_u1";
   check_string t31.str0 t_orig31.str0 ~message:"t31.str0";
-  check_int32 (Stdlib__Int32_u.to_int32 t31.i32_1) (Stdlib__Int32_u.to_int32 t_orig31.i32_1) ~message:"t31.i32_1";
-  check_int32 (Stdlib__Int32_u.to_int32 t32.i32_0) (Stdlib__Int32_u.to_int32 t_orig32.i32_0) ~message:"t32.i32_0";
+  check_int32 (Stable.Int32_u.to_int32 t31.i32_1) (Stable.Int32_u.to_int32 t_orig31.i32_1) ~message:"t31.i32_1";
+  check_int32 (Stable.Int32_u.to_int32 t32.i32_0) (Stable.Int32_u.to_int32 t_orig32.i32_0) ~message:"t32.i32_0";
   check_string t33.str0 t_orig33.str0 ~message:"t33.str0";
   check_string t33.str1 t_orig33.str1 ~message:"t33.str1";
   check_float (Stable.Float_u.to_float t33.float_u2) (Stable.Float_u.to_float t_orig33.float_u2) ~message:"t33.float_u2";
@@ -1837,10 +1838,10 @@ let t_orig149_B = t149_B;;
   check_float t36.float0 t_orig36.float0 ~message:"t36.float0";
   check_float32 (Beta.Float32_u.to_float32 t36.float32_u1) (Beta.Float32_u.to_float32 t_orig36.float32_u1) ~message:"t36.float32_u1";
   check_string t37.str0 t_orig37.str0 ~message:"t37.str0";
-  check_int32 (Stdlib__Int32_u.to_int32 t37.i32_1) (Stdlib__Int32_u.to_int32 t_orig37.i32_1) ~message:"t37.i32_1";
+  check_int32 (Stable.Int32_u.to_int32 t37.i32_1) (Stable.Int32_u.to_int32 t_orig37.i32_1) ~message:"t37.i32_1";
   check_string t38.str0 t_orig38.str0 ~message:"t38.str0";
-  check_int32 (Stdlib__Int32_u.to_int32 t38.i32_1) (Stdlib__Int32_u.to_int32 t_orig38.i32_1) ~message:"t38.i32_1";
-  check_int64 (Stdlib__Int64_u.to_int64 t39.i64_0) (Stdlib__Int64_u.to_int64 t_orig39.i64_0) ~message:"t39.i64_0";
+  check_int32 (Stable.Int32_u.to_int32 t38.i32_1) (Stable.Int32_u.to_int32 t_orig38.i32_1) ~message:"t38.i32_1";
+  check_int64 (Stable.Int64_u.to_int64 t39.i64_0) (Stable.Int64_u.to_int64 t_orig39.i64_0) ~message:"t39.i64_0";
   check_float t40.float0 t_orig40.float0 ~message:"t40.float0";
   check_string t40.str1 t_orig40.str1 ~message:"t40.str1";
   check_float (Stable.Float_u.to_float t40.float_u2) (Stable.Float_u.to_float t_orig40.float_u2) ~message:"t40.float_u2";
@@ -1853,12 +1854,12 @@ let t_orig149_B = t149_B;;
   check_float t43.float0 t_orig43.float0 ~message:"t43.float0";
   check_float32 (Beta.Float32_u.to_float32 t43.float32_u1) (Beta.Float32_u.to_float32 t_orig43.float32_u1) ~message:"t43.float32_u1";
   check_float t44.float0 t_orig44.float0 ~message:"t44.float0";
-  check_int32 (Stdlib__Int32_u.to_int32 t44.i32_1) (Stdlib__Int32_u.to_int32 t_orig44.i32_1) ~message:"t44.i32_1";
+  check_int32 (Stable.Int32_u.to_int32 t44.i32_1) (Stable.Int32_u.to_int32 t_orig44.i32_1) ~message:"t44.i32_1";
   check_string t45.str0 t_orig45.str0 ~message:"t45.str0";
-  check_int32 (Stdlib__Int32_u.to_int32 t45.i32_1) (Stdlib__Int32_u.to_int32 t_orig45.i32_1) ~message:"t45.i32_1";
+  check_int32 (Stable.Int32_u.to_int32 t45.i32_1) (Stable.Int32_u.to_int32 t_orig45.i32_1) ~message:"t45.i32_1";
   check_string t46.str0 t_orig46.str0 ~message:"t46.str0";
-  check_int64 (Stdlib__Int64_u.to_int64 t46.i64_1) (Stdlib__Int64_u.to_int64 t_orig46.i64_1) ~message:"t46.i64_1";
-  check_int64 (Stdlib__Int64_u.to_int64 t47.i64_0) (Stdlib__Int64_u.to_int64 t_orig47.i64_0) ~message:"t47.i64_0";
+  check_int64 (Stable.Int64_u.to_int64 t46.i64_1) (Stable.Int64_u.to_int64 t_orig46.i64_1) ~message:"t46.i64_1";
+  check_int64 (Stable.Int64_u.to_int64 t47.i64_0) (Stable.Int64_u.to_int64 t_orig47.i64_0) ~message:"t47.i64_0";
   check_float t48.float0 t_orig48.float0 ~message:"t48.float0";
   check_string t48.str1 t_orig48.str1 ~message:"t48.str1";
   check_float (Stable.Float_u.to_float t48.float_u2) (Stable.Float_u.to_float t_orig48.float_u2) ~message:"t48.float_u2";
@@ -1872,14 +1873,14 @@ let t_orig149_B = t149_B;;
   check_string t51.str1 t_orig51.str1 ~message:"t51.str1";
   check_float32 (Beta.Float32_u.to_float32 t51.float32_u2) (Beta.Float32_u.to_float32 t_orig51.float32_u2) ~message:"t51.float32_u2";
   check_float t52.float0 t_orig52.float0 ~message:"t52.float0";
-  check_int32 (Stdlib__Int32_u.to_int32 t52.i32_1) (Stdlib__Int32_u.to_int32 t_orig52.i32_1) ~message:"t52.i32_1";
+  check_int32 (Stable.Int32_u.to_int32 t52.i32_1) (Stable.Int32_u.to_int32 t_orig52.i32_1) ~message:"t52.i32_1";
   check_float t53.float0 t_orig53.float0 ~message:"t53.float0";
-  check_int32 (Stdlib__Int32_u.to_int32 t53.i32_1) (Stdlib__Int32_u.to_int32 t_orig53.i32_1) ~message:"t53.i32_1";
+  check_int32 (Stable.Int32_u.to_int32 t53.i32_1) (Stable.Int32_u.to_int32 t_orig53.i32_1) ~message:"t53.i32_1";
   check_string t54.str0 t_orig54.str0 ~message:"t54.str0";
-  check_int64 (Stdlib__Int64_u.to_int64 t54.i64_1) (Stdlib__Int64_u.to_int64 t_orig54.i64_1) ~message:"t54.i64_1";
+  check_int64 (Stable.Int64_u.to_int64 t54.i64_1) (Stable.Int64_u.to_int64 t_orig54.i64_1) ~message:"t54.i64_1";
   check_string t55.str0 t_orig55.str0 ~message:"t55.str0";
-  check_int64 (Stdlib__Int64_u.to_int64 t55.i64_1) (Stdlib__Int64_u.to_int64 t_orig55.i64_1) ~message:"t55.i64_1";
-  check_int (Stdlib__Nativeint_u.to_int t56.n0) (Stdlib__Nativeint_u.to_int t_orig56.n0) ~message:"t56.n0";
+  check_int64 (Stable.Int64_u.to_int64 t55.i64_1) (Stable.Int64_u.to_int64 t_orig55.i64_1) ~message:"t55.i64_1";
+  check_int (Stable.Nativeint_u.to_int t56.n0) (Stable.Nativeint_u.to_int t_orig56.n0) ~message:"t56.n0";
   check_int t57.imm0 t_orig57.imm0 ~message:"t57.imm0";
   check_string t57.str1 t_orig57.str1 ~message:"t57.str1";
   check_float (Stable.Float_u.to_float t57.float_u2) (Stable.Float_u.to_float t_orig57.float_u2) ~message:"t57.float_u2";
@@ -1894,16 +1895,16 @@ let t_orig149_B = t149_B;;
   check_float32 (Beta.Float32_u.to_float32 t60.float32_u2) (Beta.Float32_u.to_float32 t_orig60.float32_u2) ~message:"t60.float32_u2";
   check_string t61.str0 t_orig61.str0 ~message:"t61.str0";
   check_string t61.str1 t_orig61.str1 ~message:"t61.str1";
-  check_int32 (Stdlib__Int32_u.to_int32 t61.i32_2) (Stdlib__Int32_u.to_int32 t_orig61.i32_2) ~message:"t61.i32_2";
+  check_int32 (Stable.Int32_u.to_int32 t61.i32_2) (Stable.Int32_u.to_int32 t_orig61.i32_2) ~message:"t61.i32_2";
   check_float t62.float0 t_orig62.float0 ~message:"t62.float0";
-  check_int32 (Stdlib__Int32_u.to_int32 t62.i32_1) (Stdlib__Int32_u.to_int32 t_orig62.i32_1) ~message:"t62.i32_1";
+  check_int32 (Stable.Int32_u.to_int32 t62.i32_1) (Stable.Int32_u.to_int32 t_orig62.i32_1) ~message:"t62.i32_1";
   check_float t63.float0 t_orig63.float0 ~message:"t63.float0";
-  check_int64 (Stdlib__Int64_u.to_int64 t63.i64_1) (Stdlib__Int64_u.to_int64 t_orig63.i64_1) ~message:"t63.i64_1";
+  check_int64 (Stable.Int64_u.to_int64 t63.i64_1) (Stable.Int64_u.to_int64 t_orig63.i64_1) ~message:"t63.i64_1";
   check_string t64.str0 t_orig64.str0 ~message:"t64.str0";
-  check_int64 (Stdlib__Int64_u.to_int64 t64.i64_1) (Stdlib__Int64_u.to_int64 t_orig64.i64_1) ~message:"t64.i64_1";
+  check_int64 (Stable.Int64_u.to_int64 t64.i64_1) (Stable.Int64_u.to_int64 t_orig64.i64_1) ~message:"t64.i64_1";
   check_string t65.str0 t_orig65.str0 ~message:"t65.str0";
-  check_int (Stdlib__Nativeint_u.to_int t65.n1) (Stdlib__Nativeint_u.to_int t_orig65.n1) ~message:"t65.n1";
-  check_int (Stdlib__Nativeint_u.to_int t66.n0) (Stdlib__Nativeint_u.to_int t_orig66.n0) ~message:"t66.n0";
+  check_int (Stable.Nativeint_u.to_int t65.n1) (Stable.Nativeint_u.to_int t_orig65.n1) ~message:"t65.n1";
+  check_int (Stable.Nativeint_u.to_int t66.n0) (Stable.Nativeint_u.to_int t_orig66.n0) ~message:"t66.n0";
   check_int t67.imm0 t_orig67.imm0 ~message:"t67.imm0";
   check_string t67.str1 t_orig67.str1 ~message:"t67.str1";
   check_float (Stable.Float_u.to_float t67.float_u2) (Stable.Float_u.to_float t_orig67.float_u2) ~message:"t67.float_u2";
@@ -1918,17 +1919,17 @@ let t_orig149_B = t149_B;;
   check_float32 (Beta.Float32_u.to_float32 t70.float32_u2) (Beta.Float32_u.to_float32 t_orig70.float32_u2) ~message:"t70.float32_u2";
   check_string t71.str0 t_orig71.str0 ~message:"t71.str0";
   check_string t71.str1 t_orig71.str1 ~message:"t71.str1";
-  check_int32 (Stdlib__Int32_u.to_int32 t71.i32_2) (Stdlib__Int32_u.to_int32 t_orig71.i32_2) ~message:"t71.i32_2";
+  check_int32 (Stable.Int32_u.to_int32 t71.i32_2) (Stable.Int32_u.to_int32 t_orig71.i32_2) ~message:"t71.i32_2";
   check_string t72.str0 t_orig72.str0 ~message:"t72.str0";
   check_string t72.str1 t_orig72.str1 ~message:"t72.str1";
-  check_int32 (Stdlib__Int32_u.to_int32 t72.i32_2) (Stdlib__Int32_u.to_int32 t_orig72.i32_2) ~message:"t72.i32_2";
+  check_int32 (Stable.Int32_u.to_int32 t72.i32_2) (Stable.Int32_u.to_int32 t_orig72.i32_2) ~message:"t72.i32_2";
   check_float t73.float0 t_orig73.float0 ~message:"t73.float0";
-  check_int64 (Stdlib__Int64_u.to_int64 t73.i64_1) (Stdlib__Int64_u.to_int64 t_orig73.i64_1) ~message:"t73.i64_1";
+  check_int64 (Stable.Int64_u.to_int64 t73.i64_1) (Stable.Int64_u.to_int64 t_orig73.i64_1) ~message:"t73.i64_1";
   check_float t74.float0 t_orig74.float0 ~message:"t74.float0";
-  check_int64 (Stdlib__Int64_u.to_int64 t74.i64_1) (Stdlib__Int64_u.to_int64 t_orig74.i64_1) ~message:"t74.i64_1";
+  check_int64 (Stable.Int64_u.to_int64 t74.i64_1) (Stable.Int64_u.to_int64 t_orig74.i64_1) ~message:"t74.i64_1";
   let () = match t75_A, t_orig75_A with
       | A (a0), A (b0) -> check_float (Stable.Float_u.to_float a0) (Stable.Float_u.to_float b0) ~message:"t75_A.0";
-
+      
     in
   let () = match t76_A, t_orig76_A with
       | A (a0), A (b0) -> check_float (Stable.Float_u.to_float a0) (Stable.Float_u.to_float b0) ~message:"t76_A.0";
@@ -1941,7 +1942,7 @@ let t_orig149_B = t149_B;;
   let () = match t77_A, t_orig77_A with
       | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t77_A.0";
 check_float (Stable.Float_u.to_float a1) (Stable.Float_u.to_float b1) ~message:"t77_A.1";
-
+      
     in
   let () = match t78_A, t_orig78_A with
       | A (a0), A (b0) -> check_float (Stable.Float_u.to_float a0) (Stable.Float_u.to_float b0) ~message:"t78_A.0";
@@ -1966,7 +1967,7 @@ check_float (Stable.Float_u.to_float a1) (Stable.Float_u.to_float b1) ~message:"
     in
   let () = match t80_A, t_orig80_A with
       | A (a0), A (b0) -> check_float32 (Beta.Float32_u.to_float32 a0) (Beta.Float32_u.to_float32 b0) ~message:"t80_A.0";
-
+      
     in
   let () = match t81_A, t_orig81_A with
       | A (a0), A (b0) -> check_float (Stable.Float_u.to_float a0) (Stable.Float_u.to_float b0) ~message:"t81_A.0";
@@ -2001,7 +2002,7 @@ check_float (Stable.Float_u.to_float a1) (Stable.Float_u.to_float b1) ~message:"
   let () = match t84_A, t_orig84_A with
       | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t84_A.0";
 check_float (Stable.Float_u.to_float a1) (Stable.Float_u.to_float b1) ~message:"t84_A.1";
-
+      
     in
   let () = match t85_A, t_orig85_A with
       | A (a0), A (b0) -> check_float (Stable.Float_u.to_float a0) (Stable.Float_u.to_float b0) ~message:"t85_A.0";
@@ -2053,7 +2054,7 @@ check_float (Stable.Float_u.to_float a1) (Stable.Float_u.to_float b1) ~message:"
   let () = match t89_A, t_orig89_A with
       | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t89_A.0";
 check_float32 (Beta.Float32_u.to_float32 a1) (Beta.Float32_u.to_float32 b1) ~message:"t89_A.1";
-
+      
     in
   let () = match t90_A, t_orig90_A with
       | A (a0), A (b0) -> check_float (Stable.Float_u.to_float a0) (Stable.Float_u.to_float b0) ~message:"t90_A.0";
@@ -2117,8 +2118,8 @@ check_float32 (Beta.Float32_u.to_float32 a1) (Beta.Float32_u.to_float32 b1) ~mes
       | _ -> assert false
     in
   let () = match t95_A, t_orig95_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib__Int32_u.to_int32 a0) (Stdlib__Int32_u.to_int32 b0) ~message:"t95_A.0";
-
+      | A (a0), A (b0) -> check_int32 (Stable.Int32_u.to_int32 a0) (Stable.Int32_u.to_int32 b0) ~message:"t95_A.0";
+      
     in
   let () = match t96_A, t_orig96_A with
       | A (a0), A (b0) -> check_float (Stable.Float_u.to_float a0) (Stable.Float_u.to_float b0) ~message:"t96_A.0";
@@ -2182,7 +2183,7 @@ check_float32 (Beta.Float32_u.to_float32 a1) (Beta.Float32_u.to_float32 b1) ~mes
       | _ -> assert false
     in
   let () = match t101_A, t_orig101_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib__Int32_u.to_int32 a0) (Stdlib__Int32_u.to_int32 b0) ~message:"t101_A.0";
+      | A (a0), A (b0) -> check_int32 (Stable.Int32_u.to_int32 a0) (Stable.Int32_u.to_int32 b0) ~message:"t101_A.0";
       | _ -> assert false
     in
   let () = match t101_B, t_orig101_B with
@@ -2193,7 +2194,7 @@ check_float32 (Beta.Float32_u.to_float32 a1) (Beta.Float32_u.to_float32 b1) ~mes
       | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t102_A.0";
 check_string a1 b1 ~message:"t102_A.1";
 check_float (Stable.Float_u.to_float a2) (Stable.Float_u.to_float b2) ~message:"t102_A.2";
-
+      
     in
   let () = match t103_A, t_orig103_A with
       | A (a0), A (b0) -> check_float (Stable.Float_u.to_float a0) (Stable.Float_u.to_float b0) ~message:"t103_A.0";
@@ -2258,7 +2259,7 @@ check_float (Stable.Float_u.to_float a1) (Stable.Float_u.to_float b1) ~message:"
       | _ -> assert false
     in
   let () = match t108_A, t_orig108_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib__Int32_u.to_int32 a0) (Stdlib__Int32_u.to_int32 b0) ~message:"t108_A.0";
+      | A (a0), A (b0) -> check_int32 (Stable.Int32_u.to_int32 a0) (Stable.Int32_u.to_int32 b0) ~message:"t108_A.0";
       | _ -> assert false
     in
   let () = match t108_B, t_orig108_B with
@@ -2282,7 +2283,7 @@ check_float (Stable.Float_u.to_float a2) (Stable.Float_u.to_float b2) ~message:"
   let () = match t110_A, t_orig110_A with
       | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t110_A.0";
 check_float32 (Beta.Float32_u.to_float32 a1) (Beta.Float32_u.to_float32 b1) ~message:"t110_A.1";
-
+      
     in
   let () = match t111_A, t_orig111_A with
       | A (a0), A (b0) -> check_float (Stable.Float_u.to_float a0) (Stable.Float_u.to_float b0) ~message:"t111_A.0";
@@ -2355,7 +2356,7 @@ check_float32 (Beta.Float32_u.to_float32 a1) (Beta.Float32_u.to_float32 b1) ~mes
       | _ -> assert false
     in
   let () = match t116_A, t_orig116_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib__Int32_u.to_int32 a0) (Stdlib__Int32_u.to_int32 b0) ~message:"t116_A.0";
+      | A (a0), A (b0) -> check_int32 (Stable.Int32_u.to_int32 a0) (Stable.Int32_u.to_int32 b0) ~message:"t116_A.0";
       | _ -> assert false
     in
   let () = match t116_B, t_orig116_B with
@@ -2388,8 +2389,8 @@ check_float32 (Beta.Float32_u.to_float32 a1) (Beta.Float32_u.to_float32 b1) ~mes
     in
   let () = match t119_A, t_orig119_A with
       | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t119_A.0";
-check_int32 (Stdlib__Int32_u.to_int32 a1) (Stdlib__Int32_u.to_int32 b1) ~message:"t119_A.1";
-
+check_int32 (Stable.Int32_u.to_int32 a1) (Stable.Int32_u.to_int32 b1) ~message:"t119_A.1";
+      
     in
   let () = match t120_A, t_orig120_A with
       | A (a0), A (b0) -> check_float (Stable.Float_u.to_float a0) (Stable.Float_u.to_float b0) ~message:"t120_A.0";
@@ -2458,7 +2459,7 @@ check_float (Stable.Float_u.to_float a1) (Stable.Float_u.to_float b1) ~message:"
       | _ -> assert false
     in
   let () = match t125_A, t_orig125_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib__Int32_u.to_int32 a0) (Stdlib__Int32_u.to_int32 b0) ~message:"t125_A.0";
+      | A (a0), A (b0) -> check_int32 (Stable.Int32_u.to_int32 a0) (Stable.Int32_u.to_int32 b0) ~message:"t125_A.0";
       | _ -> assert false
     in
   let () = match t125_B, t_orig125_B with
@@ -2499,7 +2500,7 @@ check_float32 (Beta.Float32_u.to_float32 a1) (Beta.Float32_u.to_float32 b1) ~mes
     in
   let () = match t128_A, t_orig128_A with
       | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t128_A.0";
-check_int32 (Stdlib__Int32_u.to_int32 a1) (Stdlib__Int32_u.to_int32 b1) ~message:"t128_A.1";
+check_int32 (Stable.Int32_u.to_int32 a1) (Stable.Int32_u.to_int32 b1) ~message:"t128_A.1";
       | _ -> assert false
     in
   let () = match t128_B, t_orig128_B with
@@ -2507,8 +2508,8 @@ check_int32 (Stdlib__Int32_u.to_int32 a1) (Stdlib__Int32_u.to_int32 b1) ~message
       | _ -> assert false
     in
   let () = match t129_A, t_orig129_A with
-      | A (a0), A (b0) -> check_int64 (Stdlib__Int64_u.to_int64 a0) (Stdlib__Int64_u.to_int64 b0) ~message:"t129_A.0";
-
+      | A (a0), A (b0) -> check_int64 (Stable.Int64_u.to_int64 a0) (Stable.Int64_u.to_int64 b0) ~message:"t129_A.0";
+      
     in
   let () = match t130_A, t_orig130_A with
       | A (a0), A (b0) -> check_float (Stable.Float_u.to_float a0) (Stable.Float_u.to_float b0) ~message:"t130_A.0";
@@ -2573,7 +2574,7 @@ check_float32 (Beta.Float32_u.to_float32 a1) (Beta.Float32_u.to_float32 b1) ~mes
       | _ -> assert false
     in
   let () = match t135_A, t_orig135_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib__Int32_u.to_int32 a0) (Stdlib__Int32_u.to_int32 b0) ~message:"t135_A.0";
+      | A (a0), A (b0) -> check_int32 (Stable.Int32_u.to_int32 a0) (Stable.Int32_u.to_int32 b0) ~message:"t135_A.0";
       | _ -> assert false
     in
   let () = match t135_B, t_orig135_B with
@@ -2615,7 +2616,7 @@ check_float (Stable.Float_u.to_float a1) (Stable.Float_u.to_float b1) ~message:"
     in
   let () = match t138_A, t_orig138_A with
       | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t138_A.0";
-check_int32 (Stdlib__Int32_u.to_int32 a1) (Stdlib__Int32_u.to_int32 b1) ~message:"t138_A.1";
+check_int32 (Stable.Int32_u.to_int32 a1) (Stable.Int32_u.to_int32 b1) ~message:"t138_A.1";
       | _ -> assert false
     in
   let () = match t138_B, t_orig138_B with
@@ -2627,7 +2628,7 @@ check_int32 (Stdlib__Int32_u.to_int32 a1) (Stdlib__Int32_u.to_int32 b1) ~message
       | _ -> assert false
     in
   let () = match t139_A, t_orig139_A with
-      | A (a0), A (b0) -> check_int64 (Stdlib__Int64_u.to_int64 a0) (Stdlib__Int64_u.to_int64 b0) ~message:"t139_A.0";
+      | A (a0), A (b0) -> check_int64 (Stable.Int64_u.to_int64 a0) (Stable.Int64_u.to_int64 b0) ~message:"t139_A.0";
       | _ -> assert false
     in
   let () = match t139_B, t_orig139_B with
@@ -2638,7 +2639,7 @@ check_int32 (Stdlib__Int32_u.to_int32 a1) (Stdlib__Int32_u.to_int32 b1) ~message
       | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t140_A.0";
 check_string a1 b1 ~message:"t140_A.1";
 check_float (Stable.Float_u.to_float a2) (Stable.Float_u.to_float b2) ~message:"t140_A.2";
-
+      
     in
   let () = match t141_A, t_orig141_A with
       | A (a0), A (b0) -> check_float (Stable.Float_u.to_float a0) (Stable.Float_u.to_float b0) ~message:"t141_A.0";
@@ -2715,7 +2716,7 @@ check_float (Stable.Float_u.to_float a1) (Stable.Float_u.to_float b1) ~message:"
       | _ -> assert false
     in
   let () = match t146_A, t_orig146_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib__Int32_u.to_int32 a0) (Stdlib__Int32_u.to_int32 b0) ~message:"t146_A.0";
+      | A (a0), A (b0) -> check_int32 (Stable.Int32_u.to_int32 a0) (Stable.Int32_u.to_int32 b0) ~message:"t146_A.0";
       | _ -> assert false
     in
   let () = match t146_B, t_orig146_B with
@@ -2756,7 +2757,7 @@ check_float32 (Beta.Float32_u.to_float32 a1) (Beta.Float32_u.to_float32 b1) ~mes
     in
   let () = match t149_A, t_orig149_A with
       | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t149_A.0";
-check_int32 (Stdlib__Int32_u.to_int32 a1) (Stdlib__Int32_u.to_int32 b1) ~message:"t149_A.1";
+check_int32 (Stable.Int32_u.to_int32 a1) (Stable.Int32_u.to_int32 b1) ~message:"t149_A.1";
       | _ -> assert false
     in
   let () = match t149_B, t_orig149_B with
