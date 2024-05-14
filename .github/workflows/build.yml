@@ -71,6 +71,7 @@ jobs:
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
             build_ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
+            ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             check_arch: true
 
           - name: irc_frame_pointers
