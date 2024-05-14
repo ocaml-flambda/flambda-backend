@@ -346,6 +346,19 @@ method! select_operation op args dbg =
       Ispecific Izextend32, [arg]
     | _ -> super#select_operation op args dbg
     end
+  | Ccsel _ ->
+     begin match args with
+     | [cond; ifso; ifnot] ->
+       let (cond, earg) = self#select_condition cond in
+       (match cond with
+        | Ifloattest (w,CFeq) ->
+          (* CFeq cannot be represented as cmov without a jump.
+             Use Cneq and swap the arguments. *)
+          Icsel (Ifloattest (w, CFneq)), [ earg; ifnot; ifso ]
+        | _ ->
+          (Icsel cond, [ earg; ifso; ifnot ]))
+     | _ -> super#select_operation op args dbg
+     end
   | Cprefetch { is_write; locality; } ->
       (* Emit prefetch for read hint when prefetchw is not supported.
          Matches the behavior of gcc's __builtin_prefetch *)
