@@ -690,9 +690,12 @@ and raw_type_desc ppf = function
   | Tpackage (p, fl) ->
       fprintf ppf "@[<hov1>Tpackage(@,%a,@,%a)@]" path p
         raw_lid_type_list fl
-  | Tfunctor (name, (p, fl), ty) ->
-      fprintf ppf "@[<hov1>Tfunctor(%s,@,(%a,@,%a),@,%a)@]"
-        (Ident.name name) path p raw_lid_type_list fl raw_type ty
+  | Tfunctor ((l,arg,ret), name, (p, fl), ty) ->
+      fprintf ppf "@[<hov1>Tfunctor((\"%s\",%a,%a),@,%s,@,(%a,@,%a),@,%a)@]"
+        (string_of_label l)
+        (Alloc.print ~verbose:true ()) arg
+        (Alloc.print ~verbose:true ()) ret
+        (Ident.name_unscoped name) path p raw_lid_type_list fl raw_type ty
 and raw_row_fixed ppf = function
 | None -> fprintf ppf "None"
 | Some Types.Fixed_private -> fprintf ppf "Some Fixed_private"
@@ -1553,15 +1556,19 @@ let rec tree_of_typexp mode alloc_mode ty =
     | Tpackage (p, fl) ->
         let fl = tree_of_pack_fields mode fl in
         Otyp_module (tree_of_path (Some Module_type) p, fl)
-    | Tfunctor (id, (p, fl), ty) ->
+    | Tfunctor ((l, _marg, _mret), id, (p, fl), ty) ->
+        let lab =
+          if !print_labels || is_omittable l then outcome_label l
+          else Nolabel
+        in
         let fenv env =
           let mty = !Ctype.modtype_of_package env Location.none p fl in
-          Env.add_module ~arg:true id Mp_present mty env
+          Env.add_module ~arg:true (Ident.of_unscoped id) Mp_present mty env
         in
-        let id = ident_name (Some Module) id in
+        let id = ident_name (Some Module) (Ident.of_unscoped id) in
         let fl = tree_of_pack_fields mode fl in
         let ty = wrap_env fenv (tree_of_typexp mode Alloc.Const.legacy) ty in
-        Otyp_functor (Oide_ident id,
+        Otyp_functor (lab, Oide_ident id,
                       (tree_of_path (Some Module_type) p, fl), ty)
   in
   if List.memq px !delayed then delayed := List.filter ((!=) px) !delayed;
@@ -3013,10 +3020,10 @@ let explain_escape pre = function
         "%t@,@[The module type@;<1 2>%a@ would escape its scope@]"
         pre (Style.as_inline_code path) p
     )
-  | Errortrace.Module p -> Some(
+  | Errortrace.Module i -> Some(
       dprintf
         "%t@,@[The module@;<1 2>%a@ would escape its scope@]"
-        pre path p
+        pre (Style.as_inline_code path) (Pident (Ident.of_unscoped i))
     )
   | Errortrace.Equation Errortrace.{ty = _; expanded = t} ->
       reserve_names t;

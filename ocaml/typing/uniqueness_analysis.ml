@@ -1224,7 +1224,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
              actual binding done by [param.fp_kind]'s pattern. *)
           let ext, uf_param =
             match param.fp_kind with
-            | Tparam_pat pat | Tparam_module (pat, _) ->
+            | Tparam_pat pat ->
               let value = Match_single (Paths.fresh ()) in
               pattern_match pat value
             | Tparam_optional_default (pat, default, _) ->
@@ -1256,8 +1256,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
       List.map
         (fun (_, arg) ->
           match arg with
-          | Arg (Targ_expr (e, _)) -> check_uniqueness_exp ienv e
-          | Arg (Targ_module _) -> assert false (* TODO *)
+          | Arg (e, _) -> check_uniqueness_exp ienv e
           | Omitted _ -> UF.unused)
         args
     in

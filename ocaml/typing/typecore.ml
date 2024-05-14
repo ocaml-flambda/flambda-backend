@@ -239,24 +239,8 @@ type error =
   | Missing_type_constraint
   | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
   | Expr_not_a_record_type of type_expr
-  | Apply_non_functor of {
-      funct : Typedtree.expression;
-      func_ty : type_expr;
-      res_ty : type_expr;
-      previous_arg_loc : Location.t;
-      extra_arg_loc : Location.t;
-    }
-  | Cannot_infer_functor_signature
   | Cannot_infer_functor_path
   | Cannot_commute_label of type_expr
-  | Invalid_argument of {
-      funct : Typedtree.expression;
-      func_ty : type_expr;
-      res_ty : type_expr;
-      previous_arg_loc : Location.t;
-      extra_arg_loc : Location.t;
-      arg : Parsetree.argument;
-    }
   | Submode_failed of
       Value.error * submode_reason *
       Env.locality_context option *
@@ -3590,7 +3574,7 @@ let list_labels env ty =
 (* Collecting arguments for function applications *)
 
 type untyped_apply_arg =
-  | Known_earg of
+  | Known_arg of
       { sarg : Parsetree.expression;
         ty_arg : type_expr;
         ty_arg0 : type_expr;
@@ -3599,19 +3583,12 @@ type untyped_apply_arg =
         mode_fun : Alloc.lr;
         mode_arg : Alloc.lr;
         wrapped_in_some : bool; }
-  | Unknown_earg of
+  | Unknown_arg of
       { sarg : Parsetree.expression;
         ty_arg_mono : type_expr;
         sort_arg : Jkind.sort;
         mode_fun : Alloc.lr;
         mode_arg : Alloc.lr}
-  | Module_arg of
-      {
-        sarg : module_expr;
-        commuted : bool;
-        mode_fun : Alloc.lr;
-        mode_arg : Alloc.lr
-      }
   | Eliminated_optional_arg of
       { expected_label: arg_label;
         mode_fun: Alloc.lr;
@@ -3640,7 +3617,7 @@ let remaining_function_type ty_ret mode_ret rev_args =
     List.fold_left
       (fun (ty_ret, mode_ret, closed_args) (lbl, arg) ->
          match arg with
-         | Arg (Unknown_earg { mode_arg; _ } | Known_earg { mode_arg; _ } | Module_arg { mode_arg; _ }) ->
+         | Arg (Unknown_arg { mode_arg; _ } | Known_arg { mode_arg; _ }) ->
              let closed_args = mode_arg :: closed_args in
              (ty_ret, mode_ret, closed_args)
          | Arg (Eliminated_optional_arg
@@ -3667,17 +3644,15 @@ let remaining_function_type ty_ret mode_ret rev_args =
 let check_curried_application_complete ~env ~app_loc args =
   let arg_mode_fun (_lbl, arg) =
     match arg with
-    | Arg ( Known_earg { mode_fun; _ }
-          | Unknown_earg { mode_fun; _ }
-          | Module_arg { mode_fun; _ }
+    | Arg ( Known_arg { mode_fun; _ }
+          | Unknown_arg { mode_fun; _ }
           | Eliminated_optional_arg { mode_fun; _ })
     | Omitted { mode_fun; _ } -> mode_fun
   in
   let rec loop has_commuted = function
     | [] | [_] -> ()
-    | (lbl, ( Arg ( Known_earg { mode_fun; mode_arg; _ }
-                  | Unknown_earg { mode_fun; mode_arg; _ }
-                  | Module_arg { mode_fun; mode_arg; _ }
+    | (lbl, ( Arg ( Known_arg { mode_fun; mode_arg; _ }
+                  | Unknown_arg { mode_fun; mode_arg; _ }
                   | Eliminated_optional_arg { mode_fun; mode_arg; _ })
             | Omitted { mode_fun; mode_arg; _ } as arg))
       :: ((next :: _) as rest) ->
@@ -3685,7 +3660,7 @@ let check_curried_application_complete ~env ~app_loc args =
       let has_commuted =
         has_commuted ||
         match arg with
-        | Arg (Known_earg { commuted } | Module_arg { commuted }) -> commuted
+        | Arg (Known_arg { commuted }) -> commuted
         | _ -> false
       in
       let submode m1 m2 =
@@ -3694,21 +3669,13 @@ let check_curried_application_complete ~env ~app_loc args =
         | Error e ->
           let loc, loc_kind =
             match arg with
-            | Arg (Known_earg {sarg; _} | Unknown_earg {sarg; _}) ->
+            | Arg (Known_arg {sarg; _} | Unknown_arg {sarg; _}) ->
               if has_commuted then
                 sarg.pexp_loc, `Single_arg
               else
                 Location.{ loc_start = app_loc.loc_start;
                            loc_end = sarg.pexp_loc.loc_end;
                            loc_ghost = app_loc.loc_ghost || sarg.pexp_loc.loc_ghost },
-                `Prefix
-            | Arg (Module_arg {sarg; _}) ->
-              if has_commuted then
-                sarg.mod_loc, `Single_arg
-              else
-                Location.{ loc_start = app_loc.loc_start;
-                            loc_end = sarg.mod_loc.loc_end;
-                            loc_ghost = app_loc.loc_ghost || sarg.mod_loc.loc_ghost },
                 `Prefix
             | Arg (Eliminated_optional_arg _) | Omitted _ ->
               app_loc, `Entire_apply
@@ -3743,10 +3710,9 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
       rev_args
       |> List.find_map
           (function
-            | (_, Arg ( Known_earg { sarg; _ }
-                      | Unknown_earg { sarg; _ })) ->
+            | (_, Arg ( Known_arg { sarg; _ }
+                      | Unknown_arg { sarg; _ })) ->
               Some sarg.pexp_loc
-            | (_, Arg (Module_arg { sarg; _ })) -> Some sarg.mod_loc
             | (_, Arg (Eliminated_optional_arg _))
             | (_, Omitted _) -> None)
       |> Option.value ~default:funct.exp_loc
@@ -3754,45 +3720,7 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
   let rec loop ty_fun mode_fun rev_args sargs =
     match sargs with
     | [] -> ty_fun, mode_fun, List.rev rev_args
-    | (lbl, Parg_module me) :: rest ->
-        let () = assert (lbl = Nolabel) in
-        let (id, (p, fl), ty_res) =
-          let ty_fun = expand_head env ty_fun in
-          match get_desc ty_fun with
-            Tfunctor (id, pl, t) -> (id, pl, t)
-          | Tvar _ ->
-              raise (Error(me.pmod_loc, env, Cannot_infer_functor_signature))
-          | _ ->
-            let ty_res = remaining_function_type ty_fun mode_fun rev_args in
-            let previous_arg_loc = previous_arg_loc rev_args in
-            raise (Error(me.pmod_loc, env, Apply_non_functor {
-              funct;
-              func_ty = expand_head env funct.exp_type;
-              res_ty = expand_head env ty_res;
-              previous_arg_loc;
-              extra_arg_loc = me.pmod_loc; }))
-        in
-        let (m, _fl') = !type_package env me p fl in
-        let rec extract_path m =
-          match m.mod_desc with
-          | Tmod_ident (p, _) -> p
-          | Tmod_apply (p1, p2, _) ->
-              Path.Papply(extract_path p1, extract_path p2)
-          | Tmod_constraint (p, _, _, _) ->
-              extract_path p
-          | _ -> raise (Error(me.pmod_loc, env, Cannot_infer_functor_path))
-        in
-        let ty_res = instance_funct ~id_in:id ~p_out:(extract_path m)
-                      ~fixed:false ty_res in
-        let arg = Module_arg {
-            sarg = m;
-            commuted = false;
-            mode_fun;
-            mode_arg = Mode.Alloc.legacy;
-        } in
-        let mode_ret = Alloc.newvar () in
-        loop ty_res mode_ret ((lbl, Arg arg) :: rev_args) rest
-    | (lbl, Parg_expr sarg) :: rest ->
+    | (lbl, sarg) :: rest ->
         let (sort_arg, mode_arg, ty_arg_mono, mode_ret, ty_res) =
           let ty_fun = expand_head env ty_fun in
           match get_desc ty_fun with
@@ -3823,6 +3751,9 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
                                          Function_type_not_rep (ty_arg,err)))
             in
             (sort_arg, mode_arg, tpoly_get_mono ty_arg, mode_ret, ty_res)
+        | Tfunctor ((l, _, _), _, _, _)
+          when labels_match ~param:l ~arg:lbl ->
+            assert false (* TODO *)
         | td ->
             let ty_fun = match td with Tarrow _ -> newty td | _ -> ty_fun in
             let ty_res = remaining_function_type ty_fun mode_fun rev_args in
@@ -3843,7 +3774,7 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
                     extra_arg_loc = sarg.pexp_loc; }))
         in
         let arg =
-          Unknown_earg { sarg; ty_arg_mono; mode_fun; mode_arg; sort_arg }
+          Unknown_arg { sarg; ty_arg_mono; mode_fun; mode_arg; sort_arg }
         in
         loop ty_res mode_ret ((lbl, Arg arg) :: rev_args) rest
   in
@@ -3859,31 +3790,6 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
     in
     if sargs = [] then type_unknown_args () else
     let ty_fun' = expand_head env ty_fun in
-    let arg_loc = function
-      | Parg_expr e -> e.pexp_loc
-      | Parg_module m -> m.pmod_loc
-    in
-    let previous_arg_loc rev_args =
-        (* [rev_args] is the arguments typed until now, in reverse
-        order of appearance. Not all arguments have a location
-        attached (eg. an optional argument that is not passed). *)
-      (* CR ccasinghino: the above comment is confusing - these
-        arguments are in reverse order according to the function
-        type, but not according to their positions in the source
-        program.  We diverge from upstream here by not trying to
-        provide a good location in the [Eliminated_optional_arg]
-        case - maybe fix one day if it is noticeable. *)
-        rev_args
-        |> List.find_map
-            (function
-              | (_, Arg ( Known_earg { sarg; _ }
-                        | Unknown_earg { sarg; _ })) ->
-                Some sarg.pexp_loc
-              | (_, Arg (Module_arg { sarg; _ })) -> Some sarg.mod_loc
-              | (_, Arg (Eliminated_optional_arg _))
-              | (_, Omitted _) -> None)
-        |> Option.value ~default:funct.exp_loc
-    in
     match get_desc ty_fun', get_desc (expand_head env ty_fun0), sargs with
     | Tarrow (ad, ty_arg, ty_ret, com),
       Tarrow (_, ty_arg0, ty_ret0, _),
@@ -3901,7 +3807,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
         let sort_arg =
           match type_sort ~why:Function_argument ~fixed:false env ty_arg with
           | Ok sort -> sort
-          | Error err -> raise(Error(arg_loc sarg1, env,
+          | Error err -> raise(Error(sarg1.pexp_loc, env,
                                      Function_type_not_rep(ty_arg, err)))
         in
         let name = label_name l
@@ -3912,7 +3818,11 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
           if wrapped_in_some then
             may_warn sarg.pexp_loc
               (Warnings.Not_principal "using an optional argument here");
-          Arg (Known_earg
+          let _ = (fun i -> try tpoly_get_poly i with _ ->
+            Format.printf "%a\n" !Btype.print_raw ty_fun';
+            Format.printf "%a\n" !Btype.print_raw ty_arg;
+            assert false) ty_arg in
+          Arg (Known_arg
             { sarg; ty_arg; ty_arg0; commuted; sort_arg;
               mode_fun; mode_arg; wrapped_in_some })
         in
@@ -3929,8 +3839,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
             (* No reordering is allowed, process arguments in order *)
             match sargs with
             | [] -> assert false
-            | (_, Parg_module _) :: _ -> assert false (* TODO *)
-            | (l', Parg_expr sarg) :: remaining_sargs ->
+            | (l', sarg) :: remaining_sargs ->
                 if name = label_name l' || (not omittable && l' = Nolabel) then
                   (remaining_sargs, use_arg ~commuted:false sarg l')
                 else if
@@ -3948,7 +3857,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
             (* Arguments can be commuted, try to fetch the argument
                corresponding to the first parameter. *)
             match extract_label name sargs with
-            | Some (l', Parg_expr sarg, commuted, remaining_sargs) ->
+            | Some (l', sarg, commuted, remaining_sargs) ->
                 if commuted then begin
                   may_warn sarg.pexp_loc
                     (Warnings.Not_principal "commuting this argument")
@@ -3967,15 +3876,6 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                       sarg.pexp_loc
                       (Warnings.Nonoptional_label label));
                 remaining_sargs, use_arg ~commuted sarg l'
-            | Some (_, (Parg_module m as arg), _, _) ->
-              let previous_arg_loc = previous_arg_loc rev_args in
-              raise(Error(funct.exp_loc, env, Invalid_argument {
-                  funct;
-                  func_ty = expand_head env funct.exp_type;
-                  res_ty = expand_head env ty_fun';
-                  previous_arg_loc;
-                  extra_arg_loc = m.pmod_loc;
-                  arg; }))
             | None ->
                 sargs,
                 if omittable && List.mem_assoc Nolabel sargs then
@@ -3989,12 +3889,11 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                 end
         in
         loop ty_ret ty_ret0 mode_ret ((l, arg) :: rev_args) remaining_sargs
-    | Tfunctor (id, (p, fl), ty_ret),
-      Tfunctor (id0, _, ty_ret0),
-      (_, _) :: _ ->
+    | Tfunctor (ad, id, (p, fl), ty_ret),
+      Tfunctor (_, id0, (p0, fl0), ty_ret0),
+      (_, sarg1) :: _ ->
         let lv = get_level ty_fun' in
-        let mode_arg = Alloc.legacy in
-        let l = Nolabel in
+        let (l, mode_arg, mode_ret) = ad in
         let may_warn loc w =
           if not !warned && !Clflags.principal && lv <> generic_level
           then begin
@@ -4002,42 +3901,31 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
             Location.prerr_warning loc w
           end
         in
+        let sort_arg = match type_sort ~fixed:false ~why:Function_argument env (newmono (newty (Tpackage (p, fl)))) with
+          | Ok sort -> sort
+          | Error err -> raise(Error(sarg1.pexp_loc, env,
+                                    Function_type_not_rep(newmono (newty (Tpackage (p, fl))), err)))
+        in
         let name = label_name l
         and optional = is_optional l
         and omittable = is_omittable l in
-        let use_arg ~commuted me =
-          let (m, _fl') = !type_package env me p fl in
-          let rec extract_path m =
-            match m.mod_desc with
-            | Tmod_ident (p, _) -> p
-            | Tmod_apply (p1, p2, _) ->
-                Path.Papply(extract_path p1, extract_path p2)
-            | Tmod_constraint (p, _, _, _) ->
-                extract_path p
-            | _ ->
-                raise (Error(me.pmod_loc, env,
-                              Cannot_infer_functor_path))
-          in
-          let path = extract_path m in
-          let ty_ret = instance_funct ~id_in:id ~p_out:path
-                            ~fixed:false ty_ret in
-          let ty_ret0 = instance_funct ~id_in:id0 ~p_out:path
-                            ~fixed:false ty_ret0 in
-          Arg (Module_arg {
-            sarg = m;
-            mode_fun;
-            mode_arg;
-            commuted
-          }), ty_ret, ty_ret0
+        let is_packing sarg =
+          not optional && not omittable &&
+          match sarg.pexp_desc with
+          | Pexp_pack _me -> true
+          | Pexp_constraint ({ pexp_desc = Pexp_pack _me; _},
+                Some { ptyp_desc = Ptyp_package _pck_ty; _}, _) ->
+            false (* TODO : handle it later to have true here *)
+          | _ -> false
         in
-        let remaining_sargs, (arg, ty_ret, ty_ret0) =
+        let me_opt =
           if ignore_labels then begin
             (* No reordering is allowed, process arguments in order *)
             match sargs with
             | [] -> assert false
-            | (l', Parg_module sarg) :: remaining_sargs ->
-                if name = label_name l' || (not omittable && l' = Nolabel) then
-                  (remaining_sargs, use_arg ~commuted:false sarg)
+            | (l', sarg) :: remaining_sargs ->
+                if name = label_name l' || l' = Nolabel then
+                  Some (remaining_sargs, false, is_packing sarg, sarg)
                 else if
                   omittable &&
                   not (List.exists (fun (l, _) -> name = label_name l)
@@ -4045,48 +3933,113 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                   List.exists (function (Nolabel, _) -> true | _ -> false)
                     sargs
                 then
-                  assert false (* Module arg never ommitable *)
+                  None
                 else
-                  raise(Error(sarg.pmod_loc, env,
+                  raise(Error(sarg.pexp_loc, env,
                               Apply_wrong_label(l', ty_fun', omittable)))
-            | (_, (Parg_expr exp as arg)) :: _ ->
-                let previous_arg_loc = previous_arg_loc rev_args in
-                raise(Error(funct.exp_loc, env, Invalid_argument {
-                    funct;
-                    func_ty = expand_head env funct.exp_type;
-                    res_ty = expand_head env ty_fun';
-                    previous_arg_loc;
-                    extra_arg_loc = exp.pexp_loc;
-                    arg; }))
           end else
             (* Arguments can be commuted, try to fetch the argument
                corresponding to the first parameter. *)
             match extract_label name sargs with
-            | Some (l', Parg_module sarg, commuted, remaining_sargs) ->
+            | Some (l', sarg, commuted, remaining_sargs) ->
                 if commuted then begin
-                  may_warn sarg.pmod_loc
+                  may_warn sarg.pexp_loc
                     (Warnings.Not_principal "commuting this argument")
                 end;
                 if not optional && is_optional l' then
-                  Location.prerr_warning sarg.pmod_loc
+                  Location.prerr_warning sarg.pexp_loc
                     (Warnings.Nonoptional_label (Printtyp.string_of_label l));
-                remaining_sargs, use_arg ~commuted sarg
-            | Some (_, (Parg_expr exp as arg), _, _) ->
-                let previous_arg_loc = previous_arg_loc rev_args in
-                raise(Error(funct.exp_loc, env, Invalid_argument {
-                    funct;
-                    func_ty = expand_head env funct.exp_type;
-                    res_ty = expand_head env ty_fun';
-                    previous_arg_loc;
-                    extra_arg_loc = exp.pexp_loc;
-                    arg; }))
-            | None ->
-                let ty_res = remaining_function_type ty_fun mode_fun rev_args in
-                raise(Error(funct.exp_loc, env,
-                                Cannot_commute_label ty_res))
+                Some (remaining_sargs, commuted, is_packing sarg, sarg)
+            | None -> None
         in
-        let mode_ret = Alloc.legacy in
-        loop ty_ret ty_ret0 mode_ret ((l, arg) :: rev_args) remaining_sargs
+        let unify_to_arrows handler =
+          begin
+            try
+              unify_to_arrow env ty_fun';
+              unify_to_arrow env ty_fun0
+            with Unify trace -> handler trace
+          end
+        in
+        begin match me_opt with
+        | Some (remaining_sargs, commuted, true, sarg) ->
+          let texp =
+            match sarg.pexp_desc with
+            | Pexp_pack m ->
+                (* This is to prevent a principality warning because expected
+                  signature is not closed. *)
+                let (modl, fl') = !type_package env m p fl in
+                {
+                  exp_desc = Texp_pack modl;
+                  exp_loc = sarg.pexp_loc; exp_extra = [];
+                  exp_type = newty (Tpackage (p, fl'));
+                  exp_attributes = sarg.pexp_attributes;
+                  exp_env = env
+                }
+            | _ -> assert false (* TODO *)
+              (* let position_and_mode = position_and_mode_default in
+              let partial_app = true in
+              let expected_mode, mode_arg =
+                mode_argument ~funct ~index:(-1) ~position_and_mode ~partial_app mode_arg in   
+              type_argument env expected_mode sarg (newty (Tpackage (p, fl)))
+                                     (newty (Tpackage (p0, fl0))) *)
+          in
+          let me = match texp.exp_desc with
+              Texp_pack me -> me
+            | _ -> assert false
+          in
+          let exception CannotExtractPath in
+          let rec extract_path m =
+            match m.mod_desc with
+            | Tmod_ident (p, _) -> p
+            | Tmod_apply (p1, p2, _) ->
+                Path.Papply(extract_path p1, extract_path p2)
+            | Tmod_constraint (p, _, _, _) ->
+                extract_path p
+            | _ -> raise CannotExtractPath
+          in
+          begin
+            try
+              let path = extract_path me in
+              let ty_res =
+                  Option.value ~default:ty_ret
+                      (instance_funct ~id_in:(Ident.of_unscoped id)
+                                      ~p_out:path ~fixed:false ty_ret) in
+              let ty_res0 =
+                  Option.value ~default:ty_ret0
+                      (instance_funct ~id_in:(Ident.of_unscoped id0)
+                                      ~p_out:path ~fixed:false ty_ret0) in
+              let arg =
+                let ty_arg = newmono (newty2 ~level:(get_level ty_fun') (Tpackage (p, fl))) in
+                let ty_arg0 = newmono (newty2 ~level:(get_level ty_fun0) (Tpackage (p0, fl0))) in
+                let wrapped_in_some = optional in
+                if wrapped_in_some then
+                  may_warn sarg.pexp_loc
+                    (Warnings.Not_principal "using an optional argument here");
+                let _ = (fun i -> try tpoly_get_poly i with _ -> assert false) ty_arg in
+                Arg (Known_arg
+                  { sarg; ty_arg; ty_arg0; commuted; sort_arg;
+                    mode_fun; mode_arg; wrapped_in_some })
+              in
+              loop ty_res ty_res0 mode_ret ((l, arg) :: rev_args) remaining_sargs
+            with CannotExtractPath ->
+              unify_to_arrows
+                (fun _trace ->
+                  raise (Error(sarg.pexp_loc, env, Cannot_infer_functor_path)));
+              loop ty_fun' ty_fun0 mode_fun rev_args sargs
+          end
+        | _ ->
+          unify_to_arrows begin fun trace ->
+            match me_opt with
+            | Some (_, _, _, sarg) ->
+                raise (Error(sarg.pexp_loc, env,
+                             Expr_type_clash(trace, None, None)))
+            | None ->
+                let ty_res = remaining_function_type ty_fun' mode_fun rev_args in
+                raise(Error(funct.exp_loc, env,
+                            Cannot_commute_label ty_res))
+          end;
+          loop ty_fun' ty_fun0 mode_fun rev_args sargs
+        end
     | _ ->
         type_unknown_args ()
   in
@@ -4097,14 +4050,10 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret args =
     List.fold_left
       (fun (ty_ret, mode_ret, open_args, closed_args, args) (lbl, arg) ->
          match arg with
-         | Arg (marg, Targ_expr (exp, sort)) ->
+         | Arg (marg, (exp, sort)) ->
              let open_args = (exp.exp_loc, marg) :: open_args in
-             let args = (lbl, Arg (Targ_expr (exp, sort))) :: args in
+             let args = (lbl, Arg (exp, sort)) :: args in
              (ty_ret, mode_ret, open_args, closed_args, args)
-         | Arg (marg, Targ_module me) ->
-            let open_args = (me.mod_loc, marg) :: open_args in
-            let args = (lbl, Arg (Targ_module me)) :: args in
-            (ty_ret, mode_ret, open_args, closed_args, args)
          | Omitted { mode_fun; ty_arg; mode_arg; level; sort_arg } ->
              let arrow_desc = (lbl, mode_arg, mode_ret) in
              let ty_ret =
@@ -4229,7 +4178,7 @@ let rec is_nonexpansive exp =
              Val_prim {Primitive.prim_name =
                          ("%raise" | "%reraise" | "%raise_notrace")}},
              Id_prim _, _) },
-      [Nolabel, Arg (Targ_expr (e, _))], _, _, _) ->
+      [Nolabel, Arg (e, _)], _, _, _) ->
      is_nonexpansive e
   | Texp_array (_, _, _ :: _, _)
   | Texp_apply _
@@ -4289,8 +4238,7 @@ and is_nonexpansive_opt = function
 
 and is_nonexpansive_arg = function
   | Omitted _ -> true
-  | Arg (Targ_expr (e, _)) -> is_nonexpansive e
-  | Arg (Targ_module me) -> is_nonexpansive_mod me
+  | Arg (e, _) -> is_nonexpansive e
 
 let maybe_expansive e = not (is_nonexpansive e)
 
@@ -4468,6 +4416,21 @@ let type_approx_fun_one_param
   end;
   ty_ret
 
+let is_unpack (lbl, pat) =
+  match pat.ppat_desc with
+    Ppat_constraint ({ppat_desc = Ppat_unpack ({txt = Some _; _}); _},
+                     Some {ptyp_desc = Ptyp_package _; _}, _) ->
+    begin match lbl with
+      Parsetree.Optional _ -> false
+    | Parsetree.Labelled _ | Parsetree.Nolabel -> true
+    end
+  | _ -> false
+
+let could_be_functor env ty =
+  match get_desc (expand_head env ty) with
+  | Tvar _ | Tfunctor _ -> true
+  | _ -> false
+
 let rec type_approx env sexp ty_expected =
   let loc = sexp.pexp_loc in
   match Jane_syntax.Expression.of_ast sexp with
@@ -4493,7 +4456,7 @@ let rec type_approx env sexp ty_expected =
            : type_expr)
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt = "extension.escape"}, PStr []) },
-       [Nolabel, Parg_expr e]) ->
+       [Nolabel, e]) ->
     type_approx env e ty_expected
   | _ -> ()
 
@@ -4527,7 +4490,8 @@ and type_approx_function =
     *)
     match params with
     | { pparam_desc = Pparam_newtype _ } :: _ -> ()
-    | { pparam_desc = Pparam_module _ } :: _ -> ()
+    | { pparam_desc = Pparam_val (label, None, pat)} :: _
+      when is_unpack (label, pat) -> ()
     | { pparam_desc = Pparam_val (label, _, pat) } :: params ->
         let label, pat = Typetexp.transl_label_from_pat label pat in
         let ty_res =
@@ -4915,6 +4879,7 @@ let proper_exp_loc exp =
   in
   aux exp.exp_extra
 
+
 (* To find reasonable names for let-bound and lambda-bound idents *)
 
 let rec name_pattern default = function
@@ -4952,7 +4917,7 @@ let rec is_inferred sexp =
   | None      -> match sexp.pexp_desc with
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({ txt }, PStr []) },
-        [Nolabel, Parg_expr sbody]) when is_exclave_extension_node txt ->
+        [Nolabel, sbody]) when is_exclave_extension_node txt ->
       is_inferred sbody
   | Pexp_ident _ | Pexp_apply _ | Pexp_field _ | Pexp_constraint (_, Some _, _)
   | Pexp_coerce _ | Pexp_send _ | Pexp_new _ -> true
@@ -5186,7 +5151,7 @@ let split_function_ty
   let ty_arg_mono =
     if has_poly then ty_arg
     else begin
-      let ty, vars = tpoly_get_poly ty_arg in
+      let ty, vars = (fun i -> try tpoly_get_poly i with _ -> assert false) ty_arg in
       if vars = [] then ty
       else begin
         with_level ~level:generic_level
@@ -5209,15 +5174,17 @@ let split_function_ty
     expected_inner_mode; expected_pat_mode
   }
 
-let split_function_mty env ty_expected
+let split_function_mty env ty_expected ~arg_label
     ~in_function ~is_first_val_param
   =
   let { ty = ty_fun; explanation }, loc_fun = in_function in
   with_local_level_iter ~post:generalize_structure begin fun () ->
-    match filter_functor env (instance ty_expected) with
-    | None -> (None, [])
-    | Some (_, _, ty) as o -> (o, [ty])
-    | exception Filter_arrow_failed err ->
+    try
+      let filtered = filter_functor env (instance ty_expected) arg_label in
+      match filtered.ret with
+      | None -> (filtered, [])
+      | Some (_, _, _, ty_ret) -> (filtered, [ty_ret])  
+    with Filter_arrow_failed err ->
         let err =
           error_of_filter_arrow_failure ~explanation ~first:is_first_val_param
             ty_fun err
@@ -5594,7 +5561,7 @@ and type_expect_
         ~attributes:sexp.pexp_attributes (params, body_constraint, body)
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt = "extension.escape"}, PStr []) },
-       [Nolabel, Parg_expr sbody]) ->
+       [Nolabel, sbody]) ->
       submode ~loc ~env ~reason:Other Value.legacy expected_mode;
       let exp =
         type_expect ~recarg env mode_legacy sbody
@@ -5603,7 +5570,7 @@ and type_expect_
       {exp with exp_loc = loc}
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({ txt }, PStr []) },
-       [Nolabel, Parg_expr sbody]) when is_exclave_extension_node txt ->
+       [Nolabel, sbody]) when is_exclave_extension_node txt ->
       if (txt = "extension.exclave") && not (Language_extension.is_enabled Mode) then
           raise (Typetexp.Error (loc, Env.empty, Unsupported_extension Mode));
       begin
@@ -5658,11 +5625,11 @@ and type_expect_
               (try enforce_current_level env ty_arg
                with Unify _ -> assert false);
               ret_tvar env (TypeSet.add ty seen) ty_fun
-          | Tfunctor (id, (p, fl), ty_fun) ->
+          | Tfunctor (_l, id, (p, fl), ty_fun) ->
               List.iter (fun (_, t) ->
                 try enforce_current_level env t with Unify _ -> assert false) fl;
               let mty = !Ctype.modtype_of_package env Location.none p fl in
-              let env = Env.add_module id Mp_present mty env in
+              let env = Env.add_module (Ident.of_unscoped id) Mp_present mty env in
               ret_tvar env (TypeSet.add ty seen) ty_fun
           | Tvar _ ->
               let v = newvar (Jkind.Builtin.any ~why:Dummy_jkind) in
@@ -5703,13 +5670,13 @@ and type_expect_
         match funct.exp_desc, sargs with
         | Texp_ident (_, _, {val_kind = Val_prim {prim_name = "%revapply"}; val_type},
                       Id_prim _, _),
-          [Nolabel, sarg; Nolabel, Parg_expr actual_sfunct]
+          [Nolabel, sarg; Nolabel, actual_sfunct]
           when is_inferred actual_sfunct
             && check_apply_prim_type Revapply val_type ->
             type_sfunct_args actual_sfunct [Nolabel, sarg]
         | Texp_ident (_, _, {val_kind = Val_prim {prim_name = "%apply"}; val_type},
                       Id_prim _, _),
-          [Nolabel, Parg_expr actual_sfunct; Nolabel, sarg]
+          [Nolabel, actual_sfunct; Nolabel, sarg]
           when check_apply_prim_type Apply val_type ->
             type_sfunct_args actual_sfunct [Nolabel, sarg]
         | _ ->
@@ -7009,14 +6976,18 @@ and type_function
         params_contain_gadt = contains_gadt; newtypes = newtype :: newtypes;
         fun_alloc_mode; ret_info;
       }
-  | { pparam_desc = Pparam_module (name, (p, fl)); pparam_loc}
-    :: rest ->
-      let pack = {
-        ptyp_desc = Ptyp_package(p, fl);
-        ptyp_loc = pparam_loc;
-        ptyp_loc_stack = [];
-        ptyp_attributes = [];
-      } in
+  | { pparam_desc = Pparam_val (arg_label, None, pat); pparam_loc } :: rest
+    when is_unpack (arg_label, pat) && could_be_functor env ty_expected ->
+      let typed_arg_label, pat =
+        Typetexp.transl_label_from_pat arg_label pat
+      in
+      let (name, p, pack) =
+        match pat.ppat_desc with
+          Ppat_constraint ({ppat_desc = Ppat_unpack ({txt = Some name; loc}); _}
+                          , Some ({ptyp_desc = Ptyp_package (p, _)} as pack), _)
+              -> ({txt = name; loc}, p, pack)
+        | _ -> assert false
+      in
       let pack = Typetexp.transl_simple_type env ~new_var_jkind:Any
                                     ~closed:false Alloc.Const.legacy pack in
       let pck_ty = match pack.ctyp_desc with
@@ -7039,20 +7010,22 @@ and type_function
             List.for_all
               (fun { pparam_desc } ->
                 match pparam_desc with
-                | Pparam_val _ | Pparam_module _ -> false
+                | Pparam_val _ -> false
                 | Pparam_newtype _ -> true)
               rest
       in
+      let { arg_mode; ret_mode; ret } = split_function_mty env ty_expected
+              ~arg_label:typed_arg_label ~is_first_val_param:first ~in_function
+      in
       let id_expected_typ_opt =
-        match split_function_mty env ty_expected
-          ~is_first_val_param:first ~in_function with
+        match ret with
         | None -> None
-        | Some (id, (path', fl'), ety) ->
+        | Some (ad, id, (path', fl'), ety) ->
           begin try
             unify env
-              (newty (Tfunctor (id, (path, fl),
+              (newty (Tfunctor (ad, id, (path, fl),
                       newvar (Jkind.Builtin.any ~why:Dummy_jkind))))
-              (newty (Tfunctor (id, (path', fl'),
+              (newty (Tfunctor (ad, id, (path', fl'),
                       newvar (Jkind.Builtin.any ~why:Dummy_jkind))))
           with Unify trace ->
               raise (Error(loc, env, Expr_type_clash(trace, None, None)))
@@ -7077,7 +7050,9 @@ and type_function
                 Mp_present arg_md env in
           let expected_res = match id_expected_typ_opt with
             | Some (id, ety) ->
-              instance_funct ~id_in:id ~p_out:(Pident s_ident) ~fixed:false ety
+              Option.value ~default:ety
+                  (instance_funct ~id_in:(Ident.of_unscoped id)
+                                  ~p_out:(Pident s_ident) ~fixed:false ety)
             | None -> newvar (Jkind.Builtin.any ~why:Dummy_jkind)
           in
           let type_sort ~why ty =
@@ -7093,11 +7068,17 @@ and type_function
       end
       in
       let ident = Ident.create_unscoped name.txt in
-      let res_ty =
-        instance_funct ~id_in:s_ident ~p_out:(Pident ident) ~fixed:false res_ty
-      in
+      let ad = (typed_arg_label, arg_mode, ret_mode) in
       let exp_type =
-          Btype.newgenty (Tfunctor (ident, (path, fl), res_ty)) in
+          match
+            instance_funct ~id_in:s_ident ~p_out:(Pident (Ident.of_unscoped ident))
+                           ~fixed:false res_ty
+          with
+          | Some res_ty ->
+              newgenty (Tfunctor (ad, ident, (path, fl), res_ty))
+          | None ->
+              newgenty (Tarrow (ad, newmono pack.ctyp_type, res_ty, commu_ok))
+      in
       unify_exp_types loc env exp_type (instance ty_expected);
       let pat_desc = Tpat_var (s_ident, name, pv_uid, Value.disallow_right Value.legacy) in
       let pattern = {
@@ -7108,7 +7089,7 @@ and type_function
         pat_env = env;
         pat_attributes = []
       } in
-      let fp_kind = Tparam_module (pattern, pck_ty) in
+      let fp_kind = Tparam_pat pattern in
       let alloc_mode =
         let mode, _ = Value.newvar_below expected_mode.mode in
         fst (register_allocation_value_mode mode)
@@ -7150,7 +7131,7 @@ and type_function
             fp_mode = Alloc.disallow_right Alloc.legacy;
             fp_curry = curry;
             fp_arg_label = Nolabel;
-            fp_param = ident;
+            fp_param = s_ident;
             fp_partial = Total;
             fp_newtypes = newtypes;
             fp_loc = pparam_loc;
@@ -7190,7 +7171,7 @@ and type_function
             List.for_all
               (fun { pparam_desc } ->
                 match pparam_desc with
-                | Pparam_val _ | Pparam_module _ -> false
+                | Pparam_val _ -> false
                 | Pparam_newtype _ -> true)
               rest
       in
@@ -7886,10 +7867,10 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
             in
             (* CR layouts v5: change value assumption below when we allow
                non-values in structures. *)
-            make_args ((l, Arg (Targ_expr (ty, Jkind.Sort.value))) :: args) ty_fun
+            make_args ((l, Arg (ty, Jkind.Sort.value)) :: args) ty_fun
         | Tarrow ((l,_marg,_mret),_,ty_fun,_) when is_position l ->
             let arg = src_pos (Location.ghostify sarg.pexp_loc) [] env in
-            make_args ((l, Arg (Targ_expr (arg, Jkind.Sort.value))) :: args) ty_fun
+            make_args ((l, Arg (arg, Jkind.Sort.value)) :: args) ty_fun
         | Tarrow ((l,_,_),_,ty_res',_) when l = Nolabel || !Clflags.classic ->
             List.rev args, ty_fun, no_labels ty_res'
         | Tvar _ ->  List.rev args, ty_fun, false
@@ -7963,7 +7944,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
           {texp with exp_type = ty_res; exp_desc =
            Texp_apply
              (texp,
-              args @ [Nolabel, Arg (Targ_expr (eta_var, arg_sort))], Nontail,
+              args @ [Nolabel, Arg (eta_var, arg_sort)], Nontail,
               ret_mode
               |> Value.proj (Comonadic Areality)
               |> regional_to_global
@@ -8018,7 +7999,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
 
 and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (lbl, arg) =
   match arg with
-  | Arg (Unknown_earg { sarg; ty_arg_mono; mode_arg; sort_arg }) ->
+  | Arg (Unknown_arg { sarg; ty_arg_mono; mode_arg; sort_arg }) ->
       let expected_mode, mode_arg =
         mode_argument ~funct ~index ~position_and_mode ~partial_app mode_arg in
       let arg =
@@ -8028,16 +8009,12 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
         (* CR layouts v5: relax value requirement *)
         unify_exp env arg
           (type_option(newvar Predef.option_argument_jkind));
-      (lbl, Arg (mode_arg, Targ_expr (arg, sort_arg)))
-  | Arg (Module_arg { sarg; mode_arg }) ->
-      let _, mode_arg =
-        mode_argument ~funct ~index ~position_and_mode ~partial_app mode_arg in
-      (lbl, Arg (mode_arg, Targ_module sarg))
-  | Arg (Known_earg { sarg; ty_arg; ty_arg0;
+      (lbl, Arg (mode_arg, (arg, sort_arg)))
+  | Arg (Known_arg { sarg; ty_arg; ty_arg0;
                      mode_arg; wrapped_in_some; sort_arg }) ->
       let expected_mode, mode_arg =
         mode_argument ~funct ~index ~position_and_mode ~partial_app mode_arg in
-      let ty_arg', vars = tpoly_get_poly ty_arg in
+      let ty_arg', vars = (fun i -> try tpoly_get_poly i with _ -> assert false) ty_arg in
       let arg =
         if vars = [] then begin
           let ty_arg0' = tpoly_get_mono ty_arg0 in
@@ -8088,15 +8065,15 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
           {arg with exp_type = instance arg.exp_type}
         end
       in
-      (lbl, Arg (mode_arg, Targ_expr (arg, sort_arg)))
+      (lbl, Arg (mode_arg, (arg, sort_arg)))
   | Arg (Eliminated_optional_arg { ty_arg; sort_arg; expected_label; _ }) ->
       (match expected_label with
       | Optional _ ->
           let arg = type_option_none env (instance ty_arg) Location.none in
-          (lbl, Arg (Mode.Value.legacy, Targ_expr (arg, sort_arg)))
+          (lbl, Arg (Mode.Value.legacy, (arg, sort_arg)))
       | Position _ ->
           let arg = src_pos (Location.ghostify funct.exp_loc) [] env in
-          (lbl, Arg (Mode.Value.legacy, Targ_expr (arg, sort_arg)))
+          (lbl, Arg (Mode.Value.legacy, (arg, sort_arg)))
       | Labelled _ | Nolabel -> assert false)
   | Omitted _ as arg -> (lbl, arg)
 
@@ -8109,7 +8086,7 @@ and type_application env app_loc expected_mode position_and_mode
   in
   match sargs with
   | (* Special case for ignore: avoid discarding warning *)
-    [Parsetree.Nolabel, Parg_expr sarg] when is_ignore funct ->
+    [Parsetree.Nolabel, sarg] when is_ignore funct ->
       let {ty_arg; arg_mode; ty_ret; ret_mode} =
         with_local_level_if_principal (fun () ->
           filter_arrow_mono env (instance funct.exp_type) Nolabel
@@ -8133,7 +8110,7 @@ and type_application env app_loc expected_mode position_and_mode
       in
       let exp = type_expect env arg_mode sarg (mk_expected ty_arg) in
       check_partial_application ~statement:false exp;
-      ([Nolabel, Arg (Targ_expr (exp, arg_sort))], ty_ret, ap_mode, position_and_mode)
+      ([Nolabel, Arg (exp, arg_sort)], ty_ret, ap_mode, position_and_mode)
   | _ ->
       let ty = funct.exp_type in
       let ignore_labels =
@@ -10374,44 +10351,6 @@ let report_error ~loc env = function
             (Style.as_inline_code Printtyp.type_expr) func_ty
             "This is not a function; it cannot be applied."
       end
-  | Apply_non_functor {
-    funct; func_ty; res_ty; previous_arg_loc; extra_arg_loc
-    } ->
-      begin match get_desc func_ty with
-        Tfunctor _ ->
-          let returns_unit = match get_desc res_ty with
-            | Tconstr (p, _, _) -> Path.same p Predef.path_unit
-            | _ -> false
-          in
-          report_too_many_arg_error ~funct ~func_ty ~previous_arg_loc
-            ~extra_arg_loc ~returns_unit loc
-      | _ ->
-          Location.errorf ~loc "@[<v>@[<2>This expression has type@ %a@]@ %s@]"
-            Printtyp.type_expr func_ty
-            "This is not a functor; it cannot be applied."
-      end
-  | Invalid_argument {
-    funct; func_ty; res_ty; previous_arg_loc; extra_arg_loc; arg
-    } ->
-      begin
-      let arg_type = match arg with
-        Parg_expr _ -> "n expression"
-      | Parg_module _ -> " module"
-      in
-      match get_desc func_ty with
-        Tfunctor _ ->
-          let returns_unit = match get_desc res_ty with
-            | Tconstr (p, _, _) -> Path.same p Predef.path_unit
-            | _ -> false
-          in
-          report_too_many_arg_error ~funct ~func_ty ~previous_arg_loc
-            ~extra_arg_loc ~returns_unit loc
-      | _ ->
-          Location.errorf ~loc
-            "@[<v>@[<2>This expression has type@ %a@]@ %s%s.@]"
-            Printtyp.type_expr func_ty
-            "But was applied to a" arg_type
-      end
   | Apply_wrong_label (l, ty, extra_info) ->
       let print_label ppf = function
         | Nolabel -> fprintf ppf "without label"
@@ -10950,15 +10889,12 @@ let report_error ~loc env = function
   | Cannot_infer_functor_path ->
       Location.errorf ~loc
         "Cannot infer path of module for functor."
-  | Cannot_infer_functor_signature ->
-      Location.errorf ~loc
-        "Cannot infer signature of functor."
   | Cannot_commute_label func_ty ->
       Location.errorf ~loc
             "@[<v>@[<2>This expression has type@ %a@]@ \
             Received an expression argument. \
              However, module arguments cannot be omitted.@]"
-            Printtyp.type_expr func_ty
+            (Style.as_inline_code Printtyp.type_expr) func_ty
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env_error env

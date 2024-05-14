@@ -151,7 +151,6 @@ let iterator =
           List.for_all
             (function
               | { pparam_desc = Pparam_newtype _ } -> true
-              | { pparam_desc = Pparam_module _ }
               | { pparam_desc = Pparam_val _ } -> false)
             params
         then function_without_value_parameters loc

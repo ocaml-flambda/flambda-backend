@@ -665,7 +665,7 @@ let rec expression : Typedtree.expression -> term_judg =
         join [path self_path << Dereference; path pth]
     | Texp_apply
         ({exp_desc = Texp_ident (_, _, vd, Id_prim _, _)},
-          [_, Arg (Targ_expr (arg, _))], _, _, _)
+          [_, Arg (arg, _)], _, _, _)
       when is_ref vd ->
       (*
         G |- e: m[Guard]
@@ -686,12 +686,11 @@ let rec expression : Typedtree.expression -> term_judg =
         let rec split_args ~has_omitted_arg = function
           | [] -> [], []
           | (_, Omitted _) :: rest -> split_args ~has_omitted_arg:true rest
-          | (_, Arg (Targ_expr (arg, _))) :: rest ->
+          | (_, Arg (arg, _)) :: rest ->
             let applied, delayed = split_args ~has_omitted_arg rest in
             if has_omitted_arg
             then applied, arg :: delayed
             else arg :: applied, delayed
-          | (_, Arg (Targ_module _)) :: _ -> assert false (* TODO *)
         in
         let applied, delayed = split_args ~has_omitted_arg:false args in
         let function_mode =
@@ -925,7 +924,6 @@ let rec expression : Typedtree.expression -> term_judg =
           *)
           match param.fp_kind with
           | Tparam_pat pat -> pat
-          | Tparam_module (pat, _) -> pat
           | Tparam_optional_default (pat, _, _) -> pat
         in
         (* Optional argument defaults.
@@ -940,8 +938,6 @@ let rec expression : Typedtree.expression -> term_judg =
                       G |-{def} ?(p=e) : m
                   *)
               expression default
-          | Tparam_module _ ->
-              empty
           | Tparam_pat _ ->
                   (*
                       ------------------

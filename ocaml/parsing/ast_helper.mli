@@ -87,7 +87,7 @@ module Typ :
     val package: ?loc:loc -> ?attrs:attrs -> lid -> (lid * core_type) list
                  -> core_type
     val open_ : ?loc:loc -> ?attrs:attrs -> lid -> core_type -> core_type
-    val functor_ : ?loc:loc -> ?attrs:attrs -> str
+    val functor_ : ?loc:loc -> ?attrs:attrs -> arg_label -> str
                  -> (lid * (lid * core_type) list) -> core_type -> core_type
     val extension: ?loc:loc -> ?attrs:attrs -> extension -> core_type
 
@@ -151,7 +151,7 @@ module Exp:
                    -> function_constraint option -> function_body
                    -> expression
     val apply: ?loc:loc -> ?attrs:attrs -> expression
-               -> (arg_label * argument) list -> expression
+               -> (arg_label * expression) list -> expression
     val match_: ?loc:loc -> ?attrs:attrs -> expression -> case list
                 -> expression
     val try_: ?loc:loc -> ?attrs:attrs -> expression -> case list -> expression
@@ -207,8 +207,6 @@ module Exp:
 
     val case: pattern -> ?guard:expression -> expression -> case
     val binding_op: str -> pattern -> expression -> loc -> binding_op
-    val arg_expr: expression -> argument
-    val arg_mod: module_expr -> argument
   end
 
 (** Value declarations *)

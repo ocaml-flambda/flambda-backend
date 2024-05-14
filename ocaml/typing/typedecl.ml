@@ -1067,10 +1067,10 @@ let rec check_constraints_rec env loc visited ty =
   | Tpoly (ty, tl) ->
       let _, ty = Ctype.instance_poly ~fixed:false tl ty in
       check_constraints_rec env loc visited ty
-  | Tfunctor (id, (p, fl), ty) ->
+  | Tfunctor (_, id, (p, fl), ty) ->
       List.iter (fun (_, t) -> check_constraints_rec env loc visited t) fl;
       let mty = !Ctype.modtype_of_package env loc p fl in
-      let env = Env.add_module id Mp_present mty env in
+      let env = Env.add_module (Ident.of_unscoped id) Mp_present mty env in
       check_constraints_rec env loc visited ty
   | _ ->
       Btype.iter_type_expr (check_constraints_rec env loc visited) ty

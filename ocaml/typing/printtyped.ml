@@ -297,8 +297,9 @@ let rec core_type i ppf x =
       line i ppf "Ttyp_open %a\n" fmt_path path;
       core_type i ppf t
   | Ttyp_call_pos -> line i ppf "Ttyp_call_pos\n";
-  | Ttyp_functor (id, { pack_path = s; pack_fields = l}, ct) ->
+  | Ttyp_functor (lbl, id, { pack_path = s; pack_fields = l}, ct) ->
       line i ppf "Ttyp_functor\n";
+      arg_label i ppf lbl;
       line i ppf "module \"%a\" : %a" fmt_ident id.txt fmt_path s;
       list i package_with ppf l;
       core_type i ppf ct  
@@ -653,9 +654,6 @@ and function_param i ppf x =
       line i ppf "Param_pat%a\n"
         fmt_partiality x.fp_partial;
       pattern (i+1) ppf pat
-  | Tparam_module (pat, { pack_path = p; _ }) ->
-      line i ppf "Param_module of sig %a\n" fmt_path p;
-      pattern (i+1) ppf pat
   | Tparam_optional_default (pat, expr, sort) ->
       line i ppf "Param_optional_default%a\n"
         fmt_partiality x.fp_partial;
@@ -821,7 +819,7 @@ and class_expr i ppf x =
   | Tcl_apply (ce, l) ->
       line i ppf "Tcl_apply\n";
       class_expr i ppf ce;
-      list i label_x_apply_expr ppf l;
+      list i label_x_apply_arg ppf l;
   | Tcl_let (rf, l1, l2, ce) ->
       line i ppf "Tcl_let %a\n" fmt_rec_flag rf;
       list i (value_binding rf) ppf l1;
@@ -1190,22 +1188,10 @@ and record_field i ppf = function
   | _, Kept _ ->
       line i ppf "<kept>"
 
-and label_x_apply_expr i ppf (l, e) =
+and label_x_apply_arg i ppf (l, e) =
   line i ppf "<arg>\n";
   arg_label (i+1) ppf l;
   (match e with Omitted _ -> () | Arg (e, _) -> expression (i+1) ppf e)
-
-and label_x_apply_arg i ppf (l, a) =
-  line i ppf "<arg>\n";
-  arg_label (i+1) ppf l;
-  (match a with Omitted _ -> () | Arg e -> argument (i+1) ppf e)  
-
-and argument i ppf = function
-  | Targ_expr (e, _) ->
-    expression i ppf e
-  | Targ_module me ->
-    line i ppf "<module>\n";
-    module_expr (i+1) ppf me
 
 and labeled_expression i ppf (l, e) =
   tuple_component_label i ppf l;

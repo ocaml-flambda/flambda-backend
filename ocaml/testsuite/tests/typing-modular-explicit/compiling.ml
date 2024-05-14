@@ -5,9 +5,9 @@ module type Print = sig
   val print : t -> unit
 end
 
-let print {P : Print} (x : P.t) = P.print x
+let print (module P : Print) (x : P.t) = P.print x
 
-let print_endline {P : Print} (x : P.t) =
+let print_endline (module P : Print) (x : P.t) =
   P.print x;
   print_newline ()
 
@@ -17,10 +17,10 @@ module PList (P : Print) = struct
   let rec aux = function
   | [] -> print_string "]"
   | [x] ->
-      print {P} x;
+      print (module P) x;
       print_string "]"
   | hd :: tl ->
-      print {P} hd;
+      print (module P) hd;
       print_string "; ";
       aux tl
 
@@ -49,6 +49,6 @@ module PBool = struct
 end
 
 let () =
-  print_endline {PList(PInt)} [3; 1; 3];
-  print_endline {PList(PBool)} [true; false];
-  print_endline {PInt} 3;;
+  print_endline (module PList(PInt)) [3; 1; 3];
+  print_endline (module PList(PBool)) [true; false];
+  print_endline (module PInt) 3;;
