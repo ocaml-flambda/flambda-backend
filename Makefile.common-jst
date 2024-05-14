@@ -251,15 +251,15 @@ install_for_test: _install
 	 ln -s . lex; ln -s . yacc; \
 	 ln -s _install/lib/ocaml/compiler-libs compilerlibs; \
 	 mkdir -p otherlibs/{unix,dynlink/native,str,bigarray,runtime_events}; \
-	 mkdir -p otherlibs/{upstream_compatible,stable,beta,alpha}; \
 	 ln -s ../stdlib/threads otherlibs/systhreads$(RUNTIME_SUFFIX); \
          $(cpl) stdlib/unix/{lib,}unix* otherlibs/unix; \
          $(cpl) stdlib/dynlink/dynlink* otherlibs/dynlink; \
          $(cpl) stdlib/str/{lib,}str* otherlibs/str; \
-         $(cpl) stdlib/upstream_compatible/* otherlibs/upstream_compatible; \
-         $(cpl) stdlib/stable/* otherlibs/stable; \
-         $(cpl) stdlib/beta/* otherlibs/beta; \
-         $(cpl) stdlib/alpha/* otherlibs/alpha; \
+	 for universe in upstream_compatible stable beta alpha ; do \
+		mkdir -p otherlibs/{stdlib_,}$${universe}; \
+		$(cpl) stdlib/stdlib_$${universe}/* otherlibs/stdlib_$${universe}; \
+		$(cpl) stdlib/$${universe}/* otherlibs/$${universe}; \
+	 done; \
      if [[ x"$(RUNTIME_DIR)" = x"runtime" ]]; then \
 	     $(cpl) stdlib/runtime_events/{lib,}runtime_events* otherlibs/runtime_events; \
      fi; \
