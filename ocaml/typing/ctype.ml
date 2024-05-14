@@ -2302,23 +2302,6 @@ let unification_jkind_check env ty jkind =
   | Delay_checks r -> r := (ty,jkind) :: !r
   | Skip_checks -> ()
 
-exception Incompatible_with_erasability_requirements of
-  Ident.t option * Location.t
-
-let () =
-  Location.register_error_of_exn (function
-  | Incompatible_with_erasability_requirements (id, loc) ->
-    let format_id ppf = function
-      | Some id -> Format.fprintf ppf " in %s" (Ident.name id)
-      | None -> ()
-    in
-    Some (Location.errorf ~loc
-      "@[Usage of layout immediate/immediate64%a can't be erased \
-      for compatibility with upstream OCaml.@; This error is produced due to \
-      the use of -extension-universe (no_extensions|upstream_compatible).@]"
-      format_id id)
-  | _ -> None)
-
 let check_and_update_generalized_ty_jkind ?name ~loc ty =
   let immediacy_check jkind =
     let is_immediate jkind =
@@ -2327,13 +2310,19 @@ let check_and_update_generalized_ty_jkind ?name ~loc ty =
          might turn out later to be value. This is the conservative choice. *)
       Jkind.(Externality.le (get_externality_upper_bound jkind) External64 &&
              match get_layout jkind with
-               | Some (Sort Value) | None -> true
+               | Some (Sort Value | Non_null_value) | None -> true
                | _ -> false)
     in
     if Language_extension.erasable_extensions_only ()
       && is_immediate jkind
     then
-      raise (Incompatible_with_erasability_requirements (name, loc))
+      let id =
+        match name with
+        | Some id -> Ident.name id
+        | None -> "<unknown>"
+      in
+      Location.prerr_warning loc (Warnings.Incompatible_with_upstream
+        (Warnings.Immediate_erasure id))
     else ()
   in
   let rec inner ty =
