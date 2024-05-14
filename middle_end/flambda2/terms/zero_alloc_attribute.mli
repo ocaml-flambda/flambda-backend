@@ -2,18 +2,31 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*               Jeremy Yallop, University of Cambridge                   *)
-(*                                                                        *)
-(*   Copyright 2017 Jeremy Yallop                                         *)
+(*   Copyright 2022 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+(** [@zero_alloc ...] annotations on function declaration (not call sites) *)
+type t =
+  | Default_check
+  | Assume of
+      { strict : bool;
+        never_returns_normally : bool;
+        never_raises : bool;
+        loc : Location.t
+      }
+  | Check of
+      { strict : bool;
+        loc : Location.t
+      }
 
-exception Illegal_expr
+val print : Format.formatter -> t -> unit
 
-val is_valid_recursive_expression : Ident.t list -> Typedtree.expression -> bool
+val equal : t -> t -> bool
 
-val is_valid_class_expr : Ident.t list -> Typedtree.class_expr -> bool
+val is_default : t -> bool
+
+val from_lambda : Lambda.zero_alloc_attribute -> Location.t -> t

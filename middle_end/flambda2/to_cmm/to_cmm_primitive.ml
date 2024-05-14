@@ -111,6 +111,7 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
       (* CR layouts v5.1: We should use the mutability here to generate better
          code if the load is immutable. *)
       C.unboxed_float_array_ref block index dbg
+    | Float32 -> C.get_field_unboxed_float32 mutability ~block ~index dbg
     | Bits32 -> C.get_field_unboxed_int32 mutability ~block ~index dbg
     | Bits64 | Word ->
       C.get_field_unboxed_int64_or_nativeint mutability ~block ~index dbg)
@@ -132,6 +133,7 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
       | Imm ->
         C.setfield_computed Immediate init_or_assign block index new_value dbg
       | Float | Float64 -> C.float_array_set block index new_value dbg
+      | Float32 -> C.setfield_unboxed_float32 block index new_value dbg
       | Bits32 -> C.setfield_unboxed_int32 block index new_value dbg
       | Bits64 | Word ->
         C.setfield_unboxed_int64_or_nativeint block index new_value dbg)

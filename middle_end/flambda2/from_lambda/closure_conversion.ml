@@ -53,6 +53,7 @@ type close_functions_result =
 type declare_const_result =
   | Field of Field_of_static_block.t
   | Unboxed_float of Numeric_types.Float_by_bit_pattern.t
+  | Unboxed_float32 of Numeric_types.Float32_by_bit_pattern.t
   | Unboxed_int32 of Numeric_types.Int32.t
   | Unboxed_int64 of Numeric_types.Int64.t
   | Unboxed_nativeint of Targetint_32_64.t
@@ -111,8 +112,11 @@ let rec declare_const acc (const : Lambda.structured_constant) :
   | Const_base (Const_char c) ->
     acc, Field (Tagged_immediate (Targetint_31_63.of_char c)), "char"
   | Const_base (Const_unboxed_float c) ->
-    let c = Numeric_types.Float_by_bit_pattern.create (float_of_string c) in
+    let c = Numeric_types.Float_by_bit_pattern.of_string c in
     acc, Unboxed_float c, "unboxed_float"
+  | Const_base (Const_unboxed_float32 c) ->
+    let c = Numeric_types.Float32_by_bit_pattern.of_string c in
+    acc, Unboxed_float32 c, "unboxed_float32"
   | Const_base (Const_string (s, _, _)) ->
     register_const acc (SC.immutable_string s) "immstring"
   | Const_base (Const_float c) ->
@@ -165,8 +169,8 @@ let rec declare_const acc (const : Lambda.structured_constant) :
           let acc, f, _ = declare_const acc c in
           match f with
           | Field f -> acc, f
-          | Unboxed_float _ | Unboxed_int32 _ | Unboxed_int64 _
-          | Unboxed_nativeint _ ->
+          | Unboxed_float _ | Unboxed_float32 _ | Unboxed_int32 _
+          | Unboxed_int64 _ | Unboxed_nativeint _ ->
             Misc.fatal_errorf
               "Unboxed constants are not allowed inside of Const_block: %a"
               Printlambda.structured_constant const)
@@ -190,6 +194,11 @@ let close_const0 acc (const : Lambda.structured_constant) =
       Simple.const (Reg_width_const.naked_float f),
       name,
       Flambda_kind.With_subkind.naked_float )
+  | Unboxed_float32 f ->
+    ( acc,
+      Simple.const (Reg_width_const.naked_float32 f),
+      name,
+      Flambda_kind.With_subkind.naked_float32 )
   | Unboxed_int32 i ->
     ( acc,
       Simple.const (Reg_width_const.naked_int32 i),
@@ -1847,9 +1856,9 @@ let make_unboxed_function_wrapper acc function_slot params params_arity
       ~stub:true ~inline:Inline_attribute.Default_inline
       ~poll_attribute:
         (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
-      ~check:
-        (Check_attribute.from_lambda
-           (Function_decl.check_attribute decl)
+      ~zero_alloc_attribute:
+        (Zero_alloc_attribute.from_lambda
+           (Function_decl.zero_alloc_attribute decl)
            (Debuginfo.Scoped_location.to_location (Function_decl.loc decl)))
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~is_opaque:false ~recursive ~newer_version_of:None ~cost_metrics
@@ -2136,19 +2145,22 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
   let contains_subfunctions = Acc.seen_a_function acc in
   let cost_metrics = Acc.cost_metrics acc in
   let inline : Inline_attribute.t =
-    (* We make a decision based on [fallback_inlining_heuristic] here to try to
-       mimic Closure's behaviour as closely as possible, particularly when there
-       are functions involving constant closures, which are not lifted during
-       Closure (but will prevent inlining) but will likely have been lifted by
-       our other check in [Inlining_cost] (thus preventing us seeing they were
-       originally there). Note that while Closure never marks as inlinable
-       functions in a set a recursive definitions with more than one function,
-       we do not try to reproduce this particular property and can mark as
-       inlinable such functions. *)
-    if contains_subfunctions
-       && Flambda_features.Expert.fallback_inlining_heuristic ()
-    then Never_inline
-    else Inline_attribute.from_lambda (Function_decl.inline decl)
+    match Inline_attribute.from_lambda (Function_decl.inline decl) with
+    | (Always_inline | Available_inline | Never_inline) as attr -> attr
+    | (Unroll _ | Default_inline) as attr ->
+      (* We make a decision based on [fallback_inlining_heuristic] here to try
+         to mimic Closure's behaviour as closely as possible, particularly when
+         there are functions involving constant closures, which are not lifted
+         during Closure (but will prevent inlining) but will likely have been
+         lifted by our other check in [Inlining_cost] (thus preventing us seeing
+         they were originally there). Note that while Closure never marks as
+         inlinable functions in a set a recursive definitions with more than one
+         function, we do not try to reproduce this particular property and can
+         mark as inlinable such functions. *)
+      if contains_subfunctions
+         && Flambda_features.Expert.fallback_inlining_heuristic ()
+      then (* CR vlaviron: Store reason *) Never_inline
+      else attr
   in
   let free_names_of_body = Acc.free_names acc in
   let params_and_body =
@@ -2183,9 +2195,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
   in
   let inlining_decision =
     if Flambda_features.classic_mode ()
-    then Inlining.definition_inlining_decision inline cost_metrics
-    else if stub
-    then Function_decl_inlining_decision_type.Stub
+    then Inlining.definition_inlining_decision inline cost_metrics ~stub
     else Function_decl_inlining_decision_type.Not_yet_decided
   in
   let loopify : Loopify_attribute.t =
@@ -2214,9 +2224,9 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
       ~stub ~inline
       ~poll_attribute:
         (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
-      ~check:
-        (Check_attribute.from_lambda
-           (Function_decl.check_attribute decl)
+      ~zero_alloc_attribute:
+        (Zero_alloc_attribute.from_lambda
+           (Function_decl.zero_alloc_attribute decl)
            (Debuginfo.Scoped_location.to_location (Function_decl.loc decl)))
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~is_opaque:(Function_decl.is_opaque decl)
@@ -2256,7 +2266,9 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
     else meta
   in
   let acc = Acc.add_code ~code_id ~code acc in
-  let acc = Acc.with_seen_a_function acc true in
+  let acc =
+    if has_lifted_closure then acc else Acc.with_seen_a_function acc true
+  in
   ( acc,
     ( Function_slot.Map.add function_slot approx by_function_slot,
       function_code_ids ) )
@@ -2342,9 +2354,9 @@ let close_functions acc external_env ~current_region function_declarations =
         let poll_attribute =
           Poll_attribute.from_lambda (Function_decl.poll_attribute decl)
         in
-        let check =
-          Check_attribute.from_lambda
-            (Function_decl.check_attribute decl)
+        let zero_alloc_attribute =
+          Zero_alloc_attribute.from_lambda
+            (Function_decl.zero_alloc_attribute decl)
             (Debuginfo.Scoped_location.to_location (Function_decl.loc decl))
         in
         let cost_metrics = Cost_metrics.zero in
@@ -2362,8 +2374,8 @@ let close_functions acc external_env ~current_region function_declarations =
             ~result_mode:(Function_decl.result_mode decl)
             ~contains_no_escaping_local_allocs:
               (Function_decl.contains_no_escaping_local_allocs decl)
-            ~stub:(Function_decl.stub decl) ~inline:Never_inline ~check
-            ~poll_attribute
+            ~stub:(Function_decl.stub decl) ~inline:Never_inline
+            ~zero_alloc_attribute ~poll_attribute
             ~is_a_functor:(Function_decl.is_a_functor decl)
             ~is_opaque:(Function_decl.is_opaque decl)
             ~recursive:(Function_decl.recursive decl)
@@ -2695,7 +2707,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
       { inline = Default_inline;
         specialise = Default_specialise;
         local = Default_local;
-        check = Default_check;
+        zero_alloc = Default_zero_alloc;
         loop = Default_loop;
         is_a_functor = false;
         is_opaque = false;

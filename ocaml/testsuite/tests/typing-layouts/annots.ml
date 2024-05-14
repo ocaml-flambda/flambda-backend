@@ -299,7 +299,7 @@ type rf = { fieldf : ('a : float64). 'a -> 'a }
 let f { fieldf } = fieldf (Stable.Float_u.of_float 3.14);;
 [%%expect {|
 type rf = { fieldf : ('a : float64). 'a -> 'a; }
-val f : rf -> float# = <fun>
+val f : rf -> Stdlib__Float_u.t = <fun>
 |}]
 
 let f { field } = field "hello"

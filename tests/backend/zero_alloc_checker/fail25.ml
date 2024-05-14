@@ -1,4 +1,4 @@
-(* all functions fail the check when -disable-checkmach is passed. *)
+(* all functions fail the check when -disable-zero-zero-alloc-checker is passed. *)
 module Sexp = struct
   type t =
     | Atom of string
@@ -18,7 +18,7 @@ let raise_s sexp = raise (Exn sexp)
  *       "Unknown" (unknown_index : int) (name : string)]
  * ;; *)
 
-(* pass the check when -disable-precise-checkmach is passed, because
+(* pass the check when -disable-precise-zero-alloc-checker is passed, because
    conservative summary of ppx_sexp_message is on used on a path to
    raise_s. *)
 let raise_invalid_index_FAIL ~unknown_index ~name =
@@ -41,7 +41,7 @@ let[@zero_alloc] rec g x =
     try g x with _ -> ()
   else raise (Failure x)
 
-(* Functions below fail the check when -disable-precise-checkmach is passed. *)
+(* Functions below fail the check when -disable-precise-zero-alloc-checker is passed. *)
 let[@zero_alloc] rec foo n =
   bar (n-1)
 and[@zero_alloc] bar n =
@@ -53,7 +53,7 @@ let[@zero_alloc] rec f1 x =
 and[@zero_alloc] f2 x =
   f1 (x + 1)
 
-(* Fail the check when -disable-precise-checkmach is passed and -function-layout source *)
+(* Fail the check when -disable-precise-zero-alloc-checker is passed and -function-layout source *)
 let[@zero_alloc] outer x =
   let[@zero_alloc][@inline never][@local never] inner x =
     if x > Sys.opaque_identity 10

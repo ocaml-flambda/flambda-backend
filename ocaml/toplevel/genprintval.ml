@@ -258,7 +258,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       | Immediate64 | Immediate | Non_null_value | Value -> Print_as_value
       | Void -> Print_as "<void>"
       | Any -> Print_as "<any>"
-      | Float64 | Bits32 | Bits64 | Word -> Print_as "<abstr>"
+      | Float64 | Float32 | Bits32 | Bits64 | Word -> Print_as "<abstr>"
 
     let outval_of_value max_steps max_depth check_depth env obj ty =
 
@@ -582,8 +582,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                         | Flat_suffix Imm -> `Continue (O.field obj pos)
                         | Flat_suffix (Float | Float64) ->
                             `Continue (O.repr (O.double_field obj pos))
-                        | Flat_suffix (Bits32 | Bits64 | Word) ->
-                            `Stop (Oval_stuff "<bits>")
+                        | Flat_suffix (Float32 | Bits32 | Bits64 | Word) ->
+                            `Stop (Oval_stuff "<abstr>")
                       in
                       match fld with
                       | `Continue fld ->

@@ -343,7 +343,7 @@ and block_shape =
   value_kind list option
 
 and flat_element = Types.flat_element =
-    Imm | Float | Float64 | Bits32 | Bits64 | Word
+    Imm | Float | Float64 | Float32 | Bits32 | Bits64 | Word
 and flat_element_read =
   | Flat_read of flat_element (* invariant: not [Float] *)
   | Flat_read_float of alloc_mode
@@ -621,24 +621,19 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
-type property = Builtin_attributes.property =
-  | Zero_alloc
-
 type poll_attribute =
   | Error_poll (* [@poll error] *)
   | Default_poll (* no [@poll] attribute *)
 
-type check_attribute = Builtin_attributes.check_attribute =
-  | Default_check
-  | Ignore_assert_all of property
-  | Check of { property: property;
-               strict: bool;
+type zero_alloc_attribute = Builtin_attributes.zero_alloc_attribute =
+  | Default_zero_alloc
+  | Ignore_assert_all
+  | Check of { strict: bool;
                opt: bool;
                arity: int;
                loc: Location.t;
              }
-  | Assume of { property: property;
-                strict: bool;
+  | Assume of { strict: bool;
                 never_returns_normally: bool;
                 never_raises: bool;
                 arity: int;
@@ -673,7 +668,7 @@ type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
   local: local_attribute;
-  check : check_attribute;
+  zero_alloc : zero_alloc_attribute;
   poll: poll_attribute;
   loop: loop_attribute;
   is_a_functor: bool;
@@ -705,7 +700,7 @@ type lambda =
   | Lfunction of lfunction
   | Llet of let_kind * layout * Ident.t * lambda * lambda
   | Lmutlet of layout * Ident.t * lambda * lambda
-  | Lletrec of (Ident.t * lambda) list * lambda
+  | Lletrec of rec_binding list * lambda
   | Lprim of primitive * lambda list * scoped_location
   | Lswitch of lambda * lambda_switch * scoped_location * layout
   | Lstringswitch of
@@ -725,6 +720,11 @@ type lambda =
   | Lifused of Ident.t * lambda
   | Lregion of lambda * layout
   | Lexclave of lambda
+
+and rec_binding = {
+  id : Ident.t;
+  def : lfunction;
+}
 
 and lfunction =
   { kind: function_kind;
@@ -793,12 +793,14 @@ let const_int n = Const_base (Const_int n)
 
 let const_unit = const_int 0
 
+let dummy_constant = Lconst (const_int (0xBBBB / 2))
+
 let max_arity () =
   if !Clflags.native_code then 126 else max_int
   (* 126 = 127 (the maximal number of parameters supported in C--)
            - 1 (the hidden parameter containing the environment) *)
 
-let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
+let lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
   assert (List.length params <= max_arity ());
   (* A curried function type with n parameters has n arrows. Of these,
      the first [n-nlocal] have return mode Heap, while the remainder
@@ -821,7 +823,11 @@ let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
      if not region then assert (nlocal >= 1);
      if is_local_mode mode then assert (nlocal = nparams)
   end;
-  Lfunction { kind; params; return; body; attr; loc; mode; ret_mode; region }
+  { kind; params; return; body; attr; loc; mode; ret_mode; region }
+
+let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
+  Lfunction
+    (lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region)
 
 let lambda_unit = Lconst const_unit
 
@@ -885,7 +891,7 @@ let default_function_attribute = {
   inline = Default_inline;
   specialise = Default_specialise;
   local = Default_local;
-  check = Default_check ;
+  zero_alloc = Default_zero_alloc ;
   poll = Default_poll;
   loop = Default_loop;
   is_a_functor = false;
@@ -904,7 +910,7 @@ let default_function_attribute = {
 }
 
 let default_stub_attribute =
-  { default_function_attribute with stub = true; check = Ignore_assert_all Zero_alloc }
+  { default_function_attribute with stub = true; zero_alloc = Ignore_assert_all }
 
 let default_param_attribute = { unbox_param = false }
 
@@ -1040,7 +1046,7 @@ let shallow_iter ~tail ~non_tail:f = function
       f arg; tail body
   | Lletrec(decl, body) ->
       tail body;
-      List.iter (fun (_id, exp) -> f exp) decl
+      List.iter (fun { def } -> f (Lfunction def)) decl
   | Lprim (Psequand, [l1; l2], _)
   | Lprim (Psequor, [l1; l2], _) ->
       f l1;
@@ -1101,8 +1107,12 @@ let rec free_variables = function
         (free_variables arg)
         (Ident.Set.remove id (free_variables body))
   | Lletrec(decl, body) ->
-      let set = free_variables_list (free_variables body) (List.map snd decl) in
-      Ident.Set.diff set (Ident.Set.of_list (List.map fst decl))
+      let set =
+        free_variables_list (free_variables body)
+          (List.map (fun { def } -> Lfunction def) decl)
+      in
+      Ident.Set.diff set
+        (Ident.Set.of_list (List.map (fun { id } -> id) decl))
   | Lprim(_p, args, _loc) ->
       free_variables_list Ident.Set.empty args
   | Lswitch(arg, sw,_,_) ->
@@ -1249,7 +1259,7 @@ let get_mixed_block_element = Types.get_mixed_product_element
 let flat_read_non_float flat_element =
   match flat_element with
   | Float -> Misc.fatal_error "flat_element_read_non_float Float"
-  | Imm | Float64 | Bits32 | Bits64 | Word as flat_element ->
+  | Imm | Float64 | Float32 | Bits32 | Bits64 | Word as flat_element ->
       Flat_read flat_element
 
 let flat_read_float alloc_mode = Flat_read_float alloc_mode
@@ -1266,12 +1276,17 @@ let rec make_sequence fn = function
    Assumes that the image of the substitution is out of reach
    of the bound variables of the lambda-term (no capture). *)
 
-let subst update_env ?(freshen_bound_variables = false) s input_lam =
+type substitution_functions = {
+  subst_lambda : lambda -> lambda;
+  subst_lfunction : lfunction -> lfunction;
+}
+
+let build_substs update_env ?(freshen_bound_variables = false) s =
   (* [s] contains a partial substitution for the free variables of the
-     input term [input_lam].
+     input term.
 
      During our traversal of the term we maintain a second environment
-     [l] with all the bound variables of [input_lam] in the current
+     [l] with all the bound variables of the input term in the current
      scope, mapped to either themselves or freshened versions of
      themselves when [freshen_bound_variables] is set. *)
   let bind id l =
@@ -1289,6 +1304,12 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
         let name', l = bind p.name l in
         ({ p with name = name' } :: params' , l)
       ) params ([], l)
+  in
+  let bind_rec ids l =
+    List.fold_right (fun rb (ids', l) ->
+        let id', l = bind rb.id l in
+        ({ rb with id = id' } :: ids' , l)
+      ) ids ([], l)
   in
   let rec subst s l lam =
     match lam with
@@ -1314,8 +1335,7 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
         Lapply{ap with ap_func = subst s l ap.ap_func;
                       ap_args = subst_list s l ap.ap_args}
     | Lfunction lf ->
-        let params, l' = bind_params lf.params l in
-        Lfunction {lf with params; body = subst s l' lf.body}
+        Lfunction (subst_lfun s l lf)
     | Llet(str, k, id, arg, body) ->
         let id, l' = bind id l in
         Llet(str, k, id, subst s l arg, subst s l' body)
@@ -1323,7 +1343,7 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
         let id, l' = bind id l in
         Lmutlet(k, id, subst s l arg, subst s l' body)
     | Lletrec(decl, body) ->
-        let decl, l' = bind_many decl l in
+        let decl, l' = bind_rec decl l in
         Lletrec(List.map (subst_decl s l') decl, subst s l' body)
     | Lprim(p, args, loc) -> Lprim(p, subst_list s l args, loc)
     | Lswitch(arg, sw, loc,kind) ->
@@ -1398,14 +1418,22 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
     | Lexclave e ->
         Lexclave (subst s l e)
   and subst_list s l li = List.map (subst s l) li
-  and subst_decl s l (id, exp) = (id, subst s l exp)
+  and subst_decl s l decl = { decl with def = subst_lfun s l decl.def }
+  and subst_lfun s l lf =
+    let params, l' = bind_params lf.params l in
+    { lf with params; body = subst s l' lf.body }
   and subst_case s l (key, case) = (key, subst s l case)
   and subst_strcase s l (key, case) = (key, subst s l case)
   and subst_opt s l = function
     | None -> None
     | Some e -> Some (subst s l e)
   in
-  subst s Ident.Map.empty input_lam
+  { subst_lambda = (fun lam -> subst s Ident.Map.empty lam);
+    subst_lfunction = (fun lfun -> subst_lfun s Ident.Map.empty lfun);
+  }
+
+let subst update_env ?freshen_bound_variables s =
+  (build_substs update_env ?freshen_bound_variables s).subst_lambda
 
 let rename idmap lam =
   let update_env oldid vd env =
@@ -1415,12 +1443,16 @@ let rename idmap lam =
   let s = Ident.Map.map (fun new_id -> Lvar new_id) idmap in
   subst update_env s lam
 
-let duplicate lam =
-  subst
-    (fun _ _ env -> env)
-    ~freshen_bound_variables:true
-    Ident.Map.empty
-    lam
+let duplicate_function =
+  (build_substs
+     (fun _ _ env -> env)
+     ~freshen_bound_variables:true
+     Ident.Map.empty).subst_lfunction
+
+let map_lfunction f { kind; params; return; body; attr; loc;
+                      mode; ret_mode; region } =
+  let body = f body in
+  { kind; params; return; body; attr; loc; mode; ret_mode; region }
 
 let shallow_map ~tail ~non_tail:f = function
   | Lvar _
@@ -1440,15 +1472,18 @@ let shallow_map ~tail ~non_tail:f = function
         ap_specialised;
         ap_probe;
       }
-  | Lfunction { kind; params; return; body; attr; loc; mode; ret_mode; region } ->
-      Lfunction { kind; params; return; body = f body; attr; loc;
-                  mode; ret_mode; region }
+  | Lfunction lfun ->
+      Lfunction (map_lfunction f lfun)
   | Llet (str, layout, v, e1, e2) ->
       Llet (str, layout, v, f e1, tail e2)
   | Lmutlet (layout, v, e1, e2) ->
       Lmutlet (layout, v, f e1, tail e2)
   | Lletrec (idel, e2) ->
-      Lletrec (List.map (fun (v, e) -> (v, f e)) idel, tail e2)
+      Lletrec
+        (List.map (fun rb ->
+             { rb with def = map_lfunction f rb.def })
+            idel,
+         tail e2)
   | Lprim (Psequand as p, [l1; l2], loc)
   | Lprim (Psequor as p, [l1; l2], loc) ->
       Lprim(p, [f l1; tail l2], loc)
@@ -1748,6 +1783,7 @@ let constant_layout: constant -> layout = function
   | Const_float _ -> Pvalue (Pboxedfloatval Pfloat64)
   | Const_float32 _ -> Pvalue (Pboxedfloatval Pfloat32)
   | Const_unboxed_float _ -> Punboxed_float Pfloat64
+  | Const_unboxed_float32 _ -> Punboxed_float Pfloat32
 
 let structured_constant_layout = function
   | Const_base const -> constant_layout const
@@ -1763,6 +1799,7 @@ let layout_of_extern_repr : extern_repr -> _ = function
     begin match s with
     | Value -> layout_any_value
     | Float64 -> layout_unboxed_float Pfloat64
+    | Float32 -> layout_unboxed_float Pfloat32
     | Word -> layout_unboxed_nativeint
     | Bits32 -> layout_unboxed_int32
     | Bits64 -> layout_unboxed_int64
@@ -1787,6 +1824,7 @@ let layout_of_mixed_field (kind : mixed_block_read) =
       match proj with
       | Imm -> layout_int
       | Float64 -> layout_unboxed_float Pfloat64
+      | Float32 -> layout_unboxed_float Pfloat32
       | Bits32 -> layout_unboxed_int32
       | Bits64 -> layout_unboxed_int64
       | Word -> layout_unboxed_nativeint
@@ -1929,7 +1967,7 @@ let compute_expr_layout free_vars_kind lam =
       compute_expr_layout (Ident.Map.add id kind kinds) body
     | Lletrec(defs, body) ->
       let kinds =
-        List.fold_left (fun kinds (id, _) -> Ident.Map.add id layout_letrec kinds)
+        List.fold_left (fun kinds { id } -> Ident.Map.add id layout_letrec kinds)
           kinds defs
       in
       compute_expr_layout kinds body

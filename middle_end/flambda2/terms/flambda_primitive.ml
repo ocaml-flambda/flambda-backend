@@ -63,6 +63,7 @@ module Mixed_block_flat_element = struct
     | Imm
     | Float
     | Float64
+    | Float32
     | Bits32
     | Bits64
     | Word
@@ -71,6 +72,7 @@ module Mixed_block_flat_element = struct
     | Imm -> Imm
     | Float -> Float
     | Float64 -> Float64
+    | Float32 -> Float32
     | Bits32 -> Bits32
     | Bits64 -> Bits64
     | Word -> Word
@@ -79,6 +81,7 @@ module Mixed_block_flat_element = struct
     | Imm -> Imm
     | Float -> Float
     | Float64 -> Float64
+    | Float32 -> Float32
     | Bits32 -> Bits32
     | Bits64 -> Bits64
     | Word -> Word
@@ -87,6 +90,7 @@ module Mixed_block_flat_element = struct
     | Imm -> "Imm"
     | Float -> "Float"
     | Float64 -> "Float64"
+    | Float32 -> "Float32"
     | Bits32 -> "Bits32"
     | Bits64 -> "Bits64"
     | Word -> "Word"
@@ -96,6 +100,7 @@ module Mixed_block_flat_element = struct
     | Imm, Imm
     | Float, Float
     | Float64, Float64
+    | Float32, Float32
     | Word, Word
     | Bits32, Bits32
     | Bits64, Bits64 ->
@@ -106,6 +111,8 @@ module Mixed_block_flat_element = struct
     | _, Float -> 1
     | Float64, _ -> -1
     | _, Float64 -> 1
+    | Float32, _ -> -1
+    | _, Float32 -> 1
     | Word, _ -> -1
     | _, Word -> 1
     | Bits32, _ -> -1
@@ -116,6 +123,7 @@ module Mixed_block_flat_element = struct
   let element_kind = function
     | Imm -> K.value
     | Float | Float64 -> K.naked_float
+    | Float32 -> K.naked_float32
     | Bits32 -> K.naked_int32
     | Bits64 -> K.naked_int64
     | Word -> K.naked_nativeint
@@ -532,6 +540,7 @@ module Block_access_kind = struct
       match field_kind with
       | Imm -> K.With_subkind.tagged_immediate
       | Float | Float64 -> K.With_subkind.naked_float
+      | Float32 -> K.With_subkind.naked_float32
       | Bits32 -> K.With_subkind.naked_int32
       | Bits64 -> K.With_subkind.naked_int64
       | Word -> K.With_subkind.naked_nativeint)

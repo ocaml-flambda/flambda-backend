@@ -36,19 +36,11 @@
 
 (install
  (files
-  (alpha.cmxa as alpha/alpha.cmxa)
-  (alpha.a as alpha/alpha.a)
-  (alpha.cmxs as alpha/alpha.cmxs)
-  (alpha.cma as alpha/alpha.cma)
-  (alpha.mli as alpha/alpha.mli)
-  (float32.mli as alpha/float32.mli)
-  (.alpha.objs/byte/alpha.cmi as alpha/alpha.cmi)
-  (.alpha.objs/byte/alpha.cmt as alpha/alpha.cmt)
-  (.alpha.objs/byte/alpha.cmti as alpha/alpha.cmti)
-  (.alpha.objs/native/alpha.cmx as alpha/alpha.cmx)
-  (.alpha.objs/byte/float32.cmi as alpha/float32.cmi)
-  (.alpha.objs/byte/float32.cmt as alpha/float32.cmt)
-  (.alpha.objs/byte/float32.cmti as alpha/float32.cmti)
-  (.alpha.objs/native/float32.cmx as alpha/float32.cmx))
+  (glob_files
+   (*.{cmxa,a,cmxs,cma,mli} with_prefix alpha))
+  (glob_files
+   (.alpha.objs/byte/*.{cmi,cmt,cmti} with_prefix alpha))
+  (glob_files
+   (.alpha.objs/native/*.cmx with_prefix alpha)))
  (section lib)
  (package ocaml))

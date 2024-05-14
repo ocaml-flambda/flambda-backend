@@ -26,10 +26,10 @@ module Float_u = Stable.Float_u
 module Int32_u = Stable.Int32_u
 module Int64_u = Stable.Int64_u
 module Nativeint_u = Stable.Nativeint_u
-val test_float : string -> float# -> unit = <fun>
-val test_int32 : string -> int32# -> unit = <fun>
-val test_int64 : string -> int64# -> unit = <fun>
-val test_nativeint : string -> nativeint# -> unit = <fun>
+val test_float : string -> Float_u.t -> unit = <fun>
+val test_int32 : string -> Int32_u.t -> unit = <fun>
+val test_int64 : string -> Int64_u.t -> unit = <fun>
+val test_nativeint : string -> Nativeint_u.t -> unit = <fun>
 |}]
 
 (*****************************************)

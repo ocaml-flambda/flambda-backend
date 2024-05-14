@@ -206,8 +206,9 @@ let size_component : machtype_component -> int = function
   | Int -> Arch.size_int
   | Float -> Arch.size_float
   | Float32 ->
-    assert (Arch.size_float = 8);
-    Arch.size_float / 2
+    (* CR layouts v5.1: reconsider when float32 fields are efficiently packed.
+       Note that packed float32# arrays are handled via a separate path. *)
+    Arch.size_float
   | Vec128 -> Arch.size_vec128
 
 let size_machtype mty =
@@ -222,10 +223,11 @@ let size_expr (env:environment) exp =
       Cconst_int _ | Cconst_natint _ -> Arch.size_int
     | Cconst_symbol _ ->
         Arch.size_addr
-    | Cconst_float32 _ ->
-      assert (Arch.size_float = 8);
-      Arch.size_float / 2
     | Cconst_float _ -> Arch.size_float
+    | Cconst_float32 _ ->
+      (* CR layouts v5.1: reconsider when float32 fields are efficiently packed.
+         Note that packed float32# arrays are handled via a separate path. *)
+      Arch.size_float
     | Cconst_vec128 _ -> Arch.size_vec128
     | Cvar id ->
         begin try
@@ -1751,7 +1753,8 @@ method private emit_tail_sequence ?at_start env exp =
 method emit_fundecl ~future_funcnames f =
   current_function_name := f.Cmm.fun_name.sym_name;
   current_function_is_check_enabled :=
-    Checkmach.is_check_enabled f.Cmm.fun_codegen_options f.Cmm.fun_name.sym_name f.Cmm.fun_dbg;
+    Zero_alloc_checker.is_check_enabled f.Cmm.fun_codegen_options
+      f.Cmm.fun_name.sym_name f.Cmm.fun_dbg;
   let num_regs_per_arg = Array.make (List.length f.Cmm.fun_args) 0 in
   let rargs =
     List.mapi

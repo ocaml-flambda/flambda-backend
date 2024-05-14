@@ -995,6 +995,8 @@ and approx_include_functor
 and approx_sig_jst' env (jitem : Jane_syntax.Signature_item.t) srem =
   match jitem with
   | Jsig_include_functor ifincl -> approx_include_functor env ifincl srem
+  | Jsig_layout (Lsig_kind_abbrev _) ->
+      Misc.fatal_error "kind_abbrev not supported!"
 
 and approx_sig env ssg =
   match ssg with
@@ -1620,6 +1622,8 @@ and transl_signature env (sg : Parsetree.signature) =
     function
     | Jsig_include_functor ifincl ->
         transl_include_functor ~loc env sig_acc ifincl
+    | Jsig_layout (Lsig_kind_abbrev _) ->
+        Misc.fatal_error "kind_abbrev not supported!"
   in
 
   let transl_sig_item env sig_acc item =
@@ -2762,6 +2766,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
     match (jitem : Jane_syntax.Structure_item.t) with
     | Jstr_include_functor ifincl ->
         type_str_include_functor ~loc env shape_map ifincl sig_acc
+    | Jstr_layout (Lstr_kind_abbrev _) ->
+        Misc.fatal_error "kind_abbrev not supported!"
   in
 
   let type_str_item
@@ -2788,8 +2794,9 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         in
         let (defs, newenv) =
           Typecore.type_binding env rec_flag ~force_toplevel sdefs in
-        let () = if rec_flag = Recursive then
-          Typecore.check_recursive_bindings env defs
+        let defs = match rec_flag with
+          | Recursive -> Typecore.annotate_recursive_bindings env defs
+          | Nonrecursive -> defs
         in
         (* Note: Env.find_value does not trigger the value_used event. Values
            will be marked as being used during the signature inclusion test. *)
@@ -2813,12 +2820,12 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                    the signature. *)
                 let open Builtin_attributes in
                 match[@warning "+9"] zero_alloc with
-                | Default_check | Ignore_assert_all _ -> Default_check
+                | Default_zero_alloc | Ignore_assert_all -> Default_zero_alloc
                 | Check _ -> zero_alloc
-                | Assume { property; strict; arity; loc;
+                | Assume { strict; arity; loc;
                            never_returns_normally = _;
                            never_raises = _} ->
-                  Check { strict; property; arity; loc; opt = false }
+                  Check { strict; arity; loc; opt = false }
               in
               let (first_loc, _, _) = List.hd id_info in
               Signature_names.check_value names first_loc id;

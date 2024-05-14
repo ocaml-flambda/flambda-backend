@@ -2,37 +2,19 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*   Copyright 2022 Jane Street Group LLC                                 *)
+(*               Jeremy Yallop, University of Cambridge                   *)
+(*                                                                        *)
+(*   Copyright 2017 Jeremy Yallop                                         *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-(** Annotations on function declaration (not call sites) *)
-module Property : sig
-  type t = Zero_alloc
-end
 
-type t =
-  | Default_check
-  | Assume of
-      { property : Property.t;
-        strict : bool;
-        never_returns_normally : bool;
-        never_raises : bool;
-        loc : Location.t
-      }
-  | Check of
-      { property : Property.t;
-        strict : bool;
-        loc : Location.t
-      }
+val is_valid_recursive_expression :
+  Ident.t list ->
+  Typedtree.expression ->
+  Value_rec_types.recursive_binding_kind option
 
-val print : Format.formatter -> t -> unit
-
-val equal : t -> t -> bool
-
-val is_default : t -> bool
-
-val from_lambda : Lambda.check_attribute -> Location.t -> t
+val is_valid_class_expr : Ident.t list -> Typedtree.class_expr -> bool

@@ -2,9 +2,9 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                   Nick Roberts, Jane Street, New York                  *)
+(*                         Vincent Laviron, OCamlPro                      *)
 (*                                                                        *)
-(*   Copyright 2023 Jane Street Group LLC                                 *)
+(*   Copyright 2023 OCamlPro, SAS                                         *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -12,10 +12,16 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type const_jkind = string
+(** Types related to the compilation of value let-recs (non-functional
+     recursive definitions) *)
 
-let jkind_of_string x = x
-
-let jkind_to_string x = x
-
-type jkind_annotation = const_jkind Location.loc
+(** The kind of recursive bindings, as computed by
+    [Value_rec_check.classify_expression] *)
+type recursive_binding_kind =
+| Static
+  (** Bindings for which some kind of pre-allocation scheme is possible.
+      The expression is allowed to be recursive, as long as its definition does
+      not inspect recursively defined values. *)
+| Dynamic
+  (** Bindings for which pre-allocation is not possible.
+      The expression is not allowed to refer to any recursive variable. *)

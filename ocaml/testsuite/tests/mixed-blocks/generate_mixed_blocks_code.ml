@@ -66,23 +66,24 @@ let nonempty_list_enumeration_of_list xs =
 type flat_element =
   | Imm
   | Float64
+  | Float32
   | Float
   | Bits32
   | Bits64
   | Word
 
-let flat_element_is_float = function
+let allowed_in_flat_float_block = function
   | Float64 | Float -> true
-  | Imm | Bits32 | Bits64 | Word -> false
+  | Imm | Float32 | Bits32 | Bits64 | Word -> false
 
 let flat_element_is_unboxed = function
-  | Float64 | Bits32 | Bits64 | Word -> true
+  | Float64 | Float32 | Bits32 | Bits64 | Word -> true
   | Imm | Float -> false
 
 let flat_element_is = ((=) : flat_element -> flat_element -> bool)
 let flat_element_is_not = ((<>) : flat_element -> flat_element -> bool)
 
-let all_of_flat_element = [ Imm; Float64; Float; Bits32; Bits64; Word ]
+let all_of_flat_element = [ Imm; Float64; Float32; Float; Bits32; Bits64; Word ]
 
 type value_element =
   | Str
@@ -135,7 +136,7 @@ let enumeration_of_suffix_except_all_floats_mixed
 let enumeration_of_all_floats_mixed_suffix =
   let float_flat_element =
     all_of_flat_element
-    |> List.filter ~f:flat_element_is_float
+    |> List.filter ~f:allowed_in_flat_float_block
   in
   nonempty_list_enumeration_of_list
     (list_product float_flat_element all_of_mutability)
@@ -200,6 +201,7 @@ type field_or_arg_type =
   | Imm
   | Float
   | Float64
+  | Float32
   | Str
   | Bits32
   | Bits64
@@ -209,6 +211,7 @@ let type_to_creation_function = function
   | Imm -> "create_int ()"
   | Float -> "create_float ()"
   | Float64 -> "create_float_u ()"
+  | Float32 -> "create_float32_u ()"
   | Bits32 -> "create_int32_u ()"
   | Bits64 -> "create_int64_u ()"
   | Word -> "create_nativeint_u ()"
@@ -218,6 +221,7 @@ let type_to_string = function
   | Imm -> "int"
   | Float -> "float"
   | Float64 -> "float#"
+  | Float32 -> "float32#"
   | Bits32 -> "int32#"
   | Bits64 -> "int64#"
   | Word -> "nativeint#"
@@ -230,6 +234,7 @@ let type_to_field_integrity_check type_ ~access1 ~access2 ~message =
     | Imm -> "check_int", None
     | Float -> "check_float", None
     | Float64 -> "check_float", Some "Stable.Float_u.to_float"
+    | Float32 -> "check_float32", Some "Beta.Float32_u.to_float32"
     | Bits32 -> "check_int32", Some "Stable.Int32_u.to_int32"
     | Bits64 -> "check_int64", Some "Stable.Int64_u.to_int64"
     | Word -> "check_int", Some "Stable.Nativeint_u.to_int"
@@ -255,6 +260,7 @@ let flat_element_to_type : flat_element -> field_or_arg_type = function
   | Imm -> Imm
   | Float -> Float
   | Float64 -> Float64
+  | Float32 -> Float32
   | Bits64 -> Bits64
   | Bits32 -> Bits32
   | Word -> Word
@@ -274,7 +280,7 @@ module Mixed_record = struct
   let is_all_floats t =
     List.for_all t.fields ~f:(fun field ->
         match field.type_ with
-        | Imm | Str | Bits32 | Bits64 | Word -> false
+        | Imm | Str | Float32 | Bits32 | Bits64 | Word -> false
         | Float | Float64 -> true)
 
   let of_block index { prefix; suffix } =
@@ -312,6 +318,7 @@ module Mixed_record = struct
             | Word -> "n"
             | Float -> "float"
             | Float64 -> "float_u"
+            | Float32 -> "float32_u"
           in
           let field =
             { type_ = flat_element_to_type elem;
@@ -558,7 +565,8 @@ let main n ~bytecode =
     List.iter2 values (List.tl values @ [ List.hd values]) ~f
   in
   line {|(* TEST
- flags = "-extension layouts_beta";
+ flags = "-extension layouts_beta -extension small_numbers";
+ include beta;
  include stable;|};
   if bytecode then (
     line {| bytecode;|};
@@ -573,7 +581,9 @@ let main n ~bytecode =
   line {|let create_string () = String.make (Random.int 100) 'a'|};
   line {|let create_int () = Random.int 0x3FFF_FFFF|};
   line {|let create_float () = Random.float Float.max_float|};
+  line {|let create_float32 () = Beta.Float32.of_float (Random.float Float.max_float)|};
   line {|let create_float_u () = Stable.Float_u.of_float (create_float ())|};
+  line {|let create_float32_u () = Beta.Float32_u.of_float32 (create_float32 ())|};
   line {|let create_int32_u () = Stable.Int32_u.of_int32 (Random.int32 0x7FFF_FFFFl)|};
   line {|let create_int64_u () = Stable.Int64_u.of_int64 (Random.int64 0x7FFF_FFFF_FFFF_FFFFL)|};
   line {|let create_nativeint_u () = Stable.Nativeint_u.of_nativeint (Random.nativeint 0x7FFF_FFFF_FFFF_FFFFn)|};
@@ -589,6 +599,9 @@ let main n ~bytecode =
   line
    {|let check_float =
   check_gen ~equal:Float.equal ~to_string:Float.to_string|};
+  line
+   {|let check_float32 =
+  check_gen ~equal:Beta.Float32.equal ~to_string:Beta.Float32.to_string|};
   line
    {|let check_int32 =
   check_gen ~equal:Int32.equal ~to_string:Int32.to_string|};
@@ -725,7 +738,7 @@ let check_reachable_words expected actual message =
                     single-field payload).
                 *)
                 if not bytecode then "" else " + 2"
-            | Bits64 | Bits32 | Word ->
+            | Float32 | Bits64 | Bits32 | Word ->
               (* Same as float64, except these are custom blocks in bytecode,
                  which involve still another field. *)
                 if not bytecode then "" else " + 3"

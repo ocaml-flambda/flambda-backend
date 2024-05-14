@@ -267,7 +267,6 @@ CAMLprim value caml_alloc_dummy_mixed (value size, value scannable_size)
 #else
   /* [scannable_size] can't be used meaningfully in bytecode */
   (void)scannable_size;
-  CAMLassert(scannable_size == Val_int(-1));
   reserved_t reserved = Faux_mixed_block_sentinel;
 #endif // NATIVE_CODE
   return caml_alloc_with_reserved (wosize, 0, reserved);

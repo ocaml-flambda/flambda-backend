@@ -51,6 +51,7 @@ and ident_floatarray = ident_create "floatarray"
 and ident_lexing_position = ident_create "lexing_position"
 
 and ident_unboxed_float = ident_create "float#"
+and ident_unboxed_float32 = ident_create "float32#"
 and ident_unboxed_nativeint = ident_create "nativeint#"
 and ident_unboxed_int32 = ident_create "int32#"
 and ident_unboxed_int64 = ident_create "int64#"
@@ -84,6 +85,7 @@ and path_floatarray = Pident ident_floatarray
 and path_lexing_position = Pident ident_lexing_position
 
 and path_unboxed_float = Pident ident_unboxed_float
+and path_unboxed_float32 = Pident ident_unboxed_float32
 and path_unboxed_nativeint = Pident ident_unboxed_nativeint
 and path_unboxed_int32 = Pident ident_unboxed_int32
 and path_unboxed_int64 = Pident ident_unboxed_int64
@@ -118,6 +120,7 @@ and type_floatarray = newgenty (Tconstr(path_floatarray, [], ref Mnil))
 and type_lexing_position = newgenty (Tconstr(path_lexing_position, [], ref Mnil))
 
 and type_unboxed_float = newgenty (Tconstr(path_unboxed_float, [], ref Mnil))
+and type_unboxed_float32 = newgenty (Tconstr(path_unboxed_float32, [], ref Mnil))
 and type_unboxed_nativeint =
       newgenty (Tconstr(path_unboxed_nativeint, [], ref Mnil))
 and type_unboxed_int32 = newgenty (Tconstr(path_unboxed_int32, [], ref Mnil))
@@ -191,9 +194,11 @@ let predef_jkind_annotation const =
           printing/untypeast.
        *)
        let user_written : _ Location.loc =
-         { txt = Jane_asttypes.jkind_of_string (Jkind.string_of_const const);
-           loc = Location.none;
-         }
+         let name = Jkind.string_of_const const in
+         Jane_syntax.Jkind.(
+           Primitive_layout_or_abbreviation
+             (Const.mk name Location.none))
+         |> Location.mknoloc
        in
        const, user_written)
     const
@@ -435,6 +440,9 @@ let add_small_number_extension_types add_type env =
   let add_type = mk_add_type add_type in
   env
   |> add_type ident_float32
+  |> add_type ident_unboxed_float32
+       ~jkind:(Jkind.float32 ~why:(Primitive ident_unboxed_float32))
+       ~jkind_annotation:Float32
 
 let builtin_values =
   List.map (fun id -> (Ident.name id, id)) all_predef_exns

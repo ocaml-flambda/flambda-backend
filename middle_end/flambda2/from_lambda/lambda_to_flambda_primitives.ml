@@ -991,8 +991,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       List.mapi
         (fun i arg ->
           match Lambda.get_mixed_block_element shape i with
-          | Value_prefix | Flat_suffix (Float64 | Imm | Bits32 | Bits64 | Word)
-            ->
+          | Value_prefix
+          | Flat_suffix (Float64 | Float32 | Imm | Bits32 | Bits64 | Word) ->
             arg
           | Flat_suffix Float -> unbox_float arg)
         args
@@ -1533,7 +1533,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let value =
       match write with
       | Mwrite_value_prefix _
-      | Mwrite_flat_suffix (Imm | Float64 | Bits32 | Bits64 | Word) ->
+      | Mwrite_flat_suffix (Imm | Float64 | Float32 | Bits32 | Bits64 | Word) ->
         value
       | Mwrite_flat_suffix Float -> unbox_float value
     in
