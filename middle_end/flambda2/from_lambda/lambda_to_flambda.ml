@@ -420,8 +420,12 @@ let is_user_visible env id : IR.user_visible =
 let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
     ~params
     ~(body : Acc.t -> Env.t -> CCenv.t -> Continuation.t -> Expr_with_acc.t)
-    ~(handler : Acc.t -> Env.t -> CCenv.t -> Expr_with_acc.t) : Expr_with_acc.t
-    =
+    ~(handler :
+       unarized_params:IR.simple list ->
+       Acc.t ->
+       Env.t ->
+       CCenv.t ->
+       Expr_with_acc.t) : Expr_with_acc.t =
   let cont = Continuation.create () in
   let { Env.body_env; handler_env; extra_params } =
     Env.add_continuation env cont ~push_to_try_stack:is_exn_handler Nonrecursive
@@ -463,7 +467,10 @@ let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
   let extra_params =
     List.map (fun (id, kind) -> id, is_user_visible env id, kind) extra_params
   in
-  let handler acc ccenv = handler acc handler_env ccenv in
+  let handler acc ccenv =
+    let unarized_params = List.map (fun (var, _, _) -> IR.Var var) params in
+    handler ~unarized_params acc handler_env ccenv
+  in
   let body acc ccenv = body acc body_env ccenv cont in
   CC.close_let_cont acc ccenv ~name:cont ~is_exn_handler
     ~params:(params @ extra_params) ~recursive:Nonrecursive ~body ~handler
@@ -747,15 +754,16 @@ let maybe_insert_let_cont result_var_name layout k acc env ccenv body =
     then
       let_cont_nonrecursive_with_extra_params acc env ccenv
         ~is_exn_handler:false ~params:[]
-        ~handler:(fun acc env ccenv -> k acc env ccenv [] arity_component)
+        ~handler:(fun ~unarized_params:_ acc env ccenv ->
+          k acc env ccenv [] arity_component)
         ~body
     else
       let result_var = Ident.create_local result_var_name in
       let_cont_nonrecursive_with_extra_params acc env ccenv
         ~is_exn_handler:false
         ~params:[result_var, IR.Not_user_visible, layout]
-        ~handler:(fun acc env ccenv ->
-          k acc env ccenv [IR.Var result_var] arity_component)
+        ~handler:(fun ~unarized_params acc env ccenv ->
+          k acc env ccenv unarized_params arity_component)
         ~body
 
 let name_if_not_var acc ccenv name simple kind body =
@@ -834,7 +842,12 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       ~params:[temp_id, IR.Not_user_visible, value_kind]
       ~body:(fun acc env ccenv after_defining_expr ->
         cps_tail acc env ccenv defining_expr after_defining_expr k_exn)
-      ~handler:(fun acc env ccenv ->
+      ~handler:(fun ~unarized_params acc env ccenv ->
+        if List.length unarized_params <> 1
+        then
+          Misc.fatal_errorf
+            "Did not expect unboxed products to be bound by [Lmutlet]:@ %a"
+            Printlambda.lambda lam;
         let kind =
           Flambda_kind.With_subkind.from_lambda_values_and_unboxed_numbers_only
             value_kind
@@ -958,7 +971,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       ~params:[id, is_user_visible env id, layout]
       ~body:(fun acc env ccenv after_defining_expr ->
         cps_tail acc env ccenv defining_expr after_defining_expr k_exn)
-      ~handler:(fun acc env ccenv -> cps acc env ccenv body k k_exn)
+      ~handler:(fun ~unarized_params:_ acc env ccenv ->
+        cps acc env ccenv body k k_exn)
   (* CR pchambart: This version would avoid one let cont, but would miss the
      value kind. It should be used when CC.close_let can propagate the
      value_kind. *)
@@ -1153,7 +1167,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        same toplevel context, here we need to assume that all of the body could
        be behind a branch. *)
     let ccenv = CCenv.set_not_at_toplevel ccenv in
-    let handler k acc env ccenv =
+    let handler k ~unarized_params:_ acc env ccenv =
       CC.close_let acc ccenv
         [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
         Not_user_visible
@@ -1185,13 +1199,13 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                           body_continuation
                           (Some (IR.Push { exn_handler = handler_continuation }))
                           [])
-                      ~handler:(fun acc env ccenv ->
+                      ~handler:(fun ~unarized_params:_ acc env ccenv ->
                         cps_tail acc env ccenv body poptrap_continuation
                           handler_continuation))
-                  ~handler:(fun acc env ccenv ->
+                  ~handler:(fun ~unarized_params:body_result acc env ccenv ->
                     apply_cont_with_extra_args acc env ccenv ~dbg k
                       (Some (IR.Pop { exn_handler = handler_continuation }))
-                      [IR.Var body_result]))
+                      body_result))
               ~handler:(handler k)))
   | Lifthenelse (cond, ifso, ifnot, kind) ->
     let lam = switch_for_if_then_else ~cond ~ifso ~ifnot ~kind in
@@ -1295,7 +1309,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                     ~continuation_after_closing_region:k
                 in
                 cps_tail acc env ccenv body k k_exn)
-              ~handler:(fun acc env ccenv ->
+              ~handler:(fun ~unarized_params:wrap_return acc env ccenv ->
                 CC.close_let acc ccenv
                   [ ( Ident.create_local "unit",
                       Flambda_kind.With_subkind.tagged_immediate ) ]
@@ -1307,7 +1321,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                        [restore_region_context] will intercept the
                        [Lstaticraise] jump to this handler if needed. *)
                     apply_cont_with_extra_args acc env ccenv ~dbg k None
-                      [IR.Var wrap_return]))))
+                      wrap_return))))
 
 and cps_non_tail_simple :
     Acc.t ->
