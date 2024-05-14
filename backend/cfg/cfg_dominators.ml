@@ -423,7 +423,7 @@ let compute_dominator_forest_opt : Cfg.t -> doms -> dominator_tree list =
       | None -> []
       | Some labels -> labels
     in
-    { label; children = List.rev_map children_labels ~f:build_tree }
+    { label; children = List.map children_labels ~f:build_tree }
   in
   Cfg.iter_blocks cfg ~f:(fun label _block ->
       match Label.Tbl.find_opt doms label with
@@ -438,7 +438,7 @@ let compute_dominator_forest_opt : Cfg.t -> doms -> dominator_tree list =
             | Some children -> children
           in
           Label.Tbl.replace children immediate_dominator (label :: current));
-  let res = List.rev_map !roots ~f:build_tree in
+  let res = List.map !roots ~f:build_tree in
   if debug then invariant_dominator_forest cfg doms res;
   res
 
