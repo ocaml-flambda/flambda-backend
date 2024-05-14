@@ -290,7 +290,7 @@ let optimization_enabled (t : t) : bool =
   | 0 -> false
   | total_num_slots -> (
     match find_param_value "STACK_SLOTS_THRESHOLD" with
-    | None -> true
+    | None -> total_num_slots < 3072
     | Some stack_slots_threshold ->
       total_num_slots < int_of_string stack_slots_threshold)
 

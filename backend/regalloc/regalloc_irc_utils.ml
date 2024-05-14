@@ -183,11 +183,7 @@ module Spilling_heuristics = struct
     in
     lazy
       (match find_param_value "IRC_SPILLING_HEURISTICS" with
-      | None ->
-        fatal
-          "the IRC_SPILLING_HEURISTICS parameter is not set (possible values: \
-           %s)"
-          (available_heuristics ())
+      | None -> Flat_uses
       | Some id -> (
         match String.lowercase_ascii id with
         | "set_choose" | "set-choose" -> Set_choose
