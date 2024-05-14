@@ -17,10 +17,11 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
+type t = float#
 
-external to_float : float# -> (float[@local_opt]) = "%box_float"
+external to_float : t -> (float[@local_opt]) = "%box_float"
 
-external of_float : (float[@local_opt]) -> float# = "%unbox_float"
+external of_float : (float[@local_opt]) -> t = "%unbox_float"
 
 (* CR layouts: Investigate whether it's worth making these things externals.
    Are there situations where the middle-end won't inline them and remove the
@@ -138,8 +139,6 @@ let[@inline always] copy_sign x y = of_float (Float.copy_sign (to_float x) (to_f
 let[@inline always] sign_bit x = Float.sign_bit (to_float x)
 
 let[@inline always] ldexp x i = of_float (Float.ldexp (to_float x) i)
-
-type t = float#
 
 let[@inline always] compare x y = Float.compare (to_float x) (to_float y)
 
