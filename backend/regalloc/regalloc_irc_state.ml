@@ -336,6 +336,10 @@ let[@inline] mem_adj_set state reg1 reg2 =
 
 let[@inline] adj_list _state reg = reg.Reg.interf
 
+let[@inline] interferes_with_adj state reg1 reg2 =
+  mem_adj_set state reg1 reg2
+  || List.exists reg1.Reg.interf ~f:(Reg.same_phys_reg reg2)
+
 let[@inline] add_edge state u v =
   let is_interesting_reg reg =
     match reg.Reg.loc with

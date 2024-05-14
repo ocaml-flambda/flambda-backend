@@ -123,5 +123,6 @@ val mark_visited : t -> unit
 val is_visited : t -> bool
 val clear_visited_marks : unit -> unit
 
+val same_phys_reg : t -> t -> bool
 val same_loc : t -> t -> bool
 val same : t -> t -> bool

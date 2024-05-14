@@ -321,6 +321,12 @@ let equal_location left right =
   | Stack _, (Unknown | Reg _) ->
     false
 
+let same_phys_reg left right =
+  match left.loc, right.loc with
+  | Reg l, Reg r -> Int.equal l r
+  | Reg _, (Unknown | Stack _)
+  | (Unknown | Stack _), _ -> false
+
 let same_loc left right =
   (* CR-soon azewierzejew: This should also compare [reg_class] for [Stack
      (Local _)]. That's complicated because [reg_class] is definied in [Proc]

@@ -199,7 +199,7 @@ let coalesce : State.t -> unit =
     if irc_debug then log ~indent:2 "case #1/4";
     State.add_coalesced_moves state m;
     add_work_list state u)
-  else if State.is_precolored state v || State.mem_adj_set state u v
+  else if State.is_precolored state v || State.interferes_with_adj state v u
   then (
     if irc_debug then log ~indent:2 "case #2/4";
     State.add_constrained_moves state m;
