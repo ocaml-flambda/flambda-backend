@@ -40,20 +40,27 @@ module Legacy = struct
     it doesn't check whether the layouts extension is enabled.
     It should be inverse to [string_of_const].
   *)
-  let const_of_user_written_annotation_unchecked annot =
-    match Jane_asttypes.jkind_to_string annot with
-    | "any" -> Some Any
-    | "value" -> Some Value
-    | "void" -> Some Void
-    | "immediate64" -> Some Immediate64
-    | "immediate" -> Some Immediate
-    | "float64" -> Some Float64
-    | "float32" -> Some Float32
-    | "word" -> Some Word
-    | "bits32" -> Some Bits32
-    | "bits64" -> Some Bits64
-    | "non_null_value" -> Some Non_null_value
-    | _ -> None
+  let const_of_user_written_annotation_unchecked :
+      Jane_syntax.Jkind.t -> const option = function
+    | Primitive_layout_or_abbreviation const -> (
+      let { txt = name; _ } =
+        (const : Jane_syntax.Jkind.Const.t :> _ Location.loc)
+      in
+      match name with
+      | "any" -> Some Any
+      | "value" -> Some Value
+      | "void" -> Some Void
+      | "immediate64" -> Some Immediate64
+      | "immediate" -> Some Immediate
+      | "float64" -> Some Float64
+      | "float32" -> Some Float32
+      | "word" -> Some Word
+      | "bits32" -> Some Bits32
+      | "bits64" -> Some Bits64
+      | "non_null_value" -> Some Non_null_value
+      | _ -> None)
+    | Default | Mod _ | With _ | Kind_of _ ->
+      Misc.fatal_error "XXX unimplemented"
 
   let string_of_const const =
     match const with
@@ -564,7 +571,7 @@ type error =
       { jkind : Legacy.const;
         required_layouts_level : Language_extension.maturity
       }
-  | Unknown_jkind of Jane_asttypes.const_jkind
+  | Unknown_jkind of Jane_syntax.Jkind.t
   | Multiple_jkinds of
       { from_annotation : Legacy.const;
         from_attribute : Legacy.const
@@ -662,8 +669,10 @@ let of_type_decl ~context (decl : Parsetree.type_declaration) =
            let annot =
              Location.map
                (fun attr ->
-                 Builtin_attributes.jkind_attribute_to_string attr
-                 |> Jane_asttypes.jkind_of_string)
+                 let name = Builtin_attributes.jkind_attribute_to_string attr in
+                 Jane_syntax.Jkind.(
+                   Primitive_layout_or_abbreviation
+                     (Const.mk name Location.none)))
                attr
            in
            t, (const, annot), decl.ptype_attributes)
@@ -1430,7 +1439,7 @@ let report_error ~loc = function
       (* CR layouts v2.9: use the context to produce a better error message.
          When RAE tried this, some types got printed like [t/2], but the
          [/2] shouldn't be there. Investigate and fix. *)
-      "@[<v>Unknown layout %a@]" Jane_syntax.Layouts.Pprint.const_jkind jkind
+      "@[<v>Unknown layout %a@]" Pprintast.jkind jkind
   | Multiple_jkinds { from_annotation; from_attribute } ->
     Location.errorf ~loc
       "@[<v>A type declaration's layout can be given at most once.@;\
@@ -1480,7 +1489,7 @@ type const = Legacy.const =
   | Bits64
   | Non_null_value
 
-type annotation = const * Jane_asttypes.jkind_annotation
+type annotation = const * Jane_syntax.Jkind.annotation
 
 let string_of_const = Legacy.string_of_const
 

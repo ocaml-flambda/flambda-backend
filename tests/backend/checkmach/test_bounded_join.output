@@ -1,2 +1,0 @@
->> Fatal error: Join with 3 paths is too big, use -disable-precise-zero-alloc-checker
-Fatal error: exception Misc.Fatal_error

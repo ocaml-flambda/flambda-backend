@@ -1,2 +1,0 @@
-File "fail18.ml", line 1, characters 5-15:
-Error: Annotation check for zero_alloc failed on function Fail18.f (camlFail18.f_HIDE_STAMP)

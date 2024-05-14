@@ -1,8 +1,0 @@
-File "t1.ml", line 6, characters 7-17:
-Error: Annotation check for zero_alloc failed on function T1.Params.test12 (camlT1.test12_HIDE_STAMP)
-
-File "t1.ml", line 6, characters 31-45:
-Error: allocation of 24 bytes
-
-File "t1.ml", lines 6-7, characters 26-12:
-Error: called function may allocate (indirect tailcall)

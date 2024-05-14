@@ -134,7 +134,7 @@ type const = Jkind_types.const =
   | Non_null_value
 
 val const_of_user_written_annotation :
-  context:annotation_context -> Jane_asttypes.jkind_annotation -> const
+  context:annotation_context -> Jane_syntax.Jkind.annotation -> const
 
 val string_of_const : const -> string
 
@@ -189,12 +189,12 @@ val of_const : why:creation_reason -> const -> t
 type annotation = Jkind_types.annotation
 
 val of_annotation :
-  context:annotation_context -> Jane_asttypes.jkind_annotation -> t * annotation
+  context:annotation_context -> Jane_syntax.Jkind.annotation -> t * annotation
 
 val of_annotation_option_default :
   default:t ->
   context:annotation_context ->
-  Jane_asttypes.jkind_annotation option ->
+  Jane_syntax.Jkind.annotation option ->
   t * annotation option
 
 (** Find a jkind from a type declaration. Type declarations are special because

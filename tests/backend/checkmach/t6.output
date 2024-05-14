@@ -1,2 +1,0 @@
-File "t6.ml", line 25, characters 66-76:
-Warning 54 [duplicated-attribute]: the "zero_alloc" attribute is used more than once on this expression

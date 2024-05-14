@@ -1,5 +1,6 @@
 (* TEST
  flambda2;
+ include stable;
  {
    expect;
  }
@@ -845,7 +846,7 @@ Error: This expression has type t_float64
 (***********************************************************)
 (* Test 14: unboxed float records work like normal records *)
 
-module FU = Stdlib__Float_u
+module FU = Stable.Float_u
 
 type t14_1 = { x : float#; y : float# }
 
@@ -888,12 +889,12 @@ let f14_4 r =
 
 
 [%%expect{|
-module FU = Stdlib__Float_u
+module FU = Stable.Float_u
 type t14_1 = { x : float#; y : float#; }
-val f14_1 : t14_1 -> float# = <fun>
+val f14_1 : t14_1 -> FU.t = <fun>
 val r14 : t14_1 = {x = <abstr>; y = <abstr>}
 val sum14_1 : float = 0.419999999999999929
-val f14_2 : t14_1 -> float# = <fun>
+val f14_2 : t14_1 -> FU.t = <fun>
 val sum14_2 : float = 0.419999999999999929
 type t14_2 = { mutable a : float#; b : float#; mutable c : float#; }
 val f14_3 : t14_2 -> t14_2 = <fun>
@@ -903,5 +904,5 @@ val c : float = 27.7
 val a' : float = 42.
 val b' : float = 20.
 val c' : float = 3.1
-val f14_4 : t14_1 -> float# = <fun>
+val f14_4 : t14_1 -> FU.t = <fun>
 |}]

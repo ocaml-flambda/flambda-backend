@@ -1,5 +1,0 @@
-File "test_all_opt3.ml", line 4, characters 5-15:
-Error: Annotation check for zero_alloc failed on function Test_all_opt3.foo (camlTest_all_opt3.foo_HIDE_STAMP)
-
-File "test_all_opt3.ml", line 4, characters 29-34:
-Error: allocation of 24 bytes

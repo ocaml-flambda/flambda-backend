@@ -1,12 +1,13 @@
 (* TEST
+ include stable;
  flags = "-extension layouts_alpha";
  expect;
 *)
 
-module Float_u = Stdlib__Float_u
+module Float_u = Stable.Float_u
 
 [%%expect{|
-module Float_u = Stdlib__Float_u
+module Float_u = Stable.Float_u
 |}]
 
 (* Needs a string payload *)
@@ -72,10 +73,10 @@ Line 3, characters 19-20:
 3 |   Float_u.to_float x
                        ^
 Error: This expression has type ('a : value)
-       but an expression was expected of type float#
-       The layout of float# is float64, because
+       but an expression was expected of type Float_u.t = float#
+       The layout of Float_u.t is float64, because
          it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value, because
+       But the layout of Float_u.t must be a sublayout of value, because
          of the annotation on the wildcard _ at line 2, characters 15-26.
          Custom message
 |}]

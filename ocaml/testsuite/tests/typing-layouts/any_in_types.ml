@@ -1,4 +1,5 @@
 (* TEST
+ include stable;
  {
    native;
  }{
@@ -9,7 +10,7 @@
 (* See also Test 10 in modules.ml, which tests for type-checking failures in
    code that is similar to this. *)
 
-let unbox = Stdlib__Float_u.of_float
+let unbox = Stable.Float_u.of_float
 
 module type S = sig
   type t : any
@@ -23,9 +24,9 @@ end
 module M1 : S with type t = float# = struct
   type t = float#
 
-  let add x y = Stdlib__Float_u.add x y
+  let add x y = Stable.Float_u.add x y
   let one () = unbox 1.
-  let print f = Printf.printf "Printing a float#: %f\n" (Stdlib__Float_u.to_float (f ()))
+  let print f = Printf.printf "Printing a float#: %f\n" (Stable.Float_u.to_float (f ()))
 end
 
 module M2 : S with type t = int = struct
@@ -36,14 +37,14 @@ module M2 : S with type t = int = struct
   let print f = Printf.printf "Printing a int: %d\n" (f ())
 end
 
-let () = Printf.printf "%f\n" (Stdlib__Float_u.to_float (M1.add (unbox 10.) (unbox 10.)))
+let () = Printf.printf "%f\n" (Stable.Float_u.to_float (M1.add (unbox 10.) (unbox 10.)))
 let () = Printf.printf "%d\n" (M2.add 10 10)
 
 (* destructive substitution *)
 module M3 : S with type t := float# = struct
-  let add x y = Stdlib__Float_u.add x y
+  let add x y = Stable.Float_u.add x y
   let one () = unbox 1.
-  let print f = Printf.printf "Printing a float#: %f\n" (Stdlib__Float_u.to_float (f ()))
+  let print f = Printf.printf "Printing a float#: %f\n" (Stable.Float_u.to_float (f ()))
 end
 
 module M4 : S with type t := int = struct
@@ -52,7 +53,7 @@ module M4 : S with type t := int = struct
   let print f = Printf.printf "Printing a int: %d\n" (f ())
 end
 
-let () = Printf.printf "%f\n" (Stdlib__Float_u.to_float (M3.add (unbox 10.) (unbox 10.)))
+let () = Printf.printf "%f\n" (Stable.Float_u.to_float (M3.add (unbox 10.) (unbox 10.)))
 let () = Printf.printf "%d\n" (M4.add 10 10)
 
 (* functor *)
@@ -85,7 +86,7 @@ let () =
         (Printf.printf "a\n";
          unbox 10.)
     in
-    Printf.printf "%f\n" (Stdlib__Float_u.to_float r)
+    Printf.printf "%f\n" (Stable.Float_u.to_float r)
   with
   | _ -> Printf.printf "b\n"
 ;;
