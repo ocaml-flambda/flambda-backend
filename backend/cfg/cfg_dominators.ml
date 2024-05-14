@@ -392,24 +392,30 @@ let invariant_dominator_forest : Cfg.t -> doms -> dominator_tree list -> unit =
 
 let compute_dominator_forest_naive : Cfg.t -> doms -> dominator_tree list =
  fun cfg doms ->
-  let rec children_of parent =
-    Label.Tbl.fold
-      (fun label (immediate_dominator : Label.t) acc ->
-        if Label.equal parent immediate_dominator
-           && not (Label.equal label immediate_dominator)
-        then { label; children = children_of label } :: acc
-        else acc)
-      doms []
+  let roots = ref [] in
+  let children = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
+  let rec build_tree (label : Label.t) : dominator_tree =
+    let children_labels =
+      match Label.Tbl.find_opt children label with
+      | None -> []
+      | Some labels -> labels
+    in
+    { label; children = List.map children_labels ~f:build_tree }
   in
-  let res =
-    Cfg.fold_blocks cfg ~init:[] ~f:(fun label _block acc ->
-        match Label.Tbl.find_opt doms label with
-        | None -> assert false
-        | Some immediate_dominator ->
-          if Label.equal label immediate_dominator
-          then { label; children = children_of label } :: acc
-          else acc)
-  in
+  Cfg.iter_blocks cfg ~f:(fun label _block ->
+      match Label.Tbl.find_opt doms label with
+      | None -> assert false
+      | Some immediate_dominator ->
+        if Label.equal label immediate_dominator
+        then roots := label :: !roots
+        else
+          let current =
+            match Label.Tbl.find_opt children immediate_dominator with
+            | None -> []
+            | Some children -> children
+          in
+          Label.Tbl.replace children immediate_dominator (label :: current));
+  let res = List.map !roots ~f:build_tree in
   if debug then invariant_dominator_forest cfg doms res;
   res
 
