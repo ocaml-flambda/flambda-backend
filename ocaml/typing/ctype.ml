@@ -898,7 +898,7 @@ let update_scope_for tr_exn scope ty =
     (without this constraint, the type system would actually be unsound.)
 *)
 
-let rec update_level env in_functor level expand ty =
+let rec update_level env level expand ty =
   let ty_level = get_level ty in
   if ty_level > level then begin
     if level < get_scope ty then raise_scope_escape_exn ty;
@@ -908,7 +908,7 @@ let rec update_level env in_functor level expand ty =
         begin try
           let ty' = !forward_try_expand_safe env ty in
           link_type ty ty';
-          update_level env in_functor level expand ty'
+          update_level env level expand ty'
         with Cannot_expand ->
           raise_escape_exn (Constructor p)
         end
@@ -926,20 +926,20 @@ let rec update_level env in_functor level expand ty =
           if not needs_expand then raise Cannot_expand;
           let ty' = !forward_try_expand_safe env ty in
           link_type ty ty';
-          update_level env in_functor level expand ty'
+          update_level env level expand ty'
         with Cannot_expand ->
           set_level ty level;
-          iter_type_expr (update_level env in_functor level expand) ty
+          iter_type_expr (update_level env level expand) ty
         end
     | Tpackage (p, fl) when level < Path.scope p ->
         let p' = normalize_package_path env p in
         if Path.same p p' then raise_escape_exn (Module_type p);
         set_type_desc ty (Tpackage (p', fl));
-        update_level env in_functor level expand ty
+        update_level env level expand ty
     | Tobject (_, ({contents=Some(p, _tl)} as nm))
       when level < Path.scope p ->
         set_name nm None;
-        update_level env in_functor level expand ty
+        update_level env level expand ty
     | Tvariant row ->
         begin match row_name row with
         | Some (p, _tl) when level < Path.scope p ->
@@ -947,14 +947,14 @@ let rec update_level env in_functor level expand ty =
         | _ -> ()
         end;
         set_level ty level;
-        iter_type_expr (update_level env in_functor level expand) ty
+        iter_type_expr (update_level env level expand) ty
     | Tfunctor (l, id, (p, fl), t) when level < Path.scope p ->
         let p' = normalize_package_path env p in
         if Path.same p p' then raise_escape_exn (Module_type p);
         set_type_desc ty (Tfunctor (l, id, (p', fl), t));
-        update_level env in_functor level expand ty
+        update_level env level expand ty
     | Tfunctor (_, id, (p, fl), t) ->
-        List.iter (fun (_, t) -> update_level env in_functor level expand t) fl;
+        List.iter (fun (_, t) -> update_level env level expand t) fl;
         let mty = !modtype_of_package env Location.none p fl in
         let env = Env.add_module (Ident.of_unscoped id) Mp_present mty env in
         set_level ty level;
@@ -964,11 +964,8 @@ let rec update_level env in_functor level expand ty =
         raise_escape_exn Self
     | _ ->
         set_level ty level;
-        iter_type_expr (update_level env in_functor level expand) ty
+        iter_type_expr (update_level env level expand) ty
   end
-
-let update_level env level expand ty =
-  update_level env false level expand ty
 
 (* First try without expanding, then expand everything,
    to avoid combinatorial blow-up *)
