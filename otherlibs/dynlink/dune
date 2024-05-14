@@ -69,8 +69,8 @@
     longident
     docstrings
     printast
+    pprintast
     syntaxerr
-    jane_asttypes
     jane_syntax_parsing
     jane_syntax
     ast_iterator
@@ -175,8 +175,8 @@
 (copy_files ../../parsing/longident.ml)
 (copy_files ../../parsing/docstrings.ml)
 (copy_files ../../parsing/printast.ml)
+(copy_files ../../parsing/pprintast.ml)
 (copy_files ../../parsing/syntaxerr.ml)
-(copy_files ../../parsing/jane_asttypes.ml)
 (copy_files ../../parsing/jane_syntax_parsing.ml)
 (copy_files ../../parsing/jane_syntax.ml)
 (copy_files ../../parsing/ast_iterator.ml)
@@ -245,8 +245,8 @@
 (copy_files ../../parsing/longident.mli)
 (copy_files ../../parsing/docstrings.mli)
 (copy_files ../../parsing/printast.mli)
+(copy_files ../../parsing/pprintast.mli)
 (copy_files ../../parsing/syntaxerr.mli)
-(copy_files ../../parsing/jane_asttypes.mli)
 (copy_files ../../parsing/jane_syntax_parsing.mli)
 (copy_files ../../parsing/jane_syntax.mli)
 (copy_files ../../parsing/ast_iterator.mli)
@@ -366,9 +366,9 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Lazy_backtrack.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Zero_alloc_utils.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_helper.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jane_asttypes.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jane_syntax_parsing.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jane_syntax.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Pprintast.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_iterator.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Builtin_attributes.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Load_path.cmo
@@ -450,9 +450,9 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Printast.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Syntaxerr.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_helper.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jane_asttypes.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jane_syntax_parsing.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jane_syntax.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Pprintast.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Load_path.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_iterator.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Builtin_attributes.cmx

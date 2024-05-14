@@ -130,4 +130,4 @@ type 'type_expr t =
     history : 'type_expr history
   }
 
-type annotation = const * Jane_asttypes.jkind_annotation
+type annotation = const * Jane_syntax.Jkind.annotation

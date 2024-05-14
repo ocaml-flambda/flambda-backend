@@ -928,7 +928,7 @@ and type_declaration =
     typ_manifest: core_type option;
     typ_loc: Location.t;
     typ_attributes: attributes;
-    typ_jkind_annotation: Jane_asttypes.jkind_annotation option;
+    typ_jkind_annotation: Jane_syntax.Jkind.annotation option;
    }
 
 and type_kind =

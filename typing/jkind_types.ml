@@ -366,4 +366,4 @@ type const =
   | Bits64
   | Non_null_value
 
-type annotation = const * Jane_asttypes.jkind_annotation
+type annotation = const * Jane_syntax.Jkind.annotation
