@@ -116,6 +116,8 @@ let unarized_components (t : [`Unarized] t) = List.map Component.component t
 
 let unarize_per_parameter t = t |> List.map Component.unarize
 
+let unarize_per_parameter_to_components t = t
+
 let unarize_t t = t |> unarize |> create_singletons
 
 let fresh_idents_unarized t ~id =

@@ -86,6 +86,10 @@ val unarized_components : [`Unarized] t -> Flambda_kind.With_subkind.t list
 val unarize_per_parameter :
   [`Complex] t -> Flambda_kind.With_subkind.t list list
 
+(** Like [unarize_per_parameter] but returns [Component.t] values. *)
+val unarize_per_parameter_to_components :
+  'uc t -> 'uc Component_for_creation.t list
+
 (** Like [unarize] but returns a value of type [t]. *)
 val unarize_t : [`Complex] t -> [`Unarized] t
 
