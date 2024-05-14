@@ -12,11 +12,8 @@
 ;*                                                                        *
 ;**************************************************************************
 
-;; [beta] was renamed to [stdlib_beta]. This library clones [stdlib_beta]
-;; until we move all existing uses of [beta] to [stdlib_beta].
-
 (library
- (name beta)
+ (name stdlib_stable)
  (wrapped false)
  (modes byte native)
  (flags
@@ -31,30 +28,19 @@
    -safe-string
    -strict-formats
    -extension-universe
-   beta))
+   stable))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags
   (:standard -linkall)))
 
-;; We clone files from [stdlib_beta] instead of re-exporting the library
-;; to avoid adding a new transitive dependency to builds.
-
-(rule
- (deps
-  (glob_files ../stdlib_beta/*.{ml,mli}))
- (targets float32.ml float32.mli float32_u.ml float32_u.mli beta.ml beta.mli)
- (action
-  (bash
-   "cp ../stdlib_beta/*.{ml,mli} .; mv stdlib_beta.ml beta.ml; mv stdlib_beta.mli beta.mli")))
-
 (install
  (files
   (glob_files
-   (*.{cmxa,a,cmxs,cma,mli} with_prefix beta))
+   (*.{cmxa,a,cmxs,cma,mli} with_prefix stdlib_stable))
   (glob_files
-   (.beta.objs/byte/*.{cmi,cmt,cmti} with_prefix beta))
+   (.stdlib_stable.objs/byte/*.{cmi,cmt,cmti} with_prefix stdlib_stable))
   (glob_files
-   (.beta.objs/native/*.cmx with_prefix beta)))
+   (.stdlib_stable.objs/native/*.cmx with_prefix stdlib_stable)))
  (section lib)
  (package ocaml))
