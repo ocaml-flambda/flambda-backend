@@ -1466,7 +1466,7 @@ module Contention = struct
   module Obj = struct
     type const = Const.t
 
-    (* the negation of Uniqueness_op gives us the proper uniqueness *)
+    (* the negation of Contention_op gives us the proper contention *)
     module Solver = S.Negative
 
     let obj = C.Contention_op
@@ -1551,14 +1551,14 @@ module Comonadic_with (Areality : Areality) = struct
   let submode_log m0 m1 ~log : _ result =
     match submode_log m0 m1 ~log with
     | Ok () -> Ok ()
-    | Error { left = area0, lin0, syn0; right = area1, lin1, syn1 } ->
+    | Error { left = area0, lin0, port0; right = area1, lin1, port1 } ->
       if Areality.Const.le area0 area1
       then
         if Linearity.Const.le lin0 lin1
         then
-          if Portability.Const.le syn0 syn1
+          if Portability.Const.le port0 port1
           then assert false
-          else Error (Error (Portability, { left = syn0; right = syn1 }))
+          else Error (Error (Portability, { left = port0; right = port1 }))
         else Error (Error (Linearity, { left = lin0; right = lin1 }))
       else Error (Error (Areality, { left = area0; right = area1 }))
 

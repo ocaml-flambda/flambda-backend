@@ -895,6 +895,7 @@ let check_construct_mutability ~loc ~env mutability argument_mode =
       let m0 = mutable_mode m0 in
       submode ~loc ~env m0 argument_mode
 
+(** The [expected_mode] of the record when projecting a mutable field. *)
 let mode_project_mutable =
   let mode =
     Contention.Const.Uncontended
@@ -904,6 +905,7 @@ let mode_project_mutable =
   { (mode_default mode) with
     contention_context = Some Read_mutable }
 
+(** The [expected_mode] of the record when mutating a mutable field. *)
 let mode_mutate_mutable =
   let mode =
     Contention.Const.Uncontended
