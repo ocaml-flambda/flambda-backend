@@ -1872,11 +1872,11 @@ end = struct
     | 2 -> V.bot
     | n -> Misc.fatal_errorf "Zero_alloc_checker cannot decode %d" n
 
-  let encode (v : Value.t) : Zero_alloc_info.value =
+  let encode (v : Value.t) : Zero_alloc_info.value option =
     let c = (encode v.div lsl 4) lor (encode v.exn lsl 2) lor encode v.nor in
     if c = 0 then None else Some c
 
-  let decode : Zero_alloc_info.value -> Value.t = function
+  let decode : Zero_alloc_info.value option -> Value.t = function
     | None -> Value.top decoded_witness
     | Some d ->
       if d = 0 then Misc.fatal_error "Zero_alloc_checker unexpected 0 encoding";
@@ -1887,13 +1887,13 @@ end = struct
 
   let set_value s (v : Value.t) =
     let info = (Compilenv.current_unit_infos ()).ui_zero_alloc_info in
-    Zero_alloc_info.set_value info s (encode v)
+    match encode v with
+    | None -> ()
+    | Some i -> Zero_alloc_info.set_value info s i
 
   let get_value_opt s =
     let info = Compilenv.cached_zero_alloc_info in
-    match Zero_alloc_info.get_value info s with
-    | None -> None
-    | Some (c : Zero_alloc_info.value) -> Some (decode c)
+    Some (decode (Zero_alloc_info.get_value info s))
 end
 
 (** The analysis involved some fixed point computations.
