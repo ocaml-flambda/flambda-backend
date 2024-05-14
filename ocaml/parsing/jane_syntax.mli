@@ -252,9 +252,6 @@ module N_ary_functions : sig
         Note: If [E0] is provided, only
         {{!Asttypes.arg_label.Optional}[Optional]} is allowed.
     *)
-    | Pparam_module of
-        string Asttypes.loc * Parsetree.package_type
-        (** [Pparam_module (M, S)] represents the parameter [{M : S}]. *)
     | Pparam_newtype of string Asttypes.loc * Jkind.annotation option
         (** [Pparam_newtype (x, jkind)] represents the parameter [(type x)].
         [x] carries the location of the identifier, whereas [pparam_loc] is

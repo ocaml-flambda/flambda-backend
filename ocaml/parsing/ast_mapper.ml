@@ -27,7 +27,6 @@ open Location
 module String = Misc.Stdlib.String
 
 type mapper = {
-  argument: mapper -> argument -> argument;
   attribute: mapper -> attribute -> attribute;
   attributes: mapper -> attribute list -> attribute list;
   binding_op: mapper -> binding_op -> binding_op;
@@ -231,8 +230,8 @@ module T = struct
         package ~loc ~attrs (map_loc sub lid)
           (List.map (map_tuple (map_loc sub) (sub.typ sub)) l)
     | Ptyp_extension x -> extension ~loc ~attrs (sub.extension sub x)
-    | Ptyp_functor (s, (lid, l), t) ->
-        functor_ ~loc ~attrs (map_loc sub s)
+    | Ptyp_functor (lbl, s, (lid, l), t) ->
+        functor_ ~loc ~attrs lbl (map_loc sub s)
           (map_loc sub lid, List.map (map_tuple (map_loc sub) (sub.typ sub)) l)
           (sub.typ sub t)
 
@@ -644,13 +643,6 @@ module E = struct
         match desc with
         | Pparam_val (label, def, pat) ->
             Pparam_val (label, Option.map (sub.expr sub) def, sub.pat sub pat)
-        | Pparam_module (s, pack_ty) ->
-            Pparam_module
-              ( map_loc sub s
-              , map_tuple (map_loc sub)
-                  (List.map (map_tuple (map_loc sub) (sub.typ sub)))
-                  pack_ty
-              )
         | Pparam_newtype (newtype, jkind) ->
             Pparam_newtype
               ( map_loc sub newtype
@@ -725,17 +717,12 @@ module E = struct
     | Pexp_fun (lab, def, p, e) ->
         (fun_ ~loc ~attrs lab (map_opt (sub.expr sub) def) (sub.pat sub p)
           (sub.expr sub e) [@alert "-prefer_jane_syntax"])
-    | Pexp_functor (name, pck_ty, e) ->
-        (functor_ ~loc ~attrs name
-          (map_tuple (map_loc sub)
-            (List.map (map_tuple (map_loc sub) (sub.typ sub))) pck_ty)
-          (sub.expr sub e) [@alert "-prefer_jane_syntax"])
     | Pexp_function pel ->
         (function_ ~loc ~attrs (sub.cases sub pel)
            [@alert "-prefer_jane_syntax"])
     | Pexp_apply (e, l) ->
         apply ~loc ~attrs (sub.expr sub e)
-          (List.map (map_snd (sub.argument sub)) l)
+          (List.map (map_snd (sub.expr sub)) l)
     | Pexp_match (e, pel) ->
         match_ ~loc ~attrs (sub.expr sub e) (sub.cases sub pel)
     | Pexp_try (e, pel) -> try_ ~loc ~attrs (sub.expr sub e) (sub.cases sub pel)
@@ -806,10 +793,6 @@ module E = struct
     let exp = sub.expr sub pbop_exp in
     let loc = sub.location sub pbop_loc in
     binding_op op pat exp loc
-
-  let map_argument sub = function
-    | Parg_expr e -> Exp.arg_expr (sub.expr sub e)
-    | Parg_module me -> Exp.arg_mod (sub.module_expr sub me)
 
 end
 
@@ -995,7 +978,6 @@ let default_mapper =
     pat = P.map;
     expr = E.map;
     binding_op = E.map_binding_op;
-    argument = E.map_argument;
 
     module_declaration =
       (fun this {pmd_name; pmd_type; pmd_attributes; pmd_loc} ->

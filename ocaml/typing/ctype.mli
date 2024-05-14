@@ -208,7 +208,7 @@ val instance_poly:
 val polyfy: Env.t -> type_expr -> type_expr list -> type_expr * bool
 val instance_funct:
         id_in:Ident.t -> p_out:Path.t -> fixed:bool ->
-        type_expr -> type_expr
+        type_expr -> type_expr option
 val instance_label:
         bool -> label_description -> type_expr list * type_expr * type_expr
         (* Same, for a label *)
@@ -288,6 +288,7 @@ val unify_delaying_jkind_checks :
            return the checks that would have been performed.  For use in
            typedecl before well-foundedness checks have made jkind checking
            safe. *)
+val unify_to_arrow: Env.t -> type_expr -> unit
 
 type filtered_arrow =
   { ty_arg : type_expr;
@@ -302,9 +303,15 @@ val filter_arrow: Env.t -> type_expr -> arg_label -> force_tpoly:bool ->
            [force_poly] is false then the usual invariant that the
            argument type be a [Tpoly] node is not enforced. Raises
            [Filter_arrow_failed] instead of [Unify].  *)
+
+type filtered_functor =
+  { ret : (arrow_desc * Ident.unscoped * (Path.t * (Longident.t * type_expr) list) * type_expr) option;
+    arg_mode : Mode.Alloc.lr;
+    ret_mode : Mode.Alloc.lr
+  }
+
 val filter_functor:
-        Env.t -> type_expr ->
-        (Ident.t * (Path.t * (Longident.t * type_expr) list) * type_expr) option
+        Env.t -> type_expr -> arg_label -> filtered_functor
         (* A special case of unification with [{M:P} -> 'a]  Raises
            [Filter_arrow_failed] instead of [Unify]. *)
 val filter_mono: type_expr -> type_expr

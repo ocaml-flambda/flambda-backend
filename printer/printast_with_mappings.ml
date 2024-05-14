@@ -206,8 +206,10 @@ let rec core_type i ppf x =
   | Ptyp_extension (s, arg) ->
       line i ppf "Ptyp_extension \"%s\"\n" s.txt;
       payload i ppf arg
-  | Ptyp_functor (id, (p, fl), ty) ->
-      line i ppf "Ptyp_functor %s : %a\n" id.txt fmt_longident_loc p;
+  | Ptyp_functor (lbl, id, (p, fl), ty) ->
+      line i ppf "Ptyp_functor\n";
+      arg_label i ppf lbl;
+      line i ppf "%s : %a\n" id.txt fmt_longident_loc p;
       list i package_with ppf fl;
       core_type i ppf ty
   )
@@ -291,10 +293,6 @@ and expression i ppf x =
   | Pexp_function l ->
       line i ppf "Pexp_function\n";
       list i case ppf l;
-  | Pexp_functor (id, (p, fl), e) ->
-      line i ppf "Pexp_functor %s : %a" id.txt fmt_longident_loc p;
-      list i package_with ppf fl;
-      expression i ppf e 
   | Pexp_fun (l, eo, p, e) ->
       line i ppf "Pexp_fun\n";
       arg_label i ppf l;
@@ -304,7 +302,7 @@ and expression i ppf x =
   | Pexp_apply (e, l) ->
       line i ppf "Pexp_apply\n";
       expression i ppf e;
-      list i label_x_argument ppf l;
+      list i label_x_expression ppf l;
   | Pexp_match (e, l) ->
       line i ppf "Pexp_match\n";
       expression i ppf e;
@@ -1001,17 +999,6 @@ and label_x_expression i ppf (l,e) =
   line i ppf "<arg>\n";
   arg_label i ppf l;
   expression (i+1) ppf e;
-
-and label_x_argument i ppf (l,a) =
-  line i ppf "<arg>\n";
-  arg_label i ppf l;
-  argument (i+1) ppf a;
-
-and argument i ppf = function
-  | Parg_expr e -> expression i ppf e
-  | Parg_module m ->
-      line i ppf "<marg\n>";
-      module_expr (i+1) ppf m
   
 and label_x_bool_x_core_type_list i ppf x =
   match x.prf_desc with

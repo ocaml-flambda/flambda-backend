@@ -22,7 +22,6 @@ open Typedtree
 
 type iterator =
   {
-    argument: iterator -> argument -> unit;
     attribute: iterator -> attribute -> unit;
     attributes: iterator -> attributes -> unit;
     binding_op: iterator -> binding_op -> unit;

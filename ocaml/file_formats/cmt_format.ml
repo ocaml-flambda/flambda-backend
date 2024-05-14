@@ -239,7 +239,7 @@ let iter_on_occurrences
           f ~namespace:Type ctyp_env path lid
       | Ttyp_package {pack_path; pack_txt} ->
           f ~namespace:Module_type ctyp_env pack_path pack_txt
-      | Ttyp_functor (_, {pack_path; pack_txt}, _) ->
+      | Ttyp_functor (_, _, {pack_path; pack_txt}, _) ->
           f ~namespace:Module_type ctyp_env pack_path pack_txt
       | Ttyp_class (path, lid, _typs) ->
           (* Deprecated syntax to extend a polymorphic variant *)

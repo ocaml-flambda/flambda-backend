@@ -28,7 +28,6 @@ open Parsetree
 (** {1 A generic Parsetree iterator} *)
 
 type iterator = {
-  argument: iterator -> argument -> unit;
   attribute: iterator -> attribute -> unit;
   attributes: iterator -> attribute list -> unit;
   modes : iterator -> Jane_syntax.Mode_expr.t -> unit;

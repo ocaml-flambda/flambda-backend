@@ -236,7 +236,6 @@ and function_param =
 
 and function_param_kind =
   | Tparam_pat of pattern
-  | Tparam_module of pattern * package_type
   | Tparam_optional_default of pattern * expression * Jkind.sort
 
 and function_body =
@@ -325,13 +324,7 @@ and omitted_parameter =
     mode_ret : Mode.Alloc.l;
     sort_arg : Jkind.sort }
 
-and apply_arg = (argument, omitted_parameter) arg_or_omitted
-
-and argument =
-  | Targ_expr of expression * Jkind.sort
-  | Targ_module of module_expr
-
-and apply_expr = (expression * Jkind.sort, omitted_parameter) arg_or_omitted
+and apply_arg = (expression * Jkind.sort, omitted_parameter) arg_or_omitted
 
 and apply_position =
   | Tail
@@ -355,7 +348,7 @@ and class_expr_desc =
   | Tcl_fun of
       arg_label * pattern * (Ident.t * expression) list
       * class_expr * partial
-  | Tcl_apply of class_expr * (arg_label * apply_expr) list
+  | Tcl_apply of class_expr * (arg_label * apply_arg) list
   | Tcl_let of rec_flag * value_binding list *
                   (Ident.t * expression) list * class_expr
   | Tcl_constraint of
@@ -627,7 +620,7 @@ and core_type_desc =
   | Ttyp_variant of row_field list * closed_flag * label list option
   | Ttyp_poly of (string * Jkind.annotation option) list * core_type
   | Ttyp_package of package_type
-  | Ttyp_functor of Ident.t loc * package_type * core_type
+  | Ttyp_functor of arg_label * Ident.t loc * package_type * core_type
   | Ttyp_call_pos
 
 and package_type = {

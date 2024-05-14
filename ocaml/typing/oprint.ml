@@ -481,20 +481,31 @@ and print_out_type_1 ppf =
       pp_print_space ppf ();
       print_out_ret rm ppf ty2;
       pp_close_box ppf ()
-  | Otyp_functor (id, (p, fl), ty) ->
+  | Otyp_functor (lab, id, (p, fl), ty) ->
       pp_open_box ppf 0;
-      pp_print_string ppf "{";
-      print_ident ppf id;
-      pp_print_string ppf " : ";
-      print_ident ppf p;
-      let first = ref true in
-      List.iter
-        (fun (s, t) ->
-          let sep = if !first then (first := false; "with") else "and" in
-          fprintf ppf " %s type %s = %a" sep s print_out_type t
-        )
-        fl;
-      pp_print_string ppf "} ->";
+      let print_type () =
+        pp_print_string ppf "(module ";
+        print_ident ppf id;
+        pp_print_string ppf " : ";
+        print_ident ppf p;
+        let first = ref true in
+        List.iter
+          (fun (s, t) ->
+            let sep = if !first then (first := false; "with") else "and" in
+            fprintf ppf " %s type %s = %a" sep s print_out_type t
+          )
+          fl;
+        pp_print_string ppf ") ->"
+      in
+      (match lab with
+      | Nolabel -> print_type ()
+      | Labelled l ->
+          pp_print_string ppf l; pp_print_char ppf ':'; print_type ()
+      | Position l ->
+          pp_print_string ppf l;
+          pp_print_string ppf ":[%call_pos]"
+      | Optional l ->
+          pp_print_string ppf ("?" ^ l); pp_print_char ppf ':'; print_type ());
       pp_print_space  ppf ();
       print_out_type_1 ppf ty;
       pp_close_box ppf ()

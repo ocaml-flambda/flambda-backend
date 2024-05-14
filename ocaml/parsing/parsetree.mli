@@ -169,7 +169,7 @@ and core_type_desc =
          *)
   | Ptyp_package of package_type  (** [(module S)]. *)
   | Ptyp_extension of extension  (** [[%id]]. *)
-  | Ptyp_functor of string loc * package_type * core_type
+  | Ptyp_functor of arg_label * string loc * package_type * core_type
         (** [{M : S} -> ...] *)
 
 and arg_label = Asttypes.arg_label =
@@ -346,8 +346,7 @@ and expression_desc =
              {{!Asttypes.arg_label.Labelled}[Labelled l]}, they are converted to
              {{!Types.arg_label.Position}[Position l]} arguments for type-checking.
          *)
-  | Pexp_functor of string loc * package_type * expression
-  | Pexp_apply of expression * (arg_label * argument) list
+  | Pexp_apply of expression * (arg_label * expression) list
       (** [Pexp_apply(E0, [(l1, E1) ; ... ; (ln, En)])]
             represents [E0 ~l1:E1 ... ~ln:En]
 
@@ -466,10 +465,6 @@ and binding_op =
     pbop_exp : expression;
     pbop_loc : Location.t;
   }
-
-and argument =
-  | Parg_expr of expression
-  | Parg_module of module_expr
 
 (** {2 Value descriptions} *)
 
