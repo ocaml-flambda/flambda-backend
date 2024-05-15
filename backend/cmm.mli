@@ -228,6 +228,7 @@ type operation =
   | Cnegf of float_width | Cabsf of float_width
   | Caddf of float_width | Csubf of float_width
   | Cmulf of float_width | Cdivf of float_width
+  | Cpackf32
   | Cvalueofint | Cintofvalue
   | Cvectorcast of vector_cast
   | Cscalarcast of scalar_cast

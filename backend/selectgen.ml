@@ -175,6 +175,7 @@ let oper_result_type = function
   | Csubf Float64 | Cmulf Float64 | Cdivf Float64 -> typ_float
   | Cnegf Float32 | Cabsf Float32 | Caddf Float32
   | Csubf Float32 | Cmulf Float32 | Cdivf Float32 -> typ_float32
+  | Cpackf32 -> typ_float
   | Ccsel ty -> ty
   | Cvalueofint -> typ_val
   | Cintofvalue -> typ_int
@@ -501,7 +502,7 @@ method is_simple_expr = function
       | Cclz _ | Cctz _ | Cpopcnt
       | Cbswap _
       | Ccsel _
-      | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _
+      | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _ | Cpackf32
       | Cvectorcast _ | Cscalarcast _
       | Cvalueofint | Cintofvalue
       | Ctuple_field _
@@ -559,7 +560,7 @@ method effects_of exp =
       | Ccsel _
       | Cclz _ | Cctz _ | Cpopcnt
       | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _
-      | Cnegf _ | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _
+      | Cnegf _ | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _ | Cpackf32
       | Cvectorcast _ | Cscalarcast _
       | Cvalueofint | Cintofvalue | Ccmpf _ ->
         EC.none

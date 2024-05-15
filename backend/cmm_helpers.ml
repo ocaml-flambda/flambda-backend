@@ -1025,6 +1025,22 @@ let custom_ops_unboxed_int32_odd_array =
         Cconst_int (Config.custom_ops_struct_size, Debuginfo.none) ],
       Debuginfo.none )
 
+(* caml_unboxed_float32_array_ops refers to the first element of an array of two
+   custom ops. The array index indicates the number of (invalid) tailing
+   float32s (0 or 1). *)
+let custom_ops_unboxed_float32_array =
+  Cconst_symbol
+    (Cmm.global_symbol "caml_unboxed_float32_array_ops", Debuginfo.none)
+
+let custom_ops_unboxed_float32_even_array = custom_ops_unboxed_float32_array
+
+let custom_ops_unboxed_float32_odd_array =
+  Cop
+    ( Caddi,
+      [ custom_ops_unboxed_float32_array;
+        Cconst_int (Config.custom_ops_struct_size, Debuginfo.none) ],
+      Debuginfo.none )
+
 let custom_ops_unboxed_int64_array =
   Cconst_symbol
     (Cmm.global_symbol "caml_unboxed_int64_array_ops", Debuginfo.none)
@@ -1033,7 +1049,8 @@ let custom_ops_unboxed_nativeint_array =
   Cconst_symbol
     (Cmm.global_symbol "caml_unboxed_nativeint_array_ops", Debuginfo.none)
 
-let unboxed_int32_array_length arr dbg =
+let unboxed_packed_array_length arr dbg ~custom_ops_base_symbol
+    ~elements_per_word =
   (* Checking custom_ops is needed to determine if the array contains an odd or
      even number of elements *)
   let res =
@@ -1054,16 +1071,26 @@ let unboxed_int32_array_length arr dbg =
                   ( VP.create custom_ops_index_var,
                     (* compute index into custom ops array *)
                     lsr_int
-                      (sub_int (Cvar custom_ops_var)
-                         custom_ops_unboxed_int32_array dbg)
+                      (sub_int (Cvar custom_ops_var) custom_ops_base_symbol dbg)
                       (int ~dbg custom_ops_size_log2)
                       dbg,
                     (* subtract index from length in int32s *)
                     sub_int
-                      (mul_int (Cvar num_words_var) (int ~dbg 2) dbg)
+                      (mul_int (Cvar num_words_var)
+                         (int ~dbg elements_per_word)
+                         dbg)
                       (Cvar custom_ops_index_var) dbg ) ) ))
   in
   tag_int res dbg
+
+let unboxed_int32_array_length =
+  unboxed_packed_array_length
+    ~custom_ops_base_symbol:custom_ops_unboxed_int32_array ~elements_per_word:2
+
+let unboxed_float32_array_length =
+  unboxed_packed_array_length
+    ~custom_ops_base_symbol:custom_ops_unboxed_float32_array
+    ~elements_per_word:2
 
 let unboxed_int64_or_nativeint_array_length arr dbg =
   let res =
@@ -1179,23 +1206,30 @@ let sign_extend_32 dbg e =
         [Cop (Clsl, [e; Cconst_int (32, dbg)], dbg); Cconst_int (32, dbg)],
         dbg )
 
-let unboxed_int32_array_ref arr index dbg =
+let unboxed_packed_array_ref arr index dbg ~memory_chunk ~elements_per_word =
   bind "arr" arr (fun arr ->
       bind "index" index (fun index ->
           let index =
-            (* Need to skip the custom_operations field. We add 2 element
-               offsets not 1 since the call to [array_indexing], below, is in
-               terms of 32-bit words. Then we multiply the offset by 2 to get 4
-               since we are manipulating a tagged int. *)
-            add_int index (int ~dbg 4) dbg
+            (* Need to skip the custom_operations field. We add
+               elements_per_word offsets not 1 since the call to
+               [array_indexing], below, is in terms of elements. Then we
+               multiply the offset by 2 since we are manipulating a tagged
+               int. *)
+            add_int index (int ~dbg (elements_per_word * 2)) dbg
           in
           let log2_size_addr = 2 in
-          (* N.B. The resulting value will be sign extended by the code
-             generated for a [Thirtytwo_signed] load. *)
           Cop
-            ( mk_load_mut Thirtytwo_signed,
+            ( mk_load_mut memory_chunk,
               [array_indexing log2_size_addr arr index dbg],
               dbg )))
+
+let unboxed_int32_array_ref =
+  unboxed_packed_array_ref ~memory_chunk:Thirtytwo_signed ~elements_per_word:2
+
+let unboxed_float32_array_ref =
+  unboxed_packed_array_ref
+    ~memory_chunk:(Single { reg = Float32 })
+    ~elements_per_word:2
 
 let unboxed_int64_or_nativeint_array_ref arr index dbg =
   bind "arr" arr (fun arr ->
@@ -1207,19 +1241,28 @@ let unboxed_int64_or_nativeint_array_ref arr index dbg =
           in
           int_array_ref arr index dbg))
 
-let unboxed_int32_array_set arr ~index ~new_value dbg =
+let unboxed_packed_array_set arr ~index ~new_value dbg ~memory_chunk
+    ~elements_per_word =
   bind "arr" arr (fun arr ->
       bind "index" index (fun index ->
           bind "new_value" new_value (fun new_value ->
               let index =
-                (* See comment in [unboxed_int32_array_ref]. *)
-                add_int index (int ~dbg 4) dbg
+                (* See comment in [unboxed_packed_array_ref]. *)
+                add_int index (int ~dbg (elements_per_word * 2)) dbg
               in
               let log2_size_addr = 2 in
               Cop
-                ( Cstore (Thirtytwo_signed, Assignment),
+                ( Cstore (memory_chunk, Assignment),
                   [array_indexing log2_size_addr arr index dbg; new_value],
                   dbg ))))
+
+let unboxed_int32_array_set =
+  unboxed_packed_array_set ~memory_chunk:Thirtytwo_signed ~elements_per_word:2
+
+let unboxed_float32_array_set =
+  unboxed_packed_array_set
+    ~memory_chunk:(Single { reg = Float32 })
+    ~elements_per_word:2
 
 let unboxed_int64_or_nativeint_array_set arr ~index ~new_value dbg =
   bind "arr" arr (fun arr ->
@@ -3076,9 +3119,7 @@ let arraylength kind arg dbg =
     (* Note: we only support 64 bit targets now, so this is ok for
        Punboxedfloatarray *)
     Cop (Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
-  | Punboxedfloatarray Pfloat32 ->
-    (* CR mslater: (float32) unboxed arrays *)
-    assert false
+  | Punboxedfloatarray Pfloat32 -> unboxed_float32_array_length arg dbg
   | Punboxedintarray Pint64 | Punboxedintarray Pnativeint ->
     unboxed_int64_or_nativeint_array_length arg dbg
   | Punboxedintarray Pint32 -> unboxed_int32_array_length arg dbg
@@ -3999,10 +4040,41 @@ let allocate_unboxed_int32_array ~elements (mode : Lambda.alloc_mode) dbg =
   in
   let custom_ops =
     (* For odd-length unboxed int32 arrays there are 32 bits spare at the end of
-       the block, which are never read. *)
+       the block, which are never read. They are initialized to the sign
+       extension of the last element. *)
     match num_elts with
     | Even -> custom_ops_unboxed_int32_even_array
     | Odd -> custom_ops_unboxed_int32_odd_array
+  in
+  Cop (Calloc mode, Cconst_natint (header, dbg) :: custom_ops :: payload, dbg)
+
+let make_unboxed_float32_array_payload dbg unboxed_float32_list =
+  if Sys.big_endian
+  then
+    Misc.fatal_error "Big-endian platforms not yet supported for unboxed arrays";
+  let rec aux acc = function
+    | [] -> Even, List.rev acc
+    | a :: [] -> Odd, List.rev (a :: acc)
+    | a :: b :: r ->
+      let i = Cop (Cpackf32, [a; b], dbg) in
+      aux (i :: acc) r
+  in
+  aux [] unboxed_float32_list
+
+let allocate_unboxed_float32_array ~elements (mode : Lambda.alloc_mode) dbg =
+  let num_elts, payload = make_unboxed_float32_array_payload dbg elements in
+  let header =
+    let size = 1 (* custom_ops field *) + List.length payload in
+    match mode with
+    | Alloc_heap -> custom_header ~size
+    | Alloc_local -> custom_local_header ~size
+  in
+  let custom_ops =
+    (* For odd-length unboxed float32 arrays there are 32 bits spare at the end
+       of the block, which are never read. They are *not* initialized. *)
+    match num_elts with
+    | Even -> custom_ops_unboxed_float32_even_array
+    | Odd -> custom_ops_unboxed_float32_odd_array
   in
   Cop (Calloc mode, Cconst_natint (header, dbg) :: custom_ops :: payload, dbg)
 

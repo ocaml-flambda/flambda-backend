@@ -228,6 +228,7 @@ let operation d = function
   | Csubf Float32 -> "-f32"
   | Cmulf Float32 -> "*f32"
   | Cdivf Float32 -> "/f32"
+  | Cpackf32 -> "packf32"
   | Ccsel ret_typ ->
     to_string "csel %a" machtype ret_typ
   | Cvalueofint -> "valueofint"
