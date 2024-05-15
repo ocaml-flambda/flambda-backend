@@ -449,12 +449,13 @@ again:
       oldify_one (st, f, Op_val (new_v));
     }
 
+    i = 1;
+
     if(Tag_val(new_v) == Closure_tag) {
-      for (i = 1; i < Start_env_closinfo(Closinfo_val(v)); i++) {
+      mlsize_t non_scannable = Start_env_closinfo(Closinfo_val(v));
+      for (; i < non_scannable; i++) {
         Field(new_v, i) = Field(v, i);
       }
-    } else {
-      i = 1;
     }
 
     for (; i < scannable_wosize; i++){
