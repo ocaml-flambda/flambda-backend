@@ -1176,33 +1176,33 @@ let message = function
        but is never applied in TMC position."
   | Tmc_breaks_tailcall ->
       "This call\n\
-      is in tail-modulo-cons position in a TMC function,\n\
-      but the function called is not itself specialized for TMC,\n\
-      so the call will not be transformed into a tail call.\n\
-      Please either mark the called function with the [@tail_mod_cons]\n\
-      attribute, or mark this call with the [@tailcall false] attribute\n\
-      to make its non-tailness explicit."
+       is in tail-modulo-cons position in a TMC function,\n\
+       but the function called is not itself specialized for TMC,\n\
+       so the call will not be transformed into a tail call.\n\
+       Please either mark the called function with the [@tail_mod_cons]\n\
+       attribute, or mark this call with the [@tailcall false] attribute\n\
+       to make its non-tailness explicit."
   | Generative_application_expects_unit ->
       "A generative functor\n\
        should be applied to '()'; using '(struct end)' is deprecated."
   | Incompatible_with_upstream (Immediate_erasure id)  ->
-    Printf.sprintf
-    "Usage of layout immediate/immediate64 in %s can't be erased \n\
-    for compatibility with upstream OCaml. This error is produced due to \n\
-    the use of -extension-universe upstream_compatible." id
+      Printf.sprintf
+      "Usage of layout immediate/immediate64 in %s can't be erased \n\
+       for compatibility with upstream OCaml. This error is produced due to \n\
+       the use of -extension-universe upstream_compatible." id
   | Incompatible_with_upstream (Non_value_sort layout) ->
-    Printf.sprintf
-    "External declaration here is not upstream compatible. \n\
-    The only types with non-value layouts allowed are float#, \n\
-    int32#, int64#, and nativeint#. Unknown type with layout \n\
-    %s encountered. This error is produced due to the use of \n\
-    -extension-universe upstream_compatible." layout
+      Printf.sprintf
+      "External declaration here is not upstream compatible. \n\
+       The only types with non-value layouts allowed are float#, \n\
+       int32#, int64#, and nativeint#. Unknown type with layout \n\
+       %s encountered. This error is produced due to the use of \n\
+       -extension-universe upstream_compatible." layout
   | Incompatible_with_upstream (Unboxed_attribute layout) ->
-    Printf.sprintf
-    "[@unboxed] attribute must be added to external declaration \n\
-     argument type with layout %s for upstream compatibility. \n\
-     This error is produced due to the use of -extension-universe \n\
-     upstream_compatible." layout
+      Printf.sprintf
+      "[@unboxed] attribute must be added to external declaration \n\
+       argument type with layout %s for upstream compatibility. \n\
+       This error is produced due to the use of -extension-universe \n\
+       upstream_compatible." layout
   | Unerasable_position_argument -> "this position argument cannot be erased."
   | Unnecessarily_partial_tuple_pattern ->
       "This tuple pattern\n\
