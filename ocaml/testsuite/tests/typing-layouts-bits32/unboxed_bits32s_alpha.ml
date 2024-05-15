@@ -1,5 +1,4 @@
 (* TEST
- include stable;
  flambda2;
  {
    flags = "-extension layouts_alpha";
@@ -23,7 +22,7 @@
 (* Prelude: Functions on unboxed int32s. *)
 
 module Int32_u = struct
-  include Stable.Int32_u
+  include Stdlib__Int32_u
 
   let ( + ) = add
   let ( - ) = sub

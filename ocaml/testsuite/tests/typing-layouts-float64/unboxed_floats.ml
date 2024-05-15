@@ -1,6 +1,5 @@
 (* TEST
  reference = "${test_source_directory}/unboxed_floats.reference";
- include stable;
  flambda2;
  {
    native;
@@ -51,7 +50,7 @@
 (* Prelude: Functions on unboxed floats. *)
 
 module Float_u = struct
-  include Stable.Float_u
+  include Stdlib__Float_u
 
   let ( + ) = add
   let ( - ) = sub

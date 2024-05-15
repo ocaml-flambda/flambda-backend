@@ -13,7 +13,7 @@
 (* This file contains typing tests for the layout [bits64].
 
    Runtime tests for the type [int64#] can be found in the
-   [unboxed_int64], [alloc], and [test_int64_u] tests in this
+   [unboxed_int64], [alloc], and [stdlib__int64_u] tests in this
    directory.  The type [int64#] here is used as a convenient example of a
    concrete [bits64] type in some tests, but its behavior isn't the primary
    purpose of this test. *)

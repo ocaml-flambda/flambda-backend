@@ -1,5 +1,4 @@
 (* TEST
- include stable;
  {
    flags = "-extension layouts_alpha";
    native;
@@ -15,7 +14,7 @@
  }
 *)
 
-module Float_u = Stable.Float_u
+module Float_u = Stdlib__Float_u
 
 (* Constant seed for repeatable random-testing properties *)
 let () = Random.init 1234

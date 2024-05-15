@@ -207,6 +207,30 @@ stdlib.cmx: stdlib.ml
 	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) \
 	 -pp "$(AWK) -f ./expand_module_aliases.awk" -c $<
 
+
+# special cases to add the extension flag when compiling float_u etc.
+# CR layouts: eventually these can be just [-extension layouts]
+stdlib__%_u.cmi:
+	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha \
+	         -o $@ -c $(filter %.mli, $^)
+
+stdlib__%_u.cmo:
+	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha \
+	         -o $@ -c $(filter %.ml, $^)
+
+stdlib__%_u.cmx:
+	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -extension layouts_alpha \
+	           -o $@ -c $(filter %.ml, $^)
+
+%_u.cmi: %_u.mli
+	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha -c $<
+
+%_u.cmo: %_u.ml
+	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha -c $<
+
+%_u.cmx: %_u.ml
+	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -extension layouts_alpha -c $<
+
 %.cmi: %.mli
 	$(V_OCAMLC)$(CAMLC) $(COMPFLAGS) -c $<
 
