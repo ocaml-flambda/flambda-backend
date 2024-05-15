@@ -36,11 +36,24 @@
 
 (install
  (files
-  (glob_files
-   (*.{cmxa,a,cmxs,cma,mli} with_prefix beta))
-  (glob_files
-   (.beta.objs/byte/*.{cmi,cmt,cmti} with_prefix beta))
-  (glob_files
-   (.beta.objs/native/*.cmx with_prefix beta)))
+  (beta.cmxa as beta/beta.cmxa)
+  (beta.a as beta/beta.a)
+  (beta.cmxs as beta/beta.cmxs)
+  (beta.cma as beta/beta.cma)
+  (beta.mli as beta/beta.mli)
+  (float32.mli as beta/float32.mli)
+  (float32_u.mli as beta/float32_u.mli)
+  (.beta.objs/byte/beta.cmi as beta/beta.cmi)
+  (.beta.objs/byte/beta.cmt as beta/beta.cmt)
+  (.beta.objs/byte/beta.cmti as beta/beta.cmti)
+  (.beta.objs/native/beta.cmx as beta/beta.cmx)
+  (.beta.objs/byte/float32.cmi as beta/float32.cmi)
+  (.beta.objs/byte/float32.cmt as beta/float32.cmt)
+  (.beta.objs/byte/float32.cmti as beta/float32.cmti)
+  (.beta.objs/native/float32.cmx as beta/float32.cmx)
+  (.beta.objs/byte/float32_u.cmi as beta/float32_u.cmi)
+  (.beta.objs/byte/float32_u.cmt as beta/float32_u.cmt)
+  (.beta.objs/byte/float32_u.cmti as beta/float32_u.cmti)
+  (.beta.objs/native/float32_u.cmx as beta/float32_u.cmx))
  (section lib)
  (package ocaml))
