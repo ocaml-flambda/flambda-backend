@@ -124,12 +124,12 @@ type add_continuation_result =
 let add_continuation t cont ~push_to_try_stack ~pop_region
     (recursive : Asttypes.rec_flag) =
   let region_stack =
-    if pop_region then
+    if pop_region
+    then
       match t.region_stack with
       | [] -> Misc.fatal_error "Cannot pop region, region stack is empty"
       | _ :: region_stack -> region_stack
-    else
-      t.region_stack
+    else t.region_stack
   in
   let region_stack_in_cont_scope =
     Continuation.Map.add cont region_stack t.region_stack_in_cont_scope
@@ -200,7 +200,7 @@ let add_static_exn_continuation t static_exn ~pop_region cont =
       try_stack_at_handler =
         Continuation.Map.add cont t.try_stack t.try_stack_at_handler;
       static_exn_continuation =
-        Numeric_types.Int.Map.add static_exn cont t.static_exn_continuation;
+        Numeric_types.Int.Map.add static_exn cont t.static_exn_continuation
     }
   in
   let recursive : Asttypes.rec_flag =
@@ -208,8 +208,7 @@ let add_static_exn_continuation t static_exn ~pop_region cont =
     then Recursive
     else Nonrecursive
   in
-  add_continuation t cont
-    ~push_to_try_stack:false ~pop_region recursive
+  add_continuation t cont ~push_to_try_stack:false ~pop_region recursive
 
 let get_static_exn_continuation t static_exn =
   match Numeric_types.Int.Map.find static_exn t.static_exn_continuation with

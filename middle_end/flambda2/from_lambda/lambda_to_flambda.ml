@@ -1041,14 +1041,12 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     maybe_insert_let_cont "staticcatch_result" layout k acc env ccenv
       (fun acc env ccenv k ->
         let pop_region =
-          match r with
-          | Popped_region -> true
-          | Same_region -> false
+          match r with Popped_region -> true | Same_region -> false
         in
         let continuation = Continuation.create () in
         let { Env.body_env; handler_env; extra_params } =
-          Env.add_static_exn_continuation env static_exn
-            ~pop_region continuation
+          Env.add_static_exn_continuation env static_exn ~pop_region
+            continuation
         in
         let recursive : Asttypes.rec_flag =
           if Env.is_static_exn_recursive env static_exn
