@@ -657,12 +657,12 @@ let rec choice ctx t =
         let l1 = traverse ctx l1 in
         let+ l2 = choice ctx ~tail l2 in
         Ltrywith (l1, id, l2, kind)
-    | Lstaticcatch (l1, ids, l2, kind) ->
+    | Lstaticcatch (l1, ids, l2, r, kind) ->
         (* In [static-catch l1 with ids -> l2],
            the term [l1] is in fact in tail-position *)
         let+ l1 = choice ctx ~tail l1
         and+ l2 = choice ctx ~tail l2 in
-        Lstaticcatch (l1, ids, l2, kind)
+        Lstaticcatch (l1, ids, l2, r, kind)
     | Levent (lam, lev) ->
         let+ lam = choice ctx ~tail lam in
         Levent (lam, lev)

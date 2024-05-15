@@ -160,7 +160,7 @@ let compute_static_size lam =
       in
       compute_and_join_sizes_switch env [cases; fail_case]
     | Lstaticraise _ -> Unreachable
-    | Lstaticcatch (body, _, handler, _)
+    | Lstaticcatch (body, _, handler, _, _)
     | Ltrywith (body, _, handler, _) ->
       compute_and_join_sizes env [body; handler]
     | Lifthenelse (_cond, ifso, ifnot, _) ->
@@ -600,7 +600,7 @@ let rec split_static_function lfun block_var local_idents lam :
     | Reachable _, Some (Reachable _) ->
       Misc.fatal_error "letrec: multiple functions"
     end
-  | Lstaticcatch (body, (nfail, params), handler, layout) ->
+  | Lstaticcatch (body, (nfail, params), handler, r, layout) ->
     let body_res = split_static_function lfun block_var local_idents body in
     let handler_res =
       let local_idents =
@@ -612,9 +612,9 @@ let rec split_static_function lfun block_var local_idents lam :
     begin match body_res, handler_res with
     | Unreachable, Unreachable -> Unreachable
     | Reachable (lfun, body), Unreachable ->
-      Reachable (lfun, Lstaticcatch (body, (nfail, params), handler, layout))
+      Reachable (lfun, Lstaticcatch (body, (nfail, params), handler, r, layout))
     | Unreachable, Reachable (lfun, handler) ->
-      Reachable (lfun, Lstaticcatch (body, (nfail, params), handler, layout))
+      Reachable (lfun, Lstaticcatch (body, (nfail, params), handler, r, layout))
     | Reachable _, Reachable _ ->
       Misc.fatal_error "letrec: multiple functions"
     end
