@@ -8,8 +8,6 @@
  compiler_output = "bad_ref_direct.output";
  ocamlc_byte_exit_status = "2";
  ocamlc.byte;
- reason = "correct error message not yet implemented";
- skip;
  compiler_reference = "bad_ref_direct.reference";
  check-ocamlc.byte-output;
 *)
