@@ -52,7 +52,7 @@
 (rule
  (deps
   (:first-dep ../to_install.sh)
-  (source_tree .))
+  (glob_files *.mli))
  (action
   (with-stdout-to
    to_install.sexp
