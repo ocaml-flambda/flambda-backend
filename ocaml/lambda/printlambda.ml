@@ -1115,10 +1115,10 @@ let rec lam ppf = function
   | Lstaticcatch(lbody, (i, vars), lhandler, r, _kind) ->
       let excl =
         match r with
-        | Popped_region -> "exclave"
+        | Popped_region -> " exclave"
         | Same_region -> ""
       in
-      fprintf ppf "@[<2>(catch@ %a@;<1 -1>with (%d%a) %s@ %a)@]"
+      fprintf ppf "@[<2>(catch@ %a@;<1 -1>with (%d%a)%s@ %a)@]"
         lam lbody i
         (fun ppf vars ->
            List.iter
