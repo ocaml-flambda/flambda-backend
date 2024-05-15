@@ -34,16 +34,17 @@
  (library_flags
   (:standard -linkall)))
 
+(rule
+ (deps
+  (:first-dep ../to_install.sh)
+  (source_tree .))
+ (action
+  (with-stdout-to
+   to_install.sexp
+   (run "%{first-dep}" "stable"))))
+
 (install
  (files
-  (stable.cmxa as stable/stable.cmxa)
-  (stable.a as stable/stable.a)
-  (stable.cmxs as stable/stable.cmxs)
-  (stable.cma as stable/stable.cma)
-  (stable.mli as stable/stable.mli)
-  (.stable.objs/byte/stable.cmi as stable/stable.cmi)
-  (.stable.objs/byte/stable.cmt as stable/stable.cmt)
-  (.stable.objs/byte/stable.cmti as stable/stable.cmti)
-  (.stable.objs/native/stable.cmx as stable/stable.cmx))
+  (include to_install.sexp))
  (section lib)
  (package ocaml))

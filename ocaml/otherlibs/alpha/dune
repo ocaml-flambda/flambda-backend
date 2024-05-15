@@ -34,16 +34,17 @@
  (library_flags
   (:standard -linkall)))
 
+(rule
+ (deps
+  (:first-dep ../to_install.sh)
+  (source_tree .))
+ (action
+  (with-stdout-to
+   to_install.sexp
+   (run "%{first-dep}" "alpha"))))
+
 (install
  (files
-  (alpha.cmxa as alpha/alpha.cmxa)
-  (alpha.a as alpha/alpha.a)
-  (alpha.cmxs as alpha/alpha.cmxs)
-  (alpha.cma as alpha/alpha.cma)
-  (alpha.mli as alpha/alpha.mli)
-  (.alpha.objs/byte/alpha.cmi as alpha/alpha.cmi)
-  (.alpha.objs/byte/alpha.cmt as alpha/alpha.cmt)
-  (.alpha.objs/byte/alpha.cmti as alpha/alpha.cmti)
-  (.alpha.objs/native/alpha.cmx as alpha/alpha.cmx))
+  (include to_install.sexp))
  (section lib)
  (package ocaml))
