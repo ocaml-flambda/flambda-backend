@@ -954,7 +954,11 @@ let components_of_module ~alerts ~uid env ps path addr mty shape =
   }
 
 let read_sign_of_cmi { Persistent_env.Persistent_signature.cmi; _ } =
-  let name = cmi.cmi_name in
+  let name =
+    match cmi.cmi_kind with
+    | Normal { cmi_impl } -> cmi_impl
+    | Parameter -> Misc.fatal_error "Unsupported import of parameter module"
+  in
   let sign = cmi.cmi_sign in
   let flags = cmi.cmi_flags in
   let id = Ident.create_persistent (Compilation_unit.name_as_string name) in
@@ -2643,7 +2647,7 @@ let open_signature
 (* Read a signature from a file *)
 let read_signature modname filename ~add_binding =
   let mda =
-    read_pers_mod (Compilation_unit.name modname) filename ~add_binding
+    read_pers_mod modname filename ~add_binding
   in
   let md = Subst.Lazy.force_module_decl mda.mda_declaration in
   match md.md_type with

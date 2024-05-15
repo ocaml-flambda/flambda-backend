@@ -14,36 +14,44 @@
 
 module CU = Compilation_unit
 
-type t =
-  | Normal of CU.t * Digest.t
-  | Normal_no_crc of CU.t
-  | Other of CU.Name.t * (CU.t * Digest.t) option
+type intf =
+  | Normal of CU.Name.t * CU.t * Digest.t
+  | Alias of CU.Name.t
+  | Parameter of CU.Name.t * Digest.t
 
-(* CR xclerc: Maybe introduce Other_no_crc to flatten the option *)
+type impl =
+  | Loaded of CU.t * Digest.t
+  | Unloaded of CU.t
+
+(* CR-soon lmaurer: This combined type should go away soon, since each [t] is
+   actually statically known to be either an [intf] or an [impl] (see PR
+   #1933) *)
+type t =
+  | Intf of intf
+  | Impl of impl
 
 let create cu_name ~crc_with_unit =
+  (* This creates an [Intf] just to be minimally restrictive. Any caller that
+     cares should use the [Impl] API. *)
   match crc_with_unit with
-  | None -> Other (cu_name, None)
-  | Some (cu, crc) ->
-    (* For the moment be conservative and only use the [Normal] constructor when
-       there is no pack prefix at all. *)
-    if CU.Prefix.is_empty (CU.for_pack_prefix cu)
-       && CU.Name.equal (CU.name cu) cu_name
-    then Normal (cu, crc)
-    else Other (cu_name, Some (cu, crc))
+  | None -> Intf (Alias cu_name)
+  | Some (cu, crc) -> Intf (Normal (cu_name, cu, crc))
 
 let create_normal cu ~crc =
-  match crc with Some crc -> Normal (cu, crc) | None -> Normal_no_crc cu
+  match crc with
+  | Some crc -> Impl (Loaded (cu, crc))
+  | None -> Impl (Unloaded cu)
 
 let name t =
   match t with
-  | Normal (cu, _) | Normal_no_crc cu -> CU.name cu
-  | Other (name, _) -> name
+  | Impl (Loaded (cu, _) | Unloaded cu) -> CU.name cu
+  | Intf (Normal (name, _, _) | Alias name | Parameter (name, _)) -> name
 
 let cu t =
   match t with
-  | Normal (cu, _) | Normal_no_crc cu | Other (_, Some (cu, _)) -> cu
-  | Other (name, None) ->
+  | Intf (Normal (_, cu, _)) -> cu
+  | Impl (Loaded (cu, _) | Unloaded cu) -> cu
+  | Intf (Alias name | Parameter (name, _)) ->
     Misc.fatal_errorf
       "Cannot extract [Compilation_unit.t] from [Import_info.t] (for unit %a) \
        that never received it"
@@ -51,16 +59,102 @@ let cu t =
 
 let crc t =
   match t with
-  | Normal (_, crc) -> Some crc
-  | Normal_no_crc _ | Other (_, None) -> None
-  | Other (_, Some (_, crc)) -> Some crc
-
-let crc_with_unit t =
-  match t with
-  | Normal (cu, crc) -> Some (cu, crc)
-  | Normal_no_crc _ | Other (_, None) -> None
-  | Other (_, some_cu_and_crc) -> some_cu_and_crc
+  | Intf (Normal (_, _, crc) | Parameter (_, crc)) -> Some crc
+  | Intf (Alias _) -> None
+  | Impl (Loaded (_, crc)) -> Some crc
+  | Impl (Unloaded _) -> None
 
 let has_name t ~name:name' = CU.Name.equal (name t) name'
 
-let dummy = Other (CU.Name.dummy, None)
+let dummy = Intf (Alias CU.Name.dummy)
+
+module Intf = struct
+  (* Currently this is the same type as [Impl.t] but this will change (see PR
+     #1746). *)
+  type nonrec t = t
+
+  let create_normal name cu ~crc =
+    if not (CU.Name.equal (CU.name cu) name)
+    then
+      Misc.fatal_errorf
+        "@[<hv>Mismatched import name and compilation unit:@ %a != %a@]"
+        CU.Name.print name CU.print cu;
+    Intf (Normal (name, cu, crc))
+
+  let create_alias name = Intf (Alias name)
+
+  let create_parameter name ~crc = Intf (Parameter (name, crc))
+
+  module Nonalias = struct
+    module Kind = struct
+      type t =
+        | Normal of CU.t
+        | Parameter
+    end
+
+    type t = Kind.t * Digest.t
+  end
+
+  let create name nonalias =
+    match (nonalias : Nonalias.t option) with
+    | None -> create_alias name
+    | Some (Normal cu, crc) -> create_normal name cu ~crc
+    | Some (Parameter, crc) -> create_parameter name ~crc
+
+  let expect_intf t =
+    match t with
+    | Intf intf -> intf
+    | Impl (Loaded (cu, _) | Unloaded cu) ->
+      Misc.fatal_errorf "Expected an [Import_info.Impl.t] but found %a" CU.print
+        cu
+
+  let name t =
+    match expect_intf t with
+    | Normal (name, _, _) | Alias name | Parameter (name, _) -> name
+
+  let info t : Nonalias.t option =
+    match expect_intf t with
+    | Normal (_, cu, crc) -> Some (Normal cu, crc)
+    | Parameter (_, crc) -> Some (Parameter, crc)
+    | Alias _ -> None
+
+  let crc t =
+    match expect_intf t with
+    | Normal (_, _, crc) | Parameter (_, crc) -> Some crc
+    | Alias _ -> None
+
+  let has_name t ~name:name' = CU.Name.equal (name t) name'
+
+  let dummy = dummy
+end
+
+module Impl = struct
+  (* Currently this is the same type as [Intf.t] but this will change (see PR
+     #1746). *)
+  type nonrec t = t
+
+  let create_loaded cu ~crc = Impl (Loaded (cu, crc))
+
+  let create_unloaded cu = Impl (Unloaded cu)
+
+  let create cu ~crc =
+    match crc with
+    | Some crc -> create_loaded cu ~crc
+    | None -> create_unloaded cu
+
+  let expect_impl t =
+    match t with
+    | Impl impl -> impl
+    | Intf (Normal (name, _, _) | Alias name | Parameter (name, _)) ->
+      Misc.fatal_errorf "Expected an [Import_info.Intf.t] but found %a"
+        CU.Name.print name
+
+  let cu t = match expect_impl t with Loaded (cu, _) | Unloaded cu -> cu
+
+  let name t = CU.name (cu t)
+
+  let crc t =
+    match expect_impl t with Loaded (_, crc) -> Some crc | Unloaded _ -> None
+
+  let dummy = Impl (Unloaded CU.dummy)
+end
