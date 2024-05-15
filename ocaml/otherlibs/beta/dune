@@ -12,6 +12,9 @@
 ;*                                                                        *
 ;**************************************************************************
 
+;; [beta] was renamed to [stdlib_beta]. This library clones [stdlib_beta]
+;; until we move all existing uses of [beta] to [stdlib_beta].
+
 (library
  (name beta)
  (wrapped false)
@@ -35,6 +38,17 @@
   (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags
   (:standard -linkall)))
+
+;; We clone files from [stdlib_beta] instead of re-exporting the library
+;; to avoid adding a new transitive dependency to builds.
+
+(rule
+ (deps
+  (glob_files ../stdlib_beta/*.{ml,mli}))
+ (targets float32.ml float32.mli float32_u.ml float32_u.mli beta.ml beta.mli)
+ (action
+  (bash
+   "cp ../stdlib_beta/*.{ml,mli} .; mv stdlib_beta.ml beta.ml; mv stdlib_beta.mli beta.mli")))
 
 (rule
  (deps
