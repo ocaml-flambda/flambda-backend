@@ -340,7 +340,16 @@ void caml_oldify_mopup (void)
     if (Is_block (f) && Is_young (f)){
       caml_oldify_one (f, &Field (new_v, 0));
     }
-    for (i = 1; i < scannable_wosize; i++){
+
+    if(Tag_val(new_v) == Closure_tag) {
+      for (i = 1; i < Start_env_closinfo(Closinfo_val(v)); i++) {
+        Field(new_v, i) = Field(v, i);
+      }
+    } else {
+      i = 1;
+    }
+
+    for (; i < scannable_wosize; i++){
       f = Field (v, i);
       if (Is_block (f) && Is_young (f)){
         caml_oldify_one (f, &Field (new_v, i));

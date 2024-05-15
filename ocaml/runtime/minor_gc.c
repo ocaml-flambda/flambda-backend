@@ -449,7 +449,15 @@ again:
       oldify_one (st, f, Op_val (new_v));
     }
 
-    for (i = 1; i < scannable_wosize; i++){
+    if(Tag_val(new_v) == Closure_tag) {
+      for (i = 1; i < Start_env_closinfo(Closinfo_val(v)); i++) {
+        Field(new_v, i) = Field(v, i);
+      }
+    } else {
+      i = 1;
+    }
+
+    for (; i < scannable_wosize; i++){
       f = Field(v, i);
       CAMLassert (!Is_debug_tag(f));
       if (Is_block (f) && Is_young(f)) {
