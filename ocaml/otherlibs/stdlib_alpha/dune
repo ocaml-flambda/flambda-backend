@@ -34,13 +34,17 @@
  (library_flags
   (:standard -linkall)))
 
+(rule
+ (deps
+  (:first-dep ../to_install.sh)
+  (source_tree .))
+ (action
+  (with-stdout-to
+   to_install.sexp
+   (run "%{first-dep}" "stdlib_alpha"))))
+
 (install
  (files
-  (glob_files
-   (*.{cmxa,a,cmxs,cma,mli} with_prefix stdlib_alpha))
-  (glob_files
-   (.stdlib_alpha.objs/byte/*.{cmi,cmt,cmti} with_prefix stdlib_alpha))
-  (glob_files
-   (.stdlib_alpha.objs/native/*.cmx with_prefix stdlib_alpha)))
+  (include to_install.sexp))
  (section lib)
  (package ocaml))

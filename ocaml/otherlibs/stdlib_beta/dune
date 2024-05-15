@@ -16,6 +16,8 @@
  (name stdlib_beta)
  (wrapped false)
  (modes byte native)
+ (enabled_if
+  (= %{architecture} "amd64"))
  (flags
   (-strict-sequence
    -principal
@@ -34,13 +36,19 @@
  (library_flags
   (:standard -linkall)))
 
+(rule
+ (deps
+  (:first-dep ../to_install.sh)
+  (source_tree .))
+ (action
+  (with-stdout-to
+   to_install.sexp
+   (run "%{first-dep}" "stdlib_beta"))))
+
 (install
+ (enabled_if
+  (= %{architecture} "amd64"))
  (files
-  (glob_files
-   (*.{cmxa,a,cmxs,cma,mli} with_prefix stdlib_beta))
-  (glob_files
-   (.stdlib_beta.objs/byte/*.{cmi,cmt,cmti} with_prefix stdlib_beta))
-  (glob_files
-   (.stdlib_beta.objs/native/*.cmx with_prefix stdlib_beta)))
+  (include to_install.sexp))
  (section lib)
  (package ocaml))
