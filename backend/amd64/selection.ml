@@ -353,6 +353,7 @@ method! select_operation op args dbg =
        (match cond with
         | Ifloattest (w,CFeq) ->
           (* CFeq cannot be represented as cmov without a jump.
+             CFneq emits cmov for "unordered" and "not equal" cases.
              Use Cneq and swap the arguments. *)
           Icsel (Ifloattest (w, CFneq)), [ earg; ifnot; ifso ]
         | _ ->
