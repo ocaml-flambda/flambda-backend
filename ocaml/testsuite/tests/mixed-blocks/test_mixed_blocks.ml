@@ -1,5 +1,6 @@
 (* TEST
  flambda2;
+ include stable;
  {
    flags = "-extension layouts_beta";
    native;
@@ -12,20 +13,10 @@
 (*****************************************)
 (* Prelude: Functions on unboxed numbers *)
 
-module Float_u = struct
-  include Stdlib__Float_u
-
-  let ( + ) = add
-  let ( - ) = sub
-  let ( * ) = mul
-  let ( / ) = div
-  let ( ** ) = pow
-  let ( > ) x y = (compare x y) > 0
-end
-
-module Int32_u = Stdlib__Int32_u
-module Int64_u = Stdlib__Int64_u
-module Nativeint_u = Stdlib__Nativeint_u
+module Float_u = Stable.Float_u
+module Int32_u = Stable.Int32_u
+module Int64_u = Stable.Int64_u
+module Nativeint_u = Stable.Nativeint_u
 
 (******************************)
 (* Test: large mixed blocks *)
