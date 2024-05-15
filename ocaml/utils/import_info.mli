@@ -55,11 +55,34 @@ val dummy : t
 module Intf : sig
   type nonrec t = t
 
-  val create : CU.Name.t -> CU.t option -> crc:Digest.t option -> t
+  val create_normal : CU.Name.t -> CU.t -> crc:Digest.t -> t
+
+  val create_alias : CU.Name.t -> t
+
+  val create_parameter : CU.Name.t -> crc:Digest.t -> t
+
+  module Nonalias : sig
+    module Kind : sig
+      type t =
+        | Normal of CU.t
+        | Parameter
+    end
+
+    (** The "non-alias part" of the import info for an interface. An [Intf.t] is
+        equivalent to a [CU.Name.t * Nonalias.t option] (use [create], [name], and [spec]
+        to convert back and forth). *)
+    type t = Kind.t * Digest.t
+  end
+
+  (** [create name nonalias] is [create_normal name cu crc] if [nonalias] is [Some (Normal
+      cu, crc)], [create_parameter name crc] if [nonalias] is [Some (Parameter, crc)], and
+      [create_alias] if [nonalias] is [None]. Useful when [nonalias] is coming out of
+      [Consistbl]. *)
+  val create : CU.Name.t -> Nonalias.t option -> t
 
   val name : t -> CU.Name.t
 
-  val impl : t -> CU.t option
+  val nonalias : t -> Nonalias.t option
 
   val crc : t -> Digest.t option
 
@@ -71,6 +94,16 @@ end
 module Impl : sig
   type nonrec t = t
 
+  (** The import info for an implementation we depend on and whose .cmx we actually
+      loaded. *)
+  val create_loaded : CU.t -> crc:Digest.t -> t
+
+  (** The import info for an implementation we depend on but for which we never loaded a
+      .cmx (and thus have no CRC for). *)
+  val create_unloaded : CU.t -> t
+
+  (** [create cu ~crc] is [create_loaded] if [crc] is [Some] and [create_unloaded] if
+      [crc] is [None]. Useful when [crc] is coming out of [Consistbl]. *)
   val create : CU.t -> crc:Digest.t option -> t
 
   val name : t -> CU.Name.t

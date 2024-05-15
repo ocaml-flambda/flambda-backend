@@ -37,10 +37,8 @@ exception Error of error
 
 (* Consistency check between interfaces and implementations *)
 
-module Impl = struct
-  type t = CU.t option
-end
-module Cmi_consistbl = Consistbl.Make (CU.Name) (Impl)
+module Cmi_consistbl =
+  Consistbl.Make (CU.Name) (Import_info.Intf.Nonalias.Kind)
 let crc_interfaces = Cmi_consistbl.create ()
 let interfaces = ref ([] : CU.Name.t list)
 
@@ -61,13 +59,12 @@ let check_consistency file_name unit crc =
     Array.iter
       (fun import ->
         let name = Import_info.name import in
-        let crco = Import_info.crc import in
+        let nonalias = Import_info.Intf.nonalias import in
         interfaces := name :: !interfaces;
-        match crco with
+        match nonalias with
           None -> ()
-        | Some crc ->
-            let full_name = Import_info.Intf.impl import in
-            Cmi_consistbl.check crc_interfaces name full_name crc file_name)
+        | Some (sort, crc) ->
+            Cmi_consistbl.check crc_interfaces name sort crc file_name)
       unit.ui_imports_cmi
   with Cmi_consistbl.Inconsistency {
       unit_name = name;
@@ -106,12 +103,7 @@ let check_consistency file_name unit crc =
 let extract_crc_interfaces () =
   Cmi_consistbl.extract !interfaces crc_interfaces
   |> List.map (fun (name, crc_with_unit) ->
-      let cu, crc =
-        match crc_with_unit with
-        | None -> None, None
-        | Some (impl, crc) -> impl, Some crc
-      in
-      Import_info.Intf.create name cu ~crc)
+      Import_info.Intf.create name crc_with_unit)
 
 let extract_crc_implementations () =
   Cmx_consistbl.extract !implementations crc_implementations
