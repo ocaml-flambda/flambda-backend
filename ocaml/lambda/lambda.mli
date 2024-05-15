@@ -602,6 +602,18 @@ type lambda =
   | Lstringswitch of
       lambda * (string * lambda) list * lambda option * scoped_location * layout
   | Lstaticraise of static_label * lambda list
+  (* Concerning [Lstaticcatch], the regions that are open in the handler must be
+     a subset of those open at the point of the [Lstaticraise] that jumps to it,
+     as we can't reopen closed regions. All regions that were open at the point of
+     the [Lstaticraise] but not in the handler will be closed just before the [Lstaticraise].
+   
+     However, to be able to express the fact
+     that the [Lstaticraise] might be under a [Lexclave], the [pop_region] flag
+     is used to specify what regions are considered open in the handler. If it
+     is [Same_region], it means that the same regions as those existing at the
+     point of the [Lstaticraise] are considered open in the handler; if it is [Popped_region],
+     it means that we consider the top region at the point of the [Lstaticcatch] to not be
+     considered open inside the handler. *)
   | Lstaticcatch of
       lambda * (static_label * (Ident.t * layout) list) * lambda
       * pop_region * layout
