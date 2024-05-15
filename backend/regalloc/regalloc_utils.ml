@@ -258,6 +258,16 @@ let same_stack_class : Reg.t -> Reg.t -> bool =
  fun reg1 reg2 ->
   Int.equal (Proc.stack_slot_class reg1.typ) (Proc.stack_slot_class reg2.typ)
 
+let types_are_compatible : Reg.t -> Reg.t -> bool =
+ fun reg1 reg2 ->
+  match reg1.typ, reg2.typ with
+  | (Int | Val | Addr), (Int | Val | Addr)
+  | Float, Float
+  | Float32, Float32
+  | Vec128, Vec128 ->
+    true
+  | (Int | Val | Addr | Float | Float32 | Vec128), _ -> false
+
 let make_temporary :
     same_class_and_base_name_as:Reg.t -> name_prefix:string -> Reg.t =
  fun ~same_class_and_base_name_as:reg ~name_prefix ->

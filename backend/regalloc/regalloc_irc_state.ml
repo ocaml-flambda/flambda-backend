@@ -470,11 +470,13 @@ let[@inline] rec find_alias state reg =
   else reg
 
 let[@inline] add_alias _state v u =
-  if not (same_reg_class v u)
+  (* We should never generate moves between registers of different types.
+     Bit-casting operations have specific instructions. *)
+  if not (types_are_compatible v u)
   then
     fatal
-      "trying to create an alias between %a and %a but they are in different \
-       classes"
+      "trying to create an alias between %a and %a but they have incompatible \
+       types"
       Printmach.reg v Printmach.reg u;
   v.Reg.irc_alias <- Some u
 
