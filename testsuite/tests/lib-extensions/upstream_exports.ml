@@ -1,6 +1,6 @@
 (* TEST
  flags = "-extension-universe upstream_compatible";
- include stdlib_upstream_compatible;
+ include upstream_compatible;
  {
    bytecode;
  }{
@@ -8,4 +8,4 @@
  }
 *)
 
-open Stdlib_upstream_compatible
+open Upstream_compatible

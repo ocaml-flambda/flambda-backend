@@ -12,9 +12,6 @@
 ;*                                                                        *
 ;**************************************************************************
 
-;; [alpha] was renamed to [stdlib_alpha]. This library clones [stdlib_alpha]
-;; until we move all existing uses of [alpha] to [stdlib_alpha].
-
 (library
  (name alpha)
  (wrapped false)
@@ -36,17 +33,6 @@
   (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags
   (:standard -linkall)))
-
-;; We clone files from [stdlib_alpha] instead of re-exporting the library
-;; to avoid adding a new transitive dependency to builds.
-
-(rule
- (deps
-  (glob_files ../stdlib_alpha/*.{ml,mli}))
- (targets alpha.ml alpha.mli)
- (action
-  (bash
-   "cp ../stdlib_alpha/*.{ml,mli} .; mv stdlib_alpha.ml alpha.ml; mv stdlib_alpha.mli alpha.mli")))
 
 (install
  (files
