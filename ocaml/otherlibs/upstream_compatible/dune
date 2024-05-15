@@ -12,10 +12,6 @@
 ;*                                                                        *
 ;**************************************************************************
 
-;; [upstream_compatible] was renamed to [stdlib_upstream_compatible].
-;; This library clones [stdlib_upstream_compatible] until we move all
-;; existing uses of [upstream_compatible] to [stdlib_upstream_compatible].
-
 (library
  (name upstream_compatible)
  (wrapped false)
@@ -37,17 +33,6 @@
   (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags
   (:standard -linkall)))
-
-;; We clone files from [stdlib_upstream_compatible] instead of re-exporting the library
-;; to avoid adding a new transitive dependency to builds.
-
-(rule
- (deps
-  (glob_files ../stdlib_upstream_compatible/*.{ml,mli}))
- (targets upstream_compatible.ml upstream_compatible.mli)
- (action
-  (bash
-   "cp ../stdlib_upstream_compatible/*.{ml,mli} .; mv stdlib_upstream_compatible.ml upstream_compatible.ml; mv stdlib_upstream_compatible.mli upstream_compatible.mli")))
 
 (install
  (files

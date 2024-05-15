@@ -12,9 +12,6 @@
 ;*                                                                        *
 ;**************************************************************************
 
-;; [stable] was renamed to [stdlib_stable]. This library clones [stdlib_stable]
-;; until we move all existing uses of [stable] to [stdlib_stable].
-
 (library
  (name stable)
  (wrapped false)
@@ -36,27 +33,6 @@
   (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags
   (:standard -linkall)))
-
-;; We clone files from [stdlib_stable] instead of re-exporting the library
-;; to avoid adding a new transitive dependency to builds.
-
-(rule
- (deps
-  (glob_files ../stdlib_stable/*.{ml,mli}))
- (targets
-  float_u.ml
-  float_u.mli
-  int32_u.ml
-  int32_u.mli
-  int64_u.ml
-  int64_u.mli
-  nativeint_u.ml
-  nativeint_u.mli
-  stable.ml
-  stable.mli)
- (action
-  (bash
-   "cp ../stdlib_stable/*.{ml,mli} .; mv stdlib_stable.ml stable.ml; mv stdlib_stable.mli stable.mli")))
 
 (install
  (files
