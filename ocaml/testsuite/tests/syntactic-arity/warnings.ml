@@ -53,8 +53,6 @@ val f : (module M : S) -> 'a -> M.t -> M.t = <fun>
 
 let f (module M : S) x (type a) :> a M.u = function z -> z
 [%%expect {|
-val f : (module M : S) -> 'b -> 'a M.u = <fun>
-|}, Principal{|
 val f : (module M : S) -> 'a -> M.t -> M.t = <fun>
 |}];;
 

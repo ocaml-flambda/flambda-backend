@@ -267,6 +267,7 @@ Line 1, characters 58-100:
                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Type "(module A : AddSub) -> A.t -> A.t" is not a subtype of
          "(module T : SubAdd) -> T.t -> T.t"
+       Type "(module SubAdd)" is not a subtype of "(module AddSub)"
 |}]
        (* The two module argument types do not share
        the same positions for runtime components.
@@ -283,6 +284,7 @@ Line 1, characters 55-92:
                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Type "(module A : Add) -> A.t -> A.t" is not a subtype of
          "(module T : Typ) -> T.t -> T.t"
+       Type "(module Typ)" is not a subtype of "(module Add)"
 |}]
          (* The two module argument types differ by their runtime size. *)
 
@@ -326,15 +328,15 @@ Error: This expression has type "(module A/1 : Add2) -> A/1.t -> A/1.t"
        (* Modules do not match: Add is not included in Add2
        The type a is required but not provided *)
 
-let coerce5 (f : (module A : Add2) -> A.t -> A.t) = (f :> (module A : Add) -> A.t -> A.t)
+let coerce5 (f : (module A : Add) -> A.t -> A.t) = (f :> (module A : Add2) -> A.t -> A.t)
 
 let try_coerce6 (f : (module A : Add2) -> A.t -> A.t) : (module A : Add3) -> A.t -> A.t = f
 let try_coerce7 (f : (module A : Add2) -> A.t -> A.t) : (module A : Add4) -> A.t -> A.t = f
 
 [%%expect{|
 val coerce5 :
-  ((module A/1 : Add2) -> A/1.t -> A/1.t) ->
-  ((module A/2 : Add) -> A/2.t -> A/2.t) = <fun>
+  ((module A/1 : Add) -> A/1.t -> A/1.t) ->
+  ((module A/2 : Add2) -> A/2.t -> A/2.t) = <fun>
 val try_coerce6 :
   ((module A/1 : Add2) -> A/1.t -> A/1.t) ->
   ((module A/2 : Add3) -> A/2.t -> A/2.t) = <fun>
@@ -474,11 +476,9 @@ let f (x : (module T : Typ) -> _) : (module T : Typ) -> T.t = x
 Line 1, characters 62-63:
 1 | let f (x : (module T : Typ) -> _) : (module T : Typ) -> T.t = x
                                                                   ^
-Error: This expression has type "(module T/1 : Typ) -> 'a"
-       but an expression was expected of type "(module T/2 : Typ) -> T/2.t"
+Error: This expression has type "(module T : Typ) -> 'a"
+       but an expression was expected of type "(module T : Typ) -> T.t"
        The module "T" would escape its scope
-       File "_none_", line 1:
-         Definition of module "T/2"
 |}]
 
 
