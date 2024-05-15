@@ -61,7 +61,10 @@ CSCFLAGS=""
 ostype="Unix"
 SO="so"
 toolchain="cc"
-reserved_header_bits=0
+reserved_header_bits=8
+profinfo=true
+profinfo_width=8
+custom_ops_struct_size=64
 instrumented_runtime=false
 instrumented_runtime_libs=""
 bootstrapping_flexdll=false
@@ -90,10 +93,19 @@ AC_CONFIG_AUX_DIR([build-aux])
 AC_ARG_ENABLE([runtime5],
   [AS_HELP_STRING([--enable-runtime5],
     [Use the OCaml 5 runtime])])
+AS_IF([test x"$enable_runtime5" = xyes],
+      [runtime_suffix=],
+      [runtime_suffix=4])
+
+AC_ARG_ENABLE([stack_checks],
+  [AS_HELP_STRING([--enable-stack_checks],
+    [Enable stack checks])])
 
 ## Output variables
 
 AC_SUBST([enable_runtime5])
+AC_SUBST([runtime_suffix])
+AC_SUBST([enable_stack_checks])
 AC_SUBST([CONFIGURE_ARGS])
 AC_SUBST([native_compiler])
 AC_SUBST([default_build_target])
@@ -204,6 +216,9 @@ AC_SUBST([install_bytecode_programs])
 AC_SUBST([install_source_artifacts])
 AC_SUBST([install_ocamlnat])
 AC_SUBST([reserved_header_bits])
+AC_SUBST([profinfo])
+AC_SUBST([profinfo_width])
+AC_SUBST([custom_ops_struct_size])
 AC_SUBST([frame_pointers])
 AC_SUBST([cpp_mangling])
 AC_SUBST([flambda])
@@ -461,21 +476,13 @@ AC_ARG_WITH([target-bindir],
   [AS_HELP_STRING([--with-target-bindir],
     [location of binary programs on target system])])
 
-AC_ARG_ENABLE([reserved-header-bits],
-  [AS_HELP_STRING([--enable-reserved-header-bits=BITS],
-    [reserve BITS (between 0 and 31) bits in block headers])],
-  [AS_CASE([$enable_reserved_header_bits],
-    [[[0-9]]|[[1-2]][[0-9]]|3[[0-1]]],
-      [ reserved_header_bits=$enable_reserved_header_bits],
-  [AC_MSG_ERROR([invalid argument to --enable-reserved-header-bits])])])
-
 AC_ARG_ENABLE([stdlib-manpages],
   [AS_HELP_STRING([--disable-stdlib-manpages],
     [do not build or install the library man pages])])
 
 AC_ARG_ENABLE([warn-error],
-  [AS_HELP_STRING([--enable-warn-error],
-    [treat C compiler warnings as errors])])
+  [AS_HELP_STRING([--disable-warn-error],
+    [do not treat C compiler warnings as errors])])
 
 AC_ARG_VAR([WINDOWS_UNICODE_MODE],
   [how to handle Unicode under Windows: ansi, compatible])
@@ -750,8 +757,9 @@ AS_CASE([$ocaml_cv_cc_vendor],
   cc_warnings="-Wall -Wno-pragmas -Wint-conversion -Wstrict-prototypes \
 -Wold-style-definition"])
 
-AS_CASE([$enable_warn_error,OCAML__DEVELOPMENT_VERSION],
-  [yes,*|,true],
+AS_CASE([$enable_warn_error],
+  [no], [],
+  [*],
     [cc_warnings="$cc_warnings $warn_error_flag"])
 
 # We select high optimization levels, provided we can turn off:
@@ -1340,6 +1348,13 @@ AS_CASE([$host],
   [riscv64-*-linux*],
     [has_native_backend=yes; arch=riscv; model=riscv64; system=linux]
 )
+
+# Disabling of stack checks is only supported on amd64.
+AS_IF([test x"$enable_stack_checks" = xyes],
+  [AC_DEFINE([STACK_CHECKS_ENABLED])],
+  [AS_IF([test x"$arch" != xamd64],
+    [AC_DEFINE([STACK_CHECKS_ENABLED])],
+    [])])
 
 native_cflags=''
 native_cppflags="-DTARGET_${arch} -DMODEL_${model} -DSYS_${system}"
@@ -2107,6 +2122,8 @@ AS_CASE([$host],
     [PTHREAD_LIBS="-l:libpthread.a -lgcc_eh"],
   [*-pc-windows],
     [PTHREAD_LIBS="-l:libpthread.lib"],
+  [*-apple-darwin*],
+    [PTHREAD_LIBS="-pthread"],
   [AX_PTHREAD(
     [common_cflags="$common_cflags $PTHREAD_CFLAGS"
     saved_CFLAGS="$CFLAGS"
@@ -2198,7 +2215,13 @@ AS_IF([test x"$enable_naked_pointers_checker" = "xyes" ],
 ## Check for mmap support for huge pages and contiguous heap
 OCAML_MMAP_SUPPORTS_HUGE_PAGES
 
+# Unconditionally reserve 8 header bits in both runtime 4 and
+# runtime 5, which is required for mixed block support.
 AC_DEFINE_UNQUOTED([HEADER_RESERVED_BITS], [$reserved_header_bits])
+AC_DEFINE_UNQUOTED([PROFINFO_WIDTH], [$profinfo_width])
+AS_IF([$profinfo], [AC_DEFINE([WITH_PROFINFO])])
+
+AC_DEFINE_UNQUOTED([CUSTOM_OPS_STRUCT_SIZE], [$custom_ops_struct_size])
 
 AS_IF([test x"$enable_installing_bytecode_programs" = "xno"],
   [install_bytecode_programs=false],

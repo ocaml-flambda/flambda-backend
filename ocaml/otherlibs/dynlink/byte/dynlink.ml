@@ -219,6 +219,9 @@ module Bytecode = struct
     | exception _ -> None
     | obj -> Some obj
 
+  let does_symbol_exist ~bytecode_or_asm_symbol =
+    Option.is_some (unsafe_get_global_value ~bytecode_or_asm_symbol)
+
   let finish (ic, _filename, _digest) =
     close_in ic
 end

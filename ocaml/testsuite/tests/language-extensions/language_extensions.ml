@@ -1,6 +1,6 @@
 (* TEST
-   include ocamlcommon
-   flags = "-I ${ocamlsrcdir}/parsing"
+ include ocamlcommon;
+ flags = "-I ${ocamlsrcdir}/parsing";
 *)
 
 (* Change these two variables to change which extension is being tested *)
@@ -50,11 +50,11 @@ let should_fail name f =
     | exception Arg.Bad msg -> "Failed as expected: " ^ msg)
 ;;
 
-let try_disallowing_extensions name =
+let try_setting_universe univ name =
   should_succeed
     name
-    "disallowing all extensions"
-    Language_extension.disallow_extensions
+    ("setting universe " ^ Language_extension.Universe.to_string univ)
+    (fun () -> Language_extension.set_universe_and_enable_all univ)
 ;;
 
 type goal = Fail | Succeed
@@ -63,14 +63,15 @@ let with_goal goal ~name ~what test = match goal with
   | Fail    -> should_fail    name      test
   | Succeed -> should_succeed name what test
 
-let when_disallowed goal f_str f =
+let when_universe univ goal f_str f =
   let can_or_can't = match goal with
     | Fail    -> "can't"
     | Succeed -> "can"
   in
   let f_code = "[" ^ f_str ^ "]" in
   with_goal goal
-    ~name:(can_or_can't ^ " call " ^ f_code ^ " when extensions are disallowed")
+    ~name:(can_or_can't ^ " call " ^ f_code ^ " when in universe "
+      ^ Language_extension.Universe.to_string univ)
     ~what:("redundantly calling " ^ f_code)
     (fun () -> f extension)
 ;;
@@ -174,38 +175,38 @@ report ~name:"Enable two layouts, in reverse order"
          then "Succeeded"
          else "Failed");;
 
-(* Test disallowing extensions *)
+(* Test [No_extension] universe. *)
 
-try_disallowing_extensions
-  "can disallow extensions while extensions are enabled";
+try_setting_universe No_extensions
+  "can set [No_extensions] while extensions are enabled";
 
-try_disallowing_extensions
-  "can disallow extensions while extensions are already disallowed";
+try_setting_universe No_extensions
+  "setting [No_extensions] is idempotent";
 
 (* Test that disallowing extensions prevents other functions from working *)
 
-when_disallowed Fail "set ~enabled:true"
+when_universe No_extensions Fail "set ~enabled:true"
   (Language_extension.set ~enabled:true);
 
-when_disallowed Succeed "set ~enabled:false"
+when_universe No_extensions Succeed "set ~enabled:false"
   (Language_extension.set ~enabled:false);
 
-when_disallowed Fail "enable"
+when_universe No_extensions Fail "enable"
   (fun x -> Language_extension.enable x ());
 
-when_disallowed Succeed "disable"
+when_universe No_extensions Succeed "disable"
   Language_extension.disable;
 
-when_disallowed Fail "with_set ~enabled:true"
+when_universe No_extensions Fail "with_set ~enabled:true"
   (Language_extension.with_set ~enabled:true |> lift_with);
 
-when_disallowed Succeed "with_set ~enabled:false"
+when_universe No_extensions Succeed "with_set ~enabled:false"
   (Language_extension.with_set ~enabled:false |> lift_with);
 
-when_disallowed Fail "with_enabled"
+when_universe No_extensions Fail "with_enabled"
   ((fun x -> Language_extension.with_enabled x ()) |> lift_with);
 
-when_disallowed Succeed "with_disabled"
+when_universe No_extensions Succeed "with_disabled"
   (Language_extension.with_disabled |> lift_with);
 
 (* Test explicitly (rather than just via [report]) that [is_enabled] returns
@@ -216,6 +217,38 @@ report
          if Language_extension.is_enabled extension
          then "INCORRECTLY enabled"
          else "correctly disabled");
+
+(* Test [Stable] universe. *)
+
+try_setting_universe Stable
+  "can set [Stable] while extensions are disabled";
+
+(* Test that some extensions work in [Stable] while others don't. *)
+
+when_universe Stable Succeed "Language_extension.(enable Layouts Stable)"
+  (fun _ -> Language_extension.(enable Layouts Stable));
+
+when_universe Stable Fail "Language_extension.(enable Comprehensions) "
+  (fun _ -> Language_extension.(enable Comprehensions ()));
+
+when_universe Stable Fail "Language_extension.(enable Layouts Alpha)"
+  (fun _ -> Language_extension.(enable Layouts Alpha));
+
+(* Test [Beta] universe. *)
+
+try_setting_universe Beta "can set [Beta] from [Stable]";
+
+(* Test that comprehensions is enabled by default in [Beta]: *)
+
+typecheck_with_extension "enabled via [Universe.set]";
+
+when_universe Stable Succeed "Language_extension.(enable Comprehensions) "
+  (fun _ -> Language_extension.(enable Comprehensions ()));
+
+(* Test that [Layouts Alpha] is still disabled. *)
+
+when_universe Stable Fail "Language_extension.(enable Layouts Alpha)"
+  (fun _ -> Language_extension.(enable Layouts Alpha));
 
 (* Test that language extensions round-trip via string *)
 List.iter

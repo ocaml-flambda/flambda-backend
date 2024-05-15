@@ -76,6 +76,8 @@ type t =
     args_arity : [`Complex] Flambda_arity.t;
     return_arity : [`Unarized] Flambda_arity.t;
     call_kind : Call_kind.t;
+    (* CR mshinwell: we could move the [alloc_mode] out of [Call_kind] into
+       here *)
     dbg : Debuginfo.t;
     inlined : Inlined_attribute.t;
     inlining_state : Inlining_state.t;

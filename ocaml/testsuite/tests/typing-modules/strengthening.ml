@@ -1,6 +1,6 @@
 (* TEST
-  flags = "-extension module_strengthening"
-   * expect
+ flags = "-extension module_strengthening";
+ expect;
 *)
 
 module type S1 = sig

@@ -4,5 +4,5 @@
  (name flambda2_import)
  (instrumentation (backend bisect_ppx))
  (ocamlopt_flags
-  (:standard -O3))
+  (:standard -O3 -open Int_replace_polymorphic_compare))
  (libraries ocamlcommon))

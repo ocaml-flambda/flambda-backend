@@ -112,7 +112,7 @@ module Intf = struct
     match expect_intf t with
     | Normal (name, _, _) | Alias name | Parameter (name, _) -> name
 
-  let nonalias t : Nonalias.t option =
+  let info t : Nonalias.t option =
     match expect_intf t with
     | Normal (_, cu, crc) -> Some (Normal cu, crc)
     | Parameter (_, crc) -> Some (Parameter, crc)

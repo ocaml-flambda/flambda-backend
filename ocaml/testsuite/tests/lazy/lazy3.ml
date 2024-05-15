@@ -1,7 +1,7 @@
 (* TEST
-   ocamlopt_flags += " -O3 "
-   * skip
-     reason = "CR ocaml 5 domains: re-enable this test"
+ ocamlopt_flags += " -O3 ";
+ reason = "CR ocaml 5 domains: re-enable this test";
+ skip;
 *)
 
 let f count =

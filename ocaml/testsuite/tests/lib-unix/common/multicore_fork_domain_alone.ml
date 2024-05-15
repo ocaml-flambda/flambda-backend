@@ -1,11 +1,14 @@
 (* TEST
-include unix
-* skip
-reason = "CR ocaml 5 domains: re-enable this test"
-** hasunix
-*** not-windows
-**** bytecode
-**** native
+ include unix;
+ reason = "CR ocaml 5 domains: re-enable this test";
+ skip;
+ hasunix;
+ not-windows;
+ {
+   bytecode;
+ }{
+   native;
+ }
 *)
 
 (* on Multicore, fork is not allowed is another domain is, and was running. *)

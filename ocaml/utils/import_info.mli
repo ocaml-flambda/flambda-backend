@@ -82,7 +82,7 @@ module Intf : sig
 
   val name : t -> CU.Name.t
 
-  val nonalias : t -> Nonalias.t option
+  val info : t -> Nonalias.t option
 
   val crc : t -> Digest.t option
 

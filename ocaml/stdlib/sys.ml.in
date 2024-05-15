@@ -159,7 +159,7 @@ let ocaml_release = {
 
 (* Optimization *)
 
-external opaque_identity : 'a -> 'a = "%opaque"
+external[@layout_poly] opaque_identity : ('a : any). 'a -> 'a = "%opaque"
 
 module Immediate64 = struct
   module type Non_immediate = sig

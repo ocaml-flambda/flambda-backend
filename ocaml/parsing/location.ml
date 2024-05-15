@@ -261,7 +261,7 @@ let print_filename ppf file =
    Some of the information (filename, line number or characters numbers) in the
    location might be invalid; in which case we do not print it.
  *)
-let print_loc ppf loc =
+let print_loc ~capitalize_first ppf loc =
   setup_colors ();
   let file_valid = function
     | "_none_" ->
@@ -287,7 +287,8 @@ let print_loc ppf loc =
 
   let first = ref true in
   let capitalize s =
-    if !first then (first := false; String.capitalize_ascii s)
+    if !first then (first := false;
+                    if capitalize_first then String.capitalize_ascii s else s)
     else s in
   let comma () =
     if !first then () else Format.fprintf ppf ", " in
@@ -315,6 +316,9 @@ let print_loc ppf loc =
   );
 
   Format.fprintf ppf "@}"
+
+let print_loc_in_lowercase = print_loc ~capitalize_first:false
+let print_loc = print_loc ~capitalize_first:true
 
 (* Print a comma-separated list of locations *)
 let print_locs ppf locs =

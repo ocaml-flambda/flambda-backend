@@ -402,6 +402,12 @@ module Make (P : Dynlink_platform_intf.S) = struct
         P.unsafe_get_global_value ~bytecode_or_asm_symbol
       )
 
+  let does_symbol_exist ~bytecode_or_asm_symbol =
+    with_lock (fun _ ->
+        (* The bytecode implementation reads the global symtable *)
+        P.does_symbol_exist ~bytecode_or_asm_symbol
+      )
+
   let is_native = P.is_native
   let adapt_filename = P.adapt_filename
 end

@@ -82,6 +82,7 @@ type token =
   | LBRACE
   | KWD_WITH
   | KWD_WHERE
+  | KWD_VEC128
   | KWD_VAL
   | KWD_UNSIGNED
   | KWD_UNROLL

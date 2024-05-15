@@ -71,6 +71,8 @@ module T0 = struct
 
   let ( < ) t1 t2 = Stdlib.( < ) (Int64.compare t1 t2) 0
 
+  let ( > ) t1 t2 = Stdlib.( > ) (Int64.compare t1 t2) 0
+
   let to_int_option t =
     let min_int_as_int64 = Int64.of_int Stdlib.min_int in
     let max_int_as_int64 = Int64.of_int Stdlib.max_int in

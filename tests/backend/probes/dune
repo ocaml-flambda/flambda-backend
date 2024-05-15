@@ -7,6 +7,15 @@
  (deps t1.ml)
  (action (run %{bin:ocamlopt.opt} %{deps} -warn-error "+190" -c)))
 
+(rule
+ (alias runtest)
+ (enabled_if
+  (and (= %{context_name} "main")
+       (= %{system} "linux")
+       (= %{architecture} "amd64")))
+ (deps region.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -c)))
+
 (executable
  (name t2)
  (modules t2))

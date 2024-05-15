@@ -184,6 +184,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_VAL    [@symbol "val"]
 %token KWD_WHERE  [@symbol "where"]
 %token KWD_WITH   [@symbol "with"]
+%token KWD_VEC128 [@symbol "vec128"]
 
 %token PRIM_ARRAY_LENGTH [@symbol "%array_length"]
 %token PRIM_ARRAY_LOAD [@symbol "%array_load"]
@@ -235,6 +236,7 @@ let make_boxed_const_int (i, m) : static_data =
 %start flambda_unit expect_test_spec
 %type <Fexpr.alloc_mode_for_allocations> alloc_mode_for_allocations_opt
 %type <Fexpr.array_kind> array_kind
+%type <Fexpr.empty_array_kind> empty_array_kind
 %type <Fexpr.binary_float_arith_op> binary_float_arith_op
 %type <Fexpr.binary_int_arith_op> binary_int_arith_op
 %type <Fexpr.block_access_field_kind> block_access_field_kind
@@ -384,7 +386,7 @@ unary_int_arith_op:
   | TILDEMINUS { Neg }
 
 unop:
-  | PRIM_ARRAY_LENGTH { Array_length }
+  | PRIM_ARRAY_LENGTH { Array_length (Array_kind Values) }
   | PRIM_BOOLEAN_NOT { Boolean_not }
   | PRIM_BOX_FLOAT; alloc = alloc_mode_for_allocations_opt
     { Box_number (Naked_float, alloc) }
@@ -426,8 +428,8 @@ infix_binop:
   | o = binary_int_arith_op { Int_arith o }
   | c = int_comp { Int_comp (c Signed) }
   | s = int_shift { Int_shift s }
-  | o = binary_float_arith_op { Float_arith o }
-  | c = float_comp { Float_comp c }
+  | o = binary_float_arith_op { Float_arith (Float64, o) }
+  | c = float_comp { Float_comp (Float64, c) }
 ;
 
 prefix_binop:
@@ -464,10 +466,17 @@ string_accessor_width:
       | 128, Some 'u' -> One_twenty_eight {aligned = false}
       | _, _ -> Misc.fatal_error "invalid string accessor width" }
 
+array_accessor_width:
+  | { Scalar }
+  | KWD_VEC128 { Vec128 }
+
 array_kind:
   | { Values }
   | KWD_IMM { Immediates }
   | KWD_FLOAT { Naked_floats }
+
+empty_array_kind:
+  | { Values_or_immediates_or_naked_floats }
 
 block_access_kind:
   | field_kind = block_access_field_kind; tag = tag_opt; size = size_opt
@@ -559,8 +568,9 @@ binop_app:
   | arg1 = simple; op = infix_binop; arg2 = simple
     { Binary (Infix op, arg1, arg2) }
   | PRIM_ARRAY_LOAD; ak = array_kind; mut = mutability;
-    arg1 = simple; DOT; LPAREN; arg2 = simple; RPAREN
-    { Binary (Array_load (ak, mut), arg1, arg2) }
+    width = array_accessor_width; arg1 = simple; DOT;
+    LPAREN; arg2 = simple; RPAREN
+    { Binary (Array_load (ak, width, mut), arg1, arg2) }
   | PRIM_INT_ARITH; i = standard_int;
     arg1 = simple; c = binary_int_arith_op; arg2 = simple
     { Binary (Int_arith (i, c), arg1, arg2) }
@@ -578,10 +588,10 @@ bytes_or_bigstring_set:
   | PRIM_BIGSTRING_SET { Bigstring }
 
 ternop_app:
-  | PRIM_ARRAY_SET; ak = array_kind;
+  | PRIM_ARRAY_SET; ak = array_kind; width = array_accessor_width;
     arr = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
     v = simple
-    { Ternary (Array_set (ak, ia), arr, ix, v) }
+    { Ternary (Array_set (ak, width, ia), arr, ix, v) }
   | PRIM_BLOCK_SET; kind = block_access_kind;
     block = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
     v = simple
@@ -918,7 +928,7 @@ static_data:
     fs = separated_list(SEMICOLON, float_or_variable);
     RBRACKPIPE
     { Immutable_float_array fs }
-  | STATIC_CONST_EMPTY_ARRAY { Empty_array }
+  | STATIC_CONST_EMPTY_ARRAY kind=empty_array_kind { Empty_array kind }
   | KWD_MUTABLE; s = STRING { Mutable_string { initial_value = s } }
   | s = STRING { Immutable_string s }
 ;

@@ -1,6 +1,6 @@
 (* TEST
-   ocamlopt_flags += " -O3 "
-   * runtime5
+ ocamlopt_flags += " -O3 ";
+ runtime5;
 *)
 
 (*

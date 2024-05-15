@@ -1,21 +1,26 @@
 # Introduction to Local Allocations
 
+See also the full feature [reference](local-reference.md) and [common pitfalls](local-pitfalls.md).
 
 Instead of allocating values normally on the GC heap, local
 allocations allow you to stack-allocate values using the new `local_`
 keyword:
 
-    let local_ x = { foo; bar } in
-    ...
+```ocaml
+let local_ x = { foo; bar } in
+...
+```
 
 or equivalently, by putting the keyword on the expression itself:
 
-    let x = local_ { foo; bar } in
-    ...
+```ocaml
+let x = local_ { foo; bar } in
+...
+```
 
 To enable this feature, you need to pass the `-extension local` flag
 to the compiler. Without this flag, `local_` is not recognized as a
-keyword, and no local allocations will be performed.
+keyword.
 
 These values live on a separate stack, and are popped off at the end
 of the _region_. Generally, the region ends when the surrounding
@@ -23,7 +28,7 @@ function returns, although read [the reference](local-reference.md) for more
 details.
 
 This helps performance in a couple of ways: first, the same few hot
-cachelines are constantly reused, so the cache footprint is lower than
+cache lines are constantly reused, so the cache footprint is lower than
 usual. More importantly, local allocations will never trigger a GC,
 and so they're safe to use in low-latency code that must currently be
 zero-alloc.
@@ -33,11 +38,12 @@ local. Since the memory they occupy is reused quickly, we must ensure
 that no dangling references to them escape. This is checked by the
 typechecker, and you'll see new error messages if local values leak:
 
-    # let local_ thing = { foo; bar } in
-      some_global := thing;;
-                     ^^^^^
-    Error: This value escapes its region
-
+```ocaml
+# let local_ thing = { foo; bar } in
+  some_global := thing;;
+                 ^^^^^
+Error: This value escapes its region
+```
 
 Most of the types of allocation that OCaml does can be locally
 allocated: tuples, records, variants, closures, boxed numbers,
@@ -57,16 +63,21 @@ them in globals, etc. This is a problem when trying to pass around
 locally-allocated values, since we need to guarantee they do not
 escape.
 
-The remedy is that we allow the `local_` keyword to also appear on function parameters:
+The remedy is that we allow the `local_` keyword to also appear on
+function parameters:
 
-    let f (local_ x) = ...
+```ocaml
+let f (local_ x) = ...
+```
 
 A local parameter is a promise by a function not to let a particular
 argument escape its region. In the body of f, you'll get a type error
 if x escapes, but when calling f you can freely pass local values as
 the argument. This promise is visible in the type of f:
 
-    val f : local_ 'a -> ...
+```ocaml
+val f : local_ 'a -> ...
+```
 
 The function f may be equally be called with locally-allocated or
 GC-heap values: the `local_` annotation places obligations only on the
@@ -77,12 +88,14 @@ parameters are a useful new tool for structuring APIs. For instance,
 consider a function that accepts a callback, to which it passes some
 mutable value:
 
-    let uses_callback ~f =
-      let tbl = Foo.Table.create () in
-      fill_table tbl;
-      let result = f tbl in
-      add_table_to_global_registry tbl;
-      result
+```ocaml
+let uses_callback ~f =
+  let tbl = Foo.Table.create () in
+  fill_table tbl;
+  let result = f tbl in
+  add_table_to_global_registry tbl;
+  result
+```
 
 Part of the contract of `uses_callback` is that it expects `f` not to
 capture its argument: unexpected results could ensue if `f` stored a
@@ -91,12 +104,13 @@ after it was added to the global registry. Using `local_`
 annotations allows this constraint to be made explicit and checked at
 compile time, by giving `uses_callback` the signature:
 
-    val uses_callback : f:(local_ int Foo.Table.t -> 'a) -> 'a
-
+```ocaml
+val uses_callback : f:(local_ int Foo.Table.t -> 'a) -> 'a
+```
 
 ## Inference
 
-The examples above use the local_ keyword to mark local
+The examples above use the `local_` keyword to mark local
 allocations. In fact, this is not necessary, and the compiler will
 use local allocations by default where possible, as long as the
 `-extension local` flag is enabled.
@@ -108,7 +122,7 @@ the compiler will allocate this value on the GC heap as usual, while
 with the keyword it will instead report an error.
 
 Inference can even determine whether parameters are local, which is
-useful for helper functions. It's less useful for toplevel functions,
+useful for helper functions. It's less useful for top-level functions,
 though, as whether their parameters are local is generally forced by
 their signature in the mli file, where no inference is performed.
 
@@ -126,7 +140,7 @@ over which values are locally allocated, including:
 
   - **Local closures**:
   
-    ```
+    ```ocaml
     let local_ f a b c = ...
     ```
     
@@ -134,7 +148,7 @@ over which values are locally allocated, including:
     
   - **Local-returning functions**
   
-    ```
+    ```ocaml
     let f a b c = local_
       ...
     ```
@@ -144,12 +158,12 @@ over which values are locally allocated, including:
     
   - **Global fields**
   
-    ```
+    ```ocaml
     type 'a t = { global_ g : 'a }
     ```
     
     defines a record type `t` whose `g` field is always known to be on
-    the GC heap (and may therfore freely escape regions), even though
+    the GC heap (and may therefore freely escape regions), even though
     the record itself may be locally allocated.
 
 For more details, read [the reference](./local-reference.md).

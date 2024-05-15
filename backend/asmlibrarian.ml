@@ -26,14 +26,6 @@ type error =
 
 exception Error of error
 
-let default_ui_export_info =
-  if Config.flambda then
-    Cmx_format.Flambda1 Export_info.empty
-  else if Config.flambda2 then
-    Cmx_format.Flambda2 None
-  else
-    Cmx_format.Clambda Clambda.Value_unknown
-
 let read_info name =
   let filename =
     try
@@ -46,7 +38,7 @@ let read_info name =
      since the compiler will go looking directly for .cmx files.
      The linker, which is the only one that reads .cmxa files, does not
      need the approximation. *)
-  info.ui_export_info <- default_ui_export_info;
+  info.ui_export_info <- None;
   (Filename.chop_suffix filename ".cmx" ^ ext_obj, (info, crc))
 
 let create_archive file_list lib_name =
@@ -89,7 +81,10 @@ let create_archive file_list lib_name =
        in
        let units =
          List.map (fun (unit, crc) ->
-           Generic_fns.Tbl.add genfns unit.ui_generic_fns;
+           ignore (Generic_fns.Tbl.add
+                                  ~imports:Generic_fns.Partition.Set.empty
+                                  genfns
+                                  unit.ui_generic_fns);
            { li_name = unit.ui_unit;
              li_crc = crc;
              li_defines = unit.ui_defines;
@@ -101,7 +96,8 @@ let create_archive file_list lib_name =
              li_imports_cmx =
                mk_bitmap cmxs cmx_index unit.ui_imports_cmx
                  ~find:Compilation_unit.Tbl.find
-                 ~get_name:Import_info.cu })
+                 ~get_name:Import_info.cu;
+             li_external_symbols = Array.of_list unit.ui_external_symbols })
          descr_list
        in
        let infos =

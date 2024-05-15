@@ -77,6 +77,8 @@ module Sig_component_kind : sig
   type t =
     | Value
     | Type
+    | Constructor
+    | Label
     | Module
     | Module_type
     | Extension_constructor
@@ -125,6 +127,7 @@ type error =
       Longident.t * Path.t * Includemod.explanation
   | With_changes_module_alias of Longident.t * Ident.t * Path.t
   | With_cannot_remove_constrained_type
+  | With_package_manifest of Longident.t * type_expr
   | Repeated_name of Sig_component_kind.t * string
   | Non_generalizable of { vars : type_expr list; expression : type_expr }
   | Non_generalizable_module of

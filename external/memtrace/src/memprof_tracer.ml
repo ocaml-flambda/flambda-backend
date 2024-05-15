@@ -104,10 +104,10 @@ let start ?(report_exn=default_report_exn) ~sampling_rate trace =
         | exception e -> mark_failed s e) } in
   curr_active_tracer := Some s;
   bytes_before_ext_sample := draw_sampler_bytes s;
-  Gc.Memprof.start
+  let _ = Gc.Memprof.start
     ~sampling_rate
     ~callstack_size:max_int
-    tracker;
+    tracker in
   s
 
 let stop s =
