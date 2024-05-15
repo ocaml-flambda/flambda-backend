@@ -630,6 +630,8 @@ type lambda =
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
   | Lregion of lambda * layout
+  (* [Lexclave] closes the newest region opened.
+     Note that [Lexclave] nesting is currently unsupported. *)
   | Lexclave of lambda
 
 and rec_binding = {
