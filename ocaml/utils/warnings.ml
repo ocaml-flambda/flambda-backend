@@ -1187,22 +1187,21 @@ let message = function
        should be applied to '()'; using '(struct end)' is deprecated."
   | Incompatible_with_upstream (Immediate_erasure id)  ->
       Printf.sprintf
-      "Usage of layout immediate/immediate64 in %s can't be erased \n\
-       for compatibility with upstream OCaml. This error is produced due to \n\
-       the use of -extension-universe upstream_compatible." id
+      "Usage of layout immediate/immediate64 in %s \n\
+       can't be erased for compatibility with upstream OCaml."
+      id
   | Incompatible_with_upstream (Non_value_sort layout) ->
       Printf.sprintf
       "External declaration here is not upstream compatible. \n\
        The only types with non-value layouts allowed are float#, \n\
        int32#, int64#, and nativeint#. Unknown type with layout \n\
-       %s encountered. This error is produced due to the use of \n\
-       -extension-universe upstream_compatible." layout
+       %s encountered."
+      layout
   | Incompatible_with_upstream (Unboxed_attribute layout) ->
       Printf.sprintf
       "[@unboxed] attribute must be added to external declaration \n\
-       argument type with layout %s for upstream compatibility. \n\
-       This error is produced due to the use of -extension-universe \n\
-       upstream_compatible." layout
+       argument type with layout %s for upstream compatibility."
+      layout
   | Unerasable_position_argument -> "this position argument cannot be erased."
   | Unnecessarily_partial_tuple_pattern ->
       "This tuple pattern\n\
