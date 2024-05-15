@@ -1,13 +1,12 @@
 (* TEST
- include stable;
  flags = "-extension layouts_alpha";
  expect;
 *)
 
-module Float_u = Stable.Float_u
+module Float_u = Stdlib__Float_u
 
 [%%expect{|
-module Float_u = Stable.Float_u
+module Float_u = Stdlib__Float_u
 |}]
 
 (* Needs a string payload *)

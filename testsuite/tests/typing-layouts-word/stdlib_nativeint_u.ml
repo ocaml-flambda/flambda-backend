@@ -1,8 +1,7 @@
-(* TEST
- include stable;
-*)
+(* TEST *)
 
-module Int32_u = Stable.Int32_u
+module Nativeint_u = Stdlib__Nativeint_u
+module Int32_u = Stdlib__Int32_u
 
 (* Print all individual successful tests; used for debugging, as it will cause
    this test to fail *)
@@ -35,11 +34,12 @@ let mk_result' equal to_string = fun ~expected ~actual ->
 let mk_result (type a) (module M : Result with type t = a) =
   mk_result' M.equal M.to_string
 
-let float_result  = mk_result (module Float)
-let bool_result   = mk_result (module Bool)
-let int_result    = mk_result (module Int)
-let int32_result  = mk_result (module Int32)
-let string_result = mk_result' String.equal to_ocaml_string
+let float_result     = mk_result (module Float)
+let bool_result      = mk_result (module Bool)
+let int_result       = mk_result (module Int)
+let int32_result     = mk_result (module Int32)
+let nativeint_result = mk_result (module Nativeint)
+let string_result    = mk_result' String.equal to_ocaml_string
 
 let option_result (type a) (module M : Result with type t = a)  =
   mk_result'
@@ -158,18 +158,20 @@ let nonzero_integer_input
 
 let int_input = integer_input (module Int) Random.int Random.bits
 let int32_input = integer_input (module Int32) Random.int32 Random.bits32
-let nonzero_int32_input =
-  nonzero_integer_input (module Int32) Random.int32 Random.bits32
+let nativeint_input =
+  integer_input (module Nativeint) Random.nativeint Random.nativebits
+let nonzero_nativeint_input =
+  nonzero_integer_input (module Nativeint) Random.nativeint Random.nativebits
 
-let int32_shift_amount_input =
-  { generators = List.init 32 (fun c -> Const c)
+let nativeint_shift_amount_input =
+  { generators = List.init Nativeint.size (fun c -> Const c)
   ; to_string  = Int.to_string
   }
 
-let int32_string_input =
+let nativeint_string_input =
   { generators = List.map
-                   (map_generator Int32.to_string)
-                   int32_input.generators
+                   (map_generator Nativeint.to_string)
+                   nativeint_input.generators
   ; to_string  = to_ocaml_string
   }
 
@@ -244,73 +246,79 @@ let test_same_binary ?n name input1 input2 result expected actual =
     ?n name expected actual
 
 let test_unary ?n name f fu =
-  test_same_unary ?n name int32_input int32_result f
-    (fun x -> Int32_u.to_int32 (fu (Int32_u.of_int32 x)))
+  test_same_unary ?n name nativeint_input nativeint_result f
+    (fun x -> Nativeint_u.to_nativeint (fu (Nativeint_u.of_nativeint x)))
 
 let test_unary_of ?n name f fu result =
-  test_same_unary ?n name int32_input result f
-    (fun x -> fu (Int32_u.of_int32 x))
+  test_same_unary ?n name nativeint_input result f
+    (fun x -> fu (Nativeint_u.of_nativeint x))
 
 let test_unary_to ?n name f fu input =
-  test_same_unary ?n name input int32_result f
-    (fun x -> Int32_u.to_int32 (fu x))
+  test_same_unary ?n name input nativeint_result f
+    (fun x -> Nativeint_u.to_nativeint (fu x))
 
 let test_binary' ~second_input ?n name f fu =
-  test_same_binary ?n name int32_input second_input int32_result f
-    (fun x y -> Int32_u.to_int32
+  test_same_binary ?n name nativeint_input second_input nativeint_result f
+    (fun x y -> Nativeint_u.to_nativeint
                   (fu
-                     (Int32_u.of_int32 x)
-                     (Int32_u.of_int32 y)))
+                     (Nativeint_u.of_nativeint x)
+                     (Nativeint_u.of_nativeint y)))
 
-let test_binary = test_binary' ~second_input:int32_input
+let test_binary = test_binary' ~second_input:nativeint_input
 
-let test_division = test_binary' ~second_input:nonzero_int32_input
+let test_division = test_binary' ~second_input:nonzero_nativeint_input
 
 let test_binary_of ?n name f fu result =
-  test_same_binary ?n name int32_input int32_input result f
+  test_same_binary ?n name nativeint_input nativeint_input result f
     (fun x y -> fu
-                  (Int32_u.of_int32 x)
-                  (Int32_u.of_int32 y))
+                  (Nativeint_u.of_nativeint x)
+                  (Nativeint_u.of_nativeint y))
 
 let test_shift ?n name shift shiftu =
   test_same_binary
-    ?n name int32_input int32_shift_amount_input int32_result shift
-    (fun x y -> Int32_u.to_int32
+    ?n name nativeint_input nativeint_shift_amount_input nativeint_result shift
+    (fun x y -> Nativeint_u.to_nativeint
                   (shiftu
-                     (Int32_u.of_int32 x)
+                     (Nativeint_u.of_nativeint x)
                      y))
 
+let nativeint_u_of_int32 x = Nativeint_u.of_int32_u (Int32_u.of_int32 x)
+let nativeint_u_to_int32 x = Int32_u.to_int32 (Nativeint_u.to_int32_u x)
+
 let () =
-  test_unary     "neg"                 Int32.neg                 Int32_u.neg;
-  test_binary    "add"                 Int32.add                 Int32_u.add;
-  test_binary    "sub"                 Int32.sub                 Int32_u.sub;
-  test_binary    "mul"                 Int32.mul                 Int32_u.mul;
-  test_division  "div"                 Int32.div                 Int32_u.div;
-  test_division  "unsigned_div"        Int32.unsigned_div        Int32_u.unsigned_div;
-  test_division  "rem"                 Int32.rem                 Int32_u.rem;
-  test_division  "unsigned_rem"        Int32.unsigned_rem        Int32_u.unsigned_rem;
-  test_unary     "succ"                Int32.succ                Int32_u.succ;
-  test_unary     "pred"                Int32.pred                Int32_u.pred;
-  test_unary     "abs"                 Int32.abs                 Int32_u.abs;
-  test_binary    "logand"              Int32.logand              Int32_u.logand;
-  test_binary    "logor"               Int32.logor               Int32_u.logor;
-  test_binary    "logxor"              Int32.logxor              Int32_u.logxor;
-  test_unary     "lognot"              Int32.lognot              Int32_u.lognot;
-  test_shift     "shift_left"          Int32.shift_left          Int32_u.shift_left;
-  test_shift     "shift_right"         Int32.shift_right         Int32_u.shift_right;
-  test_shift     "shift_right_logical" Int32.shift_right_logical Int32_u.shift_right_logical;
-  test_unary_to  "of_int"              Int32.of_int              Int32_u.of_int               int_input;
-  test_unary_of  "to_int"              Int32.to_int              Int32_u.to_int               int_result;
-  test_unary_of  "unsigned_to_int"     Int32.unsigned_to_int     Int32_u.unsigned_to_int      (option_result (module Int));
-  test_unary_to  "of_float"            Int32.of_float            Int32_u.of_float             float_input;
-  test_unary_of  "to_float"            Int32.to_float            Int32_u.to_float             float_result;
-  test_unary_to  "of_string"           Int32.of_string           Int32_u.of_string            int32_string_input;
-  test_unary_of  "to_string"           Int32.to_string           Int32_u.to_string            string_result;
-  test_unary_to  "bits_of_float"       Int32.bits_of_float       Int32_u.bits_of_float        float_input;
-  test_unary_of  "float_of_bits"       Int32.float_of_bits       Int32_u.float_of_bits        float_result;
-  test_binary_of "compare"             Int32.compare             Int32_u.compare              int_result;
-  test_binary_of "unsigned_compare"    Int32.unsigned_compare    Int32_u.unsigned_compare     int_result;
-  test_binary_of "equal"               Int32.equal               Int32_u.equal                bool_result;
-  test_binary    "min"                 Int32.min                 Int32_u.min;
-  test_binary    "max"                 Int32.max                 Int32_u.max;
+  test_unary     "neg"                 Nativeint.neg                 Nativeint_u.neg;
+  test_binary    "add"                 Nativeint.add                 Nativeint_u.add;
+  test_binary    "sub"                 Nativeint.sub                 Nativeint_u.sub;
+  test_binary    "mul"                 Nativeint.mul                 Nativeint_u.mul;
+  test_division  "div"                 Nativeint.div                 Nativeint_u.div;
+  test_division  "unsigned_div"        Nativeint.unsigned_div        Nativeint_u.unsigned_div;
+  test_division  "rem"                 Nativeint.rem                 Nativeint_u.rem;
+  test_division  "unsigned_rem"        Nativeint.unsigned_rem        Nativeint_u.unsigned_rem;
+  test_unary     "succ"                Nativeint.succ                Nativeint_u.succ;
+  test_unary     "pred"                Nativeint.pred                Nativeint_u.pred;
+  test_unary     "abs"                 Nativeint.abs                 Nativeint_u.abs;
+  test_constant  "size"                Nativeint.size                Nativeint_u.size                 int_result;
+  test_binary    "logand"              Nativeint.logand              Nativeint_u.logand;
+  test_binary    "logor"               Nativeint.logor               Nativeint_u.logor;
+  test_binary    "logxor"              Nativeint.logxor              Nativeint_u.logxor;
+  test_unary     "lognot"              Nativeint.lognot              Nativeint_u.lognot;
+  test_shift     "shift_left"          Nativeint.shift_left          Nativeint_u.shift_left;
+  test_shift     "shift_right"         Nativeint.shift_right         Nativeint_u.shift_right;
+  test_shift     "shift_right_logical" Nativeint.shift_right_logical Nativeint_u.shift_right_logical;
+  test_unary_to  "of_int"              Nativeint.of_int              Nativeint_u.of_int               int_input;
+  test_unary_of  "to_int"              Nativeint.to_int              Nativeint_u.to_int               int_result;
+  test_unary_of  "unsigned_to_int"     Nativeint.unsigned_to_int     Nativeint_u.unsigned_to_int      (option_result (module Int));
+  test_unary_to  "of_float"            Nativeint.of_float            Nativeint_u.of_float             float_input;
+  test_unary_of  "to_float"            Nativeint.to_float            Nativeint_u.to_float             float_result;
+  test_unary_to  "of_int32"            Nativeint.of_int32            Nativeint_u.of_int32             int32_input;
+  test_unary_of  "to_int32"            Nativeint.to_int32            Nativeint_u.to_int32             int32_result;
+  test_unary_to  "of_int32_u"          Nativeint.of_int32            nativeint_u_of_int32             int32_input;
+  test_unary_of  "to_int32_u"          Nativeint.to_int32            nativeint_u_to_int32             int32_result;
+  test_unary_to  "of_string"           Nativeint.of_string           Nativeint_u.of_string            nativeint_string_input;
+  test_unary_of  "to_string"           Nativeint.to_string           Nativeint_u.to_string            string_result;
+  test_binary_of "compare"             Nativeint.compare             Nativeint_u.compare              int_result;
+  test_binary_of "unsigned_compare"    Nativeint.unsigned_compare    Nativeint_u.unsigned_compare     int_result;
+  test_binary_of "equal"               Nativeint.equal               Nativeint_u.equal                bool_result;
+  test_binary    "min"                 Nativeint.min                 Nativeint_u.min;
+  test_binary    "max"                 Nativeint.max                 Nativeint_u.max;
   ()

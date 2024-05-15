@@ -113,6 +113,7 @@ dune_config_targets = \
   $(ocamldir)/duneconf/dirs-to-ignore.inc \
   $(ocamldir)/duneconf/jst-extra.inc \
   dune-project \
+  $(ocamldir)/stdlib/ocaml_compiler_internal_params \
   $(ocamldir)/dune.runtime_selection \
   $(ocamldir)/otherlibs/dune
 
@@ -199,6 +200,12 @@ _install: compiler
 install: _install
 	mkdir -p '$(prefix)'
 	rsync --chmod=u+rw,go+r -rl _install/ '$(prefix)'
+	rm -f '$(prefix)/lib/ocaml/ocaml_compiler_internal_params'
+        # rm `ocaml_compiler_internal_params`, which is used to compile the
+        # stdlib `Float_u` module with `-extension layouts_alpha`, because we
+        # don't want user programs that happened to be named
+        # `ocaml/stdlib/float_u.ml` to get the flag automatically.
+
 
 # Same as above, but relies on a successfull earlier _install
 install_for_opam:

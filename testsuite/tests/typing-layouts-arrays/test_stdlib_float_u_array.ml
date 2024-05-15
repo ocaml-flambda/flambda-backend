@@ -1,7 +1,6 @@
 (* TEST
  readonly_files = "float_u_array.ml";
  modules = "${readonly_files}";
- include stable;
  flambda2;
  {
    native;
@@ -90,7 +89,7 @@ end
 module Test_float_u_array : S = struct
   include Float_u_array
 
-  module Float_u = Stable.Float_u
+  module Float_u = Stdlib__Float_u
 
   let to_float = Float_u.to_float
   let of_float = Float_u.of_float
@@ -911,7 +910,7 @@ end
 module T3 = Test (Test_float_u_array)
 
 (* Extra tests for functions not covered above *)
-module Float_u = Stable.Float_u
+module Float_u = Stdlib__Float_u
 let () =
   let open Float_u_array in
   let check_inval f arg =
