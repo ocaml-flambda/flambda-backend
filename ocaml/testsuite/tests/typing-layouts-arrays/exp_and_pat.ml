@@ -1,7 +1,6 @@
 (* TEST
  readonly_files = "float_u_array.ml";
  modules = "${readonly_files}";
- include stable;
  flambda2;
  {
    flags = "-extension comprehensions -extension layouts_alpha";
@@ -27,7 +26,7 @@
    supported) for arrays of unboxed types. In its own file so
    we can test both native and bytecode. *)
 
-module Float_u = Stable.Float_u
+module Float_u = Stdlib__Float_u
 
 let (=) = Float_u.equal
 

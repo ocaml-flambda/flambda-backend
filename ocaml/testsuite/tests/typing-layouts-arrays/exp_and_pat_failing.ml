@@ -1,7 +1,6 @@
 (* TEST
  readonly_files = "float_u_array.ml";
  modules = "${readonly_files}";
- include stable;
  flambda2;
  {
    flags = "-extension comprehensions -extension layouts_alpha";
@@ -17,7 +16,8 @@
 (* Failing array comprehension tests. Delete this file and move tests
    to [exp_and_pat.ml] when the feature is implemented.*)
 
-module Float_u = Stable.Float_u
+module Float_u = Stdlib__Float_u
+
 let of_int = Float_u.of_int
 let (=) = Float_u.equal
 
@@ -44,11 +44,11 @@ let (=) = Float_u.equal
 let f () = [|Float_u.of_int e for e = 0 to 9|]
 
 [%%expect{|
-module Float_u = Stable.Float_u
+module Float_u = Stdlib__Float_u
 val of_int : int -> Float_u.t = <fun>
 val ( = ) : Float_u.t -> Float_u.t -> bool = <fun>
-Line 25, characters 13-29:
-25 | let f () = [|Float_u.of_int e for e = 0 to 9|]
+Line 26, characters 13-29:
+26 | let f () = [|Float_u.of_int e for e = 0 to 9|]
                   ^^^^^^^^^^^^^^^^
 Error: This expression has type Float_u.t = float#
        but an expression was expected of type ('a : value)

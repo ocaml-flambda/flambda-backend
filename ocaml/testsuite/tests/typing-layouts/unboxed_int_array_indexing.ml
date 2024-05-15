@@ -1,6 +1,5 @@
 (* TEST
  flambda2;
- include stable;
  {
    native;
  }{
@@ -21,7 +20,7 @@
 *)
 
 module By_int64_u = struct
-  module I = Stable.Int64_u
+  module I = Stdlib__Int64_u
   module A = struct
     external get : 'a array -> int64# -> 'a =
       "%array_safe_get_indexed_by_int64#"
@@ -35,7 +34,7 @@ module By_int64_u = struct
 end
 
 module By_int32_u = struct
-  module I = Stable.Int32_u
+  module I = Stdlib__Int32_u
   module A = struct
     external get : 'a array -> int32# -> 'a =
       "%array_safe_get_indexed_by_int32#"
@@ -49,7 +48,7 @@ module By_int32_u = struct
 end
 
 module By_nativeint_u = struct
-  module I = Stable.Nativeint_u
+  module I = Stdlib__Nativeint_u
 
   module A = struct
     external get : 'a array -> nativeint# -> 'a =

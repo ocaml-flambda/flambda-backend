@@ -1,5 +1,4 @@
 (* TEST
- include stable;
  flambda2;
  native;
 *)
@@ -24,7 +23,7 @@ module Nativeint = struct
 end
 
 module Nativeint_u = struct
-  include Stable.Nativeint_u
+  include Stdlib__Nativeint_u
 
   let ( + ) = add
   let ( - ) = sub
