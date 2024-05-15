@@ -175,6 +175,26 @@ let rec find_stack_check_block :
        num_checks_tree"
       to_cover
 
+let insert_instruction (cfg : Cfg.t) (label : Label.t) ~max_frame_size
+    ~max_instr_id =
+  let block = Cfg.get_block_exn cfg label in
+  let stack_offset = Cfg.first_instruction_stack_offset block in
+  let check : Cfg.basic Cfg.instruction =
+    (* CR xclerc for xclerc: double check `available_before` and
+       `available_across`.
+
+       mshinwell: having these as None should be fine, so long as this is run
+       before the forthcoming Cfg_available_regs (which it probably should be)?
+
+       xclerc: (keeping the comment, and the explicit values below until all of
+       that is implemented.) *)
+    Cfg.make_instruction ()
+      ~desc:(Cfg.Stack_check { max_frame_size_bytes = max_frame_size })
+      ~stack_offset ~id:(succ max_instr_id) ~available_before:None
+      ~available_across:None
+  in
+  DLL.add_begin block.body check
+
 let insert_stack_checks (cfg : Cfg.t) ~max_frame_size
     ~blocks_needing_stack_checks ~max_instr_id =
   (* CR-soon xclerc for xclerc: use the dominators and loop infos from
@@ -191,24 +211,7 @@ let insert_stack_checks (cfg : Cfg.t) ~max_frame_size
   | 0 -> ()
   | to_cover ->
     let label = find_stack_check_block tree ~to_cover ~num_checks ~loop_infos in
-    let block = Cfg.get_block_exn cfg label in
-    let stack_offset = Cfg.first_instruction_stack_offset block in
-    let check : Cfg.basic Cfg.instruction =
-      (* CR xclerc for xclerc: double check `available_before` and
-         `available_across`.
-
-         mshinwell: having these as None should be fine, so long as this is run
-         before the forthcoming Cfg_available_regs (which it probably should
-         be)?
-
-         xclerc: (keeping the comment, and the explicit values below until all
-         of that is implemented.) *)
-      Cfg.make_instruction ()
-        ~desc:(Cfg.Stack_check { max_frame_size_bytes = max_frame_size })
-        ~stack_offset ~id:(succ max_instr_id) ~available_before:None
-        ~available_across:None
-    in
-    DLL.add_begin block.body check
+    insert_instruction cfg label ~max_frame_size ~max_instr_id
 
 (* CR-someday xclerc for xclerc: we may want to duplicate the check in some
    cases, rather than simply pushing it down. *)
@@ -224,6 +227,11 @@ let cfg (cfg_with_layout : Cfg_with_layout.t) =
       in
       if not (Label.Set.is_empty blocks_needing_stack_checks)
       then
-        insert_stack_checks cfg ~max_frame_size ~blocks_needing_stack_checks
-          ~max_instr_id);
+        if Label.Tbl.length cfg.blocks
+           < !Flambda_backend_flags.cfg_stack_checks_threshold
+        then
+          insert_stack_checks cfg ~max_frame_size ~blocks_needing_stack_checks
+            ~max_instr_id
+        else
+          insert_instruction cfg cfg.entry_label ~max_frame_size ~max_instr_id);
     cfg_with_layout
