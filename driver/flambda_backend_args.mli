@@ -42,6 +42,7 @@ module type Flambda_backend_options = sig
 
   val cfg_stack_checks : unit -> unit
   val no_cfg_stack_checks : unit -> unit
+  val cfg_stack_checks_threshold : int -> unit
 
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
