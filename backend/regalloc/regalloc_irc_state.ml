@@ -336,7 +336,7 @@ let[@inline] mem_adj_set state reg1 reg2 =
 
 let[@inline] adj_list _state reg = reg.Reg.interf
 
-let[@inline] add_edge state u v =
+let[@inline] add_edge state ~update_degree u v =
   let is_interesting_reg reg =
     match reg.Reg.loc with
     | Reg _ -> true
@@ -354,7 +354,7 @@ let[@inline] add_edge state u v =
       let deg = x.Reg.degree in
       if irc_debug && deg = Degree.infinite
       then fatal "trying to increment the degree of a precolored node";
-      x.Reg.degree <- succ deg
+      if update_degree then x.Reg.degree <- succ deg
     in
     if not (is_precolored state u)
     then (
@@ -364,6 +364,13 @@ let[@inline] add_edge state u v =
     then (
       add_adj_list v u;
       incr_degree v))
+
+let add_edge state u v =
+  add_edge state ~update_degree:true u v;
+  List.iter (Proc.reg_synonyms u) ~f:(fun u' ->
+      add_edge state ~update_degree:false u' v);
+  List.iter (Proc.reg_synonyms v) ~f:(fun v' ->
+      add_edge state ~update_degree:false u v')
 
 let[@inline] iter_adjacent state reg ~f =
   List.iter (adj_list state reg) ~f:(fun reg ->
@@ -599,46 +606,24 @@ let[@inline] invariant state =
           Cfg.Work_list );
         ( "active_moves",
           instruction_set_of_instruction_work_list state.active_moves,
-          Cfg.Active ) ];
-    (* degree is consistent with adjacency lists/sets *)
-    let work_lists =
-      Reg.Set.union
-        (reg_set_of_reg_work_list state.simplify_work_list)
-        (Reg.Set.union
-           (reg_set_of_reg_work_list state.freeze_work_list)
-           (reg_set_of_reg_work_list state.spill_work_list))
-    in
-    let work_lists_or_precolored =
-      Reg.Set.union (all_precolored_regs ()) work_lists
-    in
-    Reg.Set.iter
-      (fun u ->
-        let degree = u.Reg.degree in
-        if degree = Degree.infinite
-        then fatal "invariant: infinite degree for %a" Printmach.reg u
-        else
-          let adj_list = Reg.Set.of_list (adj_list state u) in
-          let cardinal =
-            Reg.Set.cardinal (Reg.Set.inter adj_list work_lists_or_precolored)
-          in
-          if not (Int.equal degree cardinal)
-          then (
-            List.iter u.Reg.interf ~f:(fun r ->
-                log ~indent:0 "%a <- interf[%a]" Printmach.reg r Printmach.reg u);
-            Reg.Set.iter
-              (fun r ->
-                log ~indent:0 "%a <- adj_list[%a]" Printmach.reg r Printmach.reg
-                  u)
-              adj_list;
-            Reg.Set.iter
-              (fun r ->
-                log ~indent:0 "%a <- work_lists_or_precolored[%a]" Printmach.reg
-                  r Printmach.reg u)
-              (Reg.Set.inter adj_list work_lists_or_precolored);
-            fatal
-              "invariant expected degree for %a to be %d but got %d\n\
-              \ (#adj_list=%d, #work_lists_or_precolored=%d)" Printmach.reg u
-              cardinal degree
-              (Reg.Set.cardinal adj_list)
-              (Reg.Set.cardinal work_lists_or_precolored)))
-      work_lists)
+          Cfg.Active ) ])
+
+(* degree is consistent with adjacency lists/sets *)
+(* CR-soon xclerc for xclerc: update and re-enable this check let work_lists =
+   Reg.Set.union (reg_set_of_reg_work_list state.simplify_work_list)
+   (Reg.Set.union (reg_set_of_reg_work_list state.freeze_work_list)
+   (reg_set_of_reg_work_list state.spill_work_list)) in let
+   work_lists_or_precolored = Reg.Set.union (all_precolored_regs ()) work_lists
+   in Reg.Set.iter (fun u -> let degree = u.Reg.degree in if degree =
+   Degree.infinite then fatal "invariant: infinite degree for %a" Printmach.reg
+   u else let adj_list = Reg.Set.of_list (adj_list state u) in let cardinal =
+   Reg.Set.cardinal (Reg.Set.inter adj_list work_lists_or_precolored) in if not
+   (Int.equal degree cardinal) then ( List.iter u.Reg.interf ~f:(fun r -> log
+   ~indent:0 "%a <- interf[%a]" Printmach.reg r Printmach.reg u); Reg.Set.iter
+   (fun r -> log ~indent:0 "%a <- adj_list[%a]" Printmach.reg r Printmach.reg u)
+   adj_list; Reg.Set.iter (fun r -> log ~indent:0 "%a <-
+   work_lists_or_precolored[%a]" Printmach.reg r Printmach.reg u) (Reg.Set.inter
+   adj_list work_lists_or_precolored); fatal "invariant expected degree for %a
+   to be %d but got %d\n\ \ (#adj_list=%d, #work_lists_or_precolored=%d)"
+   Printmach.reg u cardinal degree (Reg.Set.cardinal adj_list) (Reg.Set.cardinal
+   work_lists_or_precolored))) work_lists *)

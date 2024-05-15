@@ -511,3 +511,19 @@ let operation_supported = function
     -> true
 
 let trap_size_in_bytes = 16
+
+let machtype_synonyms (typ : Cmm.machtype_component) : Cmm.machtype_component list =
+  match typ with
+    | Val | Addr | Int | Float -> []
+    | Vec128 ->
+      (* CR mslater: (SIMD) arm64 *)
+      fatal_error "arm64: got vec128 register"
+    | Float32 ->
+      (* CR mslater: (float32) arm64 *)
+      fatal_error "arm64: got float32 register"
+
+let reg_synonyms (reg : Reg.t) : Reg.t list =
+  match reg.loc with
+  | Reg idx ->
+    List.map (fun typ -> phys_reg typ idx) (machtype_synonyms reg.typ)
+  | Unknown | Stack (Local _ | Incoming _ | Outgoing _ | Domainstate _) -> []

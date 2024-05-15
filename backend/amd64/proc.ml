@@ -807,3 +807,26 @@ let operation_supported = function
     -> true
 
 let trap_size_in_bytes = 16
+
+let machtype_synonyms (typ : Cmm.machtype_component) : Cmm.machtype_component list =
+  match typ with
+    | Val | Addr | Int -> []
+    | Float ->
+      begin match Language_extension.is_enabled SIMD, Language_extension.is_enabled Small_numbers with
+      | false, false -> []
+      | false, true -> [Cmm.Float32]
+      | true, false -> [Cmm.Vec128]
+      | true, true -> [Cmm.Vec128; Cmm.Float32]
+      end
+    | Vec128 ->
+      Arch.assert_simd_enabled();
+      if Language_extension.is_enabled Small_numbers then [Cmm.Float; Cmm.Float32] else [Cmm.Float]
+    | Float32 ->
+      Arch.assert_float32_enabled ();
+      if Language_extension.is_enabled SIMD then [Cmm.Float; Cmm.Vec128] else [Cmm.Float]
+
+let reg_synonyms (reg : Reg.t) : Reg.t list =
+  match reg.loc with
+  | Reg idx ->
+    List.map (fun typ -> phys_reg typ idx) (machtype_synonyms reg.typ)
+  | Unknown | Stack (Local _ | Incoming _ | Outgoing _ | Domainstate _) -> []
