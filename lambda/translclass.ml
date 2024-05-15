@@ -745,7 +745,7 @@ let free_methods l =
         fv := Ident.Set.remove id !fv
     | Lletrec(decl, _body) ->
         List.iter (fun { id } -> fv := Ident.Set.remove id !fv) decl
-    | Lstaticcatch(_e1, (_,vars), _e2, _kind) ->
+    | Lstaticcatch(_e1, (_,vars), _e2, _, _kind) ->
         List.iter (fun (id, _) -> fv := Ident.Set.remove id !fv) vars
     | Ltrywith(_e1, exn, _e2, _k) ->
         fv := Ident.Set.remove exn !fv

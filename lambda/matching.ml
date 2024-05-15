@@ -1054,7 +1054,7 @@ let make_catch kind d k =
   | Lstaticraise (_, []) -> k d
   | _ ->
       let e = next_raise_count () in
-      Lstaticcatch (k (make_exit e), (e, []), d, kind)
+      Lstaticcatch (k (make_exit e), (e, []), d, Same_region, kind)
 
 (* Introduce a catch, if worth it, delayed version *)
 let rec as_simple_exit = function
@@ -1078,7 +1078,7 @@ let make_catch_delayed kind handler =
                 handler
               else
                 body
-          | _ -> Lstaticcatch (body, (i, []), handler, kind) )
+          | _ -> Lstaticcatch (body, (i, []), handler, Same_region, kind) )
     )
 
 let raw_action l =
@@ -3302,7 +3302,9 @@ let compile_orhandlers value_kind compile_fun lambda1 total1 ctx to_catch =
           (* Whilst the handler is [lambda_unit] it is actually unused and only added
              to produce well-formed code. In reality this expression returns a
              [value_kind]. *)
-          do_rec (Lstaticcatch (r, (i, vars), lambda_unit, value_kind)) total_r rem
+          do_rec
+            (Lstaticcatch (r, (i, vars), lambda_unit, Same_region, value_kind))
+            total_r rem
         | handler_i, total_i ->
           begin match raw_action r with
           | Lstaticraise (j, args) ->
@@ -3315,7 +3317,8 @@ let compile_orhandlers value_kind compile_fun lambda1 total1 ctx to_catch =
                 do_rec r total_r rem
           | _ ->
               do_rec
-                (Lstaticcatch (r, (i, vars), handler_i, value_kind))
+                (Lstaticcatch
+                   (r, (i, vars), handler_i, Same_region, value_kind))
                 (Jumps.union (Jumps.remove i total_r)
                    (Jumps.map (Context.rshift_num (ncols mat)) total_i))
                 rem
@@ -3409,7 +3412,7 @@ let rec comp_match_handlers value_kind comp_fun partial ctx first_match next_mat
               match comp_fun partial ctx_i pm with
               | li, total_i ->
                 c_rec
-                  (Lstaticcatch (body, (i, []), li, value_kind))
+                  (Lstaticcatch (body, (i, []), li, Same_region, value_kind))
                   (Jumps.union total_i total_rem)
                   rem
               | exception Unused ->
@@ -3417,7 +3420,8 @@ let rec comp_match_handlers value_kind comp_fun partial ctx first_match next_mat
                      to produce well-formed code. In reality this expression returns a
                      [value_kind]. *)
                   c_rec
-                  (Lstaticcatch (body, (i, []), lambda_unit, value_kind))
+                  (Lstaticcatch
+                     (body, (i, []), lambda_unit, Same_region, value_kind))
                   total_rem rem
             end
           )
@@ -3741,7 +3745,8 @@ let check_total ~scopes value_kind loc ~failer total lambda i =
     lambda
   else
     Lstaticcatch (lambda, (i, []),
-                  failure_handler ~scopes loc ~failer (), value_kind)
+                  failure_handler ~scopes loc ~failer (),
+                  Same_region, value_kind)
 
 let toplevel_handler ~scopes ~return_layout loc ~failer partial args cases compile_fun =
   match partial with
@@ -3854,8 +3859,8 @@ let rec map_return f = function
   | Lsequence (l1, l2) -> Lsequence (l1, map_return f l2)
   | Levent (l, ev) -> Levent (map_return f l, ev)
   | Ltrywith (l1, id, l2, k) -> Ltrywith (map_return f l1, id, map_return f l2, k)
-  | Lstaticcatch (l1, b, l2, k) ->
-      Lstaticcatch (map_return f l1, b, map_return f l2, k)
+  | Lstaticcatch (l1, b, l2, r, k) ->
+      Lstaticcatch (map_return f l1, b, map_return f l2, r, k)
   | Lswitch (s, sw, loc, k) ->
       let map_cases cases =
         List.map (fun (i, l) -> (i, map_return f l)) cases
@@ -3965,7 +3970,8 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
           param
       in
       if !opt then
-        Lstaticcatch (bind, (nraise, ids_with_kinds), body, return_layout)
+        Lstaticcatch
+          (bind, (nraise, ids_with_kinds), body, Same_region,return_layout)
       else
         simple_for_let ~scopes ~arg_sort ~return_layout loc param pat body
 
