@@ -6393,59 +6393,34 @@ let rec subtype_rec env trace t1 t2 cstrs =
     | (Tfunctor((l1,a1,r1), id1, (p1, fl1), u1),
        Tfunctor((l2,a2,r2), id2, (p2, fl2), u2)) when l1 = l2
       || !Clflags.classic && equivalent_with_nolabels l1 l2 ->
-        (* copied with modifications from Tpackage case *)
-        let ctxt = (env, Ident.get_id_pairs ()) in
-        begin try
-          let ntl1 =
-            complete_type_list env fl2 (get_level t1) (Mty_ident p1) fl1
-          and ntl2 =
-            complete_type_list env fl1 (get_level t2) (Mty_ident p2) fl2
-              ~allow_absent:true in
-          let cstrs' =
-            List.map
-              (fun (n2,t2) ->
-                  (ctxt, trace, t2, List.assoc n2 ntl1, !univar_pairs))
-              ntl2
-            (* we swapped the order because it is the argument of an arrow *)
-          in
-          let cstrs =
-            if eq_package_path env p1 p2 then cstrs' @ cstrs
-            else begin
-              (* need to check module subtyping *)
-              let snap = Btype.snapshot () in
-              match
-                List.iter (fun ((env, id_pairs), _, t1, t2, _) ->
-                      Ident.with_id_pairs id_pairs (fun () -> unify env t1 t2))
-                    cstrs'
-              with
-              | () when !package_subtype env p1 fl1 p2 fl2 ->
-                Btype.backtrack snap; cstrs' @ cstrs
-              | () | exception Unify _ ->
-                Btype.backtrack snap; raise Not_found
-            end
-          in
-          let a2 = mode_cross_left env (newmono (newty (Tpackage (p2, fl2)))) a2 in
-            subtype_alloc_mode env trace a2 a1;
-          (* RHS mode of arrow types indicates allocation in the parent region
-              and is not subject to mode crossing *)
-          subtype_alloc_mode env trace r1 r2; 
-          let mty1 = !modtype_of_package env Location.none p1 fl1 in
-          let new_env = Env.add_module (Ident.of_unscoped id1) Mp_present mty1 env in
-          let mty2 = !modtype_of_package env Location.none p2 fl2 in
-          let new_env = Env.add_module (Ident.of_unscoped id2) Mp_present mty2 new_env in
-          enter_functor env id1 t1 id2 t2
-            (fun () -> subtype_rec
-                new_env
-                (Subtype.Diff {got = u1; expected = u2} :: trace)
-                u1 u2
-                cstrs)
-        with Not_found ->
-          (ctxt, trace, t1, t2, !univar_pairs)::cstrs
-        end
+        let t1 = newty (Tpackage (p1, fl1)) in
+        let t2 = newty (Tpackage (p2, fl2)) in
+        let cstrs =
+          subtype_rec
+            env
+            (Subtype.Diff {got = t2; expected = t1} :: trace)
+            t2 t1
+            cstrs
+        in
+        let a2 = mode_cross_left env (newmono t2) a2 in
+          subtype_alloc_mode env trace a2 a1;
+        (* RHS mode of arrow types indicates allocation in the parent region
+            and is not subject to mode crossing *)
+        subtype_alloc_mode env trace r1 r2; 
+        let mty1 = !modtype_of_package env Location.none p1 fl1 in
+        let new_env = Env.add_module (Ident.of_unscoped id1) Mp_present mty1 env in
+        let mty2 = !modtype_of_package env Location.none p2 fl2 in
+        let new_env = Env.add_module (Ident.of_unscoped id2) Mp_present mty2 new_env in
+        enter_functor env id1 t1 id2 t2
+          (fun () -> subtype_rec
+              new_env
+              (Subtype.Diff {got = u1; expected = u2} :: trace)
+              u1 u2
+              cstrs)
     | (Tfunctor((l1,a1,r1), id1, (p1, fl1), u1),
        Tarrow((l2,a2,r2), t2, u2, _)) when l1 = l2
       || !Clflags.classic && equivalent_with_nolabels l1 l2 ->
-        let t1 = (newmono (newty (Tpackage (p1, fl1)))) in
+        let t1 = newmono (newty (Tpackage (p1, fl1))) in
         let cstrs =
           subtype_rec
             env
@@ -6470,7 +6445,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
     | (Tarrow((l1,a1,r1), t1, u1, _),
        Tfunctor((l2,a2,r2), id2, (p2, fl2), u2)) when l1 = l2
       || !Clflags.classic && equivalent_with_nolabels l1 l2 ->
-        let t2 = (newmono (newty (Tpackage (p2, fl2)))) in
+        let t2 = newmono (newty (Tpackage (p2, fl2))) in
         let cstrs =
           subtype_rec
             env
@@ -6478,7 +6453,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
             t2 t1
             cstrs
         in
-        let a2 = mode_cross_left env (newty (Tpackage (p2, fl2))) a2 in
+        let a2 = mode_cross_left env t2 a2 in
          subtype_alloc_mode env trace a2 a1;
         (* RHS mode of arrow types indicates allocation in the parent region
            and is not subject to mode crossing *)

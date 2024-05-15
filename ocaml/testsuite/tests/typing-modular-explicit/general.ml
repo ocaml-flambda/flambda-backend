@@ -324,15 +324,15 @@ Error: This expression has type (module A/1 : Add2) -> A/1.t -> A/1.t
        (* Modules do not match: Add is not included in Add2
        The type a is required but not provided *)
 
-let coerce5 (f : (module A : Add2) -> A.t -> A.t) = (f :> (module A : Add) -> A.t -> A.t)
+let coerce5 (f : (module A : Add) -> A.t -> A.t) = (f :> (module A : Add2) -> A.t -> A.t)
 
 let try_coerce6 (f : (module A : Add2) -> A.t -> A.t) : (module A : Add3) -> A.t -> A.t = f
 let try_coerce7 (f : (module A : Add2) -> A.t -> A.t) : (module A : Add4) -> A.t -> A.t = f
 
 [%%expect{|
 val coerce5 :
-  ((module A/1 : Add2) -> A/1.t -> A/1.t) ->
-  ((module A/2 : Add) -> A/2.t -> A/2.t) = <fun>
+  ((module A/1 : Add) -> A/1.t -> A/1.t) ->
+  ((module A/2 : Add2) -> A/2.t -> A/2.t) = <fun>
 val try_coerce6 :
   ((module A/1 : Add2) -> A/1.t -> A/1.t) ->
   ((module A/2 : Add3) -> A/2.t -> A/2.t) = <fun>
