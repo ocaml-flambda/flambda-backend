@@ -1,5 +1,4 @@
 (* TEST
- include stdlib_stable;
  {
    reference = "${test_source_directory}/float_iarray.heap.reference";
    bytecode;
@@ -17,7 +16,7 @@
 (* Testing that local [float iarray]s don't allocate on access.  This is a
    question because for flat float arrays, accesses have to box the float. *)
 
-module Iarray = Stdlib_stable.Iarray
+module Iarray = Stdlib__Iarray
 
 let ( .:() ) = Iarray.( .:() )
 
