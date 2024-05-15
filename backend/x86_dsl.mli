@@ -198,6 +198,19 @@ module I : sig
   val xor: arg -> arg -> unit
   val xorpd: arg -> arg -> unit
 
+  (* Float32 arithmetic *)
+
+  val addss: arg -> arg -> unit
+  val subss: arg -> arg -> unit
+  val mulss: arg -> arg -> unit
+  val divss: arg -> arg -> unit
+  val comiss: arg -> arg -> unit
+  val ucomiss: arg -> arg -> unit
+  val sqrtss: arg -> arg -> unit
+  val xorps: arg -> arg -> unit
+  val andps: arg -> arg -> unit
+  val cmpss: float_condition -> arg -> arg -> unit
+
   (* SSE instructions *)
 
   val cmpps: float_condition -> arg -> arg -> unit

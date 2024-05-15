@@ -268,6 +268,7 @@ type error =
   | Extension_not_enabled : _ Language_extension.t -> error
   | Literal_overflow of string
   | Unknown_literal of string * char
+  | Float32_literal of string
   | Illegal_letrec_pat
   | Illegal_letrec_expr
   | Illegal_class_expr
@@ -326,8 +327,9 @@ val type_package:
 
 val constant: Parsetree.constant -> (Typedtree.constant, error) result
 
-val check_recursive_bindings : Env.t -> Typedtree.value_binding list -> unit
+val annotate_recursive_bindings :
+  Env.t -> Typedtree.value_binding list -> Typedtree.value_binding list
 val check_recursive_class_bindings :
   Env.t -> Ident.t list -> Typedtree.class_expr list -> unit
 
-val src_pos : Location.t -> Typedtree.attributes -> Env.t -> Typedtree.expression 
+val src_pos : Location.t -> Typedtree.attributes -> Env.t -> Typedtree.expression

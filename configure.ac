@@ -5,7 +5,7 @@ AC_INIT([The Flambda backend for OCaml],
         [flambda_backend],
         [http://github.com/ocaml-flambda/flambda_backend])
 
-DUNE_MAX_VERSION=[3.8]
+DUNE_MAX_VERSION=[3.15]
 
 AC_MSG_NOTICE([Configuring Flambda backend version AC_PACKAGE_VERSION])
 

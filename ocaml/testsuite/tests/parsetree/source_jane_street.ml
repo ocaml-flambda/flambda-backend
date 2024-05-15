@@ -295,3 +295,10 @@ let f x =
 ;;
 
 test_int64 "result" (f #7L);;
+
+(***************)
+(* Modal kinds *)
+
+(* CR layouts v2.8: add examples like the ones in
+  [pprintast_unconditional.ml] when modal kind syntax is fully
+  implemented. [test_ppx.ml] currently fails. *)

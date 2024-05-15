@@ -225,12 +225,13 @@ type operation =
   | Caddv (* pointer addition that produces a [Val] (well-formed Caml value) *)
   | Cadda (* pointer addition that produces a [Addr] (derived heap pointer) *)
   | Ccmpa of integer_comparison
-  | Cnegf | Cabsf
-  | Caddf | Csubf | Cmulf | Cdivf
+  | Cnegf of float_width | Cabsf of float_width
+  | Caddf of float_width | Csubf of float_width
+  | Cmulf of float_width | Cdivf of float_width
   | Cvalueofint | Cintofvalue
   | Cvectorcast of vector_cast
   | Cscalarcast of scalar_cast
-  | Ccmpf of float_comparison
+  | Ccmpf of float_width * float_comparison
   | Craise of Lambda.raise_kind
   | Cprobe of { name: string; handler_code_sym: string; enabled_at_init: bool }
   | Cprobe_is_enabled of { name: string }
@@ -313,17 +314,14 @@ type expression =
         active.  This allows for sharing a single handler in several places, or
         having multiple entry and exit points to a single trywith block. *)
 
-type property =
-  | Zero_alloc
-
 type codegen_option =
   | Reduce_code_size
   | No_CSE
   | Use_linscan_regalloc
-  | Assume of { property: property; strict: bool; never_returns_normally: bool;
+  | Assume_zero_alloc of { strict: bool; never_returns_normally: bool;
                 never_raises: bool;
                 loc: Location.t }
-  | Check of { property: property; strict: bool; loc: Location.t }
+  | Check_zero_alloc of { strict: bool; loc: Location.t }
 
 type fundecl =
   { fun_name: symbol;
@@ -396,9 +394,9 @@ val map_shallow: (expression -> expression) -> expression -> expression
 val equal_machtype_component : machtype_component -> machtype_component -> bool
 val equal_exttype : exttype -> exttype -> bool
 val equal_scalar_cast : scalar_cast -> scalar_cast -> bool
+val equal_float_width : float_width -> float_width -> bool
 val equal_float_comparison : float_comparison -> float_comparison -> bool
 val equal_memory_chunk : memory_chunk -> memory_chunk -> bool
 val equal_integer_comparison : integer_comparison -> integer_comparison -> bool
-val all_properties : property list
 
 val caml_flambda2_invalid : string

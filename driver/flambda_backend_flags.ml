@@ -34,18 +34,28 @@ let dasm_comments = ref false (* -dasm-comments *)
 
 let default_heap_reduction_threshold = 500_000_000 / (Sys.word_size / 8)
 let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-reduction-threshold *)
-let dump_checkmach = ref false          (* -dcheckmach *)
-let disable_checkmach = ref false       (* -disable-checkmach *)
-let disable_precise_checkmach = ref false  (* -disable-precise-checkmach *)
+let dump_zero_alloc = ref false          (* -dzero-alloc *)
+let disable_zero_alloc_checker = ref false       (* -disable-zero-alloc-checker *)
+let disable_precise_zero_alloc_checker = ref false  (* -disable-precise-zero_alloc_checker *)
 
-type checkmach_details_cutoff =
+type zero_alloc_checker_details_cutoff =
   | Keep_all
   | At_most of int
   | No_details
 
-let default_checkmach_details_cutoff = At_most 20
-let checkmach_details_cutoff = ref default_checkmach_details_cutoff
-                                       (* -checkmach-details-cutoff n *)
+let default_zero_alloc_checker_details_cutoff = At_most 20
+let zero_alloc_checker_details_cutoff = ref default_zero_alloc_checker_details_cutoff
+                                       (* -zero-alloc-checker-details-cutoff n *)
+
+type zero_alloc_checker_join =
+  | Keep_all
+  | Widen of int  (* n > 0 *)
+  | Error of int (* n > 0 *)
+
+let default_zero_alloc_checker_join = Widen 100
+let zero_alloc_checker_join = ref default_zero_alloc_checker_join
+                              (* -zero-alloc-checker-join n *)
+
 module Function_layout = struct
   type t =
     | Topological

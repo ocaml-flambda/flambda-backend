@@ -17,9 +17,11 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-external to_int64 : int64# -> (int64[@local_opt]) = "%box_int64"
+type t = int64#
 
-external of_int64 : (int64[@local_opt]) -> int64# = "%unbox_int64"
+external to_int64 : t -> (int64[@local_opt]) = "%box_int64"
+
+external of_int64 : (int64[@local_opt]) -> t = "%unbox_int64"
 
 let[@inline always] neg x = of_int64 (Int64.neg (to_int64 x))
 
@@ -99,8 +101,6 @@ let[@inline always] float_of_bits x = Int64.float_of_bits (to_int64 x)
 let[@inline always] of_string x = of_int64 (Int64.of_string x)
 
 let[@inline always] to_string x = (Int64.to_string[@inlined]) (to_int64 x)
-
-type t = int64#
 
 let[@inline always] compare x y = Int64.compare (to_int64 x) (to_int64 y)
 

@@ -16,13 +16,12 @@
 
 open! Simplify_import
 module A = Number_adjuncts
-module Float_by_bit_pattern = Numeric_types.Float_by_bit_pattern
 
 type 'a binary_arith_outcome_for_one_side_only =
   | Exactly of 'a
   | The_other_side
   | Negation_of_the_other_side
-  | Float_negation_of_the_other_side
+  | Float_negation_of_the_other_side of Flambda_primitive.float_bitwidth
   | Cannot_simplify
   | Invalid
 
@@ -200,8 +199,8 @@ end = struct
                   Unary (Int_arith (standard_int_kind, Neg), other_side)
                 in
                 Some (PR.Set.add (Prim prim) possible_results)
-              | Float_negation_of_the_other_side ->
-                let prim : P.t = Unary (Float_arith Neg, other_side) in
+              | Float_negation_of_the_other_side width ->
+                let prim : P.t = Unary (Float_arith (width, Neg), other_side) in
                 Some (PR.Set.add (Prim prim) possible_results)
               | Cannot_simplify -> None
               | Invalid -> Some possible_results))
@@ -608,32 +607,47 @@ module Binary_int_comp_int64 = Binary_arith_like (Int_ops_for_binary_comp_int64)
 module Binary_int_comp_nativeint =
   Binary_arith_like (Int_ops_for_binary_comp_nativeint)
 
-module Float_ops_for_binary_arith : sig
+module Float_ops_for_binary_arith_gen (FP : sig
+  module F : Numeric_types.Float_by_bit_pattern
+
+  val width : Flambda_primitive.float_bitwidth
+
+  val arg_kind : K.Standard_int_or_float.t
+
+  val result_kind : Flambda_kind.t
+
+  val prover : T.Typing_env.t -> T.t -> F.Set.t T.meet_shortcut
+
+  val unknown : T.t
+
+  val these : F.Set.t -> T.t
+
+  val const : F.t -> Const.t
+end) : sig
   include Binary_arith_like_sig with type op = P.binary_float_arith_op
 end = struct
-  module F = Float_by_bit_pattern
+  module F = FP.F
   module Lhs = F
   module Rhs = F
   module Result = F
 
   type op = P.binary_float_arith_op
 
-  let arg_kind = K.Standard_int_or_float.Naked_float
+  let arg_kind = FP.arg_kind
 
-  let result_kind = K.naked_float
+  let result_kind = FP.result_kind
 
   let ok_to_evaluate denv = DE.propagating_float_consts denv
 
-  let prover_lhs = T.meet_naked_floats
+  let prover_lhs = FP.prover
 
-  let prover_rhs = T.meet_naked_floats
+  let prover_rhs = FP.prover
 
-  let unknown _ = T.any_naked_float
+  let unknown _ = FP.unknown
 
-  let these = T.these_naked_floats
+  let these = FP.these
 
-  let term f =
-    Named.create_simple (Simple.const (Reg_width_const.naked_float f))
+  let term f = Named.create_simple (Simple.const (FP.const f))
 
   module Pair = F.Pair
 
@@ -670,7 +684,7 @@ end = struct
         [@z3 check_float_binary_neutral `Mul 1.0 `Left]
       else if F.equal this_side F.minus_one
       then
-        Float_negation_of_the_other_side
+        Float_negation_of_the_other_side FP.width
         [@z3 check_float_binary_opposite `Mul (-1.0) `Left]
         [@z3 check_float_binary_opposite `Mul (-1.0) `Right]
       else Cannot_simplify
@@ -686,7 +700,7 @@ end = struct
       then The_other_side [@z3 check_float_binary_neutral `Div 1.0 `Right]
       else if F.equal rhs F.minus_one
       then
-        Float_negation_of_the_other_side
+        Float_negation_of_the_other_side FP.width
         [@z3 check_float_binary_opposite `Div (-1.0) `Right]
       else Cannot_simplify
 
@@ -699,27 +713,70 @@ end = struct
     | Div -> Cannot_simplify
 end
 
-module Binary_float_arith = Binary_arith_like (Float_ops_for_binary_arith)
+module Float_ops_for_binary_arith = Float_ops_for_binary_arith_gen (struct
+  module F = Numeric_types.Float_by_bit_pattern
 
-module Float_ops_for_binary_comp : sig
+  let width = Flambda_primitive.Float64
+
+  let arg_kind = K.Standard_int_or_float.Naked_float
+
+  let result_kind = K.naked_float
+
+  let prover = T.meet_naked_floats
+
+  let unknown = T.any_naked_float
+
+  let these = T.these_naked_floats
+
+  let const = Reg_width_const.naked_float
+end)
+
+module Float32_ops_for_binary_arith = Float_ops_for_binary_arith_gen (struct
+  module F = Numeric_types.Float32_by_bit_pattern
+
+  let width = Flambda_primitive.Float32
+
+  let arg_kind = K.Standard_int_or_float.Naked_float32
+
+  let result_kind = K.naked_float32
+
+  let prover = T.meet_naked_float32s
+
+  let unknown = T.any_naked_float32
+
+  let these = T.these_naked_float32s
+
+  let const = Reg_width_const.naked_float32
+end)
+
+module Binary_float_arith = Binary_arith_like (Float_ops_for_binary_arith)
+module Binary_float32_arith = Binary_arith_like (Float32_ops_for_binary_arith)
+
+module Float_ops_for_binary_comp_gen (FP : sig
+  module F : Numeric_types.Float_by_bit_pattern
+
+  val arg_kind : K.Standard_int_or_float.t
+
+  val prover : T.Typing_env.t -> T.t -> F.Set.t T.meet_shortcut
+end) : sig
   include Binary_arith_like_sig with type op = unit P.comparison_behaviour
 end = struct
-  module F = Float_by_bit_pattern
+  module F = FP.F
   module Lhs = F
   module Rhs = F
   module Result = Targetint_31_63
 
   type op = unit P.comparison_behaviour
 
-  let arg_kind = K.Standard_int_or_float.Naked_float
+  let arg_kind = FP.arg_kind
 
   let result_kind = K.naked_immediate
 
   let ok_to_evaluate denv = DE.propagating_float_consts denv
 
-  let prover_lhs = T.meet_naked_floats
+  let prover_lhs = FP.prover
 
-  let prover_rhs = T.meet_naked_floats
+  let prover_rhs = FP.prover
 
   let unknown (op : op) =
     match op with
@@ -791,7 +848,24 @@ end = struct
     | Yielding_int_like_compare_functions () -> Cannot_simplify
 end
 
+module Float_ops_for_binary_comp = Float_ops_for_binary_comp_gen (struct
+  module F = Numeric_types.Float_by_bit_pattern
+
+  let arg_kind = K.Standard_int_or_float.Naked_float
+
+  let prover = T.meet_naked_floats
+end)
+
+module Float32_ops_for_binary_comp = Float_ops_for_binary_comp_gen (struct
+  module F = Numeric_types.Float32_by_bit_pattern
+
+  let arg_kind = K.Standard_int_or_float.Naked_float32
+
+  let prover = T.meet_naked_float32s
+end)
+
 module Binary_float_comp = Binary_arith_like (Float_ops_for_binary_comp)
+module Binary_float32_comp = Binary_arith_like (Float32_ops_for_binary_comp)
 
 let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term _dbg
     ~arg1:_ ~arg1_ty ~arg2:_ ~arg2_ty ~result_var =
@@ -1053,8 +1127,10 @@ let simplify_binary_primitive0 dacc original_prim (prim : P.binary_primitive)
       | Naked_int32 -> Binary_int_comp_int32.simplify op
       | Naked_int64 -> Binary_int_comp_int64.simplify op
       | Naked_nativeint -> Binary_int_comp_nativeint.simplify op)
-    | Float_arith op -> Binary_float_arith.simplify op
-    | Float_comp op -> Binary_float_comp.simplify op
+    | Float_arith (Float64, op) -> Binary_float_arith.simplify op
+    | Float_comp (Float64, op) -> Binary_float_comp.simplify op
+    | Float_arith (Float32, op) -> Binary_float32_arith.simplify op
+    | Float_comp (Float32, op) -> Binary_float32_comp.simplify op
     | Phys_equal op -> simplify_phys_equal op
     | String_or_bigstring_load (string_like_value, string_accessor_width) ->
       simplify_string_or_bigstring_load string_like_value string_accessor_width

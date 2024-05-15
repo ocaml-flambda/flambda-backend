@@ -127,8 +127,6 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
        allocation region"
       Continuation.print continuation;
   let rec add_end_regions acc ~region_stack_now =
-    (* This can maybe only be exercised right now using "match with exception",
-       since that causes jumps out of try-regions (but not normal regions). *)
     (* CR pchambart: This closes all the regions between region_stack_now and
        region_stack_at_handler, but closing only the last one should be
        sufficient. *)
@@ -173,6 +171,7 @@ let rec try_to_find_location (lam : L.lambda) =
   match lam with
   | Lprim (_, _, loc)
   | Lfunction { loc; _ }
+  | Lletrec ({ def = { loc; _ }; _ } :: _, _)
   | Lapply { ap_loc = loc; _ }
   | Lfor { for_loc = loc; _ }
   | Lswitch (_, _, loc, _)
@@ -182,9 +181,8 @@ let rec try_to_find_location (lam : L.lambda) =
     loc
   | Llet (_, _, _, lam, _)
   | Lmutlet (_, _, lam, _)
-  | Lletrec ((_, lam) :: _, _)
   | Lifthenelse (lam, _, _, _)
-  | Lstaticcatch (lam, _, _, _)
+  | Lstaticcatch (lam, _, _, _, _)
   | Lstaticraise (_, lam :: _)
   | Lwhile { wh_cond = lam; _ }
   | Lsequence (lam, _)
@@ -347,6 +345,7 @@ let rec_catch_for_while_loop env cond body =
                 Lsequence (body, Lstaticraise (cont, [])),
                 Lconst (Const_base (Const_int 0)),
                 Lambda.layout_unit ) ),
+        Same_region,
         Lambda.layout_unit )
   in
   env, lam
@@ -398,6 +397,7 @@ let rec_catch_for_for_loop env loc ident start stop
                             Lstaticraise (cont, [next_value_of_counter]),
                             L.lambda_unit,
                             Lambda.layout_unit ) ),
+                    Same_region,
                     Lambda.layout_unit ),
                 L.lambda_unit,
                 Lambda.layout_unit ) ) )
@@ -424,7 +424,8 @@ let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
     =
   let cont = Continuation.create () in
   let { Env.body_env; handler_env; extra_params } =
-    Env.add_continuation env cont ~push_to_try_stack:is_exn_handler Nonrecursive
+    Env.add_continuation env cont ~push_to_try_stack:is_exn_handler
+      ~pop_region:false Nonrecursive
   in
   let handler_env, params_rev =
     List.fold_left
@@ -846,7 +847,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           User_visible (Simple (Var temp_id)) ~body)
   | Llet ((Strict | Alias | StrictOpt), _, fun_id, Lfunction func, body) ->
     (* This case is here to get function names right. *)
-    let bindings = cps_function_bindings env [fun_id, L.Lfunction func] in
+    let bindings = cps_function_bindings env [L.{ id = fun_id; def = func }] in
     let body acc ccenv = cps acc env ccenv body k k_exn in
     let let_expr =
       List.fold_left
@@ -967,20 +968,11 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
    *   CC.close_let acc ccenv id User_visible value_kind (Simple value) ~body
    * in
    * cps_non_tail_simple acc env ccenv defining_expr k k_exn *)
-  | Lletrec (bindings, body) -> (
-    let free_vars_kind id =
-      let _, kind_with_subkind = CCenv.find_var ccenv id in
-      Some
-        (Flambda_kind.to_lambda
-           (Flambda_kind.With_subkind.kind kind_with_subkind))
-    in
-    match Dissect_letrec.dissect_letrec ~bindings ~body ~free_vars_kind with
-    | Unchanged ->
-      let function_declarations = cps_function_bindings env bindings in
-      let body acc ccenv = cps acc env ccenv body k k_exn in
-      CC.close_let_rec acc ccenv ~function_declarations ~body
-        ~current_region:(Env.current_region env)
-    | Dissected lam -> cps acc env ccenv lam k k_exn)
+  | Lletrec (bindings, body) ->
+    let function_declarations = cps_function_bindings env bindings in
+    let body acc ccenv = cps acc env ccenv body k k_exn in
+    CC.close_let_rec acc ccenv ~function_declarations ~body
+      ~current_region:(Env.current_region env)
   | Lprim (prim, args, loc) -> (
     match[@ocaml.warning "-fragile-match"] prim with
     | Praise raise_kind -> (
@@ -1045,12 +1037,16 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         compile_staticfail acc env ccenv ~continuation
           ~args:(List.flatten args @ extra_args))
       k_exn
-  | Lstaticcatch (body, (static_exn, args), handler, layout) ->
+  | Lstaticcatch (body, (static_exn, args), handler, r, layout) ->
     maybe_insert_let_cont "staticcatch_result" layout k acc env ccenv
       (fun acc env ccenv k ->
+        let pop_region =
+          match r with Popped_region -> true | Same_region -> false
+        in
         let continuation = Continuation.create () in
         let { Env.body_env; handler_env; extra_params } =
-          Env.add_static_exn_continuation env static_exn continuation
+          Env.add_static_exn_continuation env static_exn ~pop_region
+            continuation
         in
         let recursive : Asttypes.rec_flag =
           if Env.is_static_exn_recursive env static_exn
@@ -1422,49 +1418,42 @@ and cps_non_tail_list_core acc env ccenv (lams : L.lambda list)
           k_exn)
       k_exn
 
-and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
+and cps_function_bindings env (bindings : Lambda.rec_binding list) =
   let bindings_with_wrappers =
     List.map
-      (fun [@ocaml.warning "-fragile-match"] (fun_id, binding) ->
-        match binding with
-        | L.Lfunction
-            { kind;
-              params;
-              body = fbody;
-              attr;
-              loc;
-              ret_mode;
-              mode;
-              region;
-              return;
-              _
-            } -> (
-          match
-            Simplif.split_default_wrapper ~id:fun_id ~kind ~params ~body:fbody
-              ~return ~attr ~loc ~ret_mode ~mode ~region
-          with
-          | [(id, L.Lfunction lfun)] -> [id, lfun]
-          | [(id1, L.Lfunction lfun1); (id2, L.Lfunction lfun2)] ->
-            [id1, lfun1; id2, lfun2]
-          | [(_, _)] | [(_, _); (_, _)] ->
-            Misc.fatal_errorf
-              "Expected `Lfunction` terms from [split_default_wrapper] when \
-               translating:@ %a"
-              Printlambda.lambda binding
-          | _ ->
-            Misc.fatal_errorf
-              "Unexpected return value from [split_default_wrapper] when \
-               translating:@ %a"
-              Printlambda.lambda binding)
-        | _ ->
+      (fun L.
+             { id = fun_id;
+               def =
+                 { kind;
+                   params;
+                   body = fbody;
+                   attr;
+                   loc;
+                   ret_mode;
+                   mode;
+                   region;
+                   return;
+                   _
+                 }
+             } ->
+        match
+          Simplif.split_default_wrapper ~id:fun_id ~kind ~params ~body:fbody
+            ~return ~attr ~loc ~ret_mode ~mode ~region
+        with
+        | [{ id; def = lfun }] -> [id, lfun]
+        | [{ id = id1; def = lfun1 }; { id = id2; def = lfun2 }] ->
+          [id1, lfun1; id2, lfun2]
+        | [] | _ :: _ :: _ :: _ ->
           Misc.fatal_errorf
-            "Only [Lfunction] expressions are permitted in function bindings \
-             upon entry to CPS conversion: %a"
-            Printlambda.lambda binding)
+            "Unexpected return value from [split_default_wrapper] when \
+             translating:@ %a"
+            Ident.print fun_id)
       bindings
   in
   let free_idents, directed_graph =
-    let fun_ids = Ident.Set.of_list (List.map fst bindings) in
+    let fun_ids =
+      Ident.Set.of_list (List.map (fun { L.id; _ } -> id) bindings)
+    in
     List.fold_left
       (fun (free_ids, graph) (fun_id, ({ body; _ } : L.lfunction)) ->
         let free_ids_of_body = Lambda.free_variables body in

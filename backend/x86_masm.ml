@@ -209,6 +209,16 @@ let print_instr b = function
   | XCHG (arg1, arg2) -> i2 b "xchg" arg1 arg2
   | XOR (arg1, arg2) -> i2 b "xor" arg1 arg2
   | XORPD (arg1, arg2) -> i2 b "xorpd" arg1 arg2
+  | ADDSS (arg1, arg2) -> i2 b "addss" arg1 arg2
+  | SUBSS (arg1, arg2) -> i2 b "subss" arg1 arg2
+  | MULSS (arg1, arg2) -> i2 b "mulss" arg1 arg2
+  | DIVSS (arg1, arg2) -> i2 b "divss" arg1 arg2
+  | COMISS (arg1, arg2) -> i2 b "comiss" arg1 arg2
+  | UCOMISS (arg1, arg2) -> i2 b "ucomiss" arg1 arg2
+  | SQRTSS (arg1, arg2) -> i2 b "sqrtss" arg1 arg2
+  | XORPS (arg1, arg2) -> i2 b "xorps" arg1 arg2
+  | ANDPS (arg1, arg2) -> i2 b "andps" arg1 arg2
+  | CMPSS (cmp, arg1, arg2) -> i2 b ("cmp" ^ string_of_float_condition cmp ^ "ss") arg1 arg2
   | SSE CMPPS (cmp, arg1, arg2) -> i2 b ("cmp" ^ string_of_float_condition cmp ^ "ps") arg1 arg2
   | SSE SHUFPS (shuf, arg1, arg2) -> i3 b "shufps" shuf arg1 arg2
   | SSE ADDPS (arg1, arg2) -> i2 b "addps" arg1 arg2

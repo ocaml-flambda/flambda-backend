@@ -861,6 +861,7 @@ VERSION
 default_build_target
 native_compiler
 CONFIGURE_ARGS
+enable_stack_checks
 runtime_suffix
 enable_runtime5
 target_alias
@@ -906,6 +907,7 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 enable_runtime5
+enable_stack_checks
 with_dune
 enable_debug_runtime
 enable_debugger
@@ -1596,6 +1598,7 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-runtime5       Use the OCaml 5 runtime
+  --enable-stack_checks   Enable stack checks
   --disable-debug-runtime do not build runtime with debugging support
   --enable-debugger       build the debugger [default=auto]
   --disable-dependency-generation
@@ -3249,7 +3252,15 @@ else $as_nop
   runtime_suffix=4
 fi
 
+# Check whether --enable-stack_checks was given.
+if test ${enable_stack_checks+y}
+then :
+  enableval=$enable_stack_checks;
+fi
+
+
 ## Output variables
+
 
 
 
@@ -15579,6 +15590,18 @@ fi ;; #(
      ;;
 esac
 
+if test x"$enable_stack_checks" = xyes
+then :
+  printf "%s\n" "#define STACK_CHECKS_ENABLED 1" >>confdefs.h
+
+else $as_nop
+  if test x"$arch" != xamd64
+then :
+  printf "%s\n" "#define STACK_CHECKS_ENABLED 1" >>confdefs.h
+
+fi
+fi
+
 native_cflags=''
 native_cppflags="-DTARGET_${arch} -DMODEL_${model} -DSYS_${system}"
 
@@ -22432,5 +22455,3 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: unrecognized options: $ac_unrecognized_opts" >&5
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
-
-

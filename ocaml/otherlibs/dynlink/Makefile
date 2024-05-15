@@ -68,6 +68,7 @@ COMPILERLIBS_INTFS=\
   typing/solver_intf.mli \
   typing/mode_intf.mli \
   typing/outcometree.mli \
+  typing/value_rec_types.mli \
   file_formats/cmo_format.mli \
   file_formats/cmxs_format.mli \
   bytecomp/debug_event.mli
@@ -107,7 +108,6 @@ COMPILERLIBS_SOURCES=\
   parsing/printast.ml \
   parsing/syntaxerr.ml \
   parsing/ast_helper.ml \
-  parsing/jane_asttypes.ml \
   parsing/jane_syntax_parsing.ml \
   parsing/jane_syntax.ml \
   parsing/ast_iterator.ml \
@@ -119,9 +119,10 @@ COMPILERLIBS_SOURCES=\
   typing/mode.ml \
   typing/path.ml \
   typing/shape.ml \
-  typing/jkind.ml \
+  typing/jkind_types.ml \
   typing/primitive.ml \
   typing/types.ml \
+  typing/jkind.ml \
   typing/typedtree.ml \
   typing/btype.ml \
   typing/subst.ml \

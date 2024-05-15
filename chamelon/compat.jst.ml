@@ -92,7 +92,7 @@ type texp_function_identifier = {
   ret_sort : Jkind.sort;
   region : bool;
   ret_mode : Alloc.l;
-  zero_alloc : Builtin_attributes.check_attribute;
+  zero_alloc : Builtin_attributes.zero_alloc_attribute;
 }
 
 let texp_function_cases_identifier_defaults =
@@ -119,7 +119,7 @@ let texp_function_defaults =
     ret_sort = Jkind.Sort.value;
     ret_mode = Alloc.disallow_right Alloc.legacy;
     region = false;
-    zero_alloc = Builtin_attributes.Default_check;
+    zero_alloc = Builtin_attributes.Default_zero_alloc;
   }
 
 let mkTexp_function ?(id = texp_function_defaults)
@@ -390,6 +390,7 @@ let mk_value_binding ~vb_pat ~vb_expr ~vb_attributes =
     vb_pat;
     vb_expr;
     vb_attributes;
+    vb_rec_kind = Dynamic;
     vb_loc = Location.none;
     vb_sort = Jkind.Sort.value;
   }
@@ -401,7 +402,7 @@ let mk_value_description ~val_type ~val_kind ~val_attributes =
     val_loc = Location.none;
     val_attributes;
     val_uid = Uid.internal_not_actually_unique;
-    val_zero_alloc = Default_check;
+    val_zero_alloc = Default_zero_alloc;
   }
 
 let mkTtyp_any = Ttyp_var (None, None)

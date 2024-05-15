@@ -30,7 +30,7 @@ let from_basic (basic : basic) : Linear.instruction_desc =
       | Intop op -> Iintop op
       | Intop_imm (op, i) -> Iintop_imm (op, i)
       | Intop_atomic { op; size; addr } -> Iintop_atomic { op; size; addr }
-      | Floatop op -> Ifloatop op
+      | Floatop (w, op) -> Ifloatop (w, op)
       | Csel c -> Icsel c
       | Valueofint -> Ivalueofint
       | Intofvalue -> Iintofvalue

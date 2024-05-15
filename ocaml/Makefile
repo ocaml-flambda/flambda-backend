@@ -648,6 +648,7 @@ runtime4_COMMON_C_SOURCES = \
   prng \
   signals \
   simd \
+  float32 \
   skiplist \
   startup_aux \
   str \
@@ -721,6 +722,7 @@ runtime_COMMON_C_SOURCES = \
   shared_heap \
   signals \
   simd \
+  float32 \
   skiplist \
   startup_aux \
   str \

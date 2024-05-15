@@ -44,35 +44,38 @@ open! Stdlib
     ([+.], [-.], [*.], [/.]) with [nan] as an argument return [nan], ...
 *)
 
+type t = float#
+(** An alias for the type of unboxed floating-point numbers. *)
+
 (* CR layouts v5: add back all the constants in this module (e.g., [zero] and
    [infinity]) when we we support [float64]s in structures. *)
 
 (* Unboxed-specific stuff at the top. *)
-external to_float : float# -> (float[@local_opt]) = "%box_float"
+external to_float : t -> (float[@local_opt]) = "%box_float"
 (** Box a [float#] *)
 
-external of_float : (float[@local_opt]) -> float# = "%unbox_float"
+external of_float : (float[@local_opt]) -> t = "%unbox_float"
 (** Unbox a boxed [float] *)
 
 (* Below here, everything also appears in [Float], though most things are
    externals in that module. *)
 
-val neg : float# -> float#
+val neg : t -> t
 (** Unary negation. *)
 
-val add : float# -> float# -> float#
+val add : t -> t -> t
 (** Floating-point addition. *)
 
-val sub : float# -> float# -> float#
+val sub : t -> t -> t
 (** Floating-point subtraction. *)
 
-val mul : float# -> float# -> float#
+val mul : t -> t -> t
 (** Floating-point multiplication. *)
 
-val div : float# -> float# -> float#
+val div : t -> t -> t
 (** Floating-point division. *)
 
-val fma : float# -> float# -> float# -> float#
+val fma : t -> t -> t -> t
 (** [fma x y z] returns [x * y + z], with a best effort for computing
    this expression with a single rounding, using either hardware
    instructions (providing full IEEE compliance) or a software
@@ -83,49 +86,49 @@ val fma : float# -> float# -> float# -> float#
    Note: since software emulation of the fma is costly, make sure that you are
    using hardware fma support if performance matters. *)
 
-val rem : float# -> float# -> float#
+val rem : t -> t -> t
 (** [rem a b] returns the remainder of [a] with respect to [b].  The returned
     value is [a -. n *. b], where [n] is the quotient [a /. b] rounded towards
     zero to an integer. *)
 
-val succ : float# -> float#
+val succ : t -> t
 (** [succ x] returns the floating point number right after [x] i.e.,
    the smallest floating-point number greater than [x].  See also
    {!next_after}. *)
 
-val pred : float# -> float#
+val pred : t -> t
 (** [pred x] returns the floating-point number right before [x] i.e.,
    the greatest floating-point number smaller than [x].  See also
    {!next_after}. *)
 
-val abs : float# -> float#
+val abs : t -> t
 (** [abs f] returns the absolute value of [f]. *)
 
-val is_finite : float# -> bool
+val is_finite : t -> bool
 (** [is_finite x] is [true] if and only if [x] is finite i.e., not infinite and
     not {!nan}. *)
 
-val is_infinite : float# -> bool
+val is_infinite : t -> bool
 (** [is_infinite x] is [true] if and only if [x] is {!infinity} or
     {!neg_infinity}. *)
 
-val is_nan : float# -> bool
+val is_nan : t -> bool
 (** [is_nan x] is [true] if and only if [x] is not a number (see {!nan}). *)
 
 
-val is_integer : float# -> bool
+val is_integer : t -> bool
 (** [is_integer x] is [true] if and only if [x] is an integer. *)
 
 
-val of_int : int -> float#
+val of_int : int -> t
 (** Convert an integer to floating-point. *)
 
-val to_int : float# -> int
+val to_int : t -> int
 (** Truncate the given floating-point number to an integer.
     The result is unspecified if the argument is [nan] or falls outside the
     range of representable integers. *)
 
-val of_string : string -> float#
+val of_string : string -> t
 (** Convert the given string to a float.  The string is read in decimal
     (by default) or in hexadecimal (marked by [0x] or [0X]).
     The format of decimal floating-point numbers is
@@ -144,7 +147,7 @@ val of_string : string -> float#
 
 (* CR layouts v5: Add [of_string_opt] when we allow float64s in structures. *)
 
-val to_string : float# -> string
+val to_string : t -> string
 (** Return a string representation of a floating-point number.
 
     This conversion can involve a loss of precision. For greater control over
@@ -161,113 +164,113 @@ type fpclass = Stdlib.fpclass =
 (** The five classes of floating-point numbers, as determined by
     the {!classify_float} function. *)
 
-val classify_float : float# -> fpclass
+val classify_float : t -> fpclass
 (** Return the class of the given floating-point number:
     normal, subnormal, zero, infinite, or not a number. *)
 
-val pow : float# -> float# -> float#
+val pow : t -> t -> t
 (** Exponentiation. *)
 
-val sqrt : float# -> float#
+val sqrt : t -> t
 (** Square root. *)
 
-val cbrt : float# -> float#
+val cbrt : t -> t
 (** Cube root. *)
 
-val exp : float# -> float#
+val exp : t -> t
 (** Exponential. *)
 
-val exp2 : float# -> float#
+val exp2 : t -> t
 (** Base 2 exponential function. *)
 
-val log : float# -> float#
+val log : t -> t
 (** Natural logarithm. *)
 
-val log10 : float# -> float#
+val log10 : t -> t
 (** Base 10 logarithm. *)
 
-val log2 : float# -> float#
+val log2 : t -> t
 (** Base 2 logarithm. *)
 
-val expm1 : float# -> float#
+val expm1 : t -> t
 (** [expm1 x] computes [exp x -. #1.0], giving numerically-accurate results
     even if [x] is close to [#0.0]. *)
 
-val log1p : float# -> float#
+val log1p : t -> t
 (** [log1p x] computes [log(#1.0 +. x)] (natural logarithm),
     giving numerically-accurate results even if [x] is close to [#0.0]. *)
 
-val cos : float# -> float#
+val cos : t -> t
 (** Cosine.  Argument is in radians. *)
 
-val sin : float# -> float#
+val sin : t -> t
 (** Sine.  Argument is in radians. *)
 
-val tan : float# -> float#
+val tan : t -> t
 (** Tangent.  Argument is in radians. *)
 
-val acos : float# -> float#
+val acos : t -> t
 (** Arc cosine.  The argument must fall within the range [[-1.0, 1.0]].
     Result is in radians and is between [0.0] and [pi]. *)
 
-val asin : float# -> float#
+val asin : t -> t
 (** Arc sine.  The argument must fall within the range [[-1.0, 1.0]].
     Result is in radians and is between [-pi/2] and [pi/2]. *)
 
-val atan : float# -> float#
+val atan : t -> t
 (** Arc tangent.
     Result is in radians and is between [-pi/2] and [pi/2]. *)
 
-val atan2 : float# -> float# -> float#
+val atan2 : t -> t -> t
 (** [atan2 y x] returns the arc tangent of [y /. x].  The signs of [x]
     and [y] are used to determine the quadrant of the result.
     Result is in radians and is between [-pi] and [pi]. *)
 
-val hypot : float# -> float# -> float#
+val hypot : t -> t -> t
 (** [hypot x y] returns [sqrt(x *. x + y *. y)], that is, the length
     of the hypotenuse of a right-angled triangle with sides of length
     [x] and [y], or, equivalently, the distance of the point [(x,y)]
     to origin.  If one of [x] or [y] is infinite, returns [infinity]
     even if the other is [nan]. *)
 
-val cosh : float# -> float#
+val cosh : t -> t
 (** Hyperbolic cosine.  Argument is in radians. *)
 
-val sinh : float# -> float#
+val sinh : t -> t
 (** Hyperbolic sine.  Argument is in radians. *)
 
-val tanh : float# -> float#
+val tanh : t -> t
 (** Hyperbolic tangent.  Argument is in radians. *)
 
-val acosh : float# -> float#
+val acosh : t -> t
 (** Hyperbolic arc cosine.  The argument must fall within the range
     [[1.0, inf]].
     Result is in radians and is between [0.0] and [inf]. *)
 
-val asinh : float# -> float#
+val asinh : t -> t
 (** Hyperbolic arc sine.  The argument and result range over the entire
     real line.
     Result is in radians. *)
 
-val atanh : float# -> float#
+val atanh : t -> t
 (** Hyperbolic arc tangent.  The argument must fall within the range
     [[-1.0, 1.0]].
     Result is in radians and ranges over the entire real line. *)
 
-val erf : float# -> float#
+val erf : t -> t
 (** Error function.  The argument ranges over the entire real line.
     The result is always within [[-1.0, 1.0]]. *)
 
-val erfc : float# -> float#
+val erfc : t -> t
 (** Complementary error function ([erfc x = 1 - erf x]).
     The argument ranges over the entire real line.
     The result is always within [[-1.0, 1.0]]. *)
 
-val trunc : float# -> float#
+val trunc : t -> t
 (** [trunc x] rounds [x] to the nearest integer whose absolute value is
     less than or equal to [x]. *)
 
-val round : float# -> float#
+val round : t -> t
 (** [round x] rounds [x] to the nearest integer with ties (fractional
    values of 0.5) rounded away from zero, regardless of the current
    rounding direction.  If [x] is an integer, [#+0.], [#-0.], [nan], or
@@ -276,18 +279,18 @@ val round : float# -> float#
    On 64-bit mingw-w64, this function may be emulated owing to a bug in the
    C runtime library (CRT) on this platform. *)
 
-val ceil : float# -> float#
+val ceil : t -> t
 (** Round above to an integer value.
     [ceil f] returns the least integer value greater than or equal to [f].
     The result is returned as a float. *)
 
-val floor : float# -> float#
+val floor : t -> t
 (** Round below to an integer value.
     [floor f] returns the greatest integer value less than or
     equal to [f].
     The result is returned as a float. *)
 
-val next_after : float# -> float# -> float#
+val next_after : t -> t -> t
 (** [next_after x y] returns the next representable floating-point
    value following [x] in the direction of [y].  More precisely, if
    [y] is greater (resp. less) than [x], it returns the smallest
@@ -299,13 +302,13 @@ val next_after : float# -> float# -> float#
    If [x] is the smallest denormalized positive number,
    [next_after x #0. = #0.] *)
 
-val copy_sign : float# -> float# -> float#
+val copy_sign : t -> t -> t
 (** [copy_sign x y] returns a float whose absolute value is that of [x]
     and whose sign is that of [y].  If [x] is [nan], returns [nan].
     If [y] is [nan], returns either [x] or [-. x], but it is not
     specified which. *)
 
-val sign_bit : float# -> bool
+val sign_bit : t -> bool
 (** [sign_bit x] is [true] if and only if the sign bit of [x] is set.
     For example [sign_bit #1.] and [signbit #0.] are [false] while
     [sign_bit #-1.] and [sign_bit #-0.] are [true]. *)
@@ -313,11 +316,8 @@ val sign_bit : float# -> bool
 (* CR layouts v5: add back [frexp], [modf], [min_max] and [min_max_num] when we
    have floats in structures. *)
 
-val ldexp : float# -> int -> float#
+val ldexp : t -> int -> t
 (** [ldexp x n] returns [x *. #2 ** n]. *)
-
-type t = float#
-(** An alias for the type of unboxed floating-point numbers. *)
 
 val compare: t -> t -> int
 (** [compare x y] returns [0] if [x] is equal to [y], a negative integer if [x]
@@ -333,7 +333,7 @@ val min : t -> t -> t
 (** [min x y] returns the minimum of [x] and [y].  It returns [nan]
     when [x] or [y] is [nan].  Moreover [min #-0. #+0. = #-0.] *)
 
-val max : float# -> float# -> float#
+val max : t -> t -> t
 (** [max x y] returns the maximum of [x] and [y].  It returns [nan]
     when [x] or [y] is [nan].  Moreover [max #-0. #+0. = #+0.] *)
 

@@ -7,19 +7,6 @@
   (backend bisect_ppx))
  (flags
   (:standard -principal -open Flambda2_algorithms -open Flambda2_ui))
- (foreign_stubs
-  (language c)
-  (names float32_stubs)
-  (flags
-   ((:include %{project_root}/oc_cflags.sexp)
-    (:include %{project_root}/sharedlib_cflags.sexp)
-    (:include %{project_root}/oc_cppflags.sexp))))
  (ocamlopt_flags
   (:standard -O3 -open Int_replace_polymorphic_compare))
- (libraries ocamlcommon flambda2_algorithms flambda2_ui))
-
-(install
- (files
-  (dllflambda2_numbers_stubs.so as stublibs/dllflambda2_numbers_stubs.so))
- (section lib)
- (package ocaml))
+ (libraries ocamlcommon flambda2_algorithms flambda2_ui flambda2_floats))

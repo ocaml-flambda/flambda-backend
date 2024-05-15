@@ -411,8 +411,8 @@ let infix_binop (binop : Fexpr.infix_binop) : Flambda_primitive.binary_primitive
   | Int_arith o -> Int_arith (Tagged_immediate, o)
   | Int_comp c -> Int_comp (Tagged_immediate, c)
   | Int_shift s -> Int_shift (Tagged_immediate, s)
-  | Float_arith o -> Float_arith o
-  | Float_comp c -> Float_comp c
+  | Float_arith (w, o) -> Float_arith (w, o)
+  | Float_comp (w, c) -> Float_comp (w, c)
 
 let block_access_kind (ak : Fexpr.block_access_kind) :
     Flambda_primitive.Block_access_kind.t =
@@ -924,7 +924,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             ~first_complex_local_param:(Flambda_arity.num_params params_arity)
             ~result_arity ~result_types:Unknown ~result_mode
             ~contains_no_escaping_local_allocs:false ~stub:false ~inline
-            ~check:Default_check
+            ~zero_alloc_attribute:Default_check
               (* CR gyorsh: should [check] be set properly? *)
             ~is_a_functor:false ~is_opaque:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)

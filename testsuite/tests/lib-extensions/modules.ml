@@ -1,4 +1,5 @@
 (* TEST
+ flags = "-extension-universe alpha";
  include upstream_compatible;
  include stable;
  include beta;

@@ -70,12 +70,12 @@ val register_attr : attr_tracking_time -> string Location.loc -> unit
 val mark_alert_used : Parsetree.attribute -> unit
 val mark_alerts_used : Parsetree.attributes -> unit
 
-(** Properties such as the zero_alloc attribute that are checked
+(** Zero_alloc attributes are checked
     in late stages of compilation in the backend.
     Registering them helps detect code that is not checked,
     because it is optimized away by the middle-end.  *)
-val register_property : string Location.loc -> unit
-val mark_property_checked : string -> Location.t -> unit
+val register_zero_alloc_attribute : string Location.loc -> unit
+val mark_zero_alloc_attribute_checked : string -> Location.t -> unit
 
 (** Marks "warn_on_literal_pattern" attributes used for the purposes of
     misplaced attribute warnings.  Call this when moving things with alert
@@ -92,7 +92,7 @@ val mark_payload_attrs_used : Parsetree.payload -> unit
 (** Issue misplaced attribute warnings for all attributes created with
     [mk_internal] but not yet marked used. *)
 val warn_unused : unit -> unit
-val warn_unchecked_property : unit -> unit
+val warn_unchecked_zero_alloc_attribute : unit -> unit
 
 val check_alerts: Location.t -> Parsetree.attributes -> string -> unit
 val check_alerts_inclusion:
@@ -237,14 +237,10 @@ val parse_optional_id_payload :
   Parsetree.payload -> ('a,unit) Result.t
 
 (* Support for property attributes like zero_alloc *)
-type property =
-  | Zero_alloc
-
-type check_attribute =
-  | Default_check
-  | Ignore_assert_all of property
-  | Check of { property: property;
-               strict: bool;
+type zero_alloc_attribute =
+  | Default_zero_alloc
+  | Ignore_assert_all
+  | Check of { strict: bool;
                (* [strict=true] property holds on all paths.
                   [strict=false] if the function returns normally,
                   then the property holds (but property violations on
@@ -254,8 +250,7 @@ type check_attribute =
                arity: int;
                loc: Location.t;
              }
-  | Assume of { property: property;
-                strict: bool;
+  | Assume of { strict: bool;
                 never_returns_normally: bool;
                 never_raises: bool;
                 (* [never_raises=true] the function never returns
@@ -266,14 +261,14 @@ type check_attribute =
                 loc: Location.t;
               }
 
-val is_check_enabled : opt:bool -> property -> bool
+val is_zero_alloc_check_enabled : opt:bool -> bool
 
 (* Gets a zero_alloc attribute.  [~in_signature] controls both whether the
    "arity n" field is allowed, and whether we track this attribute for
    warning 199. *)
-val get_property_attribute :
+val get_zero_alloc_attribute :
   in_signature:bool -> default_arity:int -> Parsetree.attributes ->
-  property -> check_attribute
+  zero_alloc_attribute
 
 val assume_zero_alloc :
-  is_check_allowed:bool -> check_attribute -> Zero_alloc_utils.Assume_info.t
+  is_check_allowed:bool -> zero_alloc_attribute -> Zero_alloc_utils.Assume_info.t
