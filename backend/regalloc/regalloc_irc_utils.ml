@@ -2,7 +2,8 @@
 
 open! Regalloc_utils
 
-let irc_debug = false
+(* CR mslater: for testing *)
+let irc_debug = true
 
 let bool_of_param param_name =
   bool_of_param ~guard:(irc_debug, "irc_debug") param_name

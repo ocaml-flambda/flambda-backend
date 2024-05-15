@@ -16,6 +16,9 @@
 (* Construction of the interference graph.
    Annotate pseudoregs with interference lists and preference lists. *)
 
+(* CR mslater: for testing *)
+let debug = true
+
 module IntPairSet =
   Hashtbl.Make(struct
     type t = int * int
@@ -84,6 +87,7 @@ let build_graph fundecl =
   (* Compute interferences *)
 
   let rec interf i =
+    if debug then assert (not (Reg.set_has_collisions i.live));
     let destroyed = Proc.destroyed_at_oper i.desc in
     if Array.length destroyed > 0 then add_interf_set destroyed i.live;
     match i.desc with

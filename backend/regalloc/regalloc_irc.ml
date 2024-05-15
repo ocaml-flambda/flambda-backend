@@ -43,6 +43,8 @@ let build : State.t -> Cfg_with_infos.t -> unit =
       ~(move_src : Reg.t) ~(destroyed : Reg.t array) : unit =
     let destroyed = filter_fp destroyed in
     let live = Cfg_dataflow.Instr.Tbl.find liveness id in
+    if irc_debug && Reg.set_has_collisions live.across
+    then fatal "live set has physical register collisions";
     if Array.length def > 0
     then
       Reg.Set.iter

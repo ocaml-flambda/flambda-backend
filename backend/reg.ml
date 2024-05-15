@@ -299,6 +299,15 @@ let set_of_array v =
            if i >= n then Set.empty else Set.add v.(i) (add_all(i+1))
          in add_all 0
 
+let set_has_collisions s =
+  let phys_regs = Hashtbl.create (Set.cardinal s) in
+  Set.fold (fun r acc ->
+    match r.loc with
+    | Reg id ->
+      if Hashtbl.mem phys_regs id then true
+      else (Hashtbl.add phys_regs id (); acc)
+    | _ -> acc) s false
+
 let equal_stack_location left right =
   match left, right with
   | Local left, Local right -> Int.equal left right

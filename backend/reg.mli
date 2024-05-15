@@ -113,6 +113,7 @@ val diff_set_array: Set.t -> t array -> Set.t
 val inter_set_array: Set.t -> t array -> Set.t
 val disjoint_set_array: Set.t -> t array -> bool
 val set_of_array: t array -> Set.t
+val set_has_collisions : Set.t -> bool
 
 val reset: unit -> unit
 val all_registers: unit -> t list
