@@ -1,8 +1,5 @@
 (* TEST
  {
-   reference = "${test_source_directory}/get_header.heap.reference";
-   bytecode;
- }{
    stack-allocation;
    reference = "${test_source_directory}/get_header.stack.reference";
    native;

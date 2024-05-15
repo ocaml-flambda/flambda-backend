@@ -172,12 +172,12 @@ let import_crcs penv ~source crcs =
   let {crc_units; _} = penv in
   let import_crc import_info =
     let name = Import_info.Intf.name import_info in
-    let nonalias = Import_info.Intf.nonalias import_info in
-    match nonalias with
+    let info = Import_info.Intf.info import_info in
+    match info with
     | None -> ()
-    | Some (sort, crc) ->
+    | Some (kind, crc) ->
         add_import penv name;
-        Consistbl.check crc_units name sort crc source
+        Consistbl.check crc_units name kind crc source
   in Array.iter import_crc crcs
 
 let check_consistency penv imp =

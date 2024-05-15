@@ -240,7 +240,22 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
     type outval_record_rep =
       | Outval_record_boxed
       | Outval_record_unboxed
-      | Outval_record_mixed_block of mixed_record_shape
+      | Outval_record_mixed_block of mixed_product_shape
+
+    type printing_jkind =
+      | Print_as_value (* can interpret as a value and print *)
+      | Print_as of string (* can't print *)
+
+    let get_and_default_jkind_for_printing jkind =
+      match Jkind.get_default_value jkind with
+      (* CR layouts v3.0: [Value] should probably require special
+         printing to avoid descending into NULL. (This module uses
+         lots of unsafe Obj features.)
+      *)
+      | Immediate64 | Immediate | Non_null_value | Value -> Print_as_value
+      | Void -> Print_as "<void>"
+      | Any -> Print_as "<any>"
+      | Float64 | Bits32 | Bits64 | Word -> Print_as "<abstr>"
 
     let outval_of_value max_steps max_depth check_depth env obj ty =
 
@@ -436,7 +451,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                             List.mapi
                               (fun i ty_arg ->
                                  (ty_arg,
-                                  Jkind.is_void_defaulting cstr_arg_jkinds.(i))
+                                 get_and_default_jkind_for_printing
+                                   cstr_arg_jkinds.(i))
                               ) ty_args
                           in
                           tree_of_constr_with_args (tree_of_constr env path)
@@ -558,13 +574,18 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                       nest tree_of_val (depth - 1) fld ty_arg
                   | Outval_record_mixed_block shape ->
                       let fld =
-                        match Types.get_mixed_record_element shape pos with
-                        | Value_prefix -> O.field obj pos
-                        | Flat_suffix Imm -> O.field obj pos
+                        match Types.get_mixed_product_element shape pos with
+                        | Value_prefix -> `Continue (O.field obj pos)
+                        | Flat_suffix Imm -> `Continue (O.field obj pos)
                         | Flat_suffix (Float | Float64) ->
-                            O.repr (O.double_field obj pos)
+                            `Continue (O.repr (O.double_field obj pos))
+                        | Flat_suffix (Bits32 | Bits64 | Word) ->
+                            `Stop (Oval_stuff "<bits>")
                       in
-                      nest tree_of_val (depth - 1) fld ty_arg
+                      match fld with
+                      | `Continue fld ->
+                          nest tree_of_val (depth - 1) fld ty_arg
+                      | `Stop result -> result
               in
               let pos = if is_void then pos else pos + 1 in
               (lid, v) :: tree_of_fields false pos remainder
@@ -585,10 +606,12 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       and tree_of_val_list start depth obj ty_list =
         let rec tree_list i = function
           | [] -> []
-          | (_,true) :: ty_list -> Oval_stuff "<void>" :: tree_list i ty_list
-          | (ty,false) :: ty_list ->
+          | (_, Print_as msg) :: ty_list ->
+              Oval_stuff msg :: tree_list i ty_list
+          | (ty, Print_as_value) :: ty_list ->
               let tree = nest tree_of_val (depth - 1) (O.field obj i) ty in
-              tree :: tree_list (i + 1) ty_list in
+              tree :: tree_list (i + 1) ty_list
+        in
       tree_list start ty_list
 
       and tree_of_generic_array am depth obj ty_arg =
@@ -618,8 +641,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         let args =
           if inlined || unboxed then
             match ty_args with
-            | [_,true] -> [ Oval_stuff "<void>" ]
-            | [ty,false] -> [ tree_of_val (depth - 1) obj ty ]
+            | [_,Print_as msg] -> [ Oval_stuff msg ]
+            | [ty,Print_as_value] -> [ tree_of_val (depth - 1) obj ty ]
             | _ -> assert false
           else
             tree_of_val_list start depth obj ty_args
@@ -661,7 +684,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         in
         let args = instantiate_types env type_params ty_list cstr.cstr_args in
         let args = List.mapi (fun i arg ->
-            (arg, Jkind.is_void_defaulting cstr.cstr_arg_jkinds.(i)))
+            (arg, get_and_default_jkind_for_printing cstr.cstr_arg_jkinds.(i)))
             args
         in
         tree_of_constr_with_args

@@ -200,12 +200,12 @@ let check_consistency file_name cu =
     Array.iter
       (fun import ->
         let name = Import_info.name import in
-        let nonalias = Import_info.Intf.nonalias import in
+        let info = Import_info.Intf.info import in
         interfaces := name :: !interfaces;
-        match nonalias with
+        match info with
           None -> ()
-        | Some (sort, crc) ->
-            Consistbl.check crc_interfaces name sort crc file_name)
+        | Some (kind, crc) ->
+            Consistbl.check crc_interfaces name kind crc file_name)
       cu.cu_imports
   with Consistbl.Inconsistency {
       unit_name = name;

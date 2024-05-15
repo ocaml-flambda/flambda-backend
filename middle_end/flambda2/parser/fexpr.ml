@@ -210,7 +210,8 @@ type block_access_kind =
       }
   | Naked_floats of { size : targetint option }
   | Mixed of
-      { size : targetint option;
+      { tag : tag_scannable option;
+        size : targetint option;
         field_kind : Flambda_primitive.Mixed_block_access_field_kind.t
       }
 

@@ -34,15 +34,14 @@ jobs:
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
 
-          - name: flambda2_debug_runtime_nnp
-            config: --enable-middle-end=flambda2 --disable-naked-pointers
+          - name: flambda2_o3
+            config: --enable-middle-end=flambda2
             os: ubuntu-latest
             build_ocamlparam: ''
-            use_runtime: d
-            ocamlrunparam: "v=0,V=1"
+            ocamlparam: '_,O3=1'
 
-          - name: flambda2_nnp_o3
-            config: --enable-middle-end=flambda2 --disable-naked-pointers
+          - name: flambda2_o3_heap
+            config: --enable-middle-end=flambda2 --disable-stack-allocation
             os: ubuntu-latest
             build_ocamlparam: ''
             ocamlparam: '_,O3=1'
@@ -92,20 +91,10 @@ jobs:
             build_ocamlparam: '_,w=-46,regalloc=gi,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=GI_PRIORITY_HEURISTICS:interval-length,regalloc-param=GI_SELECTION_HEURISTICS:first-available,regalloc-param=GI_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1,cfg-cse-optimize=1'
             check_arch: true
 
-          - name: build_upstream_closure
-            config: --enable-middle-end=upstream-closure
-            os: ubuntu-20.04
-
-          - name: build_upstream_closure_runtime5
-            config: --enable-middle-end=upstream-closure --enable-runtime5
-            os: ubuntu-20.04
-            expected_fail: true
-
     env:
       J: "3"
       # On macOS, the testsuite is slow, so run only on push to main (#507)
       run_testsuite: "${{matrix.os != 'macos-latest' || (github.event_name == 'push' && github.event.ref == 'refs/heads/main')}}"
-      build_upstream: "${{matrix.name == 'build_upstream_closure'}}"
       expected_fail: "${{matrix.expected_fail == true}}"
 
     steps:
@@ -125,7 +114,7 @@ jobs:
       # run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install afl-fuzz
 
     - name: Cache OCaml 4.14, dune and menhir
-      uses: actions/cache@v2
+      uses: actions/cache@v4
       id: cache
       with:
         path: ${{ github.workspace }}/ocaml-414/_install
@@ -213,13 +202,8 @@ jobs:
       run: |
         if [ $run_testsuite = true ]; then target=ci; else target=compiler; fi
         export PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH
-        if [ $build_upstream = true ]; then \
-          make -j$J build_and_test_upstream \
-            || (if [ $expected_fail = true ]; then exit 0; else exit 1; fi); \
-        else \
-          make $target \
-            || (if [ $expected_fail = true ]; then exit 0; else exit 1; fi); \
-        fi
+        make $target \
+          || (if [ $expected_fail = true ]; then exit 0; else exit 1; fi);
       env:
         BUILD_OCAMLPARAM: ${{ matrix.build_ocamlparam }}
         OCAMLPARAM: ${{ matrix.ocamlparam }}

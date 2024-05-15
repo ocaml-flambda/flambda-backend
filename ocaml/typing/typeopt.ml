@@ -453,40 +453,62 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
         value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
       | _ -> assert false
     end
-  | Variant_boxed _jkinds ->
+  | Variant_boxed cstrs_and_jkinds ->
     let depth = depth + 1 in
     let for_one_constructor (constructor : Types.constructor_declaration)
-          ~depth ~num_nodes_visited =
+          ~depth ~num_nodes_visited
+          ~(cstr_shape : Types.constructor_representation) =
       let num_nodes_visited = num_nodes_visited + 1 in
       match constructor.cd_args with
       | Cstr_tuple fields ->
-        let num_nodes_visited, fields =
+        let fold_value_fields fields ~num_nodes_visited =
           List.fold_left_map
             (fun num_nodes_visited (ty, _) ->
                let num_nodes_visited = num_nodes_visited + 1 in
-               (* CR layouts v5: when we add other layouts, we'll need to check
-                  here that we aren't about to call value_kind on a different
-                  sort (we can get this info from the variant representation).
-                  For now we rely on the layout check at the top of value_kind
-                  to rule out void. *)
                value_kind env ~loc ~visited ~depth ~num_nodes_visited ty)
-            num_nodes_visited fields
+            num_nodes_visited
+            fields
+        in
+        let num_nodes_visited, fields =
+          match cstr_shape with
+          | Constructor_uniform_value ->
+              let num_nodes_visited, fields =
+                fold_value_fields fields ~num_nodes_visited
+              in
+              num_nodes_visited, Lambda.Constructor_uniform fields
+          | Constructor_mixed { value_prefix_len; flat_suffix } ->
+              let value_prefix, _ =
+                Misc.Stdlib.List.split_at value_prefix_len fields
+              in
+              assert (List.length value_prefix = value_prefix_len);
+              let num_nodes_visited, value_prefix =
+                fold_value_fields value_prefix ~num_nodes_visited
+              in
+              num_nodes_visited + Array.length flat_suffix,
+              Lambda.Constructor_mixed
+                { value_prefix; flat_suffix = Array.to_list flat_suffix }
         in
         (false, num_nodes_visited), fields
       | Cstr_record labels ->
-        List.fold_left_map
-          (fun (is_mutable, num_nodes_visited)
-               (label:Types.label_declaration) ->
-              let is_mutable =
-                Types.is_mutable label.ld_mutable || is_mutable
-              in
-              let num_nodes_visited = num_nodes_visited + 1 in
-              let num_nodes_visited, field =
-                value_kind env ~loc ~visited ~depth ~num_nodes_visited
-                  label.ld_type
-              in
-              (is_mutable, num_nodes_visited), field)
-          (false, num_nodes_visited) labels
+          (* CR layouts v5.1: This will need to be updated when we support
+             mixed inlined records.
+          *)
+        let num_nodes_visited, fields =
+          List.fold_left_map
+            (fun (is_mutable, num_nodes_visited)
+                (label:Types.label_declaration) ->
+                let is_mutable =
+                  Types.is_mutable label.ld_mutable || is_mutable
+                in
+                let num_nodes_visited = num_nodes_visited + 1 in
+                let num_nodes_visited, field =
+                  value_kind env ~loc ~visited ~depth ~num_nodes_visited
+                    label.ld_type
+                in
+                (is_mutable, num_nodes_visited), field)
+            (false, num_nodes_visited) labels
+        in
+        num_nodes_visited, Lambda.Constructor_uniform fields
     in
     let is_constant (cstr: Types.constructor_declaration) =
       (* CR layouts v5: This won't count constructors with void args as
@@ -498,27 +520,31 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
     if List.for_all is_constant cstrs then
       (num_nodes_visited, Pintval)
     else
-      let result =
-        List.fold_left (fun result constructor ->
+      let _idx, result =
+        List.fold_left (fun (idx, result) constructor ->
+          idx+1,
           match result with
           | None -> None
           | Some (num_nodes_visited,
                   next_const, consts, next_tag, non_consts) ->
+            let cstr_shape, _ = cstrs_and_jkinds.(idx) in
             let (is_mutable, num_nodes_visited), fields =
               for_one_constructor constructor ~depth ~num_nodes_visited
+                ~cstr_shape
             in
             if is_mutable then None
-            else if List.compare_length_with fields 0 = 0 then
+            else match fields with
+            | Constructor_uniform xs when List.compare_length_with xs 0 = 0 ->
               let consts = next_const :: consts in
               Some (num_nodes_visited,
                     next_const + 1, consts, next_tag, non_consts)
-            else
+            | Constructor_mixed _ | Constructor_uniform _ ->
               let non_consts =
-                (next_tag, Constructor_uniform fields) :: non_consts
+                (next_tag, fields) :: non_consts
               in
               Some (num_nodes_visited,
                     next_const, consts, next_tag + 1, non_consts))
-          (Some (num_nodes_visited, 0, [], 0, []))
+          (0, Some (num_nodes_visited, 0, [], 0, []))
           cstrs
       in
       begin match result with

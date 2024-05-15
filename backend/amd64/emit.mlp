@@ -16,6 +16,10 @@
 
 (* Emission of Intel x86_64 assembly code *)
 
+(* Correctness: carefully consider any use of [Config], [Clflags],
+   [Flambda_backend_flags] and shared variables.
+   For details, see [asmgen.mli]. *)
+
 open Cmm
 open Arch
 open Proc
