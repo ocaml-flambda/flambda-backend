@@ -16,6 +16,8 @@
  (name beta)
  (wrapped false)
  (modes byte native)
+ (enabled_if
+  (= %{architecture} "amd64"))
  (flags
   (-strict-sequence
    -principal
@@ -35,6 +37,8 @@
   (:standard -linkall)))
 
 (install
+ (enabled_if
+  (= %{architecture} "amd64"))
  (files
   (beta.cmxa as beta/beta.cmxa)
   (beta.a as beta/beta.a)
