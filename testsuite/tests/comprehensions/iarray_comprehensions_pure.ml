@@ -1,12 +1,11 @@
 (* TEST
  flags = "-extension comprehensions";
- include stdlib_stable;
  expect;
 *)
 
-module Iarray = Stdlib_stable.Iarray;;
+module Iarray = Stdlib__Iarray;;
 [%%expect{|
-module Iarray = Stdlib_stable.Iarray
+module Iarray = Stdlib__Iarray
 |}];;
 
 (******************************************************************************
