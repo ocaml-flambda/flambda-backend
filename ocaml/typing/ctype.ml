@@ -958,7 +958,7 @@ let rec update_level env level expand ty =
         let mty = !modtype_of_package env Location.none p fl in
         let env = Env.add_module (Ident.of_unscoped id) Mp_present mty env in
         set_level ty level;
-        update_level env true level expand t
+        update_level env level expand t
     | Tfield(lab, _, ty1, _)
       when lab = dummy_method && level < get_scope ty1 ->
         raise_escape_exn Self
@@ -5032,44 +5032,42 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
               moregen inst_nongen variance type_pairs env u1 u2;
               moregen_alloc_mode (neg_variance variance) a1 a2;
               moregen_alloc_mode variance r1 r2
-          | (Tfunctor ((l1,a1,r1), id1, (p1, fl1), t1),
-             Tfunctor ((l2,a2,r2), id2, (p2, fl2), t2)) when
+          | (Tfunctor ((l1,a1,r1), id1, (p1, fl1), u1),
+             Tfunctor ((l2,a2,r2), id2, (p2, fl2), u2)) when
              (l1 = l2
              || !Clflags.classic && equivalent_with_nolabels l1 l2) ->
-              begin try
-                unify_package env (moregen_list inst_nongen variance type_pairs env)
-                  (get_level t1') p1 fl1 (get_level t2') p2 fl2
-              with Not_found -> raise_unexplained_for Moregen
-              end;
+              let fcm1 = newty (Tpackage (p1, fl1)) in
+              let fcm2 = newty (Tpackage (p2, fl2)) in
+              moregen inst_nongen (neg_variance variance) type_pairs env fcm1 fcm2;
               let mty1 = !modtype_of_package env Location.none p1 fl1 in
               let new_env = Env.add_module (Ident.of_unscoped id1) Mp_present mty1 env in
               let mty2 = !modtype_of_package env Location.none p2 fl2 in
               let new_env = Env.add_module (Ident.of_unscoped id2) Mp_present mty2 new_env in
-              enter_functor_for Unify env id1 t1' id2 t2'
-                  (fun () -> moregen inst_nongen variance type_pairs new_env t1 t2);
+              enter_functor_for Moregen env id1 t1' id2 t2'
+                  (fun () -> moregen inst_nongen variance type_pairs new_env u1 u2);
               moregen_alloc_mode (neg_variance variance) a1 a2;
               moregen_alloc_mode variance r1 r2
           | (Tfunctor ((l1,a1,r1), id1, (p1, fl1), u1),
-             Tarrow ((l2,a2,r2), t2, u2, _)) when
+             Tarrow ((l2,a2,r2), fcm2, u2, _)) when
                (l1 = l2
                 || !Clflags.classic && equivalent_with_nolabels l1 l2) ->
-              let t1 = newmono (newty (Tpackage (p1, fl1))) in
+              let fcm1 = newmono (newty (Tpackage (p1, fl1))) in
               let mty = !modtype_of_package env Location.none p1 fl1 in
               let env' = Env.add_module (Ident.of_unscoped id1) Mp_present mty env in
               identifier_escape_for Moregen env' [id1] u1;
-              moregen inst_nongen (neg_variance variance) type_pairs env t1 t2;
+              moregen inst_nongen (neg_variance variance) type_pairs env fcm1 fcm2;
               moregen inst_nongen variance type_pairs env u1 u2;
               moregen_alloc_mode (neg_variance variance) a1 a2;
               moregen_alloc_mode variance r1 r2
-          | (Tarrow ((l1,a1,r1), t1, u1, _),
+          | (Tarrow ((l1,a1,r1), fcm1, u1, _),
              Tfunctor ((l2,a2,r2), id2, (p2, fl2), u2)) when
                (l1 = l2
                 || !Clflags.classic && equivalent_with_nolabels l1 l2) ->
-              let t2 = newmono (newty (Tpackage (p2, fl2))) in
+              let fcm2 = newmono (newty (Tpackage (p2, fl2))) in
               let mty = !modtype_of_package env Location.none p2 fl2 in
               let env' = Env.add_module (Ident.of_unscoped id2) Mp_present mty env in
               identifier_escape_for Moregen env' [id2] u2;
-              moregen inst_nongen (neg_variance variance) type_pairs env t1 t2;
+              moregen inst_nongen (neg_variance variance) type_pairs env fcm1 fcm2;
               moregen inst_nongen variance type_pairs env u1 u2;
               moregen_alloc_mode (neg_variance variance) a1 a2;
               moregen_alloc_mode variance r1 r2
@@ -5499,39 +5497,37 @@ let rec eqtype rename type_pairs subst env t1 t2 =
               eqtype rename type_pairs subst env u1 u2;
               eqtype_alloc_mode a1 a2;
               eqtype_alloc_mode r1 r2
-          | (Tfunctor ((l1,a1,r1), id1, (p1, fl1), t1),
-             Tfunctor ((l2,a2,r2), id2, (p2, fl2), t2)) when
+          | (Tfunctor ((l1,a1,r1), id1, (p1, fl1), u1),
+             Tfunctor ((l2,a2,r2), id2, (p2, fl2), u2)) when
                (l1 = l2
                 || !Clflags.classic && equivalent_with_nolabels l1 l2) ->
-              begin try
-                unify_package env (eqtype_list rename type_pairs subst env)
-                  (get_level t1') p1 fl1 (get_level t2') p2 fl2
-              with Not_found -> raise_unexplained_for Equality
-              end;
+              let fcm1 = newty (Tpackage (p1, fl1)) in
+              let fcm2 = newty (Tpackage (p2, fl2)) in
+              eqtype rename type_pairs subst env fcm1 fcm2;
               let mty1 = !modtype_of_package env Location.none p1 fl1 in
               let new_env = Env.add_module (Ident.of_unscoped id1) Mp_present mty1 env in
               let mty2 = !modtype_of_package env Location.none p2 fl2 in
               let new_env = Env.add_module (Ident.of_unscoped id2) Mp_present mty2 new_env in
               enter_functor_for Equality env id1 t1' id2 t2'
-                  (fun () -> eqtype rename type_pairs subst new_env t1 t2);
+                  (fun () -> eqtype rename type_pairs subst new_env u1 u2);
               eqtype_alloc_mode a1 a2;
               eqtype_alloc_mode r1 r2
           | (Tfunctor ((l1,a1,r1), id1, (p1, fl1), u1),
-             Tarrow ((l2,a2,r2), t2, u2, _)) when
+             Tarrow ((l2,a2,r2), fcm2, u2, _)) when
                (l1 = l2
                 || !Clflags.classic && equivalent_with_nolabels l1 l2) ->
-              eqtype rename type_pairs subst env (newmono (newty (Tpackage (p1, fl1)))) t2;
+              eqtype rename type_pairs subst env (newmono (newty (Tpackage (p1, fl1)))) fcm2;
               let mty = !modtype_of_package env Location.none p1 fl1 in
               let env' = Env.add_module (Ident.of_unscoped id1) Mp_present mty env in
               identifier_escape_for Equality env' [id1] u1;
               eqtype rename type_pairs subst env u1 u2;
               eqtype_alloc_mode a1 a2;
               eqtype_alloc_mode r1 r2
-          | (Tarrow ((l1,a1,r1), t1, u1, _),
+          | (Tarrow ((l1,a1,r1), fcm1, u1, _),
              Tfunctor ((l2,a2,r2), id2, (p2, fl2), u2)) when
                (l1 = l2
                 || !Clflags.classic && equivalent_with_nolabels l1 l2) ->
-              eqtype rename type_pairs subst env t1 (newmono (newty (Tpackage (p2, fl2))));
+              eqtype rename type_pairs subst env fcm1 (newmono (newty (Tpackage (p2, fl2))));
               let mty = !modtype_of_package env Location.none p2 fl2 in
               let env' = Env.add_module (Ident.of_unscoped id2) Mp_present mty env in
               identifier_escape_for Equality env' [id2] u2;
@@ -6393,80 +6389,92 @@ let rec subtype_rec env trace t1 t2 cstrs =
     | (Tfunctor((l1,a1,r1), id1, (p1, fl1), u1),
        Tfunctor((l2,a2,r2), id2, (p2, fl2), u2)) when l1 = l2
       || !Clflags.classic && equivalent_with_nolabels l1 l2 ->
-        let t1 = newty (Tpackage (p1, fl1)) in
-        let t2 = newty (Tpackage (p2, fl2)) in
-        let cstrs =
-          subtype_rec
-            env
-            (Subtype.Diff {got = t2; expected = t1} :: trace)
-            t2 t1
-            cstrs
-        in
-        let a2 = mode_cross_left env (newmono t2) a2 in
-          subtype_alloc_mode env trace a2 a1;
-        (* RHS mode of arrow types indicates allocation in the parent region
-            and is not subject to mode crossing *)
-        subtype_alloc_mode env trace r1 r2; 
-        let mty1 = !modtype_of_package env Location.none p1 fl1 in
-        let new_env = Env.add_module (Ident.of_unscoped id1) Mp_present mty1 env in
-        let mty2 = !modtype_of_package env Location.none p2 fl2 in
-        let new_env = Env.add_module (Ident.of_unscoped id2) Mp_present mty2 new_env in
-        enter_functor env id1 t1 id2 t2
-          (fun () -> subtype_rec
-              new_env
-              (Subtype.Diff {got = u1; expected = u2} :: trace)
-              u1 u2
-              cstrs)
+        begin try
+          let fcm1 = newty (Tpackage (p1, fl1)) in
+          let fcm2 = newty (Tpackage (p2, fl2)) in
+          let cstrs =
+            subtype_rec
+              env
+              (Subtype.Diff {got = fcm2; expected = fcm1} :: trace)
+              fcm2 fcm1
+              cstrs
+          in
+          let a2 = mode_cross_left env (newmono fcm2) a2 in
+            subtype_alloc_mode env trace a2 a1;
+          (* RHS mode of arrow types indicates allocation in the parent region
+              and is not subject to mode crossing *)
+          subtype_alloc_mode env trace r1 r2; 
+          let mty1 = !modtype_of_package env Location.none p1 fl1 in
+          let new_env = Env.add_module (Ident.of_unscoped id1) Mp_present mty1 env in
+          let mty2 = !modtype_of_package env Location.none p2 fl2 in
+          let new_env = Env.add_module (Ident.of_unscoped id2) Mp_present mty2 new_env in
+          enter_functor env id1 t1 id2 t2
+            (fun () -> subtype_rec
+                new_env
+                (Subtype.Diff {got = u1; expected = u2} :: trace)
+                u1 u2
+                cstrs)
+        with Escape _ -> 
+          ((env, Ident.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
+        end
     | (Tfunctor((l1,a1,r1), id1, (p1, fl1), u1),
-       Tarrow((l2,a2,r2), t2, u2, _)) when l1 = l2
+       Tarrow((l2,a2,r2), fcm2, u2, _)) when l1 = l2
       || !Clflags.classic && equivalent_with_nolabels l1 l2 ->
-        let t1 = newmono (newty (Tpackage (p1, fl1))) in
-        let cstrs =
+        begin try
+          let fcm1 = newmono (newty (Tpackage (p1, fl1))) in
+          let cstrs =
+            subtype_rec
+              env
+              (Subtype.Diff {got = fcm2; expected = fcm1} :: trace)
+              fcm2 fcm1
+              cstrs
+          in
+          let a2 = mode_cross_left env fcm2 a2 in
+          subtype_alloc_mode env trace a2 a1;
+          (* RHS mode of arrow types indicates allocation in the parent region
+            and is not subject to mode crossing *)
+          subtype_alloc_mode env trace r1 r2;
+          let mty = !modtype_of_package env Location.none p1 fl1 in
+          identifier_escape
+              (Env.add_module (Ident.of_unscoped id1) Mp_present mty env)
+              [id1] u1;
           subtype_rec
             env
-            (Subtype.Diff {got = t2; expected = t1} :: trace)
-            t2 t1
+            (Subtype.Diff {got = u1; expected = u2} :: trace)
+            u1 u2
             cstrs
-        in
-        let a2 = mode_cross_left env t2 a2 in
-        subtype_alloc_mode env trace a2 a1;
-        (* RHS mode of arrow types indicates allocation in the parent region
-          and is not subject to mode crossing *)
-        subtype_alloc_mode env trace r1 r2;
-        let mty = !modtype_of_package env Location.none p1 fl1 in
-        identifier_escape_for Unify
-            (Env.add_module (Ident.of_unscoped id1) Mp_present mty env)
-            [id1] u1;
-        subtype_rec
-          env
-          (Subtype.Diff {got = u1; expected = u2} :: trace)
-          u1 u2
-          cstrs
-    | (Tarrow((l1,a1,r1), t1, u1, _),
+        with Escape _ -> 
+          ((env, Ident.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
+        end
+    | (Tarrow((l1,a1,r1), fcm1, u1, _),
        Tfunctor((l2,a2,r2), id2, (p2, fl2), u2)) when l1 = l2
       || !Clflags.classic && equivalent_with_nolabels l1 l2 ->
-        let t2 = newmono (newty (Tpackage (p2, fl2))) in
-        let cstrs =
+        begin try
+          let fcm2 = newmono (newty (Tpackage (p2, fl2))) in
+          let cstrs =
+            subtype_rec
+              env
+              (Subtype.Diff {got = fcm2; expected = fcm1} :: trace)
+              fcm2 fcm1
+              cstrs
+          in
+          let a2 = mode_cross_left env fcm2 a2 in
+          subtype_alloc_mode env trace a2 a1;
+          (* RHS mode of arrow types indicates allocation in the parent region
+            and is not subject to mode crossing *)
+          subtype_alloc_mode env trace r1 r2;
+          let mty = !modtype_of_package env Location.none p2 fl2 in
+          identifier_escape
+              (Env.add_module (Ident.of_unscoped id2) Mp_present mty env)
+              [id2] u2;
           subtype_rec
             env
-            (Subtype.Diff {got = t2; expected = t1} :: trace)
-            t2 t1
+            (Subtype.Diff {got = u1; expected = u2} :: trace)
+            u1 u2
             cstrs
-        in
-        let a2 = mode_cross_left env t2 a2 in
-         subtype_alloc_mode env trace a2 a1;
-        (* RHS mode of arrow types indicates allocation in the parent region
-           and is not subject to mode crossing *)
-        subtype_alloc_mode env trace r1 r2;
-        let mty = !modtype_of_package env Location.none p2 fl2 in
-        identifier_escape_for Unify
-            (Env.add_module (Ident.of_unscoped id2) Mp_present mty env)
-            [id2] u2;
-        subtype_rec
-          env
-          (Subtype.Diff {got = u1; expected = u2} :: trace)
-          u1 u2
-          cstrs 
+        with Escape _ -> 
+          ((env, Ident.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
+        end  
     | (Ttuple tl1, Ttuple tl2) ->
         subtype_labeled_list env trace tl1 tl2 cstrs
     | (Tconstr(p1, [], _), Tconstr(p2, [], _)) when Path.equiv p1 p2 ->
