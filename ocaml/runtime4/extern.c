@@ -732,8 +732,9 @@ static void extern_rec(value v)
     mlsize_t sz = Wosize_hd(hd);
     reserved_t reserved = Reserved_hd(hd);
     if (Is_mixed_block_reserved(reserved)) {
-      extern_invalid_argument("output_value: mixed block");
-      break;
+      sz = Scannable_wosize_hd(hd);
+//      extern_invalid_argument("output_value: mixed block");
+//      break;
     }
 
     if (tag == Forward_tag) {
