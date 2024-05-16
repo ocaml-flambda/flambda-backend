@@ -951,7 +951,6 @@ end = struct
     | Tnil ->
       format_with_notify_js ppf
         "it's an internal Tnil type (you shouldn't see this)"
-    | First_class_module -> fprintf ppf "it's a first-class module type"
     | Separability_check ->
       fprintf ppf "the check that a type is definitely not `float`"
     | Univar ->
@@ -999,6 +998,7 @@ end = struct
     | Tuple -> fprintf ppf "it's a tuple type"
     | Polymorphic_variant -> fprintf ppf "it's a polymorphic variant type"
     | Arrow -> fprintf ppf "it's a function type"
+    | First_class_module -> fprintf ppf "it's a first-class module type"
 
   let format_float64_creation_reason ppf : float64_creation_reason -> _ =
     function
@@ -1356,7 +1356,6 @@ module Debug_printers = struct
     | Row_variable -> fprintf ppf "Row_variable"
     | Tfield -> fprintf ppf "Tfield"
     | Tnil -> fprintf ppf "Tnil"
-    | First_class_module -> fprintf ppf "First_class_module"
     | Separability_check -> fprintf ppf "Separability_check"
     | Univar -> fprintf ppf "Univar"
     | Polymorphic_variant_field -> fprintf ppf "Polymorphic_variant_field"
@@ -1382,6 +1381,7 @@ module Debug_printers = struct
     | Tuple -> fprintf ppf "Tuple"
     | Polymorphic_variant -> fprintf ppf "Polymorphic_variant"
     | Arrow -> fprintf ppf "Arrow"
+    | First_class_module -> fprintf ppf "First_class_module"
 
   let float64_creation_reason ppf : float64_creation_reason -> _ = function
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)

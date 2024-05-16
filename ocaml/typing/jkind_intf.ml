@@ -188,7 +188,6 @@ module History = struct
     | Row_variable
     | Tfield
     | Tnil
-    | First_class_module
     | Separability_check
     | Univar
     | Polymorphic_variant_field
@@ -213,6 +212,7 @@ module History = struct
     | Tuple
     | Polymorphic_variant
     | Arrow
+    | First_class_module
 
   type immediate_creation_reason =
     | Empty_record

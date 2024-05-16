@@ -248,7 +248,7 @@ Line 4, characters 17-39:
                      ^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type (module X_int)
        but an expression was expected of type 'a t = ('a : void)
-       The layout of (module X_int) is value, because
+       The layout of (module X_int) is non_null_value, because
          it's a first-class module type.
        But the layout of (module X_int) must be a sublayout of void, because
          of the definition of t at line 1, characters 0-22.

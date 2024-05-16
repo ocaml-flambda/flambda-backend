@@ -2120,7 +2120,7 @@ let rec estimate_type_jkind env ty =
   | (Tlink _ | Tsubst _) -> assert false
   | Tunivar { jkind } -> Jkind jkind
   | Tpoly (ty, _) -> estimate_type_jkind env ty
-  | Tpackage _ -> Jkind (value ~why:First_class_module)
+  | Tpackage _ -> Jkind (non_null_value ~why:First_class_module)
 
 (**** checking jkind relationships ****)
 
