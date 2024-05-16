@@ -252,9 +252,9 @@ module M6_1 = struct
 end
 
 [%%expect{|
-Line 11, characters 59-62:
+Line 11, characters 79-82:
 11 |   let _ =  assert (Stdlib_upstream_compatible.Int64_u.equal #42L (get_third [| #0L; #1L; #42L |]))
-                                                                ^^^
+                                                                                    ^^^
 Error: This expression has type int64# but an expression was expected of type
          ('a : bits32)
        The layout of int64# is bits64, because

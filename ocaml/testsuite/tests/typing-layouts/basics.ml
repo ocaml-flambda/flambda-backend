@@ -250,11 +250,12 @@ module M1 = struct
 end;;
 
 [%%expect{|
-Line 4, characters 52-53:
+Line 4, characters 72-73:
 4 |   let f1 () = A {a = (fun x y -> Stdlib_upstream_compatible.Float_u.abs x)}
-                                                        ^
+                                                                            ^
 Error: This expression has type ('a : value)
-       but an expression was expected of type Stdlib_upstream_compatible.Float_u.t = float#
+       but an expression was expected of type
+         Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64, because
          it is the primitive float64 type float#.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value, because
@@ -284,11 +285,12 @@ module M1 = struct
 end;;
 
 [%%expect{|
-Line 4, characters 47-48:
+Line 4, characters 67-68:
 4 |   let f1 () = A (fun x y -> Stdlib_upstream_compatible.Float_u.abs x)
-                                                   ^
+                                                                       ^
 Error: This expression has type ('a : value)
-       but an expression was expected of type Stdlib_upstream_compatible.Float_u.t = float#
+       but an expression was expected of type
+         Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64, because
          it is the primitive float64 type float#.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value, because
@@ -302,11 +304,12 @@ module M1 = struct
 end;;
 
 [%%expect{|
-Line 4, characters 54-55:
+Line 4, characters 74-75:
 4 |   let f6 () = A {a = (fun x y -> Stdlib_upstream_compatible.Float_u.add x y)}
-                                                          ^
+                                                                              ^
 Error: This expression has type ('a : value)
-       but an expression was expected of type Stdlib_upstream_compatible.Float_u.t = float#
+       but an expression was expected of type
+         Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64, because
          it is the primitive float64 type float#.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value, because
@@ -320,11 +323,12 @@ module M1 = struct
 end;;
 
 [%%expect{|
-Line 4, characters 49-50:
+Line 4, characters 69-70:
 4 |   let f6 () = A (fun x y -> Stdlib_upstream_compatible.Float_u.add x y)
-                                                     ^
+                                                                         ^
 Error: This expression has type ('a : value)
-       but an expression was expected of type Stdlib_upstream_compatible.Float_u.t = float#
+       but an expression was expected of type
+         Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64, because
          it is the primitive float64 type float#.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value, because
@@ -723,7 +727,8 @@ Line 5, characters 16-17:
 5 |     | `Bar v -> v
                     ^
 Error: This expression has type ('a : value)
-       but an expression was expected of type Stdlib_upstream_compatible.Float_u.t = float#
+       but an expression was expected of type
+         Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64, because
          it is the primitive float64 type float#.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value, because
