@@ -468,3 +468,55 @@ module M4 :
     val f : ('a : immediate). 'a t -> 'a
   end
 |}]
+
+module type S4 = sig
+  type t : immediate [@@warning "-187"]
+end;;
+
+[%%expect{|
+module type S4 = sig type t : immediate end
+|}]
+
+module[@warning "-187"] M5 = struct
+  let f (type a : immediate): a -> a = fun x -> x
+end;;
+
+[%%expect{|
+module M5 : sig val f : ('a : immediate). 'a -> 'a end
+|}]
+
+(* Just disabling the warning on the expression level doesn't work
+   if the declaration has a type variable annotation. *)
+
+let[@warning "-187"] fails (type a : immediate): a -> a = fun x -> x
+;;
+
+[%%expect{|
+Line 1, characters 21-26:
+1 | let[@warning "-187"] fails (type a : immediate): a -> a = fun x -> x
+                         ^^^^^
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in fails
+can't be erased for compatibility with upstream OCaml.
+
+val fails : ('a : immediate). 'a -> 'a = <fun>
+|}]
+
+module type S5 = sig
+  type ('a : immediate) fails = 'a [@@warning "-187"]
+end;;
+
+[%%expect{|
+Line 2, characters 2-53:
+2 |   type ('a : immediate) fails = 'a [@@warning "-187"]
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in fails
+can't be erased for compatibility with upstream OCaml.
+
+Line 2, characters 2-53:
+2 |   type ('a : immediate) fails = 'a [@@warning "-187"]
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in fails
+can't be erased for compatibility with upstream OCaml.
+
+module type S5 = sig type ('a : immediate) fails = 'a end
+|}]
