@@ -1,5 +1,5 @@
 (* TEST
- include stable;
+ include stdlib_upstream_compatible;
  flambda2;
  native;
 *)
@@ -24,7 +24,7 @@ module Int64 = struct
 end
 
 module Int64_u = struct
-  include Stable.Int64_u
+  include stdlib_upstream_compatible.Int64_u
 
   let ( + ) = add
   let ( - ) = sub
