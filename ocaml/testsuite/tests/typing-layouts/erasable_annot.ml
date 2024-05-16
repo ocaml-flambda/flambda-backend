@@ -531,3 +531,16 @@ can't be erased for compatibility with upstream OCaml.
 
 module M6 : sig type ('a : immediate) t = 'a * 'a end
 |}]
+
+(* More disabled warnings. *)
+external[@warning "-187"] f_ok : int -> bool -> int64# = "foo" "bar";;
+
+[%%expect{|
+external f_ok : int -> bool -> (int64# [@unboxed]) = "foo" "bar"
+|}]
+
+external f_2_ok : M.t -> M.t = "%identity" [@@unboxed] [@@warning "-187"];;
+
+[%%expect{|
+external f_2_ok : M.t -> M.t = "%identity" [@@unboxed]
+|}]
