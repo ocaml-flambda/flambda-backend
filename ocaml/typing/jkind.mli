@@ -151,6 +151,8 @@ val void : why:void_creation_reason -> t
 (** This is the jkind of normal ocaml values *)
 val value : why:value_creation_reason -> t
 
+val non_null_value : why:non_null_value_creation_reason -> t
+
 (** Values of types of this jkind are immediate on 64-bit platforms; on other
     platforms, we know nothing other than that it's a value. *)
 val immediate64 : why:immediate64_creation_reason -> t

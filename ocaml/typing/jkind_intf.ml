@@ -211,6 +211,9 @@ module History = struct
     | Recmod_fun_arg
     | Unknown of string (* CR layouts: get rid of these *)
 
+  type non_null_value_creation_reason =
+    | Primitive of Ident.t
+
   type immediate_creation_reason =
     | Empty_record
     | Enumeration
@@ -249,6 +252,7 @@ module History = struct
     | Annotated of annotation_context * Location.t
     | Missing_cmi of Path.t
     | Value_creation of value_creation_reason
+    | Non_null_value_creation of non_null_value_creation_reason
     | Immediate_creation of immediate_creation_reason
     | Immediate64_creation of immediate64_creation_reason
     | Void_creation of void_creation_reason

@@ -548,6 +548,9 @@ let value ~(why : value_creation_reason) =
   | V1_safety_check -> value_v1_safety_check
   | _ -> fresh_jkind Jkind_desc.value ~why:(Value_creation why)
 
+let non_null_value ~(why: non_null_value_creation_reason) =
+  fresh_jkind Jkind_desc.non_null_value ~why:(Non_null_value_creation why)
+
 let immediate64 ~why =
   fresh_jkind Jkind_desc.immediate64 ~why:(Immediate64_creation why)
 
@@ -985,6 +988,12 @@ end = struct
         "unknown @[(please alert the Jane Street@;\
          compilers team with this message: %s)@]" s
 
+  let format_non_null_value_creation_reason ppf :
+    non_null_value_creation_reason -> _ =
+    function
+    | Primitive id ->
+      fprintf ppf "it is the primitive non-null value type %s" (Ident.name id)
+
   let format_float64_creation_reason ppf : float64_creation_reason -> _ =
     function
     | Primitive id ->
@@ -1019,6 +1028,8 @@ end = struct
       format_immediate64_creation_reason ppf immediate64
     | Void_creation _ -> .
     | Value_creation value -> format_value_creation_reason ppf value
+    | Non_null_value_creation non_null_value ->
+      format_non_null_value_creation_reason ppf non_null_value
     | Float64_creation float -> format_float64_creation_reason ppf float
     | Float32_creation float -> format_float32_creation_reason ppf float
     | Word_creation word -> format_word_creation_reason ppf word
@@ -1362,6 +1373,10 @@ module Debug_printers = struct
     | Recmod_fun_arg -> fprintf ppf "Recmod_fun_arg"
     | Unknown s -> fprintf ppf "Unknown %s" s
 
+  let non_null_value_creation_reason ppf : non_null_value_creation_reason -> _ =
+    function
+    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
+
   let float64_creation_reason ppf : float64_creation_reason -> _ = function
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
 
@@ -1390,6 +1405,9 @@ module Debug_printers = struct
         immediate64
     | Value_creation value ->
       fprintf ppf "Value_creation %a" value_creation_reason value
+    | Non_null_value_creation non_null_value ->
+      fprintf ppf "Non_null_value_creation %a" non_null_value_creation_reason
+        non_null_value
     | Void_creation _ -> .
     | Float64_creation float ->
       fprintf ppf "Float64_creation %a" float64_creation_reason float
