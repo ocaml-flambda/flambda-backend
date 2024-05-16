@@ -134,8 +134,102 @@ Error: Signature mismatch:
 |}]
 
 (* Immediates are non-null: *)
-let _ = id_non_null_value 3;;
+
+let _ = id_non_null_value 3
+
+let _ = id_non_null_value 'x'
+
+let () = id_non_null_value ()
+
+let _ = id_non_null_value true
+
+let _ = id_non_null_value 3l
+;;
 
 [%%expect{|
 - : int = 3
+- : char = 'x'
+- : bool = true
+- : int32 = 3l
+|}]
+
+(* Built-in types are non-null: *)
+
+let _ = id_non_null_value "test"
+
+let _ = id_non_null_value [ 1; 2; 3 ]
+
+let _ = id_non_null_value ("a", "b")
+
+let _ = id_non_null_value None
+
+let _ = id_non_null_value (Some 0)
+
+let _ = id_non_null_value 3.14
+
+let _ = id_non_null_value [| 3.; 8. |]
+
+let _ = id_non_null_value 4L
+
+let _ = id_non_null_value 15n
+;;
+
+[%%expect{|
+- : string = "test"
+- : int list = [1; 2; 3]
+- : string * string = ("a", "b")
+- : 'a option = None
+- : int option = Some 0
+- : float = 3.14
+- : float array = [|3.; 8.|]
+- : int64 = 4L
+- : nativeint = 15n
+|}]
+
+(* Boxed records and variants are non-null: *)
+
+type t1 = { x : int; y : string }
+
+type t2 = | A | B of char
+
+let _ = id_non_null_value { x = 3; y = "test" }
+
+let _ = id_non_null_value A
+
+let _ = id_non_null_value (`Some_variant "foo")
+
+let _ = ref 0
+;;
+
+[%%expect{|
+type t1 = { x : int; y : string; }
+type t2 = A | B of char
+- : t1 = {x = 3; y = "test"}
+- : t2 = A
+- : [> `Some_variant of string ] = `Some_variant "foo"
+- : int ref = {contents = 0}
+|}]
+
+(* Functions are non-null: *)
+
+let _ = id_non_null_value (fun x -> x)
+
+let _ = id_non_null_value (fun (_ : float#) -> 2)
+;;
+
+[%%expect{|
+Line 1, characters 8-38:
+1 | let _ = id_non_null_value (fun x -> x)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 5 [ignored-partial-application]: this function application is partial,
+maybe some arguments are missing.
+
+- : '_weak1 -> '_weak1 = <fun>
+Line 3, characters 8-49:
+3 | let _ = id_non_null_value (fun (_ : float#) -> 2)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 5 [ignored-partial-application]: this function application is partial,
+maybe some arguments are missing.
+
+- : float# -> int = <fun>
 |}]
