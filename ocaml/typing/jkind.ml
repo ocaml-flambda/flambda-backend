@@ -934,7 +934,6 @@ end = struct
     | Class_field -> fprintf ppf "it's the type of a class field"
     | Boxed_record -> fprintf ppf "it's a boxed record type"
     | Boxed_variant -> fprintf ppf "it's a boxed variant type"
-    | Extensible_variant -> fprintf ppf "it's an extensible variant type"
     | Primitive id ->
       fprintf ppf "it is the primitive value type %s" (Ident.name id)
     | Type_argument { parent_path; position; arity } ->
@@ -993,6 +992,7 @@ end = struct
     function
     | Primitive id ->
       fprintf ppf "it is the primitive non-null value type %s" (Ident.name id)
+    | Extensible_variant -> fprintf ppf "it's an extensible variant type"
 
   let format_float64_creation_reason ppf : float64_creation_reason -> _ =
     function
@@ -1345,7 +1345,6 @@ module Debug_printers = struct
     | Class_field -> fprintf ppf "Class_field"
     | Boxed_record -> fprintf ppf "Boxed_record"
     | Boxed_variant -> fprintf ppf "Boxed_variant"
-    | Extensible_variant -> fprintf ppf "Extensible_variant"
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
     | Type_argument { parent_path; position; arity } ->
       fprintf ppf "Type_argument (pos %d, arity %d) of %a" position arity
@@ -1376,6 +1375,7 @@ module Debug_printers = struct
   let non_null_value_creation_reason ppf : non_null_value_creation_reason -> _ =
     function
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
+    | Extensible_variant -> fprintf ppf "Extensible_variant"
 
   let float64_creation_reason ppf : float64_creation_reason -> _ = function
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)

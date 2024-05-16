@@ -145,7 +145,7 @@ type attr : void = ..
 Line 1, characters 0-21:
 1 | type attr : void = ..
     ^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type attr is value, because
+Error: The layout of type attr is non_null_value, because
          it's an extensible variant type.
        But the layout of type attr must be a sublayout of void, because
          of the annotation on the declaration of the type attr.

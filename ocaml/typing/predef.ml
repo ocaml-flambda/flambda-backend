@@ -321,7 +321,7 @@ let build_initial_env add_type add_extension empty_env =
       ~jkind_annotation:Immediate
   |> add_type ident_exn
        ~kind:Type_open
-       ~jkind:(Jkind.value ~why:Extensible_variant)
+       ~jkind:(Jkind.non_null_value ~why:Extensible_variant)
   |> add_type ident_extension_constructor
   |> add_type ident_float
   |> add_type ident_floatarray
