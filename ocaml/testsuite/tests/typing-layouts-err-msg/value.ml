@@ -206,7 +206,7 @@ Line 2, characters 36-37:
                                         ^
 Error: This expression has type [ `A of int | `B ]
        but an expression was expected of type 'a t = ('a : void)
-       The layout of [ `A of int | `B ] is value, because
+       The layout of [ `A of int | `B ] is non_null_value, because
          it's a polymorphic variant type.
        But the layout of [ `A of int | `B ] must be a sublayout of void, because
          of the definition of t at line 1, characters 0-22.

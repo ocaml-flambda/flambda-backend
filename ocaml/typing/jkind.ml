@@ -945,7 +945,6 @@ end = struct
         (format_position ~arity position)
         !printtyp_path parent_path
     | Row_variable -> format_with_notify_js ppf "it's a row variable"
-    | Polymorphic_variant -> fprintf ppf "it's a polymorphic variant type"
     | Arrow -> fprintf ppf "it's a function type"
     | Tfield ->
       format_with_notify_js ppf
@@ -999,6 +998,7 @@ end = struct
     | Boxed_variant -> fprintf ppf "it's a boxed variant type"
     | Boxed_record -> fprintf ppf "it's a boxed record type"
     | Tuple -> fprintf ppf "it's a tuple type"
+    | Polymorphic_variant -> fprintf ppf "it's a polymorphic variant type"
 
   let format_float64_creation_reason ppf : float64_creation_reason -> _ =
     function
@@ -1354,7 +1354,6 @@ module Debug_printers = struct
       fprintf ppf "Type_argument (pos %d, arity %d) of %a" position arity
         !printtyp_path parent_path
     | Row_variable -> fprintf ppf "Row_variable"
-    | Polymorphic_variant -> fprintf ppf "Polymorphic_variant"
     | Arrow -> fprintf ppf "Arrow"
     | Tfield -> fprintf ppf "Tfield"
     | Tnil -> fprintf ppf "Tnil"
@@ -1382,6 +1381,7 @@ module Debug_printers = struct
     | Boxed_variant -> fprintf ppf "Boxed_variant"
     | Boxed_record -> fprintf ppf "Boxed_record"
     | Tuple -> fprintf ppf "Tuple"
+    | Polymorphic_variant -> fprintf ppf "Polymorphic_variant"
 
   let float64_creation_reason ppf : float64_creation_reason -> _ = function
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)

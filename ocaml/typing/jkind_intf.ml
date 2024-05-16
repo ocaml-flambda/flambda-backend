@@ -186,7 +186,6 @@ module History = struct
         }
     (* [position] is 1-indexed *)
     | Row_variable
-    | Polymorphic_variant
     | Arrow
     | Tfield
     | Tnil
@@ -213,6 +212,7 @@ module History = struct
     | Boxed_variant
     | Boxed_record
     | Tuple
+    | Polymorphic_variant
 
   type immediate_creation_reason =
     | Empty_record

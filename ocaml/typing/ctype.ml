@@ -1515,7 +1515,7 @@ let copy_sep ~copy_scope ~fixed ~(visited : type_expr TypeHash.t) sch =
             if keep then
               (add_delayed_copy t ty;
                Tvar { name = None;
-                      jkind = Jkind.value ~why:Polymorphic_variant })
+                      jkind = Jkind.non_null_value ~why:Polymorphic_variant })
             else
             let more' = copy_rec ~may_share:false more in
             let fixed' = fixed && (is_Tvar more || is_Tunivar more) in
@@ -2099,7 +2099,7 @@ let rec estimate_type_jkind env ty =
   end
   | Tvariant row ->
       if tvariant_not_immediate row
-      then Jkind (value ~why:Polymorphic_variant)
+      then Jkind (non_null_value ~why:Polymorphic_variant)
       else Jkind (immediate ~why:Immediate_polymorphic_variant)
   | Tvar { jkind } when get_level ty = generic_level ->
     (* Once a Tvar gets generalized with a jkind, it should be considered
