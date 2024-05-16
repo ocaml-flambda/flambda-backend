@@ -696,7 +696,10 @@ let for_boxed_record ~all_void =
   if all_void then immediate ~why:Empty_record else value ~why:Boxed_record
 
 let for_boxed_variant ~all_voids =
-  if all_voids then immediate ~why:Enumeration else value ~why:Boxed_variant
+  if all_voids then
+    immediate ~why:Enumeration
+  else
+    non_null_value ~why:Boxed_variant
 
 (******************************)
 (* elimination and defaulting *)
@@ -933,7 +936,6 @@ end = struct
     | Object_field -> fprintf ppf "it's the type of an object field"
     | Class_field -> fprintf ppf "it's the type of a class field"
     | Boxed_record -> fprintf ppf "it's a boxed record type"
-    | Boxed_variant -> fprintf ppf "it's a boxed variant type"
     | Primitive id ->
       fprintf ppf "it is the primitive value type %s" (Ident.name id)
     | Type_argument { parent_path; position; arity } ->
@@ -993,6 +995,7 @@ end = struct
     | Primitive id ->
       fprintf ppf "it is the primitive non-null value type %s" (Ident.name id)
     | Extensible_variant -> fprintf ppf "it's an extensible variant type"
+    | Boxed_variant -> fprintf ppf "it's a boxed variant type"
 
   let format_float64_creation_reason ppf : float64_creation_reason -> _ =
     function
@@ -1344,7 +1347,6 @@ module Debug_printers = struct
     | Object_field -> fprintf ppf "Object_field"
     | Class_field -> fprintf ppf "Class_field"
     | Boxed_record -> fprintf ppf "Boxed_record"
-    | Boxed_variant -> fprintf ppf "Boxed_variant"
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
     | Type_argument { parent_path; position; arity } ->
       fprintf ppf "Type_argument (pos %d, arity %d) of %a" position arity
@@ -1376,6 +1378,7 @@ module Debug_printers = struct
     function
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
     | Extensible_variant -> fprintf ppf "Extensible_variant"
+    | Boxed_variant -> fprintf ppf "Boxed_variant"
 
   let float64_creation_reason ppf : float64_creation_reason -> _ = function
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)

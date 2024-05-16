@@ -179,7 +179,6 @@ module History = struct
     | Object_field
     | Class_field
     | Boxed_record
-    | Boxed_variant
     | Primitive of Ident.t
     | Type_argument of
         { parent_path : Path.t;
@@ -213,6 +212,7 @@ module History = struct
   type non_null_value_creation_reason =
     | Extensible_variant
     | Primitive of Ident.t
+    | Boxed_variant
 
   type immediate_creation_reason =
     | Empty_record

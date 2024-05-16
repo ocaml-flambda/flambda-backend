@@ -808,7 +808,7 @@ let transl_declaration env sdecl (id, uid) =
                    Constructor_uniform_value, jkinds)
                 (Array.of_list cstrs)
             ),
-            Jkind.value ~why:Boxed_variant
+            Jkind.non_null_value ~why:Boxed_variant
         in
           Ttype_variant tcstrs, Type_variant (cstrs, rep), jkind
       | Ptype_record lbls ->

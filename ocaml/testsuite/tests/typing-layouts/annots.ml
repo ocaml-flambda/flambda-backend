@@ -82,7 +82,7 @@ Line 1, characters 8-36:
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This alias is bound to type int list
        but is used as an instance of type ('a : immediate)
-       The layout of int list is value, because
+       The layout of int list is non_null_value, because
          it's a boxed variant type.
        But the layout of int list must be a sublayout of immediate, because
          of the annotation on the type variable 'a.

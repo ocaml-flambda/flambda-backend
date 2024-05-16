@@ -346,7 +346,7 @@ Line 1, characters 11-15:
 1 | type t4' = M4.s t4_void;;
                ^^^^
 Error: This type M4.s should be an instance of type ('a : void)
-       The layout of M4.s is value, because
+       The layout of M4.s is non_null_value, because
          of the definition of s at line 2, characters 2-21.
        But the layout of M4.s must be a sublayout of void, because
          of the definition of t4_void at line 8, characters 0-24.

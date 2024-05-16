@@ -342,10 +342,10 @@ let build_initial_env add_type add_extension empty_env =
            [| Constructor_uniform_value, [| |];
               Constructor_uniform_value,
                 [| list_argument_jkind;
-                   Jkind.value ~why:Boxed_variant;
+                   Jkind.non_null_value ~why:Boxed_variant;
                 |];
            |] )
-       ~jkind:(Jkind.value ~why:Boxed_variant)
+       ~jkind:(Jkind.non_null_value ~why:Boxed_variant)
   |> add_type ident_nativeint
   |> add_type1 ident_option
        ~variance:Variance.covariant
@@ -355,7 +355,7 @@ let build_initial_env add_type add_extension empty_env =
            [| Constructor_uniform_value, [| |];
               Constructor_uniform_value, [| option_argument_jkind |];
            |])
-       ~jkind:(Jkind.value ~why:Boxed_variant)
+       ~jkind:(Jkind.non_null_value ~why:Boxed_variant)
   |> add_type ident_lexing_position
        ~kind:(
          let lbl (field, field_type, jkind) =

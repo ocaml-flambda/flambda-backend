@@ -133,7 +133,7 @@ type v : void = A of t_value
 Line 1, characters 0-28:
 1 | type v : void = A of t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type v is value, because
+Error: The layout of type v is non_null_value, because
          it's a boxed variant type.
        But the layout of type v must be a sublayout of void, because
          of the annotation on the declaration of the type v.

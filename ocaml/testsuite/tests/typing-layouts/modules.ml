@@ -386,7 +386,7 @@ Line 2, characters 12-16:
 2 | type t4f' = M4.s t4_float64;;
                 ^^^^
 Error: This type M4.s should be an instance of type ('a : float64)
-       The layout of M4.s is value, because
+       The layout of M4.s is non_null_value, because
          of the definition of s at line 2, characters 2-21.
        But the layout of M4.s must be a sublayout of float64, because
          of the definition of t4_float64 at line 1, characters 0-30.
