@@ -284,15 +284,15 @@ module Const = struct
     match layout, externality_upper_bound with
     | Any, _ -> Any
     | Sort Value, Internal -> Value
-    | Sort Value, External64 -> Immediate64
-    | Sort Value, External -> Immediate
+    | (Sort Value | Non_null_value), External64 -> Immediate64
+    | (Sort Value | Non_null_value), External -> Immediate
     | Sort Void, _ -> Void
     | Sort Float64, _ -> Float64
     | Sort Float32, _ -> Float32
     | Sort Word, _ -> Word
     | Sort Bits32, _ -> Bits32
     | Sort Bits64, _ -> Bits64
-    | Non_null_value, _ -> Non_null_value
+    | Non_null_value, Internal -> Non_null_value
 
   (* CR layouts v2.8: do a better job here *)
   let to_string t = Legacy.string_of_const (to_legacy_jkind t)
@@ -445,14 +445,14 @@ module Jkind_desc = struct
      meeting the conditions.
   *)
   let immediate64 =
-    { layout = Layout.value;
+    { layout = Non_null_value;
       modes_upper_bounds =
         { locality = Global; linearity = Many; uniqueness = Unique };
       externality_upper_bound = External64
     }
 
   let immediate =
-    { layout = Layout.value;
+    { layout = Non_null_value;
       modes_upper_bounds =
         { locality = Global; linearity = Many; uniqueness = Unique };
       externality_upper_bound = External

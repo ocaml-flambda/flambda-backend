@@ -132,3 +132,10 @@ Error: Signature mismatch:
        But the layout of the first must be a sublayout of non_null_value, because
          of the definition of t at line 2, characters 2-25.
 |}]
+
+(* Immediates are non-null: *)
+let _ = id_non_null_value 3;;
+
+[%%expect{|
+- : int = 3
+|}]
