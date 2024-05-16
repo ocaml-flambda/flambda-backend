@@ -43,10 +43,10 @@ type t = int32#
 *)
 
 (* Unboxed-specific stuff at the top. *)
-external to_int32 : t -> (int32[@local_opt]) = "%box_int32"
+external to_int32 : t -> (int32[@local_opt]) = "%box_int32" [@@warning "-187"]
 (** Box a [int32#] *)
 
-external of_int32 : (int32[@local_opt]) -> t = "%unbox_int32"
+external of_int32 : (int32[@local_opt]) -> t = "%unbox_int32" [@@warning "-187"]
 (** Unbox a boxed [int32] *)
 
 (* Below here, everything also appears in [Int32], though most things are

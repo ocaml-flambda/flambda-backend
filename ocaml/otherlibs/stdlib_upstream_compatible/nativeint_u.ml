@@ -19,10 +19,10 @@ open! Stdlib
 
 type t = nativeint#
 
-external to_nativeint : t -> (nativeint[@local_opt]) = "%box_nativeint"
+external to_nativeint : t -> (nativeint[@local_opt]) = "%box_nativeint" [@@warning "-187"]
 
 external of_nativeint : (nativeint[@local_opt]) -> t =
-  "%unbox_nativeint"
+  "%unbox_nativeint" [@@warning "-187"]
 
 let[@inline always] neg x = of_nativeint (Nativeint.neg (to_nativeint x))
 
