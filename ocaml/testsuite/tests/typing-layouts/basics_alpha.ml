@@ -538,7 +538,7 @@ Line 3, characters 12-21:
 3 | type t7' = (int * int) t7;;
                 ^^^^^^^^^
 Error: This type int * int should be an instance of type ('a : immediate)
-       The layout of int * int is value, because
+       The layout of int * int is non_null_value, because
          it's a tuple type.
        But the layout of int * int must be a sublayout of immediate, because
          of the definition of t7 at line 1, characters 0-37.

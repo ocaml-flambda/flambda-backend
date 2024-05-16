@@ -2113,7 +2113,7 @@ let rec estimate_type_jkind env ty =
     Jkind jkind
   | Tvar { jkind } -> TyVar (jkind, ty)
   | Tarrow _ -> Jkind (value ~why:Arrow)
-  | Ttuple _ -> Jkind (value ~why:Tuple)
+  | Ttuple _ -> Jkind (non_null_value ~why:Tuple)
   | Tobject _ -> Jkind (value ~why:Object)
   | Tfield _ -> Jkind (value ~why:Tfield)
   | Tnil -> Jkind (value ~why:Tnil)

@@ -187,7 +187,7 @@ Line 1, characters 40-45:
                                             ^^^^^
 Error: This expression has type 'b * 'c
        but an expression was expected of type ('a : void)
-       The layout of 'a * 'b is value, because
+       The layout of 'a * 'b is non_null_value, because
          it's a tuple type.
        But the layout of 'a * 'b must be a sublayout of void, because
          of the annotation on the type variable 'a.

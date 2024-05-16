@@ -185,7 +185,6 @@ module History = struct
           arity : int
         }
     (* [position] is 1-indexed *)
-    | Tuple
     | Row_variable
     | Polymorphic_variant
     | Arrow
@@ -213,6 +212,7 @@ module History = struct
     | Primitive of Ident.t
     | Boxed_variant
     | Boxed_record
+    | Tuple
 
   type immediate_creation_reason =
     | Empty_record

@@ -406,7 +406,7 @@ let build_initial_env add_type add_extension empty_env =
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
        [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
-       [| Jkind.value ~why:Tuple |]
+       [| Jkind.non_null_value ~why:Tuple |]
   |> add_extension ident_division_by_zero [] [||]
   |> add_extension ident_end_of_file [] [||]
   |> add_extension ident_failure [type_string]
@@ -415,7 +415,7 @@ let build_initial_env add_type add_extension empty_env =
        [| Jkind.non_null_value ~why:(Primitive ident_string) |]
   |> add_extension ident_match_failure
        [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
-       [| Jkind.value ~why:Tuple |]
+       [| Jkind.non_null_value ~why:Tuple |]
   |> add_extension ident_not_found [] [||]
   |> add_extension ident_out_of_memory [] [||]
   |> add_extension ident_stack_overflow [] [||]
@@ -424,7 +424,7 @@ let build_initial_env add_type add_extension empty_env =
        [| Jkind.non_null_value ~why:(Primitive ident_string) |]
   |> add_extension ident_undefined_recursive_module
        [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
-       [| Jkind.value ~why:Tuple |]
+       [| Jkind.non_null_value ~why:Tuple |]
 
 let add_simd_extension_types add_type env =
   let add_type = mk_add_type add_type in
