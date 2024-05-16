@@ -16,7 +16,7 @@
 (* Construction of the interference graph.
    Annotate pseudoregs with interference lists and preference lists. *)
 
-let debug = false
+let check_collisions = false
 
 module IntPairSet =
   Hashtbl.Make(struct
@@ -81,13 +81,13 @@ let build_graph fundecl =
      do not add an interference between them if the source is still live
      afterwards. *)
   let add_interf_move src dst s =
-    if debug then assert (Reg.types_are_compatible src dst);
+    assert (Reg.types_are_compatible src dst);
     Reg.Set.iter (fun r -> if r.stamp <> src.stamp then add_interf dst r) s in
 
   (* Compute interferences *)
 
   let rec interf i =
-    if debug then assert (not (Reg.set_has_collisions i.live));
+    if check_collisions then assert (not (Reg.set_has_collisions i.live));
     let destroyed = Proc.destroyed_at_oper i.desc in
     if Array.length destroyed > 0 then add_interf_set destroyed i.live;
     match i.desc with
@@ -130,7 +130,7 @@ let build_graph fundecl =
       float arguments in integer registers, PR#6227.) *)
 
   let add_pref weight r1 r2 =
-    if debug then assert (Reg.types_are_compatible r1 r2);
+    assert (Reg.types_are_compatible r1 r2);
     let i = r1.stamp and j = r2.stamp in
     if i <> j
     && r1.loc = Unknown
