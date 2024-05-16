@@ -469,14 +469,6 @@ module M4 :
   end
 |}]
 
-module type S4 = sig
-  type t : immediate [@@warning "-187"]
-end;;
-
-[%%expect{|
-module type S4 = sig type t : immediate end
-|}]
-
 module[@warning "-187"] M5 = struct
   let f (type a : immediate): a -> a = fun x -> x
 end;;
@@ -501,22 +493,41 @@ can't be erased for compatibility with upstream OCaml.
 val fails : ('a : immediate). 'a -> 'a = <fun>
 |}]
 
-module type S5 = sig
-  type ('a : immediate) fails = 'a [@@warning "-187"]
+module type S1 = sig
+  type ('a : immediate) fails = int [@@warning "-187"]
 end;;
 
 [%%expect{|
-Line 2, characters 2-53:
-2 |   type ('a : immediate) fails = 'a [@@warning "-187"]
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 2-54:
+2 |   type ('a : immediate) fails = int [@@warning "-187"]
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in fails
 can't be erased for compatibility with upstream OCaml.
 
-Line 2, characters 2-53:
-2 |   type ('a : immediate) fails = 'a [@@warning "-187"]
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in fails
+module type S1 = sig type ('a : immediate) fails = int end
+|}]
+
+(* Disabling the warning just in the signature isn't sufficient.
+
+   The check here is also ran twice for some reason. *)
+module M6 : sig
+  [@@@warning "-187"]
+  type ('a : immediate) t = 'a * 'a
+end = struct
+  type ('a : immediate) t = 'a * 'a
+end;;
+[%%expect{|
+Line 5, characters 2-35:
+5 |   type ('a : immediate) t = 'a * 'a
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in t
 can't be erased for compatibility with upstream OCaml.
 
-module type S5 = sig type ('a : immediate) fails = 'a end
+Line 5, characters 2-35:
+5 |   type ('a : immediate) t = 'a * 'a
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in t
+can't be erased for compatibility with upstream OCaml.
+
+module M6 : sig type ('a : immediate) t = 'a * 'a end
 |}]
