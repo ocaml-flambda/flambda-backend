@@ -1941,7 +1941,7 @@ Line 2, characters 19-31:
 2 | let f35 : 'a t35 = fun () -> ()
                        ^^^^^^^^^^^^
 Error:
-       The layout of 'a -> 'b is value, because
+       The layout of 'a -> 'b is non_null_value, because
          it's a function type.
        But the layout of 'a -> 'b must be a sublayout of immediate, because
          of the definition of t35 at line 1, characters 0-30.

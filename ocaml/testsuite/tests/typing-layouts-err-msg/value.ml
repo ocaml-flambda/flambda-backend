@@ -222,7 +222,7 @@ Line 2, characters 31-32:
                                    ^
 Error: This expression has type int -> int
        but an expression was expected of type 'a t = ('a : void)
-       The layout of int -> int is value, because
+       The layout of int -> int is non_null_value, because
          it's a function type.
        But the layout of int -> int must be a sublayout of void, because
          of the definition of t at line 1, characters 0-22.

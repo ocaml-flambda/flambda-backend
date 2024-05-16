@@ -2112,7 +2112,7 @@ let rec estimate_type_jkind env ty =
        This, however, still allows sort variables to get instantiated. *)
     Jkind jkind
   | Tvar { jkind } -> TyVar (jkind, ty)
-  | Tarrow _ -> Jkind (value ~why:Arrow)
+  | Tarrow _ -> Jkind (non_null_value ~why:Arrow)
   | Ttuple _ -> Jkind (non_null_value ~why:Tuple)
   | Tobject _ -> Jkind (value ~why:Object)
   | Tfield _ -> Jkind (value ~why:Tfield)
