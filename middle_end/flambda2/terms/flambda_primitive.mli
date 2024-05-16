@@ -65,7 +65,8 @@ end
 module Mixed_block_flat_element : sig
   type t =
     | Imm
-    | Float
+    | Imm64
+    | Float_boxed
     | Float64
     | Float32
     | Bits32

@@ -65,6 +65,7 @@ let nonempty_list_enumeration_of_list xs =
 
 type flat_element =
   | Imm
+  | Imm64
   | Float64
   | Float32
   | Float
@@ -74,16 +75,17 @@ type flat_element =
 
 let allowed_in_flat_float_block = function
   | Float64 | Float -> true
-  | Imm | Float32 | Bits32 | Bits64 | Word -> false
+  | Imm | Imm64 | Float32 | Bits32 | Bits64 | Word -> false
 
 let flat_element_is_unboxed = function
   | Float64 | Float32 | Bits32 | Bits64 | Word -> true
-  | Imm | Float -> false
+  | Imm | Imm64 | Float -> false
 
 let flat_element_is = ((=) : flat_element -> flat_element -> bool)
 let flat_element_is_not = ((<>) : flat_element -> flat_element -> bool)
 
-let all_of_flat_element = [ Imm; Float64; Float32; Float; Bits32; Bits64; Word ]
+let all_of_flat_element =
+  [ Imm; Imm64; Float64; Float32; Float; Bits32; Bits64; Word ]
 
 type value_element =
   | Str
@@ -98,7 +100,7 @@ type mutability =
   | Mutable
   | Immutable
 
-let all_of_mutability = [ Mutable; Immutable ]
+let all_of_mutability = [ Mutable ]
 
 let is_mutable = function
   | Mutable -> true
@@ -118,19 +120,19 @@ let enumeration_of_prefix all_of_mutability =
     | ((Str | Float), _) :: _ -> true)
 ;;
 
-let enumeration_of_suffix_except_all_floats_mixed
+let enumeration_of_suffix_except_all_boxed_floats
     all_of_mutability
   : _ Seq.t
   =
-  let flat_element_except_float =
-    all_of_flat_element
-    |> List.filter ~f:(flat_element_is_not Float)
+  let all_except_boxed_floats =
+    List.filter all_of_flat_element ~f:(flat_element_is_not Float)
   in
   nonempty_list_enumeration_of_list
-    (list_product all_of_flat_element all_of_mutability)
+    (list_product all_except_boxed_floats all_of_mutability)
   |> Seq.filter (fun suffix ->
-    List.exists (Nonempty_list.to_list suffix) ~f:(fun (elem, _) ->
-      flat_element_is_unboxed elem))
+    let suffix = Nonempty_list.to_list suffix in
+    List.exists suffix ~f:(fun (elem, _) ->
+        flat_element_is_unboxed elem))
 ;;
 
 let enumeration_of_all_floats_mixed_suffix =
@@ -155,7 +157,7 @@ let enumeration_of_mixed_blocks_except_all_floats_mixed
   =
   Seq.product
    (enumeration_of_prefix all_of_mutability)
-   (enumeration_of_suffix_except_all_floats_mixed all_of_mutability)
+   (enumeration_of_suffix_except_all_boxed_floats all_of_mutability)
   |> Seq.filter (fun (prefix, suffix) ->
       let all_float_u_suffix =
         List.for_all (Nonempty_list.to_list suffix)
@@ -174,17 +176,26 @@ type constructor =
 
 type variant = constructor Nonempty_list.t
 
+let num_constructors = 2
+
 let enumeration_of_mixed_variants =
   let all_of_mutability = [ `Mutability_not_relevant ] in
   Seq.product
     (enumeration_of_prefix all_of_mutability)
-    (enumeration_of_suffix_except_all_floats_mixed all_of_mutability)
+    (enumeration_of_suffix_except_all_boxed_floats all_of_mutability)
   |> Seq.map (fun (prefix, suffix) ->
       let ignore_mut (x, `Mutability_not_relevant) = x in
       { cstr_prefix = List.map prefix ~f:ignore_mut;
         cstr_suffix = Nonempty_list.map suffix ~f:ignore_mut;
       })
-  |> nonempty_list_enumeration
+  |> Seq.zip (Seq.ints 0)
+  (* Group into runs of length [num_constructors]. *)
+  |> Seq.group (fun (xi, _) (yi, _) -> (yi - xi) / num_constructors = 0)
+  |> Seq.map (fun elems ->
+      List.of_seq elems
+      |> List.map ~f:snd
+      |> Nonempty_list.of_list
+      |> Option.get)
 
 let enumeration_of_mixed_blocks_except_all_floats_mixed =
   enumeration_of_mixed_blocks_except_all_floats_mixed
@@ -199,6 +210,7 @@ let enumeration_of_all_floats_mixed_blocks =
 
 type field_or_arg_type =
   | Imm
+  | Imm64
   | Float
   | Float64
   | Float32
@@ -209,6 +221,7 @@ type field_or_arg_type =
 
 let type_to_creation_function = function
   | Imm -> "create_int ()"
+  | Imm64 -> "create_int63 ()"
   | Float -> "create_float ()"
   | Float64 -> "create_float_u ()"
   | Float32 -> "create_float32_u ()"
@@ -219,6 +232,7 @@ let type_to_creation_function = function
 
 let type_to_string = function
   | Imm -> "int"
+  | Imm64 -> "Int63.t"
   | Float -> "float"
   | Float64 -> "float#"
   | Float32 -> "float32#"
@@ -232,6 +246,7 @@ let type_to_field_integrity_check type_ ~access1 ~access2 ~message =
     match type_ with
     | Str -> "check_string", None
     | Imm -> "check_int", None
+    | Imm64 -> "check_int", Some "Int63.to_int"
     | Float -> "check_float", None
     | Float64 -> "check_float", Some "Stdlib__Float_u.to_float"
     | Float32 -> "check_float32", Some "Beta.Float32_u.to_float32"
@@ -258,6 +273,7 @@ let value_element_to_type : value_element -> field_or_arg_type = function
 
 let flat_element_to_type : flat_element -> field_or_arg_type = function
   | Imm -> Imm
+  | Imm64 -> Imm64
   | Float -> Float
   | Float64 -> Float64
   | Float32 -> Float32
@@ -280,7 +296,7 @@ module Mixed_record = struct
   let is_all_floats t =
     List.for_all t.fields ~f:(fun field ->
         match field.type_ with
-        | Imm | Str | Float32 | Bits32 | Bits64 | Word -> false
+        | Imm | Imm64 | Str | Float32 | Bits32 | Bits64 | Word -> false
         | Float | Float64 -> true)
 
   let of_block index { prefix; suffix } =
@@ -313,6 +329,7 @@ module Mixed_record = struct
           let name =
             match elem with
             | Imm -> "imm"
+            | Imm64 -> "imm64_"
             | Bits32 -> "i32_"
             | Bits64 -> "i64_"
             | Word -> "n"
@@ -535,7 +552,7 @@ let main n ~bytecode =
     |> List.mapi ~f:Type.record_of_block
   in
   let variants =
-    Seq.take n enumeration_of_mixed_variants
+    Seq.take (n / num_constructors) enumeration_of_mixed_variants
     |> List.of_seq
     |> List.mapi ~f:(fun i x -> Type.variant_of_block (i+n) x)
   in
@@ -576,9 +593,26 @@ let main n ~bytecode =
   line {|*)|};
   line "(** This is code generated by [generate_mixed_blocks_code.ml]. *)";
   line "";
+  line {|
+module Int63 = struct
+  module Nothing = struct type t = | end
+  include Sys.Immediate64.Make (Int) (Nothing)
+
+  let of_int (i : int) : t =
+    match repr with
+    | Immediate -> i
+    | Non_immediate -> failwith "not implemented for non-64 bit platforms"
+
+  let to_int (t : t) : int =
+    match repr with
+    | Immediate -> t
+    | Non_immediate -> failwith "not implemented for non-64 bit platforms"
+end
+|};
   line "(* Helper functions for manipulating the fields of a mixed record *)";
   line {|let create_string () = String.make (Random.int 100) 'a'|};
   line {|let create_int () = Random.int 0x3FFF_FFFF|};
+  line {|let create_int63 () = Int63.of_int (Random.int 0x3FFF_FFFF)|};
   line {|let create_float () = Random.float Float.max_float|};
   line {|let create_float32 () = Beta.Float32.of_float (Random.float Float.max_float)|};
   line {|let create_float_u () = Stdlib__Float_u.of_float (create_float ())|};
@@ -730,7 +764,7 @@ let check_reachable_words expected actual message =
           (List.length t.fields + 1)
           (List.map t.fields ~f:(fun (field : Mixed_record.field) ->
             match field.type_ with
-            | Imm -> ""
+            | Imm | Imm64 -> ""
             | Float64 ->
                 (* In bytecode, these fields aren't boxed and thus contribute
                     two words to the reachable words (the header and the

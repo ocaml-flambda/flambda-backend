@@ -1,3 +1,3 @@
-Test large mixed blocks: sum (33670) = 33670.000
-  at end, sum (33670) = 33670.000
-Test opt: result (42) = 42.000 = 42.000 = 42.000 = 42.000
+Test large mixed blocks: sum (33670) = 33930.000
+  at end, sum (33670) = 33930.000
+Test opt: result (42) = 54.000 = 54.000 = 42.000 = 42.000

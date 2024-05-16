@@ -237,8 +237,7 @@ let value_kind_of_value_jkind jkind =
   match Jkind.get_default_value jkind with
   | Value -> Pgenval
   | Immediate -> Pintval
-  | Immediate64 ->
-    if !Clflags.native_code && Sys.word_size = 64 then Pintval else Pgenval
+  | Immediate64 -> value_kind_of_immediate64 ()
   | Non_null_value -> Pgenval
   | Any | Void | Float64 | Float32 | Word | Bits32 | Bits64 -> assert false
 

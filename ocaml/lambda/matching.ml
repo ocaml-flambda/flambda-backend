@@ -1811,11 +1811,11 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
             | Flat_suffix flat ->
                 let flat_read =
                   match flat with
-                  | Float ->
+                  | Float_boxed ->
                       Misc.fatal_error
                         "unexpected flat float of layout value in \
                          constructor field"
-                  | non_float -> flat_read_non_float non_float
+                  | non_float_boxed -> flat_read_non_float_boxed non_float_boxed
                 in
                 Mread_flat_suffix flat_read
           in
@@ -2183,11 +2183,12 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
               else
                 let read =
                   match flat_suffix.(pos - value_prefix_len) with
-                  | Imm | Float64 | Float32 | Bits32 | Bits64 | Word as non_float ->
-                      flat_read_non_float non_float
-                  | Float ->
+                  | Imm | Imm64 | Float64 | Float32 | Bits32 | Bits64 | Word
+                    as non_float_boxed ->
+                      flat_read_non_float_boxed non_float_boxed
+                  | Float_boxed ->
                       (* TODO: could optimise to Alloc_local sometimes *)
-                      flat_read_float alloc_heap
+                      flat_read_float_boxed alloc_heap
                 in
                 Mread_flat_suffix read
             in

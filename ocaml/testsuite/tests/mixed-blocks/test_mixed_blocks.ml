@@ -27,6 +27,16 @@ module Int32_u = Stdlib__Int32_u
 module Int64_u = Stdlib__Int64_u
 module Nativeint_u = Stdlib__Nativeint_u
 
+module Int63 = struct
+  include Sys.Immediate64.Make (Int) (Int)
+
+  let to_int (i : t) : int = match repr with Immediate -> i | Non_immediate -> i
+  let of_int (i : int) : t = match repr with Immediate -> i | Non_immediate -> i
+
+  let to_float x = Int.to_float (to_int x)
+  let equal x y = to_int y = to_int y
+end
+
 (******************************)
 (* Test: large mixed blocks *)
 
@@ -37,6 +47,7 @@ module Nativeint_u = Stdlib__Nativeint_u
 type uf = float#
 type i32 = int32#
 type i64 = int64#
+type i63 = Int63.t
 type i_n = nativeint#
 type t_large =
   { x : string;
@@ -77,9 +88,10 @@ type t_large =
     f239 : i64; f240 : uf; f241 : uf; f242 : i_n; f243 : uf; f244 : uf; f245 : uf;
     f246 : uf; f247 : uf; f248 : i32; f249 : i64; f250 : uf; f251 : uf; f252 : i_n;
     f253 : uf; f254 : uf; f255 : uf; f256 : uf; f257 : uf; f258 : i32; f259 : i64;
+    f260 : i63;
   }
 
-let create_large f i32 i64 i_n =
+let create_large f i32 i64 i_n i63 =
   { x = "prefix";
   f1=f 1;f2=i_n 2;f3=f 3;f4=f 4;f5=f 5;f6=f 6;f7=f 7;
   f8=i32 8;f9=i64 9;f10=f 10;f11=f 11;f12=i_n 12;f13=f 13;f14=f 14;
@@ -118,9 +130,10 @@ let create_large f i32 i64 i_n =
   f239=i64 239;f240=f 240;f241=f 241;f242=i_n 242;f243=f 243;f244=f 244;f245=f 245;
   f246=f 246;f247=f 247;f248=i32 248;f249=i64 249;f250=f 250;f251=f 251;f252=i_n 252;
   f253=f 253;f254=f 254;f255=f 255;f256=f 256;f257=f 257;f258=i32 258;f259=i64 259;
+  f260=i63 260;
   }
 
-let iter_large f i32 i64 i_n t =
+let iter_large f i32 i64 i_n i63 t =
   f t.f1 1; i_n t.f2 2; f t.f3 3; f t.f4 4; f t.f5 5; f t.f6 6; f t.f7 7;
     i32 t.f8 8; i64 t.f9 9; f t.f10 10; f t.f11 11;
     i_n t.f12 12; f t.f13 13; f t.f14 14;
@@ -193,12 +206,13 @@ let iter_large f i32 i64 i_n t =
     f t.f246 246; f t.f247 247; i32 t.f248 248; i64 t.f249 249;
     f t.f250 250; f t.f251 251; i_n t.f252 252;
     f t.f253 253; f t.f254 254; f t.f255 255; f t.f256 256;
-    f t.f257 257; i32 t.f258 258; i64 t.f259 259;
+    f t.f257 257; i32 t.f258 258; i64 t.f259 259; i63 t.f260 260;
 ;;
 
 let test_large_mixed_blocks () =
   let t =
     create_large Float_u.of_int Int32_u.of_int Int64_u.of_int Nativeint_u.of_int
+      Int63.of_int
   in
   let sum () =
     let total = ref 0.0 in
@@ -207,6 +221,7 @@ let test_large_mixed_blocks () =
       (fun i _ -> total := !total +. Int32_u.to_float i)
       (fun i _ -> total := !total +. Int64_u.to_float i)
       (fun i _ -> total := !total +. Nativeint_u.to_float i)
+      (fun i _ -> total := !total +. Int63.to_float i)
       t;
     !total
   in
@@ -217,6 +232,7 @@ let test_large_mixed_blocks () =
       (fun i32 i -> assert (Int32_u.equal i32 (Int32_u.of_int i)))
       (fun i64 i -> assert (Int64_u.equal i64 (Int64_u.of_int i)))
       (fun i_n i -> assert (Nativeint_u.equal i_n (Nativeint_u.of_int i)))
+      (fun i63 i -> assert (Int63.equal i63 (Int63.of_int i)))
       t
   in
   check ();
@@ -237,28 +253,32 @@ let () = test_large_mixed_blocks ()
 *)
 
 type t_opt1 =
-  { imm : int; fl : float#; i32 : int32#; i64 : int64#; i_n : nativeint# }
+  { imm : int; fl : float#; i32 : int32#; i64 : int64#; i_n : nativeint#;
+    i63 : Int63.t;
+  }
 
-let construct_and_destruct_1_1 imm fl i32 i64 i_n =
-  match { imm; fl; i32; i64; i_n } with
-  | { imm; fl; i32; i64; i_n } ->
+let construct_and_destruct_1_1 imm fl i32 i64 i_n i63 =
+  match { imm; fl; i32; i64; i_n; i63 } with
+  | { imm; fl; i32; i64; i_n; i63 } ->
       float_of_int imm
       +. Float_u.to_float fl
       +. Int32_u.to_float i32
       +. Int64_u.to_float i64
       +. Nativeint_u.to_float i_n
+      +. Int63.to_float i63
 
-let construct_and_destruct_1_2 b imm fl i32 i64 i_n =
-  let { imm; fl; i32; i64; i_n } =
+let construct_and_destruct_1_2 b imm fl i32 i64 i_n i63 =
+  let { imm; fl; i32; i64; i_n; i63 } =
     match b with
-    | true ->  { imm; fl; i32; i64; i_n }
-    | false -> { imm = imm + 1; fl; i32; i64; i_n }
+    | true ->  { imm; fl; i32; i64; i_n; i63 }
+    | false -> { imm = imm + 1; fl; i32; i64; i_n; i63 }
   in
   float_of_int imm
   +. Float_u.to_float fl
   +. Int32_u.to_float i32
   +. Int64_u.to_float i64
   +. Nativeint_u.to_float i_n
+  +. Int63.to_float i63
 
 type t_opt2 = { x : float; y : float# }
 
@@ -275,12 +295,13 @@ let construct_and_destruct_2_2 b ~x ~y =
   x +. Float_u.to_float y
 
 let test_opt () =
-  let result1_1 = construct_and_destruct_1_1 36 #4. (-#10l) #13L (-#1n) in
-  let result1_2 = construct_and_destruct_1_2 true 38 #4. #255l (-#435L) #180n in
-  let result2_1 = construct_and_destruct_2_1 ~x:37. ~y:#5. in
-  let result2_2 = construct_and_destruct_2_2 false ~x:36. ~y:#5. in
+  let i63 = Int63.of_int 12 in
+  let r1_1 = construct_and_destruct_1_1 36 #4. (-#10l) #13L (-#1n) i63 in
+  let r1_2 = construct_and_destruct_1_2 true 38 #4. #255l (-#435L) #180n i63 in
+  let r2_1 = construct_and_destruct_2_1 ~x:37. ~y:#5. in
+  let r2_2 = construct_and_destruct_2_2 false ~x:36. ~y:#5. in
   Printf.printf "Test opt: result (42) = %.3f = %.3f = %.3f = %.3f\n"
-    result1_1 result1_2 result2_1 result2_2
+    r1_1 r1_2 r2_1 r2_2
 ;;
 
 let () = test_opt ()

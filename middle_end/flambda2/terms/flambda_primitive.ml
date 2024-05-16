@@ -61,7 +61,8 @@ end
 module Mixed_block_flat_element = struct
   type t =
     | Imm
-    | Float
+    | Imm64
+    | Float_boxed
     | Float64
     | Float32
     | Bits32
@@ -70,7 +71,8 @@ module Mixed_block_flat_element = struct
 
   let from_lambda : Lambda.flat_element -> t = function
     | Imm -> Imm
-    | Float -> Float
+    | Imm64 -> Imm64
+    | Float_boxed -> Float_boxed
     | Float64 -> Float64
     | Float32 -> Float32
     | Bits32 -> Bits32
@@ -79,7 +81,8 @@ module Mixed_block_flat_element = struct
 
   let to_lambda : t -> Lambda.flat_element = function
     | Imm -> Imm
-    | Float -> Float
+    | Imm64 -> Imm64
+    | Float_boxed -> Float_boxed
     | Float64 -> Float64
     | Float32 -> Float32
     | Bits32 -> Bits32
@@ -88,7 +91,8 @@ module Mixed_block_flat_element = struct
 
   let to_string = function
     | Imm -> "Imm"
-    | Float -> "Float"
+    | Imm64 -> "Imm64"
+    | Float_boxed -> "Float_boxed"
     | Float64 -> "Float64"
     | Float32 -> "Float32"
     | Bits32 -> "Bits32"
@@ -98,7 +102,8 @@ module Mixed_block_flat_element = struct
   let compare t1 t2 =
     match t1, t2 with
     | Imm, Imm
-    | Float, Float
+    | Imm64, Imm64
+    | Float_boxed, Float_boxed
     | Float64, Float64
     | Float32, Float32
     | Word, Word
@@ -107,8 +112,10 @@ module Mixed_block_flat_element = struct
       0
     | Imm, _ -> -1
     | _, Imm -> 1
-    | Float, _ -> -1
-    | _, Float -> 1
+    | Imm64, _ -> -1
+    | _, Imm64 -> 1
+    | Float_boxed, _ -> -1
+    | _, Float_boxed -> 1
     | Float64, _ -> -1
     | _, Float64 -> 1
     | Float32, _ -> -1
@@ -122,7 +129,8 @@ module Mixed_block_flat_element = struct
 
   let element_kind = function
     | Imm -> K.value
-    | Float | Float64 -> K.naked_float
+    | Imm64 -> K.value
+    | Float_boxed | Float64 -> K.naked_float
     | Float32 -> K.naked_float32
     | Bits32 -> K.naked_int32
     | Bits64 -> K.naked_int64
@@ -538,8 +546,8 @@ module Block_access_kind = struct
     | Naked_floats _ -> K.With_subkind.naked_float
     | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
       match field_kind with
-      | Imm -> K.With_subkind.tagged_immediate
-      | Float | Float64 -> K.With_subkind.naked_float
+      | Imm | Imm64 -> K.With_subkind.tagged_immediate
+      | Float_boxed | Float64 -> K.With_subkind.naked_float
       | Float32 -> K.With_subkind.naked_float32
       | Bits32 -> K.With_subkind.naked_int32
       | Bits64 -> K.With_subkind.naked_int64

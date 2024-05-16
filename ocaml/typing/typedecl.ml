@@ -1216,6 +1216,7 @@ module Element_repr = struct
   type t =
     | Unboxed_element of unboxed_element
     | Imm_element
+    | Imm64_element
     | Float_element
     | Value_element
     | Element_without_runtime_component of { loc : Location.t; ty : type_expr }
@@ -1223,8 +1224,9 @@ module Element_repr = struct
   let classify env loc ty jkind =
     if is_float env ty then Float_element
     else match Jkind.get_default_value jkind with
-      | Value | Immediate64 | Non_null_value -> Value_element
+      | Value | Non_null_value -> Value_element
       | Immediate -> Imm_element
+      | Immediate64 -> Imm64_element
       | Float64 -> Unboxed_element Float64
       | Float32 -> Unboxed_element Float32
       | Word -> Unboxed_element Word
@@ -1243,6 +1245,7 @@ module Element_repr = struct
 
   let to_flat : _ -> flat_element option = function
     | Imm_element -> Some Imm
+    | Imm64_element -> Some Imm64
     | Unboxed_element unboxed -> Some (unboxed_to_flat unboxed)
     (* CR layouts v7: Supporting void with mixed blocks will require
        updating some assumptions in lambda, e.g. the translation
@@ -1272,6 +1275,7 @@ module Element_repr = struct
               Some (`Continue (unboxed_to_flat unboxed :: suffix))
           | Float_element
           | Imm_element
+          | Imm64_element
           | Value_element as repr -> begin
               match find_flat_suffix ts with
               | None -> None
@@ -1365,8 +1369,8 @@ let update_decl_jkind env dpath decl =
   let open struct
     (* For tracking what types appear in record blocks. *)
     type element_repr_summary =
-      {  mutable values : bool; (* excludes [imm], but includes [imm64] *)
-         mutable imms : bool;
+      {  mutable values : bool; (* excludes immediates and immediate64s *)
+         mutable imms_or_imm64s : bool;
          mutable floats: bool;
          (* For purposes of this record, [floats] tracks whether any field
             has layout value and is known to be a float.
@@ -1396,15 +1400,15 @@ let update_decl_jkind env dpath decl =
           lbls
       in
       let repr_summary =
-        { values = false; imms = false; floats = false; float64s = false;
-          non_float64_unboxed_fields = false;
+        { values = false; imms_or_imm64s = false; floats = false;
+          float64s = false; non_float64_unboxed_fields = false;
         }
       in
       List.iter
         (fun ((repr : Element_repr.t), _lbl) ->
            match repr with
            | Float_element -> repr_summary.floats <- true
-           | Imm_element -> repr_summary.imms <- true
+           | Imm_element | Imm64_element -> repr_summary.imms_or_imm64s <- true
            | Unboxed_element Float64 -> repr_summary.float64s <- true
            | Unboxed_element (Float32 | Bits32 | Bits64 | Word) ->
                repr_summary.non_float64_unboxed_fields <- true
@@ -1416,19 +1420,20 @@ let update_decl_jkind env dpath decl =
         (* We store mixed float/float64 records as flat if there are no
             non-float fields.
         *)
-        | { values = false; imms = false; floats = true;
+        | { values = false; imms_or_imm64s = false; floats = true;
             float64s = true; non_float64_unboxed_fields = false; }
           [@warning "+9"] ->
             let flat_suffix =
               List.map
                 (fun ((repr : Element_repr.t), _lbl) ->
                   match repr with
-                  | Float_element -> Float
+                  | Float_element -> Float_boxed
                   | Unboxed_element Float64 -> Float64
                   | Element_without_runtime_component { ty; loc } ->
                       raise (Error (loc,
                         Invalid_jkind_in_block (ty, Void, Mixed_product)))
-                  | Unboxed_element _ | Imm_element | Value_element ->
+                  | Unboxed_element _ | Imm_element | Imm64_element
+                  | Value_element ->
                       Misc.fatal_error "Expected only floats and float64s")
                 reprs
               |> Array.of_list
@@ -1439,7 +1444,7 @@ let update_decl_jkind env dpath decl =
            only when they're unboxed.
         *)
         | { values = true; float64s = true }
-        | { imms = true; float64s = true }
+        | { imms_or_imm64s = true; float64s = true }
         | { non_float64_unboxed_fields = true } ->
             let flat_suffix =
               Element_repr.mixed_product_flat_suffix reprs
@@ -1465,18 +1470,19 @@ let update_decl_jkind env dpath decl =
             Record_mixed { value_prefix_len; flat_suffix }
         (* value-only records are stored as boxed records *)
         | { values = true; float64s = false; non_float64_unboxed_fields = false }
-        | { imms = true; float64s = false; non_float64_unboxed_fields = false }
+        | { imms_or_imm64s = true; float64s = false;
+            non_float64_unboxed_fields = false }
           -> rep
         (* All-float and all-float64 records are stored as flat float records.
         *)
-        | { values = false; imms = false; floats = true ; float64s = false;
-            non_float64_unboxed_fields = false } ->
+        | { values = false; imms_or_imm64s = false; floats = true;
+            float64s = false; non_float64_unboxed_fields = false } ->
           Record_float
-        | { values = false; imms = false; floats = false; float64s = true;
-            non_float64_unboxed_fields = false } ->
+        | { values = false; imms_or_imm64s = false; floats = false;
+            float64s = true; non_float64_unboxed_fields = false } ->
           Record_ufloat
-        | { values = false; imms = false; floats = false; float64s = false;
-            non_float64_unboxed_fields = false }
+        | { values = false; imms_or_imm64s = false; floats = false;
+            float64s = false; non_float64_unboxed_fields = false }
           [@warning "+9"] ->
           Misc.fatal_error "Typedecl.update_record_kind: empty record"
       in

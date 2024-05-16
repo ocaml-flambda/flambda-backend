@@ -18,6 +18,18 @@ module Int32_u = Stdlib__Int32_u
 module Int64_u = Stdlib__Int64_u
 module Nativeint_u = Stdlib__Nativeint_u
 
+module Int63 = struct
+  include Sys.Immediate64.Make (Int) (Int)
+
+  let to_int (i : t) : int = match repr with Immediate -> i | Non_immediate -> i
+  let of_int (i : int) : t = match repr with Immediate -> i | Non_immediate -> i
+
+  let to_float x = Int.to_float (to_int x)
+  let equal x y = to_int y = to_int y
+end
+
+type int63 = Int63.t
+
 let print_floatu prefix x = Printf.printf "%s: %.2f\n" prefix (Float_u.to_float x)
 let print_float prefix x = Printf.printf "%s: %.2f\n" prefix x
 let print_int prefix x = Printf.printf "%s: %d\n" prefix x
@@ -38,7 +50,7 @@ type t =
   | Mixed8 of float * int32# * float# * int64# * float#
   | Mixed9 of float * float# * float32#
   | Mixed10 of float * float32# * float# * int64# * float#
-  | Mixed11 of float * int32# * float32# * float# * int64# * nativeint#
+  | Mixed11 of float * int32# * float32# * float# * int64# * nativeint# * int63
   | Uniform2 of float * float
 
 type t_ext = ..
@@ -55,6 +67,7 @@ type t_ext +=
   | Ext_mixed9 of float * float# * float32#
   | Ext_mixed10 of float * float32# * float# * int64# * float#
   | Ext_mixed11 of float * int32# * float32# * float# * int64# * nativeint#
+                      * int63
 
 let sprintf = Printf.sprintf
 
@@ -90,10 +103,11 @@ let to_string = function
       sprintf "Mixed10 (%f, %f, %f, %i, %f)"
         x1 (Float_u.to_float (Float32_u.to_float x2)) (Float_u.to_float x3)
         (Int64_u.to_int x4) (Float_u.to_float x5)
-  | Mixed11 (x1, x2, x3, x4, x5, x6) ->
-      sprintf "Mixed11 (%f, %i, %f, %f, %i, %i)"
+  | Mixed11 (x1, x2, x3, x4, x5, x6, x7) ->
+      sprintf "Mixed11 (%f, %i, %f, %f, %i, %i, %i)"
         x1 (Int32_u.to_int x2) (Float_u.to_float (Float32_u.to_float x3))
         (Float_u.to_float x4) (Int64_u.to_int x5) (Nativeint_u.to_int x6)
+        (Int63.to_int x7)
   | Uniform2 (x1, x2) -> sprintf "Uniform2 (%f, %f)" x1 x2
 
 let ext_to_string = function
@@ -126,10 +140,11 @@ let ext_to_string = function
       sprintf "Ext_mixed10 (%f, %f, %f, %i, %f)"
         x1 (Float_u.to_float (Float32_u.to_float x2)) (Float_u.to_float x3)
         (Int64_u.to_int x4) (Float_u.to_float x5)
-  | Ext_mixed11 (x1, x2, x3, x4, x5, x6) ->
-      sprintf "Ext_mixed11 (%f, %i, %f, %f, %i, %i)"
+  | Ext_mixed11 (x1, x2, x3, x4, x5, x6, x7) ->
+      sprintf "Ext_mixed11 (%f, %i, %f, %f, %i, %i, %i)"
         x1 (Int32_u.to_int x2) (Float_u.to_float (Float32_u.to_float x3))
         (Float_u.to_float x4) (Int64_u.to_int x5) (Nativeint_u.to_int x6)
+        (Int63.to_int x7)
   | _ -> "<ext>"
 
 let print t = print_endline ("  " ^ to_string t)
@@ -158,12 +173,13 @@ let () = run #17.0
    exercise an optimization code path.
 *)
 
-let sum uf uf' f f' i i32 i64 i_n f32 =
+let sum uf uf' f f' i i32 i64 i_n f32 i63 =
   Float_u.to_float uf +. Float_u.to_float uf' +. f +. f' +.
   Int32_u.to_float i32 +. Int64_u.to_float i64 +. Nativeint_u.to_float i_n
   +. float_of_int i +. (Float_u.to_float (Float32_u.to_float f32))
+  +. Int63.to_float i63
 
-let construct_and_destruct uf uf' f f' i i32 i64 i_n f32 =
+let construct_and_destruct uf uf' f f' i i32 i64 i_n f32 i63 =
   let Constant = Constant in
   let Uniform1 f = Uniform1 f in
   let Mixed1 uf = Mixed1 uf in
@@ -176,7 +192,9 @@ let construct_and_destruct uf uf' f f' i i32 i64 i_n f32 =
   let Mixed8 (f, i32, uf, i64, uf') = Mixed8 (f, i32, uf, i64, uf') in
   let Mixed9 (f, uf, f32) = Mixed9 (f, uf, f32) in
   let Mixed10 (f, f32, uf, i64, uf') = Mixed10 (f, f32, uf, i64, uf') in
-  let Mixed11 (f, i32, f32, uf, i64, i_n) = Mixed11 (f, i32, f32, uf, i64, i_n) in
+  let Mixed11 (f, i32, f32, uf, i64, i_n, i63) =
+    Mixed11 (f, i32, f32, uf, i64, i_n, i63)
+  in
   let Ext_mixed1 uf = Ext_mixed1 uf in
   let Ext_mixed2 (f, uf) = Ext_mixed2 (f, uf) in
   let Ext_mixed3 (f, uf, uf') = Ext_mixed3 (f, uf, uf') in
@@ -187,9 +205,11 @@ let construct_and_destruct uf uf' f f' i i32 i64 i_n f32 =
   let Ext_mixed8 (f, i32, uf, i64, uf') = Ext_mixed8 (f, i32, uf, i64, uf') in
   let Ext_mixed9 (f, uf, f32) = Ext_mixed9 (f, uf, f32) in
   let Ext_mixed10 (f, f32, uf, i64, uf') = Ext_mixed10 (f, f32, uf, i64, uf') in
-  let Ext_mixed11 (f, i32, f32, uf, i64, i_n) = Ext_mixed11 (f, i32, f32, uf, i64, i_n) in
+  let Ext_mixed11 (f, i32, f32, uf, i64, i_n, i63) =
+    Ext_mixed11 (f, i32, f32, uf, i64, i_n, i63)
+  in
   let Uniform2 (f, f') = Uniform2 (f, f') in
-  sum uf uf' f f' i i32 i64 i_n f32
+  sum uf uf' f f' i i32 i64 i_n f32 i63
 [@@ocaml.warning "-partial-match"]
 
 let () =
@@ -202,10 +222,11 @@ let () =
   and i64 = #42L
   and i_n = #56n
   and f32 = #1.2s
+  and i63 = Int63.of_int 13
   in
   let () =
-    let sum1 = sum uf uf' f f' i i32 i64 i_n f32 in
-    let sum2 = construct_and_destruct uf uf' f f' i i32 i64 i_n f32 in
+    let sum1 = sum uf uf' f f' i i32 i64 i_n f32 i63 in
+    let sum2 = construct_and_destruct uf uf' f f' i i32 i64 i_n f32 i63 in
     Printf.printf
       "Test (construct and destruct): %f = %f (%s)\n"
       sum1
@@ -255,7 +276,7 @@ let _ =
 let go x y z =
   let f =
     match x with
-    | Mixed11 (f1, i32_1, f32, uf1, i64, i_n) ->
+    | Mixed11 (f1, i32_1, f32, uf1, i64, i_n, i63) ->
         (* Close over the fields we projected out *)
         (fun () ->
            match y, z with
@@ -275,6 +296,7 @@ let go x y z =
                  Float_u.to_float uf4;
                  Int32_u.to_float i32_2;
                  Float32.to_float (Float32_u.to_float32 f32);
+                 Int63.to_float i63;
                ]
            | _ -> assert false
         )
@@ -295,8 +317,9 @@ let test () =
   and uf3 = #47.5
   and uf4 = #47.8
   and f32 = #1.2s
+  and i63 = Int63.of_int 63
   in
-  let x = Mixed11 (f1, i32_1, f32, uf1, i64, i_n) in
+  let x = Mixed11 (f1, i32_1, f32, uf1, i64, i_n, i63) in
   let y = Mixed3 (f2, uf2, uf3) in
   let z = Mixed4 (f3, uf4, i32_2) in
   (* These results should match as [go] is symmetric in
@@ -329,7 +352,7 @@ let go_recursive x y z =
         let rec f_odd n =
           if n < 7 then f_even (n+1)
           else match x with
-          | Mixed11 (f1, i32_1, f32, uf1, i64, i_n) ->
+          | Mixed11 (f1, i32_1, f32, uf1, i64, i_n, i63) ->
               [ float_of_int n;
                 f1;
                 Float_u.to_float uf1;
@@ -343,6 +366,7 @@ let go_recursive x y z =
                 Float_u.to_float uf4;
                 Int32_u.to_float i32_2;
                 Float32.to_float (Float32_u.to_float32 f32);
+                Int63.to_float i63;
               ]
           | _ -> assert false
         and f_even n = f_odd (n+1) in
@@ -364,8 +388,9 @@ let test_recursive () =
   and uf3 = #47.5
   and uf4 = #47.8
   and f32 = #1.2s
+  and i63 = Int63.of_int 63
   in
-  let x = Mixed11 (f1, i32_1, f32, uf1, i64, i_n) in
+  let x = Mixed11 (f1, i32_1, f32, uf1, i64, i_n, i63) in
   let y = Mixed3 (f2, uf2, uf3) in
   let z = Mixed4 (f3, uf4, i32_2) in
   (* These results should match as [go_recursive] is symmetric in
