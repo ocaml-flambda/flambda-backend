@@ -121,7 +121,7 @@ type r : void = {a:string}
 Line 1, characters 0-26:
 1 | type r : void = {a:string}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type r is value, because
+Error: The layout of type r is non_null_value, because
          it's a boxed record type.
        But the layout of type r must be a sublayout of void, because
          of the annotation on the declaration of the type r.

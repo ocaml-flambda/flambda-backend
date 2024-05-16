@@ -2669,7 +2669,7 @@ and type_pat_aux
             let ty = generic_instance expected_ty in
             Some (p0, p, is_principal expected_ty), ty
         | Maybe_a_record_type ->
-          None, newvar (Jkind.value ~why:Boxed_record)
+          None, newvar (Jkind.non_null_value ~why:Boxed_record)
         | Not_a_record_type ->
           let error = Wrong_expected_kind(Record, Pattern, expected_ty) in
           raise (Error (loc, !env, error))

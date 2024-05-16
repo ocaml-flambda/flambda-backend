@@ -174,7 +174,7 @@ end;;
 Line 2, characters 2-38:
 2 |   type t = { foo : int } [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The layout of type t is non_null_value, because
          it's a boxed record type.
        But the layout of type t must be a sublayout of immediate, because
          of the annotation on the declaration of the type t.

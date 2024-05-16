@@ -822,7 +822,7 @@ let transl_declaration env sdecl (id, uid) =
               Record_unboxed, any
             else
               Record_boxed (Array.make (List.length lbls) any),
-              Jkind.value ~why:Boxed_record
+              Jkind.non_null_value ~why:Boxed_record
           in
           Ttype_record lbls, Type_record(lbls', rep), jkind
       | Ptype_open ->
@@ -1170,7 +1170,7 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
     let lbls, all_void =
       update_label_jkinds env loc lbls None ~is_inlined:true
     in
-    jkinds.(0) <- Jkind.value ~why:Boxed_record;
+    jkinds.(0) <- Jkind.non_null_value ~why:Boxed_record;
     Types.Cstr_record lbls, all_void
 
 let assert_mixed_product_support =

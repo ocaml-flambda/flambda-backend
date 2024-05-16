@@ -383,7 +383,7 @@ let build_initial_env add_type add_extension empty_env =
            (Record_boxed (List.map (fun label -> label.ld_jkind) labels |> Array.of_list))
          )
        )
-       ~jkind:(Jkind.value ~why:Boxed_record)
+       ~jkind:(Jkind.non_null_value ~why:Boxed_record)
   |> add_type ident_string
   |> add_type ident_unboxed_float
        ~jkind:(Jkind.float64 ~why:(Primitive ident_unboxed_float))
