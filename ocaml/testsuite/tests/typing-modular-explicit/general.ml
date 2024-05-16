@@ -276,15 +276,15 @@ Error: Type "(module A : AddSub) -> A.t -> A.t" is not a subtype of
 
 
 (* Here the coercion does not require any computation and thus could be allowed *)
-let try_coerce3 (f : (module A : Add) -> A.t -> A.t) = (f :> (module T : Typ) -> T.t -> T.t)
+let try_coerce3 (f : (module T : Typ) -> T.t -> T.t) = (f :> (module A : Add) -> A.t -> A.t)
 
 [%%expect{|
 Line 1, characters 55-92:
-1 | let try_coerce3 (f : (module A : Add) -> A.t -> A.t) = (f :> (module T : Typ) -> T.t -> T.t)
+1 | let try_coerce3 (f : (module T : Typ) -> T.t -> T.t) = (f :> (module A : Add) -> A.t -> A.t)
                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type "(module A : Add) -> A.t -> A.t" is not a subtype of
-         "(module T : Typ) -> T.t -> T.t"
-       Type "(module Typ)" is not a subtype of "(module Add)"
+Error: Type "(module T : Typ) -> T.t -> T.t" is not a subtype of
+         "(module A : Add) -> A.t -> A.t"
+       Type "(module Add)" is not a subtype of "(module Typ)"
 |}]
          (* The two module argument types differ by their runtime size. *)
 

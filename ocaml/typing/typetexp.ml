@@ -1052,7 +1052,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
     let ret_mode = Alloc.legacy in
     let lbl = transl_label arg_label None in
     let arrow_desc = (lbl, arg_mode, ret_mode) in
-    let ty = Btype.newgenty (Tfunctor (arrow_desc, ident, (path, l'), ctyp_type)) in
+    let ty = newty (Tfunctor (arrow_desc, ident, (path, l'), ctyp_type)) in
     (* could also use [Location.mkloc scoped_ident name.loc] *)
     (* TODO : need to choose what to use instead of sloc *)
     ctyp (Ttyp_functor (lbl, {txt = scoped_ident; loc = name.loc}, {
