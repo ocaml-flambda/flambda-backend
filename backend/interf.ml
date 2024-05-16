@@ -16,8 +16,7 @@
 (* Construction of the interference graph.
    Annotate pseudoregs with interference lists and preference lists. *)
 
-(* CR mslater: for testing *)
-let debug = true
+let debug = false
 
 module IntPairSet =
   Hashtbl.Make(struct
