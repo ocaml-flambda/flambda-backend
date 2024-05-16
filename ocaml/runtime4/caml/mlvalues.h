@@ -103,15 +103,14 @@ For 64-bit architectures:
      +--------+-------+-----+
 bits  63    10 9     8 7   0
 
-For 64-bit architectures with mixed block support enabled:
-  P = PROFINFO_WIDTH (as set by "configure", currently 8 bits)
+For x86-64 with Spacetime profiling:
+  P = PROFINFO_WIDTH (as set by "configure", currently 26 bits, giving a
+    maximum block size of just under 4Gb)
      +----------------+----------------+-------------+
-     | scannable size | wosize         | color | tag |
+     | profiling info | wosize         | color | tag |
      +----------------+----------------+-------------+
 bits  63        (64-P) (63-P)        10 9     8 7   0
 
-Mixed block support uses the PROFINFO_WIDTH functionality
-originally built for Spacetime profiling, hence the odd name.
 */
 
 #define Tag_hd(hd) ((tag_t) ((hd) & 0xFF))
