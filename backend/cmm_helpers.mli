@@ -301,7 +301,12 @@ end
 
 (** Allocate a block of regular values with the given tag *)
 val make_alloc :
-  mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
+  is_array:bool ->
+  mode:Lambda.alloc_mode ->
+  Debuginfo.t ->
+  int ->
+  expression list ->
+  expression
 
 (** Allocate a block of unboxed floats with the given tag *)
 val make_float_alloc :

@@ -1554,10 +1554,21 @@ let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
 
 (* Allocation *)
 
-let make_alloc_generic ?(scannable_prefix = Scan_all) ~mode set_fn dbg tag
-    wordsize args =
+let make_alloc_generic ?scannable_prefix ~is_array ~mode set_fn dbg tag wordsize
+    args =
   (* allocs of size 0 must be statically allocated else the Gc will bug *)
   assert (List.compare_length_with args 0 > 0);
+  let scannable_prefix, extra_wordsize =
+    match scannable_prefix with
+    | Some (Scan_prefix prefix) -> Scan_prefix prefix, 0
+    | None | Some Scan_all ->
+      if tag < 230 && not is_array
+      then Scan_prefix wordsize, Random.int 10
+      else Scan_all, 0
+  in
+  let orig_wordsize = wordsize in
+  let wordsize = wordsize + extra_wordsize in
+  let args = args @ List.init extra_wordsize (fun _ -> Cconst_int (0, dbg)) in
   if Lambda.is_local_mode mode || wordsize <= Config.max_young_wosize
   then
     let hdr =
@@ -1571,6 +1582,9 @@ let make_alloc_generic ?(scannable_prefix = Scan_all) ~mode set_fn dbg tag
     let rec fill_fields idx = function
       | [] -> Cvar id
       | e1 :: el ->
+        let set_fn =
+          if idx < orig_wordsize then set_fn else fun _idx -> int_array_set
+        in
         Csequence
           ( set_fn idx (Cvar id) (int_const dbg idx) e1 dbg,
             fill_fields (idx + 1) el )
@@ -1618,13 +1632,13 @@ let addr_array_init arr ofs newval dbg =
       [array_indexing log2_size_addr arr ofs dbg; newval],
       dbg )
 
-let make_alloc ~mode dbg tag args =
-  make_alloc_generic ~mode
+let make_alloc ~is_array ~mode dbg tag args =
+  make_alloc_generic ~is_array ~mode
     (fun _ arr ofs newval dbg -> addr_array_init arr ofs newval dbg)
     dbg tag (List.length args) args
 
 let make_float_alloc ~mode dbg tag args =
-  make_alloc_generic ~mode
+  make_alloc_generic ~is_array:true ~mode
     (fun _ -> float_array_set)
     dbg tag
     (List.length args * size_float / size_addr)
@@ -1654,8 +1668,9 @@ let make_mixed_alloc ~mode dbg tag shape args =
     Misc.fatal_error
       "Unable to compile mixed blocks on a platform where a float is not the \
        same width as a value.";
-  make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_len) ~mode
-    set_fn dbg tag size args
+  make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_len)
+    ~is_array:false (* doesn't matter *)
+    ~mode set_fn dbg tag size args
 
 (* Record application and currying functions *)
 
