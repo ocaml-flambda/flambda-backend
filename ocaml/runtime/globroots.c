@@ -217,6 +217,8 @@ static void compute_index_for_global_root_scan(value* glob_block, int* start,
 
   CAMLassert (Is_block(*glob_block));
 
+  fprintf(stderr, "*glob_block=%p\n", (void*) *glob_block);
+
   if (Tag_val(*glob_block) < No_scan_tag) {
     /* Note: if a [Closure_tag] block is registered as a global root
        (possibly containing one or more [Infix_tag] blocks), then only one
@@ -260,6 +262,8 @@ static void scan_native_globals(scanning_action f, void* fdata)
       glob_block = *glob;
       compute_index_for_global_root_scan(&glob_block, &start, &stop);
       for (j = start; j < stop; j++) {
+        fprintf(stderr, "j = %d, glob_block = %p, field = %p\n",
+                j, (void*) glob_block, (void*) Field(glob_block, j));
         f(fdata, Field(glob_block, j), &Field(glob_block, j));
       }
     }
