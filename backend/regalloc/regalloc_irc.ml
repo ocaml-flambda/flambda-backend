@@ -201,7 +201,13 @@ let coalesce : State.t -> unit =
     if irc_debug then log ~indent:2 "case #1/4";
     State.add_coalesced_moves state m;
     add_work_list state u)
-  else if State.is_precolored state v || State.interferes_with_adj state v u
+  else if State.is_precolored state v
+          || (* We must not alias v->u if u uses the same register as a neighbor
+                of v. Simply checking whether u and v are adjacent is not
+                sufficient because the interference graph treats machine
+                registers aliased at multiple types (e.g. xmm0 at float32,
+                float, and vec128) as disjoint. *)
+          State.interferes_with_adj state v u
   then (
     if irc_debug then log ~indent:2 "case #2/4";
     State.add_constrained_moves state m;

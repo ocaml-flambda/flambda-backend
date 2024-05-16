@@ -300,13 +300,13 @@ let set_of_array v =
          in add_all 0
 
 let set_has_collisions s =
-  let phys_regs = Hashtbl.create (Set.cardinal s) in
+  let phys_regs = Hashtbl.create (Int.min (Set.cardinal s) 32) in
   Set.fold (fun r acc ->
     match r.loc with
     | Reg id ->
       if Hashtbl.mem phys_regs id then true
       else (Hashtbl.add phys_regs id (); acc)
-    | _ -> acc) s false
+    | Unknown | Stack _ -> acc) s false
 
 let equal_stack_location left right =
   match left, right with
@@ -333,8 +333,7 @@ let equal_location left right =
 let same_phys_reg left right =
   match left.loc, right.loc with
   | Reg l, Reg r -> Int.equal l r
-  | Reg _, (Unknown | Stack _)
-  | (Unknown | Stack _), _ -> false
+  | (Reg _ | Unknown | Stack _), _ -> false
 
 let same_loc left right =
   (* CR-soon azewierzejew: This should also compare [reg_class] for [Stack
@@ -344,3 +343,12 @@ let same_loc left right =
 
 let same left right =
   Int.equal left.stamp right.stamp
+
+let types_are_compatible left right =
+  match left.typ, right.typ with
+  | (Int | Val | Addr), (Int | Val | Addr)
+  | Float, Float
+  | Float32, Float32
+  | Vec128, Vec128 ->
+    true
+  | (Int | Val | Addr | Float | Float32 | Vec128), _ -> false

@@ -82,6 +82,7 @@ let build_graph fundecl =
      do not add an interference between them if the source is still live
      afterwards. *)
   let add_interf_move src dst s =
+    if debug then assert (Reg.types_are_compatible src dst);
     Reg.Set.iter (fun r -> if r.stamp <> src.stamp then add_interf dst r) s in
 
   (* Compute interferences *)
@@ -130,6 +131,7 @@ let build_graph fundecl =
       float arguments in integer registers, PR#6227.) *)
 
   let add_pref weight r1 r2 =
+    if debug then assert (Reg.types_are_compatible r1 r2);
     let i = r1.stamp and j = r2.stamp in
     if i <> j
     && r1.loc = Unknown
