@@ -35,9 +35,12 @@ type constructor_usage_warning =
   | Only_exported_private
 
 type upstream_compat_warning =
-  | Immediate_erasure of string
-  | Non_value_sort of string
-  | Unboxed_attribute of string
+  | Immediate_erasure of string (* example: annotation in
+      [type ('a : immediate) t = int] can't be erased. *)
+  | Non_value_sort of string (* example: abstract type
+      [t : float64] is marked as unboxed. *)
+  | Unboxed_attribute of string (* example: unboxed attribute
+      on an external declaration with float# is missing. *)
 
 type t =
   | Comment_start                           (*  1 *)
