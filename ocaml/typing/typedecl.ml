@@ -1575,7 +1575,7 @@ let update_decls_jkind_reason decls =
     (fun (id, decl) ->
        let update_generalized =
         Ctype.check_and_update_generalized_ty_jkind
-          ~name:id ~loc:decl.type_loc
+          ~name:id ~loc:decl.type_loc ~upstream_compat:true
        in
        List.iter update_generalized decl.type_params;
        Btype.iter_type_expr_kind update_generalized decl.type_kind;
@@ -2917,7 +2917,8 @@ let transl_value_decl env loc valdecl =
     Env.enter_value valdecl.pval_name.txt v env
       ~check:(fun s -> Warnings.Unused_value_declaration s)
   in
-  Ctype.check_and_update_generalized_ty_jkind ~name:id ~loc ty;
+  Ctype.check_and_update_generalized_ty_jkind
+    ~name:id ~loc ~upstream_compat:true ty;
   let desc =
     {
      val_id = id;

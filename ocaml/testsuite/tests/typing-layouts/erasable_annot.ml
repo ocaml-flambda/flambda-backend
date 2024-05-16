@@ -75,12 +75,6 @@ Line 1, characters 4-5:
 Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
 can't be erased for compatibility with upstream OCaml.
 
-Line 1, characters 6-47:
-1 | let f (type a : immediate): a -> a = fun x -> x
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
-can't be erased for compatibility with upstream OCaml.
-
 val f : ('a : immediate). 'a -> 'a = <fun>
 |}];;
 
@@ -92,12 +86,6 @@ Line 1, characters 4-5:
 Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
 can't be erased for compatibility with upstream OCaml.
 
-Line 1, characters 6-31:
-1 | let f x = (x : (_ : immediate))
-          ^^^^^^^^^^^^^^^^^^^^^^^^^
-Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
-can't be erased for compatibility with upstream OCaml.
-
 val f : ('a : immediate). 'a -> 'a = <fun>
 |}];;
 
@@ -106,12 +94,6 @@ let f v: ((_ : immediate)[@error_message "Custom message"]) = v
 Line 1, characters 4-5:
 1 | let f v: ((_ : immediate)[@error_message "Custom message"]) = v
         ^
-Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
-can't be erased for compatibility with upstream OCaml.
-
-Line 1, characters 6-63:
-1 | let f v: ((_ : immediate)[@error_message "Custom message"]) = v
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
 can't be erased for compatibility with upstream OCaml.
 
@@ -181,12 +163,6 @@ Line 1, characters 4-5:
 Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
 can't be erased for compatibility with upstream OCaml.
 
-Line 1, characters 6-49:
-1 | let f (type a : immediate64): a -> a = fun x -> x
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
-can't be erased for compatibility with upstream OCaml.
-
 val f : ('a : immediate64). 'a -> 'a = <fun>
 |}];;
 
@@ -198,12 +174,6 @@ Line 1, characters 4-5:
 Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
 can't be erased for compatibility with upstream OCaml.
 
-Line 1, characters 6-33:
-1 | let f x = (x : (_ : immediate64))
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
-can't be erased for compatibility with upstream OCaml.
-
 val f : ('a : immediate64). 'a -> 'a = <fun>
 |}];;
 
@@ -212,12 +182,6 @@ let f v: ((_ : immediate64)[@error_message "Custom message"]) = v
 Line 1, characters 4-5:
 1 | let f v: ((_ : immediate64)[@error_message "Custom message"]) = v
         ^
-Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
-can't be erased for compatibility with upstream OCaml.
-
-Line 1, characters 6-65:
-1 | let f v: ((_ : immediate64)[@error_message "Custom message"]) = v
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
 can't be erased for compatibility with upstream OCaml.
 

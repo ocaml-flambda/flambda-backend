@@ -2302,7 +2302,7 @@ let unification_jkind_check env ty jkind =
   | Delay_checks r -> r := (ty,jkind) :: !r
   | Skip_checks -> ()
 
-let check_and_update_generalized_ty_jkind ?name ~loc ty =
+let check_and_update_generalized_ty_jkind ?name ~loc ~upstream_compat ty =
   let immediacy_check jkind =
     let is_immediate jkind =
       (* Just check externality and layout, because that's what actually matters
@@ -2314,7 +2314,7 @@ let check_and_update_generalized_ty_jkind ?name ~loc ty =
                | _ -> false)
     in
     if Language_extension.erasable_extensions_only ()
-      && is_immediate jkind
+      && is_immediate jkind && upstream_compat
     then
       let id =
         match name with
