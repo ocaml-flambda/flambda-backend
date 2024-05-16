@@ -170,8 +170,8 @@ Line 1, characters 9-15:
 1 | type t = string t2_imm
              ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       The layout of string is value, because
-         it is the primitive value type string.
+       The layout of string is non_null_value, because
+         it is the primitive non-null value type string.
        But the layout of string must be a sublayout of immediate, because
          of the definition of t2_imm at line 1, characters 0-28.
 |}]
@@ -310,8 +310,8 @@ Line 1, characters 24-31:
                             ^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       The layout of string is value, because
-         it is the primitive value type string.
+       The layout of string is non_null_value, because
+         it is the primitive non-null value type string.
        But the layout of string must be a sublayout of immediate, because
          of the definition of r at line 1, characters 0-47.
 |}]
@@ -545,8 +545,8 @@ Line 1, characters 43-51:
                                                ^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       The layout of string is value, because
-         it is the primitive value type string.
+       The layout of string is non_null_value, because
+         it is the primitive non-null value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on the universal variable 'a.
 |}]

@@ -82,8 +82,8 @@ Line 4, characters 63-68:
                                                                    ^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : float64)
-       The layout of string is value, because
-         it is the primitive value type string.
+       The layout of string is non_null_value, because
+         it is the primitive non-null value type string.
        But the layout of string must be a sublayout of float64, because
          of the definition of id' at line 2, characters 10-18.
 |}]
@@ -306,8 +306,8 @@ Line 1, characters 36-41:
                                         ^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : float64)
-       The layout of string is value, because
-         it is the primitive value type string.
+       The layout of string is non_null_value, because
+         it is the primitive non-null value type string.
        But the layout of string must be a sublayout of float64, because
          of the definition of id at line 2, characters 2-35.
 |}]

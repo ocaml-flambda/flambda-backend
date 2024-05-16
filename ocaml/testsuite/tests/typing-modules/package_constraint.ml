@@ -56,8 +56,8 @@ Error: In this `with' constraint, the new definition of t
          type t = string
        is not included in
          type t : immediate
-       The layout of the first is value, because
-         it is the primitive value type string.
+       The layout of the first is non_null_value, because
+         it is the primitive non-null value type string.
        But the layout of the first must be a sublayout of immediate, because
          of the definition of t at line 2, characters 2-22.
 |}];;
@@ -140,8 +140,8 @@ Line 6, characters 0-15:
 6 | and t2 = string;;
     ^^^^^^^^^^^^^^^
 Error:
-       The layout of t2 is value, because
-         it is the primitive value type string.
+       The layout of t2 is non_null_value, because
+         it is the primitive non-null value type string.
        But the layout of t2 must be a sublayout of immediate, because
          of the definition of t at line 2, characters 2-22.
 |}];;
@@ -325,8 +325,8 @@ Line 8, characters 10-16:
 8 | type t2 = string t
               ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       The layout of string is value, because
-         it is the primitive value type string.
+       The layout of string is non_null_value, because
+         it is the primitive non-null value type string.
        But the layout of string must be a sublayout of immediate, because
          of the definition of t at line 5, characters 0-39.
 |}];;

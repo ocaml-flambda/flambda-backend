@@ -251,8 +251,8 @@ Line 1, characters 19-25:
 1 | let string_id (x : string imm_id) = x;;
                        ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       The layout of string is value, because
-         it is the primitive value type string.
+       The layout of string is non_null_value, because
+         it is the primitive non-null value type string.
        But the layout of string must be a sublayout of immediate, because
          of the definition of imm_id at line 1, characters 0-33.
 |}];;
@@ -274,8 +274,8 @@ Line 1, characters 33-46:
                                      ^^^^^^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          'a imm_id = ('a : immediate)
-       The layout of string is value, because
-         it is the primitive value type string.
+       The layout of string is non_null_value, because
+         it is the primitive non-null value type string.
        But the layout of string must be a sublayout of immediate, because
          of the definition of id_for_imms at line 1, characters 16-35.
 |}]
@@ -303,8 +303,8 @@ Line 2, characters 9-15:
 2 | and s4 = string t4;;
              ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       The layout of string is value, because
-         it is the primitive value type string.
+       The layout of string is non_null_value, because
+         it is the primitive non-null value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t4.
 |}];;
@@ -317,8 +317,8 @@ Line 1, characters 10-16:
 1 | type s4 = string t4
               ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       The layout of string is value, because
-         it is the primitive value type string.
+       The layout of string is non_null_value, because
+         it is the primitive non-null value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t4.
 |}]
@@ -350,8 +350,8 @@ Line 3, characters 0-15:
 3 | and s5 = string;;
     ^^^^^^^^^^^^^^^
 Error:
-       The layout of s5 is value, because
-         it is the primitive value type string.
+       The layout of s5 is non_null_value, because
+         it is the primitive non-null value type string.
        But the layout of s5 must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t4.
 |}]
@@ -370,19 +370,11 @@ type s4 = string t4
 and ('a : any) t4
 |}];;
 
-(* CR layouts v3: all default value types except for ['a Or_null.t]
-   should have layout [non_null_value], but it's not implemented yet. *)
 type s4 = string t4
 and ('a : non_null_value) t4;;
 [%%expect{|
-Line 1, characters 10-16:
-1 | type s4 = string t4
-              ^^^^^^
-Error: This type string should be an instance of type ('a : non_null_value)
-       The layout of string is value, because
-         it is the primitive value type string.
-       But the layout of string must be a sublayout of non_null_value, because
-         of the annotation on 'a in the declaration of the type t4.
+type s4 = string t4
+and ('a : non_null_value) t4
 |}];;
 
 type s4 = t_non_null_value t4
@@ -820,8 +812,8 @@ Error: Signature mismatch:
        is not included in
          val x : string
        The type ('a : immediate) is not compatible with the type string
-       The layout of string is value, because
-         it is the primitive value type string.
+       The layout of string is non_null_value, because
+         it is the primitive non-null value type string.
        But the layout of string must be a sublayout of immediate, because
          of the definition of x at line 8, characters 10-26.
 |}];;
@@ -861,8 +853,8 @@ Error: Signature mismatch:
          val x : string
        The type 'a t = ('a : immediate) is not compatible with the type
          string
-       The layout of string is value, because
-         it is the primitive value type string.
+       The layout of string is non_null_value, because
+         it is the primitive non-null value type string.
        But the layout of string must be a sublayout of immediate, because
          of the definition of x at line 8, characters 10-26.
 |}]
