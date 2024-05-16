@@ -24,7 +24,7 @@ module Int64 = struct
 end
 
 module Int64_u = struct
-  include stdlib_upstream_compatible.Int64_u
+  include Stdlib_upstream_compatible.Int64_u
 
   let ( + ) = add
   let ( - ) = sub

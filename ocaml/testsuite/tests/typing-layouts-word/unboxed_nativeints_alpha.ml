@@ -23,7 +23,7 @@
 (* Prelude: Functions on unboxed nativeints. *)
 
 module Nativeint_u = struct
-  include stdlib_upstream_compatible.Nativeint_u
+  include Stdlib_upstream_compatible.Nativeint_u
 
   let ( + ) = add
   let ( - ) = sub

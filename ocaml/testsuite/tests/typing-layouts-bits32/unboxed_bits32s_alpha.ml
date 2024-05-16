@@ -23,7 +23,7 @@
 (* Prelude: Functions on unboxed int32s. *)
 
 module Int32_u = struct
-  include stdlib_upstream_compatible.Int32_u
+  include Stdlib_upstream_compatible.Int32_u
 
   let ( + ) = add
   let ( - ) = sub

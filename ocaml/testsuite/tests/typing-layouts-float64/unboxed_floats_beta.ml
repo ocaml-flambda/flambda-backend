@@ -24,7 +24,7 @@
 (* Prelude: Functions on unboxed floats. *)
 
 module Float_u = struct
-  include stdlib_upstream_compatible.Float_u
+  include Stdlib_upstream_compatible.Float_u
 
   let ( + ) = add
   let ( - ) = sub
