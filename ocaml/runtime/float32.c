@@ -544,11 +544,11 @@ CAMLprim value caml_float32_of_string(value vs)
 
 /* Defined in array.c */
 
-extern int caml_unboxed_array_no_polymorphic_compare(value v1, value v2);
-extern intnat caml_unboxed_array_no_polymorphic_hash(value v);
-extern void caml_unboxed_array_serialize(value v, uintnat* bsize_32, uintnat* bsize_64);
-extern uintnat caml_unboxed_array_deserialize(void* dst);
-extern value caml_make_vect(value len, value init);
+CAMLextern int caml_unboxed_array_no_polymorphic_compare(value v1, value v2);
+CAMLextern intnat caml_unboxed_array_no_polymorphic_hash(value v);
+CAMLextern void caml_unboxed_array_serialize(value v, uintnat* bsize_32, uintnat* bsize_64);
+CAMLextern uintnat caml_unboxed_array_deserialize(void* dst);
+CAMLextern value caml_make_vect(value len, value init);
 
 CAMLexport const struct custom_operations caml_unboxed_float32_array_ops[2] = {
   { "_unboxed_float32_even_array",
@@ -573,11 +573,11 @@ CAMLprim value caml_make_unboxed_float32_vect(value len)
 {
   /* This is only used on 64-bit targets. */
 
-  /* [num_fields] does not include the custom operations field. */
   mlsize_t num_elements = Long_val(len);
-  mlsize_t num_fields = (num_elements + 1) / 2;
+  if (num_elements > Max_wosize) caml_invalid_argument("Array.make");
 
-  if (1 + num_fields > Max_wosize) caml_invalid_argument("Array.make");
+  /* [num_fields] does not include the custom operations field. */
+  mlsize_t num_fields = (num_elements + 1) / 2;
 
   return caml_alloc_custom(&caml_unboxed_float32_array_ops[num_elements % 2],
                            num_fields * sizeof(value), 0, 0);

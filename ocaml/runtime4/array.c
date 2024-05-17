@@ -30,22 +30,22 @@ static const mlsize_t mlsize_t_max = -1;
 
 /* Unboxed arrays */
 
-int caml_unboxed_array_no_polymorphic_compare(value v1, value v2)
+CAMLprim int caml_unboxed_array_no_polymorphic_compare(value v1, value v2)
 {
   caml_failwith("Polymorphic comparison is not permitted for unboxed arrays");
 }
 
-intnat caml_unboxed_array_no_polymorphic_hash(value v)
+CAMLprim intnat caml_unboxed_array_no_polymorphic_hash(value v)
 {
   caml_failwith("Polymorphic hash is not permitted for unboxed arrays");
 }
 
-void caml_unboxed_array_serialize(value v, uintnat* bsize_32, uintnat* bsize_64)
+CAMLprim void caml_unboxed_array_serialize(value v, uintnat* bsize_32, uintnat* bsize_64)
 {
   caml_failwith("Marshalling is not yet implemented for unboxed arrays");
 }
 
-uintnat caml_unboxed_array_deserialize(void* dst)
+CAMLprim uintnat caml_unboxed_array_deserialize(void* dst)
 {
   caml_failwith("Marshalling is not yet implemented for unboxed arrays");
 }
@@ -484,11 +484,11 @@ CAMLprim value caml_make_unboxed_int32_vect(value len)
 {
   /* This is only used on 64-bit targets. */
 
-  /* [num_fields] does not include the custom operations field. */
   mlsize_t num_elements = Long_val(len);
-  mlsize_t num_fields = (num_elements + 1) / 2;
+  if (num_elements > Max_wosize) caml_invalid_argument("Array.make");
 
-  if (1 + num_fields > Max_wosize) caml_invalid_argument("Array.make");
+  /* [num_fields] does not include the custom operations field. */
+  mlsize_t num_fields = (num_elements + 1) / 2;
 
   return caml_alloc_custom(&caml_unboxed_int32_array_ops[num_elements % 2],
                            num_fields * sizeof(value), 0, 0);
@@ -502,7 +502,7 @@ CAMLprim value caml_make_unboxed_int32_vect_bytecode(value len)
 CAMLprim value caml_make_unboxed_int64_vect(value len)
 {
   mlsize_t num_elements = Long_val(len);
-  if (1 + num_elements > Max_wosize) caml_invalid_argument("Array.make");
+  if (num_elements > Max_wosize) caml_invalid_argument("Array.make");
 
   struct custom_operations* ops = &caml_unboxed_int64_array_ops;
 
@@ -520,7 +520,7 @@ CAMLprim value caml_make_unboxed_nativeint_vect(value len)
   /* This is only used on 64-bit targets. */
 
   mlsize_t num_elements = Long_val(len);
-  if (1 + num_elements > Max_wosize) caml_invalid_argument("Array.make");
+  if (num_elements > Max_wosize) caml_invalid_argument("Array.make");
 
   struct custom_operations* ops = &caml_unboxed_nativeint_array_ops;
 
