@@ -601,7 +601,8 @@ val check_type_externality : Env.t -> type_expr -> Jkind.Externality.t -> bool
    itself.
 
    2. Performs an upstream-compatibility check around immediacy if
-      [Language_extension.erasable_extensions_only ()] is [true].
+      [Language_extension.erasable_extensions_only ()] is [true]
+      and [upstream_compat] is [true].
 
    The check makes sure no generalized type variable can have jkind
    [immediate] or [immediate64]. An exception would be raised when

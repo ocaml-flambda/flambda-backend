@@ -8501,7 +8501,8 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
           | Tpat_alias(_, id, _, _, _) -> Some id
           | _ -> None in
         (* We don't need to check upstream compatibility for expressions:
-           just ensuring that annotations are erasable is enough. *)
+           just ensuring none of the type parameters of the function are
+           immediate is enough. *)
         Ctype.check_and_update_generalized_ty_jkind
           ?name:pat_name ~loc:exp.exp_loc ~upstream_compat:false exp.exp_type
       in
