@@ -1224,6 +1224,8 @@ let unboxed_packed_array_ref arr index dbg ~memory_chunk ~elements_per_word =
               dbg )))
 
 let unboxed_int32_array_ref =
+  (* N.B. The resulting value will be sign extended by the code generated for a
+     [Thirtytwo_signed] load. *)
   unboxed_packed_array_ref ~memory_chunk:Thirtytwo_signed ~elements_per_word:2
 
 let unboxed_float32_array_ref =
