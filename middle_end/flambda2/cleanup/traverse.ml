@@ -209,6 +209,7 @@ end = struct
                   (Variable.create (Printf.sprintf "partial_apply_%i" i))
               in
               Graph.add_dep t.deps !acc (Block (Apply (Normal 0), tmp_name));
+              Graph.add_dep t.deps !acc (Block (Apply (Normal ~-1), Code_id_or_name.code_id code_id));
               acc := tmp_name
             done;
             List.iteri
@@ -217,7 +218,8 @@ end = struct
                   (Block (Apply (Normal i), Code_id_or_name.var v)))
               code_dep.return;
             Graph.add_dep t.deps !acc
-              (Block (Apply Exn, Code_id_or_name.var code_dep.exn))
+              (Block (Apply Exn, Code_id_or_name.var code_dep.exn));
+            Graph.add_dep t.deps !acc (Block (Apply (Normal ~-1), Code_id_or_name.code_id code_id));
         in
         let code_id =
           try
@@ -480,6 +482,8 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
         in
         let arity = Apply_expr.args_arity apply in
         let partial_apply = ref callee in
+        let calls_are_not_pure = Variable.create "not_pure" in
+        Acc.used ~denv (Simple.var calls_are_not_pure) acc;
         for i = 1 to Flambda_arity.num_params arity - 1 do
           let v = Variable.create (Printf.sprintf "partial_apply_%i" i) in
           Acc.record_dep' ~denv (Code_id_or_name.var v)
@@ -489,10 +493,12 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
             (Code_id_or_name.var exn_arg)
             (Field (Apply Exn, !partial_apply))
             acc;
+        Acc.record_dep' ~denv
+          (Code_id_or_name.var calls_are_not_pure)
+          (Field (Apply (Normal ~-1), !partial_apply))
+          acc;
           partial_apply := Name.var v
         done;
-        let calls_are_not_pure = Variable.create "not_pure" in
-        Acc.used ~denv (Simple.var calls_are_not_pure) acc;
         Acc.record_dep' ~denv
           (Code_id_or_name.var calls_are_not_pure)
           (Field (Apply (Normal ~-1), !partial_apply))
