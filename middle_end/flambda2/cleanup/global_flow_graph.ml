@@ -17,6 +17,10 @@ let debug_print = false
 
 module Field = struct
   module M = struct
+    type return_kind =
+      | Normal of int
+      | Exn
+
     type t =
       | Block of int
       | Value_slot of Value_slot.t
@@ -24,6 +28,14 @@ module Field = struct
       | Code_of_closure
       | Is_int
       | Get_tag
+      | Apply of return_kind
+
+    let compare_return_kind r1 r2 =
+      match r1, r2 with
+      | Normal i, Normal j -> compare i j
+      | Exn, Exn -> 0
+      | Normal _, Exn -> 1
+      | Exn, Normal _ -> -1
 
     let compare t1 t2 =
       match t1, t2 with
@@ -33,23 +45,29 @@ module Field = struct
       | Code_of_closure, Code_of_closure -> 0
       | Is_int, Is_int -> 0
       | Get_tag, Get_tag -> 0
+      | Apply r1, Apply r2 -> compare_return_kind r1 r2
       | ( Block _,
-          (Value_slot _ | Function_slot _ | Code_of_closure | Is_int | Get_tag)
-        ) ->
+          ( Value_slot _ | Function_slot _ | Code_of_closure | Is_int | Get_tag
+          | Apply _ ) ) ->
         -1
-      | ( (Value_slot _ | Function_slot _ | Code_of_closure | Is_int | Get_tag),
+      | ( ( Value_slot _ | Function_slot _ | Code_of_closure | Is_int | Get_tag
+          | Apply _ ),
           Block _ ) ->
         1
-      | Value_slot _, (Function_slot _ | Code_of_closure | Is_int | Get_tag) ->
+      | ( Value_slot _,
+          (Function_slot _ | Code_of_closure | Is_int | Get_tag | Apply _) ) ->
         -1
-      | (Function_slot _ | Code_of_closure | Is_int | Get_tag), Value_slot _ ->
+      | ( (Function_slot _ | Code_of_closure | Is_int | Get_tag | Apply _),
+          Value_slot _ ) ->
         1
-      | Function_slot _, (Code_of_closure | Is_int | Get_tag) -> -1
-      | (Code_of_closure | Is_int | Get_tag), Function_slot _ -> 1
-      | Code_of_closure, (Is_int | Get_tag) -> -1
-      | (Is_int | Get_tag), Code_of_closure -> 1
-      | Is_int, Get_tag -> -1
-      | Get_tag, Is_int -> -1
+      | Function_slot _, (Code_of_closure | Is_int | Get_tag | Apply _) -> -1
+      | (Code_of_closure | Is_int | Get_tag | Apply _), Function_slot _ -> 1
+      | Code_of_closure, (Is_int | Get_tag | Apply _) -> -1
+      | (Is_int | Get_tag | Apply _), Code_of_closure -> 1
+      | Is_int, (Get_tag | Apply _) -> -1
+      | (Get_tag | Apply _), Is_int -> 1
+      | Get_tag, Apply _ -> -1
+      | Apply _, Get_tag -> 1
 
     let equal a b = compare a b = 0
 
@@ -62,11 +80,12 @@ module Field = struct
       | Code_of_closure -> Format.fprintf ppf "Code"
       | Is_int -> Format.fprintf ppf "Is_int"
       | Get_tag -> Format.fprintf ppf "Get_tag"
+      | Apply (Normal i) -> Format.fprintf ppf "Apply (Normal %i)" i
+      | Apply Exn -> Format.fprintf ppf "Apply Exn"
   end
 
   include M
   module Container = Container_types.Make (M)
-
   module Map = Container.Map
 end
 

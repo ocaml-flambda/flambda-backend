@@ -16,6 +16,10 @@
 val debug_print : bool
 
 module Field : sig
+  type return_kind =
+    | Normal of int
+    | Exn
+
   type t =
     | Block of int
     | Value_slot of Value_slot.t
@@ -23,6 +27,7 @@ module Field : sig
     | Code_of_closure
     | Is_int
     | Get_tag
+    | Apply of return_kind
 
   val equal : t -> t -> bool
 

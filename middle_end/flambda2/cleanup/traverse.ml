@@ -18,7 +18,8 @@ module Graph = Global_flow_graph
 module Dot = Dot_printer
 
 type code_dep = Dot.code_dep =
-  { params : Variable.t list;
+  { arity : [`Complex] Flambda_arity.t;
+    params : Variable.t list;
     my_closure : Variable.t;
     return : Variable.t list; (* Dummy variable representing return value *)
     exn : Variable.t; (* Dummy variable representing exn return value *)
@@ -190,6 +191,45 @@ end = struct
   let add_set_of_closures_dep name code_id t =
     t.set_of_closures_dep <- (name, code_id) :: t.set_of_closures_dep
 
+  let record_set_of_closure_deps t =
+    List.iter
+      (fun (name, code_id) ->
+        let () =
+          match find_code t code_id with
+          | exception Not_found -> ()
+          | code_dep ->
+            Graph.add_dep t.deps
+              (Code_id_or_name.var code_dep.my_closure)
+              (Graph.Dep.Alias name);
+            let num_params = Flambda_arity.num_params code_dep.arity in
+            let acc = ref (Code_id_or_name.name name) in
+            for i = 1 to num_params - 1 do
+              let tmp_name =
+                Code_id_or_name.var
+                  (Variable.create (Printf.sprintf "partial_apply_%i" i))
+              in
+              Graph.add_dep t.deps !acc (Block (Apply (Normal 0), tmp_name));
+              acc := tmp_name
+            done;
+            List.iteri
+              (fun i v ->
+                Graph.add_dep t.deps !acc
+                  (Block (Apply (Normal i), Code_id_or_name.var v)))
+              code_dep.return;
+            Graph.add_dep t.deps !acc
+              (Block (Apply Exn, Code_id_or_name.var code_dep.exn))
+        in
+        let code_id =
+          try
+            let code_dep = find_code t code_id in
+            code_dep.code_id_for_escape
+          with Not_found -> code_id
+        in
+        Graph.add_dep t.deps
+          (Code_id_or_name.name name)
+          (Graph.Dep.Block (Code_of_closure, Code_id_or_name.code_id code_id)))
+      t.set_of_closures_dep
+
   let deps t =
     List.iter
       (fun { apply_in_func;
@@ -236,18 +276,7 @@ end = struct
             code_dep.return apply_return);
         add_cond_dep apply_exn (Name.var code_dep.exn))
       t.apply_deps;
-    List.iter
-      (fun (name, code_id) ->
-        let code_id =
-          try
-            let code_dep = find_code t code_id in
-            code_dep.code_id_for_escape
-          with Not_found -> code_id
-        in
-        Graph.add_dep t.deps
-          (Code_id_or_name.name name)
-          (Graph.Dep.Block (Code_of_closure, Code_id_or_name.code_id code_id)))
-      t.set_of_closures_dep;
+    record_set_of_closure_deps t;
     t.deps
 end
 
@@ -264,8 +293,8 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
   let return = [Variable.create "function_return"] in
   let exn = Variable.create "function_exn" in
   let my_closure = Variable.create "my_closure" in
+  let arity = Code.params_arity code in
   let params =
-    let arity = Code.params_arity code in
     List.init (Flambda_arity.cardinal_unarized arity) (fun i ->
         Variable.create (Printf.sprintf "function_param_%i" i))
   in
@@ -276,7 +305,9 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
     | Ok _ -> true
   in
   let code_id_for_escape = Code_id.rename code_id in
-  let code_dep = { return; my_closure; exn; params; code_id_for_escape } in
+  let code_dep =
+    { arity; return; my_closure; exn; params; code_id_for_escape }
+  in
   let () =
     if has_unsafe_result_type
     then
@@ -381,11 +412,6 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
         | Some callee -> Acc.used ~denv callee acc
       in
       let () =
-        List.iter
-          (fun (arg, _) -> Acc.used ~denv arg acc)
-          (Exn_continuation.extra_args (Apply_expr.exn_continuation apply))
-      in
-      let () =
         match Apply_expr.call_kind apply with
         | Function _ -> ()
         | Method { obj; kind = _; alloc_mode = _ } -> Acc.used ~denv obj acc
@@ -394,37 +420,35 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
       ()
     in
     let () =
+      let return_args =
+        match Apply_expr.continuation apply with
+        | Never_returns -> None
+        | Return cont -> (
+          match Continuation.Map.find cont denv.conts with
+          | Normal params -> Some params)
+      in
+      let exn_arg =
+        let exn = Apply_expr.exn_continuation apply in
+        let extra_args = Exn_continuation.extra_args exn in
+        let (Normal exn_params) =
+          Continuation.Map.find (Exn_continuation.exn_handler exn) denv.conts
+        in
+        match exn_params with
+        | [] -> assert false
+        | exn_param :: extra_params ->
+          let () =
+            List.iter2
+              (fun param (arg, _kind) -> Acc.cont_dep ~denv param arg acc)
+              extra_params extra_args
+          in
+          exn_param
+      in
       match Apply_expr.call_kind apply with
       | Function { function_call = Direct code_id; _ } ->
         (* TODO think about wether we should propagate that cross module.
            Probably not *)
         if Compilation_unit.is_current (Code_id.get_compilation_unit code_id)
         then (
-          let return_args =
-            match Apply_expr.continuation apply with
-            | Never_returns -> None
-            | Return cont -> (
-              match Continuation.Map.find cont denv.conts with
-              | Normal params -> Some params)
-          in
-          let exn_arg =
-            let exn = Apply_expr.exn_continuation apply in
-            let extra_args = Exn_continuation.extra_args exn in
-            let (Normal exn_params) =
-              Continuation.Map.find
-                (Exn_continuation.exn_handler exn)
-                denv.conts
-            in
-            match exn_params with
-            | [] -> assert false
-            | exn_param :: extra_params ->
-              let () =
-                List.iter2
-                  (fun param (arg, _kind) -> Acc.cont_dep ~denv param arg acc)
-                  extra_params extra_args
-              in
-              exn_param
-          in
           let apply_dep =
             { apply_in_func = denv.current_code_id;
               apply_code_id = code_id;
@@ -441,8 +465,54 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
         else default_acc acc
       | Function
           { function_call = Indirect_unknown_arity | Indirect_known_arity; _ }
-      | Method _ | C_call _ ->
-        default_acc acc
+        -> begin
+        let () =
+          List.iter (fun arg -> Acc.used ~denv arg acc) (Apply_expr.args apply)
+        in
+        let callee =
+          match Apply_expr.callee apply with
+          | None -> assert false
+          | Some callee ->
+            Simple.pattern_match
+              ~name:(fun callee ~coercion:_ -> callee)
+              ~const:(fun _ -> assert false)
+              callee
+        in
+        let arity = Apply_expr.args_arity apply in
+        let partial_apply = ref callee in
+        for i = 1 to Flambda_arity.num_params arity - 1 do
+          let v = Variable.create (Printf.sprintf "partial_apply_%i" i) in
+          Acc.record_dep' ~denv (Code_id_or_name.var v)
+            (Field (Apply (Normal 0), !partial_apply))
+            acc;
+          Acc.record_dep' ~denv
+            (Code_id_or_name.var exn_arg)
+            (Field (Apply Exn, !partial_apply))
+            acc;
+          partial_apply := Name.var v
+        done;
+        let calls_are_not_pure = Variable.create "not_pure" in
+        Acc.used ~denv (Simple.var calls_are_not_pure) acc;
+        Acc.record_dep' ~denv
+          (Code_id_or_name.var calls_are_not_pure)
+          (Field (Apply (Normal ~-1), !partial_apply))
+          acc;
+        (match return_args with
+        | None -> ()
+        | Some return_args ->
+          List.iteri
+            (fun i return_arg ->
+              Acc.record_dep' ~denv
+                (Code_id_or_name.var return_arg)
+                (Field (Apply (Normal i), !partial_apply))
+                acc)
+            return_args);
+        Acc.record_dep' ~denv
+          (Code_id_or_name.var exn_arg)
+          (Field (Apply Exn, !partial_apply))
+          acc
+      end
+      | Method _ | C_call _ -> default_acc acc
     in
     let expr = Apply apply in
     { expr; holed_expr = denv.parent }

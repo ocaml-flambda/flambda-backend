@@ -16,7 +16,8 @@
 module Graph = Global_flow_graph
 
 type code_dep =
-  { params : Variable.t list;
+  { arity : [`Complex] Flambda_arity.t;
+    params : Variable.t list;
     my_closure : Variable.t;
     return : Variable.t list; (* Dummy variable representing return value *)
     exn : Variable.t; (* Dummy variable representing exn return value *)
