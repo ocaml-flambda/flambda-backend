@@ -295,8 +295,9 @@ end = struct
       match p.pat_desc with
       | `Any -> `Any
       | `Constant cst -> `Constant cst
-      | `Tuple ps ->
-          `Tuple (List.map (fun (label, p) -> label, alpha_pat env p) ps)
+      | `Tuple (ps, shape) ->
+          `Tuple
+            (List.map (fun (label, p) -> label, alpha_pat env p) ps, shape)
       | `Construct (cstr, cst_descr, args) ->
           `Construct (cstr, cst_descr, List.map (alpha_pat env) args)
       | `Variant (cstr, argo, row_desc) ->
@@ -459,7 +460,7 @@ let matcher discr (p : Simple.pattern) rem =
   | Array _, (Constant _ | Construct _ | Variant _ | Lazy | Record _ | Tuple _)
     ->
       no ()
-  | Tuple n1, Tuple n2 -> yesif (n1 = n2)
+  | Tuple tup1, Tuple tup2 -> yesif (equate_tuple tup1 tup2)
   | Tuple _, (Constant _ | Construct _ | Variant _ | Lazy | Array _ | Record _)
     ->
       no ()
@@ -629,7 +630,7 @@ end
 let rec flatten_pat_line size p k =
   match p.pat_desc with
   | Tpat_any | Tpat_var _ -> Patterns.omegas size :: k
-  | Tpat_tuple args -> (List.map snd args) :: k
+  | Tpat_tuple (args, _) -> (List.map snd args) :: k
   | Tpat_or (p1, p2, _) ->
       flatten_pat_line size p1 (flatten_pat_line size p2 k)
   | Tpat_alias (p, _, _, _, _) ->
@@ -2092,21 +2093,24 @@ let divide_lazy ~scopes head ctx pm =
 let get_pat_args_tuple arity p rem =
   match p with
   | { pat_desc = Tpat_any } -> Patterns.omegas arity @ rem
-  | { pat_desc = Tpat_tuple args } -> (List.map snd args) @ rem
+  | { pat_desc = Tpat_tuple (args, _) } -> (List.map snd args) @ rem
   | _ -> assert false
 
 let get_expr_args_tuple ~scopes head (arg, _mut, _sort, _layout) rem =
   let loc = head_loc ~scopes head in
-  let arity = Patterns.Head.arity head in
-  let rec make_args pos =
-    if pos >= arity then
-      rem
-    else
-      (Lprim (Pfield (pos, Pointer, Reads_agree), [ arg ], loc), Alias,
-       Jkind.Sort.for_tuple_element, layout_tuple_element)
-        :: make_args (pos + 1)
-  in
-  make_args 0
+  match (head.pat_desc : Patterns.Head.desc) with
+  | Any -> rem
+  | Tuple (elems, shape) ->
+      List.mapi (fun pos _ ->
+          let sort = index_tuple_shape shape pos in
+          let layout =
+            Typeopt.layout_of_sort (Scoped_location.to_location loc) sort
+          in
+          (Lprim (Pfield (pos, Pointer, Reads_agree), [ arg ], loc), Alias,
+           sort, layout))
+        elems
+      @ rem
+  | _ -> assert false
 
 let divide_tuple ~scopes head ctx pm =
   let arity = Patterns.Head.arity head in
@@ -3726,7 +3730,7 @@ let failure_handler ~scopes loc ~failer () =
     Lprim
       ( Praise Raise_regular,
         [ Lprim
-            ( Pmakeblock (0, Immutable, None, alloc_heap),
+            ( Pmakeblock (0, Immutable, Representable, alloc_heap),
               [ slot;
                 Lconst
                   (Const_block
@@ -3904,18 +3908,26 @@ let rec map_return f = function
 let assign_pat ~scopes body_layout opt nraise catch_ids loc pat pat_sort lam =
   let rec collect pat_sort acc pat lam =
     match (pat.pat_desc, lam) with
-    | Tpat_tuple patl, Lprim (Pmakeblock _, lams, _) ->
+    | Tpat_tuple (patl, pat_shape), Lprim (Pmakeblock _, lams, _) ->
         opt := true;
-        List.fold_left2
-          (fun acc (_, pat) lam ->
-             collect Jkind.Sort.for_tuple_element acc pat lam)
-          acc patl lams
-    | Tpat_tuple patl, Lconst (Const_block (_, scl)) ->
-        opt := true;
-        let collect_const acc (_, pat) sc =
-          collect Jkind.Sort.for_tuple_element acc pat (Lconst sc)
+        let _idx, res =
+          List.fold_left2
+            (fun (i, acc) (_, pat) lam ->
+              let sort = index_tuple_shape pat_shape i in
+              let res = collect sort acc pat lam in
+              i+1, res)
+            (0, acc) patl lams
         in
-        List.fold_left2 collect_const acc patl scl
+        res
+    | Tpat_tuple (patl, pat_shape), Lconst (Const_block (_, scl)) ->
+        opt := true;
+        let collect_const (i, acc) (_, pat) sc =
+          let sort = index_tuple_shape pat_shape i in
+          let res = collect sort acc pat (Lconst sc) in
+          i+1, res
+        in
+        let _idx, res = List.fold_left2 collect_const (0, acc) patl scl in
+        res
     | _ ->
         (* pattern idents will be bound in staticcatch (let body), so we
            refresh them here to guarantee binders uniqueness *)
@@ -3983,8 +3995,9 @@ let for_tupled_function ~scopes ~return_layout loc paraml pats_act_list partial 
   (* The arguments of a tupled function are always values since they must be
      tuple elements *)
   let args =
-    List.map (fun id -> (Lvar id, Strict, Jkind.Sort.for_tuple_element,
-                         layout_tuple_element))
+    List.map (fun id -> (Lvar id, Strict,
+                         Jkind.Sort.for_element_of_representable_tuple,
+                         layout_element_of_representable_tuple))
       paraml
   in
   let handler =
@@ -3997,13 +4010,13 @@ let for_tupled_function ~scopes ~return_layout loc paraml pats_act_list partial 
 
 let flatten_pattern size p =
   match p.pat_desc with
-  | Tpat_tuple args -> List.map snd args
+  | Tpat_tuple (args, _) -> List.map snd args
   | Tpat_any -> Patterns.omegas size
   | _ -> raise Cannot_flatten
 
 let flatten_simple_pattern size (p : Simple.pattern) =
   match p.pat_desc with
-  | `Tuple args -> (List.map snd args)
+  | `Tuple (args, _) -> (List.map snd args)
   | `Any -> Patterns.omegas size
   | `Array _
   | `Variant _
@@ -4083,7 +4096,7 @@ let do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list pa
   let param_lambda = List.map (fun (l, _, _) -> l) paraml in
   let arg =
     let sloc = Scoped_location.of_location ~scopes loc in
-    Lprim (Pmakeblock (0, Immutable, None, mode), param_lambda, sloc)
+    Lprim (Pmakeblock (0, Immutable, Representable, mode), param_lambda, sloc)
   in
   let arg_sort = Jkind.Sort.for_tuple in
   let handler =

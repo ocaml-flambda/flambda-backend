@@ -641,8 +641,12 @@ and raw_type_desc ppf = function
         (Alloc.print ~verbose:true ()) ret
         raw_type t1 raw_type t2
         (if is_commu_ok c then "Cok" else "Cunknown")
-  | Ttuple tl ->
-      fprintf ppf "@[<1>Ttuple@,%a@]" labeled_type_list tl
+  | Ttuple (tl, shape) ->
+      fprintf ppf "@[<1>Ttuple%s@,%a@]"
+        (match shape with
+         | Representable -> ""
+         | Unrepresentable _ -> " (unrepresentable)")
+        labeled_type_list tl
   | Tconstr (p, tl, abbrev) ->
       fprintf ppf "@[<hov1>Tconstr(@,%a,@,%a,@,%a)@]" path p
         raw_type_list tl
@@ -1335,7 +1339,7 @@ let rec tree_of_typexp mode alloc_mode ty =
         let (rm, t2) = tree_of_ret_typ_mutating mode acc_mode (mret, ty2) in
         Btype.backtrack snap;
         Otyp_arrow (lab, tree_of_modes arg_mode, t1, rm, t2)
-    | Ttuple labeled_tyl ->
+    | Ttuple (labeled_tyl, _) ->
         Otyp_tuple (tree_of_labeled_typlist mode labeled_tyl)
     | Tconstr(p, tyl, _abbrev) ->
         let p', s = best_type_path p in
@@ -1592,7 +1596,8 @@ let filter_params tyl =
     List.fold_left
       (fun tyl ty ->
         if List.exists (eq_type ty) tyl
-        then newty2 ~level:generic_level (Ttuple [None, ty]) :: tyl
+        then newty2 ~level:generic_level
+            (Ttuple ([None, ty], Representable)) :: tyl
         else ty :: tyl)
       (* Two parameters might be identical due to a constraint but we need to
          print them differently in order to make the output syntactically valid.

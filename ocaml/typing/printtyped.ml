@@ -304,8 +304,11 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
       value_mode i ppf m;
       pattern i ppf p;
   | Tpat_constant (c) -> line i ppf "Tpat_constant %a\n" fmt_constant c;
-  | Tpat_tuple (l) ->
-      line i ppf "Tpat_tuple\n";
+  | Tpat_tuple (l, shape) ->
+      line i ppf "Tpat_tuple%s\n"
+        (match shape with
+         | Representable -> ""
+         | Unrepresentable _ -> " \"Unrepresentable\"");
       list i labeled_pattern ppf l;
   | Tpat_construct (li, _, po, vto) ->
       line i ppf "Tpat_construct %a\n" fmt_longident li;
@@ -340,7 +343,7 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
       pattern i ppf p1;
       pattern i ppf p2;
 
-and labeled_pattern : type k . _ -> _ -> string option * k general_pattern -> unit =
+and labeled_pattern : type k . _ -> _ -> _ * k general_pattern -> unit =
   fun i ppf (label, x) ->
     tuple_component_label i ppf label;
     pattern i ppf x
@@ -466,8 +469,11 @@ and expression i ppf x =
       line i ppf "Texp_try\n";
       expression i ppf e;
       list i case ppf l;
-  | Texp_tuple (l, am) ->
-      line i ppf "Texp_tuple\n";
+  | Texp_tuple (l, am, shape) ->
+      line i ppf "Texp_tuple%s\n"
+        (match shape with
+         | Representable -> ""
+         | Unrepresentable _ -> " \"Unrepresentable\"");
       alloc_mode i ppf am;
       list i labeled_expression ppf l;
   | Texp_construct (li, _, eo, am) ->

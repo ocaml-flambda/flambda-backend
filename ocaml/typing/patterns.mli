@@ -40,7 +40,7 @@ module Simple : sig
   type view = [
     | `Any
     | `Constant of constant
-    | `Tuple of (string option * pattern) list
+    | `Tuple of (string option * pattern) list * tuple_shape
     | `Construct of
         Longident.t loc * constructor_description * pattern list
     | `Variant of label * pattern option * row_desc ref
@@ -77,11 +77,13 @@ module General : sig
 end
 
 module Head : sig
+  type tuple = string option list * tuple_shape
+
   type desc =
     | Any
     | Construct of constructor_description
     | Constant of constant
-    | Tuple of string option list
+    | Tuple of tuple
     | Record of label_description list
     | Variant of
         { tag: label; has_arg: bool;
@@ -105,5 +107,9 @@ module Head : sig
   val to_omega_pattern : t -> pattern
 
   val omega : t
+
+  (** Indicates whether the two arguments to the Tuple constructor are
+      compatible. Side effect: equates the sort variables of the two shapes. *)
+  val equate_tuple : tuple -> tuple -> bool
 
 end

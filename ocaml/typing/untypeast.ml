@@ -104,7 +104,7 @@ let rec extract_letop_patterns n pat =
   if n = 0 then pat, []
   else begin
     match pat.pat_desc with
-    | Tpat_tuple([None, first; None, rest]) ->
+    | Tpat_tuple([None, first; None, rest], _) ->
         (* Labels should always be None, from when [Texp_letop] are created in
            [Typecore.type_expect] *)
         let next, others = extract_letop_patterns (n-1) rest in
@@ -373,7 +373,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
       | `Jane_syntax cst ->
         Jane_syntax.Layouts.pat_of ~loc (Lpat_constant cst) |> add_jane_syntax_attributes
       end
-    | Tpat_tuple list ->
+    | Tpat_tuple (list, _) ->
         Jane_syntax.Labeled_tuples.pat_of ~loc
           (List.map (fun (label, p) -> label, sub.pat sub p) list, Closed)
         |> add_jane_syntax_attributes
@@ -604,7 +604,7 @@ let expression sub exp =
       Pexp_match (sub.expr sub exp, List.map (sub.case sub) cases)
     | Texp_try (exp, cases) ->
         Pexp_try (sub.expr sub exp, List.map (sub.case sub) cases)
-    | Texp_tuple (list, _) ->
+    | Texp_tuple (list, _, _) ->
         Jane_syntax.Labeled_tuples.expr_of ~loc
           (List.map (fun (lbl, e) -> lbl, sub.expr sub e) list)
         |> add_jane_syntax_attributes

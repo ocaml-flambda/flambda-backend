@@ -64,7 +64,7 @@ let compute_variance env visited vari ty =
       Tarrow (_, ty1, ty2, _) ->
         compute_variance_rec (Variance.conjugate vari) ty1;
         compute_same ty2
-    | Ttuple tl ->
+    | Ttuple (tl, _) ->
         List.iter (fun (_,t) -> compute_same t) tl
     | Tconstr (path, tl, _) ->
         let open Variance in
@@ -174,7 +174,7 @@ let compute_variance_type env ~check (required, loc) decl tyl =
                                                         (c,n,i)))))
       params required;
     (* Check propagation from constrained parameters *)
-    let args = Btype.newgenty (Ttuple (List.map (fun t -> None, t) params)) in
+    let args = Btype.newgenty (dummy_type_list params) in
     let fvl = Ctype.free_variables args in
     let fvl =
       List.filter (fun v -> not (List.exists (eq_type v) params)) fvl in

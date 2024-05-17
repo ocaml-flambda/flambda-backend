@@ -239,6 +239,9 @@ let mk_add_type add_type
   in
   add_type type_ident decl env
 
+let ttuple tys =
+  Ttuple (List.map (fun ty -> None, ty) tys, Representable)
+
 (* CR layouts: Changes will be needed here as we add support for the built-ins
    to work with non-values, and as we relax the mixed block restriction. *)
 let build_initial_env add_type add_extension empty_env =
@@ -405,7 +408,7 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind:(Jkind.immediate ~why:Enumeration)
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
-       [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
+       [newgenty (ttuple[ type_string; type_int; type_int])]
        [| Jkind.value ~why:Tuple |]
   |> add_extension ident_division_by_zero [] [||]
   |> add_extension ident_end_of_file [] [||]
@@ -414,7 +417,7 @@ let build_initial_env add_type add_extension empty_env =
   |> add_extension ident_invalid_argument [type_string]
        [| Jkind.value ~why:(Primitive ident_string) |]
   |> add_extension ident_match_failure
-       [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
+       [newgenty (ttuple[type_string; type_int; type_int])]
        [| Jkind.value ~why:Tuple |]
   |> add_extension ident_not_found [] [||]
   |> add_extension ident_out_of_memory [] [||]
@@ -423,7 +426,7 @@ let build_initial_env add_type add_extension empty_env =
   |> add_extension ident_sys_error [type_string]
        [| Jkind.value ~why:(Primitive ident_string) |]
   |> add_extension ident_undefined_recursive_module
-       [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
+       [newgenty (ttuple[type_string; type_int; type_int])]
        [| Jkind.value ~why:Tuple |]
 
 let add_simd_extension_types add_type env =

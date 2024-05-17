@@ -52,9 +52,7 @@ let constructor_existentials cd_args cd_res =
     match cd_res with
     | None -> []
     | Some type_ret ->
-        let arg_vars_set =
-          free_vars (newgenty (Ttuple (List.map (fun ty -> None, ty) tyl)))
-        in
+        let arg_vars_set = free_vars (newgenty (dummy_type_list tyl)) in
         let res_vars = free_vars type_ret in
         TypeSet.elements (TypeSet.diff arg_vars_set res_vars)
   in
@@ -66,8 +64,7 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
   | Cstr_tuple l -> existentials, l, None
   | Cstr_record lbls ->
       let arg_vars_set =
-        free_vars ~param:true
-          (newgenty (Ttuple (List.map (fun ty -> None, ty) tyl)))
+        free_vars ~param:true (newgenty (dummy_type_list tyl))
       in
       let type_params = TypeSet.elements arg_vars_set in
       let arity = List.length type_params in
@@ -196,7 +193,8 @@ let extension_descr ~current_unit path_ext ext =
     }
 
 let none =
-  create_expr (Ttuple []) ~level:(-1) ~scope:Btype.generic_level ~id:(-1)
+  create_expr (Ttuple ([], Representable))
+    ~level:(-1) ~scope:Btype.generic_level ~id:(-1)
     (* Clearly ill-formed type *)
 
 let dummy_label =

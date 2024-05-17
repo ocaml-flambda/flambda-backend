@@ -340,7 +340,9 @@ and layout =
   | Pbottom
 
 and block_shape =
-  value_kind list option
+  | Representable
+  | Representable_with_shape of value_kind list
+  | Unrepresentable
 
 and flat_element = Types.flat_element =
   | Imm
@@ -851,7 +853,7 @@ let layout_block = Pvalue Pgenval
 let layout_list =
   Pvalue (Pvariant { consts = [0] ;
                      non_consts = [0, Constructor_uniform [Pgenval; Pgenval]] })
-let layout_tuple_element = Pvalue Pgenval
+let layout_element_of_representable_tuple = Pvalue Pgenval
 let layout_value_field = Pvalue Pgenval
 let layout_tmc_field = Pvalue Pgenval
 let layout_optional_arg = Pvalue Pgenval

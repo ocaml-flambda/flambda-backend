@@ -100,7 +100,7 @@ let transl_extension_constructor ~scopes env path ext =
       (* Extension constructors are currently always Alloc_heap.
          They could be Alloc_local, but that would require changes
          to pattern typing, as patterns can close over them. *)
-      Lprim (Pmakeblock (Obj.object_tag, Immutable_unique, None, alloc_heap),
+      Lprim (Pmakeblock (Obj.object_tag, Immutable_unique, Representable, alloc_heap),
         [Lconst (Const_base (Const_string (name, ext.ext_loc, None)));
          Lprim (prim_fresh_oo_id, [Lconst (const_int 0)], loc)],
         loc)
@@ -253,7 +253,7 @@ let assert_failed loc ~scopes exp =
   in
   let loc = of_location ~scopes exp.exp_loc in
   Lprim(Praise Raise_regular, [event_after ~scopes exp
-    (Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+    (Lprim(Pmakeblock(0, Immutable, Representable, alloc_heap),
           [slot;
            Lconst(Const_block(0,
               [Const_base(Const_string (fname, exp.exp_loc, None));
@@ -457,16 +457,39 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                Matching.for_trywith ~scopes ~return_layout e.exp_loc (Lvar id)
                  (transl_cases_try ~scopes sort pat_expr_list),
                return_layout)
-  | Texp_tuple (el, alloc_mode) ->
-      let ll, shape =
-        transl_value_list_with_shape ~scopes
-          (List.map (fun (_, a) -> (a, Jkind.Sort.for_tuple_element)) el)
+  | Texp_tuple (el, alloc_mode, shape) ->
+      let ll =
+        List.mapi (fun i (_lbl, e) ->
+            let sort = index_tuple_shape shape i in
+            transl_exp ~scopes sort e) el
       in
-      begin try
-        Lconst(Const_block(0, List.map extract_constant ll))
-      with Not_constant ->
-        Lprim(Pmakeblock(0, Immutable, Some shape,
-                         transl_alloc_mode_r alloc_mode),
+      let shape =
+        (* CR layouts v5: We can update this when we can represent tuples
+           of non-values. For now, any tuple that contains a non-value is
+           one that the type-checker is predicting that translation will
+           optimize out.
+        *)
+        match shape with
+        | Representable ->
+            Representable_with_shape
+              (List.map (fun (_, e) ->
+                   Lambda.must_be_value
+                     (layout_exp
+                        Jkind.Sort.for_element_of_representable_tuple e))
+                 el)
+        | Unrepresentable _sorts -> Unrepresentable
+      in
+      let maybe_constant =
+        match shape with
+        | Unrepresentable -> None
+        | Representable | Representable_with_shape _ ->
+            try Some (List.map extract_constant ll) with
+            | Not_constant -> None
+      in
+      begin match maybe_constant with
+      | Some constants -> Lconst(Const_block(0, constants))
+      | None ->
+        Lprim(Pmakeblock(0, Immutable, shape, transl_alloc_mode_r alloc_mode),
               ll,
               (of_location ~scopes e.exp_loc))
       end
@@ -517,7 +540,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                         Lambda.must_be_value (layout_exp sort e))
                       args_with_sorts
                   in
-                  Pmakeblock(runtime_tag, Immutable, Some shape, alloc_mode)
+                  Pmakeblock(runtime_tag, Immutable,
+                             Representable_with_shape shape, alloc_mode)
               | Constructor_mixed shape ->
                   let shape = Lambda.transl_mixed_product_shape shape in
                   Pmakemixedblock(runtime_tag, Immutable, shape, alloc_mode)
@@ -543,7 +567,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                         Lambda.must_be_value (layout_exp sort e))
                       args_with_sorts
                   in
-                  Pmakeblock(0, Immutable, Some (Pgenval :: shape),
+                  Pmakeblock(0, Immutable,
+                             Representable_with_shape (Pgenval :: shape),
                             alloc_mode)
               | Constructor_mixed shape ->
                   let shape = Lambda.transl_mixed_product_shape shape in
@@ -568,7 +593,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             Lconst(Const_block(0, [const_int tag;
                                    extract_constant lam]))
           with Not_constant ->
-            Lprim(Pmakeblock(0, Immutable, None,
+            Lprim(Pmakeblock(0, Immutable, Representable,
                              transl_alloc_mode_r alloc_mode),
                   [Lconst(const_int tag); lam],
                   of_location ~scopes e.exp_loc)
@@ -897,7 +922,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           (* We don't need to wrap with Popaque: this forward
              block will never be shortcutted since it points to a float
              and Config.flat_float_array is true. *)
-         Lprim(Pmakeblock(Obj.forward_tag, Immutable, None,
+         Lprim(Pmakeblock(Obj.forward_tag, Immutable, Representable,
                           alloc_heap),
                 [transl_exp ~scopes Jkind.Sort.for_lazy_body e],
                of_location ~scopes e.exp_loc)
@@ -909,7 +934,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             block doesn't really match what is going on here.  This
             value may subsequently turn into an immediate... *)
          Lprim (Popaque Lambda.layout_lazy,
-                [Lprim(Pmakeblock(Obj.forward_tag, Immutable, None,
+                [Lprim(Pmakeblock(Obj.forward_tag, Immutable, Representable,
                                   alloc_heap),
                        [transl_exp ~scopes Jkind.Sort.for_lazy_body e],
                        of_location ~scopes e.exp_loc)],
@@ -935,7 +960,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                                      Lambda.layout_lazy_contents
                                      (transl_exp ~scopes Jkind.Sort.for_lazy_body e))
          in
-          Lprim(Pmakeblock(Config.lazy_tag, Mutable, None, alloc_heap), [fn],
+          Lprim(Pmakeblock(Config.lazy_tag, Mutable, Representable, alloc_heap),
+                [fn],
                 of_location ~scopes e.exp_loc)
       end
   | Texp_object (cs, meths) ->
@@ -1122,19 +1148,13 @@ and pure_module m =
 and transl_list ~scopes expr_list =
   List.map (fun (exp, sort) -> transl_exp ~scopes sort exp) expr_list
 
-and transl_list_with_layout ~scopes expr_list =
-  List.map (fun (exp, sort) -> transl_exp ~scopes sort exp,
-                               sort,
-                               layout_exp sort exp)
+and transl_list_with_layout ~scopes expr_list shape =
+  List.mapi (fun i exp ->
+      let sort = index_tuple_shape shape i in
+      transl_exp ~scopes sort exp,
+      sort,
+      layout_exp sort exp)
     expr_list
-
-(* Will raise if a list element has a non-value layout. *)
-and transl_value_list_with_shape ~scopes expr_list =
-  let transl_with_shape (e, sort) =
-    let shape = Lambda.must_be_value (layout_exp sort e) in
-    transl_exp ~scopes sort e, shape
-  in
-  List.split (List.map transl_with_shape expr_list)
 
 and transl_guard ~scopes guard rhs_sort rhs =
   let layout = layout_exp rhs_sort rhs in
@@ -1354,7 +1374,7 @@ and transl_tupled_function
   match eligible_cases with
   | Some
       (cases, partial,
-       ({ pat_desc = Tpat_tuple pl } as arg_pat), arg_mode, arg_sort)
+       ({ pat_desc = Tpat_tuple (pl, _) } as arg_pat), arg_mode, arg_sort)
     when is_alloc_heap mode
       && is_alloc_heap (transl_alloc_mode_l arg_mode)
       && !Clflags.native_code
@@ -1783,10 +1803,12 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         match repres with
           Record_boxed _ ->
             let shape = List.map must_be_value shape in
-            Lprim(Pmakeblock(0, mut, Some shape, Option.get mode), ll, loc)
+            Lprim(Pmakeblock(0, mut, Representable_with_shape shape,
+                             Option.get mode), ll, loc)
         | Record_inlined (Ordinary {runtime_tag}, Variant_boxed _) ->
             let shape = List.map must_be_value shape in
-            Lprim(Pmakeblock(runtime_tag, mut, Some shape, Option.get mode),
+            Lprim(Pmakeblock(runtime_tag, mut, Representable_with_shape shape,
+                             Option.get mode),
                   ll, loc)
         | Record_unboxed | Record_inlined (Ordinary _, Variant_unboxed) ->
             (match ll with [v] -> v | _ -> assert false)
@@ -1797,7 +1819,9 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         | Record_inlined (Extension (path, _), Variant_extensible) ->
             let shape = List.map must_be_value shape in
             let slot = transl_extension_path loc env path in
-            Lprim(Pmakeblock(0, mut, Some (Pgenval :: shape), Option.get mode),
+            Lprim(Pmakeblock(0, mut,
+                             Representable_with_shape (Pgenval :: shape),
+                             Option.get mode),
                   slot :: ll, loc)
         | Record_inlined (Extension _, (Variant_unboxed | Variant_boxed _))
         | Record_inlined (Ordinary _, Variant_extensible) ->
@@ -1952,29 +1976,29 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
   in
   let classic =
     match arg, exn_cases with
-    | {exp_desc = Texp_tuple (argl, alloc_mode)}, [] ->
+    | {exp_desc = Texp_tuple (argl, alloc_mode, shape)}, [] ->
       assert (static_handlers = []);
       let mode = transl_alloc_mode_r alloc_mode in
-      let argl =
-        List.map (fun (_, a) -> (a, Jkind.Sort.for_tuple_element)) argl
-      in
+      let argl = List.map snd argl in
       Matching.for_multiple_match ~scopes ~return_layout e.exp_loc
-        (transl_list_with_layout ~scopes argl) mode val_cases partial
-    | {exp_desc = Texp_tuple (argl, alloc_mode)}, _ :: _ ->
-        let argl =
-          List.map (fun (_, a) -> (a, Jkind.Sort.for_tuple_element)) argl
-        in
+        (transl_list_with_layout ~scopes argl shape) mode val_cases partial
+    | {exp_desc = Texp_tuple (argl, alloc_mode, shape)}, _ :: _ ->
+        let argl = List.map snd argl in
         let val_ids, lvars =
-          List.map
-            (fun (arg,s) ->
-               let layout = layout_exp s arg in
+          List.mapi
+            (fun i arg ->
+               let sort = index_tuple_shape shape i in
+               let layout = layout_exp sort arg in
                let id = Typecore.name_pattern "val" [] in
-               (id, layout), (Lvar id, s, layout))
+               (id, layout), (Lvar id, sort, layout))
             argl
           |> List.split
         in
         let mode = transl_alloc_mode_r alloc_mode in
-        static_catch (transl_list ~scopes argl) val_ids
+        let argl_with_sorts =
+          List.mapi (fun i arg -> (arg, index_tuple_shape shape i)) argl
+        in
+        static_catch (transl_list ~scopes argl_with_sorts) val_ids
           (Matching.for_multiple_match ~scopes ~return_layout e.exp_loc
              lvars mode val_cases partial)
     | arg, [] ->

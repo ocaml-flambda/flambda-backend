@@ -260,7 +260,7 @@ module Analyser =
         | Typedtree.Tpat_alias (pat, _, _, _, _) ->
             iter_pattern pat
 
-        | Typedtree.Tpat_tuple patlist ->
+        | Typedtree.Tpat_tuple (patlist, _) ->
             Tuple
               (List.map (fun (_, p) -> iter_pattern p) patlist,
                Odoc_env.subst_type env pat.pat_type)

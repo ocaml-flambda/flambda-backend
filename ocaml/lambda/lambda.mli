@@ -348,7 +348,9 @@ and layout =
   | Pbottom
 
 and block_shape =
-  value_kind list option
+  | Representable
+  | Representable_with_shape of value_kind list
+  | Unrepresentable
 
 and flat_element = Types.flat_element =
   | Imm
@@ -751,8 +753,8 @@ val layout_boxed_float : boxed_float -> layout
 val layout_unboxed_float : boxed_float -> layout
 val layout_boxedint : boxed_integer -> layout
 val layout_boxed_vector : Primitive.boxed_vector -> layout
-(* A layout that is Pgenval because it is the field of a tuple *)
-val layout_tuple_element : layout
+(* A layout that is Pgenval because it is the field of a representable tuple *)
+val layout_element_of_representable_tuple : layout
 (* A layout that is Pgenval because it is the arg of a polymorphic variant *)
 val layout_variant_arg : layout
 (* A layout that is Pgenval because it is the field of a block being considered

@@ -679,8 +679,13 @@ let rec expression : Typedtree.expression -> term_judg =
           else Dereference
         in
         join [expression e; list arg args] << app_mode
-    | Texp_tuple (exprs, _) ->
-      list expression (List.map snd exprs) << Guard
+    | Texp_tuple (elems, _, shape) ->
+        let m =
+          match shape with
+          | Unrepresentable _ -> Dereference
+          | Representable -> Guard
+        in
+        list expression (List.map snd elems) << m
     | Texp_array (_, elt_sort, exprs, _) ->
       list expression exprs << array_mode exp elt_sort
     | Texp_list_comprehension { comp_body; comp_clauses } ->

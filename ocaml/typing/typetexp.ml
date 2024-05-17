@@ -1143,10 +1143,10 @@ and transl_type_aux_tuple env ~policy ~row_context stl =
          label, transl_type env ~policy ~row_context Alloc.Const.legacy t)
       stl
   in
+  let elem_jkind = Jkind.value ~why:Element_of_representable_tuple in
   List.iter (fun (_, {ctyp_type; ctyp_loc}) ->
     (* CR layouts v5: remove value requirement *)
-    match
-      constrain_type_jkind env ctyp_type (Jkind.value ~why:Tuple_element)
+    match constrain_type_jkind env ctyp_type elem_jkind
     with
     | Ok _ -> ()
     | Error e ->
@@ -1154,7 +1154,9 @@ and transl_type_aux_tuple env ~policy ~row_context stl =
                    Non_value {vloc = Tuple; err = e; typ = ctyp_type})))
     ctys;
   let ctyp_type =
-    newty (Ttuple (List.map (fun (label, ctyp) -> label, ctyp.ctyp_type) ctys))
+    newty
+      (Ttuple (List.map (fun (lbl, ctyp) -> lbl, ctyp.ctyp_type) ctys,
+               Representable))
   in
   Ttyp_tuple ctys, ctyp_type
 

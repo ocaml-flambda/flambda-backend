@@ -103,7 +103,7 @@ module type Sort = sig
 
   val for_lazy_body : t
 
-  val for_tuple_element : t
+  val for_element_of_representable_tuple : t
 
   val for_variant_arg : t
 
@@ -159,6 +159,7 @@ module History = struct
     | Optional_arg_default
     | Layout_poly_in_external
     | Array_element
+    | Element_of_local_tuple
 
   type annotation_context =
     | Type_declaration of Path.t
@@ -172,7 +173,7 @@ module History = struct
 
   type value_creation_reason =
     | Class_let_binding
-    | Tuple_element
+    | Element_of_representable_tuple
     | Probe
     | Object
     | Instance_variable

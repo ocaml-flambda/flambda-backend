@@ -142,6 +142,32 @@ exception Cannot_unify_universal_variables
 
 exception Incompatible
 
+let compare_tuple_shapes shape1 shape2 ~on_failure =
+  match shape1, shape2 with
+  | Representable, Representable -> ()
+  | Unrepresentable sorts1, Unrepresentable sorts2 ->
+      if Array.length sorts1 <> Array.length sorts2
+      then on_failure ();
+      Array.iter2 (fun sort1 sort2 ->
+          if not (Jkind.Sort.equate sort1 sort2)
+          then on_failure ())
+        sorts1 sorts2
+  | Unrepresentable _, Representable ->
+      failwith "First arg was unrepresentable, second was not"
+  | Representable, Unrepresentable _ ->
+      failwith "First arg was representable, second was not"
+
+(* Helper for handling the Ttuple constructor arg *)
+let compare_tuple_elem_list_gen env tl1 shape1 tl2 shape2 f ~on_failure =
+  if List.compare_lengths tl1 tl2 <> 0 then on_failure ();
+  compare_tuple_shapes shape1 shape2 ~on_failure;
+  List.iter2
+    (fun (label1, ty1) (label2, ty2) ->
+      if not (Option.equal String.equal label1 label2)
+      then on_failure ();
+      f env ty1 ty2)
+    tl1 tl2
+
 (**** Type level management ****)
 
 let current_level = s_ref 0
@@ -265,7 +291,7 @@ let newconstr path tyl = newty (Tconstr (path, tyl, ref Mnil))
 
 let newmono ty = newty (Tpoly(ty, []))
 
-let none = newty (Ttuple [])                (* Clearly ill-formed type *)
+let none = newty (Ttuple ([], Representable))     (* Clearly ill-formed type *)
 
 (**** unification mode ****)
 
@@ -793,7 +819,7 @@ let rec generalize_spine ty =
   | Tpoly (ty', _) ->
       set_level ty generic_level;
       generalize_spine ty'
-  | Ttuple tyl ->
+  | Ttuple (tyl, _) ->
       set_level ty generic_level;
       List.iter (fun (_,t) -> generalize_spine t) tyl
   | Tpackage (_, fl) ->
@@ -2965,8 +2991,8 @@ let rec mcomp type_pairs env t1 t2 =
           when equivalent_with_nolabels l1 l2 ->
             mcomp type_pairs env t1 t2;
             mcomp type_pairs env u1 u2;
-        | (Ttuple tl1, Ttuple tl2) ->
-            mcomp_labeled_list type_pairs env tl1 tl2
+        | (Ttuple (tl1, shape1), Ttuple (tl2, shape2)) ->
+            mcomp_tuple_elem_list type_pairs env tl1 shape1 tl2 shape2
         | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _)) ->
             mcomp_type_decl type_pairs env p1 p2 tl1 tl2
         | (Tconstr (_, [], _), _) when has_injective_univars env t2' ->
@@ -3012,15 +3038,10 @@ and mcomp_list type_pairs env tl1 tl2 =
     raise Incompatible;
   List.iter2 (mcomp type_pairs env) tl1 tl2
 
-and mcomp_labeled_list type_pairs env labeled_tl1 labeled_tl2 =
-  if not (Int.equal (List.length labeled_tl1) (List.length labeled_tl2)) then
-    raise Incompatible;
-  List.iter2
-    (fun (label1, ty1) (label2, ty2) ->
-      if not (Option.equal String.equal label1 label2) then
-        raise Incompatible;
-      mcomp type_pairs env ty1 ty2)
-    labeled_tl1 labeled_tl2
+and mcomp_tuple_elem_list type_pairs env tl1 shape1 tl2 shape2 =
+  compare_tuple_elem_list_gen env tl1 shape1 tl2 shape2
+    (fun env ty1 ty2 -> mcomp type_pairs env ty1 ty2)
+    ~on_failure:(fun () -> raise Incompatible)
 
 and mcomp_fields type_pairs env ty1 ty2 =
   if not (concrete_object ty1 && concrete_object ty2) then assert false;
@@ -3532,8 +3553,8 @@ and unify3 env t1 t1' t2 t2' =
           | false, false -> link_commu ~inside:c1 c2
           | true, true -> ()
           end
-      | (Ttuple labeled_tl1, Ttuple labeled_tl2) ->
-          unify_labeled_list env labeled_tl1 labeled_tl2
+      | (Ttuple (tl1, shape1), Ttuple (tl2, shape2)) ->
+          unify_tuple_elem_list env tl1 shape1 tl2 shape2
       | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _)) when Path.same p1 p2 ->
           if not (can_generate_equations ()) then
             unify_list env tl1 tl2
@@ -3674,15 +3695,9 @@ and unify_list env tl1 tl2 =
     raise_unexplained_for Unify;
   List.iter2 (unify env) tl1 tl2
 
-and unify_labeled_list env labeled_tl1 labeled_tl2 =
-  if not (Int.equal (List.length labeled_tl1) (List.length labeled_tl2)) then
-    raise_unexplained_for Unify;
-  List.iter2
-    (fun (label1, ty1) (label2, ty2) ->
-      if not (Option.equal String.equal label1 label2) then
-        raise_unexplained_for Unify;
-      unify env ty1 ty2)
-    labeled_tl1 labeled_tl2
+and unify_tuple_elem_list env tl1 shape1 tl2 shape2 =
+  compare_tuple_elem_list_gen env tl1 shape1 tl2 shape2 unify
+    ~on_failure:(fun () -> raise_unexplained_for Unify)
 
 (* Build a fresh row variable for unification *)
 and make_rowvar level use1 rest1 use2 rest2  =
@@ -4276,7 +4291,7 @@ let add_dummy_method env ~scope sign =
   let _, ty, row =
     filter_method_row env dummy_method Private sign.csig_self_row
   in
-  unify env ty (new_scoped_ty scope (Ttuple []));
+  unify env ty (new_scoped_ty scope (Ttuple ([], Representable)));
   sign.csig_self_row <- row
 
 type add_method_failure =
@@ -4625,9 +4640,9 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
               moregen inst_nongen variance type_pairs env u1 u2;
               moregen_alloc_mode (neg_variance variance) a1 a2;
               moregen_alloc_mode variance r1 r2
-          | (Ttuple labeled_tl1, Ttuple labeled_tl2) ->
-              moregen_labeled_list inst_nongen variance type_pairs env
-                labeled_tl1 labeled_tl2
+          | (Ttuple (tl1, shape1), Ttuple (tl2, shape2)) ->
+              moregen_tuple_elem_list inst_nongen variance type_pairs env
+                tl1 shape1 tl2 shape2
           | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _))
                 when Path.same p1 p2 -> begin
               match variance with
@@ -4677,16 +4692,12 @@ and moregen_list inst_nongen variance type_pairs env tl1 tl2 =
     raise_unexplained_for Moregen;
   List.iter2 (moregen inst_nongen variance type_pairs env) tl1 tl2
 
-and moregen_labeled_list inst_nongen variance type_pairs env labeled_tl1
-    labeled_tl2 =
-  if not (Int.equal (List.length labeled_tl1) (List.length labeled_tl2)) then
-    raise_unexplained_for Moregen;
-  List.iter2
-    (fun (label1, ty1) (label2, ty2) ->
-      if not (Option.equal String.equal label1 label2) then
-        raise_unexplained_for Moregen;
+and moregen_tuple_elem_list inst_nongen variance type_pairs env
+    tl1 shape1 tl2 shape2 =
+  compare_tuple_elem_list_gen env tl1 shape1 tl2 shape2
+    (fun env ty1 ty2 ->
       moregen inst_nongen variance type_pairs env ty1 ty2)
-    labeled_tl1 labeled_tl2
+    ~on_failure:(fun () -> raise_unexplained_for Moregen)
 
 and moregen_param_list inst_nongen variance type_pairs env vl tl1 tl2 =
   match vl, tl1, tl2 with
@@ -5051,9 +5062,9 @@ let rec eqtype rename type_pairs subst env t1 t2 =
               eqtype rename type_pairs subst env u1 u2;
               eqtype_alloc_mode a1 a2;
               eqtype_alloc_mode r1 r2
-          | (Ttuple labeled_tl1, Ttuple labeled_tl2) ->
-              eqtype_labeled_list rename type_pairs subst env labeled_tl1
-                labeled_tl2
+          | (Ttuple (tl1, shape1), Ttuple (tl2, shape2)) ->
+              eqtype_tuple_elem_list rename type_pairs subst env
+                tl1 shape1 tl2 shape2
           | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _))
                 when Path.same p1 p2 ->
               eqtype_list rename type_pairs subst env tl1 tl2
@@ -5094,15 +5105,10 @@ and eqtype_list rename type_pairs subst env tl1 tl2 =
     raise_unexplained_for Equality;
   List.iter2 (eqtype rename type_pairs subst env) tl1 tl2
 
-and eqtype_labeled_list rename type_pairs subst env labeled_tl1 labeled_tl2 =
-  if not (Int.equal (List.length labeled_tl1) (List.length labeled_tl2)) then
-    raise_unexplained_for Equality;
-  List.iter2
-    (fun (label1, ty1) (label2, ty2) ->
-      if not (Option.equal String.equal label1 label2) then
-        raise_unexplained_for Equality;
-      eqtype rename type_pairs subst env ty1 ty2)
-    labeled_tl1 labeled_tl2
+and eqtype_tuple_elem_list rename type_pairs subst env tl1 shape1 tl2 shape2 =
+  compare_tuple_elem_list_gen env tl1 shape1 tl2 shape2
+    (fun env ty1 ty2 -> eqtype rename type_pairs subst env ty1 ty2)
+    ~on_failure:(fun () -> raise_unexplained_for Equality)
 
 and eqtype_fields rename type_pairs subst env ty1 ty2 =
   let (fields1, rest1) = flatten_fields ty1 in
@@ -5653,17 +5659,21 @@ let rec build_subtype env (visited : transient_expr list)
       if c > Unchanged
       then (newty (Tarrow((l,a',r'), t1', t2', commu_ok)), c)
       else (t, Unchanged)
-  | Ttuple labeled_tlist ->
+  | Ttuple (tlist, shape) ->
       let tt = Transient_expr.repr t in
       if memq_warn tt visited then (t, Unchanged) else
       let visited = tt :: visited in
-      let labels, tlist = List.split labeled_tlist in
       let tlist' =
-        List.map (build_subtype env visited loops posi level) tlist
+        List.map (fun (_, t) -> build_subtype env visited loops posi level t)
+          tlist
       in
       let c = collect tlist' in
       if c > Unchanged then
-        (newty (Ttuple (List.combine labels (List.map fst tlist'))), c)
+        (newty
+          (Ttuple
+            ( List.map2 (fun (t, _) (lbl, _) -> (lbl, t)) tlist' tlist,
+              shape )),
+          c)
       else (t, Unchanged)
   | Tconstr(p, tl, abbrev)
     when level > 0 && generic_abbrev env p && safe_abbrev env t
@@ -5872,8 +5882,8 @@ let rec subtype_rec env trace t1 t2 cstrs =
           (Subtype.Diff {got = u1; expected = u2} :: trace)
           u1 u2
           cstrs
-    | (Ttuple tl1, Ttuple tl2) ->
-        subtype_labeled_list env trace tl1 tl2 cstrs
+    | (Ttuple (tl1, shape1), Ttuple (tl2, shape2)) ->
+        subtype_tuple_elem_list env trace tl1 shape1 tl2 shape2 cstrs
     | (Tconstr(p1, [], _), Tconstr(p2, [], _)) when Path.same p1 p2 ->
         cstrs
     | (Tconstr(p1, _tl1, _abbrev1), _)
@@ -5890,8 +5900,8 @@ let rec subtype_rec env trace t1 t2 cstrs =
               let (co, cn) = Variance.get_upper v in
               if co then
                 if cn then
-                  (trace, newty2 ~level:(get_level t1) (Ttuple[None, t1]),
-                   newty2 ~level:(get_level t2) (Ttuple[None, t2]), !univar_pairs)
+                  (trace, newty2 ~level:(get_level t1) (dummy_type_list [t1]),
+                   newty2 ~level:(get_level t2) (dummy_type_list [t2]), !univar_pairs)
                   :: cstrs
                 else
                   subtype_rec
@@ -5970,19 +5980,22 @@ let rec subtype_rec env trace t1 t2 cstrs =
         (trace, t1, t2, !univar_pairs)::cstrs
   end
 
-and subtype_labeled_list env trace labeled_tl1 labeled_tl2 cstrs =
-  if not (Int.equal (List.length labeled_tl1) (List.length labeled_tl2)) then
+and subtype_tuple_elem_list env trace tl1 shape1 tl2 shape2 cstrs =
+  if List.compare_lengths tl1 tl2 <> 0 then
     subtype_error ~env ~trace ~unification_trace:[];
+  compare_tuple_shapes shape1 shape2 ~on_failure:(fun () ->
+    subtype_error ~env ~trace ~unification_trace:[]);
   List.fold_left2
     (fun cstrs (label1, ty1) (label2, ty2) ->
-      if not (Option.equal String.equal label1 label2) then
+      if not (Option.equal String.equal label1 label2)
+      then
         subtype_error ~env ~trace ~unification_trace:[];
       subtype_rec
         env
         (Subtype.Diff { got = ty1; expected = ty2 } :: trace)
         ty1 ty2
         cstrs)
-    cstrs labeled_tl1 labeled_tl2
+    cstrs tl1 tl2
 
 and subtype_fields env trace ty1 ty2 cstrs =
   (* Assume that either rest1 or rest2 is not Tvar *)

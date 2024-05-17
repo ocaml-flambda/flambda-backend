@@ -38,7 +38,7 @@ and type_expr = transient_expr
 and type_desc =
   | Tvar of { name : string option; jkind : jkind }
   | Tarrow of arrow_desc * type_expr * type_expr * commutable
-  | Ttuple of (string option * type_expr) list
+  | Ttuple of (string option * type_expr) list * tuple_shape
   | Tconstr of Path.t * type_expr list * abbrev_memo ref
   | Tobject of type_expr * (Path.t * type_expr list) option ref
   | Tfield of string * field_kind * type_expr * type_expr
@@ -58,6 +58,10 @@ and arg_label =
 
 and arrow_desc =
   arg_label * Mode.Alloc.lr * Mode.Alloc.lr
+
+and tuple_shape =
+  | Unrepresentable of Jkind_types.Sort.t array
+  | Representable
 
 and row_desc =
     { row_fields: (label * row_field) list;
@@ -753,6 +757,11 @@ let flat_element_to_lowercase_string = function
   | Bits64 -> "bits64"
   | Word -> "word"
 
+let index_tuple_shape shape i =
+  match shape with
+  | Representable -> Jkind_types.Sort.for_element_of_representable_tuple
+  | Unrepresentable sorts -> sorts.(i)
+
 (**** Definitions for backtracking ****)
 
 type change =
@@ -1191,3 +1200,6 @@ let undo_compress (changes, _old) =
             Transient_expr.set_desc ty desc; r := !next
         | _ -> ())
         log
+
+let dummy_type_list tys =
+  Ttuple (List.map (fun ty -> None, ty) tys, Representable)
