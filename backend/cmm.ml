@@ -207,6 +207,7 @@ type vector_cast =
   | Bits128
 
 type scalar_cast =
+  | Float32_as_float
   | Float_to_int of float_width
   | Float_of_int of float_width
   | Float_to_float32
@@ -564,25 +565,17 @@ let equal_float_width left right =
 
 let equal_scalar_cast left right =
   match left, right with
+  | Float32_as_float, Float32_as_float -> true
   | Float_to_float32, Float_to_float32 -> true
   | Float_of_float32, Float_of_float32 -> true
   | Float_to_int f1, Float_to_int f2 -> equal_float_width f1 f2
   | Float_of_int f1, Float_of_int f2 -> equal_float_width f1 f2
   | V128_to_scalar v1, V128_to_scalar v2 -> Primitive.equal_vec128_type v1 v2
   | V128_of_scalar v1, V128_of_scalar v2 -> Primitive.equal_vec128_type v1 v2
-  | Float_to_float32, (Float_of_float32 | Float_to_int _ | Float_of_int _ |
-                       V128_to_scalar _ | V128_of_scalar _)
-  | Float_of_float32, (Float_to_float32 | Float_to_int _ | Float_of_int _ |
-                       V128_to_scalar _ | V128_of_scalar _)
-  | Float_to_int _, (Float_of_float32 | Float_to_float32 | Float_of_int _ |
-                       V128_to_scalar _ | V128_of_scalar _)
-  | Float_of_int _, (Float_of_float32 | Float_to_float32 | Float_to_int _ |
-                       V128_to_scalar _ | V128_of_scalar _)
-  | V128_to_scalar _, (Float_of_float32 | Float_to_float32 | Float_to_int _ |
-                       Float_of_int _ | V128_of_scalar _)
-  | V128_of_scalar _, (Float_of_float32 | Float_to_float32 | Float_to_int _ |
-                       Float_of_int _ | V128_to_scalar _)
-    -> false
+  | (Float32_as_float |
+     Float_to_float32 | Float_of_float32 |
+     Float_to_int _ | Float_of_int _ |
+     V128_to_scalar _ | V128_of_scalar _), _ -> false
 
 let equal_float_comparison left right =
   match left, right with

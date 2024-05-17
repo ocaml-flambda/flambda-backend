@@ -180,7 +180,7 @@ let oper_result_type = function
   | Cvalueofint -> typ_val
   | Cintofvalue -> typ_int
   | Cvectorcast Bits128 -> typ_vec128
-  | Cscalarcast (Float_of_float32 | Float_of_int Float64) -> typ_float
+  | Cscalarcast (Float32_as_float | Float_of_float32 | Float_of_int Float64) -> typ_float
   | Cscalarcast (Float_to_float32 | Float_of_int Float32) -> typ_float32
   | Cscalarcast (Float_to_int (Float64 | Float32)) -> typ_int
   | Cscalarcast (V128_of_scalar _) -> typ_vec128

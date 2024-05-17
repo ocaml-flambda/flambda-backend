@@ -4058,7 +4058,13 @@ let make_unboxed_float32_array_payload dbg unboxed_float32_list =
     | [] -> Even, List.rev acc
     | a :: [] -> Odd, List.rev (a :: acc)
     | a :: b :: r ->
-      let i = Cop (Cpackf32, [a; b], dbg) in
+      let i =
+        Cop
+          ( Cpackf32,
+            [ Cop (Cscalarcast Float32_as_float, [a], dbg);
+              Cop (Cscalarcast Float32_as_float, [b], dbg) ],
+            dbg )
+      in
       aux (i :: acc) r
   in
   aux [] unboxed_float32_list

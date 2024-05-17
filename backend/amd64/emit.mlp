@@ -1569,6 +1569,8 @@ let emit_instr ~first ~fallthrough i =
       instr_for_floatop width floatop (arg i 1) (res i 0)
   | Lop(Iintofvalue | Ivalueofint | Ivectorcast Bits128) ->
       move i.arg.(0) i.res.(0)
+  | Lop(Iscalarcast Float32_as_float) ->
+      I.movss (arg i 0) (res i 0)
   | Lop(Iscalarcast (Float_of_int Float64)) ->
       I.cvtsi2sd  (arg i 0)  (res i 0)
   | Lop(Iscalarcast (Float_to_int Float64)) ->

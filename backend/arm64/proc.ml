@@ -492,7 +492,8 @@ let operation_supported = function
   | Cpackf32
   | Cvectorcast _ | Cscalarcast (Float_of_float32 | Float_to_float32 |
                                  Float_to_int Float32 | Float_of_int Float32 |
-                                 V128_of_scalar _ | V128_to_scalar _)
+                                 V128_of_scalar _ | V128_to_scalar _ |
+                                 Float32_as_float)
     -> false   (* Not implemented *)
   | Cbswap _
   | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _

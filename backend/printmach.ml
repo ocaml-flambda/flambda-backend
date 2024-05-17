@@ -230,6 +230,7 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Ivectorcast Bits128 ->
     fprintf ppf "vec128->vec128 %a"
     reg arg.(0)
+  | Iscalarcast Float32_as_float -> fprintf ppf "float32 as float %a" reg arg.(0)
   | Iscalarcast (Float_of_int Float64) -> fprintf ppf "int->float %a" reg arg.(0)
   | Iscalarcast (Float_to_int Float64) -> fprintf ppf "float->int %a" reg arg.(0)
   | Iscalarcast (Float_of_int Float32) -> fprintf ppf "int->float32 %a" reg arg.(0)
