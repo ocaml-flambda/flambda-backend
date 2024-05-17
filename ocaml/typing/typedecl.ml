@@ -1223,7 +1223,16 @@ module Element_repr = struct
   let classify env loc ty jkind =
     if is_float env ty then Float_element
     else match Jkind.get_default_value jkind with
-      | Value | Immediate64 | Non_null_value -> Value_element
+      (* CR layouts v5.1: We don't allow [Immediate64] in the flat suffix of
+         mixed blocks. That's because we haven't committed to whether the
+         unboxing features of flambda2 can be used together with 32 bit
+         platforms. (If flambda2 stores unboxed things as flat in 32 bits, then
+         immediate64s can't appear in the flat suffix on backends for 32 bit
+         platforms that pass through flambda2. Further, we want typechecking
+         to remain the same in 32 bits vs. 64 bits.)
+      *)
+      | Immediate64 -> Value_element
+      | Value | Non_null_value -> Value_element
       | Immediate -> Imm_element
       | Float64 -> Unboxed_element Float64
       | Float32 -> Unboxed_element Float32
