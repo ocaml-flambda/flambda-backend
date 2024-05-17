@@ -100,7 +100,11 @@ type mutability =
   | Mutable
   | Immutable
 
-let all_of_mutability = [ Mutable ]
+(* This test used to generate all combinations of mutable fields as well,
+   but we changed this to make it cycle through more relevant properties,
+   instead, like types of the fields.
+*)
+let all_of_mutability = [ Immutable ]
 
 let is_mutable = function
   | Mutable -> true
