@@ -81,18 +81,22 @@ static int float32_cmp(value v1, value v2)
 
 static intnat float32_hash(value v)
 {
-  union {
+  union
+  {
     float f;
     uint32_t i;
   } u;
   uint32_t n;
-  u.f = Float32_val(v);  n = u.i;
+  u.f = Float32_val(v);
+  n = u.i;
   /* Normalize NaNs */
-  if ((n & 0x7F800000) == 0x7F800000 && (n & 0x007FFFFF) != 0) {
+  if ((n & 0x7F800000) == 0x7F800000 && (n & 0x007FFFFF) != 0)
+  {
     n = 0x7F800001;
   }
   /* Normalize -0 into +0 */
-  else if (n == 0x80000000) {
+  else if (n == 0x80000000)
+  {
     n = 0;
   }
   return n;
@@ -114,15 +118,14 @@ static void float32_serialize(value v, uintnat *bsize_32,
 static const struct custom_fixed_length float32_length = {4, 4};
 
 CAMLexport const struct custom_operations caml_float32_ops = {
-  "_f32",
-  custom_finalize_default,
-  float32_cmp,
-  float32_hash,
-  float32_serialize,
-  float32_deserialize,
-  custom_compare_ext_default,
-  &float32_length
-};
+    "_f32",
+    custom_finalize_default,
+    float32_cmp,
+    float32_hash,
+    float32_serialize,
+    float32_deserialize,
+    custom_compare_ext_default,
+    &float32_length};
 
 CAMLexport value caml_copy_float32(float f)
 {
@@ -198,11 +201,11 @@ CAMLprim value caml_float32_compare(value vf, value vg)
   }
 
 CAMLprim value caml_eq_float32 DEFINE_NAN_CMP(==)
-CAMLprim value caml_neq_float32 DEFINE_NAN_CMP(!=)
-CAMLprim value caml_le_float32 DEFINE_NAN_CMP(<=)
-CAMLprim value caml_lt_float32 DEFINE_NAN_CMP(<)
-CAMLprim value caml_ge_float32 DEFINE_NAN_CMP(>=)
-CAMLprim value caml_gt_float32 DEFINE_NAN_CMP(>)
+    CAMLprim value caml_neq_float32 DEFINE_NAN_CMP(!=)
+        CAMLprim value caml_le_float32 DEFINE_NAN_CMP(<=)
+            CAMLprim value caml_lt_float32 DEFINE_NAN_CMP(<)
+                CAMLprim value caml_ge_float32 DEFINE_NAN_CMP(>=)
+                    CAMLprim value caml_gt_float32 DEFINE_NAN_CMP(>)
 
 #define DEFINE_BYTE_UNOP(op)                      \
   (value f)                                       \
@@ -210,7 +213,7 @@ CAMLprim value caml_gt_float32 DEFINE_NAN_CMP(>)
     return caml_copy_float32(op(Float32_val(f))); \
   }
 
-CAMLprim value caml_sqrt_float32_bytecode DEFINE_BYTE_UNOP(sqrtf)
+                        CAMLprim value caml_sqrt_float32_bytecode DEFINE_BYTE_UNOP(sqrtf)
 CAMLprim value caml_cbrt_float32_bytecode DEFINE_BYTE_UNOP(cbrtf)
 CAMLprim value caml_exp_float32_bytecode DEFINE_BYTE_UNOP(expf)
 CAMLprim value caml_exp2_float32_bytecode DEFINE_BYTE_UNOP(exp2f)
@@ -238,10 +241,10 @@ CAMLprim value caml_round_float32_bytecode DEFINE_BYTE_UNOP(roundf)
 CAMLprim value caml_ceil_float32_bytecode DEFINE_BYTE_UNOP(ceilf)
 CAMLprim value caml_floor_float32_bytecode DEFINE_BYTE_UNOP(floorf)
 
-#define DEFINE_BYTE_BINOP(op)                                    \
-  (value f, value g)                                             \
-  {                                                              \
-    return caml_copy_float32(op(Float32_val(f),Float32_val(g))); \
+#define DEFINE_BYTE_BINOP(op)                                     \
+  (value f, value g)                                              \
+  {                                                               \
+    return caml_copy_float32(op(Float32_val(f), Float32_val(g))); \
   }
 
 CAMLprim value caml_atan2_float32_bytecode DEFINE_BYTE_BINOP(atan2f)
@@ -258,7 +261,11 @@ CAMLprim value caml_fma_float32_bytecode(value f, value g, value h)
 
 float caml_float32_of_bits(int32_t bits)
 {
-  union { float f; int32_t i; } u;
+  union
+  {
+    float f;
+    int32_t i;
+  } u;
   u.i = bits;
   return u.f;
 }
@@ -270,7 +277,11 @@ CAMLprim value caml_float32_of_bits_bytecode(value bits)
 
 int32_t caml_float32_to_bits(float f)
 {
-  union { float f; int32_t i; } u;
+  union
+  {
+    float f;
+    int32_t i;
+  } u;
   u.f = f;
   return u.i;
 }
@@ -290,20 +301,34 @@ CAMLprim value caml_ldexp_float32_bytecode(value f, value i)
   return caml_copy_float32(caml_ldexp_float32(Float32_val(f), Int_val(i)));
 }
 
-enum { FP_normal, FP_subnormal, FP_zero, FP_infinite, FP_nan };
+enum
+{
+  FP_normal,
+  FP_subnormal,
+  FP_zero,
+  FP_infinite,
+  FP_nan
+};
 
 value caml_classify_float32(float vf)
 {
-  union { float f; uint32_t i; } u;
+  union
+  {
+    float f;
+    uint32_t i;
+  } u;
   uint32_t n;
   uint32_t e;
   u.f = vf;
-  n = u.i << 1;                 /* shift sign bit off */
-  if (n == 0) return Val_int(FP_zero);
-  e = n >> 24;                  /* extract exponent */
-  if (e == 0) return Val_int(FP_subnormal);
-  if (e == 0xff) {
-    if (n << 8 == 0)            /* shift exponent off */
+  n = u.i << 1; /* shift sign bit off */
+  if (n == 0)
+    return Val_int(FP_zero);
+  e = n >> 24; /* extract exponent */
+  if (e == 0)
+    return Val_int(FP_subnormal);
+  if (e == 0xff)
+  {
+    if (n << 8 == 0) /* shift exponent off */
       return Val_int(FP_infinite);
     else
       return Val_int(FP_nan);
@@ -328,8 +353,8 @@ CAMLprim value caml_signbit_float32_bytecode(value f)
 
 CAMLprim value caml_frexp_float32(value f)
 {
-  CAMLparam0 ();
-  CAMLlocal1 (mantissa);
+  CAMLparam0();
+  CAMLlocal1(mantissa);
   value res;
   int exponent;
 
@@ -337,13 +362,13 @@ CAMLprim value caml_frexp_float32(value f)
   res = caml_alloc_small(2, 0);
   Field(res, 0) = mantissa;
   Field(res, 1) = Val_int(exponent);
-  CAMLreturn (res);
+  CAMLreturn(res);
 }
 
 CAMLprim value caml_modf_float32(value f)
 {
-  CAMLparam0 ();
-  CAMLlocal2 (quo, rem);
+  CAMLparam0();
+  CAMLlocal2(quo, rem);
   value res;
   float frem;
 
@@ -352,7 +377,7 @@ CAMLprim value caml_modf_float32(value f)
   res = caml_alloc_small(2, 0);
   Field(res, 0) = quo;
   Field(res, 1) = rem;
-  CAMLreturn (res);
+  CAMLreturn(res);
 }
 
 /*
@@ -366,14 +391,23 @@ extern locale_t caml_locale;
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 /* there is no analogue to uselocale in MSVC so just set locale for thread */
-#define USE_LOCALE setlocale(LC_NUMERIC,"C")
-#define RESTORE_LOCALE do {} while(0)
+#define USE_LOCALE setlocale(LC_NUMERIC, "C")
+#define RESTORE_LOCALE \
+  do                   \
+  {                    \
+  } while (0)
 #elif defined(HAS_LOCALE)
 #define USE_LOCALE locale_t saved_locale = uselocale(caml_locale)
 #define RESTORE_LOCALE uselocale(saved_locale)
 #else
-#define USE_LOCALE do {} while(0)
-#define RESTORE_LOCALE do {} while(0)
+#define USE_LOCALE \
+  do               \
+  {                \
+  } while (0)
+#define RESTORE_LOCALE \
+  do                   \
+  {                    \
+  } while (0)
 #endif
 
 CAMLprim value caml_format_float32(value fmt, value arg)
@@ -383,16 +417,22 @@ CAMLprim value caml_format_float32(value fmt, value arg)
   float f = Float32_val(arg);
 
 #ifdef HAS_BROKEN_PRINTF
-  if (isfinite(f)) {
+  if (isfinite(f))
+  {
 #endif
     USE_LOCALE;
     res = caml_alloc_sprintf(String_val(fmt), f);
     RESTORE_LOCALE;
 #ifdef HAS_BROKEN_PRINTF
-  } else {
-    if (isnan(f)) {
+  }
+  else
+  {
+    if (isnan(f))
+    {
       res = caml_copy_string("nan");
-    } else {
+    }
+    else
+    {
       if (f > 0)
         res = caml_copy_string("inf");
       else
@@ -403,81 +443,102 @@ CAMLprim value caml_format_float32(value fmt, value arg)
   return res;
 }
 
-static int caml_float32_of_hex(const char * s, const char * end, float * res)
+static int caml_float32_of_hex(const char *s, const char *end, float *res)
 {
   /* See caml_float_of_hex */
-  int64_t m = 0;                /* the mantissa - top 60 bits at most */
-  int n_bits = 0;               /* total number of bits read */
-  int m_bits = 0;               /* number of bits in mantissa */
-  int x_bits = 0;               /* number of bits after mantissa */
-  int dec_point = -1;           /* bit count corresponding to decimal point */
-                                /* -1 if no decimal point seen */
-  int exp = 0;                  /* exponent */
-  char * p;                     /* for converting the exponent */
+  int64_t m = 0;      /* the mantissa - top 60 bits at most */
+  int n_bits = 0;     /* total number of bits read */
+  int m_bits = 0;     /* number of bits in mantissa */
+  int x_bits = 0;     /* number of bits after mantissa */
+  int dec_point = -1; /* bit count corresponding to decimal point */
+                      /* -1 if no decimal point seen */
+  int exp = 0;        /* exponent */
+  char *p;            /* for converting the exponent */
   float f;
 
-  while (s < end) {
+  while (s < end)
+  {
     char c = *s++;
-    switch (c) {
+    switch (c)
+    {
     case '.':
-      if (dec_point >= 0) return -1; /* multiple decimal points */
+      if (dec_point >= 0)
+        return -1; /* multiple decimal points */
       dec_point = n_bits;
       break;
-    case 'p': case 'P': {
+    case 'p':
+    case 'P':
+    {
       long e;
-      if (*s == 0) return -1;   /* nothing after exponent mark */
+      if (*s == 0)
+        return -1; /* nothing after exponent mark */
       e = strtol(s, &p, 10);
-      if (p != end) return -1;  /* ill-formed exponent */
+      if (p != end)
+        return -1; /* ill-formed exponent */
       /* Handle exponents larger than int by returning 0/infinity directly.
          Mind that INT_MIN/INT_MAX are included in the test so as to capture
          the overflow case of strtol on Win64 -- long and int have the same
          size there. */
-      if (e <= INT_MIN) {
+      if (e <= INT_MIN)
+      {
         *res = 0.f;
         return 0;
       }
-      else if (e >= INT_MAX) {
+      else if (e >= INT_MAX)
+      {
         *res = m == 0 ? 0.f : HUGE_VALF;
         return 0;
       }
       /* regular exponent value */
       exp = e;
-      s = p;                    /* stop at next loop iteration */
+      s = p; /* stop at next loop iteration */
       break;
     }
-    default: {                  /* Nonzero digit */
+    default:
+    { /* Nonzero digit */
       int d;
-      if (c >= '0' && c <= '9') d = c - '0';
-      else if (c >= 'A' && c <= 'F') d = c - 'A' + 10;
-      else if (c >= 'a' && c <= 'f') d = c - 'a' + 10;
-      else return -1;           /* bad digit */
+      if (c >= '0' && c <= '9')
+        d = c - '0';
+      else if (c >= 'A' && c <= 'F')
+        d = c - 'A' + 10;
+      else if (c >= 'a' && c <= 'f')
+        d = c - 'a' + 10;
+      else
+        return -1; /* bad digit */
       n_bits += 4;
-      if (d == 0 && m == 0) break; /* leading zeros are skipped */
-      if (m_bits < 60) {
+      if (d == 0 && m == 0)
+        break; /* leading zeros are skipped */
+      if (m_bits < 60)
+      {
         /* There is still room in m.  Add this digit to the mantissa. */
         m = (m << 4) + d;
         m_bits += 4;
-      } else {
+      }
+      else
+      {
         /* We've already collected 60 significant bits in m.
            Now all we care about is whether there is a nonzero bit
            after. In this case, round m to odd so that the later
            rounding of m to FP produces the correct result. */
-        if (d != 0) m |= 1;        /* round to odd */
+        if (d != 0)
+          m |= 1; /* round to odd */
         x_bits += 4;
       }
       break;
     }
     }
   }
-  if (n_bits == 0) return -1;
+  if (n_bits == 0)
+    return -1;
   /* Convert mantissa to FP.  We use a signed conversion because we can
      (m has 60 bits at most) and because it is faster
      on several architectures. */
-  f = (float) (int64_t) m;
+  f = (float)(int64_t)m;
   /* Adjust exponent to take decimal point and extra digits into account */
   {
     int adj = x_bits;
-    if (dec_point >= 0) adj = adj + (dec_point - n_bits);
+    if (dec_point >= 0)
+      adj = adj + (dec_point - n_bits);
     /* saturated addition exp + adj */
     if (adj > 0 && exp > INT_MAX - adj)
       exp = INT_MAX;
@@ -487,7 +548,8 @@ static int caml_float32_of_hex(const char * s, const char * end, float * res)
       exp = exp + adj;
   }
   /* Apply exponent if needed */
-  if (exp != 0) f = ldexpf(f, exp);
+  if (exp != 0)
+    f = ldexpf(f, exp);
   /* Done! */
   *res = f;
   return 0;
@@ -497,7 +559,7 @@ CAMLprim value caml_float32_of_string(value vs)
 {
   /* See caml_float_of_string */
   char parse_buffer[64];
-  char * buf, * dst, * end;
+  char *buf, *dst, *end;
   const char *src;
   mlsize_t len;
   int sign;
@@ -508,36 +570,54 @@ CAMLprim value caml_float32_of_string(value vs)
   buf = len < sizeof(parse_buffer) ? parse_buffer : caml_stat_alloc(len + 1);
   src = String_val(vs);
   dst = buf;
-  while (len--) {
+  while (len--)
+  {
     char c = *src++;
-    if (c != '_') *dst++ = c;
+    if (c != '_')
+      *dst++ = c;
   }
   *dst = 0;
-  if (dst == buf) goto error;
+  if (dst == buf)
+    goto error;
   /* Check for hexadecimal FP constant */
   src = buf;
   sign = 1;
-  if (*src == '-') { sign = -1; src++; }
-  else if (*src == '+') { src++; };
-  if (src[0] == '0' && (src[1] == 'x' || src[1] == 'X')) {
+  if (*src == '-')
+  {
+    sign = -1;
+    src++;
+  }
+  else if (*src == '+')
+  {
+    src++;
+  };
+  if (src[0] == '0' && (src[1] == 'x' || src[1] == 'X'))
+  {
     /* Convert using our hexadecimal FP parser */
-    if (caml_float32_of_hex(src + 2, dst, &f) == -1) goto error;
-    if (sign < 0) f = -f;
-  } else {
+    if (caml_float32_of_hex(src + 2, dst, &f) == -1)
+      goto error;
+    if (sign < 0)
+      f = -f;
+  }
+  else
+  {
     /* Convert using strtof, which is available when strtod is. */
 #if defined(HAS_STRTOD_L) && defined(HAS_LOCALE)
-    f = strtof_l((const char *) buf, &end, caml_locale);
+    f = strtof_l((const char *)buf, &end, caml_locale);
 #else
     USE_LOCALE;
-    f = strtof((const char *) buf, &end);
+    f = strtof((const char *)buf, &end);
     RESTORE_LOCALE;
 #endif /* HAS_STRTOD_L */
-    if (end != dst) goto error;
+    if (end != dst)
+      goto error;
   }
-  if (buf != parse_buffer) caml_stat_free(buf);
+  if (buf != parse_buffer)
+    caml_stat_free(buf);
   return caml_copy_float32(f);
- error:
-  if (buf != parse_buffer) caml_stat_free(buf);
+error:
+  if (buf != parse_buffer)
+    caml_stat_free(buf);
   caml_failwith("float32_of_string");
   return Val_unit; /* not reached */
 }
@@ -546,27 +626,27 @@ CAMLprim value caml_float32_of_string(value vs)
 
 extern int caml_unboxed_array_no_polymorphic_compare(value v1, value v2);
 extern intnat caml_unboxed_array_no_polymorphic_hash(value v);
-extern void caml_unboxed_array_serialize(value v, uintnat* bsize_32, uintnat* bsize_64);
-extern uintnat caml_unboxed_array_deserialize(void* dst);
+extern void caml_unboxed_array_serialize(value v, uintnat *bsize_32, uintnat *bsize_64);
+extern uintnat caml_unboxed_array_deserialize(void *dst);
 extern value caml_make_vect(value len, value init);
 
 CAMLexport const struct custom_operations caml_unboxed_float32_array_ops[2] = {
-  { "_unboxed_float32_even_array",
-    custom_finalize_default,
-    no_polymorphic_compare,
-    no_polymorphic_hash,
-    unboxed_array_serialize,
-    unboxed_array_deserialize,
-    custom_compare_ext_default,
-    custom_fixed_length_default },
-  { "_unboxed_float32_odd_array",
-    custom_finalize_default,
-    no_polymorphic_compare,
-    no_polymorphic_hash,
-    unboxed_array_serialize,
-    unboxed_array_deserialize,
-    custom_compare_ext_default,
-    custom_fixed_length_default },
+    {"_unboxed_float32_even_array",
+     custom_finalize_default,
+     no_polymorphic_compare,
+     no_polymorphic_hash,
+     unboxed_array_serialize,
+     unboxed_array_deserialize,
+     custom_compare_ext_default,
+     custom_fixed_length_default},
+    {"_unboxed_float32_odd_array",
+     custom_finalize_default,
+     no_polymorphic_compare,
+     no_polymorphic_hash,
+     unboxed_array_serialize,
+     unboxed_array_deserialize,
+     custom_compare_ext_default,
+     custom_fixed_length_default},
 };
 
 CAMLprim value caml_make_unboxed_float32_vect(value len)
@@ -574,7 +654,8 @@ CAMLprim value caml_make_unboxed_float32_vect(value len)
   /* This is only used on 64-bit targets. */
 
   mlsize_t num_elements = Long_val(len);
-  if (num_elements > Max_wosize) caml_invalid_argument("Array.make");
+  if (num_elements > Max_wosize)
+    caml_invalid_argument("Array.make");
 
   /* [num_fields] does not include the custom operations field. */
   mlsize_t num_fields = (num_elements + 1) / 2;
@@ -588,6 +669,8 @@ CAMLprim value caml_make_unboxed_float32_vect_bytecode(value len)
   return caml_make_vect(len, caml_copy_float32(0.0f));
 }
 
+/* [MM] [TODO]: Not consistent with the memory model. See the discussion in
+   https://github.com/ocaml-multicore/ocaml-multicore/pull/822. */
 CAMLprim value caml_unboxed_float32_vect_blit(value a1, value ofs1, value a2,
                                               value ofs2, value n)
 {
