@@ -611,10 +611,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             else
               let flat_read =
                 match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-                | Float ->
+                | Float_boxed ->
                   (match float with
                     | Boxing (mode, _) ->
-                        flat_read_float (transl_alloc_mode_r mode)
+                        flat_read_float_boxed (transl_alloc_mode_r mode)
                     | Non_boxing _ ->
                         Misc.fatal_error
                           "expected typechecking to make [float] boxing mode\
@@ -1734,11 +1734,11 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                     else
                       let read =
                         match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-                        | Float ->
+                        | Float_boxed ->
                             (* See the handling of [Record_float] above for
                                 why we choose Alloc_heap.
                             *)
-                            flat_read_float alloc_heap
+                            flat_read_float_boxed alloc_heap
                         | non_float -> flat_read_non_float non_float
                       in
                       Mread_flat_suffix read
