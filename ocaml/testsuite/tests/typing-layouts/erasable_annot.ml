@@ -236,6 +236,25 @@ can't be erased for compatibility with upstream OCaml.
 module type S = sig type 'b id = 'b val f : ('a : immediate). 'a id -> 'a end
 |}];;
 
+(* Inferring [f] to have an immediate type parameter is enough *)
+module type S = sig
+  type t [@@immediate]
+end
+
+let f (module _ : S with type t = 'a) (x : 'a) = x
+;;
+
+[%%expect{|
+module type S = sig type t : immediate end
+Line 5, characters 4-5:
+5 | let f (module _ : S with type t = 'a) (x : 'a) = x
+        ^
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
+can't be erased for compatibility with upstream OCaml.
+
+val f : ('a : immediate). (module S with type t = 'a) -> 'a -> 'a = <fun>
+|}]
+
 (* Other annotations are not effected by this flag *)
 module type S = sig
   val f_any : ('a : any). ('a : any) -> (('a : any)[@error_message ""])
