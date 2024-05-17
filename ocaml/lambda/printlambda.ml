@@ -324,7 +324,7 @@ let flat_element ppf : flat_element -> unit = fun x ->
 let flat_element_read ppf : flat_element_read -> unit = function
   | Flat_read flat ->
       pp_print_string ppf (Types.flat_element_to_lowercase_string flat)
-  | Flat_read_float m -> fprintf ppf "float[%a]" alloc_mode m
+  | Flat_read_float_boxed m -> fprintf ppf "float[%a]" alloc_mode m
 
 let mixed_block_read ppf : mixed_block_read -> unit = function
   | Mread_value_prefix Immediate -> pp_print_string ppf "value_int"

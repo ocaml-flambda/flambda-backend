@@ -565,7 +565,16 @@ and abstract_reason =
    non-empty suffix of "flat" elements. Intuitively, a flat element is one that
    need not be scanned by the garbage collector.
 *)
-and flat_element = Imm | Float | Float64 | Float32 | Bits32 | Bits64 | Word
+and flat_element =
+  | Imm
+  | Float_boxed
+  (* A [Float_boxed] is a float that's stored flat but boxed upon projection. *)
+  | Float64
+  | Float32
+  | Bits32
+  | Bits64
+  | Word
+
 and mixed_product_shape =
   { value_prefix_len : int;
     (* We use an array just so we can index into the middle. *)

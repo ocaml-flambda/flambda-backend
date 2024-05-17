@@ -1423,7 +1423,7 @@ let update_decl_jkind env dpath decl =
               List.map
                 (fun ((repr : Element_repr.t), _lbl) ->
                   match repr with
-                  | Float_element -> Float
+                  | Float_element -> Float_boxed
                   | Unboxed_element Float64 -> Float64
                   | Element_without_runtime_component { ty; loc } ->
                       raise (Error (loc,
