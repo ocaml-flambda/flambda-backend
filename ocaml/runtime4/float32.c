@@ -544,10 +544,10 @@ CAMLprim value caml_float32_of_string(value vs)
 
 /* Defined in array.c */
 
-extern int no_polymorphic_compare(value v1, value v2);
-extern intnat no_polymorphic_hash(value v);
-extern void unboxed_array_serialize(value v, uintnat* bsize_32, uintnat* bsize_64);
-extern uintnat unboxed_array_deserialize(void* dst);
+extern int caml_unboxed_array_no_polymorphic_compare(value v1, value v2);
+extern intnat caml_unboxed_array_no_polymorphic_hash(value v);
+extern void caml_unboxed_array_serialize(value v, uintnat* bsize_32, uintnat* bsize_64);
+extern uintnat caml_unboxed_array_deserialize(void* dst);
 extern value caml_make_vect(value len, value init);
 
 CAMLexport struct custom_operations caml_unboxed_float32_array_ops[2] = {

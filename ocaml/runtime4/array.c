@@ -30,22 +30,22 @@ static const mlsize_t mlsize_t_max = -1;
 
 /* Unboxed arrays */
 
-int no_polymorphic_compare(value v1, value v2)
+int caml_unboxed_array_no_polymorphic_compare(value v1, value v2)
 {
   caml_failwith("Polymorphic comparison is not permitted for unboxed arrays");
 }
 
-intnat no_polymorphic_hash(value v)
+intnat caml_unboxed_array_no_polymorphic_hash(value v)
 {
   caml_failwith("Polymorphic hash is not permitted for unboxed arrays");
 }
 
-void unboxed_array_serialize(value v, uintnat* bsize_32, uintnat* bsize_64)
+void caml_unboxed_array_serialize(value v, uintnat* bsize_32, uintnat* bsize_64)
 {
   caml_failwith("Marshalling is not yet implemented for unboxed arrays");
 }
 
-uintnat unboxed_array_deserialize(void* dst)
+uintnat caml_unboxed_array_deserialize(void* dst)
 {
   caml_failwith("Marshalling is not yet implemented for unboxed arrays");
 }
