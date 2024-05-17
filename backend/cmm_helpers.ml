@@ -1074,7 +1074,7 @@ let unboxed_packed_array_length arr dbg ~custom_ops_base_symbol
                       (sub_int (Cvar custom_ops_var) custom_ops_base_symbol dbg)
                       (int ~dbg custom_ops_size_log2)
                       dbg,
-                    (* subtract index from length in int32s *)
+                    (* subtract index from length in elements *)
                     sub_int
                       (mul_int (Cvar num_words_var)
                          (int ~dbg elements_per_word)
