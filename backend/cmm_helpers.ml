@@ -1562,9 +1562,7 @@ let make_alloc_generic ?scannable_prefix ~is_array ~mode set_fn dbg tag wordsize
     match scannable_prefix with
     | Some (Scan_prefix prefix) -> Scan_prefix prefix, 0
     | None | Some Scan_all ->
-      if tag < 230 && not is_array
-      then Scan_prefix wordsize, Random.int 10
-      else Scan_all, 0
+      if tag < 230 && not is_array then Scan_prefix wordsize, 2 else Scan_all, 0
   in
   let orig_wordsize = wordsize in
   let wordsize = wordsize + extra_wordsize in
