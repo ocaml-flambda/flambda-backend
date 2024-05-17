@@ -1850,10 +1850,10 @@ module Compilenv_utils : sig
   (** [set_value f v] records the value of the function named [f] in [Compilenv]. *)
   val set_value : string -> Value.t -> unit
 end = struct
-  (* Compact the mapping from function name to Value.t to reduce size of Checks
-     in cmx and memory consumption Compilenv. Different components have
-     different frequencies of Top/Bot. The most likely value is encoded as None
-     (i.e., not stored). *)
+  (* Compact the mapping from function name to Value.t to reduce size of
+     Zero_alloc_info in cmx and memory consumption Compilenv. Different
+     components have different frequencies of Top/Bot. The most likely value is
+     encoded as None (i.e., not stored). *)
   let encode (v : V.t) =
     V.match_with v
       ~top:(fun _ -> 0)
@@ -1872,11 +1872,11 @@ end = struct
     | 2 -> V.bot
     | n -> Misc.fatal_errorf "Zero_alloc_checker cannot decode %d" n
 
-  let encode (v : Value.t) : Checks.value =
+  let encode (v : Value.t) : Zero_alloc_info.value option =
     let c = (encode v.div lsl 4) lor (encode v.exn lsl 2) lor encode v.nor in
     if c = 0 then None else Some c
 
-  let decode : Checks.value -> Value.t = function
+  let decode : Zero_alloc_info.value option -> Value.t = function
     | None -> Value.top decoded_witness
     | Some d ->
       if d = 0 then Misc.fatal_error "Zero_alloc_checker unexpected 0 encoding";
@@ -1886,14 +1886,14 @@ end = struct
       { nor; exn; div }
 
   let set_value s (v : Value.t) =
-    let checks = (Compilenv.current_unit_infos ()).ui_checks in
-    Checks.set_value checks s (encode v)
+    let info = (Compilenv.current_unit_infos ()).ui_zero_alloc_info in
+    match encode v with
+    | None -> ()
+    | Some i -> Zero_alloc_info.set_value info s i
 
   let get_value_opt s =
-    let checks = Compilenv.cached_checks in
-    match Checks.get_value checks s with
-    | None -> None
-    | Some (c : Checks.value) -> Some (decode c)
+    let info = Compilenv.cached_zero_alloc_info in
+    Some (decode (Zero_alloc_info.get_value info s))
 end
 
 (** The analysis involved some fixed point computations.
@@ -2485,7 +2485,8 @@ let reset_unit_info () =
 
 let record_unit_info ppf_dump =
   Analysis.record_unit unit_info unresolved_deps ppf_dump;
-  Compilenv.cache_checks (Compilenv.current_unit_infos ()).ui_checks
+  Compilenv.cache_zero_alloc_info
+    (Compilenv.current_unit_infos ()).ui_zero_alloc_info
 
 type iter_witnesses = (string -> Witnesses.components -> unit) -> unit
 

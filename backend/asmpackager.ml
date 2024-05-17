@@ -180,8 +180,9 @@ let build_package_cmx members cmxfile =
       ui.ui_export_info
       units
   in
-  let ui_checks = Checks.create () in
-  List.iter (fun info -> Checks.merge info.ui_checks ~into:ui_checks) units;
+  let ui_zero_alloc_info = Zero_alloc_info.create () in
+  List.iter (fun info -> Zero_alloc_info.merge info.ui_zero_alloc_info
+                           ~into:ui_zero_alloc_info) units;
   let modname = Compilation_unit.name ui.ui_unit in
   let pkg_infos =
     { ui_unit = ui.ui_unit;
@@ -204,7 +205,7 @@ let build_package_cmx members cmxfile =
       ui_force_link =
           List.exists (fun info -> info.ui_force_link) units;
       ui_export_info;
-      ui_checks;
+      ui_zero_alloc_info;
       ui_external_symbols = union (List.map (fun info -> info.ui_external_symbols) units);
     } in
   Compilenv.write_unit_info pkg_infos cmxfile
