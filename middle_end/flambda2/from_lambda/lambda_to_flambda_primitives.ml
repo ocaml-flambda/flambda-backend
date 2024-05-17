@@ -994,7 +994,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           | Value_prefix
           | Flat_suffix (Float64 | Float32 | Imm | Bits32 | Bits64 | Word) ->
             arg
-          | Flat_suffix Float -> unbox_float arg)
+          | Flat_suffix Float_boxed -> unbox_float arg)
         args
     in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -1463,7 +1463,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             (match read with
             | Flat_read flat_element ->
               P.Mixed_block_flat_element.from_lambda flat_element
-            | Flat_read_float _ -> Float)
+            | Flat_read_float_boxed _ -> Float_boxed)
       in
       Mixed { tag = Unknown; field_kind; size = Unknown }
     in
@@ -1472,7 +1472,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     in
     match read with
     | Mread_value_prefix _ | Mread_flat_suffix (Flat_read _) -> [block_access]
-    | Mread_flat_suffix (Flat_read_float mode) ->
+    | Mread_flat_suffix (Flat_read_float_boxed mode) ->
       [box_float mode block_access ~current_region])
   | ( Psetfield (index, immediate_or_pointer, initialization_or_assignment),
       [[block]; [value]] ) ->
@@ -1535,7 +1535,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Mwrite_value_prefix _
       | Mwrite_flat_suffix (Imm | Float64 | Float32 | Bits32 | Bits64 | Word) ->
         value
-      | Mwrite_flat_suffix Float -> unbox_float value
+      | Mwrite_flat_suffix Float_boxed -> unbox_float value
     in
     [ Ternary
         (Block_set (block_access, init_or_assign), block, Simple field, value)

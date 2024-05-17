@@ -343,10 +343,17 @@ and block_shape =
   value_kind list option
 
 and flat_element = Types.flat_element =
-    Imm | Float | Float64 | Float32 | Bits32 | Bits64 | Word
+  | Imm
+  | Float_boxed
+  | Float64
+  | Float32
+  | Bits32
+  | Bits64
+  | Word
+
 and flat_element_read =
   | Flat_read of flat_element (* invariant: not [Float] *)
-  | Flat_read_float of alloc_mode
+  | Flat_read_float_boxed of alloc_mode
 and mixed_block_read =
   | Mread_value_prefix of immediate_or_pointer
   | Mread_flat_suffix of flat_element_read
@@ -1264,11 +1271,11 @@ let get_mixed_block_element = Types.get_mixed_product_element
 
 let flat_read_non_float flat_element =
   match flat_element with
-  | Float -> Misc.fatal_error "flat_element_read_non_float Float"
+  | Float_boxed -> Misc.fatal_error "flat_element_read_non_float Float_boxed"
   | Imm | Float64 | Float32 | Bits32 | Bits64 | Word as flat_element ->
       Flat_read flat_element
 
-let flat_read_float alloc_mode = Flat_read_float alloc_mode
+let flat_read_float_boxed alloc_mode = Flat_read_float_boxed alloc_mode
 
 (* Compile a sequence of expressions *)
 
@@ -1674,7 +1681,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pmixedfield (_, read, _) -> begin
       match read with
       | Mread_value_prefix _ -> None
-      | Mread_flat_suffix (Flat_read_float m) -> Some m
+      | Mread_flat_suffix (Flat_read_float_boxed m) -> Some m
       | Mread_flat_suffix (Flat_read _) -> None
     end
   | Psetfloatfield _ -> None
@@ -1824,7 +1831,7 @@ let array_ref_kind_result_layout = function
 let layout_of_mixed_field (kind : mixed_block_read) =
   match kind with
   | Mread_value_prefix _ -> layout_value_field
-  | Mread_flat_suffix (Flat_read_float (_ : alloc_mode)) ->
+  | Mread_flat_suffix (Flat_read_float_boxed (_ : alloc_mode)) ->
       layout_boxed_float Pfloat64
   | Mread_flat_suffix (Flat_read proj) ->
       match proj with
@@ -1834,7 +1841,7 @@ let layout_of_mixed_field (kind : mixed_block_read) =
       | Bits32 -> layout_unboxed_int32
       | Bits64 -> layout_unboxed_int64
       | Word -> layout_unboxed_nativeint
-      | Float -> layout_boxed_float Pfloat64
+      | Float_boxed -> layout_boxed_float Pfloat64
 
 let primitive_result_layout (p : primitive) =
   assert !Clflags.native_code;
