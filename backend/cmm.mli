@@ -182,7 +182,8 @@ type vector_cast =
   | Bits128
 
 type scalar_cast =
-  | Float32_as_float (* CR mslater: move the other bit-casts here. *)
+  (* CR mslater: move all bit-casts into a reinterpret_cast type *)
+  | Float32_as_float
   | Float_to_int of float_width
   | Float_of_int of float_width
   | Float_to_float32

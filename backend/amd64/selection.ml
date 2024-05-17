@@ -300,7 +300,7 @@ method! select_operation op args dbg =
       self#select_floatarith false width Idivf Ifloatdiv args
   | Cpackf32 ->
       (* We must operate on registers. This is because if the second argument
-         was a float32 stack slot, the resulting UNPCKLPS instruction would
+         was a float stack slot, the resulting UNPCKLPS instruction would
          enforce the validity of loading it as a 128-bit memory location,
          even though it only loads 64 bits. *)
       Ispecific (Isimd (SSE Interleave_low_32_regs)), args
