@@ -57,18 +57,18 @@ uintnat caml_unboxed_array_deserialize(void* dst)
 CAMLexport struct custom_operations caml_unboxed_int32_array_ops[2] = {
   { "_unboxed_int32_even_array",
     custom_finalize_default,
-    no_polymorphic_compare,
-    no_polymorphic_hash,
-    unboxed_array_serialize,
-    unboxed_array_deserialize,
+    caml_unboxed_array_no_polymorphic_compare,
+    caml_unboxed_array_no_polymorphic_hash,
+    caml_unboxed_array_serialize,
+    caml_unboxed_array_deserialize,
     custom_compare_ext_default,
     custom_fixed_length_default },
   { "_unboxed_int32_odd_array",
     custom_finalize_default,
-    no_polymorphic_compare,
-    no_polymorphic_hash,
-    unboxed_array_serialize,
-    unboxed_array_deserialize,
+    caml_unboxed_array_no_polymorphic_compare,
+    caml_unboxed_array_no_polymorphic_hash,
+    caml_unboxed_array_serialize,
+    caml_unboxed_array_deserialize,
     custom_compare_ext_default,
     custom_fixed_length_default },
 };
@@ -76,10 +76,10 @@ CAMLexport struct custom_operations caml_unboxed_int32_array_ops[2] = {
 CAMLexport struct custom_operations caml_unboxed_int64_array_ops = {
   "_unboxed_int64_array",
   custom_finalize_default,
-  no_polymorphic_compare,
-  no_polymorphic_hash,
-  unboxed_array_serialize,
-  unboxed_array_deserialize,
+  caml_unboxed_array_no_polymorphic_compare,
+  caml_unboxed_array_no_polymorphic_hash,
+  caml_unboxed_array_serialize,
+  caml_unboxed_array_deserialize,
   custom_compare_ext_default,
   custom_fixed_length_default
 };
@@ -87,10 +87,10 @@ CAMLexport struct custom_operations caml_unboxed_int64_array_ops = {
 CAMLexport struct custom_operations caml_unboxed_nativeint_array_ops = {
   "_unboxed_nativeint_array",
   custom_finalize_default,
-  no_polymorphic_compare,
-  no_polymorphic_hash,
-  unboxed_array_serialize,
-  unboxed_array_deserialize,
+  caml_unboxed_array_no_polymorphic_compare,
+  caml_unboxed_array_no_polymorphic_hash,
+  caml_unboxed_array_serialize,
+  caml_unboxed_array_deserialize,
   custom_compare_ext_default,
   custom_fixed_length_default
 };
