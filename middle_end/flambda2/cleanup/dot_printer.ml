@@ -50,14 +50,14 @@ module P = struct
   let node_id ~ctx ppf (variable : Code_id_or_name.t) =
     Format.fprintf ppf "node_%d_%d" ctx (variable :> int)
 
-  let node ~ctx ~root ppf name =
+  let node ~ctx ~root ~print_color ppf name =
     if root
     then
-      Format.fprintf ppf "%a [shape=record label=\"%a\"];@\n" (node_id ~ctx)
-        name Code_id_or_name.print name
+      Format.fprintf ppf "%a [shape=record label=\"%a\" style=\"filled\" fillcolor=\"%s\"];@\n" (node_id ~ctx)
+        name Code_id_or_name.print name (print_color name)
     else
-      Format.fprintf ppf "%a [label=\"%a\"];@\n" (node_id ~ctx) name
-        Code_id_or_name.print name
+      Format.fprintf ppf "%a [label=\"%a\" style=\"filled\" fillcolor=\"%s\"];@\n" (node_id ~ctx) name
+        Code_id_or_name.print name (print_color name)
 
   let dep_names (dep : Graph.Dep.t) =
     match dep with
@@ -79,7 +79,7 @@ module P = struct
       t.Graph.name_to_dep;
     names
 
-  let nodes ~all_cdep ~ctx ppf t =
+  let nodes ~all_cdep ~ctx ~print_color ppf t =
     Hashtbl.iter
       (fun name _ ->
         if Code_id_or_name.Set.mem name all_cdep
@@ -92,7 +92,7 @@ module P = struct
                 Hashtbl.mem t.Graph.used (Code_id_or_name.name name))
               name
           in
-          node ~ctx ~root ppf name)
+          node ~ctx ~root ~print_color ppf name)
       (all_names t)
 
   let edge ~ctx ppf src (dst : Graph.Dep.t) =
@@ -121,14 +121,14 @@ module P = struct
         Graph.Dep.Set.iter (fun dst -> edge ~ctx ppf src dst) dst_set)
       t.Graph.name_to_dep
 
-  let code_deps ~ctx ~code_id ppf code_dep =
-    node ~ctx ~root:false ppf (Code_id_or_name.code_id code_id);
-    node ~ctx ~root:false ppf (Code_id_or_name.var code_dep.my_closure);
+  let code_deps ~ctx ~code_id ~print_color ppf code_dep =
+    node ~ctx ~root:false ~print_color ppf (Code_id_or_name.code_id code_id);
+    node ~ctx ~root:false ~print_color ppf (Code_id_or_name.var code_dep.my_closure);
     List.iter
-      (fun v -> node ~ctx ~root:false ppf (Code_id_or_name.var v))
+      (fun v -> node ~ctx ~root:false ~print_color ppf (Code_id_or_name.var v))
       ((code_dep.exn :: code_dep.return) @ code_dep.params)
 
-  let print_fundep ~all_cdep ~code_dep ~ctx (code_id : Code_id.t) ppf t =
+  let print_fundep ~all_cdep ~code_dep ~ctx ~print_color (code_id : Code_id.t) ppf t =
     Format.fprintf ppf
       "subgraph cluster_%d_%d { label=\"%a\"@\n\
       \ subgraph cluster_%d_%d_intf { label=\"interface\"@\n\
@@ -140,25 +140,36 @@ module P = struct
       (code_id :> int)
       Code_id.print code_id ctx
       (code_id :> int)
-      (code_deps ~ctx ~code_id) code_dep (nodes ~all_cdep ~ctx) t
+      (code_deps ~ctx ~code_id ~print_color) code_dep (nodes ~all_cdep ~ctx ~print_color) t
 
-  let print_fundeps ~all_cdep ~code_dep ~ctx ppf fundeps =
+  let print_fundeps ~all_cdep ~code_dep ~ctx ~print_color ppf fundeps =
     Hashtbl.iter
       (fun code_id fungraph ->
         print_fundep ~all_cdep
           ~code_dep:(Code_id.Map.find code_id code_dep)
-          ~ctx code_id ppf fungraph)
+          ~ctx ~print_color code_id ppf fungraph)
       fundeps
 
-  let print ~ctx ~print_name ppf
+  let print ~ctx ~print_color ~print_name ppf
       ((_code_dep, t) : code_dep Code_id.Map.t * Graph.graph) =
     let all_cdep = Code_id_or_name.Set.empty in
     (* TODO: clean cdep, not useful anymore *)
     Flambda_colours.without_colours ~f:(fun () ->
         Format.fprintf ppf "subgraph cluster_%d { label=\"%s\"@\n%a@\n%a}@." ctx
-          print_name (nodes ~all_cdep ~ctx) t (edges ~ctx) t)
+          print_name (nodes ~all_cdep ~ctx ~print_color) t (edges ~ctx) t)
 end
+
+let white_color _id = "white"
 
 let print_dep dep =
   let print_name = Some "dep" in
-  print_graph ~print_name ~lazy_ppf:dep_graph_ppf ~graph:dep ~print:P.print
+  print_graph ~print_name ~lazy_ppf:dep_graph_ppf ~graph:dep ~print:(P.print ~print_color:white_color)
+
+let print_solved_dep (result : Dep_solver.result) dep =
+  let print_name = Some "dep" in
+  let print_color id =
+    match Hashtbl.find_opt result id with
+    | None | Some Bottom -> "white"
+    | Some Top -> "#a7a7a7"
+    | Some Fields _ -> "#f1c40f" in
+  print_graph ~print_name ~lazy_ppf:dep_graph_ppf ~graph:dep ~print:(P.print ~print_color)

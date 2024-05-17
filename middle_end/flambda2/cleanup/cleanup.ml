@@ -31,6 +31,7 @@ let run ~cmx_loader (unit : Flambda_unit.t) =
   let solved_dep = Dep_solver.fixpoint deps in
   if debug_print
   then Format.printf "RESULT@ %a@." Dep_solver.pp_result solved_dep;
+  let () = if debug_print then Dot_printer.print_solved_dep solved_dep (Code_id.Map.empty, deps) in
   let Rebuild.{ body; free_names; all_code; slot_offsets } =
     Rebuild.rebuild kinds solved_dep holed
   in

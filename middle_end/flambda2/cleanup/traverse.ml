@@ -906,5 +906,7 @@ let run (unit : Flambda_unit.t) =
   in
   let deps = Acc.deps acc in
   let kinds = Acc.kinds acc in
-  let () = if debug_print then Dot.print_dep (Acc.code_deps acc, deps) in
+  let () =
+    if false && debug_print then Dot.print_dep (Acc.code_deps acc, deps)
+  in
   holed, deps, kinds

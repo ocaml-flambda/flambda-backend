@@ -397,7 +397,6 @@ module Graph = struct
   let widen _ ~old:elt1 elt2 = join_elt elt1 elt2
 
   let join _ elt1 elt2 = join_elt elt1 elt2
-  (* XXX no need to cut *)
 
   let less_equal _ elt1 elt2 = less_equal_elt elt1 elt2
 

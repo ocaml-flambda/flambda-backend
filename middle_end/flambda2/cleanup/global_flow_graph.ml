@@ -67,7 +67,6 @@ module Field = struct
   include M
   module Container = Container_types.Make (M)
 
-  (* module Set = Container.Set *)
   module Map = Container.Map
 end
 
