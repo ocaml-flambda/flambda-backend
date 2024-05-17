@@ -1,4 +1,5 @@
 (* TEST
+ include stable;
  {
    expect;
  }{
@@ -652,8 +653,8 @@ module type S = sig
 end
 
 module Floaty : S with type t := float# = struct
-  let one () = Stdlib__Float_u.of_float 1.  (* CR layouts: use literal syntax *)
-  let print t = Printf.printf "%f" (Stdlib__Float_u.to_float t)
+  let one () = Stable.Float_u.of_float 1.  (* CR layouts: use literal syntax *)
+  let print t = Printf.printf "%f" (Stable.Float_u.to_float t)
 end
 
 module Inty : S with type t := int = struct

@@ -1,8 +1,9 @@
 (* TEST
+ include stdlib_stable;
  expect;
 *)
 
-module Iarray = Stdlib__Iarray;;
+module Iarray = Stdlib_stable.Iarray;;
 
 external ( .:() ) : 'a iarray -> int -> 'a = "%array_safe_get";;
 
@@ -15,7 +16,7 @@ let marray  : int   array = [|1;2;3;4;5|];;
 let mfarray : float array = [|1.5;2.5;3.5;4.5;5.5|];;
 
 [%%expect{|
-module Iarray = Stdlib__Iarray
+module Iarray = Stdlib_stable.Iarray
 external ( .:() ) : 'a iarray -> int -> 'a = "%array_safe_get"
 val iarray : int iarray = [:1; 2; 3; 4; 5:]
 val ifarray : float iarray = [:1.5; 2.5; 3.5; 4.5; 5.5:]
