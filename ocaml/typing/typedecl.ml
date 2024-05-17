@@ -1227,9 +1227,17 @@ module Element_repr = struct
          mixed blocks. That's because we haven't committed to whether the
          unboxing features of flambda2 can be used together with 32 bit
          platforms. (If flambda2 stores unboxed things as flat in 32 bits, then
-         immediate64s can't appear in the flat suffix on backends for 32 bit
-         platforms that pass through flambda2. Further, we want typechecking
-         to remain the same in 32 bits vs. 64 bits.)
+         immediate64s must be banned in the flat suffix with backends for 32 bit
+         platforms that pass through flambda2. Further, we want a record
+         declaration to be accepted consistently in 32 bits vs. 64 bits.
+         So, immediate64s must always be banned in the flat suffix.)
+
+         In practice, users can put immediate64s in the value prefix.
+         (We may consider teaching the middle-ends to mark immediate64s that
+         abut the non-scannable suffix as non-scannable on 64 bit platforms.)
+
+         We may revisit this decision later when we know better whether we want
+         flambda2 to unbox for 32 bit platforms.
       *)
       | Immediate64 -> Value_element
       | Value | Non_null_value -> Value_element
