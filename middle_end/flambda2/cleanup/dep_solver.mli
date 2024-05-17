@@ -7,4 +7,4 @@ type result = (Code_id_or_name.t, elt) Hashtbl.t
 
 val pp_result : Format.formatter -> result -> unit
 
-val fixpoint : Global_flow_graph.fun_graph -> result
+val fixpoint : Global_flow_graph.graph -> result

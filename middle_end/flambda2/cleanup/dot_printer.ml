@@ -136,7 +136,7 @@ module P = struct
       fundeps
 
   let print ~ctx ~print_name ppf
-      ((_code_dep, t) : code_dep Code_id.Map.t * Graph.fun_graph) =
+      ((_code_dep, t) : code_dep Code_id.Map.t * Graph.graph) =
     let all_cdep = Code_id_or_name.Set.empty in
     (* TODO: clean cdep, not useful anymore *)
     Flambda_colours.without_colours ~f:(fun () ->

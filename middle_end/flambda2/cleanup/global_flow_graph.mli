@@ -31,32 +31,32 @@ module Dep : sig
   module Set : Container_types.Set with type elt = t
 end
 
-type fun_graph =
+type graph =
   { name_to_dep : (Code_id_or_name.t, Dep.Set.t) Hashtbl.t;
     used : (Code_id_or_name.t, unit) Hashtbl.t
   }
 
-val pp_used_fun_graph : Format.formatter -> fun_graph -> unit
+val pp_used_graph : Format.formatter -> graph -> unit
 
-val create : unit -> fun_graph
+val create : unit -> graph
 
 val inserts : ('a, Dep.Set.t) Hashtbl.t -> 'a -> Dep.Set.t -> unit
 
 val add_opaque_let_dependency :
-  fun_graph -> Bound_pattern.t -> Name_occurrences.t -> unit
+  graph -> Bound_pattern.t -> Name_occurrences.t -> unit
 
-val add_let_field : fun_graph -> Bound_pattern.t -> Field.t -> Name.t -> unit
+val add_let_field : graph -> Bound_pattern.t -> Field.t -> Name.t -> unit
 
-val add_dep : fun_graph -> Code_id_or_name.t -> Dep.t -> unit
+val add_dep : graph -> Code_id_or_name.t -> Dep.t -> unit
 
-val add_deps : fun_graph -> Code_id_or_name.t -> Dep.Set.t -> unit
+val add_deps : graph -> Code_id_or_name.t -> Dep.Set.t -> unit
 
-val add_let_dep : fun_graph -> Bound_pattern.t -> Dep.t -> unit
+val add_let_dep : graph -> Bound_pattern.t -> Dep.t -> unit
 
-val add_cont_dep : fun_graph -> Int_ids.Variable.t -> Name.t -> unit
+val add_cont_dep : graph -> Int_ids.Variable.t -> Name.t -> unit
 
-val add_func_param : fun_graph -> param:Int_ids.Variable.t -> arg:Name.t -> unit
+val add_func_param : graph -> param:Int_ids.Variable.t -> arg:Name.t -> unit
 
-val add_use : fun_graph -> Code_id_or_name.t -> unit
+val add_use : graph -> Code_id_or_name.t -> unit
 
-val add_called : fun_graph -> Code_id.t -> unit
+val add_called : graph -> Code_id.t -> unit

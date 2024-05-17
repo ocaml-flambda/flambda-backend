@@ -349,7 +349,7 @@ let pp_result ppf (res : result) =
   Format.fprintf ppf "@[<hov 2>{@ %a@ }@]" pp elts
 
 module Graph = struct
-  type graph = Global_flow_graph.fun_graph
+  type graph = Global_flow_graph.graph
 
   module Node = Code_id_or_name
 
@@ -398,7 +398,7 @@ end
 
 module Solver = Make_Fixpoint (Graph)
 
-let fixpoint (graph_new : Global_flow_graph.fun_graph) =
+let fixpoint (graph_new : Global_flow_graph.graph) =
   let result_topo = Hashtbl.create 17 in
   let uses =
     graph_new.Global_flow_graph.used |> Hashtbl.to_seq_keys |> List.of_seq

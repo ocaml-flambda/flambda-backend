@@ -106,12 +106,12 @@ module Dep = struct
   module Set = Container.Set
 end
 
-type fun_graph =
+type graph =
   { name_to_dep : (Code_id_or_name.t, Dep.Set.t) Hashtbl.t;
     used : (Code_id_or_name.t, unit) Hashtbl.t
   }
 
-let pp_used_fun_graph ppf (graph : fun_graph) =
+let pp_used_graph ppf (graph : graph) =
   let elts = List.of_seq @@ Hashtbl.to_seq graph.used in
   let pp ppf l =
     let pp_sep ppf () = Format.pp_print_string ppf "@, " in

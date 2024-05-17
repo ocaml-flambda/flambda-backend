@@ -69,13 +69,13 @@ module Acc : sig
 
   val code_deps : t -> code_dep Code_id.Map.t
 
-  val deps : t -> Graph.fun_graph
+  val deps : t -> Graph.graph
 end = struct
   type t =
     { mutable code : code_dep Code_id.Map.t;
       mutable apply_deps : apply_dep list;
       mutable set_of_closures_dep : (Name.t * Code_id.t) list;
-      deps : Graph.fun_graph;
+      deps : Graph.graph;
       mutable kinds : Flambda_kind.t Name.Map.t
     }
 

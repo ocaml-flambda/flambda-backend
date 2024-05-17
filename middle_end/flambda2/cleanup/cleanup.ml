@@ -12,7 +12,7 @@ let debug_print = Global_flow_graph.debug_print
 let run ~cmx_loader (unit : Flambda_unit.t) =
   let holed, deps, kinds = Traverse.run unit in
   if debug_print
-  then Format.printf "USED %a@." Global_flow_graph.pp_used_fun_graph deps;
+  then Format.printf "USED %a@." Global_flow_graph.pp_used_graph deps;
   let solved_dep = Dep_solver.fixpoint deps in
   if debug_print
   then Format.printf "RESULT@ %a@." Dep_solver.pp_result solved_dep;
