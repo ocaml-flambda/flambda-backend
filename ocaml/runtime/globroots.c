@@ -232,8 +232,17 @@ static void compute_index_for_global_root_scan(value* glob_block, int* start,
     if (Tag_val(*glob_block) == Closure_tag) {
       *start = Start_env_closinfo(Closinfo_val(*glob_block));
       *stop = Wosize_val(*glob_block);
+
+      fprintf(stderr, "Closure: Scannable_wosize_val = %lu; Wosize_val = %lu\n",
+              Scannable_wosize_val(*glob_block),
+              Wosize_val(*glob_block)
+              );
     }
     else {
+      fprintf(stderr, "Scannable_wosize_val = %lu; Wosize_val = %lu\n",
+              Scannable_wosize_val(*glob_block),
+              Wosize_val(*glob_block)
+              );
       *stop = Scannable_wosize_val(*glob_block);
     }
   }
@@ -262,7 +271,7 @@ static void scan_native_globals(scanning_action f, void* fdata)
       glob_block = *glob;
       compute_index_for_global_root_scan(&glob_block, &start, &stop);
       for (j = start; j < stop; j++) {
-        fprintf(stderr, "j = %d, glob_block = %p, field = %p\n",
+        fprintf(stderr, "glb: j = %d, glob_block = %p, field = %p\n",
                 j, (void*) glob_block, (void*) Field(glob_block, j));
         f(fdata, Field(glob_block, j), &Field(glob_block, j));
       }
@@ -275,6 +284,8 @@ static void scan_native_globals(scanning_action f, void* fdata)
       glob_block = *glob;
       compute_index_for_global_root_scan(&glob_block, &start, &stop);
       for (j = start; j < stop; j++) {
+        fprintf(stderr, "dyn: j = %d, glob_block = %p, field = %p\n",
+                j, (void*) glob_block, (void*) Field(glob_block, j));
         f(fdata, Field(glob_block, j), &Field(glob_block, j));
       }
     }

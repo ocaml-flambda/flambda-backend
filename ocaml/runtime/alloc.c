@@ -442,10 +442,10 @@ CAMLprim value caml_update_dummy(value dummy, value newval)
     CAMLassert (Tag_val(dummy) != Infix_tag);
     CAMLassert (Reserved_val(dummy) == Reserved_val(newval));
     Unsafe_store_tag_val(dummy, tag);
-    size = Wosize_val(newval);
-    CAMLassert (size == Wosize_val(dummy));
-    mlsize_t scannable_size = Scannable_wosize_val(newval);
-    CAMLassert (scannable_size == Scannable_wosize_val(dummy));
+    size = Wosize_val(dummy);
+    CAMLassert (size == Wosize_val(newval));
+    mlsize_t scannable_size = Scannable_wosize_val(dummy);
+    CAMLassert (scannable_size == Scannable_wosize_val(newval));
     /* See comment above why this is safe even if [tag == Closure_tag]
        and some of the "values" being copied are actually code pointers.
 

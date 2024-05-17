@@ -207,11 +207,13 @@ static intnat do_compare_val(struct compare_stack* stk,
           if (t1 != t2)
               return (intnat)t1 - (intnat)t2;
       }
+      /*
       if ( Is_mixed_block_reserved(Reserved_val(v1))
         || Is_mixed_block_reserved(Reserved_val(v2))) {
         compare_free_stack(stk);
         caml_invalid_argument("compare: mixed block value");
       }
+      */
       switch(t1) {
       case Forward_tag: {
           v1 = Forward_val (v1);
@@ -301,8 +303,8 @@ static intnat do_compare_val(struct compare_stack* stk,
         break;
       }
       default: {
-        mlsize_t sz1 = Wosize_val(v1);
-        mlsize_t sz2 = Wosize_val(v2);
+        mlsize_t sz1 = Scannable_wosize_val(v1);
+        mlsize_t sz2 = Scannable_wosize_val(v2);
         /* Compare sizes first for speed */
         if (sz1 != sz2) return sz1 - sz2;
         if (sz1 == 0) break;

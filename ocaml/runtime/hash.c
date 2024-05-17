@@ -288,13 +288,12 @@ CAMLprim value caml_hash_exn(value count, value limit, value seed, value obj)
 
       default:
 	if (Is_mixed_block_reserved(Reserved_val(v))) {
-    return Val_int(42);
 	 // caml_invalid_argument("hash: mixed block value");
 	}
         /* Mix in the tag and size, but do not count this towards [num] */
         h = caml_hash_mix_uint32(h, Cleanhd_hd(Hd_val(v)));
         /* Copy fields into queue, not exceeding the total size [sz] */
-        for (i = 0, len = Wosize_val(v); i < len; i++) {
+        for (i = 0, len = Scannable_wosize_val(v); i < len; i++) {
           if (wr >= sz) break;
           queue[wr++] = Field(v, i);
         }
