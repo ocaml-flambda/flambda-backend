@@ -256,6 +256,7 @@ module Error = struct
           required_layouts_level : Language_extension.maturity
         }
     | Unknown_jkind of Jane_syntax.Jkind.t
+    | Unknown_mode of Jane_syntax.Mode_expr.Const.t
     | Multiple_jkinds of
         { from_annotation : const;
           from_attribute : const
@@ -422,28 +423,96 @@ module Const = struct
     | Immediate -> immediate
     | Immediate64 -> immediate64
 
-  let of_user_written_annotation_unchecked : Jane_syntax.Jkind.t -> t option =
-    function
-    | Primitive_layout_or_abbreviation const -> (
-      let { txt = name; _ } =
+  module ModeParser = struct
+    type mode =
+      | Locality of Locality.Const.t
+      | Linearity of Linearity.Const.t
+      | Uniqueness of Uniqueness.Const.t
+      | Externality of Externality.t
+
+    let parse_mode unparsed_mode =
+      let { txt = name; loc } =
+        (unparsed_mode : Jane_syntax.Mode_expr.Const.t :> _ Location.loc)
+      in
+      match name with
+      | "global" -> Locality Global
+      | "local" -> Locality Local
+      | "many" -> Linearity Many
+      | "once" -> Linearity Once
+      | "unique" -> Uniqueness Unique
+      | "shared" -> Uniqueness Shared
+      | "internal" -> Externality Internal
+      | "external64" -> Externality External64
+      | "external" -> Externality External
+      | _ -> raise ~loc (Unknown_mode unparsed_mode)
+
+    let parse_modes
+        (Location.{ txt = modes; loc = _ } : Jane_syntax.Mode_expr.t) =
+      List.map parse_mode modes
+  end
+
+  let rec of_user_written_annotation_unchecked_level
+      (jkind : Jane_syntax.Jkind.t) : t =
+    match jkind with
+    | Abbreviation const -> (
+      let { txt = name; loc } =
         (const : Jane_syntax.Jkind.Const.t :> _ Location.loc)
       in
       (* CR layouts 2.8: move this to predef *)
       match name with
-      | "any" -> Some any
-      | "value" -> Some value
-      | "void" -> Some void
-      | "immediate64" -> Some immediate64
-      | "immediate" -> Some immediate
-      | "float64" -> Some float64
-      | "float32" -> Some float32
-      | "word" -> Some word
-      | "bits32" -> Some bits32
-      | "bits64" -> Some bits64
-      | "non_null_value" -> Some non_null_value
-      | _ -> None)
-    | Default | Mod _ | With _ | Kind_of _ ->
-      Misc.fatal_error "XXX unimplemented"
+      | "any" -> any
+      | "value" -> value
+      | "void" -> void
+      | "immediate64" -> immediate64
+      | "immediate" -> immediate
+      | "float64" -> float64
+      | "float32" -> float32
+      | "word" -> word
+      | "bits32" -> bits32
+      | "bits64" -> bits64
+      | "non_null_value" -> non_null_value
+      | _ -> raise ~loc (Unknown_jkind jkind))
+    | Mod (jkind, modes) ->
+      let base = of_user_written_annotation_unchecked_level jkind in
+      let parsed_modes = ModeParser.parse_modes modes in
+      let meet_mode jkind (mode : ModeParser.mode) =
+        match mode with
+        | Locality locality ->
+          { jkind with
+            modes_upper_bounds =
+              { jkind.modes_upper_bounds with
+                locality =
+                  Locality.Const.meet jkind.modes_upper_bounds.locality locality
+              }
+          }
+        | Linearity linearity ->
+          { jkind with
+            modes_upper_bounds =
+              Modes.meet jkind.modes_upper_bounds
+                { jkind.modes_upper_bounds with
+                  linearity =
+                    Linearity.Const.meet jkind.modes_upper_bounds.linearity
+                      linearity
+                }
+          }
+        | Uniqueness uniqueness ->
+          { jkind with
+            modes_upper_bounds =
+              Modes.meet jkind.modes_upper_bounds
+                { jkind.modes_upper_bounds with
+                  uniqueness =
+                    Uniqueness.Const.meet jkind.modes_upper_bounds.uniqueness
+                      uniqueness
+                }
+          }
+        | Externality externality ->
+          { jkind with
+            externality_upper_bound =
+              Externality.meet jkind.externality_upper_bound externality
+          }
+      in
+      List.fold_left meet_mode base parsed_modes
+    | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
 
   module Sort = Sort.Const
   module Layout = Layout.Const
@@ -688,14 +757,11 @@ let of_const ~why
   }
 
 let const_of_user_written_annotation ~context Location.{ loc; txt = annot } =
-  match Const.of_user_written_annotation_unchecked annot with
-  | None -> raise ~loc (Unknown_jkind annot)
-  | Some const ->
-    let required_layouts_level = get_required_layouts_level context const in
-    if not (Language_extension.is_at_least Layouts required_layouts_level)
-    then
-      raise ~loc (Insufficient_level { jkind = const; required_layouts_level });
-    const
+  let const = Const.of_user_written_annotation_unchecked_level annot in
+  let required_layouts_level = get_required_layouts_level context const in
+  if not (Language_extension.is_at_least Layouts required_layouts_level)
+  then raise ~loc (Insufficient_level { jkind = const; required_layouts_level });
+  const
 
 let of_annotated_const ~context ~const ~const_loc =
   of_const ~why:(Annotated (context, const_loc)) const
@@ -737,9 +803,7 @@ let of_type_decl ~context (decl : Parsetree.type_declaration) =
              Location.map
                (fun attr ->
                  let name = Builtin_attributes.jkind_attribute_to_string attr in
-                 Jane_syntax.Jkind.(
-                   Primitive_layout_or_abbreviation
-                     (Const.mk name Location.none)))
+                 Jane_syntax.Jkind.(Abbreviation (Const.mk name Location.none)))
                attr
            in
            t, (const, annot), decl.ptype_attributes)
@@ -1514,6 +1578,9 @@ let report_error ~loc : Error.t -> _ = function
          When RAE tried this, some types got printed like [t/2], but the
          [/2] shouldn't be there. Investigate and fix. *)
       "@[<v>Unknown layout %a@]" Pprintast.jkind jkind
+  | Unknown_mode mode ->
+    Location.errorf ~loc
+      "@[<v>Unknown mode %a@]" Pprintast.mode mode
   | Multiple_jkinds { from_annotation; from_attribute } ->
     Location.errorf ~loc
       "@[<v>A type declaration's layout can be given at most once.@;\

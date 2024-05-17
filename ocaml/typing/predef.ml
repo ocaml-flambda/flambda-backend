@@ -195,9 +195,7 @@ let predef_jkind_annotation const =
        *)
        let user_written : _ Location.loc =
          let name = Jkind.Const.to_string const in
-         Jane_syntax.Jkind.(
-           Primitive_layout_or_abbreviation
-             (Const.mk name Location.none))
+         Jane_syntax.Jkind.(Abbreviation (Const.mk name Location.none))
          |> Location.mknoloc
        in
        const, user_written)
