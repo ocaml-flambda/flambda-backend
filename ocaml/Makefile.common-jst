@@ -113,7 +113,6 @@ dune_config_targets = \
   $(ocamldir)/duneconf/dirs-to-ignore.inc \
   $(ocamldir)/duneconf/jst-extra.inc \
   dune-project \
-  $(ocamldir)/stdlib/ocaml_compiler_internal_params \
   $(ocamldir)/dune.runtime_selection \
   $(ocamldir)/otherlibs/dune
 
@@ -200,12 +199,6 @@ _install: compiler
 install: _install
 	mkdir -p '$(prefix)'
 	rsync --chmod=u+rw,go+r -rl _install/ '$(prefix)'
-	rm -f '$(prefix)/lib/ocaml/ocaml_compiler_internal_params'
-        # rm `ocaml_compiler_internal_params`, which is used to compile the
-        # stdlib `Float_u` module with `-extension layouts_alpha`, because we
-        # don't want user programs that happened to be named
-        # `ocaml/stdlib/float_u.ml` to get the flag automatically.
-
 
 # Same as above, but relies on a successfull earlier _install
 install_for_opam:
@@ -258,15 +251,15 @@ install_for_test: _install
 	 ln -s . lex; ln -s . yacc; \
 	 ln -s _install/lib/ocaml/compiler-libs compilerlibs; \
 	 mkdir -p otherlibs/{unix,dynlink/native,str,bigarray,runtime_events}; \
-	 mkdir -p otherlibs/{upstream_compatible,stable,beta,alpha}; \
 	 ln -s ../stdlib/threads otherlibs/systhreads$(RUNTIME_SUFFIX); \
          $(cpl) stdlib/unix/{lib,}unix* otherlibs/unix; \
          $(cpl) stdlib/dynlink/dynlink* otherlibs/dynlink; \
          $(cpl) stdlib/str/{lib,}str* otherlibs/str; \
-         $(cpl) stdlib/upstream_compatible/* otherlibs/upstream_compatible; \
-         $(cpl) stdlib/stable/* otherlibs/stable; \
-         $(cpl) stdlib/beta/* otherlibs/beta; \
-         $(cpl) stdlib/alpha/* otherlibs/alpha; \
+	 for universe in upstream_compatible stable beta alpha ; do \
+		mkdir -p otherlibs/{stdlib_,}$${universe}; \
+		$(cpl) stdlib/stdlib_$${universe}/* otherlibs/stdlib_$${universe}; \
+		$(cpl) stdlib/$${universe}/* otherlibs/$${universe}; \
+	 done; \
      if [[ x"$(RUNTIME_DIR)" = x"runtime" ]]; then \
 	     $(cpl) stdlib/runtime_events/{lib,}runtime_events* otherlibs/runtime_events; \
      fi; \
