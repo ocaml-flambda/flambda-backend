@@ -569,8 +569,6 @@ CAMLexport const struct custom_operations caml_unboxed_float32_array_ops[2] = {
     custom_fixed_length_default },
 };
 
-/* [MM] [TODO]: Not consistent with the memory model. See the discussion in
-   https://github.com/ocaml-multicore/ocaml-multicore/pull/822. */
 CAMLprim value caml_make_unboxed_float32_vect(value len)
 {
   /* This is only used on 64-bit targets. */
@@ -590,6 +588,8 @@ CAMLprim value caml_make_unboxed_float32_vect_bytecode(value len)
   return caml_make_vect(len, caml_copy_float32(0.0f));
 }
 
+/* [MM] [TODO]: Not consistent with the memory model. See the discussion in
+   https://github.com/ocaml-multicore/ocaml-multicore/pull/822. */
 CAMLprim value caml_unboxed_float32_vect_blit(value a1, value ofs1, value a2,
                                               value ofs2, value n)
 {
