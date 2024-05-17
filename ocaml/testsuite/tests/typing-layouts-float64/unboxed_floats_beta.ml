@@ -1,5 +1,6 @@
 (* TEST
  reference = "${test_source_directory}/unboxed_floats_beta.reference";
+ include stable;
  flambda2;
  {
    flags = "-extension layouts_beta";
@@ -23,7 +24,7 @@
 (* Prelude: Functions on unboxed floats. *)
 
 module Float_u = struct
-  include Stdlib__Float_u
+  include Stable.Float_u
 
   let ( + ) = add
   let ( - ) = sub

@@ -1,4 +1,5 @@
 (* TEST
+ include stable;
  flags = "-extension layouts_beta";
  expect;
 *)
@@ -6,10 +7,10 @@
 (*****************************************)
 (* Prelude: Functions on unboxed floats. *)
 
-module Float_u = Stdlib__Float_u
-module Int32_u = Stdlib__Int32_u
-module Int64_u = Stdlib__Int64_u
-module Nativeint_u = Stdlib__Nativeint_u
+module Float_u = Stable.Float_u
+module Int32_u = Stable.Int32_u
+module Int64_u = Stable.Int64_u
+module Nativeint_u = Stable.Nativeint_u
 
 let test_float s f =
   Format.printf "%s: %f\n" s (Float_u.to_float f); Format.print_flush ()
@@ -21,10 +22,10 @@ let test_nativeint s f =
   Format.printf "%s: %s\n" s (Nativeint_u.to_string f); Format.print_flush ()
 
 [%%expect{|
-module Float_u = Stdlib__Float_u
-module Int32_u = Stdlib__Int32_u
-module Int64_u = Stdlib__Int64_u
-module Nativeint_u = Stdlib__Nativeint_u
+module Float_u = Stable.Float_u
+module Int32_u = Stable.Int32_u
+module Int64_u = Stable.Int64_u
+module Nativeint_u = Stable.Nativeint_u
 val test_float : string -> Float_u.t -> unit = <fun>
 val test_int32 : string -> Int32_u.t -> unit = <fun>
 val test_int64 : string -> Int64_u.t -> unit = <fun>

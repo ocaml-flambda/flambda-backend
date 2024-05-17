@@ -1,14 +1,15 @@
 (* TEST
+ include stdlib_stable;
  {
-   reference = "${test_source_directory}/iarray.byte.reference";
+   reference = "${test_source_directory}/test_iarray.byte.reference";
    bytecode;
  }{
    stack-allocation;
-   reference = "${test_source_directory}/iarray.stack.reference";
+   reference = "${test_source_directory}/test_iarray.stack.reference";
    native;
  }{
    no-stack-allocation;
-   reference = "${test_source_directory}/iarray.heap.reference";
+   reference = "${test_source_directory}/test_iarray.heap.reference";
    native;
  }
 *)
@@ -21,7 +22,7 @@
    2. Correctness: They actually create arrays on the stack (by testing that no
       GCed allocation happens). *)
 
-module Iarray = Stdlib__Iarray
+module Iarray = Stdlib_stable.Iarray
 
 external opaque_local : local_ 'a -> local_ 'a = "%opaque"
 

@@ -12,6 +12,9 @@
 ;*                                                                        *
 ;**************************************************************************
 
+;; [stable] was renamed to [stdlib_stable]. This library clones [stdlib_stable]
+;; until we move all existing uses of [stable] to [stdlib_stable].
+
 (library
  (name stable)
  (wrapped false)
@@ -34,16 +37,42 @@
  (library_flags
   (:standard -linkall)))
 
+;; We clone files from [stdlib_stable] instead of re-exporting the library
+;; to avoid adding a new transitive dependency to builds.
+
+(rule
+ (deps
+  (glob_files ../stdlib_stable/*.{ml,mli}))
+ (targets
+  float_u.ml
+  float_u.mli
+  iarray.ml
+  iarray.mli
+  iarrayLabels.ml
+  iarrayLabels.mli
+  int32_u.ml
+  int32_u.mli
+  int64_u.ml
+  int64_u.mli
+  nativeint_u.ml
+  nativeint_u.mli
+  stable.ml
+  stable.mli)
+ (action
+  (bash
+   "cp ../stdlib_stable/*.{ml,mli} .; mv stdlib_stable.ml stable.ml; mv stdlib_stable.mli stable.mli")))
+
+(rule
+ (deps
+  (:first-dep ../to_install.sh)
+  (glob_files *.mli))
+ (action
+  (with-stdout-to
+   to_install.sexp
+   (run "%{first-dep}" "stable"))))
+
 (install
  (files
-  (stable.cmxa as stable/stable.cmxa)
-  (stable.a as stable/stable.a)
-  (stable.cmxs as stable/stable.cmxs)
-  (stable.cma as stable/stable.cma)
-  (stable.mli as stable/stable.mli)
-  (.stable.objs/byte/stable.cmi as stable/stable.cmi)
-  (.stable.objs/byte/stable.cmt as stable/stable.cmt)
-  (.stable.objs/byte/stable.cmti as stable/stable.cmti)
-  (.stable.objs/native/stable.cmx as stable/stable.cmx))
+  (include to_install.sexp))
  (section lib)
  (package ocaml))

@@ -2,8 +2,8 @@ cmm_helpers.ml
 cmm_helpers.mli
 cmm_builtins.ml
 cmm_builtins.mli
-checks.ml
-checks.mli
+zero_alloc_info.ml
+zero_alloc_info.mli
 zero_alloc_checker.ml
 zero_alloc_checker.mli
 cfg/**/*.ml

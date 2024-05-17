@@ -86,7 +86,6 @@
   branch_relaxation
   branch_relaxation_intf
   cfgize
-  checks
   cmm_helpers
   cmm_builtins
   cmm_invariants
@@ -145,6 +144,7 @@
   x86_masm
   x86_proc
   zero_alloc_checker
+  zero_alloc_info
   ;; asmcomp/cfg
   cfg
   cfg_intf

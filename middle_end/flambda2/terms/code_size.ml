@@ -163,7 +163,8 @@ let block_set (kind : Flambda_primitive.Block_access_kind.t)
         { field_kind =
             ( Value_prefix _
             | Flat_suffix
-                (Imm | Float | Float64 | Float32 | Bits32 | Bits64 | Word) );
+                (Imm | Float_boxed | Float64 | Float32 | Bits32 | Bits64 | Word)
+              );
           _
         },
       (Assignment _ | Initialization) ) ->

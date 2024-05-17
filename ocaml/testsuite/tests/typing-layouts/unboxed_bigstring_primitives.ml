@@ -1,5 +1,6 @@
 (* TEST
  flambda2;
+ include stable;
  {
    native;
  }{
@@ -72,19 +73,19 @@ external bswap32: int32 -> int32 = "%bswap_int32"
 external bswap64: int64 -> int64 = "%bswap_int64"
 
 let swap32 x =
-  let open Stdlib__Int32_u in
+  let open Stable.Int32_u in
   if Sys.big_endian
   then x |> to_int32 |> bswap32 |> of_int32
   else x
 
 let swap64 x =
-  let open Stdlib__Int64_u in
+  let open Stable.Int64_u in
   if Sys.big_endian
   then x |> to_int64 |> bswap64 |> of_int64
   else x
 
-let to_int32 = Stdlib__Int32_u.to_int32
-let to_int64 = Stdlib__Int64_u.to_int64
+let to_int32 = Stable.Int32_u.to_int32
+let to_int64 = Stable.Int64_u.to_int64
 let test get_64 set_64 get_32 set_32 =
   set_32 s 0 (swap32 #0x12345678l);
   Printf.printf "%lx %lx %lx\n%!"

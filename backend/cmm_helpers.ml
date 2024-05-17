@@ -1639,7 +1639,7 @@ let make_mixed_alloc ~mode dbg tag shape args =
     else
       match flat_suffix.(idx - value_prefix_len) with
       | Imm -> int_array_set arr ofs newval dbg
-      | Float | Float64 -> float_array_set arr ofs newval dbg
+      | Float_boxed | Float64 -> float_array_set arr ofs newval dbg
       | Float32 -> setfield_unboxed_float32 arr ofs newval dbg
       | Bits32 -> setfield_unboxed_int32 arr ofs newval dbg
       | Bits64 | Word -> setfield_unboxed_int64_or_nativeint arr ofs newval dbg

@@ -1,4 +1,5 @@
 (* TEST
+ include stable;
  flambda2;
  native;
 *)
@@ -11,7 +12,7 @@
    floats. *)
 
 module Float_u = struct
-  include Stdlib__Float_u
+  include Stable.Float_u
 
   let ( + ) = add
   let ( - ) = sub

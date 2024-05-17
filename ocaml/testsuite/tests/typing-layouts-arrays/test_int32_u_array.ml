@@ -1,6 +1,7 @@
 (* TEST
  readonly_files = "gen_u_array.ml test_gen_u_array.ml";
  modules = "${readonly_files}";
+ include stable;
  flambda2;
  {
    bytecode;
@@ -70,7 +71,7 @@ module Int32_u_array_boxed : Test_gen_u_array.S with type t = int32# array = Tes
   module M = Int32_u_array
   module I = Int32_I
   module E = struct
-    open Stdlib__Int32_u
+    open Stable.Int32_u
     let to_boxed x = to_int32 (x ())
     let of_boxed x () = of_int32 x
   end
@@ -185,7 +186,7 @@ let () =
 
 (* expression and patterns *)
 let () =
-  let ( = ) = Stdlib__Int32_u.equal in
+  let ( = ) = Stable.Int32_u.equal in
   (* match statement *)
   let d = [| #1l; #2l |] in
   (match d with
