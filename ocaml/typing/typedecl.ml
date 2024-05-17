@@ -250,7 +250,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let type_jkind, type_jkind_annotation, sdecl_attributes =
     Jkind.of_type_decl_default
       ~context:(Type_declaration path)
-      ~default:(Jkind.any ~why:Initial_typedecl_env)
+      ~default:(Jkind.Primitive.any ~why:Initial_typedecl_env)
       sdecl
   in
   let abstract_reason, type_manifest =
@@ -425,7 +425,7 @@ let transl_labels ~new_var_jkind env univars closed lbls =
          {Types.ld_id = ld.ld_id;
           ld_mutable = ld.ld_mutable;
           ld_global = ld.ld_global;
-          ld_jkind = Jkind.any ~why:Dummy_jkind;
+          ld_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
             (* Updated by [update_label_jkinds] *)
           ld_type = ty;
           ld_loc = ld.ld_loc;
@@ -721,7 +721,7 @@ let transl_declaration env sdecl (id, uid) =
       let cty = transl_simple_type ~new_var_jkind:Any env ~closed:no_row Mode.Alloc.Const.legacy sty in
       Some cty, Some cty.ctyp_type
   in
-  let any = Jkind.any ~why:Initial_typedecl_env in
+  let any = Jkind.Primitive.any ~why:Initial_typedecl_env in
   (* jkind_default is the jkind to use for now as the type_jkind when there
      is no annotation and no manifest.
      See Note [Default jkinds in transl_declaration].
@@ -729,7 +729,7 @@ let transl_declaration env sdecl (id, uid) =
   let (tkind, kind, jkind_default) =
     match sdecl.ptype_kind with
       | Ptype_abstract ->
-        Ttype_abstract, Type_abstract Abstract_def, Jkind.value ~why:Default_type_jkind
+        Ttype_abstract, Type_abstract Abstract_def, Jkind.Primitive.value ~why:Default_type_jkind
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
           match cstrs with
@@ -810,7 +810,7 @@ let transl_declaration env sdecl (id, uid) =
                    Constructor_uniform_value, jkinds)
                 (Array.of_list cstrs)
             ),
-            Jkind.value ~why:Boxed_variant
+            Jkind.Primitive.value ~why:Boxed_variant
         in
           Ttype_variant tcstrs, Type_variant (cstrs, rep), jkind
       | Ptype_record lbls ->
@@ -824,11 +824,11 @@ let transl_declaration env sdecl (id, uid) =
               Record_unboxed, any
             else
               Record_boxed (Array.make (List.length lbls) any),
-              Jkind.value ~why:Boxed_record
+              Jkind.Primitive.value ~why:Boxed_record
           in
           Ttype_record lbls, Type_record(lbls', rep), jkind
       | Ptype_open ->
-        Ttype_open, Type_open, Jkind.value ~why:Extensible_variant
+        Ttype_open, Type_open, Jkind.Primitive.value ~why:Extensible_variant
       in
     let jkind =
     (* - If there's an annotation, we use that. It's checked against
@@ -843,7 +843,7 @@ let transl_declaration env sdecl (id, uid) =
     *)
       match jkind_from_annotation, man with
       | Some annot, _ -> annot
-      | None, Some _ -> Jkind.any ~why:Initial_typedecl_env
+      | None, Some _ -> Jkind.Primitive.any ~why:Initial_typedecl_env
       | None, None -> jkind_default
     in
     let arity = List.length params in
@@ -1172,7 +1172,7 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
     let lbls, all_void =
       update_label_jkinds env loc lbls None ~is_inlined:true
     in
-    jkinds.(0) <- Jkind.value ~why:Boxed_record;
+    jkinds.(0) <- Jkind.Primitive.value ~why:Boxed_record;
     Types.Cstr_record lbls, all_void
 
 let assert_mixed_product_support =
@@ -1558,7 +1558,7 @@ let update_decl_jkind env dpath decl =
   let new_decl, new_jkind = match decl.type_kind with
     | Type_abstract _ -> decl, decl.type_jkind
     | Type_open ->
-      let type_jkind = Jkind.value ~why:Extensible_variant in
+      let type_jkind = Jkind.Primitive.value ~why:Extensible_variant in
       { decl with type_jkind }, type_jkind
     | Type_record (lbls, rep) ->
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
@@ -1804,7 +1804,7 @@ let check_well_founded_manifest ~abs_env env loc path decl =
   let args =
     (* The jkinds here shouldn't matter for the purposes of
        [check_well_founded] *)
-    List.map (fun _ -> Ctype.newvar (Jkind.any ~why:Dummy_jkind))
+    List.map (fun _ -> Ctype.newvar (Jkind.Primitive.any ~why:Dummy_jkind))
       decl.type_params
   in
   let visited = ref TypeMap.empty in
@@ -2210,7 +2210,7 @@ let transl_extension_constructor_decl
     | Cstr_tuple args -> List.length args
     | Cstr_record _ -> 1
   in
-  let jkinds = Array.make num_args (Jkind.any ~why:Dummy_jkind) in
+  let jkinds = Array.make num_args (Jkind.Primitive.any ~why:Dummy_jkind) in
   let args, constant =
     update_constructor_arguments_jkinds env loc args jkinds
   in
@@ -2844,7 +2844,7 @@ let transl_value_decl env loc valdecl =
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
   (* CR layouts v5: relax this to check for representability. *)
   begin match Ctype.constrain_type_jkind env cty.ctyp_type
-                (Jkind.value ~why:Structure_element) with
+                (Jkind.Primitive.value ~why:Structure_element) with
   | Ok () -> ()
   | Error err ->
     raise(Error(cty.ctyp_loc, Non_value_in_sig(err,valdecl.pval_name.txt,cty.ctyp_type)))
@@ -3110,7 +3110,7 @@ let transl_package_constraint ~loc ty =
   { type_params = [];
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
-    type_jkind = Jkind.any ~why:Dummy_jkind;
+    type_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
     (* There is no reason to calculate an accurate jkind here.  This typedecl
        will be thrown away once it is used for the package constraint inclusion
        check, and that check will expand the manifest as needed. *)
@@ -3161,7 +3161,7 @@ let approx_type_decl sdecl_list =
        let jkind, jkind_annotation, _sdecl_attributes =
          Jkind.of_type_decl_default
            ~context:(Type_declaration path)
-           ~default:(Jkind.value ~why:Default_type_jkind)
+           ~default:(Jkind.Primitive.value ~why:Default_type_jkind)
            sdecl
        in
        let params =

@@ -1259,7 +1259,7 @@ let out_jkind_of_const_jkind jkind =
 let out_jkind_option_of_jkind jkind =
   match Jkind.get jkind with
   | Const jkind ->
-    begin match Jkind.Const.equal jkind Jkind.Const.value with
+    begin match Jkind.Const.equal jkind Jkind.Const.Primitive.value.jkind with
     | true -> None
     | false -> Some (out_jkind_of_const_jkind jkind)
     end
@@ -2265,7 +2265,7 @@ let dummy =
     type_params = [];
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
-    type_jkind = Jkind.any ~why:Dummy_jkind;
+    type_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
     type_jkind_annotation = None;
     type_private = Public;
     type_manifest = None;
@@ -2726,7 +2726,7 @@ let hide_variant_name t =
         (Tvariant
            (create_row ~fields ~fixed ~closed ~name:None
               ~more:(newvar2 (get_level more)
-                       (Jkind.value ~why:Row_variable))))
+                       (Jkind.Primitive.value ~why:Row_variable))))
   | _ -> t
 
 let prepare_expansion Errortrace.{ty; expanded} =

@@ -160,6 +160,7 @@ module Const : sig
   val get_layout : t -> Layout.Const.t
 
   (* CR layouts v2.8: remove this *)
+
   (** Gets the legacy layout of a constant jkind. Never does mutation. *)
   val get_legacy_layout : t -> Layout.Const.Legacy.t
 
@@ -169,38 +170,51 @@ module Const : sig
   (** Gets the maximum mode on the externality axis for types of this constant jkind. *)
   val get_externality_upper_bound : t -> Externality.t
 
-  (** This jkind is the top of the jkind lattice. All types have jkind [any].
+  module Primitive : sig
+    type nonrec t =
+      { jkind : t;
+        name : string
+      }
+
+    (** This jkind is the top of the jkind lattice. All types have jkind [any].
     But we cannot compile run-time manipulations of values of types with jkind
     [any]. *)
-  val any : t
+    val any : t
 
-  (** Value of types of this jkind are not retained at all at runtime *)
-  val void : t
+    (** Value of types of this jkind are not retained at all at runtime *)
+    val void : t
 
-  (** This is the jkind of normal ocaml values *)
-  val value : t
+    (** This is the jkind of normal ocaml values *)
+    val value : t
 
-  (** Values of types of this jkind are immediate on 64-bit platforms; on other
+    (** Values of types of this jkind are immediate on 64-bit platforms; on other
     platforms, we know nothing other than that it's a value. *)
-  val immediate64 : t
+    val immediate64 : t
 
-  (** We know for sure that values of types of this jkind are always immediate *)
-  val immediate : t
+    (** We know for sure that values of types of this jkind are always immediate *)
+    val immediate : t
 
-  (** This is the jkind of unboxed 64-bit floats.  They have sort Float64. *)
-  val float64 : t
+    (** This is the jkind of unboxed 64-bit floats.  They have sort Float64. *)
+    val float64 : t
 
-  (** This is the jkind of unboxed 32-bit floats.  They have sort Float32. *)
-  val float32 : t
+    (** This is the jkind of unboxed 32-bit floats.  They have sort Float32. *)
+    val float32 : t
 
-  (** This is the jkind of unboxed native-sized integers. They have sort Word. *)
-  val word : t
+    (** This is the jkind of unboxed native-sized integers. They have sort Word. *)
+    val word : t
 
-  (** This is the jkind of unboxed 32-bit integers. They have sort Bits32. *)
-  val bits32 : t
+    (** This is the jkind of unboxed 32-bit integers. They have sort Bits32. *)
+    val bits32 : t
 
-  (** This is the jkind of unboxed 64-bit integers. They have sort Bits64. *)
-  val bits64 : t
+    (** This is the jkind of unboxed 64-bit integers. They have sort Bits64. *)
+    val bits64 : t
+
+    (** This is the jkind of normal ocaml values that are non-nullable *)
+    val non_null_value : t
+
+    (** Get a list of all primitive jkinds *)
+    val get_all : t list
+  end
 
   module Sort : module type of struct
     include Sort.Const
@@ -211,38 +225,40 @@ module Const : sig
   end
 end
 
-(** This jkind is the top of the jkind lattice. All types have jkind [any].
+module Primitive : sig
+  (** This jkind is the top of the jkind lattice. All types have jkind [any].
     But we cannot compile run-time manipulations of values of types with jkind
     [any]. *)
-val any : why:History.any_creation_reason -> t
+  val any : why:History.any_creation_reason -> t
 
-(** Value of types of this jkind are not retained at all at runtime *)
-val void : why:History.void_creation_reason -> t
+  (** Value of types of this jkind are not retained at all at runtime *)
+  val void : why:History.void_creation_reason -> t
 
-(** This is the jkind of normal ocaml values *)
-val value : why:History.value_creation_reason -> t
+  (** This is the jkind of normal ocaml values *)
+  val value : why:History.value_creation_reason -> t
 
-(** Values of types of this jkind are immediate on 64-bit platforms; on other
+  (** Values of types of this jkind are immediate on 64-bit platforms; on other
     platforms, we know nothing other than that it's a value. *)
-val immediate64 : why:History.immediate64_creation_reason -> t
+  val immediate64 : why:History.immediate64_creation_reason -> t
 
-(** We know for sure that values of types of this jkind are always immediate *)
-val immediate : why:History.immediate_creation_reason -> t
+  (** We know for sure that values of types of this jkind are always immediate *)
+  val immediate : why:History.immediate_creation_reason -> t
 
-(** This is the jkind of unboxed 64-bit floats.  They have sort Float64. *)
-val float64 : why:History.float64_creation_reason -> t
+  (** This is the jkind of unboxed 64-bit floats.  They have sort Float64. *)
+  val float64 : why:History.float64_creation_reason -> t
 
-(** This is the jkind of unboxed 32-bit floats.  They have sort Float32. *)
-val float32 : why:History.float32_creation_reason -> t
+  (** This is the jkind of unboxed 32-bit floats.  They have sort Float32. *)
+  val float32 : why:History.float32_creation_reason -> t
 
-(** This is the jkind of unboxed native-sized integers. They have sort Word. *)
-val word : why:History.word_creation_reason -> t
+  (** This is the jkind of unboxed native-sized integers. They have sort Word. *)
+  val word : why:History.word_creation_reason -> t
 
-(** This is the jkind of unboxed 32-bit integers. They have sort Bits32. *)
-val bits32 : why:History.bits32_creation_reason -> t
+  (** This is the jkind of unboxed 32-bit integers. They have sort Bits32. *)
+  val bits32 : why:History.bits32_creation_reason -> t
 
-(** This is the jkind of unboxed 64-bit integers. They have sort Bits64. *)
-val bits64 : why:History.bits64_creation_reason -> t
+  (** This is the jkind of unboxed 64-bit integers. They have sort Bits64. *)
+  val bits64 : why:History.bits64_creation_reason -> t
+end
 
 (******************************)
 (* construction *)

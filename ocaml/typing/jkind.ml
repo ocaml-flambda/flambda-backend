@@ -327,101 +327,149 @@ module Const = struct
         Modes.less_or_equal modes1 modes2;
         Externality.less_or_equal ext1 ext2 ]
 
-  let any = max
+  module Primitive = struct
+    type nonrec t =
+      { jkind : t;
+        name : string
+      }
 
-  let value = { max with layout = Layout.Const.value }
+    let any = { jkind = max; name = "any" }
 
-  let void =
-    { layout = Layout.Const.void;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = Externality.min
-    }
+    let value =
+      { jkind = { max with layout = Layout.Const.value }; name = "value" }
 
-  (* [immediate64] describes types that are stored directly (no indirection)
-     on 64-bit platforms but indirectly on 32-bit platforms. The key question:
-     along which modes should a [immediate64] cross? As of today, all of them,
-     but the reasoning for each is independent and somewhat subtle:
+    let void =
+      { jkind =
+          { layout = Layout.Const.void;
+            modes_upper_bounds = Modes.max;
+            externality_upper_bound = Externality.min
+          };
+        name = "void"
+      }
 
-     * Locality: This is fine, because we do not have stack-allocation on
-     32-bit platforms. Thus mode-crossing is sound at any type on 32-bit,
-     including immediate64 types.
+    (* [immediate64] describes types that are stored directly (no indirection)
+       on 64-bit platforms but indirectly on 32-bit platforms. The key question:
+       along which modes should a [immediate64] cross? As of today, all of them,
+       but the reasoning for each is independent and somewhat subtle:
 
-     * Linearity: This is fine, because linearity matters only for function
-     types, and an immediate64 cannot be a function type and cannot store
-     one either.
+       * Locality: This is fine, because we do not have stack-allocation on
+       32-bit platforms. Thus mode-crossing is sound at any type on 32-bit,
+       including immediate64 types.
 
-     * Uniqueness: This is fine, because uniqueness matters only for
-     in-place update, and no record supporting in-place update is an
-     immediate64. ([@@unboxed] records do not support in-place update.)
+       * Linearity: This is fine, because linearity matters only for function
+       types, and an immediate64 cannot be a function type and cannot store
+       one either.
 
-     * Syncness: This is fine, because syncness matters only for function
-     types, and an immediate64 cannot be a function type and cannot store
-     one either.
+       * Uniqueness: This is fine, because uniqueness matters only for
+       in-place update, and no record supporting in-place update is an
+       immediate64. ([@@unboxed] records do not support in-place update.)
 
-     * Contention: This is fine, because contention matters only for
-     types with mutable fields, and an immediate64 does not have immutable
-     fields.
+       * Syncness: This is fine, because syncness matters only for function
+       types, and an immediate64 cannot be a function type and cannot store
+       one either.
 
-     In practice, the functor that creates immediate64s,
-     [Stdlib.Sys.Immediate64.Make], will require these conditions on its
-     argument. But the arguments that we expect here will have no trouble
-     meeting the conditions.
-  *)
-  let immediate64 =
-    { layout = Layout.Const.value;
-      modes_upper_bounds =
-        { locality = Global; linearity = Many; uniqueness = Unique };
-      externality_upper_bound = External64
-    }
+       * Contention: This is fine, because contention matters only for
+       types with mutable fields, and an immediate64 does not have immutable
+       fields.
 
-  let immediate =
-    { layout = Layout.Const.value;
-      modes_upper_bounds =
-        { locality = Global; linearity = Many; uniqueness = Unique };
-      externality_upper_bound = External
-    }
+       In practice, the functor that creates immediate64s,
+       [Stdlib.Sys.Immediate64.Make], will require these conditions on its
+       argument. But the arguments that we expect here will have no trouble
+       meeting the conditions.
+    *)
+    let immediate64 =
+      { jkind =
+          { layout = Layout.Const.value;
+            modes_upper_bounds =
+              { locality = Global; linearity = Many; uniqueness = Unique };
+            externality_upper_bound = External64
+          };
+        name = "immediate64"
+      }
 
-  let float64 =
-    { layout = Layout.Const.float64;
-      modes_upper_bounds =
-        { locality = Global; linearity = Many; uniqueness = Unique };
-      externality_upper_bound = External
-    }
+    let immediate =
+      { jkind =
+          { layout = Layout.Const.value;
+            modes_upper_bounds =
+              { locality = Global; linearity = Many; uniqueness = Unique };
+            externality_upper_bound = External
+          };
+        name = "immediate"
+      }
 
-  let float32 =
-    { layout = Layout.Const.float32;
-      modes_upper_bounds =
-        { locality = Global; linearity = Many; uniqueness = Unique };
-      externality_upper_bound = External
-    }
+    let float64 =
+      { jkind =
+          { layout = Layout.Const.float64;
+            modes_upper_bounds =
+              { locality = Global; linearity = Many; uniqueness = Unique };
+            externality_upper_bound = External
+          };
+        name = "float64"
+      }
 
-  let word =
-    { layout = Layout.Const.word;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = External
-    }
+    let float32 =
+      { jkind =
+          { layout = Layout.Const.float32;
+            modes_upper_bounds =
+              { locality = Global; linearity = Many; uniqueness = Unique };
+            externality_upper_bound = External
+          };
+        name = "float32"
+      }
 
-  let bits32 =
-    { layout = Layout.Const.bits32;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = External
-    }
+    let word =
+      { jkind =
+          { layout = Layout.Const.word;
+            modes_upper_bounds = Modes.max;
+            externality_upper_bound = External
+          };
+        name = "word"
+      }
 
-  let bits64 =
-    { layout = Layout.Const.bits64;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = External
-    }
+    let bits32 =
+      { jkind =
+          { layout = Layout.Const.bits32;
+            modes_upper_bounds = Modes.max;
+            externality_upper_bound = External
+          };
+        name = "bits32"
+      }
 
-  let non_null_value = { value with layout = Non_null_value }
+    let bits64 =
+      { jkind =
+          { layout = Layout.Const.bits64;
+            modes_upper_bounds = Modes.max;
+            externality_upper_bound = External
+          };
+        name = "bits64"
+      }
+
+    let non_null_value =
+      { jkind = { value.jkind with layout = Non_null_value };
+        name = "non_null_value"
+      }
+
+    let get_all =
+      [ any;
+        value;
+        void;
+        immediate;
+        immediate64;
+        float64;
+        float32;
+        word;
+        bits32;
+        bits64;
+        non_null_value ]
+  end
 
   let to_string jkind =
     let legacy_layout = get_legacy_layout jkind in
     Layout.Const.Legacy.to_string legacy_layout
 
   let of_attribute : Builtin_attributes.jkind_attribute -> t = function
-    | Immediate -> immediate
-    | Immediate64 -> immediate64
+    | Immediate -> Primitive.immediate.jkind
+    | Immediate64 -> Primitive.immediate64.jkind
 
   module ModeParser = struct
     type mode =
@@ -460,17 +508,17 @@ module Const = struct
       in
       (* CR layouts 2.8: move this to predef *)
       match name with
-      | "any" -> any
-      | "value" -> value
-      | "void" -> void
-      | "immediate64" -> immediate64
-      | "immediate" -> immediate
-      | "float64" -> float64
-      | "float32" -> float32
-      | "word" -> word
-      | "bits32" -> bits32
-      | "bits64" -> bits64
-      | "non_null_value" -> non_null_value
+      | "any" -> Primitive.any.jkind
+      | "value" -> Primitive.value.jkind
+      | "void" -> Primitive.void.jkind
+      | "immediate64" -> Primitive.immediate64.jkind
+      | "immediate" -> Primitive.immediate.jkind
+      | "float64" -> Primitive.float64.jkind
+      | "float32" -> Primitive.float32.jkind
+      | "word" -> Primitive.word.jkind
+      | "bits32" -> Primitive.bits32.jkind
+      | "bits64" -> Primitive.bits64.jkind
+      | "non_null_value" -> Primitive.non_null_value.jkind
       | _ -> raise ~loc (Unknown_jkind jkind))
     | Mod (jkind, modes) ->
       let base = of_user_written_annotation_unchecked_level jkind in
@@ -600,55 +648,57 @@ module Jkind_desc = struct
     let layout, sort = Layout.of_new_sort_var () in
     { max with layout }, sort
 
-  let any = max
+  module Primitive = struct
+    let any = max
 
-  let value = of_const Const.value
+    let value = of_const Const.Primitive.value.jkind
 
-  let void = of_const Const.void
+    let void = of_const Const.Primitive.void.jkind
 
-  (* [immediate64] describes types that are stored directly (no indirection)
-     on 64-bit platforms but indirectly on 32-bit platforms. The key question:
-     along which modes should a [immediate64] cross? As of today, all of them,
-     but the reasoning for each is independent and somewhat subtle:
+    (* [immediate64] describes types that are stored directly (no indirection)
+       on 64-bit platforms but indirectly on 32-bit platforms. The key question:
+       along which modes should a [immediate64] cross? As of today, all of them,
+       but the reasoning for each is independent and somewhat subtle:
 
-     * Locality: This is fine, because we do not have stack-allocation on
-     32-bit platforms. Thus mode-crossing is sound at any type on 32-bit,
-     including immediate64 types.
+       * Locality: This is fine, because we do not have stack-allocation on
+       32-bit platforms. Thus mode-crossing is sound at any type on 32-bit,
+       including immediate64 types.
 
-     * Linearity: This is fine, because linearity matters only for function
-     types, and an immediate64 cannot be a function type and cannot store
-     one either.
+       * Linearity: This is fine, because linearity matters only for function
+       types, and an immediate64 cannot be a function type and cannot store
+       one either.
 
-     * Uniqueness: This is fine, because uniqueness matters only for
-     in-place update, and no record supporting in-place update is an
-     immediate64. ([@@unboxed] records do not support in-place update.)
+       * Uniqueness: This is fine, because uniqueness matters only for
+       in-place update, and no record supporting in-place update is an
+       immediate64. ([@@unboxed] records do not support in-place update.)
 
-     * Syncness: This is fine, because syncness matters only for function
-     types, and an immediate64 cannot be a function type and cannot store
-     one either.
+       * Syncness: This is fine, because syncness matters only for function
+       types, and an immediate64 cannot be a function type and cannot store
+       one either.
 
-     * Contention: This is fine, because contention matters only for
-     types with mutable fields, and an immediate64 does not have immutable
-     fields.
+       * Contention: This is fine, because contention matters only for
+       types with mutable fields, and an immediate64 does not have immutable
+       fields.
 
-     In practice, the functor that creates immediate64s,
-     [Stdlib.Sys.Immediate64.Make], will require these conditions on its
-     argument. But the arguments that we expect here will have no trouble
-     meeting the conditions.
-  *)
-  let immediate64 = of_const Const.immediate64
+       In practice, the functor that creates immediate64s,
+       [Stdlib.Sys.Immediate64.Make], will require these conditions on its
+       argument. But the arguments that we expect here will have no trouble
+       meeting the conditions.
+    *)
+    let immediate64 = of_const Const.Primitive.immediate64.jkind
 
-  let immediate = of_const Const.immediate
+    let immediate = of_const Const.Primitive.immediate.jkind
 
-  let float64 = of_const Const.float64
+    let float64 = of_const Const.Primitive.float64.jkind
 
-  let float32 = of_const Const.float32
+    let float32 = of_const Const.Primitive.float32.jkind
 
-  let word = of_const Const.word
+    let word = of_const Const.Primitive.word.jkind
 
-  let bits32 = of_const Const.bits32
+    let bits32 = of_const Const.Primitive.bits32.jkind
 
-  let bits64 = of_const Const.bits64
+    let bits64 = of_const Const.Primitive.bits64.jkind
+  end
 
   (* Post-condition: If the result is [Var v], then [!v] is [None]. *)
   let get { layout; modes_upper_bounds; externality_upper_bound } : Desc.t =
@@ -682,42 +732,48 @@ let fresh_jkind jkind ~why = { jkind; history = Creation why }
 (******************************)
 (* constants *)
 
-let any_dummy_jkind =
-  { jkind = Jkind_desc.max; history = Creation (Any_creation Dummy_jkind) }
+module Primitive = struct
+  let any_dummy_jkind =
+    { jkind = Jkind_desc.max; history = Creation (Any_creation Dummy_jkind) }
 
-let value_v1_safety_check =
-  { jkind = Jkind_desc.value;
-    history = Creation (Value_creation V1_safety_check)
-  }
+  (* CR layouts: Should we be doing more memoization here? *)
+  let any ~(why : History.any_creation_reason) =
+    match why with
+    | Dummy_jkind -> any_dummy_jkind (* share this one common case *)
+    | _ -> fresh_jkind Jkind_desc.Primitive.any ~why:(Any_creation why)
 
-(* CR layouts: Should we be doing more memoization here? *)
-let any ~(why : History.any_creation_reason) =
-  match why with
-  | Dummy_jkind -> any_dummy_jkind (* share this one common case *)
-  | _ -> fresh_jkind Jkind_desc.any ~why:(Any_creation why)
+  let void ~why = fresh_jkind Jkind_desc.Primitive.void ~why:(Void_creation why)
 
-let void ~why = fresh_jkind Jkind_desc.void ~why:(Void_creation why)
+  let value_v1_safety_check =
+    { jkind = Jkind_desc.Primitive.value;
+      history = Creation (Value_creation V1_safety_check)
+    }
 
-let value ~(why : History.value_creation_reason) =
-  match why with
-  | V1_safety_check -> value_v1_safety_check
-  | _ -> fresh_jkind Jkind_desc.value ~why:(Value_creation why)
+  let value ~(why : History.value_creation_reason) =
+    match why with
+    | V1_safety_check -> value_v1_safety_check
+    | _ -> fresh_jkind Jkind_desc.Primitive.value ~why:(Value_creation why)
 
-let immediate64 ~why =
-  fresh_jkind Jkind_desc.immediate64 ~why:(Immediate64_creation why)
+  let immediate64 ~why =
+    fresh_jkind Jkind_desc.Primitive.immediate64 ~why:(Immediate64_creation why)
 
-let immediate ~why =
-  fresh_jkind Jkind_desc.immediate ~why:(Immediate_creation why)
+  let immediate ~why =
+    fresh_jkind Jkind_desc.Primitive.immediate ~why:(Immediate_creation why)
 
-let float64 ~why = fresh_jkind Jkind_desc.float64 ~why:(Float64_creation why)
+  let float64 ~why =
+    fresh_jkind Jkind_desc.Primitive.float64 ~why:(Float64_creation why)
 
-let float32 ~why = fresh_jkind Jkind_desc.float32 ~why:(Float32_creation why)
+  let float32 ~why =
+    fresh_jkind Jkind_desc.Primitive.float32 ~why:(Float32_creation why)
 
-let word ~why = fresh_jkind Jkind_desc.word ~why:(Word_creation why)
+  let word ~why = fresh_jkind Jkind_desc.Primitive.word ~why:(Word_creation why)
 
-let bits32 ~why = fresh_jkind Jkind_desc.bits32 ~why:(Bits32_creation why)
+  let bits32 ~why =
+    fresh_jkind Jkind_desc.Primitive.bits32 ~why:(Bits32_creation why)
 
-let bits64 ~why = fresh_jkind Jkind_desc.bits64 ~why:(Bits64_creation why)
+  let bits64 ~why =
+    fresh_jkind Jkind_desc.Primitive.bits64 ~why:(Bits64_creation why)
+end
 
 (*** extension requirements ***)
 (* The [annotation_context] parameter can be used to allow annotations / kinds
@@ -821,10 +877,14 @@ let of_type_decl_default ~context ~default (decl : Parsetree.type_declaration) =
   | None -> default, None, decl.ptype_attributes
 
 let for_boxed_record ~all_void =
-  if all_void then immediate ~why:Empty_record else value ~why:Boxed_record
+  if all_void
+  then Primitive.immediate ~why:Empty_record
+  else Primitive.value ~why:Boxed_record
 
 let for_boxed_variant ~all_voids =
-  if all_voids then immediate ~why:Enumeration else value ~why:Boxed_variant
+  if all_voids
+  then Primitive.immediate ~why:Enumeration
+  else Primitive.value ~why:Boxed_variant
 
 (******************************)
 (* elimination and defaulting *)
@@ -1579,8 +1639,7 @@ let report_error ~loc : Error.t -> _ = function
          [/2] shouldn't be there. Investigate and fix. *)
       "@[<v>Unknown layout %a@]" Pprintast.jkind jkind
   | Unknown_mode mode ->
-    Location.errorf ~loc
-      "@[<v>Unknown mode %a@]" Pprintast.mode mode
+    Location.errorf ~loc "@[<v>Unknown mode %a@]" Pprintast.mode mode
   | Multiple_jkinds { from_annotation; from_attribute } ->
     Location.errorf ~loc
       "@[<v>A type declaration's layout can be given at most once.@;\

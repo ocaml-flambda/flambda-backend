@@ -3458,7 +3458,7 @@ let lookup_value ?(use=true) ~loc lid env =
   let vd = Subst.Lazy.force_value_description desc in
   if must_box then begin
     match !constrain_type_jkind env vd.val_type
-            (Jkind.(value ~why:Captured_in_object))
+            (Jkind.Primitive.value ~why:Captured_in_object)
     with
     | Ok () -> ()
     | Result.Error err ->
