@@ -488,7 +488,7 @@ CAMLprim value caml_make_unboxed_int32_vect(value len)
   mlsize_t num_elements = Long_val(len);
   mlsize_t num_fields = (num_elements + 1) / 2;
 
-  if (num_fields > Max_wosize) caml_invalid_argument("Array.make");
+  if (1 + num_fields > Max_wosize) caml_invalid_argument("Array.make");
 
   return caml_alloc_custom(&caml_unboxed_int32_array_ops[num_elements % 2],
                            num_fields * sizeof(value), 0, 0);
@@ -502,7 +502,7 @@ CAMLprim value caml_make_unboxed_int32_vect_bytecode(value len)
 CAMLprim value caml_make_unboxed_int64_vect(value len)
 {
   mlsize_t num_elements = Long_val(len);
-  if (num_elements > Max_wosize) caml_invalid_argument("Array.make");
+  if (1 + num_elements > Max_wosize) caml_invalid_argument("Array.make");
 
   struct custom_operations* ops = &caml_unboxed_int64_array_ops;
 
@@ -520,7 +520,7 @@ CAMLprim value caml_make_unboxed_nativeint_vect(value len)
   /* This is only used on 64-bit targets. */
 
   mlsize_t num_elements = Long_val(len);
-  if (num_elements > Max_wosize) caml_invalid_argument("Array.make");
+  if (1 + num_elements > Max_wosize) caml_invalid_argument("Array.make");
 
   struct custom_operations* ops = &caml_unboxed_nativeint_array_ops;
 
