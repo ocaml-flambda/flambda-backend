@@ -235,7 +235,7 @@ let operation d = function
   | Cintofvalue -> "intofvalue"
   | Cvectorcast Bits128 ->
     Printf.sprintf "vec128->vec128"
-  | Cscalarcast Float32_as_float -> "float as float"
+  | Cscalarcast Float32_as_float -> "float32 as float"
   | Cscalarcast (Float_to_int Float64) -> "float->int"
   | Cscalarcast (Float_of_int Float64) -> "int->float"
   | Cscalarcast (Float_to_int Float32) -> "float32->int"
