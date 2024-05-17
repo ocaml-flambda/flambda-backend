@@ -179,7 +179,9 @@ let immutable_unboxed_float32_array env res updates ~symbol ~elts =
        to zero because the array is a static block. *)
     List.map
       (Or_variable.value_map ~default:(Cmm.Csingle 0.0) ~f:(fun f ->
-           (* Converting float32->float->float32 preserves the value. *)
+           (* All float32s are valid float64s, so round tripping through float
+              in Csingle will result in the same value (up to NaN bit
+              patterns). *)
            Cmm.Csingle (Numeric_types.Float32_by_bit_pattern.to_float f)))
       elts
   in
