@@ -124,8 +124,6 @@ let occurs_var var u =
     | Uoffset(u, _ofs) -> occurs u
     | Ulet(_str, _kind, _id, def, body) -> occurs def || occurs body
     | Uphantom_let _ -> no_phantom_lets ()
-    | Uletrec(decls, body) ->
-        List.exists (fun (_id, u) -> occurs u) decls || occurs body
     | Uprim(_p, args, _) -> List.exists occurs args
     | Uswitch(arg, s, _dbg, _kind) ->
         occurs arg ||
@@ -219,8 +217,6 @@ let lambda_smaller lam threshold =
     | Ulet(_str, _kind, _id, lam, body) ->
         lambda_size lam; lambda_size body
     | Uphantom_let _ -> no_phantom_lets ()
-    | Uletrec _ ->
-        raise Exit (* usually too large *)
     | Uprim(prim, args, _) ->
         size := !size + prim_size prim args;
         lambda_list_size args
@@ -649,21 +645,6 @@ let rec substitute loc ((backend, fpc) as st) sb rn ulam =
            substitute loc st
              (V.Map.add (VP.var id) (Uvar (VP.var id')) sb) rn u2)
   | Uphantom_let _ -> no_phantom_lets ()
-  | Uletrec(bindings, body) ->
-      let bindings1 =
-        List.map (fun (id, rhs) ->
-          (VP.var id, VP.rename id, rhs)) bindings
-      in
-      let sb' =
-        List.fold_right (fun (id, id', _) s ->
-            V.Map.add id (Uvar (VP.var id')) s)
-          bindings1 sb
-      in
-      Uletrec(
-        List.map
-           (fun (_id, id', rhs) -> (id', substitute loc st sb' rn rhs))
-           bindings1,
-        substitute loc st sb' rn body)
   | Uprim(p, args, dbg) ->
       let sargs = List.map (substitute loc st sb rn) args in
       let dbg = subst_debuginfo loc dbg in
@@ -842,7 +823,7 @@ let bind_params { backend; mutable_vars; _ } loc fdesc params args funct body =
                    primitive (see [simplif_prim_pure]) *)
                 a, Uprim(P.Pmakeblock(0, Immutable, kind, mode),
                          [Uvar (VP.var p1')], dbg),
-                Lambda.layout_field
+                Lambda.layout_value_field
             | _ ->
                 a1, Uvar (VP.var p1'), layout1
           in
@@ -1027,7 +1008,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
         | Const_base (Const_string (s, _, _)) ->
             str (Uconst_string s)
         | Const_base(Const_float x) -> str (Uconst_float (float_of_string x))
-        | Const_base(Const_float32 _) ->
+        | Const_base(Const_float32 _ | Const_unboxed_float32 _) ->
             Misc.fatal_error "float32 is not supported in closure. Consider using flambda2."
         | Const_base (Const_unboxed_float _ | Const_unboxed_int32 _
                      | Const_unboxed_int64 _ | Const_unboxed_nativeint _) ->
@@ -1038,7 +1019,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
         | Const_base(Const_nativeint x) -> str (Uconst_nativeint x)
       in
       make_const (transl cst)
-  | Lfunction _ as funct ->
+  | Lfunction funct ->
       close_one_function env (Ident.create_local "fun") funct
 
     (* We convert [f a] to [let a' = a in let f' = f in fun b c -> f' a' b c]
@@ -1246,59 +1227,37 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
      let (ubody, abody) = close { env with kinds } body in
      (Ulet(Mutable, kind, VP.create id, ulam, ubody), abody)
   | Lletrec(defs, body) ->
-      if List.for_all
-           (function (_id, Lfunction _) -> true | _ -> false)
-           defs
-      then begin
-        (* Simple case: only function definitions *)
-        let (clos, infos) = close_functions env defs in
-        let clos_ident = V.create_local "clos" in
-        let fenv_body =
-          List.fold_right
-            (fun (id, _pos, approx) fenv -> V.Map.add id approx fenv)
-            infos fenv in
-        let kinds_body =
-          List.fold_right
-            (fun (id, _pos, _approx) kinds -> V.Map.add id Lambda.layout_function kinds)
-            infos (V.Map.add clos_ident Lambda.layout_function kinds)
-        in
-        let (ubody, approx) =
-          close
-            { backend;
-              fenv = fenv_body;
-              cenv;
-              mutable_vars;
-              kinds = kinds_body;
-              catch_env
-            }
-            body
-        in
-        let sb =
-          List.fold_right
-            (fun (id, pos, _approx) sb ->
-              V.Map.add id (Uoffset(Uvar clos_ident, pos)) sb)
-            infos V.Map.empty in
-        (Ulet(Immutable, Lambda.layout_function, VP.create clos_ident, clos,
-              substitute Debuginfo.none (backend, !Clflags.float_const_prop) sb
-                None ubody),
-         approx)
-      end else begin
-        (* General case: recursive definition of values *)
-        let kinds =
-          List.fold_left (fun kinds (id, _) -> V.Map.add id Lambda.layout_letrec kinds)
-            kinds defs
-        in
-        let rec clos_defs = function
-          [] -> ([], fenv)
-        | (id, lam) :: rem ->
-            let (udefs, fenv_body) = clos_defs rem in
-            let (ulam, approx) = close_named { env with kinds } id lam in
-            ((VP.create id, ulam) :: udefs, V.Map.add id approx fenv_body) in
-        let (udefs, fenv_body) = clos_defs defs in
-        let (ubody, approx) =
-          close { backend; fenv = fenv_body; cenv; mutable_vars; kinds; catch_env } body in
-        (Uletrec(udefs, ubody), approx)
-      end
+      let (clos, infos) = close_functions env defs in
+      let clos_ident = V.create_local "clos" in
+      let fenv_body =
+        List.fold_right
+          (fun (id, _pos, approx) fenv -> V.Map.add id approx fenv)
+          infos fenv in
+      let kinds_body =
+        List.fold_right
+          (fun (id, _pos, _approx) kinds -> V.Map.add id Lambda.layout_function kinds)
+          infos (V.Map.add clos_ident Lambda.layout_function kinds)
+      in
+      let (ubody, approx) =
+        close
+          { backend;
+            fenv = fenv_body;
+            cenv;
+            mutable_vars;
+            kinds = kinds_body;
+            catch_env
+          }
+          body
+      in
+      let sb =
+        List.fold_right
+          (fun (id, pos, _approx) sb ->
+             V.Map.add id (Uoffset(Uvar clos_ident, pos)) sb)
+          infos V.Map.empty in
+      (Ulet(Immutable, Lambda.layout_function, VP.create clos_ident, clos,
+            substitute Debuginfo.none (backend, !Clflags.float_const_prop) sb
+              None ubody),
+       approx)
   (* Compile-time constants *)
   | Lprim(Pctconst c, [arg], _loc) ->
       let cst, approx =
@@ -1487,7 +1446,7 @@ and close_list_approx env = function
       (ulam :: ulams, approx :: approxs)
 
 and close_named env id = function
-    Lfunction _ as funct ->
+    Lfunction funct ->
       close_one_function env id funct
   | lam ->
       close env lam
@@ -1498,17 +1457,16 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
   let fun_defs =
     List.flatten
       (List.map
-         (function
-           | (id, Lfunction{kind; params; return; body; attr;
-                            loc; mode; ret_mode; region}) ->
+         (fun { id;
+                def = {kind; params; return; body; attr;
+                       loc; mode; ret_mode; region} } ->
                Simplif.split_default_wrapper ~id ~kind ~params ~mode ~ret_mode ~region
                  ~body ~attr ~loc ~return
-           | _ -> assert false
          )
          fun_defs)
   in
   let inline_attribute = match fun_defs with
-    | [_, Lfunction{attr = { inline; }}] -> inline
+    | [{ def = {attr = { inline; }}}] -> inline
     | _ -> Default_inline (* recursive functions can't be inlined *)
   in
   (* Update and check nesting depth *)
@@ -1525,29 +1483,28 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
      parameter. *)
   let uncurried_defs =
     List.map
-      (function
-          (id, Lfunction {kind; params; return; body; loc; mode; region; attr}) ->
-            let label =
-              Symbol.for_local_ident id
-              |> Symbol.linkage_name
-              |> Linkage_name.to_string
-            in
-            let fundesc =
-              {fun_label = label;
-               fun_arity = {
-                 function_kind = kind ;
-                 params_layout = List.map (fun p -> p.layout) params ;
-                 return_layout = return
-               };
-               fun_closed = initially_closed;
-               fun_inline = None;
-               fun_float_const_prop = !Clflags.float_const_prop;
-               fun_region = region;
-               fun_poll = attr.poll } in
-            let dbg = Debuginfo.from_location loc in
-            (id, List.map (fun (p : Lambda.lparam) -> (p.name, p.layout, p.mode)) params,
-             return, body, mode, fundesc, dbg)
-        | (_, _) -> fatal_error "Closure.close_functions")
+      (fun { id;
+             def = {kind; params; return; body; loc; mode; region; attr} } ->
+        let label =
+          Symbol.for_local_ident id
+          |> Symbol.linkage_name
+          |> Linkage_name.to_string
+        in
+        let fundesc =
+          {fun_label = label;
+           fun_arity = {
+             function_kind = kind ;
+             params_layout = List.map (fun p -> p.layout) params ;
+             return_layout = return
+           };
+           fun_closed = initially_closed;
+           fun_inline = None;
+           fun_float_const_prop = !Clflags.float_const_prop;
+           fun_region = region;
+           fun_poll = attr.poll } in
+        let dbg = Debuginfo.from_location loc in
+        (id, List.map (fun (p : Lambda.lparam) -> (p.name, p.layout, p.mode)) params,
+         return, body, mode, fundesc, dbg))
       fun_defs in
   (* Build an approximate fenv for compiling the functions *)
   let fenv_rec =
@@ -1694,7 +1651,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
 (* Same, for one non-recursive function *)
 
 and close_one_function env id funct =
-  match close_functions env [id, funct] with
+  match close_functions env [{ id; def = funct }] with
   | (clos, (i, _, approx) :: _) when id = i -> (clos, approx)
   | _ -> fatal_error "Closure.close_one_function"
 
@@ -1786,7 +1743,6 @@ let collect_exported_structured_constants a =
     | Uoffset(u, _) -> ulam u
     | Ulet (_str, _kind, _, u1, u2) -> ulam u1; ulam u2
     | Uphantom_let _ -> no_phantom_lets ()
-    | Uletrec (l, u) -> List.iter (fun (_, u) -> ulam u) l; ulam u
     | Uprim (_, ul, _) -> List.iter ulam ul
     | Uswitch (u, sl, _dbg, _kind) ->
         ulam u;

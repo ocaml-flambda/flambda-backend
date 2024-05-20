@@ -172,9 +172,9 @@ let basic_or_terminator_of_operation :
   | Iintop_atomic { op; size; addr } ->
     Basic (Op (Intop_atomic { op; size; addr }))
   | Icsel tst -> Basic (Op (Csel tst))
-  | Ifloatop (Icompf comp) -> Basic (Op (Floatop (Icompf comp)))
-  | Ifloatop ((Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf) as op) ->
-    Basic (Op (Floatop op))
+  | Ifloatop (w, Icompf comp) -> Basic (Op (Floatop (w, Icompf comp)))
+  | Ifloatop (w, ((Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf) as op)) ->
+    Basic (Op (Floatop (w, op)))
   | Ivalueofint -> Basic (Op Valueofint)
   | Iintofvalue -> Basic (Op Intofvalue)
   | Ivectorcast cast -> Basic (Op (Vectorcast cast))
@@ -205,11 +205,12 @@ let basic_or_terminator_of_operation :
   | Idls_get -> Basic (Op Dls_get)
 
 let float_test_of_float_comparison :
+    Cmm.float_width ->
     Cmm.float_comparison ->
     label_false:Label.t ->
     label_true:Label.t ->
     Cfg.float_test =
- fun comparison ~label_false ~label_true ->
+ fun width comparison ~label_false ~label_true ->
   let lt, eq, gt, uo =
     match comparison with
     | CFeq -> label_false, label_true, label_false, label_false
@@ -223,7 +224,7 @@ let float_test_of_float_comparison :
     | CFge -> label_false, label_true, label_true, label_false
     | CFnge -> label_true, label_false, label_false, label_true
   in
-  { lt; eq; gt; uo }
+  { width; lt; eq; gt; uo }
 
 let int_test_of_integer_comparison :
     Cmm.integer_comparison ->
@@ -262,9 +263,9 @@ let terminator_of_test :
   | Iinttest comparison -> Int_test (int_test comparison None)
   | Iinttest_imm (comparison, value) ->
     Int_test (int_test comparison (Some value))
-  | Ifloattest comparison ->
+  | Ifloattest (w, comparison) ->
     Float_test
-      (float_test_of_float_comparison comparison ~label_false ~label_true)
+      (float_test_of_float_comparison w comparison ~label_false ~label_true)
   | Ioddtest -> Parity_test { ifso = label_false; ifnot = label_true }
   | Ieventest -> Parity_test { ifso = label_true; ifnot = label_false }
 

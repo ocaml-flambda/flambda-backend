@@ -75,9 +75,10 @@ type native_repr_kind = Unboxed | Untagged
 
 (* Records reason for a jkind representability requirement in errors. *)
 type jkind_sort_loc =
-  | Cstr_tuple
-  | Record
-  | Unboxed_record
+  | Cstr_tuple of { unboxed : bool }
+  | Record of { unboxed : bool }
+  | Inlined_record of { unboxed : bool }
+  | Mixed_product
   | External
   | External_with_layout_poly
 
@@ -86,18 +87,31 @@ and reaching_type_step =
   | Expands_to of type_expr * type_expr
   | Contains of type_expr * type_expr
 
-type mixed_record_violation =
-  | Runtime_support_not_enabled
+module Mixed_product_kind : sig
+  type t =
+    | Record
+    | Cstr_tuple
+end
+
+type mixed_product_violation =
+  | Runtime_support_not_enabled of Mixed_product_kind.t
   | Value_prefix_too_long of
       { value_prefix_len : int;
         max_value_prefix_len : int;
+        mixed_product_kind : Mixed_product_kind.t;
       }
   | Flat_field_expected of
       { boxed_lbl : Ident.t;
         non_value_lbl : Ident.t;
       }
+  | Flat_constructor_arg_expected of
+      { boxed_arg : type_expr;
+        non_value_arg : type_expr;
+      }
   | Insufficient_level of
-      { required_layouts_level : Language_extension.maturity }
+      { required_layouts_level : Language_extension.maturity;
+        mixed_product_kind : Mixed_product_kind.t;
+      }
 
 type bad_jkind_inference_location =
   | Check_constraints
@@ -149,7 +163,7 @@ type error =
   | Jkind_empty_record
   | Non_value_in_sig of Jkind.Violation.t * string * type_expr
   | Invalid_jkind_in_block of type_expr * Jkind.Sort.const * jkind_sort_loc
-  | Illegal_mixed_record of mixed_record_violation
+  | Illegal_mixed_product of mixed_product_violation
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
@@ -161,7 +175,7 @@ type error =
   | Modalities_on_value_description
   | Missing_unboxed_attribute_on_non_value_sort of Jkind.Sort.const
   | Non_value_sort_not_upstream_compatible of Jkind.Sort.const
-  | Zero_alloc_attr_unsupported of Builtin_attributes.check_attribute
+  | Zero_alloc_attr_unsupported of Builtin_attributes.zero_alloc_attribute
   | Zero_alloc_attr_non_function
   | Zero_alloc_attr_bad_user_arity
 

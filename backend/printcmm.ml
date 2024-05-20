@@ -216,18 +216,26 @@ let operation d = function
   | Caddv -> "+v"
   | Cadda -> "+a"
   | Ccmpa c -> Printf.sprintf "%sa" (integer_comparison c)
-  | Cnegf -> "~f"
-  | Cabsf -> "absf"
-  | Caddf -> "+f"
-  | Csubf -> "-f"
-  | Cmulf -> "*f"
-  | Cdivf -> "/f"
+  | Cnegf Float64 -> "~f"
+  | Cabsf Float64 -> "absf"
+  | Caddf Float64 -> "+f"
+  | Csubf Float64 -> "-f"
+  | Cmulf Float64 -> "*f"
+  | Cdivf Float64 -> "/f"
+  | Cnegf Float32 -> "~f32"
+  | Cabsf Float32 -> "absf32"
+  | Caddf Float32 -> "+f32"
+  | Csubf Float32 -> "-f32"
+  | Cmulf Float32 -> "*f32"
+  | Cdivf Float32 -> "/f32"
+  | Cpackf32 -> "packf32"
   | Ccsel ret_typ ->
     to_string "csel %a" machtype ret_typ
   | Cvalueofint -> "valueofint"
   | Cintofvalue -> "intofvalue"
   | Cvectorcast Bits128 ->
     Printf.sprintf "vec128->vec128"
+  | Cscalarcast Float32_as_float -> "float32 as float"
   | Cscalarcast (Float_to_int Float64) -> "float->int"
   | Cscalarcast (Float_of_int Float64) -> "int->float"
   | Cscalarcast (Float_to_int Float32) -> "float32->int"
@@ -238,7 +246,8 @@ let operation d = function
     Printf.sprintf "%s->scalar" (Primitive.vec128_name ty)
   | Cscalarcast (V128_of_scalar ty) ->
     Printf.sprintf "scalar->%s" (Primitive.vec128_name ty)
-  | Ccmpf c -> Printf.sprintf "%sf" (float_comparison c)
+  | Ccmpf (Float64, c) -> Printf.sprintf "%sf" (float_comparison c)
+  | Ccmpf (Float32, c) -> Printf.sprintf "%sf32" (float_comparison c)
   | Craise k -> Lambda.raise_kind k ^ location d
   | Cprobe { name; handler_code_sym; enabled_at_init; } ->
     Printf.sprintf "probe[%s %s%s]" name handler_code_sym
@@ -385,21 +394,17 @@ and sequence ppf = function
 
 and expression ppf e = fprintf ppf "%a" expr e
 
-let property_to_string : Cmm.property -> string = function
-  | Zero_alloc -> "zero_alloc"
-
 let codegen_option = function
   | Reduce_code_size -> "reduce_code_size"
   | No_CSE -> "no_cse"
   | Use_linscan_regalloc -> "linscan"
-  | Assume { property; strict; never_returns_normally = _; loc = _ } ->
-    Printf.sprintf "assume_%s%s%s"
-      (property_to_string property)
+  | Assume_zero_alloc { strict; never_returns_normally; never_raises; loc = _ } ->
+    Printf.sprintf "assume_zero_alloc_%s%s%s"
       (if strict then "_strict" else "")
-      (if strict then "_never_returns_normally" else "")
-  | Check { property; strict; loc = _ } ->
-    Printf.sprintf "assert_%s%s"
-      (property_to_string property)
+      (if never_returns_normally then "_never_returns_normally" else "")
+      (if never_raises then "_never_raises" else "")
+  | Check_zero_alloc { strict; loc = _ } ->
+    Printf.sprintf "assert_zero_alloc%s"
       (if strict then "_strict" else "")
 
 let print_codegen_options ppf l =

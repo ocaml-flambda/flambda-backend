@@ -209,6 +209,16 @@ let print_instr b = function
   | XCHG (arg1, arg2) -> i2 b "xchg" arg1 arg2
   | XOR (arg1, arg2) -> i2_s b "xor" arg1 arg2
   | XORPD (arg1, arg2) -> i2 b "xorpd" arg1 arg2
+  | ADDSS (arg1, arg2) -> i2 b "addss" arg1 arg2
+  | SUBSS (arg1, arg2) -> i2 b "subss" arg1 arg2
+  | MULSS (arg1, arg2) -> i2 b "mulss" arg1 arg2
+  | DIVSS (arg1, arg2) -> i2 b "divss" arg1 arg2
+  | COMISS (arg1, arg2) -> i2 b "comiss" arg1 arg2
+  | UCOMISS (arg1, arg2) -> i2 b "ucomiss" arg1 arg2
+  | SQRTSS (arg1, arg2) -> i2 b "sqrtss" arg1 arg2
+  | XORPS (arg1, arg2) -> i2 b "xorps" arg1 arg2
+  | ANDPS (arg1, arg2) -> i2 b "andps" arg1 arg2
+  | CMPSS (cmp, arg1, arg2) -> i2 b ("cmp" ^ string_of_float_condition cmp ^ "ss") arg1 arg2
   | SSE CMPPS (cmp, arg1, arg2) -> i2 b ("cmp" ^ string_of_float_condition cmp ^ "ps") arg1 arg2
   | SSE SHUFPS (shuf, arg1, arg2) -> i3 b "shufps" shuf arg1 arg2
   | SSE ADDPS (arg1, arg2) -> i2 b "addps" arg1 arg2
@@ -386,30 +396,6 @@ let print_instr b = function
   | LZCNT (arg1, arg2) -> i2_s b "lzcnt" arg1 arg2
   | TZCNT (arg1, arg2) -> i2_s b "tzcnt" arg1 arg2
   | SSE42 CRC32 (arg1, arg2) -> i2_s b "crc32" arg1 arg2
-
-(* bug:
-   https://sourceware.org/binutils/docs-2.22/as/i386_002dBugs.html#i386_002dBugs
-
-   The AT&T syntax has a bug for fsub/fdiv/fsubr/fdivr instructions when
-   the source register is %st and the destination is %st(i).  In those
-   case, AT&T use fsub (resp. fsubr) in place of fsubr (resp. fsub),
-   and idem for fdiv/fdivr.
-
-   Concretely, AT&T syntax interpretation of:
-
-      fsub  %st, %st(3)
-
-   should normally be:
-
-      %st(3) := %st(3) - %st
-
-   but it should actually be interpreted as:
-
-      %st(3) := %st - %st(3)
-
-   which means the FSUBR instruction should be used.
-*)
-
 
 let print_line b = function
   | Ins instr -> print_instr b instr

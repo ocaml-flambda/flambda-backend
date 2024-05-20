@@ -15,6 +15,10 @@
 
 #define CAML_INTERNALS
 
+#include <unistd.h>
+#define __USE_GNU
+#include <sys/ucontext.h>
+
 /* Signal handling, code specific to the native-code compiler */
 
 #include <signal.h>
@@ -85,3 +89,53 @@ void caml_garbage_collection(void)
                               nallocs, alloc_len);
   }
 }
+
+#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+
+#if !defined(POSIX_SIGNALS)
+#error "stack checks cannot be disabled if POSIX signals are not available"
+#endif
+
+#define DECLARE_SIGNAL_HANDLER(name) \
+  static void name(int sig, siginfo_t * info, ucontext_t * context)
+
+#define SET_SIGACT(sigact,name)                                       \
+  sigact.sa_sigaction = (void (*)(int,siginfo_t *,void *)) (name);    \
+  sigact.sa_flags = SA_SIGINFO
+
+CAMLextern void caml_raise_stack_overflow_nat(void);
+
+DECLARE_SIGNAL_HANDLER(segv_handler)
+{
+  struct sigaction act;
+  struct stack_info *block = Caml_state->current_stack;
+  char* fault_addr = info->si_addr;
+  int page_size = getpagesize();
+  char* protected_low = Protected_stack_page(block, page_size);
+  char* protected_high = protected_low + page_size;
+  if ((fault_addr >= protected_low) && (fault_addr < protected_high)) {
+    context->uc_mcontext.gregs[REG_RIP]= (greg_t) &caml_raise_stack_overflow_nat;
+  } else {
+    act.sa_handler = SIG_DFL;
+    act.sa_flags = 0;
+    sigemptyset(&act.sa_mask);
+    sigaction(SIGSEGV, &act, NULL);
+  }
+}
+
+void caml_init_nat_signals(void)
+{
+  struct sigaction act;
+  SET_SIGACT(act, segv_handler);
+  act.sa_flags |= SA_ONSTACK | SA_NODEFER;
+  sigemptyset(&act.sa_mask);
+  sigaction(SIGSEGV, &act, NULL);
+}
+
+#else
+
+void caml_init_nat_signals(void)
+{
+}
+
+#endif

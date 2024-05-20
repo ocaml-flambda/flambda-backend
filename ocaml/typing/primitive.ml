@@ -28,7 +28,7 @@ type boxed_vector = Pvec128 of vec128_type
 
 type native_repr =
   | Repr_poly
-  | Same_as_ocaml_repr of Jkind.Sort.const
+  | Same_as_ocaml_repr of Jkind_types.Sort.const
   | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
@@ -381,7 +381,7 @@ let equal_native_repr nr1 nr2 =
                | Untagged_int | Unboxed_vector _ | Same_as_ocaml_repr _)
   | (Unboxed_float _ | Unboxed_integer _
     | Untagged_int | Unboxed_vector _ | Same_as_ocaml_repr _), Repr_poly -> false
-  | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 -> Jkind.Sort.equal_const s1 s2
+  | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 -> Jkind_types.Sort.equal_const s1 s2
   | Same_as_ocaml_repr _,
     (Unboxed_float _ | Unboxed_integer _ | Untagged_int |
      Unboxed_vector _) -> false
@@ -598,6 +598,10 @@ let prim_has_valid_reprs ~loc prim =
       exactly [Same_as_ocaml_repr Float64; Same_as_ocaml_repr Value]
     | "%unbox_float" ->
       exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Float64]
+    | "%box_float32" ->
+      exactly [Same_as_ocaml_repr Float32; Same_as_ocaml_repr Value]
+    | "%unbox_float32" ->
+      exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Float32]
     | "%box_nativeint" ->
       exactly [Same_as_ocaml_repr Word; Same_as_ocaml_repr Value]
     | "%unbox_nativeint" ->

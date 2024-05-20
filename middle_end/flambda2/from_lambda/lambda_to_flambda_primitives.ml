@@ -129,9 +129,7 @@ let convert_array_kind (kind : L.array_kind) : converted_array_kind =
   | Paddrarray -> Array_kind Values
   | Pintarray -> Array_kind Immediates
   | Pfloatarray | Punboxedfloatarray Pfloat64 -> Array_kind Naked_floats
-  | Punboxedfloatarray Pfloat32 ->
-    (* CR mslater: (float32) unboxed arrays *)
-    assert false
+  | Punboxedfloatarray Pfloat32 -> Array_kind Naked_float32s
   | Punboxedintarray Pint32 -> Array_kind Naked_int32s
   | Punboxedintarray Pint64 -> Array_kind Naked_int64s
   | Punboxedintarray Pnativeint -> Array_kind Naked_nativeints
@@ -142,12 +140,12 @@ let convert_array_kind_for_length kind : P.Array_kind_for_length.t =
   | Float_array_opt_dynamic -> Float_array_opt_dynamic
 
 module Array_ref_kind = struct
-  (* CR mslater: (float32) unboxed arrays *)
   type t =
     | Immediates
     | Values
     | Naked_floats_to_be_boxed of L.alloc_mode
     | Naked_floats
+    | Naked_float32s
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
@@ -173,9 +171,7 @@ let convert_array_ref_kind (kind : L.array_ref_kind) : converted_array_ref_kind
   | Pintarray_ref -> Array_ref_kind Immediates
   | Pfloatarray_ref mode -> Array_ref_kind (Naked_floats_to_be_boxed mode)
   | Punboxedfloatarray_ref Pfloat64 -> Array_ref_kind Naked_floats
-  | Punboxedfloatarray_ref Pfloat32 ->
-    (* CR mslater: (float32) unboxed arrays *)
-    assert false
+  | Punboxedfloatarray_ref Pfloat32 -> Array_ref_kind Naked_float32s
   | Punboxedintarray_ref Pint32 -> Array_ref_kind Naked_int32s
   | Punboxedintarray_ref Pint64 -> Array_ref_kind Naked_int64s
   | Punboxedintarray_ref Pnativeint -> Array_ref_kind Naked_nativeints
@@ -188,6 +184,7 @@ let convert_array_ref_kind_for_length array_ref_kind : P.Array_kind_for_length.t
   | Array_ref_kind Immediates -> Array_kind Immediates
   | Array_ref_kind (Naked_floats | Naked_floats_to_be_boxed _) ->
     Array_kind Naked_floats
+  | Array_ref_kind Naked_float32s -> Array_kind Naked_float32s
   | Array_ref_kind Naked_int32s -> Array_kind Naked_int32s
   | Array_ref_kind Naked_int64s -> Array_kind Naked_int64s
   | Array_ref_kind Naked_nativeints -> Array_kind Naked_nativeints
@@ -198,6 +195,7 @@ module Array_set_kind = struct
     | Values of P.Init_or_assign.t
     | Naked_floats
     | Naked_floats_to_be_unboxed
+    | Naked_float32s
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
@@ -213,6 +211,7 @@ let convert_intermediate_array_set_kind (kind : Array_set_kind.t) :
   | Immediates -> Immediates
   | Values init_or_assign -> Values init_or_assign
   | Naked_floats | Naked_floats_to_be_unboxed -> Naked_floats
+  | Naked_float32s -> Naked_float32s
   | Naked_int32s -> Naked_int32s
   | Naked_int64s -> Naked_int64s
   | Naked_nativeints -> Naked_nativeints
@@ -231,9 +230,7 @@ let convert_array_set_kind (kind : L.array_set_kind) : converted_array_set_kind
   | Pintarray_set -> Array_set_kind Immediates
   | Pfloatarray_set -> Array_set_kind Naked_floats_to_be_unboxed
   | Punboxedfloatarray_set Pfloat64 -> Array_set_kind Naked_floats
-  | Punboxedfloatarray_set Pfloat32 ->
-    (* CR mslater: (float32) unboxed arrays *)
-    assert false
+  | Punboxedfloatarray_set Pfloat32 -> Array_set_kind Naked_float32s
   | Punboxedintarray_set Pint32 -> Array_set_kind Naked_int32s
   | Punboxedintarray_set Pint64 -> Array_set_kind Naked_int64s
   | Punboxedintarray_set Pnativeint -> Array_set_kind Naked_nativeints
@@ -246,6 +243,7 @@ let convert_array_set_kind_for_length array_set_kind : P.Array_kind_for_length.t
   | Array_set_kind Immediates -> Array_kind Immediates
   | Array_set_kind (Naked_floats | Naked_floats_to_be_unboxed) ->
     Array_kind Naked_floats
+  | Array_set_kind Naked_float32s -> Array_kind Naked_float32s
   | Array_set_kind Naked_int32s -> Array_kind Naked_int32s
   | Array_set_kind Naked_int64s -> Array_kind Naked_int64s
   | Array_set_kind Naked_nativeints -> Array_kind Naked_nativeints
@@ -265,8 +263,7 @@ let convert_array_kind_to_duplicate_array_kind (kind : L.array_kind) :
   | Pfloatarray | Punboxedfloatarray Pfloat64 ->
     Duplicate_array_kind (Naked_floats { length = None })
   | Punboxedfloatarray Pfloat32 ->
-    (* CR mslater: (float32) unboxed arrays *)
-    assert false
+    Duplicate_array_kind (Naked_float32s { length = None })
   | Punboxedintarray Pint32 ->
     Duplicate_array_kind (Naked_int32s { length = None })
   | Punboxedintarray Pint64 ->
@@ -596,7 +593,7 @@ let array_vector_access_validity_condition array ~size_int
   let width_in_scalars =
     match array_kind with
     | Naked_floats | Immediates | Naked_int64s | Naked_nativeints -> 2
-    | Naked_int32s -> 4
+    | Naked_int32s | Naked_float32s -> 4
     | Values ->
       Misc.fatal_error
         "Attempted to load/store a SIMD vector from/to a value array."
@@ -820,6 +817,8 @@ let array_load_unsafe ~array ~index (array_ref_kind : Array_ref_kind.t)
       ~current_region
   | Naked_floats ->
     Binary (Array_load (Naked_floats, Scalar, Mutable), array, index)
+  | Naked_float32s ->
+    Binary (Array_load (Naked_float32s, Scalar, Mutable), array, index)
   | Naked_int32s ->
     Binary (Array_load (Naked_int32s, Scalar, Mutable), array, index)
   | Naked_int64s ->
@@ -831,8 +830,8 @@ let array_set_unsafe ~array ~index ~new_value
     (array_set_kind : Array_set_kind.t) : H.expr_primitive =
   let new_value =
     match array_set_kind with
-    | Immediates | Values _ | Naked_floats | Naked_int32s | Naked_int64s
-    | Naked_nativeints ->
+    | Immediates | Values _ | Naked_floats | Naked_float32s | Naked_int32s
+    | Naked_int64s | Naked_nativeints ->
       new_value
     | Naked_floats_to_be_unboxed -> unbox_float new_value
   in
@@ -985,19 +984,23 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
     [Variadic (Make_block (Naked_floats, mutability, mode), args)]
-  | Pmakemixedblock (mutability, shape, mode), _ ->
+  | Pmakemixedblock (tag, mutability, shape, mode), _ ->
     let args = List.flatten args in
     let args =
       List.mapi
         (fun i arg ->
           match Lambda.get_mixed_block_element shape i with
-          | Value_prefix | Flat_suffix (Float64 | Imm) -> arg
-          | Flat_suffix Float -> unbox_float arg)
+          | Value_prefix
+          | Flat_suffix (Float64 | Float32 | Imm | Bits32 | Bits64 | Word) ->
+            arg
+          | Flat_suffix Float_boxed -> unbox_float arg)
         args
     in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
-    [Variadic (Make_mixed_block (shape, mutability, mode), args)]
+    let tag = Tag.Scannable.create_exn tag in
+    let shape = P.Mixed_block_kind.from_lambda shape in
+    [Variadic (Make_mixed_block (tag, shape, mutability, mode), args)]
   | Pmakearray (lambda_array_kind, mutability, mode), _ -> (
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -1116,35 +1119,39 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let dst = K.Standard_int_or_float.Naked_float in
     [box_float mode (Unary (Num_conv { src; dst }, arg)) ~current_region]
   | Pnegfloat (Pfloat64, mode), [[arg]] ->
-    [box_float mode (Unary (Float_arith Neg, unbox_float arg)) ~current_region]
+    [ box_float mode
+        (Unary (Float_arith (Float64, Neg), unbox_float arg))
+        ~current_region ]
   | Pabsfloat (Pfloat64, mode), [[arg]] ->
-    [box_float mode (Unary (Float_arith Abs, unbox_float arg)) ~current_region]
+    [ box_float mode
+        (Unary (Float_arith (Float64, Abs), unbox_float arg))
+        ~current_region ]
   | Paddfloat (Pfloat64, mode), [[arg1]; [arg2]] ->
     [ box_float mode
-        (Binary (Float_arith Add, unbox_float arg1, unbox_float arg2))
+        (Binary (Float_arith (Float64, Add), unbox_float arg1, unbox_float arg2))
         ~current_region ]
   | Psubfloat (Pfloat64, mode), [[arg1]; [arg2]] ->
     [ box_float mode
-        (Binary (Float_arith Sub, unbox_float arg1, unbox_float arg2))
+        (Binary (Float_arith (Float64, Sub), unbox_float arg1, unbox_float arg2))
         ~current_region ]
   | Pmulfloat (Pfloat64, mode), [[arg1]; [arg2]] ->
     [ box_float mode
-        (Binary (Float_arith Mul, unbox_float arg1, unbox_float arg2))
+        (Binary (Float_arith (Float64, Mul), unbox_float arg1, unbox_float arg2))
         ~current_region ]
   | Pdivfloat (Pfloat64, mode), [[arg1]; [arg2]] ->
     [ box_float mode
-        (Binary (Float_arith Div, unbox_float arg1, unbox_float arg2))
+        (Binary (Float_arith (Float64, Div), unbox_float arg1, unbox_float arg2))
         ~current_region ]
   | Pfloatcomp (Pfloat64, comp), [[arg1]; [arg2]] ->
     [ tag_int
         (Binary
-           ( Float_comp (Yielding_bool (convert_float_comparison comp)),
+           ( Float_comp (Float64, Yielding_bool (convert_float_comparison comp)),
              unbox_float arg1,
              unbox_float arg2 )) ]
   | Punboxed_float_comp (Pfloat64, comp), [[arg1]; [arg2]] ->
     [ tag_int
         (Binary
-           ( Float_comp (Yielding_bool (convert_float_comparison comp)),
+           ( Float_comp (Float64, Yielding_bool (convert_float_comparison comp)),
              arg1,
              arg2 )) ]
   | Punbox_float Pfloat64, [[arg]] -> [Unary (Unbox_number Naked_float, arg)]
@@ -1162,19 +1169,53 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let src = K.Standard_int_or_float.Tagged_immediate in
     let dst = K.Standard_int_or_float.Naked_float32 in
     [box_float32 mode (Unary (Num_conv { src; dst }, arg)) ~current_region]
-  | Pnegfloat (Pfloat32, _), _
-  | Pabsfloat (Pfloat32, _), _
-  | Paddfloat (Pfloat32, _), _
-  | Psubfloat (Pfloat32, _), _
-  | Pmulfloat (Pfloat32, _), _
-  | Pdivfloat (Pfloat32, _), _
-  | Pfloatcomp (Pfloat32, _), _
-  | Punbox_float Pfloat32, _
-  | Pbox_float (Pfloat32, _), _
-  | Pcompare_floats Pfloat32, _
-  | Punboxed_float_comp (Pfloat32, _), _ ->
-    (* CR mslater: (float32) runtime *)
-    assert false
+  | Pnegfloat (Pfloat32, mode), [[arg]] ->
+    [ box_float32 mode
+        (Unary (Float_arith (Float32, Neg), unbox_float32 arg))
+        ~current_region ]
+  | Pabsfloat (Pfloat32, mode), [[arg]] ->
+    [ box_float32 mode
+        (Unary (Float_arith (Float32, Abs), unbox_float32 arg))
+        ~current_region ]
+  | Paddfloat (Pfloat32, mode), [[arg1]; [arg2]] ->
+    [ box_float32 mode
+        (Binary
+           (Float_arith (Float32, Add), unbox_float32 arg1, unbox_float32 arg2))
+        ~current_region ]
+  | Psubfloat (Pfloat32, mode), [[arg1]; [arg2]] ->
+    [ box_float32 mode
+        (Binary
+           (Float_arith (Float32, Sub), unbox_float32 arg1, unbox_float32 arg2))
+        ~current_region ]
+  | Pmulfloat (Pfloat32, mode), [[arg1]; [arg2]] ->
+    [ box_float32 mode
+        (Binary
+           (Float_arith (Float32, Mul), unbox_float32 arg1, unbox_float32 arg2))
+        ~current_region ]
+  | Pdivfloat (Pfloat32, mode), [[arg1]; [arg2]] ->
+    [ box_float32 mode
+        (Binary
+           (Float_arith (Float32, Div), unbox_float32 arg1, unbox_float32 arg2))
+        ~current_region ]
+  | Pfloatcomp (Pfloat32, comp), [[arg1]; [arg2]] ->
+    [ tag_int
+        (Binary
+           ( Float_comp (Float32, Yielding_bool (convert_float_comparison comp)),
+             unbox_float32 arg1,
+             unbox_float32 arg2 )) ]
+  | Punboxed_float_comp (Pfloat32, comp), [[arg1]; [arg2]] ->
+    [ tag_int
+        (Binary
+           ( Float_comp (Float32, Yielding_bool (convert_float_comparison comp)),
+             arg1,
+             arg2 )) ]
+  | Punbox_float Pfloat32, [[arg]] -> [Unary (Unbox_number Naked_float32, arg)]
+  | Pbox_float (Pfloat32, mode), [[arg]] ->
+    [ Unary
+        ( Box_number
+            ( Naked_float32,
+              Alloc_mode.For_allocations.from_lambda mode ~current_region ),
+          arg ) ]
   | Punbox_int bi, [[arg]] ->
     let kind = boxable_number_of_boxed_integer bi in
     [Unary (Unbox_number kind, arg)]
@@ -1419,20 +1460,18 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         | Mread_flat_suffix read ->
           Flat_suffix
             (match read with
-            | Flat_read_imm -> Imm
-            | Flat_read_float _ -> Float
-            | Flat_read_float64 -> Float64)
+            | Flat_read flat_element ->
+              P.Mixed_block_flat_element.from_lambda flat_element
+            | Flat_read_float_boxed _ -> Float_boxed)
       in
-      Mixed { field_kind; size = Unknown }
+      Mixed { tag = Unknown; field_kind; size = Unknown }
     in
     let block_access : H.expr_primitive =
       Binary (Block_load (block_access, mutability), arg, Simple field)
     in
     match read with
-    | Mread_value_prefix _
-    | Mread_flat_suffix (Flat_read_imm | Flat_read_float64) ->
-      [block_access]
-    | Mread_flat_suffix (Flat_read_float mode) ->
+    | Mread_value_prefix _ | Mread_flat_suffix (Flat_read _) -> [block_access]
+    | Mread_flat_suffix (Flat_read_float_boxed mode) ->
       [box_float mode block_access ~current_region])
   | ( Psetfield (index, immediate_or_pointer, initialization_or_assignment),
       [[block]; [value]] ) ->
@@ -1483,15 +1522,19 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             | Mwrite_value_prefix immediate_or_pointer ->
               Value_prefix
                 (convert_block_access_field_kind immediate_or_pointer)
-            | Mwrite_flat_suffix flat -> Flat_suffix flat);
-          size = Unknown
+            | Mwrite_flat_suffix flat ->
+              Flat_suffix (P.Mixed_block_flat_element.from_lambda flat));
+          size = Unknown;
+          tag = Unknown
         }
     in
     let init_or_assign = convert_init_or_assign initialization_or_assignment in
     let value =
       match write with
-      | Mwrite_value_prefix _ | Mwrite_flat_suffix (Imm | Float64) -> value
-      | Mwrite_flat_suffix Float -> unbox_float value
+      | Mwrite_value_prefix _
+      | Mwrite_flat_suffix (Imm | Float64 | Float32 | Bits32 | Bits64 | Word) ->
+        value
+      | Mwrite_flat_suffix Float_boxed -> unbox_float value
     in
     [ Ternary
         (Block_set (block_access, init_or_assign), block, Simple field, value)
@@ -1812,9 +1855,15 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pcompare_floats Pfloat64, [[f1]; [f2]] ->
     [ tag_int
         (Binary
-           ( Float_comp (Yielding_int_like_compare_functions ()),
+           ( Float_comp (Float64, Yielding_int_like_compare_functions ()),
              Prim (Unary (Unbox_number Naked_float, f1)),
              Prim (Unary (Unbox_number Naked_float, f2)) )) ]
+  | Pcompare_floats Pfloat32, [[f1]; [f2]] ->
+    [ tag_int
+        (Binary
+           ( Float_comp (Float32, Yielding_int_like_compare_functions ()),
+             Prim (Unary (Unbox_number Naked_float32, f1)),
+             Prim (Unary (Unbox_number Naked_float32, f2)) )) ]
   | Pcompare_bints int_kind, [[i1]; [i2]] ->
     let unboxing_kind = boxable_number_of_boxed_integer int_kind in
     [ tag_int
@@ -1854,18 +1903,17 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
        %a (%a)"
       Printlambda.primitive prim H.print_list_of_simple_or_prim
       (List.flatten args)
-  | ( ( Pfield _ | Pnegint | Pnot | Poffsetint _
-      | Pintoffloat (Pfloat64 | Pfloat32)
-      | Pfloatofint ((Pfloat64 | Pfloat32), _)
+  | ( ( Pfield _ | Pnegint | Pnot | Poffsetint _ | Pintoffloat _
+      | Pfloatofint (_, _)
       | Pfloatoffloat32 _ | Pfloat32offloat _
-      | Pnegfloat (Pfloat64, _)
-      | Pabsfloat (Pfloat64, _)
+      | Pnegfloat (_, _)
+      | Pabsfloat (_, _)
       | Pstringlength | Pbyteslength | Pbintofint _ | Pintofbint _ | Pnegbint _
       | Popaque _ | Pduprecord _ | Parraylength _ | Pduparray _ | Pfloatfield _
       | Pcvtbint _ | Poffsetref _ | Pbswap16 | Pbbswap _ | Pisint _
       | Pint_as_pointer _ | Pbigarraydim _ | Pobj_dup | Pobj_magic _
-      | Punbox_float Pfloat64
-      | Pbox_float (Pfloat64, _)
+      | Punbox_float _
+      | Pbox_float (_, _)
       | Punbox_int _ | Pbox_int _ | Punboxed_product_field _ | Pget_header _
       | Pufloatfield _ | Patomic_load _ | Pmixedfield _ ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
@@ -1875,12 +1923,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Printlambda.primitive prim H.print_list_of_lists_of_simple_or_prim args
   | ( ( Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint
       | Plsrint | Pasrint | Pdivint _ | Pmodint _ | Psetfield _ | Pintcomp _
-      | Paddfloat (Pfloat64, _)
-      | Psubfloat (Pfloat64, _)
-      | Pmulfloat (Pfloat64, _)
-      | Pdivfloat (Pfloat64, _)
-      | Pfloatcomp (Pfloat64, _)
-      | Punboxed_float_comp (Pfloat64, _)
+      | Paddfloat (_, _)
+      | Psubfloat (_, _)
+      | Pmulfloat (_, _)
+      | Pdivfloat (_, _)
+      | Pfloatcomp (_, _)
+      | Punboxed_float_comp (_, _)
       | Pstringrefu | Pbytesrefu | Pstringrefs | Pbytesrefs | Pstring_load_16 _
       | Pstring_load_32 _ | Pstring_load_64 _ | Pstring_load_128 _
       | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _

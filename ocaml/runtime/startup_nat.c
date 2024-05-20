@@ -118,6 +118,7 @@ value caml_startup_common(char_os **argv, int pooling)
 
   init_segments();
   caml_init_signals();
+  caml_init_nat_signals();
 #ifdef _WIN32
   caml_win32_overflow_detection();
 #endif

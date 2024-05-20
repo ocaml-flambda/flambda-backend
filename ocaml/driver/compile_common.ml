@@ -83,15 +83,16 @@ let typecheck_intf info ast =
 
 let emit_signature info ast tsg =
   let sg =
+    let name = Compilation_unit.name info.module_name in
     let kind : Cmi_format.kind =
       if !Clflags.as_parameter then
         Parameter
       else
-        Normal
+        Normal { cmi_impl = info.module_name }
     in
     let alerts = Builtin_attributes.alerts_of_sig ast in
     Env.save_signature ~alerts tsg.Typedtree.sig_type
-      info.module_name kind (info.output_prefix ^ ".cmi")
+      name kind (info.output_prefix ^ ".cmi")
   in
   Typemod.save_signature info.module_name tsg
     info.output_prefix info.source_file info.env sg
@@ -143,6 +144,6 @@ let implementation ~hook_parse_tree ~hook_typed_tree info ~backend =
       end;
     end;
     if not (Clflags.(should_stop_after Compiler_pass.Selection)) then
-      Builtin_attributes.warn_unchecked_property ();
+      Builtin_attributes.warn_unchecked_zero_alloc_attribute ();
     Warnings.check_fatal ();
   )

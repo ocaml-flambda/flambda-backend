@@ -114,19 +114,21 @@ let zero_alloc za1 za2 =
   (* abstract domain check *)
   let abstract_value za =
     match za with
-    | Default_check | Ignore_assert_all _ -> ZA.Assume_info.Value.top ()
+    | Default_zero_alloc | Ignore_assert_all -> ZA.Assume_info.Value.top ()
     | Check { strict; _ } ->
       ZA.Assume_info.Value.of_annotation ~strict ~never_returns_normally:false
-    | Assume { strict; never_returns_normally } ->
+        ~never_raises:false
+    | Assume { strict; never_returns_normally; never_raises; } ->
       ZA.Assume_info.Value.of_annotation ~strict ~never_returns_normally
+        ~never_raises
   in
   let v1 = abstract_value za1 in
   let v2 = abstract_value za2 in
   if not (ZA.Assume_info.Value.lessequal v1 v2) then
     begin let missing_entirely =
         match za1 with
-        | Default_check -> true
-        | Ignore_assert_all _ | Check _ | Assume _ -> false
+        | Default_zero_alloc -> true
+        | Ignore_assert_all | Check _ | Assume _ -> false
       in
       raise (Dont_match (Zero_alloc {missing_entirely}))
     end;
@@ -135,12 +137,12 @@ let zero_alloc za1 za2 =
   | Check { opt = opt1; _ }, Check { opt = opt2; _ } ->
     if opt1 && not opt2 then
       raise (Dont_match (Zero_alloc {missing_entirely = false}))
-  | (Check _ | Default_check | Assume _ | Ignore_assert_all _), _ -> ()
+  | (Check _ | Default_zero_alloc | Assume _ | Ignore_assert_all), _ -> ()
   end;
   (* arity check *)
   let get_arity = function
     | Check { arity; _ } | Assume { arity; _ } -> Some arity
-    | Default_check | Ignore_assert_all _ -> None
+    | Default_zero_alloc | Ignore_assert_all -> None
   in
   match get_arity za1, get_arity za2 with
   | Some arity1, Some arity2 ->

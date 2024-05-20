@@ -995,6 +995,8 @@ and approx_include_functor
 and approx_sig_jst' env (jitem : Jane_syntax.Signature_item.t) srem =
   match jitem with
   | Jsig_include_functor ifincl -> approx_include_functor env ifincl srem
+  | Jsig_layout (Lsig_kind_abbrev _) ->
+      Misc.fatal_error "kind_abbrev not supported!"
 
 and approx_sig env ssg =
   match ssg with
@@ -1620,6 +1622,8 @@ and transl_signature env (sg : Parsetree.signature) =
     function
     | Jsig_include_functor ifincl ->
         transl_include_functor ~loc env sig_acc ifincl
+    | Jsig_layout (Lsig_kind_abbrev _) ->
+        Misc.fatal_error "kind_abbrev not supported!"
   in
 
   let transl_sig_item env sig_acc item =
@@ -2762,6 +2766,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
     match (jitem : Jane_syntax.Structure_item.t) with
     | Jstr_include_functor ifincl ->
         type_str_include_functor ~loc env shape_map ifincl sig_acc
+    | Jstr_layout (Lstr_kind_abbrev _) ->
+        Misc.fatal_error "kind_abbrev not supported!"
   in
 
   let type_str_item
@@ -2788,8 +2794,9 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         in
         let (defs, newenv) =
           Typecore.type_binding env rec_flag ~force_toplevel sdefs in
-        let () = if rec_flag = Recursive then
-          Typecore.check_recursive_bindings env defs
+        let defs = match rec_flag with
+          | Recursive -> Typecore.annotate_recursive_bindings env defs
+          | Nonrecursive -> defs
         in
         (* Note: Env.find_value does not trigger the value_used event. Values
            will be marked as being used during the signature inclusion test. *)
@@ -2813,11 +2820,12 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                    the signature. *)
                 let open Builtin_attributes in
                 match[@warning "+9"] zero_alloc with
-                | Default_check | Ignore_assert_all _ -> Default_check
+                | Default_zero_alloc | Ignore_assert_all -> Default_zero_alloc
                 | Check _ -> zero_alloc
-                | Assume { property; strict; arity; loc;
-                           never_returns_normally = _ } ->
-                  Check { strict; property; arity; loc; opt = false }
+                | Assume { strict; arity; loc;
+                           never_returns_normally = _;
+                           never_raises = _} ->
+                  Check { strict; arity; loc; opt = false }
               in
               let (first_loc, _, _) = List.hd id_info in
               Signature_names.check_value names first_loc id;
@@ -3419,8 +3427,9 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
                       Interface_not_compiled sourceintf)))
             | Some cmi_file -> cmi_file
           in
+          let import = Compilation_unit.name modulename in
           let dclsig =
-            Env.read_signature modulename intf_file ~add_binding:false
+            Env.read_signature import intf_file ~add_binding:false
           in
           let coercion, shape =
             Profile.record_call "check_sig" (fun () ->
@@ -3466,11 +3475,14 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           let shape = Shape_reduce.local_reduce Env.empty shape in
           if not !Clflags.dont_write_files then begin
             let alerts = Builtin_attributes.alerts_of_str ast in
-            let kind = Cmi_format.Normal in
+            let name = Compilation_unit.name modulename in
+            let kind =
+              Cmi_format.Normal { cmi_impl = modulename }
+            in
             let cmi =
               Profile.record_call "save_cmi" (fun () ->
                 Env.save_signature ~alerts
-                  simple_sg modulename kind (outputprefix ^ ".cmi"))
+                  simple_sg name kind (outputprefix ^ ".cmi"))
             in
             Profile.record_call "save_cmt" (fun () ->
               let annots = Cmt_format.Implementation str in
@@ -3571,13 +3583,13 @@ let package_units initial_env objfiles cmifile modulename =
          in
          let modname = Compilation_unit.create_child modulename unit in
          let sg =
-           Env.read_signature modname (pref ^ ".cmi") ~add_binding:false in
+           Env.read_signature unit (pref ^ ".cmi") ~add_binding:false in
          if Filename.check_suffix f ".cmi" &&
             not(Mtype.no_code_needed_sig (Lazy.force Env.initial) sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
          Compilation_unit.name modname,
-         Env.read_signature modname (pref ^ ".cmi") ~add_binding:false)
+         Env.read_signature unit (pref ^ ".cmi") ~add_binding:false)
       objfiles in
   (* Compute signature of packaged unit *)
   Ident.reinit();
@@ -3600,7 +3612,8 @@ let package_units initial_env objfiles cmifile modulename =
       raise(Error(Location.in_file mlifile, Env.empty,
                   Interface_not_compiled mlifile))
     end;
-    let dclsig = Env.read_signature modulename cmifile ~add_binding:false in
+    let name = Compilation_unit.name modulename in
+    let dclsig = Env.read_signature name cmifile ~add_binding:false in
     let cc, _shape =
       Includemod.compunit initial_env ~mark:Mark_both
         "(obtained by packing)" sg mlifile dclsig shape
@@ -3620,11 +3633,11 @@ let package_units initial_env objfiles cmifile modulename =
         (Env.imports()) in
     (* Write packaged signature *)
     if not !Clflags.dont_write_files then begin
-      let kind = Cmi_format.Normal in
+      let name = Compilation_unit.name modulename in
+      let kind = Cmi_format.Normal { cmi_impl = modulename } in
       let cmi =
         Env.save_signature_with_imports ~alerts:Misc.Stdlib.String.Map.empty
-          sg modulename kind
-          (prefix ^ ".cmi") (Array.of_list imports)
+          sg name kind (prefix ^ ".cmi") (Array.of_list imports)
       in
       let sign = Subst.Lazy.force_signature cmi.Cmi_format.cmi_sign in
       Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
@@ -3869,7 +3882,7 @@ let report_error ~loc _env = function
         "Cannot compile an implementation with -as-parameter."
 
 let report_error env ~loc err =
-  Printtyp.wrap_printing_env ~error:true env
+  Printtyp.wrap_printing_env_error env
     (fun () -> report_error env ~loc err)
 
 let () =

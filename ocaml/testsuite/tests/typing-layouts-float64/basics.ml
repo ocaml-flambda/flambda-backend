@@ -1,9 +1,7 @@
 (* TEST
  flambda2;
+ include stable;
  {
-   expect;
- }{
-   flags = "-extension layouts_beta";
    expect;
  }
 *)
@@ -196,12 +194,13 @@ Error: This type ('b : value) should be an instance of type ('a : float64)
          it's the type of a tuple element.
 |}]
 
-(****************************************************************************)
-(* Test 5: Can't be put in structures in typedecls, except certain records. *)
+(*****************************************)
+(* Test 5: Can be put in some structures *)
 
 (* all-float64 records are allowed, as are some records that mix float64 and
    value fields. See [tests/typing-layouts/mixed_records.ml] for tests of mixed
-   records. *)
+   records.
+*)
 type t5_1 = { x : t_float64 };;
 [%%expect{|
 type t5_1 = { x : t_float64; }
@@ -217,13 +216,17 @@ Error: Type t_float64 has layout float64.
        Unboxed records may not yet contain types of this layout.
 |}];;
 
+(* all-float64 constructor args are also allowed, as are some constructors that
+   mix float64 and value fields. These are only allowed in alpha, though. See
+   [tests/typing-layouts/mixed_constructor_args.ml] for tests of mixed
+   constructor args. *)
 type t5_4 = A of t_float64;;
 [%%expect{|
 Line 1, characters 12-26:
 1 | type t5_4 = A of t_float64;;
                 ^^^^^^^^^^^^^^
-Error: Type t_float64 has layout float64.
-       Variants may not yet contain types of this layout.
+Error: The enabled layouts extension does not allow for mixed constructors.
+       You must enable -extension layouts_beta to use this feature.
 |}];;
 
 type t5_5 = A of int * t_float64;;
@@ -231,8 +234,8 @@ type t5_5 = A of int * t_float64;;
 Line 1, characters 12-32:
 1 | type t5_5 = A of int * t_float64;;
                 ^^^^^^^^^^^^^^^^^^^^
-Error: Type t_float64 has layout float64.
-       Variants may not yet contain types of this layout.
+Error: The enabled layouts extension does not allow for mixed constructors.
+       You must enable -extension layouts_beta to use this feature.
 |}];;
 
 type t5_6 = A of t_float64 [@@unboxed];;
@@ -241,7 +244,7 @@ Line 1, characters 12-26:
 1 | type t5_6 = A of t_float64 [@@unboxed];;
                 ^^^^^^^^^^^^^^
 Error: Type t_float64 has layout float64.
-       Variants may not yet contain types of this layout.
+       Unboxed variants may not yet contain types of this layout.
 |}];;
 
 type ('a : float64) t5_7 = A of int
@@ -251,8 +254,8 @@ type ('a : float64) t5_7 = A of int
 Line 2, characters 27-34:
 2 | type ('a : float64) t5_8 = A of 'a;;
                                ^^^^^^^
-Error: Type 'a has layout float64.
-       Variants may not yet contain types of this layout.
+Error: The enabled layouts extension does not allow for mixed constructors.
+       You must enable -extension layouts_beta to use this feature.
 |}]
 
 type ('a : float64, 'b : float64) t5_9 = {x : 'a; y : 'b; z : 'a}
@@ -294,7 +297,7 @@ Line 1, characters 0-36:
 1 | type 'a t5_14 = {x : 'a; y : float#};;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension layouts_beta to use this feature.
 |}];;
 
 type ufref = { mutable contents : float# };;
@@ -567,8 +570,10 @@ Line 1, characters 29-35:
 Error: Don't know how to untag this type. Only int can be untagged.
 |}];;
 
-(*******************************************************)
-(* Test 11: Don't allow float64 in extensible variants *)
+(******************************************************)
+(* Test 11: Allow float64 in some extensible variants *)
+
+(* Currently these are only supported in alpha *)
 
 type t11_1 = ..
 
@@ -578,8 +583,8 @@ type t11_1 = ..
 Line 3, characters 14-28:
 3 | type t11_1 += A of t_float64;;
                   ^^^^^^^^^^^^^^
-Error: Type t_float64 has layout float64.
-       Variants may not yet contain types of this layout.
+Error: The enabled layouts extension does not allow for mixed constructors.
+       You must enable -extension layouts_beta to use this feature.
 |}]
 
 type t11_1 += B of float#;;
@@ -587,8 +592,8 @@ type t11_1 += B of float#;;
 Line 1, characters 14-25:
 1 | type t11_1 += B of float#;;
                   ^^^^^^^^^^^
-Error: Type float# has layout float64.
-       Variants may not yet contain types of this layout.
+Error: The enabled layouts extension does not allow for mixed constructors.
+       You must enable -extension layouts_beta to use this feature.
 |}]
 
 type ('a : float64) t11_2 = ..
@@ -603,8 +608,20 @@ type 'a t11_2 += A of int
 Line 5, characters 17-24:
 5 | type 'a t11_2 += B of 'a;;
                      ^^^^^^^
-Error: Type 'a has layout float64.
-       Variants may not yet contain types of this layout.
+Error: The enabled layouts extension does not allow for mixed constructors.
+       You must enable -extension layouts_beta to use this feature.
+|}]
+
+(* Some extensible variants aren't supported, though. *)
+
+type t11_1 += C of t_float64 * string;;
+
+[%%expect{|
+Line 1, characters 14-37:
+1 | type t11_1 += C of t_float64 * string;;
+                  ^^^^^^^^^^^^^^^^^^^^^^^
+Error: Expected all flat constructor arguments after non-value argument,
+       t_float64, but found boxed argument, string.
 |}]
 
 (***************************************)
@@ -829,7 +846,7 @@ Error: This expression has type t_float64
 (***********************************************************)
 (* Test 14: unboxed float records work like normal records *)
 
-module FU = Stdlib__Float_u
+module FU = Stable.Float_u
 
 type t14_1 = { x : float#; y : float# }
 
@@ -872,12 +889,12 @@ let f14_4 r =
 
 
 [%%expect{|
-module FU = Stdlib__Float_u
+module FU = Stable.Float_u
 type t14_1 = { x : float#; y : float#; }
-val f14_1 : t14_1 -> float# = <fun>
+val f14_1 : t14_1 -> FU.t = <fun>
 val r14 : t14_1 = {x = <abstr>; y = <abstr>}
 val sum14_1 : float = 0.419999999999999929
-val f14_2 : t14_1 -> float# = <fun>
+val f14_2 : t14_1 -> FU.t = <fun>
 val sum14_2 : float = 0.419999999999999929
 type t14_2 = { mutable a : float#; b : float#; mutable c : float#; }
 val f14_3 : t14_2 -> t14_2 = <fun>
@@ -887,5 +904,5 @@ val c : float = 27.7
 val a' : float = 42.
 val b' : float = 20.
 val c' : float = 3.1
-val f14_4 : t14_1 -> float# = <fun>
+val f14_4 : t14_1 -> FU.t = <fun>
 |}]

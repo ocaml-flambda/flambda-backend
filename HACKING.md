@@ -96,10 +96,7 @@ To rebuild after making changes, you can just type `make`. You need to
 have a working OCaml 4.14 or 4.14.1 compiler on your PATH before doing so,
 e.g. installed via OPAM. You also need to have dune and menhir.
 
-<!-- CR someone: investigate this -->
-The build currently fails when using the latest version of `dune` (3.11.1).
-To install a known-good dune, run `opam pin add dune 3.8.1`. `menhir` should be pinned to a specific
-version as well: `opam pin add menhir 20210419`.
+`menhir` should be pinned to a specific version: `opam pin add menhir 20210419`.
 
 There is a special target `make hacking` which starts Dune in polling mode.  The rebuild
 performed here is equivalent to `make ocamlopt` in the upstream distribution: it rebuilds the
@@ -373,8 +370,8 @@ thoroughly (e.g. `git clean -dfX`) before reconfiguring with a different prefix.
 
 Then build the compiler with the command `make _install` (this is the default
 target plus some setup in preparation for installation). As usual when building,
-a 4.14 compiler (and dune and menhir) need to be in the path. See the warnings above
-about the versions of dune and menhir to use.
+a 4.14 compiler (and dune and menhir) need to be in the path. See the warning above
+about the version of menhir to use.
 
 Now the build part is done, we don't need to stay in the build environment
 anymore; the switch creation will likely replace it if your terminal is setup

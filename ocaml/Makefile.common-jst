@@ -45,7 +45,7 @@ define dune_main_context
   (profile $(main_build_profile))
   (paths
     (PATH ("$(CURDIR)/_build/_bootinstall/bin" :standard))
-    (OCAMLLIB ("$(CURDIR)/_build/install/runtime_stdlib/lib/ocaml_runtime_stdlib")))
+    (OCAMLLIB ("$(CURDIR)/_build/runtime_stdlib_install/lib/ocaml_runtime_stdlib")))
   (env (_
     (flags (:standard -warn-error +A))
     (env-vars ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
@@ -70,8 +70,12 @@ boot-runtest: boot-compiler
 
 runtime-stdlib: boot-compiler
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_runstd) --only-package=ocaml_runtime_stdlib @install
-#	dune does not believe the compiler can make .cmxs unless the following file exists
-	@touch _build/install/runtime_stdlib/lib/ocaml_runtime_stdlib/dynlink.cmxa
+	rm -rf _build/runtime_stdlib_install
+# Dune 3.11+ clears `_build/install` before building, move the runtime stdlib
+# to a separate directory.
+	$(cpl) -R _build/install/runtime_stdlib _build/runtime_stdlib_install
+# Dune does not believe the compiler can make .cmxs unless the following file exists.
+	@touch _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/dynlink.cmxa
 
 compiler: runtime-stdlib
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_main) --only-package=ocaml @install \
@@ -109,7 +113,6 @@ dune_config_targets = \
   $(ocamldir)/duneconf/dirs-to-ignore.inc \
   $(ocamldir)/duneconf/jst-extra.inc \
   dune-project \
-  $(ocamldir)/stdlib/ocaml_compiler_internal_params \
   $(ocamldir)/dune.runtime_selection \
   $(ocamldir)/otherlibs/dune
 
@@ -164,9 +167,10 @@ cpl=$(if $(filter linux,$(SYSTEM)),cp -l,cp -L)
 _install: compiler
 	rm -rf _install
 	mkdir -p _install/{bin,lib/ocaml}
-	$(cpl) _build/install/{runtime_stdlib,main}/bin/* _install/bin/
+	$(cpl) _build/runtime_stdlib_install/bin/* _install/bin/
+	$(cpl) _build/install/main/bin/* _install/bin/
 	( cd _install/bin; for i in *.opt; do ln -s $$i $${i%.opt}; done )
-	$(cpl) -R _build/install/runtime_stdlib/lib/ocaml_runtime_stdlib/* _install/lib/ocaml/
+	$(cpl) -R _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/* _install/lib/ocaml/
 	rm -f _install/lib/ocaml/{META,dune-package,Makefile.config,dynlink.cmxa}
 	$(cpl) -R _build/install/main/lib/ocaml/* _install/lib/ocaml/
 	if [ "x$(legacy_layout)" == "xyes" ] ; \
@@ -195,12 +199,6 @@ _install: compiler
 install: _install
 	mkdir -p '$(prefix)'
 	rsync --chmod=u+rw,go+r -rl _install/ '$(prefix)'
-	rm -f '$(prefix)/lib/ocaml/ocaml_compiler_internal_params'
-        # rm `ocaml_compiler_internal_params`, which is used to compile the
-        # stdlib `Float_u` module with `-extension layouts_alpha`, because we
-        # don't want user programs that happened to be named
-        # `ocaml/stdlib/float_u.ml` to get the flag automatically.
-
 
 # Same as above, but relies on a successfull earlier _install
 install_for_opam:
@@ -253,15 +251,15 @@ install_for_test: _install
 	 ln -s . lex; ln -s . yacc; \
 	 ln -s _install/lib/ocaml/compiler-libs compilerlibs; \
 	 mkdir -p otherlibs/{unix,dynlink/native,str,bigarray,runtime_events}; \
-	 mkdir -p otherlibs/{upstream_compatible,stable,beta,alpha}; \
 	 ln -s ../stdlib/threads otherlibs/systhreads$(RUNTIME_SUFFIX); \
          $(cpl) stdlib/unix/{lib,}unix* otherlibs/unix; \
          $(cpl) stdlib/dynlink/dynlink* otherlibs/dynlink; \
          $(cpl) stdlib/str/{lib,}str* otherlibs/str; \
-         $(cpl) stdlib/upstream_compatible/* otherlibs/upstream_compatible; \
-         $(cpl) stdlib/stable/* otherlibs/stable; \
-         $(cpl) stdlib/beta/* otherlibs/beta; \
-         $(cpl) stdlib/alpha/* otherlibs/alpha; \
+	 for universe in upstream_compatible stable beta alpha ; do \
+		mkdir -p otherlibs/{stdlib_,}$${universe}; \
+		$(cpl) stdlib/stdlib_$${universe}/* otherlibs/stdlib_$${universe}; \
+		$(cpl) stdlib/$${universe}/* otherlibs/$${universe}; \
+	 done; \
      if [[ x"$(RUNTIME_DIR)" = x"runtime" ]]; then \
 	     $(cpl) stdlib/runtime_events/{lib,}runtime_events* otherlibs/runtime_events; \
      fi; \

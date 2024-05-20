@@ -50,6 +50,7 @@ and ident_floatarray = ident_create "floatarray"
 and ident_lexing_position = ident_create "lexing_position"
 
 and ident_unboxed_float = ident_create "float#"
+and ident_unboxed_float32 = ident_create "float32#"
 and ident_unboxed_nativeint = ident_create "nativeint#"
 and ident_unboxed_int32 = ident_create "int32#"
 and ident_unboxed_int64 = ident_create "int64#"
@@ -83,6 +84,7 @@ and path_floatarray = Pident ident_floatarray
 and path_lexing_position = Pident ident_lexing_position
 
 and path_unboxed_float = Pident ident_unboxed_float
+and path_unboxed_float32 = Pident ident_unboxed_float32
 and path_unboxed_nativeint = Pident ident_unboxed_nativeint
 and path_unboxed_int32 = Pident ident_unboxed_int32
 and path_unboxed_int64 = Pident ident_unboxed_int64
@@ -117,6 +119,7 @@ and type_floatarray = newgenty (Tconstr(path_floatarray, [], ref Mnil))
 and type_lexing_position = newgenty (Tconstr(path_lexing_position, [], ref Mnil))
 
 and type_unboxed_float = newgenty (Tconstr(path_unboxed_float, [], ref Mnil))
+and type_unboxed_float32 = newgenty (Tconstr(path_unboxed_float32, [], ref Mnil))
 and type_unboxed_nativeint =
       newgenty (Tconstr(path_unboxed_nativeint, [], ref Mnil))
 and type_unboxed_int32 = newgenty (Tconstr(path_unboxed_int32, [], ref Mnil))
@@ -190,9 +193,11 @@ let predef_jkind_annotation const =
           printing/untypeast.
        *)
        let user_written : _ Location.loc =
-         { txt = Jane_asttypes.jkind_of_string (Jkind.string_of_const const);
-           loc = Location.none;
-         }
+         let name = Jkind.string_of_const const in
+         Jane_syntax.Jkind.(
+           Primitive_layout_or_abbreviation
+             (Const.mk name Location.none))
+         |> Location.mknoloc
        in
        const, user_written)
     const
@@ -272,6 +277,14 @@ let build_initial_env add_type add_extension empty_env =
     add_type type_ident decl env
   in
   let add_extension id args jkinds =
+    Array.iter (fun jkind ->
+        match Jkind.get jkind with
+        | Const Value -> ()
+        | _ ->
+            Misc.fatal_error
+              "sanity check failed: non-value jkind in predef extension \
+               constructor; should this have Constructor_mixed shape?")
+      jkinds;
     add_extension id
       { ext_type_path = path_exn;
         ext_type_params = [];
@@ -286,6 +299,7 @@ let build_initial_env add_type add_extension empty_env =
                 })
               args);
         ext_arg_jkinds = jkinds;
+        ext_shape = Constructor_uniform_value;
         ext_constant = args = [];
         ext_ret_type = None;
         ext_private = Asttypes.Public;
@@ -310,8 +324,9 @@ let build_initial_env add_type add_extension empty_env =
        ~variance:Variance.covariant
        ~separability:Separability.Ind
   |> add_type ident_bool
-       ~kind:(variant [cstr ident_false []; cstr ident_true []]
-                [| [| |]; [| |] |])
+       ~kind:(variant [ cstr ident_false []; cstr ident_true []]
+                [| Constructor_uniform_value, [| |];
+                   Constructor_uniform_value, [| |] |])
        ~jkind:(Jkind.immediate ~why:Enumeration)
   |> add_type ident_char ~jkind:(Jkind.immediate ~why:(Primitive ident_char))
       ~jkind_annotation:Immediate
@@ -335,20 +350,22 @@ let build_initial_env add_type add_extension empty_env =
          variant [cstr ident_nil [];
                   cstr ident_cons [unrestricted tvar;
                                    type_list tvar |> unrestricted]]
-           [| [| |]; [| list_argument_jkind;
-                        Jkind.value ~why:Boxed_variant |] |] )
+           [| Constructor_uniform_value, [| |];
+              Constructor_uniform_value,
+                [| list_argument_jkind;
+                   Jkind.value ~why:Boxed_variant;
+                |];
+           |] )
        ~jkind:(Jkind.value ~why:Boxed_variant)
   |> add_type ident_nativeint
   |> add_type1 ident_option
        ~variance:Variance.covariant
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
-         variant
-           [
-            cstr ident_none [];
-            cstr ident_some [unrestricted tvar]
-           ]
-           [| [| |]; [| option_argument_jkind |] |])
+         variant [cstr ident_none []; cstr ident_some [unrestricted tvar]]
+           [| Constructor_uniform_value, [| |];
+              Constructor_uniform_value, [| option_argument_jkind |];
+           |])
        ~jkind:(Jkind.value ~why:Boxed_variant)
   |> add_type ident_lexing_position
        ~kind:(
@@ -393,7 +410,9 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind_annotation:Bits64
   |> add_type ident_bytes
   |> add_type ident_unit
-       ~kind:(variant [cstr ident_void []] [| [| |] |])
+       ~kind:(variant
+                [cstr ident_void []]
+                [| Constructor_uniform_value, [| |] |])
        ~jkind:(Jkind.immediate ~why:Enumeration)
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
@@ -432,6 +451,9 @@ let add_small_number_extension_types add_type env =
   let add_type = mk_add_type add_type in
   env
   |> add_type ident_float32
+  |> add_type ident_unboxed_float32
+       ~jkind:(Jkind.float32 ~why:(Primitive ident_unboxed_float32))
+       ~jkind_annotation:Float32
 
 let builtin_values =
   List.map (fun id -> (Ident.name id, id)) all_predef_exns

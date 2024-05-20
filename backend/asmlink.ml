@@ -47,7 +47,7 @@ type unit_link_info = {
 
 (* Consistency check between interfaces and implementations *)
 
-module Cmi_consistbl = Consistbl.Make (CU.Name) (CU)
+module Cmi_consistbl = Consistbl.Make (CU.Name) (Import_info.Intf.Nonalias.Kind)
 let crc_interfaces = Cmi_consistbl.create ()
 let interfaces = CU.Name.Tbl.create 100
 
@@ -62,12 +62,12 @@ let check_cmi_consistency file_name cmis =
     Array.iter
       (fun import ->
         let name = Import_info.name import in
-        let crco = Import_info.crc_with_unit import in
+        let info = Import_info.Intf.info import in
         CU.Name.Tbl.replace interfaces name ();
-        match crco with
+        match info with
           None -> ()
-        | Some (full_name, crc) ->
-            Cmi_consistbl.check crc_interfaces name full_name crc file_name)
+        | Some (kind, crc) ->
+            Cmi_consistbl.check crc_interfaces name kind crc file_name)
       cmis
   with Cmi_consistbl.Inconsistency {
       unit_name = name;
@@ -115,7 +115,7 @@ let check_consistency ~unit cmis cmxs =
 let extract_crc_interfaces () =
   CU.Name.Tbl.fold (fun name () crcs ->
       let crc_with_unit = Cmi_consistbl.find crc_interfaces name in
-      Import_info.create name ~crc_with_unit :: crcs)
+      Import_info.Intf.create name crc_with_unit :: crcs)
     interfaces
     []
 

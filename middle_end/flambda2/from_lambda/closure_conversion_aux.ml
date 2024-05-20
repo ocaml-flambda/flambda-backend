@@ -121,16 +121,21 @@ module Inlining = struct
     let magic_scale_constant = 20. in
     int_of_float (inline_threshold *. magic_scale_constant)
 
-  let definition_inlining_decision inline cost_metrics =
+  let definition_inlining_decision inline cost_metrics ~stub =
     let inline_threshold = threshold () in
     let code_size = Cost_metrics.size cost_metrics in
     match (inline : Inline_attribute.t) with
     | Never_inline ->
       Function_decl_inlining_decision_type.Never_inline_attribute
-    | Always_inline | Available_inline ->
-      Function_decl_inlining_decision_type.Attribute_inline
+    | Always_inline -> Function_decl_inlining_decision_type.Attribute_inline
+    | Available_inline ->
+      if stub
+      then Function_decl_inlining_decision_type.Stub
+      else Function_decl_inlining_decision_type.Attribute_inline
     | Unroll _ | Default_inline ->
-      if Code_size.to_int code_size <= inline_threshold
+      if stub
+      then Function_decl_inlining_decision_type.Stub
+      else if Code_size.to_int code_size <= inline_threshold
       then
         Function_decl_inlining_decision_type.Small_function
           { size = code_size;
@@ -421,9 +426,10 @@ module Acc = struct
                 Inlining.definition_inlining_decision
                   (Code_metadata.inline metadata)
                   (Code_metadata.cost_metrics metadata)
+                  ~stub:(Code_metadata.stub metadata)
               with
-              | Attribute_inline | Small_function _ -> approx
-              | Not_yet_decided | Never_inline_attribute | Stub | Recursive
+              | Attribute_inline | Small_function _ | Stub -> approx
+              | Not_yet_decided | Never_inline_attribute | Recursive
               | Function_body_too_large _ | Speculatively_inlinable _
               | Functor _ ->
                 Value_approximation.Closure_approximation
@@ -501,9 +507,9 @@ module Acc = struct
       | Set_of_closures _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
       | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
       | Immutable_float_block _ | Immutable_float_array _
-      | Immutable_value_array _ | Empty_array _ | Immutable_int32_array _
-      | Immutable_int64_array _ | Immutable_nativeint_array _ | Mutable_string _
-      | Immutable_string _ ->
+      | Immutable_float32_array _ | Immutable_value_array _ | Empty_array _
+      | Immutable_int32_array _ | Immutable_int64_array _
+      | Immutable_nativeint_array _ | Mutable_string _ | Immutable_string _ ->
         Value_unknown
     in
     let symbol_approximations =
@@ -844,7 +850,7 @@ module Function_decls = struct
 
     let is_opaque t = t.attr.is_opaque
 
-    let check_attribute t = t.attr.check
+    let zero_alloc_attribute t = t.attr.zero_alloc
 
     let stub t = t.attr.stub
 

@@ -537,24 +537,34 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Icsel _) -> 4
     | Lop (Ibeginregion | Iendregion) -> 1
     | Lop (Iintop (Icomp _)) -> 2
-    | Lop (Ifloatop (Icompf _)) -> 2
+    | Lop (Ifloatop (Float64, Icompf _)) -> 2
+    | Lop (Ifloatop (Float32, Icompf _)) ->
+      (* CR mslater: (float32) arm64 *)
+      Misc.fatal_error "float32 is not supported on this architecture"
     | Lop (Iintop_imm (Icomp _, _)) -> 2
     | Lop (Iintop Imod) -> 2
     | Lop (Iintop (Imulh _)) -> 1
     | Lop (Iintop _) -> 1
     | Lop (Iintop_imm _) -> 1
-    | Lop (Ifloatop (Iabsf | Inegf) | Ispecific Isqrtf) -> 1
+    | Lop (Ifloatop (Float64, (Iabsf | Inegf)) | Ispecific Isqrtf) -> 1
+    | Lop (Ifloatop (Float32, (Iabsf | Inegf))) ->
+      (* CR mslater: (float32) arm64 *)
+      Misc.fatal_error "float32 is not supported on this architecture"
     | Lop (Ivalueofint | Iintofvalue) -> 1
     | Lop (Ivectorcast _) -> 1
     | Lop (Iscalarcast (Float_of_int Float64 | Float_to_int Float64)) -> 1
     | Lop (Iscalarcast (Float_of_int Float32 | Float_to_int Float32 |
-                        Float_of_float32 | Float_to_float32)) ->
+                        Float_of_float32 | Float_to_float32 |
+                        Float32_as_float)) ->
       (* CR mslater: (float32) arm64 *)
       Misc.fatal_error "float32 is not supported on this architecture"
     | Lop (Iscalarcast (V128_of_scalar _ | V128_to_scalar _)) ->
       (* CR mslater: (SIMD) arm64 *)
       Misc.fatal_error "SIMD is not supported on this architecture"
-    | Lop (Ifloatop (Iaddf | Isubf | Imulf | Idivf) | Ispecific Inegmulf) -> 1
+    | Lop (Ifloatop (Float64, (Iaddf | Isubf | Imulf | Idivf)) | Ispecific Inegmulf) -> 1
+    | Lop (Ifloatop (Float32, (Iaddf | Isubf | Imulf | Idivf))) ->
+      (* CR mslater: (float32) arm64 *)
+      Misc.fatal_error "float32 is not supported on this architecture"
     | Lop (Iopaque) -> 0
     | Lop (Ispecific (Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf)) -> 1
     | Lop (Ispecific (Ishiftarith _)) -> 1
@@ -775,7 +785,8 @@ let emit_instr i =
     | Lop(Iscalarcast (Float_of_int Float64)) ->
         `	scvtf	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
      | Lop (Iscalarcast (Float_of_int Float32 | Float_to_int Float32 |
-                         Float_of_float32 | Float_to_float32)) ->
+                         Float_of_float32 | Float_to_float32 |
+                         Float32_as_float)) ->
         (* CR mslater: (float32) arm64 *)
         Misc.fatal_error "float32 not supported on this architecture"
     | Lop(Iscalarcast (V128_of_scalar _ | V128_to_scalar _) | Ivectorcast _) ->
@@ -962,10 +973,13 @@ let emit_instr i =
     | Lop(Iintop(Icomp cmp)) ->
         `	cmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
         `	cset	{emit_reg i.res.(0)}, {emit_string (name_for_comparison cmp)}\n`
-    | Lop(Ifloatop(Icompf cmp)) ->
+    | Lop(Ifloatop(Float64, Icompf cmp)) ->
         let comp = name_for_float_comparison cmp in
         `	fcmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
         `	cset	{emit_reg i.res.(0)}, {emit_string comp}\n`
+    | Lop(Ifloatop(Float32, Icompf _)) ->
+        (* CR mslater: (float32) arm64 *)
+        Misc.fatal_error "float32 is not supported on this architecture"
     | Lop(Iintop_imm(Icomp cmp, n)) ->
         emit_cmpimm i.arg.(0) n;
         `	cset	{emit_reg i.res.(0)}, {emit_string (name_for_comparison cmp)}\n`
@@ -982,13 +996,16 @@ let emit_instr i =
     | Lop(Iintop_imm(op, n)) ->
         let instr = name_for_int_operation op in
         `	{emit_string instr}     {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, #{emit_int n}\n`
-    | Lop(Ifloatop (Iabsf | Inegf) | Ispecific Isqrtf as op) ->
+    | Lop(Ifloatop (Float64, (Iabsf | Inegf)) | Ispecific Isqrtf as op) ->
         let instr = (match op with
-                     | Ifloatop Iabsf   -> "fabs"
-                     | Ifloatop Inegf   -> "fneg"
-                     | Ispecific Isqrtf -> "fsqrt"
-                     | _                -> assert false) in
+                     | Ifloatop (Float64, Iabsf) -> "fabs"
+                     | Ifloatop (Float64, Inegf) -> "fneg"
+                     | Ispecific Isqrtf          -> "fsqrt"
+                     | _                         -> assert false) in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+    | Lop(Ifloatop (Float32, (Iabsf | Inegf))) ->
+        (* CR mslater: (float32) arm64 *)
+        Misc.fatal_error "float32 is not supported on this architecture"
     | Lop(Ivalueofint | Iintofvalue) ->
         let src = i.arg.(0) and dst = i.res.(0) in
         if src.loc <> dst.loc then begin
@@ -1002,15 +1019,18 @@ let emit_instr i =
           | _ ->
               assert false
         end
-    | Lop(Ifloatop (Iaddf | Isubf | Imulf | Idivf) | Ispecific Inegmulf as op) ->
+    | Lop(Ifloatop (Float64, (Iaddf | Isubf | Imulf | Idivf)) | Ispecific Inegmulf as op) ->
         let instr = (match op with
-                     | Ifloatop Iaddf     -> "fadd"
-                     | Ifloatop Isubf     -> "fsub"
-                     | Ifloatop Imulf     -> "fmul"
-                     | Ifloatop Idivf     -> "fdiv"
-                     | Ispecific Inegmulf -> "fnmul"
-                     | _                  -> assert false) in
+                     | Ifloatop (Float64, Iaddf) -> "fadd"
+                     | Ifloatop (Float64, Isubf) -> "fsub"
+                     | Ifloatop (Float64, Imulf) -> "fmul"
+                     | Ifloatop (Float64, Idivf) -> "fdiv"
+                     | Ispecific Inegmulf        -> "fnmul"
+                     | _                         -> assert false) in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
+    | Lop(Ifloatop (Float32, (Iaddf | Isubf | Imulf | Idivf))) ->
+        (* CR mslater: (float32) arm64 *)
+        Misc.fatal_error "float32 is not supported on this architecture"
     | Lop(Ispecific(Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf as op)) ->
         let instr = (match op with
                      | Imuladdf    -> "fmadd"
@@ -1077,7 +1097,10 @@ let emit_instr i =
             let comp = name_for_comparison cmp in
             emit_cmpimm i.arg.(0) n;
             `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, {emit_string comp}\n`
-        | Ifloattest cmp ->
+        | Ifloattest (Float32, _cmp) ->
+            (* CR mslater: (float32) arm64 *)
+            Misc.fatal_error "float32 is not supported on this architecture"
+        | Ifloattest (Float64, cmp) ->
             let comp = name_for_float_comparison cmp in
             `	fcmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
             `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(3)}, {emit_string comp}\n`
@@ -1110,7 +1133,10 @@ let emit_instr i =
             emit_cmpimm i.arg.(0) n;
             let comp = name_for_comparison cmp in
             `	b.{emit_string comp}	{emit_label lbl}\n`
-        | Ifloattest cmp ->
+        | Ifloattest (Float32, _cmp) ->
+            (* CR mslater: (float32) arm64 *)
+            Misc.fatal_error "float32 is not supported on this architecture"
+        | Ifloattest (Float64, cmp) ->
             let comp = name_for_float_comparison cmp in
             `	fcmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
             `	b.{emit_string comp}	{emit_label lbl}\n`

@@ -32,20 +32,20 @@ let mark_used t = Attribute_table.remove unused_attrs t
 *)
 let attr_order a1 a2 = Location.compare a1.loc a2.loc
 
-let unchecked_properties = Attribute_table.create 1
-let mark_property_checked txt loc =
-  Attribute_table.remove unchecked_properties { txt; loc }
-let register_property attr =
-    Attribute_table.replace unchecked_properties attr ()
-let warn_unchecked_property () =
+let unchecked_zero_alloc_attributes = Attribute_table.create 1
+let mark_zero_alloc_attribute_checked txt loc =
+  Attribute_table.remove unchecked_zero_alloc_attributes { txt; loc }
+let register_zero_alloc_attribute attr =
+    Attribute_table.replace unchecked_zero_alloc_attributes attr ()
+let warn_unchecked_zero_alloc_attribute () =
     (* When using -i, attributes will not have been translated, so we can't
      warn about missing ones. *)
   if !Clflags.print_types then ()
   else
-  let keys = List.of_seq (Attribute_table.to_seq_keys unchecked_properties) in
+  let keys = List.of_seq (Attribute_table.to_seq_keys unchecked_zero_alloc_attributes) in
   let keys = List.sort attr_order keys in
   List.iter (fun sloc ->
-    Location.prerr_warning sloc.loc (Warnings.Unchecked_property_attribute sloc.txt))
+    Location.prerr_warning sloc.loc (Warnings.Unchecked_zero_alloc_attribute))
     keys
 
 let warn_unused () =
@@ -676,36 +676,30 @@ let error_message_attr l =
     | _ -> None in
   List.find_map inner l
 
-type property =
-  | Zero_alloc
-
-type check_attribute =
-  | Default_check
-  | Ignore_assert_all of property
-  | Check of { property: property;
-               strict: bool;
+type zero_alloc_attribute =
+  | Default_zero_alloc
+  | Ignore_assert_all
+  | Check of { strict: bool;
                opt: bool;
                arity: int;
                loc: Location.t;
              }
-  | Assume of { property: property;
-                strict: bool;
+  | Assume of { strict: bool;
                 never_returns_normally: bool;
+                never_raises: bool;
                 arity: int;
                 loc: Location.t;
               }
 
-let is_check_enabled ~opt property =
-  match property with
-  | Zero_alloc ->
-    match !Clflags.zero_alloc_check with
-    | No_check -> false
-    | Check_all -> true
-    | Check_default -> not opt
-    | Check_opt_only -> opt
+let is_zero_alloc_check_enabled ~opt =
+  match !Clflags.zero_alloc_check with
+  | No_check -> false
+  | Check_all -> true
+  | Check_default -> not opt
+  | Check_opt_only -> opt
 
-let is_property_attribute = function
-  | Zero_alloc -> [ ["zero_alloc"; "ocaml.zero_alloc"], true ]
+let is_zero_alloc_attribute =
+  [ ["zero_alloc"; "ocaml.zero_alloc"], true ]
 
 let get_payload get_from_exp =
   let open Parsetree in
@@ -820,38 +814,42 @@ let filter_arity payload =
 let zero_alloc_lookup_table =
   (* These are the possible payloads (sans arity) paired with a function that
      returns the corresponding check_attribute, given the arity and the loc. *)
-  let property = Zero_alloc in
   [
     (["assume"],
      fun arity loc ->
-       Assume { property; strict = false; never_returns_normally = false;
+       Assume { strict = false; never_returns_normally = false;
+                never_raises = false;
                 arity; loc; });
     (["strict"],
      fun arity loc ->
-       Check { property; strict = true; opt = false; arity; loc; });
+       Check { strict = true; opt = false; arity; loc; });
     (["opt"],
      fun arity loc ->
-       Check { property; strict = false; opt = true; arity; loc; });
+       Check { strict = false; opt = true; arity; loc; });
     (["opt"; "strict"; ],
      fun arity loc ->
-       Check { property; strict = true; opt = true; arity; loc; });
+       Check { strict = true; opt = true; arity; loc; });
     (["assume"; "strict"],
      fun arity loc ->
-       Assume { property; strict = true; never_returns_normally = false;
+       Assume { strict = true; never_returns_normally = false;
+                never_raises = false;
                 arity; loc; });
     (["assume"; "never_returns_normally"],
      fun arity loc ->
-       Assume { property; strict = false; never_returns_normally = true;
+       Assume {  strict = false; never_returns_normally = true;
+                never_raises = false;
                 arity; loc; });
     (["assume"; "never_returns_normally"; "strict"],
      fun arity loc ->
-       Assume { property; strict = true; never_returns_normally = true;
+       Assume { strict = true; never_returns_normally = true;
+                never_raises = false;
                 arity; loc; });
     (["assume"; "error"],
      fun arity loc ->
-       Assume { property; strict = false; never_returns_normally = true;
+       Assume { strict = true; never_returns_normally = true;
+                never_raises = true;
                 arity; loc; });
-    (["ignore"], fun _ _ -> Ignore_assert_all property)
+    (["ignore"], fun _ _ -> Ignore_assert_all)
   ]
 
 let parse_zero_alloc_payload ~loc ~arity ~warn ~empty payload =
@@ -862,12 +860,12 @@ let parse_zero_alloc_payload ~loc ~arity ~warn ~empty payload =
   | _ :: _ ->
     let payload = List.sort String.compare payload in
     match List.assoc_opt payload zero_alloc_lookup_table with
-    | None -> warn (); Default_check
+    | None -> warn ();  Default_zero_alloc
     | Some ca -> ca arity loc
 
 let parse_zero_alloc_attribute ~is_arity_allowed ~default_arity attr =
   match attr with
-  | None -> Default_check
+  | None -> Default_zero_alloc
   | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload} ->
     let warn () =
       let ( %> ) f g x = g (f x) in
@@ -880,10 +878,10 @@ let parse_zero_alloc_attribute ~is_arity_allowed ~default_arity attr =
       Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg))
     in
     let empty arity =
-      Check {property = Zero_alloc; strict = false; opt = false; arity; loc; }
+      Check { strict = false; opt = false; arity; loc; }
     in
     match get_optional_payload get_ids_and_constants_from_exp payload with
-    | Error () -> warn (); Default_check
+    | Error () -> warn (); Default_zero_alloc
     | Ok None -> empty default_arity
     | Ok (Some payload) ->
       let arity, payload =
@@ -900,35 +898,33 @@ let parse_zero_alloc_attribute ~is_arity_allowed ~default_arity attr =
       in
       parse_zero_alloc_payload ~loc ~arity ~warn ~empty:(empty arity) payload
 
-let get_property_attribute ~in_signature ~default_arity l p =
-  let attr = find_attribute (is_property_attribute p) l in
+let get_zero_alloc_attribute ~in_signature ~default_arity l =
+  let attr = find_attribute is_zero_alloc_attribute l in
   let res =
-    match p with
-    | Zero_alloc ->
       parse_zero_alloc_attribute ~is_arity_allowed:in_signature ~default_arity
         attr
   in
   (match attr, res with
-   | None, Default_check -> ()
-   | _, Default_check -> ()
-   | None, (Check _ | Assume _ | Ignore_assert_all _) -> assert false
-   | Some _, Ignore_assert_all _ -> ()
+   | None, Default_zero_alloc -> ()
+   | _, Default_zero_alloc -> ()
+   | None, (Check _ | Assume _ | Ignore_assert_all) -> assert false
+   | Some _, Ignore_assert_all -> ()
    | Some _, Assume _ -> ()
    | Some attr, Check { opt; _ } ->
-     if not in_signature && is_check_enabled ~opt p && !Clflags.native_code then
+     if not in_signature && is_zero_alloc_check_enabled ~opt && !Clflags.native_code then
        (* The warning for unchecked functions will not trigger if the check is
           requested through the [@@@zero_alloc all] top-level annotation rather
           than through the function annotation [@zero_alloc]. *)
-       register_property attr.attr_name);
+       register_zero_alloc_attribute attr.attr_name);
    res
 
 let assume_zero_alloc ~is_check_allowed check : Zero_alloc_utils.Assume_info.t =
   match check with
-  | Default_check -> Zero_alloc_utils.Assume_info.none
-  | Ignore_assert_all Zero_alloc -> Zero_alloc_utils.Assume_info.none
-  | Assume { property=Zero_alloc; strict; never_returns_normally; } ->
-    Zero_alloc_utils.Assume_info.create ~strict ~never_returns_normally
-  | Check { property=Zero_alloc; loc; _ } ->
+  | Default_zero_alloc -> Zero_alloc_utils.Assume_info.none
+  | Ignore_assert_all -> Zero_alloc_utils.Assume_info.none
+  | Assume { strict; never_returns_normally; never_raises; } ->
+    Zero_alloc_utils.Assume_info.create ~strict ~never_returns_normally ~never_raises
+  | Check { loc; _ } ->
     if not is_check_allowed then begin
       let name = "zero_alloc" in
       let msg = "Only the following combinations are supported in this context: \

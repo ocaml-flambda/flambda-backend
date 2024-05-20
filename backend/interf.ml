@@ -16,6 +16,17 @@
 (* Construction of the interference graph.
    Annotate pseudoregs with interference lists and preference lists. *)
 
+let check_collisions = false
+
+let assert_no_collisions set =
+  if check_collisions && (Reg.set_has_collisions set) then
+  Misc.fatal_error "live set has physical register collisions"
+
+let assert_compatible src dst =
+  if not (Reg.types_are_compatible src dst) then
+  Misc.fatal_errorf "found move between registers of incompatible types (%a to %a)"
+  Printmach.reg src Printmach.reg dst
+
 module IntPairSet =
   Hashtbl.Make(struct
     type t = int * int
@@ -79,11 +90,13 @@ let build_graph fundecl =
      do not add an interference between them if the source is still live
      afterwards. *)
   let add_interf_move src dst s =
+    assert_compatible src dst;
     Reg.Set.iter (fun r -> if r.stamp <> src.stamp then add_interf dst r) s in
 
   (* Compute interferences *)
 
   let rec interf i =
+    assert_no_collisions i.live;
     let destroyed = Proc.destroyed_at_oper i.desc in
     if Array.length destroyed > 0 then add_interf_set destroyed i.live;
     match i.desc with
@@ -126,6 +139,7 @@ let build_graph fundecl =
       float arguments in integer registers, PR#6227.) *)
 
   let add_pref weight r1 r2 =
+    assert_compatible r1 r2;
     let i = r1.stamp and j = r2.stamp in
     if i <> j
     && r1.loc = Unknown

@@ -15,7 +15,7 @@
 
 (** Helpers for Intel code generators *)
 
-(* The DSL* modules expose functions to emit x86/x86_64 instructions
+(* The DSL* modules expose functions to emit x86_64 instructions
    using a syntax close to the official Intel syntax, except that
    source and destination operands are reversed as in the AT&T
    syntax:
@@ -197,6 +197,19 @@ module I : sig
   val xchg: arg -> arg -> unit
   val xor: arg -> arg -> unit
   val xorpd: arg -> arg -> unit
+
+  (* Float32 arithmetic *)
+
+  val addss: arg -> arg -> unit
+  val subss: arg -> arg -> unit
+  val mulss: arg -> arg -> unit
+  val divss: arg -> arg -> unit
+  val comiss: arg -> arg -> unit
+  val ucomiss: arg -> arg -> unit
+  val sqrtss: arg -> arg -> unit
+  val xorps: arg -> arg -> unit
+  val andps: arg -> arg -> unit
+  val cmpss: float_condition -> arg -> arg -> unit
 
   (* SSE instructions *)
 
