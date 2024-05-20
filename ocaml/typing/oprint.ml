@@ -325,8 +325,20 @@ let ty_var ~non_gen ppf s =
 
 let print_out_jkind ppf = function
   | Ojkind_const legacy_layout ->
-      fprintf ppf "%s" (Jkind.Const.Layout.Legacy.to_string legacy_layout)
+    fprintf ppf "%s" (Jkind.Const.Layout.Legacy.to_string legacy_layout)
   | Ojkind_var v -> fprintf ppf "%s" v
+  | Ojkind_user jkind ->
+    let rec print_out_jkind_user ppf = function
+      | Ojkind_user_default -> fprintf ppf "_"
+      | Ojkind_user_abbreviation abbrev -> fprintf ppf "%s" abbrev
+      | Ojkind_user_mod (base, modes) ->
+        fprintf ppf "%a mod %a" print_out_jkind_user base
+          (print_list (fun ppf str -> fprintf ppf "%s" str) (fun ppf -> fprintf ppf " "))
+          modes
+      | Ojkind_user_with _ | Ojkind_user_kind_of _ ->
+        failwith "XXX unimplemented jkind syntax"
+    in
+    print_out_jkind_user ppf jkind
 
 let print_out_jkind_annot ppf = function
   | None -> ()

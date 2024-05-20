@@ -208,7 +208,7 @@ module Externality = struct
     | Internal, Internal -> Internal
 
   let to_string = function
-    | External -> "external"
+    | External -> "external_"
     | External64 -> "external64"
     | Internal -> "internal"
 
@@ -491,7 +491,7 @@ module Const = struct
       | "shared" -> Uniqueness Shared
       | "internal" -> Externality Internal
       | "external64" -> Externality External64
-      | "external" -> Externality External
+      | "external_" -> Externality External
       | _ -> raise ~loc (Unknown_mode unparsed_mode)
 
     let parse_modes

@@ -1251,6 +1251,22 @@ let add_type_to_preparation = prepare_type
 (* Disabled in classic mode when printing an unification error *)
 let print_labels = ref true
 
+let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
+  let rec out_jkind_user_of_user_jkind : Jane_syntax.Jkind.t -> out_jkind_user = function
+    | Default -> Ojkind_user_default
+    | Abbreviation abbrev -> Ojkind_user_abbreviation (abbrev :> string Location.loc).txt
+    | Mod (base, modes) ->
+      let base = out_jkind_user_of_user_jkind base in
+      let modes =
+        List.map
+          (fun mode -> (mode : Jane_syntax.Mode_expr.Const.t :> string Location.loc).txt)
+          modes.txt
+      in
+      Ojkind_user_mod (base, modes)
+    | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
+  in
+  Ojkind_user (out_jkind_user_of_user_jkind jkind.txt)
+
 let out_jkind_of_const_jkind jkind =
   Ojkind_const (Jkind.Const.get_legacy_layout jkind)
 
@@ -1833,7 +1849,7 @@ let tree_of_type_decl id decl =
       otype_private = priv;
       otype_jkind =
         Option.map
-          (fun (const, _) -> out_jkind_of_const_jkind const)
+          (fun (_, user_annot) -> out_jkind_of_user_jkind user_annot)
           jkind_annotation;
       otype_unboxed = unboxed;
       otype_cstrs = constraints }

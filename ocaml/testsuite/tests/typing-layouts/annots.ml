@@ -49,8 +49,7 @@ type t_value_mod_once : value mod once
 type t_value_mod_unique : value mod unique
 type t_value_mod_shared : value mod shared
 type t_value_mod_internal : value mod internal
-(* CR layouts: fix this? *)
-(* type t_value_mod_external : value mod external *)
+type t_value_mod_external : value mod external_
 type t_value_mod_external64 : value mod external64
 
 [%%expect{|
@@ -61,7 +60,18 @@ type t_value_mod_once : value mod once
 type t_value_mod_unique : value mod unique
 type t_value_mod_shared : value mod shared
 type t_value_mod_internal : value mod internal
+type t_value_mod_external : value mod external_
 type t_value_mod_external64 : value mod external64
+|}]
+
+type t1 : float32 mod internal shared many local
+type t2 : bits64 mod once external64 unique
+type t3 : immediate mod local unique
+
+[%%expect{|
+type t1 : float32 mod internal shared many local
+type t2 : bits64 mod once external64 unique
+type t3 : immediate mod local unique
 |}]
 
 (***************************************)
