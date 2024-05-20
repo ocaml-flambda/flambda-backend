@@ -332,6 +332,7 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type1 ident_lazy_t
        ~variance:Variance.covariant
        ~separability:Separability.Ind
+       ~jkind:(Jkind.value ~why:(Primitive ident_lazy_t))
   |> add_type1 ident_list
        ~variance:Variance.covariant
        ~separability:Separability.Ind
