@@ -550,15 +550,21 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Ifloatop (Float32, (Iabsf | Inegf))) ->
       (* CR mslater: (float32) arm64 *)
       Misc.fatal_error "float32 is not supported on this architecture"
-    | Lop (Ivalueofint | Iintofvalue) -> 1
-    | Lop (Ivectorcast _) -> 1
-    | Lop (Iscalarcast (Float_of_int Float64 | Float_to_int Float64)) -> 1
-    | Lop (Iscalarcast (Float_of_int Float32 | Float_to_int Float32 |
-                        Float_of_float32 | Float_to_float32 |
-                        Float32_as_float)) ->
+    | Lop (Ireinterpret_cast (Value_of_int | Int_of_value |
+                              Float_of_int64 | Int64_of_float)) -> 1
+    | Lop (Ireinterpret_cast (Float32_of_float | Float_of_float32 |
+                              Float32_of_int32 | Int32_of_float32)) ->
       (* CR mslater: (float32) arm64 *)
       Misc.fatal_error "float32 is not supported on this architecture"
-    | Lop (Iscalarcast (V128_of_scalar _ | V128_to_scalar _)) ->
+    | Lop (Ireinterpret_cast V128_of_v128) ->
+      (* CR mslater: (SIMD) arm64 *)
+      Misc.fatal_error "SIMD is not supported on this architecture"
+    | Lop (Istatic_cast (Float_of_int Float64 | Int_of_float Float64)) -> 1
+    | Lop (Istatic_cast (Float_of_int Float32 | Int_of_float Float32 |
+                         Float_of_float32 | Float32_of_float)) ->
+      (* CR mslater: (float32) arm64 *)
+      Misc.fatal_error "float32 is not supported on this architecture"
+    | Lop (Istatic_cast (V128_of_scalar _ | Scalar_of_v128 _)) ->
       (* CR mslater: (SIMD) arm64 *)
       Misc.fatal_error "SIMD is not supported on this architecture"
     | Lop (Ifloatop (Float64, (Iaddf | Isubf | Imulf | Idivf)) | Ispecific Inegmulf) -> 1
@@ -780,16 +786,20 @@ let emit_instr i =
     | Lop(Iintop_atomic _) ->
       (* Never generated; builtins are not yet translated to atomics *)
       assert false
-    | Lop(Iscalarcast (Float_to_int Float64)) ->
+    | Lop (Ireinterpret_cast (Int64_of_float | Float_of_int64)) ->
+        `	fmov {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+    | Lop(Istatic_cast (Int_of_float Float64)) ->
         `	fcvtzs {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
-    | Lop(Iscalarcast (Float_of_int Float64)) ->
+    | Lop(Istatic_cast (Float_of_int Float64)) ->
         `	scvtf	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
-     | Lop (Iscalarcast (Float_of_int Float32 | Float_to_int Float32 |
-                         Float_of_float32 | Float_to_float32 |
-                         Float32_as_float)) ->
+    | Lop (Ireinterpret_cast (Float32_of_float | Float_of_float32 |
+                              Int32_of_float32 | Float32_of_int32))
+    | Lop (Istatic_cast (Float_of_int Float32 | Int_of_float Float32 |
+                          Float_of_float32 | Float32_of_float)) ->
         (* CR mslater: (float32) arm64 *)
         Misc.fatal_error "float32 not supported on this architecture"
-    | Lop(Iscalarcast (V128_of_scalar _ | V128_to_scalar _) | Ivectorcast _) ->
+    | Lop(Ireinterpret_cast V128_of_v128)
+    | Lop(Istatic_cast (V128_of_scalar _ | Scalar_of_v128 _)) ->
         (* CR mslater: (SIMD) arm64 *)
         Misc.fatal_error "SIMD is not supported on this architecture"
     | Lop(Imove | Ispill | Ireload) ->
@@ -1006,7 +1016,7 @@ let emit_instr i =
     | Lop(Ifloatop (Float32, (Iabsf | Inegf))) ->
         (* CR mslater: (float32) arm64 *)
         Misc.fatal_error "float32 is not supported on this architecture"
-    | Lop(Ivalueofint | Iintofvalue) ->
+    | Lop(Ireinterpret_cast (Int_of_value | Value_of_int)) ->
         let src = i.arg.(0) and dst = i.res.(0) in
         if src.loc <> dst.loc then begin
           match (src, dst) with

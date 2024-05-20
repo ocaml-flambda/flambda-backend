@@ -334,7 +334,7 @@ let destroyed_at_oper = function
     else destroyed_at_c_noalloc_call
   | Iop(Ialloc _) | Iop(Ipoll _) ->
       [| reg_x8 |]
-  | Iop( Iscalarcast (Float_to_int _ | Float_of_int _)
+  | Iop( Istatic_cast (Int_of_float _ | Float_of_int _)
        | Iload{memory_chunk=Single { reg = Float64 }; _}
        | Istore(Single { reg = Float64 }, _, _)) ->
       [| reg_d7 |]            (* d7 / s7 destroyed *)
@@ -358,7 +358,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op Poll -> destroyed_at_alloc_or_poll
   | Op (Alloc _) ->
     destroyed_at_alloc_or_poll
-  | Op( Scalarcast (Float_to_int _ | Float_of_int _)
+  | Op( Static_cast (Int_of_float _ | Float_of_int _)
       | Load {memory_chunk = Single { reg = Float64 }; _ }
       | Store(Single { reg = Float64 }, _, _)) ->
     [| reg_d7 |]
@@ -414,7 +414,7 @@ let safe_register_pressure = function
 let max_register_pressure = function
   | Iextcall _ -> [| 7; 8 |]  (* 7 integer callee-saves, 8 FP callee-saves *)
   | Ialloc _ | Ipoll _ -> [| 22; 32 |]
-  | Iscalarcast (Float_to_int _ | Float_of_int _)
+  | Istatic_cast (Int_of_float _ | Float_of_int _)
   | Iload{memory_chunk=Single { reg = Float64 }; _}
   | Istore(Single { reg = Float64 }, _, _) -> [| 23; 31 |]
   | _ -> [| 23; 32 |]
@@ -490,10 +490,12 @@ let operation_supported = function
   | Cnegf Float32 | Cabsf Float32 | Caddf Float32
   | Csubf Float32 | Cmulf Float32 | Cdivf Float32
   | Cpackf32
-  | Cvectorcast _ | Cscalarcast (Float_of_float32 | Float_to_float32 |
-                                 Float_to_int Float32 | Float_of_int Float32 |
-                                 V128_of_scalar _ | V128_to_scalar _ |
-                                 Float32_as_float)
+  | Creinterpret_cast (Float32_of_float | Float_of_float32 |
+                       Float32_of_int32 | Int32_of_float32 |
+                       V128_of_v128)
+  | Cstatic_cast (Float_of_float32 | Float32_of_float |
+                  Int_of_float Float32 | Float_of_int Float32 |
+                  V128_of_scalar _ | Scalar_of_v128 _)
     -> false   (* Not implemented *)
   | Cbswap _
   | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _
@@ -502,8 +504,9 @@ let operation_supported = function
   | Ccmpi _ | Caddv | Cadda | Ccmpa _
   | Cnegf Float64 | Cabsf Float64 | Caddf Float64
   | Csubf Float64 | Cmulf Float64 | Cdivf Float64
-  | Cintofvalue | Cvalueofint
-  | Cscalarcast (Float_of_int Float64 | Float_to_int Float64)
+  | Creinterpret_cast (Int_of_value | Value_of_int |
+                       Int64_of_float | Float_of_int64)
+  | Cstatic_cast (Float_of_int Float64 | Int_of_float Float64)
   | Ccmpf _
   | Ccsel _
   | Craise _
