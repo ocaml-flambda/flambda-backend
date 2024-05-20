@@ -18,7 +18,7 @@
 
 (library
  (name upstream_compatible)
- (wrapped false)
+ (public_name ocaml.upstream_compatible)
  (modes byte native)
  (flags
   (-strict-sequence
@@ -57,9 +57,3 @@
   (with-stdout-to
    to_install.sexp
    (run "%{first-dep}" "upstream_compatible"))))
-
-(install
- (files
-  (include to_install.sexp))
- (section lib)
- (package ocaml))
