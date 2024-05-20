@@ -81,8 +81,8 @@ struct
     let est =
       measure_alloc (fun () -> go #0.s #0.s)
     in
-    Printf.printf "Unboxed:\n  estimate: %f\n  allocations: %.2f\n"
-      (Float32.to_float (to_float32 est) *. 4.) (get_exact_allocations ())
+    Printf.printf "Unboxed:\n  estimate: %f\n  allocations: %s\n"
+      (Float32.to_float (to_float32 est) *. 4.) (get_allocations ())
 end
 
 module Pi_boxed =
