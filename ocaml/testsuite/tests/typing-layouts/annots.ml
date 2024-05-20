@@ -42,6 +42,28 @@ Error: Layout non_null_value is more experimental than allowed by the enabled la
        You must enable -extension layouts_alpha to use this feature.
 |}]
 
+type t_value_mod_global : value mod global
+type t_value_mod_local : value mod local
+type t_value_mod_many : value mod many
+type t_value_mod_once : value mod once
+type t_value_mod_unique : value mod unique
+type t_value_mod_shared : value mod shared
+type t_value_mod_internal : value mod internal
+(* CR layouts: fix this? *)
+(* type t_value_mod_external : value mod external *)
+type t_value_mod_external64 : value mod external64
+
+[%%expect{|
+type t_value_mod_global : value mod global
+type t_value_mod_local : value mod local
+type t_value_mod_many : value mod many
+type t_value_mod_once : value mod once
+type t_value_mod_unique : value mod unique
+type t_value_mod_shared : value mod shared
+type t_value_mod_internal : value mod internal
+type t_value_mod_external64 : value mod external64
+|}]
+
 (***************************************)
 (* Test 1: annotation on type variable *)
 
