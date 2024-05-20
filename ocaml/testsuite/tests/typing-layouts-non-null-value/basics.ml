@@ -196,6 +196,7 @@ let _ = id_non_null_value (Bytes.empty)
 - : exn = Stdlib.Exit
 - : Float.Array.t = <abstr>
 - : int iarray = [:0:]
+- : bytes = Bytes.of_string ""
 |}]
 
 (* Boxed records and variants are non-null: *)
@@ -292,4 +293,81 @@ Error: This expression has type Stdlib_stable.Int32_u.t = int32#
          it is the primitive bits32 type int32#.
        But the layout of Stdlib_stable.Int32_u.t must be a sublayout of non_null_value, because
          of the definition of id_non_null_value at line 3, characters 4-21.
+|}]
+
+module Possibly_null : sig
+  type t : value
+
+  val create : int -> t
+  val destroy : t -> int
+end = struct
+  type t = int
+
+  let create x = x
+  let destroy x = x
+end
+;;
+
+[%%expect{|
+module Possibly_null :
+  sig type t : value val create : int -> t val destroy : t -> int end
+|}]
+
+let _ = id_non_null_value (Possibly_null.create 0)
+;;
+
+[%%expect{|
+Line 1, characters 26-50:
+1 | let _ = id_non_null_value (Possibly_null.create 0)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type Possibly_null.t
+       but an expression was expected of type ('a : non_null_value)
+       The layout of Possibly_null.t is value, because
+         of the definition of t at line 2, characters 2-16.
+       But the layout of Possibly_null.t must be a sublayout of non_null_value, because
+         of the definition of id_non_null_value at line 3, characters 4-21.
+|}]
+
+type 'a single_field_record = { value : 'a } [@@unboxed]
+;;
+
+type 'a single_field_variant = Value of 'a [@@unboxed]
+
+[%%expect{|
+type 'a single_field_record = { value : 'a; } [@@unboxed]
+type 'a single_field_variant = Value of 'a [@@unboxed]
+|}]
+
+(* Single-field records and and variants inherit non-nullability. *)
+
+let _ = id_non_null_value { value = 3 }
+
+let _ = id_non_null_value { value = Possibly_null.create 1 }
+;;
+
+[%%expect{|
+- : int single_field_record = {value = 3}
+Line 3, characters 26-60:
+3 | let _ = id_non_null_value { value = Possibly_null.create 1 }
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type Possibly_null.t single_field_record
+       but an expression was expected of type ('a : non_null_value)
+       The layout of Possibly_null.t single_field_record is value, because
+         of the definition of t at line 2, characters 2-16.
+       But the layout of Possibly_null.t single_field_record must be a sublayout of non_null_value, because
+         of the definition of id_non_null_value at line 3, characters 4-21.
+|}]
+
+let _ = id_non_null_value (Value "a")
+
+let _ = id_non_null_value (Value (Possibly_null.create -1))
+;;
+
+[%%expect{|
+- : string single_field_variant = <unknown constructor>
+Line 3, characters 34-54:
+3 | let _ = id_non_null_value (Value (Possibly_null.create -1))
+                                      ^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type int -> Possibly_null.t
+       but an expression was expected of type int
 |}]
