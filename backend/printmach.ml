@@ -225,22 +225,25 @@ let operation' ?(print_reg = reg) op arg ppf res =
     let len = Array.length arg in
     fprintf ppf "csel %a ? %a : %a"
       (test tst) arg reg arg.(len-2) reg arg.(len-1)
-  | Ivalueofint -> fprintf ppf "valueofint %a" reg arg.(0)
-  | Iintofvalue -> fprintf ppf "intofvalue %a" reg arg.(0)
-  | Ivectorcast Bits128 ->
-    fprintf ppf "vec128->vec128 %a"
-    reg arg.(0)
-  | Iscalarcast Float32_as_float -> fprintf ppf "float32 as float %a" reg arg.(0)
-  | Iscalarcast (Float_of_int Float64) -> fprintf ppf "int->float %a" reg arg.(0)
-  | Iscalarcast (Float_to_int Float64) -> fprintf ppf "float->int %a" reg arg.(0)
-  | Iscalarcast (Float_of_int Float32) -> fprintf ppf "int->float32 %a" reg arg.(0)
-  | Iscalarcast (Float_to_int Float32) -> fprintf ppf "float32->int %a" reg arg.(0)
-  | Iscalarcast (Float_of_float32) -> fprintf ppf "float32->float %a" reg arg.(0)
-  | Iscalarcast (Float_to_float32) -> fprintf ppf "float->float32 %a" reg arg.(0)
-  | Iscalarcast (V128_of_scalar ty) ->
+  | Ireinterpret_cast Int_of_value -> fprintf ppf "value as int %a" reg arg.(0)
+  | Ireinterpret_cast Value_of_int -> fprintf ppf "int as value %a" reg arg.(0)
+  | Ireinterpret_cast Float32_of_float -> fprintf ppf "float as float32 %a" reg arg.(0)
+  | Ireinterpret_cast Float_of_float32 -> fprintf ppf "float32 as float %a" reg arg.(0)
+  | Ireinterpret_cast Int64_of_float -> fprintf ppf "int64 as float %a" reg arg.(0)
+  | Ireinterpret_cast Float_of_int64 -> fprintf ppf "float as int64 %a" reg arg.(0)
+  | Ireinterpret_cast Int32_of_float32 -> fprintf ppf "int32 as float32 %a" reg arg.(0)
+  | Ireinterpret_cast Float32_of_int32 -> fprintf ppf "float32 as int32 %a" reg arg.(0)
+  | Ireinterpret_cast V128_of_v128 -> fprintf ppf "vec128 as vec128 %a" reg arg.(0)
+  | Istatic_cast (Float_of_int Float64) -> fprintf ppf "int->float %a" reg arg.(0)
+  | Istatic_cast (Int_of_float Float64) -> fprintf ppf "float->int %a" reg arg.(0)
+  | Istatic_cast (Float_of_int Float32) -> fprintf ppf "int->float32 %a" reg arg.(0)
+  | Istatic_cast (Int_of_float Float32) -> fprintf ppf "float32->int %a" reg arg.(0)
+  | Istatic_cast (Float_of_float32) -> fprintf ppf "float32->float %a" reg arg.(0)
+  | Istatic_cast (Float32_of_float) -> fprintf ppf "float->float32 %a" reg arg.(0)
+  | Istatic_cast (V128_of_scalar ty) ->
     fprintf ppf "scalar->%s %a"
       (Primitive.vec128_name ty) reg arg.(0)
-  | Iscalarcast (V128_to_scalar ty) ->
+  | Istatic_cast (Scalar_of_v128 ty) ->
     fprintf ppf "%s->scalar %a"
       (Primitive.vec128_name ty) reg arg.(0)
   | Iopaque -> fprintf ppf "opaque %a" reg arg.(0)

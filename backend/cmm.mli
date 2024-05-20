@@ -183,15 +183,15 @@ type memory_chunk =
 type reinterpret_cast =
   | Int_of_value
   | Value_of_int
-  | Float_of_float32
+  | Float_of_float32 (* The high 32 bits of the float are undefined. *)
   | Float32_of_float
   | Float_of_int64
   | Int64_of_float
   | Float32_of_int32
-  | Int32_of_float32 (* Also sign-extends the int32 result. *)
+  | Int32_of_float32
   | V128_of_v128
 
-(* These casts require a particular value-preserving operation, e.g. rounding
+(* These casts may require a particular value-preserving operation, e.g. truncating
    a float to an int. *)
 type static_cast =
   | Float_of_int of float_width

@@ -284,19 +284,24 @@ let dump_op ppf = function
   | Floatop (Float32, op) ->
     Format.fprintf ppf "float32op %a" Printmach.floatop op
   | Csel _ -> Format.fprintf ppf "csel"
-  | Valueofint -> Format.fprintf ppf "valueofint"
-  | Intofvalue -> Format.fprintf ppf "intofvalue"
-  | Vectorcast Bits128 -> Format.fprintf ppf "vec128->vec128"
-  | Scalarcast Float32_as_float -> Format.fprintf ppf "float32 as float"
-  | Scalarcast (Float_of_int Float64) -> Format.fprintf ppf "int->float"
-  | Scalarcast (Float_to_int Float64) -> Format.fprintf ppf "float->int"
-  | Scalarcast (Float_of_int Float32) -> Format.fprintf ppf "int->float32"
-  | Scalarcast (Float_to_int Float32) -> Format.fprintf ppf "float32->int"
-  | Scalarcast Float_of_float32 -> Format.fprintf ppf "float32->float"
-  | Scalarcast Float_to_float32 -> Format.fprintf ppf "float->float32"
-  | Scalarcast (V128_to_scalar ty) ->
+  | Reinterpret_cast V128_of_v128 -> Format.fprintf ppf "vec128 as vec128"
+  | Reinterpret_cast Value_of_int -> Format.fprintf ppf "int as value"
+  | Reinterpret_cast Int_of_value -> Format.fprintf ppf "value as int"
+  | Reinterpret_cast Float32_of_float -> Format.fprintf ppf "float as float32"
+  | Reinterpret_cast Float_of_float32 -> Format.fprintf ppf "float32 as float"
+  | Reinterpret_cast Float_of_int64 -> Format.fprintf ppf "int64 as float"
+  | Reinterpret_cast Int64_of_float -> Format.fprintf ppf "float as int64"
+  | Reinterpret_cast Float32_of_int32 -> Format.fprintf ppf "int32 as float32"
+  | Reinterpret_cast Int32_of_float32 -> Format.fprintf ppf "float32 as int32"
+  | Static_cast (Float_of_int Float64) -> Format.fprintf ppf "int->float"
+  | Static_cast (Int_of_float Float64) -> Format.fprintf ppf "float->int"
+  | Static_cast (Float_of_int Float32) -> Format.fprintf ppf "int->float32"
+  | Static_cast (Int_of_float Float32) -> Format.fprintf ppf "float32->int"
+  | Static_cast Float_of_float32 -> Format.fprintf ppf "float32->float"
+  | Static_cast Float32_of_float -> Format.fprintf ppf "float->float32"
+  | Static_cast (Scalar_of_v128 ty) ->
     Format.fprintf ppf "%s->scalar" (Primitive.vec128_name ty)
-  | Scalarcast (V128_of_scalar ty) ->
+  | Static_cast (V128_of_scalar ty) ->
     Format.fprintf ppf "scalar->%s" (Primitive.vec128_name ty)
   | Specific _ -> Format.fprintf ppf "specific"
   | Probe_is_enabled { name } -> Format.fprintf ppf "probe_is_enabled %s" name
@@ -494,12 +499,13 @@ let is_pure_operation : operation -> bool = function
   | Intop_atomic _ -> false
   | Floatop _ -> true
   | Csel _ -> true
-  | Vectorcast _ -> true
-  | Scalarcast _ -> true
+  | Reinterpret_cast (V128_of_v128 | Float32_of_float | Float32_of_int32 |
+                      Float_of_float32 | Float_of_int64 |
+                      Int64_of_float | Int32_of_float32) -> true
+  | Static_cast _ -> true
   (* Conservative to ensure valueofint/intofvalue are not eliminated before
      emit. *)
-  | Valueofint -> false
-  | Intofvalue -> false
+  | Reinterpret_cast (Value_of_int | Int_of_value) -> false
   | Probe_is_enabled _ -> true
   | Opaque -> false
   | Begin_region -> false
@@ -543,7 +549,7 @@ let same_location (r1 : Reg.t) (r2 : Reg.t) =
 
 let is_noop_move instr =
   match instr.desc with
-  | Op (Move | Spill | Reload | Vectorcast _) ->
+  | Op (Move | Spill | Reload) ->
     same_location instr.arg.(0) instr.res.(0)
   | Op (Csel _) -> (
     match instr.res.(0).loc with
@@ -556,8 +562,8 @@ let is_noop_move instr =
   | Op
       ( Const_int _ | Const_float _ | Const_float32 _ | Const_symbol _
       | Const_vec128 _ | Stackoffset _ | Load _ | Store _ | Intop _
-      | Intop_imm _ | Intop_atomic _ | Floatop _ | Opaque | Valueofint
-      | Intofvalue | Scalarcast _ | Probe_is_enabled _ | Specific _
+      | Intop_imm _ | Intop_atomic _ | Floatop _ | Opaque
+      | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _ | Specific _
       | Name_for_debugger _ | Begin_region | End_region | Dls_get | Poll
       | Alloc _ )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->

@@ -306,8 +306,6 @@ method! select_operation op args dbg =
       Ispecific (Isimd (SSE Interleave_low_32_regs)), args
   (* Special cases overriding C implementations (regardless of [@@builtin]). *)
   | Cextcall { func = ("sqrt" as func); _ }
-  | Cextcall { func = ("caml_int64_bits_of_float_unboxed" as func); _ }
-  | Cextcall { func = ("caml_int64_float_of_bits_unboxed" as func); _ }
   (* x86 intrinsics ([@@builtin]) *)
   | Cextcall { func; builtin = true; _ } ->
       begin match func with

@@ -56,9 +56,9 @@ let if_operation_supported_bi bi op ~f =
   then None
   else if_operation_supported op ~f
 
-let int_of_value arg dbg = Cop (Cintofvalue, [arg], dbg)
+let int_of_value arg dbg = Cop (Creinterpret_cast Int_of_value, [arg], dbg)
 
-let value_of_int arg dbg = Cop (Cvalueofint, [arg], dbg)
+let value_of_int arg dbg = Cop (Creinterpret_cast Value_of_int, [arg], dbg)
 
 (* Untagging of a negative value shifts in an extra bit. The following code
    clears the shifted sign bit of an untagged int. This straightline code is
@@ -263,50 +263,50 @@ let transl_vec128_builtin name args dbg _typ_res =
   match name with
   (* Vector casts (no-ops) *)
   | "caml_vec128_cast" ->
-    let op = Cvectorcast Bits128 in
+    let op = Creinterpret_cast V128_of_v128 in
     if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
   (* Scalar casts. These leave the top bits of the vector unspecified. *)
   | "caml_float64x2_low_of_float" ->
-    let op = Cscalarcast (V128_of_scalar Float64x2) in
+    let op = Cstatic_cast (V128_of_scalar Float64x2) in
     if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
   | "caml_float64x2_low_to_float" ->
-    let op = Cscalarcast (V128_to_scalar Float64x2) in
+    let op = Cstatic_cast (Scalar_of_v128 Float64x2) in
     if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
   | "caml_float32x4_low_of_float" ->
     (* CR mslater: (SIMD) replace once we have unboxed float32 *)
-    let op = Cscalarcast (V128_of_scalar Float32x4) in
+    let op = Cstatic_cast (V128_of_scalar Float32x4) in
     if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
   | "caml_float32x4_low_to_float" ->
     (* CR mslater: (SIMD) replace once we have unboxed float32 *)
-    let op = Cscalarcast (V128_to_scalar Float32x4) in
+    let op = Cstatic_cast (Scalar_of_v128 Float32x4) in
     if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
   | "caml_int64x2_low_of_int64" ->
-    let op = Cscalarcast (V128_of_scalar Int64x2) in
+    let op = Cstatic_cast (V128_of_scalar Int64x2) in
     if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
   | "caml_int64x2_low_to_int64" ->
-    let op = Cscalarcast (V128_to_scalar Int64x2) in
+    let op = Cstatic_cast (Scalar_of_v128 Int64x2) in
     if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
   | "caml_int32x4_low_of_int32" ->
-    let op = Cscalarcast (V128_of_scalar Int32x4) in
+    let op = Cstatic_cast (V128_of_scalar Int32x4) in
     if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
   | "caml_int32x4_low_to_int32" ->
-    let op = Cscalarcast (V128_to_scalar Int32x4) in
+    let op = Cstatic_cast (Scalar_of_v128 Int32x4) in
     if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
   | "caml_int16x8_low_of_int" ->
     (* CR mslater: (SIMD) replace once we have unboxed int16 *)
-    let op = Cscalarcast (V128_of_scalar Int16x8) in
+    let op = Cstatic_cast (V128_of_scalar Int16x8) in
     if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
   | "caml_int16x8_low_to_int" ->
     (* CR mslater: (SIMD) replace once we have unboxed int16 *)
-    let op = Cscalarcast (V128_to_scalar Int16x8) in
+    let op = Cstatic_cast (Scalar_of_v128 Int16x8) in
     if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
   | "caml_int8x16_low_of_int" ->
     (* CR mslater: (SIMD) replace once we have unboxed int8 *)
-    let op = Cscalarcast (V128_of_scalar Int8x16) in
+    let op = Cstatic_cast (V128_of_scalar Int8x16) in
     if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
   | "caml_int8x16_low_to_int" ->
     (* CR mslater: (SIMD) replace once we have unboxed int8 *)
-    let op = Cscalarcast (V128_to_scalar Int8x16) in
+    let op = Cstatic_cast (Scalar_of_v128 Int8x16) in
     if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
   (* Constants *)
   | "caml_float32x4_const1" ->
@@ -405,6 +405,14 @@ let transl_vec128_builtin name args dbg _typ_res =
   tagging before the result is returned to the user. *)
 let transl_builtin name args dbg typ_res =
   match name with
+  | "caml_int64_bits_of_float_unboxed" ->
+    Some (Cop (Creinterpret_cast Int64_of_float, args, dbg))
+  | "caml_int64_float_of_bits_unboxed" ->
+    Some (Cop (Creinterpret_cast Float_of_int64, args, dbg))
+  | "caml_float32_of_bits" ->
+    Some (Cop (Creinterpret_cast Float32_of_int32, args, dbg))
+  | "caml_float32_to_bits" ->
+    Some (Cop (Creinterpret_cast Int32_of_float32, args, dbg))
   | "caml_int_clz_tagged_to_untagged" ->
     (* The tag does not change the number of leading zeros. The advantage of
        keeping the tag is it guarantees that, on x86-64, the input to the BSR
@@ -732,6 +740,11 @@ let transl_builtin name args dbg typ_res =
     bigstring_cas Thirtytwo (four_args name args) dbg
   | _ -> transl_vec128_builtin name args dbg typ_res
 
+let builtin_even_if_not_annotated = function
+  | "caml_int64_bits_of_float_unboxed"
+  | "caml_int64_float_of_bits_unboxed" -> true
+  | _ -> false
+
 let extcall ~dbg ~returns ~alloc ~is_c_builtin ~effects ~coeffects ~ty_args name
     typ_res args =
   if not returns then assert (typ_res = typ_void);
@@ -750,7 +763,7 @@ let extcall ~dbg ~returns ~alloc ~is_c_builtin ~effects ~coeffects ~ty_args name
         args,
         dbg )
   in
-  if is_c_builtin
+  if is_c_builtin || builtin_even_if_not_annotated name
   then
     match transl_builtin name args dbg typ_res with
     | Some op -> op
