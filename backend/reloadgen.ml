@@ -63,7 +63,7 @@ method reload_operation op arg res =
      res to be stack-allocated, but do something for
      stack-to-stack moves *)
   match op with
-    | Imove | Ireload | Ispill | Iintofvalue | Ivalueofint | Ivectorcast _ ->
+    | Imove | Ireload | Ispill ->
       begin match arg.(0), res.(0) with
         {loc = Stack s1}, {loc = Stack s2} ->
           if s1 = s2

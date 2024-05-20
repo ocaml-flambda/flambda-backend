@@ -158,29 +158,33 @@ method! reload_operation op arg res =
         done;
         arg'.(len - 1) <- r;
         (arg', [|r|])
-  | Iscalarcast (Float_of_int (Float32 | Float64) |
-                 Float_to_int (Float32 | Float64) |
-                 Float_of_float32 | Float_to_float32 |
-                 Float32_as_float) ->
+  | Ireinterpret_cast Int32_of_float32
+  | Istatic_cast (Float_of_int (Float32 | Float64) |
+                  Int_of_float (Float32 | Float64) |
+                  Float_of_float32 | Float32_of_float) ->
     (* Result must be in register, but argument can be on stack *)
     (arg, (if stackp res.(0) then [| self#makereg res.(0) |] else res))
-  | Iscalarcast (V128_to_scalar (Float64x2) | V128_of_scalar (Float64x2)) ->
+  | Ireinterpret_cast (Int_of_value | Value_of_int |
+                       Float_of_float32 | Float32_of_float |
+                       Float_of_int64 | Int64_of_float |
+                       Float32_of_int32 | V128_of_v128)
+  | Istatic_cast (Scalar_of_v128 (Float64x2) | V128_of_scalar (Float64x2)) ->
     (* These are just moves; either the argument or result may be on the stack. *)
     begin match stackp arg.(0), stackp res.(0) with
     | true, true -> ([| self#makereg arg.(0) |], res)
     | _ -> (arg, res)
     end
-  | Iscalarcast (V128_to_scalar (Float32x4) | V128_of_scalar (Float32x4)) ->
+  | Istatic_cast (Scalar_of_v128 (Float32x4) | V128_of_scalar (Float32x4)) ->
     (* These do additional logic requiring the result to be a register.
        CR mslater: (SIMD) replace once we have unboxed float32 *)
     (arg, [| self#makereg res.(0) |])
-  | Iscalarcast (V128_of_scalar (Int64x2 | Int32x4 | Int16x8 | Int8x16)) ->
+  | Istatic_cast (V128_of_scalar (Int64x2 | Int32x4 | Int16x8 | Int8x16)) ->
     (* Int -> Vec regs need the result to be a register. *)
     (arg, [| self#makereg res.(0) |])
-  | Iscalarcast (V128_to_scalar (Int64x2 | Int32x4)) ->
+  | Istatic_cast (Scalar_of_v128 (Int64x2 | Int32x4)) ->
     (* Vec -> Int regs need the argument to be a register. *)
     ([| self#makereg arg.(0) |], res)
-  | Iscalarcast (V128_to_scalar (Int16x8 | Int8x16)) ->
+  | Istatic_cast (Scalar_of_v128 (Int16x8 | Int8x16)) ->
     (* These do additional logic requiring the result to be a register.
        CR mslater: (SIMD) replace once we have unboxed int16/int8 *)
     ([| self#makereg arg.(0) |], [| self#makereg res.(0) |])
@@ -196,10 +200,9 @@ method! reload_operation op arg res =
   | Icall_ind|Icall_imm _|Ifloatop (_,(Icompf _|Inegf|Iabsf))
   | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload _
   | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
-  | Ivalueofint | Iintofvalue | Iopaque | Ivectorcast _
-  | Ibeginregion | Iendregion | Ipoll _ | Idls_get
+  | Iopaque | Ibeginregion | Iendregion | Ipoll _ | Idls_get
     -> (* Other operations: all args and results in registers,
-          except moves, probes, and vector casts. *)
+          except moves and probes. *)
       super#reload_operation op arg res
 
 method! reload_test tst arg =

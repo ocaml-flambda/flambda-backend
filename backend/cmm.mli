@@ -178,18 +178,28 @@ type memory_chunk =
   | Onetwentyeight_unaligned           (* word-aligned 128-bit vector *)
   | Onetwentyeight_aligned             (* 16-byte-aligned 128-bit vector *)
 
-type vector_cast =
-  | Bits128
-
-type scalar_cast =
-  (* CR mslater: move all bit-casts into a reinterpret_cast type *)
-  | Float32_as_float
-  | Float_to_int of float_width
-  | Float_of_int of float_width
-  | Float_to_float32
+(* These casts compile to a single move instruction. If the operands are assigned
+   the same physical register, the move will be omitted entirely. *)
+type reinterpret_cast =
+  | Int_of_value
+  | Value_of_int
   | Float_of_float32
-  | V128_to_scalar of Primitive.vec128_type
+  | Float32_of_float
+  | Float_of_int64
+  | Int64_of_float
+  | Float32_of_int32
+  | Int32_of_float32 (* Also sign-extends the int32 result. *)
+  | V128_of_v128
+
+(* These casts require a particular value-preserving operation, e.g. rounding
+   a float to an int. *)
+type static_cast =
+  | Float_of_int of float_width
+  | Int_of_float of float_width
+  | Float_of_float32
+  | Float32_of_float
   | V128_of_scalar of Primitive.vec128_type
+  | Scalar_of_v128 of Primitive.vec128_type
 
 type operation =
     Capply of machtype * Lambda.region_close
@@ -231,9 +241,8 @@ type operation =
   | Caddf of float_width | Csubf of float_width
   | Cmulf of float_width | Cdivf of float_width
   | Cpackf32
-  | Cvalueofint | Cintofvalue
-  | Cvectorcast of vector_cast
-  | Cscalarcast of scalar_cast
+  | Creinterpret_cast of reinterpret_cast
+  | Cstatic_cast of static_cast
   | Ccmpf of float_width * float_comparison
   | Craise of Lambda.raise_kind
   | Cprobe of { name: string; handler_code_sym: string; enabled_at_init: bool }
@@ -396,7 +405,8 @@ val map_shallow: (expression -> expression) -> expression -> expression
 
 val equal_machtype_component : machtype_component -> machtype_component -> bool
 val equal_exttype : exttype -> exttype -> bool
-val equal_scalar_cast : scalar_cast -> scalar_cast -> bool
+val equal_static_cast : static_cast -> static_cast -> bool
+val equal_reinterpret_cast : reinterpret_cast -> reinterpret_cast -> bool
 val equal_float_width : float_width -> float_width -> bool
 val equal_float_comparison : float_comparison -> float_comparison -> bool
 val equal_memory_chunk : memory_chunk -> memory_chunk -> bool

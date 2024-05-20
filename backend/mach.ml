@@ -93,9 +93,8 @@ type operation =
                        addr : Arch.addressing_mode }
   | Ifloatop of float_width * float_operation
   | Icsel of test
-  | Ivalueofint | Iintofvalue
-  | Ivectorcast of Cmm.vector_cast
-  | Iscalarcast of Cmm.scalar_cast
+  | Ireinterpret_cast of Cmm.reinterpret_cast
+  | Istatic_cast of Cmm.static_cast
   | Iopaque
   | Ispecific of Arch.specific_operation
   | Ipoll of { return_label: Cmm.label option }
@@ -199,8 +198,7 @@ let rec instr_iter f i =
             | Iload _ | Istore _ | Ialloc _
             | Iintop _ | Iintop_imm _ | Iintop_atomic _
             | Ifloatop _
-            | Icsel _ | Iscalarcast _
-            | Ivalueofint | Iintofvalue | Ivectorcast _
+            | Icsel _ | Ireinterpret_cast _ | Istatic_cast _
             | Ispecific _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
             | Iopaque
             | Ibeginregion | Iendregion | Ipoll _ | Idls_get) ->
@@ -212,7 +210,7 @@ let operation_is_pure = function
   | Idls_get
   | Iopaque
   (* Conservative to ensure valueofint/intofvalue are not eliminated before emit. *)
-  | Ivalueofint | Iintofvalue | Iintop_atomic _ -> false
+  | Ireinterpret_cast (Value_of_int | Int_of_value) | Iintop_atomic _ -> false
   | Ibeginregion | Iendregion -> false
   | Iprobe _ -> false
   | Iprobe_is_enabled _-> true
@@ -223,7 +221,13 @@ let operation_is_pure = function
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
   | Imove | Ispill | Ireload | Ifloatop _
   | Icsel _
-  | Ivectorcast _ | Iscalarcast _
+  | Ireinterpret_cast (Float32_of_float | Float_of_float32 |
+                       Int64_of_float | Float_of_int64 |
+                       Int32_of_float32 | Float32_of_int32 |
+                       V128_of_v128)
+  | Istatic_cast (Float_of_int _ | Int_of_float _ |
+                  Float_of_float32 | Float32_of_float |
+                  Scalar_of_v128 _ | V128_of_scalar _)
   | Iconst_int _ | Iconst_float _ | Iconst_float32 _
   | Iconst_symbol _ | Iconst_vec128 _
   | Iload _ -> true
@@ -241,8 +245,7 @@ let operation_can_raise op =
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
   | Iintop_atomic _
   | Imove | Ispill | Ireload | Ifloatop _
-  | Icsel _ | Iscalarcast _
-  | Ivalueofint | Iintofvalue | Ivectorcast _
+  | Icsel _ | Ireinterpret_cast _ | Istatic_cast _
   | Iconst_int _ | Iconst_float _ | Iconst_float32 _
   | Iconst_symbol _ | Iconst_vec128 _
   | Istackoffset _ | Istore _  | Iload _ | Iname_for_debugger _

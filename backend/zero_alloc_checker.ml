@@ -2120,7 +2120,14 @@ end = struct
     match op with
     | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _
     | Iconst_float32 _ | Iconst_symbol _ | Iconst_vec128 _ | Iload _
-    | Ifloatop _ | Ivectorcast _ | Iscalarcast _
+    | Ifloatop _
+    | Ireinterpret_cast (Float32_of_float | Float_of_float32 |
+                         Float_of_int64 | Int64_of_float |
+                         Float32_of_int32 | Int32_of_float32 |
+                         V128_of_v128)
+    | Istatic_cast (Float_of_int _ | Int_of_float _ |
+                    Float_of_float32 | Float32_of_float |
+                    Scalar_of_v128 _ | V128_of_scalar _)
     | Iintop_imm
         ( ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ ),
@@ -2132,7 +2139,7 @@ end = struct
       assert (Mach.operation_is_pure op);
       assert (not (Mach.operation_can_raise op));
       next
-    | Iname_for_debugger _ | Ivalueofint | Iintofvalue ->
+    | Iname_for_debugger _ | Ireinterpret_cast (Int_of_value | Value_of_int) ->
       assert (not (Mach.operation_can_raise op));
       next
     | Istackoffset _ | Iprobe_is_enabled _ | Iopaque | Ibeginregion | Iendregion

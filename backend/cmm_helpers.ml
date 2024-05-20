@@ -3646,17 +3646,17 @@ let unary op ~dbg x = Cop (op, [x], dbg)
 
 let binary op ~dbg x y = Cop (op, [x; y], dbg)
 
-let int_of_float = unary (Cscalarcast (Float_to_int Float64))
+let int_of_float = unary (Cstatic_cast (Int_of_float Float64))
 
-let float_of_int = unary (Cscalarcast (Float_of_int Float64))
+let float_of_int = unary (Cstatic_cast (Float_of_int Float64))
 
-let int_of_float32 = unary (Cscalarcast (Float_to_int Float32))
+let int_of_float32 = unary (Cstatic_cast (Int_of_float Float32))
 
-let float32_of_int = unary (Cscalarcast (Float_of_int Float32))
+let float32_of_int = unary (Cstatic_cast (Float_of_int Float32))
 
-let float32_of_float = unary (Cscalarcast Float_to_float32)
+let float32_of_float = unary (Cstatic_cast Float32_of_float)
 
-let float_of_float32 = unary (Cscalarcast Float_of_float32)
+let float_of_float32 = unary (Cstatic_cast Float_of_float32)
 
 let lsl_int_caml_raw ~dbg arg1 arg2 =
   incr_int (lsl_int (decr_int arg1 dbg) arg2 dbg) dbg
@@ -4061,8 +4061,8 @@ let make_unboxed_float32_array_payload dbg unboxed_float32_list =
       let i =
         Cop
           ( Cpackf32,
-            [ Cop (Cscalarcast Float32_as_float, [a], dbg);
-              Cop (Cscalarcast Float32_as_float, [b], dbg) ],
+            [ Cop (Creinterpret_cast Float_of_float32, [a], dbg);
+              Cop (Creinterpret_cast Float_of_float32, [b], dbg) ],
             dbg )
       in
       aux (i :: acc) r

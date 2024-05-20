@@ -231,20 +231,24 @@ let operation d = function
   | Cpackf32 -> "packf32"
   | Ccsel ret_typ ->
     to_string "csel %a" machtype ret_typ
-  | Cvalueofint -> "valueofint"
-  | Cintofvalue -> "intofvalue"
-  | Cvectorcast Bits128 ->
-    Printf.sprintf "vec128->vec128"
-  | Cscalarcast Float32_as_float -> "float32 as float"
-  | Cscalarcast (Float_to_int Float64) -> "float->int"
-  | Cscalarcast (Float_of_int Float64) -> "int->float"
-  | Cscalarcast (Float_to_int Float32) -> "float32->int"
-  | Cscalarcast (Float_of_int Float32) -> "int->float32"
-  | Cscalarcast (Float_to_float32) -> "float->float32"
-  | Cscalarcast (Float_of_float32) -> "float32->float"
-  | Cscalarcast (V128_to_scalar ty) ->
+  | Creinterpret_cast V128_of_v128 -> "vec128 as vec128"
+  | Creinterpret_cast Value_of_int -> "int as value"
+  | Creinterpret_cast Int_of_value -> "value as int"
+  | Creinterpret_cast Float32_of_float -> "float as float32"
+  | Creinterpret_cast Float_of_float32 -> "float32 as float"
+  | Creinterpret_cast Float_of_int64 -> "int64 as float"
+  | Creinterpret_cast Int64_of_float -> "float as int64"
+  | Creinterpret_cast Float32_of_int32 -> "int32 as float32"
+  | Creinterpret_cast Int32_of_float32 -> "float32 as int32"
+  | Cstatic_cast (Int_of_float Float64) -> "float->int"
+  | Cstatic_cast (Float_of_int Float64) -> "int->float"
+  | Cstatic_cast (Int_of_float Float32) -> "float32->int"
+  | Cstatic_cast (Float_of_int Float32) -> "int->float32"
+  | Cstatic_cast Float32_of_float -> "float->float32"
+  | Cstatic_cast Float_of_float32 -> "float32->float"
+  | Cstatic_cast (Scalar_of_v128 ty) ->
     Printf.sprintf "%s->scalar" (Primitive.vec128_name ty)
-  | Cscalarcast (V128_of_scalar ty) ->
+  | Cstatic_cast (V128_of_scalar ty) ->
     Printf.sprintf "scalar->%s" (Primitive.vec128_name ty)
   | Ccmpf (Float64, c) -> Printf.sprintf "%sf" (float_comparison c)
   | Ccmpf (Float32, c) -> Printf.sprintf "%sf32" (float_comparison c)
