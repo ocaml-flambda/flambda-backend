@@ -741,8 +741,8 @@ let transl_builtin name args dbg typ_res =
   | _ -> transl_vec128_builtin name args dbg typ_res
 
 let builtin_even_if_not_annotated = function
-  | "caml_int64_bits_of_float_unboxed"
-  | "caml_int64_float_of_bits_unboxed" -> true
+  | "caml_int64_bits_of_float_unboxed" | "caml_int64_float_of_bits_unboxed" ->
+    true
   | _ -> false
 
 let extcall ~dbg ~returns ~alloc ~is_c_builtin ~effects ~coeffects ~ty_args name

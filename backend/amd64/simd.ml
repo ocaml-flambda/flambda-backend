@@ -707,7 +707,8 @@ let print_operation_sse2 printreg op ppf arg =
   | Cmpgt_i8 -> fprintf ppf "cmpgt_i8 %a %a" printreg arg.(0) printreg arg.(1)
   | Cmpgt_i16 -> fprintf ppf "cmpgt_i16 %a %a" printreg arg.(0) printreg arg.(1)
   | Cmpgt_i32 -> fprintf ppf "cmpgt_i32 %a %a" printreg arg.(0) printreg arg.(1)
-  | Round_current_f64_i64 -> fprintf ppf "round_current_f64_i64 %a" printreg arg.(0)
+  | Round_current_f64_i64 ->
+    fprintf ppf "round_current_f64_i64 %a" printreg arg.(0)
   | I32_to_f64 -> fprintf ppf "i32_to_f64 %a" printreg arg.(0)
   | I32_to_f32 -> fprintf ppf "i32_to_f32 %a" printreg arg.(0)
   | F64_to_i32 -> fprintf ppf "f64_to_i32 %a" printreg arg.(0)

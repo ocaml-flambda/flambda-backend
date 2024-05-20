@@ -624,10 +624,10 @@ module Stack_offset_and_exn = struct
     | Op
         ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_float32 _
         | Const_symbol _ | Const_vec128 _ | Load _ | Store _ | Intop _
-        | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _
-        | Static_cast _ | Reinterpret_cast _ | Probe_is_enabled _ | Opaque
-        | Begin_region | End_region | Specific _ | Name_for_debugger _ | Dls_get
-        | Poll | Alloc _ )
+        | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Static_cast _
+        | Reinterpret_cast _ | Probe_is_enabled _ | Opaque | Begin_region
+        | End_region | Specific _ | Name_for_debugger _ | Dls_get | Poll
+        | Alloc _ )
     | Reloadretaddr | Prologue ->
       stack_offset, traps
     | Stack_check _ ->

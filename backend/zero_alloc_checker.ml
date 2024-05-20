@@ -2121,13 +2121,12 @@ end = struct
     | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _
     | Iconst_float32 _ | Iconst_symbol _ | Iconst_vec128 _ | Iload _
     | Ifloatop _
-    | Ireinterpret_cast (Float32_of_float | Float_of_float32 |
-                         Float_of_int64 | Int64_of_float |
-                         Float32_of_int32 | Int32_of_float32 |
-                         V128_of_v128)
-    | Istatic_cast (Float_of_int _ | Int_of_float _ |
-                    Float_of_float32 | Float32_of_float |
-                    Scalar_of_v128 _ | V128_of_scalar _)
+    | Ireinterpret_cast
+        ( Float32_of_float | Float_of_float32 | Float_of_int64 | Int64_of_float
+        | Float32_of_int32 | Int32_of_float32 | V128_of_v128 )
+    | Istatic_cast
+        ( Float_of_int _ | Int_of_float _ | Float_of_float32 | Float32_of_float
+        | Scalar_of_v128 _ | V128_of_scalar _ )
     | Iintop_imm
         ( ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ ),

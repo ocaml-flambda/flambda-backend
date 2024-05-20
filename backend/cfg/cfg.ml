@@ -499,9 +499,10 @@ let is_pure_operation : operation -> bool = function
   | Intop_atomic _ -> false
   | Floatop _ -> true
   | Csel _ -> true
-  | Reinterpret_cast (V128_of_v128 | Float32_of_float | Float32_of_int32 |
-                      Float_of_float32 | Float_of_int64 |
-                      Int64_of_float | Int32_of_float32) -> true
+  | Reinterpret_cast
+      ( V128_of_v128 | Float32_of_float | Float32_of_int32 | Float_of_float32
+      | Float_of_int64 | Int64_of_float | Int32_of_float32 ) ->
+    true
   | Static_cast _ -> true
   (* Conservative to ensure valueofint/intofvalue are not eliminated before
      emit. *)
@@ -549,8 +550,7 @@ let same_location (r1 : Reg.t) (r2 : Reg.t) =
 
 let is_noop_move instr =
   match instr.desc with
-  | Op (Move | Spill | Reload) ->
-    same_location instr.arg.(0) instr.res.(0)
+  | Op (Move | Spill | Reload) -> same_location instr.arg.(0) instr.res.(0)
   | Op (Csel _) -> (
     match instr.res.(0).loc with
     | Unknown -> false
@@ -562,10 +562,9 @@ let is_noop_move instr =
   | Op
       ( Const_int _ | Const_float _ | Const_float32 _ | Const_symbol _
       | Const_vec128 _ | Stackoffset _ | Load _ | Store _ | Intop _
-      | Intop_imm _ | Intop_atomic _ | Floatop _ | Opaque
-      | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _ | Specific _
-      | Name_for_debugger _ | Begin_region | End_region | Dls_get | Poll
-      | Alloc _ )
+      | Intop_imm _ | Intop_atomic _ | Floatop _ | Opaque | Reinterpret_cast _
+      | Static_cast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
+      | Begin_region | End_region | Dls_get | Poll | Alloc _ )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
     false
 
