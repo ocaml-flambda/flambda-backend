@@ -28,11 +28,12 @@
 
 static const mlsize_t mlsize_t_max = -1;
 
-#define Max_array_wosize                   (Max_wosize - 1)
+#define Max_array_wosize                   (Max_wosize)
+#define Max_custom_array_wosize            (Max_wosize - 1)
 #define Max_unboxed_float_array_wosize     (Max_array_wosize / (sizeof(double) / sizeof(intnat)))
-#define Max_unboxed_int64_array_wosize     (Max_array_wosize / (sizeof(int64_t) / sizeof(intnat)))
-#define Max_unboxed_int32_array_wosize     (Max_array_wosize * (sizeof(intnat) / sizeof(int32_t)))
-#define Max_unboxed_nativeint_array_wosize (Max_array_wosize)
+#define Max_unboxed_int64_array_wosize     (Max_custom_array_wosize / (sizeof(int64_t) / sizeof(intnat)))
+#define Max_unboxed_int32_array_wosize     (Max_custom_array_wosize * (sizeof(intnat) / sizeof(int32_t)))
+#define Max_unboxed_nativeint_array_wosize (Max_custom_array_wosize)
 
 /* Unboxed arrays */
 
