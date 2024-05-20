@@ -1,9 +1,8 @@
 (* TEST
  flags = "-extension comprehensions";
- include stdlib_stable;
 *)
 
-module Iarray = Stdlib_stable.Iarray
+module Iarray = Stdlib__Iarray
 
 (******************************************************************************
  *                        ******** ATTENTION! ********                        *
