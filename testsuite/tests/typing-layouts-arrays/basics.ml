@@ -2,12 +2,13 @@
  include stable;
  flambda2;
  {
-   flags = "-extension layouts_alpha";
+   flags = "-extension layouts_alpha -extension small_numbers";
    expect;
  }{
-   flags = "-extension layouts_beta";
+   flags = "-extension layouts_beta -extension small_numbers";
    expect;
  }{
+   flags = "-extension small_numbers";
    expect;
  }
 *)
@@ -24,12 +25,14 @@ type t2 = int32# array
 type t3 = int64# array
 type t4 = nativeint# array
 type t5 = t_any array
+type t6 = float32# array
 
 type ('a : float64) t1' = 'a array
 type ('a : bits32) t2' = 'a array
 type ('a : bits64) t3' = 'a array
 type ('a : word) t4' = 'a array
 type ('a : any) t5' = 'a array
+type ('a : float32) t6' = 'a array
 
 [%%expect{|
 type t_any : any
@@ -38,11 +41,13 @@ type t2 = int32# array
 type t3 = int64# array
 type t4 = nativeint# array
 type t5 = t_any array
+type t6 = float32# array
 type ('a : float64) t1' = 'a array
 type ('a : bits32) t2' = 'a array
 type ('a : bits64) t3' = 'a array
 type ('a : word) t4' = 'a array
 type ('a : any) t5' = 'a array
+type ('a : float32) t6' = 'a array
 |}];;
 
 (*****************************)
@@ -69,6 +74,11 @@ val v3 : int64# array = [|<abstr>|]
 let v4 = [| #1n |]
 [%%expect{|
 val v4 : nativeint# array = [|<abstr>|]
+|}];;
+
+let v5 = [| #1.s |]
+[%%expect{|
+val v5 : float32# array = [|<abstr>|]
 |}];;
 
 (****************************************)
@@ -176,6 +186,18 @@ Error: Floatarray primitives can't be used on arrays containing
        unboxed types.
 |}];;
 
+external get : float32# array -> int -> float = "%floatarray_safe_get"
+let d (x : float32# array) = get x 0
+
+[%%expect{|
+external get : float32# array -> int -> float = "%floatarray_safe_get"
+Line 2, characters 29-36:
+2 | let d (x : float32# array) = get x 0
+                                 ^^^^^^^
+Error: Floatarray primitives can't be used on arrays containing
+       unboxed types.
+|}];;
+
 (**************************)
 (* Test 5: [@layout_poly] *)
 
@@ -184,6 +206,7 @@ let f1 (x : float# array) = get x 0
 let f2 (x : int32# array) = get x 0
 let f3 (x : int64# array) = get x 0
 let f4 (x : nativeint# array) = get x 0
+let f5 (x : float32# array) = get x 0
 
 [%%expect{|
 external get : ('a : any). 'a array -> int -> 'a = "%array_safe_get"
@@ -192,6 +215,7 @@ val f1 : float# array -> float# = <fun>
 val f2 : int32# array -> int32# = <fun>
 val f3 : int64# array -> int64# = <fun>
 val f4 : nativeint# array -> nativeint# = <fun>
+val f5 : float32# array -> float32# = <fun>
 |}];;
 
 external[@layout_poly] set : ('a : any). 'a array -> int -> 'a -> unit = "%array_safe_set"
@@ -199,6 +223,7 @@ let f1 (x : float# array) v = set x 0 v
 let f2 (x : int32# array) v = set x 0 v
 let f3 (x : int64# array) v = set x 0 v
 let f4 (x : nativeint# array) v = set x 0 v
+let f5 (x : float32# array) v = set x 0 v
 
 [%%expect{|
 external set : ('a : any). 'a array -> int -> 'a -> unit = "%array_safe_set"
@@ -207,6 +232,7 @@ val f1 : float# array -> float# -> unit = <fun>
 val f2 : int32# array -> int32# -> unit = <fun>
 val f3 : int64# array -> int64# -> unit = <fun>
 val f4 : nativeint# array -> nativeint# -> unit = <fun>
+val f5 : float32# array -> float32# -> unit = <fun>
 |}]
 
 (***********************************)
@@ -276,6 +302,17 @@ Error: This kind of expression is not allowed as right-hand side of `let rec'
 |}]
 
 let _ =
+  let[@warning "-10"] rec x = [| x |]; #42l in
+  ();;
+
+[%%expect{|
+Line 2, characters 30-43:
+2 |   let[@warning "-10"] rec x = [| x |]; #42l in
+                                  ^^^^^^^^^^^^^
+Error: This kind of expression is not allowed as right-hand side of `let rec'
+|}]
+
+let _ =
   let[@warning "-10"] rec x = [| x |]; #42L in
   ();;
 
@@ -283,5 +320,27 @@ let _ =
 Line 2, characters 30-43:
 2 |   let[@warning "-10"] rec x = [| x |]; #42L in
                                   ^^^^^^^^^^^^^
+Error: This kind of expression is not allowed as right-hand side of `let rec'
+|}]
+
+let _ =
+  let[@warning "-10"] rec x = [| x |]; #42n in
+  ();;
+
+[%%expect{|
+Line 2, characters 30-43:
+2 |   let[@warning "-10"] rec x = [| x |]; #42n in
+                                  ^^^^^^^^^^^^^
+Error: This kind of expression is not allowed as right-hand side of `let rec'
+|}]
+
+let _ =
+  let[@warning "-10"] rec x = [| x |]; #42.0s in
+  ();;
+
+[%%expect{|
+Line 2, characters 30-45:
+2 |   let[@warning "-10"] rec x = [| x |]; #42.0s in
+                                  ^^^^^^^^^^^^^^^
 Error: This kind of expression is not allowed as right-hand side of `let rec'
 |}]
