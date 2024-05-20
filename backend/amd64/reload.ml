@@ -170,6 +170,10 @@ method! reload_operation op arg res =
     | true, true -> ([| self#makereg arg.(0) |], res)
     | _ -> (arg, res)
     end
+  | Istatic_cast (V128_of_scalar Float32x4 | Scalar_of_v128 Float32x4) ->
+    (* These do additional logic requiring the result to be a register.
+       CR mslater: (SIMD) replace once we have unboxed float32 *)
+    (arg, [| self#makereg res.(0) |])
   | Ireinterpret_cast (Float_of_int64 | Float32_of_int32)
   | Istatic_cast (V128_of_scalar (Int64x2 | Int32x4 | Int16x8 | Int8x16)) ->
     (* Int -> Vec regs need the result to be a register. *)
@@ -178,11 +182,10 @@ method! reload_operation op arg res =
   | Istatic_cast (Scalar_of_v128 (Int64x2 | Int32x4)) ->
     (* Vec -> Int regs need the argument to be a register. *)
     ([| self#makereg arg.(0) |], res)
-  | Istatic_cast (Scalar_of_v128 (Float32x4) | V128_of_scalar (Float32x4))
   | Istatic_cast (Scalar_of_v128 (Int16x8 | Int8x16)) ->
     (* These do additional logic requiring the result to be a register.
-       CR mslater: (SIMD) replace once we have unboxed float32/int16/int8 *)
-    (arg, [| self#makereg res.(0) |])
+       CR mslater: (SIMD) replace once we have unboxed int16/int8 *)
+    ([| self#makereg arg.(0) |], [| self#makereg res.(0) |])
   | Iintop (Ipopcnt | Iclz _| Ictz _)
   | Iintop_atomic _
   | Ireinterpret_cast (Value_of_int | Int_of_value)
