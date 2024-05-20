@@ -178,16 +178,21 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
       may_use_stack_operand_for_second_argument map instr ~num_args:3 ~res_is_fst:true
     | R_to_RM -> may_use_stack_operand_for_result map instr ~num_args:1
     | RM_to_R -> may_use_stack_operand_for_only_argument map instr ~has_result:true)
-  | Op (Reinterpret_cast (Float_of_float32 | Float_of_int64 |
-                          Float32_of_float | Float32_of_int32 |
-                          Int32_of_float32 | Int64_of_float | V128_of_v128))
-  | Op (Static_cast (V128_of_scalar (Float64x2 | Int64x2 | Int32x4 | Int16x8 | Int8x16)))
-  | Op (Static_cast (Scalar_of_v128 (Float64x2 | Int64x2 | Int32x4))) ->
+  | Op (Reinterpret_cast (Float_of_float32 | Float32_of_float | V128_of_v128))
+  | Op (Static_cast (V128_of_scalar Float64x2 | Scalar_of_v128 Float64x2)) ->
     unary_operation_argument_or_result_on_stack map instr
-  | Op (Static_cast (Scalar_of_v128 Float32x4 | V128_of_scalar Float32x4))
-  | Op (Static_cast (Scalar_of_v128 (Int16x8 | Int8x16))) ->
-    (* CR mslater: (SIMD) replace once we have unboxed float32/int16/int8 *)
+  | Op (Static_cast (V128_of_scalar Float32x4 | Scalar_of_v128 Float32x4)) ->
+    (* CR mslater: (SIMD) replace once we have unboxed float32 *)
     may_use_stack_operand_for_only_argument map instr ~has_result:true
+  | Op (Reinterpret_cast (Float_of_int64 | Float32_of_int32))
+  | Op (Static_cast (V128_of_scalar (Int64x2 | Int32x4 | Int16x8 | Int8x16))) ->
+    may_use_stack_operand_for_only_argument map instr ~has_result:true
+  | Op (Reinterpret_cast (Int64_of_float | Int32_of_float32))
+  | Op (Static_cast (Scalar_of_v128 (Int64x2 | Int32x4))) ->
+    may_use_stack_operand_for_result map instr ~num_args:1
+  | Op (Static_cast (Scalar_of_v128 (Int16x8 | Int8x16))) ->
+    (* CR mslater: (SIMD) replace once we have unboxed int16/int8 *)
+    May_still_have_spilled_registers
   | Op (Static_cast (Float_of_int (Float32 | Float64) |
                      Int_of_float (Float32 | Float64) |
                      Float_of_float32 | Float32_of_float)) ->
