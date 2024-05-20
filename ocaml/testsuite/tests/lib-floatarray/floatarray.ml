@@ -66,7 +66,7 @@ module Float_array : S = struct
   let map_from_array f a = map f a
   let mem_ieee x a = exists ((=) x) a
   type t = float array
-  let max_length = Sys.max_array_length
+  let max_length = Sys.max_floatarray_length
 end
 
 module Test (A : S) : sig end = struct

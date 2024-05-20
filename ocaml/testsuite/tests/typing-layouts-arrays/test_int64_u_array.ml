@@ -32,7 +32,7 @@ module Int64_array : Test_gen_u_array.S = struct
   type t = element_t array
   let map_to_array f a = map f a
   let map_from_array f a = map f a
-  let max_length = Sys.max_array_length
+  let max_length = Sys.max_unboxed_int64_array_length
   let equal = for_all2 (fun x y -> x = y)
   module I = Int64_I
 end
