@@ -289,6 +289,7 @@ let array_kind ~space ppf (ak : array_kind) =
     | Values -> None
     | Immediates -> Some "imm"
     | Naked_floats -> Some "float"
+    | Naked_float32s -> Some "float32"
     | Naked_int32s -> Some "int32"
     | Naked_int64s -> Some "int64"
     | Naked_nativeints -> Some "nativeint"

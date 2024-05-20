@@ -157,6 +157,7 @@ module With_subkind : sig
       | Immediate_array
       | Value_array
       | Generic_array
+      | Unboxed_float32_array
       | Unboxed_int32_array
       | Unboxed_int64_array
       | Unboxed_nativeint_array

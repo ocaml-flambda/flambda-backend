@@ -462,9 +462,10 @@ let array_set_kind_of_array_kind :
   | Immediates, _ -> Immediates
   | Naked_floats, _ -> Naked_floats
   | Values, ia -> Values (init_or_assign env ia)
-  | (Naked_int32s | Naked_int64s | Naked_nativeints), _ ->
+  | (Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints), _ ->
     Misc.fatal_error
-      "fexpr support for unboxed int32/64/nativeint arrays not yet implemented"
+      "fexpr support for unboxed float32/int32/64/nativeint arrays not yet \
+       implemented"
 
 let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
   match ternop with

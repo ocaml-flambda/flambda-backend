@@ -1046,7 +1046,8 @@ let emit_simd_instr op i =
   | SSE High_64_to_low_64 -> I.movhlps (arg i 1) (res i 0)
   | SSE Low_64_to_high_64 -> I.movlhps (arg i 1) (res i 0)
   | SSE Interleave_high_32 -> I.unpckhps (arg i 1) (res i 0)
-  | SSE Interleave_low_32 -> I.unpcklps (arg i 1) (res i 0)
+  | SSE (Interleave_low_32 | Interleave_low_32_regs) ->
+    I.unpcklps (arg i 1) (res i 0)
   | SSE Movemask_32 -> I.movmskps (arg i 0) (res i 0)
   | SSE (Shuffle_32 n) -> I.shufps (X86_dsl.int n) (arg i 1) (res i 0)
   | SSE2 Max_scalar_f64 -> I.maxsd (arg i 1) (res i 0)
@@ -1568,6 +1569,8 @@ let emit_instr ~first ~fallthrough i =
       instr_for_floatop width floatop (arg i 1) (res i 0)
   | Lop(Iintofvalue | Ivalueofint | Ivectorcast Bits128) ->
       move i.arg.(0) i.res.(0)
+  | Lop(Iscalarcast Float32_as_float) ->
+      I.movss (arg i 0) (res i 0)
   | Lop(Iscalarcast (Float_of_int Float64)) ->
       I.cvtsi2sd  (arg i 0)  (res i 0)
   | Lop(Iscalarcast (Float_to_int Float64)) ->
