@@ -1,5 +1,6 @@
 (* TEST
- flags = "-extension layouts_alpha";
+ flags = "-extension-universe alpha";
+ include stdlib_stable;
  expect;
 *)
 type t_non_null_value : non_null_value
@@ -172,6 +173,14 @@ let _ = id_non_null_value [| 3.; 8. |]
 let _ = id_non_null_value 4L
 
 let _ = id_non_null_value 15n
+
+let _ = id_non_null_value Exit
+
+let _ = id_non_null_value (Float.Array.create 2)
+
+let _ = id_non_null_value [:0:]
+
+let _ = id_non_null_value (Bytes.empty)
 ;;
 
 [%%expect{|
@@ -184,6 +193,9 @@ let _ = id_non_null_value 15n
 - : float array = [|3.; 8.|]
 - : int64 = 4L
 - : nativeint = 15n
+- : exn = Stdlib.Exit
+- : Float.Array.t = <abstr>
+- : int iarray = [:0:]
 |}]
 
 (* Boxed records and variants are non-null: *)
@@ -211,25 +223,73 @@ type t2 = A | B of char
 |}]
 
 (* Functions are non-null: *)
+module M1 = struct
+  [@@@warning "-5"]
 
-let _ = id_non_null_value (fun x -> x)
+  let foo = id_non_null_value (fun x -> x)
 
-let _ = id_non_null_value (fun (_ : float#) -> 2)
+  let bar = id_non_null_value (fun (_ : float#) -> 2)
+end
 ;;
 
 [%%expect{|
-Line 1, characters 8-38:
-1 | let _ = id_non_null_value (fun x -> x)
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Warning 5 [ignored-partial-application]: this function application is partial,
-maybe some arguments are missing.
+module M1 : sig val foo : '_weak1 -> '_weak1 val bar : float# -> int end
+|}]
 
-- : '_weak1 -> '_weak1 = <fun>
-Line 3, characters 8-49:
-3 | let _ = id_non_null_value (fun (_ : float#) -> 2)
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Warning 5 [ignored-partial-application]: this function application is partial,
-maybe some arguments are missing.
+(* CR layouts v3.0: objects should be non-null. *)
 
-- : float# -> int = <fun>
+let _ = id_non_null_value (object val foo = () end)
+;;
+
+[%%expect{|
+Line 1, characters 26-51:
+1 | let _ = id_non_null_value (object val foo = () end)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type <  > but an expression was expected of type
+         ('a : non_null_value)
+       The layout of <  > is value, because
+         it's the type of an object.
+       But the layout of <  > must be a sublayout of non_null_value, because
+         of the definition of id_non_null_value at line 3, characters 4-21.
+|}]
+
+(* CR layouts v3.0: [lazy_t] possibly should be non-null. *)
+
+let _ = id_non_null_value (lazy 3)
+;;
+
+[%%expect{|
+- : int lazy_t = lazy 3
+|}]
+
+(* Unboxed types are not values, so they are not non-null. *)
+
+let _ = id_non_null_value (Stdlib_stable.Float_u.of_float 3.14)
+;;
+
+[%%expect{|
+Line 1, characters 26-63:
+1 | let _ = id_non_null_value (Stdlib_stable.Float_u.of_float 3.14)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type Stdlib_stable.Float_u.t = float#
+       but an expression was expected of type ('a : non_null_value)
+       The layout of Stdlib_stable.Float_u.t is float64, because
+         it is the primitive float64 type float#.
+       But the layout of Stdlib_stable.Float_u.t must be a sublayout of non_null_value, because
+         of the definition of id_non_null_value at line 3, characters 4-21.
+|}]
+
+let _ = id_non_null_value (Stdlib_stable.Int32_u.of_int 314)
+;;
+
+[%%expect{|
+Line 1, characters 26-60:
+1 | let _ = id_non_null_value (Stdlib_stable.Int32_u.of_int 314)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type Stdlib_stable.Int32_u.t = int32#
+       but an expression was expected of type ('a : non_null_value)
+       The layout of Stdlib_stable.Int32_u.t is bits32, because
+         it is the primitive bits32 type int32#.
+       But the layout of Stdlib_stable.Int32_u.t must be a sublayout of non_null_value, because
+         of the definition of id_non_null_value at line 3, characters 4-21.
 |}]
