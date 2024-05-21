@@ -799,7 +799,7 @@ let emit_global_label s =
   emit_global_label_for_symbol lbl
 
 let move (src : Reg.t) (dst : Reg.t) =
-  let distinct = src.loc <> dst.loc in
+  let distinct = not (Reg.same_loc src dst) in
   begin match src.typ, src.loc, dst.typ, dst.loc with
   | Float, Reg _, Float, Reg _
   | Float32, Reg _, Float32, Reg _
@@ -989,7 +989,7 @@ let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
     I.movzx res8 res
 
 let emit_reinterpret_cast (cast : Cmm.reinterpret_cast) i =
-  let distinct = i.arg.(0).loc <> i.res.(0).loc in
+  let distinct = not (Reg.same_loc i.arg.(0) i.res.(0)) in
   match cast with
   | Int_of_value | Value_of_int ->
     if distinct then I.mov (arg i 0) (res i 0)
@@ -1002,7 +1002,7 @@ let emit_reinterpret_cast (cast : Cmm.reinterpret_cast) i =
   | Int32_of_float32 -> I.movd (arg i 0) (res32 i 0)
 
 let emit_static_cast (cast : Cmm.static_cast) i =
-  let distinct = i.arg.(0).loc <> i.res.(0).loc in
+  let distinct = not (Reg.same_loc i.arg.(0) i.res.(0)) in
   match cast with
   | Float_of_int Float64 -> I.cvtsi2sd (arg i 0) (res i 0)
   | Int_of_float Float64 -> I.cvttsd2si (arg i 0) (res i 0)
