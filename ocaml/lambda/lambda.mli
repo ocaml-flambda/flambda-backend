@@ -348,7 +348,9 @@ and layout =
   | Pbottom
 
 and block_shape =
-  value_kind list option
+  | SNone
+  | SSome of value_kind list
+  | Class
 
 and flat_element = Types.flat_element =
   | Imm

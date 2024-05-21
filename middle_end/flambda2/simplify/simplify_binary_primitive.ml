@@ -971,7 +971,7 @@ let[@inline always] simplify_immutable_block_load0
                 let arity =
                   List.map (fun _ -> K.With_subkind.any_value) field_simples
                 in
-                Values (tag, arity)
+                Values (tag, false, arity)
               | Naked_floats _ -> Naked_floats
               | Mixed _ -> assert false
             in

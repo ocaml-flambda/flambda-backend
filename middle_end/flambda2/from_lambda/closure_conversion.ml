@@ -1051,7 +1051,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
         match defining_expr with
         | Prim
             ( Variadic
-                (Make_block (Values (tag, _), Immutable, alloc_mode), fields),
+                (Make_block (Values (tag, _, _), Immutable, alloc_mode), fields),
               _ ) -> (
           let tag' = Tag.Scannable.to_tag tag in
           let approxs =
@@ -1111,7 +1111,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
             bind acc body_env)
         | Prim
             ( Variadic
-                ( Make_block (Values (tag, _), Immutable_unique, _alloc_mode),
+                ( Make_block (Values (tag, _, _), Immutable_unique, _alloc_mode),
                   [exn_name; exn_id] ),
               _ )
           when Tag.Scannable.equal tag Tag.Scannable.object_tag
@@ -1505,7 +1505,7 @@ let boxing_primitive (k : Function_decl.unboxing_kind) alloc_mode
   match k with
   | Fields_of_block_with_tag_zero kinds ->
     Flambda_primitive.Variadic
-      ( Make_block (Values (Tag.Scannable.zero, kinds), Immutable, alloc_mode),
+      ( Make_block (Values (Tag.Scannable.zero, false, kinds), Immutable, alloc_mode),
         Simple.vars unboxed_variables )
   | Unboxed_number bn ->
     let unboxed_variable =

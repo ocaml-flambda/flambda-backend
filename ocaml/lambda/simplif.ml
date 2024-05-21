@@ -618,11 +618,11 @@ let simplify_lets lam =
       let slbody = simplif lbody in
       begin try
         let kind = match kind_ref with
-          | None ->
+          | SNone ->
               (* This is a [Pmakeblock] so the fields are all values *)
               Lambda.layout_value_field
-          | Some [field_kind] -> Pvalue field_kind
-          | Some _ -> assert false
+          | SSome [field_kind] -> Pvalue field_kind
+          | _ -> assert false
         in
         mkmutlet kind v slinit (eliminate_ref v slbody)
       with Real_reference ->

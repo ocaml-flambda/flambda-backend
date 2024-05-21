@@ -3726,7 +3726,7 @@ let failure_handler ~scopes loc ~failer () =
     Lprim
       ( Praise Raise_regular,
         [ Lprim
-            ( Pmakeblock (0, Immutable, None, alloc_heap),
+            ( Pmakeblock (0, Immutable, SNone, alloc_heap),
               [ slot;
                 Lconst
                   (Const_block
@@ -4083,7 +4083,7 @@ let do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list pa
   let param_lambda = List.map (fun (l, _, _) -> l) paraml in
   let arg =
     let sloc = Scoped_location.of_location ~scopes loc in
-    Lprim (Pmakeblock (0, Immutable, None, mode), param_lambda, sloc)
+    Lprim (Pmakeblock (0, Immutable, SNone, mode), param_lambda, sloc)
   in
   let arg_sort = Jkind.Sort.for_tuple in
   let handler =

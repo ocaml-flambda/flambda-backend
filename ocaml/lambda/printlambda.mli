@@ -31,7 +31,7 @@ val variant_kind : (formatter -> value_kind -> unit) ->
 val value_kind : formatter -> value_kind -> unit
 val value_kind' : formatter -> value_kind -> unit
 val layout : formatter -> layout -> unit
-val block_shape : formatter -> value_kind list option -> unit
+val block_shape : formatter -> block_shape -> unit
 val flat_element : formatter -> flat_element -> unit
 val flat_element_read : formatter -> flat_element_read -> unit
 val mixed_block_read : formatter -> mixed_block_read -> unit

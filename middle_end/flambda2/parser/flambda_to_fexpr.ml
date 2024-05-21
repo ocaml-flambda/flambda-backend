@@ -618,7 +618,7 @@ let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
 
 let varop env (op : Flambda_primitive.variadic_primitive) : Fexpr.varop =
   match op with
-  | Make_block (Values (tag, _), mutability, alloc) ->
+  | Make_block (Values (tag, _, _), mutability, alloc) ->
     let tag = tag |> Tag.Scannable.to_int in
     let alloc = alloc_mode_for_allocations env alloc in
     Make_block (tag, mutability, alloc)

@@ -100,7 +100,7 @@ let transl_extension_constructor ~scopes env path ext =
       (* Extension constructors are currently always Alloc_heap.
          They could be Alloc_local, but that would require changes
          to pattern typing, as patterns can close over them. *)
-      Lprim (Pmakeblock (Obj.object_tag, Immutable_unique, None, alloc_heap),
+      Lprim (Pmakeblock (Obj.object_tag, Immutable_unique, SNone, alloc_heap),
         [Lconst (Const_base (Const_string (name, ext.ext_loc, None)));
          Lprim (prim_fresh_oo_id, [Lconst (const_int 0)], loc)],
         loc)
@@ -253,7 +253,7 @@ let assert_failed loc ~scopes exp =
   in
   let loc = of_location ~scopes exp.exp_loc in
   Lprim(Praise Raise_regular, [event_after ~scopes exp
-    (Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+    (Lprim(Pmakeblock(0, Immutable, SNone, alloc_heap),
           [slot;
            Lconst(Const_block(0,
               [Const_base(Const_string (fname, exp.exp_loc, None));
@@ -465,7 +465,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       begin try
         Lconst(Const_block(0, List.map extract_constant ll))
       with Not_constant ->
-        Lprim(Pmakeblock(0, Immutable, Some shape,
+        Lprim(Pmakeblock(0, Immutable, SSome shape,
                          transl_alloc_mode_r alloc_mode),
               ll,
               (of_location ~scopes e.exp_loc))
@@ -517,7 +517,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                         Lambda.must_be_value (layout_exp sort e))
                       args_with_sorts
                   in
-                  Pmakeblock(runtime_tag, Immutable, Some shape, alloc_mode)
+                  Pmakeblock(runtime_tag, Immutable, SSome shape, alloc_mode)
               | Constructor_mixed shape ->
                   let shape = Lambda.transl_mixed_product_shape shape in
                   Pmakemixedblock(runtime_tag, Immutable, shape, alloc_mode)
@@ -543,7 +543,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                         Lambda.must_be_value (layout_exp sort e))
                       args_with_sorts
                   in
-                  Pmakeblock(0, Immutable, Some (Pgenval :: shape),
+                  Pmakeblock(0, Immutable, SSome (Pgenval :: shape),
                             alloc_mode)
               | Constructor_mixed shape ->
                   let shape = Lambda.transl_mixed_product_shape shape in
@@ -568,7 +568,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             Lconst(Const_block(0, [const_int tag;
                                    extract_constant lam]))
           with Not_constant ->
-            Lprim(Pmakeblock(0, Immutable, None,
+            Lprim(Pmakeblock(0, Immutable, SNone,
                              transl_alloc_mode_r alloc_mode),
                   [Lconst(const_int tag); lam],
                   of_location ~scopes e.exp_loc)
@@ -897,7 +897,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           (* We don't need to wrap with Popaque: this forward
              block will never be shortcutted since it points to a float
              and Config.flat_float_array is true. *)
-         Lprim(Pmakeblock(Obj.forward_tag, Immutable, None,
+         Lprim(Pmakeblock(Obj.forward_tag, Immutable, SNone,
                           alloc_heap),
                 [transl_exp ~scopes Jkind.Sort.for_lazy_body e],
                of_location ~scopes e.exp_loc)
@@ -909,7 +909,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             block doesn't really match what is going on here.  This
             value may subsequently turn into an immediate... *)
          Lprim (Popaque Lambda.layout_lazy,
-                [Lprim(Pmakeblock(Obj.forward_tag, Immutable, None,
+                [Lprim(Pmakeblock(Obj.forward_tag, Immutable, SNone,
                                   alloc_heap),
                        [transl_exp ~scopes Jkind.Sort.for_lazy_body e],
                        of_location ~scopes e.exp_loc)],
@@ -935,7 +935,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                                      Lambda.layout_lazy_contents
                                      (transl_exp ~scopes Jkind.Sort.for_lazy_body e))
          in
-          Lprim(Pmakeblock(Config.lazy_tag, Mutable, None, alloc_heap), [fn],
+          Lprim(Pmakeblock(Config.lazy_tag, Mutable, SNone, alloc_heap), [fn],
                 of_location ~scopes e.exp_loc)
       end
   | Texp_object (cs, meths) ->
@@ -1783,10 +1783,10 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         match repres with
           Record_boxed _ ->
             let shape = List.map must_be_value shape in
-            Lprim(Pmakeblock(0, mut, Some shape, Option.get mode), ll, loc)
+            Lprim(Pmakeblock(0, mut, SSome shape, Option.get mode), ll, loc)
         | Record_inlined (Ordinary {runtime_tag}, Variant_boxed _) ->
             let shape = List.map must_be_value shape in
-            Lprim(Pmakeblock(runtime_tag, mut, Some shape, Option.get mode),
+            Lprim(Pmakeblock(runtime_tag, mut, SSome shape, Option.get mode),
                   ll, loc)
         | Record_unboxed | Record_inlined (Ordinary _, Variant_unboxed) ->
             (match ll with [v] -> v | _ -> assert false)
@@ -1797,7 +1797,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         | Record_inlined (Extension (path, _), Variant_extensible) ->
             let shape = List.map must_be_value shape in
             let slot = transl_extension_path loc env path in
-            Lprim(Pmakeblock(0, mut, Some (Pgenval :: shape), Option.get mode),
+            Lprim(Pmakeblock(0, mut, SSome (Pgenval :: shape), Option.get mode),
                   slot :: ll, loc)
         | Record_inlined (Extension _, (Variant_unboxed | Variant_boxed _))
         | Record_inlined (Ordinary _, Variant_extensible) ->

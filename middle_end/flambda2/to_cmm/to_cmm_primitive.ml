@@ -89,8 +89,8 @@ let make_block ~dbg kind alloc_mode args =
   check_alloc_fields args;
   let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
   match (kind : P.Block_kind.t) with
-  | Values (tag, _) ->
-    C.make_alloc ~is_array:false ~mode dbg (Tag.Scannable.to_int tag) args
+  | Values (tag, is_object, _) ->
+    C.make_alloc ~is_array:false ~is_object ~mode dbg (Tag.Scannable.to_int tag) args
   | Naked_floats ->
     C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
 
@@ -148,7 +148,7 @@ let make_array ~dbg kind alloc_mode args =
   check_alloc_fields args;
   let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
   match (kind : P.Array_kind.t) with
-  | Immediates | Values -> C.make_alloc ~is_array:true ~mode dbg 0 args
+  | Immediates | Values -> C.make_alloc ~is_array:true ~is_object:false ~mode dbg 0 args
   | Naked_floats ->
     C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
   | Naked_float32s -> C.allocate_unboxed_float32_array ~elements:args mode dbg

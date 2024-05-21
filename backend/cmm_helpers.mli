@@ -302,6 +302,7 @@ end
 (** Allocate a block of regular values with the given tag *)
 val make_alloc :
   is_array:bool ->
+  is_object:bool ->
   mode:Lambda.alloc_mode ->
   Debuginfo.t ->
   int ->

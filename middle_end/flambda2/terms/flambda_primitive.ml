@@ -27,12 +27,12 @@ type classification_for_printing =
 
 module Block_kind = struct
   type t =
-    | Values of Tag.Scannable.t * K.With_subkind.t list
+    | Values of Tag.Scannable.t * bool * K.With_subkind.t list
     | Naked_floats
 
   let [@ocamlformat "disable"] print ppf t =
    match t with
-   | Values (tag, shape) ->
+   | Values (tag, _, shape) ->
      Format.fprintf ppf
        "@[<hov 1>(Values@ \
          @[<hov 1>(tag %a)@]@ \
@@ -45,7 +45,7 @@ module Block_kind = struct
 
   let compare t1 t2 =
     match t1, t2 with
-    | Values (tag1, shape1), Values (tag2, shape2) ->
+    | Values (tag1, _, shape1), Values (tag2, _, shape2) ->
       let c = Tag.Scannable.compare tag1 tag2 in
       if c <> 0
       then c
@@ -2378,9 +2378,9 @@ module Eligible_for_cse = struct
              subkinds here by erasing them. *)
           let prim =
             match prim with
-            | Make_block (Values (tag, kinds), mutability, alloc_mode) ->
+            | Make_block (Values (tag, io, kinds), mutability, alloc_mode) ->
               let kinds = List.map K.With_subkind.erase_subkind kinds in
-              Make_block (Values (tag, kinds), mutability, alloc_mode)
+              Make_block (Values (tag, io, kinds), mutability, alloc_mode)
             | Make_block (Naked_floats, _, _)
             | Make_array _ | Make_mixed_block _ ->
               prim
