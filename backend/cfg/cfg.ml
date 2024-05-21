@@ -284,7 +284,8 @@ let dump_op ppf = function
   | Floatop (Float32, op) ->
     Format.fprintf ppf "float32op %a" Printmach.floatop op
   | Csel _ -> Format.fprintf ppf "csel"
-  | Reinterpret_cast cast -> Format.fprintf ppf "%s" (Printcmm.reinterpret_cast cast)
+  | Reinterpret_cast cast ->
+    Format.fprintf ppf "%s" (Printcmm.reinterpret_cast cast)
   | Static_cast cast -> Format.fprintf ppf "%s" (Printcmm.static_cast cast)
   | Specific _ -> Format.fprintf ppf "specific"
   | Probe_is_enabled { name } -> Format.fprintf ppf "probe_is_enabled %s" name
