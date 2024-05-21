@@ -145,11 +145,7 @@ module Test_float_u_array : S = struct
     List.iteri (fun idx f -> set res idx (of_float f)) l;
     res
 
-  let max_length =
-    match Sys.backend_type with
-    | Bytecode -> Sys.max_floatarray_length
-    | Native -> Sys.max_unboxed_float_array_length
-    | Other _ -> assert false
+  let max_length = Sys.max_unboxed_float_array_length
 
   let get t idx = to_float (get t idx)
   let set t idx v = set t idx (of_float v)

@@ -201,19 +201,24 @@ val max_floatarray_length : int
     [--enable-flat-float-array]. *)
 
 val max_unboxed_float_array_length : int
-(** Maximum length of a [float# array]. *)
+(** Maximum length of a [float# array].
+    Equivalent to [max_floatarray_length]. *)
 
 val max_unboxed_float32_array_length : int
-(** Maximum length of a [float32# array]. *)
+(** Maximum length of a [float32# array].
+    In non-native backends, equal to [max_array_length]. *)
 
 val max_unboxed_int64_array_length : int
-(** Maximum length of a [int64# array]. *)
+(** Maximum length of a [int64# array].
+    In non-native backends, equal to [max_array_length]. *)
 
 val max_unboxed_int32_array_length : int
-(** Maximum length of a [int32# array]. *)
+(** Maximum length of a [int32# array].
+    In non-native backends, equal to [max_array_length]. *)
 
 val max_unboxed_nativeint_array_length : int
-(** Maximum length of a [nativeint# array]. *)
+(** Maximum length of a [nativeint# array].
+    In non-native backends, equal to [max_array_length]. *)
 
 external runtime_variant : unit -> string = "caml_runtime_variant"
 (** Return the name of the runtime variant the program is running on.

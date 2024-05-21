@@ -48,13 +48,7 @@ module Float32_u_array0 : Gen_u_array.S0
   type ('a : any) array_t = 'a array
   type element_arg = unit -> element_t
   type t = element_t array
-
-  let max_length =
-    match Sys.backend_type with
-    | Bytecode -> Sys.max_array_length
-    | Native -> Sys.max_unboxed_float32_array_length
-    | Other _ -> assert false
-
+  let max_length = Sys.max_unboxed_float32_array_length
   external length : ('a : float32). 'a array -> int = "%array_length"
   external get: ('a : float32). 'a array -> int -> 'a = "%array_safe_get"
   let get t i = let a = get t i in fun () -> a
