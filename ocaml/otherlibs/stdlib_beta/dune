@@ -14,7 +14,7 @@
 
 (library
  (name stdlib_beta)
- (wrapped false)
+ (public_name ocaml.stdlib_beta)
  (modes byte native)
  (enabled_if
   (= %{architecture} "amd64"))
@@ -44,11 +44,3 @@
   (with-stdout-to
    to_install.sexp
    (run "%{first-dep}" "stdlib_beta"))))
-
-(install
- (enabled_if
-  (= %{architecture} "amd64"))
- (files
-  (include to_install.sexp))
- (section lib)
- (package ocaml))
