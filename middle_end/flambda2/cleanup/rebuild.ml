@@ -263,6 +263,13 @@ let rewrite_static_const kinds (uses : uses) (sc : Static_const.t) =
         fields
     in
     Static_const.immutable_float_array fields
+  | Static_const.Immutable_float32_array fields ->
+    let fields =
+      List.map
+        (rewrite_or_variable Numeric_types.Float32_by_bit_pattern.zero uses)
+        fields
+    in
+    Static_const.immutable_float32_array fields
   | Static_const.Immutable_value_array fields ->
     let fields = List.map (rewrite_field_of_static_block kinds uses) fields in
     Static_const.immutable_value_array fields
