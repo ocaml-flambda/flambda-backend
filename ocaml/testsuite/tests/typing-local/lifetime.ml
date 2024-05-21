@@ -12,7 +12,7 @@ let[@inline never] alloc () =
   ev "live reg";
   r
 
-let[@inline never] use (local_ _) = ()
+let[@opaque] use (local_ _) = ()
 
 let[@inline never] live_local () =
   if !rtrue then begin
