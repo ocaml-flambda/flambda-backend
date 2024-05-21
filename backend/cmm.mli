@@ -183,7 +183,8 @@ type memory_chunk =
 type reinterpret_cast =
   | Int_of_value
   | Value_of_int
-  | Float_of_float32 (* The high 32 bits of the float are undefined. *)
+  | Float_of_float32 (* Only writes the bottom 32 bits of the target float register.
+                        All other bits are unspecified. *)
   | Float32_of_float
   | Float_of_int64
   | Int64_of_float

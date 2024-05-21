@@ -919,8 +919,9 @@ let class_of_operation_sse = function
     Pure
 
 let class_of_operation_sse2 = function
+  | Round_current_f64_i64 (* CR-someday mslater: (SIMD) reads current rounding mode *)
   | Add_i8 | Add_i16 | Add_i32 | Add_i64 | Add_f64 | Add_saturating_i8
-  | Round_current_f64_i64 | Min_scalar_f64 | Max_scalar_f64 | Sqrt_scalar_f64
+  | Min_scalar_f64 | Max_scalar_f64 | Sqrt_scalar_f64
   | Sqrt_scalar_f32 | Sqrt_f64 | Add_saturating_i16 | Add_saturating_unsigned_i8
   | Add_saturating_unsigned_i16 | Sub_i8 | Sub_i16 | Sub_i32 | Sub_i64 | Sub_f64
   | Sub_saturating_i8 | Sub_saturating_i16 | Sub_saturating_unsigned_i8
