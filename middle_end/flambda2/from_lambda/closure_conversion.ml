@@ -1580,6 +1580,8 @@ let compute_body_of_unboxed_function acc my_region my_closure
       (Flambda_arity.unarize params_arity)
       param_modes unboxed_params compute_body
   in
+  (* This function is always fully applied, so use a single non-unarized
+     parameter to avoid useless currying functions being generated. *)
   let main_code_params_arity =
     [ Flambda_arity.Component_for_creation.Unboxed_product
         (List.map
