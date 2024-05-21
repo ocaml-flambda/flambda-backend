@@ -304,10 +304,25 @@ end
 let x =
   ignore (fun (module _ : S with type t = 'a) (_ : 'a) -> 10);
   15
+;;
 
 [%%expect{|
 module type S = sig type t : immediate end
 val x : int = 15
+|}]
+
+(* CR layouts: this should raise a warning *)
+let y =
+  ignore (fun (type a : immediate) (x : a) ->
+    let module _ : S = struct
+      type t = a
+    end in
+    ());
+  4
+;;
+
+[%%expect{|
+val y : int = 4
 |}]
 
 (* Other annotations are not effected by this flag *)
