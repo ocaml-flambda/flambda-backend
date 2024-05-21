@@ -1565,9 +1565,7 @@ let compute_body_of_unboxed_function acc my_region my_closure
             (fun (var, kind) -> Bound_parameter.create var kind)
             vars_with_kinds
           @ main_code_params,
-          List.map
-            (fun (_var, kind) ->
-              Flambda_arity.Component_for_creation.Singleton kind)
+          List.map snd
             vars_with_kinds
           @ main_code_params_arity,
           (* CR ncourant: is this correct in the presence of records with global
@@ -1575,15 +1573,16 @@ let compute_body_of_unboxed_function acc my_region my_closure
           List.map (fun _ -> param_mode) vars_with_kinds @ main_code_param_modes,
           body ))
     | ([] | _ :: _), _, _, _ ->
-      Misc.fatal_error
+      Misc.fatal_errorf
         "Parameters and unboxed parameters do not have the same length@."
   in
   let main_code_params, main_code_params_arity, main_code_param_modes, body =
     box_params
       (Bound_parameters.to_list params)
-      (Flambda_arity.unarize_per_parameter_to_components params_arity)
+      (Flambda_arity.unarize params_arity)
       param_modes unboxed_params compute_body
   in
+  let main_code_params_arity = [Flambda_arity.Component_for_creation.Unboxed_product (List.map (fun kind -> Flambda_arity.Component_for_creation.Singleton kind) main_code_params_arity)] in
   let acc, unboxed_body, result_arity_main_code, unboxed_return_continuation =
     match unboxed_return with
     | None ->
@@ -1730,6 +1729,7 @@ let make_unboxed_function_wrapper acc function_slot ~unarized_params:params
   let args, args_arity, body_wrapper =
     unbox_params (Bound_parameters.to_list params) unboxed_params
   in
+  let args_arity =(Flambda_arity.create [Flambda_arity.Component_for_creation.Unboxed_product (List.map (fun kind -> Flambda_arity.Component_for_creation.Singleton kind) args_arity)]) in
   let make_body cont =
     let main_application =
       Apply_expr.create
@@ -1737,7 +1737,7 @@ let make_unboxed_function_wrapper acc function_slot ~unarized_params:params
         ~continuation:(Return cont)
         (Exn_continuation.create ~exn_handler:exn_continuation ~extra_args:[])
         ~args
-        ~args_arity:(Flambda_arity.create_singletons args_arity)
+        ~args_arity
         ~return_arity:result_arity_main_code
         ~call_kind:
           (Call_kind.direct_function_call main_code_id
