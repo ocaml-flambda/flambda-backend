@@ -14,6 +14,7 @@
 (* Prelude: Functions on unboxed numbers *)
 
 module Float32_u = Beta.Float32_u
+module Float32 = Beta.Float32
 module Float_u = Stable.Float_u
 module Int32_u = Stable.Int32_u
 module Int64_u = Stable.Int64_u
