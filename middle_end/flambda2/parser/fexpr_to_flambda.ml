@@ -483,7 +483,7 @@ let varop env (varop : Fexpr.varop) n : Flambda_primitive.variadic_primitive =
   | Make_block (tag, mutability, alloc) ->
     let shape = convert_block_shape ~num_fields:n in
     let kind : Flambda_primitive.Block_kind.t =
-      Values (tag_scannable tag, shape)
+      Values (tag_scannable tag, false, shape)
     in
     let alloc = alloc_mode_for_allocations env alloc in
     Make_block (kind, mutability, alloc)

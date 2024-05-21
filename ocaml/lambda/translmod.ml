@@ -117,7 +117,7 @@ let rec apply_coercion loc strict restr arg =
             Lprim(mod_field pos,[Lvar id], loc)
         in
         let lam =
-          Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+          Lprim(Pmakeblock(0, Immutable, SNone, alloc_heap),
                 List.map (apply_coercion_field loc get_field) pos_cc_list,
                 loc)
         in
@@ -637,7 +637,7 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
       let body, size =
         match cc with
           Tcoerce_none ->
-            Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+            Lprim(Pmakeblock(0, Immutable, SNone, alloc_heap),
                   List.map (fun id -> Lvar id) (List.rev fields), loc),
               List.length fields
         | Tcoerce_structure(pos_cc_list, id_pos_list) ->
@@ -653,7 +653,7 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
             in
             let ids = List.fold_right Ident.Set.add fields Ident.Set.empty in
             let lam =
-              Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+              Lprim(Pmakeblock(0, Immutable, SNone, alloc_heap),
                   List.map
                     (fun (pos, cc) ->
                       match cc with
@@ -861,7 +861,7 @@ and transl_include_functor ~generative modl params scopes loc =
   let modl = transl_module ~scopes Tcoerce_none None modl in
   let params = if generative then [params;[]] else [params] in
   let params = List.map (fun coercion ->
-    Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+    Lprim(Pmakeblock(0, Immutable, SNone, alloc_heap),
           List.map (fun (name, cc) ->
             apply_coercion loc Strict cc (Lvar name))
             coercion,
@@ -1196,7 +1196,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
             Lsequence(lam,
                       Llet(Strict, Lambda.layout_module, id,
                            Lambda.subst no_env_update subst
-                             (Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+                             (Lprim(Pmakeblock(0, Immutable, SNone, alloc_heap),
                                     List.map (fun id -> Lvar id)
                                       (defined_idents str.str_items), loc)),
                            Lsequence(store_ident loc id,
@@ -1225,7 +1225,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
             Lsequence(lam,
                       Llet(Strict, Lambda.layout_module, id,
                            Lambda.subst no_env_update subst
-                             (Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+                             (Lprim(Pmakeblock(0, Immutable, SNone, alloc_heap),
                                     List.map field map, loc)),
                            Lsequence(store_ident loc id,
                                      transl_store ~scopes rootpath
@@ -1761,7 +1761,7 @@ let transl_package_plain_block component_names coercion =
   in
   size,
   apply_coercion Loc_unknown Strict coercion
-    (Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+    (Lprim(Pmakeblock(0, Immutable, SNone, alloc_heap),
            List.map get_component component_names,
            Loc_unknown))
 
@@ -1801,7 +1801,7 @@ let transl_package_set_fields component_names target_name coercion =
          0 component_names)
   | Tcoerce_structure (pos_cc_list, _id_pos_list) ->
       let components =
-        Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+        Lprim(Pmakeblock(0, Immutable, SNone, alloc_heap),
               List.map get_component component_names,
               Loc_unknown)
       in

@@ -229,7 +229,7 @@ let blocks_to_unbox ~escaping ~source_info ~required_names =
             else
               let block_to_unbox =
                 match kind with
-                | Values (tag, fields_kinds) ->
+                | Values (tag, _, fields_kinds) ->
                   { tag = Tag.Scannable.to_tag tag; mut; fields_kinds }
                 | Naked_floats ->
                   { tag = Tag.double_array_tag;

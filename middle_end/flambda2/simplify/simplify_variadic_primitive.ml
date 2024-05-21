@@ -213,7 +213,7 @@ let simplify_variadic_primitive dacc original_prim (prim : P.variadic_primitive)
   let original_term = Named.create_prim original_prim dbg in
   let simplifier =
     match prim with
-    | Make_block (Values (tag, shape), mutable_or_immutable, alloc_mode) ->
+    | Make_block (Values (tag, _, shape), mutable_or_immutable, alloc_mode) ->
       let tag = Tag.Scannable.to_tag tag in
       simplify_make_block ~original_prim tag
         ~block_shape:(Not_mixed { field_kind = K.value; shape })

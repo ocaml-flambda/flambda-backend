@@ -27,25 +27,26 @@ let go () =
   if Sys.backend_type = Sys.Native then assert (alloc_per_minor_words = 0);
   let allocs = ref alloc_per_minor_words in
   let n = 1_000_000 in
+  let num_mixed_fields = 2 in
   for i = 1 to n do
     Sys.opaque_identity (ref i)
     |> ignore;
-    allocs := !allocs + 2;
+    allocs := !allocs + 2 + num_mixed_fields;
   done;
   for i = 1 to n do
     Sys.opaque_identity { p = i; q = i }
     |> ignore;
-    allocs := !allocs + 3;
+    allocs := !allocs + 3 + num_mixed_fields;
   done;
   for i = 1 to n do
     Sys.opaque_identity { s = i; t = i; u = i }
     |> ignore;
-    allocs := !allocs + 4;
+    allocs := !allocs + 4 + num_mixed_fields;
   done;
   for i = 1 to n do
     Sys.opaque_identity { a = i; b = i; c = i; d = i; e = i; f = i }
     |> ignore;
-    allocs := !allocs + 7;
+    allocs := !allocs + 7 + num_mixed_fields;
     if i mod (n/3) == 0 then Gc.full_major ();
   done;
   for i = 1 to n do

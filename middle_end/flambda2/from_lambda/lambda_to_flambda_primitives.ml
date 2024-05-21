@@ -99,8 +99,8 @@ let convert_init_or_assign (i_or_a : L.initialization_or_assignment) :
 
 let convert_block_shape (shape : L.block_shape) ~num_fields =
   match shape with
-  | None -> List.init num_fields (fun _field -> K.With_subkind.any_value)
-  | Some shape ->
+  | Class | SNone -> List.init num_fields (fun _field -> K.With_subkind.any_value)
+  | SSome shape ->
     let shape_length = List.length shape in
     if num_fields <> shape_length
     then
@@ -939,9 +939,15 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let tag = Tag.Scannable.create_exn tag in
+    let is_object =
+      match shape with
+      | SNone -> false
+      | Class ->  true
+      | SSome _ ->  false
+    in
     let shape = convert_block_shape shape ~num_fields:(List.length args) in
     let mutability = Mutability.from_lambda mutability in
-    [Variadic (Make_block (Values (tag, shape), mutability, mode), args)]
+    [Variadic (Make_block (Values (tag, is_object, shape), mutability, mode), args)]
   | Pmake_unboxed_product layouts, _ ->
     if List.compare_lengths layouts args <> 0
     then

@@ -1554,15 +1554,34 @@ let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
 
 (* Allocation *)
 
-let make_alloc_generic ?scannable_prefix ~is_array ~mode set_fn dbg tag wordsize
-    args =
+(* let random_string ~len =
+ *   String.sub
+ *     (String.init 20 (fun _ -> if Random.int 2 = 0 then '0' else '1'))
+ *     0 len *)
+
+let make_alloc_generic ?scannable_prefix ~is_array ~is_object ~mode set_fn dbg
+    tag wordsize args =
   (* allocs of size 0 must be statically allocated else the Gc will bug *)
   assert (List.compare_length_with args 0 > 0);
+  (* let loc = Debuginfo.to_location dbg in *)
   let scannable_prefix, extra_wordsize =
     match scannable_prefix with
     | Some (Scan_prefix prefix) -> Scan_prefix prefix, 0
     | None | Some Scan_all ->
-      if tag < 230 && not is_array then Scan_prefix wordsize, 2 else Scan_all, 0
+      if (* (let str = "10000111000101011110" in
+          *   String.equal (random_string ~len:(String.length str)) str)
+          *  && loc.loc_start.pos_fname <> "map.ml"
+          *  && loc.loc_start.pos_fname <> "set.ml"
+          *  && loc.loc_start.pos_fname <> "hashtbl.ml"
+          *  && loc.loc_start.pos_fname <> "ocaml/utils/identifiable.ml"
+          *  && loc.loc_start.pos_fname <> "ocaml/parsing/jane_syntax_parsing.ml"
+          *  && (not
+          *        (String.starts_with loc.loc_start.pos_fname
+          *           ~prefix:"ocaml/otherlibs"))
+          *  && *)
+         (not is_array) && not is_object
+      then Scan_prefix wordsize, 2
+      else Scan_all, 0
   in
   let orig_wordsize = wordsize in
   let wordsize = wordsize + extra_wordsize in
@@ -1630,13 +1649,13 @@ let addr_array_init arr ofs newval dbg =
       [array_indexing log2_size_addr arr ofs dbg; newval],
       dbg )
 
-let make_alloc ~is_array ~mode dbg tag args =
-  make_alloc_generic ~is_array ~mode
+let make_alloc ~is_array ~is_object ~mode dbg tag args =
+  make_alloc_generic ~is_array ~is_object ~mode
     (fun _ arr ofs newval dbg -> addr_array_init arr ofs newval dbg)
     dbg tag (List.length args) args
 
 let make_float_alloc ~mode dbg tag args =
-  make_alloc_generic ~is_array:true ~mode
+  make_alloc_generic ~is_array:true ~is_object:false ~mode
     (fun _ -> float_array_set)
     dbg tag
     (List.length args * size_float / size_addr)
@@ -1668,7 +1687,7 @@ let make_mixed_alloc ~mode dbg tag shape args =
        same width as a value.";
   make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_len)
     ~is_array:false (* doesn't matter *)
-    ~mode set_fn dbg tag size args
+    ~is_object:false ~mode set_fn dbg tag size args
 
 (* Record application and currying functions *)
 

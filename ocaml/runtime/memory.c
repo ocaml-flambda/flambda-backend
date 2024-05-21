@@ -214,7 +214,6 @@ CAMLexport CAMLweakdef void caml_initialize (volatile value *fp, value val)
      or an uninitialized value canary (Debug_uninit_{major,minor}). */
   CAMLassert(Is_long(*fp));
 #endif
-  if (val == (value) 0) abort ();
   *fp = val;
   if (!Is_young((value)fp) && Is_block_and_young (val))
     Ref_table_add(&Caml_state->minor_tables->major_ref, fp);

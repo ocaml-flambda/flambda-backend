@@ -26,7 +26,7 @@
 
 module Block_kind : sig
   type t =
-    | Values of Tag.Scannable.t * Flambda_kind.With_subkind.t list
+    | Values of Tag.Scannable.t * bool * Flambda_kind.With_subkind.t list
     | Naked_floats
 
   val print : Format.formatter -> t -> unit

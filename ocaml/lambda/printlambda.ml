@@ -307,11 +307,11 @@ let record_rep ppf r = match r with
   | Record_mixed _ -> fprintf ppf "mixed"
 
 let block_shape ppf shape = match shape with
-  | None | Some [] -> ()
-  | Some l when List.for_all ((=) Pgenval) l -> ()
-  | Some [elt] ->
+  | Class | SNone | SSome [] -> ()
+  | SSome l when List.for_all ((=) Pgenval) l -> ()
+  | SSome [elt] ->
       Format.fprintf ppf " (%a)" field_kind elt
-  | Some (h :: t) ->
+  | SSome (h :: t) ->
       Format.fprintf ppf " (%a" field_kind h;
       List.iter (fun elt ->
           Format.fprintf ppf ",%a" field_kind elt)
