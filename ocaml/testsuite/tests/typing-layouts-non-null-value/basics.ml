@@ -397,3 +397,24 @@ Error: This expression has type Possibly_null.t
        But the layout of Possibly_null.t must be a sublayout of non_null_value, because
          of the definition of id_non_null_value at line 3, characters 4-21.
 |}]
+
+(* CR layouts v3.0: recursive single-field records should be nullable values. *)
+
+type loopy = { field : loopy } [@@unboxed]
+
+let rec loopy = { field = loopy }
+
+let _ = id_non_null_value loopy
+;;
+
+[%%expect{|
+Line 1, characters 15-28:
+1 | type loopy = { field : loopy } [@@unboxed]
+                   ^^^^^^^^^^^^^
+Error: Unboxed record element types must have a representable layout.
+       The layout of loopy is any, because
+         a dummy layout of any is used to check mutually recursive datatypes.
+         Please notify the Jane Street compilers group if you see this output.
+       But the layout of loopy must be representable, because
+         it is the type of record field field.
+|}]
