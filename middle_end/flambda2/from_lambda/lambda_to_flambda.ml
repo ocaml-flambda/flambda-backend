@@ -420,11 +420,8 @@ let is_user_visible env id : IR.user_visible =
 let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
     ~params
     ~(body : Acc.t -> Env.t -> CCenv.t -> Continuation.t -> Expr_with_acc.t)
-    ~(handler :
-       Acc.t ->
-       Env.t ->
-       CCenv.t ->
-       Expr_with_acc.t) : Expr_with_acc.t =
+    ~(handler : Acc.t -> Env.t -> CCenv.t -> Expr_with_acc.t) : Expr_with_acc.t
+    =
   let cont = Continuation.create () in
   let { Env.body_env; handler_env; extra_params } =
     Env.add_continuation env cont ~push_to_try_stack:is_exn_handler Nonrecursive
@@ -466,9 +463,7 @@ let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
   let extra_params =
     List.map (fun (id, kind) -> id, is_user_visible env id, kind) extra_params
   in
-  let handler acc ccenv =
-    handler acc handler_env ccenv
-  in
+  let handler acc ccenv = handler acc handler_env ccenv in
   let body acc ccenv = body acc body_env ccenv cont in
   CC.close_let_cont acc ccenv ~name:cont ~is_exn_handler
     ~params:(params @ extra_params) ~recursive:Nonrecursive ~body ~handler
@@ -743,8 +738,7 @@ let apply_cps_cont k ?dbg acc env ccenv id
 let get_unarized_vars id env =
   match Env.get_unboxed_product_fields env id with
   | None -> [IR.Var id]
-  | Some (_, fields) ->
-    List.map (fun id -> IR.Var id) fields
+  | Some (_, fields) -> List.map (fun id -> IR.Var id) fields
 
 let maybe_insert_let_cont result_var_name layout k acc env ccenv body =
   match k with
@@ -758,8 +752,7 @@ let maybe_insert_let_cont result_var_name layout k acc env ccenv body =
     then
       let_cont_nonrecursive_with_extra_params acc env ccenv
         ~is_exn_handler:false ~params:[]
-        ~handler:(fun acc env ccenv ->
-          k acc env ccenv [] arity_component)
+        ~handler:(fun acc env ccenv -> k acc env ccenv [] arity_component)
         ~body
     else
       let result_var = Ident.create_local result_var_name in
@@ -778,7 +771,6 @@ let name_if_not_var acc ccenv name simple kind body =
     CC.close_let acc ccenv
       [id, kind]
       Not_user_visible (IR.Simple simple) ~body:(body id)
-
 
 let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     (k_exn : Continuation.t) : Expr_with_acc.t =
@@ -971,8 +963,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       ~params:[id, is_user_visible env id, layout]
       ~body:(fun acc env ccenv after_defining_expr ->
         cps_tail acc env ccenv defining_expr after_defining_expr k_exn)
-      ~handler:(fun acc env ccenv ->
-        cps acc env ccenv body k k_exn)
+      ~handler:(fun acc env ccenv -> cps acc env ccenv body k k_exn)
   (* CR pchambart: This version would avoid one let cont, but would miss the
      value kind. It should be used when CC.close_let can propagate the
      value_kind. *)
