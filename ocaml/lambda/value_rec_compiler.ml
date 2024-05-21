@@ -96,8 +96,9 @@ and lambda_with_env = {
   env : binding_size Ident.Map.t;
 }
 
-let dynamic_size () =
-  Misc.fatal_error "letrec: No size found for Static binding"
+let dynamic_size lam =
+  Misc.fatal_errorf "letrec: No size found for Static binding:@ %a"
+    Printlambda.lambda lam
 
 (* [join_sizes] is used to compute the size of an expression with multiple
    branches. Such expressions are normally classified as [Dynamic] by
@@ -108,10 +109,10 @@ let dynamic_size () =
    Note that the current compilation scheme would work if we allowed the
    [Constant] and [Block] cases to be joined, but [Function] needs to be
    a single function. *)
-let join_sizes size1 size2 =
+let join_sizes lam size1 size2 =
   match size1, size2 with
   | Unreachable, size | size, Unreachable -> size
-  | _, _ -> dynamic_size ()
+  | _, _ -> dynamic_size lam
 
 let compute_static_size lam =
   let rec compute_expression_size env lam =
@@ -119,15 +120,15 @@ let compute_static_size lam =
     | Lvar v ->
       begin match Ident.Map.find_opt v env with
       | None ->
-        dynamic_size ()
+        dynamic_size lam
       | Some binding_size ->
         Lazy_backtrack.force
           (fun { lambda; env } -> compute_expression_size env lambda)
           binding_size
       end
-    | Lmutvar _ -> dynamic_size ()
+    | Lmutvar _ -> dynamic_size lam
     | Lconst _ -> Constant
-    | Lapply _ -> dynamic_size ()
+    | Lapply _ -> dynamic_size lam
     | Lfunction lfun -> Function lfun
     | Llet (_, _, id, def, body) ->
       let env =
@@ -170,7 +171,7 @@ let compute_static_size lam =
     | Lwhile _
     | Lfor _
     | Lassign _ -> Constant
-    | Lsend _ -> dynamic_size ()
+    | Lsend _ -> dynamic_size lam
     | Levent (e, _) ->
       compute_expression_size env e
     | Lifused _ -> Constant
@@ -180,20 +181,20 @@ let compute_static_size lam =
       (* Lexclave should only occur in tail position of a function.
          Since we only compute sizes for let-bound definitions, we should never
          reach this case.
-         This justifies using [assert false] instead of [dynamic_size ()],
+         This justifies using [assert false] instead of [dynamic_size lam],
          the latter meaning that [Value_rec_check] should have forbidden that case.
       *)
       assert false
   and compute_and_join_sizes env branches =
     List.fold_left (fun size branch ->
-        join_sizes size (compute_expression_size env branch))
+        join_sizes branch size (compute_expression_size env branch))
       Unreachable branches
   and compute_and_join_sizes_switch :
     type a. binding_size Ident.Map.t -> (a * lambda) list list -> size =
     fun env all_cases ->
       List.fold_left (fun size cases ->
           List.fold_left (fun size (_key, action) ->
-              join_sizes size (compute_expression_size env action))
+              join_sizes action size (compute_expression_size env action))
             size cases)
         Unreachable all_cases
   and size_of_primitive env p args =
@@ -335,7 +336,7 @@ let compute_static_size lam =
     | Patomic_fetch_add
     | Popaque _
     | Pdls_get ->
-        dynamic_size ()
+        dynamic_size lam
 
     (* Primitives specific to flambda-backend *)
     | Pmakefloatblock (_, _) ->
@@ -356,7 +357,7 @@ let compute_static_size lam =
 
     | Pmakeufloatblock (_, _)
     | Pmake_unboxed_product _ ->
-        dynamic_size () (* Not allowed *)
+        dynamic_size lam (* Not allowed *)
 
     | Pobj_dup
     | Parray_to_iarray
@@ -385,7 +386,7 @@ let compute_static_size lam =
     | Pfloatoffloat32 _
     | Pfloat32offloat _
     | Pget_header _ ->
-        dynamic_size ()
+        dynamic_size lam
   in
   compute_expression_size Ident.Map.empty lam
 
@@ -584,7 +585,9 @@ let rec split_static_function lfun block_var local_idents lam :
       Reachable (lfun, switch)
     | Reachable _, Reachable _, _ | Reachable _, _, Some (Reachable _)
     | _, Reachable _, Some (Reachable _) ->
-      Misc.fatal_error "letrec: multiple functions"
+      Misc.fatal_errorf "letrec: multiple functions:@ lfun=%a@ lam=%a"
+        Printlambda.lfunction lfun
+        Printlambda.lambda lam
     end
   | Lstringswitch (arg, arms, failaction, loc, layout) ->
     let arms_res = rebuild_arms lfun block_var local_idents arms in
@@ -598,7 +601,9 @@ let rec split_static_function lfun block_var local_idents lam :
     | Unreachable, Some (Reachable (lfun, failaction)) ->
       Reachable (lfun, Lstringswitch (arg, arms, Some failaction, loc, layout))
     | Reachable _, Some (Reachable _) ->
-      Misc.fatal_error "letrec: multiple functions"
+      Misc.fatal_errorf "letrec: multiple functions:@ lfun=%a@ lam=%a"
+        Printlambda.lfunction lfun
+        Printlambda.lambda lam
     end
   | Lstaticcatch (body, (nfail, params), handler, r, layout) ->
     let body_res = split_static_function lfun block_var local_idents body in
@@ -616,7 +621,9 @@ let rec split_static_function lfun block_var local_idents lam :
     | Unreachable, Reachable (lfun, handler) ->
       Reachable (lfun, Lstaticcatch (body, (nfail, params), handler, r, layout))
     | Reachable _, Reachable _ ->
-      Misc.fatal_error "letrec: multiple functions"
+      Misc.fatal_errorf "letrec: multiple functions:@ lfun=%a@ lam=%a"
+        Printlambda.lfunction lfun
+        Printlambda.lambda lam
     end
   | Ltrywith (body, exn_var, handler, layout) ->
     let body_res = split_static_function lfun block_var local_idents body in
@@ -631,7 +638,9 @@ let rec split_static_function lfun block_var local_idents lam :
     | Unreachable, Reachable (lfun, handler) ->
       Reachable (lfun, Ltrywith (body, exn_var, handler, layout))
     | Reachable _, Reachable _ ->
-      Misc.fatal_error "letrec: multiple functions"
+      Misc.fatal_errorf "letrec: multiple functions:@ lfun=%a@ lam=%a"
+        Printlambda.lfunction lfun
+        Printlambda.lambda lam
     end
   | Lifthenelse (cond, ifso, ifnot, layout) ->
     let ifso_res = split_static_function lfun block_var local_idents ifso in
@@ -643,7 +652,9 @@ let rec split_static_function lfun block_var local_idents lam :
     | Unreachable, Reachable (lfun, ifnot) ->
       Reachable (lfun, Lifthenelse (cond, ifso, ifnot, layout))
     | Reachable _, Reachable _ ->
-      Misc.fatal_error "letrec: multiple functions"
+      Misc.fatal_errorf "letrec: multiple functions:@ lfun=%a@ lam=%a"
+        Printlambda.lfunction lfun
+        Printlambda.lambda lam
     end
   | Lsequence (e1, e2) ->
     let+ e2 = split_static_function lfun block_var local_idents e2 in
@@ -661,7 +672,11 @@ let rec split_static_function lfun block_var local_idents lam :
   | Lsend _
   | Lifused _
   | Lregion _
-  | Lexclave _ -> Misc.fatal_error "letrec binding is not a static function"
+  | Lexclave _ ->
+    Misc.fatal_errorf
+      "letrec binding is not a static function:@ lfun=%a@ lam=%a"
+      Printlambda.lfunction lfun
+      Printlambda.lambda lam
 and rebuild_arms :
   type a. _ -> _ -> _ -> (a * Lambda.lambda) list ->
   (a * Lambda.lambda) list split_result =
@@ -678,7 +693,9 @@ and rebuild_arms :
     | Unreachable, Reachable (lfun, arms) ->
       Reachable (lfun, (i, lam) :: arms)
     | Reachable _, Reachable _ ->
-      Misc.fatal_error "letrec: multiple functions"
+      Misc.fatal_errorf "letrec: multiple functions:@ lfun=%a@ lam=%a"
+        Printlambda.lfunction lfun
+        Printlambda.lambda lam
 
 (** {1. Compilation} *)
 
@@ -796,6 +813,13 @@ let update_prim =
 (** Compilation function *)
 
 let compile_letrec input_bindings body =
+  if !Clflags.dump_letreclambda then (
+    Format.eprintf "Value_rec_compiler input bindings:\n";
+    List.iter (fun (id, _, def) ->
+        Format.eprintf "  %a = %a\n%!" Ident.print id Printlambda.lambda def)
+      input_bindings;
+    Format.eprintf "Value_rec_compiler body:@ %a\n%!" Printlambda.lambda body
+  );
   let subst_for_constants =
     List.fold_left (fun subst (id, _, _) ->
         Ident.Map.add id Lambda.dummy_constant subst)
@@ -833,7 +857,9 @@ let compile_letrec input_bindings body =
                 split_static_function lfun ctx_id Ident.Set.empty def
               with
               | Unreachable ->
-                Misc.fatal_error "letrec: no function for binding"
+                Misc.fatal_errorf
+                  "letrec: no function for binding:@ def=%a@ lfun=%a"
+                  Printlambda.lambda def Printlambda.lfunction lfun
               | Reachable ({ lfun; free_vars_block_size }, lam) ->
                 let functions = (id, lfun) :: rev_bindings.functions in
                 let static =
