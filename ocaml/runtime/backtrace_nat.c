@@ -151,13 +151,14 @@ void caml_stash_backtrace_wrapper(value exn, char* rsp, char* trapsp)
 #endif
   char* pc;
   char* sp;
-#ifdef WITH_FRAME_POINTERS
-  pc = rsp + 8;
-  sp = rsp + 16;
-#else
+// See amd64.S - we do not call ENTER_FUNCTION
+//#ifdef WITH_FRAME_POINTERS
+//  pc = rsp + 8;
+//  sp = rsp + 16;
+//#else
   pc = rsp;
   sp = rsp + 8;
-#endif
+//#endif
   caml_stash_backtrace(exn, *((uintnat*) pc), sp, trapsp);
 }
 
