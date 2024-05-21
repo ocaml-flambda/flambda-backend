@@ -617,7 +617,7 @@ val check_type_externality : Env.t -> type_expr -> Jkind.Externality.t -> bool
 
    *)
 val check_and_update_generalized_ty_jkind :
-  ?name:Ident.t -> loc:Location.t -> upstream_compat:bool -> type_expr -> unit
+  ?name:Ident.t -> loc:Location.t -> type_expr -> unit
 
 (* False if running in principal mode and the type is not principal.
    True otherwise. *)
