@@ -548,7 +548,10 @@ ENDFUNCTION(G(caml_call_gc))
 FUNCTION(G(caml_raise_stack_overflow_nat))
 CFI_STARTPROC
         CFI_SIGNAL_FRAME
-        ENTER_FUNCTION
+        /* Do not ENTER_FUNCTION:
+           - when frame pointers are disaabled, it is a no-op;
+           - when frame pointers are enabled, it would push a value onto the stack,
+             retriggering a segfault. */
         SAVE_ALL_REGS
         movq    %r15, Caml_state(gc_regs)
         /* We assume that we are always on the OCaml stack at this point.
@@ -562,7 +565,7 @@ CFI_STARTPROC
         SWITCH_C_TO_OCAML
         movq    Caml_state(gc_regs), %r15
         RESTORE_ALL_REGS
-        LEAVE_FUNCTION
+        /* Do not LEAVE_FUNCTION: see ENTER_FUNCTION above. */
         ret
 CFI_ENDPROC
 ENDFUNCTION(G(caml_raise_stack_overflow_nat))
