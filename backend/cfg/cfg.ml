@@ -284,25 +284,8 @@ let dump_op ppf = function
   | Floatop (Float32, op) ->
     Format.fprintf ppf "float32op %a" Printmach.floatop op
   | Csel _ -> Format.fprintf ppf "csel"
-  | Reinterpret_cast V128_of_v128 -> Format.fprintf ppf "vec128 as vec128"
-  | Reinterpret_cast Value_of_int -> Format.fprintf ppf "int as value"
-  | Reinterpret_cast Int_of_value -> Format.fprintf ppf "value as int"
-  | Reinterpret_cast Float32_of_float -> Format.fprintf ppf "float as float32"
-  | Reinterpret_cast Float_of_float32 -> Format.fprintf ppf "float32 as float"
-  | Reinterpret_cast Float_of_int64 -> Format.fprintf ppf "int64 as float"
-  | Reinterpret_cast Int64_of_float -> Format.fprintf ppf "float as int64"
-  | Reinterpret_cast Float32_of_int32 -> Format.fprintf ppf "int32 as float32"
-  | Reinterpret_cast Int32_of_float32 -> Format.fprintf ppf "float32 as int32"
-  | Static_cast (Float_of_int Float64) -> Format.fprintf ppf "int->float"
-  | Static_cast (Int_of_float Float64) -> Format.fprintf ppf "float->int"
-  | Static_cast (Float_of_int Float32) -> Format.fprintf ppf "int->float32"
-  | Static_cast (Int_of_float Float32) -> Format.fprintf ppf "float32->int"
-  | Static_cast Float_of_float32 -> Format.fprintf ppf "float32->float"
-  | Static_cast Float32_of_float -> Format.fprintf ppf "float->float32"
-  | Static_cast (Scalar_of_v128 ty) ->
-    Format.fprintf ppf "%s->scalar" (Primitive.vec128_name ty)
-  | Static_cast (V128_of_scalar ty) ->
-    Format.fprintf ppf "scalar->%s" (Primitive.vec128_name ty)
+  | Reinterpret_cast cast -> Format.fprintf ppf "%s" (Printcmm.reinterpret_cast cast)
+  | Static_cast cast -> Format.fprintf ppf "%s" (Printcmm.static_cast cast)
   | Specific _ -> Format.fprintf ppf "specific"
   | Probe_is_enabled { name } -> Format.fprintf ppf "probe_is_enabled %s" name
   | Opaque -> Format.fprintf ppf "opaque"

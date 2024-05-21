@@ -189,7 +189,7 @@ type reinterpret_cast =
   | Int64_of_float
   | Float32_of_int32
   | Int32_of_float32
-  | V128_of_v128
+  | V128_of_v128 (* Converts between vector types of the same width. *)
 
 (* These casts may require a particular value-preserving operation, e.g. truncating
    a float to an int. *)

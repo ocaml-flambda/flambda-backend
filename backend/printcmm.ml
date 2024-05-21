@@ -177,6 +177,27 @@ let to_string msg =
     Buffer.contents b
   ) ppf msg
 
+let reinterpret_cast : Cmm.reinterpret_cast -> string = function
+  | V128_of_v128 -> "vec128 as vec128"
+  | Value_of_int -> "int as value"
+  | Int_of_value -> "value as int"
+  | Float32_of_float -> "float as float32"
+  | Float_of_float32 -> "float32 as float"
+  | Float_of_int64 -> "int64 as float"
+  | Int64_of_float -> "float as int64"
+  | Float32_of_int32 -> "int32 as float32"
+  | Int32_of_float32 -> "float32 as int32"
+
+let static_cast : Cmm.static_cast -> string = function
+  | Int_of_float Float64 -> "float->int"
+  | Float_of_int Float64 -> "int->float"
+  | Int_of_float Float32 -> "float32->int"
+  | Float_of_int Float32 -> "int->float32"
+  | Float32_of_float -> "float->float32"
+  | Float_of_float32 -> "float32->float"
+  | Scalar_of_v128 ty -> Printf.sprintf "%s->scalar" (Primitive.vec128_name ty)
+  | V128_of_scalar ty -> Printf.sprintf "scalar->%s" (Primitive.vec128_name ty)
+
 let operation d = function
   | Capply(_ty, _) -> "app" ^ location d
   | Cextcall { func = lbl; _ } ->
@@ -231,25 +252,8 @@ let operation d = function
   | Cpackf32 -> "packf32"
   | Ccsel ret_typ ->
     to_string "csel %a" machtype ret_typ
-  | Creinterpret_cast V128_of_v128 -> "vec128 as vec128"
-  | Creinterpret_cast Value_of_int -> "int as value"
-  | Creinterpret_cast Int_of_value -> "value as int"
-  | Creinterpret_cast Float32_of_float -> "float as float32"
-  | Creinterpret_cast Float_of_float32 -> "float32 as float"
-  | Creinterpret_cast Float_of_int64 -> "int64 as float"
-  | Creinterpret_cast Int64_of_float -> "float as int64"
-  | Creinterpret_cast Float32_of_int32 -> "int32 as float32"
-  | Creinterpret_cast Int32_of_float32 -> "float32 as int32"
-  | Cstatic_cast (Int_of_float Float64) -> "float->int"
-  | Cstatic_cast (Float_of_int Float64) -> "int->float"
-  | Cstatic_cast (Int_of_float Float32) -> "float32->int"
-  | Cstatic_cast (Float_of_int Float32) -> "int->float32"
-  | Cstatic_cast Float32_of_float -> "float->float32"
-  | Cstatic_cast Float_of_float32 -> "float32->float"
-  | Cstatic_cast (Scalar_of_v128 ty) ->
-    Printf.sprintf "%s->scalar" (Primitive.vec128_name ty)
-  | Cstatic_cast (V128_of_scalar ty) ->
-    Printf.sprintf "scalar->%s" (Primitive.vec128_name ty)
+  | Creinterpret_cast cast -> reinterpret_cast cast
+  | Cstatic_cast cast -> static_cast cast
   | Ccmpf (Float64, c) -> Printf.sprintf "%sf" (float_comparison c)
   | Ccmpf (Float32, c) -> Printf.sprintf "%sf32" (float_comparison c)
   | Craise k -> Lambda.raise_kind k ^ location d
