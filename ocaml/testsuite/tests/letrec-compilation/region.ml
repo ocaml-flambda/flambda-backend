@@ -8,4 +8,12 @@ let rec f =
   let p = local_ (fun msg -> print_string msg) in
   p "hello, ";
   p "world!";
+  print_newline ();
   fun x -> f x
+
+(* Original bug report: unused function *)
+let rec foo =
+  let _f x = x, foo in
+  function
+  | None -> foo None
+  | Some x -> x
