@@ -67,6 +67,7 @@ can't be erased for compatibility with upstream OCaml.
 module type S = sig type _ g = MkG : ('a : immediate). 'a g end
 |}];;
 
+(* CR layouts: only show the warning once; same for tests below *)
 let f (type a : immediate): a -> a = fun x -> x
 [%%expect {|
 Line 1, characters 4-5:
