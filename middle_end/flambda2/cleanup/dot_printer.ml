@@ -54,11 +54,13 @@ module P = struct
   let node ~ctx ~root ~print_color ppf name =
     if root
     then
-      Format.fprintf ppf "%a [shape=record label=\"%a\" style=\"filled\" fillcolor=\"%s\"];@\n" (node_id ~ctx)
-        name Code_id_or_name.print name (print_color name)
+      Format.fprintf ppf
+        "%a [shape=record label=\"%a\" style=\"filled\" fillcolor=\"%s\"];@\n"
+        (node_id ~ctx) name Code_id_or_name.print name (print_color name)
     else
-      Format.fprintf ppf "%a [label=\"%a\" style=\"filled\" fillcolor=\"%s\"];@\n" (node_id ~ctx) name
-        Code_id_or_name.print name (print_color name)
+      Format.fprintf ppf
+        "%a [label=\"%a\" style=\"filled\" fillcolor=\"%s\"];@\n" (node_id ~ctx)
+        name Code_id_or_name.print name (print_color name)
 
   let dep_names (dep : Graph.Dep.t) =
     match dep with
@@ -124,12 +126,14 @@ module P = struct
 
   let code_deps ~ctx ~code_id ~print_color ppf code_dep =
     node ~ctx ~root:false ~print_color ppf (Code_id_or_name.code_id code_id);
-    node ~ctx ~root:false ~print_color ppf (Code_id_or_name.var code_dep.my_closure);
+    node ~ctx ~root:false ~print_color ppf
+      (Code_id_or_name.var code_dep.my_closure);
     List.iter
       (fun v -> node ~ctx ~root:false ~print_color ppf (Code_id_or_name.var v))
       ((code_dep.exn :: code_dep.return) @ code_dep.params)
 
-  let print_fundep ~all_cdep ~code_dep ~ctx ~print_color (code_id : Code_id.t) ppf t =
+  let print_fundep ~all_cdep ~code_dep ~ctx ~print_color (code_id : Code_id.t)
+      ppf t =
     Format.fprintf ppf
       "subgraph cluster_%d_%d { label=\"%a\"@\n\
       \ subgraph cluster_%d_%d_intf { label=\"interface\"@\n\
@@ -141,7 +145,10 @@ module P = struct
       (code_id :> int)
       Code_id.print code_id ctx
       (code_id :> int)
-      (code_deps ~ctx ~code_id ~print_color) code_dep (nodes ~all_cdep ~ctx ~print_color) t
+      (code_deps ~ctx ~code_id ~print_color)
+      code_dep
+      (nodes ~all_cdep ~ctx ~print_color)
+      t
 
   let print_fundeps ~all_cdep ~code_dep ~ctx ~print_color ppf fundeps =
     Hashtbl.iter
@@ -157,14 +164,17 @@ module P = struct
     (* TODO: clean cdep, not useful anymore *)
     Flambda_colours.without_colours ~f:(fun () ->
         Format.fprintf ppf "subgraph cluster_%d { label=\"%s\"@\n%a@\n%a}@." ctx
-          print_name (nodes ~all_cdep ~ctx ~print_color) t (edges ~ctx) t)
+          print_name
+          (nodes ~all_cdep ~ctx ~print_color)
+          t (edges ~ctx) t)
 end
 
 let white_color _id = "white"
 
 let print_dep dep =
   let print_name = Some "dep" in
-  print_graph ~print_name ~lazy_ppf:dep_graph_ppf ~graph:dep ~print:(P.print ~print_color:white_color)
+  print_graph ~print_name ~lazy_ppf:dep_graph_ppf ~graph:dep
+    ~print:(P.print ~print_color:white_color)
 
 let print_solved_dep (result : Dep_solver.result) dep =
   let print_name = Some "dep" in
@@ -172,5 +182,7 @@ let print_solved_dep (result : Dep_solver.result) dep =
     match Hashtbl.find_opt result id with
     | None | Some Bottom -> "white"
     | Some Top -> "#a7a7a7"
-    | Some Fields _ -> "#f1c40f" in
-  print_graph ~print_name ~lazy_ppf:dep_graph_ppf ~graph:dep ~print:(P.print ~print_color)
+    | Some (Fields _) -> "#f1c40f"
+  in
+  print_graph ~print_name ~lazy_ppf:dep_graph_ppf ~graph:dep
+    ~print:(P.print ~print_color)

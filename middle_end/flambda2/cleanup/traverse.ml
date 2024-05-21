@@ -197,9 +197,16 @@ end = struct
         let () =
           match find_code t code_id with
           | exception Not_found ->
-            assert (not (Compilation_unit.is_current (Code_id.get_compilation_unit code_id)));
-            (* The code comes from another compilation unit; so we don't know what happens once it is applied. As such, it must escape the whole block. *)
-            Graph.add_dep t.deps (Code_id_or_name.name name) (Block (Apply (Normal ~-1), Code_id_or_name.name name))
+            assert (
+              not
+                (Compilation_unit.is_current
+                   (Code_id.get_compilation_unit code_id)));
+            (* The code comes from another compilation unit; so we don't know
+               what happens once it is applied. As such, it must escape the
+               whole block. *)
+            Graph.add_dep t.deps
+              (Code_id_or_name.name name)
+              (Block (Apply (Normal ~-1), Code_id_or_name.name name))
           | code_dep ->
             Graph.add_dep t.deps
               (Code_id_or_name.var code_dep.my_closure)
@@ -212,7 +219,8 @@ end = struct
                   (Variable.create (Printf.sprintf "partial_apply_%i" i))
               in
               Graph.add_dep t.deps !acc (Block (Apply (Normal 0), tmp_name));
-              Graph.add_dep t.deps !acc (Block (Apply (Normal ~-1), Code_id_or_name.code_id code_id));
+              Graph.add_dep t.deps !acc
+                (Block (Apply (Normal ~-1), Code_id_or_name.code_id code_id));
               acc := tmp_name
             done;
             List.iteri
@@ -222,7 +230,8 @@ end = struct
               code_dep.return;
             Graph.add_dep t.deps !acc
               (Block (Apply Exn, Code_id_or_name.var code_dep.exn));
-            Graph.add_dep t.deps !acc (Block (Apply (Normal ~-1), Code_id_or_name.code_id code_id));
+            Graph.add_dep t.deps !acc
+              (Block (Apply (Normal ~-1), Code_id_or_name.code_id code_id))
         in
         let code_id =
           try
@@ -354,8 +363,7 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
         in
         match code_id with
         | Deleted -> ()
-        | Code_id code_id ->
-          Acc.add_set_of_closures_dep name code_id acc
+        | Code_id code_id -> Acc.add_set_of_closures_dep name code_id acc
         (* let code_id = Code_id_or_name.code_id code_id in Acc.record_dep ~denv
            name (Graph.Dep.Contains code_id) acc *))
       names_and_function_slots
@@ -495,10 +503,10 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
             (Code_id_or_name.var exn_arg)
             (Field (Apply Exn, !partial_apply))
             acc;
-        Acc.record_dep' ~denv
-          (Code_id_or_name.var calls_are_not_pure)
-          (Field (Apply (Normal ~-1), !partial_apply))
-          acc;
+          Acc.record_dep' ~denv
+            (Code_id_or_name.var calls_are_not_pure)
+            (Field (Apply (Normal ~-1), !partial_apply))
+            acc;
           partial_apply := Name.var v
         done;
         Acc.record_dep' ~denv
