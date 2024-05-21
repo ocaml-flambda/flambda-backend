@@ -237,6 +237,20 @@ end
 module M1 : sig val foo : '_weak1 -> '_weak1 val bar : float# -> int end
 |}]
 
+(* First-class modules are non-null: *)
+
+module type S1 = sig
+  val bar : float# -> int
+end
+
+let _ = id_non_null_value (module M1 : S1)
+;;
+
+[%%expect{|
+module type S1 = sig val bar : float# -> int end
+- : (module S1) = <module>
+|}]
+
 (* CR layouts v3.0: objects should be non-null. *)
 
 let _ = id_non_null_value (object val foo = () end)
@@ -368,14 +382,18 @@ Error: This expression has type Possibly_null.t single_field_record
 
 let _ = id_non_null_value (Value "a")
 
-let _ = id_non_null_value (Value (Possibly_null.create -1))
+let _ = id_non_null_value (Value (Possibly_null.create 1))
 ;;
 
 [%%expect{|
 - : string single_field_variant = <unknown constructor>
-Line 3, characters 34-54:
-3 | let _ = id_non_null_value (Value (Possibly_null.create -1))
-                                      ^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type int -> Possibly_null.t
-       but an expression was expected of type int
+Line 3, characters 33-57:
+3 | let _ = id_non_null_value (Value (Possibly_null.create 1))
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type Possibly_null.t
+       but an expression was expected of type ('a : non_null_value)
+       The layout of Possibly_null.t is value, because
+         of the definition of t at line 2, characters 2-16.
+       But the layout of Possibly_null.t must be a sublayout of non_null_value, because
+         of the definition of id_non_null_value at line 3, characters 4-21.
 |}]
