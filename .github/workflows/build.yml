@@ -46,8 +46,8 @@ jobs:
             build_ocamlparam: ''
             ocamlparam: '_,O3=1'
 
-          - name: flambda2_o3_advanced_meet
-            config: --enable-middle-end=flambda2
+          - name: flambda2_o3_advanced_meet_frame_pointers_runtime5
+            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-runtime5
             os: ubuntu-latest
             build_ocamlparam: ''
             ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced'
