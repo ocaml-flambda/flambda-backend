@@ -196,7 +196,10 @@ end = struct
       (fun (name, code_id) ->
         let () =
           match find_code t code_id with
-          | exception Not_found -> ()
+          | exception Not_found ->
+            assert (not (Compilation_unit.is_current (Code_id.get_compilation_unit code_id)));
+            (* The code comes from another compilation unit; so we don't know what happens once it is applied. As such, it must escape the whole block. *)
+            Graph.add_dep t.deps (Code_id_or_name.name name) (Block (Apply (Normal ~-1), Code_id_or_name.name name))
           | code_dep ->
             Graph.add_dep t.deps
               (Code_id_or_name.var code_dep.my_closure)
@@ -352,8 +355,7 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
         match code_id with
         | Deleted -> ()
         | Code_id code_id ->
-          if Compilation_unit.is_current (Code_id.get_compilation_unit code_id)
-          then Acc.add_set_of_closures_dep name code_id acc
+          Acc.add_set_of_closures_dep name code_id acc
         (* let code_id = Code_id_or_name.code_id code_id in Acc.record_dep ~denv
            name (Graph.Dep.Contains code_id) acc *))
       names_and_function_slots
@@ -866,10 +868,10 @@ and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
      it is highly unclear what should be done for zero_alloc code, so we simply
      mark the code as escaping. *)
   let never_delete =
-    match Code_metadata.check code_metadata with
+    match Code_metadata.zero_alloc_attribute code_metadata with
     | Default_check -> !Clflags.zero_alloc_check_assert_all
-    | Assume { property = Zero_alloc; _ } -> false
-    | Check { property = Zero_alloc; _ } -> true
+    | Assume _ -> false
+    | Check _ -> true
   in
   let is_opaque = Code_metadata.is_opaque code_metadata in
   Flambda.Function_params_and_body.pattern_match params_and_body
