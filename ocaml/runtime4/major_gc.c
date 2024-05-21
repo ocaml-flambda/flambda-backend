@@ -384,7 +384,7 @@ static int redarken_chunk(char* heap_chunk, struct mark_stack* stk) {
 
     /* Found a block */
     me.start = Op_hp(hp);
-    me.end = me.start + Wosize_hp(hp);
+    me.end = me.start + Scannable_wosize_hp(hp);
     if (Tag_hp(hp) == Closure_tag) {
       me.start += Start_env_closinfo(Closinfo_val(Val_hp(hp)));
     }
