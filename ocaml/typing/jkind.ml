@@ -548,7 +548,7 @@ let value ~(why : value_creation_reason) =
   | V1_safety_check -> value_v1_safety_check
   | _ -> fresh_jkind Jkind_desc.value ~why:(Value_creation why)
 
-let non_null_value ~(why: non_null_value_creation_reason) =
+let non_null_value ~(why : non_null_value_creation_reason) =
   fresh_jkind Jkind_desc.non_null_value ~why:(Non_null_value_creation why)
 
 let immediate64 ~why =
@@ -693,16 +693,14 @@ let of_type_decl_default ~context ~default (decl : Parsetree.type_declaration) =
   | None -> default, None, decl.ptype_attributes
 
 let for_boxed_record ~all_void =
-  if all_void then
-    immediate ~why:Empty_record
-  else
-    non_null_value ~why:Boxed_record
+  if all_void
+  then immediate ~why:Empty_record
+  else non_null_value ~why:Boxed_record
 
 let for_boxed_variant ~all_voids =
-  if all_voids then
-    immediate ~why:Enumeration
-  else
-    non_null_value ~why:Boxed_variant
+  if all_voids
+  then immediate ~why:Enumeration
+  else non_null_value ~why:Boxed_variant
 
 (******************************)
 (* elimination and defaulting *)
@@ -988,8 +986,7 @@ end = struct
          compilers team with this message: %s)@]" s
 
   let format_non_null_value_creation_reason ppf :
-    non_null_value_creation_reason -> _ =
-    function
+      non_null_value_creation_reason -> _ = function
     | Primitive id ->
       fprintf ppf "it is the primitive non-null value type %s" (Ident.name id)
     | Extensible_variant -> fprintf ppf "it's an extensible variant type"
