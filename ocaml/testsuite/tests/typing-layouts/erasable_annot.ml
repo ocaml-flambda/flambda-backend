@@ -255,6 +255,19 @@ can't be erased for compatibility with upstream OCaml.
 val f : ('a : immediate). (module S with type t = 'a) -> 'a -> 'a = <fun>
 |}]
 
+module type S = sig
+  type t [@@immediate]
+end
+
+let x =
+  ignore (fun (module _ : S with type t = 'a) (_ : 'a) -> 10);
+  15
+
+[%%expect{|
+module type S = sig type t : immediate end
+val x : int = 15
+|}]
+
 (* Other annotations are not effected by this flag *)
 module type S = sig
   val f_any : ('a : any). ('a : any) -> (('a : any)[@error_message ""])
