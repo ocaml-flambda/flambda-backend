@@ -22,11 +22,16 @@
 #include "misc.h"
 
 /* An interval of a single object to be scanned.
-   The end pointer must always be one-past-the-end of a heap block,
-   but the start pointer is not necessarily the start of the block */
+   The object end pointer must always be one-past-the-end of a heap block,
+   but the start pointer is not necessarily the start of the block,
+   and the scannable end pointer is not necessarily the same as the
+   object end pointer. (The GC should not scan past the scannable
+   end pointer.)
+*/
 typedef struct {
   value* start;
-  value* end;
+  value* scannable_end;
+  value* object_end;
 } mark_entry;
 
 typedef struct {
