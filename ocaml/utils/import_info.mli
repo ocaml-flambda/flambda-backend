@@ -29,9 +29,11 @@ module CU := Compilation_unit
    here, or somewhere alongside, rather than being duplicated around the
    tree. *)
 
-(** The preferred API to use for interface imports. An interface import might be
-    a parameter, in which case it has a CRC but no [CU.t] (since a [CU.t] is for
-    an implementation). *)
+(** An interface (.cmi) import. Always has a name, corresponding to the name of the .cmi.
+    If the interface is imported opaquely by an alias, it has _only_ a name (since we
+    haven't read the file). Otherwise, it has at least a digest. In most cases, it also
+    has a [CU.t] for the implementation (the .cmo or .cmx), but a parameter has no
+    implementation and thus no [CU.t]. *)
 module Intf : sig
   type t
 
@@ -49,7 +51,7 @@ module Intf : sig
     end
 
     (** The "non-alias part" of the import info for an interface. An [Intf.t] is
-        equivalent to a [CU.Name.t * Nonalias.t option] (use [create], [name], and [spec]
+        equivalent to a [CU.Name.t * Nonalias.t option] (use [create], [name], and [info]
         to convert back and forth). *)
     type t = Kind.t * Digest.t
   end
@@ -71,6 +73,7 @@ module Intf : sig
   val dummy : t
 end
 
+(** An implementation (.cmx) import. *)
 module Impl : sig
   type t
 
