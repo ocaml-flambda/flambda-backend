@@ -74,6 +74,8 @@ module Sort : sig
   val equate_tracking_mutation : t -> t -> equate_result
 
   val get : t -> t
+
+  val to_string : t -> string
 end
 
 module Layout : sig
