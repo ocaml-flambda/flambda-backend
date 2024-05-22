@@ -23,7 +23,6 @@ type code_dep = Dot.code_dep =
     my_closure : Variable.t;
     return : Variable.t list; (* Dummy variable representing return value *)
     exn : Variable.t; (* Dummy variable representing exn return value *)
-    code_id_for_escape : Code_id.t
   }
 
 type apply_dep =
@@ -194,7 +193,6 @@ end = struct
   let record_set_of_closure_deps t =
     List.iter
       (fun (name, code_id) ->
-        let () =
           match find_code t code_id with
           | exception Not_found ->
             assert (
@@ -206,7 +204,7 @@ end = struct
                whole block. *)
             Graph.add_dep t.deps
               (Code_id_or_name.name name)
-              (Block (Apply (Normal ~-1), Code_id_or_name.name name))
+              (Block (Code_of_closure, Code_id_or_name.name name))
           | code_dep ->
             Graph.add_dep t.deps
               (Code_id_or_name.var code_dep.my_closure)
@@ -219,8 +217,9 @@ end = struct
                   (Variable.create (Printf.sprintf "partial_apply_%i" i))
               in
               Graph.add_dep t.deps !acc (Block (Apply (Normal 0), tmp_name));
+              (* The code_id needs to stay alive even if the function is only partially applied, as the arity is needed at runtime in that case. *)
               Graph.add_dep t.deps !acc
-                (Block (Apply (Normal ~-1), Code_id_or_name.code_id code_id));
+                (Block (Code_of_closure, Code_id_or_name.code_id code_id));
               acc := tmp_name
             done;
             List.iteri
@@ -231,17 +230,8 @@ end = struct
             Graph.add_dep t.deps !acc
               (Block (Apply Exn, Code_id_or_name.var code_dep.exn));
             Graph.add_dep t.deps !acc
-              (Block (Apply (Normal ~-1), Code_id_or_name.code_id code_id))
-        in
-        let code_id =
-          try
-            let code_dep = find_code t code_id in
-            code_dep.code_id_for_escape
-          with Not_found -> code_id
-        in
-        Graph.add_dep t.deps
-          (Code_id_or_name.name name)
-          (Graph.Dep.Block (Code_of_closure, Code_id_or_name.code_id code_id)))
+              (Block (Code_of_closure, Code_id_or_name.code_id code_id))
+      )
       t.set_of_closures_dep
 
   let deps t =
@@ -318,9 +308,14 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
     | Bottom -> false
     | Ok _ -> true
   in
-  let code_id_for_escape = Code_id.rename code_id in
+  let never_delete =
+    match Code.zero_alloc_attribute code with
+    | Default_check -> !Clflags.zero_alloc_check_assert_all
+    | Assume _ -> false
+    | Check _ -> true
+  in
   let code_dep =
-    { arity; return; my_closure; exn; params; code_id_for_escape }
+    { arity; return; my_closure; exn; params }
   in
   let () =
     if has_unsafe_result_type
@@ -328,23 +323,10 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
       List.iter
         (fun var -> Acc.used ~denv (Simple.var var) acc)
         ((my_closure :: params) @ (exn :: return))
-    else
-      let deps =
-        Graph.Dep.Use (Code_id_or_name.var exn)
-        :: List.map (fun var -> Graph.Dep.Use (Code_id_or_name.var var)) return
-      in
-      List.iter
-        (fun dep ->
-          Acc.record_dep' ~denv
-            (Code_id_or_name.code_id code_id_for_escape)
-            dep acc)
-        deps
   in
   let () =
-    Acc.record_dep' ~denv
-      (Code_id_or_name.code_id code_id_for_escape)
-      (Graph.Dep.Use (Code_id_or_name.code_id code_id))
-      acc
+    if never_delete then
+      (List.iter (fun var -> Acc.used ~denv (Simple.var var) acc) (exn :: return); Acc.used_code_id code_id acc)
   in
   Acc.add_code code_id code_dep acc
 
@@ -505,13 +487,13 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
             acc;
           Acc.record_dep' ~denv
             (Code_id_or_name.var calls_are_not_pure)
-            (Field (Apply (Normal ~-1), !partial_apply))
+            (Field (Code_of_closure, !partial_apply))
             acc;
           partial_apply := Name.var v
         done;
         Acc.record_dep' ~denv
           (Code_id_or_name.var calls_are_not_pure)
-          (Field (Apply (Normal ~-1), !partial_apply))
+          (Field (Code_of_closure, !partial_apply))
           acc;
         (match return_args with
         | None -> ()
@@ -875,12 +857,6 @@ and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
   (* Note: this significately degrades the analysis on zero_alloc code. However,
      it is highly unclear what should be done for zero_alloc code, so we simply
      mark the code as escaping. *)
-  let never_delete =
-    match Code_metadata.zero_alloc_attribute code_metadata with
-    | Default_check -> !Clflags.zero_alloc_check_assert_all
-    | Assume _ -> false
-    | Check _ -> true
-  in
   let is_opaque = Code_metadata.is_opaque code_metadata in
   Flambda.Function_params_and_body.pattern_match params_and_body
     ~f:(fun
@@ -895,7 +871,6 @@ and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
          ~free_names_of_body:_
        ->
       let code_dep = Acc.find_code acc code_id in
-      if never_delete then Acc.used_code_id code_dep.code_id_for_escape acc;
       let maybe_opaque var = if is_opaque then Variable.rename var else var in
       let return = List.map maybe_opaque code_dep.return in
       let exn = maybe_opaque code_dep.exn in
