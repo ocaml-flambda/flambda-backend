@@ -230,12 +230,22 @@ CAMLprim value caml_obj_truncate (value v, value newsize)
      beyond new_wosize in v, erase them explicitly so that the GC
      can darken them as appropriate. */
   if (tag < No_scan_tag) {
-    for (i = new_wosize; i < wosize; i++){
+    mlsize_t scannable_wosize = Scannable_wosize_hd(hd);
+    for (i = new_wosize; i < scannable_wosize; i++){
       caml_modify(&Field(v, i), Val_unit);
 #ifdef DEBUG
       Field (v, i) = Debug_free_truncate;
 #endif
     }
+#ifdef DEBUG
+    /* Unless we're in debug mode, it's not necessary to empty out
+       the non-scannable suffix, as the GC knows not to look there
+       anyway.
+     */
+    for (; i < wosize; i++) {
+      Field (v, i) = Debug_free_truncate;
+    }
+#endif
   }
   /* We must use an odd tag for the header of the leftovers so it does not
      look like a pointer because there may be some references to it in
