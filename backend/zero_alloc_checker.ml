@@ -2150,13 +2150,21 @@ end = struct
     transform t ~next ~exn ~effect desc dbg
 
   (** Summary of target specific operations. *)
-  let transform_specific w s =
-    (* Conservatively assume that operation can return normally. *)
-    let nor = if Arch.operation_allocates s then V.top w else V.safe in
-    let exn = if Arch.operation_can_raise s then nor else V.bot in
-    (* Assume that the operation does not diverge. *)
-    let div = V.bot in
-    { Value.nor; exn; div }
+  let transform_specific t s ~next ~exn dbg =
+    let can_raise = Arch.operation_can_raise s in
+    let effect =
+      let w = create_witnesses t Arch_specific dbg in
+      match Metadata.assume_value dbg ~can_raise w with
+      | Some v -> v
+      | None ->
+        (* Conservatively assume that operation can return normally. *)
+        let nor = if Arch.operation_allocates s then V.top w else V.safe in
+        let exn = if Arch.operation_can_raise s then nor else V.bot in
+        (* Assume that the operation does not diverge. *)
+        let div = V.bot in
+        { Value.nor; exn; div }
+    in
+    transform t ~next ~exn ~effect "Arch.specific_operation" dbg
 
   let transform_operation t (op : Mach.operation) ~next ~exn dbg =
     match op with
@@ -2238,16 +2246,7 @@ end = struct
     | Iextcall { func; alloc = true; _ } ->
       let w = create_witnesses t (Extcall { callee = func }) dbg in
       transform_top t ~next ~exn w ("external call to " ^ func) dbg
-    | Ispecific s ->
-      let effect =
-        let w = create_witnesses t Arch_specific dbg in
-        match
-          Metadata.assume_value dbg ~can_raise:(Arch.operation_can_raise s) w
-        with
-        | Some v -> v
-        | None -> transform_specific w s
-      in
-      transform t ~next ~exn ~effect "Arch.specific_operation" dbg
+    | Ispecific s -> transform_specific t s ~next ~exn dbg
     | Idls_get -> Misc.fatal_error "Idls_get not supported"
 
   module D = Dataflow.Backward ((Value : Dataflow.DOMAIN))
@@ -2535,16 +2534,6 @@ end = struct
       type context = t
 
       type error = unit
-
-      let transform_specific t s ~next ~exn dbg =
-        let can_raise = Arch.operation_can_raise s in
-        let effect =
-          let w = create_witnesses t Arch_specific dbg in
-          match Metadata.assume_value dbg ~can_raise w with
-          | Some v -> v
-          | None -> S.transform_specific w s
-        in
-        transform t ~next ~exn ~effect "Arch.specific_operation" dbg
 
       let transform_tailcall_imm t func dbg =
         (* Sound to ignore [next] and [exn] because the call never returns. *)
