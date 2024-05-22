@@ -129,10 +129,6 @@
   gc.mli
   hashtbl.ml
   hashtbl.mli
-  iarray.ml
-  iarray.mli
-  iarrayLabels.ml
-  iarrayLabels.mli
   in_channel.ml
   in_channel.mli
   int.ml
@@ -280,12 +276,6 @@
   .stdlib.objs/byte/stdlib__Hashtbl.cmi
   .stdlib.objs/byte/stdlib__Hashtbl.cmt
   .stdlib.objs/byte/stdlib__Hashtbl.cmti
-  .stdlib.objs/byte/stdlib__Iarray.cmi
-  .stdlib.objs/byte/stdlib__Iarray.cmt
-  .stdlib.objs/byte/stdlib__Iarray.cmti
-  .stdlib.objs/byte/stdlib__IarrayLabels.cmi
-  .stdlib.objs/byte/stdlib__IarrayLabels.cmt
-  .stdlib.objs/byte/stdlib__IarrayLabels.cmti
   .stdlib.objs/byte/stdlib__In_channel.cmi
   .stdlib.objs/byte/stdlib__In_channel.cmt
   .stdlib.objs/byte/stdlib__In_channel.cmti
@@ -488,8 +478,6 @@
   .stdlib.objs/native/stdlib__Either.cmx
   .stdlib.objs/native/stdlib__In_channel.cmx
   .stdlib.objs/native/stdlib__Out_channel.cmx
-  .stdlib.objs/native/stdlib__Iarray.cmx
-  .stdlib.objs/native/stdlib__IarrayLabels.cmx
   (META as stdlib/META))
  (section lib)
  (package ocaml_runtime_stdlib))
