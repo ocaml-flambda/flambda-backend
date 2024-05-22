@@ -171,24 +171,6 @@ module Stdlib : sig
     (** Returns the longest list that, with respect to the provided equality
         function, is a prefix of both of the given lists.  The input lists,
         each with such longest common prefix removed, are also returned. *)
-
-    val merge_iter
-       : cmp:('a -> 'b -> int)
-      -> left_only:('a -> unit)
-      -> right_only:('b -> unit)
-      -> both:('a -> 'b -> unit)
-      -> 'a t
-      -> 'b t
-      -> unit
-
-    val merge_map
-       : cmp:('a -> 'b -> int)
-      -> left_only:('a -> 'c)
-      -> right_only:('b -> 'c)
-      -> both:('a -> 'b -> 'c)
-      -> 'a t
-      -> 'b t
-      -> 'c t
   end
 
 (** {2 Extensions to the Option module} *)
