@@ -662,6 +662,15 @@ let rec split_static_function lfun block_var local_idents lam :
   | Levent (lam, lev) ->
     let+ lam = split_static_function lfun block_var local_idents lam in
     Levent (lam, lev)
+  | Lregion (lam, layout_fun) ->
+    (* The type-checker forbids recursive values from being allocated on the
+       stack, so this region is only here to collect temporary allocations.
+       In particular the function itself does not capture any stack-allocated
+       variables, so we can lift it out of the region. *)
+    let+ lam = split_static_function lfun block_var local_idents lam in
+    (* The new expression returns the closure block instead of the function *)
+    ignore layout_fun;
+    Lregion (lam, layout_block)
   | Lmutvar _
   | Lconst _
   | Lapply _
@@ -671,7 +680,6 @@ let rec split_static_function lfun block_var local_idents lam :
   | Lassign _
   | Lsend _
   | Lifused _
-  | Lregion _
   | Lexclave _ ->
     Misc.fatal_errorf
       "letrec binding is not a static function:@ lfun=%a@ lam=%a"
