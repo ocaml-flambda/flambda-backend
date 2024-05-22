@@ -197,6 +197,9 @@ let size_of_contents_in_bytes t =
   match t.typ with
   | Vec128 -> Arch.size_vec128
   | Float -> Arch.size_float
+  | Float32 ->
+    assert (Arch.size_float = 8);
+    Arch.size_float / 2
   | Addr ->
     assert (Arch.size_addr = Arch.size_int);
     Arch.size_addr
@@ -296,6 +299,15 @@ let set_of_array v =
            if i >= n then Set.empty else Set.add v.(i) (add_all(i+1))
          in add_all 0
 
+let set_has_collisions s =
+  let phys_regs = Hashtbl.create (Int.min (Set.cardinal s) 32) in
+  Set.fold (fun r acc ->
+    match r.loc with
+    | Reg id ->
+      if Hashtbl.mem phys_regs id then true
+      else (Hashtbl.add phys_regs id (); acc)
+    | Unknown | Stack _ -> acc) s false
+
 let equal_stack_location left right =
   match left, right with
   | Local left, Local right -> Int.equal left right
@@ -318,6 +330,11 @@ let equal_location left right =
   | Stack _, (Unknown | Reg _) ->
     false
 
+let same_phys_reg left right =
+  match left.loc, right.loc with
+  | Reg l, Reg r -> Int.equal l r
+  | (Reg _ | Unknown | Stack _), _ -> false
+
 let same_loc left right =
   (* CR-soon azewierzejew: This should also compare [reg_class] for [Stack
      (Local _)]. That's complicated because [reg_class] is definied in [Proc]
@@ -326,3 +343,15 @@ let same_loc left right =
 
 let same left right =
   Int.equal left.stamp right.stamp
+
+(* Two registers have compatible types if we allow moves between them.
+   Note that we never allow moves between different register classes, so this
+   condition must be at least as strict as [class left = class right]. *)
+let types_are_compatible left right =
+  match left.typ, right.typ with
+  | (Int | Val | Addr), (Int | Val | Addr)
+  | Float, Float
+  | Float32, Float32
+  | Vec128, Vec128 ->
+    true
+  | (Int | Val | Addr | Float | Float32 | Vec128), _ -> false

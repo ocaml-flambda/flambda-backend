@@ -13,15 +13,20 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-let use_ocamlcfg = ref false            (* -ocamlcfg *)
+let use_ocamlcfg = ref true             (* -[no-]ocamlcfg *)
 let dump_cfg = ref false                (* -dcfg *)
 let cfg_invariants = ref false          (* -dcfg-invariants *)
 let cfg_equivalence_check = ref false   (* -dcfg-equivalence-check *)
 let regalloc = ref ""                   (* -regalloc *)
 let regalloc_params = ref ([] : string list)  (* -regalloc-param *)
-let regalloc_validate = ref false       (* -[no-]regalloc-validate *)
+let regalloc_validate = ref true        (* -[no-]regalloc-validate *)
 
-let cfg_peephole_optimize = ref false   (* -[no-]cfg-peephole-optimize *)
+let cfg_peephole_optimize = ref true    (* -[no-]cfg-peephole-optimize *)
+
+let cfg_cse_optimize = ref false        (* -[no-]cfg-cse-optimize *)
+
+let cfg_stack_checks = ref true         (* -[no-]cfg-stack-check *)
+let cfg_stack_checks_threshold = ref 16384 (* -cfg-stack-threshold *)
 
 let reorder_blocks_random = ref None    (* -reorder-blocks-random seed *)
 let basic_block_sections = ref false    (* -basic-block-sections *)
@@ -30,16 +35,49 @@ let dasm_comments = ref false (* -dasm-comments *)
 
 let default_heap_reduction_threshold = 500_000_000 / (Sys.word_size / 8)
 let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-reduction-threshold *)
-let dump_checkmach = ref false          (* -dcheckmach *)
+let dump_zero_alloc = ref false          (* -dzero-alloc *)
+let disable_zero_alloc_checker = ref false       (* -disable-zero-alloc-checker *)
+let disable_precise_zero_alloc_checker = ref false  (* -disable-precise-zero_alloc_checker *)
 
-type checkmach_details_cutoff =
+type zero_alloc_checker_details_cutoff =
   | Keep_all
   | At_most of int
   | No_details
 
-let default_checkmach_details_cutoff = At_most 20
-let checkmach_details_cutoff = ref default_checkmach_details_cutoff
-                                       (* -checkmach-details-cutoff n *)
+let default_zero_alloc_checker_details_cutoff = At_most 20
+let zero_alloc_checker_details_cutoff = ref default_zero_alloc_checker_details_cutoff
+                                       (* -zero-alloc-checker-details-cutoff n *)
+
+type zero_alloc_checker_join =
+  | Keep_all
+  | Widen of int  (* n > 0 *)
+  | Error of int (* n > 0 *)
+
+let default_zero_alloc_checker_join = Widen 100
+let zero_alloc_checker_join = ref default_zero_alloc_checker_join
+                              (* -zero-alloc-checker-join n *)
+
+module Function_layout = struct
+  type t =
+    | Topological
+    | Source
+
+  let to_string = function
+    | Topological -> "topological"
+    | Source -> "source"
+
+  let default = Source
+
+  let all = [Topological; Source]
+
+  let of_string v =
+    let f t =
+      if String.equal (to_string t) v then Some t else None
+    in
+    List.find_map f all
+end
+
+let function_layout = ref Function_layout.default   (* -function-layout *)
 
 let disable_poll_insertion = ref (not Config.poll_insertion)
                                         (* -disable-poll-insertion *)
@@ -52,17 +90,21 @@ let long_frames_threshold = ref max_long_frames_threshold (* -debug-long-frames-
 let caml_apply_inline_fast_path = ref false  (* -caml-apply-inline-fast-path *)
 
 type function_result_types = Never | Functors_only | All_functions
+type meet_algorithm = Basic | Advanced
 type opt_level = Oclassic | O2 | O3
 type 'a or_default = Set of 'a | Default
 
 let dump_inlining_paths = ref false
 let davail = ref false
+let dranges = ref false
 
 let opt_level = ref Default
 
 let internal_assembler = ref false
 
 let gc_timings = ref false
+
+let symbol_visibility_protected = ref false (* -symbol-visibility-protected*)
 
 let flags_by_opt_level ~opt_level ~default ~oclassic ~o2 ~o3 =
   match opt_level with
@@ -82,6 +124,7 @@ module Flambda2 = struct
     let cse_depth = 2
     let join_depth = 5
     let function_result_types = Never
+    let meet_algorithm = Basic
     let unicode = true
   end
 
@@ -93,6 +136,7 @@ module Flambda2 = struct
     cse_depth : int;
     join_depth : int;
     function_result_types : function_result_types;
+    meet_algorithm : meet_algorithm;
 
     unicode : bool;
   }
@@ -105,6 +149,7 @@ module Flambda2 = struct
     cse_depth = Default.cse_depth;
     join_depth = Default.join_depth;
     function_result_types = Default.function_result_types;
+    meet_algorithm = Default.meet_algorithm;
     unicode = Default.unicode;
   }
 
@@ -137,6 +182,7 @@ module Flambda2 = struct
   let join_depth = ref Default
   let unicode = ref Default
   let function_result_types = ref Default
+  let meet_algorithm = ref Default
 
   module Dump = struct
     type target = Nowhere | Main_dump_stream | File of Misc.filepath
@@ -158,6 +204,7 @@ module Flambda2 = struct
       let max_unboxing_depth = 3
       let can_inline_recursive_functions = false
       let max_function_simplify_run = 2
+      let shorten_symbol_names = false
     end
 
     type flags = {
@@ -168,6 +215,7 @@ module Flambda2 = struct
       max_unboxing_depth : int;
       can_inline_recursive_functions : bool;
       max_function_simplify_run : int;
+      shorten_symbol_names : bool
     }
 
     let default = {
@@ -178,11 +226,13 @@ module Flambda2 = struct
       max_unboxing_depth = Default.max_unboxing_depth;
       can_inline_recursive_functions = Default.can_inline_recursive_functions;
       max_function_simplify_run = Default.max_function_simplify_run;
+      shorten_symbol_names = Default.shorten_symbol_names;
     }
 
     let oclassic = {
       default with
       fallback_inlining_heuristic = true;
+      shorten_symbol_names = true;
     }
 
     let o2 = {
@@ -202,6 +252,7 @@ module Flambda2 = struct
     let max_unboxing_depth = ref Default
     let can_inline_recursive_functions = ref Default
     let max_function_simplify_run = ref Default
+    let shorten_symbol_names = ref Default
   end
 
   module Debug = struct
@@ -365,7 +416,7 @@ let opt_flag_handler : Clflags.Opt_flag_handler.t =
 
 let use_cached_generic_functions = ref false
 let cached_generic_functions_path =
-  ref (Filename.concat Config.standard_library ("cached-generic-functions" ^ Config.ext_obj))
+  ref (Filename.concat Config.standard_library ("cached-generic-functions" ^ Config.ext_lib))
 
 let () =
   if Clflags.is_flambda2 () then set_o2 ()

@@ -36,7 +36,7 @@ let apply_cse dacc ~original_prim =
           Simple.print simple
       | canonical -> Some canonical))
 
-let try_cse dacc ~original_prim ~min_name_mode ~result_var : cse_result =
+let try_cse dacc dbg ~original_prim ~min_name_mode ~result_var : cse_result =
   (* CR-someday mshinwell: Use [meet] and [reify] for CSE? (discuss with
      lwhite) *)
   (* CR-someday mshinwell: Find example that suggested we needed to allow
@@ -47,6 +47,7 @@ let try_cse dacc ~original_prim ~min_name_mode ~result_var : cse_result =
     let result_var' = VB.var result_var in
     match apply_cse dacc ~original_prim with
     | Some replace_with ->
+      let dacc = DA.merge_debuginfo_rewrite dacc ~bound_to:replace_with dbg in
       let named = Named.create_simple replace_with in
       let ty = T.alias_type_of (P.result_kind' original_prim) replace_with in
       let dacc = DA.add_variable dacc result_var ty in
@@ -70,8 +71,11 @@ let try_cse dacc ~original_prim ~min_name_mode ~result_var : cse_result =
         | None -> dacc
         | Some eligible_prim ->
           let bound_to = Simple.var result_var' in
-          DA.map_denv dacc ~f:(fun denv ->
-              DE.add_cse denv eligible_prim ~bound_to)
+          let dacc =
+            DA.map_denv dacc ~f:(fun denv ->
+                DE.add_cse denv eligible_prim ~bound_to)
+          in
+          DA.merge_debuginfo_rewrite dacc ~bound_to dbg
       in
       Not_applied dacc
 
@@ -103,7 +107,7 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
     let original_prim : P.t =
       if orig_arg == arg then prim else Unary (unary_prim, arg)
     in
-    match try_cse dacc ~original_prim ~min_name_mode ~result_var with
+    match try_cse dacc dbg ~original_prim ~min_name_mode ~result_var with
     | Applied result -> result
     | Not_applied dacc ->
       Simplify_unary_primitive.simplify_unary_primitive dacc original_prim
@@ -122,7 +126,7 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
       then prim
       else Binary (binary_prim, arg1, arg2)
     in
-    match try_cse dacc ~original_prim ~min_name_mode ~result_var with
+    match try_cse dacc dbg ~original_prim ~min_name_mode ~result_var with
     | Applied result -> result
     | Not_applied dacc ->
       Simplify_binary_primitive.simplify_binary_primitive dacc original_prim
@@ -142,11 +146,11 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
       check_arg_kinds prim
         [arg1_ty, arg1_kind; arg2_ty, arg2_kind; arg3_ty, arg3_kind]);
     let original_prim : P.t =
-      if orig_arg1 == arg1 && orig_arg2 == arg2 && orig_arg3 = arg3
+      if orig_arg1 == arg1 && orig_arg2 == arg2 && orig_arg3 == arg3
       then prim
       else Ternary (ternary_prim, arg1, arg2, arg3)
     in
-    match try_cse dacc ~original_prim ~min_name_mode ~result_var with
+    match try_cse dacc dbg ~original_prim ~min_name_mode ~result_var with
     | Applied result -> result
     | Not_applied dacc ->
       Simplify_ternary_primitive.simplify_ternary_primitive dacc original_prim
@@ -172,7 +176,7 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
     let original_prim : P.t =
       Variadic (variadic_prim, List.map fst args_with_tys)
     in
-    match try_cse dacc ~original_prim ~min_name_mode ~result_var with
+    match try_cse dacc dbg ~original_prim ~min_name_mode ~result_var with
     | Applied result -> result
     | Not_applied dacc ->
       Simplify_variadic_primitive.simplify_variadic_primitive dacc original_prim

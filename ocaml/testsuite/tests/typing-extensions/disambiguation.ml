@@ -1,5 +1,5 @@
 (* TEST
-   * expect
+ expect;
 *)
 (** Test type-directed disambiguation and spellchecker hints *)
 
@@ -244,5 +244,22 @@ Line 7, characters 8-14:
             ^^^^^^
 Warning 41 [ambiguous-name]: Unique belongs to several types: b M.s t a
 The first one was selected. Please disambiguate if this is wrong.
+
 val x : b = Unique
+|}]
+
+(* Optional argument defaults *)
+module M = struct
+  type t = A | B
+end;;
+
+let f1 ?(x : M.t = A) () = ();;
+let f2 ?x:(_ : M.t = A) () = ();;
+let f3 ?x:((_ : M.t) = A) () = ();;
+
+[%%expect {|
+module M : sig type t = A | B end
+val f1 : ?x:M.t -> unit -> unit = <fun>
+val f2 : ?x:M.t -> unit -> unit = <fun>
+val f3 : ?x:M.t -> unit -> unit = <fun>
 |}]

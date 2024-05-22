@@ -48,6 +48,11 @@ val meet_naked_immediates :
 val meet_equals_single_tagged_immediate :
   Typing_env.t -> Type_grammar.t -> Targetint_31_63.t meet_shortcut
 
+val meet_naked_float32s :
+  Typing_env.t ->
+  Type_grammar.t ->
+  Numeric_types.Float32_by_bit_pattern.Set.t meet_shortcut
+
 val meet_naked_floats :
   Typing_env.t ->
   Type_grammar.t ->
@@ -89,6 +94,9 @@ val prove_is_a_boxed_or_tagged_number :
 val prove_is_a_tagged_immediate :
   Typing_env.t -> Type_grammar.t -> unit proof_of_property
 
+val prove_is_a_boxed_float32 :
+  Typing_env.t -> Type_grammar.t -> unit proof_of_property
+
 val prove_is_a_boxed_float :
   Typing_env.t -> Type_grammar.t -> unit proof_of_property
 
@@ -114,6 +122,9 @@ val prove_unique_tag_and_size :
 
 val prove_is_int : Typing_env.t -> Type_grammar.t -> bool proof_of_property
 
+val meet_is_int_variant_only :
+  Typing_env.t -> Type_grammar.t -> bool meet_shortcut
+
 val prove_get_tag :
   Typing_env.t -> Type_grammar.t -> Tag.Set.t proof_of_property
 
@@ -122,8 +133,11 @@ val prove_unique_fully_constructed_immutable_heap_block :
   Type_grammar.t ->
   (Tag_and_size.t * Simple.t list) proof_of_property
 
-val meet_is_flat_float_array :
-  Typing_env.t -> Type_grammar.t -> bool meet_shortcut
+val meet_is_naked_number_array :
+  Typing_env.t ->
+  Type_grammar.t ->
+  Flambda_kind.Naked_number_kind.t ->
+  bool meet_shortcut
 
 val meet_is_immutable_array :
   Typing_env.t ->
@@ -169,6 +183,12 @@ val prove_tagging_of_simple :
   Simple.t proof_of_property
 
 val meet_tagging_of_simple :
+  Typing_env.t ->
+  min_name_mode:Name_mode.t ->
+  Type_grammar.t ->
+  Simple.t meet_shortcut
+
+val meet_boxed_float32_containing_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   Type_grammar.t ->

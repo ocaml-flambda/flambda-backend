@@ -40,13 +40,9 @@ let flush_cmm_helpers_state res =
     | Const_table (global, l) ->
       let res, sym = R.raw_symbol res ~global name in
       res, C.cdata (C.define_symbol sym @ l) :: acc
-    | Const_closure _ ->
-      Misc.fatal_errorf
-        "There shouldn't be any closures in Cmmgen_state during Flambda 2 to \
-         Cmm translation"
   in
   (* reset the structured constants, just in case *)
-  Cmmgen_state.set_local_structured_constants [];
+  Cmmgen_state.clear_local_structured_constants ();
   match Cmmgen_state.get_and_clear_data_items () with
   | [] ->
     let cst_map = Cmmgen_state.get_and_clear_constants () in
@@ -66,7 +62,7 @@ let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
   (* If someone wants to add 32-bit support in the future there will be a
      (merged) PR on ocaml-flambda/flambda-backend which can be used as a guide:
      https://github.com/ocaml-flambda/flambda-backend/pull/685 *)
-  if Target_system.is_32_bit
+  if Target_system.is_32_bit ()
   then
     Misc.fatal_error
       "Flambda 2 to Cmm conversion does not support 32-bit targets";
@@ -128,11 +124,7 @@ let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
   let res, entry_sym = R.raw_symbol res ~global:Global entry_name in
   let entry =
     let fun_codegen =
-      let fun_codegen =
-        [ Cmm.Reduce_code_size;
-          Cmm.Use_linscan_regalloc;
-          Cmm.Ignore_assert_all Cmm.Zero_alloc ]
-      in
+      let fun_codegen = [Cmm.Reduce_code_size; Cmm.Use_linscan_regalloc] in
       if Flambda_features.backend_cse_at_toplevel ()
       then fun_codegen
       else Cmm.No_CSE :: fun_codegen

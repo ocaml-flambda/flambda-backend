@@ -20,7 +20,6 @@
 
 *)
 
-open Layouts
 open Types
 
 module Signature_names : sig
@@ -40,10 +39,14 @@ val type_toplevel_phrase:
   Typedtree.structure * Types.signature * Signature_names.t * Shape.t *
   Env.t
 val type_implementation:
-  string -> string -> Compilation_unit.t -> Env.t ->
+  sourcefile:string -> string -> Compilation_unit.t -> Env.t ->
   Parsetree.structure -> Typedtree.implementation
 val type_interface:
-        Env.t -> Parsetree.signature -> Typedtree.signature
+  sourcefile:string
+  -> Compilation_unit.t
+  -> Env.t
+  -> Parsetree.signature
+  -> Typedtree.signature
 val transl_signature:
         Env.t -> Parsetree.signature -> Typedtree.signature
 val check_nongen_signature:
@@ -69,7 +72,7 @@ val package_units:
 
 (* Should be in Envaux, but it breaks the build of the debugger *)
 val initial_env:
-  loc:Location.t -> safe_string:bool ->
+  loc:Location.t ->
   initially_opened_module:string option ->
   open_implicit_modules:string list -> Env.t
 
@@ -77,6 +80,8 @@ module Sig_component_kind : sig
   type t =
     | Value
     | Type
+    | Constructor
+    | Label
     | Module
     | Module_type
     | Extension_constructor
@@ -125,9 +130,11 @@ type error =
       Longident.t * Path.t * Includemod.explanation
   | With_changes_module_alias of Longident.t * Ident.t * Path.t
   | With_cannot_remove_constrained_type
+  | With_package_manifest of Longident.t * type_expr
   | Repeated_name of Sig_component_kind.t * string
-  | Non_generalizable of type_expr
-  | Non_generalizable_module of module_type
+  | Non_generalizable of { vars : type_expr list; expression : type_expr }
+  | Non_generalizable_module of
+      { vars : type_expr list; item : value_description; mty : module_type }
   | Implementation_is_required of string
   | Interface_not_compiled of string
   | Not_allowed_in_functor_body
@@ -144,7 +151,10 @@ type error =
   | Invalid_type_subst_rhs
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
-  | Toplevel_nonvalue of string * sort
+  | Toplevel_nonvalue of string * Jkind.sort
+  | Strengthening_mismatch of Longident.t * Includemod.explanation
+  | Cannot_pack_parameter
+  | Cannot_compile_implementation_as_parameter
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

@@ -1,6 +1,5 @@
 (* TEST
-   flags = "-extension immutable_arrays"
-   * expect
+ expect;
 *)
 
 let one = Sys.opaque_identity 1;;

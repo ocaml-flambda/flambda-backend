@@ -20,7 +20,7 @@ val emit_string: string -> unit
 val emit_int: int -> unit
 val emit_nativeint: nativeint -> unit
 val emit_int32: int32 -> unit
-val emit_symbol: char -> string -> unit
+val emit_symbol: string -> unit
 val emit_printf: ('a, out_channel, unit) format -> 'a
 val emit_char: char -> unit
 val emit_string_literal: string -> unit
@@ -78,6 +78,10 @@ val cfi_startproc : unit -> unit
 val cfi_endproc : unit -> unit
 val cfi_adjust_cfa_offset : int -> unit
 val cfi_offset : reg:int -> offset:int -> unit
+val cfi_def_cfa_offset : int -> unit
+val cfi_remember_state : unit -> unit
+val cfi_restore_state : unit -> unit
+val cfi_def_cfa_register: reg:int -> unit
 
 val binary_backend_available: bool ref
     (** Is a binary backend available.  If yes, we don't need
@@ -116,6 +120,7 @@ module Dwarf_helpers : sig
     -> unit
 
   val emit_dwarf : unit -> unit
+  val emit_delayed_dwarf : unit -> unit
 
   val record_dwarf_for_fundecl : Linear.fundecl -> Dwarf.fundecl option
 end
@@ -123,3 +128,19 @@ end
 exception Error of error
 val report_error: Format.formatter -> error -> unit
 
+type preproc_stack_check_result =
+  { max_frame_size : int;
+    contains_nontail_calls : bool }
+
+val preproc_stack_check:
+  fun_body:Linear.instruction ->
+  frame_size:int ->
+  trap_size:int ->
+  preproc_stack_check_result
+
+val add_stack_checks_if_needed:
+  Linear.fundecl ->
+  stack_offset:int ->
+  stack_threshold_size:int ->
+  trap_size:int ->
+  Linear.fundecl

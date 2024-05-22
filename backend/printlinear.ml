@@ -32,6 +32,36 @@ let instr' ?(print_reg = Printmach.reg) ppf i =
   let regsetaddr = Printmach.regsetaddr' ~print_reg in
   let test = Printmach.test' ~print_reg in
   let operation = Printmach.operation' ~print_reg in
+  if !Flambda_backend_flags.davail then begin
+    let module RAS = Reg_availability_set in
+    let ras_is_nonempty (set : RAS.t) =
+      match set with
+      | Ok set -> not (Reg_with_debug_info.Set.is_empty set)
+      | Unreachable -> true
+    in
+    if (match i.available_before with
+        | None -> false
+        | Some available_before -> ras_is_nonempty available_before)
+       || (match i.available_across with
+          | None -> false
+          | Some available_across -> ras_is_nonempty available_across)
+    then (
+      if Option.equal RAS.equal i.available_before i.available_across
+      then
+        fprintf ppf "@[<1>AB=AA={%a}@]@,"
+          (Misc.Stdlib.Option.print (RAS.print ~print_reg:reg))
+          i.available_before
+      else (
+        fprintf ppf "@[<1>AB={%a}"
+          (Misc.Stdlib.Option.print (RAS.print ~print_reg:reg))
+          i.available_before;
+        fprintf ppf ",AA={%a}"
+          (Misc.Stdlib.Option.print (RAS.print ~print_reg:reg))
+          i.available_across;
+        fprintf ppf "@]@,"
+      )
+    )
+  end;
   begin match i.desc with
   | Lend -> ()
   | Lprologue ->
@@ -77,6 +107,8 @@ let instr' ?(print_reg = Printmach.reg) ppf i =
       fprintf ppf "pop trap"
   | Lraise k ->
       fprintf ppf "%s %a" (Lambda.raise_kind k) reg i.arg.(0)
+  | Lstackcheck { max_frame_size_bytes; } ->
+      fprintf ppf "stack check (%d bytes)" max_frame_size_bytes
   end;
   if not (Debuginfo.is_none i.dbg) && !Clflags.locations then
     fprintf ppf " %s" (Debuginfo.to_string i.dbg)

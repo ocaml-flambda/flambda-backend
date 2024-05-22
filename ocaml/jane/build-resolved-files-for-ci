@@ -1,0 +1,332 @@
+#!/bin/bash
+
+set -euo pipefail
+
+make -f Makefile.jst _build/_bootinstall
+
+echo "==========="
+echo "Testing mlis"
+echo "==========="
+
+# ocamlcommon mlis
+mlis=$(
+  { echo driver/{compenv,compmisc,main_args}.mli
+    echo file_formats/{cmi,cmo,cms,cmt}_format.mli
+    echo parsing/parser.mli
+    echo {utils,typing,parsing,lambda}/*.mli
+  } |
+    tr ' ' '\n'
+)
+echo "$mlis"
+dune_targets=$(
+  for mli in $mlis; do
+    cmi=$(basename ${mli%.mli})
+    echo _build/default/.ocamlcommon.objs/byte/$cmi.cmi
+  done
+)
+
+# ocamlbytecomp mlis
+mlis=$(
+  { echo driver/{errors,compile,maindriver}.mli
+    echo bytecomp/{bytegen,bytelibrarian,bytelink,bytepackager}.mli
+    echo bytecomp/{emitcode,printinstr,instruct}.mli
+  } |
+    tr ' ' '\n'
+)
+echo "$mlis"
+dune_targets=$(
+  echo $dune_targets
+  for mli in $mlis; do
+    cmi=$(basename ${mli%.mli})
+    echo _build/default/.ocamlbytecomp.objs/byte/$cmi.cmi
+  done
+)
+
+# ocamloptcomp mlis
+mlis=$(
+  { echo middle_end/{,closure,flambda}/*.mli
+    echo asmcomp/*.mli
+    echo file_formats/{cmx,cmxs,linear}_format.mli
+  } |
+    tr ' ' '\n' |
+    sed "s/CSE/cSE/"
+)
+echo "$mlis"
+dune_targets=$(
+  echo $dune_targets
+  for mli in $mlis; do
+    cmi=$(basename ${mli%.mli})
+    echo _build/default/.ocamloptcomp.objs/byte/$cmi.cmi
+  done
+)
+mlis=$(
+  { echo debugger/*.mli
+  } |
+    tr ' ' '\n'
+)
+echo "$mlis"
+dune_targets=$(
+  echo $dune_targets
+  for mli in $mlis; do
+    basename=$(basename ${mli%.mli})
+    cmi=ocamldebug__$(echo $basename | awk '{for (i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} 1')
+    echo _build/default/debugger/.ocamldebug.objs/byte/$cmi.cmi
+  done
+)
+echo "Dune targets:"
+echo "$dune_targets"
+dune b --workspace=duneconf/boot.ws $dune_targets
+
+echo "==========="
+echo "Testing mls"
+echo "==========="
+
+typing_mls=(
+  ctype
+  datarepr
+  env
+  includecore
+  includemod
+  jkind
+  jkind_types
+  mtype
+  oprint
+  parmatch
+  path
+  persistent_env
+  predef
+  printtyp
+  printtyped
+  shape
+  subst
+  tast_iterator
+  tast_mapper
+  typecore
+  typeclass
+  typedecl
+  typedecl_variance
+  typedtree
+  typemod
+  types
+  typetexp
+  uniqueness_analysis)
+
+# ocamlcommon mls
+mls=$(
+  { echo driver/{compenv,compmisc,main_args}.ml
+    echo file_formats/{cmi,cms,cmt}_format.ml
+    echo parsing/parser.ml
+    echo {utils,parsing,lambda}/*.ml
+    echo bytecomp/{meta,opcodes,bytesections,dll,symtable}.ml
+    for f in "${typing_mls[@]}"; do
+        echo "typing/${f}.ml"
+    done
+  } |
+    tr ' ' '\n' |
+    grep -v "utils/config.common.ml" |
+    grep -v "utils/config.fixed.ml" |
+    grep -v "utils/config.generated.ml" |
+    cat;
+)
+echo "$mls"
+dune_targets=$(
+  for ml in $mls; do
+    cmx=$(basename ${ml%.ml})
+    echo _build/default/.ocamlcommon.objs/native/$cmx.cmx
+  done
+)
+
+# ocamlbytecomp mls
+mls=$(
+  { echo driver/{errors,compile,maindriver}.ml
+    echo bytecomp/{bytegen,bytelibrarian,bytelink,bytepackager}.ml
+    echo bytecomp/{emitcode,printinstr,instruct}.ml
+  } |
+    tr ' ' '\n'
+)
+echo "$mls"
+dune_targets=$(
+  echo $dune_targets
+  for ml in $mls; do
+    cmx=$(basename ${ml%.ml})
+    echo _build/default/.ocamlbytecomp.objs/native/$cmx.cmx
+  done
+)
+
+# toplevel
+dune_targets=$(
+  echo "$dune_targets"
+  for cmt in genprintval topcommon topdirs topeval toploop topmain topprinters trace; do
+    echo _build/default/toplevel/byte/.ocamltoplevel.objs/byte/$cmt.cmt{,i}
+    echo _build/default/toplevel/native/.ocamltoplevel_native.objs/byte/$cmt.cmt{,i}
+  done
+  echo _build/default/toplevel/native/.ocamltoplevel_native.objs/byte/tophooks.cmt{,i}
+  for cmt in topstart; do
+    echo _build/default/toplevel/native/.topstart.eobjs/byte/$cmt.cmt{,i}
+    echo _build/default/toplevel/.topstart.eobjs/byte/$cmt.cmt{,i}
+  done
+  echo _build/default/toplevel/.expunge.eobjs/byte/expunge.cmt{,i}
+)
+
+# ocamloptcomp mls
+mls=$(
+  { echo middle_end/{,closure,flambda}/*.ml
+    echo asmcomp/*.ml
+    echo asmcomp/amd64/*.ml
+    echo file_formats/linear_format.ml
+  } |
+    tr ' ' '\n' |
+    sed "s/CSE/cSE/"
+)
+echo "$mls"
+dune_targets=$(
+  echo $dune_targets
+  for ml in $mls; do
+    cmx=$(basename ${ml%.ml})
+    echo _build/default/.ocamloptcomp.objs/native/$cmx.cmx
+  done
+)
+
+#ocamldoc
+ocamldoc=_build/default/ocamldoc/.odoc_lib.objs/
+mls=$(
+  GLOBIGNORE="ocamldoc/odoc.ml"
+  echo ocamldoc/*.ml |
+    tr ' ' '\n'
+  unset GLOBIGNORE
+)
+echo "$mls"
+dune_targets=$(
+  echo $dune_targets
+  for ml in $mls; do
+    cmx=$(basename ${ml%.ml})
+    echo _build/default/ocamldoc/.odoc_lib.objs/native/$cmx.cmx
+    echo _build/default/ocamldoc/.odoc_lib.objs/byte/$cmx.cmi
+  done
+  echo _build/default/ocamldoc/.odoc_native.eobjs/byte/odoc_native.cmi
+  echo _build/default/ocamldoc/.odoc_byte.eobjs/byte/odoc_byte.cmi
+  echo _build/default/ocamldoc/.odoc_native.eobjs/native/odoc_native.cmx
+  echo _build/default/ocamldoc/.odoc_byte.eobjs/native/odoc_byte.cmx
+)
+
+mls=$(
+  { echo debugger/*.ml
+  } |
+    tr ' ' '\n' |
+    grep -v ocamldebug_entry
+)
+echo "$mls"
+dune_targets=$(
+  echo $dune_targets
+  for ml in $mls; do
+    basename=$(basename ${ml%.ml})
+    cmx=ocamldebug__$(echo $basename | awk '{for (i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} 1')
+    echo _build/default/debugger/.ocamldebug.objs/native/$cmx.cmx
+  done
+)
+
+# tools
+dune_targets=$(
+  echo "$dune_targets"
+  cmxes_and_dirs="\
+    objinfo .objinfo.eobjs
+    make_opcodes .make_opcodes.eobjs
+    cvt_emit .make_opcodes.eobjs
+    ocamldep .ocamldep.eobjs
+    cmpbyt .cmpbyt.eobjs
+    ocamlmklib .ocamlmklib.eobjs
+    ocamlmktop .ocamlmktop.eobjs
+    debug_printers .debug_printers.objs
+    opnames .opnames.objs"
+  # omit dumpobj because it uses new opcodes, e.g. perform
+  echo "$cmxes_and_dirs" | while read cmx dir; do
+    echo _build/default/tools/$dir/native/$cmx.cmx
+  done
+)
+
+dune_targets=$(
+  echo "$dune_targets"
+  mls="dynlink dynlink_common dynlink_platform_intf dynlink_types"
+  for ml in $mls; do
+    echo _build/default/otherlibs/dynlink/.dynlink_internal.objs/native/$ml.cmx;
+    echo _build/default/otherlibs/dynlink/.dynlink_internal.objs/byte/$ml.cmi
+  done
+)
+
+dune_targets="$dune_targets \
+_build/default/otherlibs/str/.str.objs/native/str.cmx \
+_build/default/otherlibs/str/.str.objs/byte/str.cmi \
+_build/default/otherlibs/systhreads/byte/.threads.objs/native/thread.cmx \
+_build/default/otherlibs/systhreads/byte/.threads.objs/byte/thread.cmi \
+_build/default/otherlibs/systhreads/native/.threadsnat.objs/native/thread.cmx \
+_build/default/otherlibs/systhreads/native/.threadsnat.objs/byte/thread.cmi
+"
+
+# ocamltest
+ocamltest=_build/default/ocamltest/.ocamltest_core_and_plugin.objs/byte
+dune_targets="$dune_targets \
+  $ocamltest/actions.cmi \
+  $ocamltest/actions_helpers.cmi \
+  $ocamltest/builtin_actions.cmi \
+  $ocamltest/builtin_variables.cmi \
+  $ocamltest/empty.cmi \
+  $ocamltest/environments.cmi \
+  $ocamltest/filecompare.cmi \
+  $ocamltest/modifier_parser.cmi \
+  $ocamltest/ocaml_actions.cmi \
+  $ocamltest/ocaml_backends.cmi \
+  $ocamltest/ocaml_commands.cmi \
+  $ocamltest/ocaml_compilers.cmi \
+  $ocamltest/ocaml_directories.cmi \
+  $ocamltest/ocaml_files.cmi \
+  $ocamltest/ocaml_filetypes.cmi \
+  $ocamltest/ocaml_flags.cmi \
+  $ocamltest/ocaml_modifiers.cmi \
+  $ocamltest/ocaml_tests.cmi \
+  $ocamltest/ocaml_tools.cmi \
+  $ocamltest/ocaml_toplevels.cmi \
+  $ocamltest/ocaml_variables.cmi \
+  $ocamltest/ocamltest_config.cmi \
+  $ocamltest/ocamltest_stdlib.cmi \
+  $ocamltest/ocamltest_unix.cmi \
+  $ocamltest/result.cmi \
+  $ocamltest/run_command.cmi \
+  $ocamltest/strace.cmi \
+  $ocamltest/tests.cmi \
+  $ocamltest/tsl_ast.cmi \
+  $ocamltest/tsl_semantics.cmi \
+  $ocamltest/variables.cmi \
+  $ocamltest/actions.cmo \
+  $ocamltest/actions_helpers.cmo \
+  $ocamltest/builtin_variables.cmo \
+  $ocamltest/empty.cmo \
+  $ocamltest/environments.cmo \
+  $ocamltest/filecompare.cmo \
+  $ocamltest/ocaml_actions.cmo \
+  $ocamltest/ocaml_backends.cmo \
+  $ocamltest/ocaml_commands.cmo \
+  $ocamltest/ocaml_compilers.cmo \
+  $ocamltest/ocaml_directories.cmo \
+  $ocamltest/ocaml_files.cmo \
+  $ocamltest/ocaml_filetypes.cmo \
+  $ocamltest/ocaml_flags.cmo \
+  $ocamltest/ocaml_modifiers.cmo \
+  $ocamltest/ocaml_tests.cmo \
+  $ocamltest/ocaml_tools.cmo \
+  $ocamltest/ocaml_toplevels.cmo \
+  $ocamltest/ocaml_variables.cmo \
+  $ocamltest/ocamltest_config.cmo \
+  $ocamltest/ocamltest_stdlib.cmo \
+  $ocamltest/ocamltest_unix.cmo \
+  $ocamltest/result.cmo \
+  $ocamltest/run_command.cmo \
+  $ocamltest/strace.cmo \
+  $ocamltest/tests.cmo \
+  $ocamltest/tsl_ast.cmo \
+  $ocamltest/tsl_semantics.cmo \
+  $ocamltest/variables.cmo \
+"
+
+echo "Dune targets:"
+for target in $dune_targets; do echo $target; done
+dune b --workspace=duneconf/boot.ws $dune_targets

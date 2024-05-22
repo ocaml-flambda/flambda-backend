@@ -46,6 +46,8 @@ let instruction ppf = function
       fprintf ppf "@[<10>\tconst@ %a@]" Printlambda.structured_constant cst
   | Kmakeblock(n, m) ->
       fprintf ppf "\tmakeblock %i, %i" n m
+  | Kmake_faux_mixedblock(n, m) ->
+      fprintf ppf "\tmake_faux_mixedblock %i, %i" n m
   | Kmakefloatblock(n) ->
       fprintf ppf "\tmakefloatblock %i" n
   | Kgetfield n -> fprintf ppf "\tgetfield %i" n
@@ -100,6 +102,10 @@ let instruction ppf = function
   | Kgetmethod -> fprintf ppf "\tgetmethod"
   | Kgetpubmet n -> fprintf ppf "\tgetpubmet %i" n
   | Kgetdynmet -> fprintf ppf "\tgetdynmet"
+  | Kperform -> fprintf ppf "\tperform"
+  | Kresume -> fprintf ppf "\tresume"
+  | Kresumeterm n -> fprintf ppf "\tresumeterm %i" n
+  | Kreperformterm n -> fprintf ppf "\treperformterm %i" n
   | Kstop -> fprintf ppf "\tstop"
   | Kevent ev -> fprintf ppf "\tevent \"%s\" %i-%i"
                          ev.ev_loc.Location.loc_start.Lexing.pos_fname

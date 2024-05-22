@@ -2,3 +2,7 @@ compilation_unit.ml
 compilation_unit.mli
 import_info.ml
 import_info.mli
+language_extension.ml
+language_extension.mli
+zero_alloc_utils.ml
+zero_alloc_utils.mli

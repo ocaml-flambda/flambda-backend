@@ -18,6 +18,7 @@
    The code size of a given term should be a rough estimate of the size of the
    generated machine code. *)
 
+(** Values of type [t] may be negative *)
 type t
 
 (* Both are only there temporarly *)
@@ -28,6 +29,8 @@ val to_int : t -> int
 val zero : t
 
 val ( + ) : t -> t -> t
+
+val ( - ) : t -> t -> t
 
 val ( <= ) : t -> t -> bool
 

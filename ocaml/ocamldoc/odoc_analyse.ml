@@ -46,7 +46,6 @@ let initial_env () =
     ln @ List.rev !Clflags.open_modules in
   Typemod.initial_env
     ~loc:(Location.in_file "ocamldoc command line")
-    ~safe_string:(Config.safe_string || not !Clflags.unsafe_string)
     ~open_implicit_modules
     ~initially_opened_module
 
@@ -89,7 +88,7 @@ let process_implementation_file sourcefile =
     in
     let typedtree =
       Typemod.type_implementation
-        sourcefile prefixname compilation_unit env parsetree
+        ~sourcefile prefixname compilation_unit env parsetree
     in
     (Some (parsetree, typedtree), inputfile)
   with
@@ -123,7 +122,7 @@ let process_interface_file sourcefile =
     Pparse.file ~tool_name inputfile
       (no_docstring Parse.interface) Pparse.Signature
   in
-  let sg = Typemod.type_interface (initial_env()) ast in
+  let sg = Typemod.type_interface ~sourcefile compilation_unit (initial_env()) ast in
   Warnings.check_fatal ();
   (ast, sg, inputfile)
 
@@ -368,8 +367,12 @@ and remove_module_elements_between_stop_in_module_kind k =
   | Odoc_module.Module_functor (params, k2)  ->
       Odoc_module.Module_functor (params, remove_module_elements_between_stop_in_module_kind k2)
   | Odoc_module.Module_apply (k1, k2) ->
-      Odoc_module.Module_apply (remove_module_elements_between_stop_in_module_kind k1,
-                    remove_module_elements_between_stop_in_module_kind k2)
+      Odoc_module.Module_apply
+        (remove_module_elements_between_stop_in_module_kind k1,
+         remove_module_elements_between_stop_in_module_kind k2)
+  | Odoc_module.Module_apply_unit k1 ->
+      Odoc_module.Module_apply_unit
+        (remove_module_elements_between_stop_in_module_kind k1)
   | Odoc_module.Module_with (mtkind, s) ->
       Odoc_module.Module_with (remove_module_elements_between_stop_in_module_type_kind mtkind, s)
   | Odoc_module.Module_constraint (k2, mtkind) ->

@@ -24,6 +24,11 @@ val regalloc_validate : bool ref
 
 val cfg_peephole_optimize: bool ref
 
+val cfg_cse_optimize: bool ref
+
+val cfg_stack_checks : bool ref
+val cfg_stack_checks_threshold : int ref
+
 val reorder_blocks_random : int option ref
 val basic_block_sections : bool ref
 
@@ -31,18 +36,42 @@ val dasm_comments : bool ref
 
 val default_heap_reduction_threshold : int
 val heap_reduction_threshold : int ref
-val dump_checkmach : bool ref
-
+val dump_zero_alloc : bool ref
+val disable_zero_alloc_checker : bool ref
+val disable_precise_zero_alloc_checker : bool ref
 val davail : bool ref
+val dranges : bool ref
 
-type checkmach_details_cutoff =
+type zero_alloc_checker_details_cutoff =
   | Keep_all
   | At_most of int  (* n > 0 *)
   | No_details
 
-val checkmach_details_cutoff : checkmach_details_cutoff ref
-val default_checkmach_details_cutoff : checkmach_details_cutoff
+val zero_alloc_checker_details_cutoff : zero_alloc_checker_details_cutoff ref
+val default_zero_alloc_checker_details_cutoff : zero_alloc_checker_details_cutoff
 
+type zero_alloc_checker_join =
+  | Keep_all
+  | Widen of int  (* n > 0 *)
+  | Error of int (* n > 0 *)
+
+val zero_alloc_checker_join : zero_alloc_checker_join ref
+val default_zero_alloc_checker_join : zero_alloc_checker_join
+
+module Function_layout : sig
+  type t =
+    | Topological
+    | Source
+
+  val to_string : t -> string
+  val of_string : string -> t option
+  val default :t
+
+  val all : t list
+end
+
+
+val function_layout : Function_layout.t ref
 val disable_poll_insertion : bool ref
 val allow_long_frames : bool ref
 val max_long_frames_threshold : int
@@ -50,6 +79,7 @@ val long_frames_threshold : int ref
 val caml_apply_inline_fast_path : bool ref
 
 type function_result_types = Never | Functors_only | All_functions
+type meet_algorithm = Basic | Advanced
 type opt_level = Oclassic | O2 | O3
 type 'a or_default = Set of 'a | Default
 
@@ -64,6 +94,8 @@ val gc_timings : bool ref
 val use_cached_generic_functions : bool ref
 val cached_generic_functions_path : string ref
 
+val symbol_visibility_protected : bool ref
+
 module Flambda2 : sig
   val debug : bool ref
 
@@ -75,6 +107,7 @@ module Flambda2 : sig
     val cse_depth : int
     val join_depth : int
     val function_result_types : function_result_types
+    val meet_algorithm : meet_algorithm
 
     val unicode : bool
   end
@@ -90,6 +123,7 @@ module Flambda2 : sig
     cse_depth : int;
     join_depth : int;
     function_result_types : function_result_types;
+    meet_algorithm : meet_algorithm;
 
     unicode : bool;
   }
@@ -97,6 +131,7 @@ module Flambda2 : sig
   val default_for_opt_level : opt_level or_default -> flags
 
   val function_result_types : function_result_types or_default ref
+  val meet_algorithm : meet_algorithm or_default ref
 
   val classic_mode : bool or_default ref
   val join_points : bool or_default ref
@@ -127,6 +162,7 @@ module Flambda2 : sig
       val max_unboxing_depth : int
       val can_inline_recursive_functions : bool
       val max_function_simplify_run : int
+      val shorten_symbol_names : bool
     end
 
     type flags = {
@@ -137,6 +173,7 @@ module Flambda2 : sig
       max_unboxing_depth : int;
       can_inline_recursive_functions : bool;
       max_function_simplify_run : int;
+      shorten_symbol_names : bool;
     }
 
     val default_for_opt_level : opt_level or_default -> flags
@@ -148,6 +185,7 @@ module Flambda2 : sig
     val max_unboxing_depth : int or_default ref
     val can_inline_recursive_functions : bool or_default ref
     val max_function_simplify_run : int or_default ref
+    val shorten_symbol_names : bool or_default ref
   end
 
   module Debug : sig

@@ -1,5 +1,6 @@
 (* TEST
-   * expect *)
+ expect;
+*)
 
 let nop () = ()
 
@@ -49,6 +50,7 @@ Line 2, characters 9-24:
              ^^^^^^^^^^^^^^^
 Warning 47 [attribute-payload]: illegal payload for attribute 'tail'.
 Only 'hint' is supported
+
 val bad_annot_4 : unit -> unit = <fun>
 |}]
 

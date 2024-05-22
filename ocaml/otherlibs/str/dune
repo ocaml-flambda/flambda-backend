@@ -41,6 +41,7 @@
     (.str.objs/byte/str.cmi as str/str.cmi)
     (.str.objs/byte/str.cmt as str/str.cmt)
     (.str.objs/byte/str.cmti as str/str.cmti)
+    (META as str/META)
   )
   (section lib)
   (package ocaml))

@@ -20,47 +20,52 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "caml/alloc.h"
 #include "caml/backtrace.h"
 #include "caml/backtrace_prim.h"
+#include "caml/frame_descriptors.h"
+#include "caml/stack.h"
 #include "caml/memory.h"
 #include "caml/misc.h"
 #include "caml/mlvalues.h"
-#include "caml/stack.h"
+#include "caml/fiber.h"
+#include "caml/fail.h"
 
 /* Returns the next frame descriptor (or NULL if none is available),
    and updates *pc and *sp to point to the following one.  */
-frame_descr * caml_next_frame_descriptor(uintnat * pc, char ** sp)
+frame_descr * caml_next_frame_descriptor
+    (caml_frame_descrs fds, uintnat * pc, char ** sp, struct stack_info* stack)
 {
   frame_descr * d;
-  uintnat h;
 
   while (1) {
-    h = Hash_retaddr(*pc);
-    while (1) {
-      d = caml_frame_descriptors[h];
-      if (d == NULL) return NULL; /* happens if some code compiled without -g */
-      if (Retaddr_frame(d) == *pc) break;
-      h = (h+1) & caml_frame_descriptors_mask;
+    d = caml_find_frame_descr(fds, *pc);
+
+    if( d == NULL ) {
+      return NULL;
     }
+
     /* Skip to next frame */
-    if (d->frame_size != 0xFFFF) {
+    if (!frame_return_to_C(d)) {
       /* Regular frame, update sp/pc and return the frame descriptor */
-      *sp += (caml_get_frame_size(d) & 0xFFFFFFFC);
+      *sp += frame_size(d);
       *pc = Saved_return_address(*sp);
-#ifdef Mask_already_scanned
-      *pc = Mask_already_scanned(*pc);
-#endif
       return d;
     } else {
-      /* Special frame marking the top of a stack chunk for an ML callback.
-         Skip C portion of stack and continue with next ML stack chunk. */
-      struct caml_context * next_context = Callback_link(*sp);
-      *sp = next_context->bottom_of_stack;
-      *pc = next_context->last_retaddr;
-      /* A null sp means no more ML stack chunks; stop here. */
-      if (*sp == NULL) return NULL;
+      /* This marks the top of an ML stack chunk. Move sp to the previous stack
+       chunk. This includes skipping over the DWARF link & trap frame
+       (4 words). */
+      *sp += 4 * sizeof(value);
+      if (*sp == (char*)Stack_high(stack)) {
+        /* We've reached the top of stack. No more frames. */
+        *pc = 0;
+        return NULL;
+      }
+      Pop_frame_pointer(*sp);
+      *pc = **(uintnat**)sp;
+      *sp += sizeof(value); /* return address */
     }
   }
 }
@@ -73,35 +78,9 @@ int caml_alloc_backtrace_buffer(void){
   return 0;
 }
 
-/* Stores the return addresses contained in the given stack fragment
-   into the backtrace array ; this version is performance-sensitive as
-   it is called at each [raise] in a program compiled with [-g], so we
-   preserved the global, statically bounded buffer of the old
-   implementation -- before the more flexible
-   [caml_get_current_callstack] was implemented. */
-void caml_stash_backtrace(value exn, uintnat pc, char * sp, char * trapsp)
-{
-  if (exn != Caml_state->backtrace_last_exn) {
-    Caml_state->backtrace_pos = 0;
-    Caml_state->backtrace_last_exn = exn;
-  }
-
-  if (Caml_state->backtrace_buffer == NULL &&
-      caml_alloc_backtrace_buffer() == -1)
-    return;
-
-  /* iterate on each frame  */
-  while (1) {
-    frame_descr * descr = caml_next_frame_descriptor(&pc, &sp);
-    if (descr == NULL) return;
-    /* store its descriptor in the backtrace buffer */
-    if (Caml_state->backtrace_pos >= BACKTRACE_BUFFER_SIZE) return;
-    Caml_state->backtrace_buffer[Caml_state->backtrace_pos++] =
-      (backtrace_slot) descr;
-
-    /* Stop when we reach the current exception handler */
-    if (sp > trapsp) return;
-  }
+void caml_free_backtrace_buffer(backtrace_slot *backtrace_buffer) {
+  if (backtrace_buffer != NULL)
+    caml_stat_free(backtrace_buffer);
 }
 
 /* A backtrace_slot is either a debuginfo or a frame_descr* */
@@ -110,89 +89,239 @@ void caml_stash_backtrace(value exn, uintnat pc, char * sp, char * trapsp)
 #define Slot_debuginfo(d) ((backtrace_slot)((uintnat)(d) + 2))
 #define Frame_descr_slot(s) ((frame_descr*)(s))
 #define Slot_frame_descr(f) ((backtrace_slot)(f))
-static debuginfo debuginfo_extract(frame_descr* d, int alloc_idx);
 
-#define Default_callstack_size 32
-intnat caml_collect_current_callstack(value** ptrace, intnat* plen,
-                                      intnat max_frames, int alloc_idx)
+static debuginfo debuginfo_extract(frame_descr *d, ssize_t alloc_idx);
+
+/* Stores the return addresses contained in the given stack fragment
+   into the backtrace array ; this version is performance-sensitive as
+   it is called at each [raise] in a program compiled with [-g], so we
+   preserved the global, statically bounded buffer of the old
+   implementation -- before the more flexible
+   [caml_get_current_callstack] was implemented.
+
+   TODO: Consider rewriting this to use get_callstack, so we only have
+   one body of code capturing callstacks.
+*/
+void caml_stash_backtrace(value exn, uintnat pc, char * sp, char* trapsp)
 {
-  uintnat pc = Caml_state->last_return_address;
-  char * sp = Caml_state->bottom_of_stack;
-  intnat trace_pos = 0;
+  caml_domain_state* domain_state = Caml_state;
+  caml_frame_descrs fds;
 
-  if (max_frames <= 0) return 0;
-  if (*plen == 0) {
-    value* trace =
-      caml_stat_alloc_noexc(Default_callstack_size * sizeof(value));
-    if (trace == NULL) return 0;
-    *ptrace = trace;
-    *plen = Default_callstack_size;
+  if (exn != domain_state->backtrace_last_exn) {
+    domain_state->backtrace_pos = 0;
+    caml_modify_generational_global_root
+      (&domain_state->backtrace_last_exn, exn);
   }
 
-  if (alloc_idx >= 0) {
-    /* First frame has a Comballoc selector */
-    frame_descr * descr = caml_next_frame_descriptor(&pc, &sp);
-    debuginfo info;
-    if (descr == NULL) return 0;
-    info = debuginfo_extract(descr, alloc_idx);
-    if (info != NULL) {
-      CAMLassert(((uintnat)info & 3) == 0);
-      (*ptrace)[trace_pos++] = Val_backtrace_slot(Slot_debuginfo(info));
-    } else {
-      (*ptrace)[trace_pos++] = Val_backtrace_slot(Slot_frame_descr(descr));
-    }
-  }
+  if (Caml_state->backtrace_buffer == NULL &&
+      caml_alloc_backtrace_buffer() == -1)
+    return;
 
-  while (trace_pos < max_frames) {
-    frame_descr * descr = caml_next_frame_descriptor(&pc, &sp);
-    if (descr == NULL) break;
-    CAMLassert(((uintnat)descr & 3) == 0);
-    if (trace_pos == *plen) {
-      intnat new_len = *plen * 2;
-      value * trace = caml_stat_resize_noexc(*ptrace, new_len * sizeof(value));
-      if (trace == NULL) break;
-      *ptrace = trace;
-      *plen = new_len;
-    }
-    (*ptrace)[trace_pos++] = Val_backtrace_slot(Slot_frame_descr(descr));
-  }
+  fds = caml_get_frame_descrs();
+  /* iterate on each frame  */
+  while (1) {
+    frame_descr * descr = caml_next_frame_descriptor
+                                (fds, &pc, &sp, domain_state->current_stack);
+    if (descr == NULL) return;
+    /* store its descriptor in the backtrace buffer */
+    if (domain_state->backtrace_pos >= BACKTRACE_BUFFER_SIZE) return;
+    domain_state->backtrace_buffer[domain_state->backtrace_pos++] =
+      (backtrace_slot) descr;
 
-  return trace_pos;
+    /* Stop when we reach the current exception handler */
+    if (sp > trapsp) return;
+  }
 }
 
-static debuginfo debuginfo_extract(frame_descr* d, int alloc_idx)
+void caml_stash_backtrace_wrapper(value exn, char* rsp, char* trapsp)
+{
+#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+  /* If we get an rsp that lies in the guard page, just do nothing - using rsp
+   * would trigger another segfault, and we are probably in the process of
+   * raising the exception from a segfault.  In any case this behaviour seems
+   * consistent with runtime4, where no backtrace appears to be available at
+   * this point. */
+  struct stack_info *block = Caml_state->current_stack;
+  int page_size = getpagesize();
+  char* protected_low = Protected_stack_page(block, page_size);
+  char* protected_high = protected_low + page_size;
+  if ((rsp >= protected_low) && (rsp < protected_high)) {
+    return;
+  }
+#endif
+  char* pc;
+  char* sp;
+#ifdef WITH_FRAME_POINTERS
+  pc = rsp + 8;
+  sp = rsp + 16;
+#else
+  pc = rsp;
+  sp = rsp + 8;
+#endif
+  caml_stash_backtrace(exn, *((uintnat*) pc), sp, trapsp);
+}
+
+/* minimum size to allocate a backtrace (in slots) */
+#define MIN_BACKTRACE_SIZE 16
+
+/* Stores up to [max_slots] backtrace slots of the current call stack to
+   return to the user in [*backtrace_p] (with the allocated size in
+   [*alloc_size_p]). Returns the number of frames stored. Instead of
+   using a bounded buffer as [caml_stash_backtrace], we dynamically
+   grow the allocated space as required. */
+static size_t get_callstack(struct stack_info* stack, intnat max_slots,
+                            ssize_t alloc_idx,
+                            backtrace_slot **backtrace_p,
+                            size_t *alloc_size_p)
+{
+  backtrace_slot *backtrace = *backtrace_p;
+  size_t alloc_size = *alloc_size_p;
+  size_t slots = 0;
+  char *sp;
+  uintnat pc;
+  caml_frame_descrs fds = caml_get_frame_descrs();
+  CAMLnoalloc;
+
+  caml_get_stack_sp_pc(stack, &sp, &pc);
+
+  while (slots < max_slots) {
+    frame_descr *descr = caml_next_frame_descriptor(fds, &pc, &sp, stack);
+    if (!descr) {
+      stack = Stack_parent(stack);
+      if (!stack) break;
+      caml_get_stack_sp_pc(stack, &sp, &pc);
+    } else {
+      if (slots == alloc_size) {
+        size_t new_size = alloc_size ? alloc_size * 2 : MIN_BACKTRACE_SIZE;
+        backtrace = caml_stat_resize_noexc(backtrace,
+                                           sizeof(backtrace_slot) * new_size);
+
+        if (!backtrace) { /* allocation failed */
+          *backtrace_p = NULL;
+          *alloc_size_p = 0;
+          return 0;
+        }
+        alloc_size = new_size;
+      }
+
+      backtrace_slot slot = Slot_frame_descr(descr);
+      if (alloc_idx >= 0) {
+        debuginfo info = debuginfo_extract(descr, alloc_idx);
+        if (info) {
+          CAMLassert(((uintnat)info & 3) == 0); /* so we can tag it */
+          slot = Slot_debuginfo(info);
+        }
+        alloc_idx = -1;
+      }
+      backtrace[slots++] = slot;
+    }
+  }
+
+  *alloc_size_p = alloc_size;
+  *backtrace_p = backtrace;
+  return slots;
+}
+
+/* Obtain up to [max_slots] of the callstack of the current domain,
+ * including parent fibers. The callstack is written into [*buffer_p],
+ * current size [*alloc_size_p], which should be reallocated (on the C
+ * heap) if required. Returns the number of slots obtained.
+ *
+ * If [alloc_idx] is non-negative, then the backtrace is of an
+ * allocation point and may therefore include an initial entry of the
+ * allocation point itself.
+ */
+
+size_t caml_get_callstack(size_t max_slots,
+                          backtrace_slot **buffer_p,
+                          size_t *alloc_size_p,
+                          ssize_t alloc_idx)
+{
+  return get_callstack(Caml_state->current_stack, max_slots,
+                       alloc_idx,
+                       buffer_p, alloc_size_p);
+}
+
+static value alloc_callstack(backtrace_slot* trace, size_t slots)
+{
+  CAMLparam0();
+  CAMLlocal1(callstack);
+  int i;
+  callstack = caml_alloc(slots, 0);
+  for (i = 0; i < slots; i++)
+    Store_field(callstack, i, Val_backtrace_slot(trace[i]));
+  caml_stat_free(trace);
+  CAMLreturn(callstack);
+}
+
+/* Create and return a [Printexc.raw_backtrace] of the current
+ * callstack, of up to [max_frames_value] entries. Includes parent
+ * fibers.
+ */
+
+CAMLprim value caml_get_current_callstack (value max_frames_value)
+{
+  backtrace_slot *trace = NULL;
+  size_t trace_size = 0;
+  size_t slots = get_callstack(Caml_state->current_stack,
+                               Long_val(max_frames_value),
+                               -1, &trace, &trace_size);
+  return alloc_callstack(trace, slots);
+}
+
+/* Create and return a [Printexc.raw_backtrace] of the callstack of
+ * the continuation [cont], of up to [max_frames_value]
+ * entries. Includes parent fibers.
+ */
+
+CAMLprim value caml_get_continuation_callstack (value cont, value max_frames)
+{
+  backtrace_slot *trace = NULL;
+  size_t trace_size = 0;
+  size_t slots;
+  struct stack_info* stack;
+
+  stack = Ptr_val(caml_continuation_use(cont));
+  {
+    CAMLnoalloc;
+    slots = get_callstack(stack, max_frames, -1,
+                          &trace, &trace_size);
+    caml_continuation_replace(cont, stack);
+  }
+
+  return alloc_callstack(trace, slots);
+}
+
+static debuginfo debuginfo_extract(frame_descr *d, ssize_t alloc_idx)
 {
   unsigned char* infoptr;
   uint32_t debuginfo_offset;
-  uint32_t frame_size;
 
-  /* The special frames marking the top of an ML stack chunk are never
-     returned by caml_next_frame_descriptor, so should never reach here. */
-  CAMLassert(d->frame_size != 0xFFFF);
-  frame_size = caml_get_frame_size(d);
+  /* The special frames marking returns from Caml to C are never
+     returned by caml_next_frame_descriptor, so should never reach
+     here. */
+  CAMLassert(!frame_return_to_C(d));
 
-  if ((frame_size & 1) == 0) {
+  if (!frame_has_debug(d)) {
     return NULL;
   }
   /* Recover debugging info */
-  infoptr = caml_get_end_of_live_ofs(d);
-  if (frame_size & 2) {
-    CAMLassert(alloc_idx == -1 || (0 <= alloc_idx && alloc_idx < *infoptr));
+  infoptr = frame_end_of_live_ofs(d);
+  if (frame_has_allocs(d)) {
     /* skip alloc_lengths */
     infoptr += *infoptr + 1;
     /* align to 32 bits */
     infoptr = Align_to(infoptr, uint32_t);
-    /* select the right debug info for this allocation */
-    if (alloc_idx != -1) {
+    /* find debug info for this allocation */
+    if (alloc_idx >= 0) {
       infoptr += alloc_idx * sizeof(uint32_t);
       if (*(uint32_t*)infoptr == 0) {
         /* No debug info for this particular allocation */
         return NULL;
       }
     } else {
-      /* We don't care which alloc_idx we use, so use the first
-         that has debug info. (e.g. this is a backtrace through a
-         finaliser/signal handler triggered via a Comballoc alloc) */
+      /* we know there's at least one valid debuginfo,
+         but it may not be the one for the first alloc */
       while (*(uint32_t*)infoptr == 0) {
         infoptr += sizeof(uint32_t);
       }
@@ -202,8 +331,8 @@ static debuginfo debuginfo_extract(frame_descr* d, int alloc_idx)
     infoptr = Align_to(infoptr, uint32_t);
     CAMLassert(alloc_idx == -1);
   }
+  /* read offset to debuginfo */
   debuginfo_offset = *(uint32_t*)infoptr;
-  CAMLassert(debuginfo_offset != 0 && (debuginfo_offset & 3) == 0);
   return (debuginfo)(infoptr + debuginfo_offset);
 }
 

@@ -76,21 +76,19 @@
    supports word-aligned 64-bit integers.  Leave undefined if
    64-bit integers are not supported. */
 
-#undef PROFINFO_WIDTH
+#undef HEADER_RESERVED_BITS
+
+#undef CUSTOM_OPS_STRUCT_SIZE
 
 #undef ASM_CFI_SUPPORTED
 
 #undef WITH_FRAME_POINTERS
 
-#undef NO_NAKED_POINTERS
-
-#undef NAKED_POINTERS_CHECKER
-
-#undef WITH_PROFINFO
+#define NO_NAKED_POINTERS 1
 
 #undef CAML_WITH_FPIC
 
-#undef CAML_SAFE_STRING
+#define CAML_SAFE_STRING 1
 
 #undef FLAT_FLOAT_ARRAY
 
@@ -100,4 +98,8 @@
 
 #undef SUPPORTS_TREE_VECTORIZE
 
+#undef USE_MMAP_MAP_STACK
+
 #undef STACK_ALLOCATION
+
+#undef STACK_CHECKS_ENABLED

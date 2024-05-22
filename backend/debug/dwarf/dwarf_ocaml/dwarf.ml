@@ -25,7 +25,8 @@ type t =
   { state : DS.t;
     asm_directives : (module Asm_directives.S);
     get_file_id : string -> int;
-    mutable emitted : bool
+    mutable emitted : bool;
+    mutable emitted_delayed : bool
   }
 
 (* CR mshinwell: On OS X 10.11 (El Capitan), dwarfdump doesn't seem to be able
@@ -60,8 +61,16 @@ let create ~sourcefile ~unit_name ~asm_directives ~get_file_id ~code_begin
     DS.create ~compilation_unit_header_label ~compilation_unit_proto_die
       ~value_type_proto_die ~start_of_code_symbol debug_loc_table
       debug_ranges_table address_table location_list_table
+      ~get_file_num:get_file_id
+    (* CR mshinwell: does get_file_id successfully emit .file directives for
+       files we haven't seen before? *)
   in
-  { state; asm_directives; emitted = false; get_file_id }
+  { state;
+    asm_directives;
+    emitted = false;
+    emitted_delayed = false;
+    get_file_id
+  }
 
 type fundecl =
   { fun_end_label : Cmm.label;
@@ -69,18 +78,29 @@ type fundecl =
   }
 
 let dwarf_for_fundecl t fundecl ~fun_end_label =
-  if not (!Clflags.debug && not !Dwarf_flags.restrict_to_upstream_dwarf)
+  if not
+       (!Clflags.debug
+       && ((not !Dwarf_flags.restrict_to_upstream_dwarf)
+          || !Dwarf_flags.dwarf_inlined_frames))
   then { fun_end_label; fundecl }
   else
     let available_ranges_vars, fundecl =
-      Profile.record "debug_available_ranges_vars"
-        (fun fundecl -> Available_ranges_vars.create fundecl)
+      if not !Dwarf_flags.restrict_to_upstream_dwarf
+      then
+        Profile.record "debug_available_ranges_vars"
+          (fun fundecl -> Available_ranges_vars.create fundecl)
+          ~accumulate:true fundecl
+      else Available_ranges_vars.empty, fundecl
+    in
+    let inlined_frame_ranges, fundecl =
+      Profile.record "debug_inlined_frame_ranges"
+        (fun fundecl -> Inlined_frame_ranges.create fundecl)
         ~accumulate:true fundecl
     in
     Dwarf_concrete_instances.for_fundecl ~get_file_id:t.get_file_id t.state
       fundecl
       ~fun_end_label:(Asm_label.create_int Text fun_end_label)
-      available_ranges_vars;
+      available_ranges_vars inlined_frame_ranges;
     { fun_end_label; fundecl }
 
 let emit t ~basic_block_sections ~binary_backend_available =
@@ -102,4 +122,19 @@ let emit t ~basic_block_sections ~binary_backend_available =
 let emit t ~basic_block_sections ~binary_backend_available =
   Profile.record "emit_dwarf"
     (emit ~basic_block_sections ~binary_backend_available)
+    t
+
+let emit_delayed t ~basic_block_sections ~binary_backend_available =
+  if t.emitted_delayed
+  then
+    Misc.fatal_error
+      "Cannot call [Dwarf.emit_delayed] more than once on a given value of \
+       type [Dwarf.t]";
+  t.emitted_delayed <- true;
+  Dwarf_world.emit_delayed ~asm_directives:t.asm_directives
+    ~basic_block_sections ~binary_backend_available
+
+let emit_delayed t ~basic_block_sections ~binary_backend_available =
+  Profile.record "emit_delayed_dwarf"
+    (emit_delayed ~basic_block_sections ~binary_backend_available)
     t

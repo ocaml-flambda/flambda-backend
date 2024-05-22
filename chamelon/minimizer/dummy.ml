@@ -70,13 +70,8 @@ let dummy_core_typet : Parsetree.core_type =
   }
 
 let dummy_value_description =
-  {
-    val_type = dummy_type_expr;
-    val_kind = Val_reg;
-    val_loc = Location.none;
-    val_attributes = [];
-    val_uid = Uid.internal_not_actually_unique;
-  }
+  mk_value_description ~val_type:dummy_type_expr ~val_kind:Val_reg
+    ~val_attributes:[]
 
 let exp_desc_to_exp ed =
   {
@@ -135,20 +130,27 @@ let dummy1_str_it_desc =
           ~vb_expr:
             (exp_desc_to_exp
                (mkTexp_function
-                  {
-                    arg_label = Nolabel;
-                    param = create_local "()";
-                    cases =
-                      [
-                        {
-                          c_lhs = any_pat;
-                          c_guard = None;
-                          c_rhs =
-                            exp_desc_to_exp
-                              (Texp_assert (exp_desc_to_exp false_expr));
-                        };
-                      ];
-                  }))
+                  (Function_compat.cases_view_to_function
+                     {
+                       arg_label = Nolabel;
+                       param = create_local "()";
+                       partial = Total;
+                       optional_default = None;
+                       cases_view_identifier =
+                         Param texp_function_param_identifier_defaults;
+                       cases =
+                         [
+                           {
+                             c_lhs = any_pat;
+                             c_guard = None;
+                             c_rhs =
+                               exp_desc_to_exp
+                                 (mkTexp_assert
+                                    (exp_desc_to_exp false_expr)
+                                    Location.none);
+                           };
+                         ];
+                     })))
           ~vb_attributes:[ inline_never ];
       ] )
 

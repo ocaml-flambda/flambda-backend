@@ -76,7 +76,7 @@ type simplify_toplevel =
   Downwards_acc.t ->
   Expr.t ->
   return_continuation:Continuation.t ->
-  return_arity:Flambda_arity.t ->
+  return_arity:[`Unarized] Flambda_arity.t ->
   exn_continuation:Continuation.t ->
   Rebuilt_expr.t * Upwards_acc.t
 
@@ -84,7 +84,7 @@ type simplify_function_body =
   Downwards_acc.t ->
   Expr.t ->
   return_continuation:Continuation.t ->
-  return_arity:Flambda_arity.t ->
+  return_arity:[`Unarized] Flambda_arity.t ->
   exn_continuation:Continuation.t ->
   loopify_state:Loopify_state.t ->
   params:Bound_parameters.t ->
@@ -115,8 +115,7 @@ val project_tuple :
     application of the leftover arguments. *)
 val split_direct_over_application :
   Apply_expr.t ->
-  apply_alloc_mode:Alloc_mode.For_types.t ->
-  current_region:Variable.t ->
+  apply_alloc_mode:Alloc_mode.For_allocations.t ->
   callee's_code_id:Code_id.t ->
   callee's_code_metadata:Code_metadata.t ->
   Expr.t

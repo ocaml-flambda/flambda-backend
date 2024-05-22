@@ -38,17 +38,12 @@ module S = struct
     { func_symbol : string;
       alloc : bool;
       ty_res : Cmm.machtype;
-      ty_args : Cmm.exttype list
+      ty_args : Cmm.exttype list;
+      stack_ofs : int
     }
 
   type prim_call_operation =
     | External of external_call_operation
-    | Alloc of
-        { bytes : int;
-          dbginfo : Debuginfo.alloc_dbginfo;
-          mode : Lambda.alloc_mode
-        }
-    | Checkbound of { immediate : int option }
     | Probe of
         { name : string;
           handler_code_sym : string;
@@ -60,11 +55,17 @@ module S = struct
     | Spill
     | Reload
     | Const_int of nativeint (* CR-someday xclerc: change to `Targetint.t` *)
+    | Const_float32 of int32
     | Const_float of int64
     | Const_symbol of Cmm.symbol
     | Const_vec128 of Cmm.vec128_bits
     | Stackoffset of int
-    | Load of Cmm.memory_chunk * Arch.addressing_mode * Mach.mutable_flag
+    | Load of
+        { memory_chunk : Cmm.memory_chunk;
+          addressing_mode : Arch.addressing_mode;
+          mutability : Mach.mutable_flag;
+          is_atomic : bool
+        }
     | Store of Cmm.memory_chunk * Arch.addressing_mode * bool
     | Intop of Mach.integer_operation
     | Intop_imm of Mach.integer_operation * int
@@ -73,18 +74,12 @@ module S = struct
           size : Cmm.atomic_bitwidth;
           addr : Arch.addressing_mode
         }
-    | Negf
-    | Absf
-    | Addf
-    | Subf
-    | Mulf
-    | Divf
-    | Compf of Mach.float_comparison (* CR gyorsh: can merge with float_test? *)
+    | Floatop of Mach.float_width * Mach.float_operation
     | Csel of Mach.test
-    | Floatofint
-    | Intoffloat
     | Valueofint
     | Intofvalue
+    | Vectorcast of Cmm.vector_cast
+    | Scalarcast of Cmm.scalar_cast
     | Probe_is_enabled of { name : string }
     | Opaque
     | Begin_region
@@ -96,6 +91,13 @@ module S = struct
           provenance : Backend_var.Provenance.t option;
           is_assignment : bool;
           regs : Reg.t array
+        }
+    | Dls_get
+    | Poll
+    | Alloc of
+        { bytes : int;
+          dbginfo : Debuginfo.alloc_dbginfo;
+          mode : Lambda.alloc_mode
         }
 
   type bool_test =
@@ -121,7 +123,8 @@ module S = struct
       outcomes of comparison include "unordered" (see e.g. x86-64 emitter) when
       the arguments involve NaNs. *)
   type float_test =
-    { lt : Label.t;
+    { width : Cmm.float_width;
+      lt : Label.t;
       eq : Label.t;
       gt : Label.t;
       uo : Label.t  (** if at least one of x or y is NaN *)
@@ -161,6 +164,7 @@ module S = struct
     | Pushtrap of { lbl_handler : Label.t }
     | Poptrap
     | Prologue
+    | Stack_check of { max_frame_size_bytes : int }
 
   type 'a with_label_after =
     { op : 'a;
@@ -195,7 +199,6 @@ module S = struct
     | Call of func_call_operation with_label_after
     | Prim of prim_call_operation with_label_after
     | Specific_can_raise of Arch.specific_operation with_label_after
-    | Poll_and_jump of Label.t
 end
 
 (* CR-someday gyorsh: Switch can be translated to Branch. *)

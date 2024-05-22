@@ -1,11 +1,12 @@
 (* TEST
-
-include systhreads
-* hassysthreads
-** not-windows
-*** bytecode
-*** native
-
+ include systhreads;
+ runtime5;
+ hassysthreads;
+ {
+   bytecode;
+ }{
+   native;
+ }
 *)
 
 

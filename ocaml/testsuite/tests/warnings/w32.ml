@@ -1,13 +1,13 @@
-(* TEST
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
 
-flags = "-w +A"
 
-* setup-ocamlc.byte-build-env
-** ocamlc.byte
-module = "w32.mli"
-*** ocamlc.byte
-module = "w32.ml"
-**** check-ocamlc.byte-output
+
+
+
+
+
+
 
 *)
 
@@ -69,3 +69,24 @@ module H (X : sig val x : int end) = X
 module type S = sig
   module F:  sig val x : int end -> sig end
 end
+
+(* Nominal type comparison *)
+
+module Nominal = struct
+  module type S = sig type t val x : int end
+
+  module F(X:S) = struct type t = X.t end
+  module M : S = struct type t = int let x = 1 end
+
+  module N = F(M)
+end
+
+(* TEST
+ flags = "-w +A";
+ setup-ocamlc.byte-build-env;
+ module = "w32.mli";
+ ocamlc.byte;
+ module = "w32.ml";
+ ocamlc.byte;
+ check-ocamlc.byte-output;
+*)

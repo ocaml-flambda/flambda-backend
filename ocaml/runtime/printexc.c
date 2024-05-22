@@ -17,6 +17,7 @@
 
 /* Print an uncaught exception and abort */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,6 +52,7 @@ static void add_string(struct stringbuf *buf, const char *s)
 
 CAMLexport char * caml_format_exception(value exn)
 {
+  Caml_check_caml_state();
   mlsize_t start, i;
   value bucket, v;
   struct stringbuf buf;
@@ -73,7 +75,8 @@ CAMLexport char * caml_format_exception(value exn)
       start = 1;
     }
     add_char(&buf, '(');
-    for (i = start; i < Wosize_val(bucket); i++) {
+    mlsize_t bucket_size = Wosize_val(bucket);
+    for (i = start; i < bucket_size; i++) {
       if (i > start) add_string(&buf, ", ");
       v = Field(bucket, i);
       if (Is_long(v)) {
@@ -147,11 +150,11 @@ void caml_fatal_uncaught_exception_with_message(value exn, const char *msg)
   handle_uncaught_exception =
     caml_named_value("Printexc.handle_uncaught_exception");
 
-  /* If the callback allocates, memprof could be called. In this case,
-     memprof's callback could raise an exception while
-     [handle_uncaught_exception] is running, so that the printing of
-     the exception fails. */
-  caml_memprof_set_suspended(1);
+  /* If the callback allocates, memprof could be called, in which case
+     a memprof callback could raise an exception while
+     [handle_uncaught_exception] is running, and the printing of
+     the exception could fail. */
+  caml_memprof_update_suspended(true);
 
   if (handle_uncaught_exception != NULL)
     /* [Printexc.handle_uncaught_exception] does not raise exception. */

@@ -16,6 +16,7 @@
 open! Flambda.Import
 module Env = To_cmm_env
 module Ece = Effects_and_coeffects
+module KS = Flambda_kind.With_subkind
 module R = To_cmm_result
 
 module C = struct
@@ -42,10 +43,14 @@ let get_func_decl_params_arity t code_id =
      cmm_helpers.ml. *)
   let params_ty =
     List.map
-      (fun k ->
-        C.extended_machtype_of_kind k
-        |> C.Extended_machtype.change_tagged_int_to_val)
-      (Flambda_arity.to_list (Code_metadata.params_arity info))
+      (fun ks ->
+        List.map
+          (fun k ->
+            C.extended_machtype_of_kind k
+            |> C.Extended_machtype.change_tagged_int_to_val)
+          ks
+        |> Array.concat)
+      (Flambda_arity.unarize_per_parameter (Code_metadata.params_arity info))
   in
   let result_machtype =
     C.extended_machtype_of_return_arity (Code_metadata.result_arity info)
@@ -56,7 +61,7 @@ let get_func_decl_params_arity t code_id =
     then Lambda.Tupled
     else
       let nlocal =
-        Flambda_arity.cardinal (Code_metadata.params_arity info)
+        Flambda_arity.num_params (Code_metadata.params_arity info)
         - Code_metadata.first_complex_local_param info
       in
       Lambda.Curried { nlocal }
@@ -161,8 +166,29 @@ end = struct
                 closure_symbol_for_updates;
                 _
               } ->
+            let update_kind =
+              let module UK = C.Update_kind in
+              match KS.kind kind with
+              | Value ->
+                if KS.Subkind.equal (KS.subkind kind) Tagged_immediate
+                then UK.tagged_immediates
+                else UK.pointers
+              | Naked_number Naked_immediate
+              | Naked_number Naked_int64
+              | Naked_number Naked_nativeint ->
+                UK.naked_int64s
+              | Naked_number Naked_float -> UK.naked_floats
+              | Naked_number Naked_vec128 -> UK.naked_vec128_fields
+              (* The "fields" update kinds are used because we are writing into
+                 a 64-bit slot, and wish to initialize the whole. *)
+              | Naked_number Naked_int32 -> UK.naked_int32_fields
+              | Naked_number Naked_float32 -> UK.naked_float32_fields
+              | Region | Rec_info ->
+                Misc.fatal_errorf "Unexpected value slot kind for %a: %a"
+                  Value_slot.print value_slot KS.print kind
+            in
             let env, res, updates =
-              C.make_update env res dbg Word_val
+              C.make_update env res dbg update_kind
                 ~symbol:(C.symbol ~dbg closure_symbol_for_updates)
                 v
                 ~index:(slot_offset - function_slot_offset_for_updates)
@@ -179,7 +205,9 @@ end = struct
         updates )
     | Function_slot { size; function_slot; last_function_slot } -> (
       let code_id = Function_slot.Map.find function_slot decls in
-      let code_symbol = R.symbol_of_code_id res code_id in
+      let code_symbol =
+        R.symbol_of_code_id res code_id ~currently_in_inlined_body:false
+      in
       let (kind, params_ty, result_ty), closure_code_pointers, dbg =
         get_func_decl_params_arity env code_id
       in
@@ -317,20 +345,17 @@ end)
 
 (* Translation of "check" attributes on functions. *)
 
-let transl_property : Check_attribute.Property.t -> Cmm.property = function
-  | Zero_alloc -> Zero_alloc
-
-let transl_check_attrib : Check_attribute.t -> Cmm.codegen_option list =
+let transl_check_attrib : Zero_alloc_attribute.t -> Cmm.codegen_option list =
   function
   | Default_check -> []
-  | Ignore_assert_all p -> [Ignore_assert_all (transl_property p)]
-  | Check { property; strict; assume; loc } ->
-    [Check { property = transl_property property; strict; assume; loc }]
+  | Assume { strict; never_returns_normally; never_raises; loc } ->
+    [Assume_zero_alloc { strict; never_returns_normally; never_raises; loc }]
+  | Check { strict; loc } -> [Check_zero_alloc { strict; loc }]
 
 (* Translation of the bodies of functions. *)
 
-let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
-    ~exn_continuation params ~body ~my_closure
+let params_and_body0 env res code_id ~fun_dbg ~zero_alloc_attribute
+    ~return_continuation ~exn_continuation params ~body ~my_closure
     ~(is_my_closure_used : _ Or_unknown.t) ~my_region ~translate_expr =
   let params =
     let is_my_closure_used =
@@ -378,18 +403,21 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
     else fun_body
   in
   let fun_flags =
-    transl_check_attrib check
+    transl_check_attrib zero_alloc_attribute
     @
     if Flambda_features.optimize_for_speed () then [] else [Cmm.Reduce_code_size]
   in
-  let fun_sym = R.symbol_of_code_id res code_id in
+  let fun_sym =
+    R.symbol_of_code_id res code_id ~currently_in_inlined_body:false
+  in
   let fun_poll =
     Env.get_code_metadata env code_id
     |> Code_metadata.poll_attribute |> Poll_attribute.to_lambda
   in
   C.fundecl fun_sym fun_params fun_body fun_flags fun_dbg fun_poll, res
 
-let params_and_body env res code_id p ~fun_dbg ~check ~translate_expr =
+let params_and_body env res code_id p ~fun_dbg ~zero_alloc_attribute
+    ~translate_expr =
   Function_params_and_body.pattern_match p
     ~f:(fun
          ~return_continuation
@@ -403,9 +431,9 @@ let params_and_body env res code_id p ~fun_dbg ~check ~translate_expr =
          ~free_names_of_body:_
        ->
       try
-        params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
-          ~exn_continuation params ~body ~my_closure ~is_my_closure_used
-          ~my_region ~translate_expr
+        params_and_body0 env res code_id ~fun_dbg ~zero_alloc_attribute
+          ~return_continuation ~exn_continuation params ~body ~my_closure
+          ~is_my_closure_used ~my_region ~translate_expr
       with Misc.Fatal_error as e ->
         let bt = Printexc.get_raw_backtrace () in
         Format.eprintf

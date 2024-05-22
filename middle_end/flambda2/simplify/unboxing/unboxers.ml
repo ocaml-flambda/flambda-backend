@@ -55,6 +55,24 @@ module Immediate = struct
     }
 end
 
+module Float32 = struct
+  let decider =
+    { param_name = "unboxed_float32";
+      kind = K.Naked_number_kind.Naked_float32;
+      prove_is_a_boxed_number = T.prove_is_a_boxed_float32
+    }
+
+  let unboxing_prim simple = P.(Unary (Unbox_number Naked_float32, simple))
+
+  let unboxer =
+    { var_name = "unboxed_float32";
+      invalid_const =
+        Const.naked_float32 Numeric_types.Float32_by_bit_pattern.zero;
+      unboxing_prim;
+      prove_simple = T.meet_boxed_float32_containing_simple
+    }
+end
+
 module Float = struct
   let decider =
     { param_name = "unboxed_float";
@@ -158,16 +176,15 @@ module Field = struct
 end
 
 module Closure_field = struct
-  let unboxing_prim function_slot ~closure value_slot kind =
+  let unboxing_prim function_slot ~closure value_slot =
     P.Unary
-      ( Project_value_slot { project_from = function_slot; value_slot; kind },
-        closure )
+      (Project_value_slot { project_from = function_slot; value_slot }, closure)
 
-  let unboxer function_slot value_slot kind =
+  let unboxer function_slot value_slot =
     { var_name = "closure_field_at_use";
       invalid_const = Const.const_zero;
       unboxing_prim =
-        (fun closure -> unboxing_prim function_slot ~closure value_slot kind);
+        (fun closure -> unboxing_prim function_slot ~closure value_slot);
       prove_simple =
         (fun tenv ~min_name_mode t ->
           T.meet_project_value_slot_simple tenv ~min_name_mode t value_slot)

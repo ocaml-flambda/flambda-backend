@@ -25,9 +25,13 @@
 #include "caml/intext.h"
 #include "caml/osdeps.h"
 #include "caml/fail.h"
+#include "caml/frame_descriptors.h"
+#include "caml/globroots.h"
 #include "caml/signals.h"
 
 #include "caml/hooks.h"
+
+intnat caml_globals_inited = 0;
 
 CAMLexport void (*caml_natdynlink_hook)(void* handle, const char* unit) = NULL;
 
@@ -43,7 +47,7 @@ static value Val_handle(void* handle) {
 }
 
 static void *getsym(void *handle, const char *module, const char *name){
-  char *fullname = caml_stat_strconcat(2, module, name);
+  char *fullname = caml_stat_strconcat(3, module, ".", name);
   void *sym;
   sym = caml_dlsym (handle, fullname);
   /*  printf("%s => %lx\n", fullname, (uintnat) sym); */
@@ -51,16 +55,7 @@ static void *getsym(void *handle, const char *module, const char *name){
   return sym;
 }
 
-static void *getsym_exn(void *handle, const char *module, const char *name){
-  void *sym = getsym(handle, module, name);
-  if (sym == NULL) {
-    value msg = caml_alloc_sprintf(
-      "Dynlink: failed to load module due to missing symbol %s%s",
-      module, name);
-    caml_invalid_argument_value(msg);
-  }
-  return sym;
-}
+extern char caml_globals_map[];
 
 CAMLprim value caml_natdynlink_getmap(value unit)
 {
@@ -84,7 +79,7 @@ CAMLprim value caml_natdynlink_open(value filename, value global)
 
   p = caml_stat_strdup_to_os(String_val(filename));
   caml_enter_blocking_section();
-  dlhandle = caml_dlopen(p, 1, Int_val(global));
+  dlhandle = caml_dlopen(p, Int_val(global));
   caml_leave_blocking_section();
   caml_stat_free(p);
 
@@ -104,34 +99,66 @@ CAMLprim value caml_natdynlink_open(value filename, value global)
   CAMLreturn(res);
 }
 
+CAMLprim value caml_natdynlink_register(value handle_v, value symbols) {
+  CAMLparam2 (handle_v, symbols);
+  int i;
+  int nsymbols = Wosize_val(symbols);
+  void* handle = Handle_val(handle_v);
+  void** table;
+
+  table = caml_stat_alloc(sizeof(void*) * nsymbols);
+
+  for (i = 0; i < nsymbols; i++) {
+    const char* unit = String_val(Field(symbols, i));
+    table[i] = getsym(handle, unit, "gc_roots");
+    if (table[i] == NULL) {
+      caml_stat_free(table);
+      caml_invalid_argument_value(
+        caml_alloc_sprintf("Dynlink: Missing gc_roots for %s", unit));
+    }
+  }
+  caml_register_dyn_globals(table, nsymbols);
+  /* [caml_register_dyn_global] can raise, so do it prior to registering
+     frametables etc. */
+
+  for (i = 0; i < nsymbols; i++) {
+    const char* unit = String_val(Field(symbols, i));
+    table[i] = getsym(handle, unit, "frametable");
+    if (table[i] == NULL) {
+      caml_stat_free(table);
+      caml_invalid_argument_value(
+        caml_alloc_sprintf("Dynlink: Missing frametable for %s", unit));
+    }
+  }
+  caml_register_frametables(table, nsymbols);
+
+  for (i = 0; i < nsymbols; i++) {
+    const char* unit = String_val(Field(symbols, i));
+    void* sym = getsym(handle, unit, "code_begin");
+    void* sym2 = getsym(handle, unit, "code_end");
+    /* Do not register empty code fragments */
+    if (NULL != sym && NULL != sym2 && sym != sym2) {
+      caml_register_code_fragment((char *) sym, (char *) sym2,
+                                  DIGEST_LATER, NULL);
+    }
+  }
+
+  caml_stat_free(table);
+  CAMLreturn (Val_unit);
+}
+
 CAMLprim value caml_natdynlink_run(value handle_v, value symbol) {
   CAMLparam2 (handle_v, symbol);
   CAMLlocal1 (result);
-  void *sym,*sym2;
   void* handle = Handle_val(handle_v);
-  const char *unit = String_val(symbol);
+  const char *unit;
   void (*entrypoint)(void);
 
-  sym = getsym_exn(handle, unit, "__gc_roots");
-  /* [caml_register_dyn_global] can raise, so do it prior to registering
-     frametables etc. */
-  caml_register_dyn_global(sym);
-
-  sym = getsym_exn(handle, unit, "__frametable");
-  caml_register_frametable(sym);
-
-  sym = getsym_exn(handle, unit, "__data_begin");
-  sym2 = getsym_exn(handle, unit, "__data_end");
-  caml_page_table_add(In_static_data, sym, sym2);
-
-  sym = getsym_exn(handle, unit, "__code_begin");
-  sym2 = getsym_exn(handle, unit, "__code_end");
-  caml_register_code_fragment((char *) sym, (char *) sym2,
-                              DIGEST_LATER, NULL);
+  unit = String_val(symbol);
 
   if( caml_natdynlink_hook != NULL ) caml_natdynlink_hook(handle,unit);
 
-  entrypoint = getsym(handle, unit, "__entry");
+  entrypoint = getsym(handle, unit, "entry");
   if (NULL != entrypoint) result = caml_callback((value)(&entrypoint), 0);
   else result = Val_unit;
 
@@ -141,7 +168,7 @@ CAMLprim value caml_natdynlink_run(value handle_v, value symbol) {
 CAMLprim value caml_natdynlink_run_toplevel(value filename, value symbol)
 {
   CAMLparam2 (filename, symbol);
-  CAMLlocal3 (res, v, handle_v);
+  CAMLlocal4 (res, v, handle_v, symbols);
   void *handle;
   char_os *p;
 
@@ -149,7 +176,7 @@ CAMLprim value caml_natdynlink_run_toplevel(value filename, value symbol)
 
   p = caml_stat_strdup_to_os(String_val(filename));
   caml_enter_blocking_section();
-  handle = caml_dlopen(p, 1, 1);
+  handle = caml_dlopen(p, 1);
   caml_leave_blocking_section();
   caml_stat_free(p);
 
@@ -159,10 +186,16 @@ CAMLprim value caml_natdynlink_run_toplevel(value filename, value symbol)
     Store_field(res, 0, v);
   } else {
     handle_v = Val_handle(handle);
+
+    symbols = caml_alloc_small(1, 0);
+    Field(symbols, 0) = symbol;
+    (void) caml_natdynlink_register(handle_v, symbols);
+
     res = caml_alloc(1,0);
     v = caml_natdynlink_run(handle_v, symbol);
     Store_field(res, 0, v);
   }
+
   CAMLreturn(res);
 }
 
@@ -171,7 +204,16 @@ CAMLprim value caml_natdynlink_loadsym(value symbol)
   CAMLparam1 (symbol);
   CAMLlocal1 (sym);
 
+  /* Note that this can only be used for symbols which are valid OCaml
+     values, otherwise a naked pointer would be returned. */
+
   sym = (value) caml_globalsym(String_val(symbol));
   if (!sym) caml_failwith(String_val(symbol));
   CAMLreturn(sym);
+}
+
+CAMLprim value caml_natdynlink_existssym(value symbol)
+{
+  void* sym = caml_globalsym(String_val(symbol));
+  return sym != NULL ? Val_true : Val_false;
 }

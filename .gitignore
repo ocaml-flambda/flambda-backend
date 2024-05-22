@@ -62,3 +62,10 @@ _coverage/
 
 # Debugger support
 ocamlc
+ocamlopt
+.ocamldebug
+
+# Artifacts made during bootstrapping
+ocaml/otherlibs/dynlink/byte/dynlink.mli
+ocaml/otherlibs/dynlink/native/dynlink.mli
+ocaml/primitives.new

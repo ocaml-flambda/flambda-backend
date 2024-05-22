@@ -1,6 +1,6 @@
 (* TEST
-    flags = "-dsource -extension include_functor"
-    * expect
+ flags = "-dsource -extension include_functor";
+ expect;
 *)
 
 (* Test that include functor is printed with a keyword and not an attribute *)

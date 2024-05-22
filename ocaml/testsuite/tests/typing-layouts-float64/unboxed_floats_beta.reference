@@ -1,0 +1,152 @@
+Test 13, 610.68: : 610.68
+  Test 13, step 0: 0.00
+  Test 13, step 1: 0.00
+  Test 13, step 2: 0.00
+  Test 13, step 3: 0.00
+  Test 13, step 4: 458.01
+  Test 13, step 5: 305.34
+  Test 13, step 6: 152.67
+  Test 13, step 7: 0.00
+  Test 13, step 8: 0.00
+  Test 13, step 9: 0.00
+Test 14, construction:
+  a: 3.14
+  b: 13.00
+  c: 7.31
+  d: 1.41
+  e: 6.00
+  f: 27.10
+  a: -3.14
+  b: -13.00
+  c: -7.31
+  d: -1.41
+  e: -6.00
+  f: -27.10
+Test 14, matching and projection:
+  a: -6.00
+  b: -4.55
+  c: 0.00
+  d: 14.41
+  e: 21.10
+  f: -27.10
+Test 14, record update and mutation:
+  a: 3.14
+  b: 13.00
+  c: 7.31
+  d: 42.00
+  e: 6.00
+  f: -7.31
+  a: -3.14
+  b: 17.00
+  c: -7.31
+  d: -1.41
+  e: -6.00
+  f: -27.10
+  a: -3.14
+  b: 4.55
+  c: 42.00
+  d: 25.00
+  e: -6.00
+  f: -27.10
+Test 15, (float#+float) records in recursive groups:
+  a: 1.10
+  b: 2.00
+  c: 3.30
+  d: 4.40
+  e: 5.00
+  f: 6.60
+  a: -5.10
+  b: -6.00
+  c: -7.30
+  d: -8.40
+  e: -9.00
+  f: -10.60
+  result (-4.00): -4.00
+  a: 1.10
+  b: 2.00
+  c: 3.30
+  d: 2.00
+  e: 5.00
+  f: 1.10
+  a: -5.10
+  b: 42.00
+  c: -7.30
+  d: -8.40
+  e: -9.00
+  f: -10.60
+Test 16, 610.68: : 610.68
+  Test 16, step 0: 0.00
+  Test 16, step 1: 0.00
+  Test 16, step 2: 0.00
+  Test 16, step 3: 0.00
+  Test 16, step 4: 458.01
+  Test 16, step 5: 305.34
+  Test 16, step 6: 152.67
+  Test 16, step 7: 0.00
+  Test 16, step 8: 0.00
+  Test 16, step 9: 0.00
+Test 17, construction:
+  a: 3.17
+  b: 13
+  c: 7.31
+  d: 1.41
+  e: 6
+  f: 27.10
+  a: -3.17
+  b: -13
+  c: -7.31
+  d: -1.41
+  e: -6
+  f: -27.10
+Test 17, matching and projection:
+  a: -6.00
+  b: -4
+  c: 0.00
+  d: 14.41
+  e: 21
+  f: -27.10
+Test 17, record update and mutation:
+  a: 3.17
+  b: 13
+  c: 7.31
+  d: 42.00
+  e: 6
+  f: -7.31
+  a: -3.17
+  b: 17
+  c: -7.31
+  d: -1.41
+  e: -6
+  f: -27.10
+  a: -3.17
+  b: 4
+  c: 42.00
+  d: 25.00
+  e: -6
+  f: -27.10
+Test 18, (float#+imm) records in recursive groups:
+  a: 1.10
+  b: 2
+  c: 3.30
+  d: 4.40
+  e: 5
+  f: 6.60
+  a: -5.10
+  b: -6
+  c: -7.30
+  d: -8.40
+  e: -9
+  f: -10.60
+  result (-4.00): -4.00
+  a: 1.10
+  b: 2
+  c: 3.30
+  d: 2.00
+  e: 5
+  f: 1.10
+  a: -5.10
+  b: 42
+  c: -7.30
+  d: -8.40
+  e: -9
+  f: -10.60

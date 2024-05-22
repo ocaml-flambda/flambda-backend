@@ -347,6 +347,17 @@ module Substitution = struct
         | Some subst -> apply_block_in_place subst block)
 end
 
+let remove_prologue : Cfg.basic_block -> bool =
+ fun block ->
+  let removed = ref false in
+  DLL.filter_left block.body ~f:(fun instr ->
+      match instr.Cfg.desc with
+      | Cfg.Prologue ->
+        removed := true;
+        false
+      | _ -> true);
+  !removed
+
 let remove_prologue_if_not_required : Cfg_with_layout.t -> unit =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
@@ -356,10 +367,21 @@ let remove_prologue_if_not_required : Cfg_with_layout.t -> unit =
   in
   if not prologue_required
   then
-    (* note: `Cfgize` has put the prologue in the entry block *)
-    let block = Cfg.get_block_exn cfg cfg.entry_label in
-    DLL.filter_left block.body ~f:(fun instr ->
-        match instr.Cfg.desc with Cfg.Prologue -> false | _ -> true)
+    (* note: `Cfgize` has put the prologue in the entry block or its
+       successor. *)
+    let entry_block = Cfg.get_block_exn cfg cfg.entry_label in
+    let removed = remove_prologue entry_block in
+    if not removed
+    then
+      match entry_block.terminator.desc with
+      | Always label ->
+        let block = Cfg.get_block_exn cfg label in
+        let removed = remove_prologue block in
+        assert removed
+      | Never | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+      | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _
+      | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
+        assert false
 
 let update_live_fields : Cfg_with_layout.t -> liveness -> unit =
  fun cfg_with_layout liveness ->
@@ -375,12 +397,25 @@ let update_live_fields : Cfg_with_layout.t -> liveness -> unit =
       set_liveness block.terminator)
 
 (* CR-soon xclerc for xclerc: consider adding an overflow check. *)
-let pow10 n =
+let pow ~base n =
   let res = ref 1 in
   for _ = 1 to n do
-    res := !res * 10
+    res := !res * base
   done;
   !res
+
+let spill_normal_cost = lazy (find_param_value "SPILL_NORMAL_COST")
+
+let spill_cold_cost = lazy (find_param_value "SPILL_COLD_COST")
+
+let spill_loop_cost = lazy (find_param_value "SPILL_LOOP_COST")
+
+let cost_for_block : Cfg.basic_block -> int =
+ fun block ->
+  let param =
+    match block.cold with false -> spill_normal_cost | true -> spill_cold_cost
+  in
+  match Lazy.force param with None -> 1 | Some cost -> int_of_string cost
 
 let update_spill_cost : Cfg_with_infos.t -> flat:bool -> unit -> unit =
  fun cfg_with_infos ~flat () ->
@@ -403,13 +438,21 @@ let update_spill_cost : Cfg_with_infos.t -> flat:bool -> unit -> unit =
     else (Cfg_with_infos.loop_infos cfg_with_infos).loop_depths
   in
   Cfg.iter_blocks cfg ~f:(fun label block ->
-      let cost =
+      let base_cost = cost_for_block block in
+      let cost_multiplier =
         match Label.Map.find_opt label loops_depths with
         | None ->
           assert flat;
           1
-        | Some depth -> pow10 depth
+        | Some depth ->
+          let base =
+            match Lazy.force spill_loop_cost with
+            | None -> 10
+            | Some cost -> int_of_string cost
+          in
+          pow ~base depth
       in
+      let cost = base_cost * cost_multiplier in
       DLL.iter ~f:(fun instr -> update_instr cost instr) block.body;
       (* Ignore probes *)
       match block.terminator.desc with
@@ -417,7 +460,7 @@ let update_spill_cost : Cfg_with_infos.t -> flat:bool -> unit -> unit =
       | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
       | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
       | Tailcall_func _ | Call_no_return _ | Call _ | Prim _
-      | Specific_can_raise _ | Poll_and_jump _ ->
+      | Specific_can_raise _ ->
         update_instr cost block.terminator)
 
 let check_length str arr expected =

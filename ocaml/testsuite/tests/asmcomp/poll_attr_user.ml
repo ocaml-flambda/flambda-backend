@@ -1,14 +1,14 @@
-(* TEST
-  * poll-insertion
-  ** setup-ocamlopt.byte-build-env
-  *** ocamlopt.byte
-ocamlopt_byte_exit_status = "2"
-  **** check-ocamlopt.byte-output
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
 
-  ** setup-ocamlopt.opt-build-env
-  *** ocamlopt.opt
-ocamlopt_opt_exit_status = "2"
-  **** check-ocamlopt.opt-output
+
+
+
+
+
+
+
+
 *)
 
 let[@inline never][@local never] v x = x + 1
@@ -20,3 +20,18 @@ let[@poll error] c x =
         ignore(Sys.opaque_identity(ref 42))
       done;
       x2 + !y
+
+(* TEST
+ poll-insertion;
+ {
+   setup-ocamlopt.byte-build-env;
+   ocamlopt_byte_exit_status = "2";
+   ocamlopt.byte;
+   check-ocamlopt.byte-output;
+ }{
+   setup-ocamlopt.opt-build-env;
+   ocamlopt_opt_exit_status = "2";
+   ocamlopt.opt;
+   check-ocamlopt.opt-output;
+ }
+*)

@@ -40,6 +40,8 @@ end
 
 module Immediate : Number_S
 
+module Float32 : Number_S
+
 module Float : Number_S
 
 module Int32 : Number_S
@@ -62,13 +64,7 @@ module Field : sig
 end
 
 module Closure_field : sig
-  val unboxing_prim :
-    Function_slot.t ->
-    closure:Simple.t ->
-    Value_slot.t ->
-    Flambda_kind.With_subkind.t ->
-    P.t
+  val unboxing_prim : Function_slot.t -> closure:Simple.t -> Value_slot.t -> P.t
 
-  val unboxer :
-    Function_slot.t -> Value_slot.t -> Flambda_kind.With_subkind.t -> unboxer
+  val unboxer : Function_slot.t -> Value_slot.t -> unboxer
 end

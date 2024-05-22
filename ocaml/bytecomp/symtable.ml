@@ -18,7 +18,6 @@
 (* To assign numbers to globals and primitives *)
 
 open Misc
-open Asttypes
 open Lambda
 open Cmo_format
 
@@ -63,7 +62,7 @@ module PrimMap = Num_tbl(Misc.Stdlib.String.Map)
 (* Global variables *)
 
 let global_table = ref GlobalMap.empty
-and literal_table = ref([] : (int * structured_constant) list)
+and literal_table = ref([] : (int * Obj.t) list)
 
 let is_global_defined id =
   Ident.Map.mem id (!global_table).tbl
@@ -117,12 +116,9 @@ let all_primitives () =
   prim
 
 let data_primitive_names () =
-  let prim = all_primitives() in
-  let b = Buffer.create 512 in
-  for i = 0 to Array.length prim - 1 do
-    Buffer.add_string b prim.(i); Buffer.add_char b '\000'
-  done;
-  Buffer.contents b
+  all_primitives()
+  |> Array.to_list
+  |> concat_null_terminated
 
 let output_primitive_names outchan =
   output_string outchan (data_primitive_names())
@@ -132,19 +128,53 @@ open Printf
 let output_primitive_table outchan =
   let prim = all_primitives() in
   for i = 0 to Array.length prim - 1 do
-    fprintf outchan "extern value %s();\n" prim.(i)
+    fprintf outchan "extern value %s(void);\n" prim.(i)
   done;
-  fprintf outchan "typedef value (*primitive)();\n";
-  fprintf outchan "primitive caml_builtin_cprim[] = {\n";
+  fprintf outchan "typedef value (*c_primitive)(void);\n";
+  fprintf outchan "const c_primitive caml_builtin_cprim[] = {\n";
   for i = 0 to Array.length prim - 1 do
     fprintf outchan "  %s,\n" prim.(i)
   done;
-  fprintf outchan "  (primitive) 0 };\n";
-  fprintf outchan "const char * caml_names_of_builtin_cprim[] = {\n";
+  fprintf outchan "  0 };\n";
+  fprintf outchan "const char * const caml_names_of_builtin_cprim[] = {\n";
   for i = 0 to Array.length prim - 1 do
     fprintf outchan "  \"%s\",\n" prim.(i)
   done;
-  fprintf outchan "  (char *) 0 };\n"
+  fprintf outchan "  0 };\n"
+
+(* Translate structured constants *)
+
+(* We cannot use the [float32] type in the compiler, so we represent it as an
+   opaque [Obj.t]. This is sufficient for interfacing with the runtime. *)
+external float32_of_string : string -> Obj.t = "caml_float32_of_string"
+
+let rec transl_const = function
+    Const_base(Const_int i) -> Obj.repr i
+  | Const_base(Const_char c) -> Obj.repr c
+  | Const_base(Const_string (s, _, _)) -> Obj.repr s
+  | Const_base(Const_float32 f)
+  | Const_base(Const_unboxed_float32 f) -> float32_of_string f
+  | Const_base(Const_float f)
+  | Const_base(Const_unboxed_float f) -> Obj.repr (float_of_string f)
+  | Const_base(Const_int32 i)
+  | Const_base(Const_unboxed_int32 i) -> Obj.repr i
+  | Const_base(Const_int64 i)
+  | Const_base(Const_unboxed_int64 i) -> Obj.repr i
+  | Const_base(Const_nativeint i)
+  | Const_base(Const_unboxed_nativeint i) -> Obj.repr i
+  | Const_immstring s -> Obj.repr s
+  | Const_block(tag, fields) ->
+      let block = Obj.new_block tag (List.length fields) in
+      let transl_field pos cst =
+        Obj.set_field block pos (transl_const cst)
+      in
+      List.iteri transl_field fields;
+      block
+  | Const_float_block fields | Const_float_array fields ->
+      let res = Array.Floatarray.create (List.length fields) in
+      List.iteri (fun i f -> Array.Floatarray.set res i (float_of_string f))
+        fields;
+      Obj.repr res
 
 (* Initialization for batch linking *)
 
@@ -162,7 +192,7 @@ let init () =
             Const_base(Const_int (-i-1))
            ])
       in
-      literal_table := (c, cst) :: !literal_table)
+      literal_table := (c, transl_const cst) :: !literal_table)
     Runtimedef.builtin_exceptions;
   (* Initialize the known C primitives *)
   let set_prim_table_from_file primfile =
@@ -184,8 +214,13 @@ let init () =
     Misc.try_finally
       ~always:(fun () -> remove_file primfile)
       (fun () ->
-         if Sys.command(Printf.sprintf "%s -p > %s"
-                          !Clflags.use_runtime primfile) <> 0
+         let cmd =
+           Filename.quote_command
+             !Clflags.use_runtime
+             ~stdout:primfile
+             ["-p"]
+         in
+         if Sys.command cmd <> 0
          then raise(Error(Wrong_vm !Clflags.use_runtime));
          set_prim_table_from_file primfile
       )
@@ -214,36 +249,12 @@ let patch_object buff patchlist =
           patch_int buff pos (of_prim name))
     patchlist
 
-(* Translate structured constants *)
-
-let rec transl_const = function
-    Const_base(Const_int i) -> Obj.repr i
-  | Const_base(Const_char c) -> Obj.repr c
-  | Const_base(Const_string (s, _, _)) -> Obj.repr s
-  | Const_base(Const_float f) -> Obj.repr (float_of_string f)
-  | Const_base(Const_int32 i) -> Obj.repr i
-  | Const_base(Const_int64 i) -> Obj.repr i
-  | Const_base(Const_nativeint i) -> Obj.repr i
-  | Const_immstring s -> Obj.repr s
-  | Const_block(tag, fields) ->
-      let block = Obj.new_block tag (List.length fields) in
-      let pos = ref 0 in
-      List.iter
-        (fun c -> Obj.set_field block !pos (transl_const c); incr pos)
-        fields;
-      block
-  | Const_float_block fields | Const_float_array fields ->
-      let res = Array.Floatarray.create (List.length fields) in
-      List.iteri (fun i f -> Array.Floatarray.set res i (float_of_string f))
-        fields;
-      Obj.repr res
-
 (* Build the initial table of globals *)
 
 let initial_global_table () =
   let glob = Array.make !global_table.cnt (Obj.repr 0) in
   List.iter
-    (fun (slot, cst) -> glob.(slot) <- transl_const cst)
+    (fun (slot, cst) -> glob.(slot) <- cst)
     !literal_table;
   literal_table := [];
   glob
@@ -265,7 +276,7 @@ let update_global_table () =
   if ng > Array.length(Meta.global_data()) then Meta.realloc_global_data ng;
   let glob = Meta.global_data() in
   List.iter
-    (fun (slot, cst) -> glob.(slot) <- transl_const cst)
+    (fun (slot, cst) -> glob.(slot) <- cst)
     !literal_table;
   literal_table := []
 
@@ -273,25 +284,30 @@ let update_global_table () =
    executable file (normal case) or from linked-in data (-output-obj). *)
 
 type section_reader = {
-  read_string: string -> string;
-  read_struct: string -> Obj.t;
+  read_string: Bytesections.Name.t -> string;
+  read_struct: Bytesections.Name.t -> Obj.t;
   close_reader: unit -> unit
 }
 
 let read_sections () =
   try
-    let sections = Meta.get_section_table () in
+    let sections =
+      List.map
+        (fun (n,o) -> Bytesections.Name.of_string n, o)
+        (Meta.get_section_table ())
+    in
     { read_string =
-        (fun name -> (Obj.magic(List.assoc name sections) : string));
+        (fun name ->
+           (Obj.magic(List.assoc name sections) : string));
       read_struct =
         (fun name -> List.assoc name sections);
       close_reader =
         (fun () -> ()) }
   with Not_found ->
     let ic = open_in_bin Sys.executable_name in
-    Bytesections.read_toc ic;
-    { read_string = Bytesections.read_section_string ic;
-      read_struct = Bytesections.read_section_struct ic;
+    let section_table = Bytesections.read_toc ic in
+    { read_string = Bytesections.read_section_string section_table ic;
+      read_struct = Bytesections.read_section_struct section_table ic;
       close_reader = fun () -> close_in ic }
 
 (* Initialize the linker for toplevel use *)
@@ -300,23 +316,23 @@ let init_toplevel () =
   try
     let sect = read_sections () in
     (* Locations of globals *)
-    global_table := (Obj.magic (sect.read_struct "SYMB") : GlobalMap.t);
+    global_table :=
+      (Obj.magic (sect.read_struct Bytesections.Name.SYMB) : GlobalMap.t);
     (* Primitives *)
-    let prims = sect.read_string "PRIM" in
+    let prims =
+      Misc.split_null_terminated (sect.read_string Bytesections.Name.PRIM) in
     c_prim_table := PrimMap.empty;
-    let pos = ref 0 in
-    while !pos < String.length prims do
-      let i = String.index_from prims !pos '\000' in
-      set_prim_table (String.sub prims !pos (i - !pos));
-      pos := i + 1
-    done;
+    List.iter set_prim_table prims;
     (* DLL initialization *)
-    let dllpath = try sect.read_string "DLPT" with Not_found -> "" in
-    Dll.init_toplevel dllpath;
+    let dllpaths =
+      try Misc.split_null_terminated (sect.read_string Bytesections.Name.DLPT)
+      with Not_found -> [] in
+    Dll.init_toplevel dllpaths;
     (* Recover CRC infos for interfaces *)
     let crcintfs =
       try
-        (Obj.magic (sect.read_struct "CRCS") : Import_info.t array)
+        (Obj.magic (sect.read_struct Bytesections.Name.CRCS)
+         : Import_info.t array)
       with Not_found -> [| |] in
     (* Done *)
     sect.close_reader();
@@ -345,9 +361,10 @@ let defined_globals patchlist =
     patchlist
 
 let required_globals patchlist =
+  let is_compunit id = not (Ident.is_predef id) in
   List.fold_left (fun accu rel ->
       match rel with
-      | (Reloc_getglobal id, _pos) -> id :: accu
+      | (Reloc_getglobal id, _pos) when (is_compunit id) -> id :: accu
       | _ -> accu)
     []
     patchlist

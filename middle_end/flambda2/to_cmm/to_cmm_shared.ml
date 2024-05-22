@@ -30,6 +30,7 @@ let exttype_of_kind (k : Flambda_kind.t) : Cmm.exttype =
   match k with
   | Value -> XInt
   | Naked_number Naked_float -> XFloat
+  | Naked_number Naked_float32 -> XFloat32
   | Naked_number Naked_int64 -> XInt64
   | Naked_number Naked_int32 -> XInt32
   | Naked_number (Naked_immediate | Naked_nativeint) -> (
@@ -45,14 +46,17 @@ let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
   | Value -> (
     match Flambda_kind.With_subkind.subkind kind with
     | Tagged_immediate -> Cmm.typ_int
-    | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
-    | Boxed_vec128 | Variant _ | Float_block _ | Float_array | Immediate_array
-    | Value_array | Generic_array ->
+    | Anything | Boxed_float32 | Boxed_float | Boxed_int32 | Boxed_int64
+    | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
+    | Immediate_array | Unboxed_float32_array | Unboxed_int32_array
+    | Unboxed_int64_array | Unboxed_nativeint_array | Value_array
+    | Generic_array ->
       Cmm.typ_val)
   | Naked_number Naked_float -> Cmm.typ_float
-  | Naked_number Naked_int64 -> typ_int64
+  | Naked_number Naked_float32 -> Cmm.typ_float32
   | Naked_number Naked_vec128 -> Cmm.typ_vec128
-  | Naked_number (Naked_immediate | Naked_int32 | Naked_nativeint) ->
+  | Naked_number (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
+    ->
     Cmm.typ_int
   | Region | Rec_info -> assert false
 
@@ -61,14 +65,17 @@ let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
   | Value -> (
     match Flambda_kind.With_subkind.subkind kind with
     | Tagged_immediate -> Extended_machtype.typ_tagged_int
-    | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
-    | Boxed_vec128 | Variant _ | Float_block _ | Float_array | Immediate_array
-    | Value_array | Generic_array ->
+    | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
+    | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
+    | Immediate_array | Unboxed_float32_array | Unboxed_int32_array
+    | Unboxed_int64_array | Unboxed_nativeint_array | Value_array
+    | Generic_array ->
       Extended_machtype.typ_val)
   | Naked_number Naked_float -> Extended_machtype.typ_float
-  | Naked_number Naked_int64 -> Extended_machtype.typ_int64
+  | Naked_number Naked_float32 -> Extended_machtype.typ_float32
   | Naked_number Naked_vec128 -> Extended_machtype.typ_vec128
-  | Naked_number (Naked_immediate | Naked_int32 | Naked_nativeint) ->
+  | Naked_number (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
+    ->
     Extended_machtype.typ_any_int
   | Region | Rec_info -> assert false
 
@@ -78,15 +85,22 @@ let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
   | Value -> (
     match Flambda_kind.With_subkind.subkind kind with
     | Tagged_immediate -> Word_int
-    | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
-    | Boxed_vec128 | Variant _ | Float_block _ | Float_array | Immediate_array
-    | Value_array | Generic_array ->
+    | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
+    | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
+    | Immediate_array | Unboxed_float32_array | Unboxed_int32_array
+    | Unboxed_int64_array | Unboxed_nativeint_array | Value_array
+    | Generic_array ->
       Word_val)
-  | Naked_number (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate)
-    ->
-    Word_int
+  | Naked_number (Naked_int64 | Naked_nativeint | Naked_immediate) -> Word_int
+  | Naked_number Naked_int32 ->
+    (* This only reads and writes 32 bits, but will sign extend upon reading. *)
+    Thirtytwo_signed
   | Naked_number Naked_float -> Double
-  | Naked_number Naked_vec128 -> Onetwentyeight
+  | Naked_number Naked_float32 -> Single { reg = Float32 }
+  | Naked_number Naked_vec128 ->
+    (* 128-bit memory operations are default unaligned. Aligned (big)array
+       operations are handled separately via cmm. *)
+    Onetwentyeight_unaligned
   | Region | Rec_info ->
     Misc.fatal_errorf "Bad kind %a for [memory_chunk_of_kind]"
       Flambda_kind.With_subkind.print kind
@@ -132,6 +146,8 @@ let const ~dbg cst =
   | Naked_immediate i -> targetint ~dbg (Targetint_31_63.to_targetint i)
   | Tagged_immediate i ->
     targetint ~dbg (tag_targetint (Targetint_31_63.to_targetint i))
+  | Naked_float32 f ->
+    float32 ~dbg (Numeric_types.Float32_by_bit_pattern.to_float f)
   | Naked_float f -> float ~dbg (Numeric_types.Float_by_bit_pattern.to_float f)
   | Naked_int32 i -> int32 ~dbg i
   | Naked_int64 i -> int64 ~dbg i
@@ -171,6 +187,11 @@ let const_static cst =
         (nativeint_of_targetint
            (tag_targetint (Targetint_31_63.to_targetint i))) ]
   | Naked_float f -> [cfloat (Numeric_types.Float_by_bit_pattern.to_float f)]
+  | Naked_float32 f ->
+    (* Here we are relying on the data section being zero initialized to
+       maintain the invariant that statically-allocated float32 values are zero
+       padded. *)
+    [cfloat32 (Numeric_types.Float32_by_bit_pattern.to_float f)]
   | Naked_int32 i -> [cint (Nativeint.of_int32 i)]
   (* We don't compile flambda-backend in 32-bit mode, so nativeint is 64
      bits. *)
@@ -239,18 +260,112 @@ let invalid res ~message =
     | Some message_sym -> message_sym, res
   in
   let call_expr =
-    extcall ~dbg ~alloc:false ~is_c_builtin:false ~returns:false ~ty_args:[XInt]
-      "caml_flambda2_invalid" Cmm.typ_void
+    extcall ~dbg ~alloc:false ~is_c_builtin:false ~effects:Arbitrary_effects
+      ~coeffects:Has_coeffects ~returns:false ~ty_args:[XInt]
+      Cmm.caml_flambda2_invalid Cmm.typ_void
       [symbol ~dbg (To_cmm_result.symbol res message_sym)]
   in
   call_expr, res
 
-let make_update env res dbg kind ~symbol var ~index ~prev_updates =
+module Update_kind = struct
+  type kind =
+    | Pointer
+    | Immediate
+    | Naked_int32
+    | Naked_int64
+    | Naked_float
+    | Naked_float32
+    | Naked_vec128
+
+  (* The [stride] is the number of bytes by which an [index] supplied to
+     [make_update], below, needs to be multiplied to get the byte offset into
+     the corresponding block. Note that [stride] may be smaller than the width
+     of the value being written, for example in the [Naked_vec128] case, where
+     addressing is still field-based but the values being written actually
+     occupy two fields. *)
+  type t =
+    { kind : kind;
+      stride : int
+    }
+
+  let () =
+    assert (Arch.size_addr = 8);
+    assert (Arch.size_float = 8)
+
+  let pointers = { kind = Pointer; stride = Arch.size_addr }
+
+  let tagged_immediates = { kind = Immediate; stride = Arch.size_addr }
+
+  let naked_int32s = { kind = Naked_int32; stride = 4 }
+
+  let naked_int64s = { kind = Naked_int64; stride = 8 }
+
+  let naked_floats = { kind = Naked_float; stride = Arch.size_float }
+
+  let naked_float32s = { kind = Naked_float32; stride = 4 }
+
+  let naked_vec128s = { kind = Naked_vec128; stride = 16 }
+
+  let naked_int32_fields = { kind = Naked_int32; stride = Arch.size_addr }
+
+  let naked_float32_fields = { kind = Naked_float32; stride = Arch.size_addr }
+
+  let naked_vec128_fields = { kind = Naked_vec128; stride = Arch.size_addr }
+end
+
+let make_update env res dbg ({ kind; stride } : Update_kind.t) ~symbol var
+    ~index ~prev_updates =
   let To_cmm_env.{ env; res; expr = { cmm; free_vars; effs } } =
     To_cmm_env.inline_variable env res var
   in
-  let addr = field_address symbol index dbg in
-  let cmm = store ~dbg kind Initialization ~addr ~new_value:cmm in
+  let cmm =
+    let must_use_setfield : Lambda.immediate_or_pointer option =
+      (* The 4 GC does not need to see static field updates, but the 5 GC must,
+         due to differences in how global roots are handled. *)
+      if not Config.runtime5
+      then None
+      else
+        match kind with
+        | Pointer -> Some Pointer
+        | Immediate ->
+          (* See [caml_initialize]; we can avoid this function in this case. *)
+          None
+        | Naked_int32 | Naked_int64 | Naked_float | Naked_float32 | Naked_vec128
+          ->
+          (* The GC never sees these fields, so we can avoid using
+             [caml_initialize]. This is important as it significantly reduces
+             the complexity of the statically-allocated inconstant unboxed int32
+             array case, which otherwise would have to use 64-bit writes. *)
+          None
+    in
+    match must_use_setfield with
+    | Some imm_or_ptr ->
+      assert (stride = Arch.size_addr);
+      Cmm_helpers.setfield index imm_or_ptr Root_initialization symbol cmm dbg
+    | None ->
+      let memory_chunk : Cmm.memory_chunk =
+        match kind with
+        | Pointer -> Word_val
+        | Immediate -> Word_int
+        | Naked_int32 ->
+          (* Cmm expressions representing int32 values are always sign extended.
+             By using [Word_int] in the "fields" cases (see [Update_kind],
+             above) we maintain the convention that 32-bit integers in 64-bit
+             fields are sign extended. *)
+          if stride > 4 then Word_int else Thirtytwo_signed
+        | Naked_int64 -> Word_int
+        | Naked_float -> Double
+        | Naked_float32 ->
+          (* In the case where [kind.stride > 4] we are relying on the fact that
+             the data section is zero initialized, in order that the high 32
+             bits of the 64-bit field are deterministic, which is important for
+             build reproducibility. *)
+          Single { reg = Float32 }
+        | Naked_vec128 -> Onetwentyeight_unaligned
+      in
+      let addr = strided_field_address symbol ~stride ~index dbg in
+      store ~dbg memory_chunk Initialization ~addr ~new_value:cmm
+  in
   let update =
     match prev_updates with
     | None -> To_cmm_env.{ cmm; free_vars; effs }
@@ -262,10 +377,11 @@ let make_update env res dbg kind ~symbol var ~index ~prev_updates =
   in
   env, res, Some update
 
-let check_arity arity args = Flambda_arity.cardinal arity = List.length args
+let check_arity arity args =
+  Flambda_arity.cardinal_unarized arity = List.length args
 
 let extended_machtype_of_return_arity arity =
-  match Flambda_arity.to_list arity with
+  match Flambda_arity.unarized_components arity with
   | [] ->
     (* Functions that never return have arity 0. In that case, we use the most
        restrictive machtype to ensure that the return value of the function is

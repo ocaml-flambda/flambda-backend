@@ -1,5 +1,5 @@
 (* TEST
-   modules = "async_exns_stubs.c"
+ modules = "async_exns_stubs.c";
 *)
 
 let () = Sys.catch_break true
@@ -16,23 +16,32 @@ let[@inline never] allocate_bytes finished =
 
 (* Ensure that an async exn raised from a finaliser skips an exception
    handler, placed around the point where the GC was invoked, instead arriving
-   at an outer [Sys.with_async_exns] point. *)
+   at an outer [Sys.with_async_exns] point.
+
+   Furthermore, such asynchronous exception having been caught, make sure
+   that a normal exception raise works properly.
+*)
+exception Ok
 let () =
-  let finished = ref false in
-  let r = allocate_bytes finished in
   try
-    Sys.with_async_exns (fun () ->
-      try
-        r := None;
-        while true do
-          (* This allocation will eventually trigger the finaliser *)
-          let _ = Sys.opaque_identity (42, Random.int 42) in
-          ()
-        done
-      with exn -> Printf.printf "1. wrong handler\n%!"; assert false
-    )
+    let finished = ref false in
+    let r = allocate_bytes finished in
+    try
+      Sys.with_async_exns (fun () ->
+        try
+          r := None;
+          while true do
+            (* This allocation will eventually trigger the finaliser *)
+            let _ = Sys.opaque_identity (42, Random.int 42) in
+            ()
+          done
+        with exn -> Printf.printf "1. wrong handler\n%!"; assert false
+      )
+    with
+    | Sys.Break -> assert !finished; raise Ok
+    | _ -> assert false
   with
-  | Sys.Break -> assert !finished; Printf.printf "1. OK\n%!"
+  | Ok -> Printf.printf "1. OK\n%!"
   | _ -> assert false
 
 (* Ensure that [Sys.Break] can be raised and caught as a normal exception. *)
@@ -56,7 +65,7 @@ let raise_break_from_finaliser () =
       let _ = Sys.opaque_identity (42, Random.int 42) in
       ()
     done
-  with exn -> Printf.printf "3a. wrong handler\n%!"; exit 1
+  with exn -> Printf.printf "3a/b/c/d. wrong handler\n%!"; exit 1
 
 external test_caml_callback_exn_collects_async_exns : (unit -> unit) -> unit
   = "test_caml_callback_exn_collects_async_exns"
@@ -134,7 +143,7 @@ let () =
     )
   with
   | Sys.Break -> Printf.printf "4a. OK\n%!"
-  | _ -> assert false
+  | e -> Printf.eprintf "WRONG: %s" (Printexc.to_string e); assert false
 
 (* Same but for a 2-parameter callback *)
 

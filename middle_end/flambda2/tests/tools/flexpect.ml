@@ -39,8 +39,11 @@ let run_expect_test ~get_module_info ~extension ~filename
   let before_fl = Fexpr_to_flambda.conv comp_unit before in
   check_invariants before_fl;
   let cmx_loader = Flambda_cmx.create_loader ~get_module_info in
+  (* CR gbury/lmaurer: add a proper traversal to compute the actual
+     code_slot_offsets here (as well as free_names) *)
   let { Simplify.unit = actual_fl; _ } =
     Simplify.run ~cmx_loader ~round:0 before_fl
+      ~code_slot_offsets:Code_id.Map.empty
   in
   let expected_fl = Fexpr_to_flambda.conv comp_unit expected in
   match Compare.flambda_units actual_fl expected_fl with
@@ -118,6 +121,12 @@ let run_mdflx_file filename : Outcome.t =
     Error
 
 let _ =
+  (* CR ocaml 5 all-runtime5: remove this once we are on the 5 runtime *)
+  Symbol0.force_runtime4_symbols ();
+  if not Config.stack_allocation
+  then (
+    Printf.printf "flexpect not supported when stack allocation disabled";
+    exit 0);
   let file = Sys.argv.(1) in
   let ext = Filename.extension file in
   let outcome =

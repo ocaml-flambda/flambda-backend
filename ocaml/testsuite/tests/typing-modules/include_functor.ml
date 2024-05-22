@@ -1,6 +1,6 @@
 (* TEST
-  flags = "-extension include_functor -w +a"
-   * expect
+ flags = "-extension include_functor -w +a";
+ expect;
 *)
 
 (* Test 1: Basic usage in structs *)
@@ -326,10 +326,12 @@ Line 5, characters 8-9:
 5 |     let q = 42
             ^
 Warning 32 [unused-value-declaration]: unused value q.
+
 Line 20, characters 8-9:
 20 |     let z = "something"
              ^
 Warning 32 [unused-value-declaration]: unused value z.
+
 module M12_2 : sig val y : int list end
 |}];;
 
@@ -361,10 +363,12 @@ Line 9, characters 32-41:
 9 |       module T_sub : sig type t val x : t end
                                     ^^^^^^^^^
 Warning 32 [unused-value-declaration]: unused value x.
+
 Line 13, characters 8-9:
 13 |     let y = Foo.x
              ^
 Warning 32 [unused-value-declaration]: unused value y.
+
 Lines 7-14, characters 2-5:
  7 | ..module F (G :
  8 |     sig
@@ -375,20 +379,24 @@ Lines 7-14, characters 2-5:
 13 |     let y = Foo.x
 14 |   end
 Warning 60 [unused-module]: unused module F.
+
 Line 17, characters 4-21:
 17 |     type t = X.t list
          ^^^^^^^^^^^^^^^^^
 Warning 34 [unused-type-declaration]: unused type t.
+
 Line 18, characters 8-9:
 18 |     let x = [X.x]
              ^
 Warning 32 [unused-value-declaration]: unused value x.
+
 Lines 16-19, characters 2-5:
 16 | ..module T_sub (X : sig type t val x : t end) = struct
 17 |     type t = X.t list
 18 |     let x = [X.x]
 19 |   end
 Warning 60 [unused-module]: unused module T_sub.
+
 module M12_3 : sig val y : int list end
 |}]
 
@@ -473,6 +481,7 @@ Line 4, characters 12-13:
 4 | module F15 (X : sig end) : S15' =
                 ^
 Warning 60 [unused-module]: unused module X.
+
 module F15 : functor (X : sig end) -> S15'
 val x : int = 42
 |}]
@@ -511,6 +520,7 @@ Line 10, characters 29-30:
 10 | module type F16_1 = functor (X : S16) -> S16'
                                   ^
 Warning 67 [unused-functor-parameter]: unused functor parameter X.
+
 module type F16_1 = functor (X : S16) -> S16'
 module type F16_2 = S16 -> S16'
 module type G16_1 = sig type t val x : t type s end

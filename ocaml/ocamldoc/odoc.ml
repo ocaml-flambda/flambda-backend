@@ -18,7 +18,8 @@
 
 module M = Odoc_messages
 
-let () = Language_extension.enable_maximal ()
+let () = Language_extension.set_universe_and_enable_all
+  Language_extension.Universe.maximal
 
 (* we check if we must load a module given on the command line *)
 let arg_list = Array.to_list Sys.argv
@@ -75,7 +76,7 @@ let load_plugin file =
       prerr_endline (Odoc_messages.load_file_error file s);
       exit 1
 ;;
-List.iter load_plugin plugins;;
+List.iter load_plugin plugins
 
 let () = Odoc_args.parse ()
 

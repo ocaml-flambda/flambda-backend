@@ -32,28 +32,28 @@ ci-coverage: boot-runtest coverage
 .PHONY: minimizer-upstream
 minimizer-upstream:
 	cp chamelon/dune.upstream chamelon/dune
-	cd chamelon && $(dune) build
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) @chamelon/all
 
 .PHONY: minimizer
 minimizer: _build/_bootinstall
 	cp chamelon/dune.jst chamelon/dune
-	cd chamelon && $(dune) build
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) @chamelon/all
 
 .PHONY: hacking-runtest
 hacking-runtest: _build/_bootinstall
-	$(dune) build $(ws_boot) $(coverage_dune_flags) -w $(boot_targets) @runtest
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) $(coverage_dune_flags) -w $(boot_targets) @runtest
 
 # Only needed for running the test tools by hand; runtest will take care of
 # building them using Dune
 .PHONY: test-tools
 test-tools: runtime-stdlib
-	$(dune) build $(ws_main) @middle_end/flambda2/tests/tools/all
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_main) @middle_end/flambda2/tests/tools/all
 
 ARCHES=amd64 arm64
 .PHONY: check_all_arches
 check_all_arches: _build/_bootinstall
 	for arch in $(ARCHES); do \
-	  ARCH=$$arch $(dune) build $(ws_boot) ocamloptcomp.cma; \
+	  ARCH=$$arch RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) ocamloptcomp.cma; \
 	done
 
 # Compare the Flambda backend installation tree against the upstream one.
@@ -83,7 +83,7 @@ _compare/config.status: ocaml/config.status
 
 .PHONY: promote
 promote:
-	$(dune) promote $(ws_main)
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) promote $(ws_main)
 
 .PHONY: fmt
 fmt:
@@ -109,24 +109,24 @@ check-fmt:
 
 .PHONY: regen-flambda2-parser
 regen-flambda2-parser: $(dune_config_targets)
-	$(dune) build $(ws_boot) @middle_end/flambda2/parser/regen --auto-promote || true
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) @middle_end/flambda2/parser/regen --auto-promote || true
 # Make sure regeneration is idempotent, and also check that the previous step
 # worked (can't tell the difference between failure and successful
 # auto-promotion)
-	$(dune) build $(ws_boot) @middle_end/flambda2/parser/regen
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) @middle_end/flambda2/parser/regen
 
 .PHONY: regen-flambda2-tests
 regen-flambda2-tests: boot-compiler regen-flambda2-test-dune-rules
-	$(dune) build $(ws_runstd) \
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_runstd) \
 	  @middle_end/flambda2/tests/regen --auto-promote || true
-	$(dune) build $(ws_runstd) \
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_runstd) \
 	  @middle_end/flambda2/tests/regen
 
 .PHONY: regen-flambda2-test-dune-rules
 regen-flambda2-test-dune-rules: $(dune_config_targets)
-	$(dune) build $(ws_boot) \
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) \
 	  @middle_end/flambda2/tests/regen-dune-rules --auto-promote || true
-	$(dune) build $(ws_boot) \
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) \
 	  @middle_end/flambda2/tests/regen-dune-rules
 
 ## Build upstream compiler.
@@ -151,7 +151,8 @@ build_and_test_upstream: build_upstream
 	if $$(which gfortran > /dev/null 2>&1); then \
 	  export LIBRARY_PATH=$$(dirname $$(gfortran -print-file-name=libgfortran.a)); \
 	fi; \
-	cd _build_upstream/testsuite \
+	export OCAMLSRCDIR=$$(pwd)/_build_upstream \
+         && cd _build_upstream/testsuite \
 	 && if $$(which parallel > /dev/null 2>&1); \
             then \
 	      echo "Running testsuite in parallel (nproc=$$(nproc))"; \
@@ -173,7 +174,7 @@ coverage: boot-runtest
 
 .PHONY: debug
 .NOTPARALLEL: debug
-debug: install ocaml/tools/debug_printers ocamlc ocamlopt
+debug: install debug-printers ocamlc ocamlopt .ocamldebug
 
 ocamlc:
 	ln -s $(prefix)/bin/ocamlc.byte ocamlc
@@ -181,9 +182,6 @@ ocamlc:
 ocamlopt:
 	ln  -s $(prefix)/bin/ocamlopt.byte ocamlopt
 
-ocaml/tools/debug_printers: ocaml/tools/debug_printers.ml ocaml/tools/debug_printers.cmo
-	echo 'load_printer "ocaml/tools/debug_printers.cmo"' > $@
-	awk '{ print "install_printer Debug_printers." $$2 }' < $< >> $@
-
-ocaml/tools/debug_printers.cmo: ocaml/tools/debug_printers.ml _build/install/main/bin/ocamlc.byte
-	_build/install/main/bin/ocamlc.byte -c -I _build/main/ocaml/.ocamlcommon.objs/byte ocaml/tools/debug_printers.ml
+.ocamldebug: install
+	find _build/main -name '*.cmo' -type f -printf 'directory %h\n' | sort -u > .ocamldebug
+	echo "source _build/main/$(ocamldir)/tools/debug_printers" >> .ocamldebug

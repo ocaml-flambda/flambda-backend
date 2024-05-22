@@ -20,8 +20,8 @@ open Location
 open Parsetree
 
 (* User programs must not use identifiers that start with these prefixes. *)
-let idprefix = "__ocaml_prof_";;
-let modprefix = "OCAML__prof_";;
+let idprefix = "__ocaml_prof_"
+let modprefix = "OCAML__prof_"
 
 (* Errors specific to the profiler *)
 exception Profiler of string
@@ -64,19 +64,17 @@ let copy next =
   assert (next >= !cur_point);
   seek_in !inchan !cur_point;
   copy_chars (next - !cur_point);
-  cur_point := next;
-;;
+  cur_point := next
 
-let prof_counter = ref 0;;
+let prof_counter = ref 0
 
 let instr_mode = ref false
 
-type insert = Open | Close;;
-let to_insert = ref ([] : (insert * int) list);;
+type insert = Open | Close
+let to_insert = ref ([] : (insert * int) list)
 
 let insert_action st en =
   to_insert := (Open, st) :: (Close, en) :: !to_insert
-;;
 
 (* Producing instrumented code *)
 let add_incr_counter modul (kind,pos) =
@@ -85,9 +83,8 @@ let add_incr_counter modul (kind,pos) =
    | Open ->
          fprintf !outchan "(%sProfiling.incr %s%s_cnt %d; "
                  modprefix idprefix modul !prof_counter;
-         incr prof_counter;
-   | Close -> fprintf !outchan ")";
-;;
+         incr prof_counter
+   | Close -> fprintf !outchan ")"
 
 let counters = ref (Array.make 0 0)
 
@@ -101,7 +98,6 @@ let add_val_counter (kind,pos) =
     fprintf !outchan "(* %s%d *) " !special_id !counters.(!prof_counter);
     incr prof_counter;
   end
-;;
 
 (* ************* rewrite ************* *)
 
@@ -116,7 +112,6 @@ let insert_profile rw_exp ex =
     insert_action st en;
     rw_exp false ex;
   end
-;;
 
 
 let pos_len = ref 0
@@ -134,7 +129,7 @@ let init_rewrite modes mod_name =
   end
 
 let final_rewrite add_function =
-  to_insert := List.sort (fun x y -> compare (snd x) (snd y)) !to_insert;
+  to_insert := List.sort (fun x y -> Int.compare (snd x) (snd y)) !to_insert;
   prof_counter := 0;
   List.iter add_function !to_insert;
   copy (in_channel_length !inchan);
@@ -143,12 +138,18 @@ let final_rewrite add_function =
     if String.length len > 9 then raise (Profiler "too many counters");
     seek_out !outchan (!pos_len - String.length len);
     output_string !outchan len
-  end;
+  end
   (* Cannot close because outchan is stdout and Format doesn't like
      a closed stdout.
     close_out !outchan;
   *)
-;;
+
+type case =
+  { rhs : expression;
+    guard : expression option;
+  }
+
+let case { pc_rhs; pc_guard } = { rhs = pc_rhs; guard = pc_guard }
 
 let rec rewrite_patexp_list iflag l =
   rewrite_exp_list iflag (List.map (fun x -> x.pvb_expr) l)
@@ -186,30 +187,21 @@ and rw_exp iflag sexp =
     rewrite_patexp_list iflag spat_sexp_list;
     rewrite_exp iflag sbody
 
-  | Pexp_function caselist ->
-    if !instr_fun then
-      rewrite_function iflag caselist
-    else
-      rewrite_cases iflag caselist
+  | Pexp_function caselist -> rewrite_function_cases iflag caselist
 
-  | Pexp_fun (_, _, p, e) ->
-      let l = [{pc_lhs=p; pc_guard=None; pc_rhs=e}] in
-      if !instr_fun then
-        rewrite_function iflag l
-      else
-        rewrite_cases iflag l
+  | Pexp_fun (_, _, _, e) -> rewrite_function_body iflag e
 
   | Pexp_match(sarg, caselist) ->
     rewrite_exp iflag sarg;
     if !instr_match && not sexp.pexp_loc.loc_ghost then
-      rewrite_funmatching caselist
+      rewrite_funmatching (List.map case caselist)
     else
       rewrite_cases iflag caselist
 
   | Pexp_try(sbody, caselist) ->
     rewrite_exp iflag sbody;
     if !instr_try && not sexp.pexp_loc.loc_ghost then
-      rewrite_trymatching caselist
+      rewrite_trymatching (List.map case caselist)
     else
       rewrite_cases iflag caselist
 
@@ -314,6 +306,25 @@ and rewrite_exp_jane_syntax iflag : Jane_syntax.Expression.t -> _ = function
   | Jexp_immutable_array x -> rewrite_immutable_array_exp iflag x
   | Jexp_layout (Lexp_constant _) -> rewrite_constant
   | Jexp_layout (Lexp_newtype (_, _, sexp)) -> rewrite_exp iflag sexp
+  | Jexp_n_ary_function x -> rewrite_n_ary_function iflag x
+  | Jexp_tuple ltexp -> rewrite_labeled_tuple_exp iflag ltexp
+
+and rewrite_n_ary_function iflag :
+  Jane_syntax.N_ary_functions.expression -> _ = function
+  | (_, _, Pfunction_body e) -> rewrite_function_body iflag e
+  | (_, _, Pfunction_cases (cases, _, _)) -> rewrite_function_cases iflag cases
+
+and rewrite_function_body iflag e =
+  if !instr_fun then
+    rewrite_function iflag [{ rhs = e; guard = None }]
+  else
+    rewrite_exp iflag e
+
+and rewrite_function_cases iflag caselist =
+  if !instr_fun then
+    rewrite_function iflag (List.map case caselist)
+  else
+    rewrite_cases iflag caselist
 
 and rewrite_comprehension_exp iflag :
   Jane_syntax.Comprehensions.expression -> _ = function
@@ -349,6 +360,12 @@ and rewrite_immutable_array_exp iflag :
   | Iaexp_immutable_array exprs ->
     rewrite_exp_list iflag exprs
 
+and rewrite_labeled_tuple_exp iflag :
+  Jane_syntax.Labeled_tuples.expression -> _ =
+  function
+  | Ltexp_tuple sexpl ->
+    rewrite_exp_list iflag (List.map snd sexpl)
+
 and rewrite_ifbody iflag ghost sifbody =
   if !instr_if && not ghost then
     insert_profile rw_exp sifbody
@@ -359,17 +376,17 @@ and rewrite_ifbody iflag ghost sifbody =
 and rewrite_annotate_exp_list l =
   List.iter
     (function
-     | {pc_guard=Some scond; pc_rhs=sbody} ->
+     | {guard=Some scond; rhs=sbody} ->
          insert_profile rw_exp scond;
          insert_profile rw_exp sbody;
-     | {pc_rhs={pexp_desc = Pexp_constraint(sbody, _)}} (* let f x : t = e *)
+     | {rhs={pexp_desc = Pexp_constraint(sbody, _)}} (* let f x : t = e *)
         -> insert_profile rw_exp sbody
-     | {pc_rhs=sexp} -> insert_profile rw_exp sexp)
+     | {rhs=sexp} -> insert_profile rw_exp sexp)
     l
 
 and rewrite_function iflag = function
-  | [{pc_lhs=_; pc_guard=None;
-      pc_rhs={pexp_desc = (Pexp_function _|Pexp_fun _)} as sexp}] ->
+  | [{guard=None;
+      rhs={pexp_desc = (Pexp_function _|Pexp_fun _)} as sexp}] ->
         rewrite_exp iflag sexp
   | l -> rewrite_funmatching l
 
@@ -429,7 +446,11 @@ and rewrite_mod iflag smod =
     Pmod_ident _ -> ()
   | Pmod_structure sstr -> List.iter (rewrite_str_item iflag) sstr
   | Pmod_functor(_param, sbody) -> rewrite_mod iflag sbody
-  | Pmod_apply(smod1, smod2) -> rewrite_mod iflag smod1; rewrite_mod iflag smod2
+  | Pmod_apply(smod1, smod2) ->
+      rewrite_mod iflag smod1;
+      rewrite_mod iflag smod2
+  | Pmod_apply_unit smod1 ->
+      rewrite_mod iflag smod1
   | Pmod_constraint(smod, _smty) -> rewrite_mod iflag smod
   | Pmod_unpack(sexp) -> rewrite_exp iflag sexp
   | Pmod_extension _ -> ()
@@ -459,7 +480,6 @@ let null_rewrite srcfile =
   inchan := open_in_bin srcfile;
   copy (in_channel_length !inchan);
   close_in !inchan
-;;
 
 (* Setting flags from saved config *)
 let set_flags s =
@@ -483,7 +503,7 @@ let dumpfile = ref "ocamlprof.dump"
 
 (* Process a file *)
 
-let process_intf_file filename = null_rewrite filename;;
+let process_intf_file filename = null_rewrite filename
 
 let process_impl_file filename =
    let modname = Filename.basename(Filename.chop_extension filename) in
@@ -510,14 +530,12 @@ let process_impl_file filename =
      init_rewrite modes modname;
      rewrite_file filename add_val_counter;
    end
-;;
 
 let process_anon_file filename =
   if Filename.check_suffix filename ".ml" then
     process_impl_file filename
   else
     process_intf_file filename
-;;
 
 (* Main function *)
 
@@ -527,13 +545,11 @@ let usage = "Usage: ocamlprof <options> <files>\noptions are:"
 
 let print_version () =
   printf "ocamlprof, version %s@." Sys.ocaml_version;
-  exit 0;
-;;
+  exit 0
 
 let print_version_num () =
   printf "%s@." Sys.ocaml_version;
-  exit 0;
-;;
+  exit 0
 
 let main () =
   try

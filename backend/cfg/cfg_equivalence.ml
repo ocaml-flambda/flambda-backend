@@ -209,11 +209,22 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
     ()
   | Stackoffset expected, Stackoffset result when Int.equal expected result ->
     ()
-  | ( Load (expected_mem, expected_arch_mode, expected_mut),
-      Load (result_mem, result_arch_mode, result_mut) )
+  | ( Load
+        { memory_chunk = expected_mem;
+          addressing_mode = expected_arch_mode;
+          mutability = expected_mut;
+          is_atomic = expected_atomic
+        },
+      Load
+        { memory_chunk = result_mem;
+          addressing_mode = result_arch_mode;
+          mutability = result_mut;
+          is_atomic = result_atomic
+        } )
     when Cmm.equal_memory_chunk expected_mem result_mem
          && expected_mut = result_mut
-         && Arch.equal_addressing_mode expected_arch_mode result_arch_mode ->
+         && Arch.equal_addressing_mode expected_arch_mode result_arch_mode
+         && Bool.equal expected_atomic result_atomic ->
     ()
   | ( Store (expected_mem, expected_arch_mode, expected_bool),
       Store (result_mem, result_arch_mode, result_bool) )
@@ -228,17 +239,10 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
     when Mach.equal_integer_operation left_op right_op
          && Int.equal left_imm right_imm ->
     ()
-  | Negf, Negf -> ()
-  | Absf, Absf -> ()
-  | Addf, Addf -> ()
-  | Subf, Subf -> ()
-  | Mulf, Mulf -> ()
-  | Divf, Divf -> ()
-  | Compf left_comp, Compf right_comp
-    when Cmm.equal_float_comparison left_comp right_comp ->
+  | Floatop (left_w, left_op), Floatop (right_w, right_op)
+    when Mach.equal_float_width left_w right_w
+         && Mach.equal_float_operation left_op right_op ->
     ()
-  | Floatofint, Floatofint -> ()
-  | Intoffloat, Intoffloat -> ()
   | Valueofint, Valueofint -> ()
   | Intofvalue, Intofvalue -> ()
   | ( Probe_is_enabled { name = expected_name },
@@ -273,15 +277,8 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
          && List.equal Reg.same (Array.to_list left_regs)
               (Array.to_list right_regs) ->
     ()
-  | _ -> different location "operation"
- [@@ocaml.warning "-4"]
-
-let check_prim_call_operation :
-    location -> Cfg.prim_call_operation -> Cfg.prim_call_operation -> unit =
- fun location expected result ->
-  match expected, result with
-  | External expected, External result ->
-    check_external_call_operation location expected result
+  | Dls_get, Dls_get -> ()
+  | Poll, Poll -> ()
   | ( Alloc
         { bytes = expected_bytes;
           dbginfo = _expected_dbginfo;
@@ -294,10 +291,15 @@ let check_prim_call_operation :
          && Lambda.eq_mode expected_mode result_mode ->
     (* CR xclerc for xclerc: also check debug info *)
     ()
-  | ( Checkbound { immediate = expected_immediate },
-      Checkbound { immediate = result_immediate } )
-    when Option.equal Int.equal expected_immediate result_immediate ->
-    ()
+  | _ -> different location "primitive call operation"
+ [@@ocaml.warning "-4"]
+
+let check_prim_call_operation :
+    location -> Cfg.prim_call_operation -> Cfg.prim_call_operation -> unit =
+ fun location expected result ->
+  match expected, result with
+  | External expected, External result ->
+    check_external_call_operation location expected result
   | ( Probe
         { name = expected_name;
           handler_code_sym = expected_handler_code_sym;
@@ -337,6 +339,10 @@ let check_basic : State.t -> location -> Cfg.basic -> Cfg.basic -> unit =
     State.add_to_explore state expected_lbl_handler result_lbl_handler
   | Poptrap, Poptrap -> ()
   | Prologue, Prologue -> ()
+  | ( Stack_check { max_frame_size_bytes = expected_max_frame_size_bytes },
+      Stack_check { max_frame_size_bytes = result_max_frame_size_bytes } ) ->
+    if expected_max_frame_size_bytes <> result_max_frame_size_bytes
+    then different location "stack check"
   | _ -> different location "basic"
  [@@ocaml.warning "-4"]
 
@@ -391,6 +397,7 @@ let check_basic_instruction :
     | Pushtrap _ -> false
     | Poptrap -> false
     | Prologue -> false
+    | Stack_check _ -> false
   in
   check_instruction ~check_live ~check_dbg ~check_arg:true idx location expected
     result
@@ -432,8 +439,9 @@ let check_terminator_instruction :
       Truth_test { ifso = ifso2; ifnot = ifnot2 } ) ->
     State.add_to_explore state ifso1 ifso2;
     State.add_to_explore state ifnot1 ifnot2
-  | ( Float_test { lt = lt1; eq = eq1; gt = gt1; uo = uo1 },
-      Float_test { lt = lt2; eq = eq2; gt = gt2; uo = uo2 } ) ->
+  | ( Float_test { width = w1; lt = lt1; eq = eq1; gt = gt1; uo = uo1 },
+      Float_test { width = w2; lt = lt2; eq = eq2; gt = gt2; uo = uo2 } )
+    when Cmm.equal_float_width w1 w2 ->
     State.add_to_explore state lt1 lt2;
     State.add_to_explore state eq1 eq2;
     State.add_to_explore state gt1 gt2;
@@ -493,9 +501,6 @@ let check_terminator_instruction :
       Specific_can_raise { op = op2; label_after = lbl2 } )
     when Arch.equal_specific_operation op1 op2 ->
     State.add_to_explore state lbl1 lbl2
-  | Poll_and_jump return_label1, Poll_and_jump return_label2
-    when Label.equal return_label1 return_label2 ->
-    ()
   | _ -> different location "terminator");
   (* CR xclerc for xclerc: temporary, for testing *)
   let check_arg =
@@ -503,8 +508,7 @@ let check_terminator_instruction :
     | Always _ -> false
     | Never | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
     | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _
-    | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _
-    | Poll_and_jump _ ->
+    | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
       true
   in
   check_instruction ~check_live:false ~check_dbg:false ~check_arg (-1) location

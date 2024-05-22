@@ -18,11 +18,9 @@ let remove_deadcode (body : Cfg.basic_instruction_list) changed liveness
       let is_deadcode =
         match instr.desc with
         | Op _ as op ->
-          Cfg.is_pure_basic op
-          && Reg.disjoint_set_array !used_after instr.res
-          && (not (Proc.regs_are_volatile instr.arg))
-          && not (Proc.regs_are_volatile instr.res)
-        | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> false
+          Cfg.is_pure_basic op && Reg.disjoint_set_array !used_after instr.res
+        | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
+          false
       in
       used_after := before;
       changed := !changed || is_deadcode;

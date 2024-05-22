@@ -44,6 +44,7 @@ type out_value =
   | Oval_constr of out_ident * out_value list
   | Oval_ellipsis
   | Oval_float of float
+  | Oval_float32 of Obj.t (* We cannot use the [float32] type in the compiler. *)
   | Oval_int of int
   | Oval_int32 of int32
   | Oval_int64 of int64
@@ -53,72 +54,90 @@ type out_value =
   | Oval_record of (out_ident * out_value) list
   | Oval_string of string * int * out_string (* string, size-to-print, kind *)
   | Oval_stuff of string
-  | Oval_tuple of out_value list
+  | Oval_tuple of (string option * out_value) list
   | Oval_variant of string * out_value option
 
-type out_layout =
-  | Olay_const of Asttypes.const_layout
+type out_jkind =
+  | Olay_const of Jkind_types.const
   | Olay_var of string
 
 type out_type_param =
   { oparam_name : string;
     oparam_variance : Asttypes.variance;
     oparam_injectivity : Asttypes.injectivity;
-    oparam_layout : out_layout option }
-
-type out_mutable_or_global =
-  | Ogom_mutable
-  | Ogom_global
-  | Ogom_immutable
+    oparam_jkind : out_jkind option }
 
 type out_global =
   | Ogf_global
   | Ogf_unrestricted
 
-(* should be empty if all the layout annotations are missing *)
-type out_vars_layouts = (string * out_layout option) list
+type out_mutability =
+  | Om_immutable
+  | Om_mutable of string option
+
+(* should be empty if all the jkind annotations are missing *)
+type out_vars_jkinds = (string * out_jkind option) list
+
+(** This definition avoids a cyclic dependency between Outcometree and Types. *)
+type arg_label =
+  | Nolabel
+  | Labelled of string
+  | Optional of string
+  | Position of string
+
+type out_mode =
+  | Omd_local
+  | Omd_unique
+  | Omd_once
+
+type out_arg_mode = out_mode list
+
+type out_ret_mode =
+  | Orm_not_arrow of out_mode list
+  (** The ret type is not arrow, with modes annotating. *)
+  | Orm_no_parens
+  (** The ret type is arrow, and no need to print parens around the arrow *)
+  | Orm_parens of out_mode list
+  (** The ret type is arrow, and need to print parens around the arrow, with
+      modes annotating. *)
 
 type out_type =
   | Otyp_abstract
   | Otyp_open
-  | Otyp_alias of out_type * string
-  | Otyp_arrow of string * out_alloc_mode * out_type * out_alloc_mode * out_type
-  | Otyp_class of bool * out_ident * out_type list
+  | Otyp_alias of {non_gen:bool; aliased:out_type; alias:string}
+  | Otyp_arrow of arg_label * out_arg_mode * out_type * out_ret_mode * out_type
+  (* INVARIANT: the [out_ret_mode] is [Orm_not_arrow] unless the RHS [out_type]
+    is [Otyp_arrow] *)
+  | Otyp_class of out_ident * out_type list
   | Otyp_constr of out_ident * out_type list
   | Otyp_manifest of out_type * out_type
-  | Otyp_object of (string * out_type) list * bool option
-  | Otyp_record of (string * out_mutable_or_global * out_type) list
+  | Otyp_object of { fields: (string * out_type) list; open_row:bool}
+  | Otyp_record of (string * out_mutability * out_type * out_global) list
   | Otyp_stuff of string
   | Otyp_sum of out_constructor list
-  | Otyp_tuple of out_type list
+  | Otyp_tuple of (string option * out_type) list
   | Otyp_var of bool * string
-  | Otyp_variant of
-      bool * out_variant * bool * (string list) option
-  | Otyp_poly of out_vars_layouts * out_type
+  | Otyp_variant of out_variant * bool * (string list) option
+  | Otyp_poly of out_vars_jkinds * out_type
   | Otyp_module of out_ident * (string * out_type) list
   | Otyp_attribute of out_type * out_attribute
-  | Otyp_layout_annot of out_type * out_layout
+  | Otyp_jkind_annot of out_type * out_jkind
       (* Currently only introduced with very explicit code in [Printtyp] and not
          synthesized directly from the [Typedtree] *)
 
 and out_constructor = {
   ocstr_name: string;
   ocstr_args: (out_type * out_global) list;
-  ocstr_return_type: (out_vars_layouts * out_type) option;
+  ocstr_return_type: (out_vars_jkinds * out_type) option;
 }
 
 and out_variant =
   | Ovar_fields of (string * bool * out_type list) list
   | Ovar_typ of out_type
 
-and out_alloc_mode =
-  | Oam_local
-  | Oam_global
-  | Oam_unknown
-
 type out_class_type =
   | Octy_constr of out_ident * out_type list
-  | Octy_arrow of string * out_type * out_class_type
+  | Octy_arrow of arg_label * out_type * out_class_type
   | Octy_signature of out_type option * out_class_sig_item list
 and out_class_sig_item =
   | Ocsg_constraint of out_type * out_type
@@ -131,6 +150,8 @@ type out_module_type =
   | Omty_ident of out_ident
   | Omty_signature of out_sig_item list
   | Omty_alias of out_ident
+  | Omty_strengthen of out_module_type * out_ident * bool
+        (* the bool indicates whether we should print the unaliasable attribute *)
 and out_sig_item =
   | Osig_class of
       bool * string * out_type_param list * out_class_type *
@@ -151,8 +172,8 @@ and out_type_decl =
     otype_private: Asttypes.private_flag;
 
     (* Some <=> we should print this annotation;
-       see Note [When to print layout annotations] in Printtyp, Case (C1) *)
-    otype_layout: out_layout option;
+       see Note [When to print jkind annotations] in Printtyp, Case (C1) *)
+    otype_jkind: out_jkind option;
 
     otype_unboxed: bool;
     otype_cstrs: (out_type * out_type) list }
@@ -161,7 +182,7 @@ and out_extension_constructor =
     oext_type_name: string;
     oext_type_params: string list;
     oext_args: (out_type * out_global) list;
-    oext_ret_type: (out_vars_layouts * out_type) option;
+    oext_ret_type: (out_vars_jkinds * out_type) option;
     oext_private: Asttypes.private_flag }
 and out_type_extension =
   { otyext_name: string;

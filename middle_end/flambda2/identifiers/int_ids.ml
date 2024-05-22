@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Int_replace_polymorphic_compare
-
 let hash_seed =
   let seed = Random.bits () in
   if seed mod 2 = 0 then seed + 1 else seed
@@ -44,6 +42,7 @@ module Const_data = struct
   type t =
     | Naked_immediate of Targetint_31_63.t
     | Tagged_immediate of Targetint_31_63.t
+    | Naked_float32 of Numeric_types.Float32_by_bit_pattern.t
     | Naked_float of Numeric_types.Float_by_bit_pattern.t
     | Naked_int32 of Int32.t
     | Naked_int64 of Int64.t
@@ -66,6 +65,11 @@ module Const_data = struct
         Format.fprintf ppf "%t%a%t"
           Flambda_colours.tagged_immediate
           Targetint_31_63.print i
+          Flambda_colours.pop
+      | Naked_float32 f ->
+        Format.fprintf ppf "%t#%as%t"
+          Flambda_colours.naked_number
+          Numeric_types.Float32_by_bit_pattern.print f
           Flambda_colours.pop
       | Naked_float f ->
         Format.fprintf ppf "%t#%a%t"
@@ -98,6 +102,8 @@ module Const_data = struct
       | Naked_immediate i1, Naked_immediate i2 -> Targetint_31_63.compare i1 i2
       | Tagged_immediate i1, Tagged_immediate i2 ->
         Targetint_31_63.compare i1 i2
+      | Naked_float32 f1, Naked_float32 f2 ->
+        Numeric_types.Float32_by_bit_pattern.compare f1 f2
       | Naked_float f1, Naked_float f2 ->
         Numeric_types.Float_by_bit_pattern.compare f1 f2
       | Naked_int32 n1, Naked_int32 n2 -> Int32.compare n1 n2
@@ -111,6 +117,8 @@ module Const_data = struct
       | _, Tagged_immediate _ -> 1
       | Naked_float _, _ -> -1
       | _, Naked_float _ -> 1
+      | Naked_float32 _, _ -> -1
+      | _, Naked_float32 _ -> 1
       | Naked_int32 _, _ -> -1
       | _, Naked_int32 _ -> 1
       | Naked_int64 _, _ -> -1
@@ -126,6 +134,8 @@ module Const_data = struct
         | Naked_immediate i1, Naked_immediate i2 -> Targetint_31_63.equal i1 i2
         | Tagged_immediate i1, Tagged_immediate i2 ->
           Targetint_31_63.equal i1 i2
+        | Naked_float32 f1, Naked_float32 f2 ->
+          Numeric_types.Float32_by_bit_pattern.equal f1 f2
         | Naked_float f1, Naked_float f2 ->
           Numeric_types.Float_by_bit_pattern.equal f1 f2
         | Naked_int32 n1, Naked_int32 n2 -> Int32.equal n1 n2
@@ -134,8 +144,8 @@ module Const_data = struct
         | Naked_vec128 v1, Naked_vec128 v2 ->
           Vector_types.Vec128.Bit_pattern.equal v1 v2
         | ( ( Naked_immediate _ | Tagged_immediate _ | Naked_float _
-            | Naked_vec128 _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
-              ),
+            | Naked_float32 _ | Naked_vec128 _ | Naked_int32 _ | Naked_int64 _
+            | Naked_nativeint _ ),
             _ ) ->
           false
 
@@ -143,6 +153,7 @@ module Const_data = struct
       match t with
       | Naked_immediate n -> Targetint_31_63.hash n
       | Tagged_immediate n -> Targetint_31_63.hash n
+      | Naked_float32 n -> Numeric_types.Float32_by_bit_pattern.hash n
       | Naked_float n -> Numeric_types.Float_by_bit_pattern.hash n
       | Naked_int32 n -> Hashtbl.hash n
       | Naked_int64 n -> Hashtbl.hash n
@@ -270,6 +281,8 @@ module Const = struct
 
   let tagged_immediate imm = create (Tagged_immediate imm)
 
+  let naked_float32 f = create (Naked_float32 f)
+
   let naked_float f = create (Naked_float f)
 
   let naked_int32 i = create (Naked_int32 i)
@@ -380,10 +393,13 @@ module Variable = struct
     let print ppf t =
       let cu = compilation_unit t in
       if Compilation_unit.equal cu (Compilation_unit.get_current_exn ())
-      then Format.fprintf ppf "%s/%d" (name t) (name_stamp t)
+      then
+        Format.fprintf ppf "%s/%d%s" (name t) (name_stamp t)
+          (if user_visible t then "UV" else "N")
       else
-        Format.fprintf ppf "%a.%s/%d" Compilation_unit.print cu (name t)
+        Format.fprintf ppf "%a.%s/%d%s" Compilation_unit.print cu (name t)
           (name_stamp t)
+          (if user_visible t then "UV" else "N")
   end
 
   include T0
@@ -711,7 +727,11 @@ module Code_id = struct
       !previous_name_stamp
     in
     let linkage_name =
-      let name = Printf.sprintf "%s_%d_code" name name_stamp in
+      let name =
+        if Flambda_features.Expert.shorten_symbol_names ()
+        then Printf.sprintf "%s_%d" name name_stamp
+        else Printf.sprintf "%s_%d_code" name name_stamp
+      in
       Symbol0.for_name compilation_unit name |> Symbol0.linkage_name
     in
     let data : Code_id_data.t = { compilation_unit; name; linkage_name } in

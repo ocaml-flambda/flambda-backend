@@ -1,5 +1,5 @@
 (* TEST
-   * expect
+ expect;
 *)
 
 let poly1 (id : 'a. 'a -> 'a) = id 3, id "three"
@@ -189,6 +189,7 @@ Line 3, characters 7-21:
 3 |   else f (fun x -> x)
            ^^^^^^^^^^^^^^
 Warning 18 [not-principal]: applying a higher-rank function here is not principal.
+
 val non_principal1 : bool -> (('a. 'a -> 'a) -> 'b) -> 'b = <fun>
 |}];;
 
@@ -237,6 +238,7 @@ Line 3, characters 9-36:
 3 |     Some (fun y -> y 6, y "goodbye") ]
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 18 [not-principal]: this higher-rank function is not principal.
+
 val non_principal3 : poly option list = [Some <fun>; Some <fun>]
 |}];;
 
@@ -279,7 +281,7 @@ Line 1, characters 24-25:
 1 | let foo (f : p1) : p2 = f
                             ^
 Error: This expression has type p1 = ('a. 'a -> 'a) -> int
-       but an expression was expected of type p2 = ('a 'b. 'a -> 'b) -> int
+       but an expression was expected of type ('a 'b. 'a -> 'b) -> int
        Type 'a is not compatible with type 'b
 |}];;
 
@@ -328,13 +330,13 @@ Line 4, characters 24-25:
 4 | let foo (x : p1) : p2 = x
                             ^
 Error: This expression has type p1 = (bool -> bool) -> int
-       but an expression was expected of type p2 = ('a. 'a -> 'a) -> int
+       but an expression was expected of type ('a. 'a -> 'a) -> int
        Type bool is not compatible with type 'a
 |}];;
 
 let foo x = (x : p1 :> p2)
 [%%expect {|
-val foo : p1 -> p2 = <fun>
+val foo : ((bool -> bool) -> int) -> p2 = <fun>
 |}];;
 
 module Foo (X : sig val f : p1 end) : sig val f : p2 end = X
@@ -356,4 +358,45 @@ Error: Signature mismatch:
 let foo (f : p1) : p2 = (fun id -> f id)
 [%%expect {|
 val foo : p1 -> p2 = <fun>
+|}];;
+
+(* The typing of functions involves an extra step when
+   any parameter includes a GADT pattern. The below tests make sure
+   that this extra step is compatible with polymorphic
+   parameters. *)
+
+type ('a, 'b) eq = Eq : ('a, 'a) eq
+
+[%%expect {|
+type ('a, 'b) eq = Eq : ('a, 'a) eq
+|}];;
+
+let test_gadt1 (type b c) ~(run : 'a. 'a -> b -> b) (Eq : (b, c) eq) (b : b) : c =
+  run () b
+
+[%%expect {|
+val test_gadt1 : run:('a. 'a -> 'b -> 'b) -> ('b, 'c) eq -> 'b -> 'c = <fun>
+|}];;
+
+let test_gadt2 : type b c. run:('a. 'a -> b -> b) -> (b, c) eq -> b -> c =
+  fun ~run Eq b -> run () b
+
+[%%expect {|
+val test_gadt2 : run:('a. 'a -> 'b -> 'b) -> ('b, 'c) eq -> 'b -> 'c = <fun>
+|}];;
+
+let test_gadt_expected_fail : type a. ?eq:(a, int -> int) eq -> ('b. 'b -> 'b) -> a =
+  fun ?eq:(Eq : (a, int -> int) eq = assert false) id x -> id x
+
+[%%expect {|
+Line 2, characters 2-63:
+2 |   fun ?eq:(Eq : (a, int -> int) eq = assert false) id x -> id x
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The syntactic arity of the function doesn't match the type constraint:
+       This function has 3 syntactic arguments, but its type is constrained to
+         ?eq:(a, int -> int) eq -> ('b. 'b -> 'b) -> a.
+        Hint: consider splitting the function definition into
+          fun ... gadt_pat -> fun ...
+          where gadt_pat is the pattern with the GADT constructor that
+          introduces the local type equation on a.
 |}];;

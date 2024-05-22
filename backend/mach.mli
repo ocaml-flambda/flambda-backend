@@ -18,8 +18,6 @@
 type trap_stack =
   | Uncaught
   (** Exceptions escape the current function *)
-  | Generic_trap of trap_stack
-  (** Current handler is a regular Trywith *)
   | Specific_trap of Cmm.trywith_shared_label * trap_stack
   (** Current handler is a delayed/shared Trywith *)
 
@@ -34,18 +32,26 @@ type integer_operation =
   | Ictz of { arg_is_non_zero: bool; }
   | Ipopcnt
   | Icomp of integer_comparison
-  | Icheckbound
 
 type float_comparison = Cmm.float_comparison
 
+type float_width = Cmm.float_width
+
+type float_operation =
+  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Icompf of float_comparison
+
 type mutable_flag = Immutable | Mutable
+
+val of_ast_mutable_flag : Asttypes.mutable_flag -> mutable_flag
+val to_ast_mutable_flag : mutable_flag -> Asttypes.mutable_flag
 
 type test =
     Itruetest
   | Ifalsetest
   | Iinttest of integer_comparison
   | Iinttest_imm of integer_comparison * int
-  | Ifloattest of float_comparison
+  | Ifloattest of float_width * float_comparison
   | Ioddtest
   | Ieventest
 
@@ -54,6 +60,7 @@ type operation =
   | Ispill
   | Ireload
   | Iconst_int of nativeint
+  | Iconst_float32 of int32
   | Iconst_float of int64
   | Iconst_vec128 of Cmm.vec128_bits
   | Iconst_symbol of Cmm.symbol
@@ -63,9 +70,13 @@ type operation =
   | Itailcall_imm of { func : Cmm.symbol; }
   | Iextcall of { func : string;
                   ty_res : Cmm.machtype; ty_args : Cmm.exttype list;
-                  alloc : bool; returns : bool; }
+                  alloc : bool; returns : bool;
+                  stack_ofs : int; }
   | Istackoffset of int
-  | Iload of Cmm.memory_chunk * Arch.addressing_mode * mutable_flag
+  | Iload of { memory_chunk : Cmm.memory_chunk;
+               addressing_mode : Arch.addressing_mode;
+               mutability : Asttypes.mutable_flag;
+               is_atomic : bool }
   | Istore of Cmm.memory_chunk * Arch.addressing_mode * bool
                                  (* false = initialization, true = assignment *)
   | Ialloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo;
@@ -74,11 +85,11 @@ type operation =
   | Iintop_imm of integer_operation * int
   | Iintop_atomic of { op : Cmm.atomic_op; size : Cmm.atomic_bitwidth;
                        addr : Arch.addressing_mode }
-  | Icompf of float_comparison
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Ifloatop of float_width * float_operation
   | Icsel of test
-  | Ifloatofint | Iintoffloat
   | Ivalueofint | Iintofvalue
+  | Ivectorcast of Cmm.vector_cast
+  | Iscalarcast of Cmm.scalar_cast
   | Iopaque
   | Ispecific of Arch.specific_operation
   | Ipoll of { return_label: Cmm.label option }
@@ -94,6 +105,7 @@ type operation =
   | Iprobe of { name: string; handler_code_sym: string; enabled_at_init: bool; }
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
+  | Idls_get
 
 type instruction =
   { desc: instruction_desc;
@@ -115,7 +127,8 @@ and instruction_desc =
   | Iswitch of int array * instruction array
   | Icatch of Cmm.rec_flag * trap_stack * (int * trap_stack * instruction * bool) list * instruction
   | Iexit of int * Cmm.trap_action list
-  | Itrywith of instruction * Cmm.trywith_kind * (trap_stack * instruction)
+  | Itrywith of instruction * Cmm.trywith_shared_label
+      * (trap_stack * instruction)
   | Iraise of Lambda.raise_kind
 
 type fundecl =
@@ -131,9 +144,6 @@ type fundecl =
 
 val dummy_instr: instruction
 val end_instr: unit -> instruction
-val instr_cons:
-      instruction_desc -> Reg.t array -> Reg.t array -> instruction ->
-        instruction
 val instr_cons_debug:
       instruction_desc -> Reg.t array -> Reg.t array -> Debuginfo.t ->
         instruction -> instruction
@@ -153,3 +163,7 @@ val equal_trap_stack : trap_stack -> trap_stack -> bool
 
 val equal_integer_comparison : integer_comparison -> integer_comparison -> bool
 val equal_integer_operation : integer_operation -> integer_operation -> bool
+
+val equal_float_width : float_width -> float_width -> bool
+val equal_float_comparison : float_comparison -> float_comparison -> bool
+val equal_float_operation : float_operation -> float_operation -> bool

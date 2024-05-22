@@ -5,76 +5,76 @@ open! Regalloc_split_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 module State = Regalloc_split_state
 
-(* [propagate_substitution state cfg substs start subst] propagates the
-   substitution [subst], from block [start] until new ones are defined.
-
-   In practice, it means that we stop propagating when we encounter a node with
-   either "definitions at beginning" or a "phi" because: - when there are new
-   definitions, they follow a destruction point, which means that every live
-   register will get a new name (thus replacing the binding in the current
-   substitution); - when there is a phi, it means that every register in the
-   substitution we are currently propagating is either no longer live, or needs
-   a phi move (thus replacing the binding in the current substitution).
-
-   The effect of the propagation is the addition of [subst] to the relevant
-   blocks in [substs]. *)
-let propagate_substitution :
+(* [remove_from_bindings state label ~field ~extract bindings] removes registers
+   in a set from [bindings]. The set is determined by (i) calling [field] on
+   [state] in order to get a map, (ii) retrieving the data associated with
+   [label] from this map, and (iii) calling [extract] on the data. *)
+let[@inline] remove_from_bindings :
     State.t ->
-    Cfg.t ->
-    Substitution.map ->
-    Cfg.basic_block ->
-    Substitution.t ->
-    unit =
- fun state cfg substs start subst ->
-  if split_debug then log ~indent:1 "propagate_substitution";
-  let visited = ref Label.Set.empty in
-  let rec iter (block : Cfg.basic_block) : unit =
-    if not (Label.Set.mem block.start !visited)
-    then (
-      if split_debug then log ~indent:2 "iter %d" block.start;
-      visited := Label.Set.add block.start !visited;
-      if Label.Tbl.mem substs block.start
-      then fatal "block %d already has a substitution" block.start;
-      Label.Tbl.replace substs block.start subst;
-      match destruction_point_at_end block with
-      | Some Destruction_on_all_paths -> ()
-      | None | Some Destruction_only_on_exceptional_path ->
-        let successor_labels =
-          Cfg.successor_labels block ~normal:true ~exn:false
-        in
-        Label.Set.iter
-          (fun successor_label ->
-            let definitions =
-              Label.Map.mem successor_label
-                (State.definitions_at_beginning state)
-            in
-            let phi =
-              Label.Map.mem successor_label (State.phi_at_beginning state)
-            in
-            if not (definitions || phi)
-            then iter (Cfg.get_block_exn cfg successor_label))
-          successor_labels)
-    else if split_debug
-    then log ~indent:2 "block %d already visited" block.start
-  in
-  iter start
+    Label.t ->
+    field:(State.t -> 'a Label.Map.t) ->
+    extract:('a -> Reg.Set.t) ->
+    Reg.t Reg.Map.t ->
+    Reg.t Reg.Map.t =
+ fun state label ~field ~extract bindings ->
+  match Label.Map.find_opt label (field state) with
+  | None -> bindings
+  | Some data ->
+    let regs = extract data in
+    Reg.Map.filter
+      (fun reg _ ->
+        let remove = Reg.Set.mem reg regs in
+        if split_debug
+        then if remove then log ~indent:3 "removing %a" Printmach.reg reg;
+        not remove)
+      bindings
 
-(* Computes the substitutions for all blocks, by introducing new registers at
-   reload points and then propagating the substitution until a new one takes
-   over. *)
-let compute_substitutions : State.t -> Cfg_with_infos.t -> Substitution.map =
- fun state cfg_with_infos ->
-  if split_debug then log ~indent:0 "compute_substitutions";
-  let cfg = Cfg_with_infos.cfg cfg_with_infos in
-  let substs = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
-  let compute_substitution_for_block label =
-    if split_debug then log ~indent:1 "visiting block %d" label;
+(* [compute_substitution_tree state substs bindings tree] populates [substs]
+   with the substitutions computed for each block seen by iterating over the
+   tree in a prefix manner. [bindings] is the part of the substitutions
+   propagating from the parent node in the tree. In effect, the way names are
+   distributed is quite similar to what happens in SSA. *)
+let rec compute_substitution_tree :
+    State.t ->
+    Substitution.map ->
+    Reg.t Reg.Map.t ->
+    Cfg_dominators.dominator_tree ->
+    unit =
+ fun state substs bindings tree ->
+  let label = tree.label in
+  if split_debug then log ~indent:1 "compute_substitution_tree %d" label;
+  (* First, remove the phi and definitions from the bindings. *)
+  if split_debug then log ~indent:2 "removing from phis";
+  let bindings =
+    remove_from_bindings state label ~field:State.phi_at_beginning
+      ~extract:Fun.id bindings
+  in
+  if split_debug then log ~indent:2 "removing from definitions";
+  (* note: it is possible to have two definitions in a row (i.e. without any
+     destruction or phi between them), since we delete the dominated
+     destructions of constant values. *)
+  let bindings =
+    remove_from_bindings state label ~field:State.definitions_at_beginning
+      ~extract:Fun.id bindings
+  in
+  let subst = Reg.Tbl.create 17 in
+  Label.Tbl.replace substs label subst;
+  (* Second, add the bindings to the substitution. *)
+  if split_debug then log ~indent:2 "adding from bindings";
+  Reg.Map.iter
+    (fun old_reg new_reg ->
+      if split_debug
+      then log ~indent:3 "%a -> %a" Printmach.reg old_reg Printmach.reg new_reg;
+      Reg.Tbl.replace subst old_reg new_reg)
+    bindings;
+  (* Third, add the definitions to the substitution and bindings. *)
+  if split_debug then log ~indent:2 "adding from definitions";
+  let bindings =
     match Label.Map.find_opt label (State.definitions_at_beginning state) with
-    | None -> ()
+    | None -> bindings
     | Some renames ->
-      let subst = Reg.Tbl.create (Reg.Set.cardinal renames) in
-      Reg.Set.iter
-        (fun old_reg ->
+      Reg.Set.fold
+        (fun old_reg bindings ->
           let slots = State.stack_slots state in
           let (_ : int) = Regalloc_stack_slots.get_or_create slots old_reg in
           let new_reg = Reg.clone old_reg in
@@ -82,23 +82,165 @@ let compute_substitutions : State.t -> Cfg_with_infos.t -> Substitution.map =
             ~existing:old_reg;
           if split_debug
           then
-            log ~indent:2 "renaming %a to %a" Printmach.reg old_reg
+            log ~indent:3 "renaming %a to %a" Printmach.reg old_reg
               Printmach.reg new_reg;
-          Reg.Tbl.replace subst old_reg new_reg)
-        renames;
-      let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
-      propagate_substitution state cfg substs block subst
+          Reg.Tbl.replace subst old_reg new_reg;
+          Reg.Map.add old_reg new_reg bindings)
+        renames bindings
   in
-  Cfg_dominators.iter_breadth_dominator_tree
-    (Cfg_with_infos.dominators cfg_with_infos).dominator_tree
-    ~f:compute_substitution_for_block;
+  (* Fourth, remove the destroyed registers from the bindings. *)
+  if split_debug then log ~indent:2 "removing from destructions";
+  let bindings =
+    remove_from_bindings state label ~field:State.destructions_at_end
+      ~extract:snd bindings
+  in
+  (* Finally, propagate the bindings to the children. *)
+  List.iter tree.children ~f:(fun child ->
+      compute_substitution_tree state substs bindings child)
+
+(* Computes the substitutions for all blocks, by introducing new registers at
+   reload points and then propagating names until new ones take over. *)
+let compute_substitutions : State.t -> Cfg_with_infos.t -> Substitution.map =
+ fun state cfg_with_infos ->
+  if split_debug then log ~indent:0 "compute_substitutions";
+  let cfg = Cfg_with_infos.cfg cfg_with_infos in
+  let dom_forest =
+    Cfg_dominators.dominator_forest (Cfg_with_infos.dominators cfg_with_infos)
+  in
+  let substs = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
+  List.iter dom_forest ~f:(fun dom_tree ->
+      compute_substitution_tree state substs Reg.Map.empty dom_tree);
   substs
 
 let apply_substitutions : Cfg_with_infos.t -> Substitution.map -> unit =
  fun cfg_with_infos substs ->
   Substitution.apply_cfg_in_place substs (Cfg_with_infos.cfg cfg_with_infos)
 
-(* Inserts spills at the end of blocks, before destruction points. *)
+type 'a make_operation =
+  State.t ->
+  stack_subst:Substitution.t ->
+  old_reg:Reg.t ->
+  new_reg:Reg.t ->
+  copy:'a Cfg.instruction ->
+  Instruction.t
+
+(* Creates a spill instruction for the register named `old_reg` before
+   substitution and `new_reg` after substitution, copying debug and FDO
+   information from `copy`, and populating `stack_subst` with a mapping from
+   `old_reg` to its stack slot. *)
+let make_spill : type a. a make_operation =
+ fun state ~stack_subst ~old_reg ~new_reg ~copy ->
+  let stack_reg =
+    match Reg.Tbl.find_opt stack_subst old_reg with
+    | Some stack_reg -> stack_reg
+    | None ->
+      let slots = State.stack_slots state in
+      let slot : int = Regalloc_stack_slots.get_or_fatal slots old_reg in
+      let stack : Reg.t =
+        make_temporary ~same_class_and_base_name_as:old_reg ~name_prefix:"stack"
+      in
+      Regalloc_stack_slots.use_same_slot_or_fatal slots stack ~existing:old_reg;
+      stack.Reg.loc <- Reg.(Stack (Local slot));
+      Reg.Tbl.replace stack_subst old_reg stack;
+      stack
+  in
+  if split_debug
+  then
+    log ~indent:3 "spill %a -> %a" Printmach.reg new_reg Printmach.reg stack_reg;
+  Move.make_instr Move.Store
+    ~id:(State.get_and_incr_instruction_id state)
+    ~copy ~from:new_reg ~to_:stack_reg
+
+let dummy_instr_of_terminator : Cfg.terminator Cfg.instruction -> Instruction.t
+    =
+ fun terminator ->
+  { Instruction.dummy with
+    dbg = terminator.dbg;
+    fdo = terminator.fdo;
+    live = terminator.live;
+    stack_offset = terminator.stack_offset
+  }
+
+let rec insert_splills_or_reloads_in_block :
+    State.t ->
+    make_spill_or_reload:'a make_operation ->
+    occur_check:(Instruction.t -> Reg.t -> bool) ->
+    insert:(Instruction.t DLL.cell -> Instruction.t -> unit) ->
+    copy_default:Instruction.t ->
+    add_default:(Instruction.t DLL.t -> Instruction.t -> unit) ->
+    move_cell:(Instruction.t DLL.cell -> Instruction.t DLL.cell option) ->
+    block_subst:Substitution.t ->
+    stack_subst:Substitution.t ->
+    Cfg.basic_block ->
+    Instruction.t DLL.cell option ->
+    Reg.Set.t ->
+    unit =
+ fun state ~make_spill_or_reload ~occur_check ~insert ~copy_default ~add_default
+     ~move_cell ~block_subst ~stack_subst block cell live_at_interesting_point ->
+  match Reg.Set.is_empty live_at_interesting_point with
+  | true -> ()
+  | false -> (
+    match cell with
+    | None ->
+      Reg.Set.iter
+        (fun old_reg ->
+          let new_reg = Substitution.apply_reg block_subst old_reg in
+          let spill_or_reload =
+            make_spill_or_reload state ~stack_subst ~old_reg ~new_reg
+              ~copy:copy_default
+          in
+          add_default block.body spill_or_reload)
+        live_at_interesting_point
+    | Some cell ->
+      let live_at_interesting_point =
+        Reg.Set.filter
+          (fun old_reg ->
+            let new_reg = Substitution.apply_reg block_subst old_reg in
+            let instr = DLL.value cell in
+            if occur_check instr new_reg
+            then (
+              let spill_or_reload =
+                make_spill_or_reload state ~stack_subst ~old_reg ~new_reg
+                  ~copy:instr
+              in
+              insert cell spill_or_reload;
+              false)
+            else true)
+          live_at_interesting_point
+      in
+      let cell = move_cell cell in
+      insert_splills_or_reloads_in_block state ~make_spill_or_reload
+        ~occur_check ~insert ~copy_default ~add_default ~move_cell ~block_subst
+        ~stack_subst block cell live_at_interesting_point)
+
+(* Inserts the spills in a block, as early as possible (i.e. immediately after
+   the register is last set), to reduce live ranges. *)
+let insert_spills_in_block :
+    State.t ->
+    block_subst:Substitution.t ->
+    stack_subst:Substitution.t ->
+    Cfg.basic_block ->
+    Instruction.t DLL.cell option ->
+    Reg.Set.t ->
+    unit =
+ fun state ~block_subst ~stack_subst block cell live_at_destruction_point ->
+  insert_splills_or_reloads_in_block state ~make_spill_or_reload:make_spill
+    ~occur_check:(fun instr reg ->
+      (* We assume `new_reg` has no location yet (we are before register
+         allocation, but selection uses fixed registers in various places). If
+         the assertion does not hold, we need to look at the registers destroyed
+         by the instruction. *)
+      assert (Reg.is_unknown reg);
+      occurs_array instr.res reg)
+    ~insert:DLL.insert_after
+    ~copy_default:
+      (match DLL.hd block.body with
+      | None -> dummy_instr_of_terminator block.terminator
+      | Some hd -> hd)
+    ~add_default:DLL.add_begin ~move_cell:DLL.prev ~block_subst ~stack_subst
+    block cell live_at_destruction_point
+
+(* Inserts spills in all blocks. *)
 (* CR mshinwell: Add special handling for [Iname_for_debugger] (see
    [Spill.add_spills]). *)
 let insert_spills :
@@ -106,47 +248,64 @@ let insert_spills :
  fun state cfg_with_infos substs ->
   if split_debug then log ~indent:0 "insert_spills";
   let destructions_at_end = State.destructions_at_end state in
-  let res = Reg.Tbl.create (Label.Map.cardinal destructions_at_end) in
+  let stack_subst = Reg.Tbl.create (Label.Map.cardinal destructions_at_end) in
   Label.Map.iter
     (fun label (_, live_at_destruction_point) ->
       if split_debug then log ~indent:1 "block %d" label;
       let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
-      let subst = Substitution.for_label substs label in
-      Reg.Set.iter
-        (fun reg ->
-          if split_debug then log ~indent:2 "register %a" Printmach.reg reg;
-          let stack_reg =
-            match Reg.Tbl.find_opt res reg with
-            | Some stack_reg -> stack_reg
-            | None ->
-              let slots = State.stack_slots state in
-              let slot : int = Regalloc_stack_slots.get_or_fatal slots reg in
-              let stack : Reg.t =
-                make_temporary ~same_class_and_base_name_as:reg
-                  ~name_prefix:"stack"
-              in
-              Regalloc_stack_slots.use_same_slot_or_fatal slots stack
-                ~existing:reg;
-              stack.Reg.loc <- Reg.(Stack (Local slot));
-              Reg.Tbl.replace res reg stack;
-              stack
-          in
-          let reg = Substitution.apply_reg subst reg in
-          if split_debug
-          then
-            log ~indent:3 "spill %a -> %a" Printmach.reg reg Printmach.reg
-              stack_reg;
-          let spill =
-            Move.make_instr Move.Store
-              ~id:(State.get_and_incr_instruction_id state)
-              ~copy:block.terminator ~from:reg ~to_:stack_reg
-          in
-          DLL.add_end block.body spill)
-        live_at_destruction_point)
+      let block_subst = Substitution.for_label substs label in
+      insert_spills_in_block state ~block_subst ~stack_subst block
+        (DLL.last_cell block.body) live_at_destruction_point)
     destructions_at_end;
-  res
+  stack_subst
 
-(* Inserts reloads at the start of blocks, after destruction points. *)
+(* Creates a reload instruction for the register named `old_reg` before
+   substitution and `new_reg` after substitution, copying debug and FDO
+   information from `copy`, and getting the stack slot from `stack_subst` if
+   `old_reg` is mapped. *)
+let make_reload : type a. a make_operation =
+ fun state ~stack_subst ~old_reg ~new_reg ~copy ->
+  let stack_reg : Reg.t =
+    match Reg.Tbl.find_opt stack_subst old_reg with
+    | Some stack_reg -> stack_reg
+    | None ->
+      let slots = State.stack_slots state in
+      let slot = Regalloc_stack_slots.get_or_create slots old_reg in
+      let stack =
+        make_temporary ~same_class_and_base_name_as:old_reg ~name_prefix:"stack"
+      in
+      Regalloc_stack_slots.use_same_slot_or_fatal slots stack ~existing:old_reg;
+      Regalloc_stack_slots.use_same_slot_or_fatal slots stack ~existing:new_reg;
+      stack.Reg.loc <- Reg.(Stack (Local slot));
+      stack
+  in
+  if split_debug
+  then
+    log ~indent:3 "reload %a -> %a" Printmach.reg stack_reg Printmach.reg
+      new_reg;
+  Move.make_instr Move.Load
+    ~id:(State.get_and_incr_instruction_id state)
+    ~copy ~from:stack_reg ~to_:new_reg
+
+(* Inserts the relaods in a block, as late as possible (i.e. immediately before
+   the register is first read), to reduce live ranges. *)
+let insert_reloads_in_block :
+    State.t ->
+    block_subst:Substitution.t ->
+    stack_subst:Substitution.t ->
+    Cfg.basic_block ->
+    Instruction.t DLL.cell option ->
+    Reg.Set.t ->
+    unit =
+ fun state ~block_subst ~stack_subst block cell live_at_definition_point ->
+  insert_splills_or_reloads_in_block state ~make_spill_or_reload:make_reload
+    ~occur_check:(fun instr reg -> occurs_array instr.arg reg)
+    ~insert:DLL.insert_before
+    ~copy_default:(dummy_instr_of_terminator block.terminator)
+    ~add_default:DLL.add_end ~move_cell:DLL.next ~block_subst ~stack_subst block
+    cell live_at_definition_point
+
+(* Inserts reloads in all blocks. *)
 let insert_reloads :
     State.t -> Cfg_with_infos.t -> Substitution.map -> Substitution.t -> unit =
  fun state cfg_with_infos substs stack_subst ->
@@ -155,50 +314,9 @@ let insert_reloads :
     (fun label live_at_definition_point ->
       if split_debug then log ~indent:1 "block %d" label;
       let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
-      let subst = Substitution.for_label substs label in
-      Reg.Set.iter
-        (fun old_reg ->
-          if split_debug then log ~indent:2 "register %a" Printmach.reg old_reg;
-          let new_reg = Substitution.apply_reg subst old_reg in
-          let stack_reg : Reg.t =
-            match Reg.Tbl.find_opt stack_subst old_reg with
-            | Some stack_reg -> stack_reg
-            | None ->
-              let slots = State.stack_slots state in
-              let slot = Regalloc_stack_slots.get_or_create slots old_reg in
-              let stack =
-                make_temporary ~same_class_and_base_name_as:old_reg
-                  ~name_prefix:"stack"
-              in
-              Regalloc_stack_slots.use_same_slot_or_fatal slots stack
-                ~existing:old_reg;
-              Regalloc_stack_slots.use_same_slot_or_fatal slots stack
-                ~existing:new_reg;
-              stack.Reg.loc <- Reg.(Stack (Local slot));
-              stack
-          in
-          if split_debug
-          then
-            log ~indent:3 "reload %a -> %a" Printmach.reg stack_reg
-              Printmach.reg new_reg;
-          let copy =
-            match DLL.hd block.body with
-            | Some (basic : Cfg.basic Cfg.instruction) -> basic
-            | None ->
-              { Instruction.dummy with
-                dbg = block.terminator.dbg;
-                fdo = block.terminator.fdo;
-                live = block.terminator.live;
-                stack_offset = block.terminator.stack_offset
-              }
-          in
-          let reload =
-            Move.make_instr Move.Load
-              ~id:(State.get_and_incr_instruction_id state)
-              ~copy ~from:stack_reg ~to_:new_reg
-          in
-          DLL.add_begin block.body reload)
-        live_at_definition_point)
+      let block_subst = Substitution.for_label substs label in
+      insert_reloads_in_block state ~block_subst ~stack_subst block
+        (DLL.hd_cell block.body) live_at_definition_point)
     (State.definitions_at_beginning state)
 
 let add_phi_moves_to_instr_list :
@@ -260,7 +378,7 @@ let insert_phi_moves : State.t -> Cfg_with_infos.t -> Substitution.map -> bool =
             add_phi_moves_to_instr_list state ~before:predecessor_block
               ~phi:block substs to_unify predecessor_block.body
           | Switch _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-          | Call _ | Prim _ | Specific_can_raise _ | Poll_and_jump _ ->
+          | Call _ | Prim _ | Specific_can_raise _ ->
             let instrs = DLL.make_empty () in
             add_phi_moves_to_instr_list state ~before:predecessor_block
               ~phi:block substs to_unify instrs;
@@ -311,8 +429,8 @@ let split_at_destruction_points :
   if split_debug
   then (
     let doms = Cfg_with_infos.dominators cfg_with_infos in
-    log_dominance_frontier ~indent:1 doms.dominance_frontiers;
-    log_dominator_tree ~indent:1 doms.dominator_tree);
+    log_dominance_frontier ~indent:1 (Cfg_with_infos.cfg cfg_with_infos) doms;
+    log_dominator_forest ~indent:1 (Cfg_dominators.dominator_forest doms));
   match Label.Map.is_empty (State.definitions_at_beginning state) with
   | true ->
     log ~indent:1 "renaming_infos is empty (no new names introduced)";
@@ -356,7 +474,8 @@ let split_live_ranges : Cfg_with_infos.t -> cfg_infos -> Regalloc_stack_slots.t
   | true, false -> fatal "Regalloc_split: flambda is currently not supported"
   | false, true ->
     (* note: classic mode is not properly supported, but is used in the
-       "tests/backend/frame-too-long" tests. *)
+       "tests/backend/frame-too-long" tests. We now implicitly disable split (in
+       `Regalloc_rewrite.prelude`) if classic mode is enabled. *)
     (* if Flambda2_ui.Flambda_features.classic_mode () then fatal
        "Regalloc_split: classic mode is currently not supported" *)
     ()

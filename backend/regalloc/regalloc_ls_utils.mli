@@ -20,27 +20,13 @@ val log_body_and_terminator :
 
 val log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit
 
-module Order : sig
-  type t =
-    | Layout (* Order given by iterating over the CFG layout. *)
-    | DFS (* Order computed by a depth-first search from the entry point. *)
-
-  val all : t list
-
-  val to_string : t -> string
-
-  val value : t Lazy.t
-end
-
-val iter_cfg_order :
-  Cfg_with_layout.t -> Order.t -> f:(Cfg.basic_block -> unit) -> unit
+val iter_cfg_dfs : Cfg.t -> f:(Cfg.basic_block -> unit) -> unit
 
 (* The [trap_handler] parameter to the [instruction] and [terminator] functions
    is set to [true] iff the instruction is the first one of a block which is a
    trap handler. *)
-val iter_instructions_order :
+val iter_instructions_dfs :
   Cfg_with_layout.t ->
-  Order.t ->
   instruction:(trap_handler:bool -> Cfg.basic Cfg.instruction -> unit) ->
   terminator:(trap_handler:bool -> Cfg.terminator Cfg.instruction -> unit) ->
   unit

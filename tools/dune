@@ -13,35 +13,34 @@
 ;**************************************************************************
 
 (executable
-  (name flambda_backend_objinfo)
-  (modes byte native)
-  (modules flambda_backend_objinfo)
-  (libraries ocamlcommon ocamlbytecomp ocamloptcomp))
+ (name flambda_backend_objinfo)
+ (modes byte native)
+ (modules flambda_backend_objinfo)
+ (libraries ocamlcommon ocamlbytecomp ocamloptcomp))
 
 (executable
-  (name generate_cached_generic_functions)
-  (modes byte native)
-  (modules generate_cached_generic_functions)
+ (name generate_cached_generic_functions)
+ (modes byte native)
+ (modules generate_cached_generic_functions)
  (flags
   (:standard -principal -w -9-69-70-33-27))
-  (libraries ocamlcommon ocamloptcomp unix))
+ (libraries ocamlcommon ocamloptcomp unix memtrace))
 
 (install
-  (files
-    (flambda_backend_objinfo.bc as ocamlobjinfo.byte)
-    (flambda_backend_objinfo.exe as ocamlobjinfo.opt)
-    generate_cached_generic_functions.exe
-  )
-  (section bin)
-  (package ocaml))
+ (files
+  (flambda_backend_objinfo.bc as ocamlobjinfo.byte)
+  (flambda_backend_objinfo.exe as ocamlobjinfo.opt)
+  generate_cached_generic_functions.exe)
+ (section bin)
+ (package ocaml))
 
 (executable
-  (name merge_archives)
-  (modes native)
-  (modules merge_archives)
-  (libraries ocamlcommon ocamlbytecomp ocamloptcomp))
+ (name merge_archives)
+ (modes native)
+ (modules merge_archives)
+ (libraries ocamlcommon ocamlbytecomp ocamloptcomp))
 
 (executable
-  (name gen_compiler_libs_installation)
-  (modes native)
-  (modules gen_compiler_libs_installation))
+ (name gen_compiler_libs_installation)
+ (modes native)
+ (modules gen_compiler_libs_installation))

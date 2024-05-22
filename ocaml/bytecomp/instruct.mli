@@ -78,6 +78,12 @@ type instruction =
   | Ksetglobal of Ident.t
   | Kconst of structured_constant
   | Kmakeblock of int * int             (* size, tag *)
+  | Kmake_faux_mixedblock of int * int  (* size, tag *)
+  (* A "faux" mixed block is not actually represented as a mixed block at
+     runtime. It just has the top header byte sent to a sentinel value so
+     bytecode knows that the block can't be marshaled to native code, where
+     mixed records are represented as true mixed blocks.
+  *)
   | Kmakefloatblock of int
   | Kgetfield of int
   | Ksetfield of int
@@ -112,6 +118,10 @@ type instruction =
   | Kgetpubmet of int
   | Kgetdynmet
   | Kevent of debug_event
+  | Kperform
+  | Kresume
+  | Kresumeterm of int
+  | Kreperformterm of int
   | Kstop
 
 val immed_min: int

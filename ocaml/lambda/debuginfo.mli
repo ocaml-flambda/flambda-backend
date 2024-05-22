@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module ZA = Zero_alloc_utils
+
 module Scoped_location : sig
   type scope_item = private
     | Sc_anonymous_function
@@ -23,21 +25,31 @@ module Scoped_location : sig
     | Sc_partial_or_eta_wrapper
     | Sc_lazy
 
+  val equal_scope_item : scope_item -> scope_item -> bool
+
   type scopes = private
     | Empty
-    | Cons of {item: scope_item; str: string; str_fun: string; name : string; prev: scopes}
+    | Cons of {item: scope_item; str: string; str_fun: string; name : string; prev: scopes;
+               assume_zero_alloc: ZA.Assume_info.t}
 
   val string_of_scopes : scopes -> string
 
+  val compilation_unit : scopes -> Compilation_unit.t option
+
   val empty_scopes : scopes
-  val enter_anonymous_function : scopes:scopes -> scopes
-  val enter_value_definition : scopes:scopes -> Ident.t -> scopes
+  val enter_anonymous_function :
+    scopes:scopes -> assume_zero_alloc:ZA.Assume_info.t -> scopes
+  val enter_value_definition :
+    scopes:scopes -> assume_zero_alloc:ZA.Assume_info.t -> Ident.t -> scopes
   val enter_compilation_unit : scopes:scopes -> Compilation_unit.t -> scopes
   val enter_module_definition : scopes:scopes -> Ident.t -> scopes
   val enter_class_definition : scopes:scopes -> Ident.t -> scopes
   val enter_method_definition : scopes:scopes -> Asttypes.label -> scopes
   val enter_lazy : scopes:scopes -> scopes
   val enter_partial_or_eta_wrapper : scopes:scopes -> scopes
+  val update_assume_zero_alloc :
+    scopes:scopes -> assume_zero_alloc:ZA.Assume_info.t -> scopes
+  val get_assume_zero_alloc : scopes:scopes -> ZA.Assume_info.t
 
   type t =
     | Loc_unknown
@@ -61,9 +73,18 @@ type item = private {
   dinfo_end_bol: int;
   dinfo_end_line: int;
   dinfo_scopes: Scoped_location.scopes;
+  (** See the [Inlined_debuginfo] module in Flambda 2 for an explanation
+      of the uid and function symbol fields.  (They are used for generation
+      of DWARF inlined frame information.)  These fields should only be
+      set to [Some] by Flambda 2. *)
+  dinfo_uid: string option;
+  dinfo_function_symbol: string option;
 }
 
-type t = item list
+val item_with_uid_and_function_symbol : item -> dinfo_uid:string option
+  -> dinfo_function_symbol:string option -> item
+
+type t
 
 type alloc_dbginfo_item =
   { alloc_words : int;
@@ -80,6 +101,12 @@ val none : t
 
 val is_none : t -> bool
 
+val of_items : item list -> t
+
+val mapi_items : t -> f:(int -> item -> item) -> t
+
+val to_items : t -> item list
+
 val to_string : t -> string
 
 val from_location : Scoped_location.t -> t
@@ -90,6 +117,26 @@ val inline : t -> t -> t
 
 val compare : t -> t -> int
 
-val hash : t -> int
-
 val print_compact : Format.formatter -> t -> unit
+
+(** Like [print_compact] but also prints uid and function symbol info. *)
+val print_compact_extended : Format.formatter -> t -> unit
+
+val merge : into:t -> t -> t
+
+val assume_zero_alloc : t -> ZA.Assume_info.t
+
+module Dbg : sig
+  type t
+
+  (** [compare] and [hash] ignore [dinfo_scopes] field of item *)
+
+  val is_none : t -> bool
+  val compare : t -> t -> int
+  val hash : t -> int
+  val to_list : t -> item list
+  val length : t -> int
+end
+
+val get_dbg : t -> Dbg.t
+

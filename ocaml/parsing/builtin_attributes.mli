@@ -30,7 +30,7 @@
     - ocaml.afl_inst_ratio
     - ocaml.flambda_o3
     - ocaml.flambda_oclassic
-    - layout attributes:
+    - jkind attributes:
       - ocaml.any
       - ocaml.value
       - ocaml.void
@@ -70,12 +70,12 @@ val register_attr : attr_tracking_time -> string Location.loc -> unit
 val mark_alert_used : Parsetree.attribute -> unit
 val mark_alerts_used : Parsetree.attributes -> unit
 
-(** Properties such as the zero_alloc attribute that are checked
+(** Zero_alloc attributes are checked
     in late stages of compilation in the backend.
     Registering them helps detect code that is not checked,
     because it is optimized away by the middle-end.  *)
-val register_property : string Location.loc -> unit
-val mark_property_checked : string -> Location.t -> unit
+val register_zero_alloc_attribute : string Location.loc -> unit
+val mark_zero_alloc_attribute_checked : string -> Location.t -> unit
 
 (** Marks "warn_on_literal_pattern" attributes used for the purposes of
     misplaced attribute warnings.  Call this when moving things with alert
@@ -92,6 +92,7 @@ val mark_payload_attrs_used : Parsetree.payload -> unit
 (** Issue misplaced attribute warnings for all attributes created with
     [mk_internal] but not yet marked used. *)
 val warn_unused : unit -> unit
+val warn_unchecked_zero_alloc_attribute : unit -> unit
 
 val check_alerts: Location.t -> Parsetree.attributes -> string -> unit
 val check_alerts_inclusion:
@@ -138,8 +139,15 @@ val warning_scope:
     misplaced attribute warnings. *)
 val has_attribute : string list -> Parsetree.attributes -> bool
 
-(** [filter_attributes nms_and_conds attrs] finds those attrs which
-    appear in one of the sublists of nms_and_conds with cond=true.
+module Attributes_filter : sig
+  type t
+
+  val create : (string list * bool) list -> t
+end
+
+(** [filter_attributes (Attributes_filter.create nms_and_conds) attrs] finds
+    those attrs which appear in one of the sublists of nms_and_conds with
+    cond=true.
 
     Each element [(nms, conds)] of the [nms_and_conds] list is a list of
     attribute names along with a boolean indicating whether to include
@@ -148,9 +156,18 @@ val has_attribute : string list -> Parsetree.attributes -> bool
     "unrolled" only in the case where flambda or flambda2 is configured).  We
     handle this by taking a bool, rather than simply passing fewer nms in those
     cases, to support misplaced attribute warnings - the attribute should not
-    count as misplaced if the compiler could use it in some configuration. *)
+    count as misplaced if the compiler could use it in some configuration.
+*)
 val filter_attributes :
-  (string list * bool) list -> Parsetree.attributes -> Parsetree.attributes
+  ?mark:bool ->
+  Attributes_filter.t -> Parsetree.attributes -> Parsetree.attributes
+
+(** [find_attribute] behaves like [filter_attribute], except that it returns at
+    most one matching attribute and issues a "duplicated attribute" warning if
+    there are multiple matches. *)
+val find_attribute :
+  ?mark_used:bool -> Attributes_filter.t -> Parsetree.attributes ->
+  Parsetree.attribute option
 
 val warn_on_literal_pattern: Parsetree.attributes -> bool
 val explicit_arity: Parsetree.attributes -> bool
@@ -162,41 +179,96 @@ val parse_standard_interface_attributes : Parsetree.attribute -> unit
 val parse_standard_implementation_attributes : Parsetree.attribute -> unit
 
 val has_local_opt: Parsetree.attributes -> bool
+val has_layout_poly: Parsetree.attributes -> bool
 val has_curry: Parsetree.attributes -> bool
 
-(* These functions report Error if the builtin extension.* attributes
-   are present despite the extension being disabled *)
-val has_local: Parsetree.attributes -> (bool,unit) result
-val has_global: Parsetree.attributes -> (bool,unit) result
 val tailcall : Parsetree.attributes ->
     ([`Tail|`Nontail|`Tail_if_possible] option, [`Conflict]) result
 
-(* [layout] gets the layout in the attributes if one is present.  It is the
-   central point at which the layout extension flags are checked.  We always
-   allow the [value] annotation, even if the layouts extensions are disabled.
-   If [~legacy_immediate] is true, we allow [immediate] and [immediate64]
-   attributes even if the layouts extensions are disabled - this is used to
-   support the original immediacy attributes, which are now implemented in terms
-   of layouts.
+(* CR layouts v1.5: Remove everything except for [Immediate64] and [Immediate]
+   after rerouting [@@immediate]. *)
+type jkind_attribute =
+  | Immediate64
+  | Immediate
 
-   The return value is [Error <layout>] if a layout attribute is present but
-   not allowed by the current set of extensions.  Otherwise it is [Ok None] if
-   there is no layout annotation and [Ok (Some layout)] if there is one.
+val jkind_attribute_to_string : jkind_attribute -> string
+val jkind_attribute_of_string : string -> jkind_attribute option
 
-   - If no layout extensions are on and [~legacy_immediate] is false, this will
-     always return [Ok None], [Ok (Some Value)], or [Error ...].
-   - If no layout extensions are on and [~legacy_immediate] is true, this will
-     error on [void] or [any], but allow [immediate], [immediate64], and [value].
-   - If the [Layouts_beta] extension is on, this behaves like the previous case
-     regardless of the value of [~legacy_immediate].
-   - If the [Layouts_alpha] extension is on, this can return any layout and
-     never errors.
-
-   Currently, the [Layouts] extension is ignored - it's no different than
-   turning on no layout extensions.
+(* [jkind] gets the first jkind in the attributes if one is present.  All such
+   attributes can be provided even in the absence of the layouts extension
+   as the attribute mechanism predates layouts.
 *)
-(* CR layouts: we should eventually be able to delete ~legacy_immediate (after we
-   turn on layouts by default). *)
-val layout : legacy_immediate:bool -> Parsetree.attributes ->
-  (Asttypes.layout_annotation option,
-   Asttypes.layout_annotation) result
+val jkind : Parsetree.attributes -> jkind_attribute Location.loc option
+
+(** Finds the first "error_message" attribute, marks it as used, and returns its
+    string payload. Returns [None] if no such attribute is present.
+
+    There should be at most one "error_message" attribute, additional ones are sliently
+    ignored. **)
+val error_message_attr : Parsetree.attributes -> string option
+
+(** [get_int_payload] is a helper for working with attribute payloads.
+    Given a payload that consist of a structure containing exactly
+    {[
+      PStr [
+        {pstr_desc =
+           Pstr_eval (Pexp_constant (Pconst_integer(i, None)), [])
+        }
+      ]
+    ]}
+    it returns [i].
+  *)
+val get_int_payload : Parsetree.payload -> (int, unit) Result.t
+
+(** [get_optional_bool_payload] is a helper for working with attribute payloads.
+    It behaves like [get_int_payload], except that it looks for a boolean
+    constant rather than an int constant, and returns [None] rather than [Error]
+    if the payload is empty. *)
+val get_optional_bool_payload :
+    Parsetree.payload -> (bool option, unit) Result.t
+
+(** [parse_id_payload] is a helper for parsing information from an attribute
+   whose payload is an identifier. If the given payload consists of a single
+   identifier, that identifier is looked up in the association list.  The result
+   is returned, if it exists.  The [empty] value is returned if the payload is
+   empty.  Otherwise, [Error ()] is returned and a warning is issued. *)
+val parse_optional_id_payload :
+  string -> Location.t -> empty:'a -> (string * 'a) list ->
+  Parsetree.payload -> ('a,unit) Result.t
+
+(* Support for property attributes like zero_alloc *)
+type zero_alloc_attribute =
+  | Default_zero_alloc
+  | Ignore_assert_all
+  | Check of { strict: bool;
+               (* [strict=true] property holds on all paths.
+                  [strict=false] if the function returns normally,
+                  then the property holds (but property violations on
+                  exceptional returns or diverging loops are ignored).
+                  This definition may not be applicable to new properties. *)
+               opt: bool;
+               arity: int;
+               loc: Location.t;
+             }
+  | Assume of { strict: bool;
+                never_returns_normally: bool;
+                never_raises: bool;
+                (* [never_raises=true] the function never returns
+                   via an exception. The function (directly or transitively)
+                   may raise exceptions that do not escape, i.e.,
+                   handled before the function returns. *)
+                arity: int;
+                loc: Location.t;
+              }
+
+val is_zero_alloc_check_enabled : opt:bool -> bool
+
+(* Gets a zero_alloc attribute.  [~in_signature] controls both whether the
+   "arity n" field is allowed, and whether we track this attribute for
+   warning 199. *)
+val get_zero_alloc_attribute :
+  in_signature:bool -> default_arity:int -> Parsetree.attributes ->
+  zero_alloc_attribute
+
+val assume_zero_alloc :
+  is_check_allowed:bool -> zero_alloc_attribute -> Zero_alloc_utils.Assume_info.t

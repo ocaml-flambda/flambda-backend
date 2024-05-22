@@ -59,6 +59,9 @@ val create_ignore :
 val add_or_replace_attribute_value :
   t -> Dwarf_attribute_values.Attribute_value.t -> unit
 
+val replace_all_attribute_values :
+  t -> Dwarf_attribute_values.Attribute_value.t list -> t
+
 (* CR-someday mshinwell: add a [name] argument to the creation functions *)
 val set_name : t -> Asm_symbol.t -> unit
 
@@ -102,3 +105,5 @@ val depth_first_fold : t -> init:'a -> f:('a -> fold_arg -> 'a) -> 'a
     suppresses a complaint from objdump "Location lists in .debug_loc start at
     ...". *)
 val location_list_in_debug_loc_table : t -> Dwarf_4_location_list.t option
+
+val equal : t -> t -> bool

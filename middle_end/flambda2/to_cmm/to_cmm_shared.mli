@@ -86,19 +86,53 @@ val bound_parameters :
 val invalid :
   To_cmm_result.t -> message:string -> Cmm.expression * To_cmm_result.t
 
+module Update_kind : sig
+  type t
+
+  val pointers : t
+
+  val tagged_immediates : t
+
+  (** Tightly packed; the byte offset is [index * 4].  ([index] is as for
+      [make_update], below.) *)
+  val naked_int32s : t
+
+  (** Assumes each field is a word; the byte offset is [index * size_addr]. *)
+  val naked_int32_fields : t
+
+  (** Tightly packed; the byte offset is [index * 8]. *)
+  val naked_int64s : t
+
+  (** Tightly packed; the byte offset is [index * size_float]. *)
+  val naked_floats : t
+
+  (** Tightly packed; the byte offset is [index * 4]. *)
+  val naked_float32s : t
+
+  (** Assumes each field is a word; the byte offset is [index * size_addr]. *)
+  val naked_float32_fields : t
+
+  (** Tightly packed (two words each); the byte offset is [index * 16]. *)
+  val naked_vec128s : t
+
+  (** Assumes each field is a word; the byte offset is [index * size_addr].
+      Note that in this case the index is still based on word-width fields! *)
+  val naked_vec128_fields : t
+end
+
 (** Make an update to a statically-allocated block. *)
 val make_update :
   To_cmm_env.t ->
   To_cmm_result.t ->
   Debuginfo.t ->
-  Cmm.memory_chunk ->
+  Update_kind.t ->
   symbol:Cmm.expression ->
   Variable.t ->
   index:int ->
   prev_updates:To_cmm_env.expr_with_info option ->
   To_cmm_env.t * To_cmm_result.t * To_cmm_env.expr_with_info option
 
-val check_arity : Flambda_arity.t -> _ list -> bool
+val check_arity : _ Flambda_arity.t -> _ list -> bool
 
 val extended_machtype_of_return_arity :
-  Flambda_arity.t -> Cmm_helpers.Extended_machtype.t
+  [`Unarized] Flambda_arity.t -> Cmm_helpers.Extended_machtype.t

@@ -31,7 +31,7 @@ type get_imported_code = unit -> Exported_code.t
 type t =
   { round : int;
     typing_env : TE.t;
-    inlined_debuginfo : Debuginfo.t;
+    inlined_debuginfo : Inlined_debuginfo.t;
     can_inline : bool;
     inlining_state : Inlining_state.t;
     propagating_float_consts : bool;
@@ -40,6 +40,7 @@ type t =
     unit_toplevel_exn_continuation : Continuation.t;
     variables_defined_at_toplevel : Variable.Set.t;
     cse : CSE.t;
+    comparison_results : Comparison_result.t Variable.Map.t;
     do_not_rebuild_terms : bool;
     closure_info : Closure_info.t;
     get_imported_code : unit -> Exported_code.t;
@@ -48,16 +49,11 @@ type t =
     loopify_state : Loopify_state.t
   }
 
-let print_debuginfo ppf dbg =
-  if Debuginfo.is_none dbg
-  then Format.pp_print_string ppf "None"
-  else Debuginfo.print_compact ppf dbg
-
 let [@ocamlformat "disable"] print ppf { round; typing_env;
                 inlined_debuginfo; can_inline;
                 inlining_state; propagating_float_consts;
                 at_unit_toplevel; unit_toplevel_exn_continuation;
-                variables_defined_at_toplevel; cse;
+                variables_defined_at_toplevel; cse; comparison_results;
                 do_not_rebuild_terms; closure_info;
                 unit_toplevel_return_continuation; all_code;
                 get_imported_code = _; inlining_history_tracker = _;
@@ -75,6 +71,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
       @[<hov 1>(unit_toplevel_exn_continuation@ %a)@]@ \
       @[<hov 1>(variables_defined_at_toplevel@ %a)@]@ \
       @[<hov 1>(cse@ @[<hov 1>%a@])@]@ \
+      @[<hov 1>(comparison_results@ @[<hov 1>%a@])@]@ \
       @[<hov 1>(do_not_rebuild_terms@ %b)@]@ \
       @[<hov 1>(closure_info@ %a)@]@ \
       @[<hov 1>(all_code@ %a)@]@ \
@@ -82,7 +79,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
       )@]"
     round
     TE.print typing_env
-    print_debuginfo inlined_debuginfo
+    Inlined_debuginfo.print inlined_debuginfo
     can_inline
     Inlining_state.print inlining_state
     propagating_float_consts
@@ -91,6 +88,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
     Continuation.print unit_toplevel_exn_continuation
     Variable.Set.print variables_defined_at_toplevel
     CSE.print cse
+    (Variable.Map.print Comparison_result.print) comparison_results
     do_not_rebuild_terms
     Closure_info.print closure_info
     (Code_id.Map.print Code.print) all_code
@@ -109,7 +107,7 @@ let create ~round ~(resolver : resolver)
   in
   { round;
     typing_env;
-    inlined_debuginfo = Debuginfo.none;
+    inlined_debuginfo = Inlined_debuginfo.none;
     can_inline = true;
     inlining_state = Inlining_state.default ~round;
     propagating_float_consts;
@@ -118,6 +116,7 @@ let create ~round ~(resolver : resolver)
     unit_toplevel_exn_continuation;
     variables_defined_at_toplevel = Variable.Set.empty;
     cse = CSE.empty;
+    comparison_results = Variable.Map.empty;
     do_not_rebuild_terms = false;
     closure_info = Closure_info.not_in_a_closure;
     all_code = Code_id.Map.empty;
@@ -179,6 +178,7 @@ let enter_set_of_closures
       unit_toplevel_exn_continuation;
       variables_defined_at_toplevel;
       cse = _;
+      comparison_results = _;
       do_not_rebuild_terms;
       closure_info = _;
       get_imported_code;
@@ -188,7 +188,7 @@ let enter_set_of_closures
     } =
   { round;
     typing_env = TE.closure_env typing_env;
-    inlined_debuginfo = Debuginfo.none;
+    inlined_debuginfo = Inlined_debuginfo.none;
     can_inline;
     inlining_state;
     propagating_float_consts;
@@ -197,6 +197,7 @@ let enter_set_of_closures
     unit_toplevel_exn_continuation;
     variables_defined_at_toplevel;
     cse = CSE.empty;
+    comparison_results = Variable.Map.empty;
     do_not_rebuild_terms;
     closure_info = Closure_info.in_a_set_of_closures;
     get_imported_code;
@@ -455,20 +456,28 @@ let define_code t ~code_id ~code =
   let all_code = Code_id.Map.add code_id code t.all_code in
   { t with typing_env; all_code }
 
-let set_inlined_debuginfo t dbg = { t with inlined_debuginfo = dbg }
-
-let get_inlined_debuginfo t = t.inlined_debuginfo
-
-let add_inlined_debuginfo t dbg = Debuginfo.inline t.inlined_debuginfo dbg
-
 let cse t = t.cse
+
+let comparison_results t = t.comparison_results
 
 let add_cse t prim ~bound_to =
   let scope = get_continuation_scope t in
   let cse = CSE.add t.cse prim ~bound_to scope in
-  { t with cse }
+  let comparison_results =
+    let prim = Flambda_primitive.Eligible_for_cse.to_primitive prim in
+    match
+      ( Comparison_result.create ~prim ~comparison_results:t.comparison_results,
+        Simple.must_be_var bound_to )
+    with
+    | None, _ | _, None -> t.comparison_results
+    | Some comp, Some (var, _) -> Variable.Map.add var comp t.comparison_results
+  in
+  { t with cse; comparison_results }
 
 let find_cse t prim = CSE.find t.cse prim
+
+let find_comparison_result t var =
+  Variable.Map.find_opt var t.comparison_results
 
 let with_cse t cse = { t with cse }
 
@@ -499,6 +508,21 @@ let set_inlining_arguments arguments t =
     inlining_state = Inlining_state.with_arguments arguments t.inlining_state
   }
 
+(* CR mshinwell/gbury: we might be dropping [Enter_inlined_apply] context here
+   when mixing code compiled in classic and Simplify modes *)
+
+let set_inlined_debuginfo t ~from =
+  { t with inlined_debuginfo = from.inlined_debuginfo }
+
+let merge_inlined_debuginfo t ~from_apply_expr =
+  { t with
+    inlined_debuginfo =
+      Inlined_debuginfo.merge t.inlined_debuginfo ~from_apply_expr
+  }
+
+let add_inlined_debuginfo t dbg =
+  Inlined_debuginfo.rewrite t.inlined_debuginfo dbg
+
 let enter_inlined_apply ~called_code ~apply ~was_inline_always t =
   let arguments =
     Inlining_state.arguments t.inlining_state
@@ -523,8 +547,12 @@ let enter_inlined_apply ~called_code ~apply ~was_inline_always t =
         in
         Inlining_state.increment_depth t.inlining_state ~by)
   in
+  let inlined_debuginfo =
+    Inlined_debuginfo.create ~called_code_id:(Code.code_id called_code)
+      ~apply_dbg:(Apply.dbg apply)
+  in
   { t with
-    inlined_debuginfo = Apply.dbg apply;
+    inlined_debuginfo;
     inlining_state;
     inlining_history_tracker =
       Inlining_history.Tracker.enter_inlined_apply

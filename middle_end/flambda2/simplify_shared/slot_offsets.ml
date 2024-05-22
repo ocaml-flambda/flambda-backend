@@ -190,13 +190,13 @@ module Layout = struct
        then the environment has not started yet (i.e. we have not seen any value
        slots). *)
     | Function_slot _ when offset = 0 ->
-      assert (acc_slots = []);
-      assert (startenv = None);
+      assert (match acc_slots with [] -> true | _ :: _ -> false);
+      assert (Option.is_none startenv);
       (* see comment above *)
       let acc_slots = [0, slot] in
       startenv, acc_slots
     | Function_slot _ ->
-      assert (startenv = None);
+      assert (Option.is_none startenv);
       (* see comment above *)
       let acc_slots =
         (offset, slot) :: (offset - 1, Infix_header) :: acc_slots
@@ -607,7 +607,8 @@ end = struct
            set.allocated_slots
 
   let add_slot_offset state slot offset =
-    assert (slot.pos = Unassigned);
+    assert (
+      match slot.pos with Unassigned -> true | Removed | Assigned _ -> false);
     slot.pos <- Assigned offset;
     List.iter (add_slot_offset_to_set slot) slot.sets;
     state.used_offsets
@@ -727,7 +728,7 @@ end = struct
         let module CM = Code_metadata in
         let is_tupled = CM.is_tupled code_metadata in
         let params_arity = CM.params_arity code_metadata in
-        let arity = Flambda_arity.cardinal params_arity in
+        let arity = Flambda_arity.num_params params_arity in
         if (arity = 0 || arity = 1) && not is_tupled then 2 else 3
       in
       let s = create_slot ~size (Function_slot function_slot) Unassigned in
@@ -873,10 +874,13 @@ end = struct
           | Region | Rec_info ->
             Misc.fatal_errorf "Value slot %a has Region or Rec_info kind"
               Value_slot.print value_slot
-          | Naked_number _ ->
+          | Naked_number
+              ( Naked_immediate | Naked_float | Naked_float32 | Naked_int32
+              | Naked_int64 | Naked_nativeint ) ->
             1, true
-            (* flambda only supports 64-bits for now, so naked numbers can only
-               be of size 1 *)
+          (* flambda2 only supports 64-bit targets for now, so naked numbers can
+             only be of size 1 *)
+          | Naked_number Naked_vec128 -> 2, true
           | Value -> (
             match[@ocaml.warning "-4"]
               Flambda_kind.With_subkind.subkind kind

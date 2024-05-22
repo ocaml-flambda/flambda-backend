@@ -36,14 +36,21 @@ let create_low_pc address_label =
   AV.create spec
     (V.code_address_from_label ~comment:"low PC value" address_label)
 
-let create_high_pc_offset offset =
-  match Targetint.repr offset with
-  | Int32 offset ->
-    let spec = AS.create High_pc Data4 in
-    AV.create spec (V.int32 ~comment:"high PC value as offset" offset)
-  | Int64 offset ->
-    let spec = AS.create High_pc Data8 in
-    AV.create spec (V.int64 ~comment:"high PC value as offset" offset)
+let create_low_pc_with_offset address_label ~offset_in_bytes =
+  let spec = AS.create Low_pc Addr in
+  AV.create spec
+    (V.code_address_from_label_plus_offset ~comment:"low PC value" address_label
+       ~offset_in_bytes)
+
+let create_high_pc_offset ~low_pc ~low_pc_offset_in_bytes ~high_pc
+    ~high_pc_offset_in_bytes =
+  assert (Targetint.size = 64);
+  let spec = AS.create High_pc Data8 in
+  AV.create spec
+    (V.distance_between_labels_64_bit_with_offsets ~upper:high_pc
+       ~upper_offset:high_pc_offset_in_bytes ~lower:low_pc
+       ~lower_offset:low_pc_offset_in_bytes ~comment:"high PC value as offset"
+       ())
 
 let create_high_pc ~low_pc high_pc =
   match Dwarf_arch_sizes.size_addr with
@@ -128,6 +135,24 @@ let create_decl_line line =
 
 let create_decl_column column =
   let spec = AS.create Decl_column Udata in
+  let column = Uint64.of_nonnegative_int_exn column in
+  AV.create spec (V.uleb128 ~comment:"column number" column)
+
+let create_call_file file =
+  let spec = AS.create Call_file Udata in
+  let file = Uint64.of_nonnegative_int_exn file in
+  AV.create spec (V.uleb128 ~comment:"file number" file)
+
+let create_call_line line =
+  let spec = AS.create Call_line Udata in
+  let line = Uint64.of_nonnegative_int_exn line in
+  AV.create spec (V.uleb128 ~comment:"line number" line)
+
+let create_call_column column =
+  (* CR mshinwell: Check whether "call_file", "call_line" and "call_column" are
+     indeed supported pre DWARF 5. The gdb manual suggests that they've been
+     around since DWARF 2. *)
+  let spec = AS.create Call_column Udata in
   let column = Uint64.of_nonnegative_int_exn column in
   AV.create spec (V.uleb128 ~comment:"column number" column)
 
@@ -259,6 +284,11 @@ let create_sibling ~proto_die = reference_proto_die Sibling proto_die
 
 let create_import ~proto_die = reference_proto_die Import proto_die
 
+let create_discr ~proto_die_reference:label =
+  let spec = AS.create Discr Ref_addr in
+  AV.create spec
+    (V.offset_into_debug_info ~comment:"reference to discriminant DIE" label)
+
 let create_type_from_reference ~proto_die_reference:label =
   let spec = AS.create Type Ref_addr in
   AV.create spec
@@ -273,13 +303,25 @@ let create_bit_size bit_size =
   let spec = AS.create Bit_size Data8 in
   AV.create spec (V.int64 ~comment:"bit size" bit_size)
 
-let create_data_member_location ~byte_offset =
+let create_data_member_location_offset ~byte_offset =
   let spec = AS.create Data_member_location Data8 in
   AV.create spec (V.int64 ~comment:"data member location" byte_offset)
+
+let create_data_member_location_description loc_desc =
+  let spec = AS.create Data_member_location Exprloc in
+  AV.create spec (V.single_location_description loc_desc)
+
+let create_data_bit_offset ~bit_offset =
+  let spec = AS.create Data_bit_offset Data1 in
+  AV.create spec (V.int8 ~comment:"data bit offset" bit_offset)
 
 let create_linkage_name ~linkage_name =
   let spec = AS.create Linkage_name Strp in
   AV.create spec (V.indirect_string ~comment:"linkage name" linkage_name)
+
+let create_const_value ~value =
+  let spec = AS.create Const_value Data8 in
+  AV.create spec (V.int64 value)
 
 let create_const_value_from_symbol ~symbol =
   match Targetint.size with
@@ -291,9 +333,17 @@ let create_const_value_from_symbol ~symbol =
     AV.create spec (V.symbol_64 symbol)
   | size -> Misc.fatal_errorf "Unknown Targetint.size %d" size
 
+let create_discr_value ~value =
+  let spec = AS.create Discr_value Data8 in
+  AV.create spec (V.int64 value)
+
 let create_addr_base label =
   let spec = AS.create Addr_base Sec_offset_addrptr in
   AV.create spec (V.offset_into_debug_addr label)
+
+let create_address_class ~value =
+  let spec = AS.create Address_class Data1 in
+  AV.create spec (V.int8 value)
 
 let create_loclists_base label =
   let spec = AS.create Loclists_base Sec_offset_loclistsptr in
@@ -334,6 +384,18 @@ let create_declaration () =
   AV.create spec
     (V.flag_true ~comment:"incomplete / non-defining declaration" ())
 
+let create_byte_stride ~bytes =
+  let spec = AS.create Byte_stride Data1 in
+  AV.create spec (V.int8 bytes)
+
+let create_count loc_desc =
+  let spec = AS.create Count Exprloc in
+  AV.create spec (V.single_location_description loc_desc)
+
+let create_count_const i =
+  let spec = AS.create Count Data8 in
+  AV.create spec (V.int64 i)
+
 let create_ocaml_compiler_version version =
   let spec = AS.create (Ocaml_specific Compiler_version) Strp in
   AV.create spec (V.indirect_string ~comment:"OCaml compiler version" version)
@@ -365,3 +427,7 @@ let create_ocaml_cmt_file_digest digest =
   let hex = Digest.to_hex digest in
   let spec = AS.create (Ocaml_specific Cmt_file_digest) Strp in
   AV.create spec (V.indirect_string ~comment:".cmt file digest" hex)
+
+let create_ocaml_offset_record_from_pointer ~value =
+  let spec = AS.create (Ocaml_specific Offset_record_from_pointer) Data8 in
+  AV.create spec (V.int64 value)

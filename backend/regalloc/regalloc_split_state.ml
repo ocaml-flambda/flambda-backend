@@ -43,6 +43,180 @@ let log_renaming_info : indent:int -> t -> unit =
         Printmach.regset regset)
     state.phi_at_beginning
 
+(* Optimizes `destructions_at_end` and `definitions_at_beginning`, by moving
+   definitions down and destructions up. Doing so create more opportunities for
+   `RemoveReloadSpillInSameBlock`, and reduces the live ranges of temporaries,
+   hence making things slightly easier for the register allocator. *)
+module MoveSpillsAndReloads : sig
+  val optimize :
+    Cfg_with_infos.t ->
+    destructions_at_end:destructions_at_end ->
+    definitions_at_beginning:definitions_at_beginning ->
+    destructions_at_end * definitions_at_beginning
+end = struct
+  (** A definition at the begin of a block can be moved down if:
+
+     - the block does neither raise nor end with a destruction point;
+     - the block has only one normal successor and no exceptional successor;
+     - the successor has only one predecessor;
+     - the block and its successor are different;
+     - the defined register has no occurrences in the block. *)
+  let move_definitions_at_beginning_down :
+      Cfg_with_infos.t ->
+      definitions_at_beginning:definitions_at_beginning ->
+      definitions_at_beginning * Label.t Stack.t =
+   fun cfg_with_infos ~definitions_at_beginning ->
+    if split_debug
+    then log ~indent:1 "MoveSpillsAndReloads.move_definitions_at_beginning_down";
+    let definitions_at_beginning = ref definitions_at_beginning in
+    let doms = Cfg_with_infos.dominators cfg_with_infos in
+    let stack = Stack.create () in
+    Cfg_dominators.iter_breadth_dominator_forest doms
+      ~f:(fun (label : Label.t) ->
+        Stack.push label stack;
+        let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
+        match Label.Map.find_opt label !definitions_at_beginning with
+        | None -> ()
+        | Some (definitions : Reg.Set.t) -> (
+          if Option.is_none (destruction_point_at_end block)
+             && Option.is_none block.exn
+          then
+            let successor_labels =
+              Cfg.successor_labels ~normal:true ~exn:false block
+            in
+            match Label.Set.cardinal successor_labels with
+            | 1 ->
+              let successor_label = Label.Set.choose successor_labels in
+              let successor_block =
+                Cfg.get_block_exn
+                  (Cfg_with_infos.cfg cfg_with_infos)
+                  successor_label
+              in
+              if (not (Label.equal label successor_label))
+                 && Label.Set.cardinal successor_block.predecessors = 1
+              then
+                let to_move : Reg.Set.t =
+                  (* CR-soon xclerc for xclerc: consider ignoring `res` to speed
+                     up the check. *)
+                  Reg.Set.filter
+                    (fun (reg : Reg.t) ->
+                      let occurs = occurs_block block reg in
+                      not occurs)
+                    definitions
+                in
+                if not (Reg.Set.is_empty to_move)
+                then (
+                  if split_debug
+                  then
+                    log ~indent:2 "moving %a from block %d to block %d"
+                      Printmach.regset to_move label successor_label;
+                  definitions_at_beginning
+                    := Label.Map.update label
+                         (function
+                           | None -> assert false
+                           | Some set -> Some (Reg.Set.diff set to_move))
+                         !definitions_at_beginning;
+                  definitions_at_beginning
+                    := Label.Map.update successor_label
+                         (function
+                           | None -> Some to_move
+                           | Some set -> Some (Reg.Set.union set to_move))
+                         !definitions_at_beginning)
+            | _ -> ()));
+    !definitions_at_beginning, stack
+
+  (** A destruction at the end of a block can be move up if:
+
+      - the block is not a trap handler;
+      - the block has only one predecessor;
+      - the predecessor has only one (normal) successor;
+      - the predecessor does neither raise nor end with a destruction point;
+      - the block and the predecessor are different;
+      - the destroyed register has no occurrences in the block
+        (including definitions). *)
+  let move_destructions_at_end_up :
+      Cfg_with_infos.t ->
+      Label.t Stack.t ->
+      definitions_at_beginning:definitions_at_beginning ->
+      destructions_at_end:destructions_at_end ->
+      destructions_at_end =
+   fun cfg_with_infos stack ~definitions_at_beginning ~destructions_at_end ->
+    if split_debug
+    then log ~indent:1 "MoveSpillsAndReloads.move_destructions_at_end_up";
+    let destructions_at_end = ref destructions_at_end in
+    while not (Stack.is_empty stack) do
+      let label = Stack.pop stack in
+      let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
+      match Label.Map.find_opt label !destructions_at_end with
+      | None -> ()
+      | Some (destruction_kind, destructions) ->
+        if (not block.is_trap_handler)
+           && Label.Set.cardinal block.predecessors = 1
+        then
+          let predecessor_label = Label.Set.choose block.predecessors in
+          let predecessor_block =
+            Cfg.get_block_exn
+              (Cfg_with_infos.cfg cfg_with_infos)
+              predecessor_label
+          in
+          if (not (Label.equal label predecessor_label))
+             && Option.is_none predecessor_block.exn
+             && Option.is_none (destruction_point_at_end predecessor_block)
+             && Label.Set.cardinal
+                  (Cfg.successor_labels ~normal:true ~exn:false
+                     predecessor_block)
+                = 1
+          then
+            let to_move : Reg.Set.t =
+              Reg.Set.filter
+                (fun (reg : Reg.t) ->
+                  (* CR-soon xclerc for xclerc: consider ignoring `arg` to speed
+                     up the check. *)
+                  let occurs_block = occurs_block block reg in
+                  let occurs_defs =
+                    match Label.Map.find_opt label definitions_at_beginning with
+                    | None -> false
+                    | Some defs -> Reg.Set.mem reg defs
+                  in
+                  not (occurs_block || occurs_defs))
+                destructions
+            in
+            if not (Reg.Set.is_empty to_move)
+            then (
+              if split_debug
+              then
+                log ~indent:2 "moving %a from block %d to block %d"
+                  Printmach.regset to_move label predecessor_label;
+              destructions_at_end
+                := Label.Map.update label
+                     (function
+                       | None -> assert false
+                       | Some (destruction_kind, set) ->
+                         Some (destruction_kind, Reg.Set.diff set to_move))
+                     !destructions_at_end;
+              destructions_at_end
+                := Label.Map.update predecessor_label
+                     (function
+                       | None -> Some (destruction_kind, to_move)
+                       | Some (destruction_kind, set) ->
+                         Some (destruction_kind, Reg.Set.union set to_move))
+                     !destructions_at_end)
+    done;
+    !destructions_at_end
+
+  let optimize cfg_with_infos ~destructions_at_end ~definitions_at_beginning =
+    if split_debug then log ~indent:0 "MoveSpillsAndReloads.optimize";
+    let definitions_at_beginning, stack =
+      move_definitions_at_beginning_down cfg_with_infos
+        ~definitions_at_beginning
+    in
+    let destructions_at_end =
+      move_destructions_at_end_up cfg_with_infos stack ~definitions_at_beginning
+        ~destructions_at_end
+    in
+    destructions_at_end, definitions_at_beginning
+end
+
 (* Optimizes `destructions_at_end` and `definitions_at_beginning`, by deleting
    registers that appear in both for a given block if the registers are not used
    in said block. *)
@@ -160,8 +334,8 @@ end = struct
                         if split_debug && Lazy.force split_invariants
                         then
                           if not
-                               (Cfg_dominators.is_strictly_dominating
-                                  doms.dominators spilled_at tree.label)
+                               (Cfg_dominators.is_strictly_dominating doms
+                                  spilled_at tree.label)
                           then fatal "inconsistent dominator tree";
                         if split_debug
                         then
@@ -229,8 +403,11 @@ end = struct
           log ~indent:2 "%a ~> %s" Printmach.reg reg (string_of_set num_set))
         num_sets);
     let doms = Cfg_with_infos.dominators cfg_with_infos in
-    remove_dominated_spills doms doms.Cfg_dominators.dominator_tree ~num_sets
-      ~already_spilled:Reg.Map.empty ~destructions_at_end
+    let forest = Cfg_dominators.dominator_forest doms in
+    List.fold_left forest ~init:destructions_at_end
+      ~f:(fun destructions_at_end dominator_tree ->
+        remove_dominated_spills doms dominator_tree ~num_sets
+          ~already_spilled:Reg.Map.empty ~destructions_at_end)
 end
 
 let add_destruction_point_at_end :
@@ -346,14 +523,7 @@ let add_phis :
  fun cfg_with_infos destruction_label destroyed_regs phi_at_beginning ->
   let doms = Cfg_with_infos.dominators cfg_with_infos in
   let destruction_frontier =
-    match
-      Label.Map.find_opt destruction_label
-        doms.Cfg_dominators.dominance_frontiers
-    with
-    | None ->
-      fatal "Regalloc_split_state.add_phis: no dominance frontier for block %d"
-        destruction_label
-    | Some frontier -> frontier
+    Cfg_dominators.find_dominance_frontier doms destruction_label
   in
   Label.Set.fold
     (fun destruction_frontier_label phi_at_beginning ->
@@ -382,13 +552,7 @@ let rec fix_point_phi : Cfg_with_infos.t -> phi_at_beginning -> phi_at_beginning
   Label.Map.iter
     (fun label regset ->
       let frontier : Label.Set.t =
-        match Label.Map.find_opt label doms.dominance_frontiers with
-        | None ->
-          fatal
-            "Regalloc_split_state.fix_point_phi: no dominance frontier for \
-             block %d"
-            label
-        | Some f -> f
+        Cfg_dominators.find_dominance_frontier doms label
       in
       Label.Set.iter
         (fun flab ->
@@ -443,13 +607,18 @@ let compute_phis :
   let phi_at_beginning = fix_point_phi cfg_with_infos phi_at_beginning in
   phi_at_beginning
 
+let[@inline] remove_empty_sets (map : 'a Label.Map.t) ~(f : 'a -> Reg.Set.t) :
+    'a Label.Map.t =
+  Label.Map.filter (fun _ data -> not (Reg.Set.is_empty (f data))) map
+
 let make cfg_with_infos ~next_instruction_id =
   let destructions_at_end = compute_destructions cfg_with_infos in
   let definitions_at_beginning =
     compute_definitions cfg_with_infos ~destructions_at_end
   in
-  let phi_at_beginning =
-    compute_phis cfg_with_infos ~destructions_at_end ~definitions_at_beginning
+  let destructions_at_end, definitions_at_beginning =
+    MoveSpillsAndReloads.optimize cfg_with_infos ~destructions_at_end
+      ~definitions_at_beginning
   in
   let destructions_at_end, definitions_at_beginning =
     RemoveReloadSpillInSameBlock.optimize cfg_with_infos ~destructions_at_end
@@ -458,6 +627,13 @@ let make cfg_with_infos ~next_instruction_id =
   let destructions_at_end =
     RemoveDominatedSpillsForConstants.optimize cfg_with_infos
       ~destructions_at_end
+  in
+  let definitions_at_beginning =
+    remove_empty_sets definitions_at_beginning ~f:Fun.id
+  in
+  let destructions_at_end = remove_empty_sets destructions_at_end ~f:snd in
+  let phi_at_beginning =
+    compute_phis cfg_with_infos ~destructions_at_end ~definitions_at_beginning
   in
   let stack_slots = Regalloc_stack_slots.make () in
   { destructions_at_end;

@@ -35,7 +35,7 @@ type cont =
       { handler_params : Bound_parameters.t;
         handler_params_occurrences : Num_occurrences.t Variable.Map.t;
         handler_body : Flambda.Expr.t;
-        handler_body_inlined_debuginfo : Debuginfo.t
+        handler_body_inlined_debuginfo : Inlined_debuginfo.t
       }
 
 type extra_info = Untag of Cmm.expression
@@ -131,7 +131,7 @@ type t =
        This is relative to the flambda expression being currently translated,
        i.e. either the unit initialization code, or the body of a function. This
        information is reset when entering a new function. *)
-    inlined_debuginfo : Debuginfo.t;
+    inlined_debuginfo : Inlined_debuginfo.t;
     (* Debuginfo corresponding to inlined functions. *)
     return_continuation : Continuation.t;
     (* The (non-exceptional) return continuation of the current context (used to
@@ -238,7 +238,7 @@ let create offsets functions_info ~trans_prim ~return_continuation
     offsets;
     functions_info;
     trans_prim;
-    inlined_debuginfo = Debuginfo.none;
+    inlined_debuginfo = Inlined_debuginfo.none;
     stages = [];
     bindings = Variable.Map.empty;
     inline_once_aliases = Variable.Map.empty;
@@ -255,13 +255,20 @@ let enter_function_body env ~return_continuation ~exn_continuation =
 
 (* Debuginfo *)
 
-let enter_inlined_apply t dbg =
-  let inlined_debuginfo = Debuginfo.inline t.inlined_debuginfo dbg in
-  { t with inlined_debuginfo }
+let enter_inlined_apply t new_inlined_debuginfo =
+  { t with
+    inlined_debuginfo =
+      Inlined_debuginfo.merge t.inlined_debuginfo
+        ~from_apply_expr:new_inlined_debuginfo
+  }
 
 let set_inlined_debuginfo t inlined_debuginfo = { t with inlined_debuginfo }
 
-let add_inlined_debuginfo t dbg = Debuginfo.inline t.inlined_debuginfo dbg
+let add_inlined_debuginfo t dbg =
+  Inlined_debuginfo.rewrite t.inlined_debuginfo dbg
+
+let currently_in_inlined_body t =
+  not (Inlined_debuginfo.is_none t.inlined_debuginfo)
 
 (* Continuations *)
 
@@ -372,7 +379,7 @@ let add_exn_handler env k arity =
   let env =
     { env with exn_handlers = Continuation.Set.add k env.exn_handlers }
   in
-  match Flambda_arity.to_list arity with
+  match Flambda_arity.unarized_components arity with
   | [] -> Misc.fatal_error "Exception handlers must have at least one parameter"
   | [_] -> env, []
   | _ :: extra_args ->
@@ -406,12 +413,11 @@ let splittable_primitive dbg prim args = Splittable_prim { dbg; prim; args }
 
 let is_cmm_simple cmm =
   match (cmm : Cmm.expression) with
-  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_vec128 _
-  | Cconst_symbol _ | Cvar _ ->
+  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ ->
     true
   | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Cop _
-  | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _
-  | Cregion _ | Ctail _ ->
+  | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ ->
     false
 
 (* Helper function to create bindings *)

@@ -29,9 +29,18 @@ let pretty_const c = match c with
 | Const_char c -> Printf.sprintf "%C" c
 | Const_string (s, _, _) -> Printf.sprintf "%S" s
 | Const_float f -> Printf.sprintf "%s" f
+| Const_float32 f -> Printf.sprintf "%s" f
+| Const_unboxed_float f -> Printf.sprintf "%s" (Misc.format_as_unboxed_literal f)
+| Const_unboxed_float32 f -> Printf.sprintf "%ss" (Misc.format_as_unboxed_literal f)
 | Const_int32 i -> Printf.sprintf "%ldl" i
 | Const_int64 i -> Printf.sprintf "%LdL" i
 | Const_nativeint i -> Printf.sprintf "%ndn" i
+| Const_unboxed_int32 i ->
+  Printf.sprintf "%sl" (Misc.format_as_unboxed_literal (Int32.to_string i))
+| Const_unboxed_int64 i ->
+  Printf.sprintf "%sL" (Misc.format_as_unboxed_literal (Int64.to_string i))
+| Const_unboxed_nativeint i ->
+  Printf.sprintf "%sn" (Misc.format_as_unboxed_literal (Nativeint.to_string i))
 
 let pretty_extra ppf (cstr, _loc, _attrs) pretty_rest rest =
   match cstr with
@@ -52,10 +61,10 @@ let rec pretty_val : type k . _ -> k general_pattern -> _ = fun ppf v ->
     | [] ->
   match v.pat_desc with
   | Tpat_any -> fprintf ppf "_"
-  | Tpat_var (x,_,_) -> fprintf ppf "%s" (Ident.name x)
+  | Tpat_var (x,_,_,_) -> fprintf ppf "%s" (Ident.name x)
   | Tpat_constant c -> fprintf ppf "%s" (pretty_const c)
   | Tpat_tuple vs ->
-      fprintf ppf "@[(%a)@]" (pretty_vals ",") vs
+      fprintf ppf "@[(%a)@]" (pretty_list pretty_labeled_val ",") vs
   | Tpat_construct (_, cstr, [], _) ->
       fprintf ppf "%s" cstr.cstr_name
   | Tpat_construct (_, cstr, [w], None) ->
@@ -94,15 +103,12 @@ let rec pretty_val : type k . _ -> k general_pattern -> _ = fun ppf v ->
           fprintf ppf "@[{%a%t}@]"
             pretty_lvals filtered_lvs elision_mark
       end
-  | Tpat_array (am, vs) ->
-      let punct = match am with
-        | Mutable   -> '|'
-        | Immutable -> ':'
-      in
+  | Tpat_array (am, _arg_sort, vs) ->
+      let punct = if Types.is_mutable am then '|' else ':' in
       fprintf ppf "@[[%c %a %c]@]" punct (pretty_vals " ;") vs punct
   | Tpat_lazy v ->
       fprintf ppf "@[<2>lazy@ %a@]" pretty_arg v
-  | Tpat_alias (v, x, _, _) ->
+  | Tpat_alias (v, x, _, _, _) ->
       fprintf ppf "@[(%a@ as %a)@]" pretty_val v Ident.print x
   | Tpat_value v ->
       fprintf ppf "%a" pretty_val (v :> pattern)
@@ -134,11 +140,22 @@ and pretty_or : type k . _ -> k general_pattern -> _ = fun ppf v ->
       fprintf ppf "%a|@,%a" pretty_or v pretty_or w
   | _ -> pretty_val ppf v
 
-and pretty_vals sep ppf = function
-  | [] -> ()
-  | [v] -> pretty_val ppf v
-  | v::vs ->
-      fprintf ppf "%a%s@ %a" pretty_val v sep (pretty_vals sep) vs
+and pretty_list : type k . (_ -> k -> _) -> _ -> _ -> k list -> _ =
+  fun print_val sep ppf ->
+    function
+    | [] -> ()
+    | [v] -> print_val ppf v
+    | v::vs ->
+        fprintf ppf "%a%s@ %a" print_val v sep (pretty_list print_val sep) vs
+
+and pretty_vals sep = pretty_list pretty_val sep
+
+and pretty_labeled_val ppf (l, p) =
+  begin match l with
+  | Some s -> fprintf ppf "~%s:" s
+  | None -> ()
+  end;
+  pretty_val ppf p
 
 and pretty_lvals ppf = function
   | [] -> ()

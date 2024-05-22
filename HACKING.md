@@ -11,12 +11,13 @@ want to modify the Flambda backend.  Jump to:
 - [Running tests](#running-tests)
 - [Running only part of the upstream testsuite](#running-only-part-of-the-upstream-testsuite)
 - [Running tests with coverage analysis](#running-tests-with-coverage-analysis)
-- [Running the compiler produced by "make hacking" on an example without the
-  stdlib](#running-the-compiler-produced-by-make-hacking-on-an-example-without-the-stdlib)
-- [Using the ocaml debugger to debug the compiler](#using-the-ocaml-debugger-to-debug-the-compiler)
+- [Running the compiler produced by "make hacking" on an example without the stdlib](#running-the-compiler-produced-by-make-hacking-on-an-example-without-the-stdlib)
+- [Using the OCaml debugger to debug the compiler](#using-the-ocaml-debugger-to-debug-the-compiler)
+  - [Alternative debugger workflow](#alternative-debugger-workflow)
 - [Getting the compilation command for a stdlib file](#getting-the-compilation-command-for-a-stdlib-file)
 - [Bootstrapping the ocaml subtree](#bootstrapping-the-ocaml-subtree)
-- [Testing the compiler built locally with OPAM](#testing-the-compiler-built-locally-with-opam)
+- [Testing the compiler built locally with OPAM (new method)](#testing-the-compiler-built-locally-with-opam-new-method)
+- [Testing the compiler built locally with OPAM (old method)](#testing-the-compiler-built-locally-with-opam-old-method)
 - [Pulling changes onto a release branch](#pulling-changes-onto-a-release-branch)
 - [Rebasing to a new major version of the upstream compiler](#rebasing-to-a-new-major-version-of-the-upstream-compiler)
 - [How to add a new intrinsic to the compiler](#how-to-add-a-new-intrinsic-to-the-compiler)
@@ -92,8 +93,10 @@ Depending on the initial changes, it might be necessary to do this multiple time
 ## Rebuilding during dev work
 
 To rebuild after making changes, you can just type `make`. You need to
-have a working OCaml 4.14 compiler on your PATH before doing so,
-e.g. installed via OPAM.
+have a working OCaml 4.14 or 4.14.1 compiler on your PATH before doing so,
+e.g. installed via OPAM. You also need to have dune and menhir.
+
+`menhir` should be pinned to a specific version: `opam pin add menhir 20210419`.
 
 There is a special target `make hacking` which starts Dune in polling mode.  The rebuild
 performed here is equivalent to `make ocamlopt` in the upstream distribution: it rebuilds the
@@ -206,21 +209,23 @@ something like:
 
 ## Using the OCaml debugger to debug the compiler
 
-First, run `make debug`. This completes three steps:
+First, run `make debug`. This completes four steps:
 
 1. `make install`
 2. Sets up the `ocaml/tools/debug_printers` script so that you can `source
    ocaml/tools/debug_printers` during a debugging session to see
-   otherwise-abstract variable values.  This script is automatically loaded by
-   the debugger due to the `.ocamldebug` file at the root of the compiler repo.
+   otherwise-abstract variable values.
 3. Symlinks `./ocamlc` and `./ocamlopt` to point to the bytecode versions of
    those compilers. This is convenient for emacs integration, because emacs
    looks for sources starting in the directory containing the executable.
+4. Creates a `.ocamldebug` file to automatically load the right search path
+   and the `debug_printers` set up above.
 
 Then it's time to run the debugger itself.  The recommended workflow is to add
 the elisp below to your emacs init file, and then use the command
 `ocamldebug-ocamlc` to debug `ocamlc` or the command `ocamldebug-ocamlopt` to
-debug `ocamlopt`.
+debug `ocamlopt`. Running your built `ocamldebug` file on `ocamlc` or `ocamlopt`
+should also work, if you wish to work outside emacs.
 
 ```
 ;; directly inspired by the ocamldebug implementation in ocamldebug.el
@@ -243,6 +248,9 @@ debug `ocamlopt`.
       (setq ocamldebug-debuggee-args
             (read-from-minibuffer (format "Args for ocamlc: ")
                                   ocamldebug-debuggee-args))
+      ;; In addition to the directories in .ocamldebug, use 'find' to
+      ;; see also list directories with -I; this finds any new cmo directories
+      ;; since the last 'make debug'
       (let* ((cmo-top-dir (file-name-concat ocaml-dir "_build/main"))
              (find-cmo-cmd (concat "find "
                                    cmo-top-dir
@@ -332,7 +340,16 @@ go into `ocaml/`, then run the upstream configure script.  After that perform th
 `make core` followed by `make bootstrap`).  Before recompiling the Flambda backend as normal it would
 be advisable to clean the whole tree again.
 
-## Testing the compiler built locally with OPAM
+## Testing the compiler built locally with OPAM (new method)
+
+This is still under development, but should work!
+```shell
+opam repo add flambda-backend git+https://github.com/chambart/opam-repository-js.git#with-extensions
+opam switch create 5.1.1+flambda2 --repos flambda-backend,default
+eval $(opam env --switch=5.1.1+flambda2)
+```
+
+## Testing the compiler built locally with OPAM (old method)
 
 It is possible to create a OPAM switch with the Flambda backend compiler.
 
@@ -353,7 +370,8 @@ thoroughly (e.g. `git clean -dfX`) before reconfiguring with a different prefix.
 
 Then build the compiler with the command `make _install` (this is the default
 target plus some setup in preparation for installation). As usual when building,
-a 4.14 compiler (and dune) need to be in the path.
+a 4.14 compiler (and dune and menhir) need to be in the path. See the warning above
+about the version of menhir to use.
 
 Now the build part is done, we don't need to stay in the build environment
 anymore; the switch creation will likely replace it if your terminal is setup

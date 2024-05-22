@@ -17,6 +17,13 @@ open Cmm
 open Cmm_helpers
 open Arch
 
+type error = Bad_immediate of string
+
+exception Error of error
+
+let bad_immediate fmt =
+  Format.kasprintf (fun msg -> raise (Error (Bad_immediate msg))) fmt
+
 let four_args name args =
   match args with
   | [arg1; arg2; arg3; arg4] -> arg1, arg2, arg3, arg4
@@ -95,7 +102,7 @@ let mulhi bi ~signed args dbg =
 
 let ext_pointer_load chunk name args dbg =
   let p = int_as_pointer (one_arg name args) dbg in
-  Some (Cop (Cload (chunk, Mutable), [p], dbg))
+  Some (Cop (mk_load_mut chunk, [p], dbg))
 
 let ext_pointer_store chunk name args dbg =
   let arg1, arg2 = two_args name args in
@@ -110,7 +117,7 @@ let bigstring_prefetch ~is_write locality args dbg =
       bind "index" arg2 (fun idx ->
           bind "ba" arg1 (fun ba ->
               bind "ba_data"
-                (Cop (Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
+                (Cop (mk_load_mut Word_int, [field_address ba 1 dbg], dbg))
                 (fun ba_data ->
                   (* pointer to element "idx" of "ba" of type (char,
                      int8_unsigned_elt, c_layout) Bigarray.Array1.t is simply
@@ -151,9 +158,7 @@ let bigstring_cas size (arg1, arg2, arg3, arg4) dbg =
                   bind "bs" arg1 (fun bs ->
                       bind "bs_data"
                         (Cop
-                           ( Cload (Word_int, Mutable),
-                             [field_address bs 1 dbg],
-                             dbg ))
+                           (mk_load_mut Word_int, [field_address bs 1 dbg], dbg))
                         (fun bs_data ->
                           bind "dst" (add_int bs_data idx dbg) (fun dst ->
                               tag_int
@@ -182,14 +187,211 @@ let bigstring_atomic_add size (arg1, arg2, arg3) dbg =
           bind "idx" arg2 (fun idx ->
               bind "bs" arg1 (fun bs ->
                   bind "bs_data"
-                    (Cop
-                       (Cload (Word_int, Mutable), [field_address bs 1 dbg], dbg))
+                    (Cop (mk_load_mut Word_int, [field_address bs 1 dbg], dbg))
                     (fun bs_data ->
                       bind "dst" (add_int bs_data idx dbg) (fun dst ->
                           Cop (op, [src; dst], dbg)))))))
 
 let bigstring_atomic_sub size (arg1, arg2, arg3) dbg =
   bigstring_atomic_add size (arg1, arg2, neg_int arg3 dbg) dbg
+
+(* Assumes unboxed float64 *)
+let rec const_float_args n args name =
+  match n, args with
+  | 0, [] -> []
+  | n, Cconst_float (f, _) :: args -> f :: const_float_args (n - 1) args name
+  | _ -> bad_immediate "Did not find constant float arguments for %s" name
+
+(* Assumes untagged int or unboxed int32, always representable by int63 *)
+let rec const_int_args n args name =
+  match n, args with
+  | 0, [] -> []
+  | n, Cconst_int (i, _) :: args -> i :: const_int_args (n - 1) args name
+  | _ -> bad_immediate "Did not find constant int arguments for %s" name
+
+(* Assumes unboxed int64: no tag, comes as Cconst_int when representable by
+   int63, otherwise we get Cconst_natint *)
+let rec const_int64_args n args name =
+  match n, args with
+  | 0, [] -> []
+  | n, Cconst_int (i, _) :: args ->
+    Int64.of_int i :: const_int64_args (n - 1) args name
+  | n, Cconst_natint (i, _) :: args ->
+    Int64.of_nativeint i :: const_int64_args (n - 1) args name
+  | _ -> bad_immediate "Did not find constant int64 arguments for %s" name
+
+let int64_of_int8 i =
+  (* CR mslater: (SIMD) replace once we have unboxed int8 *)
+  if i < 0 || i > 0xff
+  then bad_immediate "Int8 constant not in range [0x0,0xff]: 0x%016x" i;
+  Int64.of_int i
+
+let int64_of_int16 i =
+  (* CR mslater: (SIMD) replace once we have unboxed int16 *)
+  if i < 0 || i > 0xffff
+  then bad_immediate "Int16 constant not in range [0x0,0xffff]: 0x%016x" i;
+  Int64.of_int i
+
+let int64_of_int32 i =
+  if i < Int32.to_int Int32.min_int || i > Int32.to_int Int32.max_int
+  then bad_immediate "Int32 constant not in range [0x0,0xffffffff]: 0x%016x" i;
+  Int64.of_int i |> Int64.logand 0xffffffffL
+
+let int64_of_float32 f =
+  (* CR mslater: (SIMD) replace once we have unboxed float32 *)
+  Int32.bits_of_float f |> Int64.of_int32 |> Int64.logand 0xffffffffL
+
+let pack_int32s i0 i1 = Int64.(logor (shift_left i1 32) i0)
+
+let pack_int16s i0 i1 i2 i3 =
+  Int64.(
+    logor
+      (logor (shift_left i3 48) (shift_left i2 32))
+      (logor (shift_left i1 16) i0))
+
+let pack_int8s i0 i1 i2 i3 i4 i5 i6 i7 =
+  Int64.(
+    logor
+      (logor
+         (logor (shift_left i7 56) (shift_left i6 48))
+         (logor (shift_left i5 40) (shift_left i4 32)))
+      (logor
+         (logor (shift_left i3 24) (shift_left i2 16))
+         (logor (shift_left i1 8) i0)))
+
+let transl_vec128_builtin name args dbg _typ_res =
+  match name with
+  (* Vector casts (no-ops) *)
+  | "caml_vec128_cast" ->
+    let op = Cvectorcast Bits128 in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  (* Scalar casts. These leave the top bits of the vector unspecified. *)
+  | "caml_float64x2_low_of_float" ->
+    let op = Cscalarcast (V128_of_scalar Float64x2) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_float64x2_low_to_float" ->
+    let op = Cscalarcast (V128_to_scalar Float64x2) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_float32x4_low_of_float" ->
+    (* CR mslater: (SIMD) replace once we have unboxed float32 *)
+    let op = Cscalarcast (V128_of_scalar Float32x4) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_float32x4_low_to_float" ->
+    (* CR mslater: (SIMD) replace once we have unboxed float32 *)
+    let op = Cscalarcast (V128_to_scalar Float32x4) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int64x2_low_of_int64" ->
+    let op = Cscalarcast (V128_of_scalar Int64x2) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int64x2_low_to_int64" ->
+    let op = Cscalarcast (V128_to_scalar Int64x2) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int32x4_low_of_int32" ->
+    let op = Cscalarcast (V128_of_scalar Int32x4) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int32x4_low_to_int32" ->
+    let op = Cscalarcast (V128_to_scalar Int32x4) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int16x8_low_of_int" ->
+    (* CR mslater: (SIMD) replace once we have unboxed int16 *)
+    let op = Cscalarcast (V128_of_scalar Int16x8) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int16x8_low_to_int" ->
+    (* CR mslater: (SIMD) replace once we have unboxed int16 *)
+    let op = Cscalarcast (V128_to_scalar Int16x8) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int8x16_low_of_int" ->
+    (* CR mslater: (SIMD) replace once we have unboxed int8 *)
+    let op = Cscalarcast (V128_of_scalar Int8x16) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int8x16_low_to_int" ->
+    (* CR mslater: (SIMD) replace once we have unboxed int8 *)
+    let op = Cscalarcast (V128_to_scalar Int8x16) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  (* Constants *)
+  | "caml_float32x4_const1" ->
+    (* CR mslater: (SIMD) replace once we have unboxed float32 *)
+    let f = const_float_args 1 args name |> List.hd in
+    let i = int64_of_float32 f in
+    let i = pack_int32s i i in
+    Some (Cconst_vec128 ({ low = i; high = i }, dbg))
+  | "caml_float32x4_const4" ->
+    (* CR mslater: (SIMD) replace once we have unboxed float32 *)
+    let i0, i1, i2, i3 =
+      match const_float_args 4 args name |> List.map int64_of_float32 with
+      | [i0; i1; i2; i3] -> i0, i1, i2, i3
+      | _ -> assert false
+    in
+    let low = pack_int32s i0 i1 in
+    let high = pack_int32s i2 i3 in
+    Some (Cconst_vec128 ({ low; high }, dbg))
+  | "caml_float64x2_const1" ->
+    let f = const_float_args 1 args name |> List.hd in
+    let i = Int64.bits_of_float f in
+    Some (Cconst_vec128 ({ low = i; high = i }, dbg))
+  | "caml_float64x2_const2" ->
+    let low, high =
+      match const_float_args 2 args name |> List.map Int64.bits_of_float with
+      | [f0; f1] -> f0, f1
+      | _ -> assert false
+    in
+    Some (Cconst_vec128 ({ low; high }, dbg))
+  | "caml_int64x2_const1" ->
+    let i = const_int64_args 1 args name |> List.hd in
+    Some (Cconst_vec128 ({ low = i; high = i }, dbg))
+  | "caml_int64x2_const2" ->
+    let low, high =
+      match const_int64_args 2 args name with
+      | [i0; i1] -> i0, i1
+      | _ -> assert false
+    in
+    Some (Cconst_vec128 ({ low; high }, dbg))
+  | "caml_int32x4_const1" ->
+    let i = const_int_args 1 args name |> List.hd |> int64_of_int32 in
+    let i = pack_int32s i i in
+    Some (Cconst_vec128 ({ low = i; high = i }, dbg))
+  | "caml_int32x4_const4" ->
+    let i0, i1, i2, i3 =
+      match const_int_args 4 args name |> List.map int64_of_int32 with
+      | [i0; i1; i2; i3] -> i0, i1, i2, i3
+      | _ -> assert false
+    in
+    let low = pack_int32s i0 i1 in
+    let high = pack_int32s i2 i3 in
+    Some (Cconst_vec128 ({ low; high }, dbg))
+  | "caml_int16x8_const1" ->
+    (* CR mslater: (SIMD) replace once we have unboxed int16 *)
+    let i = const_int_args 1 args name |> List.hd |> int64_of_int16 in
+    let i = pack_int16s i i i i in
+    Some (Cconst_vec128 ({ low = i; high = i }, dbg))
+  | "caml_int16x8_const8" ->
+    (* CR mslater: (SIMD) replace once we have unboxed int16 *)
+    let i0, i1, i2, i3, i4, i5, i6, i7 =
+      match const_int_args 8 args name |> List.map int64_of_int16 with
+      | [i0; i1; i2; i3; i4; i5; i6; i7] -> i0, i1, i2, i3, i4, i5, i6, i7
+      | _ -> assert false
+    in
+    let low = pack_int16s i0 i1 i2 i3 in
+    let high = pack_int16s i4 i5 i6 i7 in
+    Some (Cconst_vec128 ({ low; high }, dbg))
+  | "caml_int8x16_const1" ->
+    (* CR mslater: (SIMD) replace once we have unboxed int8 *)
+    let i = const_int_args 1 args name |> List.hd |> int64_of_int8 in
+    let i = pack_int8s i i i i i i i i in
+    Some (Cconst_vec128 ({ low = i; high = i }, dbg))
+  | "caml_int8x16_const16" ->
+    (* CR mslater: (SIMD) replace once we have unboxed int8 *)
+    let i0, i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15 =
+      match const_int_args 16 args name |> List.map int64_of_int8 with
+      | [i0; i1; i2; i3; i4; i5; i6; i7; i8; i9; i10; i11; i12; i13; i14; i15]
+        ->
+        i0, i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15
+      | _ -> assert false
+    in
+    let low = pack_int8s i0 i1 i2 i3 i4 i5 i6 i7 in
+    let high = pack_int8s i8 i9 i10 i11 i12 i13 i14 i15 in
+    Some (Cconst_vec128 ({ low; high }, dbg))
+  | _ -> None
 
 (** [transl_builtin prim args dbg] returns None if the built-in [prim] is not
   supported, otherwise it constructs and returns the corresponding Cmm
@@ -295,7 +497,14 @@ let transl_builtin name args dbg typ_res =
     let op = Ccsel typ_res in
     let cond, ifso, ifnot = three_args name args in
     if_operation_supported op ~f:(fun () ->
-        Cop (op, [test_bool dbg cond; ifso; ifnot], dbg))
+        (* Here is an example to show how csel is compiled:
+         *   (csel val (!= cond/306 1) ifso/304 ifnot/305))
+         * [test_bool] goes from a tagged to an untagged bool. *)
+        let cond = test_bool dbg cond in
+        match cond with
+        | Cconst_int (0, _) -> ifnot
+        | Cconst_int (1, _) -> ifso
+        | _ -> Cop (op, [cond; ifso; ifnot], dbg))
   (* Native_pointer: handled as unboxed nativeint *)
   | "caml_ext_pointer_as_native_pointer" ->
     Some (int_as_pointer (one_arg name args) dbg)
@@ -305,39 +514,39 @@ let transl_builtin name args dbg typ_res =
     Some (value_of_int (one_arg name args) dbg)
   | "caml_native_pointer_load_immediate"
   | "caml_native_pointer_load_unboxed_nativeint" ->
-    Some (Cop (Cload (Word_int, Mutable), args, dbg))
+    Some (Cop (mk_load_mut Word_int, args, dbg))
   | "caml_native_pointer_store_immediate"
   | "caml_native_pointer_store_unboxed_nativeint" ->
     Some (return_unit dbg (Cop (Cstore (Word_int, Assignment), args, dbg)))
   | "caml_native_pointer_load_unboxed_int64" when size_int = 8 ->
-    Some (Cop (Cload (Word_int, Mutable), args, dbg))
+    Some (Cop (mk_load_mut Word_int, args, dbg))
   | "caml_native_pointer_store_unboxed_int64" when size_int = 8 ->
     Some (return_unit dbg (Cop (Cstore (Word_int, Assignment), args, dbg)))
   | "caml_native_pointer_load_signed_int32"
   | "caml_native_pointer_load_unboxed_int32" ->
-    Some (Cop (Cload (Thirtytwo_signed, Mutable), args, dbg))
+    Some (Cop (mk_load_mut Thirtytwo_signed, args, dbg))
   | "caml_native_pointer_store_signed_int32"
   | "caml_native_pointer_store_unboxed_int32" ->
     Some
       (return_unit dbg (Cop (Cstore (Thirtytwo_signed, Assignment), args, dbg)))
   | "caml_native_pointer_load_unsigned_int32" ->
-    Some (Cop (Cload (Thirtytwo_unsigned, Mutable), args, dbg))
+    Some (Cop (mk_load_mut Thirtytwo_unsigned, args, dbg))
   | "caml_native_pointer_store_unsigned_int32" ->
     Some
       (return_unit dbg
          (Cop (Cstore (Thirtytwo_unsigned, Assignment), args, dbg)))
   | "caml_native_pointer_load_unboxed_float" ->
-    Some (Cop (Cload (Double, Mutable), args, dbg))
+    Some (Cop (mk_load_mut Double, args, dbg))
   | "caml_native_pointer_store_unboxed_float" ->
     Some (return_unit dbg (Cop (Cstore (Double, Assignment), args, dbg)))
   | "caml_native_pointer_load_unsigned_int8" ->
-    Some (Cop (Cload (Byte_unsigned, Mutable), args, dbg))
+    Some (Cop (mk_load_mut Byte_unsigned, args, dbg))
   | "caml_native_pointer_load_signed_int8" ->
-    Some (Cop (Cload (Byte_signed, Mutable), args, dbg))
+    Some (Cop (mk_load_mut Byte_signed, args, dbg))
   | "caml_native_pointer_load_unsigned_int16" ->
-    Some (Cop (Cload (Sixteen_unsigned, Mutable), args, dbg))
+    Some (Cop (mk_load_mut Sixteen_unsigned, args, dbg))
   | "caml_native_pointer_load_signed_int16" ->
-    Some (Cop (Cload (Sixteen_signed, Mutable), args, dbg))
+    Some (Cop (mk_load_mut Sixteen_signed, args, dbg))
   | "caml_native_pointer_store_unsigned_int8" ->
     Some (return_unit dbg (Cop (Cstore (Byte_unsigned, Assignment), args, dbg)))
   | "caml_native_pointer_store_signed_int8" ->
@@ -521,42 +730,10 @@ let transl_builtin name args dbg typ_res =
     bigstring_cas Sixtyfour (four_args name args) dbg
   | "caml_bigstring_compare_and_swap_int32_unboxed" ->
     bigstring_cas Thirtytwo (four_args name args) dbg
-  | _ -> None
+  | _ -> transl_vec128_builtin name args dbg typ_res
 
-let transl_effects (e : Primitive.effects) : Cmm.effects =
-  match e with
-  | No_effects -> No_effects
-  | Only_generative_effects | Arbitrary_effects -> Arbitrary_effects
-
-let transl_coeffects (ce : Primitive.coeffects) : Cmm.coeffects =
-  match ce with No_coeffects -> No_coeffects | Has_coeffects -> Has_coeffects
-
-(* [cextcall] is called from [Cmmgen.transl_ccall] *)
-let cextcall (prim : Primitive.description) args dbg ret ty_args returns =
-  let name = Primitive.native_name prim in
-  let default =
-    Cop
-      ( Cextcall
-          { func = name;
-            ty = ret;
-            builtin = prim.prim_c_builtin;
-            effects = transl_effects prim.prim_effects;
-            coeffects = transl_coeffects prim.prim_coeffects;
-            alloc = prim.prim_alloc;
-            returns;
-            ty_args
-          },
-        args,
-        dbg )
-  in
-  if prim.prim_c_builtin
-  then
-    match transl_builtin name args dbg ret with
-    | Some op -> op
-    | None -> default
-  else default
-
-let extcall ~dbg ~returns ~alloc ~is_c_builtin ~ty_args name typ_res args =
+let extcall ~dbg ~returns ~alloc ~is_c_builtin ~effects ~coeffects ~ty_args name
+    typ_res args =
   if not returns then assert (typ_res = typ_void);
   let default =
     Cop
@@ -567,8 +744,8 @@ let extcall ~dbg ~returns ~alloc ~is_c_builtin ~ty_args name typ_res args =
             ty_args;
             returns;
             builtin = is_c_builtin;
-            effects = Arbitrary_effects;
-            coeffects = Has_coeffects
+            effects;
+            coeffects
           },
         args,
         dbg )
@@ -579,3 +756,11 @@ let extcall ~dbg ~returns ~alloc ~is_c_builtin ~ty_args name typ_res args =
     | Some op -> op
     | None -> default
   else default
+
+let report_error ppf = function
+  | Bad_immediate msg -> Format.pp_print_string ppf msg
+
+let () =
+  Location.register_error_of_exn (function
+    | Error err -> Some (Location.error_of_printer_file report_error err)
+    | _ -> None)

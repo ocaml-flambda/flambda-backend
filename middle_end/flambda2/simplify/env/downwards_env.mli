@@ -147,11 +147,11 @@ val mem_code : t -> Code_id.t -> bool
 (** This function raises if the code ID is unbound. *)
 val find_code_exn : t -> Code_id.t -> Code_or_metadata.t
 
-val set_inlined_debuginfo : t -> Debuginfo.t -> t
+val set_inlined_debuginfo : t -> from:t -> t
+
+val merge_inlined_debuginfo : t -> from_apply_expr:Inlined_debuginfo.t -> t
 
 val add_inlined_debuginfo : t -> Debuginfo.t -> Debuginfo.t
-
-val get_inlined_debuginfo : t -> Debuginfo.t
 
 val round : t -> int
 
@@ -166,7 +166,11 @@ val add_cse :
 
 val find_cse : t -> Flambda_primitive.Eligible_for_cse.t -> Simple.t option
 
+val find_comparison_result : t -> Variable.t -> Comparison_result.t option
+
 val cse : t -> Common_subexpression_elimination.t
+
+val comparison_results : t -> Comparison_result.t Variable.Map.t
 
 val with_cse : t -> Common_subexpression_elimination.t -> t
 

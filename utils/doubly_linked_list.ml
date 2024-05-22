@@ -1,7 +1,7 @@
 type 'a node =
   | Empty
   | Node of
-      { value : 'a;
+      { mutable value : 'a;
         mutable prev : 'a node;
         mutable next : 'a node
       }
@@ -71,6 +71,13 @@ let value cell =
     (* internal invariant: cell's nodes are not empty *)
     assert false
   | Node node -> node.value
+
+let set_value cell v =
+  match cell.node with
+  | Empty ->
+    (* internal invariant: cell's nodes are not empty *)
+    assert false
+  | Node node -> node.value <- v
 
 let prev cell =
   match cell.node with
@@ -184,7 +191,7 @@ let delete_before cell =
     | Empty ->
       (* convention: cannot delete_before the first element in the list *)
       assert false
-    | Node prev_cell_node -> delete_curr { node = cell_node.prev; t = cell.t })
+    | Node _prev_cell_node -> delete_curr { node = cell_node.prev; t = cell.t })
 
 let delete_after cell =
   match cell.node with
@@ -196,7 +203,7 @@ let delete_after cell =
     | Empty ->
       (* convention: cannot delete_after the last element in the list *)
       assert false
-    | Node next_cell_node -> delete_curr { node = cell_node.next; t = cell.t })
+    | Node _next_cell_node -> delete_curr { node = cell_node.next; t = cell.t })
 
 let remove_first : 'a t -> f:('a -> bool) -> unit =
  fun t ~f ->

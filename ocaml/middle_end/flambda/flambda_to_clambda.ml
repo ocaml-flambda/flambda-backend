@@ -79,7 +79,7 @@ let check_closure t ulam named : Clambda.ulambda =
   if not !Clflags.clambda_checks then ulam
   else
     let desc =
-      Primitive.simple_on_values ~name:"caml_check_value_is_closure"
+      Lambda.simple_prim_on_values ~name:"caml_check_value_is_closure"
         ~arity:2 ~alloc:false
     in
     let str = Format.asprintf "%a" Flambda.print_named named in
@@ -108,7 +108,7 @@ let check_field t ulam pos named_opt : Clambda.ulambda =
   if not !Clflags.clambda_checks then ulam
   else
     let desc =
-      Primitive.simple_on_values ~name:"caml_check_field_access"
+      Lambda.simple_prim_on_values ~name:"caml_check_field_access"
         ~arity:3 ~alloc:false
     in
     let str =
@@ -258,22 +258,6 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda * Lambda.layout =
     assert(Lambda.compatible_layout def_layout contents_kind);
     let body, body_layout = to_clambda t env_body body in
     Ulet (Mutable, contents_kind, VP.create id, def, body), body_layout
-  | Let_rec (defs, body) ->
-    let env, defs =
-      List.fold_right (fun (var, def) (env, defs) ->
-          let id, env = Env.add_fresh_ident env var Lambda.layout_letrec in
-          env, (id, var, def) :: defs)
-        defs (env, [])
-    in
-    let defs =
-      List.map (fun (id, var, def) ->
-          let def, def_layout = to_clambda_named t env var def in
-          assert(Lambda.compatible_layout def_layout Lambda.layout_letrec);
-          VP.create id, def)
-        defs
-    in
-    let body, body_layout = to_clambda t env body in
-    Uletrec (defs, body), body_layout
   | Apply { func; args; kind = Direct direct_func; probe; dbg; reg_close; mode; result_layout } ->
     (* The closure _parameter_ of the function is added by cmmgen.
        At the call site, for a direct call, the closure argument must be
@@ -469,8 +453,8 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
         Flambda.print_named named
     end
   | Read_symbol_field (symbol, field) ->
-    Uprim (Pfield (field, Pvalue Pgenval),
-      [to_clambda_symbol env symbol], Debuginfo.none),
+    Uprim (Pfield (field, Pvalue Pgenval, Pointer, Mutable),
+           [to_clambda_symbol env symbol], Debuginfo.none),
     Lambda.layout_any_value
   | Set_of_closures set_of_closures ->
     to_clambda_set_of_closures t env set_of_closures,
@@ -503,12 +487,12 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
     let fun_offset = get_fun_offset t closure_id in
     let var_offset = get_fv_offset t var in
     let pos = var_offset - fun_offset in
-    Uprim (Pfield (pos, kind),
+    Uprim (Pfield (pos, kind, Pointer, Mutable),
       [check_field t (check_closure t ulam (Expr (Var closure)))
          pos (Some named)],
       Debuginfo.none),
     kind
-  | Prim (Pfield (index, layout), [block], dbg) ->
+  | Prim (Pfield (index, layout, ptr, mut), [block], dbg) ->
     begin match layout with
       | Pvalue _ -> ()
       | _ ->
@@ -516,8 +500,9 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
           Flambda.print_named named
     end;
     let block, _block_layout = subst_var env block in
-    Uprim (Pfield (index, layout), [check_field t block index None], dbg),
-    Lambda.layout_field
+    Uprim (Pfield (index, layout, ptr, mut),
+      [check_field t block index None], dbg),
+    Lambda.layout_value_field
   | Prim (Psetfield (index, maybe_ptr, init), [block; new_value], dbg) ->
     let block, _block_layout = subst_var env block in
     let new_value, _new_value_layout = subst_var env new_value in
@@ -656,7 +641,8 @@ and to_clambda_set_of_closures t env
         in
         let pos = var_offset - fun_offset in
         Env.add_subst env id
-          (Uprim (Pfield (pos, spec_to.kind), [Clambda.Uvar env_var], Debuginfo.none))
+          (Uprim (Pfield (pos, spec_to.kind, Pointer, Mutable),
+                  [Clambda.Uvar env_var], Debuginfo.none))
           spec_to.kind
       in
       let env = Variable.Map.fold add_env_free_variable free_vars env in
@@ -708,11 +694,12 @@ and to_clambda_set_of_closures t env
           Misc.fatal_error
             "[Pbottom] should have been eliminated as dead code \
              and not stored in a closure."
-        | Punboxed_float -> true
+        | Punboxed_float _ -> true
         | Punboxed_int _ -> true
         | Punboxed_vector _ -> true
         | Pvalue Pintval -> true
-        | Pvalue _ -> false)
+        | Pvalue _ -> false
+        | Punboxed_product _ -> Misc.fatal_error "TODO")
       free_vars
   in
   let to_closure_args free_vars =

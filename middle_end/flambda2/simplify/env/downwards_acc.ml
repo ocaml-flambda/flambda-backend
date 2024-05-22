@@ -29,13 +29,14 @@ type t =
     demoted_exn_handlers : Continuation.Set.t;
     code_ids_to_remember : Code_id.Set.t;
     code_ids_to_never_delete : Code_id.Set.t;
-    slot_offsets : Slot_offsets.t Code_id.Map.t
+    slot_offsets : Slot_offsets.t Code_id.Map.t;
+    debuginfo_rewrites : Debuginfo.t Simple.Map.t
   }
 
 let [@ocamlformat "disable"] print ppf
       { denv; continuation_uses_env; shareable_constants; used_value_slots;
         lifted_constants; flow_acc; demoted_exn_handlers; code_ids_to_remember;
-        code_ids_to_never_delete; slot_offsets } =
+        code_ids_to_never_delete; slot_offsets; debuginfo_rewrites } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(denv@ %a)@]@ \
       @[<hov 1>(continuation_uses_env@ %a)@]@ \
@@ -46,7 +47,8 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>(demoted_exn_handlers@ %a)@]@ \
       @[<hov 1>(code_ids_to_remember@ %a)@]@ \
       @[<hov 1>(code_ids_to_never_delete@ %a)@]@ \
-      @[<hov 1>(slot_offsets@ %a)@]\
+      @[<hov 1>(slot_offsets@ %a)@ \
+      @[<hov 1>(debuginfo_rewrites@ %a)@]\
       )@]"
     DE.print denv
     CUE.print continuation_uses_env
@@ -58,18 +60,20 @@ let [@ocamlformat "disable"] print ppf
     Code_id.Set.print code_ids_to_remember
     Code_id.Set.print code_ids_to_never_delete
     (Code_id.Map.print Slot_offsets.print) slot_offsets
+    (Simple.Map.print Debuginfo.print_compact) debuginfo_rewrites
 
-let create denv continuation_uses_env =
+let create denv slot_offsets continuation_uses_env =
   { denv;
     continuation_uses_env;
-    slot_offsets = Code_id.Map.empty;
+    slot_offsets;
     shareable_constants = Static_const.Map.empty;
     used_value_slots = Name_occurrences.empty;
     lifted_constants = LCS.empty;
     flow_acc = Flow.Acc.empty ();
     demoted_exn_handlers = Continuation.Set.empty;
     code_ids_to_remember = Code_id.Set.empty;
-    code_ids_to_never_delete = Code_id.Set.empty
+    code_ids_to_never_delete = Code_id.Set.empty;
+    debuginfo_rewrites = Simple.Map.empty
   }
 
 let denv t = t.denv
@@ -208,3 +212,17 @@ let demoted_exn_handlers t = t.demoted_exn_handlers
 let slot_offsets t = t.slot_offsets
 
 let with_slot_offsets t ~slot_offsets = { t with slot_offsets }
+
+let find_debuginfo_rewrite t ~bound_to =
+  Simple.Map.find_opt bound_to t.debuginfo_rewrites
+
+let merge_debuginfo_rewrite t ~bound_to dbg =
+  let dbg =
+    match find_debuginfo_rewrite t ~bound_to with
+    | None -> dbg
+    | Some earlier_dbg -> Debuginfo.merge ~into:earlier_dbg dbg
+  in
+  { t with
+    debuginfo_rewrites =
+      Simple.Map.add (* or replace *) bound_to dbg t.debuginfo_rewrites
+  }

@@ -149,7 +149,7 @@ let arg_label i ppf = function
 ;;
 
 let typevars ppf vs =
-  List.iter (fun x -> fprintf ppf " %a" Printast.tyvar x.txt) vs
+  List.iter (fun x -> fprintf ppf " %a" Pprintast.tyvar x.txt) vs
 
 let rec core_type i ppf x =
   with_location_mapping ~loc:x.ptyp_loc ppf (fun () ->
@@ -196,7 +196,7 @@ let rec core_type i ppf x =
   | Ptyp_poly (sl, ct) ->
       line i ppf "Ptyp_poly%a\n"
         (fun ppf ->
-           List.iter (fun x -> fprintf ppf " %a" Printast.tyvar x.txt)
+           List.iter (fun x -> fprintf ppf " %a" Pprintast.tyvar x.txt)
         )
         sl;
       core_type i ppf ct;
@@ -825,6 +825,9 @@ and module_expr i ppf x =
   attributes i ppf x.pmod_attributes;
   let i = i+1 in
   match x.pmod_desc with
+  | Pmod_apply_unit _ ->
+    (* CR xclerc: TODO *)
+    assert false
   | Pmod_ident (li) -> line i ppf "Pmod_ident %a\n" fmt_longident_loc li;
   | Pmod_structure (s) ->
       line i ppf "Pmod_structure\n";

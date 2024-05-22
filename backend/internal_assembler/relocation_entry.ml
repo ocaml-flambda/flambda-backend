@@ -19,6 +19,10 @@
    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE. *)
+
+(* CR mshinwell: fix properly using -enable-dev PR's changes *)
+[@@@ocaml.warning "-27-32"]
+
 type t =
   { r_offset : Compiler_owee.Owee_buf.u64;
     r_info : Compiler_owee.Owee_buf.u64;
@@ -45,7 +49,7 @@ let get_reloc_info ~relocation_type ~addend name symbol_table string_table =
       | Some i -> i
       | None ->
         Symbol_table.make_undef_symbol symbol_table name string_table;
-        Symbol_table.num_symbols symbol_table - 1
+        Symbol_table.get_symbol_idx_opt symbol_table name |> Option.get
     in
     relocation_type, symbol, addend
 

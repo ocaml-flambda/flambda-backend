@@ -77,11 +77,12 @@ let add_closure_offsets
           Misc.fatal_error
             "[Pbottom] should have been eliminated as dead code \
              and not stored in a closure."
-        | Punboxed_float -> true
+        | Punboxed_float _ -> true
         | Punboxed_int _ -> true
         | Punboxed_vector _ -> true
         | Pvalue Pintval -> true
-        | Pvalue _ -> false)
+        | Pvalue _ -> false
+        | Punboxed_product _ -> Misc.fatal_error "TODO")
       free_vars
   in
   let free_variable_offsets, free_variable_pos =

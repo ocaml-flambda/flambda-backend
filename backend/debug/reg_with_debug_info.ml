@@ -105,7 +105,9 @@ let reg t = t.reg
 let location t = t.reg.loc
 
 let holds_pointer t =
-  match t.reg.typ with Addr | Val -> true | Int | Float | Vec128 -> false
+  match t.reg.typ with
+  | Addr | Val -> true
+  | Int | Float | Float32 | Vec128 -> false
 
 let holds_non_pointer t = not (holds_pointer t)
 

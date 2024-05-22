@@ -20,15 +20,25 @@
 
 /* This stub isn't needed for msvc32, since it's already in asmgen_i386nt.asm */
 #if !defined(_MSC_VER) || !defined(_M_IX86)
-void caml_call_gc()
+void caml_call_gc(void)
 {
 
 }
+void caml_call_realloc_stack(void)
+{
+
+};
 #endif
 
 void caml_ml_array_bound_error(void)
 {
   fprintf(stderr, "Fatal error: out-of-bound access in array or string\n");
+  exit(2);
+}
+
+void caml_ml_array_align_error(void)
+{
+  fprintf(stderr, "Fatal error: misaligned access in array or string\n");
   exit(2);
 }
 

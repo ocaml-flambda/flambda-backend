@@ -17,8 +17,8 @@
    determining their representation. *)
 
 open Asttypes
-open Layouts
 open Types
+open Mode
 open Btype
 
 (* Simplified version of Ctype.free_vars *)
@@ -52,7 +52,9 @@ let constructor_existentials cd_args cd_res =
     match cd_res with
     | None -> []
     | Some type_ret ->
-        let arg_vars_set = free_vars (newgenty (Ttuple tyl)) in
+        let arg_vars_set =
+          free_vars (newgenty (Ttuple (List.map (fun ty -> None, ty) tyl)))
+        in
         let res_vars = free_vars type_ret in
         TypeSet.elements (TypeSet.diff arg_vars_set res_vars)
   in
@@ -63,19 +65,23 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
   match cd_args with
   | Cstr_tuple l -> existentials, l, None
   | Cstr_record lbls ->
-      let arg_vars_set = free_vars ~param:true (newgenty (Ttuple tyl)) in
+      let arg_vars_set =
+        free_vars ~param:true
+          (newgenty (Ttuple (List.map (fun ty -> None, ty) tyl)))
+      in
       let type_params = TypeSet.elements arg_vars_set in
       let arity = List.length type_params in
-      let is_void_label lbl = Layout.is_void_defaulting lbl.ld_layout in
-      let layout =
-        Layout.for_boxed_record ~all_void:(List.for_all is_void_label lbls)
+      let is_void_label lbl = Jkind.is_void_defaulting lbl.ld_jkind in
+      let jkind =
+        Jkind.for_boxed_record ~all_void:(List.for_all is_void_label lbls)
       in
       let tdecl =
         {
           type_params;
           type_arity = arity;
           type_kind = Type_record (lbls, rep);
-          type_layout = layout;
+          type_jkind = jkind;
+          type_jkind_annotation = None;
           type_private = priv;
           type_manifest = None;
           type_variance = Variance.unknown_signature ~injective:true ~arity;
@@ -89,26 +95,26 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
         }
       in
       existentials,
-      [ newgenconstr path type_params, Unrestricted ],
+      [ newgenconstr path type_params, Global_flag.Unrestricted ],
       Some tdecl
 
 let constructor_descrs ~current_unit ty_path decl cstrs rep =
   let ty_res = newgenconstr ty_path decl.type_params in
-  let cstr_arg_layouts : layout array array =
+  let cstr_shapes_and_arg_jkinds =
     match rep with
     | Variant_extensible -> assert false
-    | Variant_boxed layouts -> layouts
-    | Variant_unboxed -> [| [| decl.type_layout |] |]
+    | Variant_boxed x -> x
+    | Variant_unboxed -> [| Constructor_uniform_value, [| decl.type_jkind |] |]
   in
-  let all_void layouts = Array.for_all Layout.is_void_defaulting layouts in
+  let all_void jkinds = Array.for_all Jkind.is_void_defaulting jkinds in
   let num_consts = ref 0 and num_nonconsts = ref 0 in
   let cstr_constant =
     Array.map
-      (fun layouts ->
-         let all_void = all_void layouts in
+      (fun (_, jkinds) ->
+         let all_void = all_void jkinds in
          if all_void then incr num_consts else incr num_nonconsts;
          all_void)
-      cstr_arg_layouts
+      cstr_shapes_and_arg_jkinds
   in
   let describe_constructor (src_index, const_tag, nonconst_tag, acc)
         {cd_id; cd_args; cd_res; cd_loc; cd_attributes; cd_uid} =
@@ -118,7 +124,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       | Some ty_res' -> ty_res'
       | None -> ty_res
     in
-    let cstr_arg_layouts = cstr_arg_layouts.(src_index) in
+    let cstr_shape, cstr_arg_jkinds = cstr_shapes_and_arg_jkinds.(src_index) in
     let cstr_constant = cstr_constant.(src_index) in
     let runtime_tag, const_tag, nonconst_tag =
       if cstr_constant
@@ -130,17 +136,18 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       (* This is the representation of the inner record, IF there is one *)
       let record_repr = Record_inlined (cstr_tag, rep) in
       constructor_args ~current_unit decl.type_private cd_args cd_res
-        (Path.Pdot (ty_path, cstr_name)) record_repr
+        Path.(Pextra_ty (ty_path, Pcstr_ty cstr_name)) record_repr
     in
     let cstr =
       { cstr_name;
         cstr_res;
         cstr_existentials;
         cstr_args;
-        cstr_arg_layouts;
+        cstr_arg_jkinds;
         cstr_arity = List.length cstr_args;
         cstr_tag;
         cstr_repr = rep;
+        cstr_shape = cstr_shape;
         cstr_constant;
         cstr_consts = !num_consts;
         cstr_nonconsts = !num_nonconsts;
@@ -162,19 +169,21 @@ let extension_descr ~current_unit path_ext ext =
         Some type_ret -> type_ret
       | None -> newgenconstr ext.ext_type_path ext.ext_type_params
   in
-  let cstr_tag = Extension (path_ext, ext.ext_arg_layouts) in
+  let cstr_tag = Extension (path_ext, ext.ext_arg_jkinds) in
   let existentials, cstr_args, cstr_inlined =
     constructor_args ~current_unit ext.ext_private ext.ext_args ext.ext_ret_type
-      path_ext (Record_inlined (cstr_tag, Variant_extensible))
+      Path.(Pextra_ty (path_ext, Pext_ty))
+      (Record_inlined (cstr_tag, Variant_extensible))
   in
     { cstr_name = Path.last path_ext;
       cstr_res = ty_res;
       cstr_existentials = existentials;
       cstr_args;
-      cstr_arg_layouts = ext.ext_arg_layouts;
+      cstr_arg_jkinds = ext.ext_arg_jkinds;
       cstr_arity = List.length cstr_args;
       cstr_tag;
       cstr_repr = Variant_extensible;
+      cstr_shape = ext.ext_shape;
       cstr_constant = ext.ext_constant;
       cstr_consts = -1;
       cstr_nonconsts = -1;
@@ -193,7 +202,7 @@ let none =
 let dummy_label =
   { lbl_name = ""; lbl_res = none; lbl_arg = none;
     lbl_mut = Immutable; lbl_global = Unrestricted;
-    lbl_layout = Layout.any ~why:Dummy_layout;
+    lbl_jkind = Jkind.any ~why:Dummy_jkind;
     lbl_num = -1; lbl_pos = -1; lbl_all = [||];
     lbl_repres = Record_unboxed;
     lbl_private = Public;
@@ -207,14 +216,14 @@ let label_descrs ty_res lbls repres priv =
   let rec describe_labels num pos = function
       [] -> []
     | l :: rest ->
-        let is_void = Layout.is_void_defaulting l.ld_layout  in
+        let is_void = Jkind.is_void_defaulting l.ld_jkind  in
         let lbl =
           { lbl_name = Ident.name l.ld_id;
             lbl_res = ty_res;
             lbl_arg = l.ld_type;
             lbl_mut = l.ld_mutable;
             lbl_global = l.ld_global;
-            lbl_layout = l.ld_layout;
+            lbl_jkind = l.ld_jkind;
             lbl_pos = if is_void then lbl_pos_void else pos;
             lbl_num = num;
             lbl_all = all_labels;
@@ -249,11 +258,11 @@ let constructors_of_type ~current_unit ty_path decl =
   match decl.type_kind with
   | Type_variant (cstrs,rep) ->
      constructor_descrs ~current_unit ty_path decl cstrs rep
-  | Type_record _ | Type_abstract | Type_open -> []
+  | Type_record _ | Type_abstract _ | Type_open -> []
 
 let labels_of_type ty_path decl =
   match decl.type_kind with
   | Type_record(labels, rep) ->
       label_descrs (newgenconstr ty_path decl.type_params)
         labels rep decl.type_private
-  | Type_variant _ | Type_abstract | Type_open -> []
+  | Type_variant _ | Type_abstract _ | Type_open -> []

@@ -15,6 +15,7 @@ let precondition : Cfg_with_layout.t -> unit =
       | Spill -> fatal "instruction %d is a spill" id
       | Reload -> fatal "instruction %d is a reload" id
       | Const_int _ -> ()
+      | Const_float32 _ -> ()
       | Const_float _ -> ()
       | Const_symbol _ -> ()
       | Const_vec128 _ -> ()
@@ -24,18 +25,12 @@ let precondition : Cfg_with_layout.t -> unit =
       | Intop _ -> ()
       | Intop_imm _ -> ()
       | Intop_atomic _ -> ()
-      | Negf -> ()
-      | Absf -> ()
-      | Addf -> ()
-      | Subf -> ()
-      | Mulf -> ()
-      | Divf -> ()
-      | Compf _ -> ()
+      | Floatop _ -> ()
       | Csel _ -> ()
-      | Floatofint -> ()
-      | Intoffloat -> ()
       | Valueofint -> ()
       | Intofvalue -> ()
+      | Vectorcast _ -> ()
+      | Scalarcast _ -> ()
       | Probe_is_enabled _ -> ()
       | Opaque -> ()
       | Begin_region -> ()
@@ -47,8 +42,11 @@ let precondition : Cfg_with_layout.t -> unit =
             "architecture specific instruction %d that can raise but isn't a \
              terminator"
             id
-      | Name_for_debugger _ -> ())
-    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> ()
+      | Name_for_debugger _ -> ()
+      | Dls_get -> ()
+      | Poll -> ()
+      | Alloc _ -> ())
+    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> ()
   in
   let register_must_not_be_on_stack (id : Instruction.id) (reg : Reg.t) : unit =
     match reg.Reg.loc with

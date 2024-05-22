@@ -22,22 +22,6 @@ type behavior =
   | Skip_all_tests
   | Run of Environments.t
 
-(*
-let first_token filename =
-  let input_channel = open_in filename in
-  let lexbuf = Lexing.from_channel input_channel in
-  Location.init lexbuf filename;
-  let token =
-    try Tsl_lexer.token lexbuf with e -> close_in input_channel; raise e
-  in close_in input_channel; token
-
-let is_test filename =
-  match first_token filename with
-    | exception _ -> false
-    | Tsl_parser.TSL_BEGIN_C_STYLE | TSL_BEGIN_OCAML_STYLE -> true
-    | _ -> false
-*)
-
 (* this primitive announce should be used for tests
    that were aborted on system error before ocamltest
    could parse them *)
@@ -45,46 +29,55 @@ let announce_test_error test_filename error =
   Printf.printf " ... testing '%s' => unexpected error (%s)\n%!"
     (Filename.basename test_filename) error
 
-let tsl_block_of_file test_filename =
+exception Syntax_error of Lexing.position
+
+let tsl_parse_file test_filename =
   let input_channel = open_in test_filename in
   let lexbuf = Lexing.from_channel input_channel in
   Location.init lexbuf test_filename;
-  match Tsl_parser.tsl_block Tsl_lexer.token lexbuf with
+  match Tsl_parser.tsl_script Tsl_lexer.token lexbuf with
+    | exception Parsing.Parse_error ->
+      raise (Syntax_error lexbuf.Lexing.lex_start_p)
     | exception e -> close_in input_channel; raise e
     | _ as tsl_block -> close_in input_channel; tsl_block
 
-let tsl_block_of_file_safe test_filename =
-  try tsl_block_of_file test_filename with
+let tsl_parse_file_safe test_filename =
+  try tsl_parse_file test_filename with
   | Sys_error message ->
     Printf.eprintf "%s\n%!" message;
     announce_test_error test_filename message;
     exit 1
-  | Parsing.Parse_error ->
-    Printf.eprintf "Could not read test block in %s\n%!" test_filename;
-    announce_test_error test_filename "could not read test block";
+  | Syntax_error p ->
+    let open Lexing in
+    Printf.eprintf "%s:%d.%d: syntax error in test script\n%!"
+      test_filename p.pos_lnum (p.pos_cnum - p.pos_bol);
+    announce_test_error test_filename "could not read test script";
     exit 1
 
 let print_usage () =
   Printf.printf "%s\n%!" Options.usage
 
-type result_summary = No_failure | Some_failure
+type result_summary = No_failure | Some_failure | All_skipped
+let join_result summary result =
+  let open Result in
+  match result.status, summary with
+  | Fail, _
+  | _, Some_failure -> Some_failure
+  | Skip, All_skipped -> All_skipped
+  | _ -> No_failure
+
 let join_summaries sa sb =
   match sa, sb with
-  | Some_failure, _ | _, Some_failure -> Some_failure
-  | No_failure, No_failure -> No_failure
-
-let summary_of_result res =
-  let open Result in
-  match res.status with
-  | Pass -> No_failure
-  | Skip -> No_failure
-  | Fail -> Some_failure
+  | Some_failure, _
+  | _, Some_failure -> Some_failure
+  | All_skipped, All_skipped -> All_skipped
+  | _ -> No_failure
 
 let rec run_test log common_prefix path behavior = function
   Node (testenvspec, test, env_modifiers, subtrees) ->
-  Printf.printf "%s %s (%s) => %!" common_prefix path test.Tests.test_name;
-  let (msg, children_behavior, summary) = match behavior with
-    | Skip_all_tests -> "n/a", Skip_all_tests, No_failure
+  Printf.printf "%s %s (%s) %!" common_prefix path test.Tests.test_name;
+  let (msg, children_behavior, result) = match behavior with
+    | Skip_all_tests -> "=> n/a", Skip_all_tests, Result.skip
     | Run env ->
       let testenv0 = interpret_environment_statements env testenvspec in
       let testenv = List.fold_left apply_modifiers testenv0 env_modifiers in
@@ -92,14 +85,13 @@ let rec run_test log common_prefix path behavior = function
       let msg = Result.string_of_result result in
       let children_behavior =
         if Result.is_pass result then Run newenv else Skip_all_tests in
-      let summary = summary_of_result result in
-      (msg, children_behavior, summary) in
+      (msg, children_behavior, result) in
   Printf.printf "%s\n%!" msg;
-  join_summaries summary
-    (run_test_trees log common_prefix path children_behavior subtrees)
+  join_result
+    (run_test_trees log common_prefix path children_behavior subtrees) result
 
 and run_test_trees log common_prefix path behavior trees =
-  List.fold_left join_summaries No_failure
+  List.fold_left join_summaries All_skipped
     (List.mapi (run_test_i log common_prefix path behavior) trees)
 
 and run_test_i log common_prefix path behavior i test_tree =
@@ -127,9 +119,10 @@ let init_tests_to_skip () =
   tests_to_skip := String.words (Sys.safe_getenv "OCAMLTEST_SKIP_TESTS")
 
 let test_file test_filename =
+  let start = if Options.show_timings then Unix.gettimeofday () else 0.0 in
   let skip_test = List.mem test_filename !tests_to_skip in
-  let tsl_block = tsl_block_of_file_safe test_filename in
-  let (rootenv_statements, test_trees) = test_trees_of_tsl_block tsl_block in
+  let tsl_ast = tsl_parse_file_safe test_filename in
+  let (rootenv_statements, test_trees) = test_trees_of_tsl_ast tsl_ast in
   let test_trees = match test_trees with
     | [] ->
       let default_tests = Tests.default_tests() in
@@ -209,15 +202,21 @@ let test_file test_filename =
   | Some_failure ->
       if not Options.log_to_stderr then
         Sys.dump_file stderr ~prefix:"> " log_filename
-  | No_failure ->
+  | No_failure | All_skipped ->
       if not Options.keep_test_dir_on_success then
         clean_test_build_directory ()
-  end
+  end;
+  if Options.show_timings && summary = No_failure then
+    let wall_clock_duration = Unix.gettimeofday () -. start in
+    Printf.eprintf "Wall clock: %s took %.02fs\n%!"
+                   test_filename wall_clock_duration
 
-let is_test s =
-  match tsl_block_of_file s with
-  | _ -> true
-  | exception _ -> false
+let is_test filename =
+  let input_channel = open_in filename in
+  let lexbuf = Lexing.from_channel input_channel in
+  Fun.protect ~finally:(fun () -> close_in input_channel) begin fun () ->
+    Tsl_lexer.is_test lexbuf
+  end
 
 let ignored s =
   s = "" || s.[0] = '_' || s.[0] = '.'
@@ -270,6 +269,12 @@ let () =
   let doit f x = work_done := true; f x in
   List.iter (doit find_test_dirs) Options.find_test_dirs;
   List.iter (doit list_tests) Options.list_tests;
-  List.iter (doit test_file) Options.files_to_test;
+  let do_file =
+    if Options.translate then
+      Translate.file ~style:Options.style ~compact:Options.compact
+    else
+      test_file
+  in
+  List.iter (doit do_file) Options.files_to_test;
   if not !work_done then print_usage();
   if !failed || not !work_done then exit 1

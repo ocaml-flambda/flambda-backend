@@ -15,8 +15,9 @@
 (**************************************************************************)
 
 val make_inlined_body :
-  callee:Simple.t ->
-  region_inlined_into:Variable.t ->
+  callee:Simple.t option ->
+  called_code_id:Code_id.t ->
+  region_inlined_into:Alloc_mode.For_allocations.t ->
   params:'param list ->
   args:Simple.List.t ->
   my_closure:'param ->
@@ -46,7 +47,7 @@ val wrap_inlined_body_for_exn_extra_args :
   extra_args:(Simple.t * Flambda_kind.With_subkind.t) list ->
   apply_exn_continuation:Exn_continuation.t ->
   apply_return_continuation:Flambda.Apply.Result_continuation.t ->
-  result_arity:Flambda_arity.t ->
+  result_arity:[`Unarized] Flambda_arity.t ->
   make_inlined_body:
     ('acc ->
     apply_exn_continuation:Continuation.t ->

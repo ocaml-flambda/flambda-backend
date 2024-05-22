@@ -18,10 +18,8 @@
 [@@@ocaml.warning "-40"]
 
 open Misc
-open Arch
 open Asttypes
 open Primitive
-open Types
 open Lambda
 open Clambda
 open Clambda_primitives
@@ -117,15 +115,34 @@ let mut_from_env env ptr =
       else Asttypes.Mutable
     | _ -> Asttypes.Mutable
 
-let get_field env layout ptr n dbg =
-  let mut = mut_from_env env ptr in
+(* Minimum of two [mutable_flag] values, assuming [Immutable < Mutable]. *)
+let min_mut x y =
+  match x,y with
+  | Asttypes.Immutable, _
+  | _, Asttypes.Immutable -> Asttypes.Immutable
+  | Asttypes.Mutable, Asttypes.Mutable -> Asttypes.Mutable
+
+let mut_from_lambda = function
+  | Lambda.Immutable -> Asttypes.Immutable
+  | Lambda.Immutable_unique -> Asttypes.Immutable
+  | Lambda.Mutable -> Asttypes.Mutable
+
+let get_field env mut layout ptr n dbg =
+  let mut = if Config.runtime5
+    then min_mut (mut_from_lambda mut) (mut_from_env env ptr)
+    else mut_from_env env ptr in
   let memory_chunk =
     match layout with
     | Pvalue Pintval | Punboxed_int _ -> Word_int
     | Pvalue _ -> Word_val
-    | Punboxed_float -> Double
+    | Punboxed_float Pfloat64 -> Double
+    | Punboxed_float Pfloat32 ->
+      Misc.fatal_error
+        "float32 is not supported in the upstream compiler build."
     | Punboxed_vector _ ->
-      Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
+      Misc.fatal_error
+        "SIMD vectors are not supported in the upstream compiler build."
+    | Punboxed_product _ -> Misc.fatal_error "TODO"
     | Ptop ->
         Misc.fatal_errorf "get_field with Ptop: %a" Debuginfo.print_compact dbg
     | Pbottom ->
@@ -133,71 +150,6 @@ let get_field env layout ptr n dbg =
           dbg
   in
   get_field_gen_given_memory_chunk memory_chunk mut ptr n dbg
-
-type rhs_kind =
-  | RHS_block of Lambda.alloc_mode * int
-  | RHS_infix of { blocksize : int; offset : int; blockmode: Lambda.alloc_mode }
-  | RHS_floatblock of Lambda.alloc_mode * int
-  | RHS_nonrec
-;;
-
-let rec expr_size env = function
-  | Uvar id ->
-      begin try V.find_same id env with Not_found -> RHS_nonrec end
-  | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
-      (* should all have the same mode *)
-      let fn_mode = (List.hd functions).mode in
-      List.iter (fun f -> assert (Lambda.eq_mode fn_mode f.mode)) functions;
-      RHS_block (fn_mode,
-                 fundecls_size functions + List.length not_scanned_slots
-                 + List.length scanned_slots)
-  | Ulet(_str, _kind, id, exp, body) ->
-      expr_size (V.add (VP.var id) (expr_size env exp) env) body
-  | Uletrec(bindings, body) ->
-      let env =
-        List.fold_right
-          (fun (id, exp) env -> V.add (VP.var id) (expr_size env exp) env)
-          bindings env
-      in
-      expr_size env body
-  | Uprim(Pmakeblock (_, _, _, mode), args, _) ->
-      RHS_block (mode, List.length args)
-  | Uprim(Pmakearray((Paddrarray | Pintarray), _, mode), args, _) ->
-      RHS_block (mode, List.length args)
-  | Uprim(Pmakearray(Pfloatarray, _, mode), args, _) ->
-      RHS_floatblock (mode, List.length args)
-  | Uprim(Pmakearray(Pgenarray, _, _mode), _, _) ->
-     (* Pgenarray is excluded from recursive bindings by the
-        check in Translcore.check_recursive_lambda *)
-     RHS_nonrec
-  | Uprim (Pduprecord ((Record_boxed _ | Record_inlined (_, Variant_boxed _)),
-                       sz), _, _) ->
-      RHS_block (Lambda.alloc_heap, sz)
-  | Uprim (Pduprecord ((Record_unboxed
-                       | Record_inlined (_, Variant_unboxed)),
-                       _), _, _) ->
-      assert false
-  | Uprim (Pduprecord (Record_inlined (_, Variant_extensible), sz), _, _) ->
-      RHS_block (Lambda.alloc_heap, sz + 1)
-  | Uprim (Pduprecord (Record_float, sz), _, _) ->
-      RHS_floatblock (Lambda.alloc_heap, sz)
-  | Uprim (Pccall { prim_name; _ }, closure::_, _)
-        when prim_name = "caml_check_value_is_closure" ->
-      (* Used for "-clambda-checks". *)
-      expr_size env closure
-  | Usequence(_exp, exp') ->
-      expr_size env exp'
-  | Uoffset (exp, offset) ->
-      (match expr_size env exp with
-      | RHS_block (blockmode, blocksize) ->
-         RHS_infix { blocksize; offset; blockmode }
-      | RHS_nonrec -> RHS_nonrec
-      | _ -> assert false)
-  | Uregion exp ->
-      expr_size env exp
-  | Uexclave exp ->
-      expr_size env exp
-  | _ -> RHS_nonrec
 
 (* Translate structured constants to Cmm data items *)
 
@@ -272,7 +224,6 @@ let box_int dbg bi mode arg =
 
 let typ_of_boxed_number = function
   | Boxed_float _ -> Cmm.typ_float
-  | Boxed_integer (Pint64, _,_) when size_int = 4 -> [|Int;Int|]
   | Boxed_integer _ -> Cmm.typ_int
 
 let equal_unboxed_integer ui1 ui2 =
@@ -337,17 +288,23 @@ let join_unboxed_number_kind ~strict k1 k2 =
 (* [exttype_of_sort] and [machtype_of_sort] should be kept in sync with
    [Typeopt.layout_of_const_sort]. *)
 (* CR layouts v5: Void case should probably be typ_void *)
-let exttype_of_sort (s : Layouts.Sort.const) =
+let exttype_of_sort (s : Jkind.Sort.const) =
   match s with
   | Value -> XInt
   | Float64 -> XFloat
+  | Word -> XInt
+  | Bits32 -> XInt32
+  | Bits64 -> XInt64
   | Void -> Misc.fatal_error "Cmmgen.exttype_of_sort: void encountered"
+  | Float32 -> Misc.fatal_error "Cmmgen.exttype_of_sort: float32 encountered"
 
-let machtype_of_sort (s : Layouts.Sort.const) =
+let machtype_of_sort (s : Jkind.Sort.const) =
   match s with
   | Value -> typ_val
   | Float64 -> typ_float
+  | Word | Bits32 | Bits64 -> typ_int
   | Void -> Misc.fatal_error "Cmmgen.machtype_of_sort: void encountered"
+  | Float32 -> Misc.fatal_error "Cmmgen.machtype_of_sort: float32 encountered"
 
 let is_unboxed_number_cmm ~strict cmm =
   let r = ref No_result in
@@ -467,6 +424,13 @@ let rec transl env e =
         | [] -> Debuginfo.none
         | fundecl::_ -> fundecl.dbg
       in
+      (* #11482, #12481: the 'clos_vars' may be arbitrary expressions
+         and may invoke the GC, which would be able to observe the
+         partially-filled block. This is safe because 'make_alloc'
+         evaluates and fills fields from left to right, and does not
+         call a GC between the allocation and filling fields. So the
+         closure metadata, which comes before the closure variables,
+         will always have been written before a GC can happen. *)
       make_alloc ~mode dbg Obj.closure_tag (transl_fundecls 0 functions)
   | Uoffset(arg, offset) ->
       (* produces a valid Caml value, pointing just after an infix header *)
@@ -529,18 +493,19 @@ let rec transl env e =
           Some defining_expr
       in
       Cphantom_let (var, defining_expr, transl env body)
-  | Uletrec(bindings, body) ->
-      transl_letrec env bindings (transl env body)
 
   (* Primitives *)
   | Uprim(prim, args, dbg) ->
       begin match (simplif_primitive prim, args) with
       | (Pread_symbol sym, []) ->
           Cconst_symbol (sym, dbg)
-      | (Pmakeblock _, []) ->
+      | ((Pmakeblock _ | Pmakeufloatblock _), []) ->
           assert false
       | (Pmakeblock(tag, _mut, _kind, mode), args) ->
           make_alloc ~mode dbg tag (List.map (transl env) args)
+      | (Pmakeufloatblock(_mut, mode), args) ->
+          make_float_alloc ~mode dbg Obj.double_array_tag
+            (List.map (transl env) args)
       | (Pccall prim, args) ->
           transl_ccall env prim args dbg
       | (Pduparray (kind, _), [Uprim (Pmakearray (kind', _, _), args, _dbg)]) ->
@@ -558,7 +523,7 @@ let rec transl env e =
           transl_make_array dbg env kind alloc_heap args
       | (Pduparray _, [arg]) ->
           let prim_obj_dup =
-            Primitive.simple_on_values ~name:"caml_obj_dup" ~arity:1 ~alloc:true
+            Lambda.simple_prim_on_values ~name:"caml_obj_dup" ~arity:1 ~alloc:true
           in
           transl_ccall env prim_obj_dup [arg] dbg
       | (Pmakearray _, []) ->
@@ -603,7 +568,7 @@ let rec transl env e =
             dbg)
       | (Pbigarraydim(n), [b]) ->
           let dim_ofs = 4 + n in
-          tag_int (Cop(Cload (Word_int, Mutable),
+          tag_int (Cop(mk_load_mut Word_int,
             [field_address (transl env b) dim_ofs dbg],
                        dbg)) dbg
       | (Pprobe_is_enabled {name}, []) ->
@@ -614,6 +579,9 @@ let rec transl env e =
           transl_prim_2 env p arg1 arg2 dbg
       | (p, [arg1; arg2; arg3]) ->
           transl_prim_3 env p arg1 arg2 arg3 dbg
+      (* Mixed blocks *)
+      | (Pmakemixedblock _ | Psetmixedfield _ | Pmixedfield _), _->
+          Misc.fatal_error "Mixed blocks not supported in upstream compiler build"
       | (Pread_symbol _, _::_::_::_::_)
       | (Pbigarrayset (_, _, _, _), [])
       | (Pbigarrayref (_, _, _, _), [])
@@ -622,27 +590,34 @@ let rec transl env e =
         ->
           fatal_error "Cmmgen.transl:prim, wrong arity"
       | ((Pfield_computed|Psequand
+         | Prunstack | Pperform | Presume | Preperform
+         | Pdls_get
+         | Patomic_load _ | Patomic_exchange
+         | Patomic_cas | Patomic_fetch_add
          | Psequor | Pnot | Pnegint | Paddint | Psubint
          | Pmulint | Pandint | Porint | Pxorint | Plslint
-         | Plsrint | Pasrint | Pintoffloat | Pfloatofint _
-         | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _
-         | Pmulfloat _ | Pdivfloat _ | Pstringlength | Pstringrefu
+         | Plsrint | Pasrint | Pintoffloat _ | Pfloatofint (_, _)
+         | Pnegfloat (_, _) | Pabsfloat (_, _)
+         | Paddfloat (_, _) | Psubfloat (_, _)
+         | Pmulfloat (_, _) | Pdivfloat (_, _)
+         | Pstringlength | Pstringrefu
          | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu
          | Pbytesrefs | Pbytessets | Pisint | Pisout
          | Pbswap16 | Pint_as_pointer _ | Popaque | Pfield _
          | Psetfield (_, _, _) | Psetfield_computed (_, _)
          | Pfloatfield _ | Psetfloatfield (_, _) | Pduprecord (_, _)
+         | Pufloatfield _ | Psetufloatfield (_, _)
          | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _ | Poffsetint _
-         | Pcompare_ints | Pcompare_floats | Pcompare_bints _
-         | Poffsetref _ | Pfloatcomp _ | Parraylength _
-         | Parrayrefu _ | Parraysetu _ | Parrayrefs _ | Parraysets _
+         | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+         | Poffsetref _ | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
+         | Parraylength _ | Parrayrefu _ | Parraysetu _ | Parrayrefs _ | Parraysets _
          | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _
          | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _
          | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
-         | Pasrbint _ | Pbintcomp (_, _) | Pstring_load _ | Pbytes_load _
-         | Pbytes_set _ | Pbigstring_load _ | Pbigstring_set _
-         | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
-         | Pbbswap _), _)
+         | Pasrbint _ | Pbintcomp (_, _) | Punboxed_int_comp (_, _) | Pstring_load _
+         | Pbytes_load _ | Pbytes_set _ | Pbigstring_load _ | Pbigstring_set _
+         | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
+         | Pbbswap _ | Pget_header _), _)
         ->
           fatal_error "Cmmgen.transl:prim"
       end
@@ -765,7 +740,7 @@ let rec transl env e =
       end
   | Uunreachable ->
       let dbg = Debuginfo.none in
-      Cop(Cload (Word_int, Mutable), [Cconst_int (0, dbg)], dbg)
+      Cop(mk_load_mut Word_int, [Cconst_int (0, dbg)], dbg)
   | Uregion e ->
       region (transl env e)
   | Uexclave e ->
@@ -840,13 +815,18 @@ and transl_make_array dbg env kind mode args =
   | Pfloatarray ->
       make_float_alloc ~mode dbg Obj.double_array_tag
                       (List.map (transl_unbox_float dbg env) args)
+  | Punboxedfloatarray _ | Punboxedintarray _ ->
+      Misc.fatal_errorf "Unboxed arrays not supported"
 
 and transl_ccall env prim args dbg =
   let transl_arg native_repr arg =
     match native_repr with
     | Same_as_ocaml_repr sort -> (exttype_of_sort sort, transl env arg)
-    | Unboxed_float ->
+    | Unboxed_float Pfloat64 ->
         (XFloat, transl_unbox_float dbg env arg)
+    | Unboxed_float Pfloat32 ->
+      Misc.fatal_error
+        "float32 is not supported in the upstream compiler build."
     | Unboxed_integer bi ->
         let xty =
           match bi with
@@ -855,7 +835,8 @@ and transl_ccall env prim args dbg =
           | Pint64 -> XInt64 in
         (xty, transl_unbox_int dbg env bi arg)
     | Unboxed_vector _ ->
-      Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
+      Misc.fatal_error
+        "SIMD vectors are not supported in the upstream compiler build."
     | Untagged_int ->
         (XInt, untag_int (transl env arg) dbg)
   in
@@ -876,13 +857,15 @@ and transl_ccall env prim args dbg =
     match prim.prim_native_repr_res with
     | _, Same_as_ocaml_repr sort -> (machtype_of_sort sort, fun x -> x)
     (* TODO: Allow Alloc_local on suitably typed C stubs *)
-    | _, Unboxed_float -> (typ_float, box_float dbg alloc_heap)
-    | _, Unboxed_integer Pint64 when size_int = 4 ->
-        ([|Int; Int|], box_int dbg Pint64 alloc_heap)
+    | _, Unboxed_float Pfloat64 -> (typ_float, box_float dbg alloc_heap)
+    | _, Unboxed_float Pfloat32 ->
+      Misc.fatal_error
+        "float32 is not supported in the upstream compiler build."
     | _, Unboxed_integer bi -> (typ_int, box_int dbg bi alloc_heap)
     | _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
     | _, Unboxed_vector _ ->
-      Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
+      Misc.fatal_error
+        "SIMD vectors are not supported in the upstream compiler build."
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in
   wrap_result
@@ -895,11 +878,13 @@ and transl_prim_1 env p arg dbg =
     Popaque ->
       opaque (transl env arg) dbg
   (* Heap operations *)
-  | Pfield (n, layout) ->
-      get_field env layout (transl env arg) n dbg
+  | Pfield (n, layout, _, mut) ->
+      get_field env mut layout (transl env arg) n dbg
   | Pfloatfield (n,mode) ->
       let ptr = transl env arg in
       box_float dbg mode (floatfield n ptr dbg)
+  | Pufloatfield n ->
+      get_field env Mutable (Punboxed_float Pfloat64) (transl env arg) n dbg
   | Pint_as_pointer _ ->
       int_as_pointer (transl env arg) dbg
   (* Exceptions *)
@@ -917,18 +902,25 @@ and transl_prim_1 env p arg dbg =
   | Pbox_int (bi, m) ->
     box_int dbg bi m (transl env arg)
   (* Floating-point operations *)
-  | Punbox_float ->
+  | Punbox_float Pfloat64 ->
       transl_unbox_float dbg env arg
-  | Pbox_float m ->
+  | Pbox_float (Pfloat64, m) ->
       box_float dbg m (transl env arg)
-  | Pfloatofint m ->
+  | Pfloatofint (Pfloat64, m) ->
       box_float dbg m (Cop(Cfloatofint, [untag_int(transl env arg) dbg], dbg))
-  | Pintoffloat ->
+  | Pintoffloat Pfloat64 ->
      tag_int(Cop(Cintoffloat, [transl_unbox_float dbg env arg], dbg)) dbg
-  | Pnegfloat m ->
+  | Pnegfloat (Pfloat64, m) ->
       box_float dbg m (Cop(Cnegf, [transl_unbox_float dbg env arg], dbg))
-  | Pabsfloat m ->
+  | Pabsfloat (Pfloat64, m) ->
       box_float dbg m (Cop(Cabsf, [transl_unbox_float dbg env arg], dbg))
+  | Punbox_float Pfloat32
+  | Pbox_float (Pfloat32, _)
+  | Pfloatofint (Pfloat32, _)
+  | Pintoffloat Pfloat32
+  | Pnegfloat (Pfloat32, _)
+  | Pabsfloat (Pfloat32, _) ->
+    Misc.fatal_error "float32 is not supported in the upstream compiler build."
   (* String operations *)
   | Pstringlength | Pbyteslength ->
       tag_int(string_length (transl env arg) dbg) dbg
@@ -960,20 +952,48 @@ and transl_prim_1 env p arg dbg =
   | Pbswap16 ->
       tag_int (bswap16 (ignore_high_bit_int (untag_int
         (transl env arg) dbg)) dbg) dbg
+  | Pget_header m ->
+      box_int dbg Pnativeint m (get_header (transl env arg) dbg)
+  | Pperform ->
+      Misc.fatal_error "Effects-related primitives not yet supported"
+      (* CR mshinwell: use [Runtimetags] once available
+      let cont =
+        make_alloc dbg cont_tag [int_const dbg 0] ~mode:Lambda.alloc_heap
+      in
+      (* CR mshinwell: Rc_normal may be wrong, but this code is unlikely
+         to be in production by then *)
+      Cop(Capply (typ_val, Rc_normal),
+       [Cconst_symbol ("caml_perform", dbg); transl env arg; cont],
+       dbg)
+      *)
+  | Pdls_get ->
+      Cop(Cdls_get, [transl env arg], dbg)
+  | Patomic_load {immediate_or_pointer = Immediate} ->
+      Cop(mk_load_atomic Word_int, [transl env arg], dbg)
+  | Patomic_load {immediate_or_pointer = Pointer} ->
+      Cop(mk_load_atomic Word_val, [transl env arg], dbg)
+  (* Mixed blocks *)
+  | Pmakemixedblock _ | Psetmixedfield _ | Pmixedfield _ ->
+      Misc.fatal_error "Mixed blocks not supported in upstream compiler build"
   | (Pfield_computed | Psequand | Psequor
+    | Prunstack | Presume | Preperform
+    | Patomic_exchange | Patomic_cas | Patomic_fetch_add
     | Paddint | Psubint | Pmulint | Pandint
     | Porint | Pxorint | Plslint | Plsrint | Pasrint
-    | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
+    | Paddfloat (_, _) | Psubfloat (_, _)
+    | Pmulfloat (_, _) | Pdivfloat (_, _)
     | Pstringrefu | Pstringrefs | Pbytesrefu | Pbytessetu
     | Pbytesrefs | Pbytessets | Pisout | Pread_symbol _
     | Pmakeblock (_, _, _, _) | Psetfield (_, _, _) | Psetfield_computed (_, _)
+    | Pmakeufloatblock (_, _)
     | Psetfloatfield (_, _) | Pduprecord (_, _) | Pccall _ | Pdivint _
-    | Pmodint _ | Pintcomp _ | Pfloatcomp _ | Pmakearray (_, _, _)
-    | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+    | Psetufloatfield (_, _)
+    | Pmodint _ | Pintcomp _ | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
+    | Pmakearray (_, _, _) | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
     | Pduparray (_, _) | Parrayrefu _ | Parraysetu _
     | Parrayrefs _ | Parraysets _ | Paddbint _ | Psubbint _ | Pmulbint _
     | Pdivbint _ | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _
-    | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _)
+    | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _) | Punboxed_int_comp (_, _)
     | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
     | Pbigarraydim _ | Pstring_load _ | Pbytes_load _ | Pbytes_set _
     | Pbigstring_load _ | Pbigstring_set _ | Pprobe_is_enabled _)
@@ -992,7 +1012,10 @@ and transl_prim_2 env p arg1 arg2 dbg =
       let ptr = transl env arg1 in
       let float_val = transl_unbox_float dbg env arg2 in
       setfloatfield n init ptr float_val dbg
-
+  | Psetufloatfield (n, init) ->
+      let ptr = transl env arg1 in
+      let float_val = transl env arg2 in
+      setfloatfield n init ptr float_val dbg
   (* Boolean operations *)
   | Psequand ->
       let dbg' = Debuginfo.none in
@@ -1043,39 +1066,53 @@ and transl_prim_2 env p arg1 arg2 dbg =
       let a1 = transl_unbox_int dbg env bi arg1 in
       let a2 = transl_unbox_int dbg env bi arg2 in
       mk_compare_ints dbg a1 a2
-  | Pcompare_floats ->
+  | Pcompare_floats Pfloat64 ->
       let a1 = transl_unbox_float dbg env arg1 in
       let a2 = transl_unbox_float dbg env arg2 in
       mk_compare_floats dbg a1 a2
+  | Pcompare_floats Pfloat32 ->
+      Misc.fatal_error
+        "float32 is not supported in the upstream compiler build."
   | Pisout ->
       transl_isout (transl env arg1) (transl env arg2) dbg
   (* Float operations *)
-  | Paddfloat m ->
+  | Paddfloat (Pfloat64, m) ->
       box_float dbg m (Cop(Caddf,
                     [transl_unbox_float dbg env arg1;
                      transl_unbox_float dbg env arg2],
                     dbg))
-  | Psubfloat m ->
+  | Psubfloat (Pfloat64, m) ->
       box_float dbg m (Cop(Csubf,
                     [transl_unbox_float dbg env arg1;
                      transl_unbox_float dbg env arg2],
                     dbg))
-  | Pmulfloat m ->
+  | Pmulfloat (Pfloat64, m) ->
       box_float dbg m (Cop(Cmulf,
                     [transl_unbox_float dbg env arg1;
                      transl_unbox_float dbg env arg2],
                     dbg))
-  | Pdivfloat m ->
+  | Pdivfloat (Pfloat64, m) ->
       box_float dbg m (Cop(Cdivf,
                     [transl_unbox_float dbg env arg1;
                      transl_unbox_float dbg env arg2],
                     dbg))
-  | Pfloatcomp cmp ->
+  | Pfloatcomp (Pfloat64, cmp) ->
       tag_int(Cop(Ccmpf cmp,
                   [transl_unbox_float dbg env arg1;
                    transl_unbox_float dbg env arg2],
                   dbg)) dbg
-
+  | Punboxed_float_comp (Pfloat64, cmp) ->
+      tag_int(Cop(Ccmpf cmp,
+                  [transl env arg1;
+                   transl env arg2],
+                  dbg)) dbg
+  | Paddfloat (Pfloat32, _)
+  | Psubfloat (Pfloat32, _)
+  | Pmulfloat (Pfloat32, _)
+  | Pdivfloat (Pfloat32, _)
+  | Pfloatcomp (Pfloat32, _)
+  | Punboxed_float_comp (Pfloat32, _) ->
+      Misc.fatal_error "float32 is not supported in the upstream compiler build"
   (* String operations *)
   | Pstringrefu | Pbytesrefu ->
       stringref_unsafe (transl env arg1) (transl env arg2) dbg
@@ -1144,18 +1181,37 @@ and transl_prim_2 env p arg1 arg2 dbg =
       tag_int (Cop(Ccmpi cmp,
                      [transl_unbox_int dbg env bi arg1;
                       transl_unbox_int dbg env bi arg2], dbg)) dbg
-  | Pnot | Pnegint | Pintoffloat | Pfloatofint _ | Pnegfloat _
-  | Pabsfloat _ | Pstringlength | Pbyteslength | Pbytessetu | Pbytessets
+  | Punboxed_int_comp(_, cmp) ->
+      tag_int (Cop(Ccmpi cmp,
+                     [transl env arg1;
+                      transl env arg2], dbg)) dbg
+  | Patomic_exchange ->
+     Cop (Cextcall ("caml_atomic_exchange", typ_val, [], false),
+          [transl env arg1; transl env arg2], dbg)
+  | Patomic_fetch_add ->
+     Cop (Cextcall ("caml_atomic_fetch_add", typ_int, [], false),
+          [transl env arg1; transl env arg2], dbg)
+
+  (* Mixed blocks *)
+  | Pmakemixedblock _ | Psetmixedfield _ | Pmixedfield _ ->
+      Misc.fatal_error "Mixed blocks not supported in upstream compiler build"
+
+  | Prunstack | Pperform | Presume | Preperform | Pdls_get
+  | Patomic_cas | Patomic_load _
+  | Pnot | Pnegint | Pintoffloat _ | Pfloatofint (_, _)
+  | Pnegfloat (_, _) | Pabsfloat (_, _)
+  | Pstringlength | Pbyteslength | Pbytessetu | Pbytessets
   | Pisint | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _) | Pfield _ | Psetfield_computed (_, _)
-  | Pfloatfield _
+  | Pmakeufloatblock (_, _) | Pfloatfield _ | Pufloatfield _
   | Pduprecord (_, _) | Pccall _ | Praise _ | Poffsetint _ | Poffsetref _
   | Pmakearray (_, _, _) | Pduparray (_, _) | Parraylength _ | Parraysetu _
   | Parraysets _ | Pbintofint _ | Pintofbint _ | Pcvtbint (_, _, _)
   | Pnegbint _ | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
   | Pbigarraydim _ | Pbytes_set _ | Pbigstring_set _ | Pbbswap _
   | Pprobe_is_enabled _
-  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+  | Punbox_float _ | Pbox_float (_, _)
+  | Punbox_int _ | Pbox_int _ | Pget_header _
     ->
       fatal_errorf "Cmmgen.transl_prim_2: %a"
         Printclambda_primitives.primitive p
@@ -1198,25 +1254,73 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
       bigstring_set size unsafe (transl env arg1) (transl env arg2)
         (transl_unbox_sized size dbg env arg3) dbg
 
+  | Patomic_cas ->
+     Cop (Cextcall ("caml_atomic_cas", typ_int, [], false),
+          [transl env arg1; transl env arg2; transl env arg3], dbg)
+
+  (* Mixed blocks *)
+  | Pmakemixedblock _ | Psetmixedfield _ | Pmixedfield _ ->
+      Misc.fatal_error "Mixed blocks not supported in upstream compiler build"
+
+  (* Effects *)
+  | Presume ->
+      Misc.fatal_error "Effects-related primitives not yet supported"
+      (*
+      (* CR mshinwell: Rc_normal may be wrong, but this code is unlikely
+         to be in production by then *)
+      Cop (Capply (typ_val, Rc_normal),
+           [Cconst_symbol ("caml_resume", dbg);
+           transl env arg1; transl env arg2; transl env arg3],
+           dbg)
+      *)
+  | Prunstack ->
+      Misc.fatal_error "Effects-related primitives not yet supported"
+      (*
+      (* CR mshinwell: Rc_normal may be wrong, but this code is unlikely
+         to be in production by then *)
+      Cop (Capply (typ_val, Rc_normal),
+           [Cconst_symbol ("caml_runstack", dbg);
+           transl env arg1; transl env arg2; transl env arg3],
+           dbg)
+      *)
+  | Preperform ->
+      Misc.fatal_error "Effects-related primitives not yet supported"
+      (*
+      (* CR mshinwell: Rc_normal may be wrong, but this code is unlikely
+         to be in production by then *)
+      Cop (Capply (typ_val, Rc_normal),
+           [Cconst_symbol ("caml_reperform", dbg);
+           transl env arg1; transl env arg2; transl env arg3],
+           dbg)
+      *)
+
+  | Pperform | Pdls_get
+  | Patomic_exchange | Patomic_fetch_add | Patomic_load _
   | Pfield_computed | Psequand | Psequor | Pnot | Pnegint | Paddint
   | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint | Plsrint | Pasrint
-  | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _
-  | Pmulfloat _ | Pdivfloat _ | Pstringlength | Pstringrefu | Pstringrefs
-  | Pbyteslength | Pbytesrefu | Pbytesrefs | Pisint | Pisout
-  | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
+  | Pintoffloat _ | Pfloatofint (_, _) | Pnegfloat (_, _)
+  | Pabsfloat (_, _) | Paddfloat (_, _) | Psubfloat (_, _)
+  | Pmulfloat (_, _) | Pdivfloat (_, _) | Pstringlength
+  | Pstringrefu | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytesrefs | Pisint
+  | Pisout | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _)
   | Pfield _ | Psetfield (_, _, _) | Pfloatfield _ | Psetfloatfield (_, _)
+  | Pmakeufloatblock (_, _) | Pufloatfield _ | Psetufloatfield (_, _)
   | Pduprecord (_, _) | Pccall _ | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _
-  | Pcompare_ints | Pcompare_floats | Pcompare_bints _
-  | Poffsetint _ | Poffsetref _ | Pfloatcomp _ | Pmakearray (_, _, _)
+  | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+  | Poffsetint _ | Poffsetref _
+  | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
+  | Pmakearray (_, _, _)
   | Pduparray (_, _) | Parraylength _ | Parrayrefu _ | Parrayrefs _
   | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
   | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _ | Porbint _
-  | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _)
+  | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
+  | Pbintcomp (_, _) | Punboxed_int_comp (_, _)
   | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _) | Pbigarraydim _
   | Pstring_load _ | Pbytes_load _ | Pbigstring_load _ | Pbbswap _
   | Pprobe_is_enabled _
-  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+  | Punbox_float _ | Pbox_float (_, _)
+  | Punbox_int _ | Pbox_int _ | Pget_header _
     ->
       fatal_errorf "Cmmgen.transl_prim_3: %a"
         Printclambda_primitives.primitive p
@@ -1252,13 +1356,17 @@ and transl_let_value env str (kind : Lambda.value_kind) id exp transl_body =
        We conservatively mark these as Alloc_heap, although with more tracking
        of allocation mode it may be possible to mark some Alloc_local *)
     match str, kind with
-    | Mutable, Pfloatval ->
+    | Mutable, Pboxedfloatval Pfloat64 ->
         Boxed (Boxed_float (alloc_heap, dbg), false)
+    | _, Pboxedfloatval Pfloat32 ->
+        Misc.fatal_error
+          "float32 is not supported in the upstream compiler build."
     | Mutable, Pboxedintval bi ->
         Boxed (Boxed_integer (bi, alloc_heap, dbg), false)
     | _, Pboxedvectorval _ ->
-        Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
-    | _, (Pfloatval | Pboxedintval _) ->
+        Misc.fatal_error
+          "SIMD vectors are not supported in the upstream compiler build."
+    | _, (Pboxedfloatval Pfloat64 | Pboxedintval _) ->
         (* It would be safe to always unbox in this case, but
            we do it only if this indeed allows us to get rid of
            some allocations in the bound expression. *)
@@ -1305,8 +1413,12 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
       let _cbody : expression = transl_body env in
       cexp
   | Punboxed_vector _ ->
-      Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
-  | Punboxed_float | Punboxed_int _ -> begin
+      Misc.fatal_error
+        "SIMD vectors are not supported in the upstream compiler build."
+  | Punboxed_float Pfloat32 ->
+      Misc.fatal_error
+        "float32 is not supported in the upstream compiler build."
+  | Punboxed_float Pfloat64 | Punboxed_int _ -> begin
       let cexp = transl env exp in
       let cbody = transl_body env in
       match str with
@@ -1318,6 +1430,7 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
   end
   | Pvalue kind ->
       transl_let_value env str kind id exp transl_body
+  | Punboxed_product _ -> Misc.fatal_error "TODO"
 
 and make_catch (kind : Cmm.kind_for_unboxing) ncatch body handler dbg = match body with
 | Cexit (nexit,[]) when nexit=ncatch -> handler
@@ -1468,51 +1581,6 @@ and transl_switch dbg (kind : Cmm.kind_for_unboxing) env arg index cases = match
 | _ ->
     let cases = Array.map (transl env) cases in
     transl_switch_clambda dbg kind arg index cases
-
-and transl_letrec env bindings cont =
-  let dbg = Debuginfo.none in
-  let bsz =
-    List.map (fun (id, exp) -> (id, exp, expr_size V.empty exp))
-      bindings
-  in
-  let op_alloc prim args =
-    Cop(Cextcall(prim, typ_val, [], true), args, dbg) in
-  let rec init_blocks = function
-    | [] -> fill_nonrec bsz
-    | (_, _,
-       (RHS_block (Alloc_local, _) |
-        RHS_infix {blockmode=Alloc_local; _} |
-        RHS_floatblock (Alloc_local, _))) :: _ ->
-      Misc.fatal_error "Invalid stack allocation found"
-    | (id, _exp, RHS_block (Alloc_heap, sz)) :: rem ->
-        Clet(id, op_alloc "caml_alloc_dummy" [int_const dbg sz],
-          init_blocks rem)
-    | (id, _exp, RHS_infix { blocksize; offset; blockmode=Alloc_heap }) :: rem ->
-        Clet(id, op_alloc "caml_alloc_dummy_infix"
-             [int_const dbg blocksize; int_const dbg offset],
-             init_blocks rem)
-    | (id, _exp, RHS_floatblock (Alloc_heap, sz)) :: rem ->
-        Clet(id, op_alloc "caml_alloc_dummy_float" [int_const dbg sz],
-          init_blocks rem)
-    | (id, _exp, RHS_nonrec) :: rem ->
-        Clet (id, Cconst_int (1, dbg), init_blocks rem)
-  and fill_nonrec = function
-    | [] -> fill_blocks bsz
-    | (_id, _exp,
-       (RHS_block _ | RHS_infix _ | RHS_floatblock _)) :: rem ->
-        fill_nonrec rem
-    | (id, exp, RHS_nonrec) :: rem ->
-        Clet(id, transl env exp, fill_nonrec rem)
-  and fill_blocks = function
-    | [] -> cont
-    | (id, exp, (RHS_block _ | RHS_infix _ | RHS_floatblock _)) :: rem ->
-        let op =
-          Cop(Cextcall("caml_update_dummy", typ_void, [], false),
-              [Cvar (VP.var id); transl env exp], dbg) in
-        Csequence(op, fill_blocks rem)
-    | (_id, _exp, RHS_nonrec) :: rem ->
-        fill_blocks rem
-  in init_blocks bsz
 
 (* Translate a function definition *)
 

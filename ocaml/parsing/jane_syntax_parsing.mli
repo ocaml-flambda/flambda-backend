@@ -103,6 +103,10 @@ module Feature : sig
   val extension_component : t -> string
 end
 
+module Misnamed_embedding_error : sig
+  type t
+end
+
 (** An AST-style representation of the names used when generating extension
     nodes or attributes for modular syntax.  We use this to abstract over the
     details of how they're encoded, so we have some flexibility in changing them
@@ -110,7 +114,6 @@ end
     also why we don't expose any functions for rendering or parsing these names;
     that's all handled internally. *)
 module Embedded_name : sig
-
   (** A nonempty list of name components, without the first two components.
       (That is, without the leading root component that identifies it as part of
       the modular syntax mechanism, and without the next component that
@@ -132,6 +135,14 @@ module Embedded_name : sig
 
   val components : t -> components
 
+  (** Convert one of these Jane syntax names to the embedded string form used in
+      the OCaml AST as the name of an extension node or an attribute; exposed
+      for extensions that only uses [Embedded_name] instead of the whole
+      infrastructure in this module, such as the dummy argument extension *)
+  val to_string : t -> string
+
+  val of_string : string -> (t, Misnamed_embedding_error.t) result option
+
   (** Print out the embedded form of a Jane-syntax name, in quotes; for use in
       error messages. *)
   val pp_quoted_name : Format.formatter -> t -> unit
@@ -150,12 +161,8 @@ module type AST = sig
       given name (in the [Feature.t]) and body (the [ast]).  Any locations in
       the generated AST will be set to [!Ast_helper.default_loc], which should
       be [ghost]. *)
-  val make_jane_syntax
-    :  Feature.t
-    -> string list
-    -> ?payload:Parsetree.payload
-    -> ast
-    -> ast
+  val make_jane_syntax :
+    Feature.t -> string list -> ?payload:Parsetree.payload -> ast -> ast
 
   (** As [make_jane_syntax], but specifically for the AST node corresponding to
       the entire piece of novel syntax (e.g., for a list comprehension, the
@@ -163,11 +170,8 @@ module type AST = sig
       sets [Ast_helper.default_loc] locally to the [ghost] version of the
       provided location, which is why the [ast] is generated from a function
       call; it is during this call that the location is so set. *)
-  val make_entire_jane_syntax
-    :  loc:Location.t
-    -> Feature.t
-    -> (unit -> ast)
-    -> ast
+  val make_entire_jane_syntax :
+    loc:Location.t -> Feature.t -> (unit -> ast) -> ast
 
   (** Build an [of_ast] function. The return value of this function should be
       used to implement [of_ast] in modules satisfying the signature
@@ -178,9 +182,9 @@ module type AST = sig
       It raises an error if it finds a term from a disabled extension or if the
       embedding is malformed.
   *)
-  val make_of_ast
-    :  of_ast_internal:(Feature.t -> ast -> 'a option)
-    (** A function to convert [Parsetree]'s AST to our novel extended one.  The
+  val make_of_ast :
+    of_ast_internal:(Feature.t -> ast -> 'a option)
+      (** A function to convert [Parsetree]'s AST to our novel extended one.  The
         choice of feature and the piece of syntax will both be extracted from
         the embedding by the first argument.
 
@@ -189,36 +193,32 @@ module type AST = sig
         example: There are no pattern comprehensions, so when building the
         extended pattern AST, this function will return [None] if it spots an
         embedding that claims to be from [Language_extension Comprehensions].)
-    *)
-    -> (ast -> 'a option)
+    *) ->
+    ast ->
+    'a option
 end
 
-module Expression :
-  AST with type ast = Parsetree.expression
+module Expression : AST with type ast = Parsetree.expression
 
-module Pattern :
-  AST with type ast = Parsetree.pattern
+module Pattern : AST with type ast = Parsetree.pattern
 
-module Module_type :
-  AST with type ast = Parsetree.module_type
+module Module_type : AST with type ast = Parsetree.module_type
 
-module Signature_item :
-  AST with type ast = Parsetree.signature_item
+module Signature_item : AST with type ast = Parsetree.signature_item
 
-module Structure_item :
-  AST with type ast = Parsetree.structure_item
+module Structure_item : AST with type ast = Parsetree.structure_item
 
-module Core_type :
-  AST with type ast = Parsetree.core_type
+module Core_type : AST with type ast = Parsetree.core_type
 
-module Constructor_argument :
-  AST with type ast = Parsetree.core_type
+module Constructor_argument : AST with type ast = Parsetree.core_type
 
 module Extension_constructor :
   AST with type ast = Parsetree.extension_constructor
 
 module Constructor_declaration :
   AST with type ast = Parsetree.constructor_declaration
+
+module Type_declaration : AST with type ast = Parsetree.type_declaration
 
 (** Require that an extension is enabled for at least the provided level, or
     else throw an exception (of an abstract type) at the provided location
@@ -239,7 +239,8 @@ val assert_extension_enabled :
    approach for now, but we could revisit this decision if we use it more
    often.
 *)
-(** Extracts the first attribute (in list order) that was inserted by the
+
+(** Extracts the last attribute (in list order) that was inserted by the
     Jane Syntax framework, and returns the rest of the attributes in the
     same relative order as was input, along with the location of the removed
     attribute and its payload.
@@ -250,8 +251,8 @@ val assert_extension_enabled :
 *)
 val find_and_remove_jane_syntax_attribute :
   Parsetree.attributes ->
-  (Embedded_name.t * Location.t *
-   Parsetree.payload * Parsetree.attributes) option
+  (Embedded_name.t * Location.t * Parsetree.payload * Parsetree.attributes)
+  option
 
 (** Creates an attribute used for encoding syntax from the given [Feature.t] *)
 val make_jane_syntax_attribute :

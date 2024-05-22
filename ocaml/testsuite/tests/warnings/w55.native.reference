@@ -1,24 +1,29 @@
-File "w55.ml", line 25, characters 10-26:
-25 | let g x = (f [@inlined]) x
+File "w55.ml", line 27, characters 10-26:
+27 | let g x = (f [@inlined]) x
                ^^^^^^^^^^^^^^^^
 Warning 55 [inlining-impossible]: Cannot inline: Function information unavailable
-File "w55.ml", line 29, characters 10-27:
-29 | let i x = (!r [@inlined]) x
+
+File "w55.ml", line 31, characters 10-27:
+31 | let i x = (!r [@inlined]) x
                ^^^^^^^^^^^^^^^^^
 Warning 55 [inlining-impossible]: Cannot inline: Unknown function
-File "w55.ml", line 33, characters 10-26:
-33 | let h x = (j [@inlined]) x
+
+File "w55.ml", line 35, characters 10-26:
+35 | let h x = (j [@inlined]) x
                ^^^^^^^^^^^^^^^^
 Warning 55 [inlining-impossible]: Cannot inline: Partial application
-File "w55.ml", line 39, characters 12-30:
-39 | let b x y = (a [@inlined]) x y
+
+File "w55.ml", line 41, characters 12-30:
+41 | let b x y = (a [@inlined]) x y
                  ^^^^^^^^^^^^^^^^^^
 Warning 55 [inlining-impossible]: Cannot inline: Over-application
-File "w55.ml", line 39, characters 12-30:
-39 | let b x y = (a [@inlined]) x y
+
+File "w55.ml", line 41, characters 12-30:
+41 | let b x y = (a [@inlined]) x y
                  ^^^^^^^^^^^^^^^^^^
 Warning 55 [inlining-impossible]: Cannot inline: Function information unavailable
-File "w55.ml", line 42, characters 10-26:
-42 | let d x = (c [@inlined]) x
+
+File "w55.ml", line 44, characters 10-26:
+44 | let d x = (c [@inlined]) x
                ^^^^^^^^^^^^^^^^
 Warning 55 [inlining-impossible]: Cannot inline: Function information unavailable

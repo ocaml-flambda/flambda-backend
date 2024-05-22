@@ -19,10 +19,16 @@ type pers_flags =
   | Rectypes
   | Alerts of alerts
   | Opaque
-  | Unsafe_string
+
+type kind =
+  | Normal of {
+      cmi_impl : Compilation_unit.t;
+    }
+  | Parameter
 
 type 'sg cmi_infos_generic = {
-    cmi_name : Compilation_unit.t;
+    cmi_name : Compilation_unit.Name.t;
+    cmi_kind : kind;
     cmi_sign : 'sg;
     cmi_crcs : Import_info.t array;
     cmi_flags : pers_flags list;

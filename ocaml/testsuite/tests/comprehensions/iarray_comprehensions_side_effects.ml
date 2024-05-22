@@ -1,5 +1,5 @@
 (* TEST
-   flags = "-extension comprehensions -extension immutable_arrays"
+ flags = "-extension comprehensions";
 *)
 
 module Iarray = Stdlib__Iarray

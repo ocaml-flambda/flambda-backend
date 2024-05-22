@@ -197,6 +197,13 @@ let simplify_function_body context ~outer_dacc function_slot_opt
       then Recursive
       else Non_recursive
     in
+    if NO.mem_var free_names_of_body my_region
+       && Lambda.is_heap_mode (Code.result_mode code)
+    then
+      Misc.fatal_errorf
+        "Unexpected free my_region in code with heap result mode:\n%a"
+        (RE.print (UA.are_rebuilding_terms uacc))
+        body;
     let free_names_of_code =
       free_names_of_body
       |> NO.remove_continuation ~continuation:return_continuation
@@ -244,15 +251,18 @@ let simplify_function_body context ~outer_dacc function_slot_opt
       my_closure Expr.print body DA.print dacc;
     Printexc.raise_with_backtrace Misc.Fatal_error bt
 
-let compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
-    ~dacc_at_function_entry ~return_cont_params ~lifted_consts_this_function
-    ~params : _ Or_unknown_or_bottom.t =
+let compute_result_types ~is_a_functor ~is_opaque ~return_cont_uses
+    ~dacc_after_body ~dacc_at_function_entry ~return_cont_params
+    ~lifted_consts_this_function ~params : _ Or_unknown_or_bottom.t =
   match
-    Flambda_features.function_result_types ~is_a_functor, return_cont_uses
+    ( is_opaque,
+      Flambda_features.function_result_types ~is_a_functor,
+      return_cont_uses )
   with
-  | false, _ -> Unknown
-  | true, None -> Bottom
-  | true, Some uses ->
+  | true, _, _ -> Unknown
+  | false, _, None -> Bottom
+  | false, false, Some _ -> Unknown
+  | false, true, Some uses ->
     let env_at_fork =
       (* We use [C.dacc_inside_functions] not [C.dacc_prior_to_sets] to ensure
          that the environment contains bindings for any symbols being defined by
@@ -266,9 +276,11 @@ let compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
         ~is_recursive:false ~params:return_cont_params ~env_at_fork
         ~consts_lifted_during_body:lifted_consts_this_function
     in
+    let bound_params_and_results =
+      Bound_parameters.append params return_cont_params
+    in
     let params_and_results =
-      Bound_parameters.var_set
-        (Bound_parameters.append params return_cont_params)
+      Bound_parameters.var_set bound_params_and_results
     in
     let typing_env = DE.typing_env join.handler_env in
     let typing_env =
@@ -277,12 +289,12 @@ let compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
     in
     let results_and_types =
       List.map
-        (fun result ->
-          let name = BP.name result in
-          let kind = K.With_subkind.kind (BP.kind result) in
+        (fun result_or_param ->
+          let name = BP.name result_or_param in
+          let kind = K.With_subkind.kind (BP.kind result_or_param) in
           let ty = TE.find typing_env name (Some kind) in
           name, ty)
-        (Bound_parameters.to_list return_cont_params)
+        (Bound_parameters.to_list bound_params_and_results)
     in
     let env_extension =
       (* This call is important for compilation time performance, to cut down
@@ -336,7 +348,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
         BP.create
           (Variable.create ("result" ^ string_of_int i))
           kind_with_subkind)
-      (Flambda_arity.to_list result_arity)
+      (Flambda_arity.unarized_components result_arity)
     |> Bound_parameters.create
   in
   let { params;
@@ -383,10 +395,11 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     decision
   in
   let is_a_functor = Code.is_a_functor code in
+  let is_opaque = Code.is_opaque code in
   let result_types =
-    compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
-      ~dacc_at_function_entry ~return_cont_params ~lifted_consts_this_function
-      ~params
+    compute_result_types ~is_a_functor ~is_opaque ~return_cont_uses
+      ~dacc_after_body ~dacc_at_function_entry ~return_cont_params
+      ~lifted_consts_this_function ~params
   in
   let outer_dacc =
     (* This is the complicated part about slot offsets. We just traversed the
@@ -426,11 +439,12 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       ~newer_version_of ~params_arity:(Code.params_arity code)
       ~param_modes:(Code.param_modes code)
       ~first_complex_local_param:(Code.first_complex_local_param code)
-      ~result_arity ~result_types
+      ~result_arity ~result_types ~result_mode:(Code.result_mode code)
       ~contains_no_escaping_local_allocs:
         (Code.contains_no_escaping_local_allocs code)
-      ~stub:(Code.stub code) ~inline:(Code.inline code) ~check:(Code.check code)
-      ~poll_attribute:(Code.poll_attribute code) ~is_a_functor
+      ~stub:(Code.stub code) ~inline:(Code.inline code)
+      ~zero_alloc_attribute:(Code.zero_alloc_attribute code)
+      ~poll_attribute:(Code.poll_attribute code) ~is_a_functor ~is_opaque
       ~recursive:(Code.recursive code) ~cost_metrics ~inlining_arguments
       ~dbg:(Code.dbg code) ~is_tupled:(Code.is_tupled code) ~is_my_closure_used
       ~inlining_decision ~absolute_history ~relative_history ~loopify
@@ -475,6 +489,11 @@ let simplify_function context ~outer_dacc function_slot code_id
           let max_function_simplify_run =
             Flambda_features.Expert.max_function_simplify_run ()
           in
+          if should_resimplify && Flambda_features.dump_flambda () && debug ()
+          then
+            Format.eprintf
+              "@\n%tAfter a single simplify_set_of_closures:%t@\n%a@\n@."
+              Flambda_colours.each_file Flambda_colours.pop Code.print new_code;
           if should_resimplify && count < max_function_simplify_run
           then run ~outer_dacc ~code:new_code (count + 1)
           else
@@ -490,10 +509,10 @@ let simplify_function context ~outer_dacc function_slot code_id
   let code_ids_to_never_delete_this_set =
     let code_metadata = Code_or_metadata.code_metadata code_or_metadata in
     let never_delete =
-      match Code_metadata.check code_metadata with
+      match Code_metadata.zero_alloc_attribute code_metadata with
       | Default_check -> !Clflags.zero_alloc_check_assert_all
-      | Ignore_assert_all Zero_alloc -> false
-      | Check { property = Zero_alloc; _ } -> true
+      | Assume _ -> false
+      | Check _ -> true
     in
     if never_delete then Code_id.Set.singleton code_id else Code_id.Set.empty
   in
@@ -730,7 +749,7 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
       Cost_metrics.
         { cost_metrics = Code_metadata.cost_metrics code_metadata;
           params_arity =
-            Flambda_arity.cardinal (Code_metadata.params_arity code_metadata)
+            Flambda_arity.num_params (Code_metadata.params_arity code_metadata)
         }
     in
     Simplified_named.create_with_known_free_names ~find_code_characteristics

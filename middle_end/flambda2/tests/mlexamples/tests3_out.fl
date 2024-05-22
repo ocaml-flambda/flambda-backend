@@ -27,7 +27,7 @@ let code loopify(never) size(65) newer_version_of(foo_0)
            let ifso_result = %Box_float prim in
            cont k3 (ifso_result)
          where k3 (if_then_else_result) =
-           apply f (if_then_else_result) &my_region -> k2 * k1)
+           apply f (if_then_else_result) -> k2 * k1)
     where k2 (apply_result) =
       ((let cond_result = %is_flat_float_array arr in
         switch cond_result

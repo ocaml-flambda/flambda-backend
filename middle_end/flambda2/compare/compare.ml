@@ -1,6 +1,5 @@
 [@@@ocaml.warning "-fragile-match"]
 
-open! Int_replace_polymorphic_compare
 open! Flambda
 
 (* General notes on comparison
@@ -241,10 +240,10 @@ let subst_unary_primitive env (p : Flambda_primitive.unary_primitive) :
     let move_from = subst_function_slot env move_from in
     let move_to = subst_function_slot env move_to in
     Project_function_slot { move_from; move_to }
-  | Project_value_slot { project_from; value_slot; kind } ->
+  | Project_value_slot { project_from; value_slot } ->
     let project_from = subst_function_slot env project_from in
     let value_slot = subst_value_slot env value_slot in
-    Project_value_slot { project_from; value_slot; kind }
+    Project_value_slot { project_from; value_slot }
   | _ -> p
 
 let subst_primitive env (p : Flambda_primitive.t) : Flambda_primitive.t =
@@ -425,7 +424,7 @@ and subst_cont_handler env cont_handler =
         ~is_cold:(Continuation_handler.is_cold cont_handler))
 
 and subst_apply env apply =
-  let callee = subst_simple env (Apply_expr.callee apply) in
+  let callee = Option.map (subst_simple env) (Apply_expr.callee apply) in
   let continuation = Apply_expr.continuation apply in
   let exn_continuation = Apply_expr.exn_continuation apply in
   let args = List.map (subst_simple env) (Apply_expr.args apply) in
@@ -435,12 +434,11 @@ and subst_apply env apply =
   let inlining_state = Apply_expr.inlining_state apply in
   let relative_history = Apply_expr.relative_history apply in
   let position = Apply_expr.position apply in
-  let region = Apply_expr.region apply in
   let args_arity = Apply_expr.args_arity apply in
   let return_arity = Apply_expr.return_arity apply in
   Apply_expr.create ~callee ~continuation exn_continuation ~args ~call_kind dbg
-    ~inlined ~inlining_state ~probe:None ~position ~relative_history ~region
-    ~args_arity ~return_arity
+    ~inlined ~inlining_state ~probe:None ~position ~relative_history ~args_arity
+    ~return_arity
   |> Expr.create_apply
 
 and subst_apply_cont env apply_cont =
@@ -640,26 +638,15 @@ let unary_prim_ops env (prim_op1 : Flambda_primitive.unary_primitive)
            Flambda_primitive.Project_function_slot
              { move_from = move_from1'; move_to = move_to1' })
   | ( Project_value_slot
-        { project_from = function_slot1;
-          value_slot = value_slot1;
-          kind = kind1
-        },
+        { project_from = function_slot1; value_slot = value_slot1 },
       Project_value_slot
-        { project_from = function_slot2;
-          value_slot = value_slot2;
-          kind = kind2
-        } ) ->
-    triples ~f1:function_slots ~f2:value_slots
-      ~f3:(Comparator.of_predicate Flambda_kind.With_subkind.equal)
-      env
-      (function_slot1, value_slot1, kind1)
-      (function_slot2, value_slot2, kind2)
-    |> Comparison.map ~f:(fun (function_slot1', value_slot1', kind1') ->
+        { project_from = function_slot2; value_slot = value_slot2 } ) ->
+    pairs ~f1:function_slots ~f2:value_slots env
+      (function_slot1, value_slot1)
+      (function_slot2, value_slot2)
+    |> Comparison.map ~f:(fun (function_slot1', value_slot1') ->
            Flambda_primitive.Project_value_slot
-             { project_from = function_slot1';
-               value_slot = value_slot1';
-               kind = kind1'
-             })
+             { project_from = function_slot1'; value_slot = value_slot1' })
   | _, _ ->
     if Flambda_primitive.equal_unary_primitive prim_op1 prim_op2
     then Equivalent
@@ -913,7 +900,7 @@ let method_kinds _env (method_kind1 : Call_kind.Method_kind.t)
 let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
     Call_kind.t Comparison.t =
   let compare_alloc_modes_then alloc_mode1 alloc_mode2 ~f : _ Comparison.t =
-    if Alloc_mode.For_types.compare alloc_mode1 alloc_mode2 = 0
+    if Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2 = 0
     then f ()
     else Different { approximant = call_kind1 }
   in
@@ -937,7 +924,7 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
     compare_alloc_modes_then alloc_mode1 alloc_mode2 ~f:(fun () -> Equivalent)
   | ( Method { kind = kind1; obj = obj1; alloc_mode = alloc_mode1 },
       Method { kind = kind2; obj = obj2; alloc_mode = alloc_mode2 } ) ->
-    if Alloc_mode.For_types.compare alloc_mode1 alloc_mode2 = 0
+    if Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2 = 0
     then
       pairs ~f1:method_kinds ~f2:simple_exprs ~subst2:subst_simple env
         (kind1, obj1) (kind2, obj2)
@@ -948,9 +935,25 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
         { approximant =
             Call_kind.method_call kind1 ~obj:(subst_simple env obj1) alloc_mode1
         }
-  | ( C_call { alloc = alloc1; is_c_builtin = _ },
-      C_call { alloc = alloc2; is_c_builtin = _ } ) ->
-    if Bool.equal alloc1 alloc2
+  | ( C_call
+        { needs_caml_c_call = needs_caml_c_call1;
+          is_c_builtin = is_c_builtin1;
+          effects = effects1;
+          coeffects = coeffects1;
+          alloc_mode = alloc_mode1
+        },
+      C_call
+        { needs_caml_c_call = needs_caml_c_call2;
+          is_c_builtin = is_c_builtin2;
+          effects = effects2;
+          coeffects = coeffects2;
+          alloc_mode = alloc_mode2
+        } ) ->
+    if Bool.equal needs_caml_c_call1 needs_caml_c_call2
+       && Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2 = 0
+       && Bool.equal is_c_builtin1 is_c_builtin2
+       && Effects.compare effects1 effects2 = 0
+       && Coeffects.compare coeffects1 coeffects2 = 0
     then Equivalent
     else Different { approximant = call_kind1 }
   | _, _ -> Different { approximant = call_kind1 }
@@ -981,7 +984,8 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
   in
   let ok = ref atomic_things_equal in
   let callee1' =
-    simple_exprs env (Apply.callee apply1) (Apply.callee apply2)
+    options ~f:simple_exprs ~subst:subst_simple env (Apply.callee apply1)
+      (Apply.callee apply2)
     |> Comparison.chain ~if_equivalent:(Apply.callee apply2) ~ok
   in
   let args1' =
@@ -1005,7 +1009,6 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
             ~inlining_state:(Apply.inlining_state apply1)
             ~probe:None ~position:(Apply.position apply1)
             ~relative_history:(Apply_expr.relative_history apply1)
-            ~region:(Apply_expr.region apply1)
             ~args_arity:(Apply_expr.args_arity apply1)
             ~return_arity:(Apply_expr.return_arity apply1)
           |> Expr.create_apply

@@ -87,7 +87,11 @@ type 'a close_program_metadata =
       * Exported_offsets.t)
       -> [`Classic] close_program_metadata
 
-type 'a close_program_result = Flambda_unit.t * 'a close_program_metadata
+type 'a close_program_result =
+  { unit : Flambda_unit.t;
+    metadata : 'a close_program_metadata;
+    code_slot_offsets : Slot_offsets.t Code_id.Map.t
+  }
 
 val close_program :
   mode:'mode Flambda_features.mode ->

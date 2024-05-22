@@ -1,5 +1,6 @@
 (* TEST
-   * native *)
+ native;
+*)
 
 let[@inline never] f x =
   local_ (x, (0, 0))

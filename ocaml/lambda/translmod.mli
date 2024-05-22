@@ -45,6 +45,7 @@ type unsafe_component =
   | Unsafe_functor
   | Unsafe_non_function
   | Unsafe_typext
+  | Unsafe_non_value_arg
 
 type unsafe_info =
   | Unsafe of { reason:unsafe_component; loc:Location.t; subid:Ident.t }
@@ -53,7 +54,7 @@ type unsafe_info =
 type error =
   Circular_dependency of (Ident.t * unsafe_info) list
 | Conflicting_inline_attributes
-| Non_value_layout of Types.type_expr * Layouts.Layout.Violation.t
+| Non_value_jkind of Types.type_expr * Jkind.sort
 
 exception Error of Location.t * error
 

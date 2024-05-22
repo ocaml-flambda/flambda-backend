@@ -25,7 +25,7 @@ module Instruction = struct
       arg = map_regs arg;
       res = map_regs res;
       id;
-      dbg = [];
+      dbg = Debuginfo.none;
       fdo = None;
       irc_work_list = Unknown_list;
       live = Reg.Set.empty;
@@ -91,8 +91,9 @@ module Cfg_desc = struct
   let make ~remove_regalloc ~remove_locs
       ({ fun_args; blocks; fun_contains_calls } : t) : Cfg_with_layout.t =
     let cfg =
-      Cfg.create ~fun_name:"foo" ~fun_args:(Array.copy fun_args) ~fun_dbg:[]
-        ~fun_fast:false ~fun_contains_calls
+      Cfg.create ~fun_name:"foo" ~fun_args:(Array.copy fun_args) ~fun_dbg:Debuginfo.none
+        ~fun_codegen_options:[]
+         ~fun_contains_calls
         ~fun_num_stack_slots:(Array.make Proc.num_stack_slot_classes 0)
     in
     List.iter
@@ -170,7 +171,7 @@ let entry_label =
        let cfg =
          Cfg.create ~fun_name:"foo"
            ~fun_args:[| Proc.phys_reg 0 |]
-           ~fun_dbg:[] ~fun_fast:false ~fun_contains_calls:false
+           ~fun_dbg:Debuginfo.none ~fun_fast:false ~fun_contains_calls:false
            ~fun_num_stack_slots:(Array.make Proc.num_stack_slot_classes 0)
        in
        Label.Tbl.add cfg.Cfg.blocks (Cfg.entry_label cfg)
@@ -187,7 +188,7 @@ let entry_label =
              { desc = Return;
                arg = [| Proc.phys_reg 0 |];
                res = [||];
-               dbg = [];
+               dbg = Debuginfo.none;
                fdo = None;
                stack_offset = 0;
                id = 1;
@@ -223,7 +224,7 @@ let int = Array.init 8 (fun _ -> Reg.create Int)
 
 let val_ = Array.init 8 (fun _ -> Reg.create Val)
 
-let addr = Array.init 8 (fun _ -> Reg.create Addr)
+let _addr = Array.init 8 (fun _ -> Reg.create Addr)
 
 let float = Array.init 8 (fun _ -> Reg.create Float)
 
@@ -471,7 +472,7 @@ let () =
 let () =
   check "Regalloc specific instructions are checked when creating description"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg = Cfg_desc.make ~remove_regalloc:false ~remove_locs:true templ in
       cfg, cfg)
     ~exp_std:"fatal exception raised when creating description"
@@ -480,7 +481,7 @@ let () =
 let () =
   check "Terminator result count"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       templ.&(call_label).terminator.res <- [||];
       let cfg2 = Cfg_desc.make_post templ in
@@ -493,7 +494,7 @@ let () =
 let () =
   check "Instruction result count"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       templ.&(add_label).!(0).res <- [||];
       let cfg2 = Cfg_desc.make_post templ in
@@ -506,7 +507,7 @@ let () =
 let () =
   check "Terminator argument count"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       templ.&(return_label).terminator.arg <- [||];
       let cfg2 = Cfg_desc.make_post templ in
@@ -519,7 +520,7 @@ let () =
 let () =
   check "Function argument isn't preassigned"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       templ.fun_args.(0) <- Reg.dummy;
       let cfg1 = Cfg_desc.make_pre templ in
       let cfg2 = Cfg_desc.make_post templ in
@@ -532,7 +533,7 @@ let () =
 let () =
   check "Function argument count changed"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       templ.fun_args <- Array.sub templ.fun_args 0 1;
       let cfg2 = Cfg_desc.make_post templ in
@@ -545,39 +546,46 @@ let () =
 let () =
   check "Function argument precoloring changed"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       templ.fun_args.(0) <- templ.fun_args.(1);
       let cfg2 = Cfg_desc.make_post templ in
       cfg1, cfg2)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: In function arguments: changed preassigned register's \
-       location from %rax to %rbx"
+      (Printf.sprintf
+        ">> Fatal error: In function arguments: changed preassigned register's \
+         location from %s to %s"
+         (Proc.register_name Cmm.Int 0)
+         (Proc.register_name Cmm.Int 1))
+
 
 let () =
   check "Location can't be unknown after allocation"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg = Cfg_desc.make_pre templ in
       cfg, cfg)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: instruction 20 has a register (V/53) with an unknown \
+      ">> Fatal error: instruction 20 has a register (V/69) with an unknown \
        location"
 
 let () =
   check "Precoloring can't change"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       templ.&(move_param_label).!(7).res <- templ.&(move_param_label).!(6).res;
       let cfg2 = Cfg_desc.make_post templ in
       cfg1, cfg2)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: In instruction's no 17 results: changed preassigned \
-       register's location from %rdi to %rbx"
+      (Printf.sprintf
+        ">> Fatal error: In instruction's no 17 results: changed preassigned \
+         register's location from %s to %s"
+         (Proc.register_name Cmm.Int 2)
+         (Proc.register_name Cmm.Int 1))
 
 let () =
   check "Duplicate instruction found when validating description"
@@ -717,7 +725,7 @@ let () =
 let () =
   check "Regalloc reordered instructions between blocks"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       let add_body = templ.&(add_label).body in
       templ.&(add_label).body <- [];
@@ -733,7 +741,7 @@ let () =
 let () =
   check "Regalloc reordered instructions within a block"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       let block = templ.&(move_tmp_res_label) in
       block.body
@@ -1026,15 +1034,32 @@ let test_loop ~loop_loc_first n =
     (Printf.sprintf "Check loop with %d locations" n)
     (fun () -> make_loop ~loop_loc_first n)
     ~exp_std:
-      "Validation failed: Bad equations at entry point, reason: Unsatisfiable \
-       equations when removing result equations.\n\
-       Existing equation has to agree on 0 or 2 sides (cannot be exactly 1) \
-       with the removed equation.\n\
-       Existing equation R[%rdi]=%rbx.\n\
-       Removed equation: R[%rbx]=%rbx.\n\
-       Equations: R[%rax]=%rax R[%rdi]=%rbx R[%rdi]=%rdi\n\
-       Function argument descriptions: R[%rax], R[%rbx], R[%rdi]\n\
-       Function argument locations: %rax, %rbx, %rdi"
+      (Printf.sprintf
+        "Validation failed: Bad equations at entry point, reason: Unsatisfiable \
+         equations when removing result equations.\n\
+         Existing equation has to agree on 0 or 2 sides (cannot be exactly 1) \
+         with the removed equation.\n\
+         Existing equation R[%s]=%s.\n\
+         Removed equation: R[%s]=%s.\n\
+         Equations: R[%s]=%s R[%s]=%s R[%s]=%s\n\
+         Function argument descriptions: R[%s], R[%s], R[%s]\n\
+         Function argument locations: %s, %s, %s"
+         (Proc.register_name Cmm.Int 2)
+         (Proc.register_name Cmm.Int 1)
+         (Proc.register_name Cmm.Int 1)
+         (Proc.register_name Cmm.Int 1)
+         (Proc.register_name Cmm.Int 0)
+         (Proc.register_name Cmm.Int 0)
+         (Proc.register_name Cmm.Int 2)
+         (Proc.register_name Cmm.Int 1)
+         (Proc.register_name Cmm.Int 2)
+         (Proc.register_name Cmm.Int 2)
+         (Proc.register_name Cmm.Int 0)
+         (Proc.register_name Cmm.Int 1)
+         (Proc.register_name Cmm.Int 2)
+         (Proc.register_name Cmm.Int 0)
+         (Proc.register_name Cmm.Int 1)
+         (Proc.register_name Cmm.Int 2))
     ~exp_err:"";
   let end_time = Sys.time () in
   Format.printf "  Time of loop test: %fs\n" (end_time -. start_time);

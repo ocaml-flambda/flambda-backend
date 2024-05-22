@@ -20,7 +20,11 @@ type t
 val print : Format.formatter -> t -> unit
 
 (** Create a downwards accumulator. *)
-val create : Downwards_env.t -> Continuation_uses_env.t -> t
+val create :
+  Downwards_env.t ->
+  Slot_offsets.t Code_id.Map.t ->
+  Continuation_uses_env.t ->
+  t
 
 (** Extract the environment component of the given downwards accumulator. *)
 val denv : t -> Downwards_env.t
@@ -103,3 +107,7 @@ val are_rebuilding_terms : t -> Are_rebuilding_terms.t
 val slot_offsets : t -> Slot_offsets.t Code_id.Map.t
 
 val with_slot_offsets : t -> slot_offsets:Slot_offsets.t Code_id.Map.t -> t
+
+val merge_debuginfo_rewrite : t -> bound_to:Simple.t -> Debuginfo.t -> t
+
+val find_debuginfo_rewrite : t -> bound_to:Simple.t -> Debuginfo.t option

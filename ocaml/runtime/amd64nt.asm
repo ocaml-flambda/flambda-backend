@@ -24,8 +24,9 @@
         EXTRN  caml_apply2: NEAR
         EXTRN  caml_apply3: NEAR
         EXTRN  caml_program: NEAR
-        EXTRN  caml_array_bound_error: NEAR
-       EXTRN  caml_stash_backtrace: NEAR
+        EXTRN  caml_array_bound_error_asm: NEAR
+        EXTRN  caml_array_align_error: NEAR
+        EXTRN  caml_stash_backtrace: NEAR
 
 INCLUDE domain_state64.inc
 
@@ -420,19 +421,25 @@ caml_callback3_asm:
         PUBLIC  caml_ml_array_bound_error
         ALIGN   16
 caml_ml_array_bound_error:
-        lea     rax, caml_array_bound_error
+        lea     rax, caml_array_bound_error_asm
+        jmp     caml_c_call
+
+        PUBLIC  caml_ml_array_align_error
+        ALIGN   16
+caml_ml_array_align_error:
+        lea     rax, caml_array_align_error_asm
         jmp     caml_c_call
 
         PUBLIC caml_system__code_end
 caml_system__code_end:
 
         .DATA
-        PUBLIC  caml_system__frametable
-caml_system__frametable LABEL QWORD
-        QWORD   1           ; one descriptor
+        PUBLIC  caml_system.frametable
+caml_system.frametable LABEL QWORD
+        QWORD   1                ; one descriptor
         DWORD   L107 - THIS BYTE ; return address into callback
-        WORD    -1          ; negative frame size => use callback link
-        WORD    0           ; no roots here
+        WORD    -1               ; negative frame size => use callback link
+        WORD    0                ; no roots here
         ALIGN   8
 
         PUBLIC  caml_negf_mask

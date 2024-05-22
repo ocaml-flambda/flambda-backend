@@ -57,13 +57,16 @@ module type Arg = sig
 
     val label : ?data_type:data_type -> string -> unit
 
-    val section : string list -> string option -> string list -> unit
+    val section :
+      ?delayed:bool -> string list -> string option -> string list -> unit
 
     val text : unit -> unit
 
     val new_line : unit -> unit
 
     val global : string -> unit
+
+    val protected : string -> unit
 
     val type_ : string -> string -> unit
 
@@ -92,7 +95,8 @@ module type S = sig
       they are necessary so that references (e.g. DW_FORM_ref_addr /
       DW_FORM_sec_offset when emitting DWARF) to places that are currently at
       the start of these sections get relocated correctly when those places
-      become not at the start (e.g. during linking). *)
+      become not at the start (e.g. during linking).
+  *)
   val switch_to_section : Asm_section.t -> unit
 
   (** Called at the beginning of the assembly generation and only if the dwarf
@@ -170,6 +174,9 @@ module type S = sig
   (** Mark a symbol as global. *)
   val global : Asm_symbol.t -> unit
 
+  (** Mark a symbol as having visibility protected. *)
+  val protected : Asm_symbol.t -> unit
+
   (** Emit a machine-width reference to the given symbol. *)
   val symbol : ?comment:string -> Asm_symbol.t -> unit
 
@@ -180,6 +187,9 @@ module type S = sig
 
   (** Emit a machine-width reference to the given label. *)
   val label : ?comment:string -> Asm_label.t -> unit
+
+  val label_plus_offset :
+    ?comment:string -> Asm_label.t -> offset_in_bytes:Targetint.t -> unit
 
   (** Emit a machine-width reference to the address formed by adding the given
       byte offset to the address of the given symbol. The symbol may be in a
@@ -209,6 +219,15 @@ module type S = sig
       64-bit-wide reference. The labels must be in the same section. *)
   val between_labels_64_bit :
     ?comment:string -> upper:Asm_label.t -> lower:Asm_label.t -> unit -> unit
+
+  val between_labels_64_bit_with_offsets :
+    ?comment:string ->
+    upper:Asm_label.t ->
+    upper_offset:Targetint.t ->
+    lower:Asm_label.t ->
+    lower_offset:Targetint.t ->
+    unit ->
+    unit
 
   (** Emit a machine-width reference giving the displacement between the [lower]
       symbol and the sum of the address of the [upper] label plus

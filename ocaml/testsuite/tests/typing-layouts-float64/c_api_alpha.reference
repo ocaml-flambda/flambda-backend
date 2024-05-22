@@ -1,6 +1,0 @@
-Test U -> U, sin two: 0.91
-Test B -> U, sin three: 0.14
-Test U -> B, sin four: -0.76
-Test (B[@unboxed]) -> U, sin five: -0.96
-Test U -> (B[@unboxed]), sin six: -0.28
-Function with many args, sum_of_one_to_seven: 28.00

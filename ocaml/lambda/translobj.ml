@@ -13,7 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Asttypes
 open Lambda
 
 (* Get oo primitives identifiers *)
@@ -85,7 +84,7 @@ let int n = Lconst (Const_base (Const_int n))
 
 (* CR layouts v5: To change when we have arrays of other sorts *)
 let prim_makearray =
-  Primitive.simple_on_values ~name:"caml_make_vect" ~arity:2 ~alloc:true
+  Lambda.simple_prim_on_values ~name:"caml_make_vect" ~arity:2 ~alloc:true
 
 (* Also use it for required globals *)
 let transl_label_init_general f =
@@ -135,6 +134,7 @@ let transl_store_label_init glob size f arg =
   assert(not (Config.flambda || Config.flambda2));
   assert(!Clflags.native_code);
   method_cache := Lprim(mod_field ~read_semantics:Reads_vary size,
+                        (* XXX KC: conservative *)
                         [Lprim(Pgetglobal glob, [], Loc_unknown)],
                         Loc_unknown);
   let expr = f arg in
@@ -170,7 +170,7 @@ let oo_add_class id =
   classes := id :: !classes;
   (!top_env, !cache_required)
 
-let oo_wrap env req f x =
+let oo_wrap_gen env req f x =
   if !wrapping then
     if !cache_required then f x else
       Misc.protect_refs [Misc.R (cache_required, true)] (fun () ->
@@ -182,7 +182,7 @@ let oo_wrap env req f x =
          cache_required := req;
          classes := [];
          method_ids := Ident.Set.empty;
-         let lambda = f x in
+         let lambda, other = f x in
          let lambda =
            List.fold_left
              (fun lambda id ->
@@ -196,8 +196,12 @@ let oo_wrap env req f x =
                      lambda))
              lambda !classes
          in
-         lambda
+         lambda, other
       )
+
+let oo_wrap env req f x =
+  let lam, () = oo_wrap_gen env req (fun x -> f x, ()) x in
+  lam
 
 let reset () =
   Hashtbl.clear consts;

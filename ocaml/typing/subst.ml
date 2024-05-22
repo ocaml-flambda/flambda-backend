@@ -17,24 +17,23 @@
 
 open Misc
 open Path
-open Layouts
 open Types
 open Btype
 
 open Local_store
 
-type layout_error =
-  | Unconstrained_layout_variable
+type jkind_error =
+  | Unconstrained_jkind_variable
 
-exception Error of Location.t * layout_error
+exception Error of Location.t * jkind_error
 
 type type_replacement =
   | Path of Path.t
   | Type_function of { params : type_expr list; body : type_expr }
 
 type additional_action =
-  | Prepare_for_saving of (Location.t -> layout -> layout)
-    (* The [Prepare_for_saving] function should be applied to all layouts when
+  | Prepare_for_saving of (Location.t -> jkind -> jkind)
+    (* The [Prepare_for_saving] function should be applied to all jkinds when
        saving; this commons them up, truncates their histories, and runs
        a check that all unconstrained variables have been defaulted to value. *)
   | Duplicate_variables
@@ -95,36 +94,40 @@ let with_additional_action (config : additional_action_config) s =
     match config with
     | Duplicate_variables -> Duplicate_variables
     | Prepare_for_saving ->
-        let reason = Layout.Imported in
-        let any = Layout.of_const Any ~why:reason in
-        let void = Layout.of_const Void ~why:reason in
-        let value = Layout.of_const Value ~why:reason in
-        let immediate = Layout.of_const Immediate ~why:reason in
-        let immediate64 = Layout.of_const Immediate64 ~why:reason in
-        let float64 = Layout.of_const Float64 ~why:reason in
-        let prepare_layout loc lay =
-          match Layout.get lay with
+        let reason = Jkind.Imported in
+        let any = Jkind.of_const Any ~why:reason in
+        let void = Jkind.of_const Void ~why:reason in
+        let value = Jkind.of_const Value ~why:reason in
+        let immediate = Jkind.of_const Immediate ~why:reason in
+        let immediate64 = Jkind.of_const Immediate64 ~why:reason in
+        let float64 = Jkind.of_const Float64 ~why:reason in
+        let float32 = Jkind.of_const Float32 ~why:reason in
+        let word = Jkind.of_const Word ~why:reason in
+        let bits32 = Jkind.of_const Bits32 ~why:reason in
+        let bits64 = Jkind.of_const Bits64 ~why:reason in
+        let non_null_value = Jkind.of_const Non_null_value ~why:reason in
+        let prepare_jkind loc lay =
+          match Jkind.get lay with
           | Const Any -> any
           | Const Void -> void
           | Const Value -> value
           | Const Immediate -> immediate
           | Const Immediate64 -> immediate64
           | Const Float64 -> float64
-          | Var var -> begin
-              match Sort.var_constraint var with
-              | Some Void -> void
-              | Some Value -> value
-              | Some Float64 -> float64
-              | None -> raise(Error (loc, Unconstrained_layout_variable))
-            end
+          | Const Float32 -> float32
+          | Const Word -> word
+          | Const Bits32 -> bits32
+          | Const Bits64 -> bits64
+          | Const Non_null_value -> non_null_value
+          | Var _ -> raise(Error (loc, Unconstrained_jkind_variable))
         in
-        Prepare_for_saving prepare_layout
+        Prepare_for_saving prepare_jkind
   in
   { s with additional_action; last_compose = None }
 
-let apply_prepare_layout s lay loc =
+let apply_prepare_jkind s lay loc =
   match s.additional_action with
-  | Prepare_for_saving prepare_layout -> prepare_layout loc lay
+  | Prepare_for_saving prepare_jkind -> prepare_jkind loc lay
   | Duplicate_variables | No_action -> lay
 
 let change_locs s loc = { s with loc = Some loc; last_compose = None }
@@ -180,21 +183,30 @@ let rec module_path s path =
        Pdot(module_path s p, n)
     | Papply(p1, p2) ->
        Papply(module_path s p1, module_path s p2)
+    | Pextra_ty _ ->
+       fatal_error "Subst.module_path"
 
 let modtype_path s path =
       match Path.Map.find path s.modtypes with
       | Mty_ident p -> p
-      | Mty_alias _ | Mty_signature _ | Mty_functor _ ->
+      | Mty_alias _ | Mty_signature _ | Mty_functor _| Mty_strengthen _ ->
          fatal_error "Subst.modtype_path"
       | exception Not_found ->
          match path with
          | Pdot(p, n) ->
             Pdot(module_path s p, n)
-         | Papply _ ->
+         | Papply _ | Pextra_ty _ ->
             fatal_error "Subst.modtype_path"
          | Pident _ -> path
 
-let type_path s path =
+(* For values, extension constructors, classes and class types *)
+let value_path s path =
+  match path with
+  | Pident _ -> path
+  | Pdot(p, n) -> Pdot(module_path s p, n)
+  | Papply _ | Pextra_ty _ -> fatal_error "Subst.value_path"
+
+let rec type_path s path =
   match Path.Map.find path s.types with
   | Path p -> p
   | Type_function _ -> assert false
@@ -205,13 +217,10 @@ let type_path s path =
         Pdot(module_path s p, n)
      | Papply _ ->
         fatal_error "Subst.type_path"
-
-let type_path s p =
-  match Path.constructor_typath p with
-  | Regular p -> type_path s p
-  | Cstr (ty_path, cstr) -> Pdot(type_path s ty_path, cstr)
-  | LocalExt _ -> type_path s p
-  | Ext (p, cstr) -> Pdot(module_path s p, cstr)
+     | Pextra_ty (p, extra) ->
+         match extra with
+         | Pcstr_ty _ -> Pextra_ty (type_path s p, extra)
+         | Pext_ty -> Pextra_ty (value_path s p, extra)
 
 let to_subst_by_type_function s p =
   match Path.Map.find p s.types with
@@ -229,23 +238,25 @@ let newpersty desc =
   create_expr
     desc ~level:generic_level ~scope:Btype.lowest_level ~id:!new_id
 
+(* CR layouts: remove this. While we're still developing, though, it might
+   be nice to get the location of this kind of error. *)
 (* We use a ref instead of passing [loc] as an argument to [typexp]
    because the ref requires no modifications to the body of [typexp],
    reducing the chance of merge conflicts. This location is not critical --
    it just makes an error message more useful in case of a compiler bug.
    We may decide to get rid of this check someday, too.
 *)
-let location_for_layout_check_errors = ref Location.none
+let location_for_jkind_check_errors = ref Location.none
 
-let norm desc ~prepare_layout =
+let norm desc ~prepare_jkind =
   match desc with
-  | Tvar { name; layout } ->
-      let loc = !location_for_layout_check_errors in
-      Tvar { name; layout = prepare_layout loc layout }
-  | Tunivar { name; layout } ->
-      let loc = !location_for_layout_check_errors in
-      Tunivar { name; layout = prepare_layout loc layout }
-  | desc -> desc
+  | Tvar { name; jkind } ->
+      let loc = !location_for_jkind_check_errors in
+      Tvar { name; jkind = prepare_jkind loc jkind }
+  | Tunivar { name; jkind } ->
+      let loc = !location_for_jkind_check_errors in
+      Tunivar { name; jkind = prepare_jkind loc jkind }
+    | desc -> desc
 
 let ctype_apply_env_empty = ref (fun _ -> assert false)
 
@@ -263,8 +274,8 @@ let rec typexp copy_scope s ty =
         let ty' =
           match s.additional_action with
           | Duplicate_variables -> newpersty desc
-          | Prepare_for_saving prepare_layout ->
-              newpersty (norm desc ~prepare_layout)
+          | Prepare_for_saving prepare_jkind ->
+              newpersty (norm desc ~prepare_jkind)
           | No_action -> newty2 ~level:(get_level ty) desc
         in
         For_copy.redirect_desc copy_scope ty (Tsubst (ty', None));
@@ -285,10 +296,10 @@ let rec typexp copy_scope s ty =
     let has_fixed_row =
       not (is_Tconstr ty) && is_constr_row ~allow_ident:false tm in
     (* Make a stub *)
-    let layout = Layout.any ~why:Dummy_layout in
+    let jkind = Jkind.any ~why:Dummy_jkind in
     let ty' =
-      if should_duplicate_vars then newpersty (Tvar {name = None; layout})
-      else newgenstub ~scope:(get_scope ty) layout
+      if should_duplicate_vars then newpersty (Tvar {name = None; jkind})
+      else newgenstub ~scope:(get_scope ty) jkind
     in
     For_copy.redirect_desc copy_scope ty (Tsubst (ty', None));
     let desc =
@@ -375,10 +386,10 @@ let rec typexp copy_scope s ty =
      - [s.loc] is a way for the external client of the module to indicate the
        location of the copy.
      - [loc] is internally-populated and is the location of the AST construct
-       that encloses the type (and is used only in errors in the layout check).
+       that encloses the type (and is used only in errors in the jkind check).
 *)
 let typexp copy_scope s loc ty =
-  location_for_layout_check_errors := loc;
+  location_for_jkind_check_errors := loc;
   typexp copy_scope s ty
 
 (*
@@ -394,7 +405,7 @@ let label_declaration copy_scope s l =
     ld_id = l.ld_id;
     ld_mutable = l.ld_mutable;
     ld_global = l.ld_global;
-    ld_layout = apply_prepare_layout s l.ld_layout l.ld_loc;
+    ld_jkind = apply_prepare_jkind s l.ld_jkind l.ld_loc;
     ld_type = typexp copy_scope s l.ld_loc l.ld_type;
     ld_loc = loc s l.ld_loc;
     ld_attributes = attrs s l.ld_attributes;
@@ -418,40 +429,43 @@ let constructor_declaration copy_scope s c =
   }
 
 (* called only when additional_action is [Prepare_for_saving] *)
-let constructor_tag ~prepare_layout loc = function
+let constructor_tag ~prepare_jkind loc = function
   | Ordinary _ as tag -> tag
   | Extension (path, lays) ->
-      Extension (path, Array.map (prepare_layout loc) lays)
+      Extension (path, Array.map (prepare_jkind loc) lays)
 
 (* called only when additional_action is [Prepare_for_saving] *)
-let variant_representation ~prepare_layout loc = function
+let variant_representation ~prepare_jkind loc = function
   | Variant_unboxed -> Variant_unboxed
-  | Variant_boxed layss ->
-    Variant_boxed (Array.map (Array.map (prepare_layout loc)) layss)
+  | Variant_boxed cstrs_and_jkinds  ->
+    Variant_boxed
+      (Array.map
+         (fun (cstr, jkinds) -> cstr, Array.map (prepare_jkind loc) jkinds)
+         cstrs_and_jkinds)
   | Variant_extensible -> Variant_extensible
 
 (* called only when additional_action is [Prepare_for_saving] *)
-let record_representation ~prepare_layout loc = function
+let record_representation ~prepare_jkind loc = function
   | Record_unboxed -> Record_unboxed
   | Record_inlined (tag, variant_rep) ->
-    Record_inlined (constructor_tag ~prepare_layout loc tag,
-                    variant_representation ~prepare_layout loc variant_rep)
+    Record_inlined (constructor_tag ~prepare_jkind loc tag,
+                    variant_representation ~prepare_jkind loc variant_rep)
   | Record_boxed lays ->
-      Record_boxed (Array.map (prepare_layout loc) lays)
-  | Record_float -> Record_float
+      Record_boxed (Array.map (prepare_jkind loc) lays)
+  | (Record_float | Record_ufloat | Record_mixed _) as rep -> rep
 
 let type_declaration' copy_scope s decl =
   { type_params = List.map (typexp copy_scope s decl.type_loc) decl.type_params;
     type_arity = decl.type_arity;
     type_kind =
       begin match decl.type_kind with
-        Type_abstract -> Type_abstract
+        Type_abstract r -> Type_abstract r
       | Type_variant (cstrs, rep) ->
           let rep =
             match s.additional_action with
             | No_action | Duplicate_variables -> rep
-            | Prepare_for_saving prepare_layout ->
-                variant_representation ~prepare_layout decl.type_loc rep
+            | Prepare_for_saving prepare_jkind ->
+                variant_representation ~prepare_jkind decl.type_loc rep
           in
           Type_variant (List.map (constructor_declaration copy_scope s) cstrs,
                         rep)
@@ -459,8 +473,8 @@ let type_declaration' copy_scope s decl =
           let rep =
             match s.additional_action with
             | No_action | Duplicate_variables -> rep
-            | Prepare_for_saving prepare_layout ->
-                record_representation ~prepare_layout decl.type_loc rep
+            | Prepare_for_saving prepare_jkind ->
+                record_representation ~prepare_jkind decl.type_loc rep
           in
           Type_record (List.map (label_declaration copy_scope s) lbls, rep)
       | Type_open -> Type_open
@@ -471,13 +485,15 @@ let type_declaration' copy_scope s decl =
           None -> None
         | Some ty -> Some(typexp copy_scope s decl.type_loc ty)
       end;
-    type_layout =
+    type_jkind =
       begin
         match s.additional_action with
-        | Prepare_for_saving prepare_layout ->
-            prepare_layout decl.type_loc decl.type_layout
-        | Duplicate_variables | No_action -> decl.type_layout
+        | Prepare_for_saving prepare_jkind ->
+            prepare_jkind decl.type_loc decl.type_jkind
+        | Duplicate_variables | No_action -> decl.type_jkind
       end;
+    (* CR layouts v10: Apply the substitution here, too *)
+    type_jkind_annotation = decl.type_jkind_annotation;
     type_private = decl.type_private;
     type_variance = decl.type_variance;
     type_separability = decl.type_separability;
@@ -541,6 +557,7 @@ let cltype_declaration' copy_scope s decl =
     clty_variance = decl.clty_variance;
     clty_type = class_type copy_scope s decl.clty_type;
     clty_path = type_path s decl.clty_path;
+    clty_hash_type = type_declaration' copy_scope s decl.clty_hash_type ;
     clty_loc = loc s decl.clty_loc;
     clty_attributes = attrs s decl.clty_attributes;
     clty_uid = decl.clty_uid;
@@ -558,11 +575,12 @@ let extension_constructor' copy_scope s ext =
     ext_type_params =
       List.map (typexp copy_scope s ext.ext_loc) ext.ext_type_params;
     ext_args = constructor_arguments copy_scope s ext.ext_loc ext.ext_args;
-    ext_arg_layouts = begin match s.additional_action with
-      | Prepare_for_saving prepare_layout ->
-          Array.map (prepare_layout ext.ext_loc) ext.ext_arg_layouts
-      | Duplicate_variables | No_action -> ext.ext_arg_layouts
+    ext_arg_jkinds = begin match s.additional_action with
+      | Prepare_for_saving prepare_jkind ->
+          Array.map (prepare_jkind ext.ext_loc) ext.ext_arg_jkinds
+      | Duplicate_variables | No_action -> ext.ext_arg_jkinds
     end;
+    ext_shape = ext.ext_shape;
     ext_constant = ext.ext_constant;
     ext_ret_type =
       Option.map (typexp copy_scope s ext.ext_loc) ext.ext_ret_type;
@@ -728,6 +746,7 @@ let rec subst_lazy_value_description s descr =
   { val_type = Wrap.substitute ~compose Keep s descr.val_type;
     val_kind = descr.val_kind;
     val_loc = loc s descr.val_loc;
+    val_zero_alloc = descr.val_zero_alloc;
     val_attributes = attrs s descr.val_attributes;
     val_uid = descr.val_uid;
   }
@@ -748,7 +767,7 @@ and subst_lazy_modtype scoping s = function
           | Pident _ -> Mty_ident p
           | Pdot(p, n) ->
              Mty_ident(Pdot(module_path s p, n))
-          | Papply _ ->
+          | Papply _ | Pextra_ty _ ->
              fatal_error "Subst.modtype"
           end
       end
@@ -765,6 +784,8 @@ and subst_lazy_modtype scoping s = function
                   subst_lazy_modtype scoping (add_module id (Pident id') s) res)
   | Mty_alias p ->
       Mty_alias (module_path s p)
+  | Mty_strengthen (mty, p, a) ->
+      Mty_strengthen (subst_lazy_modtype scoping s mty, module_path s p, a)
 
 and subst_lazy_modtype_decl scoping s mtd =
   { mtd_type = Option.map (subst_lazy_modtype scoping s) mtd.mtd_type;
@@ -919,7 +940,7 @@ let value_description s descr =
 open Format
 
 let report_error ppf = function
-  | Unconstrained_layout_variable ->
+  | Unconstrained_jkind_variable ->
       fprintf ppf
         "Unconstrained layout variable detected when saving artifacts of \
          compilation to disk.@ Please report this error to \

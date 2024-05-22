@@ -6,6 +6,9 @@ let split_debug = false
 
 let split_live_ranges : bool Lazy.t = bool_of_param "SPLIT_LIVE_RANGES"
 
+let split_more_destruction_points : bool Lazy.t =
+  bool_of_param "SPLIT_MORE_DESTR_POINTS"
+
 let bool_of_param param_name =
   bool_of_param ~guard:(split_debug, "split_debug") param_name
 
@@ -21,17 +24,16 @@ let log :
     indent:int -> ?no_eol:unit -> (a, Format.formatter, unit) format -> a =
  fun ~indent ?no_eol fmt -> (Lazy.force log_function).log ~indent ?no_eol fmt
 
-let log_dominance_frontier :
-    indent:int -> Cfg_dominators.dominance_frontiers -> unit =
- fun ~indent dom_front ->
+let log_dominance_frontier : indent:int -> Cfg.t -> Cfg_dominators.t -> unit =
+ fun ~indent cfg doms ->
   log ~indent "dominance frontier:";
-  Label.Map.iter
-    (fun label labels ->
+  Cfg.iter_blocks cfg ~f:(fun label _block ->
+      let frontier = Cfg_dominators.find_dominance_frontier doms label in
       log ~indent:(indent + 1) "block %d" label;
       Label.Set.iter
-        (fun label -> log ~indent:(indent + 1) "block %d" label)
-        labels)
-    dom_front
+        (fun frontier_label ->
+          log ~indent:(indent + 1) "block %d" frontier_label)
+        frontier)
 
 let log_dominator_tree : indent:int -> Cfg_dominators.dominator_tree -> unit =
  fun ~indent dom_tree ->
@@ -41,6 +43,11 @@ let log_dominator_tree : indent:int -> Cfg_dominators.dominator_tree -> unit =
         ldt ~indent:(succ indent) child)
   in
   ldt ~indent dom_tree
+
+let log_dominator_forest :
+    indent:int -> Cfg_dominators.dominator_tree list -> unit =
+ fun ~indent dom_forest ->
+  List.iter dom_forest ~f:(fun dom_tree -> log_dominator_tree ~indent dom_tree)
 
 let log_substitution : indent:int -> Substitution.t -> unit =
  fun ~indent subst ->
@@ -80,7 +87,8 @@ type destruction_kind =
 
 let destruction_point_at_end : Cfg.basic_block -> destruction_kind option =
  fun block ->
-  if Proc.is_destruction_point block.terminator.desc
+  let more_destruction_points = Lazy.force split_more_destruction_points in
+  if Proc.is_destruction_point ~more_destruction_points block.terminator.desc
   then Some Destruction_on_all_paths
   else if Option.is_none block.exn
   then None

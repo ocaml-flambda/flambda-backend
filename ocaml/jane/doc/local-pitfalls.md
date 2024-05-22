@@ -1,11 +1,12 @@
 #  Some Pitfalls of Local Allocations
 
 This document outlines some common pitfalls that may come up when
-trying out local allocations in a new codebase, as well as some
+trying out local allocations in a new code base, as well as some
 suggested workarounds. Over time, this list may grow (as experience
 discovers new things that go wrong) or shrink (as we deploy new
 compiler versions that ameliorate some issues).
 
+If you want an introduction to local allocations, see the [introduction](local-intro.md).
 
 ## Tail calls
 
@@ -19,25 +20,38 @@ If this causes a problem for calls that just happen to be in tail
 position, the easiest workaround is to prevent them from being
 treated as tail calls by moving them, replacing:
 
-    func arg1 arg2
+```ocaml
+func arg1 arg2
+```
 
 with
 
-    let res = func arg1 arg2 in res
+```ocaml
+let res = func arg1 arg2 in res
+```
 
-With this version, local values used in `fun arg1 arg2` will be freed
+or by annotating them with `[@nontail]`:
+
+```ocaml
+func arg1 arg2 [@nontail]
+```
+
+With this version, local values used in `func arg1 arg2` will be freed
 after `func` returns.
 
 ## Partial applications with local parameters
 
 To enable the use of local allocations with higher-order functions, a
 necessary step is to add local annotations to function types,
-particularly those of higher-order functions. For instance, an `iter`
-function may become:
+particularly those of higher-order functions. For instance, an
+unlabeled `iter` function may become:
 
-    val iter : 'a list -> f:local_ ('a -> unit) -> unit
+```ocaml
+val iter : local_ ('a -> unit) -> 'a t -> unit
+```
 
-thus allowing locally-allocated closures `f` to be used.
+thus allowing locally-allocated closures to be used as the first
+parameter.
 
 However, this is unfortunately not an entirely backwards-compatible
 change. The problem is that partial applications of `iter` functions
@@ -45,12 +59,28 @@ with the new type are themselves locally allocated, because they close
 over the possibly-local `f`. This means in particular that partial
 applications will no longer be accepted as module-level definitions:
 
-    let print_each_foo = iter ~f:(print_foo)
+```ocaml
+let print_each_foo = iter print_foo
+```
 
 The fix in these cases is to expand the partial application to a full
 application by introducing extra arguments:
 
-    let print_each_foo x = iter ~f:(print_foo) x
+```ocaml
+let print_each_foo x = iter print_foo x
+```
+
+Note that this pitfall does not apply to the final parameter of a
+function. So a labeled `iter` function with a type like:
+```ocaml
+val iter : 'a t -> f:local_ ('a -> unit) -> unit
+```
+can be partially-applied without issue:
+```ocaml
+let print_each_foo = iter ~f:print_foo
+```
+This is another reason to prefer putting `~f` parameters as the final
+parameter of functions.
 
 ## Typing of (@@) and (|>)
 

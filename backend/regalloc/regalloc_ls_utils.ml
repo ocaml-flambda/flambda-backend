@@ -41,35 +41,7 @@ let log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit =
   make_log_cfg_with_infos (Lazy.force log_function) ~instr_prefix ~term_prefix
     ~indent cfg_with_infos
 
-module Order = struct
-  type t =
-    | Layout
-    | DFS
-
-  let all = [Layout; DFS]
-
-  let to_string = function Layout -> "layout" | DFS -> "dfs"
-
-  let value =
-    let available_orders () =
-      String.concat ", "
-        (all |> List.map ~f:to_string |> List.map ~f:(Printf.sprintf "%S"))
-    in
-    lazy
-      (match find_param_value "LS_ORDER" with
-      | None ->
-        fatal "the LS_ORDER parameter is not set (possible values: %s)"
-          (available_orders ())
-      | Some id -> (
-        match String.lowercase_ascii id with
-        | "layout" -> Layout
-        | "dfs" -> DFS
-        | _ ->
-          fatal "unknown order %S (possible values: %s)" id
-            (available_orders ())))
-end
-
-let iter_blocks_dfs : Cfg.t -> f:(Cfg.basic_block -> unit) -> unit =
+let iter_cfg_dfs : Cfg.t -> f:(Cfg.basic_block -> unit) -> unit =
  fun cfg ~f ->
   let marked = ref Label.Set.empty in
   let rec iter (label : Label.t) : unit =
@@ -90,25 +62,14 @@ let iter_blocks_dfs : Cfg.t -> f:(Cfg.basic_block -> unit) -> unit =
     Cfg.iter_blocks cfg ~f:(fun label block ->
         if not (Label.Set.mem label !marked) then f block)
 
-let iter_cfg_order :
-    Cfg_with_layout.t -> Order.t -> f:(Cfg.basic_block -> unit) -> unit =
- fun cfg_with_layout order ~f ->
-  let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  match order with
-  | Layout ->
-    DLL.iter (Cfg_with_layout.layout cfg_with_layout) ~f:(fun label ->
-        let block = Cfg.get_block_exn cfg label in
-        f block)
-  | DFS -> iter_blocks_dfs cfg ~f:(fun block -> f block)
-
-let iter_instructions_order :
+let iter_instructions_dfs :
     Cfg_with_layout.t ->
-    Order.t ->
     instruction:(trap_handler:bool -> Cfg.basic Cfg.instruction -> unit) ->
     terminator:(trap_handler:bool -> Cfg.terminator Cfg.instruction -> unit) ->
     unit =
- fun cfg_with_layout order ~instruction ~terminator ->
-  iter_cfg_order cfg_with_layout order ~f:(fun block ->
+ fun cfg_with_layout ~instruction ~terminator ->
+  let cfg = Cfg_with_layout.cfg cfg_with_layout in
+  iter_cfg_dfs cfg ~f:(fun block ->
       let trap_handler_id =
         if block.is_trap_handler
         then Regalloc_utils.first_instruction_id block

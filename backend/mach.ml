@@ -17,7 +17,6 @@
 
 type trap_stack =
   | Uncaught
-  | Generic_trap of trap_stack
   | Specific_trap of Cmm.trywith_shared_label * trap_stack
 
 type integer_comparison =
@@ -31,18 +30,35 @@ type integer_operation =
   | Ictz of { arg_is_non_zero: bool; }
   | Ipopcnt
   | Icomp of integer_comparison
-  | Icheckbound
+
+type float_width = Cmm.float_width
 
 type float_comparison = Cmm.float_comparison
 
+type float_operation =
+  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Icompf of float_comparison
+
 type mutable_flag = Immutable | Mutable
+
+let of_ast_mutable_flag
+  : Asttypes.mutable_flag -> mutable_flag
+  = function
+    | Immutable -> Immutable
+    | Mutable -> Mutable
+
+let to_ast_mutable_flag
+  : mutable_flag -> Asttypes.mutable_flag
+  = function
+    | Immutable -> Immutable
+    | Mutable -> Mutable
 
 type test =
     Itruetest
   | Ifalsetest
   | Iinttest of integer_comparison
   | Iinttest_imm of integer_comparison * int
-  | Ifloattest of float_comparison
+  | Ifloattest of float_width * float_comparison
   | Ioddtest
   | Ieventest
 
@@ -51,6 +67,7 @@ type operation =
   | Ispill
   | Ireload
   | Iconst_int of nativeint
+  | Iconst_float32 of int32
   | Iconst_float of int64
   | Iconst_vec128 of Cmm.vec128_bits
   | Iconst_symbol of Cmm.symbol
@@ -60,9 +77,13 @@ type operation =
   | Itailcall_imm of { func : Cmm.symbol; }
   | Iextcall of { func : string;
                   ty_res : Cmm.machtype; ty_args : Cmm.exttype list;
-                  alloc : bool; returns : bool; }
+                  alloc : bool; returns : bool;
+                  stack_ofs : int; }
   | Istackoffset of int
-  | Iload of Cmm.memory_chunk * Arch.addressing_mode * mutable_flag
+  | Iload of { memory_chunk : Cmm.memory_chunk;
+               addressing_mode : Arch.addressing_mode;
+               mutability : Asttypes.mutable_flag;
+               is_atomic : bool }
   | Istore of Cmm.memory_chunk * Arch.addressing_mode * bool
   | Ialloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo;
                 mode : Lambda.alloc_mode }
@@ -70,11 +91,11 @@ type operation =
   | Iintop_imm of integer_operation * int
   | Iintop_atomic of { op : Cmm.atomic_op; size : Cmm.atomic_bitwidth;
                        addr : Arch.addressing_mode }
-  | Icompf of float_comparison
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Ifloatop of float_width * float_operation
   | Icsel of test
-  | Ifloatofint | Iintoffloat
   | Ivalueofint | Iintofvalue
+  | Ivectorcast of Cmm.vector_cast
+  | Iscalarcast of Cmm.scalar_cast
   | Iopaque
   | Ispecific of Arch.specific_operation
   | Ipoll of { return_label: Cmm.label option }
@@ -84,6 +105,7 @@ type operation =
   | Iprobe of { name: string; handler_code_sym: string; enabled_at_init: bool; }
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
+  | Idls_get
 
 type instruction =
   { desc: instruction_desc;
@@ -104,7 +126,8 @@ and instruction_desc =
   | Iswitch of int array * instruction array
   | Icatch of Cmm.rec_flag * trap_stack * (int * trap_stack * instruction * bool) list * instruction
   | Iexit of int * Cmm.trap_action list
-  | Itrywith of instruction * Cmm.trywith_kind * (trap_stack * instruction)
+  | Itrywith of instruction * Cmm.trywith_shared_label
+      * (trap_stack * instruction)
   | Iraise of Lambda.raise_kind
 
 type fundecl =
@@ -140,13 +163,6 @@ let end_instr () =
     available_across = None;
   }
 
-let instr_cons d a r n =
-  { desc = d; next = n; arg = a; res = r;
-    dbg = Debuginfo.none; live = Reg.Set.empty;
-    available_before = Reg_availability_set.Ok Reg_with_debug_info.Set.empty;
-    available_across = None;
-  }
-
 let instr_cons_debug d a r dbg n =
   { desc = d; next = n; arg = a; res = r; dbg = dbg; live = Reg.Set.empty;
     available_before = Reg_availability_set.Ok Reg_with_debug_info.Set.empty;
@@ -177,23 +193,24 @@ let rec instr_iter f i =
           instr_iter f body; instr_iter f handler; instr_iter f i.next
       | Iraise _ -> ()
       | Iop (Imove | Ispill | Ireload
-            | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
+            | Iconst_int _ | Iconst_float32 _ | Iconst_float _
+            | Iconst_symbol _ | Iconst_vec128 _
             | Icall_ind | Icall_imm _ | Iextcall _ | Istackoffset _
             | Iload _ | Istore _ | Ialloc _
             | Iintop _ | Iintop_imm _ | Iintop_atomic _
-            | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-            | Icompf _
-            | Icsel _
-            | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
+            | Ifloatop _
+            | Icsel _ | Iscalarcast _
+            | Ivalueofint | Iintofvalue | Ivectorcast _
             | Ispecific _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
             | Iopaque
-            | Ibeginregion | Iendregion | Ipoll _) ->
+            | Ibeginregion | Iendregion | Ipoll _ | Idls_get) ->
         instr_iter f i.next
 
 let operation_is_pure = function
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _ | Ipoll _
-  | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque
+  | Idls_get
+  | Iopaque
   (* Conservative to ensure valueofint/intofvalue are not eliminated before emit. *)
   | Ivalueofint | Iintofvalue | Iintop_atomic _ -> false
   | Ibeginregion | Iendregion -> false
@@ -204,19 +221,18 @@ let operation_is_pure = function
                | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _), _)
   | Iintop(Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
-  | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-  | Icompf _
+  | Imove | Ispill | Ireload | Ifloatop _
   | Icsel _
-  | Ifloatofint | Iintoffloat
-  | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
-  | Iload (_, _, _) -> true
+  | Ivectorcast _ | Iscalarcast _
+  | Iconst_int _ | Iconst_float _ | Iconst_float32 _
+  | Iconst_symbol _ | Iconst_vec128 _
+  | Iload _ -> true
   | Iname_for_debugger _ -> false
 
 
 let operation_can_raise op =
   match op with
   | Icall_ind | Icall_imm _ | Iextcall _
-  | Iintop (Icheckbound) | Iintop_imm (Icheckbound, _)
   | Iprobe _ -> true
   | Ispecific sop -> Arch.operation_can_raise sop
   | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
@@ -224,15 +240,15 @@ let operation_can_raise op =
   | Iintop(Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
   | Iintop_atomic _
-  | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-  | Icompf _
-  | Icsel _
-  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
-  | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
-  | Istackoffset _ | Istore _  | Iload (_, _, _) | Iname_for_debugger _
+  | Imove | Ispill | Ireload | Ifloatop _
+  | Icsel _ | Iscalarcast _
+  | Ivalueofint | Iintofvalue | Ivectorcast _
+  | Iconst_int _ | Iconst_float _ | Iconst_float32 _
+  | Iconst_symbol _ | Iconst_vec128 _
+  | Istackoffset _ | Istore _  | Iload _ | Iname_for_debugger _
   | Itailcall_imm _ | Itailcall_ind
   | Iopaque | Ibeginregion | Iendregion
-  | Iprobe_is_enabled _ | Ialloc _ | Ipoll _
+  | Iprobe_is_enabled _ | Ialloc _ | Ipoll _ | Idls_get
     -> false
 
 let free_conts_for_handlers fundecl =
@@ -259,7 +275,6 @@ let free_conts_for_handlers fundecl =
           List.fold_left (fun conts (nfail, ts, i, _is_cold) ->
             let rec add_exn_conts conts = function
               | Uncaught -> conts
-              | Generic_trap ts -> add_exn_conts conts ts
               | Specific_trap (nfail, ts) -> add_exn_conts (S.add nfail conts) ts
             in
             let free = add_exn_conts (free_conts i) ts in
@@ -271,14 +286,11 @@ let free_conts_for_handlers fundecl =
           S.remove nfail conts)
           conts handlers
       | Iexit (nfail, _) -> S.add nfail next_conts
-      | Itrywith (body, kind, (_ts, handler)) ->
+      | Itrywith (body, nfail, (_ts, handler)) ->
         let conts =
           S.union next_conts (S.union (free_conts body) (free_conts handler))
         in
-        begin match kind with
-        | Regular -> conts
-        | Delayed nfail -> S.remove nfail conts
-        end
+        S.remove nfail conts
       | Iraise _ -> next_conts
   in
   let free = free_conts fundecl.fun_body in
@@ -288,12 +300,10 @@ let free_conts_for_handlers fundecl =
 let rec equal_trap_stack ts1 ts2 =
   match ts1, ts2 with
   | Uncaught, Uncaught -> true
-  | Generic_trap ts1, Generic_trap ts2 -> equal_trap_stack ts1 ts2
   | Specific_trap (lbl1, ts1), Specific_trap (lbl2, ts2) ->
     Int.equal lbl1 lbl2 && equal_trap_stack ts1 ts2
-  | Uncaught, (Generic_trap _ | Specific_trap _)
-  | Generic_trap _, (Uncaught | Specific_trap _)
-  | Specific_trap _, (Uncaught | Generic_trap _) -> false
+  | Uncaught, Specific_trap _
+  | Specific_trap _, Uncaught -> false
 
 
 let equal_integer_comparison left right =
@@ -327,39 +337,58 @@ let equal_integer_operation left right =
     Bool.equal left_arg_is_non_zero right_arg_is_non_zero
   | Ipopcnt, Ipopcnt -> true
   | Icomp left, Icomp right -> equal_integer_comparison left right
-  | Icheckbound, Icheckbound -> true
   | Iadd, (Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
-          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _)
   | Isub, (Iadd | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
-          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _)
   | Imul, (Iadd | Isub | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
-          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _)
   | Imulh _, (Iadd | Isub | Imul | Idiv | Imod | Iand | Ior | Ixor | Ilsl
-           | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+           | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _)
   | Idiv, (Iadd | Isub | Imul | Imulh _ | Imod | Iand | Ior | Ixor | Ilsl
-          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _)
   | Imod, (Iadd | Isub | Imul | Imulh _ | Idiv | Iand | Ior | Ixor | Ilsl
-          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _)
   | Iand, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Ior | Ixor | Ilsl
-          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _)
   | Ior, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ixor | Ilsl
-         | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+         | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _)
   | Ixor, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ilsl
-          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _)
   | Ilsl, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _)
   | Ilsr, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-          | Ilsl | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsl | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _)
   | Iasr, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-          | Ilsl | Ilsr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsl | Ilsr | Iclz _ | Ictz _ | Ipopcnt | Icomp _)
   | Iclz _, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-            | Ilsl | Ilsr | Iasr | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+            | Ilsl | Ilsr | Iasr | Ictz _ | Ipopcnt | Icomp _)
   | Ictz _, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-            | Ilsl | Ilsr | Iasr | Iclz _ | Ipopcnt | Icomp _ | Icheckbound)
+            | Ilsl | Ilsr | Iasr | Iclz _ | Ipopcnt | Icomp _)
   | Ipopcnt, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-             | Ilsl | Ilsr | Iasr | Iclz _ | Ictz _ | Icomp _ | Icheckbound)
+             | Ilsl | Ilsr | Iasr | Iclz _ | Ictz _ | Icomp _)
   | Icomp _, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-             | Ilsl | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icheckbound)
-  | Icheckbound, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior
-                 | Ixor | Ilsl | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _) ->
-    false
+             | Ilsl | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt)
+  -> false
+
+let equal_float_comparison = Cmm.equal_float_comparison
+
+let equal_float_width = Cmm.equal_float_width
+
+let equal_float_operation left right =
+  match left, right with
+  | Inegf, Inegf -> true
+  | Iabsf, Iabsf -> true
+  | Iaddf, Iaddf -> true
+  | Isubf, Isubf -> true
+  | Imulf, Imulf -> true
+  | Idivf, Idivf -> true
+  | Icompf left, Icompf right -> equal_float_comparison left right
+  | Inegf, (Iabsf | Iaddf | Isubf | Imulf | Idivf | Icompf _)
+  | Iabsf, (Inegf | Iaddf | Isubf | Imulf | Idivf | Icompf _)
+  | Iaddf, (Inegf | Iabsf | Isubf | Imulf | Idivf | Icompf _)
+  | Isubf, (Inegf | Iabsf | Iaddf | Imulf | Idivf | Icompf _)
+  | Imulf, (Inegf | Iabsf | Iaddf | Isubf | Idivf | Icompf _)
+  | Idivf, (Inegf | Iabsf | Iaddf | Isubf | Imulf | Icompf _)
+  | Icompf _, (Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf)
+    -> false

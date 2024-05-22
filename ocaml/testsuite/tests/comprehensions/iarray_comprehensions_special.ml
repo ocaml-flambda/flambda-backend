@@ -1,6 +1,6 @@
 (* TEST
-   flags = "-extension comprehensions -extension immutable_arrays"
-   * expect
+ flags = "-extension comprehensions";
+ expect;
 *)
 
 (******************************************************************************

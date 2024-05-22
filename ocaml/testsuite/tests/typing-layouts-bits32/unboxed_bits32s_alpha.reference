@@ -1,0 +1,76 @@
+Test mixed_blocks_with_closures, 171: : 228
+  Test mixed_blocks_with_closures, step 0: 0
+  Test mixed_blocks_with_closures, step 1: 0
+  Test mixed_blocks_with_closures, step 2: 0
+  Test mixed_blocks_with_closures, step 3: 0
+  Test mixed_blocks_with_closures, step 4: 171
+  Test mixed_blocks_with_closures, step 5: 114
+  Test mixed_blocks_with_closures, step 6: 57
+  Test mixed_blocks_with_closures, step 7: 0
+  Test mixed_blocks_with_closures, step 8: 0
+  Test mixed_blocks_with_closures, step 9: 0
+Test mixed record construction:
+  a: 317.00
+  b: 1300
+  c: 731
+  d: 141
+  e: 600
+  f: 2710
+  a: -317.00
+  b: -1300
+  c: -731
+  d: -141
+  e: -600
+  f: -2710
+Test mixed record matching and projection:
+  a: -600.00
+  b: -458
+  c: 0
+  d: 1441
+  e: 2110
+  f: -2710
+Test mixed record update and mutation:
+  a: 317.00
+  b: 1300
+  c: 731
+  d: 4200
+  e: 600
+  f: -731
+  a: -317.00
+  b: 1700
+  c: -731
+  d: -141
+  e: -600
+  f: -2710
+  a: -317.00
+  b: 458
+  c: 4200
+  d: 2500
+  e: -600
+  f: -2710
+Test 18, mixed records in recursive groups:
+  a: 11.00
+  b: 2
+  c: 33
+  d: 44
+  e: 5
+  f: 66
+  a: -51.00
+  b: -6
+  c: -73
+  d: -84
+  e: -9
+  f: -106
+  result (-40): -40
+  a: 11.00
+  b: 2
+  c: 33
+  d: 2
+  e: 5
+  f: 11
+  a: -51.00
+  b: 42
+  c: -73
+  d: -84
+  e: -9
+  f: -106

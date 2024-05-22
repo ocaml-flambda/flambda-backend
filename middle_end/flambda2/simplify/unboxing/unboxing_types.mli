@@ -26,6 +26,7 @@ type do_not_unbox_reason =
   | Not_enough_information_at_use
   | Not_of_kind_value
   | Unboxing_not_requested
+  | All_fields_invalid
 
 module Extra_param_and_args : sig
   type t = private

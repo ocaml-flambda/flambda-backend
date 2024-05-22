@@ -82,10 +82,8 @@ let testing = make_library_modifier
 let tool_ocaml_lib = make_module_modifier
   "lib" (compiler_subdir ["testsuite"; "lib"])
 
-let unixlibdir = if Sys.win32 then "win32unix" else "unix"
-
 let unix = make_library_modifier
-  "unix" [compiler_subdir ["otherlibs"; unixlibdir]]
+  "unix" [compiler_subdir ["otherlibs"; "unix"]]
 
 let dynlink =
   make_library_modifier "dynlink"
@@ -98,7 +96,11 @@ let str = make_library_modifier
 let systhreads =
   unix @
   (make_library_modifier
-    "threads" [compiler_subdir ["otherlibs"; "systhreads"]])
+    "threads" [compiler_subdir ["otherlibs"; Ocamltest_config.systhreads_path]])
+
+let runtime_events =
+  make_library_modifier
+    "runtime_events" [compiler_subdir ["otherlibs"; "runtime_events"]]
 
 let compilerlibs_subdirs =
 [
@@ -122,7 +124,12 @@ let compilerlibs_archive archive =
   append Ocaml_variables.libraries [archive] ::
   List.map add_compiler_subdir compilerlibs_subdirs
 
-let debugger = [add_compiler_subdir "debugger"]
+let runtime_suffix = if Config.runtime5 then "" else "4"
+
+let debugger = [add_compiler_subdir ("debugger" ^ runtime_suffix)]
+
+let extension_universe_lib name =
+  make_library_modifier name [compiler_subdir ["otherlibs"; name]]
 
 let _ =
   register_modifiers "principal" principal;
@@ -132,6 +139,18 @@ let _ =
   register_modifiers "dynlink" dynlink;
   register_modifiers "str" str;
   List.iter
+    (fun old_name ->
+      let new_name = "stdlib_" ^ old_name in
+      register_modifiers old_name (extension_universe_lib old_name);
+      register_modifiers new_name (extension_universe_lib new_name);
+    )
+    [
+      "upstream_compatible";
+      "stable";
+      "beta";
+      "alpha";
+    ];
+  List.iter
     (fun archive -> register_modifiers archive (compilerlibs_archive archive))
     [
       "ocamlcommon";
@@ -140,6 +159,7 @@ let _ =
       "ocamloptcomp";
       "ocamltoplevel";
     ];
+  register_modifiers "runtime_events" runtime_events;
   register_modifiers "systhreads" systhreads;
   register_modifiers "latex" latex;
   register_modifiers "html" html;

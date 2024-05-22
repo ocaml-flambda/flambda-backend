@@ -1,5 +1,6 @@
 (* TEST
-   * native *)
+ native;
+*)
 
 type n = Z | S of n
 

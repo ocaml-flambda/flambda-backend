@@ -19,6 +19,7 @@
 module Naked_number_kind : sig
   type t =
     | Naked_immediate
+    | Naked_float32
     | Naked_float
     | Naked_int32
     | Naked_int64
@@ -26,6 +27,8 @@ module Naked_number_kind : sig
     | Naked_vec128
 
   val print : Format.formatter -> t -> unit
+
+  val equal : t -> t -> bool
 end
 
 (** The kinds themselves. *)
@@ -48,6 +51,8 @@ val value : t
 val naked_number : Naked_number_kind.t -> t
 
 val naked_immediate : t
+
+val naked_float32 : t
 
 val naked_float : t
 
@@ -94,6 +99,7 @@ module Standard_int_or_float : sig
   type t =
     | Tagged_immediate
     | Naked_immediate
+    | Naked_float32
     | Naked_float
     | Naked_int32
     | Naked_int64
@@ -111,6 +117,7 @@ module Boxable_number : sig
       representation exists. *)
 
   type t =
+    | Naked_float32
     | Naked_float
     | Naked_int32
     | Naked_int64
@@ -134,6 +141,7 @@ module With_subkind : sig
   module Subkind : sig
     type t =
       | Anything
+      | Boxed_float32
       | Boxed_float
       | Boxed_int32
       | Boxed_int64
@@ -149,6 +157,10 @@ module With_subkind : sig
       | Immediate_array
       | Value_array
       | Generic_array
+      | Unboxed_float32_array
+      | Unboxed_int32_array
+      | Unboxed_int64_array
+      | Unboxed_nativeint_array
 
     include Container_types.S with type t := t
   end
@@ -168,6 +180,8 @@ module With_subkind : sig
   val any_value : t
 
   val naked_immediate : t
+
+  val naked_float32 : t
 
   val naked_float : t
 
@@ -209,9 +223,13 @@ module With_subkind : sig
 
   val of_naked_number_kind : Naked_number_kind.t -> t
 
+  val naked_of_boxable_number : Boxable_number.t -> t
+
+  val boxed_of_boxable_number : Boxable_number.t -> t
+
   val from_lambda_value_kind : Lambda.value_kind -> t
 
-  val from_lambda : Lambda.layout -> t
+  val from_lambda_values_and_unboxed_numbers_only : Lambda.layout -> t
 
   val compatible : t -> when_used_at:t -> bool
 

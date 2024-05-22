@@ -18,10 +18,17 @@ include Ident
 
 type backend_var = t
 
-let name_for_debugger t = name t
+let name_for_debugger t =
+  let prefix = "*opt*" in
+  let prefix_len = String.length prefix in
+  let name = name t in
+  if String.starts_with ~prefix name
+     && String.length name > prefix_len
+  then (String.sub name prefix_len (String.length name - prefix_len)) ^ "_opt"
+  else name
 
 let unique_name_for_debugger t =
-  Printf.sprintf "%s/%d" (name t) (stamp t)
+  Printf.sprintf "%s/%d" (name_for_debugger t) (stamp t)
 
 module Provenance = struct
   type t = {

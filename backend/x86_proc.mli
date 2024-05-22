@@ -81,6 +81,9 @@ type system =
   | S_win64
   | S_linux
   | S_mingw64
+  | S_freebsd
+  | S_netbsd
+  | S_openbsd
 
   | S_unknown
 
@@ -103,6 +106,7 @@ module Section_name : sig
   val alignment : t -> int64
   val is_text_like : t -> bool
   val is_data_like : t -> bool
+  val is_note_like : t -> bool
 
   module Map : Map.S with type key = t
   module Tbl : Hashtbl.S with type key = t
@@ -111,7 +115,10 @@ end
 (** Support for plumbing a binary code emitter *)
 
 val internal_assembler :
-  (X86_ast.asm_program ref Section_name.Tbl.t -> string -> unit) option ref
+  (delayed:(unit -> (Section_name.t * X86_ast.asm_program) list)
+    -> (Section_name.t * X86_ast.asm_program) list
+    -> string -> unit) option ref
 
 val register_internal_assembler :
-  (X86_ast.asm_program ref Section_name.Tbl.t -> string -> unit) -> unit
+  (delayed:(unit -> (Section_name.t * X86_ast.asm_program) list)
+   -> (Section_name.t * X86_ast.asm_program) list -> string -> unit) -> unit

@@ -49,11 +49,8 @@ module Transfer :
     Result.ok
     @@
     match instr.desc with
-    | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
-      if Cfg.is_pure_basic instr.desc
-         && Reg.disjoint_set_array before instr.res
-         && (not (Proc.regs_are_volatile instr.arg))
-         && not (Proc.regs_are_volatile instr.res)
+    | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
+      if Cfg.is_pure_basic instr.desc && Reg.disjoint_set_array before instr.res
       then
         (* If the operation is without side-effects and the result is unused
            then don't mark the arguments as used because this instruction could
@@ -84,7 +81,7 @@ module Transfer :
         ~exn Domain.bot instr
     | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
     | Switch _ | Return | Raise _ | Tailcall_func _ | Call_no_return _ | Call _
-    | Poll_and_jump _ | Prim _ | Specific_can_raise _ ->
+    | Prim _ | Specific_can_raise _ ->
       instruction
         ~can_raise:(Cfg.can_raise_terminator instr.desc)
         ~exn domain instr

@@ -49,6 +49,11 @@ val any_tagged_bool : Type_grammar.t
 
 val any_naked_bool : Type_grammar.t
 
+val this_boxed_float32 :
+  Numeric_types.Float32_by_bit_pattern.t ->
+  Alloc_mode.For_types.t ->
+  Type_grammar.t
+
 val this_boxed_float :
   Numeric_types.Float_by_bit_pattern.t ->
   Alloc_mode.For_types.t ->
@@ -64,6 +69,11 @@ val this_boxed_nativeint :
 val this_boxed_vec128 :
   Vector_types.Vec128.Bit_pattern.t -> Alloc_mode.For_types.t -> Type_grammar.t
 
+val these_boxed_float32s :
+  Numeric_types.Float32_by_bit_pattern.Set.t ->
+  Alloc_mode.For_types.t ->
+  Type_grammar.t
+
 val these_boxed_floats :
   Numeric_types.Float_by_bit_pattern.Set.t ->
   Alloc_mode.For_types.t ->
@@ -77,6 +87,8 @@ val these_boxed_int64s :
 
 val these_boxed_nativeints :
   Targetint_32_64.Set.t -> Alloc_mode.For_types.t -> Type_grammar.t
+
+val any_boxed_float32 : Type_grammar.t
 
 val any_boxed_float : Type_grammar.t
 
@@ -147,7 +159,7 @@ val is_alias_of_name : Type_grammar.t -> Name.t -> bool
 
 val check_equation : Name.t -> Type_grammar.t -> unit
 
-val arity_of_list : Type_grammar.t list -> Flambda_arity.t
+val arity_of_list : Type_grammar.t list -> [`Unarized] Flambda_arity.t
 
 val unknown_with_subkind :
   ?alloc_mode:Alloc_mode.For_types.t ->
@@ -155,7 +167,5 @@ val unknown_with_subkind :
   Type_grammar.t
 
 (** For each of the kinds in an arity, create an "unknown" type. *)
-val unknown_types_from_arity : Flambda_arity.t -> Type_grammar.t list
-
-(** For each of the kinds in an arity, create an "bottom" type. *)
-val bottom_types_from_arity : Flambda_arity.t -> Type_grammar.t list
+val unknown_types_from_arity :
+  [`Unarized] Flambda_arity.t -> Type_grammar.t list

@@ -1,5 +1,5 @@
 (* TEST
- * expect
+ expect;
 *)
 
 (********************************** Equality **********************************)
@@ -725,9 +725,8 @@ Error: Signature mismatch:
        Values do not match:
          val r : '_weak4 list ref
        is not included in
-         val r : T.s list ref
-       The type '_weak4 list ref is not compatible with the type T.s list ref
-       Type '_weak4 is not compatible with type T.s = T.t
+         val r : T.t list ref
+       The type '_weak4 list ref is not compatible with the type T.t list ref
        This instance of T.t is ambiguous:
        it would escape the scope of its equation
 |}];;
@@ -1603,7 +1602,7 @@ Error: Signature mismatch:
          type t = private { x : int; y : bool; }
        is not included in
          type t = A | B
-       Their kinds differ.
+       The first is a record, but the second is a variant.
 |}];;
 
 module M : sig
@@ -1625,7 +1624,7 @@ Error: Signature mismatch:
          type t = private A | B
        is not included in
          type t = { x : int; y : bool; }
-       Their kinds differ.
+       The first is a variant, but the second is a record.
 |}];;
 
 module M : sig

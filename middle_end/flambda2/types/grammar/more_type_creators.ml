@@ -22,6 +22,7 @@ let unknown (kind : K.t) =
   match kind with
   | Value -> TG.any_value
   | Naked_number Naked_immediate -> TG.any_naked_immediate
+  | Naked_number Naked_float32 -> TG.any_naked_float32
   | Naked_number Naked_float -> TG.any_naked_float
   | Naked_number Naked_int32 -> TG.any_naked_int32
   | Naked_number Naked_int64 -> TG.any_naked_int64
@@ -36,6 +37,7 @@ let bottom (kind : K.t) =
   match kind with
   | Value -> TG.bottom_value
   | Naked_number Naked_immediate -> TG.bottom_naked_immediate
+  | Naked_number Naked_float32 -> TG.bottom_naked_float32
   | Naked_number Naked_float -> TG.bottom_naked_float
   | Naked_number Naked_int32 -> TG.bottom_naked_int32
   | Naked_number Naked_int64 -> TG.bottom_naked_int64
@@ -47,6 +49,8 @@ let bottom (kind : K.t) =
 let bottom_like t = bottom (TG.kind t)
 
 let these_naked_immediates is = TG.these_naked_immediates is
+
+let these_naked_float32s fs = TG.these_naked_float32s fs
 
 let these_naked_floats fs = TG.these_naked_floats fs
 
@@ -79,6 +83,9 @@ let any_tagged_bool = these_tagged_immediates Targetint_31_63.all_bools
 
 let any_naked_bool = TG.these_naked_immediates Targetint_31_63.all_bools
 
+let this_boxed_float32 f alloc_mode =
+  TG.box_float32 (TG.this_naked_float32 f) alloc_mode
+
 let this_boxed_float f alloc_mode =
   TG.box_float (TG.this_naked_float f) alloc_mode
 
@@ -94,6 +101,9 @@ let this_boxed_nativeint i alloc_mode =
 let this_boxed_vec128 i alloc_mode =
   TG.box_vec128 (TG.this_naked_vec128 i) alloc_mode
 
+let these_boxed_float32s fs alloc_mode =
+  TG.box_float32 (these_naked_float32s fs) alloc_mode
+
 let these_boxed_floats fs alloc_mode =
   TG.box_float (these_naked_floats fs) alloc_mode
 
@@ -105,6 +115,9 @@ let these_boxed_int64s is alloc_mode =
 
 let these_boxed_nativeints is alloc_mode =
   TG.box_nativeint (these_naked_nativeints is) alloc_mode
+
+let any_boxed_float32 =
+  TG.box_float32 TG.any_naked_float32 (Alloc_mode.For_types.unknown ())
 
 let any_boxed_float =
   TG.box_float TG.any_naked_float (Alloc_mode.For_types.unknown ())
@@ -261,6 +274,7 @@ let type_for_const const =
   match RWC.descr const with
   | Naked_immediate i -> TG.this_naked_immediate i
   | Tagged_immediate i -> TG.this_tagged_immediate i
+  | Naked_float32 f -> TG.this_naked_float32 f
   | Naked_float f -> TG.this_naked_float f
   | Naked_int32 n -> TG.this_naked_int32 n
   | Naked_int64 n -> TG.this_naked_int64 n
@@ -286,7 +300,7 @@ let check_equation name ty =
         Name.print name TG.print ty
 
 let arity_of_list ts =
-  Flambda_arity.create
+  Flambda_arity.create_singletons
     (List.map (fun ty -> Flambda_kind.With_subkind.anything (TG.kind ty)) ts)
 
 let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
@@ -297,6 +311,7 @@ let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
     match Flambda_kind.With_subkind.kind kind with
     | Value -> TG.any_value
     | Naked_number Naked_immediate -> TG.any_naked_immediate
+    | Naked_number Naked_float32 -> TG.any_naked_float32
     | Naked_number Naked_float -> TG.any_naked_float
     | Naked_number Naked_int32 -> TG.any_naked_int32
     | Naked_number Naked_int64 -> TG.any_naked_int64
@@ -305,6 +320,7 @@ let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
     | Rec_info -> TG.any_rec_info
     | Region -> TG.any_region)
   | Boxed_float -> any_boxed_float
+  | Boxed_float32 -> any_boxed_float32
   | Boxed_int32 -> any_boxed_int32
   | Boxed_int64 -> any_boxed_int64
   | Boxed_nativeint -> any_boxed_nativeint
@@ -327,6 +343,19 @@ let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
   | Float_array ->
     TG.mutable_array ~element_kind:(Ok Flambda_kind.With_subkind.naked_float)
       ~length:any_tagged_immediate alloc_mode
+  | Unboxed_float32_array ->
+    TG.mutable_array ~element_kind:(Ok Flambda_kind.With_subkind.naked_float32)
+      ~length:any_tagged_immediate alloc_mode
+  | Unboxed_int32_array ->
+    TG.mutable_array ~element_kind:(Ok Flambda_kind.With_subkind.naked_int32)
+      ~length:any_tagged_immediate alloc_mode
+  | Unboxed_int64_array ->
+    TG.mutable_array ~element_kind:(Ok Flambda_kind.With_subkind.naked_int64)
+      ~length:any_tagged_immediate alloc_mode
+  | Unboxed_nativeint_array ->
+    TG.mutable_array
+      ~element_kind:(Ok Flambda_kind.With_subkind.naked_nativeint)
+      ~length:any_tagged_immediate alloc_mode
   | Immediate_array ->
     TG.mutable_array
       ~element_kind:(Ok Flambda_kind.With_subkind.tagged_immediate)
@@ -338,10 +367,7 @@ let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
     TG.mutable_array ~element_kind:Unknown ~length:any_tagged_immediate
       alloc_mode
 
-let bottom_with_subkind kind = bottom (Flambda_kind.With_subkind.kind kind)
-
 let unknown_types_from_arity arity =
-  List.map (fun kind -> unknown_with_subkind kind) (Flambda_arity.to_list arity)
-
-let bottom_types_from_arity arity =
-  List.map bottom_with_subkind (Flambda_arity.to_list arity)
+  List.map
+    (unknown_with_subkind ?alloc_mode:None)
+    (Flambda_arity.unarized_components arity)

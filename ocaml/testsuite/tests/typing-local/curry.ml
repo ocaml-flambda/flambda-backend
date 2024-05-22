@@ -1,13 +1,17 @@
 (* TEST
-   * bytecode
-     reference = "${test_source_directory}/curry.heap.reference"
-   * stack-allocation
-   ** native
-      reference = "${test_source_directory}/curry.stack.reference"
-   * no-stack-allocation
-   ** native
-      reference = "${test_source_directory}/curry.heap.reference"
- *)
+ {
+   reference = "${test_source_directory}/curry.heap.reference";
+   bytecode;
+ }{
+   stack-allocation;
+   reference = "${test_source_directory}/curry.stack.reference";
+   native;
+ }{
+   no-stack-allocation;
+   reference = "${test_source_directory}/curry.heap.reference";
+   native;
+ }
+*)
 
 module M : sig
   (* explicit signature to force return modes *)
@@ -21,9 +25,9 @@ end = struct
 end
 
 
-external is_local : local_ 'a -> bool = "caml_obj_is_local"
+external is_stack : local_ 'a -> bool = "caml_obj_is_stack"
 let loc (local_ x) =
-  if is_local x then 1 else 0
+  if is_stack x then 1 else 0
 
 let[@inline never] flocal (local_ arg) =
   let g = M.part_local in

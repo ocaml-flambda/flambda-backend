@@ -143,7 +143,7 @@ static void open_shared_lib(char_os * name)
   caml_gc_message(0x100, "Loading shared library %s\n", u8);
   caml_stat_free(u8);
   caml_enter_blocking_section();
-  handle = caml_dlopen(realname, 1, 1);
+  handle = caml_dlopen(realname, 1);
   caml_leave_blocking_section();
   if (handle == NULL)
     caml_fatal_error
@@ -235,6 +235,8 @@ void caml_free_shared_libs(void)
 
 #define Handle_val(v) (*((void **) (v)))
 
+/* The mode argument is here for compatibility with runtime4. */
+/* CR ocaml 5 all-runtime5: Remove [mode] when all-runtime5. */
 CAMLprim value caml_dynlink_open_lib(value mode, value filename)
 {
   void * handle;
@@ -245,7 +247,7 @@ CAMLprim value caml_dynlink_open_lib(value mode, value filename)
                   String_val(filename));
   p = caml_stat_strdup_to_os(String_val(filename));
   caml_enter_blocking_section();
-  handle = caml_dlopen(p, Int_val(mode), 1);
+  handle = caml_dlopen(p, 1);
   caml_leave_blocking_section();
   caml_stat_free(p);
   if (handle == NULL) caml_failwith(caml_dlerror());

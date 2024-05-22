@@ -60,6 +60,9 @@ command line, unless the "-noautolink" option is given.
 \item["-absname"]
 Force error messages to show absolute paths for file names.
 
+\item["-no-absname"]
+Do not try to show absolute filenames in error messages.
+
 \notop{\item["-annot"]
 Deprecated since OCaml 4.11. Please use "-bin-annot" instead.
 }%notop
@@ -97,7 +100,9 @@ compile modules separately.
 \item["-cc" \var{ccomp}]
 Use \var{ccomp} as the C linker \nat{called to build the final executable }
 \comp{when linking in ``custom runtime'' mode (see the "-custom" option)}
-and as the C compiler for compiling ".c" source files.
+and as the C compiler for compiling ".c" source files. When linking object
+files produced by a C++ compiler (such as "g++" or "clang++"), it is recommended
+to use "-cc c++".
 }%notop
 
 \notop{%
@@ -114,6 +119,16 @@ Pass the given option to the C compiler and linker.
 \nat{For instance, }%
 "-ccopt -L"\var{dir} causes the C linker to search for C libraries in
 directory \var{dir}. \comp{(See the "-custom" option.)}
+}%notop
+
+\notop{%
+\item["-cmi-file" \var{filename}]
+Use the given interface file to type-check the ML source file to compile.
+When this option is not specified, the compiler looks for a \var{.mli} file
+with the same base name than the implementation it is compiling and in the
+same directory. If such a file is found, the compiler looks for a
+corresponding \var{.cmi} file in the included directories and reports an
+error if it fails to find one.
 }%notop
 
 \notop{%
@@ -247,6 +262,11 @@ section~\ref{s:ocamlrun-options}).
 }%notop
 
 \notop{%
+\item["-no-g"]
+Do not record debugging information (default).
+}%notop
+
+\notop{%
 \item["-i"]
 Cause the compiler to print all defined names (with their inferred
 types or their definitions) when compiling an implementation (".ml"
@@ -279,6 +299,16 @@ Directories can also be added to the list once
 the toplevel is running with the "#directory" directive
 (section~\ref{s:toplevel-directives}).
 }%top
+
+\notop{%
+\item["-H" \var{directory}]
+Behaves identically to "-I", except that (a) programs may not directly refer to
+modules added to the search path this way, and (b) these directories are
+searched after any "-I" directories.  This makes it possible to provide the
+compiler with compiled interface and object code files for the current program's
+transitive dependencies (the dependencies of its dependencies) without allowing
+them to silently become direct dependencies.
+}%notop
 
 \top{%
 \item["-init" \var{file}]
@@ -441,14 +471,13 @@ object code files (".cmx"), and libraries (".cmxa"). See also option
 }%nat
 
 \notop{%
-\item["-o" \var{exec-file}]
-Specify the name of the output file produced by the
-\nat{linker}\comp{compiler}. The
+\item["-o" \var{output-file}]
+Specify the name of the output file to produce. For executable files, the
 default output name is "a.out" under Unix and "camlprog.exe" under
 Windows. If the "-a" option is given, specify the name of the library
 produced.  If the "-pack" option is given, specify the name of the
 packed object file produced.  If the "-output-obj" or "-output-complete-obj"
-options are given, specify the name of the output file produced.
+options are given, specify the name of the produced object file.
 \nat{If the "-shared" option is given, specify the name of plugin
 file produced.}
 \comp{If the "-c" option is given, specify the name of the object
@@ -615,12 +644,22 @@ runtime, which is useful for debugging pointer problems in low-level
 code such as C stubs.
 }%notop
 
-\notop{
-\item["-stop-after" \var{pass}]
-Stop compilation after the given compilation pass. The currently
-supported passes are:
-"parsing", "typing"\nat{, "scheduling", "emit"}.
-}%notop
+\nat{%
+\item["-S"]
+Keep the assembly code produced during the compilation. The assembly
+code for the source file \var{x}".ml" is saved in the file \var{x}".s".
+}%nat
+
+\item["-safe-string"]
+Enforce the separation between types "string" and "bytes",
+thereby making strings read-only. This is the default, and enforced
+since OCaml 5.0.
+
+\item["-safer-matching"]
+Do not use type information to optimize pattern-matching.
+This allows to detect match failures even if a pattern-matching was
+wrongly assumed to be exhaustive. This only impacts GADT and
+polymorphic variant compilation.
 
 \nat{
 \item["-save-ir-after" \var{pass}]
@@ -639,12 +678,6 @@ using "compiler-libs" library (see
 }%nat
 
 \nat{%
-\item["-S"]
-Keep the assembly code produced during the compilation. The assembly
-code for the source file \var{x}".ml" is saved in the file \var{x}".s".
-}%nat
-
-\nat{%
 \item["-shared"]
 Build a plugin (usually ".cmxs") that can be dynamically loaded with
 the "Dynlink" module. The name of the plugin must be
@@ -658,10 +691,6 @@ apply to the way the extra native objects have been compiled (under
 Linux AMD 64, they must contain only position-independent code).
 }%nat
 
-\item["-safe-string"]
-Enforce the separation between types "string" and "bytes",
-thereby making strings read-only. This is the default.
-
 \item["-short-paths"]
 When a type is visible under several module-paths, use the shortest
 one when printing the type's name in inferred interfaces and error and
@@ -674,6 +703,13 @@ their length.
 Read the standard input as a script file rather than starting an
 interactive session.
 }%top
+
+\notop{
+\item["-stop-after" \var{pass}]
+Stop compilation after the given compilation pass. The currently
+supported passes are:
+"parsing", "typing"\nat{, "scheduling", "emit"}.
+}%notop
 
 \item["-strict-sequence"]
 Force the left-hand part of each sequence to have type unit.
@@ -711,7 +747,8 @@ unspecified result instead of raising a "Division_by_zero" exception.
 \item["-unsafe-string"]
 Identify the types "string" and "bytes", thereby making strings writable.
 This is intended for compatibility with old source code and should not
-be used with new software.
+be used with new software. This option raises an error unconditionally
+since OCaml 5.0.
 
 \comp{%
 \item["-use-runtime" \var{runtime-name}]
@@ -821,7 +858,7 @@ arguments to "-warn-error"
 in production code, because this can break your build when future versions
 of OCaml add some new warnings.
 
-The default setting is "-warn-error -a+31" (only warning 31 is fatal).
+The default setting is "-warn-error -a" (no warning is fatal).
 
 \item["-warn-help"]
 Show the description of all available warning numbers.
@@ -859,18 +896,20 @@ either with the same or a different language extension; is idempotent.
 Disable the specified \var{language-extension}.  Can be specified more than once,
 either with the same or a different language extension; is idempotent.
 
-\item[(JST) "-only-erasable-extensions"]
-Restricts the "-extension" option to work only with so-called ``erasable''
-extensions: ones that can be rewritten into attributes while still preserving
-the program's runtime input/output behavior.  Turns off currently-enabled
-non-erasable extensions when specified.  After this flag, specifying a
-non-erasable extension (even to disable it) will fail with an error.  This flag
-cannot be reversed, but it can be strengthened (by "-disable-all-extensions").
+\item[(JST) "-extension-universe" \var{universe}]
+Set the extension universe and enable all extensions in it. Each universe
+allows a set of extensions, and every successive universe includes
+the previous one. Following universes exist:
 
-\item[(JST) "-disable-all-extensions"]
-Disallow all language extensions moving forward, and turn off currently-enabled
-ones.  This makes "-extension" raise errors moving forwards.  This flag cannot
-be reversed.
+\begin{options}
+\item[no_extensions] No extensions.
+\item[upstream_compatible] Extensions compatible with upstream OCaml,
+or erasable extensions.
+\item[stable] All stable extensions.
+\item[beta] All beta extensions.
+\item[alpha] All alpha extensions.
+\end{options}
+
 
 \end{options}
 %

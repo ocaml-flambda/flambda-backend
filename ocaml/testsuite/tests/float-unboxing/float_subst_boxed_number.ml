@@ -1,10 +1,14 @@
 (* TEST
-   include config
-   flags = "-w -55"
-   ocamlc_flags = "config.cmo"
-   ocamlopt_flags = "-inline 20 config.cmx"
-   * native
+ include config;
+ flags = "-w -55";
+ ocamlc_flags = "config.cmo";
+ ocamlopt_flags = "config.cmx";
+ native;
 *)
+
+(* CR-someday mshinwell: enable this for classic mode *)
+
+[@@@ocaml.flambda_o3]
 
 let eliminate_intermediate_float_record () =
   let r = ref 0. in

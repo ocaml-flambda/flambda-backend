@@ -16,18 +16,18 @@
  (targets primitives)
  (mode    fallback)
  (deps
-   ; matches the line structure of files in gen_primitives.sh
-   alloc.c array.c compare.c extern.c floats.c gc_ctrl.c hash.c intern.c
-     interp.c ints.c io.c
-   lexing.c md5.c meta.c memprof.c obj.c parsing.c signals.c str.c sys.c
-     callback.c weak.c
-   finalise.c stacks.c dynlink.c backtrace_byt.c backtrace.c
-     afl.c
-   bigarray.c eventlog.c)
- (action  (with-stdout-to %{targets} (run %{dep:gen_primitives.sh}))))
+    ; matches the line structure of files in gen_primitives.sh
+   alloc.c array.c compare.c extern.c floats.c gc_ctrl.c hash.c intern.c interp.c ints.c io.c
+   lexing.c md5.c meta.c memprof.c obj.c parsing.c signals.c str.c sys.c callback.c weak.c
+   finalise.c domain.c platform.c fiber.c memory.c startup_aux.c runtime_events.c sync.c
+   dynlink.c backtrace_byt.c backtrace.c afl.c float32.c
+   bigarray.c prng.c win32.c
+ )
+ (action  (with-stdout-to %{targets}
+   (chdir ..  (run %{dep:gen_primitives.sh})))))
 
 (rule
- (targets libasmrun.a libasmrund.a libasmruni.a libasmrun_pic.a libasmrunnnp.a
+ (targets libasmrun.a libasmrund.a libasmruni.a libasmrun_pic.a
     libasmrun_shared.so libcamlrun.a libcamlrund.a libcamlruni.a libcamlrun_pic.a
     libcamlrun_shared.so ocamlrun ocamlrund ocamlruni ld.conf
     sak)
@@ -36,17 +36,28 @@
    ../Makefile.config
    ../Makefile.build_config
    ../Makefile.config_if_required
-   ../Makefile.common Makefile
+   ../Makefile.common ../Makefile
+   ../compilerlibs/Makefile.compilerlibs
+   ../Makefile.menhir
+   ../.depend
+   ../.depend.menhir
+   ../config.status
+   ../stdlib/StdlibModules
    (glob_files caml/*.h)
+   (glob_files *.h)
+   caml/domain_state.tbl
    primitives
-   signals_osdep.h (glob_files *.S)
+   (glob_files *.S)
    (glob_files *.c)
  )
  (action
  (no-infer
    (progn
      (bash "touch .depend") ; hack.
-     (run make -sj8 %{targets} COMPUTE_DEPS=false)
+     (bash "cd .. && make V=1 'SAK_LINK=cc -o $(1) $(2)' COMPUTE_DEPS=false runtime/sak")
+     (bash "cd .. && make V=1 -sj8 runtime/libasmrun.a runtime/libasmrund.a runtime/libasmruni.a runtime/libasmrun_pic.a \
+    runtime/libasmrun_shared.so runtime/libcamlrun.a runtime/libcamlrund.a runtime/libcamlruni.a runtime/libcamlrun_pic.a \
+    runtime/libcamlrun_shared.so runtime/ocamlrun runtime/ocamlrund runtime/ocamlruni runtime/ld.conf COMPUTE_DEPS=false")
      (bash "rm .depend")))))
 
 (install
@@ -77,7 +88,6 @@
     libasmrund.a
     libasmruni.a
     libasmrun_pic.a
-    libasmrunnnp.a
     libasmrun_shared.so
   )
   (section lib)

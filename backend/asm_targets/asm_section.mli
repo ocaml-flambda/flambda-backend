@@ -54,6 +54,10 @@ type section_details = private
 
 val dwarf_sections_in_order : unit -> t list
 
+(* If [is_delayed] = true the corresponding section will be emitted after
+   text *)
+val is_delayed : t -> bool
+
 (** The necessary information for a section directive. [first_occurrence] should
     be [true] iff the corresponding directive will be the first such in the
     relevant assembly file for the given section. *)

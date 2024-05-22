@@ -45,3 +45,6 @@ val dwarf_for_fundecl :
     above functions. *)
 val emit :
   t -> basic_block_sections:bool -> binary_backend_available:bool -> unit
+
+val emit_delayed :
+  t -> basic_block_sections:bool -> binary_backend_available:bool -> unit

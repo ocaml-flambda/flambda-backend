@@ -64,3 +64,7 @@ val add_function_attributes
   -> Location.t
   -> Parsetree.attributes
   -> Lambda.lambda
+
+val transl_param_attributes
+  : Typedtree.pattern
+  -> Lambda.parameter_attribute

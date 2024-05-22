@@ -7,11 +7,36 @@ val mkTarrow :
   Asttypes.arg_label * type_expr * type_expr * commutable -> type_desc
 
 type apply_arg
+type texp_function_param_identifier
+type texp_function_cases_identifier
+
+val texp_function_cases_identifier_defaults : texp_function_cases_identifier
+val texp_function_param_identifier_defaults : texp_function_param_identifier
+
+type texp_function_param = {
+  arg_label : Asttypes.arg_label;
+  pattern : pattern;
+  param : Ident.t;
+  partial : partial;
+  optional_default : expression option;
+      (** The optional argument's default value. If [optional_default] is present,
+      [arg_label] must be [Optional], and [pattern] matches values of type [t]
+      if the parameter type is [t option]. *)
+  param_identifier : texp_function_param_identifier;
+}
+
+type texp_function_body =
+  | Function_body of expression
+  | Function_cases of {
+      cases : value case list;
+      param : Ident.t;
+      partial : partial;
+      function_cases_identifier : texp_function_cases_identifier;
+    }
 
 type texp_function = {
-  arg_label : Asttypes.arg_label;
-  param : Ident.t;
-  cases : value case list;
+  params : texp_function_param list;
+  body : texp_function_body;
 }
 
 type texp_ident_identifier
@@ -51,6 +76,7 @@ val mkTexp_match :
   expression * computation case list * partial ->
   expression_desc
 
+val mkTexp_assert : expression -> Location.t -> expression_desc
 val mkTtyp_any : core_type_desc
 val mkTtyp_var : string -> core_type_desc
 val is_type_name_used : core_type_desc -> string -> bool
@@ -80,6 +106,7 @@ val view_texp : expression_desc -> matched_expression_desc
 type tpat_var_identifier
 type tpat_alias_identifier
 type tpat_array_identifier
+type tpat_tuple_identifier
 
 val mkTpat_var :
   ?id:tpat_var_identifier -> Ident.t * string Location.loc -> value pattern_desc
@@ -91,6 +118,9 @@ val mkTpat_alias :
 
 val mkTpat_array :
   ?id:tpat_array_identifier -> value general_pattern list -> value pattern_desc
+
+val mkTpat_tuple :
+  ?id:tpat_tuple_identifier -> value general_pattern list -> value pattern_desc
 
 type 'a matched_pattern_desc =
   | Tpat_var :
@@ -104,6 +134,9 @@ type 'a matched_pattern_desc =
       -> value matched_pattern_desc
   | Tpat_array :
       value general_pattern list * tpat_array_identifier
+      -> value matched_pattern_desc
+  | Tpat_tuple :
+      value general_pattern list * tpat_tuple_identifier
       -> value matched_pattern_desc
   | O : 'a pattern_desc -> 'a matched_pattern_desc
 
@@ -136,3 +169,12 @@ val mk_value_binding :
   vb_expr:expression ->
   vb_attributes:attributes ->
   value_binding
+
+val mk_value_description :
+  val_type:type_expr ->
+  val_kind:value_kind ->
+  val_attributes:attributes ->
+  value_description
+
+val print_path : Path.t -> string
+val replace_id_in_path : Path.t -> Ident.t -> Path.t

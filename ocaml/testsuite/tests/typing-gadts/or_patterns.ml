@@ -1,5 +1,5 @@
 (* TEST
-   * expect
+ expect;
 *)
 
 type _ t =
@@ -217,11 +217,11 @@ let simple_merged_annotated_return (type a) (t : a t) (a : a) =
 ;;
 
 [%%expect{|
-Line 3, characters 12-20:
+Line 3, characters 18-19:
 3 |   | IntLit, (3 as x)
-                ^^^^^^^^
-Error: This pattern matches values of type a
-       This instance of a is ambiguous:
+                      ^
+Error: This pattern matches values of type int
+       This instance of int is ambiguous:
        it would escape the scope of its equation
 |}]
 

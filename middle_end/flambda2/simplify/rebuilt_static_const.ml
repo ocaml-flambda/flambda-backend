@@ -84,6 +84,15 @@ let create_code' code =
     }
 
 let create_set_of_closures are_rebuilding set =
+  (* Even if the set of closures was locally allocated, this allocation is
+     global. This will not cause leaks, as lifted constants are static and
+     therefore only allocated once. *)
+  let set =
+    Set_of_closures.create
+      ~value_slots:(Set_of_closures.value_slots set)
+      Alloc_mode.For_allocations.heap
+      (Set_of_closures.function_decls set)
+  in
   let free_names = Set_of_closures.free_names set in
   if ART.do_not_rebuild_terms are_rebuilding
   then Set_of_closures_not_rebuilt { free_names }
@@ -105,6 +114,11 @@ let create_block are_rebuilding tag is_mutable ~fields =
     in
     Block_not_rebuilt { free_names }
   else create_normal_non_code (SC.block tag is_mutable fields)
+
+let create_boxed_float32 are_rebuilding or_var =
+  if ART.do_not_rebuild_terms are_rebuilding
+  then Block_not_rebuilt { free_names = Or_variable.free_names or_var }
+  else create_normal_non_code (SC.boxed_float32 or_var)
 
 let create_boxed_float are_rebuilding or_var =
   if ART.do_not_rebuild_terms are_rebuilding
@@ -142,7 +156,7 @@ let create_immutable_float_block are_rebuilding fields =
     Block_not_rebuilt { free_names }
   else create_normal_non_code (SC.immutable_float_block fields)
 
-let create_immutable_float_array are_rebuilding fields =
+let create_immutable_naked_number_array builder are_rebuilding fields =
   if ART.do_not_rebuild_terms are_rebuilding
   then
     let free_names =
@@ -151,7 +165,22 @@ let create_immutable_float_array are_rebuilding fields =
           Name_occurrences.union free_names (Or_variable.free_names field))
     in
     Block_not_rebuilt { free_names }
-  else create_normal_non_code (SC.immutable_float_array fields)
+  else create_normal_non_code (builder fields)
+
+let create_immutable_float_array =
+  create_immutable_naked_number_array SC.immutable_float_array
+
+let create_immutable_float32_array =
+  create_immutable_naked_number_array SC.immutable_float32_array
+
+let create_immutable_int32_array =
+  create_immutable_naked_number_array SC.immutable_int32_array
+
+let create_immutable_int64_array =
+  create_immutable_naked_number_array SC.immutable_int64_array
+
+let create_immutable_nativeint_array =
+  create_immutable_naked_number_array SC.immutable_nativeint_array
 
 let create_immutable_value_array are_rebuilding fields =
   if ART.do_not_rebuild_terms are_rebuilding
@@ -165,10 +194,10 @@ let create_immutable_value_array are_rebuilding fields =
     Block_not_rebuilt { free_names }
   else create_normal_non_code (SC.immutable_value_array fields)
 
-let create_empty_array are_rebuilding =
+let create_empty_array are_rebuilding array_kind =
   if ART.do_not_rebuild_terms are_rebuilding
   then Block_not_rebuilt { free_names = Name_occurrences.empty }
-  else create_normal_non_code SC.empty_array
+  else create_normal_non_code (SC.empty_array array_kind)
 
 let create_mutable_string are_rebuilding ~initial_value =
   if ART.do_not_rebuild_terms are_rebuilding
@@ -195,9 +224,12 @@ let map_set_of_closures t ~f =
                 (SC.set_of_closures set_of_closures);
             free_names = Set_of_closures.free_names set_of_closures
           }
-      | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_vec128 _
-      | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
-      | Immutable_value_array _ | Empty_array | Mutable_string _
+      | Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
+      | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
+      | Immutable_float_block _ | Immutable_float_array _
+      | Immutable_float32_array _ | Immutable_int32_array _
+      | Immutable_int64_array _ | Immutable_nativeint_array _
+      | Immutable_value_array _ | Empty_array _ | Mutable_string _
       | Immutable_string _ ->
         t))
   | Block_not_rebuilt _ | Set_of_closures_not_rebuilt _ | Code_not_rebuilt _ ->

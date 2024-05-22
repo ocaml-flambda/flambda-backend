@@ -31,9 +31,8 @@ type error =
   | Keyword_as_label of string
   | Invalid_literal of string
   | Invalid_directive of string * string option
-;;
 
-exception Error of error * Location.t;;
+exception Error of error * Location.t
 
 (* The table of keywords *)
 
@@ -64,17 +63,21 @@ let keyword_table =
     "include", INCLUDE;
     "inherit", INHERIT;
     "initializer", INITIALIZER;
+    "kind_abbrev_", KIND_ABBREV;
+    "kind_of_", KIND_OF;
     "lazy", LAZY;
     "let", LET;
     "local_", LOCAL;
     "match", MATCH;
     "method", METHOD;
+    "mod", MOD;
     "module", MODULE;
     "mutable", MUTABLE;
     "new", NEW;
     "nonrec", NONREC;
     "object", OBJECT;
     "of", OF;
+    "once_", ONCE;
     "open", OPEN;
     "or", OR;
 (*  "parser", PARSER; *)
@@ -87,6 +90,7 @@ let keyword_table =
     "true", TRUE;
     "try", TRY;
     "type", TYPE;
+    "unique_", UNIQUE;
     "val", VAL;
     "virtual", VIRTUAL;
     "when", WHEN;
@@ -95,7 +99,6 @@ let keyword_table =
 
     "lor", INFIXOP3("lor"); (* Should be INFIXOP2 *)
     "lxor", INFIXOP3("lxor"); (* Should be INFIXOP2 *)
-    "mod", INFIXOP3("mod");
     "land", INFIXOP3("land");
     "lsl", INFIXOP4("lsl");
     "lsr", INFIXOP4("lsr");
@@ -120,9 +123,9 @@ let store_string s = Buffer.add_string string_buffer s
 let store_lexeme lexbuf = store_string (Lexing.lexeme lexbuf)
 
 (* To store the position of the beginning of a string and comment *)
-let string_start_loc = ref Location.none;;
-let comment_start_loc = ref [];;
-let in_comment () = !comment_start_loc <> [];;
+let string_start_loc = ref Location.none
+let comment_start_loc = ref []
+let in_comment () = !comment_start_loc <> []
 let is_in_string = ref false
 let in_string () = !is_in_string
 let print_warnings = ref true
@@ -382,7 +385,6 @@ let update_loc lexbuf file line absolute chars =
     pos_lnum = if absolute then line else pos.pos_lnum + line;
     pos_bol = pos.pos_cnum - chars;
   }
-;;
 
 let preprocessor = ref None
 
@@ -452,7 +454,7 @@ let prepare_error loc = function
       let msg = "Illegal empty character literal ''" in
       let sub =
         [Location.msg
-           "Hint: Did you mean ' ' or a type variable 'a?"] in
+           "@{<hint>Hint@}: Did you mean ' ' or a type variable 'a?"] in
       Location.error ~loc ~sub msg
   | Keyword_as_label kwd ->
       Location.errorf ~loc
@@ -752,6 +754,8 @@ rule token = parse
             { PREFIXOP op }
   | ['=' '<' '>' '|' '&' '$'] symbolchar * as op
             { INFIXOP0 op }
+  | "@" { AT }
+  | "@@" { ATAT }
   | ['@' '^'] symbolchar * as op
             { INFIXOP1 op }
   | ['+' '-'] symbolchar * as op

@@ -158,11 +158,17 @@ let linearize_terminator cfg_with_layout (func : string) start
             (Itailcall_imm { func = { sym_name = func; sym_global = Local } })
         ],
         Some destination )
-    | Call_no_return { func_symbol; alloc; ty_args; ty_res } ->
+    | Call_no_return { func_symbol; alloc; ty_args; ty_res; stack_ofs } ->
       single
         (L.Lop
            (Iextcall
-              { func = func_symbol; alloc; ty_args; ty_res; returns = false }))
+              { func = func_symbol;
+                alloc;
+                ty_args;
+                ty_res;
+                returns = false;
+                stack_ofs
+              }))
     | Call { op; label_after } ->
       let op : Mach.operation =
         match op with
@@ -173,12 +179,15 @@ let linearize_terminator cfg_with_layout (func : string) start
     | Prim { op; label_after } ->
       let op : Mach.operation =
         match op with
-        | External { func_symbol; alloc; ty_args; ty_res } ->
+        | External { func_symbol; alloc; ty_args; ty_res; stack_ofs } ->
           Iextcall
-            { func = func_symbol; alloc; ty_args; ty_res; returns = true }
-        | Checkbound { immediate = None } -> Iintop Icheckbound
-        | Checkbound { immediate = Some i } -> Iintop_imm (Icheckbound, i)
-        | Alloc { bytes; dbginfo; mode } -> Ialloc { bytes; dbginfo; mode }
+            { func = func_symbol;
+              alloc;
+              ty_args;
+              ty_res;
+              returns = true;
+              stack_ofs
+            }
         | Probe { name; handler_code_sym; enabled_at_init } ->
           Iprobe { name; handler_code_sym; enabled_at_init }
       in
@@ -192,7 +201,7 @@ let linearize_terminator cfg_with_layout (func : string) start
       emit_bool (Ieventest, ifso) (Ioddtest, ifnot), None
     | Truth_test { ifso; ifnot } ->
       emit_bool (Itruetest, ifso) (Ifalsetest, ifnot), None
-    | Float_test { lt; eq; gt; uo } -> (
+    | Float_test { width; lt; eq; gt; uo } -> (
       let successor_labels =
         Label.Set.singleton lt |> Label.Set.add gt |> Label.Set.add eq
         |> Label.Set.add uo
@@ -237,7 +246,7 @@ let linearize_terminator cfg_with_layout (func : string) start
             (fun (c, lbl) ->
               if Label.equal lbl last
               then None
-              else Some (L.Lcondbranch (Ifloattest c, lbl)))
+              else Some (L.Lcondbranch (Ifloattest (width, c), lbl)))
             any
         in
         branches @ branch_or_fallthrough [] last, None
@@ -299,8 +308,6 @@ let linearize_terminator cfg_with_layout (func : string) start
               cond_successor_labels init,
             None )
       | _ -> assert false)
-    | Poll_and_jump return_label ->
-      [L.Lop (Ipoll { return_label = Some return_label })], None
   in
   ( List.fold_left
       (fun next desc -> to_linear_instr ~like:terminator desc ~next)
@@ -324,7 +331,7 @@ let need_starting_label (cfg_with_layout : CL.t) (block : Cfg.basic_block)
          when the label is needed for the jump table; or [Poll_and_jump], in
          which case there will always be a jump to such label. *)
       match prev_block.terminator.desc with
-      | Switch _ | Poll_and_jump _ -> true
+      | Switch _ -> true
       | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
       | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
       | Call _ | Prim _ | Specific_can_raise _ ->
@@ -419,9 +426,10 @@ let run cfg_with_layout =
     else None
   in
   { Linear.fun_name = cfg.fun_name;
+    fun_args = Reg.set_of_array cfg.fun_args;
     fun_body = !next.insn;
     fun_tailrec_entry_point_label = !tailrec_label;
-    fun_fast = cfg.fun_fast;
+    fun_fast = not (List.mem Cfg.Reduce_code_size cfg.fun_codegen_options);
     fun_dbg = cfg.fun_dbg;
     fun_contains_calls;
     fun_num_stack_slots;
@@ -442,8 +450,8 @@ let print_assembly (blocks : Cfg.basic_block list) =
   let layout = layout_of_block_list blocks in
   let fun_name = "_fun_start_" in
   let cfg =
-    Cfg.create ~fun_name ~fun_args:[||] ~fun_dbg:Debuginfo.none ~fun_fast:false
-      ~fun_contains_calls:true ~fun_num_stack_slots:[||]
+    Cfg.create ~fun_name ~fun_args:[||] ~fun_codegen_options:[]
+      ~fun_dbg:Debuginfo.none ~fun_contains_calls:true ~fun_num_stack_slots:[||]
   in
   List.iter
     (fun (block : Cfg.basic_block) ->

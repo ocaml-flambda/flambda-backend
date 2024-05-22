@@ -1,6 +1,4 @@
-(* TEST
-   flags = "-extension immutable_arrays"
-*)
+(* TEST *)
 
 module Iarray = Stdlib__Iarray
 external ( .:() ) : 'a iarray -> int -> 'a = "%array_safe_get"

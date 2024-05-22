@@ -1,7 +1,6 @@
 (* TEST
-   flags = "-extension immutable_arrays"
-   * native
-   *)
+ native;
+*)
 
 (* this failed at one point on flambda2 with -O3:
    https://github.com/ocaml-flambda/flambda-backend/pull/1457 *)

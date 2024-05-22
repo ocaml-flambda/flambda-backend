@@ -70,6 +70,7 @@ type instruction =
   | Ksetglobal of Ident.t
   | Kconst of structured_constant
   | Kmakeblock of int * int             (* size, tag *)
+  | Kmake_faux_mixedblock of int * int  (* size, tag *)
   | Kmakefloatblock of int
   | Kgetfield of int
   | Ksetfield of int
@@ -104,6 +105,10 @@ type instruction =
   | Kgetpubmet of int
   | Kgetdynmet
   | Kevent of debug_event
+  | Kperform
+  | Kresume
+  | Kresumeterm of int
+  | Kreperformterm of int
   | Kstop
 
 let immed_min = -0x40000000

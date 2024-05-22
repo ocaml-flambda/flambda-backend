@@ -171,8 +171,12 @@ let[@inline] min_max_num (x: float) (y: float) =
   else if is_nan y then (x,x)
   else if y > x || (not(sign_bit y) && sign_bit x) then (x,y) else (y,x)
 
-external seeded_hash_param : int -> int -> int -> float -> int
-                           = "caml_hash" [@@noalloc]
+(* [caml_hash_exn] doesn't raise on floats, so it's safe for
+   it to be marked as [@@noalloc].
+ *)
+external seeded_hash_param :
+  int -> int -> int -> float -> int = "caml_hash_exn" [@@noalloc]
+let seeded_hash seed x = seeded_hash_param 10 100 seed x
 let hash x = seeded_hash_param 10 100 0 x
 
 module Array = struct
@@ -292,6 +296,12 @@ module Array = struct
     done;
     r
 
+  (* duplicated from array.ml *)
+  let map_inplace f a =
+    for i = 0 to length a - 1 do
+      unsafe_set a i (f (unsafe_get a i))
+    done
+
   let map2 f a b =
     let la = length a in
     let lb = length b in
@@ -316,6 +326,12 @@ module Array = struct
       unsafe_set r i (f i (unsafe_get a i))
     done;
     r
+
+  (* duplicated from array.ml *)
+  let mapi_inplace f a =
+    for i = 0 to length a - 1 do
+      unsafe_set a i (f i (unsafe_get a i))
+    done
 
   (* duplicated from array.ml *)
   let fold_left f x a =
@@ -368,6 +384,51 @@ module Array = struct
       if i = n then false
       else if x = (unsafe_get a i) then true
       else loop (i + 1)
+    in
+    loop 0
+
+  (* duplicated from array.ml *)
+  let find_opt p a =
+    let n = length a in
+    let rec loop i =
+      if i = n then None
+      else
+        let x = unsafe_get a i in
+        if p x then Some x
+        else loop (i + 1)
+    in
+    loop 0
+
+  (* duplicated from array.ml *)
+  let find_index p a =
+    let n = length a in
+    let rec loop i =
+      if i = n then None
+      else if p (unsafe_get a i) then Some i
+      else loop (i + 1) in
+    loop 0
+
+  (* duplicated from array.ml *)
+  let find_map f a =
+    let n = length a in
+    let rec loop i =
+      if i = n then None
+      else
+        match f (unsafe_get a i) with
+        | None -> loop (i + 1)
+        | Some _ as r -> r
+    in
+    loop 0
+
+  (* duplicated from array.ml *)
+  let find_mapi f a =
+    let n = length a in
+    let rec loop i =
+      if i = n then None
+      else
+        match f i (unsafe_get a i) with
+        | None -> loop (i + 1)
+        | Some _ as r -> r
     in
     loop 0
 

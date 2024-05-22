@@ -203,7 +203,7 @@ let show_locs ppf (loc1, loc2) =
 
 
 let dmodtype mty =
-  let tmty = Printtyp.tree_of_modtype mty in
+  let tmty = Printtyp.tree_of_modtype ~abbrev:true mty in
   Format.dprintf "%a" !Oprint.out_module_type tmty
 
 let space ppf () = Format.fprintf ppf "@ "
@@ -289,6 +289,7 @@ module With_shorthand = struct
     | Types.Mty_ident _
     | Types.Mty_alias _
     | Types.Mty_signature []
+    | Types.Mty_strengthen _
       -> Original r.item
     | Types.Mty_signature _ | Types.Mty_functor _
       -> Synthetic r
@@ -334,7 +335,12 @@ module With_shorthand = struct
     let arg, mty = ua.item in
     match (arg: Err.functor_arg_descr) with
     | Unit -> Format.dprintf "()"
+    | Empty_struct -> Format.dprintf "(struct end)"
     | Named p ->
+        let mty = match mty with
+          | Types.Mty_strengthen (mty,q,_) when Path.same p q -> mty
+          | _ -> mty
+        in
         let mty = modtype { ua with item = mty } in
         Format.dprintf
           "%a@ :@ %t"
@@ -352,6 +358,7 @@ module With_shorthand = struct
     let arg, mty = ua.item in
     match (arg: Err.functor_arg_descr) with
     | Unit -> Format.dprintf "()"
+    | Empty_struct -> Format.dprintf "(struct end)"
     | Named p -> fun ppf -> Printtyp.path ppf p
     | Anonymous ->
         let short_mty = modtype { ua with item=mty } in
@@ -514,7 +521,10 @@ module Functor_suberror = struct
       | Named _ | Anonymous ->
           Format.dprintf
             "The functor was expected to be generative at this position"
-
+      | Empty_struct ->
+          (* an empty structure can be used in both applicative and generative
+             context *)
+          assert false
   end
 
   let subcase sub ~expansion_token env (pos, diff) =
@@ -607,6 +617,23 @@ let core env id x =
         show_locs (diff.got.val_loc, diff.expected.val_loc)
         Printtyp.Conflicts.print_explanations
   | Err.Type_declarations diff ->
+      (* Jkind history doesn't offer helpful information in the case
+         of a signature mismatch. This part is here to strip it away. *)
+      let strip_jkind_history (err: Errortrace.equality_error) =
+        Errortrace.equality_error
+          ~trace:(List.map
+            (function
+              | Errortrace.Unequal_var_jkinds _ ->
+                Errortrace.Unequal_var_jkinds_with_no_history
+              | x -> x) err.trace)
+          ~subst:err.subst
+      in
+      let symptom : Includecore.type_mismatch =
+        match diff.symptom with
+        | Manifest err -> Manifest (strip_jkind_history err)
+        | Constraint err -> Constraint (strip_jkind_history err)
+        | symptom -> symptom
+      in
       Format.dprintf "@[<v>@[<hv>%s:@;<1 2>%a@ %s@;<1 2>%a@]%a%a%t@]"
         "Type declarations do not match"
         !Oprint.out_sig_item
@@ -615,7 +642,7 @@ let core env id x =
         !Oprint.out_sig_item
         (Printtyp.tree_of_type_declaration id diff.expected Trec_first)
         (Includecore.report_type_mismatch
-           "the first" "the second" "declaration" env) diff.symptom
+           "the first" "the second" "declaration" env) symptom
         show_locs (diff.got.type_loc, diff.expected.type_loc)
         Printtyp.Conflicts.print_explanations
   | Err.Extension_constructors diff ->
@@ -661,22 +688,22 @@ let module_types {Err.got=mty1; expected=mty2} =
   Format.dprintf
     "@[<hv 2>Modules do not match:@ \
      %a@;<1 -2>is not included in@ %a@]"
-    !Oprint.out_module_type (Printtyp.tree_of_modtype mty1)
-    !Oprint.out_module_type (Printtyp.tree_of_modtype mty2)
+    !Oprint.out_module_type (Printtyp.tree_of_modtype ~abbrev:true mty1)
+    !Oprint.out_module_type (Printtyp.tree_of_modtype ~abbrev:true mty2)
 
 let eq_module_types {Err.got=mty1; expected=mty2} =
   Format.dprintf
     "@[<hv 2>Module types do not match:@ \
      %a@;<1 -2>is not equal to@ %a@]"
-    !Oprint.out_module_type (Printtyp.tree_of_modtype mty1)
-    !Oprint.out_module_type (Printtyp.tree_of_modtype mty2)
+    !Oprint.out_module_type (Printtyp.tree_of_modtype ~abbrev:true mty1)
+    !Oprint.out_module_type (Printtyp.tree_of_modtype ~abbrev:true mty2)
 
 let module_type_declarations id {Err.got=d1 ; expected=d2} =
   Format.dprintf
     "@[<hv 2>Module type declarations do not match:@ \
      %a@;<1 -2>does not match@ %a@]"
-    !Oprint.out_sig_item (Printtyp.tree_of_modtype_declaration id d1)
-    !Oprint.out_sig_item (Printtyp.tree_of_modtype_declaration id d2)
+    !Oprint.out_sig_item (Printtyp.tree_of_modtype_declaration ~abbrev:true id d1)
+    !Oprint.out_sig_item (Printtyp.tree_of_modtype_declaration ~abbrev:true id d2)
 
 let interface_mismatch ppf (diff: _ Err.diff) =
   Format.fprintf ppf

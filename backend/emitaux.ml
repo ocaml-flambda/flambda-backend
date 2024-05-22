@@ -37,14 +37,14 @@ let emit_printf fmt =
 
 let emit_int32 n = emit_printf "0x%lx" n
 
-let emit_symbol esc s =
+let emit_symbol s =
   for i = 0 to String.length s - 1 do
     let c = s.[i] in
     match c with
-      'A'..'Z' | 'a'..'z' | '0'..'9' | '_' ->
+      'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '.' ->
         output_char !output_channel c
     | _ ->
-        Printf.fprintf !output_channel "%c%02x" esc (Char.code c)
+        Printf.fprintf !output_channel "$%02x" (Char.code c)
   done
 
 let emit_string_literal s =
@@ -127,14 +127,16 @@ type frame_descr =
 
 let frame_descriptors = ref([] : frame_descr list)
 
+let is_none_dbg d = Debuginfo.Dbg.is_none (Debuginfo.get_dbg d)
+
 let get_flags debuginfo =
   match debuginfo with
   | Dbg_other d | Dbg_raise d ->
-    if Debuginfo.is_none d then 0 else 1
+    if is_none_dbg d then 0 else 1
   | Dbg_alloc dbgs ->
     if !Clflags.debug &&
        List.exists (fun d ->
-         not (Debuginfo.is_none d.Debuginfo.alloc_dbg)) dbgs
+         not (is_none_dbg d.Debuginfo.alloc_dbg)) dbgs
     then 3 else 2
 
 let is_long n =
@@ -198,19 +200,19 @@ let emit_frames a =
   in
   let module Label_table =
     Hashtbl.Make (struct
-      type t = bool * Debuginfo.t
+      type t = bool * Debuginfo.Dbg.t
 
       let equal ((rs1 : bool), dbg1) (rs2, dbg2) =
-        rs1 = rs2 && Debuginfo.compare dbg1 dbg2 = 0
+        rs1 = rs2 && Debuginfo.Dbg.compare dbg1 dbg2 = 0
 
       let hash (rs, dbg) =
-        Hashtbl.hash (rs, Debuginfo.hash dbg)
+        Hashtbl.hash (rs, Debuginfo.Dbg.hash dbg)
     end)
   in
   let debuginfos = Label_table.create 7 in
   let label_debuginfos rs dbg =
-    let rdbg = List.rev dbg in
-    let key = (rs, rdbg) in
+    let dbg = Debuginfo.get_dbg dbg in
+    let key = (rs, dbg) in
     try Label_table.find debuginfos key
     with Not_found ->
       let lbl = Cmm.new_label () in
@@ -254,7 +256,7 @@ let emit_frames a =
       if flags = 3 then begin
         a.efa_align 4;
         List.iter (fun Debuginfo.{alloc_dbg; _} ->
-          if Debuginfo.is_none alloc_dbg then
+          if is_none_dbg alloc_dbg then
             a.efa_32 Int32.zero
           else
             a.efa_label_rel (label_debuginfos false alloc_dbg) Int32.zero) dbg
@@ -287,7 +289,8 @@ let emit_frames a =
                    (add (shift_left (of_int kind) 1)
                       (of_int has_next)))))
   in
-  let emit_debuginfo (rs, rdbg) lbl =
+  let emit_debuginfo (rs, dbg) lbl =
+    let rdbg = dbg |> Debuginfo.Dbg.to_list |> List.rev in
     (* Due to inlined functions, a single debuginfo may have multiple locations.
        These are represented sequentially in memory (innermost frame first),
        with the low bit of the packed debuginfo being 0 on the last entry. *)
@@ -340,10 +343,23 @@ let cfi_endproc () =
   if is_cfi_enabled () then
     emit_string "\t.cfi_endproc\n"
 
+let cfi_remember_state () =
+  if is_cfi_enabled () then
+    emit_string "\t.cfi_remember_state\n"
+
+let cfi_restore_state () =
+  if is_cfi_enabled () then
+    emit_string "\t.cfi_restore_state\n"
+
 let cfi_adjust_cfa_offset n =
   if is_cfi_enabled () then
   begin
     emit_string "\t.cfi_adjust_cfa_offset\t"; emit_int n; emit_string "\n";
+  end
+
+let cfi_def_cfa_offset n =
+  if is_cfi_enabled () then begin
+    emit_string "\t.cfi_def_cfa_offset\t"; emit_int n; emit_string "\n";
   end
 
 let cfi_offset ~reg ~offset =
@@ -352,6 +368,13 @@ let cfi_offset ~reg ~offset =
     emit_int reg;
     emit_string ", ";
     emit_int offset;
+    emit_string "\n"
+  end
+
+let cfi_def_cfa_register ~reg =
+  if is_cfi_enabled () then begin
+    emit_string "\t.cfi_def_cfa_register ";
+    emit_int reg;
     emit_string "\n"
   end
 
@@ -381,6 +404,7 @@ let get_file_num ~file_emitter file_name =
 (* We only display .file if the file has not been seen before. We
    display .loc for every instruction. *)
 let emit_debug_info_gen ?discriminator dbg file_emitter loc_emitter =
+  let dbg = Debuginfo.Dbg.to_list (Debuginfo.get_dbg dbg) in
   if is_cfi_enabled () &&
     (!Clflags.debug || Config.with_frame_pointers) then begin
     match List.rev dbg with
@@ -395,6 +419,7 @@ let emit_debug_info_gen ?discriminator dbg file_emitter loc_emitter =
   end
 
 let emit_debug_info ?discriminator dbg =
+  ignore discriminator;
   emit_debug_info_gen dbg (fun ~file_num ~file_name ->
       emit_string "\t.file\t";
       emit_int file_num; emit_char '\t';
@@ -468,18 +493,26 @@ module Dwarf_helpers = struct
     reset_dwarf ();
     let can_emit_dwarf =
       !Clflags.debug
-      && not !Dwarf_flags.restrict_to_upstream_dwarf
+      && ((not !Dwarf_flags.restrict_to_upstream_dwarf)
+          || !Dwarf_flags.dwarf_inlined_frames)
       && not disable_dwarf
     in
     match can_emit_dwarf,
           Target_system.architecture (),
           Target_system.derived_system () with
-    | true, X86_64, _ -> sourcefile_for_dwarf := Some sourcefile
+    | true, (X86_64 | AArch64), _ ->
+      sourcefile_for_dwarf := Some sourcefile
     | true, _, _
     | false, _, _ -> ()
 
   let emit_dwarf () =
     Option.iter (Dwarf.emit
+        ~basic_block_sections:!Flambda_backend_flags.basic_block_sections
+        ~binary_backend_available:!binary_backend_available)
+      !dwarf
+
+  let emit_delayed_dwarf () =
+    Option.iter (Dwarf.emit_delayed
         ~basic_block_sections:!Flambda_backend_flags.basic_block_sections
         ~binary_backend_available:!binary_backend_available)
       !dwarf
@@ -501,3 +534,63 @@ let report_error ppf = function
   | Inconsistent_probe_init (name, dbg) ->
     Format.fprintf ppf "Inconsistent use of ~enabled_at_init in [%%probe %s ..] at %a"
       name Debuginfo.print_compact dbg
+
+
+type preproc_stack_check_result =
+  { max_frame_size : int;
+    contains_nontail_calls : bool }
+
+let preproc_stack_check ~fun_body ~frame_size ~trap_size =
+  let rec loop (i:Linear.instruction) fs max_fs nontail_flag =
+    match i.desc with
+      | Lend -> { max_frame_size = max_fs;
+                  contains_nontail_calls = nontail_flag}
+      | Ladjust_stack_offset { delta_bytes } ->
+        let s = fs + delta_bytes in
+        loop i.next s (max s max_fs) nontail_flag
+      | Lpushtrap _ ->
+        let s = fs + trap_size in
+        loop i.next s (max s max_fs) nontail_flag
+      | Lpoptrap ->
+        loop i.next (fs - trap_size) max_fs nontail_flag
+      | Lop (Istackoffset n) ->
+        let s = fs + n in
+        loop i.next s (max s max_fs) nontail_flag
+      | Lop (Icall_ind | Icall_imm _ ) ->
+        loop i.next fs max_fs true
+      | Lprologue | Lop _ | Lreloadretaddr | Lreturn | Llabel _
+      | Lbranch _ | Lcondbranch _ | Lcondbranch3 _ | Lswitch _
+      | Lentertrap | Lraise _ ->
+        loop i.next fs max_fs nontail_flag
+      | Lstackcheck _ ->
+        (* should not be already present *)
+        assert false
+  in
+  loop fun_body frame_size frame_size false
+
+let add_stack_checks_if_needed (fundecl : Linear.fundecl) ~stack_offset ~stack_threshold_size ~trap_size =
+  if Config.no_stack_checks then
+    fundecl
+  else begin
+    let frame_size =
+      Proc.frame_size ~stack_offset
+        ~num_stack_slots:fundecl.fun_num_stack_slots
+        ~contains_calls:fundecl.fun_contains_calls
+    in
+    let { max_frame_size; contains_nontail_calls } =
+      preproc_stack_check ~fun_body:fundecl.fun_body ~frame_size ~trap_size
+    in
+    let insert_stack_check =
+      contains_nontail_calls || max_frame_size >= stack_threshold_size
+    in
+    if insert_stack_check
+    then
+      let fun_body =
+        Linear.instr_cons
+          (Lstackcheck { max_frame_size_bytes = max_frame_size })
+          [||] [||] ~available_before:fundecl.fun_body.available_before
+          ~available_across:fundecl.fun_body.available_across fundecl.fun_body
+      in
+      { fundecl with fun_body }
+    else fundecl
+  end

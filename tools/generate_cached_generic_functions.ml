@@ -26,20 +26,62 @@
 
 open Printf
 open Misc
+open Config
 
+module CU = Compilation_unit
+
+let make_cached_generic_functions unix ~ppf_dump ~id genfns =
+  Location.input_name := Generic_fns.Partition.name id; (* set name of "current" input *)
+  let startup_comp_unit = Generic_fns.Partition.to_cu id in
+  Compilenv.reset startup_comp_unit;
+  Emit.begin_assembly unix;
+  let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
+  Profile.record_call "genfns" (fun () ->
+    List.iter compile_phrase (Generic_fns.compile ~shared:true genfns));
+ Emit.end_assembly ()
+
+let cached_generic_functions unix ~ppf_dump ~id output_name genfns =
+  Profile.record_call output_name (fun () ->
+    let startup = output_name ^ ext_asm in
+    Profile.record_call "compile_unit" (fun () ->
+      let obj_filename = output_name ^ ext_obj in
+      Asmgen.compile_unit ~output_prefix:output_name
+        ~asm_filename:startup ~keep_asm:false
+        ~obj_filename
+        ~may_reduce_heap:true
+        ~ppf_dump
+        (fun () ->
+          make_cached_generic_functions unix ~ppf_dump ~id genfns);
+      obj_filename
+    );
+  )
 
 let main filename =
   let unix = (module Unix : Compiler_owee.Unix_intf.S) in
   Clflags.native_code := true;
+  Clflags.use_linscan := true;
   Compmisc.init_path ();
-  let file_prefix = Filename.remove_extension filename in
-  Compmisc.with_ppf_dump ~file_prefix (fun ppf_dump ->
-      Asmlink.cached_generic_functions unix ~ppf_dump file_prefix)
+  let file_prefix = Filename.remove_extension filename ^ ext_lib in
+  let genfns_partitions = Generic_fns.Cache.all () in
+  let objects = ref [] in
+  Fun.protect
+    ~finally:(fun () -> List.iter remove_file !objects)
+    (fun () ->
+       Hashtbl.iter (fun name partition ->
+         let output_name = Filename.temp_file ("cached-generated-" ^ Generic_fns.Partition.to_string name) "" in
+         let obj =
+           cached_generic_functions
+             unix ~ppf_dump:Format.std_formatter ~id:name output_name partition
+         in
+         objects := obj :: !objects
+       ) genfns_partitions;
+       ignore (Ccomp.create_archive file_prefix !objects : int))
 
 let arg_usage =
   Printf.sprintf "%s FILE : Generate an obj file containing cached generatic functions named FILE" Sys.argv.(0)
 
 let main () =
+  Memtrace.trace_if_requested ~context:"ocamlopt" ();
   Arg.parse_expand [] main arg_usage;
   exit 0
 

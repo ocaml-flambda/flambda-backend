@@ -45,6 +45,7 @@ and instruction_desc =
   | Lpushtrap of { lbl_handler : label; }
   | Lpoptrap
   | Lraise of Lambda.raise_kind
+  | Lstackcheck of { max_frame_size_bytes : int; }
 
 let has_fallthrough = function
   | Lreturn | Lbranch _ | Lswitch _ | Lraise _
@@ -54,6 +55,7 @@ let has_fallthrough = function
 
 type fundecl =
   { fun_name: string;
+    fun_args: Reg.Set.t;
     fun_body: instruction;
     fun_fast: bool;
     fun_dbg : Debuginfo.t;
@@ -76,7 +78,7 @@ let invert_test = function
   | Ifalsetest -> Itruetest
   | Iinttest(cmp) -> Iinttest(invert_integer_test cmp)
   | Iinttest_imm(cmp, n) -> Iinttest_imm(invert_integer_test cmp, n)
-  | Ifloattest(cmp) -> Ifloattest(Cmm.negate_float_comparison cmp)
+  | Ifloattest(w, cmp) -> Ifloattest(w, Cmm.negate_float_comparison cmp)
   | Ieventest -> Ioddtest
   | Ioddtest -> Ieventest
 

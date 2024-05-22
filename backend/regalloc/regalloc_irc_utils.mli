@@ -70,19 +70,6 @@ val k : Reg.t -> int
 
 val update_register_locations : unit -> unit
 
-(* CR-soon xclerc for xclerc: remove this module. *)
-module Split_mode : sig
-  type t =
-    | Off
-    | Naive
-
-  val all : t list
-
-  val to_string : t -> string
-
-  val value : t Lazy.t
-end
-
 module Spilling_heuristics : sig
   type t =
     | Set_choose

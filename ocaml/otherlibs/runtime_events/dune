@@ -1,0 +1,48 @@
+;**************************************************************************
+;*                                                                        *
+;*                                 OCaml                                  *
+;*                                                                        *
+;*                       Zesen Qian, Jane Street Europe                   *
+;*                                                                        *
+;*   Copyright 2023 Jane Street Group LLC                                 *
+;*                                                                        *
+;*   All rights reserved.  This file is distributed under the terms of    *
+;*   the GNU Lesser General Public License version 2.1, with the          *
+;*   special exception on linking described in the file LICENSE.          *
+;*                                                                        *
+;**************************************************************************
+
+(library
+ (name runtime_events)
+ (wrapped false)
+ (modes byte native)
+ (flags (
+   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
+   -warn-error A -bin-annot -safe-string -strict-formats
+ ))
+ (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
+ (library_flags (:standard -linkall))
+ (foreign_stubs (language c) (names runtime_events_consumer)
+  (flags ((:include %{project_root}/oc_cflags.sexp)
+          (:include %{project_root}/sharedlib_cflags.sexp)
+          (:include %{project_root}/oc_cppflags.sexp)))))
+
+(install
+  (files
+    (.runtime_events.objs/native/runtime_events.cmx as runtime_events/runtime_events.cmx)
+    (libruntime_events_stubs.a as runtime_events/libruntime_events_stubs.a)
+    (libruntime_events_stubs.a as libruntime_events_stubs_native.a) ; for special_dune compat
+    (dllruntime_events_stubs.so as stublibs/dllruntime_events_stubs.so)
+    (runtime_events.cmxa as runtime_events/runtime_events.cmxa)
+    (runtime_events.a as runtime_events/runtime_events.a)
+    (runtime_events.cmxs as runtime_events/runtime_events.cmxs)
+    (runtime_events.cma as runtime_events/runtime_events.cma)
+    (runtime_events.mli as runtime_events/runtime_events.mli)
+    (.runtime_events.objs/byte/runtime_events.cmi as runtime_events/runtime_events.cmi)
+    (.runtime_events.objs/byte/runtime_events.cmt as runtime_events/runtime_events.cmt)
+    (.runtime_events.objs/byte/runtime_events.cmti as runtime_events/runtime_events.cmti)
+    (runtime_events_consumer.h as runtime_events_consumer.h)
+    (META as runtime_events/META)
+  )
+  (section lib)
+  (package ocaml))

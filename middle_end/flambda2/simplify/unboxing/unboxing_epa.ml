@@ -152,8 +152,8 @@ let extra_args_for_const_ctor_of_variant
           Unbox
             ( Unique_tag_and_size _ | Variant _ | Closure_single_entry _
             | Number
-                ( ( Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint
-                  | Naked_vec128 ),
+                ( ( Naked_float | Naked_float32 | Naked_int32 | Naked_int64
+                  | Naked_nativeint | Naked_vec128 ),
                   _ ) );
         is_int = _
       } ->
@@ -220,6 +220,9 @@ and compute_extra_args_for_one_decision_and_use_aux ~(pass : U.pass) rewrite_id
           ~fields_by_tag_from_decision:fields_by_tag
           ~const_ctors_at_use:const_ctors
           ~non_const_ctors_with_sizes_at_use:non_const_ctors_with_sizes))
+  | Unbox (Number (Naked_float32, epa)) ->
+    compute_extra_arg_for_number Naked_float32 Unboxers.Float32.unboxer epa
+      rewrite_id ~typing_env_at_use arg_being_unboxed
   | Unbox (Number (Naked_float, epa)) ->
     compute_extra_arg_for_number Naked_float Unboxers.Float.unboxer epa
       rewrite_id ~typing_env_at_use arg_being_unboxed
@@ -282,7 +285,7 @@ and compute_extra_args_for_closure ~pass rewrite_id ~typing_env_at_use
   let vars_within_closure =
     Value_slot.Map.mapi
       (fun var ({ epa; decision; kind } : U.field_decision) : U.field_decision ->
-        let unboxer = Unboxers.Closure_field.unboxer function_slot var kind in
+        let unboxer = Unboxers.Closure_field.unboxer function_slot var in
         let new_extra_arg, new_arg_being_unboxed =
           unbox_arg unboxer ~typing_env_at_use arg_being_unboxed
         in
@@ -457,8 +460,8 @@ let add_extra_params_and_args extra_params_and_args decision =
                 Unbox
                   ( Unique_tag_and_size _ | Variant _ | Closure_single_entry _
                   | Number
-                      ( ( Naked_float | Naked_int32 | Naked_int64 | Naked_vec128
-                        | Naked_nativeint ),
+                      ( ( Naked_float32 | Naked_float | Naked_int32
+                        | Naked_int64 | Naked_vec128 | Naked_nativeint ),
                         _ ) );
               is_int = _
             } ->

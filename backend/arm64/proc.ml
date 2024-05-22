@@ -63,20 +63,28 @@ let float_reg_name =
 let num_register_classes = 2
 
 let register_class r =
-  match r.typ with
+  match (r.typ : machtype_component) with
   | Val | Int | Addr  -> 0
   | Float -> 1
-  (* CR mslater: (SIMD) arm64 *)
-  | Vec128 -> fatal_error "arm64: got vec128 register"
+  | Vec128 ->
+    (* CR mslater: (SIMD) arm64 *)
+    fatal_error "arm64: got vec128 register"
+  | Float32 ->
+    (* CR mslater: (float32) arm64 *)
+    fatal_error "arm64: got float32 register"
 
 let num_stack_slot_classes = 2
 
 let stack_slot_class typ =
-  match typ with
+  match (typ : machtype_component) with
   | Val | Int | Addr  -> 0
   | Float -> 1
-  (* CR mslater: (SIMD) arm64 *)
-  | Vec128 -> fatal_error "arm64: got vec128 register"
+  | Vec128 ->
+    (* CR mslater: (SIMD) arm64 *)
+    fatal_error "arm64: got vec128 register"
+  | Float32 ->
+    (* CR mslater: (float32) arm64 *)
+    fatal_error "arm64: got float32 register"
 
 let stack_class_tag c =
   match c with
@@ -91,13 +99,17 @@ let first_available_register =
   [| 0; 100 |]
 
 let register_name ty r =
-  match ty with
+  match (ty : machtype_component) with
   | Val | Int | Addr ->
     int_reg_name.(r - first_available_register.(0))
   | Float ->
     float_reg_name.(r - first_available_register.(1))
-  (* CR mslater: (SIMD) arm64 *)
-  | Vec128 -> fatal_error "arm64: got vec128 register"
+  | Vec128 ->
+    (* CR mslater: (SIMD) arm64 *)
+    fatal_error "arm64: got vec128 register"
+  | Float32 ->
+    (* CR mslater: (float32) arm64 *)
+    fatal_error "arm64: got float32 register"
 
 let rotate_registers = true
 
@@ -125,11 +137,15 @@ let precolored_regs =
   fun () -> phys_regs
 
 let phys_reg ty n =
-  match ty with
+  match (ty : machtype_component) with
   | Int | Addr | Val -> hard_int_reg.(n)
   | Float -> hard_float_reg.(n - 100)
-  (* CR mslater: (SIMD) arm64 *)
-  | Vec128 -> fatal_error "arm64: got vec128 register"
+  | Vec128 ->
+    (* CR mslater: (SIMD) arm64 *)
+    fatal_error "arm64: got vec128 register"
+  | Float32 ->
+    (* CR mslater: (float32) arm64 *)
+    fatal_error "arm64: got float32 register"
 
 let reg_x8 = phys_reg Int 8
 let reg_d7 = phys_reg Float 107
@@ -178,13 +194,17 @@ let calling_conventions
   let float = ref first_float in
   let ofs = ref first_stack in
   for i = 0 to Array.length arg - 1 do
-    match arg.(i) with
+    match (arg.(i) : machtype_component) with
     | Val | Int | Addr ->
         loc.(i) <- loc_int last_int make_stack int ofs
     | Float ->
         loc.(i) <- loc_float last_float make_stack float ofs
-    (* CR mslater: (SIMD) arm64 *)
-    | Vec128 -> fatal_error "arm64: got vec128 register"
+    | Vec128 ->
+        (* CR mslater: (SIMD) arm64 *)
+        fatal_error "arm64: got vec128 register"
+    | Float32 ->
+        (* CR mslater: (float32) arm64 *)
+        fatal_error "arm64: got float32 register"
   done;
   (loc, Misc.align (max 0 !ofs) 16)  (* keep stack 16-aligned *)
 
@@ -247,8 +267,12 @@ let external_calling_conventions
         loc.(i) <- [| loc_int32 last_int make_stack int ofs |]
     | XFloat ->
         loc.(i) <- [| loc_float last_float make_stack float ofs |]
-    (* CR mslater: (SIMD) arm64 *)
-    | XVec128 -> fatal_error "arm64: got vec128 register"
+    | XVec128 ->
+        (* CR mslater: (SIMD) arm64 *)
+        fatal_error "arm64: got vec128 register"
+    | XFloat32 ->
+        (* CR mslater: (float32) arm64 *)
+        fatal_error "arm64: got float32 register"
     end)
     ty_args;
   (loc, Misc.align !ofs 16)  (* keep stack 16-aligned *)
@@ -288,13 +312,9 @@ let stack_ptr_dwarf_register_number = 31
 
 let domainstate_ptr_dwarf_register_number = 28
 
-(* Volatile registers: none *)
-
-let regs_are_volatile _rs = false
-
 (* Registers destroyed by operations *)
 
-let destroyed_at_c_call =
+let destroyed_at_c_noalloc_call =
   (* x19-x28, d8-d15 preserved *)
   Array.append
   (Array.of_list (List.map (phys_reg Int)
@@ -306,14 +326,17 @@ let destroyed_at_c_call =
 
 (* note: keep this function in sync with `destroyed_at_{basic,terminator}` below. *)
 let destroyed_at_oper = function
-  | Iop(Icall_ind | Icall_imm _) | Iop(Iextcall { alloc = true; }) ->
+  | Iop(Icall_ind | Icall_imm _) ->
       all_phys_regs
-  | Iop(Iextcall { alloc = false; }) ->
-      destroyed_at_c_call
+  | Iop(Iextcall {alloc; stack_ofs; }) ->
+    assert (stack_ofs >= 0);
+    if alloc || stack_ofs > 0 then all_phys_regs
+    else destroyed_at_c_noalloc_call
   | Iop(Ialloc _) | Iop(Ipoll _) ->
       [| reg_x8 |]
-  | Iop( Iintoffloat | Ifloatofint
-       | Iload(Single, _, _) | Istore(Single, _, _)) ->
+  | Iop( Iscalarcast (Float_to_int _ | Float_of_int _)
+       | Iload{memory_chunk=Single { reg = Float64 }; _}
+       | Istore(Single { reg = Float64 }, _, _)) ->
       [| reg_d7 |]            (* d7 / s7 destroyed *)
   | _ -> [||]
 
@@ -332,13 +355,16 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
     destroyed_at_reloadretaddr
   | Pushtrap _ ->
     destroyed_at_pushtrap
-  | Op (Intop Icheckbound | Intop_imm (Icheckbound, _)) ->
-    assert false
-  | Op( Intoffloat | Floatofint
-       | Load(Single, _, _) | Store(Single, _, _)) ->
+  | Op Poll -> destroyed_at_alloc_or_poll
+  | Op (Alloc _) ->
+    destroyed_at_alloc_or_poll
+  | Op( Scalarcast (Float_to_int _ | Float_of_int _)
+      | Load {memory_chunk = Single { reg = Float64 }; _ }
+      | Store(Single { reg = Float64 }, _, _)) ->
     [| reg_d7 |]
   | Op _ | Poptrap | Prologue ->
     [||]
+  | Stack_check _ -> assert false (* not supported *)
 
 (* note: keep this function in sync with `destroyed_at_oper` above,
    and `is_destruction_point` below. *)
@@ -347,39 +373,36 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   | Never -> assert false
   | Call {op = Indirect | Direct _; _} ->
     all_phys_regs
-  | Prim {op = Alloc _; _} ->
-    [| reg_x8 |]
   | Always _ | Parity_test _ | Truth_test _ | Float_test _
   | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-  | Tailcall_func _ | Prim {op = Checkbound _ | Probe _; _}
+  | Tailcall_func _ | Prim {op = Probe _; _}
   | Specific_can_raise _ ->
     [||]
-  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
-  | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
-    if alloc then all_phys_regs else destroyed_at_c_call
-  | Poll_and_jump _ -> destroyed_at_alloc_or_poll
+  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; }
+  | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; }; _} ->
+    if alloc || stack_ofs > 0 then all_phys_regs else destroyed_at_c_noalloc_call
 
 (* CR-soon xclerc for xclerc: consider having more destruction points.
    We current return `true` when `destroyed_at_terminator` returns
    `all_phys_regs`; we could also return `true` when `destroyed_at_terminator`
    returns `destroyed_at_c_call` for instance. *)
 (* note: keep this function in sync with `destroyed_at_terminator` above. *)
-let is_destruction_point (terminator : Cfg_intf.S.terminator) =
+let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
   | Call {op = Indirect | Direct _; _} ->
     true
-  | Prim {op = Alloc _; _} ->
-    false
   | Always _ | Parity_test _ | Truth_test _ | Float_test _
   | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-  | Tailcall_func _ | Prim {op = Checkbound _ | Probe _; _}
+  | Tailcall_func _ | Prim {op = Probe _; _}
   | Specific_can_raise _ ->
     false
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
   | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
+    if more_destruction_points then
+      true
+    else
     if alloc then true else false
-  | Poll_and_jump _ -> false
 
 (* Maximal register pressure *)
 
@@ -391,14 +414,25 @@ let safe_register_pressure = function
 let max_register_pressure = function
   | Iextcall _ -> [| 7; 8 |]  (* 7 integer callee-saves, 8 FP callee-saves *)
   | Ialloc _ | Ipoll _ -> [| 22; 32 |]
-  | Iintoffloat | Ifloatofint
-  | Iload(Single, _, _) | Istore(Single, _, _) -> [| 23; 31 |]
+  | Iscalarcast (Float_to_int _ | Float_of_int _)
+  | Iload{memory_chunk=Single { reg = Float64 }; _}
+  | Istore(Single { reg = Float64 }, _, _) -> [| 23; 31 |]
   | _ -> [| 23; 32 |]
 
 (* Layout of the stack *)
 
-let initial_stack_offset = 0
+let initial_stack_offset ~num_stack_slots ~contains_calls =
+  (8 * num_stack_slots.(0))
+  + (8 * num_stack_slots.(1))
+  + if contains_calls then 8 else 0
+
 let trap_frame_size_in_bytes = 16
+
+let frame_size ~stack_offset ~contains_calls ~num_stack_slots =
+  let sz =
+    stack_offset + initial_stack_offset ~num_stack_slots ~contains_calls
+  in
+  Misc.align sz 16
 
 let frame_required ~fun_contains_calls ~fun_num_stack_slots =
   fun_contains_calls
@@ -408,16 +442,36 @@ let frame_required ~fun_contains_calls ~fun_num_stack_slots =
 let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
   frame_required ~fun_contains_calls ~fun_num_stack_slots
 
-let frame_size ~stack_offset:_ ~fun_contains_calls:_ ~fun_num_stack_slots:_ =
-  Misc.fatal_error "Full DWARF support for arm64 not yet implemented"
-
 type slot_offset =
   | Bytes_relative_to_stack_pointer of int
   | Bytes_relative_to_domainstate_pointer of int
+[@@ocaml.warning "-37"]
 
-let slot_offset _loc ~stack_class:_ ~stack_offset:_ ~fun_contains_calls:_
-      ~fun_num_stack_slots:_ =
-  Misc.fatal_error "Full DWARF support for arm64 not yet implemented"
+let slot_offset (loc : Reg.stack_location) ~stack_class ~stack_offset
+      ~fun_contains_calls ~fun_num_stack_slots =
+  match loc with
+    Incoming n ->
+      assert (n >= 0);
+      let frame_size =
+        frame_size ~stack_offset ~contains_calls:fun_contains_calls
+          ~num_stack_slots:fun_num_stack_slots
+      in
+      Bytes_relative_to_stack_pointer (frame_size + n)
+  | Local n ->
+      let offset =
+        stack_offset +
+        (match stack_class with
+        | 0 -> n * 8
+        | 1 -> fun_num_stack_slots.(0) * 8 + n * 8
+        | _ -> Misc.fatal_errorf "Unknown stack class %d" stack_class)
+      in
+      Bytes_relative_to_stack_pointer offset
+  | Outgoing n ->
+      assert (n >= 0);
+      Bytes_relative_to_stack_pointer n
+  | Domainstate n ->
+      Bytes_relative_to_domainstate_pointer (
+        n + Domainstate.(idx_of_field Domain_extra_params) * 8)
 
 (* Calling the assembler *)
 
@@ -432,20 +486,30 @@ let init () = ()
 let operation_supported = function
   | Cclz _ | Cctz _ | Cpopcnt
   | Cprefetch _ | Catomic _
+  (* CR mslater: (float32) arm64 *)
+  | Cnegf Float32 | Cabsf Float32 | Caddf Float32
+  | Csubf Float32 | Cmulf Float32 | Cdivf Float32
+  | Cpackf32
+  | Cvectorcast _ | Cscalarcast (Float_of_float32 | Float_to_float32 |
+                                 Float_to_int Float32 | Float_of_int Float32 |
+                                 V128_of_scalar _ | V128_to_scalar _ |
+                                 Float32_as_float)
     -> false   (* Not implemented *)
   | Cbswap _
   | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Ccmpi _ | Caddv | Cadda | Ccmpa _
-  | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
-  | Cfloatofint | Cintoffloat | Cintofvalue | Cvalueofint
+  | Cnegf Float64 | Cabsf Float64 | Caddf Float64
+  | Csubf Float64 | Cmulf Float64 | Cdivf Float64
+  | Cintofvalue | Cvalueofint
+  | Cscalarcast (Float_of_int Float64 | Float_to_int Float64)
   | Ccmpf _
   | Ccsel _
   | Craise _
-  | Ccheckbound
   | Cprobe _ | Cprobe_is_enabled _ | Copaque
-  | Cbeginregion | Cendregion
+  | Cbeginregion | Cendregion | Ctuple_field _
+  | Cdls_get
     -> true
 
 let trap_size_in_bytes = 16

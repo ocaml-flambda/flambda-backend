@@ -108,7 +108,7 @@ let contents_of_stack_slot ~offset_in_bytes =
 let address_of_domainstate_slot ~offset_in_bytes
     ~domainstate_ptr_dwarf_register_number =
   contents_of_register ~dwarf_reg_number:domainstate_ptr_dwarf_register_number
-  :: [O.DW_op_consts (Targetint.to_int64 offset_in_bytes); O.DW_op_minus]
+  :: [O.DW_op_consts (Targetint.to_int64 offset_in_bytes); O.DW_op_plus]
 
 let contents_of_domainstate_slot ~offset_in_bytes
     ~domainstate_ptr_dwarf_register_number =

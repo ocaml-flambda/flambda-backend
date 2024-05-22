@@ -37,14 +37,14 @@ let emit_printf fmt =
 
 let emit_int32 n = emit_printf "0x%lx" n
 
-let emit_symbol esc s =
+let emit_symbol s =
   for i = 0 to String.length s - 1 do
     let c = s.[i] in
     match c with
-      'A'..'Z' | 'a'..'z' | '0'..'9' | '_' ->
+      'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '.' ->
         output_char !output_channel c
     | _ ->
-        Printf.fprintf !output_channel "%c%02x" esc (Char.code c)
+        Printf.fprintf !output_channel "$%02x" (Char.code c)
   done
 
 let emit_string_literal s =
@@ -166,19 +166,19 @@ let emit_frames a =
   in
   let module Label_table =
     Hashtbl.Make (struct
-      type t = bool * Debuginfo.t
+      type t = bool * Debuginfo.Dbg.t
 
       let equal ((rs1 : bool), dbg1) (rs2, dbg2) =
-        rs1 = rs2 && Debuginfo.compare dbg1 dbg2 = 0
+        rs1 = rs2 && Debuginfo.Dbg.compare dbg1 dbg2 = 0
 
       let hash (rs, dbg) =
-        Hashtbl.hash (rs, Debuginfo.hash dbg)
+        Hashtbl.hash (rs, Debuginfo.Dbg.hash dbg)
     end)
   in
   let debuginfos = Label_table.create 7 in
   let label_debuginfos rs dbg =
-    let rdbg = List.rev dbg in
-    let key = (rs, rdbg) in
+    let dbg = Debuginfo.get_dbg dbg in
+    let key = (rs, dbg) in
     try Label_table.find debuginfos key
     with Not_found ->
       let lbl = Cmm.new_label () in
@@ -191,16 +191,17 @@ let emit_frames a =
     then a.efa_16 n
     else raise (Error(Stack_frame_too_large n))
   in
+  let is_none_dbg d = Debuginfo.Dbg.is_none (Debuginfo.get_dbg d) in
   let emit_frame fd =
     assert (fd.fd_frame_size land 3 = 0);
     let flags =
       match fd.fd_debuginfo with
       | Dbg_other d | Dbg_raise d ->
-        if Debuginfo.is_none d then 0 else 1
+        if is_none_dbg d then 0 else 1
       | Dbg_alloc dbgs ->
         if !Clflags.debug &&
            List.exists (fun d ->
-             not (Debuginfo.is_none d.Debuginfo.alloc_dbg)) dbgs
+             not (is_none_dbg d.Debuginfo.alloc_dbg)) dbgs
         then 3 else 2
     in
     a.efa_label_rel fd.fd_lbl 0l;
@@ -228,7 +229,7 @@ let emit_frames a =
       if flags = 3 then begin
         a.efa_align 4;
         List.iter (fun Debuginfo.{alloc_dbg; _} ->
-          if Debuginfo.is_none alloc_dbg then
+          if is_none_dbg alloc_dbg then
             a.efa_32 Int32.zero
           else
             a.efa_label_rel (label_debuginfos false alloc_dbg) Int32.zero) dbg
@@ -261,7 +262,8 @@ let emit_frames a =
                    (add (shift_left (of_int kind) 1)
                       (of_int has_next)))))
   in
-  let emit_debuginfo (rs, rdbg) lbl =
+  let emit_debuginfo (rs, dbg) lbl =
+    let rdbg = dbg |> Debuginfo.Dbg.to_list |> List.rev in
     (* Due to inlined functions, a single debuginfo may have multiple locations.
        These are represented sequentially in memory (innermost frame first),
        with the low bit of the packed debuginfo being 0 on the last entry. *)
@@ -314,10 +316,23 @@ let cfi_endproc () =
   if is_cfi_enabled () then
     emit_string "\t.cfi_endproc\n"
 
+let cfi_remember_state () =
+  if is_cfi_enabled () then
+    emit_string "\t.cfi_remember_state\n"
+
+let cfi_restore_state () =
+  if is_cfi_enabled () then
+    emit_string "\t.cfi_restore_state\n"
+
 let cfi_adjust_cfa_offset n =
   if is_cfi_enabled () then
   begin
     emit_string "\t.cfi_adjust_cfa_offset\t"; emit_int n; emit_string "\n";
+  end
+
+let cfi_def_cfa_offset n =
+  if is_cfi_enabled () then begin
+    emit_string "\t.cfi_def_cfa_offset\t"; emit_int n; emit_string "\n";
   end
 
 let cfi_offset ~reg ~offset =
@@ -326,6 +341,13 @@ let cfi_offset ~reg ~offset =
     emit_int reg;
     emit_string ", ";
     emit_int offset;
+    emit_string "\n"
+  end
+
+let cfi_def_cfa_register ~reg =
+  if is_cfi_enabled () then begin
+    emit_string "\t.cfi_def_cfa_register ";
+    emit_int reg;
     emit_string "\n"
   end
 
@@ -346,6 +368,7 @@ let reset_debug_info () =
 (* We only display .file if the file has not been seen before. We
    display .loc for every instruction. *)
 let emit_debug_info_gen dbg file_emitter loc_emitter =
+  let dbg = Debuginfo.Dbg.to_list (Debuginfo.get_dbg dbg) in
   if is_cfi_enabled () &&
     (!Clflags.debug || Config.with_frame_pointers) then begin
     match List.rev dbg with
@@ -401,8 +424,33 @@ let mk_env f : Emitenv.per_function_env =
     jumptables = [];
     float_literals = [];
     int_literals = [];
-    offset_literals = [];
-    gotrel_literals = [];
-    symbol_literals = [];
-    size_literals = 0;
   }
+
+type preproc_stack_check_result =
+  { max_frame_size : int;
+    contains_nontail_calls : bool }
+
+let preproc_stack_check ~fun_body ~frame_size ~trap_size =
+  let rec loop (i:Linear.instruction) fs max_fs nontail_flag =
+    match i.desc with
+      | Lend -> { max_frame_size = max_fs;
+                  contains_nontail_calls = nontail_flag}
+      | Ladjust_trap_depth { delta_traps } ->
+        let s = fs + (trap_size * delta_traps) in
+        loop i.next s (max s max_fs) nontail_flag
+      | Lpushtrap _ ->
+        let s = fs + trap_size in
+        loop i.next s (max s max_fs) nontail_flag
+      | Lpoptrap ->
+        loop i.next (fs - trap_size) max_fs nontail_flag
+      | Lop (Istackoffset n) ->
+        let s = fs + n in
+        loop i.next s (max s max_fs) nontail_flag
+      | Lop (Icall_ind | Icall_imm _ ) ->
+        loop i.next fs max_fs true
+      | Lprologue | Lop _ | Lreloadretaddr | Lreturn | Llabel _
+      | Lbranch _ | Lcondbranch _ | Lcondbranch3 _ | Lswitch _
+      | Lentertrap | Lraise _ ->
+        loop i.next fs max_fs nontail_flag
+  in
+  loop fun_body frame_size frame_size false

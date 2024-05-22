@@ -57,6 +57,21 @@ let mk_cfg_peephole_optimize f =
 let mk_no_cfg_peephole_optimize f =
   "-no-cfg-peephole-optimize", Arg.Unit f, " Do not apply peephole optimizations to CFG"
 
+let mk_cfg_cse_optimize f =
+  "-cfg-cse-optimize", Arg.Unit f, " Apply CSE optimizations to CFG"
+
+let mk_no_cfg_cse_optimize f =
+  "-no-cfg-cse-optimize", Arg.Unit f, " Do not apply CSE optimizations to CFG"
+
+let mk_cfg_stack_checks f =
+  "-cfg-stack-checks", Arg.Unit f, " Insert the stack checks on the CFG representation"
+
+let mk_no_cfg_stack_checks f =
+    "-no-cfg-stack-checks", Arg.Unit f, " Insert the stack checks on the linear representation"
+
+let mk_cfg_stack_checks_threshold f =
+  "-cfg-stack-checks-threshold", Arg.Int f, "<n>  Only CFGs with fewer than n blocks will be optimized"
+
 let mk_reorder_blocks_random f =
   "-reorder-blocks-random",
   Arg.Int f,
@@ -90,21 +105,52 @@ let mk_heap_reduction_threshold f =
 ;;
 
 let mk_zero_alloc_check f =
-  "-zero-alloc-check", Arg.Unit f, " Check that annoted functions do not allocate \
-                                    and do not have indirect calls"
+  let annotations = Zero_alloc_annotations.(List.map to_string all) in
+  "-zero-alloc-check", Arg.Symbol (annotations, f),
+  " Check that annotated functions do not allocate \
+   and do not have indirect calls. "^Zero_alloc_annotations.doc
 
-let mk_dcheckmach f =
-  "-dcheckmach", Arg.Unit f, " (undocumented)"
+let mk_dzero_alloc f =
+  "-dzero-alloc", Arg.Unit f, " (undocumented)"
 
-let mk_checkmach_details_cutoff f =
-  "-checkmach-details-cutoff", Arg.Int f,
+let mk_disable_zero_alloc_checker f =
+  "-disable-zero-alloc-checker", Arg.Unit f,
+  " Conservatively assume that all functions may allocate, without checking. \
+    Disables computation of zero_alloc function summaries, \
+    unlike \"-zero-alloc-check none\" which disables checking of zero_alloc annotations)"
+
+let mk_disable_precise_zero_alloc_checker f =
+  "-disable-precise-zero-alloc-checker", Arg.Unit f,
+  " Conservatively assume that all forward calls and mutually recursive functions may \
+    allocate. Disables fixed point computation of summaries for these functions. \
+    Intended as a temporary workaround when precise analysis is too expensive."
+
+let mk_zero_alloc_checker_details_cutoff f =
+  "-zero-alloc-checker-details-cutoff", Arg.Int f,
   Printf.sprintf " Do not show more than this number of error locations \
                   in each function that fails the check \
                   (default %d, negative to show all)"
-    (match Flambda_backend_flags.default_checkmach_details_cutoff with
+    (match Flambda_backend_flags.default_zero_alloc_checker_details_cutoff with
      | Keep_all -> (-1)
      | No_details -> 0
      | At_most n -> n)
+
+let mk_zero_alloc_checker_join f =
+  "-zero-alloc-checker-join", Arg.Int f,
+  Printf.sprintf " How many abstract paths before losing precision \
+                  (default %d, negative to fail instead of widening, \
+                  0 to keep all)"
+    (match Flambda_backend_flags.default_zero_alloc_checker_join with
+     | Keep_all -> 0
+     | Widen n -> n
+     | Error n -> -n)
+
+let mk_function_layout f =
+  let layouts = Flambda_backend_flags.Function_layout.(List.map to_string all) in
+  let default = Flambda_backend_flags.Function_layout.(to_string default) in
+  "-function-layout", Arg.Symbol (layouts, f),
+  (Printf.sprintf " Order of functions in the generated assembly (default: %s)"
+     default)
 
 let mk_disable_poll_insertion f =
   "-disable-poll-insertion", Arg.Unit f, " Do not insert poll points"
@@ -129,6 +175,9 @@ let mk_dump_inlining_paths f =
 
 let mk_davail f =
   "-davail", Arg.Unit f, " Dump register availability information"
+
+let mk_dranges f =
+  "-dranges", Arg.Unit f, " Dump results of Compute_ranges"
 
 let mk_ddebug_invariants f =
   "-ddebug-invariants", Arg.Unit f, " Run invariant checks during generation of debugging information"
@@ -169,6 +218,24 @@ let mk_no_flambda2_result_types f =
       match Flambda2.Default.function_result_types with
       | Never -> true
       | Functors_only | All_functions -> false))
+;;
+
+let mk_flambda2_basic_meet f =
+  "-flambda2-basic-meet", Arg.Unit f,
+  Printf.sprintf " Use a basic meet algorithm%s (Flambda 2 only)"
+    (format_default (
+      match Flambda2.Default.meet_algorithm with
+      | Basic -> true
+      | Advanced -> false))
+;;
+
+let mk_flambda2_advanced_meet f =
+  "-flambda2-advanced-meet", Arg.Unit f,
+  Printf.sprintf " Use an advanced meet algorithm%s (Flambda 2 only)"
+    (format_default (
+      match Flambda2.Default.meet_algorithm with
+      | Basic -> false
+      | Advanced -> true))
 ;;
 
 
@@ -310,6 +377,18 @@ let mk_flambda2_expert_max_function_simplify_run f =
   Printf.sprintf " Do not run simplification of function more\n\
       \     than this (default %d) (Flambda 2 only)"
     Flambda2.Expert.Default.max_function_simplify_run
+;;
+
+let mk_flambda2_expert_shorten_symbol_names f =
+  "-flambda2-expert-shorten-symbol-names", Arg.Unit f,
+  " Shorten symbol names (Flambda 2 only, set by\n\
+    \     default in classic mode)"
+;;
+
+let mk_no_flambda2_expert_shorten_symbol_names f =
+  "-no-flambda2-expert-shorten-symbol-names", Arg.Unit f,
+  " Do not shorten symbol names (Flambda 2 only, set by\n\
+    \     default except for classic mode)"
 ;;
 
 let mk_flambda2_debug_concrete_types_only_on_canonicals f =
@@ -501,6 +580,13 @@ let mk_restrict_to_upstream_dwarf f =
 let mk_no_restrict_to_upstream_dwarf f =
   "-gno-upstream-dwarf", Arg.Unit f, " Emit potentially more DWARF information than the upstream compiler"
 
+let mk_dwarf_inlined_frames f =
+  "-gdwarf-inlined-frames", Arg.Unit f, " Emit DWARF inlined frame information"
+
+let mk_no_dwarf_inlined_frames f =
+  "-gno-dwarf-inlined-frames", Arg.Unit f,
+  " Do not emit DWARF inlined frame information"
+
 let mk_dwarf_for_startup_file f =
   "-gstartup", Arg.Unit f, " Emit potentially more DWARF information\n\
     \     for the startup file than the upstream compiler\n\
@@ -518,6 +604,13 @@ let mk_gdwarf_may_alter_codegen f =
 let mk_no_gdwarf_may_alter_codegen f =
   "-gno-dwarf-may-alter-codegen", Arg.Unit f, " Do not alter code\n\
     \     generation when emitting debugging information"
+
+let mk_gdwarf_max_function_complexity f =
+  "-gdwarf-max-function-complexity", Arg.Int f,
+  Format.sprintf " Maximum function\n\
+      \     complexity above which -gno-upstream-dwarf information\n\
+      \     will not be emitted, to improve compilation time (default %d)"
+    !Dwarf_flags.dwarf_max_function_complexity
 
 let mk_use_cached_generic_functions f =
   "-use-cached-generic-functions", Arg.Unit f, " Use the cached generated functions"
@@ -539,11 +632,22 @@ let set_long_frames_threshold n =
             Flambda_backend_flags.max_long_frames_threshold));
   Flambda_backend_flags.long_frames_threshold := n
 
+let mk_symbol_visibility_protected f =
+  "-symbol-visibility-protected", Arg.Unit f,
+  " Emit global symbols with visibility STV_PROTECTED on supported systems"
+;;
+
+let mk_no_symbol_visibility_protected f =
+  "-no-symbol-visibility-protected", Arg.Unit f,
+  " Emit global symbols with visibility STV_DEFAULT"
+;;
+
 module type Flambda_backend_options = sig
   val ocamlcfg : unit -> unit
   val no_ocamlcfg : unit -> unit
   val dump_inlining_paths : unit -> unit
   val davail : unit -> unit
+  val dranges : unit -> unit
   val ddebug_invariants : unit -> unit
   val dcfg : unit -> unit
   val dcfg_invariants : unit -> unit
@@ -556,6 +660,13 @@ module type Flambda_backend_options = sig
   val cfg_peephole_optimize : unit -> unit
   val no_cfg_peephole_optimize : unit -> unit
 
+  val cfg_cse_optimize : unit -> unit
+  val no_cfg_cse_optimize : unit -> unit
+
+  val cfg_stack_checks : unit -> unit
+  val no_cfg_stack_checks : unit -> unit
+  val cfg_stack_checks_threshold : int -> unit
+
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
 
@@ -563,12 +674,19 @@ module type Flambda_backend_options = sig
   val dno_asm_comments : unit -> unit
 
   val heap_reduction_threshold : int -> unit
-  val zero_alloc_check : unit -> unit
-  val dcheckmach : unit -> unit
-  val checkmach_details_cutoff : int -> unit
+  val zero_alloc_check : string -> unit
+  val dzero_alloc : unit -> unit
+  val disable_zero_alloc_checker : unit -> unit
+  val disable_precise_zero_alloc_checker : unit -> unit
+  val zero_alloc_checker_details_cutoff : int -> unit
+  val zero_alloc_checker_join : int -> unit
 
+  val function_layout : string -> unit
   val disable_poll_insertion : unit -> unit
   val enable_poll_insertion : unit -> unit
+
+  val symbol_visibility_protected : unit -> unit
+  val no_symbol_visibility_protected : unit -> unit
 
   val long_frames : unit -> unit
   val no_long_frames : unit -> unit
@@ -586,6 +704,8 @@ module type Flambda_backend_options = sig
   val flambda2_result_types_functors_only : unit -> unit
   val flambda2_result_types_all_functions : unit -> unit
   val no_flambda2_result_types : unit -> unit
+  val flambda2_basic_meet : unit -> unit
+  val flambda2_advanced_meet : unit -> unit
   val flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val no_flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val flambda2_backend_cse_at_toplevel : unit -> unit
@@ -603,6 +723,8 @@ module type Flambda_backend_options = sig
   val flambda2_expert_can_inline_recursive_functions : unit -> unit
   val no_flambda2_expert_can_inline_recursive_functions : unit -> unit
   val flambda2_expert_max_function_simplify_run : int -> unit
+  val flambda2_expert_shorten_symbol_names : unit -> unit
+  val no_flambda2_expert_shorten_symbol_names : unit -> unit
   val flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val flambda2_debug_keep_invalid_handlers : unit -> unit
@@ -643,6 +765,7 @@ struct
   let list2 = [
     mk_dump_inlining_paths F.dump_inlining_paths;
     mk_davail F.davail;
+    mk_dranges F.dranges;
     mk_ddebug_invariants F.ddebug_invariants;
     mk_ocamlcfg F.ocamlcfg;
     mk_no_ocamlcfg F.no_ocamlcfg;
@@ -657,6 +780,13 @@ struct
     mk_cfg_peephole_optimize F.cfg_peephole_optimize;
     mk_no_cfg_peephole_optimize F.no_cfg_peephole_optimize;
 
+    mk_cfg_cse_optimize F.cfg_cse_optimize;
+    mk_no_cfg_cse_optimize F.no_cfg_cse_optimize;
+
+    mk_cfg_stack_checks F.cfg_stack_checks;
+    mk_no_cfg_stack_checks F.no_cfg_stack_checks;
+    mk_cfg_stack_checks_threshold F.cfg_stack_checks_threshold;
+
     mk_reorder_blocks_random F.reorder_blocks_random;
     mk_basic_block_sections F.basic_block_sections;
 
@@ -665,11 +795,19 @@ struct
 
     mk_heap_reduction_threshold F.heap_reduction_threshold;
     mk_zero_alloc_check F.zero_alloc_check;
-    mk_dcheckmach F.dcheckmach;
-    mk_checkmach_details_cutoff F.checkmach_details_cutoff;
 
+    mk_dzero_alloc F.dzero_alloc;
+    mk_disable_zero_alloc_checker F.disable_zero_alloc_checker;
+    mk_disable_precise_zero_alloc_checker F.disable_precise_zero_alloc_checker;
+    mk_zero_alloc_checker_details_cutoff F.zero_alloc_checker_details_cutoff;
+    mk_zero_alloc_checker_join F.zero_alloc_checker_join;
+
+    mk_function_layout F.function_layout;
     mk_disable_poll_insertion F.disable_poll_insertion;
     mk_enable_poll_insertion F.enable_poll_insertion;
+
+    mk_symbol_visibility_protected F.symbol_visibility_protected;
+    mk_no_symbol_visibility_protected F.symbol_visibility_protected;
 
     mk_long_frames F.long_frames;
     mk_no_long_frames F.no_long_frames;
@@ -691,6 +829,8 @@ struct
       F.flambda2_result_types_all_functions;
     mk_no_flambda2_result_types
       F.no_flambda2_result_types;
+    mk_flambda2_basic_meet F.flambda2_basic_meet;
+    mk_flambda2_advanced_meet F.flambda2_advanced_meet;
     mk_flambda2_unbox_along_intra_function_control_flow
       F.flambda2_unbox_along_intra_function_control_flow;
     mk_no_flambda2_unbox_along_intra_function_control_flow
@@ -722,6 +862,10 @@ struct
       F.no_flambda2_expert_can_inline_recursive_functions;
     mk_flambda2_expert_max_function_simplify_run
       F.flambda2_expert_max_function_simplify_run;
+    mk_flambda2_expert_shorten_symbol_names
+      F.flambda2_expert_shorten_symbol_names;
+    mk_no_flambda2_expert_shorten_symbol_names
+      F.no_flambda2_expert_shorten_symbol_names;
     mk_flambda2_debug_concrete_types_only_on_canonicals
       F.flambda2_debug_concrete_types_only_on_canonicals;
     mk_no_flambda2_debug_concrete_types_only_on_canonicals
@@ -786,6 +930,13 @@ module Flambda_backend_options_impl = struct
   let cfg_peephole_optimize = set' Flambda_backend_flags.cfg_peephole_optimize
   let no_cfg_peephole_optimize = clear' Flambda_backend_flags.cfg_peephole_optimize
 
+  let cfg_cse_optimize = set' Flambda_backend_flags.cfg_cse_optimize
+  let no_cfg_cse_optimize = clear' Flambda_backend_flags.cfg_cse_optimize
+
+  let cfg_stack_checks = set' Flambda_backend_flags.cfg_stack_checks
+  let no_cfg_stack_checks = clear' Flambda_backend_flags.cfg_stack_checks
+  let cfg_stack_checks_threshold n = Flambda_backend_flags.cfg_stack_checks_threshold := n
+
   let reorder_blocks_random seed =
     Flambda_backend_flags.reorder_blocks_random := Some seed
   let basic_block_sections () =
@@ -800,24 +951,49 @@ module Flambda_backend_options_impl = struct
   let dump_inlining_paths = set' Flambda_backend_flags.dump_inlining_paths
 
   let davail = set' Flambda_backend_flags.davail
+  let dranges = set' Flambda_backend_flags.dranges
 
   let ddebug_invariants = set' Dwarf_flags.ddebug_invariants
 
   let heap_reduction_threshold x =
     Flambda_backend_flags.heap_reduction_threshold := x
 
-  let zero_alloc_check = set' Clflags.zero_alloc_check
-  let dcheckmach = set' Flambda_backend_flags.dump_checkmach
-  let checkmach_details_cutoff n =
-    let c : Flambda_backend_flags.checkmach_details_cutoff =
+  let zero_alloc_check s =
+    match Zero_alloc_annotations.of_string s with
+    | None -> () (* this should not occur as we use Arg.Symbol *)
+    | Some a ->
+      Clflags.zero_alloc_check := a
+
+  let dzero_alloc = set' Flambda_backend_flags.dump_zero_alloc
+  let disable_zero_alloc_checker = set' Flambda_backend_flags.disable_zero_alloc_checker
+  let disable_precise_zero_alloc_checker = set' Flambda_backend_flags.disable_precise_zero_alloc_checker
+  let zero_alloc_checker_details_cutoff n =
+    let c : Flambda_backend_flags.zero_alloc_checker_details_cutoff =
       if n < 0 then Keep_all
       else if n = 0 then No_details
       else At_most n
     in
-    Flambda_backend_flags.checkmach_details_cutoff := c
+    Flambda_backend_flags.zero_alloc_checker_details_cutoff := c
+
+  let zero_alloc_checker_join n =
+    let c : Flambda_backend_flags.zero_alloc_checker_join =
+      if n < 0 then Error (-n)
+      else if n = 0 then Keep_all
+      else Widen n
+    in
+    Flambda_backend_flags.zero_alloc_checker_join := c
+
+  let function_layout s =
+    match Flambda_backend_flags.Function_layout.of_string s with
+    | None -> () (* this should not occur as we use Arg.Symbol *)
+    | Some layout ->
+      Flambda_backend_flags.function_layout := layout
 
   let disable_poll_insertion = set' Flambda_backend_flags.disable_poll_insertion
   let enable_poll_insertion = clear' Flambda_backend_flags.disable_poll_insertion
+
+  let symbol_visibility_protected = set' Flambda_backend_flags.symbol_visibility_protected
+  let no_symbol_visibility_protected = clear' Flambda_backend_flags.symbol_visibility_protected
 
   let long_frames =  set' Flambda_backend_flags.allow_long_frames
   let no_long_frames = clear' Flambda_backend_flags.allow_long_frames
@@ -840,6 +1016,10 @@ module Flambda_backend_options_impl = struct
     Flambda2.function_result_types := Flambda_backend_flags.Set Flambda_backend_flags.All_functions
   let no_flambda2_result_types () =
     Flambda2.function_result_types := Flambda_backend_flags.Set Flambda_backend_flags.Never
+  let flambda2_basic_meet () =
+    Flambda2.meet_algorithm := Flambda_backend_flags.Set Flambda_backend_flags.Basic
+  let flambda2_advanced_meet () =
+    Flambda2.meet_algorithm := Flambda_backend_flags.Set Flambda_backend_flags.Advanced
   let flambda2_unbox_along_intra_function_control_flow =
     set Flambda2.unbox_along_intra_function_control_flow
   let no_flambda2_unbox_along_intra_function_control_flow =
@@ -872,6 +1052,10 @@ module Flambda_backend_options_impl = struct
     Flambda2.Expert.can_inline_recursive_functions := Flambda_backend_flags.Set false
   let flambda2_expert_max_function_simplify_run runs =
     Flambda2.Expert.max_function_simplify_run := Flambda_backend_flags.Set runs
+  let flambda2_expert_shorten_symbol_names () =
+    Flambda2.Expert.shorten_symbol_names := Flambda_backend_flags.Set true
+  let no_flambda2_expert_shorten_symbol_names () =
+    Flambda2.Expert.shorten_symbol_names := Flambda_backend_flags.Set false
   let flambda2_debug_concrete_types_only_on_canonicals =
     set' Flambda2.Debug.concrete_types_only_on_canonicals
   let no_flambda2_debug_concrete_types_only_on_canonicals =
@@ -964,20 +1148,26 @@ end
 module type Debugging_options = sig
   val restrict_to_upstream_dwarf : unit -> unit
   val no_restrict_to_upstream_dwarf : unit -> unit
+  val dwarf_inlined_frames : unit -> unit
+  val no_dwarf_inlined_frames : unit -> unit
   val dwarf_for_startup_file : unit -> unit
   val no_dwarf_for_startup_file : unit -> unit
   val gdwarf_may_alter_codegen : unit -> unit
   val no_gdwarf_may_alter_codegen : unit -> unit
+  val gdwarf_max_function_complexity : int -> unit
 end
 
 module Make_debugging_options (F : Debugging_options) = struct
   let list3 = [
     mk_restrict_to_upstream_dwarf F.restrict_to_upstream_dwarf;
     mk_no_restrict_to_upstream_dwarf F.no_restrict_to_upstream_dwarf;
+    mk_dwarf_inlined_frames F.dwarf_inlined_frames;
+    mk_no_dwarf_inlined_frames F.no_dwarf_inlined_frames;
     mk_dwarf_for_startup_file F.dwarf_for_startup_file;
     mk_no_dwarf_for_startup_file F.no_dwarf_for_startup_file;
     mk_gdwarf_may_alter_codegen F.gdwarf_may_alter_codegen;
     mk_no_gdwarf_may_alter_codegen F.no_gdwarf_may_alter_codegen;
+    mk_gdwarf_max_function_complexity F.gdwarf_max_function_complexity;
    ]
 end
 
@@ -986,6 +1176,10 @@ module Debugging_options_impl = struct
     Debugging.restrict_to_upstream_dwarf := true
   let no_restrict_to_upstream_dwarf () =
     Debugging.restrict_to_upstream_dwarf := false
+  let dwarf_inlined_frames () =
+    Debugging.dwarf_inlined_frames := true
+  let no_dwarf_inlined_frames () =
+    Debugging.dwarf_inlined_frames := false
   let dwarf_for_startup_file () =
     Debugging.dwarf_for_startup_file := true
   let no_dwarf_for_startup_file () =
@@ -994,6 +1188,8 @@ module Debugging_options_impl = struct
     Debugging.gdwarf_may_alter_codegen := true
   let no_gdwarf_may_alter_codegen () =
     Debugging.gdwarf_may_alter_codegen := false
+  let gdwarf_max_function_complexity c =
+    Debugging.dwarf_max_function_complexity := c
 end
 
 module Extra_params = struct
@@ -1049,23 +1245,50 @@ module Extra_params = struct
     | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
+    | "cfg-cse-optimize" -> set' Flambda_backend_flags.cfg_cse_optimize
+    | "cfg-stack-checks" -> set' Flambda_backend_flags.cfg_stack_checks
+    | "cfg-stack-checks-threshold" -> set_int' Flambda_backend_flags.cfg_stack_checks_threshold
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "davail" -> set' Flambda_backend_flags.davail
+    | "dranges" -> set' Flambda_backend_flags.dranges
     | "ddebug-invariants" -> set' Dwarf_flags.ddebug_invariants
     | "reorder-blocks-random" ->
        set_int_option' Flambda_backend_flags.reorder_blocks_random
     | "basic-block-sections" -> set' Flambda_backend_flags.basic_block_sections
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
-    | "zero-alloc-check" -> set' Clflags.zero_alloc_check
-    | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
-    | "checkmach-details-cutoff" ->
+    | "zero-alloc-check" ->
+      (match Zero_alloc_annotations.of_string v with
+       | Some a -> Clflags.zero_alloc_check := a; true
+       | None ->
+         raise
+           (Arg.Bad
+              (Printf.sprintf "Unexpected value %s for %s" v name)))
+    | "dump-zero-alloc" -> set' Flambda_backend_flags.dump_zero_alloc
+    | "disable-zero-alloc-checker" -> set' Flambda_backend_flags.disable_zero_alloc_checker
+    | "disable-precise-zero-alloc-checker" -> set' Flambda_backend_flags.disable_precise_zero_alloc_checker
+    | "zero-alloc-checker-details-cutoff" ->
       begin match Compenv.check_int ppf name v with
       | Some i ->
-        Flambda_backend_options_impl.checkmach_details_cutoff i
+        Flambda_backend_options_impl.zero_alloc_checker_details_cutoff i
       | None -> ()
       end;
       true
+    | "zero-alloc-checker-join" ->
+      begin match Compenv.check_int ppf name v with
+      | Some i ->
+        Flambda_backend_options_impl.zero_alloc_checker_join i
+      | None -> ()
+      end;
+      true
+    | "function-layout" ->
+      (match Flambda_backend_flags.Function_layout.of_string v with
+       | Some layout -> Flambda_backend_flags.function_layout := layout; true
+       | None ->
+         raise
+           (Arg.Bad
+              (Printf.sprintf "Unexpected value %s for %s" v name)))
     | "poll-insertion" -> set' Flambda_backend_flags.disable_poll_insertion
+    | "symbol-visibility-protected" -> set' Flambda_backend_flags.disable_poll_insertion
     | "long-frames" -> set' Flambda_backend_flags.allow_long_frames
     | "debug-long-frames-threshold" ->
       begin match Compenv.check_int ppf name v with
@@ -1082,6 +1305,8 @@ module Extra_params = struct
     | "gupstream-dwarf" -> set' Debugging.restrict_to_upstream_dwarf
     | "gdwarf-may-alter-codegen" -> set' Debugging.gdwarf_may_alter_codegen
     | "gstartup" -> set' Debugging.dwarf_for_startup_file
+    | "gdwarf-max-function-complexity" ->
+      set_int' Debugging.dwarf_max_function_complexity
     | "flambda2-debug" -> set' Flambda_backend_flags.Flambda2.debug
     | "flambda2-join-points" -> set Flambda2.join_points
     | "flambda2-result-types" ->
@@ -1098,6 +1323,15 @@ module Extra_params = struct
       true
     | "flambda2-result-types-all-functions" ->
       Flambda2.function_result_types := Flambda_backend_flags.(Set All_functions);
+      true
+    | "flambda2-meet-algorithm" ->
+      (match String.lowercase_ascii v with
+      | "basic" ->
+        Flambda2.meet_algorithm := Flambda_backend_flags.(Set Basic)
+      | "advanced" ->
+        Flambda2.meet_algorithm := Flambda_backend_flags.(Set Advanced)
+      | _ ->
+        Misc.fatal_error "Syntax: flambda2-meet_algorithm=basic|advanced");
       true
     | "flambda2-unbox-along-intra-function-control-flow" ->
        set Flambda2.unbox_along_intra_function_control_flow

@@ -17,10 +17,10 @@
 open! Flambda.Import
 module RC = Apply.Result_continuation
 
-let make_inlined_body ~callee ~region_inlined_into ~params ~args ~my_closure
-    ~my_region ~my_depth ~rec_info ~body ~exn_continuation ~return_continuation
-    ~apply_exn_continuation ~apply_return_continuation ~bind_params ~bind_depth
-    ~apply_renaming =
+let make_inlined_body ~callee ~called_code_id:_ ~region_inlined_into ~params
+    ~args ~my_closure ~my_region ~my_depth ~rec_info ~body ~exn_continuation
+    ~return_continuation ~apply_exn_continuation ~apply_return_continuation
+    ~bind_params ~bind_depth ~apply_renaming =
   let renaming = Renaming.empty in
   let renaming =
     match (apply_return_continuation : RC.t) with
@@ -31,13 +31,22 @@ let make_inlined_body ~callee ~region_inlined_into ~params ~args ~my_closure
     Renaming.add_continuation renaming exn_continuation apply_exn_continuation
   in
   let renaming =
-    (* Unlike for parameters, we know that the argument for the [my_region]
-       parameter is fresh for [body], so we can use a permutation without fear
-       of swapping out existing occurrences of such argument within [body]. *)
-    Renaming.add_variable renaming my_region region_inlined_into
+    (* If region_inlined_into is Heap, then this function should return a heap
+       value, and as such, never allocate in the caller's region. As such,
+       [my_region] should be unused in the body. *)
+    match (region_inlined_into : Alloc_mode.For_allocations.t) with
+    | Heap -> renaming
+    | Local { region } ->
+      (* Unlike for parameters, we know that the argument for the [my_region]
+         parameter is fresh for [body], so we can use a permutation without fear
+         of swapping out existing occurrences of such argument within [body]. *)
+      Renaming.add_variable renaming my_region region
   in
   let body =
-    bind_params ~params:(my_closure :: params) ~args:(callee :: args) ~body
+    match callee with
+    | Some callee ->
+      bind_params ~params:(my_closure :: params) ~args:(callee :: args) ~body
+    | None -> bind_params ~params ~args ~body
   in
   let body = bind_depth ~my_depth ~rec_info ~body in
   apply_renaming body renaming
@@ -72,7 +81,7 @@ let wrap_inlined_body_for_exn_extra_args acc ~extra_args ~apply_exn_continuation
       let kinded_params =
         List.map
           (fun k -> Bound_parameter.create (Variable.create "wrapper_return") k)
-          (Flambda_arity.to_list result_arity)
+          (Flambda_arity.unarized_components result_arity)
       in
       let trap_action =
         Trap_action.Pop { exn_handler = wrapper; raise_kind = None }
@@ -92,7 +101,9 @@ let wrap_inlined_body_for_exn_extra_args acc ~extra_args ~apply_exn_continuation
     |> Bound_parameters.create
   in
   let exn_handler = Exn_continuation.exn_handler apply_exn_continuation in
-  let trap_action = Trap_action.Pop { exn_handler; raise_kind = None } in
+  let trap_action =
+    Trap_action.Pop { exn_handler; raise_kind = Some Reraise }
+  in
   let wrapper_handler acc =
     (* Backtrace building functions expect compiler-generated raises not to have
        any debug info *)

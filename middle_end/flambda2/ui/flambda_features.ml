@@ -57,8 +57,6 @@ let join_depth () =
   !Flambda_backend_flags.Flambda2.join_depth
   |> with_default ~f:(fun d -> d.join_depth)
 
-let safe_string () = Config.safe_string
-
 let flat_float_array () = Config.flat_float_array
 
 let function_result_types ~is_a_functor =
@@ -70,6 +68,14 @@ let function_result_types ~is_a_functor =
   | Never -> false
   | Functors_only -> is_a_functor
   | All_functions -> true
+
+let use_better_meet () =
+  match
+    !Flambda_backend_flags.Flambda2.meet_algorithm
+    |> with_default ~f:(fun d -> d.meet_algorithm)
+  with
+  | Basic -> false
+  | Advanced -> true
 
 let debug () = !Clflags.debug
 
@@ -241,6 +247,10 @@ module Expert = struct
   let max_function_simplify_run () =
     !Flambda_backend_flags.Flambda2.Expert.max_function_simplify_run
     |> with_default ~f:(fun d -> d.max_function_simplify_run)
+
+  let shorten_symbol_names () =
+    !Flambda_backend_flags.Flambda2.Expert.shorten_symbol_names
+    |> with_default ~f:(fun d -> d.shorten_symbol_names)
 end
 
 let stack_allocation_enabled () = Config.stack_allocation

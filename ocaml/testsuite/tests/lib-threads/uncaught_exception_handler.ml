@@ -1,12 +1,12 @@
-(* TEST
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
 
-flags = "-g"
-ocamlrunparam += ",b=1"
 
-* hassysthreads
-include systhreads
-** bytecode
-** native
+
+
+
+
+
 
 *)
 
@@ -25,9 +25,10 @@ let handler final_exn exn =
   flush stderr;
   raise final_exn
 
-let fn () = Printexc.raise_with_backtrace
-              CallbackExn
-              (Printexc.get_raw_backtrace ())
+(* don't inline to get consistent backtraces *)
+let[@inline never] fn () =
+  Printexc.raise_with_backtrace
+    CallbackExn (Printexc.get_raw_backtrace ())
 
 let _ =
   let th = Thread.create fn () in
@@ -38,3 +39,15 @@ let _ =
   Thread.set_uncaught_exception_handler (handler Thread.Exit);
   let th = Thread.create fn () in
   Thread.join th
+
+(* TEST
+ flags = "-g";
+ ocamlrunparam += ",b=1";
+ include systhreads;
+ hassysthreads;
+ {
+   bytecode;
+ }{
+   native;
+ }
+*)

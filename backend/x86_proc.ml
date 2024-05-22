@@ -46,11 +46,12 @@ module Section_name = struct
       let rec align = function
         | [] -> 0L
         | [hd] -> Option.value ~default:0L (Int64.of_string_opt hd)
-        | hd :: tl -> align tl
+        | _hd :: tl -> align tl
       in align t.args
 
     let is_text_like t = String.starts_with ~prefix:".text" t.name_str
     let is_data_like t = String.starts_with ~prefix:".data" t.name_str
+    let is_note_like t = String.starts_with ~prefix:".note" t.name_str
   end
   include S
   module Map = Map.Make (S)
@@ -75,6 +76,9 @@ type system =
   | S_win64
   | S_linux
   | S_mingw64
+  | S_freebsd
+  | S_netbsd
+  | S_openbsd
 
   | S_unknown
 
@@ -92,6 +96,9 @@ let system = match Config.system with
   | "mingw64" -> S_mingw64
   | "win64" -> S_win64
   | "linux" -> S_linux
+  | "freebsd" -> S_freebsd
+  | "netbsd" -> S_netbsd
+  | "openbsd" -> S_openbsd
 
   | _ -> S_unknown
 
@@ -126,7 +133,7 @@ let string_of_symbol prefix s =
   let spec = ref false in
   for i = 0 to String.length s - 1 do
     match String.unsafe_get s i with
-    | 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' -> ()
+    | 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '.' -> ()
     | _ -> spec := true;
   done;
   if not !spec then if prefix = "" then s else prefix ^ s
@@ -135,8 +142,10 @@ let string_of_symbol prefix s =
     Buffer.add_string b prefix;
     String.iter
       (function
-        | ('A'..'Z' | 'a'..'z' | '0'..'9' | '_') as c -> Buffer.add_char b c
-        | c -> Printf.bprintf b "$%02x" (Char.code c)
+        | ('A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '.') as c ->
+          Buffer.add_char b c
+        | c ->
+          Printf.bprintf b "$%02x" (Char.code c)
       )
       s;
     Buffer.contents b
@@ -330,6 +339,7 @@ let assemble_file infile outfile =
 let asm_code = ref []
 let asm_code_current_section = ref (ref [])
 let asm_code_by_section = Section_name.Tbl.create 100
+let delayed_sections = Section_name.Tbl.create 100
 
 (* Cannot use Emitaux directly here or there would be a circular dep *)
 let create_asm_file = ref true
@@ -338,13 +348,14 @@ let directive dir =
   (if !create_asm_file then
      asm_code := dir :: !asm_code);
   match dir with
-  | Section (name, flags, args) -> (
+  | Section (name, flags, args, is_delayed) -> (
       let name = Section_name.make name flags args in
-      match Section_name.Tbl.find_opt asm_code_by_section name with
+      let where = if is_delayed then delayed_sections else asm_code_by_section in
+      match Section_name.Tbl.find_opt where name with
       | Some x -> asm_code_current_section := x
       | None ->
         asm_code_current_section := ref [];
-        Section_name.Tbl.add asm_code_by_section name !asm_code_current_section)
+        Section_name.Tbl.add where name !asm_code_current_section)
   | dir -> !asm_code_current_section := dir :: !(!asm_code_current_section)
 
 let emit ins = directive (Ins ins)
@@ -361,6 +372,13 @@ let generate_code asm =
   end;
   begin match !internal_assembler with
     | Some f ->
-      binary_content := Some (f asm_code_by_section)
+      let get sections =
+         Section_name.Tbl.fold (fun name instrs acc ->
+            (name, List.rev !instrs) :: acc)
+          sections []
+      in
+      let instrs = get asm_code_by_section in
+      let delayed () = get delayed_sections in
+      binary_content := Some (f ~delayed instrs)
   | None -> binary_content := None
   end

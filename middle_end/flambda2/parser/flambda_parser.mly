@@ -184,6 +184,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_VAL    [@symbol "val"]
 %token KWD_WHERE  [@symbol "where"]
 %token KWD_WITH   [@symbol "with"]
+%token KWD_VEC128 [@symbol "vec128"]
 
 %token PRIM_ARRAY_LENGTH [@symbol "%array_length"]
 %token PRIM_ARRAY_LOAD [@symbol "%array_load"]
@@ -204,6 +205,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_BYTES_LOAD [@symbol "%bytes_load"]
 %token PRIM_BYTES_SET [@symbol "%bytes_set"]
 %token PRIM_END_REGION [@symbol "%end_region"]
+%token PRIM_END_TRY_REGION [@symbol "%end_try_region"]
 %token PRIM_GET_TAG [@symbol "%get_tag"]
 %token PRIM_INT_ARITH [@symbol "%int_arith"]
 %token PRIM_INT_COMP [@symbol "%int_comp"]
@@ -223,6 +225,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_UNBOX_INT32 [@symbol "%unbox_int32"]
 %token PRIM_UNBOX_INT64 [@symbol "%unbox_int64"]
 %token PRIM_UNBOX_NATIVEINT [@symbol "%unbox_nativeint"]
+%token PRIM_UNBOX_VEC128 [@symbol "%unbox_vec128"]
 %token PRIM_UNTAG_IMM [@symbol "%untag_imm"]
 
 %token STATIC_CONST_BLOCK [@symbol "Block"]
@@ -232,8 +235,8 @@ let make_boxed_const_int (i, m) : static_data =
 
 %start flambda_unit expect_test_spec
 %type <Fexpr.alloc_mode_for_allocations> alloc_mode_for_allocations_opt
-%type <Fexpr.alloc_mode_for_types> alloc_mode_for_types_opt
 %type <Fexpr.array_kind> array_kind
+%type <Fexpr.empty_array_kind> empty_array_kind
 %type <Fexpr.binary_float_arith_op> binary_float_arith_op
 %type <Fexpr.binary_int_arith_op> binary_int_arith_op
 %type <Fexpr.block_access_field_kind> block_access_field_kind
@@ -327,16 +330,18 @@ code:
     MINUSGREATER; ret_cont = continuation_id;
     exn_cont = exn_continuation_id;
     ret_arity = return_arity;
+    result_mode = boption(KWD_LOCAL);
     EQUAL; body = expr;
     { let
         recursive, inline, loopify, id, newer_version_of, code_size, is_tupled
         =
         header
       in
+      let result_mode : alloc_mode_for_assignments = if result_mode then Local else Heap in
       { id; newer_version_of; param_arity = None; ret_arity; recursive; inline;
         params_and_body = { params; closure_var; region_var; depth_var;
                             ret_cont; exn_cont; body };
-        code_size; is_tupled; loopify; } }
+        code_size; is_tupled; loopify; result_mode; } }
 ;
 
 code_header:
@@ -373,6 +378,7 @@ recursive:
 
 nullop:
   | PRIM_BEGIN_REGION { Begin_region }
+  | PRIM_BEGIN_TRY_REGION { Begin_try_region }
 ;
 
 unary_int_arith_op:
@@ -380,8 +386,7 @@ unary_int_arith_op:
   | TILDEMINUS { Neg }
 
 unop:
-  | PRIM_ARRAY_LENGTH { Array_length }
-  | PRIM_BEGIN_TRY_REGION { Begin_try_region }
+  | PRIM_ARRAY_LENGTH { Array_length (Array_kind Values) }
   | PRIM_BOOLEAN_NOT { Boolean_not }
   | PRIM_BOX_FLOAT; alloc = alloc_mode_for_allocations_opt
     { Box_number (Naked_float, alloc) }
@@ -393,6 +398,7 @@ unop:
     { Box_number (Naked_nativeint, alloc) }
   | PRIM_BYTES_LENGTH { String_length Bytes }
   | PRIM_END_REGION { End_region }
+  | PRIM_END_TRY_REGION { End_try_region }
   | PRIM_GET_TAG { Get_tag }
   | PRIM_IS_FLAT_FLOAT_ARRAY { Is_flat_float_array }
   | PRIM_IS_INT { Is_int }
@@ -415,14 +421,15 @@ unop:
   | PRIM_UNBOX_INT32 { Unbox_number Naked_int32 }
   | PRIM_UNBOX_INT64 { Unbox_number Naked_int64 }
   | PRIM_UNBOX_NATIVEINT { Unbox_number Naked_nativeint }
+  | PRIM_UNBOX_VEC128 { Unbox_number Naked_vec128 }
   | PRIM_UNTAG_IMM { Untag_immediate }
 
 infix_binop:
   | o = binary_int_arith_op { Int_arith o }
   | c = int_comp { Int_comp (c Signed) }
   | s = int_shift { Int_shift s }
-  | o = binary_float_arith_op { Float_arith o }
-  | c = float_comp { Float_comp c }
+  | o = binary_float_arith_op { Float_arith (Float64, o) }
+  | c = float_comp { Float_comp (Float64, c) }
 ;
 
 prefix_binop:
@@ -455,12 +462,21 @@ string_accessor_width:
       | 16, None -> Sixteen
       | 32, None -> Thirty_two
       | 64, None -> Sixty_four
+      | 128, Some 'a' -> One_twenty_eight {aligned = true}
+      | 128, Some 'u' -> One_twenty_eight {aligned = false}
       | _, _ -> Misc.fatal_error "invalid string accessor width" }
+
+array_accessor_width:
+  | { Scalar }
+  | KWD_VEC128 { Vec128 }
 
 array_kind:
   | { Values }
   | KWD_IMM { Immediates }
   | KWD_FLOAT { Naked_floats }
+
+empty_array_kind:
+  | { Values_or_immediates_or_naked_floats }
 
 block_access_kind:
   | field_kind = block_access_field_kind; tag = tag_opt; size = size_opt
@@ -496,11 +512,6 @@ init_or_assign:
   | EQUAL { Initialization }
   | LESSMINUS { Assignment Heap }
   | LESSMINUS AMP { Assignment Local }
-
-alloc_mode_for_types_opt:
-  | { Heap }
-  | KWD_HEAP_OR_LOCAL { Heap_or_local }
-  | KWD_LOCAL { Local }
 
 alloc_mode_for_allocations_opt:
   | { Heap }
@@ -557,8 +568,9 @@ binop_app:
   | arg1 = simple; op = infix_binop; arg2 = simple
     { Binary (Infix op, arg1, arg2) }
   | PRIM_ARRAY_LOAD; ak = array_kind; mut = mutability;
-    arg1 = simple; DOT; LPAREN; arg2 = simple; RPAREN
-    { Binary (Array_load (ak, mut), arg1, arg2) }
+    width = array_accessor_width; arg1 = simple; DOT;
+    LPAREN; arg2 = simple; RPAREN
+    { Binary (Array_load (ak, width, mut), arg1, arg2) }
   | PRIM_INT_ARITH; i = standard_int;
     arg1 = simple; c = binary_int_arith_op; arg2 = simple
     { Binary (Int_arith (i, c), arg1, arg2) }
@@ -576,10 +588,10 @@ bytes_or_bigstring_set:
   | PRIM_BIGSTRING_SET { Bigstring }
 
 ternop_app:
-  | PRIM_ARRAY_SET; ak = array_kind;
+  | PRIM_ARRAY_SET; ak = array_kind; width = array_accessor_width;
     arr = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
     v = simple
-    { Ternary (Array_set (ak, ia), arr, ix, v) }
+    { Ternary (Array_set (ak, width, ia), arr, ix, v) }
   | PRIM_BLOCK_SET; kind = block_access_kind;
     block = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
     v = simple
@@ -787,7 +799,6 @@ apply_expr:
     inlining_state = option(inlining_state);
     func = func_name_with_optional_arities;
     args = simple_args;
-    AMP region = region;
     MINUSGREATER
     r = result_continuation e = exn_continuation
      { let (func, arities) = func in {
@@ -799,16 +810,15 @@ apply_expr:
           inlined;
           inlining_state;
           arities;
-          region;
      } }
 ;
 
 call_kind:
-  | alloc = alloc_mode_for_types_opt; { Function (Indirect alloc) }
+  | alloc = alloc_mode_for_allocations_opt; { Function (Indirect alloc) }
   | KWD_DIRECT; LPAREN;
       code_id = code_id;
       function_slot = function_slot_opt;
-      alloc = alloc_mode_for_types_opt;
+      alloc = alloc_mode_for_allocations_opt;
     RPAREN
     { Function (Direct { code_id; function_slot; alloc }) }
   | KWD_CCALL; noalloc = boption(KWD_NOALLOC)
@@ -918,7 +928,7 @@ static_data:
     fs = separated_list(SEMICOLON, float_or_variable);
     RBRACKPIPE
     { Immutable_float_array fs }
-  | STATIC_CONST_EMPTY_ARRAY { Empty_array }
+  | STATIC_CONST_EMPTY_ARRAY kind=empty_array_kind { Empty_array kind }
   | KWD_MUTABLE; s = STRING { Mutable_string { initial_value = s } }
   | s = STRING { Immutable_string s }
 ;

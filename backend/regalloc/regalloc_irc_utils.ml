@@ -106,9 +106,13 @@ let is_move_basic : Cfg.basic -> bool =
   | Op op -> (
     match op with
     | Move -> true
+    (* CR mslater: (SIMD) vectorcast / float64<->float64x2 cast may be true *)
+    | Vectorcast _ -> false
+    | Scalarcast _ -> false
     | Spill -> false
     | Reload -> false
     | Const_int _ -> false
+    | Const_float32 _ -> false
     | Const_float _ -> false
     | Const_symbol _ -> false
     | Const_vec128 _ -> false
@@ -118,16 +122,8 @@ let is_move_basic : Cfg.basic -> bool =
     | Intop _ -> false
     | Intop_imm _ -> false
     | Intop_atomic _ -> false
-    | Negf -> false
-    | Absf -> false
-    | Addf -> false
-    | Subf -> false
-    | Mulf -> false
-    | Divf -> false
-    | Compf _ -> false
+    | Floatop _ -> false
     | Csel _ -> false
-    | Floatofint -> false
-    | Intoffloat -> false
     | Valueofint -> false
     | Intofvalue -> false
     | Probe_is_enabled _ -> false
@@ -135,8 +131,11 @@ let is_move_basic : Cfg.basic -> bool =
     | Begin_region -> false
     | End_region -> false
     | Specific _ -> false
-    | Name_for_debugger _ -> false)
-  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> false
+    | Name_for_debugger _ -> false
+    | Dls_get -> false
+    | Poll -> false
+    | Alloc _ -> false)
+  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> false
 
 let is_move_instruction : Cfg.basic Cfg.instruction -> bool =
  fun instr -> is_move_basic instr.desc
@@ -163,34 +162,6 @@ let update_register_locations : unit -> unit =
           if irc_debug
           then log ~indent:1 "updating %a to %d" Printmach.reg reg color;
           reg.Reg.loc <- Reg color))
-
-module Split_mode = struct
-  type t =
-    | Off
-    | Naive
-
-  let all = [Off; Naive]
-
-  let to_string = function Off -> "off" | Naive -> "naive"
-
-  let value =
-    let available_modes () =
-      String.concat ", "
-        (all |> List.map ~f:to_string |> List.map ~f:(Printf.sprintf "%S"))
-    in
-    lazy
-      (match find_param_value "IRC_SPLIT" with
-      | None ->
-        fatal "the IRC_SPLIT parameter is not set (possible values: %s)"
-          (available_modes ())
-      | Some id -> (
-        match String.lowercase_ascii id with
-        | "off" -> Off
-        | "naive" -> Naive
-        | _ ->
-          fatal "unknown split mode %S (possible values: %s)" id
-            (available_modes ())))
-end
 
 module Spilling_heuristics = struct
   type t =

@@ -17,6 +17,8 @@ let[@inline] make () =
   let num_stack_slots = Array.make Proc.num_stack_slot_classes 0 in
   { stack_slots; num_stack_slots }
 
+let iter t ~f = Reg.Tbl.iter f t.stack_slots
+
 let[@inline] size_for_all_stack_classes t =
   Array.fold_left t.num_stack_slots ~f:( + ) ~init:0
 
@@ -283,8 +285,17 @@ with type slots := t = struct
               bucket))
 end
 
+let optimization_enabled (t : t) : bool =
+  match size_for_all_stack_classes t with
+  | 0 -> false
+  | total_num_slots -> (
+    match find_param_value "STACK_SLOTS_THRESHOLD" with
+    | None -> true
+    | Some stack_slots_threshold ->
+      total_num_slots < int_of_string stack_slots_threshold)
+
 let optimize (t : t) (cfg_with_infos : Cfg_with_infos.t) : unit =
-  if size_for_all_stack_classes t > 0
+  if optimization_enabled t
   then (
     (* First, compute the intervals for all stack slots *)
     let intervals = Intervals.build_from_cfg t cfg_with_infos in

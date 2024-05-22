@@ -7,7 +7,8 @@
      intlike_cmp =
        (function {nlocal = 0} x[int] y[int] : int (compare_ints x y))
      float_cmp =
-       (function {nlocal = 0} x[float] y[float] : int (compare_floats x y))
+       (function {nlocal = 0} x[float] y[float] : int
+         (compare_floats float x y))
      string_cmp = (function {nlocal = 0} x y : int (caml_string_compare x y))
      int32_cmp =
        (function {nlocal = 0} x[int32] y[int32] : int
@@ -22,7 +23,8 @@
      int_eq = (function {nlocal = 0} x[int] y[int] : int (== x y))
      bool_eq = (function {nlocal = 0} x[int] y[int] : int (== x y))
      intlike_eq = (function {nlocal = 0} x[int] y[int] : int (== x y))
-     float_eq = (function {nlocal = 0} x[float] y[float] : int (==. x y))
+     float_eq =
+       (function {nlocal = 0} x[float] y[float] : int (Float.== x y))
      string_eq = (function {nlocal = 0} x y : int (caml_string_equal x y))
      int32_eq =
        (function {nlocal = 0} x[int32] y[int32] : int (Int32.== x y))
@@ -35,7 +37,8 @@
      int_ne = (function {nlocal = 0} x[int] y[int] : int (!= x y))
      bool_ne = (function {nlocal = 0} x[int] y[int] : int (!= x y))
      intlike_ne = (function {nlocal = 0} x[int] y[int] : int (!= x y))
-     float_ne = (function {nlocal = 0} x[float] y[float] : int (!=. x y))
+     float_ne =
+       (function {nlocal = 0} x[float] y[float] : int (Float.!= x y))
      string_ne = (function {nlocal = 0} x y : int (caml_string_notequal x y))
      int32_ne =
        (function {nlocal = 0} x[int32] y[int32] : int (Int32.!= x y))
@@ -48,7 +51,7 @@
      int_lt = (function {nlocal = 0} x[int] y[int] : int (< x y))
      bool_lt = (function {nlocal = 0} x[int] y[int] : int (< x y))
      intlike_lt = (function {nlocal = 0} x[int] y[int] : int (< x y))
-     float_lt = (function {nlocal = 0} x[float] y[float] : int (<. x y))
+     float_lt = (function {nlocal = 0} x[float] y[float] : int (Float.< x y))
      string_lt = (function {nlocal = 0} x y : int (caml_string_lessthan x y))
      int32_lt = (function {nlocal = 0} x[int32] y[int32] : int (Int32.< x y))
      int64_lt = (function {nlocal = 0} x[int64] y[int64] : int (Int64.< x y))
@@ -59,7 +62,7 @@
      int_gt = (function {nlocal = 0} x[int] y[int] : int (> x y))
      bool_gt = (function {nlocal = 0} x[int] y[int] : int (> x y))
      intlike_gt = (function {nlocal = 0} x[int] y[int] : int (> x y))
-     float_gt = (function {nlocal = 0} x[float] y[float] : int (>. x y))
+     float_gt = (function {nlocal = 0} x[float] y[float] : int (Float.> x y))
      string_gt =
        (function {nlocal = 0} x y : int (caml_string_greaterthan x y))
      int32_gt = (function {nlocal = 0} x[int32] y[int32] : int (Int32.> x y))
@@ -71,7 +74,8 @@
      int_le = (function {nlocal = 0} x[int] y[int] : int (<= x y))
      bool_le = (function {nlocal = 0} x[int] y[int] : int (<= x y))
      intlike_le = (function {nlocal = 0} x[int] y[int] : int (<= x y))
-     float_le = (function {nlocal = 0} x[float] y[float] : int (<=. x y))
+     float_le =
+       (function {nlocal = 0} x[float] y[float] : int (Float.<= x y))
      string_le =
        (function {nlocal = 0} x y : int (caml_string_lessequal x y))
      int32_le =
@@ -85,7 +89,8 @@
      int_ge = (function {nlocal = 0} x[int] y[int] : int (>= x y))
      bool_ge = (function {nlocal = 0} x[int] y[int] : int (>= x y))
      intlike_ge = (function {nlocal = 0} x[int] y[int] : int (>= x y))
-     float_ge = (function {nlocal = 0} x[float] y[float] : int (>=. x y))
+     float_ge =
+       (function {nlocal = 0} x[float] y[float] : int (Float.>= x y))
      string_ge =
        (function {nlocal = 0} x y : int (caml_string_greaterequal x y))
      int32_ge =
@@ -96,161 +101,195 @@
        (function {nlocal = 0} x[nativeint] y[nativeint] : int
          (Nativeint.>= x y))
      eta_gen_cmp =
-       (function {nlocal = 0} prim prim stub (caml_compare prim prim))
+       (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
+         : int (caml_compare prim prim))
      eta_int_cmp =
        (function {nlocal = 0} prim[int] prim[int] stub
-         (compare_ints prim prim))
+         ignore assert all zero_alloc : int (compare_ints prim prim))
      eta_bool_cmp =
        (function {nlocal = 0} prim[int] prim[int] stub
-         (compare_ints prim prim))
+         ignore assert all zero_alloc : int (compare_ints prim prim))
      eta_intlike_cmp =
        (function {nlocal = 0} prim[int] prim[int] stub
-         (compare_ints prim prim))
+         ignore assert all zero_alloc : int (compare_ints prim prim))
      eta_float_cmp =
        (function {nlocal = 0} prim[float] prim[float] stub
-         (compare_floats prim prim))
+         ignore assert all zero_alloc : int (compare_floats float prim prim))
      eta_string_cmp =
-       (function {nlocal = 0} prim prim stub (caml_string_compare prim prim))
+       (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
+         : int (caml_string_compare prim prim))
      eta_int32_cmp =
        (function {nlocal = 0} prim[int32] prim[int32] stub
-         (compare_bints int32 prim prim))
+         ignore assert all zero_alloc : int (compare_bints int32 prim prim))
      eta_int64_cmp =
        (function {nlocal = 0} prim[int64] prim[int64] stub
-         (compare_bints int64 prim prim))
+         ignore assert all zero_alloc : int (compare_bints int64 prim prim))
      eta_nativeint_cmp =
        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub
+         ignore assert all zero_alloc : int
          (compare_bints nativeint prim prim))
      eta_gen_eq =
-       (function {nlocal = 0} prim prim stub (caml_equal prim prim))
+       (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
+         : int (caml_equal prim prim))
      eta_int_eq =
-       (function {nlocal = 0} prim[int] prim[int] stub (== prim prim))
+       (function {nlocal = 0} prim[int] prim[int] stub
+         ignore assert all zero_alloc : int (== prim prim))
      eta_bool_eq =
-       (function {nlocal = 0} prim[int] prim[int] stub (== prim prim))
+       (function {nlocal = 0} prim[int] prim[int] stub
+         ignore assert all zero_alloc : int (== prim prim))
      eta_intlike_eq =
-       (function {nlocal = 0} prim[int] prim[int] stub (== prim prim))
+       (function {nlocal = 0} prim[int] prim[int] stub
+         ignore assert all zero_alloc : int (== prim prim))
      eta_float_eq =
-       (function {nlocal = 0} prim[float] prim[float] stub (==. prim prim))
+       (function {nlocal = 0} prim[float] prim[float] stub
+         ignore assert all zero_alloc : int (Float.== prim prim))
      eta_string_eq =
-       (function {nlocal = 0} prim prim stub (caml_string_equal prim prim))
+       (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
+         : int (caml_string_equal prim prim))
      eta_int32_eq =
        (function {nlocal = 0} prim[int32] prim[int32] stub
-         (Int32.== prim prim))
+         ignore assert all zero_alloc : int (Int32.== prim prim))
      eta_int64_eq =
        (function {nlocal = 0} prim[int64] prim[int64] stub
-         (Int64.== prim prim))
+         ignore assert all zero_alloc : int (Int64.== prim prim))
      eta_nativeint_eq =
        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub
-         (Nativeint.== prim prim))
+         ignore assert all zero_alloc : int (Nativeint.== prim prim))
      eta_gen_ne =
-       (function {nlocal = 0} prim prim stub (caml_notequal prim prim))
+       (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
+         : int (caml_notequal prim prim))
      eta_int_ne =
-       (function {nlocal = 0} prim[int] prim[int] stub (!= prim prim))
+       (function {nlocal = 0} prim[int] prim[int] stub
+         ignore assert all zero_alloc : int (!= prim prim))
      eta_bool_ne =
-       (function {nlocal = 0} prim[int] prim[int] stub (!= prim prim))
+       (function {nlocal = 0} prim[int] prim[int] stub
+         ignore assert all zero_alloc : int (!= prim prim))
      eta_intlike_ne =
-       (function {nlocal = 0} prim[int] prim[int] stub (!= prim prim))
+       (function {nlocal = 0} prim[int] prim[int] stub
+         ignore assert all zero_alloc : int (!= prim prim))
      eta_float_ne =
-       (function {nlocal = 0} prim[float] prim[float] stub (!=. prim prim))
+       (function {nlocal = 0} prim[float] prim[float] stub
+         ignore assert all zero_alloc : int (Float.!= prim prim))
      eta_string_ne =
-       (function {nlocal = 0} prim prim stub
-         (caml_string_notequal prim prim))
+       (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
+         : int (caml_string_notequal prim prim))
      eta_int32_ne =
        (function {nlocal = 0} prim[int32] prim[int32] stub
-         (Int32.!= prim prim))
+         ignore assert all zero_alloc : int (Int32.!= prim prim))
      eta_int64_ne =
        (function {nlocal = 0} prim[int64] prim[int64] stub
-         (Int64.!= prim prim))
+         ignore assert all zero_alloc : int (Int64.!= prim prim))
      eta_nativeint_ne =
        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub
-         (Nativeint.!= prim prim))
+         ignore assert all zero_alloc : int (Nativeint.!= prim prim))
      eta_gen_lt =
-       (function {nlocal = 0} prim prim stub (caml_lessthan prim prim))
+       (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
+         : int (caml_lessthan prim prim))
      eta_int_lt =
-       (function {nlocal = 0} prim[int] prim[int] stub (< prim prim))
+       (function {nlocal = 0} prim[int] prim[int] stub
+         ignore assert all zero_alloc : int (< prim prim))
      eta_bool_lt =
-       (function {nlocal = 0} prim[int] prim[int] stub (< prim prim))
+       (function {nlocal = 0} prim[int] prim[int] stub
+         ignore assert all zero_alloc : int (< prim prim))
      eta_intlike_lt =
-       (function {nlocal = 0} prim[int] prim[int] stub (< prim prim))
+       (function {nlocal = 0} prim[int] prim[int] stub
+         ignore assert all zero_alloc : int (< prim prim))
      eta_float_lt =
-       (function {nlocal = 0} prim[float] prim[float] stub (<. prim prim))
+       (function {nlocal = 0} prim[float] prim[float] stub
+         ignore assert all zero_alloc : int (Float.< prim prim))
      eta_string_lt =
-       (function {nlocal = 0} prim prim stub
-         (caml_string_lessthan prim prim))
+       (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
+         : int (caml_string_lessthan prim prim))
      eta_int32_lt =
        (function {nlocal = 0} prim[int32] prim[int32] stub
-         (Int32.< prim prim))
+         ignore assert all zero_alloc : int (Int32.< prim prim))
      eta_int64_lt =
        (function {nlocal = 0} prim[int64] prim[int64] stub
-         (Int64.< prim prim))
+         ignore assert all zero_alloc : int (Int64.< prim prim))
      eta_nativeint_lt =
        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub
-         (Nativeint.< prim prim))
+         ignore assert all zero_alloc : int (Nativeint.< prim prim))
      eta_gen_gt =
-       (function {nlocal = 0} prim prim stub (caml_greaterthan prim prim))
+       (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
+         : int (caml_greaterthan prim prim))
      eta_int_gt =
-       (function {nlocal = 0} prim[int] prim[int] stub (> prim prim))
+       (function {nlocal = 0} prim[int] prim[int] stub
+         ignore assert all zero_alloc : int (> prim prim))
      eta_bool_gt =
-       (function {nlocal = 0} prim[int] prim[int] stub (> prim prim))
+       (function {nlocal = 0} prim[int] prim[int] stub
+         ignore assert all zero_alloc : int (> prim prim))
      eta_intlike_gt =
-       (function {nlocal = 0} prim[int] prim[int] stub (> prim prim))
+       (function {nlocal = 0} prim[int] prim[int] stub
+         ignore assert all zero_alloc : int (> prim prim))
      eta_float_gt =
-       (function {nlocal = 0} prim[float] prim[float] stub (>. prim prim))
+       (function {nlocal = 0} prim[float] prim[float] stub
+         ignore assert all zero_alloc : int (Float.> prim prim))
      eta_string_gt =
-       (function {nlocal = 0} prim prim stub
-         (caml_string_greaterthan prim prim))
+       (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
+         : int (caml_string_greaterthan prim prim))
      eta_int32_gt =
        (function {nlocal = 0} prim[int32] prim[int32] stub
-         (Int32.> prim prim))
+         ignore assert all zero_alloc : int (Int32.> prim prim))
      eta_int64_gt =
        (function {nlocal = 0} prim[int64] prim[int64] stub
-         (Int64.> prim prim))
+         ignore assert all zero_alloc : int (Int64.> prim prim))
      eta_nativeint_gt =
        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub
-         (Nativeint.> prim prim))
+         ignore assert all zero_alloc : int (Nativeint.> prim prim))
      eta_gen_le =
-       (function {nlocal = 0} prim prim stub (caml_lessequal prim prim))
+       (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
+         : int (caml_lessequal prim prim))
      eta_int_le =
-       (function {nlocal = 0} prim[int] prim[int] stub (<= prim prim))
+       (function {nlocal = 0} prim[int] prim[int] stub
+         ignore assert all zero_alloc : int (<= prim prim))
      eta_bool_le =
-       (function {nlocal = 0} prim[int] prim[int] stub (<= prim prim))
+       (function {nlocal = 0} prim[int] prim[int] stub
+         ignore assert all zero_alloc : int (<= prim prim))
      eta_intlike_le =
-       (function {nlocal = 0} prim[int] prim[int] stub (<= prim prim))
+       (function {nlocal = 0} prim[int] prim[int] stub
+         ignore assert all zero_alloc : int (<= prim prim))
      eta_float_le =
-       (function {nlocal = 0} prim[float] prim[float] stub (<=. prim prim))
+       (function {nlocal = 0} prim[float] prim[float] stub
+         ignore assert all zero_alloc : int (Float.<= prim prim))
      eta_string_le =
-       (function {nlocal = 0} prim prim stub
-         (caml_string_lessequal prim prim))
+       (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
+         : int (caml_string_lessequal prim prim))
      eta_int32_le =
        (function {nlocal = 0} prim[int32] prim[int32] stub
-         (Int32.<= prim prim))
+         ignore assert all zero_alloc : int (Int32.<= prim prim))
      eta_int64_le =
        (function {nlocal = 0} prim[int64] prim[int64] stub
-         (Int64.<= prim prim))
+         ignore assert all zero_alloc : int (Int64.<= prim prim))
      eta_nativeint_le =
        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub
-         (Nativeint.<= prim prim))
+         ignore assert all zero_alloc : int (Nativeint.<= prim prim))
      eta_gen_ge =
-       (function {nlocal = 0} prim prim stub (caml_greaterequal prim prim))
+       (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
+         : int (caml_greaterequal prim prim))
      eta_int_ge =
-       (function {nlocal = 0} prim[int] prim[int] stub (>= prim prim))
+       (function {nlocal = 0} prim[int] prim[int] stub
+         ignore assert all zero_alloc : int (>= prim prim))
      eta_bool_ge =
-       (function {nlocal = 0} prim[int] prim[int] stub (>= prim prim))
+       (function {nlocal = 0} prim[int] prim[int] stub
+         ignore assert all zero_alloc : int (>= prim prim))
      eta_intlike_ge =
-       (function {nlocal = 0} prim[int] prim[int] stub (>= prim prim))
+       (function {nlocal = 0} prim[int] prim[int] stub
+         ignore assert all zero_alloc : int (>= prim prim))
      eta_float_ge =
-       (function {nlocal = 0} prim[float] prim[float] stub (>=. prim prim))
+       (function {nlocal = 0} prim[float] prim[float] stub
+         ignore assert all zero_alloc : int (Float.>= prim prim))
      eta_string_ge =
-       (function {nlocal = 0} prim prim stub
-         (caml_string_greaterequal prim prim))
+       (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
+         : int (caml_string_greaterequal prim prim))
      eta_int32_ge =
        (function {nlocal = 0} prim[int32] prim[int32] stub
-         (Int32.>= prim prim))
+         ignore assert all zero_alloc : int (Int32.>= prim prim))
      eta_int64_ge =
        (function {nlocal = 0} prim[int64] prim[int64] stub
-         (Int64.>= prim prim))
+         ignore assert all zero_alloc : int (Int64.>= prim prim))
      eta_nativeint_ge =
        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub
-         (Nativeint.>= prim prim))
+         ignore assert all zero_alloc : int (Nativeint.>= prim prim))
      int_vec =[(consts (0))
                (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
        [0: [0: 1 1] [0: [0: 1 2] [0: [0: 2 1] 0]]]
@@ -294,9 +333,9 @@
                                                                     (non_consts (
                                                                     [0: *, *]))]
                                                                     (apply f
-                                                                    (field 0
+                                                                    (field_imm 0
                                                                     param)
-                                                                    (field 1
+                                                                    (field_imm 1
                                                                     param)))
                                                                     map =
                                                                     (function
@@ -315,7 +354,7 @@
                                                                     (non_consts (
                                                                     [0: *, *]))]]))]
                                                                     (apply
-                                                                    (field 18
+                                                                    (field_imm 19
                                                                     (global Stdlib__List!))
                                                                     (apply
                                                                     uncurry
@@ -496,7 +535,7 @@
                (uncurry =
                   (function {nlocal = 0} f
                     param[(consts ()) (non_consts ([0: *, *]))]
-                    (apply f (field 0 param) (field 1 param)))
+                    (apply f (field_imm 0 param) (field_imm 1 param)))
                 map =
                   (function {nlocal = 0} f
                     l[(consts (0))
@@ -505,7 +544,7 @@
                     [(consts (0))
                      (non_consts ([0: *,
                                    [(consts (0)) (non_consts ([0: *, *]))]]))]
-                    (apply (field 18 (global Stdlib__List!))
+                    (apply (field_imm 19 (global Stdlib__List!))
                       (apply uncurry f) l)))
                (makeblock 0 ([(consts ())
                               (non_consts ([0:

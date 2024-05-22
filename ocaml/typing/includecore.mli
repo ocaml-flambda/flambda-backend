@@ -16,7 +16,6 @@
 (* Inclusion checks for the core language *)
 
 open Typedtree
-open Layouts
 open Types
 
 type position = Errortrace.position = First | Second
@@ -31,11 +30,14 @@ type primitive_mismatch =
   | Native_name
   | Result_repr
   | Argument_repr of int
+  | Layout_poly_attr
 
 type value_mismatch =
   | Primitive_mismatch of primitive_mismatch
   | Not_a_primitive
   | Type of Errortrace.moregen_error
+  | Zero_alloc of { missing_entirely : bool }
+  | Zero_alloc_arity of int * int
 
 exception Dont_match of value_mismatch
 
@@ -49,6 +51,14 @@ type privacy_mismatch =
 
 type locality_mismatch = { order : position }
 
+type type_kind =
+  | Kind_abstract
+  | Kind_record
+  | Kind_variant
+  | Kind_open
+
+type kind_mismatch = type_kind * type_kind
+
 type label_mismatch =
   | Type of Errortrace.equality_error
   | Mutability of position
@@ -61,6 +71,8 @@ type record_mismatch =
   | Label_mismatch of record_change list
   | Inlined_representation of position
   | Float_representation of position
+  | Ufloat_representation of position
+  | Mixed_representation of position
 
 type constructor_mismatch =
   | Type of Errortrace.equality_error
@@ -94,7 +106,7 @@ type private_object_mismatch =
 type type_mismatch =
   | Arity
   | Privacy of privacy_mismatch
-  | Kind
+  | Kind of kind_mismatch
   | Constraint of Errortrace.equality_error
   | Manifest of Errortrace.equality_error
   | Private_variant of type_expr * type_expr * private_variant_mismatch
@@ -104,7 +116,7 @@ type type_mismatch =
   | Variant_mismatch of variant_change list
   | Unboxed_representation of position * attributes
   | Extensible_representation of position
-  | Layout of Layout.Violation.t
+  | Jkind of Jkind.Violation.t
 
 val value_descriptions:
   loc:Location.t -> Env.t -> string ->

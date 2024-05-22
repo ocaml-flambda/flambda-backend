@@ -20,12 +20,13 @@ open! Stdlib
 
 (** {1 Positions} *)
 
-type position = {
+type position = lexing_position = {
   pos_fname : string;
   pos_lnum : int;
   pos_bol : int;
   pos_cnum : int;
 }
+
 (** A value of type [position] describes a point in a source file.
    [pos_fname] is the file name; [pos_lnum] is the line number;
    [pos_bol] is the offset of the beginning of the line (number
@@ -178,7 +179,7 @@ val new_line : lexbuf -> unit
     of a new line.  You can call this function in the semantic action
     of the rule that matches the end-of-line character.  The function
     does nothing when position tracking is disabled.
-    @since 3.11.0
+    @since 3.11
 *)
 
 (** {1 Miscellaneous functions} *)

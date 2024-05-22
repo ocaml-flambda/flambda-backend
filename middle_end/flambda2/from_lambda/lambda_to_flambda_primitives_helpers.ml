@@ -22,6 +22,7 @@ module VB = Bound_var
 type failure =
   | Division_by_zero
   | Index_out_of_bounds
+  | Address_was_misaligned
 
 type expr_primitive =
   | Simple of Simple.t
@@ -98,6 +99,24 @@ let raise_exn_for_failure acc ~dbg exn_cont exn_bucket =
 let symbol_for_prim id =
   Flambda2_import.Symbol.for_predef_ident id |> Symbol.create_wrapped
 
+let register_invalid_argument ~register_const0 acc error_text =
+  let invalid_argument =
+    (* [Predef.invalid_argument] is not exposed; the following avoids a change
+       to the frontend. *)
+    let matches ident = String.equal (Ident.name ident) "Invalid_argument" in
+    let invalid_argument =
+      match List.find matches Predef.all_predef_exns with
+      | exception Not_found ->
+        Misc.fatal_error "Cannot find Invalid_argument exception in Predef"
+      | ident -> ident
+    in
+    symbol_for_prim invalid_argument
+  in
+  register_const0 acc
+    (Static_const.block Tag.Scannable.zero Immutable
+       [Symbol invalid_argument; Symbol error_text])
+    "block"
+
 let expression_for_failure acc exn_cont ~register_const0 primitive dbg
     (failure : failure) =
   let exn_cont =
@@ -120,23 +139,19 @@ let expression_for_failure acc exn_cont ~register_const0 primitive dbg
         (Static_const.immutable_string "index out of bounds")
         "string"
     in
-    let invalid_argument =
-      (* [Predef.invalid_argument] is not exposed; the following avoids a change
-         to the frontend. *)
-      let matches ident = String.equal (Ident.name ident) "Invalid_argument" in
-      let invalid_argument =
-        match List.find matches Predef.all_predef_exns with
-        | exception Not_found ->
-          Misc.fatal_error "Cannot find Invalid_argument exception in Predef"
-        | ident -> ident
-      in
-      symbol_for_prim invalid_argument
+    let acc, exn_bucket =
+      register_invalid_argument ~register_const0 acc error_text
+    in
+    raise_exn_for_failure acc ~dbg exn_cont (Simple.symbol exn_bucket)
+  | Address_was_misaligned ->
+    (* CR mshinwell: Share this text with elsewhere. *)
+    let acc, error_text =
+      register_const0 acc
+        (Static_const.immutable_string "address was misaligned")
+        "string"
     in
     let acc, exn_bucket =
-      register_const0 acc
-        (Static_const.block Tag.Scannable.zero Immutable
-           [Symbol invalid_argument; Symbol error_text])
-        "block"
+      register_invalid_argument ~register_const0 acc error_text
     in
     raise_exn_for_failure acc ~dbg exn_cont (Simple.symbol exn_bucket)
 

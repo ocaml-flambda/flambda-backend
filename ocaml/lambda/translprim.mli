@@ -35,22 +35,35 @@ val check_primitive_arity :
 val transl_primitive :
   Lambda.scoped_location -> Primitive.description -> Env.t ->
   Types.type_expr ->
-  poly_mode:Types.alloc_mode option ->
+  poly_mode:Mode.Locality.l option ->
+  poly_sort:Jkind.Sort.t option ->
   Path.t option ->
   Lambda.lambda
 
 val transl_primitive_application :
   Lambda.scoped_location -> Primitive.description -> Env.t ->
-  Types.type_expr -> Types.alloc_mode option -> Path.t ->
+  Types.type_expr ->
+  poly_mode:Mode.Locality.l option ->
+  poly_sort:Jkind.Sort.t option -> Path.t ->
   Typedtree.expression option ->
   Lambda.lambda list -> Typedtree.expression list ->
   Lambda.region_close -> Lambda.lambda
+
+(** [sort_of_native_repr] returns the sort expected after typechecking (which
+    may be different than the sort used in the external interface).
+
+    [poly_sort] must be [Some sort] when [Repr_poly] is given. It will produce
+    fatal error if it's [None].  *)
+val sort_of_native_repr :
+  poly_sort:Jkind.Sort.t option ->
+  Primitive.native_repr -> Jkind.Sort.const
 
 (* Errors *)
 
 type error =
   | Unknown_builtin_primitive of string
   | Wrong_arity_builtin_primitive of string
+  | Invalid_floatarray_glb
 
 exception Error of Location.t * error
 

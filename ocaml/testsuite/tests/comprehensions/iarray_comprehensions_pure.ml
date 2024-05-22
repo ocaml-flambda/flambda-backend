@@ -1,6 +1,6 @@
 (* TEST
-   flags = "-extension comprehensions -extension immutable_arrays"
-   * expect
+ flags = "-extension comprehensions";
+ expect;
 *)
 
 module Iarray = Stdlib__Iarray;;
@@ -166,6 +166,7 @@ Line 1, characters 8-9:
 1 | [:x for x in [:"one"; "two"; "three":] for x in [:10; 20; 30:]:];;
             ^
 Warning 26 [unused-var]: unused variable x.
+
 - : int iarray = [:10; 20; 30; 10; 20; 30; 10; 20; 30:]
 |}];;
 
@@ -187,6 +188,7 @@ Line 1, characters 8-9:
 1 | [:a for a in [:0:] for a in [:1:]:];;
             ^
 Warning 26 [unused-var]: unused variable a.
+
 - : int iarray = [:1:]
 |}];;
 
@@ -530,5 +532,6 @@ Line 1, characters 24-25:
 1 | Iarray.append [:M.B:] [:A for _ = 1 to 3:];;
                             ^
 Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
+
 - : M.t iarray = [:M.B; M.A; M.A; M.A:]
 |}];;

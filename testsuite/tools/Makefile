@@ -39,9 +39,9 @@ codegen_PROG = codegen$(EXE)
 codegen_DIRS = parsing utils typing middle_end bytecomp lambda asmcomp
 codegen_OCAMLFLAGS = $(addprefix -I $(ROOTDIR)/, $(codegen_DIRS)) -w +40 -g
 
-codegen_LIBS = unix bigarray $(addprefix $(COMPILERLIBSDIR)/,\
+codegen_LIBS = unix $(addprefix $(COMPILERLIBSDIR)/,\
   ocamlcommon \
-  ocamloptcomp )
+  ocamloptcomp)
 
 codegen_OBJECTS = $(addsuffix .cmo,\
   parsecmmaux parsecmm lexcmm codegen_main)

@@ -109,9 +109,9 @@ let pivot_level = 2 * lowest_level - 1
 (**** Some type creators ****)
 
 let newgenty desc = newty2 ~level:generic_level desc
-let newgenvar ?name layout = newgenty (Tvar { name; layout })
-let newgenstub ~scope layout =
-  newty3 ~level:generic_level ~scope (Tvar { name=None; layout })
+let newgenvar ?name jkind = newgenty (Tvar { name; jkind })
+let newgenstub ~scope jkind =
+  newty3 ~level:generic_level ~scope (Tvar { name=None; jkind })
 
 (*
 let newmarkedvar level =
@@ -127,6 +127,8 @@ let is_Tvar ty = match get_desc ty with Tvar _ -> true | _ -> false
 let is_Tunivar ty = match get_desc ty with Tunivar _ -> true | _ -> false
 let is_Tconstr ty = match get_desc ty with Tconstr _ -> true | _ -> false
 let is_Tpoly ty = match get_desc ty with Tpoly _ -> true | _ -> false
+let type_kind_is_abstract decl =
+  match decl.type_kind with Type_abstract _ -> true | _ -> false
 
 let dummy_method = "*dummy method*"
 
@@ -267,7 +269,7 @@ let fold_type_expr f init ty =
   | Tarrow (_, ty1, ty2, _) ->
       let result = f init ty1 in
       f result ty2
-  | Ttuple l            -> List.fold_left f init l
+  | Ttuple l            -> List.fold_left f init (List.map snd l)
   | Tconstr (_, l, _)   -> List.fold_left f init l
   | Tobject(ty, {contents = Some (_, p)}) ->
       let result = f init ty in
@@ -325,7 +327,7 @@ let map_type_expr_cstr_args f = function
       Cstr_record (List.map (fun d -> {d with ld_type=f d.ld_type}) lbls)
 
 let iter_type_expr_kind f = function
-  | Type_abstract -> ()
+  | Type_abstract _ -> ()
   | Type_variant (cstrs, _) ->
       List.iter
         (fun cd ->
@@ -384,6 +386,9 @@ let type_iterators =
     | Mty_functor (p, mt) ->
         it.it_functor_param it p;
         it.it_module_type it mt
+    | Mty_strengthen (mty, p, _) ->
+        it.it_module_type it mty;
+        it.it_path p
   and it_class_type it = function
       Cty_constr (p, tyl, cty) ->
         it.it_path p;
@@ -441,10 +446,10 @@ let copy_row f fixed row keep more =
 let copy_commu c = if is_commu_ok c then commu_ok else commu_var ()
 
 let rec copy_type_desc ?(keep_names=false) f = function
-    Tvar { layout; _ } as tv ->
-     if keep_names then tv else Tvar { name=None; layout }
+    Tvar { jkind; _ } as tv ->
+     if keep_names then tv else Tvar { name=None; jkind }
   | Tarrow (p, ty1, ty2, c)-> Tarrow (p, f ty1, f ty2, copy_commu c)
-  | Ttuple l            -> Ttuple (List.map f l)
+  | Ttuple l            -> Ttuple (List.map (fun (label, t) -> label, f t) l)
   | Tconstr (p, l, _)   -> Tconstr (p, List.map f l, ref Mnil)
   | Tobject(ty, {contents = Some (p, tl)})
                         -> Tobject (f ty, ref (Some(p, List.map f tl)))
@@ -573,16 +578,28 @@ let backtrack = backtrack ~cleanup_abbrev
                   (*  Utilities for labels          *)
                   (**********************************)
 
+let is_optional_parsetree : Parsetree.arg_label -> bool = function
+    Optional _ -> true
+  | _ -> false
+
 let is_optional = function Optional _ -> true | _ -> false
+
+let is_position = function Position _ -> true | _ -> false
+
+let is_omittable = function
+  Optional _
+| Position _ -> true
+| Nolabel | Labelled _ -> false
 
 let label_name = function
     Nolabel -> ""
   | Labelled s
-  | Optional s -> s
+  | Optional s
+  | Position s -> s
 
 let prefixed_label_name = function
     Nolabel -> ""
-  | Labelled s -> "~" ^ s
+  | Labelled s | Position s -> "~" ^ s
   | Optional s -> "?" ^ s
 
 let rec extract_label_aux hd l = function

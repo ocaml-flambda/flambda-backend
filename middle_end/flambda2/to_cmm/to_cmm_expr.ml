@@ -82,12 +82,18 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
      effects/coeffects values currently ignored on the following two lines. At
      the moment they can be ignored as we always deem all calls to have
      arbitrary effects and coeffects. *)
-  let To_cmm_env.
-        { env;
-          res;
-          expr = { cmm = callee; free_vars = callee_free_vars; effs = _ }
-        } =
-    C.simple ~dbg env res callee_simple
+  let env, res, callee, callee_free_vars =
+    match callee_simple with
+    | Some callee_simple ->
+      let To_cmm_env.
+            { env;
+              res;
+              expr = { cmm = callee; free_vars = callee_free_vars; effs = _ }
+            } =
+        C.simple ~dbg env res callee_simple
+      in
+      env, res, Some callee, callee_free_vars
+    | None -> env, res, None, Backend_var.Set.empty
   in
   let args, args_free_vars, env, res, _ = C.simple_list ~dbg env res args in
   let free_vars = Backend_var.Set.union callee_free_vars args_free_vars in
@@ -108,9 +114,30 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       Lambda.Rc_normal
     | Nontail -> Lambda.Rc_nontail
   in
-  let args_arity = Apply.args_arity apply |> Flambda_arity.to_list in
+  let args_arity =
+    Apply.args_arity apply |> Flambda_arity.unarize_per_parameter
+  in
   let return_arity = Apply.return_arity apply in
-  let args_ty = List.map C.extended_machtype_of_kind args_arity in
+  let args_ty =
+    List.map
+      (fun kinds -> List.map C.extended_machtype_of_kind kinds |> Array.concat)
+      args_arity
+  in
+  let split_args () =
+    let rec aux args args_arity =
+      match args_arity, args with
+      | [], [] -> []
+      | [], _ :: _ ->
+        Misc.fatal_errorf
+          "[split_args]: [args] and [args_ty] do not have compatible lengths"
+      | kinds :: args_arity, args ->
+        let group, rest =
+          Misc.Stdlib.List.map2_prefix (fun _kind arg -> arg) kinds args
+        in
+        C.make_tuple group :: aux rest args_arity
+    in
+    aux args args_arity
+  in
   let return_ty = C.extended_machtype_of_return_arity return_arity in
   match Apply.call_kind apply with
   | Function { function_call = Direct code_id; alloc_mode = _ } -> (
@@ -120,10 +147,23 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     then Misc.fatal_errorf "Wrong arity for direct call";
     let args =
       if Code_metadata.is_my_closure_used code_metadata
-      then args @ [callee]
+      then
+        let callee =
+          match callee with
+          | Some callee -> callee
+          | None ->
+            Misc.fatal_errorf
+              "Need callee to compile call to@ %a@ but application expression \
+               did not supply one:@ %a"
+              Code_metadata.print code_metadata Apply.print apply
+        in
+        args @ [callee]
       else args
     in
-    let code_sym = To_cmm_result.symbol_of_code_id res code_id in
+    let code_sym =
+      To_cmm_result.symbol_of_code_id res code_id
+        ~currently_in_inlined_body:(Env.currently_in_inlined_body env)
+    in
     match Apply.probe apply with
     | None ->
       ( C.direct_call ~dbg
@@ -143,15 +183,31 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         Ece.all ))
   | Function { function_call = Indirect_unknown_arity; alloc_mode } ->
     fail_if_probe apply;
+    let callee =
+      match callee with
+      | Some callee -> callee
+      | None ->
+        Misc.fatal_errorf
+          "Application expression did not provide callee for indirect call:@ %a"
+          Apply.print apply
+    in
     ( C.indirect_call ~dbg return_ty pos
-        (Alloc_mode.For_types.to_lambda alloc_mode)
-        callee args_ty args,
+        (Alloc_mode.For_allocations.to_lambda alloc_mode)
+        callee args_ty (split_args ()),
       free_vars,
       env,
       res,
       Ece.all )
   | Function { function_call = Indirect_known_arity; alloc_mode } ->
     fail_if_probe apply;
+    let callee =
+      match callee with
+      | Some callee -> callee
+      | None ->
+        Misc.fatal_errorf
+          "Application expression did not provide callee for indirect call:@ %a"
+          Apply.print apply
+    in
     if not (C.check_arity (Apply.args_arity apply) args)
     then
       Misc.fatal_errorf
@@ -159,24 +215,31 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
          order to translate them"
     else
       ( C.indirect_full_call ~dbg return_ty pos
-          (Alloc_mode.For_types.to_lambda alloc_mode)
+          (Alloc_mode.For_allocations.to_lambda alloc_mode)
           callee args_ty args,
         free_vars,
         env,
         res,
         Ece.all )
-  | Call_kind.C_call { alloc; is_c_builtin } ->
+  | Call_kind.C_call
+      { needs_caml_c_call; is_c_builtin; effects; coeffects; alloc_mode = _ } ->
     fail_if_probe apply;
     let callee =
-      match Simple.must_be_symbol callee_simple with
-      | Some (sym, _) -> (To_cmm_result.symbol res sym).sym_name
+      match callee_simple with
       | None ->
-        Misc.fatal_errorf "Expected a function symbol instead of:@ %a"
-          Simple.print callee_simple
+        Misc.fatal_errorf
+          "Application expression did not provide callee for C call:@ %a"
+          Apply.print apply
+      | Some callee_simple -> (
+        match Simple.must_be_symbol callee_simple with
+        | Some (sym, _) -> (To_cmm_result.symbol res sym).sym_name
+        | None ->
+          Misc.fatal_errorf "Expected a function symbol instead of:@ %a"
+            Simple.print callee_simple)
     in
     let returns = Apply.returns apply in
     let wrap =
-      match Flambda_arity.to_list return_arity with
+      match Flambda_arity.unarized_components return_arity with
       (* Returned int32 values need to be sign_extended because it's not clear
          whether C code that returns an int32 returns one that is sign extended
          or not. There is no need to wrap other return arities. Note that
@@ -187,7 +250,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         | Naked_number Naked_int32 -> C.sign_extend_32
         | Naked_number
             ( Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint
-            | Naked_vec128 )
+            | Naked_vec128 | Naked_float32 )
         | Value | Rec_info | Region ->
           fun _dbg cmm -> cmm)
       | _ ->
@@ -197,11 +260,14 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     let ty_args =
       List.map C.exttype_of_kind
-        (Flambda_arity.to_list (Apply.args_arity apply)
+        (Flambda_arity.unarize (Apply.args_arity apply)
         |> List.map K.With_subkind.kind)
     in
+    let effects = To_cmm_effects.transl_c_call_effects effects in
+    let coeffects = To_cmm_effects.transl_c_call_coeffects coeffects in
     ( wrap dbg
-        (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args callee
+        (C.extcall ~dbg ~alloc:needs_caml_c_call ~is_c_builtin ~effects
+           ~coeffects ~returns ~ty_args callee
            (C.Extended_machtype.to_machtype return_ty)
            args),
       free_vars,
@@ -210,6 +276,14 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       Ece.all )
   | Call_kind.Method { kind; obj; alloc_mode } ->
     fail_if_probe apply;
+    let callee =
+      match callee with
+      | Some callee -> callee
+      | None ->
+        Misc.fatal_errorf
+          "Application expression did not provide callee for method call:@ %a"
+          Apply.print apply
+    in
     let To_cmm_env.
           { env;
             res;
@@ -219,8 +293,9 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     let free_vars = Backend_var.Set.union free_vars obj_free_vars in
     let kind = Call_kind.Method_kind.to_lambda kind in
-    let alloc_mode = Alloc_mode.For_types.to_lambda alloc_mode in
-    ( C.send kind callee obj args args_ty return_ty (pos, alloc_mode) dbg,
+    let alloc_mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
+    ( C.send kind callee obj (split_args ()) args_ty return_ty (pos, alloc_mode)
+        dbg,
       free_vars,
       env,
       res,
@@ -321,7 +396,7 @@ let translate_jump_to_continuation ~dbg_with_inlined:dbg env res apply types
       | None -> []
       | Some (Pop { exn_handler; _ }) ->
         let cont = Env.get_cmm_continuation env exn_handler in
-        [Cmm.Pop (Pop_specific cont)]
+        [Cmm.Pop cont]
       | Some (Push { exn_handler }) ->
         let cont = Env.get_cmm_continuation env exn_handler in
         [Cmm.Push cont]
@@ -349,7 +424,7 @@ let translate_jump_to_return_continuation ~dbg_with_inlined:dbg env res apply
   | Some (Pop { exn_handler; _ }) ->
     let cont = Env.get_cmm_continuation env exn_handler in
     let cmm, free_vars =
-      wrap (C.trap_return return_value [Cmm.Pop (Pop_specific cont)]) free_vars
+      wrap (C.trap_return return_value [Cmm.Pop cont]) free_vars
     in
     cmm, free_vars, res
   | Some (Push _) ->
@@ -614,7 +689,7 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
      Env.add_inlined_debuginfo to it *)
   let dbg = Debuginfo.none in
   let trywith =
-    C.trywith ~dbg ~kind:(Delayed catch_id) ~body ~exn_var ~handler ()
+    C.trywith ~dbg ~body ~exn_var ~handler_cont:catch_id ~handler ()
   in
   (* Define and initialize the mutable Cmm variables for extra args *)
   let cmm =
@@ -628,6 +703,7 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
           match K.With_subkind.kind kind with
           | Value -> C.int ~dbg 1
           | Naked_number Naked_float -> C.float ~dbg 0.
+          | Naked_number Naked_float32 -> C.float32 ~dbg 0.
           | Naked_number
               (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) ->
             C.int ~dbg 0
@@ -917,7 +993,11 @@ and switch env res switch =
   let make_arm ~must_tag_discriminant env res (d, action) =
     let d = prepare_discriminant ~must_tag:must_tag_discriminant d in
     let cmm_action, action_free_vars, res = apply_cont env res action in
-    (d, cmm_action, action_free_vars, Apply_cont.debuginfo action), res
+    ( ( d,
+        cmm_action,
+        action_free_vars,
+        Env.add_inlined_debuginfo env (Apply_cont.debuginfo action) ),
+      res )
   in
   match Targetint_31_63.Map.cardinal arms with
   (* Binary case: if-then-else *)

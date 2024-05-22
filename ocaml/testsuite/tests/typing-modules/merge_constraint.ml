@@ -1,5 +1,7 @@
 (* TEST
-   * expect *)
+ ocamlrunparam = "l=1000000";
+ expect;
+*)
 
 (* #9623 *)
 

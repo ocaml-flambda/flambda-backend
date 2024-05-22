@@ -34,18 +34,75 @@
 # Basenames of the source files for the standard library (i.e. unprefixed and
 # with lowercase first letters). These must be listed in dependency order.
 STDLIB_MODULE_BASENAMES = \
-  camlinternalFormatBasics camlinternalAtomic \
-  stdlib pervasives either \
-  sys obj camlinternalLazy lazy \
-  seq option result bool char uchar \
-  list int bytes string unit marshal array iarray float float_u int32 int64 nativeint \
-  lexing parsing set map stack queue stream buffer \
-  camlinternalFormat printf arg atomic \
-  printexc fun gc digest random hashtbl weak \
-  format scanf callback camlinternalOO oo camlinternalMod genlex ephemeron \
-  filename complex arrayLabels iarrayLabels listLabels bytesLabels \
-  stringLabels moreLabels stdLabels bigarray camlinternalComprehension \
-  in_channel out_channel
+  camlinternalFormatBasics \
+  camlinternalAtomic \
+  stdlib \
+  either \
+  sys \
+  obj \
+  type \
+  atomic \
+  camlinternalLazy \
+  lazy \
+  seq \
+  option \
+  result \
+  bool \
+  char \
+  uchar \
+  list \
+  int \
+  bytes \
+  string \
+  unit \
+  marshal \
+  array \
+  iarray \
+  float \
+  int32 \
+  nativeint \
+  int64 \
+  lexing \
+  parsing \
+  set \
+  map \
+  stack \
+  queue \
+  buffer \
+  camlinternalFormat \
+  printf \
+  arg \
+  printexc \
+  fun \
+  gc \
+  digest \
+  mutex \
+  condition \
+  semaphore \
+  domain \
+  bigarray \
+  random \
+  hashtbl \
+  weak \
+  format \
+  scanf \
+  callback \
+  camlinternalOO \
+  oo \
+  camlinternalMod \
+  ephemeron \
+  filename \
+  complex \
+  arrayLabels \
+  iarrayLabels \
+  listLabels \
+  bytesLabels \
+  stringLabels \
+  moreLabels \
+  stdLabels \
+  in_channel \
+  out_channel \
+  camlinternalComprehension
 
 STDLIB_PREFIXED_MODULES = \
   $(filter-out stdlib camlinternal%, $(STDLIB_MODULE_BASENAMES))

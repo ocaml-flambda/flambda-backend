@@ -28,7 +28,7 @@ type 'code t =
         code : 'code;
         symbol : Symbol.t option
       }
-  | Block_approximation of 'code t array * Alloc_mode.For_types.t
+  | Block_approximation of Tag.t * 'code t array * Alloc_mode.For_types.t
 
 let rec print fmt = function
   | Value_unknown -> Format.fprintf fmt "?"
@@ -36,12 +36,12 @@ let rec print fmt = function
   | Value_int i -> Targetint_31_63.print fmt i
   | Closure_approximation { code_id; _ } ->
     Format.fprintf fmt "[%a]" Code_id.print code_id
-  | Block_approximation (fields, _) ->
+  | Block_approximation (tag, fields, _) ->
     let len = Array.length fields in
     if len < 1
     then Format.fprintf fmt "{}"
     else (
-      Format.fprintf fmt "@[<hov 2>{%a" print fields.(0);
+      Format.fprintf fmt "@[<hov 2>{%a:%a" Tag.print tag print fields.(0);
       for i = 1 to len - 1 do
         Format.fprintf fmt "@ %a" print fields.(i)
       done;
@@ -57,7 +57,7 @@ let rec free_names ~code_free_names approx =
   match approx with
   | Value_unknown | Value_int _ -> Name_occurrences.empty
   | Value_symbol sym -> Name_occurrences.singleton_symbol sym Name_mode.normal
-  | Block_approximation (approxs, _) ->
+  | Block_approximation (_tag, approxs, _) ->
     Array.fold_left
       (fun names approx ->
         Name_occurrences.union names (free_names ~code_free_names approx))
