@@ -43,6 +43,7 @@ module Array_kind : sig
     | Naked_floats
         (** An array consisting of naked floats, represented using
             [Double_array_tag]. *)
+    | Naked_float32s
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
@@ -65,7 +66,7 @@ end
 module Mixed_block_flat_element : sig
   type t =
     | Imm
-    | Float
+    | Float_boxed
     | Float64
     | Float32
     | Bits32
@@ -120,6 +121,7 @@ module Array_set_kind : sig
     | Naked_floats
         (** An array consisting of naked floats, represented using
         [Double_array_tag]. *)
+    | Naked_float32s
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
@@ -158,6 +160,7 @@ module Duplicate_array_kind : sig
     | Immediates
     | Values
     | Naked_floats of { length : Targetint_31_63.t option }
+    | Naked_float32s of { length : Targetint_31_63.t option }
     | Naked_int32s of { length : Targetint_31_63.t option }
     | Naked_int64s of { length : Targetint_31_63.t option }
     | Naked_nativeints of { length : Targetint_31_63.t option }

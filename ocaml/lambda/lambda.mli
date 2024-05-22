@@ -351,10 +351,17 @@ and block_shape =
   value_kind list option
 
 and flat_element = Types.flat_element =
-    Imm | Float | Float64 | Float32 | Bits32 | Bits64 | Word
+  | Imm
+  | Float_boxed
+  | Float64
+  | Float32
+  | Bits32
+  | Bits64
+  | Word
+
 and flat_element_read = private
   | Flat_read of flat_element (* invariant: not [Float] *)
-  | Flat_read_float of alloc_mode
+  | Flat_read_float_boxed of alloc_mode
 and mixed_block_read =
   | Mread_value_prefix of immediate_or_pointer
   | Mread_flat_suffix of flat_element_read
@@ -606,7 +613,7 @@ type lambda =
      a subset of those open at the point of the [Lstaticraise] that jumps to it,
      as we can't reopen closed regions. All regions that were open at the point of
      the [Lstaticraise] but not in the handler will be closed just before the [Lstaticraise].
-   
+
      However, to be able to express the fact
      that the [Lstaticraise] might be under a [Lexclave], the [pop_region] flag
      is used to specify what regions are considered open in the handler. If it
@@ -838,9 +845,9 @@ type mixed_block_element =
 (** Raises if the int is out of bounds. *)
 val get_mixed_block_element : mixed_block_shape -> int -> mixed_block_element
 
-(** Raises if [flat_element] is float. *)
+(** Raises if [flat_element] is [Float_boxed]. *)
 val flat_read_non_float : flat_element -> flat_element_read
-val flat_read_float : alloc_mode -> flat_element_read
+val flat_read_float_boxed : alloc_mode -> flat_element_read
 
 val make_sequence: ('a -> lambda) -> 'a list -> lambda
 

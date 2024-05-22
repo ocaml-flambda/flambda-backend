@@ -266,6 +266,8 @@ Caml_inline mlsize_t Scannable_wosize_reserved_byte(reserved_t res,
 #define Bhsize_hp(hp) (Bsize_wsize (Whsize_hp (hp)))
 #define Bhsize_hd(hd) (Bsize_wsize (Whsize_hd (hd)))
 
+#define Scannable_wosize_hp(hp) (Scannable_wosize_hd (Hd_hp (hp)))
+
 #define Profinfo_val(val) (Profinfo_hd (Hd_val (val)))
 
 #ifdef ARCH_BIG_ENDIAN

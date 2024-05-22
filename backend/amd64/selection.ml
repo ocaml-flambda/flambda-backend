@@ -298,6 +298,12 @@ method! select_operation op args dbg =
       self#select_floatarith true width Imulf Ifloatmul args
   | Cdivf width ->
       self#select_floatarith false width Idivf Ifloatdiv args
+  | Cpackf32 ->
+      (* We must operate on registers. This is because if the second argument
+         was a float stack slot, the resulting UNPCKLPS instruction would
+         enforce the validity of loading it as a 128-bit memory location,
+         even though it only loads 64 bits. *)
+      Ispecific (Isimd (SSE Interleave_low_32_regs)), args
   (* Special cases overriding C implementations (regardless of [@@builtin]). *)
   | Cextcall { func = ("sqrt" as func); _ }
   | Cextcall { func = ("caml_int64_bits_of_float_unboxed" as func); _ }
