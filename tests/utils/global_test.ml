@@ -81,10 +81,11 @@ module Subst_tests = struct
 
     let [@ocamlformat "disable"] case glob s =
       let s = s |> Global.Name.Map.of_list in
+      let s', _changed = Global.subst glob s in
       Format.printf "@[<hv 2>%a@ %a@ =@ %a@]@."
         Global.print glob
         (Global.Name.Map.print Global.print) s
-        Global.print (Global.subst glob s)
+        Global.print s'
   end
 
   let run () =
@@ -92,7 +93,7 @@ module Subst_tests = struct
     let open Test_data in
     case x_g [x, unit_g];
     case y_g [x, unit_g];
-    let y_unit = subst y_g [x, unit_g] in
+    let y_unit, _changed = subst y_g [x, unit_g] in
     case y_unit [x, string_g];
     case y_unit [Global.to_name y_unit, string_g];
     case m_g [x, a_g];

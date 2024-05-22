@@ -204,7 +204,7 @@ and subst0_alist l s ~changed =
 let subst t s =
   let changed = ref false in
   let new_t = subst0 t s ~changed in
-  if !changed then new_t else t
+  if !changed then new_t, `Changed else t, `Did_not_change
 
 let subst_inside t s =
   let changed = ref false in

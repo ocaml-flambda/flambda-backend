@@ -67,7 +67,7 @@ type subst = t Name.Map.t
     value of a hidden argument is a key in the substitution, the argument becomes
     visible. Otherwise, substitution recurses into arguments (both hidden and
     visible) as usual. See [global_test.ml] for examples. *)
-val subst : t -> subst -> t
+val subst : t -> subst -> t * [ `Changed | `Did_not_change ]
 
 (** Apply a substitution to the arguments and parameters in [t] but not to [t]
     itself. Useful if [subst] is constructed from some parameter-argument pairs
