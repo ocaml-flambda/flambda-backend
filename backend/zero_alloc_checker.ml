@@ -2545,8 +2545,7 @@ end = struct
       let operation t ~next (op : Cfg.operation) dbg =
         match op with
         | Move | Spill | Reload | Const_int _ | Const_float32 _ | Const_float _
-        | Const_symbol _ | Const_vec128 _ | Load _ | Floatop _ | Vectorcast _
-        | Scalarcast _
+        | Const_symbol _ | Const_vec128 _ | Load _ | Floatop _
         | Intop_imm
             ( ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
               | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ ),
@@ -2554,12 +2553,11 @@ end = struct
         | Intop
             ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
             | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ )
-        | Csel _ ->
+        | Reinterpret_cast _ | Static_cast _ | Csel _ ->
           assert (Cfg.is_pure_operation op);
           next
-        | Name_for_debugger _ | Valueofint | Intofvalue | Stackoffset _
-        | Probe_is_enabled _ | Opaque | Begin_region | End_region
-        | Intop_atomic _ | Store _ ->
+        | Name_for_debugger _ | Stackoffset _ | Probe_is_enabled _ | Opaque
+        | Begin_region | End_region | Intop_atomic _ | Store _ ->
           next
         | Poll ->
           (* Ignore poll points even though they may trigger an allocations,
