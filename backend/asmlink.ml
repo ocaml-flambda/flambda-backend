@@ -62,12 +62,12 @@ let check_cmi_consistency file_name cmis =
     Array.iter
       (fun import ->
         let name = Import_info.Intf.name import in
-        let nonalias = Import_info.Intf.nonalias import in
+        let info = Import_info.Intf.info import in
         CU.Name.Tbl.replace interfaces name ();
-        match nonalias with
+        match info with
           None -> ()
-        | Some (sort, crc) ->
-            Cmi_consistbl.check crc_interfaces name sort crc file_name)
+        | Some (kind, crc) ->
+            Cmi_consistbl.check crc_interfaces name kind crc file_name)
       cmis
   with Cmi_consistbl.Inconsistency {
       unit_name = name;
