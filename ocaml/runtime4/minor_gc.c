@@ -402,7 +402,7 @@ static void verify_minor_heap(void)
       intnat i = 0;
       if (Tag_hd(hd) == Closure_tag)
         i = Start_env_closinfo(Closinfo_val(Val_hp(p)));
-      for (; i < Wosize_hd(hd); i++) {
+      for (; i < Scannable_wosize_hd(hd); i++) {
         value v = Field(Val_hp(p), i);
         if (Is_block(v)) {
           if (Is_young(v)) CAMLassert ((value)Caml_state->young_ptr < v);
