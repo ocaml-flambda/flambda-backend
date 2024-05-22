@@ -194,6 +194,17 @@ module I = struct
   let xor x y = emit (XOR (x, y))
   let xorpd x y = emit (XORPD (x, y))
 
+  let addss x y = emit (ADDSS (x, y))
+  let subss x y = emit (SUBSS (x, y))
+  let mulss x y = emit (MULSS (x, y))
+  let divss x y = emit (DIVSS (x, y))
+  let comiss x y = emit (COMISS (x, y))
+  let ucomiss x y = emit (UCOMISS (x, y))
+  let sqrtss x y = emit (SQRTSS (x, y))
+  let xorps x y = emit (XORPS (x, y))
+  let andps x y = emit (ANDPS (x, y))
+  let cmpss i x y = emit (CMPSS (i, x, y))
+
   let cmpps i x y = emit (SSE (CMPPS (i, x, y)))
   let shufps i x y = emit (SSE (SHUFPS (i, x, y)))
   let addps x y = emit (SSE (ADDPS (x, y)))

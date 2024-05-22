@@ -1,19 +1,38 @@
+; Stubs
+
+(foreign_library
+ (archive_name stubs)
+ (language c)
+ (names stubs)
+ (flags -msse4.2)
+ (include_dirs "../../ocaml/%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
+
+; Tests with external assembler
+
 (executables
- (names basic)
- (modules basic)
+ (names float32_builtin float32_lib float32_u_lib)
+ (modules float32_builtin float32_lib float32_u_lib)
+ (libraries beta)
+ (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -extension small_numbers)))
+  (:standard -extension-universe beta)))
 
 (rule
  (enabled_if
   (= %{context_name} "main"))
- (targets basic.out)
- (deps basic.exe)
+ (targets float32_builtin.out float32_lib.out float32_u_lib.out)
+ (deps float32_builtin.exe float32_lib.exe float32_u_lib.exe)
  (action
   (progn
    (with-outputs-to
-    basic.out
-    (run ./basic.exe)))))
+    float32_builtin.out
+    (run ./float32_builtin.exe))
+   (with-outputs-to
+    float32_lib.out
+    (run ./float32_lib.exe))
+   (with-outputs-to
+    float32_u_lib.out
+    (run ./float32_u_lib.exe)))))
 
 (rule
  (alias runtest)
@@ -21,4 +40,70 @@
   (= %{context_name} "main"))
  (action
   (progn
-   (diff empty.expected basic.out))))
+   (diff empty.expected float32_builtin.out)
+   (diff empty.expected float32_lib.out)
+   (diff empty.expected float32_u_lib.out))))
+
+; Tests with internal assembler - not supported on macOS
+
+(rule
+ (targets
+  float32_builtin_internal.ml
+  float32_lib_internal.ml
+  float32_u_lib_internal.ml)
+ (deps float32_builtin.ml float32_lib.ml float32_u_lib.ml)
+ (action
+  (progn
+   (copy float32_builtin.ml float32_builtin_internal.ml)
+   (copy float32_lib.ml float32_lib_internal.ml)
+   (copy float32_u_lib.ml float32_u_lib_internal.ml))))
+
+(executables
+ (names float32_builtin_internal float32_lib_internal float32_u_lib_internal)
+ (modules
+  float32_builtin_internal
+  float32_lib_internal
+  float32_u_lib_internal)
+ (libraries beta)
+ (enabled_if
+  (<> %{system} macosx))
+ (foreign_archives stubs)
+ (ocamlopt_flags
+  (:standard -extension-universe beta -internal-assembler)))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (targets
+  float32_builtin_internal.out
+  float32_lib_internal.out
+  float32_u_lib_internal.out)
+ (deps
+  float32_builtin_internal.exe
+  float32_lib_internal.exe
+  float32_u_lib_internal.exe)
+ (action
+  (progn
+   (with-outputs-to
+    float32_builtin_internal.out
+    (run ./float32_builtin_internal.exe))
+   (with-outputs-to
+    float32_lib_internal.out
+    (run ./float32_lib_internal.exe))
+   (with-outputs-to
+    float32_u_lib_internal.out
+    (run ./float32_u_lib_internal.exe)))))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (action
+  (progn
+   (diff empty.expected float32_builtin_internal.out)
+   (diff empty.expected float32_lib_internal.out)
+   (diff empty.expected float32_u_lib_internal.out))))

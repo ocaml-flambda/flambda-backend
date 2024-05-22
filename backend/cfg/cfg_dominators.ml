@@ -8,8 +8,7 @@ module List = ListLabels
 
 let fatal = Misc.fatal_errorf
 
-(* CR-soon xclerc for xclerc: switch back to `false`. *)
-let debug = true
+let debug = false
 
 type doms = Label.t Label.Tbl.t
 
@@ -391,35 +390,94 @@ let invariant_dominator_forest : Cfg.t -> doms -> dominator_tree list -> unit =
   List.iter dominator_forest ~f:(fun dominator_tree ->
       check_parent ~parent:None dominator_tree)
 
-let compute_dominator_forest : Cfg.t -> doms -> dominator_tree list =
+let compute_dominator_forest_naive : Cfg.t -> doms -> dominator_tree list =
  fun cfg doms ->
-  let rec children_of parent =
-    Label.Tbl.fold
-      (fun label (immediate_dominator : Label.t) acc ->
-        if Label.equal parent immediate_dominator
-           && not (Label.equal label immediate_dominator)
-        then { label; children = children_of label } :: acc
-        else acc)
-      doms []
+  let roots = ref [] in
+  let children = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
+  let rec build_tree (label : Label.t) : dominator_tree =
+    let children_labels =
+      match Label.Tbl.find_opt children label with
+      | None -> []
+      | Some labels -> labels
+    in
+    { label; children = List.map children_labels ~f:build_tree }
   in
-  let res =
-    Cfg.fold_blocks cfg ~init:[] ~f:(fun label _block acc ->
-        match Label.Tbl.find_opt doms label with
-        | None -> assert false
-        | Some immediate_dominator ->
-          if Label.equal label immediate_dominator
-          then { label; children = children_of label } :: acc
-          else acc)
-  in
+  Cfg.iter_blocks cfg ~f:(fun label _block ->
+      match Label.Tbl.find_opt doms label with
+      | None -> assert false
+      | Some immediate_dominator ->
+        if Label.equal label immediate_dominator
+        then roots := label :: !roots
+        else
+          let current =
+            match Label.Tbl.find_opt children immediate_dominator with
+            | None -> []
+            | Some children -> children
+          in
+          Label.Tbl.replace children immediate_dominator (label :: current));
+  let res = List.map !roots ~f:build_tree in
   if debug then invariant_dominator_forest cfg doms res;
   res
+
+let compute_dominator_forest_opt : Cfg.t -> doms -> dominator_tree list =
+ fun cfg doms ->
+  let roots = ref [] in
+  let children = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
+  let rec build_tree (label : Label.t) : dominator_tree =
+    let children_labels =
+      match Label.Tbl.find_opt children label with
+      | None -> []
+      | Some labels -> labels
+    in
+    { label; children = List.map children_labels ~f:build_tree }
+  in
+  Cfg.iter_blocks cfg ~f:(fun label _block ->
+      match Label.Tbl.find_opt doms label with
+      | None -> assert false
+      | Some immediate_dominator ->
+        if Label.equal label immediate_dominator
+        then roots := label :: !roots
+        else
+          let current =
+            match Label.Tbl.find_opt children immediate_dominator with
+            | None -> []
+            | Some children -> children
+          in
+          Label.Tbl.replace children immediate_dominator (label :: current));
+  let res = List.map !roots ~f:build_tree in
+  if debug then invariant_dominator_forest cfg doms res;
+  res
+
+let sort_forest : dominator_tree list -> dominator_tree list =
+ fun trees ->
+  let compare_label left right = Label.compare left.label right.label in
+  List.sort ~cmp:compare_label trees
+
+let rec equal_tree : dominator_tree -> dominator_tree -> bool =
+ fun left right ->
+  Label.equal left.label right.label
+  && equal_forest left.children right.children
+
+and equal_forest : dominator_tree list -> dominator_tree list -> bool =
+ fun left right ->
+  match sort_forest left, sort_forest right with
+  | [], [] -> true
+  | hd_left :: tl_left, hd_right :: tl_right ->
+    equal_tree hd_left hd_right && equal_forest tl_left tl_right
+  | [], _ :: _ | _ :: _, [] -> false
 
 let build : Cfg.t -> t =
  fun cfg ->
   let doms = compute_doms cfg in
   let dominance_frontiers = compute_dominance_frontiers cfg doms in
-  let dominator_forest = compute_dominator_forest cfg doms in
-  { entry_label = cfg.entry_label; doms; dominance_frontiers; dominator_forest }
+  let dominator_forest_naive = compute_dominator_forest_naive cfg doms in
+  let dominator_forest_opt = compute_dominator_forest_opt cfg doms in
+  assert (equal_forest dominator_forest_naive dominator_forest_opt);
+  { entry_label = cfg.entry_label;
+    doms;
+    dominance_frontiers;
+    dominator_forest = dominator_forest_opt
+  }
 
 let is_dominating t left right = is_dominating t.doms left right
 

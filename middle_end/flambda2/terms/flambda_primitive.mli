@@ -67,6 +67,7 @@ module Mixed_block_flat_element : sig
     | Imm
     | Float
     | Float64
+    | Float32
     | Bits32
     | Bits64
     | Word
@@ -279,6 +280,10 @@ type array_accessor_width =
   | Scalar
   | Vec128
 
+type float_bitwidth =
+  | Float32
+  | Float64
+
 type string_like_value =
   | String
   | Bytes
@@ -361,7 +366,7 @@ type unary_primitive =
         kind : Flambda_kind.t
       }
   | Int_arith of Flambda_kind.Standard_int.t * unary_int_arith_op
-  | Float_arith of unary_float_arith_op
+  | Float_arith of float_bitwidth * unary_float_arith_op
   | Num_conv of
       { src : Flambda_kind.Standard_int_or_float.t;
         dst : Flambda_kind.Standard_int_or_float.t
@@ -460,8 +465,8 @@ type binary_primitive =
   | Int_shift of Flambda_kind.Standard_int.t * int_shift_op
   | Int_comp of
       Flambda_kind.Standard_int.t * signed_or_unsigned comparison_behaviour
-  | Float_arith of binary_float_arith_op
-  | Float_comp of unit comparison_behaviour
+  | Float_arith of float_bitwidth * binary_float_arith_op
+  | Float_comp of float_bitwidth * unit comparison_behaviour
   | Bigarray_get_alignment of int
   | Atomic_exchange
   | Atomic_fetch_and_add

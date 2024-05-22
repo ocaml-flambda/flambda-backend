@@ -44,6 +44,7 @@ type out_value =
   | Oval_constr of out_ident * out_value list
   | Oval_ellipsis
   | Oval_float of float
+  | Oval_float32 of Obj.t (* We cannot use the [float32] type in the compiler. *)
   | Oval_int of int
   | Oval_int32 of int32
   | Oval_int64 of int64
@@ -57,7 +58,7 @@ type out_value =
   | Oval_variant of string * out_value option
 
 type out_jkind =
-  | Olay_const of Jkind.const
+  | Olay_const of Jkind_types.const
   | Olay_var of string
 
 type out_type_param =

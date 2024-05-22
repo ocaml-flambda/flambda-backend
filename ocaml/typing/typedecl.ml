@@ -135,7 +135,7 @@ type error =
   | Modalities_on_value_description
   | Missing_unboxed_attribute_on_non_value_sort of Jkind.Sort.const
   | Non_value_sort_not_upstream_compatible of Jkind.Sort.const
-  | Zero_alloc_attr_unsupported of Builtin_attributes.check_attribute
+  | Zero_alloc_attr_unsupported of Builtin_attributes.zero_alloc_attribute
   | Zero_alloc_attr_non_function
   | Zero_alloc_attr_bad_user_arity
 
@@ -1116,7 +1116,7 @@ let check_representable ~why ~allow_unboxed env loc kloc typ =
          all the defaulting, so we don't expect this actually defaults the
          sort - we just want the [const]. *)
       | Void | Value -> ()
-      | Float64 | Word | Bits32 | Bits64 as const ->
+      | Float64 | Float32 | Word | Bits32 | Bits64 as const ->
           if not allow_unboxed then
             raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
     end
@@ -1208,6 +1208,7 @@ let assert_mixed_product_support =
 module Element_repr = struct
   type unboxed_element =
     | Float64
+    | Float32
     | Bits32
     | Bits64
     | Word
@@ -1225,6 +1226,7 @@ module Element_repr = struct
       | Value | Immediate64 | Non_null_value -> Value_element
       | Immediate -> Imm_element
       | Float64 -> Unboxed_element Float64
+      | Float32 -> Unboxed_element Float32
       | Word -> Unboxed_element Word
       | Bits32 -> Unboxed_element Bits32
       | Bits64 -> Unboxed_element Bits64
@@ -1234,6 +1236,7 @@ module Element_repr = struct
 
   let unboxed_to_flat : unboxed_element -> flat_element = function
     | Float64 -> Float64
+    | Float32 -> Float32
     | Bits32 -> Bits32
     | Bits64 -> Bits64
     | Word -> Word
@@ -1403,7 +1406,7 @@ let update_decl_jkind env dpath decl =
            | Float_element -> repr_summary.floats <- true
            | Imm_element -> repr_summary.imms <- true
            | Unboxed_element Float64 -> repr_summary.float64s <- true
-           | Unboxed_element (Bits32 | Bits64 | Word) ->
+           | Unboxed_element (Float32 | Bits32 | Bits64 | Word) ->
                repr_summary.non_float64_unboxed_fields <- true
            | Value_element -> repr_summary.values <- true
            | Element_without_runtime_component _ -> ())
@@ -2851,17 +2854,17 @@ let transl_value_decl env loc valdecl =
         count_arrows 0 ty
       in
       let zero_alloc =
-        Builtin_attributes.get_property_attribute ~in_signature:true
-          ~default_arity valdecl.pval_attributes Zero_alloc
+        Builtin_attributes.get_zero_alloc_attribute ~in_signature:true
+          ~default_arity valdecl.pval_attributes
       in
       begin match zero_alloc with
-      | Default_check -> ()
+      | Default_zero_alloc -> ()
       | Check za ->
         if default_arity = 0 && za.arity <= 0 then
           raise (Error(valdecl.pval_loc, Zero_alloc_attr_non_function));
         if za.arity <= 0 then
           raise (Error(valdecl.pval_loc, Zero_alloc_attr_bad_user_arity));
-      | Assume _ | Ignore_assert_all _ ->
+      | Assume _ | Ignore_assert_all ->
         raise (Error(valdecl.pval_loc, Zero_alloc_attr_unsupported zero_alloc))
       end;
       { val_type = ty; val_kind = Val_reg; Types.val_loc = loc;
@@ -2906,7 +2909,7 @@ let transl_value_decl env loc valdecl =
       check_unboxable env loc ty;
       { val_type = ty; val_kind = Val_prim prim; Types.val_loc = loc;
         val_attributes = valdecl.pval_attributes;
-        val_zero_alloc = Builtin_attributes.Default_check;
+        val_zero_alloc = Builtin_attributes.Default_zero_alloc;
         val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
       }
   in
@@ -3679,9 +3682,9 @@ let report_error ppf = function
       Jkind.Sort.format_const sort
   | Zero_alloc_attr_unsupported ca ->
       let variety = match ca with
-        | Default_check | Check _ -> assert false
+        | Default_zero_alloc  | Check _ -> assert false
         | Assume _ -> "assume"
-        | Ignore_assert_all _ -> "ignore"
+        | Ignore_assert_all -> "ignore"
       in
       fprintf ppf
         "@[zero_alloc \"%s\" attributes are not supported in signatures@]"

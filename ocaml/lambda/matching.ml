@@ -1054,7 +1054,7 @@ let make_catch kind d k =
   | Lstaticraise (_, []) -> k d
   | _ ->
       let e = next_raise_count () in
-      Lstaticcatch (k (make_exit e), (e, []), d, kind)
+      Lstaticcatch (k (make_exit e), (e, []), d, Same_region, kind)
 
 (* Introduce a catch, if worth it, delayed version *)
 let rec as_simple_exit = function
@@ -1078,7 +1078,7 @@ let make_catch_delayed kind handler =
                 handler
               else
                 body
-          | _ -> Lstaticcatch (body, (i, []), handler, kind) )
+          | _ -> Lstaticcatch (body, (i, []), handler, Same_region, kind) )
     )
 
 let raw_action l =
@@ -1160,6 +1160,7 @@ let can_group discr pat =
   | Constant (Const_float _), Constant (Const_float _)
   | Constant (Const_float32 _), Constant (Const_float32 _)
   | Constant (Const_unboxed_float _), Constant (Const_unboxed_float _)
+  | Constant (Const_unboxed_float32 _), Constant (Const_unboxed_float32 _)
   | Constant (Const_int32 _), Constant (Const_int32 _)
   | Constant (Const_int64 _), Constant (Const_int64 _)
   | Constant (Const_nativeint _), Constant (Const_nativeint _)
@@ -1186,9 +1187,10 @@ let can_group discr pat =
       ( Any
       | Constant
           ( Const_int _ | Const_char _ | Const_string _ | Const_float _
-          | Const_float32 _ | Const_unboxed_float _ | Const_int32 _
-          | Const_int64 _ | Const_nativeint _ | Const_unboxed_int32 _
-          | Const_unboxed_int64 _ | Const_unboxed_nativeint _ )
+          | Const_float32 _ | Const_unboxed_float _ | Const_unboxed_float32 _
+          | Const_int32 _ | Const_int64 _ | Const_nativeint _
+          | Const_unboxed_int32 _ | Const_unboxed_int64 _
+          | Const_unboxed_nativeint _ )
       | Construct _ | Tuple _ | Record _ | Array _ | Variant _ | Lazy ) ) ->
       false
 
@@ -2181,7 +2183,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
               else
                 let read =
                   match flat_suffix.(pos - value_prefix_len) with
-                  | Imm | Float64 | Bits32 | Bits64 | Word as non_float ->
+                  | Imm | Float64 | Float32 | Bits32 | Bits64 | Word as non_float ->
                       flat_read_non_float non_float
                   | Float ->
                       (* TODO: could optimise to Alloc_local sometimes *)
@@ -2891,10 +2893,9 @@ let combine_constant value_kind loc arg cst partial ctx def
         make_test_sequence value_kind loc fail (Pfloatcomp (Pfloat64, CFneq))
           (Pfloatcomp (Pfloat64, CFlt)) arg
           const_lambda_list
-    | Const_float32 _ ->
-        make_test_sequence value_kind loc fail (Pfloatcomp (Pfloat32, CFneq))
-        (Pfloatcomp (Pfloat32, CFlt)) arg
-          const_lambda_list
+    | Const_float32 _ | Const_unboxed_float32 _ ->
+        (* Should be caught in do_compile_matching. *)
+        Misc.fatal_error "Found unexpected float32 literal pattern."
     | Const_unboxed_float _ ->
         make_test_sequence value_kind loc fail
           (Punboxed_float_comp (Pfloat64, CFneq))
@@ -3301,7 +3302,9 @@ let compile_orhandlers value_kind compile_fun lambda1 total1 ctx to_catch =
           (* Whilst the handler is [lambda_unit] it is actually unused and only added
              to produce well-formed code. In reality this expression returns a
              [value_kind]. *)
-          do_rec (Lstaticcatch (r, (i, vars), lambda_unit, value_kind)) total_r rem
+          do_rec
+            (Lstaticcatch (r, (i, vars), lambda_unit, Same_region, value_kind))
+            total_r rem
         | handler_i, total_i ->
           begin match raw_action r with
           | Lstaticraise (j, args) ->
@@ -3314,7 +3317,8 @@ let compile_orhandlers value_kind compile_fun lambda1 total1 ctx to_catch =
                 do_rec r total_r rem
           | _ ->
               do_rec
-                (Lstaticcatch (r, (i, vars), handler_i, value_kind))
+                (Lstaticcatch
+                   (r, (i, vars), handler_i, Same_region, value_kind))
                 (Jumps.union (Jumps.remove i total_r)
                    (Jumps.map (Context.rshift_num (ncols mat)) total_i))
                 rem
@@ -3408,7 +3412,7 @@ let rec comp_match_handlers value_kind comp_fun partial ctx first_match next_mat
               match comp_fun partial ctx_i pm with
               | li, total_i ->
                 c_rec
-                  (Lstaticcatch (body, (i, []), li, value_kind))
+                  (Lstaticcatch (body, (i, []), li, Same_region, value_kind))
                   (Jumps.union total_i total_rem)
                   rem
               | exception Unused ->
@@ -3416,7 +3420,8 @@ let rec comp_match_handlers value_kind comp_fun partial ctx first_match next_mat
                      to produce well-formed code. In reality this expression returns a
                      [value_kind]. *)
                   c_rec
-                  (Lstaticcatch (body, (i, []), lambda_unit, value_kind))
+                  (Lstaticcatch
+                     (body, (i, []), lambda_unit, Same_region, value_kind))
                   total_rem rem
             end
           )
@@ -3568,6 +3573,8 @@ and do_compile_matching ~scopes value_kind repr partial ctx pmh =
           compile_no_test ~scopes value_kind
             (divide_record ~scopes lbl.lbl_all ph)
             Context.combine repr partial ctx pm
+      | Constant (Const_float32 _ | Const_unboxed_float32 _) ->
+          Parmatch.raise_matched_float32 ()
       | Constant cst ->
           compile_test
             (compile_match ~scopes value_kind repr partial)
@@ -3738,7 +3745,8 @@ let check_total ~scopes value_kind loc ~failer total lambda i =
     lambda
   else
     Lstaticcatch (lambda, (i, []),
-                  failure_handler ~scopes loc ~failer (), value_kind)
+                  failure_handler ~scopes loc ~failer (),
+                  Same_region, value_kind)
 
 let toplevel_handler ~scopes ~return_layout loc ~failer partial args cases compile_fun =
   match partial with
@@ -3851,8 +3859,8 @@ let rec map_return f = function
   | Lsequence (l1, l2) -> Lsequence (l1, map_return f l2)
   | Levent (l, ev) -> Levent (map_return f l, ev)
   | Ltrywith (l1, id, l2, k) -> Ltrywith (map_return f l1, id, map_return f l2, k)
-  | Lstaticcatch (l1, b, l2, k) ->
-      Lstaticcatch (map_return f l1, b, map_return f l2, k)
+  | Lstaticcatch (l1, b, l2, r, k) ->
+      Lstaticcatch (map_return f l1, b, map_return f l2, r, k)
   | Lswitch (s, sw, loc, k) ->
       let map_cases cases =
         List.map (fun (i, l) -> (i, map_return f l)) cases
@@ -3962,7 +3970,8 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
           param
       in
       if !opt then
-        Lstaticcatch (bind, (nraise, ids_with_kinds), body, return_layout)
+        Lstaticcatch
+          (bind, (nraise, ids_with_kinds), body, Same_region,return_layout)
       else
         simple_for_let ~scopes ~arg_sort ~return_layout loc param pat body
 

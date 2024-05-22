@@ -28,6 +28,9 @@ open! Stdlib
    truncating.
 *)
 
+type t = int32#
+(** An alias for the type of unboxed 32-bit integers. *)
+
 (* CR layouts v2.1: add back this comment to the above when we support
    literals.
 
@@ -40,10 +43,10 @@ open! Stdlib
 *)
 
 (* Unboxed-specific stuff at the top. *)
-external to_int32 : int32# -> (int32[@local_opt]) = "%box_int32"
+external to_int32 : t -> (int32[@local_opt]) = "%box_int32"
 (** Box a [int32#] *)
 
-external of_int32 : (int32[@local_opt]) -> int32# = "%unbox_int32"
+external of_int32 : (int32[@local_opt]) -> t = "%unbox_int32"
 (** Unbox a boxed [int32] *)
 
 (* Below here, everything also appears in [Int32], though most things are
@@ -63,48 +66,48 @@ external of_int32 : (int32[@local_opt]) -> int32# = "%unbox_int32"
  * val minus_one : int32#
  * (** The unboxed 32-bit integer -1.*) *)
 
-val neg : int32# -> int32#
+val neg : t -> t
 (** Unary negation. *)
 
-val add : int32# -> int32# -> int32#
+val add : t -> t -> t
 (** Addition. *)
 
-val sub : int32# -> int32# -> int32#
+val sub : t -> t -> t
 (** Subtraction. *)
 
-val mul : int32# -> int32# -> int32#
+val mul : t -> t -> t
 (** Multiplication. *)
 
-val div : int32# -> int32# -> int32#
+val div : t -> t -> t
 (** Integer division. This division rounds the real quotient of
    its arguments towards zero, as specified for {!Stdlib.(/)}.
 
    @raise Division_by_zero if the second
    argument is zero. *)
 
-val unsigned_div : int32# -> int32# -> int32#
+val unsigned_div : t -> t -> t
 (** Same as {!div}, except that arguments and result are interpreted as {e
     unsigned} unboxed 32-bit integers. *)
 
-val rem : int32# -> int32# -> int32#
+val rem : t -> t -> t
 (** Integer remainder.  If [y] is not zero, the result
    of [Int32_u.rem x y] satisfies the following property:
    [x = Int32_u.add (Int32_u.mul (Int32_u.div x y) y) (Int32_u.rem x y)].
    If [y = 0], [Int32_u.rem x y] raises [Division_by_zero]. *)
 
-val unsigned_rem : int32# -> int32# -> int32#
+val unsigned_rem : t -> t -> t
 (** Same as {!rem}, except that arguments and result are interpreted as {e
     unsigned} unboxed 32-bit integers. *)
 
-val succ : int32# -> int32#
+val succ : t -> t
 (** Successor.
    [Int32_u.succ x] is [Int32_u.add x Int32_u.one]. *)
 
-val pred : int32# -> int32#
+val pred : t -> t
 (** Predecessor.
    [Int32_u.pred x] is [Int32_u.sub x Int32_u.one]. *)
 
-val abs : int32# -> int32#
+val abs : t -> t
 (** Return the absolute value of its argument. *)
 
 (* val max_int : int32#
@@ -114,63 +117,63 @@ val abs : int32# -> int32#
  * (** The smallest representable unboxed 32-bit integer, -2{^31}. *)
  *)
 
-val logand : int32# -> int32# -> int32#
+val logand : t -> t -> t
 (** Bitwise logical and. *)
 
-val logor : int32# -> int32# -> int32#
+val logor : t -> t -> t
 (** Bitwise logical or. *)
 
-val logxor : int32# -> int32# -> int32#
+val logxor : t -> t -> t
 (** Bitwise logical exclusive or. *)
 
-val lognot : int32# -> int32#
+val lognot : t -> t
 (** Bitwise logical negation. *)
 
-val shift_left : int32# -> int -> int32#
+val shift_left : t -> int -> t
 (** [Int32_u.shift_left x y] shifts [x] to the left by [y] bits.
    The result is unspecified if [y < 0] or [y >= 32]. *)
 
-val shift_right : int32# -> int -> int32#
+val shift_right : t -> int -> t
 (** [Int32_u.shift_right x y] shifts [x] to the right by [y] bits.
    This is an arithmetic shift: the sign bit of [x] is replicated
    and inserted in the vacated bits.
    The result is unspecified if [y < 0] or [y >= 32]. *)
 
-val shift_right_logical : int32# -> int -> int32#
+val shift_right_logical : t -> int -> t
 (** [Int32_u.shift_right_logical x y] shifts [x] to the right
    by [y] bits.
    This is a logical shift: zeroes are inserted in the vacated bits
    regardless of the sign of [x].
    The result is unspecified if [y < 0] or [y >= 32]. *)
 
-val of_int : int -> int32#
+val of_int : int -> t
 (** Convert the given integer (type [int]) to an unboxed 32-bit integer
    (type [int32#]). On 64-bit platforms, the argument is taken
     modulo 2{^32}. *)
 
-val to_int : int32# -> int
+val to_int : t -> int
 (** Convert the given unboxed 32-bit integer (type [int32#]) to an
    integer (type [int]).  On 32-bit platforms, the 32-bit integer
    is taken modulo 2{^31}, i.e. the high-order bit is lost
    during the conversion.  On 64-bit platforms, the conversion
    is exact. *)
 
-val unsigned_to_int : int32# -> int option
+val unsigned_to_int : t -> int option
 (** Same as {!to_int}, but interprets the argument as an {e unsigned} integer.
     Returns [None] if the unsigned value of the argument cannot fit into an
     [int]. *)
 
-val of_float : float -> int32#
+val of_float : float -> t
 (** Convert the given floating-point number to an unboxed 32-bit integer,
    discarding the fractional part (truncate towards 0).
    If the truncated floating-point number is outside the range
    \[{!Int32_u.min_int}, {!Int32_u.max_int}\], no exception is raised,
    and an unspecified, platform-dependent integer is returned. *)
 
-val to_float : int32# -> float
+val to_float : t -> float
 (** Convert the given unboxed 32-bit integer to a floating-point number. *)
 
-val of_string : string -> int32#
+val of_string : string -> t
 (** Convert the given string to an unboxed 32-bit integer.
    The string is read in decimal (by default, or if the string
    begins with [0u]) or in hexadecimal, octal or binary if the
@@ -187,26 +190,23 @@ val of_string : string -> int32#
    a valid representation of an integer, or if the integer represented
    exceeds the range of integers representable in type [int32]. *)
 
-(* val of_string_opt: string -> int32# option
+(* val of_string_opt: string -> t option
  * (** Same as [of_string], but return [None] instead of raising. *) *)
 
-val to_string : int32# -> string
+val to_string : t -> string
 (** Return the string representation of its argument, in signed decimal. *)
 
-val bits_of_float : float -> int32#
+val bits_of_float : float -> t
 (** Return the internal representation of the given float according
    to the IEEE 754 floating-point 'single format' bit layout.
    Bit 31 of the result represents the sign of the float;
    bits 30 to 23 represent the (biased) exponent; bits 22 to 0
    represent the mantissa. *)
 
-val float_of_bits : int32# -> float
+val float_of_bits : t -> float
 (** Return the floating-point number whose internal representation,
    according to the IEEE 754 floating-point 'single format' bit layout,
    is the given [int32#]. *)
-
-type t = int32#
-(** An alias for the type of unboxed 32-bit integers. *)
 
 val compare: t -> t -> int
 (** The comparison function for unboxed 32-bit integers, with the same

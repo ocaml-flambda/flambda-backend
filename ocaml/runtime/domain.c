@@ -545,7 +545,7 @@ static void domain_create(uintnat initial_minor_heap_wsize,
   dom_internal* d = 0;
   caml_domain_state* domain_state;
   struct interruptor* s;
-  uintnat stack_wsize = caml_get_init_stack_wsize();
+  uintnat stack_wsize = caml_get_init_stack_wsize(-1 /* main thread */);
 
   CAMLassert (domain_self == 0);
 

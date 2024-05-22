@@ -185,6 +185,30 @@ module Modes : sig
   val expr_of : loc:Location.t -> expression -> Parsetree.expression
 end
 
+module Jkind : sig
+  module Const : sig
+    (** Constant jkind *)
+
+    type raw = string
+
+    (** Represent a user-written kind primitive/abbreviation,
+        containing a string and its location *)
+    type t = private raw Location.loc
+
+    (** Constructs a jkind constant *)
+    val mk : string -> Location.t -> t
+  end
+
+  type t =
+    | Default
+    | Primitive_layout_or_abbreviation of Const.t
+    | Mod of t * Mode_expr.t
+    | With of t * Parsetree.core_type
+    | Kind_of of Parsetree.core_type
+
+  type annotation = t Location.loc
+end
+
 module N_ary_functions : sig
   (** These types use the [P] prefix to match how they are represented in the
       upstream compiler *)
@@ -219,8 +243,7 @@ module N_ary_functions : sig
         Note: If [E0] is provided, only
         {{!Asttypes.arg_label.Optional}[Optional]} is allowed.
     *)
-    | Pparam_newtype of
-        string Asttypes.loc * Jane_asttypes.jkind_annotation option
+    | Pparam_newtype of string Asttypes.loc * Jkind.annotation option
         (** [Pparam_newtype (x, jkind)] represents the parameter [(type x)].
         [x] carries the location of the identifier, whereas [pparam_loc] is
         the location of the [(type x)] as a whole.
@@ -368,9 +391,7 @@ module Layouts : sig
     (* [fun (type a : immediate) -> ...] *)
     (* This is represented as an attribute wrapping a [Pexp_newtype] node. *)
     | Lexp_newtype of
-        string Location.loc
-        * Jane_asttypes.jkind_annotation
-        * Parsetree.expression
+        string Location.loc * Jkind.annotation * Parsetree.expression
 
   type nonrec pattern =
     (* examples: [ #2.0 ] or [ #42L ] *)
@@ -383,7 +404,7 @@ module Layouts : sig
        a [Ptyp_var] node. *)
     | Ltyp_var of
         { name : string option;
-          jkind : Jane_asttypes.jkind_annotation
+          jkind : Jkind.annotation
         }
     (* [('a : immediate) 'b 'c ('d : value). 'a -> 'b -> 'c -> 'd] *)
     (* This is represented by an attribute wrapping a [Ptyp_poly] node. *)
@@ -393,8 +414,7 @@ module Layouts : sig
        parsed representation and guarantees that we don't accidentally try to
        require the layouts extension. *)
     | Ltyp_poly of
-        { bound_vars :
-            (string Location.loc * Jane_asttypes.jkind_annotation option) list;
+        { bound_vars : (string Location.loc * Jkind.annotation option) list;
           inner_type : Parsetree.core_type
         }
     (* [ty as ('a : immediate)] *)
@@ -404,7 +424,7 @@ module Layouts : sig
     | Ltyp_alias of
         { aliased_type : Parsetree.core_type;
           name : string option;
-          jkind : Jane_asttypes.jkind_annotation
+          jkind : Jkind.annotation
         }
 
   type nonrec extension_constructor =
@@ -413,16 +433,15 @@ module Layouts : sig
     (* Like [Ltyp_poly], this is used only when there is at least one jkind
        annotation. Otherwise, we will have a [Pext_decl]. *)
     | Lext_decl of
-        (string Location.loc * Jane_asttypes.jkind_annotation option) list
+        (string Location.loc * Jkind.annotation option) list
         * Parsetree.constructor_arguments
         * Parsetree.core_type option
 
-  module Pprint : sig
-    val const_jkind : Format.formatter -> Jane_asttypes.const_jkind -> unit
+  type signature_item =
+    | Lsig_kind_abbrev of string Location.loc * Jkind.annotation
 
-    val jkind_annotation :
-      Format.formatter -> Jane_asttypes.jkind_annotation -> unit
-  end
+  type structure_item =
+    | Lstr_kind_abbrev of string Location.loc * Jkind.annotation
 
   val expr_of : loc:Location.t -> expression -> Parsetree.expression
 
@@ -444,8 +463,7 @@ module Layouts : sig
     loc:Location.t ->
     attrs:Parsetree.attributes ->
     info:Docstrings.info ->
-    vars_jkinds:
-      (string Location.loc * Jane_asttypes.jkind_annotation option) list ->
+    vars_jkinds:(string Location.loc * Jkind.annotation option) list ->
     args:Parsetree.constructor_arguments ->
     res:Parsetree.core_type option ->
     string Location.loc ->
@@ -457,7 +475,7 @@ module Layouts : sig
       the remaining pieces of the original [constructor_declaration]. *)
   val of_constructor_declaration :
     Parsetree.constructor_declaration ->
-    ((string Location.loc * Jane_asttypes.jkind_annotation option) list
+    ((string Location.loc * Jkind.annotation option) list
     * Parsetree.attributes)
     option
 
@@ -474,9 +492,13 @@ module Layouts : sig
     kind:Parsetree.type_kind ->
     priv:Asttypes.private_flag ->
     manifest:Parsetree.core_type option ->
-    jkind:Jane_asttypes.jkind_annotation option ->
+    jkind:Jkind.annotation option ->
     string Location.loc ->
     Parsetree.type_declaration
+
+  val sig_item_of : loc:Location.t -> signature_item -> Parsetree.signature_item
+
+  val str_item_of : loc:Location.t -> structure_item -> Parsetree.structure_item
 
   (** Extract the jkind annotation from a [type_declaration]; returns
       leftover attributes. Similar to [of_constructor_declaration] in the
@@ -485,7 +507,7 @@ module Layouts : sig
   *)
   val of_type_declaration :
     Parsetree.type_declaration ->
-    (Jane_asttypes.jkind_annotation * Parsetree.attributes) option
+    (Jkind.annotation * Parsetree.attributes) option
 end
 
 (******************************************)
@@ -640,14 +662,18 @@ end
 
 (** Novel syntax in signature items *)
 module Signature_item : sig
-  type t = Jsig_include_functor of Include_functor.signature_item
+  type t =
+    | Jsig_include_functor of Include_functor.signature_item
+    | Jsig_layout of Layouts.signature_item
 
   include AST with type t := t and type ast := Parsetree.signature_item
 end
 
 (** Novel syntax in structure items *)
 module Structure_item : sig
-  type t = Jstr_include_functor of Include_functor.structure_item
+  type t =
+    | Jstr_include_functor of Include_functor.structure_item
+    | Jstr_layout of Layouts.structure_item
 
   include AST with type t := t and type ast := Parsetree.structure_item
 end

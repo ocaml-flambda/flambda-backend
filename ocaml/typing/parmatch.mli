@@ -135,3 +135,6 @@ val check_ambiguous_bindings : value case list -> unit
 
 (* The tag used for open polymorphic variant types with an abstract row *)
 val some_private_tag : label
+
+(* Raise an error due to matching on a float32. *)
+val raise_matched_float32 : unit -> 'a

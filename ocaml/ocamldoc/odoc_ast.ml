@@ -1019,6 +1019,8 @@ module Analyser =
           | Ifstr_include_functor incl ->
               analyse_structure_item_include ~env ~comment_opt incl
         end
+      | Jstr_layout (Lstr_kind_abbrev _) ->
+        Misc.fatal_error "Lstr_kind_abbrev"
 
    (** Analysis of a parse tree structure item to obtain a new environment and a list of elements.*)
    and analyse_structure_item env current_module_name loc pos_limit comment_opt parsetree_item_desc _typedtree

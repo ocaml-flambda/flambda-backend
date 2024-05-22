@@ -97,10 +97,15 @@ AS_IF([test x"$enable_runtime5" = xyes],
       [runtime_suffix=],
       [runtime_suffix=4])
 
+AC_ARG_ENABLE([stack_checks],
+  [AS_HELP_STRING([--enable-stack_checks],
+    [Enable stack checks])])
+
 ## Output variables
 
 AC_SUBST([enable_runtime5])
 AC_SUBST([runtime_suffix])
+AC_SUBST([enable_stack_checks])
 AC_SUBST([CONFIGURE_ARGS])
 AC_SUBST([native_compiler])
 AC_SUBST([default_build_target])
@@ -1343,6 +1348,13 @@ AS_CASE([$host],
   [riscv64-*-linux*],
     [has_native_backend=yes; arch=riscv; model=riscv64; system=linux]
 )
+
+# Disabling of stack checks is only supported on amd64.
+AS_IF([test x"$enable_stack_checks" = xyes],
+  [AC_DEFINE([STACK_CHECKS_ENABLED])],
+  [AS_IF([test x"$arch" != xamd64],
+    [AC_DEFINE([STACK_CHECKS_ENABLED])],
+    [])])
 
 native_cflags=''
 native_cppflags="-DTARGET_${arch} -DMODEL_${model} -DSYS_${system}"
