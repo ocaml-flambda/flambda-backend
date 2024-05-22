@@ -66,6 +66,8 @@ module Intf : sig
 
   val info : t -> Nonalias.t option
 
+  val cu : t -> CU.t option
+
   val crc : t -> Digest.t option
 
   val has_name : t -> name:CU.Name.t -> bool

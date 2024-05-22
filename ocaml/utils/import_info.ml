@@ -58,6 +58,9 @@ module Intf = struct
     | Parameter (_, crc) -> Some (Parameter, crc)
     | Alias _ -> None
 
+  let cu t =
+    match t with Normal (_, cu, _) -> Some cu | Parameter _ | Alias _ -> None
+
   let crc t =
     match t with
     | Normal (_, _, crc) | Parameter (_, crc) -> Some crc
