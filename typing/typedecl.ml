@@ -133,8 +133,6 @@ type error =
   | Unexpected_jkind_any_in_primitive of string
   | Useless_layout_poly
   | Modalities_on_value_description
-  | Missing_unboxed_attribute_on_non_value_sort of Jkind.Sort.const
-  | Non_value_sort_not_upstream_compatible of Jkind.Sort.const
   | Zero_alloc_attr_unsupported of Builtin_attributes.zero_alloc_attribute
   | Zero_alloc_attr_non_function
   | Zero_alloc_attr_bad_user_arity
@@ -2665,13 +2663,14 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
   | Native_repr_attr_absent, Sort (Value as sort) ->
     Same_as_ocaml_repr sort
   | Native_repr_attr_absent, (Sort sort) ->
-    if Language_extension.erasable_extensions_only ()
+    (if Language_extension.erasable_extensions_only ()
     then
       (* Non-value sorts without [@unboxed] are not erasable. *)
-      raise (Error (core_type.ptyp_loc,
-              Missing_unboxed_attribute_on_non_value_sort sort))
-    else
-      Same_as_ocaml_repr sort
+      let layout = Jkind_types.Sort.to_string (Const sort) in
+      Location.prerr_warning core_type.ptyp_loc
+        (Warnings.Incompatible_with_upstream
+              (Warnings.Unboxed_attribute layout)));
+    Same_as_ocaml_repr sort
   | Native_repr_attr_present kind, (Poly | Sort Value)
   | Native_repr_attr_present (Untagged as kind), Sort _ ->
     begin match native_repr_of_type env kind ty with
@@ -2699,15 +2698,16 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
 
        2. We need [is_upstream_compatible_non_value_unbox] to further
           limit the cases that can work with upstream. *)
-    if Language_extension.erasable_extensions_only ()
+    (if Language_extension.erasable_extensions_only ()
        && not (is_upstream_compatible_non_value_unbox env ty)
     then
       (* There are additional requirements if we are operating in
          upstream compatible mode. *)
-      raise (Error (core_type.ptyp_loc,
-             Non_value_sort_not_upstream_compatible sort))
-    else
-      Same_as_ocaml_repr sort
+      let layout = Jkind_types.Sort.to_string (Const sort) in
+      Location.prerr_warning core_type.ptyp_loc
+        (Warnings.Incompatible_with_upstream
+              (Warnings.Non_value_sort layout)));
+    Same_as_ocaml_repr sort
 
 let prim_const_mode m =
   match Mode.Locality.Guts.check_const m with
@@ -3681,22 +3681,6 @@ let report_error ppf = function
   | Modalities_on_value_description ->
       fprintf ppf
         "@[Modalities on value descriptions are not supported yet.@]"
-  | Missing_unboxed_attribute_on_non_value_sort sort ->
-    fprintf ppf
-      "@[[%@unboxed] attribute must be added to external declaration@ \
-          argument type with layout %a for upstream compatibility. \
-          This error is produced@ due to the use of -extension-universe \
-          (no_extensions|upstream_compatible).@]"
-      Jkind.Sort.format_const sort
-  | Non_value_sort_not_upstream_compatible sort ->
-    fprintf ppf
-      "@[External declaration here is not upstream compatible.@ \
-         The only types with non-value layouts allowed are float#,@ \
-         int32#, int64#, and nativeint#. Unknown type with layout@ \
-         %a encountered. This error is produced due to@ \
-         the use of -extension-universe (no_extensions|\
-         upstream_compatible).@]"
-      Jkind.Sort.format_const sort
   | Zero_alloc_attr_unsupported ca ->
       let variety = match ca with
         | Default_zero_alloc  | Check _ -> assert false
