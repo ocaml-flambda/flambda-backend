@@ -1392,8 +1392,7 @@ module Annotation : sig
 
   val find : Cmm.codegen_option list -> string -> Debuginfo.t -> t option
 
-  val of_cfg :
-    Cfg.codegen_option list -> Cmm.property -> string -> Debuginfo.t -> t option
+  val of_cfg : Cfg.codegen_option list -> string -> Debuginfo.t -> t option
 
   val expected_value : t -> Value.t
 
@@ -1489,12 +1488,12 @@ end = struct
       Misc.fatal_errorf "Unexpected duplicate annotation %a for %s"
         Debuginfo.print_compact dbg fun_name ()
 
-  let of_cfg codegen_options spec fun_name dbg =
+  let of_cfg codegen_options fun_name dbg =
     let a =
       List.filter_map
         (fun (c : Cfg.codegen_option) ->
           match c with
-          | Check { property; strict; loc } when property = spec ->
+          | Check_zero_alloc { strict; loc } ->
             Some
               { strict;
                 assume = false;
@@ -1502,9 +1501,8 @@ end = struct
                 never_raises = false;
                 loc
               }
-          | Assume
-              { property; strict; never_returns_normally; never_raises; loc }
-            when property = spec ->
+          | Assume_zero_alloc
+              { strict; never_returns_normally; never_raises; loc } ->
             Some
               { strict;
                 assume = true;
@@ -1512,7 +1510,7 @@ end = struct
                 never_raises;
                 loc
               }
-          | Check _ | Assume _ | Reduce_code_size | No_CSE -> None)
+          | Reduce_code_size | No_CSE -> None)
         codegen_options
     in
     match a with
@@ -2519,9 +2517,7 @@ end = struct
 
   let fundecl (fd : Mach.fundecl) ~future_funcnames unit_info unresolved_deps
       ppf =
-    let a =
-      Annotation.find fd.fun_codegen_options S.property fd.fun_name fd.fun_dbg
-    in
+    let a = Annotation.find fd.fun_codegen_options fd.fun_name fd.fun_dbg in
     let check_body t = check_instr t fd.fun_body in
     check_fun fd.fun_name fd.fun_dbg a check_body ~future_funcnames unit_info
       unresolved_deps ppf
@@ -2677,9 +2673,7 @@ end = struct
   end
 
   let cfg (fd : Cfg.t) ~future_funcnames unit_info unresolved_deps ppf =
-    let a =
-      Annotation.of_cfg fd.fun_codegen_options S.property fd.fun_name fd.fun_dbg
-    in
+    let a = Annotation.of_cfg fd.fun_codegen_options fd.fun_name fd.fun_dbg in
     let check_body t =
       (* CR gyorsh: initialize loops with [Value.Diverges] *)
       match
@@ -2717,7 +2711,7 @@ let fundecl ppf_dump ~future_funcnames fd =
 
 let cfg ppf_dump ~future_funcnames cl =
   let cfg = Cfg_with_layout.cfg cl in
-  Check_zero_alloc.cfg cfg ~future_funcnames unit_info unresolved_deps ppf_dump;
+  Analysis.cfg cfg ~future_funcnames unit_info unresolved_deps ppf_dump;
   cl
 
 let reset_unit_info () =
