@@ -106,9 +106,9 @@ let is_move_basic : Cfg.basic -> bool =
   | Op op -> (
     match op with
     | Move -> true
-    (* CR mslater: (SIMD) vectorcast / float64<->float64x2 cast may be true *)
-    | Vectorcast _ -> false
-    | Scalarcast _ -> false
+    (* CR mslater: reinterpret_cast, other than value<->int, can be true *)
+    | Reinterpret_cast _ -> false
+    | Static_cast _ -> false
     | Spill -> false
     | Reload -> false
     | Const_int _ -> false
@@ -124,8 +124,6 @@ let is_move_basic : Cfg.basic -> bool =
     | Intop_atomic _ -> false
     | Floatop _ -> false
     | Csel _ -> false
-    | Valueofint -> false
-    | Intofvalue -> false
     | Probe_is_enabled _ -> false
     | Opaque -> false
     | Begin_region -> false

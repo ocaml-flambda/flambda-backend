@@ -243,8 +243,11 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
     when Mach.equal_float_width left_w right_w
          && Mach.equal_float_operation left_op right_op ->
     ()
-  | Valueofint, Valueofint -> ()
-  | Intofvalue, Intofvalue -> ()
+  | Reinterpret_cast left, Reinterpret_cast right
+    when Cmm.equal_reinterpret_cast left right ->
+    ()
+  | Static_cast left, Static_cast right when Cmm.equal_static_cast left right ->
+    ()
   | ( Probe_is_enabled { name = expected_name },
       Probe_is_enabled { name = result_name } )
     when String.equal expected_name result_name ->

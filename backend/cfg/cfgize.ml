@@ -175,10 +175,8 @@ let basic_or_terminator_of_operation :
   | Ifloatop (w, Icompf comp) -> Basic (Op (Floatop (w, Icompf comp)))
   | Ifloatop (w, ((Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf) as op)) ->
     Basic (Op (Floatop (w, op)))
-  | Ivalueofint -> Basic (Op Valueofint)
-  | Iintofvalue -> Basic (Op Intofvalue)
-  | Ivectorcast cast -> Basic (Op (Vectorcast cast))
-  | Iscalarcast cast -> Basic (Op (Scalarcast cast))
+  | Ireinterpret_cast cast -> Basic (Op (Reinterpret_cast cast))
+  | Istatic_cast cast -> Basic (Op (Static_cast cast))
   | Ispecific op ->
     if Arch.operation_can_raise op
     then
@@ -626,10 +624,10 @@ module Stack_offset_and_exn = struct
     | Op
         ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_float32 _
         | Const_symbol _ | Const_vec128 _ | Load _ | Store _ | Intop _
-        | Intop_imm _ | Intop_atomic _ | Floatop _ | Valueofint | Csel _
-        | Intofvalue | Scalarcast _ | Vectorcast _ | Probe_is_enabled _ | Opaque
-        | Begin_region | End_region | Specific _ | Name_for_debugger _ | Dls_get
-        | Poll | Alloc _ )
+        | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Static_cast _
+        | Reinterpret_cast _ | Probe_is_enabled _ | Opaque | Begin_region
+        | End_region | Specific _ | Name_for_debugger _ | Dls_get | Poll
+        | Alloc _ )
     | Reloadretaddr | Prologue ->
       stack_offset, traps
     | Stack_check _ ->

@@ -203,17 +203,24 @@ type memory_chunk =
   | Onetwentyeight_unaligned
   | Onetwentyeight_aligned
 
-type vector_cast =
-  | Bits128
-
-type scalar_cast =
-  | Float32_as_float
-  | Float_to_int of float_width
-  | Float_of_int of float_width
-  | Float_to_float32
+type reinterpret_cast =
+  | Int_of_value
+  | Value_of_int
   | Float_of_float32
-  | V128_to_scalar of Primitive.vec128_type
+  | Float32_of_float
+  | Float_of_int64
+  | Int64_of_float
+  | Float32_of_int32
+  | Int32_of_float32
+  | V128_of_v128
+
+type static_cast =
+  | Float_of_int of float_width
+  | Int_of_float of float_width
+  | Float_of_float32
+  | Float32_of_float
   | V128_of_scalar of Primitive.vec128_type
+  | Scalar_of_v128 of Primitive.vec128_type
 
 type operation =
     Capply of machtype * Lambda.region_close
@@ -250,9 +257,8 @@ type operation =
   | Caddf of float_width | Csubf of float_width
   | Cmulf of float_width | Cdivf of float_width
   | Cpackf32
-  | Cvalueofint | Cintofvalue
-  | Cvectorcast of vector_cast
-  | Cscalarcast of scalar_cast
+  | Creinterpret_cast of reinterpret_cast
+  | Cstatic_cast of static_cast
   | Ccmpf of float_width * float_comparison
   | Craise of Lambda.raise_kind
   | Cprobe of { name: string; handler_code_sym: string; enabled_at_init: bool }
@@ -563,19 +569,34 @@ let equal_float_width left right =
   | Float32, Float32 -> true
   | (Float32 | Float64), _ -> false
 
-let equal_scalar_cast left right =
+let equal_reinterpret_cast (left : reinterpret_cast) (right : reinterpret_cast) =
   match left, right with
-  | Float32_as_float, Float32_as_float -> true
-  | Float_to_float32, Float_to_float32 -> true
+  | Int_of_value, Int_of_value -> true
+  | Value_of_int, Value_of_int -> true
   | Float_of_float32, Float_of_float32 -> true
-  | Float_to_int f1, Float_to_int f2 -> equal_float_width f1 f2
+  | Float32_of_float, Float32_of_float -> true
+  | Float_of_int64, Float_of_int64 -> true
+  | Int64_of_float, Int64_of_float -> true
+  | Float32_of_int32, Float32_of_int32 -> true
+  | Int32_of_float32, Int32_of_float32 -> true
+  | V128_of_v128, V128_of_v128 -> true
+  | (Int_of_value | Value_of_int |
+     Float_of_float32 | Float32_of_float |
+     Float_of_int64 | Int64_of_float |
+     Float32_of_int32 | Int32_of_float32 |
+     V128_of_v128), _ -> false
+
+let equal_static_cast (left : static_cast) (right : static_cast) =
+  match left, right with
+  | Float32_of_float, Float32_of_float -> true
+  | Float_of_float32, Float_of_float32 -> true
   | Float_of_int f1, Float_of_int f2 -> equal_float_width f1 f2
-  | V128_to_scalar v1, V128_to_scalar v2 -> Primitive.equal_vec128_type v1 v2
+  | Int_of_float f1, Int_of_float f2 -> equal_float_width f1 f2
+  | Scalar_of_v128 v1, Scalar_of_v128 v2 -> Primitive.equal_vec128_type v1 v2
   | V128_of_scalar v1, V128_of_scalar v2 -> Primitive.equal_vec128_type v1 v2
-  | (Float32_as_float |
-     Float_to_float32 | Float_of_float32 |
-     Float_to_int _ | Float_of_int _ |
-     V128_to_scalar _ | V128_of_scalar _), _ -> false
+  | (Float32_of_float | Float_of_float32 |
+     Float_of_int _ | Int_of_float _ |
+     Scalar_of_v128 _ | V128_of_scalar _), _ -> false
 
 let equal_float_comparison left right =
   match left, right with
