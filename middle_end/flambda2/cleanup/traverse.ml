@@ -22,7 +22,7 @@ type code_dep = Dot.code_dep =
     params : Variable.t list;
     my_closure : Variable.t;
     return : Variable.t list; (* Dummy variable representing return value *)
-    exn : Variable.t; (* Dummy variable representing exn return value *)
+    exn : Variable.t (* Dummy variable representing exn return value *)
   }
 
 type apply_dep =
@@ -193,45 +193,46 @@ end = struct
   let record_set_of_closure_deps t =
     List.iter
       (fun (name, code_id) ->
-          match find_code t code_id with
-          | exception Not_found ->
-            assert (
-              not
-                (Compilation_unit.is_current
-                   (Code_id.get_compilation_unit code_id)));
-            (* The code comes from another compilation unit; so we don't know
-               what happens once it is applied. As such, it must escape the
-               whole block. *)
-            Graph.add_dep t.deps
-              (Code_id_or_name.name name)
-              (Block (Code_of_closure, Code_id_or_name.name name))
-          | code_dep ->
-            Graph.add_dep t.deps
-              (Code_id_or_name.var code_dep.my_closure)
-              (Graph.Dep.Alias name);
-            let num_params = Flambda_arity.num_params code_dep.arity in
-            let acc = ref (Code_id_or_name.name name) in
-            for i = 1 to num_params - 1 do
-              let tmp_name =
-                Code_id_or_name.var
-                  (Variable.create (Printf.sprintf "partial_apply_%i" i))
-              in
-              Graph.add_dep t.deps !acc (Block (Apply (Normal 0), tmp_name));
-              (* The code_id needs to stay alive even if the function is only partially applied, as the arity is needed at runtime in that case. *)
+        match find_code t code_id with
+        | exception Not_found ->
+          assert (
+            not
+              (Compilation_unit.is_current
+                 (Code_id.get_compilation_unit code_id)));
+          (* The code comes from another compilation unit; so we don't know what
+             happens once it is applied. As such, it must escape the whole
+             block. *)
+          Graph.add_dep t.deps
+            (Code_id_or_name.name name)
+            (Block (Code_of_closure, Code_id_or_name.name name))
+        | code_dep ->
+          Graph.add_dep t.deps
+            (Code_id_or_name.var code_dep.my_closure)
+            (Graph.Dep.Alias name);
+          let num_params = Flambda_arity.num_params code_dep.arity in
+          let acc = ref (Code_id_or_name.name name) in
+          for i = 1 to num_params - 1 do
+            let tmp_name =
+              Code_id_or_name.var
+                (Variable.create (Printf.sprintf "partial_apply_%i" i))
+            in
+            Graph.add_dep t.deps !acc (Block (Apply (Normal 0), tmp_name));
+            (* The code_id needs to stay alive even if the function is only
+               partially applied, as the arity is needed at runtime in that
+               case. *)
+            Graph.add_dep t.deps !acc
+              (Block (Code_of_closure, Code_id_or_name.code_id code_id));
+            acc := tmp_name
+          done;
+          List.iteri
+            (fun i v ->
               Graph.add_dep t.deps !acc
-                (Block (Code_of_closure, Code_id_or_name.code_id code_id));
-              acc := tmp_name
-            done;
-            List.iteri
-              (fun i v ->
-                Graph.add_dep t.deps !acc
-                  (Block (Apply (Normal i), Code_id_or_name.var v)))
-              code_dep.return;
-            Graph.add_dep t.deps !acc
-              (Block (Apply Exn, Code_id_or_name.var code_dep.exn));
-            Graph.add_dep t.deps !acc
-              (Block (Code_of_closure, Code_id_or_name.code_id code_id))
-      )
+                (Block (Apply (Normal i), Code_id_or_name.var v)))
+            code_dep.return;
+          Graph.add_dep t.deps !acc
+            (Block (Apply Exn, Code_id_or_name.var code_dep.exn));
+          Graph.add_dep t.deps !acc
+            (Block (Code_of_closure, Code_id_or_name.code_id code_id)))
       t.set_of_closures_dep
 
   let deps t =
@@ -314,9 +315,7 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
     | Assume _ -> false
     | Check _ -> true
   in
-  let code_dep =
-    { arity; return; my_closure; exn; params }
-  in
+  let code_dep = { arity; return; my_closure; exn; params } in
   let () =
     if has_unsafe_result_type
     then
@@ -325,8 +324,10 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
         ((my_closure :: params) @ (exn :: return))
   in
   let () =
-    if never_delete then
-      (List.iter (fun var -> Acc.used ~denv (Simple.var var) acc) (exn :: return); Acc.used_code_id code_id acc)
+    if never_delete
+    then (
+      List.iter (fun var -> Acc.used ~denv (Simple.var var) acc) (exn :: return);
+      Acc.used_code_id code_id acc)
   in
   Acc.add_code code_id code_dep acc
 
