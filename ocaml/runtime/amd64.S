@@ -548,7 +548,10 @@ ENDFUNCTION(G(caml_call_gc))
 FUNCTION(G(caml_raise_stack_overflow_nat))
 CFI_STARTPROC
         CFI_SIGNAL_FRAME
-        ENTER_FUNCTION
+#ifdef WITH_FRAME_POINTERS
+        subq    $8, %rsp
+        movq    %rsp, %rbp
+#endif
         SAVE_ALL_REGS
         movq    %r15, Caml_state(gc_regs)
         /* We assume that we are always on the OCaml stack at this point.
