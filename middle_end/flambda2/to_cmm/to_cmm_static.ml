@@ -21,6 +21,7 @@ end
 
 module SC = Static_const
 module R = To_cmm_result
+module UK = C.Update_kind
 
 let static_value res v =
   match (v : Field_of_static_block.t) with
@@ -43,8 +44,10 @@ let rec static_block_updates symb env res acc i = function
     | Symbol _ | Tagged_immediate _ ->
       static_block_updates symb env res acc (i + 1) r
     | Dynamically_computed (var, dbg) ->
+      (* CR mshinwell/mslater: It would be nice to know if [var] is an
+         immediate. *)
       let env, res, acc =
-        C.make_update env res dbg Word_val ~symbol:(C.symbol ~dbg symb) var
+        C.make_update env res dbg UK.pointers ~symbol:(C.symbol ~dbg symb) var
           ~index:i ~prev_updates:acc
       in
       static_block_updates symb env res acc (i + 1) r)
@@ -55,36 +58,18 @@ type maybe_int32 =
 
 (* The index [i] is always in the units of the size of the integer concerned,
    not units of 64-bit words. *)
-let rec static_unboxed_int_array_updates symb env res acc maybe_int32 i =
-  function
+let rec static_unboxed_array_updates symb env res acc update_kind i = function
   | [] -> env, res, acc
   | sv :: r -> (
     match (sv : _ Or_variable.t) with
     | Const _ ->
-      static_unboxed_int_array_updates symb env res acc maybe_int32 (i + 1) r
-    | Var (var, dbg) ->
-      let kind : C.update_kind =
-        match maybe_int32 with
-        | Int64_or_nativeint -> Word_int
-        | Int32 -> Thirtytwo_signed
-      in
-      let env, res, acc =
-        C.make_update env res dbg kind ~symbol:(C.symbol ~dbg symb) var ~index:i
-          ~prev_updates:acc
-      in
-      static_unboxed_int_array_updates symb env res acc maybe_int32 (i + 1) r)
-
-let rec static_float_array_updates symb env res acc i = function
-  | [] -> env, res, acc
-  | sv :: r -> (
-    match (sv : _ Or_variable.t) with
-    | Const _ -> static_float_array_updates symb env res acc (i + 1) r
+      static_unboxed_array_updates symb env res acc update_kind (i + 1) r
     | Var (var, dbg) ->
       let env, res, acc =
-        C.make_update env res dbg Double ~symbol:(C.symbol ~dbg symb) var
+        C.make_update env res dbg update_kind ~symbol:(C.symbol ~dbg symb) var
           ~index:i ~prev_updates:acc
       in
-      static_float_array_updates symb env res acc (i + 1) r)
+      static_unboxed_array_updates symb env res acc update_kind (i + 1) r)
 
 let static_boxed_number ~kind ~env ~symbol ~default ~emit ~transl ~structured v
     res updates =
@@ -105,14 +90,18 @@ let static_boxed_number ~kind ~env ~symbol ~default ~emit ~transl ~structured v
   in
   R.update_data res (or_variable aux default v), env, updates
 
-let add_function env res ~params_and_body code_id p ~fun_dbg ~check =
-  let fundecl, res = params_and_body env res code_id p ~fun_dbg ~check in
+let add_function env res ~params_and_body code_id p ~fun_dbg
+    ~zero_alloc_attribute =
+  let fundecl, res =
+    params_and_body env res code_id p ~fun_dbg ~zero_alloc_attribute
+  in
   R.add_function res fundecl
 
 let add_functions env ~params_and_body res (code : Code.t) =
   add_function env res ~params_and_body (Code.code_id code)
     (Code.params_and_body code)
-    ~fun_dbg:(Code.dbg code) ~check:(Code.check code)
+    ~fun_dbg:(Code.dbg code)
+    ~zero_alloc_attribute:(Code.zero_alloc_attribute code)
 
 let preallocate_set_of_closures (res, updates, env) ~closure_symbols
     set_of_closures =
@@ -127,12 +116,12 @@ let preallocate_set_of_closures (res, updates, env) ~closure_symbols
   let res = R.set_data res data in
   res, updates, env
 
-let immutable_unboxed_int_array_payload update_kind num_fields ~elts ~to_int64 =
+let immutable_unboxed_int_array_payload maybe_int32 num_fields ~elts ~to_int64 =
   let int64_of_elts =
     List.map (Or_variable.value_map ~default:0L ~f:to_int64) elts
   in
   let packed_int64s =
-    match update_kind with
+    match maybe_int32 with
     | Int32 ->
       let rec aux acc = function
         | [] -> List.rev acc
@@ -147,14 +136,14 @@ let immutable_unboxed_int_array_payload update_kind num_fields ~elts ~to_int64 =
   assert (List.length packed_int64s = num_fields);
   List.map (fun i -> Cmm.Cint (Int64.to_nativeint i)) packed_int64s
 
-let immutable_unboxed_int_array env res updates update_kind ~symbol ~elts
+let immutable_unboxed_int_array env res updates maybe_int32 ~symbol ~elts
     ~to_int64 ~custom_ops_symbol =
   let sym = R.symbol res symbol in
   let num_elts = List.length elts in
-  let num_fields =
-    match update_kind with
-    | Int32 -> (1 + num_elts) / 2
-    | Int64_or_nativeint -> num_elts
+  let num_fields, update_kind =
+    match maybe_int32 with
+    | Int32 -> (1 + num_elts) / 2, UK.naked_int32s
+    | Int64_or_nativeint -> num_elts, UK.naked_int64s
   in
   let header =
     C.black_custom_header
@@ -168,12 +157,49 @@ let immutable_unboxed_int_array env res updates update_kind ~symbol ~elts
       | Some sym_off -> C.symbol_offset (Cmm.global_symbol sym_base) sym_off
     in
     address
-    :: immutable_unboxed_int_array_payload update_kind num_fields ~elts
+    :: immutable_unboxed_int_array_payload maybe_int32 num_fields ~elts
          ~to_int64
   in
   let block = C.emit_block sym header static_fields in
   let env, res, updates =
-    static_unboxed_int_array_updates sym env res updates update_kind 0 elts
+    static_unboxed_array_updates sym env res updates update_kind 0 elts
+  in
+  env, R.set_data res block, updates
+
+let immutable_unboxed_float32_array env res updates ~symbol ~elts =
+  let sym = R.symbol res symbol in
+  let num_elts = List.length elts in
+  let num_fields = (1 + num_elts) / 2 in
+  let header =
+    C.black_custom_header
+      ~size:(1 (* for the custom_operations pointer *) + num_fields)
+  in
+  let payload =
+    (* If the array has odd length, the last 32 bits are implicitly initialized
+       to zero because the array is a static block. *)
+    List.map
+      (Or_variable.value_map ~default:(Cmm.Csingle 0.0) ~f:(fun f ->
+           (* All float32s are valid float64s, so round tripping through float
+              in Csingle will result in the same value (up to NaN bit
+              patterns). *)
+           Cmm.Csingle (Numeric_types.Float32_by_bit_pattern.to_float f)))
+      elts
+  in
+  let static_fields =
+    let sym_base = "caml_unboxed_float32_array_ops" in
+    let address =
+      match num_elts mod 2 = 0 with
+      | true -> C.symbol_address (Cmm.global_symbol sym_base)
+      | false ->
+        C.symbol_offset
+          (Cmm.global_symbol sym_base)
+          Config.custom_ops_struct_size
+    in
+    address :: payload
+  in
+  let block = C.emit_block sym header static_fields in
+  let env, res, updates =
+    static_unboxed_array_updates sym env res updates UK.naked_float32s 0 elts
   in
   env, R.set_data res block, updates
 
@@ -206,10 +232,8 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let transl = Numeric_types.Float32_by_bit_pattern.to_float in
     let structured f = Cmmgen_state.Const_float32 f in
     let res, env, updates =
-      static_boxed_number
-        ~kind:(Single { reg = Float32 })
-        ~env ~symbol ~default ~emit:C.emit_float32_constant ~transl ~structured
-        v res updates
+      static_boxed_number ~kind:UK.naked_float32_fields ~env ~symbol ~default
+        ~emit:C.emit_float32_constant ~transl ~structured v res updates
     in
     env, res, updates
   | Block_like symbol, Boxed_float v ->
@@ -217,21 +241,21 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let transl = Numeric_types.Float_by_bit_pattern.to_float in
     let structured f = Cmmgen_state.Const_float f in
     let res, env, updates =
-      static_boxed_number ~kind:Double ~env ~symbol ~default
+      static_boxed_number ~kind:UK.naked_floats ~env ~symbol ~default
         ~emit:C.emit_float_constant ~transl ~structured v res updates
     in
     env, res, updates
   | Block_like symbol, Boxed_int32 v ->
     let structured i = Cmmgen_state.Const_int32 i in
     let res, env, updates =
-      static_boxed_number ~kind:Word_int ~env ~symbol ~default:0l
+      static_boxed_number ~kind:UK.naked_int32_fields ~env ~symbol ~default:0l
         ~emit:C.emit_int32_constant ~transl:Fun.id ~structured v res updates
     in
     env, res, updates
   | Block_like symbol, Boxed_int64 v ->
     let structured i = Cmmgen_state.Const_int64 i in
     let res, env, updates =
-      static_boxed_number ~kind:Word_int ~env ~symbol ~default:0L
+      static_boxed_number ~kind:UK.naked_int64s ~env ~symbol ~default:0L
         ~emit:C.emit_int64_constant ~transl:Fun.id ~structured v res updates
     in
     env, res, updates
@@ -240,7 +264,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let transl = C.nativeint_of_targetint in
     let structured i = Cmmgen_state.Const_nativeint i in
     let res, env, updates =
-      static_boxed_number ~kind:Word_int ~env ~symbol ~default
+      static_boxed_number ~kind:UK.naked_int64s ~env ~symbol ~default
         ~emit:C.emit_nativeint_constant ~transl ~structured v res updates
     in
     env, res, updates
@@ -258,7 +282,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let res, env, updates =
       (* Unaligned because boxed vec128 constants are not aligned during code
          emission. Aligning them would complicate block layout. *)
-      static_boxed_number ~kind:Onetwentyeight_unaligned ~env ~symbol ~default
+      static_boxed_number ~kind:UK.naked_vec128s ~env ~symbol ~default
         ~emit:C.emit_vec128_constant ~transl ~structured v res updates
     in
     env, res, updates
@@ -271,8 +295,12 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let static_fields = List.map aux fields in
     let sym = R.symbol res s in
     let float_array = C.emit_float_array_constant sym static_fields in
-    let env, res, e = static_float_array_updates sym env res updates 0 fields in
+    let env, res, e =
+      static_unboxed_array_updates sym env res updates UK.naked_floats 0 fields
+    in
     env, R.update_data res float_array, e
+  | Block_like symbol, Immutable_float32_array elts ->
+    immutable_unboxed_float32_array env res updates ~symbol ~elts
   | Block_like symbol, Immutable_int32_array elts ->
     assert (Arch.size_int = 8);
     immutable_unboxed_int_array env res updates Int32 ~symbol ~elts
@@ -306,9 +334,13 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let header = C.black_block_header 0 0 in
     let block = C.emit_block sym header [] in
     env, R.set_data res block, updates
-  | Block_like _s, Empty_array Naked_float32s ->
-    (* CR mslater: (float32) unboxed arrays *)
-    assert false
+  | Block_like s, Empty_array Naked_float32s ->
+    let block =
+      C.emit_block (R.symbol res s)
+        (C.black_custom_header ~size:1)
+        [C.symbol_address (Cmm.global_symbol "caml_unboxed_float32_array_ops")]
+    in
+    env, R.set_data res block, updates
   | Block_like s, Empty_array Naked_int32s ->
     let block =
       C.emit_block (R.symbol res s)
@@ -342,9 +374,10 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
       ( Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
       | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
       | Immutable_float_block _ | Immutable_float_array _
-      | Immutable_int32_array _ | Immutable_int64_array _
-      | Immutable_nativeint_array _ | Immutable_value_array _ | Empty_array _
-      | Mutable_string _ | Immutable_string _ ) ) ->
+      | Immutable_float32_array _ | Immutable_int32_array _
+      | Immutable_int64_array _ | Immutable_nativeint_array _
+      | Immutable_value_array _ | Empty_array _ | Mutable_string _
+      | Immutable_string _ ) ) ->
     Misc.fatal_errorf
       "Block-like constants cannot be bound by [Code] or [Set_of_closures] \
        bindings:@ %a"

@@ -699,6 +699,8 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
       (* The representations of these two are the same, it's only
          accesses that differ. *)
       Immutable StrictOpt, make_float_vect ~loc array_size.var
+    | Fixed_size, Punboxedfloatarray Pfloat32 ->
+      Immutable StrictOpt, make_unboxed_float32_vect ~loc array_size.var
     | Fixed_size, Punboxedintarray Pint32 ->
       Immutable StrictOpt, make_unboxed_int32_vect ~loc array_size.var
     | Fixed_size, Punboxedintarray Pint64 ->
@@ -712,9 +714,8 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
       Mutable, Resizable_array.make ~loc array_kind (float 0.)
     | Dynamic_size, Punboxedfloatarray Pfloat64 ->
       Mutable, Resizable_array.make ~loc array_kind (unboxed_float 0.)
-    | (Fixed_size | Dynamic_size), Punboxedfloatarray Pfloat32 ->
-      (* CR mslater: (float32) unboxed arrays *)
-      assert false
+    | Dynamic_size, Punboxedfloatarray Pfloat32 ->
+      Mutable, Resizable_array.make ~loc array_kind (unboxed_float32 0.)
     | Dynamic_size, Punboxedintarray Pint32 ->
       Mutable, Resizable_array.make ~loc array_kind (unboxed_int32 0l)
     | Dynamic_size, Punboxedintarray Pint64 ->
@@ -808,12 +809,9 @@ let body ~loc ~array_kind ~array_size ~array_sizing ~array ~index ~body =
              set_element_in_bounds elt.var,
              Pvalue Pintval (* [unit] is immediate *) ))
     | Pintarray | Paddrarray | Pfloatarray
-    | Punboxedfloatarray Pfloat64
+    | Punboxedfloatarray (Pfloat64 | Pfloat32)
     | Punboxedintarray _ ->
       set_element_in_bounds body
-    | Punboxedfloatarray Pfloat32 ->
-      (* CR mslater: (float32) unboxed arrays *)
-      assert false
   in
   Lsequence
     (set_element_known_kind_in_bounds, Lassign (index.id, index.var + l1))

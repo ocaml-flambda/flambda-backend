@@ -559,6 +559,8 @@ module Analyser =
     let filter_out_erased_item_from_signature_jst _erased acc
       : Jane_syntax.Signature_item.t -> _ = function
       | Jsig_include_functor (Ifsig_include_functor _) -> acc
+      | Jsig_layout (Lsig_kind_abbrev _) ->
+        Misc.fatal_error "Lsig_kind_abbrev"
 
     let filter_out_erased_items_from_signature erased signature =
       if Name.Map.is_empty erased then signature
@@ -890,6 +892,8 @@ module Analyser =
           | Ifsig_include_functor incl ->
               analyse_signature_item_desc_include ~env ~comment_opt incl
         end
+      | Jsig_layout (Lsig_kind_abbrev _) ->
+        Misc.fatal_error "Lsig_kind_abbrev"
 
     (** Analyse the given signature_item_desc to create the corresponding module element
        (with the given attached comment).*)

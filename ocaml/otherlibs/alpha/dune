@@ -12,6 +12,9 @@
 ;*                                                                        *
 ;**************************************************************************
 
+;; [alpha] was renamed to [stdlib_alpha]. This library clones [stdlib_alpha]
+;; until we move all existing uses of [alpha] to [stdlib_alpha].
+
 (library
  (name alpha)
  (wrapped false)
@@ -34,16 +37,28 @@
  (library_flags
   (:standard -linkall)))
 
+;; We clone files from [stdlib_alpha] instead of re-exporting the library
+;; to avoid adding a new transitive dependency to builds.
+
+(rule
+ (deps
+  (glob_files ../stdlib_alpha/*.{ml,mli}))
+ (targets alpha.ml alpha.mli)
+ (action
+  (bash
+   "cp ../stdlib_alpha/*.{ml,mli} .; mv stdlib_alpha.ml alpha.ml; mv stdlib_alpha.mli alpha.mli")))
+
+(rule
+ (deps
+  (:first-dep ../to_install.sh)
+  (glob_files *.mli))
+ (action
+  (with-stdout-to
+   to_install.sexp
+   (run "%{first-dep}" "alpha"))))
+
 (install
  (files
-  (alpha.cmxa as alpha/alpha.cmxa)
-  (alpha.a as alpha/alpha.a)
-  (alpha.cmxs as alpha/alpha.cmxs)
-  (alpha.cma as alpha/alpha.cma)
-  (alpha.mli as alpha/alpha.mli)
-  (.alpha.objs/byte/alpha.cmi as alpha/alpha.cmi)
-  (.alpha.objs/byte/alpha.cmt as alpha/alpha.cmt)
-  (.alpha.objs/byte/alpha.cmti as alpha/alpha.cmti)
-  (.alpha.objs/native/alpha.cmx as alpha/alpha.cmx))
+  (include to_install.sexp))
  (section lib)
  (package ocaml))

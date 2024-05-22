@@ -289,6 +289,7 @@ let array_kind ~space ppf (ak : array_kind) =
     | Values -> None
     | Immediates -> Some "imm"
     | Naked_floats -> Some "float"
+    | Naked_float32s -> Some "float32"
     | Naked_int32s -> Some "int32"
     | Naked_int64s -> Some "int64"
     | Naked_nativeints -> Some "nativeint"
@@ -425,29 +426,44 @@ let int_shift_op ppf (s : int_shift_op) =
   Format.pp_print_string ppf
   @@ match s with Lsl -> "lsl" | Lsr -> "lsr" | Asr -> "asr"
 
-let binary_float_arith_op ppf (o : binary_float_arith_op) =
-  Format.pp_print_string ppf
-  @@ match o with Add -> "+." | Sub -> "-." | Mul -> "*." | Div -> "/."
-
-let float_comp ppf (o : unit comparison_behaviour) =
+let binary_float_arith_op ppf (w : float_bitwidth) (o : binary_float_arith_op) =
   Format.pp_print_string ppf
   @@
-  match o with
-  | Yielding_bool Eq -> "=."
-  | Yielding_bool Neq -> "<>."
-  | Yielding_bool (Lt ()) -> "<."
-  | Yielding_bool (Gt ()) -> ">."
-  | Yielding_bool (Le ()) -> "<=."
-  | Yielding_bool (Ge ()) -> ">=."
-  | Yielding_int_like_compare_functions () -> "?"
+  match w, o with
+  | Float64, Add -> "+."
+  | Float64, Sub -> "-."
+  | Float64, Mul -> "*."
+  | Float64, Div -> "/."
+  | Float32, Add -> "Float32.+."
+  | Float32, Sub -> "Float32.-."
+  | Float32, Mul -> "Float32.*."
+  | Float32, Div -> "Float32./."
+
+let float_comp ppf (w : float_bitwidth) (o : unit comparison_behaviour) =
+  Format.pp_print_string ppf
+  @@
+  match w, o with
+  | Float64, Yielding_bool Eq -> "=."
+  | Float64, Yielding_bool Neq -> "<>."
+  | Float64, Yielding_bool (Lt ()) -> "<."
+  | Float64, Yielding_bool (Gt ()) -> ">."
+  | Float64, Yielding_bool (Le ()) -> "<=."
+  | Float64, Yielding_bool (Ge ()) -> ">=."
+  | Float32, Yielding_bool Eq -> "Float32.=."
+  | Float32, Yielding_bool Neq -> "Float32.<>."
+  | Float32, Yielding_bool (Lt ()) -> "Float32.<."
+  | Float32, Yielding_bool (Gt ()) -> "Float32.>."
+  | Float32, Yielding_bool (Le ()) -> "Float32.<=."
+  | Float32, Yielding_bool (Ge ()) -> "Float32.>=."
+  | (Float64 | Float32), Yielding_int_like_compare_functions () -> "?"
 
 let infix_binop ppf (b : infix_binop) =
   match b with
   | Int_arith o -> binary_int_arith_op ppf o
   | Int_comp c -> int_comp ppf c
   | Int_shift s -> int_shift_op ppf s
-  | Float_arith o -> binary_float_arith_op ppf o
-  | Float_comp c -> float_comp ppf c
+  | Float_arith (w, o) -> binary_float_arith_op ppf w o
+  | Float_comp (w, c) -> float_comp ppf w c
 
 let block_access_kind ppf (access_kind : block_access_kind) =
   let pp_size ppf (size : Int64.t option) =
@@ -465,9 +481,9 @@ let block_access_kind ppf (access_kind : block_access_kind) =
     match field_kind with
     | Value_prefix Any_value -> ()
     | Value_prefix Immediate -> Format.fprintf ppf "@ imm"
-    | Flat_suffix Float -> Format.fprintf ppf "@ float"
-    | Flat_suffix Imm -> Format.fprintf ppf "@ imm"
-    | Flat_suffix Float64 -> Format.fprintf ppf "@ float64"
+    | Flat_suffix flat ->
+      Format.fprintf ppf "@ %s"
+        (Flambda_primitive.Mixed_block_flat_element.to_string flat)
   in
   match access_kind with
   | Values { field_kind; tag; size } ->
@@ -475,11 +491,9 @@ let block_access_kind ppf (access_kind : block_access_kind) =
       (pp_option ~space:Before (pp_like "tag(%a)" Format.pp_print_int))
       tag pp_size size
   | Naked_floats { size } -> Format.fprintf ppf "@ float%a" pp_size size
-  | Mixed { field_kind; size } ->
-    (* CR mixed blocks v1: add non-zero tag. *)
-    let tag = 0 in
+  | Mixed { tag; field_kind; size } ->
     Format.fprintf ppf "%a%a%a" pp_mixed_field_kind field_kind
-      (pp_like "tag(%a)" Format.pp_print_int)
+      (pp_option ~space:Before (pp_like "tag(%a)" Format.pp_print_int))
       tag pp_size size
 
 let string_accessor_width ppf saw =

@@ -1426,9 +1426,10 @@ module Named = struct
                  ( Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
                  | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
                  | Immutable_float_block _ | Immutable_float_array _
-                 | Mutable_string _ | Immutable_string _ | Empty_array _
-                 | Immutable_value_array _ | Immutable_int32_array _
-                 | Immutable_int64_array _ | Immutable_nativeint_array _ ) ->
+                 | Immutable_float32_array _ | Mutable_string _
+                 | Immutable_string _ | Empty_array _ | Immutable_value_array _
+                 | Immutable_int32_array _ | Immutable_int64_array _
+                 | Immutable_nativeint_array _ ) ->
                acc)
            init
 end
@@ -1439,6 +1440,8 @@ module Invalid = struct
     | Apply_cont_of_unreachable_continuation of Continuation.t
     | Defining_expr_of_let of Bound_pattern.t * Named.t
     | Closure_type_was_invalid of Apply_expr.t
+    | Partial_application_mode_mismatch of Apply_expr.t
+    | Partial_application_mode_mismatch_in_lambda of Debuginfo.t
     | Calling_local_returning_closure_with_normal_apply of Apply_expr.t
     | Zero_switch_arms
     | Code_not_rebuilt
@@ -1464,6 +1467,16 @@ module Invalid = struct
       Format.asprintf
         "@[<hov 1>(Closure_type_was_invalid@ @[<hov 1>(apply_expr@ %a)@])@]"
         Apply_expr.print apply_expr
+    | Partial_application_mode_mismatch apply_expr ->
+      Format.asprintf
+        "@[<hov 1>(Partial_application_mode_mismatch@ @[<hov 1>(apply_expr@ \
+         %a)@])@]"
+        Apply_expr.print apply_expr
+    | Partial_application_mode_mismatch_in_lambda dbg ->
+      Format.asprintf
+        "@[<hov 1>(Partial_application_mode_mismatch_in_lambda@ @[<hov 1>(dbg@ \
+         %a)@])@]"
+        Debuginfo.print_compact dbg
     | Calling_local_returning_closure_with_normal_apply apply_expr ->
       Format.asprintf
         "@[<hov 1>(Calling_local_returning_closure_with_normal_apply@ @[<hov \

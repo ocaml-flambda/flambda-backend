@@ -102,7 +102,7 @@ type primitive =
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
-  | Pmakemixedblock of mutable_flag * mixed_block_shape * alloc_mode
+  | Pmakemixedblock of int * mutable_flag * mixed_block_shape * alloc_mode
   | Pfield of int * immediate_or_pointer * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
@@ -350,11 +350,18 @@ and layout =
 and block_shape =
   value_kind list option
 
-and flat_element = Types.flat_element = Imm | Float | Float64
-and flat_element_read =
-  | Flat_read_imm
-  | Flat_read_float of alloc_mode
-  | Flat_read_float64
+and flat_element = Types.flat_element =
+  | Imm
+  | Float_boxed
+  | Float64
+  | Float32
+  | Bits32
+  | Bits64
+  | Word
+
+and flat_element_read = private
+  | Flat_read of flat_element (* invariant: not [Float] *)
+  | Flat_read_float_boxed of alloc_mode
 and mixed_block_read =
   | Mread_value_prefix of immediate_or_pointer
   | Mread_flat_suffix of flat_element_read
@@ -497,18 +504,14 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
-type property = Builtin_attributes.property =
-  | Zero_alloc
-
 type poll_attribute =
   | Error_poll (* [@poll error] *)
   | Default_poll (* no [@poll] attribute *)
 
-type check_attribute = Builtin_attributes.check_attribute =
-  | Default_check
-  | Ignore_assert_all of property
-  | Check of { property: property;
-               strict: bool;
+type zero_alloc_attribute = Builtin_attributes.zero_alloc_attribute =
+  | Default_zero_alloc
+  | Ignore_assert_all
+  | Check of { strict: bool;
                (* [strict=true] property holds on all paths.
                   [strict=false] if the function returns normally,
                   then the property holds (but property violations on
@@ -518,9 +521,9 @@ type check_attribute = Builtin_attributes.check_attribute =
                arity: int;
                loc: Location.t;
              }
-  | Assume of { property: property;
-                strict: bool;
+  | Assume of { strict: bool;
                 never_returns_normally: bool;
+                never_raises: bool;
                 arity: int;
                 loc: Location.t;
               }
@@ -560,7 +563,7 @@ type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
   local: local_attribute;
-  check : check_attribute;
+  zero_alloc : zero_alloc_attribute;
   poll: poll_attribute;
   loop: loop_attribute;
   is_a_functor: bool;
@@ -586,6 +589,10 @@ type lparam = {
 
 type scoped_location = Debuginfo.Scoped_location.t
 
+type pop_region =
+  | Popped_region
+  | Same_region
+
 type lambda =
     Lvar of Ident.t
   | Lmutvar of Ident.t
@@ -594,7 +601,7 @@ type lambda =
   | Lfunction of lfunction
   | Llet of let_kind * layout * Ident.t * lambda * lambda
   | Lmutlet of layout * Ident.t * lambda * lambda
-  | Lletrec of (Ident.t * lambda) list * lambda
+  | Lletrec of rec_binding list * lambda
   | Lprim of primitive * lambda list * scoped_location
   | Lswitch of lambda * lambda_switch * scoped_location * layout
 (* switch on strings, clauses are sorted by string order,
@@ -602,7 +609,21 @@ type lambda =
   | Lstringswitch of
       lambda * (string * lambda) list * lambda option * scoped_location * layout
   | Lstaticraise of static_label * lambda list
-  | Lstaticcatch of lambda * (static_label * (Ident.t * layout) list) * lambda * layout
+  (* Concerning [Lstaticcatch], the regions that are open in the handler must be
+     a subset of those open at the point of the [Lstaticraise] that jumps to it,
+     as we can't reopen closed regions. All regions that were open at the point of
+     the [Lstaticraise] but not in the handler will be closed just before the [Lstaticraise].
+
+     However, to be able to express the fact
+     that the [Lstaticraise] might be under a [Lexclave], the [pop_region] flag
+     is used to specify what regions are considered open in the handler. If it
+     is [Same_region], it means that the same regions as those existing at the
+     point of the [Lstaticraise] are considered open in the handler; if it is [Popped_region],
+     it means that we consider the top region at the point of the [Lstaticcatch] to not be
+     considered open inside the handler. *)
+  | Lstaticcatch of
+      lambda * (static_label * (Ident.t * layout) list) * lambda
+      * pop_region * layout
   | Ltrywith of lambda * Ident.t * lambda * layout
 (* Lifthenelse (e, t, f, layout) evaluates t if e evaluates to 0, and evaluates f if
    e evaluates to any other value; layout must be the layout of [t] and [f] *)
@@ -616,7 +637,17 @@ type lambda =
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
   | Lregion of lambda * layout
+  (* [Lexclave] closes the newest region opened.
+     Note that [Lexclave] nesting is currently unsupported. *)
   | Lexclave of lambda
+
+and rec_binding = {
+  id : Ident.t;
+  def : lfunction;
+  (* Generic recursive bindings have been removed from Lambda in 5.2.
+     [Value_rec_compiler.compile_letrec] deals with transforming generic
+     definitions into basic Lambda code. *)
+}
 
 and lfunction = private
   { kind: function_kind;
@@ -720,8 +751,17 @@ val layout_boxed_float : boxed_float -> layout
 val layout_unboxed_float : boxed_float -> layout
 val layout_boxedint : boxed_integer -> layout
 val layout_boxed_vector : Primitive.boxed_vector -> layout
-(* A layout that is Pgenval because it is the field of a block *)
-val layout_field : layout
+(* A layout that is Pgenval because it is the field of a tuple *)
+val layout_tuple_element : layout
+(* A layout that is Pgenval because it is the arg of a polymorphic variant *)
+val layout_variant_arg : layout
+(* A layout that is Pgenval because it is the field of a block being considered
+   for the tmc transformation
+*)
+val layout_tmc_field : layout
+(* A layout that is Pgenval because it is an optional argument *)
+val layout_optional_arg : layout
+val layout_value_field : layout
 val layout_lazy : layout
 val layout_lazy_contents : layout
 (* A layout that is Pgenval because we are missing layout polymorphism *)
@@ -736,6 +776,10 @@ val layout_unboxed_product : layout list -> layout
 val layout_top : layout
 val layout_bottom : layout
 
+
+(** [dummy_constant] produces a placeholder value with a recognizable
+    bit pattern (currently 0xBBBB in its tagged form) *)
+val dummy_constant: lambda
 val name_lambda: let_kind -> lambda -> layout -> (Ident.t -> lambda) -> lambda
 val name_lambda_list: (lambda * layout) list -> (lambda list -> lambda) -> lambda
 
@@ -750,6 +794,18 @@ val lfunction :
   ret_mode:alloc_mode ->
   region:bool ->
   lambda
+
+val lfunction' :
+  kind:function_kind ->
+  params:lparam list ->
+  return:layout ->
+  body:lambda ->
+  attr:function_attribute -> (* specified with [@inline] attribute *)
+  loc:scoped_location ->
+  mode:alloc_mode ->
+  ret_mode:alloc_mode ->
+  region:bool ->
+  lfunction
 
 
 val iter_head_constructor: (lambda -> unit) -> lambda -> unit
@@ -780,8 +836,7 @@ val transl_value_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_extension_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_class_path: scoped_location -> Env.t -> Path.t -> lambda
 
-val transl_mixed_record_shape: Types.mixed_record_shape -> mixed_block_shape
-val count_mixed_block_values_and_floats : mixed_block_shape -> int * int
+val transl_mixed_product_shape: Types.mixed_product_shape -> mixed_block_shape
 
 type mixed_block_element =
   | Value_prefix
@@ -789,6 +844,10 @@ type mixed_block_element =
 
 (** Raises if the int is out of bounds. *)
 val get_mixed_block_element : mixed_block_shape -> int -> mixed_block_element
+
+(** Raises if [flat_element] is [Float_boxed]. *)
+val flat_read_non_float : flat_element -> flat_element_read
+val flat_read_float_boxed : alloc_mode -> flat_element_read
 
 val make_sequence: ('a -> lambda) -> 'a list -> lambda
 
@@ -813,12 +872,15 @@ val rename : Ident.t Ident.Map.t -> lambda -> lambda
 (** A version of [subst] specialized for the case where we're just renaming
     idents. *)
 
-val duplicate : lambda -> lambda
+val duplicate_function : lfunction -> lfunction
 (** Duplicate a term, freshening all locally-bound identifiers. *)
 
 val map : (lambda -> lambda) -> lambda -> lambda
   (** Bottom-up rewriting, applying the function on
       each node from the leaves to the root. *)
+
+val map_lfunction : (lambda -> lambda) -> lfunction -> lfunction
+  (** Apply the given transformation on the function's body *)
 
 val shallow_map  :
   tail:(lambda -> lambda) ->

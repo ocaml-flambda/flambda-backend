@@ -634,10 +634,12 @@ let emit_movq b ~dst ~src =
     emit_mod_rm_reg b no_rex [ 0x0F; 0x7E ] rm (rd_of_regf reg)
   | _ -> assert false
 
-let emit_movsd b dst src =
+let emit_mov_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0xF2;
+      (match width with
+       | Cmm.Float64 -> buf_int8 b 0xF2
+       | Cmm.Float32 -> buf_int8 b 0xF3);
       emit_mod_rm_reg b 0 [ 0x0f; 0x10 ] rm (rd_of_regf reg)
   | ((Mem _ | Mem64_RIP _) as rm), Regf reg ->
       buf_int8 b 0xF2;
@@ -646,20 +648,12 @@ let emit_movsd b dst src =
       Format.eprintf "src=%a dst=%a@." print_old_arg src print_old_arg dst;
       assert false
 
-let emit_movss b dst src =
+let emit_and_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0xF3;
-      emit_mod_rm_reg b 0 [ 0x0f; 0x10 ] rm (rd_of_regf reg)
-  | ((Mem _ | Mem64_RIP _) as rm), Regf reg ->
-      buf_int8 b 0xF3;
-      emit_mod_rm_reg b 0 [ 0x0f; 0x11 ] rm (rd_of_regf reg)
-  | _ -> assert false
-
-let emit_andpd b dst src =
-  match (dst, src) with
-  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0x66;
+      (match width with
+       | Cmm.Float64 -> buf_int8 b 0x66
+       | Cmm.Float32 -> ());
       emit_mod_rm_reg b 0 [ 0x0f; 0x54 ] rm (rd_of_regf reg)
   | _ -> assert false
 
@@ -706,45 +700,57 @@ let emit_roundsd b dst rounding src =
       buf_int8 b rounding
   | _ -> assert false
 
-let emit_addsd b dst src =
+let emit_add_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0xF2;
+      (match width with
+      | Cmm.Float64 -> buf_int8 b 0xF2
+      | Cmm.Float32 -> buf_int8 b 0xF3);
       emit_mod_rm_reg b 0 [ 0x0f; 0x58 ] rm (rd_of_regf reg)
   | _ -> assert false
 
-let emit_sqrtsd b dst src =
+let emit_sqrt_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0xF2;
+      (match width with
+      | Cmm.Float64 -> buf_int8 b 0xF2
+      | Cmm.Float32 -> buf_int8 b 0xF3);
       emit_mod_rm_reg b 0 [ 0x0f; 0x51 ] rm (rd_of_regf reg)
   | _ -> assert false
 
-let emit_mulsd b dst src =
+let emit_mul_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0xF2;
+      (match width with
+      | Cmm.Float64 -> buf_int8 b 0xF2
+      | Cmm.Float32 -> buf_int8 b 0xF3);
       emit_mod_rm_reg b 0 [ 0x0f; 0x59 ] rm (rd_of_regf reg)
   | _ -> assert false
 
-let emit_divsd b dst src =
+let emit_div_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0xF2;
+      (match width with
+      | Cmm.Float64 -> buf_int8 b 0xF2
+      | Cmm.Float32 -> buf_int8 b 0xF3);
       emit_mod_rm_reg b 0 [ 0x0f; 0x5E ] rm (rd_of_regf reg)
   | _ -> assert false
 
-let emit_subsd b dst src =
+let emit_sub_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0xF2;
+      (match width with
+      | Cmm.Float64 -> buf_int8 b 0xF2
+      | Cmm.Float32 -> buf_int8 b 0xF3);
       emit_mod_rm_reg b 0 [ 0x0f; 0x5C ] rm (rd_of_regf reg)
   | _ -> assert false
 
-let emit_xorpd b dst src =
+let emit_xor_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0x66;
+      (match width with
+      | Cmm.Float64 -> buf_int8 b 0x66
+      | Cmm.Float32 -> ());
       emit_mod_rm_reg b 0 [ 0x0f; 0x57 ] rm (rd_of_regf reg)
   | _ -> assert false
 
@@ -822,17 +828,21 @@ let emit_CVTSS2SD b dst src =
       emit_mod_rm_reg b 0 [ 0x0f; 0x5A ] rm (rd_of_regf reg)
   | _ -> assert false
 
-let emit_comisd b dst src =
+let emit_comi_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0x66;
+      (match width with
+      | Cmm.Float64 -> buf_int8 b 0x66
+      | Cmm.Float32 -> ());
       emit_mod_rm_reg b 0 [ 0x0f; 0x2F ] rm (rd_of_regf reg)
   | _ -> assert false
 
-let emit_ucomisd b dst src =
+let emit_ucomi_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0x66;
+      (match width with
+      | Cmm.Float64 -> buf_int8 b 0x66
+      | Cmm.Float32 -> ());
       emit_mod_rm_reg b 0 [ 0x0f; 0x2E ] rm (rd_of_regf reg)
   | _ -> assert false
 
@@ -1531,12 +1541,14 @@ let imm8_of_float_condition = function
   | NLEf -> 0x06
   | ORDf -> 0x07
 
-let emit_cmpsd b ~condition ~dst ~src =
+let emit_cmp_float ~(width : Cmm.float_width) b ~condition ~dst ~src =
   match (dst, src) with
   | (Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm)) ->
-    (* CMPSD xmm1, xmm2/m64, imm8 *)
+    (* CMP{SS,SD} xmm1, xmm2/m{32,64}, imm8 *)
     let condition = imm8_of_float_condition condition in
-    buf_int8 b 0xF2;
+    (match width with
+    | Cmm.Float64 -> buf_int8 b 0xF2
+    | Cmm.Float32 -> buf_int8 b 0xF3);
     emit_mod_rm_reg b no_rex [ 0x0F; 0xC2 ] rm (rd_of_regf reg);
     buf_int8 b condition
   | _ -> assert false
@@ -1836,9 +1848,9 @@ let imm arg = match arg with Imm n -> Int64.to_int n | _ -> assert false
 
 let assemble_instr b loc = function
   | ADD (src, dst) -> emit_ADD b dst src
-  | ADDSD (src, dst) -> emit_addsd b dst src
+  | ADDSD (src, dst) -> emit_add_float ~width:Cmm.Float64 b dst src
   | AND (src, dst) -> emit_AND b dst src
-  | ANDPD (src, dst) -> emit_andpd b dst src
+  | ANDPD (src, dst) -> emit_and_float ~width:Cmm.Float64 b dst src
   | BSF (src, dst) -> emit_bsf b ~dst ~src
   | BSR (src, dst) -> emit_bsr b ~dst ~src
   | BSWAP arg -> emit_BSWAP b arg
@@ -1851,13 +1863,13 @@ let assemble_instr b loc = function
   | CVTTSD2SI (src, dst) -> emit_CVTTSD2SI b dst src
   | CVTSD2SS (src, dst) -> emit_CVTSD2SS b dst src
   | CVTSS2SD (src, dst) -> emit_CVTSS2SD b dst src
-  | COMISD (src, dst) -> emit_comisd b dst src
+  | COMISD (src, dst) -> emit_comi_float ~width:Cmm.Float64 b dst src
   | CQO -> emit_cqto b
   | CMP (src, dst) -> emit_CMP b dst src
-  | CMPSD (condition, src, dst) -> emit_cmpsd b ~condition ~dst ~src
+  | CMPSD (condition, src, dst) -> emit_cmp_float ~width:Cmm.Float64 b ~condition ~dst ~src
   | CMOV (condition, src, dst) -> emit_cmov b condition dst src
   | CDQ -> buf_int8 b 0x99
-  | DIVSD (src, dst) -> emit_divsd b dst src
+  | DIVSD (src, dst) -> emit_div_float ~width:Cmm.Float64 b dst src
   | DEC dst -> emit_DEC b [ dst ]
   | HLT -> buf_int8 b 0xF4
   | INC dst -> emit_inc b dst
@@ -1878,9 +1890,9 @@ let assemble_instr b loc = function
   | MOVD (src, dst) -> emit_movd b ~dst ~src
   | MOVQ (src, dst) -> emit_movq b ~dst ~src
   | MOVLPD (src, dst) -> emit_movlpd b dst src
-  | MOVSD (src, dst) -> emit_movsd b dst src
-  | MOVSS (src, dst) -> emit_movss b dst src
-  | MULSD (src, dst) -> emit_mulsd b dst src
+  | MOVSD (src, dst) -> emit_mov_float ~width:Cmm.Float64 b dst src
+  | MOVSS (src, dst) -> emit_mov_float ~width:Cmm.Float32 b dst src
+  | MULSD (src, dst) -> emit_mul_float ~width:Cmm.Float64 b dst src
   | MOVSX (src, dst) -> emit_movsx b dst src
   | MOVZX (src, dst) -> emit_MOVZX b dst src
   | MOVSXD (src, dst) -> emit_movsxd b dst src
@@ -1902,15 +1914,25 @@ let assemble_instr b loc = function
   | SAL (src, dst) -> emit_SAL b dst src
   | SAR (src, dst) -> emit_SAR b dst src
   | SHR (src, dst) -> emit_SHR b dst src
-  | SUBSD (src, dst) -> emit_subsd b dst src
-  | SQRTSD (src, dst) -> emit_sqrtsd b dst src
+  | SUBSD (src, dst) -> emit_sub_float ~width:Cmm.Float64 b dst src
+  | SQRTSD (src, dst) -> emit_sqrt_float ~width:Cmm.Float64 b dst src
   | SUB (src, dst) -> emit_SUB b dst src
   | SET (condition, dst) -> emit_set b condition dst
   | TEST (src, dst) -> emit_test b dst src
-  | UCOMISD (src, dst) -> emit_ucomisd b dst src
+  | UCOMISD (src, dst) -> emit_ucomi_float ~width:Cmm.Float64 b dst src
   | XCHG (src, dst) -> emit_XCHG b dst src
   | XOR (src, dst) -> emit_XOR b dst src
-  | XORPD (src, dst) -> emit_xorpd b dst src
+  | XORPD (src, dst) -> emit_xor_float ~width:Cmm.Float64 b dst src
+  | ADDSS (src, dst) -> emit_add_float ~width:Cmm.Float32 b dst src
+  | SUBSS (src, dst) -> emit_sub_float ~width:Cmm.Float32 b dst src
+  | MULSS (src, dst) -> emit_mul_float ~width:Cmm.Float32 b dst src
+  | DIVSS (src, dst) -> emit_div_float ~width:Cmm.Float32 b dst src
+  | COMISS (src, dst) -> emit_comi_float ~width:Cmm.Float32 b dst src
+  | UCOMISS (src, dst) -> emit_ucomi_float ~width:Cmm.Float32 b dst src
+  | SQRTSS (src, dst) -> emit_sqrt_float ~width:Cmm.Float32 b dst src
+  | XORPS (src, dst) -> emit_xor_float ~width:Cmm.Float32 b dst src
+  | ANDPS (src, dst) -> emit_and_float ~width:Cmm.Float32 b dst src
+  | CMPSS (condition, src, dst) -> emit_cmp_float ~width:Cmm.Float32 b ~condition ~dst ~src
   | SSE CMPPS (cmp, src, dst) -> emit_cmpps b (imm8_of_float_condition cmp) dst src
   | SSE ADDPS (src, dst) -> emit_addps b dst src
   | SSE SUBPS (src, dst) -> emit_subps b dst src

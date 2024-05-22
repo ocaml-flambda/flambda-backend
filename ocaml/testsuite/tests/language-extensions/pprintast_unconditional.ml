@@ -39,6 +39,30 @@ module Example = struct
           ?(d @ local = 1) ~e:(e @ local) ?f:(f @ local = 2) \
            () = () in f"
 
+  let modal_kind_struct =
+    parse module_expr "struct \
+      type 'a list : immutable_data with 'a \
+      type ('a, 'b) either : immutable_data with 'a * 'b \
+      type 'a gel : kind_of_ 'a mod global \
+      type 'a t : _ \
+      kind_abbrev_ immediate = value mod global unique many sync uncontended \
+      kind_abbrev_ immutable_data = value mod sync uncontended many \
+      kind_abbrev_ immutable = value mod uncontended \
+      kind_abbrev_ data = value mod sync many \
+    end"
+
+  let modal_kind_sig =
+    parse module_type "sig \
+      type 'a list : immutable_data with 'a \
+      type ('a, 'b) either : immutable_data with 'a * 'b \
+      type 'a gel : kind_of_ 'a mod global \
+      type 'a t : _ \
+      kind_abbrev_ immediate = value mod global unique many sync uncontended \
+      kind_abbrev_ immutable_data = value mod sync uncontended many \
+      kind_abbrev_ immutable = value mod uncontended \
+      kind_abbrev_ data = value mod sync many \
+    end"
+
   let longident        = parse longident "No.Longidents.Require.extensions"
   let expression       = parse expression "[x for x = 1 to 10]"
   let pattern          = parse pattern "[:_:]"
@@ -99,6 +123,12 @@ module Example = struct
                          ; ptype_loc = loc
                          }
   let tyvar            = "no_tyvars_require_extensions"
+  let jkind            = Jane_syntax.Jkind.(
+                            With (
+                              Primitive_layout_or_abbreviation
+                                (Const.mk "value" loc),
+                              core_type
+                            ))
 end
 
 let print_test_header name =
@@ -176,8 +206,11 @@ end = struct
 
   let string_of_expression = test_string_of "string_of_expression" string_of_expression Example.expression
   let string_of_structure = test_string_of "string_of_structure" string_of_structure Example.structure
+  let modal_kind_struct = test "modal_kind_struct" module_expr Example.modal_kind_struct
+  let modal_kind_sig = test "modal_kind_sig" module_type Example.modal_kind_sig
 
   let tyvar = test "tyvar" tyvar Example.tyvar
+  let jkind = test "jkind" jkind Example.jkind
 end
 
 

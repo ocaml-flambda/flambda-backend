@@ -12,10 +12,15 @@
 ;*                                                                        *
 ;**************************************************************************
 
+;; [beta] was renamed to [stdlib_beta]. This library clones [stdlib_beta]
+;; until we move all existing uses of [beta] to [stdlib_beta].
+
 (library
  (name beta)
  (wrapped false)
  (modes byte native)
+ (enabled_if
+  (= %{architecture} "amd64"))
  (flags
   (-strict-sequence
    -principal
@@ -34,16 +39,30 @@
  (library_flags
   (:standard -linkall)))
 
+;; We clone files from [stdlib_beta] instead of re-exporting the library
+;; to avoid adding a new transitive dependency to builds.
+
+(rule
+ (deps
+  (glob_files ../stdlib_beta/*.{ml,mli}))
+ (targets float32.ml float32.mli float32_u.ml float32_u.mli beta.ml beta.mli)
+ (action
+  (bash
+   "cp ../stdlib_beta/*.{ml,mli} .; mv stdlib_beta.ml beta.ml; mv stdlib_beta.mli beta.mli")))
+
+(rule
+ (deps
+  (:first-dep ../to_install.sh)
+  (glob_files *.mli))
+ (action
+  (with-stdout-to
+   to_install.sexp
+   (run "%{first-dep}" "beta"))))
+
 (install
+ (enabled_if
+  (= %{architecture} "amd64"))
  (files
-  (beta.cmxa as beta/beta.cmxa)
-  (beta.a as beta/beta.a)
-  (beta.cmxs as beta/beta.cmxs)
-  (beta.cma as beta/beta.cma)
-  (beta.mli as beta/beta.mli)
-  (.beta.objs/byte/beta.cmi as beta/beta.cmi)
-  (.beta.objs/byte/beta.cmt as beta/beta.cmt)
-  (.beta.objs/byte/beta.cmti as beta/beta.cmti)
-  (.beta.objs/native/beta.cmx as beta/beta.cmx))
+  (include to_install.sexp))
  (section lib)
  (package ocaml))

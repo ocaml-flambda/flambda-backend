@@ -101,6 +101,7 @@ let with_additional_action (config : additional_action_config) s =
         let immediate = Jkind.of_const Immediate ~why:reason in
         let immediate64 = Jkind.of_const Immediate64 ~why:reason in
         let float64 = Jkind.of_const Float64 ~why:reason in
+        let float32 = Jkind.of_const Float32 ~why:reason in
         let word = Jkind.of_const Word ~why:reason in
         let bits32 = Jkind.of_const Bits32 ~why:reason in
         let bits64 = Jkind.of_const Bits64 ~why:reason in
@@ -113,6 +114,7 @@ let with_additional_action (config : additional_action_config) s =
           | Const Immediate -> immediate
           | Const Immediate64 -> immediate64
           | Const Float64 -> float64
+          | Const Float32 -> float32
           | Const Word -> word
           | Const Bits32 -> bits32
           | Const Bits64 -> bits64
@@ -442,8 +444,11 @@ let constructor_tag ~prepare_jkind loc = function
 (* called only when additional_action is [Prepare_for_saving] *)
 let variant_representation ~prepare_jkind loc = function
   | Variant_unboxed -> Variant_unboxed
-  | Variant_boxed layss ->
-    Variant_boxed (Array.map (Array.map (prepare_jkind loc)) layss)
+  | Variant_boxed cstrs_and_jkinds  ->
+    Variant_boxed
+      (Array.map
+         (fun (cstr, jkinds) -> cstr, Array.map (prepare_jkind loc) jkinds)
+         cstrs_and_jkinds)
   | Variant_extensible -> Variant_extensible
 
 (* called only when additional_action is [Prepare_for_saving] *)
@@ -582,6 +587,7 @@ let extension_constructor' copy_scope s ext =
           Array.map (prepare_jkind ext.ext_loc) ext.ext_arg_jkinds
       | Duplicate_variables | No_action -> ext.ext_arg_jkinds
     end;
+    ext_shape = ext.ext_shape;
     ext_constant = ext.ext_constant;
     ext_ret_type =
       Option.map (typexp copy_scope s ext.ext_loc) ext.ext_ret_type;

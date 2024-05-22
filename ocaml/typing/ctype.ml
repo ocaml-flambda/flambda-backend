@@ -6497,6 +6497,7 @@ let nondep_extension_constructor env ids ext =
         ext_type_params = type_params;
         ext_args = args;
         ext_arg_jkinds = ext.ext_arg_jkinds;
+        ext_shape = ext.ext_shape;
         ext_constant = ext.ext_constant;
         ext_ret_type = ret_type;
         ext_private = ext.ext_private;

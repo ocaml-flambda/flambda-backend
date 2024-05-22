@@ -1,6 +1,6 @@
 (* TEST
  flags = "-extension-universe alpha";
- include alpha;
+ include stdlib_alpha;
  {
    bytecode;
  }{
@@ -8,4 +8,4 @@
  }
 *)
 
-open Alpha
+open Stdlib_alpha

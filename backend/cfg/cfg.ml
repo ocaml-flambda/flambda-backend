@@ -57,7 +57,8 @@ let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
     match hd with
     | No_CSE -> No_CSE :: of_cmm_codegen_option tl
     | Reduce_code_size -> Reduce_code_size :: of_cmm_codegen_option tl
-    | Use_linscan_regalloc | Assume _ | Check _ -> of_cmm_codegen_option tl)
+    | Use_linscan_regalloc | Assume_zero_alloc _ | Check_zero_alloc _ ->
+      of_cmm_codegen_option tl)
 
 type t =
   { blocks : basic_block Label.Tbl.t;
@@ -97,7 +98,7 @@ let successor_labels_normal ti =
   | Always l -> Label.Set.singleton l
   | Parity_test { ifso; ifnot } | Truth_test { ifso; ifnot } ->
     Label.Set.singleton ifso |> Label.Set.add ifnot
-  | Float_test { lt; gt; eq; uo } ->
+  | Float_test { width = _; lt; gt; eq; uo } ->
     Label.Set.singleton lt |> Label.Set.add gt |> Label.Set.add eq
     |> Label.Set.add uo
   | Int_test { lt; gt; eq; imm = _; is_signed = _ } ->
@@ -147,8 +148,8 @@ let replace_successor_labels t ~normal ~exn block ~f =
         Truth_test { ifso = f ifso; ifnot = f ifnot }
       | Int_test { lt; eq; gt; is_signed; imm } ->
         Int_test { lt = f lt; eq = f eq; gt = f gt; is_signed; imm }
-      | Float_test { lt; eq; gt; uo } ->
-        Float_test { lt = f lt; eq = f eq; gt = f gt; uo = f uo }
+      | Float_test { width; lt; eq; gt; uo } ->
+        Float_test { width; lt = f lt; eq = f eq; gt = f gt; uo = f uo }
       | Switch labels -> Switch (Array.map f labels)
       | Tailcall_self { destination } ->
         Tailcall_self { destination = f destination }
@@ -278,11 +279,15 @@ let dump_op ppf = function
   | Intop_imm (op, n) -> Format.fprintf ppf "intop %s %d" (intop op) n
   | Intop_atomic { op; size = _; addr = _ } ->
     Format.fprintf ppf "intop atomic %s" (intop_atomic op)
-  | Floatop op -> Format.fprintf ppf "floatop %a" Printmach.floatop op
+  | Floatop (Float64, op) ->
+    Format.fprintf ppf "floatop %a" Printmach.floatop op
+  | Floatop (Float32, op) ->
+    Format.fprintf ppf "float32op %a" Printmach.floatop op
   | Csel _ -> Format.fprintf ppf "csel"
   | Valueofint -> Format.fprintf ppf "valueofint"
   | Intofvalue -> Format.fprintf ppf "intofvalue"
   | Vectorcast Bits128 -> Format.fprintf ppf "vec128->vec128"
+  | Scalarcast Float32_as_float -> Format.fprintf ppf "float32 as float"
   | Scalarcast (Float_of_int Float64) -> Format.fprintf ppf "int->float"
   | Scalarcast (Float_to_int Float64) -> Format.fprintf ppf "float->int"
   | Scalarcast (Float_of_int Float32) -> Format.fprintf ppf "int->float32"
@@ -348,7 +353,7 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
     fprintf ppf "if even%s goto %d%selse goto %d" first_arg ifso sep ifnot
   | Truth_test { ifso; ifnot } ->
     fprintf ppf "if true%s goto %d%selse goto %d" first_arg ifso sep ifnot
-  | Float_test { lt; eq; gt; uo } ->
+  | Float_test { width = _; lt; eq; gt; uo } ->
     fprintf ppf "if%s <%s goto %d%s" first_arg second_arg lt sep;
     fprintf ppf "if%s =%s goto %d%s" first_arg second_arg eq sep;
     fprintf ppf "if%s >%s goto %d%s" first_arg second_arg gt sep;

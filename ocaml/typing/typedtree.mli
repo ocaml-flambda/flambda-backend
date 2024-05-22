@@ -33,8 +33,8 @@ type constant =
   | Const_string of string * Location.t * string option
   | Const_float of string
   | Const_float32 of string
-  (* CR mslater: (float32) unboxed *)
   | Const_unboxed_float of string
+  | Const_unboxed_float32 of string
   | Const_int32 of int32
   | Const_int64 of int64
   (* CR mshinwell: This should use [Targetint.t] not [nativeint] *)
@@ -260,7 +260,7 @@ and expression_desc =
         ret_sort : Jkind.sort;
         alloc_mode : Mode.Alloc.r;
         (* Mode at which the closure is allocated *)
-        zero_alloc : Builtin_attributes.check_attribute
+        zero_alloc : Builtin_attributes.zero_alloc_attribute
         (* zero-alloc attributes *)
       }
       (** fun P0 P1 -> function p1 -> e1 | p2 -> e2  (body = Tfunction_cases _)
@@ -680,7 +680,7 @@ and structure_item_desc =
 
 and module_binding =
     {
-     mb_id: Ident.t option;
+     mb_id: Ident.t option; (** [None] for [module _ = struct ... end] *)
      mb_name: string option loc;
      mb_uid: Uid.t;
      mb_presence: Types.module_presence;
@@ -693,6 +693,7 @@ and value_binding =
   {
     vb_pat: pattern;
     vb_expr: expression;
+    vb_rec_kind: Value_rec_types.recursive_binding_kind;
     vb_sort: Jkind.sort;
     vb_attributes: attributes;
     vb_loc: Location.t;
@@ -704,7 +705,19 @@ and module_coercion =
                          (Ident.t * int * module_coercion) list
   | Tcoerce_functor of module_coercion * module_coercion
   | Tcoerce_primitive of primitive_coercion
+  (** External declaration coerced to a regular value.
+      {[
+        module M : sig val ext : a -> b end =
+        struct external ext : a -> b = "my_c_function" end
+      ]}
+      Only occurs inside a [Tcoerce_structure] coercion. *)
   | Tcoerce_alias of Env.t * Path.t * module_coercion
+  (** Module alias coerced to a regular module.
+      {[
+        module M : sig module Sub : T end =
+        struct module Sub = Some_alias end
+      ]}
+      Only occurs inside a [Tcoerce_structure] coercion. *)
 
 and module_type =
   { mty_desc: module_type_desc;
@@ -909,7 +922,7 @@ and type_declaration =
     typ_manifest: core_type option;
     typ_loc: Location.t;
     typ_attributes: attributes;
-    typ_jkind_annotation: Jane_asttypes.jkind_annotation option;
+    typ_jkind_annotation: Jane_syntax.Jkind.annotation option;
    }
 
 and type_kind =
@@ -1126,7 +1139,7 @@ val let_bound_idents_full:
 val let_bound_idents_with_modes_sorts_and_checks:
   value_binding list
   -> (Ident.t * (Location.t * Mode.Value.l * Jkind.sort) list
-              * Builtin_attributes.check_attribute) list
+              * Builtin_attributes.zero_alloc_attribute) list
 
 (** Alpha conversion of patterns *)
 val alpha_pat:

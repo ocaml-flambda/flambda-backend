@@ -93,18 +93,6 @@ let dynlink =
 let str = make_library_modifier
   "str" [compiler_subdir ["otherlibs"; "str"]]
 
-let upstream_compatible = make_library_modifier
-  "upstream_compatible" [compiler_subdir ["otherlibs"; "upstream_compatible"]]
-
-let stable = make_library_modifier
-  "stable" [compiler_subdir ["otherlibs"; "stable"]]
-
-let beta = make_library_modifier
-  "beta" [compiler_subdir ["otherlibs"; "beta"]]
-
-let alpha = make_library_modifier
-  "alpha" [compiler_subdir ["otherlibs"; "alpha"]]
-
 let systhreads =
   unix @
   (make_library_modifier
@@ -140,6 +128,9 @@ let runtime_suffix = if Config.runtime5 then "" else "4"
 
 let debugger = [add_compiler_subdir ("debugger" ^ runtime_suffix)]
 
+let extension_universe_lib name =
+  make_library_modifier name [compiler_subdir ["otherlibs"; name]]
+
 let _ =
   register_modifiers "principal" principal;
   register_modifiers "config" config;
@@ -147,10 +138,18 @@ let _ =
   register_modifiers "unix" unix;
   register_modifiers "dynlink" dynlink;
   register_modifiers "str" str;
-  register_modifiers "upstream_compatible" upstream_compatible;
-  register_modifiers "stable" stable;
-  register_modifiers "beta" beta;
-  register_modifiers "alpha" alpha;
+  List.iter
+    (fun old_name ->
+      let new_name = "stdlib_" ^ old_name in
+      register_modifiers old_name (extension_universe_lib old_name);
+      register_modifiers new_name (extension_universe_lib new_name);
+    )
+    [
+      "upstream_compatible";
+      "stable";
+      "beta";
+      "alpha";
+    ];
   List.iter
     (fun archive -> register_modifiers archive (compilerlibs_archive archive))
     [

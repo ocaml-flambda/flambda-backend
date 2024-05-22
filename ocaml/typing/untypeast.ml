@@ -129,6 +129,7 @@ let constant = function
   | Const_float f -> `Parsetree (Pconst_float (f,None))
   | Const_float32 f -> `Parsetree (Pconst_float (f, Some 's'))
   | Const_unboxed_float f -> `Jane_syntax (Jane_syntax.Layouts.Float (f, None))
+  | Const_unboxed_float32 f -> `Jane_syntax (Jane_syntax.Layouts.Float (f, Some 's'))
   | Const_unboxed_int32 i ->
     `Jane_syntax (Jane_syntax.Layouts.Integer (Int32.to_string i, 'l'))
   | Const_unboxed_int64 i ->

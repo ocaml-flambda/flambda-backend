@@ -147,7 +147,7 @@ let array_load (kind : Flambda_primitive.Array_kind.t) =
   match kind with
   | Immediates -> 1 (* cadda + load *)
   | Naked_floats | Values -> 1
-  | Naked_int32s | Naked_int64s | Naked_nativeints ->
+  | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints ->
     (* more computation is needed because of the representation using a custom
        block *)
     2
@@ -160,7 +160,13 @@ let block_set (kind : Flambda_primitive.Block_access_kind.t)
   | Values _, (Assignment Local | Initialization) -> 1 (* cadda + store *)
   | Naked_floats _, (Assignment _ | Initialization) -> 1
   | ( Mixed
-        { field_kind = Value_prefix _ | Flat_suffix (Imm | Float | Float64); _ },
+        { field_kind =
+            ( Value_prefix _
+            | Flat_suffix
+                (Imm | Float_boxed | Float64 | Float32 | Bits32 | Bits64 | Word)
+              );
+          _
+        },
       (Assignment _ | Initialization) ) ->
     1
 
@@ -169,7 +175,8 @@ let array_set (kind : Flambda_primitive.Array_set_kind.t) =
   | Values (Assignment Heap) -> does_not_need_caml_c_call_extcall_size
   | Values (Assignment Local | Initialization) -> 1
   | Immediates | Naked_floats -> 1
-  | Naked_int32s | Naked_int64s | Naked_nativeints -> 2 (* as above *)
+  | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints ->
+    2 (* as above *)
 
 let string_or_bigstring_load kind width =
   let start_address_load =
@@ -319,9 +326,9 @@ let int_comparison_like_compare_functions (kind : Flambda_kind.Standard_int.t)
   | Naked_nativeint ->
     4
 
-let binary_float_arith_primitive _op = 2
+let binary_float_arith_primitive _width _op = 2
 
-let binary_float_comp_primitive _op = 2
+let binary_float_comp_primitive _width _op = 2
 
 (* Primitives sizes *)
 
@@ -346,7 +353,7 @@ let unary_prim_size prim =
         (Immediates | Values | Naked_floats | Naked_int64s | Naked_nativeints)
       ->
       array_length_size
-    | Array_kind Naked_int32s ->
+    | Array_kind (Naked_int32s | Naked_float32s) ->
       (* There is a dynamic check here to see if the array has an odd or even
          number of elements *)
       array_length_size + 2 (* compare + load *)
@@ -388,9 +395,10 @@ let binary_prim_size prim =
   | Int_comp (kind, Yielding_bool cmp) -> binary_int_comp_primitive kind cmp
   | Int_comp (kind, Yielding_int_like_compare_functions signedness) ->
     int_comparison_like_compare_functions kind signedness
-  | Float_arith op -> binary_float_arith_primitive op
-  | Float_comp (Yielding_bool cmp) -> binary_float_comp_primitive cmp
-  | Float_comp (Yielding_int_like_compare_functions ()) -> 8
+  | Float_arith (width, op) -> binary_float_arith_primitive width op
+  | Float_comp (width, Yielding_bool cmp) ->
+    binary_float_comp_primitive width cmp
+  | Float_comp (_width, Yielding_int_like_compare_functions ()) -> 8
   | Bigarray_get_alignment _ -> 3 (* load data + add index + and *)
   | Atomic_exchange | Atomic_fetch_and_add ->
     does_not_need_caml_c_call_extcall_size
@@ -412,7 +420,7 @@ let variadic_prim_size prim args =
   (* CR mshinwell: I think Make_array for a generic array ("Anything") is more
      expensive than the other cases *)
   | Make_array (_, _mut, _alloc_mode)
-  | Make_mixed_block (_, _mut, _alloc_mode) ->
+  | Make_mixed_block (_, _, _mut, _alloc_mode) ->
     alloc_size + List.length args
 
 let prim (prim : Flambda_primitive.t) =

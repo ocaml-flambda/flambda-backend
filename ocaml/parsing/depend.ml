@@ -14,7 +14,6 @@
 (**************************************************************************)
 
 open Asttypes
-open Jane_asttypes
 open Location
 open Longident
 open Parsetree
@@ -98,7 +97,7 @@ let handle_extension ext =
 
 (* CR layouts: Remember to add this when jkinds can have module
    prefixes. *)
-let add_jkind _bv (_jkind : jkind_annotation) = ()
+let add_jkind _bv (_jkind : Jane_syntax.Jkind.annotation) = ()
 
 let add_vars_jkinds bv vars_jkinds =
   let add_one (_, jkind) = Option.iter (add_jkind bv) jkind in
@@ -528,11 +527,13 @@ and add_include_description (bv, m) incl =
   let add = String.Map.fold String.Map.add m' in
   (add bv, add m)
 
-and add_sig_item_jst bvm : Jane_syntax.Signature_item.t -> _ = function
+and add_sig_item_jst (bv, m) : Jane_syntax.Signature_item.t -> _ = function
   | Jsig_include_functor (Ifsig_include_functor incl) ->
       (* It seems to be correct to treat [include functor] the same as
          [include], but it's possible we could do something cleverer. *)
-      add_include_description bvm incl
+      add_include_description (bv, m) incl
+  | Jsig_layout (Lsig_kind_abbrev (_, jkind)) ->
+      add_jkind bv jkind; (bv, m)
 
 and add_sig_item (bv, m) item =
   match Jane_syntax.Signature_item.of_ast item with
@@ -682,11 +683,13 @@ and add_include_declaration (bv, m) incl =
   let add = String.Map.fold String.Map.add m' in
   (add bv, add m)
 
-and add_struct_item_jst bvm : Jane_syntax.Structure_item.t -> _ = function
+and add_struct_item_jst (bv, m) : Jane_syntax.Structure_item.t -> _ = function
   | Jstr_include_functor (Ifstr_include_functor incl) ->
       (* It seems to be correct to treat [include functor] the same as
          [include], but it's possible we could do something cleverer. *)
-      add_include_declaration bvm incl
+      add_include_declaration (bv, m) incl
+  | Jstr_layout (Lstr_kind_abbrev (_name, jkind)) ->
+      add_jkind bv jkind; (bv, m)
 
 and add_struct_item (bv, m) item : _ String.Map.t * _ String.Map.t =
   match Jane_syntax.Structure_item.of_ast item with

@@ -26,6 +26,7 @@ type constant =
   | Const_float of string
   | Const_float32 of string
   | Const_unboxed_float of string
+  | Const_unboxed_float32 of string
   | Const_int32 of int32
   | Const_int64 of int64
   | Const_nativeint of nativeint
@@ -144,7 +145,7 @@ and expression_desc =
         ret_mode : Mode.Alloc.l;
         ret_sort : Jkind.sort;
         alloc_mode : Mode.Alloc.r;
-        zero_alloc : Builtin_attributes.check_attribute;
+        zero_alloc : Builtin_attributes.zero_alloc_attribute;
       }
   | Texp_apply of
       expression * (arg_label * apply_arg) list * apply_position *
@@ -455,6 +456,7 @@ and value_binding =
   {
     vb_pat: pattern;
     vb_expr: expression;
+    vb_rec_kind: Value_rec_types.recursive_binding_kind;
     vb_sort: Jkind.sort;
     vb_attributes: attributes;
     vb_loc: Location.t;
@@ -667,7 +669,7 @@ and type_declaration =
     typ_manifest: core_type option;
     typ_loc: Location.t;
     typ_attributes: attribute list;
-    typ_jkind_annotation: Jane_asttypes.jkind_annotation option;
+    typ_jkind_annotation: Jane_syntax.Jkind.annotation option;
    }
 
 and type_kind =
@@ -1061,7 +1063,7 @@ let let_bound_idents_with_modes_sorts_and_checks bindings =
     (fun (id, _, _, _) ->
        let zero_alloc =
          Option.value (Ident.Map.find_opt id checks)
-           ~default:Builtin_attributes.Default_check
+           ~default:Builtin_attributes.Default_zero_alloc
        in
        id, List.rev (Ident.Tbl.find_all modes_and_sorts id), zero_alloc)
     (rev_let_bound_idents_full bindings)

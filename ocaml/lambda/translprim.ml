@@ -700,9 +700,10 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%obj_magic" -> Primitive(Pobj_magic layout, 1)
     | "%array_to_iarray" -> Primitive (Parray_to_iarray, 1)
     | "%array_of_iarray" -> Primitive (Parray_of_iarray, 1)
-    (* CR mslater: (float32) unboxed *)
     | "%unbox_float" -> Primitive(Punbox_float Pfloat64, 1)
     | "%box_float" -> Primitive(Pbox_float (Pfloat64, mode), 1)
+    | "%unbox_float32" -> Primitive(Punbox_float Pfloat32, 1)
+    | "%box_float32" -> Primitive(Pbox_float (Pfloat32, mode), 1)
     | "%get_header" -> Primitive (Pget_header mode, 1)
     | "%atomic_load" ->
         Primitive ((Patomic_load {immediate_or_pointer=Pointer}), 1)

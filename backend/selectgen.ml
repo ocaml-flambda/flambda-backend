@@ -171,12 +171,16 @@ let oper_result_type = function
     Ccmpi _ | Ccmpa _ | Ccmpf _ -> typ_int
   | Caddv -> typ_val
   | Cadda -> typ_addr
-  | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf -> typ_float
+  | Cnegf Float64 | Cabsf Float64 | Caddf Float64
+  | Csubf Float64 | Cmulf Float64 | Cdivf Float64 -> typ_float
+  | Cnegf Float32 | Cabsf Float32 | Caddf Float32
+  | Csubf Float32 | Cmulf Float32 | Cdivf Float32 -> typ_float32
+  | Cpackf32 -> typ_float
   | Ccsel ty -> ty
   | Cvalueofint -> typ_val
   | Cintofvalue -> typ_int
   | Cvectorcast Bits128 -> typ_vec128
-  | Cscalarcast (Float_of_float32 | Float_of_int Float64) -> typ_float
+  | Cscalarcast (Float32_as_float | Float_of_float32 | Float_of_int Float64) -> typ_float
   | Cscalarcast (Float_to_float32 | Float_of_int Float32) -> typ_float32
   | Cscalarcast (Float_to_int (Float64 | Float32)) -> typ_int
   | Cscalarcast (V128_of_scalar _) -> typ_vec128
@@ -203,8 +207,9 @@ let size_component : machtype_component -> int = function
   | Int -> Arch.size_int
   | Float -> Arch.size_float
   | Float32 ->
-    assert (Arch.size_float = 8);
-    Arch.size_float / 2
+    (* CR layouts v5.1: reconsider when float32 fields are efficiently packed.
+       Note that packed float32# arrays are handled via a separate path. *)
+    Arch.size_float
   | Vec128 -> Arch.size_vec128
 
 let size_machtype mty =
@@ -219,10 +224,11 @@ let size_expr (env:environment) exp =
       Cconst_int _ | Cconst_natint _ -> Arch.size_int
     | Cconst_symbol _ ->
         Arch.size_addr
-    | Cconst_float32 _ ->
-      assert (Arch.size_float = 8);
-      Arch.size_float / 2
     | Cconst_float _ -> Arch.size_float
+    | Cconst_float32 _ ->
+      (* CR layouts v5.1: reconsider when float32 fields are efficiently packed.
+         Note that packed float32# arrays are handled via a separate path. *)
+      Arch.size_float
     | Cconst_vec128 _ -> Arch.size_vec128
     | Cvar id ->
         begin try
@@ -492,11 +498,11 @@ method is_simple_expr = function
       | Cprefetch _ | Cbeginregion | Cendregion -> false (* avoid reordering *)
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor
-      | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
+      | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf _
       | Cclz _ | Cctz _ | Cpopcnt
       | Cbswap _
       | Ccsel _
-      | Cabsf | Caddf | Csubf | Cmulf | Cdivf
+      | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _ | Cpackf32
       | Cvectorcast _ | Cscalarcast _
       | Cvalueofint | Cintofvalue
       | Ctuple_field _
@@ -553,8 +559,8 @@ method effects_of exp =
       | Cbswap _
       | Ccsel _
       | Cclz _ | Cctz _ | Cpopcnt
-      | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf | Cabsf
-      | Caddf | Csubf | Cmulf | Cdivf
+      | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _
+      | Cnegf _ | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _ | Cpackf32
       | Cvectorcast _ | Cscalarcast _
       | Cvalueofint | Cintofvalue | Ccmpf _ ->
         EC.none
@@ -669,16 +675,16 @@ method select_operation op args _dbg =
   | (Caddv, _) -> self#select_arith_comm Iadd args
   | (Cadda, _) -> self#select_arith_comm Iadd args
   | (Ccmpa comp, _) -> self#select_arith_comp (Iunsigned comp) args
-  | (Ccmpf comp, _) -> (Ifloatop(Icompf comp), args)
+  | (Ccmpf (w, comp), _) -> (Ifloatop(w, Icompf comp), args)
   | (Ccsel _, [cond; ifso; ifnot]) ->
      let (cond, earg) = self#select_condition cond in
      (Icsel cond, [ earg; ifso; ifnot ])
-  | (Cnegf, _) -> (Ifloatop Inegf, args)
-  | (Cabsf, _) -> (Ifloatop Iabsf, args)
-  | (Caddf, _) -> (Ifloatop Iaddf, args)
-  | (Csubf, _) -> (Ifloatop Isubf, args)
-  | (Cmulf, _) -> (Ifloatop Imulf, args)
-  | (Cdivf, _) -> (Ifloatop Idivf, args)
+  | (Cnegf w, _) -> (Ifloatop (w, Inegf), args)
+  | (Cabsf w, _) -> (Ifloatop (w, Iabsf), args)
+  | (Caddf w, _) -> (Ifloatop (w, Iaddf), args)
+  | (Csubf w, _) -> (Ifloatop (w, Isubf), args)
+  | (Cmulf w, _) -> (Ifloatop (w, Imulf), args)
+  | (Cdivf w, _) -> (Ifloatop (w, Idivf), args)
   | (Cvalueofint, _) -> (Ivalueofint, args)
   | (Cintofvalue, _) -> (Iintofvalue, args)
   | (Cvectorcast cast, _) -> (Ivectorcast cast, args)
@@ -740,8 +746,8 @@ method select_condition = function
       (Iinttest_imm(Iunsigned(swap_integer_comparison cmp), n), arg2)
   | Cop(Ccmpa cmp, args, _) ->
       (Iinttest(Iunsigned cmp), Ctuple args)
-  | Cop(Ccmpf cmp, args, _) ->
-      (Ifloattest cmp, Ctuple args)
+  | Cop(Ccmpf (width, cmp), args, _) ->
+      (Ifloattest (width, cmp), Ctuple args)
   | Cop(Cand, [arg; Cconst_int (1, _)], _) ->
       (Ioddtest, arg)
   | arg ->
@@ -1023,7 +1029,7 @@ method emit_expr_aux (env:environment) exp ~bound_name : Reg.t array option =
               let bytes = size_expr env (Ctuple new_args) in
               let alloc_words = (bytes + Arch.size_addr - 1) / Arch.size_addr in
               let op =
-                Ialloc { bytes;
+                Ialloc { bytes = alloc_words * Arch.size_addr;
                          dbginfo = [{alloc_words; alloc_dbg = dbg}];
                          mode }
               in
@@ -1748,7 +1754,8 @@ method private emit_tail_sequence ?at_start env exp =
 method emit_fundecl ~future_funcnames f =
   current_function_name := f.Cmm.fun_name.sym_name;
   current_function_is_check_enabled :=
-    Checkmach.is_check_enabled f.Cmm.fun_codegen_options f.Cmm.fun_name.sym_name f.Cmm.fun_dbg;
+    Zero_alloc_checker.is_check_enabled f.Cmm.fun_codegen_options
+      f.Cmm.fun_name.sym_name f.Cmm.fun_dbg;
   let num_regs_per_arg = Array.make (List.length f.Cmm.fun_args) 0 in
   let rargs =
     List.mapi

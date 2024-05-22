@@ -207,6 +207,7 @@ type vector_cast =
   | Bits128
 
 type scalar_cast =
+  | Float32_as_float
   | Float_to_int of float_width
   | Float_of_int of float_width
   | Float_to_float32
@@ -245,12 +246,14 @@ type operation =
   | Ccmpi of integer_comparison
   | Caddv | Cadda
   | Ccmpa of integer_comparison
-  | Cnegf | Cabsf
-  | Caddf | Csubf | Cmulf | Cdivf
+  | Cnegf of float_width | Cabsf of float_width
+  | Caddf of float_width | Csubf of float_width
+  | Cmulf of float_width | Cdivf of float_width
+  | Cpackf32
   | Cvalueofint | Cintofvalue
   | Cvectorcast of vector_cast
   | Cscalarcast of scalar_cast
-  | Ccmpf of float_comparison
+  | Ccmpf of float_width * float_comparison
   | Craise of Lambda.raise_kind
   | Cprobe of { name: string; handler_code_sym: string; enabled_at_init: bool }
   | Cprobe_is_enabled of { name: string }
@@ -311,16 +314,14 @@ type expression =
       * Backend_var.With_provenance.t * expression * Debuginfo.t
       * kind_for_unboxing
 
-type property =
-  | Zero_alloc
-
 type codegen_option =
   | Reduce_code_size
   | No_CSE
   | Use_linscan_regalloc
-  | Assume of { property: property; strict: bool; never_returns_normally: bool;
-                loc: Location.t }
-  | Check of { property: property; strict: bool; loc : Location.t; }
+  | Assume_zero_alloc of { strict: bool; never_returns_normally: bool;
+                           never_raises: bool;
+                           loc: Location.t }
+  | Check_zero_alloc of { strict: bool; loc : Location.t; }
 
 type fundecl =
   { fun_name: symbol;
@@ -564,25 +565,17 @@ let equal_float_width left right =
 
 let equal_scalar_cast left right =
   match left, right with
+  | Float32_as_float, Float32_as_float -> true
   | Float_to_float32, Float_to_float32 -> true
   | Float_of_float32, Float_of_float32 -> true
   | Float_to_int f1, Float_to_int f2 -> equal_float_width f1 f2
   | Float_of_int f1, Float_of_int f2 -> equal_float_width f1 f2
   | V128_to_scalar v1, V128_to_scalar v2 -> Primitive.equal_vec128_type v1 v2
   | V128_of_scalar v1, V128_of_scalar v2 -> Primitive.equal_vec128_type v1 v2
-  | Float_to_float32, (Float_of_float32 | Float_to_int _ | Float_of_int _ |
-                       V128_to_scalar _ | V128_of_scalar _)
-  | Float_of_float32, (Float_to_float32 | Float_to_int _ | Float_of_int _ |
-                       V128_to_scalar _ | V128_of_scalar _)
-  | Float_to_int _, (Float_of_float32 | Float_to_float32 | Float_of_int _ |
-                       V128_to_scalar _ | V128_of_scalar _)
-  | Float_of_int _, (Float_of_float32 | Float_to_float32 | Float_to_int _ |
-                       V128_to_scalar _ | V128_of_scalar _)
-  | V128_to_scalar _, (Float_of_float32 | Float_to_float32 | Float_to_int _ |
-                       Float_of_int _ | V128_of_scalar _)
-  | V128_of_scalar _, (Float_of_float32 | Float_to_float32 | Float_to_int _ |
-                       Float_of_int _ | V128_to_scalar _)
-    -> false
+  | (Float32_as_float |
+     Float_to_float32 | Float_of_float32 |
+     Float_to_int _ | Float_of_int _ |
+     V128_to_scalar _ | V128_of_scalar _), _ -> false
 
 let equal_float_comparison left right =
   match left, right with
@@ -683,7 +676,5 @@ let equal_integer_comparison left right =
   | Cle, (Ceq | Cne | Clt | Cgt | Cge)
   | Cge, (Ceq | Cne | Clt | Cgt | Cle) ->
     false
-
-let all_properties = [Zero_alloc]
 
 let caml_flambda2_invalid = "caml_flambda2_invalid"
