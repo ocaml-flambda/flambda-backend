@@ -2584,7 +2584,7 @@ end = struct
         | Op op -> Ok (operation t ~next op i.dbg)
         | Pushtrap _ | Poptrap ->
           (* treated as no-op here, flow and handling of exceptions is
-             encorporated into the blocks and edges of the CFG *)
+             incorporated into the blocks and edges of the CFG *)
           Ok next
         | Reloadretaddr | Prologue | Stack_check _ -> Ok next
 
@@ -2597,7 +2597,7 @@ end = struct
           (* [raise_notrace] is typically used for control flow, not for
              indicating an error. Therefore, we do not ignore any allocation on
              paths to it. The following conservatively assumes that normal and
-             exn Returns are reachable. *)
+             exn returns are reachable. *)
           Value.join exn Value.safe
         | Raise (Raise_reraise | Raise_regular) -> exn
         | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
