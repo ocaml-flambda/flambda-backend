@@ -1,5 +1,6 @@
 (* TEST
  flags = "-extension-universe stable";
+ include stdlib_alpha;
  expect;
 *)
 
@@ -36,4 +37,26 @@ Line 1, characters 24-38:
                             ^^^^^^^^^^^^^^
 Error: Layout non_null_value is more experimental than allowed by the enabled layouts extension.
        You must enable -extension layouts_alpha to use this feature.
+|}]
+
+(* It should normally be impossible to get a sublayout error
+   between [value] and [non_null_value] without enabling [-extension-universe alpha].
+   We trigger it here by using [Stdlib_alpha.Or_null].
+
+   In this case, [non_null_value] is still displayed. *)
+
+type t_value : value
+type fail = t_value Stdlib_alpha.Or_null.t
+;;
+
+[%%expect{|
+type t_value : value
+Line 2, characters 12-19:
+2 | type fail = t_value Stdlib_alpha.Or_null.t
+                ^^^^^^^
+Error: This type t_value should be an instance of type ('a : value)
+       The layout of t_value is value, because
+         of the definition of t_value at line 1, characters 0-20.
+       But the layout of t_value must be a sublayout of non_null_value, because
+         the type argument of Stdlib_alpha.Or_null.t has this layout.
 |}]
