@@ -395,6 +395,8 @@ method schedule_fundecl f =
       fun_frame_required = f.fun_frame_required;
       fun_prologue_required = f.fun_prologue_required;
       fun_section_name = f.fun_section_name;
+      fun_stack_check_move_allowed = f.fun_stack_check_move_allowed;
+      fun_stack_check_skip_callees = f.fun_stack_check_skip_callees;
     }
   end else
     f

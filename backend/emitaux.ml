@@ -528,38 +528,57 @@ let report_error ppf = function
   | Stack_frame_way_too_large n ->
     Format.fprintf ppf "stack frame too large (%d bytes)." n
   | Inconsistent_probe_init (name, dbg) ->
-    Format.fprintf ppf
-      "Inconsistent use of ~enabled_at_init in [%%probe %s ..] at %a" name
-      Debuginfo.print_compact dbg
+    Format.fprintf ppf "Inconsistent use of ~enabled_at_init in [%%probe %s ..] at %a"
+      name Debuginfo.print_compact dbg
+
+module String = Misc.Stdlib.String
 
 type preproc_stack_check_result =
   { max_frame_size : int;
-    contains_nontail_calls : bool
+    max_frame_size_with_calls : int;
+    callees : String.Set.t;
+    contains_nontail_calls : bool;
   }
 
 let preproc_stack_check ~fun_body ~frame_size ~trap_size =
-  let rec loop (i : Linear.instruction) fs max_fs nontail_flag =
+  let rec loop (i:Linear.instruction) fs ~max_fs ~max_fs_calls ~callees ~nontail_flag =
     match i.desc with
-    | Lend -> { max_frame_size = max_fs; contains_nontail_calls = nontail_flag }
-    | Ladjust_stack_offset { delta_bytes } ->
-      let s = fs + delta_bytes in
-      loop i.next s (max s max_fs) nontail_flag
-    | Lpushtrap _ ->
-      let s = fs + trap_size in
-      loop i.next s (max s max_fs) nontail_flag
-    | Lpoptrap -> loop i.next (fs - trap_size) max_fs nontail_flag
-    | Lop (Istackoffset n) ->
-      let s = fs + n in
-      loop i.next s (max s max_fs) nontail_flag
-    | Lop (Icall_ind | Icall_imm _) -> loop i.next fs max_fs true
-    | Lprologue | Lop _ | Lreloadretaddr | Lreturn | Llabel _ | Lbranch _
-    | Lcondbranch _ | Lcondbranch3 _ | Lswitch _ | Lentertrap | Lraise _ ->
-      loop i.next fs max_fs nontail_flag
-    | Lstackcheck _ ->
-      (* should not be already present *)
-      assert false
+      | Lend -> { max_frame_size = max_fs;
+                  max_frame_size_with_calls = max_fs_calls;
+                  callees;
+                  contains_nontail_calls = nontail_flag}
+      | Ladjust_stack_offset { delta_bytes } ->
+        let s = fs + delta_bytes in
+        loop i.next s ~max_fs:(max s max_fs) ~max_fs_calls:(max s max_fs_calls)
+ ~callees ~nontail_flag
+      | Lpushtrap _ ->
+        let s = fs + trap_size in
+        loop i.next s ~max_fs:(max s max_fs) ~max_fs_calls:(max s max_fs_calls)
+ ~callees ~nontail_flag
+      | Lpoptrap ->
+        loop i.next (fs - trap_size) ~max_fs ~max_fs_calls ~callees ~nontail_flag
+      | Lop (Istackoffset n) ->
+        let s = fs + n in
+        loop i.next s ~max_fs:(max s max_fs) ~max_fs_calls:(max s max_fs_calls) ~callees ~nontail_flag
+      | Lop Icall_ind ->
+        loop i.next fs ~max_fs ~max_fs_calls ~callees ~nontail_flag:true
+      | Lop (Icall_imm { func = { Cmm.sym_name; sym_global = _; }; }) ->
+        begin match Stack_check_info.get_value Compilenv.cached_stack_check_info sym_name with
+        | None | Some (No_checks | Check_moved_down) ->
+          loop i.next fs ~max_fs ~max_fs_calls ~callees ~nontail_flag:true
+        | Some Check_as_first_instruction { size_in_bytes; } ->
+          let s = fs + size_in_bytes in
+          loop i.next fs ~max_fs ~max_fs_calls:(max s max_fs_calls) ~callees:(String.Set.add sym_name callees) ~nontail_flag
+        end
+      | Lprologue | Lop _ | Lreloadretaddr | Lreturn | Llabel _
+      | Lbranch _ | Lcondbranch _ | Lcondbranch3 _ | Lswitch _
+      | Lentertrap | Lraise _ ->
+        loop i.next fs ~max_fs ~max_fs_calls ~callees ~nontail_flag
+      | Lstackcheck _ ->
+        (* should not be already present *)
+        assert false
   in
-  loop fun_body frame_size frame_size false
+  loop fun_body frame_size ~max_fs:frame_size ~max_fs_calls:frame_size ~callees:String.Set.empty ~nontail_flag:false
 
 let add_stack_checks_if_needed (fundecl : Linear.fundecl) ~stack_offset
     ~stack_threshold_size ~trap_size =
@@ -570,19 +589,34 @@ let add_stack_checks_if_needed (fundecl : Linear.fundecl) ~stack_offset
       Proc.frame_size ~stack_offset ~num_stack_slots:fundecl.fun_num_stack_slots
         ~contains_calls:fundecl.fun_contains_calls
     in
-    let { max_frame_size; contains_nontail_calls } =
+    let { max_frame_size; max_frame_size_with_calls; callees; contains_nontail_calls } =
       preproc_stack_check ~fun_body:fundecl.fun_body ~frame_size ~trap_size
     in
-    let insert_stack_check =
-      contains_nontail_calls || max_frame_size >= stack_threshold_size
+    assert (max_frame_size_with_calls >= max_frame_size);
+    let insert_stack_check : (int * String.Set.t) option =
+      match
+        max_frame_size >= stack_threshold_size,
+        max_frame_size_with_calls >= stack_threshold_size,
+        contains_nontail_calls,
+        not (String.Set.is_empty callees)
+      with
+      | (true, _, _, _) | (_, _, true, _) ->
+        (* a stack has to be emitted, so factoring out other checks is beneficial *)
+        Some (max_frame_size_with_calls, callees)
+      | false, true, false, _ | false, false, false, true ->
+        (* assume it is beneficiary to move the check(s) up the call chain *)
+        Some (max_frame_size_with_calls, callees)
+      | false, false, false, false ->
+        None
     in
-    if insert_stack_check
-    then
+    match insert_stack_check with
+    | None -> fundecl
+    | Some (max_frame_size_bytes, callees) ->
       let fun_body =
         Linear.instr_cons
-          (Lstackcheck { max_frame_size_bytes = max_frame_size })
+          (Lstackcheck { max_frame_size_bytes })
           [||] [||] ~available_before:fundecl.fun_body.available_before
           ~available_across:fundecl.fun_body.available_across fundecl.fun_body
       in
-      { fundecl with fun_body }
-    else fundecl
+      { fundecl with fun_body; fun_stack_check_skip_callees = callees }
+  end

@@ -414,6 +414,7 @@ let codegen_option = function
   | Check_zero_alloc { strict; loc = _ } ->
     Printf.sprintf "assert_zero_alloc%s"
       (if strict then "_strict" else "")
+  | Stack_check_move_allowed -> "stack_check_move_allowed"
 
 let print_codegen_options ppf l =
   List.iter (fun c -> fprintf ppf " %s" (codegen_option c)) l

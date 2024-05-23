@@ -2819,7 +2819,7 @@ let apply_function (arity, result, mode) =
     { fun_name;
       fun_args = List.map (fun (arg, ty) -> VP.create arg, ty) all_args;
       fun_body = body;
-      fun_codegen_options = [];
+      fun_codegen_options = [Stack_check_move_allowed];
       fun_dbg;
       fun_poll = Default_poll
     }

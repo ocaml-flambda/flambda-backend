@@ -68,7 +68,15 @@ let block_preproc_stack_check_result :
           Int.max max_instr_id instr.id ))
   in
   let max_frame_size = max_frame_size + frame_size in
-  { max_frame_size; contains_nontail_calls }, max_instr_id
+  (* CR-someday xclerc for xclerc: compute and use `max_frame_size_with_calls`
+     and `callees`. (note: we currently restrict the use of the CFG variant to
+     `caml_apply`.) *)
+  ( { max_frame_size;
+      max_frame_size_with_calls = max_frame_size;
+      callees = Misc.Stdlib.String.Set.empty;
+      contains_nontail_calls
+    },
+    max_instr_id )
 
 type cfg_info =
   { max_frame_size : int;

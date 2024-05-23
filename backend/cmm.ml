@@ -328,6 +328,7 @@ type codegen_option =
                            never_raises: bool;
                            loc: Location.t }
   | Check_zero_alloc of { strict: bool; loc : Location.t; }
+  | Stack_check_move_allowed
 
 type fundecl =
   { fun_name: symbol;
