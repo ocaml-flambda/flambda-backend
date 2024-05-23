@@ -38,7 +38,7 @@ type t_non_null_value : non_null_value;;
 Line 1, characters 24-38:
 1 | type t_non_null_value : non_null_value;;
                             ^^^^^^^^^^^^^^
-Error: Layout non_null_value is more experimental than allowed by the enabled layouts extension.
+Error: Layout value is more experimental than allowed by the enabled layouts extension.
        You must enable -extension layouts_alpha to use this feature.
 |}]
 
@@ -82,7 +82,7 @@ Line 1, characters 8-36:
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This alias is bound to type int list
        but is used as an instance of type ('a : immediate)
-       The layout of int list is non_null_value, because
+       The layout of int list is value, because
          it's a boxed variant type.
        But the layout of int list must be a sublayout of immediate, because
          of the annotation on the type variable 'a.
@@ -170,8 +170,8 @@ Line 1, characters 9-15:
 1 | type t = string t2_imm
              ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       The layout of string is non_null_value, because
-         it is the primitive non-null value type string.
+       The layout of string is value, because
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the definition of t2_imm at line 1, characters 0-28.
 |}]
@@ -310,8 +310,8 @@ Line 1, characters 24-31:
                             ^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       The layout of string is non_null_value, because
-         it is the primitive non-null value type string.
+       The layout of string is value, because
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the definition of r at line 1, characters 0-47.
 |}]
@@ -545,8 +545,8 @@ Line 1, characters 43-51:
                                                ^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       The layout of string is non_null_value, because
-         it is the primitive non-null value type string.
+       The layout of string is value, because
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on the universal variable 'a.
 |}]
