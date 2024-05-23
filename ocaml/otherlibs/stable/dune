@@ -43,7 +43,13 @@
 (rule
  (deps
   (glob_files ../stdlib_stable/*.{ml,mli}))
- (targets stable.ml stable.mli)
+ (targets
+  iarray.ml
+  iarray.mli
+  iarrayLabels.ml
+  iarrayLabels.mli
+  stable.ml
+  stable.mli)
  (action
   (bash
    "cp ../stdlib_stable/*.{ml,mli} .; mv stdlib_stable.ml stable.ml; mv stdlib_stable.mli stable.mli")))
