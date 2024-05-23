@@ -15,21 +15,31 @@
 (rule
  (deps unix_unix.ml)
  (targets unix.ml)
- (action (copy unix_unix.ml unix.ml)))
+ (action
+  (copy unix_unix.ml unix.ml)))
 
 (library
  (name unix)
  (wrapped false)
  (modes byte native)
- (flags (
-   -absname -w +a-4-9-41-42-44-45-48 -warn-error A -bin-annot
-   -g -safe-string -strict-sequence -strict-formats
-   -nolabels   ; for UnixLabels
- ))
- (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
- (library_flags (:standard -linkall))
+ (flags
+  (:standard
+   -absname
+   -bin-annot
+   -g
+   -safe-string
+   -strict-sequence
+   -strict-formats
+   -nolabels ; for UnixLabels
+   ))
+ (ocamlopt_flags
+  (:include %{project_root}/ocamlopt_flags.sexp))
+ (library_flags
+  (:standard -linkall))
  (modules unix unixLabels)
- (foreign_stubs (language c) (names
+ (foreign_stubs
+  (language c)
+  (names
    accept_unix
    access
    addrofstr
@@ -130,36 +140,33 @@
    unlink
    utimes_unix
    wait
-   write_unix
-   )
-   (flags ((:include %{project_root}/oc_cflags.sexp)
-           (:include %{project_root}/sharedlib_cflags.sexp)
-           (:include %{project_root}/oc_cppflags.sexp)))
- ))
+   write_unix)
+  (flags
+   ((:include %{project_root}/oc_cflags.sexp)
+    (:include %{project_root}/sharedlib_cflags.sexp)
+    (:include %{project_root}/oc_cppflags.sexp)))))
 
 (install
-  (files
-    (.unix.objs/native/unix.cmx as unix/unix.cmx)
-    (.unix.objs/native/unixLabels.cmx as unix/unixLabels.cmx)
-    (unix.cmxa as unix/unix.cmxa)
-    (unix.a as unix/unix.a)
-    (unix.cma as unix/unix.cma)
-    (.unix.objs/byte/unix.cmi as unix/unix.cmi)
-    (.unix.objs/byte/unix.cmt as unix/unix.cmt)
-    (.unix.objs/byte/unix.cmti as unix/unix.cmti)
-    (.unix.objs/byte/unixLabels.cmi as unix/unixLabels.cmi)
-    (.unix.objs/byte/unixLabels.cmt as unix/unixLabels.cmt)
-    (.unix.objs/byte/unixLabels.cmti as unix/unixLabels.cmti)
-    (unix.cmxs as unix/unix.cmxs)
-    (unix.mli as unix/unix.mli)
-    (unixLabels.mli as unix/unixLabels.mli)
-    (libunix_stubs.a as unix/libunix_stubs.a)
-    (libunix_stubs.a as libunix_stubs_native.a) ; for special_dune compat
-    (dllunix_stubs.so as stublibs/dllunix_stubs.so)
-    (socketaddr.h as caml/socketaddr.h)
-    (unixsupport.h as caml/unixsupport.h)
-    (META as unix/META)
-  )
-  (section lib)
-  (package ocaml))
-
+ (files
+  (.unix.objs/native/unix.cmx as unix/unix.cmx)
+  (.unix.objs/native/unixLabels.cmx as unix/unixLabels.cmx)
+  (unix.cmxa as unix/unix.cmxa)
+  (unix.a as unix/unix.a)
+  (unix.cma as unix/unix.cma)
+  (.unix.objs/byte/unix.cmi as unix/unix.cmi)
+  (.unix.objs/byte/unix.cmt as unix/unix.cmt)
+  (.unix.objs/byte/unix.cmti as unix/unix.cmti)
+  (.unix.objs/byte/unixLabels.cmi as unix/unixLabels.cmi)
+  (.unix.objs/byte/unixLabels.cmt as unix/unixLabels.cmt)
+  (.unix.objs/byte/unixLabels.cmti as unix/unixLabels.cmti)
+  (unix.cmxs as unix/unix.cmxs)
+  (unix.mli as unix/unix.mli)
+  (unixLabels.mli as unix/unixLabels.mli)
+  (libunix_stubs.a as unix/libunix_stubs.a)
+  (libunix_stubs.a as libunix_stubs_native.a) ; for special_dune compat
+  (dllunix_stubs.so as stublibs/dllunix_stubs.so)
+  (socketaddr.h as caml/socketaddr.h)
+  (unixsupport.h as caml/unixsupport.h)
+  (META as unix/META))
+ (section lib)
+ (package ocaml))

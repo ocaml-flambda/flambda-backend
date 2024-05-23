@@ -19,13 +19,9 @@
   (internal_modules Camlinternal*)
   (modules_before_stdlib camlinternalFormatBasics camlinternalAtomic))
  (flags
-  (-strict-sequence
+  (:standard
+   -strict-sequence
    -absname
-   -w
-   +a-4-9-41-42-44-45-48-66-67-70
-   -g
-   -warn-error
-   A
    -bin-annot
    -nostdlib
    -safe-string

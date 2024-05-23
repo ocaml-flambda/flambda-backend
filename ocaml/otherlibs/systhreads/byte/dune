@@ -6,7 +6,7 @@
  (name threads)
  (modes byte)
  (wrapped false)
- (flags -w +33..39 -warn-error A -g -bin-annot)
+ (flags :standard -g -bin-annot)
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
  (libraries unix)
