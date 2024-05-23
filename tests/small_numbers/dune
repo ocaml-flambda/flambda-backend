@@ -16,7 +16,7 @@
  (foreign_archives stubs)
  ; FIXME Fix warnings
  (flags
-  (:standard -w 32-35))
+  (:standard -w -27-32-35-37))
  (ocamlopt_flags
   (:standard -extension-universe beta)))
 
@@ -73,7 +73,7 @@
  (foreign_archives stubs)
  ; FIXME Fix warnings
  (flags
-  (:standard -w -32-35))
+  (:standard -w -27-32-35-37))
  (ocamlopt_flags
   (:standard -extension-universe beta -internal-assembler)))
 
