@@ -92,7 +92,6 @@ module Dep = struct
     type t =
       | Alias of Name.t
       | Use of Code_id_or_name.t
-      | Contains of Code_id_or_name.t
       | Field of Field.t * Name.t
       | Block of Field.t * Code_id_or_name.t
       | Alias_if_def of Name.t * Code_id.t
@@ -102,16 +101,14 @@ module Dep = struct
       let numbering = function
         | Alias _ -> 0
         | Use _ -> 1
-        | Contains _ -> 2
-        | Field _ -> 3
-        | Block _ -> 4
-        | Alias_if_def _ -> 5
-        | Propagate _ -> 6
+        | Field _ -> 2
+        | Block _ -> 3
+        | Alias_if_def _ -> 4
+        | Propagate _ -> 5
       in
       match t1, t2 with
       | Alias v1, Alias v2 -> Name.compare v1 v2
       | Use v1, Use v2 -> Code_id_or_name.compare v1 v2
-      | Contains v1, Contains v2 -> Code_id_or_name.compare v1 v2
       | Field (f1, v1), Field (f2, v2) ->
         let c = Field.compare f1 f2 in
         if c <> 0 then c else Name.compare v1 v2
@@ -124,7 +121,7 @@ module Dep = struct
       | Propagate (n1, m1), Propagate (n2, m2) ->
         let c = Name.compare n1 n2 in
         if c <> 0 then c else Name.compare m1 m2
-      | ( ( Alias _ | Use _ | Contains _ | Field _ | Block _ | Alias_if_def _
+      | ( ( Alias _ | Use _ | Field _ | Block _ | Alias_if_def _
           | Propagate _ ),
           _ ) ->
         Int.compare (numbering t1) (numbering t2)
@@ -136,7 +133,6 @@ module Dep = struct
     let print ppf = function
       | Alias n -> Format.fprintf ppf "Alias %a" Name.print n
       | Use n -> Format.fprintf ppf "Use %a" Code_id_or_name.print n
-      | Contains n -> Format.fprintf ppf "Contains %a" Code_id_or_name.print n
       | Field (f, n) ->
         Format.fprintf ppf "Field %a %a" Field.print f Name.print n
       | Block (f, n) ->

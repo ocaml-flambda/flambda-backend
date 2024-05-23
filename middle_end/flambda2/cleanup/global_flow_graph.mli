@@ -38,7 +38,6 @@ module Dep : sig
   type t =
     | Alias of Name.t
     | Use of Code_id_or_name.t
-    | Contains of Code_id_or_name.t
     | Field of Field.t * Name.t
     | Block of Field.t * Code_id_or_name.t
     | Alias_if_def of Name.t * Code_id.t

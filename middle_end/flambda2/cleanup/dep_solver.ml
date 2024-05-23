@@ -303,7 +303,6 @@ let join_elt e1 e2 =
 let target (dep : dep) : Code_id_or_name.t =
   match dep with
   | Alias n -> Code_id_or_name.name n
-  | Contains n -> n
   | Use n -> n
   | Field (_, n) -> Code_id_or_name.name n
   | Block (_, n) -> n
@@ -322,7 +321,6 @@ let propagate uses (k : Code_id_or_name.t) (elt : elt) (dep : dep) : elt =
   | Top | Fields _ -> begin
     match dep with
     | Alias _ -> elt
-    | Contains _ -> assert false
     | Use _ -> Top
     | Field (f, _) -> Fields (Field.Map.singleton f (make_field_elt uses k))
     | Block (f, _) -> begin
@@ -362,7 +360,6 @@ let propagate uses (k : Code_id_or_name.t) (elt : elt) (dep : dep) : elt =
 let propagate_top uses (dep : dep) : bool =
   match dep with
   | Alias _ -> true
-  | Contains _ -> true
   | Use _ -> true
   | Field _ -> false
   | Block (_, _) -> true

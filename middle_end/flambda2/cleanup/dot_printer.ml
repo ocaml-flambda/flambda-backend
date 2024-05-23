@@ -64,7 +64,7 @@ module P = struct
   let dep_names (dep : Graph.Dep.t) =
     match dep with
     | Graph.Dep.Alias n | Graph.Dep.Field (_, n) -> [Code_id_or_name.name n]
-    | Graph.Dep.Use n | Graph.Dep.Contains n | Graph.Dep.Block (_, n) -> [n]
+    | Graph.Dep.Use n | Graph.Dep.Block (_, n) -> [n]
     | Graph.Dep.Alias_if_def (n, c) ->
       [Code_id_or_name.name n; Code_id_or_name.code_id c]
     | Graph.Dep.Propagate (n1, n2) ->
@@ -105,7 +105,6 @@ module P = struct
         (* ignore name; *)
         (* "red", [] *)
         "red", [name]
-      | Contains name -> "yellow", [name]
       | Field (_, name) -> "green", [Code_id_or_name.name name]
       | Block (_, name) -> "blue", [name]
       | Alias_if_def (name, _code) -> "pink", [Code_id_or_name.name name]
