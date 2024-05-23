@@ -21,6 +21,7 @@
  (flags
   (:standard
    -strict-sequence
+   -g
    -absname
    -bin-annot
    -nostdlib
