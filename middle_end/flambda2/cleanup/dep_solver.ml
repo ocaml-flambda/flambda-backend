@@ -227,11 +227,20 @@ module Make_Fixpoint (G : Graph) = struct
       ()
 end
 
+type field_elt =
+  | Field_top
+  | Field_vals of Code_id_or_name.Set.t
+
 (** Represents the part of a value that can be accessed *)
 type elt =
   | Top  (** Value completely accessed *)
-  | Fields of Code_id_or_name.Set.t Field.Map.t
+  | Fields of field_elt Field.Map.t
   | Bottom  (** Value not accessed *)
+
+let pp_field_elt ppf elt =
+  match elt with
+  | Field_top -> Format.pp_print_string ppf "⊤"
+  | Field_vals s -> Code_id_or_name.Set.print ppf s 
 
 let pp_elt ppf elt =
   match elt with
@@ -239,7 +248,7 @@ let pp_elt ppf elt =
   | Bottom -> Format.pp_print_string ppf "⊥"
   | Fields fields ->
     Format.fprintf ppf "{ %a }"
-      (Field.Map.print Code_id_or_name.Set.print)
+      (Field.Map.print pp_field_elt)
       fields
 
 let less_equal_elt e1 e2 =
@@ -254,9 +263,13 @@ let less_equal_elt e1 e2 =
       ignore
         (Field.Map.merge
            (fun _ e1 e2 ->
-             let e1 = Option.value e1 ~default:Code_id_or_name.Set.empty in
-             let e2 = Option.value e2 ~default:Code_id_or_name.Set.empty in
-             if not (Code_id_or_name.Set.subset e1 e2) then ok := false;
+             (match e1, e2 with
+             | None, _ -> ()
+             | Some _, None -> ok := false
+             | _, Some Field_top -> ()
+             | Some Field_top, _ -> ok := false
+             | Some (Field_vals e1), Some (Field_vals e2) ->
+             if not (Code_id_or_name.Set.subset e1 e2) then ok := false);
              None)
            f1 f2);
       !ok
@@ -266,7 +279,7 @@ let elt_deps elt =
   | Bottom | Top -> Code_id_or_name.Set.empty
   | Fields f ->
     Field.Map.fold
-      (fun _ v acc -> Code_id_or_name.Set.union v acc)
+      (fun _ v acc -> match v with Field_top -> acc | Field_vals v -> Code_id_or_name.Set.union v acc)
       f Code_id_or_name.Set.empty
 
 let join_elt e1 e2 =
@@ -279,7 +292,11 @@ let join_elt e1 e2 =
     | Fields f1, Fields f2 ->
       Fields
         (Field.Map.union
-           (fun _ e1 e2 -> Some (Code_id_or_name.Set.union e1 e2))
+           (fun _ e1 e2 ->
+              match e1, e2 with
+              | Field_top, _ | _, Field_top -> Some Field_top
+              | Field_vals e1, Field_vals e2 ->
+              Some (Field_vals (Code_id_or_name.Set.union e1 e2)))
            f1 f2)
 
 let target (dep : dep) : Code_id_or_name.t =
@@ -292,6 +309,11 @@ let target (dep : dep) : Code_id_or_name.t =
   | Alias_if_def (n, _) -> Code_id_or_name.name n
   | Propagate (n, _) -> Code_id_or_name.name n
 
+let make_field_elt uses (k : Code_id_or_name.t) =
+  match Hashtbl.find_opt uses k with
+  | Some Top -> Field_top
+  | None | Some (Bottom | Fields _) -> Field_vals (Code_id_or_name.Set.singleton k)
+
 let propagate uses (k : Code_id_or_name.t) (elt : elt) (dep : dep) : elt =
   match elt with
   | Bottom -> Bottom
@@ -301,16 +323,18 @@ let propagate uses (k : Code_id_or_name.t) (elt : elt) (dep : dep) : elt =
     | Contains _ -> assert false
     | Use _ -> Top
     | Field (f, _) ->
-      Fields (Field.Map.singleton f (Code_id_or_name.Set.singleton k))
+      Fields (Field.Map.singleton f (make_field_elt uses k))
     | Block (f, _) -> begin
       match elt with
       | Bottom -> assert false
       | Top -> Top
       | Fields fields ->
+        begin try
         let elems =
           match Field.Map.find_opt f fields with
           | None -> Code_id_or_name.Set.empty
-          | Some s -> s
+          | Some Field_top -> raise Exit
+          | Some (Field_vals s) -> s
         in
         Code_id_or_name.Set.fold
           (fun n acc ->
@@ -319,6 +343,7 @@ let propagate uses (k : Code_id_or_name.t) (elt : elt) (dep : dep) : elt =
               | None -> Bottom
               | Some e -> e))
           elems Bottom
+          with Exit -> Top end
     end
     | Alias_if_def (_, c) -> begin
       match Hashtbl.find_opt uses (Code_id_or_name.code_id c) with
