@@ -398,7 +398,7 @@ Error: This expression has type Possibly_null.t
          of the definition of id_non_null_value at line 3, characters 4-21.
 |}]
 
-(* CR layouts v3.0: recursive single-field records should be nullable values. *)
+(* CR layouts: recursive single-field records should be nullable values. *)
 
 type loopy = { field : loopy } [@@unboxed]
 
