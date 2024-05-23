@@ -304,6 +304,10 @@ val has_imported_history : t -> bool
 
 val update_reason : t -> creation_reason -> t
 
+val with_warning : t -> t
+
+val has_warning : t -> bool
+
 (******************************)
 (* relations *)
 

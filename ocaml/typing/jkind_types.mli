@@ -126,6 +126,7 @@ type 'type_expr history =
         rhs_history : 'type_expr history
       }
   | Creation of Jkind_intf.History.creation_reason
+  | Warning of 'type_expr history
 
 type 'type_expr t =
   { jkind : 'type_expr Jkind_desc.t;
