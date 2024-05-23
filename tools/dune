@@ -22,8 +22,9 @@
  (name generate_cached_generic_functions)
  (modes byte native)
  (modules generate_cached_generic_functions)
- ; FIXME Fix warnings 27 and 33
- (flags (:standard -w -27-33-69-70))
+ ; FIXME Fix warnings 27 and 33 and 60
+ (flags
+  (:standard -w -27-33-60-69-70))
  (libraries ocamlcommon ocamloptcomp unix memtrace))
 
 (install
@@ -39,7 +40,8 @@
  (modes native)
  (modules merge_archives)
  ; FIXME Fix warning 27
- (flags (:standard -w -27))
+ (flags
+  (:standard -w -27))
  (libraries ocamlcommon ocamlbytecomp ocamloptcomp))
 
 (executable
