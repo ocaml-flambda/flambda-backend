@@ -27,31 +27,33 @@ type impl =
    actually statically known to be either an [intf] or an [impl] (see PR
    #1933) *)
 type t =
-  | Intf of intf
-  | Impl of impl
+  | Intf_normal of CU.Name.t * CU.t * Digest.t
+  | Intf_alias of CU.Name.t
+  | Intf_parameter of CU.Name.t * Digest.t
+  | Impl_loaded of CU.t * Digest.t
+  | Impl_unloaded of CU.t
 
 let create cu_name ~crc_with_unit =
   (* This creates an [Intf] just to be minimally restrictive. Any caller that
      cares should use the [Impl] API. *)
   match crc_with_unit with
-  | None -> Intf (Alias cu_name)
-  | Some (cu, crc) -> Intf (Normal (cu_name, cu, crc))
+  | None -> Intf_alias cu_name
+  | Some (cu, crc) -> Intf_normal (cu_name, cu, crc)
 
 let create_normal cu ~crc =
-  match crc with
-  | Some crc -> Impl (Loaded (cu, crc))
-  | None -> Impl (Unloaded cu)
+  match crc with Some crc -> Impl_loaded (cu, crc) | None -> Impl_unloaded cu
 
 let name t =
   match t with
-  | Impl (Loaded (cu, _) | Unloaded cu) -> CU.name cu
-  | Intf (Normal (name, _, _) | Alias name | Parameter (name, _)) -> name
+  | Impl_loaded (cu, _) | Impl_unloaded cu -> CU.name cu
+  | Intf_normal (name, _, _) | Intf_alias name | Intf_parameter (name, _) ->
+    name
 
 let cu t =
   match t with
-  | Intf (Normal (_, cu, _)) -> cu
-  | Impl (Loaded (cu, _) | Unloaded cu) -> cu
-  | Intf (Alias name | Parameter (name, _)) ->
+  | Intf_normal (_, cu, _) -> cu
+  | Impl_loaded (cu, _) | Impl_unloaded cu -> cu
+  | Intf_alias name | Intf_parameter (name, _) ->
     Misc.fatal_errorf
       "Cannot extract [Compilation_unit.t] from [Import_info.t] (for unit %a) \
        that never received it"
@@ -59,14 +61,14 @@ let cu t =
 
 let crc t =
   match t with
-  | Intf (Normal (_, _, crc) | Parameter (_, crc)) -> Some crc
-  | Intf (Alias _) -> None
-  | Impl (Loaded (_, crc)) -> Some crc
-  | Impl (Unloaded _) -> None
+  | Intf_normal (_, _, crc) | Intf_parameter (_, crc) -> Some crc
+  | Intf_alias _ -> None
+  | Impl_loaded (_, crc) -> Some crc
+  | Impl_unloaded _ -> None
 
 let has_name t ~name:name' = CU.Name.equal (name t) name'
 
-let dummy = Intf (Alias CU.Name.dummy)
+let dummy = Intf_alias CU.Name.dummy
 
 module Intf = struct
   (* Currently this is the same type as [Impl.t] but this will change (see PR
@@ -79,11 +81,11 @@ module Intf = struct
       Misc.fatal_errorf
         "@[<hv>Mismatched import name and compilation unit:@ %a != %a@]"
         CU.Name.print name CU.print cu;
-    Intf (Normal (name, cu, crc))
+    Intf_normal (name, cu, crc)
 
-  let create_alias name = Intf (Alias name)
+  let create_alias name = Intf_alias name
 
-  let create_parameter name ~crc = Intf (Parameter (name, crc))
+  let create_parameter name ~crc = Intf_parameter (name, crc)
 
   module Nonalias = struct
     module Kind = struct
@@ -103,8 +105,10 @@ module Intf = struct
 
   let expect_intf t =
     match t with
-    | Intf intf -> intf
-    | Impl (Loaded (cu, _) | Unloaded cu) ->
+    | Intf_normal (name, cu, crc) -> Normal (name, cu, crc)
+    | Intf_alias name -> Alias name
+    | Intf_parameter (name, crc) -> Parameter (name, crc)
+    | Impl_loaded (cu, _) | Impl_unloaded cu ->
       Misc.fatal_errorf "Expected an [Import_info.Impl.t] but found %a" CU.print
         cu
 
@@ -133,9 +137,9 @@ module Impl = struct
      #1746). *)
   type nonrec t = t
 
-  let create_loaded cu ~crc = Impl (Loaded (cu, crc))
+  let create_loaded cu ~crc = Impl_loaded (cu, crc)
 
-  let create_unloaded cu = Impl (Unloaded cu)
+  let create_unloaded cu = Impl_unloaded cu
 
   let create cu ~crc =
     match crc with
@@ -144,8 +148,9 @@ module Impl = struct
 
   let expect_impl t =
     match t with
-    | Impl impl -> impl
-    | Intf (Normal (name, _, _) | Alias name | Parameter (name, _)) ->
+    | Impl_loaded (cu, crc) -> Loaded (cu, crc)
+    | Impl_unloaded cu -> Unloaded cu
+    | Intf_normal (name, _, _) | Intf_alias name | Intf_parameter (name, _) ->
       Misc.fatal_errorf "Expected an [Import_info.Intf.t] but found %a"
         CU.Name.print name
 
@@ -156,5 +161,5 @@ module Impl = struct
   let crc t =
     match expect_impl t with Loaded (_, crc) -> Some crc | Unloaded _ -> None
 
-  let dummy = Impl (Unloaded CU.dummy)
+  let dummy = Impl_unloaded CU.dummy
 end
