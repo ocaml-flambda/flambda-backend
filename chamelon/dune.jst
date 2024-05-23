@@ -10,8 +10,8 @@
 
 (env
   (dev
-    (flags (:standard -warn-error -A -w -70)))
+    (flags (:standard -no-principal -warn-error -A -w -70)))
   (_
-    (flags (:standard -w -70))))
+    (flags (:standard -no-principal -w -70))))
 
 (include_subdirs unqualified)
