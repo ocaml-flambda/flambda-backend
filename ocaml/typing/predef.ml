@@ -413,6 +413,7 @@ let build_initial_env add_type add_extension empty_env =
              Constructor_uniform_value, [| or_null_argument_jkind |];
           |])
       ~jkind:(Jkind.value ~why:(Primitive ident_or_null))
+      ~param_jkind:or_null_argument_jkind
   |> add_type ident_bytes
   |> add_type ident_unit
        ~kind:(variant
