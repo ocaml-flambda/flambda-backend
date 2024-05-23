@@ -122,7 +122,7 @@ let ghstr ~loc d = Str.mk ~loc:(ghost_loc loc) d
 let ghsig ~loc d = Sig.mk ~loc:(ghost_loc loc) d
 
 let ghexpvar ~loc name =
-  ghexp ~loc (Pexp_ident (mkrhs (Lident name) loc))
+  ghexp ~loc (Pexp_ident (ghrhs (Lident name) loc))
 
 let mkinfix arg1 op arg2 =
   Pexp_apply(op, [Nolabel, arg1; Nolabel, arg2])
