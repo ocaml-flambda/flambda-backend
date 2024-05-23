@@ -74,6 +74,8 @@ module Legacy = struct
     | Word -> "word"
     | Bits32 -> "bits32"
     | Bits64 -> "bits64"
+    (* CR layouts v3.0: we hide [non_null_value] from users while
+       it's in [Alpha]. Remove this hack once it reaches [Stable]. *)
     | Non_null_value when Language_extension.(is_at_least Layouts Alpha) ->
         "non_null_value"
     | Non_null_value -> "value"
@@ -1176,10 +1178,16 @@ module Violation = struct
     if display_histories
     then
       let connective =
-        match t.violation, get l2 with
-        | Not_a_subjkind _, Const _ -> dprintf "be a sublayout of %a" format l2
-        | No_intersection _, Const _ -> dprintf "overlap with %a" format l2
-        | _, Var _ -> dprintf "be representable"
+        match t.violation, get l1, get l2 with
+      (* CR layouts v3.0: we hide [non_null_value] from users while
+         it's in [Alpha], but we need to display it in this case.
+         Remove this hack once [non_null_value] reaches [Stable]. *)
+        | Not_a_subjkind _, Const { layout = Sort Value; _ },
+          Const { layout = Non_null_value; _ } ->
+          dprintf "be a sublayout of non_null_value"
+        | Not_a_subjkind _, _, Const _ -> dprintf "be a sublayout of %a" format l2
+        | No_intersection _, _, Const _ -> dprintf "overlap with %a" format l2
+        | _, _, Var _ -> dprintf "be representable"
       in
       fprintf ppf "@[<v>%a@;%a@]"
         (format_history
@@ -1483,6 +1491,14 @@ let report_error ~loc = function
       Location.errorf ~loc
         "@[<v>The appropriate layouts extension is not enabled.@;%t@]" hint
     | true ->
+      let layout_name =
+        match jkind with
+      (* CR layouts v3.0: we hide [non_null_value] from users while
+         it's in [Alpha], but we need to display it in this case.
+         Remove this hack once [non_null_value] reaches [Stable]. *)
+        | Non_null_value -> "non_null_value"
+        | _ -> Legacy.string_of_const jkind
+      in
       Location.errorf ~loc
         (* CR layouts errors: use the context to produce a better error message.
            When RAE tried this, some types got printed like [t/2], but the
@@ -1490,7 +1506,7 @@ let report_error ~loc = function
         "@[<v>Layout %s is more experimental than allowed by the enabled \
          layouts extension.@;\
          %t@]"
-        (Legacy.string_of_const jkind)
+        layout_name
         hint)
 
 let () =
