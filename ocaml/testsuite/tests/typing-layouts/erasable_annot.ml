@@ -255,6 +255,10 @@ can't be erased for compatibility with upstream OCaml.
 val f : ('a : immediate). (module S with type t = 'a) -> 'a -> 'a = <fun>
 |}]
 
+(* CR layouts: this example should raise a warning, but it does not.
+   It's quite complicated, and missing it only means that this error
+   will be caught by the upstream compiler later. We have decided that
+   fixing this is not worth the effort. *)
 module type S = sig
   type t [@@immediate]
 end
@@ -269,7 +273,10 @@ module type S = sig type t : immediate end
 val x : int = 15
 |}]
 
-(* CR layouts: this should raise a warning *)
+(* CR layouts: this example should raise a warning, but it does not.
+   It's quite complicated, and missing it only means that this error
+   will be caught by the upstream compiler later. We have decided that
+   fixing this is not worth the effort. *)
 let y =
   ignore (fun (type a : immediate) (x : a) ->
     let module _ : S = struct
