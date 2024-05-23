@@ -77,7 +77,7 @@ module Legacy = struct
     (* CR layouts v3.0: we hide [non_null_value] from users while
        it's in [Alpha]. Remove this hack once it reaches [Stable]. *)
     | Non_null_value when Language_extension.(is_at_least Layouts Alpha) ->
-        "non_null_value"
+      "non_null_value"
     | Non_null_value -> "value"
 
   let equal_const c1 c2 =
@@ -1182,16 +1182,16 @@ module Violation = struct
     then
       let connective =
         match t.violation, get l2 with
-      (* CR layouts v3.0: we hide [non_null_value] from users while
-         it's in [Alpha], but we need to display it in this case.
-         Remove this hack once [non_null_value] reaches [Stable]. *)
-        | Not_a_subjkind _, Const ({ layout = Non_null_value; _ } as c) ->
+        (* CR layouts v3.0: we hide [non_null_value] from users while
+           it's in [Alpha], but we need to display it in this case.
+           Remove this hack once [non_null_value] reaches [Stable]. *)
+        | Not_a_subjkind _, Const ({ layout = Non_null_value; _ } as c) -> (
           (* We only show [non_null_value] if:
              1. The layout on the left is know to be [value]
              2. The layout on the right is [non_null_value] AND
                 not immediate/immediate64
           *)
-          (match get l1, Const.to_legacy_jkind c with
+          match get l1, Const.to_legacy_jkind c with
           | Const { layout = Sort Value; _ }, Non_null_value ->
             dprintf "be a sublayout of non_null_value"
           | _, _ -> dprintf "be a sublayout of %a" format l2)
@@ -1503,9 +1503,9 @@ let report_error ~loc = function
     | true ->
       let layout_name =
         match jkind with
-      (* CR layouts v3.0: we hide [non_null_value] from users while
-         it's in [Alpha], but we need to display it in this case.
-         Remove this hack once [non_null_value] reaches [Stable]. *)
+        (* CR layouts v3.0: we hide [non_null_value] from users while
+           it's in [Alpha], but we need to display it in this case.
+           Remove this hack once [non_null_value] reaches [Stable]. *)
         | Non_null_value -> "non_null_value"
         | _ -> Legacy.string_of_const jkind
       in
@@ -1516,8 +1516,7 @@ let report_error ~loc = function
         "@[<v>Layout %s is more experimental than allowed by the enabled \
          layouts extension.@;\
          %t@]"
-        layout_name
-        hint)
+        layout_name hint)
 
 let () =
   Location.register_error_of_exn (function
