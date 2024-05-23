@@ -322,6 +322,11 @@ let rec add_expr bv exp =
       | Pstr_eval ({ pexp_desc = Pexp_construct (c, None) }, _) -> add bv c
       | _ -> handle_extension e
       end
+  | Pexp_extension (({ txt = ("probe"|"ocaml.probe"); _ }, payload) as e) ->
+      begin match Builtin_attributes.get_tracing_probe_payload payload with
+      | Error () -> handle_extension e
+      | Ok { arg; _ } -> add_expr bv arg
+      end
   | Pexp_extension e -> handle_extension e
   | Pexp_unreachable -> ()
 
