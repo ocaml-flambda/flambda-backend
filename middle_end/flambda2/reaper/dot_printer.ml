@@ -95,14 +95,11 @@ module P = struct
     let color, deps =
       match dst with
       | Alias name -> "black", [Code_id_or_name.name name]
-      | Use name ->
-        (* ignore name; *)
-        (* "red", [] *)
-        "red", [name]
+      | Use name -> "red", [name]
       | Field (_, name) -> "green", [Code_id_or_name.name name]
       | Block (_, name) -> "blue", [name]
-      | Alias_if_def (name, _code) -> "pink", [Code_id_or_name.name name]
-      | Propagate (name, _from) -> "brown", [Code_id_or_name.name name]
+      | Alias_if_def (name, _code) -> "purple", [Code_id_or_name.name name]
+      | Propagate (name, _from) -> "yellow", [Code_id_or_name.name name]
     in
     List.iter
       (fun dst ->
