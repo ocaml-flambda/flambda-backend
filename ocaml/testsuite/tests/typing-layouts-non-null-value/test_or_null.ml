@@ -45,7 +45,8 @@ module type Or_null =
 module Or_null : Or_null
 |}]
 
-(* CR layouts v3.0: ensure that immediacy "looks through" or_null *)
+(* CR layouts v3.0: ensure that immediacy "looks through" or_null.
+   Currently, [immediate] is always non-null, so we can't test this. *)
 type t1 : immediate = int or_null
 type t2 : immediate = bool or_null
 
