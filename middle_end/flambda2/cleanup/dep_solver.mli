@@ -13,9 +13,13 @@
 (*                                                                        *)
 (**************************************************************************)
 
+type field_elt =
+  | Field_top
+  | Field_vals of Code_id_or_name.Set.t
+
 type elt =
   | Top
-  | Fields of Code_id_or_name.Set.t Global_flow_graph.Field.Map.t
+  | Fields of field_elt Global_flow_graph.Field.Map.t
   | Bottom
 
 type result = (Code_id_or_name.t, elt) Hashtbl.t
