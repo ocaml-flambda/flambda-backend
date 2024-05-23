@@ -1,5 +1,5 @@
 (* TEST
- include stable;
+ include stdlib_upstream_compatible;
  {
    expect;
  }{
@@ -296,10 +296,10 @@ val f : r -> int = <fun>
 |}]
 
 type rf = { fieldf : ('a : float64). 'a -> 'a }
-let f { fieldf } = fieldf (Stable.Float_u.of_float 3.14);;
+let f { fieldf } = fieldf (Stdlib_upstream_compatible.Float_u.of_float 3.14);;
 [%%expect {|
 type rf = { fieldf : ('a : float64). 'a -> 'a; }
-val f : rf -> Stable.Float_u.t = <fun>
+val f : rf -> Stdlib_upstream_compatible.Float_u.t = <fun>
 |}]
 
 let f { field } = field "hello"

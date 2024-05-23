@@ -2,7 +2,7 @@
    flags = "-extension layouts_beta -extension small_numbers";
    include beta;
    flambda2;
-   include stable;
+   include stdlib_upstream_compatible;
    {
    native;
    }{
@@ -15,10 +15,10 @@
 
 module Float32_u = Beta.Float32_u
 module Float32 = Beta.Float32
-module Float_u = Stable.Float_u
-module Int32_u = Stable.Int32_u
-module Int64_u = Stable.Int64_u
-module Nativeint_u = Stable.Nativeint_u
+module Float_u = Stdlib_upstream_compatible.Float_u
+module Int32_u = Stdlib_upstream_compatible.Int32_u
+module Int64_u = Stdlib_upstream_compatible.Int64_u
+module Nativeint_u = Stdlib_upstream_compatible.Nativeint_u
 
 let print_floatu prefix x = Printf.printf "%s: %.2f\n" prefix (Float_u.to_float x)
 let print_float prefix x = Printf.printf "%s: %.2f\n" prefix x

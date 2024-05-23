@@ -44,7 +44,17 @@
 (rule
  (deps
   (glob_files ../stdlib_upstream_compatible/*.{ml,mli}))
- (targets upstream_compatible.ml upstream_compatible.mli)
+ (targets
+  float_u.ml
+  float_u.mli
+  int32_u.ml
+  int32_u.mli
+  int64_u.ml
+  int64_u.mli
+  nativeint_u.ml
+  nativeint_u.mli
+  upstream_compatible.ml
+  upstream_compatible.mli)
  (action
   (bash
    "cp ../stdlib_upstream_compatible/*.{ml,mli} .; mv stdlib_upstream_compatible.ml upstream_compatible.ml; mv stdlib_upstream_compatible.mli upstream_compatible.mli")))

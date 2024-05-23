@@ -44,18 +44,10 @@
  (deps
   (glob_files ../stdlib_stable/*.{ml,mli}))
  (targets
-  float_u.ml
-  float_u.mli
   iarray.ml
   iarray.mli
   iarrayLabels.ml
   iarrayLabels.mli
-  int32_u.ml
-  int32_u.mli
-  int64_u.ml
-  int64_u.mli
-  nativeint_u.ml
-  nativeint_u.mli
   stable.ml
   stable.mli)
  (action

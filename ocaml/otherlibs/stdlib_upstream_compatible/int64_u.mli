@@ -43,10 +43,10 @@ type t = int64#
 *)
 
 (* Unboxed-specific stuff at the top. *)
-external to_int64 : t -> (int64[@local_opt]) = "%box_int64"
+external to_int64 : t -> (int64[@local_opt]) = "%box_int64" [@@warning "-187"]
 (** Box a [int64#] *)
 
-external of_int64 : (int64[@local_opt]) -> t = "%unbox_int64"
+external of_int64 : (int64[@local_opt]) -> t = "%unbox_int64" [@@warning "-187"]
 (** Unbox a boxed [int64] *)
 
 (* Below here, everything also appears in [Int64], though most things are
