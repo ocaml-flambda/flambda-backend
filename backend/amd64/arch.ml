@@ -112,8 +112,8 @@ let assert_simd_enabled () =
   if not (Language_extension.is_enabled SIMD) then
   Misc.fatal_error "SIMD is not enabled. This error might happen \
   if you are using SIMD yourself or are linking code that uses it. \
-  Pass [-extension-universe beta] to the compiler, or set \
-  (extension_universe beta) in your library configuration file."
+  Pass [-extension-universe stable] to the compiler, or set \
+  (extension_universe stable) in your library configuration file."
 
 let assert_float32_enabled () =
   if not (Language_extension.is_enabled Small_numbers) then
