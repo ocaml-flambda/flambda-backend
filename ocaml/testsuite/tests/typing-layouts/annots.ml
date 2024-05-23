@@ -38,7 +38,7 @@ type t_non_null_value : non_null_value;;
 Line 1, characters 24-38:
 1 | type t_non_null_value : non_null_value;;
                             ^^^^^^^^^^^^^^
-Error: Layout value is more experimental than allowed by the enabled layouts extension.
+Error: Layout non_null_value is more experimental than allowed by the enabled layouts extension.
        You must enable -extension layouts_alpha to use this feature.
 |}]
 

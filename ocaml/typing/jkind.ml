@@ -1178,16 +1178,23 @@ module Violation = struct
     if display_histories
     then
       let connective =
-        match t.violation, get l1, get l2 with
+        match t.violation, get l2 with
       (* CR layouts v3.0: we hide [non_null_value] from users while
          it's in [Alpha], but we need to display it in this case.
          Remove this hack once [non_null_value] reaches [Stable]. *)
-        | Not_a_subjkind _, Const { layout = Sort Value; _ },
-          Const { layout = Non_null_value; _ } ->
-          dprintf "be a sublayout of non_null_value"
-        | Not_a_subjkind _, _, Const _ -> dprintf "be a sublayout of %a" format l2
-        | No_intersection _, _, Const _ -> dprintf "overlap with %a" format l2
-        | _, _, Var _ -> dprintf "be representable"
+        | Not_a_subjkind _, Const ({ layout = Non_null_value; _ } as c) ->
+          (* We only show [non_null_value] if:
+             1. The layout on the left is know to be [value]
+             2. The layout on the right is [non_null_value] AND
+                not immediate/immediate64
+          *)
+          (match get l1, Const.to_legacy_jkind c with
+          | Const { layout = Sort Value; _ }, Non_null_value ->
+            dprintf "be a sublayout of non_null_value"
+          | _, _ -> dprintf "be a sublayout of %a" format l2)
+        | Not_a_subjkind _, Const _ -> dprintf "be a sublayout of %a" format l2
+        | No_intersection _, Const _ -> dprintf "overlap with %a" format l2
+        | _, Var _ -> dprintf "be representable"
       in
       fprintf ppf "@[<v>%a@;%a@]"
         (format_history

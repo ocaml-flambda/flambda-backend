@@ -12,7 +12,7 @@ Error: Unknown layout valu
 Line 2, characters 11-25:
 2 | type ('a : non_null_value) t0 = 'a list;;
                ^^^^^^^^^^^^^^
-Error: Layout value is more experimental than allowed by the enabled layouts extension.
+Error: Layout non_null_value is more experimental than allowed by the enabled layouts extension.
        You must enable -extension layouts_alpha to use this feature.
 type t = float#
 Line 2, characters 9-13:
