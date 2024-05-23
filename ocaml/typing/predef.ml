@@ -55,6 +55,7 @@ and ident_unboxed_float32 = ident_create "float32#"
 and ident_unboxed_nativeint = ident_create "nativeint#"
 and ident_unboxed_int32 = ident_create "int32#"
 and ident_unboxed_int64 = ident_create "int64#"
+and ident_or_null = ident_create "or_null"
 
 and ident_int8x16 = ident_create "int8x16"
 and ident_int16x8 = ident_create "int16x8"
@@ -184,6 +185,8 @@ and ident_nil = ident_create "[]"
 and ident_cons = ident_create "::"
 and ident_none = ident_create "None"
 and ident_some = ident_create "Some"
+and ident_null = ident_create "Null"
+and ident_just = ident_create "Just"
 
 let predef_jkind_annotation const =
   Option.map
@@ -208,6 +211,9 @@ let option_argument_jkind = Jkind.value ~why:(
 
 let list_argument_jkind = Jkind.value ~why:(
   Type_argument {parent_path = path_list; position = 1; arity = 1})
+
+let or_null_argument_jkind = Jkind.non_null_value ~why:(
+  Type_argument {parent_path = path_option; position = 1; arity = 1})
 
 let mk_add_type add_type
       ?manifest type_ident
@@ -398,6 +404,15 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type ident_unboxed_int64
        ~jkind:(Jkind.bits64 ~why:(Primitive ident_unboxed_int64))
        ~jkind_annotation:Bits64
+  |> add_type1 ident_or_null
+       ~variance:Variance.covariant
+       ~separability:Separability.Ind
+       ~kind:(fun tvar ->
+        variant [cstr ident_null []; cstr ident_just [tvar, Unrestricted]]
+          [| Constructor_uniform_value, [| |];
+             Constructor_uniform_value, [| or_null_argument_jkind |];
+          |])
+      ~jkind:(Jkind.value ~why:(Primitive ident_or_null))
   |> add_type ident_bytes
   |> add_type ident_unit
        ~kind:(variant
