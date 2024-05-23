@@ -240,16 +240,14 @@ type elt =
 let pp_field_elt ppf elt =
   match elt with
   | Field_top -> Format.pp_print_string ppf "⊤"
-  | Field_vals s -> Code_id_or_name.Set.print ppf s 
+  | Field_vals s -> Code_id_or_name.Set.print ppf s
 
 let pp_elt ppf elt =
   match elt with
   | Top -> Format.pp_print_string ppf "⊤"
   | Bottom -> Format.pp_print_string ppf "⊥"
   | Fields fields ->
-    Format.fprintf ppf "{ %a }"
-      (Field.Map.print pp_field_elt)
-      fields
+    Format.fprintf ppf "{ %a }" (Field.Map.print pp_field_elt) fields
 
 let less_equal_elt e1 e2 =
   match e1, e2 with
@@ -269,7 +267,7 @@ let less_equal_elt e1 e2 =
              | _, Some Field_top -> ()
              | Some Field_top, _ -> ok := false
              | Some (Field_vals e1), Some (Field_vals e2) ->
-             if not (Code_id_or_name.Set.subset e1 e2) then ok := false);
+               if not (Code_id_or_name.Set.subset e1 e2) then ok := false);
              None)
            f1 f2);
       !ok
@@ -279,7 +277,10 @@ let elt_deps elt =
   | Bottom | Top -> Code_id_or_name.Set.empty
   | Fields f ->
     Field.Map.fold
-      (fun _ v acc -> match v with Field_top -> acc | Field_vals v -> Code_id_or_name.Set.union v acc)
+      (fun _ v acc ->
+        match v with
+        | Field_top -> acc
+        | Field_vals v -> Code_id_or_name.Set.union v acc)
       f Code_id_or_name.Set.empty
 
 let join_elt e1 e2 =
@@ -293,10 +294,10 @@ let join_elt e1 e2 =
       Fields
         (Field.Map.union
            (fun _ e1 e2 ->
-              match e1, e2 with
-              | Field_top, _ | _, Field_top -> Some Field_top
-              | Field_vals e1, Field_vals e2 ->
-              Some (Field_vals (Code_id_or_name.Set.union e1 e2)))
+             match e1, e2 with
+             | Field_top, _ | _, Field_top -> Some Field_top
+             | Field_vals e1, Field_vals e2 ->
+               Some (Field_vals (Code_id_or_name.Set.union e1 e2)))
            f1 f2)
 
 let target (dep : dep) : Code_id_or_name.t =
@@ -312,7 +313,8 @@ let target (dep : dep) : Code_id_or_name.t =
 let make_field_elt uses (k : Code_id_or_name.t) =
   match Hashtbl.find_opt uses k with
   | Some Top -> Field_top
-  | None | Some (Bottom | Fields _) -> Field_vals (Code_id_or_name.Set.singleton k)
+  | None | Some (Bottom | Fields _) ->
+    Field_vals (Code_id_or_name.Set.singleton k)
 
 let propagate uses (k : Code_id_or_name.t) (elt : elt) (dep : dep) : elt =
   match elt with
@@ -322,28 +324,28 @@ let propagate uses (k : Code_id_or_name.t) (elt : elt) (dep : dep) : elt =
     | Alias _ -> elt
     | Contains _ -> assert false
     | Use _ -> Top
-    | Field (f, _) ->
-      Fields (Field.Map.singleton f (make_field_elt uses k))
+    | Field (f, _) -> Fields (Field.Map.singleton f (make_field_elt uses k))
     | Block (f, _) -> begin
       match elt with
       | Bottom -> assert false
       | Top -> Top
-      | Fields fields ->
-        begin try
-        let elems =
-          match Field.Map.find_opt f fields with
-          | None -> Code_id_or_name.Set.empty
-          | Some Field_top -> raise Exit
-          | Some (Field_vals s) -> s
-        in
-        Code_id_or_name.Set.fold
-          (fun n acc ->
-            join_elt acc
-              (match Hashtbl.find_opt uses n with
-              | None -> Bottom
-              | Some e -> e))
-          elems Bottom
-          with Exit -> Top end
+      | Fields fields -> begin
+        try
+          let elems =
+            match Field.Map.find_opt f fields with
+            | None -> Code_id_or_name.Set.empty
+            | Some Field_top -> raise Exit
+            | Some (Field_vals s) -> s
+          in
+          Code_id_or_name.Set.fold
+            (fun n acc ->
+              join_elt acc
+                (match Hashtbl.find_opt uses n with
+                | None -> Bottom
+                | Some e -> e))
+            elems Bottom
+        with Exit -> Top
+      end
     end
     | Alias_if_def (_, c) -> begin
       match Hashtbl.find_opt uses (Code_id_or_name.code_id c) with
