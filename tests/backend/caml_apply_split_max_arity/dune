@@ -1,6 +1,9 @@
 (executable
  (name t)
  (modules t)
+ ; FIXME Fix warnings
+ (flags
+  (:standard -w -27-32))
  (ocamlopt_flags
   (:standard -linscan -Oclassic)))
 
@@ -36,6 +39,6 @@
     (= %{context_name} "main")
     (<> %{ocaml-config:flambda} true))))
  (action
- (progn
-  (diff t.expected t.output)
-  (diff stack.expected stack.output))))
+  (progn
+   (diff t.expected t.output)
+   (diff stack.expected stack.output))))
