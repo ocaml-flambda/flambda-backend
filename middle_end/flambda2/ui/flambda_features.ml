@@ -116,6 +116,8 @@ let dump_slot_offsets () = !Flambda_backend_flags.Flambda2.Dump.slot_offsets
 
 let dump_flow () = !Flambda_backend_flags.Flambda2.Dump.flow
 
+let dump_global () = !Flambda_backend_flags.Flambda2.Dump.global
+
 let freshen_when_printing () = !Flambda_backend_flags.Flambda2.Dump.freshen
 
 module Inlining = struct

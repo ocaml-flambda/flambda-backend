@@ -22,9 +22,8 @@ let unit_with_body (unit : Flambda_unit.t) (body : Flambda.Expr.t) =
     ~module_symbol:(Flambda_unit.module_symbol unit)
     ~used_value_slots:(Flambda_unit.used_value_slots unit)
 
-let debug_print = Global_flow_graph.debug_print
-
 let run ~cmx_loader (unit : Flambda_unit.t) =
+  let debug_print = Flambda_features.dump_global () in
   let holed, deps, kinds = Traverse.run unit in
   if debug_print
   then Format.printf "USED %a@." Global_flow_graph.pp_used_graph deps;

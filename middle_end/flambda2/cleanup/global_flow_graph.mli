@@ -13,8 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-val debug_print : bool
-
 module Field : sig
   type return_kind =
     | Normal of int

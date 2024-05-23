@@ -13,8 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-let debug_print = false
-
 module Field = struct
   module M = struct
     type return_kind =
