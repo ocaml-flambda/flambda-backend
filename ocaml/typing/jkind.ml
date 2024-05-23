@@ -991,6 +991,9 @@ end = struct
 
   let format_non_null_value_creation_reason ppf :
       non_null_value_creation_reason -> _ = function
+    (* CR layouts v3.0: we hide [non_null_value] from users while
+       it's in [Alpha], but we need to display it in this case.
+       Remove this hack once [non_null_value] reaches [Stable]. *)
     | Primitive id when Language_extension.(is_at_least Layouts Alpha) ->
       fprintf ppf "it is the primitive non-null value type %s" (Ident.name id)
     | Primitive id ->
