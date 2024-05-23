@@ -74,7 +74,9 @@ module Legacy = struct
     | Word -> "word"
     | Bits32 -> "bits32"
     | Bits64 -> "bits64"
-    | Non_null_value -> "non_null_value"
+    | Non_null_value when Language_extension.(is_at_least Layouts Alpha) ->
+        "non_null_value"
+    | Non_null_value -> "value"
 
   let equal_const c1 c2 =
     match c1, c2 with
@@ -987,8 +989,10 @@ end = struct
 
   let format_non_null_value_creation_reason ppf :
       non_null_value_creation_reason -> _ = function
-    | Primitive id ->
+    | Primitive id when Language_extension.(is_at_least Layouts Alpha) ->
       fprintf ppf "it is the primitive non-null value type %s" (Ident.name id)
+    | Primitive id ->
+      fprintf ppf "it is the primitive value type %s" (Ident.name id)
     | Extensible_variant -> fprintf ppf "it's an extensible variant type"
     | Boxed_variant -> fprintf ppf "it's a boxed variant type"
     | Boxed_record -> fprintf ppf "it's a boxed record type"
