@@ -3377,6 +3377,13 @@ let unify3_var env jkind1 t1' t2 t2' =
         record_equation t1' t2';
       end
 
+(* This is used to check whether we should add a gadt equation refining a
+   Tconstr's jkind during pattern unification. *)
+let constr_jkind_refinable env t jkind =
+  match unification_jkind_check env t jkind with
+  | () -> false
+  | exception Unify_trace _ -> true
+
 (*
    1. When unifying two non-abbreviated types, one type is made a link
       to the other. When unifying an abbreviated type with a
@@ -3507,15 +3514,17 @@ and unify3 env t1 t1' t2 t2' =
   (* Before layouts, the following two cases were unnecessary because unifying a
      [Tconstr] and a [Tvar] couldn't refine the [Tconstr] in any interesting
      way. *)
-  | (Tconstr (path,[],_), Tvar _)
+  | (Tconstr (path,[],_), Tvar { jkind })
     when is_instantiable !env ~for_jkind_eqn:false path
-      && can_generate_equations () ->
+      && can_generate_equations ()
+      && constr_jkind_refinable !env t1' jkind ->
       reify env t2';
       record_equation t1' t2';
       add_gadt_equation env path t2'
-  | (Tvar _, Tconstr (path,[],_))
+  | (Tvar { jkind }, Tconstr (path,[],_))
     when is_instantiable !env ~for_jkind_eqn:false path
-      && can_generate_equations () ->
+      && can_generate_equations ()
+      && constr_jkind_refinable !env t2' jkind ->
       reify env t1';
       record_equation t1' t2';
       add_gadt_equation env path t1'

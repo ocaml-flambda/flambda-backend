@@ -2541,3 +2541,27 @@ let lpoly_id (type a : any) (x : a repr) : a -> a =
 type ('a : any) repr = Float64 : ('a : float64). 'a repr | Value : 'a repr
 val lpoly_id : ('a : any). 'a repr -> 'a -> 'a = <fun>
 |}]
+
+type 'a s = 'a
+
+module M = struct
+  type t : immediate
+end
+
+module N = struct
+  type ('a,'b) eq =
+    | Refl : ('a, 'a) eq
+
+  let f (x : (M.t, 'a s) eq) : int =
+    match x with
+    | Refl -> 42
+end
+[%%expect{|
+type 'a s = 'a
+module M : sig type t : immediate end
+module N :
+  sig
+    type ('a, 'b) eq = Refl : ('a, 'a) eq
+    val f : (M.t, M.t s) eq -> int
+  end
+|}]
