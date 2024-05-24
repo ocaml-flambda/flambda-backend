@@ -928,7 +928,7 @@ void caml_free_stack (struct stack_info* stack)
            (Stack_high(stack)-Stack_base(stack))*sizeof(value));
 #endif
   } else {
-#ifdef DEBUG
+#ifdef DEBUG && defined(STACK_CHECKS_ENABLED)
     memset(stack, 0x42, (char*)stack->handler - (char*)stack);
 #endif
 #ifdef USE_MMAP_MAP_STACK
