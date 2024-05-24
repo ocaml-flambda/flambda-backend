@@ -2488,3 +2488,80 @@ Line 1, characters 13-47:
 Error: The primitive [%sendcache] is used in an invalid declaration.
        The declaration contains argument/return types with the wrong layout.
 |}]
+
+(*********************************************************)
+(* Test 43: GADT refinement works on layouts as expected *)
+
+type ('a : any) t_gadt_simple =
+  | Float64 : ('a : float64) t_gadt_simple
+
+let f_match_allowed (type a : any) (x : a t_gadt_simple) : int =
+  match x with
+  | Float64 -> 1;;
+[%%expect{|
+type ('a : any) t_gadt_simple = Float64 : ('a : float64). 'a t_gadt_simple
+val f_match_allowed : ('a : any). 'a t_gadt_simple -> int = <fun>
+|}]
+
+let not_magic  (type a : any) (x : a t_gadt_simple) : 'b =
+  match x with
+  | _ -> .
+[%%expect{|
+Line 3, characters 4-5:
+3 |   | _ -> .
+        ^
+Error: This match case could not be refuted.
+       Here is an example of a value that would reach it: Float64
+|}]
+
+type ('a : any) t =
+  | UFloat : float# t
+  | Float : float t
+  | Int : int t
+
+let make_pi (type a : any) (x : a t) : unit -> a =
+  match x with
+  | UFloat -> fun () -> #3.14
+  | Float -> fun () -> 3.14
+  | Int -> fun () -> 3;;
+[%%expect{|
+type ('a : any) t = UFloat : float# t | Float : float t | Int : int t
+val make_pi : ('a : any). 'a t -> unit -> 'a = <fun>
+|}]
+
+type ('a : any) repr =
+  | Float64 : ('a : float64) repr
+  | Value : ('a : value) repr
+
+let lpoly_id (type a : any) (x : a repr) : a -> a =
+  match x with
+  | Float64 -> fun x -> x
+  | Value -> fun x -> x
+[%%expect{|
+type ('a : any) repr = Float64 : ('a : float64). 'a repr | Value : 'a repr
+val lpoly_id : ('a : any). 'a repr -> 'a -> 'a = <fun>
+|}]
+
+type 'a s = 'a
+
+module M = struct
+  type t : immediate
+end
+
+module N = struct
+  type ('a,'b) eq =
+    | Refl : ('a, 'a) eq
+
+  let f (x : (M.t, 'a s) eq) : int =
+    match x with
+    | Refl -> 42
+end
+[%%expect{|
+type 'a s = 'a
+module M : sig type t : immediate end
+module N :
+  sig
+    type ('a, 'b) eq = Refl : ('a, 'a) eq
+    val f : (M.t, M.t s) eq -> int
+  end
+|}]
