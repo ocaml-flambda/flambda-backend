@@ -67,11 +67,22 @@ type t_value_mod_external64 : value mod external64
 type t1 : float32 mod internal shared many local
 type t2 : bits64 mod once external64 unique
 type t3 : immediate mod local unique
+type t4 : value mod local local
+type t5 : float64 mod global global
+type t6 : bits32 mod local global
+type t7 : bits64 mod global local
+type t8 : value mod global local many once unique shared internal external64 external_
 
 [%%expect{|
 type t1 : float32 mod internal shared many local
 type t2 : bits64 mod once external64 unique
 type t3 : immediate mod local unique
+type t4 : value mod local local
+type t5 : float64 mod global global
+type t6 : bits32 mod local global
+type t7 : bits64 mod global local
+type t8
+  : value mod global local many once unique shared internal external64 external_
 |}]
 
 (***************************************)
