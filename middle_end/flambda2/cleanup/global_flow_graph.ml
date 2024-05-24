@@ -121,9 +121,8 @@ module Dep = struct
       | Propagate (n1, m1), Propagate (n2, m2) ->
         let c = Name.compare n1 n2 in
         if c <> 0 then c else Name.compare m1 m2
-      | ( ( Alias _ | Use _ | Field _ | Block _ | Alias_if_def _
-          | Propagate _ ),
-          _ ) ->
+      | (Alias _ | Use _ | Field _ | Block _ | Alias_if_def _ | Propagate _), _
+        ->
         Int.compare (numbering t1) (numbering t2)
 
     let equal x y = compare x y = 0
