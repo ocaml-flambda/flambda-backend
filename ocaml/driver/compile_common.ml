@@ -83,16 +83,15 @@ let typecheck_intf info ast =
 
 let emit_signature info ast tsg =
   let sg =
-    let name = Compilation_unit.name info.module_name in
     let kind : Cmi_format.kind =
       if !Clflags.as_parameter then
         Parameter
       else
-        Normal { cmi_impl = info.module_name }
+        Normal
     in
     let alerts = Builtin_attributes.alerts_of_sig ast in
     Env.save_signature ~alerts tsg.Typedtree.sig_type
-      name kind (info.output_prefix ^ ".cmi")
+      info.module_name kind (info.output_prefix ^ ".cmi")
   in
   Typemod.save_signature info.module_name tsg
     info.output_prefix info.source_file info.env sg
