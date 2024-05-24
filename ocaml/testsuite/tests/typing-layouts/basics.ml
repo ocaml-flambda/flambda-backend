@@ -2488,3 +2488,65 @@ Line 1, characters 13-47:
 Error: The primitive [%sendcache] is used in an invalid declaration.
        The declaration contains argument/return types with the wrong layout.
 |}]
+
+(*********************************************************)
+(* Test 43: GADT refinement works on layouts as expected *)
+
+type ('a : any) t_gadt_simple =
+  | Float64 : ('a : float64) t_gadt_simple
+
+let f_match_allowed (type a : any) (x : a t_gadt_simple) : int =
+  match x with
+  | Float64 -> 1;;
+[%%expect{|
+type ('a : any) t_gadt_simple = Float64 : ('a : float64). 'a t_gadt_simple
+val f_match_allowed : ('a : any). 'a t_gadt_simple -> int = <fun>
+|}]
+
+let not_magic  (type a : any) (x : a t_gadt_simple) : 'b =
+  match x with
+  | _ -> .
+[%%expect{|
+Line 3, characters 4-5:
+3 |   | _ -> .
+        ^
+Error: This match case could not be refuted.
+       Here is an example of a value that would reach it: Float64
+|}]
+
+type ('a : any) t =
+  | UFloat : float# t
+  | Float : float t
+  | Int : int t
+
+let make_pi (type a : any) (x : a t) : unit -> a =
+  match x with
+  | UFloat -> fun () -> #3.14
+  | Float -> fun () -> 3.14
+  | Int -> fun () -> 3;;
+[%%expect{|
+type ('a : any) t = UFloat : float# t | Float : float t | Int : int t
+val make_pi : ('a : any). 'a t -> unit -> 'a = <fun>
+|}]
+
+(* CR layouts: This one should work, but doesn't. But at least it shouldn't
+   be the source of the kind of soundness bug we had in [not_magic]. *)
+type ('a : any) repr =
+  | Float64 : ('a : float64) repr
+  | Value : ('a : value) repr
+
+let lpoly_id (type a : any) (x : a repr) : a -> a =
+  match x with
+  | Float64 -> fun x -> x
+  | Value -> fun x -> x
+[%%expect{|
+type ('a : any) repr = Float64 : ('a : float64). 'a repr | Value : 'a repr
+Line 7, characters 15-25:
+7 |   | Float64 -> fun x -> x
+                   ^^^^^^^^^^
+Error: Function arguments and returns must be representable.
+       The layout of a is any, because
+         of the annotation on the abstract type declaration for a.
+       But the layout of a must be representable, because
+         we must know concretely how to pass a function argument.
+|}]

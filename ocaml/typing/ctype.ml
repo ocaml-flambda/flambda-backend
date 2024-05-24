@@ -3344,7 +3344,10 @@ let unify1_var env t1 t2 =
     | _ -> assert false
   in
   occur_for Unify env t1 t2;
-  match occur_univar_for Unify env t2 with
+  match
+    occur_univar_for Unify env t2;
+    unification_jkind_check env t2 jkind
+  with
   | () ->
       begin
         try
@@ -3353,7 +3356,6 @@ let unify1_var env t1 t2 =
         with Escape e ->
           raise_for Unify (Escape e)
       end;
-      unification_jkind_check env t2 jkind;
       link_type t1 t2;
       true
   | exception Unify_trace _ when in_pattern_mode () ->
@@ -3362,11 +3364,11 @@ let unify1_var env t1 t2 =
 (* Called from unify3 *)
 let unify3_var env jkind1 t1' t2 t2' =
   occur_for Unify !env t1' t2;
-  match occur_univar_for Unify !env t2 with
-  | () -> begin
-      unification_jkind_check !env t2' jkind1;
-      link_type t1' t2
-    end
+  match
+    occur_univar_for Unify !env t2;
+    unification_jkind_check !env t2' jkind1
+  with
+  | () -> link_type t1' t2
   | exception Unify_trace _ when in_pattern_mode () ->
       reify env t1';
       reify env t2';
