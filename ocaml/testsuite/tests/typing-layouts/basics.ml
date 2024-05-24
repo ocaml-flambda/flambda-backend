@@ -2570,3 +2570,108 @@ module N :
     val f : (M.t, M.t s) eq -> int
   end
 |}]
+
+module N2 = struct
+  type ('a, 'b) eq =
+    | Refl : ('a, 'a) eq
+
+  let f (x : (M.t, ('a : immediate) s) eq) : int =
+    match x with
+    | Refl -> 42
+end
+
+[%%expect{|
+module N2 :
+  sig
+    type ('a, 'b) eq = Refl : ('a, 'a) eq
+    val f : (M.t, M.t s) eq -> int
+  end
+|}]
+
+type ('a : immediate) s_imm = 'a
+
+module N3 = struct
+  type ('a, 'b) eq =
+    | Refl : ('a, 'a) eq
+
+  let f (x : (M.t, 'a s_imm) eq) : int =
+    match x with
+    | Refl -> 42
+end
+
+[%%expect{|
+type ('a : immediate) s_imm = 'a
+module N3 :
+  sig
+    type ('a, 'b) eq = Refl : ('a, 'a) eq
+    val f : (M.t, M.t s_imm) eq -> int
+  end
+|}]
+
+module M2 = struct
+  type t : value
+end
+
+module N4 = struct
+  type ('a, 'b) eq =
+    | Refl : ('a, 'a) eq
+
+  let f (x : (M2.t, 'a s_imm) eq) : int =
+    match x with
+    | Refl -> 42
+end
+
+(* CR layouts v2.9: This message is rubbish. *)
+[%%expect{|
+module M2 : sig type t : value end
+Line 11, characters 6-10:
+11 |     | Refl -> 42
+           ^^^^
+Error: This pattern matches values of type (M2.t, M2.t) eq
+       but a pattern was expected which matches values of type
+         (M2.t, $'a s_imm) eq
+       Type M2.t is not compatible with type $'a s_imm = $'a
+       The type constructor $'a would escape its scope
+|}]
+
+module N5 = struct
+  type ('a : any, 'b : any) eq =
+    | Refl : ('a : any). ('a, 'a) eq
+
+  let f (x : (M2.t, ('a : bits64)) eq) : int =
+    match x with
+    | Refl -> 42
+end
+
+(* CR layouts v2.9: This message is rubbish. *)
+[%%expect{|
+Line 7, characters 6-10:
+7 |     | Refl -> 42
+          ^^^^
+Error: This pattern matches values of type (M2.t, M2.t) eq
+       but a pattern was expected which matches values of type (M2.t, $'a) eq
+       The type constructor $'a would escape its scope
+|}]
+
+module M2 = struct
+  type 'a t : immediate
+end
+
+module N6 = struct
+  type ('a,'b) eq =
+    | Refl : ('a, 'a) eq
+
+  let f (x : (_ M2.t, 'a s) eq) : int =
+    match x with
+    | Refl -> 42
+end
+
+[%%expect{|
+module M2 : sig type 'a t : immediate end
+module N6 :
+  sig
+    type ('a, 'b) eq = Refl : ('a, 'a) eq
+    val f : ('a M2.t, 'a M2.t s) eq -> int
+  end
+|}]
+

@@ -2875,7 +2875,7 @@ let non_aliasable p decl =
 
    2) It restricts gadt equations on pervasives, which a hacky implementation of
    the fact that every type in the initial environment is incompatible with
-   every other type.  But its fine to refine the jkind of these types (and we
+   every other type.  But it's fine to refine the jkind of these types (and we
    want to in some cases, like giving int32 the jkind immediate64 on
    appropriate platforms).
 
@@ -3353,30 +3353,26 @@ let unify1_var env t1 t2 =
 (* Called from unify3 *)
 let unify3_var env jkind1 t1' t2 t2' =
   occur_for Unify !env t1' t2;
-  match occur_univar_for Unify !env t2 with
-  | () -> begin
-      unification_jkind_check !env t2' jkind1;
-      link_type t1' t2
-    end
+  match
+    occur_univar_for Unify !env t2;
+    unification_jkind_check !env t2' jkind1
+  with
+  | () -> link_type t1' t2
   | exception Unify_trace _ when in_pattern_mode () ->
       reify env t1';
       reify env t2';
       if can_generate_equations () then begin
-        occur_univar ~inj_only:true !env t2';
+        begin match get_desc t2' with
+        | Tconstr(path,[],_)
+          when is_instantiable !env ~for_jkind_eqn:false path ->
+            add_gadt_equation env path t1'
+              (* This is necessary because a failed kind-check above
+                 might meaningfully refine a type constructor *)
+        | _ ->
+          occur_univar ~inj_only:true !env t2'
+        end;
         record_equation t1' t2';
       end
-
-(* This is used to check whether we should add a gadt equation refining a
-   Tconstr's jkind during pattern unification. *)
-let constr_jkind_refinable env t jkind =
-  let snap = Btype.snapshot () in
-  let refinable =
-    match unification_jkind_check env t jkind with
-    | () -> false
-    | exception Unify_trace _ -> true
-  in
-  Btype.backtrack snap;
-  refinable
 
 (*
    1. When unifying two non-abbreviated types, one type is made a link
@@ -3505,23 +3501,6 @@ and unify3 env t1 t1' t2 t2' =
     (Tunivar { jkind = k1 }, Tunivar { jkind = k2 }) ->
       unify_univar_for Unify t1' t2' k1 k2 !univar_pairs;
       link_type t1' t2'
-  (* Before layouts, the following two cases were unnecessary because unifying a
-     [Tconstr] and a [Tvar] couldn't refine the [Tconstr] in any interesting
-     way. *)
-  | (Tconstr (path,[],_), Tvar { jkind })
-    when is_instantiable !env ~for_jkind_eqn:false path
-      && can_generate_equations ()
-      && constr_jkind_refinable !env t1' jkind ->
-      reify env t2';
-      record_equation t1' t2';
-      add_gadt_equation env path t2'
-  | (Tvar { jkind }, Tconstr (path,[],_))
-    when is_instantiable !env ~for_jkind_eqn:false path
-      && can_generate_equations ()
-      && constr_jkind_refinable !env t2' jkind ->
-      reify env t1';
-      record_equation t1' t2';
-      add_gadt_equation env path t1'
   | (Tvar { jkind }, _) ->
       unify3_var env jkind t1' t2 t2'
   | (_, Tvar { jkind }) ->
