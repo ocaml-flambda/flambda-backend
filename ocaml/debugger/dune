@@ -16,21 +16,20 @@
 
 (ocamlyacc debugger_parser)
 
+
 (library
  (name ocamldebug)
- (modules
-  (:standard \ ocamldebug_entry))
+ (modules (:standard \ ocamldebug_entry))
  (modules_without_implementation parser_aux)
  (libraries ocamlcommon ocamltoplevel unix dynlink_internal))
 
 (executable
- (name ocamldebug_entry)
- (modes byte)
- (modules ocamldebug_entry)
- (libraries unix ocamldebug))
+  (name ocamldebug_entry)
+  (modes byte)
+  (modules ocamldebug_entry)
+  (libraries unix ocamldebug))
 
 (install
- (files
-  (ocamldebug_entry.bc as ocamldebug))
- (section bin)
- (package ocaml))
+  (files (ocamldebug_entry.bc as ocamldebug))
+  (section bin)
+  (package ocaml))

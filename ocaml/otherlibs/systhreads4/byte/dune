@@ -1,21 +1,19 @@
 (copy_files# ../*.{c,h,ml,mli})
 
 (library
- (name threads)
- (modes byte)
- (wrapped false)
- ; FIXME Fix warning 27
- (flags
-  (:standard -g -bin-annot -safe-string -w -27))
- (ocamlopt_flags
-  (:include %{project_root}/ocamlopt_flags.sexp))
- (libraries unix)
- (library_flags -linkall)
- (c_library_flags -lpthread)
- (foreign_stubs
-  (language c)
-  (names st_stubs)
+  (name threads)
+  (modes byte)
+  (wrapped false)
+  ; FIXME Fix warning 27
   (flags
-   ((:include %{project_root}/oc_cflags.sexp)
-    (:include %{project_root}/sharedlib_cflags.sexp)
-    (:include %{project_root}/oc_cppflags.sexp)))))
+   (:standard -g -bin-annot -safe-string -w -27))
+  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
+  (libraries unix)
+  (library_flags -linkall)
+  (c_library_flags -lpthread)
+  (foreign_stubs
+    (language c)
+    (names st_stubs)
+    (flags ((:include %{project_root}/oc_cflags.sexp)
+            (:include %{project_root}/sharedlib_cflags.sexp)
+            (:include %{project_root}/oc_cppflags.sexp)))))
