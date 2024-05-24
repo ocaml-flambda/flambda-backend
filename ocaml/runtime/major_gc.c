@@ -965,6 +965,9 @@ again:
         if (pb_full(&pb))
           break;
         prefetch_block(child);
+        if (child == 0) {
+          abort();
+        }
         pb_push(&pb, child);
       }
     }
