@@ -241,6 +241,10 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
       let (inh_init, obj_init) =
         build_object_init ~scopes cl_table obj params inh_init obj_init cl
       in
+      let oexprs = List.map (fun (l, arg) -> match arg with
+        | Arg (e, s) -> (l, Arg (e, s))
+        | Omitted o -> (l, Omitted o)) oexprs
+      in
       (inh_init, transl_apply ~scopes ~result_layout:layout_object obj_init oexprs Loc_unknown)
   | Tcl_let (rec_flag, defs, vals, cl) ->
       let (inh_init, obj_init) =

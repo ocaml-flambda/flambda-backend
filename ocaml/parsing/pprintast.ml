@@ -336,6 +336,12 @@ let maybe_type_atat_modes pty ctxt f c =
   | Some m -> pp f "%a@ @@@@@ %a" (pty ctxt) c modes m
   | None -> pty ctxt f c
 
+let xxx_with_label printer f (label, c) =
+  match label with
+  | Nolabel    -> printer f c (* otherwise parenthesize *)
+  | Labelled s -> pp f "%s:%a" s printer c
+  | Optional s -> pp f "?%s:%a" s printer c
+
 (* c ['a,'b] *)
 let rec class_params_def ctxt f =  function
   | [] -> ()
@@ -343,11 +349,12 @@ let rec class_params_def ctxt f =  function
       pp f "[%a] " (* space *)
         (list (type_param ctxt) ~sep:",") l
 
-and type_with_label ctxt f (label, c) =
-  match label with
-  | Nolabel    -> maybe_modes_type core_type1 ctxt f c (* otherwise parenthesize *)
-  | Labelled s -> pp f "%s:%a" s (maybe_modes_type core_type1 ctxt) c
-  | Optional s -> pp f "?%s:%a" s (maybe_modes_type core_type1 ctxt) c
+and type_with_label ctxt = xxx_with_label (maybe_modes_type core_type1 ctxt)
+
+and functor_arg ctxt f (name, pck_ty) =
+  pp f "@[<hov2>(module@ %s : %a)@]" name.txt (package_type ctxt) pck_ty
+
+and package_with_label ctxt = xxx_with_label (functor_arg ctxt)
 
 and jkind ctxt f k = match (k : Jane_syntax.Jkind.t) with
   | Default -> pp f "_"
@@ -390,6 +397,10 @@ and core_type ctxt f x =
     | Ptyp_arrow (l, ct1, ct2) ->
         pp f "@[<2>%a@;->@;%a@]" (* FIXME remove parens later *)
           (type_with_label ctxt) (l,ct1) (return_type ctxt) ct2
+    | Ptyp_functor (label, name, pack, ct) ->
+      pp f "@[<2>%a@;->@;%a@]"
+          (package_with_label ctxt) (label, (name, pack))
+          (core_type ctxt) ct
     | Ptyp_alias (ct, s) ->
       pp f "@[<2>%a@;as@;%a@]" (core_type1 ctxt) ct tyvar s
     | Ptyp_poly ([], ct) ->
@@ -475,16 +486,18 @@ and core_type1 ctxt f x =
         pp f "@[<hov2>%a@;#%a@]"
           (list (core_type ctxt) ~sep:"," ~first:"(" ~last:")") l
           longident_loc li
-    | Ptyp_package (lid, cstrs) ->
-        let aux f (s, ct) =
-          pp f "type %a@ =@ %a" longident_loc s (core_type ctxt) ct  in
-        (match cstrs with
-         |[] -> pp f "@[<hov2>(module@ %a)@]" longident_loc lid
-         |_ ->
-             pp f "@[<hov2>(module@ %a@ with@ %a)@]" longident_loc lid
-               (list aux  ~sep:"@ and@ ")  cstrs)
+    | Ptyp_package pck_ty ->
+        pp f "@[<hov2>(module@ %a)@]" (package_type ctxt) pck_ty
     | Ptyp_extension e -> extension ctxt f e
     | _ -> paren true (core_type ctxt) f x
+and package_type ctxt f (lid, cstrs) =
+  let aux f (s, ct) =
+    pp f "type %a@ =@ %a" longident_loc s (core_type ctxt) ct  in
+  (match cstrs with
+   |[] -> pp f "%a" longident_loc lid
+   |_ ->
+       pp f "%a@ with@ %a" longident_loc lid
+         (list aux  ~sep:"@ and@ ")  cstrs)
 
 and core_type_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
   let filtered_attrs = filter_curry_attrs attrs in

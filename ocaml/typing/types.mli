@@ -147,6 +147,10 @@ and type_desc =
 
   | Tpackage of Path.t * (Longident.t * type_expr) list
   (** Type of a first-class module (a.k.a package). *)
+  | Tfunctor of arrow_desc * Ident.unscoped
+                * (Path.t * (Longident.t * type_expr) list) * type_expr
+  (** Type of a module dependant function *)
+
 
 (** This is used in the Typedtree. It is distinct from
     {{!Asttypes.arg_label}[arg_label]} because Position argument labels are

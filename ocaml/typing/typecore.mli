@@ -279,6 +279,8 @@ type error =
   | Missing_type_constraint
   | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
   | Expr_not_a_record_type of type_expr
+  | Cannot_infer_functor_path
+  | Cannot_commute_label of type_expr
   | Submode_failed of
       Mode.Value.error * submode_reason *
       Env.closure_context option * Env.shared_context option
