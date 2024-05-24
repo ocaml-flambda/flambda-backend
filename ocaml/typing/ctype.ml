@@ -3380,9 +3380,14 @@ let unify3_var env jkind1 t1' t2 t2' =
 (* This is used to check whether we should add a gadt equation refining a
    Tconstr's jkind during pattern unification. *)
 let constr_jkind_refinable env t jkind =
-  match unification_jkind_check env t jkind with
-  | () -> false
-  | exception Unify_trace _ -> true
+  let snap = Btype.snapshot () in
+  let refinable =
+    match unification_jkind_check env t jkind with
+    | () -> false
+    | exception Unify_trace _ -> true
+  in
+  Btype.backtrack snap;
+  refinable
 
 (*
    1. When unifying two non-abbreviated types, one type is made a link
