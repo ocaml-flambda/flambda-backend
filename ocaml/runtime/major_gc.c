@@ -736,6 +736,11 @@ Caml_inline void mark_stack_push_range(struct mark_stack* stk,
     realloc_mark_stack(stk);
 
   me = &stk->stack[stk->count++];
+  if (me->start < me->end) {
+    if (*(me->start) == 0) {
+      abort();
+    }
+  }
   me->start = start;
   me->end = end;
 }
