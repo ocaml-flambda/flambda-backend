@@ -530,6 +530,9 @@ next_chunk:
           } else {
             root = (value *)(sp + ofs);
           }
+          if ((((value)root) & 1) == 0 && root[-1] == 0x600 && root[0] == 0) {
+            abort();
+          }
           visit (f, fdata, locals, colors, root);
         }
       }
