@@ -3333,7 +3333,10 @@ let unify1_var env t1 t2 =
     | _ -> assert false
   in
   occur_for Unify env t1 t2;
-  match occur_univar_for Unify env t2 with
+  match
+    occur_univar_for Unify env t2;
+    unification_jkind_check env t2 jkind
+  with
   | () ->
       begin
         try
@@ -3342,7 +3345,6 @@ let unify1_var env t1 t2 =
         with Escape e ->
           raise_for Unify (Escape e)
       end;
-      unification_jkind_check env t2 jkind;
       link_type t1 t2;
       true
   | exception Unify_trace _ when in_pattern_mode () ->
@@ -3363,6 +3365,18 @@ let unify3_var env jkind1 t1' t2 t2' =
         occur_univar ~inj_only:true !env t2';
         record_equation t1' t2';
       end
+
+(* This is used to check whether we should add a gadt equation refining a
+   Tconstr's jkind during pattern unification. *)
+let constr_jkind_refinable env t jkind =
+  let snap = Btype.snapshot () in
+  let refinable =
+    match unification_jkind_check env t jkind with
+    | () -> false
+    | exception Unify_trace _ -> true
+  in
+  Btype.backtrack snap;
+  refinable
 
 (*
    1. When unifying two non-abbreviated types, one type is made a link
@@ -3491,6 +3505,23 @@ and unify3 env t1 t1' t2 t2' =
     (Tunivar { jkind = k1 }, Tunivar { jkind = k2 }) ->
       unify_univar_for Unify t1' t2' k1 k2 !univar_pairs;
       link_type t1' t2'
+  (* Before layouts, the following two cases were unnecessary because unifying a
+     [Tconstr] and a [Tvar] couldn't refine the [Tconstr] in any interesting
+     way. *)
+  | (Tconstr (path,[],_), Tvar { jkind })
+    when is_instantiable !env ~for_jkind_eqn:false path
+      && can_generate_equations ()
+      && constr_jkind_refinable !env t1' jkind ->
+      reify env t2';
+      record_equation t1' t2';
+      add_gadt_equation env path t2'
+  | (Tvar { jkind }, Tconstr (path,[],_))
+    when is_instantiable !env ~for_jkind_eqn:false path
+      && can_generate_equations ()
+      && constr_jkind_refinable !env t2' jkind ->
+      reify env t1';
+      record_equation t1' t2';
+      add_gadt_equation env path t1'
   | (Tvar { jkind }, _) ->
       unify3_var env jkind t1' t2 t2'
   | (_, Tvar { jkind }) ->
