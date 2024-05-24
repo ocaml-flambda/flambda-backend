@@ -3364,11 +3364,11 @@ let unify1_var env t1 t2 =
 (* Called from unify3 *)
 let unify3_var env jkind1 t1' t2 t2' =
   occur_for Unify !env t1' t2;
-  match
-    occur_univar_for Unify !env t2;
-    unification_jkind_check !env t2' jkind1
-  with
-  | () -> link_type t1' t2
+  match occur_univar_for Unify !env t2 with
+  | () -> begin
+      unification_jkind_check !env t2' jkind1;
+      link_type t1' t2
+    end
   | exception Unify_trace _ when in_pattern_mode () ->
       reify env t1';
       reify env t2';
@@ -3504,6 +3504,21 @@ and unify3 env t1 t1' t2 t2' =
     (Tunivar { jkind = k1 }, Tunivar { jkind = k2 }) ->
       unify_univar_for Unify t1' t2' k1 k2 !univar_pairs;
       link_type t1' t2'
+  (* Before layouts, the following two cases were unnecessary because unifying a
+     [Tconstr] and a [Tvar] couldn't refine the [Tconstr] in any interesting
+     way. *)
+  | (Tconstr (path,[],_), Tvar _)
+    when is_instantiable !env ~for_jkind_eqn:false path
+      && can_generate_equations () ->
+      reify env t2';
+      record_equation t1' t2';
+      add_gadt_equation env path t2'
+  | (Tvar _, Tconstr (path,[],_))
+    when is_instantiable !env ~for_jkind_eqn:false path
+      && can_generate_equations () ->
+      reify env t1';
+      record_equation t1' t2';
+      add_gadt_equation env path t1'
   | (Tvar { jkind }, _) ->
       unify3_var env jkind t1' t2 t2'
   | (_, Tvar { jkind }) ->

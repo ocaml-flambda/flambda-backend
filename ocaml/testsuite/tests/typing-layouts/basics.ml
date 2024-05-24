@@ -2529,8 +2529,6 @@ type ('a : any) t = UFloat : float# t | Float : float t | Int : int t
 val make_pi : ('a : any). 'a t -> unit -> 'a = <fun>
 |}]
 
-(* CR layouts: This one should work, but doesn't. But at least it shouldn't
-   be the source of the kind of soundness bug we had in [not_magic]. *)
 type ('a : any) repr =
   | Float64 : ('a : float64) repr
   | Value : ('a : value) repr
@@ -2541,12 +2539,5 @@ let lpoly_id (type a : any) (x : a repr) : a -> a =
   | Value -> fun x -> x
 [%%expect{|
 type ('a : any) repr = Float64 : ('a : float64). 'a repr | Value : 'a repr
-Line 7, characters 15-25:
-7 |   | Float64 -> fun x -> x
-                   ^^^^^^^^^^
-Error: Function arguments and returns must be representable.
-       The layout of a is any, because
-         of the annotation on the abstract type declaration for a.
-       But the layout of a must be representable, because
-         we must know concretely how to pass a function argument.
+val lpoly_id : ('a : any). 'a repr -> 'a -> 'a = <fun>
 |}]
