@@ -1,0 +1,10 @@
+for_test_ocamldep1.cmo :
+for_test_ocamldep1.cmx :
+for_test_ocamldep2.cmo :
+for_test_ocamldep2.cmx :
+test_ocamldep.cmo : \
+    for_test_ocamldep2.cmo \
+    for_test_ocamldep1.cmo
+test_ocamldep.cmx : \
+    for_test_ocamldep2.cmx \
+    for_test_ocamldep1.cmx
