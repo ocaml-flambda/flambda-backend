@@ -91,7 +91,7 @@ let print_info cmt =
   let imports =
     let imports =
       Array.map (fun import ->
-          Import_info.name import, Import_info.crc import)
+          Import_info.name import, Import_info.crc_with_unit import)
         cmt.cmt_imports
     in
     Array.sort compare_imports imports;
@@ -101,7 +101,7 @@ let print_info cmt =
     let crc =
       match crco with
         None -> dummy_crc
-      | Some crc -> Digest.to_hex crc
+      | Some (_unit, crc) -> Digest.to_hex crc
     in
     Printf.fprintf oc "import: %a %s\n" Compilation_unit.Name.output name crc;
   ) imports;

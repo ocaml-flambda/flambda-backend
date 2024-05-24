@@ -21,13 +21,11 @@ type pers_flags =
   | Opaque
 
 type kind =
-  | Normal of {
-      cmi_impl : Compilation_unit.t;
-    }
+  | Normal
   | Parameter
 
 type 'sg cmi_infos_generic = {
-    cmi_name : Compilation_unit.Name.t;
+    cmi_name : Compilation_unit.t;
     cmi_kind : kind;
     cmi_sign : 'sg;
     cmi_crcs : Import_info.t array;
