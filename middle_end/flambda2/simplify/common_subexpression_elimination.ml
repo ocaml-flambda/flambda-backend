@@ -117,19 +117,17 @@ let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
   List.fold_left cse_at_each_use ~init:EP.Map.empty
     ~f:(fun eligible (env_at_use, id, cse) ->
       let find_new_name =
-        let rec find_param simple params =
-          match params with
-          | [] -> None
-          | param :: params -> (
-            match
-              TE.get_canonical_simple_exn env_at_use param
-                ~min_name_mode:NM.normal ~name_mode_of_existing_simple:NM.normal
-            with
-            | exception Not_found -> find_param simple params
-            | arg ->
-              if Simple.equal arg simple
-              then Some param
-              else find_param simple params)
+        let find_param simple params =
+          List.find_opt
+            ~f:(fun param ->
+              match
+                TE.get_canonical_simple_exn env_at_use param
+                  ~min_name_mode:NM.normal
+                  ~name_mode_of_existing_simple:NM.normal
+              with
+              | exception Not_found -> false
+              | arg -> Simple.equal arg simple)
+            params
         in
         match (extra_bindings : EPA.t) with
         | Empty -> fun arg -> find_param arg params
