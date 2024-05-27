@@ -105,18 +105,35 @@ end
 
 let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
     (extra_bindings : EPA.t) extra_equations =
-  let params = List.map params ~f:Bound_parameter.name |> Name.Set.of_list in
+  let params_set =
+    List.map params ~f:Bound_parameter.name |> Name.Set.of_list
+  in
+  let params = List.map params ~f:Bound_parameter.simple in
   let is_param simple =
     Simple.pattern_match simple
-      ~name:(fun name ~coercion:_ -> Name.Set.mem name params)
+      ~name:(fun name ~coercion:_ -> Name.Set.mem name params_set)
       ~const:(fun _ -> false)
   in
   List.fold_left cse_at_each_use ~init:EP.Map.empty
     ~f:(fun eligible (env_at_use, id, cse) ->
       let find_new_name =
+        let rec find_param simple params =
+          match params with
+          | [] -> None
+          | param :: params -> (
+            match
+              TE.get_canonical_simple_exn env_at_use param
+                ~min_name_mode:NM.normal ~name_mode_of_existing_simple:NM.normal
+            with
+            | exception Not_found -> find_param simple params
+            | arg ->
+              if Simple.equal arg simple
+              then Some param
+              else find_param simple params)
+        in
         match (extra_bindings : EPA.t) with
-        | Empty -> fun _arg -> None
-        | Non_empty { extra_args; extra_params } ->
+        | Empty -> fun arg -> find_param arg params
+        | Non_empty { extra_args; extra_params } -> (
           let extra_args = RI.Map.find id extra_args in
           let rec find_name simple params args =
             match args, params with
@@ -137,7 +154,10 @@ let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
                 find_name simple params args)
           in
           fun arg ->
-            find_name arg (Bound_parameters.to_list extra_params) extra_args
+            match find_param arg params with
+            | None ->
+              find_name arg (Bound_parameters.to_list extra_params) extra_args
+            | Some _ as r -> r)
       in
       EP.Map.fold
         (fun prim bound_to eligible ->
