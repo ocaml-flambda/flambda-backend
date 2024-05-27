@@ -855,8 +855,7 @@ let simplify_direct_function_call ~simplify_expr dacc apply
 let rebuild_function_call_where_callee's_type_unavailable apply call_kind
     ~use_id ~exn_cont_use_id uacc ~after_rebuild =
   let apply =
-    Apply.with_call_kind apply call_kind
-    |> Simplify_common.update_exn_continuation_extra_args uacc ~exn_cont_use_id
+    Simplify_common.update_exn_continuation_extra_args uacc ~exn_cont_use_id
   in
   let apply =
     Apply.with_inlined_attribute apply
@@ -912,6 +911,7 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
          which function it is. *)
       Call_kind.indirect_function_call_known_arity apply_alloc_mode
   in
+  let apply = Apply_expr.with_call_kind apply call_kind in
   let dacc =
     record_free_names_of_apply_as_used ~use_id ~exn_cont_use_id dacc apply
   in
