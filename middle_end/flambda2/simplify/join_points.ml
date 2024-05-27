@@ -34,42 +34,38 @@ let introduce_extra_params_for_join typing_env use_envs_with_ids
       TE.add_definitions_of_params typing_env ~params:extra_params
     in
     let use_envs_with_ids =
-      List.map
+      List.filter_map
         (fun (env_at_use, use_id, kind) ->
           let env_at_use =
             TE.add_definitions_of_params env_at_use ~params:extra_params
           in
-          let extra_args =
-            match
-              Apply_cont_rewrite_id.Map.find use_id
-                (EPA.extra_args extra_params_and_args)
-            with
-            | Ok extra_args -> extra_args
-            | Invalid ->
-              (* CR gbury: ask @vlaviron what to do here *)
-              assert false
-            | exception Not_found ->
-              Misc.fatal_errorf
-                "No extra args for rewrite Id %a@.Extra params and args: %a"
-                Apply_cont_rewrite_id.print use_id EPA.print
-                extra_params_and_args
-          in
-          let env_at_use =
-            List.fold_left2
-              (fun env_at_use param (arg : EPA.Extra_arg.t) ->
-                match arg with
-                | Already_in_scope s ->
-                  TE.add_equation env_at_use (BP.name param)
-                    (T.alias_type_of
-                       (BP.kind param |> Flambda_kind.With_subkind.kind)
-                       s)
-                | New_let_binding _ | New_let_binding_with_named_args _ ->
-                  env_at_use)
-              env_at_use
-              (Bound_parameters.to_list extra_params)
-              extra_args
-          in
-          env_at_use, use_id, kind)
+          match
+            Apply_cont_rewrite_id.Map.find use_id
+              (EPA.extra_args extra_params_and_args)
+          with
+          | exception Not_found ->
+            Misc.fatal_errorf
+              "No extra args for rewrite Id %a@.Extra params and args: %a"
+              Apply_cont_rewrite_id.print use_id EPA.print
+              extra_params_and_args
+          | Invalid -> None
+          | Ok extra_args ->
+            let env_at_use =
+              List.fold_left2
+                (fun env_at_use param (arg : EPA.Extra_arg.t) ->
+                   match arg with
+                   | Already_in_scope s ->
+                     TE.add_equation env_at_use (BP.name param)
+                       (T.alias_type_of
+                          (BP.kind param |> Flambda_kind.With_subkind.kind)
+                          s)
+                   | New_let_binding _ | New_let_binding_with_named_args _ ->
+                     env_at_use)
+                env_at_use
+                (Bound_parameters.to_list extra_params)
+                extra_args
+            in
+            Some (env_at_use, use_id, kind))
         use_envs_with_ids
     in
     typing_env, use_envs_with_ids
