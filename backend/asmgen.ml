@@ -350,12 +350,15 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
           | Upstream -> assert false
         end
         ++ Cfg_with_infos.cfg_with_layout
-        ++ Profile.record ~accumulate:true "cfg_validate_description" (Regalloc_validate.run cfg_description)
+        ++ Profile.record ~accumulate:true "cfg_validate_description"
+             (Regalloc_validate.run cfg_description)
         ++ Profile.record ~accumulate:true "cfg_simplify" Regalloc_utils.simplify_cfg
-          (* CR-someday gtulbalecu: The peephole optimizations must not affect liveness, otherwise
-             we would have to recompute it here. Recomputing it here breaks the CI because
-             the liveness_analysis algorithm does not work properly after register allocation. *)
-        ++ Profile.record ~accumulate:true "peephole_optimize_cfg" Peephole_optimize.peephole_optimize_cfg
+        (* CR-someday gtulbalecu: The peephole optimizations must not affect liveness,
+           otherwise we would have to recompute it here. Recomputing it here breaks the CI
+           because the liveness_analysis algorithm does not work properly after register
+           allocation. *)
+        ++ Profile.record ~accumulate:true "peephole_optimize_cfg"
+             Peephole_optimize.peephole_optimize_cfg
         ++ (fun (cfg_with_layout : Cfg_with_layout.t) ->
           match !Flambda_backend_flags.cfg_stack_checks with
           | false -> cfg_with_layout
