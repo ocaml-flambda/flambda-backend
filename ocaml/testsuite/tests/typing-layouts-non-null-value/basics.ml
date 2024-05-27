@@ -1,6 +1,6 @@
 (* TEST
  flags = "-extension-universe alpha";
- include stdlib_stable;
+ include stdlib_upstream_compatible;
  expect;
 *)
 type t_non_null_value : non_null_value
@@ -287,33 +287,33 @@ Error: This expression has type 'a lazy_t
 
 (* Unboxed types are not values, so they are not non-null. *)
 
-let _ = id_non_null_value (Stdlib_stable.Float_u.of_float 3.14)
+let _ = id_non_null_value (Stdlib_upstream_compatible.Float_u.of_float 3.14)
 ;;
 
 [%%expect{|
-Line 1, characters 26-63:
-1 | let _ = id_non_null_value (Stdlib_stable.Float_u.of_float 3.14)
-                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type Stdlib_stable.Float_u.t = float#
+Line 1, characters 26-76:
+1 | let _ = id_non_null_value (Stdlib_upstream_compatible.Float_u.of_float 3.14)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type Stdlib_upstream_compatible.Float_u.t = float#
        but an expression was expected of type ('a : non_null_value)
-       The layout of Stdlib_stable.Float_u.t is float64, because
+       The layout of Stdlib_upstream_compatible.Float_u.t is float64, because
          it is the primitive float64 type float#.
-       But the layout of Stdlib_stable.Float_u.t must be a sublayout of non_null_value, because
+       But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of non_null_value, because
          of the definition of id_non_null_value at line 3, characters 4-21.
 |}]
 
-let _ = id_non_null_value (Stdlib_stable.Int32_u.of_int 314)
+let _ = id_non_null_value (Stdlib_upstream_compatible.Int32_u.of_int 314)
 ;;
 
 [%%expect{|
-Line 1, characters 26-60:
-1 | let _ = id_non_null_value (Stdlib_stable.Int32_u.of_int 314)
-                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type Stdlib_stable.Int32_u.t = int32#
+Line 1, characters 26-73:
+1 | let _ = id_non_null_value (Stdlib_upstream_compatible.Int32_u.of_int 314)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type Stdlib_upstream_compatible.Int32_u.t = int32#
        but an expression was expected of type ('a : non_null_value)
-       The layout of Stdlib_stable.Int32_u.t is bits32, because
+       The layout of Stdlib_upstream_compatible.Int32_u.t is bits32, because
          it is the primitive bits32 type int32#.
-       But the layout of Stdlib_stable.Int32_u.t must be a sublayout of non_null_value, because
+       But the layout of Stdlib_upstream_compatible.Int32_u.t must be a sublayout of non_null_value, because
          of the definition of id_non_null_value at line 3, characters 4-21.
 |}]
 
