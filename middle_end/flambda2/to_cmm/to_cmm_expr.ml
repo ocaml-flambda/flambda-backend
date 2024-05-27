@@ -401,7 +401,7 @@ let translate_jump_to_continuation ~dbg_with_inlined:dbg env res apply types
         let cont = Env.get_cmm_continuation env exn_handler in
         [Cmm.Push cont]
     in
-    let args = C.actual_args args types in
+    let args = C.remove_skipped_args args types in
     let args, free_vars, env, res, _ = C.simple_list ~dbg env res args in
     let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     let cmm, free_vars = wrap (C.cexit cont args trap_actions) free_vars in
@@ -646,7 +646,9 @@ and let_cont_not_inlined env res k handler body =
       in
       ( C.create_ccatch ~rec_flag:false ~body
           ~handlers:
-            [C.handler ~dbg catch_id (C.actual_params vars) handler is_cold],
+            [ C.handler ~dbg catch_id
+                (C.remove_skipped_params vars)
+                handler is_cold ],
         free_vars,
         res )
   in
@@ -775,7 +777,8 @@ and let_cont_rec env res invariant_params conts body =
             (C.remove_vars_with_machtype free_vars_of_handler vars)
         in
         let id = Env.get_cmm_continuation env k in
-        ( C.handler ~dbg id (C.actual_params vars) handler false :: handlers,
+        ( C.handler ~dbg id (C.remove_skipped_params vars) handler false
+          :: handlers,
           free_vars ))
       conts_to_handlers ([], free_vars_of_body)
   in

@@ -16,7 +16,7 @@ open! Cmm_helpers
 open! Cmm_builtins
 module Ece = Effects_and_coeffects
 
-let actual_params params_with_types =
+let remove_skipped_params params_with_types =
   List.filter_map
     (fun (v, param_type) ->
       match (param_type : Cmm.machtype To_cmm_env.param_type) with
@@ -24,13 +24,14 @@ let actual_params params_with_types =
       | Param machtype -> Some (v, machtype))
     params_with_types
 
-let rec actual_args args param_types =
+let rec remove_skipped_args args param_types =
   match args, (param_types : _ To_cmm_env.param_type list) with
   | [], [] -> []
-  | _ :: r, Skip_param :: r' -> actual_args r r'
-  | arg :: r, Param _ :: r' -> arg :: actual_args r r'
+  | _ :: r, Skip_param :: r' -> remove_skipped_args r r'
+  | arg :: r, Param _ :: r' -> arg :: remove_skipped_args r r'
   | _ :: _, [] | [], _ :: _ ->
-    Misc.fatal_errorf "Mismatched list sizes in To_cmm_shared.actual_args"
+    Misc.fatal_errorf
+      "Mismatched list sizes in To_cmm_shared.remove_skipped_args"
 
 let remove_var_with_provenance free_vars var =
   let v = Backend_var.With_provenance.var var in

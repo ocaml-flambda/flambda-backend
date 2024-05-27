@@ -115,7 +115,7 @@ let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
     C.create_ccatch ~rec_flag:false ~body
       ~handlers:
         [ C.handler ~dbg return_cont
-            (C.actual_params return_cont_params)
+            (C.remove_skipped_params return_cont_params)
             unit_value false ]
   in
   let body =
