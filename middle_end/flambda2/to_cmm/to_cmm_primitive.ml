@@ -698,7 +698,14 @@ let unary_primitive env res dbg f arg =
     let extra, expr = arithmetic_conversion dbg src dst arg in
     extra, res, expr
   | Boolean_not -> None, res, C.mk_not dbg arg
-  | Reinterpret_int64_as_float -> None, res, C.int64_as_float ~dbg arg
+  | Reinterpret_int64_as_float ->
+    (* Will be translated to MOVQ by backend/amd64/selection.ml. *)
+    ( None,
+      res,
+      C.extcall ~dbg ~alloc:false ~returns:true ~is_c_builtin:false
+        ~effects:Arbitrary_effects ~coeffects:Has_coeffects
+        ~ty_args:[C.exttype_of_kind K.naked_int64]
+        "caml_int64_float_of_bits_unboxed" Cmm.typ_float [arg] )
   | Unbox_number kind -> None, res, unbox_number ~dbg kind arg
   | Untag_immediate -> Some (Env.Untag arg), res, C.untag_int arg dbg
   | Box_number (kind, alloc_mode) ->
