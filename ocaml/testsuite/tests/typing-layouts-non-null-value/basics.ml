@@ -268,7 +268,7 @@ Error: This expression has type <  > but an expression was expected of type
          of the definition of id_non_null_value at line 3, characters 4-21.
 |}]
 
-(* CR layouts v3.0: [lazy_t] possibly should be non-null. *)
+(* CR layouts v3.0: [lazy_t] should be non-null. *)
 
 let _ = id_non_null_value (lazy 3)
 ;;

@@ -72,13 +72,28 @@ end = struct
   let mk x = x
 end
 
-(* By default, type parameters to abstract types are nullable: *)
+(* CR layouts v3.0: abstract types and type parameters to
+   abstract types should default to non-null: *)
+
+let _ = Fake_or_null.some (M1.mk 2)
+;;
+[%%expect{|
+module M1 : sig type 'a t val mk : 'a -> 'a t end
+Line 14, characters 26-35:
+14 | let _ = Fake_or_null.some (M1.mk 2)
+                               ^^^^^^^^^
+Error: This expression has type int M1.t
+       but an expression was expected of type ('a : non_null_value)
+       The layout of int M1.t is value, because
+         of the definition of t at line 2, characters 2-11.
+       But the layout of int M1.t must be a sublayout of non_null_value, because
+         of the definition of some at line 5, characters 2-23.
+|}]
 
 let _ = M1.mk (Fake_or_null.some 5)
 ;;
 
 [%%expect{|
-module M1 : sig type 'a t val mk : 'a -> 'a t end
 - : int Fake_or_null.t M1.t = <abstr>
 |}]
 
