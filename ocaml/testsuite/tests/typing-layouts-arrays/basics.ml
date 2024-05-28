@@ -1,5 +1,5 @@
 (* TEST
- include stable;
+ include stdlib_upstream_compatible;
  flambda2;
  {
    flags = "-extension layouts_alpha -extension small_numbers";
@@ -246,15 +246,15 @@ module M6_1 = struct
     | [| _; _; z |] -> z
     | _ -> assert false
 
-  let _ =  assert (Stable.Int32_u.equal #42l (get_third [| #0l; #1l; #42l |]))
+  let _ =  assert (Stdlib_upstream_compatible.Int32_u.equal #42l (get_third [| #0l; #1l; #42l |]))
 
-  let _ =  assert (Stable.Int64_u.equal #42L (get_third [| #0L; #1L; #42L |]))
+  let _ =  assert (Stdlib_upstream_compatible.Int64_u.equal #42L (get_third [| #0L; #1L; #42L |]))
 end
 
 [%%expect{|
-Line 11, characters 59-62:
-11 |   let _ =  assert (Stable.Int64_u.equal #42L (get_third [| #0L; #1L; #42L |]))
-                                                                ^^^
+Line 11, characters 79-82:
+11 |   let _ =  assert (Stdlib_upstream_compatible.Int64_u.equal #42L (get_third [| #0L; #1L; #42L |]))
+                                                                                    ^^^
 Error: This expression has type int64# but an expression was expected of type
          ('a : bits32)
        The layout of int64# is bits64, because

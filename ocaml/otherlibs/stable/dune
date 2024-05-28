@@ -17,16 +17,12 @@
 
 (library
  (name stable)
- (wrapped false)
+ (public_name ocaml.stable)
  (modes byte native)
  (flags
-  (-strict-sequence
-   -principal
+  (:standard
+   -strict-sequence
    -absname
-   -w
-   +a-4-9-40-41-42-44-45-48-66
-   -warn-error
-   A
    -bin-annot
    -safe-string
    -strict-formats
@@ -44,14 +40,10 @@
  (deps
   (glob_files ../stdlib_stable/*.{ml,mli}))
  (targets
-  float_u.ml
-  float_u.mli
-  int32_u.ml
-  int32_u.mli
-  int64_u.ml
-  int64_u.mli
-  nativeint_u.ml
-  nativeint_u.mli
+  iarray.ml
+  iarray.mli
+  iarrayLabels.ml
+  iarrayLabels.mli
   stable.ml
   stable.mli)
  (action
@@ -66,9 +58,3 @@
   (with-stdout-to
    to_install.sexp
    (run "%{first-dep}" "stable"))))
-
-(install
- (files
-  (include to_install.sexp))
- (section lib)
- (package ocaml))

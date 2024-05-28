@@ -500,8 +500,7 @@ let destroyed_at_oper = function
                | Onetwentyeight_aligned | Onetwentyeight_unaligned), _, _))
   | Iop(Imove | Ispill | Ireload | Ifloatop _
        | Icsel _
-       | Ivalueofint | Iintofvalue
-       | Ivectorcast _ | Iscalarcast _
+       | Ireinterpret_cast _ | Istatic_cast _
        | Iconst_int _ | Iconst_float32 _ | Iconst_float _
        | Iconst_symbol _ | Iconst_vec128 _
        | Itailcall_ind | Itailcall_imm _ | Istackoffset _ | Iload _
@@ -555,9 +554,8 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Intop_atomic _
        | Floatop _
        | Csel _
-       | Valueofint | Intofvalue
-       | Vectorcast _
-       | Scalarcast _
+       | Reinterpret_cast _
+       | Static_cast _
        | Probe_is_enabled _
        | Opaque
        | Begin_region
@@ -633,8 +631,8 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
 let safe_register_pressure = function
     Iextcall _ -> if win64 then if fp then 7 else 8 else 0
   | Ialloc _ | Ipoll _ | Imove | Ispill | Ireload
-  | Ivalueofint | Iintofvalue | Ivectorcast _
-  | Ifloatop _ | Iscalarcast _
+  | Ireinterpret_cast _ | Istatic_cast _
+  | Ifloatop _
   | Icsel _
   | Iconst_int _ | Iconst_float32 _ | Iconst_float _
   | Iconst_symbol _ | Iconst_vec128 _
@@ -692,7 +690,7 @@ let max_register_pressure =
   | Imove | Ispill | Ireload
   | Ifloatop ((Float64 | Float32), (Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf))
   | Icsel _
-  | Ivalueofint | Iintofvalue | Ivectorcast _ | Iscalarcast _
+  | Ireinterpret_cast _ | Istatic_cast _
   | Iconst_int _ | Iconst_float _ | Iconst_float32 _
   | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
@@ -797,10 +795,9 @@ let operation_supported = function
   | Cclz _ | Cctz _
   | Ccmpi _ | Caddv | Cadda | Ccmpa _
   | Cnegf _ | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _ | Cpackf32
-  | Cvalueofint | Cintofvalue
   | Ccmpf _
   | Craise _
-  | Cvectorcast _ | Cscalarcast _
+  | Creinterpret_cast _ | Cstatic_cast _
   | Cprobe _ | Cprobe_is_enabled _ | Copaque | Cbeginregion | Cendregion
   | Ctuple_field _
   | Cdls_get

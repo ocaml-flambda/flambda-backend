@@ -272,3 +272,23 @@ val get_zero_alloc_attribute :
 
 val assume_zero_alloc :
   is_check_allowed:bool -> zero_alloc_attribute -> Zero_alloc_utils.Assume_info.t
+
+type tracing_probe =
+  { name : string;
+    name_loc : Location.t;
+    enabled_at_init : bool;
+    arg : Parsetree.expression;
+  }
+
+(* Gets the payload of a [probe] extension node. Example syntax of a probe
+   that's disabled by default:
+
+   [%probe "my_probe" arg]
+
+   You can use [enabled_at_init] to control whether the probe is enabled
+   by default:
+
+   [%probe "my_probe" ~enabled_at_init:true arg]
+*)
+val get_tracing_probe_payload :
+  Parsetree.payload -> (tracing_probe, unit) result
