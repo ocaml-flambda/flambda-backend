@@ -1,3 +1,6 @@
 (tests
  (names check_regalloc_validation)
+ ; FIXME Fix warnings
+ (flags
+  (:standard -no-principal -w -27-32))
  (libraries ocamloptcomp))
