@@ -46,21 +46,20 @@ let introduce_extra_params_for_join typing_env use_envs_with_ids
           | exception Not_found ->
             Misc.fatal_errorf
               "No extra args for rewrite Id %a@.Extra params and args: %a"
-              Apply_cont_rewrite_id.print use_id EPA.print
-              extra_params_and_args
+              Apply_cont_rewrite_id.print use_id EPA.print extra_params_and_args
           | Invalid -> None
           | Ok extra_args ->
             let env_at_use =
               List.fold_left2
                 (fun env_at_use param (arg : EPA.Extra_arg.t) ->
-                   match arg with
-                   | Already_in_scope s ->
-                     TE.add_equation env_at_use (BP.name param)
-                       (T.alias_type_of
-                          (BP.kind param |> Flambda_kind.With_subkind.kind)
-                          s)
-                   | New_let_binding _ | New_let_binding_with_named_args _ ->
-                     env_at_use)
+                  match arg with
+                  | Already_in_scope s ->
+                    TE.add_equation env_at_use (BP.name param)
+                      (T.alias_type_of
+                         (BP.kind param |> Flambda_kind.With_subkind.kind)
+                         s)
+                  | New_let_binding _ | New_let_binding_with_named_args _ ->
+                    env_at_use)
                 env_at_use
                 (Bound_parameters.to_list extra_params)
                 extra_args
