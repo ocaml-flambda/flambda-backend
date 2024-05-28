@@ -81,7 +81,7 @@ module Decisions : sig
   type t =
     { decisions : (BP.t * decision) list;
       rewrite_ids_seen : Apply_cont_rewrite_id.Set.t;
-      rewrite_ids_invalid : Apply_cont_rewrite_id.Set.t
+      rewrites_ids_known_as_invalid : Apply_cont_rewrite_id.Set.t
     }
 
   val print : Format.formatter -> t -> unit

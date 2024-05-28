@@ -19,7 +19,8 @@ module U = Unboxing_types
 module Decisions = U.Decisions
 
 let refine_decision_based_on_arg_types_at_uses ~pass ~rewrite_ids_seen
-    ~rewrite_ids_invalid nth_arg arg_type_by_use_id (decision : U.decision) =
+    ~rewrites_ids_known_as_invalid nth_arg arg_type_by_use_id
+    (decision : U.decision) =
   match decision with
   | Do_not_unbox _ as decision -> decision, Apply_cont_rewrite_id.Set.empty
   | Unbox _ as decision ->
@@ -27,7 +28,8 @@ let refine_decision_based_on_arg_types_at_uses ~pass ~rewrite_ids_seen
       (fun rewrite_id (arg_at_use : Continuation_uses.arg_at_use)
            (decision, invalids) ->
         if Apply_cont_rewrite_id.Set.mem rewrite_id rewrite_ids_seen
-           || Apply_cont_rewrite_id.Set.mem rewrite_id rewrite_ids_invalid
+           || Apply_cont_rewrite_id.Set.mem rewrite_id
+                rewrites_ids_known_as_invalid
         then decision, invalids
         else
           let typing_env_at_use = arg_at_use.typing_env in
@@ -50,7 +52,7 @@ let refine_decision_based_on_arg_types_at_uses ~pass ~rewrite_ids_seen
           with Unboxing_epa.Invalid_apply_cont ->
             decision, Apply_cont_rewrite_id.Set.add rewrite_id invalids)
       arg_type_by_use_id
-      (decision, rewrite_ids_invalid)
+      (decision, rewrites_ids_known_as_invalid)
 
 module List = struct
   include List
@@ -70,7 +72,7 @@ let make_do_not_unbox_decisions params : Decisions.t =
   in
   { decisions;
     rewrite_ids_seen = Apply_cont_rewrite_id.Set.empty;
-    rewrite_ids_invalid = Apply_cont_rewrite_id.Set.empty
+    rewrites_ids_known_as_invalid = Apply_cont_rewrite_id.Set.empty
   }
 
 type continuation_arg_types =
@@ -112,7 +114,7 @@ let make_decisions ~continuation_arg_types denv params params_types :
           else
             let decision, invalids =
               refine_decision_based_on_arg_types_at_uses ~rewrite_ids_seen:empty
-                ~rewrite_ids_invalid:invalids nth arg_type_by_use_id
+                ~rewrites_ids_known_as_invalid:invalids nth arg_type_by_use_id
                 ~pass:Filter decision
             in
             let decision =
@@ -146,11 +148,12 @@ let make_decisions ~continuation_arg_types denv params params_types :
   in
   let rewrite_ids_seen = match seen with None -> empty | Some s -> s in
   let decisions = List.combine params (List.rev rev_decisions) in
-  denv, { decisions; rewrite_ids_seen; rewrite_ids_invalid = invalids }
+  ( denv,
+    { decisions; rewrite_ids_seen; rewrites_ids_known_as_invalid = invalids } )
 
 let compute_extra_params_and_args
-    ({ decisions; rewrite_ids_seen; rewrite_ids_invalid } : Decisions.t)
-    ~arg_types_by_use_id existing_extra_params_and_args =
+    ({ decisions; rewrite_ids_seen; rewrites_ids_known_as_invalid } :
+      Decisions.t) ~arg_types_by_use_id existing_extra_params_and_args =
   let _, extra_params_and_args, _ =
     List.fold_left2
       (fun (nth, extra_params_and_args, invalids) arg_type_by_use_id
@@ -158,14 +161,15 @@ let compute_extra_params_and_args
         let decision, invalids =
           refine_decision_based_on_arg_types_at_uses
             ~pass:Compute_all_extra_args ~rewrite_ids_seen
-            ~rewrite_ids_invalid:invalids nth arg_type_by_use_id decision
+            ~rewrites_ids_known_as_invalid:invalids nth arg_type_by_use_id
+            decision
         in
         let extra_params_and_args =
           Unboxing_epa.add_extra_params_and_args extra_params_and_args ~invalids
             decision
         in
         nth + 1, extra_params_and_args, invalids)
-      (0, existing_extra_params_and_args, rewrite_ids_invalid)
+      (0, existing_extra_params_and_args, rewrites_ids_known_as_invalid)
       arg_types_by_use_id decisions
   in
   extra_params_and_args
