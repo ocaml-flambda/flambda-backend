@@ -288,15 +288,7 @@ let _ = id_non_null_value (lazy 3)
 ;;
 
 [%%expect{|
-Line 1, characters 26-34:
-1 | let _ = id_non_null_value (lazy 3)
-                              ^^^^^^^^
-Error: This expression has type 'a lazy_t
-       but an expression was expected of type ('b : non_null_value)
-       The layout of 'a lazy_t is value, because
-         it is the primitive value type lazy_t.
-       But the layout of 'a lazy_t must be a sublayout of non_null_value, because
-         of the definition of id_non_null_value at line 3, characters 4-21.
+- : int lazy_t = lazy 3
 |}]
 
 (* Unboxed types are not values, so they are not non-null. *)
