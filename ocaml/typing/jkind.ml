@@ -941,8 +941,6 @@ end = struct
       fprintf ppf "the check that a type is definitely not `float`"
 
   let format_value_creation_reason ppf : value_creation_reason -> _ = function
-    | Class_let_binding ->
-      fprintf ppf "it's the type of a let-bound variable in a class expression"
     | Tuple_element -> fprintf ppf "it's the type of a tuple element"
     | Probe -> format_with_notify_js ppf "it's a probe"
     | Object -> fprintf ppf "it's the type of an object"
@@ -1381,7 +1379,6 @@ module Debug_printers = struct
     | Separability_check -> fprintf ppf "Separability_check"
 
   let value_creation_reason ppf : value_creation_reason -> _ = function
-    | Class_let_binding -> fprintf ppf "Class_let_binding"
     | Tuple_element -> fprintf ppf "Tuple_element"
     | Probe -> fprintf ppf "Probe"
     | Object -> fprintf ppf "Object"

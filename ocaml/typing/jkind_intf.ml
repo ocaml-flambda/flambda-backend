@@ -171,7 +171,6 @@ module History = struct
     | With_error_message of string * annotation_context
 
   type value_creation_reason =
-    | Class_let_binding
     | Tuple_element
     | Probe
     | Object
