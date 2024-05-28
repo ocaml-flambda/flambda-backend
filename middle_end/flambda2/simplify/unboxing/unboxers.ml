@@ -66,7 +66,7 @@ module Float32 = struct
 
   let unboxer =
     { var_name = "unboxed_float32";
-      invalid_const =
+      poison_const =
         Const.naked_float32 Numeric_types.Float32_by_bit_pattern.zero;
       unboxing_prim;
       prove_simple = T.meet_boxed_float32_containing_simple
