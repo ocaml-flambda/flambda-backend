@@ -106,10 +106,10 @@ let print_cma_infos (lib : Cmo_format.library) =
 let print_cmi_infos name crcs kind =
   if not !quiet then begin
     let open Cmi_format in
-    printf "Unit name: %a\n" Compilation_unit.output name;
+    printf "Unit name: %a\n" Compilation_unit.Name.output name;
     let is_param =
       match kind with
-      | Normal -> false
+      | Normal _ -> false
       | Parameter -> true
     in
     printf "Is parameter: %s\n" (if is_param then "YES" else "no");
