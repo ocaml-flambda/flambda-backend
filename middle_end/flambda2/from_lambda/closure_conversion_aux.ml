@@ -121,21 +121,16 @@ module Inlining = struct
     let magic_scale_constant = 20. in
     int_of_float (inline_threshold *. magic_scale_constant)
 
-  let definition_inlining_decision inline cost_metrics ~stub =
+  let definition_inlining_decision inline cost_metrics =
     let inline_threshold = threshold () in
     let code_size = Cost_metrics.size cost_metrics in
     match (inline : Inline_attribute.t) with
     | Never_inline ->
       Function_decl_inlining_decision_type.Never_inline_attribute
-    | Always_inline -> Function_decl_inlining_decision_type.Attribute_inline
-    | Available_inline ->
-      if stub
-      then Function_decl_inlining_decision_type.Stub
-      else Function_decl_inlining_decision_type.Attribute_inline
+    | Always_inline | Available_inline ->
+      Function_decl_inlining_decision_type.Attribute_inline
     | Unroll _ | Default_inline ->
-      if stub
-      then Function_decl_inlining_decision_type.Stub
-      else if Code_size.to_int code_size <= inline_threshold
+      if Code_size.to_int code_size <= inline_threshold
       then
         Function_decl_inlining_decision_type.Small_function
           { size = code_size;
@@ -426,10 +421,9 @@ module Acc = struct
                 Inlining.definition_inlining_decision
                   (Code_metadata.inline metadata)
                   (Code_metadata.cost_metrics metadata)
-                  ~stub:(Code_metadata.stub metadata)
               with
-              | Attribute_inline | Small_function _ | Stub -> approx
-              | Not_yet_decided | Never_inline_attribute | Recursive
+              | Attribute_inline | Small_function _ -> approx
+              | Not_yet_decided | Never_inline_attribute | Stub | Recursive
               | Function_body_too_large _ | Speculatively_inlinable _
               | Functor _ ->
                 Value_approximation.Closure_approximation
