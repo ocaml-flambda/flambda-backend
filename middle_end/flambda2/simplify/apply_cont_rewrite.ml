@@ -274,7 +274,7 @@ let rewrite_exn_continuation rewrite id exn_cont =
       | Invalid ->
         (* CR gbury: This is not supported for now, but adding support for it
            should be relatively easy and straight-forward *)
-        Misc.fatal_error "[Invalid]"
+        Misc.fatal_error "[Invalid] extra args are currently not allowed for exn continuation rewrites"
       | Ok extra_args_list ->
         List.map2
           (fun (arg : EA.t) extra_param ->
