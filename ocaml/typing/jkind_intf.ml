@@ -173,7 +173,6 @@ module History = struct
   type value_creation_reason =
     | Tuple_element
     | Probe
-    | Object
     | Instance_variable
     | Object_field
     | Class_field
@@ -185,8 +184,6 @@ module History = struct
         }
     (* [position] is 1-indexed *)
     | Row_variable
-    | Tfield
-    | Tnil
     | Separability_check
     | Univar
     | Polymorphic_variant_field
@@ -217,7 +214,10 @@ module History = struct
           position : int;
           arity : int
         }
-  (* [position] is 1-indexed *)
+    (* [position] is 1-indexed *)
+    | Object
+    | Tfield
+    | Tnil
 
   type immediate_creation_reason =
     | Empty_record

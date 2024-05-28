@@ -1566,7 +1566,7 @@ let rec approx_declaration cl =
       approx_declaration cl
   | Pcl_constraint (cl, _) ->
       approx_declaration cl
-  | _ -> Ctype.newvar (Jkind.value ~why:Object)
+  | _ -> Ctype.newvar (Jkind.non_null_value ~why:Object)
 
 let rec approx_description ct =
   match ct.pcty_desc with
@@ -1582,7 +1582,7 @@ let rec approx_description ct =
       let arrow_desc = l, Mode.Alloc.legacy, Mode.Alloc.legacy in
       Ctype.newty
         (Tarrow (arrow_desc, arg, approx_description ct, commu_ok))
-  | _ -> Ctype.newvar (Jkind.value ~why:Object)
+  | _ -> Ctype.newvar (Jkind.non_null_value ~why:Object)
 
 (*******************************)
 
@@ -1593,12 +1593,12 @@ let temp_abbrev loc id arity uid =
       Type_argument {parent_path = Path.Pident id; position = i; arity})
     ) :: !params
   done;
-  let ty = Ctype.newobj (Ctype.newvar (Jkind.value ~why:Object)) in
+  let ty = Ctype.newobj (Ctype.newvar (Jkind.non_null_value ~why:Object)) in
   let ty_td =
       {type_params = !params;
        type_arity = arity;
        type_kind = Type_abstract Abstract_def;
-       type_jkind = Jkind.value ~why:Object;
+       type_jkind = Jkind.non_null_value ~why:Object;
        type_jkind_annotation = None;
        type_private = Public;
        type_manifest = Some ty;
@@ -1829,7 +1829,7 @@ let class_infos define_class kind
      type_params = obj_params;
      type_arity = arity;
      type_kind = Type_abstract Abstract_def;
-     type_jkind = Jkind.value ~why:Object;
+     type_jkind = Jkind.non_null_value ~why:Object;
      type_jkind_annotation = None;
      type_private = Public;
      type_manifest = Some obj_ty;

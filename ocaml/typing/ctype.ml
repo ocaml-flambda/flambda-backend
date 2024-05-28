@@ -2114,9 +2114,9 @@ let rec estimate_type_jkind env ty =
   | Tvar { jkind } -> TyVar (jkind, ty)
   | Tarrow _ -> Jkind (non_null_value ~why:Arrow)
   | Ttuple _ -> Jkind (non_null_value ~why:Tuple)
-  | Tobject _ -> Jkind (value ~why:Object)
-  | Tfield _ -> Jkind (value ~why:Tfield)
-  | Tnil -> Jkind (value ~why:Tnil)
+  | Tobject _ -> Jkind (non_null_value ~why:Object)
+  | Tfield _ -> Jkind (non_null_value ~why:Tfield)
+  | Tnil -> Jkind (non_null_value ~why:Tnil)
   | (Tlink _ | Tsubst _) -> assert false
   | Tunivar { jkind } -> Jkind jkind
   | Tpoly (ty, _) -> estimate_type_jkind env ty
@@ -4223,7 +4223,7 @@ let filter_method env name ty =
       let scope = get_scope ty in
       let ty', ty_meth = object_type ~level ~scope in
       begin match
-        constrain_type_jkind env ty (Jkind.value ~why:Object)
+        constrain_type_jkind env ty (Jkind.non_null_value ~why:Object)
       with
       | Ok _ -> ()
       | Error err -> raise (Filter_method_failed (Not_a_value err))
@@ -4522,7 +4522,7 @@ let generalize_class_signature_spine env sign =
   (* But keep levels correct on the type of self *)
   Meths.iter
     (fun _ (_, _, ty) ->
-       unify_var env (newvar (Jkind.value ~why:Object)) ty)
+       unify_var env (newvar (Jkind.value ~why:Object_field)) ty)
     meths;
   sign.csig_meths <- new_meths
 
@@ -5815,7 +5815,7 @@ let rec build_subtype env (visited : transient_expr list)
       else (t, Unchanged)
   | Tnil ->
       if posi then
-        let v = newvar (Jkind.value ~why:Tnil) in
+        let v = newvar (Jkind.non_null_value ~why:Tnil) in
         (v, Changed)
       else begin
         warn := true;

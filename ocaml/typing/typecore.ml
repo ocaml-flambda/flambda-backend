@@ -2904,7 +2904,7 @@ let type_self_pattern env spat =
   let open Ast_helper in
   let spat = Pat.mk(Ppat_alias (spat, mknoloc "selfpat-*")) in
   let tps = create_type_pat_state Modules_rejected in
-  let nv = newvar (Jkind.value ~why:Object) in
+  let nv = newvar (Jkind.non_null_value ~why:Object) in
   let alloc_mode = simple_pat_mode Value.legacy in
   let pat =
     type_pat tps Value ~no_existentials:In_self_pattern ~alloc_mode
@@ -9828,7 +9828,8 @@ let report_error ~loc env = function
     ) ()
   | Not_a_value (err, explanation) ->
     Location.error_of_printer ~loc (fun ppf () ->
-      fprintf ppf "Object types must have layout value.@ %a"
+      fprintf ppf "Object types must have layout %s.@ %a"
+        (Jkind.string_of_const Non_null_value)
         (Jkind.Violation.report_with_name ~name:"the type of this expression")
         err;
       report_type_expected_explanation_opt explanation ppf)

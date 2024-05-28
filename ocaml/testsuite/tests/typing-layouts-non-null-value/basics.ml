@@ -264,22 +264,11 @@ let _ = id_non_null_value (module M1 : S1)
 module type S1 = sig val bar : float# -> int end
 - : (module S1) = <module>
 |}]
-
-(* CR layouts v3.0: objects should be non-null. *)
-
 let _ = id_non_null_value (object val foo = () end)
 ;;
 
 [%%expect{|
-Line 1, characters 26-51:
-1 | let _ = id_non_null_value (object val foo = () end)
-                              ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type <  > but an expression was expected of type
-         ('a : non_null_value)
-       The layout of <  > is value, because
-         it's the type of an object.
-       But the layout of <  > must be a sublayout of non_null_value, because
-         of the definition of id_non_null_value at line 3, characters 4-21.
+- : <  > = <obj>
 |}]
 
 (* CR layouts v3.0: [lazy_t] should be non-null. *)

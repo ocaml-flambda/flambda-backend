@@ -943,7 +943,6 @@ end = struct
   let format_value_creation_reason ppf : value_creation_reason -> _ = function
     | Tuple_element -> fprintf ppf "it's the type of a tuple element"
     | Probe -> format_with_notify_js ppf "it's a probe"
-    | Object -> fprintf ppf "it's the type of an object"
     | Instance_variable -> fprintf ppf "it's the type of an instance variable"
     | Object_field -> fprintf ppf "it's the type of an object field"
     | Class_field -> fprintf ppf "it's the type of a class field"
@@ -954,12 +953,6 @@ end = struct
         (format_position ~arity position)
         !printtyp_path parent_path
     | Row_variable -> format_with_notify_js ppf "it's a row variable"
-    | Tfield ->
-      format_with_notify_js ppf
-        "it's an internal Tfield type (you shouldn't see this)"
-    | Tnil ->
-      format_with_notify_js ppf
-        "it's an internal Tnil type (you shouldn't see this)"
     | Separability_check ->
       fprintf ppf "the check that a type is definitely not `float`"
     | Univar ->
@@ -1017,6 +1010,13 @@ end = struct
         (format_position ~arity position)
         !printtyp_path parent_path
         (Legacy.string_of_const Non_null_value)
+    | Object -> fprintf ppf "it's the type of an object"
+    | Tfield ->
+      format_with_notify_js ppf
+        "it's an internal Tfield type (you shouldn't see this)"
+    | Tnil ->
+      format_with_notify_js ppf
+        "it's an internal Tnil type (you shouldn't see this)"
 
   let format_float64_creation_reason ppf : float64_creation_reason -> _ =
     function
@@ -1381,7 +1381,6 @@ module Debug_printers = struct
   let value_creation_reason ppf : value_creation_reason -> _ = function
     | Tuple_element -> fprintf ppf "Tuple_element"
     | Probe -> fprintf ppf "Probe"
-    | Object -> fprintf ppf "Object"
     | Instance_variable -> fprintf ppf "Instance_variable"
     | Object_field -> fprintf ppf "Object_field"
     | Class_field -> fprintf ppf "Class_field"
@@ -1390,8 +1389,6 @@ module Debug_printers = struct
       fprintf ppf "Type_argument (pos %d, arity %d) of %a" position arity
         !printtyp_path parent_path
     | Row_variable -> fprintf ppf "Row_variable"
-    | Tfield -> fprintf ppf "Tfield"
-    | Tnil -> fprintf ppf "Tnil"
     | Separability_check -> fprintf ppf "Separability_check"
     | Univar -> fprintf ppf "Univar"
     | Polymorphic_variant_field -> fprintf ppf "Polymorphic_variant_field"
@@ -1421,6 +1418,9 @@ module Debug_printers = struct
     | Type_argument { parent_path; position; arity } ->
       fprintf ppf "Type_argument (pos %d, arity %d) of %a" position arity
         !printtyp_path parent_path
+    | Object -> fprintf ppf "Object"
+    | Tnil -> fprintf ppf "Tnil"
+    | Tfield -> fprintf ppf "Tfield"
 
   let float64_creation_reason ppf : float64_creation_reason -> _ = function
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
