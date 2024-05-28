@@ -27,11 +27,14 @@ type error = |
 module Transfer :
   Cfg_dataflow.Backward_transfer
     with type domain = domain
-     and type error = error = struct
+     and type error = error
+     and type context = unit = struct
   type nonrec domain = domain =
     { before : Reg.Set.t;
       across : Reg.Set.t
     }
+
+  type context = unit
 
   type nonrec error = error
 
@@ -44,8 +47,9 @@ module Transfer :
     let before = Reg.add_set_array across instr.arg in
     { before; across }
 
-  let basic : domain -> Cfg.basic Cfg.instruction -> (domain, error) result =
-   fun ({ before; across = _ } as domain) instr ->
+  let basic :
+      domain -> Cfg.basic Cfg.instruction -> context -> (domain, error) result =
+   fun ({ before; across = _ } as domain) instr () ->
     Result.ok
     @@
     match instr.desc with
@@ -62,8 +66,9 @@ module Transfer :
       domain ->
       exn:domain ->
       Cfg.terminator Cfg.instruction ->
+      context ->
       (domain, error) result =
-   fun domain ~exn instr ->
+   fun domain ~exn instr () ->
     Result.ok
     @@
     match instr.desc with
@@ -86,8 +91,8 @@ module Transfer :
         ~can_raise:(Cfg.can_raise_terminator instr.desc)
         ~exn domain instr
 
-  let exception_ : domain -> (domain, error) result =
-   fun { before; across = _ } ->
+  let exception_ : domain -> context -> (domain, error) result =
+   fun { before; across = _ } () ->
     Result.ok
     @@ { before = Reg.Set.remove Proc.loc_exn_bucket before;
          across = Reg.Set.empty

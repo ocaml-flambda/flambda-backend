@@ -21,14 +21,16 @@ end
 module Transfer = struct
   type domain = Domain.t
 
+  type context = unit
+
   type image =
     { normal : domain;
       exceptional : domain
     }
 
-  let basic value _ = value
+  let basic value _ _ = value
 
-  let terminator value _ = { normal = value; exceptional = value }
+  let terminator value _ _ = { normal = value; exceptional = value }
 end
 
 module Dataflow = Cfg_dataflow.Forward (Domain) (Transfer)
