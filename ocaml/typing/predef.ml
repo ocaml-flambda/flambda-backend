@@ -186,7 +186,7 @@ and ident_cons = ident_create "::"
 and ident_none = ident_create "None"
 and ident_some = ident_create "Some"
 and ident_null = ident_create "Null"
-and ident_just = ident_create "Just"
+and ident_this = ident_create "This"
 
 let predef_jkind_annotation const =
   Option.map
@@ -408,7 +408,7 @@ let build_initial_env add_type add_extension empty_env =
        ~variance:Variance.covariant
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
-        variant [cstr ident_null []; cstr ident_just [tvar, Unrestricted]]
+        variant [cstr ident_null []; cstr ident_this [tvar, Unrestricted]]
           [| Constructor_uniform_value, [| |];
              Constructor_uniform_value, [| or_null_argument_jkind |];
           |])

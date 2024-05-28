@@ -14,4 +14,4 @@
 
 type ('a : non_null_value) t = 'a or_null =
   | Null
-  | Just of 'a
+  | This of 'a

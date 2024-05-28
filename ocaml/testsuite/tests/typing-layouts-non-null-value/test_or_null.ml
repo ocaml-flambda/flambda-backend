@@ -7,7 +7,7 @@
 module type Or_null = sig
   type ('a : non_null_value) t = 'a or_null =
     | Null
-    | Just of 'a
+    | This of 'a
 
   (* CR layouts v3.0: implement those functions. *)
 
@@ -41,7 +41,7 @@ module Or_null : Or_null = Stdlib_alpha.Or_null
    are implied by the rest of the signature, but this may be hard. *)
 [%%expect {|
 module type Or_null =
-  sig type ('a : non_null_value) t = 'a or_null = Null | Just of 'a end
+  sig type ('a : non_null_value) t = 'a or_null = Null | This of 'a end
 module Or_null : Or_null
 |}]
 
