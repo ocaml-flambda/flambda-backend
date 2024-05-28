@@ -856,6 +856,7 @@ let rebuild_function_call_where_callee's_type_unavailable apply call_kind
     ~use_id ~exn_cont_use_id uacc ~after_rebuild =
   let apply =
     Simplify_common.update_exn_continuation_extra_args uacc ~exn_cont_use_id
+      apply
   in
   let apply =
     Apply.with_inlined_attribute apply
