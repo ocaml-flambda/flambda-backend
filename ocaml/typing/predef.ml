@@ -329,7 +329,8 @@ let build_initial_env add_type add_extension empty_env =
        ~kind:Type_open
        ~jkind:(Jkind.non_null_value ~why:Extensible_variant)
   |> add_type ident_extension_constructor
-  |> add_type ident_float
+  (* CR layouts v3: [float] should be non-null. *)
+  |> add_type ident_float ~jkind:(Jkind.value ~why:(Primitive ident_float))
   |> add_type ident_floatarray
   |> add_type ident_int ~jkind:(Jkind.immediate ~why:(Primitive ident_int))
       ~jkind_annotation:Immediate
@@ -406,6 +407,8 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind_annotation:Bits64
   |> add_type1 ident_or_null
        ~variance:Variance.covariant
+       (* CR layouts v3: Right now, since [float] can't be used in [or_null],
+          it is always separable. Revisit this once we finish the design. *)
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
         variant [cstr ident_null []; cstr ident_this [tvar, Unrestricted]]

@@ -49,7 +49,7 @@ let _ = [| Fake_or_null.some 3 |]
 
 let _ = [: Fake_or_null.some "test " :]
 
-let _ = Some (Fake_or_null.some 4.2)
+let _ = Some (Fake_or_null.some 42)
 
 let _ = lazy (Fake_or_null.none)
 ;;
@@ -58,7 +58,7 @@ let _ = lazy (Fake_or_null.none)
 - : 'a Fake_or_null.t list = [<abstr>]
 - : int Fake_or_null.t array = [|<abstr>|]
 - : string Fake_or_null.t iarray = [:<abstr>:]
-- : float Fake_or_null.t option = Some <abstr>
+- : int Fake_or_null.t option = Some <abstr>
 - : 'a Fake_or_null.t lazy_t = lazy <abstr>
 |}]
 

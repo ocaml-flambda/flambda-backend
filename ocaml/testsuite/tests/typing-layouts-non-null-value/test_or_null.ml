@@ -302,6 +302,39 @@ Error: The type constructor M.t expects 0 argument(s),
        but is here applied to 1 argument(s)
 |}]
 
+(* CR layouts v3: [float or_null] should compile: *)
+
+type t = float or_null
+;;
+
+[%%expect {|
+Line 1, characters 9-14:
+1 | type t = float or_null
+             ^^^^^
+Error: This type float should be an instance of type ('a : non_null_value)
+       The layout of float is value, because
+         it is the primitive value type float.
+       But the layout of float must be a sublayout of non_null_value, because
+         the type argument of option has layout non_null_value.
+|}]
+
+(* CR layouts v3: [float or_null array] should not compile,
+   but for a different reason: *)
+
+type t = float or_null array
+;;
+
+[%%expect {|
+Line 1, characters 9-14:
+1 | type t = float or_null array
+             ^^^^^
+Error: This type float should be an instance of type ('a : non_null_value)
+       The layout of float is value, because
+         it is the primitive value type float.
+       But the layout of float must be a sublayout of non_null_value, because
+         the type argument of option has layout non_null_value.
+|}]
+
 (* CR layouts v3.0: implement features below. *)
 
 (*
