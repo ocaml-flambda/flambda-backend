@@ -212,7 +212,7 @@ let list_argument_jkind = Jkind.value ~why:(
 let mk_add_type add_type
       ?manifest type_ident
       ?(kind=Type_abstract Abstract_def)
-      ?(jkind=Jkind.value ~why:(Primitive type_ident))
+      ?(jkind=Jkind.non_null_value ~why:(Primitive type_ident))
       (* [jkind_annotation] is just used for printing. It's best to
          provide it if the jkind is not implied by the kind of the
          type, as then the type, if printed, will be clearer.
@@ -245,7 +245,7 @@ let build_initial_env add_type add_extension empty_env =
   let add_type = mk_add_type add_type
   and add_type1 type_ident
         ?(kind=fun _ -> Type_abstract Abstract_def)
-        ?(jkind=Jkind.value ~why:(Primitive type_ident))
+        ?(jkind=Jkind.non_null_value ~why:(Primitive type_ident))
         (* See the comment on the [jkind_annotation] argument to [mk_add_type]
         *)
         ?jkind_annotation
@@ -280,7 +280,7 @@ let build_initial_env add_type add_extension empty_env =
   let add_extension id args jkinds =
     Array.iter (fun jkind ->
         match Jkind.get jkind with
-        | Const Value -> ()
+        | Const (Value | Non_null_value) -> ()
         | _ ->
             Misc.fatal_error
               "sanity check failed: non-value jkind in predef extension \
@@ -321,7 +321,7 @@ let build_initial_env add_type add_extension empty_env =
       ~jkind_annotation:Immediate
   |> add_type ident_exn
        ~kind:Type_open
-       ~jkind:(Jkind.value ~why:Extensible_variant)
+       ~jkind:(Jkind.non_null_value ~why:Extensible_variant)
   |> add_type ident_extension_constructor
   |> add_type ident_float
   |> add_type ident_floatarray
@@ -332,6 +332,7 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type1 ident_lazy_t
        ~variance:Variance.covariant
        ~separability:Separability.Ind
+       ~jkind:(Jkind.value ~why:(Primitive ident_lazy_t))
   |> add_type1 ident_list
        ~variance:Variance.covariant
        ~separability:Separability.Ind
@@ -342,10 +343,10 @@ let build_initial_env add_type add_extension empty_env =
            [| Constructor_uniform_value, [| |];
               Constructor_uniform_value,
                 [| list_argument_jkind;
-                   Jkind.value ~why:Boxed_variant;
+                   Jkind.non_null_value ~why:Boxed_variant;
                 |];
            |] )
-       ~jkind:(Jkind.value ~why:Boxed_variant)
+       ~jkind:(Jkind.non_null_value ~why:Boxed_variant)
   |> add_type ident_nativeint
   |> add_type1 ident_option
        ~variance:Variance.covariant
@@ -355,7 +356,7 @@ let build_initial_env add_type add_extension empty_env =
            [| Constructor_uniform_value, [| |];
               Constructor_uniform_value, [| option_argument_jkind |];
            |])
-       ~jkind:(Jkind.value ~why:Boxed_variant)
+       ~jkind:(Jkind.non_null_value ~why:Boxed_variant)
   |> add_type ident_lexing_position
        ~kind:(
          let lbl (field, field_type, jkind) =
@@ -371,9 +372,9 @@ let build_initial_env add_type add_extension empty_env =
                ld_uid=Uid.of_predef_id id;
              }
          in
-         let immediate = Jkind.value ~why:(Primitive ident_int) in
+         let immediate = Jkind.immediate ~why:(Primitive ident_int) in
          let labels = List.map lbl [
-           ("pos_fname", type_string, Jkind.value ~why:(Primitive ident_string));
+           ("pos_fname", type_string, Jkind.non_null_value ~why:(Primitive ident_string));
            ("pos_lnum", type_int, immediate);
            ("pos_bol", type_int, immediate);
            ("pos_cnum", type_int, immediate) ]
@@ -383,7 +384,7 @@ let build_initial_env add_type add_extension empty_env =
            (Record_boxed (List.map (fun label -> label.ld_jkind) labels |> Array.of_list))
          )
        )
-       ~jkind:(Jkind.value ~why:Boxed_record)
+       ~jkind:(Jkind.non_null_value ~why:Boxed_record)
   |> add_type ident_string
   |> add_type ident_unboxed_float
        ~jkind:(Jkind.float64 ~why:(Primitive ident_unboxed_float))
@@ -406,25 +407,25 @@ let build_initial_env add_type add_extension empty_env =
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
        [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
-       [| Jkind.value ~why:Tuple |]
+       [| Jkind.non_null_value ~why:Tuple |]
   |> add_extension ident_division_by_zero [] [||]
   |> add_extension ident_end_of_file [] [||]
   |> add_extension ident_failure [type_string]
-       [| Jkind.value ~why:(Primitive ident_string) |]
+       [| Jkind.non_null_value ~why:(Primitive ident_string) |]
   |> add_extension ident_invalid_argument [type_string]
-       [| Jkind.value ~why:(Primitive ident_string) |]
+       [| Jkind.non_null_value ~why:(Primitive ident_string) |]
   |> add_extension ident_match_failure
        [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
-       [| Jkind.value ~why:Tuple |]
+       [| Jkind.non_null_value ~why:Tuple |]
   |> add_extension ident_not_found [] [||]
   |> add_extension ident_out_of_memory [] [||]
   |> add_extension ident_stack_overflow [] [||]
   |> add_extension ident_sys_blocked_io [] [||]
   |> add_extension ident_sys_error [type_string]
-       [| Jkind.value ~why:(Primitive ident_string) |]
+       [| Jkind.non_null_value ~why:(Primitive ident_string) |]
   |> add_extension ident_undefined_recursive_module
        [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
-       [| Jkind.value ~why:Tuple |]
+       [| Jkind.non_null_value ~why:Tuple |]
 
 let add_simd_extension_types add_type env =
   let add_type = mk_add_type add_type in

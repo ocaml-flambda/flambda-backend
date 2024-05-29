@@ -39,7 +39,7 @@
 (rule
  (deps
   (glob_files ../stdlib_alpha/*.{ml,mli}))
- (targets alpha.ml alpha.mli)
+ (targets alpha.ml alpha.mli or_null.ml or_null.mli)
  (action
   (bash
    "cp ../stdlib_alpha/*.{ml,mli} .; mv stdlib_alpha.ml alpha.ml; mv stdlib_alpha.mli alpha.mli")))
