@@ -115,37 +115,35 @@ Error: The layout of type string or_null is value, because
          of the definition of t at line 1, characters 0-40.
 |}]
 
-(* CR layouts v3.0: implement [non_null_immediate] *)
+(* CR layouts v3.0: implement [immediate_or_null] *)
 
 type t1 : non_null_value = string
 type t2 : non_null_value = int
-type t3 : non_null_immediate = int
-type t4 : value = int or_null
+type t3 : immediate = int
+type t4 : immediate_or_null = int or_null
 
 [%%expect {|
 type t1 = string
 type t2 = int
-Line 3, characters 10-28:
-3 | type t3 : non_null_immediate = int
-              ^^^^^^^^^^^^^^^^^^
-Error: Unknown layout non_null_immediate
+type t3 = int
+Line 4, characters 10-27:
+4 | type t4 : immediate_or_null = int or_null
+              ^^^^^^^^^^^^^^^^^
+Error: Unknown layout immediate_or_null
 |}]
 
 (* magic looking-through of [or_null] can't be abstracted over *)
 type 'a t = 'a or_null
 type q1 : value = string t
-type q2 : immediate = int t  (* but t isn't abstract, so this is OK *)
+type q2 : immediate_or_null = int t  (* but t isn't abstract, so this is OK *)
 
 [%%expect {|
 type ('a : non_null_value) t = 'a or_null
 type q1 = string t
-Line 3, characters 0-27:
-3 | type q2 : immediate = int t  (* but t isn't abstract, so this is OK *)
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type int t is value, because
-         it is the primitive value type or_null.
-       But the layout of type int t must be a sublayout of immediate, because
-         of the definition of q2 at line 3, characters 0-27.
+Line 3, characters 10-27:
+3 | type q2 : immediate_or_null = int t  (* but t isn't abstract, so this is OK *)
+              ^^^^^^^^^^^^^^^^^
+Error: Unknown layout immediate_or_null
 |}]
 
 type q = string t t
@@ -176,18 +174,17 @@ Error: This type int t = int or_null should be an instance of type
          of the definition of t at line 1, characters 0-22.
 |}]
 
+(* CR layouts v2.8: Make [or_null] kind polymorphic, so this is accepted. *)
+
 type 'a q1 = 'a t
-type ('a : immediate) q2 : immediate = 'a t
+type ('a : immediate) q2 : immediate_or_null = 'a t
 
 [%%expect {|
 type ('a : non_null_value) q1 = 'a t
-Line 2, characters 0-43:
-2 | type ('a : immediate) q2 : immediate = 'a t
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type 'a t is value, because
-         it is the primitive value type or_null.
-       But the layout of type 'a t must be a sublayout of immediate, because
-         of the definition of q2 at line 2, characters 0-43.
+Line 2, characters 27-44:
+2 | type ('a : immediate) q2 : immediate_or_null = 'a t
+                               ^^^^^^^^^^^^^^^^^
+Error: Unknown layout immediate_or_null
 |}]
 
 (* CR layouts v3.0: default to [non_null_value] for abstract types *)
@@ -244,6 +241,8 @@ Error: Signature mismatch:
        because their layouts are different.
 |}]
 
+(* CR layouts v3.0: ['a] in signature should default to [non_null_value] *)
+
 module M : sig
   type 'a t : value
 end = struct
@@ -269,24 +268,26 @@ Error: Signature mismatch:
        because their layouts are different.
 |}]
 
+module M : sig
+  type ('a : non_null_value) t : value
+end = struct
+  type 'a t = 'a or_null
+end
+
+[%%expect {|
+module M : sig type ('a : non_null_value) t : value end
+|}]
+
 type t = string M.t
 
 [%%expect {|
-Line 1, characters 9-19:
-1 | type t = string M.t
-             ^^^^^^^^^^
-Error: The type constructor M.t expects 0 argument(s),
-       but is here applied to 1 argument(s)
+type t = string M.t
 |}]
 
 type t = int M.t
 
 [%%expect {|
-Line 1, characters 9-16:
-1 | type t = int M.t
-             ^^^^^^^
-Error: The type constructor M.t expects 0 argument(s),
-       but is here applied to 1 argument(s)
+type t = int M.t
 |}]
 
 type ('a : immediate) id_imm = 'a
@@ -298,8 +299,11 @@ type ('a : immediate) id_imm = 'a
 Line 3, characters 10-17:
 3 | type t = (int M.t) id_imm  (* this is the one that requires "looking through" *)
               ^^^^^^^
-Error: The type constructor M.t expects 0 argument(s),
-       but is here applied to 1 argument(s)
+Error: This type int M.t should be an instance of type ('a : immediate)
+       The layout of int M.t is value, because
+         of the definition of t at line 2, characters 2-38.
+       But the layout of int M.t must be a sublayout of immediate, because
+         of the definition of id_imm at line 1, characters 0-33.
 |}]
 
 (* CR layouts v3: [float or_null] should compile: *)
