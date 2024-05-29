@@ -710,6 +710,16 @@ let interface_mismatch ppf (diff: _ Err.diff) =
     "The implementation %s@ does not match the interface %s:@ "
     diff.got diff.expected
 
+let parameter_mismatch ppf (diff: _ Err.diff) =
+  Format.fprintf ppf
+    "The argument module %s@ does not match the parameter signature %s:@ "
+    diff.got diff.expected
+
+let compilation_unit_mismatch comparison ppf diff =
+  match (comparison : Err.compilation_unit_comparison) with
+  | Implementation_vs_interface -> interface_mismatch ppf diff
+  | Argument_vs_parameter -> parameter_mismatch ppf diff
+
 let core_module_type_symptom (x:Err.core_module_type_symptom)  =
   match x with
   | Not_an_alias | Not_an_identifier | Abstract_module_type
@@ -886,8 +896,10 @@ let module_type_subst ~env id diff =
       [main]
 
 let all env = function
-  | In_Compilation_unit diff ->
-      let first = Location.msg "%a" interface_mismatch diff in
+  | In_Compilation_unit (comparison, diff) ->
+      let first =
+        Location.msg "%a" (compilation_unit_mismatch comparison) diff
+      in
       signature ~expansion_token:true ~env ~before:[first] ~ctx:[] diff.symptom
   | In_Type_declaration (id,reason) ->
       [Location.msg "%t" (core env id reason)]

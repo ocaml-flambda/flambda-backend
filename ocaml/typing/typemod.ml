@@ -3405,9 +3405,9 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt =
       if not (Env.is_parameter_unit arg_import) then
         raise (Error (Location.none, env,
                       Argument_for_non_parameter (arg_module, arg_filename)));
-      let coercion, _shape =
-        Includemod.compunit env ~mark:Mark_positive sourcefile actual_sig
-          arg_filename arg_sig Shape.dummy_mod
+      let coercion =
+        Includemod.compunit_as_argument env sourcefile actual_sig
+          arg_filename arg_sig
       in
       Some { ai_signature = arg_sig;
              ai_coercion_from_primary = coercion;
