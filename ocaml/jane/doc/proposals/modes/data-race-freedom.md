@@ -94,13 +94,13 @@ annotation.
 As a preview, we are going to describing 5 mode axes in this document,
 which have the following modes ordered by increasing strictness.
 
-| Locality | Sync   | Uniqueness | Linearity  | Readonly  |
-| -------- | ------ | ---------- | ---------- | --------- |
-| Local    | Unsync | Shared     | Once       | Readonly  |
-| Global   | Sync   | Exclusive  | Separate   | Readwrite |
-|          |        | Unique     | Many       |           |
+| Locality | Portability   | Uniqueness | Linearity  | Readonly  |
+| -------- | ------------- | ---------- | ---------- | --------- |
+| Local    | Nonportable   | Aliased    | Once       | Readonly  |
+| Global   | Portable      | Exclusive  | Separate   | Readwrite |
+|          |               | Unique     | Many       |           |
 
-The *locality* axis tracks which values can leave regions. The *sync*
+The *locality* axis tracks which values can leave regions. The *portability*
 axis tracks which values are allowed to be shared with other
 threads. The *uniqueness* axis tracks which values have aliases. The
 *linearity* axis tracks functions that can only be run at most once. The
@@ -230,59 +230,59 @@ don't expect there to be any fundamental difficulties.
 The root cause of potential data races in OCaml is mutability. In
 particular, `mutable` record fields and mutable arrays. To prevent
 data races we need to place restrictions on this mutable data. To do
-this we add a new `sync` mode. A value is `sync` if **it can be passed
+this we add a new `portable` mode. A value is `portable` if **it can be passed
 between threads without risking introducing data races**. Values that
-are not `sync` are at mode `unsync`. An array or record with mutable
-fields is always `unsync`.
+are not `portable` are at mode `nonportable`. An array or record with mutable
+fields is always `nonportable`.
 
-Naturally `sync` can be relaxed into `unsync`: one can always forget
+Naturally `portable` can be relaxed into `nonportable`: one can always forget
 that a value can be safely passed between threads.
 
-A function is `sync` if it only closes over other `sync` values. This
+A function is `portable` if it only closes over other `portable` values. This
 ensures that it can be safely sent to another thread. Note that a
-`sync` function can still receive `unsync` values via parameters and
-return them as results. For example, `Array.concat` is a `sync`
+`portable` function can still receive `nonportable` values via parameters and
+return them as results. For example, `Array.concat` is a `portable`
 function even though it manipulates mutable data: since it doesn't
-close over `unsync` values it is safe for it to be called in two
+close over `nonportable` values it is safe for it to be called in two
 threads simultaneously.
 
-We use `sync` to ensure that two threads never share raw mutable
+We use `portable` to ensure that two threads never share raw mutable
 state.  When spawning a new thread, we require the thread body to be
-`sync`, so that no `unsync` value is passed from the spawning thread
+`portable`, so that no `nonportable` value is passed from the spawning thread
 to the spawned thread:
 
 ```ocaml
 val spawn : (unit -> 'a) -> 'a t
-          @ sync (. -> .) -> .
+          @ portable (. -> .) -> .
 
 val join : 'a t -> 'a
          @ . -> .
 ```
 
 Similarly, any mechanism for communicating between threads,
-e.g. channels, requires the transferred data to be `sync`:
+e.g. channels, requires the transferred data to be `portable`:
 ```ocaml
 val send : 'a channel -> 'a   -> unit
-         @ . -> sync -> .
+         @ . -> portable -> .
 
 val recv : 'a channel -> 'a
-         @ . -> sync
+         @ . -> portable
 ```
 
-Note that any deeply immutable type is of kind `always(sync)` allowing
+Note that any deeply immutable type is of kind `always(portable)` allowing
 any value of such types to be passed between threads.
 
-We allow a `sync` modality on record fields so that the fields will be
-`sync` even if the record is `unsync`. We obviously cannot allow a
-`unsync` modality, because a record with `unsync` fields cannot itself
-be `sync`.
+We allow a `portable` modality on record fields so that the fields will be
+`portable` even if the record is `nonportable`. We obviously cannot allow a
+`nonportable` modality, because a record with `nonportable` fields cannot itself
+be `portable`.
 
-The majority of toplevel functions will already be `sync` since people
-try to avoid using global mutable state. Most others will become `sync`
+The majority of toplevel functions will already be `portable` since people
+try to avoid using global mutable state. Most others will become `portable`
 by the addition of e.g. locking to allow them to be called from multiple
-threads.  As such, it would be better in the long run to have `sync` be
+threads.  As such, it would be better in the long run to have `portable` be
 the default mode for things in modules and require people to specify
-which functions are `unsync`. Since this would be a backward
+which functions are `nonportable`. Since this would be a backward
 incompatible change, and only affects the meaning of the default syntax,
 we'll let the user choose the default via a command-line flag, with the
 aim being to make the new state the default and eventually deprecate the
@@ -558,7 +558,7 @@ x.a <- "hello"
 ```
 but only if the value being mutated (`x`) is *exclusive*. Unlike
 ordinary `mutable` fields, records with `exclusively mutable` fields can
-be `sync`.
+be `portable`.
 
 The `exclusive` mode is closely related to the `unique` mode. They both
 restrict how values can be used to limit how they can be aliased. The
@@ -958,7 +958,7 @@ The core of these APIs is the `Key.t` type:
 ```ocaml
 module Key : sig
 
-  type 'k t : void & always(sync)
+  type 'k t : void & always(portable)
 
   type packed = Key : 'k t -> packed [@@unboxed]
 
@@ -978,7 +978,7 @@ Key.t` at `shared` mode then there are no `k Key.t`s at mode `exclusive`
 simultaneously.
 
 `'k t` is of the `void` layout, which means it consumes no space and
-contains no information at run-time. It is also `always(sync)` so can
+contains no information at run-time. It is also `always(portable)` so can
 always be safely passed to another thread.
 
 ## Safe boxes
@@ -992,16 +992,16 @@ The core of its API is as follows:
 ```ocaml
 module Safe_box : sig
 
-  type ('a, 'k) t : always(sync)
+  type ('a, 'k) t : always(portable)
 
   val create : 'a -> ('a, 'k) t
-               @ sync -> .
+               @ portable -> .
 
   val read : ('a, 'k) t -> 'k Key.t -> 'a
-             @ . -> local -> sync
+             @ . -> local -> portable
 
   val write : ('a, 'k) t -> 'k Key.t -> 'a -> unit
-              @ . -> local exclusive -> sync -> .
+              @ . -> local exclusive -> portable -> .
 
 end
 ```
@@ -1035,13 +1035,13 @@ values:
 ```ocaml
 module Unique_safebox : sig
 
-  type ('a, 'k) t : always(sync)
+  type ('a, 'k) t : always(portable)
 
   val create : 'a -> ('a, 'k) t
-               @ unique sync -> .
+               @ unique portable -> .
 
   val exchange : ('a, 'k) t -> 'k Key.t -> 'a -> 'a
-                 @ . -> local exclusive -> unique sync -> unique sync
+                 @ . -> local exclusive -> unique portable -> unique portable
 
 end
 ```
@@ -1054,19 +1054,19 @@ protects the safebox.
 ## Unique atomic
 
 OCaml comes with an atomic reference type `Atomic.t`. This type will
-be considered `sync` since racing on an atomic reference is not
+be considered `portable` since racing on an atomic reference is not
 considered a data-race. We can additionally add a `Unique_atomic.t`
 that holds unique values:
 ```ocaml
 module Unique_atomic : sig
 
-  type 'a t : always(sync)
+  type 'a t : always(portable)
 
   val make : 'a -> 'a t
-             @ sync unique -> .
+             @ portable unique -> .
 
   val exchange : 'a t -> 'a -> 'a
-                @ . -> sync unique -> sync unique
+                @ . -> portable unique -> portable unique
 
 end
 ```
@@ -1147,17 +1147,17 @@ val with_ : 'k t -> ('k Key.t -> 'a) -> 'a
 ```
 
 # Capsules
-The requirement that values shared between threads be `sync` essentially
-forbids threads from sharing mutable (i.e. `unsync`) values. This improves
+The requirement that values shared between threads be `portable` essentially
+forbids threads from sharing mutable (i.e. `nonportable`) values. This improves
 safety at the cost of expressivity. To restore the expressivity of shared
 mutable values but in a safe manner, we introduce capsules.
 
-A *capsule* is a container holding some, possibly `unsync`, data. Only
-`sync` data is allowed to pass into or out of a capsule. This ensures
-that any `unsync` data within the capsule is entirely isolated from the
+A *capsule* is a container holding some, possibly `nonportable`, data. Only
+`portable` data is allowed to pass into or out of a capsule. This ensures
+that any `nonportable` data within the capsule is entirely isolated from the
 world outside the capsule. There is one capsule associated with each
 key, and access to the capsule is guarded by that key. This ensures that
-any `unsync` data inside the capsule can only be accessed while holding
+any `nonportable` data inside the capsule can only be accessed while holding
 that key . That means it is safe to pass capsules between threads
 without risking data-races.
 
@@ -1166,16 +1166,16 @@ from the outside world. They have the following interface:
 ```ocaml
 module Capsule : sig
 
-  type (+'a, 'k) t : always(sync)
+  type (+'a, 'k) t : always(portable)
 
   val pure : 'a -> ('a, 'k) t
-            @ sync -> .
+            @ portable -> .
 
   val apply : 'k Key.t -> ('a -> 'b, 'k) t -> ('a, 'k) t -> ('b, 'k) t
               @ local exclusive -> . -> . -> .
 
   val extract : 'k Key.t -> ('a, 'k) t -> ('a -> 'b) -> 'b
-               @ local exclusive -> . -> local once sync (. -> sync) -> sync
+               @ local exclusive -> . -> local once portable (. -> portable) -> portable
 
   val destroy : 'k Key.t -> ('a, 'k) t -> 'a
                @ unique -> . -> .
@@ -1183,7 +1183,7 @@ module Capsule : sig
 end
 ```
 
-`sync` data can move freely between capsules, so all `sync` data can be
+`portable` data can move freely between capsules, so all `portable` data can be
  thought of as being in all capsules simultaneously. `pure` makes such
  data available as a `Capsule.t`.
 
@@ -1191,10 +1191,10 @@ end
 pointing to a value within the same capsule and runs the function on
 that value returning a `Capsule.t` pointing to the result.
 
-`extract` takes a `sync` function that returns a `sync` value, and a
+`extract` takes a `portable` function that returns a `portable` value, and a
 `Capsule.t` pointing to some data, and runs the function on the data and
-returns the result. Since the result must be `sync` it does not need to
-be wrapped in a `Capsule.t`. This allows the user take `sync` data out
+returns the result. Since the result must be `portable` it does not need to
+be wrapped in a `Capsule.t`. This allows the user take `portable` data out
 of a capsule.
 
 `destroy` consumes a `key`, destroying the associated capsule. A
@@ -1219,22 +1219,22 @@ let iter k f x =
 with signatures:
 ```ocaml
 val map : 'k Key.t -> ('a -> 'b) -> ('a, 'k) t -> ('b, 'k) t
-           @ local exclusive -> sync -> . -> .
+           @ local exclusive -> portable -> . -> .
 
 val inject : 'k Key.t -> ('a -> 'b) -> 'a -> ('b, 'k) t
-              @ local exclusive -> sync -> sync -> .
+              @ local exclusive -> portable -> portable -> .
 
 val iter : 'k Key.t -> ('a -> unit) -> ('a, 'k) t -> unit
-            @ local exclusive -> sync -> . -> .
+            @ local exclusive -> portable -> . -> .
 ```
 
 As an example, below we encapsulate a mutable `Hashtbl.t`. The resulting
-`'k Capsule_table.t` is `sync` so can be passed between threads.
+`'k Capsule_table.t` is `portable` so can be passed between threads.
 
 ```ocaml
 module Capsule_table : sig
 
-  type 'k t : always(sync)
+  type 'k t : always(portable)
 
   val create : 'k Key.t -> 'k t
               @ local exclusive -> .
@@ -1291,14 +1291,14 @@ end
 
 # Read-only capsule access
 
-Capsules allow us to wrap unsync mutable data and ensure that it is only
+Capsules allow us to wrap nonportable mutable data and ensure that it is only
 accessed by one thread at a time. However, this is stricter than is
 necessary to avoid data races. Multiple threads can safely read from the
-unsync mutable state in a capsule as long as no thread can be
+nonportable mutable state in a capsule as long as no thread can be
 simultaneously writing to it.
 
 To support this kind of access we add another mode: `readonly`. A
-`readonly` value can contain unsync mutable state, but that state cannot
+`readonly` value can contain nonportable mutable state, but that state cannot
 be written to. A value that is not `readonly` is at mode
 `readwrite`. `readwrite` is more strict than `readonly`.
 
@@ -1323,19 +1323,19 @@ Error: Cannot mutate readonly value
 ```
 
 There is a `readonly` modality that allows `readwrite` data to point to
-`readonly` data. Since `sync` values contain no unsync mutable data, the
-`sync` modality on record fields also gives `readwrite` values even if
-the record is `readonly`. Similarly, `always(sync)` implies
+`readonly` data. Since `portable` values contain no nonportable mutable data, the
+`portable` modality on record fields also gives `readwrite` values even if
+the record is `readonly`. Similarly, `always(portable)` implies
 `always(readwrite)`.
 
 With this mode we can add the following additional operations to the
 `Capsule` API:
 ```ocaml
 val map_readonly : 'k Key.t -> ('a -> 'b) -> ('a, 'k) t -> ('b, 'k) t
-           @ local -> sync (readonly -> .) -> . -> .
+           @ local -> portable (readonly -> .) -> . -> .
 
 val read : 'k Key.t -> ('a, 'k) t -> ('a -> 'b) -> 'b
-             @ local -> . -> sync (readonly -> sync) -> sync
+             @ local -> . -> portable (readonly -> portable) -> portable
 
 val freeze : 'k Key.t -> ('a, 'k) t -> 'a
              @ . -> . -> readonly
