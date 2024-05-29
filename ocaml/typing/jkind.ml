@@ -526,17 +526,22 @@ include Jkind_intf.History
 
 type t = type_expr Jkind_types.t
 
-let fresh_jkind jkind ~why = { jkind; history = Creation why }
+let fresh_jkind jkind ~why =
+  { jkind; history = Creation why; has_warned = false }
 
 (******************************)
 (* constants *)
 
 let any_dummy_jkind =
-  { jkind = Jkind_desc.max; history = Creation (Any_creation Dummy_jkind) }
+  { jkind = Jkind_desc.max;
+    history = Creation (Any_creation Dummy_jkind);
+    has_warned = false
+  }
 
 let value_v1_safety_check =
   { jkind = Jkind_desc.value;
-    history = Creation (Value_creation V1_safety_check)
+    history = Creation (Value_creation V1_safety_check);
+    has_warned = false
   }
 
 (* CR layouts: Should we be doing more memoization here? *)
@@ -759,14 +764,11 @@ let format ppf t = Format.fprintf ppf "%s" (to_string t)
 let has_imported_history t =
   match t.history with Creation Imported -> true | _ -> false
 
-let update_reason t reason =
-  match t.history with
-  | Interact _ | Creation _ -> { t with history = Creation reason }
-  | Warning _ -> { t with history = Warning (Creation reason) }
+let update_reason t reason = { t with history = Creation reason }
 
-let with_warning t = { t with history = Warning t.history }
+let with_warning t = { t with has_warned = true }
 
-let has_warning t = match t.history with Warning _ -> true | _ -> false
+let has_warned t = t.has_warned
 
 let printtyp_path = ref (fun _ _ -> assert false)
 
@@ -1107,7 +1109,6 @@ end = struct
         fprintf ppf "@[<v 2>  %a@]@;%a@ @[<v 2>  %a@]" in_order lhs_history
           format_interact_reason reason in_order rhs_history
       | Creation c -> format_creation_reason ppf c
-      | Warning h -> fprintf ppf "warning @[<v 2>  %a@]" in_order h
     in
     fprintf ppf "@;%t has this layout history:@;@[<v 2>  %a@]" intro in_order
       t.history
@@ -1233,8 +1234,9 @@ end
 (******************************)
 (* relations *)
 
-let equate_or_equal ~allow_mutation { jkind = jkind1; history = _ }
-    { jkind = jkind2; history = _ } =
+let equate_or_equal ~allow_mutation
+    { jkind = jkind1; history = _; has_warned = _ }
+    { jkind = jkind2; history = _; has_warned = _ } =
   Jkind_desc.equate_or_equal ~allow_mutation jkind1 jkind2
 
 (* CR layouts v2.8: Switch this back to ~allow_mutation:false *)
@@ -1280,7 +1282,12 @@ let combine_histories reason lhs rhs =
 let intersection ~reason t1 t2 =
   match Jkind_desc.intersection t1.jkind t2.jkind with
   | None -> Error (Violation.of_ (No_intersection (t1, t2)))
-  | Some jkind -> Ok { jkind; history = combine_histories reason t1 t2 }
+  | Some jkind ->
+    Ok
+      { jkind;
+        history = combine_histories reason t1 t2;
+        has_warned = t1.has_warned || t2.has_warned
+      }
 
 (* this is hammered on; it must be fast! *)
 let check_sub sub super = Jkind_desc.sub sub.jkind super.jkind
@@ -1477,9 +1484,8 @@ module Debug_printers = struct
         interact_reason reason Jkind_desc.Debug_printers.t lhs_jkind history
         lhs_history Jkind_desc.Debug_printers.t rhs_jkind history rhs_history
     | Creation c -> fprintf ppf "Creation (%a)" creation_reason c
-    | Warning h -> fprintf ppf "Warning (%a)" history h
 
-  let t ppf ({ jkind; history = h } : t) : unit =
+  let t ppf ({ jkind; history = h; has_warned = _ } : t) : unit =
     fprintf ppf "@[<v 2>{ jkind = %a@,; history = %a }@]"
       Jkind_desc.Debug_printers.t jkind history h
 end

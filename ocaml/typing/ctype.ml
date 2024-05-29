@@ -2314,7 +2314,7 @@ let check_and_update_generalized_ty_jkind ?name ~loc ty =
                | _ -> false)
     in
     if Language_extension.erasable_extensions_only ()
-      && is_immediate jkind && not (Jkind.has_warning jkind)
+      && is_immediate jkind && not (Jkind.has_warned jkind)
     then
       let id =
         match name with
