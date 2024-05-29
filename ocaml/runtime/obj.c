@@ -330,3 +330,7 @@ struct queue_chunk {
   struct queue_chunk *next;
   value entries[ENTRIES_PER_QUEUE_CHUNK];
 };
+
+CAMLprim value caml_reserved (value v) {
+  return Val_long(Reserved_val(v));
+}

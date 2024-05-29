@@ -172,3 +172,35 @@ module Ephemeron: sig
   (** Maximum length of an ephemeron, ie the maximum number of keys an
       ephemeron could contain *)
 end
+
+module Uniform_or_mixed : sig
+  (** Blocks with a nominally scannable tag can still have a suffix of
+      unscanned objects; such a block is "mixed". This contrasts with
+      "uniform" blocks which are either all-scanned or all-unscanned.
+  *)
+
+  type obj_t := t
+
+  type t [@@immediate]
+
+  type repr =
+    | Uniform
+    (** The block is tagged as not scannable or the block is tagged as scannable
+        and all fields can be scanned. *)
+    | Mixed of { scannable_prefix_len : int }
+    (** The block is tagged as scannable but some fields can't be scanned. *)
+
+  val repr : t -> repr
+
+  val of_block : obj_t -> t
+
+  val is_uniform : t -> bool
+  (** Equivalent to [view] returning [Uniform]. *)
+
+  val is_mixed : t -> bool
+  (** Equivalent to [view] returning [Mixed _]. *)
+
+  val mixed_scannable_prefix_len_exn : t -> int
+  (** Returns the [scannable_prefix_len] without materializing the return
+      value of [view]. Raises if [is_mixed] is [false]. *)
+end

@@ -197,3 +197,28 @@ module Ephemeron = struct
   external blit_data : t -> t -> unit = "caml_ephe_blit_data"
 
 end
+
+module Uniform_or_mixed = struct
+  type obj_t = t
+
+  (* The raw reserved header bits, which is either 0 if the block is uniform or
+     n+1 if the block has a scannable prefix of length n. *)
+  type t = int
+
+  external of_block : obj_t -> t = "caml_reserved"
+
+  type repr =
+    | Uniform
+    | Mixed of { scannable_prefix_len : int }
+
+  let repr = function
+    | 0 -> Uniform
+    | n -> Mixed { scannable_prefix_len = n - 1 }
+
+  let is_uniform t = t = 0
+  let is_mixed t = not (is_uniform t)
+  let mixed_scannable_prefix_len_exn t =
+    if is_uniform t
+    then invalid_arg "Uniform_or_mixed.mixed_scannable_prefix_len_exn";
+    t - 1
+end
