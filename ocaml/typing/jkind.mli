@@ -148,8 +148,11 @@ val any : why:any_creation_reason -> t
 (** Value of types of this jkind are not retained at all at runtime *)
 val void : why:void_creation_reason -> t
 
-(** This is the jkind of normal ocaml values *)
+(** This is the jkind of normal ocaml values and null pointers. *)
 val value : why:value_creation_reason -> t
+
+(** This is the jkind of normal ocaml values. They have sort Value. *)
+val non_null_value : why:non_null_value_creation_reason -> t
 
 (** Values of types of this jkind are immediate on 64-bit platforms; on other
     platforms, we know nothing other than that it's a value. *)

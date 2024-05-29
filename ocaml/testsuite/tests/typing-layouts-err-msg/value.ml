@@ -121,7 +121,7 @@ type r : void = {a:string}
 Line 1, characters 0-26:
 1 | type r : void = {a:string}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type r is value, because
+Error: The layout of type r is non_null_value, because
          it's a boxed record type.
        But the layout of type r must be a sublayout of void, because
          of the annotation on the declaration of the type r.
@@ -133,7 +133,7 @@ type v : void = A of t_value
 Line 1, characters 0-28:
 1 | type v : void = A of t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type v is value, because
+Error: The layout of type v is non_null_value, because
          it's a boxed variant type.
        But the layout of type v must be a sublayout of void, because
          of the annotation on the declaration of the type v.
@@ -145,7 +145,7 @@ type attr : void = ..
 Line 1, characters 0-21:
 1 | type attr : void = ..
     ^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type attr is value, because
+Error: The layout of type attr is non_null_value, because
          it's an extensible variant type.
        But the layout of type attr must be a sublayout of void, because
          of the annotation on the declaration of the type attr.
@@ -159,8 +159,8 @@ Line 1, characters 40-45:
                                             ^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : void)
-       The layout of string is value, because
-         it is the primitive value type string.
+       The layout of string is non_null_value, because
+         it is the primitive non-null value type string.
        But the layout of string must be a sublayout of void, because
          of the annotation on the type variable 'a.
 |}];;
@@ -187,7 +187,7 @@ Line 1, characters 40-45:
                                             ^^^^^
 Error: This expression has type 'b * 'c
        but an expression was expected of type ('a : void)
-       The layout of 'a * 'b is value, because
+       The layout of 'a * 'b is non_null_value, because
          it's a tuple type.
        But the layout of 'a * 'b must be a sublayout of void, because
          of the annotation on the type variable 'a.
@@ -206,7 +206,7 @@ Line 2, characters 36-37:
                                         ^
 Error: This expression has type [ `A of int | `B ]
        but an expression was expected of type 'a t = ('a : void)
-       The layout of [ `A of int | `B ] is value, because
+       The layout of [ `A of int | `B ] is non_null_value, because
          it's a polymorphic variant type.
        But the layout of [ `A of int | `B ] must be a sublayout of void, because
          of the definition of t at line 1, characters 0-22.
@@ -222,7 +222,7 @@ Line 2, characters 31-32:
                                    ^
 Error: This expression has type int -> int
        but an expression was expected of type 'a t = ('a : void)
-       The layout of int -> int is value, because
+       The layout of int -> int is non_null_value, because
          it's a function type.
        But the layout of int -> int must be a sublayout of void, because
          of the definition of t at line 1, characters 0-22.
@@ -248,7 +248,7 @@ Line 4, characters 17-39:
                      ^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type (module X_int)
        but an expression was expected of type 'a t = ('a : void)
-       The layout of (module X_int) is value, because
+       The layout of (module X_int) is non_null_value, because
          it's a first-class module type.
        But the layout of (module X_int) must be a sublayout of void, because
          of the definition of t at line 1, characters 0-22.
