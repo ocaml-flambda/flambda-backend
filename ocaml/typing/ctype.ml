@@ -5038,7 +5038,7 @@ let eqtype_subst type_pairs subst t1 l1 t2 l2 =
       !subst
   then ()
   else begin
-    if not (Jkind.equal l1 l2)
+    if not (Jkind.sub l2 l1)
       then raise_for Equality (Unequal_var_jkinds (t1, l1, t2, l2));
     subst := (t1, t2) :: !subst;
     TypePairs.add type_pairs (t1, t2)
