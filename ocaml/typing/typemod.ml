@@ -3591,7 +3591,7 @@ let cms_register_toplevel_signature_attributes ~sourcefile ~uid ast =
         | { psig_desc = Psig_attribute attr; _ } -> Some attr
         | _ -> None)
 
-let type_interface sourcefile modulename env ast =
+let type_interface ~sourcefile modulename env ast =
   if !Clflags.as_parameter && Compilation_unit.is_packed modulename then begin
     raise(Error(Location.none, Env.empty, Cannot_pack_parameter))
   end;
