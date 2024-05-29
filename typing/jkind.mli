@@ -304,6 +304,12 @@ val has_imported_history : t -> bool
 
 val update_reason : t -> creation_reason -> t
 
+(* Mark the jkind as having produced a compiler warning. *)
+val with_warning : t -> t
+
+(* Whether this jkind has produced a compiler warning. *)
+val has_warned : t -> bool
+
 (******************************)
 (* relations *)
 
