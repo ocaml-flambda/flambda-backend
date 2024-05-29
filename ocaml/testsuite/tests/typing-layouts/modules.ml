@@ -188,8 +188,8 @@ Line 5, characters 25-30:
                              ^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       The layout of string is non_null_value, because
-         it is the primitive non-null value type string.
+       The layout of string is value, because
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the definition of t at line 2, characters 2-25.
 |}]
@@ -386,7 +386,7 @@ Line 2, characters 12-16:
 2 | type t4f' = M4.s t4_float64;;
                 ^^^^
 Error: This type M4.s should be an instance of type ('a : float64)
-       The layout of M4.s is non_null_value, because
+       The layout of M4.s is value, because
          of the definition of s at line 2, characters 2-21.
        But the layout of M4.s must be a sublayout of float64, because
          of the definition of t4_float64 at line 1, characters 0-30.
@@ -450,8 +450,8 @@ Line 14, characters 17-23:
                       ^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       The layout of string is non_null_value, because
-         it is the primitive non-null value type string.
+       The layout of string is value, because
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the definition of f at line 3, characters 2-20.
 |}]
@@ -466,8 +466,8 @@ module type S3_2 = sig type t : immediate end
 Line 5, characters 30-46:
 5 | module type S3_2' = S3_2 with type t := string;;
                                   ^^^^^^^^^^^^^^^^
-Error: The layout of type string is non_null_value, because
-         it is the primitive non-null value type string.
+Error: The layout of type string is value, because
+         it is the primitive value type string.
        But the layout of type string must be a sublayout of immediate, because
          of the definition of t at line 2, characters 2-20.
 |}]
@@ -553,8 +553,8 @@ Error: In this `with' constraint, the new definition of t
          type t = string
        is not included in
          type t : immediate
-       The layout of the first is non_null_value, because
-         it is the primitive non-null value type string.
+       The layout of the first is value, because
+         it is the primitive value type string.
        But the layout of the first must be a sublayout of immediate, because
          of the definition of t at line 2, characters 2-20.
 |}];;

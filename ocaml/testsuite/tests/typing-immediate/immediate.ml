@@ -143,8 +143,8 @@ end;;
 Line 2, characters 2-31:
 2 |   type t = string [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type string is non_null_value, because
-         it is the primitive non-null value type string.
+Error: The layout of type string is value, because
+         it is the primitive value type string.
        But the layout of type string must be a sublayout of immediate, because
          of the definition of t at line 2, characters 2-31.
 |}];;
@@ -160,7 +160,7 @@ end;;
 Line 2, characters 2-41:
 2 |   type t = Foo of int | Bar [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is non_null_value, because
+Error: The layout of type t is value, because
          it's a boxed variant type.
        But the layout of type t must be a sublayout of immediate, because
          of the annotation on the declaration of the type t.
@@ -174,7 +174,7 @@ end;;
 Line 2, characters 2-38:
 2 |   type t = { foo : int } [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is non_null_value, because
+Error: The layout of type t is value, because
          it's a boxed record type.
        But the layout of type t must be a sublayout of immediate, because
          of the annotation on the declaration of the type t.
@@ -213,8 +213,8 @@ Error: Signature mismatch:
          type t = string
        is not included in
          type t : immediate
-       The layout of the first is non_null_value, because
-         it is the primitive non-null value type string.
+       The layout of the first is value, because
+         it is the primitive value type string.
        But the layout of the first must be a sublayout of immediate, because
          of the definition of t at line 1, characters 15-35.
 |}];;
@@ -231,8 +231,8 @@ Error: Signature mismatch:
          type t = string
        is not included in
          type t : immediate
-       The layout of the first is non_null_value, because
-         it is the primitive non-null value type string.
+       The layout of the first is value, because
+         it is the primitive value type string.
        But the layout of the first must be a sublayout of immediate, because
          of the definition of t at line 1, characters 20-40.
 |}];;
@@ -248,8 +248,8 @@ Error: Modules do not match: sig type t = string end is not included in
        type t = string
      is not included in
        type t : immediate
-     The layout of the first is non_null_value, because
-       it is the primitive non-null value type string.
+     The layout of the first is value, because
+       it is the primitive value type string.
      But the layout of the first must be a sublayout of immediate, because
        of the definition of t at line 1, characters 20-40.
 |}];;
@@ -263,8 +263,8 @@ end;;
 Line 2, characters 2-26:
 2 |   type t = s [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type s is non_null_value, because
-         it is the primitive non-null value type string.
+Error: The layout of type s is value, because
+         it is the primitive value type string.
        But the layout of type s must be a sublayout of immediate, because
          of the definition of t at line 2, characters 2-26.
 |}];;
