@@ -192,15 +192,15 @@ module Uniform_or_mixed : sig
 
   val repr : t -> repr
 
-  val of_block : obj_t -> t
+  external of_block : obj_t -> t = "caml_reserved" [@@noalloc]
 
   val is_uniform : t -> bool
-  (** Equivalent to [view] returning [Uniform]. *)
+  (** Equivalent to [repr] returning [Uniform]. *)
 
   val is_mixed : t -> bool
-  (** Equivalent to [view] returning [Mixed _]. *)
+  (** Equivalent to [repr] returning [Mixed _]. *)
 
   val mixed_scannable_prefix_len_exn : t -> int
   (** Returns the [scannable_prefix_len] without materializing the return
-      value of [view]. Raises if [is_mixed] is [false]. *)
+      value of [repr]. Raises if [is_mixed] is [false]. *)
 end

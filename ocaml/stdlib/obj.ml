@@ -205,7 +205,7 @@ module Uniform_or_mixed = struct
      n+1 if the block has a scannable prefix of length n. *)
   type t = int
 
-  external of_block : obj_t -> t = "caml_reserved"
+  external of_block : obj_t -> t = "caml_reserved" [@@noalloc]
 
   type repr =
     | Uniform
