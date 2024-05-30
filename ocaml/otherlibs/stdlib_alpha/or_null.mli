@@ -13,4 +13,6 @@
 (**************************************************************************)
 
 (** Unboxed option type. Unimplemented. *)
-type ('a : non_null_value) t
+type ('a : non_null_value) t = 'a or_null =
+  | Null
+  | This of 'a
