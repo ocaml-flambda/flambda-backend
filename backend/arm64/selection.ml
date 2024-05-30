@@ -30,13 +30,16 @@ let is_offset chunk n =
         n < 0x1000
     | Sixteen_unsigned | Sixteen_signed ->
         n land 1 = 0 && n lsr 1 < 0x1000
-    | Thirtytwo_unsigned | Thirtytwo_signed | Single ->
+    | Thirtytwo_unsigned | Thirtytwo_signed | Single { reg = Float64 } ->
         n land 3 = 0 && n lsr 2 < 0x1000
     | Word_int | Word_val | Double ->
         n land 7 = 0 && n lsr 3 < 0x1000
-    (* CR mslater: (SIMD) arm64 *)
     | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
-        Misc.fatal_error "arm64: got 128 bit memory chunk")
+        (* CR mslater: (SIMD) arm64 *)
+        Misc.fatal_error "arm64: got 128 bit memory chunk"
+    | Single { reg = Float32 } ->
+        (* CR mslater: (float32) arm64 *)
+        Misc.fatal_error "arm64: got float32 memory chunk")
 
 let is_logical_immediate n =
   Arch.is_logical_immediate (Nativeint.of_int n)
@@ -80,7 +83,7 @@ method! is_immediate op n =
   match op with
   | Iadd | Isub  -> n <= 0xFFF_FFF && n >= -0xFFF_FFF
   | Iand | Ior | Ixor -> is_logical_immediate n
-  | Icomp _ | Icheckbound -> is_immediate n
+  | Icomp _  -> is_immediate n
   | _ -> super#is_immediate op n
 
 method! is_simple_expr = function
@@ -160,15 +163,6 @@ method! select_operation op args dbg =
       | _ ->
           super#select_operation op args dbg
       end
-  (* Checkbounds *)
-  | Ccheckbound ->
-      begin match args with
-      | [Cop(Clsr, [arg1; Cconst_int (n, _)], _); arg2] when n > 0 && n < 64 ->
-          (Ispecific(Ishiftcheckbound { shift = n; }),
-            [arg1; arg2])
-      | _ ->
-          super#select_operation op args dbg
-      end
   (* Recognize sign extension *)
   | Casr ->
       begin match args with
@@ -183,24 +177,25 @@ method! select_operation op args dbg =
             mutability; is_atomic = true},
      args)
   (* Recognize floating-point negate and multiply *)
-  | Cnegf ->
+  | Cnegf Float64 ->
       begin match args with
-      | [Cop(Cmulf, args, _)] -> (Ispecific Inegmulf, args)
+      | [Cop(Cmulf Float64, args, _)] -> (Ispecific Inegmulf, args)
       | _ -> super#select_operation op args dbg
       end
   (* Recognize floating-point multiply and add/sub *)
-  | Caddf ->
+  | Caddf Float64 ->
       begin match args with
-      | [arg; Cop(Cmulf, args, _)] | [Cop(Cmulf, args, _); arg] ->
+      | [arg; Cop(Cmulf Float64, args, _)]
+      | [Cop(Cmulf Float64, args, _); arg] ->
           (Ispecific Imuladdf, arg :: args)
       | _ ->
           super#select_operation op args dbg
       end
-  | Csubf ->
+  | Csubf Float64 ->
       begin match args with
-      | [arg; Cop(Cmulf, args, _)] ->
+      | [arg; Cop(Cmulf Float64, args, _)] ->
           (Ispecific Imulsubf, arg :: args)
-      | [Cop(Cmulf, args, _); arg] ->
+      | [Cop(Cmulf Float64, args, _); arg] ->
           (Ispecific Inegmulsubf, arg :: args)
       | _ ->
           super#select_operation op args dbg

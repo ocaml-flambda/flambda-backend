@@ -32,6 +32,7 @@ end
 type t = private
   | Value of head_of_kind_value Type_descr.t
   | Naked_immediate of head_of_kind_naked_immediate Type_descr.t
+  | Naked_float32 of head_of_kind_naked_float32 Type_descr.t
   | Naked_float of head_of_kind_naked_float Type_descr.t
   | Naked_int32 of head_of_kind_naked_int32 Type_descr.t
   | Naked_int64 of head_of_kind_naked_int64 Type_descr.t
@@ -48,6 +49,7 @@ and head_of_kind_value = private
       }
   (* CR mshinwell: It would be better to track per-field mutability. *)
   | Mutable_block of { alloc_mode : Alloc_mode.For_types.t }
+  | Boxed_float32 of t * Alloc_mode.For_types.t
   | Boxed_float of t * Alloc_mode.For_types.t
   | Boxed_int32 of t * Alloc_mode.For_types.t
   | Boxed_int64 of t * Alloc_mode.For_types.t
@@ -73,6 +75,9 @@ and head_of_kind_naked_immediate = private
 (** Invariant: the float/integer sets for naked float, int32, int64 and
     nativeint heads are non-empty. (Empty sets are represented as an overall
     bottom type.) *)
+
+and head_of_kind_naked_float32 = private
+  Numeric_types.Float32_by_bit_pattern.Set.t
 
 and head_of_kind_naked_float = private Numeric_types.Float_by_bit_pattern.Set.t
 
@@ -135,7 +140,7 @@ and function_type = private
   }
 
 and array_contents =
-  | Immutable of { fields : t list }
+  | Immutable of { fields : t array }
   | Mutable
 
 and env_extension = private { equations : t Name.Map.t } [@@unboxed]
@@ -179,6 +184,8 @@ val bottom_value : t
 
 val bottom_naked_immediate : t
 
+val bottom_naked_float32 : t
+
 val bottom_naked_float : t
 
 val bottom_naked_int32 : t
@@ -196,6 +203,8 @@ val bottom_region : t
 val any_value : t
 
 val any_naked_immediate : t
+
+val any_naked_float32 : t
 
 val any_naked_float : t
 
@@ -217,6 +226,8 @@ val this_rec_info : Rec_info_expr.t -> t
 
 val this_naked_immediate : Targetint_31_63.t -> t
 
+val this_naked_float32 : Numeric_types.Float32_by_bit_pattern.t -> t
+
 val this_naked_float : Numeric_types.Float_by_bit_pattern.t -> t
 
 val this_naked_int32 : Numeric_types.Int32.t -> t
@@ -229,6 +240,8 @@ val this_naked_vec128 : Vector_types.Vec128.Bit_pattern.t -> t
 
 val these_naked_immediates : Targetint_31_63.Set.t -> t
 
+val these_naked_float32s : Numeric_types.Float32_by_bit_pattern.Set.t -> t
+
 val these_naked_floats : Numeric_types.Float_by_bit_pattern.Set.t -> t
 
 val these_naked_int32s : Numeric_types.Int32.Set.t -> t
@@ -238,6 +251,9 @@ val these_naked_int64s : Numeric_types.Int64.Set.t -> t
 val these_naked_nativeints : Targetint_32_64.Set.t -> t
 
 val these_naked_vec128s : Vector_types.Vec128.Bit_pattern.Set.t -> t
+
+val boxed_float32_alias_to :
+  naked_float32:Variable.t -> Alloc_mode.For_types.t -> t
 
 val boxed_float_alias_to : naked_float:Variable.t -> Alloc_mode.For_types.t -> t
 
@@ -250,6 +266,8 @@ val boxed_nativeint_alias_to :
 
 val boxed_vec128_alias_to :
   naked_vec128:Variable.t -> Alloc_mode.For_types.t -> t
+
+val box_float32 : t -> Alloc_mode.For_types.t -> t
 
 val box_float : t -> Alloc_mode.For_types.t -> t
 
@@ -507,6 +525,8 @@ module Descr : sig
     | Value of head_of_kind_value Type_descr.Descr.t Or_unknown_or_bottom.t
     | Naked_immediate of
         head_of_kind_naked_immediate Type_descr.Descr.t Or_unknown_or_bottom.t
+    | Naked_float32 of
+        head_of_kind_naked_float32 Type_descr.Descr.t Or_unknown_or_bottom.t
     | Naked_float of
         head_of_kind_naked_float Type_descr.Descr.t Or_unknown_or_bottom.t
     | Naked_int32 of
@@ -527,6 +547,8 @@ val descr : t -> Descr.t
 val create_from_head_value : head_of_kind_value -> t
 
 val create_from_head_naked_immediate : head_of_kind_naked_immediate -> t
+
+val create_from_head_naked_float32 : head_of_kind_naked_float32 -> t
 
 val create_from_head_naked_float : head_of_kind_naked_float -> t
 
@@ -549,6 +571,11 @@ val apply_coercion_head_of_kind_naked_immediate :
   head_of_kind_naked_immediate ->
   Coercion.t ->
   head_of_kind_naked_immediate Or_bottom.t
+
+val apply_coercion_head_of_kind_naked_float32 :
+  head_of_kind_naked_float32 ->
+  Coercion.t ->
+  head_of_kind_naked_float32 Or_bottom.t
 
 val apply_coercion_head_of_kind_naked_float :
   head_of_kind_naked_float -> Coercion.t -> head_of_kind_naked_float Or_bottom.t
@@ -588,6 +615,8 @@ module Head_of_kind_value : sig
 
   (* CR-someday mshinwell: these alloc mode params should probably be
      labelled *)
+  val create_boxed_float32 : flambda_type -> Alloc_mode.For_types.t -> t
+
   val create_boxed_float : flambda_type -> Alloc_mode.For_types.t -> t
 
   val create_boxed_int32 : flambda_type -> Alloc_mode.For_types.t -> t
@@ -619,6 +648,8 @@ module Head_of_kind_naked_immediate : sig
 
   val create_naked_immediates : Targetint_31_63.Set.t -> t Or_bottom.t
 
+  val create_naked_immediates_non_empty : Targetint_31_63.Set.t -> t
+
   val create_is_int : flambda_type -> t
 
   val create_get_tag : flambda_type -> t
@@ -635,10 +666,18 @@ module type Head_of_kind_naked_number_intf = sig
 
   val create_set : n_set -> t Or_bottom.t
 
+  val create_non_empty_set : n_set -> t
+
   val union : t -> t -> t
 
   val inter : t -> t -> t Or_bottom.t
 end
+
+module Head_of_kind_naked_float32 :
+  Head_of_kind_naked_number_intf
+    with type t = head_of_kind_naked_float32
+    with type n = Numeric_types.Float32_by_bit_pattern.t
+    with type n_set = Numeric_types.Float32_by_bit_pattern.Set.t
 
 module Head_of_kind_naked_float :
   Head_of_kind_naked_number_intf

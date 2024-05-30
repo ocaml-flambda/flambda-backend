@@ -617,6 +617,23 @@ let core env id x =
         show_locs (diff.got.val_loc, diff.expected.val_loc)
         Printtyp.Conflicts.print_explanations
   | Err.Type_declarations diff ->
+      (* Jkind history doesn't offer helpful information in the case
+         of a signature mismatch. This part is here to strip it away. *)
+      let strip_jkind_history (err: Errortrace.equality_error) =
+        Errortrace.equality_error
+          ~trace:(List.map
+            (function
+              | Errortrace.Unequal_var_jkinds _ ->
+                Errortrace.Unequal_var_jkinds_with_no_history
+              | x -> x) err.trace)
+          ~subst:err.subst
+      in
+      let symptom : Includecore.type_mismatch =
+        match diff.symptom with
+        | Manifest err -> Manifest (strip_jkind_history err)
+        | Constraint err -> Constraint (strip_jkind_history err)
+        | symptom -> symptom
+      in
       Format.dprintf "@[<v>@[<hv>%s:@;<1 2>%a@ %s@;<1 2>%a@]%a%a%t@]"
         "Type declarations do not match"
         !Oprint.out_sig_item
@@ -625,7 +642,7 @@ let core env id x =
         !Oprint.out_sig_item
         (Printtyp.tree_of_type_declaration id diff.expected Trec_first)
         (Includecore.report_type_mismatch
-           "the first" "the second" "declaration" env) diff.symptom
+           "the first" "the second" "declaration" env) symptom
         show_locs (diff.got.type_loc, diff.expected.type_loc)
         Printtyp.Conflicts.print_explanations
   | Err.Extension_constructors diff ->
@@ -692,6 +709,16 @@ let interface_mismatch ppf (diff: _ Err.diff) =
   Format.fprintf ppf
     "The implementation %s@ does not match the interface %s:@ "
     diff.got diff.expected
+
+let parameter_mismatch ppf (diff: _ Err.diff) =
+  Format.fprintf ppf
+    "The argument module %s@ does not match the parameter signature %s:@ "
+    diff.got diff.expected
+
+let compilation_unit_mismatch comparison ppf diff =
+  match (comparison : Err.compilation_unit_comparison) with
+  | Implementation_vs_interface -> interface_mismatch ppf diff
+  | Argument_vs_parameter -> parameter_mismatch ppf diff
 
 let core_module_type_symptom (x:Err.core_module_type_symptom)  =
   match x with
@@ -869,8 +896,10 @@ let module_type_subst ~env id diff =
       [main]
 
 let all env = function
-  | In_Compilation_unit diff ->
-      let first = Location.msg "%a" interface_mismatch diff in
+  | In_Compilation_unit (comparison, diff) ->
+      let first =
+        Location.msg "%a" (compilation_unit_mismatch comparison) diff
+      in
       signature ~expansion_token:true ~env ~before:[first] ~ctx:[] diff.symptom
   | In_Type_declaration (id,reason) ->
       [Location.msg "%t" (core env id reason)]

@@ -15,21 +15,17 @@
 
 open Cmm
 
+type arity =
+  { function_kind : Lambda.function_kind;
+    params_layout : Lambda.layout list;
+    return_layout : Lambda.layout
+  }
+
 (** [bind name arg fn] is equivalent to [let name = arg in fn name], or simply
     [fn arg] if [arg] is simple enough *)
 val bind : string -> expression -> (expression -> expression) -> expression
 
-(** Same as [bind], but also treats loads from a variable as simple *)
-val bind_load : string -> expression -> (expression -> expression) -> expression
-
-(** Same as [bind], but does not treat variables as simple *)
-val bind_nonvar :
-  string -> expression -> (expression -> expression) -> expression
-
 (** Headers *)
-
-(** A null header with GC bits set to black *)
-val caml_black : nativeint
 
 (** A constant equal to the tag for float arrays *)
 val floatarray_tag : Debuginfo.t -> expression
@@ -41,27 +37,15 @@ val block_header : int -> int -> nativeint
 (** Same as block_header, but with GC bits set to black *)
 val black_block_header : int -> int -> nativeint
 
-(** Closure headers of the given size *)
-val white_closure_header : int -> nativeint
-
 val black_closure_header : int -> nativeint
 
 (** Infix header at the given offset *)
 val infix_header : int -> nativeint
 
-(** Header for a boxed float value *)
-val float_header : nativeint
-
-(** Boxed integer headers *)
-val boxedint32_header : nativeint
-
-val boxedint64_header : nativeint
-
-val boxedintnat_header : nativeint
+val black_custom_header : size:int -> nativeint
 
 (** Closure info for a closure of given arity and distance to environment *)
-val closure_info :
-  arity:Clambda.arity -> startenv:int -> is_last:bool -> nativeint
+val closure_info : arity:arity -> startenv:int -> is_last:bool -> nativeint
 
 val closure_info' :
   arity:Lambda.function_kind * 'a list ->
@@ -72,46 +56,11 @@ val closure_info' :
 (** Wrappers *)
 val alloc_infix_header : int -> Debuginfo.t -> expression
 
-val alloc_closure_info :
-  arity:Clambda.arity ->
-  startenv:int ->
-  is_last:bool ->
-  Debuginfo.t ->
-  expression
-
-(** Integers *)
-
-(** Minimal/maximal OCaml integer values whose backend representation fits in a
-    regular OCaml integer *)
-val max_repr_int : int
-
-val min_repr_int : int
-
 (** Make an integer constant from the given integer (tags the integer) *)
 val int_const : Debuginfo.t -> int -> expression
 
-val cint_const : int -> data_item
-
-val targetint_const : int -> Targetint.t
-
-(** Make a Cmm constant holding the given nativeint value. Uses [Cconst_int]
-    instead of [Cconst_nativeint] when possible to preserve peephole
-    optimisations. *)
-val natint_const_untagged : Debuginfo.t -> Nativeint.t -> expression
-
-(** Add an integer to the given expression *)
-val add_const : expression -> int -> Debuginfo.t -> expression
-
-(** Increment/decrement of integers *)
-val incr_int : expression -> Debuginfo.t -> expression
-
-val decr_int : expression -> Debuginfo.t -> expression
-
 (** Simplify the given expression knowing its last bit will be irrelevant *)
 val ignore_low_bit_int : expression -> expression
-
-(** Simplify the given expression knowing its first bit will be irrelevant *)
-val ignore_high_bit_int : expression -> expression
 
 (** Arithmetical operations on integers *)
 val add_int : expression -> expression -> Debuginfo.t -> expression
@@ -163,21 +112,6 @@ val safe_mod_bi :
   Debuginfo.t ->
   expression
 
-(** If-Then-Else expression
-
-    [mk_if_then_else dbg kind cond ifso_dbg ifso ifnot_dbg ifnot] associates
-    [dbg] to the global if-then-else expression, [ifso_dbg] to the then branch
-    [ifso], and [ifnot_dbg] to the else branch [ifnot] *)
-val mk_if_then_else :
-  Debuginfo.t ->
-  Cmm.kind_for_unboxing ->
-  expression ->
-  Debuginfo.t ->
-  expression ->
-  Debuginfo.t ->
-  expression ->
-  expression
-
 (** Boolean negation *)
 val mk_not : Debuginfo.t -> expression -> expression
 
@@ -193,17 +127,17 @@ val mk_compare_ints_untagged :
 val mk_compare_floats_untagged :
   Debuginfo.t -> expression -> expression -> expression
 
-(** Loop construction (while true do expr done). Used to be represented as
-    Cloop. *)
-val create_loop : expression -> Debuginfo.t -> expression
-
-(** Exception raising *)
-val raise_symbol : Debuginfo.t -> string -> expression
+val mk_compare_float32s_untagged :
+  Debuginfo.t -> expression -> expression -> expression
 
 (** Convert a tagged integer into a raw integer with boolean meaning *)
 val test_bool : Debuginfo.t -> expression -> expression
 
 (** Float boxing and unboxing *)
+val box_float32 : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
+
+val unbox_float32 : Debuginfo.t -> expression -> expression
+
 val box_float : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
 
 val unbox_float : Debuginfo.t -> expression -> expression
@@ -213,30 +147,26 @@ val box_vec128 : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
 
 val unbox_vec128 : Debuginfo.t -> expression -> expression
 
-(** Complex number creation and access *)
-val box_complex : Debuginfo.t -> expression -> expression -> expression
-
-val complex_re : expression -> Debuginfo.t -> expression
-
-val complex_im : expression -> Debuginfo.t -> expression
-
 (** Make the given expression return a unit value *)
 val return_unit : Debuginfo.t -> expression -> expression
-
-(** Remove a trailing unit return if any *)
-val remove_unit : expression -> expression
 
 (** Blocks *)
 
 (** Non-atomic load of a mutable field *)
 val mk_load_mut : memory_chunk -> operation
 
-(** Atomic load. All atomic fields are mutable. *)
-val mk_load_atomic : memory_chunk -> operation
+(** [strided_field_address ptr ~index ~stride dbg] returns an expression for the
+    address of the [index]th field of the block pointed to by [ptr]. The field
+    width is determined by [stride]. *)
+val strided_field_address :
+  expression -> index:int -> stride:int -> Debuginfo.t -> expression
 
 (** [field_address ptr n dbg] returns an expression for the address of the [n]th
-    field of the block pointed to by [ptr] *)
-val field_address : expression -> int -> Debuginfo.t -> expression
+    field of the block pointed to by [ptr].  [memory_chunk] is only used for
+    computation of the field width; it defaults to a memory chunk matching the
+    machine width. *)
+val field_address :
+  ?memory_chunk:memory_chunk -> expression -> int -> Debuginfo.t -> expression
 
 (** [get_field_gen mut ptr n dbg] returns an expression for the access to the
     [n]th field of the block pointed to by [ptr].  The [memory_chunk] used is
@@ -263,67 +193,17 @@ val get_field_computed :
   Debuginfo.t ->
   expression
 
-(** [set_field ptr n newval init dbg] returns an expression for setting the
-    [n]th field of the block pointed to by [ptr] to [newval] *)
-val set_field :
-  expression ->
-  int ->
-  expression ->
-  initialization_or_assignment ->
-  Debuginfo.t ->
-  expression
-
 (** Load a block's header *)
 val get_header : expression -> Debuginfo.t -> expression
 
-(** Same as [get_header], but also clear all reserved bits of the result *)
-val get_header_masked : expression -> Debuginfo.t -> expression
-
 (** Load a block's tag *)
 val get_tag : expression -> Debuginfo.t -> expression
-
-(** Load a block's size *)
-val get_size : expression -> Debuginfo.t -> expression
 
 (** Arrays *)
 
 val wordsize_shift : int
 
 val numfloat_shift : int
-
-(** Check whether the given array is an array of regular OCaml values (as
-    opposed to unboxed floats), from its header or pointer *)
-val is_addr_array_hdr : expression -> Debuginfo.t -> expression
-
-val is_addr_array_ptr : expression -> Debuginfo.t -> expression
-
-(** Get the length of an array from its header
-
-    Shifts by one bit fewer than necessary, keeping one of the GC colour bits,
-    to save an operation when returning the length as a caml integer or when
-    comparing it to a caml integer.
-    Assumes that the reserved bits are clear (see get_header_masked) *)
-val addr_array_length_shifted : expression -> Debuginfo.t -> expression
-
-val float_array_length_shifted : expression -> Debuginfo.t -> expression
-
-(** For [array_indexing ?typ log2size ptr ofs dbg] :
-
-    Produces a pointer to the element of the array [ptr] on the position [ofs]
-    with the given element [log2size] log2 element size. [ofs] is given as a
-    tagged int expression.
-
-    The optional ?typ argument is the C-- type of the result. By default, it is
-    Addr, meaning we are constructing a derived pointer into the heap. If we
-    know the pointer is outside the heap (this is the case for bigarray
-    indexing), we give type Int instead. *)
-val array_indexing :
-  ?typ:machtype_component ->
-  int ->
-  expression ->
-  expression ->
-  Debuginfo.t ->
-  expression
 
 (** Array loads and stores
 
@@ -366,8 +246,6 @@ val float_array_set :
 
 val string_length : expression -> Debuginfo.t -> expression
 
-val bigstring_length : expression -> Debuginfo.t -> expression
-
 val bigstring_get_alignment :
   expression -> expression -> int -> Debuginfo.t -> expression
 
@@ -384,6 +262,7 @@ module Extended_machtype_component : sig
     | Any_int
     | Float
     | Vec128
+    | Float32
 end
 
 module Extended_machtype : sig
@@ -395,9 +274,9 @@ module Extended_machtype : sig
 
   val typ_any_int : t
 
-  val typ_int64 : t
-
   val typ_float : t
+
+  val typ_float32 : t
 
   val typ_void : t
 
@@ -418,46 +297,6 @@ module Extended_machtype : sig
   val change_tagged_int_to_val : t -> machtype
 end
 
-(** Objects *)
-
-(** Lookup a method by its hash, using [caml_get_public_method]. Arguments:
-
-    - obj : the object from which to lookup
-
-    - tag : the hash of the method name, as a tagged integer *)
-val lookup_tag : expression -> expression -> Debuginfo.t -> expression
-
-(** Lookup a method by its offset in the method table. Arguments:
-
-    - obj : the object from which to lookup
-
-    - lab : the position of the required method in the object's method array, as
-    a tagged integer *)
-val lookup_label : expression -> expression -> Debuginfo.t -> expression
-
-(** Lookup and call a method using the method cache. Arguments:
-
-    - obj : the object from which to lookup
-
-    - tag : the hash of the method name, as a tagged integer
-
-    - cache : the method cache array
-
-    - pos : the position of the cache entry in the cache array
-
-    - args : the additional arguments to the method call *)
-val call_cached_method :
-  expression ->
-  expression ->
-  expression ->
-  expression ->
-  expression list ->
-  Extended_machtype.t list ->
-  Extended_machtype.t ->
-  Clambda.apply_kind ->
-  Debuginfo.t ->
-  expression
-
 (** Allocations *)
 
 (** Allocate a block of regular values with the given tag *)
@@ -468,25 +307,14 @@ val make_alloc :
 val make_float_alloc :
   mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
 
-(** Bounds checking *)
-
-(** Generate a [Ccheckbound] term *)
-val make_checkbound : Debuginfo.t -> expression list -> expression
-
-(** [check_bound_and_alignment
-        ~skip_if_unsafe access_size dbg ~address ~length ~offset k]
-    Prefixes expression [k] with a check that accessing [access_size] bits at
-    [data + offset] is valid, unless [skip_if_unsafe] is [Unsafe].
-    An access is valid if it is within the bound specified by [length], and
-    the resulting address is sufficiently aligned. *)
-val check_bound_and_alignment :
-  Lambda.is_safe ->
-  Clambda_primitives.memory_access_size ->
+(** Allocate an mixed block of the corresponding tag and shape. Initial values
+    of the flat suffix should be provided unboxed. *)
+val make_mixed_alloc :
+  mode:Lambda.alloc_mode ->
   Debuginfo.t ->
-  address:expression ->
-  length:expression ->
-  offset:expression ->
-  expression ->
+  int ->
+  Lambda.mixed_block_shape ->
+  expression list ->
   expression
 
 (** Sys.opaque_identity *)
@@ -513,42 +341,6 @@ val bigarray_elt_size_in_bytes : Lambda.bigarray_kind -> int
     bigarray. *)
 val bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk
 
-(** [bigarray_get unsafe kind layout b args dbg]
-
-    - unsafe : if true, do not insert bound checks
-
-    - kind : see [Lambda.bigarray_kind]
-
-    - layout : see [Lambda.bigarray_layout]
-
-    - b : the bigarray to load from
-
-    - args : a list of tagged integer expressions, corresponding to the indices
-    in the respective dimensions
-
-    - dbg : debugging information *)
-val bigarray_get :
-  bool ->
-  Lambda.bigarray_kind ->
-  Lambda.bigarray_layout ->
-  expression ->
-  expression list ->
-  Debuginfo.t ->
-  expression
-
-(** [bigarray_set unsafe kind layout b args newval dbg]
-
-    Same as [bigarray_get], with [newval] the value being assigned *)
-val bigarray_set :
-  bool ->
-  Lambda.bigarray_kind ->
-  Lambda.bigarray_layout ->
-  expression ->
-  expression list ->
-  expression ->
-  Debuginfo.t ->
-  expression
-
 (** Operations on 32-bit integers *)
 
 (** [low_32 _ x] is a value which agrees with x on at least the low 32 bits *)
@@ -571,15 +363,6 @@ val sign_extend_63 : Debuginfo.t -> expression -> expression
 
 (** Zero extend from 63 bits to the word size *)
 val zero_extend_63 : Debuginfo.t -> expression -> expression
-
-(** Boxed numbers *)
-
-(** Global symbols for the ops field of boxed integers *)
-val caml_nativeint_ops : string
-
-val caml_int32_ops : string
-
-val caml_int64_ops : string
 
 (** Box a given integer, without sharing of constants *)
 val box_int_gen :
@@ -622,43 +405,9 @@ val aligned_load_128 : expression -> expression -> Debuginfo.t -> expression
 val aligned_set_128 :
   expression -> expression -> expression -> Debuginfo.t -> expression
 
-(** Raw memory accesses *)
-
-(** [unaligned_set size ptr idx newval dbg] *)
-val unaligned_set :
-  Clambda_primitives.memory_access_size ->
-  expression ->
-  expression ->
-  expression ->
-  Debuginfo.t ->
-  expression
-
-(** [unaligned_load size ptr idx dbg] *)
-val unaligned_load :
-  Clambda_primitives.memory_access_size ->
-  expression ->
-  expression ->
-  Debuginfo.t ->
-  expression
-
-(** [box_sized size dbg exp] *)
-val box_sized :
-  Clambda_primitives.memory_access_size ->
-  Lambda.alloc_mode ->
-  Debuginfo.t ->
-  expression ->
-  expression
-
 (** Primitives *)
 
-val simplif_primitive :
-  Clambda_primitives.primitive -> Clambda_primitives.primitive
-
 type unary_primitive = expression -> Debuginfo.t -> expression
-
-(** Return the n-th field of a float array (or float-only record), as an unboxed
-    float *)
-val floatfield : int -> unary_primitive
 
 (** Int_as_pointer primitive *)
 val int_as_pointer : unary_primitive
@@ -668,12 +417,6 @@ val raise_prim : Lambda.raise_kind -> unary_primitive
 
 (** Unary negation of an OCaml integer *)
 val negint : unary_primitive
-
-(** Add a constant number to an OCaml integer *)
-val offsetint : int -> unary_primitive
-
-(** Add a constant number to an OCaml integer reference *)
-val offsetref : int -> unary_primitive
 
 (** Return the length of the array argument, as an OCaml integer *)
 val arraylength : Lambda.array_kind -> unary_primitive
@@ -692,12 +435,6 @@ val setfield :
   Lambda.immediate_or_pointer ->
   Lambda.initialization_or_assignment ->
   binary_primitive
-
-(** [setfloatfield offset init ptr value dbg]
-
-    [value] is expected to be an unboxed floating point number *)
-val setfloatfield :
-  int -> Lambda.initialization_or_assignment -> binary_primitive
 
 (** Operations on OCaml integers *)
 val add_int_caml : binary_primitive
@@ -722,36 +459,6 @@ val lsr_int_caml : binary_primitive
 
 val asr_int_caml : binary_primitive
 
-val int_comp_caml : Lambda.integer_comparison -> binary_primitive
-
-(** Strings, Bytes and Bigstrings *)
-
-(** Regular string/bytes access. Args: string/bytes, index *)
-val stringref_unsafe : binary_primitive
-
-val stringref_safe : binary_primitive
-
-(** Load by chunk from string/bytes, bigstring. Args: string, index *)
-val string_load :
-  Clambda_primitives.memory_access_size ->
-  Lambda.is_safe ->
-  Lambda.alloc_mode ->
-  binary_primitive
-
-val bigstring_load :
-  Clambda_primitives.memory_access_size ->
-  Lambda.is_safe ->
-  Lambda.alloc_mode ->
-  binary_primitive
-
-(** Arrays *)
-
-(** Array access. Args: array, index *)
-val arrayref_unsafe : Lambda.array_ref_kind -> binary_primitive
-
-(** Array access. Args: array, index *)
-val arrayref_safe : Lambda.array_ref_kind -> binary_primitive
-
 type ternary_primitive =
   expression -> expression -> expression -> Debuginfo.t -> expression
 
@@ -762,64 +469,6 @@ val setfield_computed :
   Lambda.initialization_or_assignment ->
   ternary_primitive
 
-(** Set the byte at the given offset to the given value. Args: bytes, index,
-    value *)
-val bytesset_unsafe : ternary_primitive
-
-val bytesset_safe : ternary_primitive
-
-(** Set the element at the given index in the given array to the given value.
-
-    WARNING: if [kind] is [Pfloatarray], then [value] is expected to be an
-    _unboxed_ float. Otherwise, it is expected to be a regular caml value,
-    including in the case where the array contains floats.
-
-    Args: array, index, value *)
-val arrayset_unsafe : Lambda.array_set_kind -> ternary_primitive
-
-(** As [arrayset_unsafe], but performs bounds-checking. *)
-val arrayset_safe : Lambda.array_set_kind -> ternary_primitive
-
-(** Set a chunk of data in the given bytes or bigstring structure. See also
-    [string_load] and [bigstring_load].
-
-    Note: [value] is expected to be an unboxed number of the given size.
-
-    Args: pointer, index, value *)
-val bytes_set :
-  Clambda_primitives.memory_access_size -> Lambda.is_safe -> ternary_primitive
-
-val bigstring_set :
-  Clambda_primitives.memory_access_size -> Lambda.is_safe -> ternary_primitive
-
-(** Switch *)
-
-(** [transl_isout h arg dbg] *)
-val transl_isout : expression -> expression -> Debuginfo.t -> expression
-
-(** [make_switch arg cases actions dbg kind] :
-
-    Generate a Cswitch construct, or optimize as a static table lookup when
-    possible. *)
-val make_switch :
-  expression ->
-  int array ->
-  (expression * Debuginfo.t) array ->
-  Debuginfo.t ->
-  Cmm.kind_for_unboxing ->
-  expression
-
-(** [transl_int_switch loc kind arg low high cases default] *)
-val transl_int_switch :
-  Debuginfo.t ->
-  Cmm.kind_for_unboxing ->
-  expression ->
-  int ->
-  int ->
-  (int * expression) list ->
-  expression ->
-  expression
-
 (** [transl_switch_clambda loc kind arg index cases] *)
 val transl_switch_clambda :
   Debuginfo.t ->
@@ -827,44 +476,6 @@ val transl_switch_clambda :
   expression ->
   int array ->
   expression array ->
-  expression
-
-(** [strmatch_compile dbg arg default cases] *)
-val strmatch_compile :
-  Debuginfo.t ->
-  Cmm.kind_for_unboxing ->
-  expression ->
-  expression option ->
-  (string * expression) list ->
-  expression
-
-(** Closures and function applications *)
-
-(** Adds a constant offset to a pointer (for infix access) *)
-val ptr_offset : expression -> int -> Debuginfo.t -> expression
-
-(** Direct application of a function via a symbol *)
-val direct_apply :
-  symbol ->
-  machtype ->
-  expression list ->
-  Clambda.apply_kind ->
-  Debuginfo.t ->
-  expression
-
-(** Generic application of a function to one or several arguments. The
-    mutable_flag argument annotates the loading of the code pointer from the
-    closure. The Cmmgen code uses a mutable load by default, with a special case
-    when the load is from (the first function of) the currently defined
-    closure. *)
-val generic_apply :
-  Asttypes.mutable_flag ->
-  expression ->
-  expression list ->
-  Extended_machtype.t list ->
-  Extended_machtype.t ->
-  Clambda.apply_kind ->
-  Debuginfo.t ->
   expression
 
 (** Method call : [send kind met obj args dbg]
@@ -884,18 +495,9 @@ val send :
   expression list ->
   Extended_machtype.t list ->
   Extended_machtype.t ->
-  Clambda.apply_kind ->
+  Lambda.region_close * Lambda.alloc_mode ->
   Debuginfo.t ->
   expression
-
-(** Construct [Cregion e], eliding some useless regions *)
-val region : expression -> expression
-
-(** Generic Cmm fragments *)
-
-val placeholder_dbg : unit -> Debuginfo.t
-
-val placeholder_fun_dbg : human_name:string -> Debuginfo.t
 
 (** Entry point *)
 val entry_point : Compilation_unit.t list -> phrase list
@@ -939,6 +541,8 @@ val cdefine_symbol : symbol -> data_item list
 val emit_block : symbol -> nativeint -> data_item list -> data_item list
 
 (** Emit specific kinds of constant blocks as data items *)
+val emit_float32_constant : symbol -> float -> data_item list -> data_item list
+
 val emit_float_constant : symbol -> float -> data_item list -> data_item list
 
 val emit_string_constant : symbol -> string -> data_item list -> data_item list
@@ -956,22 +560,7 @@ val emit_vec128_constant :
 val emit_float_array_constant :
   symbol -> float list -> data_item list -> data_item list
 
-val fundecls_size : Clambda.ufunction list -> int
-
-val emit_constant_closure :
-  symbol ->
-  Clambda.ufunction list ->
-  data_item list ->
-  data_item list ->
-  data_item list
-
-val emit_preallocated_blocks :
-  Clambda.preallocated_block list -> phrase list -> phrase list
-
 (** {1} Helper functions and values used by Flambda 2. *)
-
-(** An adequate Cmm machtype for an int64 (including on a 32-bit target). *)
-val typ_int64 : Cmm.machtype
 
 (* CR mshinwell: [dbg] should not be optional. *)
 
@@ -989,6 +578,9 @@ val symbol : dbg:Debuginfo.t -> Cmm.symbol -> Cmm.expression
 
 (** Create a constant float expression. *)
 val float : dbg:Debuginfo.t -> float -> expression
+
+(** Create a constant float32 expression. *)
+val float32 : dbg:Debuginfo.t -> float -> expression
 
 (** Create a constant int expression. *)
 val int : dbg:Debuginfo.t -> int -> expression
@@ -1041,9 +633,9 @@ val ite :
     caught exception in the handler. *)
 val trywith :
   dbg:Debuginfo.t ->
-  kind:trywith_kind ->
   body:expression ->
   exn_var:Backend_var.With_provenance.t ->
+  handler_cont:trywith_shared_label ->
   handler:expression ->
   unit ->
   expression
@@ -1091,10 +683,19 @@ val lsr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
     first argument by. *)
 val asr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
+(** Conversions functions between integers and floats. *)
+
 val int_of_float : dbg:Debuginfo.t -> expression -> expression
 
-(** Conversions functions between integers and floats. *)
 val float_of_int : dbg:Debuginfo.t -> expression -> expression
+
+val int_of_float32 : dbg:Debuginfo.t -> expression -> expression
+
+val float32_of_int : dbg:Debuginfo.t -> expression -> expression
+
+val float32_of_float : dbg:Debuginfo.t -> expression -> expression
+
+val float_of_float32 : dbg:Debuginfo.t -> expression -> expression
 
 val eq : dbg:Debuginfo.t -> expression -> expression -> expression
 
@@ -1125,6 +726,8 @@ val uge : dbg:Debuginfo.t -> expression -> expression -> expression
 (** Asbolute value on floats. *)
 val float_abs : dbg:Debuginfo.t -> expression -> expression
 
+val float32_abs : dbg:Debuginfo.t -> expression -> expression
+
 (** Arithmetic negation on floats. *)
 val float_neg : dbg:Debuginfo.t -> expression -> expression
 
@@ -1134,10 +737,22 @@ val float_sub : dbg:Debuginfo.t -> expression -> expression -> expression
 
 val float_mul : dbg:Debuginfo.t -> expression -> expression -> expression
 
+val float32_neg : dbg:Debuginfo.t -> expression -> expression
+
+val float32_add : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_sub : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_mul : dbg:Debuginfo.t -> expression -> expression -> expression
+
 (** Float arithmetic operations. *)
 val float_div : dbg:Debuginfo.t -> expression -> expression -> expression
 
 val float_eq : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_div : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_eq : dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Float arithmetic (dis)equality of cmm expressions. Returns an untagged
     integer (either 0 or 1) to represent the result of the comparison. *)
@@ -1149,9 +764,19 @@ val float_le : dbg:Debuginfo.t -> expression -> expression -> expression
 
 val float_gt : dbg:Debuginfo.t -> expression -> expression -> expression
 
+val float32_neq : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_lt : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_le : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_gt : dbg:Debuginfo.t -> expression -> expression -> expression
+
 (** Float arithmetic comparisons on cmm expressions. Returns an untagged integer
     (either 0 or 1) to represent the result of the comparison. *)
 val float_ge : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_ge : dbg:Debuginfo.t -> expression -> expression -> expression
 
 val beginregion : dbg:Debuginfo.t -> expression
 
@@ -1245,6 +870,9 @@ val infix_field_address : dbg:Debuginfo.t -> expression -> int -> expression
 (** Static integer. *)
 val cint : nativeint -> data_item
 
+(** Static float32. *)
+val cfloat32 : float -> data_item
+
 (** Static float. *)
 val cfloat : float -> data_item
 
@@ -1253,6 +881,8 @@ val cvec128 : Cmm.vec128_bits -> data_item
 
 (** Static symbol. *)
 val symbol_address : symbol -> data_item
+
+val symbol_offset : symbol -> int -> data_item
 
 (** Definition for a static symbol. *)
 val define_symbol : symbol -> data_item list
@@ -1287,8 +917,6 @@ val gc_root_table : Cmm.symbol list -> phrase
    If [None] is returned, that means "no estimate available". The expression
    should be assumed to be potentially large. *)
 val cmm_arith_size : expression -> int option
-
-val transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list
 
 (* CR lmaurer: Return [Linkage_name.t] instead *)
 val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string
@@ -1327,3 +955,91 @@ val atomic_compare_and_set :
   old_value:expression ->
   new_value:expression ->
   expression
+
+val emit_gc_roots_table : symbols:symbol list -> phrase list -> phrase list
+
+(** Allocate a block to hold an unboxed int32 array for the given number of
+    elements. *)
+val allocate_unboxed_int32_array :
+  elements:Cmm.expression list -> Lambda.alloc_mode -> Debuginfo.t -> expression
+
+(** Allocate a block to hold an unboxed int64 array for the given number of
+    elements. *)
+val allocate_unboxed_int64_array :
+  elements:Cmm.expression list -> Lambda.alloc_mode -> Debuginfo.t -> expression
+
+(** Allocate a block to hold an unboxed nativeint array for the given number of
+    elements. *)
+val allocate_unboxed_nativeint_array :
+  elements:Cmm.expression list -> Lambda.alloc_mode -> Debuginfo.t -> expression
+
+(** Compute the length of an unboxed int32 array. *)
+val unboxed_int32_array_length : expression -> Debuginfo.t -> expression
+
+(** Compute the length of an unboxed int64 or unboxed nativeint array. *)
+val unboxed_int64_or_nativeint_array_length :
+  expression -> Debuginfo.t -> expression
+
+(** Read from an unboxed int32 array (without bounds check). *)
+val unboxed_int32_array_ref :
+  expression -> expression -> Debuginfo.t -> expression
+
+(** Read from an unboxed int64 or unboxed nativeint array (without bounds
+    check). *)
+val unboxed_int64_or_nativeint_array_ref :
+  expression -> expression -> Debuginfo.t -> expression
+
+(** Update an unboxed int32 array (without bounds check). *)
+val unboxed_int32_array_set :
+  expression ->
+  index:expression ->
+  new_value:expression ->
+  Debuginfo.t ->
+  expression
+
+(** Update an unboxed int64 or unboxed nativeint array (without bounds
+    check). *)
+val unboxed_int64_or_nativeint_array_set :
+  expression ->
+  index:expression ->
+  new_value:expression ->
+  Debuginfo.t ->
+  expression
+
+(** {2 Getters and setters for unboxed int and float32 fields of mixed
+    blocks} *)
+
+(** The argument structure for getters is parallel to [get_field_computed]. *)
+
+val get_field_unboxed_int32 :
+  Asttypes.mutable_flag ->
+  block:expression ->
+  index:expression ->
+  Debuginfo.t ->
+  expression
+
+val get_field_unboxed_float32 :
+  Asttypes.mutable_flag ->
+  block:expression ->
+  index:expression ->
+  Debuginfo.t ->
+  expression
+
+val get_field_unboxed_int64_or_nativeint :
+  Asttypes.mutable_flag ->
+  block:expression ->
+  index:expression ->
+  Debuginfo.t ->
+  expression
+
+(** The argument structure for setters is parallel to [setfield_computed].
+   [immediate_or_pointer] is not needed as the layout is implied from the name,
+   and [initialization_or_assignment] is not needed as unboxed ints can always be
+   assigned without caml_modify (etc.).
+ *)
+
+val setfield_unboxed_int32 : ternary_primitive
+
+val setfield_unboxed_float32 : ternary_primitive
+
+val setfield_unboxed_int64_or_nativeint : ternary_primitive

@@ -103,6 +103,10 @@ module Feature : sig
   val extension_component : t -> string
 end
 
+module Misnamed_embedding_error : sig
+  type t
+end
+
 (** An AST-style representation of the names used when generating extension
     nodes or attributes for modular syntax.  We use this to abstract over the
     details of how they're encoded, so we have some flexibility in changing them
@@ -130,6 +134,14 @@ module Embedded_name : sig
   val of_feature : Feature.t -> string list -> t
 
   val components : t -> components
+
+  (** Convert one of these Jane syntax names to the embedded string form used in
+      the OCaml AST as the name of an extension node or an attribute; exposed
+      for extensions that only uses [Embedded_name] instead of the whole
+      infrastructure in this module, such as the dummy argument extension *)
+  val to_string : t -> string
+
+  val of_string : string -> (t, Misnamed_embedding_error.t) result option
 
   (** Print out the embedded form of a Jane-syntax name, in quotes; for use in
       error messages. *)

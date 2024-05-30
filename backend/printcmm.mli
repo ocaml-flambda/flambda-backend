@@ -26,7 +26,6 @@ val extcall_signature : formatter -> Cmm.machtype option * Cmm.exttype list -> u
 val integer_comparison : Cmm.integer_comparison -> string
 val float_comparison : Cmm.float_comparison -> string
 val trap_action_list : formatter -> Cmm.trap_action list -> unit
-val trywith_kind : formatter -> Cmm.trywith_kind -> unit
 val chunk : Cmm.memory_chunk -> string
 val atomic_bitwidth : Cmm.atomic_bitwidth -> string
 val operation : Debuginfo.t -> Cmm.operation -> string
@@ -35,5 +34,4 @@ val fundecl : formatter -> Cmm.fundecl -> unit
 val data : formatter -> Cmm.data_item list -> unit
 val phrase : formatter -> Cmm.phrase -> unit
 val temporal_locality : Cmm.prefetch_temporal_locality_hint -> string
-val property_to_string : Cmm.property -> string
 val print_codegen_options : formatter -> Cmm.codegen_option list -> unit

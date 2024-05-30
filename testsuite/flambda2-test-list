@@ -1,6 +1,2 @@
 # excluded test                  | status      | reason for not running / failure
 # ------------------------------------------------------------------------------------------------
-  tests/asmcomp                    FAIL
-  tests/float-unboxing             FAIL (FIXME)  'float_subst_boxed_number.ml' see flambdatest/mlexamples/float_unboxing.ml for a simplified error example. Should be fixed with unboxing in to_cmm
-  tests/statmemprof                FAIL          Stack traces differ
-  tests/warnings                   FAIL          'w55.ml' (@inline attribute), 'w59.ml' (missing warnings when using Obj functions)

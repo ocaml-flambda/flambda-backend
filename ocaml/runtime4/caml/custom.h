@@ -39,6 +39,7 @@ struct custom_operations {
   int (*compare_ext)(value v1, value v2);
   const struct custom_fixed_length* fixed_length;
 };
+CAML_STATIC_ASSERT(sizeof(struct custom_operations) == CUSTOM_OPS_STRUCT_SIZE);
 
 #define custom_finalize_default NULL
 #define custom_compare_default NULL
@@ -80,6 +81,7 @@ extern struct custom_operations caml_nativeint_ops;
 extern struct custom_operations caml_int32_ops;
 extern struct custom_operations caml_int64_ops;
 extern struct custom_operations caml_ba_ops;
+extern struct custom_operations caml_float32_ops;
 #endif /* CAML_INTERNALS */
 
 #ifdef __cplusplus

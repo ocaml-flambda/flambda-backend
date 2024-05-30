@@ -1,5 +1,5 @@
 (* TEST
-   * expect
+ expect;
 *)
 
 let _ = Int32.(add 1 2l);;
@@ -187,12 +187,12 @@ Error: This pattern matches values of type int
        but a pattern was expected which matches values of type int32
   Hint: Did you mean `0b1000_1101l'?
 |}]
-type t1 = {f1: int32};; let _ = fun x -> x.f1 <- 1_000n;;
+type t1 = {mutable f1: int32};; let _ = fun x -> x.f1 <- 1_000n;;
 [%%expect{|
-type t1 = { f1 : int32; }
-Line 1, characters 49-55:
-1 | type t1 = {f1: int32};; let _ = fun x -> x.f1 <- 1_000n;;
-                                                     ^^^^^^
+type t1 = { mutable f1 : int32; }
+Line 1, characters 57-63:
+1 | type t1 = {mutable f1: int32};; let _ = fun x -> x.f1 <- 1_000n;;
+                                                             ^^^^^^
 Error: This expression has type nativeint
        but an expression was expected of type int32
   Hint: Did you mean `1_000l'?

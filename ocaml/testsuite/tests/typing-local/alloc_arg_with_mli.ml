@@ -1,7 +1,7 @@
 (* TEST
-   * stack-allocation
-   ** native
- *)
+ stack-allocation;
+ native;
+*)
 
 (* Check whether functions that *could* take their argument
    locally allow their callers to locally construct the argument.

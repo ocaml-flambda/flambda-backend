@@ -23,6 +23,7 @@
 #include "domain.h"
 #include "misc.h"
 #include "gc_stats.h"
+#include "major_gc.h"
 
 CAMLextern atomic_uintnat caml_compactions_count;
 
@@ -86,6 +87,17 @@ Caml_inline int is_unmarked(value v) {
 
 Caml_inline int is_marked(value v) {
   return Has_status_val(v, caml_global_heap_state.MARKED);
+}
+
+Caml_inline int is_not_markable(value v) {
+  return Has_status_val(v, NOT_MARKABLE);
+}
+
+Caml_inline status caml_allocation_status(void) {
+  return
+    caml_marking_started()
+    ? caml_global_heap_state.MARKED
+    : caml_global_heap_state.UNMARKED;
 }
 
 void caml_redarken_pool(struct pool*, scanning_action, void*);

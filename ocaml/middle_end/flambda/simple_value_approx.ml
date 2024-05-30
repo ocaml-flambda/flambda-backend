@@ -253,7 +253,7 @@ let replace_description t descr = { t with descr }
 let augment_with_kind t (kind:Lambda.value_kind) =
   match kind with
   | Pgenval -> t
-  | Pfloatval ->
+  | Pboxedfloatval Pfloat64 ->
     begin match t.descr with
     | Value_float _ ->
       t
@@ -278,7 +278,7 @@ let augment_with_kind t (kind:Lambda.value_kind) =
 
 let augment_kind_with_approx t (kind:Lambda.value_kind) : Lambda.value_kind =
   match t.descr with
-  | Value_float _ -> Pfloatval
+  | Value_float _ -> Pboxedfloatval Pfloat64
   | Value_int _ -> Pintval
   | Value_boxed_int (Int32, _) -> Pboxedintval Pint32
   | Value_boxed_int (Int64, _) -> Pboxedintval Pint64
@@ -375,7 +375,7 @@ let value_mutable_float_array ~size =
 let value_immutable_float_array (contents:t array) =
   let size = Array.length contents in
   let contents =
-    Array.map (fun t -> augment_with_kind t Pfloatval) contents
+    Array.map (fun t -> augment_with_kind t (Pboxedfloatval Pfloat64)) contents
   in
   approx (Value_float_array { contents = Contents contents; size; } )
 

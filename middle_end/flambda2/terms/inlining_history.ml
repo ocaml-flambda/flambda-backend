@@ -164,8 +164,10 @@ module Relative = struct
         (b : Debuginfo.Scoped_location.scopes) =
       match a, b with
       | Cons a, Cons b ->
-        a.item = b.item && a.str = b.str && a.str_fun = b.str_fun
-        && a.name = b.name
+        Debuginfo.Scoped_location.equal_scope_item a.item b.item
+        && String.equal a.str b.str
+        && String.equal a.str_fun b.str_fun
+        && String.equal a.name b.name
       | Empty, _ | _, Empty -> false
     in
     let rec aux ~parent ~child =

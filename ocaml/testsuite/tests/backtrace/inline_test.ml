@@ -1,14 +1,14 @@
-(* TEST
-   flags = "-g"
-   ocamlrunparam += ",b=1"
-   * bytecode
-   * native
-   * native
-     ocamlopt_flags = "-O3"
-     compiler_directory_suffix = ".O3"
-   * native
-     ocamlopt_flags = "-Oclassic"
-     compiler_directory_suffix = ".Oclassic"
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
+
+
+
+
+
+
+
+
+
 *)
 
 (* A test for inlined stack backtraces *)
@@ -27,3 +27,21 @@ let i x =
 
 let () =
   i ()
+
+(* TEST
+ flags = "-g";
+ ocamlrunparam += ",b=1";
+ {
+   bytecode;
+ }{
+   native;
+ }{
+   ocamlopt_flags = "-O3";
+   compiler_directory_suffix = ".O3";
+   native;
+ }{
+   ocamlopt_flags = "-Oclassic";
+   compiler_directory_suffix = ".Oclassic";
+   native;
+ }
+*)

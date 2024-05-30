@@ -7,5 +7,5 @@
  (flags
   (:standard -principal))
  (ocamlopt_flags
-  (:standard -O3))
+  (:standard -O3 -open Int_replace_polymorphic_compare))
  (libraries ocamlcommon))

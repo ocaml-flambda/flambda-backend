@@ -23,15 +23,21 @@ type to_lift = private
         is_unique : bool;
         fields : Simple.t list
       }
+  | Boxed_float32 of Numeric_types.Float32_by_bit_pattern.t
   | Boxed_float of Numeric_types.Float_by_bit_pattern.t
   | Boxed_int32 of Numeric_types.Int32.t
   | Boxed_int64 of Numeric_types.Int64.t
   | Boxed_nativeint of Targetint_32_64.t
   | Boxed_vec128 of Vector_types.Vec128.Bit_pattern.t
+  | Immutable_float32_array of
+      { fields : Numeric_types.Float32_by_bit_pattern.t list }
   | Immutable_float_array of
       { fields : Numeric_types.Float_by_bit_pattern.t list }
+  | Immutable_int32_array of { fields : Int32.t list }
+  | Immutable_int64_array of { fields : Int64.t list }
+  | Immutable_nativeint_array of { fields : Targetint_32_64.t list }
   | Immutable_value_array of { fields : Simple.t list }
-  | Empty_array
+  | Empty_array of Empty_array_kind.t
 
 type reification_result = private
   | Lift of to_lift

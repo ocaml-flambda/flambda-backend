@@ -59,7 +59,10 @@ module Vars = struct
   end = struct
     type t = { stack_offset : int }
 
-    let create () = { stack_offset = Proc.initial_stack_offset }
+    let create () =
+      { (* This does not include the [Proc.initial_stack_offset] (see below). *)
+        stack_offset = 0
+      }
 
     let advance_over_instruction t (insn : L.instruction) =
       let stack_offset =
@@ -67,9 +70,10 @@ module Vars = struct
         | Lop (Istackoffset delta) -> t.stack_offset + delta
         | Lpushtrap _ -> t.stack_offset + Proc.trap_frame_size_in_bytes
         | Lpoptrap -> t.stack_offset - Proc.trap_frame_size_in_bytes
+        | Ladjust_stack_offset { delta_bytes } -> t.stack_offset + delta_bytes
         | Lend | Lprologue | Lop _ | Lreloadretaddr | Lreturn | Llabel _
         | Lbranch _ | Lcondbranch _ | Lcondbranch3 _ | Lswitch _ | Lentertrap
-        | Lraise _ | Ladjust_stack_offset _ ->
+        | Lraise _ | Lstackcheck _ ->
           t.stack_offset
       in
       { stack_offset }
@@ -99,13 +103,19 @@ module Vars = struct
 
     let create reg subrange_state ~fun_contains_calls ~fun_num_stack_slots =
       let reg = RD.reg reg in
-      let stack_offset = Subrange_state.stack_offset subrange_state in
+      let initial_stack_offset =
+        Proc.initial_stack_offset ~contains_calls:fun_contains_calls
+          ~num_stack_slots:fun_num_stack_slots
+      in
+      let stack_offset =
+        Subrange_state.stack_offset subrange_state + initial_stack_offset
+      in
       let offset =
         match reg.loc with
         | Stack loc ->
           let frame_size =
-            Proc.frame_size ~stack_offset ~fun_contains_calls
-              ~fun_num_stack_slots
+            Proc.frame_size ~stack_offset ~contains_calls:fun_contains_calls
+              ~num_stack_slots:fun_num_stack_slots
           in
           let slot_offset =
             Proc.slot_offset loc

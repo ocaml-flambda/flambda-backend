@@ -40,4 +40,4 @@ val split_default_wrapper
   -> mode:Lambda.alloc_mode
   -> ret_mode:Lambda.alloc_mode
   -> region:bool
-  -> (Ident.t * lambda) list
+  -> rec_binding list

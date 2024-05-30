@@ -135,7 +135,7 @@ let string_of_class_params c =
         Printf.bprintf b "%s%s%s%s -> "
           (
            match label with
-             Asttypes.Nolabel -> ""
+             Types.Nolabel -> ""
            | s -> Printtyp.string_of_label s ^":"
           )
           (if parent then "(" else "")

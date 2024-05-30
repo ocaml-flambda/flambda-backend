@@ -15,15 +15,6 @@
 
 (** From Lambda to assembly code *)
 
-(** The type of converters from Lambda to Clambda. *)
-type middle_end =
-     backend:(module Backend_intf.S)
-  -> filename:string
-  -> prefixname:string
-  -> ppf_dump:Format.formatter
-  -> Lambda.program
-  -> Clambda.with_constants
-
 (** The type of converters straight from Lambda to Cmm. This is how Flambda 2
     operates. *)
 type direct_to_cmm =
@@ -33,12 +24,8 @@ type direct_to_cmm =
   -> Lambda.program
   -> Cmm.phrase list
 
-(** The ways to get from Lambda to Cmm. *)
+(** The one true way to get from Lambda to Cmm. *)
 type pipeline =
-  | Via_clambda of {
-      backend : (module Backend_intf.S);
-      middle_end : middle_end;
-    }
   | Direct_to_cmm of direct_to_cmm
 
 (** Compile an implementation from Lambda using the given middle end. *)
@@ -52,6 +39,32 @@ val compile_implementation
   -> Lambda.program
   -> unit
 
+(** [compile_implementation_linear] reads Linear IR from [progname] file
+    produced by previous compilation stages (for example,
+    using "ocamlopt -save-ir-after" and "ocamlfdo opt")
+    and continues compilation from [Emit].
+
+    Correctness: carefully consider any use of [Config], [Clflags],
+    [Flambda_backend_flags] and shared variables during or after [Emit].
+    A mismatch between between their values in different compilation stages
+    might lead to a miscompilation or compilation failures during
+    [compile_implementation_linear]. Mismatches can also be due to
+    marshaling of Linear IR (for example, if physical equality is used).
+
+    In particular, compiler configuration settings and compilation flags used by
+    [ocamlopt] must match the ones used by [ocamlfdo].
+    Currently, [ocamlfdo] uses compiler-libs, so it must be compiled with the same
+    configuration as [ocamlopt] from stages 1 and 2. For example, builds with frame
+    pointers enabled require a compatible [ocamlfdo].
+    There is currently no way to pass compilation flags to [ocamlfdo] so transformations
+    perfomed by [ocamlfdo] must not depend on such compilation flags.  For example, SIMD
+    is disabled in [ocamlfdo].
+
+    Note that it is not safe to call functions that access variables whose values depend
+    on previous compilation stages. For example, calling [Reg.create] may return a
+    register that clashes with existing ones, because of the shared stamp counter in [Reg]
+    that is not recorded in Linear IR files.
+*)
 val compile_implementation_linear
   : (module Compiler_owee.Unix_intf.S)
   -> string

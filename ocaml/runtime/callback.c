@@ -26,6 +26,7 @@
 #include "caml/memory.h"
 #include "caml/mlvalues.h"
 #include "caml/platform.h"
+#include "caml/signals.h"
 
 /* A note about callbacks and GC.  For best performance, a callback such as
      [caml_callback_exn(value closure, value arg)]
@@ -55,17 +56,23 @@
 Caml_inline value alloc_and_clear_stack_parent(caml_domain_state* domain_state)
 {
   struct stack_info* parent_stack = Stack_parent(domain_state->current_stack);
-  value cont = caml_alloc_1(Cont_tag, Val_ptr(parent_stack));
-  Stack_parent(domain_state->current_stack) = NULL;
-  return cont;
+  if (parent_stack == NULL) {
+    return Val_unit;
+  } else {
+    value cont = caml_alloc_1(Cont_tag, Val_ptr(parent_stack));
+    Stack_parent(domain_state->current_stack) = NULL;
+    return cont;
+  }
 }
 
 Caml_inline void restore_stack_parent(caml_domain_state* domain_state,
                                       value cont)
 {
-  struct stack_info* parent_stack = Ptr_val(Op_val(cont)[0]);
   CAMLassert(Stack_parent(domain_state->current_stack) == NULL);
-  Stack_parent(domain_state->current_stack) = parent_stack;
+  if (Is_block(cont)) {
+    struct stack_info* parent_stack = Ptr_val(Op_val(cont)[0]);
+    Stack_parent(domain_state->current_stack) = parent_stack;
+  }
 }
 
 static value raise_if_exception(value res)
@@ -494,8 +501,15 @@ CAMLprim value caml_with_async_exns(value body_callback)
   res = caml_callback_exn(body_callback, Val_unit);
 
   /* raised as a normal exn, even if it was asynchronous */
-  if (Is_exception_result(res))
-    caml_raise(Extract_exception(res));
+  if (Is_exception_result(res)) {
+    /* Drain the queue of pending actions. We may need to do
+       this several times if some raise */
+    do {
+      res = Extract_exception(res);
+      res = caml_process_pending_actions_with_root_exn(res);
+    } while (Is_exception_result(res));
+    caml_raise(res);
+  }
 
   return res;
 }

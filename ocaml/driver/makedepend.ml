@@ -100,14 +100,38 @@ let add_to_synonym_list synonyms suffix =
 (* Find file 'name' (capitalized) in search path *)
 let find_module_in_load_path name =
   let names = List.map (fun ext -> name ^ ext) (!mli_synonyms @ !ml_synonyms) in
+  let uname = String.uncapitalize_ascii name in
   let unames =
-    let uname = String.uncapitalize_ascii name in
     List.map (fun ext -> uname ^ ext) (!mli_synonyms @ !ml_synonyms)
+  in
+  let stdlib_unames =
+    (* Jane Street: This is a hack to deal with the fact that we refer to our
+       custom stdlib modules with names like [Stdlib__Int32_u] from within the
+       stdlib.
+
+       Dependencies are calculated by looking at all modules mentioned by the
+       code in question and checking to see if there is a corresponding ml file.
+       But in our case there is no corresponding ml file, because the references
+       look like `Stdlib__Int32_u.foo` and the ml file's name is just
+       `int32_u.ml`.  This is unlike normal stdlib modules, which are exposed
+       with names that match their ml files.  So, the code here just teaches
+       make depend to optionally ignore a `Stdlib__` prefix for the purposes of
+       checking for a matching ml file. *)
+    let stdlib_prefix = "stdlib__" in
+    if String.starts_with ~prefix:stdlib_prefix uname then
+      let plen = String.length stdlib_prefix in
+      let uname =
+        String.sub name plen (String.length name - plen)
+      in
+      let uname = String.uncapitalize_ascii uname in
+      List.map (fun ext -> uname ^ ext) (!mli_synonyms @ !ml_synonyms)
+    else
+      []
   in
   let rec find_in_array a pos =
     if pos >= Array.length a then None else begin
       let s = a.(pos) in
-      if List.mem s names || List.mem s unames then
+      if List.mem s names || List.mem s unames || List.mem s stdlib_unames then
         Some s
       else
         find_in_array a (pos + 1)
@@ -665,7 +689,8 @@ let run_main argv =
     let program = Filename.basename Sys.argv.(0) in
     Compenv.parse_arguments (ref argv)
       (add_dep_arg (fun f -> Src (f, None))) program;
-    Language_extension.enable_maximal ();
+    Language_extension.set_universe_and_enable_all
+      Language_extension.Universe.maximal;
     process_dep_args (List.rev !dep_args_rev);
     Compenv.readenv ppf Before_link;
     if !sort_files then sort_files_by_dependencies !files

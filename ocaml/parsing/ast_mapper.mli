@@ -90,7 +90,7 @@ type mapper = {
       type *)
 
   jkind_annotation:
-    mapper -> Jane_asttypes.const_jkind -> Jane_asttypes.const_jkind;
+    mapper -> Jane_syntax.Jkind.t -> Jane_syntax.Jkind.t;
   label_declaration: mapper -> label_declaration -> label_declaration;
   location: mapper -> Location.t -> Location.t;
   module_binding: mapper -> module_binding -> module_binding;
@@ -131,6 +131,7 @@ type mapper = {
     Jane_syntax.Structure_item.t -> Jane_syntax.Structure_item.t;
   typ_jane_syntax: mapper -> Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t;
 
+  modes : mapper -> Jane_syntax.Mode_expr.t -> Jane_syntax.Mode_expr.t;
 }
 (** A mapper record implements one "method" per syntactic category,
     using an open recursion style: each method takes as its first

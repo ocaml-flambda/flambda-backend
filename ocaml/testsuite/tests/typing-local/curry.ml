@@ -1,13 +1,17 @@
 (* TEST
-   * bytecode
-     reference = "${test_source_directory}/curry.heap.reference"
-   * stack-allocation
-   ** native
-      reference = "${test_source_directory}/curry.stack.reference"
-   * no-stack-allocation
-   ** native
-      reference = "${test_source_directory}/curry.heap.reference"
- *)
+ {
+   reference = "${test_source_directory}/curry.heap.reference";
+   bytecode;
+ }{
+   stack-allocation;
+   reference = "${test_source_directory}/curry.stack.reference";
+   native;
+ }{
+   no-stack-allocation;
+   reference = "${test_source_directory}/curry.heap.reference";
+   native;
+ }
+*)
 
 module M : sig
   (* explicit signature to force return modes *)

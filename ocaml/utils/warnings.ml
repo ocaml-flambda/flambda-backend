@@ -109,9 +109,12 @@ type t =
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
   | Generative_application_expects_unit     (* 73 *)
+  | Unerasable_position_argument            (* 188 *)
   | Unnecessarily_partial_tuple_pattern     (* 189 *)
   | Probe_name_too_long of string           (* 190 *)
-  | Unchecked_property_attribute of string  (* 199 *)
+  | Unchecked_zero_alloc_attribute          (* 199 *)
+  | Unboxing_impossible                     (* 210 *)
+  | Redundant_modality of string            (* 250 *)
 
 (* If you remove a warning, leave a hole in the numbering.  NEVER change
    the numbers of existing warnings.
@@ -193,15 +196,18 @@ let number = function
   | Unused_tmc_attribute -> 71
   | Tmc_breaks_tailcall -> 72
   | Generative_application_expects_unit -> 73
+  | Unerasable_position_argument -> 188
   | Unnecessarily_partial_tuple_pattern -> 189
   | Probe_name_too_long _ -> 190
-  | Unchecked_property_attribute _ -> 199
+  | Unchecked_zero_alloc_attribute -> 199
+  | Unboxing_impossible -> 210
+  | Redundant_modality _ -> 250
 ;;
 (* DO NOT REMOVE the ;; above: it is used by
    the testsuite/ests/warnings/mnemonics.mll test to determine where
    the  definition of the number function above ends *)
 
-let last_warning_number = 199
+let last_warning_number = 250
 ;;
 
 type description =
@@ -541,6 +547,10 @@ let descriptions = [
     description = "A generative functor is applied to an empty structure \
                    (struct end) rather than to ().";
     since = since 5 1 };
+  { number = 188;
+    names = ["unerasable-position-argument"];
+    description = "Unerasable position argument.";
+    since = since 5 1 };
   { number = 189;
     names = ["unnecessarily-partial-tuple-pattern"];
     description = "A tuple pattern ends in .. but fully matches its expected \
@@ -551,10 +561,18 @@ let descriptions = [
     description = "Probe name must be at most 100 characters long.";
     since = since 4 14 };
   { number = 199;
-    names = ["unchecked-property-attribute"];
+    names = ["unchecked-zero-alloc-attribute"];
     description = "A property of a function that was \
                    optimized away cannot be checked.";
     since = since 4 14 };
+  { number = 210;
+    names = ["unboxing-impossible"];
+    description = "The parameter or return value corresponding @unboxed attribute cannot be unboxed.";
+    since = since 4 14 };
+  { number = 250;
+    names = ["redundant-modality"];
+    description = "The modality is redundant.";
+    since = since 5 1 };
 ]
 
 let name_to_number =
@@ -1156,6 +1174,7 @@ let message = function
   | Generative_application_expects_unit ->
       "A generative functor\n\
        should be applied to '()'; using '(struct end)' is deprecated."
+  | Unerasable_position_argument -> "this position argument cannot be erased."
   | Unnecessarily_partial_tuple_pattern ->
       "This tuple pattern\n\
        unnecessarily ends in '..', as it explicitly matches all components\n\
@@ -1164,12 +1183,17 @@ let message = function
       Printf.sprintf
         "This probe name is too long: `%s'. \
          Probe names must be at most 100 characters long." name
-  | Unchecked_property_attribute property ->
-      Printf.sprintf "the %S attribute cannot be checked.\n\
+  | Unchecked_zero_alloc_attribute ->
+      Printf.sprintf "the zero_alloc attribute cannot be checked.\n\
       The function it is attached to was optimized away. \n\
       You can try to mark this function as [@inline never] \n\
       or move the attribute to the relevant callers of this function."
-      property
+  | Unboxing_impossible ->
+      Printf.sprintf
+        "This [@unboxed] attribute cannot be used.\n\
+         The type of this value does not allow unboxing."
+  | Redundant_modality s ->
+      Printf.sprintf "This %s modality is redundant." s
 ;;
 
 let nerrors = ref 0

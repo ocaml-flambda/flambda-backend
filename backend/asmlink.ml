@@ -62,12 +62,12 @@ let check_cmi_consistency file_name cmis =
     Array.iter
       (fun import ->
         let name = Import_info.name import in
-        let nonalias = Import_info.Intf.nonalias import in
+        let info = Import_info.Intf.info import in
         CU.Name.Tbl.replace interfaces name ();
-        match nonalias with
+        match info with
           None -> ()
-        | Some (sort, crc) ->
-            Cmi_consistbl.check crc_interfaces name sort crc file_name)
+        | Some (kind, crc) ->
+            Cmi_consistbl.check crc_interfaces name kind crc file_name)
       cmis
   with Cmi_consistbl.Inconsistency {
       unit_name = name;
@@ -213,7 +213,7 @@ let assume_no_prefix modname =
      no module needs its prefix considered. *)
   CU.create CU.Prefix.empty modname
 
-let scan_file ~shared genfns file (objfiles, tolink) =
+let scan_file ~shared genfns file (objfiles, tolink, cached_genfns_imports) =
   match read_file file with
   | Unit (file_name,info,crc) ->
       (* This is a .cmx file. It must be linked in any case. *)
@@ -241,13 +241,17 @@ let scan_file ~shared genfns file (objfiles, tolink) =
       check_consistency ~unit
         (Array.of_list info.ui_imports_cmi)
         (Array.of_list info.ui_imports_cmx);
-      Generic_fns.Tbl.add genfns info.ui_generic_fns;
-      object_file_name :: objfiles, unit :: tolink
+      let cached_genfns_imports =
+        Generic_fns.Tbl.add ~imports:cached_genfns_imports genfns info.ui_generic_fns
+      in
+      object_file_name :: objfiles, unit :: tolink, cached_genfns_imports
   | Library (file_name,infos) ->
       (* This is an archive file. Each unit contained in it will be linked
          in only if needed. *)
       add_ccobjs (Filename.dirname file_name) infos;
-      Generic_fns.Tbl.add genfns infos.lib_generic_fns;
+      let cached_genfns_imports =
+        Generic_fns.Tbl.add ~imports:cached_genfns_imports  genfns infos.lib_generic_fns
+      in
       check_cmi_consistency file_name infos.lib_imports_cmi;
       check_cmx_consistency file_name infos.lib_imports_cmx;
       let objfiles =
@@ -304,7 +308,7 @@ let scan_file ~shared genfns file (objfiles, tolink) =
              unit :: reqd
            end else
            reqd)
-        infos.lib_units tolink
+        infos.lib_units tolink, cached_genfns_imports
 
 (* Second pass: generate the startup file and link it with everything else *)
 
@@ -345,7 +349,7 @@ let sourcefile_for_dwarf ~named_startup_file filename =
   if named_startup_file then filename
   else ".startup"
 
-let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
+let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units cached_gen =
   Location.input_name := "caml_startup"; (* set name of "current" input *)
   let startup_comp_unit =
     CU.create CU.Prefix.empty (CU.Name.of_string "_startup")
@@ -359,7 +363,8 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
     List.flatten (List.map (fun u -> u.defines) units) in
   List.iter compile_phrase (Cmm_helpers.entry_point name_list);
   List.iter compile_phrase
-    (Cmm_helpers.emit_preallocated_blocks [] (* add gc_roots (for dynlink) *)
+    (* Emit the GC roots table, for dynlink. *)
+    (Cmm_helpers.emit_gc_roots_table ~symbols:[]
       (Generic_fns.compile ~shared:false genfns));
   Array.iteri
     (fun i name -> compile_phrase (Cmm_helpers.predef_exception i name))
@@ -367,11 +372,6 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
   compile_phrase (Cmm_helpers.global_table name_list);
   let globals_map = make_globals_map units in
   compile_phrase (Cmm_helpers.globals_map globals_map);
-  let name_list =
-    if !Flambda_backend_flags.use_cached_generic_functions then
-      name_list
-    else name_list
-  in
   compile_phrase
     (Cmm_helpers.data_segment_table (startup_comp_unit :: name_list));
   (* CR mshinwell: We should have a separate notion of "backend compilation
@@ -386,8 +386,19 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
     else
       startup_comp_unit :: name_list
   in
+  let code_comp_units =
+    if !Flambda_backend_flags.use_cached_generic_functions then
+      Generic_fns.imported_units cached_gen @ code_comp_units
+    else code_comp_units
+  in
   compile_phrase (Cmm_helpers.code_segment_table code_comp_units);
   let all_comp_units = startup_comp_unit :: system_comp_unit :: name_list in
+  let all_comp_units =
+    if !Flambda_backend_flags.use_cached_generic_functions then
+      Generic_fns.imported_units cached_gen @ all_comp_units
+    else
+      all_comp_units
+  in
   compile_phrase (Cmm_helpers.frame_table all_comp_units);
   if !Clflags.output_complete_object then
     force_linking_of_startup ~ppf_dump;
@@ -404,7 +415,7 @@ let make_shared_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
     sourcefile_for_dwarf;
   Emit.begin_assembly unix;
   List.iter compile_phrase
-    (Cmm_helpers.emit_preallocated_blocks [] (* add gc_roots (for dynlink) *)
+    (Cmm_helpers.emit_gc_roots_table ~symbols:[]
       (Generic_fns.compile ~shared:true genfns));
   let dynunits = List.map (fun u -> Option.get u.dynunit) units in
   compile_phrase (Cmm_helpers.plugin_header dynunits);
@@ -425,13 +436,23 @@ let call_linker_shared ?(native_toplevel = false) file_list output_name =
 
 let link_shared unix ~ppf_dump objfiles output_name =
   Profile.record_call output_name (fun () ->
+    if !Flambda_backend_flags.use_cached_generic_functions then
+      (* When doing shared linking do not use the shared generated startup file.
+         Frametables for the imported functions needs to be initialized, which is a bit
+         tricky to do in the context of shared libraries as the frametables are
+         initialized at runtime. *)
+      Flambda_backend_flags.use_cached_generic_functions := false;
     if !Flambda_backend_flags.internal_assembler then
       (* CR-soon gyorsh: workaround to turn off internal assembler temporarily,
          until it is properly tested for shared library linking. *)
       Emitaux.binary_backend_available := false;
     let genfns = Generic_fns.Tbl.make () in
-    let ml_objfiles, units_tolink =
-      List.fold_right (scan_file ~shared:true genfns) objfiles ([],[]) in
+    let ml_objfiles, units_tolink, _ =
+      List.fold_right
+        (scan_file ~shared:true genfns)
+        objfiles
+        ([],[], Generic_fns.Partition.Set.empty)
+    in
     Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs;
     Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;
     let objfiles = List.rev ml_objfiles @ List.rev !Clflags.ccobjs in
@@ -463,12 +484,12 @@ let call_linker file_list_rev startup_file output_name =
                  && Filename.check_suffix output_name Config.ext_dll
   and main_obj_runtime = !Clflags.output_complete_object
   in
-  let files = startup_file :: (List.rev file_list_rev) in
-  let files =
+  let file_list_rev =
     if !Flambda_backend_flags.use_cached_generic_functions then
-      !Flambda_backend_flags.cached_generic_functions_path :: files
-    else files
+      !Flambda_backend_flags.cached_generic_functions_path :: file_list_rev
+    else file_list_rev
   in
+  let files = startup_file :: (List.rev file_list_rev) in
   let files, c_lib =
     if (not !Clflags.output_c_object) || main_dll || main_obj_runtime then
       files @ (List.rev !Clflags.ccobjs) @ runtime_lib (),
@@ -509,8 +530,12 @@ let link unix ~ppf_dump objfiles output_name =
       else if !Clflags.output_c_object then stdlib :: objfiles
       else stdlib :: (objfiles @ [stdexit]) in
     let genfns = Generic_fns.Tbl.make () in
-    let ml_objfiles, units_tolink =
-      List.fold_right (scan_file ~shared:false genfns) objfiles ([],[]) in
+    let ml_objfiles, units_tolink, cached_genfns_imports =
+      List.fold_right
+        (scan_file ~shared:false genfns)
+        objfiles
+        ([],[], Generic_fns.Partition.Set.empty)
+    in
     begin match extract_missing_globals() with
       [] -> ()
     | mg -> raise(Error(Missing_implementations mg))
@@ -531,7 +556,7 @@ let link unix ~ppf_dump objfiles output_name =
       ~may_reduce_heap:true
       ~ppf_dump
       (fun () -> make_startup_file unix ~ppf_dump
-                   ~sourcefile_for_dwarf genfns units_tolink);
+                   ~sourcefile_for_dwarf genfns units_tolink cached_genfns_imports);
     Emitaux.reduce_heap_size ~reset:(fun () -> reset ());
     Misc.try_finally
       (fun () -> call_linker ml_objfiles startup_obj output_name)

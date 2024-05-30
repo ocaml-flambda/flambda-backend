@@ -52,7 +52,7 @@ type mapper = {
   include_declaration: mapper -> include_declaration -> include_declaration;
   include_description: mapper -> include_description -> include_description;
   jkind_annotation:
-    mapper -> Jane_asttypes.const_jkind -> Jane_asttypes.const_jkind;
+    mapper -> Jane_syntax.Jkind.t -> Jane_syntax.Jkind.t;
   label_declaration: mapper -> label_declaration -> label_declaration;
   location: mapper -> Location.t -> Location.t;
   module_binding: mapper -> module_binding -> module_binding;
@@ -93,6 +93,7 @@ type mapper = {
     Jane_syntax.Structure_item.t -> Jane_syntax.Structure_item.t;
   typ_jane_syntax: mapper -> Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t;
 
+  modes : mapper -> Jane_syntax.Mode_expr.t -> Jane_syntax.Mode_expr.t;
 }
 
 let map_fst f (x, y) = (f x, y)
@@ -104,6 +105,17 @@ let map_opt f = function None -> None | Some x -> Some (f x)
 let map_loc sub {loc; txt} = {loc = sub.location sub loc; txt}
 let map_loc_txt sub f {loc; txt} =
   {loc = sub.location sub loc; txt = f sub txt}
+
+let map_mode_and_attributes sub attrs =
+  let open Jane_syntax.Mode_expr in
+  let modes, attrs = maybe_of_attrs attrs in
+  let mode_attr =
+    match modes with
+    | Some modes ->
+      Option.to_list (sub.modes sub modes |> attr_of)
+    | None -> []
+  in
+  mode_attr @ sub.attributes sub attrs
 
 module C = struct
   (* Constants *)
@@ -175,7 +187,7 @@ module T = struct
 
   let map_jst_labeled_tuple sub : LT.core_type -> LT.core_type = function
     (* CR labeled tuples: Eventually mappers may want to see the labels. *)
-    | Lttyp_tuple tl -> Lttyp_tuple (List.map (map_snd (sub.typ sub)) tl)
+    | tl -> List.map (map_snd (sub.typ sub)) tl
 
   let map_jst sub : Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t =
     function
@@ -188,12 +200,12 @@ module T = struct
     let loc = sub.location sub loc in
     match Jane_syntax.Core_type.of_ast typ with
     | Some (jtyp, attrs) -> begin
-        let attrs = sub.attributes sub attrs in
+        let attrs = map_mode_and_attributes sub attrs in
         let jtyp = sub.typ_jane_syntax sub jtyp in
         Jane_syntax.Core_type.core_type_of jtyp ~loc ~attrs
     end
     | None ->
-    let attrs = sub.attributes sub attrs in
+    let attrs = map_mode_and_attributes sub attrs in
     match desc with
     | Ptyp_any -> any ~loc ~attrs ()
     | Ptyp_var s -> var ~loc ~attrs s
@@ -217,22 +229,32 @@ module T = struct
     | Ptyp_extension x -> extension ~loc ~attrs (sub.extension sub x)
 
   let map_type_declaration sub
-      {ptype_name; ptype_params; ptype_cstrs;
+     ({ptype_name; ptype_params; ptype_cstrs;
        ptype_kind;
        ptype_private;
        ptype_manifest;
        ptype_attributes;
-       ptype_loc} =
+       ptype_loc} as tyd) =
     let loc = sub.location sub ptype_loc in
+    let jkind, ptype_attributes =
+      match Jane_syntax.Layouts.of_type_declaration tyd with
+      | None -> None, ptype_attributes
+      | Some (jkind, attributes) ->
+          let jkind = map_loc_txt sub sub.jkind_annotation jkind in
+          Some jkind, attributes
+    in
     let attrs = sub.attributes sub ptype_attributes in
-    Type.mk ~loc ~attrs (map_loc sub ptype_name)
+    Jane_syntax.Layouts.type_declaration_of ~loc ~attrs (map_loc sub ptype_name)
       ~params:(List.map (map_fst (sub.typ sub)) ptype_params)
       ~priv:ptype_private
       ~cstrs:(List.map
                 (map_tuple3 (sub.typ sub) (sub.typ sub) (sub.location sub))
                 ptype_cstrs)
       ~kind:(sub.type_kind sub ptype_kind)
-      ?manifest:(map_opt (sub.typ sub) ptype_manifest)
+      ~manifest:(map_opt (sub.typ sub) ptype_manifest)
+      ~jkind
+      ~docs:Docstrings.empty_docs
+      ~text:None
 
   let map_type_kind sub = function
     | Ptype_abstract -> Ptype_abstract
@@ -398,11 +420,23 @@ module MT = struct
     | Ifsig_include_functor incl ->
         Ifsig_include_functor (sub.include_description sub incl)
 
+  module L = Jane_syntax.Layouts
+
+  let map_sig_layout sub : L.signature_item -> L.signature_item =
+    function
+    | Lsig_kind_abbrev (name, jkind) ->
+        Lsig_kind_abbrev (
+          map_loc sub name,
+          map_loc_txt sub sub.jkind_annotation jkind
+        )
+
   let map_signature_item_jst sub :
     Jane_syntax.Signature_item.t -> Jane_syntax.Signature_item.t =
     function
     | Jsig_include_functor ifincl ->
         Jsig_include_functor (map_sig_include_functor sub ifincl)
+    | Jsig_layout sigi ->
+        Jsig_layout (map_sig_layout sub sigi)
 
   let map_signature_item sub ({psig_desc = desc; psig_loc = loc} as sigi) =
     let open Sig in
@@ -412,6 +446,8 @@ module MT = struct
         match sub.signature_item_jane_syntax sub jsigi with
         | Jsig_include_functor incl ->
             Jane_syntax.Include_functor.sig_item_of ~loc incl
+        | Jsig_layout sigi ->
+            Jane_syntax.Layouts.sig_item_of ~loc sigi
     end
     | None ->
     match desc with
@@ -479,11 +515,23 @@ module M = struct
     | Ifstr_include_functor incl ->
         Ifstr_include_functor (sub.include_declaration sub incl)
 
+  module L = Jane_syntax.Layouts
+
+  let map_str_layout sub : L.structure_item -> L.structure_item =
+    function
+    | Lstr_kind_abbrev (name, jkind) ->
+        Lstr_kind_abbrev (
+          map_loc sub name,
+          map_loc_txt sub sub.jkind_annotation jkind
+        )
+
   let map_structure_item_jst sub :
     Jane_syntax.Structure_item.t -> Jane_syntax.Structure_item.t =
     function
     | Jstr_include_functor ifincl ->
         Jstr_include_functor (map_str_include_functor sub ifincl)
+    | Jstr_layout stri ->
+        Jstr_layout (map_str_layout sub stri)
 
   let map_structure_item sub ({pstr_loc = loc; pstr_desc = desc} as stri) =
     let open Str in
@@ -493,6 +541,8 @@ module M = struct
         match sub.structure_item_jane_syntax sub jstri with
         | Jstr_include_functor incl ->
             Jane_syntax.Include_functor.str_item_of ~loc incl
+        | Jstr_layout stri ->
+            Jane_syntax.Layouts.str_item_of ~loc stri
     end
     | None ->
     match desc with
@@ -526,6 +576,7 @@ module E = struct
   module L = Jane_syntax.Layouts
   module N_ary = Jane_syntax.N_ary_functions
   module LT = Jane_syntax.Labeled_tuples
+  module Modes = Jane_syntax.Modes
 
   let map_iterator sub : C.iterator -> C.iterator = function
     | Range { start; stop; direction } ->
@@ -597,7 +648,7 @@ module E = struct
       : N_ary.function_constraint -> N_ary.function_constraint =
     function
     | { mode_annotations; type_constraint } ->
-      { mode_annotations;
+      { mode_annotations = sub.modes sub mode_annotations;
         type_constraint = map_type_constraint sub type_constraint;
       }
 
@@ -617,7 +668,11 @@ module E = struct
 
   let map_ltexp sub : LT.expression -> LT.expression = function
     (* CR labeled tuples: Eventually mappers may want to see the labels. *)
-    | Ltexp_tuple el -> Ltexp_tuple (List.map (map_snd (sub.expr sub)) el)
+    | el -> List.map (map_snd (sub.expr sub)) el
+
+  let map_modes_exp sub : Modes.expression -> Modes.expression = function
+    | Coerce (modes, exp) ->
+        Coerce (sub.modes sub modes, sub.expr sub exp)
 
   let map_jst sub : Jane_syntax.Expression.t -> Jane_syntax.Expression.t =
     function
@@ -626,6 +681,7 @@ module E = struct
     | Jexp_layout x -> Jexp_layout (map_layout_exp sub x)
     | Jexp_n_ary_function x -> Jexp_n_ary_function (map_n_ary_exp sub x)
     | Jexp_tuple ltexp -> Jexp_tuple (map_ltexp sub ltexp)
+    | Jexp_modes mode_exp -> Jexp_modes (map_modes_exp sub mode_exp)
 
   let map sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as exp) =
@@ -745,8 +801,8 @@ module P = struct
 
   let map_ltpat sub : LT.pattern -> LT.pattern = function
     (* CR labeled tuples: Eventually mappers may want to see the labels. *)
-    | Ltpat_tuple (pl, closed) ->
-      Ltpat_tuple (List.map (map_snd (sub.pat sub)) pl, closed)
+    | (pl, closed) ->
+      (List.map (map_snd (sub.pat sub)) pl, closed)
 
   let map_jst sub : Jane_syntax.Pattern.t -> Jane_syntax.Pattern.t = function
     | Jpat_immutable_array x -> Jpat_immutable_array (map_iapat sub x)
@@ -760,11 +816,11 @@ module P = struct
     let loc = sub.location sub loc in
     match Jane_syntax.Pattern.of_ast pat with
     | Some (jpat, attrs) -> begin
-        let attrs = sub.attributes sub attrs in
+        let attrs = map_mode_and_attributes sub attrs in
         Jane_syntax.Pattern.pat_of ~loc ~attrs (sub.pat_jane_syntax sub jpat)
     end
     | None ->
-    let attrs = sub.attributes sub attrs in
+    let attrs = map_mode_and_attributes sub attrs in
     match desc with
     | Ppat_any -> any ~loc ~attrs ()
     | Ppat_var s -> var ~loc ~attrs (map_loc sub s)
@@ -993,7 +1049,7 @@ let default_mapper =
            (this.expr this pvb_expr)
            ?value_constraint:(Option.map map_ct pvb_constraint)
            ~loc:(this.location this pvb_loc)
-           ~attrs:(this.attributes this pvb_attributes)
+           ~attrs:(map_mode_and_attributes this pvb_attributes)
       );
 
 
@@ -1050,6 +1106,7 @@ let default_mapper =
       }
     );
     attributes = (fun this l -> List.map (this.attribute this) l);
+
     payload =
       (fun this -> function
          | PStr x -> PStr (this.structure this x)
@@ -1058,7 +1115,20 @@ let default_mapper =
          | PPat (x, g) -> PPat (this.pat this x, map_opt (this.expr this) g)
       );
 
-    jkind_annotation = (fun _this l -> l);
+    jkind_annotation = (fun this ->
+      let open Jane_syntax in
+      function
+      | Default -> Default
+      | Primitive_layout_or_abbreviation s ->
+        let {txt; loc} =
+          map_loc this (s : Jkind.Const.t :> _ loc)
+        in
+        Primitive_layout_or_abbreviation (Jkind.Const.mk txt loc)
+      | Mod (t, mode_list) ->
+        Mod (this.jkind_annotation this t, this.modes this mode_list)
+      | With (t, ty) ->
+        With (this.jkind_annotation this t, this.typ this ty)
+      | Kind_of ty -> Kind_of (this.typ this ty));
 
     expr_jane_syntax = E.map_jst;
     extension_constructor_jane_syntax = T.map_extension_constructor_jst;
@@ -1067,6 +1137,17 @@ let default_mapper =
     signature_item_jane_syntax = MT.map_signature_item_jst;
     structure_item_jane_syntax = M.map_structure_item_jst;
     typ_jane_syntax = T.map_jst;
+
+    modes = (fun this m ->
+      let open Jane_syntax.Mode_expr in
+      let map_const sub : Const.t -> Const.t =
+        fun m ->
+          let {txt; loc} =
+            map_loc sub (m : Const.t :> _ Location.loc)
+          in
+          Const.mk txt loc
+      in
+      map_loc_txt this (fun sub -> List.map (map_const sub)) m);
   }
 
 let extension_of_error {kind; main; sub} =
