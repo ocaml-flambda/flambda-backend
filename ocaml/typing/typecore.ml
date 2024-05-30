@@ -8761,7 +8761,7 @@ and type_mode_expr
     submode ~loc ~env ~reason:Other (Value.of_const min) expected_mode;
     let expected_mode = mode_coerce (Value.of_const max) expected_mode in
     let expected_mode =
-      match modes.locality with
+      match modes.areality with
       | Some Local -> mode_strictly_local expected_mode
       | _ -> expected_mode
     in

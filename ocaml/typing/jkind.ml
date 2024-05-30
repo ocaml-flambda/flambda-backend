@@ -451,28 +451,28 @@ module Jkind_desc = struct
   let immediate64 =
     { layout = Non_null_value;
       modes_upper_bounds =
-        { locality = Global; linearity = Many; uniqueness = Unique };
+        { areality = Global; linearity = Many; uniqueness = Unique };
       externality_upper_bound = External64
     }
 
   let immediate =
     { layout = Non_null_value;
       modes_upper_bounds =
-        { locality = Global; linearity = Many; uniqueness = Unique };
+        { areality = Global; linearity = Many; uniqueness = Unique };
       externality_upper_bound = External
     }
 
   let float64 =
     { layout = Layout.float64;
       modes_upper_bounds =
-        { locality = Global; linearity = Many; uniqueness = Unique };
+        { areality = Global; linearity = Many; uniqueness = Unique };
       externality_upper_bound = External
     }
 
   let float32 =
     { layout = Layout.float32;
       modes_upper_bounds =
-        { locality = Global; linearity = Many; uniqueness = Unique };
+        { areality = Global; linearity = Many; uniqueness = Unique };
       externality_upper_bound = External
     }
 
