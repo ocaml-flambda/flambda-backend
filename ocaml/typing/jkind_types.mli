@@ -129,7 +129,8 @@ type 'type_expr history =
 
 type 'type_expr t =
   { jkind : 'type_expr Jkind_desc.t;
-    history : 'type_expr history
+    history : 'type_expr history;
+    has_warned : bool
   }
 
 type annotation = const * Jane_syntax.Jkind.annotation

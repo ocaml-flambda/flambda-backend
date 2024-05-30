@@ -32,10 +32,8 @@ let from_basic (basic : basic) : Linear.instruction_desc =
       | Intop_atomic { op; size; addr } -> Iintop_atomic { op; size; addr }
       | Floatop (w, op) -> Ifloatop (w, op)
       | Csel c -> Icsel c
-      | Valueofint -> Ivalueofint
-      | Intofvalue -> Iintofvalue
-      | Vectorcast cast -> Ivectorcast cast
-      | Scalarcast cast -> Iscalarcast cast
+      | Reinterpret_cast cast -> Ireinterpret_cast cast
+      | Static_cast cast -> Istatic_cast cast
       | Probe_is_enabled { name } -> Iprobe_is_enabled { name }
       | Opaque -> Iopaque
       | Specific op -> Ispecific op

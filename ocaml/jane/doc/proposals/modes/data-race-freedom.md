@@ -1,4 +1,4 @@
-# Data races are bad
+# Data race freedom
 
 We would like to provide a programming model for shared-memory
 parallelism in OCaml that is less terrifying than the free-for-all you
@@ -1291,16 +1291,16 @@ end
 
 # Read-only capsule access
 
-Capsules allow us to wrap mutable data and ensure that it is only
+Capsules allow us to wrap unsync mutable data and ensure that it is only
 accessed by one thread at a time. However, this is stricter than is
 necessary to avoid data races. Multiple threads can safely read from the
-mutable state in a capsule as long as no thread can be simultaneously
-writing to it.
+unsync mutable state in a capsule as long as no thread can be
+simultaneously writing to it.
 
-To support this kind of access we add another mode: `readonly`. A `readonly`
-value can contain mutable state, but that state cannot be written to. A
-value that is not `readonly` is at mode `readwrite`. `readwrite` is more
-strict than `readonly`.
+To support this kind of access we add another mode: `readonly`. A
+`readonly` value can contain unsync mutable state, but that state cannot
+be written to. A value that is not `readonly` is at mode
+`readwrite`. `readwrite` is more strict than `readonly`.
 
 There are two restrictions on `readonly` values:
 
@@ -1323,9 +1323,9 @@ Error: Cannot mutate readonly value
 ```
 
 There is a `readonly` modality that allows `readwrite` data to point to
-`readonly` data. Since `sync` values contain no mutable data, the `sync`
-modality on record fields also gives `readwrite` values even if the
-record is `readonly`. Similarly, `always(sync)` implies
+`readonly` data. Since `sync` values contain no unsync mutable data, the
+`sync` modality on record fields also gives `readwrite` values even if
+the record is `readonly`. Similarly, `always(sync)` implies
 `always(readwrite)`.
 
 With this mode we can add the following additional operations to the

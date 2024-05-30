@@ -47,9 +47,9 @@ let rec find_next_allocation : cell option -> allocation option =
         ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_float32 _
         | Const_symbol _ | Const_vec128 _ | Stackoffset _ | Load _ | Store _
         | Intop _ | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _
-        | Valueofint | Intofvalue | Vectorcast _ | Scalarcast _
-        | Probe_is_enabled _ | Opaque | Begin_region | End_region | Specific _
-        | Name_for_debugger _ | Dls_get | Poll )
+        | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _ | Opaque
+        | Begin_region | End_region | Specific _ | Name_for_debugger _ | Dls_get
+        | Poll )
     | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
       find_next_allocation (DLL.next cell))
 
@@ -97,13 +97,12 @@ let find_compatible_allocations :
            `Pushtrap` case may be too conservative) *)
         { allocations = List.rev allocations; next_cell = Some cell }
       | Op
-          ( Move | Spill | Reload | Floatop _ | Valueofint | Intofvalue
-          | Vectorcast _ | Opaque | Const_int _ | Const_float _
-          | Const_float32 _ | Const_vec128 _ | Const_symbol _ | Stackoffset _
-          | Load _
+          ( Move | Spill | Reload | Floatop _ | Reinterpret_cast _ | Opaque
+          | Const_int _ | Const_float _ | Const_float32 _ | Const_vec128 _
+          | Const_symbol _ | Stackoffset _ | Load _
           | Store (_, _, _)
           | Csel _ | Specific _ | Name_for_debugger _ | Probe_is_enabled _
-          | Scalarcast _ | Dls_get
+          | Static_cast _ | Dls_get
           | Intop
               ( Iadd | Isub | Imul | Idiv | Imod | Iand | Ior | Ixor | Ilsl
               | Ilsr | Iasr | Ipopcnt | Imulh _ | Iclz _ | Ictz _ | Icomp _ )

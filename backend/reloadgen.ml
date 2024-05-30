@@ -63,7 +63,11 @@ method reload_operation op arg res =
      res to be stack-allocated, but do something for
      stack-to-stack moves *)
   match op with
-    | Imove | Ireload | Ispill | Iintofvalue | Ivalueofint | Ivectorcast _ ->
+    (* Reinterpret casts are essentially moves, as they do not require transforming
+       the value. That means regs with the same stack location can simply be aliased.
+       However, the amd64 backend specializes casts other than int<->value, because moving
+       values across gpr<->xmm can require register operands. *)
+    | Imove | Ireload | Ispill | Ireinterpret_cast _ ->
       begin match arg.(0), res.(0) with
         {loc = Stack s1}, {loc = Stack s2} ->
           if s1 = s2

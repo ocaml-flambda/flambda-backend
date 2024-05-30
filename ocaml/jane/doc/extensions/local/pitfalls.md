@@ -1,4 +1,4 @@
-#  Some Pitfalls of Local Allocations
+# Some Pitfalls of Local Allocations
 
 This document outlines some common pitfalls that may come up when
 trying out local allocations in a new code base, as well as some
@@ -6,7 +6,7 @@ suggested workarounds. Over time, this list may grow (as experience
 discovers new things that go wrong) or shrink (as we deploy new
 compiler versions that ameliorate some issues).
 
-If you want an introduction to local allocations, see the [introduction](local-intro.md).
+If you want an introduction to local allocations, see the [introduction](intro.md).
 
 ## Tail calls
 
@@ -14,7 +14,7 @@ Many OCaml functions just happen to end in a tail call, even those
 that are not intentionally tail-recursive. To preserve the
 constant-space property of tail calls, the compiler applies special
 rules around local allocations in tail calls (see [the
-reference](./local-reference.md)).
+reference](./reference.md)).
 
 If this causes a problem for calls that just happen to be in tail
 position, the easiest workaround is to prevent them from being

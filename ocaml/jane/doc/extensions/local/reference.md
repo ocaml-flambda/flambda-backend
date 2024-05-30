@@ -2,15 +2,16 @@
 
 The goal of this document is to be a reasonably complete reference to local
 allocations in OCaml. For a gentler introduction, see [the
-introduction](local-intro.md).
+introduction](intro.md).
 
-When local allocations are enabled with the `-extension local` flag, the
-compiler may locally allocate some values, placing them on a stack rather than
-the garbage collected heap. Instead of waiting for the next GC, the memory used
-by locally allocated values is reclaimed when their _region_ (see below) ends, and
-can be immediately reused. Whether the compiler locally allocates certain values
-is controlled using a new keyword currently spelled `local_`, whose effects in
-expressions, patterns and types are explained below.
+The local allocations language extension allows the compiler to
+locally allocate some values, placing them on a stack rather than the
+garbage collected heap. Instead of waiting for the next GC, the memory
+used by locally allocated values is reclaimed when their _region_ (see
+below) ends, and can be immediately reused. Whether the compiler
+locally allocates certain values is controlled using a new keyword
+currently spelled `local_`, whose effects in expressions, patterns and
+types are explained below.
 
 
 ## Local expressions and allocation
@@ -60,24 +61,25 @@ including:
   - Modules (including first-class modules)
 
   - Exceptions
-    (Technically, values of type `exn` can be locally allocated, but only global ones may be raised)
+    (Technically, values of type `exn` can be locally allocated, but only global
+    ones may be raised)
 
   - Classes and objects
 
 In addition, any value that is to be put into a mutable field (for example
 inside a `ref`, an `array` or a mutable record) cannot be locally allocated.
-
+Should you need to put a locally allocated value into one of these places,
+you may want to check out [`ppx_globalize`](https://github.com/janestreet/ppx_globalize).
 
 ## Inference
 
 In fact, the allocations of the examples above will be locally
-allocated even without the `local_` keyword, if it is safe to do so
-(and the `-extension local` flag is enabled). The presence of the
-keyword on an expression only affects what happens if the value
-escapes (e.g. is stored into a global hash table) and therefore cannot
-be locally allocated. With the keyword, an error will be reported,
-while without the keyword the allocations will occur on the GC heap as
-usual.
+allocated even without the `local_` keyword, if it is safe to do
+so. The presence of the keyword on an expression only affects what
+happens if the value escapes (e.g. is stored into a global hash table)
+and therefore cannot be locally allocated. With the keyword, an error
+will be reported, while without the keyword the allocations will occur
+on the GC heap as usual.
 
 Inference does not cross file boundaries. If local annotations subject to
 inference appear in the type of a module (e.g. since they can appear in
@@ -103,10 +105,11 @@ let f2 x = f1 ~foo:(Some x) (* [Some x] is stack allocated *)
      in the flambda-backend Git repo. The ensuing paragraph is related to that
      note; we can remove this comment when the note is resolved.
 -->
-However, a missing mli *does* affect inference within the ml. As a conservative rule of thumb,
-function arguments in an mli-less file will be heap-allocated unless the function parameter or argument
-is annotated with `local_`. This is due to an implementation detail of the type-checker and
-is not fundamental, but for now, it's yet another reason to prefer writing mlis.
+However, a missing mli *does* affect inference within the ml. As a conservative
+rule of thumb, function arguments in an mli-less file will be heap-allocated
+unless the function parameter or argument is annotated with `local_`. This is
+due to an implementation detail of the type-checker and is not fundamental, but
+for now, it's yet another reason to prefer writing mlis.
 
 ```ocaml
 (* in a.ml; a.mli is missing *)
@@ -170,7 +173,6 @@ The beginning of a region records the stack pointer of this local
 stack, and the end of the region resets the stack pointer to this
 value.
 
-
 ### Variables and regions
 
 To spot escaping local allocations, the type checker internally tracks whether
@@ -187,8 +189,8 @@ the type-checker, although the `local_` keyword may be used to specify it.
 
 Additionally, local variables are further subdivided into two cases:
 
-  - **Outer-region local**: may be a locally-allocated value, but only from an outer
-    region and not from the current one.
+  - **Outer-region local**: may be a locally-allocated value, but only from an
+    outer region and not from the current one.
 
   - **Any-region local**: may be a locally-allocated value, even one allocated
     during the current region.
@@ -386,8 +388,8 @@ Therefore, when a function ends in a tail call, that function's region ends:
   - but before control is transferred to the callee.
 
 This early ending of the region introduces some restrictions, as values used in
-tail calls then count as escaping the region. In particular, any-region local values
-may not be passed to tail calls:
+tail calls then count as escaping the region. In particular, any-region local
+values may not be passed to tail calls:
 
 ```ocaml
 let f1 () =
@@ -436,7 +438,6 @@ let f2 () =
   let local_ g () = 42 in
   g () [@nontail]
 ```
-
 
 This change means that the locally allocated values (`r` and `g`)
 will not be freed until after the call has returned.
@@ -530,21 +531,19 @@ without having its own region. Consequently, it operates within the caller's
 region. This approach, however, has certain disadvantages. Consider the
 following example:
 
-```
+```ocaml
 let f (local_ x) = local_
   let local_ y = (complex computation on x) in
   if y then local_ None
   else local_ (Some x)
 ```
-
 The function `f` allocates memory within the caller's region to store
 intermediate and temporary data for the complex computation. This allocation
 remains in the region even after `f` returns and is released only when the
 program exits the caller's region. To allow temporary allocations to be released
 upon the function's return, we can rewrite the example as follows:
 
-
-```
+```ocaml
 let f (local_ x) =
   let local_ y = (complex computation on x) in
   if y then exclave_ None
@@ -552,20 +551,16 @@ let f (local_ x) =
 ```
 
 The new primitive `exclave_` terminates the current region early and executes
-the subsequent code in the outer region. In this example, the function `f`
-has a region where the allocation for the complex computation occurs.
-This region is terminated by `exclave_`, releasing all temporary allocations.
-Both `None` and `Some x` are considered "local" relative to the
-outer region and are allowed to escape. In summary, we have temporary
-allocations on the stack that are promptly released and result allocations on
-the stack that can escape.
-
+the subsequent code in the outer region. In this example, the function `f` has a
+region where the allocation for the complex computation occurs. This region is
+terminated by `exclave_`, releasing all temporary allocations. Both `None` and
+`Some x` are considered "local" relative to the outer region and are allowed to
+escape. In summary, we have temporary allocations on the stack that are promptly
+released and result allocations on the stack that can escape.
 
 Here is another example in which the stack usage can be improved asymptotically
 by applying `exclave_`:
-
-
-```
+```ocaml
 let rec maybe_length p l = local_
   match l with
   | [] -> Some 0
@@ -578,21 +573,17 @@ let rec maybe_length p l = local_
             Some (count + 1)
       end
 ```
-
 This function is intended to have the type:
 
-```
+```ocaml
 val maybe_length : ('a -> bool) -> 'a list -> local_ int option
 ```
-
-This function computes the length of the list. The predicate can return `false`,
-in which case the result of the entire function would be `None`. It is designed
-not to allocate heap memory, instead using the stack for all `Some` allocations.
-However, it will currently use O(N) stack space because all allocations occur in
-the original caller's stack frame. To improve its space usage, we remove the
-`local_` annotation (so the function has its own region), and wrap `Some
-(count + 1)` inside `exclave_` to release the region before the allocation:
-
+It is designed not to allocate heap memory by using the stack for all `Some`
+allocations.  However, it will currently use O(N) stack space because all
+allocations occur in the original caller's stack frame. To improve its space
+usage, we remove the `local_` annotation (so the function has its own region),
+and wrap `Some (count + 1)` inside `exclave_` to release the region before the
+allocation:
 ```ocaml
 let rec maybe_length p l =
   match l with
@@ -606,16 +597,12 @@ let rec maybe_length p l =
             exclave_ Some (count + 1)
       end
 ```
-
 Now the function uses O(1) stack space.
-
 
 `exclave_` terminates the current region, so local values from that region
 cannot be used inside `exclave_`. For example, the following code produces an
 error because `x` would escape its region:
-
-
-```
+```ocaml
   let local_ x = "hello" in
   exclave_ (
     let local_ y = "world" in
@@ -623,12 +610,10 @@ error because `x` would escape its region:
   )
 ```
 
-Similarly, `exclave_` can only appear at the tail position of a region since
-one cannot re-enter a terminated region. The following code is an error for this
+Similarly, `exclave_` can only appear at the tail position of a region since one
+cannot re-enter a terminated region. The following code is an error for this
 reason:
-
-
-```
+```ocaml
   let local_ x = "hello" in
   exclave_ (
     let local_ y = "world" in
@@ -636,6 +621,7 @@ reason:
   );
   local_ (x ^ "world")
 ```
+
 ## Records and mutability
 
 For any given variable, the type-checker checks only whether that variable is
@@ -679,22 +665,24 @@ itself local.
 In particular, by defining:
 
 ```ocaml
-type 'a glob = { global_ contents: 'a } [@@unboxed]
+type 'a t = { global_ global : 'a } [@@unboxed]
 ```
 
-then a variable `local_ x` of type `string glob list` is a local list
-of global strings, and while the list itself cannot be returned out of
-a region, the `contents` field of any of its elements can.
+then a variable `local_ x` of type `string t list` is a local list of global
+strings, and while the list itself cannot be returned out of a region, the
+`global` field of any of its elements can. For convenience, `base` provides
+this as the type `Modes.Global.t`.
 
 The same overriding can be used on constructor arguments. To imitate the example
 for record fields:
+```ocaml
+type ('a, 'b) t = Foo of global_ 'a * 'b
 
-    type ('a, 'b) t = Foo of global_ 'a * 'b
-
-    let f () =
-      let local_ packed = Foo (x, y) in
-      match packed with
-      | Foo (foo, bar) -> foo
+let f () =
+  let local_ packed = Foo (x, y) in
+  match packed with
+  | Foo (foo, bar) -> foo
+```
 
 ### Mutability
 
@@ -772,7 +760,6 @@ passed as an argument. Functions are different than other types in that, because
 of currying, a locally-allocated function has a different type than a
 globally-allocated one.
 
-
 ### Currying of local closures
 
 Suppose we are inside the definition of a function, and there is in scope
@@ -816,7 +803,6 @@ written as follows:
 let f : int -> local_ (int -> int) = local_ fun a b -> a + b + !counter in
 ...
 ```
-
 
 ## Special case typing of tuple matching
 

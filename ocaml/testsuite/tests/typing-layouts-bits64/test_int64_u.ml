@@ -1,10 +1,10 @@
 (* TEST
- include stable;
+ include stdlib_upstream_compatible;
 *)
 
-module Int64_u = Stable.Int64_u
-module Int32_u = Stable.Int32_u
-module Nativeint_u = Stable.Nativeint_u
+module Int64_u = Stdlib_upstream_compatible.Int64_u
+module Int32_u = Stdlib_upstream_compatible.Int32_u
+module Nativeint_u = Stdlib_upstream_compatible.Nativeint_u
 
 (* Print all individual successful tests; used for debugging, as it will cause
    this test to fail *)

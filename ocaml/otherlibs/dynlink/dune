@@ -40,10 +40,15 @@
   (name dynlink_compilerlibs)
   (wrapped true)
   (modes byte native)
-  (flags (
-    -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66-70
-    -warn-error A -bin-annot -safe-string -strict-formats
-  ))
+ (flags
+  (:standard
+   -strict-sequence
+   -absname
+   -w
+   +67
+   -bin-annot
+   -safe-string
+   -strict-formats))
   (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
   (modules
     binutils

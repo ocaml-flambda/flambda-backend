@@ -46,7 +46,7 @@ method! class_of_operation op =
   | Imove | Ispill | Ireload
   | Ifloatop _
   | Icsel _
-  | Ivalueofint | Iintofvalue | Ivectorcast _ | Iscalarcast _
+  | Ireinterpret_cast _ | Istatic_cast _
   | Iconst_int _ | Iconst_float32 _ | Iconst_float _
   | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _ | Iextcall _
@@ -89,7 +89,7 @@ class cfg_cse = object
   | Move | Spill | Reload
   | Floatop _
   | Csel _
-  | Valueofint | Intofvalue | Vectorcast _ | Scalarcast _
+  | Reinterpret_cast _ | Static_cast _
   | Const_int _ | Const_float32 _ | Const_float _
   | Const_symbol _ | Const_vec128 _
   | Stackoffset _ | Load _ | Store _ | Alloc _

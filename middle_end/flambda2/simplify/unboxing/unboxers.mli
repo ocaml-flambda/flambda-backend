@@ -24,7 +24,7 @@ type number_decider =
 
 type unboxer =
   { var_name : string;
-    invalid_const : Const.t;
+    poison_const : Const.t;
     unboxing_prim : Simple.t -> P.t;
     prove_simple :
       TE.t -> min_name_mode:Name_mode.t -> T.t -> Simple.t T.meet_shortcut
@@ -57,7 +57,7 @@ module Field : sig
     P.Block_access_kind.t -> block:Simple.t -> index:Targetint_31_63.t -> P.t
 
   val unboxer :
-    invalid_const:Const.t ->
+    poison_const:Const.t ->
     P.Block_access_kind.t ->
     index:Targetint_31_63.t ->
     unboxer
