@@ -2719,7 +2719,6 @@ type t : float64
 val refute : t is_value -> 'a = <fun>
 |}]
 
-(* CR layouts: this should be accepted *)
 type ('a : any) is_value =
   | V : ('a : value) is_value
 
@@ -2737,4 +2736,42 @@ Line 8, characters 4-5:
         ^
 Error: This match case could not be refuted.
        Here is an example of a value that would reach it: V
+|}]
+
+(***********************************)
+(* Test 44: Kind-checking in mcomp *)
+
+type (!'a : any) inj
+
+module type S = sig
+  type 'a value : value
+  type 'a bits64 : bits64
+end
+
+type ('a : any) s = 'a
+
+module F (X : S) = struct
+  let f1 : ([ `K of 'a X.bits64 inj ], [ `K of 'a X.value inj ]) eq -> _ =
+    function _ -> .
+  let f2 : ([ `K of 'a X.bits64 inj ], [ `K of (int -> int) inj ]) eq -> _ =
+    function _ -> .
+  let f3 : ([ `K of 'a X.bits64 inj ], [ `K of ('b : value) inj ]) eq -> _ =
+    function _ -> .
+  let f4 : ([ `K of ('b : value) inj ], [ `K of 'a X.bits64 inj ]) eq -> _ =
+    function _ -> .
+  let f5 : ([ `K of 'a X.bits64 s inj ], [ `K of ('b : value) s inj ]) eq -> _ =
+    function _ -> .
+  let f6 : ([ `K of ('b : value) s inj ], [ `K of 'a X.bits64 s inj ]) eq -> _ =
+    function _ -> .
+end
+
+[%%expect{|
+type (!'a : any) inj
+module type S = sig type 'a value : value type 'a bits64 : bits64 end
+type ('a : any) s = 'a
+Line 12, characters 13-14:
+12 |     function _ -> .
+                  ^
+Error: This match case could not be refuted.
+       Here is an example of a value that would reach it: Refl
 |}]
