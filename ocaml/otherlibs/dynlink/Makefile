@@ -95,7 +95,6 @@ COMPILERLIBS_SOURCES=\
   utils/terminfo.ml \
   utils/warnings.ml \
   utils/int_replace_polymorphic_compare.ml \
-  utils/global.ml \
   typing/ident.ml \
   utils/compilation_unit.ml \
   utils/import_info.ml \

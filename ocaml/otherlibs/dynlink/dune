@@ -122,8 +122,7 @@
     compilation_unit
     import_info
     symbol
-    linkage_name
-    global)
+    linkage_name)
   (modules_without_implementation
     asttypes
     parsetree
@@ -172,7 +171,6 @@
 (copy_files ../../utils/linkage_name.ml)
 (copy_files ../../utils/lazy_backtrack.ml)
 (copy_files ../../utils/zero_alloc_utils.ml)
-(copy_files ../../utils/global.ml)
 (copy_files ../../parsing/location.ml)
 (copy_files ../../parsing/longident.ml)
 (copy_files ../../parsing/docstrings.ml)
@@ -243,7 +241,6 @@
 (copy_files ../../utils/linkage_name.mli)
 (copy_files ../../utils/lazy_backtrack.mli)
 (copy_files ../../utils/zero_alloc_utils.mli)
-(copy_files ../../utils/global.mli)
 (copy_files ../../parsing/location.mli)
 (copy_files ../../parsing/longident.mli)
 (copy_files ../../parsing/docstrings.mli)
