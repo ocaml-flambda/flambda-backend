@@ -3353,18 +3353,27 @@ let unify1_var env t1 t2 =
 (* Called from unify3 *)
 let unify3_var env jkind1 t1' t2 t2' =
   occur_for Unify !env t1' t2;
+  (* There are two possible ways forward here. Either the variable [t1']
+     will succeed in unifying with [t2], in which case we're done; or
+     the unification fails, in which case we want to add a GADT equation.
+     But in that second case, we want to pretend that we were making a
+     GADT equation all along, so we don't want any evidence of having
+     attempted the unification (which might, say, fill in a sort variable).
+     We thus backtrack in the GADT equation case. *)
+  let snap = snapshot () in
   match
     occur_univar_for Unify !env t2;
     unification_jkind_check !env t2' jkind1
   with
   | () -> link_type t1' t2
   | exception Unify_trace _ when in_pattern_mode () ->
+      backtrack snap;
       reify env t1';
       reify env t2';
       if can_generate_equations () then begin
         begin match get_desc t2' with
         | Tconstr(path,[],_)
-          when is_instantiable !env ~for_jkind_eqn:false path ->
+          when is_instantiable !env ~for_jkind_eqn:true path ->
             add_gadt_equation env path t1'
               (* This is necessary because a failed kind-check above
                  might meaningfully refine a type constructor *)

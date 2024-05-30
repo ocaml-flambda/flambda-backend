@@ -2675,3 +2675,66 @@ module N6 :
   end
 |}]
 
+type ('a : any) is_value =
+  | V : ('a : value) is_value
+
+module A : sig
+  type 'a t : any
+
+  val is_value : 'a t is_value
+end = struct
+  type 'a t = int
+
+  let is_value = V
+end
+
+let magic (type a) (x : a A.t is_value) : 'b =
+  match x with
+  | _ -> .
+
+let not_so_good : 'b = magic A.is_value
+
+[%%expect{|
+type ('a : any) is_value = V : 'a is_value
+module A : sig type 'a t : any val is_value : 'a t is_value end
+Line 16, characters 4-5:
+16 |   | _ -> .
+         ^
+Error: This match case could not be refuted.
+       Here is an example of a value that would reach it: V
+|}]
+
+type ('a : any) is_value =
+  | V : ('a : value) is_value
+
+type t : float64
+
+let refute (x : t is_value) =
+  match x with
+  | _ -> .
+
+[%%expect{|
+type ('a : any) is_value = V : 'a is_value
+type t : float64
+val refute : t is_value -> 'a = <fun>
+|}]
+
+(* CR layouts: this should be accepted *)
+type ('a : any) is_value =
+  | V : ('a : value) is_value
+
+type 'a t : float64
+
+let refute (x : 'a t is_value) =
+  match x with
+  | _ -> .
+
+[%%expect{|
+type ('a : any) is_value = V : 'a is_value
+type 'a t : float64
+Line 8, characters 4-5:
+8 |   | _ -> .
+        ^
+Error: This match case could not be refuted.
+       Here is an example of a value that would reach it: V
+|}]
