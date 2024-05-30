@@ -562,8 +562,8 @@ let imports {imported_units; crc_units; _} =
 
 let local_ident penv modname =
   match find_info_in_cache penv modname with
-  | Some ({ ps_binding = Local local_ident; _ }, _) -> Some local_ident
-  | Some ({ ps_binding = Static _; _ }, _)
+  | Some { ps_binding = Local local_ident; _ } -> Some local_ident
+  | Some { ps_binding = Static _; _ }
   | None -> None
 
 let locally_bound_imports ({persistent_structures; _} as penv) =
