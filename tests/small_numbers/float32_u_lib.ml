@@ -1,4 +1,6 @@
 
+[@@@ocaml.warning "-37-32-35"]
+
 (* Tests for the float32 otherlib  *)
 
 module F32 = Beta.Float32_u

@@ -1,5 +1,7 @@
 open Stdlib
 
+[@@@ocaml.warning "-37-32-35"]
+
 let eq l r =
   if l <> r then Printf.printf "%d <> %d\n" l r
 ;;

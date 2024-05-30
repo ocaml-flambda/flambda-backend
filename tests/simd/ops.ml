@@ -1,5 +1,7 @@
 open Stdlib
 
+[@@@ocaml.warning "-37-32-35"]
+
 let failmsg = ref (fun () -> ())
 
 let eq lv hv l h =
@@ -21,10 +23,15 @@ let eqi lv hv l h =
 ;;
 
 let eqf lv hv l h =
-    let open Float in
     if l <> lv then Printf.printf "%f <> %f\n" l lv;
     if h <> hv then Printf.printf "%f <> %f\n" h hv;
     if l <> lv || h <> hv then !failmsg ()
+;;
+
+let eqf' lv l =
+    let fail = lv <> l && not (Float.is_nan lv && Float.is_nan l) in
+    if fail then Printf.printf "%f <> %f\n" l lv;
+    if fail then !failmsg ()
 ;;
 
 external int64x2_of_int64s : int64 -> int64 -> int64x2 = "caml_vec128_unreachable" "vec128_of_int64s" [@@noalloc] [@@unboxed]
@@ -424,10 +431,10 @@ module Float64 = struct
             [@@noalloc] [@@builtin]
 
         let () =
-            check_floats (fun l r -> eqf (max l r) (c_max l r));
-            check_floats (fun l r -> eqf (min l r) (c_min l r));
-            check_floats (fun l _ -> eqf (sqrt l) (c_sqrt l));
-            check_floats (fun l _ -> eqf (round 0x8 l) (c_round l))
+            check_floats (fun l r -> eqf' (max l r) (c_max l r));
+            check_floats (fun l r -> eqf' (min l r) (c_min l r));
+            check_floats (fun l _ -> eqf' (sqrt l) (c_sqrt l));
+            check_floats (fun l _ -> eqf' (round 0x8 l) (c_round l))
         ;;
     end
 end

@@ -16,7 +16,6 @@ let eqi lv hv l h =
 ;;
 
 let eqf lv hv l h =
-    let open Float in
     if l <> lv then Printf.printf "%f <> %f\n" l lv;
     if h <> hv then Printf.printf "%f <> %f\n" h hv
 ;;

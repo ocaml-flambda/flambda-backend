@@ -1,5 +1,7 @@
 open Stdlib
 
+[@@@ocaml.warning "-37-32-35"]
+
 let eq l r =
   if l <> r then Printf.printf "%d <> %d\n" l r
 ;;
@@ -206,13 +208,13 @@ let () = (* Compare *)
     CFloat32.check_float32s (fun f1 f2 ->
       let no_nan = (not (CFloat32.is_nan f1)) && (not (CFloat32.is_nan f2)) in
       if no_nan then (
-        (match Float32.compare f1 f2 with
+        (match compare f1 f2 with
         | -1 -> assert (CFloat32.lt f1 f2)
         | 0 -> assert (CFloat32.eq f1 f2)
         | 1 -> assert (CFloat32.gt f1 f2)
         | _ -> assert false);
         let f2, f1 = f1, f2 in
-        (match Float32.compare f1 f2 with
+        (match compare f1 f2 with
         | -1 -> assert (CFloat32.lt f1 f2)
         | 0 -> assert (CFloat32.eq f1 f2)
         | 1 -> assert (CFloat32.gt f1 f2)
@@ -225,16 +227,16 @@ let () = (* Compare *)
         assert (CFloat32.ngt f1 f2);
         assert (CFloat32.nge f1 f2);
         if CFloat32.is_nan f1 && CFloat32.is_nan f2 then (
-          assert (Float32.compare f1 f2 = 0)
+          assert (compare f1 f2 = 0)
         );
         if CFloat32.is_nan f1 && not (CFloat32.is_nan f2) then (
-          assert (Float32.compare f1 f2 = -1);
-          assert (Float32.compare f2 f1 = 1)
+          assert (compare f1 f2 = -1);
+          assert (compare f2 f1 = 1)
         );
         let f2, f1 = f1, f2 in
         if CFloat32.is_nan f1 && not (CFloat32.is_nan f2) then (
-          assert (Float32.compare f1 f2 = -1);
-          assert (Float32.compare f2 f1 = 1)
+          assert (compare f1 f2 = -1);
+          assert (compare f2 f1 = 1)
         )
       )
     )
