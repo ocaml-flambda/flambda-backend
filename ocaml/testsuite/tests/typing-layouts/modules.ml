@@ -121,6 +121,15 @@ end;;
 module M1_2''' : S1_2
 |}]
 
+(* Type parameter is in contravariant position *)
+
+module M1_2'''' : S1_2 = struct
+  type 'a t = 'a -> int
+end;;
+[%%expect {|
+module M1_2'''' : S1_2
+|}]
+
 (************************************************************************)
 (* Test 2: with type constraints for fixed types (the complicated case of
    Type_mod.merge_constraint) *)
