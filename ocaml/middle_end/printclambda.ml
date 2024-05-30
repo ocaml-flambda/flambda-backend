@@ -29,11 +29,17 @@ let rec value_kind0 ppf kind =
   match kind with
   | Pgenval -> Format.pp_print_string ppf ""
   | Pintval -> Format.pp_print_string ppf ":int"
-  | Pfloatval -> Format.pp_print_string ppf ":float"
+  | Pboxedfloatval Pfloat64 -> Format.pp_print_string ppf ":float"
+  | Pboxedfloatval Pfloat32 -> Format.pp_print_string ppf ":float32"
   | Parrayval Pgenarray -> Format.pp_print_string ppf ":genarray"
   | Parrayval Pintarray -> Format.pp_print_string ppf ":intarray"
   | Parrayval Pfloatarray -> Format.pp_print_string ppf ":floatarray"
   | Parrayval Paddrarray -> Format.pp_print_string ppf ":addrarray"
+  | Parrayval Punboxedfloatarray Pfloat64 -> Format.pp_print_string ppf ":unboxedfloatarray"
+  | Parrayval Punboxedfloatarray Pfloat32 -> Format.pp_print_string ppf ":unboxedfloat32array"
+  | Parrayval Punboxedintarray Pint32 -> Format.pp_print_string ppf "unboxedint32array"
+  | Parrayval Punboxedintarray Pint64 -> Format.pp_print_string ppf "unboxedint64array"
+  | Parrayval Punboxedintarray Pnativeint -> Format.pp_print_string ppf "unboxednativeintarray"
   | Pboxedintval Pnativeint -> Format.pp_print_string ppf ":nativeint"
   | Pboxedintval Pint32 -> Format.pp_print_string ppf ":int32"
   | Pboxedintval Pint64 -> Format.pp_print_string ppf ":int64"
@@ -44,12 +50,7 @@ let rec value_kind0 ppf kind =
       (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_int)
       consts
       (Format.pp_print_list ~pp_sep:Format.pp_print_space
-          (fun ppf (tag, fields) ->
-            fprintf ppf "@[<hov 1>[%d:@ %a]@]" tag
-              (Format.pp_print_list
-                ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
-                value_kind0)
-              fields))
+         (Printlambda.tag_and_constructor_shape value_kind0))
       non_consts
 
 let value_kind kind = Format.asprintf "%a" value_kind0 kind
@@ -58,7 +59,8 @@ let layout (layout : Lambda.layout) =
   | Pvalue kind -> value_kind kind
   | Ptop -> ":top"
   | Pbottom -> ":bottom"
-  | Punboxed_float -> ":unboxed_float"
+  | Punboxed_float Pfloat64 -> ":unboxed_float"
+  | Punboxed_float Pfloat32 -> ":unboxed_float32"
   | Punboxed_int Pint32 -> ":unboxed_int32"
   | Punboxed_int Pint64 -> ":unboxed_int64"
   | Punboxed_int Pnativeint -> ":unboxed_nativeint"
@@ -192,18 +194,6 @@ and lam ppf = function
         phantom_defining_expr_opt defining_expr;
       let expr = letbody body in
       fprintf ppf ")@]@ %a)@]" lam expr
-  | Uletrec(id_arg_list, body) ->
-      let bindings ppf id_arg_list =
-        let spc = ref false in
-        List.iter
-          (fun (id, l) ->
-            if !spc then fprintf ppf "@ " else spc := true;
-            fprintf ppf "@[<2>%a@ %a@]"
-              VP.print id
-              lam l)
-          id_arg_list in
-      fprintf ppf
-        "@[<2>(letrec@ (@[<hv 1>%a@])@ %a)@]" bindings id_arg_list lam body
   | Uprim(prim, largs, _) ->
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in

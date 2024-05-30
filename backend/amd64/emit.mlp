@@ -16,6 +16,10 @@
 
 (* Emission of Intel x86_64 assembly code *)
 
+(* Correctness: carefully consider any use of [Config], [Clflags],
+   [Flambda_backend_flags] and shared variables.
+   For details, see [asmgen.mli]. *)
+
 open Cmm
 open Arch
 open Proc
@@ -41,8 +45,6 @@ let _label s = D.label ~typ:QWORD s
 
 (* Override proc.ml *)
 
-let simd_frontend_disabled () = not (Language_extension.is_enabled SIMD)
-
 let int_reg_name =
   [| RAX; RBX; RDI; RSI; RDX; RCX; R8; R9;
      R12; R13; R10; R11; RBP; |]
@@ -50,12 +52,14 @@ let int_reg_name =
 let float_reg_name = Array.init 16 (fun i -> XMM i)
 
 let register_name typ r =
-  match typ with
+  match (typ : machtype_component) with
   | Int | Val | Addr -> Reg64 (int_reg_name.(r))
   | Float -> Regf (float_reg_name.(r - 100))
   | Vec128 ->
-    if simd_frontend_disabled ()
-    then Misc.fatal_error "SIMD types are not enabled, but got a Vec128 register.";
+    assert_simd_enabled ();
+    Regf (float_reg_name.(r - 100))
+  | Float32 ->
+    assert_float32_enabled ();
     Regf (float_reg_name.(r - 100))
 
 let phys_rax = phys_reg Int 0
@@ -94,8 +98,6 @@ let emit_debug_info_linear i =
 
 let fp = Config.with_frame_pointers
 
-let stack_threshold_size = Config.stack_threshold * 8 (* bytes *)
-
 (* Tradeoff between code size and code speed *)
 
 let fastcode_flag = ref true
@@ -109,36 +111,23 @@ let prologue_required = ref false
 
 let frame_required = ref false
 
-let frame_size () =                     (* includes return address *)
-  if !frame_required then begin
-    if simd_frontend_disabled () && (num_stack_slots.(2) > 0)
-    then Misc.fatal_error "SIMD types are not enabled, but got a Vec128 stack slot.";
-    let sz =
-      (!stack_offset
-       + 8
-       + 8 * num_stack_slots.(0)
-       + 8 * num_stack_slots.(1)
-       + 16 * num_stack_slots.(2)
-       + (if fp then 8 else 0))
-    in Misc.align sz 16
-  end else
-    !stack_offset + 8
+let contains_calls = ref false
 
-let slot_offset loc cl =
-  match loc with
-  | Incoming n -> frame_size() + n
-  | Local n ->
-      if simd_frontend_disabled () && (num_stack_slots.(2) > 0 || cl >= 2)
-      then Misc.fatal_error "SIMD types are not enabled, but got a Vec128 stack slot.";
-      (!stack_offset +
-        (* Preserves original ordering (int -> float) *)
-        match cl with
-        | 2 -> n * 16
-        | 0 -> num_stack_slots.(2) * 16 + n * 8
-        | 1 -> num_stack_slots.(2) * 16 + num_stack_slots.(0) * 8 + n * 8
-        | _ -> Misc.fatal_error "Unknown register class")
-  | Outgoing n -> n
-  | Domainstate _ -> assert false (* not a stack slot *)
+let frame_size () =
+  Proc.frame_size
+    ~stack_offset:!stack_offset
+    ~num_stack_slots
+    ~contains_calls:!contains_calls
+
+let slot_offset loc stack_class =
+  let offset =
+    Proc.slot_offset loc ~stack_class ~stack_offset:!stack_offset
+      ~fun_contains_calls:!contains_calls ~fun_num_stack_slots:num_stack_slots
+  in
+  match offset with
+  | Bytes_relative_to_stack_pointer n -> n
+  | Bytes_relative_to_domainstate_pointer _ ->
+    Misc.fatal_errorf "Not a stack slot"
 
 let emit_stack_offset n =
   if n < 0
@@ -307,10 +296,11 @@ let emit_Llabel fallthrough lbl section_name =
 
 (* Output a pseudo-register *)
 
-let x86_data_type_for_stack_slot = function
+let x86_data_type_for_stack_slot : machtype_component -> data_type = function
   | Float -> REAL8
   | Vec128 -> VEC128
   | Int | Addr | Val -> QWORD
+  | Float32 -> REAL4
 
 let reg = function
   | { loc = Reg.Reg r; typ = ty } -> register_name ty r
@@ -454,28 +444,6 @@ type safety_check_sites = {
 let bound_checks = { sc_sites = []; sc_call = 0 }
 let align_checks = { sc_sites = []; sc_call = 0 }
 
-let safety_check_failure_label kind _fdo dbg =
-  if !Clflags.debug then begin
-    let lbl_error = new_label() in
-    let lbl_frame = record_frame_label Reg.Set.empty (Dbg_other dbg) in
-    let info =
-      { sc_lbl = lbl_error;
-        sc_frame = lbl_frame;
-        sc_dbg = dbg } in
-    (match kind with
-    | Bound_check -> bound_checks.sc_sites <- info :: bound_checks.sc_sites
-    | Align_check -> align_checks.sc_sites <- info :: align_checks.sc_sites);
-    lbl_error
-  end else begin
-    match kind with
-    | Bound_check ->
-      if bound_checks.sc_call = 0 then bound_checks.sc_call <- new_label();
-      bound_checks.sc_call
-    | Align_check ->
-      if align_checks.sc_call = 0 then align_checks.sc_call <- new_label();
-      align_checks.sc_call
-  end
-
 let emit_call_safety_error kind sc =
   def_label sc.sc_lbl;
   emit_debug_info sc.sc_dbg;
@@ -501,6 +469,49 @@ let emit_call_safety_errors () =
     def_label align_checks.sc_call;
     emit_call (Cmm.global_symbol "caml_ml_array_align_error")
   end
+
+(* Stack reallocation *)
+type stack_realloc = {
+  sc_label : Label.t; (* Label of the reallocation code. *)
+  sc_return : Label.t; (* Label to return to after reallocation. *)
+  sc_size_in_bytes : int; (* Size for reallocation. *)
+}
+
+let stack_realloc = ref ([] : stack_realloc list)
+
+let clear_stack_realloc () =
+  stack_realloc := []
+
+let emit_stack_realloc () =
+  List.iter
+    (fun { sc_label; sc_return; sc_size_in_bytes; } ->
+       def_label sc_label;
+       (* Pass the desired frame size on the stack, since all of the
+          argument-passing registers may be in use.
+          Also serves to align the stack properly before the call *)
+       I.push (int (Config.stack_threshold + sc_size_in_bytes / 8));
+       cfi_adjust_cfa_offset 8;
+       (* measured in words *)
+       emit_call (Cmm.global_symbol "caml_call_realloc_stack");
+       I.add (int 8) rsp;
+       cfi_adjust_cfa_offset (-8);
+       I.jmp (label sc_return))
+    !stack_realloc
+
+let emit_stack_check ~size_in_bytes ~save_registers =
+  let overflow = new_label () and ret = new_label () in
+  let threshold_offset = Domainstate.stack_ctx_words * 8 + Stack_check.stack_threshold_size in
+  if save_registers then I.push r10;
+  I.lea (mem64 NONE (-(size_in_bytes + threshold_offset)) RSP) r10;
+  I.cmp (domain_field Domainstate.Domain_current_stack) r10;
+  if save_registers then I.pop r10;
+  I.jb (label overflow);
+  def_label ret;
+  stack_realloc := {
+    sc_label = overflow;
+    sc_return = ret;
+    sc_size_in_bytes = size_in_bytes;
+  } :: !stack_realloc
 
 (* Record jump tables *)
 type jump_table =
@@ -576,18 +587,28 @@ let instr_for_intop = function
   | Iasr -> I.sar
   | _ -> assert false
 
-let instr_for_floatop = function
-  | Iaddf -> I.addsd
-  | Isubf -> I.subsd
-  | Imulf -> I.mulsd
-  | Idivf -> I.divsd
+let instr_for_floatop width op =
+  match width, op with
+  | Float64, Iaddf -> I.addsd
+  | Float64, Isubf -> I.subsd
+  | Float64, Imulf -> I.mulsd
+  | Float64, Idivf -> I.divsd
+  | Float32, Iaddf -> I.addss
+  | Float32, Isubf -> I.subss
+  | Float32, Imulf -> I.mulss
+  | Float32, Idivf -> I.divss
   | _ -> assert false
 
-let instr_for_floatarithmem = function
-  | Ifloatadd -> I.addsd
-  | Ifloatsub -> I.subsd
-  | Ifloatmul -> I.mulsd
-  | Ifloatdiv -> I.divsd
+let instr_for_floatarithmem width op =
+  match width, op with
+  | Float64, Ifloatadd -> I.addsd
+  | Float64, Ifloatsub -> I.subsd
+  | Float64, Ifloatmul -> I.mulsd
+  | Float64, Ifloatdiv -> I.divsd
+  | Float32, Ifloatadd -> I.addss
+  | Float32, Ifloatsub -> I.subss
+  | Float32, Ifloatmul -> I.mulss
+  | Float32, Ifloatdiv -> I.divss
 
 let cond = function
   | Isigned Ceq   -> E   | Isigned Cne   -> NE
@@ -606,7 +627,8 @@ let output_test_zero arg =
 
 (* Output a floating-point compare and branch *)
 
-let emit_float_test cmp i ~(taken:X86_ast.condition -> unit) =
+let emit_float_test (width : Cmm.float_width)
+                    cmp i ~(taken:X86_ast.condition -> unit) =
   (* Effect of comisd on flags and conditional branches:
                      ZF PF CF  cond. branches taken
         unordered     1  1  1  je, jb, jbe, jp
@@ -616,46 +638,51 @@ let emit_float_test cmp i ~(taken:X86_ast.condition -> unit) =
      If FP traps are on (they are off by default),
      comisd traps on QNaN and SNaN but ucomisd traps on SNaN only.
   *)
+  let ucomi, comi =
+    match width with
+    | Float64 -> I.ucomisd, I.comisd
+    | Float32 -> I.ucomiss, I.comiss
+  in
   match cmp with
   | CFeq when arg i 1 = arg i 0 ->
-      I.ucomisd (arg i 1) (arg i 0);
+      ucomi (arg i 1) (arg i 0);
       taken NP
   | CFeq ->
       let next = new_label() in
-      I.ucomisd (arg i 1) (arg i 0);
+      ucomi (arg i 1) (arg i 0);
       I.jp (label next);           (* skip if unordered *)
       taken E;                     (* branch taken if x=y *)
       def_label next
   | CFneq when arg i 1 = arg i 0 ->
-      I.ucomisd (arg i 1) (arg i 0);
+      ucomi (arg i 1) (arg i 0);
       taken P
   | CFneq ->
-      I.ucomisd (arg i 1) (arg i 0);
+      ucomi (arg i 1) (arg i 0);
       taken P;                     (* branch taken if unordered *)
       taken NE                     (* branch taken if x<y or x>y *)
   | CFlt ->
-      I.comisd (arg i 0) (arg i 1);
+      comi (arg i 0) (arg i 1);
       taken A                      (* branch taken if y>x i.e. x<y *)
   | CFnlt ->
-      I.comisd (arg i 0) (arg i 1);
+      comi (arg i 0) (arg i 1);
       taken BE                     (* taken if unordered or y<=x i.e. !(x<y) *)
   | CFle ->
-      I.comisd (arg i 0) (arg i 1);(* swap compare *)
+      comi (arg i 0) (arg i 1);    (* swap compare *)
       taken AE                     (* branch taken if y>=x i.e. x<=y *)
   | CFnle ->
-      I.comisd (arg i 0) (arg i 1);(* swap compare *)
+      comi (arg i 0) (arg i 1);    (* swap compare *)
       taken B                      (* taken if unordered or y<x i.e. !(x<=y) *)
   | CFgt ->
-      I.comisd (arg i 1) (arg i 0);
+      comi (arg i 1) (arg i 0);
       taken A                      (* branch taken if x>y *)
   | CFngt ->
-      I.comisd (arg i 1) (arg i 0);
+      comi (arg i 1) (arg i 0);
       taken BE                     (* taken if unordered or x<=y i.e. !(x>y) *)
   | CFge ->
-      I.comisd (arg i 1) (arg i 0);(* swap compare *)
+      comi (arg i 1) (arg i 0);    (* swap compare *)
       taken AE                     (* branch taken if x>=y *)
   | CFnge ->
-      I.comisd (arg i 1) (arg i 0);(* swap compare *)
+      comi (arg i 1) (arg i 0);    (* swap compare *)
       taken B                      (* taken if unordered or x<y i.e. !(x>=y) *)
 
 let emit_test i ~(taken:X86_ast.condition -> unit) = function
@@ -675,8 +702,8 @@ let emit_test i ~(taken:X86_ast.condition -> unit) = function
   | Iinttest_imm(cmp, n) ->
     I.cmp (int n) (arg i 0);
     taken (cond cmp)
-  | Ifloattest cmp ->
-    emit_float_test cmp i ~taken
+  | Ifloattest (width, cmp) ->
+    emit_float_test width cmp i ~taken
   | Ioddtest ->
     I.test (int 1) (arg8 i 0);
     taken NE
@@ -705,7 +732,7 @@ let output_epilogue f =
 
 (* Floating-point constants *)
 
-let float_constants = ref ([] : (int64 * int) list)
+let float_constants = ref ([] : (int64 * label) list)
 
 let add_float_constant cst =
   try
@@ -721,7 +748,7 @@ let emit_float_constant f lbl =
 
 (* Vector constants *)
 
-let vec128_constants = ref ([] : (Cmm.vec128_bits * int) list)
+let vec128_constants = ref ([] : (Cmm.vec128_bits * label) list)
 
 let add_vec128_constant bits =
   try
@@ -737,10 +764,34 @@ let emit_vec128_constant {high; low} lbl =
   D.qword (Const low);
   D.qword (Const high)
 
+let global_maybe_protected sym =
+  D.global sym;
+  if !Flambda_backend_flags.symbol_visibility_protected then
+    match system with
+    | S_macosx
+    | S_win32
+    | S_win64
+    | S_mingw64
+    | S_cygwin
+    | S_mingw
+    | S_unknown -> ()
+    | S_gnu
+    | S_solaris
+    | S_linux_elf
+    | S_bsd_elf
+    | S_beos
+    | S_linux
+    | S_freebsd
+    | S_netbsd
+    | S_openbsd ->
+      (* Global symbols can be marked as being protected. Unlike in C we don't want
+        them to be preempted as we're doing a lot of cross module inlining. *)
+      D.protected sym
+
 let emit_global_label_for_symbol lbl =
   add_def_symbol lbl;
   let lbl = emit_symbol lbl in
-  D.global lbl;
+  global_maybe_protected lbl;
   _label lbl
 
 let emit_global_label s =
@@ -750,27 +801,21 @@ let emit_global_label s =
 let move (src : Reg.t) (dst : Reg.t) =
   if src.loc <> dst.loc then
     begin match src.typ, src.loc, dst.typ, dst.loc with
-    | Float, Reg.Reg _, Float, Reg.Reg _
-    | Vec128, _, Vec128, _ ->
-      (* Vec128 stack slots are always aligned. *)
+    | Float, Reg _, Float, Reg _
+    | Float32, Reg _, Float32, Reg _
+    | Vec128, _, Vec128, _ (* Vec128 stack slots are always aligned. *) ->
       I.movapd (reg src) (reg dst)
     | Float, _, Float, _ ->
       I.movsd (reg src) (reg dst)
-    | Float, _, Int, _ | Int, _, Float, _ ->
-      (* CR-soon gyorsh: this case is used by the bits_of_float/float_of_bits intrinsics.
-         They should instead generate a separate Ispecific and this case should be
-         removed. *)
-      I.movq (reg src) (reg dst)
+    | Float32, _, Float32, _ ->
+      I.movss (reg src) (reg dst)
     | (Int | Val | Addr), _, (Int | Val | Addr), _ ->
       I.mov (reg src) (reg dst)
-    | Vec128, _, _, _ | _, _, Vec128, _ ->
+    | (Float | Float32 | Vec128 | Int | Val | Addr), _, _, _ ->
       Misc.fatal_errorf
-        "Illegal move between a vector and non-vector register (%s to %s)\n"
-        (Reg.name src) (Reg.name dst)
-    | Float, _, (Val | Addr), _ | (Val | Addr), _, Float, _ ->
-      Misc.fatal_errorf
-        "Illegal move between a float and val/addr register (%s to %s)\n"
-        (Reg.name src) (Reg.name dst)
+        "Illegal move between registers of differing types (%s:%a to %s:%a)\n"
+        (Reg.name src) Printcmm.machtype_component src.typ
+        (Reg.name dst) Printcmm.machtype_component dst.typ
     end
 
 let stack_to_stack_move (src : Reg.t) (dst : Reg.t) =
@@ -781,7 +826,7 @@ let stack_to_stack_move (src : Reg.t) (dst : Reg.t) =
       (* Not calling move because r15 is not in int_reg_name. *)
       I.mov (reg src) r15;
       I.mov r15 (reg dst)
-    | Float | Addr | Vec128 ->
+    | Float | Addr | Vec128 | Float32 ->
       Misc.fatal_errorf
         "Unexpected register type for stack to stack move: from %s to %s\n"
         (Reg.name src) (Reg.name dst)
@@ -927,6 +972,8 @@ let emit_push_trap_label handler =
   traps.push_traps <- lbl::traps.push_traps;
   traps.enter_traps <- Int.Set.add handler traps.enter_traps
 
+(* Emit Code *)
+
 let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
   let src, dst = match op, size with
   | Fetch_and_add, Thirtytwo -> arg32 instr 0, addressing addr DWORD instr 1
@@ -943,9 +990,9 @@ let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
     I.movzx res8 res
 
 let emit_simd_instr op i =
-  (match Simd_selection.register_behavior op with
+  (match Simd_proc.register_behavior op with
   | R_to_fst ->
-    assert (arg i 0 = res i 0);
+    assert (Reg.same_loc i.arg.(0) i.res.(0));
     assert (Reg.is_reg i.arg.(0))
   | R_to_RM ->
     assert (Reg.is_reg i.arg.(0))
@@ -954,34 +1001,39 @@ let emit_simd_instr op i =
   | R_to_R ->
     assert (Reg.is_reg i.arg.(0) && Reg.is_reg i.res.(0))
   | R_RM_to_fst ->
-    assert (arg i 0 = res i 0);
+    assert (Reg.same_loc i.arg.(0) i.res.(0));
     assert (Reg.is_reg i.arg.(0))
-  | R_RM_xmm0_to_fst ->
-    assert (arg i 0 = res i 0);
+  | R_RM_to_R ->
     assert (Reg.is_reg i.arg.(0));
-    assert (i.arg.(2) = phys_xmm0v ())
+    assert (Reg.is_reg i.res.(0))
+  | R_RM_xmm0_to_fst ->
+    assert (Reg.same_loc i.arg.(0) i.res.(0));
+    assert (Reg.is_reg i.arg.(0));
+    assert (Reg.same_loc i.arg.(2) (phys_xmm0v ()))
   | R_R_to_fst ->
-    assert (arg i 0 = res i 0);
+    assert (Reg.same_loc i.arg.(0) i.res.(0));
     assert (Reg.is_reg i.arg.(0) && Reg.is_reg i.arg.(1))
   | R_RM_rax_rdx_to_rcx ->
     assert (Reg.is_reg i.arg.(0));
-    assert (i.arg.(2) = phys_rax);
-    assert (i.arg.(3) = phys_rdx);
-    assert (i.res.(0) = phys_rcx)
+    assert (Reg.same_loc (i.arg.(2)) phys_rax);
+    assert (Reg.same_loc (i.arg.(3)) phys_rdx);
+    assert (Reg.same_loc i.res.(0) phys_rcx)
   | R_RM_to_rcx ->
     assert (Reg.is_reg i.arg.(0));
-    assert (i.res.(0) = phys_rcx)
+    assert (Reg.same_loc (i.res.(0)) phys_rcx)
   | R_RM_rax_rdx_to_xmm0 ->
     assert (Reg.is_reg i.arg.(0));
-    assert (i.arg.(2) = phys_rax);
-    assert (i.arg.(3) = phys_rdx);
-    assert (i.res.(0) = phys_xmm0v ())
+    assert (Reg.same_loc (i.arg.(2)) phys_rax);
+    assert (Reg.same_loc (i.arg.(3)) phys_rdx);
+    assert (Reg.same_loc (i.res.(0)) (phys_xmm0v ()))
   | R_RM_to_xmm0 ->
     assert (Reg.is_reg i.arg.(0));
-    assert (i.res.(0) = phys_xmm0v ())
+    assert (Reg.same_loc i.res.(0) (phys_xmm0v ()))
   );
   match (op : Simd.operation) with
   | CLMUL (Clmul_64 n) -> I.pclmulqdq (X86_dsl.int n) (arg i 1) (res i 0)
+  | BMI2 Extract_64 -> I.pext (arg i 1) (arg i 0) (res i 0)
+  | BMI2 Deposit_64 -> I.pdep (arg i 1) (arg i 0) (res i 0)
   | SSE (Cmp_f32 n) -> I.cmpps n (arg i 1) (res i 0)
   | SSE Add_f32 -> I.addps (arg i 1) (res i 0)
   | SSE Sub_f32 -> I.subps (arg i 1) (res i 0)
@@ -1004,6 +1056,10 @@ let emit_simd_instr op i =
     if arg i 0 <> res i 0 then
       I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
     I.sqrtsd (arg i 0) (res i 0)
+  | SSE2 Sqrt_scalar_f32 ->
+    if arg i 0 <> res i 0 then
+      I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
+    I.sqrtss (arg i 0) (res i 0)
   | SSE2 Sqrt_f64 -> I.sqrtpd (arg i 0) (res i 0)
   | SSE2 Add_i8 -> I.paddb (arg i 1) (res i 0)
   | SSE2 Add_i16 -> I.paddw (arg i 1) (res i 0)
@@ -1064,6 +1120,10 @@ let emit_simd_instr op i =
   | SSE2 I16_to_unsigned_i8 -> I.packuswb (arg i 1) (res i 0)
   | SSE2 I32_to_unsigned_i16 -> I.packusdw (arg i 1) (res i 0)
   | SSE2 Cast_scalar_f64_i64 -> I.cvtsd2si (arg i 0) (res i 0)
+  | SSE2 Bit_cast_f64_i64 -> I.movq (arg i 0) (res i 0)
+  | SSE2 Bit_cast_i64_f64 -> I.movq (arg i 0) (res i 0)
+  | SSE2 Bit_cast_f32_i32 -> I.movd (arg i 0) (res32 i 0)
+  | SSE2 Bit_cast_i32_f32 -> I.movd (arg32 i 0) (res i 0)
   | SSE2 SLL_i16 -> I.psllw (arg i 1) (res i 0)
   | SSE2 SLL_i32 -> I.pslld (arg i 1) (res i 0)
   | SSE2 SLL_i64 -> I.psllq (arg i 1) (res i 0)
@@ -1195,7 +1255,7 @@ let emit_simd_instr op i =
     I.pcmpistri (X86_dsl.int n) (arg i 1) (arg i 0); I.set E (res8 i 0); I.movzx (res8 i 0) (res i 0)
 
 (* Emit an instruction *)
-let emit_instr fallthrough i =
+let emit_instr ~first ~fallthrough i =
   emit_debug_info_linear i;
   match i.desc with
   | Lend -> ()
@@ -1235,6 +1295,15 @@ let emit_instr fallthrough i =
           I.mov (nat n) (res i 0)
       end else
         I.mov (nat n) (res i 0)
+  | Lop(Iconst_float32 f) ->
+      begin match f with
+      | 0x0000_0000l ->       (* +0.0 *)
+          I.xorpd (res i 0) (res i 0)
+      | _ ->
+          (* float32 constants still take up 8 bytes; we load the lower half. *)
+          let lbl = add_float_constant (Int64.of_int32 f) in
+          I.movss (mem64_rip REAL4 (emit_label lbl)) (res i 0)
+      end
   | Lop(Iconst_float f) ->
       begin match f with
       | 0x0000_0000_0000_0000L ->       (* +0.0 *)
@@ -1339,8 +1408,10 @@ let emit_instr fallthrough i =
           I.movupd (addressing addressing_mode VEC128 i 0) dest
       | Onetwentyeight_aligned ->
           I.movapd (addressing addressing_mode VEC128 i 0) dest
-      | Single ->
+      | Single { reg = Float64 } ->
           I.cvtss2sd (addressing addressing_mode REAL4 i 0) dest
+      | Single { reg = Float32 } ->
+          I.movss (addressing addressing_mode REAL4 i 0) dest
       | Double ->
           I.movsd (addressing addressing_mode REAL8 i 0) dest
       end
@@ -1358,9 +1429,11 @@ let emit_instr fallthrough i =
           I.movupd (arg i 0) (addressing addr VEC128 i 1)
       | Onetwentyeight_aligned ->
           I.movapd (arg i 0) (addressing addr VEC128 i 1)
-      | Single ->
+      | Single { reg = Float64 } ->
           I.cvtsd2ss (arg i 0) xmm15;
           I.movss xmm15 (addressing addr REAL4 i 1)
+      | Single { reg = Float32 } ->
+          I.movss (arg i 0) (addressing addr REAL4 i 1)
       | Double ->
           I.movsd (arg i 0) (addressing addr REAL8 i 1)
       end
@@ -1441,22 +1514,6 @@ let emit_instr fallthrough i =
       I.cmp (int n) (arg i 0);
       I.set (cond cmp) al;
       I.movzx al (res i 0)
-  | Lop(Iintop (Icheckalign { bytes_pow2 })) ->
-      let lbl = safety_check_failure_label Align_check i.fdo i.dbg in
-      let mask = bytes_pow2 - 1 in
-      I.test (Imm (Int64.of_int mask)) (arg i 0);
-      I.jne (label lbl)
-  | Lop(Iintop_imm(Icheckalign { bytes_pow2 }, n)) ->
-      let mask = bytes_pow2 - 1 in
-      if (n land mask) <> 0 then Misc.fatal_errorf "Alignment check on known int failed."
-  | Lop(Iintop (Icheckbound)) ->
-      let lbl = safety_check_failure_label Bound_check i.fdo i.dbg in
-      I.cmp (arg i 1) (arg i 0);
-      I.jbe (label lbl)
-  | Lop(Iintop_imm(Icheckbound, n)) ->
-      let lbl = safety_check_failure_label Bound_check i.fdo i.dbg in
-      I.cmp (int n) (arg i 0);
-      I.jbe (label lbl)
   | Lop(Iintop_imm (Iand, n)) when n >= 0 && n <= 0xFFFF_FFFF && Reg.is_reg i.res.(0) ->
       I.and_ (int n) (res32 i 0)
   | Lop(Iintop Ixor) when i.arg.(1).loc = i.res.(0).loc && Reg.is_reg i.res.(0) ->
@@ -1476,33 +1533,54 @@ let emit_instr fallthrough i =
       instr_for_intop op (arg i 1) (res i 0)
   | Lop(Iintop_imm(Iadd, n)) when i.arg.(0).loc <> i.res.(0).loc ->
       I.lea (mem64 NONE n (arg64 i 0)) (res i 0)
-  | Lop(Iintop_imm(Iadd, 1) | Iintop_imm(Isub, -1)) when not !fastcode_flag ->
+  | Lop(Iintop_imm(Iadd, 1) | Iintop_imm(Isub, -1)) ->
       I.inc (res i 0)
-  | Lop(Iintop_imm(Iadd, -1) | Iintop_imm(Isub, 1)) when not !fastcode_flag ->
+  | Lop(Iintop_imm(Iadd, -1) | Iintop_imm(Isub, 1)) ->
       I.dec (res i 0)
   | Lop(Iintop_imm(op, n)) ->
       (* We have i.arg.(0) = i.res.(0) *)
       instr_for_intop op (int n) (res i 0)
   | Lop(Iintop_atomic{op; size; addr}) ->
       emit_atomic i op size addr
-  | Lop(Icompf cmp) ->
+  | Lop(Ifloatop(Float64, Icompf cmp)) ->
       let cond, need_swap = float_cond_and_need_swap cmp in
       let a0, a1 = if need_swap then arg i 1, arg i 0 else arg i 0, arg i 1 in
       I.cmpsd cond a1 a0;
       I.movq a0 (res i 0);
       I.neg (res i 0)
-  | Lop(Inegf) ->
+  | Lop(Ifloatop(Float32, Icompf cmp)) ->
+      let cond, need_swap = float_cond_and_need_swap cmp in
+      let a0, a1 = if need_swap then arg i 1, arg i 0 else arg i 0, arg i 1 in
+      I.cmpss cond a1 a0;
+      I.movd a0 (res32 i 0);
+      (* CMPSS only sets the bottom 32 bits of the result, so we sign-extend to
+         copy the result to the top 32 bits. *)
+      I.movsxd (res32 i 0) (res i 0);
+      I.neg (res i 0)
+  | Lop(Ifloatop(Float64, Inegf)) ->
       I.xorpd (mem64_rip VEC128 (emit_symbol "caml_negf_mask")) (res i 0)
-  | Lop(Iabsf) ->
+  | Lop(Ifloatop(Float64, Iabsf)) ->
       I.andpd (mem64_rip VEC128 (emit_symbol "caml_absf_mask")) (res i 0)
-  | Lop(Iaddf | Isubf | Imulf | Idivf as floatop) ->
-      instr_for_floatop floatop (arg i 1) (res i 0)
-  | Lop(Ifloatofint) ->
-      I.cvtsi2sd  (arg i 0)  (res i 0)
-  | Lop(Iintoffloat) ->
-      I.cvttsd2si (arg i 0) (res i 0)
+  | Lop(Ifloatop(Float32, Inegf)) ->
+      I.xorps (mem64_rip VEC128 (emit_symbol "caml_negf32_mask")) (res i 0)
+  | Lop(Ifloatop(Float32, Iabsf)) ->
+      I.andps (mem64_rip VEC128 (emit_symbol "caml_absf32_mask")) (res i 0)
+  | Lop(Ifloatop(width, (Iaddf | Isubf | Imulf | Idivf as floatop))) ->
+      instr_for_floatop width floatop (arg i 1) (res i 0)
   | Lop(Iintofvalue | Ivalueofint | Ivectorcast Bits128) ->
       move i.arg.(0) i.res.(0)
+  | Lop(Iscalarcast (Float_of_int Float64)) ->
+      I.cvtsi2sd  (arg i 0)  (res i 0)
+  | Lop(Iscalarcast (Float_to_int Float64)) ->
+      I.cvttsd2si (arg i 0) (res i 0)
+  | Lop(Iscalarcast (Float_of_int Float32)) ->
+      I.cvtsi2ss  (arg i 0)  (res i 0)
+  | Lop(Iscalarcast (Float_to_int Float32)) ->
+      I.cvttss2si (arg i 0) (res i 0)
+  | Lop(Iscalarcast Float_of_float32) ->
+      I.cvtss2sd  (arg i 0)  (res i 0)
+  | Lop(Iscalarcast Float_to_float32) ->
+      I.cvtsd2ss  (arg i 0) (res i 0)
   | Lop(Iscalarcast (V128_of_scalar Float64x2 | V128_to_scalar Float64x2)) ->
       I.movsd (arg i 0) (res i 0)
   | Lop(Iscalarcast (V128_to_scalar Int64x2 | V128_of_scalar Int64x2)) ->
@@ -1543,8 +1621,10 @@ let emit_instr fallthrough i =
       I.mov (nat n) (addressing addr QWORD i 0)
   | Lop(Ispecific(Ioffset_loc(n, addr))) ->
       I.add (int n) (addressing addr QWORD i 0)
-  | Lop(Ispecific(Ifloatarithmem(op, addr))) ->
-      instr_for_floatarithmem op (addressing addr REAL8 i 1) (res i 0)
+  | Lop(Ispecific(Ifloatarithmem(Float64, op, addr))) ->
+      instr_for_floatarithmem Float64 op (addressing addr REAL8 i 1) (res i 0)
+  | Lop(Ispecific(Ifloatarithmem(Float32, op, addr))) ->
+      instr_for_floatarithmem Float32 op (addressing addr REAL4 i 1) (res i 0)
   | Lop(Ispecific(Ibswap { bitwidth = Sixteen })) ->
       I.xchg ah al;
       I.movzx (res16 i 0) (res i 0)
@@ -1552,9 +1632,6 @@ let emit_instr fallthrough i =
       I.bswap (res32 i 0);
   | Lop(Ispecific(Ibswap { bitwidth = Sixtyfour })) ->
       I.bswap (res i 0)
-  | Lop(Ispecific(Ifloatsqrtf addr)) ->
-      I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
-      I.sqrtsd (addressing addr REAL8 i 0) (res i 0)
   | Lop(Ispecific(Isextend32)) ->
       I.movsxd (arg32 i 0) (res i 0)
   | Lop(Ispecific(Izextend32)) ->
@@ -1566,7 +1643,9 @@ let emit_instr fallthrough i =
          previous experience with similar things, but maybe the change
          should be left for later.
          mshinwell: The current situation is fine for now. *)
-      if arg_is_non_zero then begin
+      if Arch.Extension.enabled LZCNT then begin
+        I.lzcnt (arg i 0) (res i 0)
+      end else if arg_is_non_zero then begin
         (* No need to handle that bsr is undefined on 0 input. *)
         I.bsr (arg i 0) (res i 0);
         (* We need (63 - result_of_bsr), which can be done with xor. *)
@@ -1584,7 +1663,9 @@ let emit_instr fallthrough i =
       end
   | Lop(Iintop(Ictz { arg_is_non_zero; })) ->
     (* CR-someday gyorsh: can we do it at selection? *)
-    if arg_is_non_zero then begin
+    if Arch.Extension.enabled BMI then begin
+      I.tzcnt (arg i 0) (res i 0)
+    end else if arg_is_non_zero then begin
       (* No need to handle that bsf is undefined on 0 input. *)
       I.bsf (arg i 0) (res i 0)
     end else begin
@@ -1595,7 +1676,7 @@ let emit_instr fallthrough i =
       def_label lbl_nz
     end
   | Lop(Iintop Ipopcnt) ->
-      assert (!popcnt_support);
+      assert (Arch.Extension.enabled POPCNT);
       I.popcnt (arg i 0) (res i 0)
   | Lop(Icsel tst) ->
     let len = Array.length i.arg in
@@ -1786,14 +1867,16 @@ let emit_instr fallthrough i =
           I.pop (domain_field Domainstate.Domain_exn_handler);
           I.pop r11;
           I.jmp r11
-      end
+    end
+  | Lstackcheck { max_frame_size_bytes; } ->
+    emit_stack_check ~size_in_bytes:max_frame_size_bytes ~save_registers:(not first)
 
-let rec emit_all fallthrough i =
+let rec emit_all ~first ~fallthrough i =
   match i.desc with
   | Lend -> ()
   | _ ->
-      emit_instr fallthrough i;
-      emit_all (Linear.has_fallthrough i.desc) i.next
+      emit_instr ~first ~fallthrough i;
+      emit_all ~first:false ~fallthrough:(Linear.has_fallthrough i.desc) i.next
 
 let all_functions = ref []
 
@@ -1819,10 +1902,12 @@ let fundecl fundecl =
   function_name := fundecl.fun_name;
   fastcode_flag := fundecl.fun_fast;
   tailrec_entry_point := fundecl.fun_tailrec_entry_point_label;
+  contains_calls := fundecl.fun_contains_calls;
   stack_offset := 0;
   call_gc_sites := [];
   local_realloc_sites := [];
   clear_safety_checks ();
+  clear_stack_realloc ();
   for i = 0 to Proc.num_stack_slot_classes - 1 do
     num_stack_slots.(i) <- fundecl.fun_num_stack_slots.(i);
   done;
@@ -1840,7 +1925,7 @@ let fundecl fundecl =
   then (* PR#4690 *)
     D.private_extern (emit_symbol fundecl.fun_name)
   else
-    D.global (emit_symbol fundecl.fun_name);
+    global_maybe_protected (emit_symbol fundecl.fun_name);
   (* Even if the function name is Local, still emit an
      actual linker symbol for it. This provides symbols
      for perf, gdb, and similar tools *)
@@ -1848,53 +1933,14 @@ let fundecl fundecl =
   D.label (label_name (emit_symbol fundecl.fun_name));
   emit_debug_info fundecl.fun_dbg;
   cfi_startproc ();
-  let handle_overflow_and_max_frame_size =
-    (* CR mshinwell: this should be conditionalized on a specific
-       "stack checks enabled" config option, so we can backport to 4.x *)
-    if not Config.runtime5 then None
-    else (
-      if !Clflags.runtime_variant = "d" then
-        emit_call (Cmm.global_symbol "caml_assert_stack_invariants");
-      let { max_frame_size; contains_nontail_calls} =
-        preproc_stack_check
-          ~fun_body:fundecl.fun_body ~frame_size:(frame_size ()) ~trap_size:16
-      in
-      let handle_overflow =
-        if contains_nontail_calls || max_frame_size >= stack_threshold_size then begin
-          let overflow = new_label () and ret = new_label () in
-          let threshold_offset = Domainstate.stack_ctx_words * 8 + stack_threshold_size in
-          I.lea (mem64 NONE (-(max_frame_size + threshold_offset)) RSP) r10;
-          I.cmp (domain_field Domainstate.Domain_current_stack) r10;
-          I.jb (label overflow);
-          def_label ret;
-          Some (overflow, ret)
-        end else None
-      in
-      match handle_overflow with
-      | None -> None
-      | Some handle_overflow -> Some (handle_overflow, max_frame_size)
-    )
-  in
-  emit_all true fundecl.fun_body;
+  if Config.runtime5 && (not Config.no_stack_checks) && !Clflags.runtime_variant = "d" then begin
+    emit_call (Cmm.global_symbol "caml_assert_stack_invariants");
+  end;
+  emit_all ~first:true ~fallthrough:true fundecl.fun_body;
   List.iter emit_call_gc !call_gc_sites;
   List.iter emit_local_realloc !local_realloc_sites;
   emit_call_safety_errors ();
-  begin match handle_overflow_and_max_frame_size with
-    | None -> ()
-    | Some ((overflow,ret), max_frame_size) -> begin
-        def_label overflow;
-        (* Pass the desired frame size on the stack, since all of the
-           argument-passing registers may be in use.
-           Also serves to align the stack properly before the call *)
-        I.push (int (Config.stack_threshold + max_frame_size / 8));
-        cfi_adjust_cfa_offset 8;
-        (* measured in words *)
-        emit_call (Cmm.global_symbol "caml_call_realloc_stack");
-        I.pop r10; (* ignored *)
-        cfi_adjust_cfa_offset (-8);
-        I.jmp (label ret)
-      end
-  end;
+  emit_stack_realloc ();
   if !frame_required then begin
     let n = frame_size() - 8 - (if fp then 8 else 0) in
     if n <> 0
@@ -1914,7 +1960,7 @@ let emit_item = function
     | Local ->
       _label (label_name (emit_symbol s.sym_name))
     | Global ->
-      D.global (emit_symbol s.sym_name);
+      global_maybe_protected (emit_symbol s.sym_name);
       add_def_symbol s.sym_name;
       _label (emit_symbol s.sym_name);
       _label (label_name (emit_symbol s.sym_name))
@@ -1930,6 +1976,9 @@ let emit_item = function
   | Csymbol_address s ->
     add_used_symbol s.sym_name;
     D.qword (ConstLabel (emit_cmm_symbol s))
+  | Csymbol_offset (s, o) ->
+    add_used_symbol s.sym_name;
+    D.qword (ConstLabelOffset (emit_cmm_symbol s, o))
   | Cstring s -> D.bytes s
   | Cskip n -> if n > 0 then D.space n
   | Calign n -> D.align ~data:true n
@@ -1991,6 +2040,13 @@ let begin_assembly unix =
     _label (emit_symbol "caml_absf_mask");
     D.qword (Const 0x7FFFFFFFFFFFFFFFL);
     D.qword (Const 0xFFFFFFFFFFFFFFFFL);
+    _label (emit_symbol "caml_negf32_mask");
+    D.qword (Const 0x80000000L);
+    D.qword (Const 0L);
+    D.align ~data:true 16;
+    _label (emit_symbol "caml_absf32_mask");
+    D.qword (Const 0xFFFFFFFF7FFFFFFFL);
+    D.qword (Const 0xFFFFFFFFFFFFFFFFL);
   end;
 
   D.data ();
@@ -2018,9 +2074,8 @@ let make_stack_loc ~offset n (r : Reg.t) =
   (* Manufacture stack entry with this register's type *)
   (match r.typ with
    | Int | Val | Addr | Float -> ()
-   | Vec128 ->
-     if simd_frontend_disabled ()
-     then Misc.fatal_error "SIMD types are not enabled, but got a Vec128 register.");
+   | Float32 -> assert_float32_enabled ()
+   | Vec128 -> assert_simd_enabled ());
   Reg.at_location r.typ loc
 
 (* CR mshinwell: Not now, but after code review, it would be better to
@@ -2076,7 +2131,9 @@ let size_of_regs regs =
     (fun r acc ->
       match r.Reg.typ with
       | Int | Addr | Val -> acc + size_int
-      | Float -> acc + size_float
+      | Float | Float32 ->
+        (* Float32 slots still take up a full word *)
+        acc + size_float
       | Vec128 -> acc + size_vec128)
     regs 0
 
@@ -2084,7 +2141,9 @@ let stack_locations ~offset regs =
   let _, locs = Array.fold_right (fun r (n, offsets) ->
     let next = n + match r.Reg.typ with
       | Int | Val | Addr -> size_int
-      | Float -> size_float
+      | Float | Float32 ->
+        (* Float32 slots still take up a full word *)
+        size_float
       | Vec128 -> size_vec128 in
     next, (make_stack_loc n r ~offset :: offsets)) regs (0, []) in
   locs |> Array.of_list
@@ -2140,6 +2199,8 @@ let emit_probe_handler_wrapper p =
   let padding = if ((wrapper_frame_size k) mod 16) = 0 then 0 else 8 in
   let n = k + padding in
   (* Allocate stack space *)
+  if Config.runtime5 && (not Config.no_stack_checks) && (n >= Stack_check.stack_threshold_size) then
+    emit_stack_check ~size_in_bytes:n ~save_registers:true;
   emit_stack_offset n;
   (* Save all live hard registers *)
   let offset = aux_offset + tmp_offset + loc_offset in
@@ -2170,7 +2231,7 @@ let emit_probe_handler_wrapper p =
       | Stack (Outgoing k) ->
         (match r.typ with
         | Val -> k::acc
-        | Int | Float | Vec128 -> acc
+        | Int | Float | Vec128 | Float32 -> acc
         | Addr -> Misc.fatal_error ("bad GC root " ^ Reg.name r))
       | _ -> assert false)
     saved_live

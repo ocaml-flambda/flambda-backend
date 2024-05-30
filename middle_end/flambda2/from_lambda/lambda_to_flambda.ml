@@ -42,7 +42,7 @@ let must_be_singleton_simple simples =
       simples
 
 let print_compact_location ppf (loc : Location.t) =
-  if loc.loc_start.pos_fname = "//toplevel//"
+  if String.equal loc.loc_start.pos_fname "//toplevel//"
   then ()
   else
     let file, line, startchar = Location.get_pos_info loc.loc_start in
@@ -127,8 +127,6 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
        allocation region"
       Continuation.print continuation;
   let rec add_end_regions acc ~region_stack_now =
-    (* This can maybe only be exercised right now using "match with exception",
-       since that causes jumps out of try-regions (but not normal regions). *)
     (* CR pchambart: This closes all the regions between region_stack_now and
        region_stack_at_handler, but closing only the last one should be
        sufficient. *)
@@ -173,6 +171,7 @@ let rec try_to_find_location (lam : L.lambda) =
   match lam with
   | Lprim (_, _, loc)
   | Lfunction { loc; _ }
+  | Lletrec ({ def = { loc; _ }; _ } :: _, _)
   | Lapply { ap_loc = loc; _ }
   | Lfor { for_loc = loc; _ }
   | Lswitch (_, _, loc, _)
@@ -182,9 +181,8 @@ let rec try_to_find_location (lam : L.lambda) =
     loc
   | Llet (_, _, _, lam, _)
   | Lmutlet (_, _, lam, _)
-  | Lletrec ((_, lam) :: _, _)
   | Lifthenelse (lam, _, _, _)
-  | Lstaticcatch (lam, _, _, _)
+  | Lstaticcatch (lam, _, _, _, _)
   | Lstaticraise (_, lam :: _)
   | Lwhile { wh_cond = lam; _ }
   | Lsequence (lam, _)
@@ -272,22 +270,26 @@ let transform_primitive env (prim : L.primitive) args loc =
     Misc.fatal_errorf "Pmakeblock with wrong or non-scannable block tag %d" tag
   | Pmakefloatblock (_mut, _mode), args when List.length args < 1 ->
     Misc.fatal_errorf "Pmakefloatblock must have at least one argument"
-  | Pfloatcomp CFnlt, args ->
-    Primitive (L.Pnot, [L.Lprim (Pfloatcomp CFlt, args, loc)], loc)
-  | Pfloatcomp CFngt, args ->
-    Primitive (L.Pnot, [L.Lprim (Pfloatcomp CFgt, args, loc)], loc)
-  | Pfloatcomp CFnle, args ->
-    Primitive (L.Pnot, [L.Lprim (Pfloatcomp CFle, args, loc)], loc)
-  | Pfloatcomp CFnge, args ->
-    Primitive (L.Pnot, [L.Lprim (Pfloatcomp CFge, args, loc)], loc)
-  | Punboxed_float_comp CFnlt, args ->
-    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFlt, args, loc)], loc)
-  | Punboxed_float_comp CFngt, args ->
-    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFgt, args, loc)], loc)
-  | Punboxed_float_comp CFnle, args ->
-    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFle, args, loc)], loc)
-  | Punboxed_float_comp CFnge, args ->
-    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFge, args, loc)], loc)
+  | Pfloatcomp (bf, CFnlt), args ->
+    Primitive (L.Pnot, [L.Lprim (Pfloatcomp (bf, CFlt), args, loc)], loc)
+  | Pfloatcomp (bf, CFngt), args ->
+    Primitive (L.Pnot, [L.Lprim (Pfloatcomp (bf, CFgt), args, loc)], loc)
+  | Pfloatcomp (bf, CFnle), args ->
+    Primitive (L.Pnot, [L.Lprim (Pfloatcomp (bf, CFle), args, loc)], loc)
+  | Pfloatcomp (bf, CFnge), args ->
+    Primitive (L.Pnot, [L.Lprim (Pfloatcomp (bf, CFge), args, loc)], loc)
+  | Punboxed_float_comp (bf, CFnlt), args ->
+    Primitive
+      (L.Pnot, [L.Lprim (Punboxed_float_comp (bf, CFlt), args, loc)], loc)
+  | Punboxed_float_comp (bf, CFngt), args ->
+    Primitive
+      (L.Pnot, [L.Lprim (Punboxed_float_comp (bf, CFgt), args, loc)], loc)
+  | Punboxed_float_comp (bf, CFnle), args ->
+    Primitive
+      (L.Pnot, [L.Lprim (Punboxed_float_comp (bf, CFle), args, loc)], loc)
+  | Punboxed_float_comp (bf, CFnge), args ->
+    Primitive
+      (L.Pnot, [L.Lprim (Punboxed_float_comp (bf, CFge), args, loc)], loc)
   | Pbigarrayref (_unsafe, num_dimensions, kind, layout), args -> (
     match
       P.Bigarray_kind.from_lambda kind, P.Bigarray_layout.from_lambda layout
@@ -298,7 +300,7 @@ let transform_primitive env (prim : L.primitive) args loc =
       then
         let arity = 1 + num_dimensions in
         let name = "caml_ba_get_" ^ string_of_int num_dimensions in
-        let desc = Primitive.simple_on_values ~name ~arity ~alloc:true in
+        let desc = Lambda.simple_prim_on_values ~name ~arity ~alloc:true in
         Primitive (L.Pccall desc, args, loc)
       else
         Misc.fatal_errorf
@@ -315,7 +317,7 @@ let transform_primitive env (prim : L.primitive) args loc =
       then
         let arity = 2 + num_dimensions in
         let name = "caml_ba_set_" ^ string_of_int num_dimensions in
-        let desc = Primitive.simple_on_values ~name ~arity ~alloc:true in
+        let desc = Lambda.simple_prim_on_values ~name ~arity ~alloc:true in
         Primitive (L.Pccall desc, args, loc)
       else
         Misc.fatal_errorf
@@ -343,6 +345,7 @@ let rec_catch_for_while_loop env cond body =
                 Lsequence (body, Lstaticraise (cont, [])),
                 Lconst (Const_base (Const_int 0)),
                 Lambda.layout_unit ) ),
+        Same_region,
         Lambda.layout_unit )
   in
   env, lam
@@ -394,6 +397,7 @@ let rec_catch_for_for_loop env loc ident start stop
                             Lstaticraise (cont, [next_value_of_counter]),
                             L.lambda_unit,
                             Lambda.layout_unit ) ),
+                    Same_region,
                     Lambda.layout_unit ),
                 L.lambda_unit,
                 Lambda.layout_unit ) ) )
@@ -420,7 +424,8 @@ let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
     =
   let cont = Continuation.create () in
   let { Env.body_env; handler_env; extra_params } =
-    Env.add_continuation env cont ~push_to_try_stack:is_exn_handler Nonrecursive
+    Env.add_continuation env cont ~push_to_try_stack:is_exn_handler
+      ~pop_region:false Nonrecursive
   in
   let handler_env, params_rev =
     List.fold_left
@@ -580,14 +585,28 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbytes_set_32 false
   | Pbytes_set_64 false
   | Pbytes_set_128 { unsafe = false; _ }
-  | Pbigstring_load_16 false
-  | Pbigstring_load_32 (false, _)
-  | Pbigstring_load_64 (false, _)
+  | Pbigstring_load_16 { unsafe = false }
+  | Pbigstring_load_32 { unsafe = false; mode = _; boxed = _ }
+  | Pbigstring_load_64 { unsafe = false; mode = _; boxed = _ }
   | Pbigstring_load_128 { unsafe = false; _ }
-  | Pbigstring_set_16 false
-  | Pbigstring_set_32 false
-  | Pbigstring_set_64 false
+  | Pbigstring_set_16 { unsafe = false }
+  | Pbigstring_set_32 { unsafe = false; boxed = _ }
+  | Pbigstring_set_64 { unsafe = false; boxed = _ }
   | Pbigstring_set_128 { unsafe = false; _ }
+  | Pfloatarray_load_128 { unsafe = false; _ }
+  | Pfloat_array_load_128 { unsafe = false; _ }
+  | Pint_array_load_128 { unsafe = false; _ }
+  | Punboxed_float_array_load_128 { unsafe = false; _ }
+  | Punboxed_int32_array_load_128 { unsafe = false; _ }
+  | Punboxed_int64_array_load_128 { unsafe = false; _ }
+  | Punboxed_nativeint_array_load_128 { unsafe = false; _ }
+  | Pfloatarray_set_128 { unsafe = false; _ }
+  | Pfloat_array_set_128 { unsafe = false; _ }
+  | Pint_array_set_128 { unsafe = false; _ }
+  | Punboxed_float_array_set_128 { unsafe = false; _ }
+  | Punboxed_int32_array_set_128 { unsafe = false; _ }
+  | Punboxed_int64_array_set_128 { unsafe = false; _ }
+  | Punboxed_nativeint_array_set_128 { unsafe = false; _ }
   | Pdivbint { is_safe = Safe; _ }
   | Pmodbint { is_safe = Safe; _ }
   | Pbigarrayref (false, _, _, _)
@@ -604,19 +623,28 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pmakefloatblock _ | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
   | Pmakeufloatblock _ | Pufloatfield _ | Psetufloatfield _ | Psequand | Psequor
-  | Pnot | Pnegint | Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint
-  | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats
-  | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat | Pfloatofint _
-  | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _
-  | Pdivfloat _ | Pfloatcomp _ | Punboxed_float_comp _ | Pstringlength
-  | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu | Pmakearray _
-  | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _
-  | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
-  | Psubbint _ | Pmulbint _
+  | Pmixedfield _ | Psetmixedfield _ | Pmakemixedblock _ | Pnot | Pnegint
+  | Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint | Plsrint
+  | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+  | Poffsetint _ | Poffsetref _ | Pintoffloat _
+  | Pfloatofint (_, _)
+  | Pfloatoffloat32 _ | Pfloat32offloat _
+  | Pnegfloat (_, _)
+  | Pabsfloat (_, _)
+  | Paddfloat (_, _)
+  | Psubfloat (_, _)
+  | Pmulfloat (_, _)
+  | Pdivfloat (_, _)
+  | Pfloatcomp (_, _)
+  | Punboxed_float_comp (_, _)
+  | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu
+  | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
+  | Pisint _ | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _
+  | Paddbint _ | Psubbint _ | Pmulbint _
   | Pdivbint { is_safe = Unsafe; _ }
   | Pmodbint { is_safe = Unsafe; _ }
   | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
-  | Pbintcomp _ | Pbigarraydim _
+  | Pbintcomp _ | Punboxed_int_comp _ | Pbigarraydim _
   | Pbigarrayref
       ( true,
         _,
@@ -645,17 +673,32 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbytes_set_32 true
   | Pbytes_set_64 true
   | Pbytes_set_128 { unsafe = true; _ }
-  | Pbigstring_load_16 true
-  | Pbigstring_load_32 (true, _)
-  | Pbigstring_load_64 (true, _)
+  | Pbigstring_load_16 { unsafe = true }
+  | Pbigstring_load_32 { unsafe = true; mode = _; boxed = _ }
+  | Pbigstring_load_64 { unsafe = true; mode = _; boxed = _ }
   | Pbigstring_load_128 { unsafe = true; _ }
-  | Pbigstring_set_16 true
-  | Pbigstring_set_32 true
-  | Pbigstring_set_64 true
+  | Pbigstring_set_16 { unsafe = true }
+  | Pbigstring_set_32 { unsafe = true; boxed = _ }
+  | Pbigstring_set_64 { unsafe = true; boxed = _ }
   | Pbigstring_set_128 { unsafe = true; _ }
+  | Pfloatarray_load_128 { unsafe = true; _ }
+  | Pfloat_array_load_128 { unsafe = true; _ }
+  | Pint_array_load_128 { unsafe = true; _ }
+  | Punboxed_float_array_load_128 { unsafe = true; _ }
+  | Punboxed_int32_array_load_128 { unsafe = true; _ }
+  | Punboxed_int64_array_load_128 { unsafe = true; _ }
+  | Punboxed_nativeint_array_load_128 { unsafe = true; _ }
+  | Pfloatarray_set_128 { unsafe = true; _ }
+  | Pfloat_array_set_128 { unsafe = true; _ }
+  | Pint_array_set_128 { unsafe = true; _ }
+  | Punboxed_float_array_set_128 { unsafe = true; _ }
+  | Punboxed_int32_array_set_128 { unsafe = true; _ }
+  | Punboxed_int64_array_set_128 { unsafe = true; _ }
+  | Punboxed_nativeint_array_set_128 { unsafe = true; _ }
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ | Popaque _
-  | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _ | Pbox_float _ | Punbox_float
-  | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
+  | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _
+  | Pbox_float (_, _)
+  | Punbox_float _ | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
   | Punboxed_product_field _ | Pget_header _ ->
     false
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _ -> false
@@ -804,7 +847,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           User_visible (Simple (Var temp_id)) ~body)
   | Llet ((Strict | Alias | StrictOpt), _, fun_id, Lfunction func, body) ->
     (* This case is here to get function names right. *)
-    let bindings = cps_function_bindings env [fun_id, L.Lfunction func] in
+    let bindings = cps_function_bindings env [L.{ id = fun_id; def = func }] in
     let body acc ccenv = cps acc env ccenv body k k_exn in
     let let_expr =
       List.fold_left
@@ -848,7 +891,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
             match layout with
             | Ptop | Pbottom ->
               Misc.fatal_error "Cannot bind layout [Ptop] or [Pbottom]"
-            | Pvalue _ | Punboxed_int _ | Punboxed_float | Punboxed_vector _ ->
+            | Pvalue _ | Punboxed_int _ | Punboxed_float _ | Punboxed_vector _
+              ->
               ( env,
                 [ ( id,
                     Flambda_kind.With_subkind
@@ -924,20 +968,11 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
    *   CC.close_let acc ccenv id User_visible value_kind (Simple value) ~body
    * in
    * cps_non_tail_simple acc env ccenv defining_expr k k_exn *)
-  | Lletrec (bindings, body) -> (
-    let free_vars_kind id =
-      let _, kind_with_subkind = CCenv.find_var ccenv id in
-      Some
-        (Flambda_kind.to_lambda
-           (Flambda_kind.With_subkind.kind kind_with_subkind))
-    in
-    match Dissect_letrec.dissect_letrec ~bindings ~body ~free_vars_kind with
-    | Unchanged ->
-      let function_declarations = cps_function_bindings env bindings in
-      let body acc ccenv = cps acc env ccenv body k k_exn in
-      CC.close_let_rec acc ccenv ~function_declarations ~body
-        ~current_region:(Env.current_region env)
-    | Dissected lam -> cps acc env ccenv lam k k_exn)
+  | Lletrec (bindings, body) ->
+    let function_declarations = cps_function_bindings env bindings in
+    let body acc ccenv = cps acc env ccenv body k k_exn in
+    CC.close_let_rec acc ccenv ~function_declarations ~body
+      ~current_region:(Env.current_region env)
   | Lprim (prim, args, loc) -> (
     match[@ocaml.warning "-fragile-match"] prim with
     | Praise raise_kind -> (
@@ -971,7 +1006,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       let id = Ident.create_local name in
       let result_layout = L.primitive_result_layout prim in
       (match result_layout with
-      | Pvalue _ | Punboxed_float | Punboxed_int _ | Punboxed_vector _
+      | Pvalue _ | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _
       | Punboxed_product _ ->
         ()
       | Ptop | Pbottom ->
@@ -1002,12 +1037,16 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         compile_staticfail acc env ccenv ~continuation
           ~args:(List.flatten args @ extra_args))
       k_exn
-  | Lstaticcatch (body, (static_exn, args), handler, layout) ->
+  | Lstaticcatch (body, (static_exn, args), handler, r, layout) ->
     maybe_insert_let_cont "staticcatch_result" layout k acc env ccenv
       (fun acc env ccenv k ->
+        let pop_region =
+          match r with Popped_region -> true | Same_region -> false
+        in
         let continuation = Continuation.create () in
         let { Env.body_env; handler_env; extra_params } =
-          Env.add_static_exn_continuation env static_exn continuation
+          Env.add_static_exn_continuation env static_exn ~pop_region
+            continuation
         in
         let recursive : Asttypes.rec_flag =
           if Env.is_static_exn_recursive env static_exn
@@ -1379,49 +1418,42 @@ and cps_non_tail_list_core acc env ccenv (lams : L.lambda list)
           k_exn)
       k_exn
 
-and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
+and cps_function_bindings env (bindings : Lambda.rec_binding list) =
   let bindings_with_wrappers =
     List.map
-      (fun [@ocaml.warning "-fragile-match"] (fun_id, binding) ->
-        match binding with
-        | L.Lfunction
-            { kind;
-              params;
-              body = fbody;
-              attr;
-              loc;
-              ret_mode;
-              mode;
-              region;
-              return;
-              _
-            } -> (
-          match
-            Simplif.split_default_wrapper ~id:fun_id ~kind ~params ~body:fbody
-              ~return ~attr ~loc ~ret_mode ~mode ~region
-          with
-          | [(id, L.Lfunction lfun)] -> [id, lfun]
-          | [(id1, L.Lfunction lfun1); (id2, L.Lfunction lfun2)] ->
-            [id1, lfun1; id2, lfun2]
-          | [(_, _)] | [(_, _); (_, _)] ->
-            Misc.fatal_errorf
-              "Expected `Lfunction` terms from [split_default_wrapper] when \
-               translating:@ %a"
-              Printlambda.lambda binding
-          | _ ->
-            Misc.fatal_errorf
-              "Unexpected return value from [split_default_wrapper] when \
-               translating:@ %a"
-              Printlambda.lambda binding)
-        | _ ->
+      (fun L.
+             { id = fun_id;
+               def =
+                 { kind;
+                   params;
+                   body = fbody;
+                   attr;
+                   loc;
+                   ret_mode;
+                   mode;
+                   region;
+                   return;
+                   _
+                 }
+             } ->
+        match
+          Simplif.split_default_wrapper ~id:fun_id ~kind ~params ~body:fbody
+            ~return ~attr ~loc ~ret_mode ~mode ~region
+        with
+        | [{ id; def = lfun }] -> [id, lfun]
+        | [{ id = id1; def = lfun1 }; { id = id2; def = lfun2 }] ->
+          [id1, lfun1; id2, lfun2]
+        | [] | _ :: _ :: _ :: _ ->
           Misc.fatal_errorf
-            "Only [Lfunction] expressions are permitted in function bindings \
-             upon entry to CPS conversion: %a"
-            Printlambda.lambda binding)
+            "Unexpected return value from [split_default_wrapper] when \
+             translating:@ %a"
+            Ident.print fun_id)
       bindings
   in
   let free_idents, directed_graph =
-    let fun_ids = Ident.Set.of_list (List.map fst bindings) in
+    let fun_ids =
+      Ident.Set.of_list (List.map (fun { L.id; _ } -> id) bindings)
+    in
     List.fold_left
       (fun (free_ids, graph) (fun_id, ({ body; _ } : L.lfunction)) ->
         let free_ids_of_body = Lambda.free_variables body in
@@ -1464,7 +1496,105 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     List.length params
     - match kind with Curried { nlocal } -> nlocal | Tupled -> 0
   in
-  let body_cont = Continuation.create ~sort:Return () in
+  let unboxing_kind (layout : Lambda.layout) :
+      Function_decl.unboxing_kind option =
+    match[@warning "-fragile-match"] layout with
+    | Pvalue
+        (Pvariant
+          { consts = []; non_consts = [(0, Constructor_uniform field_kinds)] })
+      ->
+      Some
+        (Fields_of_block_with_tag_zero
+           (List.map Flambda_kind.With_subkind.from_lambda_value_kind
+              field_kinds))
+    | Pvalue
+        (Pvariant
+          { consts = []; non_consts = [(tag, Constructor_uniform field_kinds)] })
+      when tag = Obj.double_array_tag ->
+      assert (
+        List.for_all
+          (fun (kind : Lambda.value_kind) ->
+            match kind with
+            | Pboxedfloatval Pfloat64 -> true
+            | Pboxedfloatval Pfloat32
+            | Pgenval | Pintval | Pboxedintval _ | Pvariant _ | Parrayval _
+            | Pboxedvectorval _ ->
+              false)
+          field_kinds);
+      Some (Unboxed_float_record (List.length field_kinds))
+    | Pvalue (Pboxedfloatval Pfloat64) -> Some (Unboxed_number Naked_float)
+    | Pvalue (Pboxedfloatval Pfloat32) -> Some (Unboxed_number Naked_float32)
+    | Pvalue (Pboxedintval bi) ->
+      let bn : Flambda_kind.Boxable_number.t =
+        match bi with
+        | Pint32 -> Naked_int32
+        | Pint64 -> Naked_int64
+        | Pnativeint -> Naked_nativeint
+      in
+      Some (Unboxed_number bn)
+    | Pvalue (Pboxedvectorval bv) ->
+      let bn : Flambda_kind.Boxable_number.t =
+        match bv with Pvec128 _ -> Naked_vec128
+      in
+      Some (Unboxed_number bn)
+    | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
+    | Ptop | Pbottom | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _
+    | Punboxed_product _ ->
+      Location.prerr_warning
+        (Debuginfo.Scoped_location.to_location loc)
+        Warnings.Unboxing_impossible;
+      None
+  in
+  let params_arity =
+    Flambda_arity.from_lambda_list
+      (List.map (fun (p : L.lparam) -> p.layout) params)
+  in
+  let unarized_per_param = Flambda_arity.unarize_per_parameter params_arity in
+  assert (List.compare_lengths params unarized_per_param = 0);
+  let calling_convention : Function_decl.calling_convention =
+    (* CR-someday ncourant: we never unbox parameters or returns of stubs, which
+       in particular affects stubs generated by [split_default_wrapper]. *)
+    let is_a_param_unboxed =
+      List.exists (fun (p : Lambda.lparam) -> p.attributes.unbox_param) params
+    in
+    if attr.stub || ((not attr.unbox_return) && not is_a_param_unboxed)
+    then Normal_calling_convention
+    else
+      let unboxed_function_slot =
+        Function_slot.create
+          (Compilation_unit.get_current_exn ())
+          ~name:(Ident.name fid ^ "_unboxed")
+          Flambda_kind.With_subkind.any_value
+      in
+      let unboxed_return =
+        if attr.unbox_return then unboxing_kind return else None
+      in
+      let unboxed_param (param : Lambda.lparam) =
+        if param.attributes.unbox_param
+        then unboxing_kind param.layout
+        else None
+      in
+      let unboxed_params =
+        List.concat
+          (List.map2
+             (fun param kinds ->
+               match unboxed_param param, kinds with
+               | unboxed, [_] -> [unboxed]
+               | None, _ -> List.map (fun _ -> None) kinds
+               | Some _, ([] | _ :: _ :: _) ->
+                 Misc.fatal_error "Trying to unbox an unboxed product.")
+             params unarized_per_param)
+      in
+      Unboxed_calling_convention
+        (unboxed_params, unboxed_return, unboxed_function_slot)
+  in
+  let body_cont =
+    match calling_convention with
+    | Normal_calling_convention | Unboxed_calling_convention (_, None, _) ->
+      Continuation.create ~sort:Return ()
+    | Unboxed_calling_convention (_, Some _, _) ->
+      Continuation.create ~sort:Normal_or_exn ~name:"boxed_return" ()
+  in
   let body_exn_cont = Continuation.create () in
   let free_idents_of_body =
     match precomputed_free_idents with
@@ -1484,12 +1614,6 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
       (Compilation_unit.get_current_exn ())
       ~name:(Ident.name fid) Flambda_kind.With_subkind.any_value
   in
-  let params_arity =
-    Flambda_arity.from_lambda_list
-      (List.map (fun (p : L.lparam) -> p.layout) params)
-  in
-  let unarized_per_param = Flambda_arity.unarize_per_parameter params_arity in
-  assert (List.compare_lengths params unarized_per_param = 0);
   let unboxed_products = ref Ident.Map.empty in
   let params =
     List.concat_map
@@ -1540,10 +1664,11 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     cps_tail acc new_env ccenv body body_cont body_exn_cont
   in
   Function_decl.create ~let_rec_ident:(Some fid) ~function_slot ~kind ~params
-    ~params_arity ~removed_params ~return ~return_continuation:body_cont
-    ~exn_continuation ~my_region ~body ~attr ~loc ~free_idents_of_body recursive
-    ~closure_alloc_mode:mode ~first_complex_local_param
-    ~contains_no_escaping_local_allocs:region ~result_mode:ret_mode
+    ~params_arity ~removed_params ~return ~calling_convention
+    ~return_continuation:body_cont ~exn_continuation ~my_region ~body ~attr ~loc
+    ~free_idents_of_body recursive ~closure_alloc_mode:mode
+    ~first_complex_local_param ~contains_no_escaping_local_allocs:region
+    ~result_mode:ret_mode
 
 and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
     ~scrutinee (k : Continuation.t) (k_exn : Continuation.t) : Expr_with_acc.t =
@@ -1653,7 +1778,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
             CC.close_switch acc ccenv ~condition_dbg scrutinee_tag block_switch
           in
           CC.close_let acc ccenv
-            [scrutinee_tag, Flambda_kind.With_subkind.naked_immediate]
+            [scrutinee_tag, Flambda_kind.With_subkind.tagged_immediate]
             Not_user_visible (Get_tag scrutinee) ~body
         in
         if switch.sw_numblocks = 0
@@ -1679,7 +1804,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
             in
             let region = Env.current_region env in
             CC.close_let acc ccenv
-              [is_scrutinee_int, Flambda_kind.With_subkind.naked_immediate]
+              [is_scrutinee_int, Flambda_kind.With_subkind.tagged_immediate]
               Not_user_visible
               (Prim
                  { prim = Pisint { variant_only = true };

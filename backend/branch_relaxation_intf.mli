@@ -40,8 +40,6 @@ module type S = sig
        N.B. The only instructions supported are the following:
                 - Lop (Ialloc _)
                 - Lop (Ipoll _)
-                - Lop (Iintop Icheckbound)
-                - Lop (Iintop_imm (Icheckbound, _))
                 - Lop (Ispecific _)
                 - Lcondbranch (_, _)
                 - Lcondbranch3 (_, _, _)
@@ -69,12 +67,4 @@ module type S = sig
   val relax_poll
      : return_label:Cmm.label option
     -> Linear.instruction_desc
-
-  val relax_intop_checkbound
-     : unit
-    -> Linear.instruction_desc
-  val relax_intop_imm_checkbound
-     : bound:int
-    -> Linear.instruction_desc
-  val relax_specific_op : Arch.specific_operation -> Linear.instruction_desc
 end

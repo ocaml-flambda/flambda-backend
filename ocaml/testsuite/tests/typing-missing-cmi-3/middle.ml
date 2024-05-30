@@ -20,3 +20,5 @@ type ('a,'b) gadt =
 | G: ('a, 'a ti) gadt
 
 type 'a is_int = 'a Original.is_int = Is_int : int is_int
+
+type u = { y: Original.u } [@@unboxed]

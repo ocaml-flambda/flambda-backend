@@ -113,11 +113,11 @@ let evaluate_rec_info_expr dacc rec_info_expr =
     Misc.fatal_errorf "Unable to evaluate@ %a@ with@ dacc@ %a"
       Rec_info_expr.print rec_info_expr DA.print dacc
 
-let depth_may_be_at_least dacc rec_info_expr bound =
+let depth_may_exceed dacc rec_info_expr bound =
   let { Evaluated_rec_info_expr.depth; _ } =
     evaluate_rec_info_expr dacc rec_info_expr
   in
-  Or_infinity.compare ~f:Int.compare depth (Finite bound) >= 1
+  Or_infinity.compare ~f:Int.compare depth (Finite bound) > 0
 
 let known_remaining_unrolling_depth dacc rec_info_expr =
   match evaluate_rec_info_expr dacc rec_info_expr with

@@ -10,4 +10,4 @@
 
 (include_subdirs no)
 
-(dirs algorithms lib mlexamples tools)
+(dirs algorithms lib mlexamples tools api_tests)

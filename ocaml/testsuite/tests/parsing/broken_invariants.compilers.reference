@@ -26,20 +26,8 @@ Line 2, characters 4-15:
 2 |  [%%missing_rhs]
         ^^^^^^^^^^^
 Error: broken invariant in parsetree: Module type substitution with no right hand side
-Line 1, characters 11-27:
-1 | type t = [%lt_unlabeled_typ];;
-               ^^^^^^^^^^^^^^^^
-Error: broken invariant in parsetree: Labeled tuple types must have at least one labeled component.
-Line 1, characters 10-26:
-1 | let x = [%lt_unlabeled_exp];;
-              ^^^^^^^^^^^^^^^^
-Error: broken invariant in parsetree: Labeled tuples must have at least one labeled component.
-Line 1, characters 9-25:
-1 | let f ([%lt_unlabeled_pat]) = ();;
-             ^^^^^^^^^^^^^^^^
-Error: broken invariant in parsetree: Closed labeled tuple patterns must have at least one labeled component.
-Line 1, characters 9-26:
-1 | let f ([%lt_empty_open_pat]) = ();;
+Line 2, characters 9-26:
+2 | let f ([%lt_empty_open_pat]) = ();;
              ^^^^^^^^^^^^^^^^^
 Error: broken invariant in parsetree: Open labeled tuple patterns must have at least one component.
 Line 1, characters 9-28:

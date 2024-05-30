@@ -1,6 +1,6 @@
 (* TEST
-  flags = "-extension include_functor -w +a"
-   * expect
+ flags = "-extension include_functor -w +a";
+ expect;
 *)
 
 (* Test 1: Basic usage in structs *)

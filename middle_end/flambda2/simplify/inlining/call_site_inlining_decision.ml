@@ -232,23 +232,41 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
            ramifications of treating unknown-ness as an observable property this
            way. Are we relying on monotonicity somewhere? *)
         let apply_inlining_state = Apply.inlining_state apply in
+        let recursive =
+          Code_metadata.recursive
+            (Code_or_metadata.code_metadata code_or_metadata)
+        in
         if Inlining_state.is_depth_exceeded apply_inlining_state
         then Max_inlining_depth_exceeded
         else
-          match inlined with
-          | Never_inlined -> assert false
-          | Default_inlined ->
+          let policy =
+            match inlined with
+            | Never_inlined -> assert false
+            | Default_inlined -> `Heuristic
+            | Unroll (to_, _) -> `Unroll to_
+            | Always_inlined _ | Hint_inlined -> (
+              (* Treat [@inlined] and [@inlined hint] the same as [@unrolled 1]
+                 whenever the function is recursive. This is particularly
+                 important when the annotation is on a parameter and the
+                 function is _usually_ non-recursive: we'd rather behave well in
+                 the odd case where it isn't. *)
+              match recursive with
+              | Recursive -> `Unroll 1
+              | Non_recursive -> `Always)
+          in
+          match policy with
+          | `Heuristic ->
             let max_rec_depth =
               Flambda_features.Inlining.max_rec_depth
                 (Round (DE.round (DA.denv dacc)))
             in
-            if Simplify_rec_info_expr.depth_may_be_at_least dacc rec_info
+            if Simplify_rec_info_expr.depth_may_exceed dacc rec_info
                  max_rec_depth
             then Recursion_depth_exceeded
             else
               might_inline dacc ~apply ~code_or_metadata ~function_type
                 ~simplify_expr ~return_arity
-          | Unroll (unroll_to, _) ->
+          | `Unroll unroll_to ->
             if Simplify_rec_info_expr.can_unroll dacc rec_info
             then
               (* This sets off step 1 in the comment above; see
@@ -256,4 +274,4 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
                  handled. *)
               Begin_unrolling unroll_to
             else Unrolling_depth_exceeded
-          | Always_inlined _ | Hint_inlined -> Attribute_always))
+          | `Always -> Attribute_always))

@@ -1,8 +1,10 @@
 (* TEST
-   * expect
-   flags = "-extension layouts"
-   * expect
-   flags = "-extension layouts_beta"
+ {
+   expect;
+ }{
+   flags = "-extension layouts_beta";
+   expect;
+ }
 *)
 
 type t_value : value
@@ -29,6 +31,16 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
        You must enable -extension layouts_alpha to use this feature.
 |}]
 
+type t_non_null_value : non_null_value;;
+
+[%%expect{|
+Line 1, characters 24-38:
+1 | type t_non_null_value : non_null_value;;
+                            ^^^^^^^^^^^^^^
+Error: Layout non_null_value is more experimental than allowed by the enabled layouts extension.
+       You must enable -extension layouts_alpha to use this feature.
+|}]
+
 (***************************************)
 (* Test 1: annotation on type variable *)
 
@@ -49,7 +61,10 @@ Line 1, characters 8-29:
             ^^^^^^^^^^^^^^^^^^^^^
 Error: This alias is bound to type int but is used as an instance of type
          ('a : float64)
-       int has layout immediate, which is not a sublayout of float64.
+       The layout of int is immediate, because
+         it is the primitive immediate type int.
+       But the layout of int must be a sublayout of float64, because
+         of the annotation on the type variable 'a.
 |}]
 
 let x : (int as ('a : immediate)) list as ('b : value) = [3;4;5]
@@ -66,7 +81,10 @@ Line 1, characters 8-36:
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This alias is bound to type int list
        but is used as an instance of type ('a : immediate)
-       int list has layout value, which is not a sublayout of immediate.
+       The layout of int list is value, because
+         it's a boxed variant type.
+       But the layout of int list must be a sublayout of immediate, because
+         of the annotation on the type variable 'a.
 |}]
 (* CR layouts: error message could be phrased better *)
 
@@ -151,7 +169,10 @@ Line 1, characters 9-15:
 1 | type t = string t2_imm
              ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the definition of t2_imm at line 1, characters 0-28.
 |}]
 
 let f : 'a t2_imm -> 'a t2_imm = fun x -> x
@@ -184,8 +205,9 @@ let f : ('a : value). 'a t2_imm -> 'a t2_imm = fun x -> x
 Line 1, characters 8-44:
 1 | let f : ('a : value). 'a t2_imm -> 'a t2_imm = fun x -> x
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have
-       layout value, but was inferred to have layout immediate.
+Error: The universal type variable 'a was declared to have layout value.
+       But it was inferred to have layout immediate, because
+         of the definition of t2_imm at line 1, characters 0-28.
 |}]
 
 type 'a t = 'a t2_imm
@@ -242,14 +264,18 @@ val f : 'a -> 'a = <fun>
 let f : ('a : any). 'a -> 'a = fun x -> x
 ;;
 [%%expect {|
-Line 1, characters 8-28:
+Line 1, characters 31-41:
 1 | let f : ('a : any). 'a -> 'a = fun x -> x
-            ^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have
-       layout any, but was inferred to have a representable layout.
+                                   ^^^^^^^^^^
+Error: This definition has type 'b -> 'b which is less general than
+         ('a : any). 'a -> 'a
+       The layout of 'a is any, because
+         of the annotation on the universal variable 'a.
+       But the layout of 'a must be representable, because
+         we must know concretely how to pass a function argument.
 |}]
-(* CR layouts v2.5: This error message should change to complain
-   about the [fun x], not the arrow type. *)
+(* CR layouts v2.9: This error message is not great. Check later if layout history
+   is able to improve it. *)
 
 let f : ('a : float64). 'a -> 'a = fun x -> x
 ;;
@@ -272,7 +298,7 @@ type rf = { fieldf : ('a : float64). 'a -> 'a }
 let f { fieldf } = fieldf (Stdlib__Float_u.of_float 3.14);;
 [%%expect {|
 type rf = { fieldf : ('a : float64). 'a -> 'a; }
-val f : rf -> float# = <fun>
+val f : rf -> Stdlib__Float_u.t = <fun>
 |}]
 
 let f { field } = field "hello"
@@ -283,7 +309,10 @@ Line 1, characters 24-31:
                             ^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the definition of r at line 1, characters 0-47.
 |}]
 
 let r = { field = fun x -> x }
@@ -316,7 +345,10 @@ Line 2, characters 18-55:
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This field value has type 'b -> 'b which is less general than
          'a. 'a -> 'a
-       'a has layout value, which is not a sublayout of immediate.
+       The layout of 'a is value, because
+         of the definition of r_value at line 1, characters 0-39.
+       But the layout of 'a must be a sublayout of immediate, because
+         of the annotation on the abstract type declaration for a.
 |}]
 (* CR layouts v1.5: that's a pretty awful error message *)
 
@@ -335,8 +367,11 @@ Error: Layout mismatch in final type declaration consistency check.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         'a has layout value, which is not a sublayout of immediate.
-       The fix will likely be to add a layout annotation on a parameter to
+         The layout of 'a is value, because
+           of the annotation on the universal variable 'a.
+         But the layout of 'a must be a sublayout of immediate, because
+           of the definition of t_imm at line 1, characters 0-27.
+       A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
 (* CR layouts v1.5: the location on that message is wrong. But it's hard
@@ -374,7 +409,10 @@ Line 1, characters 29-36:
 Error: This pattern matches values of type a
        but a pattern was expected which matches values of type
          ('a : '_representable_layout_1)
-       a has layout any, which is not representable.
+       The layout of a is any, because
+         of the annotation on the abstract type declaration for a.
+       But the layout of a must be representable, because
+         we must know concretely how to pass a function argument.
 |}]
 
 (****************************************)
@@ -401,14 +439,15 @@ val f : ('a : float64). 'a -> 'a = <fun>
 let f : type (a : any). a -> a = fun x -> x
 ;;
 [%%expect {|
-Line 1, characters 24-30:
+Line 1, characters 33-43:
 1 | let f : type (a : any). a -> a = fun x -> x
-                            ^^^^^^
-Error: The universal type variable 'a was declared to have
-       layout any, but was inferred to have a representable layout.
+                                     ^^^^^^^^^^
+Error: Function arguments and returns must be representable.
+       The layout of a is any, because
+         of the annotation on the abstract type declaration for a.
+       But the layout of a must be representable, because
+         we must know concretely how to pass a function argument.
 |}]
-(* CR layouts v2.5: This error message will change to complain
-   about the fun x, not the arrow type. *)
 
 (**************************************************)
 (* Test 7: Defaulting universal variable to value *)
@@ -421,8 +460,9 @@ end
 Line 2, characters 10-36:
 2 |   val f : 'a. 'a t2_imm -> 'a t2_imm
               ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was defaulted to have
-       layout value, but was inferred to have layout immediate.
+Error: The universal type variable 'a was defaulted to have layout value.
+       But it was inferred to have layout immediate, because
+         of the definition of t2_imm at line 1, characters 0-28.
 |}]
 
 let f : 'a. 'a t2_imm -> 'a t2_imm = fun x -> x
@@ -431,8 +471,9 @@ let f : 'a. 'a t2_imm -> 'a t2_imm = fun x -> x
 Line 1, characters 8-34:
 1 | let f : 'a. 'a t2_imm -> 'a t2_imm = fun x -> x
             ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was defaulted to have
-       layout value, but was inferred to have layout immediate.
+Error: The universal type variable 'a was defaulted to have layout value.
+       But it was inferred to have layout immediate, because
+         of the definition of t2_imm at line 1, characters 0-28.
 |}]
 
 (********************************************)
@@ -454,8 +495,9 @@ end
 Line 2, characters 10-46:
 2 |   val f : ('a : value). 'a t2_imm -> 'a t2_imm
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have
-       layout value, but was inferred to have layout immediate.
+Error: The universal type variable 'a was declared to have layout value.
+       But it was inferred to have layout immediate, because
+         of the definition of t2_imm at line 1, characters 0-28.
 |}]
 
 module type S = sig
@@ -502,7 +544,10 @@ Line 1, characters 43-51:
                                                ^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the annotation on the universal variable 'a.
 |}]
 
 (**************************************)
@@ -604,7 +649,10 @@ Line 1, characters 37-53:
                                          ^^^^^^^^^^^^^^^^
 Error: This definition has type 'b -> 'b which is less general than
          'a. 'a -> 'a
-       'a has layout value, which is not a sublayout of immediate.
+       The layout of 'a is value, because
+         of the annotation on the universal variable 'a.
+       But the layout of 'a must be a sublayout of immediate, because
+         of the definition of f_imm at line 1, characters 4-9.
 |}]
 
 type (_ : value) g =

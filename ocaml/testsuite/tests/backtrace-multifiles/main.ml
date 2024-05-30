@@ -20,63 +20,62 @@ let () =
    call. *)
 
 (* TEST
-
-   readonly_files ="foo.ml"
-
-   * setup-ocamlopt.opt-build-env
-     compiler_directory_suffix = ".O3"
-   ** ocamlopt.opt
-      module = "foo.ml"
-      flags = "-g -O3"
-   *** ocamlopt.opt
-       module = "main.ml"
-       flags = "-g -O3"
-   **** ocamlopt.opt
-        module = ""
-        all_modules = "foo.cmx main.cmx"
-   ***** run
-   ****** check-program-output
-
-   * setup-ocamlopt.opt-build-env
-     compiler_directory_suffix = ".Oclassic"
-   ** ocamlopt.opt
-      module = "foo.ml"
-      flags = "-g -Oclassic"
-   *** ocamlopt.opt
-       module = "main.ml"
-       flags = "-g -Oclassic"
-   **** ocamlopt.opt
-        module = ""
-        all_modules = "foo.cmx main.cmx"
-   ***** run
-   ****** check-program-output
-
-   * setup-ocamlopt.opt-build-env
-     compiler_directory_suffix = ".O3-Oclassic"
-   ** ocamlopt.opt
-      module = "foo.ml"
-      flags = "-g -O3"
-   *** ocamlopt.opt
-       module = "main.ml"
-       flags = "-g -Oclassic"
-   **** ocamlopt.opt
-        module = ""
-        all_modules = "foo.cmx main.cmx"
-   ***** run
-   ****** check-program-output
-
-   * setup-ocamlopt.opt-build-env
-     compiler_directory_suffix = ".Oclassic-O3"
-   ** ocamlopt.opt
-      module = "foo.ml"
-      flags = "-g -Oclassic"
-   *** ocamlopt.opt
-       module = "main.ml"
-       flags = "-g -O3"
-   **** ocamlopt.opt
-        module = ""
-        all_modules = "foo.cmx main.cmx"
-   ***** run
-   ****** check-program-output
-
+ readonly_files = "foo.ml";
+ {
+   compiler_directory_suffix = ".O3";
+   setup-ocamlopt.opt-build-env;
+   module = "foo.ml";
+   flags = "-g -O3";
+   ocamlopt.opt;
+   module = "main.ml";
+   flags = "-g -O3";
+   ocamlopt.opt;
+   module = "";
+   all_modules = "foo.cmx main.cmx";
+   ocamlopt.opt;
+   run;
+   check-program-output;
+ }{
+   compiler_directory_suffix = ".Oclassic";
+   setup-ocamlopt.opt-build-env;
+   module = "foo.ml";
+   flags = "-g -Oclassic";
+   ocamlopt.opt;
+   module = "main.ml";
+   flags = "-g -Oclassic";
+   ocamlopt.opt;
+   module = "";
+   all_modules = "foo.cmx main.cmx";
+   ocamlopt.opt;
+   run;
+   check-program-output;
+ }{
+   compiler_directory_suffix = ".O3-Oclassic";
+   setup-ocamlopt.opt-build-env;
+   module = "foo.ml";
+   flags = "-g -O3";
+   ocamlopt.opt;
+   module = "main.ml";
+   flags = "-g -Oclassic";
+   ocamlopt.opt;
+   module = "";
+   all_modules = "foo.cmx main.cmx";
+   ocamlopt.opt;
+   run;
+   check-program-output;
+ }{
+   compiler_directory_suffix = ".Oclassic-O3";
+   setup-ocamlopt.opt-build-env;
+   module = "foo.ml";
+   flags = "-g -Oclassic";
+   ocamlopt.opt;
+   module = "main.ml";
+   flags = "-g -O3";
+   ocamlopt.opt;
+   module = "";
+   all_modules = "foo.cmx main.cmx";
+   ocamlopt.opt;
+   run;
+   check-program-output;
+ }
 *)

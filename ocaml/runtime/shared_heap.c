@@ -15,6 +15,7 @@
 /**************************************************************************/
 #define CAML_INTERNALS
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -27,6 +28,7 @@
 #include "caml/globroots.h"
 #include "caml/major_gc.h"
 #include "caml/memory.h"
+#include "caml/memprof.h"
 #include "caml/mlvalues.h"
 #include "caml/platform.h"
 #include "caml/roots.h"
@@ -70,6 +72,16 @@ static struct {
   caml_plat_mutex lock;
   pool* free;
 
+  /* Mapped but not yet active pools */
+  uintnat fresh_pools;
+  char* next_fresh_pool;
+
+  /* Count of all pools in use across all domains and the global lists below.
+
+     Does not include unused pools ('free' above) or freshly allocated pools
+     ('next_fresh_pool' above). */
+  uintnat active_pools;
+
   /* these only contain swept memory of terminated domains*/
   struct heap_stats stats;
   pool* global_avail_pools[NUM_SIZECLASSES];
@@ -78,6 +90,9 @@ static struct {
 } pool_freelist = {
   CAML_PLAT_MUTEX_INITIALIZER,
   NULL,
+  0,
+  NULL,
+  0,
   { 0, },
   { 0, },
   { 0, },
@@ -183,24 +198,34 @@ static pool* pool_acquire(struct caml_heap_state* local) {
   pool* r;
 
   caml_plat_lock(&pool_freelist.lock);
-  if (!pool_freelist.free) {
-    void* mem = caml_mem_map(Bsize_wsize(POOL_WSIZE), 0);
+  r = pool_freelist.free;
+  if (r) {
+    pool_freelist.free = r->next;
+  } else {
+    if (pool_freelist.fresh_pools == 0) {
+      uintnat new_pools = pool_freelist.active_pools * 15 / 100;
+      if (new_pools < 8) new_pools = 8;
 
-    if (mem) {
-      CAMLassert(pool_freelist.free == NULL);
-
-      r = (pool*)mem;
-      r->next = pool_freelist.free;
+      void* mem = caml_mem_map(Bsize_wsize(POOL_WSIZE) * new_pools, 0);
+      if (mem) {
+        pool_freelist.fresh_pools = new_pools;
+        pool_freelist.next_fresh_pool = mem;
+      }
+    }
+    if (pool_freelist.fresh_pools > 0) {
+      r = (pool*)pool_freelist.next_fresh_pool;
+      pool_freelist.next_fresh_pool += Bsize_wsize(POOL_WSIZE);
+      pool_freelist.fresh_pools --;
+      r->next = NULL;
       r->owner = NULL;
-      pool_freelist.free = r;
     }
   }
-  r = pool_freelist.free;
-  if (r)
-    pool_freelist.free = r->next;
+  if (r) {
+    pool_freelist.active_pools ++;
+    CAMLassert(r->owner == NULL);
+  }
   caml_plat_unlock(&pool_freelist.lock);
 
-  if (r) CAMLassert (r->owner == NULL);
   return r;
 }
 
@@ -216,6 +241,7 @@ static void pool_release(struct caml_heap_state* local,
   caml_plat_lock(&pool_freelist.lock);
   pool->next = pool_freelist.free;
   pool_freelist.free = pool;
+  pool_freelist.active_pools--;
   caml_plat_unlock(&pool_freelist.lock);
 }
 
@@ -450,7 +476,7 @@ value* caml_shared_try_alloc(struct caml_heap_state* local, mlsize_t wosize,
     p = large_allocate(local, Bsize_wsize(whsize));
     if (!p) return 0;
   }
-  colour = caml_global_heap_state.MARKED;
+  colour = caml_allocation_status();
   Hd_hp (p) = Make_header_with_reserved(wosize, tag, colour, reserved);
 #ifdef DEBUG
   {
@@ -784,7 +810,8 @@ static void verify_object(struct heap_verify_state* st, value v) {
     if (Tag_val(v) == Closure_tag) {
       i = Start_env_closinfo(Closinfo_val(v));
     }
-    for (; i < Wosize_val(v); i++) {
+    mlsize_t scannable_wosize = Scannable_wosize_val(v);
+    for (; i < scannable_wosize; i++) {
       value f = Field(v, i);
       if (Is_block(f)) verify_push(st, f, Op_val(v)+i);
     }
@@ -884,8 +911,8 @@ static void compact_update_block(header_t* p)
     }
 
     if (tag < No_scan_tag) {
-      mlsize_t wosz = Wosize_hd(hd);
-      for (mlsize_t i = offset; i < wosz; i++) {
+      mlsize_t scannable_wosz = Scannable_wosize_hd(hd);
+      for (mlsize_t i = offset; i < scannable_wosz; i++) {
         compact_update_value_at(&Field(Val_hp(p), i));
       }
     }
@@ -1209,6 +1236,10 @@ void caml_compact_heap(caml_domain_state* domain_state,
   /* First we do roots (locals and finalisers) */
   caml_do_roots(&compact_update_value, 0, NULL, Caml_state, 1);
 
+  /* Memprof roots and "weak" pointers to tracked blocks */
+  caml_memprof_scan_roots(&compact_update_value, 0, NULL,
+                          Caml_state, true, participants[0] == Caml_state);
+
   /* Next, one domain does the global roots */
   if (participants[0] == Caml_state) {
     caml_scan_global_roots(&compact_update_value, NULL);
@@ -1244,6 +1275,7 @@ void caml_compact_heap(caml_domain_state* domain_state,
       remaining pools have been filled up by evacuated blocks. */
 
   pool* cur_pool = evacuated_pools;
+  uintnat freed_pools = 0;
   while (cur_pool) {
     pool* next_pool = cur_pool->next;
 
@@ -1256,7 +1288,11 @@ void caml_compact_heap(caml_domain_state* domain_state,
 
     pool_free(heap, cur_pool, cur_pool->sz);
     cur_pool = next_pool;
+    freed_pools++;
   }
+  caml_plat_lock(&pool_freelist.lock);
+  pool_freelist.active_pools -= freed_pools;
+  caml_plat_unlock(&pool_freelist.lock);
 
   CAML_EV_END(EV_COMPACT_RELEASE);
   caml_global_barrier();

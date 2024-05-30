@@ -43,47 +43,50 @@ let remove_cons_mapper (cons_to_rem, cons_typ) =
                     Texp_record { record with fields = Array.of_seq nlab_list });
               }
           | Texp_function (f, id) ->
+              let f_as_cases = Function_compat.function_to_cases_view f in
               {
                 e with
                 exp_desc =
                   mkTexp_function ~id
-                    {
-                      f with
-                      cases =
-                        (let l =
-                           List.fold_left
-                             (fun l val_case ->
-                               match val_case.c_lhs.pat_desc with
-                               | Tpat_construct (_, cd, _, _) ->
-                                   if cons_to_rem = cd.cstr_name then l
-                                   else
-                                     Tast_mapper.default.case mapper val_case
-                                     :: l
-                               | Tpat_record (lab_list, flag) ->
-                                   let nlab_list =
-                                     List.filter
-                                       (fun (_, ld, _) ->
-                                         ld.lbl_name = cons_to_rem)
-                                       lab_list
-                                   in
-                                   if nlab_list = [] then l
-                                   else
-                                     {
-                                       val_case with
-                                       c_lhs =
-                                         {
-                                           val_case.c_lhs with
-                                           pat_desc =
-                                             Tpat_record (nlab_list, flag);
-                                         };
-                                     }
-                                     :: l
-                               | _ ->
-                                   Tast_mapper.default.case mapper val_case :: l)
-                             [] f.cases
-                         in
-                         if l = [] then [ empty_value_case ] else l);
-                    };
+                    (Function_compat.cases_view_to_function
+                       {
+                         f_as_cases with
+                         cases =
+                           (let l =
+                              List.fold_left
+                                (fun l val_case ->
+                                  match val_case.c_lhs.pat_desc with
+                                  | Tpat_construct (_, cd, _, _) ->
+                                      if cons_to_rem = cd.cstr_name then l
+                                      else
+                                        Tast_mapper.default.case mapper val_case
+                                        :: l
+                                  | Tpat_record (lab_list, flag) ->
+                                      let nlab_list =
+                                        List.filter
+                                          (fun (_, ld, _) ->
+                                            ld.lbl_name = cons_to_rem)
+                                          lab_list
+                                      in
+                                      if nlab_list = [] then l
+                                      else
+                                        {
+                                          val_case with
+                                          c_lhs =
+                                            {
+                                              val_case.c_lhs with
+                                              pat_desc =
+                                                Tpat_record (nlab_list, flag);
+                                            };
+                                        }
+                                        :: l
+                                  | _ ->
+                                      Tast_mapper.default.case mapper val_case
+                                      :: l)
+                                [] f_as_cases.cases
+                            in
+                            if l = [] then [ empty_value_case ] else l);
+                       });
               }
           | Texp_match (e, comp_case_l, p, id) ->
               {

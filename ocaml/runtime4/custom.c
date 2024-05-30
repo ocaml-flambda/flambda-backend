@@ -164,4 +164,5 @@ void caml_init_custom_operations(void)
   caml_register_custom_operations(&caml_nativeint_ops);
   caml_register_custom_operations(&caml_int64_ops);
   caml_register_custom_operations(&caml_ba_ops);
+  caml_register_custom_operations(&caml_float32_ops);
 }

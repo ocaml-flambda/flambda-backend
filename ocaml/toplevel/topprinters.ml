@@ -19,7 +19,7 @@ type printer_type = Types.type_expr -> Types.type_expr
 
 let type_arrow ta tb =
   let arrow_desc =
-    Asttypes.Nolabel,Mode.Alloc.legacy,Mode.Alloc.legacy
+    Types.Nolabel,Mode.Alloc.legacy,Mode.Alloc.legacy
   in
   Ctype.newty
     (Tarrow (arrow_desc, Ctype.newmono ta, tb, Types.commu_var ()))

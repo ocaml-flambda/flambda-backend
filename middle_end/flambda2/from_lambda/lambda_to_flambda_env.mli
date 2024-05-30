@@ -60,11 +60,12 @@ val add_continuation :
   t ->
   Continuation.t ->
   push_to_try_stack:bool ->
+  pop_region:bool ->
   Asttypes.rec_flag ->
   add_continuation_result
 
 val add_static_exn_continuation :
-  t -> int -> Continuation.t -> add_continuation_result
+  t -> int -> pop_region:bool -> Continuation.t -> add_continuation_result
 
 val get_static_exn_continuation : t -> int -> Continuation.t
 

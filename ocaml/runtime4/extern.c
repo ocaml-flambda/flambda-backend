@@ -730,6 +730,11 @@ static void extern_rec(value v)
     header_t hd = Hd_val(v);
     tag_t tag = Tag_hd(hd);
     mlsize_t sz = Wosize_hd(hd);
+    reserved_t reserved = Reserved_hd(hd);
+    if (Is_mixed_block_reserved(reserved)) {
+      extern_invalid_argument("output_value: mixed block");
+      break;
+    }
 
     if (tag == Forward_tag) {
       value f = Forward_val (v);
@@ -1274,16 +1279,19 @@ intnat reachable_words_once(value root, intnat identifier, value sizes_by_root_i
           }
         }
         if (tag < No_scan_tag) {
-          /* i is the position of the first field to traverse recursively */
+          /* i is the position of the first field to traverse recursively,
+             and j is the position of the last such field.
+          */
           uintnat i =
             tag == Closure_tag ? Start_env_closinfo(Closinfo_val(v)) : 0;
-          if (i < sz) {
-            if (i < sz - 1) {
-              /* Remember that we need to count fields i + 1 ... sz - 1 */
+          uintnat j = Scannable_wosize_hd(hd);
+          if (i < j) {
+            if (i < j - 1) {
+              /* Remember that we need to count fields i + 1 ... j - 1 */
               sp++;
               if (sp >= extern_stack_limit) sp = extern_resize_stack(sp);
               sp->v = &Field(v, i + 1);
-              sp->count = sz - i - 1;
+              sp->count = j - i - 1;
             }
             /* Continue with field i */
             v = Field(v, i);

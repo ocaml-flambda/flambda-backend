@@ -23,17 +23,81 @@ type texp_construct_identifier = unit
 let mkTexp_construct ?id:(() = ()) (name, desc, args) =
   Texp_construct (name, desc, args)
 
-type texp_function = {
+type texp_function_param_identifier = unit
+type texp_function_cases_identifier = unit
+
+let texp_function_param_identifier_defaults = ()
+let texp_function_cases_identifier_defaults = ()
+
+type texp_function_param = {
   arg_label : Asttypes.arg_label;
+  pattern : pattern;
   param : Ident.t;
-  cases : value case list;
+  partial : partial;
+  optional_default : expression option;
+  param_identifier : texp_function_param_identifier;
 }
 
-type texp_function_identifier = partial
+type texp_function_body =
+  | Function_body of expression
+  | Function_cases of {
+      cases : value case list;
+      param : Ident.t;
+      partial : partial;
+      function_cases_identifier : texp_function_cases_identifier;
+    }
 
-let mkTexp_function ?id:(partial = Total)
-    ({ arg_label; param; cases } : texp_function) =
-  Texp_function { arg_label; param; cases; partial }
+type texp_function = {
+  params : texp_function_param list;
+  body : texp_function_body;
+}
+
+type texp_function_identifier = unit
+
+let dummy_type_expr = newty2 ~level:0 (mkTvar (Some "a"))
+
+let mk_exp ed =
+  {
+    exp_desc = ed;
+    exp_loc = Location.none;
+    exp_extra = [];
+    exp_type = dummy_type_expr;
+    exp_env = Env.empty;
+    exp_attributes = [];
+  }
+
+(* This code can be simplified when we upgrade the upstream OCaml version past
+   PR #12236, which makes Texp_function n-ary (i.e., closer to the
+   [texp_function] record) instead of unary.
+*)
+let mkTexp_function ?id:(() = ()) ({ params; body } : texp_function) =
+  let exp =
+    List.fold_right
+      (fun {
+             arg_label;
+             pattern;
+             param;
+             partial;
+             optional_default;
+             param_identifier = ();
+           } acc ->
+        assert (Option.is_none optional_default);
+        mk_exp
+          (Texp_function
+             {
+               arg_label;
+               param;
+               cases = [ { c_lhs = pattern; c_guard = None; c_rhs = acc } ];
+               partial;
+             }))
+      params
+      (match body with
+      | Function_body expr -> expr
+      | Function_cases { cases; param; partial; function_cases_identifier = () }
+        ->
+          mk_exp (Texp_function { arg_label = Nolabel; param; cases; partial }))
+  in
+  exp.exp_desc
 
 type texp_sequence_identifier = unit
 
@@ -66,14 +130,37 @@ type matched_expression_desc =
       expression * computation case list * partial * texp_match_identifier
   | O of expression_desc
 
-let view_texp (e : expression_desc) =
+let rec view_texp (e : expression_desc) =
   match e with
   | Texp_ident (path, longident, vd) -> Texp_ident (path, longident, vd, ())
   | Texp_apply (exp, args) -> Texp_apply (exp, args, ())
   | Texp_construct (name, desc, args) -> Texp_construct (name, desc, args, ())
   | Texp_tuple args -> Texp_tuple (args, ())
   | Texp_function { arg_label; param; cases; partial } ->
-      Texp_function ({ arg_label; param; cases }, partial)
+      let params, body =
+        match cases with
+        | [ { c_lhs; c_guard = None; c_rhs } ] -> (
+            let param =
+              {
+                arg_label;
+                partial;
+                param;
+                pattern = c_lhs;
+                optional_default = None;
+                param_identifier = ();
+              }
+            in
+            match view_texp c_rhs.exp_desc with
+            | Texp_function ({ params = inner_params; body = inner_body }, ())
+              ->
+                (param :: inner_params, inner_body)
+            | _ -> ([ param ], Function_body c_rhs))
+        | cases ->
+            ( [],
+              Function_cases
+                { param; partial; cases; function_cases_identifier = () } )
+      in
+      Texp_function ({ params; body }, ())
   | Texp_sequence (e1, e2) -> Texp_sequence (e1, e2, ())
   | Texp_match (e, cases, partial) -> Texp_match (e, cases, partial, ())
   | _ -> O e
@@ -164,6 +251,15 @@ let mk_constructor_description cstr_name =
 
 let mk_value_binding ~vb_pat ~vb_expr ~vb_attributes =
   { vb_pat; vb_expr; vb_attributes; vb_loc = Location.none }
+
+let mk_value_description ~val_type ~val_kind ~val_attributes =
+  {
+    val_type;
+    val_kind;
+    val_loc = Location.none;
+    val_attributes;
+    val_uid = Uid.internal_not_actually_unique;
+  }
 
 let mkTtyp_any = Ttyp_any
 let mkTtyp_var s = Ttyp_var s

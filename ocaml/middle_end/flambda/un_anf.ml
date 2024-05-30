@@ -175,12 +175,6 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
       ignore_var_with_provenance var;
       ignore_uphantom_defining_expr_option defining_expr_opt;
       loop ~depth body
-    | Uletrec (defs, body) ->
-      List.iter (fun (var, def) ->
-          ignore_var_with_provenance var;
-          loop ~depth def)
-        defs;
-      loop ~depth body
     | Uprim (prim, args, dbg) ->
       ignore_primitive prim;
       List.iter (loop ~depth) args;
@@ -369,16 +363,6 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
     | Uphantom_let (var, _defining_expr, body) ->
       ignore_var_with_provenance var;
       loop body
-    | Uletrec (defs, body) ->
-      (* Evaluation order for [defs] is not defined, and this case
-         probably isn't important for [Cmmgen] anyway. *)
-      let_stack := [];
-      List.iter (fun (var, def) ->
-          ignore_var_with_provenance var;
-          loop def;
-          let_stack := [])
-        defs;
-      loop body
     | Uprim (prim, args, dbg) ->
       ignore_primitive prim;
       examine_argument_list args;
@@ -554,14 +538,6 @@ let rec substitute_let_moveable is_let_moveable env (clam : Clambda.ulambda)
   | Uphantom_let (var, defining_expr, body) ->
     let body = substitute_let_moveable is_let_moveable env body in
     Uphantom_let (var, defining_expr, body)
-  | Uletrec (defs, body) ->
-    let defs =
-      List.map (fun (var, def) ->
-          var, substitute_let_moveable is_let_moveable env def)
-        defs
-    in
-    let body = substitute_let_moveable is_let_moveable env body in
-    Uletrec (defs, body)
   | Uprim (prim, args, dbg) ->
     let args = substitute_let_moveable_list is_let_moveable env args in
     Uprim (prim, args, dbg)
@@ -785,12 +761,6 @@ let rec un_anf_and_moveable var_info env (clam : Clambda.ulambda)
   | Uphantom_let (var, defining_expr, body) ->
     let body, body_moveable = un_anf_and_moveable var_info env body in
     Uphantom_let (var, defining_expr, body), body_moveable
-  | Uletrec (defs, body) ->
-    let defs =
-      List.map (fun (var, def) -> var, un_anf var_info env def) defs
-    in
-    let body = un_anf var_info env body in
-    Uletrec (defs, body), Fixed
   | Uprim (prim, args, dbg) ->
     let args, args_moveable = un_anf_list_and_moveable var_info env args in
     let moveable =

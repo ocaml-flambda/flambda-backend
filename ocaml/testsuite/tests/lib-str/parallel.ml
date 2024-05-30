@@ -1,10 +1,13 @@
 (* TEST
-* skip
-reason = "CR ocaml 5 domains: re-enable this test"
-** hasstr
-include str
-*** bytecode
-*** native
+ reason = "CR ocaml 5 domains: re-enable this test";
+ skip;
+ include str;
+ hasstr;
+ {
+   bytecode;
+ }{
+   native;
+ }
 *)
 
 let total = Atomic.make 0

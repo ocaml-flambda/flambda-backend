@@ -123,7 +123,7 @@ let process_interface_file sourcefile =
       (no_docstring Parse.interface) Pparse.Signature
   in
   let sg =
-    Typemod.type_interface sourcefile compilation_unit (initial_env()) ast
+    Typemod.type_interface ~sourcefile compilation_unit (initial_env()) ast
   in
   Warnings.check_fatal ();
   (ast, sg, inputfile)

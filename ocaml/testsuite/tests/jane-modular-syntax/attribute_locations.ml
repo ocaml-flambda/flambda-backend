@@ -1,5 +1,6 @@
 (* TEST
-   include ocamlcommon *)
+ include ocamlcommon;
+*)
 
 let () = Language_extension.enable Comprehensions ();;
 

@@ -1,6 +1,6 @@
 (* TEST
-   flags = "-extension comprehensions"
-   * expect
+ flags = "-extension comprehensions";
+ expect;
 *)
 
 module Iarray = Stdlib__Iarray;;

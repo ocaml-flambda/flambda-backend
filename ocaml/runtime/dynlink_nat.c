@@ -204,7 +204,16 @@ CAMLprim value caml_natdynlink_loadsym(value symbol)
   CAMLparam1 (symbol);
   CAMLlocal1 (sym);
 
+  /* Note that this can only be used for symbols which are valid OCaml
+     values, otherwise a naked pointer would be returned. */
+
   sym = (value) caml_globalsym(String_val(symbol));
   if (!sym) caml_failwith(String_val(symbol));
   CAMLreturn(sym);
+}
+
+CAMLprim value caml_natdynlink_existssym(value symbol)
+{
+  void* sym = caml_globalsym(String_val(symbol));
+  return sym != NULL ? Val_true : Val_false;
 }

@@ -11,22 +11,22 @@ if [ "$(git status --porcelain --untracked-files=no)" != "" ]; then
   exit 1
 fi
 
-git clean -dfX
-(cd ocaml && ./configure && make -j8 coldstart && make -j8 coreall)
-
 # Unfortunately the "e" modifier appears not to work except for replacing
 # a whole line
 
 $sed -i \
-  -e 's/^#define EXEC_MAGIC "Caml1999X\([0-9][0-9][0-9]\)"/echo "#define EXEC_MAGIC \\x22Caml1999X$((\1 + 1))\\x22"/ge' \
+  -e 's/^#define EXEC_MAGIC "Caml1999X\([0-9][0-9][0-9]\)"/echo "#define EXEC_MAGIC \\"Caml1999X$((\1 + 1))\\""/ge' \
   ocaml/runtime/caml/exec.h
 
 $sed -i \
-  -e 's/^\(let\|and\) \([a-z][a-z_]*\) = "Caml\([0-9][0-9][0-9][0-9]\)\([a-zA-Z]\)\(5[0-9][0-9]\)"/echo "\1 \2 = \\x22Caml\3\4$((\5 + 1))\\x22"/ge' \
-  ocaml/utils/config.mlp
+  -e 's/^#define EXEC_MAGIC "Caml1999X\([0-9][0-9][0-9]\)"/echo "#define EXEC_MAGIC \\"Caml1999X$((\1 + 1))\\""/ge' \
+  ocaml/runtime4/caml/exec.h
 
 $sed -i \
-  -e 's/^    "Caml\([0-9][0-9][0-9][0-9]\)\([a-zA-Z]\)\(5[0-9][0-9]\)"/echo "    \\x22Caml\1\2$((\3 + 1))\\x22"/ge' \
-  ocaml/utils/config.mlp
+  -e 's/^\(let\|and\) \([a-z][a-z_]*\) = "Caml\([0-9][0-9][0-9][0-9]\)\([a-zA-Z]\)\(5[0-9][0-9]\)"/echo "\1 \2 = \\"Caml\3\4$((\5 + 1))\\""/ge' \
+  ocaml/utils/config.common.ml
 
-(cd ocaml && make -j8 coreall && make -j8 bootstrap)
+$sed -i \
+  -e 's/^    "Caml\([0-9][0-9][0-9][0-9]\)\([a-zA-Z]\)\(5[0-9][0-9]\)"/echo "    \\"Caml\1\2$((\3 + 1))\\""/ge' \
+  ocaml/utils/config.common.ml
+

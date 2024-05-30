@@ -352,6 +352,8 @@ let name env n =
     ~var:(fun v : Fexpr.name -> Var (Env.find_var_exn env v))
     ~symbol:(fun s : Fexpr.name -> Symbol (Env.find_symbol_exn env s))
 
+let float32 f = f |> Numeric_types.Float32_by_bit_pattern.to_float
+
 let float f = f |> Numeric_types.Float_by_bit_pattern.to_float
 
 let vec128 v = v |> Vector_types.Vec128.Bit_pattern.to_bits
@@ -367,6 +369,7 @@ let const c : Fexpr.const =
     Tagged_immediate
       (imm |> Targetint_31_63.to_targetint |> Targetint_32_64.to_string)
   | Naked_float f -> Naked_float (f |> float)
+  | Naked_float32 f -> Naked_float32 (f |> float32)
   | Naked_int32 i -> Naked_int32 i
   | Naked_int64 i -> Naked_int64 i
   | Naked_vec128 bits ->
@@ -421,6 +424,7 @@ let is_default_kind_with_subkind (k : Flambda_kind.With_subkind.t) =
 let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
   match k with
   | Anything -> Anything
+  | Boxed_float32 -> Boxed_float32
   | Boxed_float -> Boxed_float
   | Boxed_int32 -> Boxed_int32
   | Boxed_int64 -> Boxed_int64
@@ -433,6 +437,9 @@ let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
   | Value_array -> Value_array
   | Generic_array -> Generic_array
   | Float_block { num_fields } -> Float_block { num_fields }
+  | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array ->
+    Misc.fatal_error
+      "fexpr support for unboxed int32/64/nativeint arrays not yet implemented"
 
 and variant_subkind consts non_consts : Fexpr.subkind =
   let consts =
@@ -513,7 +520,7 @@ let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
 
 let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   match op with
-  | Array_length -> Array_length
+  | Array_length ak -> Array_length ak
   | Box_number (bk, alloc) ->
     Box_number (bk, alloc_mode_for_allocations env alloc)
   | Tag_immediate -> Tag_immediate
@@ -561,10 +568,18 @@ let block_access_kind (bk : Flambda_primitive.Block_access_kind.t) :
   | Naked_floats { size = s } ->
     let size = s |> size in
     Naked_floats { size }
+  | Mixed { tag; size = s; field_kind } ->
+    let size = s |> size in
+    let tag =
+      match tag with
+      | Unknown -> None
+      | Known tag -> Some (tag |> Tag.Scannable.to_int)
+    in
+    Mixed { tag; size; field_kind }
 
 let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   match op with
-  | Array_load (ak, mut) -> Array_load (ak, mut)
+  | Array_load (ak, width, mut) -> Array_load (ak, width, mut)
   | Block_load (access_kind, mutability) ->
     let access_kind = block_access_kind access_kind in
     Block_load (access_kind, mutability)
@@ -577,8 +592,8 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   | Int_comp (i, c) -> Int_comp (i, c)
   | Int_shift (Tagged_immediate, s) -> Infix (Int_shift s)
   | Int_shift (i, s) -> Int_shift (i, s)
-  | Float_arith o -> Infix (Float_arith o)
-  | Float_comp c -> Infix (Float_comp c)
+  | Float_arith (w, o) -> Infix (Float_arith (w, o))
+  | Float_comp (w, c) -> Infix (Float_comp (w, c))
   | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
   | Bigarray_get_alignment align -> Bigarray_get_alignment align
   | Bigarray_load _ | Atomic_exchange | Atomic_fetch_and_add ->
@@ -588,19 +603,10 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
 
 let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
   match op with
-  | Array_set ak ->
-    let ia : Flambda_primitive.Init_or_assign.t =
-      match ak with
-      | Values ia -> ia
-      | Immediates | Naked_floats -> Assignment Alloc_mode.For_assignments.heap
-    in
-    let ak : Flambda_primitive.Array_kind.t =
-      match ak with
-      | Immediates -> Immediates
-      | Values _ -> Values
-      | Naked_floats -> Naked_floats
-    in
-    Array_set (ak, init_or_assign env ia)
+  | Array_set (ak, width) ->
+    let ia = Flambda_primitive.Array_set_kind.init_or_assign ak in
+    let ak = Flambda_primitive.Array_set_kind.array_kind ak in
+    Array_set (ak, width, init_or_assign env ia)
   | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
   | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
   | Bigarray_set _ | Atomic_compare_and_set ->
@@ -614,7 +620,7 @@ let varop env (op : Flambda_primitive.variadic_primitive) : Fexpr.varop =
     let tag = tag |> Tag.Scannable.to_int in
     let alloc = alloc_mode_for_allocations env alloc in
     Make_block (tag, mutability, alloc)
-  | Make_block (Naked_floats, _, _) | Make_array _ ->
+  | Make_block (Naked_floats, _, _) | Make_array _ | Make_mixed_block _ ->
     Misc.fatal_errorf "TODO: Variadic primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Variadic op)
@@ -691,6 +697,7 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
     let elements = List.map (field_of_block env) fields in
     Block { tag; mutability; elements }
   | Set_of_closures _ -> assert false
+  | Boxed_float32 f -> Boxed_float32 (or_variable float32 env f)
   | Boxed_float f -> Boxed_float (or_variable float env f)
   | Boxed_int32 i -> Boxed_int32 (or_variable Fun.id env i)
   | Boxed_int64 i -> Boxed_int64 (or_variable Fun.id env i)
@@ -702,7 +709,11 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
     Immutable_float_array (List.map (or_variable float env) elements)
   | Immutable_value_array elements ->
     Immutable_value_array (List.map (field_of_block env) elements)
-  | Empty_array -> Empty_array
+  | Immutable_int32_array _ | Immutable_int64_array _
+  | Immutable_nativeint_array _ ->
+    Misc.fatal_error
+      "fexpr support for unboxed int32/64/nativeint arrays not yet implemented"
+  | Empty_array array_kind -> Empty_array array_kind
   | Mutable_string { initial_value } -> Mutable_string { initial_value }
   | Immutable_string s -> Immutable_string s
 
@@ -1026,7 +1037,7 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
         } ->
       let alloc = alloc_mode_for_allocations env alloc_mode in
       Function (Indirect alloc)
-    | C_call { alloc; _ } -> C_call { alloc }
+    | C_call { needs_caml_c_call; _ } -> C_call { alloc = needs_caml_c_call }
     | Method _ -> Misc.fatal_error "TODO: Method call kind"
   in
   let param_arity = Apply_expr.args_arity app in

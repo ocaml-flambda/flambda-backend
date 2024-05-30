@@ -190,13 +190,13 @@ module Layout = struct
        then the environment has not started yet (i.e. we have not seen any value
        slots). *)
     | Function_slot _ when offset = 0 ->
-      assert (acc_slots = []);
-      assert (startenv = None);
+      assert (match acc_slots with [] -> true | _ :: _ -> false);
+      assert (Option.is_none startenv);
       (* see comment above *)
       let acc_slots = [0, slot] in
       startenv, acc_slots
     | Function_slot _ ->
-      assert (startenv = None);
+      assert (Option.is_none startenv);
       (* see comment above *)
       let acc_slots =
         (offset, slot) :: (offset - 1, Infix_header) :: acc_slots
@@ -607,7 +607,8 @@ end = struct
            set.allocated_slots
 
   let add_slot_offset state slot offset =
-    assert (slot.pos = Unassigned);
+    assert (
+      match slot.pos with Unassigned -> true | Removed | Assigned _ -> false);
     slot.pos <- Assigned offset;
     List.iter (add_slot_offset_to_set slot) slot.sets;
     state.used_offsets
@@ -874,8 +875,8 @@ end = struct
             Misc.fatal_errorf "Value slot %a has Region or Rec_info kind"
               Value_slot.print value_slot
           | Naked_number
-              ( Naked_immediate | Naked_float | Naked_int32 | Naked_int64
-              | Naked_nativeint ) ->
+              ( Naked_immediate | Naked_float | Naked_float32 | Naked_int32
+              | Naked_int64 | Naked_nativeint ) ->
             1, true
           (* flambda2 only supports 64-bit targets for now, so naked numbers can
              only be of size 1 *)

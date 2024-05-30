@@ -25,6 +25,7 @@ type error =
   | Ill_formed_ast of Location.t * string
   | Invalid_package_type of Location.t * string
   | Removed_string_set of Location.t
+  | Missing_unboxed_literal_suffix of Location.t
 
 exception Error of error
 exception Escape_error
@@ -39,53 +40,8 @@ let location_of_error = function
   | Invalid_package_type (l, _)
   | Expecting (l, _)
   | Removed_string_set l -> l
+  | Missing_unboxed_literal_suffix l -> l
 
 
 let ill_formed_ast loc s =
   raise (Error (Ill_formed_ast (loc, s)))
-
-let prepare_error err =
-  match err with
-  | Unclosed(opening_loc, opening, closing_loc, closing) ->
-      Location.errorf
-        ~loc:closing_loc
-        ~sub:[
-          Location.msg ~loc:opening_loc
-            "This '%s' might be unmatched" opening
-        ]
-        "Syntax error: '%s' expected" closing
-
-  | Expecting (loc, nonterm) ->
-      Location.errorf ~loc "Syntax error: %s expected." nonterm
-  | Not_expecting (loc, nonterm) ->
-      Location.errorf ~loc "Syntax error: %s not expected." nonterm
-  | Applicative_path loc ->
-      Location.errorf ~loc
-        "Syntax error: applicative paths of the form F(X).t \
-         are not supported when the option -no-app-func is set."
-  | Variable_in_scope (loc, var) ->
-      Location.errorf ~loc
-        "In this scoped type, variable %a \
-         is reserved for the local type %s."
-        Printast.tyvar var var
-  | Other loc ->
-      Location.errorf ~loc "Syntax error"
-  | Ill_formed_ast (loc, s) ->
-      Location.errorf ~loc
-        "broken invariant in parsetree: %s" s
-  | Invalid_package_type (loc, s) ->
-      Location.errorf ~loc "invalid package type: %s" s
-  | Removed_string_set loc ->
-    Location.errorf ~loc
-      "Syntax error: strings are immutable, there is no assignment \
-       syntax for them.\n\
-       @{<hint>Hint@}: Mutable sequences of bytes are available in \
-       the Bytes module.\n\
-       @{<hint>Hint@}: Did you mean to use 'Bytes.set'?"
-
-let () =
-  Location.register_error_of_exn
-    (function
-      | Error err -> Some (prepare_error err)
-      | _ -> None
-    )

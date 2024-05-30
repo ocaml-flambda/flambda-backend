@@ -106,7 +106,9 @@ type t =
        list *)
     current_level : One_level.t;
     next_binding_time : Binding_time.t;
-    min_binding_time : Binding_time.t (* Earlier variables have mode In_types *)
+    min_binding_time : Binding_time.t;
+        (* Earlier variables have mode In_types *)
+    is_bottom : bool
   }
 
 and serializable =
@@ -122,6 +124,10 @@ let is_empty t =
   && (match t.prev_levels with [] -> true | _ :: _ -> false)
   && Symbol.Set.is_empty t.defined_symbols
 
+let make_bottom t = { t with is_bottom = true }
+
+let is_bottom t = t.is_bottom
+
 let aliases t =
   Cached_level.aliases (One_level.just_after_level t.current_level)
 
@@ -130,9 +136,12 @@ let [@ocamlformat "disable"] print ppf
       ({ resolver = _; binding_time_resolver = _;get_imported_names = _;
          prev_levels; current_level; next_binding_time = _;
          defined_symbols; code_age_relation; min_binding_time;
+         is_bottom;
        } as t) =
   if is_empty t then
     Format.pp_print_string ppf "Empty"
+  else if is_bottom then
+    Format.pp_print_string ppf "Bottom"
   else
     let levels =
       current_level :: prev_levels
@@ -248,8 +257,14 @@ end = struct
   let already_meeting = already_meeting_or_joining
 end
 
-type meet_type =
+type meet_type_new = t -> TG.t -> TG.t -> (TG.t * t) Or_bottom.t
+
+type meet_type_old =
   Meet_env.t -> TG.t -> TG.t -> (TG.t * Typing_env_extension.t) Or_bottom.t
+
+type meet_type =
+  | New of meet_type_new
+  | Old of meet_type_old
 
 module Join_env : sig
   type t
@@ -365,7 +380,8 @@ let create ~resolver ~get_imported_names =
     next_binding_time = Binding_time.earliest_var;
     defined_symbols = Symbol.Set.empty;
     code_age_relation = Code_age_relation.empty;
-    min_binding_time = Binding_time.earliest_var
+    min_binding_time = Binding_time.earliest_var;
+    is_bottom = false
   }
 
 let increment_scope t =
@@ -480,9 +496,9 @@ let find_with_binding_time_and_mode' t name kind =
              (see [Cached_level.clean_for_export]) *)
           type_and_binding_time))
   | found ->
-    let ty, _ = found in
+    let ty, binding_time_and_mode = found in
     check_optional_kind_matches name ty kind;
-    found
+    if t.is_bottom then MTC.bottom_like ty, binding_time_and_mode else found
 
 (* This version doesn't check min_binding_time. This ensures that no allocation
    occurs when we're not interested in the name mode. *)
@@ -708,6 +724,8 @@ let invariant_for_new_equation (t : t) name ty =
       Misc.fatal_errorf "New equation@ %a@ =@ %a@ has unbound names@ (%a):@ %a"
         Name.print name TG.print ty Name_occurrences.print unbound_names print t)
 
+exception Bottom_equation
+
 let rec add_equation0 (t : t) name ty =
   (if Flambda_features.Debug.concrete_types_only_on_canonicals ()
   then
@@ -760,7 +778,7 @@ let rec add_equation0 (t : t) name ty =
   in
   with_current_level t ~current_level
 
-and add_equation1 t name ty ~(meet_type : meet_type) =
+and add_equation1 ~raise_on_bottom t name ty ~(meet_type : meet_type) =
   (if Flambda_features.check_invariants ()
   then
     let existing_ty = find t name None in
@@ -795,7 +813,7 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
          ignoring any name modes). *)
       let canonical = find_canonical name in
       Some (canonical, t, ty)
-    | alias_rhs ->
+    | alias_rhs -> (
       (* Forget where [name] and [alias_rhs] came from---our job is now to
          record that they're equal. In general, they have canonical expressions
          [c_l] and [c_r], respectively, so what we ultimately need to record is
@@ -818,18 +836,19 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
       then None
       else
         let kind = TG.kind ty in
-        let ({ canonical_element; alias_of_demoted_element; t = aliases }
-              : Aliases.add_result) =
+        match
           (* This may raise [Binding_time_resolver_failure]. *)
           Aliases.add ~binding_time_resolver:t.binding_time_resolver aliases
             ~binding_times_and_modes:(names_to_types t)
             ~canonical_element1:alias_lhs ~canonical_element2:alias_rhs
-        in
-        let t = with_aliases t ~aliases in
-        (* We need to change the demoted alias's type to point to the new
-           canonical element. *)
-        let ty = TG.alias_type_of kind canonical_element in
-        Some (alias_of_demoted_element, t, ty)
+        with
+        | Ok { canonical_element; alias_of_demoted_element; t = aliases } ->
+          let t = with_aliases t ~aliases in
+          (* We need to change the demoted alias's type to point to the new
+             canonical element. *)
+          let ty = TG.alias_type_of kind canonical_element in
+          Some (alias_of_demoted_element, t, ty)
+        | Bottom -> if raise_on_bottom then raise Bottom_equation else None)
   in
   match inputs with
   | None -> t
@@ -860,15 +879,26 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
       let[@inline always] name eqn_name ~coercion =
         assert (Coercion.is_id coercion);
         (* true by definition *)
-        if Name.equal name eqn_name
-        then ty, t
-        else
-          let env = Meet_env.create t in
+        match meet_type with
+        | New meet_type_new -> (
           let existing_ty = find t eqn_name (Some (TG.kind ty)) in
-          match meet_type env ty existing_ty with
-          | Bottom -> MTC.bottom (TG.kind ty), t
-          | Ok (meet_ty, env_extension) ->
-            meet_ty, add_env_extension t env_extension ~meet_type
+          match meet_type_new t ty existing_ty with
+          | Bottom ->
+            if raise_on_bottom
+            then raise Bottom_equation
+            else MTC.bottom (TG.kind ty), t
+          | Ok (meet_ty, env) -> meet_ty, env)
+        | Old meet_type_old -> (
+          if Name.equal name eqn_name
+          then ty, t
+          else
+            let env = Meet_env.create t in
+            let existing_ty = find t eqn_name (Some (TG.kind ty)) in
+            match meet_type_old env ty existing_ty with
+            | Bottom -> MTC.bottom (TG.kind ty), t
+            | Ok (meet_ty, env_extension) ->
+              ( meet_ty,
+                add_env_extension ~raise_on_bottom t env_extension ~meet_type ))
       in
       Simple.pattern_match bare_lhs ~name ~const:(fun _ -> ty, t)
     in
@@ -879,9 +909,9 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
     in
     Simple.pattern_match bare_lhs ~name ~const:(fun _ -> t)
 
-and[@inline always] add_equation t name ty ~meet_type =
+and[@inline always] add_equation ~raise_on_bottom t name ty ~meet_type =
   let ty = TG.recover_some_aliases ty in
-  match add_equation1 t name ty ~meet_type with
+  match add_equation1 ~raise_on_bottom t name ty ~meet_type with
   | exception Binding_time_resolver_failure ->
     (* Addition of aliases between names that are both in external compilation
        units failed, e.g. due to a missing .cmx file. Simply drop the
@@ -889,9 +919,11 @@ and[@inline always] add_equation t name ty ~meet_type =
     t
   | t -> t
 
-and add_env_extension t (env_extension : Typing_env_extension.t) ~meet_type =
+and add_env_extension ~raise_on_bottom t
+    (env_extension : Typing_env_extension.t) ~meet_type =
   Typing_env_extension.fold
-    ~equation:(fun name ty t -> add_equation t name ty ~meet_type)
+    ~equation:(fun name ty t ->
+      add_equation ~raise_on_bottom t name ty ~meet_type)
     env_extension t
 
 and add_env_extension_with_extra_variables t
@@ -899,7 +931,9 @@ and add_env_extension_with_extra_variables t
   Typing_env_extension.With_extra_variables.fold
     ~variable:(fun var kind t ->
       add_variable_definition t var kind Name_mode.in_types)
-    ~equation:(fun name ty t -> add_equation t name ty ~meet_type)
+    ~equation:(fun name ty t ->
+      try add_equation ~raise_on_bottom:true t name ty ~meet_type
+      with Bottom_equation -> make_bottom t)
     env_extension t
 
 let add_env_extension_from_level t level ~meet_type : t =
@@ -910,13 +944,40 @@ let add_env_extension_from_level t level ~meet_type : t =
   in
   let t =
     Name.Map.fold
-      (fun name ty t -> add_equation t name ty ~meet_type)
+      (fun name ty t ->
+        try add_equation ~raise_on_bottom:true t name ty ~meet_type
+        with Bottom_equation -> make_bottom t)
       (TEL.equations level) t
   in
   Variable.Map.fold
     (fun var proj t -> add_symbol_projection t var proj)
     (TEL.symbol_projections level)
     t
+
+let add_equation_strict t name ty ~meet_type : _ Or_bottom.t =
+  if t.is_bottom
+  then Bottom
+  else
+    try Ok (add_equation ~raise_on_bottom:true t name ty ~meet_type)
+    with Bottom_equation -> Bottom
+
+let add_env_extension_strict t env_extension ~meet_type : _ Or_bottom.t =
+  if t.is_bottom
+  then Bottom
+  else
+    try Ok (add_env_extension ~raise_on_bottom:true t env_extension ~meet_type)
+    with Bottom_equation -> Bottom
+
+let add_env_extension_maybe_bottom t env_extension ~meet_type =
+  add_env_extension ~raise_on_bottom:false t env_extension ~meet_type
+
+let add_equation t name ty ~meet_type =
+  try add_equation ~raise_on_bottom:true t name ty ~meet_type
+  with Bottom_equation -> make_bottom t
+
+let add_env_extension t env_extension ~meet_type =
+  try add_env_extension ~raise_on_bottom:true t env_extension ~meet_type
+  with Bottom_equation -> make_bottom t
 
 let add_definitions_of_params t ~params =
   List.fold_left
@@ -981,6 +1042,9 @@ let cut t ~cut_after =
     (* Owing to the check above it is certain that we want [t.current_level]
        included in the result. *)
     loop (One_level.level t.current_level) t.prev_levels
+
+let cut_as_extension t ~cut_after =
+  Typing_env_level.as_extension_without_bindings (cut t ~cut_after)
 
 let type_simple_in_term_exn t ?min_name_mode simple =
   (* If [simple] is a variable then it should not come from a missing .cmx file,
@@ -1307,15 +1371,17 @@ end = struct
             ~const:(fun const ->
               match Reg_width_const.descr const with
               | Tagged_immediate i -> VA.Value_int i
-              | Naked_immediate _ | Naked_float _ | Naked_int32 _
-              | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _ ->
+              | Naked_immediate _ | Naked_float _ | Naked_float32 _
+              | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _
+              | Naked_nativeint _ ->
                 VA.Value_unknown)
             ~var:(fun _ ~coercion:_ -> VA.Value_unknown)
             ~symbol:(fun symbol ~coercion:_ -> VA.Value_symbol symbol)
         | Ok (No_alias head) -> (
           match head with
-          | Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
-          | Boxed_vec128 _ | Boxed_nativeint _ | String _ | Array _ ->
+          | Mutable_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
+          | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | String _
+          | Array _ ->
             Value_unknown
           | Closures { by_function_slot; alloc_mode = _ } -> (
             match TG.Row_like_for_closures.get_singleton by_function_slot with
@@ -1356,8 +1422,9 @@ end = struct
                 in
                 Block_approximation (tag, Array.of_list fields, alloc_mode)
             else Value_unknown))
-      | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-      | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+      | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+      | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _
+      | Region _ ->
         assert false
     in
     let symbol_ty, _binding_time_and_mode =

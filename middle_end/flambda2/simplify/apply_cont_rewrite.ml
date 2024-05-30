@@ -244,14 +244,16 @@ let rewrite_exn_continuation rewrite id exn_cont =
       Exn_continuation.print exn_cont Bound_parameters.print
       rewrite.original_params;
   assert (Flambda_arity.cardinal_unarized exn_cont_arity >= 1);
-  if List.hd rewrite.original_params_usage <> Used
-  then
+  (match List.hd rewrite.original_params_usage with
+  | Used -> ()
+  | Unused | Used_as_invariant ->
     Misc.fatal_errorf
       "The usage of the exn parameter of the continuation rewrite should be \
        [Used]: %a"
-      print rewrite;
+      print rewrite);
   if List.exists
-       (fun x -> x = Used_as_invariant)
+       (fun x ->
+         match x with Used_as_invariant -> true | Used | Unused -> false)
        (rewrite.original_params_usage @ rewrite.extra_params_usage)
   then
     Misc.fatal_errorf

@@ -389,43 +389,6 @@ let empty =
     newer_version_of_code_ids = For_code_ids.empty
   }
 
-let [@ocamlformat "disable"] print ppf
-      ({ names;
-         continuations;
-         continuations_with_traps;
-         continuations_in_trap_actions;
-         function_slots_in_projections;
-         value_slots_in_projections;
-         function_slots_in_declarations;
-         value_slots_in_declarations;
-         code_ids;
-         newer_version_of_code_ids } as t) =
-  if t = empty then
-    Format.fprintf ppf "no_occurrences"
-  else
-  Format.fprintf ppf "@[<hov 1>\
-      @[<hov 1>(names %a)@]@ \
-      @[<hov 1>(continuations %a)@]@ \
-      @[<hov 1>(continuations_with_traps %a)@]@ \
-      @[<hov 1>(continuations_in_trap_actions %a)@]@ \
-      @[<hov 1>(function_slots_in_projections %a)@]@ \
-      @[<hov 1>(value_slots_in_projections %a)@]@ \
-      @[<hov 1>(function_slots_in_declarations %a)@]@ \
-      @[<hov 1>(value_slots_in_declarations %a)@]@ \
-      @[<hov 1>(code_ids %a)@] \
-      @[<hov 1>(newer_version_of_code_ids %a)@]@ \
-      @]"
-    For_names.print names
-    For_continuations.print continuations
-    For_continuations.print continuations_with_traps
-    For_continuations.print continuations_in_trap_actions
-    For_function_slots.print function_slots_in_projections
-    For_value_slots.print value_slots_in_projections
-    For_function_slots.print function_slots_in_declarations
-    For_value_slots.print value_slots_in_declarations
-    For_code_ids.print code_ids
-    For_code_ids.print newer_version_of_code_ids
-
 let singleton_continuation cont =
   { empty with
     continuations = For_continuations.singleton cont Name_mode.normal
@@ -1191,3 +1154,40 @@ let increase_counts
     code_ids;
     newer_version_of_code_ids
   }
+
+let [@ocamlformat "disable"] print ppf
+      ({ names;
+         continuations;
+         continuations_with_traps;
+         continuations_in_trap_actions;
+         function_slots_in_projections;
+         value_slots_in_projections;
+         function_slots_in_declarations;
+         value_slots_in_declarations;
+         code_ids;
+         newer_version_of_code_ids } as t) =
+  if is_empty t then
+    Format.fprintf ppf "no_occurrences"
+  else
+  Format.fprintf ppf "@[<hov 1>\
+      @[<hov 1>(names %a)@]@ \
+      @[<hov 1>(continuations %a)@]@ \
+      @[<hov 1>(continuations_with_traps %a)@]@ \
+      @[<hov 1>(continuations_in_trap_actions %a)@]@ \
+      @[<hov 1>(function_slots_in_projections %a)@]@ \
+      @[<hov 1>(value_slots_in_projections %a)@]@ \
+      @[<hov 1>(function_slots_in_declarations %a)@]@ \
+      @[<hov 1>(value_slots_in_declarations %a)@]@ \
+      @[<hov 1>(code_ids %a)@] \
+      @[<hov 1>(newer_version_of_code_ids %a)@]@ \
+      @]"
+    For_names.print names
+    For_continuations.print continuations
+    For_continuations.print continuations_with_traps
+    For_continuations.print continuations_in_trap_actions
+    For_function_slots.print function_slots_in_projections
+    For_value_slots.print value_slots_in_projections
+    For_function_slots.print function_slots_in_declarations
+    For_value_slots.print value_slots_in_declarations
+    For_code_ids.print code_ids
+    For_code_ids.print newer_version_of_code_ids

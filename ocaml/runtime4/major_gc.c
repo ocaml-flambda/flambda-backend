@@ -214,13 +214,15 @@ Caml_inline void mark_stack_push(struct mark_stack* stk, value block,
                                   uintnat offset, intnat* work)
 {
   value v;
-  int i, block_wsz = Wosize_val(block), end;
+  int i, block_scannable_wsz, end;
   mark_entry* me;
 
   CAMLassert(Is_block(block) && Is_in_heap (block)
             && Is_black_val(block));
   CAMLassert(Tag_val(block) != Infix_tag);
   CAMLassert(Tag_val(block) < No_scan_tag);
+
+  block_scannable_wsz = Scannable_wosize_val(block);
 
 #if defined(NO_NAKED_POINTERS) || defined(NAKED_POINTERS_CHECKER)
   if (Tag_val(block) == Closure_tag) {
@@ -238,7 +240,7 @@ Caml_inline void mark_stack_push(struct mark_stack* stk, value block,
   }
 #endif
 
-  end = (block_wsz < 8 ? block_wsz : 8);
+  end = (block_scannable_wsz < 8 ? block_scannable_wsz : 8);
 
   /* Optimisation to avoid pushing small, unmarkable objects such as [Some 42]
    * into the mark stack. */
@@ -250,11 +252,11 @@ Caml_inline void mark_stack_push(struct mark_stack* stk, value block,
       break;
   }
 
-  if (i == block_wsz) {
+  if (i == block_scannable_wsz) {
     /* nothing left to mark */
     if( work != NULL ) {
       /* we should take credit for it though */
-      *work -= Whsize_wosize(block_wsz - offset);
+      *work -= Whsize_wosize(block_scannable_wsz - offset);
     }
     return;
   }
@@ -273,7 +275,7 @@ Caml_inline void mark_stack_push(struct mark_stack* stk, value block,
   me = &stk->stack[stk->count++];
 
   me->start = Op_val(block) + offset;
-  me->end = Op_val(block) + Wosize_val(block);
+  me->end = Op_val(block) + block_scannable_wsz;
 }
 
 #if defined(NAKED_POINTERS_CHECKER) && defined(NATIVE_CODE)
@@ -670,7 +672,8 @@ Caml_noinline static intnat do_some_marking
         continue;
       }
       scan = Op_val(block);
-      obj_end = scan + Wosize_hd(hd);
+      obj_end = scan + Scannable_wosize_hd(hd);
+      work -= Wosize_hd(hd) - Scannable_wosize_hd(hd);
 
       if (Tag_hd (hd) == Closure_tag) {
         uintnat env_offset = Start_env_closinfo(Closinfo_val(block));
