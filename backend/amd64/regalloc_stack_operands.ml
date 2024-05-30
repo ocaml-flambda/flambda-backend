@@ -192,7 +192,8 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
     May_still_have_spilled_registers
   | Op (Scalarcast (Float_of_int (Float32 | Float64) |
                     Float_to_int (Float32 | Float64) |
-                    Float_of_float32 | Float_to_float32) |
+                    Float_of_float32 | Float_to_float32 |
+                    Float32_as_float) |
                     Vectorcast _) ->
     may_use_stack_operand_for_only_argument map instr ~has_result:true
   | Op (Const_symbol _) ->

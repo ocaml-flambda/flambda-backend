@@ -799,24 +799,23 @@ let emit_global_label s =
   emit_global_label_for_symbol lbl
 
 let move (src : Reg.t) (dst : Reg.t) =
-  if src.loc <> dst.loc then
-    begin match src.typ, src.loc, dst.typ, dst.loc with
-    | Float, Reg _, Float, Reg _
-    | Float32, Reg _, Float32, Reg _
-    | Vec128, _, Vec128, _ (* Vec128 stack slots are always aligned. *) ->
-      I.movapd (reg src) (reg dst)
-    | Float, _, Float, _ ->
-      I.movsd (reg src) (reg dst)
-    | Float32, _, Float32, _ ->
-      I.movss (reg src) (reg dst)
-    | (Int | Val | Addr), _, (Int | Val | Addr), _ ->
-      I.mov (reg src) (reg dst)
-    | (Float | Float32 | Vec128 | Int | Val | Addr), _, _, _ ->
-      Misc.fatal_errorf
-        "Illegal move between registers of differing types (%s:%a to %s:%a)\n"
-        (Reg.name src) Printcmm.machtype_component src.typ
-        (Reg.name dst) Printcmm.machtype_component dst.typ
-    end
+  let distinct = src.loc <> dst.loc in
+  begin match src.typ, src.loc, dst.typ, dst.loc with
+  | Float, Reg _, Float, Reg _
+  | Float32, Reg _, Float32, Reg _
+  | Vec128, _, Vec128, _ (* Vec128 stack slots are always aligned. *) ->
+    if distinct then I.movapd (reg src) (reg dst)
+  | Float, _, Float, _ ->
+    if distinct then I.movsd (reg src) (reg dst)
+  | Float32, _, Float32, _ ->
+    if distinct then I.movss (reg src) (reg dst)
+  | (Int | Val | Addr), _, (Int | Val | Addr), _ ->
+    if distinct then I.mov (reg src) (reg dst)
+  | (Float | Float32 | Vec128 | Int | Val | Addr), _, _, _ ->
+    Misc.fatal_errorf
+      "Illegal move between registers of differing types (%a to %a)\n"
+      Printmach.reg src Printmach.reg dst
+  end
 
 let stack_to_stack_move (src : Reg.t) (dst : Reg.t) =
   assert (src.typ = dst.typ);
@@ -1047,7 +1046,8 @@ let emit_simd_instr op i =
   | SSE High_64_to_low_64 -> I.movhlps (arg i 1) (res i 0)
   | SSE Low_64_to_high_64 -> I.movlhps (arg i 1) (res i 0)
   | SSE Interleave_high_32 -> I.unpckhps (arg i 1) (res i 0)
-  | SSE Interleave_low_32 -> I.unpcklps (arg i 1) (res i 0)
+  | SSE (Interleave_low_32 | Interleave_low_32_regs) ->
+    I.unpcklps (arg i 1) (res i 0)
   | SSE Movemask_32 -> I.movmskps (arg i 0) (res i 0)
   | SSE (Shuffle_32 n) -> I.shufps (X86_dsl.int n) (arg i 1) (res i 0)
   | SSE2 Max_scalar_f64 -> I.maxsd (arg i 1) (res i 0)
@@ -1569,6 +1569,8 @@ let emit_instr ~first ~fallthrough i =
       instr_for_floatop width floatop (arg i 1) (res i 0)
   | Lop(Iintofvalue | Ivalueofint | Ivectorcast Bits128) ->
       move i.arg.(0) i.res.(0)
+  | Lop(Iscalarcast Float32_as_float) ->
+      I.movss (arg i 0) (res i 0)
   | Lop(Iscalarcast (Float_of_int Float64)) ->
       I.cvtsi2sd  (arg i 0)  (res i 0)
   | Lop(Iscalarcast (Float_to_int Float64)) ->

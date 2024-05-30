@@ -1,6 +1,6 @@
 (* TEST
  flags = "-extension-universe stable";
- include stable;
+ include stdlib_stable;
  {
    bytecode;
  }{
@@ -8,7 +8,7 @@
  }
 *)
 
-open Stable
+open Stdlib_stable
 
 (* Test that [Float_u] is exported. *)
 

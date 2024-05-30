@@ -287,6 +287,7 @@ let dump_op ppf = function
   | Valueofint -> Format.fprintf ppf "valueofint"
   | Intofvalue -> Format.fprintf ppf "intofvalue"
   | Vectorcast Bits128 -> Format.fprintf ppf "vec128->vec128"
+  | Scalarcast Float32_as_float -> Format.fprintf ppf "float32 as float"
   | Scalarcast (Float_of_int Float64) -> Format.fprintf ppf "int->float"
   | Scalarcast (Float_to_int Float64) -> Format.fprintf ppf "float->int"
   | Scalarcast (Float_of_int Float32) -> Format.fprintf ppf "int->float32"

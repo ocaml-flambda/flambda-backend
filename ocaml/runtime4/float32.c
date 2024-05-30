@@ -25,6 +25,7 @@
 #include <math.h>
 #include <float.h>
 #include <limits.h>
+#include <string.h>
 
 #include "caml/alloc.h"
 #include "caml/fail.h"
@@ -539,4 +540,60 @@ CAMLprim value caml_float32_of_string(value vs)
   if (buf != parse_buffer) caml_stat_free(buf);
   caml_failwith("float32_of_string");
   return Val_unit; /* not reached */
+}
+
+/* Defined in array.c */
+
+CAMLextern int caml_unboxed_array_no_polymorphic_compare(value v1, value v2);
+CAMLextern intnat caml_unboxed_array_no_polymorphic_hash(value v);
+CAMLextern void caml_unboxed_array_serialize(value v, uintnat* bsize_32, uintnat* bsize_64);
+CAMLextern uintnat caml_unboxed_array_deserialize(void* dst);
+CAMLextern value caml_make_vect(value len, value init);
+
+CAMLexport struct custom_operations caml_unboxed_float32_array_ops[2] = {
+  { "_unboxed_float32_even_array",
+    custom_finalize_default,
+    caml_unboxed_array_no_polymorphic_compare,
+    caml_unboxed_array_no_polymorphic_hash,
+    caml_unboxed_array_serialize,
+    caml_unboxed_array_deserialize,
+    custom_compare_ext_default,
+    custom_fixed_length_default },
+  { "_unboxed_float32_odd_array",
+    custom_finalize_default,
+    caml_unboxed_array_no_polymorphic_compare,
+    caml_unboxed_array_no_polymorphic_hash,
+    caml_unboxed_array_serialize,
+    caml_unboxed_array_deserialize,
+    custom_compare_ext_default,
+    custom_fixed_length_default },
+};
+
+CAMLprim value caml_make_unboxed_float32_vect(value len)
+{
+  /* This is only used on 64-bit targets. */
+
+  mlsize_t num_elements = Long_val(len);
+  if (num_elements > Max_wosize) caml_invalid_argument("Array.make");
+
+  /* [num_fields] does not include the custom operations field. */
+  mlsize_t num_fields = (num_elements + 1) / 2;
+
+  return caml_alloc_custom(&caml_unboxed_float32_array_ops[num_elements % 2],
+                           num_fields * sizeof(value), 0, 0);
+}
+
+CAMLprim value caml_make_unboxed_float32_vect_bytecode(value len)
+{
+  return caml_make_vect(len, caml_copy_float32(0.0f));
+}
+
+CAMLprim value caml_unboxed_float32_vect_blit(value a1, value ofs1, value a2,
+                                              value ofs2, value n)
+{
+  // Need to skip the custom_operations field
+  memmove((float *)((uintnat *)a2 + 1) + Long_val(ofs2),
+          (float *)((uintnat *)a1 + 1) + Long_val(ofs1),
+          Long_val(n) * sizeof(float));
+  return Val_unit;
 }

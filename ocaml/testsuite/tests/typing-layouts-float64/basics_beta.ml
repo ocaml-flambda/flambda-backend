@@ -1,4 +1,5 @@
 (* TEST
+ include stable;
  flambda2;
  {
    flags = "-extension layouts_alpha";
@@ -820,7 +821,7 @@ Error: This expression has type t_float64
 (***********************************************************)
 (* Test 14: unboxed float records work like normal records *)
 
-module FU = Stdlib__Float_u
+module FU = Stable.Float_u
 
 type t14_1 = { x : float#; y : float# }
 
@@ -863,7 +864,7 @@ let f14_4 r =
 
 
 [%%expect{|
-module FU = Stdlib__Float_u
+module FU = Stable.Float_u
 type t14_1 = { x : float#; y : float#; }
 val f14_1 : t14_1 -> FU.t = <fun>
 val r14 : t14_1 = {x = <abstr>; y = <abstr>}

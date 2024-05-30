@@ -917,7 +917,13 @@ type slot =
     func: lfunction;
     function_scope: lambda;
     mutable scope: lambda option;
+    mutable closed_region: lambda option;
   }
+
+type exclave_status =
+  | No_exclave
+  | Exclave
+  | Within_exclave
 
 module LamTbl = Hashtbl.Make(struct
     type t = lambda
@@ -963,21 +969,27 @@ let simplify_local_functions lam =
         let r =
           { func = lf;
             function_scope = !current_function_scope;
-            scope = None }
+            scope = None;
+            closed_region = None }
         in
         Hashtbl.add slots id r;
         tail cont;
         begin match Hashtbl.find_opt slots id with
-        | Some {scope = Some scope; _} ->
+        | Some {scope = Some scope; closed_region; _} ->
             let st = next_raise_count () in
-            let sc, pop_region =
+            let sc, exclave =
               (* Do not move higher than current lambda *)
-              if scope == !current_scope then cont, Same_region
-              else if is_current_region_scope scope then cont, Popped_region
-              else scope, Same_region
+              if scope == !current_scope then cont, No_exclave
+              else if is_current_region_scope scope then begin
+                match closed_region with
+                | Some region when region == !current_scope ->
+                    cont, Exclave
+                | _ ->
+                    cont, Within_exclave
+              end else scope, No_exclave
             in
             Hashtbl.add static_id id st;
-            LamTbl.add static sc (st, lf, pop_region);
+            LamTbl.add static sc (st, lf, exclave);
             (* The body of the function will become an handler
                in that "scope". *)
             with_scope ~scope lf.body
@@ -987,11 +999,11 @@ let simplify_local_functions lam =
             function_definition lf
         end
     | Lapply {ap_func = Lvar id; ap_args; ap_region_close; _} ->
-        let curr_scope =
+        let curr_scope, closed_region =
           match ap_region_close with
-          | Rc_normal | Rc_nontail -> !current_scope
+          | Rc_normal | Rc_nontail -> !current_scope, None
           | Rc_close_at_apply ->
-              Option.get !current_region_scope
+              Option.get !current_region_scope, Some !current_scope
         in
         begin match Hashtbl.find_opt slots id with
         | Some {func; _}
@@ -1007,7 +1019,14 @@ let simplify_local_functions lam =
             Hashtbl.remove slots id
         | Some ({scope = None; _} as slot) ->
             (* First use of the function: remember the current tail scope *)
-            slot.scope <- Some curr_scope
+            slot.scope <- Some curr_scope;
+            slot.closed_region <- closed_region
+        | Some ({closed_region = Some old_closed_region} as slot) -> begin
+            match closed_region with
+            | Some closed_region when closed_region == old_closed_region ->
+                ()
+            | _ -> slot.closed_region <- None
+          end
         | _ -> ()
         end;
         List.iter non_tail ap_args
@@ -1074,8 +1093,14 @@ let simplify_local_functions lam =
         (fun p -> (p.name, p.layout)) lf.params
     in
     List.fold_right
-      (fun (st, lf, r) lam ->
+      (fun (st, lf, exclave) lam ->
          let body = rewrite lf.body in
+         let body, r =
+           match exclave with
+           | No_exclave -> body, Same_region
+           | Exclave -> Lexclave body, Same_region
+           | Within_exclave -> body, Popped_region
+         in
          Lstaticcatch (lam, (st, new_params lf), body, r, lf.return)
       )
       (LamTbl.find_all static lam0)
