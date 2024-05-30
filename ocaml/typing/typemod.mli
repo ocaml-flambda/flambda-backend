@@ -152,11 +152,11 @@ type error =
   | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
   | Cannot_compile_implementation_as_parameter
-  | Argument_for_non_parameter of Global.Name.t * Misc.filepath
-  | Cannot_find_argument_type of Global.Name.t
+  | Argument_for_non_parameter of Global_module.Name.t * Misc.filepath
+  | Cannot_find_argument_type of Global_module.Name.t
   | Inconsistent_argument_types of {
-      new_arg_type: Global.Name.t option;
-      old_arg_type: Global.Name.t option;
+      new_arg_type: Global_module.Name.t option;
+      old_arg_type: Global_module.Name.t option;
       old_source_file: Misc.filepath;
     }
 

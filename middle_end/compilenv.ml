@@ -35,7 +35,7 @@ type error =
 
 exception Error of error
 
-module Infos_table = Global.Name.Tbl
+module Infos_table = Global_module.Name.Tbl
 
 let global_infos_table =
   (Infos_table.create 17 : unit_infos option Infos_table.t)
@@ -169,7 +169,7 @@ let get_unit_info comp_unit =
             cache_zero_alloc_info ui.ui_zero_alloc_info;
             (Some ui, Some crc)
           with Not_found ->
-            let warn = Warnings.No_cmx_file (Global.Name.to_string name) in
+            let warn = Warnings.No_cmx_file (Global_module.Name.to_string name) in
               Location.prerr_warning Location.none warn;
               (None, None)
           end

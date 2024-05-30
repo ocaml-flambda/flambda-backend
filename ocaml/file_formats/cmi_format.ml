@@ -23,7 +23,7 @@ type pers_flags =
 type kind =
   | Normal of {
       cmi_impl : Compilation_unit.t;
-      cmi_arg_for : Global.Name.t option;
+      cmi_arg_for : Global_module.Name.t option;
     }
   | Parameter
 
@@ -64,14 +64,14 @@ type header = {
     header_name : Compilation_unit.Name.t;
     header_kind : kind;
     header_sign : Serialized.signature;
-    header_params : Global.Name.t list;
+    header_params : Global_module.Name.t list;
 }
 
 type 'sg cmi_infos_generic = {
     cmi_name : Compilation_unit.Name.t;
     cmi_kind : kind;
     cmi_sign : 'sg;
-    cmi_params : Global.Name.t list;
+    cmi_params : Global_module.Name.t list;
     cmi_crcs : crcs;
     cmi_flags : flags;
 }

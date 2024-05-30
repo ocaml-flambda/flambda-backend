@@ -72,7 +72,7 @@ module Uid = struct
   let of_global_name name =
     (* CR lmaurer: This will probably need to get more complicated in order to
        treat parameterized modules properly. *)
-    Compilation_unit (Format.asprintf "%a" Global.Name.print name)
+    Compilation_unit (Format.asprintf "%a" Global_module.Name.print name)
 
   let of_predef_id id =
     if not (Ident.is_predef id) then

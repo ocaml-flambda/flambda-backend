@@ -90,11 +90,11 @@ type error =
   | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
   | Cannot_compile_implementation_as_parameter
-  | Argument_for_non_parameter of Global.Name.t * Misc.filepath
-  | Cannot_find_argument_type of Global.Name.t
+  | Argument_for_non_parameter of Global_module.Name.t * Misc.filepath
+  | Cannot_find_argument_type of Global_module.Name.t
   | Inconsistent_argument_types of {
-      new_arg_type : Global.Name.t option;
-      old_arg_type : Global.Name.t option;
+      new_arg_type : Global_module.Name.t option;
+      old_arg_type : Global_module.Name.t option;
       old_source_file : Misc.filepath;
     }
 
@@ -3358,7 +3358,7 @@ let type_params params ~exported =
     (fun param_name ->
        if exported then begin
          (* We don't (yet!) support parameterised parameters *)
-         let param = Global.Name.create param_name [] in
+         let param = Global_module.Name.create param_name [] in
          Env.register_parameter param
        end else begin
          let import = Compilation_unit.Name.of_string param_name in
@@ -3471,7 +3471,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           error Cannot_compile_implementation_as_parameter;
         let arg_type =
           !Clflags.as_argument_for
-          |> Option.map (fun name -> Global.Name.create name [])
+          |> Option.map (fun name -> Global_module.Name.create name [])
         in
         let sourceintf =
           Filename.remove_extension sourcefile ^ !Config.interface_suffix in
@@ -3487,7 +3487,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
                       Interface_not_compiled sourceintf)))
             | Some cmi_file -> cmi_file
           in
-          let import = Global.Name.create basename [] in
+          let import = Global_module.Name.create basename [] in
           let dclsig =
             Env.read_signature import intf_file ~add_binding:false
           in
@@ -3495,7 +3495,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
             Compilation_unit.to_global_name_without_prefix modulename
           in
           let arg_type_from_cmi = Env.implemented_parameter global_name in
-          if not (Option.equal Global.Name.equal
+          if not (Option.equal Global_module.Name.equal
                     arg_type arg_type_from_cmi) then
             error (Inconsistent_argument_types
                      { new_arg_type = arg_type; old_source_file = intf_file;
@@ -3623,7 +3623,7 @@ let type_interface ~sourcefile modulename env ast =
   let sg = transl_signature env ast in
   let arg_type =
     !Clflags.as_argument_for
-    |> Option.map (fun name -> Global.Name.create name [])
+    |> Option.map (fun name -> Global_module.Name.create name [])
   in
   ignore (check_argument_type_if_given env sourcefile sg.sig_type arg_type
           : Typedtree.argument_interface option);
@@ -3675,7 +3675,7 @@ let package_units initial_env objfiles cmifile modulename =
            |> String.capitalize_ascii
          in
          let unit = Compilation_unit.Name.of_string basename in
-         let global_name = Global.Name.create basename [] in
+         let global_name = Global_module.Name.create basename [] in
          let modname = Compilation_unit.create_child modulename unit in
          let sg =
            Env.read_signature global_name (pref ^ ".cmi") ~add_binding:false
@@ -3987,7 +3987,7 @@ let report_error ~loc _env = function
         "Interface %s@ found for module@ %a@ is not flagged as a parameter.@ \
          It cannot be the parameter type for this argument module."
         path
-        Global.Name.print param
+        Global_module.Name.print param
   | Inconsistent_argument_types
         { new_arg_type; old_source_file; old_arg_type } ->
       let pp_arg_type ppf arg_type =
@@ -3995,7 +3995,7 @@ let report_error ~loc _env = function
         | None -> Format.fprintf ppf "without -as-argument-for"
         | Some arg_type ->
             Format.fprintf ppf "with -as-argument-for %a"
-              Global.Name.print arg_type
+              Global_module.Name.print arg_type
       in
       Location.errorf ~loc
         "Inconsistent usage of -as-argument-for. Interface@ %s@ was compiled \
@@ -4006,7 +4006,7 @@ let report_error ~loc _env = function
   | Cannot_find_argument_type arg_type ->
       Location.errorf ~loc
         "Parameter module %a@ specified by -as-argument-for cannot be found."
-        Global.Name.print arg_type
+        Global_module.Name.print arg_type
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env_error env

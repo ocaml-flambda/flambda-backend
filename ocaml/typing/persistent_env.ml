@@ -37,8 +37,8 @@ type error =
   | Not_compiled_as_parameter of CU.Name.t * filepath
   | Cannot_implement_parameter of CU.Name.t * filepath
   | Imported_module_has_unset_parameter of
-      { imported : Global.Name.t;
-        parameter : Global.Name.t;
+      { imported : Global_module.Name.t;
+        parameter : Global_module.Name.t;
       }
 
 exception Error of error
@@ -68,8 +68,8 @@ type can_load_cmis =
 (* Data relating directly to a .cmi *)
 type import = {
   imp_is_param : bool;
-  imp_params : Global.Name.t list;
-  imp_arg_for : Global.Name.t option;
+  imp_params : Global_module.Name.t list;
+  imp_arg_for : Global_module.Name.t option;
   imp_impl : CU.t option;
   imp_sign : Subst.Lazy.signature;
   imp_filename : string;
@@ -96,12 +96,12 @@ type 'a pers_struct_info = {
   ps_val : 'a;
 }
 
-module Param_set = Global.Name.Set
+module Param_set = Global_module.Name.Set
 
 (* If you add something here, _do not forget_ to add it to [clear]! *)
 type 'a t = {
   imports : (CU.Name.t, import_info) Hashtbl.t;
-  persistent_structures : (Global.Name.t, 'a pers_struct_info) Hashtbl.t;
+  persistent_structures : (Global_module.Name.t, 'a pers_struct_info) Hashtbl.t;
   imported_units: CU.Name.Set.t ref;
   imported_opaque_units: CU.Name.Set.t ref;
   param_imports : CU.Name.Set.t ref;
@@ -391,7 +391,7 @@ type address =
 
 type 'a sig_reader =
   Subst.Lazy.signature
-  -> Global.Name.t
+  -> Global_module.Name.t
   -> Shape.Uid.t
   -> shape:Shape.t
   -> address:address
@@ -697,11 +697,11 @@ let report_error ppf =
         "@[<hov>The module %a@ has parameter %a.@ \
          %a is not declared as a parameter for the current unit (-parameter %a)@ \
          and therefore %a@ is not accessible.@]"
-        Global.Name.print modname
-        Global.Name.print param
-        Global.Name.print param
-        Global.Name.print param
-        Global.Name.print modname
+        Global_module.Name.print modname
+        Global_module.Name.print param
+        Global_module.Name.print param
+        Global_module.Name.print param
+        Global_module.Name.print modname
 
 let () =
   Location.register_error_of_exn
