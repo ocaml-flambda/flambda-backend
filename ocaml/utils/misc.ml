@@ -207,6 +207,29 @@ module Stdlib = struct
           }
       in
       find_prefix ~longest_common_prefix_rev:[] first second
+
+    let [@inline] merge_iter ~cmp ~left_only ~right_only ~both t1 t2 =
+      let rec loop t1 t2 =
+        match t1, t2 with
+        | [], [] -> ()
+        | a :: t1', [] -> left_only a; loop t1' []
+        | [], b :: t2' -> right_only b; loop [] t2'
+        | a :: t1', b :: t2' ->
+            match cmp a b with
+            | 0 -> both a b; loop t1' t2'
+            | c when c < 0 -> left_only a; loop t1' t2
+            | _ -> right_only b; loop t1 t2'
+      in
+      loop t1 t2
+
+    let [@inline] merge_map ~cmp ~left_only ~right_only ~both t1 t2 =
+      let acc_rev = ref [] in
+      let add c = acc_rev := c :: !acc_rev in
+      merge_iter t1 t2 ~cmp
+        ~left_only:(fun a -> add (left_only a))
+        ~right_only:(fun b -> add (right_only b))
+        ~both:(fun a b -> add (both a b));
+      List.rev !acc_rev
   end
 
   module Option = struct
