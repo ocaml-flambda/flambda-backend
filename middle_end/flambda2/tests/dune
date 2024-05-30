@@ -1,11 +1,19 @@
 (tests
  (names meet_test)
  (modes native)
- (instrumentation (backend bisect_ppx))
+ (instrumentation
+  (backend bisect_ppx))
  (libraries
-  ocamloptcomp ocamlcommon
-  flambda2_bound_identifiers flambda2_cmx flambda2_identifiers flambda2_kinds
-  flambda2_nominal flambda2_numbers flambda2_term_basics flambda2_types))
+  ocamloptcomp
+  ocamlcommon
+  flambda2_bound_identifiers
+  flambda2_cmx
+  flambda2_identifiers
+  flambda2_kinds
+  flambda2_nominal
+  flambda2_numbers
+  flambda2_term_basics
+  flambda2_types))
 
 (include_subdirs no)
 

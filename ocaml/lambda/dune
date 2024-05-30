@@ -14,8 +14,13 @@
 
 (rule
  (targets runtimedef.ml)
- (mode    fallback)
- (deps    (:fail (file ../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}/caml/fail.h))
-          (:prim (file ../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}/primitives)))
- (action  (with-stdout-to %{targets}
-            (run ./generate_runtimedef.sh %{fail} %{prim}))))
+ (mode fallback)
+ (deps
+  (:fail
+   (file ../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}/caml/fail.h))
+  (:prim
+   (file ../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}/primitives)))
+ (action
+  (with-stdout-to
+   %{targets}
+   (run ./generate_runtimedef.sh %{fail} %{prim}))))

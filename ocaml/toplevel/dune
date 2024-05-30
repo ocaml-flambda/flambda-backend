@@ -15,7 +15,8 @@
 (executable
  (name topstart)
  (modes byte)
- (flags (:standard -linkall))
+ (flags
+  (:standard -linkall))
  (libraries ocamlbytecomp ocamlcommon ocamltoplevel)
  (modules topstart))
 
@@ -26,13 +27,12 @@
  (modules expunge))
 
 (install
-  (files
-    (expunge.bc as expunge)
-    (.expunge.eobjs/byte/expunge.cmi as compiler-libs/expunge.cmi)
-    (.expunge.eobjs/byte/expunge.cmt as compiler-libs/expunge.cmt)
-    (.topstart.eobjs/byte/topstart.cmi as compiler-libs/topstart.cmi)
-    (.topstart.eobjs/byte/topstart.cmo as compiler-libs/topstart.cmo)
-    (.topstart.eobjs/byte/topstart.cmt as compiler-libs/topstart.cmt)
-  )
-  (section lib)
-  (package ocaml))
+ (files
+  (expunge.bc as expunge)
+  (.expunge.eobjs/byte/expunge.cmi as compiler-libs/expunge.cmi)
+  (.expunge.eobjs/byte/expunge.cmt as compiler-libs/expunge.cmt)
+  (.topstart.eobjs/byte/topstart.cmi as compiler-libs/topstart.cmi)
+  (.topstart.eobjs/byte/topstart.cmo as compiler-libs/topstart.cmo)
+  (.topstart.eobjs/byte/topstart.cmt as compiler-libs/topstart.cmt))
+ (section lib)
+ (package ocaml))

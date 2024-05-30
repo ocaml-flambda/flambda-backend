@@ -9,45 +9,47 @@
 ;**************************************************************************
 
 (ocamllex lexer)
+
 (ocamlyacc parser)
 
 (library
-  (name ocamllex_lib)
-  (wrapped false)
-  (modes byte native)
-  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
-  (modules
-    common
-    compact
-    cset
-    lexer
-    lexgen
-    output
-    outputbis
-    parser
-    syntax
-    table))
+ (name ocamllex_lib)
+ (wrapped false)
+ (modes byte native)
+ (ocamlopt_flags
+  (:include %{project_root}/ocamlopt_flags.sexp))
+ (modules
+  common
+  compact
+  cset
+  lexer
+  lexgen
+  output
+  outputbis
+  parser
+  syntax
+  table))
 
 (executable
-  (name main)
-  (modes byte)
-  (libraries ocamllex_lib)
-  (modules main))
+ (name main)
+ (modes byte)
+ (libraries ocamllex_lib)
+ (modules main))
 
 (rule
-  (targets main_native.ml)
-  (action (copy main.ml %{targets})))
+ (targets main_native.ml)
+ (action
+  (copy main.ml %{targets})))
 
 (executable
-  (name main_native)
-  (modes native)
-  (libraries ocamllex_lib)
-  (modules main_native))
+ (name main_native)
+ (modes native)
+ (libraries ocamllex_lib)
+ (modules main_native))
 
 (install
-  (files
-    (main.bc as ocamllex.byte)
-    (main_native.exe as ocamllex.opt)
-  )
-  (section bin)
-  (package ocaml))
+ (files
+  (main.bc as ocamllex.byte)
+  (main_native.exe as ocamllex.opt))
+ (section bin)
+ (package ocaml))

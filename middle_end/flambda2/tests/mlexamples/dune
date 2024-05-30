@@ -1,30 +1,32 @@
 (include generated-rules.inc)
 
-(alias (name regen-dune-rules))
+(alias
+ (name regen-dune-rules))
 
 (rule
  (alias regen-dune-rules)
  (action
   (progn
-   (with-stdout-to generated-rules.inc.new
-    (run tools/gen_dune_rules.exe
-         inlined_rec
-         local
-         tests0
-         tests2
-         tests3
-         tests4
-         tests4a
-         tests5
-         tests6
-         tests7
-         tests11
-         tests14
-         tests15
-         unroll
-         unroll2
-         unroll3
-         unroll4
-         unroll5
-   ))
+   (with-stdout-to
+    generated-rules.inc.new
+    (run
+     tools/gen_dune_rules.exe
+     inlined_rec
+     local
+     tests0
+     tests2
+     tests3
+     tests4
+     tests4a
+     tests5
+     tests6
+     tests7
+     tests11
+     tests14
+     tests15
+     unroll
+     unroll2
+     unroll3
+     unroll4
+     unroll5))
    (diff generated-rules.inc generated-rules.inc.new))))

@@ -16,33 +16,41 @@
  (name str)
  (wrapped false)
  (modes byte native)
- (flags (
-   :standard
-   -strict-sequence -absname -w +67+70
-   -bin-annot -safe-string -strict-formats
- ))
- (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
- (library_flags (:standard -linkall))
- (foreign_stubs (language c) (names strstubs)
-  (flags ((:include %{project_root}/oc_cflags.sexp)
-          (:include %{project_root}/sharedlib_cflags.sexp)
-          (:include %{project_root}/oc_cppflags.sexp)))))
+ (flags
+  (:standard
+   -strict-sequence
+   -absname
+   -w
+   +67+70
+   -bin-annot
+   -safe-string
+   -strict-formats))
+ (ocamlopt_flags
+  (:include %{project_root}/ocamlopt_flags.sexp))
+ (library_flags
+  (:standard -linkall))
+ (foreign_stubs
+  (language c)
+  (names strstubs)
+  (flags
+   ((:include %{project_root}/oc_cflags.sexp)
+    (:include %{project_root}/sharedlib_cflags.sexp)
+    (:include %{project_root}/oc_cppflags.sexp)))))
 
 (install
-  (files
-    (.str.objs/native/str.cmx as str/str.cmx)
-    (libstr_stubs.a as str/libstr_stubs.a)
-    (libstr_stubs.a as libstr_stubs_native.a) ; for special_dune compat
-    (dllstr_stubs.so as stublibs/dllstr_stubs.so)
-    (str.cmxa as str/str.cmxa)
-    (str.a as str/str.a)
-    (str.cmxs as str/str.cmxs)
-    (str.cma as str/str.cma)
-    (str.mli as str/str.mli)
-    (.str.objs/byte/str.cmi as str/str.cmi)
-    (.str.objs/byte/str.cmt as str/str.cmt)
-    (.str.objs/byte/str.cmti as str/str.cmti)
-    (META as str/META)
-  )
-  (section lib)
-  (package ocaml))
+ (files
+  (.str.objs/native/str.cmx as str/str.cmx)
+  (libstr_stubs.a as str/libstr_stubs.a)
+  (libstr_stubs.a as libstr_stubs_native.a) ; for special_dune compat
+  (dllstr_stubs.so as stublibs/dllstr_stubs.so)
+  (str.cmxa as str/str.cmxa)
+  (str.a as str/str.a)
+  (str.cmxs as str/str.cmxs)
+  (str.cma as str/str.cma)
+  (str.mli as str/str.mli)
+  (.str.objs/byte/str.cmi as str/str.cmi)
+  (.str.objs/byte/str.cmt as str/str.cmt)
+  (.str.objs/byte/str.cmti as str/str.cmti)
+  (META as str/META))
+ (section lib)
+ (package ocaml))

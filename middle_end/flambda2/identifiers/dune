@@ -3,7 +3,8 @@
 (library
  (name flambda2_identifiers)
  (wrapped true)
- (instrumentation (backend bisect_ppx))
+ (instrumentation
+  (backend bisect_ppx))
  (flags
   (:standard
    -open

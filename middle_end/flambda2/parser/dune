@@ -3,14 +3,16 @@
 ; @regen alias that regenerates them only if asked for. The Makefile then runs
 ; the alias with --auto-promote.
 
-(alias (name regen))
+(alias
+ (name regen))
 
 (rule
  (target flambda_lex.ml.new)
  (deps flambda_lex.mll)
  (alias regen)
  (action
-  (chdir %{workspace_root}
+  (chdir
+   %{workspace_root}
    (run ocamllex -q %{deps} -o %{target}))))
 
 (rule
@@ -52,7 +54,8 @@
 
 ; NOTE: flambda_parser.messages is massively out of date.
 
-(alias (name regen-messages))
+(alias
+ (name regen-messages))
 
 (rule
  (alias regen-messages)
@@ -60,7 +63,8 @@
  (targets)
  (action
   (progn
-   (with-stdout-to flambda_parser_messages.ml.new
+   (with-stdout-to
+    flambda_parser_messages.ml.new
     (run menhir --compile-errors %{deps}))
    (diff flambda_parser_messages.ml flambda_parser_messages.ml.new))))
 
@@ -100,7 +104,8 @@
 (library
  (name flambda2_parser)
  (wrapped true)
- (instrumentation (backend bisect_ppx))
+ (instrumentation
+  (backend bisect_ppx))
  (flags
   (:standard
    -open

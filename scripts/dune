@@ -1,6 +1,6 @@
 (install
  (files
-   (dummy-ocamlcp.sh as ocamlcp)
-   (dummy-ocamlprof.sh as ocamlprof))
+  (dummy-ocamlcp.sh as ocamlcp)
+  (dummy-ocamlprof.sh as ocamlprof))
  (section bin)
  (package ocaml))

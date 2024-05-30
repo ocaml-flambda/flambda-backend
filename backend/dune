@@ -13,25 +13,40 @@
 ;**************************************************************************
 
 (rule
- (targets arch.ml arch.mli CSE.ml proc.ml regalloc_stack_operands.ml reload.ml scheduling.ml selection.ml
-          simd.ml simd_selection.ml simd_reload.ml simd_proc.ml stack_check.ml)
- (mode    fallback)
- (deps    (glob_files amd64/*.ml)
-          (glob_files amd64/*.mli)
-          (glob_files arm64/*.ml)
-          (glob_files arm64/*.mli))
- (action  (bash "cp %{env:ARCH=amd64}/*.ml %{env:ARCH=amd64}/*.mli .")))
+ (targets
+  arch.ml
+  arch.mli
+  CSE.ml
+  proc.ml
+  regalloc_stack_operands.ml
+  reload.ml
+  scheduling.ml
+  selection.ml
+  simd.ml
+  simd_selection.ml
+  simd_reload.ml
+  simd_proc.ml
+  stack_check.ml)
+ (mode fallback)
+ (deps
+  (glob_files amd64/*.ml)
+  (glob_files amd64/*.mli)
+  (glob_files arm64/*.ml)
+  (glob_files arm64/*.mli))
+ (action
+  (bash "cp %{env:ARCH=amd64}/*.ml %{env:ARCH=amd64}/*.mli .")))
 
 (rule
  (targets emit.ml)
- (mode    fallback)
- (deps    amd64/emit.mlp
-          arm64/emit.mlp)
+ (mode fallback)
+ (deps amd64/emit.mlp arm64/emit.mlp)
  (action
-   (progn
-     (with-stdout-to contains-input-name
-       (bash "echo %{env:ARCH=amd64}/emit.mlp"))
-     (with-stdout-to %{targets}
-       (progn
-         (bash "echo \\# 1 \\\"`cat contains-input-name`\\\"")
-         (bash "%{dep:../ocaml/tools/cvt_emit.exe} < `cat contains-input-name`"))))))
+  (progn
+   (with-stdout-to
+    contains-input-name
+    (bash "echo %{env:ARCH=amd64}/emit.mlp"))
+   (with-stdout-to
+    %{targets}
+    (progn
+     (bash "echo \\# 1 \\\"`cat contains-input-name`\\\"")
+     (bash "%{dep:../ocaml/tools/cvt_emit.exe} < `cat contains-input-name`"))))))

@@ -1,5 +1,7 @@
 (rule
- (alias   runtest)
- (enabled_if (= %{context_name} "main"))
+ (alias runtest)
+ (enabled_if
+  (= %{context_name} "main"))
  (deps select_float.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -c)))
+ (action
+  (run %{bin:ocamlopt.opt} %{deps} -c)))

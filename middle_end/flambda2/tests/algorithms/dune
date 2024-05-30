@@ -1,5 +1,6 @@
 (tests
  (names patricia_tree_tests)
  (modes native)
- (instrumentation (backend bisect_ppx))
+ (instrumentation
+  (backend bisect_ppx))
  (libraries minicheck flambda2_algorithms flambda2_nominal))

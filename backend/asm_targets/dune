@@ -1,9 +1,9 @@
 (include_subdirs unqualified)
 
 (library
-  (name asm_targets)
-  (wrapped true)
-  ; FIXME Fix warning 27
-  (flags (:standard -w -27-70))
-  (libraries ocamlcommon dwarf_flags)
-)
+ (name asm_targets)
+ (wrapped true)
+ ; FIXME Fix warning 27
+ (flags
+  (:standard -w -27-70))
+ (libraries ocamlcommon dwarf_flags))

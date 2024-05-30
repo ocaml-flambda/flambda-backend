@@ -1,8 +1,8 @@
 (include_subdirs unqualified)
 
 (library
-  (name dwarf_flags)
-  (wrapped true)
-  (ocamlopt_flags (:standard -O3))
-  (libraries ocamlcommon)
-)
+ (name dwarf_flags)
+ (wrapped true)
+ (ocamlopt_flags
+  (:standard -O3))
+ (libraries ocamlcommon))

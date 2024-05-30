@@ -18,18 +18,26 @@
  (name ocamlopttoplevel)
  (modes native)
  (wrapped false)
- (flags (:standard -w -70))
- (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
- (libraries ocamlcommon ocamlbytecomp ocamloptcomp
-   flambda_backend_common
-   flambda2_ui
-   flambda2 dynlink_internal unix)
+ (flags
+  (:standard -w -70))
+ (ocamlopt_flags
+  (:include %{project_root}/ocamlopt_flags.sexp))
+ (libraries
+  ocamlcommon
+  ocamlbytecomp
+  ocamloptcomp
+  flambda_backend_common
+  flambda2_ui
+  flambda2
+  dynlink_internal
+  unix)
  (modules genprintval_native opttoploop opttopdirs opttopmain))
 
 (rule
-  (targets genprintval_native.ml)
-  (deps %{project_root}/ocaml/toplevel/genprintval.ml)
-  (action (copy %{deps} %{targets})))
+ (targets genprintval_native.ml)
+ (deps %{project_root}/ocaml/toplevel/genprintval.ml)
+ (action
+  (copy %{deps} %{targets})))
 
 (executable
  (name opttopstart)
@@ -38,25 +46,35 @@
  (modules opttopstart))
 
 (install
-  (files
-    (opttopstart.exe as ocamlnat)
-  )
-  (section bin)
-  (package ocaml))
+ (files
+  (opttopstart.exe as ocamlnat))
+ (section bin)
+ (package ocaml))
 
 (install
-  (files
-    (ocamlopttoplevel.a as compiler-libs/ocamlopttoplevel.a)
-    (ocamlopttoplevel.cmxa as compiler-libs/ocamlopttoplevel.cmxa)
-    (opttopdirs.mli as compiler-libs/opttopdirs.mli)
-    (.ocamlopttoplevel.objs/byte/opttopdirs.cmi as compiler-libs/opttopdirs.cmi)
-    (.ocamlopttoplevel.objs/byte/opttopdirs.cmt as compiler-libs/opttopdirs.cmt)
-    (.ocamlopttoplevel.objs/byte/opttopdirs.cmti as compiler-libs/opttopdirs.cmti)
-    (opttoploop.mli as compiler-libs/opttoploop.mli)
-    (.ocamlopttoplevel.objs/byte/opttoploop.cmi as compiler-libs/opttoploop.cmi)
-    (.ocamlopttoplevel.objs/byte/opttoploop.cmt as compiler-libs/opttoploop.cmt)
-    (.ocamlopttoplevel.objs/byte/opttoploop.cmti as compiler-libs/opttoploop.cmti)
-    (opttopmain.mli as compiler-libs/opttopmain.mli)
-  )
-  (section lib)
-  (package ocaml))
+ (files
+  (ocamlopttoplevel.a as compiler-libs/ocamlopttoplevel.a)
+  (ocamlopttoplevel.cmxa as compiler-libs/ocamlopttoplevel.cmxa)
+  (opttopdirs.mli as compiler-libs/opttopdirs.mli)
+  (.ocamlopttoplevel.objs/byte/opttopdirs.cmi
+   as
+   compiler-libs/opttopdirs.cmi)
+  (.ocamlopttoplevel.objs/byte/opttopdirs.cmt
+   as
+   compiler-libs/opttopdirs.cmt)
+  (.ocamlopttoplevel.objs/byte/opttopdirs.cmti
+   as
+   compiler-libs/opttopdirs.cmti)
+  (opttoploop.mli as compiler-libs/opttoploop.mli)
+  (.ocamlopttoplevel.objs/byte/opttoploop.cmi
+   as
+   compiler-libs/opttoploop.cmi)
+  (.ocamlopttoplevel.objs/byte/opttoploop.cmt
+   as
+   compiler-libs/opttoploop.cmt)
+  (.ocamlopttoplevel.objs/byte/opttoploop.cmti
+   as
+   compiler-libs/opttoploop.cmti)
+  (opttopmain.mli as compiler-libs/opttopmain.mli))
+ (section lib)
+ (package ocaml))

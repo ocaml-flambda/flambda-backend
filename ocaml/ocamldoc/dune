@@ -12,94 +12,98 @@
 ;*                                                                        *
 ;**************************************************************************
 
-(ocamllex  odoc_lexer odoc_ocamlhtml odoc_see_lexer odoc_text_lexer)
+(ocamllex odoc_lexer odoc_ocamlhtml odoc_see_lexer odoc_text_lexer)
+
 (ocamlyacc odoc_parser odoc_text_parser)
 
 ; Need to work out what's going on with odoc_info, which has a .cmxa in
 ; the Makefile build.
 
 (library
-  (name odoc_lib)
-  (modes byte native)
-  (wrapped false)
-  (flags (:standard -w -9-32))
-  (modules
-    odoc_analyse
-    odoc_args
-    odoc_ast
-    odoc_class
-    odoc_comments
-    odoc_comments_global
-    odoc_config
-    odoc_cross
-    odoc_dag2html
-    odoc_dep
-    odoc_dot
-    odoc_env
-    odoc_exception
-    odoc_extension
-    odoc_gen
-    odoc_global
-    odoc_html
-    odoc_info
-    odoc_latex
-    odoc_latex_style
-    odoc_lexer
-    odoc_man
-    odoc_merge
-    odoc_messages
-    odoc_misc
-    odoc_module
-    odoc_name
-    odoc_ocamlhtml
-    odoc_parameter
-    odoc_parser
-    odoc_print
-    odoc_scan
-    odoc_search
-    odoc_see_lexer
-    odoc_sig
-    odoc_str
-    odoc_test
-    odoc_texi
-    odoc_text
-    odoc_text_lexer
-    odoc_text_parser
-    odoc_to_text
-    odoc_type
-    odoc_types
-    odoc_value
-  )
-  (libraries dynlink_internal ocamlcommon str unix))
+ (name odoc_lib)
+ (modes byte native)
+ (wrapped false)
+ (flags
+  (:standard -w -9-32))
+ (modules
+  odoc_analyse
+  odoc_args
+  odoc_ast
+  odoc_class
+  odoc_comments
+  odoc_comments_global
+  odoc_config
+  odoc_cross
+  odoc_dag2html
+  odoc_dep
+  odoc_dot
+  odoc_env
+  odoc_exception
+  odoc_extension
+  odoc_gen
+  odoc_global
+  odoc_html
+  odoc_info
+  odoc_latex
+  odoc_latex_style
+  odoc_lexer
+  odoc_man
+  odoc_merge
+  odoc_messages
+  odoc_misc
+  odoc_module
+  odoc_name
+  odoc_ocamlhtml
+  odoc_parameter
+  odoc_parser
+  odoc_print
+  odoc_scan
+  odoc_search
+  odoc_see_lexer
+  odoc_sig
+  odoc_str
+  odoc_test
+  odoc_texi
+  odoc_text
+  odoc_text_lexer
+  odoc_text_parser
+  odoc_to_text
+  odoc_type
+  odoc_types
+  odoc_value)
+ (libraries dynlink_internal ocamlcommon str unix))
 
 (executable
-  (name odoc_byte)
-  (modes byte)
-  ; See note in the toplevel dune file about this.
-  (flags (:standard -cclib "-L ../runtime4" -cclib -lcamlrun))
-  (modules odoc_byte)
-  (libraries odoc_lib))
+ (name odoc_byte)
+ (modes byte)
+ ; See note in the toplevel dune file about this.
+ (flags
+  (:standard -cclib "-L ../runtime4" -cclib -lcamlrun))
+ (modules odoc_byte)
+ (libraries odoc_lib))
 
 (rule
-  (targets odoc_byte.ml)
-  (action (copy odoc.ml %{targets})))
+ (targets odoc_byte.ml)
+ (action
+  (copy odoc.ml %{targets})))
 
 (executable
-  (name odoc_native)
-  (modes native)
-  (modules odoc_native)
-  (libraries odoc_lib dynlink_internal))
+ (name odoc_native)
+ (modes native)
+ (modules odoc_native)
+ (libraries odoc_lib dynlink_internal))
 
 (rule
-  (targets odoc_native.ml)
-  (action (copy odoc.ml %{targets})))
+ (targets odoc_native.ml)
+ (action
+  (copy odoc.ml %{targets})))
 
 (install
-  (files
-    (odoc_byte.bc as ocamldoc.byte)
-    (odoc_native.exe as ocamldoc.opt))
-  (section bin)
-  (package ocaml))
+ (files
+  (odoc_byte.bc as ocamldoc.byte)
+  (odoc_native.exe as ocamldoc.opt))
+ (section bin)
+ (package ocaml))
 
 ; (install
 ;   (files

@@ -3,29 +3,36 @@
 (library
  (name flambda_backend_utils)
  ; FIXME Fix warning 27
- (flags (:standard -w -27))
+ (flags
+  (:standard -w -27))
  (ocamlopt_flags
   (:standard -O3))
  (libraries ocamlcommon))
 
 (install
-  (files
-    (flambda_backend_utils.a as compiler-libs/flambda_backend_utils.a)
-    (flambda_backend_utils.cma as compiler-libs/flambda_backend_utils.cma)
-    (flambda_backend_utils.cmxa as compiler-libs/flambda_backend_utils.cmxa)
-    (.flambda_backend_utils.objs/byte/flambda_backend_utils.cmi as compiler-libs/flambda_backend_utils.cmi)
-    (doubly_linked_list.mli as compiler-libs/doubly_linked_list.ml)
-    (doubly_linked_list.mli as compiler-libs/doubly_linked_list.mli)
-    (.flambda_backend_utils.objs/byte/flambda_backend_utils__Doubly_linked_list.cmi
-     as compiler-libs/flambda_backend_utils__Doubly_linked_list.cmi)
-    (.flambda_backend_utils.objs/byte/flambda_backend_utils__Doubly_linked_list.cmti
-     as compiler-libs/flambda_backend_utils__Doubly_linked_list.cmti)
-    (.flambda_backend_utils.objs/byte/flambda_backend_utils__Doubly_linked_list.cmt
-     as compiler-libs/flambda_backend_utils__Doubly_linked_list.cmt)
-    (.flambda_backend_utils.objs/native/flambda_backend_utils__Doubly_linked_list.cmx
-     as compiler-libs/flambda_backend_utils__Doubly_linked_list.cmx)
-    (.flambda_backend_utils.objs/native/flambda_backend_utils__Doubly_linked_list.o
-     as compiler-libs/flambda_backend_utils__Doubly_linked_list.o)
-  )
-  (section lib)
-  (package ocaml))
+ (files
+  (flambda_backend_utils.a as compiler-libs/flambda_backend_utils.a)
+  (flambda_backend_utils.cma as compiler-libs/flambda_backend_utils.cma)
+  (flambda_backend_utils.cmxa as compiler-libs/flambda_backend_utils.cmxa)
+  (.flambda_backend_utils.objs/byte/flambda_backend_utils.cmi
+   as
+   compiler-libs/flambda_backend_utils.cmi)
+  (doubly_linked_list.mli as compiler-libs/doubly_linked_list.ml)
+  (doubly_linked_list.mli as compiler-libs/doubly_linked_list.mli)
+  (.flambda_backend_utils.objs/byte/flambda_backend_utils__Doubly_linked_list.cmi
+   as
+   compiler-libs/flambda_backend_utils__Doubly_linked_list.cmi)
+  (.flambda_backend_utils.objs/byte/flambda_backend_utils__Doubly_linked_list.cmti
+   as
+   compiler-libs/flambda_backend_utils__Doubly_linked_list.cmti)
+  (.flambda_backend_utils.objs/byte/flambda_backend_utils__Doubly_linked_list.cmt
+   as
+   compiler-libs/flambda_backend_utils__Doubly_linked_list.cmt)
+  (.flambda_backend_utils.objs/native/flambda_backend_utils__Doubly_linked_list.cmx
+   as
+   compiler-libs/flambda_backend_utils__Doubly_linked_list.cmx)
+  (.flambda_backend_utils.objs/native/flambda_backend_utils__Doubly_linked_list.o
+   as
+   compiler-libs/flambda_backend_utils__Doubly_linked_list.o))
+ (section lib)
+ (package ocaml))

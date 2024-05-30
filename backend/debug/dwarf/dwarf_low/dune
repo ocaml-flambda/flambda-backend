@@ -1,9 +1,10 @@
 (include_subdirs unqualified)
 
 (library
-  (name dwarf_low)
-  (wrapped true)
-  (flags (:standard -w -70))
-  (ocamlopt_flags (:standard -O3))
-  (libraries asm_targets)
-)
+ (name dwarf_low)
+ (wrapped true)
+ (flags
+  (:standard -w -70))
+ (ocamlopt_flags
+  (:standard -O3))
+ (libraries asm_targets))

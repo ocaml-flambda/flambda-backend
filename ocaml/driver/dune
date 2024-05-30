@@ -2,9 +2,11 @@
 ; compilation unit to be used in more than one executable or library.
 
 (rule
-  (targets main_native.ml)
-  (action (copy main.ml %{targets})))
+ (targets main_native.ml)
+ (action
+  (copy main.ml %{targets})))
 
 (rule
-  (targets optmain_native.ml)
-  (action (copy optmain.ml %{targets})))
+ (targets optmain_native.ml)
+ (action
+  (copy optmain.ml %{targets})))
