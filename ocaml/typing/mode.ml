@@ -1236,8 +1236,6 @@ module Locality = struct
     let obj = C.Locality
   end
 
-  let comonadic_with_areality = C.Comonadic_with_locality
-
   include Common (Obj)
 
   let global = of_const Global
@@ -1271,8 +1269,6 @@ module Regionality = struct
 
     let obj = C.Regionality
   end
-
-  let comonadic_with_areality = C.Comonadic_with_regionality
 
   include Common (Obj)
 
@@ -1346,8 +1342,6 @@ module type Areality = sig
 
   module Obj : Obj with type const = Const.t and module Solver = S.Positive
 
-  val comonadic_with_areality : Const.t C.comonadic_with C.obj
-
   val zap_to_legacy : (Const.t, allowed * 'r) Obj.Solver.mode -> Const.t
 end
 
@@ -1363,7 +1357,7 @@ module Comonadic_with (Areality : Areality) = struct
 
     module Solver = S.Positive
 
-    let obj = Areality.comonadic_with_areality
+    let obj = C.comonadic_with_obj Areality.Obj.obj
   end
 
   include Common (Obj)
@@ -1491,7 +1485,7 @@ type ('mo, 'como) monadic_comonadic =
     comonadic : 'como
   }
 
-module Mode (Areality : Areality) = struct
+module Value_with (Areality : Areality) = struct
   module Comonadic = Comonadic_with (Areality)
   module Monadic = Monadic
 
@@ -1612,7 +1606,9 @@ module Mode (Areality : Areality) = struct
       let { monadic; comonadic } = split m in
       let comonadic =
         Comonadic.join comonadic
-          (C.monadic_to_comonadic_min Areality.comonadic_with_areality monadic)
+          (C.monadic_to_comonadic_min
+             (C.comonadic_with_obj Areality.Obj.obj)
+             monadic)
       in
       let monadic = Monadic.min in
       merge { comonadic; monadic }
@@ -1876,8 +1872,8 @@ module Mode (Areality : Areality) = struct
 end
 [@@inline]
 
-module Value = Mode (Regionality)
-module Alloc = Mode (Locality)
+module Value = Value_with (Regionality)
+module Alloc = Value_with (Locality)
 
 module Const = struct
   let alloc_as_value ({ areality; linearity; uniqueness } : Alloc.Const.t) :
