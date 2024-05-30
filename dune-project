@@ -18,3 +18,5 @@
   (name ocaml_runtime_stdlib)
 )
 
+(formatting
+ (enabled_for dune ocaml))

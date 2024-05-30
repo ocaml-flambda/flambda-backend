@@ -87,7 +87,7 @@ promote:
 
 .PHONY: fmt
 fmt:
-	ocamlformat -i $$(find . \( -name "*.ml" -or -name "*.mli" \))
+	dune fmt
 
 .PHONY: check-fmt
 check-fmt:
