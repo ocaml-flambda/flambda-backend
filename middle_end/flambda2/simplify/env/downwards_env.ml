@@ -218,18 +218,36 @@ let enter_set_of_closures
     loopify_state = Loopify_state.do_not_loopify
   }
 
+let define_symbol t sym kind =
+  let typing_env =
+    let sym = Bound_name.create (Name.symbol sym) Name_mode.normal in
+    TE.add_definition t.typing_env sym kind
+  in
+  { t with typing_env }
+
 let define_name t name kind =
   Name.pattern_match (Bound_name.name name)
-    ~var:(fun[@inline] var ->
-      (define_variable[@inlined hint]) t (Bound_var.create var (Bound_name.name_mode name)) kind)
-    ~symbol:(fun[@inline] _ ->
-      { t with typing_env = TE.add_definition t.typing_env name kind })
+    ~var:(fun [@inline] var ->
+      (define_variable [@inlined hint]) t
+        (Bound_var.create var (Bound_name.name_mode name))
+        kind)
+    ~symbol:(fun [@inline] sym -> (define_symbol [@inlined hint]) t sym kind)
+
+let add_variable t var ty =
+  let t = (define_variable [@inlined hint]) t var (T.kind ty) in
+  { t with
+    typing_env = TE.add_equation t.typing_env (Name.var (Bound_var.var var)) ty
+  }
+
+let add_symbol t sym ty =
+  let t = (define_symbol [@inlined hint]) t sym (T.kind ty) in
+  { t with typing_env = TE.add_equation t.typing_env (Name.symbol sym) ty }
 
 let add_name t name ty =
-  let t = (define_name [@inlined hint]) t name (T.kind ty) in
-  { t with typing_env = TE.add_equation t.typing_env (Bound_name.name name) ty }
-
-let add_variable t var ty = (add_name [@inlined hint]) t (Bound_name.create_var var) ty
+  Name.pattern_match (Bound_name.name name)
+    ~var:(fun [@inline] var ->
+      add_variable t (Bound_var.create var (Bound_name.name_mode name)) ty)
+    ~symbol:(fun [@inline] sym -> add_symbol t sym ty)
 
 let add_equation_on_variable t var ty =
   let typing_env = TE.add_equation t.typing_env (Name.var var) ty in
@@ -238,21 +256,6 @@ let add_equation_on_variable t var ty =
 let mem_name t name = TE.mem t.typing_env name
 
 let mem_variable t var = TE.mem t.typing_env (Name.var var)
-
-let define_symbol t sym kind =
-  let typing_env =
-    let sym = Bound_name.create (Name.symbol sym) Name_mode.normal in
-    TE.add_definition t.typing_env sym kind
-  in
-  { t with typing_env }
-
-let add_symbol t sym ty =
-  let typing_env =
-    let sym = Name.symbol sym in
-    let sym' = Bound_name.create sym Name_mode.normal in
-    TE.add_equation (TE.add_definition t.typing_env sym' (T.kind ty)) sym ty
-  in
-  { t with typing_env }
 
 let add_equation_on_symbol t sym ty =
   let typing_env =
@@ -330,35 +333,14 @@ let mark_parameters_as_toplevel t params =
   { t with variables_defined_at_toplevel }
 
 let define_variable_and_extend_typing_environment t var kind env_extension =
-  (* This is a combined operation to reduce allocation. *)
-  let typing_env =
-    let var' = Bound_name.create_var var in
-    TE.add_definition t.typing_env var' kind
-  in
-  let variables_defined_at_toplevel =
-    if t.at_unit_toplevel
-    then Variable.Set.add (Bound_var.var var) t.variables_defined_at_toplevel
-    else t.variables_defined_at_toplevel
-  in
-  let typing_env = TE.add_env_extension typing_env env_extension in
-  { t with typing_env; variables_defined_at_toplevel }
+  let t = (define_variable [@inlined hint]) t var kind in
+  let typing_env = TE.add_env_extension t.typing_env env_extension in
+  { t with typing_env }
 
 let add_variable_and_extend_typing_environment t var ty env_extension =
-  (* This is a combined operation to reduce allocation. *)
-  let typing_env =
-    let var' = Bound_name.create_var var in
-    TE.add_equation
-      (TE.add_definition t.typing_env var' (T.kind ty))
-      (Name.var (Bound_var.var var))
-      ty
-  in
-  let variables_defined_at_toplevel =
-    if t.at_unit_toplevel
-    then Variable.Set.add (Bound_var.var var) t.variables_defined_at_toplevel
-    else t.variables_defined_at_toplevel
-  in
-  let typing_env = TE.add_env_extension typing_env env_extension in
-  { t with typing_env; variables_defined_at_toplevel }
+  let t = (add_variable [@inlined hint]) t var ty in
+  let typing_env = TE.add_env_extension t.typing_env env_extension in
+  { t with typing_env }
 
 let extend_typing_environment t env_extension =
   (* There doesn't seem any need to augment [t.variables_defined_at_toplevel]
