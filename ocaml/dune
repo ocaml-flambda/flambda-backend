@@ -76,7 +76,7 @@
    debug profile terminfo ccomp warnings consistbl strongly_connected_components
    targetint load_path int_replace_polymorphic_compare domainstate binutils
    local_store target_system compilation_unit import_info linkage_name symbol
-   lazy_backtrack diffing diffing_with_keys global
+   lazy_backtrack diffing diffing_with_keys
    language_extension_kernel language_extension
    zero_alloc_utils zero_alloc_annotations
 
@@ -88,7 +88,7 @@
 
    ;; TYPING
    ident path jkind primitive shape shape_reduce types btype oprint subst predef datarepr
-   cmi_format persistent_env env errortrace mode jkind_types jkind_intf
+   global_module cmi_format persistent_env env errortrace mode jkind_types jkind_intf
    typedtree printtyped ctype printtyp includeclass mtype envaux includecore
    tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
    includemod includemod_errorprinter

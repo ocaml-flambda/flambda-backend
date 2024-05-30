@@ -171,24 +171,6 @@ module Stdlib : sig
     (** Returns the longest list that, with respect to the provided equality
         function, is a prefix of both of the given lists.  The input lists,
         each with such longest common prefix removed, are also returned. *)
-
-    val merge_iter
-       : cmp:('a -> 'b -> int)
-      -> left_only:('a -> unit)
-      -> right_only:('b -> unit)
-      -> both:('a -> 'b -> unit)
-      -> 'a t
-      -> 'b t
-      -> unit
-
-    val merge_map
-       : cmp:('a -> 'b -> int)
-      -> left_only:('a -> 'c)
-      -> right_only:('b -> 'c)
-      -> both:('a -> 'b -> 'c)
-      -> 'a t
-      -> 'b t
-      -> 'c t
   end
 
 (** {2 Extensions to the Option module} *)
@@ -642,6 +624,19 @@ val pp_two_columns :
 val print_see_manual : Format.formatter -> int list -> unit
 (** See manual section *)
 
+val output_of_print :
+  (Format.formatter -> 'a -> unit) -> out_channel -> 'a -> unit
+(** [output_of_print print] produces an output function from a pretty printer.
+    Note that naively using [Format.formatter_of_out_channel] typechecks but
+    doesn't work because it fails to flush the formatter. *)
+
+val to_string_of_print :
+  (Format.formatter -> 'a -> unit) -> 'a -> string
+(** [to_string_of_print print] produces a string conversion function from a
+    pretty printer. This is similar but preferable to [Format.asprintf "%a"]
+    when the output may be large, since [to_string] functions don't usually
+    return embedded newlines. *)
+
 (** {1 Displaying configuration variables} *)
 
 val show_config_and_exit : unit -> unit
@@ -664,20 +659,6 @@ val get_build_path_prefix_map: unit -> Build_path_prefix_map.map option
 val debug_prefix_map_flags: unit -> string list
 (** Returns the list of [--debug-prefix-map] flags to be passed to the
     assembler, built from the [BUILD_PATH_PREFIX_MAP] environment variable. *)
-
-val output_of_print :
-  (Format.formatter -> 'a -> unit) -> out_channel -> 'a -> unit
-(** [output_of_print print] produces an output function from a pretty printer.
-    Note that naively using [Format.formatter_of_out_channel] typechecks but
-    doesn't work because it fails to flush the formatter. *)
-
-val to_string_of_print :
-  (Format.formatter -> 'a -> unit) -> 'a -> string
-(** [to_string_of_print print] produces a string conversion function from a
-    pretty printer. This is similar but preferable to [Format.asprintf "%a"]
-    when the output may be large, since [to_string] functions don't usually
-    return embedded newlines. *)
-
 
 module Bitmap : sig
   type t

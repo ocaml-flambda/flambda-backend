@@ -1,5 +1,5 @@
 module Test_data = struct
-  open Global
+  open Global_module
 
   open struct
     let n ?(args = []) head : Name.t = Name.create head args
@@ -77,14 +77,16 @@ end
 
 module Subst_tests = struct
   open struct
-    let subst param s = Global.subst param (s |> Global.Name.Map.of_list)
+    let subst param s =
+      Global_module.subst param (s |> Global_module.Name.Map.of_list)
 
     let [@ocamlformat "disable"] case glob s =
-      let s = s |> Global.Name.Map.of_list in
+      let s = s |> Global_module.Name.Map.of_list in
+      let s', _changed = Global_module.subst glob s in
       Format.printf "@[<hv 2>%a@ %a@ =@ %a@]@."
-        Global.print glob
-        (Global.Name.Map.print Global.print) s
-        Global.print (Global.subst glob s)
+        Global_module.print glob
+        (Global_module.Name.Map.print Global_module.print) s
+        Global_module.print s'
   end
 
   let run () =
@@ -92,9 +94,9 @@ module Subst_tests = struct
     let open Test_data in
     case x_g [x, unit_g];
     case y_g [x, unit_g];
-    let y_unit = subst y_g [x, unit_g] in
+    let y_unit, _changed = subst y_g [x, unit_g] in
     case y_unit [x, string_g];
-    case y_unit [Global.to_name y_unit, string_g];
+    case y_unit [Global_module.to_name y_unit, string_g];
     case m_g [x, a_g];
     case m_g [x, a_g; y, b_g];
     case x_g [i, unit_g];
@@ -109,18 +111,18 @@ module Check_tests = struct
       let pp_list_body ppf params =
         Format.pp_print_list
           ~pp_sep:(fun ppf () -> Format.fprintf ppf ";@ ")
-          Global.print ppf params
+          Global_module.print ppf params
       in
       match params with
       | [] -> Format.fprintf ppf "[]"
       | _ :: _ -> Format.fprintf ppf "@[<hov 2>[@ %a@ ]@]" pp_list_body params
 
     let [@ocamlformat "disable"] case s params =
-      let s = s |> Global.Name.Map.of_list in
+      let s = s |> Global_module.Name.Map.of_list in
       Format.printf "@[<hv 2>@[<hv 2>check@ %a@ %a@]@ = %a@]@."
-        (Global.Name.Map.print Global.print) s
+        (Global_module.Name.Map.print Global_module.print) s
         print_params params
-        Format.pp_print_bool (Global.check s params)
+        Format.pp_print_bool (Global_module.check s params)
   end
 
   let run () =
