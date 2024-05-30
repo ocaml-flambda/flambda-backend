@@ -2191,7 +2191,7 @@ let constrain_type_jkind ~fixed env ty jkind =
   | Type_var (ty_jkind, ty) ->
     if fixed then Jkind.sub_or_error ty_jkind jkind else
     let jkind_inter =
-      Jkind.intersection ~reason:Tyvar_refinement_intersection
+      Jkind.intersection_or_error ~reason:Tyvar_refinement_intersection
         ty_jkind jkind
     in
     Result.map (set_var_jkind ty) jkind_inter
@@ -2293,7 +2293,7 @@ let rec intersect_type_jkind ~reason env ty1 jkind2 =
     (* [intersect_type_jkind] is called rarely, so we don't bother with trying
        to avoid this call as in [constrain_type_jkind] *)
     let ty1 = get_unboxed_type_approximation env ty1 in
-    Jkind.intersection ~reason (estimate_type_jkind env ty1) jkind2
+    Jkind.intersection_or_error ~reason (estimate_type_jkind env ty1) jkind2
 
 (* See comment on [jkind_unification_mode] *)
 let unification_jkind_check env ty jkind =
@@ -2917,6 +2917,10 @@ let equivalent_with_nolabels l1 l2 =
   | (Nolabel | Labelled _), (Nolabel | Labelled _) -> true
   | _ -> false)
 
+(* the [tk] means we're comparing a type against a jkind *)
+let has_jkind_intersection_tk env ty jkind =
+  Jkind.has_intersection (type_jkind env ty) jkind
+
 (* [mcomp] tests if two types are "compatible" -- i.e., if they could ever
    unify.  (This is distinct from [eqtype], which checks if two types *are*
    exactly the same.)  This is used to decide whether GADT cases are
@@ -2931,13 +2935,14 @@ let equivalent_with_nolabels l1 l2 =
  *)
 
 let rec mcomp type_pairs env t1 t2 =
+  let check_jkinds ty jkind =
+    if not (has_jkind_intersection_tk env ty jkind) then raise Incompatible
+  in
   if eq_type t1 t2 then () else
-  match (get_desc t1, get_desc t2) with
-  | (Tvar _, _)
-  | (_, Tvar _)  ->
-      ()
-    (* CR layouts: This could be made more precise based on jkinds *)
-  | (Tconstr (p1, [], _), Tconstr (p2, [], _)) when Path.same p1 p2 ->
+  match (get_desc t1, get_desc t2, t1, t2) with
+  | (Tvar { jkind }, _, _, other)
+  | (_, Tvar { jkind }, other, _) -> check_jkinds other jkind
+  | (Tconstr (p1, [], _), Tconstr (p2, [], _), _, _) when Path.same p1 p2 ->
       ()
   | _ ->
       let t1' = expand_head_opt env t1 in
@@ -2946,26 +2951,26 @@ let rec mcomp type_pairs env t1 t2 =
       if eq_type t1' t2' then () else
       if not (TypePairs.mem type_pairs (t1', t2')) then begin
         TypePairs.add type_pairs (t1', t2');
-        match (get_desc t1', get_desc t2') with
-        | (Tvar _, _)
-        | (_, Tvar _)  ->
-            ()
-        | (Tarrow ((l1,_,_), t1, u1, _), Tarrow ((l2,_,_), t2, u2, _))
+        match (get_desc t1', get_desc t2', t1', t2') with
+        | (Tvar { jkind }, _, _, other)
+        | (_, Tvar { jkind }, other, _)  -> check_jkinds other jkind
+        | (Tarrow ((l1,_,_), t1, u1, _), Tarrow ((l2,_,_), t2, u2, _), _, _)
           when equivalent_with_nolabels l1 l2 ->
             mcomp type_pairs env t1 t2;
             mcomp type_pairs env u1 u2;
-        | (Ttuple tl1, Ttuple tl2) ->
+        | (Ttuple tl1, Ttuple tl2, _, _) ->
             mcomp_labeled_list type_pairs env tl1 tl2
-        | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _)) ->
+        | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _), _, _) ->
             mcomp_type_decl type_pairs env p1 p2 tl1 tl2
-        | (Tconstr (_, [], _), _) when has_injective_univars env t2' ->
+        | (Tconstr (_, [], _), _, _, _) when has_injective_univars env t2' ->
             raise_unexplained_for Unify
-        | (_, Tconstr (_, [], _)) when has_injective_univars env t1' ->
+        | (_, Tconstr (_, [], _), _, _) when has_injective_univars env t1' ->
             raise_unexplained_for Unify
-        | (Tconstr (p, _, _), _) | (_, Tconstr (p, _, _)) ->
+        | (Tconstr (p, _, _), _, _, other) | (_, Tconstr (p, _, _), other, _) ->
             begin try
               let decl = Env.find_type p env in
-              if non_aliasable p decl || is_datatype decl then
+              if non_aliasable p decl || is_datatype decl ||
+                 not (has_jkind_intersection_tk env other decl.type_jkind) then
                 raise Incompatible
             with Not_found -> ()
             end
@@ -2973,26 +2978,26 @@ let rec mcomp type_pairs env t1 t2 =
         | (Tpackage (p1, n1, tl1), Tpackage (p2, n2, tl2)) when n1 = n2 ->
             mcomp_list type_pairs env tl1 tl2
         *)
-        | (Tpackage _, Tpackage _) -> ()
-        | (Tvariant row1, Tvariant row2) ->
+        | (Tpackage _, Tpackage _, _, _) -> ()
+        | (Tvariant row1, Tvariant row2, _, _) ->
             mcomp_row type_pairs env row1 row2
-        | (Tobject (fi1, _), Tobject (fi2, _)) ->
+        | (Tobject (fi1, _), Tobject (fi2, _), _, _) ->
             mcomp_fields type_pairs env fi1 fi2
-        | (Tfield _, Tfield _) ->       (* Actually unused *)
+        | (Tfield _, Tfield _, _, _) ->       (* Actually unused *)
             mcomp_fields type_pairs env t1' t2'
-        | (Tnil, Tnil) ->
+        | (Tnil, Tnil, _, _) ->
             ()
-        | (Tpoly (t1, []), Tpoly (t2, [])) ->
+        | (Tpoly (t1, []), Tpoly (t2, []), _, _) ->
             mcomp type_pairs env t1 t2
-        | (Tpoly (t1, tl1), Tpoly (t2, tl2)) ->
+        | (Tpoly (t1, tl1), Tpoly (t2, tl2), _, _) ->
             (try
                enter_poly env univar_pairs
                  t1 tl1 t2 tl2 (mcomp type_pairs env)
              with Escape _ -> raise Incompatible)
-        | (Tunivar {jkind=jkind1}, Tunivar {jkind=jkind2}) ->
+        | (Tunivar {jkind=jkind1}, Tunivar {jkind=jkind2}, _, _) ->
             (try unify_univar t1' t2' jkind1 jkind2 !univar_pairs
              with Cannot_unify_universal_variables -> raise Incompatible)
-        | (_, _) ->
+        | (_, _, _, _) ->
             raise Incompatible
       end
 
@@ -3066,6 +3071,10 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
   try
     let decl = Env.find_type p1 env in
     let decl' = Env.find_type p2 env in
+    let check_jkinds () =
+      if not (Jkind.has_intersection decl.type_jkind decl'.type_jkind)
+      then raise Incompatible
+    in
     if compatible_paths p1 p2 then begin
       let inj =
         try List.map Variance.(mem Inj) (Env.find_type p1 env).type_variance
@@ -3088,9 +3097,9 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
           mcomp_variant_description type_pairs env v1 v2
       | Type_open, Type_open ->
           mcomp_list type_pairs env tl1 tl2
-      | Type_abstract _, Type_abstract _ -> ()
-      | Type_abstract _, _ when not (non_aliasable p1 decl)-> ()
-      | _, Type_abstract _ when not (non_aliasable p2 decl') -> ()
+      | Type_abstract _, Type_abstract _ -> check_jkinds ()
+      | Type_abstract _, _ when not (non_aliasable p1 decl)-> check_jkinds ()
+      | _, Type_abstract _ when not (non_aliasable p2 decl') -> check_jkinds ()
       | _ -> raise Incompatible
   with Not_found -> ()
 
@@ -3218,7 +3227,8 @@ let add_gadt_equation env source destination =
     let jkind, jkind_annot =
       jkind_of_abstract_type_declaration !env source
     in
-    add_jkind_equation ~reason:(Gadt_equation source) env destination jkind;
+    add_jkind_equation ~reason:(Gadt_equation source)
+      env destination jkind;
     let decl =
       new_local_type ~manifest_and_scope:(destination, expansion_scope) jkind
         ~jkind_annot
@@ -3378,7 +3388,13 @@ let unify3_var env jkind1 t1' t2 t2' =
               (* This is necessary because a failed kind-check above
                  might meaningfully refine a type constructor *)
         | _ ->
-          occur_univar ~inj_only:true !env t2'
+          occur_univar ~inj_only:true !env t2';
+          mcomp_for Unify !env t1' t2'
+            (* the call to [mcomp] can be skipped in the other case in this
+               [match] because [add_gadt_equation] checks for jkind
+               intersection, which is the only interesting check in [mcomp]
+               when one side is a variable. We could pull that check out
+               here specially, but it seems simpler not to. *)
         end;
         record_equation t1' t2';
       end

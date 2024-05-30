@@ -2731,11 +2731,7 @@ let refute (x : 'a t is_value) =
 [%%expect{|
 type ('a : any) is_value = V : 'a is_value
 type 'a t : float64
-Line 8, characters 4-5:
-8 |   | _ -> .
-        ^
-Error: This match case could not be refuted.
-       Here is an example of a value that would reach it: V
+val refute : 'a t is_value -> 'b = <fun>
 |}]
 
 (***********************************)
@@ -2769,9 +2765,15 @@ end
 type (!'a : any) inj
 module type S = sig type 'a value : value type 'a bits64 : bits64 end
 type ('a : any) s = 'a
-Line 12, characters 13-14:
-12 |     function _ -> .
-                  ^
-Error: This match case could not be refuted.
-       Here is an example of a value that would reach it: Refl
+module F :
+  functor (X : S) ->
+    sig
+      val f1 : ([ `K of 'a X.bits64 inj ], [ `K of 'a X.value inj ]) eq -> 'b
+      val f2 :
+        ([ `K of 'a X.bits64 inj ], [ `K of (int -> int) inj ]) eq -> 'b
+      val f3 : ([ `K of 'a X.bits64 inj ], [ `K of 'b inj ]) eq -> 'c
+      val f4 : ([ `K of 'b inj ], [ `K of 'a X.bits64 inj ]) eq -> 'c
+      val f5 : ([ `K of 'a X.bits64 s inj ], [ `K of 'b s inj ]) eq -> 'c
+      val f6 : ([ `K of 'b s inj ], [ `K of 'a X.bits64 s inj ]) eq -> 'c
+    end
 |}]

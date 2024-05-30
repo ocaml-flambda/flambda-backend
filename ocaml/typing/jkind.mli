@@ -316,6 +316,10 @@ val equate : t -> t -> bool
     CR layouts (v1.5): At the moment, this is actually the same as [equate]! *)
 val equal : t -> t -> bool
 
+(** Checks whether two jkinds have a non-empty intersection. Might mutate
+    sort variables. *)
+val has_intersection : t -> t -> bool
+
 (** Finds the intersection of two jkinds, constraining sort variables to
     create one if needed, or returns a [Violation.t] if an intersection does
     not exist.  Can update the jkinds.  The returned jkind's history
@@ -323,7 +327,8 @@ val equal : t -> t -> bool
     jkind argument.  That is, due to histories, this function is asymmetric;
     it should be thought of as modifying the first jkind to be the
     intersection of the two, not something that modifies the second jkind. *)
-val intersection : reason:interact_reason -> t -> t -> (t, Violation.t) Result.t
+val intersection_or_error :
+  reason:interact_reason -> t -> t -> (t, Violation.t) Result.t
 
 (** [sub t1 t2] says whether [t1] is a subjkind of [t2]. Might update
     either [t1] or [t2] to make their layouts equal.*)
