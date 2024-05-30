@@ -1,6 +1,6 @@
 (* TEST
  flags = "-extension-universe beta";
- include beta;
+ include stdlib_beta;
  {
    bytecode;
  }{
@@ -8,7 +8,7 @@
  }
 *)
 
-open Beta
+open Stdlib_beta
 
 (* Test that [Float32] is exported. *)
 

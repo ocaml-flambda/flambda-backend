@@ -554,7 +554,8 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Ivectorcast _) -> 1
     | Lop (Iscalarcast (Float_of_int Float64 | Float_to_int Float64)) -> 1
     | Lop (Iscalarcast (Float_of_int Float32 | Float_to_int Float32 |
-                        Float_of_float32 | Float_to_float32)) ->
+                        Float_of_float32 | Float_to_float32 |
+                        Float32_as_float)) ->
       (* CR mslater: (float32) arm64 *)
       Misc.fatal_error "float32 is not supported on this architecture"
     | Lop (Iscalarcast (V128_of_scalar _ | V128_to_scalar _)) ->
@@ -784,7 +785,8 @@ let emit_instr i =
     | Lop(Iscalarcast (Float_of_int Float64)) ->
         `	scvtf	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
      | Lop (Iscalarcast (Float_of_int Float32 | Float_to_int Float32 |
-                         Float_of_float32 | Float_to_float32)) ->
+                         Float_of_float32 | Float_to_float32 |
+                         Float32_as_float)) ->
         (* CR mslater: (float32) arm64 *)
         Misc.fatal_error "float32 not supported on this architecture"
     | Lop(Iscalarcast (V128_of_scalar _ | V128_to_scalar _) | Ivectorcast _) ->

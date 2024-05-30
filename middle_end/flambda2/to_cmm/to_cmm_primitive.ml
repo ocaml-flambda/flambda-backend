@@ -107,7 +107,7 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
   | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
     match field_kind with
     | Imm -> C.get_field_computed Immediate mutability ~block ~index dbg
-    | Float | Float64 ->
+    | Float_boxed | Float64 ->
       (* CR layouts v5.1: We should use the mutability here to generate better
          code if the load is immutable. *)
       C.unboxed_float_array_ref block index dbg
@@ -132,7 +132,7 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
       match field_kind with
       | Imm ->
         C.setfield_computed Immediate init_or_assign block index new_value dbg
-      | Float | Float64 -> C.float_array_set block index new_value dbg
+      | Float_boxed | Float64 -> C.float_array_set block index new_value dbg
       | Float32 -> C.setfield_unboxed_float32 block index new_value dbg
       | Bits32 -> C.setfield_unboxed_int32 block index new_value dbg
       | Bits64 | Word ->
@@ -150,6 +150,7 @@ let make_array ~dbg kind alloc_mode args =
   | Immediates | Values -> C.make_alloc ~mode dbg 0 args
   | Naked_floats ->
     C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
+  | Naked_float32s -> C.allocate_unboxed_float32_array ~elements:args mode dbg
   | Naked_int32s -> C.allocate_unboxed_int32_array ~elements:args mode dbg
   | Naked_int64s -> C.allocate_unboxed_int64_array ~elements:args mode dbg
   | Naked_nativeints ->
@@ -169,6 +170,7 @@ let array_length ~dbg arr (kind : P.Array_kind.t) =
        width of floats is equal to the machine word width (see flambda2.ml). *)
     assert (C.wordsize_shift = C.numfloat_shift);
     C.arraylength Paddrarray arr dbg
+  | Naked_float32s -> C.unboxed_float32_array_length arr dbg
   | Naked_int32s -> C.unboxed_int32_array_length arr dbg
   | Naked_int64s | Naked_nativeints ->
     (* These need a special case as they are represented by custom blocks, even
@@ -207,12 +209,13 @@ let array_load ~dbg (kind : P.Array_kind.t)
     C.unboxed_int64_or_nativeint_array_ref arr index dbg
   | Values, Scalar -> C.addr_array_ref arr index dbg
   | Naked_floats, Scalar -> C.unboxed_float_array_ref arr index dbg
+  | Naked_float32s, Scalar -> C.unboxed_float32_array_ref arr index dbg
   | Naked_int32s, Scalar -> C.unboxed_int32_array_ref arr index dbg
   | (Immediates | Naked_floats), Vec128 ->
     array_load_128 ~dbg ~element_width_log2:3 ~has_custom_ops:false arr index
   | (Naked_int64s | Naked_nativeints), Vec128 ->
     array_load_128 ~dbg ~element_width_log2:3 ~has_custom_ops:true arr index
-  | Naked_int32s, Vec128 ->
+  | (Naked_int32s | Naked_float32s), Vec128 ->
     array_load_128 ~dbg ~element_width_log2:2 ~has_custom_ops:true arr index
   | Values, Vec128 ->
     Misc.fatal_error "Attempted to load a SIMD vector from a value array."
@@ -230,6 +233,8 @@ let array_set ~dbg (kind : P.Array_set_kind.t)
     | Immediates, Scalar -> C.int_array_set arr index new_value dbg
     | Values init, Scalar -> addr_array_store init ~arr ~index ~new_value dbg
     | Naked_floats, Scalar -> C.float_array_set arr index new_value dbg
+    | Naked_float32s, Scalar ->
+      C.unboxed_float32_array_set arr ~index ~new_value dbg
     | Naked_int32s, Scalar ->
       C.unboxed_int32_array_set arr ~index ~new_value dbg
     | (Naked_int64s | Naked_nativeints), Scalar ->
@@ -240,7 +245,7 @@ let array_set ~dbg (kind : P.Array_set_kind.t)
     | (Naked_int64s | Naked_nativeints), Vec128 ->
       array_set_128 ~dbg ~element_width_log2:3 ~has_custom_ops:true arr index
         new_value
-    | Naked_int32s, Vec128 ->
+    | (Naked_int32s | Naked_float32s), Vec128 ->
       array_set_128 ~dbg ~element_width_log2:2 ~has_custom_ops:true arr index
         new_value
     | Values _, Vec128 ->

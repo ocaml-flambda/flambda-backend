@@ -82,12 +82,12 @@ struct
       measure_alloc (fun () -> go #0.s #0.s)
     in
     Printf.printf "Unboxed:\n  estimate: %f\n  allocations: %s\n"
-      (Float32.to_float (to_float32 est) *. 4.) (get_allocations ())
+      (Beta.Float32.to_float (to_float32 est) *. 4.) (get_allocations ())
 end
 
 module Pi_boxed =
 struct
-  open Float32
+  open Beta.Float32
   open Operators
 
   let[@inline never] step n estimate =
@@ -125,8 +125,8 @@ let print_record_and_allocs s r =
   Printf.printf
     "%s:\n  allocated bytes: %.2f\n  a: %.2f\n  b: %.2f\n  c: %.2f\n  d: %.2f\n"
     s allocs
-    (Float32.to_float (Float32_u.to_float32 r.a)) (Float32.to_float (Float32_u.to_float32 r.b))
-    (Float32.to_float (Float32_u.to_float32 r.c)) (Float32.to_float (Float32_u.to_float32 r.d))
+    (Beta.Float32.to_float (Float32_u.to_float32 r.a)) (Beta.Float32.to_float (Float32_u.to_float32 r.b))
+    (Beta.Float32.to_float (Float32_u.to_float32 r.c)) (Beta.Float32.to_float (Float32_u.to_float32 r.d))
 
 (* Building a record should only allocate the box *)
 let[@inline never] build x =

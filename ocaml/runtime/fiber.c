@@ -749,6 +749,7 @@ void caml_rewrite_exception_stack(struct stack_info *old_stack,
 }
 
 #ifdef WITH_FRAME_POINTERS
+#if defined(STACK_CHECKS_ENABLED)
 /* Update absolute base pointers for new stack */
 static void rewrite_frame_pointers(struct stack_info *old_stack,
     struct stack_info *new_stack)
@@ -801,6 +802,7 @@ static void rewrite_frame_pointers(struct stack_info *old_stack,
     }
   }
 }
+#endif
 #endif
 #endif
 

@@ -13,7 +13,7 @@
 (* This file contains typing tests for the layout [word].
 
    Runtime tests for the type [nativeint#] can be found in the
-   [unboxed_nativeint], [alloc], and [stdlib__nativeint_u] tests in this
+   [unboxed_nativeint], [alloc], and [test_nativeint_u] tests in this
    directory.  The type [nativeint#] here is used as a convenient example of a
    concrete [word] type in some tests, but its behavior isn't the primary
    purpose of this test. *)

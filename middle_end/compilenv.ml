@@ -47,9 +47,9 @@ module String = Misc.Stdlib.String
 
 let exported_constants = Hashtbl.create 17
 
-let cached_checks = Checks.create ()
+let cached_zero_alloc_info = Zero_alloc_info.create ()
 
-let cache_checks c = Checks.merge c ~into:cached_checks
+let cache_zero_alloc_info c = Zero_alloc_info.merge c ~into:cached_zero_alloc_info
 
 let current_unit =
   { ui_unit = CU.dummy;
@@ -58,14 +58,14 @@ let current_unit =
     ui_imports_cmx = [];
     ui_generic_fns = { curry_fun = []; apply_fun = []; send_fun = [] };
     ui_force_link = false;
-    ui_checks = Checks.create ();
+    ui_zero_alloc_info = Zero_alloc_info.create ();
     ui_export_info = None;
     ui_external_symbols = [];
   }
 
 let reset compilation_unit =
   Infos_table.clear global_infos_table;
-  Checks.reset cached_checks;
+  Zero_alloc_info.reset cached_zero_alloc_info;
   CU.set_current (Some compilation_unit);
   current_unit.ui_unit <- compilation_unit;
   current_unit.ui_defines <- [compilation_unit];
@@ -74,7 +74,7 @@ let reset compilation_unit =
   current_unit.ui_generic_fns <-
     { curry_fun = []; apply_fun = []; send_fun = [] };
   current_unit.ui_force_link <- !Clflags.link_everything;
-  Checks.reset current_unit.ui_checks;
+  Zero_alloc_info.reset current_unit.ui_zero_alloc_info;
   Hashtbl.clear exported_constants;
   current_unit.ui_export_info <- None;
   current_unit.ui_external_symbols <- []
@@ -113,7 +113,7 @@ let read_unit_info filename =
       ui_imports_cmx = uir.uir_imports_cmx |> Array.to_list;
       ui_generic_fns = uir.uir_generic_fns;
       ui_export_info = export_info;
-      ui_checks = Checks.of_raw uir.uir_checks;
+      ui_zero_alloc_info = Zero_alloc_info.of_raw uir.uir_zero_alloc_info;
       ui_force_link = uir.uir_force_link;
       ui_external_symbols = uir.uir_external_symbols |> Array.to_list;
     }
@@ -166,7 +166,7 @@ let get_unit_info comp_unit =
             let (ui, crc) = read_unit_info filename in
             if not (CU.equal ui.ui_unit comp_unit) then
               raise(Error(Illegal_renaming(comp_unit, ui.ui_unit, filename)));
-            cache_checks ui.ui_checks;
+            cache_zero_alloc_info ui.ui_zero_alloc_info;
             (Some ui, Some crc)
           with Not_found ->
             let warn = Warnings.No_cmx_file (Global.Name.to_string name) in
@@ -197,7 +197,7 @@ let get_global_export_info id =
   | Some ui -> ui.ui_export_info
 
 let cache_unit_info ui =
-  cache_checks ui.ui_checks;
+  cache_zero_alloc_info ui.ui_zero_alloc_info;
   Infos_table.add global_infos_table
     (ui.ui_unit |> CU.to_global_name_without_prefix) (Some ui)
 
@@ -267,7 +267,7 @@ let write_unit_info info filename =
     uir_imports_cmx = Array.of_list info.ui_imports_cmx;
     uir_generic_fns = info.ui_generic_fns;
     uir_export_info = raw_export_info;
-    uir_checks = Checks.to_raw info.ui_checks;
+    uir_zero_alloc_info = Zero_alloc_info.to_raw info.ui_zero_alloc_info;
     uir_force_link = info.ui_force_link;
     uir_section_toc = toc;
     uir_sections_length = total_length;

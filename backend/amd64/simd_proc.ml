@@ -43,7 +43,7 @@ let register_behavior_sse = function
   | Interleave_low_32 | Interleave_high_32 | Shuffle_32 _ ->
     R_RM_to_fst
   | Rcp_f32 | Sqrt_f32 | Rsqrt_f32 -> RM_to_R
-  | High_64_to_low_64 | Low_64_to_high_64 -> R_R_to_fst
+  | Interleave_low_32_regs | High_64_to_low_64 | Low_64_to_high_64 -> R_R_to_fst
   | Movemask_32 -> R_to_R
 
 let register_behavior_sse2 = function

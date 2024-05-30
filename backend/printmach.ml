@@ -39,17 +39,15 @@ let loc ?(wrap_out = fun ppf f -> f ppf) ~unknown ppf loc typ =
       wrap_out ppf (fun ppf -> fprintf ppf "ds[%i]" s)
 
 let reg ppf r =
-  if not (Reg.anonymous r) then
-    fprintf ppf "%s" (Reg.name r)
-  else
-    fprintf ppf "%s"
-      (match (r.typ : machtype_component) with
-      | Val -> "V"
-      | Addr -> "A"
-      | Int -> "I"
-      | Float -> "F"
-      | Vec128 -> "X"
-      | Float32 -> "S");
+  if not (Reg.anonymous r) then fprintf ppf "%s:" (Reg.name r);
+  fprintf ppf "%s"
+    (match (r.typ : machtype_component) with
+    | Val -> "V"
+    | Addr -> "A"
+    | Int -> "I"
+    | Float -> "F"
+    | Vec128 -> "X"
+    | Float32 -> "S");
   fprintf ppf "/%i" r.stamp;
   loc
     ~wrap_out:(fun ppf f -> fprintf ppf "[%t]" f)
@@ -232,6 +230,7 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Ivectorcast Bits128 ->
     fprintf ppf "vec128->vec128 %a"
     reg arg.(0)
+  | Iscalarcast Float32_as_float -> fprintf ppf "float32 as float %a" reg arg.(0)
   | Iscalarcast (Float_of_int Float64) -> fprintf ppf "int->float %a" reg arg.(0)
   | Iscalarcast (Float_to_int Float64) -> fprintf ppf "float->int %a" reg arg.(0)
   | Iscalarcast (Float_of_int Float32) -> fprintf ppf "int->float32 %a" reg arg.(0)

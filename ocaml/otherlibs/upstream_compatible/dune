@@ -12,9 +12,13 @@
 ;*                                                                        *
 ;**************************************************************************
 
+;; [upstream_compatible] was renamed to [stdlib_upstream_compatible].
+;; This library clones [stdlib_upstream_compatible] until we move all
+;; existing uses of [upstream_compatible] to [stdlib_upstream_compatible].
+
 (library
  (name upstream_compatible)
- (wrapped false)
+ (public_name ocaml.upstream_compatible)
  (modes byte native)
  (flags
   (-strict-sequence
@@ -34,24 +38,22 @@
  (library_flags
   (:standard -linkall)))
 
-(install
- (files
-  (upstream_compatible.cmxa as upstream_compatible/upstream_compatible.cmxa)
-  (upstream_compatible.a as upstream_compatible/upstream_compatible.a)
-  (upstream_compatible.cmxs as upstream_compatible/upstream_compatible.cmxs)
-  (upstream_compatible.cma as upstream_compatible/upstream_compatible.cma)
-  (upstream_compatible.mli as upstream_compatible/upstream_compatible.mli)
-  (.upstream_compatible.objs/byte/upstream_compatible.cmi
-   as
-   upstream_compatible/upstream_compatible.cmi)
-  (.upstream_compatible.objs/byte/upstream_compatible.cmt
-   as
-   upstream_compatible/upstream_compatible.cmt)
-  (.upstream_compatible.objs/byte/upstream_compatible.cmti
-   as
-   upstream_compatible/upstream_compatible.cmti)
-  (.upstream_compatible.objs/native/upstream_compatible.cmx
-   as
-   upstream_compatible/upstream_compatible.cmx))
- (section lib)
- (package ocaml))
+;; We clone files from [stdlib_upstream_compatible] instead of re-exporting the library
+;; to avoid adding a new transitive dependency to builds.
+
+(rule
+ (deps
+  (glob_files ../stdlib_upstream_compatible/*.{ml,mli}))
+ (targets upstream_compatible.ml upstream_compatible.mli)
+ (action
+  (bash
+   "cp ../stdlib_upstream_compatible/*.{ml,mli} .; mv stdlib_upstream_compatible.ml upstream_compatible.ml; mv stdlib_upstream_compatible.mli upstream_compatible.mli")))
+
+(rule
+ (deps
+  (:first-dep ../to_install.sh)
+  (glob_files *.mli))
+ (action
+  (with-stdout-to
+   to_install.sexp
+   (run "%{first-dep}" "upstream_compatible"))))

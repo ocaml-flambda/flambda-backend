@@ -2,6 +2,7 @@
    flags = "-extension layouts_beta -extension small_numbers";
    include beta;
    flambda2;
+   include stable;
    {
    native;
    }{
@@ -13,10 +14,11 @@
 (* Prelude: Functions on unboxed numbers *)
 
 module Float32_u = Beta.Float32_u
-module Float_u = Stdlib__Float_u
-module Int32_u = Stdlib__Int32_u
-module Int64_u = Stdlib__Int64_u
-module Nativeint_u = Stdlib__Nativeint_u
+module Float32 = Beta.Float32
+module Float_u = Stable.Float_u
+module Int32_u = Stable.Int32_u
+module Int64_u = Stable.Int64_u
+module Nativeint_u = Stable.Nativeint_u
 
 let print_floatu prefix x = Printf.printf "%s: %.2f\n" prefix (Float_u.to_float x)
 let print_float prefix x = Printf.printf "%s: %.2f\n" prefix x
