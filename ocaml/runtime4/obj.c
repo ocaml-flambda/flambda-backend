@@ -366,6 +366,18 @@ struct queue_chunk {
   value entries[ENTRIES_PER_QUEUE_CHUNK];
 };
 
-CAMLprim value caml_reserved (value v) {
+/* Return 0 for uniform blocks and 1+n for a mixed block with scannable prefix
+   len n.
+*/
+CAMLprim value caml_succ_scannable_prefix_len (value v) {
+#ifdef NATIVE_CODE
   return Val_long(Reserved_val(v));
+#else
+  reserved_t reserved = Reserved_val(v);
+  if (reserved == Faux_mixed_block_sentinel) {
+    return Val_long(Scannable_wosize_val(v) + 1);
+  } else {
+    return Val_long(0);
+  }
+#endif /* NATIVE_CODE */
 }

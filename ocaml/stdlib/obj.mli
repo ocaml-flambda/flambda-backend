@@ -192,7 +192,7 @@ module Uniform_or_mixed : sig
 
   val repr : t -> repr
 
-  external of_block : obj_t -> t = "caml_reserved" [@@noalloc]
+  external of_block : obj_t -> t = "caml_succ_scannable_prefix_len" [@@noalloc]
 
   val is_uniform : t -> bool
   (** Equivalent to [repr] returning [Uniform]. *)

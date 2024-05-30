@@ -201,11 +201,14 @@ end
 module Uniform_or_mixed = struct
   type obj_t = t
 
-  (* The raw reserved header bits, which is either 0 if the block is uniform or
-     n+1 if the block has a scannable prefix of length n. *)
+  (* In native code, the raw reserved header bits, which is either 0 if the
+     block is uniform or n+1 if the block has a scannable prefix of length n.
+     In bytecode, this will be size+1 for "faux mixed blocks" representing
+     mixed records, and otherwise 0.
+   *)
   type t = int
 
-  external of_block : obj_t -> t = "caml_reserved" [@@noalloc]
+  external of_block : obj_t -> t = "caml_succ_scannable_prefix_len" [@@noalloc]
 
   type repr =
     | Uniform

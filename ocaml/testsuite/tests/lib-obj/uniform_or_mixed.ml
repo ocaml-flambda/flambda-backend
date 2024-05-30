@@ -1,6 +1,19 @@
 (* TEST
-  flags="-extension layouts_beta";
-  native;
+   flags = "-extension layouts_beta";
+   {
+     reference = "${test_source_directory}/uniform_or_mixed.native.reference";
+     compiler_reference2 = "${test_source_directory}/uniform_or_mixed.compiler.reference";
+     native;
+   }{
+     reference = "${test_source_directory}/uniform_or_mixed.bytecode.reference";
+     compiler_reference2 = "${test_source_directory}/uniform_or_mixed.compiler.reference";
+     bytecode;
+   }
+*)
+
+(* Bytecode and native code have slightly different outputs for the scannable prefix
+   of mixed records. The fields of mixed records must be scanned in bytecode.
+   (They are "faux mixed blocks".)
 *)
 
 type t_uniform1 = { x : int }
