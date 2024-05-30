@@ -29,7 +29,7 @@ type t =
     contains_no_escaping_local_allocs : bool;
     stub : bool;
     inline : Inline_attribute.t;
-    check : Check_attribute.t;
+    zero_alloc_attribute : Zero_alloc_attribute.t;
     poll_attribute : Poll_attribute.t;
     is_a_functor : bool;
     is_opaque : bool;
@@ -76,7 +76,7 @@ module Code_metadata_accessors (X : Metadata_view_type) = struct
 
   let inline t = (metadata t).inline
 
-  let check t = (metadata t).check
+  let zero_alloc_attribute t = (metadata t).zero_alloc_attribute
 
   let poll_attribute t = (metadata t).poll_attribute
 
@@ -138,7 +138,7 @@ type 'a create_type =
   contains_no_escaping_local_allocs:bool ->
   stub:bool ->
   inline:Inline_attribute.t ->
-  check:Check_attribute.t ->
+  zero_alloc_attribute:Zero_alloc_attribute.t ->
   poll_attribute:Poll_attribute.t ->
   is_a_functor:bool ->
   is_opaque:bool ->
@@ -157,9 +157,9 @@ type 'a create_type =
 let createk k code_id ~newer_version_of ~params_arity ~param_modes
     ~first_complex_local_param ~result_arity ~result_types ~result_mode
     ~contains_no_escaping_local_allocs ~stub ~(inline : Inline_attribute.t)
-    ~check ~poll_attribute ~is_a_functor ~is_opaque ~recursive ~cost_metrics
-    ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision
-    ~absolute_history ~relative_history ~loopify =
+    ~zero_alloc_attribute ~poll_attribute ~is_a_functor ~is_opaque ~recursive
+    ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used
+    ~inlining_decision ~absolute_history ~relative_history ~loopify =
   (match stub, inline with
   | true, (Available_inline | Never_inline | Default_inline)
   | ( false,
@@ -195,7 +195,7 @@ let createk k code_id ~newer_version_of ~params_arity ~param_modes
       contains_no_escaping_local_allocs;
       stub;
       inline;
-      check;
+      zero_alloc_attribute;
       poll_attribute;
       is_a_functor;
       is_opaque;
@@ -238,7 +238,7 @@ let [@ocamlformat "disable"] print_inlining_paths ppf
       Inlining_history.Absolute.print absolute_history
 
 let [@ocamlformat "disable"] print ppf
-       { code_id = _; newer_version_of; stub; inline; check; poll_attribute;
+       { code_id = _; newer_version_of; stub; inline; zero_alloc_attribute; poll_attribute;
          is_a_functor; is_opaque; params_arity; param_modes;
          first_complex_local_param; result_arity;
          result_types; result_mode; contains_no_escaping_local_allocs;
@@ -283,9 +283,9 @@ let [@ocamlformat "disable"] print ppf
     else C.none)
     Inline_attribute.print inline
     Flambda_colours.pop
-    (if Check_attribute.is_default check
+    (if Zero_alloc_attribute.is_default zero_alloc_attribute
      then Flambda_colours.elide else C.none)
-    Check_attribute.print check
+    Zero_alloc_attribute.print zero_alloc_attribute
     Flambda_colours.pop
     (if Poll_attribute.is_default poll_attribute
      then Flambda_colours.elide else C.none)
@@ -366,7 +366,7 @@ let free_names
       contains_no_escaping_local_allocs = _;
       stub = _;
       inline = _;
-      check = _;
+      zero_alloc_attribute = _;
       poll_attribute = _;
       is_a_functor = _;
       is_opaque = _;
@@ -409,7 +409,7 @@ let apply_renaming
        contains_no_escaping_local_allocs = _;
        stub = _;
        inline = _;
-       check = _;
+       zero_alloc_attribute = _;
        poll_attribute = _;
        is_a_functor = _;
        is_opaque = _;
@@ -463,7 +463,7 @@ let ids_for_export
       contains_no_escaping_local_allocs = _;
       stub = _;
       inline = _;
-      check = _;
+      zero_alloc_attribute = _;
       poll_attribute = _;
       is_a_functor = _;
       is_opaque = _;
@@ -503,7 +503,7 @@ let approx_equal
       contains_no_escaping_local_allocs = contains_no_escaping_local_allocs1;
       stub = stub1;
       inline = inline1;
-      check = check1;
+      zero_alloc_attribute = zero_alloc_attribute1;
       poll_attribute = poll_attribute1;
       is_a_functor = is_a_functor1;
       is_opaque = is_opaque1;
@@ -529,7 +529,7 @@ let approx_equal
       contains_no_escaping_local_allocs = contains_no_escaping_local_allocs2;
       stub = stub2;
       inline = inline2;
-      check = check2;
+      zero_alloc_attribute = zero_alloc_attribute2;
       poll_attribute = poll_attribute2;
       is_a_functor = is_a_functor2;
       is_opaque = is_opaque2;
@@ -555,7 +555,7 @@ let approx_equal
        contains_no_escaping_local_allocs2
   && Bool.equal stub1 stub2
   && Inline_attribute.equal inline1 inline2
-  && Check_attribute.equal check1 check2
+  && Zero_alloc_attribute.equal zero_alloc_attribute1 zero_alloc_attribute2
   && Poll_attribute.equal poll_attribute1 poll_attribute2
   && Bool.equal is_a_functor1 is_a_functor2
   && Bool.equal is_opaque1 is_opaque2

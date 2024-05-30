@@ -306,7 +306,9 @@ char *caml_alloc_for_heap (asize_t request)
     Chunk_block (mem) = block;
   }
   Chunk_head (mem)->redarken_first.start = (value*)(mem + Chunk_size(mem));
-  Chunk_head (mem)->redarken_first.end = (value*)(mem + Chunk_size(mem));
+  Chunk_head (mem)->redarken_first.scannable_end =
+    (value*)(mem + Chunk_size(mem));
+  Chunk_head (mem)->redarken_first.object_end = (value*)(mem + Chunk_size(mem));
   Chunk_head (mem)->redarken_end = (value*)mem;
   return mem;
 }
@@ -528,6 +530,8 @@ Caml_inline value caml_alloc_shr_aux (mlsize_t wosize, tag_t tag, int track,
 #ifdef DEBUG
   {
     uintnat i;
+    /* We don't check the reserved bits here because this is OK even for mixed
+       blocks. */
     for (i = 0; i < wosize; i++){
       Field (Val_hp (hp), i) = Debug_uninit_major;
     }
@@ -550,6 +554,12 @@ CAMLexport value caml_alloc_shr_with_profinfo (mlsize_t wosize, tag_t tag,
                                                intnat profinfo)
 {
   return check_oom(caml_alloc_shr_aux(wosize, tag, 1, profinfo));
+}
+
+CAMLexport value caml_alloc_shr_reserved (mlsize_t wosize, tag_t tag,
+                                          reserved_t reserved)
+{
+  return caml_alloc_shr_with_profinfo(wosize, tag, reserved);
 }
 
 CAMLexport value caml_alloc_shr_for_minor_gc (mlsize_t wosize,

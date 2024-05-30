@@ -1,28 +1,28 @@
-(* TEST
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
 
-include dynlink
 
-readonly_files = "backtrace_dynlink_plugin.ml"
 
-libraries = ""
 
-* shared-libraries
-** native-dynlink
-*** setup-ocamlopt.byte-build-env
-**** ocamlopt.byte
-module = "backtrace_dynlink.ml"
-flags = "-g"
-**** ocamlopt.byte
-program = "backtrace_dynlink_plugin.cmxs"
-flags = "-shared -g"
-all_modules = "backtrace_dynlink_plugin.ml"
-**** ocamlopt.byte
-program = "${test_build_directory}/main.exe"
-libraries = "dynlink"
-all_modules = "backtrace_dynlink.cmx"
-***** run
-ocamlrunparam += ",b=1"
-****** check-program-output
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 *)
 
 (* test for backtrace and stack unwinding with dynlink. *)
@@ -50,3 +50,30 @@ let () =
   | exn ->
     Printexc.to_string exn |> print_endline;
     print_endline "ERROR"
+
+(* TEST
+ include dynlink;
+ readonly_files = "backtrace_dynlink_plugin.ml";
+ libraries = "";
+ shared-libraries;
+ native-dynlink;
+ setup-ocamlopt.byte-build-env;
+ {
+   module = "backtrace_dynlink.ml";
+   flags = "-g";
+   ocamlopt.byte;
+ }{
+   program = "backtrace_dynlink_plugin.cmxs";
+   flags = "-shared -g";
+   all_modules = "backtrace_dynlink_plugin.ml";
+   ocamlopt.byte;
+ }{
+   program = "${test_build_directory}/main.exe";
+   libraries = "dynlink";
+   all_modules = "backtrace_dynlink.cmx";
+   ocamlopt.byte;
+   ocamlrunparam += ",b=1";
+   run;
+   check-program-output;
+ }
+*)

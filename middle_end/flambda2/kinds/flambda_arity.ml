@@ -73,7 +73,8 @@ module Component_for_creation = struct
   let rec from_lambda (layout : Lambda.layout) =
     match layout with
     | Pvalue vk -> Singleton (KS.from_lambda_value_kind vk)
-    | Punboxed_float -> Singleton KS.naked_float
+    | Punboxed_float Pfloat64 -> Singleton KS.naked_float
+    | Punboxed_float Pfloat32 -> Singleton KS.naked_float32
     | Punboxed_int Pint32 -> Singleton KS.naked_int32
     | Punboxed_int Pint64 -> Singleton KS.naked_int64
     | Punboxed_int Pnativeint -> Singleton KS.naked_nativeint

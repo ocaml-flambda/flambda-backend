@@ -192,3 +192,6 @@ let add_def str =
 (** [update_output map] replaces the content of each file
     by its associated structure in [map] *)
 let update_output map = Smap.iter update_single (Smap.map add_def map)
+
+let save_outputs map =
+  Smap.iter (fun name str -> update_single (name ^ ".tmp") (add_def str)) map

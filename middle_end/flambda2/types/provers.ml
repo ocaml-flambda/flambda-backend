@@ -18,6 +18,7 @@
 
 [@@@ocaml.warning "-fragile-match"]
 
+module Float32 = Numeric_types.Float32_by_bit_pattern
 module Float = Numeric_types.Float_by_bit_pattern
 module Int32 = Numeric_types.Int32
 module Int64 = Numeric_types.Int64
@@ -77,8 +78,8 @@ let prove_equals_to_simple_of_kind_value env t : Simple.t proof_of_property =
       | simple -> Proved simple)
 
 (* Note: this function is used for simplifying Obj.is_int, so should not assume
-   that the argument represents a variant *)
-let prove_is_int_generic env t : bool generic_proof =
+   that the argument represents a variant, unless [variant_only] is [true] *)
+let prove_is_int_generic ~variant_only env t : bool generic_proof =
   match expand_head env t with
   | Value (Ok (Variant blocks_imms)) -> (
     match blocks_imms.blocks, blocks_imms.immediates with
@@ -93,19 +94,25 @@ let prove_is_int_generic env t : bool generic_proof =
       else if is_bottom env imms
       then Proved false
       else Unknown)
+  | Value (Ok (Mutable_block _)) -> Proved false
   | Value
       (Ok
-        ( Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
+        ( Boxed_float _ | Boxed_float32 _ | Boxed_int32 _ | Boxed_int64 _
         | Boxed_vec128 _ | Boxed_nativeint _ | Closures _ | String _ | Array _
           )) ->
-    Proved false
+    if variant_only then Invalid else Proved false
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_nativeint _ | Naked_vec128 _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ | Rec_info _ | Region _
+    ->
     wrong_kind "Value" t
 
-let prove_is_int env t = as_property (prove_is_int_generic env t)
+let prove_is_int env t =
+  as_property (prove_is_int_generic ~variant_only:false env t)
+
+let meet_is_int_variant_only env t =
+  as_meet_shortcut (prove_is_int_generic ~variant_only:true env t)
 
 (* Note: this function returns a generic proof because we want to propagate the
    Invalid cases to prove_naked_immediates_generic, but it's not suitable for
@@ -132,8 +139,8 @@ let prove_get_tag_generic env t : Tag.Set.t generic_proof =
           )))
   | Value
       (Ok
-        ( Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _
-        | Boxed_vec128 _ )) ->
+        ( Boxed_float _ | Boxed_float32 _ | Boxed_int32 _ | Boxed_int64 _
+        | Boxed_nativeint _ | Boxed_vec128 _ )) ->
     Unknown
   | Value (Ok (Mutable_block _)) -> Unknown
   | Value (Ok (Closures _)) -> Unknown
@@ -141,8 +148,9 @@ let prove_get_tag_generic env t : Tag.Set.t generic_proof =
   | Value (Ok (Array _)) -> Unknown
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     wrong_kind "Value" t
 
 let prove_get_tag env t = as_property (prove_get_tag_generic env t)
@@ -152,7 +160,7 @@ let prove_naked_immediates_generic env t : Targetint_31_63.Set.t generic_proof =
   | Naked_immediate (Ok (Naked_immediates is)) ->
     if Targetint_31_63.Set.is_empty is then Invalid else Proved is
   | Naked_immediate (Ok (Is_int scrutinee_ty)) -> (
-    match prove_is_int_generic env scrutinee_ty with
+    match prove_is_int_generic ~variant_only:true env scrutinee_ty with
     | Proved true ->
       Proved (Targetint_31_63.Set.singleton Targetint_31_63.bool_true)
     | Proved false ->
@@ -173,8 +181,8 @@ let prove_naked_immediates_generic env t : Targetint_31_63.Set.t generic_proof =
     | Invalid -> Invalid)
   | Naked_immediate Unknown -> Unknown
   | Naked_immediate Bottom -> Invalid
-  | Value _ | Naked_float _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
-  | Naked_vec128 _ | Rec_info _ | Region _ ->
+  | Value _ | Naked_float _ | Naked_float32 _ | Naked_int32 _ | Naked_int64 _
+  | Naked_nativeint _ | Naked_vec128 _ | Rec_info _ | Region _ ->
     wrong_kind "Naked_immediate" t
 
 let meet_naked_immediates env t =
@@ -197,8 +205,9 @@ let prove_equals_tagged_immediates env t : _ proof_of_property =
           | Unknown -> Unknown)
       else Unknown)
   | Value (Ok _ | Unknown | Bottom) -> Unknown
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     wrong_kind "Value" t
 
 let meet_equals_tagged_immediates env t : _ meet_shortcut =
@@ -209,14 +218,15 @@ let meet_equals_tagged_immediates env t : _ meet_shortcut =
     | Known imms -> meet_naked_immediates env imms)
   | Value
       (Ok
-        ( Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
-        | Boxed_vec128 _ | Boxed_nativeint _ | Closures _ | String _ | Array _
-          )) ->
+        ( Mutable_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
+        | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | Closures _
+        | String _ | Array _ )) ->
     Invalid
   | Value Unknown -> Need_meet
   | Value Bottom
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     Invalid
 
 let meet_equals_single_tagged_immediate env t : _ meet_shortcut =
@@ -229,6 +239,7 @@ let meet_equals_single_tagged_immediate env t : _ meet_shortcut =
   | Invalid -> Invalid
 
 type _ meet_naked_number_kind =
+  | Float32 : Float32.Set.t meet_naked_number_kind
   | Float : Float.Set.t meet_naked_number_kind
   | Int32 : Int32.Set.t meet_naked_number_kind
   | Int64 : Int64.Set.t meet_naked_number_kind
@@ -249,6 +260,7 @@ let[@inline] meet_naked_number (type a) (kind : a meet_naked_number_kind) env t
   let wrong_kind () =
     let kind_string =
       match kind with
+      | Float32 -> "Naked_float32"
       | Float -> "Naked_float"
       | Int32 -> "Naked_int32"
       | Int64 -> "Naked_int64"
@@ -262,6 +274,13 @@ let[@inline] meet_naked_number (type a) (kind : a meet_naked_number_kind) env t
   | Naked_immediate _ -> wrong_kind ()
   | Rec_info _ -> wrong_kind ()
   | Region _ -> wrong_kind ()
+  | Naked_float32 fs -> (
+    match kind with
+    | Float32 ->
+      head_to_proof fs
+        (fun (fs : TG.head_of_kind_naked_float32) -> (fs :> Float32.Set.t))
+        ~is_empty:Float32.Set.is_empty
+    | _ -> wrong_kind ())
   | Naked_float fs -> (
     match kind with
     | Float ->
@@ -299,6 +318,8 @@ let[@inline] meet_naked_number (type a) (kind : a meet_naked_number_kind) env t
           (fs :> Vector_types.Vec128.Bit_pattern.Set.t))
         ~is_empty:Vector_types.Vec128.Bit_pattern.Set.is_empty
     | _ -> wrong_kind ())
+
+let meet_naked_float32s = meet_naked_number Float32
 
 let meet_naked_floats = meet_naked_number Float
 
@@ -356,13 +377,14 @@ let prove_variant_like_generic env t : variant_like_proof generic_proof =
     Unknown (* We could return Invalid in a strict mode *)
   | Value
       (Ok
-        ( Closures _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
-        | Boxed_vec128 _ | Boxed_nativeint _ | String _ )) ->
+        ( Closures _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
+        | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | String _ )) ->
     Invalid
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     wrong_kind "Value" t
 
 let meet_variant_like env t =
@@ -389,6 +411,8 @@ let prove_is_a_boxed_or_tagged_number env t :
       else Unknown)
   | Value (Ok (Boxed_float (contents_ty, alloc_mode))) ->
     Proved (Boxed (alloc_mode, Naked_float, contents_ty))
+  | Value (Ok (Boxed_float32 (contents_ty, alloc_mode))) ->
+    Proved (Boxed (alloc_mode, Naked_float32, contents_ty))
   | Value (Ok (Boxed_int32 (contents_ty, alloc_mode))) ->
     Proved (Boxed (alloc_mode, Naked_int32, contents_ty))
   | Value (Ok (Boxed_int64 (contents_ty, alloc_mode))) ->
@@ -399,8 +423,9 @@ let prove_is_a_boxed_or_tagged_number env t :
     Proved (Boxed (alloc_mode, Naked_vec128, contents_ty))
   | Value (Bottom | Ok (Mutable_block _ | Closures _ | String _ | Array _)) ->
     Unknown
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     wrong_kind "Value" t
 
 let prove_is_a_tagged_immediate env t : _ proof_of_property =
@@ -409,13 +434,24 @@ let prove_is_a_tagged_immediate env t : _ proof_of_property =
   | Proved _ -> Unknown
   | Unknown -> Unknown
 
+let prove_is_a_boxed_float32 env t : _ proof_of_property =
+  match expand_head env t with
+  | Value Unknown -> Unknown
+  | Value (Ok (Boxed_float32 _)) -> Proved ()
+  | Value _ -> Unknown
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
+    wrong_kind "Value" t
+
 let prove_is_a_boxed_float env t : _ proof_of_property =
   match expand_head env t with
   | Value Unknown -> Unknown
   | Value (Ok (Boxed_float _)) -> Proved ()
   | Value _ -> Unknown
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     wrong_kind "Value" t
 
 let prove_is_or_is_not_a_boxed_float env t : _ proof_of_property =
@@ -424,8 +460,9 @@ let prove_is_or_is_not_a_boxed_float env t : _ proof_of_property =
   | Value Bottom -> Unknown
   | Value (Ok (Boxed_float _)) -> Proved true
   | Value (Ok _) -> Proved false
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     wrong_kind "Value" t
 
 let prove_is_a_boxed_int32 env t : _ proof_of_property =
@@ -433,8 +470,9 @@ let prove_is_a_boxed_int32 env t : _ proof_of_property =
   | Value Unknown -> Unknown
   | Value (Ok (Boxed_int32 _)) -> Proved ()
   | Value _ -> Unknown
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     wrong_kind "Value" t
 
 let prove_is_a_boxed_int64 env t : _ proof_of_property =
@@ -442,8 +480,9 @@ let prove_is_a_boxed_int64 env t : _ proof_of_property =
   | Value Unknown -> Unknown
   | Value (Ok (Boxed_int64 _)) -> Proved ()
   | Value _ -> Unknown
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     wrong_kind "Value" t
 
 let prove_is_a_boxed_nativeint env t : _ proof_of_property =
@@ -451,8 +490,9 @@ let prove_is_a_boxed_nativeint env t : _ proof_of_property =
   | Value Unknown -> Unknown
   | Value (Ok (Boxed_nativeint _)) -> Proved ()
   | Value _ -> Unknown
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     wrong_kind "Value" t
 
 let prove_is_a_boxed_vec128 env t : _ proof_of_property =
@@ -460,8 +500,9 @@ let prove_is_a_boxed_vec128 env t : _ proof_of_property =
   | Value Unknown -> Unknown
   | Value (Ok (Boxed_vec128 _)) -> Proved ()
   | Value _ -> Unknown
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     wrong_kind "Value" t
 
 let prove_unique_tag_and_size0 env t :
@@ -485,8 +526,9 @@ let prove_unique_tag_and_size0 env t :
   | Value (Ok (Mutable_block _)) | Value (Ok _) | Value Unknown | Value Bottom
     ->
     Unknown
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     wrong_kind "Value" t
 
 let prove_unique_tag_and_size env t :
@@ -516,7 +558,7 @@ let prove_unique_fully_constructed_immutable_heap_block env t :
     | Unknown -> Unknown
     | Proved simples -> Proved (tag_and_size, List.rev simples))
 
-let meet_is_flat_float_array env t : bool meet_shortcut =
+let meet_is_naked_number_array env t naked_number_kind : bool meet_shortcut =
   match expand_head env t with
   | Value Unknown -> Need_meet
   | Value Bottom -> Invalid
@@ -529,23 +571,23 @@ let meet_is_flat_float_array env t : bool meet_shortcut =
   | Value (Ok (Array { element_kind = Ok element_kind; _ })) -> (
     match K.With_subkind.kind element_kind with
     | Value -> Known_result false
-    | Naked_number Naked_float -> Known_result true
-    | Naked_number
-        ( Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint
-        | Naked_vec128 )
-    | Region | Rec_info ->
+    | Naked_number naked_number_kind'
+      when K.Naked_number_kind.equal naked_number_kind naked_number_kind' ->
+      Known_result true
+    | Naked_number _ | Region | Rec_info ->
       Misc.fatal_errorf "Wrong element kind for array: %a" K.With_subkind.print
         element_kind)
   | Value
       (Ok
-        ( Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _
-        | Boxed_vec128 _ | Closures _ | String _ )) ->
+        ( Boxed_float _ | Boxed_float32 _ | Boxed_int32 _ | Boxed_int64 _
+        | Boxed_nativeint _ | Boxed_vec128 _ | Closures _ | String _ )) ->
     Invalid
   | Value (Ok (Variant _ | Mutable_block _)) ->
     (* In case of untyped code using array primitives on regular blocks *)
     Need_meet
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
 
 let prove_is_immediates_array env t : unit proof_of_property =
@@ -559,18 +601,20 @@ let prove_is_immediates_array env t : unit proof_of_property =
   | Value (Ok (Array { element_kind = Ok element_kind; _ })) -> (
     match K.With_subkind.subkind element_kind with
     | Tagged_immediate -> Proved ()
-    | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
-    | Boxed_vec128 | Variant _ | Float_block _ | Float_array | Immediate_array
-    | Value_array | Generic_array ->
+    | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
+    | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
+    | Immediate_array | Value_array | Generic_array | Unboxed_float32_array
+    | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array ->
       Unknown)
   | Value
       (Ok
-        ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
-        | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _ | Closures _
-        | String _ )) ->
+        ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
+        | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _
+        | Closures _ | String _ )) ->
     Unknown
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     wrong_kind "Value" t
 
 let prove_single_closures_entry_generic env t : _ generic_proof =
@@ -593,14 +637,15 @@ let prove_single_closures_entry_generic env t : _ generic_proof =
         Proved (function_slot, alloc_mode, closures_entry, function_type)))
   | Value
       (Ok
-        ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
-        | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _ | String _
-        | Array _ )) ->
+        ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
+        | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _
+        | String _ | Array _ )) ->
     Invalid
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     wrong_kind "Value" t
 
 let meet_single_closures_entry env t =
@@ -616,8 +661,9 @@ let meet_is_immutable_array env t : _ meet_shortcut =
     | Known Mutable -> Invalid
     | Unknown -> Need_meet)
   | Value (Ok _)
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     Invalid
 
 let prove_single_closures_entry env t =
@@ -629,8 +675,9 @@ let meet_strings env t : String_info.Set.t meet_shortcut =
   | Value (Ok _) -> Invalid
   | Value Unknown -> Need_meet
   | Value Bottom -> Invalid
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
 
 let prove_strings env t : _ proof_of_property =
@@ -640,8 +687,9 @@ let prove_strings env t : _ proof_of_property =
        [Type_grammar]). *)
     Proved (Alloc_mode.For_types.heap, strs)
   | Value (Ok _ | Unknown | Bottom) -> Unknown
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
 
 type tagging_proof_kind =
@@ -683,8 +731,9 @@ let[@inline always] inspect_tagging_of_simple proof_kind env ~min_name_mode t :
       else Unknown
     | Meet, _ -> inspect_immediates ())
   | Value _ -> Unknown
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     wrong_kind "Value" t
 
 let prove_tagging_of_simple env ~min_name_mode t =
@@ -707,17 +756,29 @@ let[@inline always] meet_boxed_number_containing_simple
       | exception Not_found -> Need_meet))
   | Value Unknown -> Need_meet
   | Value Bottom -> Invalid
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
+
+let meet_boxed_float32_containing_simple =
+  meet_boxed_number_containing_simple
+    ~contents_of_boxed_number:(fun (ty_value : TG.head_of_kind_value) ->
+      match ty_value with
+      | Boxed_float32 (ty, _) -> Some ty
+      | Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
+      | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | Closures _
+      | String _ | Array _ ->
+        None)
 
 let meet_boxed_float_containing_simple =
   meet_boxed_number_containing_simple
     ~contents_of_boxed_number:(fun (ty_value : TG.head_of_kind_value) ->
       match ty_value with
       | Boxed_float (ty, _) -> Some ty
-      | Variant _ | Mutable_block _ | Boxed_int32 _ | Boxed_int64 _
-      | Boxed_vec128 _ | Boxed_nativeint _ | Closures _ | String _ | Array _ ->
+      | Variant _ | Mutable_block _ | Boxed_float32 _ | Boxed_int32 _
+      | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | Closures _
+      | String _ | Array _ ->
         None)
 
 let meet_boxed_int32_containing_simple =
@@ -725,8 +786,9 @@ let meet_boxed_int32_containing_simple =
     ~contents_of_boxed_number:(fun (ty_value : TG.head_of_kind_value) ->
       match ty_value with
       | Boxed_int32 (ty, _) -> Some ty
-      | Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int64 _
-      | Boxed_vec128 _ | Boxed_nativeint _ | Closures _ | String _ | Array _ ->
+      | Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
+      | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | Closures _
+      | String _ | Array _ ->
         None)
 
 let meet_boxed_int64_containing_simple =
@@ -734,8 +796,9 @@ let meet_boxed_int64_containing_simple =
     ~contents_of_boxed_number:(fun (ty_value : TG.head_of_kind_value) ->
       match ty_value with
       | Boxed_int64 (ty, _) -> Some ty
-      | Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
-      | Boxed_vec128 _ | Boxed_nativeint _ | Closures _ | String _ | Array _ ->
+      | Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
+      | Boxed_int32 _ | Boxed_vec128 _ | Boxed_nativeint _ | Closures _
+      | String _ | Array _ ->
         None)
 
 let meet_boxed_nativeint_containing_simple =
@@ -743,8 +806,9 @@ let meet_boxed_nativeint_containing_simple =
     ~contents_of_boxed_number:(fun (ty_value : TG.head_of_kind_value) ->
       match ty_value with
       | Boxed_nativeint (ty, _) -> Some ty
-      | Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
-      | Boxed_vec128 _ | Boxed_int64 _ | Closures _ | String _ | Array _ ->
+      | Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
+      | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Closures _ | String _
+      | Array _ ->
         None)
 
 let meet_boxed_vec128_containing_simple =
@@ -752,8 +816,9 @@ let meet_boxed_vec128_containing_simple =
     ~contents_of_boxed_number:(fun (ty_value : TG.head_of_kind_value) ->
       match ty_value with
       | Boxed_vec128 (ty, _) -> Some ty
-      | Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
-      | Boxed_nativeint _ | Boxed_int64 _ | Closures _ | String _ | Array _ ->
+      | Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
+      | Boxed_int32 _ | Boxed_nativeint _ | Boxed_int64 _ | Closures _
+      | String _ | Array _ ->
         None)
 
 let meet_block_field_simple env ~min_name_mode ~field_kind t field_index :
@@ -788,8 +853,9 @@ let meet_block_field_simple env ~min_name_mode ~field_kind t field_index :
   | Value (Ok _) -> Invalid
   | Value Unknown -> Need_meet
   | Value Bottom -> Invalid
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     wrong_kind "Value" t
 
 let meet_project_function_slot_simple env ~min_name_mode t function_slot :
@@ -810,8 +876,9 @@ let meet_project_function_slot_simple env ~min_name_mode t function_slot :
   | Value (Ok _) -> Invalid
   | Value Unknown -> Need_meet
   | Value Bottom -> Invalid
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     wrong_kind "Value" t
 
 let meet_project_value_slot_simple env ~min_name_mode t value_slot :
@@ -837,8 +904,9 @@ let meet_project_value_slot_simple env ~min_name_mode t value_slot :
   | Value (Ok _) -> Invalid
   | Value Unknown -> Need_meet
   | Value Bottom -> Invalid
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     wrong_kind "Value" t
 
 let meet_rec_info env t : Rec_info_expr.t meet_shortcut =
@@ -846,13 +914,15 @@ let meet_rec_info env t : Rec_info_expr.t meet_shortcut =
   | Rec_info (Ok rec_info_expr) -> Known_result rec_info_expr
   | Rec_info Unknown -> Need_meet
   | Rec_info Bottom -> Invalid
-  | Value _ | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Region _ ->
+  | Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
+  | Naked_int32 _ | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _
+  | Region _ ->
     wrong_kind "Rec_info" t
 
 let prove_alloc_mode_of_boxed_number env t :
     Alloc_mode.For_types.t proof_of_property =
   match expand_head env t with
+  | Value (Ok (Boxed_float32 (_, alloc_mode)))
   | Value (Ok (Boxed_float (_, alloc_mode)))
   | Value (Ok (Boxed_int32 (_, alloc_mode)))
   | Value (Ok (Boxed_int64 (_, alloc_mode)))
@@ -862,8 +932,9 @@ let prove_alloc_mode_of_boxed_number env t :
   | Value (Ok (Variant _ | Mutable_block _ | String _ | Array _ | Closures _))
   | Value (Unknown | Bottom) ->
     Unknown
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+    ->
     wrong_kind "Value" t
 
 let never_holds_locally_allocated_values env var : _ proof_of_property =
@@ -881,6 +952,7 @@ let never_holds_locally_allocated_values env var : _ proof_of_property =
           match blocks.alloc_mode with
           | Heap -> Proved ()
           | Local | Heap_or_local -> Unknown))
+    | Value (Ok (Boxed_float32 (_, alloc_mode)))
     | Value (Ok (Boxed_float (_, alloc_mode)))
     | Value (Ok (Boxed_int32 (_, alloc_mode)))
     | Value (Ok (Boxed_int64 (_, alloc_mode)))
@@ -895,13 +967,17 @@ let never_holds_locally_allocated_values env var : _ proof_of_property =
     | Value (Ok (String _)) -> Proved ()
     | Value Unknown -> Unknown
     | Value Bottom -> Unknown
-    | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-    | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+    | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+    | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
+      ->
       Proved ())
 
 let prove_physical_equality env t1 t2 =
   let incompatible_naked_numbers t1 t2 =
     match expand_head env t1, expand_head env t2 with
+    | Naked_float32 (Ok s1), Naked_float32 (Ok s2) ->
+      let module FS = Numeric_types.Float32_by_bit_pattern.Set in
+      FS.is_empty (FS.inter (s1 :> FS.t) (s2 :> FS.t))
     | Naked_float (Ok s1), Naked_float (Ok s2) ->
       let module FS = Numeric_types.Float_by_bit_pattern.Set in
       FS.is_empty (FS.inter (s1 :> FS.t) (s2 :> FS.t))
@@ -917,21 +993,23 @@ let prove_physical_equality env t1 t2 =
     | Naked_vec128 (Ok s1), Naked_vec128 (Ok s2) ->
       let module IS = Vector_types.Vec128.Bit_pattern.Set in
       IS.is_empty (IS.inter (s1 :> IS.t) (s2 :> IS.t))
-    | ( ( Naked_float _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
-        | Naked_vec128 _ | Value _ | Naked_immediate _ | Region _ | Rec_info _
-          ),
+    | ( ( Naked_float _ | Naked_float32 _ | Naked_int32 _ | Naked_int64 _
+        | Naked_nativeint _ | Naked_vec128 _ | Value _ | Naked_immediate _
+        | Region _ | Rec_info _ ),
         _ ) ->
       false
   in
   let check_heads () : _ proof_of_property =
     match expand_head env t1, expand_head env t2 with
-    | ( ( Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-        | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ),
+    | ( ( Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+        | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _
+        | Region _ ),
         _ ) ->
       wrong_kind "Value" t1
     | ( _,
-        ( Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-        | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ) ) ->
+        ( Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+        | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _
+        | Region _ ) ) ->
       wrong_kind "Value" t2
     | Value (Unknown | Bottom), _ | _, Value (Unknown | Bottom) -> Unknown
     | Value (Ok head1), Value (Ok head2) -> (
@@ -941,6 +1019,8 @@ let prove_physical_equality env t1 t2 =
        * incompatible contents -> Proved false
        *)
       | Boxed_float (t1, _), Boxed_float (t2, _) ->
+        if incompatible_naked_numbers t1 t2 then Proved false else Unknown
+      | Boxed_float32 (t1, _), Boxed_float32 (t2, _) ->
         if incompatible_naked_numbers t1 t2 then Proved false else Unknown
       | Boxed_int32 (t1, _), Boxed_int32 (t2, _) ->
         if incompatible_naked_numbers t1 t2 then Proved false else Unknown
@@ -956,12 +1036,12 @@ let prove_physical_equality env t1 t2 =
         if SS.is_empty (SS.inter s1 s2) then Proved false else Unknown
       (* Immediates and allocated values -> Proved false *)
       | ( Variant { immediates = _; blocks = Known blocks; is_unique = _ },
-          ( Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
-          | Boxed_vec128 _ | Boxed_nativeint _ | Closures _ | String _ | Array _
-            ) )
-      | ( ( Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
-          | Boxed_vec128 _ | Boxed_nativeint _ | Closures _ | String _ | Array _
-            ),
+          ( Mutable_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
+          | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | Closures _
+          | String _ | Array _ ) )
+      | ( ( Mutable_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
+          | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | Closures _
+          | String _ | Array _ ),
           Variant { immediates = _; blocks = Known blocks; is_unique = _ } )
         when TG.Row_like_for_blocks.is_bottom blocks ->
         Proved false
@@ -1047,35 +1127,43 @@ let prove_physical_equality env t1 t2 =
         | _, _, _, _ -> Unknown)
       (* Boxed numbers with non-numbers or different kinds -> Proved *)
       | ( Boxed_float _,
-          ( Variant _ | Mutable_block _ | Boxed_int32 _ | Boxed_int64 _
-          | Boxed_vec128 _ | Boxed_nativeint _ | Closures _ | String _ | Array _
-            ) )
-      | ( ( Variant _ | Mutable_block _ | Boxed_int32 _ | Boxed_int64 _
-          | Boxed_vec128 _ | Boxed_nativeint _ | Closures _ | String _ | Array _
-            ),
+          ( Variant _ | Mutable_block _ | Boxed_float32 _ | Boxed_int32 _
+          | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | Closures _
+          | String _ | Array _ ) )
+      | ( ( Variant _ | Mutable_block _ | Boxed_float32 _ | Boxed_int32 _
+          | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | Closures _
+          | String _ | Array _ ),
           Boxed_float _ )
       | ( Boxed_int32 _,
-          ( Variant _ | Mutable_block _ | Boxed_int64 _ | Boxed_nativeint _
-          | Boxed_vec128 _ | Closures _ | String _ | Array _ ) )
-      | ( ( Variant _ | Mutable_block _ | Boxed_int64 _ | Boxed_nativeint _
-          | Boxed_vec128 _ | Closures _ | String _ | Array _ ),
+          ( Variant _ | Mutable_block _ | Boxed_float32 _ | Boxed_int64 _
+          | Boxed_nativeint _ | Boxed_vec128 _ | Closures _ | String _ | Array _
+            ) )
+      | ( ( Variant _ | Mutable_block _ | Boxed_float32 _ | Boxed_int64 _
+          | Boxed_nativeint _ | Boxed_vec128 _ | Closures _ | String _ | Array _
+            ),
           Boxed_int32 _ )
       | ( Boxed_int64 _,
-          ( Variant _ | Mutable_block _ | Boxed_nativeint _ | Closures _
-          | Boxed_vec128 _ | String _ | Array _ ) )
-      | ( ( Variant _ | Mutable_block _ | Boxed_nativeint _ | Closures _
-          | Boxed_vec128 _ | String _ | Array _ ),
+          ( Variant _ | Mutable_block _ | Boxed_float32 _ | Boxed_nativeint _
+          | Closures _ | Boxed_vec128 _ | String _ | Array _ ) )
+      | ( ( Variant _ | Mutable_block _ | Boxed_float32 _ | Boxed_nativeint _
+          | Closures _ | Boxed_vec128 _ | String _ | Array _ ),
           Boxed_int64 _ )
       | ( Boxed_vec128 _,
-          ( Variant _ | Mutable_block _ | Boxed_nativeint _ | Closures _
-          | String _ | Array _ ) )
-      | ( ( Variant _ | Mutable_block _ | Boxed_nativeint _ | Closures _
-          | String _ | Array _ ),
+          ( Variant _ | Mutable_block _ | Boxed_float32 _ | Boxed_nativeint _
+          | Closures _ | String _ | Array _ ) )
+      | ( ( Variant _ | Mutable_block _ | Boxed_float32 _ | Boxed_nativeint _
+          | Closures _ | String _ | Array _ ),
           Boxed_vec128 _ )
       | ( Boxed_nativeint _,
+          ( Variant _ | Mutable_block _ | Boxed_float32 _ | Closures _
+          | String _ | Array _ ) )
+      | ( ( Variant _ | Mutable_block _ | Boxed_float32 _ | Closures _
+          | String _ | Array _ ),
+          Boxed_nativeint _ )
+      | ( Boxed_float32 _,
           (Variant _ | Mutable_block _ | Closures _ | String _ | Array _) )
       | ( (Variant _ | Mutable_block _ | Closures _ | String _ | Array _),
-          Boxed_nativeint _ ) ->
+          Boxed_float32 _ ) ->
         Proved false
       (* Closures and non-closures -> Proved *)
       | Closures _, (Variant _ | Mutable_block _ | String _ | Array _)

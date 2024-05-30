@@ -149,7 +149,7 @@ let arg_label i ppf = function
 ;;
 
 let typevars ppf vs =
-  List.iter (fun x -> fprintf ppf " %a" Printast.tyvar x.txt) vs
+  List.iter (fun x -> fprintf ppf " %a" Pprintast.tyvar x.txt) vs
 
 let rec core_type i ppf x =
   with_location_mapping ~loc:x.ptyp_loc ppf (fun () ->
@@ -196,7 +196,7 @@ let rec core_type i ppf x =
   | Ptyp_poly (sl, ct) ->
       line i ppf "Ptyp_poly%a\n"
         (fun ppf ->
-           List.iter (fun x -> fprintf ppf " %a" Printast.tyvar x.txt)
+           List.iter (fun x -> fprintf ppf " %a" Pprintast.tyvar x.txt)
         )
         sl;
       core_type i ppf ct;

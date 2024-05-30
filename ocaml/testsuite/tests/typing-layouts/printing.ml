@@ -1,6 +1,6 @@
 (* TEST
-   * expect
-   flags = "-verbose-types"
+ flags = "-verbose-types";
+ expect;
 *)
 
 module M : sig

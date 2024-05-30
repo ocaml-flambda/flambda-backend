@@ -18,17 +18,18 @@ module Typing_env = struct
   include Typing_env
 
   let add_equation t name ty =
-    add_equation t name ty ~meet_type:Meet_and_join.meet
+    add_equation t name ty ~meet_type:(Meet_and_join.meet_type ())
 
   let add_equations_on_params t ~params ~param_types =
-    add_equations_on_params t ~params ~param_types ~meet_type:Meet_and_join.meet
+    add_equations_on_params t ~params ~param_types
+      ~meet_type:(Meet_and_join.meet_type ())
 
   let add_env_extension t extension =
-    add_env_extension t extension ~meet_type:Meet_and_join.meet
+    add_env_extension t extension ~meet_type:(Meet_and_join.meet_type ())
 
   let add_env_extension_with_extra_variables t extension =
     add_env_extension_with_extra_variables t extension
-      ~meet_type:Meet_and_join.meet
+      ~meet_type:(Meet_and_join.meet_type ())
 
   module Alias_set = Aliases.Alias_set
 end
@@ -36,8 +37,7 @@ end
 module Typing_env_extension = struct
   include Typing_env_extension
 
-  let meet env t1 t2 =
-    Meet_and_join.meet_env_extension (Typing_env.Meet_env.create env) t1 t2
+  let meet = Meet_and_join.meet_env_extension
 end
 
 type typing_env = Typing_env.t
@@ -53,13 +53,9 @@ include Reify
 include Join_levels
 module Code_age_relation = Code_age_relation
 
-let meet env t1 t2 : _ Or_bottom.t =
-  let meet_env = Typing_env.Meet_env.create env in
-  meet meet_env t1 t2
-
 let join ?bound_name central_env ~left_env ~left_ty ~right_env ~right_ty =
   let join_env = Typing_env.Join_env.create central_env ~left_env ~right_env in
-  match join ?bound_name join_env left_ty right_ty with
+  match (join ()) ?bound_name join_env left_ty right_ty with
   | Unknown -> unknown_like left_ty
   | Known ty -> ty
 

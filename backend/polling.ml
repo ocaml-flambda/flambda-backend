@@ -241,13 +241,14 @@ let find_poll_alloc_or_calls instr =
       | Iop(Icall_ind | Icall_imm _ |
             Itailcall_ind | Itailcall_imm _ ) -> Some (Function_call, i.dbg)
       | Iop(Iextcall { alloc = true }) -> Some (External_call, i.dbg)
-      | Iop(Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _ | Iconst_vec128 _ |
+      | Iop(Imove | Ispill | Ireload | Iconst_int _ | Iconst_float32 _ |
+            Iconst_float _ | Iconst_vec128 _ |
             Iconst_symbol _ | Iextcall { alloc = false } | Istackoffset _ |
             Iload _ | Istore _ | Iintop _ | Iintop_imm _ | Iintop_atomic _ |
-            Ifloatofint | Iintoffloat | Inegf | Iabsf | Iaddf | Isubf |
-            Imulf | Idivf | Iopaque | Ispecific _ | Ibeginregion | Iendregion |
-            Icsel _ | Icompf _ | Iname_for_debugger _ | Iprobe _ | Iscalarcast _ |
-            Iprobe_is_enabled _ | Ivalueofint | Iintofvalue | Ivectorcast _ | Idls_get)-> None
+            Iopaque | Ispecific _ | Ibeginregion | Iendregion |
+            Icsel _ | Ifloatop _ | Iname_for_debugger _ | Iprobe _ |
+            Ireinterpret_cast _ | Istatic_cast _ |
+            Iprobe_is_enabled _ | Idls_get)-> None
       | Iend | Ireturn _ | Iifthenelse _ | Iswitch _ | Icatch _ | Iexit _ |
         Itrywith _ | Iraise _ -> None
     in

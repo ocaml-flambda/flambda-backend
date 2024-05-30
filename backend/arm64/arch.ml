@@ -46,11 +46,7 @@ type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 type specific_operation =
   | Ifar_poll of { return_label: cmm_label option }
   | Ifar_alloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo }
-  | Ifar_intop_checkbound
-  | Ifar_intop_imm_checkbound of { bound : int; }
   | Ishiftarith of arith_operation * int
-  | Ishiftcheckbound of { shift : int; }
-  | Ifar_shiftcheckbound of { shift : int; }
   | Imuladd       (* multiply and add *)
   | Imulsub       (* multiply and subtract *)
   | Inegmulf      (* floating-point negate and multiply *)
@@ -119,10 +115,6 @@ let print_specific_operation printreg op ppf arg =
     fprintf ppf "(far) poll"
   | Ifar_alloc { bytes; } ->
     fprintf ppf "(far) alloc %i" bytes
-  | Ifar_intop_checkbound ->
-    fprintf ppf "%a (far) check > %a" printreg arg.(0) printreg arg.(1)
-  | Ifar_intop_imm_checkbound { bound; } ->
-    fprintf ppf "%a (far) check > %i" printreg arg.(0) bound
   | Ishiftarith(op, shift) ->
       let op_name = function
       | Ishiftadd -> "+"
@@ -133,12 +125,6 @@ let print_specific_operation printreg op ppf arg =
        else sprintf ">> %i" (-shift) in
       fprintf ppf "%a %s %a %s"
        printreg arg.(0) (op_name op) printreg arg.(1) shift_mark
-  | Ishiftcheckbound { shift; } ->
-      fprintf ppf "check %a >> %i > %a" printreg arg.(0) shift
-        printreg arg.(1)
-  | Ifar_shiftcheckbound { shift; } ->
-      fprintf ppf
-        "(far) check %a >> %i > %a" printreg arg.(0) shift printreg arg.(1)
   | Imuladd ->
       fprintf ppf "(%a * %a) + %a"
         printreg arg.(0)
@@ -207,20 +193,10 @@ let equal_specific_operation left right =
   | Ifar_alloc { bytes = left_bytes; dbginfo = _; },
     Ifar_alloc { bytes = right_bytes; dbginfo = _; } ->
     Int.equal left_bytes right_bytes
-  | Ifar_intop_checkbound, Ifar_intop_checkbound -> true
-  | Ifar_intop_imm_checkbound { bound = left_bound; },
-    Ifar_intop_imm_checkbound { bound = right_bound; } ->
-    Int.equal left_bound right_bound
   | Ishiftarith (left_arith_operation, left_int),
     Ishiftarith (right_arith_operation, right_int) ->
     equal_arith_operation left_arith_operation right_arith_operation
     && Int.equal left_int right_int
-  | Ishiftcheckbound { shift = left_shift; },
-    Ishiftcheckbound { shift = right_shift; } ->
-    Int.equal left_shift right_shift
-  | Ifar_shiftcheckbound { shift = left_shift; },
-    Ifar_shiftcheckbound { shift = right_shift; } ->
-    Int.equal left_shift right_shift
   | Imuladd, Imuladd -> true
   | Imulsub, Imulsub -> true
   | Inegmulf, Inegmulf -> true
@@ -233,8 +209,7 @@ let equal_specific_operation left right =
     Int.equal (int_of_bswap_bitwidth left) (int_of_bswap_bitwidth right)
   | Imove32, Imove32 -> true
   | Isignext left, Isignext right -> Int.equal left right
-  | (Ifar_alloc _  | Ifar_poll _ | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _
-    | Ishiftarith _ | Ishiftcheckbound _ | Ifar_shiftcheckbound _
+  | (Ifar_alloc _  | Ifar_poll _  | Ishiftarith _
     | Imuladd | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf
     | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _), _ -> false
 
@@ -310,11 +285,7 @@ let is_logical_immediate x =
 
 let operation_is_pure : specific_operation -> bool = function
   | Ifar_alloc _ | Ifar_poll _ -> false
-  | Ifar_intop_checkbound -> false
-  | Ifar_intop_imm_checkbound _ -> false
   | Ishiftarith _ -> true
-  | Ishiftcheckbound _ -> false
-  | Ifar_shiftcheckbound _ -> false
   | Imuladd -> true
   | Imulsub -> true
   | Inegmulf -> true
@@ -331,11 +302,7 @@ let operation_is_pure : specific_operation -> bool = function
 
 let operation_can_raise = function
   | Ifar_alloc _
-  | Ifar_poll _
-  | Ifar_intop_checkbound
-  | Ifar_intop_imm_checkbound _
-  | Ishiftcheckbound _
-  | Ifar_shiftcheckbound _ -> true
+  | Ifar_poll _ -> true
   | Imuladd
   | Imulsub
   | Inegmulf
@@ -352,10 +319,6 @@ let operation_can_raise = function
 let operation_allocates = function
   | Ifar_alloc _ -> true
   | Ifar_poll _
-  | Ifar_intop_checkbound
-  | Ifar_intop_imm_checkbound _
-  | Ishiftcheckbound _
-  | Ifar_shiftcheckbound _
   | Imuladd
   | Imulsub
   | Inegmulf

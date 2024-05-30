@@ -15,30 +15,85 @@
 (**************************************************************************)
 [@@@ocaml.warning "+4"]
 
-(* POPCNT instruction is not available prior to Nehalem, released in 2008. *)
-let popcnt_support = ref true
+module Extension = struct
+  module T = struct
+    type t =
+      | POPCNT
+      | PREFETCHW
+      | PREFETCHWT1
+      | SSE3
+      | SSSE3
+      | SSE4_1
+      | SSE4_2
+      | CLMUL
+      | LZCNT
+      | BMI
+      | BMI2
 
-(* PREFETCHW instruction is not available on processors
-   based on Haswell or earlier microarchitectures. *)
-let prefetchw_support = ref true
+    let compare = compare
+  end
 
-(* PREFETCHWT1 is Intel Xeon Phi only. *)
-let prefetchwt1_support = ref false
+  include T
+  module Set = Set.Make(T)
+
+  let name = function
+    | POPCNT -> "POPCNT"
+    | PREFETCHW -> "PREFETCHW"
+    | PREFETCHWT1 -> "PREFETCHWT1"
+    | SSE3 -> "SSE3"
+    | SSSE3 -> "SSSE3"
+    | SSE4_1 -> "SSE41"
+    | SSE4_2 -> "SSE42"
+    | CLMUL -> "CLMUL"
+    | LZCNT -> "LZCNT"
+    | BMI -> "BMI"
+    | BMI2 -> "BMI2"
+
+  let generation = function
+    | POPCNT -> "Nehalem+"
+    | PREFETCHW -> "Broadwell+"
+    | PREFETCHWT1 -> "Xeon Phi"
+    | SSE3 -> "Prescott+"
+    | SSSE3 -> "Core+"
+    | SSE4_1 -> "Penryn+"
+    | SSE4_2 -> "Nehalem+"
+    | CLMUL -> "Westmere+"
+    | LZCNT -> "Haswell+"
+    | BMI -> "Haswell+"
+    | BMI2 -> "Haswell+"
+
+  let enabled_by_default = function
+    | SSE3 | SSSE3 | SSE4_1 | SSE4_2
+    | POPCNT | CLMUL | LZCNT | BMI | BMI2 -> true
+    | PREFETCHW | PREFETCHWT1 -> false
+
+  let all = Set.of_list [ POPCNT; PREFETCHW; PREFETCHWT1; SSE3; SSSE3; SSE4_1; SSE4_2; CLMUL; LZCNT; BMI; BMI2 ]
+  let config = ref (Set.filter enabled_by_default all)
+
+  let enabled t = Set.mem t !config
+  let disabled t = not (enabled t)
+
+  let args =
+    let y t = "-f" ^ (name t |> String.lowercase_ascii) in
+    let n t = "-fno-" ^ (name t |> String.lowercase_ascii) in
+    Set.fold (fun t acc ->
+      let print_default b = if b then " (default)" else "" in
+      let yd = print_default (enabled t) in
+      let nd = print_default (disabled t) in
+      (y t, Arg.Unit (fun () -> config := Set.add t !config),
+        Printf.sprintf "Enable %s instructions (%s)%s" (name t) (generation t) yd) ::
+      (n t, Arg.Unit (fun () -> config := Set.remove t !config),
+        Printf.sprintf "Disable %s instructions (%s)%s" (name t) (generation t) nd) :: acc)
+    all []
+
+    let available () = Set.fold (fun t acc -> t :: acc) !config []
+end
 
 (* Emit elf notes with trap handling information. *)
 let trap_notes = ref true
 
-(* Basline x86_64 requires SSE and SSE2. The others are optional. *)
-let sse3_support = ref true
-let ssse3_support = ref true
-let sse41_support = ref true
-let sse42_support = ref true
-
-(* Carry-less multiplication (Westmere+) *)
-let clmul_support = ref true
-
-(* Enable SIMD register allocation features. *)
-let simd_regalloc = ref false
+(* Emit extension symbols for CPUID startup check  *)
+let arch_check_symbols = ref true
 
 (* Machine-specific command-line options *)
 
@@ -47,48 +102,25 @@ let command_line_options =
       " Generate position-independent machine code (default)";
     "-fno-PIC", Arg.Clear Clflags.pic_code,
       " Generate position-dependent machine code";
-    "-fpopcnt", Arg.Set popcnt_support,
-      " Use POPCNT instruction (not available prior to Nehalem) (default)";
-    "-fno-popcnt", Arg.Clear popcnt_support,
-      " Do not use POPCNT instruction";
-    "-fprefetchw", Arg.Set prefetchw_support,
-      " Use PREFETCHW instructions (not available on Haswell and earlier) \
-        (default)";
-    "-fno-prefetchw", Arg.Clear prefetchw_support,
-      " Do not use PREFETCHW instructions";
-    "-fprefetchwt1", Arg.Set prefetchwt1_support,
-      " Use PREFETCHWT1 instructions (Intel Xeon Phi only)";
-    "-fno-prefetchwt1", Arg.Clear prefetchwt1_support,
-      " Do not use PREFETCHWT1 instructions (default)";
     "-ftrap-notes", Arg.Set trap_notes,
       " Emit .note.ocaml_eh section with trap handling information (default)";
     "-fno-trap-notes", Arg.Clear trap_notes,
-      " Do not emit .note.ocaml_eh section with trap handling information";
-    "-fsse3", Arg.Set sse3_support,
-      " Enable SSE3 intrinsics (default)";
-    "-fno-sse3", Arg.Clear sse3_support,
-      " Disable SSE3 intrinsics";
-    "-fssse3", Arg.Set ssse3_support,
-      " Enable SSSE3 intrinsics (default)";
-    "-fno-ssse3", Arg.Clear ssse3_support,
-      " Disable SSSE3 intrinsics";
-    "-fsse41", Arg.Set sse41_support,
-      " Enable SSE4.1 intrinsics (default)";
-    "-fno-sse41", Arg.Clear sse41_support,
-      " Disable SSE4.1 intrinsics";
-    "-fsse42", Arg.Set sse42_support,
-      " Enable SSE4.2 intrinsics (default)";
-    "-fno-sse42", Arg.Clear sse42_support,
-      " Disable SSE4.2 intrinsics";
-    "-fclmul", Arg.Set clmul_support,
-      " Enable CLMUL intrinsics (default)";
-    "-fno-clmul", Arg.Clear clmul_support,
-      " Disable CLMUL intrinsics";
-    "-fsimd-regalloc", Arg.Set simd_regalloc,
-      " Enable SIMD register allocation (implied by -extension SIMD)";
-    "-fno-simd-regalloc", Arg.Clear simd_regalloc,
-      " Disable SIMD register allocation (overridden by -extension SIMD) (default)";
-  ]
+      " Do not emit .note.ocaml_eh section with trap handling information"
+  ] @ Extension.args
+
+let assert_simd_enabled () =
+  if not (Language_extension.is_enabled SIMD) then
+  Misc.fatal_error "SIMD is not enabled. This error might happen \
+  if you are using SIMD yourself or are linking code that uses it. \
+  Pass [-extension-universe stable] to the compiler, or set \
+  (extension_universe stable) in your library configuration file."
+
+let assert_float32_enabled () =
+  if not (Language_extension.is_enabled Small_numbers) then
+  Misc.fatal_error "float32 is not enabled. This error might happen \
+  if you are using float32 yourself or are linking code that uses it. \
+  Pass [-extension-universe beta] to the compiler, or set \
+  (extension_universe beta) in your library configuration file."
 
 (* Specific operations for the AMD64 processor *)
 
@@ -113,14 +145,16 @@ type prefetch_info = {
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
+type float_width = Cmm.float_width
+
 type specific_operation =
-    Ilea of addressing_mode             (* "lea" gives scaled adds *)
+    Ilea of addressing_mode            (* "lea" gives scaled adds *)
   | Istore_int of nativeint * addressing_mode * bool
-                                        (* Store an integer constant *)
-  | Ioffset_loc of int * addressing_mode (* Add a constant to a location *)
-  | Ifloatarithmem of float_operation * addressing_mode
+                                       (* Store an integer constant *)
+  | Ioffset_loc of int * addressing_mode
+                                       (* Add a constant to a location *)
+  | Ifloatarithmem of float_width * float_operation * addressing_mode
                                        (* Float arith operation with memory *)
-  | Ifloatsqrtf of addressing_mode     (* Float square root from memory *)
   | Ibswap of { bitwidth: bswap_bitwidth; } (* endianness conversion *)
   | Isextend32                         (* 32 to 64 bit conversion with sign
                                           extension *)
@@ -140,7 +174,10 @@ type specific_operation =
       }
 
 and float_operation =
-    Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv
+  | Ifloatadd
+  | Ifloatsub
+  | Ifloatmul
+  | Ifloatdiv
 
 (* Sizes, endianness *)
 
@@ -218,16 +255,17 @@ let print_specific_operation printreg op ppf arg =
          (if is_assign then "(assign)" else "(init)")
   | Ioffset_loc(n, addr) ->
       fprintf ppf "[%a] +:= %i" (print_addressing printreg addr) arg n
-  | Ifloatsqrtf addr ->
-     fprintf ppf "sqrtf float64[%a]"
-             (print_addressing printreg addr) [|arg.(0)|]
-  | Ifloatarithmem(op, addr) ->
-      let op_name = function
-      | Ifloatadd -> "+f"
-      | Ifloatsub -> "-f"
-      | Ifloatmul -> "*f"
-      | Ifloatdiv -> "/f" in
-      fprintf ppf "%a %s float64[%a]" printreg arg.(0) (op_name op)
+  | Ifloatarithmem(width, op, addr) ->
+      let op_name = match width, op with
+      | Float64, Ifloatadd -> "+f"
+      | Float64, Ifloatsub -> "-f"
+      | Float64, Ifloatmul -> "*f"
+      | Float64, Ifloatdiv -> "/f"
+      | Float32, Ifloatadd -> "+f32"
+      | Float32, Ifloatsub -> "-f32"
+      | Float32, Ifloatmul -> "*f32"
+      | Float32, Ifloatdiv -> "/f32" in
+      fprintf ppf "%a %s float64[%a]" printreg arg.(0) op_name
                    (print_addressing printreg addr)
                    (Array.sub arg 1 (Array.length arg - 1))
   | Ibswap { bitwidth } ->
@@ -265,7 +303,7 @@ let win64 =
 
 let operation_is_pure = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
-  | Ifloatarithmem _ | Ifloatsqrtf _ -> true
+  | Ifloatarithmem _  -> true
   | Irdtsc | Irdpmc | Ipause
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
@@ -276,7 +314,7 @@ let operation_is_pure = function
 
 let operation_can_raise = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
-  | Ifloatarithmem _ | Ifloatsqrtf _
+  | Ifloatarithmem _
   | Irdtsc | Irdpmc | Ipause | Isimd _
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
@@ -284,7 +322,7 @@ let operation_can_raise = function
 
 let operation_allocates = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
-  | Ifloatarithmem _ | Ifloatsqrtf _
+  | Ifloatarithmem _
   | Irdtsc | Irdpmc | Ipause | Isimd _
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
@@ -334,9 +372,9 @@ let equal_prefetch_temporal_locality_hint left right =
 
 let equal_float_operation left right =
   match left, right with
-  | Ifloatadd, Ifloatadd -> true
-  | Ifloatsub, Ifloatsub -> true
-  | Ifloatmul, Ifloatmul -> true
+  | Ifloatadd, Ifloatadd
+  | Ifloatsub, Ifloatsub
+  | Ifloatmul, Ifloatmul
   | Ifloatdiv, Ifloatdiv -> true
   | (Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv), _ -> false
 
@@ -347,12 +385,12 @@ let equal_specific_operation left right =
     Nativeint.equal x y && equal_addressing_mode x' y' && Bool.equal x'' y''
   | Ioffset_loc (x, x'), Ioffset_loc (y, y') ->
     Int.equal x y && equal_addressing_mode x' y'
-  | Ifloatarithmem (x, x'), Ifloatarithmem (y, y') ->
-    equal_float_operation x y && equal_addressing_mode x' y'
+  | Ifloatarithmem (xw, x, x'), Ifloatarithmem (yw, y, y') ->
+    Cmm.equal_float_width xw yw &&
+    equal_float_operation x y &&
+    equal_addressing_mode x' y'
   | Ibswap { bitwidth = left }, Ibswap { bitwidth = right } ->
     Int.equal (int_of_bswap_bitwidth left) (int_of_bswap_bitwidth right)
-  | Ifloatsqrtf left, Ifloatsqrtf right ->
-    equal_addressing_mode left right
   | Isextend32, Isextend32 ->
     true
   | Izextend32, Izextend32 ->
@@ -375,7 +413,7 @@ let equal_specific_operation left right =
     && equal_addressing_mode left_addr right_addr
   | Isimd l, Isimd r ->
     Simd.equal_operation l r
-  | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ifloatsqrtf _ | Ibswap _ |
+  | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ |
      Isextend32 | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence |
      Ipause | Isimd _ | Iprefetch _), _ ->
     false

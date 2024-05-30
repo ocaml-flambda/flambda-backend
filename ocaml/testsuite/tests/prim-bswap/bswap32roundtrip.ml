@@ -1,5 +1,4 @@
-(* TEST
-*)
+(* TEST *)
 type buf = bytes
 
 external create_buf : int -> buf = "caml_create_bytes"

@@ -1,9 +1,9 @@
 (* TEST
-   flags = "-disable-all-extensions"
-   ocamlc_byte_exit_status = "2"
-   * setup-ocamlc.byte-build-env
-   ** ocamlc.byte
-   *** check-ocamlc.byte-output
+ flags = "-extension-universe no_extensions";
+ ocamlc_byte_exit_status = "2";
+ setup-ocamlc.byte-build-env;
+ ocamlc.byte;
+ check-ocamlc.byte-output;
 *)
 
 (* This test checks that the include functor feature doesn't work without the

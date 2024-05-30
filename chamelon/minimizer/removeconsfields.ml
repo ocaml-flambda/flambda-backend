@@ -29,41 +29,43 @@ let remove_cons_mapper (i, cons_to_rem, _) =
                 }
               else e
           | Texp_function (f, id) ->
+              let f_as_cases = Function_compat.function_to_cases_view f in
               {
                 e with
                 exp_desc =
                   mkTexp_function ~id
-                    {
-                      f with
-                      cases =
-                        (let l =
-                           List.fold_left
-                             (fun l val_case ->
-                               match val_case.c_lhs.pat_desc with
-                               | Tpat_construct (li, cd, pat_list, typs) ->
-                                   if cons_to_rem = cd.cstr_name then
-                                     {
-                                       val_case with
-                                       c_lhs =
-                                         {
-                                           val_case.c_lhs with
-                                           pat_desc =
-                                             Tpat_construct
-                                               ( li,
-                                                 cd,
-                                                 List.filteri
-                                                   (fun j _ -> i = j)
-                                                   pat_list,
-                                                 typs );
-                                         };
-                                     }
-                                     :: l
-                                   else val_case :: l
-                               | _ -> val_case :: l)
-                             [] f.cases
-                         in
-                         if l = [] then [ empty_value_case ] else l);
-                    };
+                    (Function_compat.cases_view_to_function
+                       {
+                         f_as_cases with
+                         cases =
+                           (let l =
+                              List.fold_left
+                                (fun l val_case ->
+                                  match val_case.c_lhs.pat_desc with
+                                  | Tpat_construct (li, cd, pat_list, typs) ->
+                                      if cons_to_rem = cd.cstr_name then
+                                        {
+                                          val_case with
+                                          c_lhs =
+                                            {
+                                              val_case.c_lhs with
+                                              pat_desc =
+                                                Tpat_construct
+                                                  ( li,
+                                                    cd,
+                                                    List.filteri
+                                                      (fun j _ -> i = j)
+                                                      pat_list,
+                                                    typs );
+                                            };
+                                        }
+                                        :: l
+                                      else val_case :: l
+                                  | _ -> val_case :: l)
+                                [] f_as_cases.cases
+                            in
+                            if l = [] then [ empty_value_case ] else l);
+                       });
               }
           | Texp_match (e, comp_case_l, p, id) ->
               {

@@ -163,14 +163,25 @@ CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
     res = caml_alloc(sz, tg);
     memcpy(Bp_val(res), Bp_val(arg), sz * sizeof(value));
   } else if (sz <= Max_young_wosize) {
-    res = caml_alloc_small(sz, tg);
+    reserved_t reserved = Reserved_val(arg);
+    res = caml_alloc_small_with_reserved(sz, tg, reserved);
     for (i = 0; i < sz; i++) Field(res, i) = Field(arg, i);
   } else {
-    res = caml_alloc_shr(sz, tg);
+    mlsize_t scannable_sz = Scannable_wosize_val(arg);
+    reserved_t reserved = Reserved_val(arg);
+
+    res = caml_alloc_shr_reserved(sz, tg, reserved);
     /* It is safe to use [caml_initialize] even if [tag == Closure_tag]
        and some of the "values" being copied are actually code pointers.
        That's because the new "value" does not point to the minor heap. */
-    for (i = 0; i < sz; i++) caml_initialize(&Field(res, i), Field(arg, i));
+    for (i = 0; i < scannable_sz; i++) {
+      caml_initialize(&Field(res, i), Field(arg, i));
+    }
+
+    for (i = scannable_sz; i < sz; i++) {
+      Field(res, i) = Field(arg, i);
+    }
+
     /* Give gc a chance to run, and run memprof callbacks */
     caml_process_pending_actions();
   }
@@ -219,12 +230,22 @@ CAMLprim value caml_obj_truncate (value v, value newsize)
      beyond new_wosize in v, erase them explicitly so that the GC
      can darken them as appropriate. */
   if (tag < No_scan_tag) {
-    for (i = new_wosize; i < wosize; i++){
+    mlsize_t scannable_wosize = Scannable_wosize_hd(hd);
+    for (i = new_wosize; i < scannable_wosize; i++){
       caml_modify(&Field(v, i), Val_unit);
 #ifdef DEBUG
       Field (v, i) = Debug_free_truncate;
 #endif
     }
+#ifdef DEBUG
+    /* Unless we're in debug mode, it's not necessary to empty out
+       the non-scannable suffix, as the GC knows not to look there
+       anyway.
+     */
+    for (; i < wosize; i++) {
+      Field (v, i) = Debug_free_truncate;
+    }
+#endif
   }
   /* We must use an odd tag for the header of the leftovers so it does not
      look like a pointer because there may be some references to it in

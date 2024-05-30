@@ -218,6 +218,7 @@ WITH_CPP_MANGLING=@cpp_mangling@
 WITH_PROFINFO=@profinfo@
 PROFINFO_WIDTH=@profinfo_width@
 HEADER_RESERVED_BITS=@reserved_header_bits@
+CUSTOM_OPS_STRUCT_SIZE=@custom_ops_struct_size@
 LIBUNWIND_AVAILABLE=@libunwind_available@
 LIBUNWIND_INCLUDE_FLAGS=@libunwind_include_flags@
 LIBUNWIND_LINK_FLAGS=@libunwind_link_flags@
@@ -244,11 +245,7 @@ POLL_INSERTION=@poll_insertion@
 DUNE=@dune@
 
 # Selection of OCaml 4.x or 5.x runtime
-ifeq "@enable_runtime5@" "yes"
-  RUNTIME_SUFFIX=
-else
-  RUNTIME_SUFFIX=4
-endif
+RUNTIME_SUFFIX=@runtime_suffix@
 RUNTIME_DIR=runtime$(RUNTIME_SUFFIX)
 
 # Deprecated variables

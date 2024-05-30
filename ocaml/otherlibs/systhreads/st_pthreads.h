@@ -173,8 +173,8 @@ static void st_masterlock_release(st_masterlock * m)
   m->busy = 0;
   // CR ocaml 5 domains: we assume no backup thread
   // st_bt_lock_release(m);
-  custom_condvar_signal(&m->is_free);
   pthread_mutex_unlock(&m->lock);
+  custom_condvar_signal(&m->is_free);
 
   return;
 }

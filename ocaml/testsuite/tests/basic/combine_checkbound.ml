@@ -1,5 +1,6 @@
 (* TEST
-   * native *)
+ native;
+*)
 
 let glob = ref (1, 2)
 let[@inline never] combine1 x a =

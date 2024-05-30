@@ -1,8 +1,11 @@
 (* TEST
-   * expect
-   flags = "-extension layouts"
-   * expect
-   flags = "-extension layouts_beta"
+ include stdlib_upstream_compatible;
+ {
+   expect;
+ }{
+   flags = "-extension layouts_beta";
+   expect;
+ }
 *)
 
 type t_value : value
@@ -67,7 +70,10 @@ Line 1, characters 34-36:
                                       ^^
 Error: The type constraints are not consistent.
        Type ('a : value) is not compatible with type ('b : float64)
-       'a has layout float64, which does not overlap with value.
+       The layout of 'a is float64, because
+         of the definition of t at line 2, characters 2-23.
+       But the layout of 'a must overlap with value, because
+         the type argument of list has layout value.
 |}];;
 
 module type S1f'' = S1f with type s = t_float64;;
@@ -76,7 +82,10 @@ module type S1f'' = S1f with type s = t_float64;;
 Line 1, characters 29-47:
 1 | module type S1f'' = S1f with type s = t_float64;;
                                  ^^^^^^^^^^^^^^^^^^
-Error: Type t_float64 has layout float64, which is not a sublayout of value.
+Error: The layout of type t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of type t_float64 must be a sublayout of value, because
+         of the definition of s at line 3, characters 2-8.
 |}]
 
 module type S1_2 = sig
@@ -179,7 +188,10 @@ Line 5, characters 25-30:
                              ^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the definition of t at line 2, characters 2-25.
 |}]
 
 (******************************************************************)
@@ -253,7 +265,10 @@ end;;
 Line 2, characters 2-29:
 2 |   type t : immediate = Bar3.t
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type Bar3.t has layout value, which is not a sublayout of immediate.
+Error: The layout of type Bar3.t is value, because
+         of the annotation on the declaration of the type t.
+       But the layout of type Bar3.t must be a sublayout of immediate, because
+         of the definition of t at line 2, characters 2-29.
 |}];;
 
 module rec Foo3 : sig
@@ -288,7 +303,10 @@ Line 2, characters 27-29:
 2 |   type 'a t = 'a Bar3f.t * 'a list
                                ^^
 Error: This type ('a : float64) should be an instance of type ('b : value)
-       'a has layout float64, which does not overlap with value.
+       The layout of 'a is float64, because
+         of the annotation on 'a in the declaration of the type t.
+       But the layout of 'a must overlap with value, because
+         the type argument of list has layout value.
 |}];;
 
 type t3f : float64
@@ -313,7 +331,10 @@ Line 12, characters 11-18:
 12 |   type s = Foo3f.t t
                 ^^^^^^^
 Error: This type Foo3f.t should be an instance of type ('a : float64)
-       Foo3f.t has layout value, which is not a sublayout of float64.
+       The layout of Foo3f.t is value, because
+         an abstract type has the value layout by default.
+       But the layout of Foo3f.t must be a sublayout of float64, because
+         of the definition of t at line 10, characters 2-23.
 |}];;
 
 (* Previous example works with annotation *)
@@ -365,7 +386,10 @@ Line 2, characters 12-16:
 2 | type t4f' = M4.s t4_float64;;
                 ^^^^
 Error: This type M4.s should be an instance of type ('a : float64)
-       M4.s has layout value, which is not a sublayout of float64.
+       The layout of M4.s is value, because
+         of the definition of s at line 2, characters 2-21.
+       But the layout of M4.s must be a sublayout of float64, because
+         of the definition of t4_float64 at line 1, characters 0-30.
 |}]
 
 module F4'(X : sig type t : immediate end) = struct
@@ -392,7 +416,10 @@ Line 1, characters 10-15:
 1 | type t4 = M4'.s t4_float64;;
               ^^^^^
 Error: This type M4'.s should be an instance of type ('a : float64)
-       M4'.s has layout immediate, which is not a sublayout of float64.
+       The layout of M4'.s is immediate, because
+         of the definition of s at line 2, characters 2-45.
+       But the layout of M4'.s must be a sublayout of float64, because
+         of the definition of t4_float64 at line 1, characters 0-30.
 |}];;
 
 
@@ -423,7 +450,10 @@ Line 14, characters 17-23:
                       ^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the definition of f at line 3, characters 2-20.
 |}]
 
 module type S3_2 = sig
@@ -436,7 +466,10 @@ module type S3_2 = sig type t : immediate end
 Line 5, characters 30-46:
 5 | module type S3_2' = S3_2 with type t := string;;
                                   ^^^^^^^^^^^^^^^^
-Error: Type string has layout value, which is not a sublayout of immediate.
+Error: The layout of type string is value, because
+         it is the primitive value type string.
+       But the layout of type string must be a sublayout of immediate, because
+         of the definition of t at line 2, characters 2-20.
 |}]
 
 (*****************************************)
@@ -469,10 +502,13 @@ Line 6, characters 10-42:
 Error: In this `with' constraint, the new definition of t
        does not match its original definition in the constrained signature:
        Type declarations do not match:
-         type t
+         type t = int
        is not included in
          type t : float64
-       the first has layout value, which is not a sublayout of float64.
+       The layout of the first is immediate, because
+         it is the primitive immediate type int.
+       But the layout of the first must be a sublayout of float64, because
+         of the definition of t at line 2, characters 2-18.
 |}];;
 
 module type S6_3 = sig
@@ -484,11 +520,19 @@ module type S6_4f = sig
 end;;
 [%%expect{|
 module type S6_3 = sig type t : value end
-Line 6, characters 33-34:
+Line 6, characters 10-47:
 6 |   val m : (module S6_3 with type t = t_float64)
-                                     ^
-Error: Signature package constraint types must have layout value.
-        t_float64 has layout float64, which is not a sublayout of value.
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In this `with' constraint, the new definition of t
+       does not match its original definition in the constrained signature:
+       Type declarations do not match:
+         type t = t_float64
+       is not included in
+         type t : value
+       The layout of the first is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of the first must be a sublayout of value, because
+         of the definition of t at line 2, characters 2-16.
 |}];;
 
 module type S6_5 = sig
@@ -506,10 +550,13 @@ Line 6, characters 10-44:
 Error: In this `with' constraint, the new definition of t
        does not match its original definition in the constrained signature:
        Type declarations do not match:
-         type t
+         type t = string
        is not included in
          type t : immediate
-       the first has layout value, which is not a sublayout of immediate.
+       The layout of the first is value, because
+         it is the primitive value type string.
+       But the layout of the first must be a sublayout of immediate, because
+         of the definition of t at line 2, characters 2-20.
 |}];;
 
 module type S6_6' = sig
@@ -523,28 +570,22 @@ Line 3, characters 10-39:
 Error: In this `with' constraint, the new definition of t
        does not match its original definition in the constrained signature:
        Type declarations do not match:
-         type t
+         type t = s
        is not included in
          type t : immediate
-       the first has layout value, which is not a sublayout of immediate.
+       The layout of the first is value, because
+         of the definition of s at line 2, characters 2-8.
+       But the layout of the first must be a sublayout of immediate, because
+         of the definition of t at line 2, characters 2-20.
 |}];;
 
-(* CR layouts: S6_6'' should be fixed *)
 module type S6_6'' = sig
   type s = int
   val m : (module S6_5 with type t = int)
 end;;
 [%%expect{|
-Line 3, characters 10-41:
-3 |   val m : (module S6_5 with type t = int)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this `with' constraint, the new definition of t
-       does not match its original definition in the constrained signature:
-       Type declarations do not match:
-         type t
-       is not included in
-         type t : immediate
-       the first has layout value, which is not a sublayout of immediate.
+module type S6_6'' =
+  sig type s = int val m : (module S6_5 with type t = int) end
 |}];;
 
 (*****************************************)
@@ -570,7 +611,10 @@ Line 1, characters 28-33:
 1 | module type S = sig val x : t_any end
                                 ^^^^^
 Error: This type signature for x is not a value type.
-       x has layout any, which is not a sublayout of value.
+       The layout of type t_any is any, because
+         of the definition of t_any at line 5, characters 0-18.
+       But the layout of type t_any must be a sublayout of value, because
+         it's the type of something stored in a module structure.
 |}]
 
 (****************************************************************)
@@ -593,4 +637,97 @@ Line 2, characters 2-34:
 2 |   val f : ('a : float64). 'a -> 'a
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   Module M defines a function whose first argument is not a value, f .
+|}]
+
+(*******************************)
+(* Test 10: Specializing [any] *)
+
+(* see also the test any_in_types.ml, which makes sure running code
+   that looks like this produces the right result *)
+
+module type S = sig
+  type t : any
+
+  val one : unit -> t
+  val print : t -> unit
+end
+
+module Floaty : S with type t := float# = struct
+  let one () = Stdlib_upstream_compatible.Float_u.of_float 1.  (* CR layouts: use literal syntax *)
+  let print t = Printf.printf "%f" (Stdlib_upstream_compatible.Float_u.to_float t)
+end
+
+module Inty : S with type t := int = struct
+  let one () = 1
+  let print t = Printf.printf "%d" t
+end
+
+module Stringy : S with type t := string = struct
+  let one () = "one"
+  let print t = Printf.printf "%s" t
+end
+
+[%%expect{|
+module type S =
+  sig type t : any val one : unit -> t val print : t -> unit end
+module Floaty : sig val one : unit -> float# val print : float# -> unit end
+module Inty : sig val one : unit -> int val print : int -> unit end
+module Stringy : sig val one : unit -> string val print : string -> unit end
+|}]
+
+module F1 (X : S with type t := float#) : sig
+  val print_one : unit -> unit
+end = struct
+  let print_one () = X.print (X.one ())
+end
+
+module F2 (X : S with type t := string) : sig
+  val print_one : unit -> unit
+end = struct
+  let print_one () = X.print (X.one ())
+end
+
+[%%expect{|
+module F1 :
+  functor (X : sig val one : unit -> float# val print : float# -> unit end)
+    -> sig val print_one : unit -> unit end
+module F2 :
+  functor (X : sig val one : unit -> string val print : string -> unit end)
+    -> sig val print_one : unit -> unit end
+|}]
+
+module F_bad (X : S) : sig
+  val print_one : unit -> unit
+end = struct
+  let print_one () = X.print (X.one ())
+end
+
+[%%expect{|
+Line 4, characters 29-39:
+4 |   let print_one () = X.print (X.one ())
+                                 ^^^^^^^^^^
+Error: Function arguments and returns must be representable.
+       The layout of X.t is any, because
+         of the definition of t at line 2, characters 2-14.
+       But the layout of X.t must be representable, because
+         we must know concretely how to pass a function argument.
+|}]
+
+(***********************************)
+(* Test 11: [any] in package types *)
+
+module type S = sig
+  type t : any
+end
+
+module C : S = struct
+  type t = float
+end
+
+let x = (module C : S with type t = 'a)
+
+[%%expect{|
+module type S = sig type t : any end
+module C : S
+val x : (module S with type t = C.t) = <module>
 |}]

@@ -1,13 +1,14 @@
 (* TEST
-   * bytecode
-     reference = "${test_source_directory}/get_header.heap.reference"
-   * stack-allocation
-   ** native
-      reference = "${test_source_directory}/get_header.stack.reference"
-   * no-stack-allocation
-   ** native
-      reference = "${test_source_directory}/get_header.heap.reference"
- *)
+ {
+   stack-allocation;
+   reference = "${test_source_directory}/get_header.stack.reference";
+   native;
+ }{
+   no-stack-allocation;
+   reference = "${test_source_directory}/get_header.heap.reference";
+   native;
+ }
+*)
 
 (* We're likely to remove %get_header in favour of calls to
    caml_obj_is_stack under runtime5 (since testing a block's colour isn't

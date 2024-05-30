@@ -30,6 +30,12 @@ OCaml 5.1.0 (14 September 2023)
   (David Allsopp, review by Xavier Leroy, Guillaume Munch-Maccagnoni
   and Gabriel Scherer)
 
+- #12551, #12608, #12782, #12596: Overhaul of recursive value compilation.
+  Non-function recursive bindings are now forbidden from Lambda onwards,
+  and compiled using a new Value_rec_compiler module.
+  (Vincent Laviron and Lunia Ayanides, review by Gabriel Scherer,
+   Stefan Muenzel and Nathanaëlle Courant)
+
 ### Standard library:
 
 - #12006, #12064: Add `Marshal.Compression` flag to `Marshal.to_*` functions.
@@ -740,6 +746,12 @@ Some of those changes will benefit all OCaml packages.
 - #12509: Use strict prototypes on primitives when generating a standalone
   bytecode executable (`ocamlc -custom`).
   (Antonin Décimo, review by Xavier Leroy)
+
+- #12508 : Add compiler-side support for project-wide occurrences in Merlin, by
+  generating index tables of all identifier occurrences. This extra data in .cmt
+  files is only added when the new flag -bin-annot-occurrences is passed.
+  (Ulysse Gérard, Nathanaëlle Courant, suggestions by Gabriel Scherer and Thomas
+  Refis, review by Florian Angeletti, Gabriel Scherer and Thomas Refis)
 
 ### Build system:
 

@@ -23,7 +23,7 @@ type pers_flags =
 type kind =
   | Normal of {
       cmi_impl : Compilation_unit.t;
-      cmi_arg_for : Global.Name.t option;
+      cmi_arg_for : Global_module.Name.t option;
     }
   | Parameter
 
@@ -64,14 +64,14 @@ type header = {
     header_name : Compilation_unit.Name.t;
     header_kind : kind;
     header_sign : Serialized.signature;
-    header_params : Global.Name.t list;
+    header_params : Global_module.Name.t list;
 }
 
 type 'sg cmi_infos_generic = {
     cmi_name : Compilation_unit.Name.t;
     cmi_kind : kind;
     cmi_sign : 'sg;
-    cmi_params : Global.Name.t list;
+    cmi_params : Global_module.Name.t list;
     cmi_crcs : crcs;
     cmi_flags : flags;
 }
@@ -200,13 +200,12 @@ let output_cmi filename oc cmi =
   (* BACKPORT END *)
   flush oc;
   let crc = Digest.file filename in
-  let unit =
-    match cmi.cmi_kind with
-    | Normal { cmi_impl } -> Some cmi_impl
-    | Parameter -> None
-  in
   let my_info =
-    Import_info.Intf.create cmi.cmi_name unit ~crc:(Some crc)
+    match cmi.cmi_kind with
+    | Normal { cmi_impl } ->
+      Import_info.Intf.create_normal cmi.cmi_name cmi_impl ~crc
+    | Parameter ->
+      Import_info.Intf.create_parameter cmi.cmi_name ~crc
   in
   let crcs = Array.append [| my_info |] cmi.cmi_crcs in
   output_value oc (crcs : crcs);

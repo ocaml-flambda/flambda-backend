@@ -14,6 +14,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module Float32 = Numeric_types.Float32_by_bit_pattern
 module Float = Numeric_types.Float_by_bit_pattern
 module Int32 = Numeric_types.Int32
 module Int64 = Numeric_types.Int64
@@ -26,14 +27,19 @@ type to_lift =
         is_unique : bool;
         fields : Simple.t list
       }
+  | Boxed_float32 of Float32.t
   | Boxed_float of Float.t
   | Boxed_int32 of Int32.t
   | Boxed_int64 of Int64.t
   | Boxed_nativeint of Targetint_32_64.t
   | Boxed_vec128 of Vector_types.Vec128.Bit_pattern.t
+  | Immutable_float32_array of { fields : Float32.t list }
   | Immutable_float_array of { fields : Float.t list }
+  | Immutable_int32_array of { fields : Int32.t list }
+  | Immutable_int64_array of { fields : Int64.t list }
+  | Immutable_nativeint_array of { fields : Targetint_32_64.t list }
   | Immutable_value_array of { fields : Simple.t list }
-  | Empty_array
+  | Empty_array of Empty_array_kind.t
 
 type reification_result =
   | Lift of to_lift
@@ -58,8 +64,9 @@ let try_to_reify_fields env ~var_allowed alloc_mode ~field_types =
             ~const:(fun const ->
               match Reg_width_const.descr const with
               | Tagged_immediate _imm -> Some simple
-              | Naked_immediate _ | Naked_float _ | Naked_int32 _
-              | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _ ->
+              | Naked_immediate _ | Naked_float _ | Naked_float32 _
+              | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _
+              | Naked_nativeint _ ->
                 (* This should never happen, as we should have got a kind error
                    instead *)
                 None)
@@ -69,6 +76,79 @@ let try_to_reify_fields env ~var_allowed alloc_mode ~field_types =
   if List.compare_lengths field_types field_simples = 0
   then Some field_simples
   else None
+
+module Make_lift_array_of_naked_numbers (P : sig
+  module N : Container_types.S
+
+  val prove : TE.t -> TG.t -> N.Set.t Provers.meet_shortcut
+
+  val build_to_lift : fields:N.t list -> to_lift
+end) =
+struct
+  open P
+
+  let lift env ~fields ~try_canonical_simple =
+    let fields_rev =
+      List.fold_left
+        (fun (fields_rev : _ Or_unknown_or_bottom.t) field :
+             _ Or_unknown_or_bottom.t ->
+          match fields_rev with
+          | Unknown | Bottom -> fields_rev
+          | Ok fields_rev -> (
+            match prove env field with
+            | Need_meet -> Unknown
+            | Invalid -> Bottom
+            | Known_result fs -> (
+              match N.Set.get_singleton fs with
+              | None -> Unknown
+              | Some f -> Ok (f :: fields_rev))))
+        (Or_unknown_or_bottom.Ok []) fields
+    in
+    match fields_rev with
+    | Unknown -> try_canonical_simple ()
+    | Bottom -> Invalid
+    | Ok fields_rev -> Lift (build_to_lift ~fields:(List.rev fields_rev))
+end
+
+module Lift_array_of_naked_float32s = Make_lift_array_of_naked_numbers (struct
+  module N = Float32
+
+  let prove = Provers.meet_naked_float32s
+
+  let build_to_lift ~fields = Immutable_float32_array { fields }
+end)
+
+module Lift_array_of_naked_floats = Make_lift_array_of_naked_numbers (struct
+  module N = Float
+
+  let prove = Provers.meet_naked_floats
+
+  let build_to_lift ~fields = Immutable_float_array { fields }
+end)
+
+module Lift_array_of_naked_int32s = Make_lift_array_of_naked_numbers (struct
+  module N = Int32
+
+  let prove = Provers.meet_naked_int32s
+
+  let build_to_lift ~fields = Immutable_int32_array { fields }
+end)
+
+module Lift_array_of_naked_int64s = Make_lift_array_of_naked_numbers (struct
+  module N = Int64
+
+  let prove = Provers.meet_naked_int64s
+
+  let build_to_lift ~fields = Immutable_int64_array { fields }
+end)
+
+module Lift_array_of_naked_nativeints = Make_lift_array_of_naked_numbers (struct
+  module N = Targetint_32_64
+
+  let prove = Provers.meet_naked_nativeints
+
+  let build_to_lift ~fields = Immutable_nativeint_array { fields }
+end)
 
 (* CR mshinwell: Think more to identify all the cases that should be in this
    function. *)
@@ -283,10 +363,11 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
       | None -> try_canonical_simple ()
       | Some i -> Simple (Simple.const (Reg_width_const.naked_immediate i)))
     | Naked_immediate (Ok (Is_int scrutinee_ty)) -> (
-      match Provers.prove_is_int env scrutinee_ty with
-      | Proved true -> Simple Simple.untagged_const_true
-      | Proved false -> Simple Simple.untagged_const_false
-      | Unknown -> try_canonical_simple ())
+      match Provers.meet_is_int_variant_only env scrutinee_ty with
+      | Known_result true -> Simple Simple.untagged_const_true
+      | Known_result false -> Simple Simple.untagged_const_false
+      | Need_meet -> try_canonical_simple ()
+      | Invalid -> Invalid)
     | Naked_immediate (Ok (Get_tag block_ty)) -> (
       match Provers.prove_get_tag env block_ty with
       | Proved tags -> (
@@ -300,6 +381,10 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
         | None -> try_canonical_simple ()
         | Some i -> Simple (Simple.const (Reg_width_const.naked_immediate i)))
       | Unknown -> try_canonical_simple ())
+    | Naked_float32 (Ok fs) -> (
+      match Float32.Set.get_singleton (fs :> Float32.Set.t) with
+      | None -> try_canonical_simple ()
+      | Some f -> Simple (Simple.const (Reg_width_const.naked_float32 f)))
     | Naked_float (Ok fs) -> (
       match Float.Set.get_singleton (fs :> Float.Set.t) with
       | None -> try_canonical_simple ()
@@ -337,6 +422,18 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
         match Float.Set.get_singleton fs with
         | None -> try_canonical_simple ()
         | Some f -> Lift (Boxed_float f)))
+    | Value (Ok (Boxed_float32 (ty_naked_float32, _alloc_mode))) -> (
+      match Provers.meet_naked_float32s env ty_naked_float32 with
+      | Need_meet -> try_canonical_simple ()
+      | Invalid -> Invalid
+      | Known_result fs -> (
+        (* CR mshinwell: This (and the other cases below including that for
+           immutable float32 arrays) seem not to be taking advantage of the fact
+           that [Static_const] permits variables in the arguments of e.g.
+           [Boxed_float32]. *)
+        match Float32.Set.get_singleton fs with
+        | None -> try_canonical_simple ()
+        | Some f -> Lift (Boxed_float32 f)))
     | Value (Ok (Boxed_int32 (ty_naked_int32, _alloc_mode))) -> (
       match Provers.meet_naked_int32s env ty_naked_int32 with
       | Need_meet -> try_canonical_simple ()
@@ -374,14 +471,22 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
           (Array
             { contents = Unknown | Known Mutable;
               length;
-              element_kind = _;
+              element_kind;
               alloc_mode = _
             })) -> (
       match Provers.meet_equals_single_tagged_immediate env length with
-      | Known_result length ->
-        if Targetint_31_63.equal length Targetint_31_63.zero
-        then Lift Empty_array
-        else try_canonical_simple ()
+      | Known_result length -> (
+        if not (Targetint_31_63.equal length Targetint_31_63.zero)
+        then try_canonical_simple ()
+        else
+          match element_kind with
+          | Ok element_kind ->
+            let array_kind =
+              Empty_array_kind.of_element_kind
+                (Flambda_kind.With_subkind.kind element_kind)
+            in
+            Lift (Empty_array array_kind)
+          | Unknown | Bottom -> try_canonical_simple ())
       | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid)
     | Value
@@ -393,8 +498,17 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
               element_kind
             })) -> (
       match fields with
-      | [] -> Lift Empty_array
-      | _ :: _ -> (
+      | [||] -> (
+        match element_kind with
+        | Ok element_kind ->
+          let array_kind =
+            Empty_array_kind.of_element_kind
+              (Flambda_kind.With_subkind.kind element_kind)
+          in
+          Lift (Empty_array array_kind)
+        | Unknown | Bottom -> try_canonical_simple ())
+      | _ -> (
+        let fields = Array.to_list fields in
         match element_kind with
         | Unknown -> try_canonical_simple ()
         | Bottom ->
@@ -410,38 +524,25 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
             with
             | Some fields -> Lift (Immutable_value_array { fields })
             | None -> try_canonical_simple ())
-          | Naked_number Naked_float -> (
-            let fields_rev =
-              List.fold_left
-                (fun (fields_rev : _ Or_unknown_or_bottom.t) field :
-                     _ Or_unknown_or_bottom.t ->
-                  match fields_rev with
-                  | Unknown | Bottom -> fields_rev
-                  | Ok fields_rev -> (
-                    match Provers.meet_naked_floats env field with
-                    | Need_meet -> Unknown
-                    | Invalid -> Bottom
-                    | Known_result fs -> (
-                      match Float.Set.get_singleton fs with
-                      | None -> Unknown
-                      | Some f -> Ok (f :: fields_rev))))
-                (Or_unknown_or_bottom.Ok []) fields
-            in
-            match fields_rev with
-            | Unknown -> try_canonical_simple ()
-            | Bottom -> Invalid
-            | Ok fields_rev ->
-              Lift (Immutable_float_array { fields = List.rev fields_rev }))
-          | Naked_number
-              ( Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint
-              | Naked_vec128 )
-          | Region | Rec_info ->
+          | Naked_number Naked_float ->
+            Lift_array_of_naked_floats.lift env ~fields ~try_canonical_simple
+          | Naked_number Naked_float32 ->
+            Lift_array_of_naked_float32s.lift env ~fields ~try_canonical_simple
+          | Naked_number Naked_int32 ->
+            Lift_array_of_naked_int32s.lift env ~fields ~try_canonical_simple
+          | Naked_number Naked_int64 ->
+            Lift_array_of_naked_int64s.lift env ~fields ~try_canonical_simple
+          | Naked_number Naked_nativeint ->
+            Lift_array_of_naked_nativeints.lift env ~fields
+              ~try_canonical_simple
+          | Naked_number (Naked_immediate | Naked_vec128) | Region | Rec_info ->
             Misc.fatal_errorf
               "Unexpected kind %a in immutable array case when reifying type:@ \
                %a@ in env:@ %a"
               Flambda_kind.print kind TG.print t TE.print env)))
     | Value Bottom
     | Naked_immediate Bottom
+    | Naked_float32 Bottom
     | Naked_float Bottom
     | Naked_int32 Bottom
     | Naked_int64 Bottom
@@ -453,6 +554,7 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
     | Value Unknown
     | Value (Ok (String _))
     | Naked_immediate Unknown
+    | Naked_float32 Unknown
     | Naked_float Unknown
     | Naked_int32 Unknown
     | Naked_int64 Unknown

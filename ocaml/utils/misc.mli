@@ -143,6 +143,12 @@ module Stdlib : sig
     (** [map_sharing f l] is [map f l]. If for all elements of the list
         [f e == e] then [map_sharing f l == l] *)
 
+    val chunks_of : int -> 'a t -> 'a t t
+    (** [chunks_of n t] returns a list of nonempty lists whose
+        concatenation is equal to the original list. Every list has [n]
+        elements, except for possibly the last list, which may have fewer.
+        [chunks_of] raises if [n <= 0]. *)
+
     val is_prefix
        : equal:('a -> 'a -> bool)
       -> 'a list
@@ -204,6 +210,14 @@ module Stdlib : sig
     val exists2 : ('a -> 'b -> bool) -> 'a array -> 'b array -> bool
     (** Same as [Array.exists2] from the standard library. *)
 
+    val fold_left2 :
+      ('acc -> 'a -> 'b -> 'acc) -> 'acc -> 'a array -> 'b array -> 'acc
+    (** [fold_left2 f init [|a1; ...; an|] [|b1; ...; bn|]] is
+        [f (... (f (f init a1 b1) a2 b2) ...) an bn].
+        @raise Invalid_argument if the two arrays are determined
+        to have different lengths.
+    *)
+
     val for_alli : (int -> 'a -> bool) -> 'a array -> bool
     (** Same as [Array.for_all] from the standard library, but the
         function is applied with the index of the element as first argument,
@@ -214,13 +228,23 @@ module Stdlib : sig
     val equal : ('a -> 'a -> bool) -> 'a array -> 'a array -> bool
     (** Compare two arrays for equality, using the supplied predicate for
         element equality *)
+
+    val compare : ('a -> 'a -> int) -> 'a array -> 'a array -> int
+    (** Compare two arrays, using the supplied predicate for element equality *)
+
+    val map_sharing : ('a -> 'a) -> 'a array -> 'a array
+    (** [map_sharing f a] is [map f a]. If for all elements of the array
+        [f e == e] then [map_sharing f a == a] *)
   end
 
 (** {2 Extensions to the String module} *)
   module String : sig
     include module type of String
     module Set : Set.S with type elt = string
-    module Map : Map.S with type key = string
+    module Map : sig
+      include Map.S with type key = string
+      val of_seq_multi : (string * 'a) Seq.t -> 'a list t
+    end
     module Tbl : Hashtbl.S with type key = string
 
     val print : Format.formatter -> t -> unit
@@ -235,6 +259,9 @@ module Stdlib : sig
 
     (** Splits on the last occurrence of the given character. *)
     val split_last_exn : string -> split_on:char -> string * string
+
+    (** Splits on the first occurence of the given character. *)
+    val split_first_exn : string -> split_on:char -> string * string
 
     val starts_with : prefix:string -> string -> bool
     val ends_with : suffix:string -> string -> bool
@@ -422,6 +449,17 @@ val ordinal_suffix : int -> string
     [4] -> ["th"], and so on.  Handles larger numbers (e.g., [42] -> ["nd"]) and
     the numbers 11--13 (which all get ["th"]) correctly. *)
 
+val format_as_unboxed_literal : string -> string
+(** [format_as_unboxed_literal constant_literal] converts [constant_literal] to its
+    corresponding unboxed literal by either adding "#" in front or changing
+    "-" to "-#".
+
+    Examples:
+
+      [0.1] to [#0.1]
+      [-3] to [-#3]
+      [0xa.cp-1] to [#0xa.cp-1] *)
+
 val normalise_eol : string -> string
 (** [normalise_eol s] returns a fresh copy of [s] with any '\r' characters
    removed. Intended for pre-processing text which will subsequently be printed
@@ -604,6 +642,19 @@ val pp_two_columns :
 val print_see_manual : Format.formatter -> int list -> unit
 (** See manual section *)
 
+val output_of_print :
+  (Format.formatter -> 'a -> unit) -> out_channel -> 'a -> unit
+(** [output_of_print print] produces an output function from a pretty printer.
+    Note that naively using [Format.formatter_of_out_channel] typechecks but
+    doesn't work because it fails to flush the formatter. *)
+
+val to_string_of_print :
+  (Format.formatter -> 'a -> unit) -> 'a -> string
+(** [to_string_of_print print] produces a string conversion function from a
+    pretty printer. This is similar but preferable to [Format.asprintf "%a"]
+    when the output may be large, since [to_string] functions don't usually
+    return embedded newlines. *)
+
 (** {1 Displaying configuration variables} *)
 
 val show_config_and_exit : unit -> unit
@@ -626,20 +677,6 @@ val get_build_path_prefix_map: unit -> Build_path_prefix_map.map option
 val debug_prefix_map_flags: unit -> string list
 (** Returns the list of [--debug-prefix-map] flags to be passed to the
     assembler, built from the [BUILD_PATH_PREFIX_MAP] environment variable. *)
-
-val output_of_print :
-  (Format.formatter -> 'a -> unit) -> out_channel -> 'a -> unit
-(** [output_of_print print] produces an output function from a pretty printer.
-    Note that naively using [Format.formatter_of_out_channel] typechecks but
-    doesn't work because it fails to flush the formatter. *)
-
-val to_string_of_print :
-  (Format.formatter -> 'a -> unit) -> 'a -> string
-(** [to_string_of_print print] produces a string conversion function from a
-    pretty printer. This is similar but preferable to [Format.asprintf "%a"]
-    when the output may be large, since [to_string] functions don't usually
-    return embedded newlines. *)
-
 
 module Bitmap : sig
   type t
@@ -849,12 +886,48 @@ module Magic_number : sig
   val all_kinds : kind list
 end
 
+(** The result of a less-than-or-equal comparison *)
+module Le_result : sig
+  type t =
+    | Equal
+    | Less
+    | Not_le
+
+  val combine : t -> t -> t
+  val combine_list : t list -> t
+
+  val is_le : t -> bool
+  val is_equal : t -> bool
+end
+
 (** Propositional equality *)
 type (_, _) eq = Refl : ('a, 'a) eq
 
+(** Utilities for module-level programming *)
+module type T = sig
+  type t
+end
+
+module type T1 = sig
+  type 'a t
+end
+
+module type T2 = sig
+  type ('a, 'b) t
+end
+
+module type T3 = sig
+  type ('a, 'b, 'c) t
+end
+
+module type T4 = sig
+  type ('a, 'b, 'c, 'd) t
+end
 
 (** {1 Miscellaneous type aliases} *)
 
 type filepath = string
 
 type alerts = string Stdlib.String.Map.t
+
+val remove_double_underscores : string -> string

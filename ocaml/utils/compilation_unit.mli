@@ -42,9 +42,9 @@ module Name : sig
 
   val to_string : t -> string
 
-  val of_head_of_global_name : Global.Name.t -> t
+  val of_head_of_global_name : Global_module.Name.t -> t
 
-  val to_global_name : t -> Global.Name.t
+  val to_global_name : t -> Global_module.Name.t
 
   (** The name of the distinguished compilation unit for predefined exceptions. *)
   val predef_exn : t
@@ -104,25 +104,25 @@ val create_child : t -> Name.t -> t
     parameter name. *)
 val create_instance : t -> (t * t) list -> t
 
-(** Create the compilation unit named by the given [Global.Name.t]. Only
+(** Create the compilation unit named by the given [Global_module.Name.t]. Only
     meaningful if the global name is a _complete instantiation_, which is to say
     either (a) the named module has no parameters, or (b) there is an argument
     for each parameter and each argument is itself a complete instantiation.
     This ensures the name determines a compile-time constant, and then the [t]
     returned here is the module corresponding to that constant. *)
-val of_global_name : Global.Name.t -> t
+val of_global_name : Global_module.Name.t -> t
 
-(** Convert the compilation unit to a [Global.Name.t], if possible (which is
-    to say, if its prefix is empty). *)
-val to_global_name : t -> Global.Name.t option
+(** Convert the compilation unit to a [Global_module.Name.t], if possible (which
+    is to say, if its prefix is empty). *)
+val to_global_name : t -> Global_module.Name.t option
 
 (** Like [to_global_name] but throw a fatal error if there is a non-empty
     prefix. *)
-val to_global_name_exn : t -> Global.Name.t
+val to_global_name_exn : t -> Global_module.Name.t
 
 (** Like [to_global_name] but succeed even when there is a pack prefix,
     discarding the prefix in that case. *)
-val to_global_name_without_prefix : t -> Global.Name.t
+val to_global_name_without_prefix : t -> Global_module.Name.t
 
 (** Create a compilation unit from the given [name]. No prefix is allowed;
     throws a fatal error if there is a "." in the name. (As a special case,

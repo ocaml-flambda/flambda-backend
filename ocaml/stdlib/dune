@@ -19,13 +19,10 @@
   (internal_modules Camlinternal*)
   (modules_before_stdlib camlinternalFormatBasics camlinternalAtomic))
  (flags
-  (-strict-sequence
-   -absname
-   -w
-   +a-4-9-41-42-44-45-48-66-67-70
+  (:standard
+   -strict-sequence
    -g
-   -warn-error
-   A
+   -absname
    -bin-annot
    -nostdlib
    -safe-string
@@ -57,7 +54,6 @@
 (install
  (files
   Makefile.config
-  ocaml_compiler_internal_params
   camlheader
   camlheaderd
   camlheaderi
@@ -122,8 +118,6 @@
   filename.mli
   float.ml
   float.mli
-  float_u.ml
-  float_u.mli
   format.ml
   format.mli
   fun.ml
@@ -132,10 +126,6 @@
   gc.mli
   hashtbl.ml
   hashtbl.mli
-  iarray.ml
-  iarray.mli
-  iarrayLabels.ml
-  iarrayLabels.mli
   in_channel.ml
   in_channel.mli
   int.ml
@@ -271,9 +261,6 @@
   .stdlib.objs/byte/stdlib__Float.cmi
   .stdlib.objs/byte/stdlib__Float.cmt
   .stdlib.objs/byte/stdlib__Float.cmti
-  .stdlib.objs/byte/stdlib__Float_u.cmi
-  .stdlib.objs/byte/stdlib__Float_u.cmt
-  .stdlib.objs/byte/stdlib__Float_u.cmti
   .stdlib.objs/byte/stdlib__Format.cmi
   .stdlib.objs/byte/stdlib__Format.cmt
   .stdlib.objs/byte/stdlib__Format.cmti
@@ -286,12 +273,6 @@
   .stdlib.objs/byte/stdlib__Hashtbl.cmi
   .stdlib.objs/byte/stdlib__Hashtbl.cmt
   .stdlib.objs/byte/stdlib__Hashtbl.cmti
-  .stdlib.objs/byte/stdlib__Iarray.cmi
-  .stdlib.objs/byte/stdlib__Iarray.cmt
-  .stdlib.objs/byte/stdlib__Iarray.cmti
-  .stdlib.objs/byte/stdlib__IarrayLabels.cmi
-  .stdlib.objs/byte/stdlib__IarrayLabels.cmt
-  .stdlib.objs/byte/stdlib__IarrayLabels.cmti
   .stdlib.objs/byte/stdlib__In_channel.cmi
   .stdlib.objs/byte/stdlib__In_channel.cmt
   .stdlib.objs/byte/stdlib__In_channel.cmti
@@ -441,7 +422,6 @@
   .stdlib.objs/native/stdlib__StdLabels.cmx
   .stdlib.objs/native/stdlib__Weak.cmx
   .stdlib.objs/native/stdlib__Float.cmx
-  .stdlib.objs/native/stdlib__Float_u.cmx
   .stdlib.objs/native/stdlib__Fun.cmx
   .stdlib.objs/native/stdlib__Bigarray.cmx
   .stdlib.objs/native/stdlib__Array.cmx
@@ -495,7 +475,6 @@
   .stdlib.objs/native/stdlib__Either.cmx
   .stdlib.objs/native/stdlib__In_channel.cmx
   .stdlib.objs/native/stdlib__Out_channel.cmx
-  .stdlib.objs/native/stdlib__Iarray.cmx
-  .stdlib.objs/native/stdlib__IarrayLabels.cmx)
+  (META as stdlib/META))
  (section lib)
  (package ocaml_runtime_stdlib))

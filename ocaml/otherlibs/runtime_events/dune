@@ -16,10 +16,13 @@
  (name runtime_events)
  (wrapped false)
  (modes byte native)
- (flags (
-   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
-   -warn-error A -bin-annot -safe-string -strict-formats
- ))
+ (flags
+  (:standard
+   -strict-sequence
+   -absname
+   -bin-annot
+   -safe-string
+   -strict-formats))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags (:standard -linkall))
  (foreign_stubs (language c) (names runtime_events_consumer)
@@ -42,6 +45,7 @@
     (.runtime_events.objs/byte/runtime_events.cmt as runtime_events/runtime_events.cmt)
     (.runtime_events.objs/byte/runtime_events.cmti as runtime_events/runtime_events.cmti)
     (runtime_events_consumer.h as runtime_events_consumer.h)
+    (META as runtime_events/META)
   )
   (section lib)
   (package ocaml))

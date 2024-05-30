@@ -30,6 +30,7 @@ open Parsetree
 type iterator = {
   attribute: iterator -> attribute -> unit;
   attributes: iterator -> attribute list -> unit;
+  modes : iterator -> Jane_syntax.Mode_expr.t -> unit;
   binding_op: iterator -> binding_op -> unit;
   case: iterator -> case -> unit;
   cases: iterator -> case list -> unit;
@@ -49,7 +50,7 @@ type iterator = {
   extension_constructor: iterator -> extension_constructor -> unit;
   include_declaration: iterator -> include_declaration -> unit;
   include_description: iterator -> include_description -> unit;
-  jkind_annotation: iterator -> Jane_asttypes.const_jkind -> unit;
+  jkind_annotation: iterator -> Jane_syntax.Jkind.t -> unit;
   label_declaration: iterator -> label_declaration -> unit;
   location: iterator -> Location.t -> unit;
   module_binding: iterator -> module_binding -> unit;
@@ -64,6 +65,7 @@ type iterator = {
   open_description: iterator -> open_description -> unit;
   pat: iterator -> pattern -> unit;
   pat_jane_syntax: iterator -> Jane_syntax.Pattern.t -> unit;
+  pat_mode_syntax : iterator -> Jane_syntax.Mode_expr.t -> pattern -> unit;
   payload: iterator -> payload -> unit;
   signature: iterator -> signature -> unit;
   signature_item: iterator -> signature_item -> unit;
@@ -73,6 +75,7 @@ type iterator = {
   structure_item_jane_syntax: iterator -> Jane_syntax.Structure_item.t -> unit;
   typ: iterator -> core_type -> unit;
   typ_jane_syntax: iterator -> Jane_syntax.Core_type.t -> unit;
+  typ_mode_syntax : iterator -> Jane_syntax.Mode_expr.t -> core_type -> unit;
   row_field: iterator -> row_field -> unit;
   object_field: iterator -> object_field -> unit;
   type_declaration: iterator -> type_declaration -> unit;
@@ -80,6 +83,7 @@ type iterator = {
   type_exception: iterator -> type_exception -> unit;
   type_kind: iterator -> type_kind -> unit;
   value_binding: iterator -> value_binding -> unit;
+  value_binding_mode_syntax: iterator -> Jane_syntax.Mode_expr.t -> value_binding -> unit;
   value_description: iterator -> value_description -> unit;
   with_constraint: iterator -> with_constraint -> unit;
 }

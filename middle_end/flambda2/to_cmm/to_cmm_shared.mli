@@ -16,12 +16,18 @@
     this module, unlike the ones in [Cmm_helpers], depend on Flambda 2 data
     types. *)
 
+val remove_skipped_params :
+  (Backend_var.With_provenance.t * Cmm.machtype To_cmm_env.param_type) list ->
+  (Backend_var.With_provenance.t * Cmm.machtype) list
+
+val remove_skipped_args : 'a list -> _ To_cmm_env.param_type list -> 'a list
+
 val remove_var_with_provenance :
   To_cmm_env.free_vars -> Backend_var.With_provenance.t -> To_cmm_env.free_vars
 
 val remove_vars_with_machtype :
   To_cmm_env.free_vars ->
-  (Backend_var.With_provenance.t * Cmm.machtype) list ->
+  (Backend_var.With_provenance.t * _) list ->
   To_cmm_env.free_vars
 
 val exttype_of_kind : Flambda_kind.t -> Cmm.exttype
@@ -32,6 +38,9 @@ val extended_machtype_of_kind :
   Flambda_kind.With_subkind.t -> Cmm_helpers.Extended_machtype.t
 
 val machtype_of_kinded_parameter : Bound_parameter.t -> Cmm.machtype
+
+val param_machtype_of_kinded_parameter :
+  Bound_parameter.t -> Cmm.machtype To_cmm_env.param_type
 
 val memory_chunk_of_kind : Flambda_kind.With_subkind.t -> Cmm.memory_chunk
 
@@ -78,7 +87,13 @@ val simple_list :
   * To_cmm_result.t
   * Effects_and_coeffects.t
 
-val bound_parameters :
+val continuation_bound_parameters :
+  To_cmm_env.t ->
+  Bound_parameters.t ->
+  To_cmm_env.t
+  * (Backend_var.With_provenance.t * Cmm.machtype To_cmm_env.param_type) list
+
+val function_bound_parameters :
   To_cmm_env.t ->
   Bound_parameters.t ->
   To_cmm_env.t * (Backend_var.With_provenance.t * Cmm.machtype) list
@@ -86,12 +101,46 @@ val bound_parameters :
 val invalid :
   To_cmm_result.t -> message:string -> Cmm.expression * To_cmm_result.t
 
+module Update_kind : sig
+  type t
+
+  val pointers : t
+
+  val tagged_immediates : t
+
+  (** Tightly packed; the byte offset is [index * 4].  ([index] is as for
+      [make_update], below.) *)
+  val naked_int32s : t
+
+  (** Assumes each field is a word; the byte offset is [index * size_addr]. *)
+  val naked_int32_fields : t
+
+  (** Tightly packed; the byte offset is [index * 8]. *)
+  val naked_int64s : t
+
+  (** Tightly packed; the byte offset is [index * size_float]. *)
+  val naked_floats : t
+
+  (** Tightly packed; the byte offset is [index * 4]. *)
+  val naked_float32s : t
+
+  (** Assumes each field is a word; the byte offset is [index * size_addr]. *)
+  val naked_float32_fields : t
+
+  (** Tightly packed (two words each); the byte offset is [index * 16]. *)
+  val naked_vec128s : t
+
+  (** Assumes each field is a word; the byte offset is [index * size_addr].
+      Note that in this case the index is still based on word-width fields! *)
+  val naked_vec128_fields : t
+end
+
 (** Make an update to a statically-allocated block. *)
 val make_update :
   To_cmm_env.t ->
   To_cmm_result.t ->
   Debuginfo.t ->
-  Cmm.memory_chunk ->
+  Update_kind.t ->
   symbol:Cmm.expression ->
   Variable.t ->
   index:int ->

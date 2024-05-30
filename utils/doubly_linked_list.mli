@@ -10,6 +10,8 @@ val insert_after : 'a cell -> 'a -> unit
 
 val value : 'a cell -> 'a
 
+val set_value : 'a cell -> 'a -> unit
+
 val prev : 'a cell -> 'a cell option
 
 val next : 'a cell -> 'a cell option

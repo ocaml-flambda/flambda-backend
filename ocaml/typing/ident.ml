@@ -27,7 +27,7 @@ type t =
          predefined identifiers is always unique. *)
   | Instance of global
       (* must have non-empty [args] *)
-and global = Global.Name.t = private
+and global = Global_module.Name.t = private
   { head: string; args: (global * global) list }
 
 (* A stamp of 0 denotes a persistent identifier *)
@@ -56,12 +56,12 @@ let create_global glob =
   | _ -> Instance glob
 
 let create_local_binding_for_global glob =
-  create_local (Global.Name.to_string glob)
+  create_local (Global_module.Name.to_string glob)
 
 let create_instance head args =
-  create_global (Global.Name.create head args)
+  create_global (Global_module.Name.create head args)
 
-let global_name g = Format.asprintf "%a" Global.Name.print g
+let global_name g = Format.asprintf "%a" Global_module.Name.print g
 
 let name = function
   | Local { name; _ }
@@ -108,7 +108,7 @@ let equal i1 i2 =
   | Predef { stamp = s1; _ }, Predef { stamp = s2 } ->
       (* if they don't have the same stamp, they don't have the same name *)
       s1 = s2
-  | Instance g1, Instance g2 -> Global.Name.equal g1 g2
+  | Instance g1, Instance g2 -> Global_module.Name.equal g1 g2
   | _ ->
       false
 
@@ -120,7 +120,7 @@ let same i1 i2 =
       s1 = s2
   | Global name1, Global name2 ->
       name1 = name2
-  | Instance g1, Instance g2 -> Global.Name.equal g1 g2
+  | Instance g1, Instance g2 -> Global_module.Name.equal g1 g2
   | _ ->
       false
 
@@ -162,7 +162,7 @@ let is_instance = function
   | _ -> false
 
 let to_global = function
-  | Global head -> Some (Global.Name.create head [])
+  | Global head -> Some (Global_module.Name.create head [])
   | Instance g -> Some g
   | _ -> None
 
@@ -181,7 +181,7 @@ let print ~with_scope ppf =
         (if !Clflags.unique_ids then sprintf "/%i" n else "")
         (if with_scope then sprintf "[%i]" scope else "")
   | Instance g ->
-      fprintf ppf "%a!" Global.Name.print g
+      fprintf ppf "%a!" Global_module.Name.print g
 
 let print_with_scope ppf id = print ~with_scope:true ppf id
 
@@ -411,7 +411,7 @@ let compare x y =
   | Global x, Global y -> compare x y
   | Global _, _ -> 1
   | _, Global _ -> (-1)
-  | Instance g1, Instance g2 -> Global.Name.compare g1 g2
+  | Instance g1, Instance g2 -> Global_module.Name.compare g1 g2
   | Instance _, _ -> 1
   | _, Instance _ -> (-1)
   | Predef { stamp = s1; _ }, Predef { stamp = s2; _ } -> compare s1 s2

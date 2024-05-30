@@ -184,10 +184,7 @@ let scan_file obj_name tolink =
 
 (* Consistency check between interfaces *)
 
-module Impl = struct
-  type t = CU.t option
-end
-module Consistbl = Consistbl.Make (CU.Name) (Impl)
+module Consistbl = Consistbl.Make (CU.Name) (Import_info.Intf.Nonalias.Kind)
 
 let crc_interfaces = Consistbl.create ()
 let interfaces = ref ([] : CU.Name.t list)
@@ -203,13 +200,12 @@ let check_consistency file_name cu =
     Array.iter
       (fun import ->
         let name = Import_info.name import in
-        let crco = Import_info.crc import in
-        let cuo = Import_info.Intf.impl import in
+        let info = Import_info.Intf.info import in
         interfaces := name :: !interfaces;
-        match crco with
+        match info with
           None -> ()
-        | Some crc ->
-            Consistbl.check crc_interfaces name cuo crc file_name)
+        | Some (kind, crc) ->
+            Consistbl.check crc_interfaces name kind crc file_name)
       cu.cu_imports
   with Consistbl.Inconsistency {
       unit_name = name;
@@ -224,12 +220,7 @@ let check_consistency file_name cu =
 let extract_crc_interfaces () =
   Consistbl.extract !interfaces crc_interfaces
   |> List.map (fun (name, crc_with_unit) ->
-       let cu, crc =
-         match crc_with_unit with
-         | None -> None, None
-         | Some (impl, crc) -> impl, Some crc
-       in
-       Import_info.Intf.create name cu ~crc)
+       Import_info.Intf.create name crc_with_unit)
 
 let clear_crc_interfaces () =
   Consistbl.clear crc_interfaces;

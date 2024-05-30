@@ -243,9 +243,7 @@ module Embedded_name : sig
 
   val components : t -> components
 
-  (** Convert one of these Jane syntax names to the embedded string form used in
-      the OCaml AST as the name of an extension node or an attribute; not
-      exposed. *)
+  (** See the mli. *)
   val to_string : t -> string
 
   (** Parse a Jane syntax name from the OCaml AST, either as the name of an
@@ -801,6 +799,14 @@ module type AST = sig
     of_ast_internal:(Feature.t -> ast -> 'a option) -> ast -> 'a option
 end
 
+(* Most of our features make full use of the Jane Syntax framework, which
+   encodes information in a specific way (e.g., payload left empty on purpose).
+   It is therefore nice to check that these conditions are met. This functions
+   returns [true] if the given feature needs these extra checks. *)
+let needs_extra_checks = function
+  | Feature.Language_extension Mode -> false
+  | _ -> true
+
 (* See Note [Hiding internal details] *)
 module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
   include AST
@@ -830,18 +836,22 @@ module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
             syntax_loc,
             payload,
             ast ) -> (
-        (match payload with
-        | PStr [] -> ()
-        | _ ->
-          raise_error syntax_loc
-            (Introduction_has_payload
-               (AST.embedding_syntax, embedded_name, payload)));
         match Feature.of_component name with
         | Ok feat -> (
+          (if needs_extra_checks feat
+          then
+            match payload with
+            | PStr [] -> ()
+            | _ ->
+              raise_error syntax_loc
+                (Introduction_has_payload
+                   (AST.embedding_syntax, embedded_name, payload)));
           match of_ast_internal feat ast with
           | Some ext_ast -> Some ext_ast
           | None ->
-            raise_error loc (Wrong_syntactic_category (feat, AST.plural)))
+            if needs_extra_checks feat
+            then raise_error loc (Wrong_syntactic_category (feat, AST.plural))
+            else None)
         | Error err ->
           raise_error loc
             (match err with

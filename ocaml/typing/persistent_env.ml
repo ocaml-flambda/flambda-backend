@@ -20,25 +20,8 @@ open Misc
 open Cmi_format
 
 module CU = Compilation_unit
-module Impl = struct
-  (* The implementation compilation unit for some import, if known *)
-  type t =
-    | Unknown_argument (* The import is a parameter module *)
-    | Known of CU.t
-
-  module With_crc = struct
-    type nonrec t = t * Digest.t
-
-    let of_import_info info : t option =
-      match Import_info.Intf.crc info with
-      | None -> None
-      | Some crc ->
-          match Import_info.Intf.impl info with
-          | None -> Some (Unknown_argument, crc)
-          | Some cu -> Some (Known cu, crc)
-  end
-end
-module Consistbl = Consistbl.Make (CU.Name) (Impl)
+module Consistbl_data = Import_info.Intf.Nonalias.Kind
+module Consistbl = Consistbl.Make (CU.Name) (Consistbl_data)
 
 let add_delayed_check_forward = ref (fun _ -> assert false)
 
@@ -54,8 +37,8 @@ type error =
   | Not_compiled_as_parameter of CU.Name.t * filepath
   | Cannot_implement_parameter of CU.Name.t * filepath
   | Imported_module_has_unset_parameter of
-      { imported : Global.Name.t;
-        parameter : Global.Name.t;
+      { imported : Global_module.Name.t;
+        parameter : Global_module.Name.t;
       }
 
 exception Error of error
@@ -85,9 +68,9 @@ type can_load_cmis =
 (* Data relating directly to a .cmi *)
 type import = {
   imp_is_param : bool;
-  imp_params : Global.Name.t list;
-  imp_arg_for : Global.Name.t option;
-  imp_impl : Impl.t;
+  imp_params : Global_module.Name.t list;
+  imp_arg_for : Global_module.Name.t option;
+  imp_impl : CU.t option;
   imp_sign : Subst.Lazy.signature;
   imp_filename : string;
   imp_visibility: Load_path.visibility;
@@ -107,17 +90,18 @@ type binding =
 
 (* Data relating to an actual referenceable module, with a signature and a
    representation in memory. *)
-type pers_struct = {
-  ps_binding: binding;
+type 'a pers_struct_info = {
+  ps_import : import;
+  ps_binding : binding;
+  ps_val : 'a;
 }
 
-type 'a pers_struct_info = pers_struct * 'a
+module Param_set = Global_module.Name.Set
 
-module Param_set = Global.Name.Set
-
+(* If you add something here, _do not forget_ to add it to [clear]! *)
 type 'a t = {
   imports : (CU.Name.t, import_info) Hashtbl.t;
-  persistent_structures : (Global.Name.t, 'a pers_struct_info) Hashtbl.t;
+  persistent_structures : (Global_module.Name.t, 'a pers_struct_info) Hashtbl.t;
   imported_units: CU.Name.Set.t ref;
   imported_opaque_units: CU.Name.Set.t ref;
   param_imports : CU.Name.Set.t ref;
@@ -138,7 +122,7 @@ let empty () = {
 }
 
 let clear penv =
-  let [@warning "+missing-record-field-pattern"] {
+  let {
     imports;
     persistent_structures;
     imported_units;
@@ -181,10 +165,10 @@ let find_import_info_in_cache {imports; _} import =
 let find_info_in_cache {persistent_structures; _} name =
   match Hashtbl.find persistent_structures name with
   | exception Not_found -> None
-  | ps, pm -> Some (ps, pm)
+  | ps -> Some ps
 
 let find_in_cache penv name =
-  find_info_in_cache penv name |> Option.map (fun (_ps, pm) -> pm)
+  find_info_in_cache penv name |> Option.map (fun ps -> ps.ps_val)
 
 let register_parameter_import ({param_imports; _} as penv) import =
   begin match find_import_info_in_cache penv import with
@@ -205,11 +189,12 @@ let import_crcs penv ~source crcs =
   let {crc_units; _} = penv in
   let import_crc import_info =
     let name = Import_info.Intf.name import_info in
-    match Impl.With_crc.of_import_info import_info with
+    let info = Import_info.Intf.info import_info in
+    match info with
     | None -> ()
-    | Some (impl, crc) ->
+    | Some (kind, crc) ->
         add_import penv name;
-        Consistbl.check crc_units name impl crc source
+        Consistbl.check crc_units name kind crc source
   in Array.iter import_crc crcs
 
 let check_consistency penv imp =
@@ -218,15 +203,15 @@ let check_consistency penv imp =
       unit_name = name;
       inconsistent_source = source;
       original_source = auth;
-      inconsistent_data = source_impl;
-      original_data = auth_impl;
+      inconsistent_data = source_kind;
+      original_data = auth_kind;
     } ->
-    match source_impl, auth_impl with
-    | Known source_unit, Known auth_unit
+    match source_kind, auth_kind with
+    | Normal source_unit, Normal auth_unit
       when not (CU.equal source_unit auth_unit) ->
         error (Inconsistent_package_declaration_between_imports(
             imp.imp_filename, auth_unit, source_unit))
-    | (Known _ | Unknown_argument), _ ->
+    | (Normal _ | Parameter), _ ->
       error (Inconsistent_import(name, auth, source))
 
 let is_exported_parameter {exported_params; _} name =
@@ -258,7 +243,7 @@ let without_cmis penv f x =
   res
 
 let fold {persistent_structures; _} f x =
-  Hashtbl.fold (fun name (_, pm) x -> f name pm x)
+  Hashtbl.fold (fun name ps x -> f name ps.ps_val x)
     persistent_structures x
 
 (* Reading persistent structures from .cmi files *)
@@ -329,10 +314,10 @@ let acknowledge_import penv ~check modname pers_sig =
   end;
   let arg_for, impl =
     match kind with
-    | Normal { cmi_arg_for; cmi_impl } -> cmi_arg_for, Impl.Known cmi_impl
-    | Parameter -> None, Impl.Unknown_argument
+    | Normal { cmi_arg_for; cmi_impl } -> cmi_arg_for, Some cmi_impl
+    | Parameter -> None, None
   in
-  let {imports;} = penv in
+  let {imports; _} = penv in
   let import =
     { imp_is_param = is_param;
       imp_params = params;
@@ -355,12 +340,14 @@ let read_import penv ~check modname filename =
   let pers_sig = { Persistent_signature.filename; cmi; visibility = Visible } in
   acknowledge_import penv ~check modname pers_sig
 
+let check_visibility ~allow_hidden imp =
+  if not allow_hidden && imp.imp_visibility = Load_path.Hidden then raise Not_found
+
 let find_import ~allow_hidden penv ~check modname =
   let {imports; _} = penv in
   if CU.Name.equal modname CU.Name.predef_exn then raise Not_found;
   match Hashtbl.find imports modname with
-  | Found imp when allow_hidden || imp.imp_visibility = Load_path.Visible -> imp
-  | Found _ -> raise Not_found
+  | Found imp -> check_visibility ~allow_hidden imp; imp
   | Missing -> raise Not_found
   | exception Not_found ->
       match can_load_cmis penv with
@@ -391,10 +378,10 @@ let check_for_unset_parameters penv modname import =
            }))
     import.imp_params
 
-let make_binding _penv modname (impl : Impl.t) : binding =
+let make_binding _penv modname (impl : CU.t option) : binding =
   match impl with
-  | Known unit -> Static unit
-  | Unknown_argument ->
+  | Some unit -> Static unit
+  | None ->
       Local (Ident.create_local_binding_for_global modname)
 
 type address =
@@ -404,7 +391,7 @@ type address =
 
 type 'a sig_reader =
   Subst.Lazy.signature
-  -> Global.Name.t
+  -> Global_module.Name.t
   -> Shape.Uid.t
   -> shape:Shape.t
   -> address:address
@@ -438,7 +425,6 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
         Shape.var uid ident
   in
   let pm = val_of_pers_sig sign modname uid ~shape ~address ~flags in
-  let ps = { ps_binding = binding; } in
   if is_unexported_parameter penv modname then begin
     (* This module has no binding, since it's a parameter that we're aware of
        (perhaps because it was the name of an argument in an instance name)
@@ -447,8 +433,14 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
     let filename = import.imp_filename in
     raise (Error (Illegal_import_of_parameter (modname, filename)))
   end;
-  Hashtbl.add persistent_structures modname (ps, pm);
-  (ps, pm)
+  let ps =
+    { ps_import = import;
+      ps_binding = binding;
+      ps_val = pm;
+    }
+  in
+  Hashtbl.add persistent_structures modname ps;
+  ps
 
 let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
   let unit_name = CU.Name.of_head_of_global_name modname in
@@ -462,7 +454,7 @@ let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
 let find_pers_struct ~allow_hidden penv val_of_pers_sig check name =
   let {persistent_structures; _} = penv in
   match Hashtbl.find persistent_structures name with
-  | (ps, pm) -> (ps, pm)
+  | ps -> check_visibility ~allow_hidden ps.ps_import; ps
   | exception Not_found ->
       let unit_name = CU.Name.of_head_of_global_name name in
       let import = find_import ~allow_hidden penv ~check unit_name in
@@ -519,7 +511,7 @@ let read penv f modname filename ~add_binding =
   read_pers_struct penv f true modname filename ~add_binding
 
 let find ~allow_hidden penv f name =
-  snd (find_pers_struct ~allow_hidden penv f true name)
+  (find_pers_struct ~allow_hidden penv f true name).ps_val
 
 let check ~allow_hidden penv f ~loc name =
   let {persistent_structures; _} = penv in
@@ -567,20 +559,13 @@ let imports {imported_units; crc_units; _} =
     Consistbl.extract (CU.Name.Set.elements !imported_units)
       crc_units
   in
-  List.map (fun (cu_name, data) ->
-      let cu, crc =
-        match (data : (Impl.t * Digest.t) option) with
-        | None -> None, None
-        | Some (Unknown_argument, crc) -> None, Some crc
-        | Some (Known cu, crc) -> Some cu, Some crc
-      in
-      Import_info.Intf.create cu_name cu ~crc)
+  List.map (fun (cu_name, spec) -> Import_info.Intf.create cu_name spec)
     imports
 
 let local_ident penv modname =
   match find_info_in_cache penv modname with
-  | Some ({ ps_binding = Local local_ident; _ }, _) -> Some local_ident
-  | Some ({ ps_binding = Static _; _ }, _)
+  | Some { ps_binding = Local local_ident; _ } -> Some local_ident
+  | Some { ps_binding = Static _; _ }
   | None -> None
 
 let locally_bound_imports ({persistent_structures; _} as penv) =
@@ -647,12 +632,12 @@ let save_cmi penv psig =
           (fun temp_filename oc -> output_cmi temp_filename oc cmi) in
       (* Enter signature in consistbl so that imports()
          will also return its crc *)
-      let impl : Impl.t =
+      let data : Import_info.Intf.Nonalias.Kind.t =
         match kind with
-        | Normal { cmi_impl } -> Known cmi_impl
-        | Parameter -> Unknown_argument
+        | Normal { cmi_impl } -> Normal cmi_impl
+        | Parameter -> Parameter
       in
-      save_import penv crc modname impl flags filename
+      save_import penv crc modname data flags filename
     )
     ~exceptionally:(fun () -> remove_file filename)
 
@@ -712,11 +697,11 @@ let report_error ppf =
         "@[<hov>The module %a@ has parameter %a.@ \
          %a is not declared as a parameter for the current unit (-parameter %a)@ \
          and therefore %a@ is not accessible.@]"
-        Global.Name.print modname
-        Global.Name.print param
-        Global.Name.print param
-        Global.Name.print param
-        Global.Name.print modname
+        Global_module.Name.print modname
+        Global_module.Name.print param
+        Global_module.Name.print param
+        Global_module.Name.print param
+        Global_module.Name.print modname
 
 let () =
   Location.register_error_of_exn

@@ -40,13 +40,9 @@ let flush_cmm_helpers_state res =
     | Const_table (global, l) ->
       let res, sym = R.raw_symbol res ~global name in
       res, C.cdata (C.define_symbol sym @ l) :: acc
-    | Const_closure _ ->
-      Misc.fatal_errorf
-        "There shouldn't be any closures in Cmmgen_state during Flambda 2 to \
-         Cmm translation"
   in
   (* reset the structured constants, just in case *)
-  Cmmgen_state.set_local_structured_constants [];
+  Cmmgen_state.clear_local_structured_constants ();
   match Cmmgen_state.get_and_clear_data_items () with
   | [] ->
     let cst_map = Cmmgen_state.get_and_clear_constants () in
@@ -82,7 +78,7 @@ let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
   let _env, return_cont_params =
     (* The environment is dropped because the handler for the dummy continuation
        (which just returns unit) doesn't use any of the parameters. *)
-    C.bound_parameters env
+    C.continuation_bound_parameters env
       (Bound_parameters.create
          [ Bound_parameter.create (Variable.create "*ret*")
              Flambda_kind.With_subkind.any_value ])
@@ -117,7 +113,10 @@ let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
   let body =
     let unit_value = C.targetint ~dbg Targetint_32_64.one in
     C.create_ccatch ~rec_flag:false ~body
-      ~handlers:[C.handler ~dbg return_cont return_cont_params unit_value false]
+      ~handlers:
+        [ C.handler ~dbg return_cont
+            (C.remove_skipped_params return_cont_params)
+            unit_value false ]
   in
   let body =
     if !Clflags.afl_instrument
@@ -128,11 +127,7 @@ let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
   let res, entry_sym = R.raw_symbol res ~global:Global entry_name in
   let entry =
     let fun_codegen =
-      let fun_codegen =
-        [ Cmm.Reduce_code_size;
-          Cmm.Use_linscan_regalloc;
-          Cmm.Ignore_assert_all Cmm.Zero_alloc ]
-      in
+      let fun_codegen = [Cmm.Reduce_code_size; Cmm.Use_linscan_regalloc] in
       if Flambda_features.backend_cse_at_toplevel ()
       then fun_codegen
       else Cmm.No_CSE :: fun_codegen

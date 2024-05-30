@@ -78,5 +78,7 @@ module type S = sig
 
   val unsafe_get_global_value : bytecode_or_asm_symbol:string -> Obj.t option
 
+  val does_symbol_exist : bytecode_or_asm_symbol:string -> bool
+
   val finish : handle -> unit
 end
