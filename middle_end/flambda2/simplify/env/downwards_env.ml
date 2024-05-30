@@ -220,16 +220,16 @@ let enter_set_of_closures
 
 let define_name t name kind =
   Name.pattern_match (Bound_name.name name)
-    ~var:(fun var ->
-      define_variable t (Bound_var.create var (Bound_name.name_mode name)) kind)
-    ~symbol:(fun _ ->
+    ~var:(fun[@inline] var ->
+      (define_variable[@inlined hint]) t (Bound_var.create var (Bound_name.name_mode name)) kind)
+    ~symbol:(fun[@inline] _ ->
       { t with typing_env = TE.add_definition t.typing_env name kind })
 
 let add_name t name ty =
-  let t = define_name t name (T.kind ty) in
+  let t = (define_name [@inlined hint]) t name (T.kind ty) in
   { t with typing_env = TE.add_equation t.typing_env (Bound_name.name name) ty }
 
-let add_variable t var ty = add_name t (Bound_name.create_var var) ty
+let add_variable t var ty = (add_name [@inlined hint]) t (Bound_name.create_var var) ty
 
 let add_equation_on_variable t var ty =
   let typing_env = TE.add_equation t.typing_env (Name.var var) ty in
