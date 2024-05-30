@@ -228,12 +228,14 @@ let operation d = function
   | Csubf Float32 -> "-f32"
   | Cmulf Float32 -> "*f32"
   | Cdivf Float32 -> "/f32"
+  | Cpackf32 -> "packf32"
   | Ccsel ret_typ ->
     to_string "csel %a" machtype ret_typ
   | Cvalueofint -> "valueofint"
   | Cintofvalue -> "intofvalue"
   | Cvectorcast Bits128 ->
     Printf.sprintf "vec128->vec128"
+  | Cscalarcast Float32_as_float -> "float32 as float"
   | Cscalarcast (Float_to_int Float64) -> "float->int"
   | Cscalarcast (Float_of_int Float64) -> "int->float"
   | Cscalarcast (Float_to_int Float32) -> "float32->int"

@@ -82,6 +82,7 @@ type sse_operation =
   | Low_64_to_high_64
   | Interleave_high_32
   | Interleave_low_32
+  | Interleave_low_32_regs
   | Movemask_32
   | Shuffle_32 of int
 
@@ -305,14 +306,15 @@ let equal_operation_sse l r =
   | Low_64_to_high_64, Low_64_to_high_64
   | Interleave_high_32, Interleave_high_32
   | Interleave_low_32, Interleave_low_32
+  | Interleave_low_32_regs, Interleave_low_32_regs
   | Movemask_32, Movemask_32 ->
     true
   | Cmp_f32 l, Cmp_f32 r when float_condition_equal l r -> true
   | Shuffle_32 l, Shuffle_32 r when Int.equal l r -> true
   | ( ( Add_f32 | Sub_f32 | Mul_f32 | Div_f32 | Max_f32 | Min_f32 | Rcp_f32
       | Sqrt_f32 | Rsqrt_f32 | High_64_to_low_64 | Low_64_to_high_64
-      | Interleave_high_32 | Interleave_low_32 | Movemask_32 | Cmp_f32 _
-      | Shuffle_32 _ ),
+      | Interleave_high_32 | Interleave_low_32_regs | Interleave_low_32
+      | Movemask_32 | Cmp_f32 _ | Shuffle_32 _ ),
       _ ) ->
     false
 
@@ -637,6 +639,8 @@ let print_operation_sse printreg op ppf arg =
     fprintf ppf "interleave_high_32 %a %a" printreg arg.(0) printreg arg.(1)
   | Interleave_low_32 ->
     fprintf ppf "interleave_low_32 %a %a" printreg arg.(0) printreg arg.(1)
+  | Interleave_low_32_regs ->
+    fprintf ppf "interleave_low_32_regs %a %a" printreg arg.(0) printreg arg.(1)
 
 let print_operation_sse2 printreg op ppf arg =
   match op with
@@ -922,7 +926,8 @@ let class_of_operation_bmi2 = function Deposit_64 | Extract_64 -> Pure
 let class_of_operation_sse = function
   | Cmp_f32 _ | Add_f32 | Sub_f32 | Mul_f32 | Div_f32 | Max_f32 | Min_f32
   | Rcp_f32 | Sqrt_f32 | Rsqrt_f32 | High_64_to_low_64 | Low_64_to_high_64
-  | Interleave_high_32 | Interleave_low_32 | Movemask_32 | Shuffle_32 _ ->
+  | Interleave_high_32 | Interleave_low_32 | Interleave_low_32_regs
+  | Movemask_32 | Shuffle_32 _ ->
     Pure
 
 let class_of_operation_sse2 = function

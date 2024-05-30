@@ -182,6 +182,8 @@ type vector_cast =
   | Bits128
 
 type scalar_cast =
+  (* CR mslater: move all bit-casts into a reinterpret_cast type *)
+  | Float32_as_float
   | Float_to_int of float_width
   | Float_of_int of float_width
   | Float_to_float32
@@ -228,6 +230,7 @@ type operation =
   | Cnegf of float_width | Cabsf of float_width
   | Caddf of float_width | Csubf of float_width
   | Cmulf of float_width | Cdivf of float_width
+  | Cpackf32
   | Cvalueofint | Cintofvalue
   | Cvectorcast of vector_cast
   | Cscalarcast of scalar_cast
