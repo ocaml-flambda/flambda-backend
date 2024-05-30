@@ -100,7 +100,6 @@ val define_parameters : t -> params:Bound_parameters.t -> t
 
 val add_parameters :
   ?name_mode:Name_mode.t ->
-  ?at_unit_toplevel:bool ->
   t ->
   Bound_parameters.t ->
   param_types:Flambda2_types.t list ->
@@ -109,7 +108,6 @@ val add_parameters :
 val add_parameters_with_unknown_types :
   ?alloc_modes:Alloc_mode.For_types.t list ->
   ?name_mode:Name_mode.t ->
-  ?at_unit_toplevel:bool ->
   t ->
   Bound_parameters.t ->
   t
