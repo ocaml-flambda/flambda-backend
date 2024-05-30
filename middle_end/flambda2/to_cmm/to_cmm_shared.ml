@@ -16,6 +16,23 @@ open! Cmm_helpers
 open! Cmm_builtins
 module Ece = Effects_and_coeffects
 
+let remove_skipped_params params_with_types =
+  List.filter_map
+    (fun (v, param_type) ->
+      match (param_type : Cmm.machtype To_cmm_env.param_type) with
+      | Skip_param -> None
+      | Param machtype -> Some (v, machtype))
+    params_with_types
+
+let rec remove_skipped_args args param_types =
+  match args, (param_types : _ To_cmm_env.param_type list) with
+  | [], [] -> []
+  | _ :: r, Skip_param :: r' -> remove_skipped_args r r'
+  | arg :: r, Param _ :: r' -> arg :: remove_skipped_args r r'
+  | _ :: _, [] | [], _ :: _ ->
+    Misc.fatal_errorf
+      "Mismatched list sizes in To_cmm_shared.remove_skipped_args"
+
 let remove_var_with_provenance free_vars var =
   let v = Backend_var.With_provenance.var var in
   Backend_var.Set.remove v free_vars
@@ -58,7 +75,8 @@ let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
   | Naked_number (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
     ->
     Cmm.typ_int
-  | Region | Rec_info -> assert false
+  | Region -> Cmm.typ_int
+  | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
 
 let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
   match Flambda_kind.With_subkind.kind kind with
@@ -77,7 +95,8 @@ let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
   | Naked_number (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
     ->
     Extended_machtype.typ_any_int
-  | Region | Rec_info -> assert false
+  | Region -> Misc.fatal_error "[Region] kind not expected here"
+  | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
 
 let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
     =
@@ -106,6 +125,12 @@ let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
       Flambda_kind.With_subkind.print kind
 
 let machtype_of_kinded_parameter p = Bound_parameter.kind p |> machtype_of_kind
+
+let param_machtype_of_kinded_parameter bp : _ To_cmm_env.param_type =
+  let k = Bound_parameter.kind bp in
+  match[@ocaml.warning "-4"] Flambda_kind.With_subkind.kind k with
+  | Rec_info -> Skip_param
+  | _ -> Param (machtype_of_kind k)
 
 let targetint ~dbg t =
   match Targetint_32_64.repr t with
@@ -225,16 +250,19 @@ let simple_list ?consider_inlining_effectful_expressions ~dbg env res l =
   in
   List.rev args, free_vars, env, res, effs
 
-let bound_parameters env l =
+let bound_parameters_aux ~f env l =
   let flambda_vars = Bound_parameters.vars l in
   let env, cmm_vars = To_cmm_env.create_bound_parameters env flambda_vars in
   let vars =
-    List.map2
-      (fun v v' -> v, machtype_of_kinded_parameter v')
-      cmm_vars
-      (Bound_parameters.to_list l)
+    List.map2 (fun v v' -> v, f v') cmm_vars (Bound_parameters.to_list l)
   in
   env, vars
+
+let continuation_bound_parameters env l =
+  bound_parameters_aux ~f:param_machtype_of_kinded_parameter env l
+
+let function_bound_parameters env l =
+  bound_parameters_aux ~f:machtype_of_kinded_parameter env l
 
 let invalid res ~message =
   let dbg = Debuginfo.none in

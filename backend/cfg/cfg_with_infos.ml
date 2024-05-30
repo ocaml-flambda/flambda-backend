@@ -5,7 +5,7 @@ type liveness = Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t
 let liveness_analysis : Cfg_with_layout.t -> liveness =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  let init = { Cfg_liveness.before = Reg.Set.empty; across = Reg.Set.empty } in
+  let init = Cfg_liveness.Domain.bot in
   match
     Cfg_liveness.Liveness.run cfg ~init ~map:Cfg_liveness.Liveness.Instr ()
   with

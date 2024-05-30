@@ -6,7 +6,9 @@
  (name threads)
  (modes byte)
  (wrapped false)
- (flags -w +33..39 -warn-error A -g -bin-annot)
+ ; FIXME Fix warning 27
+ (flags
+  (:standard -g -bin-annot -w -27))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
  (libraries unix)

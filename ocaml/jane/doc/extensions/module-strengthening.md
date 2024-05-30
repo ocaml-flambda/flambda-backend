@@ -21,5 +21,4 @@ as above and this is, in fact, the only way to write it without `-extension
 module_strengthening`. The new extension allows this type to be written as `S
 with M`.
 
-The main motivation for this work are compiler performance improvements, which
-use this new form internally.
+The main motivation for this work are compiler performance improvements.

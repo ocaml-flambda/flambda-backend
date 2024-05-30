@@ -177,6 +177,27 @@ let to_string msg =
     Buffer.contents b
   ) ppf msg
 
+let reinterpret_cast : Cmm.reinterpret_cast -> string = function
+  | V128_of_v128 -> "vec128 as vec128"
+  | Value_of_int -> "int as value"
+  | Int_of_value -> "value as int"
+  | Float32_of_float -> "float as float32"
+  | Float_of_float32 -> "float32 as float"
+  | Float_of_int64 -> "int64 as float"
+  | Int64_of_float -> "float as int64"
+  | Float32_of_int32 -> "int32 as float32"
+  | Int32_of_float32 -> "float32 as int32"
+
+let static_cast : Cmm.static_cast -> string = function
+  | Int_of_float Float64 -> "float->int"
+  | Float_of_int Float64 -> "int->float"
+  | Int_of_float Float32 -> "float32->int"
+  | Float_of_int Float32 -> "int->float32"
+  | Float32_of_float -> "float->float32"
+  | Float_of_float32 -> "float32->float"
+  | Scalar_of_v128 ty -> Printf.sprintf "%s->scalar" (Primitive.vec128_name ty)
+  | V128_of_scalar ty -> Printf.sprintf "scalar->%s" (Primitive.vec128_name ty)
+
 let operation d = function
   | Capply(_ty, _) -> "app" ^ location d
   | Cextcall { func = lbl; _ } ->
@@ -231,21 +252,8 @@ let operation d = function
   | Cpackf32 -> "packf32"
   | Ccsel ret_typ ->
     to_string "csel %a" machtype ret_typ
-  | Cvalueofint -> "valueofint"
-  | Cintofvalue -> "intofvalue"
-  | Cvectorcast Bits128 ->
-    Printf.sprintf "vec128->vec128"
-  | Cscalarcast Float32_as_float -> "float32 as float"
-  | Cscalarcast (Float_to_int Float64) -> "float->int"
-  | Cscalarcast (Float_of_int Float64) -> "int->float"
-  | Cscalarcast (Float_to_int Float32) -> "float32->int"
-  | Cscalarcast (Float_of_int Float32) -> "int->float32"
-  | Cscalarcast (Float_to_float32) -> "float->float32"
-  | Cscalarcast (Float_of_float32) -> "float32->float"
-  | Cscalarcast (V128_to_scalar ty) ->
-    Printf.sprintf "%s->scalar" (Primitive.vec128_name ty)
-  | Cscalarcast (V128_of_scalar ty) ->
-    Printf.sprintf "scalar->%s" (Primitive.vec128_name ty)
+  | Creinterpret_cast cast -> reinterpret_cast cast
+  | Cstatic_cast cast -> static_cast cast
   | Ccmpf (Float64, c) -> Printf.sprintf "%sf" (float_comparison c)
   | Ccmpf (Float32, c) -> Printf.sprintf "%sf32" (float_comparison c)
   | Craise k -> Lambda.raise_kind k ^ location d

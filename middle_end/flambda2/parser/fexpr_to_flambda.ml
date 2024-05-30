@@ -24,23 +24,27 @@ end
 
 module VM = Map.Make (V)
 
-(* Symbols *)
+(* Symbols (globally scoped, so updates are in-place) *)
 module S = struct
   type t = string (* only storing local symbols so only need the name *)
 
-  let compare = String.compare
+  let equal = String.equal
+
+  let hash = Hashtbl.hash
 end
 
-module SM = Map.Make (S)
+module SM = Hashtbl.Make (S)
 
-(* Code ids *)
+(* Code ids (globally scoped, so updates are in-place) *)
 module D = struct
   type t = string
 
-  let compare = String.compare
+  let equal = String.equal
+
+  let hash = Hashtbl.hash
 end
 
-module DM = Map.Make (D)
+module DM = Hashtbl.Make (D)
 
 (* Function slots (globally scoped, so updates are in-place) *)
 module U = struct
@@ -92,8 +96,8 @@ let init_env () =
     exn_continuations = CM.empty;
     toplevel_region;
     variables = VM.empty;
-    symbols = SM.empty;
-    code_ids = DM.empty;
+    symbols = SM.create 10;
+    code_ids = DM.create 10;
     function_slots = UT.create 10;
     vars_within_closures = WT.create 10
   }
@@ -128,9 +132,13 @@ let fresh_var env { Fexpr.txt = name; loc = _ } =
   let v = Variable.create name ~user_visible:() in
   v, { env with variables = VM.add name v env.variables }
 
-let fresh_code_id env { Fexpr.txt = name; loc = _ } =
-  let c = Code_id.create ~name (Compilation_unit.get_current_exn ()) in
-  c, { env with code_ids = DM.add name c env.code_ids }
+let fresh_or_existing_code_id env { Fexpr.txt = name; loc = _ } =
+  match DM.find_opt env.code_ids name with
+  | Some code_id -> code_id
+  | None ->
+    let c = Code_id.create ~name (Compilation_unit.get_current_exn ()) in
+    DM.add env.code_ids name c;
+    c
 
 let fresh_function_slot env { Fexpr.txt = name; loc = _ } =
   let c =
@@ -172,18 +180,18 @@ let declare_symbol (env : env) ({ Fexpr.txt = cu, name; loc } as symbol) =
   then
     Misc.fatal_errorf "Cannot declare non-local symbol %a: %a"
       Print_fexpr.symbol symbol print_scoped_location loc
-  else if SM.mem name env.symbols
-  then
-    Misc.fatal_errorf "Redefinition of symbol %a: %a" Print_fexpr.symbol symbol
-      print_scoped_location loc
   else
-    let cunit =
-      match cu with
-      | None -> Compilation_unit.get_current_exn ()
-      | Some cu -> compilation_unit cu
-    in
-    let symbol = Symbol.unsafe_create cunit (Linkage_name.of_string name) in
-    symbol, { env with symbols = SM.add name symbol env.symbols }
+    match SM.find_opt env.symbols name with
+    | Some symbol -> symbol
+    | None ->
+      let cunit =
+        match cu with
+        | None -> Compilation_unit.get_current_exn ()
+        | Some cu -> compilation_unit cu
+      in
+      let symbol = Symbol.unsafe_create cunit (Linkage_name.of_string name) in
+      SM.replace env.symbols name symbol;
+      symbol
 
 let find_with ~descr ~find map { Fexpr.txt = name; loc } =
   match find name map with
@@ -196,8 +204,7 @@ let get_symbol (env : env) sym =
   | { Fexpr.txt = Some cunit, name; loc = _ } ->
     let cunit = compilation_unit cunit in
     Symbol.unsafe_create cunit (name |> Linkage_name.of_string)
-  | { Fexpr.txt = None, txt; loc } ->
-    find_with ~descr:"symbol" ~find:SM.find_opt env.symbols { txt; loc }
+  | { Fexpr.txt = None, _; loc = _ } -> declare_symbol env sym
 
 let find_cont_id env c =
   find_with ~descr:"continuation id" ~find:CM.find_opt env.continuations c
@@ -229,8 +236,7 @@ let find_var env v =
 let find_region env (r : Fexpr.region) =
   match r with Toplevel -> env.toplevel_region | Named v -> find_var env v
 
-let find_code_id env code_id =
-  find_with ~descr:"code id" ~find:DM.find_opt env.code_ids code_id
+let find_code_id env code_id = fresh_or_existing_code_id env code_id
 
 let targetint (i : Fexpr.targetint) : Targetint_32_64.t =
   Targetint_32_64.of_int64 i
@@ -733,13 +739,13 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           let code_id = find_code_id env id in
           Bound_static.Pattern.code code_id, env
         | Data { symbol; _ } ->
-          let symbol, env = declare_symbol env symbol in
+          let symbol = declare_symbol env symbol in
           Bound_static.Pattern.block_like symbol, env
         | Set_of_closures soc ->
           let closure_binding env
               ({ symbol; fun_decl = { function_slot; code_id; _ } } :
                 Fexpr.static_closure_binding) =
-            let symbol, env = declare_symbol env symbol in
+            let symbol = declare_symbol env symbol in
             let function_slot =
               function_slot |> Option.value ~default:code_id
             in
@@ -1053,7 +1059,7 @@ let bind_all_code_ids env (unit : Fexpr.flambda_unit) =
           (fun env (binding : Fexpr.symbol_binding) ->
             match binding with
             | Code { id; _ } | Deleted_code id ->
-              let _, env = fresh_code_id env id in
+              let _ = fresh_or_existing_code_id env id in
               env
             | Data _ | Closure _ | Set_of_closures _ -> env)
           env bindings

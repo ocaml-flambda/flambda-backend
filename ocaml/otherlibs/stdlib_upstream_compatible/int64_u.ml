@@ -19,9 +19,9 @@ open! Stdlib
 
 type t = int64#
 
-external to_int64 : t -> (int64[@local_opt]) = "%box_int64"
+external to_int64 : t -> (int64[@local_opt]) = "%box_int64" [@@warning "-187"]
 
-external of_int64 : (int64[@local_opt]) -> t = "%unbox_int64"
+external of_int64 : (int64[@local_opt]) -> t = "%unbox_int64" [@@warning "-187"]
 
 let[@inline always] neg x = of_int64 (Int64.neg (to_int64 x))
 
