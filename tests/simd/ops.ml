@@ -1,6 +1,6 @@
 open Stdlib
 
-[@@@ocaml.warning "-37-32-35"]
+[@@@ocaml.warning "-unused-value-declaration"]
 
 let failmsg = ref (fun () -> ())
 
@@ -371,7 +371,7 @@ module Float32 = struct
         f maxv maxv;
         f minv minv;
         f maxv minv;
-        for i = 0 to 100_000 do
+        for _ = 0 to 100_000 do
             let f0 = Random.int32 Int32.max_int in
             let f1 = Random.int32 Int32.max_int in
             f (if Random.bool () then f0 else Int32.neg f0)
@@ -415,7 +415,7 @@ module Float64 = struct
         f max_float max_float;
         f min_float min_float;
         f max_float min_float;
-        for i = 0 to 100_000 do
+        for _ = 0 to 100_000 do
             let f0 = Random.int64 Int64.max_int in
             let f1 = Random.int64 Int64.max_int in
             f (if Random.bool () then Int64.float_of_bits f0 else Int64.(neg f0 |> float_of_bits))
@@ -456,7 +456,7 @@ module Int64s = struct
         f max_int max_int;
         f min_int min_int;
         f max_int min_int;
-        for i = 0 to 100_000 do
+        for _ = 0 to 100_000 do
             let i0 = Random.int64 Int64.max_int in
             let i1 = Random.int64 Int64.max_int in
             f (if Random.bool () then i0 else Int64.neg i0)
@@ -500,7 +500,7 @@ module Int32s = struct
         f max_int max_int;
         f min_int min_int;
         f max_int min_int;
-        for i = 0 to 100_000 do
+        for _ = 0 to 100_000 do
             let i0 = Random.int32 Int32.max_int in
             let i1 = Random.int32 Int32.max_int in
             f (if Random.bool () then i0 else Int32.neg i0)
@@ -606,7 +606,7 @@ module Int16 = struct
         f max_int max_int;
         f min_int min_int;
         f max_int min_int;
-        for i = 0 to 100_000 do
+        for _ = 0 to 100_000 do
             let i0 = Random.int 0x10000 in
             let i1 = Random.int 0x10000 in
             f (if Random.bool () then i0 else (-i0))

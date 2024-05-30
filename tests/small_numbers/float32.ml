@@ -1,6 +1,6 @@
 open Stdlib
 
-[@@@ocaml.warning "-37-32-35"]
+[@@@ocaml.warning "-unused-constructor"]
 
 let eq l r =
   if l <> r then Printf.printf "%d <> %d\n" l r
@@ -127,7 +127,7 @@ module CFloat32 = struct
       f maxv maxv;
       f minv minv;
       f maxv minv;
-      for i = 0 to 100_000 do
+      for _ = 0 to 100_000 do
           let f0 = Random.int32 Int32.max_int in
           let f1 = Random.int32 Int32.max_int in
           f ((if Random.bool () then f0 else Int32.neg f0) |> Int32.float_of_bits |> Beta.Float32.of_float)
@@ -149,7 +149,7 @@ module Float64 = struct
     f nan;
     f max_float;
     f min_float;
-    for i = 0 to 100_000 do
+    for _ = 0 to 100_000 do
         let v = Random.int64 Int64.max_int in
         f ((if Random.bool () then v else Int64.neg v) |> Int64.float_of_bits)
     done
@@ -165,7 +165,7 @@ module Int = struct
     f minus_one;
     f max_int;
     f min_int;
-    for i = 0 to 100_000 do
+    for _ = 0 to 100_000 do
         let i = Random.int64 Int64.max_int |> Int64.to_int in
         f (if Random.bool () then i else Int.neg i)
     done
