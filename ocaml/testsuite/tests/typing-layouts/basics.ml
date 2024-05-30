@@ -2245,22 +2245,7 @@ end = struct
 end
 
 [%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type ('a : any) t = K of ('a -> 'a)
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type ('a : any) t = K of ('a -> 'a) end
-       is not included in
-         sig type 'a t = K of ('a -> 'a) end
-       Type declarations do not match:
-         type ('a : any) t = K of ('a -> 'a)
-       is not included in
-         type 'a t = K of ('a -> 'a)
-       Their parameters differ:
-       The type ('a : any) is not equal to the type ('a0 : value)
-       because their layouts are different.
+module M9 : sig type 'a t = K of ('a -> 'a) end
 |}]
 (* CR layouts: This one should be fine to accept *)
 

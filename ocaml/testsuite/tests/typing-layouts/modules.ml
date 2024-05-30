@@ -111,43 +111,14 @@ module M1_2'': S1_2' = struct
   type 'a t = 'a list
 end;;
 [%%expect{|
-Lines 1-3, characters 23-3:
-1 | .......................struct
-2 |   type 'a t = 'a list
-3 | end..
-Error: Signature mismatch:
-       Modules do not match:
-         sig type 'a t = 'a list end
-       is not included in
-         S1_2'
-       Type declarations do not match:
-         type 'a t = 'a list
-       is not included in
-         type ('a : immediate) t = 'a list
-       The type ('a : value) is not equal to the type ('a0 : immediate)
-       because their layouts are different.
+module M1_2'' : S1_2'
 |}]
 
 module M1_2''' : S1_2 = struct
   type 'a t = 'a list
 end;;
 [%%expect{|
-Lines 1-3, characters 24-3:
-1 | ........................struct
-2 |   type 'a t = 'a list
-3 | end..
-Error: Signature mismatch:
-       Modules do not match:
-         sig type 'a t = 'a list end
-       is not included in
-         S1_2
-       Type declarations do not match:
-         type 'a t = 'a list
-       is not included in
-         type ('a : immediate) t
-       Their parameters differ:
-       The type ('a : value) is not equal to the type ('a0 : immediate)
-       because their layouts are different.
+module M1_2''' : S1_2
 |}]
 
 (************************************************************************)
