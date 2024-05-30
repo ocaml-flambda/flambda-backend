@@ -319,7 +319,7 @@ e == f
 is always `false` if the expression `e` returns a unique value. Note
 that in the expression `x == x`, `x` cannot be given the unique mode
 because it is used twice. Values which aren't `unique` are at mode
-`shared`.
+`aliased`.
 
 Only values at mode `unique` can be used with in-place record
 update.  Consider the following example:
@@ -339,7 +339,7 @@ Line 3, characters 3-4:
 3 | r
     ^
 ```
-There are two occurrences of `r`, so `r` will be a `shared` value at
+There are two occurrences of `r`, so `r` will be a `aliased` value at
 these occurrences. As a result, `r` cannot be used with in-place record
 update. It would be unsafe in the sense that `r.x` is observed to be
 mutated while being an immutable field.
@@ -405,12 +405,12 @@ Line 1, characters 21-22:
 |}]
 ```
 
-A `shared` modality can be applied to record fields, so that the field
-will be `shared` regardless of the mode of the record. One particular
-application is the following, where `'a shrd` would represent some
-`shared` `'a` regardless of the mode of the `'a shrd`.
+An `aliased` modality can be applied to record fields, so that the field
+will be `aliased` regardless of the mode of the record. One particular
+application is the following, where `'a aliased` would represent some
+`aliased` `'a` regardless of the mode of the `'a aliased`.
 ```ocaml
-type 'a shrd = {shared foo : 'a } [@@unboxed]
+type 'a aliased = {aliased foo : 'a } [@@unboxed]
 ```
 
 Note that a `unique` modality on record fields is not permitted as it
@@ -418,11 +418,11 @@ breaches mode safety. The result of reading from such a field could
 not be unique because the value would still be aliased in the shared
 record from which it was read.
 
-`unique` is more strict than `shared` as it restricts the number of
+`unique` is more strict than `aliased` as it restricts the number of
 aliases.  One can always forget this extra bit of information about a
-value, and relax a value of `unique` into a value of `shared`.  In the
-following, `x` is `unique` but relaxed to `shared` which allows it to
-be aliased twice (by the tuple); the resulting tuple is `shared` as
+value, and relax a value of `unique` into a value of `aliased`.  In the
+following, `x` is `unique` but relaxed to `aliased` which allows it to
+be aliased twice (by the tuple); the resulting tuple is `aliased` as
 well of course.
 ```ocaml
 let dup (unique x) = (x, x)
@@ -430,7 +430,7 @@ let dup (unique x) = (x, x)
 
 # Borrowing
 
-One might wish to use a `unique` value as `shared` for a short
+One might wish to use a `unique` value as `aliased` for a short
 duration. For example,
 ```ocaml
 type point = { x : float; y : float }
@@ -446,7 +446,7 @@ occurrence requires that it be unique. However, it is clear that by
 the time of the second occurrence `p` will in fact be unique again.
 
 To support such code we introduce *borrowing*. Borrowing allows
-`unique` values to be `shared` for the duration of a region, and
+`unique` values to be `aliased` for the duration of a region, and
 recovers them to `unique` afterwards. To borrow the variable `x` you
 use the syntax `&x`. So that `averagize` becomes:
 ```ocaml
@@ -455,7 +455,7 @@ let averagize p =
   { overwrite p with x = avg; y = avg }
 ```
 
-The `&x` syntax creates an implicit region and treats `&x` as `shared`
+The `&x` syntax creates an implicit region and treats `&x` as `aliased`
 and `local` for the duration of this region. The `local` mode prevents
 the value from escaping the region, which allows `x` to be considered
 `unique` again after the region has ended.
@@ -486,10 +486,10 @@ let foo x y =
     unique y
 ```
 
-Since a borrowed value is `shared`, there may be multiple borrows
+Since a borrowed value is `aliased`, there may be multiple borrows
 within the same (implicit) region. In the following example, `x` is
 borrowed twice in the same region, both of which would be used as
-`shared` by `bar`.
+`aliased` by `bar`.
 ```ocaml
 let foo x =
   let y = {bar &x &x} in
@@ -925,7 +925,7 @@ let bad t =
 # Keys and locks
 
 Uniqueness and exclusivity provide forms of mutation that cannot race,
-allowing the data that is mutated to be safely shared between
+allowing the data that is mutated to be safely aliased between
 threads. However, they require the user to carefully manage aliases
 to all the mutated data and to convey that information to the type
 checker.  This could quickly become cumbersome as one needs to
@@ -974,7 +974,7 @@ means that each call to `create` returns a key for a fresh `k` type.
 
 A *key* is a form of capability. For a given `k`, there can be only one
 `k Key.t` at `exclusive` mode at any point in time. If there is a `k
-Key.t` at `shared` mode then there are no `k Key.t`s at mode `exclusive`
+Key.t` at `aliased` mode then there are no `k Key.t`s at mode `exclusive`
 simultaneously.
 
 `'k t` is of the `void` layout, which means it consumes no space and
