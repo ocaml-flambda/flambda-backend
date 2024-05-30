@@ -2,7 +2,6 @@
  (names extension_meet)
  (modes native)
  (instrumentation (backend bisect_ppx))
- (flags (:standard -principal))
  (modules extension_meet)
  (libraries
   ocamloptcomp ocamlcommon

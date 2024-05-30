@@ -937,3 +937,47 @@ let assume_zero_alloc ~is_check_allowed check : Zero_alloc_utils.Assume_info.t =
       Location.prerr_warning loc (Warnings.Attribute_payload (name, msg))
     end;
     Zero_alloc_utils.Assume_info.none
+
+type tracing_probe =
+  { name : string;
+    name_loc : Location.t;
+    enabled_at_init : bool;
+    arg : Parsetree.expression;
+  }
+
+let get_tracing_probe_payload (payload : Parsetree.payload) =
+  let ( let* ) = Result.bind in
+  let* name, name_loc, args =
+    match payload with
+    | PStr
+        ([{ pstr_desc =
+              Pstr_eval
+                ({ pexp_desc =
+                      (Pexp_apply
+                        ({ pexp_desc=
+                              (Pexp_constant (Pconst_string(name,_,None)));
+                            pexp_loc = name_loc;
+                            _ }
+                        , args))
+                  ; _ }
+                , _)}]) -> Ok (name, name_loc, args)
+    | _ -> Error ()
+  in
+  let bool_of_string = function
+    | "true" -> Ok true
+    | "false" -> Ok false
+    | _ -> Error ()
+  in
+  let* arg, enabled_at_init =
+    match args with
+    | [Nolabel, arg] -> Ok (arg, false)
+    | [Labelled "enabled_at_init",
+        { pexp_desc =
+            Pexp_construct({ txt = Longident.Lident b; _ },
+                          None); _ };
+        Nolabel, arg] ->
+          let* enabled_at_init = bool_of_string b in
+          Ok (arg, enabled_at_init)
+    | _ -> Error ()
+  in
+  Ok { name; name_loc; enabled_at_init; arg }

@@ -148,8 +148,11 @@ val any : why:any_creation_reason -> t
 (** Value of types of this jkind are not retained at all at runtime *)
 val void : why:void_creation_reason -> t
 
-(** This is the jkind of normal ocaml values *)
+(** This is the jkind of normal ocaml values and null pointers. *)
 val value : why:value_creation_reason -> t
+
+(** This is the jkind of normal ocaml values. They have sort Value. *)
+val non_null_value : why:non_null_value_creation_reason -> t
 
 (** Values of types of this jkind are immediate on 64-bit platforms; on other
     platforms, we know nothing other than that it's a value. *)
@@ -300,6 +303,12 @@ val set_printtyp_path : (Format.formatter -> Path.t -> unit) -> unit
 val has_imported_history : t -> bool
 
 val update_reason : t -> creation_reason -> t
+
+(* Mark the jkind as having produced a compiler warning. *)
+val with_warning : t -> t
+
+(* Whether this jkind has produced a compiler warning. *)
+val has_warned : t -> bool
 
 (******************************)
 (* relations *)

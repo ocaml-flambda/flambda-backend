@@ -44,11 +44,11 @@ type t = nativeint#
 *)
 
 (* Unboxed-specific stuff at the top. *)
-external to_nativeint : t -> (nativeint[@local_opt]) = "%box_nativeint"
+external to_nativeint : t -> (nativeint[@local_opt]) = "%box_nativeint" [@@warning "-187"]
 (** Box a [nativeint#] *)
 
 external of_nativeint : (nativeint[@local_opt]) -> t =
-  "%unbox_nativeint"
+  "%unbox_nativeint" [@@warning "-187"]
 (** Unbox a boxed [nativeint] *)
 
 (* Below here, everything also appears in [Nativeint], though most things are

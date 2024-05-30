@@ -177,17 +177,19 @@ let oper_result_type = function
   | Csubf Float32 | Cmulf Float32 | Cdivf Float32 -> typ_float32
   | Cpackf32 -> typ_float
   | Ccsel ty -> ty
-  | Cvalueofint -> typ_val
-  | Cintofvalue -> typ_int
-  | Cvectorcast Bits128 -> typ_vec128
-  | Cscalarcast (Float32_as_float | Float_of_float32 | Float_of_int Float64) -> typ_float
-  | Cscalarcast (Float_to_float32 | Float_of_int Float32) -> typ_float32
-  | Cscalarcast (Float_to_int (Float64 | Float32)) -> typ_int
-  | Cscalarcast (V128_of_scalar _) -> typ_vec128
-  | Cscalarcast (V128_to_scalar (Float64x2 | Float32x4)) ->
+  | Creinterpret_cast Value_of_int -> typ_val
+  | Creinterpret_cast V128_of_v128 -> typ_vec128
+  | Creinterpret_cast (Float_of_int64 | Float_of_float32) -> typ_float
+  | Creinterpret_cast (Float32_of_int32 | Float32_of_float) -> typ_float32
+  | Creinterpret_cast (Int_of_value | Int64_of_float | Int32_of_float32) -> typ_int
+  | Cstatic_cast (Float_of_float32 | Float_of_int Float64) -> typ_float
+  | Cstatic_cast (Float32_of_float | Float_of_int Float32) -> typ_float32
+  | Cstatic_cast (Int_of_float (Float64 | Float32)) -> typ_int
+  | Cstatic_cast (V128_of_scalar _) -> typ_vec128
+  | Cstatic_cast (Scalar_of_v128 (Float64x2 | Float32x4)) ->
     (* CR mslater: (SIMD) replace once we have unboxed float32 *)
     typ_float
-  | Cscalarcast (V128_to_scalar (Int8x16 | Int16x8 | Int32x4 | Int64x2)) -> typ_int
+  | Cstatic_cast (Scalar_of_v128 (Int8x16 | Int16x8 | Int32x4 | Int64x2)) -> typ_int
   | Craise _ -> typ_void
   | Cprobe _ -> typ_void
   | Cprobe_is_enabled _ -> typ_int
@@ -503,8 +505,7 @@ method is_simple_expr = function
       | Cbswap _
       | Ccsel _
       | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _ | Cpackf32
-      | Cvectorcast _ | Cscalarcast _
-      | Cvalueofint | Cintofvalue
+      | Creinterpret_cast _ | Cstatic_cast _
       | Ctuple_field _
       | Ccmpf _ | Cdls_get -> List.for_all self#is_simple_expr args
       end
@@ -561,8 +562,8 @@ method effects_of exp =
       | Cclz _ | Cctz _ | Cpopcnt
       | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _
       | Cnegf _ | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _ | Cpackf32
-      | Cvectorcast _ | Cscalarcast _
-      | Cvalueofint | Cintofvalue | Ccmpf _ ->
+      | Creinterpret_cast _ | Cstatic_cast _
+      | Ccmpf _ ->
         EC.none
     in
     EC.join from_op (EC.join_list_map args self#effects_of)
@@ -685,10 +686,8 @@ method select_operation op args _dbg =
   | (Csubf w, _) -> (Ifloatop (w, Isubf), args)
   | (Cmulf w, _) -> (Ifloatop (w, Imulf), args)
   | (Cdivf w, _) -> (Ifloatop (w, Idivf), args)
-  | (Cvalueofint, _) -> (Ivalueofint, args)
-  | (Cintofvalue, _) -> (Iintofvalue, args)
-  | (Cvectorcast cast, _) -> (Ivectorcast cast, args)
-  | (Cscalarcast cast, _) -> (Iscalarcast cast, args)
+  | (Creinterpret_cast cast, _) -> (Ireinterpret_cast cast, args)
+  | (Cstatic_cast cast, _) -> (Istatic_cast cast, args)
   | (Catomic {op = Fetch_and_add; size}, [src; dst]) ->
     let dst_size = match size with Word | Sixtyfour -> Word_int | Thirtytwo -> Thirtytwo_signed in
     let (addr, eloc) = self#select_addressing dst_size dst in

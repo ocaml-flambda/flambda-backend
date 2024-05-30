@@ -1,6 +1,6 @@
 # Introduction to Local Allocations
 
-See also the full feature [reference](local-reference.md) and [common pitfalls](local-pitfalls.md).
+See also the full feature [reference](reference.md) and [common pitfalls](pitfalls.md).
 
 Instead of allocating values normally on the GC heap, local
 allocations allow you to stack-allocate values using the new `local_`
@@ -18,13 +18,9 @@ let x = local_ { foo; bar } in
 ...
 ```
 
-To enable this feature, you need to pass the `-extension local` flag
-to the compiler. Without this flag, `local_` is not recognized as a
-keyword.
-
 These values live on a separate stack, and are popped off at the end
 of the _region_. Generally, the region ends when the surrounding
-function returns, although read [the reference](local-reference.md) for more
+function returns, although read [the reference](reference.md) for more
 details.
 
 This helps performance in a couple of ways: first, the same few hot
@@ -36,7 +32,7 @@ zero-alloc.
 However, for this to be safe, local allocations must genuinely be
 local. Since the memory they occupy is reused quickly, we must ensure
 that no dangling references to them escape. This is checked by the
-typechecker, and you'll see new error messages if local values leak:
+type-checker, and you'll see new error messages if local values leak:
 
 ```ocaml
 # let local_ thing = { foo; bar } in
@@ -111,9 +107,8 @@ val uses_callback : f:(local_ int Foo.Table.t -> 'a) -> 'a
 ## Inference
 
 The examples above use the `local_` keyword to mark local
-allocations. In fact, this is not necessary, and the compiler will
-use local allocations by default where possible, as long as the
-`-extension local` flag is enabled.
+allocations. In fact, this is not necessary, and the compiler will use
+local allocations by default where possible.
 
 The only effect of the keyword on e.g. a let binding is to change the
 behavior for escaping values: if the bound value looks like it escapes
@@ -130,40 +125,37 @@ Inference does not work across files: if you want e.g. to pass a local
 argument to a function in another module, you'll need to explicitly
 mark the local parameter in the other module's mli.
 
-
-
-
 ## More control
 
 There are a number of other features that allow more precise control
 over which values are locally allocated, including:
 
   - **Local closures**:
-  
+
     ```ocaml
     let local_ f a b c = ...
     ```
-    
+
     defines a function `f` whose closure is itself locally allocated.
-    
+
   - **Local-returning functions**
-  
+
     ```ocaml
     let f a b c = local_
       ...
     ```
-    
+
     defines a function `f` which returns local allocations into its
     caller's region.
-    
+
   - **Global fields**
-  
+
     ```ocaml
     type 'a t = { global_ g : 'a }
     ```
-    
+
     defines a record type `t` whose `g` field is always known to be on
     the GC heap (and may therefore freely escape regions), even though
     the record itself may be locally allocated.
 
-For more details, read [the reference](./local-reference.md).
+For more details, read [the reference](./reference.md).

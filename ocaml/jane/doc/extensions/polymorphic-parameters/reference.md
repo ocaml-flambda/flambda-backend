@@ -1,4 +1,4 @@
-## Polymorphic parameters
+# Polymorphic parameters
 
 The *polymorphic parameters* extension allows you to have function
 parameters with polymorphic types. For example, a function could
