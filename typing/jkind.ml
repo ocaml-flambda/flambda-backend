@@ -1014,6 +1014,11 @@ end = struct
     | Polymorphic_variant -> fprintf ppf "it's a polymorphic variant type"
     | Arrow -> fprintf ppf "it's a function type"
     | First_class_module -> fprintf ppf "it's a first-class module type"
+    | Type_argument { parent_path; position; arity } ->
+      fprintf ppf "the %stype argument of %a has layout %s"
+        (format_position ~arity position)
+        !printtyp_path parent_path
+        (Legacy.string_of_const Non_null_value)
 
   let format_float64_creation_reason ppf : float64_creation_reason -> _ =
     function
@@ -1416,6 +1421,9 @@ module Debug_printers = struct
     | Polymorphic_variant -> fprintf ppf "Polymorphic_variant"
     | Arrow -> fprintf ppf "Arrow"
     | First_class_module -> fprintf ppf "First_class_module"
+    | Type_argument { parent_path; position; arity } ->
+      fprintf ppf "Type_argument (pos %d, arity %d) of %a" position arity
+        !printtyp_path parent_path
 
   let float64_creation_reason ppf : float64_creation_reason -> _ = function
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
