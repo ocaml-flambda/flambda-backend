@@ -455,21 +455,14 @@ and traverse_cont_handler :
 and traverse_apply denv acc apply : rev_expr =
   let default_acc acc =
     (* TODO regions? *)
-    let () =
-      List.iter (fun arg -> Acc.used ~denv arg acc) (Apply_expr.args apply)
-    in
-    let () =
-      match Apply_expr.callee apply with
-      | None -> ()
-      | Some callee -> Acc.used ~denv callee acc
-    in
-    let () =
-      match Apply_expr.call_kind apply with
-      | Function _ -> ()
-      | Method { obj; kind = _; alloc_mode = _ } -> Acc.used ~denv obj acc
-      | C_call _ -> ()
-    in
-    ()
+    List.iter (fun arg -> Acc.used ~denv arg acc) (Apply_expr.args apply);
+    (match Apply_expr.callee apply with
+    | None -> ()
+    | Some callee -> Acc.used ~denv callee acc);
+    match Apply_expr.call_kind apply with
+    | Function _ -> ()
+    | Method { obj; kind = _; alloc_mode = _ } -> Acc.used ~denv obj acc
+    | C_call _ -> ()
   in
   let return_args =
     match Apply_expr.continuation apply with
