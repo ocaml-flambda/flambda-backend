@@ -129,28 +129,6 @@ and traverse_let denv acc let_expr : rev_expr =
         bound_pattern, body)
   in
   let defining_expr = Let.defining_expr let_expr in
-  let known_field_of_block field block =
-    Simple.pattern_match field
-      ~name:(fun _ ~coercion:_ -> None)
-      ~const:(fun cst ->
-        Simple.pattern_match block
-          ~const:(fun _ -> None)
-            (* CR ncourant: it seems this const case can happen with the
-             * following code:
-             *
-             * let[@inline] f b x = if b then Lazy.force x else 0
-             * let g b = f b (lazy 0)
-             *
-             * It is unclear why it has not been transformed by an Invalid by
-             * simplify, however.
-             *)
-          ~name:(fun block ~coercion:_ ->
-            match[@ocaml.warning "-4"] Int_ids.Const.descr cst with
-            | Tagged_immediate i ->
-              let i = Targetint_31_63.to_int_exn i in
-              Some (i, block)
-            | _ -> assert false))
-  in
   let record acc name dep = Acc.record_dep ~denv name dep acc in
   let default_bp acc dep =
     let bound_to = Bound_pattern.free_names bound_pattern in
@@ -229,67 +207,8 @@ and traverse_let denv acc let_expr : rev_expr =
               fields
           | Set_of_closures _ -> assert false
           | _ -> ())
-    | Prim (prim, _dbg) -> begin
-      let () =
-        let kind = Flambda_primitive.result_kind' prim in
-        let name =
-          Name.var
-            (Bound_var.var (Bound_pattern.must_be_singleton bound_pattern))
-        in
-        Acc.kind name kind acc
-      in
-      match[@ocaml.warning "-4"] prim with
-      | Variadic (Make_block (_, _mutability, _), fields) ->
-        List.iteri
-          (fun i field ->
-            Simple.pattern_match field
-              ~name:(fun name ~coercion:_ ->
-                default_bp acc (Block (Block i, Code_id_or_name.name name)))
-              ~const:(fun _ -> ()))
-          fields
-      | Unary (Project_function_slot { move_from = _; move_to }, block) ->
-        let block =
-          Simple.pattern_match block
-            ~name:(fun name ~coercion:_ -> name)
-            ~const:(fun _ -> assert false)
-        in
-        default_bp acc (Field (Function_slot move_to, block))
-      | Unary (Project_value_slot { project_from = _; value_slot }, block) ->
-        let block =
-          Simple.pattern_match block
-            ~name:(fun name ~coercion:_ -> name)
-            ~const:(fun _ -> assert false)
-        in
-        default_bp acc (Field (Value_slot value_slot, block))
-      | Binary (Block_load (_access_kind, _mutability), block, field) -> begin
-        (* Loads from mutable blocks are tracked here. This is ok as long as
-           store are properly tracked also. This is a flow insensitive
-           dependency analysis: this might produce surprising results
-           sometimes *)
-        match known_field_of_block field block with
-        | None -> default acc
-        | Some (field, block) -> default_bp acc (Field (Block field, block))
-      end
-      | Unary (Is_int _, arg) ->
-        Simple.pattern_match arg
-          ~name:(fun name ~coercion:_ -> default_bp acc (Field (Is_int, name)))
-          ~const:(fun _ -> ())
-      | Unary (Get_tag, arg) ->
-        Simple.pattern_match arg
-          ~name:(fun name ~coercion:_ -> default_bp acc (Field (Get_tag, name)))
-          ~const:(fun _ -> ())
-      | prim ->
-        let () =
-          match Flambda_primitive.effects_and_coeffects prim with
-          | Arbitrary_effects, _, _ ->
-            let bound_to = Bound_pattern.free_names bound_pattern in
-            Name_occurrences.fold_names bound_to
-              ~f:(fun () bound_to -> Acc.used ~denv (Simple.name bound_to) acc)
-              ~init:()
-          | _ -> ()
-        in
-        default acc
-    end
+    | Prim (prim, _dbg) ->
+      traverse_prim denv acc ~bound_pattern prim ~default ~default_bp
     | Simple s ->
       (* TODO kind *)
       let () =
@@ -350,6 +269,88 @@ and traverse_let denv acc let_expr : rev_expr =
       current_code_id = denv.current_code_id
     }
     acc body
+
+and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
+    ~(default_bp : acc -> Graph.Dep.t -> unit) =
+  let known_field_of_block field block =
+    Simple.pattern_match field
+      ~name:(fun _ ~coercion:_ -> None)
+      ~const:(fun cst ->
+        Simple.pattern_match block
+          ~const:(fun _ -> None)
+            (* CR ncourant: it seems this const case can happen with the
+             * following code:
+             *
+             * let[@inline] f b x = if b then Lazy.force x else 0
+             * let g b = f b (lazy 0)
+             *
+             * It is unclear why it has not been transformed by an Invalid by
+             * simplify, however.
+             *)
+          ~name:(fun block ~coercion:_ ->
+            match[@ocaml.warning "-4"] Int_ids.Const.descr cst with
+            | Tagged_immediate i ->
+              let i = Targetint_31_63.to_int_exn i in
+              Some (i, block)
+            | _ -> assert false))
+  in
+  let () =
+    let kind = Flambda_primitive.result_kind' prim in
+    let name =
+      Name.var (Bound_var.var (Bound_pattern.must_be_singleton bound_pattern))
+    in
+    Acc.kind name kind acc
+  in
+  match[@ocaml.warning "-4"] prim with
+  | Variadic (Make_block (_, _mutability, _), fields) ->
+    List.iteri
+      (fun i field ->
+        Simple.pattern_match field
+          ~name:(fun name ~coercion:_ ->
+            default_bp acc (Block (Block i, Code_id_or_name.name name)))
+          ~const:(fun _ -> ()))
+      fields
+  | Unary (Project_function_slot { move_from = _; move_to }, block) ->
+    let block =
+      Simple.pattern_match block
+        ~name:(fun name ~coercion:_ -> name)
+        ~const:(fun _ -> assert false)
+    in
+    default_bp acc (Field (Function_slot move_to, block))
+  | Unary (Project_value_slot { project_from = _; value_slot }, block) ->
+    let block =
+      Simple.pattern_match block
+        ~name:(fun name ~coercion:_ -> name)
+        ~const:(fun _ -> assert false)
+    in
+    default_bp acc (Field (Value_slot value_slot, block))
+  | Binary (Block_load (_access_kind, _mutability), block, field) -> begin
+    (* Loads from mutable blocks are tracked here. This is ok as long as store
+       are properly tracked also. This is a flow insensitive dependency
+       analysis: this might produce surprising results sometimes *)
+    match known_field_of_block field block with
+    | None -> default acc
+    | Some (field, block) -> default_bp acc (Field (Block field, block))
+  end
+  | Unary (Is_int _, arg) ->
+    Simple.pattern_match arg
+      ~name:(fun name ~coercion:_ -> default_bp acc (Field (Is_int, name)))
+      ~const:(fun _ -> ())
+  | Unary (Get_tag, arg) ->
+    Simple.pattern_match arg
+      ~name:(fun name ~coercion:_ -> default_bp acc (Field (Get_tag, name)))
+      ~const:(fun _ -> ())
+  | prim ->
+    let () =
+      match Flambda_primitive.effects_and_coeffects prim with
+      | Arbitrary_effects, _, _ ->
+        let bound_to = Bound_pattern.free_names bound_pattern in
+        Name_occurrences.fold_names bound_to
+          ~f:(fun () bound_to -> Acc.used ~denv (Simple.name bound_to) acc)
+          ~init:()
+      | _ -> ()
+    in
+    default acc
 
 and traverse_let_cont denv acc (let_cont : Let_cont.t) : rev_expr =
   match let_cont with
