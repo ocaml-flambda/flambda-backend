@@ -379,9 +379,7 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
 
 let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
   match Flambda.Expr.descr expr with
-  | Invalid { message } ->
-    let expr = Invalid { message } in
-    { expr; holed_expr = denv.parent }
+  | Invalid { message } -> traverse_invalid denv acc ~message
   | Switch switch -> traverse_switch denv acc switch
   | Apply_cont apply_cont -> traverse_apply_cont denv acc apply_cont
   | Apply apply -> traverse_apply denv acc apply
@@ -871,6 +869,10 @@ and traverse_switch denv acc switch : rev_expr =
       (fun _ apply_cont -> apply_cont_deps denv acc apply_cont)
       (Switch_expr.arms switch)
   in
+  { expr; holed_expr = denv.parent }
+
+and traverse_invalid denv _acc ~message =
+  let expr = Invalid { message } in
   { expr; holed_expr = denv.parent }
 
 and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
