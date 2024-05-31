@@ -447,24 +447,24 @@ and traverse_cont_handler :
 and traverse_apply denv acc apply : rev_expr =
   let default_acc acc =
     (* TODO regions? *)
-    List.iter (fun arg -> Acc.used ~denv arg acc) (Apply_expr.args apply);
-    (match Apply_expr.callee apply with
+    List.iter (fun arg -> Acc.used ~denv arg acc) (Apply.args apply);
+    (match Apply.callee apply with
     | None -> ()
     | Some callee -> Acc.used ~denv callee acc);
-    match Apply_expr.call_kind apply with
+    match Apply.call_kind apply with
     | Function _ -> ()
     | Method { obj; kind = _; alloc_mode = _ } -> Acc.used ~denv obj acc
     | C_call _ -> ()
   in
   let return_args =
-    match Apply_expr.continuation apply with
+    match Apply.continuation apply with
     | Never_returns -> None
     | Return cont -> (
       match Continuation.Map.find cont denv.conts with
       | Normal params -> Some params)
   in
   let exn_arg =
-    let exn = Apply_expr.exn_continuation apply in
+    let exn = Apply.exn_continuation apply in
     let extra_args = Exn_continuation.extra_args exn in
     let (Normal exn_params) =
       Continuation.Map.find (Exn_continuation.exn_handler exn) denv.conts
@@ -482,7 +482,7 @@ and traverse_apply denv acc apply : rev_expr =
   { expr; holed_expr = denv.parent }
 
 and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
-  match Apply_expr.call_kind apply with
+  match Apply.call_kind apply with
   | Function { function_call = Direct code_id; _ } ->
     (* TODO think about whether we should propagate that cross module. Probably
        not *)
@@ -491,8 +491,8 @@ and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
       let apply_dep =
         { Traverse_acc.apply_in_func = denv.current_code_id;
           apply_code_id = code_id;
-          apply_params = Apply_expr.args apply;
-          apply_closure = Apply_expr.callee apply;
+          apply_params = Apply.args apply;
+          apply_closure = Apply.callee apply;
           apply_return = return_args;
           apply_exn = exn_arg
         }
@@ -504,9 +504,9 @@ and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
     else default_acc acc
   | Function
       { function_call = Indirect_unknown_arity | Indirect_known_arity; _ } ->
-    List.iter (fun arg -> Acc.used ~denv arg acc) (Apply_expr.args apply);
+    List.iter (fun arg -> Acc.used ~denv arg acc) (Apply.args apply);
     let callee =
-      match Apply_expr.callee apply with
+      match Apply.callee apply with
       | None -> assert false
       | Some callee ->
         Simple.pattern_match
@@ -514,7 +514,7 @@ and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
           ~const:(fun _ -> assert false)
           callee
     in
-    let arity = Apply_expr.args_arity apply in
+    let arity = Apply.args_arity apply in
     let partial_apply = ref callee in
     let calls_are_not_pure = Variable.create "not_pure" in
     Acc.used ~denv (Simple.var calls_are_not_pure) acc;
