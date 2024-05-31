@@ -117,7 +117,7 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
 let rec traverse (denv : denv) (acc : acc) (expr : Expr.t) : rev_expr =
   match Expr.descr expr with
   | Let let_expr -> traverse_let denv acc let_expr
-  | Let_cont let_cont -> begin traverse_let_cont denv acc let_cont end
+  | Let_cont let_cont -> traverse_let_cont denv acc let_cont
   | Apply apply -> traverse_apply denv acc apply
   | Apply_cont apply_cont -> traverse_apply_cont denv acc apply_cont
   | Switch switch -> traverse_switch denv acc switch
@@ -265,14 +265,13 @@ and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
         ~const:(fun _ -> assert false)
     in
     default_bp acc (Field (Value_slot value_slot, block))
-  | Binary (Block_load (_access_kind, _mutability), block, field) -> begin
+  | Binary (Block_load (_access_kind, _mutability), block, field) -> (
     (* Loads from mutable blocks are tracked here. This is ok as long as store
        are properly tracked also. This is a flow insensitive dependency
        analysis: this might produce surprising results sometimes *)
     match known_field_of_block field block with
     | None -> default acc
-    | Some (field, block) -> default_bp acc (Field (Block field, block))
-  end
+    | Some (field, block) -> default_bp acc (Field (Block field, block)))
   | Unary (Is_int _, arg) ->
     Simple.pattern_match arg
       ~name:(fun name ~coercion:_ -> default_bp acc (Field (Is_int, name)))
@@ -380,7 +379,7 @@ and traverse_let_cont denv acc (let_cont : Let_cont.t) : rev_expr =
               }
             in
             traverse denv acc body))
-  | Recursive handlers -> begin
+  | Recursive handlers ->
     (* Warning non tail rec on traverse_cont_handler, probably OK *)
     Recursive_let_cont_handlers.pattern_match handlers
       ~f:(fun ~invariant_params ~body handlers ->
@@ -441,7 +440,6 @@ and traverse_let_cont denv acc (let_cont : Let_cont.t) : rev_expr =
           }
         in
         traverse denv acc body)
-  end
 
 and traverse_cont_handler :
     type a.
@@ -525,7 +523,6 @@ and traverse_apply denv acc apply : rev_expr =
       else default_acc acc
     | Function
         { function_call = Indirect_unknown_arity | Indirect_known_arity; _ } ->
-      begin
       let () =
         List.iter (fun arg -> Acc.used ~denv arg acc) (Apply_expr.args apply)
       in
@@ -575,7 +572,6 @@ and traverse_apply denv acc apply : rev_expr =
         (Code_id_or_name.var exn_arg)
         (Field (Apply Exn, !partial_apply))
         acc
-    end
     | Method _ | C_call _ -> default_acc acc
   in
   let expr = Apply apply in

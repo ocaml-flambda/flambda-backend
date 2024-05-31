@@ -141,10 +141,9 @@ module Make_Fixpoint (G : Graph) = struct
       List.iter (fun id -> Queue.push id q) ids;
       let push n =
         if Node.Set.mem n !q_s
-        then begin
+        then (
           Queue.push n q;
-          q_s := Node.Set.remove n !q_s
-        end
+          q_s := Node.Set.remove n !q_s)
       in
       let propagate id =
         let current_elt = G.get state id in
@@ -158,7 +157,7 @@ module Make_Fixpoint (G : Graph) = struct
                 let target = G.target dep in
                 let old = G.get state target in
                 if Node.Set.mem target in_loop
-                then begin
+                then (
                   let widened = G.widen state ~old propagated in
                   if not (G.less_equal state widened old)
                   then (
@@ -174,8 +173,7 @@ module Make_Fixpoint (G : Graph) = struct
                     push target;
                     match Hashtbl.find_opt to_recompute_deps target with
                     | None -> ()
-                    | Some elt_deps -> Node.Set.iter push elt_deps)
-                end
+                    | Some elt_deps -> Node.Set.iter push elt_deps))
                 else G.set state target (G.join state old propagated))
             ()
       in
@@ -192,7 +190,7 @@ module Make_Fixpoint (G : Graph) = struct
         (Make_SCC.from_graph graph state)
     in
     if Sys.getenv_opt "SHOWCOMP" <> None
-    then begin
+    then (
       Format.eprintf "ncomps: %d, max size: %d@." (Array.length components)
         (Array.fold_left
            (fun m -> function
@@ -205,8 +203,7 @@ module Make_Fixpoint (G : Graph) = struct
           | SCC.Has_loop l ->
             Format.eprintf "[%a]@ " (Format.pp_print_list Node.print) l)
         components;
-      Format.eprintf "@."
-    end;
+      Format.eprintf "@.");
     Array.iter
       (fun component -> fixpoint_component graph state component)
       components
@@ -318,16 +315,16 @@ let make_field_elt uses (k : Code_id_or_name.t) =
 let propagate uses (k : Code_id_or_name.t) (elt : elt) (dep : dep) : elt =
   match elt with
   | Bottom -> Bottom
-  | Top | Fields _ -> begin
+  | Top | Fields _ -> (
     match dep with
     | Alias _ -> elt
     | Use _ -> Top
     | Field (f, _) -> Fields (Field.Map.singleton f (make_field_elt uses k))
-    | Block (f, _) -> begin
+    | Block (f, _) -> (
       match elt with
       | Bottom -> assert false
       | Top -> Top
-      | Fields fields -> begin
+      | Fields fields -> (
         try
           let elems =
             match Field.Map.find_opt f fields with
@@ -342,20 +339,15 @@ let propagate uses (k : Code_id_or_name.t) (elt : elt) (dep : dep) : elt =
                 | None -> Bottom
                 | Some e -> e))
             elems Bottom
-        with Exit -> Top
-      end
-    end
-    | Alias_if_def (_, c) -> begin
+        with Exit -> Top))
+    | Alias_if_def (_, c) -> (
       match Hashtbl.find_opt uses (Code_id_or_name.code_id c) with
       | None | Some Bottom -> Bottom
-      | Some (Fields _ | Top) -> elt
-    end
-    | Propagate (_, n) -> begin
+      | Some (Fields _ | Top) -> elt)
+    | Propagate (_, n) -> (
       match Hashtbl.find_opt uses (Code_id_or_name.name n) with
       | None -> Bottom
-      | Some elt -> elt
-    end
-  end
+      | Some elt -> elt))
 
 let propagate_top uses (dep : dep) : bool =
   match dep with
@@ -363,16 +355,14 @@ let propagate_top uses (dep : dep) : bool =
   | Use _ -> true
   | Field _ -> false
   | Block (_, _) -> true
-  | Alias_if_def (_, c) -> begin
+  | Alias_if_def (_, c) -> (
     match Hashtbl.find_opt uses (Code_id_or_name.code_id c) with
     | None | Some Bottom -> false
-    | Some (Fields _ | Top) -> true
-  end
-  | Propagate (_, n2) -> begin
+    | Some (Fields _ | Top) -> true)
+  | Propagate (_, n2) -> (
     match Hashtbl.find_opt uses (Code_id_or_name.name n2) with
     | None | Some (Bottom | Fields _) -> false
-    | Some Top -> true
-  end
+    | Some Top -> true)
 
 type result = (Code_id_or_name.t, elt) Hashtbl.t
 
