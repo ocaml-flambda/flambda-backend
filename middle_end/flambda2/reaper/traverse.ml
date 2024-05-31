@@ -129,7 +129,6 @@ and traverse_let denv acc let_expr : rev_expr =
         bound_pattern, body)
   in
   let defining_expr = Let.defining_expr let_expr in
-  let record acc name dep = Acc.record_dep ~denv name dep acc in
   let default_bp acc dep =
     let bound_to = Bound_pattern.free_names bound_pattern in
     Name_occurrences.fold_names bound_to
@@ -167,46 +166,7 @@ and traverse_let denv acc let_expr : rev_expr =
       record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
         acc
     | Static_consts group ->
-      (* TODO kind *)
-      let bound_static =
-        match bound_pattern with
-        | Static b -> b
-        | Singleton _ | Set_of_closures _ -> assert false
-      in
-      let () =
-        Static_const_group.match_against_bound_static group bound_static
-          ~init:()
-          ~code:(fun () -> prepare_code ~denv acc)
-          ~deleted_code:(fun _ _ -> ())
-          ~set_of_closures:(fun _ ~closure_symbols:_ _ -> ())
-          ~block_like:(fun _ _ _ -> ())
-      in
-      Static_const_group.match_against_bound_static group bound_static ~init:()
-        ~code:(fun () _code_id _code ->
-          (* TODO: (is there anything to do here ? *)
-          ())
-        ~deleted_code:(fun () _ -> ())
-        ~set_of_closures:(fun () ~closure_symbols set_of_closures ->
-          let names_and_function_slots =
-            Function_slot.Lmap.map Name.symbol closure_symbols
-          in
-          record_set_of_closures_deps ~denv names_and_function_slots
-            set_of_closures acc)
-        ~block_like:(fun () symbol static_const ->
-          let name = Name.symbol symbol in
-          match[@ocaml.warning "-4"] static_const with
-          | Block (_, _, fields) | Immutable_value_array fields ->
-            List.iteri
-              (fun i (field : Field_of_static_block.t) ->
-                match field with
-                | Symbol s ->
-                  record acc name (Block (Block i, Code_id_or_name.symbol s))
-                | Tagged_immediate _ -> ()
-                | Dynamically_computed (v, _) ->
-                  record acc name (Block (Block i, Code_id_or_name.var v)))
-              fields
-          | Set_of_closures _ -> assert false
-          | _ -> ())
+      traverse_static_consts denv acc ~bound_pattern group
     | Prim (prim, _dbg) ->
       traverse_prim denv acc ~bound_pattern prim ~default ~default_bp
     | Simple s ->
@@ -351,6 +311,48 @@ and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
       | _ -> ()
     in
     default acc
+
+and traverse_static_consts denv acc ~(bound_pattern : Bound_pattern.t) group =
+  let record acc name dep = Acc.record_dep ~denv name dep acc in
+  (* TODO kind *)
+  let bound_static =
+    match bound_pattern with
+    | Static b -> b
+    | Singleton _ | Set_of_closures _ -> assert false
+  in
+  let () =
+    Static_const_group.match_against_bound_static group bound_static ~init:()
+      ~code:(fun () -> prepare_code ~denv acc)
+      ~deleted_code:(fun _ _ -> ())
+      ~set_of_closures:(fun _ ~closure_symbols:_ _ -> ())
+      ~block_like:(fun _ _ _ -> ())
+  in
+  Static_const_group.match_against_bound_static group bound_static ~init:()
+    ~code:(fun () _code_id _code ->
+      (* TODO: (is there anything to do here ? *)
+      ())
+    ~deleted_code:(fun () _ -> ())
+    ~set_of_closures:(fun () ~closure_symbols set_of_closures ->
+      let names_and_function_slots =
+        Function_slot.Lmap.map Name.symbol closure_symbols
+      in
+      record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
+        acc)
+    ~block_like:(fun () symbol static_const ->
+      let name = Name.symbol symbol in
+      match[@ocaml.warning "-4"] static_const with
+      | Block (_, _, fields) | Immutable_value_array fields ->
+        List.iteri
+          (fun i (field : Field_of_static_block.t) ->
+            match field with
+            | Symbol s ->
+              record acc name (Block (Block i, Code_id_or_name.symbol s))
+            | Tagged_immediate _ -> ()
+            | Dynamically_computed (v, _) ->
+              record acc name (Block (Block i, Code_id_or_name.var v)))
+          fields
+      | Set_of_closures _ -> assert false
+      | _ -> ())
 
 and traverse_let_cont denv acc (let_cont : Let_cont.t) : rev_expr =
   match let_cont with
