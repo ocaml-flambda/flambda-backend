@@ -405,16 +405,16 @@ and traverse_let_cont denv acc (let_cont : Let_cont.t) : rev_expr =
         in
         (* Record kinds of bound parameters *)
         let () =
-          List.iter
+          Bound_parameters.iter
             (fun bp -> Acc.bound_parameter_kind bp acc)
-            (Bound_parameters.to_list invariant_params)
+            invariant_params
         in
         let () =
           Continuation.Map.iter
             (fun _ (_, bp, _) ->
-              List.iter
+              Bound_parameters.iter
                 (fun bp -> Acc.bound_parameter_kind bp acc)
-                (Bound_parameters.to_list bp))
+                bp)
             handlers
         in
         let handlers =
@@ -453,9 +453,9 @@ and traverse_cont_handler :
   Continuation_handler.pattern_match cont_handler
     ~f:(fun bound_parameters ~handler ->
       let () =
-        List.iter
+        Bound_parameters.iter
           (fun bp -> Acc.bound_parameter_kind bp acc)
-          (Bound_parameters.to_list bound_parameters)
+          bound_parameters
       in
       let expr = traverse denv acc handler in
       let handler = { bound_parameters; expr; is_exn_handler; is_cold } in
@@ -631,9 +631,7 @@ and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
       if is_opaque
       then List.iter (fun v -> Acc.used ~denv (Simple.var v) acc) (exn :: return);
       let () =
-        List.iter
-          (fun bp -> Acc.bound_parameter_kind bp acc)
-          (Bound_parameters.to_list params)
+        Bound_parameters.iter (fun bp -> Acc.bound_parameter_kind bp acc) params
       in
       Acc.kind (Name.var my_closure) Flambda_kind.value acc;
       Acc.kind (Name.var my_region) Flambda_kind.region acc;
