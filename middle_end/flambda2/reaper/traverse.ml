@@ -143,12 +143,9 @@ and traverse_let denv acc let_expr : rev_expr =
   | Prim (prim, _dbg) ->
     traverse_prim denv acc ~bound_pattern prim ~default ~default_bp
   | Simple s ->
-    let () =
-      let name =
-        Name.var (Bound_var.var (Bound_pattern.must_be_singleton bound_pattern))
-      in
-      Acc.alias_kind name s acc
-    in
+    Acc.alias_kind
+      (Name.var (Bound_var.var (Bound_pattern.must_be_singleton bound_pattern)))
+      s acc;
     Simple.pattern_match s
       ~name:(fun name ~coercion:_ -> default_bp acc (Alias name))
       ~const:(fun _ -> default acc)
