@@ -151,7 +151,6 @@ and traverse_let denv acc let_expr : rev_expr =
     | Prim (prim, _dbg) ->
       traverse_prim denv acc ~bound_pattern prim ~default ~default_bp
     | Simple s ->
-      (* TODO kind *)
       let () =
         let name =
           Name.var
@@ -163,7 +162,6 @@ and traverse_let denv acc let_expr : rev_expr =
         ~name:(fun name ~coercion:_ -> default_bp acc (Alias name))
         ~const:(fun _ -> default acc)
     | Rec_info _ ->
-      (* TODO kind *)
       default acc
   in
   let named : rev_named =
@@ -294,7 +292,6 @@ and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
 
 and traverse_set_of_closures denv acc ~(bound_pattern : Bound_pattern.t)
     set_of_closures =
-  (* TODO kind *)
   let names_and_function_slots =
     let bound_vars =
       match bound_pattern with
@@ -316,7 +313,6 @@ and traverse_set_of_closures denv acc ~(bound_pattern : Bound_pattern.t)
 
 and traverse_static_consts denv acc ~(bound_pattern : Bound_pattern.t) group =
   let record acc name dep = Acc.record_dep ~denv name dep acc in
-  (* TODO kind *)
   let bound_static =
     match bound_pattern with
     | Static b -> b
