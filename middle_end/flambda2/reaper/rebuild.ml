@@ -13,6 +13,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module Float = Numeric_types.Float_by_bit_pattern
+module Float32 = Numeric_types.Float32_by_bit_pattern
+
 module Rebuilt_expr = struct
   type continuation_handler =
     { handler : Flambda.Continuation_handler.t;
@@ -118,14 +121,10 @@ let poison (kind : Flambda_kind.t) =
   match kind with
   | Value -> Simple.const_int (Targetint_31_63.of_int poison_value)
   | Naked_number Naked_float ->
-    Simple.const
-      (RWC.naked_float
-         (Numeric_types.Float_by_bit_pattern.create (float_of_int poison_value)))
+    Simple.const (RWC.naked_float (Float.create (float_of_int poison_value)))
   | Naked_number Naked_float32 ->
     Simple.const
-      (RWC.naked_float32
-         (Numeric_types.Float32_by_bit_pattern.create
-            (float_of_int poison_value)))
+      (RWC.naked_float32 (Float32.create (float_of_int poison_value)))
   | Naked_number Naked_immediate ->
     Simple.const (RWC.naked_immediate (Targetint_31_63.of_int poison_value))
   | Naked_number Naked_int32 ->
@@ -232,11 +231,9 @@ let rewrite_static_const kinds (uses : uses) (sc : Static_const.t) =
     let fields = List.map (rewrite_field_of_static_block kinds uses) fields in
     Static_const.block tag mut fields
   | Boxed_float f ->
-    Static_const.boxed_float
-      (rewrite_or_variable Numeric_types.Float_by_bit_pattern.zero uses f)
+    Static_const.boxed_float (rewrite_or_variable Float.zero uses f)
   | Boxed_float32 f ->
-    Static_const.boxed_float32
-      (rewrite_or_variable Numeric_types.Float32_by_bit_pattern.zero uses f)
+    Static_const.boxed_float32 (rewrite_or_variable Float32.zero uses f)
   | Boxed_int32 n ->
     Static_const.boxed_int32 (rewrite_or_variable Int32.zero uses n)
   | Boxed_int64 n ->
@@ -248,25 +245,13 @@ let rewrite_static_const kinds (uses : uses) (sc : Static_const.t) =
     Static_const.boxed_vec128
       (rewrite_or_variable Vector_types.Vec128.Bit_pattern.zero uses n)
   | Immutable_float_block fields ->
-    let fields =
-      List.map
-        (rewrite_or_variable Numeric_types.Float_by_bit_pattern.zero uses)
-        fields
-    in
+    let fields = List.map (rewrite_or_variable Float.zero uses) fields in
     Static_const.immutable_float_block fields
   | Immutable_float_array fields ->
-    let fields =
-      List.map
-        (rewrite_or_variable Numeric_types.Float_by_bit_pattern.zero uses)
-        fields
-    in
+    let fields = List.map (rewrite_or_variable Float.zero uses) fields in
     Static_const.immutable_float_array fields
   | Immutable_float32_array fields ->
-    let fields =
-      List.map
-        (rewrite_or_variable Numeric_types.Float32_by_bit_pattern.zero uses)
-        fields
-    in
+    let fields = List.map (rewrite_or_variable Float32.zero uses) fields in
     Static_const.immutable_float32_array fields
   | Immutable_value_array fields ->
     let fields = List.map (rewrite_field_of_static_block kinds uses) fields in
