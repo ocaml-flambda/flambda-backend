@@ -61,11 +61,9 @@ let print_rawflambda ppf unit =
     (Flambda_features.dump_rawfexpr ())
     ~header:"After CPS conversion" ~f:pp_flambda_as_fexpr unit
 
-let print_flambda name ppf unit =
+let print_flambda name condition ppf unit =
   let header = "After " ^ name in
-  dump_if_enabled ppf
-    (Flambda_features.dump_flambda ())
-    ~header ~f:Flambda_unit.print unit;
+  dump_if_enabled ppf condition ~header ~f:Flambda_unit.print unit;
   dump_to_target_if_any ppf
     (Flambda_features.dump_fexpr ())
     ~header ~f:pp_flambda_as_fexpr unit
@@ -163,7 +161,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
           in
           Compiler_hooks.execute Inlining_tree inlining_tree);
         Compiler_hooks.execute Flambda2 flambda;
-        print_flambda "simplify" ppf flambda;
+        print_flambda "simplify" (Flambda_features.dump_simplify ()) ppf flambda;
         print_flexpect "simplify" ppf ~raw_flambda flambda;
         let flambda, free_names, all_code, slot_offsets =
           match Sys.getenv_opt "CLEANUP" with
@@ -174,7 +172,9 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
               Profile.record_call ~accumulate:true "reaper" (fun () ->
                   Flambda2_reaper.Reaper.run ~cmx_loader flambda)
             in
-            print_flambda "reaper" ppf flambda;
+            print_flambda "reaper"
+              (Flambda_features.dump_flambda ())
+              ppf flambda;
             print_flexpect "reaper" ppf ~raw_flambda flambda;
             flambda, free_names, all_code, slot_offsets
         in
