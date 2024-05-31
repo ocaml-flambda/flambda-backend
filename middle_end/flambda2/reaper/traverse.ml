@@ -391,10 +391,7 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
         (Switch_expr.arms switch)
     in
     { expr; holed_expr = denv.parent }
-  | Apply_cont apply_cont ->
-    let expr = Apply_cont apply_cont in
-    apply_cont_deps denv acc apply_cont;
-    { expr; holed_expr = denv.parent }
+  | Apply_cont apply_cont -> traverse_apply_cont denv acc apply_cont
   | Apply apply -> traverse_apply denv acc apply
   | Let_cont let_cont -> begin traverse_let_cont denv acc let_cont end
   | Let let_expr -> traverse_let denv acc let_expr
@@ -844,6 +841,11 @@ and traverse_apply denv acc apply : rev_expr =
     | Method _ | C_call _ -> default_acc acc
   in
   let expr = Apply apply in
+  { expr; holed_expr = denv.parent }
+
+and traverse_apply_cont denv acc apply_cont : rev_expr =
+  let expr = Apply_cont apply_cont in
+  apply_cont_deps denv acc apply_cont;
   { expr; holed_expr = denv.parent }
 
 and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
