@@ -362,23 +362,26 @@ and traverse_let_cont denv acc (let_cont : Let_cont.t) : rev_expr =
       { handler; num_free_occurrences = _; is_applied_with_traps = _ } ->
     Non_recursive_let_cont_handler.pattern_match handler ~f:(fun cont ~body ->
         let cont_handler = Non_recursive_let_cont_handler.handler handler in
+        let traverse handler acc =
+          let conts =
+            Continuation.Map.add cont
+              (Normal (Bound_parameters.vars handler.bound_parameters))
+              denv.conts
+          in
+          let denv =
+            { parent = Let_cont { cont; handler; parent = denv.parent };
+              conts;
+              current_code_id = denv.current_code_id
+            }
+          in
+          traverse denv acc body
+        in
         traverse_cont_handler
           { parent = Up;
             conts = denv.conts;
             current_code_id = denv.current_code_id
-          } acc cont_handler (fun handler acc ->
-            let conts =
-              Continuation.Map.add cont
-                (Normal (Bound_parameters.vars handler.bound_parameters))
-                denv.conts
-            in
-            let denv =
-              { parent = Let_cont { cont; handler; parent = denv.parent };
-                conts;
-                current_code_id = denv.current_code_id
-              }
-            in
-            traverse denv acc body))
+          }
+          acc cont_handler traverse)
   | Recursive handlers ->
     (* Warning non tail rec on traverse_cont_handler, probably OK *)
     Recursive_let_cont_handlers.pattern_match handlers
