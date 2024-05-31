@@ -113,8 +113,8 @@ module P = struct
         Graph.Dep.Set.iter (fun dst -> edge ~ctx ppf src dst) dst_set)
       t.Graph.name_to_dep
 
-  let code_deps ~ctx ~code_id ~print_color ppf (code_dep : Traverse_acc.code_dep)
-      =
+  let code_deps ~ctx ~code_id ~print_color ppf
+      (code_dep : Traverse_acc.code_dep) =
     node ~ctx ~root:false ~print_color ppf (Code_id_or_name.code_id code_id);
     node ~ctx ~root:false ~print_color ppf
       (Code_id_or_name.var code_dep.my_closure);
