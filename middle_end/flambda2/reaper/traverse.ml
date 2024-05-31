@@ -15,14 +15,14 @@
 
 open! Flambda.Import
 open! Rev_expr
-open! Rebuild_denv
-module Acc = Rebuild_acc
+open! Traverse_denv
+module Acc = Traverse_acc
 module Graph = Global_flow_graph
 module Dot = Dot_printer
 
-type denv = Rebuild_denv.t
+type denv = Traverse_denv.t
 
-type acc = Rebuild_acc.t
+type acc = Traverse_acc.t
 
 let apply_cont_deps denv acc apply_cont =
   let cont = Apply_cont_expr.continuation apply_cont in
@@ -52,7 +52,7 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
     | Assume _ -> false
     | Check _ -> true
   in
-  let code_dep = { Rebuild_acc.arity; return; my_closure; exn; params } in
+  let code_dep = { Traverse_acc.arity; return; my_closure; exn; params } in
   let () =
     if has_unsafe_result_type
     then
@@ -510,7 +510,7 @@ and traverse_apply denv acc apply : rev_expr =
       if Compilation_unit.is_current (Code_id.get_compilation_unit code_id)
       then (
         let apply_dep =
-          { Rebuild_acc.apply_in_func = denv.current_code_id;
+          { Traverse_acc.apply_in_func = denv.current_code_id;
             apply_code_id = code_id;
             apply_params = Apply_expr.args apply;
             apply_closure = Apply_expr.callee apply;

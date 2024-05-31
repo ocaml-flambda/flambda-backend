@@ -109,7 +109,7 @@ let func_param_dep ~denv:_ param arg t =
 
 let root v t = Graph.add_use t.deps (Code_id_or_name.var v)
 
-let used ~(denv : Rebuild_denv.t) dep t =
+let used ~(denv : Traverse_denv.t) dep t =
   Simple.pattern_match dep
     ~name:(fun name ~coercion:_ ->
       match denv.current_code_id with
@@ -123,7 +123,7 @@ let used ~(denv : Rebuild_denv.t) dep t =
 let used_code_id code_id t =
   Graph.add_use t.deps (Code_id_or_name.code_id code_id)
 
-let called ~(denv : Rebuild_denv.t) code_id t =
+let called ~(denv : Traverse_denv.t) code_id t =
   match denv.current_code_id with
   | None -> Graph.add_called t.deps code_id
   | Some code_id2 ->

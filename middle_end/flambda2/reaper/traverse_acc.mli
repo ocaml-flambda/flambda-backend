@@ -44,26 +44,26 @@ val alias_kind : Name.t -> Simple.t -> t -> unit
 
 val kinds : t -> Flambda_kind.t Name.Map.t
 
-val record_dep : denv:Rebuild_denv.t -> Name.t -> Graph.Dep.t -> t -> unit
+val record_dep : denv:Traverse_denv.t -> Name.t -> Graph.Dep.t -> t -> unit
 
 val record_dep' :
-  denv:Rebuild_denv.t -> Code_id_or_name.t -> Graph.Dep.t -> t -> unit
+  denv:Traverse_denv.t -> Code_id_or_name.t -> Graph.Dep.t -> t -> unit
 
 val record_deps :
-  denv:Rebuild_denv.t -> Code_id_or_name.t -> Graph.Dep.Set.t -> t -> unit
+  denv:Traverse_denv.t -> Code_id_or_name.t -> Graph.Dep.Set.t -> t -> unit
 
-val cont_dep : denv:Rebuild_denv.t -> Variable.t -> Simple.t -> t -> unit
+val cont_dep : denv:Traverse_denv.t -> Variable.t -> Simple.t -> t -> unit
 
 val func_param_dep :
-  denv:Rebuild_denv.t -> Bound_parameter.t -> Variable.t -> t -> unit
+  denv:Traverse_denv.t -> Bound_parameter.t -> Variable.t -> t -> unit
 
 val root : Variable.t -> t -> unit
 
-val used : denv:Rebuild_denv.t -> Simple.t -> t -> unit
+val used : denv:Traverse_denv.t -> Simple.t -> t -> unit
 
 val used_code_id : Code_id.t -> t -> unit
 
-val called : denv:Rebuild_denv.t -> Code_id.t -> t -> unit
+val called : denv:Traverse_denv.t -> Code_id.t -> t -> unit
 
 val add_apply : apply_dep -> t -> unit
 
