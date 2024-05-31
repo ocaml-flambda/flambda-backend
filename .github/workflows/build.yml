@@ -20,6 +20,10 @@ jobs:
             config: --enable-middle-end=flambda2 --enable-runtime5
             os: ubuntu-latest
 
+          - name: flambda2_dev
+            config: --enable-middle-end=flambda2 --enable-dev
+            os: ubuntu-latest
+
           - name: flambda2_debug_runtime5
             config: --enable-middle-end=flambda2 --enable-runtime5
             os: ubuntu-latest
