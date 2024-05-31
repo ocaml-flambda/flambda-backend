@@ -13,6 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Flambda.Import
 open! Rev_expr
 module Graph = Global_flow_graph
 module Dot = Dot_printer
@@ -377,8 +378,8 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
       Acc.record_deps ~denv (Code_id_or_name.name name) deps acc)
     names_and_function_slots
 
-let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
-  match Flambda.Expr.descr expr with
+let rec traverse (denv : denv) (acc : acc) (expr : Expr.t) : rev_expr =
+  match Expr.descr expr with
   | Let let_expr -> traverse_let denv acc let_expr
   | Let_cont let_cont -> begin traverse_let_cont denv acc let_cont end
   | Apply apply -> traverse_apply denv acc apply
@@ -386,12 +387,12 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
   | Switch switch -> traverse_switch denv acc switch
   | Invalid { message } -> traverse_invalid denv acc ~message
 
-and traverse_let denv acc (let_expr : Flambda.let_expr) : rev_expr =
+and traverse_let denv acc let_expr : rev_expr =
   let bound_pattern, body =
-    Flambda.Let_expr.pattern_match let_expr ~f:(fun bound_pattern ~body ->
+    Let.pattern_match let_expr ~f:(fun bound_pattern ~body ->
         bound_pattern, body)
   in
-  let defining_expr = Flambda.Let_expr.defining_expr let_expr in
+  let defining_expr = Let.defining_expr let_expr in
   let known_field_of_block field block =
     Simple.pattern_match field
       ~name:(fun _ ~coercion:_ -> None)
@@ -424,7 +425,7 @@ and traverse_let denv acc (let_expr : Flambda.let_expr) : rev_expr =
       ~f:(fun () free_name ->
         default_bp acc (Graph.Dep.Use (Code_id_or_name.name free_name)))
       ~init:()
-      (Flambda.Named.free_names defining_expr)
+      (Named.free_names defining_expr)
   in
   let () =
     match defining_expr with
@@ -457,15 +458,14 @@ and traverse_let denv acc (let_expr : Flambda.let_expr) : rev_expr =
         | Singleton _ | Set_of_closures _ -> assert false
       in
       let () =
-        Flambda.Static_const_group.match_against_bound_static group bound_static
+        Static_const_group.match_against_bound_static group bound_static
           ~init:()
           ~code:(fun () -> prepare_code ~denv acc)
           ~deleted_code:(fun _ _ -> ())
           ~set_of_closures:(fun _ ~closure_symbols:_ _ -> ())
           ~block_like:(fun _ _ _ -> ())
       in
-      Flambda.Static_const_group.match_against_bound_static group bound_static
-        ~init:()
+      Static_const_group.match_against_bound_static group bound_static ~init:()
         ~code:(fun () _code_id _code ->
           (* TODO: (is there anything to do here ? *)
           ())
@@ -593,7 +593,7 @@ and traverse_let denv acc (let_expr : Flambda.let_expr) : rev_expr =
         | Singleton _ | Set_of_closures _ -> assert false
       in
       let rev_group =
-        Flambda.Static_const_group.match_against_bound_static group bound_static
+        Static_const_group.match_against_bound_static group bound_static
           ~init:[]
           ~code:(fun rev_group code_id code ->
             let code = traverse_code acc code_id code in
@@ -623,15 +623,12 @@ and traverse_let denv acc (let_expr : Flambda.let_expr) : rev_expr =
     }
     acc body
 
-and traverse_let_cont denv acc (let_cont : Flambda.let_cont_expr) : rev_expr =
+and traverse_let_cont denv acc (let_cont : Let_cont.t) : rev_expr =
   match let_cont with
   | Non_recursive
       { handler; num_free_occurrences = _; is_applied_with_traps = _ } ->
-    Flambda.Non_recursive_let_cont_handler.pattern_match handler
-      ~f:(fun cont ~body ->
-        let cont_handler =
-          Flambda.Non_recursive_let_cont_handler.handler handler
-        in
+    Non_recursive_let_cont_handler.pattern_match handler ~f:(fun cont ~body ->
+        let cont_handler = Non_recursive_let_cont_handler.handler handler in
         traverse_cont_handler
           { parent = Up;
             conts = denv.conts;
@@ -651,16 +648,16 @@ and traverse_let_cont denv acc (let_cont : Flambda.let_cont_expr) : rev_expr =
             traverse denv acc body))
   | Recursive handlers -> begin
     (* Warning non tail rec on traverse_cont_handler, probably OK *)
-    Flambda.Recursive_let_cont_handlers.pattern_match handlers
+    Recursive_let_cont_handlers.pattern_match handlers
       ~f:(fun ~invariant_params ~body handlers ->
         let invariant_params_vars = Bound_parameters.vars invariant_params in
         let handlers =
           Continuation.Map.map
             (fun cont_handler ->
-              Flambda.Continuation_handler.pattern_match cont_handler
+              Continuation_handler.pattern_match cont_handler
                 ~f:(fun bound_parameters ~handler ->
                   cont_handler, bound_parameters, handler))
-            (Flambda.Continuation_handlers.to_map handlers)
+            (Continuation_handlers.to_map handlers)
         in
         let conts =
           Continuation.Map.fold
@@ -688,9 +685,9 @@ and traverse_let_cont denv acc (let_cont : Flambda.let_cont_expr) : rev_expr =
           Continuation.Map.fold
             (fun cont (cont_handler, bound_parameters, handler) handlers ->
               let is_exn_handler =
-                Flambda.Continuation_handler.is_exn_handler cont_handler
+                Continuation_handler.is_exn_handler cont_handler
               in
-              let is_cold = Flambda.Continuation_handler.is_cold cont_handler in
+              let is_cold = Continuation_handler.is_cold cont_handler in
               let expr =
                 traverse
                   { parent = Up; conts; current_code_id = denv.current_code_id }
@@ -714,17 +711,11 @@ and traverse_let_cont denv acc (let_cont : Flambda.let_cont_expr) : rev_expr =
 
 and traverse_cont_handler :
     type a.
-    denv ->
-    acc ->
-    Flambda.Continuation_handler.t ->
-    (cont_handler -> acc -> a) ->
-    a =
+    denv -> acc -> Continuation_handler.t -> (cont_handler -> acc -> a) -> a =
  fun denv acc cont_handler k ->
-  let is_exn_handler =
-    Flambda.Continuation_handler.is_exn_handler cont_handler
-  in
-  let is_cold = Flambda.Continuation_handler.is_cold cont_handler in
-  Flambda.Continuation_handler.pattern_match cont_handler
+  let is_exn_handler = Continuation_handler.is_exn_handler cont_handler in
+  let is_cold = Continuation_handler.is_cold cont_handler in
+  Continuation_handler.pattern_match cont_handler
     ~f:(fun bound_parameters ~handler ->
       let () =
         List.iter
@@ -883,7 +874,7 @@ and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
      it is highly unclear what should be done for zero_alloc code, so we simply
      mark the code as escaping. *)
   let is_opaque = Code_metadata.is_opaque code_metadata in
-  Flambda.Function_params_and_body.pattern_match params_and_body
+  Function_params_and_body.pattern_match params_and_body
     ~f:(fun
          ~return_continuation
          ~exn_continuation
