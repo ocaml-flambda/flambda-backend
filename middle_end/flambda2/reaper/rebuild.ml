@@ -13,10 +13,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Flambda.Import
+open! Rev_expr
 module Float = Numeric_types.Float_by_bit_pattern
 module Float32 = Numeric_types.Float32_by_bit_pattern
 module RE = Rebuilt_expr
-open! Rev_expr
 
 type rev_expr = Rev_expr.t
 
@@ -161,19 +162,16 @@ let rewrite_static_const kinds (uses : uses) (sc : Static_const.t) =
     in
     Static_const.immutable_nativeint_array fields
 
-let rewrite_static_const_or_code kinds uses (sc : Flambda.static_const_or_code)
-    =
+let rewrite_static_const_or_code kinds uses (sc : Static_const_or_code.t) =
   match sc with
   | Code _ -> sc
   | Deleted_code -> sc
   | Static_const sc ->
-    Flambda.Static_const_or_code.create_static_const
+    Static_const_or_code.create_static_const
       (rewrite_static_const kinds uses sc)
 
-let rewrite_static_const_group kinds uses (group : Flambda.static_const_group) =
-  Flambda.Static_const_group.map
-    ~f:(rewrite_static_const_or_code kinds uses)
-    group
+let rewrite_static_const_group kinds uses (group : Static_const_group.t) =
+  Static_const_group.map ~f:(rewrite_static_const_or_code kinds uses) group
 
 let rewrite_set_of_closures bound (uses : uses) value_slots alloc_mode
     function_decls =
@@ -219,18 +217,16 @@ let rewrite_set_of_closures bound (uses : uses) value_slots alloc_mode
   (* TODO remove unused function slots as well *)
   Set_of_closures.create ~value_slots alloc_mode function_decls
 
-let rewrite_named kinds uses (named : Flambda.named) =
+let rewrite_named kinds uses (named : Named.t) =
   match named with
-  | Simple simple ->
-    Flambda.Named.create_simple (rewrite_simple kinds uses simple)
+  | Simple simple -> Named.create_simple (rewrite_simple kinds uses simple)
   | Prim (prim, dbg) ->
     let prim = Flambda_primitive.map_args (rewrite_simple kinds uses) prim in
-    Flambda.Named.create_prim prim dbg
-  | Set_of_closures s -> Flambda.Named.create_set_of_closures s (* TODO *)
+    Named.create_prim prim dbg
+  | Set_of_closures s -> Named.create_set_of_closures s (* TODO *)
   | Static_consts sc ->
-    Flambda.Named.create_static_consts
-      (rewrite_static_const_group kinds uses sc)
-  | Rec_info r -> Flambda.Named.create_rec_info r
+    Named.create_static_consts (rewrite_static_const_group kinds uses sc)
+  | Rec_info r -> Named.create_rec_info r
 
 let rewrite_apply_cont_expr kinds uses ac =
   Apply_cont_expr.with_continuation_and_args ac
@@ -243,10 +239,10 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
   let expr, free_names =
     match expr with
     | Invalid { message } ->
-      Flambda.Expr.create_invalid (Message message), Name_occurrences.empty
+      Expr.create_invalid (Message message), Name_occurrences.empty
     | Apply_cont ac ->
       let ac = rewrite_apply_cont_expr kinds uses ac in
-      Flambda.Expr.create_apply_cont ac, Apply_cont_expr.free_names ac
+      Expr.create_apply_cont ac, Apply_cont_expr.free_names ac
     | Switch switch ->
       let switch =
         Switch_expr.create
@@ -259,7 +255,7 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
                (rewrite_apply_cont_expr kinds uses)
                (Switch_expr.arms switch))
       in
-      Flambda.Expr.create_switch switch, Switch_expr.free_names switch
+      Expr.create_switch switch, Switch_expr.free_names switch
     | Apply apply ->
       (* TODO rewrite other simples *)
       let call_kind =
@@ -286,13 +282,12 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
           ~position:(Apply_expr.position apply)
           ~relative_history:(Apply_expr.relative_history apply)
       in
-      Flambda.Expr.create_apply apply, Apply_expr.free_names apply
+      Expr.create_apply apply, Apply_expr.free_names apply
   in
   rebuild_holed kinds uses holed_expr (RE.from_expr ~expr ~free_names)
 
 and rebuild_function_params_and_body (kinds : Flambda_kind.t Name.Map.t)
-    (uses : uses) (params_and_body : rev_params_and_body) :
-    Flambda.function_params_and_body =
+    (uses : uses) (params_and_body : rev_params_and_body) =
   let { return_continuation;
         exn_continuation;
         params;
@@ -304,13 +299,9 @@ and rebuild_function_params_and_body (kinds : Flambda_kind.t Name.Map.t)
     params_and_body
   in
   let body = rebuild_expr kinds uses body in
-  let params_and_body =
-    Flambda.Function_params_and_body.create ~return_continuation
-      ~exn_continuation params ~body:body.expr
-      ~free_names_of_body:(Known body.free_names) ~my_closure ~my_region
-      ~my_depth
-  in
-  params_and_body
+  Function_params_and_body.create ~return_continuation ~exn_continuation params
+    ~body:body.expr ~free_names_of_body:(Known body.free_names) ~my_closure
+    ~my_region ~my_depth
 
 and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
     (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t =
@@ -361,7 +352,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
             in
             let bound_static, group = List.split bound_and_group in
             let static_const_or_code = function
-              | Deleted_code -> Flambda.Static_const_or_code.deleted_code
+              | Deleted_code -> Static_const_or_code.deleted_code
               | Code
                   { params_and_body;
                     code_metadata;
@@ -388,16 +379,15 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
                     ~free_names_of_params_and_body
                 in
                 all_code := Code_id.Map.add (Code.code_id code) code !all_code;
-                Flambda.Static_const_or_code.create_code code
+                Static_const_or_code.create_code code
               | Static_const static_const ->
-                Flambda.Static_const_or_code.create_static_const static_const
+                Static_const_or_code.create_static_const static_const
             in
             let group =
-              Flambda.Static_const_group.create
-                (List.map static_const_or_code group)
+              Static_const_group.create (List.map static_const_or_code group)
             in
             ( Bound_pattern.static (Bound_static.create bound_static),
-              Flambda.Named.create_static_consts group )
+              Named.create_static_consts group )
           | Set_of_closures { value_slots; alloc_mode; function_decls } ->
             let bound =
               match let_.bound_pattern with
@@ -414,8 +404,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
             all_slot_offsets
               := Slot_offsets.add_set_of_closures !all_slot_offsets ~is_phantom
                    set_of_closures;
-            ( let_.bound_pattern,
-              Flambda.Named.create_set_of_closures set_of_closures )
+            let_.bound_pattern, Named.create_set_of_closures set_of_closures
         in
         let defining_expr = rewrite_named kinds uses defining_expr in
         RE.create_let bp defining_expr ~body:hole
@@ -455,7 +444,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
     rebuild_holed kinds uses parent let_cont_expr
 
 type result =
-  { body : Flambda.Expr.t;
+  { body : Expr.t;
     free_names : Name_occurrences.t;
     all_code : Code.t Code_id.Map.t;
     slot_offsets : Slot_offsets.t
