@@ -145,26 +145,7 @@ and traverse_let denv acc let_expr : rev_expr =
   let () =
     match defining_expr with
     | Set_of_closures set_of_closures ->
-      (* TODO kind *)
-      let names_and_function_slots =
-        let bound_vars =
-          match bound_pattern with
-          | Set_of_closures set -> set
-          | Static _ | Singleton _ -> assert false
-        in
-        let funs =
-          Function_declarations.funs_in_order
-            (Set_of_closures.function_decls set_of_closures)
-        in
-        Function_slot.Lmap.of_list
-          (List.map2
-             (fun function_slot bound_var ->
-               function_slot, Name.var (Bound_var.var bound_var))
-             (Function_slot.Lmap.keys funs)
-             bound_vars)
-      in
-      record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
-        acc
+      traverse_set_of_closures denv acc ~bound_pattern set_of_closures
     | Static_consts group ->
       traverse_static_consts denv acc ~bound_pattern group
     | Prim (prim, _dbg) ->
@@ -311,6 +292,28 @@ and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
       | _ -> ()
     in
     default acc
+
+and traverse_set_of_closures denv acc ~(bound_pattern : Bound_pattern.t)
+    set_of_closures =
+  (* TODO kind *)
+  let names_and_function_slots =
+    let bound_vars =
+      match bound_pattern with
+      | Set_of_closures set -> set
+      | Static _ | Singleton _ -> assert false
+    in
+    let funs =
+      Function_declarations.funs_in_order
+        (Set_of_closures.function_decls set_of_closures)
+    in
+    Function_slot.Lmap.of_list
+      (List.map2
+         (fun function_slot bound_var ->
+           function_slot, Name.var (Bound_var.var bound_var))
+         (Function_slot.Lmap.keys funs)
+         bound_vars)
+  in
+  record_set_of_closures_deps ~denv names_and_function_slots set_of_closures acc
 
 and traverse_static_consts denv acc ~(bound_pattern : Bound_pattern.t) group =
   let record acc name dep = Acc.record_dep ~denv name dep acc in
