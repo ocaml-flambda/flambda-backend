@@ -257,9 +257,9 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
     | Apply apply ->
       (* TODO rewrite other simples
 
-         mshinwell: I'll move this to a function on Apply_expr and fix it *)
+         mshinwell: I'll move this to a function on Apply and fix it *)
       let call_kind =
-        match Apply_expr.call_kind apply with
+        match Apply.call_kind apply with
         | Function _ as ck -> ck (* todo alloc_mode? *)
         | Method { kind; obj; alloc_mode } ->
           (* todo alloc_mode? *)
@@ -269,20 +269,19 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
         | C_call _ as ck -> ck
       in
       let apply =
-        Apply_expr.create
-          ~callee:(rewrite_simple_opt uses (Apply_expr.callee apply))
-          ~continuation:(Apply_expr.continuation apply)
-          (Apply_expr.exn_continuation apply)
-          ~args:(List.map (rewrite_simple kinds uses) (Apply_expr.args apply))
-          ~args_arity:(Apply_expr.args_arity apply)
-          ~return_arity:(Apply_expr.return_arity apply)
-          ~call_kind (Apply_expr.dbg apply) ~inlined:(Apply_expr.inlined apply)
-          ~inlining_state:(Apply_expr.inlining_state apply)
-          ~probe:(Apply_expr.probe apply)
-          ~position:(Apply_expr.position apply)
-          ~relative_history:(Apply_expr.relative_history apply)
+        Apply.create
+          ~callee:(rewrite_simple_opt uses (Apply.callee apply))
+          ~continuation:(Apply.continuation apply)
+          (Apply.exn_continuation apply)
+          ~args:(List.map (rewrite_simple kinds uses) (Apply.args apply))
+          ~args_arity:(Apply.args_arity apply)
+          ~return_arity:(Apply.return_arity apply) ~call_kind (Apply.dbg apply)
+          ~inlined:(Apply.inlined apply)
+          ~inlining_state:(Apply.inlining_state apply)
+          ~probe:(Apply.probe apply) ~position:(Apply.position apply)
+          ~relative_history:(Apply.relative_history apply)
       in
-      Expr.create_apply apply, Apply_expr.free_names apply
+      Expr.create_apply apply, Apply.free_names apply
   in
   rebuild_holed kinds uses holed_expr (RE.from_expr ~expr ~free_names)
 
