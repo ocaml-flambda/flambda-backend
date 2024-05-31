@@ -135,12 +135,14 @@ and traverse_let denv acc let_expr : rev_expr =
       ~const:(fun cst ->
         Simple.pattern_match block
           ~const:(fun _ -> None)
-            (* CR ncourant: it seems this const case can happen with the following code:
+            (* CR ncourant: it seems this const case can happen with the
+             * following code:
              *
              * let[@inline] f b x = if b then Lazy.force x else 0
              * let g b = f b (lazy 0)
              *
-             * It is unclear why it has not been transformed by an Invalid by simplify, however.
+             * It is unclear why it has not been transformed by an Invalid by
+             * simplify, however.
              *)
           ~name:(fun block ~coercion:_ ->
             match[@ocaml.warning "-4"] Int_ids.Const.descr cst with
