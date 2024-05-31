@@ -255,7 +255,9 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
       in
       Expr.create_switch switch, Switch_expr.free_names switch
     | Apply apply ->
-      (* TODO rewrite other simples *)
+      (* TODO rewrite other simples
+
+         mshinwell: I'll move this to a function on Apply_expr and fix it *)
       let call_kind =
         match Apply_expr.call_kind apply with
         | Function _ as ck -> ck (* todo alloc_mode? *)
