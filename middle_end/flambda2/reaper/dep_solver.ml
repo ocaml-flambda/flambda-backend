@@ -301,10 +301,10 @@ let target (dep : dep) : Code_id_or_name.t =
   match dep with
   | Alias { target }
   | Field { target; _ }
-  | Alias_if_def { target ; _ }
-  | Propagate { target; _ } -> Code_id_or_name.name target
-  | Use { target }
-  | Block { target; _ } -> target
+  | Alias_if_def { target; _ }
+  | Propagate { target; _ } ->
+    Code_id_or_name.name target
+  | Use { target } | Block { target; _ } -> target
 
 let make_field_elt uses (k : Code_id_or_name.t) =
   match Hashtbl.find_opt uses k with
@@ -319,12 +319,13 @@ let propagate uses (k : Code_id_or_name.t) (elt : elt) (dep : dep) : elt =
     match dep with
     | Alias _ -> elt
     | Use _ -> Top
-    | Field { relation; _ } -> Fields (Field.Map.singleton relation (make_field_elt uses k))
-    | Block { relation; _ } -> begin
+    | Field { relation; _ } ->
+      Fields (Field.Map.singleton relation (make_field_elt uses k))
+    | Block { relation; _ } -> (
       match elt with
       | Bottom -> assert false
       | Top -> Top
-      | Fields fields -> begin
+      | Fields fields -> (
         try
           let elems =
             match Field.Map.find_opt relation fields with
@@ -339,19 +340,15 @@ let propagate uses (k : Code_id_or_name.t) (elt : elt) (dep : dep) : elt =
                 | None -> Bottom
                 | Some e -> e))
             elems Bottom
-        with Exit -> Top
-      end
-    end
-    | Alias_if_def { if_defined; _ } -> begin
+        with Exit -> Top))
+    | Alias_if_def { if_defined; _ } -> (
       match Hashtbl.find_opt uses (Code_id_or_name.code_id if_defined) with
       | None | Some Bottom -> Bottom
-      | Some (Fields _ | Top) -> elt
-    end
-    | Propagate { source; _ } -> begin
+      | Some (Fields _ | Top) -> elt)
+    | Propagate { source; _ } -> (
       match Hashtbl.find_opt uses (Code_id_or_name.name source) with
       | None -> Bottom
-      | Some elt -> elt
-    end)
+      | Some elt -> elt))
 
 let propagate_top uses (dep : dep) : bool =
   match dep with
@@ -359,16 +356,14 @@ let propagate_top uses (dep : dep) : bool =
   | Use _ -> true
   | Field _ -> false
   | Block _ -> true
-  | Alias_if_def { if_defined; _ } -> begin
+  | Alias_if_def { if_defined; _ } -> (
     match Hashtbl.find_opt uses (Code_id_or_name.code_id if_defined) with
     | None | Some Bottom -> false
-    | Some (Fields _ | Top) -> true
-  end
-  | Propagate { source; _ } -> begin
+    | Some (Fields _ | Top) -> true)
+  | Propagate { source; _ } -> (
     match Hashtbl.find_opt uses (Code_id_or_name.name source) with
     | None | Some (Bottom | Fields _) -> false
-    | Some Top -> true
-  end
+    | Some Top -> true)
 
 type result = (Code_id_or_name.t, elt) Hashtbl.t
 

@@ -38,10 +38,22 @@ module Dep : sig
   type t =
     | Alias of { target : Name.t }
     | Use of { target : Code_id_or_name.t }
-    | Field of { target : Name.t; relation : Field.t }
-    | Block of { target : Code_id_or_name.t; relation : Field.t }
-    | Alias_if_def of { target : Name.t; if_defined : Code_id.t }
-    | Propagate of { target : Name.t; source : Name.t }
+    | Field of
+        { target : Name.t;
+          relation : Field.t
+        }
+    | Block of
+        { target : Code_id_or_name.t;
+          relation : Field.t
+        }
+    | Alias_if_def of
+        { target : Name.t;
+          if_defined : Code_id.t
+        }
+    | Propagate of
+        { target : Name.t;
+          source : Name.t
+        }
 
   val print : Format.formatter -> t -> unit
 

@@ -89,7 +89,10 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
           ~const:(fun _ -> set)
           ~name:(fun name ~coercion:_ ->
             Graph.Dep.Set.add
-              (Block { relation = Value_slot value_slot; target =  Code_id_or_name.name name })
+              (Block
+                 { relation = Value_slot value_slot;
+                   target = Code_id_or_name.name name
+                 })
               set)
           simple)
       (Set_of_closures.value_slots set_of_closures)
@@ -99,7 +102,10 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
     Function_slot.Lmap.fold
       (fun function_slot name set ->
         Graph.Dep.Set.add
-          (Block { relation = Function_slot function_slot; target = Code_id_or_name.name name })
+          (Block
+             { relation = Function_slot function_slot;
+               target = Code_id_or_name.name name
+             })
           set)
       names_and_function_slots deps
   in
@@ -232,7 +238,8 @@ and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
       (fun i field ->
         Simple.pattern_match field
           ~name:(fun name ~coercion:_ ->
-            default_bp acc (Block { relation = Block i; target = Code_id_or_name.name name }))
+            default_bp acc
+              (Block { relation = Block i; target = Code_id_or_name.name name }))
           ~const:(fun _ -> ()))
       fields
   | Unary (Project_function_slot { move_from = _; move_to }, block) ->
@@ -256,14 +263,17 @@ and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
     (* CR mshinwell: give examples of surprising results *)
     match known_field_of_block field block with
     | None -> default acc
-    | Some (field, block) -> default_bp acc (Field { relation = Block field; target = block }))
+    | Some (field, block) ->
+      default_bp acc (Field { relation = Block field; target = block }))
   | Unary (Is_int _, arg) ->
     Simple.pattern_match arg
-      ~name:(fun name ~coercion:_ -> default_bp acc (Field { relation = Is_int; target = name }))
+      ~name:(fun name ~coercion:_ ->
+        default_bp acc (Field { relation = Is_int; target = name }))
       ~const:(fun _ -> ())
   | Unary (Get_tag, arg) ->
     Simple.pattern_match arg
-      ~name:(fun name ~coercion:_ -> default_bp acc (Field { relation = Get_tag; target = name }))
+      ~name:(fun name ~coercion:_ ->
+        default_bp acc (Field { relation = Get_tag; target = name }))
       ~const:(fun _ -> ())
   | prim ->
     let () =
@@ -329,10 +339,12 @@ and traverse_static_consts denv acc ~(bound_pattern : Bound_pattern.t) group =
           (fun i (field : Field_of_static_block.t) ->
             match field with
             | Symbol s ->
-              record acc name (Block { relation = Block i; target = Code_id_or_name.symbol s })
+              record acc name
+                (Block { relation = Block i; target = Code_id_or_name.symbol s })
             | Tagged_immediate _ -> ()
             | Dynamically_computed (v, _) ->
-              record acc name (Block { relation = Block i; target = Code_id_or_name.var v }))
+              record acc name
+                (Block { relation = Block i; target = Code_id_or_name.var v }))
           fields
       | Set_of_closures _ -> assert false
       | _ -> ())
