@@ -397,245 +397,244 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
     { expr; holed_expr = denv.parent }
   | Apply apply -> traverse_apply denv acc apply
   | Let_cont let_cont -> begin traverse_let_cont denv acc let_cont end
-  | Let let_expr ->
-    let bound_pattern, body =
-      Flambda.Let_expr.pattern_match let_expr ~f:(fun bound_pattern ~body ->
-          bound_pattern, body)
-    in
-    let defining_expr = Flambda.Let_expr.defining_expr let_expr in
-    let known_field_of_block field block =
-      Simple.pattern_match field
-        ~name:(fun _ ~coercion:_ -> None)
-        ~const:(fun cst ->
-          Simple.pattern_match block
-            ~const:(fun _ -> None)
-              (* CR ncourant: it seems this const case can happen with the following code:
-               *
-               * let[@inline] f b x = if b then Lazy.force x else 0
-               * let g b = f b (lazy 0)
-               *
-               * It is unclear why it has not been transformed by an Invalid by simplify, however.
-               *)
-            ~name:(fun block ~coercion:_ ->
-              match[@ocaml.warning "-4"] Int_ids.Const.descr cst with
-              | Tagged_immediate i ->
-                let i = Targetint_31_63.to_int_exn i in
-                Some (i, block)
-              | _ -> assert false))
-    in
-    let record acc name dep = Acc.record_dep ~denv name dep acc in
-    let default_bp acc dep =
-      let bound_to = Bound_pattern.free_names bound_pattern in
-      Name_occurrences.fold_names bound_to
-        ~f:(fun () bound_to -> Acc.record_dep ~denv bound_to dep acc)
-        ~init:()
-    in
-    let default acc =
-      Name_occurrences.fold_names
-        ~f:(fun () free_name ->
-          default_bp acc (Graph.Dep.Use (Code_id_or_name.name free_name)))
-        ~init:()
-        (Flambda.Named.free_names defining_expr)
-    in
-    let () =
-      match defining_expr with
-      | Set_of_closures set_of_closures ->
-        (* TODO kind *)
-        let names_and_function_slots =
-          let bound_vars =
-            match bound_pattern with
-            | Set_of_closures set -> set
-            | Static _ | Singleton _ -> assert false
-          in
-          let funs =
-            Function_declarations.funs_in_order
-              (Set_of_closures.function_decls set_of_closures)
-          in
-          Function_slot.Lmap.of_list
-          @@ List.map2
-               (fun function_slot bound_var ->
-                 function_slot, Name.var (Bound_var.var bound_var))
-               (Function_slot.Lmap.keys funs)
-               bound_vars
-        in
-        record_set_of_closures_deps ~denv names_and_function_slots
-          set_of_closures acc
-      | Static_consts group ->
-        (* TODO kind *)
-        let bound_static =
+  | Let let_expr -> traverse_let denv acc let_expr
+
+and traverse_let denv acc (let_expr : Flambda.let_expr) : rev_expr =
+  let bound_pattern, body =
+    Flambda.Let_expr.pattern_match let_expr ~f:(fun bound_pattern ~body ->
+        bound_pattern, body)
+  in
+  let defining_expr = Flambda.Let_expr.defining_expr let_expr in
+  let known_field_of_block field block =
+    Simple.pattern_match field
+      ~name:(fun _ ~coercion:_ -> None)
+      ~const:(fun cst ->
+        Simple.pattern_match block
+          ~const:(fun _ -> None)
+            (* CR ncourant: it seems this const case can happen with the following code:
+             *
+             * let[@inline] f b x = if b then Lazy.force x else 0
+             * let g b = f b (lazy 0)
+             *
+             * It is unclear why it has not been transformed by an Invalid by simplify, however.
+             *)
+          ~name:(fun block ~coercion:_ ->
+            match[@ocaml.warning "-4"] Int_ids.Const.descr cst with
+            | Tagged_immediate i ->
+              let i = Targetint_31_63.to_int_exn i in
+              Some (i, block)
+            | _ -> assert false))
+  in
+  let record acc name dep = Acc.record_dep ~denv name dep acc in
+  let default_bp acc dep =
+    let bound_to = Bound_pattern.free_names bound_pattern in
+    Name_occurrences.fold_names bound_to
+      ~f:(fun () bound_to -> Acc.record_dep ~denv bound_to dep acc)
+      ~init:()
+  in
+  let default acc =
+    Name_occurrences.fold_names
+      ~f:(fun () free_name ->
+        default_bp acc (Graph.Dep.Use (Code_id_or_name.name free_name)))
+      ~init:()
+      (Flambda.Named.free_names defining_expr)
+  in
+  let () =
+    match defining_expr with
+    | Set_of_closures set_of_closures ->
+      (* TODO kind *)
+      let names_and_function_slots =
+        let bound_vars =
           match bound_pattern with
-          | Static b -> b
-          | Singleton _ | Set_of_closures _ -> assert false
+          | Set_of_closures set -> set
+          | Static _ | Singleton _ -> assert false
         in
-        let () =
-          Flambda.Static_const_group.match_against_bound_static group
-            bound_static ~init:()
-            ~code:(fun () -> prepare_code ~denv acc)
-            ~deleted_code:(fun _ _ -> ())
-            ~set_of_closures:(fun _ ~closure_symbols:_ _ -> ())
-            ~block_like:(fun _ _ _ -> ())
+        let funs =
+          Function_declarations.funs_in_order
+            (Set_of_closures.function_decls set_of_closures)
         in
+        Function_slot.Lmap.of_list
+        @@ List.map2
+             (fun function_slot bound_var ->
+               function_slot, Name.var (Bound_var.var bound_var))
+             (Function_slot.Lmap.keys funs)
+             bound_vars
+      in
+      record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
+        acc
+    | Static_consts group ->
+      (* TODO kind *)
+      let bound_static =
+        match bound_pattern with
+        | Static b -> b
+        | Singleton _ | Set_of_closures _ -> assert false
+      in
+      let () =
         Flambda.Static_const_group.match_against_bound_static group bound_static
           ~init:()
-          ~code:(fun () _code_id _code ->
-            (* TODO: (is there anything to do here ? *)
-            ())
-          ~deleted_code:(fun () _ -> ())
-          ~set_of_closures:(fun () ~closure_symbols set_of_closures ->
-            let names_and_function_slots =
-              Function_slot.Lmap.map Name.symbol closure_symbols
-            in
-            record_set_of_closures_deps ~denv names_and_function_slots
-              set_of_closures acc)
-          ~block_like:(fun () symbol static_const ->
-            let name = Name.symbol symbol in
-            match[@ocaml.warning "-4"] static_const with
-            | Block (_, _, fields) | Immutable_value_array fields ->
-              List.iteri
-                (fun i (field : Field_of_static_block.t) ->
-                  match field with
-                  | Symbol s ->
-                    record acc name
-                      (Graph.Dep.Block
-                         (Graph.Field.Block i, Code_id_or_name.symbol s))
-                  | Tagged_immediate _ -> ()
-                  | Dynamically_computed (v, _) ->
-                    record acc name
-                      (Graph.Dep.Block
-                         (Graph.Field.Block i, Code_id_or_name.var v)))
-                fields
-            | Set_of_closures _ -> assert false
-            | _ -> ())
-      | Prim (prim, _dbg) -> begin
-        let () =
-          let kind = Flambda_primitive.result_kind' prim in
-          let name =
-            Name.var @@ Bound_var.var
-            @@ Bound_pattern.must_be_singleton bound_pattern
+          ~code:(fun () -> prepare_code ~denv acc)
+          ~deleted_code:(fun _ _ -> ())
+          ~set_of_closures:(fun _ ~closure_symbols:_ _ -> ())
+          ~block_like:(fun _ _ _ -> ())
+      in
+      Flambda.Static_const_group.match_against_bound_static group bound_static
+        ~init:()
+        ~code:(fun () _code_id _code ->
+          (* TODO: (is there anything to do here ? *)
+          ())
+        ~deleted_code:(fun () _ -> ())
+        ~set_of_closures:(fun () ~closure_symbols set_of_closures ->
+          let names_and_function_slots =
+            Function_slot.Lmap.map Name.symbol closure_symbols
           in
-          Acc.kind name kind acc
-        in
-        match[@ocaml.warning "-4"] prim with
-        | Variadic (Make_block (_, _mutability, _), fields) ->
-          List.iteri
-            (fun i field ->
-              Simple.pattern_match field
-                ~name:(fun name ~coercion:_ ->
-                  default_bp acc
+          record_set_of_closures_deps ~denv names_and_function_slots
+            set_of_closures acc)
+        ~block_like:(fun () symbol static_const ->
+          let name = Name.symbol symbol in
+          match[@ocaml.warning "-4"] static_const with
+          | Block (_, _, fields) | Immutable_value_array fields ->
+            List.iteri
+              (fun i (field : Field_of_static_block.t) ->
+                match field with
+                | Symbol s ->
+                  record acc name
                     (Graph.Dep.Block
-                       (Graph.Field.Block i, Code_id_or_name.name name)))
-                ~const:(fun _ -> ()))
-            fields
-        | Unary (Project_function_slot { move_from = _; move_to }, block) ->
-          let block =
-            Simple.pattern_match block
-              ~name:(fun name ~coercion:_ -> name)
-              ~const:(fun _ -> assert false)
-          in
-          let dep = Graph.Dep.Field (Function_slot move_to, block) in
-          default_bp acc dep
-        | Unary (Project_value_slot { project_from = _; value_slot }, block) ->
-          let block =
-            Simple.pattern_match block
-              ~name:(fun name ~coercion:_ -> name)
-              ~const:(fun _ -> assert false)
-          in
-          let dep = Graph.Dep.Field (Value_slot value_slot, block) in
-          default_bp acc dep
-        | Binary (Block_load (_access_kind, _mutability), block, field) -> begin
-          (* Loads from mutable blocks are tracked here. This is ok as long as
-             store are properly tracked also. This is a flow insensitive
-             dependency analysis: this might produce surprising results
-             sometimes *)
-          match known_field_of_block field block with
-          | None -> default acc
-          | Some (field, block) ->
-            default_bp acc (Graph.Dep.Field (Block field, block))
-        end
-        | Unary (Is_int _, arg) ->
-          Simple.pattern_match arg
-            ~name:(fun name ~coercion:_ ->
-              default_bp acc (Graph.Dep.Field (Is_int, name)))
-            ~const:(fun _ -> ())
-        | Unary (Get_tag, arg) ->
-          Simple.pattern_match arg
-            ~name:(fun name ~coercion:_ ->
-              default_bp acc (Graph.Dep.Field (Get_tag, name)))
-            ~const:(fun _ -> ())
-        | prim ->
-          let () =
-            match Flambda_primitive.effects_and_coeffects prim with
-            | Arbitrary_effects, _, _ ->
-              let bound_to = Bound_pattern.free_names bound_pattern in
-              Name_occurrences.fold_names bound_to
-                ~f:(fun () bound_to ->
-                  Acc.used ~denv (Simple.name bound_to) acc)
-                ~init:()
-            | _ -> ()
-          in
-          default acc
+                       (Graph.Field.Block i, Code_id_or_name.symbol s))
+                | Tagged_immediate _ -> ()
+                | Dynamically_computed (v, _) ->
+                  record acc name
+                    (Graph.Dep.Block (Graph.Field.Block i, Code_id_or_name.var v)))
+              fields
+          | Set_of_closures _ -> assert false
+          | _ -> ())
+    | Prim (prim, _dbg) -> begin
+      let () =
+        let kind = Flambda_primitive.result_kind' prim in
+        let name =
+          Name.var @@ Bound_var.var
+          @@ Bound_pattern.must_be_singleton bound_pattern
+        in
+        Acc.kind name kind acc
+      in
+      match[@ocaml.warning "-4"] prim with
+      | Variadic (Make_block (_, _mutability, _), fields) ->
+        List.iteri
+          (fun i field ->
+            Simple.pattern_match field
+              ~name:(fun name ~coercion:_ ->
+                default_bp acc
+                  (Graph.Dep.Block
+                     (Graph.Field.Block i, Code_id_or_name.name name)))
+              ~const:(fun _ -> ()))
+          fields
+      | Unary (Project_function_slot { move_from = _; move_to }, block) ->
+        let block =
+          Simple.pattern_match block
+            ~name:(fun name ~coercion:_ -> name)
+            ~const:(fun _ -> assert false)
+        in
+        let dep = Graph.Dep.Field (Function_slot move_to, block) in
+        default_bp acc dep
+      | Unary (Project_value_slot { project_from = _; value_slot }, block) ->
+        let block =
+          Simple.pattern_match block
+            ~name:(fun name ~coercion:_ -> name)
+            ~const:(fun _ -> assert false)
+        in
+        let dep = Graph.Dep.Field (Value_slot value_slot, block) in
+        default_bp acc dep
+      | Binary (Block_load (_access_kind, _mutability), block, field) -> begin
+        (* Loads from mutable blocks are tracked here. This is ok as long as
+           store are properly tracked also. This is a flow insensitive
+           dependency analysis: this might produce surprising results
+           sometimes *)
+        match known_field_of_block field block with
+        | None -> default acc
+        | Some (field, block) ->
+          default_bp acc (Graph.Dep.Field (Block field, block))
       end
-      | Simple s ->
-        (* TODO kind *)
+      | Unary (Is_int _, arg) ->
+        Simple.pattern_match arg
+          ~name:(fun name ~coercion:_ ->
+            default_bp acc (Graph.Dep.Field (Is_int, name)))
+          ~const:(fun _ -> ())
+      | Unary (Get_tag, arg) ->
+        Simple.pattern_match arg
+          ~name:(fun name ~coercion:_ ->
+            default_bp acc (Graph.Dep.Field (Get_tag, name)))
+          ~const:(fun _ -> ())
+      | prim ->
         let () =
-          let name =
-            Name.var @@ Bound_var.var
-            @@ Bound_pattern.must_be_singleton bound_pattern
-          in
-          Acc.alias_kind name s acc
+          match Flambda_primitive.effects_and_coeffects prim with
+          | Arbitrary_effects, _, _ ->
+            let bound_to = Bound_pattern.free_names bound_pattern in
+            Name_occurrences.fold_names bound_to
+              ~f:(fun () bound_to -> Acc.used ~denv (Simple.name bound_to) acc)
+              ~init:()
+          | _ -> ()
         in
-        Simple.pattern_match s
-          ~name:(fun name ~coercion:_ -> default_bp acc (Graph.Dep.Alias name))
-          ~const:(fun _ -> default acc)
-      | Rec_info _ ->
-        (* TODO kind *)
         default acc
-    in
-    let named : rev_named =
-      match defining_expr with
-      | Set_of_closures set_of_closures ->
-        let function_decls = Set_of_closures.function_decls set_of_closures in
-        let value_slots = Set_of_closures.value_slots set_of_closures in
-        let alloc_mode = Set_of_closures.alloc_mode set_of_closures in
-        let set_of_closures = { function_decls; value_slots; alloc_mode } in
-        Set_of_closures set_of_closures
-      | Static_consts group ->
-        let bound_static =
-          match bound_pattern with
-          | Static b -> b
-          | Singleton _ | Set_of_closures _ -> assert false
+    end
+    | Simple s ->
+      (* TODO kind *)
+      let () =
+        let name =
+          Name.var @@ Bound_var.var
+          @@ Bound_pattern.must_be_singleton bound_pattern
         in
-        let rev_group =
-          Flambda.Static_const_group.match_against_bound_static group
-            bound_static ~init:[]
-            ~code:(fun rev_group code_id code ->
-              let code = traverse_code acc code_id code in
-              Code code :: rev_group)
-            ~deleted_code:(fun rev_group _ -> Deleted_code :: rev_group)
-            ~set_of_closures:
-              (fun rev_group ~closure_symbols:_ set_of_closures ->
-              let static_const = Static_const.set_of_closures set_of_closures in
-              Static_const static_const :: rev_group)
-            ~block_like:(fun rev_group _symbol static_const ->
-              (* TODO: register make block deps *)
-              Static_const static_const :: rev_group)
-        in
-        let group = List.rev rev_group in
-        Static_consts group
-      (* TODO set_of_closures in Static_consts *)
-      | Prim _ -> Named defining_expr
-      | Simple _ -> Named defining_expr
-      | Rec_info _ as defining_expr -> Named defining_expr
-    in
-    let let_acc =
-      Let { bound_pattern; defining_expr = named; parent = denv.parent }
-    in
-    traverse
-      { parent = let_acc;
-        conts = denv.conts;
-        current_code_id = denv.current_code_id
-      }
-      acc body
+        Acc.alias_kind name s acc
+      in
+      Simple.pattern_match s
+        ~name:(fun name ~coercion:_ -> default_bp acc (Graph.Dep.Alias name))
+        ~const:(fun _ -> default acc)
+    | Rec_info _ ->
+      (* TODO kind *)
+      default acc
+  in
+  let named : rev_named =
+    match defining_expr with
+    | Set_of_closures set_of_closures ->
+      let function_decls = Set_of_closures.function_decls set_of_closures in
+      let value_slots = Set_of_closures.value_slots set_of_closures in
+      let alloc_mode = Set_of_closures.alloc_mode set_of_closures in
+      let set_of_closures = { function_decls; value_slots; alloc_mode } in
+      Set_of_closures set_of_closures
+    | Static_consts group ->
+      let bound_static =
+        match bound_pattern with
+        | Static b -> b
+        | Singleton _ | Set_of_closures _ -> assert false
+      in
+      let rev_group =
+        Flambda.Static_const_group.match_against_bound_static group bound_static
+          ~init:[]
+          ~code:(fun rev_group code_id code ->
+            let code = traverse_code acc code_id code in
+            Code code :: rev_group)
+          ~deleted_code:(fun rev_group _ -> Deleted_code :: rev_group)
+          ~set_of_closures:(fun rev_group ~closure_symbols:_ set_of_closures ->
+            let static_const = Static_const.set_of_closures set_of_closures in
+            Static_const static_const :: rev_group)
+          ~block_like:(fun rev_group _symbol static_const ->
+            (* TODO: register make block deps *)
+            Static_const static_const :: rev_group)
+      in
+      let group = List.rev rev_group in
+      Static_consts group
+    (* TODO set_of_closures in Static_consts *)
+    | Prim _ -> Named defining_expr
+    | Simple _ -> Named defining_expr
+    | Rec_info _ as defining_expr -> Named defining_expr
+  in
+  let let_acc =
+    Let { bound_pattern; defining_expr = named; parent = denv.parent }
+  in
+  traverse
+    { parent = let_acc;
+      conts = denv.conts;
+      current_code_id = denv.current_code_id
+    }
+    acc body
 
 and traverse_let_cont denv acc (let_cont : Flambda.let_cont_expr) : rev_expr =
   match let_cont with
