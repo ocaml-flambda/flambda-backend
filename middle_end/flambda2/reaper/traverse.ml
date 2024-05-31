@@ -472,7 +472,7 @@ and traverse_apply denv acc apply : rev_expr =
 and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
   match Apply_expr.call_kind apply with
   | Function { function_call = Direct code_id; _ } ->
-    (* TODO think about wether we should propagate that cross module. Probably
+    (* TODO think about whether we should propagate that cross module. Probably
        not *)
     if Compilation_unit.is_current (Code_id.get_compilation_unit code_id)
     then (
