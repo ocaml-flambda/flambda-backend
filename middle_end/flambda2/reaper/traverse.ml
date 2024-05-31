@@ -382,15 +382,7 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
   | Invalid { message } ->
     let expr = Invalid { message } in
     { expr; holed_expr = denv.parent }
-  | Switch switch ->
-    let expr = Switch switch in
-    let () =
-      Acc.used ~denv (Switch_expr.scrutinee switch) acc;
-      Targetint_31_63.Map.iter
-        (fun _ apply_cont -> apply_cont_deps denv acc apply_cont)
-        (Switch_expr.arms switch)
-    in
-    { expr; holed_expr = denv.parent }
+  | Switch switch -> traverse_switch denv acc switch
   | Apply_cont apply_cont -> traverse_apply_cont denv acc apply_cont
   | Apply apply -> traverse_apply denv acc apply
   | Let_cont let_cont -> begin traverse_let_cont denv acc let_cont end
@@ -869,6 +861,16 @@ and traverse_apply denv acc apply : rev_expr =
 and traverse_apply_cont denv acc apply_cont : rev_expr =
   let expr = Apply_cont apply_cont in
   apply_cont_deps denv acc apply_cont;
+  { expr; holed_expr = denv.parent }
+
+and traverse_switch denv acc switch : rev_expr =
+  let expr = Switch switch in
+  let () =
+    Acc.used ~denv (Switch_expr.scrutinee switch) acc;
+    Targetint_31_63.Map.iter
+      (fun _ apply_cont -> apply_cont_deps denv acc apply_cont)
+      (Switch_expr.arms switch)
+  in
   { expr; holed_expr = denv.parent }
 
 and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
