@@ -116,17 +116,19 @@ type uses = Dep_solver.result
 
 let poison_value = 0 (* 123456789 *)
 
+let poison_value_31_63 = Targetint_31_63.of_int poison_value
+
 let poison (kind : Flambda_kind.t) =
   let module RWC = Reg_width_const in
   match kind with
-  | Value -> Simple.const_int (Targetint_31_63.of_int poison_value)
+  | Value -> Simple.const_int poison_value_31_63
   | Naked_number Naked_float ->
     Simple.const (RWC.naked_float (Float.create (float_of_int poison_value)))
   | Naked_number Naked_float32 ->
     Simple.const
       (RWC.naked_float32 (Float32.create (float_of_int poison_value)))
   | Naked_number Naked_immediate ->
-    Simple.const (RWC.naked_immediate (Targetint_31_63.of_int poison_value))
+    Simple.const (RWC.naked_immediate poison_value_31_63)
   | Naked_number Naked_int32 ->
     Simple.const (RWC.naked_int32 (Int32.of_int poison_value))
   | Naked_number Naked_int64 ->
@@ -179,11 +181,11 @@ let rewrite_field_of_static_block _kinds uses (field : Field_of_static_block.t)
   | Symbol sym ->
     if Hashtbl.mem uses (Code_id_or_name.symbol sym)
     then field
-    else Tagged_immediate (Targetint_31_63.of_int poison_value)
+    else Tagged_immediate poison_value_31_63
   | Dynamically_computed (v, _) ->
     if Hashtbl.mem uses (Code_id_or_name.var v)
     then field
-    else Tagged_immediate (Targetint_31_63.of_int poison_value)
+    else Tagged_immediate poison_value_31_63
 
 let rewrite_static_const kinds (uses : uses) (sc : Static_const.t) =
   match sc with
