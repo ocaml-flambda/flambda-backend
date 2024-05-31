@@ -161,8 +161,7 @@ and traverse_let denv acc let_expr : rev_expr =
       Simple.pattern_match s
         ~name:(fun name ~coercion:_ -> default_bp acc (Alias name))
         ~const:(fun _ -> default acc)
-    | Rec_info _ ->
-      default acc
+    | Rec_info _ -> default acc
   in
   let named : rev_named =
     match defining_expr with
@@ -496,81 +495,84 @@ and traverse_apply denv acc apply : rev_expr =
         in
         exn_param
     in
-    match Apply_expr.call_kind apply with
-    | Function { function_call = Direct code_id; _ } ->
-      (* TODO think about wether we should propagate that cross module. Probably
-         not *)
-      if Compilation_unit.is_current (Code_id.get_compilation_unit code_id)
-      then (
-        let apply_dep =
-          { Traverse_acc.apply_in_func = denv.current_code_id;
-            apply_code_id = code_id;
-            apply_params = Apply_expr.args apply;
-            apply_closure = Apply_expr.callee apply;
-            apply_return = return_args;
-            apply_exn = exn_arg
-          }
-        in
-        Acc.add_apply apply_dep acc;
-        (* TODO regions? *)
-        (* TODO record function use *)
-        Acc.called ~denv code_id acc)
-      else default_acc acc
-    | Function
-        { function_call = Indirect_unknown_arity | Indirect_known_arity; _ } ->
-      let () =
-        List.iter (fun arg -> Acc.used ~denv arg acc) (Apply_expr.args apply)
+    traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc
+  in
+  let expr = Apply apply in
+  { expr; holed_expr = denv.parent }
+
+and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
+  match Apply_expr.call_kind apply with
+  | Function { function_call = Direct code_id; _ } ->
+    (* TODO think about wether we should propagate that cross module. Probably
+       not *)
+    if Compilation_unit.is_current (Code_id.get_compilation_unit code_id)
+    then (
+      let apply_dep =
+        { Traverse_acc.apply_in_func = denv.current_code_id;
+          apply_code_id = code_id;
+          apply_params = Apply_expr.args apply;
+          apply_closure = Apply_expr.callee apply;
+          apply_return = return_args;
+          apply_exn = exn_arg
+        }
       in
-      let callee =
-        match Apply_expr.callee apply with
-        | None -> assert false
-        | Some callee ->
-          Simple.pattern_match
-            ~name:(fun callee ~coercion:_ -> callee)
-            ~const:(fun _ -> assert false)
-            callee
-      in
-      let arity = Apply_expr.args_arity apply in
-      let partial_apply = ref callee in
-      let calls_are_not_pure = Variable.create "not_pure" in
-      Acc.used ~denv (Simple.var calls_are_not_pure) acc;
-      for i = 1 to Flambda_arity.num_params arity - 1 do
-        let v = Variable.create (Printf.sprintf "partial_apply_%i" i) in
-        Acc.record_dep' ~denv (Code_id_or_name.var v)
-          (Field (Apply (Normal 0), !partial_apply))
-          acc;
-        Acc.record_dep' ~denv
-          (Code_id_or_name.var exn_arg)
-          (Field (Apply Exn, !partial_apply))
-          acc;
-        Acc.record_dep' ~denv
-          (Code_id_or_name.var calls_are_not_pure)
-          (Field (Code_of_closure, !partial_apply))
-          acc;
-        partial_apply := Name.var v
-      done;
+      Acc.add_apply apply_dep acc;
+      (* TODO regions? *)
+      (* TODO record function use *)
+      Acc.called ~denv code_id acc)
+    else default_acc acc
+  | Function
+      { function_call = Indirect_unknown_arity | Indirect_known_arity; _ } ->
+    let () =
+      List.iter (fun arg -> Acc.used ~denv arg acc) (Apply_expr.args apply)
+    in
+    let callee =
+      match Apply_expr.callee apply with
+      | None -> assert false
+      | Some callee ->
+        Simple.pattern_match
+          ~name:(fun callee ~coercion:_ -> callee)
+          ~const:(fun _ -> assert false)
+          callee
+    in
+    let arity = Apply_expr.args_arity apply in
+    let partial_apply = ref callee in
+    let calls_are_not_pure = Variable.create "not_pure" in
+    Acc.used ~denv (Simple.var calls_are_not_pure) acc;
+    for i = 1 to Flambda_arity.num_params arity - 1 do
+      let v = Variable.create (Printf.sprintf "partial_apply_%i" i) in
+      Acc.record_dep' ~denv (Code_id_or_name.var v)
+        (Field (Apply (Normal 0), !partial_apply))
+        acc;
+      Acc.record_dep' ~denv
+        (Code_id_or_name.var exn_arg)
+        (Field (Apply Exn, !partial_apply))
+        acc;
       Acc.record_dep' ~denv
         (Code_id_or_name.var calls_are_not_pure)
         (Field (Code_of_closure, !partial_apply))
         acc;
-      (match return_args with
-      | None -> ()
-      | Some return_args ->
-        List.iteri
-          (fun i return_arg ->
-            Acc.record_dep' ~denv
-              (Code_id_or_name.var return_arg)
-              (Field (Apply (Normal i), !partial_apply))
-              acc)
-          return_args);
-      Acc.record_dep' ~denv
-        (Code_id_or_name.var exn_arg)
-        (Field (Apply Exn, !partial_apply))
-        acc
-    | Method _ | C_call _ -> default_acc acc
-  in
-  let expr = Apply apply in
-  { expr; holed_expr = denv.parent }
+      partial_apply := Name.var v
+    done;
+    Acc.record_dep' ~denv
+      (Code_id_or_name.var calls_are_not_pure)
+      (Field (Code_of_closure, !partial_apply))
+      acc;
+    (match return_args with
+    | None -> ()
+    | Some return_args ->
+      List.iteri
+        (fun i return_arg ->
+          Acc.record_dep' ~denv
+            (Code_id_or_name.var return_arg)
+            (Field (Apply (Normal i), !partial_apply))
+            acc)
+        return_args);
+    Acc.record_dep' ~denv
+      (Code_id_or_name.var exn_arg)
+      (Field (Apply Exn, !partial_apply))
+      acc
+  | Method _ | C_call _ -> default_acc acc
 
 and traverse_apply_cont denv acc apply_cont : rev_expr =
   let expr = Apply_cont apply_cont in
