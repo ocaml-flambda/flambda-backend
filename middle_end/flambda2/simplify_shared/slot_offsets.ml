@@ -158,10 +158,18 @@ module Layout = struct
     (* Make sure there's a slot at offset 0 *)
     if Numeric_types.Int.Map.mem 0 acc
     then acc
-    else
+    else (
+      if Numeric_types.Int.Map.mem 1 acc
+      then
+        Misc.fatal_errorf
+          "[order_function_slots]: a slots exists at offset 1, no room to \
+           insert a dummy function slot.@\n\
+           Slots: %a@."
+          (Numeric_types.Int.Map.print print_slot)
+          acc;
       Numeric_types.Int.Map.add 0
         (Dummy_function_slot { last_function_slot = false })
-        acc
+        acc)
 
   let mark_last_function_slot map =
     match Numeric_types.Int.Map.max_binding map with
