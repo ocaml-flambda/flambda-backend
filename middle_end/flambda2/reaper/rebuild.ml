@@ -114,30 +114,28 @@ type uses = Dep_solver.result
 let poison_value = 0 (* 123456789 *)
 
 let poison (kind : Flambda_kind.t) =
+  let module RWC = Reg_width_const in
   match kind with
   | Value -> Simple.const_int (Targetint_31_63.of_int poison_value)
   | Naked_number Naked_float ->
     Simple.const
-      (Int_ids.Const.naked_float
+      (RWC.naked_float
          (Numeric_types.Float_by_bit_pattern.create (float_of_int poison_value)))
   | Naked_number Naked_float32 ->
     Simple.const
-      (Int_ids.Const.naked_float32
+      (RWC.naked_float32
          (Numeric_types.Float32_by_bit_pattern.create
             (float_of_int poison_value)))
   | Naked_number Naked_immediate ->
-    Simple.const
-      (Int_ids.Const.naked_immediate (Targetint_31_63.of_int poison_value))
+    Simple.const (RWC.naked_immediate (Targetint_31_63.of_int poison_value))
   | Naked_number Naked_int32 ->
-    Simple.const (Int_ids.Const.naked_int32 (Int32.of_int poison_value))
+    Simple.const (RWC.naked_int32 (Int32.of_int poison_value))
   | Naked_number Naked_int64 ->
-    Simple.const (Int_ids.Const.naked_int64 (Int64.of_int poison_value))
+    Simple.const (RWC.naked_int64 (Int64.of_int poison_value))
   | Naked_number Naked_nativeint ->
-    Simple.const
-      (Int_ids.Const.naked_nativeint (Targetint_32_64.of_int poison_value))
+    Simple.const (RWC.naked_nativeint (Targetint_32_64.of_int poison_value))
   | Naked_number Naked_vec128 ->
-    Simple.const
-      (Int_ids.Const.naked_vec128 Vector_types.Vec128.Bit_pattern.zero)
+    Simple.const (RWC.naked_vec128 Vector_types.Vec128.Bit_pattern.zero)
   | Region | Rec_info ->
     Misc.fatal_errorf "No dummy value available for kind %a" Flambda_kind.print
       kind
