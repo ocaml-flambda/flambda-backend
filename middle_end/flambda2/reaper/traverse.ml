@@ -586,12 +586,6 @@ and traverse_invalid denv _acc ~message =
 
 and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
   let params_and_body = Code.params_and_body code in
-  let code_metadata = Code.code_metadata code in
-  let free_names_of_params_and_body = Code0.free_names code in
-  (* Note: this significately degrades the analysis on zero_alloc code. However,
-     it is highly unclear what should be done for zero_alloc code, so we simply
-     mark the code as escaping. *)
-  let is_opaque = Code_metadata.is_opaque code_metadata in
   Function_params_and_body.pattern_match params_and_body
     ~f:(fun
          ~return_continuation
@@ -604,55 +598,64 @@ and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
          ~my_depth
          ~free_names_of_body:_
        ->
-      let code_dep = Acc.find_code acc code_id in
-      let maybe_opaque var = if is_opaque then Variable.rename var else var in
-      let return = List.map maybe_opaque code_dep.return in
-      let exn = maybe_opaque code_dep.exn in
-      let conts =
-        Continuation.Map.of_list
-          [return_continuation, Normal return; exn_continuation, Normal [exn]]
-      in
-      let denv = { parent = Up; conts; current_code_id = Some code_id } in
-      if is_opaque
-      then List.iter (fun v -> Acc.used ~denv (Simple.var v) acc) (exn :: return);
-      let () =
-        Bound_parameters.iter (fun bp -> Acc.bound_parameter_kind bp acc) params
-      in
-      Acc.kind (Name.var my_closure) Flambda_kind.value acc;
-      Acc.kind (Name.var my_region) Flambda_kind.region acc;
-      Acc.kind (Name.var my_depth) Flambda_kind.rec_info acc;
-      let () =
-        if is_opaque
-        then
-          List.iter
-            (fun arg -> Acc.used ~denv (Simple.var arg) acc)
-            code_dep.params
-        else
-          List.iter2
-            (fun param arg -> Acc.func_param_dep ~denv param arg acc)
-            (Bound_parameters.to_list params)
-            code_dep.params
-      in
-      let () =
-        if is_opaque
-        then Acc.used ~denv (Simple.var code_dep.my_closure) acc
-        else
-          Acc.record_dep ~denv (Name.var my_closure)
-            (Alias (Name.var code_dep.my_closure))
-            acc
-      in
-      let body = traverse denv acc body in
-      let params_and_body =
-        { return_continuation;
-          exn_continuation;
-          params;
-          body;
-          my_closure;
-          my_region;
-          my_depth
-        }
-      in
-      { params_and_body; code_metadata; free_names_of_params_and_body })
+      traverse_function_params_and_body acc code_id code ~return_continuation
+        ~exn_continuation params ~body ~my_closure ~my_region ~my_depth)
+
+and traverse_function_params_and_body acc code_id code ~return_continuation
+    ~exn_continuation params ~body ~my_closure ~my_region ~my_depth : rev_code =
+  let code_metadata = Code.code_metadata code in
+  let free_names_of_params_and_body = Code0.free_names code in
+  (* Note: this significately degrades the analysis on zero_alloc code. However,
+     it is highly unclear what should be done for zero_alloc code, so we simply
+     mark the code as escaping. *)
+  let is_opaque = Code_metadata.is_opaque code_metadata in
+  let code_dep = Acc.find_code acc code_id in
+  let maybe_opaque var = if is_opaque then Variable.rename var else var in
+  let return = List.map maybe_opaque code_dep.return in
+  let exn = maybe_opaque code_dep.exn in
+  let conts =
+    Continuation.Map.of_list
+      [return_continuation, Normal return; exn_continuation, Normal [exn]]
+  in
+  let denv = { parent = Up; conts; current_code_id = Some code_id } in
+  if is_opaque
+  then List.iter (fun v -> Acc.used ~denv (Simple.var v) acc) (exn :: return);
+  let () =
+    Bound_parameters.iter (fun bp -> Acc.bound_parameter_kind bp acc) params
+  in
+  Acc.kind (Name.var my_closure) Flambda_kind.value acc;
+  Acc.kind (Name.var my_region) Flambda_kind.region acc;
+  Acc.kind (Name.var my_depth) Flambda_kind.rec_info acc;
+  let () =
+    if is_opaque
+    then
+      List.iter (fun arg -> Acc.used ~denv (Simple.var arg) acc) code_dep.params
+    else
+      List.iter2
+        (fun param arg -> Acc.func_param_dep ~denv param arg acc)
+        (Bound_parameters.to_list params)
+        code_dep.params
+  in
+  let () =
+    if is_opaque
+    then Acc.used ~denv (Simple.var code_dep.my_closure) acc
+    else
+      Acc.record_dep ~denv (Name.var my_closure)
+        (Alias (Name.var code_dep.my_closure))
+        acc
+  in
+  let body = traverse denv acc body in
+  let params_and_body =
+    { return_continuation;
+      exn_continuation;
+      params;
+      body;
+      my_closure;
+      my_region;
+      my_depth
+    }
+  in
+  { params_and_body; code_metadata; free_names_of_params_and_body }
 
 let run (unit : Flambda_unit.t) =
   let acc = Acc.create () in
