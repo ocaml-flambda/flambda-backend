@@ -180,11 +180,11 @@ and traverse_let denv acc let_expr : rev_expr =
             (Set_of_closures.function_decls set_of_closures)
         in
         Function_slot.Lmap.of_list
-        @@ List.map2
+          (List.map2
              (fun function_slot bound_var ->
                function_slot, Name.var (Bound_var.var bound_var))
              (Function_slot.Lmap.keys funs)
-             bound_vars
+             bound_vars)
       in
       record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
         acc
@@ -236,8 +236,8 @@ and traverse_let denv acc let_expr : rev_expr =
       let () =
         let kind = Flambda_primitive.result_kind' prim in
         let name =
-          Name.var @@ Bound_var.var
-          @@ Bound_pattern.must_be_singleton bound_pattern
+          Name.var
+            (Bound_var.var (Bound_pattern.must_be_singleton bound_pattern))
         in
         Acc.kind name kind acc
       in
@@ -304,8 +304,8 @@ and traverse_let denv acc let_expr : rev_expr =
       (* TODO kind *)
       let () =
         let name =
-          Name.var @@ Bound_var.var
-          @@ Bound_pattern.must_be_singleton bound_pattern
+          Name.var
+            (Bound_var.var (Bound_pattern.must_be_singleton bound_pattern))
         in
         Acc.alias_kind name s acc
       in
