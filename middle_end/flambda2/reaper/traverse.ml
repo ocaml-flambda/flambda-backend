@@ -357,88 +357,84 @@ and traverse_let_cont denv acc (let_cont : Let_cont.t) : rev_expr =
   | Non_recursive
       { handler; num_free_occurrences = _; is_applied_with_traps = _ } ->
     Non_recursive_let_cont_handler.pattern_match handler ~f:(fun cont ~body ->
-        let cont_handler = Non_recursive_let_cont_handler.handler handler in
-        let traverse handler acc =
-          let conts =
-            Continuation.Map.add cont
-              (Normal (Bound_parameters.vars handler.bound_parameters))
-              denv.conts
-          in
-          let denv =
-            { parent = Let_cont { cont; handler; parent = denv.parent };
-              conts;
-              current_code_id = denv.current_code_id
-            }
-          in
-          traverse denv acc body
-        in
-        traverse_cont_handler
-          { parent = Up;
-            conts = denv.conts;
-            current_code_id = denv.current_code_id
-          }
-          acc cont_handler traverse)
+        traverse_let_cont_non_recursive denv acc cont ~body handler)
   | Recursive handlers ->
-    (* Warning non tail rec on traverse_cont_handler, probably OK *)
     Recursive_let_cont_handlers.pattern_match handlers
       ~f:(fun ~invariant_params ~body handlers ->
-        let invariant_params_vars = Bound_parameters.vars invariant_params in
-        let handlers =
-          Continuation.Map.map
-            (fun cont_handler ->
-              Continuation_handler.pattern_match cont_handler
-                ~f:(fun bound_parameters ~handler ->
-                  cont_handler, bound_parameters, handler))
-            (Continuation_handlers.to_map handlers)
+        traverse_let_cont_recursive denv acc ~invariant_params ~body handlers)
+
+and traverse_let_cont_non_recursive denv acc cont ~body handler =
+  let cont_handler = Non_recursive_let_cont_handler.handler handler in
+  let traverse handler acc =
+    let conts =
+      Continuation.Map.add cont
+        (Normal (Bound_parameters.vars handler.bound_parameters))
+        denv.conts
+    in
+    let denv =
+      { parent = Let_cont { cont; handler; parent = denv.parent };
+        conts;
+        current_code_id = denv.current_code_id
+      }
+    in
+    traverse denv acc body
+  in
+  traverse_cont_handler
+    { parent = Up; conts = denv.conts; current_code_id = denv.current_code_id }
+    acc cont_handler traverse
+
+and traverse_let_cont_recursive denv acc ~invariant_params ~body handlers =
+  (* Warning non tail rec on traverse_cont_handler, probably OK *)
+  let invariant_params_vars = Bound_parameters.vars invariant_params in
+  let handlers =
+    Continuation.Map.map
+      (fun cont_handler ->
+        Continuation_handler.pattern_match cont_handler
+          ~f:(fun bound_parameters ~handler ->
+            cont_handler, bound_parameters, handler))
+      (Continuation_handlers.to_map handlers)
+  in
+  let conts =
+    Continuation.Map.fold
+      (fun cont (_, bp, _) conts ->
+        Continuation.Map.add cont
+          (Normal (invariant_params_vars @ Bound_parameters.vars bp))
+          conts)
+      handlers denv.conts
+  in
+  (* Record kinds of bound parameters *)
+  let () =
+    Bound_parameters.iter
+      (fun bp -> Acc.bound_parameter_kind bp acc)
+      invariant_params
+  in
+  let () =
+    Continuation.Map.iter
+      (fun _ (_, bp, _) ->
+        Bound_parameters.iter (fun bp -> Acc.bound_parameter_kind bp acc) bp)
+      handlers
+  in
+  let handlers =
+    Continuation.Map.fold
+      (fun cont (cont_handler, bound_parameters, handler) handlers ->
+        let is_exn_handler = Continuation_handler.is_exn_handler cont_handler in
+        let is_cold = Continuation_handler.is_cold cont_handler in
+        let expr =
+          traverse
+            { parent = Up; conts; current_code_id = denv.current_code_id }
+            acc handler
         in
-        let conts =
-          Continuation.Map.fold
-            (fun cont (_, bp, _) conts ->
-              Continuation.Map.add cont
-                (Normal (invariant_params_vars @ Bound_parameters.vars bp))
-                conts)
-            handlers denv.conts
-        in
-        (* Record kinds of bound parameters *)
-        let () =
-          Bound_parameters.iter
-            (fun bp -> Acc.bound_parameter_kind bp acc)
-            invariant_params
-        in
-        let () =
-          Continuation.Map.iter
-            (fun _ (_, bp, _) ->
-              Bound_parameters.iter
-                (fun bp -> Acc.bound_parameter_kind bp acc)
-                bp)
-            handlers
-        in
-        let handlers =
-          Continuation.Map.fold
-            (fun cont (cont_handler, bound_parameters, handler) handlers ->
-              let is_exn_handler =
-                Continuation_handler.is_exn_handler cont_handler
-              in
-              let is_cold = Continuation_handler.is_cold cont_handler in
-              let expr =
-                traverse
-                  { parent = Up; conts; current_code_id = denv.current_code_id }
-                  acc handler
-              in
-              let handler =
-                { bound_parameters; expr; is_exn_handler; is_cold }
-              in
-              Continuation.Map.add cont handler handlers)
-            handlers Continuation.Map.empty
-        in
-        let denv =
-          { parent =
-              Let_cont_rec { invariant_params; handlers; parent = denv.parent };
-            conts;
-            current_code_id = denv.current_code_id
-          }
-        in
-        traverse denv acc body)
+        let handler = { bound_parameters; expr; is_exn_handler; is_cold } in
+        Continuation.Map.add cont handler handlers)
+      handlers Continuation.Map.empty
+  in
+  let denv =
+    { parent = Let_cont_rec { invariant_params; handlers; parent = denv.parent };
+      conts;
+      current_code_id = denv.current_code_id
+    }
+  in
+  traverse denv acc body
 
 and traverse_cont_handler :
     type a.
