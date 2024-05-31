@@ -722,6 +722,29 @@ and traverse_let_cont denv acc (let_cont : Flambda.let_cont_expr) : rev_expr =
         traverse denv acc body)
   end
 
+and traverse_cont_handler :
+    type a.
+    denv ->
+    acc ->
+    Flambda.Continuation_handler.t ->
+    (cont_handler -> acc -> a) ->
+    a =
+ fun denv acc cont_handler k ->
+  let is_exn_handler =
+    Flambda.Continuation_handler.is_exn_handler cont_handler
+  in
+  let is_cold = Flambda.Continuation_handler.is_cold cont_handler in
+  Flambda.Continuation_handler.pattern_match cont_handler
+    ~f:(fun bound_parameters ~handler ->
+      let () =
+        List.iter
+          (fun bp -> Acc.bound_parameter_kind bp acc)
+          (Bound_parameters.to_list bound_parameters)
+      in
+      let expr = traverse denv acc handler in
+      let handler = { bound_parameters; expr; is_exn_handler; is_cold } in
+      k handler acc)
+
 and traverse_apply denv acc apply : rev_expr =
   let default_acc acc =
     (* TODO regions? *)
@@ -919,29 +942,6 @@ and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
         }
       in
       { params_and_body; code_metadata; free_names_of_params_and_body })
-
-and traverse_cont_handler :
-    type a.
-    denv ->
-    acc ->
-    Flambda.Continuation_handler.t ->
-    (cont_handler -> acc -> a) ->
-    a =
- fun denv acc cont_handler k ->
-  let is_exn_handler =
-    Flambda.Continuation_handler.is_exn_handler cont_handler
-  in
-  let is_cold = Flambda.Continuation_handler.is_cold cont_handler in
-  Flambda.Continuation_handler.pattern_match cont_handler
-    ~f:(fun bound_parameters ~handler ->
-      let () =
-        List.iter
-          (fun bp -> Acc.bound_parameter_kind bp acc)
-          (Bound_parameters.to_list bound_parameters)
-      in
-      let expr = traverse denv acc handler in
-      let handler = { bound_parameters; expr; is_exn_handler; is_cold } in
-      k handler acc)
 
 let run (unit : Flambda_unit.t) =
   let acc = Acc.create () in
