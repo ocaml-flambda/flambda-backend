@@ -83,10 +83,11 @@ let rewrite_static_const kinds (uses : uses) (sc : Static_const.t) =
   | Set_of_closures sc ->
     let function_decls = Set_of_closures.function_decls sc in
     let function_decls =
-      let open Function_declarations in
-      Function_declarations.create
+      let module FD = Function_declarations in
+      FD.create
         (Function_slot.Lmap.mapi
-           (fun _slot code_id ->
+           (fun _slot (code_id : FD.code_id_in_function_declaration) :
+                FD.code_id_in_function_declaration ->
              match code_id with
              | Deleted -> Deleted
              | Code_id code_id ->
@@ -101,7 +102,7 @@ let rewrite_static_const kinds (uses : uses) (sc : Static_const.t) =
                   | Some Top | Some (Fields _) -> true
                then Code_id code_id
                else Deleted)
-           (Function_declarations.funs_in_order function_decls))
+           (FD.funs_in_order function_decls))
     in
     let set_of_closures =
       Set_of_closures.create
