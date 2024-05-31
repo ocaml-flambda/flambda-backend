@@ -15,13 +15,7 @@
 
 module Graph = Global_flow_graph
 
-type code_dep =
-  { arity : [`Complex] Flambda_arity.t;
-    params : Variable.t list;
-    my_closure : Variable.t;
-    return : Variable.t list; (* Dummy variable representing return value *)
-    exn : Variable.t (* Dummy variable representing exn return value *)
-  }
+type code_dep = Rebuild_acc.code_dep
 
 let dep_graph_ppf =
   lazy
@@ -122,7 +116,8 @@ module P = struct
         Graph.Dep.Set.iter (fun dst -> edge ~ctx ppf src dst) dst_set)
       t.Graph.name_to_dep
 
-  let code_deps ~ctx ~code_id ~print_color ppf code_dep =
+  let code_deps ~ctx ~code_id ~print_color ppf (code_dep : Rebuild_acc.code_dep)
+      =
     node ~ctx ~root:false ~print_color ppf (Code_id_or_name.code_id code_id);
     node ~ctx ~root:false ~print_color ppf
       (Code_id_or_name.var code_dep.my_closure);
