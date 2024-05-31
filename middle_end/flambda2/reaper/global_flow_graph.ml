@@ -90,12 +90,12 @@ end
 module Dep = struct
   module M = struct
     type t =
-      | Alias of Name.t
-      | Use of Code_id_or_name.t
-      | Field of Field.t * Name.t
-      | Block of Field.t * Code_id_or_name.t
-      | Alias_if_def of Name.t * Code_id.t
-      | Propagate of Name.t * Name.t
+      | Alias of { target : Name.t }
+      | Use of { target : Code_id_or_name.t }
+      | Field of { target : Name.t; relation : Field.t }
+      | Block of { target : Code_id_or_name.t; relation : Field.t }
+      | Alias_if_def of { target : Name.t; if_defined : Code_id.t }
+      | Propagate of { target : Name.t; source : Name.t }
 
     let compare t1 t2 =
       let numbering = function
@@ -107,20 +107,26 @@ module Dep = struct
         | Propagate _ -> 5
       in
       match t1, t2 with
-      | Alias v1, Alias v2 -> Name.compare v1 v2
-      | Use v1, Use v2 -> Code_id_or_name.compare v1 v2
-      | Field (f1, v1), Field (f2, v2) ->
-        let c = Field.compare f1 f2 in
-        if c <> 0 then c else Name.compare v1 v2
-      | Block (f1, v1), Block (f2, v2) ->
-        let c = Field.compare f1 f2 in
-        if c <> 0 then c else Code_id_or_name.compare v1 v2
-      | Alias_if_def (n1, c1), Alias_if_def (n2, c2) ->
-        let c = Name.compare n1 n2 in
-        if c <> 0 then c else Code_id.compare c1 c2
-      | Propagate (n1, m1), Propagate (n2, m2) ->
-        let c = Name.compare n1 n2 in
-        if c <> 0 then c else Name.compare m1 m2
+      | Alias { target = target1 }, Alias { target = target2 } ->
+        Name.compare target1 target2
+      | Use { target = target1 }, Use { target = target2 } ->
+        Code_id_or_name.compare target1 target2
+      | Field { target = target1; relation = relation1 },
+        Field { target = target2; relation = relation2 } ->
+        let c = Name.compare target1 target2 in
+        if c <> 0 then c else Field.compare relation1 relation2
+      | Block { target = target1; relation = relation1 },
+        Block { target = target2; relation = relation2 } ->
+        let c = Code_id_or_name.compare target1 target2 in
+        if c <> 0 then c else Field.compare relation1 relation2
+      | Alias_if_def { target = target1; if_defined = if_defined1 },
+        Alias_if_def { target = target2; if_defined = if_defined2 } ->
+        let c = Name.compare target1 target2 in
+        if c <> 0 then c else Code_id.compare if_defined1 if_defined2
+      | Propagate { target = target1; source = source1 },
+        Propagate { target = target2; source = source2 } ->
+        let c = Name.compare target1 target2 in
+        if c <> 0 then c else Name.compare source1 source2
       | (Alias _ | Use _ | Field _ | Block _ | Alias_if_def _ | Propagate _), _
         ->
         Int.compare (numbering t1) (numbering t2)
@@ -130,16 +136,16 @@ module Dep = struct
     let hash = Hashtbl.hash
 
     let print ppf = function
-      | Alias n -> Format.fprintf ppf "Alias %a" Name.print n
-      | Use n -> Format.fprintf ppf "Use %a" Code_id_or_name.print n
-      | Field (f, n) ->
-        Format.fprintf ppf "Field %a %a" Field.print f Name.print n
-      | Block (f, n) ->
-        Format.fprintf ppf "Block %a %a" Field.print f Code_id_or_name.print n
-      | Alias_if_def (n, c) ->
-        Format.fprintf ppf "Alias_if_def %a %a" Name.print n Code_id.print c
-      | Propagate (n1, n2) ->
-        Format.fprintf ppf "Propagate %a %a" Name.print n1 Name.print n2
+      | Alias { target } -> Format.fprintf ppf "Alias %a" Name.print target
+      | Use { target } -> Format.fprintf ppf "Use %a" Code_id_or_name.print target
+      | Field { target; relation } ->
+        Format.fprintf ppf "Field %a %a" Field.print relation Name.print target
+      | Block { target; relation } ->
+        Format.fprintf ppf "Block %a %a" Field.print relation Code_id_or_name.print target
+      | Alias_if_def { target; if_defined } ->
+        Format.fprintf ppf "Alias_if_def %a %a" Name.print target Code_id.print if_defined
+      | Propagate { target; source } ->
+        Format.fprintf ppf "Propagate %a %a" Name.print target Name.print source
   end
 
   include M
@@ -183,16 +189,8 @@ let add_opaque_let_dependency t bp fv =
       ~f:(fun () dep ->
         insert tbl
           (Code_id_or_name.name bound_to)
-          (Dep.Use (Code_id_or_name.name dep)))
+          (Dep.Use { target = Code_id_or_name.name dep}))
       ~init:()
-  in
-  Name_occurrences.fold_names bound_to ~f ~init:()
-
-let add_let_field t bp field name =
-  let tbl = t.name_to_dep in
-  let bound_to = Bound_pattern.free_names bp in
-  let f () bound_to =
-    insert tbl (Code_id_or_name.name bound_to) (Dep.Field (field, name))
   in
   Name_occurrences.fold_names bound_to ~f ~init:()
 
@@ -212,11 +210,11 @@ let add_let_dep t bp dep =
 
 let add_cont_dep t bp dep =
   let tbl = t.name_to_dep in
-  insert tbl (Code_id_or_name.var bp) (Alias dep)
+  insert tbl (Code_id_or_name.var bp) (Alias { target = dep })
 
 let add_func_param t ~param ~arg =
   let tbl = t.name_to_dep in
-  insert tbl (Code_id_or_name.var param) (Alias arg)
+  insert tbl (Code_id_or_name.var param) (Alias { target = arg })
 
 let add_use t dep = Hashtbl.replace t.used dep ()
 

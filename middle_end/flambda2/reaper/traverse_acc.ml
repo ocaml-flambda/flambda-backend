@@ -117,7 +117,7 @@ let used ~(denv : Traverse_denv.t) dep t =
       | Some code_id ->
         Graph.add_dep t.deps
           (Code_id_or_name.code_id code_id)
-          (Graph.Dep.Use (Code_id_or_name.name name)))
+          (Graph.Dep.Use { target = Code_id_or_name.name name }))
     ~const:(fun _ -> ())
 
 let used_code_id code_id t =
@@ -129,7 +129,7 @@ let called ~(denv : Traverse_denv.t) code_id t =
   | Some code_id2 ->
     Graph.add_dep t.deps
       (Code_id_or_name.code_id code_id2)
-      (Graph.Dep.Use (Code_id_or_name.code_id code_id))
+      (Graph.Dep.Use { target = Code_id_or_name.code_id code_id })
 
 let add_apply apply t = t.apply_deps <- apply :: t.apply_deps
 
@@ -149,11 +149,11 @@ let record_set_of_closure_deps t =
            block. *)
         Graph.add_dep t.deps
           (Code_id_or_name.name name)
-          (Block (Code_of_closure, Code_id_or_name.name name))
+          (Block { relation = Code_of_closure; target = Code_id_or_name.name name })
       | code_dep ->
         Graph.add_dep t.deps
           (Code_id_or_name.var code_dep.my_closure)
-          (Graph.Dep.Alias name);
+          (Graph.Dep.Alias { target = name });
         let num_params = Flambda_arity.num_params code_dep.arity in
         let acc = ref (Code_id_or_name.name name) in
         for i = 1 to num_params - 1 do
@@ -161,23 +161,23 @@ let record_set_of_closure_deps t =
             Code_id_or_name.var
               (Variable.create (Printf.sprintf "partial_apply_%i" i))
           in
-          Graph.add_dep t.deps !acc (Block (Apply (Normal 0), tmp_name));
+          Graph.add_dep t.deps !acc (Block { relation = Apply (Normal 0); target =  tmp_name });
           (* The code_id needs to stay alive even if the function is only
              partially applied, as the arity is needed at runtime in that
              case. *)
           Graph.add_dep t.deps !acc
-            (Block (Code_of_closure, Code_id_or_name.code_id code_id));
+            (Block { relation = Code_of_closure; target =  Code_id_or_name.code_id code_id });
           acc := tmp_name
         done;
         List.iteri
           (fun i v ->
             Graph.add_dep t.deps !acc
-              (Block (Apply (Normal i), Code_id_or_name.var v)))
+              (Block { relation = Apply (Normal i); target = Code_id_or_name.var v }))
           code_dep.return;
         Graph.add_dep t.deps !acc
-          (Block (Apply Exn, Code_id_or_name.var code_dep.exn));
+          (Block { relation = Apply Exn; target = Code_id_or_name.var code_dep.exn });
         Graph.add_dep t.deps !acc
-          (Block (Code_of_closure, Code_id_or_name.code_id code_id)))
+          (Block { relation = Code_of_closure; target = Code_id_or_name.code_id code_id}))
     t.set_of_closures_dep
 
 let deps t =
@@ -196,14 +196,14 @@ let deps t =
         | None ->
           Graph.add_dep t.deps
             (Code_id_or_name.name param)
-            (Graph.Dep.Alias name)
+            (Graph.Dep.Alias { target = name })
         | Some code_id ->
           Graph.add_dep t.deps
             (Code_id_or_name.name param)
-            (Graph.Dep.Alias_if_def (name, code_id));
+            (Graph.Dep.Alias_if_def { target = name; if_defined = code_id });
           Graph.add_dep t.deps
             (Code_id_or_name.code_id code_id)
-            (Graph.Dep.Propagate (name, param))
+            (Graph.Dep.Propagate { target = name; source = param })
       in
       List.iter2
         (fun param arg ->

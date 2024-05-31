@@ -89,7 +89,7 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
           ~const:(fun _ -> set)
           ~name:(fun name ~coercion:_ ->
             Graph.Dep.Set.add
-              (Block (Value_slot value_slot, Code_id_or_name.name name))
+              (Block { relation = Value_slot value_slot; target =  Code_id_or_name.name name })
               set)
           simple)
       (Set_of_closures.value_slots set_of_closures)
@@ -99,7 +99,7 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
     Function_slot.Lmap.fold
       (fun function_slot name set ->
         Graph.Dep.Set.add
-          (Block (Function_slot function_slot, Code_id_or_name.name name))
+          (Block { relation = Function_slot function_slot; target = Code_id_or_name.name name })
           set)
       names_and_function_slots deps
   in
@@ -132,7 +132,7 @@ and traverse_let denv acc let_expr : rev_expr =
   let default acc =
     Name_occurrences.fold_names
       ~f:(fun () free_name ->
-        default_bp acc (Use (Code_id_or_name.name free_name)))
+        default_bp acc (Use { target = Code_id_or_name.name free_name }))
       ~init:()
       (Named.free_names defining_expr)
   in
@@ -147,7 +147,7 @@ and traverse_let denv acc let_expr : rev_expr =
       (Name.var (Bound_var.var (Bound_pattern.must_be_singleton bound_pattern)))
       s acc;
     Simple.pattern_match s
-      ~name:(fun name ~coercion:_ -> default_bp acc (Alias name))
+      ~name:(fun name ~coercion:_ -> default_bp acc (Alias { target = name }))
       ~const:(fun _ -> default acc)
   | Rec_info _ -> default acc);
   let named : rev_named =
@@ -232,7 +232,7 @@ and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
       (fun i field ->
         Simple.pattern_match field
           ~name:(fun name ~coercion:_ ->
-            default_bp acc (Block (Block i, Code_id_or_name.name name)))
+            default_bp acc (Block { relation = Block i; target = Code_id_or_name.name name }))
           ~const:(fun _ -> ()))
       fields
   | Unary (Project_function_slot { move_from = _; move_to }, block) ->
@@ -241,14 +241,14 @@ and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
         ~name:(fun name ~coercion:_ -> name)
         ~const:(fun _ -> assert false)
     in
-    default_bp acc (Field (Function_slot move_to, block))
+    default_bp acc (Field { relation = Function_slot move_to; target = block })
   | Unary (Project_value_slot { project_from = _; value_slot }, block) ->
     let block =
       Simple.pattern_match block
         ~name:(fun name ~coercion:_ -> name)
         ~const:(fun _ -> assert false)
     in
-    default_bp acc (Field (Value_slot value_slot, block))
+    default_bp acc (Field { relation = Value_slot value_slot; target = block })
   | Binary (Block_load (_access_kind, _mutability), block, field) -> (
     (* Loads from mutable blocks are tracked here. This is ok as long as stores
        are properly tracked also. This is a flow-insensitive dependency
@@ -256,14 +256,14 @@ and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
     (* CR mshinwell: give examples of surprising results *)
     match known_field_of_block field block with
     | None -> default acc
-    | Some (field, block) -> default_bp acc (Field (Block field, block)))
+    | Some (field, block) -> default_bp acc (Field { relation = Block field; target = block }))
   | Unary (Is_int _, arg) ->
     Simple.pattern_match arg
-      ~name:(fun name ~coercion:_ -> default_bp acc (Field (Is_int, name)))
+      ~name:(fun name ~coercion:_ -> default_bp acc (Field { relation = Is_int; target = name }))
       ~const:(fun _ -> ())
   | Unary (Get_tag, arg) ->
     Simple.pattern_match arg
-      ~name:(fun name ~coercion:_ -> default_bp acc (Field (Get_tag, name)))
+      ~name:(fun name ~coercion:_ -> default_bp acc (Field { relation = Get_tag; target = name }))
       ~const:(fun _ -> ())
   | prim ->
     let () =
@@ -329,10 +329,10 @@ and traverse_static_consts denv acc ~(bound_pattern : Bound_pattern.t) group =
           (fun i (field : Field_of_static_block.t) ->
             match field with
             | Symbol s ->
-              record acc name (Block (Block i, Code_id_or_name.symbol s))
+              record acc name (Block { relation = Block i; target = Code_id_or_name.symbol s })
             | Tagged_immediate _ -> ()
             | Dynamically_computed (v, _) ->
-              record acc name (Block (Block i, Code_id_or_name.var v)))
+              record acc name (Block { relation = Block i; target = Code_id_or_name.var v }))
           fields
       | Set_of_closures _ -> assert false
       | _ -> ())
@@ -509,21 +509,21 @@ and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
     for i = 1 to Flambda_arity.num_params arity - 1 do
       let v = Variable.create (Printf.sprintf "partial_apply_%i" i) in
       Acc.record_dep' ~denv (Code_id_or_name.var v)
-        (Field (Apply (Normal 0), !partial_apply))
+        (Field { relation = Apply (Normal 0); target = !partial_apply })
         acc;
       Acc.record_dep' ~denv
         (Code_id_or_name.var exn_arg)
-        (Field (Apply Exn, !partial_apply))
+        (Field { relation = Apply Exn; target = !partial_apply })
         acc;
       Acc.record_dep' ~denv
         (Code_id_or_name.var calls_are_not_pure)
-        (Field (Code_of_closure, !partial_apply))
+        (Field { relation = Code_of_closure; target = !partial_apply })
         acc;
       partial_apply := Name.var v
     done;
     Acc.record_dep' ~denv
       (Code_id_or_name.var calls_are_not_pure)
-      (Field (Code_of_closure, !partial_apply))
+      (Field { relation = Code_of_closure; target = !partial_apply })
       acc;
     (match return_args with
     | None -> ()
@@ -532,12 +532,12 @@ and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
         (fun i return_arg ->
           Acc.record_dep' ~denv
             (Code_id_or_name.var return_arg)
-            (Field (Apply (Normal i), !partial_apply))
+            (Field { relation = Apply (Normal i); target = !partial_apply })
             acc)
         return_args);
     Acc.record_dep' ~denv
       (Code_id_or_name.var exn_arg)
-      (Field (Apply Exn, !partial_apply))
+      (Field { relation = Apply Exn; target = !partial_apply })
       acc
   | Method _ | C_call _ -> default_acc acc
 
@@ -610,7 +610,7 @@ and traverse_function_params_and_body acc code_id code ~return_continuation
   then Acc.used ~denv (Simple.var code_dep.my_closure) acc
   else
     Acc.record_dep ~denv (Name.var my_closure)
-      (Alias (Name.var code_dep.my_closure))
+      (Alias { target = Name.var code_dep.my_closure })
       acc;
   let body = traverse denv acc body in
   let params_and_body =

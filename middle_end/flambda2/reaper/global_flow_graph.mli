@@ -36,12 +36,12 @@ end
 
 module Dep : sig
   type t =
-    | Alias of Name.t
-    | Use of Code_id_or_name.t
-    | Field of Field.t * Name.t
-    | Block of Field.t * Code_id_or_name.t
-    | Alias_if_def of Name.t * Code_id.t
-    | Propagate of Name.t * Name.t
+    | Alias of { target : Name.t }
+    | Use of { target : Code_id_or_name.t }
+    | Field of { target : Name.t; relation : Field.t }
+    | Block of { target : Code_id_or_name.t; relation : Field.t }
+    | Alias_if_def of { target : Name.t; if_defined : Code_id.t }
+    | Propagate of { target : Name.t; source : Name.t }
 
   val print : Format.formatter -> t -> unit
 
@@ -61,8 +61,6 @@ val inserts : ('a, Dep.Set.t) Hashtbl.t -> 'a -> Dep.Set.t -> unit
 
 val add_opaque_let_dependency :
   graph -> Bound_pattern.t -> Name_occurrences.t -> unit
-
-val add_let_field : graph -> Bound_pattern.t -> Field.t -> Name.t -> unit
 
 val add_dep : graph -> Code_id_or_name.t -> Dep.t -> unit
 

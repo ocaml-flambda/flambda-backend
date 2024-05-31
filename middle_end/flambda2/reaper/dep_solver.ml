@@ -299,12 +299,12 @@ let join_elt e1 e2 =
 
 let target (dep : dep) : Code_id_or_name.t =
   match dep with
-  | Alias n -> Code_id_or_name.name n
-  | Use n -> n
-  | Field (_, n) -> Code_id_or_name.name n
-  | Block (_, n) -> n
-  | Alias_if_def (n, _) -> Code_id_or_name.name n
-  | Propagate (n, _) -> Code_id_or_name.name n
+  | Alias { target }
+  | Field { target; _ }
+  | Alias_if_def { target ; _ }
+  | Propagate { target; _ } -> Code_id_or_name.name target
+  | Use { target }
+  | Block { target; _ } -> target
 
 let make_field_elt uses (k : Code_id_or_name.t) =
   match Hashtbl.find_opt uses k with
@@ -319,15 +319,15 @@ let propagate uses (k : Code_id_or_name.t) (elt : elt) (dep : dep) : elt =
     match dep with
     | Alias _ -> elt
     | Use _ -> Top
-    | Field (f, _) -> Fields (Field.Map.singleton f (make_field_elt uses k))
-    | Block (f, _) -> (
+    | Field { relation; _ } -> Fields (Field.Map.singleton relation (make_field_elt uses k))
+    | Block { relation; _ } -> begin
       match elt with
       | Bottom -> assert false
       | Top -> Top
-      | Fields fields -> (
+      | Fields fields -> begin
         try
           let elems =
-            match Field.Map.find_opt f fields with
+            match Field.Map.find_opt relation fields with
             | None -> Code_id_or_name.Set.empty
             | Some Field_top -> raise Exit
             | Some (Field_vals s) -> s
@@ -339,30 +339,36 @@ let propagate uses (k : Code_id_or_name.t) (elt : elt) (dep : dep) : elt =
                 | None -> Bottom
                 | Some e -> e))
             elems Bottom
-        with Exit -> Top))
-    | Alias_if_def (_, c) -> (
-      match Hashtbl.find_opt uses (Code_id_or_name.code_id c) with
+        with Exit -> Top
+      end
+    end
+    | Alias_if_def { if_defined; _ } -> begin
+      match Hashtbl.find_opt uses (Code_id_or_name.code_id if_defined) with
       | None | Some Bottom -> Bottom
-      | Some (Fields _ | Top) -> elt)
-    | Propagate (_, n) -> (
-      match Hashtbl.find_opt uses (Code_id_or_name.name n) with
+      | Some (Fields _ | Top) -> elt
+    end
+    | Propagate { source; _ } -> begin
+      match Hashtbl.find_opt uses (Code_id_or_name.name source) with
       | None -> Bottom
-      | Some elt -> elt))
+      | Some elt -> elt
+    end)
 
 let propagate_top uses (dep : dep) : bool =
   match dep with
   | Alias _ -> true
   | Use _ -> true
   | Field _ -> false
-  | Block (_, _) -> true
-  | Alias_if_def (_, c) -> (
-    match Hashtbl.find_opt uses (Code_id_or_name.code_id c) with
+  | Block _ -> true
+  | Alias_if_def { if_defined; _ } -> begin
+    match Hashtbl.find_opt uses (Code_id_or_name.code_id if_defined) with
     | None | Some Bottom -> false
-    | Some (Fields _ | Top) -> true)
-  | Propagate (_, n2) -> (
-    match Hashtbl.find_opt uses (Code_id_or_name.name n2) with
+    | Some (Fields _ | Top) -> true
+  end
+  | Propagate { source; _ } -> begin
+    match Hashtbl.find_opt uses (Code_id_or_name.name source) with
     | None | Some (Bottom | Fields _) -> false
-    | Some Top -> true)
+    | Some Top -> true
+  end
 
 type result = (Code_id_or_name.t, elt) Hashtbl.t
 

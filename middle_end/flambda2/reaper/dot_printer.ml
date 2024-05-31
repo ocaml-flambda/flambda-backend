@@ -57,12 +57,12 @@ module P = struct
 
   let dep_names (dep : Graph.Dep.t) =
     match dep with
-    | Graph.Dep.Alias n | Graph.Dep.Field (_, n) -> [Code_id_or_name.name n]
-    | Graph.Dep.Use n | Graph.Dep.Block (_, n) -> [n]
-    | Graph.Dep.Alias_if_def (n, c) ->
-      [Code_id_or_name.name n; Code_id_or_name.code_id c]
-    | Graph.Dep.Propagate (n1, n2) ->
-      [Code_id_or_name.name n1; Code_id_or_name.name n2]
+    | Graph.Dep.Alias { target } | Graph.Dep.Field { target; _ } -> [Code_id_or_name.name target]
+    | Graph.Dep.Use { target } | Graph.Dep.Block { target; _ } -> [target]
+    | Graph.Dep.Alias_if_def { target; if_defined } ->
+      [Code_id_or_name.name target; Code_id_or_name.code_id if_defined]
+    | Graph.Dep.Propagate { target; source } ->
+      [Code_id_or_name.name target; Code_id_or_name.name source]
 
   let all_names t =
     let names = Hashtbl.create 100 in
@@ -94,12 +94,13 @@ module P = struct
   let edge ~ctx ppf src (dst : Graph.Dep.t) =
     let color, deps =
       match dst with
-      | Alias name -> "black", [Code_id_or_name.name name]
-      | Use name -> "red", [name]
-      | Field (_, name) -> "green", [Code_id_or_name.name name]
-      | Block (_, name) -> "blue", [name]
-      | Alias_if_def (name, _code) -> "purple", [Code_id_or_name.name name]
-      | Propagate (name, _from) -> "yellow", [Code_id_or_name.name name]
+      | Alias { target } -> "black", [Code_id_or_name.name target]
+      | Use { target } ->
+        "red", [target]
+      | Field { target; _ } -> "green", [Code_id_or_name.name target]
+      | Block { target; _ } -> "blue", [target]
+      | Alias_if_def { target; _ } -> "pink", [Code_id_or_name.name target]
+      | Propagate { target; _ } -> "brown", [Code_id_or_name.name target]
     in
     List.iter
       (fun dst ->
