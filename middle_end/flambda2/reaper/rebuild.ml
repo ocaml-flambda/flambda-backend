@@ -194,7 +194,7 @@ let rewrite_field_of_static_block _kinds uses (field : Field_of_static_block.t)
 
 let rewrite_static_const kinds (uses : uses) (sc : Static_const.t) =
   match sc with
-  | Static_const.Set_of_closures sc ->
+  | Set_of_closures sc ->
     let function_decls = Set_of_closures.function_decls sc in
     let function_decls =
       let open Function_declarations in
@@ -230,59 +230,59 @@ let rewrite_static_const kinds (uses : uses) (sc : Static_const.t) =
       := Slot_offsets.add_set_of_closures !all_slot_offsets ~is_phantom:false
            set_of_closures;
     Static_const.set_of_closures set_of_closures
-  | Static_const.Block (tag, mut, fields) ->
+  | Block (tag, mut, fields) ->
     let fields = List.map (rewrite_field_of_static_block kinds uses) fields in
     Static_const.block tag mut fields
-  | Static_const.Boxed_float f ->
+  | Boxed_float f ->
     Static_const.boxed_float
       (rewrite_or_variable Numeric_types.Float_by_bit_pattern.zero uses f)
-  | Static_const.Boxed_float32 f ->
+  | Boxed_float32 f ->
     Static_const.boxed_float32
       (rewrite_or_variable Numeric_types.Float32_by_bit_pattern.zero uses f)
-  | Static_const.Boxed_int32 n ->
+  | Boxed_int32 n ->
     Static_const.boxed_int32 (rewrite_or_variable Int32.zero uses n)
-  | Static_const.Boxed_int64 n ->
+  | Boxed_int64 n ->
     Static_const.boxed_int64 (rewrite_or_variable Int64.zero uses n)
-  | Static_const.Boxed_nativeint n ->
+  | Boxed_nativeint n ->
     Static_const.boxed_nativeint
       (rewrite_or_variable Targetint_32_64.zero uses n)
-  | Static_const.Boxed_vec128 n ->
+  | Boxed_vec128 n ->
     Static_const.boxed_vec128
       (rewrite_or_variable Vector_types.Vec128.Bit_pattern.zero uses n)
-  | Static_const.Immutable_float_block fields ->
+  | Immutable_float_block fields ->
     let fields =
       List.map
         (rewrite_or_variable Numeric_types.Float_by_bit_pattern.zero uses)
         fields
     in
     Static_const.immutable_float_block fields
-  | Static_const.Immutable_float_array fields ->
+  | Immutable_float_array fields ->
     let fields =
       List.map
         (rewrite_or_variable Numeric_types.Float_by_bit_pattern.zero uses)
         fields
     in
     Static_const.immutable_float_array fields
-  | Static_const.Immutable_float32_array fields ->
+  | Immutable_float32_array fields ->
     let fields =
       List.map
         (rewrite_or_variable Numeric_types.Float32_by_bit_pattern.zero uses)
         fields
     in
     Static_const.immutable_float32_array fields
-  | Static_const.Immutable_value_array fields ->
+  | Immutable_value_array fields ->
     let fields = List.map (rewrite_field_of_static_block kinds uses) fields in
     Static_const.immutable_value_array fields
-  | Static_const.Empty_array _ -> sc
-  | Static_const.Mutable_string _ -> sc
-  | Static_const.Immutable_string _ -> sc
-  | Static_const.Immutable_int32_array fields ->
+  | Empty_array _ -> sc
+  | Mutable_string _ -> sc
+  | Immutable_string _ -> sc
+  | Immutable_int32_array fields ->
     let fields = List.map (rewrite_or_variable Int32.zero uses) fields in
     Static_const.immutable_int32_array fields
-  | Static_const.Immutable_int64_array fields ->
+  | Immutable_int64_array fields ->
     let fields = List.map (rewrite_or_variable Int64.zero uses) fields in
     Static_const.immutable_int64_array fields
-  | Static_const.Immutable_nativeint_array fields ->
+  | Immutable_nativeint_array fields ->
     let fields =
       List.map (rewrite_or_variable Targetint_32_64.zero uses) fields
     in
