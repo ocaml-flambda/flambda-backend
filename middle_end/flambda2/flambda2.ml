@@ -171,11 +171,11 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
             flambda, free_names, all_code, slot_offsets
           | _ ->
             let flambda, free_names, all_code, slot_offsets =
-              Profile.record_call ~accumulate:true "cleanup" (fun () ->
-                  Flambda2_cleanup.Cleanup.run ~cmx_loader flambda)
+              Profile.record_call ~accumulate:true "reaper" (fun () ->
+                  Flambda2_reaper.Reaper.run ~cmx_loader flambda)
             in
-            print_flambda "cleanup" ppf flambda;
-            print_flexpect "cleanup" ppf ~raw_flambda flambda;
+            print_flambda "reaper" ppf flambda;
+            print_flexpect "reaper" ppf ~raw_flambda flambda;
             flambda, free_names, all_code, slot_offsets
         in
         let { Simplify.unit = flambda;
