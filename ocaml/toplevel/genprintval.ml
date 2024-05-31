@@ -483,17 +483,23 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                     | None ->
                         let pos =
                           match rep with
-                          | Record_inlined (_, Variant_extensible) -> 1
+                          | Record_inlined (_, _, Variant_extensible) -> 1
                           | _ -> 0
                         in
                         let rep =
                           match rep with
-                          | Record_inlined (_, Variant_unboxed)
+                          | Record_inlined (_, Constructor_mixed _,
+                                            Variant_unboxed) ->
+                              Misc.fatal_error
+                                "a 'mixed' unboxed record is impossible"
+                          | Record_inlined (_, Constructor_uniform_value,
+                                            Variant_unboxed)
                           | Record_unboxed
                               -> Outval_record_unboxed
                           | Record_boxed _ | Record_float | Record_ufloat
-                          | Record_inlined _
+                          | Record_inlined (_, Constructor_uniform_value, _)
                               -> Outval_record_boxed
+                          | Record_inlined (_, Constructor_mixed mixed, _)
                           | Record_mixed mixed
                               ->
                                 (* Mixed records are only represented as

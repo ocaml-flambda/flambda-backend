@@ -5639,7 +5639,7 @@ and type_expect_
         if List.exists
             (fun (_, {lbl_repres; _}, _) ->
               match lbl_repres with
-              | Record_unboxed | Record_inlined (_, Variant_unboxed) -> false
+              | Record_unboxed | Record_inlined (_, _, Variant_unboxed) -> false
               | _ -> true)
             lbl_a_list then
           let alloc_mode, argument_mode = register_allocation expected_mode in

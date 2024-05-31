@@ -1046,21 +1046,22 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           }
       | Record_float | Record_ufloat ->
         Naked_floats { length = Targetint_31_63.of_int num_fields }
+      | Record_inlined (_, Constructor_mixed _, _)
       | Record_mixed _ -> Mixed
-      | Record_inlined (Ordinary { runtime_tag; _ }, Variant_boxed _) ->
+      | Record_inlined (Ordinary { runtime_tag; _ }, Constructor_uniform_value, Variant_boxed _) ->
         Values
           { tag = Tag.Scannable.create_exn runtime_tag;
             length = Targetint_31_63.of_int num_fields
           }
-      | Record_inlined (Extension _, Variant_extensible) ->
+      | Record_inlined (Extension _, Constructor_uniform_value, Variant_extensible) ->
         Values
           { tag = Tag.Scannable.zero;
             (* The "+1" is because there is an extra field containing the hashed
                constructor. *)
             length = Targetint_31_63.of_int (num_fields + 1)
           }
-      | Record_inlined (Extension _, _)
-      | Record_inlined (Ordinary _, (Variant_unboxed | Variant_extensible))
+      | Record_inlined (Extension _, _, _)
+      | Record_inlined (Ordinary _, _, (Variant_unboxed | Variant_extensible))
       | Record_unboxed ->
         Misc.fatal_errorf "Cannot handle record kind for Pduprecord: %a"
           Printlambda.primitive prim

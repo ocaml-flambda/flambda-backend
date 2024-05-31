@@ -225,13 +225,16 @@ let compute_static_size lam =
     | Pduprecord (repres, size) ->
         begin match repres with
         | Record_boxed _
-        | Record_inlined (_, (Variant_boxed _ | Variant_extensible)) ->
+        | Record_inlined (_, Constructor_uniform_value,
+                          (Variant_boxed _ | Variant_extensible)) ->
             Block (Regular_block size)
         | Record_float ->
             Block (Float_record size)
+        | Record_inlined (_, Constructor_mixed shape,
+                          (Variant_boxed _ | Variant_extensible))
         | Record_mixed shape ->
             Block (Mixed_record (size, Lambda.transl_mixed_product_shape shape))
-        | Record_unboxed | Record_ufloat | Record_inlined (_, Variant_unboxed) ->
+        | Record_unboxed | Record_ufloat | Record_inlined (_, _, Variant_unboxed) ->
             Misc.fatal_error "size_of_primitive"
         end
     | Pmakeblock _ ->

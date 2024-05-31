@@ -299,7 +299,7 @@ and mixed_product_shape =
 
 and record_representation =
   | Record_unboxed
-  | Record_inlined of tag * variant_representation
+  | Record_inlined of tag * constructor_representation * variant_representation
   | Record_boxed of jkind array
   | Record_float
   | Record_ufloat
@@ -647,7 +647,11 @@ let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
 let equal_record_representation r1 r2 = match r1, r2 with
   | Record_unboxed, Record_unboxed ->
       true
-  | Record_inlined (tag1, vr1), Record_inlined (tag2, vr2) ->
+  | Record_inlined (tag1, cr1, vr1), Record_inlined (tag2, cr2, vr2) ->
+      (* Equality of tag and variant representation imply equality of
+         constructor representation. *)
+      ignore (cr1 : constructor_representation);
+      ignore (cr2 : constructor_representation);
       equal_tag tag1 tag2 && equal_variant_representation vr1 vr2
   | Record_boxed lays1, Record_boxed lays2 ->
       Misc.Stdlib.Array.equal !jkind_equal lays1 lays2
@@ -672,7 +676,7 @@ let may_equal_constr c1 c2 =
 let find_unboxed_type decl =
   match decl.type_kind with
     Type_record ([{ld_type = arg; _}], Record_unboxed)
-  | Type_record ([{ld_type = arg; _}], Record_inlined (_, Variant_unboxed))
+  | Type_record ([{ld_type = arg; _}], Record_inlined (_, _, Variant_unboxed))
   | Type_variant ([{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}], Variant_unboxed)
   | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}],
                   Variant_unboxed) ->

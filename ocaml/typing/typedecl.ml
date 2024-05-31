@@ -47,10 +47,12 @@ module Mixed_product_kind = struct
   type t =
     | Record
     | Cstr_tuple
+    | Cstr_record
 
   let to_plural_string = function
     | Record -> "records"
     | Cstr_tuple -> "constructors"
+    | Cstr_record -> "inline record arguments to constructors"
 end
 
 type mixed_product_violation =
@@ -1324,6 +1326,15 @@ module Element_repr = struct
     | None -> None
     | Some (`Continue flat_suffix | `Stop flat_suffix) ->
         Some (Array.of_list flat_suffix)
+
+  let mixed_product_shape loc ts kind ~on_flat_field_expected =
+    let flat_suffix = mixed_product_flat_suffix ts ~on_flat_field_expected in
+    match flat_suffix with
+    | None -> None
+    | Some flat_suffix ->
+        let value_prefix_len = List.length ts - Array.length flat_suffix in
+        assert_mixed_product_support loc kind ~value_prefix_len;
+        Some { value_prefix_len; flat_suffix }
 end
 
 let update_constructor_representation
@@ -1339,7 +1350,7 @@ let update_constructor_representation
             Element_repr.classify env loc arg_type arg_jkind, arg_type)
             arg_types_and_modes arg_jkinds
         in
-        Element_repr.mixed_product_flat_suffix arg_reprs
+        Element_repr.mixed_product_shape loc arg_reprs Cstr_tuple
           ~on_flat_field_expected:(fun ~non_value ~boxed ->
               let violation =
                 Flat_constructor_arg_expected
@@ -1349,17 +1360,12 @@ let update_constructor_representation
               in
               raise (Error (loc, Illegal_mixed_product violation)))
     | Cstr_record fields ->
-        (* CR layouts v5.1: Mixed inline records are rejected in
-           [update_label_jkinds] so this apparent "support" is misleading.
-           This will be resolved soon by adding support for mixed inline
-           records.
-        *)
         let arg_reprs =
           List.map (fun ld ->
               Element_repr.classify env loc ld.Types.ld_type ld.ld_jkind, ld)
             fields
         in
-        Element_repr.mixed_product_flat_suffix arg_reprs
+        Element_repr.mixed_product_shape loc arg_reprs Cstr_record
           ~on_flat_field_expected:(fun ~non_value ~boxed ->
             let violation =
               Flat_field_expected
@@ -1372,17 +1378,10 @@ let update_constructor_representation
   in
   match flat_suffix with
   | None -> Constructor_uniform_value
-  | Some flat_suffix ->
-      let value_prefix_len =
-        Array.length arg_jkinds - Array.length flat_suffix
-      in
-      (* CR layouts v5.9: Enable extension constructors in the flambda2
-         middle-end so that we can permit them in the source language.
-      *)
+  | Some shape ->
       if is_extension_constructor then
         raise (Error (loc, Illegal_mixed_product Extension_constructor));
-      assert_mixed_product_support loc Cstr_tuple ~value_prefix_len;
-      Constructor_mixed { value_prefix_len; flat_suffix }
+      Constructor_mixed shape
 
 
 (* This function updates jkind stored in kinds with more accurate jkinds.
@@ -1472,8 +1471,8 @@ let update_decl_jkind env dpath decl =
         | { values = true; float64s = true }
         | { imms = true; float64s = true }
         | { non_float64_unboxed_fields = true } ->
-            let flat_suffix =
-              Element_repr.mixed_product_flat_suffix reprs
+            let shape =
+              Element_repr.mixed_product_shape loc reprs Record
                 ~on_flat_field_expected:(fun ~non_value ~boxed ->
                   let violation =
                     Flat_field_expected
@@ -1484,16 +1483,12 @@ let update_decl_jkind env dpath decl =
                   raise (Error (boxed.Types.ld_loc,
                                 Illegal_mixed_product violation)))
             in
-            let flat_suffix =
-              match flat_suffix with
+            let shape =
+              match shape with
               | Some x -> x
               | None -> Misc.fatal_error "expected mixed block"
             in
-            let value_prefix_len =
-              Array.length jkinds - Array.length flat_suffix
-            in
-            assert_mixed_product_support loc Record ~value_prefix_len;
-            Record_mixed { value_prefix_len; flat_suffix }
+            Record_mixed shape
         (* value-only records are stored as boxed records *)
         | { values = true; float64s = false; non_float64_unboxed_fields = false }
         | { imms = true; float64s = false; non_float64_unboxed_fields = false }
