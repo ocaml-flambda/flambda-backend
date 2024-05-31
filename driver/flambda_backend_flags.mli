@@ -151,7 +151,7 @@ module Flambda2 : sig
     val slot_offsets : bool ref
     val freshen : bool ref
     val flow : bool ref
-    val global : bool ref
+    val reaper : bool ref
   end
 
   module Expert : sig

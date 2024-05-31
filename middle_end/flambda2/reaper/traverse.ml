@@ -677,7 +677,7 @@ let run (unit : Flambda_unit.t) =
   let deps = Acc.deps acc in
   let kinds = Acc.kinds acc in
   let () =
-    let debug_print = Flambda_features.dump_global () in
+    let debug_print = Flambda_features.dump_reaper () in
     if false && debug_print then Dot.print_dep (Acc.code_deps acc, deps)
   in
   holed, deps, kinds
