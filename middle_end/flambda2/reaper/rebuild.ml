@@ -166,28 +166,24 @@ let rewrite_simple_opt (uses : uses) = function
 
 let rewrite_or_variable default uses (or_variable : _ Or_variable.t) =
   match or_variable with
-  | Or_variable.Const _ -> or_variable
-  | Or_variable.Var (v, _) ->
+  | Const _ -> or_variable
+  | Var (v, _) ->
     if Hashtbl.mem uses (Code_id_or_name.var v)
     then or_variable
     else Or_variable.Const default
 
 let rewrite_field_of_static_block _kinds uses (field : Field_of_static_block.t)
-    =
+    : Field_of_static_block.t =
   match field with
   | Tagged_immediate _ -> field
   | Symbol sym ->
     if Hashtbl.mem uses (Code_id_or_name.symbol sym)
     then field
-    else
-      Field_of_static_block.Tagged_immediate
-        (Targetint_31_63.of_int poison_value)
+    else Tagged_immediate (Targetint_31_63.of_int poison_value)
   | Dynamically_computed (v, _) ->
     if Hashtbl.mem uses (Code_id_or_name.var v)
     then field
-    else
-      Field_of_static_block.Tagged_immediate
-        (Targetint_31_63.of_int poison_value)
+    else Tagged_immediate (Targetint_31_63.of_int poison_value)
 
 let rewrite_static_const kinds (uses : uses) (sc : Static_const.t) =
   match sc with
