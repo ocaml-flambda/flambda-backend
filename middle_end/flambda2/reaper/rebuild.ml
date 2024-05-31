@@ -30,28 +30,7 @@ let poison_value = 0 (* 123456789 *)
 
 let poison_value_31_63 = Targetint_31_63.of_int poison_value
 
-let poison (kind : Flambda_kind.t) =
-  let module RWC = Reg_width_const in
-  match kind with
-  | Value -> Simple.const_int poison_value_31_63
-  | Naked_number Naked_float ->
-    Simple.const (RWC.naked_float (Float.create (float_of_int poison_value)))
-  | Naked_number Naked_float32 ->
-    Simple.const
-      (RWC.naked_float32 (Float32.create (float_of_int poison_value)))
-  | Naked_number Naked_immediate ->
-    Simple.const (RWC.naked_immediate poison_value_31_63)
-  | Naked_number Naked_int32 ->
-    Simple.const (RWC.naked_int32 (Int32.of_int poison_value))
-  | Naked_number Naked_int64 ->
-    Simple.const (RWC.naked_int64 (Int64.of_int poison_value))
-  | Naked_number Naked_nativeint ->
-    Simple.const (RWC.naked_nativeint (Targetint_32_64.of_int poison_value))
-  | Naked_number Naked_vec128 ->
-    Simple.const (RWC.naked_vec128 Vector_types.Vec128.Bit_pattern.zero)
-  | Region | Rec_info ->
-    Misc.fatal_errorf "No dummy value available for kind %a" Flambda_kind.print
-      kind
+let poison kind = Simple.const_int_of_kind kind poison_value
 
 let rewrite_simple kinds (uses : uses) simple =
   Simple.pattern_match simple
