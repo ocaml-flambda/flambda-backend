@@ -161,7 +161,7 @@ and traverse_let denv acc let_expr : rev_expr =
   let default acc =
     Name_occurrences.fold_names
       ~f:(fun () free_name ->
-        default_bp acc (Graph.Dep.Use (Code_id_or_name.name free_name)))
+        default_bp acc (Use (Code_id_or_name.name free_name)))
       ~init:()
       (Named.free_names defining_expr)
   in
@@ -222,13 +222,10 @@ and traverse_let denv acc let_expr : rev_expr =
               (fun i (field : Field_of_static_block.t) ->
                 match field with
                 | Symbol s ->
-                  record acc name
-                    (Graph.Dep.Block
-                       (Graph.Field.Block i, Code_id_or_name.symbol s))
+                  record acc name (Block (Block i, Code_id_or_name.symbol s))
                 | Tagged_immediate _ -> ()
                 | Dynamically_computed (v, _) ->
-                  record acc name
-                    (Graph.Dep.Block (Graph.Field.Block i, Code_id_or_name.var v)))
+                  record acc name (Block (Block i, Code_id_or_name.var v)))
               fields
           | Set_of_closures _ -> assert false
           | _ -> ())
@@ -247,9 +244,7 @@ and traverse_let denv acc let_expr : rev_expr =
           (fun i field ->
             Simple.pattern_match field
               ~name:(fun name ~coercion:_ ->
-                default_bp acc
-                  (Graph.Dep.Block
-                     (Graph.Field.Block i, Code_id_or_name.name name)))
+                default_bp acc (Block (Block i, Code_id_or_name.name name)))
               ~const:(fun _ -> ()))
           fields
       | Unary (Project_function_slot { move_from = _; move_to }, block) ->
@@ -258,16 +253,14 @@ and traverse_let denv acc let_expr : rev_expr =
             ~name:(fun name ~coercion:_ -> name)
             ~const:(fun _ -> assert false)
         in
-        let dep = Graph.Dep.Field (Function_slot move_to, block) in
-        default_bp acc dep
+        default_bp acc (Field (Function_slot move_to, block))
       | Unary (Project_value_slot { project_from = _; value_slot }, block) ->
         let block =
           Simple.pattern_match block
             ~name:(fun name ~coercion:_ -> name)
             ~const:(fun _ -> assert false)
         in
-        let dep = Graph.Dep.Field (Value_slot value_slot, block) in
-        default_bp acc dep
+        default_bp acc (Field (Value_slot value_slot, block))
       | Binary (Block_load (_access_kind, _mutability), block, field) -> begin
         (* Loads from mutable blocks are tracked here. This is ok as long as
            store are properly tracked also. This is a flow insensitive
@@ -275,18 +268,15 @@ and traverse_let denv acc let_expr : rev_expr =
            sometimes *)
         match known_field_of_block field block with
         | None -> default acc
-        | Some (field, block) ->
-          default_bp acc (Graph.Dep.Field (Block field, block))
+        | Some (field, block) -> default_bp acc (Field (Block field, block))
       end
       | Unary (Is_int _, arg) ->
         Simple.pattern_match arg
-          ~name:(fun name ~coercion:_ ->
-            default_bp acc (Graph.Dep.Field (Is_int, name)))
+          ~name:(fun name ~coercion:_ -> default_bp acc (Field (Is_int, name)))
           ~const:(fun _ -> ())
       | Unary (Get_tag, arg) ->
         Simple.pattern_match arg
-          ~name:(fun name ~coercion:_ ->
-            default_bp acc (Graph.Dep.Field (Get_tag, name)))
+          ~name:(fun name ~coercion:_ -> default_bp acc (Field (Get_tag, name)))
           ~const:(fun _ -> ())
       | prim ->
         let () =
@@ -310,7 +300,7 @@ and traverse_let denv acc let_expr : rev_expr =
         Acc.alias_kind name s acc
       in
       Simple.pattern_match s
-        ~name:(fun name ~coercion:_ -> default_bp acc (Graph.Dep.Alias name))
+        ~name:(fun name ~coercion:_ -> default_bp acc (Alias name))
         ~const:(fun _ -> default acc)
     | Rec_info _ ->
       (* TODO kind *)
