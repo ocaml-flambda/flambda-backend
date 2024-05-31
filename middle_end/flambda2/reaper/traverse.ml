@@ -53,19 +53,15 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
     | Check _ -> true
   in
   let code_dep = { Traverse_acc.arity; return; my_closure; exn; params } in
-  let () =
-    if has_unsafe_result_type
-    then
-      List.iter
-        (fun var -> Acc.used ~denv (Simple.var var) acc)
-        ((my_closure :: params) @ (exn :: return))
-  in
-  let () =
-    if never_delete
-    then (
-      List.iter (fun var -> Acc.used ~denv (Simple.var var) acc) (exn :: return);
-      Acc.used_code_id code_id acc)
-  in
+  if has_unsafe_result_type
+  then
+    List.iter
+      (fun var -> Acc.used ~denv (Simple.var var) acc)
+      ((my_closure :: params) @ (exn :: return));
+  if never_delete
+  then (
+    List.iter (fun var -> Acc.used ~denv (Simple.var var) acc) (exn :: return);
+    Acc.used_code_id code_id acc);
   Acc.add_code code_id code_dep acc
 
 let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
@@ -73,21 +69,19 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
   let funs =
     Function_declarations.funs (Set_of_closures.function_decls set_of_closures)
   in
-  let () =
-    Function_slot.Lmap.iter
-      (fun function_slot name ->
-        Acc.kind name Flambda_kind.value acc;
-        let code_id =
-          (Function_slot.Map.find function_slot funs
-            : Function_declarations.code_id_in_function_declaration)
-        in
-        match code_id with
-        | Deleted -> ()
-        | Code_id code_id -> Acc.add_set_of_closures_dep name code_id acc
-        (* let code_id = Code_id_or_name.code_id code_id in Acc.record_dep ~denv
-           name (Graph.Dep.Contains code_id) acc *))
-      names_and_function_slots
-  in
+  Function_slot.Lmap.iter
+    (fun function_slot name ->
+      Acc.kind name Flambda_kind.value acc;
+      let code_id =
+        (Function_slot.Map.find function_slot funs
+          : Function_declarations.code_id_in_function_declaration)
+      in
+      match code_id with
+      | Deleted -> ()
+      | Code_id code_id -> Acc.add_set_of_closures_dep name code_id acc
+      (* let code_id = Code_id_or_name.code_id code_id in Acc.record_dep ~denv
+         name (Graph.Dep.Contains code_id) acc *))
+    names_and_function_slots;
   let deps =
     Value_slot.Map.fold
       (fun value_slot simple set ->
@@ -142,27 +136,23 @@ and traverse_let denv acc let_expr : rev_expr =
       ~init:()
       (Named.free_names defining_expr)
   in
-  let () =
-    match defining_expr with
-    | Set_of_closures set_of_closures ->
-      traverse_set_of_closures denv acc ~bound_pattern set_of_closures
-    | Static_consts group ->
-      traverse_static_consts denv acc ~bound_pattern group
-    | Prim (prim, _dbg) ->
-      traverse_prim denv acc ~bound_pattern prim ~default ~default_bp
-    | Simple s ->
-      let () =
-        let name =
-          Name.var
-            (Bound_var.var (Bound_pattern.must_be_singleton bound_pattern))
-        in
-        Acc.alias_kind name s acc
+  (match defining_expr with
+  | Set_of_closures set_of_closures ->
+    traverse_set_of_closures denv acc ~bound_pattern set_of_closures
+  | Static_consts group -> traverse_static_consts denv acc ~bound_pattern group
+  | Prim (prim, _dbg) ->
+    traverse_prim denv acc ~bound_pattern prim ~default ~default_bp
+  | Simple s ->
+    let () =
+      let name =
+        Name.var (Bound_var.var (Bound_pattern.must_be_singleton bound_pattern))
       in
-      Simple.pattern_match s
-        ~name:(fun name ~coercion:_ -> default_bp acc (Alias name))
-        ~const:(fun _ -> default acc)
-    | Rec_info _ -> default acc
-  in
+      Acc.alias_kind name s acc
+    in
+    Simple.pattern_match s
+      ~name:(fun name ~coercion:_ -> default_bp acc (Alias name))
+      ~const:(fun _ -> default acc)
+  | Rec_info _ -> default acc);
   let named : rev_named =
     match defining_expr with
     | Set_of_closures set_of_closures ->
@@ -317,13 +307,11 @@ and traverse_static_consts denv acc ~(bound_pattern : Bound_pattern.t) group =
     | Static b -> b
     | Singleton _ | Set_of_closures _ -> assert false
   in
-  let () =
-    Static_const_group.match_against_bound_static group bound_static ~init:()
-      ~code:(fun () -> prepare_code ~denv acc)
-      ~deleted_code:(fun _ _ -> ())
-      ~set_of_closures:(fun _ ~closure_symbols:_ _ -> ())
-      ~block_like:(fun _ _ _ -> ())
-  in
+  Static_const_group.match_against_bound_static group bound_static ~init:()
+    ~code:(fun () -> prepare_code ~denv acc)
+    ~deleted_code:(fun _ _ -> ())
+    ~set_of_closures:(fun _ ~closure_symbols:_ _ -> ())
+    ~block_like:(fun _ _ _ -> ());
   Static_const_group.match_against_bound_static group bound_static ~init:()
     ~code:(fun () _code_id _code ->
       (* TODO: (is there anything to do here ? *)
@@ -402,17 +390,13 @@ and traverse_let_cont_recursive denv acc ~invariant_params ~body handlers =
       handlers denv.conts
   in
   (* Record kinds of bound parameters *)
-  let () =
-    Bound_parameters.iter
-      (fun bp -> Acc.bound_parameter_kind bp acc)
-      invariant_params
-  in
-  let () =
-    Continuation.Map.iter
-      (fun _ (_, bp, _) ->
-        Bound_parameters.iter (fun bp -> Acc.bound_parameter_kind bp acc) bp)
-      handlers
-  in
+  Bound_parameters.iter
+    (fun bp -> Acc.bound_parameter_kind bp acc)
+    invariant_params;
+  Continuation.Map.iter
+    (fun _ (_, bp, _) ->
+      Bound_parameters.iter (fun bp -> Acc.bound_parameter_kind bp acc) bp)
+    handlers;
   let handlers =
     Continuation.Map.fold
       (fun cont (cont_handler, bound_parameters, handler) handlers ->
@@ -443,11 +427,9 @@ and traverse_cont_handler :
   let is_cold = Continuation_handler.is_cold cont_handler in
   Continuation_handler.pattern_match cont_handler
     ~f:(fun bound_parameters ~handler ->
-      let () =
-        Bound_parameters.iter
-          (fun bp -> Acc.bound_parameter_kind bp acc)
-          bound_parameters
-      in
+      Bound_parameters.iter
+        (fun bp -> Acc.bound_parameter_kind bp acc)
+        bound_parameters;
       let expr = traverse denv acc handler in
       let handler = { bound_parameters; expr; is_exn_handler; is_cold } in
       k handler acc)
@@ -480,11 +462,9 @@ and traverse_apply denv acc apply : rev_expr =
     match exn_params with
     | [] -> assert false
     | exn_param :: extra_params ->
-      let () =
-        List.iter2
-          (fun param (arg, _kind) -> Acc.cont_dep ~denv param arg acc)
-          extra_params extra_args
-      in
+      List.iter2
+        (fun param (arg, _kind) -> Acc.cont_dep ~denv param arg acc)
+        extra_params extra_args;
       exn_param
   in
   traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc;
@@ -514,9 +494,7 @@ and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
     else default_acc acc
   | Function
       { function_call = Indirect_unknown_arity | Indirect_known_arity; _ } ->
-    let () =
-      List.iter (fun arg -> Acc.used ~denv arg acc) (Apply_expr.args apply)
-    in
+    List.iter (fun arg -> Acc.used ~denv arg acc) (Apply_expr.args apply);
     let callee =
       match Apply_expr.callee apply with
       | None -> assert false
@@ -572,12 +550,10 @@ and traverse_apply_cont denv acc apply_cont : rev_expr =
 
 and traverse_switch denv acc switch : rev_expr =
   let expr = Switch switch in
-  let () =
-    Acc.used ~denv (Switch_expr.scrutinee switch) acc;
-    Targetint_31_63.Map.iter
-      (fun _ apply_cont -> apply_cont_deps denv acc apply_cont)
-      (Switch_expr.arms switch)
-  in
+  Acc.used ~denv (Switch_expr.scrutinee switch) acc;
+  Targetint_31_63.Map.iter
+    (fun _ apply_cont -> apply_cont_deps denv acc apply_cont)
+    (Switch_expr.arms switch);
   { expr; holed_expr = denv.parent }
 
 and traverse_invalid denv _acc ~message =
@@ -620,30 +596,24 @@ and traverse_function_params_and_body acc code_id code ~return_continuation
   let denv = { parent = Up; conts; current_code_id = Some code_id } in
   if is_opaque
   then List.iter (fun v -> Acc.used ~denv (Simple.var v) acc) (exn :: return);
-  let () =
-    Bound_parameters.iter (fun bp -> Acc.bound_parameter_kind bp acc) params
-  in
+  Bound_parameters.iter (fun bp -> Acc.bound_parameter_kind bp acc) params;
   Acc.kind (Name.var my_closure) Flambda_kind.value acc;
   Acc.kind (Name.var my_region) Flambda_kind.region acc;
   Acc.kind (Name.var my_depth) Flambda_kind.rec_info acc;
-  let () =
-    if is_opaque
-    then
-      List.iter (fun arg -> Acc.used ~denv (Simple.var arg) acc) code_dep.params
-    else
-      List.iter2
-        (fun param arg -> Acc.func_param_dep ~denv param arg acc)
-        (Bound_parameters.to_list params)
-        code_dep.params
-  in
-  let () =
-    if is_opaque
-    then Acc.used ~denv (Simple.var code_dep.my_closure) acc
-    else
-      Acc.record_dep ~denv (Name.var my_closure)
-        (Alias (Name.var code_dep.my_closure))
-        acc
-  in
+  if is_opaque
+  then
+    List.iter (fun arg -> Acc.used ~denv (Simple.var arg) acc) code_dep.params
+  else
+    List.iter2
+      (fun param arg -> Acc.func_param_dep ~denv param arg acc)
+      (Bound_parameters.to_list params)
+      code_dep.params;
+  if is_opaque
+  then Acc.used ~denv (Simple.var code_dep.my_closure) acc
+  else
+    Acc.record_dep ~denv (Name.var my_closure)
+      (Alias (Name.var code_dep.my_closure))
+      acc;
   let body = traverse denv acc body in
   let params_and_body =
     { return_continuation;
