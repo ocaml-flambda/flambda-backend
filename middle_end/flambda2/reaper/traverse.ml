@@ -659,22 +659,21 @@ and traverse_function_params_and_body acc code_id code ~return_continuation
 
 let run (unit : Flambda_unit.t) =
   let acc = Acc.create () in
-  let holed =
-    Profile.record_call ~accumulate:false "down" (fun () ->
-        let dummy_toplevel_return = Variable.create "dummy_toplevel_return" in
-        let dummy_toplevel_exn = Variable.create "dummy_toplevel_exn" in
-        Acc.root dummy_toplevel_return acc;
-        Acc.root dummy_toplevel_exn acc;
-        let conts =
-          Continuation.Map.of_list
-            [ ( Flambda_unit.return_continuation unit,
-                Normal [dummy_toplevel_return] );
-              Flambda_unit.exn_continuation unit, Normal [dummy_toplevel_exn] ]
-        in
-        traverse
-          { parent = Up; conts; current_code_id = None }
-          acc (Flambda_unit.body unit))
+  let create_holed () =
+    let dummy_toplevel_return = Variable.create "dummy_toplevel_return" in
+    let dummy_toplevel_exn = Variable.create "dummy_toplevel_exn" in
+    Acc.root dummy_toplevel_return acc;
+    Acc.root dummy_toplevel_exn acc;
+    let conts =
+      Continuation.Map.of_list
+        [ Flambda_unit.return_continuation unit, Normal [dummy_toplevel_return];
+          Flambda_unit.exn_continuation unit, Normal [dummy_toplevel_exn] ]
+    in
+    traverse
+      { parent = Up; conts; current_code_id = None }
+      acc (Flambda_unit.body unit)
   in
+  let holed = Profile.record_call ~accumulate:false "down" create_holed in
   let deps = Acc.deps acc in
   let kinds = Acc.kinds acc in
   let () =
