@@ -471,32 +471,30 @@ and traverse_apply denv acc apply : rev_expr =
     in
     ()
   in
-  let () =
-    let return_args =
-      match Apply_expr.continuation apply with
-      | Never_returns -> None
-      | Return cont -> (
-        match Continuation.Map.find cont denv.conts with
-        | Normal params -> Some params)
-    in
-    let exn_arg =
-      let exn = Apply_expr.exn_continuation apply in
-      let extra_args = Exn_continuation.extra_args exn in
-      let (Normal exn_params) =
-        Continuation.Map.find (Exn_continuation.exn_handler exn) denv.conts
-      in
-      match exn_params with
-      | [] -> assert false
-      | exn_param :: extra_params ->
-        let () =
-          List.iter2
-            (fun param (arg, _kind) -> Acc.cont_dep ~denv param arg acc)
-            extra_params extra_args
-        in
-        exn_param
-    in
-    traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc
+  let return_args =
+    match Apply_expr.continuation apply with
+    | Never_returns -> None
+    | Return cont -> (
+      match Continuation.Map.find cont denv.conts with
+      | Normal params -> Some params)
   in
+  let exn_arg =
+    let exn = Apply_expr.exn_continuation apply in
+    let extra_args = Exn_continuation.extra_args exn in
+    let (Normal exn_params) =
+      Continuation.Map.find (Exn_continuation.exn_handler exn) denv.conts
+    in
+    match exn_params with
+    | [] -> assert false
+    | exn_param :: extra_params ->
+      let () =
+        List.iter2
+          (fun param (arg, _kind) -> Acc.cont_dep ~denv param arg acc)
+          extra_params extra_args
+      in
+      exn_param
+  in
+  traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc;
   let expr = Apply apply in
   { expr; holed_expr = denv.parent }
 
