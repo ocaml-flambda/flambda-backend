@@ -250,9 +250,10 @@ and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
     in
     default_bp acc (Field (Value_slot value_slot, block))
   | Binary (Block_load (_access_kind, _mutability), block, field) -> (
-    (* Loads from mutable blocks are tracked here. This is ok as long as store
-       are properly tracked also. This is a flow insensitive dependency
-       analysis: this might produce surprising results sometimes *)
+    (* Loads from mutable blocks are tracked here. This is ok as long as stores
+       are properly tracked also. This is a flow-insensitive dependency
+       analysis: this might produce surprising results sometimes. *)
+    (* CR mshinwell: give examples of surprising results *)
     match known_field_of_block field block with
     | None -> default acc
     | Some (field, block) -> default_bp acc (Field (Block field, block)))
