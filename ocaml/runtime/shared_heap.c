@@ -1115,6 +1115,14 @@ void compact_phase_one_mark(struct caml_heap_state* heap) {
     int i = 0;
     pool** sz_pools = (pool**)caml_stat_alloc_noexc(sizeof(pool*) * total_pools);
 
+    /* we failed to allocate sz_pools which means we can't really go any
+      further marking pools to evacuate. */
+    if( sz_pools == NULL ) {
+      caml_gc_log("Unable to allocate sz_pools for phase one mark");
+
+      return;
+    }
+
     /* add all full pools to sz_pools */
     cur_pool = heap->unswept_full_pools[sz_class];
     while(cur_pool) {
