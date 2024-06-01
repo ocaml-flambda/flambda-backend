@@ -1046,7 +1046,7 @@ int compact_compare_pools(const void* v1, const void* v2) {
       return 1;
     } else {
       /* otherwise we want the pools in address order (which helps freeing them later) */
-      return p2 > p1;
+      return p2 > p1 ? 1 : -1;
     }
   }
 }
