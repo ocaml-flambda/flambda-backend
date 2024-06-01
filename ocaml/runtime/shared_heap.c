@@ -1273,7 +1273,7 @@ int compact_phase_two_mark(int participating_count,
   }
 
   /* The last thing we need to do is recreate pool_freelist.free
-     in reverse-sorted order (so we allocate the smallest
+     in reverse-sorted order (so we allocate the largest
      chunks first) */
   pool* new_free = NULL;
 
