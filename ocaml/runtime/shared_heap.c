@@ -1591,6 +1591,9 @@ void compact_run_phase(struct caml_heap_state* heap,
       cur_pool = next_pool;
     }
 
+    /* There may be pools with an evacuate flag set in the pool_freelist.free
+      but it's fine to ignore them here as this is a no-op. */
+
     #if DEBUG
     compact_debug_check_pools(evac_pool, 0);
     compact_debug_check_pools(to_pool, 0);
@@ -1719,7 +1722,7 @@ void compact_run_phase(struct caml_heap_state* heap,
 
   CAML_EV_BEGIN(EV_COMPACT_FORWARD);
 
-  /* Second phase: at this point all live blocks in evacuated pools
+  /* Second step: at this point all live blocks in evacuated pools
     have been moved and their old locations' first fields now point to
     their new locations. We now go through all pools again (including
     full ones this time) and for each field we check if the block the
@@ -1763,7 +1766,7 @@ void compact_run_phase(struct caml_heap_state* heap,
   caml_global_barrier();
   CAML_EV_BEGIN(EV_COMPACT_RELEASE);
 
-  /* Third phase: move all evacuated pools to the pool freelist */
+  /* Third step: move all evacuated pools to the pool freelist */
 
   pool* cur_pool = domain_evac_pools;
   uintnat freed_pools = 0;
