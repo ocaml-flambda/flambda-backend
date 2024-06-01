@@ -1046,9 +1046,6 @@ static atomic_uintnat global_live_pools = ATOMIC_VAR_INIT(0);
 void compact_phase_one_mark(struct caml_heap_state* heap) {
 
   for (int sz_class = 1; sz_class < NUM_SIZECLASSES; sz_class++) {
-    /* We start with partial pools */
-    pool* cur_pool = heap->unswept_avail_pools[sz_class];
-
     /* count the number of pools */
     int avail_pools =
       compact_count_pools(heap->unswept_avail_pools[sz_class]);
@@ -1060,7 +1057,7 @@ void compact_phase_one_mark(struct caml_heap_state* heap) {
 
     int pool_blocks = POOL_BLOCKS(sz_class);
 
-    cur_pool = heap->unswept_avail_pools[sz_class];
+    pool* cur_pool = heap->unswept_avail_pools[sz_class];
 
     /* Count the number of free and live blocks in each pool. Note that a live
        block here currently has the header status UNMARKED (because it was
@@ -1072,7 +1069,6 @@ void compact_phase_one_mark(struct caml_heap_state* heap) {
        exact amount of space needed or even sweep all pools in this counting
        pass.
     */
-    int k = 0;
 
     /* We count the live blocks we have in the full pools */
     int total_live_blocks = full_pools * pool_blocks;
@@ -1100,7 +1096,6 @@ void compact_phase_one_mark(struct caml_heap_state* heap) {
       }
 
       cur_pool = cur_pool->next;
-      k++;
     }
 
     int i = 0;
