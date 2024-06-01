@@ -267,18 +267,6 @@ static void pool_release(struct caml_heap_state* local,
   caml_plat_unlock(&pool_freelist.lock);
 }
 
-
-/* free the memory of [pool], giving it back to the OS */
-/*static void pool_free(struct caml_heap_state* local,
-                      pool* pool,
-                      sizeclass sz)
-{
-    CAMLassert(pool->sz == sz);
-    local->stats.pool_words -= POOL_WSIZE;
-    local->stats.pool_frag_words -= POOL_HEADER_WSIZE + wastage_sizeclass[sz];
-    caml_mem_unmap(pool, Bsize_wsize(POOL_WSIZE));
-}*/
-
 static void calc_pool_stats(pool* a, sizeclass sz, struct heap_stats* s)
 {
   header_t* p = POOL_FIRST_BLOCK(a, sz);
@@ -1172,14 +1160,14 @@ void compact_phase_one_mark(struct caml_heap_state* heap) {
 
 /* This is the second phase of compaction. This function should only
    be called from a single domain (and sandwiched between barriers).
-   Returns 1 if it's worth us doing a second phase or 0 if not. 
-   
+   Returns 1 if it's worth us doing a second phase or 0 if not.
+
    In this function a single domain will create a sorted array of all
    pools in the process and then mark as evacuating all but the
    highest sorted `global_live_pools` pools. */
 int compact_phase_two_mark(int participating_count,
                             caml_domain_state** participants) {
-  
+
   /* We need to get the full set of pools across all domains,
      including the free list */
   int pools_count = 0;
@@ -1352,7 +1340,7 @@ void compact_release_freelist(void) {
     /* sanity check the free_pools list */
     int current_chunk_size_debug = INT_MAX;
     int current_chunk_debug = 0;
-    
+
     for( i = 0; i < free_pools_count; i++ ) {
       CAMLassert(free_pools[i]->chunk_size <= current_chunk_size_debug);
       if( free_pools[i]->chunk == current_chunk_debug ) {
@@ -1443,7 +1431,7 @@ void caml_compact_heap(caml_domain_state* domain_state,
     we sort pools in each class size for each domain, prefering larger
     chunks of pools. We then compact each size class in parallel across
     all domains, creating a list of free pools.
-    
+
     The second phase we globally sort all pools and move those so we end
     up with whole chunks of free pools that can be freed.
 
