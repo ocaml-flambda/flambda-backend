@@ -268,17 +268,6 @@ static void pool_release(struct caml_heap_state* local,
   caml_plat_unlock(&pool_freelist.lock);
 }
 
-/* free the memory of [pool], giving it back to the OS */
-/*static void pool_free(struct caml_heap_state* local,
-                         pool* pool,
-                         sizeclass sz)
-{
-    CAMLassert(pool->sz == sz);
-    local->stats.pool_words -= POOL_WSIZE;
-    local->stats.pool_frag_words -= POOL_HEADER_WSIZE + wastage_sizeclass[sz];
-    caml_mem_unmap(pool, Bsize_wsize(POOL_WSIZE));
-}*/
-
 static void calc_pool_stats(pool* a, sizeclass sz, struct heap_stats* s)
 {
   header_t* p = POOL_FIRST_BLOCK(a, sz);
