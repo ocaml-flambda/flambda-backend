@@ -1051,8 +1051,6 @@ int compact_compare_pools(const void* v1, const void* v2) {
   }
 }
 
-static atomic_uintnat global_live_pools = ATOMIC_VAR_INIT(0);
-
 /* In this phase each domain goes through its pools and calculates
    the number of live blocks in each pool. We then sort the pools
    (by chunk size) and move all live blocks to the largest chunks
@@ -1154,11 +1152,6 @@ void compact_phase_one_mark(struct caml_heap_state* heap) {
 
     CAMLassert(evac_idx < total_pools);
 
-    /* We can have zero pools for a size class and that's fine */
-    if( total_live_blocks > 0 ) {
-      atomic_fetch_add(&global_live_pools, evac_idx);
-    }
-
     /* mark all pools from 0 to evac_idx as not evacuated */
     for( i = 0 ; i < evac_idx && i < total_pools; i++ ) {
       pool* p = sz_pools[i];
@@ -1183,7 +1176,7 @@ void compact_phase_one_mark(struct caml_heap_state* heap) {
 
    In this function a single domain will create a sorted array of all
    pools in the process and then mark as evacuating all but the
-   highest sorted `global_live_pools` pools. */
+   highest sorted `live_pools` pools. */
 int compact_phase_two_mark(int participating_count,
                             caml_domain_state** participants) {
 
@@ -1216,6 +1209,8 @@ int compact_phase_two_mark(int participating_count,
     p->next = pool_freelist.free;
     pool_freelist.free = p;
   }
+
+  int live_pools = pools_count;
 
   free_pools = compact_count_pools(pool_freelist.free);
   pools_count += free_pools;
@@ -1268,8 +1263,6 @@ int compact_phase_two_mark(int participating_count,
   /* Now sort all_pools so that the largest chunks are first */
   qsort(all_pools, pools_count, sizeof(pool*), compact_compare_pools);
 
-  int live_pools = atomic_load_relaxed(&global_live_pools);
-
   CAMLassert(live_pools <= pools_count);
 
   /* We need to mark the first live_pools as live */
@@ -1320,8 +1313,6 @@ int compact_phase_two_mark(int participating_count,
   #endif
 
   caml_stat_free(all_pools);
-
-  atomic_store_relaxed(&global_live_pools, 0);
 
   /* TODO: We always do a phase two at the moment. There are cases
       where we probably don't want to. */
