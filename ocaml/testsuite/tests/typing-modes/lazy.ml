@@ -3,10 +3,12 @@
 *)
 
 (* lazy expression is legacy *)
-let x @ portable = lazy "hello"
+let u =
+    let _x @ portable = lazy "hello" in
+    ()
 (* CR zqian: this should fail. *)
 [%%expect{|
-val x : string lazy_t = lazy "hello"
+val u : unit = ()
 |}]
 
 (* lazy body is legacy *)

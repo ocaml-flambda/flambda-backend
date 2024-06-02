@@ -89,12 +89,12 @@ Error: This value escapes its region.
 |}]
 
 (* methods are available as legacy *)
-let foo @ portable =
+let u =
     let obj = new cla in
-    obj#m
+    portable_use obj#m
 (* CR zqian: this should fail. *)
 [%%expect{|
-val foo : string = "hello"
+val u : unit = ()
 |}]
 
 (* for methods, arguments can be of any modes *)
@@ -119,11 +119,12 @@ Error: This value is nonportable but expected to be portable.
 
 
 (* Closing over classes affects closure's mode *)
-let (foo @ portable) () =
-    new cla
+let u =
+    let foo () = new cla in
+    portable_use foo
 (* CR zqian: this should fail. *)
 [%%expect{|
-val foo : unit -> cla = <fun>
+val u : unit = ()
 |}]
 
 module type SC = sig
@@ -133,17 +134,22 @@ end
 module type SC = sig class cla : object  end end
 |}]
 
-let (foo @ portable) () =
-    let m = (module struct class cla = object end end : SC) in
-    let module M = (val m) in
-    new M.cla
+let u =
+    let foo () =
+        let m = (module struct class cla = object end end : SC) in
+        let module M = (val m) in
+        new M.cla
+    in
+    portable_use foo
 [%%expect{|
-val foo : unit -> <  > = <fun>
+val u : unit = ()
 |}]
 
 (* objects are always legacy *)
-let obj @ portable = new cla
+let u =
+    let obj = new cla in
+    portable_use obj
 (* CR zqian: this should fail. *)
 [%%expect{|
-val obj : cla = <obj>
+val u : unit = ()
 |}]

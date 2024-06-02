@@ -4,6 +4,8 @@
 
 (* This file tests that modules are sound wrt modes. *)
 
+let portable_use : 'a @ portable -> unit = fun _ -> ()
+
 module type S = sig val x : string end
 
 module type Empty = sig end
@@ -12,28 +14,35 @@ module M = struct
     let x = "string"
 end
 [%%expect{|
+val portable_use : 'a @ portable -> unit = <fun>
 module type S = sig val x : string end
 module type Empty = sig end
 module M : sig val x : string end
 |}]
 
 (* Closing over modules affects closure's modes *)
-let (foo @ portable) () =
-    let _ = (module M : S) in
-    ()
+let u =
+    let foo () =
+        let _ = (module M : S) in
+        ()
+    in
+    portable_use foo
 (* CR zqian: This should fail *)
 [%%expect{|
-val foo : unit -> unit = <fun>
+val u : unit = ()
 |}]
 
 (* File-level modules are looked up differently and need to be tested
 separately. *)
-let (foo @ portable) () =
-    let _ = (module List : Empty) in
-    ()
+let u =
+    let foo () =
+        let _ = (module List : Empty) in
+        ()
+    in
+    portable_use foo
 (* CR zqian: this should fail *)
 [%%expect{|
-val foo : unit -> unit = <fun>
+val u : unit = ()
 |}]
 
 (* Values in modules are defined as legacy *)
@@ -48,24 +57,31 @@ Error: This value escapes its region.
 |}]
 
 (* Values from modules are available as legacy *)
-let (foo @ portable) () = M.x
+let u =
+    let foo () = M.x in
+    portable_use foo
 (* CR zqian: this should fail *)
 [%%expect{|
-val foo : unit -> string = <fun>
+val u : unit = ()
 |}]
 
-let (foo @ portable) () = List.length
+let u =
+    let foo () = List.length in
+    portable_use foo
 (* CR zqian: this should fail *)
 [%%expect{|
-val foo : unit -> 'a list -> int = <fun>
+val u : unit = ()
 |}]
 
-let (foo @ portable) () =
-    let m = (module struct let x = "hello" end : S) in
-    let module M = (val m) in
-    M.x
+let u =
+    let foo () =
+        let m = (module struct let x = "hello" end : S) in
+        let module M = (val m) in
+        M.x
+    in
+    portable_use foo
 [%%expect{|
-val foo : unit -> string = <fun>
+val u : unit = ()
 |}]
 
 (* first class modules are produced at legacy *)
