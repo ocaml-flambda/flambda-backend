@@ -6,18 +6,19 @@
 
 let portable_use : 'a @ portable -> unit = fun _ -> ()
 
-module type S = sig val x : string end
+module type S = sig val x : 'a -> unit end
 
-module type Empty = sig end
+module type SL = sig type 'a t end
 
 module M = struct
-    let x = "string"
+    type 'a t = int
+    let x _ = ()
 end
 [%%expect{|
 val portable_use : 'a @ portable -> unit = <fun>
-module type S = sig val x : string end
-module type Empty = sig end
-module M : sig val x : string end
+module type S = sig val x : 'a -> unit end
+module type SL = sig type 'a t end
+module M : sig type 'a t = int val x : 'a -> unit end
 |}]
 
 (* Closing over modules affects closure's modes *)
@@ -36,7 +37,7 @@ val u : unit = ()
 separately. *)
 let u =
     let foo () =
-        let _ = (module List : Empty) in
+        let _ = (module List : SL) in
         ()
     in
     portable_use foo
@@ -75,7 +76,7 @@ val u : unit = ()
 
 let u =
     let foo () =
-        let m = (module struct let x = "hello" end : S) in
+        let m = (module struct let x _ = () end : S) in
         let module M = (val m) in
         M.x
     in
@@ -85,15 +86,15 @@ val u : unit = ()
 |}]
 
 (* first class modules are produced at legacy *)
-let x = ((module M : Empty) : _ @@ portable)
+let x = ((module M : SL) : _ @@ portable)
 (* CR zqian: this should fail *)
 [%%expect{|
-val x : (module Empty) = <module>
+val x : (module SL) = <module>
 |}]
 
 (* first class modules are consumed at legacy *)
 let foo () =
-    let m @ local = (module M : Empty) in
+    let m @ local = (module M : SL) in
     let module M = (val m) in
     ()
 [%%expect{|

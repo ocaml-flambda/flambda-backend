@@ -72,6 +72,19 @@ Line 4, characters 30-31:
 Error: This value is nonportable but expected to be portable.
 |}]
 
+(* values written to instance variables need to be legacy *)
+class cla = object
+    val mutable x = "hello"
+
+    method foo = x <- (world : _ @@ local)
+end
+[%%expect{|
+Line 4, characters 22-42:
+4 |     method foo = x <- (world : _ @@ local)
+                          ^^^^^^^^^^^^^^^^^^^^
+Error: This value escapes its region.
+|}]
+
 class cla = object
     method m = "hello"
 end
