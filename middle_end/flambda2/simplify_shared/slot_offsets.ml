@@ -389,13 +389,16 @@ end = struct
 
     let range_used_by (type a) (slot : a slot_desc) (Offset pos) ~slot_size =
       match slot with
-      | Function_slot _ -> pos - 1, pos + slot_size
+      | Function_slot _ ->
+        let slot_size = if slot_size < 0 then 2 else slot_size in
+        pos - 1, pos + slot_size
       | Unboxed_slot _ | Value_slot _ -> pos, pos + slot_size
 
     let add_slot_to_exported_offsets (type a) offsets (slot : a slot_desc)
         (Offset pos) ~slot_size =
       match slot with
       | Function_slot function_slot ->
+        let slot_size = if slot_size < 0 then 2 else slot_size in
         let (info : EO.function_slot_info) =
           EO.Live_function_slot { offset = pos; size = slot_size }
         in
@@ -750,7 +753,7 @@ end = struct
     then (
       let size =
         match code_id with
-        | None -> 2
+        | None -> -1
         | Some code_id ->
           let code_metadata = get_code_metadata code_id in
           let module CM = Code_metadata in
@@ -895,6 +898,20 @@ end = struct
               code_id
           | Some s ->
             s.sets <- set :: s.sets;
+            (if s.size < 0
+            then
+              let size =
+                match code_id with
+                | None -> -1
+                | Some code_id ->
+                  let code_metadata = get_code_metadata code_id in
+                  let module CM = Code_metadata in
+                  let is_tupled = CM.is_tupled code_metadata in
+                  let params_arity = CM.params_arity code_metadata in
+                  let arity = Flambda_arity.num_params params_arity in
+                  if (arity = 0 || arity = 1) && not is_tupled then 2 else 3
+              in
+              s.size <- size);
             update_set_for_slot s set;
             s
         in
@@ -966,7 +983,8 @@ end = struct
     (* space needed to fit the slot *)
     let needed_space =
       match slot.desc with
-      | Function_slot _ -> slot.size + 1 (* header word *)
+      | Function_slot _ ->
+        if slot.size < 0 then 3 else slot.size + 1 (* header word *)
       | Unboxed_slot _ | Value_slot _ -> slot.size
     in
     (* Ensure that for value slots, we are after all function slots. *)
