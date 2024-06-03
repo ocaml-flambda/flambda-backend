@@ -1146,11 +1146,11 @@ let add_offsets_from_function l1 ~from_function:l2 =
   List.rev_append l2 l1
 
 let finalize_offsets ~get_code_metadata ~used_slots l =
-  let state = ref (Greedy.create_initial_state ()) in
+  let state = Greedy.create_initial_state () in
   Misc.try_finally
     (fun () ->
-      List.iter (Greedy.create_slots_for_set !state ~get_code_metadata) l;
-      Greedy.finalize ~used_slots !state)
+      List.iter (Greedy.create_slots_for_set state ~get_code_metadata) l;
+      Greedy.finalize ~used_slots state)
     ~always:(fun () ->
       if Flambda_features.dump_slot_offsets ()
-      then Format.eprintf "%a@." Greedy.print !state)
+      then Format.eprintf "%a@." Greedy.print state)
