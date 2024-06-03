@@ -355,6 +355,24 @@ end
 module Jkind_desc = struct
   open Jkind_types.Jkind_desc
 
+  let not_mode_crossing layout =
+    { layout;
+      modes_upper_bounds = Modes.max;
+      externality_upper_bound = Externality.max
+    }
+
+  let mode_crossing layout =
+    { layout;
+      modes_upper_bounds = Modes.min;
+      externality_upper_bound = Externality.min
+    }
+
+  let add_mode_crossing t =
+    { t with
+      modes_upper_bounds = Modes.min;
+      externality_upper_bound = Externality.min
+    }
+
   let max =
     { layout = Layout.max;
       modes_upper_bounds = Modes.max;
@@ -406,17 +424,13 @@ module Jkind_desc = struct
 
   let of_new_sort_var () =
     let layout, sort = Layout.of_new_sort_var () in
-    { max with layout }, sort
+    not_mode_crossing layout, sort
 
-  let any = max
+  let any = not_mode_crossing Any
 
-  let value = { max with layout = Layout.value }
+  let value = not_mode_crossing Layout.value
 
-  let void =
-    { layout = Layout.void;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = Externality.min
-    }
+  let void = not_mode_crossing Layout.void
 
   (* [immediate64] describes types that are stored directly (no indirection)
      on 64-bit platforms but indirectly on 32-bit platforms. The key question:
@@ -448,51 +462,23 @@ module Jkind_desc = struct
      argument. But the arguments that we expect here will have no trouble
      meeting the conditions.
   *)
-  let immediate64 =
-    { layout = Non_null_value;
-      modes_upper_bounds =
-        { areality = Global; linearity = Many; uniqueness = Unique };
-      externality_upper_bound = External64
-    }
+  let immediate = mode_crossing Non_null_value
 
-  let immediate =
-    { layout = Non_null_value;
-      modes_upper_bounds =
-        { areality = Global; linearity = Many; uniqueness = Unique };
-      externality_upper_bound = External
-    }
+  let immediate64 = { immediate with externality_upper_bound = External64 }
 
-  let float64 =
-    { layout = Layout.float64;
-      modes_upper_bounds =
-        { areality = Global; linearity = Many; uniqueness = Unique };
-      externality_upper_bound = External
-    }
+  (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
+     crossing first *)
+  let float64 = mode_crossing Layout.float64
 
-  let float32 =
-    { layout = Layout.float32;
-      modes_upper_bounds =
-        { areality = Global; linearity = Many; uniqueness = Unique };
-      externality_upper_bound = External
-    }
+  (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
+     crossing first *)
+  let float32 = mode_crossing Layout.float32
 
-  let word =
-    { layout = Layout.word;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = External
-    }
+  let word = not_mode_crossing Layout.word
 
-  let bits32 =
-    { layout = Layout.bits32;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = External
-    }
+  let bits32 = not_mode_crossing Layout.bits32
 
-  let bits64 =
-    { layout = Layout.bits64;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = External
-    }
+  let bits64 = not_mode_crossing Layout.bits64
 
   let non_null_value = { value with layout = Non_null_value }
 
@@ -575,6 +561,9 @@ let word ~why = fresh_jkind Jkind_desc.word ~why:(Word_creation why)
 let bits32 ~why = fresh_jkind Jkind_desc.bits32 ~why:(Bits32_creation why)
 
 let bits64 ~why = fresh_jkind Jkind_desc.bits64 ~why:(Bits64_creation why)
+
+let add_mode_crossing t =
+  { t with jkind = Jkind_desc.add_mode_crossing t.jkind }
 
 (******************************)
 (*** user errors ***)
