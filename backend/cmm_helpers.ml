@@ -1579,7 +1579,7 @@ let make_alloc_generic ?scannable_prefix ~is_array ~is_object ~mode set_fn dbg
           *        (String.starts_with loc.loc_start.pos_fname
           *           ~prefix:"ocaml/otherlibs"))
           *  && *)
-         (not is_array) && not is_object
+         (not is_array) && not is_object && wordsize <= 254
       then Scan_prefix wordsize, 2
       else Scan_all, 0
   in
