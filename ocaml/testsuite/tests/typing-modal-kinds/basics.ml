@@ -27,10 +27,19 @@ end = struct
   let hide x = x
 end
 
+module Hidden_int64_u : sig
+  type t : bits64
+  val hide : int64# -> t
+end = struct
+  type t = int64#
+  let hide x = x
+end
+
 [%%expect{|
 module Hidden_string : sig type t val hide : string -> t end
 module Hidden_int : sig type t : immediate val hide : int -> t end
 module Hidden_float_u : sig type t : float64 val hide : float# -> t end
+module Hidden_int64_u : sig type t : bits64 val hide : int64# -> t end
 |}]
 
 module Immediate : sig
@@ -68,6 +77,25 @@ module Float_u :
     val id : ('a : float64). 'a -> 'a
     val ignore : ('a : float64). 'a -> unit
     val unique : ('a : float64). unique_ 'a -> 'a
+  end
+|}]
+
+module Int64_u : sig
+  val id : ('a : bits64). 'a -> 'a
+  val ignore : ('a : bits64). 'a -> unit
+  val unique : ('a : bits64). unique_ 'a -> 'a
+end = struct
+  let id x = x
+  let ignore _ = ()
+  let unique (unique_ x) = x
+end
+
+[%%expect{|
+module Int64_u :
+  sig
+    val id : ('a : bits64). 'a -> 'a
+    val ignore : ('a : bits64). 'a -> unit
+    val unique : ('a : bits64). unique_ 'a -> 'a
   end
 |}]
 
@@ -166,11 +194,32 @@ let float_u_escape () = let local_ x : float# = #3.14 in x
 val float_u_escape : unit -> float# = <fun>
 |}]
 
+let int64_u_escape () = let local_ x : int64# = #314L in x
+
+[%%expect{|
+Line 1, characters 57-58:
+1 | let int64_u_escape () = let local_ x : int64# = #314L in x
+                                                             ^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+
 let hidden_float_u_escape () =
   let local_ x : Hidden_float_u.t = Hidden_float_u.hide #3.14 in x
 
 [%%expect{|
 val hidden_float_u_escape : unit -> Hidden_float_u.t = <fun>
+|}]
+
+let hidden_int64_u_escape () =
+  let local_ x : Hidden_int64_u.t = Hidden_int64_u.hide #314L in x
+
+[%%expect{|
+Line 2, characters 65-66:
+2 |   let local_ x : Hidden_int64_u.t = Hidden_int64_u.hide #314L in x
+                                                                     ^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
 |}]
 
 let float_u_record_escape =
@@ -318,11 +367,30 @@ let float_u_duplicate () = let once_ x : float# = #3.14 in Float_u.id x
 val float_u_duplicate : unit -> float# = <fun>
 |}]
 
+let int64_u_duplicate () = let once_ x : int64# = #314L in Int64_u.id x
+
+[%%expect{|
+Line 1, characters 70-71:
+1 | let int64_u_duplicate () = let once_ x : int64# = #314L in Int64_u.id x
+                                                                          ^
+Error: This value is once but expected to be many.
+|}]
+
 let hidden_float_u_duplicate () =
   let once_ x : Hidden_float_u.t = Hidden_float_u.hide #3.14 in Float_u.id x
 
 [%%expect{|
 val hidden_float_u_duplicate : unit -> Hidden_float_u.t = <fun>
+|}]
+
+let hidden_int64_u_duplicate () =
+  let once_ x : Hidden_int64_u.t = Hidden_int64_u.hide #314L in Int64_u.id x
+
+[%%expect{|
+Line 2, characters 75-76:
+2 |   let once_ x : Hidden_int64_u.t = Hidden_int64_u.hide #314L in Int64_u.id x
+                                                                               ^
+Error: This value is once but expected to be many.
 |}]
 
 let float_u_record_duplicate =
@@ -512,6 +580,19 @@ Line 1, characters 66-67:
 
 |}]
 
+let int64_u_unshare () = let x : int64# = #314L in Int64_u.ignore x; Int64_u.unique x
+
+[%%expect{|
+Line 1, characters 84-85:
+1 | let int64_u_unshare () = let x : int64# = #314L in Int64_u.ignore x; Int64_u.unique x
+                                                                                        ^
+Error: This value is used here as unique, but it has already been used:
+Line 1, characters 66-67:
+1 | let int64_u_unshare () = let x : int64# = #314L in Int64_u.ignore x; Int64_u.unique x
+                                                                      ^
+
+|}]
+
 let imm_escape () = Immediate.id (local_ 42) [@nontail]
 
 [%%expect{|
@@ -538,6 +619,17 @@ Line 3, characters 17-18:
 3 |   Float_u.ignore x; Float_u.unique x
                      ^
 
+|}]
+
+let hidden_int64_u_unshare () =
+  let x : Hidden_int64_u.t = Hidden_int64_u.hide #314L in
+  Int64_u.ignore x; Int64_u.unique x
+
+[%%expect{|
+Line 3, characters 35-36:
+3 |   Int64_u.ignore x; Int64_u.unique x
+                                       ^
+Error: This value is shared but expected to be unique.
 |}]
 
 let float_u_record_unshare =
