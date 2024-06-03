@@ -177,6 +177,10 @@ module Uniform_or_mixed : sig
   (** Blocks with a nominally scannable tag can still have a suffix of
       unscanned objects; such a block is "mixed". This contrasts with
       "uniform" blocks which are either all-scanned or all-unscanned.
+
+      Note that this module can return different results for the scannable
+      prefix len of a mixed block in native code vs. bytecode. That's
+      because more fields are scanned in bytecode.
   *)
 
   type obj_t := t
