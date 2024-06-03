@@ -127,3 +127,47 @@ let _ = my_id4 (Fake_or_null.some 4)
 - : int Fake_or_null.t = <abstr>
 - : int Fake_or_null.t = <abstr>
 |}]
+
+(* Check behavior of type arguments and unboxed annotations. *)
+
+module M2 : sig
+  type 'a t = { v : 'a } [@@unboxed]
+
+  val box : 'a -> 'a t
+  val unbox : 'a t -> 'a
+end = struct
+  type 'a t = { v : 'a } [@@unboxed]
+
+  let box v = { v }
+  let unbox { v } = v
+end
+
+[%%expect{|
+module M2 :
+  sig
+    type 'a t = { v : 'a; } [@@unboxed]
+    val box : 'a -> 'a t
+    val unbox : 'a t -> 'a
+  end
+|}]
+
+module M3 : sig
+  type 'a t = V of 'a [@@unboxed]
+
+  val box : 'a -> 'a t
+  val unbox : 'a t -> 'a
+end = struct
+  type 'a t = V of 'a [@@unboxed]
+
+  let box v = V v
+  let unbox (V v) = v
+end
+
+[%%expect{|
+module M3 :
+  sig
+    type 'a t = V of 'a [@@unboxed]
+    val box : 'a -> 'a t
+    val unbox : 'a t -> 'a
+  end
+|}]
