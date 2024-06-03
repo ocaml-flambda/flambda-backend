@@ -161,20 +161,28 @@ val immediate64 : why:immediate64_creation_reason -> t
 (** We know for sure that values of types of this jkind are always immediate *)
 val immediate : why:immediate_creation_reason -> t
 
-(** This is the jkind of unboxed 64-bit floats.  They have sort Float64. *)
+(** This is the jkind of unboxed 64-bit floats.  They have sort
+    Float64. Mode-crosses. *)
 val float64 : why:float64_creation_reason -> t
 
-(** This is the jkind of unboxed 32-bit floats.  They have sort Float32. *)
+(** This is the jkind of unboxed 32-bit floats.  They have sort
+    Float32. Mode-crosses. *)
 val float32 : why:float32_creation_reason -> t
 
-(** This is the jkind of unboxed native-sized integers. They have sort Word. *)
+(** This is the jkind of unboxed native-sized integers. They have sort
+    Word. Does not mode-cross. *)
 val word : why:word_creation_reason -> t
 
-(** This is the jkind of unboxed 32-bit integers. They have sort Bits32. *)
+(** This is the jkind of unboxed 32-bit integers. They have sort Bits32. Does
+    not mode-cross. *)
 val bits32 : why:bits32_creation_reason -> t
 
-(** This is the jkind of unboxed 64-bit integers. They have sort Bits64. *)
+(** This is the jkind of unboxed 64-bit integers. They have sort Bits64. Does
+    not mode-cross. *)
 val bits64 : why:bits64_creation_reason -> t
+
+(** Take an existing [t] and add an ability to mode-cross along all the axes. *)
+val add_mode_crossing : t -> t
 
 (******************************)
 (* construction *)
