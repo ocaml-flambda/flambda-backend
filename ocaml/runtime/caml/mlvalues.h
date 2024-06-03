@@ -545,6 +545,14 @@ CAMLextern value caml_set_oo_id(value obj);
    to change in future compiler releases. We'll bump the version
    number when we make a breaking change. For example, we currently
    don't pack int32's efficiently, and we will want to someday.
+
+   Users can write:
+
+   Assert_mixed_block_layout_v1;
+
+   (Hack: we define using _Static_assert rather than just an empty
+   definition so that users can write a semicolon, which is treated
+   better by C formatters.)
  */
 #define Assert_mixed_block_layout_v1 _Static_assert(1, "")
 
