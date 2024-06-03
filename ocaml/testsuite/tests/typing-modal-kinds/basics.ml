@@ -197,11 +197,7 @@ val float_u_escape : unit -> float# = <fun>
 let int64_u_escape () = let local_ x : int64# = #314L in x
 
 [%%expect{|
-Line 1, characters 57-58:
-1 | let int64_u_escape () = let local_ x : int64# = #314L in x
-                                                             ^
-Error: This value escapes its region.
-  Hint: Cannot return a local value without an "exclave_" annotation.
+val int64_u_escape : unit -> int64# = <fun>
 |}]
 
 let hidden_float_u_escape () =
@@ -370,10 +366,7 @@ val float_u_duplicate : unit -> float# = <fun>
 let int64_u_duplicate () = let once_ x : int64# = #314L in Int64_u.id x
 
 [%%expect{|
-Line 1, characters 70-71:
-1 | let int64_u_duplicate () = let once_ x : int64# = #314L in Int64_u.id x
-                                                                          ^
-Error: This value is once but expected to be many.
+val int64_u_duplicate : unit -> int64# = <fun>
 |}]
 
 let hidden_float_u_duplicate () =
@@ -582,6 +575,7 @@ Line 1, characters 66-67:
 
 let int64_u_unshare () = let x : int64# = #314L in Int64_u.ignore x; Int64_u.unique x
 
+(* CR layouts v2.8: this should succeed *)
 [%%expect{|
 Line 1, characters 84-85:
 1 | let int64_u_unshare () = let x : int64# = #314L in Int64_u.ignore x; Int64_u.unique x
