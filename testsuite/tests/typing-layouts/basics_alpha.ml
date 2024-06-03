@@ -693,15 +693,15 @@ module M9_4 = struct
     | ({vur_void = _},i) -> i
 end;;
 [%%expect {|
-Line 4, characters 8-16:
+Line 4, characters 7-21:
 4 |     | ({vur_void = _},i) -> i
-            ^^^^^^^^
-Error: The record field vur_void belongs to the type void_unboxed_record
-       but is mixed here with fields of type ('a : non_null_value)
+           ^^^^^^^^^^^^^^
+Error: This pattern matches values of type void_unboxed_record
+       but a pattern was expected which matches values of type ('a : value)
        The layout of void_unboxed_record is void, because
          of the definition of t_void at line 6, characters 0-19.
-       But the layout of void_unboxed_record must be a sublayout of non_null_value, because
-         it's a boxed record type.
+       But the layout of void_unboxed_record must be a sublayout of value, because
+         it's the type of a tuple element.
 |}];;
 
 module M9_5 = struct
