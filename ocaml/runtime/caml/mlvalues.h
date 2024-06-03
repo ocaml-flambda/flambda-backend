@@ -540,6 +540,14 @@ CAMLextern value caml_atom(tag_t);
 
 CAMLextern value caml_set_oo_id(value obj);
 
+/* Users write this to assert that the ensuing C code is sensitive
+   to the current layout of mixed blocks in a way that's subject
+   to change in future compiler releases. We'll bump the version
+   number when we make a breaking change. For example, we currently
+   don't pack int32's efficiently, and we will want to someday.
+ */
+#define Assert_mixed_block_layout_v1 _Static_assert(1, "")
+
 /* Header for out-of-heap blocks. */
 
 #define Caml_out_of_heap_header_with_reserved(wosize, tag, reserved)   \
