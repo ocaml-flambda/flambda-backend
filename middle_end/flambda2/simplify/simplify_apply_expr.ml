@@ -907,10 +907,31 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
     | Indirect_known_arity ->
       Call_kind.indirect_function_call_known_arity apply_alloc_mode
     | Direct _code_id ->
-      (* Some types have regressed in precision. Since this used to be a direct
-         call, however, we know the function's arity even though we don't know
-         which function it is. *)
-      Call_kind.indirect_function_call_known_arity apply_alloc_mode
+      (* Some types have regressed in precision.
+
+         What we would like is for direct calls inside non-simplified stubs to
+         be demoted, producing an indirect call of known arity, since in this
+         case the direct call is expected to be pointing at a non-simplified
+         version of the code concerned. However in all other cases we would like
+         to maintain the direct call. This is especially the case where the
+         callee has been assigned a symbol: it is easily possible to construct
+         situations where the unavailability of .cmx files (for example due to
+         build system semantics, possibly in conjunction with warning 58
+         disabled) can cause a callee's type to be unavailable.
+
+         We don't currently have a means of reliably identifying the stubs case,
+         but it is very likely that such cases would not involve a callee that
+         has been assigned a symbol (since that would indicate the stub has
+         already been simplified). As such we do not demote in the symbol case,
+         but do so in all other cases. *)
+      let demote =
+        match Apply.callee apply with
+        | None -> true
+        | Some callee -> not (Simple.is_symbol callee)
+      in
+      if demote
+      then Call_kind.indirect_function_call_known_arity apply_alloc_mode
+      else Apply.call_kind apply
   in
   let apply = Apply_expr.with_call_kind apply call_kind in
   let dacc =
