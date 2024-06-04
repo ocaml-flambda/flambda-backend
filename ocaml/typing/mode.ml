@@ -1598,7 +1598,8 @@ module Monadic = struct
   module Const = struct
     include C.Monadic
 
-    let min_with ax c = Axis.update ax c min
+    (* Monadic fragment is flipped, so are the following definitions. *)
+    let min_with ax c = Axis.update ax c (C.max obj)
 
     let min_axis ax =
       let obj = proj_obj ax in
