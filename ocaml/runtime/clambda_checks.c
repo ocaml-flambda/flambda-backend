@@ -14,6 +14,8 @@
 /*                                                                        */
 /**************************************************************************/
 
+#define CAML_INTERNALS
+
 /* Runtime checks to try to catch errors in code generation.
    See flambda_to_clambda.ml for more information. */
 

@@ -255,9 +255,9 @@ Caml_inline mlsize_t Scannable_wosize_reserved_byte(reserved_t res,
 /* Jane Street: We rename the size macros to [Allocated_...] internally so that
    we're forced to think about whether imported code needs to updated for mixed
    blocks, which have separate notions of scannable size and total size of an
-   object, even for scannable tags. We call an object's size (including
-   possibly non-scannable fields) its "allocated" size to document the fact
-   that you shouldn't scan fields on the basis of this size alone.
+   object, even for scannable tags. We call an object's size (including possibly
+   non-scannable fields) its "allocated" size to document the fact that you
+   shouldn't scan fields on the basis of this size alone.
  */
 
 #define Allocated_wosize_val(val) (Allocated_wosize_hd (Hd_val (val)))
@@ -275,9 +275,8 @@ Caml_inline mlsize_t Scannable_wosize_reserved_byte(reserved_t res,
 #define Allocated_bhsize_hp(hp) (Bsize_wsize (Allocated_whsize_hp (hp)))
 #define Allocated_bhsize_hd(hd) (Bsize_wsize (Allocated_whsize_hd (hd)))
 
-/* CR nroberts: Soon, we'd like to only define these macros if CAML_INTERNALS
-   is defined. This allows us to ban the old names in user code.
-*/
+#if defined(CAML_INTERNALS) || \
+    defined(Define_upstream_macros_for_accessing_block_size)
 #define Wosize_hd(hd)   Allocated_wosize_hd(hd)
 #define Wosize_val(val) Allocated_wosize_val(val)
 #define Wosize_op(op)   Allocated_wosize_op(op)
@@ -293,6 +292,7 @@ Caml_inline mlsize_t Scannable_wosize_reserved_byte(reserved_t res,
 #define Whsize_hd(hd)   Allocated_whsize_hd(hd)
 #define Bhsize_hp(hp)   Allocated_bhsize_hp(hp)
 #define Bhsize_hd(hd)   Allocated_bhsize_hd(hd)
+#endif // CAML_INTERNALS || Define_upstream_macros_for_accessing_block_size
 
 #define Scannable_wosize_hp(hp) (Scannable_wosize_hd (Hd_hp (hp)))
 
