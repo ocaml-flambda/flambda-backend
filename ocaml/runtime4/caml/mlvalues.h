@@ -132,11 +132,11 @@ originally built for Spacetime profiling, hence the odd name.
 #define PROFINFO_MASK (Gen_profinfo_mask(PROFINFO_WIDTH))
 #define NO_PROFINFO 0
 #define Hd_no_profinfo(hd) ((hd) & ~(PROFINFO_MASK << PROFINFO_SHIFT))
-#define Wosize_hd(hd) ((mlsize_t) ((Hd_no_profinfo(hd)) >> 10))
+#define Allocated_wosize_hd(hd) ((mlsize_t) ((Hd_no_profinfo(hd)) >> 10))
 #define Profinfo_hd(hd) (Gen_profinfo_hd(PROFINFO_WIDTH, hd))
 #else
 #define NO_PROFINFO 0
-#define Wosize_hd(hd) ((mlsize_t) ((hd) >> 10))
+#define Allocated_wosize_hd(hd) ((mlsize_t) ((hd) >> 10))
 #define Profinfo_hd(hd) NO_PROFINFO
 #endif /* WITH_PROFINFO */
 
@@ -184,7 +184,7 @@ Caml_inline mlsize_t Scannable_wosize_hd_native(header_t hd) {
   return
     Is_mixed_block_reserved(res)
     ? Mixed_block_scannable_wosize_reserved_native(res)
-    : Wosize_hd(hd);
+    : Allocated_wosize_hd(hd);
 }
 
 /* Bytecode versions of mixed block macros.
@@ -195,8 +195,8 @@ Caml_inline mlsize_t Scannable_wosize_hd_native(header_t hd) {
    in the header bits.
 */
 
-#define Scannable_wosize_hd_byte(hd)  (Wosize_hd (hd))
-#define Scannable_wosize_val_byte(val) (Wosize_hd (Hd_val (val)))
+#define Scannable_wosize_hd_byte(hd)  (Allocated_wosize_hd (hd))
+#define Scannable_wosize_val_byte(val) (Allocated_wosize_hd (Hd_val (val)))
 Caml_inline mlsize_t Scannable_wosize_reserved_byte(reserved_t res,
                                                     mlsize_t size) {
   (void)res;
@@ -244,10 +244,6 @@ Caml_inline mlsize_t Scannable_wosize_reserved_byte(reserved_t res,
 #define Max_wosize ((1 << 22) - 1)
 #endif /* ARCH_SIXTYFOUR */
 
-#define Wosize_val(val) (Wosize_hd (Hd_val (val)))
-#define Wosize_op(op) (Wosize_val (op))
-#define Wosize_bp(bp) (Wosize_val (bp))
-#define Wosize_hp(hp) (Wosize_hd (Hd_hp (hp)))
 #define Whsize_wosize(sz) ((sz) + 1)
 #define Wosize_whsize(sz) ((sz) - 1)
 #define Wosize_bhsize(sz) ((sz) / sizeof (value) - 1)
@@ -255,16 +251,48 @@ Caml_inline mlsize_t Scannable_wosize_reserved_byte(reserved_t res,
 #define Wsize_bsize(sz) ((sz) / sizeof (value))
 #define Bhsize_wosize(sz) (Bsize_wsize (Whsize_wosize (sz)))
 #define Bhsize_bosize(sz) ((sz) + sizeof (header_t))
-#define Bosize_val(val) (Bsize_wsize (Wosize_val (val)))
-#define Bosize_op(op) (Bosize_val (Val_op (op)))
-#define Bosize_bp(bp) (Bosize_val (Val_bp (bp)))
-#define Bosize_hd(hd) (Bsize_wsize (Wosize_hd (hd)))
-#define Whsize_hp(hp) (Whsize_wosize (Wosize_hp (hp)))
-#define Whsize_val(val) (Whsize_hp (Hp_val (val)))
-#define Whsize_bp(bp) (Whsize_val (Val_bp (bp)))
-#define Whsize_hd(hd) (Whsize_wosize (Wosize_hd (hd)))
-#define Bhsize_hp(hp) (Bsize_wsize (Whsize_hp (hp)))
-#define Bhsize_hd(hd) (Bsize_wsize (Whsize_hd (hd)))
+
+/* Jane Street: We rename the size macros to [Allocated_...] internally so that
+   we're forced to think about whether imported code needs to updated for mixed
+   blocks, which have separate notions of scannable size and total size of an
+   object, even for scannable tags. We call an object's size (including
+   possibly non-scannable fields) its "allocated" size to document the fact
+   that you shouldn't scan fields on the basis of this size alone.
+ */
+
+#define Allocated_wosize_val(val) (Allocated_wosize_hd (Hd_val (val)))
+#define Allocated_wosize_op(op) (Allocated_wosize_val (op))
+#define Allocated_wosize_bp(bp) (Allocated_wosize_val (bp))
+#define Allocated_wosize_hp(hp) (Allocated_wosize_hd (Hd_hp (hp)))
+#define Allocated_bosize_val(val) (Bsize_wsize (Allocated_wosize_val (val)))
+#define Allocated_bosize_op(op) (Allocated_bosize_val (Val_op (op)))
+#define Allocated_bosize_bp(bp) (Allocated_bosize_val (Val_bp (bp)))
+#define Allocated_bosize_hd(hd) (Bsize_wsize (Allocated_wosize_hd (hd)))
+#define Allocated_whsize_hp(hp) (Whsize_wosize (Allocated_wosize_hp (hp)))
+#define Allocated_whsize_val(val) (Allocated_whsize_hp (Hp_val (val)))
+#define Allocated_whsize_bp(bp) (Allocated_whsize_val (Val_bp (bp)))
+#define Allocated_whsize_hd(hd) (Whsize_wosize (Allocated_wosize_hd (hd)))
+#define Allocated_bhsize_hp(hp) (Bsize_wsize (Allocated_whsize_hp (hp)))
+#define Allocated_bhsize_hd(hd) (Bsize_wsize (Allocated_whsize_hd (hd)))
+
+/* CR nroberts: Soon, we'd like to only define these macros if CAML_INTERNALS
+   is defined. This allows us to ban the old names in user code.
+*/
+#define Wosize_hd(hd)   Allocated_wosize_hd(hd)
+#define Wosize_val(val) Allocated_wosize_val(val)
+#define Wosize_op(op)   Allocated_wosize_op(op)
+#define Wosize_bp(bp)   Allocated_wosize_bp(bp)
+#define Wosize_hp(hp)   Allocated_wosize_hp(hp)
+#define Bosize_val(val) Allocated_bosize_val(val)
+#define Bosize_op(op)   Allocated_bosize_op(op)
+#define Bosize_bp(bp)   Allocated_bosize_bp(bp)
+#define Bosize_hd(hd)   Allocated_bosize_hd(hd)
+#define Whsize_hp(hp)   Allocated_whsize_hp(hp)
+#define Whsize_val(val) Allocated_whsize_val(val)
+#define Whsize_bp(bp)   Allocated_whsize_bp(bp)
+#define Whsize_hd(hd)   Allocated_whsize_hd(hd)
+#define Bhsize_hp(hp)   Allocated_bhsize_hp(hp)
+#define Bhsize_hd(hd)   Allocated_bhsize_hd(hd)
 
 #define Scannable_wosize_hp(hp) (Scannable_wosize_hd (Hd_hp (hp)))
 
@@ -322,7 +350,7 @@ typedef opcode_t * code_t;
    with tag Closure_tag (see compact.c). */
 
 #define Infix_tag 249
-#define Infix_offset_hd(hd) (Bosize_hd(hd))
+#define Infix_offset_hd(hd) (Allocated_bosize_hd(hd))
 #define Infix_offset_val(v) Infix_offset_hd(Hd_val(v))
 
 /* Another special case: objects */
