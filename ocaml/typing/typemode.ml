@@ -76,14 +76,10 @@ let compose_modalities modalities =
      x = foo (bar (hello (r))) *)
   List.fold_right Modality.Value.cons modalities Modality.Value.id
 
-let mutable_implied_modalities =
-  let open Jane_syntax.Mode_expr.Const in
-  let l =
-    [ mk "global" Location.none;
-      mk "many" Location.none;
-      mk "shared" Location.none ]
-  in
-  List.map transl_modality l
+let mutable_implied_modalities : Modality.t list =
+  [ Atom (Comonadic Areality, Meet_with Regionality.Const.Global);
+    Atom (Comonadic Linearity, Meet_with Linearity.Const.Many);
+    Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Shared) ]
 
 let is_mutable_implied_modality m =
   (* polymorphic equality suffices for now. *)

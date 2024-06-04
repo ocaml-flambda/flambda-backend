@@ -463,7 +463,7 @@ module type S = sig
     val print : Format.formatter -> t -> unit
 
     module Value : sig
-      type atom
+      type atom := t
 
       (** A modality that acts on [Value] modes. Conceptually it is a sequnce of
           [atom] that acts on individual axes. *)
@@ -506,6 +506,5 @@ module type S = sig
       (** Printing for debugging. *)
       val print : Format.formatter -> t -> unit
     end
-    with type atom := t
   end
 end

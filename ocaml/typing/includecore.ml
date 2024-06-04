@@ -792,12 +792,16 @@ end
 (* just like List.find_map, but also gives index if found *)
 let rec find_map_idx f ?(off = 0) l =
   match l with
-  | [] -> Ok ()
+  | [] -> None
   | x :: xs -> begin
       match f x with
-      | Ok () -> find_map_idx f ~off:(off+1) xs
-      | Error y -> Error (off, y)
+      | None -> find_map_idx f ~off:(off+1) xs
+      | Some y -> Some (off, y)
     end
+
+let get_error = function
+  | Ok () -> None
+  | Error e -> Some e
 
 module Variant_diffing = struct
 
@@ -814,9 +818,9 @@ module Variant_diffing = struct
           match Ctype.equal env true (params1 @ arg1_tys) (params2 @ arg2_tys) with
           | exception Ctype.Equality err -> Some (Type err)
           | () -> List.combine arg1_gfs arg2_gfs
-                  |> find_map_idx (fun (x,y) -> Modality.Value.equate x y)
-                  |> Result.fold ~ok:(fun () -> None)
-                      ~error:(fun (i, err) -> Some (Modality (i, err)))
+                  |> find_map_idx
+                    (fun (x,y) -> get_error @@ Modality.Value.equate x y)
+                  |> Option.map (fun (i, err) -> Modality (i, err))
         end
     | Types.Cstr_record l1, Types.Cstr_record l2 ->
         Option.map
