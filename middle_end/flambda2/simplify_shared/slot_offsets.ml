@@ -861,7 +861,10 @@ end = struct
           | None ->
             create_function_slot set state get_code_metadata function_slot
               code_id
-          | Some s -> s
+          | Some s ->
+            s.sets <- set :: s.sets;
+            update_set_for_slot s set;
+            s
         in
         update_metadata_for_function_slot set s)
       closure_map;
@@ -893,14 +896,20 @@ end = struct
           let s =
             match Value_slot.Map.find_opt value_slot state.unboxed_slots with
             | None -> create_unboxed_slot set state value_slot size
-            | Some s -> s
+            | Some s ->
+              s.sets <- set :: s.sets;
+              update_set_for_slot s set;
+              s
           in
           update_metadata_for_unboxed_slot set s
         else
           let s =
             match Value_slot.Map.find_opt value_slot state.value_slots with
             | None -> create_value_slot set state value_slot
-            | Some s -> s
+            | Some s ->
+              s.sets <- set :: s.sets;
+              update_set_for_slot s set;
+              s
           in
           update_metadata_for_value_slot set s)
       env_map
