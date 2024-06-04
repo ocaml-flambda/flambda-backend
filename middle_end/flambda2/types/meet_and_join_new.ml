@@ -39,7 +39,18 @@ type 'a meet_return_value =
   | Both_inputs
   | New_result of 'a
 
-let add_equation (simple : Simple.t) ty_of_simple env ~meet_type : _ Or_bottom.t
+let map_return_value f (x : _ meet_return_value) =
+  match x with
+  | Left_input -> Left_input
+  | Right_input -> Right_input
+  | Both_inputs -> Both_inputs
+  | New_result x -> New_result (f x)
+
+type 'a meet_result =
+  | Bottom of unit meet_return_value
+  | Ok of 'a meet_return_value * TE.t
+
+let add_equation (simple : Simple.t) ty_of_simple env ~meet_type : unit meet_result
     =
   match Simple.must_be_name simple with
   | Some (name, coercion_from_name_to_simple) ->
@@ -49,24 +60,25 @@ let add_equation (simple : Simple.t) ty_of_simple env ~meet_type : _ Or_bottom.t
     let ty_of_name =
       TG.apply_coercion ty_of_simple coercion_from_simple_to_name
     in
-    TE.add_equation_strict env name ty_of_name ~meet_type:(TE.New meet_type)
-  | None -> Ok env
-
-type 'a meet_result =
-  | Bottom
-  | Ok of 'a meet_return_value * TE.t
+    begin match
+        TE.add_equation_strict env name ty_of_name ~meet_type:(TE.New meet_type)
+      with
+      | Ok env -> Ok (New_result (), env)
+      | Bottom -> Bottom (New_result ())
+    end
+  | None -> Ok (New_result (), env)
 
 let map_result ~f = function
-  | Bottom -> Bottom
+  | Bottom r -> Bottom r
   | Ok (Left_input, env) -> Ok (Left_input, env)
   | Ok (Right_input, env) -> Ok (Right_input, env)
   | Ok (Both_inputs, env) -> Ok (Both_inputs, env)
   | Ok (New_result x, env) -> Ok (New_result (f x), env)
 
 let map_env ~f = function
-  | Bottom -> Bottom
+  | Bottom r -> Bottom r
   | Ok (r, env) -> (
-    match (f env : _ Or_bottom.t) with Bottom -> Bottom | Ok env -> Ok (r, env))
+    match (f env : _ Or_bottom.t) with Bottom -> Bottom (map_return_value (fun _ -> ()) r) | Ok env -> Ok (r, env))
 
 let extract_value res left right =
   match res with
@@ -74,6 +86,19 @@ let extract_value res left right =
   | Right_input -> right
   | Both_inputs -> left
   | New_result value -> value
+
+let combine_meet_return_values a b compute_value =
+  match a, b with
+  | Both_inputs, Both_inputs -> Both_inputs
+  | (Left_input | Both_inputs), (Left_input | Both_inputs) ->
+    Left_input
+  | (Right_input | Both_inputs), (Right_input | Both_inputs) ->
+    Right_input
+  | New_result _, _
+  | _, New_result _
+  | Left_input, Right_input
+  | Right_input, Left_input ->
+    New_result (compute_value ())
 
 let set_meet (type a b) (module S : Container_types_intf.Set with type t = a)
     ~(of_set : a -> b) env (s1 : a) (s2 : a) : b meet_result =
@@ -83,7 +108,7 @@ let set_meet (type a b) (module S : Container_types_intf.Set with type t = a)
   | false, true -> Ok (Right_input, env)
   | false, false ->
     let s = S.inter s1 s2 in
-    if S.is_empty s then Bottom else Ok (New_result (of_set s), env)
+    if S.is_empty s then Bottom (New_result ()) else Ok (New_result (of_set s), env)
 
 type ('key, 'data, 'mapping) fold2 =
   { fold2 :
@@ -132,7 +157,7 @@ let meet_mapping (type key data mapping)
             }
           | Some data_left, Some data_right -> (
             match meet_data env data_left data_right with
-            | Bottom -> raise Bottom_result
+            | Bottom _ -> raise Bottom_result
             | Ok (res, env) -> (
               let[@local] result ~all_left ~all_right data =
                 { all_left; all_right; mapping = (key, data) :: mapping; env }
@@ -154,7 +179,7 @@ let meet_mapping (type key data mapping)
       | false, false -> New_result (rebuild res.mapping)
     in
     Ok (result, res.env)
-  with Bottom_result -> Bottom
+  with Bottom_result -> Bottom (New_result ())
 
 module Map_meet (M : Container_types_intf.Map) = struct
   let meet ~(meet_data : TE.t -> 'a -> 'a -> 'a meet_result) env (left : 'a M.t)
@@ -219,24 +244,19 @@ let combine_results env ~(meet_ops : 'a Combine_results_meet_ops.t)
     | [], [], [] -> Ok (Both_inputs, env)
     | meet :: next_meet, left_input :: next_left, right_input :: next_right -> (
       match meet env left_input right_input with
-      | Bottom -> Bottom
+      | Bottom r -> Bottom r
       | Ok (result_hd, env) -> (
         match do_meets env next_meet next_left next_right with
-        | Bottom -> Bottom
-        | Ok (result_tl, env) -> (
-          match result_hd, result_tl with
-          | Both_inputs, Both_inputs -> Ok (Both_inputs, env)
-          | (Left_input | Both_inputs), (Left_input | Both_inputs) ->
-            Ok (Left_input, env)
-          | (Right_input | Both_inputs), (Right_input | Both_inputs) ->
-            Ok (Right_input, env)
-          | New_result _, _
-          | _, New_result _
-          | Left_input, Right_input
-          | Right_input, Left_input ->
-            let result_hd = extract_value result_hd left_input right_input in
-            let result_tl = extract_values result_tl next_left next_right in
-            Ok (New_result (result_hd, result_tl), env))))
+        | Bottom r -> Bottom r
+        | Ok (result_tl, env) ->
+          let return_value =
+            combine_meet_return_values result_hd result_tl
+              (fun () ->
+                 let result_hd = extract_value result_hd left_input right_input in
+                 let result_tl = extract_values result_tl next_left next_right in
+                 (result_hd, result_tl))
+          in
+          Ok (return_value, env)))
   in
   map_result ~f:rebuild (do_meets env meet_ops left_inputs right_inputs)
 
@@ -255,7 +275,7 @@ let meet_code_id (env : TE.t) (code_id1 : Code_id.t) (code_id2 : Code_id.t) :
         ~resolver:(TE.code_age_relation_resolver env)
         code_id1 code_id2
     with
-    | Bottom -> Bottom
+    | Bottom -> Bottom (New_result ())
     | Ok code_id ->
       if Code_id.equal code_id code_id1
       then Ok (Left_input, env)
@@ -293,8 +313,12 @@ let[@inline always] meet_unknown meet_contents ~contents_is_bottom env
     _ Or_unknown.t meet_result =
   match or_unknown1, or_unknown2 with
   | Unknown, Unknown -> Ok (Both_inputs, env)
-  | Known contents, _ when contents_is_bottom contents -> Bottom
-  | _, Known contents when contents_is_bottom contents -> Bottom
+  | Known contents1, Known contents2
+    when contents_is_bottom contents1
+      && contents_is_bottom contents2 ->
+    Bottom Both_inputs
+  | Known contents, _ when contents_is_bottom contents -> Bottom Left_input
+  | _, Known contents when contents_is_bottom contents -> Bottom Right_input
   | _, Unknown -> Ok (Left_input, env)
   | Unknown, _ -> Ok (Right_input, env)
   | Known contents1, Known contents2 ->
@@ -377,16 +401,16 @@ let rec meet env (t1 : TG.t) (t2 : TG.t) : TG.t meet_result =
       (* Here we are meeting a non-alias type on the left with an alias on the
          right. In all cases, the return type is the alias, so we will always
          return [Right_input]; the interesting part will be the environment. *)
-      let env : TE.t Or_bottom.t =
+      let env : unit meet_result =
         match meet_expanded_head env expanded1 expanded2 with
         | Ok (Left_input, env) ->
           add_equation simple2 (ET.to_type expanded1) env ~meet_type
-        | Ok ((Right_input | Both_inputs), env) -> Ok env
+        | Ok ((Right_input | Both_inputs), env) -> Ok (New_result (), env)
         | Ok (New_result expanded, env) ->
           add_equation simple2 (ET.to_type expanded) env ~meet_type
-        | Bottom -> Bottom
+        | Bottom r -> Bottom r
       in
-      match env with Ok env -> Ok (Right_input, env) | Bottom -> Bottom))
+      match env with Ok (_, env) -> Ok (Right_input, env) | Bottom r -> Bottom r))
   | Some simple1 as simple1_opt -> (
     match simple2 with
     | None -> (
@@ -399,16 +423,16 @@ let rec meet env (t1 : TG.t) (t2 : TG.t) : TG.t meet_result =
           ~known_canonical_simple_at_in_types_mode:simple2
       in
       (* We always return [Left_input] (see comment above) *)
-      let env : TE.t Or_bottom.t =
+      let env : unit meet_result =
         match meet_expanded_head env expanded1 expanded2 with
         | Ok (Right_input, env) ->
           add_equation simple1 (ET.to_type expanded2) env ~meet_type
-        | Ok ((Left_input | Both_inputs), env) -> Ok env
+        | Ok ((Left_input | Both_inputs), env) -> Ok (New_result (), env)
         | Ok (New_result expanded, env) ->
           add_equation simple1 (ET.to_type expanded) env ~meet_type
-        | Bottom -> Bottom
+        | Bottom r -> Bottom r
       in
-      match env with Ok env -> Ok (Left_input, env) | Bottom -> Bottom)
+      match env with Ok (_, env) -> Ok (Left_input, env) | Bottom r -> Bottom r)
     | Some simple2 -> (
       if (* We are doing a meet between two alias types. Whatever happens, the
             resulting environment will contain an alias equation between the two
@@ -432,13 +456,13 @@ let rec meet env (t1 : TG.t) (t2 : TG.t) : TG.t meet_result =
                   add_equation simple1
                     (TG.alias_type_of kind simple2)
                     env ~meet_type)
-                ~const:(fun const1 : _ Or_bottom.t ->
-                  if Reg_width_const.equal const1 const2 then Ok env else Bottom))
+                ~const:(fun const1 : unit meet_result ->
+                  if Reg_width_const.equal const1 const2 then Ok (New_result (), env) else Bottom (New_result ())))
         in
         (* [add_equation] will have called [meet] on the underlying types, so
            [env] now contains all extra equations arising from meeting the
            expanded heads. *)
-        match env with Ok env -> Ok (Both_inputs, env) | Bottom -> Bottom))
+        match env with Ok (_, env) -> Ok (Both_inputs, env) | Bottom r -> Bottom r))
 
 and meet_expanded_head env (expanded1 : ET.t) (expanded2 : ET.t) :
     ET.t meet_result =
@@ -446,11 +470,9 @@ and meet_expanded_head env (expanded1 : ET.t) (expanded2 : ET.t) :
   | Unknown, Unknown -> Ok (Both_inputs, env)
   | _, Unknown -> Ok (Left_input, env)
   | Unknown, _ -> Ok (Right_input, env)
-  (* CR vlaviron: in the next two cases, returning [Bottom] is correct but
-     inconsistent with the rest of the file: since the bottom type was already
-     present, we should return [Left_input] or [Right_input]. *)
-  | Bottom, _ -> Bottom
-  | _, Bottom -> Bottom
+  | Bottom, Bottom -> Bottom Both_inputs
+  | Bottom, _ -> Bottom Left_input
+  | _, Bottom -> Bottom Right_input
   | Ok descr1, Ok descr2 -> meet_expanded_head0 env descr1 descr2
 
 and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
@@ -548,7 +570,7 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
          will need to have a proper discussion before I commit to implementing
          one. *)
       match meet_alloc_mode env alloc_mode_left alloc_mode_right with
-      | Bottom -> Bottom
+      | Bottom r -> Bottom r
       | Ok ((Both_inputs | Right_input), env) -> Ok (Right_input, env)
       | Ok (Left_input, env) ->
         Ok
@@ -565,7 +587,7 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     | Known { alloc_mode = alloc_mode_right; _ } -> (
       (* CR vlaviron: see symmetric case above *)
       match meet_alloc_mode env alloc_mode_left alloc_mode_right with
-      | Bottom -> Bottom
+      | Bottom r -> Bottom r
       | Ok ((Both_inputs | Left_input), env) -> Ok (Left_input, env)
       | Ok (Right_input, env) ->
         Ok
@@ -631,7 +653,7 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
       _ ) ->
     (* This assumes that all the different constructors are incompatible. This
        could break very hard for dubious uses of Obj. *)
-    Bottom
+    Bottom (New_result ())
 
 and meet_array_type env (element_kind1, length1, contents1, alloc_mode1)
     (element_kind2, length2, contents2, alloc_mode2) =
@@ -655,13 +677,22 @@ and meet_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
          (array_contents2 : TG.array_contents) : TG.array_contents meet_result ->
       match array_contents1, array_contents2 with
       | Mutable, Mutable -> Ok (Both_inputs, env)
-      | Mutable, Immutable _ | Immutable _, Mutable -> Bottom
+      | Mutable, Immutable _ | Immutable _, Mutable -> Bottom (New_result ())
       | Immutable { fields = fields1 }, Immutable { fields = fields2 } -> (
         if Array.length fields1 <> Array.length fields2
-        then Bottom
+        then Bottom (New_result ())
         else
           match meet_element_kind with
-          | Bottom -> Bottom
+          | Bottom ->
+            if Array.length fields1 = 0 then
+              (* Both empty arrays. Returning [Both_inputs] would be correct
+                 but may not propagate the Bottom element kind as far as we can.
+                 Using a New_result might lead us to extra work is one or both of the
+                 inputs already have Bottom kind. We choose the New_result solution
+                 because it's a case that is unlikely to happen, so the extra cost
+                 is likely very small (while losing precision might be noticeable). *)
+              Ok (New_result (Immutable { fields = [||] }), env)
+            else Bottom (New_result ())
           | Unknown ->
             (* vlaviron: If the meet of the kinds is Unknown, then both inputs
                had Unknown kinds. I don't see how we could end up with an array
@@ -727,33 +758,37 @@ and meet_variant initial_env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
   in
   let immediates_result : _ meet_result =
     match env_imms with
-    | Bottom -> Bottom
+    | Bottom -> Bottom (New_result ())
     | Ok env ->
       meet_unknown meet ~contents_is_bottom:TG.is_obviously_bottom env imms1
         imms2
   in
   let blocks_result : _ meet_result =
     match env_blocks with
-    | Bottom -> Bottom
+    | Bottom -> Bottom (New_result ())
     | Ok env ->
       meet_unknown meet_row_like_for_blocks
         ~contents_is_bottom:TG.Row_like_for_blocks.is_bottom env blocks1 blocks2
   in
   match immediates_result, blocks_result with
-  | Bottom, Bottom -> Bottom
-  | Ok (imms_result, env), Bottom ->
-    let imms = extract_value imms_result imms1 imms2 in
-    let blocks = Or_unknown.Known TG.Row_like_for_blocks.bottom in
-    (* CR vlaviron: recover when this is actually one of the inputs *)
-    direct_return (Ok (New_result (blocks, imms, TG.No_extensions), env))
-  | Bottom, Ok (blocks_result, env) ->
-    let blocks = extract_value blocks_result blocks1 blocks2 in
-    let imms = Or_unknown.Known TG.bottom_naked_immediate in
-    (* CR vlaviron: recover when this is actually one of the inputs *)
-    direct_return (Ok (New_result (blocks, imms, TG.No_extensions), env))
+  | Bottom r1, Bottom r2 -> Bottom (combine_meet_return_values r1 r2 (fun () -> ()))
+  | Ok (imms_result, env), Bottom blocks ->
+    let result =
+      combine_meet_return_values imms_result blocks (fun () ->
+          let imms = extract_value imms_result imms1 imms2 in
+          let blocks = Or_unknown.Known TG.Row_like_for_blocks.bottom in
+          (blocks, imms, TG.No_extensions))
+    in
+    direct_return (Ok (result, env))
+  | Bottom imms, Ok (blocks_result, env) ->
+    let result =
+      combine_meet_return_values imms blocks_result (fun () ->
+          let blocks = extract_value blocks_result blocks1 blocks2 in
+          let imms = Or_unknown.Known TG.bottom_naked_immediate in
+          (blocks, imms, TG.No_extensions))
+    in
+    direct_return (Ok (result, env))
   | Ok (imms_result, env_imms), Ok (blocks_result, env_blocks) ->
-    let imms = extract_value imms_result imms1 imms2 in
-    let blocks = extract_value blocks_result blocks1 blocks2 in
     let when_immediate = to_extension env_imms in
     let when_block = to_extension env_blocks in
     let extensions : TG.variant_extensions =
@@ -765,6 +800,25 @@ and meet_variant initial_env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
            equations in the variant extensions then becomes redundant, but we
            don't have an easy way to detect redundancy. *)
       else Ext { when_immediate; when_block }
+    in
+    let env_extension_result =
+      (* We only catch the cases where empty extensions are preserved *)
+      match extensions, extensions1, extensions2 with
+      | No_extensions, No_extensions, No_extensions -> Both_inputs
+      | No_extensions, No_extensions, Ext _ -> Left_input
+      | No_extensions, Ext _, No_extensions -> Right_input
+      | (No_extensions | Ext _), _, _ ->
+        (* This goes through combine_meet_return_values, so the value is not needed *)
+        New_result ()
+    in
+    let result =
+      combine_meet_return_values
+        (combine_meet_return_values imms_result blocks_result (fun () -> ()))
+        env_extension_result
+        (fun () ->
+           let imms = extract_value imms_result imms1 imms2 in
+           let blocks = extract_value blocks_result blocks1 blocks2 in
+           (blocks, imms, extensions))
     in
     let join_env =
       Join_env.create initial_env ~left_env:env_imms ~right_env:env_blocks
@@ -778,8 +832,7 @@ and meet_variant initial_env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
       TE.add_env_extension initial_env result_extension
         ~meet_type:(New meet_type)
     in
-    (* CR vlaviron: recover when this is actually one of the inputs *)
-    Ok (New_result (blocks, imms, extensions), result_env)
+    Ok (result, result_env)
 
 and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     (t2 : TG.head_of_kind_naked_immediate) :
@@ -790,28 +843,31 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     | Left -> Ok (Left_input, env)
     | Right -> Ok (Right_input, env)
   in
-  let keep_other_side side : _ meet_result =
+  let bottom_other_side side : _ meet_result =
     match side with
-    | Left -> Ok (Right_input, env)
-    | Right -> Ok (Left_input, env)
+    | Left -> Bottom Right_input
+    | Right -> Bottom Left_input
   in
   let meet_with_shape ~rebuild ty shape side =
     map_result ~f:rebuild
       (match side with Left -> meet env ty shape | Right -> meet env shape ty)
   in
   let is_int_immediate ~is_int_ty ~immediates ~is_int_side =
-    let rebuild = TG.Head_of_kind_naked_immediate.create_is_int in
-    match I.Set.mem I.zero immediates, I.Set.mem I.one immediates with
-    | false, false -> Bottom
-    | true, true -> keep_side is_int_side
-    | true, false ->
-      meet_with_shape ~rebuild is_int_ty MTC.any_block is_int_side
-    | false, true ->
-      meet_with_shape ~rebuild is_int_ty MTC.any_tagged_immediate is_int_side
+    if I.Set.is_empty immediates
+    then bottom_other_side is_int_side
+    else
+      let rebuild = TG.Head_of_kind_naked_immediate.create_is_int in
+      match I.Set.mem I.zero immediates, I.Set.mem I.one immediates with
+      | false, false -> Bottom (New_result ())
+      | true, true -> keep_side is_int_side
+      | true, false ->
+        meet_with_shape ~rebuild is_int_ty MTC.any_block is_int_side
+      | false, true ->
+        meet_with_shape ~rebuild is_int_ty MTC.any_tagged_immediate is_int_side
   in
   let get_tag_immediate ~get_tag_ty ~immediates ~get_tag_side =
     if I.Set.is_empty immediates
-    then keep_other_side get_tag_side
+    then bottom_other_side get_tag_side
     else
       let tags =
         I.Set.fold
@@ -822,7 +878,7 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
           immediates Tag.Set.empty
       in
       if Tag.Set.is_empty tags
-      then Bottom
+      then Bottom (New_result ())
       else
         match
           MTC.blocks_with_these_tags tags (Alloc_mode.For_types.unknown ())
@@ -997,6 +1053,14 @@ and meet_row_like :
   in
   let result_is_t1 = ref true in
   let result_is_t2 = ref true in
+  let update_refs = function
+    | Both_inputs -> ()
+    | Left_input -> result_is_t2 := false
+    | Right_input -> result_is_t1 := false
+    | New_result _ ->
+      result_is_t1 := false;
+      result_is_t2 := false
+  in
   let join_result_env scoped_env =
     let new_result_env =
       match !result_env with
@@ -1016,47 +1080,46 @@ and meet_row_like :
       (i2 : ('lattice, 'shape) TG.row_like_index) :
       ('lattice, 'shape) TG.row_like_index meet_result =
     match meet_shape i1.shape i2.shape with
-    | Bottom -> Bottom
+    | Bottom -> Bottom (New_result ())
     | Ok shape -> (
-      match i1.domain, i2.domain with
-      | Known i1', Known i2' ->
-        if equal_index i1' i2' then Ok (Both_inputs, env) else Bottom
-      | Known known, At_least at_least ->
-        if subset_index at_least known
-        then
-          (* [at_least] is included in [known] hence [Known known] is included
-             in [At_least at_least], hence [Known known] \inter [At_least
-             at_least] = [Known known] *)
-          Ok (Left_input, env)
-        else Bottom
-      | At_least at_least, Known known ->
-        if subset_index at_least known then Ok (Right_input, env) else Bottom
-      | At_least i1', At_least i2' ->
-        if subset_index i1' i2'
-        then
-          if subset_index i2' i1'
-          then Ok (Both_inputs, env)
-          else Ok (Right_input, env)
-        else if subset_index i2' i1'
-        then Ok (Left_input, env)
-        else
-          let domain =
-            TG.Row_like_index_domain.at_least (union_index i1' i2')
-          in
-          Ok (New_result (TG.Row_like_index.create ~domain ~shape), env))
+    match i1.domain, i2.domain with
+    | Known i1', Known i2' ->
+      if equal_index i1' i2' then Ok (Both_inputs, env) else Bottom (New_result ())
+    | Known known, At_least at_least ->
+      if subset_index at_least known
+      then
+        (* [at_least] is included in [known] hence [Known known] is included in
+           [At_least at_least], hence [Known known] \inter [At_least at_least] =
+           [Known known] *)
+        Ok (Left_input, env)
+      else Bottom (New_result ())
+    | At_least at_least, Known known ->
+      if subset_index at_least known then Ok (Right_input, env) else Bottom (New_result ())
+    | At_least i1', At_least i2' ->
+      if subset_index i1' i2'
+      then
+        if subset_index i2' i1'
+        then Ok (Both_inputs, env)
+        else Ok (Right_input, env)
+      else if subset_index i2' i1'
+      then Ok (Left_input, env)
+      else
+        let domain =
+          TG.Row_like_index_domain.at_least (union_index i1' i2')
+        in
+        Ok (New_result (TG.Row_like_index.create ~domain ~shape), env))
   in
-  let bottom_case () =
-    result_is_t1 := false;
-    result_is_t2 := false;
+  let bottom_case r =
+    update_refs r;
     None
   in
   let meet_case env (case1 : ('lattice, 'shape, 'maps_to) TG.Row_like_case.t)
       (case2 : ('lattice, 'shape, 'maps_to) TG.Row_like_case.t) =
     match meet_index env case1.index case2.index with
-    | Bottom -> bottom_case ()
+    | Bottom r -> bottom_case r
     | Ok (index_result, env) -> (
       match meet_maps_to env case1.maps_to case2.maps_to with
-      | Bottom -> bottom_case ()
+      | Bottom r -> bottom_case r
       | Ok (maps_to_result, env) -> (
         let env : _ Or_bottom.t =
           match
@@ -1069,17 +1132,9 @@ and meet_row_like :
               ~meet_type:(New meet_type)
         in
         match env with
-        | Bottom -> bottom_case ()
+        | Bottom -> bottom_case (New_result ())
         | Ok env ->
           join_result_env env;
-          let update_refs = function
-            | Both_inputs -> ()
-            | Left_input -> result_is_t2 := false
-            | Right_input -> result_is_t1 := false
-            | New_result _ ->
-              result_is_t1 := false;
-              result_is_t2 := false
-          in
           update_refs index_result;
           update_refs maps_to_result;
           let index = extract_value index_result case1.index case2.index in
@@ -1193,7 +1248,7 @@ and meet_row_like :
   in
   if is_empty_map_known known
      && match other with Bottom -> true | Ok _ -> false
-  then Bottom
+  then Bottom (New_result ())
   else
     let env : _ Or_bottom.t =
       match !result_env with
@@ -1201,12 +1256,16 @@ and meet_row_like :
       | Extension ext ->
         TE.add_env_extension_strict initial_env ext ~meet_type:(New meet_type)
     in
-    match env, !result_is_t1, !result_is_t2 with
-    | Bottom, _, _ -> Bottom
-    | Ok env, true, true -> Ok (Both_inputs, env)
-    | Ok env, true, false -> Ok (Left_input, env)
-    | Ok env, false, true -> Ok (Right_input, env)
-    | Ok env, false, false -> Ok (New_result (known, other), env)
+    let match_with_input v =
+      match !result_is_t1, !result_is_t2 with
+      | true, true -> Both_inputs
+      | true, false -> Left_input
+      | false, true -> Right_input
+      | false, false -> New_result v
+    in
+    match env with
+    | Bottom -> Bottom (match_with_input ())
+    | Ok env -> Ok (match_with_input (known, other), env)
 
 and meet_row_like_for_blocks env
     ({ known_tags = known1; other_tags = other1; alloc_mode = alloc_mode1 } :
@@ -1358,7 +1417,7 @@ and meet_type env t1 t2 : _ Or_bottom.t =
   else
     match meet env t1 t2 with
     | Ok (res, env) -> Ok (extract_value res t1 t2, env)
-    | Bottom -> Bottom
+    | Bottom _ -> Bottom
 
 and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
   if not (K.equal (TG.kind t1) (TG.kind t2))
@@ -2087,7 +2146,7 @@ let meet env ty1 ty2 : _ Or_bottom.t =
     let scope = TE.current_scope env in
     let scoped_env = TE.increment_scope env in
     match meet scoped_env ty1 ty2 with
-    | Bottom -> Bottom
+    | Bottom _ -> Bottom
     | Ok (r, scoped_env) ->
       let res_ty = extract_value r ty1 ty2 in
       if TG.is_obviously_bottom res_ty
