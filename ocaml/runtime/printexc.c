@@ -64,7 +64,7 @@ CAMLexport char * caml_format_exception(value exn)
   if (Tag_val(exn) == 0) {
     add_string(&buf, String_val(Field(Field(exn, 0), 0)));
     /* Check for exceptions in the style of Match_failure and Assert_failure */
-    if (Wosize_val(exn) == 2 &&
+    if (Wosize_val(exn) == 4 &&
         Is_block(Field(exn, 1)) &&
         Tag_val(Field(exn, 1)) == 0 &&
         caml_is_special_exception(Field(exn, 0))) {
@@ -76,7 +76,7 @@ CAMLexport char * caml_format_exception(value exn)
     }
     add_char(&buf, '(');
     mlsize_t bucket_size = Wosize_val(bucket);
-    for (i = start; i < bucket_size; i++) {
+    for (i = start; i < bucket_size - 2; i++) {
       if (i > start) add_string(&buf, ", ");
       v = Field(bucket, i);
       if (Is_long(v)) {
