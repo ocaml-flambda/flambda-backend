@@ -22,8 +22,10 @@ end;;
 Line 2, characters 2-52:
 2 |   val f_immediate : ('a : immediate). 'a -> 'a -> 'a
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Usage of layout immediate/immediate64 in f_immediate can't be erased for compatibility with upstream OCaml.
-        This error is produced due to the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f_immediate
+can't be erased for compatibility with upstream OCaml.
+
+module type S = sig val f_immediate : ('a : immediate). 'a -> 'a -> 'a end
 |}];;
 
 module type S = sig
@@ -33,8 +35,10 @@ end;;
 Line 2, characters 2-48:
 2 |   val f_immediate : ('a : immediate) -> 'a -> 'a
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Usage of layout immediate/immediate64 in f_immediate can't be erased for compatibility with upstream OCaml.
-        This error is produced due to the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f_immediate
+can't be erased for compatibility with upstream OCaml.
+
+module type S = sig val f_immediate : ('a : immediate). 'a -> 'a -> 'a end
 |}];;
 
 module type S = sig
@@ -44,8 +48,10 @@ end;;
 Line 2, characters 2-25:
 2 |   type ('a : immediate) t
       ^^^^^^^^^^^^^^^^^^^^^^^
-Error: Usage of layout immediate/immediate64 in t can't be erased for compatibility with upstream OCaml.
-        This error is produced due to the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in t
+can't be erased for compatibility with upstream OCaml.
+
+module type S = sig type ('a : immediate) t end
 |}];;
 
 module type S = sig
@@ -55,8 +61,10 @@ end;;
 Line 2, characters 2-43:
 2 |   type _ g = | MkG : ('a : immediate). 'a g
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Usage of layout immediate/immediate64 in g can't be erased for compatibility with upstream OCaml.
-        This error is produced due to the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in g
+can't be erased for compatibility with upstream OCaml.
+
+module type S = sig type _ g = MkG : ('a : immediate). 'a g end
 |}];;
 
 let f (type a : immediate): a -> a = fun x -> x
@@ -64,8 +72,10 @@ let f (type a : immediate): a -> a = fun x -> x
 Line 1, characters 4-5:
 1 | let f (type a : immediate): a -> a = fun x -> x
         ^
-Error: Usage of layout immediate/immediate64 in f can't be erased for compatibility with upstream OCaml.
-        This error is produced due to the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
+can't be erased for compatibility with upstream OCaml.
+
+val f : ('a : immediate). 'a -> 'a = <fun>
 |}];;
 
 let f x = (x : (_ : immediate))
@@ -73,8 +83,10 @@ let f x = (x : (_ : immediate))
 Line 1, characters 4-5:
 1 | let f x = (x : (_ : immediate))
         ^
-Error: Usage of layout immediate/immediate64 in f can't be erased for compatibility with upstream OCaml.
-        This error is produced due to the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
+can't be erased for compatibility with upstream OCaml.
+
+val f : ('a : immediate). 'a -> 'a = <fun>
 |}];;
 
 let f v: ((_ : immediate)[@error_message "Custom message"]) = v
@@ -82,8 +94,10 @@ let f v: ((_ : immediate)[@error_message "Custom message"]) = v
 Line 1, characters 4-5:
 1 | let f v: ((_ : immediate)[@error_message "Custom message"]) = v
         ^
-Error: Usage of layout immediate/immediate64 in f can't be erased for compatibility with upstream OCaml.
-        This error is produced due to the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
+can't be erased for compatibility with upstream OCaml.
+
+val f : ('a : immediate). 'a -> 'a = <fun>
 |}];;
 
 (* immediate64 *)
@@ -94,8 +108,11 @@ end;;
 Line 2, characters 2-56:
 2 |   val f_immediate64 : ('a : immediate64). 'a -> 'a -> 'a
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Usage of layout immediate/immediate64 in f_immediate64 can't be erased for compatibility with upstream OCaml.
-        This error is produced due to the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f_immediate64
+can't be erased for compatibility with upstream OCaml.
+
+module type S =
+  sig val f_immediate64 : ('a : immediate64). 'a -> 'a -> 'a end
 |}];;
 
 module type S = sig
@@ -105,8 +122,11 @@ end;;
 Line 2, characters 2-52:
 2 |   val f_immediate64 : ('a : immediate64) -> 'a -> 'a
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Usage of layout immediate/immediate64 in f_immediate64 can't be erased for compatibility with upstream OCaml.
-        This error is produced due to the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f_immediate64
+can't be erased for compatibility with upstream OCaml.
+
+module type S =
+  sig val f_immediate64 : ('a : immediate64). 'a -> 'a -> 'a end
 |}];;
 
 module type S = sig
@@ -116,8 +136,10 @@ end;;
 Line 2, characters 2-27:
 2 |   type ('a : immediate64) t
       ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Usage of layout immediate/immediate64 in t can't be erased for compatibility with upstream OCaml.
-        This error is produced due to the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in t
+can't be erased for compatibility with upstream OCaml.
+
+module type S = sig type ('a : immediate64) t end
 |}];;
 
 module type S = sig
@@ -127,8 +149,10 @@ end;;
 Line 2, characters 2-45:
 2 |   type _ g = | MkG : ('a : immediate64). 'a g
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Usage of layout immediate/immediate64 in g can't be erased for compatibility with upstream OCaml.
-        This error is produced due to the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in g
+can't be erased for compatibility with upstream OCaml.
+
+module type S = sig type _ g = MkG : ('a : immediate64). 'a g end
 |}];;
 
 let f (type a : immediate64): a -> a = fun x -> x
@@ -136,8 +160,10 @@ let f (type a : immediate64): a -> a = fun x -> x
 Line 1, characters 4-5:
 1 | let f (type a : immediate64): a -> a = fun x -> x
         ^
-Error: Usage of layout immediate/immediate64 in f can't be erased for compatibility with upstream OCaml.
-        This error is produced due to the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
+can't be erased for compatibility with upstream OCaml.
+
+val f : ('a : immediate64). 'a -> 'a = <fun>
 |}];;
 
 let f x = (x : (_ : immediate64))
@@ -145,8 +171,10 @@ let f x = (x : (_ : immediate64))
 Line 1, characters 4-5:
 1 | let f x = (x : (_ : immediate64))
         ^
-Error: Usage of layout immediate/immediate64 in f can't be erased for compatibility with upstream OCaml.
-        This error is produced due to the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
+can't be erased for compatibility with upstream OCaml.
+
+val f : ('a : immediate64). 'a -> 'a = <fun>
 |}];;
 
 let f v: ((_ : immediate64)[@error_message "Custom message"]) = v
@@ -154,8 +182,10 @@ let f v: ((_ : immediate64)[@error_message "Custom message"]) = v
 Line 1, characters 4-5:
 1 | let f v: ((_ : immediate64)[@error_message "Custom message"]) = v
         ^
-Error: Usage of layout immediate/immediate64 in f can't be erased for compatibility with upstream OCaml.
-        This error is produced due to the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
+can't be erased for compatibility with upstream OCaml.
+
+val f : ('a : immediate64). 'a -> 'a = <fun>
 |}];;
 
 (* CR layouts: This message should change after we fix the package hack.
@@ -173,8 +203,11 @@ module type S = sig type t : immediate64 end
 Line 6, characters 2-49:
 6 |   val f : 'a -> (module S with type t = 'a) -> 'a
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Usage of layout immediate/immediate64 in f can't be erased for compatibility with upstream OCaml.
-        This error is produced due to the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
+can't be erased for compatibility with upstream OCaml.
+
+module type K =
+  sig val f : ('a : immediate64). 'a -> (module S with type t = 'a) -> 'a end
 |}];;
 
 (* Annotations here do nothing and should be accepted *)
@@ -197,9 +230,65 @@ end
 Line 3, characters 2-42:
 3 |   val f : ('a id as (_ : immediate)) -> 'a
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Usage of layout immediate/immediate64 in f can't be erased for compatibility with upstream OCaml.
-        This error is produced due to the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
+can't be erased for compatibility with upstream OCaml.
+
+module type S = sig type 'b id = 'b val f : ('a : immediate). 'a id -> 'a end
 |}];;
+
+(* Inferring [f] to have an immediate type parameter is enough *)
+module type S = sig
+  type t [@@immediate]
+end
+
+let f (module _ : S with type t = 'a) (x : 'a) = x
+;;
+
+[%%expect{|
+module type S = sig type t : immediate end
+Line 5, characters 4-5:
+5 | let f (module _ : S with type t = 'a) (x : 'a) = x
+        ^
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
+can't be erased for compatibility with upstream OCaml.
+
+val f : ('a : immediate). (module S with type t = 'a) -> 'a -> 'a = <fun>
+|}]
+
+(* CR layouts: this example should raise a warning, but it does not.
+   It's quite complicated, and missing it only means that this error
+   will be caught by the upstream compiler later. We have decided that
+   fixing this is not worth the effort. *)
+module type S = sig
+  type t [@@immediate]
+end
+
+let x =
+  ignore (fun (module _ : S with type t = 'a) (_ : 'a) -> 10);
+  15
+;;
+
+[%%expect{|
+module type S = sig type t : immediate end
+val x : int = 15
+|}]
+
+(* CR layouts: this example should raise a warning, but it does not.
+   It's quite complicated, and missing it only means that this error
+   will be caught by the upstream compiler later. We have decided that
+   fixing this is not worth the effort. *)
+let y =
+  ignore (fun (type a : immediate) (x : a) ->
+    let module _ : S = struct
+      type t = a
+    end in
+    ());
+  4
+;;
+
+[%%expect{|
+val y : int = 4
+|}]
 
 (* Other annotations are not effected by this flag *)
 module type S = sig
@@ -263,9 +352,10 @@ external f_1 : int -> bool -> int64# = "foo" "bar";;
 Line 1, characters 30-36:
 1 | external f_1 : int -> bool -> int64# = "foo" "bar";;
                                   ^^^^^^
-Error: [@unboxed] attribute must be added to external declaration
-       argument type with layout bits64 for upstream compatibility. This error is produced
-       due to the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: [@unboxed] attribute must be added to external declaration
+argument type with layout bits64 for upstream compatibility.
+
+external f_1 : int -> bool -> (int64# [@unboxed]) = "foo" "bar"
 |}];;
 
 external f_2 : int32# -> bool -> int = "foo" "bar";;
@@ -273,9 +363,10 @@ external f_2 : int32# -> bool -> int = "foo" "bar";;
 Line 1, characters 15-21:
 1 | external f_2 : int32# -> bool -> int = "foo" "bar";;
                    ^^^^^^
-Error: [@unboxed] attribute must be added to external declaration
-       argument type with layout bits32 for upstream compatibility. This error is produced
-       due to the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: [@unboxed] attribute must be added to external declaration
+argument type with layout bits32 for upstream compatibility.
+
+external f_2 : (int32# [@unboxed]) -> bool -> int = "foo" "bar"
 |}];;
 
 external f_3 : (float#[@unboxed]) -> bool -> string  = "foo" "bar";;
@@ -351,9 +442,16 @@ module M : sig type t : float64 end
 Line 7, characters 15-18:
 7 | external f_1 : M.t -> M.t = "%identity";;
                    ^^^
-Error: [@unboxed] attribute must be added to external declaration
-       argument type with layout float64 for upstream compatibility. This error is produced
-       due to the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: [@unboxed] attribute must be added to external declaration
+argument type with layout float64 for upstream compatibility.
+
+Line 7, characters 22-25:
+7 | external f_1 : M.t -> M.t = "%identity";;
+                          ^^^
+Warning 187 [incompatible-with-upstream]: [@unboxed] attribute must be added to external declaration
+argument type with layout float64 for upstream compatibility.
+
+external f_1 : M.t -> M.t = "%identity" [@@unboxed]
 |}];;
 
 external f_2 : M.t -> M.t = "%identity" [@@unboxed];;
@@ -361,11 +459,20 @@ external f_2 : M.t -> M.t = "%identity" [@@unboxed];;
 Line 1, characters 15-18:
 1 | external f_2 : M.t -> M.t = "%identity" [@@unboxed];;
                    ^^^
-Error: External declaration here is not upstream compatible.
-       The only types with non-value layouts allowed are float#,
-       int32#, int64#, and nativeint#. Unknown type with layout
-       float64 encountered. This error is produced due to
-       the use of -extension-universe (no_extensions|upstream_compatible).
+Warning 187 [incompatible-with-upstream]: External declaration here is not upstream compatible.
+The only types with non-value layouts allowed are float#,
+int32#, int64#, and nativeint#. Unknown type with layout
+float64 encountered.
+
+Line 1, characters 22-25:
+1 | external f_2 : M.t -> M.t = "%identity" [@@unboxed];;
+                          ^^^
+Warning 187 [incompatible-with-upstream]: External declaration here is not upstream compatible.
+The only types with non-value layouts allowed are float#,
+int32#, int64#, and nativeint#. Unknown type with layout
+float64 encountered.
+
+external f_2 : M.t -> M.t = "%identity" [@@unboxed]
 |}];;
 
 module M2 : sig
@@ -392,3 +499,94 @@ external f_4 : M3.t -> M3.t = "%identity" [@@unboxed]
 module M3 : sig type t = private float# end
 external f_4 : M3.t -> M3.t = "%identity" [@@unboxed]
 |}];;
+
+(* Disabling warnings *)
+
+module M4 : sig
+  [@@@warning "-187"]
+  type ('a : immediate) t = Something of 'a
+
+  val f : ('a : immediate). 'a t -> 'a
+end = struct
+  [@@@warning "-187"]
+
+  type ('a : immediate) t = Something of 'a
+
+  let f (Something x) = x
+end;;
+
+[%%expect{|
+module M4 :
+  sig
+    type ('a : immediate) t = Something of 'a
+    val f : ('a : immediate). 'a t -> 'a
+  end
+|}]
+
+module[@warning "-187"] M5 = struct
+  let f (type a : immediate): a -> a = fun x -> x
+end;;
+
+[%%expect{|
+module M5 : sig val f : ('a : immediate). 'a -> 'a end
+|}]
+
+(* Just disabling the warning on the expression level doesn't work
+   if the declaration has a type variable annotation. *)
+
+let[@warning "-187"] fails (type a : immediate): a -> a = fun x -> x
+;;
+
+[%%expect{|
+Line 1, characters 21-26:
+1 | let[@warning "-187"] fails (type a : immediate): a -> a = fun x -> x
+                         ^^^^^
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in fails
+can't be erased for compatibility with upstream OCaml.
+
+val fails : ('a : immediate). 'a -> 'a = <fun>
+|}]
+
+module type S1 = sig
+  type ('a : immediate) fails = int [@@warning "-187"]
+end;;
+
+[%%expect{|
+Line 2, characters 2-54:
+2 |   type ('a : immediate) fails = int [@@warning "-187"]
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in fails
+can't be erased for compatibility with upstream OCaml.
+
+module type S1 = sig type ('a : immediate) fails = int end
+|}]
+
+(* Disabling the warning just in the signature isn't sufficient. *)
+module M6 : sig
+  [@@@warning "-187"]
+  type ('a : immediate) t = 'a * 'a
+end = struct
+  type ('a : immediate) t = 'a * 'a
+end;;
+[%%expect{|
+Line 5, characters 2-35:
+5 |   type ('a : immediate) t = 'a * 'a
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in t
+can't be erased for compatibility with upstream OCaml.
+
+module M6 : sig type ('a : immediate) t = 'a * 'a end
+|}]
+
+(* More disabled warnings. *)
+external[@warning "-187"] f_ok : int -> bool -> int64# = "foo" "bar";;
+
+[%%expect{|
+external f_ok : int -> bool -> (int64# [@unboxed]) = "foo" "bar"
+|}]
+
+external f_2_ok : M.t -> M.t = "%identity" [@@unboxed] [@@warning "-187"];;
+
+[%%expect{|
+external f_2_ok : M.t -> M.t = "%identity" [@@unboxed]
+|}]

@@ -35,3 +35,5 @@ val data : formatter -> Cmm.data_item list -> unit
 val phrase : formatter -> Cmm.phrase -> unit
 val temporal_locality : Cmm.prefetch_temporal_locality_hint -> string
 val print_codegen_options : formatter -> Cmm.codegen_option list -> unit
+val reinterpret_cast : Cmm.reinterpret_cast -> string
+val static_cast : Cmm.static_cast -> string

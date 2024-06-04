@@ -16,12 +16,18 @@
     this module, unlike the ones in [Cmm_helpers], depend on Flambda 2 data
     types. *)
 
+val remove_skipped_params :
+  (Backend_var.With_provenance.t * Cmm.machtype To_cmm_env.param_type) list ->
+  (Backend_var.With_provenance.t * Cmm.machtype) list
+
+val remove_skipped_args : 'a list -> _ To_cmm_env.param_type list -> 'a list
+
 val remove_var_with_provenance :
   To_cmm_env.free_vars -> Backend_var.With_provenance.t -> To_cmm_env.free_vars
 
 val remove_vars_with_machtype :
   To_cmm_env.free_vars ->
-  (Backend_var.With_provenance.t * Cmm.machtype) list ->
+  (Backend_var.With_provenance.t * _) list ->
   To_cmm_env.free_vars
 
 val exttype_of_kind : Flambda_kind.t -> Cmm.exttype
@@ -32,6 +38,9 @@ val extended_machtype_of_kind :
   Flambda_kind.With_subkind.t -> Cmm_helpers.Extended_machtype.t
 
 val machtype_of_kinded_parameter : Bound_parameter.t -> Cmm.machtype
+
+val param_machtype_of_kinded_parameter :
+  Bound_parameter.t -> Cmm.machtype To_cmm_env.param_type
 
 val memory_chunk_of_kind : Flambda_kind.With_subkind.t -> Cmm.memory_chunk
 
@@ -78,7 +87,13 @@ val simple_list :
   * To_cmm_result.t
   * Effects_and_coeffects.t
 
-val bound_parameters :
+val continuation_bound_parameters :
+  To_cmm_env.t ->
+  Bound_parameters.t ->
+  To_cmm_env.t
+  * (Backend_var.With_provenance.t * Cmm.machtype To_cmm_env.param_type) list
+
+val function_bound_parameters :
   To_cmm_env.t ->
   Bound_parameters.t ->
   To_cmm_env.t * (Backend_var.With_provenance.t * Cmm.machtype) list

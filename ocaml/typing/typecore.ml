@@ -2669,7 +2669,9 @@ and type_pat_aux
             let ty = generic_instance expected_ty in
             Some (p0, p, is_principal expected_ty), ty
         | Maybe_a_record_type ->
-          None, newvar (Jkind.value ~why:Boxed_record)
+          (* We can't assume that the jkind of a record type is [non_null_value]
+             because of unboxed records. *)
+          None, newvar (Jkind.any ~why:Dummy_jkind)
         | Not_a_record_type ->
           let error = Wrong_expected_kind(Record, Pattern, expected_ty) in
           raise (Error (loc, !env, error))
@@ -6358,49 +6360,22 @@ and type_expect_
           raise (Error (loc, env, Invalid_extension_constructor_payload))
       end
   | Pexp_extension ({ txt = ("probe" | "ocaml.probe"); _ }, payload) ->
-    let name, name_loc, args =
-      match payload with
-      | PStr
-          ([{ pstr_desc =
-                Pstr_eval
-                  ({ pexp_desc =
-                       (Pexp_apply
-                          ({ pexp_desc=
-                               (Pexp_constant (Pconst_string(name,_,None)));
-                             pexp_loc = name_loc;
-                             _ }
-                          , args))
-                   ; _ }
-                  , _)}]) -> name, name_loc, args
-      | _ -> raise (Error (loc, env, Probe_format))
-    in
-    let bool_of_string = function
-      | "true" -> true
-      | "false" -> false
-      | _ -> raise (Error (loc, env, Probe_format))
-    in
-    let arg, enabled_at_init =
-      match args with
-      | [Nolabel, arg] -> arg, false
-      | [Labelled "enabled_at_init",
-         { pexp_desc =
-             Pexp_construct({ txt = Longident.Lident b; _ },
-                            None); _ };
-         Nolabel, arg] -> arg, bool_of_string b
-      | _ -> raise (Error (loc, env, Probe_format))
-    in
-    check_probe_name name name_loc env;
-    let env = Env.add_escape_lock Probe env in
-    let env = Env.add_share_lock Probe env in
-    Env.add_probe name;
-    let exp = type_expect env mode_legacy arg
-                (mk_expected Predef.type_unit) in
-    rue {
-      exp_desc = Texp_probe {name; handler=exp; enabled_at_init};
-      exp_loc = loc; exp_extra = [];
-      exp_type = instance Predef.type_unit;
-      exp_attributes = sexp.pexp_attributes;
-      exp_env = env }
+    begin match Builtin_attributes.get_tracing_probe_payload payload with
+    | Error () -> raise (Error (loc, env, Probe_format))
+    | Ok { name; name_loc; enabled_at_init; arg; } ->
+        check_probe_name name name_loc env;
+        let env = Env.add_escape_lock Probe env in
+        let env = Env.add_share_lock Probe env in
+        Env.add_probe name;
+        let exp = type_expect env mode_legacy arg
+                    (mk_expected Predef.type_unit) in
+        rue {
+          exp_desc = Texp_probe {name; handler=exp; enabled_at_init};
+          exp_loc = loc; exp_extra = [];
+          exp_type = instance Predef.type_unit;
+          exp_attributes = sexp.pexp_attributes;
+          exp_env = env }
+    end
   | Pexp_extension ({ txt = ("probe_is_enabled"
                             |"ocaml.probe_is_enabled"); _ }, payload) ->
       begin match payload with
@@ -8788,7 +8763,7 @@ and type_mode_expr
     submode ~loc ~env ~reason:Other (Value.of_const min) expected_mode;
     let expected_mode = mode_coerce (Value.of_const max) expected_mode in
     let expected_mode =
-      match modes.locality with
+      match modes.areality with
       | Some Local -> mode_strictly_local expected_mode
       | _ -> expected_mode
     in

@@ -20,6 +20,10 @@ jobs:
             config: --enable-middle-end=flambda2 --enable-runtime5
             os: ubuntu-latest
 
+          - name: flambda2_dev
+            config: --enable-middle-end=flambda2 --enable-dev
+            os: ubuntu-latest
+
           - name: flambda2_debug_runtime5
             config: --enable-middle-end=flambda2 --enable-runtime5
             os: ubuntu-latest
@@ -46,10 +50,17 @@ jobs:
             build_ocamlparam: ''
             ocamlparam: '_,O3=1'
 
-          - name: flambda2_o3_advanced_meet
-            config: --enable-middle-end=flambda2
+          - name: flambda2_o3_advanced_meet_frame_pointers_runtime5
+            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-runtime5
             os: ubuntu-latest
             build_ocamlparam: ''
+            ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced'
+
+          - name: flambda2_o3_advanced_meet_frame_pointers_runtime5_debug
+            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-runtime5
+            os: ubuntu-latest
+            build_ocamlparam: ''
+            use_runtime: d
             ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced'
 
           - name: flambda2_frame_pointers_oclassic
@@ -219,3 +230,6 @@ jobs:
       if: matrix.check_arch == true
       run: |
         PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH make check_all_arches
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true

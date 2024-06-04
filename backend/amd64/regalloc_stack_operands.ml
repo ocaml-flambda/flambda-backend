@@ -178,23 +178,24 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
       may_use_stack_operand_for_second_argument map instr ~num_args:3 ~res_is_fst:true
     | R_to_RM -> may_use_stack_operand_for_result map instr ~num_args:1
     | RM_to_R -> may_use_stack_operand_for_only_argument map instr ~has_result:true)
-  | Op (Scalarcast (V128_to_scalar (Float64x2) | V128_of_scalar (Float64x2))) ->
+  | Op (Reinterpret_cast (Float_of_float32 | Float32_of_float | V128_of_v128))
+  | Op (Static_cast (V128_of_scalar Float64x2 | Scalar_of_v128 Float64x2)) ->
     unary_operation_argument_or_result_on_stack map instr
-  | Op (Scalarcast (V128_to_scalar (Float32x4) | V128_of_scalar (Float32x4))) ->
+  | Op (Static_cast (V128_of_scalar Float32x4 | Scalar_of_v128 Float32x4)) ->
     (* CR mslater: (SIMD) replace once we have unboxed float32 *)
     may_use_stack_operand_for_only_argument map instr ~has_result:true
-  | Op (Scalarcast (V128_of_scalar (Int64x2 | Int32x4 | Int16x8 | Int8x16))) ->
+  | Op (Reinterpret_cast (Float_of_int64 | Float32_of_int32))
+  | Op (Static_cast (V128_of_scalar (Int64x2 | Int32x4 | Int16x8 | Int8x16))) ->
     may_use_stack_operand_for_only_argument map instr ~has_result:true
-  | Op (Scalarcast (V128_to_scalar (Int64x2 | Int32x4))) ->
+  | Op (Reinterpret_cast (Int64_of_float | Int32_of_float32))
+  | Op (Static_cast (Scalar_of_v128 (Int64x2 | Int32x4))) ->
     may_use_stack_operand_for_result map instr ~num_args:1
-  | Op (Scalarcast (V128_to_scalar (Int16x8 | Int8x16))) ->
+  | Op (Static_cast (Scalar_of_v128 (Int16x8 | Int8x16))) ->
     (* CR mslater: (SIMD) replace once we have unboxed int16/int8 *)
     May_still_have_spilled_registers
-  | Op (Scalarcast (Float_of_int (Float32 | Float64) |
-                    Float_to_int (Float32 | Float64) |
-                    Float_of_float32 | Float_to_float32 |
-                    Float32_as_float) |
-                    Vectorcast _) ->
+  | Op (Static_cast (Float_of_int (Float32 | Float64) |
+                     Int_of_float (Float32 | Float64) |
+                     Float_of_float32 | Float32_of_float)) ->
     may_use_stack_operand_for_only_argument map instr ~has_result:true
   | Op (Const_symbol _) ->
     if !Clflags.pic_code || !Clflags.dlcode || Arch.win64 then
@@ -231,7 +232,8 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Op (Move | Spill | Reload | Floatop (_, (Inegf | Iabsf | Icompf _))
        | Const_float _ | Const_float32 _  | Const_vec128 _
        | Stackoffset _ | Load _ | Store _ | Name_for_debugger _ | Probe_is_enabled _
-       | Valueofint | Intofvalue | Opaque | Begin_region | End_region | Dls_get | Poll | Alloc _)
+       | Opaque | Begin_region | End_region | Dls_get | Poll | Alloc _)
+  | Op (Reinterpret_cast (Int_of_value | Value_of_int))
   | Op (Specific (Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _)
                  | Ioffset_loc (_, _) | Ifloatarithmem (_, _, _)

@@ -178,9 +178,6 @@ module History = struct
     | Instance_variable
     | Object_field
     | Class_field
-    | Boxed_record
-    | Boxed_variant
-    | Extensible_variant
     | Primitive of Ident.t
     | Type_argument of
         { parent_path : Path.t;
@@ -188,13 +185,9 @@ module History = struct
           arity : int
         }
     (* [position] is 1-indexed *)
-    | Tuple
     | Row_variable
-    | Polymorphic_variant
-    | Arrow
     | Tfield
     | Tnil
-    | First_class_module
     | Separability_check
     | Univar
     | Polymorphic_variant_field
@@ -210,6 +203,22 @@ module History = struct
     | Captured_in_object
     | Recmod_fun_arg
     | Unknown of string (* CR layouts: get rid of these *)
+
+  type non_null_value_creation_reason =
+    | Extensible_variant
+    | Primitive of Ident.t
+    | Boxed_variant
+    | Boxed_record
+    | Tuple
+    | Polymorphic_variant
+    | Arrow
+    | First_class_module
+    | Type_argument of
+        { parent_path : Path.t;
+          position : int;
+          arity : int
+        }
+  (* [position] is 1-indexed *)
 
   type immediate_creation_reason =
     | Empty_record
@@ -249,6 +258,7 @@ module History = struct
     | Annotated of annotation_context * Location.t
     | Missing_cmi of Path.t
     | Value_creation of value_creation_reason
+    | Non_null_value_creation of non_null_value_creation_reason
     | Immediate_creation of immediate_creation_reason
     | Immediate64_creation of immediate64_creation_reason
     | Void_creation of void_creation_reason

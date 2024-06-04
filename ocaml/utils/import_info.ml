@@ -16,17 +16,20 @@ module CU = Compilation_unit
 
 module Intf = struct
   type t =
-    | Normal of CU.Name.t * CU.t * Digest.t
+    | Normal of CU.t * Digest.t
     | Alias of CU.Name.t
     | Parameter of CU.Name.t * Digest.t
 
-  let create_normal name cu ~crc =
+  let check_name name cu =
     if not (CU.Name.equal (CU.name cu) name)
     then
       Misc.fatal_errorf
         "@[<hv>Mismatched import name and compilation unit:@ %a != %a@]"
-        CU.Name.print name CU.print cu;
-    Normal (name, cu, crc)
+        CU.Name.print name CU.print cu
+
+  let create_normal name cu ~crc =
+    check_name name cu;
+    Normal (cu, crc)
 
   let create_alias name = Alias name
 
@@ -50,20 +53,21 @@ module Intf = struct
 
   let name t =
     match t with
-    | Normal (name, _, _) | Alias name | Parameter (name, _) -> name
+    | Normal (cu, _) -> CU.name cu
+    | Alias name | Parameter (name, _) -> name
 
   let info t : Nonalias.t option =
     match t with
-    | Normal (_, cu, crc) -> Some (Normal cu, crc)
+    | Normal (cu, crc) -> Some (Normal cu, crc)
     | Parameter (_, crc) -> Some (Parameter, crc)
     | Alias _ -> None
 
   let cu t =
-    match t with Normal (_, cu, _) -> Some cu | Parameter _ | Alias _ -> None
+    match t with Normal (cu, _) -> Some cu | Parameter _ | Alias _ -> None
 
   let crc t =
     match t with
-    | Normal (_, _, crc) | Parameter (_, crc) -> Some crc
+    | Normal (_, crc) | Parameter (_, crc) -> Some crc
     | Alias _ -> None
 
   let has_name t ~name:name' = CU.Name.equal (name t) name'

@@ -3,7 +3,7 @@
 (env
  (_
   (flags
-   (:standard -w +a-30-40-41-42-69-70))))
+   (:standard -w +4+9-30+44+45+48-69-70))))
 
 (library
  (name flambda2)
@@ -12,7 +12,6 @@
   (backend bisect_ppx))
  (flags
   (:standard
-   -principal
    -open
    Flambda2_lattices
    -open

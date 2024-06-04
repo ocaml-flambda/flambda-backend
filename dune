@@ -8,6 +8,12 @@
 ;*                                                                        *
 ;**************************************************************************
 
+
+(env
+ (_
+  (flags
+   (:standard -principal -warn-error +A -w +a-4-9-40-41-42-44-45-48-66))))
+
 ; Since upstream has the middle end code inside ocamloptcomp, we do the
 ; same for the moment.
 
@@ -56,9 +62,9 @@
  (wrapped false) ; for compatibility with existing code
  (modes byte native)
  ; We should change the code so this "-open" can be removed.
- ; Likewise fix occurrences of warning 9.
+ ; Likewise fix occurrences of warnings 9, 27, 32, 33, 34, 37, 39, and 60.
  (flags
-  (:standard -principal -w -9-69-70))
+  (:standard -w -27-32-33-34-37-39-60-69-70))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
  (instrumentation
@@ -243,11 +249,6 @@
  ; same flags as for ocamlcommon library
  (flags
   (-strict-sequence
-   -principal
-   -w
-   +a-4-9-40-41-42-44-45-48-66
-   -warn-error
-   A
    -bin-annot
    -safe-string
    -strict-formats
@@ -267,8 +268,6 @@
  (modes byte)
  (instrumentation
   (backend bisect_ppx))
- (flags
-  (:standard -principal))
  (libraries
   flambda_backend_driver
   memtrace
@@ -290,8 +289,6 @@
  (modes native)
  (instrumentation
   (backend bisect_ppx))
- (flags
-  (:standard -principal))
  (ocamlopt_flags
   (:standard -runtime-variant nnp))
  (libraries
@@ -317,8 +314,6 @@
  (modes native)
  (instrumentation
   (backend bisect_ppx))
- (flags
-  (:standard -principal))
  (libraries
   flambda_backend_driver
   flambda2

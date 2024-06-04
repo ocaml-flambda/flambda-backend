@@ -174,8 +174,8 @@ let pseudoregs_for_operation op arg res =
   | Ispecific (Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
               |Ipause|Ilfence|Isfence|Imfence
               |Ioffset_loc (_, _)|Irdtsc|Iprefetch _)
-  | Imove|Ispill|Ireload|Ivalueofint|Iintofvalue
-  | Ivectorcast _ | Iscalarcast _
+  | Imove|Ispill|Ireload
+  | Ireinterpret_cast _ | Istatic_cast _
   | Iconst_int _|Iconst_float32 _|Iconst_float _|Iconst_vec128 _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
   | Iextcall _|Istackoffset _|Iload _ | Istore (_, _, _)|Ialloc _
@@ -306,8 +306,6 @@ method! select_operation op args dbg =
       Ispecific (Isimd (SSE Interleave_low_32_regs)), args
   (* Special cases overriding C implementations (regardless of [@@builtin]). *)
   | Cextcall { func = ("sqrt" as func); _ }
-  | Cextcall { func = ("caml_int64_bits_of_float_unboxed" as func); _ }
-  | Cextcall { func = ("caml_int64_float_of_bits_unboxed" as func); _ }
   (* x86 intrinsics ([@@builtin]) *)
   | Cextcall { func; builtin = true; _ } ->
       begin match func with

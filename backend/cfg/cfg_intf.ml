@@ -76,10 +76,8 @@ module S = struct
         }
     | Floatop of Mach.float_width * Mach.float_operation
     | Csel of Mach.test
-    | Valueofint
-    | Intofvalue
-    | Vectorcast of Cmm.vector_cast
-    | Scalarcast of Cmm.scalar_cast
+    | Reinterpret_cast of Cmm.reinterpret_cast
+    | Static_cast of Cmm.static_cast
     | Probe_is_enabled of { name : string }
     | Opaque
     | Begin_region

@@ -1,3 +1,9 @@
+(env
+ (_
+  ; FIXME Fix warnings or suppress them more finely
+  (flags
+   (:standard -w -32-33-35-60))))
+
 ; Helpers
 
 (library

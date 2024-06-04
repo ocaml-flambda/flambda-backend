@@ -94,37 +94,49 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
     (Code_id.Map.print Code.print) all_code
     Loopify_state.print loopify_state
 
+let define_variable t var kind =
+  let typing_env =
+    let var = Bound_name.create_var var in
+    TE.add_definition t.typing_env var kind
+  in
+  let variables_defined_at_toplevel =
+    if t.at_unit_toplevel
+    then Variable.Set.add (Bound_var.var var) t.variables_defined_at_toplevel
+    else t.variables_defined_at_toplevel
+  in
+  { t with typing_env; variables_defined_at_toplevel }
+
 let create ~round ~(resolver : resolver)
     ~(get_imported_names : get_imported_names)
     ~(get_imported_code : get_imported_code) ~propagating_float_consts
     ~unit_toplevel_exn_continuation ~unit_toplevel_return_continuation
     ~toplevel_my_region =
   let typing_env = TE.create ~resolver ~get_imported_names in
-  let typing_env =
-    TE.add_definition typing_env
-      (Bound_name.create (Name.var toplevel_my_region) Name_mode.normal)
-      K.region
+  let t =
+    { round;
+      typing_env;
+      inlined_debuginfo = Inlined_debuginfo.none;
+      can_inline = true;
+      inlining_state = Inlining_state.default ~round;
+      propagating_float_consts;
+      at_unit_toplevel = true;
+      unit_toplevel_return_continuation;
+      unit_toplevel_exn_continuation;
+      variables_defined_at_toplevel = Variable.Set.empty;
+      cse = CSE.empty;
+      comparison_results = Variable.Map.empty;
+      do_not_rebuild_terms = false;
+      closure_info = Closure_info.not_in_a_closure;
+      all_code = Code_id.Map.empty;
+      get_imported_code;
+      inlining_history_tracker =
+        Inlining_history.Tracker.empty (Compilation_unit.get_current_exn ());
+      loopify_state = Loopify_state.do_not_loopify
+    }
   in
-  { round;
-    typing_env;
-    inlined_debuginfo = Inlined_debuginfo.none;
-    can_inline = true;
-    inlining_state = Inlining_state.default ~round;
-    propagating_float_consts;
-    at_unit_toplevel = true;
-    unit_toplevel_return_continuation;
-    unit_toplevel_exn_continuation;
-    variables_defined_at_toplevel = Variable.Set.empty;
-    cse = CSE.empty;
-    comparison_results = Variable.Map.empty;
-    do_not_rebuild_terms = false;
-    closure_info = Closure_info.not_in_a_closure;
-    all_code = Code_id.Map.empty;
-    get_imported_code;
-    inlining_history_tracker =
-      Inlining_history.Tracker.empty (Compilation_unit.get_current_exn ());
-    loopify_state = Loopify_state.do_not_loopify
-  }
+  define_variable t
+    (Bound_var.create toplevel_my_region Name_mode.normal)
+    K.region
 
 let all_code t = t.all_code
 
@@ -206,51 +218,36 @@ let enter_set_of_closures
     loopify_state = Loopify_state.do_not_loopify
   }
 
-let define_variable t var kind =
+let define_symbol t sym kind =
   let typing_env =
-    let var = Bound_name.create_var var in
-    TE.add_definition t.typing_env var kind
+    let sym = Bound_name.create (Name.symbol sym) Name_mode.normal in
+    TE.add_definition t.typing_env sym kind
   in
-  let variables_defined_at_toplevel =
-    if t.at_unit_toplevel
-    then Variable.Set.add (Bound_var.var var) t.variables_defined_at_toplevel
-    else t.variables_defined_at_toplevel
-  in
-  { t with typing_env; variables_defined_at_toplevel }
+  { t with typing_env }
 
-let add_name t name ty =
-  let typing_env =
-    TE.add_equation
-      (TE.add_definition t.typing_env name (T.kind ty))
-      (Bound_name.name name) ty
-  in
-  let variables_defined_at_toplevel =
-    Name.pattern_match (Bound_name.name name)
-      ~var:(fun var ->
-        if t.at_unit_toplevel
-        then Variable.Set.add var t.variables_defined_at_toplevel
-        else t.variables_defined_at_toplevel)
-      ~symbol:(fun _ -> t.variables_defined_at_toplevel)
-  in
-  { t with typing_env; variables_defined_at_toplevel }
-
-let add_variable0 t var ty ~at_unit_toplevel =
-  let typing_env =
-    let var' = Bound_name.create_var var in
-    TE.add_equation
-      (TE.add_definition t.typing_env var' (T.kind ty))
-      (Name.var (Bound_var.var var))
-      ty
-  in
-  let variables_defined_at_toplevel =
-    if at_unit_toplevel
-    then Variable.Set.add (Bound_var.var var) t.variables_defined_at_toplevel
-    else t.variables_defined_at_toplevel
-  in
-  { t with typing_env; variables_defined_at_toplevel }
+let define_name t name kind =
+  Name.pattern_match (Bound_name.name name)
+    ~var:(fun [@inline] var ->
+      (define_variable [@inlined hint]) t
+        (Bound_var.create var (Bound_name.name_mode name))
+        kind)
+    ~symbol:(fun [@inline] sym -> (define_symbol [@inlined hint]) t sym kind)
 
 let add_variable t var ty =
-  add_variable0 t var ty ~at_unit_toplevel:t.at_unit_toplevel
+  let t = (define_variable [@inlined hint]) t var (T.kind ty) in
+  { t with
+    typing_env = TE.add_equation t.typing_env (Name.var (Bound_var.var var)) ty
+  }
+
+let add_symbol t sym ty =
+  let t = (define_symbol [@inlined hint]) t sym (T.kind ty) in
+  { t with typing_env = TE.add_equation t.typing_env (Name.symbol sym) ty }
+
+let add_name t name ty =
+  Name.pattern_match (Bound_name.name name)
+    ~var:(fun [@inline] var ->
+      add_variable t (Bound_var.create var (Bound_name.name_mode name)) ty)
+    ~symbol:(fun [@inline] sym -> add_symbol t sym ty)
 
 let add_equation_on_variable t var ty =
   let typing_env = TE.add_equation t.typing_env (Name.var var) ty in
@@ -259,21 +256,6 @@ let add_equation_on_variable t var ty =
 let mem_name t name = TE.mem t.typing_env name
 
 let mem_variable t var = TE.mem t.typing_env (Name.var var)
-
-let define_symbol t sym kind =
-  let typing_env =
-    let sym = Bound_name.create (Name.symbol sym) Name_mode.normal in
-    TE.add_definition t.typing_env sym kind
-  in
-  { t with typing_env }
-
-let add_symbol t sym ty =
-  let typing_env =
-    let sym = Name.symbol sym in
-    let sym' = Bound_name.create sym Name_mode.normal in
-    TE.add_equation (TE.add_definition t.typing_env sym' (T.kind ty)) sym ty
-  in
-  { t with typing_env }
 
 let add_equation_on_symbol t sym ty =
   let typing_env =
@@ -290,18 +272,6 @@ let add_symbol_projection t var proj =
   { t with typing_env = TE.add_symbol_projection t.typing_env var proj }
 
 let find_symbol_projection t var = TE.find_symbol_projection t.typing_env var
-
-let define_name t name kind =
-  let typing_env = TE.add_definition t.typing_env name kind in
-  let variables_defined_at_toplevel =
-    Name.pattern_match (Bound_name.name name)
-      ~var:(fun var ->
-        if t.at_unit_toplevel
-        then Variable.Set.add var t.variables_defined_at_toplevel
-        else t.variables_defined_at_toplevel)
-      ~symbol:(fun _ -> t.variables_defined_at_toplevel)
-  in
-  { t with typing_env; variables_defined_at_toplevel }
 
 let define_name_if_undefined t name kind =
   if TE.mem t.typing_env (Bound_name.name name)
@@ -320,8 +290,7 @@ let define_parameters t ~params =
     t
     (Bound_parameters.to_list params)
 
-let add_parameters ?(name_mode = Name_mode.normal) ?at_unit_toplevel t params
-    ~param_types =
+let add_parameters ?(name_mode = Name_mode.normal) t params ~param_types =
   let params' = params in
   let params = Bound_parameters.to_list params in
   if List.compare_lengths params param_types <> 0
@@ -331,17 +300,13 @@ let add_parameters ?(name_mode = Name_mode.normal) ?at_unit_toplevel t params
       Bound_parameters.print params'
       (Format.pp_print_list ~pp_sep:Format.pp_print_space T.print)
       param_types;
-  let at_unit_toplevel =
-    Option.value at_unit_toplevel ~default:t.at_unit_toplevel
-  in
   List.fold_left2
     (fun t param param_type ->
       let var = Bound_var.create (BP.var param) name_mode in
-      add_variable0 t var param_type ~at_unit_toplevel)
+      add_variable t var param_type)
     t params param_types
 
-let add_parameters_with_unknown_types ?alloc_modes ?name_mode ?at_unit_toplevel
-    t params =
+let add_parameters_with_unknown_types ?alloc_modes ?name_mode t params =
   let params' = params in
   let params = Bound_parameters.to_list params in
   let alloc_modes =
@@ -358,7 +323,7 @@ let add_parameters_with_unknown_types ?alloc_modes ?name_mode ?at_unit_toplevel
     ListLabels.map2 params alloc_modes ~f:(fun param alloc_mode ->
         T.unknown_with_subkind ~alloc_mode (BP.kind param))
   in
-  add_parameters ?name_mode ?at_unit_toplevel t params' ~param_types
+  add_parameters ?name_mode t params' ~param_types
 
 let mark_parameters_as_toplevel t params =
   let variables_defined_at_toplevel =
@@ -368,35 +333,14 @@ let mark_parameters_as_toplevel t params =
   { t with variables_defined_at_toplevel }
 
 let define_variable_and_extend_typing_environment t var kind env_extension =
-  (* This is a combined operation to reduce allocation. *)
-  let typing_env =
-    let var' = Bound_name.create_var var in
-    TE.add_definition t.typing_env var' kind
-  in
-  let variables_defined_at_toplevel =
-    if t.at_unit_toplevel
-    then Variable.Set.add (Bound_var.var var) t.variables_defined_at_toplevel
-    else t.variables_defined_at_toplevel
-  in
-  let typing_env = TE.add_env_extension typing_env env_extension in
-  { t with typing_env; variables_defined_at_toplevel }
+  let t = (define_variable [@inlined hint]) t var kind in
+  let typing_env = TE.add_env_extension t.typing_env env_extension in
+  { t with typing_env }
 
 let add_variable_and_extend_typing_environment t var ty env_extension =
-  (* This is a combined operation to reduce allocation. *)
-  let typing_env =
-    let var' = Bound_name.create_var var in
-    TE.add_equation
-      (TE.add_definition t.typing_env var' (T.kind ty))
-      (Name.var (Bound_var.var var))
-      ty
-  in
-  let variables_defined_at_toplevel =
-    if t.at_unit_toplevel
-    then Variable.Set.add (Bound_var.var var) t.variables_defined_at_toplevel
-    else t.variables_defined_at_toplevel
-  in
-  let typing_env = TE.add_env_extension typing_env env_extension in
-  { t with typing_env; variables_defined_at_toplevel }
+  let t = (add_variable [@inlined hint]) t var ty in
+  let typing_env = TE.add_env_extension t.typing_env env_extension in
+  { t with typing_env }
 
 let extend_typing_environment t env_extension =
   (* There doesn't seem any need to augment [t.variables_defined_at_toplevel]

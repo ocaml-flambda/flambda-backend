@@ -122,7 +122,7 @@ let ghstr ~loc d = Str.mk ~loc:(ghost_loc loc) d
 let ghsig ~loc d = Sig.mk ~loc:(ghost_loc loc) d
 
 let ghexpvar ~loc name =
-  ghexp ~loc (Pexp_ident (mkrhs (Lident name) loc))
+  ghexp ~loc (Pexp_ident (ghrhs (Lident name) loc))
 
 let mkinfix arg1 op arg2 =
   Pexp_apply(op, [Nolabel, arg1; Nolabel, arg2])
@@ -3529,10 +3529,12 @@ pattern_no_exn:
       { let loc = $loc(label) in
         Some label, mkpatvar ~loc label }
   | TILDE LPAREN label = LIDENT COLON cty = core_type RPAREN %prec COMMA
-      { let loc = $loc(label) in
-        let pat = mkpatvar ~loc label in
-        Some label, mkpat_opt_constraint ~loc pat (Some cty) }
+      { let lbl_loc = $loc(label) in
+        let pat_loc = $startpos($2), $endpos in
+        let pat = mkpatvar ~loc:lbl_loc label in
+        Some label, mkpat_opt_constraint ~loc:pat_loc pat (Some cty) }
 
+(* If changing this, don't forget to change its copy just above. *)
 %inline labeled_tuple_pat_element_noprec(self):
   | self { None, $1 }
   | LABEL simple_pattern
