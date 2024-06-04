@@ -83,6 +83,7 @@
     ast_mapper
     attr_helper
     builtin_attributes
+    global_module
     ident
     path
     shape
@@ -176,7 +177,6 @@
 (copy_files ../../utils/linkage_name.ml)
 (copy_files ../../utils/lazy_backtrack.ml)
 (copy_files ../../utils/zero_alloc_utils.ml)
-(copy_files ../../utils/global_module.ml)
 (copy_files ../../parsing/location.ml)
 (copy_files ../../parsing/longident.ml)
 (copy_files ../../parsing/docstrings.ml)
@@ -190,6 +190,7 @@
 (copy_files ../../parsing/ast_mapper.ml)
 (copy_files ../../parsing/attr_helper.ml)
 (copy_files ../../parsing/builtin_attributes.ml)
+(copy_files ../../typing/global_module.ml)
 (copy_files ../../typing/ident.ml)
 (copy_files ../../typing/path.ml)
 (copy_files ../../typing/jkind.ml)
@@ -247,7 +248,6 @@
 (copy_files ../../utils/linkage_name.mli)
 (copy_files ../../utils/lazy_backtrack.mli)
 (copy_files ../../utils/zero_alloc_utils.mli)
-(copy_files ../../utils/global_module.mli)
 (copy_files ../../parsing/location.mli)
 (copy_files ../../parsing/longident.mli)
 (copy_files ../../parsing/docstrings.mli)
@@ -261,6 +261,7 @@
 (copy_files ../../parsing/ast_mapper.mli)
 (copy_files ../../parsing/attr_helper.mli)
 (copy_files ../../parsing/builtin_attributes.mli)
+(copy_files ../../typing/global_module.mli)
 (copy_files ../../typing/ident.mli)
 (copy_files ../../typing/path.mli)
 (copy_files ../../typing/jkind.mli)
