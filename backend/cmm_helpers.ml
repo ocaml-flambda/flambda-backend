@@ -3619,7 +3619,7 @@ let sequence x y =
   | _, _ -> Csequence (x, y)
 
 let rec is_small_and_pure_int_expr ~size_bias ~size ~toplevel expr =
-  if size > 12 + size_bias
+  if size > 12 - size_bias
   then None
   else
     match expr with
