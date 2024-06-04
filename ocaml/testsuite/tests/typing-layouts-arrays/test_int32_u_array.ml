@@ -46,6 +46,7 @@ module Int32_u_array0 : Gen_u_array.S0
   type ('a : any) array_t = 'a array
   type element_arg = unit -> element_t
   type t = element_t array
+  let max_length = Sys.max_unboxed_int32_array_length
   external length : ('a : bits32). 'a array -> int = "%array_length"
   external get: ('a : bits32). 'a array -> int -> 'a = "%array_safe_get"
   let get t i = let a = get t i in fun () -> a
