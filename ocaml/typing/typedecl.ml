@@ -1128,7 +1128,7 @@ let check_abbrev env sdecl (id, decl) =
 *)
 (* [update_label_jkinds] additionally returns whether all the jkinds
    were void *)
-let update_label_jkinds env loc lbls named ~is_inlined =
+let update_label_jkinds env loc lbls named =
   (* [named] is [Some jkinds] for top-level records (we will update the
      jkinds) and [None] for inlined records. *)
   (* CR layouts v5: it wouldn't be too hard to support records that are all
@@ -1138,15 +1138,8 @@ let update_label_jkinds env loc lbls named ~is_inlined =
     | None -> fun _ _ -> ()
     | Some jkinds -> fun idx jkind -> jkinds.(idx) <- jkind
   in
-  let kloc =
-    if is_inlined
-    then Inlined_record { unboxed = false }
-    else Record { unboxed = false }
-  in
   let lbls =
-    List.mapi (fun idx (Types.{ld_type; ld_id; ld_loc} as lbl) ->
-      check_representable ~why:(Label_declaration ld_id)
-        ~allow_unboxed:(Option.is_some named) env ld_loc kloc ld_type;
+    List.mapi (fun idx (Types.{ld_type} as lbl) ->
       let ld_jkind = Ctype.type_jkind env ld_type in
       update idx ld_jkind;
       {lbl with ld_jkind}
@@ -1164,13 +1157,11 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
   match cd_args with
   | Types.Cstr_tuple tys ->
     List.iteri (fun idx (ty,_) ->
-      check_representable ~why:(Constructor_declaration idx) ~allow_unboxed:true
-        env loc (Cstr_tuple { unboxed = false }) ty;
       jkinds.(idx) <- Ctype.type_jkind env ty) tys;
     cd_args, Array.for_all Jkind.is_void_defaulting jkinds
   | Types.Cstr_record lbls ->
     let lbls, all_void =
-      update_label_jkinds env loc lbls None ~is_inlined:true
+      update_label_jkinds env loc lbls None
     in
     jkinds.(0) <- Jkind.value ~why:Boxed_record;
     Types.Cstr_record lbls, all_void
@@ -1402,14 +1393,12 @@ let update_decl_jkind env dpath decl =
   (* returns updated labels, updated rep, and updated jkind *)
   let update_record_kind loc lbls rep =
     match lbls, rep with
-    | [Types.{ld_type; ld_id; ld_loc} as lbl], Record_unboxed ->
-      check_representable ~why:(Label_declaration ld_id) ~allow_unboxed:false
-        env ld_loc (Record { unboxed = true }) ld_type;
+    | [Types.{ld_type} as lbl], Record_unboxed ->
       let ld_jkind = Ctype.type_jkind env ld_type in
       [{lbl with ld_jkind}], Record_unboxed, ld_jkind
     | _, Record_boxed jkinds ->
       let lbls, all_void =
-        update_label_jkinds env loc lbls (Some jkinds) ~is_inlined:false
+        update_label_jkinds env loc lbls (Some jkinds)
       in
       let jkind = Jkind.for_boxed_record ~all_void in
       let reprs =
@@ -1516,18 +1505,13 @@ let update_decl_jkind env dpath decl =
   let update_variant_kind cstrs rep =
     (* CR layouts: factor out duplication *)
     match cstrs, rep with
-    | [{Types.cd_args;cd_loc} as cstr], Variant_unboxed -> begin
+    | [{Types.cd_args} as cstr], Variant_unboxed -> begin
         match cd_args with
         | Cstr_tuple [ty,_] -> begin
-            check_representable ~why:(Constructor_declaration 0)
-              ~allow_unboxed:false env cd_loc (Cstr_tuple { unboxed = true }) ty;
             let jkind = Ctype.type_jkind env ty in
             cstrs, Variant_unboxed, jkind
           end
-        | Cstr_record [{ld_type; ld_id; ld_loc} as lbl] -> begin
-            check_representable ~why:(Label_declaration ld_id)
-              ~allow_unboxed:false env ld_loc (Inlined_record { unboxed = true })
-              ld_type;
+        | Cstr_record [{ld_type} as lbl] -> begin
             let ld_jkind = Ctype.type_jkind env ld_type in
             [{ cstr with Types.cd_args =
                            Cstr_record [{ lbl with ld_jkind }] }],
