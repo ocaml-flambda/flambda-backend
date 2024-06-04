@@ -36,13 +36,16 @@ let subst t (args : (Global_module.Name.t * Global_module.t) list) =
           subst, None
         else
           begin
-            let value = Global_module.subst bound_global arg_subst in
+            let value, changed = Global_module.subst bound_global arg_subst in
             let name_id = Ident.create_global name in
             let value_as_name = Global_module.to_name value in
             let value_id = Ident.create_global value_as_name in
             let subst =
-              if Global_module.Name.equal name value_as_name then subst else
-                Subst.add_module name_id (Pident value_id) subst
+              match changed with
+              | `Changed ->
+                  Subst.add_module name_id (Pident value_id) subst
+              | `Did_not_change ->
+                  subst
             in
             let new_bound_global =
               if Global_module.is_complete value then

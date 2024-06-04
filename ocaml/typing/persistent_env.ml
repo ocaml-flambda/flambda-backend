@@ -577,7 +577,8 @@ and compute_global penv modname ~params check =
   let global_without_args =
     Global_module.create modname.Global_module.Name.head [] ~hidden_args
   in
-  Global_module.subst global_without_args subst
+  let global, _changed = Global_module.subst global_without_args subst in
+  global
 
 and acknowledge_pers_name penv check global_name import =
   let params = import.imp_params in
