@@ -55,6 +55,7 @@ end
 
 type mixed_product_violation =
   | Runtime_support_not_enabled of Mixed_product_kind.t
+  | Extension_constructor
   | Value_prefix_too_long of
       { value_prefix_len : int;
         max_value_prefix_len : int;
@@ -1316,6 +1317,7 @@ end
 
 let update_constructor_representation
     env (cd_args : Types.constructor_arguments) arg_jkinds ~loc
+    ~is_extension_constructor
   =
   let flat_suffix =
     let arg_jkinds = Array.to_list arg_jkinds in
@@ -1363,6 +1365,11 @@ let update_constructor_representation
       let value_prefix_len =
         Array.length arg_jkinds - Array.length flat_suffix
       in
+      (* CR layouts v5.9: Enable extension constructors in the flambda2
+         middle-end so that we can permit them in the source language.
+      *)
+      if is_extension_constructor then
+        raise (Error (loc, Illegal_mixed_product Extension_constructor));
       assert_mixed_product_support loc Cstr_tuple ~value_prefix_len;
       Constructor_mixed { value_prefix_len; flat_suffix }
 
@@ -1545,6 +1552,7 @@ let update_decl_jkind env dpath decl =
           in
           let cstr_repr =
             update_constructor_representation env cd_args arg_jkinds
+              ~is_extension_constructor:false
               ~loc:cstr.Types.cd_loc
           in
           let () =
@@ -2223,6 +2231,7 @@ let transl_extension_constructor_decl
   in
   let constructor_shape =
     update_constructor_representation env args jkinds ~loc
+      ~is_extension_constructor:true
   in
   args, jkinds, constructor_shape, constant, ret_type,
   Text_decl(tvars, targs, tret_type)
@@ -3614,6 +3623,10 @@ let report_error ppf = function
           fprintf ppf
             "@[This OCaml runtime doesn't support mixed %s.@]"
             (Mixed_product_kind.to_plural_string mixed_product_kind)
+      | Extension_constructor ->
+          fprintf ppf
+            "@[Extensible types can't have fields of unboxed type. Consider \
+             wrapping the unboxed fields in a record.@]"
       | Value_prefix_too_long
           { value_prefix_len; max_value_prefix_len; mixed_product_kind } ->
           fprintf ppf
