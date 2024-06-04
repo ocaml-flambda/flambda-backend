@@ -410,7 +410,7 @@ let set_private_row env loc p decl =
       end
     | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
 
-let transl_labels ~new_var_jkind env univars closed lbls =
+let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
   assert (lbls <> []);
   let all_labels = ref String.Set.empty in
   List.iter
@@ -450,15 +450,13 @@ let transl_labels ~new_var_jkind env univars closed lbls =
       (fun ld ->
          let ty = ld.ld_type.ctyp_type in
          let ty = match get_desc ty with Tpoly(t,[]) -> t | _ -> ty in
-         (* CR: pass kloc? *)
          check_representable ~why:(Label_declaration ld.ld_id)
-          ~allow_unboxed:true env ld.ld_loc (Record { unboxed = false}) ty;
-         let ld_jkind = Jkind.any ~why:Dummy_jkind in
-          (* Updated by [update_label_jkinds] *)
+          ~allow_unboxed env ld.ld_loc kloc ty;
          {Types.ld_id = ld.ld_id;
           ld_mutable = ld.ld_mutable;
           ld_global = ld.ld_global;
-          ld_jkind;
+          ld_jkind = Jkind.any ~why:Dummy_jkind;
+            (* Updated by [update_label_jkinds] *)
           ld_type = ty;
           ld_loc = ld.ld_loc;
           ld_attributes = ld.ld_attributes;
@@ -468,26 +466,26 @@ let transl_labels ~new_var_jkind env univars closed lbls =
       lbls in
   lbls, lbls'
 
-let transl_types_gf ~new_var_jkind env loc univars closed tyl =
+let transl_types_gf ~new_var_jkind ~allow_unboxed env loc univars closed tyl kloc =
   let mk idx arg =
     let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
     let gf = Typemode.transl_global_flags
       (Jane_syntax.Mode_expr.of_attrs arg.ptyp_attributes |> fst) in
-    check_representable ~why:(Constructor_declaration idx) ~allow_unboxed:true
-      env loc (Cstr_tuple { unboxed = false }) cty.ctyp_type;
+    check_representable ~why:(Constructor_declaration idx) ~allow_unboxed
+      env loc kloc cty.ctyp_type;
     (cty, gf)
   in
   let tyl_gfl = List.mapi mk tyl in
   let tyl_gfl' = List.map (fun (cty, gf) -> cty.ctyp_type, gf) tyl_gfl in
   tyl_gfl, tyl_gfl'
 
-let transl_constructor_arguments ~new_var_jkind env loc univars closed = function
+let transl_constructor_arguments ~new_var_jkind ~unboxed env loc univars closed = function
   | Pcstr_tuple l ->
-      let flds, flds' = transl_types_gf ~new_var_jkind env loc univars closed l in
+      let flds, flds' = transl_types_gf ~new_var_jkind ~allow_unboxed:(not unboxed) env loc univars closed l (Cstr_tuple { unboxed })  in
       Types.Cstr_tuple flds',
       Cstr_tuple flds
   | Pcstr_record l ->
-      let lbls, lbls' = transl_labels ~new_var_jkind env univars closed l in
+      let lbls, lbls' = transl_labels ~new_var_jkind ~allow_unboxed:false env univars closed l (Inlined_record { unboxed })  in
       Types.Cstr_record lbls',
       Cstr_record lbls
 
@@ -497,7 +495,7 @@ let transl_constructor_arguments ~new_var_jkind env loc univars closed = functio
    defined types. It is updated later by [update_constructor_arguments_jkinds]
 *)
 let make_constructor
-      env loc ~cstr_path ~type_path type_params (svars : _ Either.t)
+      env loc ~cstr_path ~type_path ~unboxed type_params (svars : _ Either.t)
       sargs sret_type =
   let tvars = match svars with
     | Left vars_only -> List.map (fun v -> v.txt, None) vars_only
@@ -519,7 +517,7 @@ let make_constructor
   match sret_type with
   | None ->
       let args, targs =
-        transl_constructor_arguments ~new_var_jkind:Any env loc None true sargs
+        transl_constructor_arguments ~new_var_jkind:Any ~unboxed env loc None true sargs
       in
         tvars, targs, None, args, None
   | Some sret_type ->
@@ -545,7 +543,7 @@ let make_constructor
           in
           let univars = if closed then Some univar_list else None in
           let args, targs =
-            transl_constructor_arguments ~new_var_jkind:Sort env loc univars closed sargs
+            transl_constructor_arguments ~new_var_jkind:Sort ~unboxed env loc univars closed sargs
           in
           let tret_type =
             transl_simple_type ~new_var_jkind:Sort env ?univars ~closed Mode.Alloc.Const.legacy
@@ -794,7 +792,7 @@ let transl_declaration env sdecl (id, uid) =
               attributes
           in
           let tvars, targs, tret_type, args, ret_type =
-            make_constructor env scstr.pcd_loc
+            make_constructor ~unboxed:unbox env scstr.pcd_loc
               ~cstr_path:(Path.Pident name) ~type_path:path params
               svars scstr.pcd_args scstr.pcd_res
           in
@@ -848,7 +846,7 @@ let transl_declaration env sdecl (id, uid) =
         in
           Ttype_variant tcstrs, Type_variant (cstrs, rep), jkind
       | Ptype_record lbls ->
-          let lbls, lbls' = transl_labels ~new_var_jkind:Any env None true lbls in
+          let lbls, lbls' = transl_labels ~new_var_jkind:Any ~allow_unboxed:(not unbox) env None true lbls (Record { unboxed = unbox }) in
           let rep, jkind =
             (* Note this is inaccurate, using `Record_boxed` in cases where the
                correct representation is [Record_float], [Record_ufloat], or
@@ -2220,7 +2218,7 @@ let transl_extension_constructor_decl
       env type_path typext_params loc id svars sargs sret_type =
   let tvars, targs, tret_type, args, ret_type =
     make_constructor env loc
-      ~cstr_path:(Pident id) ~type_path typext_params
+      ~cstr_path:(Pident id) ~type_path ~unboxed:false typext_params
       svars sargs sret_type
   in
   let num_args =
