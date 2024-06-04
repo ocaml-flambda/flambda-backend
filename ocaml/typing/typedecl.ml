@@ -381,6 +381,38 @@ let set_private_row env loc p decl =
   in
   set_type_desc rv (Tconstr (p, decl.type_params, ref Mnil))
 
+(* Makes sure a type is representable.  Will lower "any" to "value". *)
+(* CR layouts: In the places where this is used, we first call this to
+   ensure a type is representable, and then call [Ctype.type_jkind] to get the
+   most precise jkind.  These could be combined into some new function
+   [Ctype.type_jkind_representable] that avoids duplicated work *)
+(* CR layouts: Many places where [check_representable] is called in this file
+   should be replaced with checks at the places where values of those types are
+   constructed.  We've been conservative here in the first version. This is the
+   same issue as with arrows. *)
+   let check_representable ~why ~allow_unboxed env loc kloc typ =
+    match Ctype.type_sort ~why env typ with
+    (* CR layouts v3: This is a convenient place to rule out non-value types in
+       structures that don't support them yet. (A callsite passes
+       [~allow_unboxed:true] to indicate that non-value types are allowed.)
+       When we support mixed blocks everywhere, this [check_representable]
+       will have outlived its usefulness and we can delete it.
+    *)
+    (* CR layouts v2.5: This rules out non-value types in [@@unboxed] types. No
+       real need to rule that out - I just haven't had time to write tests for it
+       yet. *)
+    | Ok s -> begin
+        match Jkind.Sort.get_default_value s with
+        (* All calls to this are part of [update_decl_jkind], which happens after
+           all the defaulting, so we don't expect this actually defaults the
+           sort - we just want the [const]. *)
+        | Void | Value -> ()
+        | Float64 | Float32 | Word | Bits32 | Bits64 as const ->
+            if not allow_unboxed then
+              raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
+      end
+    | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
+
 let transl_labels ~new_var_jkind env univars closed lbls =
   assert (lbls <> []);
   let all_labels = ref String.Set.empty in
@@ -1088,38 +1120,6 @@ let check_coherence env loc dpath decl =
 
 let check_abbrev env sdecl (id, decl) =
   (id, check_coherence env sdecl.ptype_loc (Path.Pident id) decl)
-
-(* Makes sure a type is representable.  Will lower "any" to "value". *)
-(* CR layouts: In the places where this is used, we first call this to
-   ensure a type is representable, and then call [Ctype.type_jkind] to get the
-   most precise jkind.  These could be combined into some new function
-   [Ctype.type_jkind_representable] that avoids duplicated work *)
-(* CR layouts: Many places where [check_representable] is called in this file
-   should be replaced with checks at the places where values of those types are
-   constructed.  We've been conservative here in the first version. This is the
-   same issue as with arrows. *)
-let check_representable ~why ~allow_unboxed env loc kloc typ =
-  match Ctype.type_sort ~why env typ with
-  (* CR layouts v3: This is a convenient place to rule out non-value types in
-     structures that don't support them yet. (A callsite passes
-     [~allow_unboxed:true] to indicate that non-value types are allowed.)
-     When we support mixed blocks everywhere, this [check_representable]
-     will have outlived its usefulness and we can delete it.
-  *)
-  (* CR layouts v2.5: This rules out non-value types in [@@unboxed] types. No
-     real need to rule that out - I just haven't had time to write tests for it
-     yet. *)
-  | Ok s -> begin
-      match Jkind.Sort.get_default_value s with
-      (* All calls to this are part of [update_decl_jkind], which happens after
-         all the defaulting, so we don't expect this actually defaults the
-         sort - we just want the [const]. *)
-      | Void | Value -> ()
-      | Float64 | Float32 | Word | Bits32 | Bits64 as const ->
-          if not allow_unboxed then
-            raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
-    end
-  | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
 
 (* The [update_x_jkinds] functions infer more precise jkinds in the type kind,
    including which fields of a record are void.  This would be hard to do during
