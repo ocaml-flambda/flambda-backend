@@ -1,0 +1,9 @@
+(tests
+ (names extension_meet)
+ (modes native)
+ (instrumentation (backend bisect_ppx))
+ (modules extension_meet)
+ (libraries
+  ocamloptcomp ocamlcommon
+  flambda2_bound_identifiers flambda2_cmx flambda2_identifiers flambda2_kinds
+  flambda2_nominal flambda2_numbers flambda2_term_basics flambda2_types))

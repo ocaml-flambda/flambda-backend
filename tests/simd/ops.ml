@@ -833,6 +833,7 @@ module Float32x4 = struct
         [@@noalloc] [@@unboxed] [@@builtin]
 
     let () =
+      Test_helpers.run_if_not_under_rosetta2 ~f:(fun () ->
         Float32.check_floats (fun f0 f1 ->
             failmsg := (fun () -> Printf.printf "%f | %f\n%!" (Int32.float_of_bits f0) (Int32.float_of_bits f1));
             let fv0 = Float32.to_float32x4 f0 f0 f1 f1 in
@@ -860,6 +861,7 @@ module Float32x4 = struct
             eq (float32x4_low_int64 result) (float32x4_high_int64 result)
                (float32x4_low_int64 expect) (float32x4_high_int64 expect)
         );
+      )
     ;;
 
     external dp : (int [@untagged]) -> (t [@unboxed]) -> (t [@unboxed]) -> (t [@unboxed]) = "caml_vec128_unreachable" "caml_sse41_float32x4_dp"
@@ -1036,6 +1038,7 @@ module Float64x2 = struct
         [@@noalloc] [@@unboxed] [@@builtin]
 
     let () =
+      Test_helpers.run_if_not_under_rosetta2 ~f:(fun () ->
         Float64.check_floats (fun f0 f1 ->
             failmsg := (fun () -> Printf.printf "%f | %f\n%!" f0 f1);
             let fv0 = to_float64x2 f0 f0 in
@@ -1063,6 +1066,7 @@ module Float64x2 = struct
             eq (float64x2_low_int64 result) (float64x2_high_int64 result)
                (float64x2_low_int64 expect) (float64x2_high_int64 expect)
         );
+      )
     ;;
 
     external dp : (int [@untagged]) -> (t [@unboxed]) -> (t [@unboxed]) -> (t [@unboxed]) = "caml_vec128_unreachable" "caml_sse41_float64x2_dp"

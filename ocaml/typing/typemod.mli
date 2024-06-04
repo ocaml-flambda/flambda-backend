@@ -42,8 +42,8 @@ val type_implementation:
   string -> string -> Compilation_unit.t -> Env.t ->
   Parsetree.structure -> Typedtree.implementation
 val type_interface:
-        string -> Compilation_unit.t -> Env.t -> Parsetree.signature ->
-        Typedtree.signature
+  sourcefile:string -> Compilation_unit.t -> Env.t ->
+  Parsetree.signature -> Typedtree.signature
 val transl_signature:
         Env.t -> Parsetree.signature -> Typedtree.signature
 val check_nongen_signature:
@@ -77,6 +77,8 @@ module Sig_component_kind : sig
   type t =
     | Value
     | Type
+    | Constructor
+    | Label
     | Module
     | Module_type
     | Extension_constructor
@@ -125,6 +127,7 @@ type error =
       Longident.t * Path.t * Includemod.explanation
   | With_changes_module_alias of Longident.t * Ident.t * Path.t
   | With_cannot_remove_constrained_type
+  | With_package_manifest of Longident.t * type_expr
   | Repeated_name of Sig_component_kind.t * string
   | Non_generalizable of { vars : type_expr list; expression : type_expr }
   | Non_generalizable_module of
@@ -149,11 +152,11 @@ type error =
   | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
   | Cannot_compile_implementation_as_parameter
-  | Argument_for_non_parameter of Global.Name.t * Misc.filepath
-  | Cannot_find_argument_type of Global.Name.t
+  | Argument_for_non_parameter of Global_module.Name.t * Misc.filepath
+  | Cannot_find_argument_type of Global_module.Name.t
   | Inconsistent_argument_types of {
-      new_arg_type: Global.Name.t option;
-      old_arg_type: Global.Name.t option;
+      new_arg_type: Global_module.Name.t option;
+      old_arg_type: Global_module.Name.t option;
       old_source_file: Misc.filepath;
     }
 

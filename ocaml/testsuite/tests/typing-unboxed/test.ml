@@ -1,8 +1,8 @@
 (* TEST
-   flags = "-extension layouts -strict-sequence"
-   * expect
+ flags = "-strict-sequence";
+ expect;
 *)
-(* CR layouts: Using [-extension layouts] here is not backward-compatible.
+(* CR layouts: Using layout annotations here is not backward-compatible.
    We can delete this when internal ticket 1110 is resolved.
 *)
 
@@ -644,7 +644,8 @@ Line 1, characters 14-17:
 1 | external h : (int [@unboxed]) -> float = "h" "h_nat";;
                   ^^^
 Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
+       Only float, int32, int64, nativeint, vector primitives, and
+       concrete unboxed types can be marked unboxed.
 |}]
 
 (* Bad: unboxing the function type *)
@@ -654,7 +655,8 @@ Line 1, characters 13-25:
 1 | external i : int -> float [@unboxed] = "i" "i_nat";;
                  ^^^^^^^^^^^^
 Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
+       Only float, int32, int64, nativeint, vector primitives, and
+       concrete unboxed types can be marked unboxed.
 |}]
 
 (* Bad: unboxing a "deep" sub-type. *)

@@ -123,6 +123,21 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       (fun kinds -> List.map C.extended_machtype_of_kind kinds |> Array.concat)
       args_arity
   in
+  let split_args () =
+    let rec aux args args_arity =
+      match args_arity, args with
+      | [], [] -> []
+      | [], _ :: _ ->
+        Misc.fatal_errorf
+          "[split_args]: [args] and [args_ty] do not have compatible lengths"
+      | kinds :: args_arity, args ->
+        let group, rest =
+          Misc.Stdlib.List.map2_prefix (fun _kind arg -> arg) kinds args
+        in
+        C.make_tuple group :: aux rest args_arity
+    in
+    aux args args_arity
+  in
   let return_ty = C.extended_machtype_of_return_arity return_arity in
   match Apply.call_kind apply with
   | Function { function_call = Direct code_id; alloc_mode = _ } -> (
@@ -145,7 +160,10 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         args @ [callee]
       else args
     in
-    let code_sym = To_cmm_result.symbol_of_code_id res code_id in
+    let code_sym =
+      To_cmm_result.symbol_of_code_id res code_id
+        ~currently_in_inlined_body:(Env.currently_in_inlined_body env)
+    in
     match Apply.probe apply with
     | None ->
       ( C.direct_call ~dbg
@@ -175,7 +193,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     ( C.indirect_call ~dbg return_ty pos
         (Alloc_mode.For_allocations.to_lambda alloc_mode)
-        callee args_ty args,
+        callee args_ty (split_args ()),
       free_vars,
       env,
       res,
@@ -203,7 +221,8 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         env,
         res,
         Ece.all )
-  | Call_kind.C_call { alloc; is_c_builtin } ->
+  | Call_kind.C_call
+      { needs_caml_c_call; is_c_builtin; effects; coeffects; alloc_mode = _ } ->
     fail_if_probe apply;
     let callee =
       match callee_simple with
@@ -231,7 +250,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         | Naked_number Naked_int32 -> C.sign_extend_32
         | Naked_number
             ( Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint
-            | Naked_vec128 )
+            | Naked_vec128 | Naked_float32 )
         | Value | Rec_info | Region ->
           fun _dbg cmm -> cmm)
       | _ ->
@@ -244,8 +263,11 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         (Flambda_arity.unarize (Apply.args_arity apply)
         |> List.map K.With_subkind.kind)
     in
+    let effects = To_cmm_effects.transl_c_call_effects effects in
+    let coeffects = To_cmm_effects.transl_c_call_coeffects coeffects in
     ( wrap dbg
-        (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args callee
+        (C.extcall ~dbg ~alloc:needs_caml_c_call ~is_c_builtin ~effects
+           ~coeffects ~returns ~ty_args callee
            (C.Extended_machtype.to_machtype return_ty)
            args),
       free_vars,
@@ -272,7 +294,8 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     let free_vars = Backend_var.Set.union free_vars obj_free_vars in
     let kind = Call_kind.Method_kind.to_lambda kind in
     let alloc_mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
-    ( C.send kind callee obj args args_ty return_ty (pos, alloc_mode) dbg,
+    ( C.send kind callee obj (split_args ()) args_ty return_ty (pos, alloc_mode)
+        dbg,
       free_vars,
       env,
       res,
@@ -373,18 +396,20 @@ let translate_jump_to_continuation ~dbg_with_inlined:dbg env res apply types
       | None -> []
       | Some (Pop { exn_handler; _ }) ->
         let cont = Env.get_cmm_continuation env exn_handler in
-        [Cmm.Pop (Pop_specific cont)]
+        [Cmm.Pop cont]
       | Some (Push { exn_handler }) ->
         let cont = Env.get_cmm_continuation env exn_handler in
         [Cmm.Push cont]
     in
+    let args = C.remove_skipped_args args types in
     let args, free_vars, env, res, _ = C.simple_list ~dbg env res args in
     let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     let cmm, free_vars = wrap (C.cexit cont args trap_actions) free_vars in
     cmm, free_vars, res
   else
     Misc.fatal_errorf "Types (%a) do not match arguments of@ %a"
-      (Format.pp_print_list ~pp_sep:Format.pp_print_space Printcmm.machtype)
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space
+         (To_cmm_env.print_param_type Printcmm.machtype))
       types Apply_cont.print apply
 
 (* A call to the return continuation of the current block simply is the return
@@ -401,7 +426,7 @@ let translate_jump_to_return_continuation ~dbg_with_inlined:dbg env res apply
   | Some (Pop { exn_handler; _ }) ->
     let cont = Env.get_cmm_continuation env exn_handler in
     let cmm, free_vars =
-      wrap (C.trap_return return_value [Cmm.Pop (Pop_specific cont)]) free_vars
+      wrap (C.trap_return return_value [Cmm.Pop cont]) free_vars
     in
     cmm, free_vars, res
   | Some (Push _) ->
@@ -620,7 +645,10 @@ and let_cont_not_inlined env res k handler body =
           (C.remove_vars_with_machtype free_vars_of_handler vars)
       in
       ( C.create_ccatch ~rec_flag:false ~body
-          ~handlers:[C.handler ~dbg catch_id vars handler is_cold],
+          ~handlers:
+            [ C.handler ~dbg catch_id
+                (C.remove_skipped_params vars)
+                handler is_cold ],
         free_vars,
         res )
   in
@@ -666,7 +694,7 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
      Env.add_inlined_debuginfo to it *)
   let dbg = Debuginfo.none in
   let trywith =
-    C.trywith ~dbg ~kind:(Delayed catch_id) ~body ~exn_var ~handler ()
+    C.trywith ~dbg ~body ~exn_var ~handler_cont:catch_id ~handler ()
   in
   (* Define and initialize the mutable Cmm variables for extra args *)
   let cmm =
@@ -680,6 +708,7 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
           match K.With_subkind.kind kind with
           | Value -> C.int ~dbg 1
           | Naked_number Naked_float -> C.float ~dbg 0.
+          | Naked_number Naked_float32 -> C.float32 ~dbg 0.
           | Naked_number
               (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) ->
             C.int ~dbg 0
@@ -709,7 +738,7 @@ and let_cont_rec env res invariant_params conts body =
         let continuation_arg_tys =
           Continuation_handler.pattern_match' handler
             ~f:(fun params ~num_normal_occurrences_of_params:_ ~handler:_ ->
-              List.map C.machtype_of_kinded_parameter
+              List.map C.param_machtype_of_kinded_parameter
                 (Bound_parameters.to_list
                    (Bound_parameters.append invariant_params params)))
         in
@@ -717,7 +746,9 @@ and let_cont_rec env res invariant_params conts body =
       conts_to_handlers env
   in
   (* Generate variables for the invariant params *)
-  let env, invariant_vars = C.bound_parameters env invariant_params in
+  let env, invariant_vars =
+    C.continuation_bound_parameters env invariant_params
+  in
   (* Translate each continuation handler *)
   let conts_to_handlers, res =
     Continuation.Map.fold
@@ -746,7 +777,9 @@ and let_cont_rec env res invariant_params conts body =
             (C.remove_vars_with_machtype free_vars_of_handler vars)
         in
         let id = Env.get_cmm_continuation env k in
-        C.handler ~dbg id vars handler false :: handlers, free_vars)
+        ( C.handler ~dbg id (C.remove_skipped_params vars) handler false
+          :: handlers,
+          free_vars ))
       conts_to_handlers ([], free_vars_of_body)
   in
   let cmm = C.create_ccatch ~rec_flag:true ~body ~handlers in
@@ -757,7 +790,7 @@ and continuation_handler env res handler =
   Continuation_handler.pattern_match' handler
     ~f:(fun params ~num_normal_occurrences_of_params:_ ~handler ->
       let arity = Bound_parameters.arity params in
-      let env, vars = C.bound_parameters env params in
+      let env, vars = C.continuation_bound_parameters env params in
       let expr, free_vars_of_handler, res = expr env res handler in
       vars, arity, expr, free_vars_of_handler, res)
 
@@ -894,10 +927,18 @@ and apply_cont env res apply_cont =
       then
         let env, res =
           List.fold_left2
-            (fun (env, res) param ->
-              bind_var_to_simple ~dbg_with_inlined env res
-                (Bound_parameter.var param)
-                ~num_normal_occurrences_of_bound_vars:handler_params_occurrences)
+            (fun (env, res) param arg ->
+              match[@ocaml.warning "-4"]
+                Flambda_kind.With_subkind.kind (Bound_parameter.kind param)
+              with
+              | Rec_info ->
+                (* Skip depth variables/parameters *)
+                env, res
+              | _ ->
+                bind_var_to_simple ~dbg_with_inlined env res
+                  (Bound_parameter.var param)
+                  ~num_normal_occurrences_of_bound_vars:
+                    handler_params_occurrences arg)
             (env, res) handler_params args
         in
         let env =

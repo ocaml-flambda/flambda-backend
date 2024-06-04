@@ -1,0 +1,2 @@
+File "i16c1.ml", line 1:
+Error: Did not find constant int arguments for caml_int16x8_const1

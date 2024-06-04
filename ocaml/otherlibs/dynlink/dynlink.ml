@@ -62,6 +62,10 @@ let unsafe_get_global_value ~bytecode_or_asm_symbol =
   if is_native then N.unsafe_get_global_value ~bytecode_or_asm_symbol
   else B.unsafe_get_global_value ~bytecode_or_asm_symbol
 
+let does_symbol_exist ~bytecode_or_asm_symbol =
+  if is_native then N.does_symbol_exist ~bytecode_or_asm_symbol
+  else B.does_symbol_exist ~bytecode_or_asm_symbol
+
 let adapt_filename file =
   if is_native then N.adapt_filename file
   else B.adapt_filename file

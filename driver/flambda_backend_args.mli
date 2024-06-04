@@ -37,6 +37,16 @@ module type Flambda_backend_options = sig
   val cfg_peephole_optimize : unit -> unit
   val no_cfg_peephole_optimize : unit -> unit
 
+  val cfg_cse_optimize : unit -> unit
+  val no_cfg_cse_optimize : unit -> unit
+
+  val cfg_zero_alloc_checker : unit -> unit
+  val no_cfg_zero_alloc_checker : unit -> unit
+
+  val cfg_stack_checks : unit -> unit
+  val no_cfg_stack_checks : unit -> unit
+  val cfg_stack_checks_threshold : int -> unit
+
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
 
@@ -45,11 +55,19 @@ module type Flambda_backend_options = sig
 
   val heap_reduction_threshold : int -> unit
   val zero_alloc_check : string -> unit
-  val dcheckmach : unit -> unit
-  val checkmach_details_cutoff : int -> unit
 
+  val dzero_alloc : unit -> unit
+  val disable_zero_alloc_checker : unit -> unit
+  val disable_precise_zero_alloc_checker : unit -> unit
+  val zero_alloc_checker_details_cutoff : int -> unit
+  val zero_alloc_checker_join : int -> unit
+
+  val function_layout : string -> unit
   val disable_poll_insertion : unit -> unit
   val enable_poll_insertion : unit -> unit
+
+  val symbol_visibility_protected : unit -> unit
+  val no_symbol_visibility_protected : unit -> unit
 
   val long_frames : unit -> unit
   val no_long_frames : unit -> unit
@@ -67,6 +85,8 @@ module type Flambda_backend_options = sig
   val flambda2_result_types_functors_only : unit -> unit
   val flambda2_result_types_all_functions : unit -> unit
   val no_flambda2_result_types : unit -> unit
+  val flambda2_basic_meet : unit -> unit
+  val flambda2_advanced_meet : unit -> unit
   val flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val no_flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val flambda2_backend_cse_at_toplevel : unit -> unit
@@ -125,6 +145,8 @@ end
 module type Debugging_options = sig
   val restrict_to_upstream_dwarf : unit -> unit
   val no_restrict_to_upstream_dwarf : unit -> unit
+  val dwarf_inlined_frames : unit -> unit
+  val no_dwarf_inlined_frames : unit -> unit
   val dwarf_for_startup_file : unit -> unit
   val no_dwarf_for_startup_file : unit -> unit
   val gdwarf_may_alter_codegen : unit -> unit

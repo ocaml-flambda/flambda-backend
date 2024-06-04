@@ -45,28 +45,57 @@ type basic_block =
     mutable cold : bool
   }
 
+type codegen_option =
+  | Reduce_code_size
+  | No_CSE
+  | Assume_zero_alloc of
+      { strict : bool;
+        never_returns_normally : bool;
+        never_raises : bool;
+        loc : Location.t
+      }
+  | Check_zero_alloc of
+      { strict : bool;
+        loc : Location.t
+      }
+
+let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
+ fun cmm_options ->
+  match cmm_options with
+  | [] -> []
+  | hd :: tl -> (
+    match hd with
+    | No_CSE -> No_CSE :: of_cmm_codegen_option tl
+    | Reduce_code_size -> Reduce_code_size :: of_cmm_codegen_option tl
+    | Assume_zero_alloc { strict; never_returns_normally; never_raises; loc } ->
+      Assume_zero_alloc { strict; never_returns_normally; never_raises; loc }
+      :: of_cmm_codegen_option tl
+    | Check_zero_alloc { strict; loc } ->
+      Check_zero_alloc { strict; loc } :: of_cmm_codegen_option tl
+    | Use_linscan_regalloc -> of_cmm_codegen_option tl)
+
 type t =
   { blocks : basic_block Label.Tbl.t;
     fun_name : string;
     fun_args : Reg.t array;
+    fun_codegen_options : codegen_option list;
     fun_dbg : Debuginfo.t;
     entry_label : Label.t;
-    fun_fast : bool;
     fun_contains_calls : bool;
     (* CR-someday gyorsh: compute locally. *)
     fun_num_stack_slots : int array
   }
 
-let create ~fun_name ~fun_args ~fun_dbg ~fun_fast ~fun_contains_calls
+let create ~fun_name ~fun_args ~fun_codegen_options ~fun_dbg ~fun_contains_calls
     ~fun_num_stack_slots =
   { fun_name;
     fun_args;
+    fun_codegen_options;
     fun_dbg;
     entry_label = 1;
     (* CR gyorsh: We should use [Cmm.new_label ()] here, but validator tests
        currently rely on it to be initialized as above. *)
     blocks = Label.Tbl.create 31;
-    fun_fast;
     fun_contains_calls;
     fun_num_stack_slots
   }
@@ -83,7 +112,7 @@ let successor_labels_normal ti =
   | Always l -> Label.Set.singleton l
   | Parity_test { ifso; ifnot } | Truth_test { ifso; ifnot } ->
     Label.Set.singleton ifso |> Label.Set.add ifnot
-  | Float_test { lt; gt; eq; uo } ->
+  | Float_test { width = _; lt; gt; eq; uo } ->
     Label.Set.singleton lt |> Label.Set.add gt |> Label.Set.add eq
     |> Label.Set.add uo
   | Int_test { lt; gt; eq; imm = _; is_signed = _ } ->
@@ -92,7 +121,6 @@ let successor_labels_normal ti =
   | Prim { op = _; label_after }
   | Specific_can_raise { op = _; label_after } ->
     Label.Set.singleton label_after
-  | Poll_and_jump return_label -> Label.Set.singleton return_label
 
 let successor_labels ~normal ~exn block =
   match normal, exn with
@@ -134,8 +162,8 @@ let replace_successor_labels t ~normal ~exn block ~f =
         Truth_test { ifso = f ifso; ifnot = f ifnot }
       | Int_test { lt; eq; gt; is_signed; imm } ->
         Int_test { lt = f lt; eq = f eq; gt = f gt; is_signed; imm }
-      | Float_test { lt; eq; gt; uo } ->
-        Float_test { lt = f lt; eq = f eq; gt = f gt; uo = f uo }
+      | Float_test { width; lt; eq; gt; uo } ->
+        Float_test { width; lt = f lt; eq = f eq; gt = f gt; uo = f uo }
       | Switch labels -> Switch (Array.map f labels)
       | Tailcall_self { destination } ->
         Tailcall_self { destination = f destination }
@@ -143,7 +171,6 @@ let replace_successor_labels t ~normal ~exn block ~f =
       | Tailcall_func (Direct _)
       | Return | Raise _ | Call_no_return _ ->
         block.terminator.desc
-      | Poll_and_jump return_label -> Poll_and_jump (f return_label)
       | Call { op; label_after } -> Call { op; label_after = f label_after }
       | Prim { op; label_after } -> Prim { op; label_after = f label_after }
       | Specific_can_raise { op; label_after } ->
@@ -179,10 +206,18 @@ let get_block_exn t label =
 
 let can_raise_interproc block = block.can_raise && Option.is_none block.exn
 
-let first_instruction_id (block : basic_block) : int =
+type 'a instr_mapper = { f : 'b. 'b instruction -> 'a } [@@unboxed]
+
+let map_first_instruction (block : basic_block) (t : 'a instr_mapper) =
   match DLL.hd block.body with
-  | None -> block.terminator.id
-  | Some first_instr -> first_instr.id
+  | None -> t.f block.terminator
+  | Some first_instr -> t.f first_instr
+
+let first_instruction_id (block : basic_block) : int =
+  map_first_instruction block { f = (fun instr -> instr.id) }
+
+let first_instruction_stack_offset (block : basic_block) : int =
+  map_first_instruction block { f = (fun instr -> instr.stack_offset) }
 
 let fun_name t = t.fun_name
 
@@ -239,13 +274,14 @@ let intop (op : Mach.integer_operation) =
   | Iclz _ -> " clz "
   | Ictz _ -> " ctz "
   | Icomp cmp -> intcomp cmp
-  | Icheckbound | Icheckalign _ -> assert false
 
 let dump_op ppf = function
   | Move -> Format.fprintf ppf "mov"
   | Spill -> Format.fprintf ppf "spill"
   | Reload -> Format.fprintf ppf "reload"
   | Const_int n -> Format.fprintf ppf "const_int %nd" n
+  | Const_float32 f ->
+    Format.fprintf ppf "const_float32 %Fs" (Int32.float_of_bits f)
   | Const_float f -> Format.fprintf ppf "const_float %F" (Int64.float_of_bits f)
   | Const_symbol s -> Format.fprintf ppf "const_symbol %s" s.sym_name
   | Const_vec128 { high; low } ->
@@ -257,23 +293,14 @@ let dump_op ppf = function
   | Intop_imm (op, n) -> Format.fprintf ppf "intop %s %d" (intop op) n
   | Intop_atomic { op; size = _; addr = _ } ->
     Format.fprintf ppf "intop atomic %s" (intop_atomic op)
-  | Negf -> Format.fprintf ppf "negf"
-  | Absf -> Format.fprintf ppf "absf"
-  | Addf -> Format.fprintf ppf "addf"
-  | Subf -> Format.fprintf ppf "subf"
-  | Mulf -> Format.fprintf ppf "mulf"
-  | Divf -> Format.fprintf ppf "divf"
-  | Compf _ -> Format.fprintf ppf "compf"
+  | Floatop (Float64, op) ->
+    Format.fprintf ppf "floatop %a" Printmach.floatop op
+  | Floatop (Float32, op) ->
+    Format.fprintf ppf "float32op %a" Printmach.floatop op
   | Csel _ -> Format.fprintf ppf "csel"
-  | Floatofint -> Format.fprintf ppf "floattoint"
-  | Intoffloat -> Format.fprintf ppf "intoffloat"
-  | Valueofint -> Format.fprintf ppf "valueofint"
-  | Intofvalue -> Format.fprintf ppf "intofvalue"
-  | Vectorcast Bits128 -> Format.fprintf ppf "vec128->vec128"
-  | Scalarcast (V128_to_scalar ty) ->
-    Format.fprintf ppf "%s->scalar" (Primitive.vec128_name ty)
-  | Scalarcast (V128_of_scalar ty) ->
-    Format.fprintf ppf "scalar->%s" (Primitive.vec128_name ty)
+  | Reinterpret_cast cast ->
+    Format.fprintf ppf "%s" (Printcmm.reinterpret_cast cast)
+  | Static_cast cast -> Format.fprintf ppf "%s" (Printcmm.static_cast cast)
   | Specific _ -> Format.fprintf ppf "specific"
   | Probe_is_enabled { name } -> Format.fprintf ppf "probe_is_enabled %s" name
   | Opaque -> Format.fprintf ppf "opaque"
@@ -281,6 +308,11 @@ let dump_op ppf = function
   | End_region -> Format.fprintf ppf "endregion"
   | Name_for_debugger _ -> Format.fprintf ppf "name_for_debugger"
   | Dls_get -> Format.fprintf ppf "dls_get"
+  | Poll -> Format.fprintf ppf "poll"
+  | Alloc { bytes; dbginfo = _; mode = Alloc_heap } ->
+    Format.fprintf ppf "alloc %i" bytes
+  | Alloc { bytes; dbginfo = _; mode = Alloc_local } ->
+    Format.fprintf ppf "alloc_local %i" bytes
 
 let dump_basic ppf (basic : basic) =
   let open Format in
@@ -290,6 +322,8 @@ let dump_basic ppf (basic : basic) =
   | Pushtrap { lbl_handler } -> fprintf ppf "Pushtrap handler=%d" lbl_handler
   | Poptrap -> fprintf ppf "Poptrap"
   | Prologue -> fprintf ppf "Prologue"
+  | Stack_check { max_frame_size_bytes } ->
+    fprintf ppf "Stack_check size=%d" max_frame_size_bytes
 
 let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
     ?(specific_can_raise = fun ppf _ -> Format.fprintf ppf "specific_can_raise")
@@ -322,7 +356,7 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
     fprintf ppf "if even%s goto %d%selse goto %d" first_arg ifso sep ifnot
   | Truth_test { ifso; ifnot } ->
     fprintf ppf "if true%s goto %d%selse goto %d" first_arg ifso sep ifnot
-  | Float_test { lt; eq; gt; uo } ->
+  | Float_test { width = _; lt; eq; gt; uo } ->
     fprintf ppf "if%s <%s goto %d%s" first_arg second_arg lt sep;
     fprintf ppf "if%s =%s goto %d%s" first_arg second_arg eq sep;
     fprintf ppf "if%s >%s goto %d%s" first_arg second_arg gt sep;
@@ -375,21 +409,12 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
       | External { func_symbol = func; ty_res; ty_args; alloc; stack_ofs } ->
         Mach.Iextcall
           { func; ty_res; ty_args; returns = true; alloc; stack_ofs }
-      | Alloc { bytes; dbginfo; mode } -> Mach.Ialloc { bytes; dbginfo; mode }
-      | Checkbound { immediate = Some x } -> Mach.Iintop_imm (Icheckbound, x)
-      | Checkbound { immediate = None } -> Mach.Iintop Icheckbound
-      | Checkalign { bytes_pow2; immediate = Some x } ->
-        Mach.Iintop_imm (Icheckalign { bytes_pow2 }, x)
-      | Checkalign { bytes_pow2; immediate = None } ->
-        Mach.Iintop (Icheckalign { bytes_pow2 })
       | Probe { name; handler_code_sym; enabled_at_init } ->
         Mach.Iprobe { name; handler_code_sym; enabled_at_init });
     Format.fprintf ppf "%sgoto %d" sep label_after
   | Specific_can_raise { op; label_after } ->
     Format.fprintf ppf "%a" specific_can_raise op;
     Format.fprintf ppf "%sgoto %d" sep label_after
-  | Poll_and_jump return_label ->
-    Format.fprintf ppf "Poll_and_jump %a" Label.print return_label
 
 let dump_terminator ?sep ppf terminator = dump_terminator' ?sep ppf terminator
 
@@ -430,16 +455,11 @@ let print_instruction ppf i = print_instruction' ppf i
 let can_raise_terminator (i : terminator) =
   match i with
   | Raise _ | Tailcall_func _ | Call_no_return _ | Call _
-  | Prim
-      { op = External _ | Checkbound _ | Checkalign _ | Probe _;
-        label_after = _
-      } ->
+  | Prim { op = External _ | Probe _; label_after = _ } ->
     true
-  | Prim { op = Alloc _; label_after = _ } -> false
   | Specific_can_raise { op; _ } ->
     assert (Arch.operation_can_raise op);
     true
-  | Poll_and_jump _ -> true
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ | Return | Tailcall_self _ ->
     false
@@ -455,7 +475,6 @@ let is_pure_terminator desc =
   | Specific_can_raise { op; _ } ->
     assert (Arch.operation_can_raise op);
     false
-  | Poll_and_jump _ -> false
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ ->
     (* CR gyorsh: fix for memory operands *)
@@ -466,6 +485,7 @@ let is_pure_operation : operation -> bool = function
   | Spill -> true
   | Reload -> true
   | Const_int _ -> true
+  | Const_float32 _ -> true
   | Const_float _ -> true
   | Const_symbol _ -> true
   | Const_vec128 _ -> true
@@ -475,22 +495,16 @@ let is_pure_operation : operation -> bool = function
   | Intop _ -> true
   | Intop_imm _ -> true
   | Intop_atomic _ -> false
-  | Negf -> true
-  | Absf -> true
-  | Addf -> true
-  | Subf -> true
-  | Mulf -> true
-  | Divf -> true
-  | Compf _ -> true
+  | Floatop _ -> true
   | Csel _ -> true
-  | Floatofint -> true
-  | Intoffloat -> true
-  | Vectorcast _ -> true
-  | Scalarcast _ -> true
+  | Reinterpret_cast
+      ( V128_of_v128 | Float32_of_float | Float32_of_int32 | Float_of_float32
+      | Float_of_int64 | Int64_of_float | Int32_of_float32 ) ->
+    true
+  | Static_cast _ -> true
   (* Conservative to ensure valueofint/intofvalue are not eliminated before
      emit. *)
-  | Valueofint -> false
-  | Intofvalue -> false
+  | Reinterpret_cast (Value_of_int | Int_of_value) -> false
   | Probe_is_enabled _ -> true
   | Opaque -> false
   | Begin_region -> false
@@ -500,6 +514,8 @@ let is_pure_operation : operation -> bool = function
     Arch.operation_is_pure s
   | Name_for_debugger _ -> false
   | Dls_get -> true
+  | Poll -> false
+  | Alloc _ -> false
 
 let is_pure_basic : basic -> bool = function
   | Op op -> is_pure_operation op
@@ -518,6 +534,9 @@ let is_pure_basic : basic -> bool = function
        ensured that it wouldn't modify the stack pointer (e.g. there are no used
        local stack slots nor calls). *)
     false
+  | Stack_check _ ->
+    (* May reallocate the stack. *)
+    false
 
 let same_location (r1 : Reg.t) (r2 : Reg.t) =
   Reg.same_loc r1 r2
@@ -529,8 +548,7 @@ let same_location (r1 : Reg.t) (r2 : Reg.t) =
 
 let is_noop_move instr =
   match instr.desc with
-  | Op (Move | Spill | Reload | Vectorcast _) ->
-    same_location instr.arg.(0) instr.res.(0)
+  | Op (Move | Spill | Reload) -> same_location instr.arg.(0) instr.res.(0)
   | Op (Csel _) -> (
     match instr.res.(0).loc with
     | Unknown -> false
@@ -540,13 +558,12 @@ let is_noop_move instr =
       let ifnot = instr.arg.(len - 1) in
       Reg.same_loc instr.res.(0) ifso && Reg.same_loc instr.res.(0) ifnot)
   | Op
-      ( Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
-      | Stackoffset _ | Load _ | Store _ | Intop _ | Intop_imm _
-      | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
-      | Floatofint | Intoffloat | Opaque | Valueofint | Intofvalue
-      | Scalarcast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
-      | Begin_region | End_region | Dls_get )
-  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
+      ( Const_int _ | Const_float _ | Const_float32 _ | Const_symbol _
+      | Const_vec128 _ | Stackoffset _ | Load _ | Store _ | Intop _
+      | Intop_imm _ | Intop_atomic _ | Floatop _ | Opaque | Reinterpret_cast _
+      | Static_cast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
+      | Begin_region | End_region | Dls_get | Poll | Alloc _ )
+  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
     false
 
 let set_stack_offset (instr : _ instruction) stack_offset =
@@ -563,3 +580,21 @@ let string_of_irc_work_list = function
   | Frozen -> "frozen"
   | Work_list -> "work_list"
   | Active -> "active"
+
+let make_instruction ~desc ?(arg = [||]) ?(res = [||]) ?(dbg = Debuginfo.none)
+    ?(fdo = Fdo_info.none) ?(live = Reg.Set.empty) ~stack_offset ~id
+    ?(irc_work_list = Unknown_list) ?(ls_order = 0) ?(available_before = None)
+    ?(available_across = None) () =
+  { desc;
+    arg;
+    res;
+    dbg;
+    fdo;
+    live;
+    stack_offset;
+    id;
+    irc_work_list;
+    ls_order;
+    available_before;
+    available_across
+  }

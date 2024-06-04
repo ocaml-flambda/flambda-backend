@@ -1,11 +1,11 @@
-(* TEST
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
 
-flags = "-w +A-60-70"
 
-* setup-ocamlc.byte-build-env
-** ocamlc.byte
-compile_only = "true"
-*** check-ocamlc.byte-output
+
+
+
+
 
 *)
 
@@ -227,34 +227,36 @@ module TestLocalOptStruct = struct
 end
 
 module type TestLocalGlobalSig = sig
-  type 'a t1 = 'a [@local] (* rejected *)
-  type 'a t1' = 'a [@global] (* rejected *)
+  (* All will be rejected, as we no longer support mode attributes *)
+  type 'a t1 = 'a [@local]
+  type 'a t1' = 'a [@global]
 
-  type t2 = { x : int [@local] } (* rejected *)
-  type t2' = { x : int [@global] } (* accepted *)
+  type t2 = { x : int [@local] }
+  type t2' = { x : int [@global] }
 
-  val x : 'a list -> ('a [@local]) list (* rejected *)
-  val x' : 'a list -> ('a [@global]) list (* rejected *)
+  val x : 'a list -> ('a [@local]) list
+  val x' : 'a list -> ('a [@global]) list
 
-  val y : 'a -> f:(('a -> 'b) [@local]) -> 'b (* accepted *)
-  val y' : 'a -> f:(('a -> 'b) [@global]) -> 'b (* rejected *)
+  val y : 'a -> f:(('a -> 'b) [@local]) -> 'b
+  val y' : 'a -> f:(('a -> 'b) [@global]) -> 'b
 
-  val z : 'a [@@local] (* rejected *)
-  val z' : 'a [@@global] (* rejected *)
+  val z : 'a [@@local]
+  val z' : 'a [@@global]
 
-  val w : 'a [@@@local] (* rejected *)
-  val w' : 'a [@@@global] (* rejected *)
+  val w : 'a [@@@local]
+  val w' : 'a [@@@global]
 end
 
 module TestLocalGlobalStruct = struct
-  type 'a t1 = 'a [@local] (* rejected *)
-  type 'a t1' = 'a [@global] (* rejected *)
+  (* All will be rejected, as we no longer support mode attributes *)
+  type 'a t1 = 'a [@local]
+  type 'a t1' = 'a [@global]
 
-  type t2 = { x : int [@local] } (* rejected *)
-  type t2' = { x : int [@global] } (* accepted *)
+  type t2 = { x : int [@local] }
+  type t2' = { x : int [@global] }
 
-  let f (a [@local]) = a (* accepted *)
-  let g (a [@global]) = a (* rejected *)
+  let f (a [@local]) = a
+  let g (a [@global]) = a
 end
 
 
@@ -427,3 +429,117 @@ module TestOnlyGenerativeEffectsStruct = struct
   external y : (int [@only_generative_effects]) -> (int [@only_generative_effects]) = "x" "y" (* rejected *)
   external z : int -> int = "x" "y" [@@only_generative_effects] (* accepted *)
 end
+
+module type TestErrorMessageSig = sig
+  type 'a t1 = 'a [@@error_message ""] (* rejected *)
+  type s1 = Foo1 [@error_message ""] (* rejected *)
+  val x : int [@@error_message ""] (* rejected *)
+
+  external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
+    "x" "y"
+  external z : int -> int = "x" "y" [@@error_message ""] (* rejected *)
+
+  val f : int ->
+    (int as ('a:value)[@error_message ""][@error_message ""]) (* reject second *)
+end
+
+module TestErrorMessageStruct = struct
+  type 'a t1 = 'a [@@error_message ""] (* rejected *)
+  type s1 = Foo1 [@error_message ""] (* rejected *)
+  let x : int = 42 [@@error_message ""] (* rejected *)
+
+  external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
+    "x" "y"
+  external z : int -> int = "x" "y" [@@error_message ""] (* rejected *)
+
+  let f1 v: ((_ : value)[@error_message ""][@error_message ""]) = v (* reject second *)
+  let f2 v: (('a : value)[@error_message ""][@error_message ""]) = v (* reject second *)
+end
+
+module type TestLayoutPolySig = sig
+  type 'a t1 = 'a [@@layout_poly] (* rejected *)
+  type s1 = Foo1 [@layout_poly] (* rejected *)
+  val x : int64 [@@layout_poly] (* rejected *)
+
+  external y : (int64 [@layout_poly]) -> (int64 [@layout_poly]) = "%identity" (* rejected *)
+  external z : ('a : any). 'a -> 'a = "%identity" [@@layout_poly] (* accepted *)
+end
+
+module TestLayoutPolyStruct = struct
+  type 'a t1 = 'a [@@layout_poly] (* rejected *)
+  type s1 = Foo1 [@layout_poly] (* rejected *)
+  let x : int64 = 42L [@@layout_poly] (* rejected *)
+
+  external y : (int64 [@layout_poly]) -> (int64 [@layout_poly]) = "%identity" (* rejected *)
+  external z : ('a : any). 'a -> 'a = "%identity" [@@layout_poly] (* accepted *)
+end
+
+module type TestZeroAllocSig = sig
+  type 'a t1 = 'a [@@zero_alloc] (* rejected *)
+  type s1 = Foo1 [@zero_alloc] (* rejected *)
+  val f : int -> int [@@zero_alloc] (* accepted *)
+
+  external y : (int [@zero_alloc]) -> (int [@zero_alloc]) = "x" (* rejected *)
+  external z : int -> int = "x" "y" [@@zero_alloc] (* rejected *)
+  external[@zero_alloc] q : int -> int = "x" "y" (* rejected *)
+
+  class[@zero_alloc] c : (* rejected *)
+    object
+      val[@zero_alloc] foo : int * int (* rejected *)
+      val[@zero_alloc] bar : int -> int (* rejected *)
+      method[@zero_alloc] baz : int * int (* rejected *)
+      method[@zero_alloc] boz : int -> int (* rejected *)
+    end
+end
+
+module TestZeroAllocStruct = struct
+  type 'a t1 = 'a [@@zero_alloc] (* rejected *)
+  type s1 = Foo1 [@zero_alloc] (* rejected *)
+  let x : int = 42 [@@zero_alloc] (* rejected *)
+
+  let[@zero_alloc] w = 42 (* rejected *)
+
+  let[@zero_alloc] f x = x (* accepted *)
+
+  external y : (int [@zero_alloc]) -> (int [@zero_alloc]) = "x" (* rejected *)
+  external z : int -> int = "x" "y" [@@zero_alloc] (* rejected *)
+  external[@zero_alloc] q : int -> int = "x" "y" (* rejected *)
+
+  class[@zero_alloc] foo _y = (* rejected *)
+    let[@inline never][@zero_alloc] f x = (x, x) in (* accepted *)
+    (fun[@zero_alloc] z -> (* rejected *)
+    object
+      val[@zero_alloc] bar = (4, 5) (* rejected *)
+
+      method[@zero_alloc] baz x = (f (z+10), x+1) (* rejected *)
+    end)
+
+  let[@zero_alloc] f1 = fun x y -> (x,y) (* accepted *)
+  let f2 = fun [@zero_alloc] x y -> (x,y) (* accepted *)
+
+  let[@zero_alloc ignore] f3 = fun x y -> (x,y) (* accepted *)
+  let f4 = fun [@zero_alloc ignore] x y -> (x,y) (* accepted *)
+
+  (* assume on calls goes on the function being called *)
+  let[@inline never] boz x = (x,x)
+  let[@zero_alloc] fiz x =
+    ((boz x)[@zero_alloc assume]) (* rejected *)
+  let[@zero_alloc] fuz x =
+    ((boz[@zero_alloc assume]) x) (* accepted *)
+
+  (* Triggers w53 on non-function lets *)
+  let[@zero_alloc assume] foo = (* rejected *)
+    let x = 42 in
+    fun z -> z + x
+
+  let[@zero_alloc] bar = (* rejected *)
+    let x = 42 in
+    fun z -> z + x
+end
+(* TEST
+ flags = "-w +A-60-70";
+ setup-ocamlc.byte-build-env;
+ compile_only = "true";
+ ocamlc.byte;
+ check-ocamlc.byte-output;
+*)

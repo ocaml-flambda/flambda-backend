@@ -39,6 +39,11 @@ type constructor_usage_warning =
   | Not_constructed
   | Only_exported_private
 
+type upstream_compat_warning =
+  | Immediate_erasure of string
+  | Non_value_sort of string
+  | Unboxed_attribute of string
+
 type t =
   | Comment_start                           (*  1 *)
   | Comment_not_end                         (*  2 *)
@@ -113,9 +118,13 @@ type t =
   | Tmc_breaks_tailcall                     (* 72 *)
   | Generative_application_expects_unit     (* 73 *)
 (* Flambda_backend specific warnings: numbers should go down from 199 *)
+  | Incompatible_with_upstream of upstream_compat_warning (* 187 *)
+  | Unerasable_position_argument            (* 188 *)
   | Unnecessarily_partial_tuple_pattern     (* 189 *)
   | Probe_name_too_long of string           (* 190 *)
-  | Unchecked_property_attribute of string  (* 199 *)
+  | Unchecked_zero_alloc_attribute          (* 199 *)
+  | Unboxing_impossible                     (* 210 *)
+  | Redundant_modality of string            (* 250 *)
 
 type alert = {kind:string; message:string; def:loc; use:loc}
 

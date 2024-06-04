@@ -128,6 +128,9 @@ let runtime_suffix = if Config.runtime5 then "" else "4"
 
 let debugger = [add_compiler_subdir ("debugger" ^ runtime_suffix)]
 
+let extension_universe_lib name =
+  make_library_modifier name [compiler_subdir ["otherlibs"; name]]
+
 let _ =
   register_modifiers "principal" principal;
   register_modifiers "config" config;
@@ -135,6 +138,18 @@ let _ =
   register_modifiers "unix" unix;
   register_modifiers "dynlink" dynlink;
   register_modifiers "str" str;
+  List.iter
+    (fun old_name ->
+      let new_name = "stdlib_" ^ old_name in
+      register_modifiers old_name (extension_universe_lib old_name);
+      register_modifiers new_name (extension_universe_lib new_name);
+    )
+    [
+      "upstream_compatible";
+      "stable";
+      "beta";
+      "alpha";
+    ];
   List.iter
     (fun archive -> register_modifiers archive (compilerlibs_archive archive))
     [

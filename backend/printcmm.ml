@@ -29,12 +29,14 @@ let rec_flag ppf = function
   | Nonrecursive -> ()
   | Recursive -> fprintf ppf " rec"
 
-let machtype_component ppf = function
+let machtype_component ppf (ty : machtype_component) =
+  match ty with
   | Val -> fprintf ppf "val"
   | Addr -> fprintf ppf "addr"
   | Int -> fprintf ppf "int"
   | Float -> fprintf ppf "float"
   | Vec128 -> fprintf ppf "vec128"
+  | Float32 -> fprintf ppf "float32"
 
 let machtype ppf mty =
   match Array.length mty with
@@ -49,6 +51,7 @@ let exttype ppf = function
   | XInt32 -> fprintf ppf "int32"
   | XInt64 -> fprintf ppf "int64"
   | XFloat -> fprintf ppf "float"
+  | XFloat32 -> fprintf ppf "float32"
   | XVec128 -> fprintf ppf "vec128"
 
 let extcall_signature ppf (ty_res, ty_args) =
@@ -103,7 +106,8 @@ let chunk = function
   | Onetwentyeight_aligned -> "aligned vec128"
   | Word_int -> "int"
   | Word_val -> "val"
-  | Single -> "float32"
+  | Single { reg = Float64 } -> "float32_as_float64"
+  | Single { reg = Float32 } -> "float32"
   | Double -> "float64"
 
 let atomic_bitwidth : Cmm.atomic_bitwidth -> string = function
@@ -155,8 +159,7 @@ let exit_label ppf = function
 let trap_action ppf ta =
   match ta with
   | Push i -> fprintf ppf "push(%d)" i
-  | Pop Pop_generic -> fprintf ppf "pop"
-  | Pop (Pop_specific i) -> fprintf ppf "pop(%d)" i
+  | Pop i -> fprintf ppf "pop(%d)" i
 
 let trap_action_list ppf traps =
   match traps with
@@ -166,11 +169,6 @@ let trap_action_list ppf traps =
       List.iter (fun t -> fprintf ppf " %a" trap_action t) rest;
       fprintf ppf ">"
 
-let trywith_kind ppf kind =
-  match kind with
-  | Regular -> ()
-  | Delayed i -> fprintf ppf "<delayed %d>" i
-
 let to_string msg =
   let b = Buffer.create 17 in
   let ppf = Format.formatter_of_buffer b in
@@ -178,6 +176,27 @@ let to_string msg =
     Format.pp_print_flush ppf ();
     Buffer.contents b
   ) ppf msg
+
+let reinterpret_cast : Cmm.reinterpret_cast -> string = function
+  | V128_of_v128 -> "vec128 as vec128"
+  | Value_of_int -> "int as value"
+  | Int_of_value -> "value as int"
+  | Float32_of_float -> "float as float32"
+  | Float_of_float32 -> "float32 as float"
+  | Float_of_int64 -> "int64 as float"
+  | Int64_of_float -> "float as int64"
+  | Float32_of_int32 -> "int32 as float32"
+  | Int32_of_float32 -> "float32 as int32"
+
+let static_cast : Cmm.static_cast -> string = function
+  | Int_of_float Float64 -> "float->int"
+  | Float_of_int Float64 -> "int->float"
+  | Int_of_float Float32 -> "float32->int"
+  | Float_of_int Float32 -> "int->float32"
+  | Float32_of_float -> "float->float32"
+  | Float_of_float32 -> "float32->float"
+  | Scalar_of_v128 ty -> Printf.sprintf "%s->scalar" (Primitive.vec128_name ty)
+  | V128_of_scalar ty -> Printf.sprintf "scalar->%s" (Primitive.vec128_name ty)
 
 let operation d = function
   | Capply(_ty, _) -> "app" ^ location d
@@ -218,28 +237,26 @@ let operation d = function
   | Caddv -> "+v"
   | Cadda -> "+a"
   | Ccmpa c -> Printf.sprintf "%sa" (integer_comparison c)
-  | Cnegf -> "~f"
-  | Cabsf -> "absf"
-  | Caddf -> "+f"
-  | Csubf -> "-f"
-  | Cmulf -> "*f"
-  | Cdivf -> "/f"
+  | Cnegf Float64 -> "~f"
+  | Cabsf Float64 -> "absf"
+  | Caddf Float64 -> "+f"
+  | Csubf Float64 -> "-f"
+  | Cmulf Float64 -> "*f"
+  | Cdivf Float64 -> "/f"
+  | Cnegf Float32 -> "~f32"
+  | Cabsf Float32 -> "absf32"
+  | Caddf Float32 -> "+f32"
+  | Csubf Float32 -> "-f32"
+  | Cmulf Float32 -> "*f32"
+  | Cdivf Float32 -> "/f32"
+  | Cpackf32 -> "packf32"
   | Ccsel ret_typ ->
     to_string "csel %a" machtype ret_typ
-  | Cfloatofint -> "floatofint"
-  | Cintoffloat -> "intoffloat"
-  | Cvalueofint -> "valueofint"
-  | Cintofvalue -> "intofvalue"
-  | Cvectorcast Bits128 ->
-    Printf.sprintf "vec128->vec128"
-  | Cscalarcast (V128_to_scalar ty) ->
-    Printf.sprintf "%s->scalar" (Primitive.vec128_name ty)
-  | Cscalarcast (V128_of_scalar ty) ->
-    Printf.sprintf "scalar->%s" (Primitive.vec128_name ty)
-  | Ccmpf c -> Printf.sprintf "%sf" (float_comparison c)
+  | Creinterpret_cast cast -> reinterpret_cast cast
+  | Cstatic_cast cast -> static_cast cast
+  | Ccmpf (Float64, c) -> Printf.sprintf "%sf" (float_comparison c)
+  | Ccmpf (Float32, c) -> Printf.sprintf "%sf32" (float_comparison c)
   | Craise k -> Lambda.raise_kind k ^ location d
-  | Ccheckbound -> "checkbound" ^ location d
-  | Ccheckalign { bytes_pow2 } -> Printf.sprintf "checkalign[%d]%s" bytes_pow2 (location d)
   | Cprobe { name; handler_code_sym; enabled_at_init; } ->
     Printf.sprintf "probe[%s %s%s]" name handler_code_sym
       (if enabled_at_init then " enabled_at_init" else "")
@@ -260,6 +277,7 @@ let rec expr ppf = function
   | Cconst_natint (n, _dbg) ->
     fprintf ppf "%s" (Nativeint.to_string n)
   | Cconst_vec128 ({low; high}, _dbg) -> fprintf ppf "%016Lx:%016Lx" high low
+  | Cconst_float32 (n, _dbg) -> fprintf ppf "%Fs" n
   | Cconst_float (n, _dbg) -> fprintf ppf "%F" n
   | Cconst_symbol (s, _dbg) -> fprintf ppf "%a:\"%s\"" is_global s.sym_global s.sym_name
   | Cvar id -> V.print ppf id
@@ -372,15 +390,11 @@ let rec expr ppf = function
       fprintf ppf "@[<2>(exit%a %a" trap_action_list traps exit_label i;
       List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
       fprintf ppf ")@]"
-  | Ctrywith(e1, kind, id, e2, dbg, _value_kind) ->
-      fprintf ppf "@[<2>(try%a@ %a@;<1 -2>with@ %a@ "
-            trywith_kind kind sequence e1 VP.print id;
+  | Ctrywith(e1, exn_cont, id, e2, dbg, _value_kind) ->
+      fprintf ppf "@[<2>(try@ %a@;<1 -2>with(%d)@ %a@ "
+            sequence e1 exn_cont VP.print id;
       with_location_mapping ~label:"Ctrywith" ~dbg ppf (fun () ->
             fprintf ppf "%a)@]" sequence e2);
-  | Cregion e ->
-      fprintf ppf "@[<2>(region@ %a)@]" sequence e
-  | Ctail e ->
-      fprintf ppf "@[<2>(tail@ %a)@]" sequence e
 
 and sequence ppf = function
   | Csequence(e1, e2) -> fprintf ppf "%a@ %a" sequence e1 sequence e2
@@ -388,23 +402,17 @@ and sequence ppf = function
 
 and expression ppf e = fprintf ppf "%a" expr e
 
-let property_to_string : Cmm.property -> string = function
-  | Zero_alloc -> "zero_alloc"
-
 let codegen_option = function
   | Reduce_code_size -> "reduce_code_size"
   | No_CSE -> "no_cse"
   | Use_linscan_regalloc -> "linscan"
-  | Ignore_assert_all property ->
-    Printf.sprintf "ignore %s" (property_to_string property)
-  | Assume { property; strict; never_returns_normally = _; loc = _ } ->
-    Printf.sprintf "assume_%s%s%s"
-      (property_to_string property)
+  | Assume_zero_alloc { strict; never_returns_normally; never_raises; loc = _ } ->
+    Printf.sprintf "assume_zero_alloc_%s%s%s"
       (if strict then "_strict" else "")
-      (if strict then "_never_returns_normally" else "")
-  | Check { property; strict; loc = _ } ->
-    Printf.sprintf "assert_%s%s"
-      (property_to_string property)
+      (if never_returns_normally then "_never_returns_normally" else "")
+      (if never_raises then "_never_raises" else "")
+  | Check_zero_alloc { strict; loc = _ } ->
+    Printf.sprintf "assert_zero_alloc%s"
       (if strict then "_strict" else "")
 
 let print_codegen_options ppf l =
@@ -435,6 +443,7 @@ let data_item ppf = function
   | Cvec128 {high; low} ->
     fprintf ppf "vec128 %s:%s" (Int64.to_string high) (Int64.to_string low)
   | Csymbol_address s -> fprintf ppf "addr %a:\"%s\"" is_global s.sym_global s.sym_name
+  | Csymbol_offset (s, o) -> fprintf ppf "addr %a:\"%s+%d\"" is_global s.sym_global s.sym_name o
   | Cstring s -> fprintf ppf "string \"%s\"" s
   | Cskip n -> fprintf ppf "skip %i" n
   | Calign n -> fprintf ppf "align %i" n

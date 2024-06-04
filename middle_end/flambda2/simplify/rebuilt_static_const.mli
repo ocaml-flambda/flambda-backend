@@ -47,6 +47,11 @@ val create_block :
   fields:Field_of_static_block.t list ->
   t
 
+val create_boxed_float32 :
+  Are_rebuilding_terms.t ->
+  Numeric_types.Float32_by_bit_pattern.t Or_variable.t ->
+  t
+
 val create_boxed_float :
   Are_rebuilding_terms.t ->
   Numeric_types.Float_by_bit_pattern.t Or_variable.t ->
@@ -72,10 +77,24 @@ val create_immutable_float_array :
   Numeric_types.Float_by_bit_pattern.t Or_variable.t list ->
   t
 
+val create_immutable_float32_array :
+  Are_rebuilding_terms.t ->
+  Numeric_types.Float32_by_bit_pattern.t Or_variable.t list ->
+  t
+
+val create_immutable_int32_array :
+  Are_rebuilding_terms.t -> Int32.t Or_variable.t list -> t
+
+val create_immutable_int64_array :
+  Are_rebuilding_terms.t -> Int64.t Or_variable.t list -> t
+
+val create_immutable_nativeint_array :
+  Are_rebuilding_terms.t -> Targetint_32_64.t Or_variable.t list -> t
+
 val create_immutable_value_array :
   Are_rebuilding_terms.t -> Field_of_static_block.t list -> t
 
-val create_empty_array : Are_rebuilding_terms.t -> t
+val create_empty_array : Are_rebuilding_terms.t -> Empty_array_kind.t -> t
 
 val create_mutable_string : Are_rebuilding_terms.t -> initial_value:string -> t
 

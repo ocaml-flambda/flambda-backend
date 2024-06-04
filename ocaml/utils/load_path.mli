@@ -37,22 +37,9 @@ module Dir : sig
 
   val create : hidden:bool -> string -> t
 
-  val path : t -> string
-
-  val files : t -> string list
+  val basenames : t -> string list
   (** All the files in that directory. This doesn't include files in
       sub-directories of this directory. *)
-
-  val hidden : t -> bool
-  (** If the modules in this directory should not be bound in the initial
-      scope *)
-
-  val find : t -> string -> string option
-  (** [find dir fn] returns the full path to [fn] in [dir]. *)
-
-  val find_uncap : t -> string -> string option
-  (** As {!find}, but search also for uncapitalized name, i.e. if name is
-      Foo.ml, either /path/Foo.ml or /path/foo.ml may be returned. *)
 end
 
 type auto_include_callback =

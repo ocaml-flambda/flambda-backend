@@ -46,6 +46,7 @@ type token =
   | NEW
   | MUTABLE
   | MODULE
+  | MOD
   | MINUSGREATER
   | MINUSDOT
   | MINUS
@@ -72,6 +73,8 @@ type token =
   | LBRACE
   | LAZY
   | LABEL of (string)
+  | KIND_OF
+  | KIND_ABBREV
   | INT of (string * char option)
   | INITIALIZER
   | INHERIT
@@ -129,6 +132,8 @@ type token =
   | BAR
   | BANG
   | BACKQUOTE
+  | ATAT
+  | AT
   | ASSERT
   | AS
   | ANDOP of (string)

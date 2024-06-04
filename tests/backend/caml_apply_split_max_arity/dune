@@ -1,0 +1,44 @@
+(executable
+ (name t)
+ (modules t)
+ ; FIXME Fix warnings
+ (flags
+  (:standard -w -27-32))
+ (ocamlopt_flags
+  (:standard -linscan -Oclassic)))
+
+(executable
+ (name stack)
+ (modules stack)
+ (ocamlopt_flags
+  (:standard -linscan -Oclassic)))
+
+(rule
+ (enabled_if
+  (and
+   (<> %{system} "macosx")
+   (= %{context_name} "main")))
+ (targets t.output stack.output)
+ (deps t.exe stack.exe)
+ (action
+  (progn
+   (with-outputs-to
+    t.output
+    (bash
+     "readelf -sW ./t.exe | grep \" caml_apply[0-9]\\{1,3\\}\" | sed \"s/.*caml_//\" | sed \"s/L\\$//\" | sort | uniq"))
+   (with-outputs-to
+    stack.output
+    (run ./stack.exe)))))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (<> %{system} "macosx")
+   (and
+    (= %{context_name} "main")
+    (<> %{ocaml-config:flambda} true))))
+ (action
+ (progn
+  (diff t.expected t.output)
+  (diff stack.expected stack.output))))

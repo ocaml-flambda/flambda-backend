@@ -751,6 +751,9 @@ flambda2
 flambda
 cpp_mangling
 frame_pointers
+custom_ops_struct_size
+profinfo_width
+profinfo
 reserved_header_bits
 install_ocamlnat
 install_source_artifacts
@@ -858,6 +861,8 @@ VERSION
 default_build_target
 native_compiler
 CONFIGURE_ARGS
+enable_stack_checks
+runtime_suffix
 enable_runtime5
 target_alias
 host_alias
@@ -902,6 +907,7 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 enable_runtime5
+enable_stack_checks
 with_dune
 enable_debug_runtime
 enable_debugger
@@ -932,7 +938,6 @@ enable_flambda_invariants
 enable_flambda2
 enable_cmm_invariants
 with_target_bindir
-enable_reserved_header_bits
 enable_stdlib_manpages
 enable_warn_error
 enable_force_safe_string
@@ -1593,6 +1598,7 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-runtime5       Use the OCaml 5 runtime
+  --enable-stack_checks   Enable stack checks
   --disable-debug-runtime do not build runtime with debugging support
   --enable-debugger       build the debugger [default=auto]
   --disable-dependency-generation
@@ -1627,12 +1633,9 @@ Optional Features:
                           enable invariants checks in flambda
   --enable-flambda2       enable the Flambda 2 middle end
   --enable-cmm-invariants enable invariants checks in Cmm
-  --enable-reserved-header-bits=BITS
-                          reserve BITS (between 0 and 31) bits in block
-                          headers
   --disable-stdlib-manpages
                           do not build or install the library man pages
-  --enable-warn-error     treat C compiler warnings as errors
+  --disable-warn-error    do not treat C compiler warnings as errors
   --disable-flat-float-array
                           do not use flat float arrays
   --disable-function-sections
@@ -3207,7 +3210,10 @@ CSCFLAGS=""
 ostype="Unix"
 SO="so"
 toolchain="cc"
-reserved_header_bits=0
+reserved_header_bits=8
+profinfo=true
+profinfo_width=8
+custom_ops_struct_size=64
 instrumented_runtime=false
 instrumented_runtime_libs=""
 bootstrapping_flexdll=false
@@ -3239,8 +3245,23 @@ then :
   enableval=$enable_runtime5;
 fi
 
+if test x"$enable_runtime5" = xyes
+then :
+  runtime_suffix=
+else $as_nop
+  runtime_suffix=4
+fi
+
+# Check whether --enable-stack_checks was given.
+if test ${enable_stack_checks+y}
+then :
+  enableval=$enable_stack_checks;
+fi
+
 
 ## Output variables
+
+
 
 
 
@@ -3339,6 +3360,9 @@ OCAML_VERSION_SHORT=5.1
 
 
  # TODO: rename this variable
+
+
+
 
 
 
@@ -3908,18 +3932,6 @@ fi
 if test ${with_target_bindir+y}
 then :
   withval=$with_target_bindir;
-fi
-
-
-# Check whether --enable-reserved-header-bits was given.
-if test ${enable_reserved_header_bits+y}
-then :
-  enableval=$enable_reserved_header_bits; case $enable_reserved_header_bits in #(
-  [0-9]|[1-2][0-9]|3[0-1]) :
-     reserved_header_bits=$enable_reserved_header_bits ;; #(
-  *) :
-    as_fn_error $? "invalid argument to --enable-reserved-header-bits" "$LINENO" 5 ;;
-esac
 fi
 
 
@@ -13646,8 +13658,8 @@ lib_dynlink=true
 
 if test x"$enable_runtime5" = x"yes"
 then :
-  otherlibraries = "$otherlibraries runtime_events"
-   lib_runtime_events = true
+  otherlibraries="$otherlibraries runtime_events"
+   lib_runtime_events=true
 fi
 
 if test x"$enable_unix_lib" != "xno"
@@ -13767,8 +13779,10 @@ case $ocaml_cv_cc_vendor in #(
 -Wold-style-definition" ;;
 esac
 
-case $enable_warn_error,false in #(
-  yes,*|,true) :
+case $enable_warn_error in #(
+  no) :
+     ;; #(
+  *) :
     cc_warnings="$cc_warnings $warn_error_flag" ;; #(
   *) :
      ;;
@@ -15575,6 +15589,18 @@ fi ;; #(
   *) :
      ;;
 esac
+
+if test x"$enable_stack_checks" = xyes
+then :
+  printf "%s\n" "#define STACK_CHECKS_ENABLED 1" >>confdefs.h
+
+else $as_nop
+  if test x"$arch" != xamd64
+then :
+  printf "%s\n" "#define STACK_CHECKS_ENABLED 1" >>confdefs.h
+
+fi
+fi
 
 native_cflags=''
 native_cppflags="-DTARGET_${arch} -DMODEL_${model} -DSYS_${system}"
@@ -18516,6 +18542,8 @@ case $host in #(
     PTHREAD_LIBS="-l:libpthread.a -lgcc_eh" ;; #(
   *-pc-windows) :
     PTHREAD_LIBS="-l:libpthread.lib" ;; #(
+  *-apple-darwin*) :
+    PTHREAD_LIBS="-pthread" ;; #(
   *) :
 
 
@@ -19633,7 +19661,19 @@ fi
 
 
 
+# Unconditionally reserve 8 header bits in both runtime 4 and
+# runtime 5, which is required for mixed block support.
 printf "%s\n" "#define HEADER_RESERVED_BITS $reserved_header_bits" >>confdefs.h
+
+printf "%s\n" "#define PROFINFO_WIDTH $profinfo_width" >>confdefs.h
+
+if $profinfo
+then :
+  printf "%s\n" "#define WITH_PROFINFO 1" >>confdefs.h
+
+fi
+
+printf "%s\n" "#define CUSTOM_OPS_STRUCT_SIZE $custom_ops_struct_size" >>confdefs.h
 
 
 if test x"$enable_installing_bytecode_programs" = "xno"
@@ -22415,5 +22455,3 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: unrecognized options: $ac_unrecognized_opts" >&5
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
-
-

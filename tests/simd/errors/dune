@@ -1,0 +1,339 @@
+; Error message tests
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (= %{context_name} "main"))
+ (deps f32c1.expected f32c1.corrected)
+ (action
+  (progn
+   (diff f32c1.expected f32c1.corrected)
+   (diff f32c4.expected f32c4.corrected)
+   (diff f64c1.expected f64c1.corrected)
+   (diff f64c2.expected f64c2.corrected)
+   (diff i8c1.expected i8c1.corrected)
+   (diff i8c16.expected i8c16.corrected)
+   (diff i8_range.expected i8_range.corrected)
+   (diff i16c1.expected i16c1.corrected)
+   (diff i16c8.expected i16c8.corrected)
+   (diff i16_range.expected i16_range.corrected)
+   (diff i32c1.expected i32c1.corrected)
+   (diff i32c4.expected i32c4.corrected)
+   (diff i32_range.expected i32_range.corrected)
+   (diff i64c1.expected i64c1.corrected)
+   (diff i64c2.expected i64c2.corrected))))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets f32c1.corrected)
+ (deps
+  (:ml f32c1.ml))
+ (action
+  (with-outputs-to
+   f32c1.corrected
+   (with-accepted-exit-codes
+    2
+    (run
+     %{bin:ocamlopt.opt}
+     %{ml}
+     -extension
+     simd
+     -color
+     never
+     -error-style
+     short)))))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets f32c4.corrected)
+ (deps
+  (:ml f32c4.ml))
+ (action
+  (with-outputs-to
+   f32c4.corrected
+   (with-accepted-exit-codes
+    2
+    (run
+     %{bin:ocamlopt.opt}
+     %{ml}
+     -extension
+     simd
+     -color
+     never
+     -error-style
+     short)))))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets i32c1.corrected)
+ (deps
+  (:ml i32c1.ml))
+ (action
+  (with-outputs-to
+   i32c1.corrected
+   (with-accepted-exit-codes
+    2
+    (run
+     %{bin:ocamlopt.opt}
+     %{ml}
+     -extension
+     simd
+     -color
+     never
+     -error-style
+     short)))))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets i32c4.corrected)
+ (deps
+  (:ml i32c4.ml))
+ (action
+  (with-outputs-to
+   i32c4.corrected
+   (with-accepted-exit-codes
+    2
+    (run
+     %{bin:ocamlopt.opt}
+     %{ml}
+     -extension
+     simd
+     -color
+     never
+     -error-style
+     short)))))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets i32_range.corrected)
+ (deps
+  (:ml i32_range.ml))
+ (action
+  (with-outputs-to
+   i32_range.corrected
+   (with-accepted-exit-codes
+    2
+    (run
+     %{bin:ocamlopt.opt}
+     %{ml}
+     -extension
+     simd
+     -color
+     never
+     -error-style
+     short)))))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets f64c1.corrected)
+ (deps
+  (:ml f64c1.ml))
+ (action
+  (with-outputs-to
+   f64c1.corrected
+   (with-accepted-exit-codes
+    2
+    (run
+     %{bin:ocamlopt.opt}
+     %{ml}
+     -extension
+     simd
+     -color
+     never
+     -error-style
+     short)))))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets f64c2.corrected)
+ (deps
+  (:ml f64c2.ml))
+ (action
+  (with-outputs-to
+   f64c2.corrected
+   (with-accepted-exit-codes
+    2
+    (run
+     %{bin:ocamlopt.opt}
+     %{ml}
+     -extension
+     simd
+     -color
+     never
+     -error-style
+     short)))))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets i16c1.corrected)
+ (deps
+  (:ml i16c1.ml))
+ (action
+  (with-outputs-to
+   i16c1.corrected
+   (with-accepted-exit-codes
+    2
+    (run
+     %{bin:ocamlopt.opt}
+     %{ml}
+     -extension
+     simd
+     -color
+     never
+     -error-style
+     short)))))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets i16c8.corrected)
+ (deps
+  (:ml i16c8.ml))
+ (action
+  (with-outputs-to
+   i16c8.corrected
+   (with-accepted-exit-codes
+    2
+    (run
+     %{bin:ocamlopt.opt}
+     %{ml}
+     -extension
+     simd
+     -color
+     never
+     -error-style
+     short)))))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets i16_range.corrected)
+ (deps
+  (:ml i16_range.ml))
+ (action
+  (with-outputs-to
+   i16_range.corrected
+   (with-accepted-exit-codes
+    2
+    (run
+     %{bin:ocamlopt.opt}
+     %{ml}
+     -extension
+     simd
+     -color
+     never
+     -error-style
+     short)))))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets i8c1.corrected)
+ (deps
+  (:ml i8c1.ml))
+ (action
+  (with-outputs-to
+   i8c1.corrected
+   (with-accepted-exit-codes
+    2
+    (run
+     %{bin:ocamlopt.opt}
+     %{ml}
+     -extension
+     simd
+     -color
+     never
+     -error-style
+     short)))))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets i8c16.corrected)
+ (deps
+  (:ml i8c16.ml))
+ (action
+  (with-outputs-to
+   i8c16.corrected
+   (with-accepted-exit-codes
+    2
+    (run
+     %{bin:ocamlopt.opt}
+     %{ml}
+     -extension
+     simd
+     -color
+     never
+     -error-style
+     short)))))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets i8_range.corrected)
+ (deps
+  (:ml i8_range.ml))
+ (action
+  (with-outputs-to
+   i8_range.corrected
+   (with-accepted-exit-codes
+    2
+    (run
+     %{bin:ocamlopt.opt}
+     %{ml}
+     -extension
+     simd
+     -color
+     never
+     -error-style
+     short)))))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets i64c1.corrected)
+ (deps
+  (:ml i64c1.ml))
+ (action
+  (with-outputs-to
+   i64c1.corrected
+   (with-accepted-exit-codes
+    2
+    (run
+     %{bin:ocamlopt.opt}
+     %{ml}
+     -extension
+     simd
+     -color
+     never
+     -error-style
+     short)))))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets i64c2.corrected)
+ (deps
+  (:ml i64c2.ml))
+ (action
+  (with-outputs-to
+   i64c2.corrected
+   (with-accepted-exit-codes
+    2
+    (run
+     %{bin:ocamlopt.opt}
+     %{ml}
+     -extension
+     simd
+     -color
+     never
+     -error-style
+     short)))))

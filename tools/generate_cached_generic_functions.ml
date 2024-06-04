@@ -30,11 +30,9 @@ open Config
 
 module CU = Compilation_unit
 
-let make_cached_generic_functions unix ~ppf_dump genfns =
-  Location.input_name := "caml_cached_generic_functions"; (* set name of "current" input *)
-  let startup_comp_unit =
-    CU.create CU.Prefix.empty (CU.Name.of_string "_cached_generic_functions")
-  in
+let make_cached_generic_functions unix ~ppf_dump ~id genfns =
+  Location.input_name := Generic_fns.Partition.name id; (* set name of "current" input *)
+  let startup_comp_unit = Generic_fns.Partition.to_cu id in
   Compilenv.reset startup_comp_unit;
   Emit.begin_assembly unix;
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
@@ -42,7 +40,7 @@ let make_cached_generic_functions unix ~ppf_dump genfns =
     List.iter compile_phrase (Generic_fns.compile ~shared:true genfns));
  Emit.end_assembly ()
 
-let cached_generic_functions unix ~ppf_dump output_name genfns =
+let cached_generic_functions unix ~ppf_dump ~id output_name genfns =
   Profile.record_call output_name (fun () ->
     let startup = output_name ^ ext_asm in
     Profile.record_call "compile_unit" (fun () ->
@@ -53,7 +51,7 @@ let cached_generic_functions unix ~ppf_dump output_name genfns =
         ~may_reduce_heap:true
         ~ppf_dump
         (fun () ->
-          make_cached_generic_functions unix ~ppf_dump genfns);
+          make_cached_generic_functions unix ~ppf_dump ~id genfns);
       obj_filename
     );
   )
@@ -70,10 +68,10 @@ let main filename =
     ~finally:(fun () -> List.iter remove_file !objects)
     (fun () ->
        Hashtbl.iter (fun name partition ->
-         let output_name = Filename.temp_file ("cached-generated-" ^ name) "" in
+         let output_name = Filename.temp_file ("cached-generated-" ^ Generic_fns.Partition.to_string name) "" in
          let obj =
            cached_generic_functions
-             unix ~ppf_dump:Format.std_formatter output_name partition
+             unix ~ppf_dump:Format.std_formatter ~id:name output_name partition
          in
          objects := obj :: !objects
        ) genfns_partitions;

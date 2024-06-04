@@ -27,11 +27,14 @@ type error = |
 module Transfer :
   Cfg_dataflow.Backward_transfer
     with type domain = domain
-     and type error = error = struct
+     and type error = error
+     and type context = unit = struct
   type nonrec domain = domain =
     { before : Reg.Set.t;
       across : Reg.Set.t
     }
+
+  type context = unit
 
   type nonrec error = error
 
@@ -44,12 +47,13 @@ module Transfer :
     let before = Reg.add_set_array across instr.arg in
     { before; across }
 
-  let basic : domain -> Cfg.basic Cfg.instruction -> (domain, error) result =
-   fun ({ before; across = _ } as domain) instr ->
+  let basic :
+      domain -> Cfg.basic Cfg.instruction -> context -> (domain, error) result =
+   fun ({ before; across = _ } as domain) instr () ->
     Result.ok
     @@
     match instr.desc with
-    | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
+    | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
       if Cfg.is_pure_basic instr.desc && Reg.disjoint_set_array before instr.res
       then
         (* If the operation is without side-effects and the result is unused
@@ -62,8 +66,9 @@ module Transfer :
       domain ->
       exn:domain ->
       Cfg.terminator Cfg.instruction ->
+      context ->
       (domain, error) result =
-   fun domain ~exn instr ->
+   fun domain ~exn instr () ->
     Result.ok
     @@
     match instr.desc with
@@ -81,13 +86,13 @@ module Transfer :
         ~exn Domain.bot instr
     | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
     | Switch _ | Return | Raise _ | Tailcall_func _ | Call_no_return _ | Call _
-    | Poll_and_jump _ | Prim _ | Specific_can_raise _ ->
+    | Prim _ | Specific_can_raise _ ->
       instruction
         ~can_raise:(Cfg.can_raise_terminator instr.desc)
         ~exn domain instr
 
-  let exception_ : domain -> (domain, error) result =
-   fun { before; across = _ } ->
+  let exception_ : domain -> context -> (domain, error) result =
+   fun { before; across = _ } () ->
     Result.ok
     @@ { before = Reg.Set.remove Proc.loc_exn_bucket before;
          across = Reg.Set.empty

@@ -40,10 +40,15 @@
   (name dynlink_compilerlibs)
   (wrapped true)
   (modes byte native)
-  (flags (
-    -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66-70
-    -warn-error A -bin-annot -safe-string -strict-formats
-  ))
+ (flags
+  (:standard
+   -strict-sequence
+   -absname
+   -w
+   +67
+   -bin-annot
+   -safe-string
+   -strict-formats))
   (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
   (modules
     binutils
@@ -54,6 +59,7 @@
     identifiable
     numbers
     arg_helper
+    zero_alloc_annotations
     clflags
     debug
     language_extension_kernel
@@ -68,8 +74,8 @@
     longident
     docstrings
     printast
+    pprintast
     syntaxerr
-    jane_asttypes
     jane_syntax_parsing
     jane_syntax
     ast_iterator
@@ -80,12 +86,21 @@
     ident
     path
     shape
-    jkind
-    primitive
+    shape_reduce
+    solver_intf
+    solver
+    mode_intf
     mode
+    typemode
+    jkind_intf
+    jkind_types
+    primitive
     types
+    jkind
+    value_rec_types
     btype
     lazy_backtrack
+    zero_alloc_utils
     subst
     signature_with_global_bindings
     predef
@@ -113,15 +128,18 @@
     compilation_unit
     import_info
     symbol
-    linkage_name
-    global)
+    linkage_name)
   (modules_without_implementation
     asttypes
     parsetree
     outcometree
     cmo_format
     cmxs_format
-    debug_event))
+    debug_event
+    solver_intf
+    mode_intf
+    value_rec_types
+    ))
 
 ;(install
 ;  (files
@@ -142,6 +160,7 @@
 (copy_files ../../utils/identifiable.ml)
 (copy_files ../../utils/numbers.ml)
 (copy_files ../../utils/arg_helper.ml)
+(copy_files ../../utils/zero_alloc_annotations.ml)
 (copy_files ../../utils/clflags.ml)
 (copy_files ../../utils/debug.ml)
 (copy_files ../../utils/language_extension_kernel.ml)
@@ -157,13 +176,14 @@
 (copy_files ../../utils/symbol.ml)
 (copy_files ../../utils/linkage_name.ml)
 (copy_files ../../utils/lazy_backtrack.ml)
-(copy_files ../../utils/global.ml)
+(copy_files ../../utils/zero_alloc_utils.ml)
+(copy_files ../../utils/global_module.ml)
 (copy_files ../../parsing/location.ml)
 (copy_files ../../parsing/longident.ml)
 (copy_files ../../parsing/docstrings.ml)
 (copy_files ../../parsing/printast.ml)
+(copy_files ../../parsing/pprintast.ml)
 (copy_files ../../parsing/syntaxerr.ml)
-(copy_files ../../parsing/jane_asttypes.ml)
 (copy_files ../../parsing/jane_syntax_parsing.ml)
 (copy_files ../../parsing/jane_syntax.ml)
 (copy_files ../../parsing/ast_iterator.ml)
@@ -174,9 +194,14 @@
 (copy_files ../../typing/ident.ml)
 (copy_files ../../typing/path.ml)
 (copy_files ../../typing/jkind.ml)
+(copy_files ../../typing/jkind_intf.ml)
+(copy_files ../../typing/jkind_types.ml)
 (copy_files ../../typing/primitive.ml)
 (copy_files ../../typing/shape.ml)
+(copy_files ../../typing/solver.ml)
+(copy_files ../../typing/shape_reduce.ml)
 (copy_files ../../typing/mode.ml)
+(copy_files ../../typing/typemode.ml)
 (copy_files ../../typing/types.ml)
 (copy_files ../../typing/btype.ml)
 (copy_files ../../typing/subst.ml)
@@ -207,6 +232,7 @@
 (copy_files ../../utils/identifiable.mli)
 (copy_files ../../utils/numbers.mli)
 (copy_files ../../utils/arg_helper.mli)
+(copy_files ../../utils/zero_alloc_annotations.mli)
 (copy_files ../../utils/clflags.mli)
 (copy_files ../../utils/debug.mli)
 (copy_files ../../utils/language_extension_kernel.mli)
@@ -222,13 +248,14 @@
 (copy_files ../../utils/symbol.mli)
 (copy_files ../../utils/linkage_name.mli)
 (copy_files ../../utils/lazy_backtrack.mli)
-(copy_files ../../utils/global.mli)
+(copy_files ../../utils/zero_alloc_utils.mli)
+(copy_files ../../utils/global_module.mli)
 (copy_files ../../parsing/location.mli)
 (copy_files ../../parsing/longident.mli)
 (copy_files ../../parsing/docstrings.mli)
 (copy_files ../../parsing/printast.mli)
+(copy_files ../../parsing/pprintast.mli)
 (copy_files ../../parsing/syntaxerr.mli)
-(copy_files ../../parsing/jane_asttypes.mli)
 (copy_files ../../parsing/jane_syntax_parsing.mli)
 (copy_files ../../parsing/jane_syntax.mli)
 (copy_files ../../parsing/ast_iterator.mli)
@@ -239,9 +266,14 @@
 (copy_files ../../typing/ident.mli)
 (copy_files ../../typing/path.mli)
 (copy_files ../../typing/jkind.mli)
+(copy_files ../../typing/jkind_intf.mli)
+(copy_files ../../typing/jkind_types.mli)
 (copy_files ../../typing/primitive.mli)
 (copy_files ../../typing/shape.mli)
+(copy_files ../../typing/solver.mli)
+(copy_files ../../typing/shape_reduce.mli)
 (copy_files ../../typing/mode.mli)
+(copy_files ../../typing/typemode.mli)
 (copy_files ../../typing/types.mli)
 (copy_files ../../typing/btype.mli)
 (copy_files ../../typing/subst.mli)
@@ -249,6 +281,7 @@
 (copy_files ../../typing/predef.mli)
 (copy_files ../../typing/datarepr.mli)
 (copy_files ../../typing/typedtree.mli)
+(copy_files ../../typing/value_rec_types.mli)
 (copy_files ../../file_formats/cmi_format.mli)
 (copy_files ../../typing/persistent_env.mli)
 (copy_files ../../typing/env.mli)
@@ -266,6 +299,8 @@
 ; .mli-only:
 (copy_files ../../parsing/asttypes.mli)
 (copy_files ../../parsing/parsetree.mli)
+(copy_files ../../typing/solver_intf.mli)
+(copy_files ../../typing/mode_intf.mli)
 (copy_files ../../typing/outcometree.mli)
 (copy_files ../../file_formats/cmo_format.mli)
 (copy_files ../../file_formats/cmxs_format.mli)
@@ -328,7 +363,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Language_extension.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Terminfo.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Location.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Global.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Global_module.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ident.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Longident.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Compilation_unit.cmo
@@ -340,17 +375,24 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Printast.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Syntaxerr.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Lazy_backtrack.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Zero_alloc_utils.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_helper.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jane_asttypes.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jane_syntax_parsing.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jane_syntax.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Pprintast.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_iterator.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Builtin_attributes.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Load_path.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_mapper.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Solver.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Mode.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Typemode.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind_intf.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind_types.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Types.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Attr_helper.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Primitive.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Subst.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Signature_with_global_bindings.cmo
@@ -361,8 +403,6 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Shape.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Datarepr.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Persistent_env.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Attr_helper.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Primitive.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Predef.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Env.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Lambda.cmo
@@ -409,7 +449,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Language_extension.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Terminfo.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Location.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Global.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Global_module.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ident.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Longident.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Compilation_unit.cmx
@@ -418,20 +458,27 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Symbol.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Path.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Lazy_backtrack.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Zero_alloc_utils.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Docstrings.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Printast.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Syntaxerr.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_helper.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jane_asttypes.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jane_syntax_parsing.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jane_syntax.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Pprintast.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Load_path.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_iterator.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Builtin_attributes.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_mapper.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Solver.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Mode.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Typemode.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind_intf.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind_types.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Types.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Attr_helper.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Primitive.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Subst.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Signature_with_global_bindings.cmx
@@ -442,8 +489,6 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Shape.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Datarepr.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Persistent_env.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Attr_helper.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Primitive.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Predef.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Env.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Lambda.cmx
@@ -491,6 +536,8 @@
     (dynlink.cmi as dynlink/dynlink.cmi)
 
     .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Misc.cmx
+
+    (META as dynlink/META)
   )
   (section lib)
   (package ocaml))

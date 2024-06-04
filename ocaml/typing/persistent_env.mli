@@ -16,17 +16,13 @@
 
 open Misc
 
-module Impl : sig
-  type t =
-    | Unknown_argument
-    | Known of Compilation_unit.t
-end
+module Consistbl_data = Import_info.Intf.Nonalias.Kind
 
 module Consistbl : module type of struct
-  include Consistbl.Make (Compilation_unit.Name) (Impl)
+  include Consistbl.Make (Compilation_unit.Name) (Consistbl_data)
 end
 
-type error = private
+type error =
   | Illegal_renaming of Compilation_unit.Name.t * Compilation_unit.Name.t * filepath
   | Inconsistent_import of Compilation_unit.Name.t * filepath * filepath
   | Need_recursive_types of Compilation_unit.Name.t
@@ -38,31 +34,31 @@ type error = private
   | Not_compiled_as_parameter of Compilation_unit.Name.t * filepath
   | Cannot_implement_parameter of Compilation_unit.Name.t * filepath
   | Imported_module_has_unset_parameter of
-      { imported : Global.Name.t;
-        parameter : Global.Name.t;
+      { imported : Global_module.Name.t;
+        parameter : Global_module.Name.t;
   }
   | Imported_module_has_no_such_parameter of
       { imported : Compilation_unit.Name.t;
-        valid_parameters : Global.Name.t list;
-        parameter : Global.Name.t;
-        value : Global.Name.t;
+        valid_parameters : Global_module.Name.t list;
+        parameter : Global_module.Name.t;
+        value : Global_module.Name.t;
   }
   | Not_compiled_as_argument of Compilation_unit.Name.t * filepath
   | Argument_type_mismatch of
-      { value : Global.Name.t;
+      { value : Global_module.Name.t;
         filename : filepath;
-        expected : Global.Name.t;
-        actual : Global.Name.t;
+        expected : Global_module.Name.t;
+        actual : Global_module.Name.t;
   }
   | Inconsistent_global_name_resolution of
-      { name : Global.Name.t;
-        old_global : Global.t;
-        new_global : Global.t;
-        first_mentioned_by : Global.Name.t;
-        now_mentioned_by : Global.Name.t;
+      { name : Global_module.Name.t;
+        old_global : Global_module.t;
+        new_global : Global_module.t;
+        first_mentioned_by : Global_module.Name.t;
+        now_mentioned_by : Global_module.Name.t;
   }
   | Unbound_module_as_argument_value of
-       { instance : Global.Name.t; value : Global.Name.t; }
+       { instance : Global_module.Name.t; value : Global_module.Name.t; }
 
 
 
@@ -95,7 +91,7 @@ val empty : unit -> 'a t
 val clear : 'a t -> unit
 val clear_missing : 'a t -> unit
 
-val fold : 'a t -> (Global.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
+val fold : 'a t -> (Global_module.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
 
 type address =
   | Aunit of Compilation_unit.t
@@ -104,7 +100,7 @@ type address =
 
 type 'a sig_reader =
   Subst.Lazy.signature
-  -> Global.Name.t
+  -> Global_module.Name.t
   -> Shape.Uid.t
   -> shape:Shape.t
   -> address:address
@@ -114,13 +110,14 @@ type 'a sig_reader =
 (* If [add_binding] is false, reads the signature from the .cmi but does not
    bind the module name in the environment. *)
 val read : 'a t -> 'a sig_reader
-  -> Global.Name.t -> filepath -> add_binding:bool -> Subst.Lazy.signature
-val find : allow_hidden:bool -> 'a t -> 'a sig_reader -> Global.Name.t -> 'a
+  -> Global_module.Name.t -> filepath -> add_binding:bool -> Subst.Lazy.signature
+val find : allow_hidden:bool
+  -> 'a t -> 'a sig_reader -> Global_module.Name.t -> 'a
 
-val find_in_cache : 'a t -> Global.Name.t -> 'a option
+val find_in_cache : 'a t -> Global_module.Name.t -> 'a option
 
 val check : allow_hidden:bool -> 'a t -> 'a sig_reader
-  -> loc:Location.t -> Global.Name.t -> unit
+  -> loc:Location.t -> Global_module.Name.t -> unit
 
 (* Lets it be known that the given module is a parameter and thus is expected
    to have been compiled as such. It may or may not be a parameter to _this_
@@ -133,12 +130,12 @@ val register_parameter_import : 'a t -> Compilation_unit.Name.t -> unit
 val is_registered_parameter_import : 'a t -> Compilation_unit.Name.t -> bool
 
 (* Declare a parameter to this module. Calls [register_parameter_import]. *)
-val register_exported_parameter : 'a t -> Global.Name.t -> unit
+val register_exported_parameter : 'a t -> Global_module.Name.t -> unit
 
 (* [looked_up penv md] checks if one has already tried
    to read the signature for [md] in the environment
    [penv] (it may have failed) *)
-val looked_up : 'a t -> Global.Name.t -> bool
+val looked_up : 'a t -> Global_module.Name.t -> bool
 
 (* [is_imported_opaque penv md] checks if [md] has been imported
    in [penv] as an opaque module *)
@@ -152,17 +149,18 @@ val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
    [md] is either a parameter or a dependency with a parameter. This is used
    strictly for code generation - types should always use persistent
    [Ident.t]s. *)
-val local_ident : 'a t -> Global.Name.t -> Ident.t option
+val local_ident : 'a t -> Global_module.Name.t -> Ident.t option
 
 (* [implemented_parameter penv md] returns the argument to [-as-argument-for]
    that [md] was compiled with. *)
-val implemented_parameter : 'a t -> Global.Name.t -> Global.Name.t option
+val implemented_parameter : 'a t
+  -> Global_module.Name.t -> Global_module.Name.t option
 
 val global_of_global_name : 'a t
   -> check:bool
   -> param:bool
-  -> Global.Name.t
-  -> Global.t
+  -> Global_module.Name.t
+  -> Global_module.t
 
 val make_cmi : 'a t
   -> Compilation_unit.Name.t
@@ -187,11 +185,11 @@ val imports : 'a t -> Import_info.Intf.t list
 
 (* Return the list of imported modules (including parameters) that must be bound
    as parameters in a toplevel functor *)
-val locally_bound_imports : 'a t -> (Global.Name.t * Ident.t) list
+val locally_bound_imports : 'a t -> (Global_module.Name.t * Ident.t) list
 
 (* Return the list of parameters registered to be exported from the current
    unit, in alphabetical order *)
-val exported_parameters : 'a t -> Global.Name.t list
+val exported_parameters : 'a t -> Global_module.Name.t list
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: 'a t -> Compilation_unit.Name.t -> Digest.t

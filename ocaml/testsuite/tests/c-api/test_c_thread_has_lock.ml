@@ -1,8 +1,11 @@
 (* TEST
-   modules = "test_c_thread_has_lock_cstubs.c"
-   * runtime5
-   ** bytecode
-   ** native
+ modules = "test_c_thread_has_lock_cstubs.c";
+ runtime5;
+ {
+   bytecode;
+ }{
+   native;
+ }
 *)
 
 external test_with_lock : unit -> bool = "with_lock"

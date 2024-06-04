@@ -30,31 +30,40 @@
 #include "caml/fiber.h"
 #include "caml/domain.h"
 
-CAMLexport value caml_alloc (mlsize_t wosize, tag_t tag)
+CAMLexport value caml_alloc_with_reserved (mlsize_t wosize, tag_t tag,
+                                           reserved_t reserved)
 {
   value result;
   mlsize_t i;
 
-  CAMLassert (tag < 256);
+  // Optimization: for mixed blocks, don't fill in non-scannable fields
+  mlsize_t scannable_wosize = Scannable_wosize_reserved(reserved, wosize);
+
+  CAMLassert (tag < Num_tags);
   CAMLassert (tag != Infix_tag);
   if (wosize <= Max_young_wosize){
     if (wosize == 0){
       result = Atom (tag);
     }else{
       Caml_check_caml_state();
-      Alloc_small (result, wosize, tag, Alloc_small_enter_GC);
+      Alloc_small_with_reserved (result, wosize, tag, Alloc_small_enter_GC,
+                                 reserved);
       if (tag < No_scan_tag){
-        for (i = 0; i < wosize; i++) Field (result, i) = Val_unit;
+        for (i = 0; i < scannable_wosize; i++) Field (result, i) = Val_unit;
       }
     }
   } else {
-    result = caml_alloc_shr (wosize, tag);
+    result = caml_alloc_shr_reserved (wosize, tag, reserved);
     if (tag < No_scan_tag) {
-      for (i = 0; i < wosize; i++) Field (result, i) = Val_unit;
+      for (i = 0; i < scannable_wosize; i++) Field (result, i) = Val_unit;
     }
     result = caml_check_urgent_gc (result);
   }
   return result;
+}
+
+CAMLexport value caml_alloc (mlsize_t wosize, tag_t tag) {
+  return caml_alloc_with_reserved (wosize, tag, 0);
 }
 
 /* This is used by the native compiler for large block allocations.
@@ -65,13 +74,34 @@ CAMLexport value caml_alloc (mlsize_t wosize, tag_t tag)
    information (issue #11482). */
 
 #ifdef NATIVE_CODE
+
+value caml_alloc_shr_reserved_check_gc (mlsize_t wosize, tag_t tag,
+                                        reserved_t reserved)
+{
+  CAMLassert (tag < Num_tags);
+  CAMLassert (tag != Infix_tag);
+  caml_check_urgent_gc (Val_unit);
+  value result = caml_alloc_shr_reserved (wosize, tag, reserved);
+  if (tag < No_scan_tag) {
+    mlsize_t scannable_wosize = Scannable_wosize_val(result);
+    for (mlsize_t i = 0; i < scannable_wosize; i++) {
+      Field (result, i) = Val_unit;
+    }
+  }
+  return result;
+}
+
 CAMLexport value caml_alloc_shr_check_gc (mlsize_t wosize, tag_t tag)
 {
-  CAMLassert(tag < No_scan_tag);
-  caml_check_urgent_gc (Val_unit);
-  value result = caml_alloc_shr (wosize, tag);
-  for (mlsize_t i = 0; i < wosize; i++) Field (result, i) = Val_unit;
-  return result;
+  return caml_alloc_shr_reserved_check_gc(wosize, tag, 0);
+}
+
+CAMLexport value caml_alloc_mixed_shr_check_gc (mlsize_t wosize, tag_t tag,
+                                                mlsize_t scannable_prefix_len)
+{
+  reserved_t reserved =
+    Reserved_mixed_block_scannable_wosize_native(scannable_prefix_len);
+  return caml_alloc_shr_reserved_check_gc(wosize, tag, reserved);
 }
 #endif
 
@@ -155,7 +185,8 @@ CAMLexport value caml_alloc_9 (tag_t tag, value a, value b, value c, value d,
   Do_alloc_small(9, tag, a, b, c, d, e, f, g, h, i);
 }
 
-CAMLexport value caml_alloc_small (mlsize_t wosize, tag_t tag)
+CAMLexport value caml_alloc_small_with_reserved (mlsize_t wosize, tag_t tag,
+                                            reserved_t reserved)
 {
   value result;
 
@@ -163,8 +194,14 @@ CAMLexport value caml_alloc_small (mlsize_t wosize, tag_t tag)
   CAMLassert (wosize <= Max_young_wosize);
   CAMLassert (tag < 256);
   CAMLassert (tag != Infix_tag);
-  Alloc_small (result, wosize, tag, Alloc_small_enter_GC);
+  Alloc_small_with_reserved (result, wosize, tag, Alloc_small_enter_GC,
+                             reserved);
   return result;
+}
+
+CAMLexport value caml_alloc_small (mlsize_t wosize, tag_t tag)
+{
+  return caml_alloc_small_with_reserved(wosize, tag, 0);
 }
 
 /* [n] is a number of words (fields) */
@@ -317,6 +354,32 @@ CAMLprim value caml_alloc_dummy_float (value size)
   return caml_alloc (wosize, 0);
 }
 
+/* [size] is a [value] representing the number of fields.
+   [scannable_size] is a [value] representing the length of the prefix of
+   fields that contains pointer values.
+*/
+CAMLprim value caml_alloc_dummy_mixed (value size, value scannable_size)
+{
+  mlsize_t wosize = Long_val(size);
+#ifdef NATIVE_CODE
+  mlsize_t scannable_wosize = Long_val(scannable_size);
+  /* The below code runs for bytecode and native code, and critically assumes
+     that a double record field can be stored in one word. That's true both for
+     32-bit and 64-bit bytecode (as a double record field in a mixed record is
+     always boxed), and for 64-bit native code (as the double record field is
+     stored flat, taking up 1 word).
+  */
+  CAML_STATIC_ASSERT(Double_wosize == 1);
+  reserved_t reserved =
+    Reserved_mixed_block_scannable_wosize_native(scannable_wosize);
+#else
+  /* [scannable_size] can't be used meaningfully in bytecode */
+  (void)scannable_size;
+  reserved_t reserved = Faux_mixed_block_sentinel;
+#endif // NATIVE_CODE
+  return caml_alloc_with_reserved (wosize, 0, reserved);
+}
+
 CAMLprim value caml_alloc_dummy_infix(value vsize, value voffset)
 {
   mlsize_t wosize = Long_val(vsize), offset = Long_val(voffset);
@@ -377,13 +440,24 @@ CAMLprim value caml_update_dummy(value dummy, value newval)
   } else {
     CAMLassert (tag < No_scan_tag);
     CAMLassert (Tag_val(dummy) != Infix_tag);
+    CAMLassert (Reserved_val(dummy) == Reserved_val(newval));
     Unsafe_store_tag_val(dummy, tag);
     size = Wosize_val(newval);
     CAMLassert (size == Wosize_val(dummy));
+    mlsize_t scannable_size = Scannable_wosize_val(newval);
+    CAMLassert (scannable_size == Scannable_wosize_val(dummy));
     /* See comment above why this is safe even if [tag == Closure_tag]
-       and some of the "values" being copied are actually code pointers. */
-    for (i = 0; i < size; i++){
+       and some of the "values" being copied are actually code pointers.
+
+       This reasoning does not apply to arbitrary flat fields, which might have
+       the same shape as pointers into the minor heap, so we need to handle the
+       non-scannable suffix of mixed blocks specially.
+    */
+    for (i = 0; i < scannable_size; i++){
       caml_modify (&Field(dummy, i), Field(newval, i));
+    }
+    for (i = scannable_size; i < size; i++) {
+      Field(dummy, i) = Field(newval, i);
     }
   }
   return Val_unit;

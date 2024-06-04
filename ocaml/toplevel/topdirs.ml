@@ -201,7 +201,7 @@ end
 let filter_arrow ty =
   let ty = Ctype.expand_head !toplevel_env ty in
   match get_desc ty with
-  | Tarrow ((lbl,_,_), l, r, _) when not (Btype.is_optional lbl) -> Some (l, r)
+  | Tarrow ((lbl,_,_), l, r, _) when not (Btype.is_omittable lbl) -> Some (l, r)
   | _ -> None
 
 let extract_last_arrow ty =
@@ -504,6 +504,7 @@ let () =
              ext_type_params = type_decl.type_params;
              ext_args = Cstr_tuple desc.cstr_args;
              ext_arg_jkinds = desc.cstr_arg_jkinds;
+             ext_shape = desc.cstr_shape;
              ext_constant = desc.cstr_constant;
              ext_ret_type = ret_type;
              ext_private = Asttypes.Public;
@@ -537,6 +538,7 @@ let () =
            ext_type_params = [];
            ext_args = Cstr_tuple desc.cstr_args;
            ext_arg_jkinds = desc.cstr_arg_jkinds;
+           ext_shape = desc.cstr_shape;
            ext_constant = desc.cstr_constant;
            ext_ret_type = ret_type;
            ext_private = Asttypes.Public;
