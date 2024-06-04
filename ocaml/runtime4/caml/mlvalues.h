@@ -275,6 +275,15 @@ Caml_inline mlsize_t Scannable_wosize_reserved_byte(reserved_t res,
 #define Allocated_bhsize_hp(hp) (Bsize_wsize (Allocated_whsize_hp (hp)))
 #define Allocated_bhsize_hd(hd) (Bsize_wsize (Allocated_whsize_hd (hd)))
 
+/* User code should define [Define_upstream_macros_for_accessing_block_size]
+   to document that the author is explicitly acknowledging that the code
+   has been vetted to not improperly interpret the allocated size of a mixed
+   block as its scannable size.
+
+   Typically, it is encouraged to use the new names so that any new code that's
+   added is also vetted, but there are some cases where it's much more
+   convenient to define the [Define_*] macro.
+ */
 #if defined(CAML_INTERNALS) || \
     defined(Define_upstream_macros_for_accessing_block_size)
 #define Wosize_hd(hd)   Allocated_wosize_hd(hd)
