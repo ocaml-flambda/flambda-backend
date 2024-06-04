@@ -402,11 +402,11 @@ let set_private_row env loc p decl =
        real need to rule that out - I just haven't had time to write tests for it
        yet. *)
     | Ok s -> begin
+      if not allow_unboxed then
         match Jkind.Sort.get_default_value s with
         | Void | Value -> ()
         | Float64 | Float32 | Word | Bits32 | Bits64 as const ->
-            if not allow_unboxed then
-              raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
+          raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
       end
     | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
 
@@ -453,7 +453,8 @@ let transl_labels ~new_var_jkind env univars closed lbls =
          (* CR: pass kloc? *)
          check_representable ~why:(Label_declaration ld.ld_id)
           ~allow_unboxed:true env ld.ld_loc (Record { unboxed = false}) ty;
-         let ld_jkind = Ctype.type_jkind env ty in
+         let ld_jkind = Jkind.any ~why:Dummy_jkind in
+          (* Updated by [update_label_jkinds] *)
          {Types.ld_id = ld.ld_id;
           ld_mutable = ld.ld_mutable;
           ld_global = ld.ld_global;
@@ -1165,6 +1166,8 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
   match cd_args with
   | Types.Cstr_tuple tys ->
     List.iteri (fun idx (ty,_) ->
+      check_representable ~why:(Constructor_declaration idx) ~allow_unboxed:true
+        env loc (Cstr_tuple { unboxed = false }) ty;
       jkinds.(idx) <- Ctype.type_jkind env ty) tys;
     cd_args, Array.for_all Jkind.is_void_defaulting jkinds
   | Types.Cstr_record lbls ->
