@@ -3618,8 +3618,79 @@ let sequence x y =
   | _, Ctuple [] -> x
   | _, _ -> Csequence (x, y)
 
+let rec is_small_and_pure_int_expr ~size_bias ~size ~toplevel expr =
+  if size > 12 + size_bias
+  then None
+  else
+    match expr with
+    | Cconst_int _ | Cconst_natint _ | Cconst_symbol _ -> Some (size + 1)
+    | Cvar _ ->
+      (* We can't allow [Cvar] at toplevel as it might not be of kind Value. *)
+      (* CR mshinwell: we could maybe make [ite] take the kind from [To_cmm_expr]. *)
+      if toplevel then None else Some (size + 1)
+    | Cop (op, args, _) ->
+      if not (op_is_small_and_pure_int_expr op)
+      then None
+      else
+        List.fold_left
+          (fun size_opt arg ->
+            match size_opt with
+            | None -> None
+            | Some size -> (
+              match
+                is_small_and_pure_int_expr ~size_bias ~size ~toplevel:false arg
+              with
+              | None -> None
+              | Some size' -> Some (size + size')))
+          (Some size) args
+    | Cconst_float32 _ | Cconst_float _ | Cconst_vec128 _ | Clet _ | Clet_mut _
+    | Cphantom_let _ | Cassign _ | Ctuple _ | Csequence _ | Cifthenelse _
+    | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ ->
+      None
+
+and op_is_small_and_pure_int_expr op =
+  match op with
+  | Caddi | Csubi | Cmuli | Cmulhi _ | Cand | Cor | Cxor | Clsl | Clsr | Casr
+  | Cdivi | Cmodi | Caddv | Cadda | Ccmpi _ | Ccmpa _ ->
+    true
+  | Cnegf _ | Caddf _ | Cmulf _ | Cabsf _ | Csubf _ | Cdivf _ | Capply _
+  | Cextcall _ | Cload _ | Calloc _ | Cstore _ | Cbswap _ | Ccsel _ | Cclz _
+  | Cctz _ | Cpopcnt | Cprefetch _ | Catomic _ | Cpackf32 | Creinterpret_cast _
+  | Cstatic_cast _ | Ccmpf _ | Craise _ | Cprobe _ | Cprobe_is_enabled _
+  | Copaque | Cbeginregion | Cendregion | Ctuple_field _ | Cdls_get ->
+    false
+
+let is_small_and_pure_int_expr ~size_bias expr =
+  Option.is_some
+    (is_small_and_pure_int_expr ~size_bias ~size:0 ~toplevel:true expr)
+
+let can_untag expr =
+  match expr with
+  | Cop (Caddi, [Cop (Clsl, [_; Cconst_int (_, _)], _); Cconst_int (1, _)], _)
+    ->
+    true
+  | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_symbol _ | Cconst_vec128 _ | Clet _ | Clet_mut _ | Cphantom_let _
+  | Cassign _ | Ctuple _ | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _
+  | Ccatch _ | Cexit _ | Ctrywith _ ->
+    false
+
 let ite ~dbg ~then_dbg ~then_ ~else_dbg ~else_ cond =
-  Cifthenelse (cond, then_dbg, then_, else_dbg, else_, dbg, Any)
+  let can_untag_arms = can_untag then_ && can_untag else_ in
+  let size_bias = if can_untag_arms then -2 else 0 in
+  if is_small_and_pure_int_expr ~size_bias then_
+     && is_small_and_pure_int_expr ~size_bias else_
+  then
+    if can_untag_arms
+    then
+      tag_int
+        (Cop
+           ( Ccsel typ_val,
+             [cond; untag_int then_ then_dbg; untag_int else_ else_dbg],
+             dbg ))
+        dbg
+    else Cop (Ccsel typ_val, [cond; then_; else_], dbg)
+  else Cifthenelse (cond, then_dbg, then_, else_dbg, else_, dbg, Any)
 
 let trywith ~dbg ~body ~exn_var ~handler_cont ~handler () =
   Ctrywith (body, handler_cont, exn_var, handler, dbg, Any)
