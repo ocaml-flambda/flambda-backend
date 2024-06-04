@@ -381,18 +381,15 @@ let set_private_row env loc p decl =
   in
   set_type_desc rv (Tconstr (p, decl.type_params, ref Mnil))
 
-(* Makes sure a type is representable.  Will lower "any" to "value". *)
-(* CR layouts: In the places where this is used, we first call this to
-   ensure a type is representable, and then call [Ctype.type_jkind] to get the
-   most precise jkind.  These could be combined into some new function
-   [Ctype.type_jkind_representable] that avoids duplicated work *)
+(* Makes sure a type is representable.  Will lower [any] to a sort variable
+   if [allow_unboxed = true], and to [value] if [allow_unboxed = false]. *)
 (* CR layouts: Many places where [check_representable] is called in this file
    should be replaced with checks at the places where values of those types are
    constructed.  We've been conservative here in the first version. This is the
    same issue as with arrows. *)
    let check_representable ~why ~allow_unboxed env loc kloc typ =
     match Ctype.type_sort ~why env typ with
-    (* CR layouts v3: This is a convenient place to rule out non-value types in
+    (* CR layouts v5: This is a convenient place to rule out non-value types in
        structures that don't support them yet. (A callsite passes
        [~allow_unboxed:true] to indicate that non-value types are allowed.)
        When we support mixed blocks everywhere, this [check_representable]
@@ -466,7 +463,8 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
       lbls in
   lbls, lbls'
 
-let transl_types_gf ~new_var_jkind ~allow_unboxed env loc univars closed tyl kloc =
+let transl_types_gf ~new_var_jkind ~allow_unboxed
+  env loc univars closed tyl kloc =
   let mk idx arg =
     let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
     let gf = Typemode.transl_global_flags
@@ -479,13 +477,23 @@ let transl_types_gf ~new_var_jkind ~allow_unboxed env loc univars closed tyl klo
   let tyl_gfl' = List.map (fun (cty, gf) -> cty.ctyp_type, gf) tyl_gfl in
   tyl_gfl, tyl_gfl'
 
-let transl_constructor_arguments ~new_var_jkind ~unboxed env loc univars closed = function
+let transl_constructor_arguments ~new_var_jkind ~unboxed
+  env loc univars closed = function
   | Pcstr_tuple l ->
-      let flds, flds' = transl_types_gf ~new_var_jkind ~allow_unboxed:(not unboxed) env loc univars closed l (Cstr_tuple { unboxed })  in
-      Types.Cstr_tuple flds',
-      Cstr_tuple flds
+      let flds, flds' =
+        (* CR layouts: we forbid [@@unboxed] variants from being
+           non-value, see comment in [check_representable]. *)
+        transl_types_gf ~new_var_jkind ~allow_unboxed:(not unboxed)
+        env loc univars closed l (Cstr_tuple { unboxed })
+      in
+      Types.Cstr_tuple flds', Cstr_tuple flds
   | Pcstr_record l ->
-      let lbls, lbls' = transl_labels ~new_var_jkind ~allow_unboxed:false env univars closed l (Inlined_record { unboxed })  in
+      let lbls, lbls' =
+        (* CR layouts: we forbid fields of inlined records from being
+           non-value, see comment in [check_representable]. *)
+        transl_labels ~new_var_jkind ~allow_unboxed:false
+        env univars closed l (Inlined_record { unboxed })
+      in
       Types.Cstr_record lbls',
       Cstr_record lbls
 
@@ -517,7 +525,8 @@ let make_constructor
   match sret_type with
   | None ->
       let args, targs =
-        transl_constructor_arguments ~new_var_jkind:Any ~unboxed env loc None true sargs
+        transl_constructor_arguments ~new_var_jkind:Any ~unboxed
+          env loc None true sargs
       in
         tvars, targs, None, args, None
   | Some sret_type ->
@@ -543,7 +552,8 @@ let make_constructor
           in
           let univars = if closed then Some univar_list else None in
           let args, targs =
-            transl_constructor_arguments ~new_var_jkind:Sort ~unboxed env loc univars closed sargs
+            transl_constructor_arguments ~new_var_jkind:Sort ~unboxed
+              env loc univars closed sargs
           in
           let tret_type =
             transl_simple_type ~new_var_jkind:Sort env ?univars ~closed Mode.Alloc.Const.legacy
@@ -846,7 +856,12 @@ let transl_declaration env sdecl (id, uid) =
         in
           Ttype_variant tcstrs, Type_variant (cstrs, rep), jkind
       | Ptype_record lbls ->
-          let lbls, lbls' = transl_labels ~new_var_jkind:Any ~allow_unboxed:(not unbox) env None true lbls (Record { unboxed = unbox }) in
+          let lbls, lbls' =
+            (* CR layouts: we forbid [@@unboxed] records from being
+               non-value, see comment in [check_representable]. *)
+            transl_labels ~new_var_jkind:Any ~allow_unboxed:(not unbox)
+            env None true lbls (Record { unboxed = unbox })
+          in
           let rep, jkind =
             (* Note this is inaccurate, using `Record_boxed` in cases where the
                correct representation is [Record_float], [Record_ufloat], or
