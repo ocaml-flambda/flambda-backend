@@ -1,4 +1,3 @@
-# 1 "printexc.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -38,14 +37,13 @@ let field x i =
     "_"
 
 let rec other_fields x i =
-  if i >= Obj.size x then ""
+  if i >= Obj.size x - 2 then ""
   else sprintf ", %s%s" (field x i) (other_fields x (i+1))
 
 let fields x =
   match Obj.size x with
-  | 0 -> ""
-  | 1 -> ""
-  | 2 -> sprintf "(%s)" (field x 1)
+  | 0 | 1 | 2 | 3 -> ""
+  | 4 -> sprintf "(%s)" (field x 1)
   | _ -> sprintf "(%s%s)" (field x 1) (other_fields x 2)
 
 let use_printers x =
