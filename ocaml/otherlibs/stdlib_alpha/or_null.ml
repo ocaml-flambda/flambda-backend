@@ -12,6 +12,4 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type ('a : non_null_value) t = 'a or_null =
-  | Null
-  | This of 'a
+type ('a : non_null_value) t = 'a option

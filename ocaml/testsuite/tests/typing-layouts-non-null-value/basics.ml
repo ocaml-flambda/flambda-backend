@@ -166,6 +166,8 @@ let _ = id_non_null_value None
 
 let _ = id_non_null_value (Some 0)
 
+let _ = id_non_null_value 3.14
+
 let _ = id_non_null_value [| 3.; 8. |]
 
 let _ = id_non_null_value 4L
@@ -187,6 +189,7 @@ let _ = id_non_null_value (Bytes.empty)
 - : string * string = ("a", "b")
 - : 'a option = None
 - : int option = Some 0
+- : float = 3.14
 - : float array = [|3.; 8.|]
 - : int64 = 4L
 - : nativeint = 15n
@@ -194,23 +197,6 @@ let _ = id_non_null_value (Bytes.empty)
 - : Float.Array.t = <abstr>
 - : int iarray = [:0:]
 - : bytes = Bytes.of_string ""
-|}]
-
-(* CR layouts v3: [float] should be non-null: *)
-
-let _ = id_non_null_value 3.14
-;;
-
-[%%expect{|
-Line 1, characters 26-30:
-1 | let _ = id_non_null_value 3.14
-                              ^^^^
-Error: This expression has type float but an expression was expected of type
-         ('a : non_null_value)
-       The layout of float is value, because
-         it is the primitive value type float.
-       But the layout of float must be a sublayout of non_null_value, because
-         of the definition of id_non_null_value at line 3, characters 4-21.
 |}]
 
 (* Boxed records and variants are non-null: *)

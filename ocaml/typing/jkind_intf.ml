@@ -213,12 +213,6 @@ module History = struct
     | Polymorphic_variant
     | Arrow
     | First_class_module
-    | Type_argument of
-        { parent_path : Path.t;
-          position : int;
-          arity : int
-        }
-  (* [position] is 1-indexed *)
 
   type immediate_creation_reason =
     | Empty_record
