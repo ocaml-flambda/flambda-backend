@@ -253,8 +253,9 @@ and compute_extra_args_for_block ~pass rewrite_id ~typing_env_at_use
         let field_kind = (K.Mixed_block_shape.field_kinds shape).(index) in
         if index < K.Mixed_block_shape.value_prefix_size shape
         then
-          (* CR vlaviron: we're not trying to infer if this can only be an immediate.
-             In most cases it should be fine, as the primitive will get simplified away. *)
+          (* CR vlaviron: we're not trying to infer if this can only be an
+             immediate. In most cases it should be fine, as the primitive will
+             get simplified away. *)
           ( P.Mixed_block_access_field_kind.Value_prefix Any_value,
             Const.const_zero )
         else
@@ -380,14 +381,16 @@ and compute_extra_args_for_variant ~pass rewrite_id ~typing_env_at_use
             Naked_floats { size = Known (Targetint_31_63.of_int size) }
           | Mixed_record shape ->
             let field_kind =
-              let field_kind = (K.Mixed_block_shape.field_kinds shape).(index) in
+              let field_kind =
+                (K.Mixed_block_shape.field_kinds shape).(index)
+              in
               if index < K.Mixed_block_shape.value_prefix_size shape
               then
-                (* CR vlaviron: we're not trying to infer if this can only be an immediate.
-                   In most cases it should be fine, as the primitive will get simplified away. *)
+                (* CR vlaviron: we're not trying to infer if this can only be an
+                   immediate. In most cases it should be fine, as the primitive
+                   will get simplified away. *)
                 P.Mixed_block_access_field_kind.Value_prefix Any_value
-              else
-                P.Mixed_block_access_field_kind.Flat_suffix field_kind
+              else P.Mixed_block_access_field_kind.Flat_suffix field_kind
             in
             Mixed
               { tag = Known tag_decision;

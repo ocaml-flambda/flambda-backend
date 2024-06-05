@@ -1460,8 +1460,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         | Mread_flat_suffix read ->
           Flat_suffix
             (match read with
-            | Flat_read flat_element ->
-              K.from_lambda_flat_element flat_element
+            | Flat_read flat_element -> K.from_lambda_flat_element flat_element
             | Flat_read_float_boxed _ -> K.naked_float)
       in
       let shape = K.Mixed_block_shape.from_lambda shape in
