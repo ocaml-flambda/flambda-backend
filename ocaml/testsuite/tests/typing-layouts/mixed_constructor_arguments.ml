@@ -28,8 +28,7 @@ type t_ext += A of float * float#
 Line 1, characters 14-33:
 1 | type t_ext += A of float * float#
                   ^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}];;
 
 (* The fact that the float args aren't flat is evidenced by the fact this
@@ -121,8 +120,7 @@ type t_ext += A of float * float# * int
 Line 1, characters 14-39:
 1 | type t_ext += A of float * float# * int
                   ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}];;
 
 (* The third field can't be flat because a non-float/float# field [d] appears.*)
@@ -205,8 +203,7 @@ type t_ext += A of float# * float# * int
 Line 1, characters 14-40:
 1 | type t_ext += A of float# * float# * int
                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}];;
 
 type t_cstr_flat_int_multi =
@@ -235,8 +232,7 @@ type t_ext +=
 Line 2, characters 2-30:
 2 |   | A of float# * float# * int
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}];;
 
 (* Parameterized types *)
@@ -257,8 +253,7 @@ type ('a : float64) t_cstr_param_ext1 = ..
 Line 2, characters 29-45:
 2 | type 'a t_cstr_param_ext1 += A of string * 'a
                                  ^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}];;
 
 type ('a : float64, 'b : immediate) t_cstr_param2 = A of string * 'a * 'b
@@ -278,8 +273,7 @@ type ('a : float64, 'b : immediate) t_cstr_param_ext2 = ..
 Line 2, characters 35-56:
 2 | type ('a, 'b) t_cstr_param_ext2 += A of string * 'a * 'b;;
                                        ^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}];;
 
 type 'a t_cstr_bad_value_after_float = C of float# * 'a
@@ -436,8 +430,7 @@ Lines 2-35, characters 2-16:
 33 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr * ptr *
 34 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr *
 35 |     int * float#
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}];;
 
 (* GADT syntax *)

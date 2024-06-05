@@ -582,8 +582,7 @@ type t11_1 = ..
 Line 3, characters 14-28:
 3 | type t11_1 += A of t_float32;;
                   ^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}]
 
 type t11_1 += B of float32#;;
@@ -591,8 +590,7 @@ type t11_1 += B of float32#;;
 Line 1, characters 14-27:
 1 | type t11_1 += B of float32#;;
                   ^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}]
 
 type ('a : float32) t11_2 = ..
@@ -607,8 +605,7 @@ type 'a t11_2 += A of int
 Line 5, characters 17-24:
 5 | type 'a t11_2 += B of 'a;;
                      ^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}]
 
 (***************************************)

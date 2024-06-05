@@ -71,12 +71,18 @@ type t11_1 = ..
 type t11_1 += A of t_bits32;;
 [%%expect{|
 type t11_1 = ..
-type t11_1 += A of t_bits32
+Line 3, characters 14-27:
+3 | type t11_1 += A of t_bits32;;
+                  ^^^^^^^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}]
 
 type t11_1 += B of int32#;;
 [%%expect{|
-type t11_1 += B of int32#
+Line 1, characters 14-25:
+1 | type t11_1 += B of int32#;;
+                  ^^^^^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}]
 
 type ('a : bits32) t11_2 = ..
@@ -88,7 +94,10 @@ type 'a t11_2 += B of 'a;;
 [%%expect{|
 type ('a : bits32) t11_2 = ..
 type 'a t11_2 += A of int
-type 'a t11_2 += B of 'a
+Line 5, characters 17-24:
+5 | type 'a t11_2 += B of 'a;;
+                     ^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}]
 
 (* not allowed: value in flat suffix *)

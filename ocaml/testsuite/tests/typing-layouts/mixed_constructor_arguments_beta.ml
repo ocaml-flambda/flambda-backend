@@ -22,7 +22,10 @@ type t_cstr_boxed_float = A of float * float#
 type t_ext += A of float * float#
 
 [%%expect{|
-type t_ext += A of float * float#
+Line 1, characters 14-33:
+1 | type t_ext += A of float * float#
+                  ^^^^^^^^^^^^^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}];;
 
 (* The fact that the float args aren't flat is evidenced by the fact this
@@ -107,7 +110,10 @@ type t_cstr_boxed_float = A of float * float# * int
 type t_ext += A of float * float# * int
 
 [%%expect{|
-type t_ext += A of float * float# * int
+Line 1, characters 14-39:
+1 | type t_ext += A of float * float# * int
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}];;
 
 (* The third field can't be flat because a non-float/float# field [d] appears.*)
@@ -183,7 +189,10 @@ type t_cstr_flat_int = A of float# * float# * int
 type t_ext += A of float# * float# * int
 
 [%%expect{|
-type t_ext += A of float# * float# * int
+Line 1, characters 14-40:
+1 | type t_ext += A of float# * float# * int
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}];;
 
 type t_cstr_flat_int_multi =
@@ -210,12 +219,10 @@ type t_ext +=
   | E of int * float# * int * float#
 
 [%%expect{|
-type t_ext +=
-    A of float# * float# * int
-  | B of int
-  | C of float# * int
-  | D of float# * int * float#
-  | E of int * float# * int * float#
+Line 2, characters 2-30:
+2 |   | A of float# * float# * int
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}];;
 
 (* Parameterized types *)
@@ -229,7 +236,10 @@ type ('a : float64) t_cstr_param_ext1 = ..
 type 'a t_cstr_param_ext1 += A of string * 'a
 [%%expect{|
 type ('a : float64) t_cstr_param_ext1 = ..
-type 'a t_cstr_param_ext1 += A of string * 'a
+Line 2, characters 29-45:
+2 | type 'a t_cstr_param_ext1 += A of string * 'a
+                                 ^^^^^^^^^^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}];;
 
 type ('a : float64, 'b : immediate) t_cstr_param2 = A of string * 'a * 'b
@@ -242,7 +252,10 @@ type ('a, 'b) t_cstr_param_ext2 += A of string * 'a * 'b;;
 
 [%%expect{|
 type ('a : float64, 'b : immediate) t_cstr_param_ext2 = ..
-type ('a, 'b) t_cstr_param_ext2 += A of string * 'a * 'b
+Line 2, characters 35-56:
+2 | type ('a, 'b) t_cstr_param_ext2 += A of string * 'a * 'b;;
+                                       ^^^^^^^^^^^^^^^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}];;
 
 type 'a t_cstr_bad_value_after_float = C of float# * 'a
@@ -397,7 +410,7 @@ Lines 2-35, characters 2-16:
 33 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr * ptr *
 34 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr *
 35 |     int * float#
-Error: Mixed constructors may contain at most 254 value fields prior to the flat suffix, but this one contains 255.
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}];;
 
 (* GADT syntax *)

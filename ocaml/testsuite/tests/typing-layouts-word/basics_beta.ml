@@ -68,17 +68,25 @@ Error: Expected all flat constructor arguments after non-value argument,
 (***************************************************)
 (* Test 11: Allow word in some extensible variants *)
 
+(* CR layouts v5.9: Actually allow mixed extensible variant blocks. *)
+
 type t11_1 = ..
 
 type t11_1 += A of t_word;;
 [%%expect{|
 type t11_1 = ..
-type t11_1 += A of t_word
+Line 3, characters 14-25:
+3 | type t11_1 += A of t_word;;
+                  ^^^^^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}]
 
 type t11_1 += B of nativeint#;;
 [%%expect{|
-type t11_1 += B of nativeint#
+Line 1, characters 14-29:
+1 | type t11_1 += B of nativeint#;;
+                  ^^^^^^^^^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}]
 
 type ('a : word) t11_2 = ..
@@ -90,7 +98,10 @@ type 'a t11_2 += B of 'a;;
 [%%expect{|
 type ('a : word) t11_2 = ..
 type 'a t11_2 += A of int
-type 'a t11_2 += B of 'a
+Line 5, characters 17-24:
+5 | type 'a t11_2 += B of 'a;;
+                     ^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}]
 
 (* not allowed: value in flat suffix *)

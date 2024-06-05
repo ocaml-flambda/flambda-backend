@@ -95,6 +95,7 @@ end
 
 type mixed_product_violation =
   | Runtime_support_not_enabled of Mixed_product_kind.t
+  | Extension_constructor
   | Value_prefix_too_long of
       { value_prefix_len : int;
         max_value_prefix_len : int;

@@ -68,18 +68,26 @@ Error: Expected all flat constructor arguments after non-value argument,
 (*****************************************************)
 (* Test 11: Allow bits64 in some extensible variants *)
 
+(* CR layouts v5.9: Actually allow mixed extensible variant blocks. *)
+
 (* See [basics_alpha.ml] and [basics_beta.ml] for now *)
 type t11_1 = ..
 
 type t11_1 += A of t_bits64;;
 [%%expect{|
 type t11_1 = ..
-type t11_1 += A of t_bits64
+Line 3, characters 14-27:
+3 | type t11_1 += A of t_bits64;;
+                  ^^^^^^^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}]
 
 type t11_1 += B of int64#;;
 [%%expect{|
-type t11_1 += B of int64#
+Line 1, characters 14-25:
+1 | type t11_1 += B of int64#;;
+                  ^^^^^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}]
 
 type ('a : bits64) t11_2 = ..
@@ -91,7 +99,10 @@ type 'a t11_2 += B of 'a;;
 [%%expect{|
 type ('a : bits64) t11_2 = ..
 type 'a t11_2 += A of int
-type 'a t11_2 += B of 'a
+Line 5, characters 17-24:
+5 | type 'a t11_2 += B of 'a;;
+                     ^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}]
 
 (* not allowed: value in flat suffix *)
