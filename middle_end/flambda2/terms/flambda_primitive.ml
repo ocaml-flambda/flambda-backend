@@ -1825,14 +1825,14 @@ type variadic_primitive =
 
 let variadic_primitive_eligible_for_cse p ~args =
   match p with
-  | Make_block (_, _, Local _) | Make_array (_, Immutable, Local _) -> false
-  | Make_block (_, Immutable, Heap) | Make_array (_, Immutable, _) ->
+  | Make_block (_, _, Local _) | Make_array (_, _, Local _) -> false
+  | Make_block (_, Mutable, _) | Make_array (_, Mutable, _) -> false
+  | Make_block (_, Immutable_unique, _) | Make_array (_, Immutable_unique, _) ->
+    false
+  | Make_block (_, Immutable, Heap) | Make_array (_, Immutable, Heap) ->
     (* See comment in [unary_primitive_eligible_for_cse], above, on [Box_number]
        case. *)
     List.exists (fun arg -> Simple.is_var arg) args
-  | Make_block (_, Immutable_unique, _) | Make_array (_, Immutable_unique, _) ->
-    false
-  | Make_block (_, Mutable, _) | Make_array (_, Mutable, _) -> false
 
 let compare_variadic_primitive p1 p2 =
   match p1, p2 with
