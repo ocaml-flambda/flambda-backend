@@ -30,7 +30,6 @@ module Legacy = struct
     | Word
     | Bits32
     | Bits64
-    | Non_null_value
 
   let const_of_attribute : Builtin_attributes.jkind_attribute -> _ = function
     | Immediate -> Immediate
@@ -57,7 +56,6 @@ module Legacy = struct
       | "word" -> Some Word
       | "bits32" -> Some Bits32
       | "bits64" -> Some Bits64
-      | "non_null_value" -> Some Non_null_value
       | _ -> None)
     | Default | Mod _ | With _ | Kind_of _ ->
       Misc.fatal_error "XXX unimplemented"
@@ -74,7 +72,6 @@ module Legacy = struct
     | Word -> "word"
     | Bits32 -> "bits32"
     | Bits64 -> "bits64"
-    | Non_null_value -> "non_null_value"
 
   let equal_const c1 c2 =
     match c1, c2 with
@@ -87,11 +84,10 @@ module Legacy = struct
     | Float32, Float32
     | Word, Word
     | Bits32, Bits32
-    | Bits64, Bits64
-    | Non_null_value, Non_null_value ->
+    | Bits64, Bits64 ->
       true
     | ( ( Any | Immediate64 | Immediate | Void | Value | Float64 | Float32
-        | Word | Bits32 | Bits64 | Non_null_value ),
+        | Word | Bits32 | Bits64 ),
         _ ) ->
       false
 end
@@ -124,17 +120,13 @@ module Layout = struct
       match c1, c2 with
       | Sort s1, Sort s2 -> Sort.equal_const s1 s2
       | Any, Any -> true
-      | Non_null_value, Non_null_value -> true
-      | (Any | Sort _ | Non_null_value), _ -> false
+      | (Any | Sort _), _ -> false
 
     let sub (c1 : t) (c2 : t) : Misc.Le_result.t =
       match c1, c2 with
       | _ when equal c1 c2 -> Equal
       | _, Any -> Less
-      | Non_null_value, Non_null_value -> Equal
-      | Non_null_value, Sort Value -> Less
-      | (Any | Sort _), Non_null_value -> Not_le
-      | (Any | Sort _ | Non_null_value), Sort _ -> Not_le
+      | Any, Sort _ | Sort _, Sort _ -> Not_le
   end
 
   let max = Any
@@ -148,8 +140,7 @@ module Layout = struct
       | Unequal -> false
       | Equal_no_mutation | Equal_mutated_first | Equal_mutated_second -> true)
     | Any, Any -> true
-    | Non_null_value, Non_null_value -> true
-    | (Any | Sort _ | Non_null_value), _ -> false
+    | (Any | Sort _), _ -> false
 
   let sub t1 t2 : Misc.Le_result.t =
     match t1, t2 with
@@ -157,19 +148,12 @@ module Layout = struct
     | _, Any -> Less
     | Any, _ -> Not_le
     | Sort s1, Sort s2 -> if Sort.equate s1 s2 then Equal else Not_le
-    | Non_null_value, Non_null_value -> Equal
-    | Non_null_value, Sort s ->
-      if Sort.equate s (Const Value) then Less else Not_le
-    | Sort _, Non_null_value -> Not_le
 
   let intersection t1 t2 =
     match t1, t2 with
     | _, Any -> Some t1
     | Any, _ -> Some t2
     | Sort s1, Sort s2 -> if Sort.equate s1 s2 then Some t1 else None
-    | Non_null_value, Non_null_value -> Some Non_null_value
-    | Sort s, Non_null_value | Non_null_value, Sort s ->
-      if Sort.equate s (Const Value) then Some Non_null_value else None
 
   let of_new_sort_var () =
     let sort = Sort.new_var () in
@@ -195,7 +179,6 @@ module Layout = struct
     let t ppf = function
       | Any -> fprintf ppf "Any"
       | Sort s -> fprintf ppf "Sort %a" Sort.Debug_printers.t s
-      | Non_null_value -> fprintf ppf "Non_null_value"
   end
 end
 
@@ -292,7 +275,6 @@ module Const = struct
     | Sort Word, _ -> Word
     | Sort Bits32, _ -> Bits32
     | Sort Bits64, _ -> Bits64
-    | Non_null_value, _ -> Non_null_value
 
   (* CR layouts v2.8: do a better job here *)
   let to_string t = Legacy.string_of_const (to_legacy_jkind t)
@@ -458,33 +440,49 @@ module Jkind_desc = struct
      argument. But the arguments that we expect here will have no trouble
      meeting the conditions.
   *)
-  let immediate = mode_crossing Layout.value
+  let immediate64 =
+    { layout = Layout.value;
+      modes_upper_bounds =
+        { locality = Global; linearity = Many; uniqueness = Unique };
+      externality_upper_bound = External64
+    }
 
-  let immediate64 = { immediate with externality_upper_bound = External64 }
+  let immediate =
+    { layout = Layout.value;
+      modes_upper_bounds =
+        { locality = Global; linearity = Many; uniqueness = Unique };
+      externality_upper_bound = External
+    }
 
-  (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
-     crossing first *)
-  let float64 = mode_crossing Layout.float64
+  let float64 =
+    { layout = Layout.float64;
+      modes_upper_bounds =
+        { locality = Global; linearity = Many; uniqueness = Unique };
+      externality_upper_bound = External
+    }
 
-  (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
-     crossing first *)
-  let float32 = mode_crossing Layout.float32
+  let word =
+    { layout = Layout.word;
+      modes_upper_bounds = Modes.max;
+      externality_upper_bound = External
+    }
 
-  let word = not_mode_crossing Layout.word
+  let bits32 =
+    { layout = Layout.bits32;
+      modes_upper_bounds = Modes.max;
+      externality_upper_bound = External
+    }
 
-  let bits32 = not_mode_crossing Layout.bits32
-
-  let bits64 = not_mode_crossing Layout.bits64
-
-  let non_null_value = { value with layout = Non_null_value }
+  let bits64 =
+    { layout = Layout.bits64;
+      modes_upper_bounds = Modes.max;
+      externality_upper_bound = External
+    }
 
   (* Post-condition: If the result is [Var v], then [!v] is [None]. *)
   let get { layout; modes_upper_bounds; externality_upper_bound } : Desc.t =
     match layout with
     | Any -> Const { layout = Any; modes_upper_bounds; externality_upper_bound }
-    | Non_null_value ->
-      Const
-        { layout = Non_null_value; modes_upper_bounds; externality_upper_bound }
     | Sort s -> (
       match Sort.get s with
       | Const s ->
@@ -589,7 +587,7 @@ let get_required_layouts_level (context : annotation_context)
       ( Value | Immediate | Immediate64 | Any | Float64 | Float32 | Word
       | Bits32 | Bits64 ) ) ->
     Stable
-  | _, (Void | Non_null_value) -> Alpha
+  | _, Void -> Alpha
 
 (******************************)
 (* construction *)
@@ -612,7 +610,6 @@ let of_const ~why : Legacy.const -> t = function
   | Word -> fresh_jkind Jkind_desc.word ~why
   | Bits32 -> fresh_jkind Jkind_desc.bits32 ~why
   | Bits64 -> fresh_jkind Jkind_desc.bits64 ~why
-  | Non_null_value -> fresh_jkind Jkind_desc.non_null_value ~why
 
 let const_of_user_written_annotation ~context Location.{ loc; txt = annot } =
   match Legacy.const_of_user_written_annotation_unchecked annot with
@@ -697,8 +694,6 @@ let get_default_value
     Const.t =
   match layout with
   | Any -> { layout = Any; modes_upper_bounds; externality_upper_bound }
-  | Non_null_value ->
-    { layout = Non_null_value; modes_upper_bounds; externality_upper_bound }
   | Sort s ->
     { layout = Sort (Sort.get_default_value s);
       modes_upper_bounds;
@@ -714,14 +709,12 @@ let get t = Jkind_desc.get t.jkind
 let sort_of_jkind l =
   match get l with
   | Const { layout = Sort s; _ } -> Sort.of_const s
-  | Const { layout = Non_null_value; _ } -> Sort.value
   | Const { layout = Any; _ } -> Misc.fatal_error "Jkind.sort_of_jkind"
   | Var v -> Sort.of_var v
 
 let get_layout jk : Layout.Const.t option =
   match jk.jkind.layout with
   | Any -> Some Any
-  | Non_null_value -> Some Non_null_value
   | Sort s -> (
     match Sort.get s with Const s -> Some (Sort s) | Var _ -> None)
 
@@ -1491,7 +1484,6 @@ type const = Legacy.const =
   | Word
   | Bits32
   | Bits64
-  | Non_null_value
 
 type annotation = const * Jane_syntax.Jkind.annotation
 
