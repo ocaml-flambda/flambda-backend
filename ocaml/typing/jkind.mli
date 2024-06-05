@@ -50,6 +50,14 @@ module Externality : sig
   val le : t -> t -> bool
 end
 
+module Nullability : sig
+  type t = Jkind_types.Nullability.t =
+    | Non_null (* can't be null *)
+    | Or_null (* can be null *)
+
+  val le : t -> t -> bool
+end
+
 module Sort : Jkind_intf.Sort with type const = Jkind_types.Sort.const
 
 type sort = Sort.t

@@ -321,13 +321,20 @@ module Externality = struct
     | Internal
 end
 
+module Nullability = struct
+  type t =
+    | Non_null
+    | Or_null
+end
+
 module Modes = Mode.Alloc.Const
 
 module Jkind_desc = struct
   type 'type_expr t =
     { layout : 'type_expr Layout.t;
       modes_upper_bounds : Modes.t;
-      externality_upper_bound : Externality.t
+      externality_upper_bound : Externality.t;
+      nullability_upper_bound : Nullability.t
     }
 end
 
