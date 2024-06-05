@@ -74,11 +74,7 @@ module Legacy = struct
     | Word -> "word"
     | Bits32 -> "bits32"
     | Bits64 -> "bits64"
-    (* CR layouts v3.0: we hide [non_null_value] from users while
-       it's in [Alpha]. Remove this hack once it reaches [Stable]. *)
-    | Non_null_value when Language_extension.(is_at_least Layouts Alpha) ->
-      "non_null_value"
-    | Non_null_value -> "value"
+    | Non_null_value -> "non_null_value"
 
   let equal_const c1 c2 =
     match c1, c2 with
@@ -288,15 +284,15 @@ module Const = struct
     match layout, externality_upper_bound with
     | Any, _ -> Any
     | Sort Value, Internal -> Value
-    | (Sort Value | Non_null_value), External64 -> Immediate64
-    | (Sort Value | Non_null_value), External -> Immediate
+    | Sort Value, External64 -> Immediate64
+    | Sort Value, External -> Immediate
     | Sort Void, _ -> Void
     | Sort Float64, _ -> Float64
     | Sort Float32, _ -> Float32
     | Sort Word, _ -> Word
     | Sort Bits32, _ -> Bits32
     | Sort Bits64, _ -> Bits64
-    | Non_null_value, Internal -> Non_null_value
+    | Non_null_value, _ -> Non_null_value
 
   (* CR layouts v2.8: do a better job here *)
   let to_string t = Legacy.string_of_const (to_legacy_jkind t)
@@ -462,7 +458,7 @@ module Jkind_desc = struct
      argument. But the arguments that we expect here will have no trouble
      meeting the conditions.
   *)
-  let immediate = mode_crossing Non_null_value
+  let immediate = mode_crossing Layout.value
 
   let immediate64 = { immediate with externality_upper_bound = External64 }
 
@@ -542,9 +538,6 @@ let value ~(why : value_creation_reason) =
   match why with
   | V1_safety_check -> value_v1_safety_check
   | _ -> fresh_jkind Jkind_desc.value ~why:(Value_creation why)
-
-let non_null_value ~(why : non_null_value_creation_reason) =
-  fresh_jkind Jkind_desc.non_null_value ~why:(Non_null_value_creation why)
 
 let immediate64 ~why =
   fresh_jkind Jkind_desc.immediate64 ~why:(Immediate64_creation why)
@@ -691,14 +684,10 @@ let of_type_decl_default ~context ~default (decl : Parsetree.type_declaration) =
   | None -> default, None, decl.ptype_attributes
 
 let for_boxed_record ~all_void =
-  if all_void
-  then immediate ~why:Empty_record
-  else non_null_value ~why:Boxed_record
+  if all_void then immediate ~why:Empty_record else value ~why:Boxed_record
 
 let for_boxed_variant ~all_voids =
-  if all_voids
-  then immediate ~why:Enumeration
-  else non_null_value ~why:Boxed_variant
+  if all_voids then immediate ~why:Enumeration else value ~why:Boxed_variant
 
 (******************************)
 (* elimination and defaulting *)
@@ -938,19 +927,26 @@ end = struct
     | Instance_variable -> fprintf ppf "it's the type of an instance variable"
     | Object_field -> fprintf ppf "it's the type of an object field"
     | Class_field -> fprintf ppf "it's the type of a class field"
+    | Boxed_record -> fprintf ppf "it's a boxed record type"
+    | Boxed_variant -> fprintf ppf "it's a boxed variant type"
+    | Extensible_variant -> fprintf ppf "it's an extensible variant type"
     | Primitive id ->
       fprintf ppf "it is the primitive value type %s" (Ident.name id)
     | Type_argument { parent_path; position; arity } ->
       fprintf ppf "the %stype argument of %a has layout value"
         (format_position ~arity position)
         !printtyp_path parent_path
+    | Tuple -> fprintf ppf "it's a tuple type"
     | Row_variable -> format_with_notify_js ppf "it's a row variable"
+    | Polymorphic_variant -> fprintf ppf "it's a polymorphic variant type"
+    | Arrow -> fprintf ppf "it's a function type"
     | Tfield ->
       format_with_notify_js ppf
         "it's an internal Tfield type (you shouldn't see this)"
     | Tnil ->
       format_with_notify_js ppf
         "it's an internal Tnil type (you shouldn't see this)"
+    | First_class_module -> fprintf ppf "it's a first-class module type"
     | Separability_check ->
       fprintf ppf "the check that a type is definitely not `float`"
     | Univar ->
@@ -987,28 +983,6 @@ end = struct
         "unknown @[(please alert the Jane Street@;\
          compilers team with this message: %s)@]" s
 
-  let format_non_null_value_creation_reason ppf :
-      non_null_value_creation_reason -> _ = function
-    (* CR layouts v3.0: we hide [non_null_value] from users while
-       it's in [Alpha], but we need to display it in this case.
-       Remove this hack once [non_null_value] reaches [Stable]. *)
-    | Primitive id when Language_extension.(is_at_least Layouts Alpha) ->
-      fprintf ppf "it is the primitive non-null value type %s" (Ident.name id)
-    | Primitive id ->
-      fprintf ppf "it is the primitive value type %s" (Ident.name id)
-    | Extensible_variant -> fprintf ppf "it's an extensible variant type"
-    | Boxed_variant -> fprintf ppf "it's a boxed variant type"
-    | Boxed_record -> fprintf ppf "it's a boxed record type"
-    | Tuple -> fprintf ppf "it's a tuple type"
-    | Polymorphic_variant -> fprintf ppf "it's a polymorphic variant type"
-    | Arrow -> fprintf ppf "it's a function type"
-    | First_class_module -> fprintf ppf "it's a first-class module type"
-    | Type_argument { parent_path; position; arity } ->
-      fprintf ppf "the %stype argument of %a has layout %s"
-        (format_position ~arity position)
-        !printtyp_path parent_path
-        (Legacy.string_of_const Non_null_value)
-
   let format_float64_creation_reason ppf : float64_creation_reason -> _ =
     function
     | Primitive id ->
@@ -1043,8 +1017,6 @@ end = struct
       format_immediate64_creation_reason ppf immediate64
     | Void_creation _ -> .
     | Value_creation value -> format_value_creation_reason ppf value
-    | Non_null_value_creation non_null_value ->
-      format_non_null_value_creation_reason ppf non_null_value
     | Float64_creation float -> format_float64_creation_reason ppf float
     | Float32_creation float -> format_float32_creation_reason ppf float
     | Word_creation word -> format_word_creation_reason ppf word
@@ -1185,19 +1157,6 @@ module Violation = struct
     then
       let connective =
         match t.violation, get l2 with
-        (* CR layouts v3.0: we hide [non_null_value] from users while
-           it's in [Alpha], but we need to display it in this case.
-           Remove this hack once [non_null_value] reaches [Stable]. *)
-        | Not_a_subjkind _, Const ({ layout = Non_null_value; _ } as c) -> (
-          (* We only show [non_null_value] if:
-             1. The layout on the left is know to be [value]
-             2. The layout on the right is [non_null_value] AND
-                not immediate/immediate64
-          *)
-          match get l1, Const.to_legacy_jkind c with
-          | Const { layout = Sort Value; _ }, Non_null_value ->
-            dprintf "be a sublayout of non_null_value"
-          | _, _ -> dprintf "be a sublayout of %a" format l2)
         | Not_a_subjkind _, Const _ -> dprintf "be a sublayout of %a" format l2
         | No_intersection _, Const _ -> dprintf "overlap with %a" format l2
         | _, Var _ -> dprintf "be representable"
@@ -1377,13 +1336,20 @@ module Debug_printers = struct
     | Instance_variable -> fprintf ppf "Instance_variable"
     | Object_field -> fprintf ppf "Object_field"
     | Class_field -> fprintf ppf "Class_field"
+    | Boxed_record -> fprintf ppf "Boxed_record"
+    | Boxed_variant -> fprintf ppf "Boxed_variant"
+    | Extensible_variant -> fprintf ppf "Extensible_variant"
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
     | Type_argument { parent_path; position; arity } ->
       fprintf ppf "Type_argument (pos %d, arity %d) of %a" position arity
         !printtyp_path parent_path
+    | Tuple -> fprintf ppf "Tuple"
     | Row_variable -> fprintf ppf "Row_variable"
+    | Polymorphic_variant -> fprintf ppf "Polymorphic_variant"
+    | Arrow -> fprintf ppf "Arrow"
     | Tfield -> fprintf ppf "Tfield"
     | Tnil -> fprintf ppf "Tnil"
+    | First_class_module -> fprintf ppf "First_class_module"
     | Separability_check -> fprintf ppf "Separability_check"
     | Univar -> fprintf ppf "Univar"
     | Polymorphic_variant_field -> fprintf ppf "Polymorphic_variant_field"
@@ -1399,20 +1365,6 @@ module Debug_printers = struct
     | Captured_in_object -> fprintf ppf "Captured_in_object"
     | Recmod_fun_arg -> fprintf ppf "Recmod_fun_arg"
     | Unknown s -> fprintf ppf "Unknown %s" s
-
-  let non_null_value_creation_reason ppf : non_null_value_creation_reason -> _ =
-    function
-    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
-    | Extensible_variant -> fprintf ppf "Extensible_variant"
-    | Boxed_variant -> fprintf ppf "Boxed_variant"
-    | Boxed_record -> fprintf ppf "Boxed_record"
-    | Tuple -> fprintf ppf "Tuple"
-    | Polymorphic_variant -> fprintf ppf "Polymorphic_variant"
-    | Arrow -> fprintf ppf "Arrow"
-    | First_class_module -> fprintf ppf "First_class_module"
-    | Type_argument { parent_path; position; arity } ->
-      fprintf ppf "Type_argument (pos %d, arity %d) of %a" position arity
-        !printtyp_path parent_path
 
   let float64_creation_reason ppf : float64_creation_reason -> _ = function
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
@@ -1442,9 +1394,6 @@ module Debug_printers = struct
         immediate64
     | Value_creation value ->
       fprintf ppf "Value_creation %a" value_creation_reason value
-    | Non_null_value_creation non_null_value ->
-      fprintf ppf "Non_null_value_creation %a" non_null_value_creation_reason
-        non_null_value
     | Void_creation _ -> .
     | Float64_creation float ->
       fprintf ppf "Float64_creation %a" float64_creation_reason float
@@ -1513,14 +1462,6 @@ let report_error ~loc = function
       Location.errorf ~loc
         "@[<v>The appropriate layouts extension is not enabled.@;%t@]" hint
     | true ->
-      let layout_name =
-        match jkind with
-        (* CR layouts v3.0: we hide [non_null_value] from users while
-           it's in [Alpha], but we need to display it in this case.
-           Remove this hack once [non_null_value] reaches [Stable]. *)
-        | Non_null_value -> "non_null_value"
-        | _ -> Legacy.string_of_const jkind
-      in
       Location.errorf ~loc
         (* CR layouts errors: use the context to produce a better error message.
            When RAE tried this, some types got printed like [t/2], but the
@@ -1528,7 +1469,8 @@ let report_error ~loc = function
         "@[<v>Layout %s is more experimental than allowed by the enabled \
          layouts extension.@;\
          %t@]"
-        layout_name hint)
+        (Legacy.string_of_const jkind)
+        hint)
 
 let () =
   Location.register_error_of_exn (function

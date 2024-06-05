@@ -809,7 +809,7 @@ let transl_declaration env sdecl (id, uid) =
                    Constructor_uniform_value, jkinds)
                 (Array.of_list cstrs)
             ),
-            Jkind.non_null_value ~why:Boxed_variant
+            Jkind.value ~why:Boxed_variant
         in
           Ttype_variant tcstrs, Type_variant (cstrs, rep), jkind
       | Ptype_record lbls ->
@@ -823,11 +823,11 @@ let transl_declaration env sdecl (id, uid) =
               Record_unboxed, any
             else
               Record_boxed (Array.make (List.length lbls) any),
-              Jkind.non_null_value ~why:Boxed_record
+              Jkind.value ~why:Boxed_record
           in
           Ttype_record lbls, Type_record(lbls', rep), jkind
       | Ptype_open ->
-        Ttype_open, Type_open, Jkind.non_null_value ~why:Extensible_variant
+        Ttype_open, Type_open, Jkind.value ~why:Extensible_variant
       in
     let jkind =
     (* - If there's an annotation, we use that. It's checked against
@@ -1171,7 +1171,7 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
     let lbls, all_void =
       update_label_jkinds env loc lbls None ~is_inlined:true
     in
-    jkinds.(0) <- Jkind.non_null_value ~why:Boxed_record;
+    jkinds.(0) <- Jkind.value ~why:Boxed_record;
     Types.Cstr_record lbls, all_void
 
 let assert_mixed_product_support =
@@ -1573,7 +1573,7 @@ let update_decl_jkind env dpath decl =
   let new_decl, new_jkind = match decl.type_kind with
     | Type_abstract _ -> decl, decl.type_jkind
     | Type_open ->
-      let type_jkind = Jkind.non_null_value ~why:Extensible_variant in
+      let type_jkind = Jkind.value ~why:Extensible_variant in
       { decl with type_jkind }, type_jkind
     | Type_record (lbls, rep) ->
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
