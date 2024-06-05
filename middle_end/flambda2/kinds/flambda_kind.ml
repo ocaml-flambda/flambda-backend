@@ -187,7 +187,9 @@ module Mixed_block_shape = struct
   let value_prefix_size { fields = _; lambda_shape } =
     lambda_shape.value_prefix_len
 
-  let equal t1 t2 = Array.for_all2 equal t1.fields t2.fields
+  let equal t1 t2 =
+    Int.equal (Array.length t1.fields) (Array.length t2.fields) &&
+    Array.for_all2 equal t1.fields t2.fields
 
   let compare t1 t2 =
     let length1 = Array.length t1.fields in
