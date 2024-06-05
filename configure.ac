@@ -1353,7 +1353,8 @@ AS_CASE([$host],
 AS_IF([test x"$enable_stack_checks" = xyes],
   [AC_DEFINE([STACK_CHECKS_ENABLED])],
   [AS_IF([test x"$arch" != xamd64],
-    [AC_DEFINE([STACK_CHECKS_ENABLED])],
+    [enable_stack_checks=yes
+     AC_DEFINE([STACK_CHECKS_ENABLED])],
     [])])
 
 native_cflags=''
