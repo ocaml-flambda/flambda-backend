@@ -96,7 +96,9 @@ let with_additional_action (config : additional_action_config) s =
     | Prepare_for_saving ->
         let reason = Jkind.Imported in
         let any = Jkind.of_const Any ~why:reason in
+        let any_non_null = Jkind.of_const Any_non_null ~why:reason in
         let void = Jkind.of_const Void ~why:reason in
+        let value_or_null = Jkind.of_const Value_or_null ~why:reason in
         let value = Jkind.of_const Value ~why:reason in
         let immediate = Jkind.of_const Immediate ~why:reason in
         let immediate64 = Jkind.of_const Immediate64 ~why:reason in
@@ -108,7 +110,9 @@ let with_additional_action (config : additional_action_config) s =
         let prepare_jkind loc lay =
           match Jkind.get lay with
           | Const Any -> any
+          | Const Any_non_null -> any_non_null
           | Const Void -> void
+          | Const Value_or_null -> value_or_null
           | Const Value -> value
           | Const Immediate -> immediate
           | Const Immediate64 -> immediate64

@@ -170,6 +170,9 @@ module History = struct
     | Type_wildcard of Location.t
     | With_error_message of string * annotation_context
 
+  (* CR layouts v3: make new creation reasons *)
+  type value_or_null_creation_reason = |
+
   type value_creation_reason =
     | Class_let_binding
     | Tuple_element
@@ -235,6 +238,9 @@ module History = struct
     | Unification_var
     | Array_type_argument
 
+  (* CR layouts v3: make new creation reasons *)
+  type any_non_null_creation_reason = |
+
   type float64_creation_reason = Primitive of Ident.t
 
   type float32_creation_reason = Primitive of Ident.t
@@ -248,11 +254,13 @@ module History = struct
   type creation_reason =
     | Annotated of annotation_context * Location.t
     | Missing_cmi of Path.t
+    | Value_or_null_creation of value_or_null_creation_reason
     | Value_creation of value_creation_reason
     | Immediate_creation of immediate_creation_reason
     | Immediate64_creation of immediate64_creation_reason
     | Void_creation of void_creation_reason
     | Any_creation of any_creation_reason
+    | Any_non_null_creation of any_non_null_creation_reason
     | Float64_creation of float64_creation_reason
     | Float32_creation of float32_creation_reason
     | Word_creation of word_creation_reason

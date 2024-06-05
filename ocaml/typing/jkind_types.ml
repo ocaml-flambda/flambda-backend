@@ -362,6 +362,8 @@ type 'type_expr t =
 
 type const =
   | Any
+  | Any_non_null
+  | Value_or_null
   | Value
   | Void
   | Immediate64

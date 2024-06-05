@@ -235,11 +235,11 @@ let bigarray_type_kind_and_layout env typ =
 
 let value_kind_of_value_jkind jkind =
   match Jkind.get_default_value jkind with
-  | Value -> Pgenval
+  | Value_or_null | Value -> Pgenval
   | Immediate -> Pintval
   | Immediate64 ->
     if !Clflags.native_code && Sys.word_size = 64 then Pintval else Pgenval
-  | Any | Void | Float64 | Float32 | Word | Bits32 | Bits64 -> assert false
+  | Any | Any_non_null | Void | Float64 | Float32 | Word | Bits32 | Bits64 -> assert false
 
 (* [value_kind] has a pre-condition that it is only called on values.  With the
    current set of sort restrictions, there are two reasons this invariant may

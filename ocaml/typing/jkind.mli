@@ -127,6 +127,8 @@ end
     the type checker when we know a jkind has no variables *)
 type const = Jkind_types.const =
   | Any
+  | Any_non_null
+  | Value_or_null
   | Value
   | Void
   | Immediate64
@@ -149,8 +151,14 @@ val equal_const : const -> const -> bool
     [any]. *)
 val any : why:any_creation_reason -> t
 
+(** This is the jkind of any non-null values *)
+val any_non_null : why:any_non_null_creation_reason -> t
+
 (** Value of types of this jkind are not retained at all at runtime *)
 val void : why:void_creation_reason -> t
+
+(** This is the jkind of normal ocaml values or null pointers *)
+val value_or_null : why:value_or_null_creation_reason -> t
 
 (** This is the jkind of normal ocaml values *)
 val value : why:value_creation_reason -> t

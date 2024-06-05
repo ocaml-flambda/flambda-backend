@@ -21,6 +21,8 @@ open Jkind_types
 module Legacy = struct
   type const = Jkind_types.const =
     | Any
+    | Any_non_null
+    | Value_or_null
     | Value
     | Void
     | Immediate64
@@ -47,6 +49,8 @@ module Legacy = struct
       in
       match name with
       | "any" -> Some Any
+      | "any_non_null" -> Some Any_non_null
+      | "value_or_null" -> Some Value_or_null
       | "value" -> Some Value
       | "void" -> Some Void
       | "immediate64" -> Some Immediate64
@@ -63,6 +67,8 @@ module Legacy = struct
   let string_of_const const =
     match const with
     | Any -> "any"
+    | Any_non_null -> "any_non_null"
+    | Value_or_null -> "value_or_null"
     | Value -> "value"
     | Void -> "void"
     | Immediate64 -> "immediate64"
@@ -76,9 +82,11 @@ module Legacy = struct
   let equal_const c1 c2 =
     match c1, c2 with
     | Any, Any
+    | Any_non_null, Any_non_null
     | Immediate64, Immediate64
     | Immediate, Immediate
     | Void, Void
+    | Value_or_null, Value_or_null
     | Value, Value
     | Float64, Float64
     | Float32, Float32
@@ -86,8 +94,8 @@ module Legacy = struct
     | Bits32, Bits32
     | Bits64, Bits64 ->
       true
-    | ( ( Any | Immediate64 | Immediate | Void | Value | Float64 | Float32
-        | Word | Bits32 | Bits64 ),
+    | ( ( Any | Any_non_null | Immediate64 | Immediate | Void | Value_or_null
+        | Value | Float64 | Float32 | Word | Bits32 | Bits64 ),
         _ ) ->
       false
 end
@@ -308,19 +316,21 @@ module Const = struct
       { layout;
         modes_upper_bounds = _;
         externality_upper_bound;
-        nullability_upper_bound = _
+        nullability_upper_bound
       } : Legacy.const =
-    match layout, externality_upper_bound with
-    | Any, _ -> Any
-    | Sort Value, Internal -> Value
-    | Sort Value, External64 -> Immediate64
-    | Sort Value, External -> Immediate
-    | Sort Void, _ -> Void
-    | Sort Float64, _ -> Float64
-    | Sort Float32, _ -> Float32
-    | Sort Word, _ -> Word
-    | Sort Bits32, _ -> Bits32
-    | Sort Bits64, _ -> Bits64
+    match layout, externality_upper_bound, nullability_upper_bound with
+    | Any, _, Or_null -> Any
+    | Any, _, Non_null -> Any_non_null
+    | Sort Value, Internal, Or_null -> Value_or_null
+    | Sort Value, Internal, Non_null -> Value
+    | Sort Value, External64, _ -> Immediate64
+    | Sort Value, External, _ -> Immediate
+    | Sort Void, _, _ -> Void
+    | Sort Float64, _, _ -> Float64
+    | Sort Float32, _, _ -> Float32
+    | Sort Word, _, _ -> Word
+    | Sort Bits32, _, _ -> Bits32
+    | Sort Bits64, _, _ -> Bits64
 
   (* CR layouts v2.8: do a better job here *)
   let to_string t = Legacy.string_of_const (to_legacy_jkind t)
@@ -467,13 +477,21 @@ module Jkind_desc = struct
 
   let of_new_sort_var () =
     let layout, sort = Layout.of_new_sort_var () in
-    not_mode_crossing layout, sort
+    let layout = not_mode_crossing layout in
+    (* CR layouts v3.0: this should be [Or_null]. *)
+    { layout with nullability_upper_bound = Non_null }, sort
 
   let any = not_mode_crossing Any
 
-  let value = not_mode_crossing Layout.value
+  let any_non_null = { any with nullability_upper_bound = Non_null }
 
-  let void = not_mode_crossing Layout.void
+  let value_or_null = not_mode_crossing Layout.value
+
+  let value = { value_or_null with nullability_upper_bound = Non_null }
+
+  let void =
+    let void = not_mode_crossing Layout.void in
+    { void with nullability_upper_bound = Non_null }
 
   (* [immediate64] describes types that are stored directly (no indirection)
      on 64-bit platforms but indirectly on 32-bit platforms. The key question:
@@ -517,11 +535,17 @@ module Jkind_desc = struct
      crossing first *)
   let float32 = mode_crossing Layout.float32
 
-  let word = not_mode_crossing Layout.word
+  let word =
+    let word = not_mode_crossing Layout.word in
+    { word with nullability_upper_bound = Non_null }
 
-  let bits32 = not_mode_crossing Layout.bits32
+  let bits32 =
+    let bits32 = not_mode_crossing Layout.bits32 in
+    { bits32 with nullability_upper_bound = Non_null }
 
-  let bits64 = not_mode_crossing Layout.bits64
+  let bits64 =
+    let bits64 = not_mode_crossing Layout.bits64 in
+    { bits64 with nullability_upper_bound = Non_null }
 
   (* Post-condition: If the result is [Var v], then [!v] is [None]. *)
   let get
@@ -596,7 +620,13 @@ let any ~why =
   | Dummy_jkind -> any_dummy_jkind (* share this one common case *)
   | _ -> fresh_jkind Jkind_desc.any ~why:(Any_creation why)
 
+let any_non_null ~why =
+  fresh_jkind Jkind_desc.any_non_null ~why:(Any_non_null_creation why)
+
 let void ~why = fresh_jkind Jkind_desc.void ~why:(Void_creation why)
+
+let value_or_null ~why =
+  fresh_jkind Jkind_desc.value_or_null ~why:(Value_or_null_creation why)
 
 let value ~(why : value_creation_reason) =
   match why with
@@ -653,7 +683,7 @@ let get_required_layouts_level (context : annotation_context)
       ( Value | Immediate | Immediate64 | Any | Float64 | Float32 | Word
       | Bits32 | Bits64 ) ) ->
     Stable
-  | _, Void -> Alpha
+  | _, (Any_non_null | Value_or_null | Void) -> Alpha
 
 (******************************)
 (* construction *)
@@ -667,8 +697,10 @@ let of_new_sort ~why = fst (of_new_sort_var ~why)
 (* CR layouts v2.8: remove this function *)
 let of_const ~why : Legacy.const -> t = function
   | Any -> fresh_jkind Jkind_desc.any ~why
+  | Any_non_null -> fresh_jkind Jkind_desc.any_non_null ~why
   | Immediate -> fresh_jkind Jkind_desc.immediate ~why
   | Immediate64 -> fresh_jkind Jkind_desc.immediate64 ~why
+  | Value_or_null -> fresh_jkind Jkind_desc.value_or_null ~why
   | Value -> fresh_jkind Jkind_desc.value ~why
   | Void -> fresh_jkind Jkind_desc.void ~why
   | Float64 -> fresh_jkind Jkind_desc.float64 ~why
@@ -1082,11 +1114,13 @@ end = struct
     | Missing_cmi p ->
       fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
     | Any_creation any -> format_any_creation_reason ppf any
+    | Any_non_null_creation _ -> .
     | Immediate_creation immediate ->
       format_immediate_creation_reason ppf immediate
     | Immediate64_creation immediate64 ->
       format_immediate64_creation_reason ppf immediate64
     | Void_creation _ -> .
+    | Value_or_null_creation _ -> .
     | Value_creation value -> format_value_creation_reason ppf value
     | Float64_creation float -> format_float64_creation_reason ppf float
     | Float32_creation float -> format_float32_creation_reason ppf float
@@ -1463,11 +1497,13 @@ module Debug_printers = struct
         loc
     | Missing_cmi p -> fprintf ppf "Missing_cmi %a" !printtyp_path p
     | Any_creation any -> fprintf ppf "Any_creation %a" any_creation_reason any
+    | Any_non_null_creation _ -> .
     | Immediate_creation immediate ->
       fprintf ppf "Immediate_creation %a" immediate_creation_reason immediate
     | Immediate64_creation immediate64 ->
       fprintf ppf "Immediate64_creation %a" immediate64_creation_reason
         immediate64
+    | Value_or_null_creation _ -> .
     | Value_creation value ->
       fprintf ppf "Value_creation %a" value_creation_reason value
     | Void_creation _ -> .
@@ -1558,6 +1594,8 @@ let () =
 
 type const = Legacy.const =
   | Any
+  | Any_non_null
+  | Value_or_null
   | Value
   | Void
   | Immediate64
