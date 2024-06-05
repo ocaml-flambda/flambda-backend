@@ -1515,7 +1515,7 @@ let copy_sep ~copy_scope ~fixed ~(visited : type_expr TypeHash.t) sch =
             if keep then
               (add_delayed_copy t ty;
                Tvar { name = None;
-                      jkind = Jkind.non_null_value ~why:Polymorphic_variant })
+                      jkind = Jkind.value ~why:Polymorphic_variant })
             else
             let more' = copy_rec ~may_share:false more in
             let fixed' = fixed && (is_Tvar more || is_Tunivar more) in
@@ -2099,7 +2099,7 @@ let rec estimate_type_jkind env ty =
   end
   | Tvariant row ->
       if tvariant_not_immediate row
-      then Jkind (non_null_value ~why:Polymorphic_variant)
+      then Jkind (value ~why:Polymorphic_variant)
       else Jkind (immediate ~why:Immediate_polymorphic_variant)
   | Tvar { jkind } when get_level ty = generic_level ->
     (* Once a Tvar gets generalized with a jkind, it should be considered
@@ -2112,15 +2112,15 @@ let rec estimate_type_jkind env ty =
        This, however, still allows sort variables to get instantiated. *)
     Jkind jkind
   | Tvar { jkind } -> TyVar (jkind, ty)
-  | Tarrow _ -> Jkind (non_null_value ~why:Arrow)
-  | Ttuple _ -> Jkind (non_null_value ~why:Tuple)
+  | Tarrow _ -> Jkind (value ~why:Arrow)
+  | Ttuple _ -> Jkind (value ~why:Tuple)
   | Tobject _ -> Jkind (value ~why:Object)
   | Tfield _ -> Jkind (value ~why:Tfield)
   | Tnil -> Jkind (value ~why:Tnil)
   | (Tlink _ | Tsubst _) -> assert false
   | Tunivar { jkind } -> Jkind jkind
   | Tpoly (ty, _) -> estimate_type_jkind env ty
-  | Tpackage _ -> Jkind (non_null_value ~why:First_class_module)
+  | Tpackage _ -> Jkind (value ~why:First_class_module)
 
 (**** checking jkind relationships ****)
 
@@ -2310,7 +2310,7 @@ let check_and_update_generalized_ty_jkind ?name ~loc ty =
          might turn out later to be value. This is the conservative choice. *)
       Jkind.(Externality.le (get_externality_upper_bound jkind) External64 &&
              match get_layout jkind with
-               | Some (Sort Value | Non_null_value) | None -> true
+               | Some (Sort Value) | None -> true
                | _ -> false)
     in
     if Language_extension.erasable_extensions_only ()
