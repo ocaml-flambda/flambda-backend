@@ -188,8 +188,8 @@ module Mixed_block_shape = struct
     lambda_shape.value_prefix_len
 
   let equal t1 t2 =
-    Int.equal (Array.length t1.fields) (Array.length t2.fields) &&
-    Array.for_all2 equal t1.fields t2.fields
+    Int.equal (Array.length t1.fields) (Array.length t2.fields)
+    && Array.for_all2 equal t1.fields t2.fields
 
   let compare t1 t2 =
     let length1 = Array.length t1.fields in
@@ -212,8 +212,7 @@ module Mixed_block_shape = struct
       List.init shape.value_prefix_len (fun _ -> Value)
     in
     let flat_suffix_shape =
-      List.map from_lambda_flat_element
-        (Array.to_list shape.flat_suffix)
+      List.map from_lambda_flat_element (Array.to_list shape.flat_suffix)
     in
     { fields = Array.of_list (value_prefix_shape @ flat_suffix_shape);
       lambda_shape = shape
