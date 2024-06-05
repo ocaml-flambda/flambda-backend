@@ -178,7 +178,8 @@ module Mixed_block_shape = struct
 
   type t =
     { fields : kind array;
-      (* For compiling to Cmm, we need the lambda shape *)
+      (* For compiling to Cmm, we need the lambda shape. We also use it to know
+         the value prefix length. *)
       lambda_shape : Lambda.mixed_block_shape
     }
 
@@ -188,24 +189,32 @@ module Mixed_block_shape = struct
     lambda_shape.value_prefix_len
 
   let equal t1 t2 =
-    Int.equal (Array.length t1.fields) (Array.length t2.fields)
+    Int.equal t1.lambda_shape.value_prefix_len t2.lambda_shape.value_prefix_len
+    && Int.equal (Array.length t1.fields) (Array.length t2.fields)
     && Array.for_all2 equal t1.fields t2.fields
 
   let compare t1 t2 =
-    let length1 = Array.length t1.fields in
-    let length2 = Array.length t2.fields in
-    let c = Int.compare length1 length2 in
+    let c =
+      Int.compare t1.lambda_shape.value_prefix_len
+        t2.lambda_shape.value_prefix_len
+    in
     if c <> 0
     then c
     else
-      let exception Result of int in
-      try
-        for i = 0 to length1 - 1 do
-          let c = compare t1.fields.(i) t2.fields.(i) in
-          if c <> 0 then raise_notrace (Result c)
-        done;
-        0
-      with Result c -> c
+      let length1 = Array.length t1.fields in
+      let length2 = Array.length t2.fields in
+      let c = Int.compare length1 length2 in
+      if c <> 0
+      then c
+      else
+        let exception Result of int in
+        try
+          for i = 0 to length1 - 1 do
+            let c = compare t1.fields.(i) t2.fields.(i) in
+            if c <> 0 then raise_notrace (Result c)
+          done;
+          0
+        with Result c -> c
 
   let from_lambda (shape : Lambda.mixed_block_shape) =
     let value_prefix_shape =
