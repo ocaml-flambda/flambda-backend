@@ -17,7 +17,7 @@
 module EC = Exported_code
 module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
-module Imported_unit_map = Global.Name.Map
+module Imported_unit_map = Global_module.Name.Map
 
 type loader =
   { get_module_info : Compilation_unit.t -> Flambda_cmx_format.t option;

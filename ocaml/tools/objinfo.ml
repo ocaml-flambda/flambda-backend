@@ -24,10 +24,13 @@ open Cmo_format
 (* Command line options to prevent printing approximation,
    function code and CRC
  *)
+let quiet = ref false
 let no_approx = ref false
 let no_code = ref false
 let no_crc = ref false
 let shape = ref false
+let index = ref false
+let decls = ref false
 
 module Magic_number = Misc.Magic_number
 
@@ -100,44 +103,95 @@ let print_cma_infos (lib : Cmo_format.library) =
   List.iter print_cmo_infos lib.lib_units
 
 let print_cmi_infos name crcs kind params global_name_bindings =
-  let open Cmi_format in
-  printf "Unit name: %a\n" Compilation_unit.Name.output name;
-  let is_param =
-    match kind with
-    | Normal _ -> false
-    | Parameter -> true
-  in
-  printf "Is parameter: %s\n" (if is_param then "YES" else "no");
-  print_string "Parameters:\n";
-  List.iter print_global_as_name_line params;
-  printf "Interfaces imported:\n";
-  Array.iter print_intf_import crcs;
-  printf "Globals in scope:\n";
-  Array.iter print_global_name_binding global_name_bindings
+  if not !quiet then begin
+    let open Cmi_format in
+    printf "Unit name: %a\n" Compilation_unit.Name.output name;
+    let is_param =
+      match kind with
+      | Normal _ -> false
+      | Parameter -> true
+    in
+    printf "Is parameter: %s\n" (if is_param then "YES" else "no");
+    print_string "Parameters:\n";
+    List.iter print_global_as_name_line params;
+    printf "Interfaces imported:\n";
+    Array.iter print_intf_import crcs;
+    printf "Globals in scope:\n";
+    Array.iter print_global_name_binding global_name_bindings
+  end
 
 let print_cmt_infos cmt =
   let open Cmt_format in
-  printf "Cmt unit name: %a\n" Compilation_unit.output cmt.cmt_modname;
-  print_string "Cmt interfaces imported:\n";
-  Array.iter print_intf_import cmt.cmt_imports;
-  printf "Source file: %s\n"
-         (match cmt.cmt_sourcefile with None -> "(none)" | Some f -> f);
-  printf "Compilation flags:";
-  Array.iter print_spaced_string cmt.cmt_args;
-  printf "\nLoad path:\n  Visible:";
-  List.iter print_spaced_string cmt.cmt_loadpath.visible;
-  printf "\n  Hidden:";
-  List.iter print_spaced_string cmt.cmt_loadpath.hidden;
-  printf "\n";
-  printf "cmt interface digest: %s\n"
-    (match cmt.cmt_interface_digest with
-     | None -> ""
-     | Some crc -> string_of_crc crc);
+  if not !quiet then begin
+    printf "Cmt unit name: %a\n" Compilation_unit.output cmt.cmt_modname;
+    print_string "Cmt interfaces imported:\n";
+    Array.iter print_intf_import cmt.cmt_imports;
+    printf "Source file: %s\n"
+          (match cmt.cmt_sourcefile with None -> "(none)" | Some f -> f);
+    printf "Compilation flags:";
+    Array.iter print_spaced_string cmt.cmt_args;
+    printf "\nLoad path:\n  Visible:";
+    List.iter print_spaced_string cmt.cmt_loadpath.visible;
+    printf "\n  Hidden:";
+    List.iter print_spaced_string cmt.cmt_loadpath.hidden;
+    printf "\n";
+    printf "cmt interface digest: %s\n"
+      (match cmt.cmt_interface_digest with
+      | None -> ""
+      | Some crc -> string_of_crc crc);
+  end;
   if !shape then begin
     printf "Implementation shape: ";
     (match cmt.cmt_impl_shape with
     | None -> printf "(none)\n"
     | Some shape -> Format.printf "\n%a" Shape.print shape)
+  end;
+  if !index then begin
+    printf "Indexed shapes:\n";
+    Array.iter (fun (loc, item) ->
+      let pp_loc fmt { Location.txt; loc } =
+        Format.fprintf fmt "%a (%a)"
+          Pprintast.longident txt Location.print_loc loc
+      in
+      Format.printf "@[<hov 2>%a:@ %a@]@;"
+        Shape_reduce.print_result item pp_loc loc)
+      cmt.cmt_ident_occurrences;
+    Format.print_flush ()
+  end;
+  if !decls then begin
+    printf "\nUid of decls:\n";
+    Shape.Uid.Tbl.iter (fun uid item ->
+      let loc = match (item : Typedtree.item_declaration) with
+        | Value vd -> vd.val_name
+        | Value_binding vb ->
+          let (_, name, _, _) =
+            List.hd (Typedtree.let_bound_idents_full [vb])
+          in
+          name
+        | Type td -> td.typ_name
+        | Constructor cd -> cd.cd_name
+        | Extension_constructor ec -> ec.ext_name
+        | Label ld -> ld.ld_name
+        | Module md ->
+          { md.md_name with
+            txt = Option.value md.md_name.txt ~default:"_" }
+        | Module_substitution ms -> ms.ms_name
+        | Module_binding mb ->
+          { mb.mb_name with
+            txt = Option.value mb.mb_name.txt ~default:"_" }
+        | Module_type mtd -> mtd.mtd_name
+        | Class cd -> cd.ci_id_name
+        | Class_type ctd -> ctd.ci_id_name
+      in
+      let pp_loc fmt { Location.txt; loc } =
+        Format.fprintf fmt "%s (%a)"
+           txt Location.print_loc loc
+      in
+      Format.printf "@[<hov 2>%a:@ %a@]@;"
+        Shape.Uid.print uid
+        pp_loc loc)
+      cmt.cmt_uid_to_decl;
+      Format.print_flush ()
   end
 
 let print_cms_infos cms =
@@ -438,7 +492,7 @@ let dump_obj filename =
          dump_obj_by_kind filename ic Cmxs;
          ()
   in
-  printf "File %s\n" filename;
+  if not !quiet then printf "File %s\n" filename;
   let ic = open_in_bin filename in
   match dump_standard ic with
     | Ok () -> ()
@@ -451,12 +505,18 @@ let dump_obj filename =
   else exit_magic_error ~expected_kind:None (Parse_error head_error)
 
 let arg_list = [
+  "-quiet", Arg.Set quiet,
+    " Only print explicitely required information";
   "-no-approx", Arg.Set no_approx,
     " Do not print module approximation information";
   "-no-code", Arg.Set no_code,
     " Do not print code from exported flambda functions";
   "-shape", Arg.Set shape,
     " Print the shape of the module";
+  "-index", Arg.Set index,
+    " Print a list of all usages of values, types, etc. in the module";
+  "-decls", Arg.Set decls,
+    " Print a list of all declarations in the module";
   "-null-crc", Arg.Set no_crc, " Print a null CRC for imported interfaces";
   "-args", Arg.Expand Arg.read_arg,
      "<file> Read additional newline separated command line arguments \n\

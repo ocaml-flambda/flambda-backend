@@ -9,7 +9,7 @@ type error =
       compilation_unit : CU.t;
     }
   | Not_parameterised of { cm_path : Misc.filepath }
-  | Missing_argument of { param : Global.Name.t }
+  | Missing_argument of { param : Global_module.Name.t }
 
 
 exception Error of error
@@ -38,8 +38,8 @@ let instantiate
     List.map (fun (param, (value, _)) -> CU.of_global_name param, value)
       arg_info
   in
-  let arg_map : (CU.t * int) Global.Name.Map.t =
-    Global.Name.Map.of_list arg_info (* FIXME: check for dupes *)
+  let arg_map : (CU.t * int) Global_module.Name.Map.t =
+    Global_module.Name.Map.of_list arg_info (* FIXME: check for dupes *)
   in
   let compilation_unit = CU.create_instance base_compilation_unit arg_pairs in
   let expected_output_prefix = CU.base_filename compilation_unit in
@@ -59,7 +59,9 @@ let instantiate
        match up *)
     Env.global_of_instance_compilation_unit compilation_unit
   in
-  let arg_subst : Global.subst = Global.Name.Map.of_list global.visible_args in
+  let arg_subst : Global_module.subst =
+    Global_module.Name.Map.of_list global.visible_args
+  in
   let runtime_params, main_module_block_size =
     match unit_infos.ui_format with
     | Mb_record _ ->
@@ -72,10 +74,10 @@ let instantiate
     |> List.map (fun runtime_param : Translmod.runtime_arg ->
          match (runtime_param : Lambda.runtime_param_descr) with
            | Rp_argument_block global ->
-             let global_name = Global.to_name global in
+             let global_name = Global_module.to_name global in
              begin
                match
-                 Global.Name.Map.find_opt global_name arg_map
+                 Global_module.Name.Map.find_opt global_name arg_map
                with
                | Some (ra_unit, ra_field) ->
                  Argument_block { ra_unit; ra_field }
@@ -87,7 +89,7 @@ let instantiate
                 substitute the arguments into the name of the dependency to find
                 the particular instance to pass. *)
              let instance =
-               Global.subst_inside global arg_subst
+               Global_module.subst_inside global arg_subst
                |> Compilation_unit.of_complete_global_exn
              in
              Dependency instance
@@ -123,7 +125,7 @@ let report_error ppf = function
       Location.print_filename cm_path
   | Missing_argument { param } ->
     fprintf ppf "No argument given for parameter %a"
-      Global.Name.print param
+      Global_module.Name.print param
 
 let () =
   Location.register_error_of_exn

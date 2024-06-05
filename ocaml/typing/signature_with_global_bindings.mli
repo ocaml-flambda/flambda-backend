@@ -14,7 +14,7 @@
     represented explicitly. *)
 type t = private {
   sign : Subst.Lazy.signature;
-  bound_globals : Global.t array;
+  bound_globals : Global_module.t array;
 }
 
 val read_from_cmi : Cmi_format.cmi_infos_lazy -> t
@@ -44,11 +44,11 @@ val read_from_cmi : Cmi_format.cmi_infos_lazy -> t
 
     1. Form a substitution [S] mapping each argument's name to its value
     2. Apply [S] to the RHSes of the global name bindings
-    3. For each new binding [L = R'], let [L'] be the [Global.to_name] of [R'],
-       substitute [L'] for [L] in the body, and update the binding to
+    3. For each new binding [L = R'], let [L'] be the [Global_module.to_name] of
+       [R'], substitute [L'] for [L] in the body, and update the binding to
        [L' = R']
 
     Note that the argument values themselves won't be returned in the new list
     of bound globals, since it's assumed that they are already accounted for in
     the environment. *)
-val subst : t -> (Global.Name.t * Global.t) list -> t
+val subst : t -> (Global_module.Name.t * Global_module.t) list -> t

@@ -1,18 +1,23 @@
 (* TEST
-   * bytecode
-     reference = "${test_source_directory}/float_iarray.heap.reference"
-   * stack-allocation
-   ** native
-      reference = "${test_source_directory}/float_iarray.stack.reference"
-   * no-stack-allocation
-   ** native
-      reference = "${test_source_directory}/float_iarray.heap.reference"
- *)
+ include stdlib_stable;
+ {
+   reference = "${test_source_directory}/float_iarray.heap.reference";
+   bytecode;
+ }{
+   stack-allocation;
+   reference = "${test_source_directory}/float_iarray.stack.reference";
+   native;
+ }{
+   no-stack-allocation;
+   reference = "${test_source_directory}/float_iarray.heap.reference";
+   native;
+ }
+*)
 
 (* Testing that local [float iarray]s don't allocate on access.  This is a
    question because for flat float arrays, accesses have to box the float. *)
 
-module Iarray = Stdlib__Iarray
+module Iarray = Stdlib_stable.Iarray
 
 let ( .:() ) = Iarray.( .:() )
 

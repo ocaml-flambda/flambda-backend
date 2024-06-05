@@ -101,10 +101,12 @@ val add_inlined_debuginfo : t -> Debuginfo.t -> Debuginfo.t
 
 (** Adjust the inlined debuginfo in the env to represent the fact
     that we entered the inlined body of a function. *)
-val enter_inlined_apply : t -> Debuginfo.t -> t
+val enter_inlined_apply : t -> Inlined_debuginfo.t -> t
 
 (** Set the inlined debuginfo. *)
-val set_inlined_debuginfo : t -> Debuginfo.t -> t
+val set_inlined_debuginfo : t -> Inlined_debuginfo.t -> t
+
+val currently_in_inlined_body : t -> bool
 
 (** {2 Continuations} *)
 
@@ -288,19 +290,25 @@ val extra_info : t -> Simple.t -> extra_info option
 
 (** {2 Continuation bindings} *)
 
+(** Param types: some parameters might be skipped: for instance parameters
+    of kind [Rec_info] are meant to be removed during to_cmm translation. *)
+type 'a param_type =
+  | Param of 'a
+  | Skip_param
+
 (** Translation information for continuations. A continuation may either be
     translated as a static jump to a Cmm continuation (represented as a Cmm
     label), or inlined at any unique use site. *)
 type cont = private
   | Jump of
       { cont : Lambda.static_label;
-        param_types : Cmm.machtype list
+        param_types : Cmm.machtype param_type list
       }
   | Inline of
       { handler_params : Bound_parameters.t;
         handler_params_occurrences : Num_occurrences.t Variable.Map.t;
         handler_body : Flambda.Expr.t;
-        handler_body_inlined_debuginfo : Debuginfo.t
+        handler_body_inlined_debuginfo : Inlined_debuginfo.t
       }
 
 (** Record that the given continuation should be compiled to a jump, creating a
@@ -308,7 +316,7 @@ type cont = private
 val add_jump_cont :
   t ->
   Continuation.t ->
-  param_types:Cmm.machtype list ->
+  param_types:Cmm.machtype param_type list ->
   Lambda.static_label * t
 
 (** Record that the given continuation should be inlined. *)
@@ -345,3 +353,7 @@ val get_continuation : t -> Continuation.t -> cont
     fatal error if given an unbound continuation, or a continuation that was
     registered (using [add_inline_cont]) to be inlined. *)
 val get_cmm_continuation : t -> Continuation.t -> Lambda.static_label
+
+(** print function *)
+val print_param_type :
+  (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a param_type -> unit

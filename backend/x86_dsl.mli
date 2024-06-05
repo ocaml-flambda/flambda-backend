@@ -15,7 +15,7 @@
 
 (** Helpers for Intel code generators *)
 
-(* The DSL* modules expose functions to emit x86/x86_64 instructions
+(* The DSL* modules expose functions to emit x86_64 instructions
    using a syntax close to the official Intel syntax, except that
    source and destination operands are reversed as in the AT&T
    syntax:
@@ -87,6 +87,7 @@ module D : sig
   val extrn: string -> data_type -> unit
   val file: file_num:int -> file_name:string -> unit
   val global: string -> unit
+  val protected: string -> unit
   val hidden: string -> unit
   val indirect_symbol: string -> unit
   val label: ?typ:data_type -> string -> unit
@@ -128,11 +129,14 @@ module I : sig
   val cmpsd : float_condition -> arg -> arg -> unit
   val comisd: arg -> arg -> unit
   val cqo: unit -> unit
-  val cvtsd2si: arg -> arg -> unit
+  val cvtss2si: arg -> arg -> unit (* round half-to-even *)
+  val cvtsd2si: arg -> arg -> unit (* round half-to-even *)
+  val cvtsi2ss: arg -> arg -> unit
   val cvtsd2ss: arg -> arg -> unit
   val cvtsi2sd: arg -> arg -> unit
   val cvtss2sd: arg -> arg -> unit
-  val cvttsd2si: arg -> arg -> unit
+  val cvttss2si: arg -> arg -> unit (* truncate *)
+  val cvttsd2si: arg -> arg -> unit (* truncate *)
   val dec: arg -> unit
   val divsd: arg -> arg -> unit
   val hlt: unit -> unit
@@ -193,6 +197,19 @@ module I : sig
   val xchg: arg -> arg -> unit
   val xor: arg -> arg -> unit
   val xorpd: arg -> arg -> unit
+
+  (* Float32 arithmetic *)
+
+  val addss: arg -> arg -> unit
+  val subss: arg -> arg -> unit
+  val mulss: arg -> arg -> unit
+  val divss: arg -> arg -> unit
+  val comiss: arg -> arg -> unit
+  val ucomiss: arg -> arg -> unit
+  val sqrtss: arg -> arg -> unit
+  val xorps: arg -> arg -> unit
+  val andps: arg -> arg -> unit
+  val cmpss: float_condition -> arg -> arg -> unit
 
   (* SSE instructions *)
 
@@ -387,5 +404,15 @@ module I : sig
   (* CLMUL instructions *)
 
   val pclmulqdq: arg -> arg -> arg -> unit
+
+  (* BMI instructions *)
+
+  val lzcnt: arg -> arg -> unit
+  val tzcnt: arg -> arg -> unit
+
+  (* BMI2 instructions *)
+
+  val pext: arg -> arg -> arg -> unit
+  val pdep: arg -> arg -> arg -> unit
 
 end

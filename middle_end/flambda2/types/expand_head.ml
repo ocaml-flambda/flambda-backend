@@ -29,6 +29,8 @@ module Expanded_type : sig
 
   val create_naked_immediate : Type_grammar.head_of_kind_naked_immediate -> t
 
+  val create_naked_float32 : Type_grammar.head_of_kind_naked_float32 -> t
+
   val create_naked_float : Type_grammar.head_of_kind_naked_float -> t
 
   val create_naked_int32 : Type_grammar.head_of_kind_naked_int32 -> t
@@ -60,6 +62,7 @@ module Expanded_type : sig
   type descr = private
     | Value of Type_grammar.head_of_kind_value
     | Naked_immediate of Type_grammar.head_of_kind_naked_immediate
+    | Naked_float32 of Type_grammar.head_of_kind_naked_float32
     | Naked_float of Type_grammar.head_of_kind_naked_float
     | Naked_int32 of Type_grammar.head_of_kind_naked_int32
     | Naked_int64 of Type_grammar.head_of_kind_naked_int64
@@ -74,6 +77,8 @@ module Expanded_type : sig
     | Value of Type_grammar.head_of_kind_value Or_unknown_or_bottom.t
     | Naked_immediate of
         Type_grammar.head_of_kind_naked_immediate Or_unknown_or_bottom.t
+    | Naked_float32 of
+        Type_grammar.head_of_kind_naked_float32 Or_unknown_or_bottom.t
     | Naked_float of
         Type_grammar.head_of_kind_naked_float Or_unknown_or_bottom.t
     | Naked_int32 of
@@ -92,6 +97,7 @@ end = struct
   type descr =
     | Value of TG.head_of_kind_value
     | Naked_immediate of TG.head_of_kind_naked_immediate
+    | Naked_float32 of TG.head_of_kind_naked_float32
     | Naked_float of TG.head_of_kind_naked_float
     | Naked_int32 of TG.head_of_kind_naked_int32
     | Naked_int64 of TG.head_of_kind_naked_int64
@@ -111,6 +117,9 @@ end = struct
 
   let create_naked_immediate head =
     { kind = K.naked_immediate; descr = Ok (Naked_immediate head) }
+
+  let create_naked_float32 head =
+    { kind = K.naked_float32; descr = Ok (Naked_float32 head) }
 
   let create_naked_float head =
     { kind = K.naked_float; descr = Ok (Naked_float head) }
@@ -165,6 +174,15 @@ end = struct
         match TG.apply_coercion_head_of_kind_naked_immediate head coercion with
         | Bottom -> create_bottom K.naked_immediate
         | Ok head -> create_naked_immediate head))
+    | Naked_float32 Unknown -> create_unknown K.naked_float32
+    | Naked_float32 Bottom -> create_bottom K.naked_float32
+    | Naked_float32 (Ok (No_alias head)) -> (
+      match coercion with
+      | None -> create_naked_float32 head
+      | Some coercion -> (
+        match TG.apply_coercion_head_of_kind_naked_float32 head coercion with
+        | Bottom -> create_bottom K.naked_float32
+        | Ok head -> create_naked_float32 head))
     | Naked_float Unknown -> create_unknown K.naked_float
     | Naked_float Bottom -> create_bottom K.naked_float
     | Naked_float (Ok (No_alias head)) -> (
@@ -231,6 +249,7 @@ end = struct
     | Value (Ok (Equals _))
     | Naked_immediate (Ok (Equals _))
     | Naked_float (Ok (Equals _))
+    | Naked_float32 (Ok (Equals _))
     | Naked_vec128 (Ok (Equals _))
     | Naked_int32 (Ok (Equals _))
     | Naked_int64 (Ok (Equals _))
@@ -247,6 +266,7 @@ end = struct
       match descr with
       | Value head -> TG.create_from_head_value head
       | Naked_immediate head -> TG.create_from_head_naked_immediate head
+      | Naked_float32 head -> TG.create_from_head_naked_float32 head
       | Naked_float head -> TG.create_from_head_naked_float head
       | Naked_int32 head -> TG.create_from_head_naked_int32 head
       | Naked_int64 head -> TG.create_from_head_naked_int64 head
@@ -259,6 +279,8 @@ end = struct
     | Value of Type_grammar.head_of_kind_value Or_unknown_or_bottom.t
     | Naked_immediate of
         Type_grammar.head_of_kind_naked_immediate Or_unknown_or_bottom.t
+    | Naked_float32 of
+        Type_grammar.head_of_kind_naked_float32 Or_unknown_or_bottom.t
     | Naked_float of
         Type_grammar.head_of_kind_naked_float Or_unknown_or_bottom.t
     | Naked_int32 of
@@ -278,6 +300,7 @@ end = struct
       match t.kind with
       | Value -> Value Unknown
       | Naked_number Naked_immediate -> Naked_immediate Unknown
+      | Naked_number Naked_float32 -> Naked_float32 Unknown
       | Naked_number Naked_float -> Naked_float Unknown
       | Naked_number Naked_int32 -> Naked_int32 Unknown
       | Naked_number Naked_int64 -> Naked_int64 Unknown
@@ -289,6 +312,7 @@ end = struct
       match t.kind with
       | Value -> Value Bottom
       | Naked_number Naked_immediate -> Naked_immediate Bottom
+      | Naked_number Naked_float32 -> Naked_float32 Bottom
       | Naked_number Naked_float -> Naked_float Bottom
       | Naked_number Naked_int32 -> Naked_int32 Bottom
       | Naked_number Naked_int64 -> Naked_int64 Bottom
@@ -298,6 +322,7 @@ end = struct
       | Region -> Region Bottom)
     | Ok (Value head) -> Value (Ok head)
     | Ok (Naked_immediate head) -> Naked_immediate (Ok head)
+    | Ok (Naked_float32 head) -> Naked_float32 (Ok head)
     | Ok (Naked_float head) -> Naked_float (Ok head)
     | Ok (Naked_int32 head) -> Naked_int32 (Ok head)
     | Ok (Naked_int64 head) -> Naked_int64 (Ok head)
@@ -330,6 +355,8 @@ let expand_head_of_alias_type env kind
           (TG.Head_of_kind_naked_immediate.create_naked_immediate i)
       | Tagged_immediate i ->
         ET.create_value (TG.Head_of_kind_value.create_tagged_immediate i)
+      | Naked_float32 f ->
+        ET.create_naked_float32 (TG.Head_of_kind_naked_float32.create f)
       | Naked_float f ->
         ET.create_naked_float (TG.Head_of_kind_naked_float.create f)
       | Naked_int32 i ->

@@ -19,6 +19,7 @@ module EPA = Continuation_extra_params_and_args
 
 type block_to_unbox =
   { tag : Tag.t;
+    mut : Mutability.t;
     fields_kinds : Flambda_kind.With_subkind.t list
   }
 
@@ -215,7 +216,7 @@ let blocks_to_unbox ~escaping ~source_info ~required_names =
         (fun map T.Mutable_let_prim.{ bound_var = var; prim; _ } ->
           match prim with
           | Block_load _ | Block_set _ | Is_int _ | Get_tag _ -> map
-          | Make_block { kind; alloc_mode = _; fields; _ } ->
+          | Make_block { kind; mut; alloc_mode = _; fields; _ } ->
             (* We do not want to try to unbox blocks that are not required. It
                is not only an optimization issue, but also a correctness one:
                since a block that is not required does not mark its fields as
@@ -229,9 +230,10 @@ let blocks_to_unbox ~escaping ~source_info ~required_names =
               let block_to_unbox =
                 match kind with
                 | Values (tag, fields_kinds) ->
-                  { tag = Tag.Scannable.to_tag tag; fields_kinds }
+                  { tag = Tag.Scannable.to_tag tag; mut; fields_kinds }
                 | Naked_floats ->
                   { tag = Tag.double_array_tag;
+                    mut;
                     fields_kinds =
                       List.map
                         (fun _ -> Flambda_kind.With_subkind.naked_float)
@@ -358,7 +360,7 @@ module Fold_prims = struct
     in
     match Variable.Map.find block blocks_to_unbox with
     | exception Not_found -> env
-    | { tag; fields_kinds } -> f ~block ~tag ~fields_kinds
+    | { tag; fields_kinds; mut = _ } -> f ~block ~tag ~fields_kinds
 
   let with_unboxed_fields ~block ~dom ~env ~f =
     let block =
@@ -459,7 +461,7 @@ module Fold_prims = struct
     let env, params =
       Variable.Set.fold
         (fun block_needed (env, params) ->
-          let { tag = _; fields_kinds } =
+          let { tag = _; mut = _; fields_kinds } =
             Variable.Map.find block_needed blocks_to_unbox
           in
           let block_params =
@@ -561,8 +563,8 @@ let create ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
      && Flambda_features.dump_flow ()
   then
     Format.printf "Non escaping makeblocks %a@."
-      (Variable.Map.print (fun ppf { tag; fields_kinds } ->
-           Format.fprintf ppf "{%a}[%a]" Tag.print tag
+      (Variable.Map.print (fun ppf { tag; fields_kinds; mut } ->
+           Format.fprintf ppf "{%a}(%a)[%a]" Tag.print tag Mutability.print mut
              (Format.pp_print_list ~pp_sep:Format.pp_print_space
                 Flambda_kind.With_subkind.print)
              fields_kinds))
@@ -662,7 +664,8 @@ let add_to_extra_params_and_args result =
             let epa_for_cont =
               List.fold_left2
                 (fun epa_for_cont extra_param extra_args ->
-                  EPA.add epa_for_cont ~extra_param ~extra_args)
+                  EPA.add epa_for_cont ~extra_param ~extra_args
+                    ~invalids:Apply_cont_rewrite_id.Set.empty)
                 epa_for_cont extra_params extra_args
             in
             Some epa_for_cont)
@@ -671,8 +674,18 @@ let add_to_extra_params_and_args result =
   in
   epa
 
+let did_unbox_a_mutable_block result =
+  Variable.Map.exists
+    (fun _var block_to_unbox ->
+      match block_to_unbox.mut with
+      | Mutable -> true
+      | Immutable_unique | Immutable -> false)
+    result.blocks_to_unbox
+
 let make_result result =
   let additionnal_epa = add_to_extra_params_and_args result in
   let let_rewrites = result.rewrites in
-  ( T.Mutable_unboxing_result.{ additionnal_epa; let_rewrites },
+  let did_unbox_a_mutable_block = did_unbox_a_mutable_block result in
+  ( T.Mutable_unboxing_result.
+      { did_unbox_a_mutable_block; additionnal_epa; let_rewrites },
     Variable.Map.keys result.blocks_to_unbox )

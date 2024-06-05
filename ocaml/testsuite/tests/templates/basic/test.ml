@@ -1,6 +1,3 @@
-(* If this is [test.ml], instead change [test.in.ml] and/or [gen_test.ml] and
-   re-run [gen_test.ml]. *)
-
 (* TEST
  readonly_files = "\
    bad_arg_impl.ml bad_arg_impl.reference \
@@ -80,7 +77,11 @@
      flags = "";
      program = "${test_build_directory}/test_direct_access.bc";
      module = "";
-     all_modules = "string_monoid.cmo string_monoid_no_mli.cmo test_direct_access.cmo ";
+     all_modules = "\
+       string_monoid.cmo \
+       string_monoid_no_mli.cmo \
+       test_direct_access.cmo \
+     ";
      ocamlc.byte;
 
      output = "test_direct_access.output";
@@ -395,7 +396,11 @@
      flags = "";
      program = "${test_build_directory}/test_direct_access.exe";
      module = "";
-     all_modules = "string_monoid.cmx string_monoid_no_mli.cmx test_direct_access.cmx ";
+     all_modules = "\
+       string_monoid.cmx \
+       string_monoid_no_mli.cmx \
+       test_direct_access.cmx \
+     ";
      ocamlopt.byte;
 
      output = "test_direct_access.output";

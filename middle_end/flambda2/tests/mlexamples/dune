@@ -8,6 +8,7 @@
   (progn
    (with-stdout-to generated-rules.inc.new
     (run tools/gen_dune_rules.exe
+         inlined_rec
          local
          tests0
          tests2

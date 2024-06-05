@@ -5,7 +5,6 @@
  (wrapped true)
  (flags
   (:standard
-   -principal
    -open
    Flambda2_identifiers
    -open
@@ -17,7 +16,7 @@
    -open
    Flambda2_term_basics))
  (ocamlopt_flags
-  (:standard -O3))
+  (:standard -O3 -open Int_replace_polymorphic_compare))
  (libraries
   ocamlcommon
   flambda2_identifiers

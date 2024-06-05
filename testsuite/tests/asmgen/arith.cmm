@@ -1,7 +1,7 @@
 (* TEST
-readonly_files = "mainarith.c"
-arguments = "mainarith.c"
-* asmgen
+ readonly_files = "mainarith.c";
+ arguments = "mainarith.c";
+ asmgen;
 *)
 
 (**************************************************************************)
@@ -160,15 +160,15 @@ arguments = "mainarith.c"
       (addraset r 87 (intoffloat f))
 
       (if (and (>= x 0) (< x y))
-          (seq (checkbound y x) (addraset r 88 1))
+          (addraset r 88 1)
         (addraset r 88 0))
 
       (if (< 0 y)
-          (seq (checkbound y 0) (addraset r 89 1))
+          (addraset r 89 1)
         (addraset r 89 0))
 
       (if (< 5 y)
-          (seq (checkbound y 5) (addraset r 90 1))
+          (addraset r 90 1)
         (addraset r 90 0))
 
       (addraset r 91 (letmut res int 1 (if (==f f g) [] (assign res 0)) res))

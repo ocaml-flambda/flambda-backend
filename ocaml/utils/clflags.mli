@@ -51,6 +51,14 @@ val set_int_arg :
 val set_float_arg :
     int option -> Float_arg_helper.parsed ref -> float -> float option -> unit
 
+module Libloc : sig
+  type t = {
+    path: string;
+    libs: string list;
+    hidden_libs: string list
+  }
+end
+
 val objfiles : string list ref
 val ccobjs : string list ref
 val dllibs : string list ref
@@ -59,6 +67,7 @@ val compile_only : bool ref
 val output_name : string option ref
 val include_dirs : string list ref
 val hidden_include_dirs : string list ref
+val libloc : Libloc.t list ref
 val no_std_include : bool ref
 val no_cwd : bool ref
 val print_types : bool ref
@@ -83,9 +92,11 @@ val open_modules : string list ref
 val preprocessor : string option ref
 val all_ppx : string list ref
 val absname : bool ref
+val directory : string option ref
 val annotations : bool ref
 val binary_annotations : bool ref
 val binary_annotations_cms : bool ref
+val store_occurrences : bool ref
 val use_threads : bool ref
 val noassert : bool ref
 val verbose : bool ref
@@ -125,6 +136,7 @@ val dump_typedtree : bool ref
 val dump_shape : bool ref
 val dump_rawlambda : bool ref
 val dump_lambda : bool ref
+val dump_letreclambda : bool ref
 val dump_rawclambda : bool ref
 val dump_clambda : bool ref
 val dump_rawflambda : bool ref
@@ -259,7 +271,7 @@ module Compiler_ir : sig
 end
 
 module Compiler_pass : sig
-  type t = Parsing | Typing | Lambda
+  type t = Parsing | Typing | Lambda | Middle_end
          | Scheduling | Emit | Simplify_cfg | Selection
   val of_string : string -> t option
   val to_string : t -> string
@@ -294,16 +306,8 @@ val print_arguments : string -> unit
 (* [reset_arguments ()] clear all declared arguments *)
 val reset_arguments : unit -> unit
 
-(* [Annotations] specifies which zero_alloc attributes to check. *)
-module Annotations : sig
-  type t = Check_default | Check_all | Check_opt_only | No_check
-  val all : t list
-  val to_string : t -> string
-  val of_string : string -> t option
-  val equal : t -> t -> bool
-  val doc : string
-end
-val zero_alloc_check : Annotations.t ref
+(* [zero_alloc_check] specifies which zero_alloc attributes to check. *)
+val zero_alloc_check : Zero_alloc_annotations.t ref
 val zero_alloc_check_assert_all : bool ref
 
 val no_auto_include_otherlibs : bool ref

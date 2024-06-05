@@ -43,14 +43,65 @@ module Array_kind : sig
     | Naked_floats
         (** An array consisting of naked floats, represented using
             [Double_array_tag]. *)
+    | Naked_float32s
+    | Naked_int32s
+    | Naked_int64s
+    | Naked_nativeints
 
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
 
-  val to_lambda : t -> Lambda.array_kind
-
   val element_kind : t -> Flambda_kind.With_subkind.t
+
+  val for_empty_array : t -> Empty_array_kind.t
+end
+
+module Array_kind_for_length : sig
+  type t =
+    | Array_kind of Array_kind.t
+    | Float_array_opt_dynamic
+end
+
+module Mixed_block_flat_element : sig
+  type t =
+    | Imm
+    | Float_boxed
+    | Float64
+    | Float32
+    | Bits32
+    | Bits64
+    | Word
+
+  val from_lambda : Lambda.flat_element -> t
+
+  val to_string : t -> string
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+end
+
+module Mixed_block_kind : sig
+  type t =
+    { value_prefix_len : int;
+      (* We use an array just so we can index into the middle. *)
+      flat_suffix : Mixed_block_flat_element.t array
+    }
+
+  val from_lambda : Lambda.mixed_block_shape -> t
+
+  val to_lambda : t -> Lambda.mixed_block_shape
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+
+  val fold_left : ('a -> Flambda_kind.t -> 'a) -> 'a -> t -> 'a
+
+  val element_kind : int -> t -> Flambda_kind.t
+
+  val length : t -> int
 end
 
 module Init_or_assign : sig
@@ -66,18 +117,22 @@ module Array_set_kind : sig
     | Immediates  (** An array consisting only of immediate values. *)
     | Values of Init_or_assign.t
         (** An array consisting of elements of kind [value]. With the float
-            array optimisation enabled, such elements must never be [float]s. *)
+        array optimisation enabled, such elements must never be [float]s. *)
     | Naked_floats
         (** An array consisting of naked floats, represented using
-            [Double_array_tag]. *)
+        [Double_array_tag]. *)
+    | Naked_float32s
+    | Naked_int32s
+    | Naked_int64s
+    | Naked_nativeints
 
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
 
-  val to_lambda : t -> Lambda.array_set_kind
-
   val array_kind : t -> Array_kind.t
+
+  val init_or_assign : t -> Init_or_assign.t
 
   val element_kind : t -> Flambda_kind.With_subkind.t
 end
@@ -89,6 +144,11 @@ module Duplicate_block_kind : sig
           length : Targetint_31_63.t
         }
     | Naked_floats of { length : Targetint_31_63.t }
+    | Mixed
+        (** We could store tag/length (or other relevant fields) on [Mixed],
+            but we don't because the fields of [t] are currently only used for
+            printing.
+        *)
 
   val print : Format.formatter -> t -> unit
 
@@ -100,6 +160,10 @@ module Duplicate_array_kind : sig
     | Immediates
     | Values
     | Naked_floats of { length : Targetint_31_63.t option }
+    | Naked_float32s of { length : Targetint_31_63.t option }
+    | Naked_int32s of { length : Targetint_31_63.t option }
+    | Naked_int64s of { length : Targetint_31_63.t option }
+    | Naked_nativeints of { length : Targetint_31_63.t option }
 
   val print : Format.formatter -> t -> unit
 
@@ -117,6 +181,16 @@ module Block_access_field_kind : sig
   val compare : t -> t -> int
 end
 
+module Mixed_block_access_field_kind : sig
+  type t =
+    | Value_prefix of Block_access_field_kind.t
+    | Flat_suffix of Mixed_block_flat_element.t
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+end
+
 module Block_access_kind : sig
   type t =
     | Values of
@@ -125,6 +199,11 @@ module Block_access_kind : sig
           field_kind : Block_access_field_kind.t
         }
     | Naked_floats of { size : Targetint_31_63.t Or_unknown.t }
+    | Mixed of
+        { tag : Tag.Scannable.t Or_unknown.t;
+          size : Targetint_31_63.t Or_unknown.t;
+          field_kind : Mixed_block_access_field_kind.t
+        }
 
   val print : Format.formatter -> t -> unit
 
@@ -200,6 +279,14 @@ val kind_of_string_accessor_width : string_accessor_width -> Flambda_kind.t
 
 val byte_width_of_string_accessor_width : string_accessor_width -> int
 
+type array_accessor_width =
+  | Scalar
+  | Vec128
+
+type float_bitwidth =
+  | Float32
+  | Float64
+
 type string_like_value =
   | String
   | Bytes
@@ -235,7 +322,7 @@ type nullary_primitive =
   | Begin_try_region
       (** Starting delimiter of local allocation region, when used for a "try"
           body. *)
-  | Enter_inlined_apply of { dbg : Debuginfo.t }
+  | Enter_inlined_apply of { dbg : Inlined_debuginfo.t }
       (** Used in classic mode to denote the start of an inlined function body.
           This is then used in to_cmm to correctly add inlined debuginfo. *)
 
@@ -266,7 +353,7 @@ type unary_primitive =
       }
   | Is_int of { variant_only : bool }
   | Get_tag
-  | Array_length
+  | Array_length of Array_kind_for_length.t
   | Bigarray_length of { dimension : int }
       (** This primitive is restricted by type-checking to bigarrays that have
           at least the correct number of dimensions. More specifically, they
@@ -282,7 +369,7 @@ type unary_primitive =
         kind : Flambda_kind.t
       }
   | Int_arith of Flambda_kind.Standard_int.t * unary_int_arith_op
-  | Float_arith of unary_float_arith_op
+  | Float_arith of float_bitwidth * unary_float_arith_op
   | Num_conv of
       { src : Flambda_kind.Standard_int_or_float.t;
         dst : Flambda_kind.Standard_int_or_float.t
@@ -372,7 +459,7 @@ type binary_float_arith_op =
 (** Primitives taking exactly two arguments. *)
 type binary_primitive =
   | Block_load of Block_access_kind.t * Mutability.t
-  | Array_load of Array_kind.t * Mutability.t
+  | Array_load of Array_kind.t * array_accessor_width * Mutability.t
   | String_or_bigstring_load of string_like_value * string_accessor_width
   | Bigarray_load of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Phys_equal of equality_comparison
@@ -381,8 +468,8 @@ type binary_primitive =
   | Int_shift of Flambda_kind.Standard_int.t * int_shift_op
   | Int_comp of
       Flambda_kind.Standard_int.t * signed_or_unsigned comparison_behaviour
-  | Float_arith of binary_float_arith_op
-  | Float_comp of unit comparison_behaviour
+  | Float_arith of float_bitwidth * binary_float_arith_op
+  | Float_comp of float_bitwidth * unit comparison_behaviour
   | Bigarray_get_alignment of int
   | Atomic_exchange
   | Atomic_fetch_and_add
@@ -390,7 +477,7 @@ type binary_primitive =
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =
   | Block_set of Block_access_kind.t * Init_or_assign.t
-  | Array_set of Array_set_kind.t
+  | Array_set of Array_set_kind.t * array_accessor_width
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Atomic_compare_and_set
@@ -399,6 +486,11 @@ type ternary_primitive =
 type variadic_primitive =
   | Make_block of Block_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_array of Array_kind.t * Mutability.t * Alloc_mode.For_allocations.t
+  | Make_mixed_block of
+      Tag.Scannable.t
+      * Mixed_block_kind.t
+      * Mutability.t
+      * Alloc_mode.For_allocations.t
 (* CR mshinwell: Invariant checks -- e.g. that the number of arguments matches
    [num_dimensions] *)
 

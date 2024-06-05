@@ -257,6 +257,9 @@ let emit_instr = function
         if t = 0 then out opATOM0 else (out opATOM; out_int t)
       else if n < 4 then (out(opMAKEBLOCK1 + n - 1); out_int t)
       else (out opMAKEBLOCK; out_int n; out_int t)
+  | Kmake_faux_mixedblock(n, t) ->
+      assert (n > 0);
+      out opMAKE_FAUX_MIXEDBLOCK; out_int n; out_int t
   | Kgetfield n ->
       if n < 4 then out(opGETFIELD0 + n) else (out opGETFIELD; out_int n)
   | Ksetfield n ->

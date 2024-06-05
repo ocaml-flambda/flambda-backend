@@ -166,8 +166,8 @@ static void mark_stack_prune (struct mark_stack* stk)
       if (ch->redarken_first.start > me.start)
         ch->redarken_first = me;
 
-      if (ch->redarken_end < me.end)
-        ch->redarken_end = me.end;
+      if (ch->redarken_end < me.object_end)
+        ch->redarken_end = me.object_end;
 
       if( redarken_first_chunk == NULL
           || redarken_first_chunk > (char*)chunk_addr ) {
@@ -214,13 +214,16 @@ Caml_inline void mark_stack_push(struct mark_stack* stk, value block,
                                   uintnat offset, intnat* work)
 {
   value v;
-  int i, block_wsz = Wosize_val(block), end;
+  int i, block_scannable_wsz, block_wsz, end;
   mark_entry* me;
 
   CAMLassert(Is_block(block) && Is_in_heap (block)
             && Is_black_val(block));
   CAMLassert(Tag_val(block) != Infix_tag);
   CAMLassert(Tag_val(block) < No_scan_tag);
+
+  block_wsz = Wosize_val(block);
+  block_scannable_wsz = Scannable_wosize_val(block);
 
 #if defined(NO_NAKED_POINTERS) || defined(NAKED_POINTERS_CHECKER)
   if (Tag_val(block) == Closure_tag) {
@@ -238,7 +241,7 @@ Caml_inline void mark_stack_push(struct mark_stack* stk, value block,
   }
 #endif
 
-  end = (block_wsz < 8 ? block_wsz : 8);
+  end = (block_scannable_wsz < 8 ? block_scannable_wsz : 8);
 
   /* Optimisation to avoid pushing small, unmarkable objects such as [Some 42]
    * into the mark stack. */
@@ -250,11 +253,11 @@ Caml_inline void mark_stack_push(struct mark_stack* stk, value block,
       break;
   }
 
-  if (i == block_wsz) {
+  if (i == block_scannable_wsz) {
     /* nothing left to mark */
     if( work != NULL ) {
       /* we should take credit for it though */
-      *work -= Whsize_wosize(block_wsz - offset);
+      *work -= Whsize_wosize(block_scannable_wsz - offset);
     }
     return;
   }
@@ -273,7 +276,8 @@ Caml_inline void mark_stack_push(struct mark_stack* stk, value block,
   me = &stk->stack[stk->count++];
 
   me->start = Op_val(block) + offset;
-  me->end = Op_val(block) + Wosize_val(block);
+  me->scannable_end = Op_val(block) + block_scannable_wsz;
+  me->object_end = Op_val(block) + block_wsz;
 }
 
 #if defined(NAKED_POINTERS_CHECKER) && defined(NATIVE_CODE)
@@ -350,14 +354,15 @@ static int redarken_chunk(char* heap_chunk, struct mark_stack* stk) {
   while (1) {
     header_t* hp;
     /* Skip a prefix of fields that need no marking */
-    CAMLassert(me.start <= me.end && (header_t*)me.end <= end);
-    while (me.start < me.end &&
+    CAMLassert(me.start <= me.scannable_end &&
+               (header_t*)me.scannable_end <= end);
+    while (me.start < me.scannable_end &&
            (!Is_block(*me.start) || Is_young(*me.start))) {
       me.start++;
     }
 
     /* Push to the mark stack (if anything's left) */
-    if (me.start < me.end) {
+    if (me.start < me.scannable_end) {
       if (stk->count < stk->size/4) {
         stk->stack[stk->count++] = me;
       } else {
@@ -369,7 +374,7 @@ static int redarken_chunk(char* heap_chunk, struct mark_stack* stk) {
     }
 
     /* Find the next block that needs to be re-marked */
-    hp = (header_t*)me.end;
+    hp = (header_t*)me.object_end;
     CAMLassert(hp <= end);
     while (hp < end) {
       value v = Val_hp(hp);
@@ -382,7 +387,8 @@ static int redarken_chunk(char* heap_chunk, struct mark_stack* stk) {
 
     /* Found a block */
     me.start = Op_hp(hp);
-    me.end = me.start + Wosize_hp(hp);
+    me.scannable_end = me.start + Scannable_wosize_hp(hp);
+    me.object_end = me.start + Wosize_hp(hp);
     if (Tag_hp(hp) == Closure_tag) {
       me.start += Start_env_closinfo(Closinfo_val(Val_hp(hp)));
     }
@@ -390,7 +396,8 @@ static int redarken_chunk(char* heap_chunk, struct mark_stack* stk) {
 
   chunk->redarken_first.start =
       (value*)(heap_chunk + Chunk_size(heap_chunk));
-  chunk->redarken_first.end = chunk->redarken_first.start;
+  chunk->redarken_first.scannable_end = chunk->redarken_first.start;
+  chunk->redarken_first.object_end = chunk->redarken_first.start;
   chunk->redarken_end = (value*)heap_chunk;
 
   return 1;
@@ -642,7 +649,17 @@ Caml_noinline static intnat do_some_marking
 #endif
 
   while (1) {
-    value *scan, *obj_end, *scan_end;
+    /* * [scan] is initialized to the point where we should start scanning in
+         the object. It is then updated to keep track of the actual scanning
+         progress.
+       * [obj_scannable_end] is the point up until which it is legal to scan the
+         object.
+       * [obj_end] is a pointer to one past the end of the object.
+       * [scan_end] is where the scanning actually will progress until. It is
+         less than [obj_scannable_end] in the event that the work budget is
+         lower than what would be required to scan until that point.
+     */
+    value *scan, *obj_scannable_end, *obj_end, *scan_end;
     intnat scan_len;
 
     if (pb_enqueued > pb_dequeued + min_pb) {
@@ -670,7 +687,9 @@ Caml_noinline static intnat do_some_marking
         continue;
       }
       scan = Op_val(block);
+      obj_scannable_end = scan + Scannable_wosize_hd(hd);
       obj_end = scan + Wosize_hd(hd);
+      work -= obj_end - obj_scannable_end;
 
       if (Tag_hd (hd) == Closure_tag) {
         uintnat env_offset = Start_env_closinfo(Closinfo_val(block));
@@ -690,10 +709,11 @@ Caml_noinline static intnat do_some_marking
     } else {
       mark_entry m = stk.stack[--stk.count];
       scan = m.start;
-      obj_end = m.end;
+      obj_scannable_end = m.scannable_end;
+      obj_end = m.object_end;
     }
 
-    scan_len = obj_end - scan;
+    scan_len = obj_scannable_end - scan;
     if (work < scan_len) {
       scan_len = work;
       if (scan_len < 0) scan_len = 0;
@@ -725,10 +745,10 @@ Caml_noinline static intnat do_some_marking
 #endif
     }
 
-    if (scan < obj_end) {
+    if (scan < obj_scannable_end) {
       /* Didn't finish scanning this object, either because work <= 0,
          or the prefetch buffer filled up. Leave the rest on the stack. */
-      mark_entry m = { scan, obj_end };
+      mark_entry m = { scan, obj_scannable_end, obj_end };
       caml_prefetch(scan+1);
       if (stk.count == stk.size) {
         *Caml_state->mark_stack = stk;
@@ -737,7 +757,8 @@ Caml_noinline static intnat do_some_marking
       }
       CAML_EVENTLOG_DO({
         if (work <= 0 && pb_enqueued == pb_dequeued) {
-          CAML_EV_COUNTER(EV_C_MAJOR_MARK_SLICE_REMAIN, obj_end - scan);
+          CAML_EV_COUNTER(EV_C_MAJOR_MARK_SLICE_REMAIN,
+                          obj_scannable_end - scan);
         }
       });
       stk.stack[stk.count++] = m;

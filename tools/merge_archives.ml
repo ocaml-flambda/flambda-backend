@@ -80,9 +80,9 @@ let merge_cmxa0 ~archives =
                   incr ncmxs
                 end));
   let cmis = Array.make !ncmis Import_info.dummy in
-  Hashtbl.iter (fun name (import, i) -> cmis.(i) <- import) cmi_table;
+  Hashtbl.iter (fun _name (import, i) -> cmis.(i) <- import) cmi_table;
   let cmxs = Array.make !ncmxs Import_info.dummy in
-  Hashtbl.iter (fun name (import, i) -> cmxs.(i) <- import) cmx_table;
+  Hashtbl.iter (fun _name (import, i) -> cmxs.(i) <- import) cmx_table;
   let genfns = Generic_fns.Tbl.make () in
   let _, lib_units, lib_ccobjs, lib_ccopts =
     List.fold_left
@@ -99,7 +99,9 @@ let merge_cmxa0 ~archives =
         in
         if not (Compilation_unit.Set.is_empty already_defined)
         then failwith "Archives contain multiply-defined units";
-        Generic_fns.Tbl.add genfns cmxa.lib_generic_fns;
+        ignore(Generic_fns.Tbl.add
+                ~imports:Generic_fns.Partition.Set.empty
+                genfns cmxa.lib_generic_fns);
         let lib_names = Compilation_unit.Set.union new_lib_names lib_names in
         let remap oldarr newarr tbl oldb ~get_key =
           let module B = Misc.Bitmap in

@@ -11,12 +11,13 @@ want to modify the Flambda backend.  Jump to:
 - [Running tests](#running-tests)
 - [Running only part of the upstream testsuite](#running-only-part-of-the-upstream-testsuite)
 - [Running tests with coverage analysis](#running-tests-with-coverage-analysis)
-- [Running the compiler produced by "make hacking" on an example without the
-  stdlib](#running-the-compiler-produced-by-make-hacking-on-an-example-without-the-stdlib)
-- [Using the ocaml debugger to debug the compiler](#using-the-ocaml-debugger-to-debug-the-compiler)
+- [Running the compiler produced by "make hacking" on an example without the stdlib](#running-the-compiler-produced-by-make-hacking-on-an-example-without-the-stdlib)
+- [Using the OCaml debugger to debug the compiler](#using-the-ocaml-debugger-to-debug-the-compiler)
+  - [Alternative debugger workflow](#alternative-debugger-workflow)
 - [Getting the compilation command for a stdlib file](#getting-the-compilation-command-for-a-stdlib-file)
 - [Bootstrapping the ocaml subtree](#bootstrapping-the-ocaml-subtree)
-- [Testing the compiler built locally with OPAM](#testing-the-compiler-built-locally-with-opam)
+- [Testing the compiler built locally with OPAM (new method)](#testing-the-compiler-built-locally-with-opam-new-method)
+- [Testing the compiler built locally with OPAM (old method)](#testing-the-compiler-built-locally-with-opam-old-method)
 - [Pulling changes onto a release branch](#pulling-changes-onto-a-release-branch)
 - [Rebasing to a new major version of the upstream compiler](#rebasing-to-a-new-major-version-of-the-upstream-compiler)
 - [How to add a new intrinsic to the compiler](#how-to-add-a-new-intrinsic-to-the-compiler)
@@ -93,11 +94,9 @@ Depending on the initial changes, it might be necessary to do this multiple time
 
 To rebuild after making changes, you can just type `make`. You need to
 have a working OCaml 4.14 or 4.14.1 compiler on your PATH before doing so,
-e.g. installed via OPAM.
+e.g. installed via OPAM. You also need to have dune and menhir.
 
-<!-- CR someone: investigate this -->
-The build currently fails when using the latest version of `dune` (3.11.1).
-To install a known-good dune, run `opam pin add dune 3.8.1`.
+`menhir` should be pinned to a specific version: `opam pin add menhir 20210419`.
 
 There is a special target `make hacking` which starts Dune in polling mode.  The rebuild
 performed here is equivalent to `make ocamlopt` in the upstream distribution: it rebuilds the
@@ -341,7 +340,16 @@ go into `ocaml/`, then run the upstream configure script.  After that perform th
 `make core` followed by `make bootstrap`).  Before recompiling the Flambda backend as normal it would
 be advisable to clean the whole tree again.
 
-## Testing the compiler built locally with OPAM
+## Testing the compiler built locally with OPAM (new method)
+
+This is still under development, but should work!
+```shell
+opam repo add flambda-backend git+https://github.com/chambart/opam-repository-js.git#with-extensions
+opam switch create 5.1.1+flambda2 --repos flambda-backend,default
+eval $(opam env --switch=5.1.1+flambda2)
+```
+
+## Testing the compiler built locally with OPAM (old method)
 
 It is possible to create a OPAM switch with the Flambda backend compiler.
 
@@ -362,7 +370,8 @@ thoroughly (e.g. `git clean -dfX`) before reconfiguring with a different prefix.
 
 Then build the compiler with the command `make _install` (this is the default
 target plus some setup in preparation for installation). As usual when building,
-a 4.14 compiler (and dune) need to be in the path.
+a 4.14 compiler (and dune and menhir) need to be in the path. See the warning above
+about the version of menhir to use.
 
 Now the build part is done, we don't need to stay in the build environment
 anymore; the switch creation will likely replace it if your terminal is setup

@@ -358,16 +358,6 @@ stdlib__Float.cmx : float.ml \
 stdlib__Float.cmi : float.mli \
     stdlib.cmi \
     stdlib__Seq.cmi
-stdlib__Float_u.cmo : float_u.ml \
-    stdlib.cmi \
-    stdlib__Float.cmi \
-    stdlib__Float_u.cmi
-stdlib__Float_u.cmx : float_u.ml \
-    stdlib.cmx \
-    stdlib__Float.cmx \
-    stdlib__Float_u.cmi
-stdlib__Float_u.cmi : float_u.mli \
-    stdlib.cmi
 stdlib__Format.cmo : format.ml \
     stdlib__String.cmi \
     stdlib.cmi \
@@ -462,32 +452,6 @@ stdlib__Hashtbl.cmx : hashtbl.ml \
     stdlib__Array.cmx \
     stdlib__Hashtbl.cmi
 stdlib__Hashtbl.cmi : hashtbl.mli \
-    stdlib.cmi \
-    stdlib__Seq.cmi
-stdlib__Iarray.cmo : iarray.ml \
-    stdlib.cmi \
-    stdlib__Seq.cmi \
-    stdlib__Array.cmi \
-    stdlib__Iarray.cmi
-stdlib__Iarray.cmx : iarray.ml \
-    stdlib.cmx \
-    stdlib__Seq.cmx \
-    stdlib__Array.cmx \
-    stdlib__Iarray.cmi
-stdlib__Iarray.cmi : iarray.mli \
-    stdlib.cmi \
-    stdlib__Seq.cmi
-stdlib__IarrayLabels.cmo : iarrayLabels.ml \
-    stdlib.cmi \
-    stdlib__Seq.cmi \
-    stdlib__Array.cmi \
-    stdlib__IarrayLabels.cmi
-stdlib__IarrayLabels.cmx : iarrayLabels.ml \
-    stdlib.cmx \
-    stdlib__Seq.cmx \
-    stdlib__Array.cmx \
-    stdlib__IarrayLabels.cmi
-stdlib__IarrayLabels.cmi : iarrayLabels.mli \
     stdlib.cmi \
     stdlib__Seq.cmi
 stdlib__In_channel.cmo : in_channel.ml \

@@ -24,6 +24,7 @@ module Make (_ : Dynlink_platform_intf.S) : sig
   val loadfile : string -> unit
   val loadfile_private : string -> unit
   val unsafe_get_global_value : bytecode_or_asm_symbol:string -> Obj.t option
+  val does_symbol_exist : bytecode_or_asm_symbol:string -> bool
   val adapt_filename : string -> string
   val set_allowed_units : string list -> unit
   val allow_only: string list -> unit

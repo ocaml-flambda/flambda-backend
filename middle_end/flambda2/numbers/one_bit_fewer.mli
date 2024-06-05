@@ -25,7 +25,11 @@ module type S = sig
 
   val ( <= ) : t -> t -> bool
 
+  val ( >= ) : t -> t -> bool
+
   val ( < ) : t -> t -> bool
+
+  val ( > ) : t -> t -> bool
 
   val bottom_byte_to_int : t -> int
 

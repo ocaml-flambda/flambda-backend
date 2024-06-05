@@ -1,13 +1,30 @@
 (* TEST
-   * bytecode
-     reference = "${test_source_directory}/alloc.heap.reference"
-   * stack-allocation
-   ** native
-      reference = "${test_source_directory}/alloc.stack.reference"
-   * no-stack-allocation
-   ** native
-      reference = "${test_source_directory}/alloc.heap.reference"
- *)
+ {
+   reference = "${test_source_directory}/alloc.heap.reference";
+   bytecode;
+ }{
+   stack-allocation;
+   reference = "${test_source_directory}/alloc.stack.reference";
+   native;
+ }{
+   no-stack-allocation;
+   reference = "${test_source_directory}/alloc.heap.reference";
+   native;
+ }
+*)
+
+(* First test to ensure that noalloc externals that locally allocate
+   don't cause a crash in the middle end (originally seen on
+   flambda-backend PR2180). *)
+
+(* This will never be called, caml_alloc_dummy is just chosen as a primitive that
+   exists in the bytecode runtime too *)
+external foo : unit -> ('a[@local_opt]) =
+  "caml_alloc_dummy" "caml_alloc_dummy" [@@noalloc]
+
+let foo () = foo ()
+
+(* Remaining tests *)
 
 type t = int
 
@@ -264,6 +281,16 @@ external array_blit :
 external array_fill :
   local_ 'a array -> int -> int -> 'a -> unit = "caml_array_fill"
 
+let maniparray0 =
+  let l = [42] in
+  fun arr ->
+    (* This function should only locally allocate in the C runtime function
+       for doing the array allocation, and not in the OCaml code, in order
+       to ensure that locally-allocating C calls hold onto regions. *)
+    let x = local_array 6 l in
+    assert (x = arr);
+    ()
+
 let maniparray arr =              (* arr = 1,2,3,1,2,3 *)
   let x = local_array 2 [2] in    (* 2,2 *)
   let x = array_append x x in     (* 2,2,2,2 *)
@@ -472,6 +499,7 @@ let () =
   run "longarray" makelongarray 42;
   run "floatgenarray" makeshortarray 42.;
   run "longfgarray" makelongarray 42.;
+  run "maniparray0" maniparray0 [| [42]; [42]; [42]; [42]; [42]; [42] |];
   run "maniparray" maniparray [| [1]; [2]; [3]; [1]; [2]; [3] |];
   run "manipfarray" manipfarray [| 1.; 2.; 3.; 1.; 2.; 3. |];
   run "ref" makeref 42;

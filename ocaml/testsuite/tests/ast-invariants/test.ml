@@ -1,9 +1,9 @@
 (* TEST
-   include ocamlcommon
-   * hasunix
-   include unix
-   arguments = "${ocamlsrcdir}"
-   ** native
+ include ocamlcommon;
+ include unix;
+ arguments = "${ocamlsrcdir}";
+ hasunix;
+ native;
 *)
 
 (* This test checks all ml files in the ocaml repository that are accepted
@@ -85,5 +85,6 @@ let rec walk dir =
     (Sys.readdir dir)
 
 let () =
-  Language_extension.enable_maximal ();
+  Language_extension.set_universe_and_enable_all
+    Language_extension.Universe.maximal;
   walk root

@@ -122,14 +122,6 @@ let filter_curry_attrs attrs =
 let has_non_curry_attr attrs =
   List.exists (fun attr -> not (is_curry_attr attr)) attrs
 
-let check_local_attr attrs =
-  match
-    List.partition (fun attr ->
-        attr.attr_name.txt = "extension.local") attrs
-  with
-  | [], _ -> attrs, false
-  | _::_, rest -> rest, true
-
 type space_formatter = (unit, Format.formatter, unit) format
 
 let override = function
@@ -288,29 +280,62 @@ let iter_loc f ctxt {txt; loc = _} = f ctxt txt
 
 let constant_string f s = pp f "%S" s
 
-let tyvar = Printast.tyvar
-let jkind_annotation = Jane_syntax.Layouts.Pprint.jkind_annotation
-
-let tyvar_jkind_loc ~print_quote f (str,jkind) =
-  let pptv =
-    if print_quote
-    then tyvar
-    else fun ppf s -> Format.fprintf ppf "%s" s
-  in
-  match jkind with
-  | None -> pptv f str.txt
-  | Some lay -> Format.fprintf f "(%a : %a)" pptv str.txt jkind_annotation lay
+let tyvar ppf s =
+  if String.length s >= 2 && s.[1] = '\'' then
+    (* without the space, this would be parsed as
+       a character literal *)
+    Format.fprintf ppf "' %s" s
+  else
+    Format.fprintf ppf "'%s" s
 
 let tyvar_loc f str = tyvar f str.txt
 let string_quot f x = pp f "`%s" x
 
-let maybe_local_type pty ctxt f c =
-  let cattrs, is_local = check_local_attr c.ptyp_attributes in
-  let c = { c with ptyp_attributes = cattrs } in
-  if is_local then
-    pp f "local_ %a" (pty ctxt) c
-  else
-    pty ctxt f c
+let legacy_mode f m =
+  let {txt; _} = (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
+  let s =
+    match txt with
+    | "local" -> "local_"
+    | "unique" -> "unique_"
+    | "once" -> "once_"
+    | "global" -> "global_" (* global modality *)
+    | s -> Misc.fatal_errorf "Unrecognized mode %s - should not parse" s
+  in
+  pp_print_string f s
+
+let legacy_modes f m =
+  pp_print_list ~pp_sep:(fun f () -> pp f " ") legacy_mode f m.txt
+
+let optional_legacy_modes f m =
+  match m with
+  | None -> ()
+  | Some m ->
+    legacy_modes f m;
+    pp_print_space f ()
+
+let mode f m =
+  let {txt; _} = (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
+  pp_print_string f txt
+
+let modes f m =
+  pp_print_list ~pp_sep:(fun f () -> pp f " ") mode f m.txt
+
+let maybe_modes_of_type c =
+  let m, cattrs = Jane_syntax.Mode_expr.maybe_of_attrs c.ptyp_attributes in
+  m, { c with ptyp_attributes = cattrs }
+
+let maybe_modes_type pty ctxt f c =
+  let m, c = maybe_modes_of_type c in
+  match m with
+  | Some m -> pp f "%a %a" legacy_modes m (pty ctxt) c
+  | None -> pty ctxt f c
+
+let maybe_type_atat_modes pty ctxt f c =
+  let m, c = maybe_modes_of_type c in
+  match m with
+  | Some m -> pp f "%a@ @@@@@ %a" (pty ctxt) c modes m
+  | None -> pty ctxt f c
+
 (* c ['a,'b] *)
 let rec class_params_def ctxt f =  function
   | [] -> ()
@@ -320,9 +345,37 @@ let rec class_params_def ctxt f =  function
 
 and type_with_label ctxt f (label, c) =
   match label with
-  | Nolabel    -> maybe_local_type core_type1 ctxt f c (* otherwise parenthesize *)
-  | Labelled s -> pp f "%s:%a" s (maybe_local_type core_type1 ctxt) c
-  | Optional s -> pp f "?%s:%a" s (maybe_local_type core_type1 ctxt) c
+  | Nolabel    -> maybe_modes_type core_type1 ctxt f c (* otherwise parenthesize *)
+  | Labelled s -> pp f "%s:%a" s (maybe_modes_type core_type1 ctxt) c
+  | Optional s -> pp f "?%s:%a" s (maybe_modes_type core_type1 ctxt) c
+
+and jkind ctxt f k = match (k : Jane_syntax.Jkind.t) with
+  | Default -> pp f "_"
+  | Primitive_layout_or_abbreviation s ->
+    pp f "%s" (s : Jane_syntax.Jkind.Const.t :> _ loc).txt
+  | Mod (t, { txt = mode_list }) ->
+    begin match mode_list with
+    | [] -> Misc.fatal_error "malformed jkind annotation"
+    | _ :: _ ->
+      pp f "%a mod %a"
+        (jkind ctxt) t
+        (pp_print_list ~pp_sep:pp_print_space mode) mode_list
+    end
+  | With (t, ty) ->
+    pp f "%a with %a" (jkind ctxt) t (core_type ctxt) ty
+  | Kind_of ty -> pp f "kind_of_ %a" (core_type ctxt) ty
+
+and jkind_annotation ctxt f annot = jkind ctxt f annot.txt
+
+and tyvar_jkind_loc ctxt ~print_quote f (str,jkind) =
+  let pptv =
+    if print_quote
+    then tyvar
+    else fun ppf s -> pp ppf "%s" s
+  in
+  match jkind with
+  | None -> pptv f str.txt
+  | Some lay -> pp f "(%a : %a)" pptv str.txt (jkind_annotation ctxt) lay
 
 and core_type ctxt f x =
   match Jane_syntax.Core_type.of_ast x with
@@ -444,8 +497,20 @@ and core_type_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
     pp f "@[<2>%a@;as@;(%a :@ %a)@]"
       (core_type1 ctxt) aliased_type
       tyvar_option name
-      jkind_annotation jkind
-  | _ -> pp f "@[<2>%a@]" (core_type1_jane_syntax ctxt attrs) x
+      (jkind_annotation ctxt) jkind
+  | Jtyp_layout (Ltyp_poly {bound_vars = []; inner_type}) ->
+    core_type ctxt f inner_type
+  | Jtyp_layout (Ltyp_poly {bound_vars; inner_type}) ->
+    let jkind_poly_var f (name, jkind_opt) =
+      match jkind_opt with
+      | Some jkind -> pp f "(%a@;:@;%a)" tyvar_loc name (jkind_annotation ctxt) jkind
+      | None -> tyvar_loc f name
+    in
+    pp f "@[<2>%a@;.@;%a@]"
+        (list jkind_poly_var ~sep:"@;") bound_vars
+        (core_type ctxt) inner_type
+  | Jtyp_tuple _ | Jtyp_layout (Ltyp_var _) ->
+    pp f "@[<2>%a@]" (core_type1_jane_syntax ctxt attrs) x
 
 
 and core_type1_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
@@ -453,17 +518,18 @@ and core_type1_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
   else
     match x with
     | Jtyp_layout (Ltyp_var { name; jkind }) ->
-      pp f "(%a@;:@;%a)" tyvar_option name jkind_annotation jkind
+      pp f "(%a@;:@;%a)" tyvar_option name (jkind_annotation ctxt) jkind
     | Jtyp_tuple x -> core_type1_labeled_tuple ctxt attrs f x
-    | _ -> paren true (core_type_jane_syntax ctxt attrs) f x
+    | Jtyp_layout (Ltyp_alias _ | Ltyp_poly _) ->
+      paren true (core_type_jane_syntax ctxt attrs) f x
 
 and tyvar_option f = function
   | None -> pp f "_"
   | Some name -> tyvar f name
 
 and core_type1_labeled_tuple ctxt _attrs f
-      : Jane_syntax.Labeled_tuples.core_type -> _ = function
-  | Lttyp_tuple tl ->
+      : Jane_syntax.Labeled_tuples.core_type -> _ =
+  fun tl ->
       pp f "(%a)" (list (labeled_core_type1 ctxt) ~sep:"@;*@;") tl
 
 and labeled_core_type1 ctxt f (label, ty) =
@@ -474,8 +540,8 @@ and labeled_core_type1 ctxt f (label, ty) =
   core_type1 ctxt f ty
 
 and return_type ctxt f x =
-  if x.ptyp_attributes <> [] then maybe_local_type core_type1 ctxt f x
-  else maybe_local_type core_type ctxt f x
+  if x.ptyp_attributes <> [] then maybe_modes_type core_type1 ctxt f x
+  else maybe_modes_type core_type ctxt f x
 
 (********************pattern********************)
 (* be cautious when use [pattern], [pattern1] is preferred *)
@@ -606,7 +672,7 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
         | Some (jpat, _attrs) -> begin match jpat with
         | Jpat_immutable_array (Iapat_immutable_array _) -> false
         | Jpat_layout (Lpat_constant _) -> false
-        | Jpat_tuple (Ltpat_tuple _) -> true
+        | Jpat_tuple (_, _) -> true
         end
         | None -> match p.ppat_desc with
         | Ppat_array _ | Ppat_record _
@@ -625,7 +691,7 @@ and pattern_jane_syntax ctxt attrs f (pat : Jane_syntax.Pattern.t) =
     | Jpat_immutable_array (Iapat_immutable_array l) ->
         pp f "@[<2>[:%a:]@]"  (list (pattern1 ctxt) ~sep:";") l
     | Jpat_layout (Lpat_constant c) -> unboxed_constant ctxt f c
-    | Jpat_tuple (Ltpat_tuple (l, closed)) ->
+    | Jpat_tuple (l, closed) ->
         let closed_flag ppf = function
         | Closed -> ()
         | Open -> pp ppf ",@;.."
@@ -634,43 +700,44 @@ and pattern_jane_syntax ctxt attrs f (pat : Jane_syntax.Pattern.t) =
           (list ~sep:",@;" (labeled_pattern1 ctxt)) l
           closed_flag closed
 
-and maybe_local_pat ctxt is_local f p =
-  if is_local then
-    pp f "(local_ %a)" (simple_pattern ctxt) p
-  else
-    pp f "%a" (simple_pattern ctxt) p
+and maybe_modes_pat ctxt m f p =
+  match m with
+  | Some m ->  pp f "(%a %a)" legacy_modes m (simple_pattern ctxt) p
+  | None -> pp f "%a" (simple_pattern ctxt) p
 
 and label_exp ctxt f (l,opt,p) =
-  let pattrs, is_local = check_local_attr p.ppat_attributes in
+  let m, pattrs = Jane_syntax.Mode_expr.maybe_of_attrs p.ppat_attributes in
   let p = { p with ppat_attributes = pattrs } in
   match l with
   | Nolabel ->
       (* single case pattern parens needed here *)
-      pp f "%a" (maybe_local_pat ctxt is_local) p
+      pp f "%a" (maybe_modes_pat ctxt m) p
   | Optional rest ->
       begin match p with
       | {ppat_desc = Ppat_var {txt;_}; ppat_attributes = []}
-        when txt = rest && not is_local ->
+        when txt = rest && Option.is_none m ->
           (match opt with
            | Some o -> pp f "?(%s=@;%a)" rest  (expression ctxt) o
            | None -> pp f "?%s" rest)
       | _ ->
           (match opt with
            | Some o ->
-               pp f "?%s:(%s%a=@;%a)"
+               pp f "?%s:(%a%a=@;%a)"
                  rest
-                 (if is_local then "local_ " else "")
+                 optional_legacy_modes m
                  (pattern1 ctxt) p (expression ctxt) o
-           | None -> pp f "?%s:%a" rest (maybe_local_pat ctxt is_local) p)
+           | None -> pp f "?%s:%a" rest (maybe_modes_pat ctxt m) p)
       end
   | Labelled l -> match p with
     | {ppat_desc  = Ppat_var {txt;_}; ppat_attributes = []}
       when txt = l ->
-        if is_local then
-          pp f "~(local_ %s)" l
-        else
+        (match m with
+        | Some m ->
+          pp f "~(%a %s)" legacy_modes m l
+        | None ->
           pp f "~%s" l
-    | _ ->  pp f "~%s:%a" l (maybe_local_pat ctxt is_local) p
+        )
+    | _ ->  pp f "~%s:%a" l (maybe_modes_pat ctxt m) p
 
 and sugar_expr ctxt f e =
   if e.pexp_attributes <> [] then false
@@ -798,9 +865,9 @@ and expression ?(jane_syntax_parens = false) ctxt f x =
           (bindings reset_ctxt) (rf,l)
           (expression ctxt) e
     | Pexp_apply
-      ({ pexp_desc = Pexp_extension({txt = "extension.local"}, PStr []) },
+      ({ pexp_desc = Pexp_extension({txt = "extension.exclave"}, PStr []) },
        [Nolabel, sbody]) ->
-        pp f "@[<2>local_ %a@]" (expression ctxt) sbody
+        pp f "@[<2>exclave_ %a@]" (expression ctxt) sbody
     | Pexp_apply (e, l) ->
         begin if not (sugar_expr ctxt f x) then
             match view_fixity_of_exp e with
@@ -1002,7 +1069,7 @@ and floating_attribute ctxt f a =
 and value_description ctxt f x =
   (* note: value_description has an attribute field,
            but they're already printed by the callers this method *)
-  pp f "@[<hov2>%a%a@]" (core_type ctxt) x.pval_type
+  pp f "@[<hov2>%a%a@]" (maybe_type_atat_modes core_type ctxt) x.pval_type
     (fun f x ->
        if x.pval_prim <> []
        then pp f "@ =@ %a" (list constant_string) x.pval_prim
@@ -1208,6 +1275,11 @@ and include_ : 'a. ctxt -> formatter ->
       (contents ctxt) incl.pincl_mod
       (item_attributes ctxt) incl.pincl_attributes
 
+and kind_abbrev ctxt f name jkind =
+  pp f "@[<hov2>kind_abbrev_@ %a@ =@ %a@]"
+    string_loc name
+    (jkind_annotation ctxt) jkind
+
 and module_type ctxt f x =
   if x.pmty_attributes <> [] then begin
     pp f "((%a)%a)" (module_type ctxt) {x with pmty_attributes=[]}
@@ -1297,9 +1369,15 @@ and sig_include_functor ctxt f
   | Ifsig_include_functor incl ->
       include_ ctxt f ~functor_:true ~contents:module_type incl
 
+and sig_layout ctxt f
+  : Jane_syntax.Layouts.signature_item -> _ = function
+  | Lsig_kind_abbrev (name, jkind) ->
+      kind_abbrev ctxt f name jkind
+
 and signature_item_jane_syntax ctxt f : Jane_syntax.Signature_item.t -> _ =
   function
   | Jsig_include_functor ifincl -> sig_include_functor ctxt f ifincl
+  | Jsig_layout sigi -> sig_layout ctxt f sigi
 
 and signature_item ctxt f x : unit =
   match Jane_syntax.Signature_item.of_ast x with
@@ -1449,9 +1527,6 @@ and payload ctxt f = function
       pp f " when "; expression ctxt f e
 
 and pp_print_pexp_function ctxt sep f x =
-  (* do not print [@extension.local] on expressions *)
-  let attrs, _ = check_local_attr x.pexp_attributes in
-  let x = { x with pexp_attributes = attrs } in
   (* We go to some trouble to print nested [Pexp_newtype]/[Lexp_newtype] as
      newtype parameters of the same "fun" (rather than printing several nested
      "fun (type a) -> ..."). This isn't necessary for round-tripping -- it just
@@ -1462,7 +1537,7 @@ and pp_print_pexp_function ctxt sep f x =
   | Some (Jexp_layout (Lexp_newtype (str, lay, e)), []) ->
       pp f "@[(type@ %s :@ %a)@]@ %a"
         str.txt
-        jkind_annotation lay
+        (jkind_annotation ctxt) lay
         (pp_print_pexp_function ctxt sep) e
   | Some (jst, attrs) ->
       pp f "%s@;%a" sep (jane_syntax_expr ctxt attrs ~parens:false) jst
@@ -1551,17 +1626,35 @@ and binding ctxt f {pvb_pat=p; pvb_expr=x; pvb_constraint = ct; _} =
 (* [in] is not printed *)
 and bindings ctxt f (rf,l) =
   let binding kwd rf f x =
-    let attrs, is_local = check_local_attr x.pvb_attributes in
+    let modes_on_binding, attrs =
+      Jane_syntax.Mode_expr.maybe_of_attrs x.pvb_attributes
+    in
     let x =
-      match is_local, x.pvb_expr.pexp_desc with
-      | true, Pexp_apply
-          ({ pexp_desc = Pexp_extension({txt = "extension.local"}, PStr []) },
-           [Nolabel, sbody]) ->
-          {x with pvb_expr = sbody}
+      (* For [let local_ x = e in ...] and [let x @ local = e in ...],
+         the parser puts attributes on both the let-binding and on e.
+
+         The below code is meant to print the modes only in one place,
+         not both. (We print it on the let-binding, not the expression.)
+      *)
+      match modes_on_binding, Jane_syntax.Expression.of_ast x.pvb_expr with
+      | Some modes_on_binding,
+        Some (Jexp_modes (Coerce (modes_on_expr, sbody)), _) ->
+          (* Sanity check: only suppress the printing of one mode expression if
+             the mode expressions are in fact identical.
+          *)
+          let mode_names (modes : Jane_syntax.Mode_expr.t) =
+            List.map Location.get_txt (modes.txt :> string loc list)
+          in
+          if
+            List.equal String.equal
+              (mode_names modes_on_binding)
+              (mode_names modes_on_expr)
+          then {x with pvb_expr = sbody}
+          else x
       | _ -> x
     in
-    pp f "@[<2>%s %a%s%a@]%a" kwd rec_flag rf
-      (if is_local then "local_ " else "")
+    pp f "@[<2>%s %a%a%a@]%a" kwd rec_flag rf
+      optional_legacy_modes modes_on_binding
       (binding ctxt) x (item_attributes ctxt) attrs
   in
   match l with
@@ -1587,9 +1680,15 @@ and str_include_functor ctxt f
   | Ifstr_include_functor incl ->
       include_ ctxt f ~functor_:true ~contents:module_expr incl
 
+and str_layout ctxt f
+  : Jane_syntax.Layouts.structure_item -> _ = function
+  | Lstr_kind_abbrev (name, jkind) ->
+      kind_abbrev ctxt f name jkind
+
 and structure_item_jane_syntax ctxt f : Jane_syntax.Structure_item.t -> _ =
   function
   | Jstr_include_functor ifincl -> str_include_functor ctxt f ifincl
+  | Jstr_layout stri -> str_layout ctxt f stri
 
 and structure_item ctxt f x =
   match Jane_syntax.Structure_item.of_ast x with
@@ -1744,10 +1843,18 @@ and type_def_list ctxt f (rf, exported, l) =
       else if exported then " ="
       else " :="
     in
-    pp f "@[<2>%s %a%a%s%s%a@]%a" kwd
+    let layout_annot, x =
+      match Jane_syntax.Layouts.of_type_declaration x with
+      | None -> Format.dprintf "", x
+      | Some (jkind, remaining_attributes) ->
+          Format.dprintf " : %a"
+            (jkind_annotation ctxt) jkind,
+          { x with ptype_attributes = remaining_attributes }
+    in
+    pp f "@[<2>%s %a%a%s%t%s%a@]%a" kwd
       nonrec_flag rf
       (type_params ctxt) x.ptype_params
-      x.ptype_name.txt eq
+      x.ptype_name.txt layout_annot eq
       (type_declaration ctxt) x
       (item_attributes ctxt) x.ptype_attributes
   in
@@ -1759,25 +1866,17 @@ and type_def_list ctxt f (rf, exported, l) =
                  (list ~sep:"@," (type_decl "and" Recursive)) xs
 
 and record_declaration ctxt f lbls =
-  let has_attr pld name =
-    List.exists (fun attr -> attr.attr_name.txt = name) pld.pld_attributes
-  in
-  let field_flag f pld =
-    pp f "%a" mutable_flag pld.pld_mutable;
-    if has_attr pld "extension.global" then pp f "global_ "
-  in
   let type_record_field f pld =
-    let pld_attributes =
-      List.filter (fun attr ->
-        match attr.attr_name.txt with
-        | "extension.global" -> false
-        | _ -> true) pld.pld_attributes
+    let modalities, ptyp_attributes =
+      Jane_syntax.Mode_expr.maybe_of_attrs pld.pld_type.ptyp_attributes
     in
-    pp f "@[<2>%a%s:@;%a@;%a@]"
-      field_flag pld
+    let pld_type = {pld.pld_type with ptyp_attributes} in
+    pp f "@[<2>%a%a%s:@;%a@;%a@]"
+      mutable_flag pld.pld_mutable
+      optional_legacy_modes modalities
       pld.pld_name.txt
-      (core_type ctxt) pld.pld_type
-      (attributes ctxt) pld_attributes
+      (core_type ctxt) pld_type
+      (attributes ctxt) pld.pld_attributes
   in
   pp f "{@\n%a}"
     (list type_record_field ~sep:";@\n" )  lbls
@@ -1858,7 +1957,7 @@ and constructor_declaration ctxt f (name, vars_jkinds, args, res, attrs) =
   let pp_vars f vls =
     match vls with
     | [] -> ()
-    | _  -> pp f "%a@;.@;" (list (tyvar_jkind_loc ~print_quote:true) ~sep:"@;")
+    | _  -> pp f "%a@;.@;" (list (tyvar_jkind_loc ctxt ~print_quote:true) ~sep:"@;")
                            vls
   in
   match res with
@@ -1867,7 +1966,7 @@ and constructor_declaration ctxt f (name, vars_jkinds, args, res, attrs) =
         (fun f -> function
            | Pcstr_tuple [] -> ()
            | Pcstr_tuple l ->
-             pp f "@;of@;%a" (list (core_type1 ctxt) ~sep:"@;*@;") l
+             pp f "@;of@;%a" (list (maybe_modes_type core_type1 ctxt) ~sep:"@;*@;") l
            | Pcstr_record l -> pp f "@;of@;%a" (record_declaration ctxt) l
         ) args
         (attributes ctxt) attrs
@@ -1877,7 +1976,7 @@ and constructor_declaration ctxt f (name, vars_jkinds, args, res, attrs) =
         (fun f -> function
            | Pcstr_tuple [] -> core_type1 ctxt f r
            | Pcstr_tuple l -> pp f "%a@;->@;%a"
-                                (list (core_type1 ctxt) ~sep:"@;*@;") l
+                                (list (maybe_modes_type core_type1 ctxt) ~sep:"@;*@;") l
                                 (core_type1 ctxt) r
            | Pcstr_record l ->
                pp f "%a@;->@;%a" (record_declaration ctxt) l (core_type1 ctxt) r
@@ -1968,6 +2067,13 @@ and jane_syntax_expr ctxt attrs f (jexp : Jane_syntax.Expression.t) ~parens =
       if parens then pp f "(%a)" (n_ary_function_expr reset_ctxt) x
       else n_ary_function_expr ctxt f x
   | Jexp_tuple ltexp        -> labeled_tuple_expr ctxt f ltexp
+  | Jexp_modes mexp ->
+      if parens then pp f "(%a)" (mode_expr ctxt) mexp
+      else mode_expr ctxt f mexp
+
+and mode_expr ctxt f (mexp : Jane_syntax.Modes.expression) =
+  match mexp with
+  | Coerce (m, body) -> pp f "@[<2>%a %a@]" legacy_modes m (expression ctxt) body
 
 and comprehension_expr ctxt f (cexp : Jane_syntax.Comprehensions.expression) =
   let punct, comp = match cexp with
@@ -2030,14 +2136,18 @@ and layout_expr ctxt f (x : Jane_syntax.Layouts.expression) ~parens =
   | Lexp_newtype (lid, jkind, inner_expr) ->
     pp f "@[<2>fun@;(type@;%s :@;%a)@;%a@]"
       lid.txt
-      jkind_annotation jkind
+      (jkind_annotation ctxt) jkind
       (pp_print_pexp_function ctxt "->") inner_expr
 
 and unboxed_constant _ctxt f (x : Jane_syntax.Layouts.constant)
   =
   match x with
-  | Float (x, suffix) -> pp f "#%a" constant (Pconst_float (x, suffix))
-  | Integer (x, suffix) -> pp f "#%a" constant (Pconst_integer (x, Some suffix))
+  | Float (x, None) ->
+    paren (first_is '-' x) (fun f -> pp f "%s") f (Misc.format_as_unboxed_literal x)
+  | Float (x, Some suffix)
+  | Integer (x, suffix) ->
+    paren (first_is '-' x) (fun f (x, suffix) -> pp f "%s%c" x suffix) f
+      (Misc.format_as_unboxed_literal x, suffix)
 
 and function_param ctxt f
     ({ pparam_desc; pparam_loc = _ } :
@@ -2047,7 +2157,7 @@ and function_param ctxt f
   | Pparam_val (a, b, c) -> label_exp ctxt f (a, b, c)
   | Pparam_newtype (ty, None) -> pp f "(type %s)" ty.txt
   | Pparam_newtype (ty, Some annot) ->
-      pp f "(type %s : %a)" ty.txt jkind_annotation annot
+      pp f "(type %s : %a)" ty.txt (jkind_annotation ctxt) annot
 
 and function_body ctxt f (x : Jane_syntax.N_ary_functions.function_body) =
   match x with
@@ -2114,9 +2224,7 @@ and n_ary_function_expr
             ctxt f params constraint_ body ~delimiter:"->")
 
 and labeled_tuple_expr ctxt f (x : Jane_syntax.Labeled_tuples.expression) =
-  match x with
-  | Ltexp_tuple l ->
-    pp f "@[<hov2>(%a)@]" (list (tuple_component ctxt) ~sep:",@;") l
+  pp f "@[<hov2>(%a)@]" (list (tuple_component ctxt) ~sep:",@;") x
 
 and extension_module_expr ctxt f (x : Jane_syntax.Module_expr.t) =
   match x with
@@ -2200,3 +2308,4 @@ let signature_item = print_reset_with_maximal_extensions signature_item
 let binding = print_reset_with_maximal_extensions binding
 let payload = print_reset_with_maximal_extensions payload
 let type_declaration = print_reset_with_maximal_extensions type_declaration
+let jkind = print_reset_with_maximal_extensions jkind

@@ -16,12 +16,8 @@
 (* Environment handling *)
 
 open Types
+open Mode
 open Misc
-
-val register_uid : Uid.t -> loc:Location.t -> attributes:Parsetree.attribute list -> unit
-
-val get_uid_to_loc_tbl : unit -> Location.t Types.Uid.Tbl.t
-val get_uid_to_attributes_tbl : unit ->  Parsetree.attribute list Types.Uid.Tbl.t
 
 type value_unbound_reason =
   | Val_unbound_instance_variable
@@ -34,7 +30,7 @@ type module_unbound_reason =
 
 type summary =
     Env_empty
-  | Env_value of summary * Ident.t * value_description * Mode.Value.t
+  | Env_value of summary * Ident.t * value_description * Mode.Value.l
   | Env_type of summary * Ident.t * type_declaration
   | Env_extension of summary * Ident.t * extension_constructor
   | Env_module of summary * Ident.t * module_presence * module_declaration
@@ -198,10 +194,6 @@ type shared_context =
   | Probe
   | Lazy
 
-type closure_error =
-  | Locality of closure_context option
-  | Linearity
-
 type lookup_error =
   | Unbound_value of Longident.t * unbound_value_hint
   | Unbound_type of Longident.t
@@ -225,7 +217,7 @@ type lookup_error =
   | Cannot_scrape_alias of Longident.t * Path.t
   | Local_value_escaping of Longident.t * escaping_context
   | Once_value_used_in of Longident.t * shared_context
-  | Value_used_in_closure of Longident.t * closure_error
+  | Value_used_in_closure of Longident.t * Mode.Value.Comonadic.error * closure_context option
   | Local_value_used_in_exclave of Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
 
@@ -252,7 +244,7 @@ val lookup_error: Location.t -> t -> lookup_error -> 'a
     hints are immediately available. *)
 val lookup_value:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
-  Path.t * value_description * Mode.Value.t * shared_context option
+  Path.t * value_description * Mode.Value.l * shared_context option
 val lookup_type:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * type_declaration
@@ -274,7 +266,7 @@ val lookup_module_path:
 val lookup_modtype_path:
   ?use:bool -> loc:Location.t -> Longident.t -> t -> Path.t
 val lookup_module_instance_path:
-  ?use:bool -> loc:Location.t -> load:bool -> Global.Name.t -> t -> Path.t
+  ?use:bool -> loc:Location.t -> load:bool -> Global_module.Name.t -> t -> Path.t
 
 val lookup_constructor:
   ?use:bool -> loc:Location.t -> constructor_usage -> Longident.t -> t ->
@@ -352,19 +344,21 @@ val make_copy_of_types: t -> (t -> t)
    complete instantiation - that is, that all of its parameters are filled by
    arguments, and all of those arguments' parameters are filled, and so on -
    and converts it into a global. *)
-val global_of_instance_compilation_unit : Compilation_unit.t -> Global.t
+val global_of_instance_compilation_unit : Compilation_unit.t -> Global_module.t
 
 (* Insertion by identifier *)
 
 val add_value_lazy:
-    ?check:(string -> Warnings.t) -> ?mode:(Mode.Value.t) ->
+    ?check:(string -> Warnings.t) -> ?mode:((allowed * 'r) Mode.Value.t) ->
     Ident.t -> Subst.Lazy.value_description -> t -> t
 val add_value:
-    ?check:(string -> Warnings.t) -> ?mode:(Mode.Value.t) ->
+    ?check:(string -> Warnings.t) -> ?mode:((allowed * 'r) Mode.Value.t) ->
     Ident.t -> Types.value_description -> t -> t
-val add_type: check:bool -> Ident.t -> type_declaration -> t -> t
+val add_type:
+    check:bool -> ?shape:Shape.t -> Ident.t -> type_declaration -> t -> t
 val add_extension:
-  check:bool -> rebind:bool -> Ident.t -> extension_constructor -> t -> t
+  check:bool -> ?shape:Shape.t -> rebind:bool -> Ident.t ->
+  extension_constructor -> t -> t
 val add_module: ?arg:bool -> ?shape:Shape.t ->
   Ident.t -> module_presence -> module_type -> t -> t
 val add_module_lazy: update_summary:bool ->
@@ -461,8 +455,8 @@ val add_escape_lock : escaping_context -> t -> t
     `unique` variables beyond the lock can still be accessed, but will be
     relaxed to `shared` *)
 val add_share_lock : shared_context -> t -> t
-val add_closure_lock : ?closure_context:closure_context -> Mode.Locality.t
-  -> Mode.Linearity.t -> t -> t
+val add_closure_lock : ?closure_context:closure_context
+  -> ('l_ * allowed) Mode.Value.Comonadic.t -> t -> t
 val add_region_lock : t -> t
 val add_exclave_lock : t -> t
 val add_unboxed_lock : t -> t
@@ -478,7 +472,8 @@ val set_unit_name: Compilation_unit.t option -> unit
 val get_unit_name: unit -> Compilation_unit.t option
 
 (* Read, save a signature to/from a file. *)
-val read_signature: Global.Name.t -> filepath -> add_binding:bool -> signature
+val read_signature:
+  Global_module.Name.t -> filepath -> add_binding:bool -> signature
         (* Arguments: module name, file name, [add_binding] flag.
            Results: signature. If [add_binding] is true, creates an entry for
            the module in the environment. *)
@@ -493,7 +488,7 @@ val save_signature_with_imports:
            file name, imported units with their CRCs. *)
 
 (* Register a module as a parameter to this unit. *)
-val register_parameter: Global.Name.t -> unit
+val register_parameter: Global_module.Name.t -> unit
 
 (* Register a module as a parameter unit, though not necessarily a parameter to
    this unit. It is unnecessary (but harmless) to call both this and
@@ -511,11 +506,11 @@ val import_crcs: source:string -> Import_info.t array -> unit
 
 (* Return the set of imports represented as parameters, along with the
    local variable representing each *)
-val locally_bound_imports: unit -> (Global.t * Ident.t) list
+val locally_bound_imports: unit -> (Global_module.t * Ident.t) list
 
 (* Return the list of parameters registered to be exported from the current
    unit, in alphabetical order *)
-val exported_parameters: unit -> Global.Name.t list
+val exported_parameters: unit -> Global_module.Name.t list
 
 (* [is_imported_opaque md] returns true if [md] is an opaque imported module *)
 val is_imported_opaque: Compilation_unit.Name.t -> bool
@@ -529,11 +524,11 @@ val is_parameter_unit: Compilation_unit.Name.t -> bool
 
 (* [implemented_parameter md] is the argument given to -as-argument-for when
    [md] was compiled *)
-val implemented_parameter: Global.Name.t -> Global.Name.t option
+val implemented_parameter: Global_module.Name.t -> Global_module.Name.t option
 
 (* [is_imported_parameter md] is true if [md] has been imported and is a
    parameter to this module *)
-val is_imported_parameter: Global.Name.t -> bool
+val is_imported_parameter: Global_module.Name.t -> bool
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)
@@ -553,7 +548,7 @@ type error =
   | Missing_module of Location.t * Path.t * Path.t
   | Illegal_value_name of Location.t * string
   | Lookup_error of Location.t * t * lookup_error
-  | Incomplete_instantiation of { unset_param : Global.Name.t; }
+  | Incomplete_instantiation of { unset_param : Global_module.Name.t; }
 
 exception Error of error
 

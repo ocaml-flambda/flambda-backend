@@ -1,0 +1,60 @@
+;**************************************************************************
+;*                                                                        *
+;*                                 OCaml                                  *
+;*                                                                        *
+;*                Diana Kalinichenko, Jane Street, New York               *
+;*                                                                        *
+;*   Copyright 2024 Jane Street Group LLC                                 *
+;*                                                                        *
+;*   All rights reserved.  This file is distributed under the terms of    *
+;*   the GNU Lesser General Public License version 2.1, with the          *
+;*   special exception on linking described in the file LICENSE.          *
+;*                                                                        *
+;**************************************************************************
+
+;; [stable] was renamed to [stdlib_stable]. This library clones [stdlib_stable]
+;; until we move all existing uses of [stable] to [stdlib_stable].
+
+(library
+ (name stable)
+ (public_name ocaml.stable)
+ (modes byte native)
+ (flags
+  (:standard
+   -strict-sequence
+   -absname
+   -bin-annot
+   -safe-string
+   -strict-formats
+   -extension-universe
+   stable))
+ (ocamlopt_flags
+  (:include %{project_root}/ocamlopt_flags.sexp))
+ (library_flags
+  (:standard -linkall)))
+
+;; We clone files from [stdlib_stable] instead of re-exporting the library
+;; to avoid adding a new transitive dependency to builds.
+
+(rule
+ (deps
+  (glob_files ../stdlib_stable/*.{ml,mli}))
+ (targets
+  iarray.ml
+  iarray.mli
+  iarrayLabels.ml
+  iarrayLabels.mli
+  stable.ml
+  stable.mli)
+ (action
+  (bash
+   "cp ../stdlib_stable/*.{ml,mli} .; mv stdlib_stable.ml stable.ml; mv stdlib_stable.mli stable.mli")))
+
+(rule
+ (deps
+  (:first-dep ../to_install.sh)
+  (glob_files *.mli))
+ (action
+  (with-stdout-to
+   to_install.sexp
+   (run "%{first-dep}" "stable"))))

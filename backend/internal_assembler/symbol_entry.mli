@@ -25,6 +25,7 @@ type t
 type bind =
   | Local
   | Global
+  | Weak
 
 type symbol_type =
   | NoType

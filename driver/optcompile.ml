@@ -46,6 +46,7 @@ let compile_from_raw_lambda i raw_lambda ~unix ~pipeline ~as_arg_for =
   |> Compiler_hooks.execute_and_pipe Compiler_hooks.Raw_lambda
   |> Profile.(record generate)
    (fun (program : Lambda.program) ->
+      Builtin_attributes.warn_unused ();
       let code = Simplif.simplify_lambda program.Lambda.code in
       { program with Lambda.code }
       |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
@@ -102,7 +103,7 @@ let starting_point_of_compiler_pass start_from  =
   | _ -> Misc.fatal_errorf "Cannot start from %s"
            (Clflags.Compiler_pass.to_string start_from)
 
-let implementation0 unix ~backend ~(flambda2 : flambda2) ~start_from
+let implementation0 unix ~(flambda2 : flambda2) ~start_from
       ~source_file ~output_prefix ~keep_symbol_tables
       ~(compilation_unit : Compile_common.compilation_unit_or_inferred) =
   let transl_style : Translmod.compilation_unit_style =
@@ -110,13 +111,7 @@ let implementation0 unix ~backend ~(flambda2 : flambda2) ~start_from
     else Set_individual_fields
   in
   let pipeline : Asmgen.pipeline =
-    if Config.flambda2 then Direct_to_cmm (flambda2 ~keep_symbol_tables)
-    else
-      let middle_end =
-        if Config.flambda then Flambda_middle_end.lambda_to_clambda
-        else Closure_middle_end.lambda_to_clambda
-      in
-      Via_clambda { middle_end; backend; }
+    Direct_to_cmm (flambda2 ~keep_symbol_tables)
   in
   let backend info ({ structure; coercion; argument_interface; _ }
                     : Typedtree.implementation) =
@@ -128,25 +123,12 @@ let implementation0 unix ~backend ~(flambda2 : flambda2) ~start_from
       | None -> None
     in
     let typed = structure, coercion, argument_coercion in
-    let transl_style : Translmod.compilation_unit_style =
-      if Config.flambda || Config.flambda2 then Plain_block
-      else Set_individual_fields
-    in
-    let pipeline : Asmgen.pipeline =
-      if Config.flambda2 then Direct_to_cmm (flambda2 ~keep_symbol_tables)
-      else
-        let middle_end =
-          if Config.flambda then Flambda_middle_end.lambda_to_clambda
-          else Closure_middle_end.lambda_to_clambda
-        in
-        Via_clambda { middle_end; backend; }
-    in
     let as_arg_for =
       !Clflags.as_argument_for
       |> Option.map (fun param ->
            (* Currently, parameters don't have parameters, so we assume the argument
               list is empty *)
-           Global.Name.create param [])
+           Global_module.Name.create param [])
     in
     if not (Config.flambda || Config.flambda2) then Clflags.set_oclassic ();
     compile_from_typed info typed ~unix ~transl_style ~pipeline ~as_arg_for
@@ -192,19 +174,19 @@ let implementation0 unix ~backend ~(flambda2 : flambda2) ~start_from
     if not (Config.flambda || Config.flambda2) then Clflags.set_oclassic ();
     compile_from_raw_lambda info impl ~unix ~pipeline ~as_arg_for
 
-let implementation unix ~backend ~flambda2 ~start_from ~source_file
+let implementation unix ~flambda2 ~start_from ~source_file
       ~output_prefix ~keep_symbol_tables =
   let start_from = start_from |> starting_point_of_compiler_pass in
-  implementation0 unix ~backend ~flambda2 ~start_from ~source_file
+  implementation0 unix ~flambda2 ~start_from ~source_file
     ~output_prefix ~keep_symbol_tables
     ~compilation_unit:Inferred_from_output_prefix
 
-let instance unix ~backend ~flambda2 ~source_file
+let instance unix ~flambda2 ~source_file
       ~output_prefix ~compilation_unit ~runtime_args ~main_module_block_size
       ~arg_descr ~keep_symbol_tables =
   let start_from =
     Instantiation { runtime_args; main_module_block_size; arg_descr }
   in
-  implementation0 unix ~backend ~flambda2 ~start_from ~source_file
+  implementation0 unix ~flambda2 ~start_from ~source_file
     ~output_prefix ~keep_symbol_tables
     ~compilation_unit:(Exactly compilation_unit)

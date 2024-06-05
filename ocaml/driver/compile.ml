@@ -44,6 +44,7 @@ let raw_lambda_to_bytecode i raw_lambda ~as_arg_for =
   |> Profile.(record ~accumulate:true generate)
     (fun { Lambda.code = lambda; required_globals; module_block_format;
            arg_block_field } ->
+       Builtin_attributes.warn_unused ();
        lambda
        |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
        |> Simplif.simplify_lambda
@@ -105,7 +106,7 @@ let implementation0 ~start_from ~source_file ~output_prefix
       |> Option.map (fun param ->
            (* Currently, parameters don't have parameters, so we assume the argument
               list is empty *)
-           Global.Name.create param [])
+           Global_module.Name.create param [])
     in
     let bytecode = to_bytecode info typed ~as_arg_for in
     emit_bytecode info bytecode

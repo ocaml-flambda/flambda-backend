@@ -35,63 +35,21 @@ type error =
 
 exception Error of error
 
-module Infos_table = Global.Name.Tbl
+module Infos_table = Global_module.Name.Tbl
 
 let global_infos_table =
   (Infos_table.create 17 : unit_infos option Infos_table.t)
-let export_infos_table =
-  (Infos_table.create 10 : Export_info.t Infos_table.t)
 
 let reset_info_tables () =
-  Infos_table.reset global_infos_table;
-  Infos_table.reset export_infos_table
+  Infos_table.reset global_infos_table
 
-let imported_sets_of_closures_table =
-  (Set_of_closures_id.Tbl.create 10
-   : Simple_value_approx.function_declarations option
-       Set_of_closures_id.Tbl.t)
-
-module CstMap =
-  Map.Make(struct
-    type t = Clambda.ustructured_constant
-    let compare = Clambda.compare_structured_constants
-    (* PR#6442: it is incorrect to use Stdlib.compare on values of type t
-       because it compares "0.0" and "-0.0" equal. *)
-  end)
-
-module SymMap = Misc.Stdlib.String.Map
 module String = Misc.Stdlib.String
-
-type structured_constants =
-  {
-    strcst_shared: string CstMap.t;
-    strcst_all: Clambda.ustructured_constant SymMap.t;
-  }
-
-let structured_constants_empty  =
-  {
-    strcst_shared = CstMap.empty;
-    strcst_all = SymMap.empty;
-  }
-
-let structured_constants = ref structured_constants_empty
-
 
 let exported_constants = Hashtbl.create 17
 
-let merged_environment = ref Export_info.empty
+let cached_zero_alloc_info = Zero_alloc_info.create ()
 
-let cached_checks = Checks.create ()
-
-let cache_checks c = Checks.merge c ~into:cached_checks
-
-let default_ui_export_info =
-  if Config.flambda then
-    Cmx_format.Flambda1 Export_info.empty
-  else if Config.flambda2 then
-    Cmx_format.Flambda2 None
-  else
-    Cmx_format.Clambda Value_unknown
+let cache_zero_alloc_info c = Zero_alloc_info.merge c ~into:cached_zero_alloc_info
 
 let current_unit =
   { ui_unit = CU.dummy;
@@ -102,13 +60,14 @@ let current_unit =
     ui_format = Mb_record { mb_size = -1 };
     ui_generic_fns = { curry_fun = []; apply_fun = []; send_fun = [] };
     ui_force_link = false;
-    ui_checks = Checks.create ();
-    ui_export_info = default_ui_export_info }
+    ui_zero_alloc_info = Zero_alloc_info.create ();
+    ui_export_info = None;
+    ui_external_symbols = [];
+  }
 
 let reset compilation_unit =
   Infos_table.clear global_infos_table;
-  Set_of_closures_id.Tbl.clear imported_sets_of_closures_table;
-  Checks.reset cached_checks;
+  Zero_alloc_info.reset cached_zero_alloc_info;
   CU.set_current (Some compilation_unit);
   current_unit.ui_unit <- compilation_unit;
   current_unit.ui_defines <- [compilation_unit];
@@ -119,12 +78,16 @@ let reset compilation_unit =
   current_unit.ui_generic_fns <-
     { curry_fun = []; apply_fun = []; send_fun = [] };
   current_unit.ui_force_link <- !Clflags.link_everything;
-  Checks.reset current_unit.ui_checks;
+  Zero_alloc_info.reset current_unit.ui_zero_alloc_info;
   Hashtbl.clear exported_constants;
-  structured_constants := structured_constants_empty;
-  current_unit.ui_export_info <- default_ui_export_info;
-  merged_environment := Export_info.empty;
-  Infos_table.clear export_infos_table
+  current_unit.ui_export_info <- None;
+  current_unit.ui_external_symbols <- []
+
+let record_external_symbols () =
+  current_unit.ui_external_symbols <- (List.filter_map (fun prim ->
+      if not (Primitive.native_name_is_external prim) then None
+      else Some (Primitive.native_name prim))
+      !Translmod.primitive_declarations)
 
 let current_unit_infos () =
   current_unit
@@ -144,12 +107,8 @@ let read_unit_info filename =
     (* This consumes the channel *)
     let sections = File_sections.create uir.uir_section_toc filename ic ~first_section_offset in
     let export_info =
-      match uir.uir_export_info with
-      | Clambda_raw info -> Clambda info
-      | Flambda1_raw info -> Flambda1 info
-      | Flambda2_raw None -> Flambda2 None
-      | Flambda2_raw (Some info) ->
-        Flambda2 (Some (Flambda2_cmx.Flambda_cmx_format.from_raw ~sections info))
+      Option.map (Flambda2_cmx.Flambda_cmx_format.from_raw ~sections)
+        uir.uir_export_info
     in
     let ui = {
       ui_unit = uir.uir_unit;
@@ -160,8 +119,9 @@ let read_unit_info filename =
       ui_imports_cmx = uir.uir_imports_cmx |> Array.to_list;
       ui_generic_fns = uir.uir_generic_fns;
       ui_export_info = export_info;
-      ui_checks = Checks.of_raw uir.uir_checks;
-      ui_force_link = uir.uir_force_link
+      ui_zero_alloc_info = Zero_alloc_info.of_raw uir.uir_zero_alloc_info;
+      ui_force_link = uir.uir_force_link;
+      ui_external_symbols = uir.uir_external_symbols |> Array.to_list;
     }
     in
     (ui, crc)
@@ -212,10 +172,10 @@ let get_unit_info comp_unit =
             let (ui, crc) = read_unit_info filename in
             if not (CU.equal ui.ui_unit comp_unit) then
               raise(Error(Illegal_renaming(comp_unit, ui.ui_unit, filename)));
-            cache_checks ui.ui_checks;
+            cache_zero_alloc_info ui.ui_zero_alloc_info;
             (Some ui, Some crc)
           with Not_found ->
-            let warn = Warnings.No_cmx_file (Global.Name.to_string name) in
+            let warn = Warnings.No_cmx_file (Global_module.Name.to_string name) in
               Location.prerr_warning Location.none warn;
               (None, None)
           end
@@ -232,7 +192,7 @@ let which_cmx_file comp_unit =
 let get_unit_export_info comp_unit =
   match get_unit_info comp_unit with
   | None -> None
-  | Some ui -> Some ui.ui_export_info
+  | Some ui -> ui.ui_export_info
 
 let get_global_info comp_unit =
   get_unit_info (which_cmx_file comp_unit)
@@ -240,75 +200,17 @@ let get_global_info comp_unit =
 let get_global_export_info id =
   match get_global_info id with
   | None -> None
-  | Some ui -> Some ui.ui_export_info
+  | Some ui -> ui.ui_export_info
 
 let cache_unit_info ui =
-  cache_checks ui.ui_checks;
+  cache_zero_alloc_info ui.ui_zero_alloc_info;
   Infos_table.add global_infos_table
     (ui.ui_unit |> CU.to_global_name_without_prefix) (Some ui)
 
-(* Return the approximation of a global identifier *)
-
-let get_clambda_approx ui =
-  assert(not Config.flambda);
-  match ui.ui_export_info with
-  | Flambda1 _ | Flambda2 _ -> assert false
-  | Clambda approx -> approx
-
-let toplevel_approx :
-  (CU.t, Clambda.value_approximation) Hashtbl.t = Hashtbl.create 16
-
-let record_global_approx_toplevel () =
-  Hashtbl.add toplevel_approx
-    current_unit.ui_unit
-    (get_clambda_approx current_unit)
-
-let global_approx comp_unit =
-  try Hashtbl.find toplevel_approx comp_unit
-  with Not_found ->
-    match get_global_info comp_unit with
-      | None -> Clambda.Value_unknown
-      | Some ui -> get_clambda_approx ui
-
-(* Register the approximation of the module being compiled *)
-
-let set_global_approx approx =
-  assert(not Config.flambda);
-  current_unit.ui_export_info <- Clambda approx
-
-(* Exporting and importing cross module information (Flambda only) *)
-
-let get_flambda_export_info ui =
-  assert(Config.flambda);
-  match ui.ui_export_info with
-  | Clambda _ | Flambda2 _ -> assert false
-  | Flambda1 ei -> ei
+(* Exporting cross-module information *)
 
 let set_export_info export_info =
-  assert(Config.flambda);
-  current_unit.ui_export_info <- Flambda1 export_info
-
-let flambda2_set_export_info export_info =
-  assert(Config.flambda2);
-  current_unit.ui_export_info <- Flambda2 (Some export_info)
-
-let approx_for_global comp_unit =
-  if CU.equal comp_unit CU.predef_exn
-  then invalid_arg "approx_for_global with predef_exn compilation unit";
-  let accessible_comp_unit = which_cmx_file comp_unit in
-  let name = accessible_comp_unit |> CU.to_global_name_without_prefix in
-  match Infos_table.find export_infos_table name with
-  | otherwise -> Some otherwise
-  | exception Not_found ->
-    match get_unit_info accessible_comp_unit with
-    | None -> None
-    | Some ui ->
-      let exported = get_flambda_export_info ui in
-      Infos_table.add export_infos_table name exported;
-      merged_environment := Export_info.merge !merged_environment exported;
-      Some exported
-
-let approx_env () = !merged_environment
+  current_unit.ui_export_info <- Some export_info
 
 (* Record that a currying function or application function is needed *)
 
@@ -358,12 +260,10 @@ let ensure_sharing_between_cmi_and_cmx_imports cmi_imports cmx_imports =
 let write_unit_info info filename =
   let raw_export_info, sections =
     match info.ui_export_info with
-    | Clambda info -> Clambda_raw info, File_sections.empty
-    | Flambda1 info -> Flambda1_raw info, File_sections.empty
-    | Flambda2 None -> Flambda2_raw None, File_sections.empty
-    | Flambda2 (Some info) ->
+    | None -> None, File_sections.empty
+    | Some info ->
       let info, sections = Flambda2_cmx.Flambda_cmx_format.to_raw info in
-      Flambda2_raw (Some info), sections
+      Some info, sections
   in
   let serialized_sections, toc, total_length = File_sections.serialize sections in
   let raw_info = {
@@ -375,10 +275,11 @@ let write_unit_info info filename =
     uir_format = info.ui_format;
     uir_generic_fns = info.ui_generic_fns;
     uir_export_info = raw_export_info;
-    uir_checks = Checks.to_raw info.ui_checks;
+    uir_zero_alloc_info = Zero_alloc_info.to_raw info.ui_zero_alloc_info;
     uir_force_link = info.ui_force_link;
     uir_section_toc = toc;
     uir_sections_length = total_length;
+    uir_external_symbols = Array.of_list info.ui_external_symbols;
   } in
   let oc = open_out_bin filename in
   output_string oc cmx_magic_number;
@@ -395,64 +296,10 @@ let save_unit_info filename ~module_block_format ~arg_descr =
   current_unit.ui_format <- module_block_format;
   write_unit_info current_unit filename
 
-let snapshot () = !structured_constants
-let backtrack s = structured_constants := s
-
 let new_const_symbol () =
   Symbol.for_new_const_in_current_unit ()
   |> Symbol.linkage_name
   |> Linkage_name.to_string
-
-let new_structured_constant cst ~shared =
-  let {strcst_shared; strcst_all} = !structured_constants in
-  if shared then
-    try
-      CstMap.find cst strcst_shared
-    with Not_found ->
-      let lbl = new_const_symbol() in
-      structured_constants :=
-        {
-          strcst_shared = CstMap.add cst lbl strcst_shared;
-          strcst_all = SymMap.add lbl cst strcst_all;
-        };
-      lbl
-  else
-    let lbl = new_const_symbol() in
-    structured_constants :=
-      {
-        strcst_shared;
-        strcst_all = SymMap.add lbl cst strcst_all;
-      };
-    lbl
-
-let add_exported_constant s =
-  Hashtbl.replace exported_constants s ()
-
-let clear_structured_constants () =
-  structured_constants := structured_constants_empty
-
-let structured_constant_of_symbol s =
-  SymMap.find_opt s (!structured_constants).strcst_all
-
-let structured_constants () =
-  let provenance : Clambda.usymbol_provenance =
-    { original_idents = [];
-      module_path =
-        (* CR-someday lmaurer: Properly construct a [Path.t] from the module name
-           with its pack prefix. *)
-        Path.Pident (Ident.create_persistent (Compilation_unit.Name.to_string (
-          Compilation_unit.name (Compilation_unit.get_current_exn ()))));
-    }
-  in
-  SymMap.bindings (!structured_constants).strcst_all
-  |> List.map
-    (fun (symbol, definition) ->
-       {
-         Clambda.symbol;
-         exported = Hashtbl.mem exported_constants symbol;
-         definition;
-         provenance = Some provenance;
-        })
 
 let require_global global_ident =
   ignore (get_global_info global_ident : Cmx_format.unit_infos option)

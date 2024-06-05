@@ -33,8 +33,9 @@ UTILS = \
   utils/numbers.cmo \
   utils/arg_helper.cmo \
   utils/local_store.cmo \
-  utils/load_path.cmo \
+  utils/zero_alloc_annotations.cmo \
   utils/clflags.cmo \
+  utils/load_path.cmo \
   utils/debug.cmo \
   utils/language_extension_kernel.cmo \
   utils/language_extension.cmo \
@@ -54,6 +55,7 @@ UTILS = \
   utils/compilation_unit.cmo utils/linkage_name.cmo utils/symbol.cmo \
   utils/import_info.cmo \
   utils/lazy_backtrack.cmo \
+  utils/zero_alloc_utils.cmo \
   utils/diffing.cmo \
   utils/diffing_with_keys.cmo
 UTILS_CMI = \
@@ -65,7 +67,6 @@ PARSING = \
   parsing/printast.cmo \
   parsing/syntaxerr.cmo \
   parsing/ast_helper.cmo \
-  parsing/jane_asttypes.cmo \
   parsing/jane_syntax_parsing.cmo parsing/jane_syntax.cmo \
   parsing/pprintast.cmo \
   parsing/ast_iterator.cmo \
@@ -83,12 +84,14 @@ PARSING_CMI = \
   parsing/parsetree.cmi
 
 TYPING = \
+  typing/solver.cmo \
   typing/path.cmo \
-  typing/jkind.cmo \
+  typing/mode.cmo \
+  typing/jkind_types.cmo \
   typing/primitive.cmo \
   typing/shape.cmo \
-  typing/mode.cmo \
   typing/types.cmo \
+  typing/jkind.cmo \
   typing/btype.cmo \
   typing/oprint.cmo \
   typing/subst.cmo \
@@ -98,6 +101,7 @@ TYPING = \
   typing/signature_with_global_bindings.cmo \
   typing/persistent_env.cmo \
   typing/env.cmo \
+  typing/shape_reduce.cmo \
   typing/errortrace.cmo \
   typing/typedtree.cmo \
   typing/signature_group.cmo \
@@ -117,6 +121,7 @@ TYPING = \
   typing/untypeast.cmo \
   typing/includemod.cmo \
   typing/includemod_errorprinter.cmo \
+  typing/typemode.cmo \
   typing/typetexp.cmo \
   typing/printpat.cmo \
   typing/patterns.cmo \
@@ -128,18 +133,20 @@ TYPING = \
   typing/typedecl.cmo \
   typing/typeopt.cmo \
   typing/uniqueness_analysis.cmo \
-  typing/rec_check.cmo \
+  typing/value_rec_check.cmo \
   typing/typecore.cmo \
   typing/typeclass.cmo \
   typing/typemod.cmo
 TYPING_CMI = \
   typing/annot.cmi \
+  typing/value_rec_types.cmi \
   typing/outcometree.cmi
 
 LAMBDA = \
   lambda/printlambda.cmo \
   lambda/switch.cmo \
   lambda/matching.cmo \
+  lambda/value_rec_compiler.cmo \
   lambda/translmode.cmo \
   lambda/transl_comprehension_utils.cmo \
   lambda/transl_array_comprehension.cmo \

@@ -3,3 +3,4 @@ dune = @dune@
 middle_end = @middle_end@
 coverage = @coverage@
 legacy_layout = @legacy_layout@
+main_build_profile = @main_build_profile@

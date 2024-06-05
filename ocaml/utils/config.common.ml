@@ -31,28 +31,28 @@ let standard_library =
 (* When artifacts are incompatible with upstream OCaml, ocaml-jst uses
    magic numbers ending in 5xx. (The AST remains
    compatible, so use upstream numbers) *)
-let exec_magic_number = "Caml1999X520"
+let exec_magic_number = "Caml1999X530"
     (* exec_magic_number is duplicated in runtime/caml/exec.h *)
-and cmi_magic_number = "Caml1999I520"
-and cmo_magic_number = "Caml1999O520"
-and cma_magic_number = "Caml1999A520"
+and cmi_magic_number = "Caml1999I530"
+and cmo_magic_number = "Caml1999O530"
+and cma_magic_number = "Caml1999A530"
 and cmx_magic_number =
   if flambda || flambda2 then
-    "Caml2021y520"
+    "Caml2021y531"
   else
-    "Caml2021Y520"
+    "Caml2021Y530"
 and cmxa_magic_number =
   if flambda || flambda2 then
-    "Caml2021z520"
+    "Caml2021z531"
   else
-    "Caml2021Z520"
+    "Caml2021Z530"
 and ast_impl_magic_number = "Caml1999M033"
 and ast_intf_magic_number = "Caml1999N033"
-and cmxs_magic_number = "Caml1999D520"
-and cmt_magic_number = "Caml1999T520"
-and cms_magic_number = "Caml1999S520"
-and linear_magic_number = "Caml1999L520"
-and cfg_magic_number = "Caml2021G520"
+and cmxs_magic_number = "Caml1999D530"
+and cmt_magic_number = "Caml1999T530"
+and cms_magic_number = "Caml1999S530"
+and linear_magic_number = "Caml1999L530"
+and cfg_magic_number = "Caml2021G530"
 
 let safe_string = true
 let default_safe_string = true
@@ -150,6 +150,8 @@ let configuration_variables () =
   p_bool "flambda_backend" flambda_backend;
   p_bool "probes" probes;
   p_bool "stack_allocation" stack_allocation;
+
+  p_bool "no_stack_checks" no_stack_checks;
 ]
 
 let print_config_value oc = function

@@ -101,3 +101,12 @@ let classify_continuation_handler k handler ~num_free_occurrences
      && cont_is_known_to_have_exactly_one_occurrence k num_free_occurrences
   then May_inline
   else Regular
+
+(* CR gyorsh: currently only used to reorder C calls in the backend. *)
+let transl_c_call_effects (e : Effects.t) : Cmm.effects =
+  match e with
+  | No_effects -> No_effects
+  | Only_generative_effects _ | Arbitrary_effects -> Arbitrary_effects
+
+let transl_c_call_coeffects (ce : Coeffects.t) : Cmm.coeffects =
+  match ce with No_coeffects -> No_coeffects | Has_coeffects -> Has_coeffects

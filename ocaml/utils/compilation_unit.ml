@@ -46,9 +46,9 @@ module Name : sig
 
   val to_string : t -> string
 
-  val of_head_of_global_name : Global.Name.t -> t
+  val of_head_of_global_name : Global_module.Name.t -> t
 
-  val to_global_name : t -> Global.Name.t
+  val to_global_name : t -> Global_module.Name.t
 
   val check_as_path_component : t -> unit
 end = struct
@@ -80,9 +80,9 @@ end = struct
     then raise (Error (Bad_compilation_unit_name str))
     else str
 
-  let of_head_of_global_name (name : Global.Name.t) = of_string name.head
+  let of_head_of_global_name (name : Global_module.Name.t) = of_string name.head
 
-  let to_global_name t = Global.Name.create t []
+  let to_global_name t = Global_module.Name.create t []
 
   (* This is so called (and separate from [of_string]) because we only want to
      check a name if it has a prefix. In particular, this allows single-module
@@ -191,15 +191,15 @@ module T0 : sig
 
   val instance_arguments : t -> (t * t) list
 
-  val to_global_name : t -> Global.Name.t option
+  val to_global_name : t -> Global_module.Name.t option
 
-  val to_global_name_exn : t -> Global.Name.t
+  val to_global_name_exn : t -> Global_module.Name.t
 
-  val to_global_name_without_prefix : t -> Global.Name.t
+  val to_global_name_without_prefix : t -> Global_module.Name.t
 
   val create_full : Prefix.t -> Name.t -> (t * t) list -> t
 
-  val of_global_name : Global.Name.t -> t
+  val of_global_name : Global_module.Name.t -> t
 
   val compare : t -> t -> int
 end = struct
@@ -216,10 +216,10 @@ end = struct
         { name : Name.t;
           for_pack_prefix : Prefix.t
         }
-    | Global of Global.Name.t
+    | Global of Global_module.Name.t
 
   (* type t = Bare_name of Name.t [@@unboxed] | With_prefix of with_prefix |
-     Global of Global.Name.t *)
+     Global of Global_module.Name.t *)
   and t = Obj.t
 
   (* Some manual inlining is done here to ensure good performance under
@@ -233,7 +233,7 @@ end = struct
 
   let of_full full : t = Obj.repr (full : full)
 
-  let of_global_name (glob : Global.Name.t) =
+  let of_global_name (glob : Global_module.Name.t) =
     match glob with
     | { head; args = [] } -> of_plain_name (Name.of_string head)
     | _ -> of_full (Global glob)
@@ -326,7 +326,7 @@ end = struct
     if is_plain_name t
     then
       let name = Sys.opaque_identity (Obj.obj t : Name.t) in
-      Global.Name.create (Name.to_string name) []
+      Global_module.Name.create (Name.to_string name) []
     else
       let full = Sys.opaque_identity (Obj.obj t : full) in
       match full with
@@ -341,14 +341,15 @@ end = struct
     if is_plain_name t
     then
       let name = Sys.opaque_identity (Obj.obj t : Name.t) in
-      Global.Name.create (Name.to_string name) []
+      Global_module.Name.create (Name.to_string name) []
     else
       let full = Sys.opaque_identity (Obj.obj t : full) in
       match full with
-      | With_prefix { name; _ } -> Global.Name.create (Name.to_string name) []
+      | With_prefix { name; _ } ->
+        Global_module.Name.create (Name.to_string name) []
       | Global glob -> glob
 
-  let of_global_name (name : Global.Name.t) =
+  let of_global_name (name : Global_module.Name.t) =
     match name with
     | { head; args = [] } -> of_plain_name (head |> Name.of_string)
     | _ -> of_full (Global name)
@@ -386,7 +387,7 @@ end = struct
             to_global_name_exn name, to_global_name_exn value)
           arguments
       in
-      of_full (Global (Global.Name.create head arguments))
+      of_full (Global (Global_module.Name.create head arguments))
     else of_full (With_prefix { for_pack_prefix; name })
 end
 
@@ -406,20 +407,21 @@ let create_child parent name_ =
 
 let of_string str =
   let for_pack_prefix, name =
-    match String.rindex_opt str '.' with
-    | None -> Prefix.empty, Name.of_string str
-    | Some 0 ->
-      (* See [Name.check_as_path_component]; this allows ".cinaps" as a
-         compilation unit *)
-      Prefix.empty, Name.of_string str
-    | Some _ -> Misc.fatal_errorf "[of_string] does not parse qualified names"
+    (* Also see [Name.check_as_path_component] *)
+    if String.equal str ".cinaps" || String.equal str "(.cinaps)"
+    then Prefix.empty, Name.of_string str
+    else
+      match String.rindex_opt str '.' with
+      | None -> Prefix.empty, Name.of_string str
+      | Some _ ->
+        Misc.fatal_errorf "[of_string] does not parse qualified names: %s" str
   in
   create for_pack_prefix name
 
 let of_complete_global_exn glob =
-  if not (Global.is_complete glob)
-  then Misc.fatal_errorf "of_complete_global_exn@ %a" Global.print glob;
-  of_global_name (glob |> Global.to_name)
+  if not (Global_module.is_complete glob)
+  then Misc.fatal_errorf "of_complete_global_exn@ %a" Global_module.print glob;
+  of_global_name (glob |> Global_module.to_name)
 
 let dummy = create Prefix.empty (Name.of_string "*none*")
 

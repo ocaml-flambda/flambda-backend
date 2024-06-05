@@ -2,6 +2,8 @@
 
 (library
  (name flambda_backend_utils)
+ ; FIXME Fix warning 27
+ (flags (:standard -w -27))
  (ocamlopt_flags
   (:standard -O3))
  (libraries ocamlcommon))

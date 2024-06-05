@@ -13,9 +13,10 @@ let simplify_app_mapper should_remove =
         Tast_mapper.default.expr mapper
           (match view_texp e.exp_desc with
           | Texp_apply (app, ea_l, id) -> (
-              match app.exp_desc with
-              | Texp_function f -> (
+              match view_texp app.exp_desc with
+              | Texp_function (f, _f_id) -> (
                   let _, arg = List.hd ea_l in
+                  let f_as_cases = Function_compat.function_to_cases_view f in
                   match option_of_arg_or_omitted arg with
                   | Some (arg, _) when should_remove () ->
                       {
@@ -30,8 +31,8 @@ let simplify_app_mapper should_remove =
                                        v with
                                        c_lhs = as_computation_pattern v.c_lhs;
                                      })
-                                   f.cases,
-                                 f.partial )
+                                   f_as_cases.cases,
+                                 f_as_cases.partial )
                            in
                            if List.length ea_l = 1 then e_match
                            else

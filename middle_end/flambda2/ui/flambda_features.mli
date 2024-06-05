@@ -40,6 +40,8 @@ val flat_float_array : unit -> bool
 
 val function_result_types : is_a_functor:bool -> bool
 
+val use_better_meet : unit -> bool
+
 val debug : unit -> bool
 
 val opaque : unit -> bool

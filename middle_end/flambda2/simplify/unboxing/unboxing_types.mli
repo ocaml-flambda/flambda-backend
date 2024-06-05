@@ -26,6 +26,7 @@ type do_not_unbox_reason =
   | Not_enough_information_at_use
   | Not_of_kind_value
   | Unboxing_not_requested
+  | All_fields_invalid
 
 module Extra_param_and_args : sig
   type t = private
@@ -79,7 +80,8 @@ val print_decision : Format.formatter -> decision -> unit
 module Decisions : sig
   type t =
     { decisions : (BP.t * decision) list;
-      rewrite_ids_seen : Apply_cont_rewrite_id.Set.t
+      rewrite_ids_seen : Apply_cont_rewrite_id.Set.t;
+      rewrites_ids_known_as_invalid : Apply_cont_rewrite_id.Set.t
     }
 
   val print : Format.formatter -> t -> unit

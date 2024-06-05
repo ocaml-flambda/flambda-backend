@@ -1,6 +1,6 @@
 (* TEST
-   * expect
-   flags = "-extension layouts_beta"
+ flags = "-extension layouts_beta";
+ expect;
 *)
 
 let foo _t (type a) = local_ 1

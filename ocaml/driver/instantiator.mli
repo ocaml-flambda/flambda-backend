@@ -30,7 +30,7 @@ type error =
       compilation_unit : CU.t;
     }
   | Not_parameterised of { cm_path : Misc.filepath }
-  | Missing_argument of { param : Global.Name.t }
+  | Missing_argument of { param : Global_module.Name.t }
 
 exception Error of error
 

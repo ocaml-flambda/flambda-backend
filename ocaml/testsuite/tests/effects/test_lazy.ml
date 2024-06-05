@@ -1,6 +1,6 @@
 (* TEST
-   * skip
- *)
+ skip;
+*)
 
 open Effect
 open Effect.Deep

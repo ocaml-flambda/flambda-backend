@@ -19,7 +19,6 @@ val interface: source_file:string -> output_prefix:string -> unit
 
 val implementation
    : (module Compiler_owee.Unix_intf.S)
-  -> backend:(module Backend_intf.S)
   -> flambda2:(
     ppf_dump:Format.formatter ->
     prefixname:string ->
@@ -33,7 +32,6 @@ val implementation
 
 val instance
    : (module Compiler_owee.Unix_intf.S)
-  -> backend:(module Backend_intf.S)
   -> flambda2:(
     ppf_dump:Format.formatter ->
     prefixname:string ->

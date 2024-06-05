@@ -166,6 +166,10 @@ val unsafe_get_global_value : bytecode_or_asm_symbol:string -> Obj.t option
     The accessible values are those in the main program and those provided by
     previous calls to [loadfile].
 
+    ** This function may only be used to retrieve the addresses of symbols
+    that are valid OCaml values.  It cannot be used to retrieve e.g. code
+    pointers. **
+
     This function is deemed "unsafe" as there is no type safety provided.
 
     When executing in bytecode, this function uses [Symtable]. As a cautionary
@@ -178,3 +182,8 @@ val unsafe_get_global_value : bytecode_or_asm_symbol:string -> Obj.t option
     client's version of [Symtable]). This is why we can't use [Dynlink] from the
     toplevel interactive loop, in particular.
 *)
+
+(** Like [unsafe_get_global_value], but only tests whether the given symbol
+    exists, and in native code may be used for any symbol (whether or not such
+    symbol points at a valid OCaml value). *)
+val does_symbol_exist : bytecode_or_asm_symbol:string -> bool

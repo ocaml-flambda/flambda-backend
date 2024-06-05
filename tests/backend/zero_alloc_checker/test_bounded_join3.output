@@ -1,0 +1,23 @@
+File "test_bounded_join3.ml", line 8, characters 5-15:
+Error: Annotation check for zero_alloc failed on function Test_bounded_join3.foo (camlTest_bounded_join3.foo_HIDE_STAMP)
+
+File "test_bounded_join3.ml", lines 10-11, characters 43-61:
+Error: allocation of 200 bytes
+
+File "test_bounded_join3.ml", line 24, characters 11-19:
+Error: called function may allocate (direct tailcall camlTest_bounded_join3.do_a_HIDE_STAMP)
+
+File "test_bounded_join3.ml", line 25, characters 11-19:
+Error: called function may allocate (direct tailcall camlTest_bounded_join3.do_b_HIDE_STAMP)
+
+File "test_bounded_join3.ml", line 26, characters 11-19:
+Error: called function may allocate (direct tailcall camlTest_bounded_join3.do_c_HIDE_STAMP)
+
+File "test_bounded_join3.ml", line 27, characters 11-19:
+Error: called function may allocate (direct tailcall camlTest_bounded_join3.do_d_HIDE_STAMP)
+
+File "test_bounded_join3.ml", line 28, characters 11-19:
+Error: called function may allocate (direct tailcall camlTest_bounded_join3.do_e_HIDE_STAMP)
+
+File "test_bounded_join3.ml", line 29, characters 11-19:
+Error: called function may allocate (direct tailcall camlTest_bounded_join3.do_f_HIDE_STAMP)

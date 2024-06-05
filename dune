@@ -8,6 +8,12 @@
 ;*                                                                        *
 ;**************************************************************************
 
+
+(env
+ (_
+  (flags
+   (:standard -principal -warn-error +A -w +a-4-9-40-41-42-44-45-48-66))))
+
 ; Since upstream has the middle end code inside ocamloptcomp, we do the
 ; same for the moment.
 
@@ -45,12 +51,6 @@
 
 (copy_files# middle_end/*.ml{,i})
 
-(copy_files# middle_end/closure/*.ml{,i})
-
-(copy_files# middle_end/flambda/*.ml{,i})
-
-(copy_files# middle_end/flambda/base_types/*.ml{,i})
-
 (copy_files# ocaml/driver/opterrors.ml{,i})
 
 (copy_files# ocaml/file_formats/cmxs_format.mli)
@@ -62,20 +62,17 @@
  (wrapped false) ; for compatibility with existing code
  (modes byte native)
  ; We should change the code so this "-open" can be removed.
- ; Likewise fix occurrences of warning 9.
+ ; Likewise fix occurrences of warnings 9, 27, 32, 33, 34, 37, 39, and 60.
  (flags
-  (:standard -principal -w -9-69-70))
+  (:standard -w -27-32-33-34-37-39-60-69-70))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
  (instrumentation
   (backend bisect_ppx))
  (modules_without_implementation
-  backend_intf
   branch_relaxation_intf
   cmx_format
   cmxs_format
-  inlining_decision_intf
-  simplify_boxed_integer_ops_intf
   x86_ast)
  (modules
   ;; To match the Makefiles, ocamloptcomp needs to include ocamlmiddleend.
@@ -83,89 +80,8 @@
   cmx_format
   cmxs_format
   ;; middle_end/
-  backend_intf
   backend_var
-  backend_var
-  clambda
-  clambda_primitives
-  clambda_layout
   compilenv
-  mangling
-  convert_primitives
-  internal_variable_names
-  printclambda
-  printclambda_primitives
-  semantics_of_primitives
-  symbol_utils
-  variable
-  ;; middle_end/closure/
-  closure
-  closure_middle_end
-  ;; middle_end/flambda/base_types/
-  closure_element
-  closure_id
-  closure_origin
-  export_id
-  id_types
-  mutable_variable
-  set_of_closures_id
-  set_of_closures_origin
-  static_exception
-  tag
-  var_within_closure
-  ;; middle_end/flambda/
-  alias_analysis
-  allocated_const
-  augment_specialised_args
-  build_export_info
-  closure_conversion
-  closure_conversion_aux
-  closure_offsets
-  effect_analysis
-  export_info
-  extract_projections
-  find_recursive_functions
-  flambda
-  flambda_invariants
-  flambda_iterators
-  flambda_middle_end
-  flambda_to_clambda
-  flambda_utils
-  freshening
-  import_approx
-  inconstant_idents
-  initialize_symbol_to_let_symbol
-  inline_and_simplify
-  inline_and_simplify_aux
-  inlining_cost
-  inlining_decision
-  inlining_decision_intf
-  inlining_stats
-  inlining_stats_types
-  inlining_transforms
-  invariant_params
-  lift_code
-  lift_constants
-  lift_let_to_initialize_symbol
-  parameter
-  pass_wrapper
-  projection
-  ref_to_variables
-  remove_free_vars_equal_to_args
-  remove_unused_arguments
-  remove_unused_closure_vars
-  remove_unused_program_constructs
-  share_constants
-  simple_value_approx
-  simplify_boxed_integer_ops
-  simplify_boxed_integer_ops_intf
-  simplify_common
-  simplify_primitives
-  traverse_for_exported_symbols
-  un_anf
-  unbox_closures
-  unbox_free_vars_of_closures
-  unbox_specialised_args
   ;; asmcomp/
   afl_instrument
   arch
@@ -177,27 +93,26 @@
   branch_relaxation
   branch_relaxation_intf
   cfgize
-  checks
   cmm_helpers
   cmm_builtins
   cmm_invariants
   cmm
-  cmmgen
   cmmgen_state
   coloring
   comballoc
   CSE
+  CSE_utils
   CSEgen
   dataflow
   deadcode
   emit
   emitaux
+  fdo_info
   generic_fns
   interf
   interval
   linear
   internal_assembler
-  linearize
   linscan
   liveness
   mach
@@ -208,11 +123,12 @@
   printcmm
   printlinear
   printmach
-  checkmach
   proc
   simd
   simd_selection
   simd_reload
+  simd_proc
+  stack_check
   reg
   reload
   reloadgen
@@ -226,7 +142,6 @@
   spill
   split
   string_table
-  strmatch
   symbol_entry
   symbol_table
   x86_ast
@@ -235,19 +150,23 @@
   x86_gas
   x86_masm
   x86_proc
-  fdo_info
+  zero_alloc_checker
+  zero_alloc_info
   ;; asmcomp/cfg
   cfg
   cfg_intf
   cfg_to_linear
   cfg_with_layout
   cfg_with_infos
+  cfg_comballoc
   cfg_dataflow
   cfg_deadcode
   cfg_liveness
   cfg_dominators
   cfg_loop_infos
   cfg_to_linear_desc
+  cfg_cse
+  cfg_stack_checks
   eliminate_dead_code
   disconnect_block
   eliminate_dead_blocks
@@ -255,12 +174,13 @@
   merge_straightline_blocks
   extra_debug
   label
-  linear_to_cfg
   linear_utils
   simplify_terminator
-  trap_stack
   cfg_equivalence
   ;; backend/regalloc
+  regalloc_gi
+  regalloc_gi_state
+  regalloc_gi_utils
   regalloc_invariants
   regalloc_irc
   regalloc_irc_state
@@ -269,11 +189,11 @@
   regalloc_ls_state
   regalloc_ls_utils
   regalloc_rewrite
-  regalloc_stack_slots
   regalloc_split
   regalloc_split_state
   regalloc_split_utils
   regalloc_stack_operands
+  regalloc_stack_slots
   regalloc_utils
   regalloc_validate
   ;; file_formats/
@@ -284,6 +204,7 @@
   available_regs
   compute_ranges
   compute_ranges_intf
+  inlined_frame_ranges
   is_parameter
   reg_availability_set
   reg_with_debug_info
@@ -292,8 +213,10 @@
   ;; This code has a lot of dependencies into ocamloptcomp, so we just
   ;; build it as part of that library.
   dwarf
+  dwarf_abstract_instances
   dwarf_compilation_unit
   dwarf_concrete_instances
+  dwarf_inlined_frames
   dwarf_name_laundry
   dwarf_reg_locations
   dwarf_state
@@ -327,11 +250,6 @@
  ; same flags as for ocamlcommon library
  (flags
   (-strict-sequence
-   -principal
-   -w
-   +a-4-9-40-41-42-44-45-48-66
-   -warn-error
-   A
    -bin-annot
    -safe-string
    -strict-formats
@@ -351,8 +269,6 @@
  (modes byte)
  (instrumentation
   (backend bisect_ppx))
- (flags
-  (:standard -principal))
  (libraries
   flambda_backend_driver
   memtrace
@@ -374,8 +290,6 @@
  (modes native)
  (instrumentation
   (backend bisect_ppx))
- (flags
-  (:standard -principal))
  (ocamlopt_flags
   (:standard -runtime-variant nnp))
  (libraries
@@ -401,8 +315,6 @@
  (modes native)
  (instrumentation
   (backend bisect_ppx))
- (flags
-  (:standard -principal))
  (libraries
   flambda_backend_driver
   flambda2
@@ -431,6 +343,7 @@
    %{dep:middle_end/flambda2/import/flambda2_import.a}
    %{dep:middle_end/flambda2/ui/flambda2_ui.a}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.a}
+   %{dep:middle_end/flambda2/numbers/floats/flambda2_floats.a}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.a}
    %{dep:middle_end/flambda2/kinds/flambda2_kinds.a}
    %{dep:middle_end/flambda2/identifiers/flambda2_identifiers.a}
@@ -467,6 +380,7 @@
    %{dep:middle_end/flambda2/import/flambda2_import.cma}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cma}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cma}
+   %{dep:middle_end/flambda2/numbers/floats/flambda2_floats.cma}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.cma}
    %{dep:middle_end/flambda2/kinds/flambda2_kinds.cma}
    %{dep:middle_end/flambda2/identifiers/flambda2_identifiers.cma}
@@ -503,6 +417,7 @@
    %{dep:middle_end/flambda2/import/flambda2_import.cmxa}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cmxa}
+   %{dep:middle_end/flambda2/numbers/floats/flambda2_floats.cmxa}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.cmxa}
    %{dep:middle_end/flambda2/kinds/flambda2_kinds.cmxa}
    %{dep:middle_end/flambda2/identifiers/flambda2_identifiers.cmxa}
@@ -533,6 +448,7 @@
 
 (install
  (files
+  (ocaml/compilerlibs/META as compiler-libs/META)
   (external/owee/libcompiler_owee_stubs.a
    as
    compiler-libs/libcompiler_owee_stubs.a)
@@ -545,6 +461,12 @@
   (external/gc-timings/libgc_timings_stubs.a
    as
    compiler-libs/libgc_timings_stubs_native.a)
+  (middle_end/flambda2/numbers/floats/libflambda2_floats_stubs.a
+   as
+   compiler-libs/libflambda2_floats_stubs.a)
+  (middle_end/flambda2/numbers/floats/libflambda2_floats_stubs.a
+   as
+   compiler-libs/libflambda2_floats_stubs_native.a)
   ; for special_dune compat
   (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
   (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)

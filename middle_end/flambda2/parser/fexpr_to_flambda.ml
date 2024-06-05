@@ -24,23 +24,27 @@ end
 
 module VM = Map.Make (V)
 
-(* Symbols *)
+(* Symbols (globally scoped, so updates are in-place) *)
 module S = struct
   type t = string (* only storing local symbols so only need the name *)
 
-  let compare = String.compare
+  let equal = String.equal
+
+  let hash = Hashtbl.hash
 end
 
-module SM = Map.Make (S)
+module SM = Hashtbl.Make (S)
 
-(* Code ids *)
+(* Code ids (globally scoped, so updates are in-place) *)
 module D = struct
   type t = string
 
-  let compare = String.compare
+  let equal = String.equal
+
+  let hash = Hashtbl.hash
 end
 
-module DM = Map.Make (D)
+module DM = Hashtbl.Make (D)
 
 (* Function slots (globally scoped, so updates are in-place) *)
 module U = struct
@@ -92,8 +96,8 @@ let init_env () =
     exn_continuations = CM.empty;
     toplevel_region;
     variables = VM.empty;
-    symbols = SM.empty;
-    code_ids = DM.empty;
+    symbols = SM.create 10;
+    code_ids = DM.create 10;
     function_slots = UT.create 10;
     vars_within_closures = WT.create 10
   }
@@ -128,9 +132,13 @@ let fresh_var env { Fexpr.txt = name; loc = _ } =
   let v = Variable.create name ~user_visible:() in
   v, { env with variables = VM.add name v env.variables }
 
-let fresh_code_id env { Fexpr.txt = name; loc = _ } =
-  let c = Code_id.create ~name (Compilation_unit.get_current_exn ()) in
-  c, { env with code_ids = DM.add name c env.code_ids }
+let fresh_or_existing_code_id env { Fexpr.txt = name; loc = _ } =
+  match DM.find_opt env.code_ids name with
+  | Some code_id -> code_id
+  | None ->
+    let c = Code_id.create ~name (Compilation_unit.get_current_exn ()) in
+    DM.add env.code_ids name c;
+    c
 
 let fresh_function_slot env { Fexpr.txt = name; loc = _ } =
   let c =
@@ -172,18 +180,18 @@ let declare_symbol (env : env) ({ Fexpr.txt = cu, name; loc } as symbol) =
   then
     Misc.fatal_errorf "Cannot declare non-local symbol %a: %a"
       Print_fexpr.symbol symbol print_scoped_location loc
-  else if SM.mem name env.symbols
-  then
-    Misc.fatal_errorf "Redefinition of symbol %a: %a" Print_fexpr.symbol symbol
-      print_scoped_location loc
   else
-    let cunit =
-      match cu with
-      | None -> Compilation_unit.get_current_exn ()
-      | Some cu -> compilation_unit cu
-    in
-    let symbol = Symbol.unsafe_create cunit (Linkage_name.of_string name) in
-    symbol, { env with symbols = SM.add name symbol env.symbols }
+    match SM.find_opt env.symbols name with
+    | Some symbol -> symbol
+    | None ->
+      let cunit =
+        match cu with
+        | None -> Compilation_unit.get_current_exn ()
+        | Some cu -> compilation_unit cu
+      in
+      let symbol = Symbol.unsafe_create cunit (Linkage_name.of_string name) in
+      SM.replace env.symbols name symbol;
+      symbol
 
 let find_with ~descr ~find map { Fexpr.txt = name; loc } =
   match find name map with
@@ -196,8 +204,7 @@ let get_symbol (env : env) sym =
   | { Fexpr.txt = Some cunit, name; loc = _ } ->
     let cunit = compilation_unit cunit in
     Symbol.unsafe_create cunit (name |> Linkage_name.of_string)
-  | { Fexpr.txt = None, txt; loc } ->
-    find_with ~descr:"symbol" ~find:SM.find_opt env.symbols { txt; loc }
+  | { Fexpr.txt = None, _; loc = _ } -> declare_symbol env sym
 
 let find_cont_id env c =
   find_with ~descr:"continuation id" ~find:CM.find_opt env.continuations c
@@ -229,8 +236,7 @@ let find_var env v =
 let find_region env (r : Fexpr.region) =
   match r with Toplevel -> env.toplevel_region | Named v -> find_var env v
 
-let find_code_id env code_id =
-  find_with ~descr:"code id" ~find:DM.find_opt env.code_ids code_id
+let find_code_id env code_id = fresh_or_existing_code_id env code_id
 
 let targetint (i : Fexpr.targetint) : Targetint_32_64.t =
   Targetint_32_64.of_int64 i
@@ -246,11 +252,14 @@ let tag_scannable (tag : Fexpr.tag_scannable) : Tag.Scannable.t =
 
 let immediate i = i |> Targetint_32_64.of_string |> Targetint_31_63.of_targetint
 
+let float32 f = f |> Numeric_types.Float32_by_bit_pattern.create
+
 let float f = f |> Numeric_types.Float_by_bit_pattern.create
 
 let rec subkind : Fexpr.subkind -> Flambda_kind.With_subkind.Subkind.t =
   function
   | Anything -> Anything
+  | Boxed_float32 -> Boxed_float32
   | Boxed_float -> Boxed_float
   | Boxed_int32 -> Boxed_int32
   | Boxed_int64 -> Boxed_int64
@@ -295,6 +304,7 @@ let const (c : Fexpr.const) : Reg_width_const.t =
   | Tagged_immediate i -> Reg_width_const.tagged_immediate (i |> immediate)
   | Naked_immediate i -> Reg_width_const.naked_immediate (i |> immediate)
   | Naked_float f -> Reg_width_const.naked_float (f |> float)
+  | Naked_float32 f -> Reg_width_const.naked_float32 (f |> float32)
   | Naked_int32 i -> Reg_width_const.naked_int32 i
   | Naked_int64 i -> Reg_width_const.naked_int64 i
   | Naked_nativeint i -> Reg_width_const.naked_nativeint (i |> targetint)
@@ -373,7 +383,7 @@ let nullop (nullop : Fexpr.nullop) : Flambda_primitive.nullary_primitive =
 
 let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with
-  | Array_length -> Array_length
+  | Array_length ak -> Array_length ak
   | Boolean_not -> Boolean_not
   | Box_number (bk, alloc) ->
     Box_number (bk, alloc_mode_for_allocations env alloc)
@@ -407,8 +417,8 @@ let infix_binop (binop : Fexpr.infix_binop) : Flambda_primitive.binary_primitive
   | Int_arith o -> Int_arith (Tagged_immediate, o)
   | Int_comp c -> Int_comp (Tagged_immediate, c)
   | Int_shift s -> Int_shift (Tagged_immediate, s)
-  | Float_arith o -> Float_arith o
-  | Float_comp c -> Float_comp c
+  | Float_arith (w, o) -> Float_arith (w, o)
+  | Float_comp (w, c) -> Float_comp (w, c)
 
 let block_access_kind (ak : Fexpr.block_access_kind) :
     Flambda_primitive.Block_access_kind.t =
@@ -429,10 +439,18 @@ let block_access_kind (ak : Fexpr.block_access_kind) :
   | Naked_floats { size = s } ->
     let size = size s in
     Naked_floats { size }
+  | Mixed { tag; size = s; field_kind } ->
+    let tag : Tag.Scannable.t Or_unknown.t =
+      match tag with
+      | Some tag -> Known (tag |> tag_scannable)
+      | None -> Unknown
+    in
+    let s = size s in
+    Mixed { tag; size = s; field_kind }
 
 let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   match binop with
-  | Array_load (ak, mut) -> Array_load (ak, mut)
+  | Array_load (ak, width, mut) -> Array_load (ak, width, mut)
   | Block_load (ak, mutability) -> Block_load (block_access_kind ak, mutability)
   | Phys_equal op -> Phys_equal op
   | Infix op -> infix_binop op
@@ -442,16 +460,24 @@ let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
   | Bigarray_get_alignment align -> Bigarray_get_alignment align
 
+let array_set_kind_of_array_kind :
+    'a ->
+    Fexpr.array_kind * Fexpr.init_or_assign ->
+    Flambda_primitive.Array_set_kind.t =
+ fun env -> function
+  | Immediates, _ -> Immediates
+  | Naked_floats, _ -> Naked_floats
+  | Values, ia -> Values (init_or_assign env ia)
+  | (Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints), _ ->
+    Misc.fatal_error
+      "fexpr support for unboxed float32/int32/64/nativeint arrays not yet \
+       implemented"
+
 let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
   match ternop with
-  | Array_set (ak, ia) ->
-    let ask : Flambda_primitive.Array_set_kind.t =
-      match ak, ia with
-      | Immediates, _ -> Immediates
-      | Naked_floats, _ -> Naked_floats
-      | Values, ia -> Values (init_or_assign env ia)
-    in
-    Array_set ask
+  | Array_set (ak, width, ia) ->
+    let ask = array_set_kind_of_array_kind env (ak, ia) in
+    Array_set (ask, width)
   | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
   | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
 
@@ -713,13 +739,13 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           let code_id = find_code_id env id in
           Bound_static.Pattern.code code_id, env
         | Data { symbol; _ } ->
-          let symbol, env = declare_symbol env symbol in
+          let symbol = declare_symbol env symbol in
           Bound_static.Pattern.block_like symbol, env
         | Set_of_closures soc ->
           let closure_binding env
               ({ symbol; fun_decl = { function_slot; code_id; _ } } :
                 Fexpr.static_closure_binding) =
-            let symbol, env = declare_symbol env symbol in
+            let symbol = declare_symbol env symbol in
             let function_slot =
               function_slot |> Option.value ~default:code_id
             in
@@ -753,6 +779,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           let tag = tag_scannable tag in
           static_const
             (SC.block tag mutability (List.map (field_of_block env) args))
+        | Boxed_float32 f ->
+          static_const (SC.boxed_float32 (or_variable float32 env f))
         | Boxed_float f ->
           static_const (SC.boxed_float (or_variable float env f))
         | Boxed_int32 i ->
@@ -774,7 +802,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         | Immutable_value_array elements ->
           static_const
             (SC.immutable_value_array (List.map (field_of_block env) elements))
-        | Empty_array -> static_const SC.empty_array
+        | Empty_array array_kind -> static_const (SC.empty_array array_kind)
         | Mutable_string { initial_value = s } ->
           static_const (SC.mutable_string ~initial_value:s)
         | Immutable_string s -> static_const (SC.immutable_string s))
@@ -903,7 +931,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             ~first_complex_local_param:(Flambda_arity.num_params params_arity)
             ~result_arity ~result_types:Unknown ~result_mode
             ~contains_no_escaping_local_allocs:false ~stub:false ~inline
-            ~check:Default_check
+            ~zero_alloc_attribute:Default_check
               (* CR gyorsh: should [check] be set properly? *)
             ~is_a_functor:false ~is_opaque:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)
@@ -979,12 +1007,14 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           ( Call_kind.indirect_function_call_unknown_arity alloc,
             params_arity,
             return_arity ))
-      | C_call { alloc } -> (
+      | C_call { alloc = needs_caml_c_call } -> (
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->
           let params_arity = arity params_arity in
           let return_arity = arity ret_arity in
-          ( Call_kind.c_call ~alloc ~is_c_builtin:false,
+          ( Call_kind.c_call ~needs_caml_c_call ~is_c_builtin:false
+              ~effects:Arbitrary_effects ~coeffects:Has_coeffects
+              Alloc_mode.For_allocations.heap,
             params_arity,
             return_arity )
         | None | Some { params_arity = None; ret_arity = _ } ->
@@ -1029,7 +1059,7 @@ let bind_all_code_ids env (unit : Fexpr.flambda_unit) =
           (fun env (binding : Fexpr.symbol_binding) ->
             match binding with
             | Code { id; _ } | Deleted_code id ->
-              let _, env = fresh_code_id env id in
+              let _ = fresh_or_existing_code_id env id in
               env
             | Data _ | Closure _ | Set_of_closures _ -> env)
           env bindings

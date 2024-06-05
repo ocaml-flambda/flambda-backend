@@ -539,8 +539,9 @@ end = struct
         Truth_test { ifso = ifso2; ifnot = ifnot2 } ) ->
       compare_label ifso1 ifso2;
       compare_label ifnot1 ifnot2
-    | ( Float_test { lt = lt1; eq = eq1; gt = gt1; uo = uo1 },
-        Float_test { lt = lt2; eq = eq2; gt = gt2; uo = uo2 } ) ->
+    | ( Float_test { width = w1; lt = lt1; eq = eq1; gt = gt1; uo = uo1 },
+        Float_test { width = w2; lt = lt2; eq = eq2; gt = gt2; uo = uo2 } )
+      when Cmm.equal_float_width w1 w2 ->
       compare_label lt1 lt2;
       compare_label eq1 eq2;
       compare_label gt1 gt2;
@@ -584,7 +585,6 @@ end = struct
     (* CR-someday azewierzejew: Avoid using polymorphic comparison. *)
       when Stdlib.compare op1 op2 = 0 ->
       compare_label l1 l2
-    | Poll_and_jump l1, Poll_and_jump l2 -> compare_label l1 l2
     | _ ->
       Regalloc_utils.fatal
         "The desc of terminator with id %d changed, before: %a, after: %a." id
@@ -1065,10 +1065,13 @@ end
 module Transfer (Desc_val : Description_value) :
   Cfg_dataflow.Backward_transfer
     with type domain = Domain.t
-     and type error = Transfer_error.t = struct
+     and type error = Transfer_error.t
+     and type context = unit = struct
   type domain = Domain.t
 
   type error = Transfer_error.t
+
+  type context = unit
 
   let description = Desc_val.description
 
@@ -1164,7 +1167,7 @@ module Transfer (Desc_val : Description_value) :
              ~loc_arg:(Location.of_regs_exn loc_instr.arg)
              equations)
 
-  let basic t instr : (domain, error) result =
+  let basic t instr () : (domain, error) result =
     match Description.find_basic description instr with
     | None ->
       (match instr.desc with
@@ -1186,7 +1189,7 @@ module Transfer (Desc_val : Description_value) :
           ~destroyed:(Proc.destroyed_at_basic instr.desc |> Location.of_regs_exn)
       )
 
-  let terminator t ~exn instr =
+  let terminator t ~exn instr () =
     match Description.find_terminator description instr with
     | Some instr_before ->
       (* CR-soon azewierzejew: This is kind of fragile for [Tailcall (Self _)]
@@ -1218,7 +1221,7 @@ module Transfer (Desc_val : Description_value) :
   (* This should remove the equations for the exception value, but we do that in
      [Domain.append_equations] because there we have more information to give if
      there's an error. *)
-  let exception_ t = Ok t
+  let exception_ t () = Ok t
 end
 
 module Check_backwards (Desc_val : Description_value) =

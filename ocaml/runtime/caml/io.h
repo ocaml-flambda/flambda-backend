@@ -105,6 +105,7 @@ CAMLextern void (*caml_channel_mutex_unlock) (struct channel *);
 CAMLextern void (*caml_channel_mutex_unlock_exn) (void);
 
 CAMLextern struct channel * caml_all_opened_channels;
+CAMLextern caml_plat_mutex caml_all_opened_channels_mutex;
 
 #define Lock(channel) \
   if (caml_channel_mutex_lock != NULL) (*caml_channel_mutex_lock)(channel)

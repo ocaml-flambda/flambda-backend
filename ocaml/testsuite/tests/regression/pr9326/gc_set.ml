@@ -1,5 +1,4 @@
-(* TEST
-*)
+(* TEST *)
 
 module OCaml_5 = struct
 open Gc

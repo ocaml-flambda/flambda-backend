@@ -238,6 +238,8 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
 
   let global sym = D.global (Asm_symbol.encode sym)
 
+  let protected sym = D.protected (Asm_symbol.encode sym)
+
   let const_machine_width const = D.qword const
 
   let symbol =
@@ -245,13 +247,23 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
         let lab = D.const_label (Asm_symbol.encode sym) in
         const_machine_width lab)
 
-  let label ?comment:_ _lab =
-    (* CR poechsel: use the arguments *)
-    A.emit_line "label"
+  let label ?comment lab =
+    Option.iter D.comment comment;
+    let lab = D.const_label (Asm_label.encode lab) in
+    const_machine_width lab
 
-  let symbol_plus_offset _sym ~offset_in_bytes:_ =
-    (* CR poechsel: use the arguments *)
-    A.emit_line "symbol_plus_offset"
+  let label_plus_offset ?comment lab ~offset_in_bytes =
+    let offset_in_bytes = Targetint.to_int64 offset_in_bytes in
+    Option.iter D.comment comment;
+    let lab = D.const_label (Asm_label.encode lab) in
+    const_machine_width (D.const_add lab (D.const_int64 offset_in_bytes))
+
+  let symbol_plus_offset symbol ~offset_in_bytes =
+    let offset_in_bytes = Targetint.to_int64 offset_in_bytes in
+    const_machine_width
+      (D.const_add
+         (D.const_label (Asm_symbol.encode symbol))
+         (D.const_int64 offset_in_bytes))
 
   let new_temp_var () =
     let id = !temp_var_counter in
@@ -293,11 +305,27 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     (* CR poechsel: use the arguments *)
     A.emit_line "between_labels_64_bit"
 
-  let between_symbol_in_current_unit_and_label_offset ?comment:comment' ~upper
-      ~lower ~offset_upper () =
+  let between_labels_64_bit_with_offsets ?comment ~upper ~upper_offset ~lower
+      ~lower_offset () =
+    Option.iter D.comment comment;
+    let upper_offset = Targetint.to_int64 upper_offset in
+    let lower_offset = Targetint.to_int64 lower_offset in
+    let expr =
+      D.const_sub
+        (D.const_add
+           (D.const_label (Asm_label.encode upper))
+           (D.const_int64 upper_offset))
+        (D.const_add
+           (D.const_label (Asm_label.encode lower))
+           (D.const_int64 lower_offset))
+    in
+    const_machine_width (force_assembly_time_constant expr)
+
+  let between_symbol_in_current_unit_and_label_offset ?comment ~upper ~lower
+      ~offset_upper () =
     (* CR mshinwell: add checks, as above: check_symbol_in_current_unit lower;
        check_symbol_and_label_in_same_section lower upper; *)
-    Option.iter D.comment comment';
+    Option.iter D.comment comment;
     if Targetint.compare offset_upper Targetint.zero = 0
     then
       let expr =
@@ -356,7 +384,90 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     in
     const ~width expr
 
-  let offset_into_dwarf_section_symbol ?comment:_ ~width:_ _section _symbol =
-    (* CR poechsel: use the arguments *)
-    A.emit_line "offset_into_dwarf_section_symbol"
+  let offset_into_dwarf_section_symbol ?comment
+      ~(width : Dwarf_flags.dwarf_format) section upper =
+    (* CR mshinwell: code from previous DWARF work:
+
+       let upper_section = Asm_symbol.section upper in if not (Asm_section.equal
+       upper_section (DWARF section)) then Misc.fatal_errorf "Symbol %a (in
+       section %a) not in section %a" Asm_symbol.print upper Asm_section.print
+       upper_section Asm_section.print (Asm_section.DWARF section); *)
+    (* The macOS assembler doesn't seem to allow "distance to undefined symbol
+       from start of given section". As such we do not allow this function to be
+       used for undefined symbols on macOS at the moment. Relevant link:
+       <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=82005>. *)
+    (* CR mshinwell: try again to make this work on macOS, maybe using
+     * something like the last .quad in the example below:
+     *
+     * extunit.s
+     *
+     *   .section __DWARF,__debug_info,regular,debug
+     *   .quad 0x12345678
+     *   .globl extunit_die
+     * extunit_die:
+     *   .quad 0xffffdddd
+     *
+     * ---
+     *
+     * unit.s
+     *
+     *   .section __DWARF,__debug_info,regular,debug
+     * Ldebug_info:
+     *   .quad 0x11112222
+     *   .globl unit_die
+     * unit_die1:
+     *   .quad 0x9999888
+     * unit_die:
+     *   .quad 0xaaaabbbb
+     *   .quad unit_die - __debug_info
+     *   .set dist, unit_die - Ldebug_info
+     *   .quad dist
+     *   .quad extunit_die - __debug_info
+     *)
+    let comment =
+      if not !Clflags.keep_asm_file
+      then None
+      else
+        match comment with
+        | None ->
+          Some
+            (Format.asprintf "offset into %s"
+               (Asm_section.to_string (DWARF section)))
+        | Some comment ->
+          Some
+            (Format.asprintf "%s (offset into %s)" comment
+               (Asm_section.to_string (DWARF section)))
+    in
+    Option.iter D.comment comment;
+    let expr =
+      if is_macos ()
+      then
+        let in_current_unit =
+          true
+          (* CR mshinwell: old code was:
+
+             Compilation_unit.equal (Compilation_unit.get_current_exn ())
+             (Asm_symbol.compilation_unit upper) *)
+        in
+        if in_current_unit
+        then
+          let lower = Asm_label.for_dwarf_section section in
+          (* Same note as in [offset_into_dwarf_section_label] applies here. *)
+          force_assembly_time_constant
+            (D.const_sub
+               (D.const_label (Asm_symbol.encode upper))
+               (D.const_label (Asm_label.encode lower)))
+        else
+          Misc.fatal_errorf
+            "Don't know how to encode offset from start of section XXX to \
+             undefined symbol %a on macOS (current compilation unit %a, symbol \
+             in compilation unit XXX)"
+            (* Asm_section.print upper_section *) Asm_symbol.print upper
+            Compilation_unit.print
+            (Compilation_unit.get_current_exn ())
+            Compilation_unit.print
+        (* (Asm_symbol.compilation_unit upper) *)
+      else D.const_label (Asm_symbol.encode upper)
+    in
+    match width with Thirty_two -> D.long expr | Sixty_four -> D.qword expr
 end

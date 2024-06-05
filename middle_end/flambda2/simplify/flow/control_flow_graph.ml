@@ -122,11 +122,17 @@ let fixpoint t ~init ~f =
         | G.Has_loop conts ->
           let q = Queue.create () in
           List.iter (fun k -> Queue.add k q) conts;
-          let q_s = ref (Continuation.Set.of_list conts) in
+          (* We enforce the invariant that [q] contains no duplicates, and that
+             [!q_s] precisely contains the continuations in [conts] that are not
+             in [q]. Besides ensuring we don't add the same element twice to
+             [q], this enforces as well that only continuations in the current
+             strongly-connected component, that is, the continuations in
+             [conts], can ever be in [q]. *)
+          let q_s = ref Continuation.Set.empty in
           let cur = ref res in
           while not (Queue.is_empty q) do
             let callee = Queue.pop q in
-            q_s := Continuation.Set.remove callee !q_s;
+            q_s := Continuation.Set.add callee !q_s;
             let callee_set = Continuation.Map.find callee !cur in
             let callers =
               match Continuation.Map.find callee t.callers with
@@ -144,10 +150,10 @@ let fixpoint t ~init ~f =
                 if not (Variable.Set.equal caller_set caller_new_set)
                 then (
                   cur := Continuation.Map.add caller caller_new_set !cur;
-                  if not (Continuation.Set.mem caller !q_s)
+                  if Continuation.Set.mem caller !q_s
                   then (
                     Queue.add caller q;
-                    q_s := Continuation.Set.add caller !q_s)))
+                    q_s := Continuation.Set.remove caller !q_s)))
               callers
           done;
           !cur)
@@ -239,6 +245,12 @@ let minimize_extra_args_for_one_continuation ~(source_info : T.Acc.t)
           ( Variable.Set.remove alias extra_args_for_aliases,
             Some (alias, exception_param) ))
   in
+  let lets_to_introduce =
+    match exception_handler_first_param_aliased with
+    | None -> Variable.Map.empty
+    | Some (alias, exception_param) ->
+      Variable.Map.singleton alias exception_param
+  in
   let removed_aliased_params_and_extra_params, lets_to_introduce =
     List.fold_left
       (fun (removed, lets_to_introduce) param ->
@@ -268,7 +280,7 @@ let minimize_extra_args_for_one_continuation ~(source_info : T.Acc.t)
               else if Variable.equal alias aliased_to
               then default exception_param
               else default alias))
-      (Variable.Set.empty, Variable.Map.empty)
+      (Variable.Set.empty, lets_to_introduce)
       (Bound_parameters.vars elt.params)
   in
   let recursive_continuation_wrapper :
