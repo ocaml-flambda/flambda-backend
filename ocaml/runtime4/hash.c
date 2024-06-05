@@ -270,7 +270,7 @@ CAMLprim value caml_hash_exn(value count, value limit, value seed, value obj)
 #ifdef NO_NAKED_POINTERS
       case Closure_tag: {
         mlsize_t startenv;
-        len = Wosize_val(v);
+        len = Scannable_wosize_val(v);
         startenv = Start_env_closinfo(Closinfo_val(v));
         CAMLassert (startenv <= len);
         /* Mix in the tag and size, but do not count this towards [num] */
