@@ -27,6 +27,8 @@ module Runtime_4 = struct
     let unique_value = Obj.repr (ref 0)
     let state = ref (Array.make 8 unique_value)
 
+    let init () = ()
+
     type 'a key = int * (unit -> 'a)
 
     let key_counter = ref 0
@@ -161,7 +163,7 @@ module Runtime_5 = struct
       let st = Array.make 8 unique_value in
       set_dls_state st
 
-    let _ = create_dls ()
+    let init () = create_dls ()
 
     type 'a key = int * (unit -> 'a)
 
@@ -382,13 +384,23 @@ module type S = sig
   end
 end
 
-let runtime_4_impl = (module Runtime_4 : S)
-let runtime_5_impl = (module Runtime_5 : S)
+module type S' = sig
+  include S
+  module DLS : sig
+    include module type of struct include DLS end
+    val init : unit -> unit
+  end
+end
+
+let runtime_4_impl = (module Runtime_4 : S')
+let runtime_5_impl = (module Runtime_5 : S')
 
 external runtime5 : unit -> bool = "%runtime5"
 
 let impl = if runtime5 () then runtime_5_impl else runtime_4_impl
 
-include (val impl : S)
+include (val impl : S')
+
+let () = DLS.init ()
 
 let _ = Stdlib.do_domain_local_at_exit := do_at_exit
