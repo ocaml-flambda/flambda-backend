@@ -440,44 +440,23 @@ module Jkind_desc = struct
      argument. But the arguments that we expect here will have no trouble
      meeting the conditions.
   *)
-  let immediate64 =
-    { layout = Layout.value;
-      modes_upper_bounds =
-        { locality = Global; linearity = Many; uniqueness = Unique };
-      externality_upper_bound = External64
-    }
+  let immediate = mode_crossing Layout.value
 
-  let immediate =
-    { layout = Layout.value;
-      modes_upper_bounds =
-        { locality = Global; linearity = Many; uniqueness = Unique };
-      externality_upper_bound = External
-    }
+  let immediate64 = { immediate with externality_upper_bound = External64 }
 
-  let float64 =
-    { layout = Layout.float64;
-      modes_upper_bounds =
-        { locality = Global; linearity = Many; uniqueness = Unique };
-      externality_upper_bound = External
-    }
+  (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
+     crossing first *)
+  let float64 = mode_crossing Layout.float64
 
-  let word =
-    { layout = Layout.word;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = External
-    }
+  (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
+     crossing first *)
+  let float32 = mode_crossing Layout.float32
 
-  let bits32 =
-    { layout = Layout.bits32;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = External
-    }
+  let word = not_mode_crossing Layout.word
 
-  let bits64 =
-    { layout = Layout.bits64;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = External
-    }
+  let bits32 = not_mode_crossing Layout.bits32
+
+  let bits64 = not_mode_crossing Layout.bits64
 
   (* Post-condition: If the result is [Var v], then [!v] is [None]. *)
   let get { layout; modes_upper_bounds; externality_upper_bound } : Desc.t =
