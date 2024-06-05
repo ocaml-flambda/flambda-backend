@@ -31,15 +31,6 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
        You must enable -extension layouts_alpha to use this feature.
 |}];;
 
-type t_non_null_value : non_null_value;;
-[%%expect{|
-Line 1, characters 24-38:
-1 | type t_non_null_value : non_null_value;;
-                            ^^^^^^^^^^^^^^
-Error: Layout non_null_value is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
-|}]
-
 (******************************************************************)
 (* Test 1: Allow non-representable function args/returns in types *)
 

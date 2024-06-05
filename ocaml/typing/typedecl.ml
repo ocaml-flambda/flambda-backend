@@ -1239,7 +1239,7 @@ module Element_repr = struct
          flambda2 to unbox for 32 bit platforms.
       *)
       | Immediate64 -> Value_element
-      | Value | Non_null_value -> Value_element
+      | Value -> Value_element
       | Immediate -> Imm_element
       | Float64 -> Unboxed_element Float64
       | Float32 -> Unboxed_element Float32
