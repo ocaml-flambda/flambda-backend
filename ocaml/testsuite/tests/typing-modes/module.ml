@@ -14,17 +14,36 @@ module M = struct
     type 'a t = int
     let x _ = ()
 end
+module F (X : S) = struct
+    let x = X.x
+end
 [%%expect{|
 val portable_use : 'a @ portable -> unit = <fun>
 module type S = sig val x : 'a -> unit end
 module type SL = sig type 'a t end
 module M : sig type 'a t = int val x : 'a -> unit end
+module F : functor (X : S) -> sig val x : 'a -> unit end
 |}]
 
 (* Closing over modules affects closure's modes *)
 let u =
     let foo () =
         let _ = (module M : S) in
+        ()
+    in
+    portable_use foo
+(* CR zqian: This should fail *)
+[%%expect{|
+val u : unit = ()
+|}]
+
+let u =
+    let foo () =
+        let module X = struct
+            let x _ = ()
+        end
+        in
+        let module R = F(X) in
         ()
     in
     portable_use foo
