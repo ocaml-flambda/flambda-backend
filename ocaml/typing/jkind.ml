@@ -1336,6 +1336,7 @@ let combine_histories reason lhs rhs =
     | Not_le ->
       rhs.history
       (* CR layouts: this will be wrong if we ever have a non-trivial meet in the layout lattice *)
+      (* CR layouts v3.0: we do now: [any_non_null /\ value_or_null = value]. Fix this. *)
     | Equal ->
       if score_reason lhs.history >= score_reason rhs.history
       then lhs.history
