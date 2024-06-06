@@ -14,9 +14,13 @@
 (*                                                                        *)
 (**************************************************************************)
 
+type code_id_in_function_declaration =
+  | Deleted
+  | Code_id of Code_id.t
+
 type t =
-  { funs : Code_id.t Function_slot.Map.t;
-    in_order : Code_id.t Function_slot.Lmap.t
+  { funs : code_id_in_function_declaration Function_slot.Map.t;
+    in_order : code_id_in_function_declaration Function_slot.Lmap.t
   }
 
 let empty =
@@ -38,16 +42,21 @@ let find ({ funs; _ } : t) function_slot =
 
 let [@ocamlformat "disable"] print ppf { in_order; _ } =
   Format.fprintf ppf "@[<hov 1>(%a)@]"
-    (Function_slot.Lmap.print Code_id.print)
+    (Function_slot.Lmap.print
+       (fun ppf -> function Deleted -> Format.fprintf ppf "[deleted]" | Code_id code_id -> Format.fprintf ppf "%a" Code_id.print code_id))
     in_order
 
 let free_names { funs; _ } =
   Function_slot.Map.fold
     (fun function_slot code_id syms ->
-      Name_occurrences.add_code_id
-        (Name_occurrences.add_function_slot_in_declaration syms function_slot
-           Name_mode.normal)
-        code_id Name_mode.normal)
+      let syms =
+        Name_occurrences.add_function_slot_in_declaration syms function_slot
+          Name_mode.normal
+      in
+      match code_id with
+      | Deleted -> syms
+      | Code_id code_id ->
+        Name_occurrences.add_code_id syms code_id Name_mode.normal)
     funs Name_occurrences.empty
 
 (* Note: the call to {create} at the end already takes into account the
@@ -56,18 +65,33 @@ let free_names { funs; _ } =
 let apply_renaming ({ in_order; _ } as t) renaming =
   let in_order' =
     Function_slot.Lmap.map_sharing
-      (fun code_id -> Renaming.apply_code_id renaming code_id)
+      (fun t ->
+        match t with
+        | Deleted -> Deleted
+        | Code_id code_id ->
+          let code_id' = Renaming.apply_code_id renaming code_id in
+          if code_id == code_id' then t else Code_id code_id')
       in_order
   in
   if in_order == in_order' then t else create in_order'
 
 let ids_for_export { funs; _ } =
   Function_slot.Map.fold
-    (fun _function_slot code_id ids -> Ids_for_export.add_code_id ids code_id)
+    (fun _function_slot code_id ids ->
+      match code_id with
+      | Deleted -> ids
+      | Code_id code_id -> Ids_for_export.add_code_id ids code_id)
     funs Ids_for_export.empty
 
 let compare { funs = funs1; _ } { funs = funs2; _ } =
-  Function_slot.Map.compare Code_id.compare funs1 funs2
+  Function_slot.Map.compare
+    (fun code_id1 code_id2 ->
+      match code_id1, code_id2 with
+      | Deleted, Deleted -> 0
+      | Deleted, Code_id _ -> -1
+      | Code_id _, Deleted -> 1
+      | Code_id code_id1, Code_id code_id2 -> Code_id.compare code_id1 code_id2)
+    funs1 funs2
 
 let filter t ~f =
   let funs = Function_slot.Map.filter f t.funs in

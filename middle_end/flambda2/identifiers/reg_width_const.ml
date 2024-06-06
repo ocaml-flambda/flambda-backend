@@ -40,3 +40,20 @@ let is_tagged_immediate t =
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
     None
+
+let of_int_of_kind (kind : Flambda_kind.t) i =
+  match kind with
+  | Value -> tagged_immediate (Targetint_31_63.of_int i)
+  | Naked_number Naked_float ->
+    naked_float (Numeric_types.Float_by_bit_pattern.create (float_of_int i))
+  | Naked_number Naked_float32 ->
+    naked_float32 (Numeric_types.Float32_by_bit_pattern.create (float_of_int i))
+  | Naked_number Naked_immediate -> naked_immediate (Targetint_31_63.of_int i)
+  | Naked_number Naked_int32 -> naked_int32 (Int32.of_int i)
+  | Naked_number Naked_int64 -> naked_int64 (Int64.of_int i)
+  | Naked_number Naked_nativeint -> naked_nativeint (Targetint_32_64.of_int i)
+  | Naked_number Naked_vec128 ->
+    let i = Int64.of_int i in
+    naked_vec128 (Vector_types.Vec128.Bit_pattern.of_bits { high = i; low = i })
+  | Region | Rec_info ->
+    Misc.fatal_errorf "Invalid kind %a" Flambda_kind.print kind
