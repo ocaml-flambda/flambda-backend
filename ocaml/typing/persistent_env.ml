@@ -104,7 +104,7 @@ type 'a t = {
     (CU.Name.t, 'a pers_struct_info) Hashtbl.t;
   imported_units: CU.Name.Set.t ref;
   imported_opaque_units: CU.Name.Set.t ref;
-  param_imports : CU.Name.Set.t ref;
+  param_imports : Param_set.t ref;
   crc_units: Consistbl.t;
   can_load_cmis: can_load_cmis ref;
 }
@@ -114,7 +114,7 @@ let empty () = {
   persistent_structures = Hashtbl.create 17;
   imported_units = ref CU.Name.Set.empty;
   imported_opaque_units = ref CU.Name.Set.empty;
-  param_imports = ref CU.Name.Set.empty;
+  param_imports = ref Param_set.empty;
   crc_units = Consistbl.create ();
   can_load_cmis = ref Can_load_cmis;
 }
@@ -133,7 +133,7 @@ let clear penv =
   Hashtbl.clear persistent_structures;
   imported_units := CU.Name.Set.empty;
   imported_opaque_units := CU.Name.Set.empty;
-  param_imports := CU.Name.Set.empty;
+  param_imports := Param_set.empty;
   Consistbl.clear crc_units;
   can_load_cmis := Can_load_cmis;
   ()
@@ -175,7 +175,7 @@ let register_parameter ({param_imports; _} as penv) import =
       if not imp.imp_is_param then
         raise (Error (Not_compiled_as_parameter(import, imp.imp_filename)))
   end;
-  param_imports := CU.Name.Set.add import !param_imports
+  param_imports := Param_set.add import !param_imports
 
 let import_crcs penv ~source crcs =
   let {crc_units; _} = penv in
@@ -207,7 +207,7 @@ let check_consistency penv imp =
       error (Inconsistent_import(name, auth, source))
 
 let is_registered_parameter_import {param_imports; _} import =
-  CU.Name.Set.mem import !param_imports
+  Param_set.mem import !param_imports
 
 let is_parameter_import t import =
   match find_import_info_in_cache t import with
