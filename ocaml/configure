@@ -744,6 +744,7 @@ flambda2
 flambda
 cpp_mangling
 frame_pointers
+no_partial_inlining_cflags
 custom_ops_struct_size
 profinfo_width
 profinfo
@@ -3393,6 +3394,7 @@ OCAML_VERSION_SHORT=5.1
 
 
  # TODO: rename this variable
+
 
 
 
@@ -20249,6 +20251,14 @@ then :
   printf "%s\n" "#define WITH_PROFINFO 1" >>confdefs.h
 
 fi
+
+# Only gcc supports -fno-partial-inlining
+case $ocaml_cv_cc_vendor in #(
+  gcc-*) :
+    no_partial_inlining_cflags="-fno-partial-inlining" ;; #(
+  *) :
+    no_partial_inlining_cflags="" ;;
+esac
 
 printf "%s\n" "#define CUSTOM_OPS_STRUCT_SIZE $custom_ops_struct_size" >>confdefs.h
 
