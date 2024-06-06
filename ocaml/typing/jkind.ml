@@ -311,6 +311,13 @@ module Const = struct
       nullability_upper_bound = Nullability.max
     }
 
+  let max_non_null =
+    { layout = Layout.Const.max;
+      modes_upper_bounds = Modes.max;
+      externality_upper_bound = Externality.max;
+      nullability_upper_bound = Nullability.Non_null
+    }
+
   (* CR layouts v2.8: remove this *)
   let to_legacy_jkind
       { layout;
@@ -388,6 +395,9 @@ module Desc = struct
     match d1, d2 with
     | Const c1, Const c2 -> Const.sub c1 c2
     | Var _, Const c when Const.equal Const.max c -> Less
+    (* CR layouts v3.0: rethink this check when sort variables
+       have nullability [Or_null]. *)
+    | Var _, Const c when Const.equal Const.max_non_null c -> Less
     | Var v1, Var v2 -> if v1 == v2 then Equal else Not_le
     | Const _, Var _ | Var _, Const _ -> Not_le
 end
@@ -478,7 +488,9 @@ module Jkind_desc = struct
   let of_new_sort_var () =
     let layout, sort = Layout.of_new_sort_var () in
     let layout = not_mode_crossing layout in
-    (* CR layouts v3.0: this should be [Or_null]. *)
+    (* CR layouts v3.0: this should be [Or_null]. However,
+       we need a lot of tweaks to the typechecking algorithm
+       to make this work with existing code. *)
     { layout with nullability_upper_bound = Non_null }, sort
 
   let any = not_mode_crossing Any

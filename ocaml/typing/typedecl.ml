@@ -2798,7 +2798,11 @@ let has_ty_var_with_layout_any env ty =
     (Ctype.free_variables ty)
 
 let unexpected_layout_any_check prim env cty ty =
+<<<<<<< HEAD
   if Primitive.prim_can_contain_layout_any prim ||
+=======
+  if Primitive.prim_can_contain_jkind_any prim ||
+>>>>>>> 76dc96606 (Fixes)
      prim.prim_is_layout_poly then ()
   else
   if has_ty_var_with_layout_any env ty then
@@ -2851,9 +2855,14 @@ let unexpected_layout_any_check prim env cty ty =
       point to the source of the mistake which is, in fact, the external
       declaration.
 
+<<<<<<< HEAD
       For this reason, we have [unexpected_layout_any_check].  It's here to
       point out this type of mistake early and suggest the use of
       [@layout_poly].
+=======
+      For this reason, we have [unexpected_layout_any_check].  It's here to point
+      out this type of mistake early and suggest the use of [@layout_poly].
+>>>>>>> 76dc96606 (Fixes)
 
       An exception is raised if any of these checks fails. *)
 let error_if_containing_unexpected_jkind prim env cty ty =

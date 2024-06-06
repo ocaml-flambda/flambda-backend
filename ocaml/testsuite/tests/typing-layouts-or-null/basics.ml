@@ -188,14 +188,35 @@ module M :
 type t = t_any id_any_non_null
 
 [%%expect{|
-type t = t_any id_any_non_null
+Line 1, characters 9-14:
+1 | type t = t_any id_any_non_null
+             ^^^^^
+Error: This type t_any should be an instance of type ('a : any_non_null)
+       The layout of t_any is any, because
+         of the definition of t_any at line 1, characters 0-16.
+       But the layout of t_any must be a sublayout of any_non_null, because
+         of the definition of id_any_non_null at line 2, characters 0-45.
 |}]
 
 module M (X : sig type t : any end) : sig type t : any_non_null end = X
 
 [%%expect{|
-module M :
-  functor (X : sig type t : any end) -> sig type t : any_non_null end
+Line 1, characters 70-71:
+1 | module M (X : sig type t : any end) : sig type t : any_non_null end = X
+                                                                          ^
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = X.t end
+       is not included in
+         sig type t : any_non_null end
+       Type declarations do not match:
+         type t = X.t
+       is not included in
+         type t : any_non_null
+       The layout of the first is any, because
+         of the definition of t at line 1, characters 18-30.
+       But the layout of the first must be a sublayout of any_non_null, because
+         of the definition of t at line 1, characters 42-63.
 |}]
 
 (* [value_or_null] is not a subtype of [value] *)

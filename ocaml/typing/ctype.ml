@@ -1657,6 +1657,10 @@ let instance_prim_layout (desc : Primitive.description) ty =
   then ty, None
   else
   let new_sort_and_jkind = ref None in
+  (* CR layouts v3.0: the sort variable created here should inherit
+     the nullability of the original jkind with layout [Any].
+     This is ok while sort variables are restricted to [Non_null],
+     but we should implement the correct logic afterwards. *)
   let get_jkind () =
     (* CR layouts v2.8: This should replace only the layout component of the
        jkind. It's possible that we might want a primitive that accepts a
