@@ -66,15 +66,7 @@ module type S1 = sig
   type 'a s = 'a -> int constraint 'a = t
 end;;
 [%%expect{|
-Line 4, characters 35-41:
-4 |   type 'a s = 'a -> int constraint 'a = t
-                                       ^^^^^^
-Error: The type constraints are not consistent.
-       Type ('a : '_representable_layout_1) is not compatible with type t
-       The layout of t is any, because
-         of the definition of t at line 2, characters 2-14.
-       But the layout of t must be representable, because
-         it instantiates an unannotated type parameter of s.
+module type S1 = sig type t : any type 'a s = 'a -> int constraint 'a = t end
 |}]
 
 module type S1 = sig
@@ -83,15 +75,7 @@ module type S1 = sig
   type 'a s = int -> 'a constraint 'a = t
 end;;
 [%%expect{|
-Line 4, characters 35-41:
-4 |   type 'a s = int -> 'a constraint 'a = t
-                                       ^^^^^^
-Error: The type constraints are not consistent.
-       Type ('a : '_representable_layout_2) is not compatible with type t
-       The layout of t is any, because
-         of the definition of t at line 2, characters 2-14.
-       But the layout of t must be representable, because
-         it instantiates an unannotated type parameter of s.
+module type S1 = sig type t : any type 'a s = int -> 'a constraint 'a = t end
 |}]
 
 let f1 () : t_any = assert false;;
@@ -100,7 +84,7 @@ Line 1, characters 20-32:
 1 | let f1 () : t_any = assert false;;
                         ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_3)
+         ('a : '_representable_layout_1)
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-18.
        But the layout of t_any must be representable, because
@@ -114,7 +98,7 @@ Line 1, characters 7-18:
            ^^^^^^^^^^^
 Error: This pattern matches values of type t_any
        but a pattern was expected which matches values of type
-         ('a : '_representable_layout_4)
+         ('a : '_representable_layout_2)
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-18.
        But the layout of t_any must be representable, because
@@ -1240,7 +1224,7 @@ let id18 (x : 'a t18) = x
 let f18 : 'a . 'a -> 'a = fun x -> id18 x;;
 
 [%%expect{|
-type 'a t18 = 'a
+type ('a : any) t18 = 'a
 val id18 : 'a t18 -> 'a t18 = <fun>
 val f18 : 'a -> 'a = <fun>
 |}];;
@@ -1812,7 +1796,7 @@ Line 1, characters 10-22:
 1 | let () = (assert false : t_any); ()
               ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_5)
+         ('a : '_representable_layout_3)
        because it is in the left-hand side of a sequence
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-18.
@@ -1831,7 +1815,7 @@ Line 1, characters 25-37:
 1 | let () = while false do (assert false : t_any); done
                              ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_6)
+         ('a : '_representable_layout_4)
        because it is in the body of a while-loop
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-18.
@@ -1850,7 +1834,7 @@ Line 1, characters 28-40:
 1 | let () = for i = 0 to 0 do (assert false : t_any); done
                                 ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_7)
+         ('a : '_representable_layout_5)
        because it is in the body of a for-loop
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-18.

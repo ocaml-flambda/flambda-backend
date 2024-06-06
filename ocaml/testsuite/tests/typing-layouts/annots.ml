@@ -623,7 +623,7 @@ val f : (('a : immediate). 'a -> 'a) -> int * bool = <fun>
 type _ a = Mk : [> ] * ('a : immediate) -> int a
 
 [%%expect {|
-type _ a = Mk : ('a : immediate). [>  ] * 'a -> int a
+type (_ : any) a = Mk : ('a : immediate). [>  ] * 'a -> int a
 |}]
 
 let f_imm : ('a : immediate). 'a -> 'a = fun x -> x

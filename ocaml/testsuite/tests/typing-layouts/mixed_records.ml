@@ -152,18 +152,18 @@ and 'a t_imm = 'a t_immediate_id
 and ('a, 'b, 'ptr) t =
   {ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
 [%%expect{|
-Line 4, characters 27-37:
-4 |   {ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
-                               ^^^^^^^^^^
-Error: Layout mismatch in final type declaration consistency check.
+Line 1, characters 0-33:
+1 | type 'a t_float = 'a t_float64_id
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Layout mismatch in checking consistency of mutually recursive groups.
        This is most often caused by the fact that type inference is not
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         The layout of 'a is float64, because
-           of the definition of t_float64_id at line 1, characters 0-37.
-         But the layout of 'a must overlap with value, because
-           it instantiates an unannotated type parameter of t, defaulted to layout value.
+         The layout of 'a t_float is any, because
+           it instantiates an unannotated type parameter of t_float.
+         But the layout of 'a t_float must be representable, because
+           it is the type of record field y.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}];;
@@ -173,15 +173,20 @@ and 'a t_imm = 'a t_immediate_id
 and ('a : float64, 'b : immediate, 'ptr) t =
   {ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
 [%%expect{|
-type ('a : float64) t_float = 'a t_float64_id
-and ('a : immediate) t_imm = 'a t_immediate_id
-and ('a : float64, 'b : immediate, 'ptr) t = {
-  ptr : 'ptr;
-  x : 'a;
-  y : 'a t_float;
-  z : 'b;
-  w : 'b t_imm;
-}
+Line 1, characters 0-33:
+1 | type 'a t_float = 'a t_float64_id
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Layout mismatch in checking consistency of mutually recursive groups.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         The layout of 'a t_float/2 is any, because
+           it instantiates an unannotated type parameter of t_float.
+         But the layout of 'a t_float/2 must be representable, because
+           it is the type of record field y.
+       A good next step is to add a layout annotation on a parameter to
+       the declaration where this error is reported.
 |}];;
 
 

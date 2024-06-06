@@ -38,7 +38,7 @@ type 'a t1_constraint = T1_con of 'a constraint 'a = 'b t1_constraint'
 and 'b t1_constraint' = t_void
 [%%expect {|
 type 'a t1_constraint = T1_con of 'a constraint 'a = 'b t1_constraint'
-and 'b t1_constraint' = t_void
+and ('b : any) t1_constraint' = t_void
 |}]
 
 (************************************)
@@ -89,7 +89,7 @@ Error:
        The layout of 'b t1_constraint' is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of 'b t1_constraint' must be representable, because
-         it instantiates an unannotated type parameter of t1_constraint.
+         it's the type of a constructor field.
 |}]
 (* CR layouts errors: this error is blamed on the wrong piece *)
 
@@ -384,10 +384,10 @@ Error: Layout mismatch in final type declaration consistency check.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         The layout of 'a is void, because
+         The layout of 'a is any, because
+           it instantiates an unannotated type parameter of t8_5.
+         But the layout of 'a must be a sublayout of void, because
            of the definition of void_t at line 1, characters 0-23.
-         But the layout of 'a must overlap with value, because
-           it instantiates an unannotated type parameter of t8_5, defaulted to layout value.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
@@ -406,8 +406,8 @@ Error: Layout mismatch in final type declaration consistency check.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         The layout of 'a is value, because
-           it instantiates an unannotated type parameter of t10, defaulted to layout value.
+         The layout of 'a is any, because
+           it instantiates an unannotated type parameter of t10.
          But the layout of 'a must be a sublayout of immediate, because
            of the definition of imm_t at line 1, characters 0-27.
        A good next step is to add a layout annotation on a parameter to

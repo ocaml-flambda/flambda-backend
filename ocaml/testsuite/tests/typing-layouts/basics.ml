@@ -68,15 +68,8 @@ module type S1 = sig
   type q = t s
 end;;
 [%%expect{|
-Line 4, characters 35-41:
-4 |   type 'a s = 'a -> int constraint 'a = t
-                                       ^^^^^^
-Error: The type constraints are not consistent.
-       Type ('a : '_representable_layout_1) is not compatible with type t
-       The layout of t is any, because
-         of the definition of t at line 2, characters 2-14.
-       But the layout of t must be representable, because
-         it instantiates an unannotated type parameter of s.
+module type S1 =
+  sig type t : any type 'a s = 'a -> int constraint 'a = t type q = t s end
 |}]
 
 module type S1 = sig
@@ -332,15 +325,7 @@ module type S1 = sig
   type 'a s = 'a -> int constraint 'a = t
 end;;
 [%%expect{|
-Line 4, characters 35-41:
-4 |   type 'a s = 'a -> int constraint 'a = t
-                                       ^^^^^^
-Error: The type constraints are not consistent.
-       Type ('a : '_representable_layout_2) is not compatible with type t
-       The layout of t is any, because
-         of the definition of t at line 2, characters 2-14.
-       But the layout of t must be representable, because
-         it instantiates an unannotated type parameter of s.
+module type S1 = sig type t : any type 'a s = 'a -> int constraint 'a = t end
 |}]
 
 module type S1 = sig
@@ -349,15 +334,7 @@ module type S1 = sig
   type 'a s = int -> 'a constraint 'a = t
 end;;
 [%%expect{|
-Line 4, characters 35-41:
-4 |   type 'a s = int -> 'a constraint 'a = t
-                                       ^^^^^^
-Error: The type constraints are not consistent.
-       Type ('a : '_representable_layout_3) is not compatible with type t
-       The layout of t is any, because
-         of the definition of t at line 2, characters 2-14.
-       But the layout of t must be representable, because
-         it instantiates an unannotated type parameter of s.
+module type S1 = sig type t : any type 'a s = int -> 'a constraint 'a = t end
 |}]
 
 let f1 () : t_any = assert false;;
@@ -366,7 +343,7 @@ Line 1, characters 20-32:
 1 | let f1 () : t_any = assert false;;
                         ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_4)
+         ('a : '_representable_layout_1)
        The layout of t_any is any, because
          of the definition of t_any at line 5, characters 0-18.
        But the layout of t_any must be representable, because
@@ -380,7 +357,7 @@ Line 1, characters 7-18:
            ^^^^^^^^^^^
 Error: This pattern matches values of type t_any
        but a pattern was expected which matches values of type
-         ('a : '_representable_layout_5)
+         ('a : '_representable_layout_2)
        The layout of t_any is any, because
          of the definition of t_any at line 5, characters 0-18.
        But the layout of t_any must be representable, because
@@ -1416,7 +1393,7 @@ let id18 (x : 'a t18) = x
 let f18 : 'a . 'a -> 'a = fun x -> id18 x;;
 
 [%%expect{|
-type 'a t18 = 'a
+type ('a : any) t18 = 'a
 val id18 : 'a t18 -> 'a t18 = <fun>
 val f18 : 'a -> 'a = <fun>
 |}];;
@@ -1804,27 +1781,13 @@ Error: This type signature for foo33 is not a value type.
 external foo44 : ('a : any). 'a -> unit = "foo44";;
 
 [%%expect{|
-Line 1, characters 29-31:
-1 | external foo44 : ('a : any). 'a -> unit = "foo44";;
-                                 ^^
-Error: Types in an external must have a representable layout.
-       The layout of 'a is any, because
-         of the annotation on the universal variable 'a.
-       But the layout of 'a must be representable, because
-         it's the type of an argument in an external declaration.
+external foo44 : 'a -> unit = "foo44"
 |}]
 
 external foo55 : ('a : any). unit -> 'a = "foo55";;
 
 [%%expect{|
-Line 1, characters 37-39:
-1 | external foo55 : ('a : any). unit -> 'a = "foo55";;
-                                         ^^
-Error: Types in an external must have a representable layout.
-       The layout of 'a is any, because
-         of the annotation on the universal variable 'a.
-       But the layout of 'a must be representable, because
-         it's the type of the result of an external declaration.
+external foo55 : unit -> 'a = "foo55"
 |}]
 
 (****************************************************)
@@ -1885,7 +1848,7 @@ Line 1, characters 10-22:
 1 | let () = (assert false : t_any); ()
               ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_6)
+         ('a : '_representable_layout_3)
        because it is in the left-hand side of a sequence
        The layout of t_any is any, because
          of the definition of t_any at line 5, characters 0-18.
@@ -1904,7 +1867,7 @@ Line 1, characters 25-37:
 1 | let () = while false do (assert false : t_any); done
                              ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_7)
+         ('a : '_representable_layout_4)
        because it is in the body of a while-loop
        The layout of t_any is any, because
          of the definition of t_any at line 5, characters 0-18.
@@ -1923,7 +1886,7 @@ Line 1, characters 28-40:
 1 | let () = for i = 0 to 0 do (assert false : t_any); done
                                 ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_8)
+         ('a : '_representable_layout_5)
        because it is in the body of a for-loop
        The layout of t_any is any, because
          of the definition of t_any at line 5, characters 0-18.
@@ -2070,21 +2033,7 @@ end = struct
 end
 
 [%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type 'a t = 'a -> 'a
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type 'a t = 'a -> 'a end
-       is not included in
-         sig type ('a : any) t = 'a -> 'a end
-       Type declarations do not match:
-         type 'a t = 'a -> 'a
-       is not included in
-         type ('a : any) t = 'a -> 'a
-       The type ('a : value) is not equal to the type ('a0 : any)
-       because their layouts are different.
+module M3 : sig type ('a : any) t = 'a -> 'a end
 |}]
 
 module M4 : sig
@@ -2204,22 +2153,7 @@ end = struct
 end
 
 [%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type 'a t = K of ('a -> 'a)
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type 'a t = K of ('a -> 'a) end
-       is not included in
-         sig type ('a : any) t = K of ('a -> 'a) end
-       Type declarations do not match:
-         type 'a t = K of ('a -> 'a)
-       is not included in
-         type ('a : any) t = K of ('a -> 'a)
-       Their parameters differ:
-       The type ('a : value) is not equal to the type ('a0 : any)
-       because their layouts are different.
+module M8 : sig type ('a : any) t = K of ('a -> 'a) end
 |}]
 
 module M9 : sig
@@ -2229,22 +2163,7 @@ end = struct
 end
 
 [%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type ('a : any) t = K of ('a -> 'a)
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type ('a : any) t = K of ('a -> 'a) end
-       is not included in
-         sig type 'a t = K of ('a -> 'a) end
-       Type declarations do not match:
-         type ('a : any) t = K of ('a -> 'a)
-       is not included in
-         type 'a t = K of ('a -> 'a)
-       Their parameters differ:
-       The type ('a : any) is not equal to the type ('a0 : value)
-       because their layouts are different.
+module M9 : sig type ('a : any) t = K of ('a -> 'a) end
 |}]
 (* CR layouts: This one should be fine to accept *)
 
@@ -2330,16 +2249,8 @@ type 'a t40 = 'a
 let f40 (x: t_float64): 'a t40 = x
 
 [%%expect{|
-type 'a t40 = 'a
-Line 2, characters 33-34:
-2 | let f40 (x: t_float64): 'a t40 = x
-                                     ^
-Error: This expression has type t_float64
-       but an expression was expected of type 'a t40 = ('a : value)
-       The layout of t_float64 is float64, because
-         of the definition of t_float64 at line 4, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value, because
-         of the definition of t40 at line 1, characters 0-16.
+type ('a : any) t40 = 'a
+val f40 : t_float64 -> t_float64 t40 = <fun>
 |}]
 
 (**********************************************************************)
@@ -2353,11 +2264,17 @@ and 'a t2 = 'a
 Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
-Error:
-       The layout of 'a t2 is value, because
-         it instantiates an unannotated type parameter of t2, defaulted to layout value.
-       But the layout of 'a t2 must be a sublayout of immediate, because
-         of the annotation on the wildcard _ at line 1, characters 28-37.
+Error: Layout mismatch in checking consistency of mutually recursive groups.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         The layout of 'a t2 is any, because
+           it instantiates an unannotated type parameter of t2.
+         But the layout of 'a t2 must be a sublayout of immediate, because
+           of the annotation on the wildcard _ at line 1, characters 28-37.
+       A good next step is to add a layout annotation on a parameter to
+       the declaration where this error is reported.
 |}]
 
 (* This example is unfortunately rejected as a consequence of the fix for the
@@ -2371,11 +2288,17 @@ and 'a t2 = 'a
 Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
-Error:
-       The layout of 'a t2 is value, because
-         it instantiates an unannotated type parameter of t2, defaulted to layout value.
-       But the layout of 'a t2 must be a sublayout of immediate, because
-         of the annotation on the wildcard _ at line 1, characters 27-36.
+Error: Layout mismatch in checking consistency of mutually recursive groups.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         The layout of 'a t2/2 is any, because
+           it instantiates an unannotated type parameter of t2.
+         But the layout of 'a t2/2 must be a sublayout of immediate, because
+           of the annotation on the wildcard _ at line 1, characters 27-36.
+       A good next step is to add a layout annotation on a parameter to
+       the declaration where this error is reported.
 |}]
 
 (* This one also unfortunately rejected for the same reason. *)
@@ -2386,11 +2309,17 @@ and 'a t2 = 'a
 Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
-Error:
-       The layout of 'a t2 is value, because
-         it instantiates an unannotated type parameter of t2, defaulted to layout value.
-       But the layout of 'a t2 must be a sublayout of immediate, because
-         of the annotation on the wildcard _ at line 1, characters 25-34.
+Error: Layout mismatch in checking consistency of mutually recursive groups.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         The layout of 'a t2/3 is any, because
+           it instantiates an unannotated type parameter of t2.
+         But the layout of 'a t2/3 must be a sublayout of immediate, because
+           of the annotation on the wildcard _ at line 1, characters 25-34.
+       A good next step is to add a layout annotation on a parameter to
+       the declaration where this error is reported.
 |}]
 
 (**********************************************************************)
@@ -2546,11 +2475,21 @@ module N = struct
     | Refl -> 42
 end
 [%%expect{|
-type 'a s = 'a
+type ('a : any) s = 'a
 module M : sig type t : immediate end
 module N :
   sig
-    type ('a, 'b) eq = Refl : ('a, 'a) eq
+    type ('a : any, 'b : any) eq = Refl : ('a, 'a) eq
     val f : (M.t, M.t s) eq -> int
   end
+|}]
+
+module M : sig
+  type 'a t
+end = struct
+  type 'a t = 'a
+end
+
+[%%expect{|
+module M : sig type 'a t end
 |}]

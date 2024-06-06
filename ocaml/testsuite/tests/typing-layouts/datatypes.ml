@@ -83,7 +83,7 @@ Error:
        The layout of 'b t1_constraint' is any, because
          of the definition of t_any at line 3, characters 0-16.
        But the layout of 'b t1_constraint' must be representable, because
-         it instantiates an unannotated type parameter of t1_constraint.
+         it's the type of a constructor field.
 |}]
 
 (******************************************************)
@@ -391,10 +391,10 @@ Error: Layout mismatch in final type declaration consistency check.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         The layout of 'a is float64, because
+         The layout of 'a is any, because
+           it instantiates an unannotated type parameter of t8_5.
+         But the layout of 'a must be a sublayout of float64, because
            of the definition of float64_t at line 2, characters 0-29.
-         But the layout of 'a must overlap with value, because
-           it instantiates an unannotated type parameter of t8_5, defaulted to layout value.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
@@ -408,7 +408,7 @@ and t9_2 = { x : string t9_1 }
 and t9_3 = { x : 'a. 'a t9_1 }
 
 [%%expect {|
-type 'a t9_1 = unit
+type ('a : any) t9_1 = unit
 and t9_2 = { x : string t9_1; }
 and t9_3 = { x : 'a. 'a t9_1; }
 |}]
@@ -418,7 +418,7 @@ and t9_4 = { x : float#; y : string floaty }
 and t9_5 = { x : float#; y : 'a. 'a floaty }
 
 [%%expect {|
-type 'a floaty = float#
+type ('a : any) floaty = float#
 and t9_4 = { x : float#; y : string floaty; }
 and t9_5 = { x : float#; y : 'a. 'a floaty; }
 |}]

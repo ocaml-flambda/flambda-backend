@@ -256,14 +256,22 @@ end = struct
 end
 
 [%%expect{|
-Line 2, characters 28-30:
-2 |   external id : ('a : any). 'a -> 'a = "%identity"
-                                ^^
-Error: Types in an external must have a representable layout.
-       The layout of 'a is any, because
-         of the annotation on the universal variable 'a.
-       But the layout of 'a must be representable, because
-         it's the type of an argument in an external declaration.
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity"
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
+         end
+       is not included in
+         sig external id : 'a -> 'a = "%identity" end
+       Values do not match:
+         external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
+       is not included in
+         external id : 'a -> 'a = "%identity"
+       The two primitives have different [@layout_poly] attributes
 |}]
 
 module S : sig
@@ -273,14 +281,22 @@ end = struct
 end
 
 [%%expect{|
-Line 4, characters 28-30:
+Lines 3-5, characters 6-3:
+3 | ......struct
 4 |   external id : ('a : any). 'a -> 'a = "%identity"
-                                ^^
-Error: Types in an external must have a representable layout.
-       The layout of 'a is any, because
-         of the annotation on the universal variable 'a.
-       But the layout of 'a must be representable, because
-         it's the type of an argument in an external declaration.
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig external id : 'a -> 'a = "%identity" end
+       is not included in
+         sig
+           external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
+         end
+       Values do not match:
+         external id : 'a -> 'a = "%identity"
+       is not included in
+         external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
+       The two primitives have different [@layout_poly] attributes
 |}]
 
 (* External in struct *)

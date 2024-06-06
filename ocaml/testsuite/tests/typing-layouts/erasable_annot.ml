@@ -64,7 +64,7 @@ Line 2, characters 2-43:
 Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in g
 can't be erased for compatibility with upstream OCaml.
 
-module type S = sig type _ g = MkG : ('a : immediate). 'a g end
+module type S = sig type (_ : any) g = MkG : ('a : immediate). 'a g end
 |}];;
 
 let f (type a : immediate): a -> a = fun x -> x
@@ -152,7 +152,7 @@ Line 2, characters 2-45:
 Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in g
 can't be erased for compatibility with upstream OCaml.
 
-module type S = sig type _ g = MkG : ('a : immediate64). 'a g end
+module type S = sig type (_ : any) g = MkG : ('a : immediate64). 'a g end
 |}];;
 
 let f (type a : immediate64): a -> a = fun x -> x
@@ -233,7 +233,8 @@ Line 3, characters 2-42:
 Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
 can't be erased for compatibility with upstream OCaml.
 
-module type S = sig type 'b id = 'b val f : ('a : immediate). 'a id -> 'a end
+module type S =
+  sig type ('b : any) id = 'b val f : ('a : immediate). 'a id -> 'a end
 |}];;
 
 (* Inferring [f] to have an immediate type parameter is enough *)
