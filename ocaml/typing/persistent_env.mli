@@ -102,14 +102,11 @@ val check : allow_hidden:bool -> 'a t -> 'a sig_reader
 (* Lets it be known that the given module is a parameter to this module and thus is
    expected to have been compiled as such. Raises an exception if the module has already
    been imported as a non-parameter. *)
-val register_parameter_import : 'a t -> Compilation_unit.Name.t -> unit
+val register_parameter : 'a t -> Compilation_unit.Name.t -> unit
 
 (* [is_parameter_import penv md] checks if [md] is a parameter. Raises a fatal
    error if the module has not been imported. *)
 val is_parameter_import : 'a t -> Compilation_unit.Name.t -> bool
-
-(* Declare a parameter to this module. Calls [register_parameter_import]. *)
-val register_exported_parameter : 'a t -> Compilation_unit.Name.t -> unit
 
 (* [looked_up penv md] checks if one has already tried
    to read the signature for [md] in the environment
@@ -161,7 +158,7 @@ val locally_bound_imports : 'a t -> (Compilation_unit.Name.t * Ident.t) list
 
 (* Return the list of parameters registered to be exported from the current
    unit, in alphabetical order *)
-val exported_parameters : 'a t -> Compilation_unit.Name.t list
+val parameters : 'a t -> Compilation_unit.Name.t list
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: 'a t -> Compilation_unit.Name.t -> Digest.t

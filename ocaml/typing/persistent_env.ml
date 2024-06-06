@@ -105,7 +105,6 @@ type 'a t = {
   imported_units: CU.Name.Set.t ref;
   imported_opaque_units: CU.Name.Set.t ref;
   param_imports : CU.Name.Set.t ref;
-  exported_params : Param_set.t ref;
   crc_units: Consistbl.t;
   can_load_cmis: can_load_cmis ref;
 }
@@ -116,7 +115,6 @@ let empty () = {
   imported_units = ref CU.Name.Set.empty;
   imported_opaque_units = ref CU.Name.Set.empty;
   param_imports = ref CU.Name.Set.empty;
-  exported_params = ref Param_set.empty;
   crc_units = Consistbl.create ();
   can_load_cmis = ref Can_load_cmis;
 }
@@ -128,7 +126,6 @@ let clear penv =
     imported_units;
     imported_opaque_units;
     param_imports;
-    exported_params;
     crc_units;
     can_load_cmis;
   } = penv in
@@ -137,7 +134,6 @@ let clear penv =
   imported_units := CU.Name.Set.empty;
   imported_opaque_units := CU.Name.Set.empty;
   param_imports := CU.Name.Set.empty;
-  exported_params := Param_set.empty;
   Consistbl.clear crc_units;
   can_load_cmis := Can_load_cmis;
   ()
@@ -170,7 +166,7 @@ let find_info_in_cache {persistent_structures; _} name =
 let find_in_cache penv name =
   find_info_in_cache penv name |> Option.map (fun ps -> ps.ps_val)
 
-let register_parameter_import ({param_imports; _} as penv) import =
+let register_parameter ({param_imports; _} as penv) import =
   begin match find_import_info_in_cache penv import with
   | None ->
       (* Not loaded yet; if it's wrong, we'll get an error at load time *)
@@ -180,10 +176,6 @@ let register_parameter_import ({param_imports; _} as penv) import =
         raise (Error (Not_compiled_as_parameter(import, imp.imp_filename)))
   end;
   param_imports := CU.Name.Set.add import !param_imports
-
-let register_exported_parameter ({exported_params; _} as penv) modname =
-  register_parameter_import penv modname;
-  exported_params := Param_set.add modname !exported_params
 
 let import_crcs penv ~source crcs =
   let {crc_units; _} = penv in
@@ -214,15 +206,8 @@ let check_consistency penv imp =
     | (Normal _ | Parameter), _ ->
       error (Inconsistent_import(name, auth, source))
 
-let is_exported_parameter {exported_params; _} name =
-  Param_set.mem name !exported_params
-
 let is_registered_parameter_import {param_imports; _} import =
   CU.Name.Set.mem import !param_imports
-
-let is_unexported_parameter penv name =
-  is_registered_parameter_import penv name
-  && not (is_exported_parameter penv name)
 
 let is_parameter_import t import =
   match find_import_info_in_cache t import with
@@ -354,12 +339,9 @@ let find_import ~allow_hidden penv ~check modname =
 (* Enforce the subset rule: we can only refer to a module if that module's
    parameters are also our parameters. *)
 let check_for_unset_parameters penv modname import =
-  (* A hidden argument specifies that the importing module should forward a
-     parameter to the imported module. Therefore it's the hidden arguments that
-     we need to check. *)
   List.iter
     (fun param ->
-       if not (is_exported_parameter penv param) then
+       if not (is_registered_parameter_import penv param) then
          error (Imported_module_has_unset_parameter {
              imported = modname;
              parameter = param;
@@ -426,13 +408,6 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
         Shape.var uid ident
   in
   let pm = val_of_pers_sig sign modname uid ~shape ~address ~flags in
-  if is_unexported_parameter penv modname then begin
-    (* This module has no binding, since it's a parameter that we're aware of
-       (perhaps because it was the name of an argument in an instance name)
-       but it's not a parameter to this module. *)
-    let filename = import.imp_filename in
-    raise (Error (Illegal_import_of_parameter (modname, filename)))
-  end;
   let ps =
     { ps_import = import;
       ps_binding = binding;
@@ -572,8 +547,8 @@ let locally_bound_imports ({persistent_structures; _} as penv) =
        (fun name -> local_ident penv name |> Option.map (fun id -> name, id))
   |> List.of_seq
 
-let exported_parameters {exported_params; _} =
-  Param_set.elements !exported_params
+let parameters {param_imports; _} =
+  Param_set.elements !param_imports
 
 let looked_up {persistent_structures; _} modname =
   Hashtbl.mem persistent_structures modname
@@ -599,7 +574,7 @@ let make_cmi penv modname kind sign alerts =
   in
   let params =
     (* Needs to be consistent with [Translmod] *)
-    exported_parameters penv
+    parameters penv
   in
   let crcs = imports penv in
   {
