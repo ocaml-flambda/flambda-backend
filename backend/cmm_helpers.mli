@@ -37,6 +37,10 @@ val block_header : int -> int -> nativeint
 (** Same as block_header, but with GC bits set to black *)
 val black_block_header : int -> int -> nativeint
 
+(** Same as black_block_header, but for a mixed block *)
+val black_mixed_block_header :
+  int -> int -> scannable_prefix_len:int -> nativeint
+
 val black_closure_header : int -> nativeint
 
 (** Infix header at the given offset *)
@@ -873,6 +877,9 @@ val infix_field_address : dbg:Debuginfo.t -> expression -> int -> expression
 
 (** Static integer. *)
 val cint : nativeint -> data_item
+
+(** Static int32. *)
+val cint32 : nativeint -> data_item
 
 (** Static float32. *)
 val cfloat32 : float -> data_item

@@ -47,6 +47,14 @@ val create_block :
   fields:Field_of_static_block.t list ->
   t
 
+val create_mixed_block :
+  Are_rebuilding_terms.t ->
+  Tag.Scannable.t ->
+  Mutability.t ->
+  Flambda_kind.Mixed_block_shape.t ->
+  fields:Field_of_static_block.Mixed_field.t list ->
+  t
+
 val create_boxed_float32 :
   Are_rebuilding_terms.t ->
   Numeric_types.Float32_by_bit_pattern.t Or_variable.t ->
