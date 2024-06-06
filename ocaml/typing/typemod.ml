@@ -90,6 +90,7 @@ type error =
   | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
   | Cannot_compile_implementation_as_parameter
+  | Cannot_implement_parameter of Compilation_unit.Name.t * Misc.filepath
   | Argument_for_non_parameter of Global_module.Name.t * Misc.filepath
   | Cannot_find_argument_type of Global_module.Name.t
   | Inconsistent_argument_types of {
@@ -3371,17 +3372,12 @@ let () =
 
 (* File-level details *)
 
-let type_params params ~exported =
+let type_params params =
   List.iter
     (fun param_name ->
-       if exported then begin
-         (* We don't (yet!) support parameterised parameters *)
-         let param = Global_module.Name.create param_name [] in
-         Env.register_parameter param
-       end else begin
-         let import = Compilation_unit.Name.of_string param_name in
-         Env.register_parameter_import import
-       end
+       (* We don't (yet!) support parameterised parameters *)
+       let param = Global_module.Name.create param_name [] in
+       Env.register_parameter param
     )
     params
 
@@ -3424,7 +3420,6 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt =
       let arg_import =
         Compilation_unit.Name.of_head_of_global_name arg_module
       in
-      Env.register_parameter_import arg_import;
       (* CR lmaurer: This "look for known name in path" code is duplicated
          all over the place. *)
       let basename = arg_import |> Compilation_unit.Name.to_string in
@@ -3436,7 +3431,7 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt =
                       Cannot_find_argument_type arg_module)) in
       let arg_sig =
         Env.read_signature arg_module arg_filename ~add_binding:false in
-      if not (Env.is_parameter_unit arg_import) then
+      if not (Env.is_parameter_unit arg_module) then
         raise (Error (Location.none, env,
                       Argument_for_non_parameter (arg_module, arg_filename)));
       let coercion =
@@ -3447,7 +3442,7 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt =
              ai_coercion_from_primary = coercion;
            }
 
-let type_implementation sourcefile outputprefix modulename initial_env ast =
+let type_implementation ~sourcefile outputprefix modulename initial_env ast =
   let error e =
     raise (Error (Location.in_file sourcefile, initial_env, e))
   in
@@ -3459,7 +3454,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       Env.reset_probes ();
       if !Clflags.print_types then (* #7656 *)
         ignore @@ Warnings.parse_options false "-32-34-37-38-60";
-      type_params !Clflags.parameters ~exported:true;
+      type_params !Clflags.parameters;
       let (str, sg, names, shape, finalenv) =
         Profile.record_call "infer" (fun () ->
           type_structure initial_env ast) in
@@ -3494,7 +3489,8 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
         let sourceintf =
           Filename.remove_extension sourcefile ^ !Config.interface_suffix in
         if !Clflags.cmi_file <> None || Sys.file_exists sourceintf then begin
-          let basename = modulename |> Compilation_unit.name_as_string in
+          let cu_name = Compilation_unit.name modulename in
+          let basename = cu_name |> Compilation_unit.Name.to_string in
           let intf_file =
             match !Clflags.cmi_file with
             | None ->
@@ -3505,13 +3501,14 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
                       Interface_not_compiled sourceintf)))
             | Some cmi_file -> cmi_file
           in
-          let import = Global_module.Name.create basename [] in
-          let dclsig =
-            Env.read_signature import intf_file ~add_binding:false
-          in
           let global_name =
             Compilation_unit.to_global_name_without_prefix modulename
           in
+          let dclsig =
+            Env.read_signature global_name intf_file ~add_binding:false
+          in
+          if Env.is_parameter_unit global_name then
+            error (Cannot_implement_parameter (cu_name, intf_file));
           let arg_type_from_cmi = Env.implemented_parameter global_name in
           if not (Option.equal Global_module.Name.equal
                     arg_type arg_type_from_cmi) then
@@ -3633,7 +3630,7 @@ let type_interface ~sourcefile modulename env ast =
   if !Clflags.as_parameter && Compilation_unit.is_packed modulename then begin
     raise(Error(Location.none, Env.empty, Cannot_pack_parameter))
   end;
-  type_params !Clflags.parameters ~exported:true;
+  type_params !Clflags.parameters;
   if !Clflags.binary_annotations_cms then begin
     let uid = Shape.Uid.of_compilation_unit_id modulename in
     cms_register_toplevel_signature_attributes ~uid ~sourcefile ast
@@ -4000,6 +3997,11 @@ let report_error ~loc _env = function
   | Cannot_compile_implementation_as_parameter ->
       Location.errorf ~loc
         "Cannot compile an implementation with -as-parameter."
+  | Cannot_implement_parameter(modname, _filename) ->
+      Location.errorf ~loc
+        "@[The interface for %a@ was compiled with -as-parameter.@ \
+         It cannot be implemented directly.@]"
+        Compilation_unit.Name.print modname
   | Argument_for_non_parameter(param, path) ->
       Location.errorf ~loc
         "Interface %s@ found for module@ %a@ is not flagged as a parameter.@ \

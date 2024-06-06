@@ -33,9 +33,8 @@ type error =
       filepath * CU.t * CU.t
   | Direct_reference_from_wrong_package of
       CU.t * filepath * CU.Prefix.t
-  | Illegal_import_of_parameter of CU.Name.t * filepath
-  | Not_compiled_as_parameter of CU.Name.t * filepath
-  | Cannot_implement_parameter of CU.Name.t * filepath
+  | Illegal_import_of_parameter of Global_module.Name.t * filepath
+  | Not_compiled_as_parameter of Global_module.Name.t * filepath
   | Imported_module_has_unset_parameter of
       { imported : Global_module.Name.t;
         parameter : Global_module.Name.t;
@@ -104,8 +103,7 @@ type 'a t = {
   persistent_structures : (Global_module.Name.t, 'a pers_struct_info) Hashtbl.t;
   imported_units: CU.Name.Set.t ref;
   imported_opaque_units: CU.Name.Set.t ref;
-  param_imports : CU.Name.Set.t ref;
-  exported_params : Param_set.t ref;
+  param_imports : Param_set.t ref;
   crc_units: Consistbl.t;
   can_load_cmis: can_load_cmis ref;
 }
@@ -115,8 +113,7 @@ let empty () = {
   persistent_structures = Hashtbl.create 17;
   imported_units = ref CU.Name.Set.empty;
   imported_opaque_units = ref CU.Name.Set.empty;
-  param_imports = ref CU.Name.Set.empty;
-  exported_params = ref Param_set.empty;
+  param_imports = ref Param_set.empty;
   crc_units = Consistbl.create ();
   can_load_cmis = ref Can_load_cmis;
 }
@@ -128,7 +125,6 @@ let clear penv =
     imported_units;
     imported_opaque_units;
     param_imports;
-    exported_params;
     crc_units;
     can_load_cmis;
   } = penv in
@@ -136,8 +132,7 @@ let clear penv =
   Hashtbl.clear persistent_structures;
   imported_units := CU.Name.Set.empty;
   imported_opaque_units := CU.Name.Set.empty;
-  param_imports := CU.Name.Set.empty;
-  exported_params := Param_set.empty;
+  param_imports := Param_set.empty;
   Consistbl.clear crc_units;
   can_load_cmis := Can_load_cmis;
   ()
@@ -170,20 +165,17 @@ let find_info_in_cache {persistent_structures; _} name =
 let find_in_cache penv name =
   find_info_in_cache penv name |> Option.map (fun ps -> ps.ps_val)
 
-let register_parameter_import ({param_imports; _} as penv) import =
+let register_parameter ({param_imports; _} as penv) modname =
+  let import = CU.Name.of_head_of_global_name modname in
   begin match find_import_info_in_cache penv import with
   | None ->
       (* Not loaded yet; if it's wrong, we'll get an error at load time *)
       ()
   | Some imp ->
       if not imp.imp_is_param then
-        raise (Error (Not_compiled_as_parameter(import, imp.imp_filename)))
+        raise (Error (Not_compiled_as_parameter(modname, imp.imp_filename)))
   end;
-  param_imports := CU.Name.Set.add import !param_imports
-
-let register_exported_parameter ({exported_params; _} as penv) modname =
-  register_parameter_import penv (CU.Name.of_head_of_global_name modname);
-  exported_params := Param_set.add modname !exported_params
+  param_imports := Param_set.add modname !param_imports
 
 let import_crcs penv ~source crcs =
   let {crc_units; _} = penv in
@@ -214,18 +206,14 @@ let check_consistency penv imp =
     | (Normal _ | Parameter), _ ->
       error (Inconsistent_import(name, auth, source))
 
-let is_exported_parameter {exported_params; _} name =
-  Param_set.mem name !exported_params
-
 let is_registered_parameter_import {param_imports; _} import =
-  CU.Name.Set.mem import !param_imports
+  Param_set.mem import !param_imports
 
-let is_registered_parameter penv name =
-  is_registered_parameter_import penv (CU.Name.of_head_of_global_name name)
-
-let is_unexported_parameter penv name =
-  is_registered_parameter penv name
-  && not (is_exported_parameter penv name)
+let is_parameter_import t modname =
+  let import = CU.Name.of_head_of_global_name modname in
+  match find_import_info_in_cache t import with
+  | Some { imp_is_param; _ } -> imp_is_param
+  | None -> Misc.fatal_errorf "is_parameter_import %a" CU.Name.print import
 
 let can_load_cmis penv =
   !(penv.can_load_cmis)
@@ -258,6 +246,9 @@ let save_import penv crc modname impl flags filename =
     flags;
   Consistbl.check crc_units modname impl crc filename;
   add_import penv modname
+
+(* Add an import to the hash table. Checks that we are allowed to access
+   this .cmi. *)
 
 let acknowledge_import penv ~check modname pers_sig =
   let { Persistent_signature.filename; cmi; visibility } = pers_sig in
@@ -295,23 +286,6 @@ let acknowledge_import penv ~check modname pers_sig =
     | Normal _ -> false
     | Parameter -> true
   in
-  (* CR-someday lmaurer: Consider moving this check into
-     [acknowledge_pers_struct]. It makes more sense to flag these errors when
-     the identifier is in source, rather than, say, a signature we're reading
-     from a file, especially if it's our own .mli. *)
-  begin match is_param, is_registered_parameter_import penv modname with
-  | true, false ->
-      begin match CU.get_current () with
-      | Some current_unit when CU.Name.equal modname (CU.name current_unit) ->
-          error (Cannot_implement_parameter (modname, filename))
-      | _ ->
-          error (Illegal_import_of_parameter(modname, filename))
-      end
-  | false, true ->
-      error (Not_compiled_as_parameter(modname, filename))
-  | true, true
-  | false, false -> ()
-  end;
   let arg_for, impl =
     match kind with
     | Normal { cmi_arg_for; cmi_impl } -> cmi_arg_for, Some cmi_impl
@@ -366,12 +340,9 @@ let find_import ~allow_hidden penv ~check modname =
 (* Enforce the subset rule: we can only refer to a module if that module's
    parameters are also our parameters. *)
 let check_for_unset_parameters penv modname import =
-  (* A hidden argument specifies that the importing module should forward a
-     parameter to the imported module. Therefore it's the hidden arguments that
-     we need to check. *)
   List.iter
     (fun param ->
-       if not (is_exported_parameter penv param) then
+       if not (is_registered_parameter_import penv param) then
          error (Imported_module_has_unset_parameter {
              imported = modname;
              parameter = param;
@@ -398,12 +369,25 @@ type 'a sig_reader =
   -> flags:Cmi_format.pers_flags list
   -> 'a
 
+(* Add a persistent structure to the hash table and bind it in the [Env].
+   Checks that OCaml source is allowed to refer to this module. *)
+
 let acknowledge_pers_struct penv modname import val_of_pers_sig =
   let {persistent_structures; _} = penv in
-  let sign = import.imp_sign in
+  let is_param = import.imp_is_param in
   let impl = import.imp_impl in
+  let sign = import.imp_sign in
+  let filename = import.imp_filename in
   let flags = import.imp_flags in
   check_for_unset_parameters penv modname import;
+  begin match is_param, is_registered_parameter_import penv modname with
+  | true, false ->
+      error (Illegal_import_of_parameter(modname, filename))
+  | false, true ->
+      error (Not_compiled_as_parameter(modname, filename))
+  | true, true
+  | false, false -> ()
+  end;
   let binding = make_binding penv modname impl in
   let address : address =
     match binding with
@@ -425,14 +409,6 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
         Shape.var uid ident
   in
   let pm = val_of_pers_sig sign modname uid ~shape ~address ~flags in
-  if is_unexported_parameter penv modname then begin
-    (* This module has no binding, since it's a parameter that we're aware of
-       (perhaps because it was the name of an argument in an instance name)
-       but it's not a parameter to this module. *)
-    let modname = CU.Name.of_head_of_global_name modname in
-    let filename = import.imp_filename in
-    raise (Error (Illegal_import_of_parameter (modname, filename)))
-  end;
   let ps =
     { ps_import = import;
       ps_binding = binding;
@@ -501,7 +477,6 @@ let check_pers_struct ~allow_hidden penv f ~loc name =
               describe_prefix prefix
         | Illegal_import_of_parameter _ -> assert false
         | Not_compiled_as_parameter _ -> assert false
-        | Cannot_implement_parameter _ -> assert false
         | Imported_module_has_unset_parameter _ -> assert false
       in
       let warn = Warnings.No_cmi_file(name_as_string, Some msg) in
@@ -575,8 +550,8 @@ let locally_bound_imports ({persistent_structures; _} as penv) =
        (fun name -> local_ident penv name |> Option.map (fun id -> name, id))
   |> List.of_seq
 
-let exported_parameters {exported_params; _} =
-  Param_set.elements !exported_params
+let parameters {param_imports; _} =
+  Param_set.elements !param_imports
 
 let looked_up {persistent_structures; _} modname =
   Hashtbl.mem persistent_structures modname
@@ -604,7 +579,7 @@ let make_cmi penv modname kind sign alerts =
   in
   let params =
     (* Needs to be consistent with [Translmod] *)
-    exported_parameters penv
+    parameters penv
   in
   let crcs = imports penv in
   {
@@ -671,13 +646,13 @@ let report_error ppf =
         "@[<hov>The file %a@ contains the interface of a parameter.@ \
          %a is not declared as a parameter for the current unit (-parameter %a).@]"
         Location.print_filename filename
-        CU.Name.print modname
-        CU.Name.print modname
+        Global_module.Name.print modname
+        Global_module.Name.print modname
   | Not_compiled_as_parameter(modname, filename) ->
       fprintf ppf
         "@[<hov>The module %a@ is specified as a parameter, but %a@ \
          was not compiled with -as-parameter.@]"
-        CU.Name.print modname
+        Global_module.Name.print modname
         Location.print_filename filename
   | Direct_reference_from_wrong_package(unit, filename, prefix) ->
       fprintf ppf
@@ -686,11 +661,6 @@ let report_error ppf =
         filename
         describe_prefix prefix
         "Can only access members of this library's package or a containing package"
-  | Cannot_implement_parameter(modname, _filename) ->
-      fprintf ppf
-        "@[<hov>The interface for %a@ was compiled with -as-parameter.@ \
-         It cannot be implemented directly.@]"
-        CU.Name.print modname
   | Imported_module_has_unset_parameter
         { imported = modname; parameter = param } ->
       fprintf ppf
