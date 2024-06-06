@@ -285,3 +285,113 @@ Here's the list of primitives that currently support `[@layout_poly]`:
 * `%array_safe_set`
 * `%array_unsafe_get`
 * `%array_unsafe_set`
+
+# Using unboxed types in structures
+
+Unboxed types can usually be put in structures, though there are some restrictions.
+
+These structures support unboxed type fields, but have some restrictions on field
+orders:
+  * Records
+  * Constructors
+  
+Unboxed numbers can't be put in these structures:
+  * Constructors with inline record fields
+  * Exceptions
+  * Extensible variant constructors
+  * Top-level fields of modules
+  * Tuples
+  
+There aren't fundamental issues with the structures that lack support. They will
+just take some work to implement.
+
+## Restrictions on ordering of fields
+
+The below is written about record fields but equally applies to constructor
+arguments.
+
+Suppose a record contains any unboxed field `fld` whose layout is not `value` or a
+combination of `value` layouts. Then, the following restriction applies: All
+fields occuring after `fld` in the record must be "flat", i.e. the GC can
+skip looking at them. The only options for flat fields are immediates (i.e. things
+represented as ints at runtime) and other unboxed numbers.
+
+The only relaxation of the above restriction is records that consists
+solely of `float` and `float#` fields. Any ordering of `float` and `float#`
+fields is permitted. The "flat float record optimization" applies to any
+such record&mdash;all of the fields are stored flat, even the `float` ones
+that will require boxing upon projection. The ordering restriction is relaxed
+in this case to provide a better migration story for all-`float` records
+to which the flat float record optimization currently applies.
+
+The reason for this restriction has to do with the "mixed block" runtime
+representation. Read on for more detail about that.
+
+## Generic operations aren't supported
+
+Some operations built in to the OCaml runtime aren't supported for structures
+containing unboxed types.
+
+These operations aren't supported:
+  * polymorphic comparison and equality
+  * polymorphic hash
+  * marshaling
+  
+These operations raise an exception at runtime, similar to how polymorphic
+comparison raises when called on a function.
+
+You should use ppx-derived versions of these operations instead.
+
+## Runtime representation: mixed blocks
+
+The general principle guiding the restriction on field ordering in the user
+program: The compiler should not change the user's order of fields
+when deciding the runtime representation.
+
+Abiding by this principle this allows you to predictably write C bindings and
+predict hardware cache performance.
+
+A structure containing mixed blocks is represented at runtime as a "mixed
+block". A mixed block always consists of fields the GC can scan followed by
+fields the GC either could or must skip. The garbage collector must be kept
+informed of which fields of the block it should scan. A portion of the header
+word is reserved to track the length of the prefix of the block that should be
+scanned by the garbage collector.
+
+The ordering constraint on structure fields is a reflection of the same
+ordering restriction in the runtime representation. 
+
+## C bindings for mixed blocks
+
+The implementation of field layout in a mixed block is not finalized. For example, we'd like for int32 fields to be packed efficiently (two to a word) on 64 bit platforms. Currently that's not the case: each one takes up a word.
+
+Users who write C bindings might want to be notified when we change this layout. To ensure that your code will need to be updated when the layout changes, use the `Assert_mixed_block_layout_v#` family of macros. For example,
+
+```
+Assert_mixed_block_layout_v1;
+```
+
+Write the above in statement context&mdash;it should be OK to do so at the top-level of a file or within a function.
+
+Here's a full example. Say you're writing C bindings against this OCaml type:
+
+```ocaml
+(** foo.ml *)
+type t =
+  { x : int32#;
+    y : int32#;
+  }
+```
+
+Here is the recommend way to access fields:
+
+```c
+Assert_mixed_block_layout_v1;
+#define Foo_t_x(foo) (((int32_t*)foo)[0])
+#define Foo_t_y(foo) (((int32_t*)foo)[2])
+```
+
+We would bump the version number in either of these cases, which would prompt you to think about the code:
+
+  * We change what word half the int32 is stored in
+  * We start packing int32s more efficiently
