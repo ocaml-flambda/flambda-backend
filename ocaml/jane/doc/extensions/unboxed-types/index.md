@@ -305,6 +305,17 @@ Unboxed numbers can't be put in these structures:
 There aren't fundamental issues with the structures that lack support. They will
 just take some work to implement.
 
+Here's an example of a record with some unboxed fields. We call such a record 
+a "mixed record".
+
+```ocaml
+type t =
+  { str : string;
+    i : int;
+    f : float#;
+  }
+```
+
 ## Restrictions on ordering of fields
 
 The below is written about record fields but equally applies to constructor
@@ -316,6 +327,18 @@ fields occuring after `fld` in the record must be "flat", i.e. the GC can
 skip looking at them. The only options for flat fields are immediates (i.e. things
 represented as ints at runtime) and other unboxed numbers.
 
+The following definition is rejected, as the boxed field `s : string` appears
+after the unboxed float field `f`:
+
+```ocaml
+type t_rejected =
+  { f : float#;
+    s : string;
+  }
+  (* Error: Expected all flat fields after non-value field, f,
+            but found boxed field, s. *)
+```
+
 The only relaxation of the above restriction is records that consists
 solely of `float` and `float#` fields. Any ordering of `float` and `float#`
 fields is permitted. The "flat float record optimization" applies to any
@@ -324,7 +347,14 @@ that will require boxing upon projection. The ordering restriction is relaxed
 in this case to provide a better migration story for all-`float` records
 to which the flat float record optimization currently applies.
 
-The reason for this restriction has to do with the "mixed block" runtime
+```ocaml
+type t_flat_float =
+  { x1 : float;
+    x2 : float#;
+  }
+```
+
+The ordering restriction has to do with the "mixed block" runtime
 representation. Read on for more detail about that.
 
 ## Generic operations aren't supported
