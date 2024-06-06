@@ -37,6 +37,22 @@ Line 1, characters 20-28:
 Error: This allocation cannot be on the stack.
 |}]
 
+let f = ref (stack_ `Foo)
+[%%expect{|
+Line 1, characters 20-24:
+1 | let f = ref (stack_ `Foo)
+                        ^^^^
+Error: This expression is not an allocation.
+|}]
+
+let f = ref (stack_ (`Bar 42))
+[%%expect{|
+Line 1, characters 20-29:
+1 | let f = ref (stack_ (`Bar 42))
+                        ^^^^^^^^^
+Error: This allocation cannot be on the stack.
+|}]
+
 type r = {x : string} [@@unboxed]
 
 let f = ref (stack_ {x = "hello"})
