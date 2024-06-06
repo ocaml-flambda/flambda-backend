@@ -35,7 +35,6 @@ type error =
       CU.t * filepath * CU.Prefix.t
   | Illegal_import_of_parameter of CU.Name.t * filepath
   | Not_compiled_as_parameter of CU.Name.t * filepath
-  | Cannot_implement_parameter of CU.Name.t * filepath
   | Imported_module_has_unset_parameter of
       { imported : CU.Name.t;
         parameter : CU.Name.t;
@@ -221,12 +220,14 @@ let is_exported_parameter {exported_params; _} name =
 let is_registered_parameter_import {param_imports; _} import =
   CU.Name.Set.mem import !param_imports
 
-let is_registered_parameter penv name =
-  is_registered_parameter_import penv name
-
 let is_unexported_parameter penv name =
-  is_registered_parameter penv name
+  is_registered_parameter_import penv name
   && not (is_exported_parameter penv name)
+
+let is_parameter_import t import =
+  match find_import_info_in_cache t import with
+  | Some { imp_is_param; _ } -> imp_is_param
+  | None -> Misc.fatal_errorf "is_parameter_import %a" CU.Name.print import
 
 let can_load_cmis penv =
   !(penv.can_load_cmis)
@@ -259,6 +260,9 @@ let save_import penv crc modname impl flags filename =
     flags;
   Consistbl.check crc_units modname impl crc filename;
   add_import penv modname
+
+(* Add an import to the hash table. Checks that we are allowed to access
+   this .cmi. *)
 
 let acknowledge_import penv ~check modname pers_sig =
   let { Persistent_signature.filename; cmi; visibility } = pers_sig in
@@ -296,23 +300,6 @@ let acknowledge_import penv ~check modname pers_sig =
     | Normal _ -> false
     | Parameter -> true
   in
-  (* CR-someday lmaurer: Consider moving this check into
-     [acknowledge_pers_struct]. It makes more sense to flag these errors when
-     the identifier is in source, rather than, say, a signature we're reading
-     from a file, especially if it's our own .mli. *)
-  begin match is_param, is_registered_parameter_import penv modname with
-  | true, false ->
-      begin match CU.get_current () with
-      | Some current_unit when CU.Name.equal modname (CU.name current_unit) ->
-          error (Cannot_implement_parameter (modname, filename))
-      | _ ->
-          error (Illegal_import_of_parameter(modname, filename))
-      end
-  | false, true ->
-      error (Not_compiled_as_parameter(modname, filename))
-  | true, true
-  | false, false -> ()
-  end;
   let arg_for, impl =
     match kind with
     | Normal { cmi_arg_for; cmi_impl } -> cmi_arg_for, Some cmi_impl
@@ -399,12 +386,25 @@ type 'a sig_reader =
   -> flags:Cmi_format.pers_flags list
   -> 'a
 
+(* Add a persistent structure to the hash table and bind it in the [Env].
+   Checks that OCaml source is allowed to refer to this module. *)
+
 let acknowledge_pers_struct penv modname import val_of_pers_sig =
   let {persistent_structures; _} = penv in
-  let sign = import.imp_sign in
+  let is_param = import.imp_is_param in
   let impl = import.imp_impl in
+  let sign = import.imp_sign in
+  let filename = import.imp_filename in
   let flags = import.imp_flags in
   check_for_unset_parameters penv modname import;
+  begin match is_param, is_registered_parameter_import penv modname with
+  | true, false ->
+      error (Illegal_import_of_parameter(modname, filename))
+  | false, true ->
+      error (Not_compiled_as_parameter(modname, filename))
+  | true, true
+  | false, false -> ()
+  end;
   let binding = make_binding penv modname impl in
   let address : address =
     match binding with
@@ -499,7 +499,6 @@ let check_pers_struct ~allow_hidden penv f ~loc name =
               describe_prefix prefix
         | Illegal_import_of_parameter _ -> assert false
         | Not_compiled_as_parameter _ -> assert false
-        | Cannot_implement_parameter _ -> assert false
         | Imported_module_has_unset_parameter _ -> assert false
       in
       let warn = Warnings.No_cmi_file(name_as_string, Some msg) in
@@ -682,11 +681,6 @@ let report_error ppf =
         filename
         describe_prefix prefix
         "Can only access members of this library's package or a containing package"
-  | Cannot_implement_parameter(modname, _filename) ->
-      fprintf ppf
-        "@[<hov>The interface for %a@ was compiled with -as-parameter.@ \
-         It cannot be implemented directly.@]"
-        CU.Name.print modname
   | Imported_module_has_unset_parameter
         { imported = modname; parameter = param } ->
       fprintf ppf

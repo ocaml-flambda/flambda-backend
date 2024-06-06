@@ -1019,7 +1019,7 @@ let register_import_as_opaque modname =
   Persistent_env.register_import_as_opaque !persistent_env modname
 
 let is_parameter_unit modname =
-  Persistent_env.is_registered_parameter_import !persistent_env modname
+  Persistent_env.is_parameter_import !persistent_env modname
 
 let implemented_parameter modname =
   Persistent_env.implemented_parameter !persistent_env modname
