@@ -1019,6 +1019,10 @@ $(DEPDIR)/$(RUNTIME_DIR)/%.npic.$(D): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS)
 # https://www.intel.co.uk/content/www/uk/en/support/articles/000055650/processors.html
 $(RUNTIME_DIR)/major_gc.%.$(O): OC_CFLAGS += $(INTEL_JCC_BUG_CFLAGS)
 
+# Partial inlining on (at least) caml_string_compare seems to produce
+# worse code.
+$(RUNTIME_DIR)/str.%.$(O): OC_CFLAGS += -fno-partial-inlining
+
 ## Compilation of runtime C files
 
 # The COMPILE_C_FILE macro below receives as argument the pattern
