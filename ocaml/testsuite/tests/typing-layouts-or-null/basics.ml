@@ -61,8 +61,6 @@ Error: This type signature for x is not a value type.
          it's the type of something stored in a module structure.
 |}]
 
-(* This is ok for some reason *)
-
 module type S2 = sig
   val f : unit -> t_any
   val g : unit -> t_any_non_null
