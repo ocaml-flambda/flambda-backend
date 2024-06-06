@@ -117,3 +117,37 @@ let f () = exclave_ stack_ (3, 5)
 [%%expect{|
 val f : unit -> local_ int * int = <fun>
 |}]
+
+let f () =
+    let g = stack_ (fun x -> x) in
+    g 42
+[%%expect{|
+Line 3, characters 4-5:
+3 |     g 42
+        ^
+Error: This value escapes its region.
+  Hint: This function cannot be local,
+  because it is the function in a tail call.
+|}]
+
+let f () =
+    (stack_ (fun x -> x)) 42
+[%%expect{|
+Line 2, characters 12-24:
+2 |     (stack_ (fun x -> x)) 42
+                ^^^^^^^^^^^^
+Error: This allocation cannot be on the stack.
+  Hint: This function cannot be stack-allocated,
+  because it is the function in a tail call.
+|}]
+
+let f () =
+    List.length (stack_ [1; 2; 3])
+[%%expect{|
+Line 2, characters 24-33:
+2 |     List.length (stack_ [1; 2; 3])
+                            ^^^^^^^^^
+Error: This allocation cannot be on the stack.
+  Hint: This argument cannot be stack-allocated,
+  because it is an argument in a tail call.
+|}]

@@ -237,7 +237,7 @@ type error =
   | Modes_on_pattern
   | Invalid_label_for_src_pos of arg_label
   | Nonoptional_call_pos_label of string
-  | Cannot_stack_allocate
+  | Cannot_stack_allocate of Env.closure_context option
   | Not_allocation
 
 exception Error of Location.t * Env.t * error
@@ -602,7 +602,13 @@ let register_allocation_value_mode mode =
     [expected_mode]. Returns the mode of the allocation, and the expected mode
     of potential subcomponents. *)
 let register_allocation (expected_mode : expected_mode) =
-  let alloc_mode, mode = register_allocation_value_mode expected_mode.mode in
+  let alloc_mode, mode =
+    register_allocation_value_mode expected_mode.mode
+  in
+  let alloc_mode =
+    { mode = alloc_mode;
+      closure_context = expected_mode.closure_context }
+  in
   alloc_mode, mode_default mode
 
 let optimise_allocations () =
@@ -6463,9 +6469,10 @@ and type_expect_
       | Texp_array (_, _, _, alloc_mode)
       | Texp_field (_, _, _, Boxing (alloc_mode, _)) ->
         begin match Locality.submode Locality.local
-          (Alloc.proj (Comonadic Areality) alloc_mode) with
+          (Alloc.proj (Comonadic Areality) alloc_mode.mode) with
         | Ok () -> ()
-        | Error _ -> raise (Error (exp.exp_loc, env, Cannot_stack_allocate))
+        | Error _ -> raise (Error (exp.exp_loc, env,
+            Cannot_stack_allocate alloc_mode.closure_context))
         end
       | _ ->
         raise (Error (exp.exp_loc, env, Not_allocation))
@@ -7747,6 +7754,10 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
   let arity = List.length sexpl in
   assert (arity >= 2);
   let alloc_mode, argument_mode = register_allocation_value_mode expected_mode.mode in
+  let alloc_mode =
+    { mode = alloc_mode;
+      closure_context = expected_mode.closure_context }
+  in
   (* CR layouts v5: non-values in tuples *)
   let labeled_subtypes =
     List.map (fun (label, _) -> label,
@@ -8945,11 +8956,15 @@ and type_n_ary_function
       Builtin_attributes.get_zero_alloc_attribute ~in_signature:false
         ~default_arity:syntactic_arity attributes
     in
+    let alloc_mode =
+      { mode = Mode.Alloc.disallow_left fun_alloc_mode;
+        closure_context = expected_mode.closure_context }
+    in
     re
       { exp_desc =
           Texp_function
             { params; body; region = region_locked; ret_sort;
-              alloc_mode = Mode.Alloc.disallow_left fun_alloc_mode; ret_mode;
+              alloc_mode; ret_mode;
               zero_alloc
             };
         exp_loc = loc;
@@ -9521,6 +9536,20 @@ let report_type_expected_explanation expl ppf =
       because "a when-clause in a comprehension"
   | Error_message_attr msg ->
       fprintf ppf "@\n@[%s@]" msg
+
+let stack_hint (context : Env.closure_context option) =
+  match context with
+  | Some Return -> []
+  | Some Tailcall_argument ->
+    [ Location.msg
+        "@[Hint: This argument cannot be stack-allocated,@ \
+         because it is an argument in a tail call.@]" ]
+  | Some Tailcall_function ->
+    [ Location.msg
+        "@[Hint: This function cannot be stack-allocated,@ \
+         because it is the function in a tail call.@]" ]
+  | Some Partial_application -> assert false
+  | None -> []
 
 let escaping_hint (failure_reason : Value.error) submode_reason
       (context : Env.closure_context option) =
@@ -10276,9 +10305,10 @@ let report_error ~loc env = function
     Location.errorf ~loc
       "@[the argument labeled '%s' is a [%%call_pos] argument, filled in @ \
          automatically if ommitted. It cannot be passed with '?'.@]" label
-  | Cannot_stack_allocate ->
-      Location.errorf ~loc
-        "This allocation cannot be on the stack."
+  | Cannot_stack_allocate closure_context ->
+      let sub = stack_hint closure_context in
+      Location.errorf ~loc ~sub
+        "@[This allocation cannot be on the stack.@]"
   | Not_allocation ->
       Location.errorf ~loc
         "This expression is not an allocation."
