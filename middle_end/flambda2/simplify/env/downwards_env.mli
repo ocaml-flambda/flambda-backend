@@ -185,10 +185,13 @@ val enter_closure :
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
   my_closure:Variable.t ->
+  stub:bool ->
   t ->
   t
 
 val closure_info : t -> Closure_info.t
+
+val is_in_stub : t -> bool
 
 val inlining_arguments : t -> Inlining_arguments.t
 

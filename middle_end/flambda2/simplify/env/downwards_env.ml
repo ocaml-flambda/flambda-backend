@@ -435,14 +435,17 @@ let set_rebuild_terms t = { t with do_not_rebuild_terms = false }
 let are_rebuilding_terms t =
   Are_rebuilding_terms.of_bool (not t.do_not_rebuild_terms)
 
-let enter_closure code_id ~return_continuation ~exn_continuation ~my_closure t =
+let enter_closure code_id ~return_continuation ~exn_continuation ~my_closure
+    ~stub t =
   { t with
     closure_info =
       Closure_info.in_a_closure code_id ~return_continuation ~exn_continuation
-        ~my_closure
+        ~my_closure ~stub
   }
 
 let closure_info t = t.closure_info
+
+let is_in_stub t = Closure_info.is_stub t.closure_info
 
 let inlining_arguments { inlining_state; _ } =
   Inlining_state.arguments inlining_state

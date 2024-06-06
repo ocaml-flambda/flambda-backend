@@ -906,11 +906,13 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
       Call_kind.indirect_function_call_unknown_arity apply_alloc_mode
     | Indirect_known_arity ->
       Call_kind.indirect_function_call_known_arity apply_alloc_mode
-    | Direct _code_id ->
+    | Direct code_id ->
       (* Some types have regressed in precision. Since this used to be a direct
          call, however, we know the function's arity even though we don't know
          which function it is. *)
-      Call_kind.indirect_function_call_known_arity apply_alloc_mode
+      if DE.is_in_stub denv
+      then Call_kind.indirect_function_call_known_arity apply_alloc_mode
+      else Call_kind.direct_function_call code_id apply_alloc_mode
   in
   let apply = Apply_expr.with_call_kind apply call_kind in
   let dacc =
