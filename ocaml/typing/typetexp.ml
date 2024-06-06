@@ -529,7 +529,7 @@ let transl_type_param_jst env loc attrs path :
   | Jtyp_tuple _ ->
     Misc.fatal_error "non-type-variable in transl_type_param_jst"
 
-let transl_type_param env path styp =
+let transl_type_param ?unannotated env path styp =
   let loc = styp.ptyp_loc in
   match Jane_syntax.Core_type.of_ast styp with
   | Some (etyp, attrs) -> transl_type_param_jst env loc attrs path etyp
@@ -538,7 +538,10 @@ let transl_type_param env path styp =
    to ask for it with an annotation.  Some restriction here seems necessary
    for backwards compatibility (e.g., we wouldn't want [type 'a id = 'a] to
    have jkind any).  But it might be possible to infer [any] in some cases. *)
-  let jkind = Jkind.of_new_sort ~why:(Unannotated_type_parameter path) in
+  let jkind =
+    Option.value unannotated
+    ~default:(Jkind.any ~why:(Unannotated_type_parameter path))
+  in
   let attrs = styp.ptyp_attributes in
   match styp.ptyp_desc with
     Ptyp_any -> transl_type_param_var env loc attrs None jkind None
@@ -546,15 +549,17 @@ let transl_type_param env path styp =
     transl_type_param_var env loc attrs (Some name) jkind None
   | _ -> assert false
 
-let transl_type_param env path styp =
+let transl_type_param ?unannotated env path styp =
   (* Currently useless, since type parameters cannot hold attributes
      (but this could easily be lifted in the future). *)
   Builtin_attributes.warning_scope styp.ptyp_attributes
-    (fun () -> transl_type_param env path styp)
+    (fun () -> transl_type_param ?unannotated env path styp)
 
-let get_type_param_jkind path styp =
+let get_type_param_jkind ?unannotated path styp =
   match Jane_syntax.Core_type.of_ast styp with
-  | None -> Jkind.of_new_sort ~why:(Unannotated_type_parameter path)
+  | None ->
+    Option.value unannotated
+    ~default:(Jkind.any ~why:(Unannotated_type_parameter path))
   | Some (Jtyp_layout (Ltyp_var { name; jkind }), _attrs) ->
     let jkind, _ =
       Jkind.of_annotation

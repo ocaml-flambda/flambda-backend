@@ -154,11 +154,11 @@ let get_unboxed_from_attributes sdecl =
 (* [make_params] creates sort variables - these can be defaulted away (as in
    transl_type_decl) or unified with existing sort-variable-free types (as in
    transl_with_constraint). *)
-let make_params env path params =
+let make_params ?unannotated env path params =
   TyVarEnv.reset (); (* [transl_type_param] binds type variables *)
   let make_param (sty, v) =
     try
-      (transl_type_param env path sty, v)
+      (transl_type_param ?unannotated env path sty, v)
     with Already_bound ->
       raise(Error(sty.ptyp_loc, Repeated_parameter))
   in
@@ -737,7 +737,12 @@ let transl_declaration env sdecl (id, uid) =
   Ctype.with_local_level begin fun () ->
   TyVarEnv.reset();
   let path = Path.Pident id in
-  let tparams = make_params env path sdecl.ptype_params in
+  let unannotated =
+    match sdecl.ptype_kind, sdecl.ptype_manifest with
+    | Ptype_abstract, None -> Some (Jkind.value ~why:(Unknown "add later"))
+    | _, _ -> None
+  in
+  let tparams = make_params ?unannotated env path sdecl.ptype_params in
   let params = List.map (fun (cty, _) -> cty.ctyp_type) tparams in
   let cstrs = List.map
     (fun (sty, sty', loc) ->

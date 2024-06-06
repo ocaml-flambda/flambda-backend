@@ -803,9 +803,6 @@ end = struct
       fprintf ppf "it's the type of a constructor field"
     | Label_declaration lbl ->
       fprintf ppf "it is the type of record field %s" (Ident.name lbl)
-    | Unannotated_type_parameter path ->
-      fprintf ppf "it instantiates an unannotated type parameter of %a"
-        !printtyp_path path
     | Record_projection ->
       fprintf ppf "it's the record type used in a projection"
     | Record_assignment ->
@@ -872,6 +869,9 @@ end = struct
     | Inside_of_Tarrow -> fprintf ppf "argument or result of a function type"
     | Array_type_argument ->
       fprintf ppf "it's the type argument to the array type"
+    | Unannotated_type_parameter path ->
+      fprintf ppf "it instantiates an unannotated type parameter of %a"
+        !printtyp_path path
 
   let format_immediate_creation_reason ppf : immediate_creation_reason -> _ =
     function
@@ -1246,8 +1246,6 @@ module Debug_printers = struct
       fprintf ppf "Constructor_declaration %d" idx
     | Label_declaration lbl ->
       fprintf ppf "Label_declaration %a" Ident.print lbl
-    | Unannotated_type_parameter path ->
-      fprintf ppf "Unannotated_type_parameter %a" !printtyp_path path
     | Record_projection -> fprintf ppf "Record_projection"
     | Record_assignment -> fprintf ppf "Record_assignment"
     | Let_binding -> fprintf ppf "Let_binding"
@@ -1289,6 +1287,8 @@ module Debug_printers = struct
     | Wildcard -> fprintf ppf "Wildcard"
     | Unification_var -> fprintf ppf "Unification_var"
     | Array_type_argument -> fprintf ppf "Array_type_argument"
+    | Unannotated_type_parameter path ->
+      fprintf ppf "Unannotated_type_parameter %a" !printtyp_path path
 
   let immediate_creation_reason ppf : immediate_creation_reason -> _ = function
     | Empty_record -> fprintf ppf "Empty_record"

@@ -2101,7 +2101,7 @@ let rec estimate_type_jkind env ty =
       if tvariant_not_immediate row
       then Jkind (value ~why:Polymorphic_variant)
       else Jkind (immediate ~why:Immediate_polymorphic_variant)
-  | Tvar { jkind } when get_level ty = generic_level ->
+  (* | Tvar { jkind } when get_level ty = generic_level ->
     (* Once a Tvar gets generalized with a jkind, it should be considered
        as fixed (similar to the Tunivar case below).
 
@@ -2110,7 +2110,7 @@ let rec estimate_type_jkind env ty =
        generalized.
 
        This, however, still allows sort variables to get instantiated. *)
-    Jkind jkind
+    Jkind jkind *)
   | Tvar { jkind } -> TyVar (jkind, ty)
   | Tarrow _ -> Jkind (value ~why:Arrow)
   | Ttuple _ -> Jkind (value ~why:Tuple)
@@ -5040,7 +5040,7 @@ let eqtype_subst type_pairs subst t1 l1 t2 l2 =
       !subst
   then ()
   else begin
-    if not (Jkind.equal l1 l2)
+    if not (Jkind.sub l2 l1)
       then raise_for Equality (Unequal_var_jkinds (t1, l1, t2, l2));
     subst := (t1, t2) :: !subst;
     TypePairs.add type_pairs (t1, t2)

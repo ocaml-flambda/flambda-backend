@@ -144,7 +144,6 @@ module History = struct
     | Match
     | Constructor_declaration of int
     | Label_declaration of Ident.t
-    | Unannotated_type_parameter of Path.t
     | Record_projection
     | Record_assignment
     | Let_binding
@@ -234,6 +233,7 @@ module History = struct
     | Wildcard
     | Unification_var
     | Array_type_argument
+    | Unannotated_type_parameter of Path.t
 
   type float64_creation_reason = Primitive of Ident.t
 
