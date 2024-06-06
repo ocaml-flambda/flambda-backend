@@ -94,6 +94,8 @@ type 'a or_variable =
   | Const of 'a
   | Var of variable
 
+type mixed_block_shape = { value_prefix_len : int }
+
 type static_data =
   | Block of
       { tag : tag_scannable;
@@ -103,6 +105,8 @@ type static_data =
   | Mixed_block of
       { tag : tag_scannable;
         mutability : mutability;
+        (* CR nroberts: Probably don't want to refer to Lambda here... *)
+        shape : Lambda.mixed_block_shape;
         elements : mixed_field_of_block list
       }
   | Boxed_float32 of float or_variable

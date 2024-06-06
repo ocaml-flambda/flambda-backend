@@ -32,36 +32,51 @@ let static_value_field res v =
       (C.nativeint_of_targetint
          (C.tag_targetint (Targetint_31_63.to_targetint i)))
 
-let static_mixed_field ~dbg res m =
+let static_mixed_field res m =
   match (m : Field_of_static_block.Mixed_field.t) with
   | Value v -> static_value_field res v
-  | Unboxed_number (num, dbg) ->
-      match num with
-      | Unboxed_float32 f -> C.float32 ~dbg f
-      | Unboxed_float f -> C.float ~dbg f
-      | Unboxed_int32 i -> C.int32 ~dbg i
-      | Unboxed_int64 i -> C.int64 ~dbg i
-      | Unboxed_nativeint t -> C.targetint ~dbg t
+  | Unboxed_number num -> (
+    match num with
+    | Unboxed_float32 f ->
+      C.cfloat32 (Numeric_types.Float32_by_bit_pattern.to_float f)
+    | Unboxed_float f ->
+      C.cfloat (Numeric_types.Float_by_bit_pattern.to_float f)
+    | Unboxed_int32 i -> C.cint32 (Nativeint.of_int32 i)
+    (* CR nroberts: These two cases don't look right. *)
+    | Unboxed_int64 i -> C.cint (Int64.to_nativeint i)
+    | Unboxed_nativeint t -> (
+      match Targetint_32_64.repr t with
+      | Int32 i -> C.cint (Nativeint.of_int32 i)
+      | Int64 i -> C.cint (Int64.to_nativeint i)))
 
 let or_variable f default v cont =
   match (v : _ Or_variable.t) with
   | Const c -> f c cont
   | Var _ -> f default cont
 
+let update_value_field symb env res acc i (sv : Field_of_static_block.t) =
+  match sv with
+  | Symbol _ | Tagged_immediate _ -> env, res, acc
+  | Dynamically_computed (var, dbg) ->
+    (* CR mshinwell/mslater: It would be nice to know if [var] is an
+       immediate. *)
+    C.make_update env res dbg UK.pointers ~symbol:(C.symbol ~dbg symb) var
+      ~index:i ~prev_updates:acc
+
 let rec static_block_updates symb env res acc i = function
   | [] -> env, res, acc
-  | sv :: r -> (
-    match (sv : Field_of_static_block.t) with
-    | Symbol _ | Tagged_immediate _ ->
-      static_block_updates symb env res acc (i + 1) r
-    | Dynamically_computed (var, dbg) ->
-      (* CR mshinwell/mslater: It would be nice to know if [var] is an
-         immediate. *)
-      let env, res, acc =
-        C.make_update env res dbg UK.pointers ~symbol:(C.symbol ~dbg symb) var
-          ~index:i ~prev_updates:acc
-      in
-      static_block_updates symb env res acc (i + 1) r)
+  | sv :: r ->
+    let env, res, acc = update_value_field symb env res acc i sv in
+    static_block_updates symb env res acc (i + 1) r
+
+let rec static_mixed_block_updates symb env res acc i = function
+  | [] -> env, res, acc
+  | field :: r -> (
+    match (field : Field_of_static_block.Mixed_field.t) with
+    | Value v ->
+      let env, res, acc = update_value_field symb env res acc i v in
+      static_mixed_block_updates symb env res acc (i + 1) r
+    | Unboxed_number _ -> env, res, acc)
 
 type maybe_int32 =
   | Int32
@@ -232,21 +247,27 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let block = C.emit_block sym header static_fields in
     let env, res, updates = static_block_updates sym env res updates 0 fields in
     env, R.set_data res block, updates
-  | Block_like s, Mixed_block (tag, _mut, fields, scannable_prefix_len) ->
-      let sym = R.symbol res s in
-      let res = R.check_for_module_symbol res s in
-      let tag = Tag.Scannable.to_int tag in
-      let header = C.black_mixed_block_header tag (List.length fields) ~scannable_prefix_len in
-      let static_fields =
-        List.fold_right
-          (fun v static_fields ->
-             let static_field = static_mixed_field ~dbg res v in
-             static_field :: static_fields)
-          fields []
-      in
-      let block = C.emit_block sym header static_fields in
-      let env, res, updates = static_block_updates sym env res updates 0 fields in
-      env, R.set_data res block, updates
+  | Block_like s, Mixed_block (tag, _mut, shape, fields) ->
+    let sym = R.symbol res s in
+    let res = R.check_for_module_symbol res s in
+    let tag = Tag.Scannable.to_int tag in
+    let header =
+      C.black_mixed_block_header tag (List.length fields)
+        ~scannable_prefix_len:
+          (Flambda_kind.Mixed_block_shape.value_prefix_size shape)
+    in
+    let static_fields =
+      List.fold_right
+        (fun v static_fields ->
+          let static_field = static_mixed_field res v in
+          static_field :: static_fields)
+        fields []
+    in
+    let block = C.emit_block sym header static_fields in
+    let env, res, updates =
+      static_mixed_block_updates sym env res updates 0 fields
+    in
+    env, R.set_data res block, updates
   | Set_of_closures closure_symbols, Set_of_closures set_of_closures ->
     let res, updates, env =
       preallocate_set_of_closures (res, updates, env) ~closure_symbols
@@ -347,7 +368,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let static_fields =
       List.fold_right
         (fun v static_fields ->
-          let static_field = static_value res v in
+          let static_field = static_value_field res v in
           static_field :: static_fields)
         fields []
     in
@@ -397,8 +418,8 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
       "[Set_of_closures] values cannot be bound by [Block_like] bindings:@ %a"
       SC.print static_const
   | ( (Code _ | Set_of_closures _),
-      ( Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
-      | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
+      ( Block _ | Mixed_block _ | Boxed_float _ | Boxed_float32 _
+      | Boxed_int32 _ | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
       | Immutable_float_block _ | Immutable_float_array _
       | Immutable_float32_array _ | Immutable_int32_array _
       | Immutable_int64_array _ | Immutable_nativeint_array _

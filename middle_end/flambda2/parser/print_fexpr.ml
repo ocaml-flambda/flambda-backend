@@ -349,11 +349,11 @@ let static_data ppf : static_data -> unit = function
       tag
       (pp_comma_list field_of_block)
       elts
-  | Mixed_block { tag; mutability = mut; elements = elts } ->
-      Format.fprintf ppf "Mixed_block %a%i (@[<hv>%a@])" (mutability ~space:After) mut
-        tag
-        (pp_comma_list mixed_field_of_block)
-        elts
+  | Mixed_block { tag; mutability = mut; shape = _; elements = elts } ->
+    Format.fprintf ppf "Mixed_block %a%i (@[<hv>%a@])" (mutability ~space:After)
+      mut tag
+      (pp_comma_list mixed_field_of_block)
+      elts
   | Boxed_float32 (Const f) -> Format.fprintf ppf "%hs" f
   | Boxed_float (Const f) -> Format.fprintf ppf "%h" f
   | Boxed_int32 (Const i) -> Format.fprintf ppf "%lil" i

@@ -355,7 +355,8 @@ let field_of_block env (v : Fexpr.field_of_block) : Field_of_static_block.t =
     let var = find_var env var in
     Dynamically_computed (var, Debuginfo.none)
 
-let unboxed_number (n : Fexpr.unboxed_number) : Field_of_static_block.Mixed_field.unboxed_number =
+let unboxed_number (n : Fexpr.unboxed_number) :
+    Field_of_static_block.Mixed_field.unboxed_number =
   match n with
   | Unboxed_float f -> Unboxed_float (f |> float)
   | Unboxed_float32 f -> Unboxed_float32 (f |> float32)
@@ -363,10 +364,11 @@ let unboxed_number (n : Fexpr.unboxed_number) : Field_of_static_block.Mixed_fiel
   | Unboxed_int64 i -> Unboxed_int64 i
   | Unboxed_nativeint i -> Unboxed_nativeint (i |> targetint)
 
-let mixed_field_of_block env (v : Fexpr.mixed_field_of_block) : Field_of_static_block.Mixed_field.t =
+let mixed_field_of_block env (v : Fexpr.mixed_field_of_block) :
+    Field_of_static_block.Mixed_field.t =
   match v with
   | Value t -> Value (field_of_block env t)
-  | Unboxed_number num -> Unboxed_number (unboxed_number num, Debuginfo.none)
+  | Unboxed_number num -> Unboxed_number (unboxed_number num)
 
 let or_variable f env (ov : _ Fexpr.or_variable) : _ Or_variable.t =
   match ov with
@@ -794,10 +796,12 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           let tag = tag_scannable tag in
           static_const
             (SC.block tag mutability (List.map (field_of_block env) args))
-        | Mixed_block { tag; mutability; elements = args } ->
-            let tag = tag_scannable tag in
-            static_const
-              (SC.mixed_block tag mutability (List.map (mixed_field_of_block env) args))
+        | Mixed_block { tag; mutability; shape; elements = args } ->
+          let tag = tag_scannable tag in
+          let shape = Flambda_kind.Mixed_block_shape.from_lambda shape in
+          static_const
+            (SC.mixed_block tag mutability shape
+               (List.map (mixed_field_of_block env) args))
         | Boxed_float32 f ->
           static_const (SC.boxed_float32 (or_variable float32 env f))
         | Boxed_float f ->

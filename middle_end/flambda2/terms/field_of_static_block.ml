@@ -93,33 +93,31 @@ module Mixed_field = struct
 
   let print_unboxed_number ppf = function
     | Unboxed_float t ->
-        Format.fprintf ppf "%t%a%t" Flambda_colours.naked_number
-          Numeric_types.Float_by_bit_pattern.print t Flambda_colours.pop
+      Format.fprintf ppf "%t%a%t" Flambda_colours.naked_number
+        Numeric_types.Float_by_bit_pattern.print t Flambda_colours.pop
     | Unboxed_float32 t ->
-        Format.fprintf ppf "%t%a%t" Flambda_colours.naked_number
-          Numeric_types.Float32_by_bit_pattern.print t Flambda_colours.pop
+      Format.fprintf ppf "%t%a%t" Flambda_colours.naked_number
+        Numeric_types.Float32_by_bit_pattern.print t Flambda_colours.pop
     | Unboxed_int32 t ->
-        Format.fprintf ppf "%t%a%t" Flambda_colours.naked_number
-          Numeric_types.Int32.print t Flambda_colours.pop
+      Format.fprintf ppf "%t%a%t" Flambda_colours.naked_number
+        Numeric_types.Int32.print t Flambda_colours.pop
     | Unboxed_int64 t ->
-        Format.fprintf ppf "%t%a%t" Flambda_colours.naked_number
-          Numeric_types.Int64.print t Flambda_colours.pop
+      Format.fprintf ppf "%t%a%t" Flambda_colours.naked_number
+        Numeric_types.Int64.print t Flambda_colours.pop
     | Unboxed_nativeint t ->
-        Format.fprintf ppf "%t%a%t" Flambda_colours.naked_number
-          Targetint_32_64.print t Flambda_colours.pop
+      Format.fprintf ppf "%t%a%t" Flambda_colours.naked_number
+        Targetint_32_64.print t Flambda_colours.pop
 
   let compare_unboxed_number t1 t2 =
     match t1, t2 with
     | Unboxed_float t1, Unboxed_float t2 ->
-        Numeric_types.Float_by_bit_pattern.compare t1 t2
+      Numeric_types.Float_by_bit_pattern.compare t1 t2
     | Unboxed_float32 t1, Unboxed_float32 t2 ->
-        Numeric_types.Float32_by_bit_pattern.compare t1 t2
-    | Unboxed_int32 t1, Unboxed_int32 t2 ->
-        Numeric_types.Int32.compare t1 t2
-    | Unboxed_int64 t1, Unboxed_int64 t2 ->
-        Numeric_types.Int64.compare t1 t2
+      Numeric_types.Float32_by_bit_pattern.compare t1 t2
+    | Unboxed_int32 t1, Unboxed_int32 t2 -> Numeric_types.Int32.compare t1 t2
+    | Unboxed_int64 t1, Unboxed_int64 t2 -> Numeric_types.Int64.compare t1 t2
     | Unboxed_nativeint t1, Unboxed_nativeint t2 ->
-        Targetint_32_64.compare t1 t2
+      Targetint_32_64.compare t1 t2
     | Unboxed_float _, _ -> 1
     | _, Unboxed_float _ -> -1
     | Unboxed_float32 _, _ -> 1
@@ -131,19 +129,16 @@ module Mixed_field = struct
 
   let hash_unboxed_number = function
     | Unboxed_float t ->
-        Hashtbl.hash (0, Numeric_types.Float_by_bit_pattern.hash t)
+      Hashtbl.hash (0, Numeric_types.Float_by_bit_pattern.hash t)
     | Unboxed_float32 t ->
-        Hashtbl.hash (1, Numeric_types.Float32_by_bit_pattern.hash t)
-    | Unboxed_int32 t ->
-        Hashtbl.hash (2, Numeric_types.Int32.hash t)
-    | Unboxed_int64 t ->
-        Hashtbl.hash (3, Numeric_types.Int64.hash t)
-    | Unboxed_nativeint t ->
-        Hashtbl.hash (4, Targetint_32_64.hash t)
+      Hashtbl.hash (1, Numeric_types.Float32_by_bit_pattern.hash t)
+    | Unboxed_int32 t -> Hashtbl.hash (2, Numeric_types.Int32.hash t)
+    | Unboxed_int64 t -> Hashtbl.hash (3, Numeric_types.Int64.hash t)
+    | Unboxed_nativeint t -> Hashtbl.hash (4, Targetint_32_64.hash t)
 
   type nonrec t =
     | Value of t
-    | Unboxed_number of unboxed_number * Debuginfo.t
+    | Unboxed_number of unboxed_number
 
   include Container_types.Make (struct
     type nonrec t = t
@@ -151,7 +146,7 @@ module Mixed_field = struct
     let compare t1 t2 =
       match t1, t2 with
       | Value t1, Value t2 -> compare t1 t2
-      | Unboxed_number (t1, _dbg1), Unboxed_number (t2, _dbg2) -> compare_unboxed_number t1 t2
+      | Unboxed_number t1, Unboxed_number t2 -> compare_unboxed_number t1 t2
       | Value _, Unboxed_number _ -> 1
       | Unboxed_number _, Value _ -> -1
 
@@ -160,14 +155,14 @@ module Mixed_field = struct
     let hash t =
       match t with
       | Value t -> Hashtbl.hash (0, hash t)
-      | Unboxed_number (t, _dbg) -> Hashtbl.hash (1, hash_unboxed_number t)
+      | Unboxed_number t -> Hashtbl.hash (1, hash_unboxed_number t)
 
     let print ppf t =
       match t with
       | Value t ->
         Format.fprintf ppf "%t%a%t" Flambda_colours.symbol print t
           Flambda_colours.pop
-      | Unboxed_number (t, _dbg) -> print_unboxed_number ppf t
+      | Unboxed_number t -> print_unboxed_number ppf t
   end)
 
   let free_names t =
@@ -178,8 +173,8 @@ module Mixed_field = struct
   let apply_renaming t renaming =
     match t with
     | Value value ->
-        let value' = apply_renaming value renaming in
-        if value == value' then t else Value value'
+      let value' = apply_renaming value renaming in
+      if value == value' then t else Value value'
     | Unboxed_number _ -> t
 
   let ids_for_export t =

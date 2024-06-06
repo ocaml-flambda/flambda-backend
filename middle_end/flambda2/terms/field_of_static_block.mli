@@ -40,7 +40,7 @@ module Mixed_field : sig
 
   type nonrec t =
     | Value of t
-    | Unboxed_number of unboxed_number * Debuginfo.t
+    | Unboxed_number of unboxed_number
 
   include Container_types.S with type t := t
 

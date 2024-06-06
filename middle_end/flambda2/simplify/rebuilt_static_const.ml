@@ -115,6 +115,18 @@ let create_block are_rebuilding tag is_mutable ~fields =
     Block_not_rebuilt { free_names }
   else create_normal_non_code (SC.block tag is_mutable fields)
 
+let create_mixed_block are_rebuilding tag is_mutable shape ~fields =
+  if ART.do_not_rebuild_terms are_rebuilding
+  then
+    let free_names =
+      ListLabels.fold_left fields ~init:Name_occurrences.empty
+        ~f:(fun free_names field ->
+          Name_occurrences.union free_names
+            (Field_of_static_block.Mixed_field.free_names field))
+    in
+    Block_not_rebuilt { free_names }
+  else create_normal_non_code (SC.mixed_block tag is_mutable shape fields)
+
 let create_boxed_float32 are_rebuilding or_var =
   if ART.do_not_rebuild_terms are_rebuilding
   then Block_not_rebuilt { free_names = Or_variable.free_names or_var }
@@ -224,8 +236,8 @@ let map_set_of_closures t ~f =
                 (SC.set_of_closures set_of_closures);
             free_names = Set_of_closures.free_names set_of_closures
           }
-      | Block _ | Mixed_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
-      | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
+      | Block _ | Mixed_block _ | Boxed_float _ | Boxed_float32 _
+      | Boxed_int32 _ | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
       | Immutable_float_block _ | Immutable_float_array _
       | Immutable_float32_array _ | Immutable_int32_array _
       | Immutable_int64_array _ | Immutable_nativeint_array _
