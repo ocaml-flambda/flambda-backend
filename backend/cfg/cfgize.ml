@@ -845,6 +845,8 @@ let fundecl :
      terminator simplification. *)
   Profile.record ~accumulate:true "optimizations"
     (fun () ->
+      if simplify_terminators
+      then Eliminate_fallthrough_blocks.run cfg_with_layout;
       if simplify_terminators then Merge_straightline_blocks.run cfg_with_layout;
       Eliminate_dead_code.run_dead_block cfg_with_layout;
       if simplify_terminators then Simplify_terminator.run cfg)
