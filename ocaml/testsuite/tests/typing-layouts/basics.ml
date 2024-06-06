@@ -605,14 +605,7 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 
 type ('a : any) any4 = Any4 of 'a
 [%%expect{|
-Line 1, characters 23-33:
-1 | type ('a : any) any4 = Any4 of 'a
-                           ^^^^^^^^^^
-Error: Constructor argument types must have a representable layout.
-       The layout of 'a is any, because
-         of the annotation on 'a in the declaration of the type any4.
-       But the layout of 'a must be representable, because
-         it's the type of a constructor field.
+type 'a any4 = Any4 of 'a
 |}];;
 
 (************************************************************)
