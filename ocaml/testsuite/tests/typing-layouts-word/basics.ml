@@ -202,8 +202,20 @@ Error: This type ('b : value) should be an instance of type ('a : word)
 (****************************************************)
 (* Test 5: Allowed in some structures in typedecls. *)
 
-(* See [basics_alpha.ml] and [basics_beta.ml] for these -- we'll move them back
-   in once mixed blocks are out of beta. *)
+type t5_1 = { x : t_word };;
+[%%expect{|
+type t5_1 = { x : t_word; }
+|}];;
+
+type t5_2 = { y : int; x : t_word };;
+[%%expect{|
+type t5_2 = { y : int; x : t_word; }
+|}];;
+
+type t5_2' = { y : string; x : t_word };;
+[%%expect{|
+type t5_2' = { y : string; x : t_word; }
+|}];;
 
 (* CR layouts 2.5: allow this *)
 type t5_3 = { x : t_word } [@@unboxed];;
@@ -214,6 +226,34 @@ Line 1, characters 14-24:
 Error: Type t_word has layout word.
        Unboxed records may not yet contain types of this layout.
 |}];;
+
+type t5_4 = A of t_word;;
+[%%expect{|
+type t5_4 = A of t_word
+|}];;
+
+type t5_5 = A of int * t_word;;
+[%%expect{|
+type t5_5 = A of int * t_word
+|}];;
+
+type ('a : word) t5_7 = A of int
+type ('a : word) t5_8 = A of 'a;;
+[%%expect{|
+type ('a : word) t5_7 = A of int
+type ('a : word) t5_8 = A of 'a
+|}]
+
+(* not allowed: value in flat suffix *)
+type 'a t_disallowed = A of t_word * 'a
+
+[%%expect{|
+Line 1, characters 23-39:
+1 | type 'a t_disallowed = A of t_word * 'a
+                           ^^^^^^^^^^^^^^^^
+Error: Expected all flat constructor arguments after non-value argument,
+       t_word, but found boxed argument, 'a.
+|}]
 
 type t5_6 = A of t_word [@@unboxed];;
 [%%expect{|
@@ -464,7 +504,52 @@ Error: Don't know how to untag this type. Only int can be untagged.
 (***************************************************)
 (* Test 11: Allow word in some extensible variants *)
 
-(* See [basics_alpha.ml] and [basics_beta.ml] *)
+(* CR layouts v5.9: Actually allow mixed extensible variant blocks. *)
+
+type t11_1 = ..
+
+type t11_1 += A of t_word;;
+[%%expect{|
+type t11_1 = ..
+Line 3, characters 14-25:
+3 | type t11_1 += A of t_word;;
+                  ^^^^^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+|}]
+
+type t11_1 += B of nativeint#;;
+[%%expect{|
+Line 1, characters 14-29:
+1 | type t11_1 += B of nativeint#;;
+                  ^^^^^^^^^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+|}]
+
+type ('a : word) t11_2 = ..
+
+type 'a t11_2 += A of int
+
+type 'a t11_2 += B of 'a;;
+
+[%%expect{|
+type ('a : word) t11_2 = ..
+type 'a t11_2 += A of int
+Line 5, characters 17-24:
+5 | type 'a t11_2 += B of 'a;;
+                     ^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+|}]
+
+(* not allowed: value in flat suffix *)
+type 'a t11_2 += C : 'a * 'b -> 'a t11_2
+
+[%%expect{|
+Line 1, characters 17-40:
+1 | type 'a t11_2 += C : 'a * 'b -> 'a t11_2
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+Error: Expected all flat constructor arguments after non-value argument, 'a,
+       but found boxed argument, 'b.
+|}]
 
 (***************************************)
 (* Test 12: word in objects/classes *)

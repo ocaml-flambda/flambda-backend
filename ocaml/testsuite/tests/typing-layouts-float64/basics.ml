@@ -222,20 +222,12 @@ Error: Type t_float64 has layout float64.
    constructor args. *)
 type t5_4 = A of t_float64;;
 [%%expect{|
-Line 1, characters 12-26:
-1 | type t5_4 = A of t_float64;;
-                ^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type t5_4 = A of t_float64
 |}];;
 
 type t5_5 = A of int * t_float64;;
 [%%expect{|
-Line 1, characters 12-32:
-1 | type t5_5 = A of int * t_float64;;
-                ^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type t5_5 = A of int * t_float64
 |}];;
 
 type t5_6 = A of t_float64 [@@unboxed];;
@@ -251,11 +243,7 @@ type ('a : float64) t5_7 = A of int
 type ('a : float64) t5_8 = A of 'a;;
 [%%expect{|
 type ('a : float64) t5_7 = A of int
-Line 2, characters 27-34:
-2 | type ('a : float64) t5_8 = A of 'a;;
-                               ^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type ('a : float64) t5_8 = A of 'a
 |}]
 
 type ('a : float64, 'b : float64) t5_9 = {x : 'a; y : 'b; z : 'a}
@@ -293,11 +281,7 @@ type ('a : float64) t5_13 = { x : 'a; y : float#; }
 (* Mixed records are allowed, but are prohibited outside of alpha. *)
 type 'a t5_14 = {x : 'a; y : float#};;
 [%%expect{|
-Line 1, characters 0-36:
-1 | type 'a t5_14 = {x : 'a; y : float#};;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_beta to use this feature.
+type 'a t5_14 = { x : 'a; y : float#; }
 |}];;
 
 type ufref = { mutable contents : float# };;
