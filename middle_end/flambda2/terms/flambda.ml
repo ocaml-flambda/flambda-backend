@@ -1423,7 +1423,7 @@ module Named = struct
              | Code code -> f_code acc code
              | Deleted_code
              | Static_const
-                 ( Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
+                 ( Block _ | Mixed_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
                  | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
                  | Immutable_float_block _ | Immutable_float_array _
                  | Immutable_float32_array _ | Mutable_string _

@@ -25,6 +25,8 @@
 type t = private
   | Set_of_closures of Set_of_closures.t
   | Block of Tag.Scannable.t * Mutability.t * Field_of_static_block.t list
+  | Mixed_block of
+      Tag.Scannable.t * Mutability.t * Field_of_static_block.Mixed_field.t list
   | Boxed_float32 of Numeric_types.Float32_by_bit_pattern.t Or_variable.t
   | Boxed_float of Numeric_types.Float_by_bit_pattern.t Or_variable.t
   | Boxed_int32 of Int32.t Or_variable.t
@@ -61,6 +63,8 @@ include Contains_ids.S with type t := t
 val set_of_closures : Set_of_closures.t -> t
 
 val block : Tag.Scannable.t -> Mutability.t -> Field_of_static_block.t list -> t
+
+val mixed_block : Tag.Scannable.t -> Mutability.t -> Field_of_static_block.Mixed_field.t list -> t
 
 val boxed_float32 : Numeric_types.Float32_by_bit_pattern.t Or_variable.t -> t
 

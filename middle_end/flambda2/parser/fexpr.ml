@@ -66,6 +66,17 @@ type field_of_block =
   | Tagged_immediate of immediate
   | Dynamically_computed of variable
 
+type unboxed_number =
+  | Unboxed_int32 of int32
+  | Unboxed_int64 of int64
+  | Unboxed_float of float
+  | Unboxed_float32 of float
+  | Unboxed_nativeint of targetint
+
+type mixed_field_of_block =
+  | Value of field_of_block
+  | Unboxed_number of unboxed_number
+
 type is_recursive =
   | Nonrecursive
   | Recursive
@@ -88,6 +99,11 @@ type static_data =
       { tag : tag_scannable;
         mutability : mutability;
         elements : field_of_block list
+      }
+  | Mixed_block of
+      { tag : tag_scannable;
+        mutability : mutability;
+        elements : mixed_field_of_block list
       }
   | Boxed_float32 of float or_variable
   | Boxed_float of float or_variable

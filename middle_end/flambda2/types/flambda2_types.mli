@@ -466,6 +466,14 @@ val immutable_block :
   fields:t list ->
   t
 
+(** The type of an immutable block with a known tag, size and field types. *)
+val immutable_mixed_block :
+  is_unique:bool ->
+  Tag.t ->
+  Alloc_mode.For_types.t ->
+  fields:t list ->
+  t
+
 (** The type of an immutable block with at least [n] fields and an unknown tag.
     The type of the [n - 1]th field is taken to be an [Equals] to the given
     variable. *)

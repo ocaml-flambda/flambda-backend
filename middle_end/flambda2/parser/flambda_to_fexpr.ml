@@ -687,6 +687,19 @@ let field_of_block env (field : Field_of_static_block.t) : Fexpr.field_of_block
   | Dynamically_computed (var, _dbg) ->
     Dynamically_computed (Env.find_var_exn env var)
 
+let unboxed_number (n : Field_of_static_block.Mixed_field.unboxed_number) : Fexpr.unboxed_number =
+  match n with
+  | Unboxed_float f -> Unboxed_float (f |> float)
+  | Unboxed_float32 f -> Unboxed_float32 (f |> float32)
+  | Unboxed_int32 i -> Unboxed_int32 i
+  | Unboxed_int64 i -> Unboxed_int64 i
+  | Unboxed_nativeint i -> Unboxed_nativeint (i |> targetint)
+
+let mixed_field_of_block env (field : Field_of_static_block.Mixed_field.t) : Fexpr.mixed_field_of_block =
+  match field with
+  | Value field -> Value (field_of_block env field)
+  | Unboxed_number (num, _dbg) -> Unboxed_number (unboxed_number num)
+
 let or_variable f env (ov : _ Or_variable.t) : _ Fexpr.or_variable =
   match ov with
   | Const c -> Const (f c)
@@ -698,6 +711,10 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
     let tag = tag |> Tag.Scannable.to_int in
     let elements = List.map (field_of_block env) fields in
     Block { tag; mutability; elements }
+  | Mixed_block (tag, mutability, fields) ->
+      let tag = tag |> Tag.Scannable.to_int in
+      let elements = List.map (mixed_field_of_block env) fields in
+      Mixed_block { tag; mutability; elements }
   | Set_of_closures _ -> assert false
   | Boxed_float32 f -> Boxed_float32 (or_variable float32 env f)
   | Boxed_float f -> Boxed_float (or_variable float env f)

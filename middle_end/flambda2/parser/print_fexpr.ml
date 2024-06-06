@@ -222,6 +222,19 @@ let field_of_block ppf : field_of_block -> unit = function
   | Dynamically_computed v -> variable ppf v
   | Tagged_immediate i -> Format.fprintf ppf "%s" i
 
+let float ppf f = Format.fprintf ppf "%h" f
+
+let unboxed_number ppf : unboxed_number -> unit = function
+  | Unboxed_float f -> float ppf f
+  | Unboxed_float32 f -> Format.fprintf ppf "%hs" f
+  | Unboxed_int32 i -> Format.fprintf ppf "%lil" i
+  | Unboxed_int64 i -> Format.fprintf ppf "%LiL" i
+  | Unboxed_nativeint i -> Format.fprintf ppf "%Lin" i
+
+let mixed_field_of_block ppf : mixed_field_of_block -> unit = function
+  | Value v -> field_of_block ppf v
+  | Unboxed_number num -> unboxed_number ppf num
+
 type parens =
   | Never
   | If_complex
@@ -249,8 +262,6 @@ let coercion ppf : coercion -> unit = function
   | Change_depth { from; to_ } ->
     Format.fprintf ppf "depth %a -> %a" (rec_info ~parens:Never) from
       (rec_info ~parens:Never) to_
-
-let float ppf f = Format.fprintf ppf "%h" f
 
 let const ppf (c : Fexpr.const) =
   match c with
@@ -338,6 +349,11 @@ let static_data ppf : static_data -> unit = function
       tag
       (pp_comma_list field_of_block)
       elts
+  | Mixed_block { tag; mutability = mut; elements = elts } ->
+      Format.fprintf ppf "Mixed_block %a%i (@[<hv>%a@])" (mutability ~space:After) mut
+        tag
+        (pp_comma_list mixed_field_of_block)
+        elts
   | Boxed_float32 (Const f) -> Format.fprintf ppf "%hs" f
   | Boxed_float (Const f) -> Format.fprintf ppf "%h" f
   | Boxed_int32 (Const i) -> Format.fprintf ppf "%lil" i

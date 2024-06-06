@@ -29,3 +29,22 @@ include Contains_names.S with type t := t
 include Contains_ids.S with type t := t
 
 val tagged_immediate : Targetint_31_63.t -> t
+
+module Mixed_field : sig
+  type unboxed_number =
+    | Unboxed_float of Numeric_types.Float_by_bit_pattern.t
+    | Unboxed_float32 of Numeric_types.Float32_by_bit_pattern.t
+    | Unboxed_int32 of Numeric_types.Int32.t
+    | Unboxed_int64 of Numeric_types.Int64.t
+    | Unboxed_nativeint of Targetint_32_64.t
+
+  type nonrec t =
+    | Value of t
+    | Unboxed_number of unboxed_number * Debuginfo.t
+
+  include Container_types.S with type t := t
+
+  include Contains_names.S with type t := t
+
+  include Contains_ids.S with type t := t
+end

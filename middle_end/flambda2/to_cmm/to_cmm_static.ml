@@ -23,7 +23,7 @@ module SC = Static_const
 module R = To_cmm_result
 module UK = C.Update_kind
 
-let static_value res v =
+let static_value_field res v =
   match (v : Field_of_static_block.t) with
   | Symbol s -> C.symbol_address (R.symbol res s)
   | Dynamically_computed _ -> C.cint 1n
@@ -31,6 +31,17 @@ let static_value res v =
     C.cint
       (C.nativeint_of_targetint
          (C.tag_targetint (Targetint_31_63.to_targetint i)))
+
+let static_mixed_field ~dbg res m =
+  match (m : Field_of_static_block.Mixed_field.t) with
+  | Value v -> static_value_field res v
+  | Unboxed_number (num, dbg) ->
+      match num with
+      | Unboxed_float32 f -> C.float32 ~dbg f
+      | Unboxed_float f -> C.float ~dbg f
+      | Unboxed_int32 i -> C.int32 ~dbg i
+      | Unboxed_int64 i -> C.int64 ~dbg i
+      | Unboxed_nativeint t -> C.targetint ~dbg t
 
 let or_variable f default v cont =
   match (v : _ Or_variable.t) with
@@ -214,13 +225,28 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let static_fields =
       List.fold_right
         (fun v static_fields ->
-          let static_field = static_value res v in
+          let static_field = static_value_field res v in
           static_field :: static_fields)
         fields []
     in
     let block = C.emit_block sym header static_fields in
     let env, res, updates = static_block_updates sym env res updates 0 fields in
     env, R.set_data res block, updates
+  | Block_like s, Mixed_block (tag, _mut, fields, scannable_prefix_len) ->
+      let sym = R.symbol res s in
+      let res = R.check_for_module_symbol res s in
+      let tag = Tag.Scannable.to_int tag in
+      let header = C.black_mixed_block_header tag (List.length fields) ~scannable_prefix_len in
+      let static_fields =
+        List.fold_right
+          (fun v static_fields ->
+             let static_field = static_mixed_field ~dbg res v in
+             static_field :: static_fields)
+          fields []
+      in
+      let block = C.emit_block sym header static_fields in
+      let env, res, updates = static_block_updates sym env res updates 0 fields in
+      env, R.set_data res block, updates
   | Set_of_closures closure_symbols, Set_of_closures set_of_closures ->
     let res, updates, env =
       preallocate_set_of_closures (res, updates, env) ~closure_symbols
