@@ -278,7 +278,6 @@ type ('a : float64) t5_13 = {x : 'a; y : float#};;
 type ('a : float64) t5_13 = { x : 'a; y : float#; }
 |}];;
 
-(* Mixed records are allowed, but are prohibited outside of alpha. *)
 type 'a t5_14 = {x : 'a; y : float#};;
 [%%expect{|
 type 'a t5_14 = { x : 'a; y : float#; }
