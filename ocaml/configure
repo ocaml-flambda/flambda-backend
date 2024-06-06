@@ -751,6 +751,7 @@ flambda2
 flambda
 cpp_mangling
 frame_pointers
+no_partial_inlining_cflags
 custom_ops_struct_size
 profinfo_width
 profinfo
@@ -3360,6 +3361,7 @@ OCAML_VERSION_SHORT=5.1
 
 
  # TODO: rename this variable
+
 
 
 
@@ -15590,6 +15592,7 @@ fi ;; #(
      ;;
 esac
 
+# Disabling of stack checks is only supported on amd64.
 if test x"$enable_stack_checks" = xyes
 then :
   printf "%s\n" "#define STACK_CHECKS_ENABLED 1" >>confdefs.h
@@ -19673,6 +19676,14 @@ then :
 
 fi
 
+# Only gcc supports -fno-partial-inlining
+case $ocaml_cv_cc_vendor in #(
+  gcc-*) :
+    no_partial_inlining_cflags="-fno-partial-inlining" ;; #(
+  *) :
+    no_partial_inlining_cflags="" ;;
+esac
+
 printf "%s\n" "#define CUSTOM_OPS_STRUCT_SIZE $custom_ops_struct_size" >>confdefs.h
 
 
@@ -22455,3 +22466,5 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: unrecognized options: $ac_unrecognized_opts" >&5
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
+
+
