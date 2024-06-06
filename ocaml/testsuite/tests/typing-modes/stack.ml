@@ -7,7 +7,7 @@ let f = ref (stack_ (fun x -> x))
 Line 1, characters 20-32:
 1 | let f = ref (stack_ (fun x -> x))
                         ^^^^^^^^^^^^
-Error: This allocation cannot be on stack.
+Error: This allocation cannot be on the stack.
 |}]
 
 let f = ref (stack_ (2, 3))
@@ -15,7 +15,7 @@ let f = ref (stack_ (2, 3))
 Line 1, characters 20-26:
 1 | let f = ref (stack_ (2, 3))
                         ^^^^^^
-Error: This allocation cannot be on stack.
+Error: This allocation cannot be on the stack.
 |}]
 
 type t = Foo | Bar of int
@@ -34,7 +34,7 @@ let f = ref (stack_ (Bar 42))
 Line 1, characters 20-28:
 1 | let f = ref (stack_ (Bar 42))
                         ^^^^^^^^
-Error: This allocation cannot be on stack.
+Error: This allocation cannot be on the stack.
 |}]
 
 type r = {x : string} [@@unboxed]
@@ -56,7 +56,7 @@ type r = { x : string; }
 Line 3, characters 20-33:
 3 | let f = ref (stack_ {x = "hello"})
                         ^^^^^^^^^^^^^
-Error: This allocation cannot be on stack.
+Error: This allocation cannot be on the stack.
 |}]
 
 type r = {x : float; y : string}
@@ -77,7 +77,7 @@ type r = { x : float; y : float; }
 Line 2, characters 28-31:
 2 | let f (r : r) = ref (stack_ r.x)
                                 ^^^
-Error: This allocation cannot be on stack.
+Error: This allocation cannot be on the stack.
 |}]
 
 let f = ref (stack_ [| 42; 56 |])
@@ -85,7 +85,7 @@ let f = ref (stack_ [| 42; 56 |])
 Line 1, characters 20-32:
 1 | let f = ref (stack_ [| 42; 56 |])
                         ^^^^^^^^^^^^
-Error: This allocation cannot be on stack.
+Error: This allocation cannot be on the stack.
 |}]
 
 (* tail-position stack_ does not indicate local-returning *)
@@ -94,7 +94,7 @@ let f () = stack_ (3, 5)
 Line 1, characters 18-24:
 1 | let f () = stack_ (3, 5)
                       ^^^^^^
-Error: This allocation cannot be on stack.
+Error: This allocation cannot be on the stack.
 |}]
 
 let f () = exclave_ stack_ (3, 5)

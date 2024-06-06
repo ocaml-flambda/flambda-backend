@@ -10278,7 +10278,7 @@ let report_error ~loc env = function
          automatically if ommitted. It cannot be passed with '?'.@]" label
   | Cannot_stack_allocate ->
       Location.errorf ~loc
-        "This allocation cannot be on stack."
+        "This allocation cannot be on the stack."
   | Not_allocation ->
       Location.errorf ~loc
         "This expression is not an allocation."
