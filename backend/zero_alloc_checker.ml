@@ -1511,7 +1511,7 @@ end = struct
                 never_raises;
                 loc
               }
-          | Reduce_code_size | No_CSE -> None)
+          | Stack_check_move_allowed | Reduce_code_size | No_CSE -> None)
         codegen_options
     in
     match a with
