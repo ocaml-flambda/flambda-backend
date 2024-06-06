@@ -40,6 +40,24 @@ let simplify_field_of_block dacc (field : Field_of_static_block.t) =
           (* CR mshinwell: This should be "invalid" and propagate up *)
           field, ty)
 
+let simplify_field_of_mixed_block dacc
+    (field : Field_of_static_block.Mixed_field.t) :
+    Field_of_static_block.Mixed_field.t * _ =
+  match field with
+  | Value value ->
+    let value', ty = simplify_field_of_block dacc value in
+    (if value == value' then field else Value value'), ty
+  | Unboxed_number num ->
+    let ty =
+      match num with
+      | Unboxed_float _ -> T.any_naked_float
+      | Unboxed_float32 _ -> T.any_naked_float32
+      | Unboxed_int32 _ -> T.any_naked_int32
+      | Unboxed_int64 _ -> T.any_naked_int64
+      | Unboxed_nativeint _ -> T.any_naked_nativeint
+    in
+    field, ty
+
 let simplify_or_variable dacc type_for_const (or_variable : _ Or_variable.t)
     kind =
   let denv = DA.denv dacc in
@@ -64,6 +82,19 @@ let rebuild_naked_number_array dacc ~bind_result_sym kind type_creator creator
   in
   creator (DA.are_rebuilding_terms dacc) fields, dacc
 
+let simplify_static_const_block_type ~tag ~fields ~shape
+    ~(is_mutable : Mutability.t) =
+  (* Same as Simplify_variadic_primitive.simplify_make_block_of_values *)
+  let tag = Tag.Scannable.to_tag tag in
+  match is_mutable with
+  | Immutable ->
+    T.immutable_block ~is_unique:false tag ~shape ~fields
+      Alloc_mode.For_types.heap
+  | Immutable_unique ->
+    T.immutable_block ~is_unique:true tag ~shape ~fields
+      Alloc_mode.For_types.heap
+  | Mutable -> T.any_value
+
 let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
     ~result_sym : Rebuilt_static_const.t * DA.t =
   let bind_result_sym typ =
@@ -78,22 +109,27 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
     in
     let fields, field_tys = List.split fields_with_tys in
     let ty =
-      (* Same as Simplify_variadic_primitive.simplify_make_block_of_values *)
-      let tag = Tag.Scannable.to_tag tag in
-      let fields = field_tys in
-      match is_mutable with
-      | Immutable ->
-        T.immutable_block ~is_unique:false tag ~shape:K.Block_shape.Value_only
-          ~fields Alloc_mode.For_types.heap
-      | Immutable_unique ->
-        T.immutable_block ~is_unique:true tag ~shape:K.Block_shape.Value_only
-          ~fields Alloc_mode.For_types.heap
-      | Mutable -> T.any_value
+      simplify_static_const_block_type ~tag ~fields:field_tys ~shape:Value_only
+        ~is_mutable
     in
     let dacc = bind_result_sym ty in
     ( Rebuilt_static_const.create_block
         (DA.are_rebuilding_terms dacc)
         tag is_mutable ~fields,
+      dacc )
+  | Mixed_block (tag, is_mutable, shape, fields) ->
+    let fields_with_tys =
+      List.map (fun field -> simplify_field_of_mixed_block dacc field) fields
+    in
+    let fields, field_tys = List.split fields_with_tys in
+    let ty =
+      simplify_static_const_block_type ~tag ~fields:field_tys
+        ~shape:(Mixed_record shape) ~is_mutable
+    in
+    let dacc = bind_result_sym ty in
+    ( Rebuilt_static_const.create_mixed_block
+        (DA.are_rebuilding_terms dacc)
+        tag is_mutable shape ~fields,
       dacc )
   | Boxed_float32 or_var ->
     let or_var, ty =

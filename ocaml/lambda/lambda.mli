@@ -486,6 +486,7 @@ val layout_of_extern_repr : extern_repr -> layout
 type structured_constant =
     Const_base of constant
   | Const_block of int * structured_constant list
+  | Const_mixed_block of int * mixed_block_shape * structured_constant list
   | Const_float_array of string list
   | Const_immstring of string
   | Const_float_block of string list

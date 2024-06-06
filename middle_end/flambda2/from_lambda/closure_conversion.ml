@@ -52,11 +52,7 @@ type close_functions_result =
 
 type declare_const_result =
   | Field of Field_of_static_block.t
-  | Unboxed_float of Numeric_types.Float_by_bit_pattern.t
-  | Unboxed_float32 of Numeric_types.Float32_by_bit_pattern.t
-  | Unboxed_int32 of Numeric_types.Int32.t
-  | Unboxed_int64 of Numeric_types.Int64.t
-  | Unboxed_nativeint of Targetint_32_64.t
+  | Unboxed_number of Field_of_static_block.Mixed_field.Unboxed_number.t
 
 let manufacture_symbol acc proposed_name =
   let acc, linkage_name =
@@ -113,10 +109,10 @@ let rec declare_const acc (const : Lambda.structured_constant) :
     acc, Field (Tagged_immediate (Targetint_31_63.of_char c)), "char"
   | Const_base (Const_unboxed_float c) ->
     let c = Numeric_types.Float_by_bit_pattern.of_string c in
-    acc, Unboxed_float c, "unboxed_float"
+    acc, Unboxed_number (Unboxed_float c), "unboxed_float"
   | Const_base (Const_unboxed_float32 c) ->
     let c = Numeric_types.Float32_by_bit_pattern.of_string c in
-    acc, Unboxed_float32 c, "unboxed_float32"
+    acc, Unboxed_number (Unboxed_float32 c), "unboxed_float32"
   | Const_base (Const_string (s, _, _)) ->
     register_const acc (SC.immutable_string s) "immstring"
   | Const_base (Const_float c) ->
@@ -133,12 +129,14 @@ let rec declare_const acc (const : Lambda.structured_constant) :
     (* CR pchambart: this should be pushed further to lambda *)
     let c = Targetint_32_64.of_int64 (Int64.of_nativeint c) in
     register_const acc (SC.boxed_nativeint (Const c)) "nativeint"
-  | Const_base (Const_unboxed_int32 c) -> acc, Unboxed_int32 c, "unboxed_int32"
-  | Const_base (Const_unboxed_int64 c) -> acc, Unboxed_int64 c, "unboxed_int64"
+  | Const_base (Const_unboxed_int32 c) ->
+    acc, Unboxed_number (Unboxed_int32 c), "unboxed_int32"
+  | Const_base (Const_unboxed_int64 c) ->
+    acc, Unboxed_number (Unboxed_int64 c), "unboxed_int64"
   | Const_base (Const_unboxed_nativeint c) ->
     (* CR pchambart: this should be pushed further to lambda *)
     let c = Targetint_32_64.of_int64 (Int64.of_nativeint c) in
-    acc, Unboxed_nativeint c, "unboxed_nativeint"
+    acc, Unboxed_number (Unboxed_nativeint c), "unboxed_nativeint"
   | Const_immstring c -> register_const acc (SC.immutable_string c) "immstring"
   | Const_float_block c ->
     register_const acc
@@ -169,8 +167,7 @@ let rec declare_const acc (const : Lambda.structured_constant) :
           let acc, f, _ = declare_const acc c in
           match f with
           | Field f -> acc, f
-          | Unboxed_float _ | Unboxed_float32 _ | Unboxed_int32 _
-          | Unboxed_int64 _ | Unboxed_nativeint _ ->
+          | Unboxed_number _ ->
             Misc.fatal_errorf
               "Unboxed constants are not allowed inside of Const_block: %a"
               Printlambda.structured_constant const)
@@ -180,6 +177,23 @@ let rec declare_const acc (const : Lambda.structured_constant) :
       SC.block (Tag.Scannable.create_exn tag) Immutable field_of_blocks
     in
     register_const acc const "const_block"
+  | Const_mixed_block (tag, shape, consts) ->
+    let shape = K.Mixed_block_shape.from_lambda shape in
+    let acc, field_of_blocks =
+      List.fold_left_map
+        (fun acc c : (_ * Field_of_static_block.Mixed_field.t) ->
+          let acc, f, _ = declare_const acc c in
+          match f with
+          | Field f -> acc, Value f
+          | Unboxed_number num -> acc, Unboxed_number num)
+        acc consts
+    in
+    let const : SC.t =
+      SC.mixed_block
+        (Tag.Scannable.create_exn tag)
+        Immutable shape field_of_blocks
+    in
+    register_const acc const "const_mixed_block"
 
 let close_const0 acc (const : Lambda.structured_constant) =
   let acc, const, name = declare_const acc const in
@@ -189,27 +203,27 @@ let close_const0 acc (const : Lambda.structured_constant) =
       Simple.const (Reg_width_const.tagged_immediate i),
       name,
       Flambda_kind.With_subkind.tagged_immediate )
-  | Unboxed_float f ->
+  | Unboxed_number (Unboxed_float f) ->
     ( acc,
       Simple.const (Reg_width_const.naked_float f),
       name,
       Flambda_kind.With_subkind.naked_float )
-  | Unboxed_float32 f ->
+  | Unboxed_number (Unboxed_float32 f) ->
     ( acc,
       Simple.const (Reg_width_const.naked_float32 f),
       name,
       Flambda_kind.With_subkind.naked_float32 )
-  | Unboxed_int32 i ->
+  | Unboxed_number (Unboxed_int32 i) ->
     ( acc,
       Simple.const (Reg_width_const.naked_int32 i),
       name,
       Flambda_kind.With_subkind.naked_int32 )
-  | Unboxed_int64 i ->
+  | Unboxed_number (Unboxed_int64 i) ->
     ( acc,
       Simple.const (Reg_width_const.naked_int64 i),
       name,
       Flambda_kind.With_subkind.naked_int64 )
-  | Unboxed_nativeint i ->
+  | Unboxed_number (Unboxed_nativeint i) ->
     ( acc,
       Simple.const (Reg_width_const.naked_nativeint i),
       name,

@@ -152,6 +152,11 @@ let block_header ?(scannable_prefix = Scan_all) tag sz =
    structured constants and static module definitions. *)
 let black_block_header tag sz = Nativeint.logor (block_header tag sz) caml_black
 
+let black_mixed_block_header tag sz ~scannable_prefix_len =
+  Nativeint.logor
+    (block_header tag sz ~scannable_prefix:(Scan_prefix scannable_prefix_len))
+    caml_black
+
 let local_block_header ?scannable_prefix tag sz =
   Nativeint.logor (block_header ?scannable_prefix tag sz) caml_local
 

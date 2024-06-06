@@ -41,10 +41,12 @@ let rec struct_const ppf = function
       fprintf ppf "%sn" (Misc.format_as_unboxed_literal (Nativeint.to_string i))
   | Const_block(tag, []) ->
       fprintf ppf "[%i]" tag
-  | Const_block(tag, sc1::scl) ->
-      let sconsts ppf scl =
-        List.iter (fun sc -> fprintf ppf "@ %a" struct_const sc) scl in
-      fprintf ppf "@[<1>[%i:@ @[%a%a@]]@]" tag struct_const sc1 sconsts scl
+  | Const_block(tag, hd::tl) ->
+      fprintf ppf "@[<1>[%i:@ @[%a@]]@]" tag struct_consts (hd, tl)
+  | Const_mixed_block(_, _, []) -> Misc.fatal_error "empty mixed block"
+  | Const_mixed_block(tag, shape, hd::tl) ->
+      fprintf ppf "@[<1>[%i mixed(%i):@ @[%a@]]@]" tag shape.value_prefix_len
+        struct_consts (hd, tl)
   | Const_float_block [] ->
       fprintf ppf "[|b |]"
   | Const_float_block (f1 :: fl) ->
@@ -57,6 +59,12 @@ let rec struct_const ppf = function
       let floats ppf fl =
         List.iter (fun f -> fprintf ppf "@ %s" f) fl in
       fprintf ppf "@[<1>[|@[%s%a@]|]@]" f1 floats fl
+
+and struct_consts ppf (hd, tl) =
+  let sconsts ppf scl =
+    List.iter (fun sc -> fprintf ppf "@ %a" struct_const sc) scl
+  in
+  fprintf ppf "%a%a" struct_const hd sconsts tl
 
 let array_kind = function
   | Pgenarray -> "gen"

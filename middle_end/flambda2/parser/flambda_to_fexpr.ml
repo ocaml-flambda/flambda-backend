@@ -696,6 +696,9 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
     let tag = tag |> Tag.Scannable.to_int in
     let elements = List.map (field_of_block env) fields in
     Block { tag; mutability; elements }
+  | Mixed_block _ ->
+    Misc.fatal_error
+      "fexpr support for statically-allocated mixed blocks not yet implemented"
   | Set_of_closures _ -> assert false
   | Boxed_float32 f -> Boxed_float32 (or_variable float32 env f)
   | Boxed_float f -> Boxed_float (or_variable float env f)

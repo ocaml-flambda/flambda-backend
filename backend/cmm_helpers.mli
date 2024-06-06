@@ -37,6 +37,10 @@ val block_header : int -> int -> nativeint
 (** Same as block_header, but with GC bits set to black *)
 val black_block_header : int -> int -> nativeint
 
+(** Same as black_block_header, but for a mixed block *)
+val black_mixed_block_header :
+  int -> int -> scannable_prefix_len:int -> nativeint
+
 val black_closure_header : int -> nativeint
 
 (** Infix header at the given offset *)
