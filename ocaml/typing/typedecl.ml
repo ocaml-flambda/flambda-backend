@@ -381,31 +381,32 @@ let set_private_row env loc p decl =
   in
   set_type_desc rv (Tconstr (p, decl.type_params, ref Mnil))
 
-(* Makes sure a type is representable.  Will lower [any] to a sort variable
-   if [allow_unboxed = true], and to [value] if [allow_unboxed = false]. *)
+(* Makes sure a type is representable. When called with a type variable, will
+   lower [any] to a sort variable if [allow_unboxed = true], and to [value]
+   if [allow_unboxed = false]. *)
 (* CR layouts: Many places where [check_representable] is called in this file
    should be replaced with checks at the places where values of those types are
    constructed.  We've been conservative here in the first version. This is the
    same issue as with arrows. *)
-   let check_representable ~why ~allow_unboxed env loc kloc typ =
-    match Ctype.type_sort ~why env typ with
-    (* CR layouts v5: This is a convenient place to rule out non-value types in
-       structures that don't support them yet. (A callsite passes
-       [~allow_unboxed:true] to indicate that non-value types are allowed.)
-       When we support mixed blocks everywhere, this [check_representable]
-       will have outlived its usefulness and we can delete it.
-    *)
-    (* CR layouts v2.5: This rules out non-value types in [@@unboxed] types. No
-       real need to rule that out - I just haven't had time to write tests for it
-       yet. *)
-    | Ok s -> begin
-      if not allow_unboxed then
-        match Jkind.Sort.get_default_value s with
-        | Void | Value -> ()
-        | Float64 | Float32 | Word | Bits32 | Bits64 as const ->
-          raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
-      end
-    | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
+let check_representable ~why ~allow_unboxed env loc kloc typ =
+  match Ctype.type_sort ~why env typ with
+  (* CR layouts v5: This is a convenient place to rule out non-value types in
+      structures that don't support them yet. (A callsite passes
+      [~allow_unboxed:true] to indicate that non-value types are allowed.)
+      When we support mixed blocks everywhere, this [check_representable]
+      will have outlived its usefulness and we can delete it.
+  *)
+  (* CR layouts v2.5: This rules out non-value types in [@@unboxed] types. No
+      real need to rule that out - I just haven't had time to write tests for it
+      yet. *)
+  | Ok s -> begin
+    if not allow_unboxed then
+      match Jkind.Sort.get_default_value s with
+      | Void | Value -> ()
+      | Float64 | Float32 | Word | Bits32 | Bits64 as const ->
+        raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
+    end
+  | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
 
 let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
   assert (lbls <> []);
@@ -465,16 +466,18 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
 
 let transl_types_gf ~new_var_jkind ~allow_unboxed
   env loc univars closed tyl kloc =
-  let mk idx arg =
+  let mk arg =
     let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
     let gf = Typemode.transl_global_flags
       (Jane_syntax.Mode_expr.of_attrs arg.ptyp_attributes |> fst) in
-    check_representable ~why:(Constructor_declaration idx) ~allow_unboxed
-      env loc kloc cty.ctyp_type;
     (cty, gf)
   in
-  let tyl_gfl = List.mapi mk tyl in
-  let tyl_gfl' = List.map (fun (cty, gf) -> cty.ctyp_type, gf) tyl_gfl in
+  let tyl_gfl = List.map mk tyl in
+  let tyl_gfl' = List.mapi (fun idx (cty, gf) ->
+    check_representable ~why:(Constructor_declaration idx) ~allow_unboxed
+      env loc kloc cty.ctyp_type;
+    cty.ctyp_type, gf) tyl_gfl
+  in
   tyl_gfl, tyl_gfl'
 
 let transl_constructor_arguments ~new_var_jkind ~unboxed
@@ -484,15 +487,18 @@ let transl_constructor_arguments ~new_var_jkind ~unboxed
         (* CR layouts: we forbid [@@unboxed] variants from being
            non-value, see comment in [check_representable]. *)
         transl_types_gf ~new_var_jkind ~allow_unboxed:(not unboxed)
-        env loc univars closed l (Cstr_tuple { unboxed })
+          env loc univars closed l (Cstr_tuple { unboxed })
       in
       Types.Cstr_tuple flds', Cstr_tuple flds
   | Pcstr_record l ->
       let lbls, lbls' =
         (* CR layouts: we forbid fields of inlined records from being
-           non-value, see comment in [check_representable]. *)
+           non-value, see comment in [check_representable].
+           When we allow mixed inline records, we still want to
+           disallow non-value types in unboxed records, so this
+           should become `not unboxed`, as in the `Pcstr_tuple` case. *)
         transl_labels ~new_var_jkind ~allow_unboxed:false
-        env univars closed l (Inlined_record { unboxed })
+          env univars closed l (Inlined_record { unboxed })
       in
       Types.Cstr_record lbls',
       Cstr_record lbls
