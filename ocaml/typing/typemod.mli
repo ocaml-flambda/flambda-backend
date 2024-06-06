@@ -152,6 +152,7 @@ type error =
   | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
   | Cannot_compile_implementation_as_parameter
+  | Cannot_implement_parameter of Compilation_unit.Name.t * Misc.filepath
   | Argument_for_non_parameter of Compilation_unit.Name.t * Misc.filepath
   | Cannot_find_argument_type of Compilation_unit.Name.t
   | Inconsistent_argument_types of {

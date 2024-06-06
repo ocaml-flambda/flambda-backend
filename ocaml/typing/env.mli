@@ -477,9 +477,7 @@ val save_signature_with_imports:
         (* Arguments: signature, module name, module kind,
            file name, imported units with their CRCs. *)
 
-(* Register a module as a parameter unit, though not necessarily a parameter to
-   this unit. It is unnecessary (but harmless) to call both this and
-   [register_parameter]. *)
+(* Register a module as a parameter to this unit. *)
 val register_parameter_import: Compilation_unit.Name.t -> unit
 
 (* Return the CRC of the interface of the given compilation unit *)

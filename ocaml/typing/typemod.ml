@@ -90,6 +90,7 @@ type error =
   | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
   | Cannot_compile_implementation_as_parameter
+  | Cannot_implement_parameter of Compilation_unit.Name.t * Misc.filepath
   | Argument_for_non_parameter of Compilation_unit.Name.t * Misc.filepath
   | Cannot_find_argument_type of Compilation_unit.Name.t
   | Inconsistent_argument_types of {
@@ -3390,7 +3391,6 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt =
         (* This will soon be converting from one type to another *)
         arg_module
       in
-      Env.register_parameter_import arg_import;
       (* CR lmaurer: This "look for known name in path" code is duplicated
          all over the place. *)
       let basename = arg_import |> Compilation_unit.Name.to_string in
@@ -3474,6 +3474,8 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           let dclsig =
             Env.read_signature import intf_file ~add_binding:false
           in
+          if Env.is_parameter_unit import then
+            error (Cannot_implement_parameter (import, intf_file));
           let arg_type_from_cmi = Env.implemented_parameter import in
           if not (Option.equal Compilation_unit.Name.equal
                     arg_type arg_type_from_cmi) then
@@ -3957,6 +3959,11 @@ let report_error ~loc _env = function
   | Cannot_compile_implementation_as_parameter ->
       Location.errorf ~loc
         "Cannot compile an implementation with -as-parameter."
+  | Cannot_implement_parameter(modname, _filename) ->
+      Location.errorf ~loc
+        "@[The interface for %a@ was compiled with -as-parameter.@ \
+         It cannot be implemented directly.@]"
+        Compilation_unit.Name.print modname
   | Argument_for_non_parameter(param, path) ->
       Location.errorf ~loc
         "Interface %s@ found for module@ %a@ is not flagged as a parameter.@ \
