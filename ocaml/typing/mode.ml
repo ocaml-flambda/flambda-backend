@@ -34,8 +34,8 @@ module type BiHeyting = sig
       [meet c a <= b] iff [a <= imply c b] *)
   val imply : t -> t -> t
 
-  (** [subtract c] is the left adjoint of [join c]. That is, for any [a] and [b],
-      [subtract c a <= b] iff [a <= join c b] *)
+  (** [subtract _ c] is the left adjoint of [join c]. That is, for any [a] and [b],
+      [subtract a c <= b] iff [a <= join c b] *)
   val subtract : t -> t -> t
 end
 
@@ -59,9 +59,9 @@ module Lattices = struct
 
     let print = L.print
 
-    let imply = L.subtract
+    let imply a b = L.subtract b a
 
-    let subtract = L.imply
+    let subtract a b = L.imply b a
   end
   [@@inline]
 
@@ -71,18 +71,18 @@ module Lattices = struct
     include L
 
     (* Prove the [subtract] below is the left adjoint of [join].
-       - If [subtract c a <= b], by the definition of [subtract] below,
+       - If [subtract a c <= b], by the definition of [subtract] below,
          that could mean one of two things:
          - Took the branch [a <= c], and [min <= b]. In this case, we have [a <= c <= join c b].
          - Took the other branch, and [a <= b]. In this case, we have [a <= b <= join c b].
 
        - In the other direction: Given [a <= join c b], compare [c] and [b]:
          - if [c <= b], then [a <= join c b = b], and:
-           - either [a <= c], then [subtract c a = min <= b]
-           - or the other branch, then [subtract c a = a <= b]
-         - if [b <= c], then [a <= join c b = c], then [subtract c a = min <= b]
+           - either [a <= c], then [subtract a c = min <= b]
+           - or the other branch, then [subtract a c = a <= b]
+         - if [b <= c], then [a <= join c b = c], then [subtract a c = min <= b]
     *)
-    let subtract c a = if le a c then min else a
+    let subtract a c = if le a c then min else a
 
     (* The proof for [imply] is dual and omitted. *)
     let imply c b = if le c b then max else b
@@ -958,7 +958,7 @@ module Lattices_mono = struct
     | Meet_with c -> meet dst c a
     | Join_with c -> join dst c a
     | Imply c -> imply dst c a
-    | Subtract c -> subtract dst c a
+    | Subtract c -> subtract dst a c
     | Monadic_to_comonadic_min -> monadic_to_comonadic_min dst a
     | Comonadic_to_monadic src -> comonadic_to_monadic src a
     | Monadic_to_comonadic_max -> monadic_to_comonadic_max dst a
