@@ -485,6 +485,8 @@ module Acc = struct
     let declared_symbols = (symbol, constant) :: t.declared_symbols in
     let approx : _ Value_approximation.t =
       match (constant : Static_const.t) with
+      (* CR layouts v5.9: Support cross-module inlining for mixed blocks. *)
+      | Mixed_block _ -> Value_unknown
       | Block (tag, mut, fields) ->
         if not (Mutability.is_mutable mut)
         then
