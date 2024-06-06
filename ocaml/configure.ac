@@ -219,6 +219,7 @@ AC_SUBST([reserved_header_bits])
 AC_SUBST([profinfo])
 AC_SUBST([profinfo_width])
 AC_SUBST([custom_ops_struct_size])
+AC_SUBST([no_partial_inlining_cflags])
 AC_SUBST([frame_pointers])
 AC_SUBST([cpp_mangling])
 AC_SUBST([flambda])
@@ -2220,6 +2221,12 @@ OCAML_MMAP_SUPPORTS_HUGE_PAGES
 AC_DEFINE_UNQUOTED([HEADER_RESERVED_BITS], [$reserved_header_bits])
 AC_DEFINE_UNQUOTED([PROFINFO_WIDTH], [$profinfo_width])
 AS_IF([$profinfo], [AC_DEFINE([WITH_PROFINFO])])
+
+# Only gcc supports -fno-partial-inlining
+AS_CASE([$ocaml_cv_cc_vendor],
+  [gcc-*],
+    [no_partial_inlining_cflags="-fno-partial-inlining"],
+  [no_partial_inlining_cflags=""])
 
 AC_DEFINE_UNQUOTED([CUSTOM_OPS_STRUCT_SIZE], [$custom_ops_struct_size])
 

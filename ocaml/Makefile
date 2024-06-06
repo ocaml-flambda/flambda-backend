@@ -1021,7 +1021,7 @@ $(RUNTIME_DIR)/major_gc.%.$(O): OC_CFLAGS += $(INTEL_JCC_BUG_CFLAGS)
 
 # Partial inlining on (at least) caml_string_compare seems to produce
 # worse code.
-$(RUNTIME_DIR)/str.%.$(O): OC_CFLAGS += -fno-partial-inlining
+$(RUNTIME_DIR)/str.%.$(O): OC_CFLAGS += $(NO_PARTIAL_INLINING_CFLAGS)
 
 ## Compilation of runtime C files
 
