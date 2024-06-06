@@ -3483,12 +3483,11 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
                       Interface_not_compiled sourceintf)))
             | Some cmi_file -> cmi_file
           in
-          let import = Global_module.Name.create basename [] in
-          let dclsig =
-            Env.read_signature import intf_file ~add_binding:false
-          in
           let global_name =
             Compilation_unit.to_global_name_without_prefix modulename
+          in
+          let dclsig =
+            Env.read_signature global_name intf_file ~add_binding:false
           in
           if Env.is_parameter_unit global_name then
             error (Cannot_implement_parameter (cu_name, intf_file));
