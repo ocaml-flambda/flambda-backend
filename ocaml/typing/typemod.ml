@@ -3413,7 +3413,7 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt =
              ai_coercion_from_primary = coercion;
            }
 
-let type_implementation sourcefile outputprefix modulename initial_env ast =
+let type_implementation ~sourcefile outputprefix modulename initial_env ast =
   let error e =
     raise (Error (Location.in_file sourcefile, initial_env, e))
   in
