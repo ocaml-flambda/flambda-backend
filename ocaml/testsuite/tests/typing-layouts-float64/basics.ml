@@ -553,12 +553,10 @@ Line 1, characters 29-35:
 Error: Don't know how to untag this type. Only int can be untagged.
 |}];;
 
-(******************************************************)
-(* Test 11: Allow float64 in some extensible variants *)
+(**************************************************)
+(* Test 11: float64 banned in extensible variants *)
 
-(* CR layouts v5.9: Actually allow mixed extensible variant blocks. *)
-
-(* Currently these are only supported in alpha *)
+(* CR layouts v5.9: Allow mixed extensible variant blocks. *)
 
 type t11_1 = ..
 

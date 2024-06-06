@@ -503,8 +503,8 @@ Line 1, characters 29-35:
 Error: Don't know how to untag this type. Only int can be untagged.
 |}];;
 
-(*******************************************************)
-(* Test 11: Allow bits32 in some extensible variants *)
+(*************************************************)
+(* Test 11: bits32 banned in extensible variants *)
 
 type t11_1 = ..
 

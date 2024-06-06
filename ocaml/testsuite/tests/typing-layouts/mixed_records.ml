@@ -1,5 +1,13 @@
 (* TEST
- expect;
+ {
+   flags = "-extension layouts_alpha";
+   expect;
+ }{
+   flags = "-extension layouts_beta";
+   expect;
+ }{
+   expect;
+ }
 *)
 
 (* Mixed float-float# blocks are always OK. *)

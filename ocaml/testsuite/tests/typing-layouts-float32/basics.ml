@@ -548,8 +548,8 @@ Line 1, characters 29-37:
 Error: Don't know how to untag this type. Only int can be untagged.
 |}];;
 
-(*******************************************************)
-(* Test 11: float32 in extensible variants *)
+(**************************************************)
+(* Test 11: float32 banned in extensible variants *)
 
 type t11_1 = ..
 

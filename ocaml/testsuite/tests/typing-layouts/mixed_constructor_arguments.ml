@@ -1,5 +1,13 @@
 (* TEST
- expect;
+ {
+   flags = "-extension layouts_alpha";
+   expect;
+ }{
+   flags = "-extension layouts_beta";
+   expect;
+ }{
+   expect;
+ }
 *)
 
 (* For each example with regular variants, this test also includes an example

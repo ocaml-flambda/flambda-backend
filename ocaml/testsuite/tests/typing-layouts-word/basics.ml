@@ -501,8 +501,8 @@ Line 1, characters 29-39:
 Error: Don't know how to untag this type. Only int can be untagged.
 |}];;
 
-(***************************************************)
-(* Test 11: Allow word in some extensible variants *)
+(***********************************************)
+(* Test 11: word banned in extensible variants *)
 
 (* CR layouts v5.9: Actually allow mixed extensible variant blocks. *)
 
