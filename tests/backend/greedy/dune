@@ -1,3 +1,6 @@
 (tests
  (names pqueue)
+ ; FIXME Fix warning 60
+ (flags
+  (:standard -w -60))
  (libraries ocamloptcomp))

@@ -702,9 +702,10 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Punboxed_product_field _ | Pget_header _ ->
     false
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _ -> false
-  | Prunstack | Pperform | Presume | Preperform | Pdls_get ->
+  | Prunstack | Pperform | Presume | Preperform ->
     Misc.fatal_errorf "Primitive %a is not yet supported by Flambda 2"
       Printlambda.primitive prim
+  | Pdls_get -> false
 
 type non_tail_continuation =
   Acc.t ->
@@ -736,6 +737,11 @@ let apply_cps_cont k ?dbg acc env ccenv id
     (arity_component : [`Complex] Flambda_arity.Component_for_creation.t) =
   apply_cps_cont_simple k ?dbg acc env ccenv [IR.Var id] arity_component
 
+let get_unarized_vars id env =
+  match Env.get_unboxed_product_fields env id with
+  | None -> [IR.Var id]
+  | Some (_, fields) -> List.map (fun id -> IR.Var id) fields
+
 let maybe_insert_let_cont result_var_name layout k acc env ccenv body =
   match k with
   | Tail k -> body acc env ccenv k
@@ -756,7 +762,7 @@ let maybe_insert_let_cont result_var_name layout k acc env ccenv body =
         ~is_exn_handler:false
         ~params:[result_var, IR.Not_user_visible, layout]
         ~handler:(fun acc env ccenv ->
-          k acc env ccenv [IR.Var result_var] arity_component)
+          k acc env ccenv (get_unarized_vars result_var env) arity_component)
         ~body
 
 let name_if_not_var acc ccenv name simple kind body =
@@ -1196,7 +1202,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                   ~handler:(fun acc env ccenv ->
                     apply_cont_with_extra_args acc env ccenv ~dbg k
                       (Some (IR.Pop { exn_handler = handler_continuation }))
-                      [IR.Var body_result]))
+                      (get_unarized_vars body_result env)))
               ~handler:(handler k)))
   | Lifthenelse (cond, ifso, ifnot, kind) ->
     let lam = switch_for_if_then_else ~cond ~ifso ~ifnot ~kind in
@@ -1312,7 +1318,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                        [restore_region_context] will intercept the
                        [Lstaticraise] jump to this handler if needed. *)
                     apply_cont_with_extra_args acc env ccenv ~dbg k None
-                      [IR.Var wrap_return]))))
+                      (get_unarized_vars wrap_return env)))))
 
 and cps_non_tail_simple :
     Acc.t ->

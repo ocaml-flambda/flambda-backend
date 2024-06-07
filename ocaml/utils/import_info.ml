@@ -15,7 +15,7 @@
 module CU = Compilation_unit
 
 type intf =
-  | Normal of CU.Name.t * CU.t * Digest.t
+  | Normal of CU.t * Digest.t
   | Alias of CU.Name.t
   | Parameter of CU.Name.t * Digest.t
 
@@ -30,12 +30,21 @@ type t =
   | Intf of intf
   | Impl of impl
 
+let check_name name cu =
+  if not (CU.Name.equal (CU.name cu) name)
+  then
+    Misc.fatal_errorf
+      "@[<hv>Mismatched import name and compilation unit:@ %a != %a@]"
+      CU.Name.print name CU.print cu
+
 let create cu_name ~crc_with_unit =
   (* This creates an [Intf] just to be minimally restrictive. Any caller that
      cares should use the [Impl] API. *)
   match crc_with_unit with
   | None -> Intf (Alias cu_name)
-  | Some (cu, crc) -> Intf (Normal (cu_name, cu, crc))
+  | Some (cu, crc) ->
+    check_name cu_name cu;
+    Intf (Normal (cu, crc))
 
 let create_normal cu ~crc =
   match crc with
@@ -45,11 +54,12 @@ let create_normal cu ~crc =
 let name t =
   match t with
   | Impl (Loaded (cu, _) | Unloaded cu) -> CU.name cu
-  | Intf (Normal (name, _, _) | Alias name | Parameter (name, _)) -> name
+  | Intf (Normal (cu, _)) -> CU.name cu
+  | Intf (Alias name | Parameter (name, _)) -> name
 
 let cu t =
   match t with
-  | Intf (Normal (_, cu, _)) -> cu
+  | Intf (Normal (cu, _)) -> cu
   | Impl (Loaded (cu, _) | Unloaded cu) -> cu
   | Intf (Alias name | Parameter (name, _)) ->
     Misc.fatal_errorf
@@ -59,7 +69,7 @@ let cu t =
 
 let crc t =
   match t with
-  | Intf (Normal (_, _, crc) | Parameter (_, crc)) -> Some crc
+  | Intf (Normal (_, crc) | Parameter (_, crc)) -> Some crc
   | Intf (Alias _) -> None
   | Impl (Loaded (_, crc)) -> Some crc
   | Impl (Unloaded _) -> None
@@ -74,12 +84,8 @@ module Intf = struct
   type nonrec t = t
 
   let create_normal name cu ~crc =
-    if not (CU.Name.equal (CU.name cu) name)
-    then
-      Misc.fatal_errorf
-        "@[<hv>Mismatched import name and compilation unit:@ %a != %a@]"
-        CU.Name.print name CU.print cu;
-    Intf (Normal (name, cu, crc))
+    check_name name cu;
+    Intf (Normal (cu, crc))
 
   let create_alias name = Intf (Alias name)
 
@@ -110,17 +116,18 @@ module Intf = struct
 
   let name t =
     match expect_intf t with
-    | Normal (name, _, _) | Alias name | Parameter (name, _) -> name
+    | Normal (cu, _) -> CU.name cu
+    | Alias name | Parameter (name, _) -> name
 
   let info t : Nonalias.t option =
     match expect_intf t with
-    | Normal (_, cu, crc) -> Some (Normal cu, crc)
+    | Normal (cu, crc) -> Some (Normal cu, crc)
     | Parameter (_, crc) -> Some (Parameter, crc)
     | Alias _ -> None
 
   let crc t =
     match expect_intf t with
-    | Normal (_, _, crc) | Parameter (_, crc) -> Some crc
+    | Normal (_, crc) | Parameter (_, crc) -> Some crc
     | Alias _ -> None
 
   let has_name t ~name:name' = CU.Name.equal (name t) name'
@@ -145,9 +152,9 @@ module Impl = struct
   let expect_impl t =
     match t with
     | Impl impl -> impl
-    | Intf (Normal (name, _, _) | Alias name | Parameter (name, _)) ->
+    | Intf _ ->
       Misc.fatal_errorf "Expected an [Import_info.Intf.t] but found %a"
-        CU.Name.print name
+        CU.Name.print (Intf.name t)
 
   let cu t = match expect_impl t with Loaded (cu, _) | Unloaded cu -> cu
 

@@ -14,16 +14,12 @@
 
 (library
  (name stdlib_stable)
- (wrapped false)
+ (public_name ocaml.stdlib_stable)
  (modes byte native)
  (flags
-  (-strict-sequence
-   -principal
+  (:standard
+   -strict-sequence
    -absname
-   -w
-   +a-4-9-40-41-42-44-45-48-66
-   -warn-error
-   A
    -bin-annot
    -safe-string
    -strict-formats
@@ -42,9 +38,3 @@
   (with-stdout-to
    to_install.sexp
    (run "%{first-dep}" "stdlib_stable"))))
-
-(install
- (files
-  (include to_install.sexp))
- (section lib)
- (package ocaml))

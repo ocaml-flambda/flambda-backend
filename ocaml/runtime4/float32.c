@@ -61,6 +61,9 @@
 
 CAML_STATIC_ASSERT(sizeof(float) == sizeof(int32_t));
 
+#define Max_custom_array_wosize          (Max_wosize - 1)
+#define Max_unboxed_float32_array_wosize (Max_custom_array_wosize * (sizeof(intnat) / sizeof(float)))
+
 intnat caml_float32_compare_unboxed(float f, float g)
 {
   /* If one or both of f and g is NaN, order according to the convention
@@ -574,10 +577,10 @@ CAMLprim value caml_make_unboxed_float32_vect(value len)
   /* This is only used on 64-bit targets. */
 
   mlsize_t num_elements = Long_val(len);
-  if (num_elements > Max_wosize) caml_invalid_argument("Array.make");
+  if (num_elements > Max_unboxed_float32_array_wosize) caml_invalid_argument("Array.make");
 
   /* [num_fields] does not include the custom operations field. */
-  mlsize_t num_fields = (num_elements + 1) / 2;
+  mlsize_t num_fields = num_elements / 2 + num_elements % 2;
 
   return caml_alloc_custom(&caml_unboxed_float32_array_ops[num_elements % 2],
                            num_fields * sizeof(value), 0, 0);

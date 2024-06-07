@@ -799,7 +799,7 @@ let emit_global_label s =
   emit_global_label_for_symbol lbl
 
 let move (src : Reg.t) (dst : Reg.t) =
-  let distinct = src.loc <> dst.loc in
+  let distinct = not (Reg.same_loc src dst) in
   begin match src.typ, src.loc, dst.typ, dst.loc with
   | Float, Reg _, Float, Reg _
   | Float32, Reg _, Float32, Reg _
@@ -988,6 +988,59 @@ let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
     I.set E res8;
     I.movzx res8 res
 
+let emit_reinterpret_cast (cast : Cmm.reinterpret_cast) i =
+  let distinct = not (Reg.same_loc i.arg.(0) i.res.(0)) in
+  match cast with
+  | Int_of_value | Value_of_int ->
+    if distinct then I.mov (arg i 0) (res i 0)
+  | Float_of_float32 | Float32_of_float ->
+    if distinct then I.movss (arg i 0) (res i 0)
+  | V128_of_v128 ->
+    if distinct then I.movapd (arg i 0) (res i 0)
+  | Float_of_int64 | Int64_of_float -> I.movq (arg i 0) (res i 0)
+  | Float32_of_int32 -> I.movd (arg32 i 0) (res i 0)
+  | Int32_of_float32 -> I.movd (arg i 0) (res32 i 0)
+
+let emit_static_cast (cast : Cmm.static_cast) i =
+  let distinct = not (Reg.same_loc i.arg.(0) i.res.(0)) in
+  match cast with
+  | Float_of_int Float64 -> I.cvtsi2sd (arg i 0) (res i 0)
+  | Int_of_float Float64 -> I.cvttsd2si (arg i 0) (res i 0)
+  | Float_of_int Float32 -> I.cvtsi2ss (arg i 0) (res i 0)
+  | Int_of_float Float32 -> I.cvttss2si (arg i 0) (res i 0)
+  | Float_of_float32 -> I.cvtss2sd (arg i 0) (res i 0)
+  | Float32_of_float -> I.cvtsd2ss (arg i 0) (res i 0)
+  | V128_of_scalar Float64x2 | Scalar_of_v128 Float64x2 ->
+    if distinct then I.movsd (arg i 0) (res i 0)
+  | Scalar_of_v128 Int64x2 | V128_of_scalar Int64x2 ->
+    I.movq (arg i 0) (res i 0)
+  | Scalar_of_v128 Int32x4 -> I.movd (arg i 0) (res32 i 0)
+  | V128_of_scalar Int32x4 -> I.movd (arg32 i 0) (res i 0)
+  | V128_of_scalar Float32x4 ->
+    (* CR mslater: (SIMD) remove cvt once we have unboxed float32 *)
+    I.cvtsd2ss (arg i 0) (res i 0)
+  | Scalar_of_v128 Float32x4 ->
+    (* CR mslater: (SIMD) remove cvt once we have unboxed float32 *)
+    I.cvtss2sd (arg i 0) (res i 0)
+  | Scalar_of_v128 Int16x8 ->
+    (* [movw] and [movzx] cannot operate on vector registers.
+       We must zero extend as the result is an untagged positive int.
+       CR mslater: (SIMD) remove zx once we have unboxed int16 *)
+    I.movd (arg i 0) (res32 i 0);
+    I.movzx (res16 i 0) (res i 0)
+  | Scalar_of_v128 Int8x16 ->
+    (* [movb] and [movzx] cannot operate on vector registers.
+       We must zero extend as the result is an untagged positive int.
+       CR mslater: (SIMD) remove zx once we have unboxed int8 *)
+    I.movd (arg i 0) (res32 i 0);
+    I.movzx (res8 i 0) (res i 0)
+  | V128_of_scalar Int16x8 | V128_of_scalar Int8x16 ->
+    (* [movw] and [movb] cannot operate on vector registers.
+       Moving 32 bits is OK because the argument is an untagged
+       positive int and these operations leave the top bits of the vector unspecified.
+       CR mslater: (SIMD) don't load 32 bits once we have unboxed int16/int8 *)
+    I.movd (arg32 i 0) (res i 0)
+
 let emit_simd_instr op i =
   (match Simd_proc.register_behavior op with
   | R_to_fst ->
@@ -1119,11 +1172,7 @@ let emit_simd_instr op i =
   | SSE2 I32_to_i16 -> I.packssdw (arg i 1) (res i 0)
   | SSE2 I16_to_unsigned_i8 -> I.packuswb (arg i 1) (res i 0)
   | SSE2 I32_to_unsigned_i16 -> I.packusdw (arg i 1) (res i 0)
-  | SSE2 Cast_scalar_f64_i64 -> I.cvtsd2si (arg i 0) (res i 0)
-  | SSE2 Bit_cast_f64_i64 -> I.movq (arg i 0) (res i 0)
-  | SSE2 Bit_cast_i64_f64 -> I.movq (arg i 0) (res i 0)
-  | SSE2 Bit_cast_f32_i32 -> I.movd (arg i 0) (res32 i 0)
-  | SSE2 Bit_cast_i32_f32 -> I.movd (arg32 i 0) (res i 0)
+  | SSE2 Round_current_f64_i64 -> I.cvtsd2si (arg i 0) (res i 0)
   | SSE2 SLL_i16 -> I.psllw (arg i 1) (res i 0)
   | SSE2 SLL_i32 -> I.pslld (arg i 1) (res i 0)
   | SSE2 SLL_i64 -> I.psllq (arg i 1) (res i 0)
@@ -1567,54 +1616,6 @@ let emit_instr ~first ~fallthrough i =
       I.andps (mem64_rip VEC128 (emit_symbol "caml_absf32_mask")) (res i 0)
   | Lop(Ifloatop(width, (Iaddf | Isubf | Imulf | Idivf as floatop))) ->
       instr_for_floatop width floatop (arg i 1) (res i 0)
-  | Lop(Iintofvalue | Ivalueofint | Ivectorcast Bits128) ->
-      move i.arg.(0) i.res.(0)
-  | Lop(Iscalarcast Float32_as_float) ->
-      I.movss (arg i 0) (res i 0)
-  | Lop(Iscalarcast (Float_of_int Float64)) ->
-      I.cvtsi2sd  (arg i 0)  (res i 0)
-  | Lop(Iscalarcast (Float_to_int Float64)) ->
-      I.cvttsd2si (arg i 0) (res i 0)
-  | Lop(Iscalarcast (Float_of_int Float32)) ->
-      I.cvtsi2ss  (arg i 0)  (res i 0)
-  | Lop(Iscalarcast (Float_to_int Float32)) ->
-      I.cvttss2si (arg i 0) (res i 0)
-  | Lop(Iscalarcast Float_of_float32) ->
-      I.cvtss2sd  (arg i 0)  (res i 0)
-  | Lop(Iscalarcast Float_to_float32) ->
-      I.cvtsd2ss  (arg i 0) (res i 0)
-  | Lop(Iscalarcast (V128_of_scalar Float64x2 | V128_to_scalar Float64x2)) ->
-      I.movsd (arg i 0) (res i 0)
-  | Lop(Iscalarcast (V128_to_scalar Int64x2 | V128_of_scalar Int64x2)) ->
-      I.movq (arg i 0) (res i 0)
-  | Lop(Iscalarcast (V128_to_scalar Int32x4)) ->
-      I.movd (arg i 0) (res32 i 0)
-  | Lop(Iscalarcast (V128_of_scalar Int32x4)) ->
-      I.movd (arg32 i 0) (res i 0)
-  | Lop(Iscalarcast (V128_of_scalar Float32x4)) ->
-      (* CR mslater: (SIMD) remove cvt once we have unboxed float32 *)
-      I.cvtsd2ss (arg i 0) (res i 0)
-  | Lop(Iscalarcast (V128_to_scalar Float32x4)) ->
-      (* CR mslater: (SIMD) remove cvt once we have unboxed float32 *)
-      I.cvtss2sd (arg i 0) (res i 0)
-  | Lop(Iscalarcast (V128_to_scalar Int16x8)) ->
-      (* [movw] and [movzx] cannot operate on vector registers.
-         We must zero extend as the result is an untagged positive int.
-         CR mslater: (SIMD) remove zx once we have unboxed int16 *)
-      I.movd (arg i 0) (res32 i 0);
-      I.movzx (res16 i 0) (res i 0)
-  | Lop(Iscalarcast (V128_to_scalar Int8x16)) ->
-      (* [movb] and [movzx] cannot operate on vector registers.
-         We must zero extend as the result is an untagged positive int.
-         CR mslater: (SIMD) remove zx once we have unboxed int8 *)
-      I.movd (arg i 0) (res32 i 0);
-      I.movzx (res8 i 0) (res i 0)
-  | Lop(Iscalarcast (V128_of_scalar Int16x8 | V128_of_scalar Int8x16)) ->
-      (* [movw] and [movb] cannot operate on vector registers.
-         Moving 32 bits is OK because the argument is an untagged
-         positive int and these operations leave the top bits of the vector unspecified.
-         CR mslater: (SIMD) don't load 32 bits once we have unboxed int16/int8 *)
-      I.movd (arg32 i 0) (res i 0)
   | Lop(Iopaque) ->
       assert (i.arg.(0).loc = i.res.(0).loc)
   | Lop(Ispecific(Ilea addr)) ->
@@ -1721,6 +1722,10 @@ let emit_instr ~first ~fallthrough i =
     I.mfence ()
   | Lop (Ispecific (Isimd op)) ->
     emit_simd_instr op i
+  | Lop (Istatic_cast cast) ->
+    emit_static_cast cast i
+  | Lop (Ireinterpret_cast cast) ->
+    emit_reinterpret_cast cast i
   | Lop (Ispecific Ipause) ->
     I.pause ()
   | Lop (Ispecific (Iprefetch { is_write; locality; addr; })) ->

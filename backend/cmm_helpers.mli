@@ -683,6 +683,10 @@ val lsr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
     first argument by. *)
 val asr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
+(** Reinterpret cast functions *)
+
+val int64_as_float : dbg:Debuginfo.t -> expression -> expression
+
 (** Conversions functions between integers and floats. *)
 
 val int_of_float : dbg:Debuginfo.t -> expression -> expression
@@ -1063,3 +1067,5 @@ val setfield_unboxed_int32 : ternary_primitive
 val setfield_unboxed_float32 : ternary_primitive
 
 val setfield_unboxed_int64_or_nativeint : ternary_primitive
+
+val dls_get : dbg:Debuginfo.t -> expression

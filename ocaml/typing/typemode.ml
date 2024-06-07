@@ -18,8 +18,8 @@ let transl_mode_annots modes =
         (* CR zqian: We should interpret other mode names (global, shared, once)
            as well. We can't do that yet because of the CR below. *)
         | "local" -> (
-          match acc.locality with
-          | None -> { acc with locality = Some Local }
+          match acc.areality with
+          | None -> { acc with areality = Some Local }
           | Some _ -> raise (Error (loc, Duplicated_mode Areality)))
         | "unique" -> (
           match acc.uniqueness with

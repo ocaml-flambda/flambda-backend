@@ -1,5 +1,5 @@
 (* TEST
- include stable;
+ include stdlib_upstream_compatible;
  {
    expect;
  }{
@@ -30,15 +30,6 @@ Line 1, characters 15-19:
 Error: Layout void is more experimental than allowed by the enabled layouts extension.
        You must enable -extension layouts_alpha to use this feature.
 |}];;
-
-type t_non_null_value : non_null_value;;
-[%%expect{|
-Line 1, characters 24-38:
-1 | type t_non_null_value : non_null_value;;
-                            ^^^^^^^^^^^^^^
-Error: Layout non_null_value is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
-|}]
 
 (******************************************************************)
 (* Test 1: Allow non-representable function args/returns in types *)
@@ -107,7 +98,7 @@ module M1 = struct
 
   type q = t s
 
-  let f1 () : 'a s = { a = fun x -> Stable.Float_u.abs x }
+  let f1 () : 'a s = { a = fun x -> Stdlib_upstream_compatible.Float_u.abs x }
   let f2 () : 'a s = { a = fun x -> x ^ "!" }
   let f3 () : 'a s = { a = fun x -> x + 1 }
 end;;
@@ -117,7 +108,7 @@ module M1 :
     type t : any
     type ('a : any) s = { a : 'a -> 'a; }
     type q = t s
-    val f1 : unit -> Stable.Float_u.t s
+    val f1 : unit -> Stdlib_upstream_compatible.Float_u.t s
     val f2 : unit -> string s
     val f3 : unit -> int s
   end
@@ -130,7 +121,7 @@ module M1 = struct
 
   type q = t s
 
-  let f1 () : 'a s = A (fun x -> Stable.Float_u.abs x)
+  let f1 () : 'a s = A (fun x -> Stdlib_upstream_compatible.Float_u.abs x)
   let f2 () : 'a s = A (fun x -> x ^ "!")
   let f3 () : 'a s = A (fun x -> x + 1)
 end;;
@@ -140,7 +131,7 @@ module M1 :
     type t : any
     type ('a : any) s = A of ('a -> 'a)
     type q = t s
-    val f1 : unit -> Stable.Float_u.t s
+    val f1 : unit -> Stdlib_upstream_compatible.Float_u.t s
     val f2 : unit -> string s
     val f3 : unit -> int s
   end
@@ -153,7 +144,7 @@ module M1 = struct
 
   type q = t s
 
-  let f1 () : 'a s = A { a = fun x -> Stable.Float_u.abs x }
+  let f1 () : 'a s = A { a = fun x -> Stdlib_upstream_compatible.Float_u.abs x }
   let f2 () : 'a s = A { a = fun x -> x ^ "!" }
   let f3 () : 'a s = A { a = fun x -> x + 1 }
 end;;
@@ -163,7 +154,7 @@ module M1 :
     type t : any
     type ('a : any) s = A of { a : 'a -> 'a; }
     type q = t s
-    val f1 : unit -> Stable.Float_u.t s
+    val f1 : unit -> Stdlib_upstream_compatible.Float_u.t s
     val f2 : unit -> string s
     val f3 : unit -> int s
   end
@@ -179,7 +170,7 @@ module M1 = struct
   let f0 () = A {a = (fun x y -> x)}
   let f1 () = A {a = (fun x y -> x + 1)}
   let f2 () = A {a = (fun x y -> x ^ "!")}
-  let f3 () = A {a = (fun x y -> Stable.Float_u.abs x)}
+  let f3 () = A {a = (fun x y -> Stdlib_upstream_compatible.Float_u.abs x)}
   let f4 () = A {a = (fun x y -> x + y)}
   let f5 () = A {a = (fun x y -> x ^ y)}
 end;;
@@ -192,7 +183,7 @@ module M1 :
     val f0 : unit -> 'a s
     val f1 : unit -> int s
     val f2 : unit -> string s
-    val f3 : unit -> Stable.Float_u.t s
+    val f3 : unit -> Stdlib_upstream_compatible.Float_u.t s
     val f4 : unit -> int s
     val f5 : unit -> string s
   end
@@ -208,7 +199,7 @@ module M1 = struct
   let f0 () = A (fun x y -> x)
   let f1 () = A (fun x y -> x + 1)
   let f2 () = A (fun x y -> x ^ "!")
-  let f3 () = A (fun x y -> Stable.Float_u.abs x)
+  let f3 () = A (fun x y -> Stdlib_upstream_compatible.Float_u.abs x)
   let f4 () = A (fun x y -> x + y)
   let f5 () = A (fun x y -> x ^ y)
 end
@@ -221,7 +212,7 @@ module M1 :
     val f0 : unit -> 'a s
     val f1 : unit -> int s
     val f2 : unit -> string s
-    val f3 : unit -> Stable.Float_u.t s
+    val f3 : unit -> Stdlib_upstream_compatible.Float_u.t s
     val f4 : unit -> int s
     val f5 : unit -> string s
   end
@@ -246,18 +237,19 @@ module type S1 =
 module M1 = struct
   type ('a : any) s = A : { a: 'a -> 'b -> 'a } -> 'a s
 
-  let f1 () = A {a = (fun x y -> Stable.Float_u.abs x)}
+  let f1 () = A {a = (fun x y -> Stdlib_upstream_compatible.Float_u.abs x)}
 end;;
 
 [%%expect{|
-Line 4, characters 52-53:
-4 |   let f1 () = A {a = (fun x y -> Stable.Float_u.abs x)}
-                                                        ^
+Line 4, characters 72-73:
+4 |   let f1 () = A {a = (fun x y -> Stdlib_upstream_compatible.Float_u.abs x)}
+                                                                            ^
 Error: This expression has type ('a : value)
-       but an expression was expected of type Stable.Float_u.t = float#
-       The layout of Stable.Float_u.t is float64, because
+       but an expression was expected of type
+         Stdlib_upstream_compatible.Float_u.t = float#
+       The layout of Stdlib_upstream_compatible.Float_u.t is float64, because
          it is the primitive float64 type float#.
-       But the layout of Stable.Float_u.t must be a sublayout of value, because
+       But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value, because
          of the definition of s at line 2, characters 2-55.
 |}]
 
@@ -280,54 +272,57 @@ module type S1 =
 module M1 = struct
   type ('a : any) s = A : ('a -> 'b -> 'a) -> 'a s
 
-  let f1 () = A (fun x y -> Stable.Float_u.abs x)
+  let f1 () = A (fun x y -> Stdlib_upstream_compatible.Float_u.abs x)
 end;;
 
 [%%expect{|
-Line 4, characters 47-48:
-4 |   let f1 () = A (fun x y -> Stable.Float_u.abs x)
-                                                   ^
+Line 4, characters 67-68:
+4 |   let f1 () = A (fun x y -> Stdlib_upstream_compatible.Float_u.abs x)
+                                                                       ^
 Error: This expression has type ('a : value)
-       but an expression was expected of type Stable.Float_u.t = float#
-       The layout of Stable.Float_u.t is float64, because
+       but an expression was expected of type
+         Stdlib_upstream_compatible.Float_u.t = float#
+       The layout of Stdlib_upstream_compatible.Float_u.t is float64, because
          it is the primitive float64 type float#.
-       But the layout of Stable.Float_u.t must be a sublayout of value, because
+       But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value, because
          of the definition of s at line 2, characters 2-50.
 |}]
 
 module M1 = struct
   type ('a : any) s = A : ('a : any) 'b. { a: 'a -> 'b -> 'a } -> 'a s
 
-  let f6 () = A {a = (fun x y -> Stable.Float_u.add x y)}
+  let f6 () = A {a = (fun x y -> Stdlib_upstream_compatible.Float_u.add x y)}
 end;;
 
 [%%expect{|
-Line 4, characters 54-55:
-4 |   let f6 () = A {a = (fun x y -> Stable.Float_u.add x y)}
-                                                          ^
+Line 4, characters 74-75:
+4 |   let f6 () = A {a = (fun x y -> Stdlib_upstream_compatible.Float_u.add x y)}
+                                                                              ^
 Error: This expression has type ('a : value)
-       but an expression was expected of type Stable.Float_u.t = float#
-       The layout of Stable.Float_u.t is float64, because
+       but an expression was expected of type
+         Stdlib_upstream_compatible.Float_u.t = float#
+       The layout of Stdlib_upstream_compatible.Float_u.t is float64, because
          it is the primitive float64 type float#.
-       But the layout of Stable.Float_u.t must be a sublayout of value, because
+       But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value, because
          of the definition of s at line 2, characters 2-70.
 |}]
 
 module M1 = struct
   type ('a : any) s = A : ('a : any) 'b. ('a -> 'b -> 'a) -> 'a s
 
-  let f6 () = A (fun x y -> Stable.Float_u.add x y)
+  let f6 () = A (fun x y -> Stdlib_upstream_compatible.Float_u.add x y)
 end;;
 
 [%%expect{|
-Line 4, characters 49-50:
-4 |   let f6 () = A (fun x y -> Stable.Float_u.add x y)
-                                                     ^
+Line 4, characters 69-70:
+4 |   let f6 () = A (fun x y -> Stdlib_upstream_compatible.Float_u.add x y)
+                                                                         ^
 Error: This expression has type ('a : value)
-       but an expression was expected of type Stable.Float_u.t = float#
-       The layout of Stable.Float_u.t is float64, because
+       but an expression was expected of type
+         Stdlib_upstream_compatible.Float_u.t = float#
+       The layout of Stdlib_upstream_compatible.Float_u.t is float64, because
          it is the primitive float64 type float#.
-       But the layout of Stable.Float_u.t must be a sublayout of value, because
+       But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value, because
          of the definition of s at line 2, characters 2-65.
 |}]
 
@@ -610,14 +605,7 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 
 type ('a : any) any4 = Any4 of 'a
 [%%expect{|
-Line 1, characters 23-33:
-1 | type ('a : any) any4 = Any4 of 'a
-                           ^^^^^^^^^^
-Error: Constructor argument types must have a representable layout.
-       The layout of 'a is any, because
-         of the annotation on 'a in the declaration of the type any4.
-       But the layout of 'a must be representable, because
-         it's the type of a constructor field.
+type 'a any4 = Any4 of 'a
 |}];;
 
 (************************************************************)
@@ -714,19 +702,20 @@ Error: Polymorphic variant constructor argument types must have layout value.
 module M8_2f = struct
   let foo x =
     match x with
-    | `Baz 42 -> Stable.Float_u.of_float 3.14
+    | `Baz 42 -> Stdlib_upstream_compatible.Float_u.of_float 3.14
     | `Bar v -> v
-    | `Bas i -> Stable.Float_u.of_float 3.14
+    | `Bas i -> Stdlib_upstream_compatible.Float_u.of_float 3.14
 end;;
 [%%expect {|
 Line 5, characters 16-17:
 5 |     | `Bar v -> v
                     ^
 Error: This expression has type ('a : value)
-       but an expression was expected of type Stable.Float_u.t = float#
-       The layout of Stable.Float_u.t is float64, because
+       but an expression was expected of type
+         Stdlib_upstream_compatible.Float_u.t = float#
+       The layout of Stdlib_upstream_compatible.Float_u.t is float64, because
          it is the primitive float64 type float#.
-       But the layout of Stable.Float_u.t must be a sublayout of value, because
+       But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value, because
          it's the type of the field of a polymorphic variant.
 |}];;
 
@@ -2158,14 +2147,14 @@ module M6 : sig
   val f : ('a. 'a -> unit) -> unit
 end = struct
   let f (g : ('a : any). 'a -> unit) =
-    ignore (g (Stable.Float_u.of_float 3.14)); ignore (g "hello"); ignore (g 5); ()
+    ignore (g (Stdlib_upstream_compatible.Float_u.of_float 3.14)); ignore (g "hello"); ignore (g 5); ()
 end
 
 [%%expect{|
 Lines 3-6, characters 6-3:
 3 | ......struct
 4 |   let f (g : ('a : any). 'a -> unit) =
-5 |     ignore (g (Stable.Float_u.of_float 3.14)); ignore (g "hello"); ignore (g 5); ()
+5 |     ignore (g (Stdlib_upstream_compatible.Float_u.of_float 3.14)); ignore (g "hello"); ignore (g 5); ()
 6 | end
 Error: Signature mismatch:
        Modules do not match:
@@ -2487,4 +2476,81 @@ Line 1, characters 13-47:
                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The primitive [%sendcache] is used in an invalid declaration.
        The declaration contains argument/return types with the wrong layout.
+|}]
+
+(*********************************************************)
+(* Test 43: GADT refinement works on layouts as expected *)
+
+type ('a : any) t_gadt_simple =
+  | Float64 : ('a : float64) t_gadt_simple
+
+let f_match_allowed (type a : any) (x : a t_gadt_simple) : int =
+  match x with
+  | Float64 -> 1;;
+[%%expect{|
+type ('a : any) t_gadt_simple = Float64 : ('a : float64). 'a t_gadt_simple
+val f_match_allowed : ('a : any). 'a t_gadt_simple -> int = <fun>
+|}]
+
+let not_magic  (type a : any) (x : a t_gadt_simple) : 'b =
+  match x with
+  | _ -> .
+[%%expect{|
+Line 3, characters 4-5:
+3 |   | _ -> .
+        ^
+Error: This match case could not be refuted.
+       Here is an example of a value that would reach it: Float64
+|}]
+
+type ('a : any) t =
+  | UFloat : float# t
+  | Float : float t
+  | Int : int t
+
+let make_pi (type a : any) (x : a t) : unit -> a =
+  match x with
+  | UFloat -> fun () -> #3.14
+  | Float -> fun () -> 3.14
+  | Int -> fun () -> 3;;
+[%%expect{|
+type ('a : any) t = UFloat : float# t | Float : float t | Int : int t
+val make_pi : ('a : any). 'a t -> unit -> 'a = <fun>
+|}]
+
+type ('a : any) repr =
+  | Float64 : ('a : float64) repr
+  | Value : ('a : value) repr
+
+let lpoly_id (type a : any) (x : a repr) : a -> a =
+  match x with
+  | Float64 -> fun x -> x
+  | Value -> fun x -> x
+[%%expect{|
+type ('a : any) repr = Float64 : ('a : float64). 'a repr | Value : 'a repr
+val lpoly_id : ('a : any). 'a repr -> 'a -> 'a = <fun>
+|}]
+
+type 'a s = 'a
+
+module M = struct
+  type t : immediate
+end
+
+module N = struct
+  type ('a,'b) eq =
+    | Refl : ('a, 'a) eq
+
+  let f (x : (M.t, 'a s) eq) : int =
+    match x with
+    | Refl -> 42
+end
+[%%expect{|
+type 'a s = 'a
+module M : sig type t : immediate end
+module N :
+  sig
+    type ('a, 'b) eq = Refl : ('a, 'a) eq
+    val f : (M.t, M.t s) eq -> int
+  end
 |}]

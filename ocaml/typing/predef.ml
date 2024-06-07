@@ -400,13 +400,13 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind:(Jkind.float64 ~why:(Primitive ident_unboxed_float))
        ~jkind_annotation:Float64
   |> add_type ident_unboxed_nativeint
-       ~jkind:(Jkind.word ~why:(Primitive ident_unboxed_nativeint))
+       ~jkind:(Jkind.add_mode_crossing (Jkind.word ~why:(Primitive ident_unboxed_nativeint)))
        ~jkind_annotation:Word
   |> add_type ident_unboxed_int32
-       ~jkind:(Jkind.bits32 ~why:(Primitive ident_unboxed_int32))
+       ~jkind:(Jkind.add_mode_crossing (Jkind.bits32 ~why:(Primitive ident_unboxed_int32)))
        ~jkind_annotation:Bits32
   |> add_type ident_unboxed_int64
-       ~jkind:(Jkind.bits64 ~why:(Primitive ident_unboxed_int64))
+       ~jkind:(Jkind.add_mode_crossing (Jkind.bits64 ~why:(Primitive ident_unboxed_int64)))
        ~jkind_annotation:Bits64
   |> add_type ident_bytes
   |> add_type ident_unit

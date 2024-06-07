@@ -401,13 +401,15 @@ let translate_jump_to_continuation ~dbg_with_inlined:dbg env res apply types
         let cont = Env.get_cmm_continuation env exn_handler in
         [Cmm.Push cont]
     in
+    let args = C.remove_skipped_args args types in
     let args, free_vars, env, res, _ = C.simple_list ~dbg env res args in
     let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     let cmm, free_vars = wrap (C.cexit cont args trap_actions) free_vars in
     cmm, free_vars, res
   else
     Misc.fatal_errorf "Types (%a) do not match arguments of@ %a"
-      (Format.pp_print_list ~pp_sep:Format.pp_print_space Printcmm.machtype)
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space
+         (To_cmm_env.print_param_type Printcmm.machtype))
       types Apply_cont.print apply
 
 (* A call to the return continuation of the current block simply is the return
@@ -643,7 +645,10 @@ and let_cont_not_inlined env res k handler body =
           (C.remove_vars_with_machtype free_vars_of_handler vars)
       in
       ( C.create_ccatch ~rec_flag:false ~body
-          ~handlers:[C.handler ~dbg catch_id vars handler is_cold],
+          ~handlers:
+            [ C.handler ~dbg catch_id
+                (C.remove_skipped_params vars)
+                handler is_cold ],
         free_vars,
         res )
   in
@@ -733,7 +738,7 @@ and let_cont_rec env res invariant_params conts body =
         let continuation_arg_tys =
           Continuation_handler.pattern_match' handler
             ~f:(fun params ~num_normal_occurrences_of_params:_ ~handler:_ ->
-              List.map C.machtype_of_kinded_parameter
+              List.map C.param_machtype_of_kinded_parameter
                 (Bound_parameters.to_list
                    (Bound_parameters.append invariant_params params)))
         in
@@ -741,7 +746,9 @@ and let_cont_rec env res invariant_params conts body =
       conts_to_handlers env
   in
   (* Generate variables for the invariant params *)
-  let env, invariant_vars = C.bound_parameters env invariant_params in
+  let env, invariant_vars =
+    C.continuation_bound_parameters env invariant_params
+  in
   (* Translate each continuation handler *)
   let conts_to_handlers, res =
     Continuation.Map.fold
@@ -770,7 +777,9 @@ and let_cont_rec env res invariant_params conts body =
             (C.remove_vars_with_machtype free_vars_of_handler vars)
         in
         let id = Env.get_cmm_continuation env k in
-        C.handler ~dbg id vars handler false :: handlers, free_vars)
+        ( C.handler ~dbg id (C.remove_skipped_params vars) handler false
+          :: handlers,
+          free_vars ))
       conts_to_handlers ([], free_vars_of_body)
   in
   let cmm = C.create_ccatch ~rec_flag:true ~body ~handlers in
@@ -781,7 +790,7 @@ and continuation_handler env res handler =
   Continuation_handler.pattern_match' handler
     ~f:(fun params ~num_normal_occurrences_of_params:_ ~handler ->
       let arity = Bound_parameters.arity params in
-      let env, vars = C.bound_parameters env params in
+      let env, vars = C.continuation_bound_parameters env params in
       let expr, free_vars_of_handler, res = expr env res handler in
       vars, arity, expr, free_vars_of_handler, res)
 
@@ -918,10 +927,18 @@ and apply_cont env res apply_cont =
       then
         let env, res =
           List.fold_left2
-            (fun (env, res) param ->
-              bind_var_to_simple ~dbg_with_inlined env res
-                (Bound_parameter.var param)
-                ~num_normal_occurrences_of_bound_vars:handler_params_occurrences)
+            (fun (env, res) param arg ->
+              match[@ocaml.warning "-4"]
+                Flambda_kind.With_subkind.kind (Bound_parameter.kind param)
+              with
+              | Rec_info ->
+                (* Skip depth variables/parameters *)
+                env, res
+              | _ ->
+                bind_var_to_simple ~dbg_with_inlined env res
+                  (Bound_parameter.var param)
+                  ~num_normal_occurrences_of_bound_vars:
+                    handler_params_occurrences arg)
             (env, res) handler_params args
         in
         let env =

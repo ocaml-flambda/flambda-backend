@@ -1,7 +1,7 @@
 (* TEST
  readonly_files = "gen_u_array.ml test_gen_u_array.ml";
  modules = "${readonly_files}";
- include stable;
+ include stdlib_upstream_compatible;
  flambda2;
  {
    bytecode;
@@ -47,6 +47,7 @@ module Nativeint_u_array0 : Gen_u_array.S0
   type ('a : any) array_t = 'a array
   type element_arg = unit -> element_t
   type t = element_t array
+  let max_length = Sys.max_unboxed_nativeint_array_length
   external length : ('a : word). 'a array -> int = "%array_length"
   external get: ('a : word). 'a array -> int -> 'a = "%array_safe_get"
   let get t i = let a = get t i in fun () -> a
@@ -73,7 +74,7 @@ module Nativeint_u_array_boxed = Test_gen_u_array.Make_boxed (struct
   module M = Nativeint_u_array
   module I = Nativeint_I
   module E = struct
-    open Stable.Nativeint_u
+    open Stdlib_upstream_compatible.Nativeint_u
     let to_boxed x = to_nativeint (x ())
     let of_boxed x () = of_nativeint x
   end
@@ -189,7 +190,7 @@ let () =
 
 (* expression and patterns *)
 let () =
-  let ( = ) = Stable.Nativeint_u.equal in
+  let ( = ) = Stdlib_upstream_compatible.Nativeint_u.equal in
   (* match statement *)
   let d = [| #1n; #2n |] in
   (match d with

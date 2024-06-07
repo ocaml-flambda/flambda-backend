@@ -30,6 +30,7 @@ module type S0 = sig
     t -> int -> t -> int -> int -> unit
   val empty : unit -> t
   val compare_element: element_arg -> element_arg -> int
+  val max_length : int
 end
 
 
@@ -47,7 +48,6 @@ module type S = sig
   * val make_float: int -> float array
   *   [@@ocaml.deprecated
   *     "Use Array.create_float/ArrayLabels.create_float instead."] *)
-
 
   val init : int -> (int -> element_arg) -> t
   val make_matrix : int -> int -> element_arg -> t array

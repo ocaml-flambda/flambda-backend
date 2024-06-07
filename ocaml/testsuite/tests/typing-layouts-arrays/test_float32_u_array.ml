@@ -48,6 +48,7 @@ module Float32_u_array0 : Gen_u_array.S0
   type ('a : any) array_t = 'a array
   type element_arg = unit -> element_t
   type t = element_t array
+  let max_length = Sys.max_unboxed_float32_array_length
   external length : ('a : float32). 'a array -> int = "%array_length"
   external get: ('a : float32). 'a array -> int -> 'a = "%array_safe_get"
   let get t i = let a = get t i in fun () -> a
@@ -65,7 +66,7 @@ module Float32_u_array0 : Gen_u_array.S0
     "caml_array_blit" "caml_unboxed_float32_vect_blit"
   let empty () = [||]
   external to_boxed : ('a : float32) -> (float32[@local_opt]) = "%box_float32"
-  let compare_element x y = Float32.compare (to_boxed (x ())) (to_boxed (y ()))
+  let compare_element x y = Beta.Float32.compare (to_boxed (x ())) (to_boxed (y ()))
 end
 
 module Float32_u_array = Gen_u_array.Make (Float32_u_array0)

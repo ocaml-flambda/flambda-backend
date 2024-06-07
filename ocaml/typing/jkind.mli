@@ -54,11 +54,8 @@ module Sort : Jkind_intf.Sort with type const = Jkind_types.Sort.const
 
 type sort = Sort.t
 
-(** The layout of a type describes its memory layout. A layout is either the
-    indeterminate [Any], a sort, which is a concrete memory layout, or
-    [Non_null_value], which is a sublayout of the sort [Value] describing types
-    that do not allow the concrete value null. [Non_null_value] is also the
-    layout of "classical" OCaml values used by the upstream compiler. *)
+(* The layout of a type describes its memory layout. A layout is either the
+   indeterminate [Any] or a sort, which is a concrete memory layout. *)
 module Layout : sig
   module Const : sig
     type t = (Types.type_expr, Sort.const) Jkind_types.Layout.layout
@@ -131,7 +128,6 @@ type const = Jkind_types.const =
   | Word
   | Bits32
   | Bits64
-  | Non_null_value
 
 val const_of_user_written_annotation :
   context:annotation_context -> Jane_syntax.Jkind.annotation -> const
@@ -158,20 +154,28 @@ val immediate64 : why:immediate64_creation_reason -> t
 (** We know for sure that values of types of this jkind are always immediate *)
 val immediate : why:immediate_creation_reason -> t
 
-(** This is the jkind of unboxed 64-bit floats.  They have sort Float64. *)
+(** This is the jkind of unboxed 64-bit floats.  They have sort
+    Float64. Mode-crosses. *)
 val float64 : why:float64_creation_reason -> t
 
-(** This is the jkind of unboxed 32-bit floats.  They have sort Float32. *)
+(** This is the jkind of unboxed 32-bit floats.  They have sort
+    Float32. Mode-crosses. *)
 val float32 : why:float32_creation_reason -> t
 
-(** This is the jkind of unboxed native-sized integers. They have sort Word. *)
+(** This is the jkind of unboxed native-sized integers. They have sort
+    Word. Does not mode-cross. *)
 val word : why:word_creation_reason -> t
 
-(** This is the jkind of unboxed 32-bit integers. They have sort Bits32. *)
+(** This is the jkind of unboxed 32-bit integers. They have sort Bits32. Does
+    not mode-cross. *)
 val bits32 : why:bits32_creation_reason -> t
 
-(** This is the jkind of unboxed 64-bit integers. They have sort Bits64. *)
+(** This is the jkind of unboxed 64-bit integers. They have sort Bits64. Does
+    not mode-cross. *)
 val bits64 : why:bits64_creation_reason -> t
+
+(** Take an existing [t] and add an ability to mode-cross along all the axes. *)
+val add_mode_crossing : t -> t
 
 (******************************)
 (* construction *)
@@ -300,6 +304,12 @@ val set_printtyp_path : (Format.formatter -> Path.t -> unit) -> unit
 val has_imported_history : t -> bool
 
 val update_reason : t -> creation_reason -> t
+
+(* Mark the jkind as having produced a compiler warning. *)
+val with_warning : t -> t
+
+(* Whether this jkind has produced a compiler warning. *)
+val has_warned : t -> bool
 
 (******************************)
 (* relations *)

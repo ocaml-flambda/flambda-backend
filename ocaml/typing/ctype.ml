@@ -2302,23 +2302,6 @@ let unification_jkind_check env ty jkind =
   | Delay_checks r -> r := (ty,jkind) :: !r
   | Skip_checks -> ()
 
-exception Incompatible_with_erasability_requirements of
-  Ident.t option * Location.t
-
-let () =
-  Location.register_error_of_exn (function
-  | Incompatible_with_erasability_requirements (id, loc) ->
-    let format_id ppf = function
-      | Some id -> Format.fprintf ppf " in %s" (Ident.name id)
-      | None -> ()
-    in
-    Some (Location.errorf ~loc
-      "@[Usage of layout immediate/immediate64%a can't be erased \
-      for compatibility with upstream OCaml.@; This error is produced due to \
-      the use of -extension-universe (no_extensions|upstream_compatible).@]"
-      format_id id)
-  | _ -> None)
-
 let check_and_update_generalized_ty_jkind ?name ~loc ty =
   let immediacy_check jkind =
     let is_immediate jkind =
@@ -2331,26 +2314,34 @@ let check_and_update_generalized_ty_jkind ?name ~loc ty =
                | _ -> false)
     in
     if Language_extension.erasable_extensions_only ()
-      && is_immediate jkind
+      && is_immediate jkind && not (Jkind.has_warned jkind)
     then
-      raise (Incompatible_with_erasability_requirements (name, loc))
-    else ()
+      let id =
+        match name with
+        | Some id -> Ident.name id
+        | None -> "<unknown>"
+      in
+      Location.prerr_warning loc (Warnings.Incompatible_with_upstream
+        (Warnings.Immediate_erasure id));
+      Jkind.with_warning jkind
+    else jkind
+  in
+  let generalization_check level jkind =
+    if level = generic_level then
+      Jkind.(update_reason jkind (Generalized (name, loc)))
+    else jkind
   in
   let rec inner ty =
     let level = get_level ty in
-    if level = generic_level && try_mark_node ty then begin
+    if try_mark_node ty then begin
       begin match get_desc ty with
       | Tvar ({ jkind; _ } as r) ->
-        immediacy_check jkind;
-        let new_jkind =
-          Jkind.(update_reason jkind (Generalized (name, loc)))
-        in
+        let new_jkind = immediacy_check jkind in
+        let new_jkind = generalization_check level new_jkind in
         set_type_desc ty (Tvar {r with jkind = new_jkind})
       | Tunivar ({ jkind; _ } as r) ->
-        immediacy_check jkind;
-        let new_jkind =
-          Jkind.(update_reason jkind (Generalized (name, loc)))
-        in
+        let new_jkind = immediacy_check jkind in
+        let new_jkind = generalization_check level new_jkind in
         set_type_desc ty (Tunivar {r with jkind = new_jkind})
       | _ -> ()
       end;
@@ -3344,7 +3335,10 @@ let unify1_var env t1 t2 =
     | _ -> assert false
   in
   occur_for Unify env t1 t2;
-  match occur_univar_for Unify env t2 with
+  match
+    occur_univar_for Unify env t2;
+    unification_jkind_check env t2 jkind
+  with
   | () ->
       begin
         try
@@ -3353,7 +3347,6 @@ let unify1_var env t1 t2 =
         with Escape e ->
           raise_for Unify (Escape e)
       end;
-      unification_jkind_check env t2 jkind;
       link_type t1 t2;
       true
   | exception Unify_trace _ when in_pattern_mode () ->
@@ -3374,6 +3367,18 @@ let unify3_var env jkind1 t1' t2 t2' =
         occur_univar ~inj_only:true !env t2';
         record_equation t1' t2';
       end
+
+(* This is used to check whether we should add a gadt equation refining a
+   Tconstr's jkind during pattern unification. *)
+let constr_jkind_refinable env t jkind =
+  let snap = Btype.snapshot () in
+  let refinable =
+    match unification_jkind_check env t jkind with
+    | () -> false
+    | exception Unify_trace _ -> true
+  in
+  Btype.backtrack snap;
+  refinable
 
 (*
    1. When unifying two non-abbreviated types, one type is made a link
@@ -3502,6 +3507,23 @@ and unify3 env t1 t1' t2 t2' =
     (Tunivar { jkind = k1 }, Tunivar { jkind = k2 }) ->
       unify_univar_for Unify t1' t2' k1 k2 !univar_pairs;
       link_type t1' t2'
+  (* Before layouts, the following two cases were unnecessary because unifying a
+     [Tconstr] and a [Tvar] couldn't refine the [Tconstr] in any interesting
+     way. *)
+  | (Tconstr (path,[],_), Tvar { jkind })
+    when is_instantiable !env ~for_jkind_eqn:false path
+      && can_generate_equations ()
+      && constr_jkind_refinable !env t1' jkind ->
+      reify env t2';
+      record_equation t1' t2';
+      add_gadt_equation env path t2'
+  | (Tvar { jkind }, Tconstr (path,[],_))
+    when is_instantiable !env ~for_jkind_eqn:false path
+      && can_generate_equations ()
+      && constr_jkind_refinable !env t2' jkind ->
+      reify env t1';
+      record_equation t1' t2';
+      add_gadt_equation env path t1'
   | (Tvar { jkind }, _) ->
       unify3_var env jkind t1' t2 t2'
   | (_, Tvar { jkind }) ->

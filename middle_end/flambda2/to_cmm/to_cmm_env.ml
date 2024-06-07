@@ -26,10 +26,14 @@ type expr_with_info =
     free_vars : free_vars
   }
 
+type 'a param_type =
+  | Param of 'a
+  | Skip_param
+
 type cont =
   | Jump of
       { cont : Lambda.static_label;
-        param_types : Cmm.machtype list
+        param_types : Cmm.machtype param_type list
       }
   | Inline of
       { handler_params : Bound_parameters.t;
@@ -166,6 +170,10 @@ type translation_result =
   }
 
 (* Printing *)
+
+let print_param_type print_typ ppf = function
+  | Param typ -> print_typ ppf typ
+  | Skip_param -> Format.fprintf ppf "skip"
 
 let print_extra_info ppf = function
   | Untag e -> Format.fprintf ppf "Untag(%a)" Printcmm.expression e

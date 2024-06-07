@@ -1,5 +1,5 @@
 (* TEST
- include stable;
+ include stdlib_upstream_compatible;
  {
    expect;
  }{
@@ -29,16 +29,6 @@ Line 1, characters 14-18:
 1 | type t_void : void;;
                   ^^^^
 Error: Layout void is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
-|}]
-
-type t_non_null_value : non_null_value;;
-
-[%%expect{|
-Line 1, characters 24-38:
-1 | type t_non_null_value : non_null_value;;
-                            ^^^^^^^^^^^^^^
-Error: Layout non_null_value is more experimental than allowed by the enabled layouts extension.
        You must enable -extension layouts_alpha to use this feature.
 |}]
 
@@ -296,10 +286,10 @@ val f : r -> int = <fun>
 |}]
 
 type rf = { fieldf : ('a : float64). 'a -> 'a }
-let f { fieldf } = fieldf (Stable.Float_u.of_float 3.14);;
+let f { fieldf } = fieldf (Stdlib_upstream_compatible.Float_u.of_float 3.14);;
 [%%expect {|
 type rf = { fieldf : ('a : float64). 'a -> 'a; }
-val f : rf -> Stable.Float_u.t = <fun>
+val f : rf -> Stdlib_upstream_compatible.Float_u.t = <fun>
 |}]
 
 let f { field } = field "hello"

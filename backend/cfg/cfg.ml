@@ -48,6 +48,16 @@ type basic_block =
 type codegen_option =
   | Reduce_code_size
   | No_CSE
+  | Assume_zero_alloc of
+      { strict : bool;
+        never_returns_normally : bool;
+        never_raises : bool;
+        loc : Location.t
+      }
+  | Check_zero_alloc of
+      { strict : bool;
+        loc : Location.t
+      }
 
 let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
  fun cmm_options ->
@@ -57,8 +67,12 @@ let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
     match hd with
     | No_CSE -> No_CSE :: of_cmm_codegen_option tl
     | Reduce_code_size -> Reduce_code_size :: of_cmm_codegen_option tl
-    | Use_linscan_regalloc | Assume_zero_alloc _ | Check_zero_alloc _ ->
-      of_cmm_codegen_option tl)
+    | Assume_zero_alloc { strict; never_returns_normally; never_raises; loc } ->
+      Assume_zero_alloc { strict; never_returns_normally; never_raises; loc }
+      :: of_cmm_codegen_option tl
+    | Check_zero_alloc { strict; loc } ->
+      Check_zero_alloc { strict; loc } :: of_cmm_codegen_option tl
+    | Use_linscan_regalloc -> of_cmm_codegen_option tl)
 
 type t =
   { blocks : basic_block Label.Tbl.t;
@@ -284,20 +298,9 @@ let dump_op ppf = function
   | Floatop (Float32, op) ->
     Format.fprintf ppf "float32op %a" Printmach.floatop op
   | Csel _ -> Format.fprintf ppf "csel"
-  | Valueofint -> Format.fprintf ppf "valueofint"
-  | Intofvalue -> Format.fprintf ppf "intofvalue"
-  | Vectorcast Bits128 -> Format.fprintf ppf "vec128->vec128"
-  | Scalarcast Float32_as_float -> Format.fprintf ppf "float32 as float"
-  | Scalarcast (Float_of_int Float64) -> Format.fprintf ppf "int->float"
-  | Scalarcast (Float_to_int Float64) -> Format.fprintf ppf "float->int"
-  | Scalarcast (Float_of_int Float32) -> Format.fprintf ppf "int->float32"
-  | Scalarcast (Float_to_int Float32) -> Format.fprintf ppf "float32->int"
-  | Scalarcast Float_of_float32 -> Format.fprintf ppf "float32->float"
-  | Scalarcast Float_to_float32 -> Format.fprintf ppf "float->float32"
-  | Scalarcast (V128_to_scalar ty) ->
-    Format.fprintf ppf "%s->scalar" (Primitive.vec128_name ty)
-  | Scalarcast (V128_of_scalar ty) ->
-    Format.fprintf ppf "scalar->%s" (Primitive.vec128_name ty)
+  | Reinterpret_cast cast ->
+    Format.fprintf ppf "%s" (Printcmm.reinterpret_cast cast)
+  | Static_cast cast -> Format.fprintf ppf "%s" (Printcmm.static_cast cast)
   | Specific _ -> Format.fprintf ppf "specific"
   | Probe_is_enabled { name } -> Format.fprintf ppf "probe_is_enabled %s" name
   | Opaque -> Format.fprintf ppf "opaque"
@@ -494,12 +497,14 @@ let is_pure_operation : operation -> bool = function
   | Intop_atomic _ -> false
   | Floatop _ -> true
   | Csel _ -> true
-  | Vectorcast _ -> true
-  | Scalarcast _ -> true
+  | Reinterpret_cast
+      ( V128_of_v128 | Float32_of_float | Float32_of_int32 | Float_of_float32
+      | Float_of_int64 | Int64_of_float | Int32_of_float32 ) ->
+    true
+  | Static_cast _ -> true
   (* Conservative to ensure valueofint/intofvalue are not eliminated before
      emit. *)
-  | Valueofint -> false
-  | Intofvalue -> false
+  | Reinterpret_cast (Value_of_int | Int_of_value) -> false
   | Probe_is_enabled _ -> true
   | Opaque -> false
   | Begin_region -> false
@@ -543,8 +548,7 @@ let same_location (r1 : Reg.t) (r2 : Reg.t) =
 
 let is_noop_move instr =
   match instr.desc with
-  | Op (Move | Spill | Reload | Vectorcast _) ->
-    same_location instr.arg.(0) instr.res.(0)
+  | Op (Move | Spill | Reload) -> same_location instr.arg.(0) instr.res.(0)
   | Op (Csel _) -> (
     match instr.res.(0).loc with
     | Unknown -> false
@@ -556,10 +560,9 @@ let is_noop_move instr =
   | Op
       ( Const_int _ | Const_float _ | Const_float32 _ | Const_symbol _
       | Const_vec128 _ | Stackoffset _ | Load _ | Store _ | Intop _
-      | Intop_imm _ | Intop_atomic _ | Floatop _ | Opaque | Valueofint
-      | Intofvalue | Scalarcast _ | Probe_is_enabled _ | Specific _
-      | Name_for_debugger _ | Begin_region | End_region | Dls_get | Poll
-      | Alloc _ )
+      | Intop_imm _ | Intop_atomic _ | Floatop _ | Opaque | Reinterpret_cast _
+      | Static_cast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
+      | Begin_region | End_region | Dls_get | Poll | Alloc _ )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
     false
 
