@@ -39,17 +39,15 @@ let loc ?(wrap_out = fun ppf f -> f ppf) ~unknown ppf loc typ =
       wrap_out ppf (fun ppf -> fprintf ppf "ds[%i]" s)
 
 let reg ppf r =
-  if not (Reg.anonymous r) then
-    fprintf ppf "%s" (Reg.name r)
-  else
-    fprintf ppf "%s"
-      (match (r.typ : machtype_component) with
-      | Val -> "V"
-      | Addr -> "A"
-      | Int -> "I"
-      | Float -> "F"
-      | Vec128 -> "X"
-      | Float32 -> "S");
+  if not (Reg.anonymous r) then fprintf ppf "%s:" (Reg.name r);
+  fprintf ppf "%s"
+    (match (r.typ : machtype_component) with
+    | Val -> "V"
+    | Addr -> "A"
+    | Int -> "I"
+    | Float -> "F"
+    | Vec128 -> "X"
+    | Float32 -> "S");
   fprintf ppf "/%i" r.stamp;
   loc
     ~wrap_out:(fun ppf f -> fprintf ppf "[%t]" f)
@@ -227,23 +225,8 @@ let operation' ?(print_reg = reg) op arg ppf res =
     let len = Array.length arg in
     fprintf ppf "csel %a ? %a : %a"
       (test tst) arg reg arg.(len-2) reg arg.(len-1)
-  | Ivalueofint -> fprintf ppf "valueofint %a" reg arg.(0)
-  | Iintofvalue -> fprintf ppf "intofvalue %a" reg arg.(0)
-  | Ivectorcast Bits128 ->
-    fprintf ppf "vec128->vec128 %a"
-    reg arg.(0)
-  | Iscalarcast (Float_of_int Float64) -> fprintf ppf "int->float %a" reg arg.(0)
-  | Iscalarcast (Float_to_int Float64) -> fprintf ppf "float->int %a" reg arg.(0)
-  | Iscalarcast (Float_of_int Float32) -> fprintf ppf "int->float32 %a" reg arg.(0)
-  | Iscalarcast (Float_to_int Float32) -> fprintf ppf "float32->int %a" reg arg.(0)
-  | Iscalarcast (Float_of_float32) -> fprintf ppf "float32->float %a" reg arg.(0)
-  | Iscalarcast (Float_to_float32) -> fprintf ppf "float->float32 %a" reg arg.(0)
-  | Iscalarcast (V128_of_scalar ty) ->
-    fprintf ppf "scalar->%s %a"
-      (Primitive.vec128_name ty) reg arg.(0)
-  | Iscalarcast (V128_to_scalar ty) ->
-    fprintf ppf "%s->scalar %a"
-      (Primitive.vec128_name ty) reg arg.(0)
+  | Ireinterpret_cast cast -> fprintf ppf "%s %a" (Printcmm.reinterpret_cast cast) reg arg.(0)
+  | Istatic_cast cast -> fprintf ppf "%s %a" (Printcmm.static_cast cast) reg arg.(0)
   | Iopaque -> fprintf ppf "opaque %a" reg arg.(0)
   | Iname_for_debugger { ident; which_parameter; regs = r } ->
     fprintf ppf "%a holds the value of %a%s"

@@ -7,8 +7,7 @@ type t_any   : any
 type t_value : value
 type t_imm   : immediate
 type t_imm64 : immediate64
-type t_void  : void
-type t_non_null_value : non_null_value;;
+type t_void  : void;;
 
 (*********************************************************)
 (* Test 1: Simple with type constraints respect jkinds. *)
@@ -26,7 +25,6 @@ type t_value : value
 type t_imm : immediate
 type t_imm64 : immediate64
 type t_void : void
-type t_non_null_value : non_null_value
 module type S1 = sig type ('a : void) t type s end
 type ('a : void) t1
 module type S1' = sig type ('a : void) t = t_void t1 type s = t_void t1 end
@@ -40,7 +38,7 @@ Line 1, characters 32-34:
 Error: The type constraints are not consistent.
        Type ('a : value) is not compatible with type ('b : void)
        The layout of 'a is void, because
-         of the definition of t at line 11, characters 2-20.
+         of the definition of t at line 10, characters 2-20.
        But the layout of 'a must overlap with value, because
          the type argument of list has layout value.
 |}];;
@@ -54,7 +52,7 @@ Line 1, characters 27-42:
 Error: The layout of type t_void is void, because
          of the definition of t_void at line 5, characters 0-19.
        But the layout of type t_void must be a sublayout of value, because
-         of the definition of s at line 12, characters 2-8.
+         of the definition of s at line 11, characters 2-8.
 |}]
 
 module type S1_2 = sig
@@ -96,37 +94,6 @@ Error: Signature mismatch:
        The type ('a : value) is not equal to the type ('a0 : immediate)
        because their layouts are different.
 |}]
-
-module type S1_3 = sig
-  type ('a : non_null_value) t
-  type s
-  type u : non_null_value
-end;;
-[%%expect {|
-module type S1_3 =
-  sig type ('a : non_null_value) t type s type u : non_null_value end
-|}]
-
-module type S1_3' = S1_3 with type 'a t = 'a list and type s = t_non_null_value;;
-[%%expect {|
-module type S1_3' =
-  sig
-    type ('a : non_null_value) t = 'a list
-    type s = t_non_null_value
-    type u : non_null_value
-  end
-|}];;
-
-module type S1_3'' = S1_3 with type u = t_value;;
-[%%expect {|
-Line 1, characters 31-47:
-1 | module type S1_3'' = S1_3 with type u = t_value;;
-                                   ^^^^^^^^^^^^^^^^
-Error: The layout of type t_value is value, because
-         of the definition of t_value at line 2, characters 0-20.
-       But the layout of type t_value must be a sublayout of non_null_value, because
-         of the definition of u at line 4, characters 2-25.
-|}];;
 
 (************************************************************************)
 (* Test 2: with type constraints for fixed types (the complicated case of
@@ -583,16 +550,6 @@ Line 2, characters 2-34:
 2 |   val f : ('a : float64). 'a -> 'a
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   Module M defines a function whose first argument is not a value, f .
-|}]
-
-module type S = sig
-  val f : ('a : non_null_value). 'a -> 'a
-end
-
-module rec M : S = M;;
-[%%expect{|
-module type S = sig val f : ('a : non_null_value). 'a -> 'a end
-module rec M : S
 |}]
 
 (*******************************)

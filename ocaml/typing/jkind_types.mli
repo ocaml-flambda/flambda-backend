@@ -74,13 +74,14 @@ module Sort : sig
   val equate_tracking_mutation : t -> t -> equate_result
 
   val get : t -> t
+
+  val to_string : t -> string
 end
 
 module Layout : sig
   type 'sort layout =
     | Sort of 'sort
     | Any
-    | Non_null_value
 
   module Const : sig
     type t = Sort.const layout
@@ -97,7 +98,6 @@ module Layout : sig
         | Word
         | Bits32
         | Bits64
-        | Non_null_value
     end
   end
 
@@ -133,7 +133,8 @@ type 'type_expr history =
 
 type 'type_expr t =
   { jkind : 'type_expr Jkind_desc.t;
-    history : 'type_expr history
+    history : 'type_expr history;
+    has_warned : bool
   }
 
 module Const : sig

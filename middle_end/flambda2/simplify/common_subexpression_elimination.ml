@@ -105,39 +105,59 @@ end
 
 let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
     (extra_bindings : EPA.t) extra_equations =
-  let params = List.map params ~f:Bound_parameter.name |> Name.Set.of_list in
+  let params_set =
+    List.map params ~f:Bound_parameter.name |> Name.Set.of_list
+  in
+  let params = List.map params ~f:Bound_parameter.simple in
   let is_param simple =
     Simple.pattern_match simple
-      ~name:(fun name ~coercion:_ -> Name.Set.mem name params)
+      ~name:(fun name ~coercion:_ -> Name.Set.mem name params_set)
       ~const:(fun _ -> false)
   in
   List.fold_left cse_at_each_use ~init:EP.Map.empty
     ~f:(fun eligible (env_at_use, id, cse) ->
       let find_new_name =
+        let find_param simple params =
+          List.find_opt
+            ~f:(fun param ->
+              match
+                TE.get_canonical_simple_exn env_at_use param
+                  ~min_name_mode:NM.normal
+                  ~name_mode_of_existing_simple:NM.normal
+              with
+              | exception Not_found -> false
+              | arg -> Simple.equal arg simple)
+            params
+        in
         match (extra_bindings : EPA.t) with
-        | Empty -> fun _arg -> None
-        | Non_empty { extra_args; extra_params } ->
-          let extra_args = RI.Map.find id extra_args in
-          let rec find_name simple params args =
-            match args, params with
-            | [], [] -> None
-            | [], _ | _, [] ->
-              Misc.fatal_error "Mismatching params and args arity"
-            | arg :: args, param :: params -> (
-              match (arg : EA.t) with
-              | Already_in_scope arg when Simple.equal arg simple ->
-                (* If [param] has an extra equation associated to it, we
-                   shouldn't propagate equations on it as it will mess with the
-                   application of constraints later *)
-                if Name.Map.mem (BP.name param) extra_equations
-                then None
-                else Some (BP.simple param)
-              | Already_in_scope _ | New_let_binding _
-              | New_let_binding_with_named_args _ ->
-                find_name simple params args)
-          in
-          fun arg ->
-            find_name arg (Bound_parameters.to_list extra_params) extra_args
+        | Empty -> fun arg -> find_param arg params
+        | Non_empty { extra_args; extra_params } -> (
+          match RI.Map.find id extra_args with
+          | Invalid -> fun _arg -> None
+          | Ok extra_args -> (
+            let rec find_name simple params args =
+              match args, params with
+              | [], [] -> None
+              | [], _ | _, [] ->
+                Misc.fatal_error "Mismatching params and args arity"
+              | arg :: args, param :: params -> (
+                match (arg : EA.t) with
+                | Already_in_scope arg when Simple.equal arg simple ->
+                  (* If [param] has an extra equation associated to it, we
+                     shouldn't propagate equations on it as it will mess with
+                     the application of constraints later *)
+                  if Name.Map.mem (BP.name param) extra_equations
+                  then None
+                  else Some (BP.simple param)
+                | Already_in_scope _ | New_let_binding _
+                | New_let_binding_with_named_args _ ->
+                  find_name simple params args)
+            in
+            fun arg ->
+              match find_param arg params with
+              | None ->
+                find_name arg (Bound_parameters.to_list extra_params) extra_args
+              | Some _ as r -> r))
       in
       EP.Map.fold
         (fun prim bound_to eligible ->
@@ -230,7 +250,10 @@ let join_one_cse_equation ~cse_at_each_use prim bound_to_map
       let extra_args =
         RI.Map.map (fun simple : EA.t -> Already_in_scope simple) bound_to
       in
-      let extra_bindings = EPA.add extra_bindings ~extra_param ~extra_args in
+      let extra_bindings =
+        EPA.add extra_bindings ~extra_param ~extra_args
+          ~invalids:Apply_cont_rewrite_id.Set.empty
+      in
       let extra_equations =
         (* For the primitives Is_int and Get_tag, they're strongly linked to
            their argument: additional information on the cse parameter should

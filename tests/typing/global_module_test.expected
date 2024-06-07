@@ -1,0 +1,28 @@
+
+Tests of subst:
+
+X { (X Unit) } = Unit
+Y{X} { (X Unit) } = Y[X:Unit]
+Y[X:Unit] { (X String) } = Y[X:Unit]
+Y[X:Unit] { (Y[X:Unit] String) } = String
+M{X}{Y:Y{X}} { (X A) } = M[X:A]{Y:Y[X:A]}
+M{X}{Y:Y{X}} { (X A) (Y B) } = M[X:A][Y:B]
+X { (I Unit) } = X
+Y{X} { (I Unit) } = Y{X}
+Print{Conv[O:String]:Conv[O:String]{I}}{I}
+  { (I Unit) }
+  =
+  Print[I:Unit]{Conv[O:String]:Conv[I:Unit][O:String]}
+
+Tests of check:
+
+check { } [] = true
+check { } [ X ] = true
+check { (X String) } [] = false
+check { (X String) } [ X ] = true
+check { (I Unit) } [ I ] = true
+check { (I Unit) } [ O ] = false
+check { (I Unit) } [ Conv{I}{O}; I ] = true
+check { (Conv Opaque{I}) (O String) } [ Conv{I}{O}; I; O ] = true
+check { (Conv[O:String] Opaque{I}) } [ Conv{I}{O}; I; O ] = false
+check { (Conv[O:String] Opaque{I}) } [ Conv[O:String]{I}; I ] = true

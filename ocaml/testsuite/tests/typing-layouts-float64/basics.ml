@@ -1,6 +1,6 @@
 (* TEST
  flambda2;
- include stable;
+ include stdlib_upstream_compatible;
  {
    expect;
  }
@@ -222,20 +222,12 @@ Error: Type t_float64 has layout float64.
    constructor args. *)
 type t5_4 = A of t_float64;;
 [%%expect{|
-Line 1, characters 12-26:
-1 | type t5_4 = A of t_float64;;
-                ^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type t5_4 = A of t_float64
 |}];;
 
 type t5_5 = A of int * t_float64;;
 [%%expect{|
-Line 1, characters 12-32:
-1 | type t5_5 = A of int * t_float64;;
-                ^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type t5_5 = A of int * t_float64
 |}];;
 
 type t5_6 = A of t_float64 [@@unboxed];;
@@ -251,11 +243,7 @@ type ('a : float64) t5_7 = A of int
 type ('a : float64) t5_8 = A of 'a;;
 [%%expect{|
 type ('a : float64) t5_7 = A of int
-Line 2, characters 27-34:
-2 | type ('a : float64) t5_8 = A of 'a;;
-                               ^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+type ('a : float64) t5_8 = A of 'a
 |}]
 
 type ('a : float64, 'b : float64) t5_9 = {x : 'a; y : 'b; z : 'a}
@@ -290,14 +278,9 @@ type ('a : float64) t5_13 = {x : 'a; y : float#};;
 type ('a : float64) t5_13 = { x : 'a; y : float#; }
 |}];;
 
-(* Mixed records are allowed, but are prohibited outside of alpha. *)
 type 'a t5_14 = {x : 'a; y : float#};;
 [%%expect{|
-Line 1, characters 0-36:
-1 | type 'a t5_14 = {x : 'a; y : float#};;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_beta to use this feature.
+type 'a t5_14 = { x : 'a; y : float#; }
 |}];;
 
 type ufref = { mutable contents : float# };;
@@ -570,10 +553,10 @@ Line 1, characters 29-35:
 Error: Don't know how to untag this type. Only int can be untagged.
 |}];;
 
-(******************************************************)
-(* Test 11: Allow float64 in some extensible variants *)
+(**************************************************)
+(* Test 11: float64 banned in extensible variants *)
 
-(* Currently these are only supported in alpha *)
+(* CR layouts v5.9: Allow mixed extensible variant blocks. *)
 
 type t11_1 = ..
 
@@ -583,8 +566,7 @@ type t11_1 = ..
 Line 3, characters 14-28:
 3 | type t11_1 += A of t_float64;;
                   ^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}]
 
 type t11_1 += B of float#;;
@@ -592,8 +574,7 @@ type t11_1 += B of float#;;
 Line 1, characters 14-25:
 1 | type t11_1 += B of float#;;
                   ^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}]
 
 type ('a : float64) t11_2 = ..
@@ -608,8 +589,7 @@ type 'a t11_2 += A of int
 Line 5, characters 17-24:
 5 | type 'a t11_2 += B of 'a;;
                      ^^^^^^^
-Error: The enabled layouts extension does not allow for mixed constructors.
-       You must enable -extension layouts_beta to use this feature.
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}]
 
 (* Some extensible variants aren't supported, though. *)
@@ -846,7 +826,7 @@ Error: This expression has type t_float64
 (***********************************************************)
 (* Test 14: unboxed float records work like normal records *)
 
-module FU = Stable.Float_u
+module FU = Stdlib_upstream_compatible.Float_u
 
 type t14_1 = { x : float#; y : float# }
 
@@ -889,7 +869,7 @@ let f14_4 r =
 
 
 [%%expect{|
-module FU = Stable.Float_u
+module FU = Stdlib_upstream_compatible.Float_u
 type t14_1 = { x : float#; y : float#; }
 val f14_1 : t14_1 -> FU.t = <fun>
 val r14 : t14_1 = {x = <abstr>; y = <abstr>}

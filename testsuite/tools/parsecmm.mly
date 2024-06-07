@@ -369,10 +369,10 @@ unaryop:
     LOAD chunk                  { Cload {memory_chunk=$2;
                                          mutability=Asttypes.Mutable;
                                          is_atomic=false} }
-  | FLOATOFINT                  { Cscalarcast (Float_of_int Float64) }
-  | INTOFFLOAT                  { Cscalarcast (Float_to_int Float64) }
-  | VALUEOFINT                  { Cvalueofint }
-  | INTOFVALUE                  { Cintofvalue }
+  | FLOATOFINT                  { Cstatic_cast (Float_of_int Float64) }
+  | INTOFFLOAT                  { Cstatic_cast (Int_of_float Float64) }
+  | VALUEOFINT                  { Creinterpret_cast Value_of_int }
+  | INTOFVALUE                  { Creinterpret_cast Int_of_value }
   | RAISE                       { Craise $1 }
   | ABSF                        { Cabsf Float64 }
 ;

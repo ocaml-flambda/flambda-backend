@@ -284,8 +284,7 @@ let build_initial_env add_type add_extension empty_env =
             begin
               match Jkind.Const.get_layout const with
               | Sort Value -> ()
-              | Non_null_value | Any
-              | Sort (Void | Float32 | Float64 | Word | Bits32 | Bits64) ->
+              | Any | Sort (Void | Float32 | Float64 | Word | Bits32 | Bits64) ->
                   raise_error ()
             end
         | _ -> raise_error ())
@@ -393,13 +392,13 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind:(Jkind.Primitive.float64 ~why:(Primitive ident_unboxed_float))
        ~jkind_annotation:Jkind.Const.Primitive.float64
   |> add_type ident_unboxed_nativeint
-       ~jkind:(Jkind.Primitive.word ~why:(Primitive ident_unboxed_nativeint))
+       ~jkind:(Jkind.add_mode_crossing (Jkind.Primitive.word ~why:(Primitive ident_unboxed_nativeint)))
        ~jkind_annotation:Jkind.Const.Primitive.word
   |> add_type ident_unboxed_int32
-       ~jkind:(Jkind.Primitive.bits32 ~why:(Primitive ident_unboxed_int32))
+       ~jkind:(Jkind.add_mode_crossing (Jkind.Primitive.bits32 ~why:(Primitive ident_unboxed_int32)))
        ~jkind_annotation:Jkind.Const.Primitive.bits32
   |> add_type ident_unboxed_int64
-       ~jkind:(Jkind.Primitive.bits64 ~why:(Primitive ident_unboxed_int64))
+       ~jkind:(Jkind.add_mode_crossing (Jkind.Primitive.bits64 ~why:(Primitive ident_unboxed_int64)))
        ~jkind_annotation:Jkind.Const.Primitive.bits64
   |> add_type ident_bytes
   |> add_type ident_unit

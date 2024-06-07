@@ -336,6 +336,10 @@ let[@inline] mem_adj_set state reg1 reg2 =
 
 let[@inline] adj_list _state reg = reg.Reg.interf
 
+let[@inline] interferes_with_adj state reg1 reg2 =
+  mem_adj_set state reg1 reg2
+  || List.exists reg1.Reg.interf ~f:(Reg.same_phys_reg reg2)
+
 let[@inline] add_edge state u v =
   let is_interesting_reg reg =
     match reg.Reg.loc with
@@ -466,11 +470,13 @@ let[@inline] rec find_alias state reg =
   else reg
 
 let[@inline] add_alias _state v u =
-  if not (same_reg_class v u)
+  (* We should never generate moves between registers of different types.
+     Bit-casting operations have specific instructions. *)
+  if not (Reg.types_are_compatible v u)
   then
     fatal
-      "trying to create an alias between %a and %a but they are in different \
-       classes"
+      "trying to create an alias between %a and %a but they have incompatible \
+       types"
       Printmach.reg v Printmach.reg u;
   v.Reg.irc_alias <- Some u
 

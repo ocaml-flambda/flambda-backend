@@ -1,6 +1,6 @@
 (* TEST
  flambda2;
- include stable;
+ include stdlib_upstream_compatible;
  {
    flags = "-extension layouts_beta";
    native;
@@ -13,10 +13,10 @@
 (*****************************************)
 (* Prelude: Functions on unboxed numbers *)
 
-module Float_u = Stable.Float_u
-module Int32_u = Stable.Int32_u
-module Int64_u = Stable.Int64_u
-module Nativeint_u = Stable.Nativeint_u
+module Float_u = Stdlib_upstream_compatible.Float_u
+module Int32_u = Stdlib_upstream_compatible.Int32_u
+module Int64_u = Stdlib_upstream_compatible.Int64_u
+module Nativeint_u = Stdlib_upstream_compatible.Nativeint_u
 
 (******************************)
 (* Test: large mixed blocks *)

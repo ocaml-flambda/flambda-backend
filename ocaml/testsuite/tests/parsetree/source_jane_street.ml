@@ -198,10 +198,10 @@ let matches =
 (********************)
 (* Unboxed literals *)
 
-module Float_u = Stable.Float_u
-module Int32_u = Stable.Int32_u
-module Int64_u = Stable.Int64_u
-module Nativeint_u = Stable.Nativeint_u
+module Float_u = Stdlib_upstream_compatible.Float_u
+module Int32_u = Stdlib_upstream_compatible.Int32_u
+module Int64_u = Stdlib_upstream_compatible.Int64_u
+module Nativeint_u = Stdlib_upstream_compatible.Nativeint_u
 
 let test_float s f =
   Format.printf "%s: %f\n" s (Float_u.to_float f); Format.print_flush ()

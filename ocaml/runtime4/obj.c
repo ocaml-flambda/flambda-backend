@@ -230,12 +230,22 @@ CAMLprim value caml_obj_truncate (value v, value newsize)
      beyond new_wosize in v, erase them explicitly so that the GC
      can darken them as appropriate. */
   if (tag < No_scan_tag) {
-    for (i = new_wosize; i < wosize; i++){
+    mlsize_t scannable_wosize = Scannable_wosize_hd(hd);
+    for (i = new_wosize; i < scannable_wosize; i++){
       caml_modify(&Field(v, i), Val_unit);
 #ifdef DEBUG
       Field (v, i) = Debug_free_truncate;
 #endif
     }
+#ifdef DEBUG
+    /* Unless we're in debug mode, it's not necessary to empty out
+       the non-scannable suffix, as the GC knows not to look there
+       anyway.
+     */
+    for (; i < wosize; i++) {
+      Field (v, i) = Debug_free_truncate;
+    }
+#endif
   }
   /* We must use an odd tag for the header of the leftovers so it does not
      look like a pointer because there may be some references to it in
@@ -355,3 +365,19 @@ struct queue_chunk {
   struct queue_chunk *next;
   value entries[ENTRIES_PER_QUEUE_CHUNK];
 };
+
+/* Return 0 for uniform blocks and 1+n for a mixed block with scannable prefix
+   len n.
+*/
+CAMLprim value caml_succ_scannable_prefix_len (value v) {
+#ifdef NATIVE_CODE
+  return Val_long(Reserved_val(v));
+#else
+  reserved_t reserved = Reserved_val(v);
+  if (reserved == Faux_mixed_block_sentinel) {
+    return Val_long(Scannable_wosize_val(v) + 1);
+  } else {
+    return Val_long(0);
+  }
+#endif /* NATIVE_CODE */
+}

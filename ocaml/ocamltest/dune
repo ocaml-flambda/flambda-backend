@@ -58,7 +58,7 @@
  (name main)
  (modes byte)
  (flags
-  (:standard -principal -cclib "-I../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
+  (:standard -cclib "-I../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
  (modules options main)
  (libraries ocamltest_core_and_plugin))
 

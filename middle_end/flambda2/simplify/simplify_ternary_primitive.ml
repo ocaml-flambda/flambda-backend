@@ -44,13 +44,15 @@ let simplify_array_set (array_set_kind : P.Array_set_kind.t)
         | Immediates
         (* We don't expect specialisation regressions from Immediates to
            Values. *)
-        | Naked_floats | Naked_int32s | Naked_int64s | Naked_nativeints ->
+        | Naked_floats | Naked_float32s | Naked_int32s | Naked_int64s
+        | Naked_nativeints ->
           Misc.fatal_errorf
             "Didn't expect array specialisation to yield array kind %a from \
              array set kind %a:@ %a"
             P.Array_kind.print array_kind P.Array_set_kind.print array_set_kind
             Named.print original_term)
       | Naked_floats -> Naked_floats
+      | Naked_float32s -> Naked_float32s
       | Naked_int32s -> Naked_int32s
       | Naked_int64s -> Naked_int64s
       | Naked_nativeints -> Naked_nativeints

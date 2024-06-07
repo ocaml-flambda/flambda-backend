@@ -418,7 +418,7 @@ external modf : t -> t * t = "caml_modf_float32"
 (** [modf f] returns the pair of the fractional and integral
     part of [f]. *)
 
-val compare : t -> t -> int
+external compare : t -> t -> int = "%compare"
 (** [compare x y] returns [0] if [x] is equal to [y], a negative integer if [x]
     is less than [y], and a positive integer if [x] is greater than
     [y]. [compare] treats [nan] as equal to itself and less than any other float

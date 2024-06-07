@@ -1,7 +1,7 @@
 (* TEST
  readonly_files = "gen_u_array.ml test_gen_u_array.ml";
  modules = "${readonly_files}";
- include stable;
+ include stdlib_upstream_compatible;
  flambda2;
  {
    bytecode;
@@ -46,6 +46,7 @@ module Int64_u_array0 : Gen_u_array.S0
   type ('a : any) array_t = 'a array
   type element_arg = unit -> element_t
   type t = element_t array
+  let max_length = Sys.max_unboxed_int64_array_length
   external length : ('a : bits64). 'a array -> int = "%array_length"
   external get: ('a : bits64). 'a array -> int -> 'a = "%array_safe_get"
   let get t i = let a = get t i in fun () -> a
@@ -71,7 +72,7 @@ module Int64_u_array_boxed = Test_gen_u_array.Make_boxed (struct
   module M = Int64_u_array
   module I = Int64_I
   module E = struct
-    open Stable.Int64_u
+    open Stdlib_upstream_compatible.Int64_u
     let to_boxed x = to_int64 (x ())
     let of_boxed x () = of_int64 x
   end
@@ -187,7 +188,7 @@ let () =
 
 (* expression and patterns *)
 let () =
-  let ( = ) = Stable.Int64_u.equal in
+  let ( = ) = Stdlib_upstream_compatible.Int64_u.equal in
   (* match statement *)
   let d = [| #1L; #2L |] in
   (match d with

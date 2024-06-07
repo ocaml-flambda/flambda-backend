@@ -45,17 +45,13 @@ module Layout = struct
       match c1, c2 with
       | Sort s1, Sort s2 -> Sort.Const.equal s1 s2
       | Any, Any -> true
-      | Non_null_value, Non_null_value -> true
-      | (Any | Sort _ | Non_null_value), _ -> false
+      | (Any | Sort _), _ -> false
 
     let sub (c1 : t) (c2 : t) : Misc.Le_result.t =
       match c1, c2 with
       | _ when equal c1 c2 -> Equal
       | _, Any -> Less
-      | Non_null_value, Non_null_value -> Equal
-      | Non_null_value, Sort Value -> Less
-      | (Any | Sort _), Non_null_value -> Not_le
-      | (Any | Sort _ | Non_null_value), Sort _ -> Not_le
+      | Any, Sort _ | Sort _, Sort _ -> Not_le
 
     let value = Sort Sort.Const.value
 
@@ -73,12 +69,10 @@ module Layout = struct
 
     let get_sort : t -> Sort.Const.t option = function
       | Sort s -> Some s
-      | Non_null_value -> Some Value
       | Any -> None
 
     let to_string : t -> _ = function
       | Any -> "any"
-      | Non_null_value -> "non_null_value"
       | Sort Void -> "void"
       | Sort Value -> "value"
       | Sort Float64 -> "float64"
@@ -99,7 +93,6 @@ module Layout = struct
         | Word
         | Bits32
         | Bits64
-        | Non_null_value
 
       let to_string = function
         | Any -> "any"
@@ -112,17 +105,13 @@ module Layout = struct
         | Word -> "word"
         | Bits32 -> "bits32"
         | Bits64 -> "bits64"
-        | Non_null_value -> "non_null_value"
     end
   end
 
   type t = Sort.t layout
 
   let of_const const : t =
-    match const with
-    | Sort s -> Sort (Const s)
-    | Any -> Any
-    | Non_null_value -> Non_null_value
+    match const with Sort s -> Sort (Const s) | Any -> Any
 
   let equate_or_equal ~allow_mutation t1 t2 =
     match t1, t2 with
@@ -133,8 +122,7 @@ module Layout = struct
       | Unequal -> false
       | Equal_no_mutation | Equal_mutated_first | Equal_mutated_second -> true)
     | Any, Any -> true
-    | Non_null_value, Non_null_value -> true
-    | (Any | Sort _ | Non_null_value), _ -> false
+    | (Any | Sort _), _ -> false
 
   let sub t1 t2 : Misc.Le_result.t =
     match t1, t2 with
@@ -142,19 +130,12 @@ module Layout = struct
     | _, Any -> Less
     | Any, _ -> Not_le
     | Sort s1, Sort s2 -> if Sort.equate s1 s2 then Equal else Not_le
-    | Non_null_value, Non_null_value -> Equal
-    | Non_null_value, Sort s ->
-      if Sort.equate s (Const Value) then Less else Not_le
-    | Sort _, Non_null_value -> Not_le
 
   let intersection t1 t2 =
     match t1, t2 with
     | _, Any -> Some t1
     | Any, _ -> Some t2
     | Sort s1, Sort s2 -> if Sort.equate s1 s2 then Some t1 else None
-    | Non_null_value, Non_null_value -> Some Non_null_value
-    | Sort s, Non_null_value | Non_null_value, Sort s ->
-      if Sort.equate s (Const Value) then Some Non_null_value else None
 
   let of_new_sort_var () =
     let sort = Sort.new_var () in
@@ -166,7 +147,6 @@ module Layout = struct
     let t ppf = function
       | Any -> fprintf ppf "Any"
       | Sort s -> fprintf ppf "Sort %a" Sort.Debug_printers.t s
-      | Non_null_value -> fprintf ppf "Non_null_value"
   end
 end
 
@@ -241,6 +221,10 @@ module History = struct
     match t.history with Creation Imported -> true | _ -> false
 
   let update_reason t reason = { t with history = Creation reason }
+
+  let with_warning t = { t with has_warned = true }
+
+  let has_warned t = t.has_warned
 end
 
 (* forward declare [Const.t] so we can use it for [Error.t] *)
@@ -298,7 +282,6 @@ module Const = struct
     | Sort Word, _ -> Word
     | Sort Bits32, _ -> Bits32
     | Sort Bits64, _ -> Bits64
-    | Non_null_value, _ -> Non_null_value
 
   let equal
       { layout = lay1;
@@ -327,25 +310,32 @@ module Const = struct
         Modes.less_or_equal modes1 modes2;
         Externality.less_or_equal ext1 ext2 ]
 
+  let not_mode_crossing layout =
+    { layout;
+      modes_upper_bounds = Modes.max;
+      externality_upper_bound = Externality.max
+    }
+
+  let mode_crossing layout =
+    { layout;
+      modes_upper_bounds = Modes.min;
+      externality_upper_bound = Externality.min
+    }
+
   module Primitive = struct
     type nonrec t =
       { jkind : t;
         name : string
       }
 
-    let any = { jkind = max; name = "any" }
+    let any = { jkind = not_mode_crossing Any; name = "any" }
 
-    let value =
-      { jkind = { max with layout = Layout.Const.value }; name = "value" }
+    let value = { jkind = not_mode_crossing Layout.Const.value; name = "value" }
 
-    let void =
-      { jkind =
-          { layout = Layout.Const.void;
-            modes_upper_bounds = Modes.max;
-            externality_upper_bound = Externality.min
-          };
-        name = "void"
-      }
+    let void = { jkind = not_mode_crossing Layout.Const.void; name = "void" }
+
+    let immediate =
+      { jkind = mode_crossing Layout.Const.value; name = "immediate" }
 
     (* [immediate64] describes types that are stored directly (no indirection)
        on 64-bit platforms but indirectly on 32-bit platforms. The key question:
@@ -378,76 +368,27 @@ module Const = struct
        meeting the conditions.
     *)
     let immediate64 =
-      { jkind =
-          { layout = Layout.Const.value;
-            modes_upper_bounds =
-              { locality = Global; linearity = Many; uniqueness = Unique };
-            externality_upper_bound = External64
-          };
+      { jkind = { immediate.jkind with externality_upper_bound = External64 };
         name = "immediate64"
       }
 
-    let immediate =
-      { jkind =
-          { layout = Layout.Const.value;
-            modes_upper_bounds =
-              { locality = Global; linearity = Many; uniqueness = Unique };
-            externality_upper_bound = External
-          };
-        name = "immediate"
-      }
-
+    (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
+       crossing first *)
     let float64 =
-      { jkind =
-          { layout = Layout.Const.float64;
-            modes_upper_bounds =
-              { locality = Global; linearity = Many; uniqueness = Unique };
-            externality_upper_bound = External
-          };
-        name = "float64"
-      }
+      { jkind = mode_crossing Layout.Const.float64; name = "float64" }
 
+    (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
+       crossing first *)
     let float32 =
-      { jkind =
-          { layout = Layout.Const.float32;
-            modes_upper_bounds =
-              { locality = Global; linearity = Many; uniqueness = Unique };
-            externality_upper_bound = External
-          };
-        name = "float32"
-      }
+      { jkind = mode_crossing Layout.Const.float32; name = "float32" }
 
-    let word =
-      { jkind =
-          { layout = Layout.Const.word;
-            modes_upper_bounds = Modes.max;
-            externality_upper_bound = External
-          };
-        name = "word"
-      }
+    let word = { jkind = not_mode_crossing Layout.Const.word; name = "word" }
 
     let bits32 =
-      { jkind =
-          { layout = Layout.Const.bits32;
-            modes_upper_bounds = Modes.max;
-            externality_upper_bound = External
-          };
-        name = "bits32"
-      }
+      { jkind = not_mode_crossing Layout.Const.bits32; name = "bits32" }
 
     let bits64 =
-      { jkind =
-          { layout = Layout.Const.bits64;
-            modes_upper_bounds = Modes.max;
-            externality_upper_bound = External
-          };
-        name = "bits64"
-      }
-
-    let non_null_value =
-      { jkind = { value.jkind with layout = Non_null_value };
-        name = "non_null_value"
-      }
+      { jkind = not_mode_crossing Layout.Const.bits64; name = "bits64" }
 
     let get_all =
       [ any;
@@ -459,8 +400,7 @@ module Const = struct
         float32;
         word;
         bits32;
-        bits64;
-        non_null_value ]
+        bits64 ]
   end
 
   module To_out_jkind_const = struct
@@ -488,8 +428,8 @@ module Const = struct
 
     let get_modal_bounds ~(base : Bounds.t) (actual : Bounds.t) =
       [ get_modal_bound ~le:Locality.Const.le
-          ~to_string:Locality.Const.to_string ~base:base.alloc_bounds.locality
-          actual.alloc_bounds.locality;
+          ~to_string:Locality.Const.to_string ~base:base.alloc_bounds.areality
+          actual.alloc_bounds.areality;
         get_modal_bound ~le:Uniqueness.Const.le
           ~to_string:Uniqueness.Const.to_string
           ~base:base.alloc_bounds.uniqueness actual.alloc_bounds.uniqueness;
@@ -576,7 +516,7 @@ module Const = struct
 
   module ModeParser = struct
     type mode =
-      | Locality of Locality.Const.t
+      | Areality of Locality.Const.t
       | Linearity of Linearity.Const.t
       | Uniqueness of Uniqueness.Const.t
       | Externality of Externality.t
@@ -586,8 +526,8 @@ module Const = struct
         (unparsed_mode : Jane_syntax.Mode_expr.Const.t :> _ Location.loc)
       in
       match name with
-      | "global" -> Locality Global
-      | "local" -> Locality Local
+      | "global" -> Areality Global
+      | "local" -> Areality Local
       | "many" -> Linearity Many
       | "once" -> Linearity Once
       | "unique" -> Uniqueness Unique
@@ -621,19 +561,18 @@ module Const = struct
       | "word" -> Primitive.word.jkind
       | "bits32" -> Primitive.bits32.jkind
       | "bits64" -> Primitive.bits64.jkind
-      | "non_null_value" -> Primitive.non_null_value.jkind
       | _ -> raise ~loc (Unknown_jkind jkind))
     | Mod (jkind, modes) ->
       let base = of_user_written_annotation_unchecked_level jkind in
       let parsed_modes = ModeParser.parse_modes modes in
       let meet_mode jkind (mode : ModeParser.mode) =
         match mode with
-        | Locality locality ->
+        | Areality areality ->
           { jkind with
             modes_upper_bounds =
               { jkind.modes_upper_bounds with
-                locality =
-                  Locality.Const.meet jkind.modes_upper_bounds.locality locality
+                areality =
+                  Locality.Const.meet jkind.modes_upper_bounds.areality areality
               }
           }
         | Linearity linearity ->
@@ -702,6 +641,18 @@ module Jkind_desc = struct
       externality_upper_bound
     }
 
+  let not_mode_crossing layout =
+    { layout;
+      modes_upper_bounds = Modes.max;
+      externality_upper_bound = Externality.max
+    }
+
+  let add_mode_crossing t =
+    { t with
+      modes_upper_bounds = Modes.min;
+      externality_upper_bound = Externality.min
+    }
+
   let max = of_const Const.max
 
   let equate_or_equal ~allow_mutation
@@ -749,7 +700,7 @@ module Jkind_desc = struct
 
   let of_new_sort_var () =
     let layout, sort = Layout.of_new_sort_var () in
-    { max with layout }, sort
+    not_mode_crossing layout, sort
 
   module Primitive = struct
     let any = max
@@ -807,9 +758,6 @@ module Jkind_desc = struct
   let get { layout; modes_upper_bounds; externality_upper_bound } : Desc.t =
     match layout with
     | Any -> Const { layout = Any; modes_upper_bounds; externality_upper_bound }
-    | Non_null_value ->
-      Const
-        { layout = Non_null_value; modes_upper_bounds; externality_upper_bound }
     | Sort s -> (
       match Sort.get s with
       | Const s ->
@@ -830,14 +778,18 @@ end
 
 type t = type_expr Jkind_types.t
 
-let fresh_jkind jkind ~why = { jkind; history = Creation why }
+let fresh_jkind jkind ~why =
+  { jkind; history = Creation why; has_warned = false }
 
 (******************************)
 (* constants *)
 
 module Primitive = struct
   let any_dummy_jkind =
-    { jkind = Jkind_desc.max; history = Creation (Any_creation Dummy_jkind) }
+    { jkind = Jkind_desc.max;
+      history = Creation (Any_creation Dummy_jkind);
+      has_warned = false
+    }
 
   (* CR layouts: Should we be doing more memoization here? *)
   let any ~(why : History.any_creation_reason) =
@@ -845,12 +797,13 @@ module Primitive = struct
     | Dummy_jkind -> any_dummy_jkind (* share this one common case *)
     | _ -> fresh_jkind Jkind_desc.Primitive.any ~why:(Any_creation why)
 
-  let void ~why = fresh_jkind Jkind_desc.Primitive.void ~why:(Void_creation why)
-
   let value_v1_safety_check =
     { jkind = Jkind_desc.Primitive.value;
-      history = Creation (Value_creation V1_safety_check)
+      history = Creation (Value_creation V1_safety_check);
+      has_warned = false
     }
+
+  let void ~why = fresh_jkind Jkind_desc.Primitive.void ~why:(Void_creation why)
 
   let value ~(why : History.value_creation_reason) =
     match why with
@@ -878,6 +831,9 @@ module Primitive = struct
     fresh_jkind Jkind_desc.Primitive.bits64 ~why:(Bits64_creation why)
 end
 
+let add_mode_crossing t =
+  { t with jkind = Jkind_desc.add_mode_crossing t.jkind }
+
 (*** extension requirements ***)
 (* The [annotation_context] parameter can be used to allow annotations / kinds
    in different contexts to be enabled with different extension settings.
@@ -893,7 +849,7 @@ let get_required_layouts_level (context : History.annotation_context)
       ( Value | Immediate | Immediate64 | Any | Float64 | Float32 | Word
       | Bits32 | Bits64 ) ) ->
     Stable
-  | _, (Void | Non_null_value) -> Alpha
+  | _, Void -> Alpha
 
 (******************************)
 (* construction *)
@@ -912,7 +868,8 @@ let of_const ~why
         modes_upper_bounds;
         externality_upper_bound
       };
-    history = Creation why
+    history = Creation why;
+    has_warned = false
   }
 
 let const_of_user_written_annotation ~context Location.{ loc; txt = annot } =
@@ -997,8 +954,6 @@ let default_to_value_and_get
     Const.t =
   match layout with
   | Any -> { layout = Any; modes_upper_bounds; externality_upper_bound }
-  | Non_null_value ->
-    { layout = Non_null_value; modes_upper_bounds; externality_upper_bound }
   | Sort s ->
     { layout = Sort (Sort.default_to_value_and_get s);
       modes_upper_bounds;
@@ -1014,14 +969,12 @@ let get t = Jkind_desc.get t.jkind
 let sort_of_jkind l =
   match get l with
   | Const { layout = Sort s; _ } -> Sort.of_const s
-  | Const { layout = Non_null_value; _ } -> Sort.value
   | Const { layout = Any; _ } -> Misc.fatal_error "Jkind.sort_of_jkind"
   | Var v -> Sort.of_var v
 
 let get_layout jk : Layout.Const.t option =
   match jk.jkind.layout with
   | Any -> Some Any
-  | Non_null_value -> Some Non_null_value
   | Sort s -> (
     match Sort.get s with Const s -> Some (Sort s) | Var _ -> None)
 
@@ -1483,8 +1436,9 @@ end
 (******************************)
 (* relations *)
 
-let equate_or_equal ~allow_mutation { jkind = jkind1; history = _ }
-    { jkind = jkind2; history = _ } =
+let equate_or_equal ~allow_mutation
+    { jkind = jkind1; history = _; has_warned = _ }
+    { jkind = jkind2; history = _; has_warned = _ } =
   Jkind_desc.equate_or_equal ~allow_mutation jkind1 jkind2
 
 (* CR layouts v2.8: Switch this back to ~allow_mutation:false *)
@@ -1530,7 +1484,12 @@ let combine_histories reason lhs rhs =
 let intersection ~reason t1 t2 =
   match Jkind_desc.intersection t1.jkind t2.jkind with
   | None -> Error (Violation.of_ (No_intersection (t1, t2)))
-  | Some jkind -> Ok { jkind; history = combine_histories reason t1 t2 }
+  | Some jkind ->
+    Ok
+      { jkind;
+        history = combine_histories reason t1 t2;
+        has_warned = t1.has_warned || t2.has_warned
+      }
 
 (* this is hammered on; it must be fast! *)
 let check_sub sub super = Jkind_desc.sub sub.jkind super.jkind
@@ -1728,7 +1687,7 @@ module Debug_printers = struct
         lhs_history Jkind_desc.Debug_printers.t rhs_jkind history rhs_history
     | Creation c -> fprintf ppf "Creation (%a)" creation_reason c
 
-  let t ppf ({ jkind; history = h } : t) : unit =
+  let t ppf ({ jkind; history = h; has_warned = _ } : t) : unit =
     fprintf ppf "@[<v 2>{ jkind = %a@,; history = %a }@]"
       Jkind_desc.Debug_printers.t jkind history h
 end

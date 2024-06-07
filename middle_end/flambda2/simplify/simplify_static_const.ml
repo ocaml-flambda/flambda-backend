@@ -180,6 +180,9 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
   | Immutable_float_array fields ->
     rebuild_naked_number_array dacc ~bind_result_sym KS.naked_float
       T.this_naked_float RSC.create_immutable_float_array ~fields
+  | Immutable_float32_array fields ->
+    rebuild_naked_number_array dacc ~bind_result_sym KS.naked_float32
+      T.this_naked_float32 RSC.create_immutable_float32_array ~fields
   | Immutable_int32_array fields ->
     rebuild_naked_number_array dacc ~bind_result_sym KS.naked_int32
       T.this_naked_int32 RSC.create_immutable_int32_array ~fields

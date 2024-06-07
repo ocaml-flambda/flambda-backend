@@ -1321,11 +1321,14 @@ typing/patterns.cmi : \
     parsing/asttypes.cmi
 typing/persistent_env.cmo : \
     utils/warnings.cmi \
+    typing/subst.cmi \
+    typing/shape.cmi \
     utils/misc.cmi \
     parsing/location.cmi \
     utils/load_path.cmi \
     utils/lazy_backtrack.cmi \
     utils/import_info.cmi \
+    typing/ident.cmi \
     utils/consistbl.cmi \
     utils/compilation_unit.cmi \
     file_formats/cmi_format.cmi \
@@ -1333,11 +1336,14 @@ typing/persistent_env.cmo : \
     typing/persistent_env.cmi
 typing/persistent_env.cmx : \
     utils/warnings.cmx \
+    typing/subst.cmx \
+    typing/shape.cmx \
     utils/misc.cmx \
     parsing/location.cmx \
     utils/load_path.cmx \
     utils/lazy_backtrack.cmx \
     utils/import_info.cmx \
+    typing/ident.cmx \
     utils/consistbl.cmx \
     utils/compilation_unit.cmx \
     file_formats/cmi_format.cmx \
@@ -1345,11 +1351,13 @@ typing/persistent_env.cmx : \
     typing/persistent_env.cmi
 typing/persistent_env.cmi : \
     typing/subst.cmi \
+    typing/shape.cmi \
     utils/misc.cmi \
     parsing/location.cmi \
     utils/load_path.cmi \
     utils/lazy_backtrack.cmi \
     utils/import_info.cmi \
+    typing/ident.cmi \
     utils/consistbl.cmi \
     utils/compilation_unit.cmi \
     file_formats/cmi_format.cmi

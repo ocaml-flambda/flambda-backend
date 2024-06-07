@@ -1,0 +1,3 @@
+(tests
+ (names global_module_test)
+ (libraries ocamlcommon))

@@ -245,6 +245,12 @@ let minimize_extra_args_for_one_continuation ~(source_info : T.Acc.t)
           ( Variable.Set.remove alias extra_args_for_aliases,
             Some (alias, exception_param) ))
   in
+  let lets_to_introduce =
+    match exception_handler_first_param_aliased with
+    | None -> Variable.Map.empty
+    | Some (alias, exception_param) ->
+      Variable.Map.singleton alias exception_param
+  in
   let removed_aliased_params_and_extra_params, lets_to_introduce =
     List.fold_left
       (fun (removed, lets_to_introduce) param ->
@@ -274,7 +280,7 @@ let minimize_extra_args_for_one_continuation ~(source_info : T.Acc.t)
               else if Variable.equal alias aliased_to
               then default exception_param
               else default alias))
-      (Variable.Set.empty, Variable.Map.empty)
+      (Variable.Set.empty, lets_to_introduce)
       (Bound_parameters.vars elt.params)
   in
   let recursive_continuation_wrapper :

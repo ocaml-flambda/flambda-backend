@@ -61,7 +61,7 @@ end
 module Mixed_block_flat_element = struct
   type t =
     | Imm
-    | Float
+    | Float_boxed
     | Float64
     | Float32
     | Bits32
@@ -70,7 +70,7 @@ module Mixed_block_flat_element = struct
 
   let from_lambda : Lambda.flat_element -> t = function
     | Imm -> Imm
-    | Float -> Float
+    | Float_boxed -> Float_boxed
     | Float64 -> Float64
     | Float32 -> Float32
     | Bits32 -> Bits32
@@ -79,7 +79,7 @@ module Mixed_block_flat_element = struct
 
   let to_lambda : t -> Lambda.flat_element = function
     | Imm -> Imm
-    | Float -> Float
+    | Float_boxed -> Float_boxed
     | Float64 -> Float64
     | Float32 -> Float32
     | Bits32 -> Bits32
@@ -88,7 +88,7 @@ module Mixed_block_flat_element = struct
 
   let to_string = function
     | Imm -> "Imm"
-    | Float -> "Float"
+    | Float_boxed -> "Float_boxed"
     | Float64 -> "Float64"
     | Float32 -> "Float32"
     | Bits32 -> "Bits32"
@@ -98,7 +98,7 @@ module Mixed_block_flat_element = struct
   let compare t1 t2 =
     match t1, t2 with
     | Imm, Imm
-    | Float, Float
+    | Float_boxed, Float_boxed
     | Float64, Float64
     | Float32, Float32
     | Word, Word
@@ -107,8 +107,8 @@ module Mixed_block_flat_element = struct
       0
     | Imm, _ -> -1
     | _, Imm -> 1
-    | Float, _ -> -1
-    | _, Float -> 1
+    | Float_boxed, _ -> -1
+    | _, Float_boxed -> 1
     | Float64, _ -> -1
     | _, Float64 -> 1
     | Float32, _ -> -1
@@ -122,7 +122,7 @@ module Mixed_block_flat_element = struct
 
   let element_kind = function
     | Imm -> K.value
-    | Float | Float64 -> K.naked_float
+    | Float_boxed | Float64 -> K.naked_float
     | Float32 -> K.naked_float32
     | Bits32 -> K.naked_int32
     | Bits64 -> K.naked_int64
@@ -209,6 +209,7 @@ module Array_kind = struct
     | Immediates
     | Values
     | Naked_floats
+    | Naked_float32s
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
@@ -217,6 +218,7 @@ module Array_kind = struct
     match t with
     | Immediates -> Format.pp_print_string ppf "Immediates"
     | Naked_floats -> Format.pp_print_string ppf "Naked_floats"
+    | Naked_float32s -> Format.pp_print_string ppf "Naked_float32s"
     | Values -> Format.pp_print_string ppf "Values"
     | Naked_int32s -> Format.pp_print_string ppf "Naked_int32s"
     | Naked_int64s -> Format.pp_print_string ppf "Naked_int64s"
@@ -228,6 +230,7 @@ module Array_kind = struct
     match t with
     | Immediates | Values -> K.value
     | Naked_floats -> K.naked_float
+    | Naked_float32s -> K.naked_float32
     | Naked_int32s -> K.naked_int32
     | Naked_int64s -> K.naked_int64
     | Naked_nativeints -> K.naked_nativeint
@@ -237,6 +240,7 @@ module Array_kind = struct
     | Immediates -> Flambda_kind.With_subkind.tagged_immediate
     | Values -> Flambda_kind.With_subkind.any_value
     | Naked_floats -> Flambda_kind.With_subkind.naked_float
+    | Naked_float32s -> Flambda_kind.With_subkind.naked_float32
     | Naked_int32s -> Flambda_kind.With_subkind.naked_int32
     | Naked_int64s -> Flambda_kind.With_subkind.naked_int64
     | Naked_nativeints -> Flambda_kind.With_subkind.naked_nativeint
@@ -244,6 +248,7 @@ module Array_kind = struct
   let for_empty_array t : Empty_array_kind.t =
     match t with
     | Immediates | Values | Naked_floats -> Values_or_immediates_or_naked_floats
+    | Naked_float32s -> Naked_float32s
     | Naked_int32s -> Naked_int32s
     | Naked_int64s -> Naked_int64s
     | Naked_nativeints -> Naked_nativeints
@@ -254,6 +259,7 @@ module Array_set_kind = struct
     | Immediates
     | Values of Init_or_assign.t
     | Naked_floats
+    | Naked_float32s
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
@@ -265,6 +271,7 @@ module Array_set_kind = struct
       Format.fprintf ppf "@[<hov 1>(Values %a)@]" Init_or_assign.print
         init_or_assign
     | Naked_floats -> Format.fprintf ppf "Naked_floats"
+    | Naked_float32s -> Format.pp_print_string ppf "Naked_float32s"
     | Naked_int32s -> Format.pp_print_string ppf "Naked_int32s"
     | Naked_int64s -> Format.pp_print_string ppf "Naked_int64s"
     | Naked_nativeints -> Format.pp_print_string ppf "Naked_nativeints"
@@ -275,6 +282,7 @@ module Array_set_kind = struct
     match t with
     | Immediates | Values _ -> K.value
     | Naked_floats -> K.naked_float
+    | Naked_float32s -> K.naked_float32
     | Naked_int32s -> K.naked_int32
     | Naked_int64s -> K.naked_int64
     | Naked_nativeints -> K.naked_nativeint
@@ -284,6 +292,7 @@ module Array_set_kind = struct
     | Immediates -> Immediates
     | Values _ -> Values
     | Naked_floats -> Naked_floats
+    | Naked_float32s -> Naked_float32s
     | Naked_int32s -> Naked_int32s
     | Naked_int64s -> Naked_int64s
     | Naked_nativeints -> Naked_nativeints
@@ -291,8 +300,8 @@ module Array_set_kind = struct
   let init_or_assign t : Init_or_assign.t =
     match t with
     | Values ia -> ia
-    | Immediates | Naked_floats | Naked_int32s | Naked_int64s | Naked_nativeints
-      ->
+    | Immediates | Naked_floats | Naked_float32s | Naked_int32s | Naked_int64s
+    | Naked_nativeints ->
       Assignment Alloc_mode.For_assignments.heap
 
   let element_kind t =
@@ -300,6 +309,7 @@ module Array_set_kind = struct
     | Immediates -> Flambda_kind.With_subkind.tagged_immediate
     | Values _ -> Flambda_kind.With_subkind.any_value
     | Naked_floats -> Flambda_kind.With_subkind.naked_float
+    | Naked_float32s -> Flambda_kind.With_subkind.naked_float32
     | Naked_int32s -> Flambda_kind.With_subkind.naked_int32
     | Naked_int64s -> Flambda_kind.With_subkind.naked_int64
     | Naked_nativeints -> Flambda_kind.With_subkind.naked_nativeint
@@ -373,6 +383,7 @@ module Duplicate_array_kind = struct
     | Immediates
     | Values
     | Naked_floats of { length : Targetint_31_63.t option }
+    | Naked_float32s of { length : Targetint_31_63.t option }
     | Naked_int32s of { length : Targetint_31_63.t option }
     | Naked_int64s of { length : Targetint_31_63.t option }
     | Naked_nativeints of { length : Targetint_31_63.t option }
@@ -384,6 +395,12 @@ module Duplicate_array_kind = struct
     | Naked_floats { length; } ->
       Format.fprintf ppf
         "@[<hov 1>(Naked_floats@ \
+          @[<hov 1>(length@ %a)@]\
+          )@]"
+        (Misc.Stdlib.Option.print Targetint_31_63.print) length
+    | Naked_float32s { length; } ->
+      Format.fprintf ppf
+        "@[<hov 1>(Naked_float32s@ \
           @[<hov 1>(length@ %a)@]\
           )@]"
         (Misc.Stdlib.Option.print Targetint_31_63.print) length
@@ -411,6 +428,9 @@ module Duplicate_array_kind = struct
     | Immediates, Immediates | Values, Values -> 0
     | Naked_floats { length = length1 }, Naked_floats { length = length2 } ->
       Option.compare Targetint_31_63.compare length1 length2
+    | Naked_float32s { length = length1 }, Naked_float32s { length = length2 }
+      ->
+      Option.compare Targetint_31_63.compare length1 length2
     | Naked_int32s { length = length1 }, Naked_int32s { length = length2 } ->
       Option.compare Targetint_31_63.compare length1 length2
     | Naked_int64s { length = length1 }, Naked_int64s { length = length2 } ->
@@ -424,6 +444,8 @@ module Duplicate_array_kind = struct
     | _, Values -> 1
     | Naked_floats _, _ -> -1
     | _, Naked_floats _ -> 1
+    | Naked_float32s _, _ -> -1
+    | _, Naked_float32s _ -> 1
     | Naked_int32s _, _ -> -1
     | _, Naked_int32s _ -> 1
     | Naked_int64s _, _ -> -1
@@ -539,7 +561,7 @@ module Block_access_kind = struct
     | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
       match field_kind with
       | Imm -> K.With_subkind.tagged_immediate
-      | Float | Float64 -> K.With_subkind.naked_float
+      | Float_boxed | Float64 -> K.With_subkind.naked_float
       | Float32 -> K.With_subkind.naked_float32
       | Bits32 -> K.With_subkind.naked_int32
       | Bits64 -> K.With_subkind.naked_int64
@@ -603,8 +625,8 @@ let reading_from_an_array (array_kind : Array_kind.t)
     (mutable_or_immutable : Mutability.t) =
   let effects : Effects.t =
     match array_kind with
-    | Immediates | Values | Naked_floats | Naked_int32s | Naked_int64s
-    | Naked_nativeints ->
+    | Immediates | Values | Naked_floats | Naked_float32s | Naked_int32s
+    | Naked_int64s | Naked_nativeints ->
       No_effects
   in
   let coeffects =
@@ -915,10 +937,11 @@ type nullary_primitive =
   | Begin_region
   | Begin_try_region
   | Enter_inlined_apply of { dbg : Inlined_debuginfo.t }
+  | Dls_get
 
 let nullary_primitive_eligible_for_cse = function
   | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
-  | Begin_try_region | Enter_inlined_apply _ ->
+  | Begin_try_region | Enter_inlined_apply _ | Dls_get ->
     false
 
 let compare_nullary_primitive p1 p2 =
@@ -931,28 +954,34 @@ let compare_nullary_primitive p1 p2 =
   | Begin_try_region, Begin_try_region -> 0
   | Enter_inlined_apply { dbg = dbg1 }, Enter_inlined_apply { dbg = dbg2 } ->
     Inlined_debuginfo.compare dbg1 dbg2
+  | Dls_get, Dls_get -> 0
   | ( Invalid _,
       ( Optimised_out _ | Probe_is_enabled _ | Begin_region | Begin_try_region
-      | Enter_inlined_apply _ ) ) ->
+      | Enter_inlined_apply _ | Dls_get ) ) ->
     -1
   | ( Optimised_out _,
       ( Probe_is_enabled _ | Begin_region | Begin_try_region
-      | Enter_inlined_apply _ ) ) ->
+      | Enter_inlined_apply _ | Dls_get ) ) ->
     -1
   | Optimised_out _, Invalid _ -> 1
-  | Probe_is_enabled _, (Begin_region | Begin_try_region | Enter_inlined_apply _)
-    ->
+  | ( Probe_is_enabled _,
+      (Begin_region | Begin_try_region | Enter_inlined_apply _ | Dls_get) ) ->
     -1
   | Probe_is_enabled _, (Invalid _ | Optimised_out _) -> 1
-  | Begin_region, (Begin_try_region | Enter_inlined_apply _) -> -1
+  | Begin_region, (Begin_try_region | Enter_inlined_apply _ | Dls_get) -> -1
   | Begin_region, (Invalid _ | Optimised_out _ | Probe_is_enabled _) -> 1
-  | Begin_try_region, Enter_inlined_apply _ -> -1
+  | Begin_try_region, (Enter_inlined_apply _ | Dls_get) -> -1
   | ( Begin_try_region,
       (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ) ->
     1
   | ( Enter_inlined_apply _,
       ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
       | Begin_try_region ) ) ->
+    1
+  | Enter_inlined_apply _, Dls_get -> -1
+  | ( Dls_get,
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+      | Begin_try_region | Enter_inlined_apply _ ) ) ->
     1
 
 let equal_nullary_primitive p1 p2 = compare_nullary_primitive p1 p2 = 0
@@ -972,6 +1001,7 @@ let print_nullary_primitive ppf p =
   | Enter_inlined_apply { dbg } ->
     Format.fprintf ppf "@[<hov 1>(Enter_inlined_apply@ %a)@]"
       Inlined_debuginfo.print dbg
+  | Dls_get -> Format.pp_print_string ppf "Dls_get"
 
 let result_kind_of_nullary_primitive p : result_kind =
   match p with
@@ -981,6 +1011,7 @@ let result_kind_of_nullary_primitive p : result_kind =
   | Begin_region -> Singleton K.region
   | Begin_try_region -> Singleton K.region
   | Enter_inlined_apply _ -> Unit
+  | Dls_get -> Singleton K.value
 
 let coeffects_of_mode : Alloc_mode.For_allocations.t -> Coeffects.t = function
   | Local _ -> Coeffects.Has_coeffects
@@ -1003,11 +1034,12 @@ let effects_and_coeffects_of_nullary_primitive p : Effects_and_coeffects.t =
     (* This doesn't really have effects, but without effects, these primitives
        get deleted during lambda_to_flambda. *)
     Arbitrary_effects, Has_coeffects, Strict
+  | Dls_get -> No_effects, Has_coeffects, Strict
 
 let nullary_classify_for_printing p =
   match p with
   | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
-  | Begin_try_region | Enter_inlined_apply _ ->
+  | Begin_try_region | Enter_inlined_apply _ | Dls_get ->
     Neither
 
 type unary_primitive =
@@ -2165,7 +2197,7 @@ let free_names t =
   match t with
   | Nullary
       ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
-      | Begin_try_region | Enter_inlined_apply _ ) ->
+      | Begin_try_region | Enter_inlined_apply _ | Dls_get ) ->
     Name_occurrences.empty
   | Unary (prim, x0) ->
     Name_occurrences.union
@@ -2192,7 +2224,7 @@ let apply_renaming t renaming =
   match t with
   | Nullary
       ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
-      | Begin_try_region | Enter_inlined_apply _ ) ->
+      | Begin_try_region | Enter_inlined_apply _ | Dls_get ) ->
     t
   | Unary (prim, x0) ->
     let prim' = apply_renaming_unary_primitive prim renaming in
@@ -2222,7 +2254,7 @@ let ids_for_export t =
   match t with
   | Nullary
       ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
-      | Begin_try_region | Enter_inlined_apply _ ) ->
+      | Begin_try_region | Enter_inlined_apply _ | Dls_get ) ->
     Ids_for_export.empty
   | Unary (prim, x0) ->
     Ids_for_export.union

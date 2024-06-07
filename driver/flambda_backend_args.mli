@@ -40,8 +40,12 @@ module type Flambda_backend_options = sig
   val cfg_cse_optimize : unit -> unit
   val no_cfg_cse_optimize : unit -> unit
 
+  val cfg_zero_alloc_checker : unit -> unit
+  val no_cfg_zero_alloc_checker : unit -> unit
+
   val cfg_stack_checks : unit -> unit
   val no_cfg_stack_checks : unit -> unit
+  val cfg_stack_checks_threshold : int -> unit
 
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit

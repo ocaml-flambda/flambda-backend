@@ -233,11 +233,11 @@ let type_to_field_integrity_check type_ ~access1 ~access2 ~message =
     | Str -> "check_string", None
     | Imm -> "check_int", None
     | Float -> "check_float", None
-    | Float64 -> "check_float", Some "Stable.Float_u.to_float"
+    | Float64 -> "check_float", Some "Stdlib_upstream_compatible.Float_u.to_float"
     | Float32 -> "check_float32", Some "Beta.Float32_u.to_float32"
-    | Bits32 -> "check_int32", Some "Stable.Int32_u.to_int32"
-    | Bits64 -> "check_int64", Some "Stable.Int64_u.to_int64"
-    | Word -> "check_int", Some "Stable.Nativeint_u.to_int"
+    | Bits32 -> "check_int32", Some "Stdlib_upstream_compatible.Int32_u.to_int32"
+    | Bits64 -> "check_int64", Some "Stdlib_upstream_compatible.Int64_u.to_int64"
+    | Word -> "check_int", Some "Stdlib_upstream_compatible.Nativeint_u.to_int"
   in
   let transform access =
     match transformation with
@@ -567,7 +567,7 @@ let main n ~bytecode =
   line {|(* TEST
  flags = "-extension layouts_beta -extension small_numbers";
  include beta;
- include stable;|};
+ include stdlib_upstream_compatible;|};
   if bytecode then (
     line {| bytecode;|};
   ) else (
@@ -582,11 +582,11 @@ let main n ~bytecode =
   line {|let create_int () = Random.int 0x3FFF_FFFF|};
   line {|let create_float () = Random.float Float.max_float|};
   line {|let create_float32 () = Beta.Float32.of_float (Random.float Float.max_float)|};
-  line {|let create_float_u () = Stable.Float_u.of_float (create_float ())|};
+  line {|let create_float_u () = Stdlib_upstream_compatible.Float_u.of_float (create_float ())|};
   line {|let create_float32_u () = Beta.Float32_u.of_float32 (create_float32 ())|};
-  line {|let create_int32_u () = Stable.Int32_u.of_int32 (Random.int32 0x7FFF_FFFFl)|};
-  line {|let create_int64_u () = Stable.Int64_u.of_int64 (Random.int64 0x7FFF_FFFF_FFFF_FFFFL)|};
-  line {|let create_nativeint_u () = Stable.Nativeint_u.of_nativeint (Random.nativeint 0x7FFF_FFFF_FFFF_FFFFn)|};
+  line {|let create_int32_u () = Stdlib_upstream_compatible.Int32_u.of_int32 (Random.int32 0x7FFF_FFFFl)|};
+  line {|let create_int64_u () = Stdlib_upstream_compatible.Int64_u.of_int64 (Random.int64 0x7FFF_FFFF_FFFF_FFFFL)|};
+  line {|let create_nativeint_u () = Stdlib_upstream_compatible.Nativeint_u.of_nativeint (Random.nativeint 0x7FFF_FFFF_FFFF_FFFFn)|};
   line
     {|let check_gen ~equal ~to_string ~message y1 y2 =
   if equal y1 y2 then () else

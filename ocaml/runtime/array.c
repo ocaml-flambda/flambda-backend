@@ -28,25 +28,31 @@
 
 static const mlsize_t mlsize_t_max = -1;
 
+#define Max_array_wosize                   (Max_wosize)
+#define Max_custom_array_wosize            (Max_wosize - 1)
+#define Max_unboxed_float_array_wosize     (Max_array_wosize / (sizeof(double) / sizeof(intnat)))
+#define Max_unboxed_int64_array_wosize     (Max_custom_array_wosize / (sizeof(int64_t) / sizeof(intnat)))
+#define Max_unboxed_int32_array_wosize     (Max_custom_array_wosize * (sizeof(intnat) / sizeof(int32_t)))
+#define Max_unboxed_nativeint_array_wosize (Max_custom_array_wosize)
+
 /* Unboxed arrays */
 
-static int no_polymorphic_compare(value v1, value v2)
+CAMLprim int caml_unboxed_array_no_polymorphic_compare(value v1, value v2)
 {
   caml_failwith("Polymorphic comparison is not permitted for unboxed arrays");
 }
 
-static intnat no_polymorphic_hash(value v)
+CAMLprim intnat caml_unboxed_array_no_polymorphic_hash(value v)
 {
   caml_failwith("Polymorphic hash is not permitted for unboxed arrays");
 }
 
-static void unboxed_array_serialize(value v, uintnat* bsize_32,
-                                    uintnat* bsize_64)
+CAMLprim void caml_unboxed_array_serialize(value v, uintnat* bsize_32, uintnat* bsize_64)
 {
   caml_failwith("Marshalling is not yet implemented for unboxed arrays");
 }
 
-static uintnat unboxed_array_deserialize(void* dst)
+CAMLprim uintnat caml_unboxed_array_deserialize(void* dst)
 {
   caml_failwith("Marshalling is not yet implemented for unboxed arrays");
 }
@@ -58,18 +64,18 @@ static uintnat unboxed_array_deserialize(void* dst)
 CAMLexport struct custom_operations caml_unboxed_int32_array_ops[2] = {
   { "_unboxed_int32_even_array",
     custom_finalize_default,
-    no_polymorphic_compare,
-    no_polymorphic_hash,
-    unboxed_array_serialize,
-    unboxed_array_deserialize,
+    caml_unboxed_array_no_polymorphic_compare,
+    caml_unboxed_array_no_polymorphic_hash,
+    caml_unboxed_array_serialize,
+    caml_unboxed_array_deserialize,
     custom_compare_ext_default,
     custom_fixed_length_default },
   { "_unboxed_int32_odd_array",
     custom_finalize_default,
-    no_polymorphic_compare,
-    no_polymorphic_hash,
-    unboxed_array_serialize,
-    unboxed_array_deserialize,
+    caml_unboxed_array_no_polymorphic_compare,
+    caml_unboxed_array_no_polymorphic_hash,
+    caml_unboxed_array_serialize,
+    caml_unboxed_array_deserialize,
     custom_compare_ext_default,
     custom_fixed_length_default },
 };
@@ -77,10 +83,10 @@ CAMLexport struct custom_operations caml_unboxed_int32_array_ops[2] = {
 CAMLexport struct custom_operations caml_unboxed_int64_array_ops = {
   "_unboxed_int64_array",
   custom_finalize_default,
-  no_polymorphic_compare,
-  no_polymorphic_hash,
-  unboxed_array_serialize,
-  unboxed_array_deserialize,
+  caml_unboxed_array_no_polymorphic_compare,
+  caml_unboxed_array_no_polymorphic_hash,
+  caml_unboxed_array_serialize,
+  caml_unboxed_array_deserialize,
   custom_compare_ext_default,
   custom_fixed_length_default
 };
@@ -88,10 +94,10 @@ CAMLexport struct custom_operations caml_unboxed_int64_array_ops = {
 CAMLexport struct custom_operations caml_unboxed_nativeint_array_ops = {
   "_unboxed_nativeint_array",
   custom_finalize_default,
-  no_polymorphic_compare,
-  no_polymorphic_hash,
-  unboxed_array_serialize,
-  unboxed_array_deserialize,
+  caml_unboxed_array_no_polymorphic_compare,
+  caml_unboxed_array_no_polymorphic_hash,
+  caml_unboxed_array_serialize,
+  caml_unboxed_array_deserialize,
   custom_compare_ext_default,
   custom_fixed_length_default
 };
@@ -378,7 +384,7 @@ CAMLprim value caml_floatarray_create(value len)
       return Atom(0);
     else
       Alloc_small (result, wosize, Double_array_tag, Alloc_small_enter_GC);
-  }else if (wosize > Max_wosize)
+  }else if (wosize > Max_unboxed_float_array_wosize)
     caml_invalid_argument("Float.Array.create");
   else {
     result = caml_alloc_shr (wosize, Double_array_tag);
@@ -409,8 +415,8 @@ static value make_vect_gen(value len, value init, int local)
     mlsize_t wsize;
     double d;
     d = Double_val(init);
+    if (size > Max_unboxed_float_array_wosize) caml_invalid_argument("Array.make");
     wsize = size * Double_wosize;
-    if (wsize > Max_wosize) caml_invalid_argument("Array.make");
     res = local ?
       caml_alloc_local(wsize, Double_array_tag) :
       caml_alloc(wsize, Double_array_tag);
@@ -419,7 +425,7 @@ static value make_vect_gen(value len, value init, int local)
     }
 #endif
   } else {
-    if (size > Max_wosize) caml_invalid_argument("Array.make");
+    if (size > Max_array_wosize) caml_invalid_argument("Array.make");
     else if (local) {
       res = caml_alloc_local(size, 0);
       for (i = 0; i < size; i++) Field(res, i) = init;
@@ -484,10 +490,10 @@ CAMLprim value caml_make_unboxed_int32_vect(value len)
   /* This is only used on 64-bit targets. */
 
   mlsize_t num_elements = Long_val(len);
-  if (num_elements > Max_wosize) caml_invalid_argument("Array.make");
+  if (num_elements > Max_unboxed_int32_array_wosize) caml_invalid_argument("Array.make");
 
   /* [num_fields] does not include the custom operations field. */
-  mlsize_t num_fields = (num_elements + 1) / 2;
+  mlsize_t num_fields = num_elements / 2 + num_elements % 2;
 
   return caml_alloc_custom(&caml_unboxed_int32_array_ops[num_elements % 2],
                            num_fields * sizeof(value), 0, 0);
@@ -501,7 +507,7 @@ CAMLprim value caml_make_unboxed_int32_vect_bytecode(value len)
 CAMLprim value caml_make_unboxed_int64_vect(value len)
 {
   mlsize_t num_elements = Long_val(len);
-  if (num_elements > Max_wosize) caml_invalid_argument("Array.make");
+  if (num_elements > Max_unboxed_int64_array_wosize) caml_invalid_argument("Array.make");
 
   struct custom_operations* ops = &caml_unboxed_int64_array_ops;
 
@@ -518,7 +524,7 @@ CAMLprim value caml_make_unboxed_nativeint_vect(value len)
   /* This is only used on 64-bit targets. */
 
   mlsize_t num_elements = Long_val(len);
-  if (num_elements > Max_wosize) caml_invalid_argument("Array.make");
+  if (num_elements > Max_unboxed_nativeint_array_wosize) caml_invalid_argument("Array.make");
 
   struct custom_operations* ops = &caml_unboxed_nativeint_array_ops;
 
@@ -749,7 +755,7 @@ static value caml_array_gather(intnat num_arrays,
 #ifdef FLAT_FLOAT_ARRAY
   else if (isfloat) {
     /* This is an array of floats.  We can use memcpy directly. */
-    if (size > Max_wosize/Double_wosize) caml_invalid_argument("Array.concat");
+    if (size > Max_unboxed_float_array_wosize) caml_invalid_argument("Array.concat");
     wsize = size * Double_wosize;
     res = local ?
       caml_alloc_local(wsize, Double_array_tag) :
@@ -765,7 +771,7 @@ static value caml_array_gather(intnat num_arrays,
     CAMLassert(pos == size);
   }
 #endif
-  else if (size > Max_wosize) {
+  else if (size > Max_array_wosize) {
     /* Array of values, too big. */
     caml_invalid_argument("Array.concat");
   } else if (size <= Max_young_wosize || local) {

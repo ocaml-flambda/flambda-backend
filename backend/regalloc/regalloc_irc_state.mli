@@ -96,6 +96,8 @@ val mem_adj_set : t -> Reg.t -> Reg.t -> bool
 
 val adj_list : t -> Reg.t -> Reg.t list
 
+val interferes_with_adj : t -> Reg.t -> Reg.t -> bool
+
 val adj_set : t -> RegisterStamp.PairSet.t
 
 val add_edge : t -> Reg.t -> Reg.t -> unit

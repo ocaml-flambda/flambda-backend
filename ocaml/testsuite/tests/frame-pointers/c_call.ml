@@ -6,6 +6,10 @@
  native;
 *)
 
+(* Force -O3 to ensure the "_code" symbols are present (see the
+   reference file). *)
+[@@@ocaml.flambda_o3]
+
 external fp_backtrace : unit -> unit = "fp_backtrace"
 external fp_backtrace_no_alloc : unit -> unit = "fp_backtrace" [@@noalloc]
 external fp_backtrace_many_args : int -> int -> int -> int -> int -> int -> int

@@ -54,3 +54,17 @@
        (= %{architecture} "amd64")))
  (deps t3.expected t3.output)
  (action (diff t3.expected t3.output)))
+
+(rule
+ (target test_ocamldep.output)
+ (deps for_test_ocamldep1.ml for_test_ocamldep2.ml test_ocamldep.ml)
+ (action (with-outputs-to %{target} (run %{bin:ocamlopt.opt} -depend %{deps}))))
+
+(rule
+ (alias   runtest)
+ (enabled_if
+  (and (= %{context_name} "main")
+       (= %{system} "linux")
+       (= %{architecture} "amd64")))
+ (deps test_ocamldep.expected test_ocamldep.output)
+ (action (diff test_ocamldep.expected test_ocamldep.output)))

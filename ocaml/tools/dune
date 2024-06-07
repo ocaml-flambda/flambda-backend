@@ -78,6 +78,8 @@
   (name ocamlmklib)
   (modes byte native)
   (modules ocamlmklib)
+  ; FIXME Fix warning 32
+  (flags (:standard -w -32))
   (libraries ocamlcommon ocamlbytecomp))
 
 (install

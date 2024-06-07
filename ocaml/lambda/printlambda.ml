@@ -182,7 +182,7 @@ and value_kind' ppf = function
   | Pvariant { consts; non_consts; } ->
     variant_kind value_kind' ppf ~consts ~non_consts
 
-let rec layout is_top ppf layout_ =
+let rec layout' is_top ppf layout_ =
   match layout_ with
   | Pvalue k -> (if is_top then value_kind else value_kind') ppf k
   | Ptop -> fprintf ppf "[top]"
@@ -191,11 +191,11 @@ let rec layout is_top ppf layout_ =
   | Punboxed_int bi -> fprintf ppf "[unboxed_%s]" (boxed_integer_name bi)
   | Punboxed_vector (Pvec128 v) -> fprintf ppf "[unboxed_%s]" (vec128_name v)
   | Punboxed_product layouts ->
-    fprintf ppf "@[<hov 1>[%a]@]"
-      (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ") (layout false))
+    fprintf ppf "@[<hov 1>#(%a)@]"
+      (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ") (layout' false))
       layouts
 
-let layout ppf layout_ = layout true ppf layout_
+let layout ppf layout_ = layout' true ppf layout_
 
 let return_kind ppf (mode, kind) =
   let smode = alloc_mode_if_local mode in
@@ -324,7 +324,7 @@ let flat_element ppf : flat_element -> unit = fun x ->
 let flat_element_read ppf : flat_element_read -> unit = function
   | Flat_read flat ->
       pp_print_string ppf (Types.flat_element_to_lowercase_string flat)
-  | Flat_read_float m -> fprintf ppf "float[%a]" alloc_mode m
+  | Flat_read_float_boxed m -> fprintf ppf "float[%a]" alloc_mode m
 
 let mixed_block_read ppf : mixed_block_read -> unit = function
   | Mread_value_prefix Immediate -> pp_print_string ppf "value_int"
@@ -504,11 +504,13 @@ let primitive ppf = function
   | Presume -> fprintf ppf "resume"
   | Preperform -> fprintf ppf "reperform"
   | Pmake_unboxed_product layouts ->
-      fprintf ppf "make_unboxed_product [%a]"
-        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") layout) layouts
+      fprintf ppf "make_unboxed_product #(%a)"
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") (layout' false))
+        layouts
   | Punboxed_product_field (n, layouts) ->
-      fprintf ppf "unboxed_product_field %d [%a]" n
-        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") layout) layouts
+      fprintf ppf "unboxed_product_field %d #(%a)" n
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") (layout' false))
+        layouts
   | Pccall p -> fprintf ppf "%s" p.prim_name
   | Praise k -> fprintf ppf "%s" (Lambda.raise_kind k)
   | Psequand -> fprintf ppf "&&"
@@ -1112,8 +1114,13 @@ let rec lam ppf = function
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
       fprintf ppf "@[<2>(exit@ %d%a)@]" i lams ls;
-  | Lstaticcatch(lbody, (i, vars), lhandler, _kind) ->
-      fprintf ppf "@[<2>(catch@ %a@;<1 -1>with (%d%a)@ %a)@]"
+  | Lstaticcatch(lbody, (i, vars), lhandler, r, _kind) ->
+      let excl =
+        match r with
+        | Popped_region -> " exclave"
+        | Same_region -> ""
+      in
+      fprintf ppf "@[<2>(catch@ %a@;<1 -1>with (%d%a)%s@ %a)@]"
         lam lbody i
         (fun ppf vars ->
            List.iter
@@ -1121,7 +1128,7 @@ let rec lam ppf = function
              vars
         )
         vars
-        lam lhandler
+        excl lam lhandler
   | Ltrywith(lbody, param, lhandler, _kind) ->
       fprintf ppf "@[<2>(try@ %a@;<1 -1>with %a@ %a)@]"
         lam lbody Ident.print param lam lhandler

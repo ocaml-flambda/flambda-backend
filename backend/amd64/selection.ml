@@ -174,8 +174,8 @@ let pseudoregs_for_operation op arg res =
   | Ispecific (Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
               |Ipause|Ilfence|Isfence|Imfence
               |Ioffset_loc (_, _)|Irdtsc|Iprefetch _)
-  | Imove|Ispill|Ireload|Ivalueofint|Iintofvalue
-  | Ivectorcast _ | Iscalarcast _
+  | Imove|Ispill|Ireload
+  | Ireinterpret_cast _ | Istatic_cast _
   | Iconst_int _|Iconst_float32 _|Iconst_float _|Iconst_vec128 _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
   | Iextcall _|Istackoffset _|Iload _ | Istore (_, _, _)|Ialloc _
@@ -298,10 +298,14 @@ method! select_operation op args dbg =
       self#select_floatarith true width Imulf Ifloatmul args
   | Cdivf width ->
       self#select_floatarith false width Idivf Ifloatdiv args
+  | Cpackf32 ->
+      (* We must operate on registers. This is because if the second argument
+         was a float stack slot, the resulting UNPCKLPS instruction would
+         enforce the validity of loading it as a 128-bit memory location,
+         even though it only loads 64 bits. *)
+      Ispecific (Isimd (SSE Interleave_low_32_regs)), args
   (* Special cases overriding C implementations (regardless of [@@builtin]). *)
   | Cextcall { func = ("sqrt" as func); _ }
-  | Cextcall { func = ("caml_int64_bits_of_float_unboxed" as func); _ }
-  | Cextcall { func = ("caml_int64_float_of_bits_unboxed" as func); _ }
   (* x86 intrinsics ([@@builtin]) *)
   | Cextcall { func; builtin = true; _ } ->
       begin match func with
@@ -346,6 +350,20 @@ method! select_operation op args dbg =
       Ispecific Izextend32, [arg]
     | _ -> super#select_operation op args dbg
     end
+  | Ccsel _ ->
+     begin match args with
+     | [cond; ifso; ifnot] ->
+       let (cond, earg) = self#select_condition cond in
+       (match cond with
+        | Ifloattest (w,CFeq) ->
+          (* CFeq cannot be represented as cmov without a jump.
+             CFneq emits cmov for "unordered" and "not equal" cases.
+             Use Cneq and swap the arguments. *)
+          Icsel (Ifloattest (w, CFneq)), [ earg; ifnot; ifso ]
+        | _ ->
+          (Icsel cond, [ earg; ifso; ifnot ]))
+     | _ -> super#select_operation op args dbg
+     end
   | Cprefetch { is_write; locality; } ->
       (* Emit prefetch for read hint when prefetchw is not supported.
          Matches the behavior of gcc's __builtin_prefetch *)

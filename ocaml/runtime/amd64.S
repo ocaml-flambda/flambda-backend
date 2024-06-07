@@ -548,7 +548,6 @@ ENDFUNCTION(G(caml_call_gc))
 FUNCTION(G(caml_raise_stack_overflow_nat))
 CFI_STARTPROC
         CFI_SIGNAL_FRAME
-        ENTER_FUNCTION
         SAVE_ALL_REGS
         movq    %r15, Caml_state(gc_regs)
         /* We assume that we are always on the OCaml stack at this point.
@@ -558,12 +557,7 @@ CFI_STARTPROC
            in practice this seems most unlikely.  The current situation will
            suffice as this patch is only a temporary measure in any case. */
         SWITCH_OCAML_TO_C
-        C_call (GCALL(caml_raise_stack_overflow))
-        SWITCH_C_TO_OCAML
-        movq    Caml_state(gc_regs), %r15
-        RESTORE_ALL_REGS
-        LEAVE_FUNCTION
-        ret
+        CHECK_STACK_ALIGNMENT; jmp GCALL(caml_raise_stack_overflow)
 CFI_ENDPROC
 ENDFUNCTION(G(caml_raise_stack_overflow_nat))
 

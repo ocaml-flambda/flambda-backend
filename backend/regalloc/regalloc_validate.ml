@@ -1065,10 +1065,13 @@ end
 module Transfer (Desc_val : Description_value) :
   Cfg_dataflow.Backward_transfer
     with type domain = Domain.t
-     and type error = Transfer_error.t = struct
+     and type error = Transfer_error.t
+     and type context = unit = struct
   type domain = Domain.t
 
   type error = Transfer_error.t
+
+  type context = unit
 
   let description = Desc_val.description
 
@@ -1164,7 +1167,7 @@ module Transfer (Desc_val : Description_value) :
              ~loc_arg:(Location.of_regs_exn loc_instr.arg)
              equations)
 
-  let basic t instr : (domain, error) result =
+  let basic t instr () : (domain, error) result =
     match Description.find_basic description instr with
     | None ->
       (match instr.desc with
@@ -1186,7 +1189,7 @@ module Transfer (Desc_val : Description_value) :
           ~destroyed:(Proc.destroyed_at_basic instr.desc |> Location.of_regs_exn)
       )
 
-  let terminator t ~exn instr =
+  let terminator t ~exn instr () =
     match Description.find_terminator description instr with
     | Some instr_before ->
       (* CR-soon azewierzejew: This is kind of fragile for [Tailcall (Self _)]
@@ -1218,7 +1221,7 @@ module Transfer (Desc_val : Description_value) :
   (* This should remove the equations for the exception value, but we do that in
      [Domain.append_equations] because there we have more information to give if
      there's an error. *)
-  let exception_ t = Ok t
+  let exception_ t () = Ok t
 end
 
 module Check_backwards (Desc_val : Description_value) =

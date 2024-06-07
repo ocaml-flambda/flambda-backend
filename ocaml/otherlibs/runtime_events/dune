@@ -16,10 +16,13 @@
  (name runtime_events)
  (wrapped false)
  (modes byte native)
- (flags (
-   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
-   -warn-error A -bin-annot -safe-string -strict-formats
- ))
+ (flags
+  (:standard
+   -strict-sequence
+   -absname
+   -bin-annot
+   -safe-string
+   -strict-formats))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags (:standard -linkall))
  (foreign_stubs (language c) (names runtime_events_consumer)

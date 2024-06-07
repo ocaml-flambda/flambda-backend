@@ -113,6 +113,7 @@ val diff_set_array: Set.t -> t array -> Set.t
 val inter_set_array: Set.t -> t array -> Set.t
 val disjoint_set_array: Set.t -> t array -> bool
 val set_of_array: t array -> Set.t
+val set_has_collisions : Set.t -> bool
 
 val reset: unit -> unit
 val all_registers: unit -> t list
@@ -123,5 +124,7 @@ val mark_visited : t -> unit
 val is_visited : t -> bool
 val clear_visited_marks : unit -> unit
 
+val types_are_compatible : t -> t -> bool
+val same_phys_reg : t -> t -> bool
 val same_loc : t -> t -> bool
 val same : t -> t -> bool

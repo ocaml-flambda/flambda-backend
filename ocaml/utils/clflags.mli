@@ -133,6 +133,7 @@ val dump_typedtree : bool ref
 val dump_shape : bool ref
 val dump_rawlambda : bool ref
 val dump_lambda : bool ref
+val dump_letreclambda : bool ref
 val dump_rawclambda : bool ref
 val dump_clambda : bool ref
 val dump_rawflambda : bool ref

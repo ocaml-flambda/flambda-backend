@@ -353,6 +353,7 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
   in
   match array_kind with
   | Naked_floats -> for_naked_number Naked_float
+  | Naked_float32s -> for_naked_number Naked_float32
   | Naked_int32s -> for_naked_number Naked_int32
   | Naked_int64s -> for_naked_number Naked_int64
   | Naked_nativeints -> for_naked_number Naked_nativeint

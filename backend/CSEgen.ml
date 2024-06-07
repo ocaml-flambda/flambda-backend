@@ -74,8 +74,8 @@ method class_of_operation op =
   | Iintop_atomic _ -> Op_store true
   | Ifloatop _
   | Icsel _
-  | Iscalarcast _
-  | Ivalueofint | Iintofvalue | Ivectorcast _ -> Op_pure
+  | Istatic_cast _
+  | Ireinterpret_cast _ -> Op_pure
   | Ispecific _ -> Op_other
   | Iname_for_debugger _ -> Op_other
   | Iprobe_is_enabled _ -> Op_other

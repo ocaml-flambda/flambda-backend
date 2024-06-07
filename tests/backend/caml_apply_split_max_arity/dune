@@ -1,6 +1,9 @@
 (executable
  (name t)
  (modules t)
+ ; FIXME Fix warnings
+ (flags
+  (:standard -w -27-32))
  (ocamlopt_flags
   (:standard -linscan -Oclassic)))
 

@@ -6,7 +6,6 @@
  (instrumentation (backend bisect_ppx))
  (flags
   (:standard
-   -principal
    -open
    Flambda2_bound_identifiers
    -open

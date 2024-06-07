@@ -29,6 +29,8 @@ type t =
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
   | Immutable_float_array of
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
+  | Immutable_float32_array of
+      Numeric_types.Float32_by_bit_pattern.t Or_variable.t list
   | Immutable_int32_array of Int32.t Or_variable.t list
   | Immutable_int64_array of Int64.t Or_variable.t list
   | Immutable_nativeint_array of Targetint_32_64.t Or_variable.t list
@@ -59,6 +61,11 @@ let immutable_float_array fields =
   match fields with
   | [] -> Empty_array Values_or_immediates_or_naked_floats
   | _ :: _ -> Immutable_float_array fields
+
+let immutable_float32_array fields =
+  match fields with
+  | [] -> Empty_array Naked_float32s
+  | _ :: _ -> Immutable_float32_array fields
 
 let immutable_int64_array fields =
   match fields with
@@ -150,6 +157,14 @@ let [@ocamlformat "disable"] print ppf t =
         ~pp_sep:(fun ppf () -> Format.pp_print_string ppf "@; ")
         (Or_variable.print Numeric_types.Float_by_bit_pattern.print))
       fields
+  | Immutable_float32_array fields ->
+    fprintf ppf "@[<hov 1>(%tImmutable_float32_array%t@ @[[| %a |]@])@]"
+      Flambda_colours.static_part
+      Flambda_colours.pop
+      (Format.pp_print_list
+        ~pp_sep:(fun ppf () -> Format.pp_print_string ppf "@; ")
+    (Or_variable.print Numeric_types.Float32_by_bit_pattern.print))
+      fields
   | Immutable_int32_array fields ->
     fprintf ppf "@[<hov 1>(%tImmutable_int32_array%t@ @[[| %a |]@])@]"
       Flambda_colours.static_part
@@ -238,6 +253,10 @@ include Container_types.Make (struct
       Misc.Stdlib.List.compare
         (Or_variable.compare Numeric_types.Float_by_bit_pattern.compare)
         fields1 fields2
+    | Immutable_float32_array fields1, Immutable_float32_array fields2 ->
+      Misc.Stdlib.List.compare
+        (Or_variable.compare Numeric_types.Float32_by_bit_pattern.compare)
+        fields1 fields2
     | Immutable_int64_array fields1, Immutable_int64_array fields2 ->
       Misc.Stdlib.List.compare
         (Or_variable.compare Int64.compare)
@@ -278,6 +297,8 @@ include Container_types.Make (struct
     | _, Immutable_float_block _ -> 1
     | Immutable_float_array _, _ -> -1
     | _, Immutable_float_array _ -> 1
+    | Immutable_float32_array _, _ -> -1
+    | _, Immutable_float32_array _ -> 1
     | Immutable_int64_array _, _ -> -1
     | _, Immutable_int64_array _ -> 1
     | Immutable_int32_array _, _ -> -1
@@ -324,6 +345,7 @@ let free_names t =
     Name_occurrences.empty
   | Immutable_float_block fields | Immutable_float_array fields ->
     free_names_for_numeric_fields fields
+  | Immutable_float32_array fields -> free_names_for_numeric_fields fields
   | Immutable_int32_array fields -> free_names_for_numeric_fields fields
   | Immutable_int64_array fields -> free_names_for_numeric_fields fields
   | Immutable_nativeint_array fields -> free_names_for_numeric_fields fields
@@ -379,6 +401,9 @@ let apply_renaming t renaming =
     | Immutable_float_array fields ->
       let fields' = apply_renaming_number_array_fields renaming fields in
       if fields' == fields then t else Immutable_float_array fields'
+    | Immutable_float32_array fields ->
+      let fields' = apply_renaming_number_array_fields renaming fields in
+      if fields' == fields then t else Immutable_float32_array fields'
     | Immutable_int32_array fields ->
       let fields' = apply_renaming_number_array_fields renaming fields in
       if fields' == fields then t else Immutable_int32_array fields'
@@ -433,6 +458,7 @@ let ids_for_export t =
     Ids_for_export.empty
   | Immutable_float_block fields -> ids_for_export_number_array_fields fields
   | Immutable_float_array fields -> ids_for_export_number_array_fields fields
+  | Immutable_float32_array fields -> ids_for_export_number_array_fields fields
   | Immutable_int32_array fields -> ids_for_export_number_array_fields fields
   | Immutable_int64_array fields -> ids_for_export_number_array_fields fields
   | Immutable_nativeint_array fields ->
@@ -444,7 +470,8 @@ let is_block t =
   match t with
   | Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _ | Boxed_int64 _
   | Boxed_nativeint _ | Boxed_vec128 _ | Immutable_float_block _
-  | Immutable_float_array _ | Immutable_int32_array _ | Immutable_int64_array _
+  | Immutable_float_array _ | Immutable_float32_array _
+  | Immutable_int32_array _ | Immutable_int64_array _
   | Immutable_nativeint_array _ | Immutable_string _ | Mutable_string _
   | Empty_array _ | Immutable_value_array _ ->
     true
@@ -455,7 +482,8 @@ let is_set_of_closures t =
   | Set_of_closures _ -> true
   | Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _ | Boxed_int64 _
   | Boxed_nativeint _ | Boxed_vec128 _ | Immutable_float_block _
-  | Immutable_float_array _ | Immutable_int32_array _ | Immutable_int64_array _
+  | Immutable_float_array _ | Immutable_float32_array _
+  | Immutable_int32_array _ | Immutable_int64_array _
   | Immutable_nativeint_array _ | Immutable_string _ | Mutable_string _
   | Empty_array _ | Immutable_value_array _ ->
     false
@@ -467,8 +495,8 @@ let can_share0 t =
   | Block (_, Immutable, _)
   | Set_of_closures _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
   | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | Immutable_float_block _
-  | Immutable_float_array _ | Immutable_string _ | Empty_array _
-  | Immutable_int32_array _ | Immutable_int64_array _
+  | Immutable_float_array _ | Immutable_float32_array _ | Immutable_string _
+  | Empty_array _ | Immutable_int32_array _ | Immutable_int64_array _
   | Immutable_nativeint_array _ | Immutable_value_array _ ->
     true
   | Block (_, (Mutable | Immutable_unique), _) | Mutable_string _ -> false
@@ -480,7 +508,8 @@ let must_be_set_of_closures t =
   | Set_of_closures set -> set
   | Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _ | Boxed_int64 _
   | Boxed_nativeint _ | Boxed_vec128 _ | Immutable_float_block _
-  | Immutable_float_array _ | Immutable_int32_array _ | Immutable_int64_array _
+  | Immutable_float_array _ | Immutable_float32_array _
+  | Immutable_int32_array _ | Immutable_int64_array _
   | Immutable_nativeint_array _ | Empty_array _ | Immutable_value_array _
   | Immutable_string _ | Mutable_string _ ->
     Misc.fatal_errorf "Not a set of closures:@ %a" print t
@@ -508,18 +537,20 @@ let match_against_bound_static_pattern t (pat : Bound_static.Pattern.t)
   | ( ( Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
       | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
       | Immutable_float_block _ | Immutable_float_array _
-      | Immutable_int32_array _ | Immutable_int64_array _
-      | Immutable_nativeint_array _ | Immutable_value_array _ | Empty_array _
-      | Immutable_string _ | Mutable_string _ ),
+      | Immutable_float32_array _ | Immutable_int32_array _
+      | Immutable_int64_array _ | Immutable_nativeint_array _
+      | Immutable_value_array _ | Empty_array _ | Immutable_string _
+      | Mutable_string _ ),
       Block_like symbol ) ->
     block_like_callback symbol t
   | Set_of_closures _, (Block_like _ | Code _)
   | ( ( Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
       | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
       | Immutable_float_block _ | Immutable_float_array _
-      | Immutable_int32_array _ | Immutable_int64_array _
-      | Immutable_nativeint_array _ | Immutable_value_array _ | Empty_array _
-      | Immutable_string _ | Mutable_string _ ),
+      | Immutable_float32_array _ | Immutable_int32_array _
+      | Immutable_int64_array _ | Immutable_nativeint_array _
+      | Immutable_value_array _ | Empty_array _ | Immutable_string _
+      | Mutable_string _ ),
       (Set_of_closures _ | Code _) ) ->
     Misc.fatal_errorf "Mismatch on variety of [Static_const]:@ %a@ =@ %a"
       Bound_static.Pattern.print pat print t

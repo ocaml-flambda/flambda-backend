@@ -24,53 +24,50 @@ type result =
     escapes : bool
   }
 
-let introduce_extra_params_for_join typing_env use_envs_with_ids
+let introduce_extra_params_for_join denv use_envs_with_ids
     ~extra_params_and_args =
   if EPA.is_empty extra_params_and_args
-  then typing_env, use_envs_with_ids
+  then denv, use_envs_with_ids
   else
     let extra_params = EPA.extra_params extra_params_and_args in
-    let typing_env =
-      TE.add_definitions_of_params typing_env ~params:extra_params
-    in
+    let denv = DE.define_parameters denv ~params:extra_params in
     let use_envs_with_ids =
-      List.map
+      List.filter_map
         (fun (env_at_use, use_id, kind) ->
           let env_at_use =
             TE.add_definitions_of_params env_at_use ~params:extra_params
           in
-          let extra_args =
-            try
-              Apply_cont_rewrite_id.Map.find use_id
-                (EPA.extra_args extra_params_and_args)
-            with Not_found ->
-              Misc.fatal_errorf
-                "No extra args for rewrite Id %a@.Extra params and args: %a"
-                Apply_cont_rewrite_id.print use_id EPA.print
-                extra_params_and_args
-          in
-          let env_at_use =
-            List.fold_left2
-              (fun env_at_use param (arg : EPA.Extra_arg.t) ->
-                match arg with
-                | Already_in_scope s ->
-                  TE.add_equation env_at_use (BP.name param)
-                    (T.alias_type_of
-                       (BP.kind param |> Flambda_kind.With_subkind.kind)
-                       s)
-                | New_let_binding _ | New_let_binding_with_named_args _ ->
-                  env_at_use)
-              env_at_use
-              (Bound_parameters.to_list extra_params)
-              extra_args
-          in
-          env_at_use, use_id, kind)
+          match
+            Apply_cont_rewrite_id.Map.find use_id
+              (EPA.extra_args extra_params_and_args)
+          with
+          | exception Not_found ->
+            Misc.fatal_errorf
+              "No extra args for rewrite Id %a@.Extra params and args: %a"
+              Apply_cont_rewrite_id.print use_id EPA.print extra_params_and_args
+          | Invalid -> None
+          | Ok extra_args ->
+            let env_at_use =
+              List.fold_left2
+                (fun env_at_use param (arg : EPA.Extra_arg.t) ->
+                  match arg with
+                  | Already_in_scope s ->
+                    TE.add_equation env_at_use (BP.name param)
+                      (T.alias_type_of
+                         (BP.kind param |> Flambda_kind.With_subkind.kind)
+                         s)
+                  | New_let_binding _ | New_let_binding_with_named_args _ ->
+                    env_at_use)
+                env_at_use
+                (Bound_parameters.to_list extra_params)
+                extra_args
+            in
+            Some (env_at_use, use_id, kind))
         use_envs_with_ids
     in
-    typing_env, use_envs_with_ids
+    denv, use_envs_with_ids
 
 let join ?cut_after denv params ~consts_lifted_during_body ~use_envs_with_ids =
-  let typing_env = DE.typing_env denv in
   let definition_scope = DE.get_continuation_scope denv in
   let extra_lifted_consts_in_use_envs =
     LCS.all_defined_symbols consts_lifted_during_body
@@ -83,6 +80,7 @@ let join ?cut_after denv params ~consts_lifted_during_body ~use_envs_with_ids =
   in
   let module CSE = Common_subexpression_elimination in
   let cse_join_result =
+    let typing_env = DE.typing_env denv in
     assert (Scope.equal definition_scope (TE.current_scope typing_env));
     CSE.join ~typing_env_at_fork:typing_env ~cse_at_fork:(DE.cse denv)
       ~use_info:use_envs_with_ids
@@ -91,16 +89,15 @@ let join ?cut_after denv params ~consts_lifted_during_body ~use_envs_with_ids =
       ~get_cse:(fun (use_env, _, _) -> DE.cse use_env)
       ~params
   in
-  let extra_params_and_args, typing_env, use_envs_with_ids' =
+  let extra_params_and_args, denv, use_envs_with_ids' =
     match cse_join_result with
-    | None ->
-      Continuation_extra_params_and_args.empty, typing_env, use_envs_with_ids'
+    | None -> Continuation_extra_params_and_args.empty, denv, use_envs_with_ids'
     | Some cse_join_result ->
-      let typing_env, use_envs_with_ids' =
-        introduce_extra_params_for_join typing_env use_envs_with_ids'
+      let denv, use_envs_with_ids' =
+        introduce_extra_params_for_join denv use_envs_with_ids'
           ~extra_params_and_args:cse_join_result.extra_params
       in
-      cse_join_result.extra_params, typing_env, use_envs_with_ids'
+      cse_join_result.extra_params, denv, use_envs_with_ids'
   in
   let extra_allowed_names =
     match cse_join_result with
@@ -109,7 +106,7 @@ let join ?cut_after denv params ~consts_lifted_during_body ~use_envs_with_ids =
   in
   let cut_after = Option.value cut_after ~default:definition_scope in
   let handler_env =
-    T.cut_and_n_way_join typing_env use_envs_with_ids'
+    T.cut_and_n_way_join (DE.typing_env denv) use_envs_with_ids'
       ~params:
         (Bound_parameters.append params
            (EPA.extra_params extra_params_and_args))
@@ -184,12 +181,12 @@ let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork
     List.map
       (fun use ->
         let add_or_meet_param_type typing_env =
-          let typing_env = TE.add_definitions_of_params typing_env ~params in
           let param_types = U.arg_types use in
           add_equations_on_params typing_env ~is_recursive ~params ~param_types
         in
         let use_env =
-          DE.map_typing_env (U.env_at_use use) ~f:add_or_meet_param_type
+          let use_env = DE.define_parameters (U.env_at_use use) ~params in
+          DE.map_typing_env use_env ~f:add_or_meet_param_type
         in
         use_env, U.id use, U.use_kind use)
       uses

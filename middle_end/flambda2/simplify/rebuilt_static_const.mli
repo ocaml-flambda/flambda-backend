@@ -77,6 +77,11 @@ val create_immutable_float_array :
   Numeric_types.Float_by_bit_pattern.t Or_variable.t list ->
   t
 
+val create_immutable_float32_array :
+  Are_rebuilding_terms.t ->
+  Numeric_types.Float32_by_bit_pattern.t Or_variable.t list ->
+  t
+
 val create_immutable_int32_array :
   Are_rebuilding_terms.t -> Int32.t Or_variable.t list -> t
 

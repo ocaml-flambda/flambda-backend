@@ -180,6 +180,7 @@ type array_kind = Flambda_primitive.Array_kind.t =
   | Immediates
   | Values
   | Naked_floats
+  | Naked_float32s
   | Naked_int32s
   | Naked_int64s
   | Naked_nativeints

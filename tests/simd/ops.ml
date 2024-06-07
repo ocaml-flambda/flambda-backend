@@ -1,5 +1,7 @@
 open Stdlib
 
+[@@@ocaml.warning "-unused-value-declaration"]
+
 let failmsg = ref (fun () -> ())
 
 let eq lv hv l h =
@@ -21,10 +23,15 @@ let eqi lv hv l h =
 ;;
 
 let eqf lv hv l h =
-    let open Float in
     if l <> lv then Printf.printf "%f <> %f\n" l lv;
     if h <> hv then Printf.printf "%f <> %f\n" h hv;
     if l <> lv || h <> hv then !failmsg ()
+;;
+
+let eqf' lv l =
+    let fail = lv <> l && not (Float.is_nan lv && Float.is_nan l) in
+    if fail then Printf.printf "%f <> %f\n" l lv;
+    if fail then !failmsg ()
 ;;
 
 external int64x2_of_int64s : int64 -> int64 -> int64x2 = "caml_vec128_unreachable" "vec128_of_int64s" [@@noalloc] [@@unboxed]
@@ -364,7 +371,7 @@ module Float32 = struct
         f maxv maxv;
         f minv minv;
         f maxv minv;
-        for i = 0 to 100_000 do
+        for _ = 0 to 100_000 do
             let f0 = Random.int32 Int32.max_int in
             let f1 = Random.int32 Int32.max_int in
             f (if Random.bool () then f0 else Int32.neg f0)
@@ -408,7 +415,7 @@ module Float64 = struct
         f max_float max_float;
         f min_float min_float;
         f max_float min_float;
-        for i = 0 to 100_000 do
+        for _ = 0 to 100_000 do
             let f0 = Random.int64 Int64.max_int in
             let f1 = Random.int64 Int64.max_int in
             f (if Random.bool () then Int64.float_of_bits f0 else Int64.(neg f0 |> float_of_bits))
@@ -424,10 +431,10 @@ module Float64 = struct
             [@@noalloc] [@@builtin]
 
         let () =
-            check_floats (fun l r -> eqf (max l r) (c_max l r));
-            check_floats (fun l r -> eqf (min l r) (c_min l r));
-            check_floats (fun l _ -> eqf (sqrt l) (c_sqrt l));
-            check_floats (fun l _ -> eqf (round 0x8 l) (c_round l))
+            check_floats (fun l r -> eqf' (max l r) (c_max l r));
+            check_floats (fun l r -> eqf' (min l r) (c_min l r));
+            check_floats (fun l _ -> eqf' (sqrt l) (c_sqrt l));
+            check_floats (fun l _ -> eqf' (round 0x8 l) (c_round l))
         ;;
     end
 end
@@ -449,7 +456,7 @@ module Int64s = struct
         f max_int max_int;
         f min_int min_int;
         f max_int min_int;
-        for i = 0 to 100_000 do
+        for _ = 0 to 100_000 do
             let i0 = Random.int64 Int64.max_int in
             let i1 = Random.int64 Int64.max_int in
             f (if Random.bool () then i0 else Int64.neg i0)
@@ -493,7 +500,7 @@ module Int32s = struct
         f max_int max_int;
         f min_int min_int;
         f max_int min_int;
-        for i = 0 to 100_000 do
+        for _ = 0 to 100_000 do
             let i0 = Random.int32 Int32.max_int in
             let i1 = Random.int32 Int32.max_int in
             f (if Random.bool () then i0 else Int32.neg i0)
@@ -599,7 +606,7 @@ module Int16 = struct
         f max_int max_int;
         f min_int min_int;
         f max_int min_int;
-        for i = 0 to 100_000 do
+        for _ = 0 to 100_000 do
             let i0 = Random.int 0x10000 in
             let i1 = Random.int 0x10000 in
             f (if Random.bool () then i0 else (-i0))

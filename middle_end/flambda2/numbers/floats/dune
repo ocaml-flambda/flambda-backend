@@ -5,8 +5,6 @@
  (wrapped true)
  (instrumentation
   (backend bisect_ppx))
- (flags
-  (:standard -principal))
  (foreign_stubs
   (language c)
   (names float32_stubs)

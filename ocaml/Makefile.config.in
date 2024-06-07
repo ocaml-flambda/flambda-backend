@@ -219,6 +219,7 @@ WITH_PROFINFO=@profinfo@
 PROFINFO_WIDTH=@profinfo_width@
 HEADER_RESERVED_BITS=@reserved_header_bits@
 CUSTOM_OPS_STRUCT_SIZE=@custom_ops_struct_size@
+NO_PARTIAL_INLINING_CFLAGS=@no_partial_inlining_cflags@
 LIBUNWIND_AVAILABLE=@libunwind_available@
 LIBUNWIND_INCLUDE_FLAGS=@libunwind_include_flags@
 LIBUNWIND_LINK_FLAGS=@libunwind_link_flags@

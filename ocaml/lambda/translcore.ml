@@ -611,10 +611,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             else
               let flat_read =
                 match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-                | Float ->
+                | Float_boxed ->
                   (match float with
                     | Boxing (mode, _) ->
-                        flat_read_float (transl_alloc_mode_r mode)
+                        flat_read_float_boxed (transl_alloc_mode_r mode)
                     | Non_boxing _ ->
                         Misc.fatal_error
                           "expected typechecking to make [float] boxing mode\
@@ -1734,11 +1734,11 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                     else
                       let read =
                         match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-                        | Float ->
+                        | Float_boxed ->
                             (* See the handling of [Record_float] above for
                                 why we choose Alloc_heap.
                             *)
-                            flat_read_float alloc_heap
+                            flat_read_float_boxed alloc_heap
                         | non_float -> flat_read_non_float non_float
                       in
                       Mread_flat_suffix read
@@ -1948,7 +1948,7 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
                  return_layout),
        (static_exception_id, val_ids),
        handler,
-      return_layout)
+      Same_region, return_layout)
   in
   let classic =
     match arg, exn_cases with
@@ -1990,7 +1990,9 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
              e.exp_loc None (Lvar val_id) val_cases partial)
   in
   List.fold_left (fun body (static_exception_id, val_ids, handler) ->
-    Lstaticcatch (body, (static_exception_id, val_ids), handler, return_layout)
+    Lstaticcatch
+      (body, (static_exception_id, val_ids),
+       handler, Same_region, return_layout)
   ) classic static_handlers
 
 and transl_letop ~scopes loc env let_ ands param param_sort case case_sort

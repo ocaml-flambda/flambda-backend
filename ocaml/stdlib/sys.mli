@@ -190,7 +190,7 @@ val max_string_length : int
 
 val max_array_length : int
 (** Maximum length of a normal array (i.e. any array whose elements are
-    not of type [float]). The maximum length of a [float array]
+    not unboxed and not of type [float]). The maximum length of a [float array]
     is [max_floatarray_length] if OCaml was configured with
     [--enable-flat-float-array] and [max_array_length] if configured
     with [--disable-flat-float-array]. *)
@@ -199,6 +199,26 @@ val max_floatarray_length : int
 (** Maximum length of a floatarray. This is also the maximum length of
     a [float array] when OCaml is configured with
     [--enable-flat-float-array]. *)
+
+val max_unboxed_float_array_length : int
+(** Maximum length of a [float# array].
+    Equivalent to [max_floatarray_length]. *)
+
+val max_unboxed_float32_array_length : int
+(** Maximum length of a [float32# array].
+    In non-native backends, equal to [max_array_length]. *)
+
+val max_unboxed_int64_array_length : int
+(** Maximum length of a [int64# array].
+    In non-native backends, equal to [max_array_length]. *)
+
+val max_unboxed_int32_array_length : int
+(** Maximum length of a [int32# array].
+    In non-native backends, equal to [max_array_length]. *)
+
+val max_unboxed_nativeint_array_length : int
+(** Maximum length of a [nativeint# array].
+    In non-native backends, equal to [max_array_length]. *)
 
 external runtime_variant : unit -> string = "caml_runtime_variant"
 (** Return the name of the runtime variant the program is running on.

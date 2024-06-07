@@ -343,10 +343,17 @@ and block_shape =
   value_kind list option
 
 and flat_element = Types.flat_element =
-    Imm | Float | Float64 | Float32 | Bits32 | Bits64 | Word
+  | Imm
+  | Float_boxed
+  | Float64
+  | Float32
+  | Bits32
+  | Bits64
+  | Word
+
 and flat_element_read =
   | Flat_read of flat_element (* invariant: not [Float] *)
-  | Flat_read_float of alloc_mode
+  | Flat_read_float_boxed of alloc_mode
 and mixed_block_read =
   | Mread_value_prefix of immediate_or_pointer
   | Mread_flat_suffix of flat_element_read
@@ -692,6 +699,10 @@ type lparam = {
   mode : alloc_mode
 }
 
+type pop_region =
+  | Popped_region
+  | Same_region
+
 type lambda =
     Lvar of Ident.t
   | Lmutvar of Ident.t
@@ -706,7 +717,9 @@ type lambda =
   | Lstringswitch of
       lambda * (string * lambda) list * lambda option * scoped_location * layout
   | Lstaticraise of static_label * lambda list
-  | Lstaticcatch of lambda * (static_label * (Ident.t * layout) list) * lambda * layout
+  | Lstaticcatch of
+      lambda * (static_label * (Ident.t * layout) list) * lambda
+      * pop_region * layout
   | Ltrywith of lambda * Ident.t * lambda * layout
   | Lifthenelse of lambda * lambda * lambda * layout
   | Lsequence of lambda * lambda
@@ -971,8 +984,8 @@ let make_key e =
           Loc_unknown,kind)
     | Lstaticraise (i,es) ->
         Lstaticraise (i,tr_recs env es)
-    | Lstaticcatch (e1,xs,e2, kind) ->
-        Lstaticcatch (tr_rec env e1,xs,tr_rec env e2, kind)
+    | Lstaticcatch (e1,xs,e2, r, kind) ->
+        Lstaticcatch (tr_rec env e1,xs,tr_rec env e2, r, kind)
     | Ltrywith (e1,x,e2,kind) ->
         Ltrywith (tr_rec env e1,x,tr_rec env e2,kind)
     | Lifthenelse (cond,ifso,ifnot,kind) ->
@@ -1064,7 +1077,7 @@ let shallow_iter ~tail ~non_tail:f = function
       iter_opt tail default
   | Lstaticraise (_,args) ->
       List.iter f args
-  | Lstaticcatch(e1, _, e2, _kind) ->
+  | Lstaticcatch(e1, _, e2, _, _kind) ->
       tail e1; tail e2
   | Ltrywith(e1, _, e2,_) ->
       f e1; tail e2
@@ -1137,7 +1150,7 @@ let rec free_variables = function
       end
   | Lstaticraise (_,args) ->
       free_variables_list Ident.Set.empty args
-  | Lstaticcatch(body, (_, params), handler, _kind) ->
+  | Lstaticcatch(body, (_, params), handler, _, _kind) ->
       Ident.Set.union
         (Ident.Set.diff
            (free_variables handler)
@@ -1258,11 +1271,11 @@ let get_mixed_block_element = Types.get_mixed_product_element
 
 let flat_read_non_float flat_element =
   match flat_element with
-  | Float -> Misc.fatal_error "flat_element_read_non_float Float"
+  | Float_boxed -> Misc.fatal_error "flat_element_read_non_float Float_boxed"
   | Imm | Float64 | Float32 | Bits32 | Bits64 | Word as flat_element ->
       Flat_read flat_element
 
-let flat_read_float alloc_mode = Flat_read_float alloc_mode
+let flat_read_float_boxed alloc_mode = Flat_read_float_boxed alloc_mode
 
 (* Compile a sequence of expressions *)
 
@@ -1359,10 +1372,10 @@ let build_substs update_env ?(freshen_bound_variables = false) s =
            subst_opt s l default,
            loc,kind)
     | Lstaticraise (i,args) ->  Lstaticraise (i, subst_list s l args)
-    | Lstaticcatch(body, (id, params), handler, kind) ->
+    | Lstaticcatch(body, (id, params), handler, r, kind) ->
         let params, l' = bind_many params l in
         Lstaticcatch(subst s l body, (id, params),
-                     subst s l' handler, kind)
+                     subst s l' handler, r, kind)
     | Ltrywith(body, exn, handler,kind) ->
         let exn, l' = bind exn l in
         Ltrywith(subst s l body, exn, subst s l' handler,kind)
@@ -1506,8 +1519,8 @@ let shallow_map ~tail ~non_tail:f = function
         loc, layout)
   | Lstaticraise (i, args) ->
       Lstaticraise (i, List.map f args)
-  | Lstaticcatch (body, id, handler, layout) ->
-      Lstaticcatch (tail body, id, tail handler, layout)
+  | Lstaticcatch (body, id, handler, r, layout) ->
+      Lstaticcatch (tail body, id, tail handler, r, layout)
   | Ltrywith (e1, v, e2, layout) ->
       Ltrywith (f e1, v, tail e2, layout)
   | Lifthenelse (e1, e2, e3, layout) ->
@@ -1668,7 +1681,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pmixedfield (_, read, _) -> begin
       match read with
       | Mread_value_prefix _ -> None
-      | Mread_flat_suffix (Flat_read_float m) -> Some m
+      | Mread_flat_suffix (Flat_read_float_boxed m) -> Some m
       | Mread_flat_suffix (Flat_read _) -> None
     end
   | Psetfloatfield _ -> None
@@ -1818,7 +1831,7 @@ let array_ref_kind_result_layout = function
 let layout_of_mixed_field (kind : mixed_block_read) =
   match kind with
   | Mread_value_prefix _ -> layout_value_field
-  | Mread_flat_suffix (Flat_read_float (_ : alloc_mode)) ->
+  | Mread_flat_suffix (Flat_read_float_boxed (_ : alloc_mode)) ->
       layout_boxed_float Pfloat64
   | Mread_flat_suffix (Flat_read proj) ->
       match proj with
@@ -1828,7 +1841,7 @@ let layout_of_mixed_field (kind : mixed_block_read) =
       | Bits32 -> layout_unboxed_int32
       | Bits64 -> layout_unboxed_int64
       | Word -> layout_unboxed_nativeint
-      | Float -> layout_boxed_float Pfloat64
+      | Float_boxed -> layout_boxed_float Pfloat64
 
 let primitive_result_layout (p : primitive) =
   assert !Clflags.native_code;
@@ -1974,7 +1987,7 @@ let compute_expr_layout free_vars_kind lam =
     | Lprim(p, _, _) ->
       primitive_result_layout p
     | Lswitch(_, _, _, kind) | Lstringswitch(_, _, _, _, kind)
-    | Lstaticcatch(_, _, _, kind) | Ltrywith(_, _, _, kind)
+    | Lstaticcatch(_, _, _, _, kind) | Ltrywith(_, _, _, kind)
     | Lifthenelse(_, _, _, kind) | Lregion (_, kind) ->
       kind
     | Lstaticraise (_, _) ->

@@ -306,7 +306,9 @@ char *caml_alloc_for_heap (asize_t request)
     Chunk_block (mem) = block;
   }
   Chunk_head (mem)->redarken_first.start = (value*)(mem + Chunk_size(mem));
-  Chunk_head (mem)->redarken_first.end = (value*)(mem + Chunk_size(mem));
+  Chunk_head (mem)->redarken_first.scannable_end =
+    (value*)(mem + Chunk_size(mem));
+  Chunk_head (mem)->redarken_first.object_end = (value*)(mem + Chunk_size(mem));
   Chunk_head (mem)->redarken_end = (value*)mem;
   return mem;
 }

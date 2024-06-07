@@ -15,14 +15,13 @@
 (executable
  (name topstart)
  (modes byte)
- (flags (:standard -principal -linkall))
+ (flags (:standard -linkall))
  (libraries ocamlbytecomp ocamlcommon ocamltoplevel)
  (modules topstart))
 
 (executable
  (name expunge)
  (modes byte)
- (flags (:standard -principal))
  (libraries ocamlbytecomp ocamlcommon)
  (modules expunge))
 

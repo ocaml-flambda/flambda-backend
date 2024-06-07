@@ -15,7 +15,6 @@
   (name ocamllex_lib)
   (wrapped false)
   (modes byte native)
-  (flags (:standard -principal))
   (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
   (modules
     common
@@ -32,7 +31,6 @@
 (executable
   (name main)
   (modes byte)
-  (flags (:standard -principal))
   (libraries ocamllex_lib)
   (modules main))
 
@@ -43,7 +41,6 @@
 (executable
   (name main_native)
   (modes native)
-  (flags (:standard -principal))
   (libraries ocamllex_lib)
   (modules main_native))
 

@@ -14,16 +14,12 @@
 
 (library
  (name stdlib_upstream_compatible)
- (wrapped false)
+ (public_name ocaml.stdlib_upstream_compatible)
  (modes byte native)
  (flags
-  (-strict-sequence
-   -principal
+  (:standard
+   -strict-sequence
    -absname
-   -w
-   +a-4-9-40-41-42-44-45-48-66
-   -warn-error
-   A
    -bin-annot
    -safe-string
    -strict-formats
@@ -34,17 +30,11 @@
  (library_flags
   (:standard -linkall)))
 
-(install
- (files
-  (glob_files
-   (*.{cmxa,a,cmxs,cma,mli} with_prefix stdlib_upstream_compatible))
-  (glob_files
-   (.stdlib_upstream_compatible.objs/byte/*.{cmi,cmt,cmti}
-    with_prefix
-    stdlib_upstream_compatible))
-  (glob_files
-   (.stdlib_upstream_compatible.objs/native/*.cmx
-    with_prefix
-    stdlib_upstream_compatible)))
- (section lib)
- (package ocaml))
+(rule
+ (deps
+  (:first-dep ../to_install.sh)
+  (source_tree .))
+ (action
+  (with-stdout-to
+   to_install.sexp
+   (run "%{first-dep}" "stdlib_upstream_compatible"))))

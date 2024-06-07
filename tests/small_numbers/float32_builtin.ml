@@ -1,5 +1,8 @@
 open Stdlib
 
+[@@@ocaml.warning "-unused-constructor"]
+[@@@ocaml.warning "-unused-value-declaration"]
+
 let eq l r =
   if l <> r then Printf.printf "%d <> %d\n" l r
 ;;
@@ -125,7 +128,7 @@ module CFloat32 = struct
       f maxv maxv;
       f minv minv;
       f maxv minv;
-      for i = 0 to 100_000 do
+      for _ = 0 to 100_000 do
           let f0 = Random.int32 Int32.max_int in
           let f1 = Random.int32 Int32.max_int in
           f ((if Random.bool () then f0 else Int32.neg f0) |> Int32.float_of_bits |> Float32.of_float)
@@ -147,7 +150,7 @@ module Float64 = struct
     f nan;
     f max_float;
     f min_float;
-    for i = 0 to 100_000 do
+    for _ = 0 to 100_000 do
         let v = Random.int64 Int64.max_int in
         f ((if Random.bool () then v else Int64.neg v) |> Int64.float_of_bits)
     done
@@ -163,7 +166,7 @@ module Int = struct
     f minus_one;
     f max_int;
     f min_int;
-    for i = 0 to 100_000 do
+    for _ = 0 to 100_000 do
         let i = Random.int64 Int64.max_int |> Int64.to_int in
         f (if Random.bool () then i else Int.neg i)
     done
@@ -206,13 +209,13 @@ let () = (* Compare *)
     CFloat32.check_float32s (fun f1 f2 ->
       let no_nan = (not (CFloat32.is_nan f1)) && (not (CFloat32.is_nan f2)) in
       if no_nan then (
-        (match Float32.compare f1 f2 with
+        (match compare f1 f2 with
         | -1 -> assert (CFloat32.lt f1 f2)
         | 0 -> assert (CFloat32.eq f1 f2)
         | 1 -> assert (CFloat32.gt f1 f2)
         | _ -> assert false);
         let f2, f1 = f1, f2 in
-        (match Float32.compare f1 f2 with
+        (match compare f1 f2 with
         | -1 -> assert (CFloat32.lt f1 f2)
         | 0 -> assert (CFloat32.eq f1 f2)
         | 1 -> assert (CFloat32.gt f1 f2)
@@ -225,16 +228,16 @@ let () = (* Compare *)
         assert (CFloat32.ngt f1 f2);
         assert (CFloat32.nge f1 f2);
         if CFloat32.is_nan f1 && CFloat32.is_nan f2 then (
-          assert (Float32.compare f1 f2 = 0)
+          assert (compare f1 f2 = 0)
         );
         if CFloat32.is_nan f1 && not (CFloat32.is_nan f2) then (
-          assert (Float32.compare f1 f2 = -1);
-          assert (Float32.compare f2 f1 = 1)
+          assert (compare f1 f2 = -1);
+          assert (compare f2 f1 = 1)
         );
         let f2, f1 = f1, f2 in
         if CFloat32.is_nan f1 && not (CFloat32.is_nan f2) then (
-          assert (Float32.compare f1 f2 = -1);
-          assert (Float32.compare f2 f1 = 1)
+          assert (compare f1 f2 = -1);
+          assert (compare f2 f1 = 1)
         )
       )
     )

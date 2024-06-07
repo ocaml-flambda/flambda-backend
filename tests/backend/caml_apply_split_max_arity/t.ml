@@ -19,7 +19,7 @@ let split_with_tailcall ?x1:_ ?x2:_ ?x3:_ ?x4:_ ?x5:_ ?x6:_ ?x7:_ ?x8:_ ?x9:_ ?x
   = ()
 ;;
 
-let go x =
+let _go x =
   let (_ : _) = Some x in
   (Sys.opaque_identity split_with_tailcall) ()
 ;;

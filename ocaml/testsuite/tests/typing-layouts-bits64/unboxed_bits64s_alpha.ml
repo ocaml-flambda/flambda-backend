@@ -1,5 +1,5 @@
 (* TEST
- include stable;
+ include stdlib_upstream_compatible;
  flambda2;
  {
    flags = "-extension layouts_alpha";
@@ -23,7 +23,7 @@
 (* Prelude: Functions on unboxed int64s. *)
 
 module Int64_u = struct
-  include Stable.Int64_u
+  include Stdlib_upstream_compatible.Int64_u
 
   let ( + ) = add
   let ( - ) = sub

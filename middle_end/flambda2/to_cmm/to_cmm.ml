@@ -78,7 +78,7 @@ let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
   let _env, return_cont_params =
     (* The environment is dropped because the handler for the dummy continuation
        (which just returns unit) doesn't use any of the parameters. *)
-    C.bound_parameters env
+    C.continuation_bound_parameters env
       (Bound_parameters.create
          [ Bound_parameter.create (Variable.create "*ret*")
              Flambda_kind.With_subkind.any_value ])
@@ -113,7 +113,10 @@ let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
   let body =
     let unit_value = C.targetint ~dbg Targetint_32_64.one in
     C.create_ccatch ~rec_flag:false ~body
-      ~handlers:[C.handler ~dbg return_cont return_cont_params unit_value false]
+      ~handlers:
+        [ C.handler ~dbg return_cont
+            (C.remove_skipped_params return_cont_params)
+            unit_value false ]
   in
   let body =
     if !Clflags.afl_instrument

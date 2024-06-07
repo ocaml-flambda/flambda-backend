@@ -10,13 +10,6 @@
 
 open Stdlib_stable
 
-(* Test that [Float_u] is exported. *)
-
-let () =
-  let pi = Float_u.of_float 3.14 in
-  assert (Float_u.to_float pi = 3.14)
-;;
-
 (* Test that [Iarray] is exported. *)
 let () =
   let arr = Iarray.init 4 (fun x -> x) in

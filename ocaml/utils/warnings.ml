@@ -34,6 +34,14 @@ type constructor_usage_warning =
   | Not_constructed
   | Only_exported_private
 
+type upstream_compat_warning =
+  | Immediate_erasure of string (* example: annotation in
+      [type ('a : immediate) t = int] can't be erased. *)
+  | Non_value_sort of string (* example: abstract type
+      [t : float64] is marked as unboxed. *)
+  | Unboxed_attribute of string (* example: unboxed attribute
+      on an external declaration with float# is missing. *)
+
 type t =
   | Comment_start                           (*  1 *)
   | Comment_not_end                         (*  2 *)
@@ -109,6 +117,7 @@ type t =
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
   | Generative_application_expects_unit     (* 73 *)
+  | Incompatible_with_upstream of upstream_compat_warning (* 187 *)
   | Unerasable_position_argument            (* 188 *)
   | Unnecessarily_partial_tuple_pattern     (* 189 *)
   | Probe_name_too_long of string           (* 190 *)
@@ -196,6 +205,7 @@ let number = function
   | Unused_tmc_attribute -> 71
   | Tmc_breaks_tailcall -> 72
   | Generative_application_expects_unit -> 73
+  | Incompatible_with_upstream _ -> 187
   | Unerasable_position_argument -> 188
   | Unnecessarily_partial_tuple_pattern -> 189
   | Probe_name_too_long _ -> 190
@@ -546,6 +556,10 @@ let descriptions = [
     names = ["generative-application-expects-unit"];
     description = "A generative functor is applied to an empty structure \
                    (struct end) rather than to ().";
+    since = since 5 1 };
+  { number = 187;
+    names = ["incompatible-with-upstream"];
+    description = "Extension usage is incompatible with upstream.";
     since = since 5 1 };
   { number = 188;
     names = ["unerasable-position-argument"];
@@ -1174,6 +1188,23 @@ let message = function
   | Generative_application_expects_unit ->
       "A generative functor\n\
        should be applied to '()'; using '(struct end)' is deprecated."
+  | Incompatible_with_upstream (Immediate_erasure id)  ->
+      Printf.sprintf
+      "Usage of layout immediate/immediate64 in %s \n\
+       can't be erased for compatibility with upstream OCaml."
+      id
+  | Incompatible_with_upstream (Non_value_sort layout) ->
+      Printf.sprintf
+      "External declaration here is not upstream compatible. \n\
+       The only types with non-value layouts allowed are float#, \n\
+       int32#, int64#, and nativeint#. Unknown type with layout \n\
+       %s encountered."
+      layout
+  | Incompatible_with_upstream (Unboxed_attribute layout) ->
+      Printf.sprintf
+      "[@unboxed] attribute must be added to external declaration \n\
+       argument type with layout %s for upstream compatibility."
+      layout
   | Unerasable_position_argument -> "this position argument cannot be erased."
   | Unnecessarily_partial_tuple_pattern ->
       "This tuple pattern\n\

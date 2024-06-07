@@ -100,7 +100,6 @@ module Inlining : sig
   val definition_inlining_decision :
     Inline_attribute.t ->
     Cost_metrics.t ->
-    stub:bool ->
     Function_decl_inlining_decision_type.t
 end
 

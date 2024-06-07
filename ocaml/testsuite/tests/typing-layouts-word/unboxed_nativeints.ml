@@ -1,5 +1,5 @@
 (* TEST
- include stable;
+ include stdlib_upstream_compatible;
  flambda2;
  {
    native;
@@ -27,7 +27,7 @@
 (* Prelude: Functions on unboxed nativeints. *)
 
 module Nativeint_u = struct
-  include Stable.Nativeint_u
+  include Stdlib_upstream_compatible.Nativeint_u
 
   let ( + ) = add
   let ( - ) = sub

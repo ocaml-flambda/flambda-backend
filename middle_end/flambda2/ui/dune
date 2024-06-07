@@ -4,8 +4,6 @@
  (name flambda2_ui)
  (wrapped true)
  (instrumentation (backend bisect_ppx))
- (flags
-  (:standard -principal))
  (ocamlopt_flags
   (:standard -O3 -open Int_replace_polymorphic_compare))
  (libraries ocamlcommon flambda_backend_common))

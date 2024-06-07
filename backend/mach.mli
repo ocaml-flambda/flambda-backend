@@ -87,9 +87,8 @@ type operation =
                        addr : Arch.addressing_mode }
   | Ifloatop of float_width * float_operation
   | Icsel of test
-  | Ivalueofint | Iintofvalue
-  | Ivectorcast of Cmm.vector_cast
-  | Iscalarcast of Cmm.scalar_cast
+  | Ireinterpret_cast of Cmm.reinterpret_cast
+  | Istatic_cast of Cmm.static_cast
   | Iopaque
   | Ispecific of Arch.specific_operation
   | Ipoll of { return_label: Cmm.label option }

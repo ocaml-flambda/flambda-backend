@@ -106,10 +106,10 @@ let print_cma_infos (lib : Cmo_format.library) =
 let print_cmi_infos name crcs kind =
   if not !quiet then begin
     let open Cmi_format in
-    printf "Unit name: %a\n" Compilation_unit.output name;
+    printf "Unit name: %a\n" Compilation_unit.Name.output name;
     let is_param =
       match kind with
-      | Normal -> false
+      | Normal _ -> false
       | Parameter -> true
     in
     printf "Is parameter: %s\n" (if is_param then "YES" else "no");
@@ -264,7 +264,7 @@ let print_cmx_infos (uir, sections, crc) =
   end;
   print_generic_fns uir.uir_generic_fns;
   printf "Force link: %s\n" (if uir.uir_force_link then "YES" else "no");
-  Checks.Raw.print uir.uir_checks
+  Zero_alloc_info.Raw.print uir.uir_zero_alloc_info
 
 let print_cmxa_infos (lib : Cmx_format.library_infos) =
   printf "Extra C object files:";

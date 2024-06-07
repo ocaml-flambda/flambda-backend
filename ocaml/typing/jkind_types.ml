@@ -332,7 +332,6 @@ module Layout = struct
   type 'sort layout =
     | Sort of 'sort
     | Any
-    | Non_null_value
 
   module Const = struct
     type t = Sort.const layout
@@ -349,7 +348,6 @@ module Layout = struct
         | Word
         | Bits32
         | Bits64
-        | Non_null_value
     end
   end
 
@@ -391,7 +389,8 @@ type 'type_expr history =
 
 type 'type_expr t =
   { jkind : 'type_expr Jkind_desc.t;
-    history : 'type_expr history
+    history : 'type_expr history;
+    has_warned : bool
   }
 
 module Const = struct

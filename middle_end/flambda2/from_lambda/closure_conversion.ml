@@ -1523,21 +1523,27 @@ let boxing_primitive (k : Function_decl.unboxing_kind) alloc_mode
       ( Make_block (Naked_floats, Immutable, alloc_mode),
         Simple.vars unboxed_variables )
 
-let compute_body_of_unboxed_function acc my_region my_closure params param_modes
+let compute_body_of_unboxed_function acc my_region my_closure
+    ~unarized_params:params params_arity ~unarized_param_modes:param_modes
     function_slot compute_body return return_continuation unboxed_params
     unboxed_return unboxed_function_slot =
-  let rec box_params params param_modes params_unboxing body =
-    match params, param_modes, params_unboxing with
-    | [], [], [] -> [], [], body
+  let rec box_params params params_arity param_modes params_unboxing body =
+    match params, params_arity, param_modes, params_unboxing with
+    | [], [], [], [] -> [], [], [], body
     | ( param :: params,
+        param_arity :: params_arity,
         param_mode :: param_modes,
         param_unboxing :: params_unboxing ) -> (
-      let main_code_params, main_code_param_modes, body =
-        box_params params param_modes params_unboxing body
+      let main_code_params, main_code_params_arity, main_code_param_modes, body
+          =
+        box_params params params_arity param_modes params_unboxing body
       in
       match (param_unboxing : Function_decl.unboxing_kind option) with
       | None ->
-        param :: main_code_params, param_mode :: main_code_param_modes, body
+        ( param :: main_code_params,
+          param_arity :: main_code_params_arity,
+          param_mode :: main_code_param_modes,
+          body )
       | Some k ->
         let boxed_variable_name = Variable.name (Bound_parameter.var param) in
         let vars_with_kinds = variables_for_unboxing boxed_variable_name k in
@@ -1559,18 +1565,28 @@ let compute_body_of_unboxed_function acc my_region my_closure params param_modes
             (fun (var, kind) -> Bound_parameter.create var kind)
             vars_with_kinds
           @ main_code_params,
+          List.map snd vars_with_kinds @ main_code_params_arity,
           (* CR ncourant: is this correct in the presence of records with global
              fields? *)
           List.map (fun _ -> param_mode) vars_with_kinds @ main_code_param_modes,
           body ))
-    | ([] | _ :: _), _, _ ->
-      Misc.fatal_error
+    | ([] | _ :: _), _, _, _ ->
+      Misc.fatal_errorf
         "Parameters and unboxed parameters do not have the same length@."
   in
-  let main_code_params, main_code_param_modes, body =
+  let main_code_params, main_code_params_arity, main_code_param_modes, body =
     box_params
       (Bound_parameters.to_list params)
+      (Flambda_arity.unarize params_arity)
       param_modes unboxed_params compute_body
+  in
+  (* This function is always fully applied, so use a single non-unarized
+     parameter to avoid useless currying functions being generated. *)
+  let main_code_params_arity =
+    [ Flambda_arity.Component_for_creation.Unboxed_product
+        (List.map
+           (fun kind -> Flambda_arity.Component_for_creation.Singleton kind)
+           main_code_params_arity) ]
   in
   let acc, unboxed_body, result_arity_main_code, unboxed_return_continuation =
     match unboxed_return with
@@ -1643,6 +1659,7 @@ let compute_body_of_unboxed_function acc my_region my_closure params param_modes
   ( acc,
     unboxed_body,
     Bound_parameters.create main_code_params,
+    Flambda_arity.create main_code_params_arity,
     main_code_param_modes,
     false,
     (* first_complex_local_param = 0, but function should never be partially
@@ -1652,11 +1669,12 @@ let compute_body_of_unboxed_function acc my_region my_closure params param_modes
     unboxed_return_continuation,
     my_unboxed_closure )
 
-let make_unboxed_function_wrapper acc function_slot params params_arity
-    param_modes return result_arity_main_code code_id main_code_id decl loc
-    external_env recursive cost_metrics dbg is_tupled inlining_decision
-    absolute_history relative_history main_code by_function_slot
-    function_code_ids unboxed_function_slot unboxed_params unboxed_return =
+let make_unboxed_function_wrapper acc function_slot ~unarized_params:params
+    params_arity ~unarized_param_modes:param_modes return result_arity_main_code
+    code_id main_code_id decl loc external_env recursive cost_metrics dbg
+    is_tupled inlining_decision absolute_history relative_history main_code
+    by_function_slot function_code_ids unboxed_function_slot unboxed_params
+    unboxed_return =
   (* The outside caller gave us the function slot and code ID meant for the
      boxed function, which will be a wrapper. So in this branch everything
      starting with 'main_' refers to the version with unboxed return/params. *)
@@ -1716,15 +1734,20 @@ let make_unboxed_function_wrapper acc function_slot params params_arity
   let args, args_arity, body_wrapper =
     unbox_params (Bound_parameters.to_list params) unboxed_params
   in
+  let args_arity =
+    Flambda_arity.create
+      [ Flambda_arity.Component_for_creation.Unboxed_product
+          (List.map
+             (fun kind -> Flambda_arity.Component_for_creation.Singleton kind)
+             args_arity) ]
+  in
   let make_body cont =
     let main_application =
       Apply_expr.create
         ~callee:(Some (Simple.var main_closure))
         ~continuation:(Return cont)
         (Exn_continuation.create ~exn_handler:exn_continuation ~extra_args:[])
-        ~args
-        ~args_arity:(Flambda_arity.create_singletons args_arity)
-        ~return_arity:result_arity_main_code
+        ~args ~args_arity ~return_arity:result_arity_main_code
         ~call_kind:
           (Call_kind.direct_function_call main_code_id
              (Alloc_mode.For_allocations.from_lambda
@@ -1895,11 +1918,12 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
   let body = Function_decl.body decl in
   let loc = Function_decl.loc decl in
   let dbg = Debuginfo.from_location loc in
-  let params = Function_decl.params decl in
-  let param_modes =
+  let unarized_params = Function_decl.params decl in
+  let params_arity = Function_decl.params_arity decl in
+  let unarized_param_modes =
     List.map
       (fun (p : Function_decl.param) -> Alloc_mode.For_types.from_lambda p.mode)
-      params
+      unarized_params
   in
   let return = Function_decl.return decl in
   let calling_convention = Function_decl.calling_convention decl in
@@ -2024,7 +2048,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
       (fun (p : Function_decl.param) env ->
         let env, _var = Env.add_var_like env p.name User_visible p.kind in
         env)
-      params closure_env
+      unarized_params closure_env
   in
   let closure_env, my_region =
     Env.add_var_like closure_env my_region Not_user_visible
@@ -2047,12 +2071,12 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
   (* CR-someday pchambart: eta-expansion wrappers for primitives are not marked
      as stubs but certainly should be. *)
   let stub = Function_decl.stub decl in
-  let params =
+  let unarized_params =
     List.map
       (fun (p : Function_decl.param) ->
         let var = fst (Env.find_var closure_env p.name) in
         BP.create var p.kind)
-      params
+      unarized_params
     |> Bound_parameters.create
   in
   let acc = Acc.with_seen_a_function acc false in
@@ -2065,7 +2089,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
         Format.eprintf
           "\n\
            %tContext is:%t closure converting function@ with \
-           [our_let_rec_ident] %a (function slot %a)"
+           [our_let_rec_ident] %a (function slot %a)\n\n"
           (* @ \ *)
           (* and body:@ %a *)
           Flambda_colours.error Flambda_colours.pop Ident.print
@@ -2117,8 +2141,9 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
   in
   let ( acc,
         body,
-        main_code_params,
-        main_code_param_modes,
+        main_code_unarized_params,
+        main_code_params_arity,
+        main_code_unarized_param_modes,
         main_code_is_tupled,
         first_complex_local_param_main_code,
         result_arity_main_code,
@@ -2129,8 +2154,9 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
       let acc, body = compute_body acc in
       ( acc,
         body,
-        params,
-        param_modes,
+        unarized_params,
+        params_arity,
+        unarized_param_modes,
         is_tupled,
         Function_decl.first_complex_local_param decl,
         return,
@@ -2138,35 +2164,32 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
         my_closure )
     | Unboxed_calling_convention
         (unboxed_params, unboxed_return, unboxed_function_slot) ->
-      compute_body_of_unboxed_function acc my_region my_closure params
-        param_modes function_slot compute_body return return_continuation
-        unboxed_params unboxed_return unboxed_function_slot
+      compute_body_of_unboxed_function acc my_region my_closure ~unarized_params
+        params_arity ~unarized_param_modes function_slot compute_body return
+        return_continuation unboxed_params unboxed_return unboxed_function_slot
   in
   let contains_subfunctions = Acc.seen_a_function acc in
   let cost_metrics = Acc.cost_metrics acc in
   let inline : Inline_attribute.t =
-    match Inline_attribute.from_lambda (Function_decl.inline decl) with
-    | (Always_inline | Available_inline | Never_inline) as attr -> attr
-    | (Unroll _ | Default_inline) as attr ->
-      (* We make a decision based on [fallback_inlining_heuristic] here to try
-         to mimic Closure's behaviour as closely as possible, particularly when
-         there are functions involving constant closures, which are not lifted
-         during Closure (but will prevent inlining) but will likely have been
-         lifted by our other check in [Inlining_cost] (thus preventing us seeing
-         they were originally there). Note that while Closure never marks as
-         inlinable functions in a set a recursive definitions with more than one
-         function, we do not try to reproduce this particular property and can
-         mark as inlinable such functions. *)
-      if contains_subfunctions
-         && Flambda_features.Expert.fallback_inlining_heuristic ()
-      then (* CR vlaviron: Store reason *) Never_inline
-      else attr
+    (* We make a decision based on [fallback_inlining_heuristic] here to try to
+       mimic Closure's behaviour as closely as possible, particularly when there
+       are functions involving constant closures, which are not lifted during
+       Closure (but will prevent inlining) but will likely have been lifted by
+       our other check in [Inlining_cost] (thus preventing us seeing they were
+       originally there). Note that while Closure never marks as inlinable
+       functions in a set a recursive definitions with more than one function,
+       we do not try to reproduce this particular property and can mark as
+       inlinable such functions. *)
+    if contains_subfunctions
+       && Flambda_features.Expert.fallback_inlining_heuristic ()
+    then Never_inline
+    else Inline_attribute.from_lambda (Function_decl.inline decl)
   in
   let free_names_of_body = Acc.free_names acc in
   let params_and_body =
     Function_params_and_body.create ~return_continuation
       ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
-      main_code_params ~body ~my_closure ~my_region ~my_depth
+      main_code_unarized_params ~body ~my_closure ~my_region ~my_depth
       ~free_names_of_body:(Known free_names_of_body)
   in
   let result_mode = Function_decl.result_mode decl in
@@ -2180,7 +2203,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
     List.fold_left
       (fun acc param -> Acc.remove_var_from_free_names (BP.var param) acc)
       acc
-      (Bound_parameters.to_list main_code_params)
+      (Bound_parameters.to_list main_code_unarized_params)
     |> Acc.remove_var_from_free_names my_closure
     |> Acc.remove_var_from_free_names my_region
     |> Acc.remove_var_from_free_names my_depth
@@ -2189,13 +2212,14 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
          (Exn_continuation.exn_handler exn_continuation)
   in
   let closure_info, acc = Acc.pop_closure_info acc in
-  let params_arity = Function_decl.params_arity decl in
   let is_tupled =
     match Function_decl.kind decl with Curried _ -> false | Tupled -> true
   in
   let inlining_decision =
     if Flambda_features.classic_mode ()
-    then Inlining.definition_inlining_decision inline cost_metrics ~stub
+    then Inlining.definition_inlining_decision inline cost_metrics
+    else if stub
+    then Function_decl_inlining_decision_type.Stub
     else Function_decl_inlining_decision_type.Not_yet_decided
   in
   let loopify : Loopify_attribute.t =
@@ -2207,7 +2231,6 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
       then Default_loopify_and_tailrec
       else Default_loopify_and_not_tailrec
   in
-  let params_arity_main_code = Bound_parameters.arity main_code_params in
   let main_code_id =
     match calling_convention with
     | Normal_calling_convention -> code_id
@@ -2216,7 +2239,8 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
   let main_code =
     Code.create main_code_id ~params_and_body
       ~free_names_of_params_and_body:(Acc.free_names acc)
-      ~params_arity:params_arity_main_code ~param_modes:main_code_param_modes
+      ~params_arity:main_code_params_arity
+      ~param_modes:main_code_unarized_param_modes
       ~first_complex_local_param:first_complex_local_param_main_code
       ~result_arity:result_arity_main_code ~result_types:Unknown ~result_mode
       ~contains_no_escaping_local_allocs:
@@ -2244,11 +2268,12 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
       main_code, by_function_slot, function_code_ids, acc
     | Unboxed_calling_convention
         (unboxed_params, unboxed_return, unboxed_function_slot) ->
-      make_unboxed_function_wrapper acc function_slot params params_arity
-        param_modes return result_arity_main_code code_id main_code_id decl loc
-        external_env recursive cost_metrics dbg is_tupled inlining_decision
-        absolute_history relative_history main_code by_function_slot
-        function_code_ids unboxed_function_slot unboxed_params unboxed_return
+      make_unboxed_function_wrapper acc function_slot ~unarized_params
+        params_arity ~unarized_param_modes return result_arity_main_code code_id
+        main_code_id decl loc external_env recursive cost_metrics dbg is_tupled
+        inlining_decision absolute_history relative_history main_code
+        by_function_slot function_code_ids unboxed_function_slot unboxed_params
+        unboxed_return
   in
   let approx =
     let code = Code_or_metadata.create code in
@@ -2266,9 +2291,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
     else meta
   in
   let acc = Acc.add_code ~code_id ~code acc in
-  let acc =
-    if has_lifted_closure then acc else Acc.with_seen_a_function acc true
-  in
+  let acc = Acc.with_seen_a_function acc true in
   ( acc,
     ( Function_slot.Map.add function_slot approx by_function_slot,
       function_code_ids ) )
@@ -2670,6 +2693,26 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
       ~name:(Ident.name wrapper_id) K.With_subkind.any_value
   in
   let num_provided = Flambda_arity.num_params provided_arity in
+  let missing_arity_and_param_modes =
+    let missing_arity = Flambda_arity.unarize missing_arity in
+    if List.compare_lengths missing_arity missing_param_modes <> 0
+    then
+      Misc.fatal_errorf
+        "Mismatch between missing arity and missing param modes@ when wrapping \
+         partial application of %a in [Closure_conversion]@ (location: %s):@ \
+         provided_arity = %a@ missing_arity (unarized) = (%a)@ \
+         missing_param_modes = (%a)"
+        Ident.print apply.func
+        (Debuginfo.Scoped_location.string_of_scoped_location apply.loc)
+        Flambda_arity.print provided_arity
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space
+           Flambda_kind.With_subkind.print)
+        missing_arity
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space
+           Alloc_mode.For_types.print)
+        missing_param_modes
+    else List.combine missing_arity missing_param_modes
+  in
   let params =
     List.mapi
       (fun n (kind, mode) : Function_decl.param ->
@@ -2678,7 +2721,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
           attributes = Lambda.default_param_attribute;
           mode = Alloc_mode.For_types.to_lambda mode
         })
-      (List.combine (Flambda_arity.unarize missing_arity) missing_param_modes)
+      missing_arity_and_param_modes
   in
   let params_arity = missing_arity in
   let return_continuation = Continuation.create ~sort:Return () in

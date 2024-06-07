@@ -340,7 +340,17 @@ void caml_oldify_mopup (void)
     if (Is_block (f) && Is_young (f)){
       caml_oldify_one (f, &Field (new_v, 0));
     }
-    for (i = 1; i < scannable_wosize; i++){
+
+    i = 1;
+
+    if(Tag_val(new_v) == Closure_tag) {
+      mlsize_t non_scannable = Start_env_closinfo(Closinfo_val(v));
+      for (; i < non_scannable; i++) {
+        Field(new_v, i) = Field(v, i);
+      }
+    }
+
+    for (; i < scannable_wosize; i++){
       f = Field (v, i);
       if (Is_block (f) && Is_young (f)){
         caml_oldify_one (f, &Field (new_v, i));
@@ -392,7 +402,7 @@ static void verify_minor_heap(void)
       intnat i = 0;
       if (Tag_hd(hd) == Closure_tag)
         i = Start_env_closinfo(Closinfo_val(Val_hp(p)));
-      for (; i < Wosize_hd(hd); i++) {
+      for (; i < Scannable_wosize_hd(hd); i++) {
         value v = Field(Val_hp(p), i);
         if (Is_block(v)) {
           if (Is_young(v)) CAMLassert ((value)Caml_state->young_ptr < v);

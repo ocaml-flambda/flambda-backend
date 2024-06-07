@@ -1,4 +1,6 @@
 
+[@@@ocaml.warning "-unused-value-declaration"]
+
 external int64x2_of_int64s : int64 -> int64 -> int64x2 = "caml_vec128_unreachable" "vec128_of_int64s" [@@noalloc] [@@unboxed]
 external int64x2_low_int64 : int64x2 -> int64 = "caml_vec128_unreachable" "vec128_low_int64" [@@noalloc] [@@unboxed]
 external int64x2_high_int64 : int64x2 -> int64 = "caml_vec128_unreachable" "vec128_high_int64" [@@noalloc] [@@unboxed]
@@ -77,7 +79,7 @@ module Int = struct
       eqi (f minus_one) (g minus_one);
       eqi (f max_int) (g max_int);
       eqi (f min_int) (g min_int);
-      for i = 0 to 100_000 do
+      for _ = 0 to 100_000 do
           let i = Random.full_int max_int in
           let i = if Random.bool () then i else neg i in
           eqi (f i) (g i)
@@ -171,7 +173,7 @@ module Int64 = struct
       eqi (f minus_one) (g minus_one);
       eqi (f max_int) (g max_int);
       eqi (f min_int) (g min_int);
-      for i = 0 to 100_000 do
+      for _ = 0 to 100_000 do
           let i = Random.int64 max_int in
           let i = if Random.bool () then i else neg i in
           if not nz || i <> 0L then eqi (f i) (g i);
@@ -250,7 +252,7 @@ module Int32 = struct
       eqi (f minus_one) (g minus_one);
       eqi (f max_int) (g max_int);
       eqi (f min_int) (g min_int);
-      for i = 0 to 100_000 do
+      for _ = 0 to 100_000 do
           let i = Random.int32 max_int in
           let i = if Random.bool () then i else neg i in
           if not nz || i <> 0l then eqi (f i) (g i);

@@ -683,6 +683,10 @@ val lsr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
     first argument by. *)
 val asr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
+(** Reinterpret cast functions *)
+
+val int64_as_float : dbg:Debuginfo.t -> expression -> expression
+
 (** Conversions functions between integers and floats. *)
 
 val int_of_float : dbg:Debuginfo.t -> expression -> expression
@@ -958,6 +962,11 @@ val atomic_compare_and_set :
 
 val emit_gc_roots_table : symbols:symbol list -> phrase list -> phrase list
 
+(** Allocate a block to hold an unboxed float32 array for the given number of
+    elements. *)
+val allocate_unboxed_float32_array :
+  elements:Cmm.expression list -> Lambda.alloc_mode -> Debuginfo.t -> expression
+
 (** Allocate a block to hold an unboxed int32 array for the given number of
     elements. *)
 val allocate_unboxed_int32_array :
@@ -973,12 +982,19 @@ val allocate_unboxed_int64_array :
 val allocate_unboxed_nativeint_array :
   elements:Cmm.expression list -> Lambda.alloc_mode -> Debuginfo.t -> expression
 
+(** Compute the length of an unboxed float32 array. *)
+val unboxed_float32_array_length : expression -> Debuginfo.t -> expression
+
 (** Compute the length of an unboxed int32 array. *)
 val unboxed_int32_array_length : expression -> Debuginfo.t -> expression
 
 (** Compute the length of an unboxed int64 or unboxed nativeint array. *)
 val unboxed_int64_or_nativeint_array_length :
   expression -> Debuginfo.t -> expression
+
+(** Read from an unboxed float32 array (without bounds check). *)
+val unboxed_float32_array_ref :
+  expression -> expression -> Debuginfo.t -> expression
 
 (** Read from an unboxed int32 array (without bounds check). *)
 val unboxed_int32_array_ref :
@@ -988,6 +1004,14 @@ val unboxed_int32_array_ref :
     check). *)
 val unboxed_int64_or_nativeint_array_ref :
   expression -> expression -> Debuginfo.t -> expression
+
+(** Update an unboxed float32 array (without bounds check). *)
+val unboxed_float32_array_set :
+  expression ->
+  index:expression ->
+  new_value:expression ->
+  Debuginfo.t ->
+  expression
 
 (** Update an unboxed int32 array (without bounds check). *)
 val unboxed_int32_array_set :
@@ -1043,3 +1067,5 @@ val setfield_unboxed_int32 : ternary_primitive
 val setfield_unboxed_float32 : ternary_primitive
 
 val setfield_unboxed_int64_or_nativeint : ternary_primitive
+
+val dls_get : dbg:Debuginfo.t -> expression

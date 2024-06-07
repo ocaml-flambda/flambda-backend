@@ -1129,6 +1129,10 @@ let simplify_binary_primitive0 dacc original_prim (prim : P.binary_primitive)
       | Naked_nativeint -> Binary_int_comp_nativeint.simplify op)
     | Float_arith (Float64, op) -> Binary_float_arith.simplify op
     | Float_comp (Float64, op) -> Binary_float_comp.simplify op
+    (* Note: despite the fact that all float32s are representable as float64s,
+       float32 arithmetic operations need to be performed in 32-bit precision to
+       preserve rounding behavior. Such 32-bit operations are implemented by
+       flambda2_floats. *)
     | Float_arith (Float32, op) -> Binary_float32_arith.simplify op
     | Float_comp (Float32, op) -> Binary_float32_comp.simplify op
     | Phys_equal op -> simplify_phys_equal op

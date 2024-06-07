@@ -668,6 +668,7 @@ let rebuild_invalid uacc reason ~after_rebuild =
   after_rebuild (RE.create_invalid reason) uacc
 
 type rewrite_apply_cont_result =
+  | Invalid of { message : string }
   | Apply_cont of Apply_cont.t
   | Expr of
       (apply_cont_to_expr:
@@ -679,25 +680,28 @@ let no_rewrite_apply_cont apply_cont = Apply_cont apply_cont
 let rewrite_apply_cont0 uacc rewrite ~ctx id apply_cont :
     rewrite_apply_cont_result =
   let args = Apply_cont.args apply_cont in
-  let extra_lets, args = Apply_cont_rewrite.make_rewrite rewrite ~ctx id args in
-  let apply_cont = Apply_cont.update_args apply_cont ~args in
-  match extra_lets with
-  | [] -> Apply_cont apply_cont
-  | _ :: _ ->
-    let build_expr ~apply_cont_to_expr =
-      let body, cost_metrics_of_body, free_names_of_body =
-        apply_cont_to_expr apply_cont
+  match Apply_cont_rewrite.make_rewrite rewrite ~ctx id args with
+  | Invalid -> Invalid { message = "" }
+  | Ok (extra_lets, args) -> (
+    let apply_cont = Apply_cont.update_args apply_cont ~args in
+    match extra_lets with
+    | [] -> Apply_cont apply_cont
+    | _ :: _ ->
+      let build_expr ~apply_cont_to_expr =
+        let body, cost_metrics_of_body, free_names_of_body =
+          apply_cont_to_expr apply_cont
+        in
+        RE.bind_no_simplification
+          (UA.are_rebuilding_terms uacc)
+          ~bindings:extra_lets ~body ~cost_metrics_of_body ~free_names_of_body
       in
-      RE.bind_no_simplification
-        (UA.are_rebuilding_terms uacc)
-        ~bindings:extra_lets ~body ~cost_metrics_of_body ~free_names_of_body
-    in
-    Expr build_expr
+      Expr build_expr)
 
 let rewrite_apply_cont uacc rewrite id apply_cont =
   rewrite_apply_cont0 uacc rewrite ~ctx:Apply_cont id apply_cont
 
 type rewrite_fixed_arity_continuation0_result =
+  | Invalid of { message : string }
   | This_continuation of Continuation.t
   | Apply_cont of Apply_cont.t
   | New_wrapper of new_let_cont
@@ -769,6 +773,7 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
       let apply_cont = Apply_cont.create cont ~args ~dbg:Debuginfo.none in
       let ctx : Apply_cont_rewrite.rewrite_apply_cont_ctx = Apply_expr args in
       match rewrite_apply_cont0 uacc rewrite use_id ~ctx apply_cont with
+      | Invalid { message } -> Invalid { message }
       | Apply_cont apply_cont ->
         let cost_metrics =
           Cost_metrics.from_size (Code_size.apply_cont apply_cont)
@@ -788,6 +793,7 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
     | Apply_cont apply_cont -> (
       let apply_cont = Apply_cont.with_continuation apply_cont cont in
       match rewrite_apply_cont uacc rewrite use_id apply_cont with
+      | Invalid { message } -> Invalid { message }
       | Apply_cont apply_cont -> Apply_cont apply_cont
       | Expr build_expr ->
         let expr, cost_metrics, free_names =
@@ -799,6 +805,7 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
         new_wrapper Bound_parameters.empty expr ~free_names ~cost_metrics))
 
 type rewrite_switch_arm_result =
+  | Invalid of { message : string }
   | Apply_cont of Apply_cont.t
   | New_wrapper of new_let_cont
 
@@ -807,6 +814,7 @@ let rewrite_switch_arm uacc apply_cont ~use_id arity : rewrite_switch_arm_result
   match
     rewrite_fixed_arity_continuation0 uacc (Apply_cont apply_cont) ~use_id arity
   with
+  | Invalid { message } -> Invalid { message }
   | This_continuation cont ->
     Apply_cont (Apply_cont.with_continuation apply_cont cont)
   | Apply_cont apply_cont -> Apply_cont apply_cont
@@ -816,6 +824,12 @@ let rewrite_fixed_arity_continuation uacc cont ~use_id arity ~around =
   match
     rewrite_fixed_arity_continuation0 uacc (Continuation cont) ~use_id arity
   with
+  | Invalid { message } ->
+    (* Continuation calls are not counted as operations for cost benefit in the
+       uacc *)
+    (* CR gbury: add a case to [Flambda.Invalid.t] for invalid extra args after
+       unboxing ? *)
+    uacc, RE.create_invalid (Message message)
   | This_continuation cont -> around uacc cont
   | Apply_cont _ -> assert false
   | New_wrapper new_let_cont ->

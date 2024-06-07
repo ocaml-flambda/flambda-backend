@@ -175,7 +175,7 @@ end = struct
     let mk_fexpr_id name = name |> nowhere
   end)
 
-  module Symbol_name_map = Name_map (struct
+  module Symbol_name_map = Global_name_map (struct
     include Symbol
 
     (* We don't need the name map for non-local symbols, so only bother with
@@ -191,7 +191,7 @@ end = struct
     let mk_fexpr_id name = name
   end)
 
-  module Code_id_name_map = Name_map (struct
+  module Code_id_name_map = Global_name_map (struct
     include Code_id
 
     type fexpr_id = Fexpr.code_id
@@ -262,8 +262,8 @@ end = struct
 
   let create () =
     { variables = Variable_name_map.empty;
-      symbols = Symbol_name_map.empty;
-      code_ids = Code_id_name_map.empty;
+      symbols = Symbol_name_map.create ();
+      code_ids = Code_id_name_map.create ();
       function_slots = Function_slot_name_map.create ();
       vars_within_closures = Value_slot_name_map.create ();
       continuations = Continuation_name_map.empty;
@@ -287,12 +287,12 @@ end = struct
       Misc.fatal_errorf "Cannot bind non-local symbol %a@ Current unit is %a"
         Symbol.print s Compilation_unit.print
         (Compilation_unit.get_current_exn ());
-    let s, symbols = Symbol_name_map.bind t.symbols s in
-    (None, s) |> nowhere, { t with symbols }
+    let s = Symbol_name_map.translate t.symbols s in
+    (None, s) |> nowhere, t
 
   let bind_code_id t c =
-    let c, code_ids = Code_id_name_map.bind t.code_ids c in
-    c, { t with code_ids }
+    let c = Code_id_name_map.translate t.code_ids c in
+    c, t
 
   let bind_named_continuation t c =
     let c, continuations = Continuation_name_map.bind t.continuations c in
@@ -315,7 +315,7 @@ end = struct
       Compilation_unit.equal cunit (Compilation_unit.get_current_exn ())
     in
     if is_local
-    then (None, Symbol_name_map.find_exn t.symbols s) |> nowhere
+    then (None, Symbol_name_map.translate t.symbols s) |> nowhere
     else
       let cunit =
         let ident =
@@ -330,7 +330,7 @@ end = struct
       let linkage_name = Symbol.linkage_name s |> Linkage_name.to_string in
       (Some cunit, linkage_name) |> nowhere
 
-  let find_code_id_exn t c = Code_id_name_map.find_exn t.code_ids c
+  let find_code_id_exn t c = Code_id_name_map.translate t.code_ids c
 
   let find_continuation_exn t c =
     Continuation_name_map.find_exn t.continuations c
@@ -437,9 +437,11 @@ let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
   | Value_array -> Value_array
   | Generic_array -> Generic_array
   | Float_block { num_fields } -> Float_block { num_fields }
-  | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array ->
+  | Unboxed_float32_array | Unboxed_int32_array | Unboxed_int64_array
+  | Unboxed_nativeint_array ->
     Misc.fatal_error
-      "fexpr support for unboxed int32/64/nativeint arrays not yet implemented"
+      "fexpr support for unboxed float32/int32/64/nativeint arrays not yet \
+       implemented"
 
 and variant_subkind consts non_consts : Fexpr.subkind =
   let consts =
@@ -514,7 +516,8 @@ let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
   match op with
   | Begin_region -> Begin_region
   | Begin_try_region -> Begin_try_region
-  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _ ->
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
+  | Dls_get ->
     Misc.fatal_errorf "TODO: Nullary primitive: %a" Flambda_primitive.print
       (Flambda_primitive.Nullary op)
 
@@ -709,10 +712,11 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
     Immutable_float_array (List.map (or_variable float env) elements)
   | Immutable_value_array elements ->
     Immutable_value_array (List.map (field_of_block env) elements)
-  | Immutable_int32_array _ | Immutable_int64_array _
-  | Immutable_nativeint_array _ ->
+  | Immutable_float32_array _ | Immutable_int32_array _
+  | Immutable_int64_array _ | Immutable_nativeint_array _ ->
     Misc.fatal_error
-      "fexpr support for unboxed int32/64/nativeint arrays not yet implemented"
+      "fexpr support for unboxed float32/int32/64/nativeint arrays not yet \
+       implemented"
   | Empty_array array_kind -> Empty_array array_kind
   | Mutable_string { initial_value } -> Mutable_string { initial_value }
   | Immutable_string s -> Immutable_string s

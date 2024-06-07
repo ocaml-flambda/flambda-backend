@@ -1,5 +1,5 @@
 (* TEST
- include stable;
+ include stdlib_upstream_compatible;
  {
    flags = "-extension layouts";
    expect;
@@ -9,7 +9,7 @@
  }
 *)
 
-module F = Stable.Float_u
+module F = Stdlib_upstream_compatible.Float_u
 
 type t_any : any
 type ('a : any) t_with_any = 'a
@@ -19,7 +19,7 @@ end = struct
   type ('a : any) t = 'a
 end
 [%%expect{|
-module F = Stable.Float_u
+module F = Stdlib_upstream_compatible.Float_u
 type t_any : any
 type ('a : any) t_with_any = 'a
 module M_any : sig type ('a : any) t = private 'a end

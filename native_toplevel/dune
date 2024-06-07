@@ -18,7 +18,7 @@
  (name ocamlopttoplevel)
  (modes native)
  (wrapped false)
- (flags (:standard -principal -w -9))
+ (flags (:standard -w -70))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (libraries ocamlcommon ocamlbytecomp ocamloptcomp
    flambda_backend_common
@@ -34,7 +34,6 @@
 (executable
  (name opttopstart)
  (modes native)
- (flags (:standard -principal))
  (libraries ocamlopttoplevel)
  (modules opttopstart))
 

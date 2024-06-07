@@ -95,6 +95,7 @@ end
 
 type mixed_product_violation =
   | Runtime_support_not_enabled of Mixed_product_kind.t
+  | Extension_constructor
   | Value_prefix_too_long of
       { value_prefix_len : int;
         max_value_prefix_len : int;
@@ -173,8 +174,6 @@ type error =
   | Unexpected_jkind_any_in_primitive of string
   | Useless_layout_poly
   | Modalities_on_value_description
-  | Missing_unboxed_attribute_on_non_value_sort of Jkind.Sort.const
-  | Non_value_sort_not_upstream_compatible of Jkind.Sort.const
   | Zero_alloc_attr_unsupported of Builtin_attributes.zero_alloc_attribute
   | Zero_alloc_attr_non_function
   | Zero_alloc_attr_bad_user_arity
