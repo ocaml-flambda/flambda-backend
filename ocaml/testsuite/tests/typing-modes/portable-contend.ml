@@ -1,4 +1,5 @@
 (* TEST
+   include stdlib_stable;
    expect;
 *)
 
@@ -249,13 +250,13 @@ val foo : int -> int @ contended -> unit = <fun>
 |}]
 
 (* TESTING immutable array *)
-module Iarray = Stdlib__Iarray
+module Iarray = Stdlib_stable.Iarray
 
 let foo (r @ contended) = Iarray.get r 42
 (* CR zqian: The following should pass; the modal kind system should mode cross
 iarray depending on the type of its element. *)
 [%%expect{|
-module Iarray = Stdlib__Iarray
+module Iarray = Stdlib_stable.Iarray
 Line 3, characters 37-38:
 3 | let foo (r @ contended) = Iarray.get r 42
                                          ^
