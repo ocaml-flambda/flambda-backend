@@ -15,7 +15,7 @@ Line 3, characters 74-79:
 3 |   let () = Format.printf "%f %s\n" (Stable.Float_u.to_float (id #1.)) (id "abc")
                                                                               ^^^^^
 Error: This expression has type string but an expression was expected of type
-         ('a : float64 mod internal once shared local)
+         ('a : layout_float64)
        The layout of string is value, because
          it is the primitive value type string.
        But the layout of string must be a sublayout of float64, because
