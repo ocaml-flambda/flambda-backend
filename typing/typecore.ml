@@ -106,6 +106,10 @@ type submode_reason =
   | Application of type_expr
   | Other
 
+type contention_context =
+  | Read_mutable
+  | Write_mutable
+
 type error =
   | Constructor_arity_mismatch of Longident.t * int * int
   | Constructor_labeled_arg
@@ -216,6 +220,7 @@ type error =
   | Submode_failed of
       Value.error * submode_reason *
       Env.closure_context option *
+      contention_context option *
       Env.shared_context option
   | Local_application_complete of arg_label * [`Prefix|`Single_arg|`Entire_apply]
   | Param_mode_mismatch of Alloc.equate_error
@@ -340,9 +345,15 @@ type position_in_region =
      (for tail call escape detection) *)
   | RTail of Regionality.r * position_in_function
 
+(* CR mode-hint: unify the mode error hinting. *)
 type expected_mode =
   { position : position_in_region;
+
     closure_context : Env.closure_context option;
+    (** Explains why regionality axis of [mode] is low. *)
+
+    contention_context : contention_context option;
+    (** Explains why contention axis of [mode] is low. *)
 
     mode : Value.r;
     (** The upper bound, hence r (right) *)
@@ -440,6 +451,7 @@ let apply_modality
 let mode_default mode =
   { position = RNontail;
     closure_context = None;
+    contention_context = None;
     mode = Value.disallow_left mode;
     strictly_local = false;
     tuple_modes = [] }
@@ -567,8 +579,10 @@ let submode ~loc ~env ?(reason = Other) ?shared_context mode expected_mode =
   | Ok () -> ()
   | Error failure_reason ->
       let closure_context = expected_mode.closure_context in
+      let contention_context = expected_mode.contention_context in
       let error =
-        Submode_failed(failure_reason, reason, closure_context, shared_context)
+        Submode_failed(failure_reason, reason, closure_context,
+          contention_context, shared_context)
       in
       raise (Error(loc, env, error))
 
@@ -874,17 +888,36 @@ let mutable_mode m0 =
 
 (** Takes the mutability on a field, and expected mode of the record (adjusted
     for allocation), check that the construction would be allowed. *)
-let check_construct_mutability mutability (argument_mode : expected_mode) =
+let check_construct_mutability ~loc ~env mutability argument_mode =
   match mutability with
   | Immutable -> ()
   | Mutable m0 ->
       let m0 = mutable_mode m0 in
-      match Value.submode m0 argument_mode.mode with
-      | Ok () -> ()
-      | Error _ ->
-          Misc.fatal_error
-            "mutable defaults to Comonadic.legacy, \
-            which is min, so this call cannot fail."
+      submode ~loc ~env m0 argument_mode
+
+(** The [expected_mode] of the record when projecting a mutable field. *)
+let mode_project_mutable =
+  let mode =
+    Contention.Const.Uncontended
+    |> Contention.of_const
+    |> Value.max_with (Monadic Contention)
+  in
+  { (mode_default mode) with
+    contention_context = Some Read_mutable }
+
+(** The [expected_mode] of the record when mutating a mutable field. *)
+let mode_mutate_mutable =
+  let mode =
+    Contention.Const.Uncontended
+    |> Contention.of_const
+    |> Value.max_with (Monadic Contention)
+  in
+  { (mode_default mode) with
+    contention_context = Some Write_mutable }
+
+let check_project_mutability ~loc ~env mutability mode =
+  if Types.is_mutable mutability then
+    submode ~loc ~env mode mode_project_mutable
 
 (* Typing of patterns *)
 
@@ -2391,6 +2424,7 @@ and type_pat_aux
       (* CR zqian: decouple mutable and global modality *)
       if Types.is_mutable mutability then Global else Unrestricted
     in
+    check_project_mutability ~loc ~env:!env mutability alloc_mode.mode;
     let alloc_mode = apply_modality modalities alloc_mode.mode in
     let alloc_mode = simple_pat_mode alloc_mode in
     let pl = List.map (fun p -> type_pat ~alloc_mode tps Value p ty_elt) spl in
@@ -2677,6 +2711,7 @@ and type_pat_aux
       let type_label_pat (label_lid, label, sarg) =
         let ty_arg =
           solve_Ppat_record_field ~refine loc env label label_lid record_ty in
+        check_project_mutability ~loc ~env:!env label.lbl_mut alloc_mode.mode;
         let mode = apply_modality label.lbl_global alloc_mode.mode in
         let alloc_mode = simple_pat_mode mode in
         (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
@@ -4708,13 +4743,13 @@ let unique_use ~loc ~env mode_l mode_r  =
     | Ok () -> ()
     | Error e ->
         let e : Mode.Value.error = Error (Monadic Uniqueness, e) in
-        raise (Error(loc, env, Submode_failed(e, Other, None, None)))
+        raise (Error(loc, env, Submode_failed(e, Other, None, None, None)))
     );
     (match Linearity.submode linearity Linearity.many with
     | Ok () -> ()
     | Error e ->
         let e : Mode.Value.error = Error (Comonadic Linearity, e) in
-        raise (Error (loc, env, Submode_failed(e, Other, None, None)))
+        raise (Error (loc, env, Submode_failed(e, Other, None, None, None)))
     );
     (Uniqueness.disallow_left Uniqueness.shared,
      Linearity.disallow_right Linearity.many)
@@ -5619,7 +5654,7 @@ and type_expect_
           None, expected_mode
       in
       let type_label_exp ((_, label, _) as x) =
-        check_construct_mutability label.lbl_mut argument_mode;
+        check_construct_mutability ~loc ~env label.lbl_mut argument_mode;
         let argument_mode = mode_modality label.lbl_global argument_mode in
         type_label_exp true env argument_mode loc ty_record x
       in
@@ -5681,8 +5716,9 @@ and type_expect_
                   unify_exp_types loc env ty_arg1 ty_arg2;
                   with_explanation (fun () ->
                     unify_exp_types loc env (instance ty_expected) ty_res2);
+                  check_project_mutability ~loc:exp.exp_loc ~env lbl.lbl_mut mode;
                   let mode = apply_modality lbl.lbl_global mode in
-                  check_construct_mutability lbl.lbl_mut argument_mode;
+                  check_construct_mutability ~loc ~env lbl.lbl_mut argument_mode;
                   let argument_mode =
                     mode_modality lbl.lbl_global argument_mode
                   in
@@ -5731,6 +5767,7 @@ and type_expect_
           ty_arg
         end ~post:generalize_structure
       in
+      check_project_mutability ~loc:record.exp_loc ~env label.lbl_mut rmode;
       let mode = apply_modality label.lbl_global rmode in
       let boxing : texp_field_boxing =
         let is_float_boxing =
@@ -5774,6 +5811,7 @@ and type_expect_
       let (label_loc, label, newval) =
         match label.lbl_mut with
         | Mutable m0 ->
+          submode ~loc:record.exp_loc ~env rmode mode_mutate_mutable;
           let mode = mutable_mode m0 |> mode_default in
           let mode = mode_modality label.lbl_global mode in
           type_label_exp false env mode loc ty_record (lid, label, snewval)
@@ -8709,7 +8747,7 @@ and type_generic_array
     else
       Predef.type_iarray, Global_flag.Unrestricted
   in
-  check_construct_mutability mutability argument_mode;
+  check_construct_mutability ~loc ~env mutability argument_mode;
   let argument_mode = mode_modality modalities argument_mode in
   let jkind, elt_sort = Jkind.of_new_sort_var ~why:Array_element in
   let ty = newgenvar jkind in
@@ -9569,6 +9607,18 @@ let sharedness_hint _fail_reason submode_reason context =
   match submode_reason with
   | Application _ | Other -> []
 
+let contention_hint _fail_reason _submode_reason context =
+  match context with
+  | Some Read_mutable ->
+      [Location.msg
+        "@[Hint: In order to read from the mutable fields,@ \
+        this record needs to be uncontended.@]"]
+  | Some Write_mutable ->
+      [Location.msg
+        "@[Hint: In order to write into the mutable fields,@ \
+        this record needs to be uncontended.@]"]
+  | None -> []
+
 let report_type_expected_explanation_opt expl ppf =
   match expl with
   | None -> ()
@@ -10123,7 +10173,8 @@ let report_error ~loc env = function
         "This expression has type %a@ \
          which is not a record type."
         Printtyp.type_expr ty
-  | Submode_failed(fail_reason, submode_reason, closure_context, shared_context)
+  | Submode_failed(fail_reason, submode_reason, closure_context,
+      contention_context, shared_context)
      ->
       let sub =
         match fail_reason with
@@ -10131,6 +10182,9 @@ let report_error ~loc env = function
           sharedness_hint fail_reason submode_reason shared_context
         | Error (Comonadic Areality, _) ->
           escaping_hint fail_reason submode_reason closure_context
+        | Error (Monadic Contention, _ ) ->
+          contention_hint fail_reason submode_reason contention_context
+        | Error (Comonadic Portability, _ ) -> []
       in
       Location.errorf ~loc ~sub "@[%t@]" begin
         match fail_reason with
@@ -10179,13 +10233,12 @@ let report_error ~loc env = function
           Location.errorf ~loc
             "This function or one of its parameters escape their region@ \
             when it is partially applied."
-      | Error (Monadic Uniqueness, _) -> assert false
-      | Error (Comonadic Linearity, {left; right}) ->
+      | Error (ax, {left; right}) ->
           Location.errorf ~loc
             "This function when partially applied returns a value which is %a,@ \
               but expected to be %a."
-            Linearity.Const.print left
-            Linearity.Const.print right
+            (Alloc.Const.print_axis ax) left
+            (Alloc.Const.print_axis ax) right
     end
   | Local_return_annotation_mismatch _ ->
       Location.errorf ~loc
