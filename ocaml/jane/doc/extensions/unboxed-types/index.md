@@ -290,7 +290,7 @@ Here's the list of primitives that currently support `[@layout_poly]`:
 
 Unboxed types can usually be put in structures, though there are some restrictions.
 
-These structures support unboxed type fields, but have some restrictions on field
+These structures may contain unboxed types, but have some restrictions on field
 orders:
   * Records
   * Constructors
@@ -305,7 +305,7 @@ Unboxed numbers can't be put in these structures:
 There aren't fundamental issues with the structures that lack support. They will
 just take some work to implement.
 
-Here's an example of a record with some unboxed fields. We call such a record 
+Here's an example of a record with an unboxed field. We call such a record 
 a "mixed record".
 
 ```ocaml
@@ -316,16 +316,17 @@ type t =
   }
 ```
 
-## Restrictions on ordering of fields
+## Restrictions on field ordering
 
 The below is written about record fields but equally applies to constructor
 arguments.
 
-Suppose a record contains any unboxed field `fld` whose layout is not `value` or a
-combination of `value` layouts. Then, the following restriction applies: All
+Suppose a record contains any unboxed field `fld` whose layout is not `value`[^or-combination-of-values]. Then, the following restriction applies: All
 fields occurring after `fld` in the record must be "flat", i.e. the GC can
 skip looking at them. The only options for flat fields are immediates (i.e. things
 represented as ints at runtime) and other unboxed numbers.
+
+[^or-combination-of-values]: Technically, there are some non-value layouts that don't hit this restriction, like unboxed products and unboxed sums consisting only of values.
 
 The following definition is rejected, as the boxed field `s : string` appears
 after the unboxed float field `f`:
@@ -339,7 +340,7 @@ type t_rejected =
             but found boxed field, s. *)
 ```
 
-The only relaxation of the above restriction is records that consists
+The only relaxation of the above restriction is for records that consist
 solely of `float` and `float#` fields. Any ordering of `float` and `float#`
 fields is permitted. The "flat float record optimization" applies to any
 such record&mdash;all of the fields are stored flat, even the `float` ones
@@ -351,6 +352,7 @@ to which the flat float record optimization currently applies.
 type t_flat_float =
   { x1 : float;
     x2 : float#;
+    x3 : float#;
   }
 ```
 
@@ -374,19 +376,20 @@ You should use ppx-derived versions of these operations instead.
 
 ## Runtime representation: mixed blocks
 
-The general principle guiding the restriction on field ordering in the user
-program: The compiler should not change the user's order of fields
-when deciding the runtime representation.
+As a general principle: The compiler should not change the user-specified
+field ordering when deciding the runtime representation.
 
-Abiding by this principle this allows you to predictably write C bindings and
+Abiding by this principle allows you to write C bindings and
 predict hardware cache performance.
 
-A structure containing mixed blocks is represented at runtime as a "mixed
-block". A mixed block always consists of fields the GC can scan followed by
-fields the GC either could or must skip. The garbage collector must be kept
+A structure containing unboxed types is represented at runtime as a "mixed
+block". A mixed block always consists of fields the GC can-or-must scan followed by
+fields the GC can-or-must skip[^can-or-must]. The garbage collector must be kept
 informed of which fields of the block it should scan. A portion of the header
 word is reserved to track the length of the prefix of the block that should be
 scanned by the garbage collector.
+
+[^can-or-must]: "Can-or-must" is a bit of a mouthful, but it captures the right nuance. Pointer values *must* be scanned, unboxed number fields *must* be skipped, and immediate values *can* be scanned or skipped.
 
 The ordering constraint on structure fields is a reflection of the same
 ordering restriction in the runtime representation. 
@@ -401,7 +404,8 @@ Users who write C bindings might want to be notified when we change this layout.
 Assert_mixed_block_layout_v1;
 ```
 
-Write the above in statement context&mdash;it should be OK to do so at the top-level of a file or within a function.
+Write the above in statement context, i.e. either at the top-level of a file or
+within a function.
 
 Here's a full example. Say you're writing C bindings against this OCaml type:
 
@@ -417,8 +421,8 @@ Here is the recommend way to access fields:
 
 ```c
 Assert_mixed_block_layout_v1;
-#define Foo_t_x(foo) (((int32_t*)foo)[0])
-#define Foo_t_y(foo) (((int32_t*)foo)[2])
+#define Foo_t_x(foo) (*(int32_t*)&Field(foo, 0))
+#define Foo_t_y(foo) (*(int32_t*)&Field(foo, 1))
 ```
 
 We would bump the version number in either of these cases, which would prompt you to think about the code:
