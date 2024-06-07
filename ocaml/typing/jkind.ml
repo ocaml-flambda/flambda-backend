@@ -484,7 +484,7 @@ module Const = struct
         match le base actual with
         | true -> `Valid None
         | false -> `Valid (Some (to_string actual)))
-      | false -> `Valid (Some (to_string actual))
+      | false -> `Invalid
 
     let get_modal_bounds ~(base : Bounds.t) (actual : Bounds.t) =
       [ get_modal_bound ~le:Locality.Const.le
@@ -528,13 +528,40 @@ module Const = struct
           else b
         in
         select_simplest (simpler :: tl)
-      | [out] -> out
-      | [] -> { base = "asoidhlasjk"; modal_bounds = [] }
+      | [out] -> Some out
+      | [] -> None
 
     let convert jkind =
-      Primitive.get_all
-      |> List.filter_map (fun base -> convert_with_base ~base jkind)
-      |> select_simplest
+      let simplest =
+        Primitive.get_all
+        |> List.filter_map (fun base -> convert_with_base ~base jkind)
+        |> select_simplest
+      in
+      match simplest with
+      | Some simplest -> simplest
+      | None ->
+        (* CR layouts: sometimes there is no valid way to build a jkind from a built-in
+           abbreviation. For now, we define the abbreviations layout_<layout>, where
+           <layout> is an underlying constant layout. The modal upper bounds are all max,
+           and users are unable to write this abbreviation. In the longer term, we should
+           make a way for users to express such jkinds *)
+        let out_jkind_verbose =
+          convert_with_base
+            ~base:
+              { jkind =
+                  { layout = jkind.layout;
+                    modes_upper_bounds = Modes.max;
+                    externality_upper_bound = Externality.max
+                  };
+                name =
+                  Printf.sprintf "layout_%s"
+                    (Layout.Const.to_string jkind.layout)
+              }
+            jkind
+        in
+        (* convert_with_base is guaranteed to succeed since the layout matches and the
+           modal bounds are all max *)
+        Option.get out_jkind_verbose
   end
 
   let to_out_jkind_const = To_out_jkind_const.convert
