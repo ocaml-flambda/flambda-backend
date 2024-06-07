@@ -29,8 +29,7 @@ let standard_library =
     standard_library_default
 
 (* When artifacts are incompatible with upstream OCaml, ocaml-jst uses
-   magic numbers ending in 5xx. (The AST remains
-   compatible, so use upstream numbers) *)
+   magic numbers ending in 5xx. *)
 let exec_magic_number = "Caml1999X531"
     (* exec_magic_number is duplicated in runtime/caml/exec.h *)
 and cmi_magic_number = "Caml1999I531"
@@ -46,8 +45,8 @@ and cmxa_magic_number =
     "Caml2021z532"
   else
     "Caml2021Z531"
-and ast_impl_magic_number = "Caml1999M033"
-and ast_intf_magic_number = "Caml1999N033"
+and ast_impl_magic_number = "Caml1999M531"
+and ast_intf_magic_number = "Caml1999N531"
 and cmxs_magic_number = "Caml1999D531"
 and cmt_magic_number = "Caml1999T531"
 and cms_magic_number = "Caml1999S531"
