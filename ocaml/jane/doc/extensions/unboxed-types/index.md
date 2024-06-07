@@ -323,7 +323,7 @@ arguments.
 
 Suppose a record contains any unboxed field `fld` whose layout is not `value` or a
 combination of `value` layouts. Then, the following restriction applies: All
-fields occuring after `fld` in the record must be "flat", i.e. the GC can
+fields occurring after `fld` in the record must be "flat", i.e. the GC can
 skip looking at them. The only options for flat fields are immediates (i.e. things
 represented as ints at runtime) and other unboxed numbers.
 
