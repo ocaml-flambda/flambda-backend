@@ -99,9 +99,11 @@ type out_jkind_user =
   | Ojkind_user_with of out_jkind_user * out_type
   | Ojkind_user_kind_of of out_type
 
+and out_jkind_const = { base : string; modal_bounds : string list }
+
 and out_jkind =
   | Ojkind_user of out_jkind_user
-  | Ojkind_const of Jkind_types.Layout.Const.Legacy.t
+  | Ojkind_const of out_jkind_const
   | Ojkind_var of string
 
 and out_type_param =

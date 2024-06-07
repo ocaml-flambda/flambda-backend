@@ -152,6 +152,8 @@ module Const : sig
   (** Constant jkinds are used for user-written annotations *)
   type t = Types.type_expr Jkind_types.Const.t
 
+  val to_out_jkind_const : t -> Outcometree.out_jkind_const
+
   val to_string : t -> string
 
   val equal : t -> t -> bool

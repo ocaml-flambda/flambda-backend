@@ -463,6 +463,82 @@ module Const = struct
         non_null_value ]
   end
 
+  module To_out_jkind_const = struct
+    open Outcometree
+
+    module Bounds = struct
+      type t =
+        { alloc_bounds : Alloc.Const.t;
+          externality_bound : Externality.t
+        }
+
+      let of_jkind jkind =
+        { alloc_bounds = jkind.modes_upper_bounds;
+          externality_bound = jkind.externality_upper_bound
+        }
+    end
+
+    let get_modal_bound ~le ~to_string ~base actual =
+      match le actual base with
+      | true -> (
+        match le base actual with
+        | true -> `Valid None
+        | false -> `Valid (Some (to_string actual)))
+      | false -> `Valid (Some (to_string actual))
+
+    let get_modal_bounds ~(base : Bounds.t) (actual : Bounds.t) =
+      [ get_modal_bound ~le:Locality.Const.le
+          ~to_string:Locality.Const.to_string ~base:base.alloc_bounds.locality
+          actual.alloc_bounds.locality;
+        get_modal_bound ~le:Uniqueness.Const.le
+          ~to_string:Uniqueness.Const.to_string
+          ~base:base.alloc_bounds.uniqueness actual.alloc_bounds.uniqueness;
+        get_modal_bound ~le:Linearity.Const.le
+          ~to_string:Linearity.Const.to_string ~base:base.alloc_bounds.linearity
+          actual.alloc_bounds.linearity;
+        get_modal_bound ~le:Externality.le ~to_string:Externality.to_string
+          ~base:base.externality_bound actual.externality_bound ]
+      |> List.rev
+      |> List.fold_left
+           (fun acc mode ->
+             match acc, mode with
+             | _, `Invalid | None, _ -> None
+             | acc, `Valid None -> acc
+             | Some acc, `Valid (Some mode) -> Some (mode :: acc))
+           (Some [])
+
+    let convert_with_base ~(base : Primitive.t) actual =
+      let matching_layouts =
+        Layout.Const.equal base.jkind.layout actual.layout
+      in
+      let modal_bounds =
+        get_modal_bounds
+          ~base:(Bounds.of_jkind base.jkind)
+          (Bounds.of_jkind actual)
+      in
+      match matching_layouts, modal_bounds with
+      | true, Some modal_bounds -> Some { base = base.name; modal_bounds }
+      | false, _ | _, None -> None
+
+    let rec select_simplest = function
+      | a :: b :: tl ->
+        let simpler =
+          if List.length a.modal_bounds < List.length b.modal_bounds
+          then a
+          else b
+        in
+        select_simplest (simpler :: tl)
+      | [out] -> out
+      | [] -> { base = "asoidhlasjk"; modal_bounds = [] }
+
+    let convert jkind =
+      Primitive.get_all
+      |> List.filter_map (fun base -> convert_with_base ~base jkind)
+      |> select_simplest
+  end
+
+  let to_out_jkind_const = To_out_jkind_const.convert
+
   let to_string jkind =
     let legacy_layout = get_legacy_layout jkind in
     Layout.Const.Legacy.to_string legacy_layout
