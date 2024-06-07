@@ -31,15 +31,6 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
        You must enable -extension layouts_alpha to use this feature.
 |}];;
 
-type t_non_null_value : non_null_value;;
-[%%expect{|
-Line 1, characters 24-38:
-1 | type t_non_null_value : non_null_value;;
-                            ^^^^^^^^^^^^^^
-Error: Layout non_null_value is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
-|}]
-
 (******************************************************************)
 (* Test 1: Allow non-representable function args/returns in types *)
 
@@ -614,14 +605,7 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 
 type ('a : any) any4 = Any4 of 'a
 [%%expect{|
-Line 1, characters 23-33:
-1 | type ('a : any) any4 = Any4 of 'a
-                           ^^^^^^^^^^
-Error: Constructor argument types must have a representable layout.
-       The layout of 'a is any, because
-         of the annotation on 'a in the declaration of the type any4.
-       But the layout of 'a must be representable, because
-         it's the type of a constructor field.
+type 'a any4 = Any4 of 'a
 |}];;
 
 (************************************************************)

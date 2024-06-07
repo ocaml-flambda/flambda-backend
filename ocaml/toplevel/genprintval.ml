@@ -255,7 +255,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
          printing to avoid descending into NULL. (This module uses
          lots of unsafe Obj features.)
       *)
-      | Immediate64 | Immediate | Non_null_value | Value -> Print_as_value
+      | Immediate64 | Immediate | Value -> Print_as_value
       | Void -> Print_as "<void>"
       | Any -> Print_as "<any>"
       | Float64 | Float32 | Bits32 | Bits64 | Word -> Print_as "<abstr>"

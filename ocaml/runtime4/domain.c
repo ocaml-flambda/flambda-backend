@@ -175,3 +175,40 @@ CAMLprim value caml_ml_condition_broadcast(value wrapper)
 
   return (*caml_hook_condition_broadcast)(wrapper);
 }
+
+/* Dummy implementations to enable [Stdlib.Domain] to link. */
+
+CAMLprim value caml_recommended_domain_count(void)
+{
+  caml_failwith("Domains not supported on runtime4");
+}
+
+CAMLprim value caml_ml_domain_cpu_relax(void)
+{
+  caml_failwith("Domains not supported on runtime4");
+}
+
+CAMLprim value caml_init_domain_self(void)
+{
+  caml_failwith("Domains not supported on runtime4");
+}
+
+CAMLprim value caml_domain_spawn(void)
+{
+  caml_failwith("Domains not supported on runtime4");
+}
+
+CAMLprim value caml_ml_domain_id(void)
+{
+  caml_failwith("Domains not supported on runtime4");
+}
+
+CAMLprim value caml_domain_dls_set(void)
+{
+  caml_failwith("Domains not supported on runtime4");
+}
+
+CAMLprim value caml_domain_dls_get(void)
+{
+  caml_failwith("Domains not supported on runtime4");
+}

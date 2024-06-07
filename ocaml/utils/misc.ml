@@ -1089,6 +1089,16 @@ let print_see_manual ppf manual_section =
     (pp_print_list ~pp_sep:(fun f () -> pp_print_char f '.') pp_print_int)
     manual_section
 
+let output_of_print print =
+  let output out_channel t =
+    let ppf = Format.formatter_of_out_channel out_channel in
+    print ppf t;
+    (* Must flush the formatter immediately because it has a buffer separate
+       from the output channel's buffer *)
+    Format.pp_print_flush ppf ()
+  in
+  output
+
 
 type filepath = string
 

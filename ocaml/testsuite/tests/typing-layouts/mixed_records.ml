@@ -1,5 +1,13 @@
 (* TEST
- expect;
+ {
+   flags = "-extension layouts_alpha";
+   expect;
+ }{
+   flags = "-extension layouts_beta";
+   expect;
+ }{
+   expect;
+ }
 *)
 
 (* Mixed float-float# blocks are always OK. *)
@@ -9,13 +17,7 @@ type t =
   }
 
 [%%expect{|
-Lines 1-4, characters 0-3:
-1 | type t =
-2 |   { a : float;
-3 |     b : float#;
-4 |   }
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_beta to use this feature.
+type t = { a : float; b : float#; }
 |}];;
 
 (* Mixed float-float# blocks are always OK. *)
@@ -25,13 +27,7 @@ type t =
   }
 
 [%%expect{|
-Lines 1-4, characters 0-3:
-1 | type t =
-2 |   { a : float#;
-3 |     b : float;
-4 |   }
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_beta to use this feature.
+type t = { a : float#; b : float; }
 |}];;
 
 (* When a non-float/float# field appears, [float]
@@ -58,14 +54,7 @@ type t =
   }
 
 [%%expect{|
-Lines 1-5, characters 0-3:
-1 | type t =
-2 |   { a : float;
-3 |     b : float#;
-4 |     c : int;
-5 |   }
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_beta to use this feature.
+type t = { a : float; b : float#; c : int; }
 |}];;
 
 (* The field [c] can't be flat because a non-float/float# field [d] appears. *)
@@ -108,14 +97,7 @@ type t =
   }
 
 [%%expect{|
-Lines 1-5, characters 0-3:
-1 | type t =
-2 |   { f1 : float#;
-3 |     f2 : float#;
-4 |     f3 : float;
-5 |   }
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_beta to use this feature.
+type t = { f1 : float#; f2 : float#; f3 : float; }
 |}];;
 
 (* The string [f3] can't appear in the flat suffix. *)
@@ -141,34 +123,19 @@ type t =
   }
 
 [%%expect{|
-Lines 1-5, characters 0-3:
-1 | type t =
-2 |   { a : float#;
-3 |     b : float#;
-4 |     c : int;
-5 |   }
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_beta to use this feature.
+type t = { a : float#; b : float#; c : int; }
 |}];;
 
 (* Parameterized types *)
 
 type ('a : float64) t = { x : string; y : 'a }
 [%%expect{|
-Line 1, characters 0-46:
-1 | type ('a : float64) t = { x : string; y : 'a }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_beta to use this feature.
+type ('a : float64) t = { x : string; y : 'a; }
 |}];;
 
 type ('a : float64, 'b : immediate) t = { x : string; y : 'a; z : 'b }
 [%%expect{|
-Line 1, characters 0-70:
-1 | type ('a : float64, 'b : immediate) t = { x : string; y : 'a; z : 'b }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_beta to use this feature.
+type ('a : float64, 'b : immediate) t = { x : string; y : 'a; z : 'b; }
 |}];;
 
 (* Recursive groups *)
@@ -206,11 +173,15 @@ and 'a t_imm = 'a t_immediate_id
 and ('a : float64, 'b : immediate, 'ptr) t =
   {ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
 [%%expect{|
-Lines 3-4, characters 0-60:
-3 | and ('a : float64, 'b : immediate, 'ptr) t =
-4 |   {ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_beta to use this feature.
+type ('a : float64) t_float = 'a t_float64_id
+and ('a : immediate) t_imm = 'a t_immediate_id
+and ('a : float64, 'b : immediate, 'ptr) t = {
+  ptr : 'ptr;
+  x : 'a;
+  y : 'a t_float;
+  z : 'b;
+  w : 'b t_imm;
+}
 |}];;
 
 
@@ -265,7 +236,5 @@ Lines 2-37, characters 0-3:
 35 |     x249:ptr; x250:ptr; x251:ptr; x252:ptr; x253:ptr; x254:ptr; x255:ptr;
 36 |     value_but_flat:int; unboxed:float#;
 37 |   }
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_beta to use this feature.
+Error: Mixed records may contain at most 254 value fields prior to the flat suffix, but this one contains 255.
 |}];;
-

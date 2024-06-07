@@ -310,7 +310,6 @@ module Layout = struct
   type ('type_expr, 'sort) layout =
     | Sort of 'sort
     | Any
-    | Non_null_value
 
   type 'type_expr t = ('type_expr, Sort.t) layout
 end
@@ -350,7 +349,8 @@ type 'type_expr history =
 
 type 'type_expr t =
   { jkind : 'type_expr Jkind_desc.t;
-    history : 'type_expr history
+    history : 'type_expr history;
+    has_warned : bool
   }
 
 type const =
@@ -364,6 +364,5 @@ type const =
   | Word
   | Bits32
   | Bits64
-  | Non_null_value
 
 type annotation = const * Jane_syntax.Jkind.annotation

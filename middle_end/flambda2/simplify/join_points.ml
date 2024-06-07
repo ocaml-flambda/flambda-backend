@@ -24,15 +24,13 @@ type result =
     escapes : bool
   }
 
-let introduce_extra_params_for_join typing_env use_envs_with_ids
+let introduce_extra_params_for_join denv use_envs_with_ids
     ~extra_params_and_args =
   if EPA.is_empty extra_params_and_args
-  then typing_env, use_envs_with_ids
+  then denv, use_envs_with_ids
   else
     let extra_params = EPA.extra_params extra_params_and_args in
-    let typing_env =
-      TE.add_definitions_of_params typing_env ~params:extra_params
-    in
+    let denv = DE.define_parameters denv ~params:extra_params in
     let use_envs_with_ids =
       List.filter_map
         (fun (env_at_use, use_id, kind) ->
@@ -67,10 +65,9 @@ let introduce_extra_params_for_join typing_env use_envs_with_ids
             Some (env_at_use, use_id, kind))
         use_envs_with_ids
     in
-    typing_env, use_envs_with_ids
+    denv, use_envs_with_ids
 
 let join ?cut_after denv params ~consts_lifted_during_body ~use_envs_with_ids =
-  let typing_env = DE.typing_env denv in
   let definition_scope = DE.get_continuation_scope denv in
   let extra_lifted_consts_in_use_envs =
     LCS.all_defined_symbols consts_lifted_during_body
@@ -83,6 +80,7 @@ let join ?cut_after denv params ~consts_lifted_during_body ~use_envs_with_ids =
   in
   let module CSE = Common_subexpression_elimination in
   let cse_join_result =
+    let typing_env = DE.typing_env denv in
     assert (Scope.equal definition_scope (TE.current_scope typing_env));
     CSE.join ~typing_env_at_fork:typing_env ~cse_at_fork:(DE.cse denv)
       ~use_info:use_envs_with_ids
@@ -91,16 +89,15 @@ let join ?cut_after denv params ~consts_lifted_during_body ~use_envs_with_ids =
       ~get_cse:(fun (use_env, _, _) -> DE.cse use_env)
       ~params
   in
-  let extra_params_and_args, typing_env, use_envs_with_ids' =
+  let extra_params_and_args, denv, use_envs_with_ids' =
     match cse_join_result with
-    | None ->
-      Continuation_extra_params_and_args.empty, typing_env, use_envs_with_ids'
+    | None -> Continuation_extra_params_and_args.empty, denv, use_envs_with_ids'
     | Some cse_join_result ->
-      let typing_env, use_envs_with_ids' =
-        introduce_extra_params_for_join typing_env use_envs_with_ids'
+      let denv, use_envs_with_ids' =
+        introduce_extra_params_for_join denv use_envs_with_ids'
           ~extra_params_and_args:cse_join_result.extra_params
       in
-      cse_join_result.extra_params, typing_env, use_envs_with_ids'
+      cse_join_result.extra_params, denv, use_envs_with_ids'
   in
   let extra_allowed_names =
     match cse_join_result with
@@ -109,7 +106,7 @@ let join ?cut_after denv params ~consts_lifted_during_body ~use_envs_with_ids =
   in
   let cut_after = Option.value cut_after ~default:definition_scope in
   let handler_env =
-    T.cut_and_n_way_join typing_env use_envs_with_ids'
+    T.cut_and_n_way_join (DE.typing_env denv) use_envs_with_ids'
       ~params:
         (Bound_parameters.append params
            (EPA.extra_params extra_params_and_args))
@@ -184,12 +181,12 @@ let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork
     List.map
       (fun use ->
         let add_or_meet_param_type typing_env =
-          let typing_env = TE.add_definitions_of_params typing_env ~params in
           let param_types = U.arg_types use in
           add_equations_on_params typing_env ~is_recursive ~params ~param_types
         in
         let use_env =
-          DE.map_typing_env (U.env_at_use use) ~f:add_or_meet_param_type
+          let use_env = DE.define_parameters (U.env_at_use use) ~params in
+          DE.map_typing_env use_env ~f:add_or_meet_param_type
         in
         use_env, U.id use, U.use_kind use)
       uses

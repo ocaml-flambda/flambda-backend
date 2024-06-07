@@ -341,6 +341,7 @@ let nullary_prim_size prim =
   | Begin_region -> 1
   | Begin_try_region -> 1
   | Enter_inlined_apply _ -> 0
+  | Dls_get -> 1
 
 let unary_prim_size prim =
   match (prim : Flambda_primitive.unary_primitive) with

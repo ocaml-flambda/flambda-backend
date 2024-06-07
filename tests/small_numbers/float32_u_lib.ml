@@ -1,4 +1,6 @@
 
+[@@@ocaml.warning "-unused-value-declaration"]
+
 (* Tests for the float32 otherlib  *)
 
 module F32 = Beta.Float32_u
@@ -138,7 +140,7 @@ module CF32 = struct
       f maxv maxv;
       f minv minv;
       f maxv minv;
-      for i = 0 to 100_000 do
+      for _ = 0 to 100_000 do
           let f0 = Random.int32 Int32.max_int in
           let f1 = Random.int32 Int32.max_int in
           f ((if Random.bool () then f0 else Int32.neg f0) |> Int32.float_of_bits |> Beta.Float32.of_float)

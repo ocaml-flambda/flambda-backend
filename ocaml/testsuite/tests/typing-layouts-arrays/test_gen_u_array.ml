@@ -130,7 +130,7 @@ end) : S with type t = Arg.M.t
     let res = make len (of_boxed (I.of_int 0)) in
     List.iteri (fun idx f -> set res idx (of_boxed f)) l;
     res
-  let max_length = Sys.max_array_length
+
   let get t idx = to_boxed (get t idx)
   let set t idx v = set t idx (of_boxed v)
 

@@ -84,7 +84,9 @@ module Float_array : S = struct
   let map_from_array f a = map f a
   let mem_ieee x a = exists ((=) x) a
   type t = float array
-  let max_length = Sys.max_array_length
+
+  (* This test assumes flat float arrays are enabled. *)
+  let max_length = Sys.max_floatarray_length
 end
 
 module Test_float_u_array : S = struct
@@ -142,7 +144,9 @@ module Test_float_u_array : S = struct
     let res = create len in
     List.iteri (fun idx f -> set res idx (of_float f)) l;
     res
-  let max_length = Sys.max_floatarray_length
+
+  let max_length = Sys.max_unboxed_float_array_length
+
   let get t idx = to_float (get t idx)
   let set t idx v = set t idx (of_float v)
 
