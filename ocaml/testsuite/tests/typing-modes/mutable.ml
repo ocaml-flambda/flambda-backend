@@ -9,23 +9,33 @@
 
 (* CR zqian: add test for mutable when mutable is decoupled from modalities. *)
 
-(* CR mode-crossing: Uncomment the following examples once portability is added. *)
-
-(* The [m0] in mutable should cross modes upon construction. *)
-(*
 type r =
   { f : string -> string;
     mutable a : int }
 let r @ portable =
-  { f = fun x -> x;
-    a = 42 } *)
+  { f = (fun x -> x);
+    a = 42 }
+(* CR mode-crossing: The [m0] in mutable should cross modes upon construction. *)
+[%%expect{|
+type r = { f : string -> string; mutable a : int; }
+Lines 5-6, characters 2-12:
+5 | ..{ f = (fun x -> x);
+6 |     a = 42 }
+Error: This value is nonportable but expected to be portable.
+|}]
 
-(* The [m0] in mutable corresponds to the field type wrapped in modality; as a
-   result, it enjoys mode crossing enabled by the modality. *)
-(*
 type r =
   { f : string -> string;
     mutable g : string -> string @@ portable }
 let r @ portable =
-  { f = fun x -> x;
-    g = fun x -> x } *)
+  { f = (fun x -> x);
+    g = fun x -> x }
+(* CR mode-crossing: The [m0] in mutable corresponds to the field type wrapped
+   in modality; as a result, it enjoys mode crossing enabled by the modality. *)
+[%%expect{|
+type r = { f : string -> string; mutable g : string -> string; }
+Lines 5-6, characters 2-20:
+5 | ..{ f = (fun x -> x);
+6 |     g = fun x -> x }
+Error: This value is nonportable but expected to be portable.
+|}]

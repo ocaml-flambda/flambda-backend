@@ -85,10 +85,16 @@ type arg_label =
   | Optional of string
   | Position of string
 
-type out_mode =
+type out_mode_legacy =
   | Omd_local
   | Omd_unique
   | Omd_once
+
+type out_mode_new = string
+
+type out_mode =
+  | Omd_legacy of out_mode_legacy
+  | Omd_new of out_mode_new
 
 type out_arg_mode = out_mode list
 

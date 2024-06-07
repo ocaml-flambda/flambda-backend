@@ -182,6 +182,10 @@ val escape : loc:Location.t -> env:Env.t -> reason:submode_reason -> (Mode.allow
 
 val self_coercion : (Path.t * Location.t list ref) list ref
 
+type contention_context =
+  | Read_mutable
+  | Write_mutable
+
 type error =
   | Constructor_arity_mismatch of Longident.t * int * int
   | Constructor_labeled_arg
@@ -281,7 +285,9 @@ type error =
   | Expr_not_a_record_type of type_expr
   | Submode_failed of
       Mode.Value.error * submode_reason *
-      Env.closure_context option * Env.shared_context option
+      Env.closure_context option *
+      contention_context option *
+      Env.shared_context option
   | Local_application_complete of arg_label * [`Prefix|`Single_arg|`Entire_apply]
   | Param_mode_mismatch of Mode.Alloc.equate_error
   | Uncurried_function_escapes of Mode.Alloc.error
