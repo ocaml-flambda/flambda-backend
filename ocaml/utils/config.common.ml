@@ -129,9 +129,6 @@ let configuration_variables () =
   p_bool "supports_shared_libraries" supports_shared_libraries;
   p_bool "native_dynlink" native_dynlink;
   p_bool "naked_pointers" naked_pointers;
-  p_bool "no_stack_checks" no_stack_checks;
-  p_bool "poll_insertion" poll_insertion;
-  p_bool "new_safepoints_strategy" new_safepoints_strategy;
 (*
   Disabled in flambda-backend (for now)
   p_bool "compression_supported" (Marshal.compression_supported());
@@ -153,6 +150,9 @@ let configuration_variables () =
   p_bool "flambda_backend" flambda_backend;
   p_bool "probes" probes;
   p_bool "stack_allocation" stack_allocation;
+
+  p_bool "poll_insertion" poll_insertion;
+  p_bool "new_safepoints_strategy" new_safepoints_strategy;
 
   p_bool "no_stack_checks" no_stack_checks;
 ]
