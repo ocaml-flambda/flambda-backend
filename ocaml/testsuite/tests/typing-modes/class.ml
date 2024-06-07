@@ -76,12 +76,12 @@ Error: This value is nonportable but expected to be portable.
 class cla = object
     val mutable x = "hello"
 
-    method foo = x <- (world : _ @@ local)
+    method foo = x <- ("world" : _ @@ local)
 end
 [%%expect{|
-Line 4, characters 22-42:
-4 |     method foo = x <- (world : _ @@ local)
-                          ^^^^^^^^^^^^^^^^^^^^
+Line 4, characters 22-44:
+4 |     method foo = x <- ("world" : _ @@ local)
+                          ^^^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
 |}]
 
