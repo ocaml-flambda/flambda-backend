@@ -410,13 +410,14 @@ val result : int = 3
 |}]
 
 let baduse (f : _ -> _ -> _) x y = lazy (f x y)
-let result = baduse (fun a b -> local_ (a,b)) 1 2
+let result = baduse (fun a b -> exclave_ (a,b)) 1 2
 [%%expect{|
 val baduse : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c lazy_t = <fun>
-Line 2, characters 20-45:
-2 | let result = baduse (fun a b -> local_ (a,b)) 1 2
-                        ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This function is local-returning, but was expected otherwise.
+Line 2, characters 32-46:
+2 | let result = baduse (fun a b -> exclave_ (a,b)) 1 2
+                                    ^^^^^^^^^^^^^^
+Error: This expression was expected to be not local, but is an exclave expression,
+       which must be local..
 |}]
 
 (*
@@ -955,9 +956,9 @@ let foo x =
 val foo : string -> unit = <fun>
 |}]
 
-let foo x =
+let foo x = exclave_
   let r = local_ { contents = x } in
-  local_ print r
+  print r
 [%%expect{|
 val foo : string -> local_ unit = <fun>
 |}]
@@ -1001,10 +1002,10 @@ let foo x =
 val foo : 'a -> 'a = <fun>
 |}]
 
-let foo x =
+let foo x = exclave_
   let r = local_ { contents = x } in
   let local_ foo () = r.contents in
-  local_ foo ()
+  foo ()
 [%%expect{|
 val foo : 'a -> local_ 'a = <fun>
 |}]
@@ -1022,34 +1023,14 @@ Error: This value escapes its region.
   Hint: Cannot return a local value without an "exclave_" annotation.
 |}]
 
-let foo x =
+let foo x = exclave_
   let r = local_ { contents = x } in
-  local_ r
+  r
 [%%expect{|
 val foo : 'a -> local_ 'a ref = <fun>
 |}]
 
-let foo p x =
-  let r = local_ { contents = x } in
-  if p then local_ r
-  else r
-[%%expect{|
-Line 4, characters 7-8:
-4 |   else r
-           ^
-Error: This function return is not annotated with "local_"
-       whilst other returns were.
-|}]
-
-let foo p x =
-  let r = local_ { contents = x } in
-  if p then local_ r
-  else local_ r
-[%%expect{|
-val foo : bool -> 'a -> local_ 'a ref = <fun>
-|}]
-
-let foo p x = local_
+let foo p x = exclave_
   let r = local_ { contents = x } in
   if p then r
   else r
@@ -1082,7 +1063,7 @@ val foo : unit -> int = <fun>
    local-returning as well; mode-crossing is irrelavent here. Whether or not the
    function actually allocates in parent-region is also irrelavent here, but we
    allocate just to demonstrate the potential leaking. *)
-let foo () = local_
+let foo () = exclave_
   let _ = local_ (52, 24) in
   42
 [%%expect{|
@@ -1129,12 +1110,13 @@ let foo : unit -> local_ string = fun () -> "hello"
 val foo : unit -> local_ string = <fun>
 |}]
 
-let foo : unit -> string = fun () -> local_ "hello"
+let foo : unit -> string = fun () -> exclave_ "hello"
 [%%expect{|
-Line 1, characters 27-51:
-1 | let foo : unit -> string = fun () -> local_ "hello"
-                               ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This function is local-returning, but was expected otherwise.
+Line 1, characters 37-53:
+1 | let foo : unit -> string = fun () -> exclave_ "hello"
+                                         ^^^^^^^^^^^^^^^^
+Error: This expression was expected to be not local, but is an exclave expression,
+       which must be local..
 |}]
 
 (* Unboxed type constructors do not affect regionality *)
@@ -1665,13 +1647,13 @@ Error: This expression has type local_ 'a ref -> 'a -> unit
        but an expression was expected of type local_ int ref -> (int -> unit)
 |}]
 
-let int32 (local_ x) (local_ y) = local_
+let int32 (local_ x) (local_ y) = exclave_
   Int32.(div (logxor (mul x y) (sub x y)) (shift_right y 10))
-let int64 (local_ x) (local_ y) = local_
+let int64 (local_ x) (local_ y) = exclave_
   Int64.(div (logxor (mul x y) (sub x y)) (shift_right y 10))
-let nativeint (local_ x) (local_ y) = local_
+let nativeint (local_ x) (local_ y) = exclave_
   Nativeint.(div (logxor (mul x y) (sub x y)) (shift_right y 10))
-let float (local_ x) (local_ y) = local_
+let float (local_ x) (local_ y) = exclave_
   (x +. y *. x -. 42.)
 [%%expect{|
 val int32 : local_ int32 -> local_ int32 -> local_ int32 = <fun>
@@ -1681,7 +1663,7 @@ val nativeint : local_ nativeint -> local_ nativeint -> local_ nativeint =
 val float : local_ float -> local_ float -> local_ float = <fun>
 |}]
 
-let etapair (local_ x) = local_ (fst x, snd x)
+let etapair (local_ x) = exclave_ (fst x, snd x)
 [%%expect{|
 val etapair : local_ 'a * 'b -> local_ 'a * 'b = <fun>
 |}]
@@ -2287,7 +2269,7 @@ Error: This value escapes its region.
 |}]
 
 (* constructing local iarray from local elements is fine *)
-let f (local_ x : string) = local_ [:x; "foo":]
+let f (local_ x : string) = exclave_ [:x; "foo":]
 [%%expect{|
 val f : local_ string -> local_ string iarray = <fun>
 |}]
@@ -2344,16 +2326,16 @@ val f : string iarray -> string ref = <fun>
     elements regardless of the array's mode. *)
 
 (* constructing local array from local elements is rejected *)
-let f (local_ x : string) = local_ [| x |]
+let f (local_ x : string) = exclave_ [| x |]
 [%%expect{|
-Line 1, characters 38-39:
-1 | let f (local_ x : string) = local_ [| x |]
-                                          ^
+Line 1, characters 40-41:
+1 | let f (local_ x : string) = exclave_ [| x |]
+                                            ^
 Error: This value escapes its region.
 |}]
 
 (* constructing local array from global elements is allowed *)
-let f (x : string) = local_ [| x |]
+let f (x : string) = exclave_ [| x |]
 [%%expect{|
 val f : string -> local_ string array = <fun>
 |}]
@@ -2397,14 +2379,14 @@ Error: This value escapes its region.
 module M : sig
   val f : string -> string -> local_ string
 end = struct
-  let g x y = local_ "foo"
-  let f x = local_ g x
+  let g x y = exclave_ "foo"
+  let f x = exclave_ g x
 end;;
 [%%expect{|
 Lines 3-6, characters 6-3:
 3 | ......struct
-4 |   let g x y = local_ "foo"
-5 |   let f x = local_ g x
+4 |   let g x y = exclave_ "foo"
+5 |   let f x = exclave_ g x
 6 | end..
 Error: Signature mismatch:
        Modules do not match:
@@ -2464,20 +2446,20 @@ val f : unit -> local_ int -> (int -> int) = <fun>
 |}];;
 
 (* Illegal: the expected mode is global *)
-let f () = local_ ((fun x y -> x + y) : (_ -> _));;
+let f () = exclave_ ((fun x y -> x + y) : (_ -> _));;
 [%%expect{|
-Line 1, characters 19-37:
-1 | let f () = local_ ((fun x y -> x + y) : (_ -> _));;
-                       ^^^^^^^^^^^^^^^^^^
+Line 1, characters 21-39:
+1 | let f () = exclave_ ((fun x y -> x + y) : (_ -> _));;
+                         ^^^^^^^^^^^^^^^^^^
 Error: This function or one of its parameters escape their region
        when it is partially applied.
 |}];;
 
-let f () = local_ ((fun x -> function | 0 -> x | y -> x + y) : (_ -> _));;
+let f () = exclave_ ((fun x -> function | 0 -> x | y -> x + y) : (_ -> _));;
 [%%expect{|
-Line 1, characters 19-60:
-1 | let f () = local_ ((fun x -> function | 0 -> x | y -> x + y) : (_ -> _));;
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 21-62:
+1 | let f () = exclave_ ((fun x -> function | 0 -> x | y -> x + y) : (_ -> _));;
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This function or one of its parameters escape their region
        when it is partially applied.
 |}];;
@@ -2488,13 +2470,13 @@ let f () = ((fun x -> fun y -> "") : (local_ string -> (string -> string)));;
 val f : unit -> local_ string -> (string -> string) = <fun>
 |}];;
 
-let f () = local_ ((fun x -> fun y -> x + y) : (_ -> _));;
+let f () = exclave_ ((fun x -> fun y -> x + y) : (_ -> _));;
 [%%expect{|
 val f : unit -> local_ (int -> (int -> int)) = <fun>
 |}];;
 
 (* ok if curried *)
-let f () = local_ ((fun x -> (fun y -> x + y) [@extension.curry]) : (_ -> _));;
+let f () = exclave_ ((fun x -> (fun y -> x + y) [@extension.curry]) : (_ -> _));;
 [%%expect{|
 val f : unit -> local_ (int -> (int -> int)) = <fun>
 |}];;
@@ -2505,7 +2487,7 @@ val f : unit -> local_ (int -> (int -> int)) = <fun>
  *)
 let foo () =
   let local_ _bar1 : int -> int -> int = local_ (fun x y -> x + y) in
-  let local_ _bar2 z : int -> int -> int = local_ (fun x y -> x + y + z) in
+  let local_ _bar2 z : int -> int -> int = exclave_ (fun x y -> x + y + z) in
   ()
 [%%expect{|
 val foo : unit -> unit = <fun>
@@ -2522,29 +2504,6 @@ Error: This function or one of its parameters escape their region
        when it is partially applied.
 |}];;
 
-(* test that [function] checks all its branches either for local_ or the
-   absence thereof *)
-let foo = function
-  | false -> local_ 5
-  | true -> 6
-
-[%%expect{|
-Line 3, characters 12-13:
-3 |   | true -> 6
-                ^
-Error: This function return is not annotated with "local_"
-       whilst other returns were.
-|}]
-
-(* test that [assert false] can mix with other returns being [local_] *)
-let foo b =
-  if b
-  then assert false
-  else local_ Some 6
-
-[%%expect{|
-val foo : bool -> local_ int option = <fun>
-|}]
 
 type f = local_ local_ string -> string
 [%%expect{|

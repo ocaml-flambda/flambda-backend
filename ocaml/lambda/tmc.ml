@@ -564,10 +564,12 @@ let llets lk vk bindings body =
 let find_candidate = function
   | Lfunction lfun when lfun.attr.tmc_candidate ->
      (* TMC does not make sense for local-returning functions *)
-     if not lfun.region then
+     begin match lfun.ret_mode with
+     | Alloc_local ->
        raise (Error (Debuginfo.Scoped_location.to_location lfun.loc,
-                     Tmc_without_region));
-     Some lfun
+                     Tmc_without_region))
+     | Alloc_heap -> Some lfun
+     end
   | _ -> None
 
 let declare_binding ctx (var, def) =

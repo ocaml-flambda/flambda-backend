@@ -396,7 +396,7 @@ let ul (unique_ local_ x) = x
 val ul : local_ unique_ 'a -> local_ 'a = <fun>
 |}]
 
-let ul_ret x = unique_ local_ x
+let ul_ret x = exclave_ unique_ x
 [%%expect{|
 val ul_ret : unique_ 'a -> local_ 'a = <fun>
 |}]
@@ -413,7 +413,7 @@ val overwrite_point : unique_ point -> point * point = <fun>
 |}]
 
 let gc_soundness_nobug (local_ unique_ p) (local_ f) =
-  local_ { p with x = f }
+  exclave_ { p with x = f }
 [%%expect{|
 val gc_soundness_nobug : local_ unique_ point -> local_ float -> local_ point =
   <fun>
