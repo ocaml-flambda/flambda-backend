@@ -417,7 +417,7 @@ Line 2, characters 32-46:
 2 | let result = baduse (fun a b -> exclave_ (a,b)) 1 2
                                     ^^^^^^^^^^^^^^
 Error: This expression was expected to be not local, but is an exclave expression,
-       which must be local..
+       which must be local.
 |}]
 
 (*
@@ -1116,7 +1116,7 @@ Line 1, characters 37-53:
 1 | let foo : unit -> string = fun () -> exclave_ "hello"
                                          ^^^^^^^^^^^^^^^^
 Error: This expression was expected to be not local, but is an exclave expression,
-       which must be local..
+       which must be local.
 |}]
 
 (* Unboxed type constructors do not affect regionality *)
