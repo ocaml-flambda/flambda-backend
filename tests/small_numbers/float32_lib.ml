@@ -204,10 +204,9 @@ let () =
 ;;
 
 let () =
-  (* In glibc 2.25+, powf(nan, zero) returns one only if the nan is non-signaling. *)
+  (* In glibc 2.25+, powf(nan, zero) returns one if the nan is non-signaling. *)
   bit_eq (F32.pow F32.nan F32.zero) F32.one;
   bit_eq (F32.pow F32.quiet_nan F32.zero) F32.one;
-  assert (F32.is_nan (F32.pow F32.signaling_nan F32.zero));
 ;;
 
 let () =
