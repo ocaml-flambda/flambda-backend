@@ -352,7 +352,7 @@ to which the flat float record optimization currently applies.
 type t_flat_float =
   { x1 : float;
     x2 : float#;
-    x3 : float#;
+    x3 : float;
   }
 ```
 
