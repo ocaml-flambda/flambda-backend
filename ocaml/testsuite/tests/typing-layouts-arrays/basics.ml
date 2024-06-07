@@ -256,7 +256,7 @@ Line 11, characters 79-82:
 11 |   let _ =  assert (Stdlib_upstream_compatible.Int64_u.equal #42L (get_third [| #0L; #1L; #42L |]))
                                                                                     ^^^
 Error: This expression has type int64# but an expression was expected of type
-         ('a : layout_bits32)
+         ('a : bits32)
        The layout of int64# is bits64, because
          it is the primitive bits64 type int64#.
        But the layout of int64# must be a sublayout of bits32, because
