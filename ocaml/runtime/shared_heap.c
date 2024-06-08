@@ -1136,8 +1136,6 @@ void compact_phase_one_mark(struct caml_heap_state* heap) {
        blocks divided by the number of blocks in a pool. */
     int evac_idx = (total_live_blocks + pool_blocks - 1) / pool_blocks;
 
-    CAMLassert(evac_idx < total_pools);
-
     /* mark all pools from 0 to evac_idx as not evacuated */
     for( i = 0 ; i < evac_idx && i < total_pools; i++ ) {
       pool* p = sz_pools[i];
