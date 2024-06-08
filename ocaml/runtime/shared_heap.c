@@ -389,6 +389,13 @@ static pool* pool_global_adopt(struct caml_heap_state* local, sizeclass sz)
   return r;
 }
 
+static void update_pool_stats(struct caml_heap_state* local, sizeclass sz) {
+  local->stats.pool_words += POOL_WSIZE;
+  if (local->stats.pool_words > local->stats.pool_max_words)
+    local->stats.pool_max_words = local->stats.pool_words;
+  local->stats.pool_frag_words += POOL_HEADER_WSIZE + wastage_sizeclass[sz];
+}
+
 /* Allocating an object from a pool */
 static pool* pool_find(struct caml_heap_state* local, sizeclass sz) {
   pool* r;
@@ -414,10 +421,7 @@ static pool* pool_find(struct caml_heap_state* local, sizeclass sz) {
   r = pool_acquire(local);
   if (!r) return 0; /* if we can't allocate, give up */
 
-  local->stats.pool_words += POOL_WSIZE;
-  if (local->stats.pool_words > local->stats.pool_max_words)
-    local->stats.pool_max_words = local->stats.pool_words;
-  local->stats.pool_frag_words += POOL_HEADER_WSIZE + wastage_sizeclass[sz];
+  update_pool_stats(local, sz);
 
   /* Having allocated a new pool, set it up for size sz */
   local->avail_pools[sz] = r;
@@ -1510,6 +1514,8 @@ pool* compact_acquire_pool_from_free(caml_domain_state* domain_state, sizeclass 
   pool_freelist.active_pools++;
 
   caml_plat_unlock(&pool_freelist.lock);
+
+  update_pool_stats(domain_state->shared_heap, sz);
 
   pool_initialize(p, sz, domain_state);
 
