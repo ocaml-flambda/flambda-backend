@@ -1049,7 +1049,8 @@ int compact_compare_pools(const void* v1, const void* v2) {
     } else if (p1->chunk < p2->chunk) {
       return 1;
     } else {
-      /* otherwise we want the pools in address order (which helps freeing them later) */
+      /* otherwise we want the pools in address order (which helps freeing
+         them later) */
       return p2 > p1 ? 1 : -1;
     }
   }
@@ -1115,7 +1116,8 @@ void compact_phase_one_mark(struct caml_heap_state* heap) {
     }
 
     int i = 0;
-    pool** sz_pools = (pool**)caml_stat_alloc_noexc(sizeof(pool*) * total_pools);
+    pool** sz_pools =
+      (pool**)caml_stat_alloc_noexc(sizeof(pool*) * total_pools);
 
     /* we failed to allocate sz_pools which means we can't really go any
       further marking pools to evacuate. */
@@ -1196,7 +1198,8 @@ int compact_phase_two_mark(int participating_count,
       CAMLassert(heap->avail_pools[sz] == NULL);
 
       int full_pools_count = compact_count_pools(heap->unswept_full_pools[sz]);
-      int avail_pools_count = compact_count_pools(heap->unswept_avail_pools[sz]);
+      int avail_pools_count =
+        compact_count_pools(heap->unswept_avail_pools[sz]);
 
       pools_count += full_pools_count + avail_pools_count;
     }
@@ -1332,11 +1335,13 @@ void compact_release_freelist(void) {
     int i = 0;
     int free_pools_count = compact_count_pools(pool_freelist.free);
 
-    pool** free_pools = (pool**)caml_stat_alloc_noexc(sizeof(pool*) * free_pools_count);
+    pool** free_pools =
+      (pool**)caml_stat_alloc_noexc(sizeof(pool*) * free_pools_count);
 
     if( free_pools == NULL ) {
       /* this is fatal, we don't have enough space to actually free pools */
-      caml_fatal_error("Unable to allocate free_pools for compact_release_freelist");
+      caml_fatal_error
+        ("Unable to allocate free_pools for compact_release_freelist");
     }
 
     cur_pool = pool_freelist.free;
@@ -1391,7 +1396,8 @@ void compact_release_freelist(void) {
         if( chunks_remaining == 0 ) {
           pool* chunk_seq_ptr = free_pools[chunk_seq_idx];
 
-          caml_mem_unmap(chunk_seq_ptr, Bsize_wsize(POOL_WSIZE) * chunk_seq_ptr->chunk_size);
+          caml_mem_unmap(chunk_seq_ptr,
+            Bsize_wsize(POOL_WSIZE) * chunk_seq_ptr->chunk_size);
 
           /* remove the pools for this chunk from free_pools */
           for( int j = i; j <= chunk_seq_idx; j++ ) {
@@ -1503,7 +1509,8 @@ void caml_compact_heap(caml_domain_state* domain_state,
   caml_global_barrier();
 
   if( participants[0] == Caml_state ) {
-    should_run_phase_two = compact_phase_two_mark(participating_count, participants);
+    should_run_phase_two =
+      compact_phase_two_mark(participating_count, participants);
   }
 
   caml_global_barrier();
@@ -1521,7 +1528,8 @@ void caml_compact_heap(caml_domain_state* domain_state,
 
 /* acquires pools from the pool freelist during phase two.
    there should always be an available free list */
-pool* compact_acquire_pool_from_free(caml_domain_state* domain_state, sizeclass sz) {
+static pool* acquire_pool_from_free(caml_domain_state* domain_state,
+                                    sizeclass sz) {
   caml_plat_lock(&pool_freelist.lock);
   pool* p = pool_freelist.free;
 
@@ -1608,7 +1616,7 @@ void compact_run_phase(struct caml_heap_state* heap,
     /* to_pool can be NULL if there's no pools at all in this size class
        but it should be NULL phase two even if there are */
     if( evac_pool != NULL && to_pool == NULL ) {
-      to_pool = compact_acquire_pool_from_free(Caml_state, sz_class);
+      to_pool = acquire_pool_from_free(Caml_state, sz_class);
     }
 
     /* preserve these as we'll need them later on for re-assembling */
@@ -1635,7 +1643,7 @@ void compact_run_phase(struct caml_heap_state* heap,
              * the first available block */
             while(to_pool->next_obj == NULL) {
               if( to_pool->next == NULL ) {
-                pool* new_pool = compact_acquire_pool_from_free(Caml_state, sz_class);
+                pool* new_pool = acquire_pool_from_free(Caml_state, sz_class);
                 to_pool->next = new_pool;
               }
 
