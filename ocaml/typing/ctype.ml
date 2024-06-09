@@ -1658,6 +1658,9 @@ let instance_prim_layout (desc : Primitive.description) ty =
   else
   let new_sort_and_jkind = ref None in
   let get_jkind () =
+    (* CR layouts v2.8: This should replace only the layout component of the
+       jkind. It's possible that we might want a primitive that accepts a
+       mode-crossing, layout-polymorphic parameter. *)
     match !new_sort_and_jkind with
     | Some (_, jkind) ->
       jkind
