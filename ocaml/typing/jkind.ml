@@ -1232,7 +1232,12 @@ let is_void_defaulting = function
   | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
   | _ -> false
 
-let is_any jkind = match jkind.jkind.layout with Any -> true | _ -> false
+(* This doesn't do any mutation because mutating a sort variable can't make it
+   any, and modal upper bounds are constant. *)
+let is_max jkind = sub any_dummy_jkind jkind
+
+let has_layout_any jkind =
+  match jkind.jkind.layout with Any -> true | _ -> false
 
 (*********************************)
 (* debugging *)

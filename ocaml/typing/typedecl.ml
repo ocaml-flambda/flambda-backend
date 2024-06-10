@@ -131,7 +131,7 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
-  | Unexpected_jkind_any_in_primitive of string
+  | Unexpected_layout_any_in_primitive of string
   | Useless_layout_poly
   | Modalities_on_value_description
   | Zero_alloc_attr_unsupported of Builtin_attributes.zero_alloc_attribute
@@ -2653,7 +2653,7 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
   error_if_has_deep_native_repr_attributes core_type;
   let sort_or_poly =
     match get_desc (Ctype.get_unboxed_type_approximation env ty) with
-    (* This only captures tvars with jkind [any] explicitly quantified within
+    (* This only captures tvars with layout [any] explicitly quantified within
        the declaration.
 
        This is sufficient since [transl_type_scheme] promises that:
@@ -2662,7 +2662,7 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
          transl)
     *)
     | Tvar {jkind} when is_layout_poly
-                      && Jkind.is_any jkind
+                      && Jkind.has_layout_any jkind
                       && get_level ty = Btype.generic_level -> Poly
     | _ ->
       let sort =
@@ -2793,18 +2793,18 @@ let check_unboxable env loc ty =
     all_unboxable_types
     ()
 
-let has_ty_var_with_jkind_any env ty =
+let has_ty_var_with_layout_any env ty =
   List.exists
-    (fun ty -> Jkind.is_any (Ctype.estimate_type_jkind env ty))
+    (fun ty -> Jkind.has_layout_any (Ctype.estimate_type_jkind env ty))
     (Ctype.free_variables ty)
 
-let unexpected_jkind_any_check prim env cty ty =
-  if Primitive.prim_can_contain_jkind_any prim ||
+let unexpected_layout_any_check prim env cty ty =
+  if Primitive.prim_can_contain_layout_any prim ||
      prim.prim_is_layout_poly then ()
   else
-  if has_ty_var_with_jkind_any env ty then
+  if has_ty_var_with_layout_any env ty then
     raise(Error (cty.ctyp_loc,
-            Unexpected_jkind_any_in_primitive(prim.prim_name)))
+            Unexpected_layout_any_in_primitive(prim.prim_name)))
 
 (* Note regarding jkind checks on external declarations
 
@@ -2852,13 +2852,14 @@ let unexpected_jkind_any_check prim env cty ty =
       point to the source of the mistake which is, in fact, the external
       declaration.
 
-      For this reason, we have [unexpected_jkind_any_check].  It's here to point
-      out this type of mistake early and suggest the use of [@layout_poly].
+      For this reason, we have [unexpected_layout_any_check].  It's here to
+      point out this type of mistake early and suggest the use of
+      [@layout_poly].
 
       An exception is raised if any of these checks fails. *)
 let error_if_containing_unexpected_jkind prim env cty ty =
   Primitive.prim_has_valid_reprs ~loc:cty.ctyp_loc prim;
-  unexpected_jkind_any_check prim env cty ty
+  unexpected_layout_any_check prim env cty ty
 
 (* Translate a value declaration *)
 let transl_value_decl env loc valdecl =
@@ -2918,7 +2919,7 @@ let transl_value_decl env loc valdecl =
         Builtin_attributes.has_layout_poly valdecl.pval_attributes
       in
       if is_layout_poly &&
-         not (has_ty_var_with_jkind_any env ty) then
+         not (has_ty_var_with_layout_any env ty) then
         raise(Error(valdecl.pval_type.ptyp_loc, Useless_layout_poly));
       let native_repr_args, native_repr_res =
         parse_native_repr_attributes
@@ -3688,7 +3689,7 @@ let report_error ppf = function
   | Local_not_enabled ->
       fprintf ppf "@[The local extension is disabled@ \
                    To enable it, pass the '-extension local' flag@]"
-  | Unexpected_jkind_any_in_primitive name ->
+  | Unexpected_layout_any_in_primitive name ->
       fprintf ppf
         "@[The primitive [%s] doesn't work well with type variables of@ \
            layout any. Consider using [@@layout_poly].@]" name

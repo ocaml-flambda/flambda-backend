@@ -1658,6 +1658,9 @@ let instance_prim_layout (desc : Primitive.description) ty =
   else
   let new_sort_and_jkind = ref None in
   let get_jkind () =
+    (* CR layouts v2.8: This should replace only the layout component of the
+       jkind. It's possible that we might want a primitive that accepts a
+       mode-crossing, layout-polymorphic parameter. *)
     match !new_sort_and_jkind with
     | Some (_, jkind) ->
       jkind
@@ -1675,10 +1678,10 @@ let instance_prim_layout (desc : Primitive.description) ty =
          from an outer scope *)
       if level = generic_level && try_mark_node ty then begin
         begin match get_desc ty with
-        | Tvar ({ jkind; _ } as r) when Jkind.is_any jkind ->
+        | Tvar ({ jkind; _ } as r) when Jkind.has_layout_any jkind ->
           For_copy.redirect_desc copy_scope ty
             (Tvar {r with jkind = get_jkind ()})
-        | Tunivar ({ jkind; _ } as r) when Jkind.is_any jkind ->
+        | Tunivar ({ jkind; _ } as r) when Jkind.has_layout_any jkind ->
           For_copy.redirect_desc copy_scope ty
             (Tunivar {r with jkind = get_jkind ()})
         | _ -> ()
@@ -2205,7 +2208,7 @@ let constrain_type_jkind ~fixed env ty jkind =
 let constrain_type_jkind ~fixed env ty jkind =
   (* An optimization to avoid doing any work if we're checking against
      any. *)
-  if Jkind.is_any jkind then Ok ()
+  if Jkind.is_max jkind then Ok ()
   else constrain_type_jkind ~fixed env ty jkind
 
 let check_type_jkind env ty jkind =
