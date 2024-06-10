@@ -96,6 +96,7 @@ open Parmatch
 open Printf
 open Printpat
 
+type mutability = Immutable | Mutable
 let pp_partial ppf (partial : Typedtree.partial) =
   match partial with
   | Partial -> Format.fprintf ppf "Partial"
@@ -1042,6 +1043,15 @@ type 'a arg = {
   binding_kind : let_kind;
   arg_sort : Jkind.sort;
   arg_layout : layout;
+  mut : mutability;
+  (** We track with a [mutable_flag] whether a mutable read was
+      performed to access the corresponding sub-value of the
+      scrutinee: an argument is [Mutable] if the path from the root of
+      the value to the argument contains a mutable field. More
+      precisely, a position is considered [Mutable] when accesses to
+      the same position in different branches of the pattern
+      matching -- outside the scope of the strict binding generated
+      for the mutable read -- may observe a different value. *)
 }
 
 type args = lambda arg list
@@ -1082,6 +1092,27 @@ type ('args, 'head_pat, 'matrix) pm_or_compiled = {
   handlers : handler list;
   or_matrix : 'matrix
 }
+
+
+let mutability : Types.mutability -> mutability =
+  function Immutable -> Immutable
+         | Mutable _ -> Mutable
+
+
+(* The composed mutability of two argument positions:
+   is x.f.g a mutable position of x, depending whether f and g are mutable?
+
+   Note that the following equations hold:
+   - compose_mut mut Immutable = mut
+   - compose_mut mut Mutable = Mutable
+   but we do *not* use them in the code of get_expr_args_* below. We prefer
+   to call [compose_mut] explicitly to make the logic more regular, make
+   it obvious that we thought about how this value should evolve (or not).
+*)
+let compose_mut (m1 : mutability) (m2 : mutability) =
+  match m1, m2 with
+  | Immutable, Immutable -> Immutable
+  | Mutable, _ | _, Mutable -> Mutable
 
 (* Pattern matching after application of both the or-pat rule and the
    mixture rule *)
@@ -1579,7 +1610,7 @@ and precompile_var args cls def k =
 
      If the rest doesn't generate any split, abort and do_not_precompile. *)
   match args.rest with
-| { arg = Lvar v; binding_kind; arg_sort; arg_layout } :: rargs -> (
+  | { arg = Lvar v; arg_sort; _ } as first :: rargs -> (
       (* We will use the name of the head column of the submatrix
          we compile, and this is the *second* column of our argument. *)
       match cls with
@@ -1588,15 +1619,11 @@ and precompile_var args cls def k =
           do_not_precompile args cls def k
       | _ -> (
           (* Precompile *)
-          let var_args = {
-            first = { arg = Var v; binding_kind; arg_sort; arg_layout };
-            rest = rargs;
-          } in
+          let var_args = { first = { first with arg = Var v }; rest = rargs } in
           let var_cls =
             List.map
               (fun ((p, ps), act) ->
                 assert (simple_omega_like p);
-
                 (* we learned by pattern-matching on [args]
                    that [p::ps] has at least two arguments,
                    so [ps] must be non-empty *)
@@ -1795,15 +1822,17 @@ type cell = {
 (** a submatrix after specializing by discriminant pattern;
     [ctx] is the context shared by all rows. *)
 
-let make_matching get_expr_args head def ctx { first = { arg; arg_sort; arg_layout; _ }; rest } =
-  let def = Default_environment.specialize head def
-  and args = get_expr_args head (arg_of_pure arg, arg_sort, arg_layout) rest
-  and ctx = Context.specialize head ctx in
+let make_matching get_expr_args head def ctx { first; rest } =
+  let def = Default_environment.specialize head def in
+  let first = { first with arg = arg_of_pure first.arg } in
+  let args = get_expr_args head first rest in
+  let ctx = Context.specialize head ctx in
   { pm = { cases = []; args; default = def }; ctx; discr = head }
 
-let make_line_matching get_expr_args head def { first = { arg; arg_sort; arg_layout; _ }; rest } =
+let make_line_matching get_expr_args head def { first; rest } =
+  let first = { first with arg = arg_of_pure first.arg } in
   { cases = [];
-    args = get_expr_args head (arg_of_pure arg, arg_sort, arg_layout) rest;
+    args = get_expr_args head first rest;
     default = Default_environment.specialize head def
   }
 
@@ -1906,7 +1935,8 @@ let get_pat_args_constr p rem =
     args @ rem
   | _ -> assert false
 
-let get_expr_args_constr ~scopes head (arg, sort, layout) rem =
+let get_expr_args_constr ~scopes head { arg; mut; arg_sort = sort;
+                                        arg_layout = layout } rem =
   let cstr =
     match head.pat_desc with
     | Patterns.Head.Construct cstr -> cstr
@@ -1943,17 +1973,18 @@ let get_expr_args_constr ~scopes head (arg, sort, layout) rem =
     let sort = Jkind.sort_of_jkind jkind in
     let layout = Typeopt.layout_of_sort head.pat_loc sort in
     { arg = Lprim (prim, [ arg ], loc); binding_kind;
+      mut = compose_mut mut Immutable;
       arg_sort = sort; arg_layout = layout }
   in
   if cstr.cstr_inlined <> None then
-    { arg; arg_sort = sort; arg_layout = layout; binding_kind = Alias } :: rem
+    { arg; arg_sort = sort; arg_layout = layout; binding_kind = Alias; mut } :: rem
   else
     match cstr.cstr_repr with
     | Variant_boxed _ ->
         List.init cstr.cstr_arity
           (fun i -> make_field_access Alias ~field:i ~pos:i)
         @ rem
-    | Variant_unboxed -> { arg; binding_kind = Alias; arg_sort = sort; arg_layout = layout } :: rem
+    | Variant_unboxed -> { arg; binding_kind = Alias; arg_sort = sort; arg_layout = layout; mut } :: rem
     | Variant_extensible ->
         List.init cstr.cstr_arity
           (fun i -> make_field_access Alias ~field:i ~pos:(i+1))
@@ -1974,14 +2005,14 @@ let get_expr_args_variant_constant = drop_expr_arg
 let nonconstant_variant_field index =
   Lambda.Pfield(index, Pointer, Reads_agree)
 
-let get_expr_args_variant_nonconst ~scopes head (arg, _sort, _layout)
-      rem =
+let get_expr_args_variant_nonconst ~scopes head { arg; mut; _ } rem =
   let loc = head_loc ~scopes head in
   {
     arg = Lprim (Pfield (1, Pointer, Reads_agree), [ arg ], loc);
     arg_sort = Jkind.Sort.for_variant_arg;
     arg_layout = layout_variant_arg;
     binding_kind = Alias;
+    mut = compose_mut mut Immutable;
   } :: rem
 
 let divide_variant ~scopes row ctx { cases = cl; args; default = def } =
@@ -2197,13 +2228,16 @@ let inline_lazy_force arg pos loc =
          tables (~ 250 elts); conditionals are better *)
     inline_lazy_force_cond arg pos loc
 
-let get_expr_args_lazy ~scopes head (arg, _sort, _layout) rem =
+let get_expr_args_lazy ~scopes head { arg; mut; _ } rem =
   let loc = head_loc ~scopes head in
   {
     arg = inline_lazy_force arg Rc_normal loc;
     binding_kind = Strict;
     arg_sort = Jkind.Sort.for_lazy_body;
     arg_layout = layout_lazy_contents;
+    mut = compose_mut mut Immutable;
+    (* A lazy pattern is considered immutable, forcing its argument
+       always returns the same value. *)
   } :: rem
 
 let divide_lazy ~scopes head ctx pm =
@@ -2220,7 +2254,7 @@ let get_pat_args_tuple arity p rem =
   | { pat_desc = Tpat_tuple args } -> (List.map snd args) @ rem
   | _ -> assert false
 
-let get_expr_args_tuple ~scopes head (arg, _sort, _layout) rem =
+let get_expr_args_tuple ~scopes head { arg; mut; _ } rem =
   let loc = head_loc ~scopes head in
   let arity = Patterns.Head.arity head in
   let rec make_args pos =
@@ -2232,6 +2266,7 @@ let get_expr_args_tuple ~scopes head (arg, _sort, _layout) rem =
         binding_kind = Alias;
         arg_sort = Jkind.Sort.for_tuple_element;
         arg_layout = layout_tuple_element;
+        mut = compose_mut mut Immutable;
       } :: make_args (pos + 1)
   in
   make_args 0
@@ -2262,7 +2297,8 @@ let get_pat_args_record num_fields p rem =
       record_matching_line num_fields lbl_pat_list @ rem
   | _ -> assert false
 
-let get_expr_args_record ~scopes head (arg, sort, layout) rem =
+let get_expr_args_record ~scopes head { arg; mut; arg_sort = sort;
+                                        arg_layout = layout; } rem =
   let loc = head_loc ~scopes head in
   let all_labels =
     let open Patterns.Head in
@@ -2326,9 +2362,14 @@ let get_expr_args_record ~scopes head (arg, sort, layout) rem =
         match lbl.lbl_mut with
         | Immutable -> Alias
         | Mutable _ -> StrictOpt
-       in
-       { arg = access; binding_kind;
-         arg_sort = sort; arg_layout = layout } :: make_args (pos + 1)
+      in
+      {
+        arg = access;
+        binding_kind;
+        arg_sort = sort;
+        arg_layout = layout;
+        mut = compose_mut mut (mutability lbl.lbl_mut);
+      } :: make_args (pos + 1)
   in
   make_args 0
 
@@ -2355,7 +2396,7 @@ let get_pat_args_array p rem =
   | { pat_desc = Tpat_array (_, _, patl) } -> patl @ rem
   | _ -> assert false
 
-let get_expr_args_array ~scopes kind head (arg, _sort, _layout) rem =
+let get_expr_args_array ~scopes kind head { arg; mut; _ } rem =
   let am, arg_sort, len =
     let open Patterns.Head in
     match head.pat_desc with
@@ -2378,6 +2419,7 @@ let get_expr_args_array ~scopes kind head (arg, _sort, _layout) rem =
         binding_kind = (if Types.is_mutable am then StrictOpt else Alias);
         arg_sort;
         arg_layout = result_layout;
+        mut = compose_mut mut Mutable;
         }
       :: make_args (pos + 1)
   in
@@ -3671,10 +3713,10 @@ and compile_match_nonempty ~scopes value_kind repr partial ctx
     (m : (args, Typedtree.pattern Non_empty_row.t clause) pattern_matching) =
   match m with
   | { cases = []; args = [] } -> comp_exit ctx m.default
-  | { args = { arg; binding_kind; arg_sort; arg_layout } :: rest } ->
+  | { args = { arg; binding_kind; arg_layout; arg_sort; _ } as first :: rest } ->
       let v = arg_to_var arg m.cases in
       bind_match_arg binding_kind v arg arg_layout (
-        let args = { first = { arg = Var v; binding_kind = Alias; arg_sort; arg_layout }; rest } in
+        let args = { first = { first with arg = Var v }; rest } in
         let cases = List.map (half_simplify_nonempty ~arg:(Lvar v) ~arg_sort) m.cases in
         let m = { m with args; cases } in
         let first_match, rem =
@@ -3730,7 +3772,7 @@ and bind_match_arg kind v arg arg_layout (lam, jumps) =
       | StrictOpt -> Mutable
     in
     match mut with
-    | Immutable | Immutable_unique -> jumps
+    | Immutable -> jumps
     | Mutable ->
         Jumps.map Context.erase_first_col jumps in
   (bind_check kind v arg_layout arg lam,
@@ -3978,10 +4020,17 @@ let toplevel_handler ~scopes ~return_layout loc ~failer partial args cases compi
                       Same_region, return_layout)
   end
 
-let compile_matching ~scopes ~arg_sort ~arg_layout ~return_layout loc ~failer repr arg
-      pat_act_list partial =
+let root_arg arg binding_kind ~arg_sort ~arg_layout =
+  (* The mutability information denotes the mutability of a *position*
+     inside the value, which indicates whether looking inside the
+     value of the scrutinee is a pure operation. At the root we are
+     immutable. *)
+  { arg; binding_kind; mut = Immutable; arg_sort; arg_layout }
+
+let compile_matching ~scopes ~arg_sort ~arg_layout ~return_layout
+    loc ~failer repr arg pat_act_list partial =
   let partial = check_partial pat_act_list partial in
-  let args = [ { arg; binding_kind = Strict; arg_sort; arg_layout } ] in
+  let args = [ root_arg arg Strict ~arg_sort ~arg_layout ] in
   let rows = map_on_rows (fun pat -> (pat, [])) pat_act_list in
   let handler =
     toplevel_handler ~scopes ~return_layout loc ~failer partial args rows
@@ -4193,11 +4242,10 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
 (* Easy case since variables are available *)
 let for_tupled_function ~scopes ~return_layout loc paraml pats_act_list partial =
   let partial = check_partial_list pats_act_list partial in
-  let args =
-    List.map (fun id -> { arg = Lvar id; binding_kind = Strict;
-                          arg_layout = layout_tuple_element;
-                          arg_sort = Jkind.Sort.for_tuple_element;
-                        }) paraml in
+  let args = List.map (fun id ->
+    root_arg (Lvar id) Strict ~arg_layout:layout_tuple_element
+      ~arg_sort:Jkind.Sort.for_tuple_element
+  ) paraml in
   let handler =
     toplevel_handler ~scopes ~return_layout loc ~failer:Raise_match_failure
       partial args pats_act_list in
@@ -4298,8 +4346,9 @@ let do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list pa
   in
   let arg_sort = Jkind.Sort.for_tuple in
   let input_args =
-    { first = { arg = Tuple arg; binding_kind = Strict;
-                arg_sort = Jkind.Sort.for_tuple; arg_layout = layout_block };
+    { first = root_arg (Tuple arg) Strict
+                 ~arg_sort:Jkind.Sort.for_tuple
+                 ~arg_layout:layout_block;
       rest = [] }
   in
   let handler =
@@ -4317,12 +4366,10 @@ let do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list pa
     let (idl_with_layouts, args) =
       List.map (function
         | Lvar id as lid, sort, layout ->
-            (id, layout), { arg = lid; binding_kind = Alias; arg_sort = sort;
-                            arg_layout = layout; }
+            (id, layout), root_arg lid Alias ~arg_sort:sort ~arg_layout:layout
         | _, sort, layout ->
           let id = Ident.create_local "*match*" in
-          (id, layout), { arg = Lvar id; binding_kind = Alias; arg_sort = sort;
-                          arg_layout = layout })
+          (id, layout), root_arg (Lvar id) Alias ~arg_sort:sort ~arg_layout:layout)
         paraml
       |> List.split
     in
