@@ -319,7 +319,7 @@ let first_elem () = array.(0)
 ## Runtime representation
 
 | Array                            | Tag                | Layout of data                                              |
-|----------------------------------+--------------------+-------------------------------------------------------------|
+|----------------------------------|--------------------|-------------------------------------------------------------|
 | `float# array`                   | `Double_array_tag` | 64 bits per element                                         |
 | `int64# array`                   | `Custom_tag`       | reserved custom block word, followed by 64 bits per element |
 | `float32# array`, `int32# array` | `Custom_tag`       | reserved custom block word, followed by 32 bits per element |
