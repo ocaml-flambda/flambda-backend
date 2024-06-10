@@ -171,7 +171,7 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
-  | Unexpected_jkind_any_in_primitive of string
+  | Unexpected_layout_any_in_primitive of string
   | Useless_layout_poly
   | Modalities_on_value_description
   | Zero_alloc_attr_unsupported of Builtin_attributes.zero_alloc_attribute

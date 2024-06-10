@@ -346,8 +346,12 @@ val sub_or_error : t -> t -> (unit, Violation.t) result
 (** Like [sub], but returns the subjkind with an updated history. *)
 val sub_with_history : t -> t -> (t, Violation.t) result
 
-(** Checks to see whether a jkind is any. Never does any mutation. *)
-val is_any : t -> bool
+(** Checks to see whether a jkind is the maximum jkind. Never does any
+    mutation. *)
+val is_max : t -> bool
+
+(** Checks to see whether a jkind is has layout. Never does any mutation. *)
+val has_layout_any : t -> bool
 
 (*********************************)
 (* debugging *)
