@@ -285,6 +285,51 @@ Here's the list of primitives that currently support `[@layout_poly]`:
 * `%array_safe_set`
 * `%array_unsafe_get`
 * `%array_unsafe_set`
+* `%array_size`
+
+# Arrays of unboxed elements
+
+Arrays can store elements of any layout. You can think of `array` as having been declared as:
+
+```ocaml
+type ('a : any) array = (* ... *)
+```
+
+Array elements are packed according to their width. For example, arrays of
+elements whose layout is `bits32` store two elements per word.
+
+You can use normal array syntax for constructing such an array:
+
+```ocaml
+let array = [| #2l |]
+```
+
+Array operations must be declared with `[@layout_poly]` to be usable with arrays of unboxed elements.
+
+```ocaml
+module Array = struct
+  external[@layout_poly] get : ('a : any). 'a array -> int -> 'a = "%array_safe_get"
+end
+
+let first_elem () = array.(0)
+```
+
+(The above relies on the fact that array projection syntax desugars to a call to whatever `Array.get` is in scope.)
+
+## Runtime representation
+
+| Array                            | Tag                | Layout of data                                              |
+|----------------------------------+--------------------+-------------------------------------------------------------|
+| `float# array`                   | `Double_array_tag` | 64 bits per element                                         |
+| `int64# array`                   | `Custom_tag`       | reserved custom block word, followed by 64 bits per element |
+| `float32# array`, `int32# array` | `Custom_tag`       | reserved custom block word, followed by 32 bits per element |
+
+The reserved custom block word is the standard custom block field that stores a pointer to the
+record of custom operations, like polymorphic equality and comparison. (For unboxed 32-bit element types,
+it also tracks whether the array stores an odd or even number of elements.)
+
+The above table is written about concrete types like `float#` and `int64#`, but actually holds
+for all types of the relevant layout.
 
 # Using unboxed types in structures
 
