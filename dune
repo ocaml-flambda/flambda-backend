@@ -43,7 +43,7 @@
 
 (copy_files# driver/flambda_backend_flags.ml{,i})
 
-(copy_files# file_formats/cmx_format.mli)
+(copy_files# file_formats/cmx_format.ml{,i})
 
 (copy_files# file_formats/linear_format.ml{,i})
 
@@ -71,7 +71,6 @@
   (backend bisect_ppx))
  (modules_without_implementation
   branch_relaxation_intf
-  cmx_format
   cmxs_format
   x86_ast)
  (modules

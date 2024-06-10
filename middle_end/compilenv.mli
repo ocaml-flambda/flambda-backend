@@ -59,10 +59,6 @@ val cache_zero_alloc_info : Zero_alloc_info.t -> unit
 
 val new_const_symbol : unit -> string
 
-val read_unit_info: string -> unit_infos * Digest.t
-        (* Read infos and MD5 from a [.cmx] file. *)
-val write_unit_info: unit_infos -> string -> unit
-        (* Save the given infos in the given file *)
 val save_unit_info: string -> unit
         (* Save the infos for the current unit in the given file *)
 val cache_unit_info: unit_infos -> unit
@@ -74,8 +70,6 @@ val require_global: Compilation_unit.t -> unit
         (* Enforce a link dependency of the current compilation
            unit to the required module *)
 
-val read_library_info: string -> library_infos
-
 val record_external_symbols : unit -> unit
 
 (* CR mshinwell: see comment in .ml
@@ -86,9 +80,7 @@ val ensure_sharing_between_cmi_and_cmx_imports :
 *)
 
 type error =
-    Not_a_unit_info of string
-  | Corrupted_unit_info of string
-  | Illegal_renaming of Compilation_unit.t * Compilation_unit.t * string
+    Illegal_renaming of Compilation_unit.t * Compilation_unit.t * string
 
 exception Error of error
 

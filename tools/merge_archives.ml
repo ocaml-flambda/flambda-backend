@@ -39,50 +39,44 @@ let merge_cma ~target ~archives =
     (* Warnings should already have been printed to stderr. *)
     exit 1
 
-let read_cmxa filename =
+let read_magic filename =
   let chan = open_in_bin filename in
   let magic =
     really_input_string chan (String.length Config.cmxa_magic_number)
   in
-  let (cmxa : Cmx_format.library_infos) = input_value chan in
   close_in chan;
-  magic, cmxa
+  magic
+
+let read_cmxa filename =
+  Cmx_format.read_library_info ~filename
 
 let merge_cmxa0 ~archives =
-  let magic_and_cmxa_list = List.map read_cmxa archives in
-  let magics = List.map fst magic_and_cmxa_list in
-  let cmxa_list = List.map snd magic_and_cmxa_list in
-  let magic =
+  let magics = List.map read_magic archives in
+  let () =
     match String_set.elements (String_set.of_list magics) with
-    | [magic] -> magic
+    | [magic] ->
+        if not (String.equal magic Config.cmxa_magic_number) then
+          failwith "Archives have the wrong .cmxa magic number"
     | _ :: _ -> failwith "Archives do not agree on the .cmxa magic number"
     | [] -> assert false
   in
-  let ncmxs = ref 0 and ncmis = ref 0 in
+  let cmxa_list = List.map read_cmxa archives in
   let cmi_table = Hashtbl.create 42 in
   let cmx_table = Hashtbl.create 42 in
   cmxa_list
   |> List.iter (fun (lib : Cmx_format.library_infos) ->
          lib.lib_imports_cmi
-         |> Array.iter (fun import ->
+         |> List.iter (fun import ->
                 let name = Import_info.name import in
                 if not (Hashtbl.mem cmi_table name)
-                then begin
-                  Hashtbl.add cmi_table name (import, !ncmis);
-                  incr ncmis
-                end);
+                then Hashtbl.add cmi_table name import);
          lib.lib_imports_cmx
-         |> Array.iter (fun import ->
+         |> List.iter (fun import ->
                 let cu = Import_info.cu import in
                 if not (Hashtbl.mem cmx_table cu)
-                then begin
-                  Hashtbl.add cmx_table cu (import, !ncmxs);
-                  incr ncmxs
-                end));
-  let cmis = Array.make !ncmis Import_info.dummy in
-  Hashtbl.iter (fun _name (import, i) -> cmis.(i) <- import) cmi_table;
-  let cmxs = Array.make !ncmxs Import_info.dummy in
-  Hashtbl.iter (fun _name (import, i) -> cmxs.(i) <- import) cmx_table;
+                then Hashtbl.add cmx_table cu import;));
+  let cmis = Hashtbl.to_seq_values cmi_table |> List.of_seq in
+  let cmxs = Hashtbl.to_seq_values cmx_table |> List.of_seq in
   let genfns = Generic_fns.Tbl.make () in
   let _, lib_units, lib_ccobjs, lib_ccopts =
     List.fold_left
@@ -90,7 +84,7 @@ let merge_cmxa0 ~archives =
            (cmxa : Cmx_format.library_infos) ->
         let new_lib_names =
           List.map
-            (fun (cmx : Cmx_format.lib_unit_info) -> cmx.li_name)
+            (fun ((cmx : Cmx_format.unit_infos), _crc) -> cmx.ui_unit)
             cmxa.lib_units
           |> Compilation_unit.Set.of_list
         in
@@ -103,28 +97,7 @@ let merge_cmxa0 ~archives =
                 ~imports:Generic_fns.Partition.Set.empty
                 genfns cmxa.lib_generic_fns);
         let lib_names = Compilation_unit.Set.union new_lib_names lib_names in
-        let remap oldarr newarr tbl oldb ~get_key =
-          let module B = Misc.Bitmap in
-          let b = B.make (Array.length newarr) in
-          oldb
-          |> B.iter (fun i ->
-                 B.set b (snd (Hashtbl.find tbl (get_key oldarr.(i)))));
-          b
-        in
-        let new_units =
-          List.map
-            (fun (li : Cmx_format.lib_unit_info) ->
-              { li with
-                li_imports_cmi =
-                  remap cmxa.lib_imports_cmi cmis cmi_table li.li_imports_cmi
-                    ~get_key:Import_info.name;
-                li_imports_cmx =
-                  remap cmxa.lib_imports_cmx cmxs cmx_table li.li_imports_cmx
-                    ~get_key:Import_info.cu
-              })
-            cmxa.lib_units
-        in
-        let lib_units = lib_units @ new_units in
+        let lib_units = lib_units @ cmxa.lib_units in
         let cmxa_lib_ccobjs = String_set.of_list cmxa.lib_ccobjs in
         let lib_ccobjs = String_set.union cmxa_lib_ccobjs lib_ccobjs in
         let lib_ccopts = lib_ccopts @ cmxa.lib_ccopts in
@@ -141,14 +114,11 @@ let merge_cmxa0 ~archives =
       lib_generic_fns = Generic_fns.Tbl.entries genfns
     }
   in
-  magic, cmxa
+  cmxa
 
 let merge_cmxa ~target ~archives =
-  let magic, cmxa = merge_cmxa0 ~archives in
-  let chan = open_out_bin target in
-  output_string chan magic;
-  output_value chan cmxa;
-  close_out chan
+  let cmxa = merge_cmxa0 ~archives in
+  Cmx_format.write_library_info ~filename:target cmxa
 
 let has_extension archive ~ext = Filename.check_suffix archive ("." ^ ext)
 

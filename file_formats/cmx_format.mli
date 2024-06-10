@@ -21,6 +21,12 @@
 
 open Misc
 
+type error =
+    Not_a_unit_info of filepath
+  | Corrupted_unit_info of filepath
+
+exception Error of error
+
 (* Each .o file has a matching .cmx file that provides the following infos
    on the compilation unit:
      - list of other units imported, with MD5s of their .cmx files
@@ -60,41 +66,23 @@ type unit_infos =
     mutable ui_external_symbols: string list; (* Set of external symbols *)
   }
 
-type unit_infos_raw =
-  { uir_unit: Compilation_unit.t;
-    uir_defines: Compilation_unit.t list;
-    uir_imports_cmi: Import_info.t array;
-    uir_imports_cmx: Import_info.t array;
-    uir_generic_fns: generic_fns;
-    uir_export_info: Flambda2_cmx.Flambda_cmx_format.raw option;
-    uir_zero_alloc_info: Zero_alloc_info.Raw.t;
-    uir_force_link: bool;
-    uir_section_toc: int array;    (* Byte offsets of sections in .cmx
-                                      relative to byte immediately after
-                                      this record *)
-    uir_sections_length: int;      (* Byte length of all sections *)
-    uir_external_symbols: string array;
-  }
-
 (* Each .a library has a matching .cmxa file that provides the following
    infos on the library: *)
 
-type lib_unit_info =
-  { li_name: Compilation_unit.t;
-    li_crc: Digest.t;
-    li_defines: Compilation_unit.t list;
-    li_force_link: bool;
-    li_imports_cmi : Bitmap.t;  (* subset of lib_imports_cmi *)
-    li_imports_cmx : Bitmap.t;  (* subset of lib_imports_cmx *)
-    li_external_symbols: string array;
-  }
-
 type library_infos =
-  { lib_imports_cmi: Import_info.t array;
-    lib_imports_cmx: Import_info.t array;
-    lib_units: lib_unit_info list;
+  { lib_imports_cmi: Import_info.t list;
+    lib_imports_cmx: Import_info.t list;
+    lib_units: (unit_infos * Digest.t) list;
     lib_generic_fns: generic_fns;
     (* In the following fields the lists are reversed with respect to
        how they end up being used on the command line. *)
     lib_ccobjs: string list;            (* C object files needed *)
     lib_ccopts: string list }           (* Extra opts to C compiler *)
+
+val read_unit_info : filename:filepath -> unit_infos * Digest.t
+
+val write_unit_info : filename:filepath -> unit_infos -> unit
+
+val read_library_info : filename:filepath -> library_infos
+
+val write_library_info : filename:filepath -> library_infos -> unit

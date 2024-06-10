@@ -20,10 +20,10 @@ val set_value : t -> string -> value -> unit
 
 module Raw : sig
   type t
-
-  val print : t -> unit
 end
 
 val to_raw : t -> Raw.t
 
 val of_raw : Raw.t -> t
+
+val print : t -> unit

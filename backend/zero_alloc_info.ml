@@ -31,14 +31,6 @@ module Raw = struct
 
   let entries_to_map (e : entries) =
     List.fold_left (fun acc (k, v) -> String.Map.add k v acc) String.Map.empty e
-
-  let print t =
-    let print (name, v) = Printf.printf "\t\t%s = %#x\n" name v in
-    (* CR gyorsh: move encode/decode here somehow for noalloc *)
-    Printf.printf "Function summaries for static checks:\n";
-    List.iter print t
-
-  let print = function None -> () | Some t -> print t
 end
 
 let to_raw (t : t) : Raw.t =
@@ -50,3 +42,9 @@ let of_raw (t : Raw.t) : t =
   match t with
   | None -> create ()
   | Some t -> { zero_alloc = Raw.entries_to_map t }
+
+let print t =
+  let print name v = Printf.printf "\t\t%s = %#x\n" name v in
+  (* CR gyorsh: move encode/decode here somehow for noalloc *)
+  Printf.printf "Function summaries for static checks:\n";
+  String.Map.iter print t.zero_alloc

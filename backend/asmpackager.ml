@@ -49,7 +49,7 @@ let read_member_info pack_path file = (
     if Filename.check_suffix file ".cmi" then
       PM_intf
     else begin
-      let (info, crc) = Compilenv.read_unit_info file in
+      let (info, crc) = Cmx_format.read_unit_info ~filename:file in
       if not (CU.Name.equal (CU.name info.ui_unit) name)
       then raise(Error(Illegal_renaming(name, file, (CU.name info.ui_unit))));
       if not (CU.is_parent pack_path ~child:info.ui_unit)
@@ -208,7 +208,7 @@ let build_package_cmx members cmxfile =
       ui_zero_alloc_info;
       ui_external_symbols = union (List.map (fun info -> info.ui_external_symbols) units);
     } in
-  Compilenv.write_unit_info pkg_infos cmxfile
+  Cmx_format.write_unit_info pkg_infos ~filename:cmxfile
 
 (* Make the .cmx and the .o for the package *)
 
