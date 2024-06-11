@@ -15,7 +15,7 @@
 (**************************************************************************)
 
 type code_id_in_function_declaration =
-  | Deleted of { function_slot_size: int }
+  | Deleted of { function_slot_size : int }
   | Code_id of Code_id.t
 
 type t =
@@ -87,7 +87,9 @@ let compare { funs = funs1; _ } { funs = funs2; _ } =
   Function_slot.Map.compare
     (fun code_id1 code_id2 ->
       match code_id1, code_id2 with
-      | Deleted { function_slot_size = size1 }, Deleted { function_slot_size = size2 } -> Int.compare size1 size2
+      | ( Deleted { function_slot_size = size1 },
+          Deleted { function_slot_size = size2 } ) ->
+        Int.compare size1 size2
       | Deleted _, Code_id _ -> -1
       | Code_id _, Deleted _ -> 1
       | Code_id code_id1, Code_id code_id2 -> Code_id.compare code_id1 code_id2)

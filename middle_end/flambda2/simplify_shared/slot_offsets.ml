@@ -752,7 +752,8 @@ end = struct
 
   (* Create slots (and create the cross-referencing). *)
 
-  let create_function_slot set state get_code_metadata function_slot (code_id : Function_declarations.code_id_in_function_declaration) =
+  let create_function_slot set state get_code_metadata function_slot
+      (code_id : Function_declarations.code_id_in_function_declaration) =
     if Compilation_unit.is_current
          (Function_slot.get_compilation_unit function_slot)
     then (
