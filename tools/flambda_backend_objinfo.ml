@@ -248,23 +248,22 @@ let print_generic_fns gfns =
   printf "Apply functions:%a\n" pr_afuns gfns.apply_fun;
   printf "Send functions:%a\n" pr_afuns gfns.send_fun
 
-let print_cmx_infos (uir, sections, crc) =
-  print_general_infos Compilation_unit.output uir.uir_unit crc uir.uir_defines
-    (fun f -> Array.iter f uir.uir_imports_cmi)
-    (fun f -> Array.iter f uir.uir_imports_cmx);
+let print_cmx_infos (ui, crc) =
+  print_general_infos Compilation_unit.output ui.ui_unit crc ui.ui_defines
+    (fun f -> List.iter f ui.ui_imports_cmi)
+    (fun f -> List.iter f ui.ui_imports_cmx);
   begin
-    match uir.uir_export_info with
+    match ui.ui_export_info with
     | None ->
       printf "Flambda 2 unit (with no export information)\n"
     | Some cmx ->
       printf "Flambda 2 export information:\n";
       flush stdout;
-      let cmx = Flambda2_cmx.Flambda_cmx_format.from_raw cmx ~sections in
       Format.printf "%a\n%!" Flambda2_cmx.Flambda_cmx_format.print cmx
   end;
-  print_generic_fns uir.uir_generic_fns;
-  printf "Force link: %s\n" (if uir.uir_force_link then "YES" else "no");
-  Zero_alloc_info.Raw.print uir.uir_zero_alloc_info
+  print_generic_fns ui.ui_generic_fns;
+  printf "Force link: %s\n" (if ui.ui_force_link then "YES" else "no");
+  Zero_alloc_info.print ui.ui_zero_alloc_info
 
 let print_cmxa_infos (lib : Cmx_format.library_infos) =
   printf "Extra C object files:";
@@ -273,16 +272,13 @@ let print_cmxa_infos (lib : Cmx_format.library_infos) =
   List.iter print_spaced_string (List.rev lib.lib_ccopts);
   printf "\n";
   print_generic_fns lib.lib_generic_fns;
-  let module B = Misc.Bitmap in
   lib.lib_units
-  |> List.iter (fun u ->
-        print_general_infos Compilation_unit.output u.li_name u.li_crc
-          u.li_defines
-          (fun f ->
-            B.iter (fun i -> f lib.lib_imports_cmi.(i)) u.li_imports_cmi)
-          (fun f ->
-            B.iter (fun i -> f lib.lib_imports_cmx.(i)) u.li_imports_cmx);
-        printf "Force link: %s\n" (if u.li_force_link then "YES" else "no"))
+  |> List.iter (fun (u, crc) ->
+        print_general_infos Compilation_unit.output u.ui_unit crc
+          u.ui_defines
+          (fun f -> List.iter f u.ui_imports_cmi)
+          (fun f -> List.iter f u.ui_imports_cmx);
+        printf "Force link: %s\n" (if u.ui_force_link then "YES" else "no"))
 
 let print_cmxs_infos header =
   List.iter
@@ -398,14 +394,9 @@ let dump_obj_by_kind filename ic obj_kind =
     let cms = Cms_format.read filename in
     print_cms_infos cms
   | Cmx _config ->
-    let uir = (input_value ic : unit_infos_raw) in
-    let first_section_offset = pos_in ic in
-    seek_in ic (first_section_offset + uir.uir_sections_length);
-    let crc = Digest.input ic in
-    (* This consumes ic *)
-    let sections = Flambda_backend_utils.File_sections.create
-        uir.uir_section_toc filename ic ~first_section_offset in
-    print_cmx_infos (uir, sections, crc)
+    close_in ic;
+    let ui, crc = Cmx_format.read_unit_info ~filename in
+    print_cmx_infos (ui, crc)
   | Cmxa _config ->
     let li = (input_value ic : library_infos) in
     close_in ic;
@@ -434,7 +425,7 @@ let dump_obj filename =
     | Ok { kind; version = _ } ->
       dump_obj_by_kind filename ic kind;
       Ok ()
-    | Error (Parse_error head_error) -> Error head_error
+    | Error (Parse_error head_error) -> Result.Error head_error
   and dump_exec ic =
     let pos_trailer = in_channel_length ic - Magic_number.magic_length in
     let _ = seek_in ic pos_trailer in
@@ -444,7 +435,7 @@ let dump_obj filename =
     | Ok _ ->
       dump_obj_by_kind filename ic Exec;
       Ok ()
-    | Error (Parse_error _) -> Error ()
+    | Error (Parse_error _) -> Result.Error ()
   and dump_cmxs ic =
     flush stdout;
     match find_dyn_offset filename with

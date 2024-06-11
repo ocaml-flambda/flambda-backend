@@ -59,7 +59,7 @@ let cmx_required = ref ([] : CU.t list)
 
 let check_cmi_consistency file_name cmis =
   try
-    Array.iter
+    List.iter
       (fun import ->
         let name = Import_info.name import in
         let info = Import_info.Intf.info import in
@@ -78,7 +78,7 @@ let check_cmi_consistency file_name cmis =
 
 let check_cmx_consistency file_name cmxs =
   try
-    Array.iter
+    List.iter
       (fun import ->
         let name = Import_info.cu import in
         let crco = Import_info.crc import in
@@ -195,13 +195,13 @@ let read_file obj_name =
   if Filename.check_suffix file_name ".cmx" then begin
     (* This is a .cmx file. It must be linked in any case.
        Read the infos to see which modules it requires. *)
-    let (info, crc) = read_unit_info file_name in
+    let (info, crc) = read_unit_info ~filename:file_name in
     Unit (file_name,info,crc)
   end
   else if Filename.check_suffix file_name ".cmxa" then begin
     let infos =
-      try read_library_info file_name
-      with Compilenv.Error(Not_a_unit_info _) ->
+      try read_library_info ~filename:file_name
+      with Cmx_format.Error(Not_a_unit_info _) ->
         raise(Error(Not_an_object_file file_name))
     in
     Library (file_name,infos)
@@ -238,9 +238,7 @@ let scan_file ~shared genfns file (objfiles, tolink, cached_genfns_imports) =
       in
       let object_file_name =
         Filename.chop_suffix file_name ".cmx" ^ ext_obj in
-      check_consistency ~unit
-        (Array.of_list info.ui_imports_cmi)
-        (Array.of_list info.ui_imports_cmx);
+      check_consistency ~unit info.ui_imports_cmi info.ui_imports_cmx;
       let cached_genfns_imports =
         Generic_fns.Tbl.add ~imports:cached_genfns_imports genfns info.ui_generic_fns
       in
@@ -268,43 +266,33 @@ let scan_file ~shared genfns file (objfiles, tolink, cached_genfns_imports) =
       in
       objfiles,
       List.fold_right
-        (fun info reqd ->
-           let li_name = CU.name info.li_name in
-           if info.li_force_link
+        (fun (info, crc) reqd ->
+           let li_name = CU.name info.ui_unit in
+           if info.ui_force_link
            || !Clflags.link_everything
-           || is_required info.li_name
+           || is_required info.ui_unit
            then begin
-             remove_required info.li_name;
+             remove_required info.ui_unit;
              let req_by = (file_name, Some li_name) in
-             info.li_imports_cmx |> Misc.Bitmap.iter (fun i ->
-               let import = infos.lib_imports_cmx.(i) in
+             info.ui_imports_cmx |> List.iter (fun import ->
                add_required req_by import);
-             let imports_list tbl bits =
-               List.init (Array.length tbl) (fun i ->
-                 if Misc.Bitmap.get bits i then Some tbl.(i) else None)
-               |> List.filter_map Fun.id
-             in
              let dynunit : Cmxs_format.dynunit option =
                if not shared then None else
                  Some {
-                   dynu_name = info.li_name;
-                   dynu_crc = info.li_crc;
-                   dynu_defines = info.li_defines;
-                   dynu_imports_cmi =
-                     imports_list infos.lib_imports_cmi info.li_imports_cmi
-                     |> Array.of_list;
-                   dynu_imports_cmx =
-                     imports_list infos.lib_imports_cmx info.li_imports_cmx
-                     |> Array.of_list }
+                   dynu_name = info.ui_unit;
+                   dynu_crc = crc;
+                   dynu_defines = info.ui_defines;
+                   dynu_imports_cmi = info.ui_imports_cmi |> Array.of_list;
+                   dynu_imports_cmx = info.ui_imports_cmx |> Array.of_list }
              in
              let unit =
-               { name = info.li_name;
-                 crc = info.li_crc;
-                 defines = info.li_defines;
+               { name = info.ui_unit;
+                 crc;
+                 defines = info.ui_defines;
                  file_name;
                  dynunit }
              in
-             check_consistency ~unit [| |] [| |];
+             check_consistency ~unit [] [];
              unit :: reqd
            end else
            reqd)
@@ -572,8 +560,7 @@ let check_consistency file_name u crc =
       crc;
       dynunit = None }
   in
-  check_consistency ~unit
-    (Array.of_list u.ui_imports_cmi) (Array.of_list u.ui_imports_cmx)
+  check_consistency ~unit u.ui_imports_cmi u.ui_imports_cmx
 
 (* Error report *)
 

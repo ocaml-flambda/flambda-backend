@@ -21,17 +21,12 @@
 
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
-open Config
 open Cmx_format
-
-module File_sections = Flambda_backend_utils.File_sections
 
 module CU = Compilation_unit
 
 type error =
-    Not_a_unit_info of string
-  | Corrupted_unit_info of string
-  | Illegal_renaming of CU.t * CU.t * string
+    Illegal_renaming of CU.t * CU.t * string
 
 exception Error of error
 
@@ -40,8 +35,6 @@ let global_infos_table =
 
 let reset_info_tables () =
   CU.Name.Tbl.reset global_infos_table
-
-module String = Misc.Stdlib.String
 
 let exported_constants = Hashtbl.create 17
 
@@ -86,50 +79,6 @@ let record_external_symbols () =
 let current_unit_infos () =
   current_unit
 
-let read_unit_info filename =
-  let ic = open_in_bin filename in
-  try
-    let buffer = really_input_string ic (String.length cmx_magic_number) in
-    if buffer <> cmx_magic_number then begin
-      close_in ic;
-      raise(Error(Not_a_unit_info filename))
-    end;
-    let uir = (input_value ic : unit_infos_raw) in
-    let first_section_offset = pos_in ic in
-    seek_in ic (first_section_offset + uir.uir_sections_length);
-    let crc = Digest.input ic in
-    (* This consumes the channel *)
-    let sections = File_sections.create uir.uir_section_toc filename ic ~first_section_offset in
-    let export_info =
-      Option.map (Flambda2_cmx.Flambda_cmx_format.from_raw ~sections)
-        uir.uir_export_info
-    in
-    let ui = {
-      ui_unit = uir.uir_unit;
-      ui_defines = uir.uir_defines;
-      ui_imports_cmi = uir.uir_imports_cmi |> Array.to_list;
-      ui_imports_cmx = uir.uir_imports_cmx |> Array.to_list;
-      ui_generic_fns = uir.uir_generic_fns;
-      ui_export_info = export_info;
-      ui_zero_alloc_info = Zero_alloc_info.of_raw uir.uir_zero_alloc_info;
-      ui_force_link = uir.uir_force_link;
-      ui_external_symbols = uir.uir_external_symbols |> Array.to_list;
-    }
-    in
-    (ui, crc)
-  with End_of_file | Failure _ ->
-    close_in ic;
-    raise(Error(Corrupted_unit_info(filename)))
-
-let read_library_info filename =
-  let ic = open_in_bin filename in
-  let buffer = really_input_string ic (String.length cmxa_magic_number) in
-  if buffer <> cmxa_magic_number then
-    raise(Error(Not_a_unit_info filename));
-  let infos = (input_value ic : library_infos) in
-  close_in ic;
-  infos
-
 
 (* Read and cache info on global identifiers *)
 
@@ -154,7 +103,7 @@ let get_unit_info comp_unit =
           try
             let filename =
               Load_path.find_uncap ((cmx_name |> CU.Name.to_string) ^ ".cmx") in
-            let (ui, crc) = read_unit_info filename in
+            let (ui, crc) = read_unit_info ~filename in
             if not (CU.equal ui.ui_unit comp_unit) then
               raise(Error(Illegal_renaming(comp_unit, ui.ui_unit, filename)));
             cache_zero_alloc_info ui.ui_zero_alloc_info;
@@ -241,40 +190,9 @@ let ensure_sharing_between_cmi_and_cmx_imports cmi_imports cmx_imports =
     cmx_imports
 *)
 
-let write_unit_info info filename =
-  let raw_export_info, sections =
-    match info.ui_export_info with
-    | None -> None, File_sections.empty
-    | Some info ->
-      let info, sections = Flambda2_cmx.Flambda_cmx_format.to_raw info in
-      Some info, sections
-  in
-  let serialized_sections, toc, total_length = File_sections.serialize sections in
-  let raw_info = {
-    uir_unit = info.ui_unit;
-    uir_defines = info.ui_defines;
-    uir_imports_cmi = Array.of_list info.ui_imports_cmi;
-    uir_imports_cmx = Array.of_list info.ui_imports_cmx;
-    uir_generic_fns = info.ui_generic_fns;
-    uir_export_info = raw_export_info;
-    uir_zero_alloc_info = Zero_alloc_info.to_raw info.ui_zero_alloc_info;
-    uir_force_link = info.ui_force_link;
-    uir_section_toc = toc;
-    uir_sections_length = total_length;
-    uir_external_symbols = Array.of_list info.ui_external_symbols;
-  } in
-  let oc = open_out_bin filename in
-  output_string oc cmx_magic_number;
-  output_value oc raw_info;
-  Array.iter (output_string oc) serialized_sections;
-  flush oc;
-  let crc = Digest.file filename in
-  Digest.output oc crc;
-  close_out oc
-
 let save_unit_info filename =
   current_unit.ui_imports_cmi <- Env.imports();
-  write_unit_info current_unit filename
+  write_unit_info current_unit ~filename
 
 let new_const_symbol () =
   Symbol.for_new_const_in_current_unit ()
@@ -289,12 +207,6 @@ let require_global global_ident =
 open Format
 
 let report_error ppf = function
-  | Not_a_unit_info filename ->
-      fprintf ppf "%a@ is not a compilation unit description."
-        Location.print_filename filename
-  | Corrupted_unit_info filename ->
-      fprintf ppf "Corrupted compilation unit description@ %a"
-        Location.print_filename filename
   | Illegal_renaming(name, modname, filename) ->
       fprintf ppf "%a@ contains the description for unit\
                    @ %a when %a was expected"
