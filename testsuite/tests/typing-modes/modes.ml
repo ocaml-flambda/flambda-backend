@@ -231,12 +231,8 @@ Error: Unrecognized modality foo.
 |}]
 
 type t = Foo of global_ string @@ global
+(* CR reduced-modality: this should warn. *)
 [%%expect{|
-Line 1, characters 34-40:
-1 | type t = Foo of global_ string @@ global
-                                      ^^^^^^
-Warning 250 [redundant-modality]: This global modality is redundant.
-
 type t = Foo of global_ string
 |}]
 
@@ -260,14 +256,48 @@ Error: Unrecognized modality foo.
 type r = {
   global_ x : string @@ global
 }
+(* CR reduced-modality: this should warn. *)
 [%%expect{|
-Line 2, characters 24-30:
-2 |   global_ x : string @@ global
-                            ^^^^^^
-Warning 250 [redundant-modality]: This global modality is redundant.
-
 type r = { global_ x : string; }
 |}]
+
+(* Modalities don't imply each other; this will change as we add borrowing. *)
+type r = {
+  global_ x : string @@ shared
+}
+[%%expect{|
+type r = { global_ x : string @@ shared; }
+|}]
+
+type r = {
+  x : string @@ shared global many
+}
+[%%expect{|
+type r = { global_ x : string @@ many shared; }
+|}]
+
+type r = {
+  x : string @@ shared global many shared
+}
+(* CR reduced-modality: this should warn. *)
+[%%expect{|
+type r = { global_ x : string @@ many shared; }
+|}]
+
+type r = Foo of string @@ global shared many
+[%%expect{|
+type r = Foo of global_ string @@ many shared
+|}]
+
+(* mutable implies global shared many. No warnings are given since we imagine
+   that the coupling will be removed soon. *)
+type r = {
+  mutable x : string @@ global shared many
+}
+[%%expect{|
+type r = { mutable x : string; }
+|}]
+
 
 (* patterns *)
 

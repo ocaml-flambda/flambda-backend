@@ -421,24 +421,22 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
           pld_attributes=attrs} =
     Builtin_attributes.warning_scope attrs
       (fun () ->
-         let gbl =
-           match mut with
-           | Mutable -> Mode.Global_flag.Global
-           | Immutable -> Typemode.transl_global_flags
-              (Jane_syntax.Mode_expr.of_attrs arg.ptyp_attributes |> fst)
-         in
          let mut : mutability =
           match mut with
           | Immutable -> Immutable
           | Mutable -> Mutable Mode.Alloc.Comonadic.Const.legacy
          in
+         let modalities =
+          Jane_syntax.Mode_expr.of_attrs arg.ptyp_attributes |> fst
+         in
+         let modalities = Typemode.transl_modalities mut modalities in
          let arg = Ast_helper.Typ.force_poly arg in
          let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
          {ld_id = Ident.create_local name.txt;
           ld_name = name;
           ld_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
           ld_mutable = mut;
-          ld_global = gbl;
+          ld_modalities = modalities;
           ld_type = cty; ld_loc = loc; ld_attributes = attrs}
       )
   in
@@ -452,7 +450,7 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
           ~allow_unboxed env ld.ld_loc kloc ty;
          {Types.ld_id = ld.ld_id;
           ld_mutable = ld.ld_mutable;
-          ld_global = ld.ld_global;
+          ld_modalities = ld.ld_modalities;
           ld_jkind = Jkind.any ~why:Dummy_jkind;
             (* Updated by [update_label_jkinds] *)
           ld_type = ty;
@@ -468,7 +466,7 @@ let transl_types_gf ~new_var_jkind ~allow_unboxed
   env loc univars closed tyl kloc =
   let mk arg =
     let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
-    let gf = Typemode.transl_global_flags
+    let gf = Typemode.transl_modalities Immutable
       (Jane_syntax.Mode_expr.of_attrs arg.ptyp_attributes |> fst) in
     (cty, gf)
   in
