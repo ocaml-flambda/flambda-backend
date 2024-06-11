@@ -15,6 +15,8 @@
 
 (* Common functions for emitting assembly code *)
 
+[@@@ocaml.warning "+4"]
+
 type error =
   | Stack_frame_too_large of int
   | Stack_frame_way_too_large of int
@@ -491,13 +493,9 @@ module Dwarf_helpers = struct
          || !Dwarf_flags.dwarf_inlined_frames)
       && not disable_dwarf
     in
-    match
-      ( can_emit_dwarf,
-        Target_system.architecture (),
-        Target_system.derived_system () )
-    with
-    | true, (X86_64 | AArch64), _ -> sourcefile_for_dwarf := Some sourcefile
-    | true, _, _ | false, _, _ -> ()
+    match can_emit_dwarf, Target_system.architecture () with
+    | true, (X86_64 | AArch64) -> sourcefile_for_dwarf := Some sourcefile
+    | true, (IA32 | ARM | POWER | Z | Riscv) | false, _ -> ()
 
   let emit_dwarf () =
     Option.iter
