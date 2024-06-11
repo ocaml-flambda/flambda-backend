@@ -2493,3 +2493,19 @@ end
 [%%expect{|
 module M : sig type 'a t end
 |}]
+
+type ('a : bits32) id_bits32 = 'a
+
+let f (type a) (x : a id_bits32) : a = x
+
+[%%expect{|
+type ('a : bits32) id_bits32 = 'a
+Line 3, characters 20-21:
+3 | let f (type a) (x : a id_bits32) : a = x
+                        ^
+Error: This type a should be an instance of type ('a : bits32)
+       The layout of a is value, because
+         it is or unifies with an unannotated universal variable.
+       But the layout of a must be a sublayout of bits32, because
+         of the definition of id_bits32 at line 1, characters 0-33.
+|}]
