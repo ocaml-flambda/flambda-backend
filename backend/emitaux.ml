@@ -592,8 +592,12 @@ let preproc_stack_check ~fun_body ~frame_size ~trap_size =
         loop i.next fs ~max_fs ~max_fs_calls:(max s max_fs_calls)
           ~callees:(String.Set.add sym_name callees)
           ~nontail_flag)
-    | Lprologue | Lop _ | Lreloadretaddr | Lreturn | Llabel _ | Lbranch _
-    | Lcondbranch _ | Lcondbranch3 _ | Lswitch _ | Lentertrap | Lraise _ ->
+    | Lprologue
+    (* For [Lprologue] it seems like we might need to account for the stack
+       adjustment induced by pushing the frame pointer, but this is accounted
+       for in [Proc.frame_size], as noted above. *)
+    | Lop _ | Lreloadretaddr | Lreturn | Llabel _ | Lbranch _ | Lcondbranch _
+    | Lcondbranch3 _ | Lswitch _ | Lentertrap | Lraise _ ->
       loop i.next fs ~max_fs ~max_fs_calls ~callees ~nontail_flag
     | Lstackcheck _ ->
       (* should not be already present *)
