@@ -327,8 +327,8 @@ let print_out_jkind ppf = function
   | Ojkind_const { base; modal_bounds=[] } ->
     fprintf ppf "%s" base
   | Ojkind_const { base; modal_bounds=_::_ as modal_bounds } ->
-    fprintf ppf "%s mod %a" base
-      (print_list (fun ppf str -> fprintf ppf "%s" str) (fun ppf -> fprintf ppf " "))
+    fprintf ppf "@[%s mod@ %a@]" base
+      (print_list (fun ppf str -> fprintf ppf "%s" str) (fun ppf -> fprintf ppf "@ "))
       modal_bounds
   | Ojkind_var v -> fprintf ppf "%s" v
   | Ojkind_user jkind ->
@@ -336,8 +336,8 @@ let print_out_jkind ppf = function
       | Ojkind_user_default -> fprintf ppf "_"
       | Ojkind_user_abbreviation abbrev -> fprintf ppf "%s" abbrev
       | Ojkind_user_mod (base, modes) ->
-        fprintf ppf "%a mod %a" print_out_jkind_user base
-          (print_list (fun ppf str -> fprintf ppf "%s" str) (fun ppf -> fprintf ppf " "))
+        fprintf ppf "@[%a mod@ %a@]" print_out_jkind_user base
+          (print_list (fun ppf str -> fprintf ppf "%s" str) (fun ppf -> fprintf ppf "@ "))
           modes
       | Ojkind_user_with _ | Ojkind_user_kind_of _ ->
         failwith "XXX unimplemented jkind syntax"
