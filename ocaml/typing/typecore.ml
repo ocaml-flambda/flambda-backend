@@ -7388,7 +7388,6 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
               ret_mode = Alloc.disallow_right mret;
               ret_sort;
               alloc_mode;
-              region = true;
               zero_alloc = Zero_alloc.default
             }
         }
@@ -8800,7 +8799,7 @@ and type_n_ary_function
     re
       { exp_desc =
           Texp_function
-            { params; body; region = true; ret_sort;
+            { params; body; ret_sort;
               alloc_mode = Mode.Alloc.disallow_left fun_alloc_mode; ret_mode;
               zero_alloc
             };

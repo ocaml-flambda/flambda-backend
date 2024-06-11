@@ -309,7 +309,7 @@ let fuse_method_arity (parent : fusable_function) : fusable_function =
         body = method_.body;
         return_mode = transl_alloc_mode_l method_.ret_mode;
         return_sort = method_.ret_sort;
-        region = method_.region;
+        region = true;
       }
   | _ -> parent
 
@@ -412,10 +412,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let return_layout = layout_exp sort body in
       transl_let ~scopes ~return_layout rec_flag pat_expr_list
         (event_before ~scopes body (transl_exp ~scopes sort body))
-  | Texp_function { params; body; region; ret_sort; ret_mode; alloc_mode;
+  | Texp_function { params; body; ret_sort; ret_mode; alloc_mode;
                     zero_alloc } ->
       transl_function ~in_new_scope ~scopes e params body
-        ~alloc_mode ~ret_mode ~ret_sort ~region ~zero_alloc
+        ~alloc_mode ~ret_mode ~ret_sort ~region:true ~zero_alloc
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
                                        Id_prim (pmode, psort), _);
                  exp_type = prim_type; } as funct,
