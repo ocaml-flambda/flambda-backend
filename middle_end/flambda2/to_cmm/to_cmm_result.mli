@@ -69,6 +69,19 @@ val add_invalid_message_symbol : t -> Symbol.t -> message:string -> t
 
 val invalid_message_symbol : t -> message:string -> Symbol.t option
 
+(** Determine whether a region is used, as per [mark_region_as_used] below. *)
+val region_is_used :
+  t -> Variable.t -> resolve_alias:(Variable.t -> Variable.t) -> bool
+
+(** Mark that we have seen an occurrence of a given region as specified by
+    an allocation mode.
+    (Occurrences in [End_region] primitives do not count as uses.) *)
+val mark_region_as_used :
+  t ->
+  Alloc_mode.For_allocations.t ->
+  resolve_alias:(Variable.t -> Variable.t) ->
+  t
+
 type result = private
   { data_items : Cmm.phrase list;
     gc_roots : Cmm.symbol list;

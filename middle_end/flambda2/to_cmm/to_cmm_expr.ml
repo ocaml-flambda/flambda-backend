@@ -140,7 +140,11 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
   in
   let return_ty = C.extended_machtype_of_return_arity return_arity in
   match Apply.call_kind apply with
-  | Function { function_call = Direct code_id; alloc_mode = _ } -> (
+  | Function { function_call = Direct code_id; alloc_mode } -> (
+    let res =
+      To_cmm_result.mark_region_as_used res alloc_mode
+        ~resolve_alias:(To_cmm_env.resolve_alias env)
+    in
     let code_metadata = Env.get_code_metadata env code_id in
     let params_arity = Code_metadata.params_arity code_metadata in
     if not (C.check_arity params_arity args)
@@ -183,6 +187,10 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         Ece.all ))
   | Function { function_call = Indirect_unknown_arity; alloc_mode } ->
     fail_if_probe apply;
+    let res =
+      To_cmm_result.mark_region_as_used res alloc_mode
+        ~resolve_alias:(To_cmm_env.resolve_alias env)
+    in
     let callee =
       match callee with
       | Some callee -> callee
@@ -200,6 +208,10 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       Ece.all )
   | Function { function_call = Indirect_known_arity; alloc_mode } ->
     fail_if_probe apply;
+    let res =
+      To_cmm_result.mark_region_as_used res alloc_mode
+        ~resolve_alias:(To_cmm_env.resolve_alias env)
+    in
     let callee =
       match callee with
       | Some callee -> callee
@@ -222,8 +234,12 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         res,
         Ece.all )
   | Call_kind.C_call
-      { needs_caml_c_call; is_c_builtin; effects; coeffects; alloc_mode = _ } ->
+      { needs_caml_c_call; is_c_builtin; effects; coeffects; alloc_mode } ->
     fail_if_probe apply;
+    let res =
+      To_cmm_result.mark_region_as_used res alloc_mode
+        ~resolve_alias:(To_cmm_env.resolve_alias env)
+    in
     let callee =
       match callee_simple with
       | None ->
@@ -276,6 +292,10 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       Ece.all )
   | Call_kind.Method { kind; obj; alloc_mode } ->
     fail_if_probe apply;
+    let res =
+      To_cmm_result.mark_region_as_used res alloc_mode
+        ~resolve_alias:(To_cmm_env.resolve_alias env)
+    in
     let callee =
       match callee with
       | Some callee -> callee

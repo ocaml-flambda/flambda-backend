@@ -56,15 +56,19 @@ let unbox_number ~dbg kind arg =
     let primitive_kind = K.Boxable_number.primitive_kind kind in
     C.unbox_int dbg primitive_kind arg
 
-let box_number ~dbg kind alloc_mode arg =
+let box_number ~dbg env res kind alloc_mode arg =
+  let res =
+    To_cmm_result.mark_region_as_used res alloc_mode
+      ~resolve_alias:(To_cmm_env.resolve_alias env)
+  in
   let alloc_mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
   match (kind : K.Boxable_number.t) with
-  | Naked_float32 -> C.box_float32 dbg alloc_mode arg
-  | Naked_float -> C.box_float dbg alloc_mode arg
-  | Naked_vec128 -> C.box_vec128 dbg alloc_mode arg
+  | Naked_float32 -> C.box_float32 dbg alloc_mode arg, res
+  | Naked_float -> C.box_float dbg alloc_mode arg, res
+  | Naked_vec128 -> C.box_vec128 dbg alloc_mode arg, res
   | Naked_int32 | Naked_int64 | Naked_nativeint ->
     let primitive_kind = K.Boxable_number.primitive_kind kind in
-    C.box_int_gen dbg primitive_kind alloc_mode arg
+    C.box_int_gen dbg primitive_kind alloc_mode arg, res
 
 (* Block creation and access. For these functions, [index] is a tagged
    integer. *)
@@ -85,13 +89,18 @@ let check_alloc_fields = function
        be lifted so they can be statically allocated)"
   | _ -> ()
 
-let make_block ~dbg kind alloc_mode args =
+let make_block env res ~dbg kind alloc_mode args =
   check_alloc_fields args;
+  let res =
+    To_cmm_result.mark_region_as_used res alloc_mode
+      ~resolve_alias:(To_cmm_env.resolve_alias env)
+  in
   let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
   match (kind : P.Block_kind.t) with
-  | Values (tag, _) -> C.make_alloc ~mode dbg (Tag.Scannable.to_int tag) args
+  | Values (tag, _) ->
+    C.make_alloc ~mode dbg (Tag.Scannable.to_int tag) args, res
   | Naked_floats ->
-    C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
+    C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args, res
 
 let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     ~block ~index =
@@ -143,25 +152,34 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
 (* Array creation and access. For these functions, [index] is a tagged
    integer. *)
 
-let make_array ~dbg kind alloc_mode args =
+let make_array env res ~dbg kind alloc_mode args =
   check_alloc_fields args;
+  let res =
+    To_cmm_result.mark_region_as_used res alloc_mode
+      ~resolve_alias:(To_cmm_env.resolve_alias env)
+  in
   let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
   match (kind : P.Array_kind.t) with
-  | Immediates | Values -> C.make_alloc ~mode dbg 0 args
+  | Immediates | Values -> C.make_alloc ~mode dbg 0 args, res
   | Naked_floats ->
-    C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
-  | Naked_float32s -> C.allocate_unboxed_float32_array ~elements:args mode dbg
-  | Naked_int32s -> C.allocate_unboxed_int32_array ~elements:args mode dbg
-  | Naked_int64s -> C.allocate_unboxed_int64_array ~elements:args mode dbg
+    C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args, res
+  | Naked_float32s ->
+    C.allocate_unboxed_float32_array ~elements:args mode dbg, res
+  | Naked_int32s -> C.allocate_unboxed_int32_array ~elements:args mode dbg, res
+  | Naked_int64s -> C.allocate_unboxed_int64_array ~elements:args mode dbg, res
   | Naked_nativeints ->
-    C.allocate_unboxed_nativeint_array ~elements:args mode dbg
+    C.allocate_unboxed_nativeint_array ~elements:args mode dbg, res
 
-let make_mixed_block ~dbg tag shape alloc_mode args =
+let make_mixed_block env res ~dbg tag shape alloc_mode args =
   check_alloc_fields args;
+  let res =
+    To_cmm_result.mark_region_as_used res alloc_mode
+      ~resolve_alias:(To_cmm_env.resolve_alias env)
+  in
   let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
   let tag = Tag.Scannable.to_int tag in
   let shape = P.Mixed_block_kind.to_lambda shape in
-  C.make_mixed_alloc ~mode dbg tag shape args
+  C.make_mixed_alloc ~mode dbg tag shape args, res
 
 let array_length ~dbg arr (kind : P.Array_kind.t) =
   match kind with
@@ -666,7 +684,7 @@ let nullary_primitive _env res dbg prim =
        correctly adjust the inlined debuginfo in the env."
   | Dls_get -> None, res, C.dls_get ~dbg
 
-let unary_primitive env res dbg f arg =
+let unary_primitive env res dbg f (arg_simple, arg) =
   match (f : P.unary_primitive) with
   | Duplicate_array _ | Duplicate_block _ | Obj_dup ->
     ( None,
@@ -687,7 +705,13 @@ let unary_primitive env res dbg f arg =
       C.load ~dbg Word_int Mutable
         ~addr:(C.field_address arg (4 + dimension) dbg) )
   | String_length _ -> None, res, C.string_length arg dbg
-  | Int_as_pointer _ -> None, res, C.int_as_pointer arg dbg
+  | Int_as_pointer _alloc_mode ->
+    (* We don't call [mark_region_as_used] here. Any region inserted only for
+       this primitive will have done its job by now, in terms of inhibiting
+       potential code motion. [Cmm_helpers] uses machtype [Addr] for the result
+       of [C.int_as_pointer] which will ensure that any illegal code motion in
+       the backend gets caught by the emitter. *)
+    None, res, C.int_as_pointer arg dbg
   | Opaque_identity { middle_end_only = true; kind = _ } -> None, res, arg
   | Opaque_identity { middle_end_only = false; kind = _ } ->
     None, res, C.opaque arg dbg
@@ -703,7 +727,8 @@ let unary_primitive env res dbg f arg =
   | Unbox_number kind -> None, res, unbox_number ~dbg kind arg
   | Untag_immediate -> Some (Env.Untag arg), res, C.untag_int arg dbg
   | Box_number (kind, alloc_mode) ->
-    None, res, box_number ~dbg kind alloc_mode arg
+    let cmm, res = box_number ~dbg env res kind alloc_mode arg in
+    None, res, cmm
   | Tag_immediate ->
     (* We could return [Env.Tag] here, but probably unnecessary at the
        moment. *)
@@ -767,8 +792,24 @@ let unary_primitive env res dbg f arg =
         ~else_dbg:dbg )
   | Is_flat_float_array ->
     None, res, C.eq ~dbg (C.get_tag arg dbg) (C.floatarray_tag dbg)
-  | End_region | End_try_region ->
-    None, res, C.return_unit dbg (C.endregion ~dbg arg)
+  | End_region -> (
+    match Simple.must_be_var arg_simple with
+    | Some (region, _coercion) ->
+      let cmm =
+        (* Omitting the [Cendregion] for an unused region will cause the
+           corresponding [Cbeginregion] to be dropped in the generated Cmm. *)
+        if To_cmm_result.region_is_used res region
+             ~resolve_alias:(To_cmm_env.resolve_alias env)
+        then C.return_unit dbg (C.endregion ~dbg arg)
+        else C.unit ~dbg
+      in
+      None, res, cmm
+    | _ ->
+      Misc.fatal_errorf
+        "Expected variable argument to [End_region] or [End_try_region], but \
+         got %a"
+        Simple.print arg_simple)
+  | End_try_region -> None, res, C.return_unit dbg (C.endregion ~dbg arg)
   | Get_header -> None, res, C.get_header arg dbg
   | Atomic_load block_access_kind ->
     let imm_or_ptr : Lambda.immediate_or_pointer =
@@ -815,12 +856,14 @@ let ternary_primitive _env dbg f x y z =
   | Atomic_compare_and_set ->
     C.atomic_compare_and_set ~dbg x ~old_value:y ~new_value:z
 
-let variadic_primitive _env dbg f args =
+let variadic_primitive env res dbg f args =
   match (f : P.variadic_primitive) with
-  | Make_block (kind, _mut, alloc_mode) -> make_block ~dbg kind alloc_mode args
-  | Make_array (kind, _mut, alloc_mode) -> make_array ~dbg kind alloc_mode args
+  | Make_block (kind, _mut, alloc_mode) ->
+    make_block env res ~dbg kind alloc_mode args
+  | Make_array (kind, _mut, alloc_mode) ->
+    make_array env res ~dbg kind alloc_mode args
   | Make_mixed_block (tag, shape, _mut, alloc_mode) ->
-    make_mixed_block ~dbg tag shape alloc_mode args
+    make_mixed_block env res ~dbg tag shape alloc_mode args
 
 let arg ?consider_inlining_effectful_expressions ~dbg env res simple =
   C.simple ?consider_inlining_effectful_expressions ~dbg env res simple
@@ -865,7 +908,7 @@ let trans_prim : To_cmm_env.t To_cmm_env.trans_prim =
         None, res, cmm);
     variadic =
       (fun env res dbg prim args ->
-        let cmm = variadic_primitive env dbg prim args in
+        let cmm, res = variadic_primitive env res dbg prim args in
         None, res, cmm)
   }
 
@@ -917,8 +960,11 @@ let prim_simple env res dbg p =
     let extra, res, expr = nullary_primitive env res dbg prim in
     Env.simple expr free_vars, extra, env, res, Ece.pure
   | Unary (unary, x) ->
+    let x_simple = x in
     let To_cmm_env.{ env; res; expr = x } = arg env res x in
-    let extra, res, expr = unary_primitive env res dbg unary x.cmm in
+    let extra, res, expr =
+      unary_primitive env res dbg unary (x_simple, x.cmm)
+    in
     Env.simple expr x.free_vars, extra, env, res, x.effs
   | Binary (binary, x, y) ->
     let To_cmm_env.{ env; res; expr = x } = arg env res x in
@@ -944,7 +990,7 @@ let prim_simple env res dbg p =
     let args, free_vars, env, res, effs =
       arg_list ?consider_inlining_effectful_expressions ~dbg env res l
     in
-    let expr = variadic_primitive env dbg variadic args in
+    let expr, res = variadic_primitive env res dbg variadic args in
     Env.simple expr free_vars, None, env, res, effs
 
 let prim_complex env res dbg p =
@@ -983,5 +1029,5 @@ let prim_complex env res dbg p =
       in
       prim', args, effs, env, res
   in
-  let bound_expr = Env.splittable_primitive dbg prim' args in
+  let bound_expr = Env.splittable_primitive dbg prim' (P.args p) args in
   bound_expr, env, res, effs

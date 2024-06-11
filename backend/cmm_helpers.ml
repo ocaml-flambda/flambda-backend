@@ -3086,7 +3086,7 @@ let curry_function (kind, arity, return) =
 
 type unary_primitive = expression -> Debuginfo.t -> expression
 
-let int_as_pointer arg dbg = Cop (Caddi, [arg; Cconst_int (-1, dbg)], dbg)
+let int_as_pointer arg dbg = Cop (Cadda, [arg; Cconst_int (-1, dbg)], dbg)
 (* always a pointer outside the heap *)
 
 let raise_prim raise_kind arg dbg =
