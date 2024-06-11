@@ -502,7 +502,7 @@ let report_constructor_mismatch first second decl env ppf err =
         (String.capitalize_ascii (choose ord first second))
         (choose_other ord first second)
   | Modality (i, err) ->
-      pr "Modality mismatch at argument position %i : %a"
+      pr "Modality mismatch at argument position %i:@ %a"
         (i + 1) (report_modality_equate_error first second) err
         (* argument position is one-based; more intuitive *)
 
