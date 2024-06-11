@@ -323,6 +323,10 @@ type matches_result =
   | Jkind_mismatch of { original_jkind : jkind; inferred_jkind : jkind
                      ; ty : type_expr }
   | All_good
+
+val all_distinct_vars_with_original_jkinds' :
+  Env.t -> (type_expr * Jkind.t) list -> matches_result
+
 val matches: expand_error_trace:bool -> Env.t ->
   type_expr -> type_expr -> matches_result
         (* Same as [moregeneral false], implemented using the two above

@@ -4987,13 +4987,19 @@ let all_distinct_vars_with_original_jkinds env vars_jkinds =
          tys := TypeSet.add ty !tys;
          match get_desc ty with
          | Tvar { jkind = inferred_jkind } ->
-           if Jkind.equate inferred_jkind original_jkind
+           if Jkind.sub original_jkind inferred_jkind
            then All_good
            else Jkind_mismatch { original_jkind; inferred_jkind; ty }
          | _ -> Unification_failure
        end
   in
   List.fold_left folder All_good vars_jkinds
+
+let all_distinct_vars_with_original_jkinds' env vars_jkinds =
+  match all_distinct_vars_with_original_jkinds env vars_jkinds with
+  | Unification_failure -> Unification_failure (unification_error ~trace:[])
+  | Jkind_mismatch { original_jkind; inferred_jkind; ty } -> Jkind_mismatch { original_jkind; inferred_jkind; ty }
+  | All_good -> All_good
 
 let matches ~expand_error_trace env ty ty' =
   let snap = snapshot () in
@@ -5015,7 +5021,13 @@ let matches ~expand_error_trace env ty ty' =
       | All_good -> All_good
     in
     backtrack snap;
-    result
+    (match result with
+    (* CR: we can have many subjkind failures here. *)
+    | Jkind_mismatch { original_jkind = _; inferred_jkind; ty } ->
+      (match constrain_type_jkind env ty inferred_jkind with
+      | Ok () -> All_good
+      | Error _  -> result)
+    | _ -> result)
   | exception Unify err ->
       backtrack snap;
       Unification_failure err

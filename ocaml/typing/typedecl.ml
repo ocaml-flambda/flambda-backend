@@ -1008,8 +1008,20 @@ let rec check_constraints_rec env loc visited ty =
       end;
       List.iter (check_constraints_rec env loc visited) args
   | Tpoly (ty, tl) ->
-      let _, ty = Ctype.instance_poly false tl ty in
-      check_constraints_rec env loc visited ty
+      let vars, ty = Ctype.instance_poly false tl ty in
+      let vars_jkinds = List.map (fun v -> v, Ctype.type_jkind_purely env v) vars in
+      check_constraints_rec env loc visited ty;
+      (match Ctype.all_distinct_vars_with_original_jkinds' env vars_jkinds with
+      | Unification_failure _ ->
+        assert false
+      | Jkind_mismatch { original_jkind; inferred_jkind; ty } ->
+        let violation =
+          Jkind.Violation.of_
+            (Not_a_subjkind (original_jkind, inferred_jkind))
+        in
+        raise (Error(loc, Jkind_mismatch_due_to_bad_inference
+                          (ty, violation, Check_constraints)))
+      | All_good -> ())
   | _ ->
       Btype.iter_type_expr (check_constraints_rec env loc visited) ty
   end
