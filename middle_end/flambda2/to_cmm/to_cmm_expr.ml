@@ -640,26 +640,21 @@ and let_cont_not_inlined env res k handler body =
   let wrap, env, res = Env.flush_delayed_lets ~mode:Branching_point env res in
   let is_exn_handler = Continuation_handler.is_exn_handler handler in
   let is_cold = Continuation_handler.is_cold handler in
-  let vars, arity, handler, free_vars_of_handler, res =
-    continuation_handler env res handler
-  in
-  let catch_id, env =
-    Env.add_jump_cont env k ~param_types:(List.map snd vars)
-  in
+  let param_types, arity, make_handler = continuation_handler handler in
+  let catch_id, env = Env.add_jump_cont env k ~param_types in
   let cmm, free_vars, res =
     (* Exception continuations are translated specially -- these will be reached
        via the raising of exceptions, whereas other continuations are reached
        using a normal jump. *)
     if is_exn_handler
-    then
-      let_cont_exn_handler env res k body vars handler free_vars_of_handler
-        ~catch_id arity
+    then let_cont_exn_handler env res k body make_handler ~catch_id arity
     else
       (* CR mshinwell: fix debuginfo *)
       (* CR gbury: once we get proper debuginfo here, remember to apply
          Env.add_inlined_debuginfo to it *)
       let dbg = Debuginfo.none in
       let body, free_vars_of_body, res = expr env res body in
+      let vars, handler, free_vars_of_handler, res = make_handler env res in
       let free_vars =
         Backend_var.Set.union free_vars_of_body
           (C.remove_vars_with_machtype free_vars_of_handler vars)
@@ -682,8 +677,10 @@ and let_cont_not_inlined env res k handler body =
    through the try-with using mutable Cmm variables. Thus the exception handler
    must first read the contents of those extra args (eagerly, in order to
    minmize the lifetime of the mutable variables). *)
-and let_cont_exn_handler env res k body vars handler free_vars_of_handler
-    ~catch_id arity =
+and let_cont_exn_handler env res k body make_handler ~catch_id arity =
+  let env_body, mut_vars = Env.add_exn_handler env k arity in
+  let body, free_vars_of_body, res = expr env_body res body in
+  let vars, handler, free_vars_of_handler, res = make_handler env res in
   let exn_var, extra_params =
     match vars with
     | (v, _) :: rest -> v, rest
@@ -693,7 +690,6 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
         "Exception continuation %a should have at least one argument"
         Continuation.print k
   in
-  let env_body, mut_vars = Env.add_exn_handler env k arity in
   let handler =
     (* Wrap the exn handler with reads of the mutable variables *)
     List.fold_left2
@@ -704,7 +700,6 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
         C.letin extra_param ~defining_expr:(C.var mut_var) ~body:handler)
       handler mut_vars extra_params
   in
-  let body, free_vars_of_body, res = expr env_body res body in
   let free_vars =
     Backend_var.Set.union free_vars_of_body
       (C.remove_vars_with_machtype free_vars_of_handler vars)
@@ -769,13 +764,14 @@ and let_cont_rec env res invariant_params conts body =
   let env, invariant_vars =
     C.continuation_bound_parameters env invariant_params
   in
+  (* Translate the body *)
+  let body, free_vars_of_body, res = expr env res body in
   (* Translate each continuation handler *)
   let conts_to_handlers, res =
     Continuation.Map.fold
       (fun k handler (conts_to_handlers, res) ->
-        let vars, _arity, handler, free_vars_of_handler, res =
-          continuation_handler env res handler
-        in
+        let _param_types, _arity, make_handler = continuation_handler handler in
+        let vars, handler, free_vars_of_handler, res = make_handler env res in
         ( Continuation.Map.add k
             (invariant_vars @ vars, handler, free_vars_of_handler)
             conts_to_handlers,
@@ -787,7 +783,6 @@ and let_cont_rec env res invariant_params conts body =
   (* CR gbury: once we get proper debuginfo here, remember to apply
      Env.add_inlined_debuginfo to it *)
   let dbg = Debuginfo.none in
-  let body, free_vars_of_body, res = expr env res body in
   (* Setup the Cmm handlers for the Ccatch *)
   let handlers, free_vars =
     Continuation.Map.fold
@@ -806,13 +801,28 @@ and let_cont_rec env res invariant_params conts body =
   let cmm, free_vars = wrap cmm free_vars in
   cmm, free_vars, res
 
-and continuation_handler env res handler =
+and continuation_handler handler :
+    Cmm.machtype Env.param_type list
+    * _ Flambda_arity.t
+    * (To_cmm_env.t ->
+      To_cmm_result.t ->
+      (Backend_var.With_provenance.t * Cmm.machtype Env.param_type) list
+      * Cmm.expression
+      * Env.free_vars
+      * To_cmm_result.t) =
   Continuation_handler.pattern_match' handler
     ~f:(fun params ~num_normal_occurrences_of_params:_ ~handler ->
+      let param_types =
+        List.map C.param_machtype_of_kinded_parameter
+          (Bound_parameters.to_list params)
+      in
       let arity = Bound_parameters.arity params in
-      let env, vars = C.continuation_bound_parameters env params in
-      let expr, free_vars_of_handler, res = expr env res handler in
-      vars, arity, expr, free_vars_of_handler, res)
+      let make_handler env res =
+        let env, vars = C.continuation_bound_parameters env params in
+        let handler, free_vars_of_handler, res = expr env res handler in
+        vars, handler, free_vars_of_handler, res
+      in
+      param_types, arity, make_handler)
 
 and apply_expr env res apply =
   let call, free_vars, env, res, effs = translate_apply env res apply in
