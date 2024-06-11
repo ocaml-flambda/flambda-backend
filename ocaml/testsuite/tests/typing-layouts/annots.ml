@@ -962,85 +962,180 @@ Error: This expression has type string but an expression was expected of type
 (**************************************)
 (* Test 10: Parsing & pretty-printing *)
 
+let f (type a : value) (x : a) = x
 let f (type a : immediate) (x : a) = x
-
-[%%expect{|
-val f : ('a : immediate). 'a -> 'a = <fun>
-|}]
-
-let f = fun (type a : immediate) (x : a) -> x
-
-[%%expect{|
-val f : ('a : immediate). 'a -> 'a = <fun>
-|}]
-
-let f = fun (type a : value) (x : a) -> x
+let f (type a : value mod global) (x : a) = x
+let f (type a : immediate mod global) (x : a) = x
+let f (type a : word mod external_ many shared) (x : a) = x
 
 [%%expect{|
 val f : 'a -> 'a = <fun>
+val f : ('a : immediate). 'a -> 'a = <fun>
+val f : ('a : value mod global). 'a -> 'a = <fun>
+val f : ('a : immediate). 'a -> 'a = <fun>
+val f : ('a : word mod many external_). 'a -> 'a = <fun>
+|}]
+
+let f = fun (type a : value) (x : a) -> x
+let f = fun (type a : immediate) (x : a) -> x
+let f = fun (type a : value mod global) (x : a) -> x
+let f = fun (type a : immediate mod global) (x : a) -> x
+let f = fun (type a : word mod external_ many shared) (x : a) -> x
+
+[%%expect{|
+val f : 'a -> 'a = <fun>
+val f : ('a : immediate). 'a -> 'a = <fun>
+val f : ('a : value mod global). 'a -> 'a = <fun>
+val f : ('a : immediate). 'a -> 'a = <fun>
+val f : ('a : word mod many external_). 'a -> 'a = <fun>
 |}]
 
 let o = object
+  method m : type (a : value). a -> a = fun x -> x
+end
+let o = object
   method m : type (a : immediate). a -> a = fun x -> x
+end
+let o = object
+  method m : type (a : value mod global). a -> a = fun x -> x
+end
+let o = object
+  method m : type (a : immediate mod global). a -> a = fun x -> x
+end
+let o = object
+  method m : type (a : word mod external_ many shared). a -> a = fun x -> x
 end
 
 [%%expect{|
+val o : < m : 'a. 'a -> 'a > = <obj>
 val o : < m : ('a : immediate). 'a -> 'a > = <obj>
+val o : < m : ('a : value mod global). 'a -> 'a > = <obj>
+val o : < m : ('a : immediate). 'a -> 'a > = <obj>
+val o : < m : ('a : word mod many external_). 'a -> 'a > = <obj>
 |}]
 
+let f : type (a : value). a -> a = fun x -> x
 let f : type (a : immediate). a -> a = fun x -> x
+let f : type (a : value mod global). a -> a = fun x -> x
+let f : type (a : immediate mod global). a -> a = fun x -> x
+let f : type (a : word mod external_ many shared). a -> a = fun x -> x
 
 [%%expect{|
+val f : 'a -> 'a = <fun>
 val f : ('a : immediate). 'a -> 'a = <fun>
+val f : ('a : value mod global). 'a -> 'a = <fun>
+val f : ('a : immediate). 'a -> 'a = <fun>
+val f : ('a : word mod many external_). 'a -> 'a = <fun>
 |}]
+
+let f x =
+  let local_ g (type a : value) (x : a) = x in
+  g x [@nontail]
 
 let f x =
   let local_ g (type a : immediate) (x : a) = x in
   g x [@nontail]
 
+let f x =
+  let local_ g (type a : value mod global) (x : a) = x in
+  g x [@nontail]
+
+let f x =
+  let local_ g (type a : immediate mod global) (x : a) = x in
+  g x [@nontail]
+
+let f x =
+  let local_ g (type a : word mod external_ many shared) (x : a) = x in
+  g x [@nontail]
+
 [%%expect{|
+val f : 'a -> 'a = <fun>
 val f : ('a : immediate). 'a -> 'a = <fun>
+val f : ('a : value mod global). 'a -> 'a = <fun>
+val f : ('a : immediate). 'a -> 'a = <fun>
+val f : ('a : word mod many external_). 'a -> 'a = <fun>
 |}]
 
+let f = fun x y (type (a : value)) (z : a) -> z
 let f = fun x y (type (a : immediate)) (z : a) -> z
+let f = fun x y (type (a : value mod global)) (z : a) -> z
+let f = fun x y (type (a : immediate mod global)) (z : a) -> z
+let f = fun x y (type (a : word mod external_ many shared)) (z : a) -> z
 
 [%%expect{|
+val f : 'b -> 'c -> 'a -> 'a = <fun>
 val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
+val f : 'b 'c ('a : value mod global). 'b -> 'c -> 'a -> 'a = <fun>
+val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
+val f : 'b 'c ('a : word mod many external_). 'b -> 'c -> 'a -> 'a = <fun>
 |}]
 
+let f = fun x y (type a : value) (z : a) -> z
 let f = fun x y (type a : immediate) (z : a) -> z
+let f = fun x y (type a : value mod global) (z : a) -> z
+let f = fun x y (type a : immediate mod global) (z : a) -> z
+let f = fun x y (type a : word mod external_ many shared) (z : a) -> z
 
 [%%expect{|
+val f : 'b -> 'c -> 'a -> 'a = <fun>
 val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
+val f : 'b 'c ('a : value mod global). 'b -> 'c -> 'a -> 'a = <fun>
+val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
+val f : 'b 'c ('a : word mod many external_). 'b -> 'c -> 'a -> 'a = <fun>
 |}]
 (* CR layouts: canonicalizing the order of quantification here
    would reduce wibbles in error messages *)
 
+external f : ('a : value). 'a -> 'a = "%identity"
 external f : ('a : immediate). 'a -> 'a = "%identity"
+external f : ('a : value mod global). 'a -> 'a = "%identity"
+external f : ('a : immediate mod global). 'a -> 'a = "%identity"
+external f : ('a : word mod external_ many shared). 'a -> 'a = "%identity"
 
 [%%expect{|
+external f : 'a -> 'a = "%identity"
 external f : ('a : immediate). 'a -> 'a = "%identity"
+external f : ('a : value mod global). 'a -> 'a = "%identity"
+external f : ('a : immediate). 'a -> 'a = "%identity"
+external f : ('a : word mod many external_). 'a -> 'a = "%identity"
 |}]
 
 
 type (_ : any) t2_any
+exception E : ('a : value) ('b : any). 'b t2_any * 'a list -> exn
 exception E : ('a : immediate) ('b : any). 'b t2_any * 'a list -> exn
+exception E : ('a : value mod global) ('b : any). 'b t2_any * 'a list -> exn
+exception E : ('a : immediate mod global) ('b : any). 'b t2_any * 'a list -> exn
 
 [%%expect{|
 type (_ : any) t2_any
+exception E : ('b : any) 'a. 'b t2_any * 'a list -> exn
+exception E : ('b : any) ('a : immediate). 'b t2_any * 'a list -> exn
+exception E : ('b : any) ('a : value mod global). 'b t2_any * 'a list -> exn
 exception E : ('b : any) ('a : immediate). 'b t2_any * 'a list -> exn
 |}]
 
-
+let f (x : ('a : value). 'a -> 'a) = x 3, x true
 let f (x : ('a : immediate). 'a -> 'a) = x 3, x true
+let f (x : ('a : value mod global). 'a -> 'a) = x 3, x true
+let f (x : ('a : immediate mod global). 'a -> 'a) = x 3, x true
 
 [%%expect{|
+val f : ('a. 'a -> 'a) -> int * bool = <fun>
+val f : (('a : immediate). 'a -> 'a) -> int * bool = <fun>
+val f : (('a : value mod global). 'a -> 'a) -> int * bool = <fun>
 val f : (('a : immediate). 'a -> 'a) -> int * bool = <fun>
 |}]
 
+type _ a = Mk : [> ] * ('a : value) -> int a
 type _ a = Mk : [> ] * ('a : immediate) -> int a
+type _ a = Mk : [> ] * ('a : value mod global) -> int a
+type _ a = Mk : [> ] * ('a : immediate mod global) -> int a
 
 [%%expect {|
+type _ a = Mk : [>  ] * 'a -> int a
+type _ a = Mk : ('a : immediate). [>  ] * 'a -> int a
+type _ a = Mk : ('a : value mod global). [>  ] * 'a -> int a
 type _ a = Mk : ('a : immediate). [>  ] * 'a -> int a
 |}]
 
@@ -1065,14 +1160,29 @@ Error: This definition has type 'b -> 'b which is less general than
 |}]
 
 type (_ : value) g =
-  | MkG : ('a : immediate). 'a g
+  | A : ('a : value). 'a g
+  | B : ('a : immediate). 'a g
+  | C : ('a : value mod global). 'a g
+  | D : ('a : immediate mod global). 'a g
 
 [%%expect {|
-type _ g = MkG : ('a : immediate). 'a g
+type _ g =
+    A : 'a g
+  | B : ('a : immediate). 'a g
+  | C : ('a : value mod global). 'a g
+  | D : ('a : immediate). 'a g
 |}]
 
+type t = int as (_ : value)
 type t = int as (_ : immediate)
+type t = int as (_ : value mod global)
+type t = int as (_ : immediate mod global)
+type t = nativeint# as (_ : word mod external_ many shared)
 
 [%%expect {|
 type t = int
+type t = int
+type t = int
+type t = int
+type t = nativeint#
 |}]
