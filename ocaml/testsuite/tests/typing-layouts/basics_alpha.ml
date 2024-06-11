@@ -125,6 +125,29 @@ Error: This pattern matches values of type t_any
          we must know concretely how to pass a function argument.
 |}];;
 
+module type S1 = sig
+  val f : int -> t_any_non_null
+end;;
+
+[%%expect {|
+module type S1 = sig val f : int -> t_any_non_null end
+|}]
+
+let f1 (x : t_any_non_null) = ();;
+
+[%%expect {|
+Line 1, characters 7-27:
+1 | let f1 (x : t_any_non_null) = ();;
+           ^^^^^^^^^^^^^^^^^^^^
+Error: This pattern matches values of type t_any_non_null
+       but a pattern was expected which matches values of type
+         ('a : '_representable_layout_5)
+       The layout of t_any_non_null is any_non_null, because
+         of the definition of t_any_non_null at line 7, characters 0-34.
+       But the layout of t_any_non_null must be representable, because
+         we must know concretely how to pass a function argument.
+|}]
+
 (*****************************************************)
 (* Test 2: Permit representable function arg/returns *)
 
@@ -221,6 +244,53 @@ Error: Non-value detected in [value_kind].
        But the layout of t_void must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}];;
+
+(* CR layouts v3.0: this should work *)
+
+module type S2 = sig
+  val x : t_value_or_null
+end
+
+[%%expect{|
+Line 2, characters 10-25:
+2 |   val x : t_value_or_null
+              ^^^^^^^^^^^^^^^
+Error: This type signature for x is not a value type.
+       The layout of type t_value_or_null is value_or_null, because
+         of the definition of t_value_or_null at line 8, characters 0-36.
+       But the layout of type t_value_or_null must be a sublayout of value, because
+         it's the type of something stored in a module structure.
+|}]
+
+(* CR layouts v3.0: this should work *)
+
+module M2 : sig
+  val f : t_value_or_null -> t_value_or_null
+end = struct
+  let f x = x
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   let f x = x
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a end
+       is not included in
+         sig val f : t_value_or_null -> t_value_or_null end
+       Values do not match:
+         val f : 'a -> 'a
+       is not included in
+         val f : t_value_or_null -> t_value_or_null
+       The type 'a -> 'a is not compatible with the type
+         t_value_or_null -> t_value_or_null
+       The layout of t_value_or_null is value_or_null, because
+         of the definition of t_value_or_null at line 8, characters 0-36.
+       But the layout of t_value_or_null must be a sublayout of value, because
+         of the definition of f at line 4, characters 8-13.
+|}]
 
 (**************************************)
 (* Test 3: basic annotated parameters *)
@@ -1816,7 +1886,7 @@ Line 1, characters 10-22:
 1 | let () = (assert false : t_any); ()
               ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_5)
+         ('a : '_representable_layout_6)
        because it is in the left-hand side of a sequence
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-18.
@@ -1835,7 +1905,7 @@ Line 1, characters 25-37:
 1 | let () = while false do (assert false : t_any); done
                              ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_6)
+         ('a : '_representable_layout_7)
        because it is in the body of a while-loop
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-18.
@@ -1854,7 +1924,7 @@ Line 1, characters 28-40:
 1 | let () = for i = 0 to 0 do (assert false : t_any); done
                                 ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_7)
+         ('a : '_representable_layout_8)
        because it is in the body of a for-loop
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-18.

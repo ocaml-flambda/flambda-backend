@@ -2798,11 +2798,7 @@ let has_ty_var_with_layout_any env ty =
     (Ctype.free_variables ty)
 
 let unexpected_layout_any_check prim env cty ty =
-<<<<<<< HEAD
   if Primitive.prim_can_contain_layout_any prim ||
-=======
-  if Primitive.prim_can_contain_jkind_any prim ||
->>>>>>> 76dc96606 (Fixes)
      prim.prim_is_layout_poly then ()
   else
   if has_ty_var_with_layout_any env ty then

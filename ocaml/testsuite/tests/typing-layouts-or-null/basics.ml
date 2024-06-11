@@ -460,3 +460,43 @@ Error: Signature mismatch:
        But the layout of the first must be a sublayout of bits64, because
          of the definition of t at line 1, characters 51-66.
 |}]
+
+(* The meet of [any_non_null] and [value_or_null] is [value] *)
+
+type (_, _) two
+
+type ('a : any) t1 = ('a id_any_non_null, 'a id_value_or_null) two
+
+type should_work = t_value t1
+
+[%%expect{|
+type (_, _) two
+type 'a t1 = ('a id_any_non_null, 'a id_value_or_null) two
+type should_work = t_value t1
+|}]
+
+type should_fail = t_value_or_null t1
+
+[%%expect{|
+Line 1, characters 19-34:
+1 | type should_fail = t_value_or_null t1
+                       ^^^^^^^^^^^^^^^
+Error: This type t_value_or_null should be an instance of type ('a : value)
+       The layout of t_value_or_null is value_or_null, because
+         of the definition of t_value_or_null at line 3, characters 0-36.
+       But the layout of t_value_or_null must be a sublayout of value, because
+         of the definition of t1 at line 3, characters 0-66.
+|}]
+
+type should_fail = t_any_non_null t1
+
+[%%expect{|
+Line 1, characters 19-33:
+1 | type should_fail = t_any_non_null t1
+                       ^^^^^^^^^^^^^^
+Error: This type t_any_non_null should be an instance of type ('a : value)
+       The layout of t_any_non_null is any_non_null, because
+         of the definition of t_any_non_null at line 2, characters 0-34.
+       But the layout of t_any_non_null must be a sublayout of value, because
+         of the definition of t1 at line 3, characters 0-66.
+|}]
