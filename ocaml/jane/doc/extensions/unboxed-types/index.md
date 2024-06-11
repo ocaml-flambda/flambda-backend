@@ -217,7 +217,7 @@ Here by defining module type `S` with layout `any` and using `with` constraints,
 reason about modules with similar shapes but that operate on different layouts. This removes code
 duplication and can aid ppxs in supporting unboxed types.
 
-# `[@layout_poly]` attribute
+# `[@layout_poly]` attribute {#layout-poly}
 
 The attribute enables support for **limited layout polymorphism on external
 `%`-primitives**. This is possible because these primitives are always inlined at every
@@ -270,7 +270,7 @@ let f2 : float# -> float# = magic;; (* ok *)
 let f3 : float# -> int32# = magic;; (* error *)
 ```
 
-This feature is conceptually similar to `[@local_opt]` for modes and would be useful for
+This feature is conceptually similar to `[@local_opt]` for modes and is useful for
 array access primitives.
 
 Here's the list of primitives that currently support `[@layout_poly]`:
@@ -304,7 +304,7 @@ You can use normal array syntax for constructing such an array:
 let array = [| #2l |]
 ```
 
-Array operations must be declared with `[@layout_poly]` to be usable with arrays of unboxed elements.
+Array primitives must be declared with `[@layout_poly]` to be usable with arrays of unboxed elements.
 
 ```ocaml
 module Array = struct
@@ -316,6 +316,9 @@ let first_elem () = array.(0)
 
 (The above relies on the fact that array projection syntax desugars to a call to whatever `Array.get` is in scope.)
 
+A limited set of primitives may be bound as `[@layout_poly]`;
+[see the earlier section](#layout-poly) for more information.
+
 ## Runtime representation
 
 | Array                            | Tag                | Layout of data                                              |
@@ -324,12 +327,18 @@ let first_elem () = array.(0)
 | `int64# array`                   | `Custom_tag`       | reserved custom block word, followed by 64 bits per element |
 | `float32# array`, `int32# array` | `Custom_tag`       | reserved custom block word, followed by 32 bits per element |
 
-The reserved custom block word is the standard custom block field that stores a pointer to the
-record of custom operations, like polymorphic equality and comparison. (For unboxed 32-bit element types,
-it also tracks whether the array stores an odd or even number of elements.)
+The above table is written about concrete types like `float#` and `int64#`, but
+actually holds for all types of the relevant layout.
 
-The above table is written about concrete types like `float#` and `int64#`, but actually holds
-for all types of the relevant layout.
+The reserved custom block word is the standard custom block field that stores a
+pointer to the record of custom operations, like polymorphic equality and
+comparison. For unboxed 32-bit element types, like `int32#` and `float32#`, the
+custom operations pointer is different for odd-length arrays and even-length
+arrays.
+
+Odd-length arrays of 32-bit element type have 32 bits of padding at the end.
+The contents of this padding is unspecified, and it is not guaranteed that
+the padding value will be preserved by the generated code or the runtime.
 
 # Using unboxed types in structures
 
@@ -337,10 +346,12 @@ Unboxed types can usually be put in structures, though there are some restrictio
 
 These structures may contain unboxed types, but have some restrictions on field
 orders:
+
   * Records
   * Constructors
   
 Unboxed numbers can't be put in these structures:
+
   * Constructors with inline record fields
   * Exceptions
   * Extensible variant constructors
