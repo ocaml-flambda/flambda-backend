@@ -604,8 +604,9 @@ let preproc_stack_check ~fun_body ~frame_size ~trap_size =
         | Iintop_atomic _
         | Ifloatop (_, _)
         | Icsel _ | Ireinterpret_cast _ | Istatic_cast _ | Iopaque | Ispecific _
-        | Ipoll _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
-        | Ibeginregion | Iendregion | Idls_get )
+        | Ipoll _ | Iname_for_debugger _ | Iprobe _
+        (* CR mshinwell: does Iprobe cause a stack adjustment? *)
+        | Iprobe_is_enabled _ | Ibeginregion | Iendregion | Idls_get )
     | Lreloadretaddr | Lreturn | Llabel _ | Lbranch _ | Lcondbranch _
     | Lcondbranch3 _ | Lswitch _ | Lentertrap | Lraise _ ->
       loop i.next fs ~max_fs ~max_fs_calls ~callees ~nontail_flag
