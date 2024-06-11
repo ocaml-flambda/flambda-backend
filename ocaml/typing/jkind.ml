@@ -82,6 +82,7 @@ module Layout = struct
       | Sort Bits64 -> "bits64"
 
     module Legacy = struct
+      (* CR layouts v2.8: get rid of this *)
       type t = Jkind_types.Layout.Const.Legacy.t =
         | Any
         | Value
@@ -191,15 +192,6 @@ module Externality = struct
     | External -> Format.fprintf ppf "external_"
     | External64 -> Format.fprintf ppf "external64"
     | Internal -> Format.fprintf ppf "internal"
-
-  module Debug_printers = struct
-    open Format
-
-    let t ppf = function
-      | External -> fprintf ppf "External"
-      | External64 -> fprintf ppf "External64"
-      | Internal -> fprintf ppf "Internal"
-  end
 end
 
 module Modes = struct
@@ -448,6 +440,7 @@ module Const = struct
              | Some acc, `Valid (Some mode) -> Some (mode :: acc))
            (Some [])
 
+    (** Write [actual] in terms of [base] *)
     let convert_with_base ~(base : Primitive.t) actual =
       let matching_layouts =
         Layout.Const.equal base.jkind.layout actual.layout
@@ -461,6 +454,7 @@ module Const = struct
       | true, Some modal_bounds -> Some { base = base.name; modal_bounds }
       | false, _ | _, None -> None
 
+    (** Select the out_jkind_const with the least number of modal bounds to print *)
     let rec select_simplest = function
       | a :: b :: tl ->
         let simpler =
@@ -473,6 +467,10 @@ module Const = struct
       | [] -> None
 
     let convert jkind =
+      (* For each primitive jkind, we try to print the jkind in terms of it (this is
+         possible if the primitive is a subjkind of it). We then choose the "simplest". The
+           "simplest" is taken to mean the one with the least number of modes that need to
+         follow the [mod]. *)
       let simplest =
         Primitive.get_all
         |> List.filter_map (fun base -> convert_with_base ~base jkind)
@@ -572,6 +570,7 @@ module Const = struct
       | _ -> raise ~loc (Unknown_jkind jkind))
     | Mod (jkind, modes) ->
       let base = of_user_written_annotation_unchecked_level jkind in
+      (* for each mode, lower the corresponding modal bound to be that mode *)
       let parsed_modes = ModeParser.parse_modes modes in
       let meet_mode jkind (mode : ModeParser.mode) =
         match mode with
@@ -800,7 +799,7 @@ module Jkind_desc = struct
         "{ layout = %a;@ modes_upper_bounds = %a;@ externality_upper_bound = \
          %a }"
         Layout.Debug_printers.t layout Modes.print modes_upper_bounds
-        Externality.Debug_printers.t externality_upper_bound
+        Externality.print externality_upper_bound
   end
 end
 
