@@ -318,7 +318,7 @@ and label_declaration =
   {
     ld_id: Ident.t;
     ld_mutable: mutability;
-    ld_global: Mode.Global_flag.t;
+    ld_modalities: Mode.Modality.Value.t;
     ld_type: type_expr;
     ld_jkind : jkind;
     ld_loc: Location.t;
@@ -337,7 +337,7 @@ and constructor_declaration =
   }
 
 and constructor_arguments =
-  | Cstr_tuple of (type_expr * Mode.Global_flag.t) list
+  | Cstr_tuple of (type_expr * Mode.Modality.Value.t) list
   | Cstr_record of label_declaration list
 
 type extension_constructor =
@@ -561,7 +561,7 @@ type constructor_description =
   { cstr_name: string;                  (* Constructor name *)
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
-    cstr_args: (type_expr * Mode.Global_flag.t) list;          (* Type of the arguments *)
+    cstr_args: (type_expr * Mode.Modality.Value.t) list;          (* Type of the arguments *)
     cstr_arg_jkinds: jkind array;     (* Jkinds of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
@@ -692,7 +692,7 @@ type label_description =
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutability;                (* Is this a mutable field? *)
-    lbl_global: Mode.Global_flag.t;        (* Is this a global field? *)
+    lbl_modalities: Mode.Modality.Value.t;(* Is this a global field? *)
     lbl_jkind : jkind;                (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in type *)

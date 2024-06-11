@@ -67,9 +67,13 @@ type out_type_param =
     oparam_injectivity : Asttypes.injectivity;
     oparam_jkind : out_jkind option }
 
-type out_global =
-  | Ogf_global
-  | Ogf_unrestricted
+type out_modality_legacy = Ogf_global
+
+type out_modality_new = string
+
+type out_modality =
+  | Ogf_legacy of out_modality_legacy
+  | Ogf_new of out_modality_new
 
 type out_mutability =
   | Om_immutable
@@ -118,7 +122,7 @@ type out_type =
   | Otyp_constr of out_ident * out_type list
   | Otyp_manifest of out_type * out_type
   | Otyp_object of { fields: (string * out_type) list; open_row:bool}
-  | Otyp_record of (string * out_mutability * out_type * out_global) list
+  | Otyp_record of (string * out_mutability * out_type * out_modality list) list
   | Otyp_stuff of string
   | Otyp_sum of out_constructor list
   | Otyp_tuple of (string option * out_type) list
@@ -133,7 +137,7 @@ type out_type =
 
 and out_constructor = {
   ocstr_name: string;
-  ocstr_args: (out_type * out_global) list;
+  ocstr_args: (out_type * out_modality list) list;
   ocstr_return_type: (out_vars_jkinds * out_type) option;
 }
 
@@ -187,7 +191,7 @@ and out_extension_constructor =
   { oext_name: string;
     oext_type_name: string;
     oext_type_params: string list;
-    oext_args: (out_type * out_global) list;
+    oext_args: (out_type * out_modality list) list;
     oext_ret_type: (out_vars_jkinds * out_type) option;
     oext_private: Asttypes.private_flag }
 and out_type_extension =
