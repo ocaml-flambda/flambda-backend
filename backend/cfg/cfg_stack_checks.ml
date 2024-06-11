@@ -49,15 +49,7 @@ let is_nontail_call : Cfg.terminator -> bool =
 
 type preproc_stack_check_result =
   { max_frame_size : int;
-    (* for the function itself *)
-    max_frame_size_with_calls : int;
-    (* for the function itself *and* the calls to the functions in `callees` *)
-    callees : Misc.Stdlib.String.Set.t;
-    (* direct calls for which stack consumption is known and accounted for in
-       `max_frame_size_with_calls` *)
     contains_nontail_calls : bool
-        (* whether there are non-tail calls to functions not appearing in
-           `callees` *)
   }
 
 (* Returns the stack check info, and the max of seen instruction ids. *)
@@ -82,12 +74,7 @@ let block_preproc_stack_check_result :
   (* CR-someday xclerc for xclerc: compute and use `max_frame_size_with_calls`
      and `callees`. (note: we currently restrict the use of the CFG variant to
      `caml_apply`.) *)
-  ( { max_frame_size;
-      max_frame_size_with_calls = max_frame_size;
-      callees = Misc.Stdlib.String.Set.empty;
-      contains_nontail_calls
-    },
-    max_instr_id )
+  { max_frame_size; contains_nontail_calls }, max_instr_id
 
 type cfg_info =
   { max_frame_size : int;
