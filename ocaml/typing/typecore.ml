@@ -7370,6 +7370,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
               |> Locality.disallow_right,
               None)}
         in
+        let e = {texp with exp_type = ty_res; exp_desc = Texp_exclave e} in
         let cases = [ case eta_pat e ] in
         let cases_loc = { texp.exp_loc with loc_ghost = true } in
         let param = name_cases "param" cases in
@@ -7387,7 +7388,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
               ret_mode = Alloc.disallow_right mret;
               ret_sort;
               alloc_mode;
-              region = false;
+              region = true;
               zero_alloc = Zero_alloc.default
             }
         }
