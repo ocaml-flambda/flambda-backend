@@ -416,8 +416,8 @@ val baduse : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c lazy_t = <fun>
 Line 2, characters 32-46:
 2 | let result = baduse (fun a b -> exclave_ (a,b)) 1 2
                                     ^^^^^^^^^^^^^^
-Error: This expression was expected to be not local, but is an exclave expression,
-       which must be local.
+Error: This expression is local because it is an exclave,
+       but was expected otherwise.
 |}]
 
 (*
@@ -1115,8 +1115,8 @@ let foo : unit -> string = fun () -> exclave_ "hello"
 Line 1, characters 37-53:
 1 | let foo : unit -> string = fun () -> exclave_ "hello"
                                          ^^^^^^^^^^^^^^^^
-Error: This expression was expected to be not local, but is an exclave expression,
-       which must be local.
+Error: This expression is local because it is an exclave,
+       but was expected otherwise.
 |}]
 
 (* Unboxed type constructors do not affect regionality *)

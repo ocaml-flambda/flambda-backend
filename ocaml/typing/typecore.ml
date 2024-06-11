@@ -242,11 +242,6 @@ type error =
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
 
-type in_function =
-  { ty_fun: type_expected;
-    loc_fun: Location.t;
-  }
-
 let error_of_filter_arrow_failure ~explanation ~first ty_fun
   : filter_arrow_failure -> _ = function
   | Unification_error unif_err ->
@@ -4747,7 +4742,7 @@ let split_function_ty
   in
   if expected_mode.strictly_local then
     Locality.submode_exn Locality.local (Alloc.proj (Comonadic Areality) alloc_mode);
-  let { ty_fun = { ty = ty_fun; explanation }; loc_fun } = in_function in
+  let { ty = ty_fun; explanation }, loc_fun = in_function in
   let separate = !Clflags.principal || Env.has_local_constraints env in
   let { ty_arg; ty_ret; arg_mode; ret_mode } as filtered_arrow =
     with_local_level_if separate begin fun () ->
@@ -6529,7 +6524,7 @@ and type_function
   : type_function_result
   =
   let open Jane_syntax.N_ary_functions in
-  let { ty_fun; loc_fun; _ } = in_function in
+  let ty_fun, (loc_fun : Location.t) = in_function in
   (* The "rest of the function" extends from the start of the first parameter
      to the end of the overall function. The parser does not construct such
      a location so we forge one for type errors.
@@ -8692,11 +8687,7 @@ and type_n_ary_function
       ~explanation ~attributes
       ((params, constraint_, body) : Jane_syntax.N_ary_functions.expression)
     =
-    let in_function =
-      { ty_fun = mk_expected (instance ty_expected) ?explanation;
-        loc_fun = loc
-      }
-    in
+    let in_function = mk_expected (instance ty_expected) ?explanation, loc in
     let { function_ = exp_type, result_params, body;
           newtypes; params_contain_gadt = contains_gadt;
           ret_info; fun_alloc_mode;
@@ -10094,8 +10085,8 @@ let report_error ~loc env = function
         "Exclave expression should only be in tail position of the current region."
   | Exclave_returns_not_local ->
       Location.errorf ~loc
-        "This expression was expected to be not local, but is an exclave expression,@ \
-         which must be local."
+        "@[This expression is local because it is an exclave,@ \
+          but was expected otherwise.@]"
   | Optional_poly_param ->
       Location.errorf ~loc
         "Optional parameters cannot be polymorphic"
