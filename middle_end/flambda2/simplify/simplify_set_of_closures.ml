@@ -543,12 +543,12 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
            function_slot
            (old_code_id : Function_declarations.code_id_in_function_declaration) ->
         match old_code_id with
-        | Deleted ->
+        | Deleted _ ->
           ( ( result_code_ids_to_never_delete_this_set,
               Function_slot.Map.add function_slot Or_unknown_or_bottom.Unknown
                 fun_types,
               outer_dacc ),
-            Function_declarations.Deleted )
+            old_code_id )
         | Code_id old_code_id ->
           let code_id, outer_dacc, code_ids_to_never_delete_this_set =
             simplify_function context ~outer_dacc function_slot old_code_id
@@ -581,7 +581,7 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
            (code_id : Function_declarations.code_id_in_function_declaration)
            code_ids ->
         match code_id with
-        | Deleted -> code_ids
+        | Deleted _ -> code_ids
         | Code_id code_id -> Code_id.Set.add code_id code_ids)
       all_function_decls_in_set Code_id.Set.empty
   in

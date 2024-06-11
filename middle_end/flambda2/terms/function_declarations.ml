@@ -15,7 +15,7 @@
 (**************************************************************************)
 
 type code_id_in_function_declaration =
-  | Deleted
+  | Deleted of { function_slot_size: int }
   | Code_id of Code_id.t
 
 type t =
@@ -43,7 +43,7 @@ let find ({ funs; _ } : t) function_slot =
 let [@ocamlformat "disable"] print ppf { in_order; _ } =
   Format.fprintf ppf "@[<hov 1>(%a)@]"
     (Function_slot.Lmap.print
-       (fun ppf -> function Deleted -> Format.fprintf ppf "[deleted]" | Code_id code_id -> Format.fprintf ppf "%a" Code_id.print code_id))
+       (fun ppf -> function Deleted _ -> Format.fprintf ppf "[deleted]" | Code_id code_id -> Format.fprintf ppf "%a" Code_id.print code_id))
     in_order
 
 let free_names { funs; _ } =
@@ -54,7 +54,7 @@ let free_names { funs; _ } =
           Name_mode.normal
       in
       match code_id with
-      | Deleted -> syms
+      | Deleted _ -> syms
       | Code_id code_id ->
         Name_occurrences.add_code_id syms code_id Name_mode.normal)
     funs Name_occurrences.empty
@@ -67,7 +67,7 @@ let apply_renaming ({ in_order; _ } as t) renaming =
     Function_slot.Lmap.map_sharing
       (fun t ->
         match t with
-        | Deleted -> Deleted
+        | Deleted _ -> t
         | Code_id code_id ->
           let code_id' = Renaming.apply_code_id renaming code_id in
           if code_id == code_id' then t else Code_id code_id')
@@ -79,7 +79,7 @@ let ids_for_export { funs; _ } =
   Function_slot.Map.fold
     (fun _function_slot code_id ids ->
       match code_id with
-      | Deleted -> ids
+      | Deleted _ -> ids
       | Code_id code_id -> Ids_for_export.add_code_id ids code_id)
     funs Ids_for_export.empty
 
@@ -87,9 +87,9 @@ let compare { funs = funs1; _ } { funs = funs2; _ } =
   Function_slot.Map.compare
     (fun code_id1 code_id2 ->
       match code_id1, code_id2 with
-      | Deleted, Deleted -> 0
-      | Deleted, Code_id _ -> -1
-      | Code_id _, Deleted -> 1
+      | Deleted { function_slot_size = size1 }, Deleted { function_slot_size = size2 } -> Int.compare size1 size2
+      | Deleted _, Code_id _ -> -1
+      | Code_id _, Deleted _ -> 1
       | Code_id code_id1, Code_id code_id2 -> Code_id.compare code_id1 code_id2)
     funs1 funs2
 

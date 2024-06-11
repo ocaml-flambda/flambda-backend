@@ -291,7 +291,9 @@ end = struct
             res,
             Ece.pure,
             updates ))
-      | Deleted ->
+      | Deleted { function_slot_size } ->
+        if size <> function_slot_size then
+          Misc.fatal_errorf "fill_slot: Function slot %a is of size %d, but it is said to be deleted of size %d" Function_slot.print function_slot size function_slot_size;
         let closure_info =
           C.closure_info'
             ~arity:(Curried { nlocal = 0 }, if size = 2 then [()] else [(); ()])
@@ -505,7 +507,7 @@ let debuginfo_for_set_of_closures env set =
          (fun (code_id : Function_declarations.code_id_in_function_declaration)
          ->
            match code_id with
-           | Deleted -> None
+           | Deleted _ -> None
            | Code_id code_id -> Some code_id)
   in
   let dbg =

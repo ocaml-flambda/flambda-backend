@@ -752,14 +752,14 @@ end = struct
 
   (* Create slots (and create the cross-referencing). *)
 
-  let create_function_slot set state get_code_metadata function_slot code_id =
+  let create_function_slot set state get_code_metadata function_slot (code_id : Function_declarations.code_id_in_function_declaration) =
     if Compilation_unit.is_current
          (Function_slot.get_compilation_unit function_slot)
     then (
       let size =
         match code_id with
-        | None -> 2
-        | Some code_id ->
+        | Deleted { function_slot_size } -> function_slot_size
+        | Code_id code_id ->
           let code_metadata = get_code_metadata code_id in
           let module CM = Code_metadata in
           let is_tupled = CM.is_tupled code_metadata in
@@ -889,11 +889,7 @@ end = struct
     state.sets_of_closures <- set :: state.sets_of_closures;
     (* Fill closure slots *)
     Function_slot.Map.iter
-      (fun function_slot
-           (code_id : Function_declarations.code_id_in_function_declaration) ->
-        let code_id =
-          match code_id with Deleted -> None | Code_id code_id -> Some code_id
-        in
+      (fun function_slot code_id ->
         let s =
           match
             Function_slot.Map.find_opt function_slot state.function_slots
