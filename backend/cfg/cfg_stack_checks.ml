@@ -47,11 +47,22 @@ let is_nontail_call : Cfg.terminator -> bool =
        though a specific operation may call some C code. *)
     false
 
+type preproc_stack_check_result =
+  { max_frame_size : int;
+    (* for the function itself *)
+    max_frame_size_with_calls : int;
+    (* for the function itself *and* the calls to the functions in `callees` *)
+    callees : Misc.Stdlib.String.Set.t;
+    (* direct calls for which stack consumption is known and accounted for in
+       `max_frame_size_with_calls` *)
+    contains_nontail_calls : bool
+        (* whether there are non-tail calls to functions not appearing in
+           `callees` *)
+  }
+
 (* Returns the stack check info, and the max of seen instruction ids. *)
 let block_preproc_stack_check_result :
-    Cfg.basic_block ->
-    frame_size:int ->
-    Emitaux.preproc_stack_check_result * int =
+    Cfg.basic_block -> frame_size:int -> preproc_stack_check_result * int =
  fun block ~frame_size ->
   let contains_nontail_calls =
     (* XCR mshinwell: move to a method in Cfg somewhere?

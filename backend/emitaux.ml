@@ -536,9 +536,15 @@ module String = Misc.Stdlib.String
 
 type preproc_stack_check_result =
   { max_frame_size : int;
+    (* for the function itself *)
     max_frame_size_with_calls : int;
-    callees : String.Set.t;
+    (* for the function itself *and* the calls to the functions in `callees` *)
+    callees : Misc.Stdlib.String.Set.t;
+    (* direct calls for which stack consumption is known and accounted for in
+       `max_frame_size_with_calls` *)
     contains_nontail_calls : bool
+        (* whether there are non-tail calls to functions not appearing in
+           `callees` *)
   }
 
 let preproc_stack_check ~fun_body ~frame_size ~trap_size =
@@ -613,13 +619,29 @@ let add_stack_checks_if_needed (fundecl : Linear.fundecl) ~stack_offset
           not (String.Set.is_empty callees) )
       with
       | true, _, _, _ | _, _, true, _ ->
-        (* a stack has to be emitted, so factoring out other checks is
-           beneficial *)
+        (* A stack check has to be emitted irrespective of what happens with the
+           [callees], so lifting out other checks is clearly beneficial. *)
+        (* CR mshinwell/xclerc: we could use [max_frame_size] if the first
+           boolean is [true] and the second [false]. *)
         Some (max_frame_size_with_calls, callees)
-      | false, true, false, _ | false, false, false, true ->
-        (* assume it is beneficiary to move the check(s) up the call chain *)
+      | false, true, false, _ ->
+        (* The stack check threshold will only be crossed if we include all of
+           the stack checks from the [callees]. We adopt the heuristic that in
+           this case it is beneficial to lift out the checks from the
+           [callees]. *)
         Some (max_frame_size_with_calls, callees)
-      | false, false, false, false -> None
+      | false, false, false, true ->
+        (* In this case the threshold will not be crossed even if we lift out
+           all of the stack checks from the [callees]. Furthermore, since
+           [contains_nontail_calls] is false, we know that there are no non-tail
+           callees which are not included in [callees]. We adopt the heuristic
+           of lifting out the checks from the [callees]. *)
+        Some (max_frame_size_with_calls, callees)
+      | false, false, false, false ->
+        (* In this case no stack check will be inserted. This is sound since we
+           know that there are no non-tail calls at all; and in addition that
+           the threshold is not crossed. *)
+        None
     in
     match insert_stack_check with
     | None -> fundecl
