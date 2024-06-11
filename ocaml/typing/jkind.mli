@@ -49,7 +49,7 @@ module Externality : sig
 
   val le : t -> t -> bool
 
-  val to_string : t -> string
+  val print : Format.formatter -> t -> unit
 end
 
 module Sort : Jkind_intf.Sort with type const = Jkind_types.Sort.const

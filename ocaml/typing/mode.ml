@@ -57,8 +57,6 @@ module Lattices = struct
 
     let meet = L.join
 
-    let to_string = L.to_string
-
     let print = L.print
 
     let imply a b = L.subtract b a
@@ -126,9 +124,9 @@ module Lattices = struct
         | Global, _ | _, Global -> Global
         | Local, Local -> Local
 
-      let to_string = function Global -> "global" | Local -> "local"
-
-      let print ppf m = Format.fprintf ppf "%s" (to_string m)
+      let print ppf = function
+        | Global -> Format.fprintf ppf "global"
+        | Local -> Format.fprintf ppf "local"
     end)
 
     let _is_areality = ()
@@ -167,12 +165,10 @@ module Lattices = struct
         | _, Global | Local, _ -> false
         | Regional, Regional -> true
 
-      let to_string = function
-        | Global -> "global"
-        | Regional -> "regional"
-        | Local -> "local"
-
-      let print ppf m = Format.fprintf ppf "%s" (to_string m)
+      let print ppf = function
+        | Global -> Format.fprintf ppf "global"
+        | Regional -> Format.fprintf ppf "regional"
+        | Local -> Format.fprintf ppf "local"
     end)
 
     let _is_areality = ()
@@ -207,9 +203,9 @@ module Lattices = struct
         | Unique, _ | _, Unique -> Unique
         | Shared, Shared -> Shared
 
-      let to_string = function Shared -> "shared" | Unique -> "unique"
-
-      let print ppf m = Format.fprintf ppf "%s" (to_string m)
+      let print ppf = function
+        | Shared -> Format.fprintf ppf "shared"
+        | Unique -> Format.fprintf ppf "unique"
     end)
   end
 
@@ -238,9 +234,9 @@ module Lattices = struct
       let meet a b =
         match a, b with Many, _ | _, Many -> Many | Once, Once -> Once
 
-      let to_string = function Once -> "once" | Many -> "many"
-
-      let print ppf m = Format.fprintf ppf "%s" (to_string m)
+      let print ppf = function
+        | Once -> Format.fprintf ppf "once"
+        | Many -> Format.fprintf ppf "many"
     end)
   end
 
@@ -273,11 +269,9 @@ module Lattices = struct
         | Portable, _ | _, Portable -> Portable
         | Nonportable, Nonportable -> Nonportable
 
-      let to_string = function
-        | Portable -> "portable"
-        | Nonportable -> "nonportable"
-
-      let print ppf m = Format.fprintf ppf "%s" (to_string m)
+      let print ppf = function
+        | Portable -> Format.fprintf ppf "portable"
+        | Nonportable -> Format.fprintf ppf "nonportable"
     end)
   end
 
@@ -310,11 +304,9 @@ module Lattices = struct
         | Uncontended, _ | _, Uncontended -> Uncontended
         | Contended, Contended -> Contended
 
-      let to_string = function
-        | Contended -> "contended"
-        | Uncontended -> "uncontended"
-
-      let print ppf m = Format.fprintf ppf "%s" (to_string m)
+      let print ppf = function
+        | Contended -> Format.fprintf ppf "contended"
+        | Uncontended -> Format.fprintf ppf "uncontended"
     end)
   end
 
@@ -341,9 +333,6 @@ module Lattices = struct
 
     let subtract (a0, a1) (b0, b1) =
       Uniqueness.subtract a0 b0, Contention.subtract a1 b1
-
-    let to_string (a0, a1) =
-      Format.sprintf "%s,%s" (Uniqueness.to_string a0) (Contention.to_string a1)
 
     let print ppf (a0, a1) =
       Format.fprintf ppf "%a,%a" Uniqueness.print a0 Contention.print a1
@@ -376,10 +365,6 @@ module Lattices = struct
       ( Areality.subtract a0 b0,
         Linearity.subtract a1 b1,
         Portability.subtract a2 b2 )
-
-    let to_string (a0, a1, a2) =
-      Format.sprintf "%s,%s,%s" (Areality.to_string a0) (Linearity.to_string a1)
-        (Portability.to_string a2)
 
     let print ppf (a0, a1, a2) =
       Format.fprintf ppf "%a,%a,%a" Areality.print a0 Linearity.print a1
@@ -1760,12 +1745,6 @@ module Value_with (Areality : Areality) = struct
       let m0 = split m0 in
       let m1 = split m1 in
       Comonadic.le m0.comonadic m1.comonadic && Monadic.le m0.monadic m1.monadic
-
-    let to_string m =
-      let { monadic; comonadic } = split m in
-      Format.sprintf "%s,%s"
-        (Comonadic.to_string comonadic)
-        (Monadic.to_string monadic)
 
     let print ppf m =
       let { monadic; comonadic } = split m in

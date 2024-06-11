@@ -187,10 +187,10 @@ module Externality = struct
     | External64, (External64 | Internal) | Internal, External64 -> External64
     | Internal, Internal -> Internal
 
-  let to_string = function
-    | External -> "external_"
-    | External64 -> "external64"
-    | Internal -> "internal"
+  let print ppf = function
+    | External -> Format.fprintf ppf "external_"
+    | External64 -> Format.fprintf ppf "external64"
+    | Internal -> Format.fprintf ppf "internal"
 
   module Debug_printers = struct
     open Format
@@ -418,31 +418,31 @@ module Const = struct
         }
     end
 
-    let get_modal_bound ~le ~to_string ~base actual =
+    let get_modal_bound ~le ~print ~base actual =
       match le actual base with
       | true -> (
         match le base actual with
         | true -> `Valid None
-        | false -> `Valid (Some (to_string actual)))
+        | false -> `Valid (Some (Format.asprintf "%a" print actual)))
       | false -> `Invalid
 
     let get_modal_bounds ~(base : Bounds.t) (actual : Bounds.t) =
       [ get_modal_bound ~le:Locality.Const.le
-          ~to_string:Locality.Const.to_string ~base:base.alloc_bounds.areality
+          ~print:Locality.Const.print ~base:base.alloc_bounds.areality
           actual.alloc_bounds.areality;
         get_modal_bound ~le:Uniqueness.Const.le
-          ~to_string:Uniqueness.Const.to_string
+          ~print:Uniqueness.Const.print
           ~base:base.alloc_bounds.uniqueness actual.alloc_bounds.uniqueness;
         get_modal_bound ~le:Linearity.Const.le
-          ~to_string:Linearity.Const.to_string ~base:base.alloc_bounds.linearity
+          ~print:Linearity.Const.print ~base:base.alloc_bounds.linearity
           actual.alloc_bounds.linearity;
         get_modal_bound ~le:Contention.Const.le
-          ~to_string:Contention.Const.to_string
+          ~print:Contention.Const.print
           ~base:base.alloc_bounds.contention actual.alloc_bounds.contention;
         get_modal_bound ~le:Portability.Const.le
-          ~to_string:Portability.Const.to_string
+          ~print:Portability.Const.print
           ~base:base.alloc_bounds.portability actual.alloc_bounds.portability;
-        get_modal_bound ~le:Externality.le ~to_string:Externality.to_string
+        get_modal_bound ~le:Externality.le ~print:Externality.print
           ~base:base.externality_bound actual.externality_bound ]
       |> List.rev
       |> List.fold_left
