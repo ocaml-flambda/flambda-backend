@@ -436,6 +436,12 @@ module Const = struct
         get_modal_bound ~le:Linearity.Const.le
           ~to_string:Linearity.Const.to_string ~base:base.alloc_bounds.linearity
           actual.alloc_bounds.linearity;
+        get_modal_bound ~le:Contention.Const.le
+          ~to_string:Contention.Const.to_string
+          ~base:base.alloc_bounds.contention actual.alloc_bounds.contention;
+        get_modal_bound ~le:Portability.Const.le
+          ~to_string:Portability.Const.to_string
+          ~base:base.alloc_bounds.portability actual.alloc_bounds.portability;
         get_modal_bound ~le:Externality.le ~to_string:Externality.to_string
           ~base:base.externality_bound actual.externality_bound ]
       |> List.rev
@@ -519,6 +525,8 @@ module Const = struct
       | Areality of Locality.Const.t
       | Linearity of Linearity.Const.t
       | Uniqueness of Uniqueness.Const.t
+      | Contention of Contention.Const.t
+      | Portability of Portability.Const.t
       | Externality of Externality.t
 
     let parse_mode unparsed_mode =
@@ -535,6 +543,10 @@ module Const = struct
       | "internal" -> Externality Internal
       | "external64" -> Externality External64
       | "external_" -> Externality External
+      | "contended" -> Contention Contended
+      | "uncontended" -> Contention Uncontended
+      | "portable" -> Portability Portable
+      | "nonportable" -> Portability Nonportable
       | _ -> raise ~loc (Unknown_mode unparsed_mode)
 
     let parse_modes
@@ -593,6 +605,26 @@ module Const = struct
                   uniqueness =
                     Uniqueness.Const.meet jkind.modes_upper_bounds.uniqueness
                       uniqueness
+                }
+          }
+        | Contention contention ->
+          { jkind with
+            modes_upper_bounds =
+              Modes.meet jkind.modes_upper_bounds
+                { jkind.modes_upper_bounds with
+                  contention =
+                    Contention.Const.meet jkind.modes_upper_bounds.contention
+                      contention
+                }
+          }
+        | Portability portability ->
+          { jkind with
+            modes_upper_bounds =
+              Modes.meet jkind.modes_upper_bounds
+                { jkind.modes_upper_bounds with
+                  portability =
+                    Portability.Const.meet jkind.modes_upper_bounds.portability
+                      portability
                 }
           }
         | Externality externality ->
