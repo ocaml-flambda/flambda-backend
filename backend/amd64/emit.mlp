@@ -1418,6 +1418,8 @@ let emit_instr ~first ~fallthrough i =
       record_frame i.live (Dbg_other i.dbg)
   | Lop(Icall_imm { func; }) ->
       let skip_stack_check = Misc.Stdlib.String.Set.mem func.sym_name !stack_check_skip_callees in
+      (* CR mshinwell/xclerc: [Windows-specific] should `add_used_symbol` be called on
+         the other symbol if skipping the check? on both symbols? *)
       add_used_symbol func.sym_name;
       emit_call ~skip_stack_check func;
       record_frame i.live (Dbg_other i.dbg)
