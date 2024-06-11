@@ -726,7 +726,7 @@ module Jkind_desc = struct
        in-place update, and no record supporting in-place update is an
        immediate64. ([@@unboxed] records do not support in-place update.)
 
-       * Syncness: This is fine, because syncness matters only for function
+       * Portability: This is fine, because portability matters only for function
        types, and an immediate64 cannot be a function type and cannot store
        one either.
 
@@ -1509,7 +1509,12 @@ let is_void_defaulting = function
   | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
   | _ -> false
 
-let is_any jkind = match jkind.jkind.layout with Any -> true | _ -> false
+(* This doesn't do any mutation because mutating a sort variable can't make it
+   any, and modal upper bounds are constant. *)
+let is_max jkind = sub Primitive.any_dummy_jkind jkind
+
+let has_layout_any jkind =
+  match jkind.jkind.layout with Any -> true | _ -> false
 
 (*********************************)
 (* debugging *)

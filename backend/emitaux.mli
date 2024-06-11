@@ -15,24 +15,40 @@
 
 (* Common functions for emitting assembly code *)
 
-val output_channel: out_channel ref
-val emit_string: string -> unit
-val emit_int: int -> unit
-val emit_nativeint: nativeint -> unit
-val emit_int32: int32 -> unit
-val emit_symbol: string -> unit
-val emit_printf: ('a, out_channel, unit) format -> 'a
-val emit_char: char -> unit
-val emit_string_literal: string -> unit
-val emit_string_directive: string -> string -> unit
-val emit_bytes_directive: string -> string -> unit
-val emit_float64_directive: string -> int64 -> unit
-val emit_float64_split_directive: string -> int64 -> unit
-val emit_float32_directive: string -> int32 -> unit
+val output_channel : out_channel ref
+
+val emit_string : string -> unit
+
+val emit_int : int -> unit
+
+val emit_nativeint : nativeint -> unit
+
+val emit_int32 : int32 -> unit
+
+val emit_symbol : string -> unit
+
+val emit_printf : ('a, out_channel, unit) format -> 'a
+
+val emit_char : char -> unit
+
+val emit_string_literal : string -> unit
+
+val emit_string_directive : string -> string -> unit
+
+val emit_bytes_directive : string -> string -> unit
+
+val emit_float64_directive : string -> int64 -> unit
+
+val emit_float64_split_directive : string -> int64 -> unit
+
+val emit_float32_directive : string -> int32 -> unit
 
 val reset : unit -> unit
-val reset_debug_info: unit -> unit
-val emit_debug_info: ?discriminator:int -> Debuginfo.t -> unit
+
+val reset_debug_info : unit -> unit
+
+val emit_debug_info : ?discriminator:int -> Debuginfo.t -> unit
+
 val emit_debug_info_gen :
   ?discriminator:int ->
   Debuginfo.t ->
@@ -41,10 +57,8 @@ val emit_debug_info_gen :
   unit
 
 (** Get the file number associated with the filename (or allocate one) *)
-val get_file_num
-   : file_emitter:(file_num:int -> file_name:string -> unit)
-  -> string
-  -> int
+val get_file_num :
+  file_emitter:(file_num:int -> file_name:string -> unit) -> string -> int
 
 type frame_debuginfo =
   | Dbg_alloc of Debuginfo.alloc_dbginfo
@@ -52,42 +66,53 @@ type frame_debuginfo =
   | Dbg_other of Debuginfo.t
 
 val record_frame_descr :
-  label:int ->              (* Return address *)
-  frame_size:int ->         (* Size of stack frame *)
-  live_offset:int list ->   (* Offsets/regs of live addresses *)
-  frame_debuginfo ->        (* Location, if any *)
+  label:int ->
+  (* Return address *)
+  frame_size:int ->
+  (* Size of stack frame *)
+  live_offset:int list ->
+  (* Offsets/regs of live addresses *)
+  frame_debuginfo ->
+  (* Location, if any *)
   unit
 
 type emit_frame_actions =
-  { efa_code_label: int -> unit;
-    efa_data_label: int -> unit;
-    efa_8: int -> unit;
-    efa_16: int -> unit;
-    efa_32: int32 -> unit;
-    efa_word: int -> unit;
-    efa_align: int -> unit;
-    efa_label_rel: int -> int32 -> unit;
-    efa_def_label: int -> unit;
-    efa_string: string -> unit }
+  { efa_code_label : int -> unit;
+    efa_data_label : int -> unit;
+    efa_8 : int -> unit;
+    efa_16 : int -> unit;
+    efa_32 : int32 -> unit;
+    efa_word : int -> unit;
+    efa_align : int -> unit;
+    efa_label_rel : int -> int32 -> unit;
+    efa_def_label : int -> unit;
+    efa_string : string -> unit
+  }
 
-val emit_frames: emit_frame_actions -> unit
+val emit_frames : emit_frame_actions -> unit
 
-val is_generic_function: string -> bool
+val is_generic_function : string -> bool
 
 val cfi_startproc : unit -> unit
-val cfi_endproc : unit -> unit
-val cfi_adjust_cfa_offset : int -> unit
-val cfi_offset : reg:int -> offset:int -> unit
-val cfi_def_cfa_offset : int -> unit
-val cfi_remember_state : unit -> unit
-val cfi_restore_state : unit -> unit
-val cfi_def_cfa_register: reg:int -> unit
 
-val binary_backend_available: bool ref
-    (** Is a binary backend available.  If yes, we don't need
+val cfi_endproc : unit -> unit
+
+val cfi_adjust_cfa_offset : int -> unit
+
+val cfi_offset : reg:int -> offset:int -> unit
+
+val cfi_def_cfa_offset : int -> unit
+
+val cfi_remember_state : unit -> unit
+
+val cfi_restore_state : unit -> unit
+
+val cfi_def_cfa_register : reg:int -> unit
+
+(** Is a binary backend available.  If yes, we don't need
         to generate the textual assembly file (unless the user
         request it with -S). *)
-
+val binary_backend_available : bool ref
 
 (** Clear global state and compact the heap, so that an external program
     (such as the assembler or linker) may have more memory available to it.
@@ -110,35 +135,38 @@ type error =
   | Inconsistent_probe_init of string * Debuginfo.t
 
 module Dwarf_helpers : sig
-  val init: disable_dwarf:bool -> string -> unit
+  val init : disable_dwarf:bool -> string -> unit
 
-  val begin_dwarf
-    : build_asm_directives:(unit -> (module Asm_targets.Asm_directives_intf.S))
-    -> code_begin:string
-    -> code_end:string
-    -> file_emitter:(file_num:int -> file_name:string -> unit)
-    -> unit
+  val begin_dwarf :
+    build_asm_directives:(unit -> (module Asm_targets.Asm_directives_intf.S)) ->
+    code_begin:string ->
+    code_end:string ->
+    file_emitter:(file_num:int -> file_name:string -> unit) ->
+    unit
 
   val emit_dwarf : unit -> unit
+
   val emit_delayed_dwarf : unit -> unit
 
   val record_dwarf_for_fundecl : Linear.fundecl -> Dwarf.fundecl option
 end
 
 exception Error of error
-val report_error: Format.formatter -> error -> unit
+
+val report_error : Format.formatter -> error -> unit
 
 type preproc_stack_check_result =
   { max_frame_size : int;
-    contains_nontail_calls : bool }
+    contains_nontail_calls : bool
+  }
 
-val preproc_stack_check:
+val preproc_stack_check :
   fun_body:Linear.instruction ->
   frame_size:int ->
   trap_size:int ->
   preproc_stack_check_result
 
-val add_stack_checks_if_needed:
+val add_stack_checks_if_needed :
   Linear.fundecl ->
   stack_offset:int ->
   stack_threshold_size:int ->

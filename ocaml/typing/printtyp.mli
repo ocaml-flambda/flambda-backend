@@ -106,6 +106,10 @@ val reset: unit -> unit
     [prepared_type_expr].  *)
 val type_expr: formatter -> type_expr -> unit
 
+(** Prints a modality. If it is the identity modality, prints [id], which
+    defaults to nothing. *)
+val modality : ?id:(formatter -> unit) -> formatter -> Mode.Modality.t -> unit
+
 (** [prepare_for_printing] resets the global printing environment, a la [reset],
     and prepares the types for printing by reserving names and marking loops.
     Any type variables that are shared between multiple types in the input list

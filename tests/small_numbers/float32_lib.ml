@@ -204,6 +204,12 @@ let () =
 ;;
 
 let () =
+  (* In glibc 2.25+, powf(nan, zero) returns one if the nan is non-signaling. *)
+  bit_eq (F32.pow F32.nan F32.zero) F32.one;
+  bit_eq (F32.pow F32.quiet_nan F32.zero) F32.one;
+;;
+
+let () =
   CF32.check_float32s (fun f1 f2 ->
     bit_eq (F32.add f1 f2) (CF32.add f1 f2);
     bit_eq (F32.sub f1 f2) (CF32.sub f1 f2);

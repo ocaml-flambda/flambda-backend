@@ -23,3 +23,5 @@ arm64/stack_check.ml
 stack_check.mli
 generic_fns.ml
 generic_fns.mli
+emitaux.ml
+emitaux.mli
