@@ -193,6 +193,8 @@ Error: The layout of type a is value, because
        But the layout of type a must be a sublayout of value, because
          of the definition of b at line 2, characters 0-29.
 |}]
+(* CR layouts v2.8: This is a bad error message. The error should contain information
+  about the modal bounds *)
 
 type a : value mod global
 type b : any mod local = a
