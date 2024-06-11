@@ -1598,6 +1598,8 @@ module Monadic = struct
   module Const = struct
     include C.Monadic
 
+    (* CR zqian: The flipping logic leaking to here is bad. Refactoring needed. *)
+
     (* Monadic fragment is flipped, so are the following definitions. *)
     let min_with ax c = Axis.update ax c (C.max obj)
 
