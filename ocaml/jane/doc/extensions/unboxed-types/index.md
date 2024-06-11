@@ -217,14 +217,16 @@ Here by defining module type `S` with layout `any` and using `with` constraints,
 reason about modules with similar shapes but that operate on different layouts. This removes code
 duplication and can aid ppxs in supporting unboxed types.
 
-# `[@layout_poly]` attribute {#layout-poly}
+<a name="layout-poly">
+# `[@layout_poly]` attribute
+</a>
 
 The attribute enables support for **limited layout polymorphism on external
 `%`-primitives**. This is possible because these primitives are always inlined at every
 use site. We can thus specialize the function implementation based on the layout
 information at each site.
 
-With a `[@layout-poly]` external declaration like this:
+With a `[@layout_poly]` external declaration like this:
 
 ```ocaml
 external[@layout_poly] opaque_identity : ('a : any). 'a -> 'a = "%opaque"
