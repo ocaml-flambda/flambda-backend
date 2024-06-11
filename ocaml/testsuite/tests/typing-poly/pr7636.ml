@@ -14,8 +14,8 @@ end
 [%%expect{|
 module M :
   sig
-    type ('a, 'b) elt = 'a
-    type 'a iter = { f : 'b. 'a -> unit; }
+    type ('a : any, 'b : any) elt = 'a
+    type ('a : any) iter = { f : 'b. 'a -> unit; }
     val promote : ('a -> unit) -> 'a iter
   end
 |}]
@@ -32,6 +32,6 @@ module M' :
 type 'a t = int
 let test : 'a. int -> 'a t = fun i -> i;;
 [%%expect{|
-type 'a t = int
+type ('a : any) t = int
 val test : int -> int = <fun>
 |}]

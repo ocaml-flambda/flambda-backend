@@ -11,7 +11,7 @@ let fbool (type t) (x : t) (tag : t ty) =
   | Bool -> x
 ;;
 [%%expect{|
-type 'a ty = Int : int ty | Bool : bool ty
+type ('a : any) ty = Int : int ty | Bool : bool ty
 Lines 6-7, characters 2-13:
 6 | ..match tag with
 7 |   | Bool -> x

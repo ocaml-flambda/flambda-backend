@@ -77,7 +77,7 @@ let eq = Obj.magic Eq;;
 let eq : (('a, 'b) Ephemeron.K1.t, ('c, 'd) Ephemeron.K1.t) eq = eq;;
 type _ t = T : 'a -> ('a, 'b) Ephemeron.K1.t t;; (* fail *)
 [%%expect{|
-type (_, _) eq = Eq : ('a, 'a) eq
+type (_ : any, _ : any) eq = Eq : ('a, 'a) eq
 val eq : 'a = <poly>
 val eq : (('a, 'b) Ephemeron.K1.t, ('c, 'd) Ephemeron.K1.t) eq = Eq
 Line 4, characters 0-46:
@@ -133,7 +133,7 @@ let N.S o' = (o :> <m : int> M.t N.s);; (* unsound! *)
 type 'a q = Q;;
 type +'a t = 'b constraint 'a = 'b q;;
 [%%expect{|
-type 'a q = Q
+type ('a : any) q = Q
 Line 2, characters 0-36:
 2 | type +'a t = 'b constraint 'a = 'b q;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -167,7 +167,7 @@ type 'a t = T of ('a -> 'a);;
 type -'a s = 'b constraint 'a = 'b t;; (* ok *)
 [%%expect{|
 type 'a u = 'a t
-type 'a t = T of ('a -> 'a)
+type ('a : any) t = T of ('a -> 'a)
 type -'a s = 'b constraint 'a = 'b t
 |}];;
 type +'a s = 'b constraint 'a = 'b q t;; (* ok *)

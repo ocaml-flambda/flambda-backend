@@ -14,7 +14,7 @@ type (_,_) eq = Refl : ('a,'a) eq
 [%%expect{|
 module X : sig type 'a t end
 type 'a t
-type (_, _) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 |}]
 
 let () =

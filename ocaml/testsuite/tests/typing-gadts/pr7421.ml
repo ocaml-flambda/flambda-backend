@@ -5,7 +5,7 @@
 type (_, _) eq = Refl : ('a, 'a) eq;;
 type empty = (int, unit) eq;;
 [%%expect{|
-type (_, _) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 type empty = (int, unit) eq
 |}]
 let f (x : ('a, empty Lazy.t) result) =

@@ -583,7 +583,7 @@ module SInt :
     val add_seq : elt Seq.t -> t -> t
     val of_seq : elt Seq.t -> t
   end
-type (_, _) eq = Eq : ('a, 'a) eq
+type (_ : any, _ : any) eq = Eq : ('a, 'a) eq
 type wrap = W of (SInt.t, SInt.t) eq
 module M :
   sig

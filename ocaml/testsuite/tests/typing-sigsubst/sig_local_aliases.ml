@@ -112,7 +112,7 @@ module type S = sig
   val x : string bar t
 end
 [%%expect{|
-type ('a, 'b) foo = Foo
+type ('a : any, 'b : any) foo = Foo
 type 'a s = 'b list constraint 'a = (int, 'b) foo
 Line 6, characters 2-26:
 6 |   type 'a t := 'a s * bool

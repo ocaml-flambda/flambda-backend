@@ -12,7 +12,7 @@ end
 
 let f (module M : S) = ((fun z -> z) : _ M.u);;
 [%%expect {|
-module type S = sig type t type _ u = t -> t end
+module type S = sig type t type (_ : any) u = t -> t end
 Line 6, characters 23-45:
 6 | let f (module M : S) = ((fun z -> z) : _ M.u);;
                            ^^^^^^^^^^^^^^^^^^^^^^

@@ -4,7 +4,7 @@
 
 type (_,_) eql = Refl : ('a, 'a) eql;;
 [%%expect{|
-type (_, _) eql = Refl : ('a, 'a) eql
+type (_ : any, _ : any) eql = Refl : ('a, 'a) eql
 |}]
 
 let f : type t. (int, t) eql * (t, string) eql -> unit = function _ -> . ;;

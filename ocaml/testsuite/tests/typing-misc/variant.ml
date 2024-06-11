@@ -50,7 +50,7 @@ type ('a,'b) def = X of int constraint 'b = [> `A]
 
 type arity = (int, [`A]) def = X of int;;
 [%%expect{|
-type ('a, 'b) def = X of int constraint 'b = [> `A ]
+type ('a : any, 'b) def = X of int constraint 'b = [> `A ]
 Line 3, characters 0-39:
 3 | type arity = (int, [`A]) def = X of int;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

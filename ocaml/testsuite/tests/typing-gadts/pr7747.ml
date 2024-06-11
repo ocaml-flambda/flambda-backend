@@ -15,7 +15,7 @@ module N : sig type t = private M.t val eq : (t, M.t) eq end =
 
 let f x = match N.eq with Refl -> (x : N.t :> M.t);;
 [%%expect{|
-type (_, _) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 module M : sig type t end
 module N : sig type t = private M.t val eq : (t, M.t) eq end
 val f : N.t -> M.t = <fun>

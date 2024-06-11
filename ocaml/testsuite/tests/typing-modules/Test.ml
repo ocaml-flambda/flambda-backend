@@ -73,13 +73,13 @@ Line 2, characters 2-37:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Signature mismatch:
        Modules do not match:
-         sig type +'a t = private int end
+         sig type (+'a : any) t = private int end
        is not included in
-         sig type -'a t = private int end
+         sig type (-'a : any) t = private int end
        Type declarations do not match:
-         type +'a t = private int
+         type (+'a : any) t = private int
        is not included in
-         type -'a t = private int
+         type (-'a : any) t = private int
        Their variances do not agree.
 |}];;
 

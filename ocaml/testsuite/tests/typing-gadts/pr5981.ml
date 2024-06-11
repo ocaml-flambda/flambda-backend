@@ -22,7 +22,7 @@ Here is an example of a case that is not matched:
 module F :
   functor (S : sig type 'a t end) ->
     sig
-      type _ ab = A : int S.t ab | B : float S.t ab
+      type (_ : any) ab = A : int S.t ab | B : float S.t ab
       val f : int S.t ab -> float S.t ab -> string
     end
 |}];;
@@ -52,7 +52,7 @@ module F :
     sig
       type a = int * int
       type b = int -> int
-      type _ ab = A : a S.t ab | B : b S.t ab
+      type (_ : any) ab = A : a S.t ab | B : b S.t ab
       val f : a S.t ab -> b S.t ab -> string
     end
 |}];;

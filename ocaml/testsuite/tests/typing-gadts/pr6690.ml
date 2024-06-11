@@ -23,7 +23,7 @@ let vexpr (type visit_action)
 type 'a visit_action
 type insert
 type 'a local_visit_action
-type ('a, 'result, 'visit_action) context =
+type ('a : any, 'result : any, 'visit_action : any) context =
     Local : ('a, 'a * insert, 'a local_visit_action) context
   | Global : ('a, 'a, 'a visit_action) context
 Line 15, characters 4-9:

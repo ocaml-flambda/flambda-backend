@@ -247,18 +247,18 @@ type 'a t5_10 = 'a t_float32_id
 and 'a t5_11 = {x : 'a t5_10; y : 'a}
 [%%expect{|
 type ('a : float32, 'b : float32) t5_9 = { x : 'a; y : 'b; z : 'a; }
-Line 4, characters 20-28:
-4 | and 'a t5_11 = {x : 'a t5_10; y : 'a}
-                        ^^^^^^^^
-Error: Layout mismatch in final type declaration consistency check.
+Line 3, characters 0-31:
+3 | type 'a t5_10 = 'a t_float32_id
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Layout mismatch in checking consistency of mutually recursive groups.
        This is most often caused by the fact that type inference is not
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         The layout of 'a is float32, because
-           of the definition of t_float32_id at line 2, characters 0-37.
-         But the layout of 'a must overlap with value, because
-           it instantiates an unannotated type parameter of t5_11, defaulted to layout value.
+         The layout of 'a t5_10 is any, because
+           it instantiates an unannotated type parameter of t5_10.
+         But the layout of 'a t5_10 must be representable, because
+           it is the type of record field x.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}];;
@@ -307,7 +307,7 @@ Line 1, characters 31-46:
 Error: This type signature for x is not a value type.
        The layout of type 'a t_float32_id is float32, because
          of the definition of t_float32_id at line 2, characters 0-37.
-       But the layout of type 'a t_float32_id must be a sublayout of value, because
+       But the layout of type 'a t_float32_id must overlap with value, because
          it's the type of something stored in a module structure.
 |}];;
 

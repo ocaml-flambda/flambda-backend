@@ -139,16 +139,14 @@ Error: Signature mismatch:
        Modules do not match:
          sig type 'a t = Foo of 'a end
        is not included in
-         sig type 'a t = Foo : int -> int t end
+         sig type ('a : any) t = Foo : int -> int t end
        Type declarations do not match:
          type 'a t = Foo of 'a
        is not included in
-         type 'a t = Foo : int -> int t
-       Constructors do not match:
-         Foo of 'a
-       is not the same as:
-         Foo : int -> int t
-       The second has explicit return type and the first doesn't.
+         type ('a : any) t = Foo : int -> int t
+       Their parameters differ:
+       The type ('a : value) is not equal to the type ('a0 : any)
+       because their layouts are different.
 |}];;
 
 module M : sig
@@ -163,18 +161,16 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig type ('a, 'b) t = A of 'b end
+         sig type ('a : any, 'b) t = A of 'b end
        is not included in
-         sig type ('a, 'b) t = A of 'a end
+         sig type ('a, 'b : any) t = A of 'a end
        Type declarations do not match:
-         type ('a, 'b) t = A of 'b
+         type ('a : any, 'b) t = A of 'b
        is not included in
-         type ('a, 'b) t = A of 'a
-       Constructors do not match:
-         A of 'b
-       is not the same as:
-         A of 'a
-       The type 'b is not equal to the type 'a
+         type ('a, 'b : any) t = A of 'a
+       Their parameters differ:
+       The type ('b : value) is not equal to the type ('b0 : any)
+       because their layouts are different.
 |}];;
 
 module M : sig
@@ -189,18 +185,16 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig type ('b, 'a) t = A of 'a end
+         sig type ('b : any, 'a) t = A of 'a end
        is not included in
-         sig type ('a, 'b) t = A of 'a end
+         sig type ('a, 'b : any) t = A of 'a end
        Type declarations do not match:
-         type ('b, 'a) t = A of 'a
+         type ('b : any, 'a) t = A of 'a
        is not included in
-         type ('a, 'b) t = A of 'a
-       Constructors do not match:
-         A of 'a
-       is not the same as:
-         A of 'a
-       The type 'a is not equal to the type 'b
+         type ('a, 'b : any) t = A of 'a
+       Their parameters differ:
+       The type ('a : value) is not equal to the type ('b : any)
+       because their layouts are different.
 |}];;
 
 

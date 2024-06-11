@@ -11,10 +11,10 @@ type 'fill either =
 [%%expect{|
 type empty = Empty
 and filled = Filled
-type ('a, 'fout, 'fin) opt =
+type ('a : any, 'fout : any, 'fin : any) opt =
     N : ('a, 'f, 'f) opt
   | Y : 'a -> ('a, filled, empty) opt
-type 'fill either =
+type ('fill : any) either =
     Either : (string, 'fill, 'f) opt * (int, 'f, empty) opt -> 'fill either
 |}]
 

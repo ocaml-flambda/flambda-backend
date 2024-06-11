@@ -58,12 +58,13 @@ Error: Signature mismatch:
        Modules do not match:
          sig type 'a t = 'a B.t = A of 'a | B val f : 'a t -> unit end
        is not included in
-         sig type 'a t = 'a end
+         sig type ('a : any) t = 'a end
        Type declarations do not match:
          type 'a t = 'a B.t = A of 'a | B
        is not included in
-         type 'a t = 'a
-       The type 'a B.t is not equal to the type 'a
+         type ('a : any) t = 'a
+       The type ('a : value) is not equal to the type ('a0 : any)
+       because their layouts are different.
 |}];;
 
 module rec C : sig
@@ -123,12 +124,13 @@ Error: Signature mismatch:
        Modules do not match:
          sig type 'a t = 'a D.t = A of 'a | B val f : 'a t -> unit end
        is not included in
-         sig type 'a t = int end
+         sig type ('a : any) t = int end
        Type declarations do not match:
          type 'a t = 'a D.t = A of 'a | B
        is not included in
-         type 'a t = int
-       The type 'a D.t is not equal to the type int
+         type ('a : any) t = int
+       The type ('a : value) is not equal to the type ('a0 : any)
+       because their layouts are different.
 |}];;
 
 module rec E : sig
@@ -187,12 +189,13 @@ Error: Signature mismatch:
        Modules do not match:
          sig type 'a t = 'a E2.t = A of 'a | B val f : 'a t -> unit end
        is not included in
-         sig type 'a t = [ `Foo ] end
+         sig type ('a : any) t = [ `Foo ] end
        Type declarations do not match:
          type 'a t = 'a E2.t = A of 'a | B
        is not included in
-         type 'a t = [ `Foo ]
-       The type 'a E2.t is not equal to the type [ `Foo ]
+         type ('a : any) t = [ `Foo ]
+       The type ('a : value) is not equal to the type ('a0 : any)
+       because their layouts are different.
 |}];;
 
 module rec E3 : sig
@@ -238,29 +241,9 @@ end = struct
   let coerce : 'a 'b. ('a, 'b) t -> ('a, 'b) F.t = fun x -> x
 end;;
 [%%expect{|
-Lines 3-9, characters 6-3:
-3 | ......struct
-4 |   type ('a, 'b) t = Foo of 'b
-5 |
-6 |   (* this function typechecks properly, which means that we've added the
-7 |      manisfest. *)
+Line 8, characters 60-61:
 8 |   let coerce : 'a 'b. ('a, 'b) t -> ('a, 'b) F.t = fun x -> x
-9 | end..
-Error: Signature mismatch:
-       Modules do not match:
-         sig
-           type ('a, 'b) t = ('a, 'b) F.t = Foo of 'b
-           val coerce : ('a, 'b) t -> ('a, 'b) F.t
-         end
-       is not included in
-         sig type ('a, 'b) t = Foo of 'a end
-       Type declarations do not match:
-         type ('a, 'b) t = ('a, 'b) F.t = Foo of 'b
-       is not included in
-         type ('a, 'b) t = Foo of 'a
-       Constructors do not match:
-         Foo of 'b
-       is not the same as:
-         Foo of 'a
-       The type 'b is not equal to the type 'a
+                                                                ^
+Error: This expression has type ('a, 'b) t
+       but an expression was expected of type ('a, 'b) F.t
 |}];;

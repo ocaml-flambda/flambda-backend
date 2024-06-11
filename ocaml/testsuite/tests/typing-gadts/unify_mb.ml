@@ -35,10 +35,10 @@ let fin_succ : type n. n fin -> n is_succ = function
 ;;
 [%%expect{|
 type zero = Zero
-type _ succ = Succ
-type _ nat = NZ : zero nat | NS : 'a nat -> 'a succ nat
-type _ fin = FZ : 'a succ fin | FS : 'a fin -> 'a succ fin
-type _ is_succ = IS : 'a succ is_succ
+type (_ : any) succ = Succ
+type (_ : any) nat = NZ : zero nat | NS : 'a nat -> 'a succ nat
+type (_ : any) fin = FZ : 'a succ fin | FS : 'a fin -> 'a succ fin
+type (_ : any) is_succ = IS : 'a succ is_succ
 val fin_succ : 'n fin -> 'n is_succ = <fun>
 |}];;
 
@@ -63,12 +63,16 @@ let comp_subst f g (x : 'a fin) = pre_subst f (g x)
     ('b fin -> 'c term) -> ('a fin -> 'b term) -> 'a fin -> 'c term *)
 ;;
 [%%expect{|
-type 'a term = Var of 'a fin | Leaf | Fork of 'a term * 'a term
-val var : 'a fin -> 'a term = <fun>
-val lift : ('m fin -> 'n fin) -> 'm fin -> 'n term = <fun>
-val pre_subst : ('a fin -> 'b term) -> 'a term -> 'b term = <fun>
+type ('a : any) term = Var of 'a fin | Leaf | Fork of 'a term * 'a term
+val var : ('a : any). 'a fin -> 'a term = <fun>
+val lift : ('m : any) ('n : any). ('m fin -> 'n fin) -> 'm fin -> 'n term =
+  <fun>
+val pre_subst :
+  ('a : any) ('b : any). ('a fin -> 'b term) -> 'a term -> 'b term = <fun>
 val comp_subst :
-  ('b fin -> 'c term) -> ('a fin -> 'b term) -> 'a fin -> 'c term = <fun>
+  ('b : any) ('c : any) ('a : any).
+    ('b fin -> 'c term) -> ('a fin -> 'b term) -> 'a fin -> 'c term =
+  <fun>
 |}];;
 
 (* 4 The Occur-Check, through thick and thin *)
@@ -139,7 +143,7 @@ let rec sub : type m n. (m,n) alist -> m fin -> n term = function
   | Anil -> var
   | Asnoc (s, t, x) -> comp_subst (sub s) (subst_var x t)
 [%%expect{|
-type (_, _) alist =
+type (_ : any, _ : any) alist =
     Anil : ('n, 'n) alist
   | Asnoc : ('m, 'n) alist * 'm term * 'm succ fin -> ('m succ, 'n) alist
 val sub : ('m, 'n) alist -> 'm fin -> 'n term = <fun>
@@ -157,7 +161,7 @@ type _ ealist = EAlist : ('a,'b) alist -> 'a ealist
 
 let asnoc a t' x = EAlist (Asnoc (a, t', x))
 [%%expect{|
-type _ ealist = EAlist : ('a, 'b) alist -> 'a ealist
+type (_ : any) ealist = EAlist : ('a, 'b) alist -> 'a ealist
 val asnoc : ('a, 'b) alist -> 'a term -> 'a succ fin -> 'a succ ealist =
   <fun>
 |}];;

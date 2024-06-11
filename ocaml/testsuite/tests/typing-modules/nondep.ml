@@ -40,7 +40,7 @@ type 'a always_int = int
 module F (X : sig type t end) = struct type s = X.t always_int end
 module M = F (struct type t = T end)
 [%%expect{|
-type 'a always_int = int
+type ('a : any) always_int = int
 module F : functor (X : sig type t end) -> sig type s = X.t always_int end
 module M : sig type s = int end
 |}]

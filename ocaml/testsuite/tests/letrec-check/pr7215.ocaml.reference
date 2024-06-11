@@ -1,4 +1,4 @@
-type (_, _) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 val cast : ('a, 'b) eq -> 'a -> 'b = <fun>
 Line 3, characters 30-55:
 3 |   let rec (p : (int, a) eq) = match p with Refl -> Refl in

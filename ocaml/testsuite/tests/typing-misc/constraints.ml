@@ -67,7 +67,7 @@ Error: The type abbreviation t is cyclic:
 type 'a t = 'a;;
 let f (x : 'a t as 'a) = ();; (* ok *)
 [%%expect{|
-type 'a t = 'a
+type ('a : any) t = 'a
 val f : 'a -> unit = <fun>
 |}];;
 
@@ -368,8 +368,8 @@ type ('a, 'self) obj =
 [%%expect {|
 type foo = Foo
 type bar = Bar
-type _ tag = Foo_tag : foo tag | Bar_tag : bar tag
-type ('a, 'self) obj = 'self
+type (_ : any) tag = Foo_tag : foo tag | Bar_tag : bar tag
+type ('a : any, 'self) obj = 'self
   constraint 'self = < bar : bar -> 'a; foo : foo -> 'a; .. >
 |}]
 

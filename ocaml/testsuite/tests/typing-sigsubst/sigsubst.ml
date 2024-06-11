@@ -204,7 +204,7 @@ end = struct
     eq
 end;;
 [%%expect {|
-type (_, _) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 Line 11, characters 18-58:
 11 |   module type T = S with type N.t = M.t with module N := N;;
                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

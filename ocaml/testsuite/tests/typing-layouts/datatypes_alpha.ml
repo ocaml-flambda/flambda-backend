@@ -376,20 +376,8 @@ and t2 = Mk1 of t_void t | Mk2
 type 'a t8_5 = { x : 'a t8_6; y : string}
 and 'a t8_6 = 'a void_t;;
 [%%expect {|
-Line 1, characters 21-28:
-1 | type 'a t8_5 = { x : 'a t8_6; y : string}
-                         ^^^^^^^
-Error: Layout mismatch in final type declaration consistency check.
-       This is most often caused by the fact that type inference is not
-       clever enough to propagate layouts through variables in different
-       declarations. It is also not clever enough to produce a good error
-       message, so we'll say this instead:
-         The layout of 'a is any, because
-           it instantiates an unannotated type parameter of t8_5.
-         But the layout of 'a must be a sublayout of void, because
-           of the definition of void_t at line 1, characters 0-23.
-       A good next step is to add a layout annotation on a parameter to
-       the declaration where this error is reported.
+type ('a : void) t8_5 = { x : 'a t8_6; y : string; }
+and ('a : void) t8_6 = 'a void_t
 |}]
 
 type ('a : immediate) imm_t
@@ -398,20 +386,8 @@ and 'a t10_2 = 'a imm_t;;
 
 [%%expect{|
 type ('a : immediate) imm_t
-Line 2, characters 20-28:
-2 | type 'a t10 = { x : 'a t10_2; y : string}
-                        ^^^^^^^^
-Error: Layout mismatch in final type declaration consistency check.
-       This is most often caused by the fact that type inference is not
-       clever enough to propagate layouts through variables in different
-       declarations. It is also not clever enough to produce a good error
-       message, so we'll say this instead:
-         The layout of 'a is any, because
-           it instantiates an unannotated type parameter of t10.
-         But the layout of 'a must be a sublayout of immediate, because
-           of the definition of imm_t at line 1, characters 0-27.
-       A good next step is to add a layout annotation on a parameter to
-       the declaration where this error is reported.
+type ('a : immediate) t10 = { x : 'a t10_2; y : string; }
+and ('a : immediate) t10_2 = 'a imm_t
 |}]
 
 type 'a t = { x : ('b : void). 'b t -> 'b t }

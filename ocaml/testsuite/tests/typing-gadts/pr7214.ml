@@ -11,7 +11,7 @@ let f (type a) (x : a t) =
   end in
   () ;;
 [%%expect{|
-type _ t = I : int t
+type (_ : any) t = I : int t
 Line 5, characters 9-10:
 5 |     let (I : a t) = x     (* fail because of toplevel let *)
              ^
@@ -35,7 +35,7 @@ let bad (type a) =
  end in N.M.e
 ;;
 [%%expect{|
-type (_, _) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 Line 8, characters 10-14:
 8 |      let (Refl : (int, a) eq) = M.e  (* must fail for soundness *)
               ^^^^

@@ -22,8 +22,10 @@ let eval (type a) (type b) (type c) (bop:(a,b,c) binop) (x:a constant)
 let _ = eval Eq (Int 2) (Int 3)
 
 [%%expect{|
-type _ constant = Int : int -> int constant | Bool : bool -> bool constant
-type (_, _, _) binop =
+type (_ : any) constant =
+    Int : int -> int constant
+  | Bool : bool -> bool constant
+type (_ : any, _ : any, _ : any) binop =
     Eq : ('a, 'a, bool) binop
   | Leq : ('a, 'a, bool) binop
   | Add : (int, int, int) binop

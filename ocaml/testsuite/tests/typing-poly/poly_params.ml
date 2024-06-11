@@ -368,7 +368,7 @@ val foo : p1 -> p2 = <fun>
 type ('a, 'b) eq = Eq : ('a, 'a) eq
 
 [%%expect {|
-type ('a, 'b) eq = Eq : ('a, 'a) eq
+type ('a : any, 'b : any) eq = Eq : ('a, 'a) eq
 |}];;
 
 let test_gadt1 (type b c) ~(run : 'a. 'a -> b -> b) (Eq : (b, c) eq) (b : b) : c =

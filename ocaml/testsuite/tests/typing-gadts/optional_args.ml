@@ -7,7 +7,7 @@
 type (_, _) refl = Refl : ('a, 'a) refl
 
 [%%expect{|
-type (_, _) refl = Refl : ('a, 'a) refl
+type (_ : any, _ : any) refl = Refl : ('a, 'a) refl
 |}]
 
 let apply (_ : unit -> 'a) : 'a = assert false

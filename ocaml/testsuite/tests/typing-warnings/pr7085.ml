@@ -22,10 +22,10 @@ module Make (M : T) =
      match M.is_t () with None -> 0
 end;;
 [%%expect {|
-module TypEq : sig type (_, _) t = Eq : ('a, 'a) t end
+module TypEq : sig type (_ : any, _ : any) t = Eq : ('a, 'a) t end
 module type T =
   sig
-    type _ is_t = Is : ('a, 'b) TypEq.t -> 'a is_t
+    type (_ : any) is_t = Is : ('a, 'b) TypEq.t -> 'a is_t
     val is_t : unit -> unit is_t option
   end
 Line 17, characters 5-35:

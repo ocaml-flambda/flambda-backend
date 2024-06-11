@@ -4,7 +4,7 @@
 
 type (_,_) eq = Refl : ('a,'a) eq;;
 [%%expect{|
-type (_, _) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 |}]
 
 (* Both should fail *)

@@ -182,7 +182,7 @@ type ('a,'b) def = { x:int } constraint 'b = [> `A]
 
 type arity = (int, [`A]) def = {x:int};;
 [%%expect{|
-type ('a, 'b) def = { x : int; } constraint 'b = [> `A ]
+type ('a : any, 'b) def = { x : int; } constraint 'b = [> `A ]
 Line 3, characters 0-38:
 3 | type arity = (int, [`A]) def = {x:int};;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

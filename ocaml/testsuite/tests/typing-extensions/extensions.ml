@@ -70,7 +70,7 @@ Error: Cannot extend private type definition foo
 type 'a foo = ..
 ;;
 [%%expect {|
-type 'a foo = ..
+type ('a : any) foo = ..
 |}]
 
 type ('a, 'b) foo += A of int
@@ -167,7 +167,7 @@ module M_S : S
 type 'a foo = ..
 ;;
 [%%expect {|
-type 'a foo = ..
+type ('a : any) foo = ..
 |}]
 
 type _ foo +=
@@ -192,7 +192,7 @@ type _ inline = ..
 type 'a inline += X of {x : 'a}
 ;;
 [%%expect {|
-type _ inline = ..
+type (_ : any) inline = ..
 type 'a inline += X of { x : 'a; }
 |}]
 
@@ -298,7 +298,7 @@ Error: Cannot use private constructor A to create values of type foo
 
 type ('a, 'b) bar = ..
 [%%expect {|
-type ('a, 'b) bar = ..
+type ('a : any, 'b : any) bar = ..
 |}]
 
 module M : sig
@@ -350,7 +350,12 @@ Error: Signature mismatch:
          A of 'b
        is not the same as:
          A of 'a
-       The type 'b is not equal to the type 'a
+       The type ('a, 'b) bar is not equal to the type ('a, 'b0) bar
+       because their layouts are different.
+       The layout of 'b is value, because
+         it's the type of a constructor field, defaulted to layout value.
+       The layout of 'b is any, because
+         it instantiates an unannotated type parameter of bar.
 |}]
 
 module M : sig
@@ -365,18 +370,16 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig type ('b, 'a) bar = A of 'a end
+         sig type ('b : any, 'a) bar = A of 'a end
        is not included in
-         sig type ('a, 'b) bar = A of 'a end
+         sig type ('a, 'b : any) bar = A of 'a end
        Type declarations do not match:
-         type ('b, 'a) bar = A of 'a
+         type ('b : any, 'a) bar = A of 'a
        is not included in
-         type ('a, 'b) bar = A of 'a
-       Constructors do not match:
-         A of 'a
-       is not the same as:
-         A of 'a
-       The type 'a is not equal to the type 'b
+         type ('a, 'b : any) bar = A of 'a
+       Their parameters differ:
+       The type ('a : value) is not equal to the type ('b : any)
+       because their layouts are different.
 |}];;
 
 
@@ -489,19 +492,19 @@ type M.foo += A2 of int
 type 'a foo = ..
 ;;
 [%%expect {|
-type 'a foo = ..
+type ('a : any) foo = ..
 |}]
 
 type 'a foo1 = 'a foo = ..
 ;;
 [%%expect {|
-type 'a foo1 = 'a foo = ..
+type ('a : any) foo1 = 'a foo = ..
 |}]
 
 type 'a foo2 = 'a foo = ..
 ;;
 [%%expect {|
-type 'a foo2 = 'a foo = ..
+type ('a : any) foo2 = 'a foo = ..
 |}]
 
 type 'a foo1 +=
@@ -527,7 +530,7 @@ type 'a foo2 += D of int | E of 'a | F : int foo2
 type +'a foo = ..
 ;;
 [%%expect {|
-type +'a foo = ..
+type (+'a : any) foo = ..
 |}]
 
 type 'a foo += A of (int -> 'a)
@@ -561,7 +564,7 @@ Error: In this definition, expected parameter variances are not satisfied.
 type 'a bar = ..
 ;;
 [%%expect {|
-type 'a bar = ..
+type ('a : any) bar = ..
 |}]
 
 type +'a bar += D of (int -> 'a)

@@ -18,7 +18,9 @@ let f (Aux x) =
   | _ -> .  (* error *)
 ;;
 [%%expect{|
-type _ nat = Zero : [ `Zero ] nat | Succ : 'a nat -> [ `Succ of 'a ] nat
+type (_ : any) nat =
+    Zero : [ `Zero ] nat
+  | Succ : 'a nat -> [ `Succ of 'a ] nat
 type 'a pre_nat = [ `Succ of 'a | `Zero ]
 type aux =
     Aux :

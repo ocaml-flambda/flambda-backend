@@ -18,6 +18,9 @@ let of_type: type a. a -> a = fun x ->
 ;;
 [%%expect{|
 module B :
-  sig type (_, _) t = Eq : ('a, 'a) t val f : 'a -> 'b -> ('a, 'b) t end
+  sig
+    type (_ : any, _ : any) t = Eq : ('a, 'a) t
+    val f : 'a -> 'b -> ('a, 'b) t
+  end
 val of_type : 'a -> 'a = <fun>
 |}];;

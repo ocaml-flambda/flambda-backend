@@ -422,7 +422,7 @@ module Indexed_monad :
   sig
     type opened = private Opened
     type closed = private Closed
-    type (_, _, _) t =
+    type (_ : any, _ : any, _ : any) t =
         Return : 'a -> ('s, 's, 'a) t
       | Map : ('s1, 's2, 'a) t * ('a -> 'b) -> ('s1, 's2, 'b) t
       | Both : ('s1, 's2, 'a) t * ('s2, 's3, 'b) t -> ('s1, 's3, 'a * 'b) t
@@ -438,7 +438,7 @@ module Indexed_monad :
     val open_ : string -> (closed, opened, unit) t
     val read : (opened, opened, string) t
     val close : (opened, closed, unit) t
-    type 'a state =
+    type ('a : any) state =
         Opened : in_channel -> opened state
       | Closed : closed state
     val run : (closed, closed, 'a) t -> 'a
@@ -686,7 +686,7 @@ end;;
 module GADT_ordering :
   sig
     type point = { x : int; y : int; }
-    type _ is_point = Is_point : point is_point
+    type (_ : any) is_point = Is_point : point is_point
     val ( let+ ) : 'a -> ('a -> 'b) -> 'b
     val ( and+ ) : 'a -> 'b -> 'a * 'b
   end

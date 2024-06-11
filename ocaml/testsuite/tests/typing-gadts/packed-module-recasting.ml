@@ -4,7 +4,7 @@
 
 type (_, _) eq = Refl : ('a, 'a) eq;;
 [%%expect {|
-type (_, _) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 |}]
 
 module type S = sig
@@ -394,7 +394,7 @@ module type S = sig type t end
 type pack = Pack : 'a t * (module S with type t = 'a) -> pack
 val dispatch : pack list ref = {contents = []}
 exception Not_registered
-type (_, _) equal = Refl : 'a -> ('a, 'a) equal
+type (_ : any, _ : any) equal = Refl : 'a -> ('a, 'a) equal
 type equality = { equal : 'a 'b. 'a t * 'b t -> ('a t, 'b t) equal option; }
 val equal : equality ref = {contents = {equal = <fun>}}
 val get : 'a t -> (module S with type t = 'a) = <fun>

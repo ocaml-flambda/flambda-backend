@@ -8,7 +8,7 @@ type _ t =
 ;;
 
 [%%expect{|
-type _ t = IntLit : int t | BoolLit : bool t
+type (_ : any) t = IntLit : int t | BoolLit : bool t
 |}]
 
 let trivial t =
@@ -352,7 +352,7 @@ type _ gadt_opt =
   | GSome : 'a -> 'a gadt_opt
 ;;
 [%%expect{|
-type _ gadt_opt = GNone : 'a gadt_opt | GSome : 'a -> 'a gadt_opt
+type (_ : any) gadt_opt = GNone : 'a gadt_opt | GSome : 'a -> 'a gadt_opt
 |}]
 
 let simple_merged_annotated_under_gadt_constructor (type a) (pair : a t * a) =
@@ -425,7 +425,7 @@ type _ t2 =
   | Bool : bool -> bool t2
 
 [%%expect{|
-type _ t2 = Int : int -> int t2 | Bool : bool -> bool t2
+type (_ : any) t2 = Int : int -> int t2 | Bool : bool -> bool t2
 |}]
 
 let trivial2 t2 =
@@ -600,7 +600,7 @@ type _ t3 =
   | B : int t3
 
 [%%expect{|
-type _ t3 = A : int t3 | B : int t3
+type (_ : any) t3 = A : int t3 | B : int t3
 |}]
 
 (* This was always allowed as the branches can unify. *)
@@ -660,14 +660,14 @@ type a = [ `A ] cased
 [%%expect{|
 type any = [ `A | `B | `C | `D | `E | `F ]
 type voyel = [ `A | `E ]
-type _ letter =
+type (_ : any) letter =
     A : [< any > `A ] letter
   | B : [< any > `B ] letter
   | C : [< any > `C ] letter
   | D : [< any > `D ] letter
   | E : [< any > `E ] letter
   | F : [< any > `F ] letter
-type _ cased =
+type (_ : any) cased =
     Up : 'a letter -> ([< any ] as 'a) cased
   | Lo : 'a letter -> ([< any ] as 'a) cased
 type gvoyel = voyel cased

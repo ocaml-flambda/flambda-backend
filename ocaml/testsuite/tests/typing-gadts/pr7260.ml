@@ -17,7 +17,7 @@ class foo =
 
 [%%expect{|
 type bar = < bar : unit >
-type _ ty = Int : int ty
+type (_ : any) ty = Int : int ty
 type dyn = Dyn : 'a ty -> dyn
 Lines 8-12, characters 2-5:
  8 | ..object (this)

@@ -7,7 +7,7 @@
 type 'a t = 'a;;
 let f (g : 'a list -> 'a t -> 'a) s = g s s;;
 [%%expect{|
-type 'a t = 'a
+type ('a : any) t = 'a
 Line 2, characters 42-43:
 2 | let f (g : 'a list -> 'a t -> 'a) s = g s s;;
                                               ^

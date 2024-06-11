@@ -1970,7 +1970,7 @@ Error: The functor application is ill-typed.
        do not match these parameters:
          functor (X : $T1) (Y : $T2) -> ...
        1. Modules do not match:
-            $S1 : sig type t type 'a s = 'a end
+            $S1 : sig type t type ('a : any) s = 'a end
           is not included in
             $T1 = sig type 'a t type 'a s end
           Type declarations do not match: type t is not included in type 'a t

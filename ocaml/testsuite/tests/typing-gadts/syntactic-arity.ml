@@ -6,7 +6,7 @@ type nothing = |
 type (_, _) eq = Eq : ('a, 'a) eq
 [%%expect{|
 type nothing = |
-type (_, _) eq = Eq : ('a, 'a) eq
+type (_ : any, _ : any) eq = Eq : ('a, 'a) eq
 |}];;
 
 (* This definition is a bit unusual, as [type a] is unified with a function type.
@@ -88,7 +88,9 @@ let ok (type a) (Eq : (a, int -> int) eq_or_not) : a =
   function x -> x + 1;;
 
 [%%expect{|
-type (_, _) eq_or_not = Eq : ('a, 'a) eq_or_not | Neq : ('a, 'b) eq_or_not
+type (_ : any, _ : any) eq_or_not =
+    Eq : ('a, 'a) eq_or_not
+  | Neq : ('a, 'b) eq_or_not
 Line 5, characters 16-48:
 5 | let ok (type a) (Eq : (a, int -> int) eq_or_not) : a =
                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

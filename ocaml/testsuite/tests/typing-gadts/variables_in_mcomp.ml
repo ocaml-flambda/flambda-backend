@@ -19,8 +19,8 @@ let f (x : (M.t, N.t) eq)=
   | Refl -> ()
 
 [%%expect{|
-module M : sig type 'a s = 'a type t = T : 'a s -> t end
-module N : sig type 'a s = 'a type t = T : 'a s -> t end
-type (_, _) eq = Refl : ('a, 'a) eq
+module M : sig type ('a : any) s = 'a type t = T : 'a s -> t end
+module N : sig type ('a : any) s = 'a type t = T : 'a s -> t end
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 val f : (M.t, N.t) eq -> unit = <fun>
 |}]

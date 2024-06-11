@@ -2370,10 +2370,10 @@ module F (X : sig val foo : (float -> string) inv end) : sig
   val foo : (float -> local_ string) inv
 end = X;;
 [%%expect{|
-type 'a inv = Inv of ('a -> 'a)
+type ('a : any) inv = Inv of ('a -> 'a)
 type 'a co = Co of 'a
-type 'a contra = Contra of ('a -> int)
-type 'a bi = Bi
+type ('a : any) contra = Contra of ('a -> int)
+type ('a : any) bi = Bi
 Line 8, characters 6-7:
 8 | end = X;;
           ^

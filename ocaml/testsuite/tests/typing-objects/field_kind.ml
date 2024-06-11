@@ -4,7 +4,7 @@
 
 type _ t = Int : int t;;
 [%%expect{|
-type _ t = Int : int t
+type (_ : any) t = Int : int t
 |}]
 
 let o =

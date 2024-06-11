@@ -12,7 +12,8 @@ let test =
   match k, v with
   | M.Soa, soa -> (soa : int)
 [%%expect{|
-module M : sig type _ rr = Soa : int rr type b = B : 'a rr * 'a -> b end
+module M :
+  sig type (_ : any) rr = Soa : int rr type b = B : 'a rr * 'a -> b end
 val test : int = 0
 |}]
 
@@ -28,7 +29,7 @@ val test : int = 0
 type _ ty = Int : int ty
 type dyn = Dyn : 'a ty * 'a -> dyn
 [%%expect{|
-type _ ty = Int : int ty
+type (_ : any) ty = Int : int ty
 type dyn = Dyn : 'a ty * 'a -> dyn
 |}]
 

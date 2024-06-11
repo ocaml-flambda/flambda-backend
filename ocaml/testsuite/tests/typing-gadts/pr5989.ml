@@ -23,7 +23,7 @@ let f : (M.s, [`A | `B]) t -> string = function
 
 let () = print_endline (f M.eq) ;;
 [%%expect{|
-type (_, _) t = Any : ('a, 'b) t | Eq : ('a, 'a) t
+type (_ : any, _ : any) t = Any : ('a, 'b) t | Eq : ('a, 'a) t
 module M : sig type s = private [> `A ] val eq : (s, [ `A | `B ]) t end
 Lines 16-17, characters 39-16:
 16 | .......................................function

@@ -16,7 +16,7 @@ let f l = { fold = List.fold_left l };;
 (f [1;2;3]).fold ~f:(+) ~init:0;;
 [%%expect {|
 type 'a t = { t : 'a; }
-type 'a fold = { fold : 'b. f:('b -> 'a -> 'b) -> init:'b -> 'b; }
+type ('a : any) fold = { fold : 'b. f:('b -> 'a -> 'b) -> init:'b -> 'b; }
 val f : 'a list -> 'a fold = <fun>
 - : int = 6
 |}];;
@@ -631,7 +631,7 @@ type 'a foo = 'a foo bar
 ;;
 [%%expect {|
 class ['a] bar : 'a -> object  end
-type 'a foo = 'a foo bar
+type ('a : any) foo = 'a foo bar
 |}];;
 
 fun x -> (x : < m : 'a. 'a * 'b > as 'b)#m;;
@@ -782,7 +782,7 @@ type 'a t = unit
 class o = object method x : 'a. ([> `A] as 'a) t -> unit = fun _ -> () end
 ;;
 [%%expect {|
-type 'a t = unit
+type ('a : any) t = unit
 class o : object method x : unit -> unit end
 |}];;
 
@@ -930,17 +930,14 @@ type t = [ `A of t a ]
 (* Wrong in 3.06 *)
 type ('a,'b) t constraint 'a = 'b and ('a,'b) u = ('a,'b) t;;
 [%%expect {|
-Line 1, characters 50-59:
-1 | type ('a,'b) t constraint 'a = 'b and ('a,'b) u = ('a,'b) t;;
-                                                      ^^^^^^^^^
-Error: Constraints are not satisfied in this type.
-       Type ('a, 'b) t should be an instance of ('c, 'c) t
+type ('b, 'a) t constraint 'a = 'b
+and ('a, 'b : any) u = ('a, 'b) t
 |}];;
 
 (* Full polymorphism if we do not expand *)
 type 'a t = 'a and u = int t;;
 [%%expect {|
-type 'a t = 'a
+type ('a : any) t = 'a
 and u = int t
 |}];;
 
@@ -1006,7 +1003,7 @@ Error: This recursive type is not regular.
 type 'a t = 'a
 type 'a u = A of 'a t;;
 [%%expect {|
-type 'a t = 'a
+type ('a : any) t = 'a
 type 'a u = A of 'a t
 |}];;
 
@@ -1348,7 +1345,7 @@ type 'a u = c option;;
 let just = function None -> failwith "just" | Some x -> x;;
 let f x = let l = [Some x; (None : _ u)] in (just(List.hd l))#id;;
 [%%expect {|
-type 'a u = c option
+type ('a : any) u = c option
 val just : 'a option -> 'a = <fun>
 val f : c -> 'a -> 'a = <fun>
 |}];;
@@ -1466,7 +1463,7 @@ end;;
 [%%expect {|
 module Polux :
   sig
-    type 'par t = 'par
+    type ('par : any) t = 'par
     val ident : 'a -> 'a
     class alias : object method alias : 'a t -> 'a end
     val f : < m : 'a. 'a t > -> < m : 'a. 'a >
@@ -1631,8 +1628,8 @@ type (+'a,-'b) foo = private int;;
 let f (x : int) : ('a,'a) foo = Obj.magic x;;
 let x = f 3;;
 [%%expect{|
-type (+'a, -'b) foo = private int
-val f : int -> ('a, 'a) foo = <fun>
+type (+'a : any, -'b : any) foo = private int
+val f : ('a : any). int -> ('a, 'a) foo = <fun>
 val x : ('_weak1, '_weak1) foo = 3
 |}]
 
@@ -1656,7 +1653,7 @@ let c (f : u -> u) =
  end;;
 [%%expect{|
 type u
-type 'a t = u
+type ('a : any) t = u
 val c : (u -> u) -> < apply : 'a. u -> u > = <fun>
 |}]
 
@@ -1861,7 +1858,7 @@ class type ['x] c = object
   method x : 'x list
 end
 [%%expect{|
-type 'a s = S
+type ('a : any) s = S
 class type ['x] c = object method x : 'x list end
 |}]
 
@@ -1899,7 +1896,7 @@ Error: This expression has type u but an expression was expected of type v
 
 type 'a s = private int
 [%%expect{|
-type 'a s = private int
+type ('a : any) s = private int
 |}]
 let x : 'a c = object
   method x : 'b . 'b s list = []
@@ -1957,7 +1954,7 @@ let locally_abstract: type a. a w -> [> `X of a ] -> a = fun Int ->
   | `X x -> x
   | _ -> 0
 [%%expect {|
-type 'a w = Int : int w
+type ('a : any) w = Int : int w
 val locally_abstract : 'a w -> [> `X of 'a ] -> 'a = <fun>
 |}]
 

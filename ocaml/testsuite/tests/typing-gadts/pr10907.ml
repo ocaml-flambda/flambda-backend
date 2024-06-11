@@ -5,7 +5,7 @@
 (* from @dyzsr *)
 type 'a t = T : ('a -> 'b) * ('b -> 'a) -> 'a t;;
 [%%expect{|
-type 'a t = T : ('a -> 'b) * ('b -> 'a) -> 'a t
+type ('a : any) t = T : ('a -> 'b) * ('b -> 'a) -> 'a t
 |}]
 
 let t = T ((fun x -> x), (fun x -> x));;
@@ -31,8 +31,8 @@ type ('a, 'b) iso = ('a -> 'b) * ('b -> 'a)
 (* exists 'b. ('a, 'b) iso *)
 type 'a some_iso = Iso : ('a, 'b) iso -> 'a some_iso
 [%%expect{|
-type ('a, 'b) iso = ('a -> 'b) * ('b -> 'a)
-type 'a some_iso = Iso : ('a, 'b) iso -> 'a some_iso
+type ('a : any, 'b : any) iso = ('a -> 'b) * ('b -> 'a)
+type ('a : any) some_iso = Iso : ('a, 'b) iso -> 'a some_iso
 |}]
 
 (* forall 'a. exists 'b. ('a, 'b) iso *)

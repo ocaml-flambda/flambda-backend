@@ -10,7 +10,7 @@ let _ = f (T (`Conj `B) :> s t);; (* warn *)
 [%%expect{|
 type s = [ `A | `B ]
 and sub = [ `B ]
-type +'a t = T : [< `Conj of 'a & sub | `Other of string ] -> 'a t
+type (+'a : any) t = T : [< `Conj of 'a & sub | `Other of string ] -> 'a t
 Line 4, characters 6-28:
 4 | let f (T (`Other msg) : s t) = print_string msg;;
           ^^^^^^^^^^^^^^^^^^^^^^

@@ -56,7 +56,7 @@ end;;
 module M = F(struct type t let compare = compare end);;
 module type S = module type of M;;
 [%%expect{|
-type (_, _) eq = Eq : ('a, 'a) eq
+type (_ : any, _ : any) eq = Eq : ('a, 'a) eq
 module F :
   functor (X : Set.OrderedType) ->
     sig

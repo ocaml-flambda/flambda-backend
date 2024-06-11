@@ -9,7 +9,7 @@ module M : sig type t = A | B end
 
 type 'a t = I : int t | M : M.t t;;
 [%%expect{|
-type 'a t = I : int t | M : M.t t
+type ('a : any) t = I : int t | M : M.t t
 |}];;
 
 type dyn = Sigma : 'a t * 'a -> dyn;;
@@ -31,7 +31,7 @@ val f : dyn -> unit = <fun>
 
 type _ t = IntLit : int t | BoolLit : bool t;;
 [%%expect{|
-type _ t = IntLit : int t | BoolLit : bool t
+type (_ : any) t = IntLit : int t | BoolLit : bool t
 |}]
 
 (* The following should warn *)
@@ -123,8 +123,9 @@ end = struct
   type _ t = AB : unit ab t | MAB : unit mab t
 end;;
 [%%expect{|
-type _ ab = A | B
-module M : sig type _ mab type _ t = AB : unit ab t | MAB : unit mab t end
+type (_ : any) ab = A | B
+module M :
+  sig type _ mab type (_ : any) t = AB : unit ab t | MAB : unit mab t end
 |}]
 
 open M;;
@@ -191,7 +192,7 @@ val f3 : unit ab M.t -> bool = <fun>
 (* Example showing we need to warn when any part of the type is non generic. *)
 type (_,_) eq = Refl : ('a,'a) eq;;
 [%%expect{|
-type (_, _) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 |}]
 
 let g1 (type x) (e : (x, int option) eq) (x : x) : int option =
@@ -229,7 +230,7 @@ type _ gadt = F : Foo.t gadt
 type  'a t = { a: 'a; b: 'a gadt } ;;
 [%%expect{|
 module Foo : sig type t end
-type _ gadt = F : Foo.t gadt
+type (_ : any) gadt = F : Foo.t gadt
 type 'a t = { a : 'a; b : 'a gadt; }
 |}]
 
@@ -263,7 +264,7 @@ type (_, _, _) eq3 = Refl3 : ('a, 'a, 'a) eq3
 type  'a t = { a: 'a; b: (int, Foo.t, 'a) eq3 }
 ;;
 [%%expect{|
-type (_, _, _) eq3 = Refl3 : ('a, 'a, 'a) eq3
+type (_ : any, _ : any, _ : any) eq3 = Refl3 : ('a, 'a, 'a) eq3
 type 'a t = { a : 'a; b : (int, Foo.t, 'a) eq3; }
 |}]
 
@@ -462,7 +463,7 @@ type ('a, 'b) eq = Refl : ('a, 'a) eq
 [%%expect{|
 type t
 type u = private t
-type ('a, 'b) eq = Refl : ('a, 'a) eq
+type ('a : any, 'b : any) eq = Refl : ('a, 'a) eq
 |}]
 
 let foo (type s) x (Refl : (s, u) eq) =

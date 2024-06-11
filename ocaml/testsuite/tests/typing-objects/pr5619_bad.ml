@@ -14,7 +14,7 @@ type 'a name =
 
 [%%expect{|
 class type foo_t = object method foo : string end
-type 'a name = Foo : foo_t name | Int : int name
+type ('a : any) name = Foo : foo_t name | Int : int name
 |}]
 
 class foo =

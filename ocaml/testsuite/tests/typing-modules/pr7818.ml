@@ -229,7 +229,7 @@ module rec M1 : S' with module Term0 := Asc and module T := Desc = M1;;
 (* And now we have a witness of MkT(Asc).t = MkT(Desc).t ... *)
 let (E eq : M1.u) = (E Eq : M1.t);;
 [%%expect{|
-type (_, _) eq = Eq : ('a, 'a) eq
+type (_ : any, _ : any) eq = Eq : ('a, 'a) eq
 module MkT :
   functor (X : Set.OrderedType) ->
     sig

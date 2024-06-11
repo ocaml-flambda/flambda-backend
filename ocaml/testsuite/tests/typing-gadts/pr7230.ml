@@ -8,6 +8,6 @@ type _ t = T : int t;;
 let _ = match (raise Not_found : float t) with _ -> .;;
 
 [%%expect{|
-type _ t = T : int t
+type (_ : any) t = T : int t
 Exception: Not_found.
 |}];;

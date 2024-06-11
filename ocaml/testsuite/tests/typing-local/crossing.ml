@@ -359,7 +359,7 @@ let f (type a) (x : a t_gadt) (y : a) =
   match x with
     Int -> { fld = y }.fld
 [%%expect{|
-type _ t_gadt = Int : int t_gadt
+type (_ : any) t_gadt = Int : int t_gadt
 type 'a t_rec = { fld : 'a; }
 val f : 'a t_gadt -> 'a -> 'a = <fun>
 |}]

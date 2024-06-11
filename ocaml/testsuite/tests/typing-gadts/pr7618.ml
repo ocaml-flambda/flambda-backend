@@ -8,7 +8,7 @@ let f (type a) (x : a t) (y : int) =
   | I, (_:a) -> ()
 ;;
 [%%expect{|
-type _ t = I : int t
+type (_ : any) t = I : int t
 val f : 'a t -> int -> unit = <fun>
 |}]
 
@@ -18,7 +18,7 @@ let ok (type a b) (x : (a, b) eq) =
   | Refl, [(_ : a) | (_ : b)] -> []
 ;;
 [%%expect{|
-type ('a, 'b) eq = Refl : ('a, 'a) eq
+type ('a : any, 'b : any) eq = Refl : ('a, 'a) eq
 Line 4, characters 4-29:
 4 |   | Refl, [(_ : a) | (_ : b)] -> []
         ^^^^^^^^^^^^^^^^^^^^^^^^^

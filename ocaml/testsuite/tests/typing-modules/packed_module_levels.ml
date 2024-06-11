@@ -18,10 +18,10 @@ let repack (type q) (x : q packed) : q modu =
     (module M)
 
 [%%expect{|
-type (_, _) equ = Refl : ('q, 'q) equ
+type (_ : any, _ : any) equ = Refl : ('q, 'q) equ
 module type Ty = sig type t end
 type 'a modu = (module Ty with type t = 'a)
-type 'q1 packed = P : 'q0 modu * ('q0, 'q1) equ -> 'q1 packed
+type ('q1 : any) packed = P : 'q0 modu * ('q0, 'q1) equ -> 'q1 packed
 val repack : 'q packed -> 'q modu = <fun>
 |}]
 

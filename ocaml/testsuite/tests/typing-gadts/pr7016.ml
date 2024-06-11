@@ -8,7 +8,7 @@ type (_, _) t =
 
 let get1 (Cons (x, _) : (_ * 'a, 'a) t) = x ;; (* warn, cf PR#6993 *)
 [%%expect{|
-type (_, _) t =
+type (_ : any, _ : any) t =
     Nil : ('tl, 'tl) t
   | Cons : 'a * ('b, 'tl) t -> ('a * 'b, 'tl) t
 Line 5, characters 9-39:

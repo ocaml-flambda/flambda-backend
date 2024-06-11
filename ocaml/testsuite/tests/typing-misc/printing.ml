@@ -27,7 +27,7 @@ val f : 'Id_arg -> 'Id_arg = <fun>
 type 'a id = 'a
 let f (x : [< [`Foo] id]) = ();;
 [%%expect{|
-type 'a id = 'a
+type ('a : any) id = 'a
 val f : [< [ `Foo ] id ] -> unit = <fun>
 |}];;
 
@@ -49,7 +49,7 @@ val f : [< G.t ] -> G.t = <fun>
 
 type (+' a', -' a'b, 'cd') t = ' a'b -> ' a'  * 'cd';;
 [%%expect{|
-type (' a', ' a'b, 'cd') t = ' a'b -> ' a' * 'cd'
+type (' a', ' a'b : any, 'cd') t = ' a'b -> ' a' * 'cd'
 |}];;
 
 
@@ -74,7 +74,7 @@ type t = <m : int * 't> as 't
 let f (x:t) (type a) (y:a) (witness:(a,t) eq) = match witness with
   | Refl -> if true then x else y
 [%%expect {|
-type ('a, 'b) eq = Refl : ('a, 'a) eq
+type ('a : any, 'b : any) eq = Refl : ('a, 'a) eq
 type t = < m : int * 'a > as 'a
 Line 4, characters 32-33:
 4 |   | Refl -> if true then x else y

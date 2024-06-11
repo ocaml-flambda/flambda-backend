@@ -1,6 +1,6 @@
 type t = [ `A | `B ]
-type 'a u = t
+type ('a : any) u = t
 val a : [< t > `A ] = `A
-type 'a s = 'a
+type ('a : any) s = 'a
 val b : [< t > `B ] = `B
 

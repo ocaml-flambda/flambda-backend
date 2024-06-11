@@ -11,7 +11,7 @@ Line 1, characters 14-15:
                   ^
 Error: The field a is not part of the record argument for the t.A constructor
 val f : unit -> t = <fun>
-type _ t = A : { x : 'a; y : 'b; } -> 'a t
+type (_ : any) t = A : { x : 'a; y : 'b; } -> 'a t
 val f : 'a t -> 'a t = <fun>
 val f : 'a t -> 'a t = <fun>
 module M :
@@ -52,7 +52,7 @@ Line 3, characters 15-28:
                    ^^^^^^^^^^^^^
 Error: Multiple definition of the extension constructor name A.
        Names must be unique in a given structure or signature.
-type _ c = C : [ `A ] c
+type (_ : any) c = C : [ `A ] c
 type t = T : { x : [< `A ] c; } -> t
 val f : t -> unit = <fun>
 

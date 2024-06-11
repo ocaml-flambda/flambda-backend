@@ -34,7 +34,7 @@ module Exp =
 [%%expect{|
 module Exp :
   sig
-    type _ t =
+    type (_ : any) t =
         IntLit : int -> int t
       | BoolLit : bool -> bool t
       | Pair : 'a t * 'b t -> ('a * 'b) t
@@ -67,7 +67,7 @@ module List =
 module List :
   sig
     type zero
-    type _ t = Nil : zero t | Cons : 'a * 'b t -> ('a * 'b) t
+    type (_ : any) t = Nil : zero t | Cons : 'a * 'b t -> ('a * 'b) t
     val head : ('a * 'b) t -> 'a
     val tail : ('a * 'b) t -> 'b t
     val length : 'a t -> int
@@ -120,11 +120,11 @@ Here is an example of a case that is not matched:
 
 module Nonexhaustive :
   sig
-    type 'a u = C1 : int -> int u | C2 : bool -> bool u
-    type 'a v = C1 : int -> int v
+    type ('a : any) u = C1 : int -> int u | C2 : bool -> bool u
+    type ('a : any) v = C1 : int -> int v
     val unexhaustive : 's u -> 's
     module M : sig type t type u end
-    type 'a t = Foo : M.t -> M.t t | Bar : M.u -> M.u t
+    type ('a : any) t = Foo : M.t -> M.t t | Bar : M.u -> M.u t
     val same_type : 's t * 's t -> bool
   end
 |}];;
@@ -148,7 +148,7 @@ module Exhaustive :
   sig
     type t = int
     type u = bool
-    type 'a v = Foo : t -> t v | Bar : u -> u v
+    type ('a : any) v = Foo : t -> t v | Bar : u -> u v
     val same_type : 's v * 's v -> bool
   end
 |}];;
@@ -176,7 +176,7 @@ Nothing
 module PR6862 :
   sig
     class c : int option -> object method x : int end
-    type _ opt = Just : 'a -> 'a opt | Nothing : 'a opt
+    type (_ : any) opt = Just : 'a -> 'a opt | Nothing : 'a opt
     class d : int opt -> object method x : int end
   end
 |}];;
@@ -187,7 +187,7 @@ module Exhaustive2 = struct
 end;;
 [%%expect{|
 module Exhaustive2 :
-  sig type _ t = Int : int t val f : bool t option -> unit end
+  sig type (_ : any) t = Int : int t val f : bool t option -> unit end
 |}];;
 
 module PR6220 = struct
@@ -204,7 +204,7 @@ Consider replacing it with a refutation case '<pat> -> .'
 
 module PR6220 :
   sig
-    type 'a t = I : int t | F : float t
+    type ('a : any) t = I : int t | F : float t
     val f : int t -> int
     val g : int t -> int
   end
@@ -221,7 +221,7 @@ end;;
 [%%expect{|
 module PR6403 :
   sig
-    type (_, _) eq = Refl : ('a, 'a) eq
+    type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
     type empty = { bottom : 'a. 'a; }
     type ('a, 'b) sum = Left of 'a | Right of 'b
     val notequal : ((int, bool) eq, empty) sum -> empty
@@ -246,10 +246,10 @@ end;;
 [%%expect{|
 module PR6437 :
   sig
-    type ('a, 'b) ctx =
+    type ('a : any, 'b : any) ctx =
         Nil : (unit, unit) ctx
       | Cons : ('a, 'b) ctx -> ('a * unit, 'b * unit) ctx
-    type 'a var = O : ('a * unit) var | S : 'a var -> ('a * unit) var
+    type ('a : any) var = O : ('a * unit) var | S : 'a var -> ('a * unit) var
     val f : ('g1, 'g2) ctx * 'g1 var -> 'g2 var
   end
 |}];;
@@ -274,7 +274,7 @@ Any
 
 module PR6801 :
   sig
-    type _ value =
+    type (_ : any) value =
         String : string -> string value
       | Float : float -> float value
       | Any
@@ -307,7 +307,10 @@ module Rectype =
 ;;
 [%%expect{|
 module Rectype :
-  sig type (_, _) t = C : ('a, 'a) t val f : ('s, 's * 's) t -> unit end
+  sig
+    type (_ : any, _ : any) t = C : ('a, 'a) t
+    val f : ('s, 's * 's) t -> unit
+  end
 |}];;
 
 module Or_patterns =
@@ -325,7 +328,7 @@ end
 [%%expect{|
 module Or_patterns :
   sig
-    type _ t = IntLit : int -> int t | BoolLit : bool -> bool t
+    type (_ : any) t = IntLit : int -> int t | BoolLit : bool -> bool t
     val eval : 's t -> unit
   end
 |}];;
@@ -345,7 +348,7 @@ module Polymorphic_variants =
 [%%expect{|
 module Polymorphic_variants :
   sig
-    type _ t = IntLit : int -> int t | BoolLit : bool -> bool t
+    type (_ : any) t = IntLit : int -> int t | BoolLit : bool -> bool t
     val eval : [ `A ] * 's t -> unit
   end
 |}];;
@@ -369,7 +372,7 @@ end
 [%%expect{|
 module Propagation :
   sig
-    type _ t = IntLit : int -> int t | BoolLit : bool -> bool t
+    type (_ : any) t = IntLit : int -> int t | BoolLit : bool -> bool t
     val check : 's t -> 's
   end
 |}, Principal{|
@@ -418,7 +421,7 @@ let test : type a. a t -> a =
   function Int -> ky (1 : a) 1
 ;;
 [%%expect{|
-type _ t = Int : int t
+type (_ : any) t = Int : int t
 val ky : 'a -> 'a -> 'a = <fun>
 val test : 'a t -> 'a = <fun>
 |}];;
@@ -665,7 +668,7 @@ let f : type a. a h -> a = function
   | Has_b -> object method b = true end
 ;;
 [%%expect{|
-type _ h = Has_m : < m : int > h | Has_b : < b : bool > h
+type (_ : any) h = Has_m : < m : int > h | Has_b : < b : bool > h
 val f : 'a h -> 'a = <fun>
 |}];;
 
@@ -678,7 +681,7 @@ let f : type a. a j -> a = function
   | Has_B -> `B true
 ;;
 [%%expect{|
-type _ j = Has_A : [ `A of int ] j | Has_B : [ `B of bool ] j
+type (_ : any) j = Has_A : [ `A of int ] j | Has_B : [ `B of bool ] j
 val f : 'a j -> 'a = <fun>
 |}];;
 
@@ -688,7 +691,7 @@ let f : type a b. (a,b) eq -> (<m : a; ..> as 'c) -> (<m : b; ..> as 'c) =
   fun Eq o -> o
 ;; (* fail *)
 [%%expect{|
-type (_, _) eq = Eq : ('a, 'a) eq
+type (_ : any, _ : any) eq = Eq : ('a, 'a) eq
 Line 3, characters 18-72:
 3 | let f : type a b. (a,b) eq -> (<m : a; ..> as 'c) -> (<m : b; ..> as 'c) =
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -905,7 +908,7 @@ let f : type a. a ty -> a t -> int = fun x y ->
 ;;
 [%%expect{|
 type 'a t = A of int | B of bool | C of float | D of 'a
-type _ ty =
+type (_ : any) ty =
     TE : 'a ty -> 'a array ty
   | TA : int ty
   | TB : bool ty
@@ -1050,7 +1053,7 @@ let f : type a. a t -> a = function
 
 f V1;;
 [%%expect{|
-type _ t = V1 : [ `A | `B ] t | V2 : [ `C | `D ] t
+type (_ : any) t = V1 : [ `A | `B ] t | V2 : [ `C | `D ] t
 val f : 'a t -> 'a = <fun>
 - : [ `A | `B ] = `A
 |}];;
@@ -1069,8 +1072,8 @@ let g (type t) (x:t) (e : t int_foo) (e' : t int_bar) =
   (x:<foo:int>)
 ;;
 [%%expect{|
-type _ int_foo = IF_constr : < foo : int; .. > int_foo
-type _ int_bar = IB_constr : < bar : int; .. > int_bar
+type (_ : any) int_foo = IF_constr : < foo : int; .. > int_foo
+type (_ : any) int_bar = IB_constr : < bar : int; .. > int_bar
 Line 10, characters 3-4:
 10 |   (x:<foo:int>)
         ^
@@ -1149,7 +1152,7 @@ let g : type a. a ty -> a =
   let () = () in
   fun x -> match x with Int y -> y;;
 [%%expect{|
-type 'a ty = Int : int -> int ty
+type ('a : any) ty = Int : int -> int ty
 val f : 'a ty -> 'a = <fun>
 val g : 'a ty -> 'a = <fun>
 |}];;
@@ -1160,8 +1163,8 @@ module M = struct type _ t = int end;;
 module M = struct type _ t = T : int t end;;
 module N = M;;
 [%%expect{|
-module M : sig type _ t = int end
-module M : sig type _ t = T : int t end
+module M : sig type (_ : any) t = int end
+module M : sig type (_ : any) t = T : int t end
 module N = M
 |}];;
 
@@ -1262,7 +1265,7 @@ let f (x:M.t) (y: (M.t, int -> int) eq) =
   if true then x else fun x -> x + 1
 [%%expect{|
 module M : sig type t end
-type (_, _) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 Line 7, characters 22-36:
 7 |   if true then x else fun x -> x + 1
                           ^^^^^^^^^^^^^^
@@ -1282,7 +1285,7 @@ let f (x:M.t) (y: (M.t, int -> int) eq) =
   if true then fun x -> x + 1 else x
 [%%expect{|
 module M : sig type t end
-type (_, _) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 Line 7, characters 35-36:
 7 |   if true then fun x -> x + 1 else x
                                        ^
@@ -1302,7 +1305,7 @@ let f w (x:M.t) (y: (M.t, <m:int>) eq) =
   z#m
 [%%expect{|
 module M : sig type t end
-type (_, _) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 Line 8, characters 2-3:
 8 |   z#m
       ^
@@ -1323,7 +1326,7 @@ let f w (x:M.t) (y: (M.t, <m:int>) eq) =
   z#m
 [%%expect{|
 module M : sig type t end
-type (_, _) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 Line 8, characters 2-3:
 8 |   z#m
       ^
@@ -1344,7 +1347,7 @@ let f (C (x,y) : M.t) =
     z#b
   in ()
 [%%expect{|
-type (_, _) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 module M :
   sig
     type t =
@@ -1371,7 +1374,7 @@ let f (C (x,y) : M.t) =
     z#b
   in ()
 [%%expect{|
-type (_, _) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 module M :
   sig
     type t =

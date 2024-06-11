@@ -116,7 +116,7 @@ type extensible = ..
 type 'a t = ..;;
 type _ t += A : int t;;
 [%%expect{|
-type 'a t = ..
+type ('a : any) t = ..
 type _ t += A : int t
 |}];;
 

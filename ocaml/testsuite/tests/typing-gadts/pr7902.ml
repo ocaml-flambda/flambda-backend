@@ -11,7 +11,7 @@ let color : type a b . (a, b) segment -> int = function
   | SegCons SegNil -> 0
   | SegCons _ -> 0
 [%%expect{|
-type ('a, 'b) segment =
+type ('a : any, 'b : any) segment =
     SegNil : ('a, 'a) segment
   | SegCons : ('a * 'a, 'b) segment -> ('a, 'b) segment
 val color : ('a, 'b) segment -> int = <fun>

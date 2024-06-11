@@ -166,8 +166,8 @@ Error: Layout mismatch in checking consistency of mutually recursive groups.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         The layout of 'a t2 is value, because
-           it instantiates an unannotated type parameter of t2, defaulted to layout value.
+         The layout of 'a t2 is any, because
+           it instantiates an unannotated type parameter of t2.
          But the layout of 'a t2 must be a sublayout of immediate, because
            of the definition of t at line 2, characters 2-22.
        A good next step is to add a layout annotation on a parameter to
@@ -191,8 +191,8 @@ Error: Layout mismatch in checking consistency of mutually recursive groups.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         The layout of 'a t2 is value, because
-           it instantiates an unannotated type parameter of t2, defaulted to layout value.
+         The layout of 'a t2 is any, because
+           it instantiates an unannotated type parameter of t2.
          But the layout of 'a t2 must be a sublayout of immediate, because
            of the definition of t at line 2, characters 2-22.
        A good next step is to add a layout annotation on a parameter to

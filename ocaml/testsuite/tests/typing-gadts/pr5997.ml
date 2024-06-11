@@ -19,7 +19,7 @@ end;;
 
 match M.comp with | Diff -> false;;
 [%%expect{|
-type (_, _) comp = Eq : ('a, 'a) comp | Diff : ('a, 'b) comp
+type (_ : any, _ : any) comp = Eq : ('a, 'a) comp | Diff : ('a, 'b) comp
 module U : sig type t = T end
 module M : sig type t = T val comp : (U.t, t) comp end
 Line 16, characters 0-33:

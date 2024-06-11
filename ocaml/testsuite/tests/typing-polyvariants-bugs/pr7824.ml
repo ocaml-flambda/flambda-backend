@@ -56,7 +56,7 @@ let f x =
   | T _ -> (x :> [`A | `C] Element.t)
 ;;
 [%%expect{|
-type _ t = T : 'a -> 'a t
+type (_ : any) t = T : 'a -> 'a t
 val f : [ `A ] Element.t -> [ `A | `C ] Element.t = <fun>
 |}];;
 

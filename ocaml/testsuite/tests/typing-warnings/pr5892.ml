@@ -7,7 +7,7 @@ open CamlinternalOO;;
 
 type _ choice = Left : label choice | Right : tag choice;;
 [%%expect {|
-type _ choice =
+type (_ : any) choice =
     Left : CamlinternalOO.label choice
   | Right : CamlinternalOO.tag choice
 |}]

@@ -14,12 +14,12 @@ let undetected: ('a -> 'b -> nil) t -> 'a n -> 'b n -> unit = fun sh i j ->
 ;;
 
 [%%expect{|
-type +'a n = private int
+type (+'a : any) n = private int
 type nil = private Nil_type
-type (_, _) elt =
+type (_ : any, _ : any) elt =
     Elt_fine : 'nat n -> ('l, 'nat * 'l) elt
   | Elt : 'nat n -> ('l, 'nat -> 'l) elt
-type _ t = Nil : nil t | Cons : ('x, 'fx) elt * 'x t -> 'fx t
+type (_ : any) t = Nil : nil t | Cons : ('x, 'fx) elt * 'x t -> 'fx t
 Line 9, characters 11-18:
 9 |   let Cons(Elt dim, _) = sh in ()
                ^^^^^^^

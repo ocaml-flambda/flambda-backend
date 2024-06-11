@@ -19,10 +19,10 @@ let f : type env a. (env, a) typ -> (env, a) typ -> int = fun ta tb ->
    | _ -> .   (* error *)
 ;;
 [%%expect{|
-type ('env, 'a) var =
+type ('env : any, 'a : any) var =
     Zero : ('a * 'env, 'a) var
   | Succ : ('env, 'a) var -> ('b * 'env, 'a) var
-type ('env, 'a) typ =
+type ('env : any, 'a : any) typ =
     Tint : ('env, int) typ
   | Tbool : ('env, bool) typ
   | Tvar : ('env, 'a) var -> ('env, 'a) typ

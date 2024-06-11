@@ -8,7 +8,7 @@ val print_old : old -> unit = <fun>
 - : old list = [Old(A); Old(B)]
 - : old list = [OA; OB]
 type ('a, 'b) v = D of 'a * 'b
-type 'a printer = Format.formatter -> 'a -> unit
+type ('a : any) printer = Format.formatter -> 'a -> unit
 val print_generic : 'a printer -> 'b printer -> ('a, 'b) v printer = <fun>
 - : (int, t) v list = [D<0, ~A>; D<42, ~B>]
 Unbound value name_that_does_not_exist.

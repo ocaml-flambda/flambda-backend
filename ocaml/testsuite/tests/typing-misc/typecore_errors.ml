@@ -422,7 +422,7 @@ let x  = function
   | Y  -> ()
 
 [%%expect{|
-type 'a x = X : [> `azdwbie ] x | Y : [> `c7diagq ] x
+type ('a : any) x = X : [> `azdwbie ] x | Y : [> `c7diagq ] x
 Line 7, characters 4-5:
 7 |   | Y  -> ()
         ^

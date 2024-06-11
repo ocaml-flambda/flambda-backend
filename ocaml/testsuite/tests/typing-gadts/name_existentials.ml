@@ -5,7 +5,7 @@
 type _ ty = Int : int ty
 type dyn = Dyn : 'a ty * 'a -> dyn
 [%%expect{|
-type _ ty = Int : int ty
+type (_ : any) ty = Int : int ty
 type dyn = Dyn : 'a ty * 'a -> dyn
 |}]
 
@@ -69,7 +69,7 @@ let rec eval : type t. t expr -> t = function
   | Add -> (+)
   | App (type a) (f, x : _ * a expr) -> eval f (eval x : a)
 [%%expect{|
-type _ expr =
+type (_ : any) expr =
     Int : int -> int expr
   | Add : (int -> int -> int) expr
   | App : ('a -> 'b) expr * 'a expr -> 'b expr

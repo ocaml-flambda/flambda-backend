@@ -17,7 +17,7 @@ type 'a t += T of 'a
 ;;
 T 123
 [%%expect {|
-type _ t = ..
+type (_ : any) t = ..
 type 'a t += T of 'a
 - : int t = T 123
 |}]

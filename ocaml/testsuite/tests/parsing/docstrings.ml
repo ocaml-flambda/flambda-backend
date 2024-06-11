@@ -616,7 +616,7 @@ type 'a with_default
 type 'a with_default =
   ?size:((int)[@ocaml.doc " default [42] "]) ->
     ?resizable:((bool)[@ocaml.doc " default [true] "]) -> 'a;;
-type 'a with_default = ?size:int -> ?resizable:bool -> 'a
+type ('a : any) with_default = ?size:int -> ?resizable:bool -> 'a
 |}]
 
 type obj = <

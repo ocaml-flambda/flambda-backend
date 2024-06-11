@@ -68,14 +68,14 @@ end;;
 [%%expect {|
 module L :
   sig
-    type _ c = C : unit c
+    type (_ : any) c = C : unit c
     type t = { t : unit c; }
     type r = { r : unit c; }
     val x : unit -> unit
   end
 module K :
   sig
-    type _ c = C : unit c
+    type (_ : any) c = C : unit c
     type t = { t : unit c; }
     type r = { r : unit c; }
     val x : unit -> unit
@@ -121,7 +121,7 @@ module Exterior :
             type wrong = false | true
             val print : unit -> unit
           end
-        type _ t =
+        type (_ : any) t =
             Bool : Boolean.t -> bool t
           | Int : int -> int t
           | Eq : 'a t * 'a t -> bool t
@@ -182,7 +182,7 @@ end
 [%%expect {|
 module S :
   sig
-    type 'a t = Sep : unit t
+    type ('a : any) t = Sep : unit t
     type ex = Ex : 'a * 'a -> ex
     val s : unit t
   end
@@ -237,12 +237,14 @@ module PR6437 :
   sig
     module Ctx :
       sig
-        type ('a, 'b) t =
+        type ('a : any, 'b : any) t =
             Nil : (unit, unit) t
           | Cons : ('a, 'b) t -> ('a * unit, 'b * unit) t
       end
     module Var :
-      sig type 'a t = O : ('a * unit) t | S : 'a t -> ('a * unit) t end
+      sig
+        type ('a : any) t = O : ('a * unit) t | S : 'a t -> ('a * unit) t
+      end
   end
 val f : ('g1, 'g2) PR6437.Ctx.t * 'g1 PR6437.Var.t -> 'g2 PR6437.Var.t =
   <fun>

@@ -24,7 +24,7 @@ Here is an example of a case that is not matched:
 module Add :
   functor (T : sig type two end) ->
     sig
-      type _ t = One : [ `One ] t | Two : T.two t
+      type (_ : any) t = One : [ `One ] t | Two : T.two t
       val add : 'a t * 'a t -> string
     end
 |}];;

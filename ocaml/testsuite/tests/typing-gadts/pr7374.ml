@@ -8,7 +8,7 @@ module type S = sig
   type 'a t constraint 'a = [`Rec of 'b]
 end;;
 [%%expect{|
-type ('a, 'b) eq = Refl : ('a, 'a) eq
+type ('a : any, 'b : any) eq = Refl : ('a, 'a) eq
 module type S = sig type 'a t constraint 'a = [ `Rec of 'b ] end
 |}]
 

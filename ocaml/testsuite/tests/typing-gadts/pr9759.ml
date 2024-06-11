@@ -8,8 +8,8 @@ type 'a general = { indir: 'a desc; unit: unit }
 and 'a desc =
   | C : unit general -> unit desc ;;
 [%%expect{|
-type 'a general = { indir : 'a desc; unit : unit; }
-and 'a desc = C : unit general -> unit desc
+type ('a : any) general = { indir : 'a desc; unit : unit; }
+and ('a : any) desc = C : unit general -> unit desc
 |}]
 
 let rec foo : type k . k general -> k general = fun g ->

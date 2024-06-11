@@ -7,7 +7,7 @@ type 'a t =
   | B: [`b|`z] t
 ;;
 [%%expect{|
-type 'a t = A : [ `a | `z ] t | B : [ `b | `z ] t
+type ('a : any) t = A : [ `a | `z ] t | B : [ `b | `z ] t
 |}];;
 
 let fn: type a. a t -> a -> int = fun x y ->

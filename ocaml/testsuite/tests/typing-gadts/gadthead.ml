@@ -15,7 +15,7 @@ end
 type _ g = I : int g
 [%%expect{|
 module M : sig type t val x : t val print : t -> unit end
-type _ g = I : int g
+type (_ : any) g = I : int g
 |}]
 
 let g (x : M.t) =

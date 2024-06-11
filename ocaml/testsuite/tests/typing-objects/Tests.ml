@@ -210,14 +210,14 @@ Error: This recursive type is not regular.
 type 'a c = <f : 'a c; g : 'a d>
 and 'a d = <f : 'a c>;;
 [%%expect{|
-type 'a c = < f : 'a c; g : 'a d >
-and 'a d = < f : 'a c >
+type ('a : any) c = < f : 'a c; g : 'a d >
+and ('a : any) d = < f : 'a c >
 |}];;
 type 'a c = <f : 'a c>
 and 'a d = <f : int c>;;
 [%%expect{|
-type 'a c = < f : 'a c >
-and 'a d = < f : int c >
+type ('a : any) c = < f : 'a c >
+and ('a : any) d = < f : int c >
 |}];;
 type 'a u = < x : 'a>
 and 'a t = 'a t u;;
@@ -242,7 +242,7 @@ Error: The type abbreviation t is cyclic:
 |}];;
 type 'a u = 'a;;
 [%%expect{|
-type 'a u = 'a
+type ('a : any) u = 'a
 |}];;
 type t = t u * t u;;
 [%%expect{|
@@ -261,7 +261,7 @@ type t = < x : 'a > as 'a
 |}];;
 type 'a u = 'a;;
 [%%expect{|
-type 'a u = 'a
+type ('a : any) u = 'a
 |}];;
 fun (x : t) (y : 'a u) -> x = y;;
 [%%expect{|

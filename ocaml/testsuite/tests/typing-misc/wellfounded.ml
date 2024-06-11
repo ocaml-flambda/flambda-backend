@@ -14,7 +14,7 @@ let f : type t. t prod -> _ = function Prod ->
   in ()
 ;;
 [%%expect{|
-type _ prod = Prod : ('a * 'y) prod
+type (_ : any) prod = Prod : ('a * 'y) prod
 Line 6, characters 6-20:
 6 |       type d = d * d
           ^^^^^^^^^^^^^^

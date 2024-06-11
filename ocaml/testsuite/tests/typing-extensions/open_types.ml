@@ -90,7 +90,7 @@ Error: This variant or record definition does not match that of type bar
 type 'a foo = ..
 ;;
 [%%expect {|
-type 'a foo = ..
+type ('a : any) foo = ..
 |}]
 
 type ('a, 'b) bar = 'a foo = ..
@@ -106,7 +106,7 @@ Error: This variant or record definition does not match that of type 'a foo
 type ('a, 'b) foo = ..
 ;;
 [%%expect {|
-type ('a, 'b) foo = ..
+type ('a : any, 'b : any) foo = ..
 |}]
 
 type ('a, 'b) bar = ('a, 'a) foo = ..
@@ -246,13 +246,15 @@ Error: Signature mismatch:
 module M = struct type +'a foo = .. type 'a bar = 'a foo = .. end
 ;;
 [%%expect {|
-module M : sig type +'a foo = .. type 'a bar = 'a foo = .. end
+module M :
+  sig type (+'a : any) foo = .. type ('a : any) bar = 'a foo = .. end
 |}]
 
 module type S = sig type 'a foo = .. type 'a bar = 'a foo = .. end
 ;;
 [%%expect {|
-module type S = sig type 'a foo = .. type 'a bar = 'a foo = .. end
+module type S =
+  sig type ('a : any) foo = .. type ('a : any) bar = 'a foo = .. end
 |}]
 
 module M_S = (M : S)
@@ -263,13 +265,16 @@ Line 1, characters 14-15:
                   ^
 Error: Signature mismatch:
        Modules do not match:
-         sig type 'a foo = 'a M.foo = .. type 'a bar = 'a foo = .. end
+         sig
+           type ('a : any) foo = 'a M.foo = ..
+           type ('a : any) bar = 'a foo = ..
+         end
        is not included in
          S
        Type declarations do not match:
-         type 'a foo = 'a M.foo = ..
+         type ('a : any) foo = 'a M.foo = ..
        is not included in
-         type 'a foo = ..
+         type ('a : any) foo = ..
        Their variances do not agree.
 |}]
 

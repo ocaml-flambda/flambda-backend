@@ -34,7 +34,7 @@ Error: This type cannot be unboxed because
 type 'a s = S : 'a -> 'a s [@@unboxed];;
 type t = T : 'a s -> t [@@unboxed];;
 [%%expect{|
-type 'a s = S : 'a -> 'a s [@@unboxed]
+type ('a : any) s = S : 'a -> 'a s [@@unboxed]
 Line 2, characters 0-34:
 2 | type t = T : 'a s -> t [@@unboxed];;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -48,7 +48,7 @@ Error: This type cannot be unboxed because
 type 'a s = S : 'a -> 'a option s [@@unboxed];;
 type t = T : 'a s -> t [@@unboxed];;
 [%%expect{|
-type 'a s = S : 'a -> 'a option s [@@unboxed]
+type ('a : any) s = S : 'a -> 'a option s [@@unboxed]
 Line 2, characters 0-34:
 2 | type t = T : 'a s -> t [@@unboxed];;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -86,7 +86,7 @@ Error: This type cannot be unboxed because
 (* accept *)
 type 'a s = S : (unit -> 'a) M.r -> 'a option s [@@unboxed];;
 [%%expect{|
-type 'a s = S : (unit -> 'a) M.r -> 'a option s [@@unboxed]
+type ('a : any) s = S : (unit -> 'a) M.r -> 'a option s [@@unboxed]
 |}];;
 
 (* reject *)
@@ -104,7 +104,7 @@ Error: This type cannot be unboxed because
 (* accept *)
 type 'a t = T : 'a s -> 'a t [@@unboxed];;
 [%%expect{|
-type 'a t = T : 'a s -> 'a t [@@unboxed]
+type ('a : any) t = T : 'a s -> 'a t [@@unboxed]
 |}];;
 
 (* Even without constraints, we need to mark abstract types as Deepsep:
@@ -136,7 +136,7 @@ Error: This type cannot be unboxed because
 (* accept *)
 type 'a s = S : (unit -> 'a) N.r -> 'a option s [@@unboxed];;
 [%%expect{|
-type 'a s = S : (unit -> 'a) N.r -> 'a option s [@@unboxed]
+type ('a : any) s = S : (unit -> 'a) N.r -> 'a option s [@@unboxed]
 |}];;
 
 (* Another corner case from GPR#1133 *)
@@ -144,8 +144,8 @@ type _ s = S : 'a t -> _ s  [@@unboxed]
  and _ t = T : 'a -> 'a s t
 ;;
 [%%expect{|
-type _ s = S : 'a t -> 'b s [@@unboxed]
-and _ t = T : 'a -> 'a s t
+type (_ : any) s = S : 'a t -> 'b s [@@unboxed]
+and (_ : any) t = T : 'a -> 'a s t
 |}];;
 
 (* regression test for PR#7511 (wrong determination of unboxability for GADTs)
@@ -153,7 +153,7 @@ and _ t = T : 'a -> 'a s t
 type 'a s = S : 'a -> 'a s [@@unboxed];;
 type t = T : 'a s -> t [@@unboxed];;
 [%%expect{|
-type 'a s = S : 'a -> 'a s [@@unboxed]
+type ('a : any) s = S : 'a -> 'a s [@@unboxed]
 Line 2, characters 0-34:
 2 | type t = T : 'a s -> t [@@unboxed];;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -167,7 +167,7 @@ Error: This type cannot be unboxed because
 type 'a s = S : 'a -> 'a option s [@@unboxed];;
 type t = T : 'a s -> t [@@unboxed];;
 [%%expect{|
-type 'a s = S : 'a -> 'a option s [@@unboxed]
+type ('a : any) s = S : 'a -> 'a option s [@@unboxed]
 Line 2, characters 0-34:
 2 | type t = T : 'a s -> t [@@unboxed];;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -204,7 +204,7 @@ Error: This type cannot be unboxed because
 
 type 'a s = S : (unit -> 'a) M.r -> 'a option s [@@unboxed];;
 [%%expect{|
-type 'a s = S : (unit -> 'a) M.r -> 'a option s [@@unboxed]
+type ('a : any) s = S : (unit -> 'a) M.r -> 'a option s [@@unboxed]
 |}];;
 
 (* reject *)
@@ -222,7 +222,7 @@ Error: This type cannot be unboxed because
 (* accept *)
 type 'a t = T : 'a s -> 'a t [@@unboxed];;
 [%%expect{|
-type 'a t = T : 'a s -> 'a t [@@unboxed]
+type ('a : any) t = T : 'a s -> 'a t [@@unboxed]
 |}];;
 
 
@@ -231,8 +231,8 @@ type _ s = S : 'a t -> _ s  [@@unboxed]
  and _ t = T : 'a -> 'a s t
 ;;
 [%%expect{|
-type _ s = S : 'a t -> 'b s [@@unboxed]
-and _ t = T : 'a -> 'a s t
+type (_ : any) s = S : 'a t -> 'b s [@@unboxed]
+and (_ : any) t = T : 'a -> 'a s t
 |}];;
 
 (* GPR#2188: non-principality examples.
@@ -253,7 +253,7 @@ and _ t = T : 'a -> 'a s t
 *)
 type (_, _) almost_eq = Almost_refl : 'a -> ('a, 'a) almost_eq [@@unboxed]
 [%%expect{|
-type (_, _) almost_eq = Almost_refl : 'a -> ('a, 'a) almost_eq [@@unboxed]
+type (_ : any, _ : any) almost_eq = Almost_refl : 'a -> ('a, 'a) almost_eq [@@unboxed]
 |}];;
 
 

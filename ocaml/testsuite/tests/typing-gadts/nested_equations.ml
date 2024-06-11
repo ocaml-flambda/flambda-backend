@@ -8,7 +8,7 @@ type _ t = Int : int t;;
 
 let to_int (type a) (w : a t) (x : a) : int = let Int = w in x;;
 [%%expect{|
-type _ t = Int : int t
+type (_ : any) t = Int : int t
 val to_int : 'a t -> 'a -> int = <fun>
 |}];;
 
@@ -86,7 +86,7 @@ module F (M : S) = struct
     let Refl = M.eql in 0
 end;;
 [%%expect{|
-type (_, _) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 module type S = sig type t val eql : (t, int) eq end
 module F : functor (M : S) -> sig val zero : M.t end
 |}];;

@@ -7,8 +7,8 @@ type ('a, 'b) j = <m : 'c. 'a -> 'b >
 type _ t = A : i t;;
 [%%expect{|
 type i = < m : 'c. 'c -> 'c >
-type ('a, 'b) j = < m : 'a -> 'b >
-type _ t = A : i t
+type ('a : any, 'b : any) j = < m : 'a -> 'b >
+type (_ : any) t = A : i t
 |}]
 
 let f (type a b) (y : (a, b) j t) : a -> b =
@@ -39,7 +39,7 @@ end ;;
 let g (y : M.j t option) =
   let None = y in () ;;
 [%%expect{|
-module M : sig type 'a d = D type j = < m : 'c. 'c -> 'c d > end
+module M : sig type ('a : any) d = D type j = < m : 'c. 'c -> 'c d > end
 val g : M.j t option -> unit = <fun>
 |}]
 
@@ -78,7 +78,7 @@ module M :
     type i = < m : 'c. 'c -> 'c d >
     type j = < m : 'c. 'c -> e >
   end
-type _ t = A : M.i t
+type (_ : any) t = A : M.i t
 Line 9, characters 2-20:
 9 |   let None = y in () ;;
       ^^^^^^^^^^^^^^^^^^
@@ -103,9 +103,9 @@ module M :
   sig
     type 'a d
     type i = < m : 'c. 'c -> 'c d >
-    type 'a j = < m : 'c. 'c -> 'a >
+    type ('a : any) j = < m : 'c. 'c -> 'a >
   end
-type _ t = A : M.i t
+type (_ : any) t = A : M.i t
 Line 9, characters 2-20:
 9 |   let None = y in () ;;
       ^^^^^^^^^^^^^^^^^^
@@ -113,7 +113,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Some A
 
-val g : 'a M.j t option -> unit = <fun>
+val g : ('a : any). 'a M.j t option -> unit = <fun>
 |}]
 
 (* more examples by @lpw25 *)
@@ -131,7 +131,7 @@ module M :
     type i = C of < m : 'c. 'c -> 'c >
     type j = C of < m : 'c. 'c -> a >
   end
-type _ t = A : M.i t
+type (_ : any) t = A : M.i t
 val f : M.j t -> 'a = <fun>
 |}]
 
@@ -149,7 +149,7 @@ module M :
     type i = C of < m : 'c. 'c -> 'c -> 'c >
     type j = C of < m : 'c. 'c -> a >
   end
-type _ t = A : M.i t
+type (_ : any) t = A : M.i t
 val f : M.j t -> 'a = <fun>
 |}]
 
@@ -167,7 +167,7 @@ module M :
     type i = C of < m : 'c. 'c -> 'c -> 'c >
     type j = C of < m : 'c. 'c -> 'c a >
   end
-type _ t = A : M.i t
+type (_ : any) t = A : M.i t
 Line 7, characters 33-34:
 7 | let f (y : M.j t) = match y with _ -> .;;
                                      ^

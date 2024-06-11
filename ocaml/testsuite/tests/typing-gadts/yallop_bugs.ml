@@ -17,7 +17,7 @@ let magic : 'a 'b. 'a -> 'b =
     in M.f Refl
 ;;
 [%%expect{|
-type (_, _) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 Line 8, characters 44-52:
 8 |          let f (Refl : (a T.t, b T.t) eq) = (x :> b)
                                                 ^^^^^^^^
@@ -55,7 +55,7 @@ let check : type s . s t * s -> bool = function
   | IntLit , 6 -> false
 ;;
 [%%expect{|
-type _ t = IntLit : int t | BoolLit : bool t
+type (_ : any) t = IntLit : int t | BoolLit : bool t
 Lines 5-7, characters 39-23:
 5 | .......................................function
 6 |   | BoolLit, false -> false

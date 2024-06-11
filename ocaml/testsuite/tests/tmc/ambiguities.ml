@@ -76,9 +76,9 @@ end
 [%%expect {|
 module Positive_and_negative_disambiguation :
   sig
-    type 'a t = N | C of 'a t * ('a t * 'a t)
-    val map1 : 'a -> 'b t -> 'c t
-    val map2 : 'a -> 'b t -> 'c t
+    type ('a : any) t = N | C of 'a t * ('a t * 'a t)
+    val map1 : 'a ('b : any) ('c : any). 'a -> 'b t -> 'c t
+    val map2 : 'a ('b : any) ('c : any). 'a -> 'b t -> 'c t
   end
 |}]
 

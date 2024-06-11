@@ -6,7 +6,7 @@
 
 type ('a, 'b) eq = Refl : ('a, 'a) eq;;
 [%%expect{|
-type ('a, 'b) eq = Refl : ('a, 'a) eq
+type ('a : any, 'b : any) eq = Refl : ('a, 'a) eq
 |}];;
 
 let ret_e1 (type a b) (b : bool) (wit : (a, b) eq) (x : a) (y : b) =

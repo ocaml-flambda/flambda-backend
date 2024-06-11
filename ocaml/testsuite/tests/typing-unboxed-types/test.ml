@@ -287,7 +287,7 @@ in assert (f x = L 3.14);;
 (* Check for a potential infinite loop in the typing algorithm. *)
 type 'a t12 : value = M of 'a t12 [@@ocaml.unboxed];;
 [%%expect{|
-type 'a t12 : value = M of 'a t12 [@@unboxed]
+type ('a : any) t12 : value = M of 'a t12 [@@unboxed]
 |}];;
 let f (a : int t12 array) = a.(0);;
 [%%expect{|
@@ -356,8 +356,8 @@ type 'a packed = T : ('a, _) t -> 'a packed [@@unboxed]
 ;;
 [%%expect{|
 type 'a s
-type ('a, 'p) t = private 'a s
-type 'a packed = T : ('a, 'b) t -> 'a packed [@@unboxed]
+type ('a, 'p : any) t = private 'a s
+type ('a : any) packed = T : ('a, 'b) t -> 'a packed [@@unboxed]
 |}];;
 
 (* MPR#7682 *)
@@ -385,7 +385,7 @@ type u = U : 'a t -> u [@@unboxed]
 type ('a, 'b) t = K : 'c -> (bool, 'c) t [@@unboxed]
 and t1 = T1 : (bool, int) t -> t1 [@@unboxed]
 [%%expect{|
-type ('a, 'b) t = K : 'c -> (bool, 'c) t [@@unboxed]
+type ('a : any, 'b : any) t = K : 'c -> (bool, 'c) t [@@unboxed]
 and t1 = T1 : (bool, int) t -> t1 [@@unboxed]
 |}];;
 
@@ -396,9 +396,9 @@ type ('a, 'kind) tree =
   | Inner : { mutable parent : 'a node } -> ('a, [ `inner ]) tree
 and 'a node = Node : ('a, _) tree -> 'a node [@@ocaml.unboxed]
 [%%expect{|
-type ('a, 'kind) tree =
+type ('a : any, 'kind : any) tree =
     Root : { mutable value : 'a; mutable rank : int;
     } -> ('a, [ `root ]) tree
   | Inner : { mutable parent : 'a node; } -> ('a, [ `inner ]) tree
-and 'a node = Node : ('a, 'b) tree -> 'a node [@@unboxed]
+and ('a : any) node = Node : ('a, 'b) tree -> 'a node [@@unboxed]
 |}];;

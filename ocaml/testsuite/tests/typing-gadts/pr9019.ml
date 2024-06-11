@@ -18,7 +18,11 @@ end
 [%%expect{|
 type ab = A | B
 module M :
-  sig type mab = A | B type _ t = AB : ab t | MAB : mab t val ab : mab t end
+  sig
+    type mab = A | B
+    type (_ : any) t = AB : ab t | MAB : mab t
+    val ab : mab t
+  end
 |}]
 
 open M
@@ -66,11 +70,11 @@ end = struct
   let b = B
 end;;
 [%%expect{|
-type _ ab = A | B
+type (_ : any) ab = A | B
 module M :
   sig
     type _ mab
-    type _ t = AB : unit ab t | MAB : unit mab t
+    type (_ : any) t = AB : unit ab t | MAB : unit mab t
     val ab : unit mab t
     val a : 'a mab
     val b : 'a mab
@@ -120,7 +124,7 @@ type ab = { a : int; }
 module M :
   sig
     type mab = { a : int; }
-    type _ t = AB : ab t | MAB : mab t
+    type (_ : any) t = AB : ab t | MAB : mab t
     val a : mab
     val ab : mab t
   end
@@ -163,8 +167,8 @@ let f (type x) (a : x a) (a_or_b : x a_or_b) (x : x) =
   | Not_A, A_or_B, `B i -> print_int i
   | _, A_or_B, `A s -> print_string s
 [%%expect{|
-type _ a_or_b = A_or_B : [< `A of string | `B of int ] a_or_b
-type _ a = A : [> `A of string ] a | Not_A : 'a a
+type (_ : any) a_or_b = A_or_B : [< `A of string | `B of int ] a_or_b
+type (_ : any) a = A : [> `A of string ] a | Not_A : 'a a
 Lines 9-11, characters 2-37:
  9 | ..match a, a_or_b, x with
 10 |   | Not_A, A_or_B, `B i -> print_int i
@@ -195,8 +199,8 @@ let f (type x) (type y) (b : (x, y ty) b) (x : x) (y : y) =
   | B, `B String_option, Some s -> print_string s
   | A, `A, _ -> ()
 [%%expect{|
-type (_, _) b = A : ([< `A ], 'a) b | B : ([< `B of 'a ], 'a) b
-type _ ty = String_option : string option ty
+type (_ : any, _ : any) b = A : ([< `A ], 'a) b | B : ([< `B of 'a ], 'a) b
+type (_ : any) ty = String_option : string option ty
 Lines 9-11, characters 2-18:
  9 | ..match b, x, y with
 10 |   | B, `B String_option, Some s -> print_string s

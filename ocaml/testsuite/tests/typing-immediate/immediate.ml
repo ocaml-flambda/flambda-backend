@@ -274,7 +274,7 @@ Error: The layout of type s is value, because
 type 'a id = 'a
 type s = int id [@@immediate]
 [%%expect{|
-type 'a id = 'a
+type ('a : any) id = 'a
 type s = int id
 |}];;
 module F (X : sig type t end) = X
@@ -315,5 +315,5 @@ module F :
 type t = int s [@@immediate] and 'a s = 'a
 [%%expect{|
 type t = int s
-and 'a s = 'a
+and ('a : any) s = 'a
 |}];;

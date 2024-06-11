@@ -24,8 +24,8 @@ type (_,_,_,_) u = U : (int, int, int, int) u
 type v = E | F | G
 ;;
 [%%expect {|
-type _ t = A : int t | B : bool t | C : char t | D : float t
-type (_, _, _, _) u = U : (int, int, int, int) u
+type (_ : any) t = A : int t | B : bool t | C : char t | D : float t
+type (_ : any, _ : any, _ : any, _ : any) u = U : (int, int, int, int) u
 type v = E | F | G
 |}]
 
@@ -143,7 +143,7 @@ type _ t =
   | Bool : bool t
 ;;
 [%%expect {|
-type _ t = Int : int t | Bool : bool t
+type (_ : any) t = Int : int t | Bool : bool t
 |}]
 
 let f : type a. a t -> a = function
@@ -177,7 +177,7 @@ module A : sig type a type b val eq : (a, b) cmp end
   = struct type a type b = a let eq = Eq end
 ;;
 [%%expect {|
-type (_, _) cmp = Eq : ('a, 'a) cmp | Any : ('a, 'b) cmp
+type (_ : any, _ : any) cmp = Eq : ('a, 'a) cmp | Any : ('a, 'b) cmp
 module A : sig type a type b val eq : (a, b) cmp end
 |}]
 
@@ -206,7 +206,7 @@ type _ succ = Succ
 ;;
 [%%expect {|
 type zero = Zero
-type _ succ = Succ
+type (_ : any) succ = Succ
 |}]
 
 type (_,_,_) plus =
@@ -215,7 +215,7 @@ type (_,_,_) plus =
        ('a succ, 'b, 'c succ) plus
 ;;
 [%%expect {|
-type (_, _, _) plus =
+type (_ : any, _ : any, _ : any) plus =
     Plus0 : (zero, 'a, 'a) plus
   | PlusS : ('a, 'b, 'c) plus -> ('a succ, 'b, 'c succ) plus
 |}]
@@ -269,7 +269,7 @@ val inv_zero : ('a, 'b, 'c) plus -> ('c, 'd, zero) plus -> bool = <fun>
 
 type _ t = Int : int t;;
 [%%expect {|
-type _ t = Int : int t
+type (_ : any) t = Int : int t
 |}]
 
 let f (x : bool t) = match x with _ -> . ;; (* ok *)

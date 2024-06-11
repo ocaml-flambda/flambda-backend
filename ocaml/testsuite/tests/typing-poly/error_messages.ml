@@ -72,7 +72,7 @@ let f (`A o:uv) = o # f 0
 let () = f ( `A (object method f _ = 0 end): _ v);;
 [%%expect {|
 type uv = [ `A of < f : 'a. 'a -> int > ]
-type 'a v = [ `A of < f : 'a -> int > ]
+type ('a : any) v = [ `A of < f : 'a -> int > ]
 val f : uv -> int = <fun>
 Line 4, characters 11-49:
 4 | let () = f ( `A (object method f _ = 0 end): _ v);;

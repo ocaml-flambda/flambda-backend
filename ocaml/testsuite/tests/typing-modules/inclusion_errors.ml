@@ -16,11 +16,11 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig type ('a, 'b) t = 'a * 'a end
+         sig type ('a, 'b : any) t = 'a * 'a end
        is not included in
          sig type ('a, 'b) t = 'a * 'b end
        Type declarations do not match:
-         type ('a, 'b) t = 'a * 'a
+         type ('a, 'b : any) t = 'a * 'a
        is not included in
          type ('a, 'b) t = 'a * 'b
        The type 'a * 'a is not equal to the type 'a * 'b
@@ -41,13 +41,13 @@ Error: Signature mismatch:
        Modules do not match:
          sig type ('a, 'b) t = 'a * 'b end
        is not included in
-         sig type ('a, 'b) t = 'a * 'a end
+         sig type ('a, 'b : any) t = 'a * 'a end
        Type declarations do not match:
          type ('a, 'b) t = 'a * 'b
        is not included in
-         type ('a, 'b) t = 'a * 'a
-       The type 'a * 'b is not equal to the type 'a * 'a
-       Type 'b is not equal to type 'a
+         type ('a, 'b : any) t = 'a * 'a
+       The type ('b : value) is not equal to the type ('b0 : any)
+       because their layouts are different.
 |}];;
 
 type 'a x
@@ -711,7 +711,7 @@ let foo p (e : (T.t, T.s) eq) (x : T.t) (y : T.s) =
     let module O : N.S = M in
     ();;
 [%%expect{|
-type (_, _) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 module T : sig type t type s val eq : (t, s) eq end
 module M : sig val r : '_weak4 list ref end
 Line 22, characters 25-26:
@@ -1730,14 +1730,18 @@ Lines 3-5, characters 6-3:
 Error: Signature mismatch:
        Modules do not match:
          sig
-           type _ t = A : (< x : 'b * 'b > as 'b) -> (< y : 'a > as 'a) t
+           type (_ : any) t =
+               A : (< x : 'b * 'b > as 'b) -> (< y : 'a > as 'a) t
          end
        is not included in
-         sig type _ t = A : (< x : 'b > as 'b) -> (< y : 'a > as 'a) t end
+         sig
+           type (_ : any) t = A : (< x : 'b > as 'b) -> (< y : 'a > as 'a) t
+         end
        Type declarations do not match:
-         type _ t = A : (< x : 'b * 'b > as 'b) -> (< y : 'a > as 'a) t
+         type (_ : any) t =
+             A : (< x : 'b * 'b > as 'b) -> (< y : 'a > as 'a) t
        is not included in
-         type _ t = A : (< x : 'b > as 'b) -> (< y : 'a > as 'a) t
+         type (_ : any) t = A : (< x : 'b > as 'b) -> (< y : 'a > as 'a) t
        Constructors do not match:
          A : (< x : 'b * 'b > as 'b) -> (< y : 'a > as 'a) t
        is not the same as:
@@ -1780,7 +1784,7 @@ end = struct
   type _ ext  += A : (<x:'a * 'a> as 'a) -> (<y:'b> as 'b) ext
 end
 [%%expect {|
-type _ ext = ..
+type (_ : any) ext = ..
 Lines 4-6, characters 6-3:
 4 | ......struct
 5 |   type _ ext  += A : (<x:'a * 'a> as 'a) -> (<y:'b> as 'b) ext

@@ -21,7 +21,7 @@ let uppercase seq =
 ;;
 [%%expect{|
 type inkind = [ `Link | `Nonlink ]
-type _ inline_t =
+type (_ : any) inline_t =
     Text : string -> [< inkind > `Nonlink ] inline_t
   | Bold : 'a inline_t list -> 'a inline_t
   | Link : string -> [< inkind > `Link ] inline_t
@@ -78,7 +78,7 @@ let inlineseq_from_astseq seq =
    in List.map (process Maylink) seq
 ;;
 [%%expect{|
-type _ linkp = Nonlink : [ `Nonlink ] linkp | Maylink : inkind linkp
+type (_ : any) linkp = Nonlink : [ `Nonlink ] linkp | Maylink : inkind linkp
 val inlineseq_from_astseq : ast_t list -> inkind inline_t list = <fun>
 |}];;
 
@@ -99,7 +99,7 @@ let rec process : type a. a linkp2 -> ast_t -> a inline_t =
   in List.map (process (Kind Maylink)) seq
 ;;
 [%%expect{|
-type _ linkp2 = Kind : 'a linkp -> ([< inkind ] as 'a) linkp2
+type (_ : any) linkp2 = Kind : 'a linkp -> ([< inkind ] as 'a) linkp2
 Line 7, characters 35-43:
 7 |     | (Kind _, Ast_Text txt)    -> Text txt
                                        ^^^^^^^^

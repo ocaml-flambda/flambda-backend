@@ -38,7 +38,7 @@ let rec variantize: type t. t ty -> t -> variant =
         (* t = ('a, 'b) for some 'a and 'b *)
 ;;
 [%%expect{|
-type 'a ty =
+type ('a : any) ty =
     Int : int ty
   | String : string ty
   | List : 'a ty -> 'a list ty
@@ -124,15 +124,19 @@ let rec variantize: type t. t ty -> t -> variant =
                        (label, variantize field_type (get x))) fields)
 ;;
 [%%expect{|
-type 'a ty =
+type ('a : any) ty =
     Int : int ty
   | String : string ty
   | List : 'a ty -> 'a list ty
   | Pair : ('a ty * 'b ty) -> ('a * 'b) ty
   | Record : 'a record -> 'a ty
-and 'a record = { path : string; fields : 'a field_ list; }
-and 'a field_ = Field : ('a, 'b) field -> 'a field_
-and ('a, 'b) field = { label : string; field_type : 'b ty; get : 'a -> 'b; }
+and ('a : any) record = { path : string; fields : 'a field_ list; }
+and ('a : any) field_ = Field : ('a, 'b) field -> 'a field_
+and ('a : any, 'b : any) field = {
+  label : string;
+  field_type : 'b ty;
+  get : 'a -> 'b;
+}
 type variant =
     VInt of int
   | VString of string
@@ -193,21 +197,21 @@ let rec devariantize: type t. t ty -> variant -> t =
     | _ -> raise VariantMismatch
 ;;
 [%%expect{|
-type 'a ty =
+type ('a : any) ty =
     Int : int ty
   | String : string ty
   | List : 'a ty -> 'a list ty
   | Pair : ('a ty * 'b ty) -> ('a * 'b) ty
   | Record : ('a, 'builder) record -> 'a ty
-and ('a, 'builder) record = {
+and ('a : any, 'builder : any) record = {
   path : string;
   fields : ('a, 'builder) field list;
   create_builder : unit -> 'builder;
   of_builder : 'builder -> 'a;
 }
-and ('a, 'builder) field =
+and ('a : any, 'builder : any) field =
     Field : ('a, 'builder, 'b) field_ -> ('a, 'builder) field
-and ('a, 'builder, 'b) field_ = {
+and ('a : any, 'builder : any, 'b : any) field_ = {
   label : string;
   field_type : 'b ty;
   get : 'a -> 'b;
@@ -309,7 +313,7 @@ let rec eq_sel : type a b c. (a,b) ty_sel -> (a,c) ty_sel -> (b,c) eq option =
 ;;
 [%%expect{|
 type noarg = Noarg
-type (_, _) ty =
+type (_ : any, _ : any) ty =
     Int : (int, 'c) ty
   | String : (string, 'd) ty
   | List : ('a, 'e) ty -> ('a list, 'e) ty
@@ -320,22 +324,22 @@ type (_, _) ty =
   | Pop : ('a, 'e) ty -> ('a, 'b -> 'e) ty
   | Conv : string * ('a -> 'b) * ('b -> 'a) * ('b, 'e) ty -> ('a, 'e) ty
   | Sum : ('a, 'e, 'b) ty_sum -> ('a, 'e) ty
-and ('a, 'e, 'b) ty_sum = {
+and ('a : any, 'e : any, 'b : any) ty_sum = {
   sum_proj : 'a -> string * 'e ty_dyn option;
   sum_cases : (string * ('e, 'b) ty_case) list;
   sum_inj : 'c. ('b, 'c) ty_sel * 'c -> 'a;
 }
-and 'e ty_dyn = Tdyn : ('a, 'e) ty * 'a -> 'e ty_dyn
-and (_, _) ty_sel =
+and ('e : any) ty_dyn = Tdyn : ('a, 'e) ty * 'a -> 'e ty_dyn
+and (_ : any, _ : any) ty_sel =
     Thd : ('a -> 'b, 'a) ty_sel
   | Ttl : ('b -> 'c, 'd) ty_sel -> ('a -> 'b -> 'c, 'd) ty_sel
-and (_, _) ty_case =
+and (_ : any, _ : any) ty_case =
     TCarg : ('b, 'a) ty_sel * ('a, 'e) ty -> ('e, 'b) ty_case
   | TCnoarg : ('b, noarg) ty_sel -> ('e, 'b) ty_case
-type _ ty_env =
+type (_ : any) ty_env =
     Enil : unit ty_env
   | Econs : ('a, 'e) ty * 'e ty_env -> ('a -> 'e) ty_env
-type (_, _) eq = Eq : ('a, 'a) eq
+type (_ : any, _ : any) eq = Eq : ('a, 'a) eq
 val eq_sel : ('a, 'b) ty_sel -> ('a, 'c) ty_sel -> ('b, 'c) eq option = <fun>
 |}];;
 
@@ -575,7 +579,7 @@ let ty_abc : ([`A of int | `B of string | `C],'e) ty =
     | _ -> invalid_arg "ty_abc"))
 ;;
 [%%expect{|
-type (_, _) ty =
+type (_ : any, _ : any) ty =
     Int : (int, 'c) ty
   | String : (string, 'd) ty
   | List : ('a, 'e) ty -> ('a list, 'e) ty
@@ -587,7 +591,7 @@ type (_, _) ty =
   | Conv : string * ('a -> 'b) * ('b -> 'a) * ('b, 'e) ty -> ('a, 'e) ty
   | Sum : ('a -> string * 'e ty_dyn option) *
       (string * 'e ty_dyn option -> 'a) -> ('a, 'e) ty
-and 'e ty_dyn = Tdyn : ('a, 'e) ty * 'a -> 'e ty_dyn
+and ('e : any) ty_dyn = Tdyn : ('a, 'e) ty * 'a -> 'e ty_dyn
 val ty_abc : ([ `A of int | `B of string | `C ], 'e) ty = Sum (<fun>, <fun>)
 |}];;
 
@@ -658,7 +662,7 @@ let ty_abc : ([`A of int | `B of string | `C] as 'a, 'e) ty =
   end)
 ;;
 [%%expect{|
-type (_, _) ty =
+type (_ : any, _ : any) ty =
     Int : (int, 'd) ty
   | String : (string, 'f) ty
   | List : ('a, 'e) ty -> ('a list, 'e) ty
@@ -672,11 +676,11 @@ type (_, _) ty =
       < cases : (string * ('e, 'b) ty_case) list;
         inj : 'c. ('b, 'c) ty_sel * 'c -> 'a;
         proj : 'a -> string * 'e ty_dyn option > -> ('a, 'e) ty
-and 'e ty_dyn = Tdyn : ('a, 'e) ty * 'a -> 'e ty_dyn
-and (_, _) ty_sel =
+and ('e : any) ty_dyn = Tdyn : ('a, 'e) ty * 'a -> 'e ty_dyn
+and (_ : any, _ : any) ty_sel =
     Thd : ('a -> 'b, 'a) ty_sel
   | Ttl : ('b -> 'c, 'd) ty_sel -> ('a -> 'b -> 'c, 'd) ty_sel
-and (_, _) ty_case =
+and (_ : any, _ : any) ty_case =
     TCarg : ('b, 'a) ty_sel * ('a, 'e) ty -> ('e, 'b) ty_case
   | TCnoarg : ('b, noarg) ty_sel -> ('e, 'b) ty_case
 val ty_abc : ([ `A of int | `B of string | `C ], 'e) ty = Sum <obj>

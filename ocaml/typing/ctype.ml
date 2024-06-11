@@ -5019,7 +5019,7 @@ let matches ~expand_error_trace env ty ty' =
       | Jkind_mismatch { original_jkind; inferred_jkind; ty } ->
         Jkind_mismatch { original_jkind; inferred_jkind; ty }
       | All_good -> All_good
-    in
+    inm
     backtrack snap;
     (match result with
     (* CR: we can have many subjkind failures here. *)

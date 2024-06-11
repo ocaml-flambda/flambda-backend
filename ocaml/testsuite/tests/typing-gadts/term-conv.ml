@@ -33,13 +33,13 @@ end;;
 [%%expect{|
 module Typeable :
   sig
-    type 'a ty =
+    type ('a : any) ty =
         Int : int ty
       | String : string ty
       | List : 'a ty -> 'a list ty
       | Pair : ('a ty * 'b ty) -> ('a * 'b) ty
       | Fun : ('a ty * 'b ty) -> ('a -> 'b) ty
-    type (_, _) eq = Eq : ('a, 'a) eq
+    type (_ : any, _ : any) eq = Eq : ('a, 'a) eq
     exception CastFailure
     val check_eq : 't ty -> ' t' ty -> ('t, ' t') eq
     val gcast : 't ty -> ' t' ty -> 't -> ' t'
@@ -64,7 +64,7 @@ end;;
 [%%expect{|
 module HOAS :
   sig
-    type _ term =
+    type (_ : any) term =
         Tag : 't Typeable.ty * int -> 't term
       | Con : 't -> 't term
       | Lam : 's Typeable.ty * ('s term -> 't term) -> ('s -> 't) term
@@ -107,16 +107,16 @@ end;;
 [%%expect{|
 module DeBruijn :
   sig
-    type ('env, 't) ix =
+    type ('env : any, 't : any) ix =
         ZeroIx : ('env * 't, 't) ix
       | SuccIx : ('env, 't) ix -> ('env * 's, 't) ix
     val to_int : ('env, 't) ix -> int
-    type ('env, 't) term =
+    type ('env : any, 't : any) term =
         Var : ('env, 't) ix -> ('env, 't) term
       | Con : 't -> ('env, 't) term
       | Lam : ('env * 's, 't) term -> ('env, 's -> 't) term
       | App : ('env, 's -> 't) term * ('env, 's) term -> ('env, 't) term
-    type _ stack =
+    type (_ : any) stack =
         Empty : unit stack
       | Push : 'env stack * 't -> ('env * 't) stack
     val prj : ('env, 't) ix -> 'env stack -> 't
@@ -165,7 +165,7 @@ end;;
 [%%expect{|
 module Convert :
   sig
-    type (_, _) layout =
+    type (_ : any, _ : any) layout =
         EmptyLayout : ('env, unit) layout
       | PushLayout : 't Typeable.ty * ('env, 'env') layout *
           ('env, 't) DeBruijn.ix -> ('env, 'env' * 't) layout

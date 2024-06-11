@@ -9,9 +9,11 @@ type empty = (int, string) eq
 type ('a, 'b) t = Left : 'a -> ('a, 'b) t | Right : 'b -> ('a, 'b) t;;
 
 [%%expect{|
-type ('a, 'b) eq = Refl : ('a, 'a) eq
+type ('a : any, 'b : any) eq = Refl : ('a, 'a) eq
 type empty = (int, string) eq
-type ('a, 'b) t = Left : 'a -> ('a, 'b) t | Right : 'b -> ('a, 'b) t
+type ('a : any, 'b : any) t =
+    Left : 'a -> ('a, 'b) t
+  | Right : 'b -> ('a, 'b) t
 |}]
 
 let f1 x =

@@ -1,6 +1,6 @@
 module Msg :
   sig
-    type 'a tag = private ..
+    type ('a : any) tag = private ..
     type result = Result : 'a tag * 'a -> result
     val write : 'a tag -> 'a -> unit
     val read : unit -> result

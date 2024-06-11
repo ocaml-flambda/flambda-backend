@@ -14,7 +14,7 @@ struct let f : ('a S.s, 'a S.t) eq -> unit = function Refl -> () end;;
 [%%expect{|
 type 'a t = T of 'a
 type 'a s = S of 'a
-type (_, _) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 Line 6, characters 45-49:
 6 | let f : (int s, int t) eq -> unit = function Refl -> ();;
                                                  ^^^^
