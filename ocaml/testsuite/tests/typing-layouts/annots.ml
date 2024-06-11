@@ -39,6 +39,10 @@ type t_value_mod_once : value mod once
 type t_value_mod_unique : value mod unique
 type t_value_mod_shared : value mod shared
 type t_value_mod_internal : value mod internal
+type t_value_mod_contended : value mod contended
+type t_value_mod_uncontended : value mod uncontended
+type t_value_mod_portable : value mod portable
+type t_value_mod_nonportable : value mod nonportable
 type t_value_mod_external : value mod external_
 type t_value_mod_external64 : value mod external64
 
@@ -50,6 +54,10 @@ type t_value_mod_once : value mod once
 type t_value_mod_unique : value mod unique
 type t_value_mod_shared : value mod shared
 type t_value_mod_internal : value mod internal
+type t_value_mod_contended : value mod contended
+type t_value_mod_uncontended : value mod uncontended
+type t_value_mod_portable : value mod portable
+type t_value_mod_nonportable : value mod nonportable
 type t_value_mod_external : value mod external_
 type t_value_mod_external64 : value mod external64
 |}]
@@ -61,7 +69,8 @@ type t4 : value mod local local
 type t5 : float64 mod global global
 type t6 : bits32 mod local global
 type t7 : bits64 mod global local
-type t8 : value mod global local many once unique shared internal external64 external_
+type t8 : value mod global local many once unique shared internal uncontended contended
+                    portable nonportable external64 external_
 
 [%%expect{|
 type t1 : float32 mod internal shared many local
@@ -72,7 +81,7 @@ type t5 : float64 mod global global
 type t6 : bits32 mod local global
 type t7 : bits64 mod global local
 type t8
-  : value mod global local many once unique shared internal external64 external_
+  : value mod global local many once unique shared internal uncontended contended portable nonportable external64 external_
 |}]
 
 (***************************************)
@@ -81,7 +90,7 @@ type t8
 let x : int as ('a: value) = 5
 let x : int as ('a : immediate) = 5
 let x : int as ('a : any) = 5;;
-let x : int as ('a: value mod global shared many external_) = 5
+let x : int as ('a: value mod global shared many uncontended portable external_) = 5
 
 [%%expect{|
 val x : int = 5

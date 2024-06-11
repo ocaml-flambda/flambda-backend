@@ -216,24 +216,24 @@ Error: The layout of type a is value, because
          of the definition of b at line 2, characters 0-30.
 |}]
 
-type a : value mod global unique many external_
-type b : value mod local shared once internal = a
+type a : value mod global unique many uncontended portable external_
+type b : value mod local shared once contended nonportable internal = a
 [%%expect{|
-type a : value mod global unique many external_
+type a : value mod global unique many uncontended portable external_
 type b = a
 |}]
 
-type a : value mod global unique once external_
-type b : value mod local shared many internal = a
+type a : value mod global unique once uncontended portable external_
+type b : value mod local shared many uncontended nonportable internal = a
 [%%expect{|
-type a : value mod global unique once external_
-Line 2, characters 0-49:
-2 | type b : value mod local shared many internal = a
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+type a : value mod global unique once uncontended portable external_
+Line 2, characters 0-73:
+2 | type b : value mod local shared many uncontended nonportable internal = a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type a is immediate, because
-         of the definition of a at line 1, characters 0-47.
+         of the definition of a at line 1, characters 0-68.
        But the layout of type a must be a sublayout of value, because
-         of the definition of b at line 2, characters 0-49.
+         of the definition of b at line 2, characters 0-73.
 |}]
 
 (********************************************************)
@@ -241,30 +241,30 @@ Error: The layout of type a is immediate, because
 (* CR layouts: when we have abbreviations, these tests can become less verbose *)
 
 type a : any
-type b : any mod local shared once internal = a
-type c : any mod local shared once internal
+type b : any mod local shared once contended nonportable internal = a
+type c : any mod local shared once contended nonportable internal
 type d : any = c
 [%%expect{|
 type a : any
 type b = a
-type c : any mod local shared once internal
+type c : any mod local shared once contended nonportable internal
 type d = c
 |}]
 
 type a : value
-type b : value mod local shared once internal = a
-type c : value mod local shared once internal
+type b : value mod local shared once contended nonportable internal = a
+type c : value mod local shared once contended nonportable internal
 type d : value = c
 [%%expect{|
 type a : value
 type b = a
-type c : value mod local shared once internal
+type c : value mod local shared once contended nonportable internal
 type d = c
 |}]
 
 type a : void
-type b : void mod local shared once internal = a
-type c : void mod local shared once internal
+type b : void mod local shared once contended nonportable internal = a
+type c : void mod local shared once contended nonportable internal
 type d : void = c
 [%%expect{|
 Line 1, characters 9-13:
@@ -275,117 +275,117 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 |}]
 
 type a : immediate
-type b : value mod global unique many external_ portable uncontended = a
-type c : value mod global unique many external_ portable uncontended
+type b : value mod global unique many uncontended portable external_ = a
+type c : value mod global unique many uncontended portable external_
 type d : immediate = c
 [%%expect{|
 type a : immediate
 type b = a
-type c : value mod global unique many external_ portable uncontended
+type c : value mod global unique many uncontended portable external_
 type d = c
 |}]
 
 type a : immediate64
-type b : value mod global unique many external64 portable uncontended = a
-type c : value mod global unique many external64 portable uncontended
+type b : value mod global unique many uncontended portable external64 = a
+type c : value mod global unique many uncontended portable external64
 type d : immediate64 = c
 [%%expect{|
 type a : immediate64
 type b = a
-type c : value mod global unique many external64 portable uncontended
+type c : value mod global unique many uncontended portable external64
 type d = c
 |}]
 
 type a : float64
-type b : float64 mod global unique many external_ = a
-type c : float64 mod global unique many external_
+type b : float64 mod global unique many uncontended portable external_ = a
+type c : float64 mod global unique many uncontended portable external_
 type d : float64 = c
 [%%expect{|
 type a : float64
 type b = a
-type c : float64 mod global unique many external_
+type c : float64 mod global unique many uncontended portable external_
 type d = c
 |}]
 
 type a : float32
-type b : float32 mod global unique many external_ = a
-type c : float32 mod global unique many external_
+type b : float32 mod global unique many uncontended portable external_ = a
+type c : float32 mod global unique many uncontended portable external_
 type d : float32 = c
 [%%expect{|
 type a : float32
 type b = a
-type c : float32 mod global unique many external_
+type c : float32 mod global unique many uncontended portable external_
 type d = c
 |}]
 
 type a : word
-type b : word mod local shared once internal = a
-type c : word mod local shared once internal
+type b : word mod local shared once contended nonportable internal = a
+type c : word mod local shared once contended nonportable internal
 type d : word = c
 [%%expect{|
 type a : word
 type b = a
-type c : word mod local shared once internal
+type c : word mod local shared once contended nonportable internal
 type d = c
 |}]
 
 type a : bits32
-type b : bits32 mod local shared once internal = a
-type c : bits32 mod local shared once internal
+type b : bits32 mod local shared once contended nonportable internal = a
+type c : bits32 mod local shared once contended nonportable internal
 type d : bits32 = c
 [%%expect{|
 type a : bits32
 type b = a
-type c : bits32 mod local shared once internal
+type c : bits32 mod local shared once contended nonportable internal
 type d = c
 |}]
 
 type a : bits64
-type b : bits64 mod local shared once internal = a
-type c : bits64 mod local shared once internal
+type b : bits64 mod local shared once contended nonportable internal = a
+type c : bits64 mod local shared once contended nonportable internal
 type d : bits64 = c
 [%%expect{|
 type a : bits64
 type b = a
-type c : bits64 mod local shared once internal
+type c : bits64 mod local shared once contended nonportable internal
 type d = c
 |}]
 
 (******************************************)
 (* Test 4: Mode crossing when appropriate *)
 
-type t : any mod global unique many external_ = int
+type t : any mod global unique many uncontended portable external_ = int
 [%%expect{|
 type t = int
 |}]
 
-type t : any mod global unique many external_ = float#
+type t : any mod global unique many uncontended portable external_ = float#
 [%%expect{|
 type t = float#
 |}]
 
-type t : any mod global unique many external_ = float32#
+type t : any mod global unique many uncontended portable external_ = float32#
 [%%expect{|
 type t = float32#
 |}]
 
-type t : any mod global unique many external_ = int64#
+type t : any mod global unique many uncontended portable external_ = int64#
 [%%expect{|
 type t = int64#
 |}]
 
-type t : any mod global unique many external_ = int32#
+type t : any mod global unique many uncontended portable external_ = int32#
 [%%expect{|
 type t = int32#
 |}]
 
-type t : any mod global unique many external_ = nativeint#
+type t : any mod global unique many uncontended portable external_ = nativeint#
 [%%expect{|
 type t = nativeint#
 |}]
 
 type indirect_int = int
-type t : any mod global unique many external_ = indirect_int
+type t : any mod global unique many uncontended portable external_ = indirect_int
 [%%expect{|
 type indirect_int = int
 type t = indirect_int
@@ -422,6 +422,28 @@ Error: The layout of type string is value, because
          it is the primitive value type string.
        But the layout of type string must be a sublayout of any, because
          of the definition of t at line 1, characters 0-30.
+|}]
+
+type t : any mod uncontended = string
+[%%expect{|
+Line 1, characters 0-37:
+1 | type t : any mod uncontended = string
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type string is value, because
+         it is the primitive value type string.
+       But the layout of type string must be a sublayout of any, because
+         of the definition of t at line 1, characters 0-37.
+|}]
+
+type t : any mod portable = string
+[%%expect{|
+Line 1, characters 0-34:
+1 | type t : any mod portable = string
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type string is value, because
+         it is the primitive value type string.
+       But the layout of type string must be a sublayout of any, because
+         of the definition of t at line 1, characters 0-34.
 |}]
 
 type t : any mod external_ = string
