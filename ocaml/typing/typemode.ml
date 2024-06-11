@@ -67,6 +67,14 @@ let transl_modality m : Modality.t =
   | "once" -> Atom (Comonadic Linearity, Meet_with Linearity.Const.Once)
   | "shared" -> Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Shared)
   | "unique" -> Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Unique)
+  | "portable" ->
+    Atom (Comonadic Portability, Meet_with Portability.Const.Portable)
+  | "nonportable" ->
+    Atom (Comonadic Portability, Meet_with Portability.Const.Nonportable)
+  | "contended" ->
+    Atom (Monadic Contention, Join_with Contention.Const.Contended)
+  | "uncontended" ->
+    Atom (Monadic Contention, Join_with Contention.Const.Uncontended)
   | s -> raise (Error (loc, Unrecognized_modality s))
 
 let compose_modalities modalities =
