@@ -572,6 +572,7 @@ let preproc_stack_check ~fun_body ~frame_size ~trap_size =
       loop i.next s ~max_fs:(max s max_fs) ~max_fs_calls:(max s max_fs_calls)
         ~callees ~nontail_flag
     | Lop Icall_ind ->
+      (* See note on [Icall_imm] below about frame pointers and SIMD. *)
       loop i.next fs ~max_fs ~max_fs_calls ~callees ~nontail_flag:true
     | Lop (Icall_imm { func = { Cmm.sym_name; sym_global = _ } }) -> (
       match
@@ -580,7 +581,14 @@ let preproc_stack_check ~fun_body ~frame_size ~trap_size =
       | None | Some (No_checks | Check_moved_down) ->
         loop i.next fs ~max_fs ~max_fs_calls ~callees ~nontail_flag:true
       | Some (Check_as_first_instruction { size_in_bytes }) ->
-        let s = fs + size_in_bytes in
+        (* There's no need to account for frame pointers because those are
+           accounted for in [Proc.frame_size].
+
+           The stack must be maintained with sufficient alignment for SIMD
+           reload/spill operations, but any such alignment will already have
+           been dealt with by the insertion of [Istackoffset] instructions. *)
+        let return_addr_size = Arch.size_addr in
+        let s = fs + return_addr_size + size_in_bytes in
         loop i.next fs ~max_fs ~max_fs_calls:(max s max_fs_calls)
           ~callees:(String.Set.add sym_name callees)
           ~nontail_flag)
