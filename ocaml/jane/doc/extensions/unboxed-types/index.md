@@ -217,9 +217,10 @@ Here by defining module type `S` with layout `any` and using `with` constraints,
 reason about modules with similar shapes but that operate on different layouts. This removes code
 duplication and can aid ppxs in supporting unboxed types.
 
-<a name="layout-poly">
+<!-- This heading is referred to by name in a link to an HTML anchor below.
+     If you rename it, please also update that link.
+-->
 # `[@layout_poly]` attribute
-</a>
 
 The attribute enables support for **limited layout polymorphism on external
 `%`-primitives**. This is possible because these primitives are always inlined at every
@@ -319,7 +320,7 @@ let first_elem () = array.(0)
 (The above relies on the fact that array projection syntax desugars to a call to whatever `Array.get` is in scope.)
 
 A limited set of primitives may be bound as `[@layout_poly]`;
-[see the earlier section](#layout-poly) for more information.
+[see the earlier section](#layout_poly-attribute) for more information.
 
 ## Runtime representation
 
