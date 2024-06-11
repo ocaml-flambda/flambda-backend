@@ -167,7 +167,7 @@ type (_ : float64) t2_float64'
 type t3 = float# t2_float64
 type ('a : value mod global) t2_global
 type (_ : value mod global) t2_global'
-type ('a : word mod external_ many shared many shared) t2_complex
+type ('a : word mod external_ many shared) t2_complex
 type (_ : word mod external_ many shared) t2_complex'
 
 
@@ -292,7 +292,7 @@ Error: This type u should be an instance of type
        The layout of u is word, because
          of the definition of u at line 1, characters 0-13.
        But the layout of u must be a sublayout of word, because
-         of the definition of t2_complex at line 10, characters 0-65.
+         of the definition of t2_complex at line 10, characters 0-53.
 |}]
 
 let f : 'a t2_imm -> 'a t2_imm = fun x -> x
@@ -365,7 +365,7 @@ Line 1, characters 8-51:
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The universal type variable 'a was declared to have layout word.
        But it was inferred to have layout word, because
-         of the definition of t2_complex at line 10, characters 0-65.
+         of the definition of t2_complex at line 10, characters 0-53.
 |}]
 
 type 'a t = 'a t2_imm
@@ -492,6 +492,22 @@ type rf = { fieldf : ('a : float64). 'a -> 'a; }
 val f : rf -> Stdlib_upstream_compatible.Float_u.t = <fun>
 |}]
 
+type rg = { fieldg : ('a : value mod global). 'a -> 'a }
+let f { fieldg } = fieldg 5;;
+[%%expect {|
+type rg = { fieldg : ('a : value mod global). 'a -> 'a; }
+val f : rg -> int = <fun>
+|}]
+
+type rc = { fieldc : ('a : word mod external_ many shared). 'a -> 'a }
+let f { fieldc } =
+  let x : _ as (_ : word mod external_ many shared) = assert false in
+  fieldc x;;
+[%%expect {|
+type rc = { fieldc : ('a : word mod many external_). 'a -> 'a; }
+val f : ('a : word mod many external_). rc -> 'a = <fun>
+|}]
+
 let f { field } = field "hello"
 ;;
 [%%expect {|
@@ -506,6 +522,34 @@ Error: This expression has type string but an expression was expected of type
          of the definition of r at line 1, characters 0-47.
 |}]
 
+let f { fieldg } = fieldg "hello"
+;;
+[%%expect {|
+Line 1, characters 26-33:
+1 | let f { fieldg } = fieldg "hello"
+                              ^^^^^^^
+Error: This expression has type string but an expression was expected of type
+         ('a : value mod global)
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of value, because
+         of the definition of rg at line 1, characters 0-56.
+|}]
+
+let f { fieldc } = fieldc "hello"
+;;
+[%%expect {|
+Line 1, characters 26-33:
+1 | let f { fieldc } = fieldc "hello"
+                              ^^^^^^^
+Error: This expression has type string but an expression was expected of type
+         ('a : word mod many external_)
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of word, because
+         of the definition of rc at line 1, characters 0-70.
+|}]
+
 let r = { field = fun x -> x }
 let r = { field = Fun.id }
 ;;
@@ -515,8 +559,10 @@ val r : r = {field = <fun>}
 |}]
 
 let r = { field = fun (type (a : immediate)) (x : a) -> x }
+let r = { field = fun (type (a : value mod global)) (x : a) -> x }
 ;;
 [%%expect {|
+val r : r = {field = <fun>}
 val r : r = {field = <fun>}
 |}]
 
@@ -542,6 +588,19 @@ Error: This field value has type 'b -> 'b which is less general than
          of the annotation on the abstract type declaration for a.
 |}]
 (* CR layouts v1.5: that's a pretty awful error message *)
+
+let r = { field = fun (type a : value mod global) (x : a) -> x }
+[%%expect{|
+Line 1, characters 18-62:
+1 | let r = { field = fun (type a : value mod global) (x : a) -> x }
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This field value has type 'b -> 'b which is less general than
+         'a. 'a -> 'a
+       The layout of 'a is value, because
+         of the definition of r_value at line 1, characters 0-39.
+       But the layout of 'a must be a sublayout of value, because
+         of the annotation on the abstract type declaration for a.
+|}]
 
 type ('a : immediate) t_imm
 
@@ -570,6 +629,50 @@ Error: Layout mismatch in final type declaration consistency check.
    have locations any more. I conjecture the same location problem exists
    when constraints aren't satisfied. *)
 
+type ('a : value mod global) t_global
+
+type s = { f : ('a : value). 'a -> 'a u }
+and 'a u = 'a t_global
+[%%expect {|
+type ('a : value mod global) t_global
+Line 3, characters 15-39:
+3 | type s = { f : ('a : value). 'a -> 'a u }
+                   ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Layout mismatch in final type declaration consistency check.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         The layout of 'a is value, because
+           of the annotation on the universal variable 'a.
+         But the layout of 'a must be a sublayout of value, because
+           of the definition of t_global at line 1, characters 0-37.
+       A good next step is to add a layout annotation on a parameter to
+       the declaration where this error is reported.
+|}]
+
+type ('a : word mod external_ many shared) t_complex
+
+type s = { f : ('a : word). 'a -> 'a u }
+and 'a u = 'a t_complex
+[%%expect {|
+type ('a : word mod many external_) t_complex
+Line 3, characters 15-38:
+3 | type s = { f : ('a : word). 'a -> 'a u }
+                   ^^^^^^^^^^^^^^^^^^^^^^^
+Error: Layout mismatch in final type declaration consistency check.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         The layout of 'a is word, because
+           of the annotation on the universal variable 'a.
+         But the layout of 'a must be a sublayout of word, because
+           of the definition of t_complex at line 1, characters 0-52.
+       A good next step is to add a layout annotation on a parameter to
+       the declaration where this error is reported.
+|}]
+
 (********************)
 (* Test 5: newtypes *)
 
@@ -589,6 +692,18 @@ let f = fun (type (a : float64)) (x : a) -> x
 ;;
 [%%expect {|
 val f : ('a : float64). 'a -> 'a = <fun>
+|}]
+
+let f = fun (type (a : value mod global)) (x : a) -> x
+;;
+[%%expect {|
+val f : ('a : value mod global). 'a -> 'a = <fun>
+|}]
+
+let f = fun (type (a : word mod external_ many shared)) (x : a) -> x
+;;
+[%%expect {|
+val f : ('a : word mod many external_). 'a -> 'a = <fun>
 |}]
 
 let f = fun (type (a : any)) (x : a) -> x
@@ -625,6 +740,18 @@ let f : type (a : float64). a -> a = fun x -> x
 ;;
 [%%expect {|
 val f : ('a : float64). 'a -> 'a = <fun>
+|}]
+
+let f : type (a : value mod global). a -> a = fun x -> x
+;;
+[%%expect {|
+val f : ('a : value mod global). 'a -> 'a = <fun>
+|}]
+
+let f : type (a : word mod external_ many shared). a -> a = fun x -> x
+;;
+[%%expect {|
+val f : ('a : word mod many external_). 'a -> 'a = <fun>
 |}]
 
 let f : type (a : any). a -> a = fun x -> x
@@ -692,6 +819,48 @@ Error: The universal type variable 'a was declared to have layout value.
 |}]
 
 module type S = sig
+  val f : ('a : value). 'a t2_global -> 'a t2_global
+end
+;;
+[%%expect {|
+Line 2, characters 10-52:
+2 |   val f : ('a : value). 'a t2_global -> 'a t2_global
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The universal type variable 'a was declared to have layout value.
+       But it was inferred to have layout value, because
+         of the definition of t2_global at line 8, characters 0-38.
+|}]
+
+module type S = sig
+  val f : ('a : value). 'a t2_complex -> 'a t2_complex
+end
+;;
+[%%expect {|
+Line 2, characters 24-26:
+2 |   val f : ('a : value). 'a t2_complex -> 'a t2_complex
+                            ^^
+Error: This type ('a : value) should be an instance of type
+         ('b : word mod many external_)
+       The layout of 'a is value, because
+         of the annotation on the universal variable 'a.
+       But the layout of 'a must overlap with word, because
+         of the definition of t2_complex at line 10, characters 0-53.
+|}]
+
+module type S = sig
+  val f : ('a : word). 'a t2_complex -> 'a t2_complex
+end
+;;
+[%%expect {|
+Line 2, characters 10-53:
+2 |   val f : ('a : word). 'a t2_complex -> 'a t2_complex
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The universal type variable 'a was declared to have layout word.
+       But it was inferred to have layout word, because
+         of the definition of t2_complex at line 10, characters 0-53.
+|}]
+
+module type S = sig
   val f : 'a t2_imm -> 'a t2_imm
   val g : ('a : immediate). 'a t2_imm -> 'a t2_imm
 end
@@ -717,6 +886,34 @@ module type S =
   end
 |}]
 
+module type S = sig
+  val f : 'a t2_global -> 'a t2_global
+  val g : ('a : value mod global). 'a t2_global -> 'a t2_global
+end
+;;
+[%%expect {|
+module type S =
+  sig
+    val f : ('a : value mod global). 'a t2_global -> 'a t2_global
+    val g : ('a : value mod global). 'a t2_global -> 'a t2_global
+  end
+|}]
+
+module type S = sig
+  val f : 'a t2_complex -> 'a t2_complex
+  val g : ('a : word mod external_ many shared). 'a t2_complex -> 'a t2_complex
+  val h : ('a : word mod external_ many). 'a t2_complex -> 'a t2_complex
+end
+;;
+[%%expect {|
+module type S =
+  sig
+    val f : ('a : word mod many external_). 'a t2_complex -> 'a t2_complex
+    val g : ('a : word mod many external_). 'a t2_complex -> 'a t2_complex
+    val h : ('a : word mod many external_). 'a t2_complex -> 'a t2_complex
+  end
+|}]
+
 (************************************************************)
 (* Test 9: Annotation on universal in polymorphic parameter *)
 
@@ -726,6 +923,13 @@ let f (x : ('a : value). 'a -> 'a) = x "string", x 5
 val f : ('a. 'a -> 'a) -> string * int = <fun>
 |}]
 
+let f (x : ('a : word mod external_ many shared). 'a -> 'a) =
+  let native_int : nativeint# = assert false in
+  x native_int
+
+[%%expect {|
+val f : (('a : word mod many external_). 'a -> 'a) -> nativeint# = <fun>
+|}]
 
 let f (x : ('a : immediate). 'a -> 'a) = x "string"
 
@@ -738,6 +942,20 @@ Error: This expression has type string but an expression was expected of type
        The layout of string is value, because
          it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
+         of the annotation on the universal variable 'a.
+|}]
+
+let f (x : ('a : value mod global). 'a -> 'a) = x "string"
+
+[%%expect {|
+Line 1, characters 50-58:
+1 | let f (x : ('a : value mod global). 'a -> 'a) = x "string"
+                                                      ^^^^^^^^
+Error: This expression has type string but an expression was expected of type
+         ('a : value mod global)
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of value, because
          of the annotation on the universal variable 'a.
 |}]
 
