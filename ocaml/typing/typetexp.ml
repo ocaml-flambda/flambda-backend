@@ -1463,7 +1463,7 @@ let report_error env ppf = function
         (Jkind.format_history ~intro:(
           dprintf "But it was inferred to have %t"
             (fun ppf -> match Jkind.get inferred_jkind with
-            | Const c -> fprintf ppf "layout %s" (Jkind.Const.to_string c)
+            | Const c -> fprintf ppf "layout %a" Jkind.Const.format c
             | Var _ -> fprintf ppf "a representable layout")))
         inferred_jkind
   | Multiple_constraints_on_type s ->

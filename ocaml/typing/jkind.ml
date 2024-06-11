@@ -427,20 +427,15 @@ module Const = struct
       | false -> `Invalid
 
     let get_modal_bounds ~(base : Bounds.t) (actual : Bounds.t) =
-      [ get_modal_bound ~le:Locality.Const.le
-          ~print:Locality.Const.print ~base:base.alloc_bounds.areality
-          actual.alloc_bounds.areality;
-        get_modal_bound ~le:Uniqueness.Const.le
-          ~print:Uniqueness.Const.print
+      [ get_modal_bound ~le:Locality.Const.le ~print:Locality.Const.print
+          ~base:base.alloc_bounds.areality actual.alloc_bounds.areality;
+        get_modal_bound ~le:Uniqueness.Const.le ~print:Uniqueness.Const.print
           ~base:base.alloc_bounds.uniqueness actual.alloc_bounds.uniqueness;
-        get_modal_bound ~le:Linearity.Const.le
-          ~print:Linearity.Const.print ~base:base.alloc_bounds.linearity
-          actual.alloc_bounds.linearity;
-        get_modal_bound ~le:Contention.Const.le
-          ~print:Contention.Const.print
+        get_modal_bound ~le:Linearity.Const.le ~print:Linearity.Const.print
+          ~base:base.alloc_bounds.linearity actual.alloc_bounds.linearity;
+        get_modal_bound ~le:Contention.Const.le ~print:Contention.Const.print
           ~base:base.alloc_bounds.contention actual.alloc_bounds.contention;
-        get_modal_bound ~le:Portability.Const.le
-          ~print:Portability.Const.print
+        get_modal_bound ~le:Portability.Const.le ~print:Portability.Const.print
           ~base:base.alloc_bounds.portability actual.alloc_bounds.portability;
         get_modal_bound ~le:Externality.le ~print:Externality.print
           ~base:base.externality_bound actual.externality_bound ]
@@ -512,9 +507,10 @@ module Const = struct
 
   let to_out_jkind_const = To_out_jkind_const.convert
 
-  let to_string jkind =
+  let format ppf jkind =
     let legacy_layout = get_legacy_layout jkind in
-    Layout.Const.Legacy.to_string legacy_layout
+    let layout_str = Layout.Const.Legacy.to_string legacy_layout in
+    Format.fprintf ppf "%s" layout_str
 
   let of_attribute : Builtin_attributes.jkind_attribute -> t = function
     | Immediate -> Primitive.immediate.jkind
@@ -648,7 +644,7 @@ module Desc = struct
   let format ppf =
     let open Format in
     function
-    | Const c -> fprintf ppf "%s" (Const.to_string c)
+    | Const c -> fprintf ppf "%a" Const.format c
     | Var v -> fprintf ppf "%s" (Sort.Var.name v)
 
   (* considers sort variables < Any. Two sort variables are in a [sub]
@@ -1017,10 +1013,10 @@ let get_externality_upper_bound jk = jk.jkind.externality_upper_bound
 (*********************************)
 (* pretty printing *)
 
-let to_string jkind =
-  match get jkind with Const c -> Const.to_string c | Var v -> Sort.Var.name v
-
-let format ppf t = Format.fprintf ppf "%s" (to_string t)
+let format ppf jkind =
+  match get jkind with
+  | Const c -> Format.fprintf ppf "%a" Const.format c
+  | Var v -> Format.fprintf ppf "%s" (Sort.Var.name v)
 
 let printtyp_path = ref (fun _ _ -> assert false)
 
@@ -1742,10 +1738,9 @@ let report_error ~loc : Error.t -> _ = function
   | Multiple_jkinds { from_annotation; from_attribute } ->
     Location.errorf ~loc
       "@[<v>A type declaration's layout can be given at most once.@;\
-       This declaration has an layout annotation (%s) and a layout attribute \
-       ([@@@@%s]).@]"
-      (Const.to_string from_annotation)
-      (Const.to_string from_attribute)
+       This declaration has an layout annotation (%a) and a layout attribute \
+       ([@@@@%a]).@]"
+      Const.format from_annotation Const.format from_attribute
   | Insufficient_level { jkind; required_layouts_level } -> (
     let hint ppf =
       Format.fprintf ppf "You must enable -extension %s to use this feature."
@@ -1761,10 +1756,10 @@ let report_error ~loc : Error.t -> _ = function
         (* CR layouts errors: use the context to produce a better error message.
            When RAE tried this, some types got printed like [t/2], but the
            [/2] shouldn't be there. Investigate and fix. *)
-        "@[<v>Layout %s is more experimental than allowed by the enabled \
+        "@[<v>Layout %a is more experimental than allowed by the enabled \
          layouts extension.@;\
          %t@]"
-        (Const.to_string jkind) hint)
+        Const.format jkind hint)
 
 let () =
   Location.register_error_of_exn (function
