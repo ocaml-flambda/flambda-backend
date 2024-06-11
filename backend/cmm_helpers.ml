@@ -4106,3 +4106,5 @@ let allocate_unboxed_nativeint_array =
 
 (* Drop internal optional arguments from exported interface *)
 let block_header x y = block_header x y
+
+let dls_get ~dbg = Cop (Cdls_get, [], dbg)

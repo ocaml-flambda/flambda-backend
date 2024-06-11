@@ -193,6 +193,28 @@ Line 1, characters 25-30:
 Error: The locality axis has already been specified.
 |}]
 
+(* Mixing legacy and new modes *)
+type r = local_ unique_ once_ string -> string
+[%%expect{|
+type r = local_ once_ unique_ string -> string
+|}]
+
+type r = local_ unique_ once_ string @ portable contended -> string
+[%%expect{|
+type r = local_ once_ unique_ string @ portable contended -> string
+|}]
+
+type r = string @ local unique once portable contended -> string
+[%%expect{|
+type r = local_ once_ unique_ string @ portable contended -> string
+|}]
+
+type r = string @ local unique once nonportable uncontended -> string
+[%%expect{|
+type r = local_ once_ unique_ string -> string
+|}]
+
+
 (* modality on constructor arguments and record fields *)
 
 type t = Foo of string @@ global * global_ string

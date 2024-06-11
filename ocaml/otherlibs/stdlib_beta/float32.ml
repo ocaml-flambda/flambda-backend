@@ -71,7 +71,9 @@ let one = 1.s
 let minus_one = -1.s
 let infinity = float32_of_bits 0x7f800000l
 let neg_infinity = float32_of_bits 0xff800000l
-let nan = float32_of_bits 0x7f800001l
+let quiet_nan = float32_of_bits 0x7fc00001l
+let signaling_nan = float32_of_bits 0x7f800001l
+let nan = quiet_nan
 let is_finite (x : t) = sub x x = 0.s
 let is_infinite (x : t) = div 1.s x = 0.s
 let is_nan (x : t) = x <> x

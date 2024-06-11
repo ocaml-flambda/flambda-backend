@@ -54,11 +54,8 @@ module Sort : Jkind_intf.Sort with type const = Jkind_types.Sort.const
 
 type sort = Sort.t
 
-(** The layout of a type describes its memory layout. A layout is either the
-    indeterminate [Any], a sort, which is a concrete memory layout, or
-    [Non_null_value], which is a sublayout of the sort [Value] describing types
-    that do not allow the concrete value null. [Non_null_value] is also the
-    layout of "classical" OCaml values used by the upstream compiler. *)
+(* The layout of a type describes its memory layout. A layout is either the
+   indeterminate [Any] or a sort, which is a concrete memory layout. *)
 module Layout : sig
   module Const : sig
     type t = (Types.type_expr, Sort.const) Jkind_types.Layout.layout
@@ -131,7 +128,6 @@ type const = Jkind_types.const =
   | Word
   | Bits32
   | Bits64
-  | Non_null_value
 
 val const_of_user_written_annotation :
   context:annotation_context -> Jane_syntax.Jkind.annotation -> const
@@ -148,11 +144,8 @@ val any : why:any_creation_reason -> t
 (** Value of types of this jkind are not retained at all at runtime *)
 val void : why:void_creation_reason -> t
 
-(** This is the jkind of normal ocaml values and null pointers. *)
+(** This is the jkind of normal ocaml values *)
 val value : why:value_creation_reason -> t
-
-(** This is the jkind of normal ocaml values. They have sort Value. *)
-val non_null_value : why:non_null_value_creation_reason -> t
 
 (** Values of types of this jkind are immediate on 64-bit platforms; on other
     platforms, we know nothing other than that it's a value. *)
@@ -353,8 +346,12 @@ val sub_or_error : t -> t -> (unit, Violation.t) result
 (** Like [sub], but returns the subjkind with an updated history. *)
 val sub_with_history : t -> t -> (t, Violation.t) result
 
-(** Checks to see whether a jkind is any. Never does any mutation. *)
-val is_any : t -> bool
+(** Checks to see whether a jkind is the maximum jkind. Never does any
+    mutation. *)
+val is_max : t -> bool
+
+(** Checks to see whether a jkind is has layout. Never does any mutation. *)
+val has_layout_any : t -> bool
 
 (*********************************)
 (* debugging *)

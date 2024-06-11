@@ -95,6 +95,7 @@ end
 
 type mixed_product_violation =
   | Runtime_support_not_enabled of Mixed_product_kind.t
+  | Extension_constructor
   | Value_prefix_too_long of
       { value_prefix_len : int;
         max_value_prefix_len : int;
@@ -170,7 +171,7 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
-  | Unexpected_jkind_any_in_primitive of string
+  | Unexpected_layout_any_in_primitive of string
   | Useless_layout_poly
   | Modalities_on_value_description
   | Zero_alloc_attr_unsupported of Builtin_attributes.zero_alloc_attribute

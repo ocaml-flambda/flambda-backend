@@ -700,7 +700,7 @@ let prim_has_valid_reprs ~loc prim =
     raise (Error (loc,
             Invalid_native_repr_for_primitive (prim.prim_name)))
 
-let prim_can_contain_jkind_any prim =
+let prim_can_contain_layout_any prim =
   match prim.prim_name with
   | "%array_length"
   | "%array_safe_get"

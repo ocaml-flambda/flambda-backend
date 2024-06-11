@@ -17,8 +17,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* CR ocaml 5 domains: domains not supported on 4.x
-
 [@@@alert unstable
     "The Domain interface may change in incompatible ways in the future."
 ]
@@ -66,7 +64,6 @@ val recommended_domain_count : unit -> int
     simultaneously (including domains already running).
 
     The value returned is at least [1]. *)
-*)
 
 val before_first_spawn : (unit -> unit) -> unit
 (** [before_first_spawn f] registers [f] to be called before the first domain

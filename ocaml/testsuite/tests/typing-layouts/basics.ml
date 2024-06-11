@@ -31,15 +31,6 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
        You must enable -extension layouts_alpha to use this feature.
 |}];;
 
-type t_non_null_value : non_null_value;;
-[%%expect{|
-Line 1, characters 24-38:
-1 | type t_non_null_value : non_null_value;;
-                            ^^^^^^^^^^^^^^
-Error: Layout non_null_value is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
-|}]
-
 (******************************************************************)
 (* Test 1: Allow non-representable function args/returns in types *)
 
@@ -614,14 +605,7 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 
 type ('a : any) any4 = Any4 of 'a
 [%%expect{|
-Line 1, characters 23-33:
-1 | type ('a : any) any4 = Any4 of 'a
-                           ^^^^^^^^^^
-Error: Constructor argument types must have a representable layout.
-       The layout of 'a is any, because
-         of the annotation on 'a in the declaration of the type any4.
-       But the layout of 'a must be representable, because
-         it's the type of a constructor field.
+type 'a any4 = Any4 of 'a
 |}];;
 
 (************************************************************)
@@ -2388,8 +2372,8 @@ Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
 Error:
-       The layout of 'a t2 is '_representable_layout_9, because
-         it instantiates an unannotated type parameter of t2.
+       The layout of 'a t2 is value, because
+         it instantiates an unannotated type parameter of t2, defaulted to layout value.
        But the layout of 'a t2 must be a sublayout of immediate, because
          of the annotation on the wildcard _ at line 1, characters 27-36.
 |}]

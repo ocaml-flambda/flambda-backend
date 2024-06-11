@@ -82,7 +82,6 @@ module Layout : sig
   type ('type_expr, 'sort) layout =
     | Sort of 'sort
     | Any
-    | Non_null_value
 
   type 'type_expr t = ('type_expr, Sort.t) layout
 end
@@ -115,7 +114,6 @@ type const =
   | Word
   | Bits32
   | Bits64
-  | Non_null_value
 
 type 'type_expr history =
   | Interact of

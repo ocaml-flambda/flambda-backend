@@ -664,6 +664,7 @@ let nullary_primitive _env res dbg prim =
       "The primitive [Enter_inlined_apply] should not be translated by \
        [to_cmm_primitive] but should instead be handled in [to_cmm_expr] to \
        correctly adjust the inlined debuginfo in the env."
+  | Dls_get -> None, res, C.dls_get ~dbg
 
 let unary_primitive env res dbg f arg =
   match (f : P.unary_primitive) with

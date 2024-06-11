@@ -207,6 +207,24 @@ module type S = sig
     val once : lr
   end
 
+  module Portability : sig
+    module Const : sig
+      type t =
+        | Portable
+        | Nonportable
+
+      include Lattice with type t := t
+    end
+
+    type error = Const.t Solver.error
+
+    include
+      Common
+        with module Const := Const
+         and type error := error
+         and type 'd t = (Const.t, 'd) mode_comonadic
+  end
+
   module Uniqueness : sig
     module Const : sig
       type t =
@@ -229,9 +247,27 @@ module type S = sig
     val unique : lr
   end
 
-  type 'a comonadic_with = private 'a * Linearity.Const.t
+  module Contention : sig
+    module Const : sig
+      type t =
+        | Contended
+        | Uncontended
 
-  type monadic = private Uniqueness.Const.t * unit
+      include Lattice with type t := t
+    end
+
+    type error = Const.t Solver.error
+
+    include
+      Common
+        with module Const := Const
+         and type error := error
+         and type 'd t = (Const.t, 'd) mode_monadic
+  end
+
+  type 'a comonadic_with = private 'a * Linearity.Const.t * Portability.Const.t
+
+  type monadic = private Uniqueness.Const.t * Contention.Const.t
 
   module Axis : sig
     (** ('p, 'r) t represents a projection from a product of type ['p] to an
@@ -239,7 +275,9 @@ module type S = sig
     type ('p, 'r) t =
       | Areality : ('a comonadic_with, 'a) t
       | Linearity : ('areality comonadic_with, Linearity.Const.t) t
+      | Portability : ('areality comonadic_with, Portability.Const.t) t
       | Uniqueness : (monadic, Uniqueness.Const.t) t
+      | Contention : (monadic, Contention.Const.t) t
 
     val print : Format.formatter -> ('p, 'r) t -> unit
   end
@@ -279,17 +317,24 @@ module type S = sig
           (Comonadic.Const.t, 'a) Axis.t
           -> (('a, 'd) mode_comonadic, 'a, 'd) axis
 
-    type ('a, 'b, 'c) modes =
+    type ('a, 'b, 'c, 'd, 'e) modes =
       { areality : 'a;
         linearity : 'b;
-        uniqueness : 'c
+        uniqueness : 'c;
+        portability : 'd;
+        contention : 'e
       }
 
     module Const : sig
       include
         Lattice
           with type t =
-            (Areality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
+            ( Areality.Const.t,
+              Linearity.Const.t,
+              Uniqueness.Const.t,
+              Portability.Const.t,
+              Contention.Const.t )
+            modes
 
       module Option : sig
         type some = t
@@ -297,7 +342,9 @@ module type S = sig
         type t =
           ( Areality.Const.t option,
             Linearity.Const.t option,
-            Uniqueness.Const.t option )
+            Uniqueness.Const.t option,
+            Portability.Const.t option,
+            Contention.Const.t option )
           modes
 
         val none : t

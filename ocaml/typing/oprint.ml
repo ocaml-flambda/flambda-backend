@@ -346,17 +346,32 @@ let pr_var_jkinds =
   disallowed in parsing of this file, but non-legacy modes might still pop
   up. For example, the current file might cite values from other files that
   mention non-legacy modes *)
-let print_out_mode ppf = function
+let print_out_mode_legacy ppf = function
   | Omd_local -> fprintf ppf "local_"
   | Omd_unique -> fprintf ppf "unique_"
   | Omd_once -> fprintf ppf "once_"
 
-let print_out_mode_space ppf m =
-  print_out_mode ppf m;
+let print_out_mode_new = pp_print_string
+
+let print_out_mode_legacy_space ppf m =
+  print_out_mode_legacy ppf m;
   pp_print_space ppf ()
 
-let print_out_modes ppf l =
-  pp_print_list print_out_mode_space ppf l
+let print_out_modes_legacy ppf l =
+  pp_print_list print_out_mode_legacy_space ppf l
+
+let print_out_modes_new ppf l =
+  (match l with
+  | [] -> ()
+  | _ -> pp_print_string ppf " @ ");
+  pp_print_list ~pp_sep:pp_print_space print_out_mode_new ppf l
+
+let partition_modes l =
+  List.partition_map
+    (function
+    | Omd_legacy m -> Left m
+    | Omd_new m -> Right m
+    ) l
 
 (* Labeled tuples with the first element labeled sometimes require parens. *)
 let is_initially_labeled_tuple ty =
@@ -388,8 +403,9 @@ let rec print_out_type_0 ppf =
    - Or, there is at least one mode to print.
  *)
 and print_out_type_mode ~arg mode ppf ty =
+  let m_legacy, m_new = partition_modes mode in
   let has_modes =
-    match mode with
+    match m_legacy with
     | [] -> false
     | _ -> true
   in
@@ -397,12 +413,13 @@ and print_out_type_mode ~arg mode ppf ty =
     is_initially_labeled_tuple ty
     && (arg || has_modes)
   in
-  print_out_modes ppf mode;
+  print_out_modes_legacy ppf m_legacy;
   if parens then
     pp_print_char ppf '(';
   print_out_type_2 ppf ty;
   if parens then
-    pp_print_char ppf ')'
+    pp_print_char ppf ')';
+  print_out_modes_new ppf m_new
 
 and print_out_type_1 ppf =
   function
@@ -435,10 +452,12 @@ and print_out_ret rm ppf =
     | Orm_no_parens ->
       print_out_type_1 ppf ty
     | Orm_parens rm ->
-      print_out_modes ppf rm;
+      let m_legacy, m_new = partition_modes rm in
+      print_out_modes_legacy ppf m_legacy;
       pp_print_char ppf '(';
       print_out_type_1 ppf ty;
-      pp_print_char ppf ')'
+      pp_print_char ppf ')';
+      print_out_modes_new ppf m_new
     end
   | ty ->
     match rm with

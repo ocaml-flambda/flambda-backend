@@ -128,7 +128,16 @@ val nan : t
     argument returns [nan] as result, unless otherwise specified in
     IEEE 754 standard.  As for floating-point comparisons,
     [=], [<], [<=], [>] and [>=] return [false] and [<>] returns [true]
-    if one or both of their arguments is [nan]. *)
+    if one or both of their arguments is [nan].
+
+    Equivalent to [quiet_nan]. *)
+
+val signaling_nan : t
+(** Signaling NaN. The corresponding signals do not raise OCaml exception,
+    but the value can be useful for interoperability with C libraries. *)
+
+val quiet_nan : t
+(** Quiet NaN. *)
 
 val pi : t
 (** The constant pi. *)
