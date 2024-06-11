@@ -596,7 +596,19 @@ let preproc_stack_check ~fun_body ~frame_size ~trap_size =
     (* For [Lprologue] it seems like we might need to account for the stack
        adjustment induced by pushing the frame pointer, but this is accounted
        for in [Proc.frame_size], as noted above. *)
-    | Lop _ | Lreloadretaddr | Lreturn | Llabel _ | Lbranch _ | Lcondbranch _
+    | Lop
+        ( Imove | Ispill | Ireload | Iconst_int _ | Iconst_float32 _
+        | Iconst_float _ | Iconst_vec128 _ | Iconst_symbol _ | Itailcall_ind
+        | Itailcall_imm _ | Iextcall _ | Iload _
+        | Istore (_, _, _)
+        | Ialloc _ | Iintop _
+        | Iintop_imm (_, _)
+        | Iintop_atomic _
+        | Ifloatop (_, _)
+        | Icsel _ | Ireinterpret_cast _ | Istatic_cast _ | Iopaque | Ispecific _
+        | Ipoll _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
+        | Ibeginregion | Iendregion | Idls_get )
+    | Lreloadretaddr | Lreturn | Llabel _ | Lbranch _ | Lcondbranch _
     | Lcondbranch3 _ | Lswitch _ | Lentertrap | Lraise _ ->
       loop i.next fs ~max_fs ~max_fs_calls ~callees ~nontail_flag
     | Lstackcheck _ ->
