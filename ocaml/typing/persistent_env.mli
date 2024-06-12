@@ -155,7 +155,6 @@ val implemented_parameter : 'a t
 
 val global_of_global_name : 'a t
   -> check:bool
-  -> param:bool
   -> Global_module.Name.t
   -> Global_module.t
 

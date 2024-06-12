@@ -446,12 +446,10 @@ let check_for_unset_parameters penv global =
      all argument names and values. *)
   ()
 
-let rec global_of_global_name penv ~check ~param name =
+let rec global_of_global_name penv ~check name =
   match Hashtbl.find penv.globals name with
   | { gn_global; _ } -> gn_global
   | exception Not_found ->
-      if param then
-        register_parameter penv name;
       let pn = find_pers_name ~allow_hidden:true penv check name in
       pn.pn_global
 
@@ -459,7 +457,7 @@ and compute_global penv modname ~params check =
   let arg_global_by_param_name =
     List.map
       (fun (name, value) ->
-         match global_of_global_name penv ~check value ~param:false with
+         match global_of_global_name penv ~check value with
          | value -> name, value
          | exception Not_found ->
              error
@@ -493,10 +491,9 @@ and compute_global penv modname ~params check =
         (fun (param, _) ->
            (* Parameter with no argument: fine so long as it's a parameter *)
            let pn = find_pers_name ~allow_hidden:true penv check param in
-           (* Either [register_parameter_import] or [find_pers_name] should
-              have thrown if this were false *)
-           (* CR lmaurer: Do proper check here since previous check is gone *)
-           assert pn.pn_import.imp_is_param)
+           if not pn.pn_import.imp_is_param then
+             raise
+               (Error (Not_compiled_as_parameter (modname, pn.pn_import.imp_filename))))
       ~right_only:
         (fun (param, value) ->
             (* Argument with no parameter: not fine *)
@@ -520,7 +517,7 @@ and compute_global penv modname ~params check =
               | Some ty -> ty
             in
             let actual_type_global =
-              global_of_global_name penv ~check actual_type ~param:true
+              global_of_global_name penv ~check actual_type
             in
             if not (Global_module.equal expected_type_global actual_type_global)
             then begin
@@ -887,7 +884,7 @@ let make_cmi penv modname kind sign alerts =
   let params =
     (* Needs to be consistent with [Translmod] *)
     parameters penv
-    |> List.map (global_of_global_name penv ~check:true ~param:true)
+    |> List.map (global_of_global_name penv ~check:true)
   in
   (* Need to calculate [params] before these since [global_of_global_name] has
      side effects *)
