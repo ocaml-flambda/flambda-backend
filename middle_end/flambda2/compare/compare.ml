@@ -256,7 +256,7 @@ let subst_func_decl env
     (code_id : Function_declarations.code_id_in_function_declaration) :
     Function_declarations.code_id_in_function_declaration =
   match code_id with
-  | Deleted -> Deleted
+  | Deleted _ -> code_id
   | Code_id code_id -> Code_id (subst_code_id env code_id)
 
 let subst_func_decls env decls =
@@ -718,12 +718,15 @@ let function_decls env
     (fun_decl2 : Function_declarations.code_id_in_function_declaration) :
     unit Comparison.t =
   match fun_decl1, fun_decl2 with
-  | Deleted, Deleted -> Equivalent
+  | ( Deleted { function_slot_size = size1 },
+      Deleted { function_slot_size = size2 } ) ->
+    if Int.equal size1 size2 then Equivalent else Different { approximant = () }
   | Code_id code_id1, Code_id code_id2 ->
     if code_ids env code_id1 code_id2 |> Comparison.is_equivalent
     then Equivalent
     else Different { approximant = () }
-  | Deleted, Code_id _ | Code_id _, Deleted -> Different { approximant = () }
+  | Deleted _, Code_id _ | Code_id _, Deleted _ ->
+    Different { approximant = () }
 
 (** Match up equal elements in two lists and iterate through both of them, using
     [f] analogously to [Map.S.merge] *)
@@ -793,7 +796,7 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
              )
            ->
              match code_id with
-             | Deleted -> Right function_slot
+             | Deleted _ -> Right function_slot
              | Code_id code_id0 ->
                Left (subst_code_id env code_id0, (function_slot, code_id)))
     in
