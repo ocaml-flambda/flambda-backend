@@ -28,6 +28,6 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-val block : Cfg.basic_block -> unit
+val block : Cfg.t -> Cfg.basic_block -> bool
 
 val run : Cfg.t -> unit
