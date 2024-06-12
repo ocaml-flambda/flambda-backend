@@ -72,13 +72,9 @@ jobs:
             ocamlparam: '_,Oclassic=1'
             disable_testcases: 'ocaml/testsuite/tests/typing-local/regression_cmm_unboxing.ml ocaml/testsuite/tests/int64-unboxing/test.ml'
 
-          # CR ccasinghino: We encountered build errors (missing autoconf, and
-          # then other errors) when `macos-latest` started referring to version
-          # 14.  So we've put a fixed version below for now, but we should
-          # eventually fix this.
-          - name: flambda2_macos
+          - name: macos-arm64
             config: --disable-warn-error
-            os: macos-12
+            os: macos-latest-xlarge
 
           - name: irc
             os: ubuntu-latest
