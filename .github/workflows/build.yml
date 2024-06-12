@@ -16,59 +16,57 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: flambda2_runtime5
-            config: --enable-middle-end=flambda2 --enable-runtime5
+          - name: runtime5
+            config: --enable-runtime5
             os: ubuntu-latest
 
-          - name: flambda2_dev
-            config: --enable-middle-end=flambda2 --enable-dev
+          - name: dev
+            config: --enable-dev
             os: ubuntu-latest
 
-          - name: flambda2_dev_runtime5
-            config: --enable-middle-end=flambda2 --enable-dev --enable-runtime5
+          - name: dev_runtime5
+            config: --enable-dev --enable-runtime5
             os: ubuntu-latest
 
-          - name: flambda2_debug_runtime5
-            config: --enable-middle-end=flambda2 --enable-runtime5
-            os: ubuntu-latest
-            build_ocamlparam: ''
-            use_runtime: d
-            ocamlrunparam: "v=0,V=1"
-
-          - name: flambda2_debug_runtime
-            config: --enable-middle-end=flambda2
+          - name: debug_runtime5
+            config: --enable-runtime5
             os: ubuntu-latest
             build_ocamlparam: ''
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
 
-          - name: flambda2_o3
-            config: --enable-middle-end=flambda2
+          - name: debug_runtime
+            os: ubuntu-latest
+            build_ocamlparam: ''
+            use_runtime: d
+            ocamlrunparam: "v=0,V=1"
+
+          - name: o3
             os: ubuntu-latest
             build_ocamlparam: ''
             ocamlparam: '_,O3=1'
 
-          - name: flambda2_o3_heap
-            config: --enable-middle-end=flambda2 --disable-stack-allocation
+          - name: o3_heap
+            config: --disable-stack-allocation
             os: ubuntu-latest
             build_ocamlparam: ''
             ocamlparam: '_,O3=1'
 
-          - name: flambda2_o3_advanced_meet_frame_pointers_runtime5
-            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-runtime5
+          - name: o3_advanced_meet_frame_pointers_runtime5
+            config: --enable-frame-pointers --enable-runtime5
             os: ubuntu-latest
             build_ocamlparam: ''
             ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced'
 
-          - name: flambda2_o3_advanced_meet_frame_pointers_runtime5_debug
-            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-runtime5
+          - name: o3_advanced_meet_frame_pointers_runtime5_debug
+            config: --enable-frame-pointers --enable-runtime5
             os: ubuntu-latest
             build_ocamlparam: ''
             use_runtime: d
             ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced'
 
-          - name: flambda2_frame_pointers_oclassic
-            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion
+          - name: frame_pointers_oclassic
+            config: --enable-frame-pointers --enable-poll-insertion
             os: ubuntu-latest
             build_ocamlparam: ''
             ocamlparam: '_,Oclassic=1'
@@ -79,32 +77,29 @@ jobs:
           # 14.  So we've put a fixed version below for now, but we should
           # eventually fix this.
           - name: flambda2_macos
-            config: --enable-middle-end=flambda2 --disable-warn-error
+            config: --disable-warn-error
             os: macos-12
 
           - name: irc
-            config: --enable-middle-end=flambda2
             os: ubuntu-latest
             build_ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             check_arch: true
 
           - name: irc_frame_pointers
-            config: --enable-middle-end=flambda2 --enable-frame-pointers
+            config: --enable-frame-pointers
             os: ubuntu-latest
             build_ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             check_arch: true
 
           - name: ls
-            config: --enable-middle-end=flambda2
             os: ubuntu-latest
             build_ocamlparam: '_,w=-46,regalloc=ls,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=LS_ORDER:layout,regalloc-validate=1'
             ocamlparam: '_,w=-46,regalloc=ls,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=LS_ORDER:layout,regalloc-validate=1'
             check_arch: true
 
           - name: gi
-            config: --enable-middle-end=flambda2
             os: ubuntu-latest
             build_ocamlparam: '_,w=-46,regalloc=gi,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=GI_PRIORITY_HEURISTICS:interval-length,regalloc-param=GI_SELECTION_HEURISTICS:first-available,regalloc-param=GI_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1,cfg-cse-optimize=1'
             ocamlparam: '_,w=-46,regalloc=gi,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=GI_PRIORITY_HEURISTICS:interval-length,regalloc-param=GI_SELECTION_HEURISTICS:first-available,regalloc-param=GI_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1,cfg-cse-optimize=1'
