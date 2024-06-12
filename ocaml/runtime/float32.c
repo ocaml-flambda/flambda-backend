@@ -259,6 +259,22 @@ CAMLprim value caml_fma_float32_bytecode(value f, value g, value h)
   return caml_copy_float32(fmaf(Float32_val(f), Float32_val(g), Float32_val(h)));
 }
 
+float caml_float32_of_int64(int64_t i) {
+  return (float)i;
+}
+
+CAMLprim value caml_float32_of_int64_bytecode(value i) {
+  return caml_copy_float32(caml_float32_of_int64(Int64_val(i)));
+}
+
+int64_t caml_float32_to_int64(float f) {
+  return (int64_t)f;
+}
+
+CAMLprim value caml_float32_to_int64_bytecode(value f) {
+  return caml_copy_int64(caml_float32_to_int64(Float32_val(f)));
+}
+
 float caml_float32_of_bits(int32_t bits)
 {
   union { float f; int32_t i; } u;

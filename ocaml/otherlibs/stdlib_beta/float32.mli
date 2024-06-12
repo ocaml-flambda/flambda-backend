@@ -180,6 +180,20 @@ external to_int : (t[@local_opt]) -> int = "%intoffloat32"
     The result is unspecified if the argument is [nan] or falls outside the
     range of representable integers. *)
 
+external of_int64 : (int64[@local_opt]) -> t
+  = "caml_float32_of_int64_bytecode" "caml_float32_of_int64"
+  [@@unboxed] [@@noalloc] [@@builtin]
+(** Convert the given 64-bit integer to the nearest representable 32-bit float. *)
+
+external to_int64 : (t[@local_opt]) -> int64
+  = "caml_float32_to_int64_bytecode" "caml_float32_to_int64"
+  [@@unboxed] [@@noalloc] [@@builtin]
+(** Convert the given 32-bit float to a 64-bit integer,
+    discarding the fractional part (truncate towards 0).
+    If the truncated floating-point number is outside the range
+    \[{!Int64.min_int}, {!Int64.max_int}\], no exception is raised, and
+    an unspecified, platform-dependent integer is returned. *)
+
 external of_bits : (int32[@local_opt]) -> t
   = "caml_float32_of_bits_bytecode" "caml_float32_of_bits"
   [@@unboxed] [@@noalloc] [@@builtin]

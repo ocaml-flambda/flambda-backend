@@ -87,6 +87,14 @@ external to_int : (t[@local_opt]) -> int = "%intoffloat32"
 external of_float : (float[@local_opt]) -> t = "%float32offloat"
 external to_float : (t[@local_opt]) -> float = "%floatoffloat32"
 
+external of_int64 : (int64[@local_opt]) -> t
+  = "caml_float32_of_int64_bytecode" "caml_float32_of_int64"
+  [@@unboxed] [@@noalloc] [@@builtin]
+
+external to_int64 : (t[@local_opt]) -> int64
+  = "caml_float32_to_int64_bytecode" "caml_float32_to_int64"
+  [@@unboxed] [@@noalloc] [@@builtin]
+
 external of_bits : (int32[@local_opt]) -> t
   = "caml_float32_of_bits_bytecode" "caml_float32_of_bits"
   [@@unboxed] [@@noalloc] [@@builtin]

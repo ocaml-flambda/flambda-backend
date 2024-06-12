@@ -413,6 +413,10 @@ let transl_builtin name args dbg typ_res =
     Some (Cop (Creinterpret_cast Float32_of_int32, args, dbg))
   | "caml_float32_to_bits" ->
     Some (Cop (Creinterpret_cast Int32_of_float32, args, dbg))
+  | "caml_float32_to_int64" ->
+    Some (Cop (Cstatic_cast (Int_of_float Float32), args, dbg))
+  | "caml_float32_of_int64" ->
+    Some (Cop (Cstatic_cast (Float_of_int Float32), args, dbg))
   | "caml_int_clz_tagged_to_untagged" ->
     (* The tag does not change the number of leading zeros. The advantage of
        keeping the tag is it guarantees that, on x86-64, the input to the BSR
