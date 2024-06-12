@@ -608,8 +608,7 @@ module Jkind = struct
     | Some ("kind_of", [item_of_ty], loc) ->
       bind (struct_item_to_type item_of_ty) (fun ty -> ret loc (Kind_of ty))
     | Some ("abbrev", [item], loc) ->
-      bind (Const.of_structure_item item) (fun c ->
-          ret loc (Abbreviation c))
+      bind (Const.of_structure_item item) (fun c -> ret loc (Abbreviation c))
     | Some _ | None -> None
 end
 
