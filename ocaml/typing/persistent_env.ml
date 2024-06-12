@@ -488,12 +488,10 @@ and compute_global penv modname ~params check =
       expected_type_by_param_name
       arg_global_by_param_name
       ~left_only:
-        (fun (param, _) ->
-           (* Parameter with no argument: fine so long as it's a parameter *)
-           let pn = find_pers_name ~allow_hidden:true penv check param in
-           if not pn.pn_import.imp_is_param then
-             raise
-               (Error (Not_compiled_as_parameter (modname, pn.pn_import.imp_filename))))
+        (fun _ ->
+           (* Parameter with no argument: fine (subset rule will be checked by
+              [check_for_unset_parameters] later) *)
+           ())
       ~right_only:
         (fun (param, value) ->
             (* Argument with no parameter: not fine *)
