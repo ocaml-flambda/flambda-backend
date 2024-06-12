@@ -350,7 +350,7 @@ float caml_sse41_float32_round(int mode, float f) {
   }
 }
 
-value caml_sse41_float32_round_bytecode(value mode, value f) {
+CAMLprim value caml_sse41_float32_round_bytecode(value mode, value f) {
   return caml_copy_float32(caml_sse41_float32_round(Int_val(mode), Float32_val(f)));
 }
 
