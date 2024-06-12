@@ -279,6 +279,10 @@ val get_modal_upper_bounds : t -> Mode.Alloc.Const.t
 (** Gets the maximum mode on the externality axis for types of this jkind. *)
 val get_externality_upper_bound : t -> Externality.t
 
+(** Computes a jkind that is the same as the input but with an updated maximum
+    mode for the externality axis *)
+val set_externality_upper_bound : t -> Externality.t -> t
+
 (*********************************)
 (* pretty printing *)
 
