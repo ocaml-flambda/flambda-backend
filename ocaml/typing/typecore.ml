@@ -6200,7 +6200,7 @@ and type_expect_
       in
       re { exp with exp_extra =
              (Texp_poly cty, loc, sexp.pexp_attributes) :: exp.exp_extra }
-  | Pexp_newtype({txt=name}, sbody) ->
+  | Pexp_newtype(name, sbody) ->
     type_newtype_expr ~loc ~env ~expected_mode ~rue ~attributes:sexp.pexp_attributes
       name None sbody
   | Pexp_pack m ->
@@ -6638,7 +6638,7 @@ and type_function
       (* Check everything else in the scope of (type a). *)
       let (params, body, newtypes, contains_gadt, fun_alloc_mode, ret_info),
           exp_type, jkind_annot =
-        type_newtype loc env newtype_var.txt jkind_annot (fun env ->
+        type_newtype env newtype_var jkind_annot (fun env ->
           let { function_ = exp_type, params, body;
                 newtypes; params_contain_gadt = contains_gadt;
                 fun_alloc_mode; ret_info;
@@ -8233,9 +8233,10 @@ and type_function_cases_expect
       by the user.
 *)
 and type_newtype
-  : type a. _ -> _ -> _ -> _ -> (Env.t -> a * type_expr)
+  : type a. _ -> _ -> _ -> (Env.t -> a * type_expr)
     -> a * type_expr * Jkind.annotation option =
-  fun loc env name jkind_annot_opt type_body  ->
+  fun env name jkind_annot_opt type_body  ->
+  let { txt = name; loc = name_loc } : _ Location.loc = name in
   let jkind, jkind_annot =
     Jkind.of_annotation_option_default ~context:(Newtype_declaration name)
       ~default:(Jkind.value ~why:Univar) jkind_annot_opt
@@ -8249,7 +8250,7 @@ and type_newtype
   (* Use [with_local_level] just for scoping *)
   with_local_level begin fun () ->
     (* Create a fake abstract type declaration for name. *)
-    let decl = new_local_type ~loc jkind ~jkind_annot in
+    let decl = new_local_type ~loc:name_loc jkind ~jkind_annot in
     let scope = create_scope () in
     let (id, new_env) = Env.enter_type ~scope name decl env in
 
@@ -8275,7 +8276,7 @@ and type_newtype
 and type_newtype_expr
     ~loc ~env ~expected_mode ~rue ~attributes name jkind_annot_opt sbody =
   let body, ety, jkind_annot =
-    type_newtype loc env name jkind_annot_opt (fun env ->
+    type_newtype env name jkind_annot_opt (fun env ->
       let expr = type_exp env expected_mode sbody in
       expr, expr.exp_type)
   in
@@ -8283,7 +8284,7 @@ and type_newtype_expr
      any new extra node in the typed AST. *)
   rue { body with exp_loc = loc; exp_type = ety;
         exp_extra =
-        (Texp_newtype (name, jkind_annot),
+        (Texp_newtype (name.txt, jkind_annot),
          loc, attributes) :: body.exp_extra }
 
 (* Typing of let bindings *)
@@ -9166,7 +9167,7 @@ and type_jkind_expr
       ~loc ~env ~expected_mode ~ty_expected:_ ~explanation:_ ~rue ~attributes
   : Jane_syntax.Layouts.expression -> _ = function
   | Lexp_constant x -> type_unboxed_constant ~loc ~env ~rue ~attributes x
-  | Lexp_newtype ({txt=name}, jkind_annot, sbody) ->
+  | Lexp_newtype (name, jkind_annot, sbody) ->
     type_newtype_expr ~loc ~env ~expected_mode ~rue ~attributes
       name (Some jkind_annot) sbody
 
