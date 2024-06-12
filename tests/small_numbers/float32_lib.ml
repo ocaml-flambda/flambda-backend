@@ -363,8 +363,8 @@ let () =
   );
   for _ = 0 to 100_000 do
     let i = if Random.bool () then Random.full_int Int.max_int else Int.neg (Random.full_int Int.max_int) in
-    let i64 = if Random.bool () then Random.int64 Int64.max_int else Int64.neg (Random.int64 Int64.max_int) in
     let f = if Random.bool () then Random.float Float.max_float else Float.neg (Random.float Float.max_float) in
+    let i64 = if Random.bool () then Random.int64 Int64.max_int else Int64.neg (Random.int64 Int64.max_int) in
     bit_eq (F32.of_int i) (CF32.of_int i);
     bit_eq (F32.of_int64 i64) (CF32.of_int64 i64);
     bit_eq (F32.of_float f) (CF32.of_float f);
