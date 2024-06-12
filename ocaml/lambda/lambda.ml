@@ -556,6 +556,7 @@ let must_be_value layout =
 type structured_constant =
     Const_base of constant
   | Const_block of int * structured_constant list
+  | Const_mixed_block of int * mixed_block_shape * structured_constant list
   | Const_float_array of string list
   | Const_immstring of string
   | Const_float_block of string list
@@ -1802,7 +1803,7 @@ let constant_layout: constant -> layout = function
 
 let structured_constant_layout = function
   | Const_base const -> constant_layout const
-  | Const_block _ | Const_immstring _ -> Pvalue Pgenval
+  | Const_mixed_block _ | Const_block _ | Const_immstring _ -> Pvalue Pgenval
   | Const_float_array _ | Const_float_block _ -> Pvalue (Parrayval Pfloatarray)
 
 let layout_of_extern_repr : extern_repr -> _ = function

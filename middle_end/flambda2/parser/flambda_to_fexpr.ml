@@ -687,7 +687,7 @@ let field_of_block env (field : Field_of_static_block.t) : Fexpr.field_of_block
   | Dynamically_computed (var, _dbg) ->
     Dynamically_computed (Env.find_var_exn env var)
 
-let unboxed_number (n : Field_of_static_block.Mixed_field.unboxed_number) :
+let unboxed_number (n : Field_of_static_block.Mixed_field.Unboxed_number.t) :
     Fexpr.unboxed_number =
   match n with
   | Unboxed_float f -> Unboxed_float (f |> float)

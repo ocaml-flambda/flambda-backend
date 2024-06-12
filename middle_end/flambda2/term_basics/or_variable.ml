@@ -30,6 +30,11 @@ let compare compare_const t1 t2 =
   | Var _, Const _ -> 1
   | Var (var1, _dbg1), Var (var2, _dbg2) -> Variable.compare var1 var2
 
+let hash hash_const t =
+  match t with
+  | Const cst -> Hashtbl.hash (0, hash_const cst)
+  | Var (var, _dbg) -> Hashtbl.hash (1, Variable.hash var)
+
 let free_names t =
   match t with
   | Const _ -> Name_occurrences.empty

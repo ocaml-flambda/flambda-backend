@@ -39,8 +39,10 @@ let rec struct_const ppf = function
       fprintf ppf "%sL" (Misc.format_as_unboxed_literal (Int64.to_string i))
   | Const_base(Const_unboxed_nativeint i) ->
       fprintf ppf "%sn" (Misc.format_as_unboxed_literal (Nativeint.to_string i))
+  | Const_mixed_block(_, _, []) -> Misc.fatal_error "empty mixed block"
   | Const_block(tag, []) ->
       fprintf ppf "[%i]" tag
+  | Const_mixed_block(tag, _, sc1::scl)
   | Const_block(tag, sc1::scl) ->
       let sconsts ppf scl =
         List.iter (fun sc -> fprintf ppf "@ %a" struct_const sc) scl in

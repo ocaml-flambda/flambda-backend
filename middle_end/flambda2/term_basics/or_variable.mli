@@ -28,6 +28,8 @@ val print : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
 
 val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int
 
+val hash : ('a -> int) -> 'a t -> int
+
 val value_map : 'a t -> default:'b -> f:('a -> 'b) -> 'b
 
 val free_names : _ t -> Name_occurrences.t
