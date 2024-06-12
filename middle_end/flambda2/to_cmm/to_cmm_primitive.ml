@@ -671,7 +671,10 @@ let nullary_primitive _env res dbg prim =
        `to_cmm_shared.ml` *)
     let expr = Cmm.Cop (Cprobe_is_enabled { name }, [], dbg) in
     None, res, expr
-  | Begin_region | Begin_try_region -> None, res, C.beginregion ~dbg
+  | Begin_region { ghost = false } | Begin_try_region { ghost = false } ->
+    None, res, C.beginregion ~dbg
+  | Begin_region { ghost = true } | Begin_try_region { ghost = true } ->
+    None, res, C.unit ~dbg
   | Enter_inlined_apply _ ->
     Misc.fatal_errorf
       "The primitive [Enter_inlined_apply] should not be translated by \
@@ -788,8 +791,10 @@ let unary_primitive env res dbg f arg =
         ~else_dbg:dbg )
   | Is_flat_float_array ->
     None, res, C.eq ~dbg (C.get_tag arg dbg) (C.floatarray_tag dbg)
-  | End_region | End_try_region ->
+  | End_region { ghost = false } | End_try_region { ghost = false } ->
     None, res, C.return_unit dbg (C.endregion ~dbg arg)
+  | End_region { ghost = true } | End_try_region { ghost = true } ->
+    None, res, C.unit ~dbg
   | Get_header -> None, res, C.get_header arg dbg
   | Atomic_load block_access_kind ->
     let imm_or_ptr : Lambda.immediate_or_pointer =

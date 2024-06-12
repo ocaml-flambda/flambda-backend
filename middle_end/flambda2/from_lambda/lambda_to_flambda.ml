@@ -130,8 +130,8 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
     (* CR pchambart: This closes all the regions between region_stack_now and
        region_stack_at_handler, but closing only the last one should be
        sufficient. *)
-    let add_end_region (region : Env.region_stack_element) ~region_stack_now
-        after_everything =
+    let add_end_region ({ region; ghost_region } : Env.region_stack_element)
+        ~region_stack_now after_everything =
       let add_remaining_end_regions acc =
         add_end_regions acc ~region_stack_now
       in
@@ -140,8 +140,15 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
         CC.close_let acc ccenv
           [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
           Not_user_visible
-          (End_region { is_try_region = false; region })
-          ~body
+          (End_region { is_try_region = false; region; ghost = false })
+          ~body:(fun acc ccenv ->
+            CC.close_let acc ccenv
+              [ ( Ident.create_local "unit",
+                  Flambda_kind.With_subkind.tagged_immediate ) ]
+              Not_user_visible
+              (End_region
+                 { is_try_region = false; region = ghost_region; ghost = true })
+              ~body)
     in
     let no_end_region after_everything = after_everything in
     match
@@ -499,7 +506,9 @@ let restore_continuation_context acc env ccenv cont ~close_current_region_early
   let[@inline] normal_case env acc ccenv =
     match Env.pop_regions_up_to_context env cont with
     | None -> body acc ccenv cont
-    | Some region ->
+    | Some { region; ghost_region = _ } ->
+      (* XXX mshinwell: maybe add a comment as to why [ghost_region] isn't
+         relevant (reviewer please check this is indeed the case) *)
       let ({ continuation_closing_region; continuation_after_closing_region }
             : Env.region_closure_continuation) =
         Env.region_closure_continuation env region
@@ -520,18 +529,24 @@ let restore_continuation_context acc env ccenv cont ~close_current_region_early
      [Lregion] case. *)
   if close_current_region_early
   then
-    let env, region = Env.pop_one_region env in
+    let env, { Env.region; ghost_region } = Env.pop_one_region env in
     CC.close_let acc ccenv
       [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
       Not_user_visible
-      (End_region { is_try_region = false; region })
-      ~body:(fun acc ccenv -> normal_case env acc ccenv)
+      (End_region { is_try_region = false; region; ghost = false })
+      ~body:(fun acc ccenv ->
+        CC.close_let acc ccenv
+          [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
+          Not_user_visible
+          (End_region
+             { is_try_region = false; region = ghost_region; ghost = true })
+          ~body:(fun acc ccenv -> normal_case env acc ccenv))
   else normal_case env acc ccenv
 
 let restore_continuation_context_for_switch_arm env cont =
   match Env.pop_regions_up_to_context env cont with
   | None -> cont
-  | Some region ->
+  | Some { region; ghost_region = _ } ->
     let ({ continuation_closing_region; continuation_after_closing_region }
           : Env.region_closure_continuation) =
       Env.region_closure_continuation env region
@@ -557,9 +572,9 @@ let apply_cont_with_extra_args acc env ccenv ~dbg cont traps args =
 
 let wrap_return_continuation acc env ccenv (apply : IR.apply) =
   let extra_args = Env.extra_args_for_continuation env apply.continuation in
-  let close_current_region_early, region =
+  let close_current_region_early, region, ghost_region =
     match apply.region_close with
-    | Rc_normal | Rc_nontail -> false, apply.region
+    | Rc_normal | Rc_nontail -> false, apply.region, apply.ghost_region
     | Rc_close_at_apply ->
       (* [Rc_close_at_apply] means that the application is in tail position with
          respect to the *current region*. Only that region should be closed
@@ -568,7 +583,8 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
          application, further regions should be closed if necessary in order to
          bring the current region stack in line with the return continuation's
          region stack. *)
-      true, Env.parent_region env
+      let { Env.region; ghost_region } = Env.parent_region env in
+      true, region, ghost_region
   in
   let body acc ccenv continuation =
     match extra_args with
@@ -592,7 +608,7 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
       in
       let body acc ccenv =
         CC.close_apply acc ccenv
-          { apply with continuation = wrapper_cont; region }
+          { apply with continuation = wrapper_cont; region; ghost_region }
       in
       (* CR mshinwell: Think about DWARF support for unboxed products, here and
          elsewhere. *)
@@ -974,8 +990,9 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           in
           let body acc ccenv = cps acc env ccenv body k k_exn in
           let region = Env.current_region env in
+          let ghost_region = Env.current_ghost_region env in
           CC.close_let acc ccenv ids_with_kinds (is_user_visible env id)
-            (Prim { prim; args; loc; exn_continuation; region })
+            (Prim { prim; args; loc; exn_continuation; region; ghost_region })
             ~body)
         k_exn
     | Transformed lam ->
@@ -1186,6 +1203,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                         probe = None;
                         mode;
                         region = Env.current_region env;
+                        ghost_region = Env.current_ghost_region env;
                         args_arity = Flambda_arity.create args_arity;
                         return_arity =
                           Flambda_arity.unarize_t
@@ -1202,6 +1220,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     let dbg = Debuginfo.none (* CR mshinwell: fix [Lambda] *) in
     let body_result = Ident.create_local "body_result" in
     let region = Ident.create_local "try_region" in
+    let ghost_region = Ident.create_local "try_ghost_region" in
     (* As for all other constructs, the OCaml type checker and the Lambda
        generation pass ensures that there will be an enclosing region around the
        whole [Ltrywith] (possibly not immediately enclosing, but maybe further
@@ -1223,15 +1242,27 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       CC.close_let acc ccenv
         [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
         Not_user_visible
-        (End_region { is_try_region = true; region })
-        ~body:(fun acc ccenv -> cps_tail acc env ccenv handler k k_exn)
+        (End_region { is_try_region = true; region; ghost = false })
+        ~body:(fun acc ccenv ->
+          CC.close_let acc ccenv
+            [ ( Ident.create_local "unit",
+                Flambda_kind.With_subkind.tagged_immediate ) ]
+            Not_user_visible
+            (End_region
+               { is_try_region = true; region = ghost_region; ghost = true })
+            ~body:(fun acc ccenv -> cps_tail acc env ccenv handler k k_exn))
     in
     let begin_try_region body =
       CC.close_let acc ccenv
         [region, Flambda_kind.With_subkind.region]
         Not_user_visible
-        (Begin_region { is_try_region = true })
-        ~body
+        (Begin_region { is_try_region = true; ghost = false })
+        ~body:(fun acc ccenv ->
+          CC.close_let acc ccenv
+            [ghost_region, Flambda_kind.With_subkind.region]
+            Not_user_visible
+            (Begin_region { is_try_region = true; ghost = true })
+            ~body)
     in
     begin_try_region (fun acc ccenv ->
         maybe_insert_let_cont "try_with_result" kind k acc env ccenv
@@ -1311,69 +1342,96 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     cps acc env ccenv body k k_exn
   | Lexclave body ->
     let region = Env.current_region env in
+    let ghost_region = Env.current_ghost_region env in
     CC.close_let acc ccenv
       [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
       Not_user_visible
-      (End_region { is_try_region = false; region })
+      (End_region { is_try_region = false; region; ghost = false })
       ~body:(fun acc ccenv ->
-        let env = Env.leaving_region env in
-        cps acc env ccenv body k k_exn)
+        CC.close_let acc ccenv
+          [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
+          Not_user_visible
+          (End_region
+             { is_try_region = false; region = ghost_region; ghost = true })
+          ~body:(fun acc ccenv ->
+            let env = Env.leaving_region env in
+            cps acc env ccenv body k k_exn))
   | Lregion (body, layout) ->
     (* Here we need to build the region closure continuation (see long comment
        above). Since we're not in tail position, we also need to have a new
        continuation for the code after the body. *)
     let region = Ident.create_local "region" in
+    let ghost_region = Ident.create_local "ghost_region" in
     let dbg = Debuginfo.none in
     CC.close_let acc ccenv
       [region, Flambda_kind.With_subkind.region]
       Not_user_visible
-      (Begin_region { is_try_region = false })
+      (Begin_region { is_try_region = false; ghost = false })
       ~body:(fun acc ccenv ->
-        maybe_insert_let_cont "body_return" layout k acc env ccenv
-          (fun acc env ccenv k ->
-            let wrap_return = Ident.create_local "region_return" in
-            let_cont_nonrecursive_with_extra_params acc env ccenv
-              ~is_exn_handler:false
-              ~params:[wrap_return, Not_user_visible, layout]
-              ~body:(fun acc env ccenv continuation_closing_region ->
-                (* We register this region to be closed by the newly-created
-                   region closure continuation. When we reach a point in [body]
-                   where we would normally jump to [return_continuation] (i.e.
-                   leaving the body), we will instead jump to
-                   [region_closure_continuation] to ensure the region is closed
-                   at the right time. Exception raises and tailcall cases will
-                   generate their own [End_region]s and use
-                   [return_continuation] directly. (See long comment above.)
+        CC.close_let acc ccenv
+          [ghost_region, Flambda_kind.With_subkind.region]
+          Not_user_visible
+          (Begin_region { is_try_region = false; ghost = true })
+          ~body:(fun acc ccenv ->
+            maybe_insert_let_cont "body_return" layout k acc env ccenv
+              (fun acc env ccenv k ->
+                let wrap_return = Ident.create_local "region_return" in
+                let_cont_nonrecursive_with_extra_params acc env ccenv
+                  ~is_exn_handler:false
+                  ~params:[wrap_return, Not_user_visible, layout]
+                  ~body:(fun acc env ccenv continuation_closing_region ->
+                    (* We register this region to be closed by the newly-created
+                       region closure continuation. When we reach a point in
+                       [body] where we would normally jump to
+                       [return_continuation] (i.e. leaving the body), we will
+                       instead jump to [region_closure_continuation] to ensure
+                       the region is closed at the right time. Exception raises
+                       and tailcall cases will generate their own [End_region]s
+                       and use [return_continuation] directly. (See long comment
+                       above.)
 
-                   In the case where we jump out of the scope of several regions
-                   at once, we will jump directly to the region closure
-                   continuation for the outermost open region. For this to be
-                   correct we rely on the fact that the code structure here,
-                   which follows the block structure of the Lambda code, ensures
-                   this is equivalent to going through the sequence of nested
-                   [region_closure_continuation]s we generate.
+                       In the case where we jump out of the scope of several
+                       regions at once, we will jump directly to the region
+                       closure continuation for the outermost open region. For
+                       this to be correct we rely on the fact that the code
+                       structure here, which follows the block structure of the
+                       Lambda code, ensures this is equivalent to going through
+                       the sequence of nested [region_closure_continuation]s we
+                       generate.
 
-                   In the event the region closure continuation isn't used (e.g.
-                   the only exit is a tailcall), the [Let_cont] will be
-                   discarded by [Closure_conversion]. *)
-                let env =
-                  Env.entering_region env region ~continuation_closing_region
-                    ~continuation_after_closing_region:k
-                in
-                cps_tail acc env ccenv body k k_exn)
-              ~handler:(fun acc env ccenv ->
-                CC.close_let acc ccenv
-                  [ ( Ident.create_local "unit",
-                      Flambda_kind.With_subkind.tagged_immediate ) ]
-                  Not_user_visible
-                  (End_region { is_try_region = false; region })
-                  ~body:(fun acc ccenv ->
-                    (* Both body and handler will continue at
-                       [return_continuation] by default.
-                       [restore_region_context] will intercept the
-                       [Lstaticraise] jump to this handler if needed. *)
-                    apply_cont_with_extra_args acc env ccenv ~dbg k None
-                      (get_unarized_vars wrap_return env)))))
+                       In the event the region closure continuation isn't used
+                       (e.g. the only exit is a tailcall), the [Let_cont] will
+                       be discarded by [Closure_conversion]. *)
+                    let env =
+                      Env.entering_region env ~region ~ghost_region
+                        ~continuation_closing_region
+                        ~continuation_after_closing_region:k
+                    in
+                    cps_tail acc env ccenv body k k_exn)
+                  ~handler:(fun acc env ccenv ->
+                    CC.close_let acc ccenv
+                      [ ( Ident.create_local "unit",
+                          Flambda_kind.With_subkind.tagged_immediate ) ]
+                      Not_user_visible
+                      (End_region
+                         { is_try_region = false; region; ghost = false })
+                      ~body:(fun acc ccenv ->
+                        CC.close_let acc ccenv
+                          [ ( Ident.create_local "unit",
+                              Flambda_kind.With_subkind.tagged_immediate ) ]
+                          Not_user_visible
+                          (End_region
+                             { is_try_region = false;
+                               region = ghost_region;
+                               ghost = true
+                             })
+                          ~body:(fun acc ccenv ->
+                            (* Both body and handler will continue at
+                               [return_continuation] by default.
+                               [restore_region_context] will intercept the
+                               [Lstaticraise] jump to this handler if needed. *)
+                            apply_cont_with_extra_args acc env ccenv ~dbg k None
+                              (get_unarized_vars wrap_return env)))))))
 
 and cps_non_tail_simple :
     Acc.t ->
@@ -1434,6 +1492,7 @@ and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
               probe = ap_probe;
               mode = ap_mode;
               region = Env.current_region env;
+              ghost_region = Env.current_ghost_region env;
               args_arity = Flambda_arity.create args_arity;
               return_arity =
                 Flambda_arity.unarize_t
@@ -1663,9 +1722,11 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     | None -> Lambda.free_variables body
   in
   let my_region = Ident.create_local "my_region" in
+  let my_ghost_region = Ident.create_local "my_ghost_region" in
   let new_env =
     Env.create ~current_unit:(Env.current_unit env)
       ~return_continuation:body_cont ~exn_continuation:body_exn_cont ~my_region
+      ~my_ghost_region
   in
   let new_env, free_idents_of_body =
     Ident.Set.fold
@@ -1737,8 +1798,8 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
   in
   Function_decl.create ~let_rec_ident:(Some fid) ~function_slot ~kind ~params
     ~params_arity ~removed_params ~return ~calling_convention
-    ~return_continuation:body_cont ~exn_continuation ~my_region ~body ~attr ~loc
-    ~free_idents_of_body recursive ~closure_alloc_mode:mode
+    ~return_continuation:body_cont ~exn_continuation ~my_region ~my_ghost_region
+    ~body ~attr ~loc ~free_idents_of_body recursive ~closure_alloc_mode:mode
     ~first_complex_local_param ~contains_no_escaping_local_allocs:region
     ~result_mode:ret_mode
 
@@ -1879,6 +1940,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
                 isint_switch
             in
             let region = Env.current_region env in
+            let ghost_region = Env.current_ghost_region env in
             CC.close_let acc ccenv
               [is_scrutinee_int, Flambda_kind.With_subkind.tagged_immediate]
               Not_user_visible
@@ -1887,7 +1949,8 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
                    args = [[Var scrutinee]];
                    loc = Loc_unknown;
                    exn_continuation = None;
-                   region
+                   region;
+                   ghost_region
                  })
               ~body
           in
@@ -1913,13 +1976,17 @@ let lambda_to_flambda ~mode ~big_endian ~cmx_loader ~compilation_unit
   let return_continuation = Continuation.create ~sort:Define_root_symbol () in
   let exn_continuation = Continuation.create () in
   let toplevel_my_region = Ident.create_local "toplevel_my_region" in
+  let toplevel_my_ghost_region =
+    Ident.create_local "toplevel_my_ghost_region"
+  in
   let env =
     Env.create ~current_unit:compilation_unit ~return_continuation
       ~exn_continuation ~my_region:toplevel_my_region
+      ~my_ghost_region:toplevel_my_ghost_region
   in
   let program acc ccenv =
     cps_tail acc env ccenv lam return_continuation exn_continuation
   in
   CC.close_program ~mode ~big_endian ~cmx_loader ~compilation_unit
     ~module_block_size_in_words ~program ~prog_return_cont:return_continuation
-    ~exn_continuation ~toplevel_my_region
+    ~exn_continuation ~toplevel_my_region ~toplevel_my_ghost_region

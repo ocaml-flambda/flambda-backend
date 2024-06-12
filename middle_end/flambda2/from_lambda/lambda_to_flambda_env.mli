@@ -16,7 +16,10 @@
 
 type t
 
-type region_stack_element = Ident.t
+type region_stack_element = private
+  { region : Ident.t;
+    ghost_region : Ident.t
+  }
 
 val same_region : region_stack_element -> region_stack_element -> bool
 
@@ -25,6 +28,7 @@ val create :
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
   my_region:Ident.t ->
+  my_ghost_region:Ident.t ->
   t
 
 val current_unit : t -> Compilation_unit.t
@@ -141,7 +145,8 @@ val get_mutable_variable_with_kind :
 
 val entering_region :
   t ->
-  Ident.t ->
+  region:Ident.t ->
+  ghost_region:Ident.t ->
   continuation_closing_region:Continuation.t ->
   continuation_after_closing_region:Continuation.t ->
   t
@@ -150,9 +155,13 @@ val leaving_region : t -> t
 
 val current_region : t -> Ident.t
 
-val parent_region : t -> Ident.t
+val current_ghost_region : t -> Ident.t
+
+val parent_region : t -> region_stack_element
 
 val my_region : t -> Ident.t
+
+val my_ghost_region : t -> Ident.t
 
 (** The innermost (newest) region is first in the list. *)
 val region_stack : t -> region_stack_element list
@@ -168,7 +177,8 @@ val pop_region :
   region_stack_element list ->
   (region_stack_element * region_stack_element list) option
 
-val pop_regions_up_to_context : t -> Continuation.t -> Ident.t option
+val pop_regions_up_to_context :
+  t -> Continuation.t -> region_stack_element option
 
 type region_closure_continuation =
   { continuation_closing_region : Continuation.t;

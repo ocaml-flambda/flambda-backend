@@ -192,7 +192,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
           Apply.print apply
     in
     ( C.indirect_call ~dbg return_ty pos
-        (Alloc_mode.For_allocations.to_lambda alloc_mode)
+        (Alloc_mode.For_applications.to_lambda alloc_mode)
         callee args_ty (split_args ()),
       free_vars,
       env,
@@ -215,7 +215,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
          order to translate them"
     else
       ( C.indirect_full_call ~dbg return_ty pos
-          (Alloc_mode.For_allocations.to_lambda alloc_mode)
+          (Alloc_mode.For_applications.to_lambda alloc_mode)
           callee args_ty args,
         free_vars,
         env,
@@ -293,7 +293,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     let free_vars = Backend_var.Set.union free_vars obj_free_vars in
     let kind = Call_kind.Method_kind.to_lambda kind in
-    let alloc_mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
+    let alloc_mode = Alloc_mode.For_applications.to_lambda alloc_mode in
     ( C.send kind callee obj (split_args ()) args_ty return_ty (pos, alloc_mode)
         dbg,
       free_vars,
@@ -566,7 +566,7 @@ and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
   | Singleton _, Prim (Nullary (Enter_inlined_apply { dbg }), _) ->
     let env = Env.enter_inlined_apply env dbg in
     expr env res body
-  | Singleton v, Prim ((Unary (End_region, _) as p), dbg) ->
+  | Singleton v, Prim ((Unary (End_region _, _) as p), dbg) ->
     (* CR gbury: this is a hack to prevent moving of expressions past an
        End_region. We have to do this manually because we currently have effects
        and coeffects that are not precise enough. Particularly, an immutable

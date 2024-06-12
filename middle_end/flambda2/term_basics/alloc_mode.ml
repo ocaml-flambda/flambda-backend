@@ -60,6 +60,85 @@ module For_types = struct
       Lambda.alloc_local
 end
 
+module For_applications = struct
+  type t =
+    | Heap
+    | Local of
+        { region : Variable.t;
+          ghost_region : Variable.t
+        }
+
+  let print ppf t =
+    match t with
+    | Heap -> Format.pp_print_string ppf "Heap"
+    | Local { region; ghost_region } ->
+      Format.fprintf ppf "@[<hov 1>(Local (region@ %a)@ (ghost_region@ %a))@]"
+        Variable.print region Variable.print ghost_region
+
+  let compare t1 t2 =
+    match t1, t2 with
+    | Heap, Heap -> 0
+    | ( Local { region = region1; ghost_region = ghost_region1 },
+        Local { region = region2; ghost_region = ghost_region2 } ) ->
+      let c = Variable.compare region1 region2 in
+      if c <> 0 then c else Variable.compare ghost_region1 ghost_region2
+    | Heap, Local _ -> -1
+    | Local _, Heap -> 1
+
+  let heap = Heap
+
+  let local ~region ~ghost_region =
+    if Flambda_features.stack_allocation_enabled ()
+    then Local { region; ghost_region }
+    else Heap
+
+  let as_type t : For_types.t =
+    match t with Heap -> Heap | Local _ -> Heap_or_local
+
+  let from_lambda (mode : Lambda.alloc_mode) ~current_region
+      ~current_ghost_region =
+    if not (Flambda_features.stack_allocation_enabled ())
+    then Heap
+    else
+      match mode with
+      | Alloc_heap -> Heap
+      | Alloc_local ->
+        Local { region = current_region; ghost_region = current_ghost_region }
+
+  let to_lambda t =
+    match t with
+    | Heap -> Lambda.alloc_heap
+    | Local _ ->
+      assert (Flambda_features.stack_allocation_enabled ());
+      Lambda.alloc_local
+
+  let free_names t =
+    match t with
+    | Heap -> Name_occurrences.empty
+    | Local { region; ghost_region } ->
+      Name_occurrences.add_variable
+        (Name_occurrences.singleton_variable region Name_mode.normal)
+        ghost_region Name_mode.normal
+
+  let apply_renaming t renaming =
+    match t with
+    | Heap -> Heap
+    | Local { region; ghost_region } ->
+      let region' = Renaming.apply_variable renaming region in
+      let ghost_region' = Renaming.apply_variable renaming ghost_region in
+      if region == region' && ghost_region == ghost_region'
+      then t
+      else Local { region = region'; ghost_region = ghost_region' }
+
+  let ids_for_export t =
+    match t with
+    | Heap -> Ids_for_export.empty
+    | Local { region; ghost_region } ->
+      Ids_for_export.add_variable
+        (Ids_for_export.singleton_variable region)
+        ghost_region
+end
+
 module For_allocations = struct
   type t =
     | Heap
