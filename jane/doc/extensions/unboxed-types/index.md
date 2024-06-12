@@ -424,6 +424,7 @@ Some operations built in to the OCaml runtime aren't supported for structures
 containing unboxed types.
 
 These operations aren't supported:
+
   * polymorphic comparison and equality
   * polymorphic hash
   * marshaling
