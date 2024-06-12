@@ -773,11 +773,11 @@ Caml_inline mlsize_t extern_closure_up_to_env(struct caml_extern_state* s,
     if (i > 0) {
       /* The padding before an infix header */
       while (Field(v, i) == Val_long(0)) {
-        extern_int(0);
+        extern_int(s, 0);
         i++;
       }
       /* The infix header */
-      extern_int(Long_val(Field(v, i++)));
+      extern_int(s, Long_val(Field(v, i++)));
     }
     /* The default entry point */
     extern_code_pointer(s, (char *) Field(v, i++));
