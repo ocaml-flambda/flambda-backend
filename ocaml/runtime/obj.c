@@ -144,6 +144,20 @@ CAMLprim value caml_obj_block(value tag, value size)
   return res;
 }
 
+/* [tag] and [size] arguments are the same as [caml_obj_block]. */
+CAMLprim value caml_obj_mixed_block(value tag, value size, value scannable_size)
+{
+  if (tag >= No_scan_tag || tag == Closure_tag) {
+    caml_invalid_argument("Obj.new_mixed_block");
+  }
+
+  mlsize_t sz = Long_val(size);
+  tag_t tg = Long_val(tag);
+  mlsize_t scannable_sz = Long_val(scannable_size);
+
+  return caml_alloc_mixed(sz, tg, scannable_sz);
+}
+
 CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
 {
   CAMLparam2 (new_tag_v, arg);

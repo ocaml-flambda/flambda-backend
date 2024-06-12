@@ -67,15 +67,6 @@ CAMLexport value caml_alloc (mlsize_t wosize, tag_t tag) {
   return caml_alloc_with_reserved (wosize, tag, 0);
 }
 
-#if NATIVE_CODE
-CAMLexport value caml_alloc_mixed (mlsize_t wosize, tag_t tag,
-                                   mlsize_t scannable_prefix) {
-  reserved_t reserved =
-    Reserved_mixed_block_scannable_wosize_native(scannable_prefix);
-  return caml_alloc_with_reserved (wosize, tag, reserved);
-}
-#endif // NATIVE_CODE
-
 CAMLexport value caml_alloc_small_with_reserved (mlsize_t wosize, tag_t tag,
                                                  reserved_t reserved)
 {
@@ -206,6 +197,17 @@ value caml_alloc_float_array(mlsize_t len)
 #endif
 }
 
+CAMLexport value caml_alloc_mixed(mlsize_t wosize, tag_t tag,
+				  mlsize_t scannable_sz) {
+  reserved_t reserved;
+#ifdef NATIVE_CODE
+  reserved = Reserved_mixed_block_scannable_wosize_native(scannable_sz);
+#else
+  (void)scannable_sz;
+  reserved = Faux_mixed_block_sentinel;
+#endif // NATIVE_CODE
+  return caml_alloc_with_reserved(wosize, tag, reserved);
+}
 
 CAMLexport value caml_copy_string_array(char const ** arr)
 {
@@ -253,23 +255,8 @@ CAMLprim value caml_alloc_dummy_float (value size)
 CAMLprim value caml_alloc_dummy_mixed (value size, value scannable_size)
 {
   mlsize_t wosize = Long_val(size);
-#ifdef NATIVE_CODE
   mlsize_t scannable_wosize = Long_val(scannable_size);
-  /* The below code runs for bytecode and native code, and critically assumes
-     that a double record field can be stored in one word. That's true both for
-     32-bit and 64-bit bytecode (as a double record field in a mixed record is
-     always boxed), and for 64-bit native code (as the double record field is
-     stored flat, taking up 1 word).
-  */
-  CAML_STATIC_ASSERT(Double_wosize == 1);
-  reserved_t reserved =
-    Reserved_mixed_block_scannable_wosize_native(scannable_wosize);
-#else
-  /* [scannable_size] can't be used meaningfully in bytecode */
-  (void)scannable_size;
-  reserved_t reserved = Faux_mixed_block_sentinel;
-#endif // NATIVE_CODE
-  return caml_alloc_with_reserved (wosize, 0, reserved);
+  return caml_alloc_mixed (wosize, 0, scannable_wosize);
 }
 
 CAMLprim value caml_alloc_dummy_infix(value vsize, value voffset)

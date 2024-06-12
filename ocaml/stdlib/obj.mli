@@ -78,6 +78,8 @@ external set_raw_field : t -> int -> raw_data -> unit
   (* @since 4.12 *)
 
 external new_block : int -> int -> t = "caml_obj_block"
+external new_mixed_block : int -> int -> scannable_prefix_len:int -> t =
+  "caml_obj_mixed_block"
 
 external dup : t -> t = "%obj_dup"
 (** [dup t] returns a shallow copy of [t].  However if [t] is immutable then
