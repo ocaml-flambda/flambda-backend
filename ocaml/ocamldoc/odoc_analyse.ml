@@ -88,7 +88,7 @@ let process_implementation_file sourcefile =
     in
     let typedtree =
       Typemod.type_implementation
-        sourcefile prefixname compilation_unit env parsetree
+        ~sourcefile prefixname compilation_unit env parsetree
     in
     (Some (parsetree, typedtree), inputfile)
   with

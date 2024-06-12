@@ -998,7 +998,7 @@ let import_crcs ~source crcs =
 
 let locally_bound_imports () = Persistent_env.locally_bound_imports !persistent_env
 
-let exported_parameters () = Persistent_env.exported_parameters !persistent_env
+let parameters () = Persistent_env.parameters !persistent_env
 
 let read_pers_mod modname filename ~add_binding =
   Persistent_env.read !persistent_env read_sign_of_cmi modname filename
@@ -1020,7 +1020,7 @@ let register_import_as_opaque modname =
   Persistent_env.register_import_as_opaque !persistent_env modname
 
 let is_parameter_unit modname =
-  Persistent_env.is_registered_parameter_import !persistent_env modname
+  Persistent_env.is_parameter_import !persistent_env modname
 
 let is_imported_parameter modname =
   Persistent_env.is_imported_parameter !persistent_env modname
@@ -2676,11 +2676,8 @@ let read_signature modname filename ~add_binding =
   let mty = read_pers_mod modname filename ~add_binding in
   Subst.Lazy.force_signature mty
 
-let register_parameter_import import =
-  Persistent_env.register_parameter_import !persistent_env import
-
 let register_parameter modname =
-  Persistent_env.register_exported_parameter !persistent_env modname
+  Persistent_env.register_parameter !persistent_env modname
 
 let is_identchar_latin1 = function
   | 'A'..'Z' | 'a'..'z' | '_' | '\192'..'\214' | '\216'..'\246'

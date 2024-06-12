@@ -39,7 +39,7 @@ val type_toplevel_phrase:
   Typedtree.structure * Types.signature * Signature_names.t * Shape.t *
   Env.t
 val type_implementation:
-  string -> string -> Compilation_unit.t -> Env.t ->
+  sourcefile:string -> string -> Compilation_unit.t -> Env.t ->
   Parsetree.structure -> Typedtree.implementation
 val type_interface:
   sourcefile:string -> Compilation_unit.t -> Env.t ->
@@ -153,6 +153,7 @@ type error =
   | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
   | Cannot_compile_implementation_as_parameter
+  | Cannot_implement_parameter of Compilation_unit.Name.t * Misc.filepath
   | Argument_for_non_parameter of Global_module.Name.t * Misc.filepath
   | Cannot_find_argument_type of Global_module.Name.t
   | Inconsistent_argument_types of {
