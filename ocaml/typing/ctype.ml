@@ -2136,10 +2136,11 @@ type type_jkind_sub_result =
   | Missing_cmi of Jkind.t * Path.t
   | Failure of Jkind.t
 
-let type_jkind_sub env ty ~check_sub =
+let type_jkind_sub env ty jkind =
   let shallow_check ty =
     match estimate_type_jkind env ty with
-    | Jkind ty_jkind -> if check_sub ty_jkind then Success else Failure ty_jkind
+    | Jkind ty_jkind ->
+      if Jkind.sub ty_jkind jkind then Success else Failure ty_jkind
     | TyVar (ty_jkind, ty) -> Type_var (ty_jkind, ty)
   in
   (* The "fuel" argument here is used because we're duplicating the loop of
@@ -2165,7 +2166,7 @@ let type_jkind_sub env ty ~check_sub =
           try (Env.find_type p env).type_jkind
           with Not_found -> Jkind.any ~why:(Missing_cmi p)
         in
-        if check_sub jkind_bound
+        if Jkind.sub jkind_bound jkind
         then Success
         else if fuel < 0 then Failure jkind_bound
         else begin match unbox_once env ty with
@@ -2188,8 +2189,7 @@ let type_jkind_sub env ty ~check_sub =
    correct on [any].)
 *)
 let constrain_type_jkind ~fixed env ty jkind =
-  match type_jkind_sub env ty
-          ~check_sub:(fun ty_jkind -> Jkind.sub ty_jkind jkind) with
+  match type_jkind_sub env ty jkind with
   | Success -> Ok ()
   | Type_var (ty_jkind, ty) ->
     if fixed then Jkind.sub_or_error ty_jkind jkind else
@@ -2221,14 +2221,12 @@ let () =
   Env.constrain_type_jkind := constrain_type_jkind
 
 let check_type_externality env ty ext =
-  let check_sub ty_jkind =
-    Jkind.(Externality.le (get_externality_upper_bound ty_jkind) ext)
+  let upper_bound =
+    Jkind.set_externality_upper_bound (Jkind.any ~why:Dummy_jkind) ext
   in
-  match type_jkind_sub env ty ~check_sub with
-  | Success -> true
-  | Type_var (ty_jkind, _) -> check_sub ty_jkind
-  | Missing_cmi _ -> false (* safe answer *)
-  | Failure _ -> false
+  match check_type_jkind env ty upper_bound with
+  | Ok () -> true
+  | Error _ -> false
 
 let check_decl_jkind env decl jkind =
   match Jkind.sub_or_error decl.type_jkind jkind with

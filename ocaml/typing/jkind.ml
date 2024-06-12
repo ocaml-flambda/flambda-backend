@@ -701,6 +701,9 @@ let get_modal_upper_bounds jk = jk.jkind.modes_upper_bounds
 
 let get_externality_upper_bound jk = jk.jkind.externality_upper_bound
 
+let set_externality_upper_bound jk externality_upper_bound =
+  { jk with jkind = { jk.jkind with externality_upper_bound } }
+
 (*********************************)
 (* pretty printing *)
 
