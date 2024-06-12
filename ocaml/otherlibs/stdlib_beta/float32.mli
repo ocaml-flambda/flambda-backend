@@ -374,17 +374,14 @@ external erfc : t -> t = "caml_erfc_float32_bytecode" "erfcf"
 external trunc : t -> t = "caml_trunc_float32_bytecode" "truncf"
   [@@unboxed] [@@noalloc]
 (** [trunc x] rounds [x] to the nearest integer whose absolute value is
-   less than or equal to [x]. *)
+    less than or equal to [x]. *)
 
 external round : t -> t = "caml_round_float32_bytecode" "roundf"
   [@@unboxed] [@@noalloc]
 (** [round x] rounds [x] to the nearest integer with ties (fractional
-   values of 0.5s) rounded away from zero, regardless of the current
-   rounding direction.  If [x] is an integer, [+0.s], [-0.s], [nan], or
-   infinite, [x] itself is returned.
-
-   On 64-bit mingw-w64, this function may be emulated owing to a bug in the
-   C runtime library (CRT) on this platform. *)
+    values of 0.5s) rounded away from zero, regardless of the current
+    rounding direction.  If [x] is an integer, [+0.s], [-0.s], [nan], or
+    infinite, [x] itself is returned. *)
 
 external ceil : t -> t = "caml_ceil_float32_bytecode" "ceilf"
   [@@unboxed] [@@noalloc]
@@ -461,6 +458,24 @@ val max : t -> t -> t
 (** [max x y] returns the maximum of [x] and [y].  It returns [nan]
    when [x] or [y] is [nan].  Moreover [max (-0.s) (+0.s) = +0.s] *)
 
+module With_weird_nan_behavior : sig
+  external min : t -> t -> t
+    = "caml_sse_float32_min_bytecode" "caml_sse_float32_min"
+    [@@noalloc] [@@unboxed] [@@builtin]
+  (** [min x y] returns the minimum of [x] and [y].
+      If either [x] or [y] is [nan], [y] is returned.
+      If both [x] and [y] equal zero, [y] is returned.
+      The amd64 flambda-backend compiler translates this call to MINSS. *)
+
+  external max : t -> t -> t
+    = "caml_sse_float32_max_bytecode" "caml_sse_float32_max"
+    [@@noalloc] [@@unboxed] [@@builtin]
+  (** [max x y] returns the maximum of [x] and [y].  It returns [x]
+      If either [x] or [y] is [nan], [y] is returned.
+      If both [x] and [y] equal zero, [y] is returned.
+      The amd64 flambda-backend compiler translates this call to MAXSS. *)
+end
+
 val min_max : t -> t -> t * t
 (** [min_max x y] is [(min x y, max x y)], just more efficient. *)
 
@@ -478,6 +493,34 @@ val min_max_num : t -> t -> t * t
 (** [min_max_num x y] is [(min_num x y, max_num x y)], just more
    efficient.  Note that in particular [min_max_num x nan = (x, x)]
    and [min_max_num nan y = (y, y)]. *)
+
+external iround_half_to_even : t -> int64
+  = "caml_sse_cast_float32_int64_bytecode" "caml_sse_cast_float32_int64"
+  [@@noalloc] [@@unboxed] [@@builtin]
+(** Rounds a [float32] to an [int64] using the current rounding mode. The default
+    rounding mode is "round half to even", and we expect that no program will
+    change the rounding mode.
+    If the argument is NaN or infinite or if the rounded value cannot be
+    represented, then the result is unspecified.
+    The amd64 flambda-backend compiler translates this call to CVTSS2SI. *)
+
+val round_half_to_even : t -> t
+(** Rounds a [float32] to an integer [float32] using the current rounding
+    mode.  The default rounding mode is "round half to even", and we
+    expect that no program will change the rounding mode.
+    The amd64 flambda-backend compiler translates this call to ROUNDSS. *)
+
+val round_down : t -> t
+(** Rounds a [float32] down to the next integer [float32] toward negative infinity.
+    The amd64 flambda-backend compiler translates this call to ROUNDSS.*)
+
+val round_up : t -> t
+(** Rounds a [float32] up to the next integer [float32] toward positive infinity.
+    The amd64 flambda-backend compiler translates this call to ROUNDSS.*)
+
+val round_towards_zero : t -> t
+(** Rounds a [float32] to the next integer [float32] toward zero.
+    The amd64 flambda-backend compiler translates this call to ROUNDSS.*)
 
 val seeded_hash : int -> t -> int
 (** A seeded hash function for floats, with the same output value as

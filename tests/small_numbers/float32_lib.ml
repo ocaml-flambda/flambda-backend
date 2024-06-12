@@ -102,10 +102,15 @@ module CF32 = struct
 
   external min : t -> t -> t = "float32_min_boxed"
   external max : t -> t -> t = "float32_max_boxed"
+  external min_weird : t -> t -> t = "float32_min_weird_boxed"
+  external max_weird : t -> t -> t = "float32_max_weird_boxed"
   external min_num : t -> t -> t = "float32_min_num_boxed"
   external max_num : t -> t -> t = "float32_max_num_boxed"
   external min_max : t -> t -> t * t = "float32_min_max_boxed"
   external min_max_num : t -> t -> t * t = "float32_min_max_num_boxed"
+
+  external round_current : t -> t = "float32_round_current_boxed"
+  external iround_current : t -> int64 = "float32_iround_current_boxed"
 
   external compare : t -> t -> int = "float32_compare_boxed" [@@noalloc]
   let equal x y = compare x y = 0
@@ -230,10 +235,21 @@ let () =
     bit_eq (F32.copy_sign f1 f2) (CF32.copy_sign f1 f2);
     bit_eq (F32.min f1 f2) (CF32.min f1 f2);
     bit_eq (F32.max f1 f2) (CF32.max f1 f2);
+    bit_eq (F32.With_weird_nan_behavior.min f1 f2) (CF32.min_weird f1 f2);
+    bit_eq (F32.With_weird_nan_behavior.max f1 f2) (CF32.max_weird f1 f2);
     bit_eq (F32.min_num f1 f2) (CF32.min_num f1 f2);
     bit_eq (F32.max_num f1 f2) (CF32.max_num f1 f2);
     assert((F32.compare f1 f2) = (CF32.compare f1 f2));
     assert((F32.equal f1 f2) = (CF32.equal f1 f2));
+  )
+;;
+
+let () =
+  CF32.check_float32s (fun f _ ->
+    bit_eq (F32.round_up f) (CF32.ceil f);
+    bit_eq (F32.round_down f) (CF32.floor f);
+    bit_eq (F32.round_half_to_even f) (CF32.round_current f);
+    assert ((F32.iround_half_to_even f) = (CF32.iround_current f));
   )
 ;;
 
@@ -347,8 +363,8 @@ let () =
   );
   for _ = 0 to 100_000 do
     let i = if Random.bool () then Random.full_int Int.max_int else Int.neg (Random.full_int Int.max_int) in
-    let f = if Random.bool () then Random.float Float.max_float else Float.neg (Random.float Float.max_float) in
     let i64 = if Random.bool () then Random.int64 Int64.max_int else Int64.neg (Random.int64 Int64.max_int) in
+    let f = if Random.bool () then Random.float Float.max_float else Float.neg (Random.float Float.max_float) in
     bit_eq (F32.of_int i) (CF32.of_int i);
     bit_eq (F32.of_int64 i64) (CF32.of_int64 i64);
     bit_eq (F32.of_float f) (CF32.of_float f);

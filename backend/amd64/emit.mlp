@@ -1086,6 +1086,13 @@ let emit_simd_instr op i =
   | CLMUL (Clmul_64 n) -> I.pclmulqdq (X86_dsl.int n) (arg i 1) (res i 0)
   | BMI2 Extract_64 -> I.pext (arg i 1) (arg i 0) (res i 0)
   | BMI2 Deposit_64 -> I.pdep (arg i 1) (arg i 0) (res i 0)
+  | SSE Round_current_f32_i64 -> I.cvtss2si (arg i 0) (res i 0)
+  | SSE Sqrt_scalar_f32 ->
+    if arg i 0 <> res i 0 then
+      I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
+    I.sqrtss (arg i 0) (res i 0)
+  | SSE Max_scalar_f32 -> I.maxss (arg i 1) (res i 0)
+  | SSE Min_scalar_f32 -> I.minss (arg i 1) (res i 0)
   | SSE (Cmp_f32 n) -> I.cmpps n (arg i 1) (res i 0)
   | SSE Add_f32 -> I.addps (arg i 1) (res i 0)
   | SSE Sub_f32 -> I.subps (arg i 1) (res i 0)
@@ -1109,10 +1116,6 @@ let emit_simd_instr op i =
     if arg i 0 <> res i 0 then
       I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
     I.sqrtsd (arg i 0) (res i 0)
-  | SSE2 Sqrt_scalar_f32 ->
-    if arg i 0 <> res i 0 then
-      I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
-    I.sqrtss (arg i 0) (res i 0)
   | SSE2 Sqrt_f64 -> I.sqrtpd (arg i 0) (res i 0)
   | SSE2 Add_i8 -> I.paddb (arg i 1) (res i 0)
   | SSE2 Add_i16 -> I.paddw (arg i 1) (res i 0)
@@ -1271,6 +1274,10 @@ let emit_simd_instr op i =
     if arg i 0 <> res i 0 then
       I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
     I.roundsd n (arg i 0) (res i 0)
+  | SSE41 (Round_scalar_f32 n) ->
+    if arg i 0 <> res i 0 then
+      I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
+    I.roundss n (arg i 0) (res i 0)
   | SSE41 (Round_f64 n) -> I.roundpd n (arg i 0) (res i 0)
   | SSE41 (Round_f32 n) -> I.roundps n (arg i 0) (res i 0)
   | SSE41 (Multi_sad_unsigned_i8 n) -> I.mpsadbw (X86_dsl.int n) (arg i 1) (res i 0)

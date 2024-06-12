@@ -78,6 +78,10 @@ let select_operation_bmi2 op args =
 
 let select_operation_sse op args =
   match op with
+  | "caml_sse_float32_sqrt" | "sqrtf" -> Some (Sqrt_scalar_f32, args)
+  | "caml_sse_float32_max" -> Some (Max_scalar_f32, args)
+  | "caml_sse_float32_min" -> Some (Min_scalar_f32, args)
+  | "caml_sse_cast_float32_int64" -> Some (Round_current_f32_i64, args)
   | "caml_sse_float32x4_cmp" ->
     let i, args = extract_constant args ~max:7 op in
     Some (Cmp_f32 (float_condition_of_int i), args)
@@ -103,7 +107,6 @@ let select_operation_sse op args =
 let select_operation_sse2 op args =
   match op with
   | "caml_sse2_float64_sqrt" | "sqrt" -> Some (Sqrt_scalar_f64, args)
-  | "caml_sse2_float32_sqrt" | "sqrtf" -> Some (Sqrt_scalar_f32, args)
   | "caml_sse2_float64_max" -> Some (Max_scalar_f64, args)
   | "caml_sse2_float64_min" -> Some (Min_scalar_f64, args)
   | "caml_sse2_cast_float64_int64" -> Some (Round_current_f64_i64, args)
@@ -337,6 +340,9 @@ let select_operation_sse41 op args =
     | "caml_sse41_float64_round" ->
       let i, args = extract_constant args ~max:15 op in
       Some (Round_scalar_f64 (float_rounding_of_int i), args)
+    | "caml_sse41_float32_round" ->
+      let i, args = extract_constant args ~max:15 op in
+      Some (Round_scalar_f32 (float_rounding_of_int i), args)
     | "caml_sse41_int8x16_max" -> Some (Max_i8, args)
     | "caml_sse41_int32x4_max" -> Some (Max_i32, args)
     | "caml_sse41_int16x8_max_unsigned" -> Some (Max_unsigned_i16, args)
