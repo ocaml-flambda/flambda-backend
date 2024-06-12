@@ -81,7 +81,8 @@ type t5 : float64 mod global global
 type t6 : bits32 mod local global
 type t7 : bits64 mod global local
 type t8
-  : value mod global local many once unique shared internal uncontended contended portable nonportable external64 external_
+  : value mod global local many once unique shared internal uncontended
+              contended portable nonportable external64 external_
 |}]
 
 (***************************************)

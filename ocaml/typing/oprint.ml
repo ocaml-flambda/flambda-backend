@@ -323,22 +323,23 @@ let pr_var = Pprintast.tyvar
 let ty_var ~non_gen ppf s =
   pr_var ppf (if non_gen then "_" ^ s else s)
 
+let print_jkind_with_modes ppf print_jkind base modes =
+  fprintf ppf "%a mod @[%a@]" print_jkind base
+          (print_list (fun ppf -> fprintf ppf "%s") (fun ppf -> fprintf ppf "@ "))
+          modes
+
 let print_out_jkind ppf = function
   | Ojkind_const { base; modal_bounds=[] } ->
     fprintf ppf "%s" base
   | Ojkind_const { base; modal_bounds=_::_ as modal_bounds } ->
-    fprintf ppf "@[%s mod@ %a@]" base
-      (print_list (fun ppf str -> fprintf ppf "%s" str) (fun ppf -> fprintf ppf "@ "))
-      modal_bounds
+    print_jkind_with_modes ppf (fun ppf -> fprintf ppf "%s") base modal_bounds
   | Ojkind_var v -> fprintf ppf "%s" v
   | Ojkind_user jkind ->
     let rec print_out_jkind_user ppf = function
       | Ojkind_user_default -> fprintf ppf "_"
       | Ojkind_user_abbreviation abbrev -> fprintf ppf "%s" abbrev
       | Ojkind_user_mod (base, modes) ->
-        fprintf ppf "@[%a mod@ %a@]" print_out_jkind_user base
-          (print_list (fun ppf str -> fprintf ppf "%s" str) (fun ppf -> fprintf ppf "@ "))
-          modes
+        print_jkind_with_modes ppf print_out_jkind_user base modes
       | Ojkind_user_with _ | Ojkind_user_kind_of _ ->
         failwith "XXX unimplemented jkind syntax"
     in
