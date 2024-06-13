@@ -109,10 +109,15 @@ module CF32 = struct
 
   external min : t -> t -> t = "float32_min_boxed"
   external max : t -> t -> t = "float32_max_boxed"
+  external min_weird : t -> t -> t = "float32_min_weird_boxed"
+  external max_weird : t -> t -> t = "float32_max_weird_boxed"
   external min_num : t -> t -> t = "float32_min_num_boxed"
   external max_num : t -> t -> t = "float32_max_num_boxed"
   external min_max : t -> t -> t * t = "float32_min_max_boxed"
   external min_max_num : t -> t -> t * t = "float32_min_max_num_boxed"
+
+  external round_current : t -> t = "float32_round_current_boxed"
+  external iround_current : t -> int64 = "float32_iround_current_boxed"
 
   external compare : t -> t -> int = "float32_compare_boxed" [@@noalloc]
   let equal x y = compare x y = 0
@@ -222,10 +227,23 @@ let () =
     bit_eq (F32.copy_sign u1 u2) (CF32.copy_sign f1 f2);
     bit_eq (F32.min u1 u2) (CF32.min f1 f2);
     bit_eq (F32.max u1 u2) (CF32.max f1 f2);
+    bit_eq (F32.With_weird_nan_behavior.min u1 u2) (CF32.min_weird f1 f2);
+    bit_eq (F32.With_weird_nan_behavior.max u1 u2) (CF32.max_weird f1 f2);
     bit_eq (F32.min_num u1 u2) (CF32.min_num f1 f2);
     bit_eq (F32.max_num u1 u2) (CF32.max_num f1 f2);
     assert((F32.compare u1 u2) = (CF32.compare f1 f2));
     assert((F32.equal u1 u2) = (CF32.equal f1 f2));
+  )
+;;
+
+let () =
+  CF32.check_float32s (fun f _ ->
+    let u = F32.of_float32 f in
+    bit_eq (F32.round_up u) (CF32.ceil f);
+    bit_eq (F32.round_down u) (CF32.floor f);
+    bit_eq (F32.round_half_to_even u) (CF32.round_current f);
+    (* Returns int64, so can compare directly. *)
+    assert (box_int64 (F32.iround_half_to_even u) = (CF32.iround_current f));
   )
 ;;
 

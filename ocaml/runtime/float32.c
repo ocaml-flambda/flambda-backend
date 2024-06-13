@@ -309,6 +309,51 @@ CAMLprim value caml_ldexp_float32_bytecode(value f, value i)
   return caml_copy_float32(caml_ldexp_float32(Float32_val(f), Int_val(i)));
 }
 
+float caml_sse_float32_min(float x, float y) {
+  return x < y ? x : y;
+}
+
+CAMLprim value caml_sse_float32_min_bytecode(value x, value y) {
+  return Float32_val(x) < Float32_val(y) ? x : y;
+}
+
+float caml_sse_float32_max(float x, float y) {
+  return x > y ? x : y;
+}
+
+CAMLprim value caml_sse_float32_max_bytecode(value x, value y) {
+  return Float32_val(x) > Float32_val(y) ? x : y;
+}
+
+int64_t caml_sse_cast_float32_int64(float f)
+{
+  return llrintf(f);
+}
+
+CAMLprim value caml_sse_cast_float32_int64_bytecode(value f)
+{
+  return caml_copy_int64(caml_sse_cast_float32_int64(Float32_val(f)));
+}
+
+#define ROUND_NEG_INF 0x9
+#define ROUND_POS_INF 0xA
+#define ROUND_ZERO 0xB
+#define ROUND_CURRENT 0xC
+
+float caml_sse41_float32_round(int mode, float f) {
+  switch(mode) {
+  case ROUND_NEG_INF: return floorf(f);
+  case ROUND_POS_INF: return ceilf(f);
+  case ROUND_ZERO:    return truncf(f);
+  case ROUND_CURRENT: return rintf(f);
+  default: caml_fatal_error("Unknown rounding mode.");
+  }
+}
+
+CAMLprim value caml_sse41_float32_round_bytecode(value mode, value f) {
+  return caml_copy_float32(caml_sse41_float32_round(Int_val(mode), Float32_val(f)));
+}
+
 enum { FP_normal, FP_subnormal, FP_zero, FP_infinite, FP_nan };
 
 value caml_classify_float32(float vf)

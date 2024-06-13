@@ -68,6 +68,10 @@ type bmi2_operation =
   | Extract_64
 
 type sse_operation =
+  | Round_current_f32_i64
+  | Sqrt_scalar_f32
+  | Min_scalar_f32
+  | Max_scalar_f32
   | Cmp_f32 of float_condition
   | Add_f32
   | Sub_f32
@@ -89,7 +93,6 @@ type sse_operation =
 type sse2_operation =
   | Round_current_f64_i64
   | Sqrt_scalar_f64
-  | Sqrt_scalar_f32
   | Min_scalar_f64
   | Max_scalar_f64
   | Sqrt_f64
@@ -207,6 +210,7 @@ type ssse3_operation =
 
 type sse41_operation =
   | Round_scalar_f64 of float_rounding
+  | Round_scalar_f32 of float_rounding
   | Blend_16 of int
   | Blend_32 of int
   | Blend_64 of int
@@ -289,6 +293,10 @@ let equal_operation_bmi2 l r =
 
 let equal_operation_sse l r =
   match l, r with
+  | Round_current_f32_i64, Round_current_f32_i64
+  | Sqrt_scalar_f32, Sqrt_scalar_f32
+  | Min_scalar_f32, Min_scalar_f32
+  | Max_scalar_f32, Max_scalar_f32
   | Add_f32, Add_f32
   | Sub_f32, Sub_f32
   | Mul_f32, Mul_f32
@@ -307,10 +315,11 @@ let equal_operation_sse l r =
     true
   | Cmp_f32 l, Cmp_f32 r when float_condition_equal l r -> true
   | Shuffle_32 l, Shuffle_32 r when Int.equal l r -> true
-  | ( ( Add_f32 | Sub_f32 | Mul_f32 | Div_f32 | Max_f32 | Min_f32 | Rcp_f32
-      | Sqrt_f32 | Rsqrt_f32 | High_64_to_low_64 | Low_64_to_high_64
-      | Interleave_high_32 | Interleave_low_32_regs | Interleave_low_32
-      | Movemask_32 | Cmp_f32 _ | Shuffle_32 _ ),
+  | ( ( Round_current_f32_i64 | Sqrt_scalar_f32 | Min_scalar_f32
+      | Max_scalar_f32 | Add_f32 | Sub_f32 | Mul_f32 | Div_f32 | Max_f32
+      | Min_f32 | Rcp_f32 | Sqrt_f32 | Rsqrt_f32 | High_64_to_low_64
+      | Low_64_to_high_64 | Interleave_high_32 | Interleave_low_32_regs
+      | Interleave_low_32 | Movemask_32 | Cmp_f32 _ | Shuffle_32 _ ),
       _ ) ->
     false
 
@@ -320,7 +329,6 @@ let equal_operation_sse2 l r =
   | Min_scalar_f64, Min_scalar_f64
   | Max_scalar_f64, Max_scalar_f64
   | Sqrt_scalar_f64, Sqrt_scalar_f64
-  | Sqrt_scalar_f32, Sqrt_scalar_f32
   | Sqrt_f64, Sqrt_f64
   | Add_i8, Add_i8
   | Add_i16, Add_i16
@@ -409,26 +417,25 @@ let equal_operation_sse2 l r =
     true
   | Cmp_f64 l, Cmp_f64 r when float_condition_equal l r -> true
   | ( ( Add_i8 | Add_i16 | Add_i32 | Add_i64 | Add_f64 | Min_scalar_f64
-      | Max_scalar_f64 | Round_current_f64_i64 | Sqrt_scalar_f64
-      | Sqrt_scalar_f32 | Sqrt_f64 | Add_saturating_unsigned_i8
-      | Add_saturating_unsigned_i16 | Add_saturating_i8 | Add_saturating_i16
-      | Sub_i8 | Sub_i16 | Sub_i32 | Sub_i64 | Sub_f64
-      | Sub_saturating_unsigned_i8 | Sub_saturating_unsigned_i16
-      | Sub_saturating_i8 | Sub_saturating_i16 | Max_unsigned_i8 | Max_i16
-      | Max_f64 | Min_unsigned_i8 | Min_i16 | Min_f64 | Mul_f64 | Div_f64
-      | And_bits | Andnot_bits | Or_bits | Xor_bits | Movemask_8 | Movemask_64
-      | Cmpeq_i8 | Cmpeq_i16 | Cmpeq_i32 | Cmpgt_i8 | Cmpgt_i16 | Cmpgt_i32
-      | I32_to_f64 | I32_to_f32 | F64_to_i32 | F64_to_f32 | F32_to_i32
-      | F32_to_f64 | SLL_i16 | SLL_i32 | SLL_i64 | SRL_i16 | SRL_i32 | SRL_i64
-      | SRA_i16 | SRA_i32 | I16_to_i8 | I32_to_i16 | I16_to_unsigned_i8
-      | I32_to_unsigned_i16 | Avg_unsigned_i8 | Avg_unsigned_i16
-      | SAD_unsigned_i8 | Interleave_high_8 | Interleave_high_16
-      | Interleave_high_64 | Interleave_low_8 | Interleave_low_16
-      | Interleave_low_64 | SLLi_i16 _ | SLLi_i32 _ | SLLi_i64 _ | SRLi_i16 _
-      | SRLi_i32 _ | SRLi_i64 _ | SRAi_i16 _ | SRAi_i32 _ | Shift_left_bytes _
-      | Shift_right_bytes _ | Cmp_f64 _ | Shuffle_64 _ | Shuffle_high_16 _
-      | Shuffle_low_16 _ | Mulhi_i16 | Mulhi_unsigned_i16 | Mullo_i16
-      | Mul_hadd_i16_to_i32 ),
+      | Max_scalar_f64 | Round_current_f64_i64 | Sqrt_scalar_f64 | Sqrt_f64
+      | Add_saturating_unsigned_i8 | Add_saturating_unsigned_i16
+      | Add_saturating_i8 | Add_saturating_i16 | Sub_i8 | Sub_i16 | Sub_i32
+      | Sub_i64 | Sub_f64 | Sub_saturating_unsigned_i8
+      | Sub_saturating_unsigned_i16 | Sub_saturating_i8 | Sub_saturating_i16
+      | Max_unsigned_i8 | Max_i16 | Max_f64 | Min_unsigned_i8 | Min_i16
+      | Min_f64 | Mul_f64 | Div_f64 | And_bits | Andnot_bits | Or_bits
+      | Xor_bits | Movemask_8 | Movemask_64 | Cmpeq_i8 | Cmpeq_i16 | Cmpeq_i32
+      | Cmpgt_i8 | Cmpgt_i16 | Cmpgt_i32 | I32_to_f64 | I32_to_f32 | F64_to_i32
+      | F64_to_f32 | F32_to_i32 | F32_to_f64 | SLL_i16 | SLL_i32 | SLL_i64
+      | SRL_i16 | SRL_i32 | SRL_i64 | SRA_i16 | SRA_i32 | I16_to_i8 | I32_to_i16
+      | I16_to_unsigned_i8 | I32_to_unsigned_i16 | Avg_unsigned_i8
+      | Avg_unsigned_i16 | SAD_unsigned_i8 | Interleave_high_8
+      | Interleave_high_16 | Interleave_high_64 | Interleave_low_8
+      | Interleave_low_16 | Interleave_low_64 | SLLi_i16 _ | SLLi_i32 _
+      | SLLi_i64 _ | SRLi_i16 _ | SRLi_i32 _ | SRLi_i64 _ | SRAi_i16 _
+      | SRAi_i32 _ | Shift_left_bytes _ | Shift_right_bytes _ | Cmp_f64 _
+      | Shuffle_64 _ | Shuffle_high_16 _ | Shuffle_low_16 _ | Mulhi_i16
+      | Mulhi_unsigned_i16 | Mullo_i16 | Mul_hadd_i16_to_i32 ),
       _ ) ->
     false
 
@@ -521,6 +528,7 @@ let equal_operation_sse41 l r =
     when Int.equal l r ->
     true
   | Round_scalar_f64 l, Round_scalar_f64 r
+  | Round_scalar_f32 l, Round_scalar_f32 r
   | Round_f64 l, Round_f64 r
   | Round_f32 l, Round_f32 r
     when float_rounding_equal l r ->
@@ -533,7 +541,7 @@ let equal_operation_sse41 l r =
       | Blend_16 _ | Blend_32 _ | Blend_64 _ | Dp_f32 _ | Dp_f64 _ | Mullo_i32
       | Extract_i8 _ | Extract_i16 _ | Extract_i32 _ | Extract_i64 _
       | Insert_i8 _ | Insert_i16 _ | Insert_i32 _ | Insert_i64 _ | Round_f64 _
-      | Round_scalar_f64 _ | Round_f32 _ ),
+      | Round_scalar_f64 _ | Round_scalar_f32 _ | Round_f32 _ ),
       _ ) ->
     false
 
@@ -607,6 +615,13 @@ let print_operation_bmi2 printreg op ppf arg =
 
 let print_operation_sse printreg op ppf arg =
   match op with
+  | Round_current_f32_i64 ->
+    fprintf ppf "round_current_f32_i64 %a" printreg arg.(0)
+  | Sqrt_scalar_f32 -> fprintf ppf "sqrt_scalar_f32 %a" printreg arg.(0)
+  | Min_scalar_f32 ->
+    fprintf ppf "min_scalar_f32 %a %a" printreg arg.(0) printreg arg.(1)
+  | Max_scalar_f32 ->
+    fprintf ppf "max_scalar_f32 %a %a" printreg arg.(0) printreg arg.(1)
   | Cmp_f32 i ->
     fprintf ppf "cmp_f32[%a] %a %a" print_float_condition i printreg arg.(0)
       printreg arg.(1)
@@ -636,7 +651,6 @@ let print_operation_sse printreg op ppf arg =
 let print_operation_sse2 printreg op ppf arg =
   match op with
   | Sqrt_scalar_f64 -> fprintf ppf "sqrt_scalar_f64 %a" printreg arg.(0)
-  | Sqrt_scalar_f32 -> fprintf ppf "sqrt_scalar_f32 %a" printreg arg.(0)
   | Min_scalar_f64 ->
     fprintf ppf "min_scalar_f64 %a %a" printreg arg.(0) printreg arg.(1)
   | Max_scalar_f64 ->
@@ -853,6 +867,9 @@ let print_operation_sse41 printreg op ppf arg =
   | Round_scalar_f64 i ->
     fprintf ppf "round_scalar_f64[%a] %a" print_float_rounding i printreg
       arg.(0)
+  | Round_scalar_f32 i ->
+    fprintf ppf "round_scalar_f32[%a] %a" print_float_rounding i printreg
+      arg.(0)
   | Round_f64 i ->
     fprintf ppf "round_f64[%a] %a" print_float_rounding i printreg arg.(0)
   | Round_f32 i ->
@@ -912,18 +929,20 @@ let class_of_operation_clmul = function Clmul_64 _ -> Pure
 let class_of_operation_bmi2 = function Deposit_64 | Extract_64 -> Pure
 
 let class_of_operation_sse = function
-  | Cmp_f32 _ | Add_f32 | Sub_f32 | Mul_f32 | Div_f32 | Max_f32 | Min_f32
-  | Rcp_f32 | Sqrt_f32 | Rsqrt_f32 | High_64_to_low_64 | Low_64_to_high_64
-  | Interleave_high_32 | Interleave_low_32 | Interleave_low_32_regs
-  | Movemask_32 | Shuffle_32 _ ->
+  | Round_current_f32_i64
+  (* CR-someday mslater: (SIMD) reads current rounding mode *)
+  | Sqrt_scalar_f32 | Min_scalar_f32 | Max_scalar_f32 | Cmp_f32 _ | Add_f32
+  | Sub_f32 | Mul_f32 | Div_f32 | Max_f32 | Min_f32 | Rcp_f32 | Sqrt_f32
+  | Rsqrt_f32 | High_64_to_low_64 | Low_64_to_high_64 | Interleave_high_32
+  | Interleave_low_32 | Interleave_low_32_regs | Movemask_32 | Shuffle_32 _ ->
     Pure
 
 let class_of_operation_sse2 = function
   | Round_current_f64_i64
     (* CR-someday mslater: (SIMD) reads current rounding mode *)
   | Add_i8 | Add_i16 | Add_i32 | Add_i64 | Add_f64 | Add_saturating_i8
-  | Min_scalar_f64 | Max_scalar_f64 | Sqrt_scalar_f64 | Sqrt_scalar_f32
-  | Sqrt_f64 | Add_saturating_i16 | Add_saturating_unsigned_i8
+  | Min_scalar_f64 | Max_scalar_f64 | Sqrt_scalar_f64 | Sqrt_f64
+  | Add_saturating_i16 | Add_saturating_unsigned_i8
   | Add_saturating_unsigned_i16 | Sub_i8 | Sub_i16 | Sub_i32 | Sub_i64 | Sub_f64
   | Sub_saturating_i8 | Sub_saturating_i16 | Sub_saturating_unsigned_i8
   | Sub_saturating_unsigned_i16 | Max_unsigned_i8 | Max_i16 | Max_f64
@@ -962,8 +981,8 @@ let class_of_operation_sse41 = function
   | Extract_i32 _ | Extract_i64 _ | Insert_i8 _ | Insert_i16 _ | Insert_i32 _
   | Insert_i64 _ | Max_i8 | Max_i32 | Max_unsigned_i16 | Max_unsigned_i32
   | Min_i8 | Min_i32 | Min_unsigned_i16 | Min_unsigned_i32 | Round_f64 _
-  | Round_scalar_f64 _ | Round_f32 _ | Multi_sad_unsigned_i8 _
-  | Minpos_unsigned_i16 | Mullo_i32 ->
+  | Round_scalar_f64 _ | Round_scalar_f32 _ | Round_f32 _
+  | Multi_sad_unsigned_i8 _ | Minpos_unsigned_i16 | Mullo_i32 ->
     Pure
 
 let class_of_operation_sse42 = function
