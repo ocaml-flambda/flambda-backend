@@ -288,8 +288,9 @@ type primitive =
   | Preinterpret_tagged_int63_as_unboxed_int64
     (** At present [Preinterpret_unboxed_int64_as_tagged_int63] and
         [Preinterpret_tagged_int63_as_unboxed_int64] will cause a fatal error
-        if the target system is 32-bit bytecode. *)
-    (** The [Preinterpret_tagged_int63_as_unboxed_int64] primitive is the
+        if the target system is 32-bit bytecode.
+
+        The [Preinterpret_tagged_int63_as_unboxed_int64] primitive is the
         identity on machine words.  The
         [Preinterpret_unboxed_int64_as_tagged_int63] compiles to logical OR
         with 1 on machine words, to ensure that the tag bit is always set in
