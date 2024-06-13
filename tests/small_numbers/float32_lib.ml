@@ -11,9 +11,11 @@ module CF32 = struct
   external to_bits : (t [@unboxed]) -> (int32 [@unboxed]) = "float32_bits_to_int_boxed" "float32_bits_to_int" [@@noalloc]
 
   external of_int : (int [@untagged]) -> (t [@unboxed]) = "float32_of_int_boxed" "float32_of_int" [@@noalloc]
+  external of_int64 : (int64 [@unboxed]) -> (t [@unboxed]) = "float32_of_int64_boxed" "float32_of_int64" [@@noalloc]
   external of_float : (float [@unboxed]) -> (t [@unboxed]) = "float32_of_float_boxed" "float32_of_float" [@@noalloc]
 
   external to_int : (t [@unboxed]) -> (int [@untagged]) = "float32_to_int_boxed" "float32_to_int" [@@noalloc]
+  external to_int64 : (t [@unboxed]) -> (int64 [@unboxed]) = "float32_to_int64_boxed" "float32_to_int64" [@@noalloc]
   external to_float : (t [@unboxed]) -> (float [@unboxed]) = "float32_to_float_boxed" "float32_to_float" [@@noalloc]
 
   external zero : unit -> (t [@unboxed]) = "float32_zero_boxed" "float32_zero" [@@noalloc]
@@ -339,13 +341,16 @@ let () =
   );
   CF32.check_float32s (fun f _ ->
     assert (F32.to_int f = CF32.to_int f);
+    assert (F32.to_int64 f = CF32.to_int64 f);
     if CF32.is_nan f then assert (Float.is_nan (F32.to_float f))
     else assert (F32.to_float f = CF32.to_float f)
   );
   for _ = 0 to 100_000 do
     let i = if Random.bool () then Random.full_int Int.max_int else Int.neg (Random.full_int Int.max_int) in
     let f = if Random.bool () then Random.float Float.max_float else Float.neg (Random.float Float.max_float) in
+    let i64 = if Random.bool () then Random.int64 Int64.max_int else Int64.neg (Random.int64 Int64.max_int) in
     bit_eq (F32.of_int i) (CF32.of_int i);
+    bit_eq (F32.of_int64 i64) (CF32.of_int64 i64);
     bit_eq (F32.of_float f) (CF32.of_float f);
   done
 ;;

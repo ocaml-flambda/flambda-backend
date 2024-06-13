@@ -134,6 +134,16 @@ val to_int : t -> int
     The result is unspecified if the argument is [nan] or falls outside the
     range of representable integers. *)
 
+val of_int64 : int64# -> t
+(** Convert the given 64-bit integer to the nearest representable 32-bit float. *)
+
+val to_int64 : t -> int64#
+(** Convert the given 32-bit float to a 64-bit integer,
+    discarding the fractional part (truncate towards 0).
+    If the truncated floating-point number is outside the range
+    \[{!Int64.min_int}, {!Int64.max_int}\], no exception is raised, and
+    an unspecified, platform-dependent integer is returned. *)
+
 val of_float : float# -> t
 (** Convert a 64-bit float to the nearest 32-bit float. *)
 
