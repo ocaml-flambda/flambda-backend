@@ -1476,7 +1476,9 @@ let lambda_primitive_needs_event_after = function
   | Punboxed_float_array_set_128 _ | Punboxed_int32_array_set_128 _
   | Punboxed_int64_array_set_128 _ | Punboxed_nativeint_array_set_128 _
   | Prunstack | Pperform | Preperform | Presume
-  | Pbbswap _ | Pobj_dup | Pget_header _
+  | Pbbswap _ | Pobj_dup | Pget_header _ -> true
+  (* [Preinterpret_tagged_int63_as_unboxed_int64] has to allocate in
+     bytecode, because int64# is actually represented as a boxed value. *)
   | Preinterpret_tagged_int63_as_unboxed_int64 -> true
 
   | Pbytes_to_string | Pbytes_of_string
