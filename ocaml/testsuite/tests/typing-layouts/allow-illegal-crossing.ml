@@ -174,5 +174,31 @@ val x : t = Foo "hello world"
 (*********************************************************************************)
 (* Test 4: types cannot cross portability and contention axes when not annotated *)
 
+(* CR: should this be allowed? *)
+module A : sig
+  type t : value mod contended portable
+end = struct
+  type t = { a : string }
+end
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = { a : string }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = { a : string; } end
+       is not included in
+         sig type t : value mod contended portable end
+       Type declarations do not match:
+         type t = { a : string; }
+       is not included in
+         type t : value mod contended portable
+       The layout of the first is value, because
+         of the definition of t at line 4, characters 2-25.
+       But the layout of the first must be a sublayout of value, because
+         of the definition of t at line 2, characters 2-39.
+|}]
+
 (*********************************************************************************)
 (* Test 5: layout check is not ignored *)

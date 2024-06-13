@@ -1133,7 +1133,8 @@ let check_coherence env loc dpath decl =
     let jkind' = Ctype.type_jkind_purely env ty in
     let jkind' =
       match decl.type_private, !Clflags.allow_illegal_crossing with
-      | Private, true -> Jkind.add_portability_and_contention_crossing jkind'
+      | Private, true ->
+          Jkind.add_portability_and_contention_crossing ~from:decl.type_jkind jkind'
       | Public, _ | _, false -> jkind'
     in
     begin match Jkind.sub_with_history jkind' decl.type_jkind with
@@ -1585,9 +1586,9 @@ let update_decl_jkind env dpath decl =
       assert false
   in
 
-  let add_crossings jkind = 
+  let add_crossings jkind =
     match !Clflags.allow_illegal_crossing with
-    | true -> Jkind.add_portability_and_contention_crossing jkind
+    | true -> Jkind.add_portability_and_contention_crossing ~from:decl.type_jkind jkind
     | false -> jkind
   in
 
