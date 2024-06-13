@@ -677,6 +677,15 @@ module Jkind_desc = struct
       externality_upper_bound = Externality.min
     }
 
+  let add_portability_and_contention_crossing t =
+    { t with
+      modes_upper_bounds =
+        { t.modes_upper_bounds with
+          portability = Portable;
+          contention = Uncontended
+        }
+    }
+
   let max = of_const Const.max
 
   let equate_or_equal ~allow_mutation
@@ -857,6 +866,9 @@ end
 
 let add_mode_crossing t =
   { t with jkind = Jkind_desc.add_mode_crossing t.jkind }
+
+let add_portability_and_contention_crossing t =
+  { t with jkind = Jkind_desc.add_portability_and_contention_crossing t.jkind }
 
 (*** extension requirements ***)
 (* The [annotation_context] parameter can be used to allow annotations / kinds
