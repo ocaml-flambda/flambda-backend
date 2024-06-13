@@ -125,13 +125,16 @@
        compiler_reference = "bad_ref_indirect.reference";
        check-ocamlc.byte-output;
      }{
+       (* Linking an uninstantiated parameterised module is weird but should be harmless
+          (it's just a module that exports a single functor). We should probably warn in
+          this case, since it's probably not what the user meant to do. *)
+
        program = "${test_build_directory}/monoid_utils_as_program.bc";
        module = "";
        all_modules = "monoid_utils.cmo ";
        ocamlc.byte;
 
        output = "monoid_utils_as_program.output";
-       exit_status = "2";
        run;
 
        reference = "monoid_utils_as_program.reference";
@@ -444,13 +447,16 @@
        compiler_reference = "bad_ref_indirect.reference";
        check-ocamlopt.byte-output;
      }{
+       (* Linking an uninstantiated parameterised module is weird but should be harmless
+          (it's just a module that exports a single functor). We should probably warn in
+          this case, since it's probably not what the user meant to do. *)
+
        program = "${test_build_directory}/monoid_utils_as_program.exe";
        module = "";
        all_modules = "monoid_utils.cmx ";
        ocamlopt.byte;
 
        output = "monoid_utils_as_program.output";
-       exit_status = "2";
        run;
 
        reference = "monoid_utils_as_program.reference";
