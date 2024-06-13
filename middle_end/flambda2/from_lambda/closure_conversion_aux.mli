@@ -321,6 +321,8 @@ module Function_decls : sig
       | Unboxed_number of Flambda_kind.Boxable_number.t
       | Unboxed_float_record of int
 
+    val num_params_for_unboxing_kind : unboxing_kind -> int
+
     type calling_convention =
       | Normal_calling_convention
       | Unboxed_calling_convention of
