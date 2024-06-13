@@ -338,9 +338,16 @@ let select_operation_sse41 op args =
       let i, args = extract_constant args ~max:15 op in
       Some (Round_f64 (float_rounding_of_int i), args)
     | "caml_sse41_float64_round" ->
+      (* CR-someday mslater: the following CR also applies here, but this
+         builtin is not exposed by any of the stdlib libraries. *)
       let i, args = extract_constant args ~max:15 op in
       Some (Round_scalar_f64 (float_rounding_of_int i), args)
     | "caml_sse41_float32_round" ->
+      (* CR-someday mslater: this builtin is exposed by float32.ml, so must
+         actually be cross-platform. Currently, non-amd64 architectures will
+         fall back to a C implementation. If we want the arm64 backend to
+         specialize it, we should redefine the constant mapping from the amd64
+         values to a new sum type. *)
       let i, args = extract_constant args ~max:15 op in
       Some (Round_scalar_f32 (float_rounding_of_int i), args)
     | "caml_sse41_int8x16_max" -> Some (Max_i8, args)
