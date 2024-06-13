@@ -447,6 +447,7 @@ module type S = sig
   val value_to_alloc_r2g : ('l * 'r) Value.t -> ('l * 'r) Alloc.t
 
   module Modality : sig
+    (* CR zqian: have [const] and [var], and an injection from [const] to [var]. *)
     type _user = private User
 
     type _internal = private Internal
@@ -500,6 +501,7 @@ module type S = sig
       (* CR zqian: call this [compose]. *)
 
       (** [cons m t] returns the modality that is [m] after [t]. *)
+      (* CR zqian: call this [compose]. *)
       val cons : atom -> user -> user
 
       (** [singleton m] returns the modality containing only [m]. *)
@@ -509,6 +511,7 @@ module type S = sig
 
       (** Returns the list of [atom] in the given modality. The list is
           commutative. *)
+      (* CR zqian: return record, then we don't need [Exist.t]. *)
       val to_list : user -> atom list
 
       type error =
@@ -532,6 +535,7 @@ module type S = sig
       (** Printing for debugging. *)
       val print : Format.formatter -> 'd t -> unit
 
+      (* CR zqian: consider spliting the [lr]. Also, label the arguments. *)
       val infer : Value.lr -> Value.l -> internal
 
       (** Returns a user modality weaker than the given modality. The returned
@@ -550,6 +554,7 @@ module type S = sig
 
       (** Returns a user modality by asserting the given modality is already
       user modality and returning it. *)
+      (* CR zqian: rename to [to_const_exn]. *)
       val zap_assert : 'd t -> user
 
       (** The top modality; [sub x max] succeeds for any [x]. *)

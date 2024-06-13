@@ -2887,6 +2887,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
               let vd, mode =  Env.find_value_without_locks id newenv in
               let vd = Subst.Lazy.force_value_description vd in
               (* structures are always legacy *)
+              (* CR zqian: rename this to [module_mode] *)
               let mmode = Mode.Value.legacy in
               begin match Mode.Value.Comonadic.submode
                 mode.Mode.comonadic

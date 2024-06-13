@@ -895,12 +895,15 @@ let md md_type =
 
 (** The caller is not interested in modes, and thus [val_modalities] is
 invalidated. *)
+(* CR zqian: this is not needed *)
 let vda_description vda =
   let vda_description = vda.vda_description in
   {vda_description with val_modalities = Mode.Modality.Value.undefined}
 
 (** The caller wants the mode of the [value_data] *)
+(* CR zqian: call this [normalize_vda_mode] *)
 let apply_val_modalities vda =
+  (* CR zqian: either inline this, or move to [types.ml] *)
   let decouple_val_modalities (vd : Subst.Lazy.value_description) =
     let modalities = vd.val_modalities in
     let vd = {vd with val_modalities = Mode.Modality.Value.id'} in
@@ -1316,6 +1319,8 @@ let find_cltype path env =
       (NameMap.find s sc.comp_cltypes).cltda_declaration
   | Papply _ | Pextra_ty _ -> raise Not_found
 
+(* Have two versions, one takes path, one takes identity. The first doesn't run
+   locks, the second does. *)
 let find_value path env =
   find_value_full path env |> vda_description
 
@@ -1845,6 +1850,7 @@ let rec components_of_module_maker
         Lazy_backtrack.create addr
       in
       (* structures are always legacy *)
+      (* CR zqian: rename this to [module_mode] *)
       let mmode = Mode.Value.legacy |> Mode.Value.disallow_right in
       List.iter (fun ((item : Subst.Lazy.signature_item), path) ->
         match item with
@@ -3443,6 +3449,7 @@ let lookup_value ~errors ~use ~loc lid env =
   let path, locks, vda =
     lookup_value_lazy ~errors ~use ~loc lid env
   in
+  (* CR zqian: add comments about the ordering the applying modality and walk_locks *)
   let vda = apply_val_modalities vda in
   let vd = Subst.Lazy.force_value_description vda.vda_description in
   let vmode =
@@ -3798,6 +3805,7 @@ let fold_modules f lid env acc =
           acc
       end
 
+(* CR zqian: also passes mode in additional vda_description *)
 let fold_values f =
   find_all wrap_value (fun env -> env.values) (fun sc -> sc.comp_values)
     (fun k p ve acc ->
