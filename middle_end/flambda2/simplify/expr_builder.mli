@@ -110,7 +110,6 @@ val rebuild_invalid :
 (** Handling of the rewriting of continuation use sites. *)
 
 type rewrite_apply_cont_result = private
-  | Invalid of { message : string }
   | Apply_cont of Apply_cont.t
   | Expr of
       (apply_cont_to_expr:
@@ -118,7 +117,6 @@ type rewrite_apply_cont_result = private
       Rebuilt_expr.t * Cost_metrics.t * Name_occurrences.t)
 
 type rewrite_switch_arm_result = private
-  | Invalid of { message : string }
   | Apply_cont of Apply_cont.t
   | New_wrapper of new_let_cont
 
