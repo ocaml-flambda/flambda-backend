@@ -284,8 +284,8 @@ type primitive =
   | Pbox_float of boxed_float * alloc_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
-  | Preinterpret_unboxed_int64_as_tagged_int63 (** Only for 63-bit targets *)
-  | Preinterpret_tagged_int63_as_unboxed_int64 (** Only for 63-bit targets *)
+  | Preinterpret_unboxed_int64_as_tagged_int63 (** Only for 64-bit targets *)
+  | Preinterpret_tagged_int63_as_unboxed_int64 (** Only for 64-bit targets *)
   (* Jane Street extensions *)
   | Parray_to_iarray (* Unsafely reinterpret a mutable array as an immutable
                         one; O(1) *)
