@@ -2746,6 +2746,9 @@ end
 
 type ('a : any) s = 'a
 
+(* These all have to use polymorphic variants to avoid getting handled
+   by special cases in unification: we're trying to trigger the call to
+   [mcomp_for] in [unify3_var]. *)
 module F (X : S) = struct
   let f1 : ([ `K of 'a X.bits64 inj ], [ `K of 'a X.value inj ]) eq -> _ =
     function _ -> .
@@ -2776,4 +2779,21 @@ module F :
       val f5 : ([ `K of 'a X.bits64 s inj ], [ `K of 'b s inj ]) eq -> 'c
       val f6 : ([ `K of 'b s inj ], [ `K of 'a X.bits64 s inj ]) eq -> 'c
     end
+|}]
+
+(* This naturally doesn't work if the type isn't injective *)
+type ('a : any) not_inj
+
+module F (X : S) = struct
+  let f1 : ([ `K of 'a X.bits64 not_inj ], [ `K of 'a X.value not_inj ]) eq -> _ =
+    function _ -> .
+end
+
+[%%expect{|
+type ('a : any) not_inj
+Line 5, characters 13-14:
+5 |     function _ -> .
+                 ^
+Error: This match case could not be refuted.
+       Here is an example of a value that would reach it: Refl
 |}]

@@ -3383,7 +3383,7 @@ let unify3_var env jkind1 t1' t2 t2' =
       if can_generate_equations () then begin
         begin match get_desc t2' with
         | Tconstr(path,[],_)
-          when is_instantiable !env ~for_jkind_eqn:true path ->
+          when is_instantiable !env ~for_jkind_eqn:false path ->
             add_gadt_equation env path t1'
               (* This is necessary because a failed kind-check above
                  might meaningfully refine a type constructor *)
