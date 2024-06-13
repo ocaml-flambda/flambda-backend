@@ -727,6 +727,10 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%box_int32" -> Primitive(Pbox_int (Pint32, mode), 1)
     | "%unbox_int64" -> Primitive(Punbox_int Pint64, 1)
     | "%box_int64" -> Primitive(Pbox_int (Pint64, mode), 1)
+    | "%reinterpret_tagged_int63_as_unboxed_int64" ->
+      Primitive(Preinterpret_tagged_int63_as_unboxed_int64, 1)
+    | "%reinterpret_unboxed_int64_as_tagged_int63" ->
+      Primitive(Preinterpret_unboxed_int64_as_tagged_int63, 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External lambda_prim
@@ -1472,7 +1476,8 @@ let lambda_primitive_needs_event_after = function
   | Punboxed_float_array_set_128 _ | Punboxed_int32_array_set_128 _
   | Punboxed_int64_array_set_128 _ | Punboxed_nativeint_array_set_128 _
   | Prunstack | Pperform | Preperform | Presume
-  | Pbbswap _ | Pobj_dup | Pget_header _ -> true
+  | Pbbswap _ | Pobj_dup | Pget_header _
+  | Preinterpret_tagged_int63_as_unboxed_int64 -> true
 
   | Pbytes_to_string | Pbytes_of_string
   | Parray_to_iarray | Parray_of_iarray
@@ -1498,6 +1503,7 @@ let lambda_primitive_needs_event_after = function
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer _ | Popaque _
   | Pdls_get
   | Pobj_magic _ | Punbox_float _ | Punbox_int _
+  | Preinterpret_unboxed_int64_as_tagged_int63
   (* These don't allocate in bytecode; they're just identity functions: *)
   | Pbox_float (_, _) | Pbox_int _
     -> false

@@ -714,7 +714,15 @@ let unary_primitive env res dbg f arg =
     let extra, expr = arithmetic_conversion dbg src dst arg in
     extra, res, expr
   | Boolean_not -> None, res, C.mk_not dbg arg
-  | Reinterpret_int64_as_float -> None, res, C.int64_as_float ~dbg arg
+  | Reinterpret_64_bit_word reinterpret ->
+    let cmm =
+      match reinterpret with
+      | Tagged_int63_as_unboxed_int64 -> arg
+      | Unboxed_int64_as_tagged_int63 -> C.or_int (C.int 1 ~dbg) arg dbg
+      | Unboxed_int64_as_unboxed_float64 -> C.int64_as_float ~dbg arg
+      | Unboxed_float64_as_unboxed_int64 -> C.float_as_int64 ~dbg arg
+    in
+    None, res, cmm
   | Unbox_number kind -> None, res, unbox_number ~dbg kind arg
   | Untag_immediate -> Some (Env.Untag arg), res, C.untag_int arg dbg
   | Box_number (kind, alloc_mode) ->
