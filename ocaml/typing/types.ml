@@ -1191,3 +1191,5 @@ let undo_compress (changes, _old) =
             Transient_expr.set_desc ty desc; r := !next
         | _ -> ())
         log
+
+let invalid_arity = -1

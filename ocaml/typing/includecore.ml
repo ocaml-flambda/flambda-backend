@@ -148,7 +148,8 @@ let zero_alloc za1 za2 =
   match get_arity za1, get_arity za2 with
   | Some arity1, Some arity2 ->
     (* Check *)
-    if not (arity1 = arity2) then
+    if not (arity1 = Types.invalid_arity) &&
+       not (arity1 = arity2) then
       raise (Dont_match (Zero_alloc_arity (arity1, arity2)))
   | Some _, None -> ()
     (* Forgetting zero_alloc info is fine *)
