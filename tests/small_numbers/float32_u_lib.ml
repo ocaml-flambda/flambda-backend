@@ -242,6 +242,7 @@ let () =
     bit_eq (F32.round_up u) (CF32.ceil f);
     bit_eq (F32.round_down u) (CF32.floor f);
     bit_eq (F32.round_half_to_even u) (CF32.round_current f);
+    (* Returns int64, so can compare directly. *)
     assert (box_int64 (F32.iround_half_to_even u) = (CF32.iround_current f));
   )
 ;;

@@ -314,7 +314,7 @@ float caml_sse_float32_min(float x, float y) {
 }
 
 CAMLprim value caml_sse_float32_min_bytecode(value x, value y) {
-  return caml_copy_float32(caml_sse_float32_min(Float32_val(x), Float32_val(y)));
+  return Float32_val(x) < Float32_val(y) ? x : y;
 }
 
 float caml_sse_float32_max(float x, float y) {
@@ -322,7 +322,7 @@ float caml_sse_float32_max(float x, float y) {
 }
 
 CAMLprim value caml_sse_float32_max_bytecode(value x, value y) {
-  return caml_copy_float32(caml_sse_float32_max(Float32_val(x), Float32_val(y)));
+  return Float32_val(x) > Float32_val(y) ? x : y;
 }
 
 int64_t caml_sse_cast_float32_int64(float f)

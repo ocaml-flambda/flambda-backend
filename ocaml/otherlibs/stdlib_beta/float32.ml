@@ -285,10 +285,15 @@ external round_intrinsic : (int[@untagged]) -> (t[@unboxed]) -> (t[@unboxed])
   = "caml_sse41_float32_round_bytecode" "caml_sse41_float32_round"
   [@@noalloc] [@@builtin]
 
-let[@inline] round_half_to_even x = round_intrinsic 0xC x
-let[@inline] round_down x = round_intrinsic 0x9 x
-let[@inline] round_up x = round_intrinsic 0xA x
-let[@inline] round_towards_zero x = round_intrinsic 0xB x
+(* On amd64, these constants also imply _MM_FROUND_NO_EXC (suppress exceptions). *)
+let round_neg_inf = 0x9
+let round_pos_inf = 0xA
+let round_zero = 0xB
+let round_current_mode = 0xC
+let[@inline] round_half_to_even x = round_intrinsic round_current_mode x
+let[@inline] round_down x = round_intrinsic round_neg_inf x
+let[@inline] round_up x = round_intrinsic round_pos_inf x
+let[@inline] round_towards_zero x = round_intrinsic round_zero x
 
 external seeded_hash_param : int -> int -> int -> 'a -> int = "caml_hash_exn"
   [@@noalloc]
