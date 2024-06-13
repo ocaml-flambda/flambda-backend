@@ -705,7 +705,9 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Prunstack | Pperform | Presume | Preperform ->
     Misc.fatal_errorf "Primitive %a is not yet supported by Flambda 2"
       Printlambda.primitive prim
-  | Pdls_get -> false
+  | Pdls_get | Preinterpret_tagged_int63_as_unboxed_int64
+  | Preinterpret_unboxed_int64_as_tagged_int63 ->
+    false
 
 type non_tail_continuation =
   Acc.t ->
