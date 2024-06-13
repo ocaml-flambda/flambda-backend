@@ -4536,8 +4536,25 @@ atomic_type:
       { [] }
   | ty = atomic_type
       { [ty] }
-  | LPAREN tys = separated_nontrivial_llist(COMMA, core_type) RPAREN
+  | LPAREN
+    tys = separated_nontrivial_llist(COMMA, one_type_parameter_of_several)
+    RPAREN
       { tys }
+
+(* Layout annotations on type expressions typically require parens, as in [('a :
+   float64)].  But this is unnecessary when the type expression is used as the
+   parameter of a tconstr with more than one argument, as in [(int, 'b :
+   float64) t].  Further, it would be confusing to require parens there because
+   they are not required in that position in type declarations.  So, we have a
+   special case. *)
+%inline one_type_parameter_of_several:
+  | core_type { $1 }
+  | QUOTE id=ident COLON jkind=jkind_annotation
+    { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) @@
+      Ltyp_var { name = Some id; jkind } }
+  | UNDERSCORE COLON jkind=jkind_annotation
+    { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) @@
+      Ltyp_var { name = None; jkind } }
 
 %inline package_type: module_type
       { let (lid, cstrs, attrs) = package_type_of_module_type $1 in
