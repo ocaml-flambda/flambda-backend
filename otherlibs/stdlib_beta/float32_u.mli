@@ -364,6 +364,20 @@ val max : t -> t -> t
 (** [max x y] returns the maximum of [x] and [y].  It returns [nan]
     when [x] or [y] is [nan].  Moreover [max #-0.s #+0.s = #+0.s] *)
 
+module With_weird_nan_behavior : sig
+    val min : t -> t -> t
+    (** [min x y] returns the minimum of [x] and [y].
+        If either [x] or [y] is [nan], [y] is returned.
+        If both [x] and [y] equal zero, [y] is returned.
+        The amd64 flambda-backend compiler translates this call to MINSS. *)
+
+    val max : t -> t -> t
+    (** [max x y] returns the maximum of [x] and [y].
+        If either [x] or [y] is [nan], [y] is returned.
+        If both [x] and [y] equal zero, [y] is returned.
+        The amd64 flambda-backend compiler translates this call to MAXSS. *)
+end
+
 val min_num : t -> t -> t
 (** [min_num x y] returns the minimum of [x] and [y] treating [nan] as
     missing values.  If both [x] and [y] are [nan], [nan] is returned.
@@ -373,6 +387,32 @@ val max_num : t -> t -> t
 (** [max_num x y] returns the maximum of [x] and [y] treating [nan] as
     missing values.  If both [x] and [y] are [nan] [nan] is returned.
     Moreover [max_num #-0.s #+0.s = #+0.s] *)
+
+val iround_half_to_even : t -> int64#
+(** Rounds a [float32#] to an [int64#] using the current rounding mode. The default
+    rounding mode is "round half to even", and we expect that no program will
+    change the rounding mode.
+    If the argument is NaN or infinite or if the rounded value cannot be
+    represented, then the result is unspecified.
+    The amd64 flambda-backend compiler translates this call to CVTSS2SI. *)
+
+val round_half_to_even : t -> t
+(** Rounds a [float32#] to an integer [float32#] using the current rounding
+    mode.  The default rounding mode is "round half to even", and we
+    expect that no program will change the rounding mode.
+    The amd64 flambda-backend compiler translates this call to ROUNDSS. *)
+
+val round_down : t -> t
+(** Rounds a [float32#] down to the next integer [float32#] toward negative infinity.
+    The amd64 flambda-backend compiler translates this call to ROUNDSS.*)
+
+val round_up : t -> t
+(** Rounds a [float32#] up to the next integer [float32#] toward positive infinity.
+    The amd64 flambda-backend compiler translates this call to ROUNDSS.*)
+
+val round_towards_zero : t -> t
+(** Rounds a [float32#] to the next integer [float32#] toward zero.
+    The amd64 flambda-backend compiler translates this call to ROUNDSS.*)
 
 (* CR layouts v5: add back hash when we deal with the ad-hoc polymorphic
    functions. *)
