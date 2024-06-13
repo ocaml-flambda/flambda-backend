@@ -233,8 +233,12 @@ let cfg (cfg_with_layout : Cfg_with_layout.t) =
       in
       if not (Label.Set.is_empty blocks_needing_stack_checks)
       then
-        if Label.Tbl.length cfg.blocks
-           < !Flambda_backend_flags.cfg_stack_checks_threshold
+        (* We apply the optimization only if the maximum frame size is slightly
+           below the red zone to account for pushes introduced during emission
+           (e.g. in `emit_stack_realloc`). *)
+        if max_frame_size < 20 * 8
+           && Label.Tbl.length cfg.blocks
+              < !Flambda_backend_flags.cfg_stack_checks_threshold
         then
           insert_stack_checks cfg ~max_frame_size ~blocks_needing_stack_checks
             ~max_instr_id
