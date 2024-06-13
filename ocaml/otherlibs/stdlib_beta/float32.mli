@@ -470,7 +470,7 @@ module With_weird_nan_behavior : sig
   external max : t -> t -> t
     = "caml_sse_float32_max_bytecode" "caml_sse_float32_max"
     [@@noalloc] [@@unboxed] [@@builtin]
-  (** [max x y] returns the maximum of [x] and [y].  It returns [x]
+  (** [max x y] returns the maximum of [x] and [y].
       If either [x] or [y] is [nan], [y] is returned.
       If both [x] and [y] equal zero, [y] is returned.
       The amd64 flambda-backend compiler translates this call to MAXSS. *)

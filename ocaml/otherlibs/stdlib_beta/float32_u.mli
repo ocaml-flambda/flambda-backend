@@ -372,7 +372,7 @@ module With_weird_nan_behavior : sig
         The amd64 flambda-backend compiler translates this call to MINSS. *)
 
     val max : t -> t -> t
-    (** [max x y] returns the maximum of [x] and [y].  It returns [x]
+    (** [max x y] returns the maximum of [x] and [y].
         If either [x] or [y] is [nan], [y] is returned.
         If both [x] and [y] equal zero, [y] is returned.
         The amd64 flambda-backend compiler translates this call to MAXSS. *)
