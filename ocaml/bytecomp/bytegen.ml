@@ -570,14 +570,19 @@ let comp_primitive stack_info p sz args =
   | Punboxed_int64_array_set_128 _ | Punboxed_nativeint_array_set_128 _ ->
     fatal_error "128-bit load/store is not supported in bytecode mode."
   | Preinterpret_tagged_int63_as_unboxed_int64 ->
-      (* CR mshinwell: probably easiest via a C stub, same for the next one *)
+    if not (Target_system.is_64_bit ())
+    then
       Misc.fatal_error
-        "Preinterpret_tagged_int63_as_unboxed_int64 not yet supported in \
-         bytecode"
+        "Preinterpret_tagged_int63_as_unboxed_int64 can only be used on 64-bit \
+         targets";
+    Kccall("caml_reinterpret_tagged_int63_as_unboxed_int64", 1)
   | Preinterpret_unboxed_int64_as_tagged_int63 ->
+    if not (Target_system.is_64_bit ())
+    then
       Misc.fatal_error
-        "Preinterpret_unboxed_int64_as_tagged_int63 not yet supported in \
-         bytecode"
+        "Preinterpret_unboxed_int64_as_tagged_int63 can only be used on 64-bit \
+         targets";
+    Kccall("caml_reinterpret_unboxed_int64_as_tagged_int63", 1)
   (* The cases below are handled in [comp_expr] before the [comp_primitive] call
      (in the order in which they appear below),
      so they should never be reached in this function. *)
