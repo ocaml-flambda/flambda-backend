@@ -441,11 +441,11 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
-  ++ Profile.record ~accumulate:true "save_linear" save_linear
   ++ (fun (fd : Linear.fundecl) ->
     match use_cfg_stack_checks fd_cmm with
     | false -> Stack_check.linear fd
     | true -> fd)
+  ++ Profile.record ~accumulate:true "save_linear" save_linear
   ++ Profile.record ~accumulate:true "emit_fundecl" emit_fundecl
 
 let compile_data dl =
