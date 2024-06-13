@@ -499,6 +499,9 @@ Make_simplify_reinterpret_64_bit_word (struct
 
   let prover = T.meet_naked_int64s
 
+  (* This primitive is logical OR with 1 on machine words, but here, we are
+     working in the tagged world. As such a different computation is
+     required. *)
   let convert i = Targetint_31_63.of_int64 (Int64.div i 2L)
 
   let these = T.these_tagged_immediates
@@ -513,6 +516,8 @@ Make_simplify_reinterpret_64_bit_word (struct
 
   let prover = T.meet_equals_tagged_immediates
 
+  (* This primitive is the identity on machine words, but as above, we are
+     working in the tagged world. *)
   let convert i = Int64.add (Int64.mul (Targetint_31_63.to_int64 i) 2L) 1L
 
   let these = T.these_naked_int64s
