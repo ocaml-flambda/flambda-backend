@@ -1344,8 +1344,7 @@ let global_of_instance_compilation_unit cu =
   let global =
     (* We could just convert the global name ourselves by filling in empty lists
        of hidden arguments, but this doubles as a typecheck of the instance. *)
-    Persistent_env.global_of_global_name !persistent_env global_name
-      ~check:false ~param:false
+    Persistent_env.global_of_global_name !persistent_env global_name ~check:false
   in
   let rec check (global : Global_module.t) =
     match global.hidden_args with
