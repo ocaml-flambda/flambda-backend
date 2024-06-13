@@ -26,3 +26,11 @@ type t = float#;;
 type t = int#;;
 
 type t = Float.t#;;
+
+type ('a : any, 'b : any, 'c : any) t;;
+
+type 'a s1 = ('a : float64, int, bool) t;;
+
+let f : ('a, _ : value, bool) t -> int = fun _ -> 42;;
+
+type ('a, 'b, 'c) s2 = ('a, 'b, 'c : bits32) t;;
