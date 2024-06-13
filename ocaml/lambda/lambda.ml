@@ -1794,8 +1794,15 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Patomic_cas
   | Patomic_fetch_add
   | Pdls_get
-  | Preinterpret_unboxed_int64_as_tagged_int63
-  | Preinterpret_tagged_int63_as_unboxed_int64 -> None
+  | Preinterpret_unboxed_int64_as_tagged_int63 -> None
+  | Preinterpret_tagged_int63_as_unboxed_int64 ->
+    if !Clflags.native_code then None
+    else
+      (* We don't provide a locally-allocating version of this primitive
+         since it would only apply to bytecode, and code requiring performance
+         at a level where these primitives are necessary is very likely going
+         to be native. *)
+      Some alloc_heap
 
 let constant_layout: constant -> layout = function
   | Const_int _ | Const_char _ -> Pvalue Pintval
