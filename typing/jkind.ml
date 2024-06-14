@@ -1014,7 +1014,7 @@ end = struct
 
   let format_interact_reason ppf = function
     | Gadt_equation name ->
-      fprintf ppf "a GADT match on the constructor %a" !printtyp_path name
+      fprintf ppf "a GADT match refining the type %a" !printtyp_path name
     | Tyvar_refinement_intersection -> fprintf ppf "updating a type variable"
     | Subjkind -> fprintf ppf "sublayout check"
 
@@ -1207,7 +1207,10 @@ let combine_histories reason lhs rhs =
         rhs_history = rhs.history
       }
 
-let intersection ~reason t1 t2 =
+let has_intersection t1 t2 =
+  Option.is_some (Jkind_desc.intersection t1.jkind t2.jkind)
+
+let intersection_or_error ~reason t1 t2 =
   match Jkind_desc.intersection t1.jkind t2.jkind with
   | None -> Error (Violation.of_ (No_intersection (t1, t2)))
   | Some jkind ->
