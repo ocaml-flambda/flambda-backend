@@ -168,6 +168,14 @@ module Stdlib = struct
         if a' == a && l' == l then l0 else a' :: l'
       | [] -> []
 
+    let fold_lefti f accu l =
+      let rec aux f i accu l =
+        match l with
+        | [] -> accu
+        | a::l -> aux f (succ i) (f i accu a) l
+      in
+      aux f 0 accu l
+
     let chunks_of n l =
       if n <= 0 then raise (Invalid_argument "chunks_of");
       (* Invariant: List.length l = remaining *)

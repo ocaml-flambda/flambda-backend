@@ -36,13 +36,12 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
   match decision with
   | Do_not_unbox _ -> denv
   | Unbox (Unique_tag_and_size { tag; shape; fields }) ->
-    let _, denv =
-      List.fold_left
-        (fun (index, denv) ({ epa = { param = var; _ }; _ } : U.field_decision) ->
+    let denv =
+      Misc.Stdlib.List.fold_lefti
+        (fun index denv ({ epa = { param = var; _ }; _ } : U.field_decision) ->
           let v = VB.create var Name_mode.normal in
-          ( succ index,
-            DE.define_variable denv v (K.Block_shape.element_kind shape index) ))
-        (0, denv) fields
+          DE.define_variable denv v (K.Block_shape.element_kind shape index))
+        denv fields
     in
     let type_of_var index (field : U.field_decision) =
       T.alias_type_of
@@ -143,15 +142,11 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
     let denv =
       Tag.Scannable.Map.fold
         (fun _ (shape, block_fields) denv ->
-          snd
-          @@ List.fold_left
-               (fun (index, denv)
-                    ({ epa = { param = var; _ }; _ } : U.field_decision) ->
-                 let v = VB.create var Name_mode.normal in
-                 ( succ index,
-                   DE.define_variable denv v
-                     (K.Block_shape.element_kind shape index) ))
-               (0, denv) block_fields)
+          Misc.Stdlib.List.fold_lefti
+            (fun index denv ({ epa = { param = var; _ }; _ } : U.field_decision) ->
+              let v = VB.create var Name_mode.normal in
+              DE.define_variable denv v (K.Block_shape.element_kind shape index))
+            denv block_fields)
         fields_by_tag denv
     in
     let non_const_ctors =

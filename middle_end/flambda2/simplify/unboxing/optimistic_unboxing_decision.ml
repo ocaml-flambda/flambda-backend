@@ -161,13 +161,12 @@ and make_optimistic_fields ~add_tag_to_name ~depth ~recursive tenv param_type
       (Simple.var epa.param)
   in
   let field_types = List.mapi type_of_var field_vars in
-  let _, tenv =
-    List.fold_left
-      (fun (index, acc) { Extra_param_and_args.param = var; args = _ } ->
+  let tenv =
+    Misc.Stdlib.List.fold_lefti
+      (fun index acc { Extra_param_and_args.param = var; args = _ } ->
         let name = Bound_name.create (Name.var var) Name_mode.normal in
-        ( succ index,
-          TE.add_definition acc name (K.Block_shape.element_kind shape index) ))
-      (0, tenv) field_vars
+        TE.add_definition acc name (K.Block_shape.element_kind shape index))
+      tenv field_vars
   in
   let shape =
     T.immutable_block ~is_unique:false tag ~shape ~fields:field_types
