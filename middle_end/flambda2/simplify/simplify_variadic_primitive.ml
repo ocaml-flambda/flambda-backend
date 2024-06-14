@@ -22,7 +22,7 @@ let simplify_make_block ~original_prim ~(block_kind : P.Block_kind.t)
   let env_extension : _ Or_bottom.t =
     match block_kind with
     | Naked_floats | Mixed _ ->
-      (* No useful subkinf information *)
+      (* No useful subkind information *)
       Ok TEE.empty
     | Values (_tag, field_kinds) ->
       if List.compare_lengths args_with_tys field_kinds <> 0
