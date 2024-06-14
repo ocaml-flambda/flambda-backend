@@ -63,6 +63,15 @@ enum instructions {
   GETSTRINGCHAR,
   PERFORM, RESUME, RESUMETERM, REPERFORMTERM,
   MAKE_FAUX_MIXEDBLOCK,
+  /* Think carefully before adding a new bytecode instruction. In general,
+     this makes the flambda-backend compiler less compatible with the
+     OCaml ecosystem. Projects may need to be patched to build with
+     flambda-backend.
+
+     We added the [MAKE_FAUX_MIXEDBLOCK] instruction without making this
+     consideration and it has turned out OK, but we might want to reverse
+     this decision if we run into difficulty in the future.
+   */
 FIRST_UNIMPLEMENTED_OP};
 
 #endif /* CAML_INTERNALS */
