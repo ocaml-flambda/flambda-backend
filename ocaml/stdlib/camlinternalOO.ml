@@ -295,9 +295,7 @@ let new_methods_variables table meths vals =
   res
 
 let get_variable table name =
-  match Vars.find_opt name table.vars with
-  | Some x -> x
-  | None -> assert false
+  try Vars.find name table.vars with Not_found -> assert false
 
 let get_variables table names =
   Array.map (get_variable table) names
