@@ -571,14 +571,7 @@ let block_access_kind (bk : Flambda_primitive.Block_access_kind.t) :
   | Naked_floats { size = s } ->
     let size = s |> size in
     Naked_floats { size }
-  | Mixed { tag; size = s; shape = _; field_kind } ->
-    let size = s |> size in
-    let tag =
-      match tag with
-      | Unknown -> None
-      | Known tag -> Some (tag |> Tag.Scannable.to_int)
-    in
-    Mixed { tag; size; field_kind }
+  | Mixed _ -> Misc.fatal_error "Mixed blocks not supported in fexpr"
 
 let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   match op with

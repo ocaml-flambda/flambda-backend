@@ -441,14 +441,6 @@ let block_access_kind (ak : Fexpr.block_access_kind) :
   | Naked_floats { size = s } ->
     let size = size s in
     Naked_floats { size }
-  | Mixed _ -> Misc.fatal_error "Mixed records not supported"
-(* let tag : Tag.Scannable.t Or_unknown.t = *)
-(*   match tag with *)
-(*   | Some tag -> Known (tag |> tag_scannable) *)
-(*   | None -> Unknown *)
-(* in *)
-(* let s = size s in *)
-(* Mixed { tag; size = s; field_kind } *)
 
 let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   match binop with
