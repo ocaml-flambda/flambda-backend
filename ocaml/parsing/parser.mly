@@ -4544,9 +4544,7 @@ atomic_type:
 (* Layout annotations on type expressions typically require parens, as in [('a :
    float64)].  But this is unnecessary when the type expression is used as the
    parameter of a tconstr with more than one argument, as in [(int, 'b :
-   float64) t].  Further, it would be confusing to require parens there because
-   they are not required in that position in type declarations.  So, we have a
-   special case. *)
+   float64) t]. *)
 %inline one_type_parameter_of_several:
   | core_type { $1 }
   | QUOTE id=ident COLON jkind=jkind_annotation
