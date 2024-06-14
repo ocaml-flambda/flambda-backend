@@ -591,6 +591,11 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   let decls = Function_declarations.funs_in_order fun_decls in
   let value_slots = Set_of_closures.value_slots set in
   let dbg = debuginfo_for_set_of_closures env set in
+  let res =
+    R.mark_region_as_used res
+      (Set_of_closures.alloc_mode set)
+      ~resolve_alias:(To_cmm_env.resolve_alias env)
+  in
   let effs : Ece.t =
     ( Only_generative_effects Immutable,
       (match closure_alloc_mode with

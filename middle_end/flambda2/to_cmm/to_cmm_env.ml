@@ -56,7 +56,11 @@ type ('env, 'prim, 'arity) prim_helper =
 
 type 'env trans_prim =
   { nullary : ('env, P.nullary_primitive, prim_res) prim_helper;
-    unary : ('env, P.unary_primitive, Cmm.expression -> prim_res) prim_helper;
+    unary :
+      ( 'env,
+        P.unary_primitive,
+        Simple.t * Cmm.expression -> prim_res )
+      prim_helper;
     binary :
       ( 'env,
         P.binary_primitive,
@@ -102,6 +106,7 @@ type _ bound_expr =
   | Splittable_prim :
       { dbg : Debuginfo.t;
         prim : Flambda_primitive.Without_args.t;
+        arg_simples : Simple.t list;
         args : expr_with_info list
       }
       -> complex bound_expr
@@ -194,7 +199,7 @@ let [@ocamlformat "disable"] print_bound_expr (type a) ppf (b : a bound_expr) =
   match b with
   | Simple { cmm_expr; free_vars; } | Split { cmm_expr; free_vars; } ->
     print_cmm_expr_with_free_vars ppf (cmm_expr, free_vars)
-  | Splittable_prim { prim; args; dbg; } ->
+  | Splittable_prim { prim; arg_simples = _; args; dbg; } ->
     Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(dbg@ %a)@]@ \
       @[<hov 1>(prim@ %a)@]@ \
@@ -417,7 +422,8 @@ let simple cmm_expr free_vars = Simple { cmm_expr; free_vars }
 
 let complex_no_split cmm_expr free_vars = Split { cmm_expr; free_vars }
 
-let splittable_primitive dbg prim args = Splittable_prim { dbg; prim; args }
+let splittable_primitive dbg prim arg_simples args =
+  Splittable_prim { dbg; prim; arg_simples; args }
 
 let is_cmm_simple cmm =
   match (cmm : Cmm.expression) with
@@ -518,17 +524,21 @@ let new_bindings_for_splitting order args =
   in
   new_bindings, new_cmm_args, free_vars_of_new_cmm_args
 
-let rebuild_prim ~dbg ~env ~res prim args =
+let rebuild_prim ~dbg ~env ~res prim arg_simples args =
   let extra_info, res, cmm =
-    match (prim, args : Flambda_primitive.Without_args.t * _) with
-    | Nullary nullary, [] -> env.trans_prim.nullary env res dbg nullary
-    | Unary unary, [x] -> env.trans_prim.unary env res dbg unary x
-    | Binary binary, [x; y] -> env.trans_prim.binary env res dbg binary x y
-    | Ternary ternary, [x; y; z] ->
+    match
+      (prim, arg_simples, args : Flambda_primitive.Without_args.t * _ * _)
+    with
+    | Nullary nullary, [], [] -> env.trans_prim.nullary env res dbg nullary
+    | Unary unary, [x_simple], [x] ->
+      env.trans_prim.unary env res dbg unary (x_simple, x)
+    | Binary binary, [_; _], [x; y] ->
+      env.trans_prim.binary env res dbg binary x y
+    | Ternary ternary, [_; _; _], [x; y; z] ->
       env.trans_prim.ternary env res dbg ternary x y z
-    | Variadic variadic, args ->
+    | Variadic variadic, _, args ->
       env.trans_prim.variadic env res dbg variadic args
-    | (Nullary _ | Unary _ | Binary _ | Ternary _), _ ->
+    | (Nullary _ | Unary _ | Binary _ | Ternary _), _, _ ->
       Misc.fatal_errorf
         "Mismatched arity when splitting a binding in to_cmm_env:@\n%a@\n%a"
         Flambda_primitive.Without_args.print prim
@@ -554,7 +564,7 @@ let rebuild_prim ~dbg ~env ~res prim args =
 let split_complex_binding ~env ~res (binding : complex binding) =
   match binding.bound_expr with
   | Split _ -> res, Already_split
-  | Splittable_prim { dbg; prim; args } ->
+  | Splittable_prim { dbg; prim; arg_simples; args } ->
     (* We will be using the free vars of the new cmm args as the free vars for
        the new cmm expr for the binding (note that the same is done in
        [To_cmm_primitive]). This is correct because the cmm helpers to build
@@ -566,7 +576,9 @@ let split_complex_binding ~env ~res (binding : complex binding) =
     let new_bindings, new_cmm_args, free_vars_of_new_cmm_args =
       new_bindings_for_splitting binding.order args
     in
-    let new_cmm_expr, res = rebuild_prim ~dbg ~env ~res prim new_cmm_args in
+    let new_cmm_expr, res =
+      rebuild_prim ~dbg ~env ~res prim arg_simples new_cmm_args
+    in
     let prim_effects =
       Flambda_primitive.Without_args.effects_and_coeffects prim
     in
@@ -727,14 +739,14 @@ let will_inline_complex env res { effs; bound_expr; _ } =
   match bound_expr with
   | Split { cmm_expr; free_vars } ->
     { env; res; expr = { cmm = cmm_expr; free_vars; effs } }
-  | Splittable_prim { dbg; prim; args } ->
+  | Splittable_prim { dbg; prim; arg_simples; args } ->
     let free_vars, cmm_args =
       List.fold_left_map
         (fun free_vars { cmm = cmm_arg; effs = _; free_vars = arg_free_vars } ->
           Backend_var.Set.union free_vars arg_free_vars, cmm_arg)
         Backend_var.Set.empty args
     in
-    let cmm_expr, res = rebuild_prim ~dbg ~env ~res prim cmm_args in
+    let cmm_expr, res = rebuild_prim ~dbg ~env ~res prim arg_simples cmm_args in
     { env; res; expr = { cmm = cmm_expr; free_vars; effs } }
 
 let will_not_inline_simple env res { cmm_var; bound_expr = Simple _; _ } =

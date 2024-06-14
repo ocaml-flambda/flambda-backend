@@ -56,7 +56,7 @@ type 'env trans_prim =
     unary :
       ( 'env,
         Flambda_primitive.unary_primitive,
-        Cmm.expression -> prim_res )
+        Simple.t * Cmm.expression -> prim_res )
       prim_helper;
     binary :
       ( 'env,
@@ -225,6 +225,7 @@ val simple : Cmm.expression -> free_vars -> simple bound_expr
 val splittable_primitive :
   Debuginfo.t ->
   Flambda_primitive.Without_args.t ->
+  Simple.t list ->
   expr_with_info list ->
   complex bound_expr
 
@@ -260,6 +261,8 @@ val add_alias :
   alias_of:Variable.t ->
   num_normal_occurrences_of_bound_vars:Num_occurrences.t Variable.Map.t ->
   t * To_cmm_result.t
+
+val resolve_alias : t -> Variable.t -> Variable.t
 
 (** Try and inline an Flambda variable using the delayed let-bindings. *)
 val inline_variable :

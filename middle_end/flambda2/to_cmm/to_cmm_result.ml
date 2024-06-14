@@ -26,7 +26,8 @@ type t =
        [Symbol.t], e.g. module entry point names. *)
     module_symbol : Symbol.t;
     module_symbol_defined : bool;
-    invalid_message_symbols : Symbol.t String.Map.t
+    invalid_message_symbols : Symbol.t String.Map.t;
+    used_regions : Variable.Set.t
   }
 
 let create ~module_symbol ~reachable_names =
@@ -38,7 +39,8 @@ let create ~module_symbol ~reachable_names =
     symbols = String.Map.empty;
     module_symbol;
     module_symbol_defined = false;
-    invalid_message_symbols = String.Map.empty
+    invalid_message_symbols = String.Map.empty;
+    used_regions = Variable.Set.empty
   }
 
 (* Symbol handling
@@ -168,6 +170,17 @@ let add_invalid_message_symbol t symbol ~message =
 
 let invalid_message_symbol t ~message =
   String.Map.find_opt message t.invalid_message_symbols
+
+let region_is_used t region ~resolve_alias =
+  Variable.Set.mem (resolve_alias region) t.used_regions
+
+let mark_region_as_used t (alloc_mode : Alloc_mode.For_allocations.t)
+    ~resolve_alias =
+  match alloc_mode with
+  | Heap -> t
+  | Local { region } ->
+    let region = resolve_alias region in
+    { t with used_regions = Variable.Set.add region t.used_regions }
 
 let to_cmm r =
   (* Make sure the module symbol is defined *)

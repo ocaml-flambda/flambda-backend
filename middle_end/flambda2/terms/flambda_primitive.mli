@@ -365,6 +365,7 @@ type unary_primitive =
   (* CR gbury: Invariant check: 0 < dimension <= 3 *)
   | String_length of string_or_bytes
   | Int_as_pointer of Alloc_mode.For_allocations.t
+      (** In terms of regions, [Int_as_pointer] is like a zero-sized stack allocation. *)
   | Opaque_identity of
       { middle_end_only : bool;
         kind : Flambda_kind.t
