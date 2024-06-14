@@ -73,6 +73,8 @@
   (:standard -extension-universe beta -nodynlink)))
 
 (rule
+ (enabled_if
+  (= %{context_name} "main"))
  (targets
   float32_builtin_nodynlink.out
   float32_lib_nodynlink.out
@@ -95,6 +97,8 @@
 
 (rule
  (alias runtest)
+ (enabled_if
+  (= %{context_name} "main"))
  (action
   (progn
    (diff empty.expected float32_builtin_nodynlink.out)

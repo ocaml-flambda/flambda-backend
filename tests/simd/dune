@@ -98,6 +98,8 @@
   (:standard -extension simd -nodynlink)))
 
 (rule
+ (enabled_if
+  (= %{context_name} "main"))
  (targets
   basic_nodynlink.out
   ops_nodynlink.out
@@ -128,6 +130,10 @@
 
 (rule
  (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (= %{architecture} amd64)))
  (action
   (progn
    (diff empty.expected basic_nodynlink.out)
