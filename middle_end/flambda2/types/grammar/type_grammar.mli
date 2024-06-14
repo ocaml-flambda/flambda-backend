@@ -102,7 +102,7 @@ and ('lattice, 'shape) row_like_index = private
     shape : 'shape
   }
 
-and ('lattice, 'shape, 'maps_to) row_like_case =
+and ('lattice, 'shape, 'maps_to) row_like_case = private
   { maps_to : 'maps_to;
     index : ('lattice, 'shape) row_like_index;
     env_extension : env_extension
@@ -111,13 +111,13 @@ and ('lattice, 'shape, 'maps_to) row_like_case =
 and row_like_block_case =
   (Block_size.t, Flambda_kind.Block_shape.t, t array) row_like_case
 
-and row_like_for_blocks =
+and row_like_for_blocks = private
   { known_tags : row_like_block_case Or_unknown.t Tag.Map.t;
     other_tags : row_like_block_case Or_bottom.t;
     alloc_mode : Alloc_mode.For_types.t
   }
 
-and row_like_for_closures =
+and row_like_for_closures = private
   { known_closures :
       (Set_of_closures_contents.t, unit, closures_entry) row_like_case
       Function_slot.Map.t;
