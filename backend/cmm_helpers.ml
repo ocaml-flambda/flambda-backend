@@ -2173,6 +2173,15 @@ let unaligned_set_64 ptr idx newval dbg =
                     [add_int (add_int ptr idx dbg) (cconst_int 7) dbg; b8],
                     dbg ) ) ) )
 
+let unaligned_load_f32 ptr idx dbg =
+  Cop (mk_load_mut (Single { reg = Float32 }), [add_int ptr idx dbg], dbg)
+
+let unaligned_set_f32 ptr idx newval dbg =
+  Cop
+    ( Cstore (Single { reg = Float32 }, Assignment),
+      [add_int ptr idx dbg; newval],
+      dbg )
+
 let unaligned_load_128 ptr idx dbg =
   assert (size_vec128 = 16);
   Cop (mk_load_mut Onetwentyeight_unaligned, [add_int ptr idx dbg], dbg)

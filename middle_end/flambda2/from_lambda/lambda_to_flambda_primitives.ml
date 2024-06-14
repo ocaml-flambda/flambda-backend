@@ -425,7 +425,7 @@ let actual_max_length_for_string_like_access ~size_int ~access_size length =
       match (size : Flambda_primitive.string_accessor_width) with
       | Eight -> 0
       | Sixteen -> 1
-      | Thirty_two -> 3
+      | Thirty_two | Single -> 3
       | Sixty_four -> 7
       | One_twenty_eight _ -> 15
     in
@@ -433,7 +433,7 @@ let actual_max_length_for_string_like_access ~size_int ~access_size length =
   in
   match (access_size : Flambda_primitive.string_accessor_width) with
   | Eight -> length (* micro-optimization *)
-  | Sixteen | Thirty_two | Sixty_four | One_twenty_eight _ ->
+  | Sixteen | Thirty_two | Single | Sixty_four | One_twenty_eight _ ->
     let offset = length_offset_of_size access_size in
     let reduced_length =
       H.Prim
@@ -1739,6 +1739,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbigstring_load_32 { unsafe = true; mode; boxed }, [[big_str]; [index]] ->
     [ string_like_load_unsafe ~access_size:Thirty_two Bigstring (Some mode)
         ~boxed big_str index ~current_region ]
+  | Pbigstring_load_f32 { unsafe = true; mode; boxed }, [[big_str]; [index]] ->
+    [ string_like_load_unsafe ~access_size:Single Bigstring (Some mode) ~boxed
+        big_str index ~current_region ]
   | Pbigstring_load_64 { unsafe = true; mode; boxed }, [[big_str]; [index]] ->
     [ string_like_load_unsafe ~access_size:Sixty_four Bigstring (Some mode)
         ~boxed big_str index ~current_region ]
@@ -1752,6 +1755,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         ~boxed:false None big_str index ~current_region ]
   | Pbigstring_load_32 { unsafe = false; mode; boxed }, [[big_str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Thirty_two Bigstring
+        (Some mode) ~boxed big_str index ~current_region ]
+  | Pbigstring_load_f32 { unsafe = false; mode; boxed }, [[big_str]; [index]] ->
+    [ string_like_load_safe ~dbg ~size_int ~access_size:Single Bigstring
         (Some mode) ~boxed big_str index ~current_region ]
   | Pbigstring_load_64 { unsafe = false; mode; boxed }, [[big_str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixty_four Bigstring

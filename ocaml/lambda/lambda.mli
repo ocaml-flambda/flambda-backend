@@ -203,14 +203,17 @@ type primitive =
   (* load/set 16,32,64,128 bits from a string: (unsafe)*)
   | Pstring_load_16 of bool
   | Pstring_load_32 of bool * alloc_mode
+  | Pstring_load_f32 of bool * alloc_mode
   | Pstring_load_64 of bool * alloc_mode
   | Pstring_load_128 of { unsafe : bool; mode: alloc_mode }
   | Pbytes_load_16 of bool
   | Pbytes_load_32 of bool * alloc_mode
+  | Pbytes_load_f32 of bool * alloc_mode
   | Pbytes_load_64 of bool * alloc_mode
   | Pbytes_load_128 of { unsafe : bool; mode: alloc_mode }
   | Pbytes_set_16 of bool
   | Pbytes_set_32 of bool
+  | Pbytes_set_f32 of bool
   | Pbytes_set_64 of bool
   | Pbytes_set_128 of { unsafe : bool }
   (* load/set 16,32,64,128 bits from a

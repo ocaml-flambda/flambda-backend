@@ -856,6 +856,7 @@ type string_accessor_width =
   | Eight
   | Sixteen
   | Thirty_two
+  | Single
   | Sixty_four
   | One_twenty_eight of { aligned : bool }
 
@@ -865,6 +866,7 @@ let print_string_accessor_width ppf w =
   | Eight -> fprintf ppf "8"
   | Sixteen -> fprintf ppf "16"
   | Thirty_two -> fprintf ppf "32"
+  | Single -> fprintf ppf "f32"
   | Sixty_four -> fprintf ppf "64"
   | One_twenty_eight { aligned = false } -> fprintf ppf "128u"
   | One_twenty_eight { aligned = true } -> fprintf ppf "128a"
@@ -874,6 +876,7 @@ let byte_width_of_string_accessor_width width =
   | Eight -> 1
   | Sixteen -> 2
   | Thirty_two -> 4
+  | Single -> 4
   | Sixty_four -> 8
   | One_twenty_eight _ -> 16
 
@@ -881,6 +884,7 @@ let kind_of_string_accessor_width width =
   match width with
   | Eight | Sixteen -> K.value
   | Thirty_two -> K.naked_int32
+  | Single -> K.naked_float32
   | Sixty_four -> K.naked_int64
   | One_twenty_eight _ -> K.naked_vec128
 
@@ -1721,6 +1725,7 @@ let result_kind_of_binary_primitive p : result_kind =
   | String_or_bigstring_load (_, (Eight | Sixteen)) ->
     Singleton K.naked_immediate
   | String_or_bigstring_load (_, Thirty_two) -> Singleton K.naked_int32
+  | String_or_bigstring_load (_, Single) -> Singleton K.naked_float32
   | String_or_bigstring_load (_, Sixty_four) -> Singleton K.naked_int64
   | String_or_bigstring_load (_, One_twenty_eight _) -> Singleton K.naked_vec128
   | Bigarray_load (_, kind, _) -> Singleton (Bigarray_kind.element_kind kind)
@@ -1873,6 +1878,8 @@ let args_kind_of_ternary_primitive p =
     string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_immediate
   | Bytes_or_bigstring_set (Bytes, Thirty_two) ->
     string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_int32
+  | Bytes_or_bigstring_set (Bytes, Single) ->
+    string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_float32
   | Bytes_or_bigstring_set (Bytes, Sixty_four) ->
     string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_int64
   | Bytes_or_bigstring_set (Bytes, One_twenty_eight _) ->
@@ -1881,6 +1888,8 @@ let args_kind_of_ternary_primitive p =
     bigstring_kind, bytes_or_bigstring_index_kind, K.naked_immediate
   | Bytes_or_bigstring_set (Bigstring, Thirty_two) ->
     bigstring_kind, bytes_or_bigstring_index_kind, K.naked_int32
+  | Bytes_or_bigstring_set (Bigstring, Single) ->
+    bigstring_kind, bytes_or_bigstring_index_kind, K.naked_float32
   | Bytes_or_bigstring_set (Bigstring, Sixty_four) ->
     bigstring_kind, bytes_or_bigstring_index_kind, K.naked_int64
   | Bytes_or_bigstring_set (Bigstring, One_twenty_eight _) ->
