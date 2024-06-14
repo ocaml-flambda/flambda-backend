@@ -1098,6 +1098,14 @@ let check_coherence env loc dpath decl =
   match decl with
     { type_kind = (Type_variant _ | Type_record _| Type_open);
       type_manifest = Some ty } ->
+      if !Clflags.allow_illegal_crossing then begin 
+        let jkind' = Ctype.type_jkind_purely env ty in
+        begin match Jkind.sub_with_history jkind' decl.type_jkind with
+        | Ok _ -> ()
+        | Error v ->
+          raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
+        end
+      end;
       begin match get_desc ty with
         Tconstr(path, args, _) ->
           begin try

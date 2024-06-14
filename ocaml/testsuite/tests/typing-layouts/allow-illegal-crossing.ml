@@ -133,6 +133,44 @@ module rec A : sig type t : value end
 and B : sig type t : value mod portable uncontended end
 |}]
 
+type t : value mod portable = private { foo : string }
+[%%expect {|
+type t = private { foo : string; }
+|}]
+
+type a : value mod portable = { foo : string }
+type b : value mod portable = a = { foo : string }
+[%%expect {|
+type a = { foo : string; }
+type b = a = { foo : string; }
+|}]
+
+type a : value mod uncontended = private { foo : string }
+type b : value mod uncontended = a = private { foo : string }
+[%%expect {|
+type a = private { foo : string; }
+type b = a = private { foo : string; }
+|}]
+
+type t : value mod uncontended = private Foo of int | Bar
+[%%expect {|
+type t = private Foo of int | Bar
+|}]
+
+type a : value mod uncontended = Foo of int | Bar
+type b : value mod uncontended = a = Foo of int | Bar
+[%%expect {|
+type a = Foo of int | Bar
+type b = a = Foo of int | Bar
+|}]
+
+type a : value mod portable = private Foo of int | Bar
+type b : value mod portable = a = private Foo of int | Bar
+[%%expect {|
+type a = private Foo of int | Bar
+type b = a = private Foo of int | Bar
+|}]
+
 (********************************************)
 (* Test 2: illegal mode crossing propogates *)
 
@@ -452,6 +490,58 @@ Error: The layout of type string is value, because
          of the definition of t at line 4, characters 2-38.
 |}]
 
+type a = { foo : string }
+type b : value mod portable = a = { foo : string }
+[%%expect {|
+type a = { foo : string; }
+Line 2, characters 0-50:
+2 | type b : value mod portable = a = { foo : string }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type a is value, because
+         of the definition of a at line 1, characters 0-25.
+       But the layout of type a must be a sublayout of value, because
+         of the definition of b at line 2, characters 0-50.
+|}]
+
+type a = private { foo : string }
+type b : value mod uncontended = a = private { foo : string }
+[%%expect {|
+type a = private { foo : string; }
+Line 2, characters 0-61:
+2 | type b : value mod uncontended = a = private { foo : string }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type a is value, because
+         of the definition of a at line 1, characters 0-33.
+       But the layout of type a must be a sublayout of value, because
+         of the definition of b at line 2, characters 0-61.
+|}]
+
+type a = Foo of string | Bar
+type b : value mod uncontended = a = Foo of string | Bar
+[%%expect {|
+type a = Foo of string | Bar
+Line 2, characters 0-56:
+2 | type b : value mod uncontended = a = Foo of string | Bar
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type a is value, because
+         of the definition of a at line 1, characters 0-28.
+       But the layout of type a must be a sublayout of value, because
+         of the definition of b at line 2, characters 0-56.
+|}]
+
+type a = private Foo of string | Bar
+type b : value mod portable = a = private Foo of string | Bar
+[%%expect {|
+type a = private Foo of string | Bar
+Line 2, characters 0-61:
+2 | type b : value mod portable = a = private Foo of string | Bar
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type a is value, because
+         of the definition of a at line 1, characters 0-36.
+       But the layout of type a must be a sublayout of value, because
+         of the definition of b at line 2, characters 0-61.
+|}]
+
 type ('a : value mod uncontended) of_uncontended
 type t = string of_uncontended
 [%%expect {|
@@ -538,23 +628,27 @@ Error: The layout of type a is word, because
 |}]
 
 type a : bits64
-type b : float32 mod uncontended = b
+type b : float32 mod uncontended = a
 [%%expect {|
 type a : bits64
 Line 2, characters 0-36:
-2 | type b : float32 mod uncontended = b
+2 | type b : float32 mod uncontended = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The type abbreviation b is cyclic:
-         b = b
+Error: The layout of type a is bits64, because
+         of the definition of a at line 1, characters 0-15.
+       But the layout of type a must be a sublayout of float32, because
+         of the definition of b at line 2, characters 0-36.
 |}]
 
 type a : any
-type b : value mod uncontended = b
+type b : value mod uncontended = a
 [%%expect {|
 type a : any
 Line 2, characters 0-34:
-2 | type b : value mod uncontended = b
+2 | type b : value mod uncontended = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The type abbreviation b is cyclic:
-         b = b
+Error: The layout of type a is any, because
+         of the definition of a at line 1, characters 0-12.
+       But the layout of type a must be a sublayout of value, because
+         of the definition of b at line 2, characters 0-34.
 |}]
