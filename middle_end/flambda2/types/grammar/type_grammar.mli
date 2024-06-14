@@ -93,11 +93,11 @@ and head_of_kind_rec_info = Rec_info_expr.t
 
 and head_of_kind_region = unit
 
-and 'lattice row_like_index_domain =
+and 'lattice row_like_index_domain = private
   | Known of 'lattice
   | At_least of 'lattice
 
-and ('lattice, 'shape) row_like_index =
+and ('lattice, 'shape) row_like_index = private
   { domain : 'lattice row_like_index_domain;
     shape : 'shape
   }
