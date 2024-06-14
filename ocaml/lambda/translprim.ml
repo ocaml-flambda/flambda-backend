@@ -539,6 +539,10 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive ((Pbigstring_load_32 { unsafe = false; mode; boxed = true }), 2)
     | "%caml_bigstring_get32u" ->
       Primitive ((Pbigstring_load_32 { unsafe = true; mode; boxed = true }), 2)
+    | "%caml_bigstring_getf32" ->
+      Primitive ((Pbigstring_load_f32 { unsafe = false; mode; boxed = true }), 2)
+    | "%caml_bigstring_getf32u" ->
+      Primitive ((Pbigstring_load_f32 { unsafe = true; mode; boxed = true }), 2)
     | "%caml_bigstring_get64" ->
       Primitive ((Pbigstring_load_64 { unsafe = false; mode; boxed = true }), 2)
     | "%caml_bigstring_get64u" ->
@@ -563,6 +567,10 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive ((Pbigstring_set_32 { unsafe = false; boxed = true }), 3)
     | "%caml_bigstring_set32u" ->
       Primitive ((Pbigstring_set_32 { unsafe = true; boxed = true }), 3)
+    | "%caml_bigstring_setf32" ->
+      Primitive ((Pbigstring_set_f32 { unsafe = false; boxed = true }), 3)
+    | "%caml_bigstring_setf32u" ->
+      Primitive ((Pbigstring_set_f32 { unsafe = true; boxed = true }), 3)
     | "%caml_bigstring_set64" ->
       Primitive ((Pbigstring_set_64 { unsafe = false; boxed = true }), 3)
     | "%caml_bigstring_set64u" ->
@@ -588,6 +596,12 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%caml_bigstring_get64#" ->
       Primitive ((Pbigstring_load_64 { unsafe = false; mode; boxed = false }),
         2)
+    | "%caml_bigstring_getf32#" ->
+      Primitive ((Pbigstring_load_f32 { unsafe = false; mode; boxed = false }),
+        2)
+    | "%caml_bigstring_getf32u#" ->
+      Primitive ((Pbigstring_load_f32 { unsafe = true; mode; boxed = false }),
+        2)
     | "%caml_bigstring_get64u#" ->
       Primitive ((Pbigstring_load_64 { unsafe = true; mode; boxed = false }), 2)
     | "%caml_bigstring_getu128#" ->
@@ -606,6 +620,10 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive ((Pbigstring_set_32 { unsafe = false; boxed = false }), 3)
     | "%caml_bigstring_set32u#" ->
       Primitive ((Pbigstring_set_32 { unsafe = true; boxed = false }), 3)
+    | "%caml_bigstring_setf32#" ->
+      Primitive ((Pbigstring_set_f32 { unsafe = false; boxed = false }), 3)
+    | "%caml_bigstring_setf32u#" ->
+      Primitive ((Pbigstring_set_f32 { unsafe = true; boxed = false }), 3)
     | "%caml_bigstring_set64#" ->
       Primitive ((Pbigstring_set_64 { unsafe = false; boxed = false }), 3)
     | "%caml_bigstring_set64u#" ->
@@ -658,7 +676,6 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive ((Pfloatarray_set_128 {unsafe = false}), 3)
     | "%caml_floatarray_set128u" ->
       Primitive ((Pfloatarray_set_128 {unsafe = true}), 3)
-    (* CR mslater: (float32) unboxed arrays *)
     | "%caml_unboxed_float_array_set128" ->
       Primitive ((Punboxed_float_array_set_128 {unsafe = false}), 3)
     | "%caml_unboxed_float_array_set128u" ->
