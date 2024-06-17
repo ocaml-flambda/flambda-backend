@@ -1376,6 +1376,9 @@ let update_constructor_representation
   match flat_suffix with
   | None -> Constructor_uniform_value
   | Some shape ->
+      (* CR layouts v5.9: Enable extension constructors in the flambda2
+         middle-end so that we can permit them in the source language.
+      *)
       if is_extension_constructor then
         raise (Error (loc, Illegal_mixed_product Extension_constructor));
       Constructor_mixed shape
