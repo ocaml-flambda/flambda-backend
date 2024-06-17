@@ -55,7 +55,7 @@ let transl_mode_annots modes =
 
 let transl_modality m : Modality.t =
   let { txt; loc } = m in
-  let Parsetree.Modality s = txt in
+  let (Parsetree.Modality s) = txt in
   Jane_syntax_parsing.assert_extension_enabled ~loc Mode ();
   match s with
   | "global" -> Atom (Comonadic Areality, Meet_with Regionality.Const.Global)
@@ -78,16 +78,21 @@ let untransl_modalities ~loc m : Parsetree.modality loc list =
   let untransl_atom (a : Modality.t) =
     let s =
       match a with
-      | Atom (Comonadic Areality, Meet_with Regionality.Const.Global) -> "global"
+      | Atom (Comonadic Areality, Meet_with Regionality.Const.Global) ->
+        "global"
       | Atom (Comonadic Areality, Meet_with Regionality.Const.Local) -> "local"
       | Atom (Comonadic Linearity, Meet_with Linearity.Const.Many) -> "many"
       | Atom (Comonadic Linearity, Meet_with Linearity.Const.Once) -> "once"
       | Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Shared) -> "shared"
       | Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Unique) -> "unique"
-      | Atom (Comonadic Portability, Meet_with Portability.Const.Portable) -> "portable"
-      | Atom (Comonadic Portability, Meet_with Portability.Const.Nonportable) -> "nonportable"
-      | Atom (Monadic Contention, Join_with Contention.Const.Contended) -> "contended"
-      | Atom (Monadic Contention, Join_with Contention.Const.Uncontended) -> "uncontended"
+      | Atom (Comonadic Portability, Meet_with Portability.Const.Portable) ->
+        "portable"
+      | Atom (Comonadic Portability, Meet_with Portability.Const.Nonportable) ->
+        "nonportable"
+      | Atom (Monadic Contention, Join_with Contention.Const.Contended) ->
+        "contended"
+      | Atom (Monadic Contention, Join_with Contention.Const.Uncontended) ->
+        "uncontended"
       | _ -> failwith "BUG: impossible modality atom"
     in
     { txt = Parsetree.Modality s; loc }
