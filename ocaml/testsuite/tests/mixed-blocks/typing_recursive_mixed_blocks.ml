@@ -3,6 +3,8 @@
  expect;
 *)
 
+(* Record *)
+
 type rec_t = { rec_t : rec_t; x1 : float# }
 type t = { t : rec_t; x2 : float# }
 
@@ -35,6 +37,8 @@ let rec rec_t = let _ = { rec_t; x1 = #4.0 } in { rec_t; x1 = #4.0 };;
 [%%expect {|
 val rec_t : rec_t = {rec_t = <cycle>; x1 = <abstr>}
 |}];;
+
+(* Constructor *)
 
 type cstr = A of cstr * float#
 [%%expect {|

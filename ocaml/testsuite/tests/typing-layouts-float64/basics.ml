@@ -217,7 +217,7 @@ Error: Type t_float64 has layout float64.
 |}];;
 
 (* all-float64 constructor args are also allowed, as are some constructors that
-   mix float64 and value fields. These are only allowed in alpha, though. See
+   mix float64 and value fields. See
    [tests/typing-layouts/mixed_constructor_args.ml] for tests of mixed
    constructor args. *)
 type t5_4 = A of t_float64;;

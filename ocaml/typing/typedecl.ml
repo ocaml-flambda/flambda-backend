@@ -492,12 +492,9 @@ let transl_constructor_arguments ~new_var_jkind ~unboxed
       Types.Cstr_tuple flds', Cstr_tuple flds
   | Pcstr_record l ->
       let lbls, lbls' =
-        (* CR layouts: we forbid fields of inlined records from being
-           non-value, see comment in [check_representable].
-           When we allow mixed inline records, we still want to
-           disallow non-value types in unboxed records, so this
-           should become `not unboxed`, as in the `Pcstr_tuple` case. *)
-        transl_labels ~new_var_jkind ~allow_unboxed:false
+        (* CR layouts: we forbid [@@unboxed] variants from being
+           non-value, see comment in [check_representable]. *)
+        transl_labels ~new_var_jkind ~allow_unboxed:(not unboxed)
           env univars closed l (Inlined_record { unboxed })
       in
       Types.Cstr_record lbls',
@@ -3609,8 +3606,8 @@ let report_error ppf = function
       match error with
       | Flat_field_expected { boxed_lbl; non_value_lbl } ->
           fprintf ppf
-            "@[Expected all flat fields after non-value field, %s,@]@,\
-            \ @[but found boxed field, %s.@]"
+            "@[Expected all flat fields after non-value field, %s,@]@,@ \
+             @[but found boxed field, %s.@]"
             (Ident.name non_value_lbl)
             (Ident.name boxed_lbl)
       | Flat_constructor_arg_expected { boxed_arg; non_value_arg } ->
