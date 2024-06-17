@@ -260,10 +260,10 @@ let type_kind sub tk = match tk with
       Ptype_record (List.map (sub.label_declaration sub) list)
   | Ttype_open -> Ptype_open
 
-let constructor_argument sub {ca_loc; ca_type; ca_modalities = _} =
-  (* CR modes: properly untype modalities *)
-  let pca_modalities = [] in
-  { pca_loc = sub.location sub ca_loc; pca_type = sub.typ sub ca_type; pca_modalities }
+let constructor_argument sub {ca_loc; ca_type; ca_modalities} =
+  let loc = sub.location sub ca_loc in
+  let pca_modalities = Typemode.untransl_modalities ~loc ca_modalities in
+  { pca_loc = loc; pca_type = sub.typ sub ca_type; pca_modalities }
 
 let constructor_arguments sub = function
    | Cstr_tuple l -> Pcstr_tuple (List.map (constructor_argument sub) l)
@@ -294,10 +294,9 @@ let label_declaration sub ld =
   let loc = sub.location sub ld.ld_loc in
   let attrs = sub.attributes sub ld.ld_attributes in
   let mut = mutable_ ld.ld_mutable in
-  (* CR modes: properly untype modalities *)
   Type.field ~loc ~attrs
     ~mut
-    ~modalities:[]
+    ~modalities:(Typemode.untransl_modalities ~loc ld.ld_modalities)
     (map_loc sub ld.ld_name)
     (sub.typ sub ld.ld_type)
 

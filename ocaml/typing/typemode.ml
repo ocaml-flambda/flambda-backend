@@ -74,6 +74,26 @@ let transl_modality m : Modality.t =
     Atom (Monadic Contention, Join_with Contention.Const.Uncontended)
   | s -> raise (Error (loc, Unrecognized_modality s))
 
+let untransl_modalities ~loc m : Parsetree.modality loc list =
+  let untransl_atom (a : Modality.t) =
+    let s =
+      match a with
+      | Atom (Comonadic Areality, Meet_with Regionality.Const.Global) -> "global"
+      | Atom (Comonadic Areality, Meet_with Regionality.Const.Local) -> "local"
+      | Atom (Comonadic Linearity, Meet_with Linearity.Const.Many) -> "many"
+      | Atom (Comonadic Linearity, Meet_with Linearity.Const.Once) -> "once"
+      | Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Shared) -> "shared"
+      | Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Unique) -> "unique"
+      | Atom (Comonadic Portability, Meet_with Portability.Const.Portable) -> "portable"
+      | Atom (Comonadic Portability, Meet_with Portability.Const.Nonportable) -> "nonportable"
+      | Atom (Monadic Contention, Join_with Contention.Const.Contended) -> "contended"
+      | Atom (Monadic Contention, Join_with Contention.Const.Uncontended) -> "uncontended"
+      | _ -> failwith "BUG: impossible modality atom"
+    in
+    { txt = Parsetree.Modality s; loc }
+  in
+  Modality.Value.to_list m |> List.map untransl_atom
+
 let compose_modalities modalities =
   (* The ordering:
      type r = { x : string @@ foo bar hello }
