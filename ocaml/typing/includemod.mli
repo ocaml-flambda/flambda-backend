@@ -109,9 +109,13 @@ module Error: sig
     | Incomparable of
         {less_than:module_type_diff; greater_than: module_type_diff}
 
+  type compilation_unit_comparison =
+    | Implementation_vs_interface
+    | Argument_vs_parameter
 
   type all =
-    | In_Compilation_unit of (string, signature_symptom) diff
+    | In_Compilation_unit of
+        compilation_unit_comparison * (string, signature_symptom) diff
     | In_Signature of signature_symptom
     | In_Include_functor_signature of signature_symptom
     | In_Module_type of module_type_diff
@@ -180,6 +184,9 @@ val include_functor_signatures : Env.t -> mark:mark ->
 val compunit:
       Env.t -> mark:mark -> string -> signature ->
       string -> signature -> Shape.t -> module_coercion * Shape.t
+
+val compunit_as_argument:
+      Env.t -> string -> signature -> string -> signature -> module_coercion
 
 val type_declarations:
   loc:Location.t -> Env.t -> mark:mark ->
