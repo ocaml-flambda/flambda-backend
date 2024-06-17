@@ -17,7 +17,6 @@
 
 open Path
 open Types
-open Mode
 open Btype
 
 let builtin_idents = ref []
@@ -289,7 +288,16 @@ let build_initial_env add_type add_extension empty_env =
     add_extension id
       { ext_type_path = path_exn;
         ext_type_params = [];
-        ext_args = Cstr_tuple (List.map (fun x -> (x, Modality.Value.id)) args);
+        ext_args =
+          Cstr_tuple
+            (List.map
+              (fun x ->
+                {
+                  ca_type=x;
+                  ca_modalities=Mode.Modality.Value.id;
+                  ca_loc=Location.none
+                })
+              args);
         ext_arg_jkinds = jkinds;
         ext_shape = Constructor_uniform_value;
         ext_constant = args = [];
@@ -303,6 +311,9 @@ let build_initial_env add_type add_extension empty_env =
       }
   in
   let variant constrs jkinds = Type_variant (constrs, Variant_boxed jkinds) in
+  let unrestricted tvar =
+    {ca_type=tvar; ca_modalities=Mode.Modality.Value.id; ca_loc=Location.none}
+  in
   empty_env
   (* Predefined types *)
   |> add_type1 ident_array
@@ -337,8 +348,8 @@ let build_initial_env add_type add_extension empty_env =
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
          variant [cstr ident_nil [];
-                  cstr ident_cons [tvar, Modality.Value.id;
-                                   type_list tvar, Modality.Value.id]]
+                  cstr ident_cons [unrestricted tvar;
+                                   type_list tvar |> unrestricted]]
            [| Constructor_uniform_value, [| |];
               Constructor_uniform_value,
                 [| list_argument_jkind;
@@ -351,7 +362,7 @@ let build_initial_env add_type add_extension empty_env =
        ~variance:Variance.covariant
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
-         variant [cstr ident_none []; cstr ident_some [tvar, Modality.Value.id]]
+         variant [cstr ident_none []; cstr ident_some [unrestricted tvar]]
            [| Constructor_uniform_value, [| |];
               Constructor_uniform_value, [| option_argument_jkind |];
            |])
@@ -363,7 +374,7 @@ let build_initial_env add_type add_extension empty_env =
              {
                ld_id=id;
                ld_mutable=Immutable;
-               ld_modalities=Modality.Value.id;
+               ld_modalities=Mode.Modality.Value.id;
                ld_type=field_type;
                ld_jkind=jkind;
                ld_loc=Location.none;

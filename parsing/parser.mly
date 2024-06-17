@@ -4052,16 +4052,15 @@ generalized_constructor_arguments:
                                   { ($2,Pcstr_tuple [],Some $4) }
 ;
 
-%inline atomic_type_with_modality:
-  gbl = global_flag cty = atomic_type m1 = optional_atat_mode_expr {
-    let m = Mode.concat gbl m1 in
-    mktyp_with_modes m cty
-}
+%inline constructor_argument:
+  gbl=global_flag cty=atomic_type m1=optional_atat_modalities_expr {
+    let modalities = gbl @ m1 in
+    Type.constructor_arg cty ~modalities ~loc:(make_loc $sloc)
+  }
 ;
 
 constructor_arguments:
-  | tys = inline_separated_nonempty_llist(STAR, atomic_type_with_modality)
-    %prec below_HASH
+  | tys = inline_separated_nonempty_llist(STAR, constructor_argument)
       { Pcstr_tuple tys }
   | LBRACE label_declarations RBRACE
       { Pcstr_record $2 }
@@ -4072,15 +4071,14 @@ label_declarations:
   | label_declaration_semi label_declarations   { $1 :: $2 }
 ;
 label_declaration:
-    mutable_or_global_flag mkrhs(label) COLON poly_type_no_attr m1=optional_atat_mode_expr attrs=attributes
+    mutable_or_global_flag mkrhs(label) COLON poly_type_no_attr m1=optional_atat_modalities_expr attrs=attributes
       { let info = symbol_info $endpos in
         let mut, m0 = $1 in
-        let m = Mode.concat m0 m1 in
-        let typ = mktyp_with_modes m $4 in
-        Type.field $2 typ ~mut ~attrs ~loc:(make_loc $sloc) ~info}
+        let modalities = m0 @ m1 in
+        Type.field $2 $4 ~mut ~modalities ~attrs ~loc:(make_loc $sloc) ~info}
 ;
 label_declaration_semi:
-    mutable_or_global_flag mkrhs(label) COLON poly_type_no_attr m1=optional_atat_mode_expr attrs0=attributes
+    mutable_or_global_flag mkrhs(label) COLON poly_type_no_attr m1=optional_atat_modalities_expr attrs0=attributes
       SEMI attrs1=attributes
       { let info =
           match rhs_info $endpos(attrs0) with
@@ -4088,9 +4086,8 @@ label_declaration_semi:
           | None -> symbol_info $endpos
        in
        let mut, m0 = $1 in
-       let m = Mode.concat m0 m1 in
-       let typ = mktyp_with_modes m $4 in
-       Type.field $2 typ ~mut ~attrs:(attrs0 @ attrs1) ~loc:(make_loc $sloc) ~info}
+       let modalities = m0 @ m1 in
+       Type.field $2 $4 ~mut ~modalities ~attrs:(attrs0 @ attrs1) ~loc:(make_loc $sloc) ~info}
 ;
 
 /* Type Extensions */
@@ -4416,6 +4413,21 @@ atat_mode_expr:
 %inline optional_atat_mode_expr:
   | { Mode.empty }
   | atat_mode_expr {$1}
+;
+
+/* Modalities */
+
+%inline modality:
+  | LIDENT { mkloc (Modality $1) (make_loc $sloc) }
+
+%inline modalities:
+  | modality+ { $1 }
+
+optional_atat_modalities_expr:
+  | %prec below_HASH
+    { [] }
+  | ATAT modalities { $2 }
+  | ATAT error { expecting $loc($2) "modality expression" }
 ;
 
 %inline param_type:
@@ -4869,15 +4881,15 @@ mutable_flag:
 ;
 mutable_or_global_flag:
     /* empty */
-    { Immutable, Mode.empty }
+    { Immutable, [] }
   | MUTABLE
-    { Mutable, Mode.empty }
+    { Mutable, [] }
   | GLOBAL
-    { Immutable, Mode.singleton (Mode.Const.mk "global" (make_loc $sloc)) }
+    { Immutable, [ mkloc (Modality "global") (make_loc $sloc)] }
 ;
 %inline global_flag:
-           { Mode.empty }
-  | GLOBAL { Mode.singleton (Mode.Const.mk "global" (make_loc $sloc)) }
+           { [] }
+  | GLOBAL { [ mkloc (Modality "global") (make_loc $sloc)] }
 ;
 virtual_flag:
     /* empty */                                 { Concrete }

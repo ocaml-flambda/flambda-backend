@@ -640,8 +640,15 @@ and constructor_declaration =
     cd_uid: Uid.t;
   }
 
+and constructor_argument =
+  {
+    ca_modalities: Mode.Modality.Value.t;
+    ca_type: type_expr;
+    ca_loc: Location.t;
+  }
+
 and constructor_arguments =
-  | Cstr_tuple of (type_expr * Mode.Modality.Value.t) list
+  | Cstr_tuple of constructor_argument list
   | Cstr_record of label_declaration list
 
 val tys_of_constr_args : constructor_arguments -> type_expr list
@@ -817,8 +824,8 @@ type constructor_description =
   { cstr_name: string;                  (* Constructor name *)
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
-    cstr_args: (type_expr * Mode.Modality.Value.t) list;          (* Type of the arguments *)
-    cstr_arg_jkinds: jkind array;     (* Jkinds of the arguments *)
+    cstr_args: constructor_argument list; (* Type of the arguments *)
+    cstr_arg_jkinds: jkind array;       (* Jkinds of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
     cstr_repr: variant_representation;  (* Repr of the outer variant *)

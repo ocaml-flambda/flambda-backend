@@ -46,8 +46,8 @@ and cmxa_magic_number =
     "Caml2021z533"
   else
     "Caml2021Z532"
-and ast_impl_magic_number = "Caml1999M033"
-and ast_intf_magic_number = "Caml1999N033"
+and ast_impl_magic_number = "Caml1999M532"
+and ast_intf_magic_number = "Caml1999N532"
 and cmxs_magic_number = "Caml1999D532"
 and cmt_magic_number = "Caml1999T532"
 and cms_magic_number = "Caml1999S532"

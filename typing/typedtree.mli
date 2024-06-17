@@ -961,8 +961,15 @@ and constructor_declaration =
      cd_attributes: attributes;
     }
 
+and constructor_argument =
+  {
+    ca_modalities: Mode.Modality.Value.t;
+    ca_type: core_type;
+    ca_loc: Location.t;
+  }
+
 and constructor_arguments =
-  | Cstr_tuple of (core_type * Mode.Modality.Value.t) list
+  | Cstr_tuple of constructor_argument list
   | Cstr_record of label_declaration list
 
 and type_extension =
