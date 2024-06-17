@@ -100,8 +100,13 @@ module Error = struct
         {less_than:module_type_diff; greater_than: module_type_diff}
 
 
+  type compilation_unit_comparison =
+    | Implementation_vs_interface
+    | Argument_vs_parameter
+
   type all =
-    | In_Compilation_unit of (string, signature_symptom) diff
+    | In_Compilation_unit of
+        compilation_unit_comparison * (string, signature_symptom) diff
     | In_Signature of signature_symptom
     | In_Include_functor_signature of signature_symptom
     | In_Module_type of module_type_diff
@@ -1056,15 +1061,29 @@ let () =
 (* Check that an implementation of a compilation unit meets its
    interface. *)
 
-let compunit env ~mark impl_name impl_sig intf_name intf_sig unit_shape =
+let compunit0
+    ~comparison env ~mark impl_name impl_sig intf_name intf_sig unit_shape =
   match
     signatures ~in_eq:false ~loc:(Location.in_file impl_name) env ~mark
       Subst.identity impl_sig intf_sig unit_shape
   with Result.Error reasons ->
+    let diff = Error.diff impl_name intf_name reasons in
     let cdiff =
-      Error.In_Compilation_unit(Error.diff impl_name intf_name reasons) in
+      Error.In_Compilation_unit(comparison, diff) in
     raise(Error(env, cdiff))
   | Ok x -> x
+
+let compunit = compunit0 ~comparison:Implementation_vs_interface
+
+(* Check that the interface of a compilation unit meets the interface of the
+   parameter it's declared to be an argument for using [-as-argument-for] *)
+
+let compunit_as_argument env arg_name arg_sig param_name param_sig =
+  let cc, _shape =
+    compunit0 env arg_name arg_sig param_name param_sig Shape.dummy_mod
+      ~comparison:Argument_vs_parameter ~mark:Mark_positive
+  in
+  cc
 
 (* Functor diffing computation:
    The diffing computation uses the internal typing function

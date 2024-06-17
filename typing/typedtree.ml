@@ -805,10 +805,16 @@ and 'a class_infos =
     ci_attributes: attribute list;
    }
 
+type argument_interface = {
+  ai_signature: Types.signature;
+  ai_coercion_from_primary: module_coercion;
+}
+
 type implementation = {
   structure: structure;
   coercion: module_coercion;
   signature: Types.signature;
+  argument_interface: argument_interface option;
   shape: Shape.t;
 }
 
