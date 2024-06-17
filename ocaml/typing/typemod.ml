@@ -90,6 +90,14 @@ type error =
   | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
   | Cannot_compile_implementation_as_parameter
+  | Cannot_implement_parameter of Compilation_unit.Name.t * Misc.filepath
+  | Argument_for_non_parameter of Compilation_unit.Name.t * Misc.filepath
+  | Cannot_find_argument_type of Compilation_unit.Name.t
+  | Inconsistent_argument_types of {
+      new_arg_type : Compilation_unit.Name.t option;
+      old_arg_type : Compilation_unit.Name.t option;
+      old_source_file : Misc.filepath;
+    }
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -3375,6 +3383,36 @@ let cms_register_toplevel_struct_attributes ~sourcefile ~uid ast =
         | { pstr_desc = Pstr_attribute attr; _ }  -> Some attr
         | _ -> None)
 
+let check_argument_type_if_given env sourcefile actual_sig arg_module_opt =
+  match arg_module_opt with
+  | None -> None
+  | Some arg_module ->
+      let arg_import =
+        (* This will soon be converting from one type to another *)
+        arg_module
+      in
+      (* CR lmaurer: This "look for known name in path" code is duplicated
+         all over the place. *)
+      let basename = arg_import |> Compilation_unit.Name.to_string in
+      let arg_filename =
+        try
+          Load_path.find_uncap (basename ^ ".cmi")
+        with Not_found ->
+          raise(Error(Location.none, Env.empty,
+                      Cannot_find_argument_type arg_module)) in
+      let arg_sig =
+        Env.read_signature arg_module arg_filename ~add_binding:false in
+      if not (Env.is_parameter_unit arg_import) then
+        raise (Error (Location.none, env,
+                      Argument_for_non_parameter (arg_module, arg_filename)));
+      let coercion =
+        Includemod.compunit_as_argument env sourcefile actual_sig
+          arg_filename arg_sig
+      in
+      Some { ai_signature = arg_sig;
+             ai_coercion_from_primary = coercion;
+           }
+
 let type_implementation ~sourcefile outputprefix modulename initial_env ast =
   let error e =
     raise (Error (Location.in_file sourcefile, initial_env, e))
@@ -3408,18 +3446,24 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
         { structure = str;
           coercion = Tcoerce_none;
           shape;
-          signature = simple_sg
+          signature = simple_sg;
+          argument_interface = None;
         } (* result is ignored by Compile.implementation *)
       end else begin
         if !Clflags.as_parameter then
           error Cannot_compile_implementation_as_parameter;
+        let arg_type =
+          !Clflags.as_argument_for
+          |> Option.map Compilation_unit.Name.of_string
+        in
         let sourceintf =
           Filename.remove_extension sourcefile ^ !Config.interface_suffix in
         if !Clflags.cmi_file <> None || Sys.file_exists sourceintf then begin
+          let import = Compilation_unit.name modulename in
           let intf_file =
             match !Clflags.cmi_file with
             | None ->
-              let basename = modulename |> Compilation_unit.name_as_string in
+              let basename = import |> Compilation_unit.Name.to_string in
               (try
                 Load_path.find_uncap (basename ^ ".cmi")
               with Not_found ->
@@ -3427,14 +3471,33 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
                       Interface_not_compiled sourceintf)))
             | Some cmi_file -> cmi_file
           in
-          let import = Compilation_unit.name modulename in
           let dclsig =
             Env.read_signature import intf_file ~add_binding:false
           in
+          if Env.is_parameter_unit import then
+            error (Cannot_implement_parameter (import, intf_file));
+          let arg_type_from_cmi = Env.implemented_parameter import in
+          if not (Option.equal Compilation_unit.Name.equal
+                    arg_type arg_type_from_cmi) then
+            error (Inconsistent_argument_types
+                     { new_arg_type = arg_type; old_source_file = intf_file;
+                       old_arg_type = arg_type_from_cmi });
           let coercion, shape =
             Profile.record_call "check_sig" (fun () ->
               Includemod.compunit initial_env ~mark:Mark_positive
                 sourcefile sg intf_file dclsig shape)
+          in
+          (* Check the _mli_ against the argument type, since the mli determines
+             the visible type of the module and that's what needs to conform to
+             the argument type.
+
+             This is somewhat redundant with the checking that was done when
+             compiling the .mli. However, this isn't just a boolean check - we
+             need to get the coercion out. An alternative would be to store the
+             coercion in the .cmi if we can sort out the dependency issues
+             ([Tcoerce_primitive] is a pain in particular). *)
+          let argument_interface =
+            check_argument_type_if_given initial_env intf_file dclsig arg_type
           in
           Typecore.force_delayed_checks ();
           Typecore.optimise_allocations ();
@@ -3452,7 +3515,8 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           { structure = str;
             coercion;
             shape;
-            signature = dclsig
+            signature = dclsig;
+            argument_interface;
           }
         end else begin
           if !Clflags.as_parameter then
@@ -3466,6 +3530,9 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           in
           check_nongen_signature finalenv simple_sg;
           normalize_signature simple_sg;
+          let argument_interface =
+            check_argument_type_if_given initial_env sourcefile simple_sg arg_type
+          in
           Typecore.force_delayed_checks ();
           Typecore.optimise_allocations ();
           (* See comment above. Here the target signature contains all
@@ -3477,7 +3544,7 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
             let alerts = Builtin_attributes.alerts_of_str ast in
             let name = Compilation_unit.name modulename in
             let kind =
-              Cmi_format.Normal { cmi_impl = modulename }
+              Cmi_format.Normal { cmi_impl = modulename; cmi_arg_for = arg_type }
             in
             let cmi =
               Profile.record_call "save_cmi" (fun () ->
@@ -3495,7 +3562,8 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           { structure = str;
             coercion;
             shape;
-            signature = simple_sg
+            signature = simple_sg;
+            argument_interface
           }
         end
       end
@@ -3533,7 +3601,14 @@ let type_interface ~sourcefile modulename env ast =
     let uid = Shape.Uid.of_compilation_unit_id modulename in
     cms_register_toplevel_signature_attributes ~uid ~sourcefile ast
   end;
-  transl_signature env ast
+  let sg = transl_signature env ast in
+  let arg_type =
+    !Clflags.as_argument_for
+    |> Option.map Compilation_unit.Name.of_string
+  in
+  ignore (check_argument_type_if_given env sourcefile sg.sig_type arg_type
+          : Typedtree.argument_interface option);
+  sg
 
 (* "Packaging" of several compilation units into one unit
    having them as sub-modules.  *)
@@ -3633,8 +3708,12 @@ let package_units initial_env objfiles cmifile modulename =
         (Env.imports()) in
     (* Write packaged signature *)
     if not !Clflags.dont_write_files then begin
+      let cmi_arg_for =
+        (* Packs aren't supported as arguments *)
+        None
+      in
       let name = Compilation_unit.name modulename in
-      let kind = Cmi_format.Normal { cmi_impl = modulename } in
+      let kind = Cmi_format.Normal { cmi_impl = modulename; cmi_arg_for } in
       let cmi =
         Env.save_signature_with_imports ~alerts:Misc.Stdlib.String.Map.empty
           sg name kind (prefix ^ ".cmi") (Array.of_list imports)
@@ -3880,6 +3959,36 @@ let report_error ~loc _env = function
   | Cannot_compile_implementation_as_parameter ->
       Location.errorf ~loc
         "Cannot compile an implementation with -as-parameter."
+  | Cannot_implement_parameter(modname, _filename) ->
+      Location.errorf ~loc
+        "@[The interface for %a@ was compiled with -as-parameter.@ \
+         It cannot be implemented directly.@]"
+        Compilation_unit.Name.print modname
+  | Argument_for_non_parameter(param, path) ->
+      Location.errorf ~loc
+        "Interface %s@ found for module@ %a@ is not flagged as a parameter.@ \
+         It cannot be the parameter type for this argument module."
+        path
+        Compilation_unit.Name.print param
+  | Inconsistent_argument_types
+        { new_arg_type; old_source_file; old_arg_type } ->
+      let pp_arg_type ppf arg_type =
+        match arg_type with
+        | None -> Format.fprintf ppf "without -as-argument-for"
+        | Some arg_type ->
+            Format.fprintf ppf "with -as-argument-for %a"
+              Compilation_unit.Name.print arg_type
+      in
+      Location.errorf ~loc
+        "Inconsistent usage of -as-argument-for. Interface@ %s@ was compiled \
+         %a@ but this module is being compiled@ %a."
+        old_source_file
+        pp_arg_type old_arg_type
+        pp_arg_type new_arg_type
+  | Cannot_find_argument_type arg_type ->
+      Location.errorf ~loc
+        "Parameter module %a@ specified by -as-argument-for cannot be found."
+        Compilation_unit.Name.print arg_type
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env_error env

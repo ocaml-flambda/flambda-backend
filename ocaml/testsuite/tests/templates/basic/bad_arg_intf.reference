@@ -1,0 +1,12 @@
+File "bad_arg_intf.mli", line 1:
+Error: The argument module bad_arg_intf.mli
+       does not match the parameter signature monoid.cmi: 
+       Values do not match:
+         val append : t -> t -> [ `Banana ]
+       is not included in
+         val append : t -> t -> t
+       The type t -> t -> [ `Banana ] is not compatible with the type
+         t -> t -> t
+       Type [ `Banana ] is not compatible with type t
+       File "monoid.mli", line 4, characters 0-24: Expected declaration
+       File "bad_arg_intf.mli", line 4, characters 0-34: Actual declaration
