@@ -739,18 +739,18 @@ module Paths : sig
 
   (** [modal_child gf proj t] is [child prof t] when [gf] is [Unrestricted]
       and is [untracked] otherwise. *)
-  val modal_child : Global_flag.t -> Projection.t -> t -> t
+  val modal_child : Modality.Value.t -> Projection.t -> t -> t
 
   (** [tuple_field i t] is [child (Projection.Tuple_field i) t]. *)
   val tuple_field : int -> t -> t
 
   (** [record_field gf s t] is
       [modal_child gf (Projection.Record_field s) t]. *)
-  val record_field : Global_flag.t -> string -> t -> t
+  val record_field : Modality.Value.t -> string -> t -> t
 
   (** [construct_field gf s i t] is
       [modal_child gf (Projection.Construct_field(s, i)) t]. *)
-  val construct_field : Global_flag.t -> string -> int -> t -> t
+  val construct_field : Modality.Value.t -> string -> int -> t -> t
 
   (** [variant_field s t] is [child (Projection.Variant_field s) t]. *)
   val variant_field : string -> t -> t
@@ -778,9 +778,19 @@ end = struct
   let child proj t = List.map (UF.Path.child proj) t
 
   let modal_child gf proj t =
-    match gf with
-    | Global_flag.Global -> untracked
-    | Global_flag.Unrestricted -> child proj t
+    (* CR zqian: Instead of just ignoring such children, we should add modality
+       to [Projection.t] and add corresponding logic in [UsageTree]. *)
+    let gf = Modality.Value.to_list gf in
+    let l =
+      List.filter
+        (function
+         | Atom (Monadic Uniqueness, Join_with Shared) -> true
+         | Atom (Comonadic Linearity, Meet_with Many) -> true
+         | _ -> false
+          : Modality.t -> _)
+        gf
+    in
+    if List.length l = 2 then untracked else child proj t
 
   let tuple_field i t = child (Projection.Tuple_field i) t
 
@@ -839,7 +849,7 @@ module Value : sig
       are the paths of [t] and [o] is [t]'s occurrence. This is used for the
       implicit record field values for kept fields in a [{ foo with ... }]
       expression. *)
-  val implicit_record_field : Global_flag.t -> string -> t -> unique_use -> t
+  val implicit_record_field : Modality.Value.t -> string -> t -> unique_use -> t
 
   (** Mark the value as shared_or_unique   *)
   val mark_maybe_unique : t -> UF.t
@@ -1032,7 +1042,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     let pats_args = List.combine pats cd.cstr_args in
     let ext, uf_pats =
       List.mapi
-        (fun i (pat, { Types.ca_global = gf; _ }) ->
+        (fun i (pat, { Types.ca_modalities = gf; _ }) ->
           let name = Longident.last lbl.txt in
           let paths = Paths.construct_field gf name i paths in
           pattern_match_single pat paths)
@@ -1055,7 +1065,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     let ext, uf_pats =
       List.map
         (fun (_, l, pat) ->
-          let paths = Paths.record_field l.lbl_global l.lbl_name paths in
+          let paths = Paths.record_field l.lbl_modalities l.lbl_name paths in
           pattern_match_single pat paths)
         pats
       |> conjuncts_pattern_match
@@ -1270,7 +1280,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
           match field with
           | l, Kept (_, _, unique_use) ->
             let value =
-              Value.implicit_record_field l.lbl_global l.lbl_name value
+              Value.implicit_record_field l.lbl_modalities l.lbl_name value
                 unique_use
             in
             Value.mark_maybe_unique value
@@ -1404,7 +1414,7 @@ and check_uniqueness_exp_as_value ienv exp : Value.t * UF.t =
       let uf_read = Value.mark_implicit_borrow_memory_address Read value in
       let uf_boxing, value =
         let occ = Occurrence.mk loc in
-        let paths = Paths.record_field l.lbl_global l.lbl_name paths in
+        let paths = Paths.record_field l.lbl_modalities l.lbl_name paths in
         match float with
         | Non_boxing unique_use ->
           UF.unused, Value.existing paths unique_use occ

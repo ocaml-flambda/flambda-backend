@@ -17,6 +17,7 @@
 
 open Typedtree
 open Types
+open Mode
 
 type position = Errortrace.position = First | Second
 
@@ -49,8 +50,6 @@ type privacy_mismatch =
   | Private_extensible_variant
   | Private_row_type
 
-type locality_mismatch = { order : position }
-
 type type_kind =
   | Kind_abstract
   | Kind_record
@@ -62,7 +61,7 @@ type kind_mismatch = type_kind * type_kind
 type label_mismatch =
   | Type of Errortrace.equality_error
   | Mutability of position
-  | Nonlocality of locality_mismatch
+  | Modality of Modality.Value.equate_error
 
 type record_change =
   (Types.label_declaration as 'ld, 'ld, label_mismatch) Diffing_with_keys.change
@@ -80,7 +79,7 @@ type constructor_mismatch =
   | Inline_record of record_change list
   | Kind of position
   | Explicit_return_type of position
-  | Nonlocality of int * locality_mismatch
+  | Modality of int * Modality.Value.equate_error
 
 type extension_constructor_mismatch =
   | Constructor_privacy

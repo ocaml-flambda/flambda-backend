@@ -1275,6 +1275,31 @@ let outcome_label : Types.arg_label -> Outcometree.arg_label = function
   | Optional l -> Optional l
   | Position l -> Position l
 
+let tree_of_modality_new (t : Mode.Modality.t) =
+  if Mode.Modality.is_id t then None
+  else match t with
+  | Atom (Comonadic Areality, Meet_with Global) -> Some "global"
+  | Atom (Comonadic Linearity, Meet_with Many) -> Some "many"
+  | Atom (Monadic Uniqueness, Join_with Shared) -> Some "shared"
+  | e -> Misc.fatal_errorf "Unexpected modality %a" Mode.Modality.print e
+
+let tree_of_modality (t : Mode.Modality.t) =
+  match t with
+  | Atom (Comonadic Areality, Meet_with Global) ->
+      Some (Ogf_legacy Ogf_global)
+  | _ -> Option.map (fun x -> Ogf_new x) (tree_of_modality_new t)
+
+let tree_of_modalities mutability t =
+  let l = Mode.Modality.Value.to_list t in
+  (* CR zqian: decouple mutable and modalities *)
+  let l =
+    if Types.is_mutable mutability then
+      List.filter (fun m -> not @@ Typemode.is_mutable_implied_modality m) l
+    else
+      l
+  in
+  List.filter_map tree_of_modality l
+
 (** [tree_of_mode m l] finds the outcome node in [l] that corresponds to [m].
 Raise if not found. *)
 let tree_of_mode (mode : 'm option) (l : ('m * out_mode) list) : out_mode option =
@@ -1284,9 +1309,11 @@ let tree_of_modes modes =
   let diff = Mode.Alloc.Const.diff modes Mode.Alloc.Const.legacy in
   (* The mapping passed to [tree_of_mode] must cover all non-legacy modes *)
   let l = [
-    tree_of_mode diff.areality [Mode.Locality.Const.Local, Omd_local];
-    tree_of_mode diff.linearity [Mode.Linearity.Const.Once, Omd_once];
-    tree_of_mode diff.uniqueness [Mode.Uniqueness.Const.Unique, Omd_unique]]
+    tree_of_mode diff.areality [Mode.Locality.Const.Local, Omd_legacy Omd_local];
+    tree_of_mode diff.linearity [Mode.Linearity.Const.Once, Omd_legacy Omd_once];
+    tree_of_mode diff.portability [Mode.Portability.Const.Portable, Omd_new "portable"];
+    tree_of_mode diff.uniqueness [Mode.Uniqueness.Const.Unique, Omd_legacy Omd_unique];
+    tree_of_mode diff.contention [Mode.Contention.Const.Contended, Omd_new "contended"]]
   in
   List.filter_map Fun.id l
 
@@ -1454,13 +1481,8 @@ and tree_of_typlist mode tyl =
 and tree_of_labeled_typlist mode tyl =
   List.map (fun (label, ty) -> label, tree_of_typexp mode Alloc.Const.legacy ty) tyl
 
-and tree_of_typ_gf {ca_type=ty; ca_global=gf; _} =
-  let gf =
-    match gf with
-    | Global_flag.Global -> Ogf_global
-    | Global_flag.Unrestricted -> Ogf_unrestricted
-  in
-  (tree_of_typexp Type Alloc.Const.legacy ty, gf)
+and tree_of_typ_gf {ca_type=ty; ca_modalities=gf; _} =
+  (tree_of_typexp Type Alloc.Const.legacy ty, tree_of_modalities Immutable gf)
 
 (** We are on the RHS of an arrow type, where [ty] is the return type, and [m]
     is the return mode. This function decides the printed modes on [ty].
@@ -1537,6 +1559,11 @@ let tree_of_typexp mode ty = tree_of_typexp mode Alloc.Const.legacy ty
 
 let typexp mode ppf ty =
   !Oprint.out_type ppf (tree_of_typexp mode ty)
+
+let modality ?(id = fun _ppf -> ()) ppf modality =
+  match tree_of_modality modality with
+  | None -> id ppf
+  | Some m -> !Oprint.out_modality ppf m
 
 let prepared_type_expr ppf ty = typexp Type ppf ty
 
@@ -1630,24 +1657,24 @@ let param_jkind ty =
   | _ -> None (* this is (C2.2) from Note [When to print jkind annotations] *)
 
 let tree_of_label l =
-  let mut, gbl =
-    match l.ld_mutable, l.ld_global with
-    | Mutable m, _ ->
+  let mut =
+    match l.ld_mutable with
+    | Mutable m ->
         let mut =
           if Alloc.Comonadic.Const.eq m Alloc.Comonadic.Const.legacy then
             Om_mutable None
           else
             Om_mutable (Some "<non-legacy>")
         in
-        mut, Ogf_unrestricted
-    | Immutable, Global -> Om_immutable, Ogf_global
-    | Immutable, Unrestricted -> Om_immutable, Ogf_unrestricted
+        mut
+    | Immutable -> Om_immutable
   in
-  (Ident.name l.ld_id, mut, tree_of_typexp Type l.ld_type, gbl)
+  let ld_modalities = tree_of_modalities l.ld_mutable l.ld_modalities in
+  (Ident.name l.ld_id, mut, tree_of_typexp Type l.ld_type, ld_modalities)
 
 let tree_of_constructor_arguments = function
   | Cstr_tuple l -> List.map tree_of_typ_gf l
-  | Cstr_record l -> [ Otyp_record (List.map tree_of_label l), Ogf_unrestricted ]
+  | Cstr_record l -> [ Otyp_record (List.map tree_of_label l), [] ]
 
 let tree_of_constructor_args_and_ret_type args ret_type =
   match ret_type with

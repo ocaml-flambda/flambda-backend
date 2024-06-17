@@ -943,7 +943,7 @@ and label_declaration =
      ld_name: string loc;
      ld_uid: Uid.t;
      ld_mutable: Types.mutability;
-     ld_global: Mode.Global_flag.t loc;
+     ld_modalities: Mode.Modality.Value.t;
      ld_type: core_type;
      ld_loc: Location.t;
      ld_attributes: attributes;
@@ -963,9 +963,7 @@ and constructor_declaration =
 
 and constructor_argument =
   {
-    ca_global: Mode.Global_flag.t loc;
-    (** [ca_global]'s [loc] field is [Location.none] when its [txt] field is
-        [Unrestricted] *)
+    ca_modalities: Mode.Modality.Value.t;
     ca_type: core_type;
     ca_loc: Location.t;
   }

@@ -294,7 +294,7 @@ let build_initial_env add_type add_extension empty_env =
               (fun x ->
                 {
                   ca_type=x;
-                  ca_global=Unrestricted;
+                  ca_modalities=Mode.Modality.Value.id;
                   ca_loc=Location.none
                 })
               args);
@@ -312,7 +312,7 @@ let build_initial_env add_type add_extension empty_env =
   in
   let variant constrs jkinds = Type_variant (constrs, Variant_boxed jkinds) in
   let unrestricted tvar =
-    {ca_type=tvar; ca_global=Unrestricted; ca_loc=Location.none}
+    {ca_type=tvar; ca_modalities=Mode.Modality.Value.id; ca_loc=Location.none}
   in
   empty_env
   (* Predefined types *)
@@ -374,7 +374,7 @@ let build_initial_env add_type add_extension empty_env =
              {
                ld_id=id;
                ld_mutable=Immutable;
-               ld_global=Unrestricted;
+               ld_modalities=Mode.Modality.Value.id;
                ld_type=field_type;
                ld_jkind=jkind;
                ld_loc=Location.none;

@@ -5,6 +5,10 @@ val transl_mode_annots : Jane_syntax.Mode_expr.t -> Mode.Alloc.Const.Option.t
     legacy if unspecified *)
 val transl_alloc_mode : Jane_syntax.Mode_expr.t -> Mode.Alloc.Const.t
 
-(** Interpret modality annotation *)
-val transl_global_flags :
-  Parsetree.modality Location.loc list -> Mode.Global_flag.t Location.loc
+(** Interpret mode syntax as modalities *)
+val transl_modalities :
+  Types.mutability -> Parsetree.modality Location.loc list -> Mode.Modality.Value.t
+
+val is_mutable_implied_modality : Mode.Modality.t -> bool
+
+val mutable_implied_modalities : Mode.Modality.Value.t

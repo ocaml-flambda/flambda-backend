@@ -279,6 +279,10 @@ val get_modal_upper_bounds : t -> Mode.Alloc.Const.t
 (** Gets the maximum mode on the externality axis for types of this jkind. *)
 val get_externality_upper_bound : t -> Externality.t
 
+(** Computes a jkind that is the same as the input but with an updated maximum
+    mode for the externality axis *)
+val set_externality_upper_bound : t -> Externality.t -> t
+
 (*********************************)
 (* pretty printing *)
 
@@ -326,6 +330,10 @@ val equate : t -> t -> bool
     CR layouts (v1.5): At the moment, this is actually the same as [equate]! *)
 val equal : t -> t -> bool
 
+(** Checks whether two jkinds have a non-empty intersection. Might mutate
+    sort variables. *)
+val has_intersection : t -> t -> bool
+
 (** Finds the intersection of two jkinds, constraining sort variables to
     create one if needed, or returns a [Violation.t] if an intersection does
     not exist.  Can update the jkinds.  The returned jkind's history
@@ -333,7 +341,8 @@ val equal : t -> t -> bool
     jkind argument.  That is, due to histories, this function is asymmetric;
     it should be thought of as modifying the first jkind to be the
     intersection of the two, not something that modifies the second jkind. *)
-val intersection : reason:interact_reason -> t -> t -> (t, Violation.t) Result.t
+val intersection_or_error :
+  reason:interact_reason -> t -> t -> (t, Violation.t) Result.t
 
 (** [sub t1 t2] says whether [t1] is a subjkind of [t2]. Might update
     either [t1] or [t2] to make their layouts equal.*)
@@ -346,8 +355,12 @@ val sub_or_error : t -> t -> (unit, Violation.t) result
 (** Like [sub], but returns the subjkind with an updated history. *)
 val sub_with_history : t -> t -> (t, Violation.t) result
 
-(** Checks to see whether a jkind is any. Never does any mutation. *)
-val is_any : t -> bool
+(** Checks to see whether a jkind is the maximum jkind. Never does any
+    mutation. *)
+val is_max : t -> bool
+
+(** Checks to see whether a jkind is has layout. Never does any mutation. *)
+val has_layout_any : t -> bool
 
 (*********************************)
 (* debugging *)

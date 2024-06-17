@@ -427,7 +427,7 @@ module Jkind_desc = struct
      in-place update, and no record supporting in-place update is an
      immediate64. ([@@unboxed] records do not support in-place update.)
 
-     * Syncness: This is fine, because syncness matters only for function
+     * Portability: This is fine, because portability matters only for function
      types, and an immediate64 cannot be a function type and cannot store
      one either.
 
@@ -700,6 +700,9 @@ let get_layout jk : Layout.Const.t option =
 let get_modal_upper_bounds jk = jk.jkind.modes_upper_bounds
 
 let get_externality_upper_bound jk = jk.jkind.externality_upper_bound
+
+let set_externality_upper_bound jk externality_upper_bound =
+  { jk with jkind = { jk.jkind with externality_upper_bound } }
 
 (*********************************)
 (* pretty printing *)
@@ -1011,7 +1014,7 @@ end = struct
 
   let format_interact_reason ppf = function
     | Gadt_equation name ->
-      fprintf ppf "a GADT match on the constructor %a" !printtyp_path name
+      fprintf ppf "a GADT match refining the type %a" !printtyp_path name
     | Tyvar_refinement_intersection -> fprintf ppf "updating a type variable"
     | Subjkind -> fprintf ppf "sublayout check"
 
@@ -1204,7 +1207,10 @@ let combine_histories reason lhs rhs =
         rhs_history = rhs.history
       }
 
-let intersection ~reason t1 t2 =
+let has_intersection t1 t2 =
+  Option.is_some (Jkind_desc.intersection t1.jkind t2.jkind)
+
+let intersection_or_error ~reason t1 t2 =
   match Jkind_desc.intersection t1.jkind t2.jkind with
   | None -> Error (Violation.of_ (No_intersection (t1, t2)))
   | Some jkind ->
@@ -1232,7 +1238,12 @@ let is_void_defaulting = function
   | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
   | _ -> false
 
-let is_any jkind = match jkind.jkind.layout with Any -> true | _ -> false
+(* This doesn't do any mutation because mutating a sort variable can't make it
+   any, and modal upper bounds are constant. *)
+let is_max jkind = sub any_dummy_jkind jkind
+
+let has_layout_any jkind =
+  match jkind.jkind.layout with Any -> true | _ -> false
 
 (*********************************)
 (* debugging *)

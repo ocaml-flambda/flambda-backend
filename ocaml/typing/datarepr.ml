@@ -97,7 +97,7 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       [
         {
           ca_type = newgenconstr path type_params;
-          ca_global = Unrestricted;
+          ca_modalities = Mode.Modality.Value.id;
           ca_loc = Location.none
         }
       ],
@@ -206,7 +206,7 @@ let none =
 
 let dummy_label =
   { lbl_name = ""; lbl_res = none; lbl_arg = none;
-    lbl_mut = Immutable; lbl_global = Unrestricted;
+    lbl_mut = Immutable; lbl_modalities = Mode.Modality.Value.id;
     lbl_jkind = Jkind.any ~why:Dummy_jkind;
     lbl_num = -1; lbl_pos = -1; lbl_all = [||];
     lbl_repres = Record_unboxed;
@@ -227,7 +227,7 @@ let label_descrs ty_res lbls repres priv =
             lbl_res = ty_res;
             lbl_arg = l.ld_type;
             lbl_mut = l.ld_mutable;
-            lbl_global = l.ld_global;
+            lbl_modalities = l.ld_modalities;
             lbl_jkind = l.ld_jkind;
             lbl_pos = if is_void then lbl_pos_void else pos;
             lbl_num = num;

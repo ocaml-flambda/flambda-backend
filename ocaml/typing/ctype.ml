@@ -1658,6 +1658,9 @@ let instance_prim_layout (desc : Primitive.description) ty =
   else
   let new_sort_and_jkind = ref None in
   let get_jkind () =
+    (* CR layouts v2.8: This should replace only the layout component of the
+       jkind. It's possible that we might want a primitive that accepts a
+       mode-crossing, layout-polymorphic parameter. *)
     match !new_sort_and_jkind with
     | Some (_, jkind) ->
       jkind
@@ -1675,10 +1678,10 @@ let instance_prim_layout (desc : Primitive.description) ty =
          from an outer scope *)
       if level = generic_level && try_mark_node ty then begin
         begin match get_desc ty with
-        | Tvar ({ jkind; _ } as r) when Jkind.is_any jkind ->
+        | Tvar ({ jkind; _ } as r) when Jkind.has_layout_any jkind ->
           For_copy.redirect_desc copy_scope ty
             (Tvar {r with jkind = get_jkind ()})
-        | Tunivar ({ jkind; _ } as r) when Jkind.is_any jkind ->
+        | Tunivar ({ jkind; _ } as r) when Jkind.has_layout_any jkind ->
           For_copy.redirect_desc copy_scope ty
             (Tunivar {r with jkind = get_jkind ()})
         | _ -> ()
@@ -2133,10 +2136,11 @@ type type_jkind_sub_result =
   | Missing_cmi of Jkind.t * Path.t
   | Failure of Jkind.t
 
-let type_jkind_sub env ty ~check_sub =
+let type_jkind_sub env ty jkind =
   let shallow_check ty =
     match estimate_type_jkind env ty with
-    | Jkind ty_jkind -> if check_sub ty_jkind then Success else Failure ty_jkind
+    | Jkind ty_jkind ->
+      if Jkind.sub ty_jkind jkind then Success else Failure ty_jkind
     | TyVar (ty_jkind, ty) -> Type_var (ty_jkind, ty)
   in
   (* The "fuel" argument here is used because we're duplicating the loop of
@@ -2162,7 +2166,7 @@ let type_jkind_sub env ty ~check_sub =
           try (Env.find_type p env).type_jkind
           with Not_found -> Jkind.any ~why:(Missing_cmi p)
         in
-        if check_sub jkind_bound
+        if Jkind.sub jkind_bound jkind
         then Success
         else if fuel < 0 then Failure jkind_bound
         else begin match unbox_once env ty with
@@ -2185,13 +2189,12 @@ let type_jkind_sub env ty ~check_sub =
    correct on [any].)
 *)
 let constrain_type_jkind ~fixed env ty jkind =
-  match type_jkind_sub env ty
-          ~check_sub:(fun ty_jkind -> Jkind.sub ty_jkind jkind) with
+  match type_jkind_sub env ty jkind with
   | Success -> Ok ()
   | Type_var (ty_jkind, ty) ->
     if fixed then Jkind.sub_or_error ty_jkind jkind else
     let jkind_inter =
-      Jkind.intersection ~reason:Tyvar_refinement_intersection
+      Jkind.intersection_or_error ~reason:Tyvar_refinement_intersection
         ty_jkind jkind
     in
     Result.map (set_var_jkind ty) jkind_inter
@@ -2205,7 +2208,7 @@ let constrain_type_jkind ~fixed env ty jkind =
 let constrain_type_jkind ~fixed env ty jkind =
   (* An optimization to avoid doing any work if we're checking against
      any. *)
-  if Jkind.is_any jkind then Ok ()
+  if Jkind.is_max jkind then Ok ()
   else constrain_type_jkind ~fixed env ty jkind
 
 let check_type_jkind env ty jkind =
@@ -2218,14 +2221,12 @@ let () =
   Env.constrain_type_jkind := constrain_type_jkind
 
 let check_type_externality env ty ext =
-  let check_sub ty_jkind =
-    Jkind.(Externality.le (get_externality_upper_bound ty_jkind) ext)
+  let upper_bound =
+    Jkind.set_externality_upper_bound (Jkind.any ~why:Dummy_jkind) ext
   in
-  match type_jkind_sub env ty ~check_sub with
-  | Success -> true
-  | Type_var (ty_jkind, _) -> check_sub ty_jkind
-  | Missing_cmi _ -> false (* safe answer *)
-  | Failure _ -> false
+  match check_type_jkind env ty upper_bound with
+  | Ok () -> true
+  | Error _ -> false
 
 let check_decl_jkind env decl jkind =
   match Jkind.sub_or_error decl.type_jkind jkind with
@@ -2293,7 +2294,7 @@ let rec intersect_type_jkind ~reason env ty1 jkind2 =
     (* [intersect_type_jkind] is called rarely, so we don't bother with trying
        to avoid this call as in [constrain_type_jkind] *)
     let ty1 = get_unboxed_type_approximation env ty1 in
-    Jkind.intersection ~reason (estimate_type_jkind env ty1) jkind2
+    Jkind.intersection_or_error ~reason (estimate_type_jkind env ty1) jkind2
 
 (* See comment on [jkind_unification_mode] *)
 let unification_jkind_check env ty jkind =
@@ -2877,7 +2878,7 @@ let non_aliasable p decl =
 
    2) It restricts gadt equations on pervasives, which a hacky implementation of
    the fact that every type in the initial environment is incompatible with
-   every other type.  But its fine to refine the jkind of these types (and we
+   every other type.  But it's fine to refine the jkind of these types (and we
    want to in some cases, like giving int32 the jkind immediate64 on
    appropriate platforms).
 
@@ -2919,6 +2920,10 @@ let equivalent_with_nolabels l1 l2 =
   | (Nolabel | Labelled _), (Nolabel | Labelled _) -> true
   | _ -> false)
 
+(* the [tk] means we're comparing a type against a jkind *)
+let has_jkind_intersection_tk env ty jkind =
+  Jkind.has_intersection (type_jkind env ty) jkind
+
 (* [mcomp] tests if two types are "compatible" -- i.e., if they could ever
    unify.  (This is distinct from [eqtype], which checks if two types *are*
    exactly the same.)  This is used to decide whether GADT cases are
@@ -2933,13 +2938,14 @@ let equivalent_with_nolabels l1 l2 =
  *)
 
 let rec mcomp type_pairs env t1 t2 =
+  let check_jkinds ty jkind =
+    if not (has_jkind_intersection_tk env ty jkind) then raise Incompatible
+  in
   if eq_type t1 t2 then () else
-  match (get_desc t1, get_desc t2) with
-  | (Tvar _, _)
-  | (_, Tvar _)  ->
-      ()
-    (* CR layouts: This could be made more precise based on jkinds *)
-  | (Tconstr (p1, [], _), Tconstr (p2, [], _)) when Path.same p1 p2 ->
+  match (get_desc t1, get_desc t2, t1, t2) with
+  | (Tvar { jkind }, _, _, other)
+  | (_, Tvar { jkind }, other, _) -> check_jkinds other jkind
+  | (Tconstr (p1, [], _), Tconstr (p2, [], _), _, _) when Path.same p1 p2 ->
       ()
   | _ ->
       let t1' = expand_head_opt env t1 in
@@ -2948,26 +2954,26 @@ let rec mcomp type_pairs env t1 t2 =
       if eq_type t1' t2' then () else
       if not (TypePairs.mem type_pairs (t1', t2')) then begin
         TypePairs.add type_pairs (t1', t2');
-        match (get_desc t1', get_desc t2') with
-        | (Tvar _, _)
-        | (_, Tvar _)  ->
-            ()
-        | (Tarrow ((l1,_,_), t1, u1, _), Tarrow ((l2,_,_), t2, u2, _))
+        match (get_desc t1', get_desc t2', t1', t2') with
+        | (Tvar { jkind }, _, _, other)
+        | (_, Tvar { jkind }, other, _)  -> check_jkinds other jkind
+        | (Tarrow ((l1,_,_), t1, u1, _), Tarrow ((l2,_,_), t2, u2, _), _, _)
           when equivalent_with_nolabels l1 l2 ->
             mcomp type_pairs env t1 t2;
             mcomp type_pairs env u1 u2;
-        | (Ttuple tl1, Ttuple tl2) ->
+        | (Ttuple tl1, Ttuple tl2, _, _) ->
             mcomp_labeled_list type_pairs env tl1 tl2
-        | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _)) ->
+        | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _), _, _) ->
             mcomp_type_decl type_pairs env p1 p2 tl1 tl2
-        | (Tconstr (_, [], _), _) when has_injective_univars env t2' ->
+        | (Tconstr (_, [], _), _, _, _) when has_injective_univars env t2' ->
             raise_unexplained_for Unify
-        | (_, Tconstr (_, [], _)) when has_injective_univars env t1' ->
+        | (_, Tconstr (_, [], _), _, _) when has_injective_univars env t1' ->
             raise_unexplained_for Unify
-        | (Tconstr (p, _, _), _) | (_, Tconstr (p, _, _)) ->
+        | (Tconstr (p, _, _), _, _, other) | (_, Tconstr (p, _, _), other, _) ->
             begin try
               let decl = Env.find_type p env in
-              if non_aliasable p decl || is_datatype decl then
+              if non_aliasable p decl || is_datatype decl ||
+                 not (has_jkind_intersection_tk env other decl.type_jkind) then
                 raise Incompatible
             with Not_found -> ()
             end
@@ -2975,26 +2981,26 @@ let rec mcomp type_pairs env t1 t2 =
         | (Tpackage (p1, n1, tl1), Tpackage (p2, n2, tl2)) when n1 = n2 ->
             mcomp_list type_pairs env tl1 tl2
         *)
-        | (Tpackage _, Tpackage _) -> ()
-        | (Tvariant row1, Tvariant row2) ->
+        | (Tpackage _, Tpackage _, _, _) -> ()
+        | (Tvariant row1, Tvariant row2, _, _) ->
             mcomp_row type_pairs env row1 row2
-        | (Tobject (fi1, _), Tobject (fi2, _)) ->
+        | (Tobject (fi1, _), Tobject (fi2, _), _, _) ->
             mcomp_fields type_pairs env fi1 fi2
-        | (Tfield _, Tfield _) ->       (* Actually unused *)
+        | (Tfield _, Tfield _, _, _) ->       (* Actually unused *)
             mcomp_fields type_pairs env t1' t2'
-        | (Tnil, Tnil) ->
+        | (Tnil, Tnil, _, _) ->
             ()
-        | (Tpoly (t1, []), Tpoly (t2, [])) ->
+        | (Tpoly (t1, []), Tpoly (t2, []), _, _) ->
             mcomp type_pairs env t1 t2
-        | (Tpoly (t1, tl1), Tpoly (t2, tl2)) ->
+        | (Tpoly (t1, tl1), Tpoly (t2, tl2), _, _) ->
             (try
                enter_poly env univar_pairs
                  t1 tl1 t2 tl2 (mcomp type_pairs env)
              with Escape _ -> raise Incompatible)
-        | (Tunivar {jkind=jkind1}, Tunivar {jkind=jkind2}) ->
+        | (Tunivar {jkind=jkind1}, Tunivar {jkind=jkind2}, _, _) ->
             (try unify_univar t1' t2' jkind1 jkind2 !univar_pairs
              with Cannot_unify_universal_variables -> raise Incompatible)
-        | (_, _) ->
+        | (_, _, _, _) ->
             raise Incompatible
       end
 
@@ -3068,6 +3074,10 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
   try
     let decl = Env.find_type p1 env in
     let decl' = Env.find_type p2 env in
+    let check_jkinds () =
+      if not (Jkind.has_intersection decl.type_jkind decl'.type_jkind)
+      then raise Incompatible
+    in
     if compatible_paths p1 p2 then begin
       let inj =
         try List.map Variance.(mem Inj) (Env.find_type p1 env).type_variance
@@ -3090,9 +3100,9 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
           mcomp_variant_description type_pairs env v1 v2
       | Type_open, Type_open ->
           mcomp_list type_pairs env tl1 tl2
-      | Type_abstract _, Type_abstract _ -> ()
-      | Type_abstract _, _ when not (non_aliasable p1 decl)-> ()
-      | _, Type_abstract _ when not (non_aliasable p2 decl') -> ()
+      | Type_abstract _, Type_abstract _ -> check_jkinds ()
+      | Type_abstract _, _ when not (non_aliasable p1 decl)-> check_jkinds ()
+      | _, Type_abstract _ when not (non_aliasable p2 decl') -> check_jkinds ()
       | _ -> raise Incompatible
   with Not_found -> ()
 
@@ -3124,7 +3134,7 @@ and mcomp_variant_description type_pairs env xs ys =
 and mcomp_tuple_description type_pairs env =
   let rec iter x y =
     match x, y with
-    | {ca_type=ty1; ca_global=gf1; _} :: xs, {ca_type=ty2; ca_global=gf2} :: ys ->
+    | {ca_type=ty1; ca_modalities=gf1; _} :: xs, {ca_type=ty2; ca_modalities=gf2} :: ys ->
       mcomp type_pairs env ty1 ty2;
       if gf1 = gf2
       then iter xs ys
@@ -3141,7 +3151,7 @@ and mcomp_record_description type_pairs env =
         mcomp type_pairs env l1.ld_type l2.ld_type;
         if Ident.name l1.ld_id = Ident.name l2.ld_id &&
            l1.ld_mutable = l2.ld_mutable &&
-           l1.ld_global = l2.ld_global
+           l1.ld_modalities = l2.ld_modalities
         then iter xs ys
         else raise Incompatible
     | [], [] -> ()
@@ -3220,7 +3230,8 @@ let add_gadt_equation env source destination =
     let jkind, jkind_annot =
       jkind_of_abstract_type_declaration !env source
     in
-    add_jkind_equation ~reason:(Gadt_equation source) env destination jkind;
+    add_jkind_equation ~reason:(Gadt_equation source)
+      env destination jkind;
     let decl =
       new_local_type ~manifest_and_scope:(destination, expansion_scope) jkind
         ~jkind_annot
@@ -3355,30 +3366,41 @@ let unify1_var env t1 t2 =
 (* Called from unify3 *)
 let unify3_var env jkind1 t1' t2 t2' =
   occur_for Unify !env t1' t2;
-  match occur_univar_for Unify !env t2 with
-  | () -> begin
-      unification_jkind_check !env t2' jkind1;
-      link_type t1' t2
-    end
+  (* There are two possible ways forward here. Either the variable [t1']
+     will succeed in unifying with [t2], in which case we're done; or
+     the unification fails, in which case we want to add a GADT equation.
+     But in that second case, we want to pretend that we were making a
+     GADT equation all along, so we don't want any evidence of having
+     attempted the unification (which might, say, fill in a sort variable).
+     We thus backtrack in the GADT equation case. *)
+  let snap = snapshot () in
+  match
+    occur_univar_for Unify !env t2;
+    unification_jkind_check !env t2' jkind1
+  with
+  | () -> link_type t1' t2
   | exception Unify_trace _ when in_pattern_mode () ->
+      backtrack snap;
       reify env t1';
       reify env t2';
       if can_generate_equations () then begin
-        occur_univar ~inj_only:true !env t2';
+        begin match get_desc t2' with
+        | Tconstr(path,[],_)
+          when is_instantiable !env ~for_jkind_eqn:false path ->
+            add_gadt_equation env path t1'
+              (* This is necessary because a failed kind-check above
+                 might meaningfully refine a type constructor *)
+        | _ ->
+          occur_univar ~inj_only:true !env t2';
+          mcomp_for Unify !env t1' t2'
+            (* the call to [mcomp] can be skipped in the other case in this
+               [match] because [add_gadt_equation] checks for jkind
+               intersection, which is the only interesting check in [mcomp]
+               when one side is a variable. We could pull that check out
+               here specially, but it seems simpler not to. *)
+        end;
         record_equation t1' t2';
       end
-
-(* This is used to check whether we should add a gadt equation refining a
-   Tconstr's jkind during pattern unification. *)
-let constr_jkind_refinable env t jkind =
-  let snap = Btype.snapshot () in
-  let refinable =
-    match unification_jkind_check env t jkind with
-    | () -> false
-    | exception Unify_trace _ -> true
-  in
-  Btype.backtrack snap;
-  refinable
 
 (*
    1. When unifying two non-abbreviated types, one type is made a link
@@ -3507,23 +3529,6 @@ and unify3 env t1 t1' t2 t2' =
     (Tunivar { jkind = k1 }, Tunivar { jkind = k2 }) ->
       unify_univar_for Unify t1' t2' k1 k2 !univar_pairs;
       link_type t1' t2'
-  (* Before layouts, the following two cases were unnecessary because unifying a
-     [Tconstr] and a [Tvar] couldn't refine the [Tconstr] in any interesting
-     way. *)
-  | (Tconstr (path,[],_), Tvar { jkind })
-    when is_instantiable !env ~for_jkind_eqn:false path
-      && can_generate_equations ()
-      && constr_jkind_refinable !env t1' jkind ->
-      reify env t2';
-      record_equation t1' t2';
-      add_gadt_equation env path t2'
-  | (Tvar { jkind }, Tconstr (path,[],_))
-    when is_instantiable !env ~for_jkind_eqn:false path
-      && can_generate_equations ()
-      && constr_jkind_refinable !env t2' jkind ->
-      reify env t1';
-      record_equation t1' t2';
-      add_gadt_equation env path t1'
   | (Tvar { jkind }, _) ->
       unify3_var env jkind t1' t2 t2'
   | (_, Tvar { jkind }) ->

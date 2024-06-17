@@ -402,7 +402,7 @@ let label_declaration copy_scope s l =
   {
     ld_id = l.ld_id;
     ld_mutable = l.ld_mutable;
-    ld_global = l.ld_global;
+    ld_modalities = l.ld_modalities;
     ld_jkind = apply_prepare_jkind s l.ld_jkind l.ld_loc;
     ld_type = typexp copy_scope s l.ld_loc l.ld_type;
     ld_loc = loc s l.ld_loc;
@@ -414,7 +414,7 @@ let constructor_argument copy_scope s ca =
   {
     ca_type = typexp copy_scope s ca.ca_loc ca.ca_type;
     ca_loc = loc s ca.ca_loc;
-    ca_global = ca.ca_global;
+    ca_modalities = ca.ca_modalities;
   }
 
 let constructor_arguments copy_scope s = function
