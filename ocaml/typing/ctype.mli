@@ -186,7 +186,7 @@ type existential_treatment =
 
 val instance_constructor: existential_treatment ->
         constructor_description ->
-        (type_expr * Modality.Value.t) list * type_expr * type_expr list
+        Types.constructor_argument list * type_expr * type_expr list
         (* Same, for a constructor. Also returns existentials. *)
 val instance_parameterized_type:
         ?keep_names:bool ->

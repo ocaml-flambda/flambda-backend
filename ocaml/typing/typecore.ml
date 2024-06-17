@@ -1293,7 +1293,7 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
           instance_constructor Keep_existentials_flexible cstr
         in
         List.iter2
-          (fun (p,ty) (arg, _) ->
+          (fun (p,ty) {Types.ca_type=arg; _} ->
              unify_pat ~refine env {p with pat_type = ty} arg)
           (List.combine pl tyl) ty_args;
         ty_res
@@ -1540,7 +1540,10 @@ let solve_Ppat_construct ~refine tps env loc constr no_existentials
                 (Make_existentials_abstract { env; scope = expansion_scope })
                 constr
             in
-            let ty_args_ty, ty_args_gf = List.split ty_args in
+            let ty_args_ty, ty_args_gf =
+              List.split
+                (List.map (fun ca -> ca.Types.ca_type, ca.Types.ca_modalities) ty_args)
+            in
             ty_args_ty, ty_args_gf, ty_res, unify_res ty_res expected_ty, None
         | Some (name_list, sty) ->
             let existential_treatment =
@@ -1555,7 +1558,10 @@ let solve_Ppat_construct ~refine tps env loc constr no_existentials
               instance_constructor existential_treatment constr
             in
             let equated_types = unify_res ty_res expected_ty in
-            let ty_args_ty, ty_args_gf = List.split ty_args in
+            let ty_args_ty, ty_args_gf =
+              List.split
+                (List.map (fun ca -> ca.Types.ca_type, ca.Types.ca_modalities) ty_args)
+            in
             let ty_args_ty, existential_ctyp =
               solve_constructor_annotation tps env name_list sty ty_args_ty
                 ty_ex
@@ -7813,10 +7819,10 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
     end
       ~post:(fun (ty_args, ty_res, _) ->
         generalize_structure ty_res;
-        List.iter (fun (ty, _) -> generalize_structure ty) ty_args)
+        List.iter (fun {Types.ca_type=ty; _} -> generalize_structure ty) ty_args)
   in
   let ty_args0, ty_res =
-    match instance_list (ty_res :: (List.map fst ty_args)) with
+    match instance_list (ty_res :: (List.map (fun ca -> ca.Types.ca_type) ty_args)) with
       t :: tl -> tl, t
     | _ -> assert false
   in
@@ -7845,7 +7851,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
   in
   let args =
     List.map2
-      (fun e ((ty, gf),t0) ->
+      (fun e ({Types.ca_type=ty; ca_modalities=gf; _},t0) ->
          let argument_mode = mode_modality gf argument_mode in
          type_argument ~recarg env argument_mode e ty t0)
       sargs (List.combine ty_args ty_args0)

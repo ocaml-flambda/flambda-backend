@@ -643,8 +643,8 @@ let closed_type_decl decl =
                    have undefaulted sort variables; these lines default
                    them. Test case: typing-layouts-gadt-sort-var/test.ml *)
                 begin match cd_args with
-                | Cstr_tuple l -> List.iter (fun (ty, _) ->
-                    remove_mode_and_jkind_variables ty) l
+                | Cstr_tuple l -> List.iter (fun ca ->
+                    remove_mode_and_jkind_variables ca.ca_type) l
                 | Cstr_record l -> List.iter (fun l ->
                     remove_mode_and_jkind_variables l.ld_type) l
                 end;
@@ -1386,7 +1386,7 @@ let instance_constructor existential_treatment cstr =
     let ty_ex = List.map copy_existential cstr.cstr_existentials in
     let ty_res = copy copy_scope cstr.cstr_res in
     let ty_args =
-      List.map (fun (ty, gf) -> copy copy_scope ty, gf) cstr.cstr_args
+      List.map (fun ca -> {ca with ca_type = copy copy_scope ca.ca_type}) cstr.cstr_args
     in
     (ty_args, ty_res, ty_ex)
   )
@@ -3134,7 +3134,7 @@ and mcomp_variant_description type_pairs env xs ys =
 and mcomp_tuple_description type_pairs env =
   let rec iter x y =
     match x, y with
-    | (ty1, gf1) :: xs, (ty2, gf2) :: ys ->
+    | {ca_type=ty1; ca_modalities=gf1; _} :: xs, {ca_type=ty2; ca_modalities=gf2} :: ys ->
       mcomp type_pairs env ty1 ty2;
       if gf1 = gf2
       then iter xs ys
