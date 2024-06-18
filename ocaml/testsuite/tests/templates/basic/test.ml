@@ -6,8 +6,10 @@
    bad_instance_arg_value_not_arg.ml bad_instance_arg_value_not_arg.reference \
    bad_instance_arg_value_not_found.ml bad_instance_arg_value_not_found.reference \
    bad_instance_arg_value_wrong_type.ml bad_instance_arg_value_wrong_type.reference \
+   bad_instantiate_missing_arg.reference \
    bad_instantiate_not_arg.reference \
    bad_instantiate_not_parameterised.reference \
+   bad_instantiate_wrong_target_name.reference \
    bad_ref_direct.ml bad_ref_direct.reference \
    bad_ref_direct_imported.ml bad_ref_direct_imported.reference \
    bad_ref_indirect.ml bad_ref_indirect.reference \
@@ -249,6 +251,28 @@
            ocamlc.byte;
 
            compiler_reference = "bad_instantiate_not_arg.reference";
+           check-ocamlc.byte-output;
+         }{
+           module = "";
+           flags = "-instantiate";
+           program = "import-Int_list_element.cmo";
+           all_modules = "import.cmo int_list_element.cmo";
+           compiler_output = "bad_instantiate_missing_arg.output";
+           ocamlc_byte_exit_status = "2";
+           ocamlc.byte;
+
+           compiler_reference = "bad_instantiate_missing_arg.reference";
+           check-ocamlc.byte-output;
+         }{
+           module = "";
+           flags = "-instantiate";
+           program = "not_the_correct_target_name.cmo";
+           all_modules = "list_monoid.cmo int_list_element.cmo";
+           compiler_output = "bad_instantiate_wrong_target_name.output";
+           ocamlc_byte_exit_status = "2";
+           ocamlc.byte;
+
+           compiler_reference = "bad_instantiate_wrong_target_name.reference";
            check-ocamlc.byte-output;
          }{
            module = "";
@@ -602,6 +626,31 @@
            ocamlopt.byte;
 
            compiler_reference = "bad_instantiate_not_arg.reference";
+           check-ocamlopt.byte-output;
+         }{
+           module = "";
+           flags = "-instantiate";
+           program = "import-Int_list_element.cmx";
+           all_modules = "import.cmx int_list_element.cmx";
+           compiler_output = "bad_instantiate_missing_arg.output";
+           ocamlopt_byte_exit_status = "2";
+           ocamlopt.byte;
+
+           compiler_reference = "bad_instantiate_missing_arg.reference";
+           check-ocamlopt.byte-output;
+         }{
+           module = "";
+           flags = "-instantiate";
+           program = "not_the_correct_target_name.cmx";
+           all_modules = "list_monoid.cmx int_list_element.cmx";
+           compiler_output = "bad_instantiate_wrong_target_name.output";
+           ocamlopt_byte_exit_status = "2";
+           ocamlopt.byte;
+
+           reason = "output currently differs by .cmo/cmx suffix";
+           skip;
+
+           compiler_reference = "bad_instantiate_wrong_target_name.reference";
            check-ocamlopt.byte-output;
          }{
            module = "";
