@@ -1095,7 +1095,7 @@ and meet_row_like :
           else (
             result_is_t1 := false;
             result_is_t2 := false);
-          Some (TG.Row_like_case.create ~maps_to ~index ~env_extension)))
+          Some (Or_unknown.Known (TG.Row_like_case.create ~maps_to ~index ~env_extension))))
   in
   let meet_knowns case1 case2 :
       ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option =
@@ -1126,9 +1126,7 @@ and meet_row_like :
             result_is_t2 := false;
             Some (Known other_case))
         | Known case1 ->
-          Option.map
-            (fun case -> Or_unknown.Known case)
-            (meet_case base_env case1 other_case)))
+            meet_case base_env case1 other_case))
     | None, Some case2 -> (
       match other1 with
       | Bottom ->
@@ -1148,8 +1146,6 @@ and meet_row_like :
             result_is_t2 := false;
             Some (Known other_case))
         | Known case2 ->
-          Option.map
-            (fun case -> Or_unknown.Known case)
             (meet_case base_env other_case case2)))
     | Some case1, Some case2 -> (
       match case1, case2 with
@@ -1177,8 +1173,6 @@ and meet_row_like :
           result_is_t1 := false;
           Some (Known case))
       | Known case1, Known case2 ->
-        Option.map
-          (fun case -> Or_unknown.Known case)
           (meet_case base_env case1 case2))
   in
   let known =
