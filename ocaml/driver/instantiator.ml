@@ -1,7 +1,7 @@
 module CU = Compilation_unit
 
 type error =
-  | Not_compiled_as_parameter of CU.t
+  | Not_compiled_as_argument of CU.t
   | Incorrect_target_filename of {
       expected_basename : Misc.filepath;
       expected_extension : string;
@@ -29,7 +29,7 @@ let instantiate
   let arg_info_of_cm_path cm_path =
     let unit_infos = read_unit_info cm_path in
     match unit_infos.ui_arg_descr with
-    | None -> error (Not_compiled_as_parameter unit_infos.ui_unit)
+    | None -> error (Not_compiled_as_argument unit_infos.ui_unit)
     | Some { arg_param; arg_block_field } ->
       arg_param, (unit_infos.ui_unit, arg_block_field)
   in
@@ -107,9 +107,9 @@ let instantiate
 open Format
 
 let report_error ppf = function
-  | Not_compiled_as_parameter compilation_unit ->
+  | Not_compiled_as_argument compilation_unit ->
     fprintf ppf
-      "Argument must be compiled with -as-parameter-for: %a"
+      "Argument must be compiled with -as-argument-for: %a"
       CU.print compilation_unit
   | Incorrect_target_filename
       { expected_basename; expected_extension; actual_basename = _;

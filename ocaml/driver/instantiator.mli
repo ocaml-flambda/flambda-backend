@@ -22,7 +22,7 @@ val instantiate
   -> unit
 
 type error =
-  | Not_compiled_as_parameter of CU.t
+  | Not_compiled_as_argument of CU.t
   | Incorrect_target_filename of {
       expected_basename : Misc.filepath;
       expected_extension : string;
