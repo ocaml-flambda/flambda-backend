@@ -1,0 +1,4 @@
+File "bad_instance_arg_value_not_arg.ml", line 1:
+Error: The module Monoid_utils
+       is specified as an instance argument, but monoid_utils.cmi
+       was not compiled with -as-argument-for.

@@ -47,7 +47,7 @@ type summary =
   | Env_value_unbound of summary * string * value_unbound_reason
   | Env_module_unbound of summary * string * module_unbound_reason
 
-type address =
+type address = Persistent_env.address =
   | Aunit of Compilation_unit.t
   | Alocal of Ident.t
   | Adot of address * int
@@ -265,6 +265,8 @@ val lookup_module_path:
   ?use:bool -> loc:Location.t -> load:bool -> Longident.t -> t -> Path.t
 val lookup_modtype_path:
   ?use:bool -> loc:Location.t -> Longident.t -> t -> Path.t
+val lookup_module_instance_path:
+  ?use:bool -> loc:Location.t -> load:bool -> Global_module.Name.t -> t -> Path.t
 
 val lookup_constructor:
   ?use:bool -> loc:Location.t -> constructor_usage -> Longident.t -> t ->
