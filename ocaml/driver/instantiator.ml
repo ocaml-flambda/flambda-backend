@@ -57,7 +57,11 @@ let instantiate
   let global =
     (* This checks that we have all the arguments we need and that the CRCs all
        match up *)
-    Env.global_of_instance_compilation_unit compilation_unit
+    try
+      Env.global_of_instance_compilation_unit compilation_unit
+    with
+    | Persistent_env.Error (Imported_module_has_unset_parameter e) ->
+      raise (Error (Missing_argument { param = e.parameter }))
   in
   let arg_subst : Global_module.subst =
     Global_module.Name.Map.of_list global.visible_args
@@ -82,7 +86,10 @@ let instantiate
                | Some (ra_unit, ra_field) ->
                  Argument_block { ra_unit; ra_field }
                | None ->
-                 error (Missing_argument { param = global_name })
+                 (* This should have been caught by
+                    [Env.global_of_instance_compilation_unit] earlier *)
+                 Misc.fatal_errorf "Can't find value for %a"
+                   Global_module.Name.print global_name
              end
            | Rp_dependency global ->
              (* This is a dependency that will be passed in. We need to

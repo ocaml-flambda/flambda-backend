@@ -1,5 +1,2 @@
 File "_none_", line 1:
-Error: The module Import[List_element:Int_list_element]
-       has parameter Semigroup.
-       Semigroup is not declared as a parameter for the current unit (-parameter Semigroup)
-       and therefore Import[List_element:Int_list_element] is not accessible.
+Error: No argument given for parameter Semigroup
