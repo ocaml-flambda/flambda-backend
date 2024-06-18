@@ -1095,7 +1095,9 @@ and meet_row_like :
           else (
             result_is_t1 := false;
             result_is_t2 := false);
-          Some (Or_unknown.Known (TG.Row_like_case.create ~maps_to ~index ~env_extension))))
+          Some
+            (Or_unknown.Known
+               (TG.Row_like_case.create ~maps_to ~index ~env_extension))))
   in
   let meet_knowns case1 case2 :
       ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option =
@@ -1125,8 +1127,7 @@ and meet_row_like :
             result_is_t1 := false;
             result_is_t2 := false;
             Some (Known other_case))
-        | Known case1 ->
-            meet_case base_env case1 other_case))
+        | Known case1 -> meet_case base_env case1 other_case))
     | None, Some case2 -> (
       match other1 with
       | Bottom ->
@@ -1145,8 +1146,7 @@ and meet_row_like :
             result_is_t1 := false;
             result_is_t2 := false;
             Some (Known other_case))
-        | Known case2 ->
-            (meet_case base_env other_case case2)))
+        | Known case2 -> meet_case base_env other_case case2))
     | Some case1, Some case2 -> (
       match case1, case2 with
       | Unknown, Unknown ->
@@ -1172,8 +1172,7 @@ and meet_row_like :
           join_result_env env;
           result_is_t1 := false;
           Some (Known case))
-      | Known case1, Known case2 ->
-          (meet_case base_env case1 case2))
+      | Known case1, Known case2 -> meet_case base_env case1 case2)
   in
   let known =
     merge_map_known
@@ -1192,7 +1191,8 @@ and meet_row_like :
     | Ok other1, Ok other2 -> (
       match meet_case base_env other1 other2 with
       | None -> Bottom
-      | Some r -> Ok r)
+      | Some Unknown -> Misc.fatal_error "meet_case should not produce Unknown"
+      | Some (Known r) -> Ok r)
   in
   if is_empty_map_known known
      && match other with Bottom -> true | Ok _ -> false

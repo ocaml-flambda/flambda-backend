@@ -2738,7 +2738,9 @@ module Row_like_for_blocks = struct
       match Tag.Map.get_singleton known_tags with
       | None -> None
       | Some (_tag, Unknown) -> None
-      (* CR pchambart: We lose the tag information when we don't know the shape. Example where this could matter: in Provers.prove_physical_equality this could miss some physical inequality *)
+      (* CR pchambart: We lose the tag information when we don't know the shape.
+         Example where this could matter: in Provers.prove_physical_equality
+         this could miss some physical inequality *)
       | Some (tag, Known { maps_to; index; env_extension = _ }) -> (
         (* If this is a singleton all the information from the env_extension is
            already part of the environment *)
@@ -2751,8 +2753,10 @@ module Row_like_for_blocks = struct
 
   let get_field t index : _ Or_unknown_or_bottom.t =
     match get_singleton t with
-    (* CR pchambart vlaviron: This is missing the 'Other' case. It would be easy to be efficient to get the the field when there is only the 'Other' case.
-      Also we could be slightly better when there are multiple tags with exactly the same type: we could do a trivial join *)
+    (* CR pchambart vlaviron: This is missing the 'Other' case. It would be easy
+       to be efficient to get the the field when there is only the 'Other' case.
+       Also we could be slightly better when there are multiple tags with
+       exactly the same type: we could do a trivial join *)
     | None -> Unknown
     | Some (_tag, _shape, size, maps_to, _alloc_mode) -> (
       if Targetint_31_63.( <= ) size index
