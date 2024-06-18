@@ -573,6 +573,11 @@ let submode ~loc ~env ?(reason = Other) ?shared_context mode expected_mode =
       in
       raise (Error(loc, env, error))
 
+let actual_submode ~loc ~env ?reason (actual_mode : Env.actual_mode)
+    expected_mode =
+  submode ~loc ~env ?reason ?shared_context:actual_mode.context actual_mode.mode
+    expected_mode
+
 let escape ~loc ~env ~reason m =
   submode ~loc ~env ~reason m mode_legacy
 
@@ -802,6 +807,11 @@ let mode_cross_left env ty mode =
     Value.meet_const upper_bounds mode
   in
   mode |> Value.disallow_right
+
+let actual_mode_cross_left env ty (actual_mode : Env.actual_mode)
+  : Env.actual_mode =
+  let mode = mode_cross_left env ty actual_mode.mode in
+  {actual_mode with mode}
 
 (** Mode cross a mode whose monadic fragment is a right mode, and whose comonadic
     fragment is a left mode. *)
@@ -2903,7 +2913,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
            else Warnings.Unused_var_strict s in
          let id' = Ident.rename pv_id in
          let val_env =
-          Env.add_value pv_id
+          Env.add_value ~mode:Mode.Value.legacy pv_id
             { val_type = pv_type
             ; val_kind = Val_reg
             ; val_attributes = pv_attributes
@@ -2914,7 +2924,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
             val_env
          in
          let met_env =
-          Env.add_value id' ~check
+          Env.add_value ~mode:Mode.Value.legacy id' ~check
             { val_type = pv_type
             ; val_kind = Val_ivar (Immutable, cl_num)
             ; val_attributes = pv_attributes
@@ -5180,7 +5190,9 @@ and type_expect_
         jexp
   | None -> match desc with
   | Pexp_ident lid ->
-      let path, mode, shared_context, desc, kind = type_ident env ~recarg lid in
+      let path, (actual_mode : Env.actual_mode), desc, kind =
+        type_ident env ~recarg lid
+      in
       let exp_desc =
         match desc.val_kind with
         | Val_ivar (_, cl_num) ->
@@ -5197,10 +5209,10 @@ and type_expect_
               Env.find_value_by_name (Longident.Lident ("self-" ^ cl_num)) env
             in
             Texp_ident(path, lid, desc, kind,
-              unique_use ~loc ~env mode expected_mode.mode)
+              unique_use ~loc ~env actual_mode.mode expected_mode.mode)
         | _ ->
             Texp_ident(path, lid, desc, kind,
-              unique_use ~loc ~env mode expected_mode.mode)
+              unique_use ~loc ~env actual_mode.mode expected_mode.mode)
       in
       let exp = rue {
         exp_desc; exp_loc = loc; exp_extra = [];
@@ -5208,7 +5220,7 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
       in
-      submode ~loc ~env ?shared_context mode expected_mode;
+      actual_submode ~loc ~env actual_mode expected_mode;
       exp
   | Pexp_constant(Pconst_string (str, _, _) as cst) -> (
       let cst = constant_or_raise env loc cst in
@@ -5960,6 +5972,7 @@ and type_expect_
         exp_extra = (exp_extra, loc, sexp.pexp_attributes) :: arg.exp_extra;
       }
   | Pexp_send (e, {txt=met}) ->
+      submode ~loc ~env Mode.Value.legacy expected_mode;
       let pm = position_and_mode env expected_mode sexp in
       let (obj,meth,typ) =
         with_local_level_if_principal
@@ -5991,7 +6004,11 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_new cl ->
-      let (cl_path, cl_decl) = Env.lookup_class ~loc:cl.loc cl.txt env in
+      submode ~loc ~env Value.legacy expected_mode;
+      let (cl_path, cl_decl, cl_mode, _) =
+        Env.lookup_class ~loc:cl.loc cl.txt env
+      in
+      Value.submode_exn cl_mode Value.legacy;
       let pm = position_and_mode env expected_mode sexp in
       begin match cl_decl.cty_new with
           None ->
@@ -6573,11 +6590,11 @@ and type_constraint_expect
   ret, ty, exp_extra
 
 and type_ident env ?(recarg=Rejected) lid =
-  let (path, desc, mode, reason) = Env.lookup_value ~loc:lid.loc lid.txt env in
+  let path, desc, actual_mode = Env.lookup_value ~loc:lid.loc lid.txt env in
   (* Mode crossing here is needed only because of the strange behaviour of
   [type_let] - it checks the LHS before RHS. Had it checks the RHS before LHS,
   identifiers would be mode crossed when being added to the environment. *)
-  let mode = mode_cross_left env desc.val_type mode in
+  let actual_mode = actual_mode_cross_left env desc.val_type actual_mode in
   let is_recarg =
     match get_desc desc.val_type with
     | Tconstr(p, _, _) -> Path.is_constructor_typath p
@@ -6609,13 +6626,13 @@ and type_ident env ?(recarg=Rejected) lid =
        ty, Id_prim (Option.map Locality.disallow_right mode, sort)
     | _ ->
        instance desc.val_type, Id_value in
-  path, mode, reason, { desc with val_type }, kind
+  path, actual_mode, { desc with val_type }, kind
 
 and type_binding_op_ident env s =
   let loc = s.loc in
   let lid = Location.mkloc (Longident.Lident s.txt) loc in
-  let path, mode, _reason, desc, kind = type_ident env lid in
-  submode ~env ~loc:lid.loc ~reason:Other mode mode_legacy;
+  let path, actual_mode, desc, kind = type_ident env lid in
+  actual_submode ~env ~loc:lid.loc ~reason:Other actual_mode mode_legacy;
   let path =
     match desc.val_kind with
     | Val_ivar _ ->
@@ -9342,7 +9359,7 @@ let type_expression env jkind sexp =
       Pexp_ident lid ->
         let loc = sexp.pexp_loc in
         (* Special case for keeping type variables when looking-up a variable *)
-        let (_path, desc, _mode, _reasons) =
+        let (_path, desc, _actual_mode) =
           Env.lookup_value ~use:false ~loc lid.txt env
         in
         {exp with exp_type = desc.val_type}
@@ -9555,50 +9572,6 @@ let escaping_hint (failure_reason : Value.error) submode_reason
   | Other -> []
   end
 
-let sharedness_hint _fail_reason submode_reason context =
-  (match context with
-  | None -> []
-  | Some Env.For_loop ->
-    [Location.msg
-        "@[Hint: This identifier cannot be used uniquely,@ \
-          because it was defined outside of the for-loop.@]"]
-  | Some Env.While_loop ->
-    [Location.msg
-        "@[Hint: This identifier cannot be used uniquely,@ \
-          because it was defined outside of the while-loop.@]"]
-  | Some Env.Comprehension ->
-    [Location.msg
-        "@[Hint: This identifier cannot be used uniquely,@ \
-          because it was defined outside of the comprehension.@]"]
-  | Some Env.Letop ->
-    [Location.msg
-        "@[Hint: This identifier cannot be used uniquely,@ \
-          because it was defined outside of the let-op.@]"]
-  | Some Env.Class ->
-    [Location.msg
-        "@[Hint: This identifier cannot be used uniquely,@ \
-          because it is defined in a class.@]"]
-  | Some Env.Closure ->
-    [Location.msg
-        "@[Hint: This identifier was defined outside of the current closure.@ \
-          Either this closure has to be once, or the identifier can be used only@ \
-          as shared.@]"]
-  | Some Env.Module ->
-    [Location.msg
-        "@[Hint: This identifier cannot be used uniquely,@ \
-          because it is defined in a module.@]"]
-  | Some Env.Probe ->
-    [Location.msg
-        "@[Hint: This identifier cannot be used uniquely,@ \
-          because it is defined outside of the probe.@]"]
-  | Some Env.Lazy ->
-    [Location.msg
-        "@[Hint: This identifier cannot be used uniquely,@ \
-          because it is defined outside of the lazy expression.@]"]
-  )
-  @
-  match submode_reason with
-  | Application _ | Other -> []
 
 let contention_hint _fail_reason _submode_reason context =
   match context with
@@ -10172,7 +10145,11 @@ let report_error ~loc env = function
       let sub =
         match fail_reason with
         | Error (Comonadic Linearity, _) | Error (Monadic Uniqueness, _) ->
-          sharedness_hint fail_reason submode_reason shared_context
+            shared_context
+          |> Option.map
+              (fun context -> Location.mknoloc
+                (fun ppf -> Env.sharedness_hint ppf context))
+          |> Option.to_list
         | Error (Comonadic Areality, _) ->
           escaping_hint fail_reason submode_reason closure_context
         | Error (Monadic Contention, _ ) ->
