@@ -685,7 +685,7 @@ and label_declaration =
      ld_name: string loc;
      ld_uid: Uid.t;
      ld_mutable: mutability;
-     ld_global: Global_flag.t;
+     ld_modalities: Modality.Value.t;
      ld_type: core_type;
      ld_loc: Location.t;
      ld_attributes: attribute list;
@@ -703,8 +703,15 @@ and constructor_declaration =
      cd_attributes: attribute list;
     }
 
+and constructor_argument =
+  {
+    ca_modalities: Modality.Value.t;
+    ca_type: core_type;
+    ca_loc: Location.t;
+  }
+
 and constructor_arguments =
-  | Cstr_tuple of (core_type * Global_flag.t) list
+  | Cstr_tuple of constructor_argument list
   | Cstr_record of label_declaration list
 
 and type_extension =

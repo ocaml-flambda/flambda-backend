@@ -119,10 +119,10 @@ val native_name_is_external : description -> bool
     fails. *)
 val prim_has_valid_reprs : loc:Location.t -> description -> unit
 
-(** Check if a primitive can have jkind [any] anywhere within its type
+(** Check if a primitive can have layout [any] anywhere within its type
     declaration. Returns [false] for built-in primitives that inspect
     the layout of type parameters ([%array_length] for example). *)
-val prim_can_contain_jkind_any : description -> bool
+val prim_can_contain_layout_any : description -> bool
 
 type error =
   | Old_style_float_with_native_repr_attribute

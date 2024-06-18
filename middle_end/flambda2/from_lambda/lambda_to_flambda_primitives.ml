@@ -1887,6 +1887,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [Ternary (Atomic_compare_and_set, atomic, old_value, new_value)]
   | Patomic_fetch_add, [[atomic]; [i]] ->
     [Binary (Atomic_fetch_and_add, atomic, i)]
+  | Pdls_get, _ -> [Nullary Dls_get]
   | ( ( Pmodint Unsafe
       | Pdivbint { is_safe = Unsafe; size = _; mode = _ }
       | Pmodbint { is_safe = Unsafe; size = _; mode = _ }
@@ -2000,7 +2001,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     Misc.fatal_errorf
       "[%a] should have been handled by [Closure_conversion.close_primitive]"
       Printlambda.primitive prim
-  | (Prunstack | Pperform | Presume | Preperform | Pdls_get), _ ->
+  | (Prunstack | Pperform | Presume | Preperform), _ ->
     Misc.fatal_errorf "Primitive %a is not yet supported by Flambda 2"
       Printlambda.primitive prim
 

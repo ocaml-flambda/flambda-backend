@@ -9,7 +9,6 @@ type t_imm   : immediate
 type t_imm64 : immediate64
 type t_float64 : float64
 type t_void  : void
-type t_non_null_value : non_null_value
 
 type void_variant = VV of t_void
 type void_record = {vr_void : t_void; vr_int : int}
@@ -22,7 +21,6 @@ type t_imm : immediate
 type t_imm64 : immediate64
 type t_float64 : float64
 type t_void : void
-type t_non_null_value : non_null_value
 type void_variant = VV of t_void
 type void_record = { vr_void : t_void; vr_int : int; }
 type void_unboxed_record = { vur_void : t_void; } [@@unboxed]
@@ -144,17 +142,10 @@ Error: This pattern matches values of type t_any
 module type S = sig
   val f1 : t_value -> t_value
   val f2 : t_imm -> t_imm64
-
-  val f3 : t_non_null_value -> t_non_null_value
 end;;
 
 [%%expect{|
-module type S =
-  sig
-    val f1 : t_value -> t_value
-    val f2 : t_imm -> t_imm64
-    val f3 : t_non_null_value -> t_non_null_value
-  end
+module type S = sig val f1 : t_value -> t_value val f2 : t_imm -> t_imm64 end
 |}];;
 
 module type S2 = sig
@@ -251,8 +242,8 @@ Line 1, characters 19-25:
 1 | let string_id (x : string imm_id) = x;;
                        ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       The layout of string is non_null_value, because
-         it is the primitive non-null value type string.
+       The layout of string is value, because
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the definition of imm_id at line 1, characters 0-33.
 |}];;
@@ -274,24 +265,11 @@ Line 1, characters 33-46:
                                      ^^^^^^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          'a imm_id = ('a : immediate)
-       The layout of string is non_null_value, because
-         it is the primitive non-null value type string.
+       The layout of string is value, because
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the definition of id_for_imms at line 1, characters 16-35.
 |}]
-
-type ('a : non_null_value) non_null_id = 'a
-
-type my_non_null = t_non_null_value non_null_id
-
-let id_for_non_nulls (x : 'a non_null_id) = x;;
-[%%expect{|
-type ('a : non_null_value) non_null_id = 'a
-type my_non_null = t_non_null_value non_null_id
-val id_for_non_nulls :
-  ('a : non_null_value). 'a non_null_id -> 'a non_null_id = <fun>
-|}]
-
 
 (************************************)
 (* Test 4: parameters and recursion *)
@@ -303,8 +281,8 @@ Line 2, characters 9-15:
 2 | and s4 = string t4;;
              ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       The layout of string is non_null_value, because
-         it is the primitive non-null value type string.
+       The layout of string is value, because
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t4.
 |}];;
@@ -317,8 +295,8 @@ Line 1, characters 10-16:
 1 | type s4 = string t4
               ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       The layout of string is non_null_value, because
-         it is the primitive non-null value type string.
+       The layout of string is value, because
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t4.
 |}]
@@ -350,8 +328,8 @@ Line 3, characters 0-15:
 3 | and s5 = string;;
     ^^^^^^^^^^^^^^^
 Error:
-       The layout of s5 is non_null_value, because
-         it is the primitive non-null value type string.
+       The layout of s5 is value, because
+         it is the primitive value type string.
        But the layout of s5 must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t4.
 |}]
@@ -368,20 +346,6 @@ and ('a : any) t4;;
 [%%expect{|
 type s4 = string t4
 and ('a : any) t4
-|}];;
-
-type s4 = string t4
-and ('a : non_null_value) t4;;
-[%%expect{|
-type s4 = string t4
-and ('a : non_null_value) t4
-|}];;
-
-type s4 = t_non_null_value t4
-and ('a : non_null_value) t4;;
-[%%expect{|
-type s4 = t_non_null_value t4
-and ('a : non_null_value) t4
 |}];;
 
 (************************************************************)
@@ -465,11 +429,9 @@ Error: Non-value layout void detected in [Typeopt.layout] as sort for type
 (* Test 6: explicitly polymorphic types *)
 type ('a : immediate) t6_imm = T6imm of 'a
 type ('a : value) t6_val = T6val of 'a;;
-type ('a : non_null_value) t6_nonnull = T6nonnull of 'a;;
 [%%expect{|
 type ('a : immediate) t6_imm = T6imm of 'a
 type 'a t6_val = T6val of 'a
-type ('a : non_null_value) t6_nonnull = T6nonnull of 'a
 |}];;
 
 let ignore_val6 : 'a . 'a -> unit =
@@ -491,20 +453,6 @@ Error: This definition has type 'b -> unit which is less general than
        But the layout of 'a must be a sublayout of immediate, because
          of the definition of t6_imm at line 1, characters 0-42.
 |}];;
-
-let ignore_nonnull6 : 'a . 'a -> unit =
-  fun a -> let _ = T6nonnull a in ();;
-[%%expect{|
-Line 2, characters 2-36:
-2 |   fun a -> let _ = T6nonnull a in ();;
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This definition has type 'b -> unit which is less general than
-         'a. 'a -> unit
-       The layout of 'a is value, because
-         it is or unifies with an unannotated universal variable.
-       But the layout of 'a must be a sublayout of non_null_value, because
-         of the definition of t6_nonnull at line 3, characters 0-55.
-|}]
 
 let o6 = object
   method ignore_imm6 : 'a . 'a -> unit =
@@ -538,7 +486,7 @@ Line 3, characters 12-21:
 3 | type t7' = (int * int) t7;;
                 ^^^^^^^^^
 Error: This type int * int should be an instance of type ('a : immediate)
-       The layout of int * int is non_null_value, because
+       The layout of int * int is value, because
          it's a tuple type.
        But the layout of int * int must be a sublayout of immediate, because
          of the definition of t7 at line 1, characters 0-37.
@@ -625,16 +573,6 @@ Error: Polymorphic variant constructor argument types must have layout value.
          it's the type of the field of a polymorphic variant.
 |}]
 
-module M8_6 = struct
-  type foo = [ `Foo of int | `Baz of t_non_null_value | `Bar of string ];;
-end;;
-[%%expect{|
-module M8_6 :
-  sig
-    type foo = [ `Bar of string | `Baz of t_non_null_value | `Foo of int ]
-  end
-|}]
-
 (************************************************)
 (* Test 9: Tuples only work on values (for now) *)
 
@@ -697,10 +635,10 @@ Line 4, characters 8-16:
 4 |     | ({vur_void = _},i) -> i
             ^^^^^^^^
 Error: The record field vur_void belongs to the type void_unboxed_record
-       but is mixed here with fields of type ('a : non_null_value)
+       but is mixed here with fields of type ('a : value)
        The layout of void_unboxed_record is void, because
          of the definition of t_void at line 6, characters 0-19.
-       But the layout of void_unboxed_record must be a sublayout of non_null_value, because
+       But the layout of void_unboxed_record must be a sublayout of value, because
          it's a boxed record type.
 |}];;
 
@@ -768,13 +706,6 @@ Error: This expression has type t_void but an expression was expected of type
          it's the type of a tuple element.
 |}];;
 
-module M9_10 = struct
-  type foo = int * t_non_null_value * string;;
-end;;
-[%%expect {|
-module M9_10 : sig type foo = int * t_non_null_value * string end
-|}]
-
 (*************************************************)
 (* Test 10: jkinds are checked by "more general" *)
 
@@ -812,8 +743,8 @@ Error: Signature mismatch:
        is not included in
          val x : string
        The type ('a : immediate) is not compatible with the type string
-       The layout of string is non_null_value, because
-         it is the primitive non-null value type string.
+       The layout of string is value, because
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the definition of x at line 8, characters 10-26.
 |}];;
@@ -853,8 +784,8 @@ Error: Signature mismatch:
          val x : string
        The type 'a t = ('a : immediate) is not compatible with the type
          string
-       The layout of string is non_null_value, because
-         it is the primitive non-null value type string.
+       The layout of string is value, because
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the definition of x at line 8, characters 10-26.
 |}]
@@ -949,21 +880,6 @@ Error: The type constraints are not consistent.
        But the layout of t_void must be a sublayout of value, because
          it's the type of an object field.
 |}];;
-
-module M11_7 = struct
-  type ('a : non_null_value) t = { x : int; v : 'a }
-  type t' = < m : t_non_null_value >
-
-  let f t = t.v # foo
-end;;
-[%%expect{|
-module M11_7 :
-  sig
-    type ('a : non_null_value) t = { x : int; v : 'a; }
-    type t' = < m : t_non_null_value >
-    val f : < foo : 'a; .. > t -> 'a
-  end
-|}]
 
 (*******************************************************************)
 (* Test 12: class parameters and bound vars must have jkind value *)
@@ -1095,18 +1011,6 @@ Error: Variables bound in a class must have layout value.
          it's the type of an instance variable.
 |}];;
 
-module M12_8 = struct
-  class virtual foobar = object
-    val virtual xyz : t_non_null_value
-  end
-end;;
-[%%expect{|
-module M12_8 :
-  sig
-    class virtual foobar : object val virtual xyz : t_non_null_value end
-  end
-|}]
-
 (*************************************************************************)
 (* Test 13: built-in type constructors and support for non-value layouts *)
 
@@ -1151,18 +1055,6 @@ Error: This expression has type ('a : value)
          it's the type of a lazy expression.
 |}];;
 
-type t13 = t_non_null_value Lazy.t
-let x13 (x : t_non_null_value) = lazy x;;
-let y13 x : t_non_null_value =
-  match x with
-  | lazy x -> x
-;;
-[%%expect{|
-type t13 = t_non_null_value Lazy.t
-val x13 : t_non_null_value -> t_non_null_value lazy_t = <fun>
-val y13 : t_non_null_value lazy_t -> t_non_null_value = <fun>
-|}]
-
 (* option *)
 (* CR layouts v5: allow this *)
 type t13 = t_void option;;
@@ -1205,19 +1097,6 @@ Error: This expression has type ('a : value)
        But the layout of t_void must be a sublayout of value, because
          the type argument of option has layout value.
 |}];;
-
-type t13 = t_non_null_value option
-let x13 (x : t_non_null_value) = Some x;;
-let y13 x : t_non_null_value =
-  match x with
-  | Some x -> x
-  | None -> assert false
-;;
-[%%expect{|
-type t13 = t_non_null_value option
-val x13 : t_non_null_value -> t_non_null_value option = <fun>
-val y13 : t_non_null_value option -> t_non_null_value = <fun>
-|}]
 
 (* list *)
 (* CR layouts: should work after relaxing the mixed block restriction. *)
@@ -1262,20 +1141,6 @@ Error: This expression has type ('a : value)
          the type argument of list has layout value.
 |}];;
 
-
-type t13 = t_non_null_value list
-let x13 (x : t_non_null_value) = [x];;
-let y13 x : t_non_null_value =
-  match x with
-  | [x] -> x
-  | _ -> assert false
-;;
-[%%expect{|
-type t13 = t_non_null_value list
-val x13 : t_non_null_value -> t_non_null_value list = <fun>
-val y13 : t_non_null_value list -> t_non_null_value = <fun>
-|}]
-
 (* array *)
 (* CR layouts v4: should work *)
 type t13 = t_void array;;
@@ -1307,20 +1172,6 @@ Error: Non-value detected in [value_kind].
        But the layout of t_void must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}];;
-
-type t13 = t_non_null_value array
-let x13 (x : t_non_null_value) = [|x|];;
-let y13 x : t_non_null_value =
-  match x with
-  | [|x|] -> x
-  | _ -> assert false
-;;
-[%%expect{|
-type t13 = t_non_null_value array
-val x13 : t_non_null_value -> t_non_null_value array = <fun>
-val y13 : t_non_null_value array -> t_non_null_value = <fun>
-|}]
-
 
 (****************************************************************************)
 (* Test 14: Examples motivating the trick with the manifest in [enter_type] *)
@@ -1941,7 +1792,7 @@ Line 2, characters 19-31:
 2 | let f35 : 'a t35 = fun () -> ()
                        ^^^^^^^^^^^^
 Error:
-       The layout of 'a -> 'b is non_null_value, because
+       The layout of 'a -> 'b is value, because
          it's a function type.
        But the layout of 'a -> 'b must be a sublayout of immediate, because
          of the definition of t35 at line 1, characters 0-30.

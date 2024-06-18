@@ -53,8 +53,7 @@ val make_rewrite :
   ctx:rewrite_apply_cont_ctx ->
   Apply_cont_rewrite_id.t ->
   Simple.t list ->
-  ((Bound_var.t * Code_size.t * Flambda.Named.t) list * Simple.t list)
-  Or_invalid.t
+  (Bound_var.t * Code_size.t * Flambda.Named.t) list * Simple.t list
 
 val rewrite_exn_continuation :
   t -> Apply_cont_rewrite_id.t -> Exn_continuation.t -> Exn_continuation.t

@@ -31,15 +31,6 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
        You must enable -extension layouts_alpha to use this feature.
 |}];;
 
-type t_non_null_value : non_null_value;;
-[%%expect{|
-Line 1, characters 24-38:
-1 | type t_non_null_value : non_null_value;;
-                            ^^^^^^^^^^^^^^
-Error: Layout non_null_value is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
-|}]
-
 (******************************************************************)
 (* Test 1: Allow non-representable function args/returns in types *)
 
@@ -614,14 +605,7 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 
 type ('a : any) any4 = Any4 of 'a
 [%%expect{|
-Line 1, characters 23-33:
-1 | type ('a : any) any4 = Any4 of 'a
-                           ^^^^^^^^^^
-Error: Constructor argument types must have a representable layout.
-       The layout of 'a is any, because
-         of the annotation on 'a in the declaration of the type any4.
-       But the layout of 'a must be representable, because
-         it's the type of a constructor field.
+type 'a any4 = Any4 of 'a
 |}];;
 
 (************************************************************)
@@ -2388,8 +2372,8 @@ Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
 Error:
-       The layout of 'a t2 is '_representable_layout_9, because
-         it instantiates an unannotated type parameter of t2.
+       The layout of 'a t2 is value, because
+         it instantiates an unannotated type parameter of t2, defaulted to layout value.
        But the layout of 'a t2 must be a sublayout of immediate, because
          of the annotation on the wildcard _ at line 1, characters 27-36.
 |}]
@@ -2569,4 +2553,231 @@ module N :
     type ('a, 'b) eq = Refl : ('a, 'a) eq
     val f : (M.t, M.t s) eq -> int
   end
+|}]
+
+module N2 = struct
+  type ('a, 'b) eq =
+    | Refl : ('a, 'a) eq
+
+  let f (x : (M.t, ('a : immediate) s) eq) : int =
+    match x with
+    | Refl -> 42
+end
+
+[%%expect{|
+module N2 :
+  sig
+    type ('a, 'b) eq = Refl : ('a, 'a) eq
+    val f : (M.t, M.t s) eq -> int
+  end
+|}]
+
+type ('a : immediate) s_imm = 'a
+
+module N3 = struct
+  type ('a, 'b) eq =
+    | Refl : ('a, 'a) eq
+
+  let f (x : (M.t, 'a s_imm) eq) : int =
+    match x with
+    | Refl -> 42
+end
+
+[%%expect{|
+type ('a : immediate) s_imm = 'a
+module N3 :
+  sig
+    type ('a, 'b) eq = Refl : ('a, 'a) eq
+    val f : (M.t, M.t s_imm) eq -> int
+  end
+|}]
+
+module M2 = struct
+  type t : value
+end
+
+module N4 = struct
+  type ('a, 'b) eq =
+    | Refl : ('a, 'a) eq
+
+  let f (x : (M2.t, 'a s_imm) eq) : int =
+    match x with
+    | Refl -> 42
+end
+
+(* CR layouts v2.9: This message is rubbish. *)
+[%%expect{|
+module M2 : sig type t : value end
+Line 11, characters 6-10:
+11 |     | Refl -> 42
+           ^^^^
+Error: This pattern matches values of type (M2.t, M2.t) eq
+       but a pattern was expected which matches values of type
+         (M2.t, $'a s_imm) eq
+       Type M2.t is not compatible with type $'a s_imm = $'a
+       The type constructor $'a would escape its scope
+|}]
+
+module N5 = struct
+  type ('a : any, 'b : any) eq =
+    | Refl : ('a : any). ('a, 'a) eq
+
+  let f (x : (M2.t, ('a : bits64)) eq) : int =
+    match x with
+    | Refl -> 42
+end
+
+(* CR layouts v2.9: This message is rubbish. *)
+[%%expect{|
+Line 7, characters 6-10:
+7 |     | Refl -> 42
+          ^^^^
+Error: This pattern matches values of type (M2.t, M2.t) eq
+       but a pattern was expected which matches values of type (M2.t, $'a) eq
+       The type constructor $'a would escape its scope
+|}]
+
+module M2 = struct
+  type 'a t : immediate
+end
+
+module N6 = struct
+  type ('a,'b) eq =
+    | Refl : ('a, 'a) eq
+
+  let f (x : (_ M2.t, 'a s) eq) : int =
+    match x with
+    | Refl -> 42
+end
+
+[%%expect{|
+module M2 : sig type 'a t : immediate end
+module N6 :
+  sig
+    type ('a, 'b) eq = Refl : ('a, 'a) eq
+    val f : ('a M2.t, 'a M2.t s) eq -> int
+  end
+|}]
+
+type ('a : any) is_value =
+  | V : ('a : value) is_value
+
+module A : sig
+  type 'a t : any
+
+  val is_value : 'a t is_value
+end = struct
+  type 'a t = int
+
+  let is_value = V
+end
+
+let magic (type a) (x : a A.t is_value) : 'b =
+  match x with
+  | _ -> .
+
+let not_so_good : 'b = magic A.is_value
+
+[%%expect{|
+type ('a : any) is_value = V : 'a is_value
+module A : sig type 'a t : any val is_value : 'a t is_value end
+Line 16, characters 4-5:
+16 |   | _ -> .
+         ^
+Error: This match case could not be refuted.
+       Here is an example of a value that would reach it: V
+|}]
+
+type ('a : any) is_value =
+  | V : ('a : value) is_value
+
+type t : float64
+
+let refute (x : t is_value) =
+  match x with
+  | _ -> .
+
+[%%expect{|
+type ('a : any) is_value = V : 'a is_value
+type t : float64
+val refute : t is_value -> 'a = <fun>
+|}]
+
+type ('a : any) is_value =
+  | V : ('a : value) is_value
+
+type 'a t : float64
+
+let refute (x : 'a t is_value) =
+  match x with
+  | _ -> .
+
+[%%expect{|
+type ('a : any) is_value = V : 'a is_value
+type 'a t : float64
+val refute : 'a t is_value -> 'b = <fun>
+|}]
+
+(***********************************)
+(* Test 44: Kind-checking in mcomp *)
+
+type (!'a : any) inj
+
+module type S = sig
+  type 'a value : value
+  type 'a bits64 : bits64
+end
+
+type ('a : any) s = 'a
+
+(* These all have to use polymorphic variants to avoid getting handled
+   by special cases in unification: we're trying to trigger the call to
+   [mcomp_for] in [unify3_var]. *)
+module F (X : S) = struct
+  let f1 : ([ `K of 'a X.bits64 inj ], [ `K of 'a X.value inj ]) eq -> _ =
+    function _ -> .
+  let f2 : ([ `K of 'a X.bits64 inj ], [ `K of (int -> int) inj ]) eq -> _ =
+    function _ -> .
+  let f3 : ([ `K of 'a X.bits64 inj ], [ `K of ('b : value) inj ]) eq -> _ =
+    function _ -> .
+  let f4 : ([ `K of ('b : value) inj ], [ `K of 'a X.bits64 inj ]) eq -> _ =
+    function _ -> .
+  let f5 : ([ `K of 'a X.bits64 s inj ], [ `K of ('b : value) s inj ]) eq -> _ =
+    function _ -> .
+  let f6 : ([ `K of ('b : value) s inj ], [ `K of 'a X.bits64 s inj ]) eq -> _ =
+    function _ -> .
+end
+
+[%%expect{|
+type (!'a : any) inj
+module type S = sig type 'a value : value type 'a bits64 : bits64 end
+type ('a : any) s = 'a
+module F :
+  functor (X : S) ->
+    sig
+      val f1 : ([ `K of 'a X.bits64 inj ], [ `K of 'a X.value inj ]) eq -> 'b
+      val f2 :
+        ([ `K of 'a X.bits64 inj ], [ `K of (int -> int) inj ]) eq -> 'b
+      val f3 : ([ `K of 'a X.bits64 inj ], [ `K of 'b inj ]) eq -> 'c
+      val f4 : ([ `K of 'b inj ], [ `K of 'a X.bits64 inj ]) eq -> 'c
+      val f5 : ([ `K of 'a X.bits64 s inj ], [ `K of 'b s inj ]) eq -> 'c
+      val f6 : ([ `K of 'b s inj ], [ `K of 'a X.bits64 s inj ]) eq -> 'c
+    end
+|}]
+
+(* This naturally doesn't work if the type isn't injective *)
+type ('a : any) not_inj
+
+module F (X : S) = struct
+  let f1 : ([ `K of 'a X.bits64 not_inj ], [ `K of 'a X.value not_inj ]) eq -> _ =
+    function _ -> .
+end
+
+[%%expect{|
+type ('a : any) not_inj
+Line 5, characters 13-14:
+5 |     function _ -> .
+                 ^
+Error: This match case could not be refuted.
+       Here is an example of a value that would reach it: Refl
 |}]

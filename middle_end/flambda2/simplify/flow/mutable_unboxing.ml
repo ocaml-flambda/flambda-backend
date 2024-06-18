@@ -664,8 +664,7 @@ let add_to_extra_params_and_args result =
             let epa_for_cont =
               List.fold_left2
                 (fun epa_for_cont extra_param extra_args ->
-                  EPA.add epa_for_cont ~extra_param ~extra_args
-                    ~invalids:Apply_cont_rewrite_id.Set.empty)
+                  EPA.add epa_for_cont ~extra_param ~extra_args)
                 epa_for_cont extra_params extra_args
             in
             Some epa_for_cont)

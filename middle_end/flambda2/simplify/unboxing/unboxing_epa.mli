@@ -17,8 +17,6 @@
 (** Handling of the extra params and args required for the unboxing of a
     continuation's parameter(s). *)
 
-exception Invalid_apply_cont
-
 type unboxed_arg =
   | Poison (* used for recursive calls *)
   | Available of Simple.t
@@ -35,6 +33,5 @@ val compute_extra_args_for_one_decision_and_use :
 
 val add_extra_params_and_args :
   Continuation_extra_params_and_args.t ->
-  invalids:Apply_cont_rewrite_id.Set.t ->
   Unboxing_types.decision ->
   Continuation_extra_params_and_args.t
