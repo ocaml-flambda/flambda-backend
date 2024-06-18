@@ -6,6 +6,7 @@
    bad_instance_arg_value_not_arg.ml bad_instance_arg_value_not_arg.reference \
    bad_instance_arg_value_not_found.ml bad_instance_arg_value_not_found.reference \
    bad_instance_arg_value_wrong_type.ml bad_instance_arg_value_wrong_type.reference \
+   bad_instantiate_not_arg.reference \
    bad_instantiate_not_parameterised.reference \
    bad_ref_direct.ml bad_ref_direct.reference \
    bad_ref_direct_imported.ml bad_ref_direct_imported.reference \
@@ -28,6 +29,7 @@
    string_semigroup.ml string_semigroup.mli \
    test.reference \
    test_direct_access.ml test_direct_access.reference \
+   widget.ml widget.mli \
  ";
  {
    setup-ocamlc.byte-build-env;
@@ -219,6 +221,10 @@
          module = "int_list_element.mli int_list_element.ml";
          ocamlc.byte;
 
+         flags = "";
+         module = "widget.mli widget.ml";
+         ocamlc.byte;
+
          (* CR lmaurer: I'm indenting everything after these [bad_instantiate_*] tests
             under protest. See PR 2693 for a better way. *)
 
@@ -232,6 +238,17 @@
            ocamlc.byte;
 
            compiler_reference = "bad_instantiate_not_parameterised.reference";
+           check-ocamlc.byte-output;
+         }{
+           module = "";
+           flags = "-instantiate";
+           program = "list_monoid-Widget.cmo";
+           all_modules = "list_monoid.cmo widget.cmo";
+           compiler_output = "bad_instantiate_not_arg.output";
+           ocamlc_byte_exit_status = "2";
+           ocamlc.byte;
+
+           compiler_reference = "bad_instantiate_not_arg.reference";
            check-ocamlc.byte-output;
          }{
            module = "";
@@ -557,6 +574,10 @@
          module = "int_list_element.mli int_list_element.ml";
          ocamlopt.byte;
 
+         flags = "";
+         module = "widget.mli widget.ml";
+         ocamlopt.byte;
+
          (* CR lmaurer: I'm indenting everything after these [bad_instantiate_*] tests
             under protest. See PR 2693 for a better way. *)
 
@@ -570,6 +591,17 @@
            ocamlopt.byte;
 
            compiler_reference = "bad_instantiate_not_parameterised.reference";
+           check-ocamlopt.byte-output;
+         }{
+           module = "";
+           flags = "-instantiate";
+           program = "list_monoid-Widget.cmx";
+           all_modules = "list_monoid.cmx widget.cmx";
+           compiler_output = "bad_instantiate_not_arg.output";
+           ocamlopt_byte_exit_status = "2";
+           ocamlopt.byte;
+
+           compiler_reference = "bad_instantiate_not_arg.reference";
            check-ocamlopt.byte-output;
          }{
            module = "";
