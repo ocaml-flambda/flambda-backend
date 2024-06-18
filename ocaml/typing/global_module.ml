@@ -13,6 +13,8 @@ module Name : sig
 
   val unsafe_create_unchecked : string -> (t * t) list -> t
 
+  val to_string : t -> string
+
   include Identifiable.S with type t := t
 end = struct
   type t = {
@@ -66,6 +68,8 @@ end = struct
     t
 
   let unsafe_create_unchecked head args = { head; args }
+
+  let to_string = print |> Misc.to_string_of_print
 end
 
 let compare_arg_name (name1, _) (name2, _) = Name.compare name1 name2
@@ -173,6 +177,8 @@ end = struct
 end
 
 include T0
+
+let to_string = print |> Misc.to_string_of_print
 
 let all_args t = t.visible_args @ t.hidden_args
 
