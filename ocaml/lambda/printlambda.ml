@@ -282,6 +282,7 @@ let print_bigarray name unsafe kind ppf layout =
     (match kind with
      | Pbigarray_unknown -> "generic"
      | Pbigarray_float32 -> "float32"
+     | Pbigarray_float32_t -> "float32_t"
      | Pbigarray_float64 -> "float64"
      | Pbigarray_sint8 -> "sint8"
      | Pbigarray_uint8 -> "uint8"

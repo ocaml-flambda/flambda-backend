@@ -428,7 +428,8 @@ and boxed_vector =
 
 and bigarray_kind =
     Pbigarray_unknown
-  | Pbigarray_float32 | Pbigarray_float64
+  | Pbigarray_float32 | Pbigarray_float32_t
+  | Pbigarray_float64
   | Pbigarray_sint8 | Pbigarray_uint8
   | Pbigarray_sint16 | Pbigarray_uint16
   | Pbigarray_int32 | Pbigarray_int64
@@ -1944,6 +1945,7 @@ let primitive_result_layout (p : primitive) =
       | Pbigarray_float32 ->
         (* float32 bigarrays return 64-bit floats for backward compatibility. *)
         layout_boxed_float Pfloat64
+      | Pbigarray_float32_t -> layout_boxed_float Pfloat32
       | Pbigarray_float64 -> layout_boxed_float Pfloat64
       | Pbigarray_sint8 | Pbigarray_uint8
       | Pbigarray_sint16 | Pbigarray_uint16

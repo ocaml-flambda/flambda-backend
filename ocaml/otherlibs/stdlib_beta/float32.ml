@@ -327,3 +327,57 @@ module Bigstring = struct
   external unsafe_set : t -> pos:int -> float32 -> unit
     = "%caml_bigstring_setf32u"
 end
+
+module Bigarray = struct
+  open Bigarray
+
+  module Array1 = struct
+    external get : ('a, float32_elt, 'c) Array1.t -> int -> float32
+      = "%caml_ba_float32_ref_1"
+
+    external set : ('a, float32_elt, 'c) Array1.t -> int -> float32 -> unit
+      = "%caml_ba_float32_set_1"
+
+    external unsafe_get : ('a, float32_elt, 'c) Array1.t -> int -> float32
+      = "%caml_ba_float32_unsafe_ref_1"
+
+    external unsafe_set :
+      ('a, float32_elt, 'c) Array1.t -> int -> float32 -> unit
+      = "%caml_ba_float32_unsafe_set_1"
+  end
+
+  module Array2 = struct
+    external get : ('a, float32_elt, 'c) Array2.t -> int -> int -> float32
+      = "%caml_ba_float32_ref_2"
+
+    external set :
+      ('a, float32_elt, 'c) Array2.t -> int -> int -> float32 -> unit
+      = "%caml_ba_float32_set_2"
+
+    external unsafe_get :
+      ('a, float32_elt, 'c) Array2.t -> int -> int -> float32
+      = "%caml_ba_float32_unsafe_ref_2"
+
+    external unsafe_set :
+      ('a, float32_elt, 'c) Array2.t -> int -> int -> float32 -> unit
+      = "%caml_ba_float32_unsafe_set_2"
+  end
+
+  module Array3 = struct
+    external get :
+      ('a, float32_elt, 'c) Array3.t -> int -> int -> int -> float32
+      = "%caml_ba_float32_ref_3"
+
+    external set :
+      ('a, float32_elt, 'c) Array3.t -> int -> int -> int -> float32 -> unit
+      = "%caml_ba_float32_set_3"
+
+    external unsafe_get :
+      ('a, float32_elt, 'c) Array3.t -> int -> int -> int -> float32
+      = "%caml_ba_float32_unsafe_ref_3"
+
+    external unsafe_set :
+      ('a, float32_elt, 'c) Array3.t -> int -> int -> int -> float32 -> unit
+      = "%caml_ba_float32_unsafe_set_3"
+  end
+end

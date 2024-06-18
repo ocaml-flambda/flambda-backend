@@ -227,3 +227,25 @@ module Bigstring = struct
   external unsafe_set : t -> pos:int -> float32# -> unit = "%caml_bigstring_setf32u#"
 end
 
+module Bigarray = struct
+  module Array1 = struct
+    let get ba ix = of_float32 (Float32.Bigarray.Array1.get ba ix)
+    let set ba ix x = Float32.Bigarray.Array1.set ba ix (to_float32 x)
+    let unsafe_get ba ix = of_float32 (Float32.Bigarray.Array1.unsafe_get ba ix)
+    let unsafe_set ba ix x = Float32.Bigarray.Array1.unsafe_set ba ix (to_float32 x)
+  end
+
+  module Array2 = struct
+    let get ba ix iy = of_float32 (Float32.Bigarray.Array2.get ba ix iy)
+    let set ba ix iy x = Float32.Bigarray.Array2.set ba ix iy (to_float32 x)
+    let unsafe_get ba ix iy = of_float32 (Float32.Bigarray.Array2.unsafe_get ba ix iy)
+    let unsafe_set ba ix iy x = Float32.Bigarray.Array2.unsafe_set ba ix iy (to_float32 x)
+  end
+
+  module Array3 = struct
+    let get ba ix iy iz = of_float32 (Float32.Bigarray.Array3.get ba ix iy iz)
+    let set ba ix iy iz x = Float32.Bigarray.Array3.set ba ix iy iz (to_float32 x)
+    let unsafe_get ba ix iy iz = of_float32 (Float32.Bigarray.Array3.unsafe_get ba ix iy iz)
+    let unsafe_set ba ix iy iz x = Float32.Bigarray.Array3.unsafe_set ba ix iy iz (to_float32 x)
+  end
+end

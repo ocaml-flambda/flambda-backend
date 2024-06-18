@@ -488,6 +488,54 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive
         ((Pbigarrayset(true, 3, Pbigarray_unknown, Pbigarray_unknown_layout)),
          5);
+    | "%caml_ba_float32_ref_1" ->
+      Primitive
+        ((Pbigarrayref(false, 1, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         2);
+    | "%caml_ba_float32_ref_2" ->
+      Primitive
+        ((Pbigarrayref(false, 2, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         3);
+    | "%caml_ba_float32_ref_3" ->
+      Primitive
+        ((Pbigarrayref(false, 3, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         4);
+    | "%caml_ba_float32_set_1" ->
+      Primitive
+        ((Pbigarrayset(false, 1, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         3);
+    | "%caml_ba_float32_set_2" ->
+      Primitive
+        ((Pbigarrayset(false, 2, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         4);
+    | "%caml_ba_float32_set_3" ->
+      Primitive
+        ((Pbigarrayset(false, 3, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         5);
+    | "%caml_ba_float32_unsafe_ref_1" ->
+      Primitive
+        ((Pbigarrayref(true, 1, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         2);
+    | "%caml_ba_float32_unsafe_ref_2" ->
+      Primitive
+        ((Pbigarrayref(true, 2, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         3);
+    | "%caml_ba_float32_unsafe_ref_3" ->
+      Primitive
+        ((Pbigarrayref(true, 3, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         4);
+    | "%caml_ba_float32_unsafe_set_1" ->
+      Primitive
+        ((Pbigarrayset(true, 1, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         3);
+    | "%caml_ba_float32_unsafe_set_2" ->
+      Primitive
+        ((Pbigarrayset(true, 2, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         4);
+    | "%caml_ba_float32_unsafe_set_3" ->
+      Primitive
+        ((Pbigarrayset(true, 3, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         5);
     | "%caml_ba_dim_1" -> Primitive ((Pbigarraydim(1)), 1)
     | "%caml_ba_dim_2" -> Primitive ((Pbigarraydim(2)), 1)
     | "%caml_ba_dim_3" -> Primitive ((Pbigarraydim(3)), 1)

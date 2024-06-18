@@ -653,18 +653,20 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigarrayref
       ( true,
         _,
-        ( Pbigarray_float32 | Pbigarray_float64 | Pbigarray_sint8
-        | Pbigarray_uint8 | Pbigarray_sint16 | Pbigarray_uint16
-        | Pbigarray_int32 | Pbigarray_int64 | Pbigarray_caml_int
-        | Pbigarray_native_int | Pbigarray_complex32 | Pbigarray_complex64 ),
+        ( Pbigarray_float32 | Pbigarray_float32_t | Pbigarray_float64
+        | Pbigarray_sint8 | Pbigarray_uint8 | Pbigarray_sint16
+        | Pbigarray_uint16 | Pbigarray_int32 | Pbigarray_int64
+        | Pbigarray_caml_int | Pbigarray_native_int | Pbigarray_complex32
+        | Pbigarray_complex64 ),
         _ )
   | Pbigarrayset
       ( true,
         _,
-        ( Pbigarray_float32 | Pbigarray_float64 | Pbigarray_sint8
-        | Pbigarray_uint8 | Pbigarray_sint16 | Pbigarray_uint16
-        | Pbigarray_int32 | Pbigarray_int64 | Pbigarray_caml_int
-        | Pbigarray_native_int | Pbigarray_complex32 | Pbigarray_complex64 ),
+        ( Pbigarray_float32 | Pbigarray_float32_t | Pbigarray_float64
+        | Pbigarray_sint8 | Pbigarray_uint8 | Pbigarray_sint16
+        | Pbigarray_uint16 | Pbigarray_int32 | Pbigarray_int64
+        | Pbigarray_caml_int | Pbigarray_native_int | Pbigarray_complex32
+        | Pbigarray_complex64 ),
         (Pbigarray_c_layout | Pbigarray_fortran_layout) )
   | Pstring_load_16 true
   | Pstring_load_32 (true, _)

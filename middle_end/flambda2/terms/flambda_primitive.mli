@@ -241,6 +241,7 @@ type equality_comparison =
 module Bigarray_kind : sig
   type t =
     | Float32
+    | Float32_t
     | Float64
     | Sint8
     | Uint8

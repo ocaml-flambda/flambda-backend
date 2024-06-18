@@ -593,3 +593,102 @@ module Bigstring : sig
   (** [unsafe_set b ~pos f] stores a float32 to [b] at an offset of [pos] bytes.
       Does not check that [pos] is a valid offset. *)
 end
+
+module Bigarray : sig
+  open Bigarray
+
+  module Array1 : sig
+    external get : ('a, float32_elt, 'c) Array1.t -> int -> float32
+      = "%caml_ba_float32_ref_1"
+    (** [Array1.get a x], or alternatively [a.{x}],
+        returns the element of [a] at index [x].
+        [x] must be greater or equal than [0] and strictly less than
+        [Array1.dim a] if [a] has C layout.  If [a] has Fortran layout,
+        [x] must be greater or equal than [1] and less or equal than
+        [Array1.dim a].  Otherwise, [Invalid_argument] is raised. *)
+
+    external set : ('a, float32_elt, 'c) Array1.t -> int -> float32 -> unit
+      = "%caml_ba_float32_set_1"
+    (** [Array1.set a x v], also written [a.{x} <- v],
+        stores the value [v] at index [x] in [a].
+        [x] must be inside the bounds of [a] as described in
+        {!Bigarray.Array1.get};
+        otherwise, [Invalid_argument] is raised. *)
+
+    external unsafe_get : ('a, float32_elt, 'c) Array1.t -> int -> float32
+      = "%caml_ba_float32_unsafe_ref_1"
+    (** Like {!Bigarray.Array1.get}, but bounds checking is not always performed.
+        Use with caution and only when the program logic guarantees that
+        the access is within bounds. *)
+
+    external unsafe_set :
+      ('a, float32_elt, 'c) Array1.t -> int -> float32 -> unit
+      = "%caml_ba_float32_unsafe_set_1"
+    (** Like {!Bigarray.Array1.set}, but bounds checking is not always performed.
+        Use with caution and only when the program logic guarantees that
+        the access is within bounds. *)
+  end
+
+  module Array2 : sig
+    external get : ('a, float32_elt, 'c) Array2.t -> int -> int -> float32
+      = "%caml_ba_float32_ref_2"
+    (** [Array2.get a x y], also written [a.{x,y}],
+      returns the element of [a] at coordinates ([x], [y]).
+      [x] and [y] must be within the bounds
+      of [a], as described for {!Bigarray.Genarray.get};
+      otherwise, [Invalid_argument] is raised. *)
+
+    external set :
+      ('a, float32_elt, 'c) Array2.t -> int -> int -> float32 -> unit
+      = "%caml_ba_float32_set_2"
+    (** [Array2.set a x y v], or alternatively [a.{x,y} <- v],
+      stores the value [v] at coordinates ([x], [y]) in [a].
+      [x] and [y] must be within the bounds of [a],
+      as described for {!Bigarray.Genarray.set};
+      otherwise, [Invalid_argument] is raised. *)
+
+    external unsafe_get :
+      ('a, float32_elt, 'c) Array2.t -> int -> int -> float32
+      = "%caml_ba_float32_unsafe_ref_2"
+    (** Like {!Bigarray.Array2.get}, but bounds checking is not always
+        performed. *)
+
+    external unsafe_set :
+      ('a, float32_elt, 'c) Array2.t -> int -> int -> float32 -> unit
+      = "%caml_ba_float32_unsafe_set_2"
+    (** Like {!Bigarray.Array2.set}, but bounds checking is not always
+        performed. *)
+  end
+
+  module Array3 : sig
+    external get :
+      ('a, float32_elt, 'c) Array3.t -> int -> int -> int -> float32
+      = "%caml_ba_float32_ref_3"
+    (** [Array3.get a x y z], also written [a.{x,y,z}],
+        returns the element of [a] at coordinates ([x], [y], [z]).
+        [x], [y] and [z] must be within the bounds of [a],
+        as described for {!Bigarray.Genarray.get};
+        otherwise, [Invalid_argument] is raised. *)
+
+    external set :
+      ('a, float32_elt, 'c) Array3.t -> int -> int -> int -> float32 -> unit
+      = "%caml_ba_float32_set_3"
+    (** [Array3.set a x y v], or alternatively [a.{x,y,z} <- v],
+        stores the value [v] at coordinates ([x], [y], [z]) in [a].
+        [x], [y] and [z] must be within the bounds of [a],
+        as described for {!Bigarray.Genarray.set};
+        otherwise, [Invalid_argument] is raised. *)
+
+    external unsafe_get :
+      ('a, float32_elt, 'c) Array3.t -> int -> int -> int -> float32
+      = "%caml_ba_float32_unsafe_ref_3"
+    (** Like {!Bigarray.Array3.get}, but bounds checking is not always
+        performed. *)
+
+    external unsafe_set :
+      ('a, float32_elt, 'c) Array3.t -> int -> int -> int -> float32 -> unit
+      = "%caml_ba_float32_unsafe_set_3"
+    (** Like {!Bigarray.Array3.set}, but bounds checking is not always
+        performed. *)
+  end
+end

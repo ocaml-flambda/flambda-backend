@@ -719,6 +719,7 @@ let print_equality_comparison ppf op =
 module Bigarray_kind = struct
   type t =
     | Float32
+    | Float32_t
     | Float64
     | Sint8
     | Uint8
@@ -734,6 +735,7 @@ module Bigarray_kind = struct
   let element_kind t =
     match t with
     | Float32 | Float64 -> K.naked_float
+    | Float32_t -> K.naked_float32
     | Sint8 | Uint8 | Sint16 | Uint16 -> K.naked_immediate
     | Int32 -> K.naked_int32
     | Int64 -> K.naked_int64
@@ -747,6 +749,7 @@ module Bigarray_kind = struct
     let fprintf = Format.fprintf in
     match t with
     | Float32 -> fprintf ppf "Float32"
+    | Float32_t -> fprintf ppf "Float32_t"
     | Float64 -> fprintf ppf "Float64"
     | Sint8 -> fprintf ppf "Sint8"
     | Uint8 -> fprintf ppf "Uint8"
@@ -763,6 +766,7 @@ module Bigarray_kind = struct
     match kind with
     | Pbigarray_unknown -> None
     | Pbigarray_float32 -> Some Float32
+    | Pbigarray_float32_t -> Some Float32_t
     | Pbigarray_float64 -> Some Float64
     | Pbigarray_sint8 -> Some Sint8
     | Pbigarray_uint8 -> Some Uint8
@@ -778,6 +782,7 @@ module Bigarray_kind = struct
   let to_lambda t : Lambda.bigarray_kind =
     match t with
     | Float32 -> Pbigarray_float32
+    | Float32_t -> Pbigarray_float32_t
     | Float64 -> Pbigarray_float64
     | Sint8 -> Pbigarray_sint8
     | Uint8 -> Pbigarray_uint8
@@ -813,8 +818,8 @@ let reading_from_a_bigarray kind =
     ( Effects.Only_generative_effects Immutable,
       Coeffects.Has_coeffects,
       Placement.Strict )
-  | Float32 | Float64 | Sint8 | Uint8 | Sint16 | Uint16 | Int32 | Int64
-  | Int_width_int | Targetint_width_int ->
+  | Float32 | Float32_t | Float64 | Sint8 | Uint8 | Sint16 | Uint16 | Int32
+  | Int64 | Int_width_int | Targetint_width_int ->
     Effects.No_effects, Coeffects.Has_coeffects, Placement.Strict
 
 (* The bound checks are taken care of outside the array primitive (using an
@@ -822,8 +827,8 @@ let reading_from_a_bigarray kind =
    lambda_to_flambda_primitives.ml). *)
 let writing_to_a_bigarray kind =
   match (kind : Bigarray_kind.t) with
-  | Float32 | Float64 | Sint8 | Uint8 | Sint16 | Uint16 | Int32 | Int64
-  | Int_width_int | Targetint_width_int | Complex32
+  | Float32 | Float32_t | Float64 | Sint8 | Uint8 | Sint16 | Uint16 | Int32
+  | Int64 | Int_width_int | Targetint_width_int | Complex32
   | Complex64
     (* Technically, the write of a complex generates read of fields from the
        given complex, but since those reads are immutable, there is no
