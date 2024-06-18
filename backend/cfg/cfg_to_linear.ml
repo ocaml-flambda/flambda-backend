@@ -328,8 +328,7 @@ let need_starting_label (cfg_with_layout : CL.t) (block : Cfg.basic_block)
       (* This block has a single predecessor which appears in the layout
          immediately prior to this block. *)
       (* No need for the label, unless the predecessor's terminator is [Switch]
-         when the label is needed for the jump table; or [Poll_and_jump], in
-         which case there will always be a jump to such label. *)
+         when the label is needed for the jump table. *)
       match prev_block.terminator.desc with
       | Switch _ -> true
       | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
