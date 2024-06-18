@@ -22,14 +22,14 @@ val instantiate
   -> unit
 
 type error =
-  | Not_compiled_as_parameter of { cm_path : Misc.filepath }
+  | Not_compiled_as_parameter of CU.t
   | Incorrect_target_filename of {
       expected_basename : Misc.filepath;
       expected_extension : string;
       actual_basename : Misc.filepath;
       compilation_unit : CU.t;
     }
-  | Not_parameterised of { cm_path : Misc.filepath }
+  | Not_parameterised of CU.t
   | Missing_argument of { param : Global_module.Name.t }
 
 exception Error of error

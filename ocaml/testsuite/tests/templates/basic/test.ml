@@ -6,8 +6,7 @@
    bad_instance_arg_value_not_arg.ml bad_instance_arg_value_not_arg.reference \
    bad_instance_arg_value_not_found.ml bad_instance_arg_value_not_found.reference \
    bad_instance_arg_value_wrong_type.ml bad_instance_arg_value_wrong_type.reference \
-   bad_instantiate_not_parameterised_cmo.reference \
-   bad_instantiate_not_parameterised_cmx.reference \
+   bad_instantiate_not_parameterised.reference \
    bad_ref_direct.ml bad_ref_direct.reference \
    bad_ref_direct_imported.ml bad_ref_direct_imported.reference \
    bad_ref_indirect.ml bad_ref_indirect.reference \
@@ -228,11 +227,11 @@
            flags = "-instantiate";
            program = "int_list_element-String_semigroup.cmo";
            all_modules = "int_list_element.cmo string_semigroup.cmo";
-           compiler_output = "bad_instantiate_not_parameterised_cmo.output";
+           compiler_output = "bad_instantiate_not_parameterised.output";
            ocamlc_byte_exit_status = "2";
            ocamlc.byte;
 
-           compiler_reference = "bad_instantiate_not_parameterised_cmo.reference";
+           compiler_reference = "bad_instantiate_not_parameterised.reference";
            check-ocamlc.byte-output;
          }{
            module = "";
@@ -566,11 +565,11 @@
            flags = "-instantiate";
            program = "int_list_element-String_semigroup.cmx";
            all_modules = "int_list_element.cmx string_semigroup.cmx";
-           compiler_output = "bad_instantiate_not_parameterised_cmx.output";
+           compiler_output = "bad_instantiate_not_parameterised.output";
            ocamlopt_byte_exit_status = "2";
            ocamlopt.byte;
 
-           compiler_reference = "bad_instantiate_not_parameterised_cmx.reference";
+           compiler_reference = "bad_instantiate_not_parameterised.reference";
            check-ocamlopt.byte-output;
          }{
            module = "";

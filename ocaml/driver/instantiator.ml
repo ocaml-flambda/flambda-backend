@@ -1,14 +1,14 @@
 module CU = Compilation_unit
 
 type error =
-  | Not_compiled_as_parameter of { cm_path : Misc.filepath }
+  | Not_compiled_as_parameter of CU.t
   | Incorrect_target_filename of {
       expected_basename : Misc.filepath;
       expected_extension : string;
       actual_basename : Misc.filepath;
       compilation_unit : CU.t;
     }
-  | Not_parameterised of { cm_path : Misc.filepath }
+  | Not_parameterised of CU.t
   | Missing_argument of { param : Global_module.Name.t }
 
 
@@ -29,7 +29,7 @@ let instantiate
   let arg_info_of_cm_path cm_path =
     let unit_infos = read_unit_info cm_path in
     match unit_infos.ui_arg_descr with
-    | None -> error (Not_compiled_as_parameter { cm_path })
+    | None -> error (Not_compiled_as_parameter unit_infos.ui_unit)
     | Some { arg_param; arg_block_field } ->
       arg_param, (unit_infos.ui_unit, arg_block_field)
   in
@@ -65,7 +65,7 @@ let instantiate
   let runtime_params, main_module_block_size =
     match unit_infos.ui_format with
     | Mb_record _ ->
-      error (Not_parameterised { cm_path = src })
+      error (Not_parameterised unit_infos.ui_unit)
     | Mb_wrapped_function { mb_runtime_params; mb_returned_size } ->
       mb_runtime_params, mb_returned_size
   in
@@ -107,10 +107,10 @@ let instantiate
 open Format
 
 let report_error ppf = function
-  | Not_compiled_as_parameter { cm_path } ->
+  | Not_compiled_as_parameter compilation_unit ->
     fprintf ppf
       "Argument must be compiled with -as-parameter-for: %a"
-      Location.print_filename cm_path
+      CU.print compilation_unit
   | Incorrect_target_filename
       { expected_basename; expected_extension; actual_basename = _;
         compilation_unit } ->
@@ -120,9 +120,9 @@ let report_error ppf = function
       expected_basename
       expected_extension
       CU.print compilation_unit
-  | Not_parameterised { cm_path } ->
+  | Not_parameterised compilation_unit ->
     fprintf ppf "%a must be compiled with at least one -parameter"
-      Location.print_filename cm_path
+      CU.print compilation_unit
   | Missing_argument { param } ->
     fprintf ppf "No argument given for parameter %a"
       Global_module.Name.print param
