@@ -573,6 +573,11 @@ let submode ~loc ~env ?(reason = Other) ?shared_context mode expected_mode =
       in
       raise (Error(loc, env, error))
 
+let actual_submode ~loc ~env ?reason (actual_mode : Env.actual_mode)
+    expected_mode =
+  submode ~loc ~env ?reason ?shared_context:actual_mode.context actual_mode.mode
+    expected_mode
+
 let escape ~loc ~env ~reason m =
   submode ~loc ~env ~reason m mode_legacy
 
@@ -802,6 +807,11 @@ let mode_cross_left env ty mode =
     Value.meet_const upper_bounds mode
   in
   mode |> Value.disallow_right
+
+let actual_mode_cross_left env ty (actual_mode : Env.actual_mode)
+  : Env.actual_mode =
+  let mode = mode_cross_left env ty actual_mode.mode in
+  {actual_mode with mode}
 
 (** Mode cross a mode whose monadic fragment is a right mode, and whose comonadic
     fragment is a left mode. *)
@@ -5180,7 +5190,9 @@ and type_expect_
         jexp
   | None -> match desc with
   | Pexp_ident lid ->
-      let path, {Env.mode; context}, desc, kind = type_ident env ~recarg lid in
+      let path, (actual_mode : Env.actual_mode), desc, kind =
+        type_ident env ~recarg lid
+      in
       let exp_desc =
         match desc.val_kind with
         | Val_ivar (_, cl_num) ->
@@ -5197,10 +5209,10 @@ and type_expect_
               Env.find_value_by_name (Longident.Lident ("self-" ^ cl_num)) env
             in
             Texp_ident(path, lid, desc, kind,
-              unique_use ~loc ~env mode expected_mode.mode)
+              unique_use ~loc ~env actual_mode.mode expected_mode.mode)
         | _ ->
             Texp_ident(path, lid, desc, kind,
-              unique_use ~loc ~env mode expected_mode.mode)
+              unique_use ~loc ~env actual_mode.mode expected_mode.mode)
       in
       let exp = rue {
         exp_desc; exp_loc = loc; exp_extra = [];
@@ -5208,7 +5220,7 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
       in
-      submode ~loc ~env ?shared_context:context mode expected_mode;
+      actual_submode ~loc ~env actual_mode expected_mode;
       exp
   | Pexp_constant(Pconst_string (str, _, _) as cst) -> (
       let cst = constant_or_raise env loc cst in
@@ -6582,8 +6594,7 @@ and type_ident env ?(recarg=Rejected) lid =
   (* Mode crossing here is needed only because of the strange behaviour of
   [type_let] - it checks the LHS before RHS. Had it checks the RHS before LHS,
   identifiers would be mode crossed when being added to the environment. *)
-  let mode = mode_cross_left env desc.val_type actual_mode.mode in
-  let actual_mode = {actual_mode with mode} in
+  let actual_mode = actual_mode_cross_left env desc.val_type actual_mode in
   let is_recarg =
     match get_desc desc.val_type with
     | Tconstr(p, _, _) -> Path.is_constructor_typath p
@@ -6620,8 +6631,8 @@ and type_ident env ?(recarg=Rejected) lid =
 and type_binding_op_ident env s =
   let loc = s.loc in
   let lid = Location.mkloc (Longident.Lident s.txt) loc in
-  let path, {Env.mode; context}, desc, kind = type_ident env lid in
-  submode ~env ~loc:lid.loc ~reason:Other ?shared_context:context mode mode_legacy;
+  let path, actual_mode, desc, kind = type_ident env lid in
+  actual_submode ~env ~loc:lid.loc ~reason:Other actual_mode mode_legacy;
   let path =
     match desc.val_kind with
     | Val_ivar _ ->
