@@ -220,9 +220,7 @@ let extra_params_for_continuation_param_aliases cont uacc rewrite_ids =
           (Variable.Map.find var aliases_kind)
           Anything
       in
-      EPA.add
-        ~extra_param:(Bound_parameter.create var var_kind)
-        ~extra_args epa ~invalids:Apply_cont_rewrite_id.Set.empty)
+      EPA.add ~extra_param:(Bound_parameter.create var var_kind) ~extra_args epa)
     required_extra_args.extra_args_for_aliases EPA.empty
 
 let add_extra_params_for_mutable_unboxing cont uacc extra_params_and_args =
@@ -849,13 +847,12 @@ let create_handler_to_rebuild
         with
         | extra_args -> extra_args
         | exception Not_found ->
-          Or_invalid.Ok
-            (List.map
-               (fun param ->
-                 EPA.Extra_arg.Already_in_scope
-                   (Simple.var (Bound_parameter.var param)))
-               (Bound_parameters.to_list
-                  (EPA.extra_params data.invariant_extra_params_and_args))))
+          List.map
+            (fun param ->
+              EPA.Extra_arg.Already_in_scope
+                (Simple.var (Bound_parameter.var param)))
+            (Bound_parameters.to_list
+               (EPA.extra_params data.invariant_extra_params_and_args)))
       use_ids
   in
   let invariant_epa =
@@ -1064,8 +1061,8 @@ let simplify_single_recursive_handler ~simplify_expr cont_uses_env_so_far
      the unboxing extra_params_and_args to later, when we will have seen all
      uses (needed for the recursive continuation handlers). *)
   let handler_env =
-    DE.add_parameters_with_unknown_types ~at_unit_toplevel:false denv_to_reset
-      params
+    assert (not (DE.at_unit_toplevel denv_to_reset));
+    DE.add_parameters_with_unknown_types denv_to_reset params
   in
   let handler_env = LCS.add_to_denv handler_env consts_lifted_during_body in
   let code_age_relation = TE.code_age_relation (DA.typing_env dacc) in

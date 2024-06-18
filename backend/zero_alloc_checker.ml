@@ -2247,7 +2247,7 @@ end = struct
       let w = create_witnesses t (Extcall { callee = func }) dbg in
       transform_top t ~next ~exn w ("external call to " ^ func) dbg
     | Ispecific s -> transform_specific t s ~next ~exn dbg
-    | Idls_get -> Misc.fatal_error "Idls_get not supported"
+    | Idls_get -> next
 
   module D = Dataflow.Backward ((Value : Dataflow.DOMAIN))
 
@@ -2574,7 +2574,7 @@ end = struct
           in
           transform t ~effect ~next ~exn:Value.bot "heap allocation" dbg
         | Specific s -> transform_specific t s ~next ~exn:Value.bot dbg
-        | Dls_get -> Misc.fatal_error "Idls_get not supported"
+        | Dls_get -> next
 
       let basic next (i : Cfg.basic Cfg.instruction) t : (domain, error) result
           =

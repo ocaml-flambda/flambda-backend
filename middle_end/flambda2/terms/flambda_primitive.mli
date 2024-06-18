@@ -325,6 +325,7 @@ type nullary_primitive =
   | Enter_inlined_apply of { dbg : Inlined_debuginfo.t }
       (** Used in classic mode to denote the start of an inlined function body.
           This is then used in to_cmm to correctly add inlined debuginfo. *)
+  | Dls_get  (** Obtain the domain-local state block. *)
 
 (** Untagged binary integer arithmetic operations.
 

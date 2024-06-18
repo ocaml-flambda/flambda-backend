@@ -7,8 +7,10 @@
 
 int32_t float32_bits_to_int(float f) { return *(int32_t *)&f; }
 float float32_of_int(intnat i) { return (float)i; }
+float float32_of_int64(int64_t i) { return (float)i; }
 float float32_of_float(double d) { return (float)d; }
 intnat float32_to_int(float f) { return (intnat)f; }
+int64_t float32_to_int64(float f) { return (int64_t)f; }
 double float32_to_float(float f) { return (double)f; }
 float float32_zero(value unit) { return 0.0f; }
 float float32_neg_zero(value unit) { return -0.0f; }
@@ -190,6 +192,20 @@ value float32_max_boxed(value l, value r)
     return caml_copy_float32(fmaxf(f, g));
 }
 
+value float32_min_weird_boxed(value l, value r)
+{
+    float f = Float32_val(l);
+    float g = Float32_val(r);
+    return caml_copy_float32(f < g ? f : g);
+}
+
+value float32_max_weird_boxed(value l, value r)
+{
+    float f = Float32_val(l);
+    float g = Float32_val(r);
+    return caml_copy_float32(f > g ? f : g);
+}
+
 value float32_min_num_boxed(value l, value r)
 {
     float f = Float32_val(l);
@@ -309,4 +325,14 @@ value float32_classify(float f)
 value float32_classify_boxed(value f)
 {
     return float32_classify(Float32_val(f));
+}
+
+value float32_round_current_boxed(value f)
+{
+    return caml_copy_float32(rintf(Float32_val(f)));
+}
+
+value float32_iround_current_boxed(value f)
+{
+    return caml_copy_int64(llrintf(Float32_val(f)));
 }

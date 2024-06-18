@@ -202,10 +202,20 @@ Error: This type ('b : value) should be an instance of type ('a : bits32)
 (*********************************************************)
 (* Test 5: Allowed in some structures in typedecls. *)
 
-(* For the structures they can be put in, see [basics_alpha.ml].
-   They're separate because mixed blocks requires alpha at the
-   moment.
- *)
+type t5_1 = { x : t_bits32 };;
+[%%expect{|
+type t5_1 = { x : t_bits32; }
+|}];;
+
+type t5_2 = { y : int; x : t_bits32 };;
+[%%expect{|
+type t5_2 = { y : int; x : t_bits32; }
+|}];;
+
+type t5_2' = { y : string; x : t_bits32 };;
+[%%expect{|
+type t5_2' = { y : string; x : t_bits32; }
+|}];;
 
 (* CR layouts 2.5: allow this *)
 type t5_3 = { x : t_bits32 } [@@unboxed];;
@@ -216,6 +226,35 @@ Line 1, characters 14-26:
 Error: Type t_bits32 has layout bits32.
        Unboxed records may not yet contain types of this layout.
 |}];;
+
+
+type t5_4 = A of t_bits32;;
+[%%expect{|
+type t5_4 = A of t_bits32
+|}];;
+
+type t5_5 = A of int * t_bits32;;
+[%%expect{|
+type t5_5 = A of int * t_bits32
+|}];;
+
+type ('a : bits32) t5_7 = A of int
+type ('a : bits32) t5_8 = A of 'a;;
+[%%expect{|
+type ('a : bits32) t5_7 = A of int
+type ('a : bits32) t5_8 = A of 'a
+|}]
+
+(* not allowed: value in flat suffix *)
+type 'a t_disallowed = A of t_bits32 * 'a
+
+[%%expect{|
+Line 1, characters 23-41:
+1 | type 'a t_disallowed = A of t_bits32 * 'a
+                           ^^^^^^^^^^^^^^^^^^
+Error: Expected all flat constructor arguments after non-value argument,
+       t_bits32, but found boxed argument, 'a.
+|}]
 
 type t5_6 = A of t_bits32 [@@unboxed];;
 [%%expect{|
@@ -464,12 +503,54 @@ Line 1, characters 29-35:
 Error: Don't know how to untag this type. Only int can be untagged.
 |}];;
 
-(*******************************************************)
-(* Test 11: Allow bits32 in some extensible variants *)
+(*************************************************)
+(* Test 11: bits32 banned in extensible variants *)
 
-(* See [basics_alpha.ml] for these while mixed blocks are
-   in alpha.
-*)
+type t11_1 = ..
+
+type t11_1 += A of t_bits32;;
+[%%expect{|
+type t11_1 = ..
+Line 3, characters 14-27:
+3 | type t11_1 += A of t_bits32;;
+                  ^^^^^^^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+|}]
+
+type t11_1 += B of int32#;;
+[%%expect{|
+Line 1, characters 14-25:
+1 | type t11_1 += B of int32#;;
+                  ^^^^^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+|}]
+
+type ('a : bits32) t11_2 = ..
+
+type 'a t11_2 += A of int
+
+type 'a t11_2 += B of 'a;;
+
+[%%expect{|
+type ('a : bits32) t11_2 = ..
+type 'a t11_2 += A of int
+Line 5, characters 17-24:
+5 | type 'a t11_2 += B of 'a;;
+                     ^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+|}]
+
+(* not allowed: value in flat suffix *)
+type 'a t11_2 += C : 'a * 'b -> 'a t11_2
+
+[%%expect{|
+Line 1, characters 17-40:
+1 | type 'a t11_2 += C : 'a * 'b -> 'a t11_2
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+Error: Expected all flat constructor arguments after non-value argument, 'a,
+       but found boxed argument, 'b.
+|}]
+
 (***************************************)
 (* Test 12: bits32 in objects/classes *)
 

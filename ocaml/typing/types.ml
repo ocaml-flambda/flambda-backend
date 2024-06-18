@@ -318,7 +318,7 @@ and label_declaration =
   {
     ld_id: Ident.t;
     ld_mutable: mutability;
-    ld_global: Mode.Global_flag.t;
+    ld_modalities: Mode.Modality.Value.t;
     ld_type: type_expr;
     ld_jkind : jkind;
     ld_loc: Location.t;
@@ -336,8 +336,15 @@ and constructor_declaration =
     cd_uid: Uid.t;
   }
 
+and constructor_argument =
+  {
+    ca_modalities: Mode.Modality.Value.t;
+    ca_type: type_expr;
+    ca_loc: Location.t;
+  }
+
 and constructor_arguments =
-  | Cstr_tuple of (type_expr * Mode.Global_flag.t) list
+  | Cstr_tuple of constructor_argument list
   | Cstr_record of label_declaration list
 
 type extension_constructor =
@@ -360,7 +367,7 @@ and type_transparence =
   | Type_private     (* private type *)
 
 let tys_of_constr_args = function
-  | Cstr_tuple tl -> List.map fst tl
+  | Cstr_tuple tl -> List.map (fun ca -> ca.ca_type) tl
   | Cstr_record lbls -> List.map (fun l -> l.ld_type) lbls
 
 (* Type expressions for the class language *)
@@ -561,8 +568,8 @@ type constructor_description =
   { cstr_name: string;                  (* Constructor name *)
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
-    cstr_args: (type_expr * Mode.Global_flag.t) list;          (* Type of the arguments *)
-    cstr_arg_jkinds: jkind array;     (* Jkinds of the arguments *)
+    cstr_args: constructor_argument list; (* Type of the arguments *)
+    cstr_arg_jkinds: jkind array;       (* Jkinds of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
     cstr_repr: variant_representation;  (* Repr of the outer variant *)
@@ -666,7 +673,7 @@ let find_unboxed_type decl =
   match decl.type_kind with
     Type_record ([{ld_type = arg; _}], Record_unboxed)
   | Type_record ([{ld_type = arg; _}], Record_inlined (_, Variant_unboxed))
-  | Type_variant ([{cd_args = Cstr_tuple [arg,_]; _}], Variant_unboxed)
+  | Type_variant ([{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}], Variant_unboxed)
   | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}],
                   Variant_unboxed) ->
     Some arg
@@ -692,7 +699,7 @@ type label_description =
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutability;                (* Is this a mutable field? *)
-    lbl_global: Mode.Global_flag.t;        (* Is this a global field? *)
+    lbl_modalities: Mode.Modality.Value.t;(* Is this a global field? *)
     lbl_jkind : jkind;                (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in type *)

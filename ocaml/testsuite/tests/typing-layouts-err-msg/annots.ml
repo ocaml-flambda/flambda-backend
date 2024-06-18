@@ -90,7 +90,7 @@ Line 1, characters 9-33:
              ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This alias is bound to type 'a -> int
        but is used as an instance of type ('b : void)
-       The layout of 'a -> int is non_null_value, because
+       The layout of 'a -> int is value, because
          it's a function type.
        But the layout of 'a -> int must be a sublayout of void, because
          of the annotation on the type variable 'b.
@@ -104,7 +104,7 @@ Line 1, characters 27-31:
 1 | type t = 'a -> int as (_ : void)
                                ^^^^
 Error: Bad layout annotation:
-         The layout of 'a -> int is non_null_value, because
+         The layout of 'a -> int is value, because
            it's a function type.
          But the layout of 'a -> int must be a sublayout of void, because
            of the annotation on the wildcard _ at line 1, characters 27-31.

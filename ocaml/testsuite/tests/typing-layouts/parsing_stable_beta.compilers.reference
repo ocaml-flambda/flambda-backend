@@ -9,11 +9,6 @@ Line 2, characters 11-15:
 2 | type ('a : valu) t0 = 'a list;;
                ^^^^
 Error: Unknown layout valu
-Line 2, characters 11-25:
-2 | type ('a : non_null_value) t0 = 'a list;;
-               ^^^^^^^^^^^^^^
-Error: Layout non_null_value is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
 type t = float#
 Line 2, characters 9-13:
 2 | type t = int#;;
@@ -24,4 +19,8 @@ Line 2, characters 9-17:
 2 | type t = Float.t#;;
              ^^^^^^^^
 Error: Unbound type constructor Float.t#
+type ('a : any, 'b : any, 'c : any) t
+type ('a : float64) s1 = ('a, int, bool) t
+val f : ('a : any) 'b. ('a, 'b, bool) t -> int = <fun>
+type ('a, 'b, 'c : bits32) s2 = ('a, 'b, 'c) t
 
