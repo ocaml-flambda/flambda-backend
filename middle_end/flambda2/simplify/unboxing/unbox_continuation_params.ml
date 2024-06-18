@@ -18,41 +18,31 @@ open! Simplify_import
 module U = Unboxing_types
 module Decisions = U.Decisions
 
-let refine_decision_based_on_arg_types_at_uses ~pass ~rewrite_ids_seen
-    ~rewrites_ids_known_as_invalid nth_arg arg_type_by_use_id
-    (decision : U.decision) =
+let refine_decision_based_on_arg_types_at_uses ~pass ~rewrite_ids_seen nth_arg
+    arg_type_by_use_id (decision : U.decision) =
   match decision with
-  | Do_not_unbox _ as decision -> decision, Apply_cont_rewrite_id.Set.empty
+  | Do_not_unbox _ as decision -> decision
   | Unbox _ as decision ->
     Apply_cont_rewrite_id.Map.fold
-      (fun rewrite_id (arg_at_use : Continuation_uses.arg_at_use)
-           (decision, invalids) ->
+      (fun rewrite_id (arg_at_use : Continuation_uses.arg_at_use) decision ->
         if Apply_cont_rewrite_id.Set.mem rewrite_id rewrite_ids_seen
-           || Apply_cont_rewrite_id.Set.mem rewrite_id
-                rewrites_ids_known_as_invalid
-        then decision, invalids
+        then decision
         else
           let typing_env_at_use = arg_at_use.typing_env in
           let arg_type_at_use = arg_at_use.arg_type in
-          let unboxed_arg =
-            match
-              TE.get_alias_then_canonical_simple_exn typing_env_at_use
-                ~min_name_mode:Name_mode.normal arg_type_at_use
-            with
-            | simple -> Unboxing_epa.Available simple
-            | exception Not_found ->
-              Unboxing_epa.Added_by_wrapper_at_rewrite_use { nth_arg }
-          in
-          try
-            let decision =
-              Unboxing_epa.compute_extra_args_for_one_decision_and_use ~pass
-                rewrite_id ~typing_env_at_use unboxed_arg decision
-            in
-            decision, invalids
-          with Unboxing_epa.Invalid_apply_cont ->
-            decision, Apply_cont_rewrite_id.Set.add rewrite_id invalids)
-      arg_type_by_use_id
-      (decision, rewrites_ids_known_as_invalid)
+          match
+            TE.get_alias_then_canonical_simple_exn typing_env_at_use
+              ~min_name_mode:Name_mode.normal arg_type_at_use
+          with
+          | simple ->
+            Unboxing_epa.compute_extra_args_for_one_decision_and_use ~pass
+              rewrite_id ~typing_env_at_use (Available simple) decision
+          | exception Not_found ->
+            Unboxing_epa.compute_extra_args_for_one_decision_and_use ~pass
+              rewrite_id ~typing_env_at_use
+              (Added_by_wrapper_at_rewrite_use { nth_arg })
+              decision)
+      arg_type_by_use_id decision
 
 module List = struct
   include List
@@ -70,10 +60,7 @@ let make_do_not_unbox_decisions params : Decisions.t =
       (fun param -> param, U.Do_not_unbox Unboxing_not_requested)
       (Bound_parameters.to_list params)
   in
-  { decisions;
-    rewrite_ids_seen = Apply_cont_rewrite_id.Set.empty;
-    rewrites_ids_known_as_invalid = Apply_cont_rewrite_id.Set.empty
-  }
+  { decisions; rewrite_ids_seen = Apply_cont_rewrite_id.Set.empty }
 
 type continuation_arg_types =
   | Recursive
@@ -89,10 +76,9 @@ let make_decisions ~continuation_arg_types denv params params_types :
     | Non_recursive arg_types_by_use_id -> false, arg_types_by_use_id
   in
   let empty = Apply_cont_rewrite_id.Set.empty in
-  let _, denv, rev_decisions, seen, invalids =
+  let _, denv, rev_decisions, seen =
     List.fold_left3
-      (fun (nth, denv, rev_decisions, seen, invalids) param param_type
-           arg_type_by_use_id ->
+      (fun (nth, denv, rev_decisions, seen) param param_type arg_type_by_use_id ->
         (* Make an optimistic decision, filter it based on the arg types at the
            use sites (to prevent decisions that would be detrimental), and
            compute the necessary denv. *)
@@ -101,7 +87,7 @@ let make_decisions ~continuation_arg_types denv params params_types :
             ~recursive:continuation_is_recursive (DE.typing_env denv)
             ~param_type
         in
-        let decision, invalids =
+        let decision =
           if continuation_is_recursive
           then
             (* For recursive continuation whether unboxing is beneficial or not
@@ -110,17 +96,11 @@ let make_decisions ~continuation_arg_types denv params params_types :
                recursive continuation risk introducing an allocation when
                leaving the loop if the value is unused, while the benefit might
                be great most of the time. *)
-            decision, invalids
+            decision
           else
-            let decision, invalids =
-              refine_decision_based_on_arg_types_at_uses ~rewrite_ids_seen:empty
-                ~rewrites_ids_known_as_invalid:invalids nth arg_type_by_use_id
-                ~pass:Filter decision
-            in
-            let decision =
-              Is_unboxing_beneficial.filter_non_beneficial_decisions decision
-            in
-            decision, invalids
+            refine_decision_based_on_arg_types_at_uses ~rewrite_ids_seen:empty
+              nth arg_type_by_use_id ~pass:Filter decision
+            |> Is_unboxing_beneficial.filter_non_beneficial_decisions
         in
         let denv =
           Build_unboxing_denv.denv_of_decision denv ~param_var:(BP.var param)
@@ -142,34 +122,29 @@ let make_decisions ~continuation_arg_types denv params params_types :
               (fun id _ acc -> Apply_cont_rewrite_id.Set.add id acc)
               arg_type_by_use_id empty
         in
-        nth + 1, denv, decision :: rev_decisions, Some seen, invalids)
-      (0, denv, [], None, Apply_cont_rewrite_id.Set.empty)
-      params params_types arg_types_by_use_id
+        nth + 1, denv, decision :: rev_decisions, Some seen)
+      (0, denv, [], None) params params_types arg_types_by_use_id
   in
   let rewrite_ids_seen = match seen with None -> empty | Some s -> s in
   let decisions = List.combine params (List.rev rev_decisions) in
-  ( denv,
-    { decisions; rewrite_ids_seen; rewrites_ids_known_as_invalid = invalids } )
+  denv, { decisions; rewrite_ids_seen }
 
 let compute_extra_params_and_args
-    ({ decisions; rewrite_ids_seen; rewrites_ids_known_as_invalid } :
-      Decisions.t) ~arg_types_by_use_id existing_extra_params_and_args =
-  let _, extra_params_and_args, _ =
+    ({ decisions; rewrite_ids_seen } : Decisions.t) ~arg_types_by_use_id
+    existing_extra_params_and_args =
+  let _, extra_params_and_args =
     List.fold_left2
-      (fun (nth, extra_params_and_args, invalids) arg_type_by_use_id
-           (_, decision) ->
-        let decision, invalids =
+      (fun (nth, extra_params_and_args) arg_type_by_use_id (_, decision) ->
+        let decision =
           refine_decision_based_on_arg_types_at_uses
-            ~pass:Compute_all_extra_args ~rewrite_ids_seen
-            ~rewrites_ids_known_as_invalid:invalids nth arg_type_by_use_id
-            decision
+            ~pass:Compute_all_extra_args ~rewrite_ids_seen nth
+            arg_type_by_use_id decision
         in
         let extra_params_and_args =
-          Unboxing_epa.add_extra_params_and_args extra_params_and_args ~invalids
-            decision
+          Unboxing_epa.add_extra_params_and_args extra_params_and_args decision
         in
-        nth + 1, extra_params_and_args, invalids)
-      (0, existing_extra_params_and_args, rewrites_ids_known_as_invalid)
+        nth + 1, extra_params_and_args)
+      (0, existing_extra_params_and_args)
       arg_types_by_use_id decisions
   in
   extra_params_and_args

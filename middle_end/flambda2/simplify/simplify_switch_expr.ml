@@ -71,9 +71,6 @@ let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
       action
   in
   match EB.rewrite_switch_arm uacc action ~use_id arity with
-  | Invalid _ ->
-    (* The destination is unreachable; delete the [Switch] arm. *)
-    new_let_conts, arms, mergeable_arms, identity_arms, not_arms
   | Apply_cont action -> (
     let action =
       let cont = Apply_cont.continuation action in
