@@ -65,7 +65,7 @@ let instantiate
   let runtime_params, main_module_block_size =
     match unit_infos.ui_format with
     | Mb_record _ ->
-      error (Not_parameterised { cm_path = targetcm })
+      error (Not_parameterised { cm_path = src })
     | Mb_wrapped_function { mb_runtime_params; mb_returned_size } ->
       mb_runtime_params, mb_returned_size
   in
