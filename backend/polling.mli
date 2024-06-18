@@ -20,6 +20,7 @@
 (** Analyses related to the insertion of [Ipoll] operations. *)
 
 val function_is_assumed_to_never_poll : string -> bool
+val is_disabled : string -> bool
 
 type polling_point = Alloc | Poll | Function_call | External_call
 

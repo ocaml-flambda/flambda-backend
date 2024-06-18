@@ -281,8 +281,8 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
        (save_mach_as_cfg Compiler_pass.Selection)
    ++ Profile.record ~accumulate:true "polling"
        (fun fd ->
-         match register_allocator fd with
-         | IRC | LS -> fd
+         match register_allocator with
+         | IRC | LS | GI -> fd
          | Upstream ->
            Polling.instrument_fundecl ~future_funcnames:funcnames fd)
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_polling

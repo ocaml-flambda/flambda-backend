@@ -7,6 +7,7 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 let function_is_assumed_to_never_poll func =
   Polling.function_is_assumed_to_never_poll func
 
+(* These are used for the poll error annotation later on*)
 type polling_point = Polling.polling_point =
   | Alloc
   | Poll
@@ -16,6 +17,18 @@ type polling_point = Polling.polling_point =
 type error = Polling.error = Poll_error of (polling_point * Debuginfo.t) list
 
 exception Error = Polling.Error
+
+(* Detection of recursive handlers that are not guaranteed to poll at every loop
+   iteration. *)
+
+(* We use a backwards dataflow analysis to compute a mapping from handlers H (=
+   loop heads) to either "safe" or "unsafe".
+
+   H is "safe" if every path starting from H goes through an Alloc, Poll,
+   Return, Tailcall_self or Tailcall_func instruction.
+
+   H is "unsafe", therefore, if starting from H we can loop infinitely without
+   crossing an Alloc or Poll instruction. *)
 
 module Unsafe_or_safe_domain = struct
   type t = Polling.Unsafe_or_safe.t
@@ -30,36 +43,39 @@ end
 module Unsafe_or_safe_transfer = struct
   type domain = Unsafe_or_safe_domain.t
 
+  type context = unit
+
   type error = |
 
-  let basic : domain -> Cfg.basic Cfg.instruction -> (domain, error) result =
-   fun dom instr ->
+  let basic :
+      domain -> Cfg.basic Cfg.instruction -> context -> (domain, error) result =
+   fun dom instr () ->
     match[@ocaml.warning "-4"] instr.desc with
-    | Op Poll -> Ok Safe
-    | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> Ok dom
+    | Op (Poll | Alloc _) -> Ok Safe
+    | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
+      Ok dom
 
   let terminator :
       domain ->
       exn:domain ->
       Cfg.terminator Cfg.instruction ->
+      context ->
       (domain, error) result =
-   fun dom ~exn term ->
-    match[@ocaml.warning "-4"] term.desc with
+   fun dom ~exn term () ->
+    match term.desc with
     | Never -> assert false
     | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
     | Switch _ ->
       Ok dom
     | Raise _ -> Ok exn
-    | Tailcall_self _ | Tailcall_func _
-    | Prim { op = Alloc _; label_after = _ }
-    | Return ->
-      Ok Safe
+    | Tailcall_self _ | Tailcall_func _ | Return -> Ok Safe
     | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
       if Cfg.can_raise_terminator term.desc
       then Ok (Unsafe_or_safe_domain.join dom exn)
       else Ok dom
 
-  let exception_ : domain -> (domain, error) result = fun dom -> Ok dom
+  let exception_ : domain -> context -> (domain, error) result =
+   fun dom () -> Ok dom
 end
 
 module PolledLoopsAnalysis =
@@ -70,11 +86,28 @@ let polled_loops_analysis :
  fun cfg_with_layout ->
   let init : Unsafe_or_safe_domain.t = Unsafe_or_safe_domain.bot in
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  match PolledLoopsAnalysis.run ~init ~map:PolledLoopsAnalysis.Block cfg () with
+  match
+    PolledLoopsAnalysis.run ~init ~map:PolledLoopsAnalysis.Block ~exnescape:Safe
+      cfg ()
+  with
   | Ok res -> res
   | Aborted _ -> .
   | Max_iterations_reached ->
     Misc.fatal_error "Cfg_polling.polled_loops_analysis has been interrupted"
+
+(* Detection of functions that can loop via a tail-call without going through a
+   poll point. *)
+
+(* We use a backwards dataflow analysis to compute a single value: either
+   "Might_not_poll" or "Always_polls".
+
+   "Might_not_poll" means there exists a path from the function entry to a
+   Potentially Recursive Tail Call (a Tailcall_self of Tailcall_func which is
+   either indirect or to a forward function) that does not go through an Alloc
+   or Poll instruction.
+
+   "Always_polls", therefore, means the function always polls (via Alloc or
+   Poll) before doing a PRTC. *)
 
 module Polls_before_prtc_domain = struct
   type t = Polling.Polls_before_prtc.t
@@ -86,28 +119,30 @@ module Polls_before_prtc_domain = struct
   let less_equal = Polling.Polls_before_prtc.lessequal
 end
 
-module Polls_before_prtc_transfer (FF : sig
-  val future_funcnames : String.Set.t
-end) =
-struct
+module Polls_before_prtc_transfer = struct
   type domain = Polls_before_prtc_domain.t
+
+  type context = { future_funcnames : String.Set.t } [@@unboxed]
 
   type error = |
 
-  let basic : domain -> Cfg.basic Cfg.instruction -> (domain, error) result =
-   fun dom instr ->
+  let basic :
+      domain -> Cfg.basic Cfg.instruction -> context -> (domain, error) result =
+   fun dom instr { future_funcnames = _ } ->
     match instr.desc with
-    | Op Poll -> Ok Always_polls
-    | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> Ok dom
+    | Op (Poll | Alloc _) -> Ok Always_polls
+    | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
+      Ok dom
    [@@ocaml.warning "-4"]
 
   let terminator :
       domain ->
       exn:domain ->
       Cfg.terminator Cfg.instruction ->
+      context ->
       (domain, error) result =
-   fun dom ~exn term ->
-    match[@ocaml.warning "-4"] term.desc with
+   fun dom ~exn term { future_funcnames } ->
+    match term.desc with
     | Never -> assert false
     | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
     | Switch _ ->
@@ -115,17 +150,18 @@ struct
     | Raise _ -> Ok exn
     | Tailcall_self _ | Tailcall_func Indirect -> Ok Might_not_poll
     | Tailcall_func (Direct func) ->
-      if String.Set.mem func.sym_name FF.future_funcnames
+      if String.Set.mem func.sym_name future_funcnames
          || function_is_assumed_to_never_poll func.sym_name
       then Ok Might_not_poll
       else Ok Always_polls
-    | Prim { op = Alloc _; label_after = _ } | Return -> Ok Always_polls
+    | Return -> Ok Always_polls
     | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
       if Cfg.can_raise_terminator term.desc
       then Ok (Polls_before_prtc_domain.join dom exn)
       else Ok dom
 
-  let exception_ : domain -> (domain, error) result = fun dom -> Ok dom
+  let exception_ : domain -> context -> (domain, error) result =
+   fun dom { future_funcnames = _ } -> Ok dom
 end
 
 let potentially_recursive_tailcall :
@@ -133,17 +169,16 @@ let potentially_recursive_tailcall :
     Cfg_with_layout.t ->
     Polls_before_prtc_domain.t =
  fun ~future_funcnames cfg_with_layout ->
-  let module Polls_before_prtc_transfer_ff = Polls_before_prtc_transfer (struct
-    let future_funcnames = future_funcnames
-  end) in
   let module PTRCAnalysis =
     Cfg_dataflow.Backward
       (Polls_before_prtc_domain)
-      (Polls_before_prtc_transfer_ff)
+      (Polls_before_prtc_transfer)
   in
   let init : Polls_before_prtc_domain.t = Polls_before_prtc_domain.bot in
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  match PTRCAnalysis.run ~init ~map:PTRCAnalysis.Block cfg () with
+  match
+    PTRCAnalysis.run ~init ~map:PTRCAnalysis.Block cfg { future_funcnames }
+  with
   | Ok res -> (
     match Label.Tbl.find_opt res cfg.entry_label with
     | None -> assert false
@@ -179,7 +214,6 @@ let instr_cfg_with_layout :
           res
         in
         let poll =
-          (* CR xclerc for xclerc: double check the various fields. *)
           { after.terminator with
             Cfg.id = next_instruction_id ();
             Cfg.desc = Cfg.Op Poll
@@ -206,73 +240,87 @@ let instr_cfg_with_layout :
 
 type polling_points = (polling_point * Debuginfo.t) list
 
-let add_poll_alloc_or_calls_basic :
+let add_poll_or_alloc_basic :
     Cfg.basic Cfg.instruction -> polling_points -> polling_points =
  fun instr points ->
   match instr.desc with
   | Op op -> (
     match op with
-    | Move | Spill | Reload | Const_int _ | Const_float _ | Const_symbol _
-    | Const_vec128 _ | Stackoffset _ | Load _ | Store _ | Intop _ | Intop_imm _
-    | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
-    | Csel _ | Floatofint | Intoffloat | Valueofint | Intofvalue | Vectorcast _
-    | Scalarcast _ | Probe_is_enabled _ | Opaque | Begin_region | End_region
-    | Specific _ | Name_for_debugger _ ->
-      (* CR xclerc for xclerc: double check the `Specific` case. *)
+    | Move | Spill | Reload | Const_int _ | Const_float32 _ | Const_float _
+    | Const_symbol _ | Const_vec128 _ | Stackoffset _ | Load _ | Store _
+    | Intop _ | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _
+    | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _ | Opaque
+    | Begin_region | End_region | Specific _ | Name_for_debugger _ | Dls_get ->
       points
-    | Poll -> (Poll, instr.dbg) :: points)
-  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> points
+    | Poll -> (Poll, instr.dbg) :: points
+    | Alloc _ -> (Alloc, instr.dbg) :: points)
+  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> points
 
-let add_poll_alloc_or_calls_terminator :
+let add_calls_terminator :
     Cfg.terminator Cfg.instruction -> polling_points -> polling_points =
  fun term points ->
   match term.desc with
   | Never -> assert false
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ | Return | Raise _ | Specific_can_raise _ ->
-    (* CR xclerc for xclerc: double check the `Specific_can_raise` case. *)
     points
   | Tailcall_self _ | Tailcall_func _ -> (Function_call, term.dbg) :: points
   | Call _ -> (Function_call, term.dbg) :: points
-  | Call_no_return { alloc = false; func_symbol = _; ty_res = _; ty_args = _ }
+  | Call_no_return
+      { alloc = false; func_symbol = _; ty_res = _; ty_args = _; stack_ofs = _ }
   | Prim
       { op =
-          External { alloc = false; func_symbol = _; ty_res = _; ty_args = _ };
+          External
+            { alloc = false;
+              func_symbol = _;
+              ty_res = _;
+              ty_args = _;
+              stack_ofs = _
+            };
         label_after = _
       } ->
     points
-  | Call_no_return { alloc = true; func_symbol = _; ty_res = _; ty_args = _ }
+  | Call_no_return
+      { alloc = true; func_symbol = _; ty_res = _; ty_args = _; stack_ofs = _ }
   | Prim
-      { op = External { alloc = true; func_symbol = _; ty_res = _; ty_args = _ };
+      { op =
+          External
+            { alloc = true;
+              func_symbol = _;
+              ty_res = _;
+              ty_args = _;
+              stack_ofs = _
+            };
         label_after = _
       } ->
     (External_call, term.dbg) :: points
-  | Prim { op = Alloc _; label_after = _ } -> (Alloc, term.dbg) :: points
-  | Prim { op = Checkbound _; label_after = _ } -> points
   | Prim { op = Probe _; label_after = _ } -> points
 
 let find_poll_alloc_or_calls : Cfg.t -> polling_points =
  fun cfg ->
   Cfg.fold_blocks cfg ~init:[] ~f:(fun _label block acc ->
       let acc =
-        DLL.fold_right ~init:acc ~f:add_poll_alloc_or_calls_basic block.body
+        DLL.fold_right ~init:acc ~f:add_poll_or_alloc_basic block.body
       in
-      let acc = add_poll_alloc_or_calls_terminator block.terminator acc in
+      let acc = add_calls_terminator block.terminator acc in
       acc)
 
 let contains_polls : Cfg.t -> bool =
  fun cfg ->
-  Cfg.fold_blocks cfg ~init:false ~f:(fun _label block acc ->
-      acc
-      || DLL.exists block.body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
-             match[@ocaml.warning "-4"] instr.Cfg.desc with
-             | Cfg.Op Poll -> true
-             | _ -> false))
+  let exception Found in
+  try
+    Cfg.iter_blocks cfg ~f:(fun _label block ->
+        let has_poll_instr =
+          DLL.exists block.body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
+              match[@ocaml.warning "-4"] instr.Cfg.desc with
+              | Cfg.Op Poll -> true
+              | _ -> false)
+        in
+        if has_poll_instr then raise Found);
+    false
+  with Found -> true
 
-let is_disabled fun_name =
-  (not Config.poll_insertion)
-  || !Flambda_backend_flags.disable_poll_insertion
-  || function_is_assumed_to_never_poll fun_name
+let is_disabled fun_name = Polling.is_disabled fun_name
 
 let instrument_fundecl :
     future_funcnames:Misc.Stdlib.String.Set.t ->
@@ -284,7 +332,8 @@ let instrument_fundecl :
   then cfg_with_layout
   else
     let block_needs_poll = polled_loops_analysis cfg_with_layout in
-    (* CR xclerc for xclerc: use `Cfg_with_infos`, to cache the computations? *)
+    (* CR-soon xclerc for xclerc: consider using `Cfg_with_infos` to cache the
+       computations *)
     let doms = Cfg_dominators.build cfg in
     let back_edges = Cfg_loop_infos.compute_back_edges cfg doms in
     let added_poll =
@@ -294,13 +343,25 @@ let instrument_fundecl :
     | Error_poll -> (
       match find_poll_alloc_or_calls cfg with
       | [] -> ()
-      | poll_error_instrs -> raise (Error (Poll_error poll_error_instrs)))
+      | poll_error_instrs ->
+        let poll_error_instrs =
+          List.sort
+            ~cmp:(fun left right -> Debuginfo.compare (snd left) (snd right))
+            poll_error_instrs
+        in
+        raise (Error (Poll_error poll_error_instrs)))
     | Default_poll -> ());
     let new_contains_calls =
+      (* `added_poll` is used to avoid iterating over the CFG if we have added a
+         Poll instruction *)
       cfg.fun_contains_calls || added_poll || contains_polls cfg
     in
-    cfg.fun_contains_calls <- new_contains_calls;
-    cfg_with_layout
+    let cfg = { cfg with fun_contains_calls = new_contains_calls } in
+    Cfg_with_layout.create cfg
+      ~layout:(Cfg_with_layout.layout cfg_with_layout)
+      ~preserve_orig_labels:
+        (Cfg_with_layout.preserve_orig_labels cfg_with_layout)
+      ~new_labels:(Cfg_with_layout.new_labels cfg_with_layout)
 
 let requires_prologue_poll :
     future_funcnames:Misc.Stdlib.String.Set.t ->

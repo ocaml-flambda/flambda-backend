@@ -99,8 +99,9 @@ type t =
     fun_dbg : Debuginfo.t;  (** Dwarf debug info for function entry. *)
     entry_label : Label.t;
         (** This label must be the first in all layouts of this cfg. *)
-    mutable fun_contains_calls : bool;  (** Precomputed at selection time. *)
-    fun_num_stack_slots : int array
+    fun_contains_calls : bool;
+        (** Precomputed during selection and poll insertion. *)
+    fun_num_stack_slots : int array;
         (** Precomputed at register allocation time *)
     fun_poll : Lambda.poll_attribute (* Whether to insert polling points. *)
   }
