@@ -300,3 +300,30 @@ external seeded_hash_param : int -> int -> int -> 'a -> int = "caml_hash_exn"
 
 let seeded_hash seed x = seeded_hash_param 10 100 seed x
 let hash x = seeded_hash_param 10 100 0 x
+
+module Bytes = struct
+  external get : bytes -> pos:int -> float32 = "%caml_bytes_getf32"
+  external unsafe_get : bytes -> pos:int -> float32 = "%caml_bytes_getf32u"
+  external set : bytes -> pos:int -> float32 -> unit = "%caml_bytes_setf32"
+
+  external unsafe_set : bytes -> pos:int -> float32 -> unit
+    = "%caml_bytes_setf32u"
+end
+
+module String = struct
+  external get : string -> pos:int -> float32 = "%caml_string_getf32"
+  external unsafe_get : string -> pos:int -> float32 = "%caml_string_getf32u"
+end
+
+module Bigstring = struct
+  open Bigarray
+
+  type t = (char, int8_unsigned_elt, c_layout) Array1.t
+
+  external get : t -> pos:int -> float32 = "%caml_bigstring_getf32"
+  external unsafe_get : t -> pos:int -> float32 = "%caml_bigstring_getf32u"
+  external set : t -> pos:int -> float32 -> unit = "%caml_bigstring_setf32"
+
+  external unsafe_set : t -> pos:int -> float32 -> unit
+    = "%caml_bigstring_setf32u"
+end

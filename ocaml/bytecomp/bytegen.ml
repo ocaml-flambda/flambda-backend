@@ -140,11 +140,15 @@ let preserve_tailcall_for_prim = function
   | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
   | Pasrbint _ | Pbintcomp _ | Punboxed_int_comp _
   | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
-  | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _ | Pstring_load_128 _
-  | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_load_128 _
-  | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
-  | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
-  | Pbigstring_load_128 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
+  | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_f32 _
+  | Pstring_load_64 _ | Pstring_load_128 _
+  | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_f32 _
+  | Pbytes_load_64 _ | Pbytes_load_128 _
+  | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_f32 _
+  | Pbytes_set_64 _ | Pbytes_set_128 _
+  | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_f32 _
+  | Pbigstring_load_64 _ | Pbigstring_load_128 _
+  | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_f32 _
   | Pfloatarray_load_128 _ | Pfloat_array_load_128 _ | Pint_array_load_128 _
   | Punboxed_float_array_load_128 _ | Punboxed_int32_array_load_128 _
   | Punboxed_int64_array_load_128 _ | Punboxed_nativeint_array_load_128 _
@@ -441,12 +445,15 @@ let comp_primitive stack_info p sz args =
   | Pbytessetu -> Ksetbyteschar
   | Pstring_load_16(_) -> Kccall("caml_string_get16", 2)
   | Pstring_load_32(_) -> Kccall("caml_string_get32", 2)
+  | Pstring_load_f32(_) -> Kccall("caml_string_getf32", 2)
   | Pstring_load_64(_) -> Kccall("caml_string_get64", 2)
   | Pbytes_set_16(_) -> Kccall("caml_bytes_set16", 3)
   | Pbytes_set_32(_) -> Kccall("caml_bytes_set32", 3)
+  | Pbytes_set_f32(_) -> Kccall("caml_bytes_setf32", 3)
   | Pbytes_set_64(_) -> Kccall("caml_bytes_set64", 3)
   | Pbytes_load_16(_) -> Kccall("caml_bytes_get16", 2)
   | Pbytes_load_32(_) -> Kccall("caml_bytes_get32", 2)
+  | Pbytes_load_f32(_) -> Kccall("caml_bytes_getf32", 2)
   | Pbytes_load_64(_) -> Kccall("caml_bytes_get64", 2)
   | Parraylength _ -> Kvectlength
   (* In bytecode, nothing is ever actually stack-allocated, so we ignore the
@@ -541,9 +548,11 @@ let comp_primitive stack_info p sz args =
   | Pbigarraydim(n) -> Kccall("caml_ba_dim_" ^ Int.to_string n, 1)
   | Pbigstring_load_16(_) -> Kccall("caml_ba_uint8_get16", 2)
   | Pbigstring_load_32(_) -> Kccall("caml_ba_uint8_get32", 2)
+  | Pbigstring_load_f32(_) -> Kccall("caml_ba_uint8_getf32", 2)
   | Pbigstring_load_64(_) -> Kccall("caml_ba_uint8_get64", 2)
   | Pbigstring_set_16(_) -> Kccall("caml_ba_uint8_set16", 3)
   | Pbigstring_set_32(_) -> Kccall("caml_ba_uint8_set32", 3)
+  | Pbigstring_set_f32(_) -> Kccall("caml_ba_uint8_setf32", 3)
   | Pbigstring_set_64(_) -> Kccall("caml_ba_uint8_set64", 3)
   | Pbswap16 -> Kccall("caml_bswap16", 1)
   | Pbbswap(bi,_) -> comp_bint_primitive bi "bswap" args
@@ -1207,3 +1216,4 @@ let compile_phrase expr =
   let init_code = comp_block empty_env expr 1 [Kreturn 1] in
   let fun_code = comp_remainder [] in
   (init_code, fun_code))
+

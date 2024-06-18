@@ -28,6 +28,7 @@
 #include <string.h>
 
 #include "caml/alloc.h"
+#include "caml/bigarray.h"
 #include "caml/fail.h"
 #include "caml/custom.h"
 #include "caml/float32.h"
@@ -417,6 +418,28 @@ CAMLprim value caml_modf_float32(value f)
   Field(res, 0) = quo;
   Field(res, 1) = rem;
   CAMLreturn (res);
+}
+
+CAMLprim value caml_string_getf32(value str, value index)
+{
+  intnat idx = Long_val(index);
+  if (idx < 0 || idx + 3 >= caml_string_length(str)) caml_array_bound_error();
+  float res = *(float*)&Byte_u(str, idx);
+  return caml_copy_float32(res);
+}
+
+CAMLprim value caml_bytes_getf32(value str, value index)
+{
+  return caml_string_getf32(str,index);
+}
+
+CAMLprim value caml_ba_uint8_getf32(value vb, value vind)
+{
+  intnat idx = Long_val(vind);
+  struct caml_ba_array * b = Caml_ba_array_val(vb);
+  if (idx < 0 || idx >= b->dim[0] - 3) caml_array_bound_error();
+  float res = *(float*)&Byte_u(b->data, idx);
+  return caml_copy_float32(res);
 }
 
 /*

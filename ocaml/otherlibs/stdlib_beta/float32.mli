@@ -531,3 +531,65 @@ val hash : t -> int
 (** An unseeded hash function for floats, with the same output value as
     {!Hashtbl.hash}. This function allows this module to be passed as argument
     to the functor {!Hashtbl.Make}. *)
+
+module Bytes : sig
+  external get : bytes -> pos:int -> float32 = "%caml_bytes_getf32"
+  (** [get b ~pos] loads a float32 from [b] at an offset of [pos] bytes.
+
+      @raise Invalid_argument
+      if [pos] is outside the range 0 to [length b - 4]. *)
+
+  external unsafe_get : bytes -> pos:int -> float32 = "%caml_bytes_getf32u"
+  (** [unsafe_get b ~pos] loads a float32 from [b] at an offset of [pos] bytes.
+      Does not check that [pos] is a valid offset. *)
+
+  external set : bytes -> pos:int -> float32 -> unit = "%caml_bytes_setf32"
+  (** [set b ~pos f] stores a float32 to [b] at an offset of [pos] bytes.
+
+      @raise Invalid_argument
+      if [pos] is outside the range 0 to [length b - 4]. *)
+
+  external unsafe_set : bytes -> pos:int -> float32 -> unit
+    = "%caml_bytes_setf32u"
+  (** [unsafe_set b ~pos f] stores a float32 to [b] at an offset of [pos] bytes.
+      Does not check that [pos] is a valid offset. *)
+end
+
+module String : sig
+  external get : string -> pos:int -> float32 = "%caml_string_getf32"
+  (** [get s ~pos] loads a float32 from [s] at an offset of [pos] bytes.
+
+      @raise Invalid_argument
+      if [pos] is outside the range 0 to [length s - 4]. *)
+
+  external unsafe_get : string -> pos:int -> float32 = "%caml_string_getf32u"
+  (** [unsafe_get s ~pos] loads a float32 from [s] at an offset of [pos] bytes.
+      Does not check that [pos] is a valid offset. *)
+end
+
+module Bigstring : sig
+  open Bigarray
+
+  type t = (char, int8_unsigned_elt, c_layout) Array1.t
+
+  external get : t -> pos:int -> float32 = "%caml_bigstring_getf32"
+  (** [get b ~pos] loads a float32 from [b] at an offset of [pos] bytes.
+
+      @raise Invalid_argument
+      if [pos] is outside the range 0 to [length b - 4]. *)
+
+  external unsafe_get : t -> pos:int -> float32 = "%caml_bigstring_getf32u"
+  (** [unsafe_get b ~pos] loads a float32 from [b] at an offset of [pos] bytes.
+      Does not check that [pos] is a valid offset. *)
+
+  external set : t -> pos:int -> float32 -> unit = "%caml_bigstring_setf32"
+  (** [set b ~pos f] stores a float32 to [b] at an offset of [pos] bytes.
+
+      @raise Invalid_argument
+      if [pos] is outside the range 0 to [length b - 4]. *)
+
+  external unsafe_set : t -> pos:int -> float32 -> unit
+    = "%caml_bigstring_setf32u"
+  (** [unsafe_set b ~pos f] stores a float32 to [b] at an offset of [pos] bytes.
+      Does not check that [pos] is a valid offset. *)
+end

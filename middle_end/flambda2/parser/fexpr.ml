@@ -335,6 +335,7 @@ type string_accessor_width = Flambda_primitive.string_accessor_width =
   | Eight
   | Sixteen
   | Thirty_two
+  | Single
   | Sixty_four
   | One_twenty_eight of { aligned : bool }
 
