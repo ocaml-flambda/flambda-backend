@@ -105,7 +105,6 @@ let with_additional_action (config : additional_action_config) s =
         let word = Jkind.of_const Word ~why:reason in
         let bits32 = Jkind.of_const Bits32 ~why:reason in
         let bits64 = Jkind.of_const Bits64 ~why:reason in
-        let non_null_value = Jkind.of_const Non_null_value ~why:reason in
         let prepare_jkind loc lay =
           match Jkind.get lay with
           | Const Any -> any
@@ -118,7 +117,6 @@ let with_additional_action (config : additional_action_config) s =
           | Const Word -> word
           | Const Bits32 -> bits32
           | Const Bits64 -> bits64
-          | Const Non_null_value -> non_null_value
           | Var _ -> raise(Error (loc, Unconstrained_jkind_variable))
         in
         Prepare_for_saving prepare_jkind
@@ -404,7 +402,7 @@ let label_declaration copy_scope s l =
   {
     ld_id = l.ld_id;
     ld_mutable = l.ld_mutable;
-    ld_global = l.ld_global;
+    ld_modalities = l.ld_modalities;
     ld_jkind = apply_prepare_jkind s l.ld_jkind l.ld_loc;
     ld_type = typexp copy_scope s l.ld_loc l.ld_type;
     ld_loc = loc s l.ld_loc;
@@ -412,16 +410,23 @@ let label_declaration copy_scope s l =
     ld_uid = l.ld_uid;
   }
 
-let constructor_arguments copy_scope s loc = function
+let constructor_argument copy_scope s ca =
+  {
+    ca_type = typexp copy_scope s ca.ca_loc ca.ca_type;
+    ca_loc = loc s ca.ca_loc;
+    ca_modalities = ca.ca_modalities;
+  }
+
+let constructor_arguments copy_scope s = function
   | Cstr_tuple l ->
-      Cstr_tuple (List.map (fun (ty, gf) -> (typexp copy_scope s loc ty, gf)) l)
+      Cstr_tuple (List.map (constructor_argument copy_scope s) l)
   | Cstr_record l ->
       Cstr_record (List.map (label_declaration copy_scope s) l)
 
 let constructor_declaration copy_scope s c =
   {
     cd_id = c.cd_id;
-    cd_args = constructor_arguments copy_scope s c.cd_loc c.cd_args;
+    cd_args = constructor_arguments copy_scope s c.cd_args;
     cd_res = Option.map (typexp copy_scope s c.cd_loc) c.cd_res;
     cd_loc = loc s c.cd_loc;
     cd_attributes = attrs s c.cd_attributes;
@@ -574,7 +579,7 @@ let extension_constructor' copy_scope s ext =
   { ext_type_path = type_path s ext.ext_type_path;
     ext_type_params =
       List.map (typexp copy_scope s ext.ext_loc) ext.ext_type_params;
-    ext_args = constructor_arguments copy_scope s ext.ext_loc ext.ext_args;
+    ext_args = constructor_arguments copy_scope s ext.ext_args;
     ext_arg_jkinds = begin match s.additional_action with
       | Prepare_for_saving prepare_jkind ->
           Array.map (prepare_jkind ext.ext_loc) ext.ext_arg_jkinds

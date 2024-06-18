@@ -239,7 +239,6 @@ let value_kind_of_value_jkind jkind =
   | Immediate -> Pintval
   | Immediate64 ->
     if !Clflags.native_code && Sys.word_size = 64 then Pintval else Pgenval
-  | Non_null_value -> Pgenval
   | Any | Void | Float64 | Float32 | Word | Bits32 | Bits64 -> assert false
 
 (* [value_kind] has a pre-condition that it is only called on values.  With the
@@ -450,7 +449,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
          cmi, according to the comment on scrape_ty.  Reevaluate whether it's
          needed when we deal with missing cmis. *)
       match cstrs with
-      | [{cd_args=Cstr_tuple [ty,_]}]
+      | [{cd_args=Cstr_tuple [{ca_type=ty}]}]
       | [{cd_args=Cstr_record [{ld_type=ty}]}] ->
         value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
       | _ -> assert false
@@ -465,7 +464,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
       | Cstr_tuple fields ->
         let fold_value_fields fields ~num_nodes_visited =
           List.fold_left_map
-            (fun num_nodes_visited (ty, _) ->
+            (fun num_nodes_visited {Types.ca_type=ty; _} ->
                let num_nodes_visited = num_nodes_visited + 1 in
                value_kind env ~loc ~visited ~depth ~num_nodes_visited ty)
             num_nodes_visited
