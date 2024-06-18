@@ -112,13 +112,12 @@ let report_error ppf = function
       "Argument must be compiled with -as-argument-for: %a"
       CU.print compilation_unit
   | Incorrect_target_filename
-      { expected_basename; expected_extension; actual_basename = _;
+      { expected_basename; expected_extension = _; actual_basename = _;
         compilation_unit } ->
     fprintf ppf
-      "Filename given by -o must have basename %s.%s@ \
+      "Filename given by -o must have basename %s@ \
        to produce the desired instance %a"
       expected_basename
-      expected_extension
       CU.print compilation_unit
   | Not_parameterised compilation_unit ->
     fprintf ppf "%a must be compiled with at least one -parameter"

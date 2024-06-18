@@ -647,9 +647,6 @@
            ocamlopt_byte_exit_status = "2";
            ocamlopt.byte;
 
-           reason = "output currently differs by .cmo/cmx suffix";
-           skip;
-
            compiler_reference = "bad_instantiate_wrong_target_name.reference";
            check-ocamlopt.byte-output;
          }{
