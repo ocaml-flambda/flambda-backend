@@ -932,7 +932,7 @@ let emit_instr env fallthrough i =
     I.movzx (res8 i 0) (res i 0)
   | Lop (Idls_get) ->
     if Config.runtime5
-    then  I.mov (domain_field Domainstate.Domain_dls_root) (res i 0)
+    then I.mov (domain_field Domainstate.Domain_dls_root) (res i 0)
     else Misc.fatal_error "Idls_get not implemented in runtime4."
   | Lreloadretaddr ->
       ()

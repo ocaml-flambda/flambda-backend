@@ -61,6 +61,9 @@
 
 CAML_STATIC_ASSERT(sizeof(float) == sizeof(int32_t));
 
+#define Max_custom_array_wosize          (Max_wosize - 1)
+#define Max_unboxed_float32_array_wosize (Max_custom_array_wosize * (sizeof(intnat) / sizeof(float)))
+
 intnat caml_float32_compare_unboxed(float f, float g)
 {
   /* If one or both of f and g is NaN, order according to the convention
@@ -256,6 +259,22 @@ CAMLprim value caml_fma_float32_bytecode(value f, value g, value h)
   return caml_copy_float32(fmaf(Float32_val(f), Float32_val(g), Float32_val(h)));
 }
 
+float caml_float32_of_int64(int64_t i) {
+  return (float)i;
+}
+
+CAMLprim value caml_float32_of_int64_bytecode(value i) {
+  return caml_copy_float32(caml_float32_of_int64(Int64_val(i)));
+}
+
+int64_t caml_float32_to_int64(float f) {
+  return (int64_t)f;
+}
+
+CAMLprim value caml_float32_to_int64_bytecode(value f) {
+  return caml_copy_int64(caml_float32_to_int64(Float32_val(f)));
+}
+
 float caml_float32_of_bits(int32_t bits)
 {
   union { float f; int32_t i; } u;
@@ -288,6 +307,51 @@ float caml_ldexp_float32(float f, intnat i)
 CAMLprim value caml_ldexp_float32_bytecode(value f, value i)
 {
   return caml_copy_float32(caml_ldexp_float32(Float32_val(f), Int_val(i)));
+}
+
+float caml_sse_float32_min(float x, float y) {
+  return x < y ? x : y;
+}
+
+CAMLprim value caml_sse_float32_min_bytecode(value x, value y) {
+  return Float32_val(x) < Float32_val(y) ? x : y;
+}
+
+float caml_sse_float32_max(float x, float y) {
+  return x > y ? x : y;
+}
+
+CAMLprim value caml_sse_float32_max_bytecode(value x, value y) {
+  return Float32_val(x) > Float32_val(y) ? x : y;
+}
+
+int64_t caml_sse_cast_float32_int64(float f)
+{
+  return llrintf(f);
+}
+
+CAMLprim value caml_sse_cast_float32_int64_bytecode(value f)
+{
+  return caml_copy_int64(caml_sse_cast_float32_int64(Float32_val(f)));
+}
+
+#define ROUND_NEG_INF 0x9
+#define ROUND_POS_INF 0xA
+#define ROUND_ZERO 0xB
+#define ROUND_CURRENT 0xC
+
+float caml_sse41_float32_round(int mode, float f) {
+  switch(mode) {
+  case ROUND_NEG_INF: return floorf(f);
+  case ROUND_POS_INF: return ceilf(f);
+  case ROUND_ZERO:    return truncf(f);
+  case ROUND_CURRENT: return rintf(f);
+  default: caml_fatal_error("Unknown rounding mode.");
+  }
+}
+
+CAMLprim value caml_sse41_float32_round_bytecode(value mode, value f) {
+  return caml_copy_float32(caml_sse41_float32_round(Int_val(mode), Float32_val(f)));
 }
 
 enum { FP_normal, FP_subnormal, FP_zero, FP_infinite, FP_nan };
@@ -574,10 +638,10 @@ CAMLprim value caml_make_unboxed_float32_vect(value len)
   /* This is only used on 64-bit targets. */
 
   mlsize_t num_elements = Long_val(len);
-  if (num_elements > Max_wosize) caml_invalid_argument("Array.make");
+  if (num_elements > Max_unboxed_float32_array_wosize) caml_invalid_argument("Array.make");
 
   /* [num_fields] does not include the custom operations field. */
-  mlsize_t num_fields = (num_elements + 1) / 2;
+  mlsize_t num_fields = num_elements / 2 + num_elements % 2;
 
   return caml_alloc_custom(&caml_unboxed_float32_array_ops[num_elements % 2],
                            num_fields * sizeof(value), 0, 0);

@@ -217,6 +217,9 @@ Here by defining module type `S` with layout `any` and using `with` constraints,
 reason about modules with similar shapes but that operate on different layouts. This removes code
 duplication and can aid ppxs in supporting unboxed types.
 
+<!-- This heading is referred to by name in a link to an HTML anchor below.
+     If you rename it, please also update that link.
+-->
 # `[@layout_poly]` attribute
 
 The attribute enables support for **limited layout polymorphism on external
@@ -224,7 +227,7 @@ The attribute enables support for **limited layout polymorphism on external
 use site. We can thus specialize the function implementation based on the layout
 information at each site.
 
-With a `[@layout-poly]` external declaration like this:
+With a `[@layout_poly]` external declaration like this:
 
 ```ocaml
 external[@layout_poly] opaque_identity : ('a : any). 'a -> 'a = "%opaque"
@@ -270,7 +273,7 @@ let f2 : float# -> float# = magic;; (* ok *)
 let f3 : float# -> int32# = magic;; (* error *)
 ```
 
-This feature is conceptually similar to `[@local_opt]` for modes and would be useful for
+This feature is conceptually similar to `[@local_opt]` for modes and is useful for
 array access primitives.
 
 Here's the list of primitives that currently support `[@layout_poly]`:
@@ -285,3 +288,204 @@ Here's the list of primitives that currently support `[@layout_poly]`:
 * `%array_safe_set`
 * `%array_unsafe_get`
 * `%array_unsafe_set`
+* `%array_size`
+
+# Arrays of unboxed elements
+
+Arrays can store elements of any layout. You can think of `array` as having been declared as:
+
+```ocaml
+type ('a : any) array = (* ... *)
+```
+
+Array elements are packed according to their width. For example, arrays of
+elements whose layout is `bits32` store two elements per word.
+
+You can use normal array syntax for constructing such an array:
+
+```ocaml
+let array = [| #2l |]
+```
+
+Array primitives must be declared with `[@layout_poly]` to be usable with arrays of unboxed elements.
+
+```ocaml
+module Array = struct
+  external[@layout_poly] get : ('a : any). 'a array -> int -> 'a = "%array_safe_get"
+end
+
+let first_elem () = array.(0)
+```
+
+(The above relies on the fact that array projection syntax desugars to a call to whatever `Array.get` is in scope.)
+
+A limited set of primitives may be bound as `[@layout_poly]`;
+[see the earlier section](#layout_poly-attribute) for more information.
+
+## Runtime representation
+
+| Array                            | Tag                | Layout of data                                              |
+|----------------------------------|--------------------|-------------------------------------------------------------|
+| `float# array`                   | `Double_array_tag` | 64 bits per element                                         |
+| `int64# array`                   | `Custom_tag`       | reserved custom block word, followed by 64 bits per element |
+| `float32# array`, `int32# array` | `Custom_tag`       | reserved custom block word, followed by 32 bits per element |
+
+The above table is written about concrete types like `float#` and `int64#`, but
+actually holds for all types of the relevant layout.
+
+The reserved custom block word is the standard custom block field that stores a
+pointer to the record of custom operations, like polymorphic equality and
+comparison. For unboxed 32-bit element types, like `int32#` and `float32#`, the
+custom operations pointer is different for odd-length arrays and even-length
+arrays.
+
+Odd-length arrays of 32-bit element type have 32 bits of padding at the end.
+The contents of this padding is unspecified, and it is not guaranteed that
+the padding value will be preserved by the generated code or the runtime.
+
+# Using unboxed types in structures
+
+Unboxed types can usually be put in structures, though there are some restrictions.
+
+These structures may contain unboxed types, but have some restrictions on field
+orders:
+
+  * Records
+  * Constructors
+  
+Unboxed numbers can't be put in these structures:
+
+  * Constructors with inline record fields
+  * Exceptions
+  * Extensible variant constructors
+  * Top-level fields of modules
+  * Tuples
+  
+There aren't fundamental issues with the structures that lack support. They will
+just take some work to implement.
+
+Here's an example of a record with an unboxed field. We call such a record 
+a "mixed record".
+
+```ocaml
+type t =
+  { str : string;
+    i : int;
+    f : float#;
+  }
+```
+
+## Restrictions on field ordering
+
+The below is written about record fields but equally applies to constructor
+arguments.
+
+Suppose a record contains any unboxed field `fld` whose layout is not `value`[^or-combination-of-values]. Then, the following restriction applies: All
+fields occurring after `fld` in the record must be "flat", i.e. the GC can
+skip looking at them. The only options for flat fields are immediates (i.e. things
+represented as ints at runtime) and other unboxed numbers.
+
+[^or-combination-of-values]: Technically, there are some non-value layouts that don't hit this restriction, like unboxed products and unboxed sums consisting only of values.
+
+The following definition is rejected, as the boxed field `s : string` appears
+after the unboxed float field `f`:
+
+```ocaml
+type t_rejected =
+  { f : float#;
+    s : string;
+  }
+  (* Error: Expected all flat fields after non-value field, f,
+            but found boxed field, s. *)
+```
+
+The only relaxation of the above restriction is for records that consist
+solely of `float` and `float#` fields. Any ordering of `float` and `float#`
+fields is permitted. The "flat float record optimization" applies to any
+such record&mdash;all of the fields are stored flat, even the `float` ones
+that will require boxing upon projection. The ordering restriction is relaxed
+in this case to provide a better migration story for all-`float` records
+to which the flat float record optimization currently applies.
+
+```ocaml
+type t_flat_float =
+  { x1 : float;
+    x2 : float#;
+    x3 : float;
+  }
+```
+
+The ordering restriction has to do with the "mixed block" runtime
+representation. Read on for more detail about that.
+
+## Generic operations aren't supported
+
+Some operations built in to the OCaml runtime aren't supported for structures
+containing unboxed types.
+
+These operations aren't supported:
+
+  * polymorphic comparison and equality
+  * polymorphic hash
+  * marshaling
+  
+These operations raise an exception at runtime, similar to how polymorphic
+comparison raises when called on a function.
+
+You should use ppx-derived versions of these operations instead.
+
+## Runtime representation: mixed blocks
+
+As a general principle: The compiler should not change the user-specified
+field ordering when deciding the runtime representation.
+
+Abiding by this principle allows you to write C bindings and
+predict hardware cache performance.
+
+A structure containing unboxed types is represented at runtime as a "mixed
+block". A mixed block always consists of fields the GC can-or-must scan followed by
+fields the GC can-or-must skip[^can-or-must]. The garbage collector must be kept
+informed of which fields of the block it should scan. A portion of the header
+word is reserved to track the length of the prefix of the block that should be
+scanned by the garbage collector.
+
+[^can-or-must]: "Can-or-must" is a bit of a mouthful, but it captures the right nuance. Pointer values *must* be scanned, unboxed number fields *must* be skipped, and immediate values *can* be scanned or skipped.
+
+The ordering constraint on structure fields is a reflection of the same
+ordering restriction in the runtime representation. 
+
+## C bindings for mixed blocks
+
+The implementation of field layout in a mixed block is not finalized. For example, we'd like for int32 fields to be packed efficiently (two to a word) on 64 bit platforms. Currently that's not the case: each one takes up a word.
+
+Users who write C bindings might want to be notified when we change this layout. To ensure that your code will need to be updated when the layout changes, use the `Assert_mixed_block_layout_v#` family of macros. For example,
+
+```
+Assert_mixed_block_layout_v1;
+```
+
+Write the above in statement context, i.e. either at the top-level of a file or
+within a function.
+
+Here's a full example. Say you're writing C bindings against this OCaml type:
+
+```ocaml
+(** foo.ml *)
+type t =
+  { x : int32#;
+    y : int32#;
+  }
+```
+
+Here is the recommend way to access fields:
+
+```c
+Assert_mixed_block_layout_v1;
+#define Foo_t_x(foo) (*(int32_t*)&Field(foo, 0))
+#define Foo_t_y(foo) (*(int32_t*)&Field(foo, 1))
+```
+
+We would bump the version number in either of these cases, which would prompt you to think about the code:
+
+  * We change what word half the int32 is stored in
+  * We start packing int32s more efficiently

@@ -20,6 +20,14 @@ jobs:
             config: --enable-middle-end=flambda2 --enable-runtime5
             os: ubuntu-latest
 
+          - name: flambda2_dev
+            config: --enable-middle-end=flambda2 --enable-dev
+            os: ubuntu-latest
+
+          - name: flambda2_dev_runtime5
+            config: --enable-middle-end=flambda2 --enable-dev --enable-runtime5
+            os: ubuntu-latest
+
           - name: flambda2_debug_runtime5
             config: --enable-middle-end=flambda2 --enable-runtime5
             os: ubuntu-latest
@@ -226,3 +234,6 @@ jobs:
       if: matrix.check_arch == true
       run: |
         PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH make check_all_arches
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true

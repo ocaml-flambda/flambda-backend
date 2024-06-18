@@ -223,8 +223,16 @@ module T = struct
     | Ptype_record l -> List.iter (sub.label_declaration sub) l
     | Ptype_open -> ()
 
+  let iter_modalities sub modalities =
+    List.iter (iter_loc sub) modalities
+
+  let iter_constructor_argument sub {pca_type; pca_loc; pca_modalities} =
+    sub.typ sub pca_type;
+    sub.location sub pca_loc;
+    iter_modalities sub pca_modalities
+
   let iter_constructor_arguments sub = function
-    | Pcstr_tuple l -> List.iter (sub.typ sub) l
+    | Pcstr_tuple l -> List.iter (iter_constructor_argument sub) l
     | Pcstr_record l ->
         List.iter (sub.label_declaration sub) l
 
@@ -975,11 +983,12 @@ let default_iterator =
       );
 
     label_declaration =
-      (fun this {pld_name; pld_type; pld_loc; pld_mutable = _; pld_attributes}->
+      (fun this {pld_name; pld_type; pld_loc; pld_mutable = _; pld_modalities; pld_attributes}->
          iter_loc this pld_name;
          this.typ this pld_type;
          this.location this pld_loc;
-         this.attributes this pld_attributes
+         this.attributes this pld_attributes;
+         T.iter_modalities this pld_modalities
       );
 
     cases = (fun this l -> List.iter (this.case this) l);
