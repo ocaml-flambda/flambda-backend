@@ -2056,6 +2056,66 @@ module Layouts = struct
     | _ -> failwith "Malformed [kind_abbrev] in structure"
 end
 
+module Instances = struct
+  type instance =
+    { head : string;
+      args : (instance * instance) list
+    }
+
+  type module_expr = Imod_instance of instance
+
+  let feature : Feature.t = Language_extension Instances
+
+  let rec module_expr_of_instance ~loc { head; args } =
+    let head = Ast_helper.Mod.ident ~loc { txt = Lident head; loc } in
+    match args with
+    | [] -> head
+    | _ ->
+      let args =
+        List.concat_map
+          (fun (param, value) ->
+            let param = module_expr_of_instance ~loc param in
+            let value = module_expr_of_instance ~loc value in
+            [param; value])
+          args
+      in
+      List.fold_left (Ast_helper.Mod.apply ~loc) head args
+
+  let module_expr_of ~loc = function
+    | Imod_instance instance ->
+      Module_expr.make_entire_jane_syntax ~loc feature (fun () ->
+          module_expr_of_instance ~loc instance)
+
+  let head_of_ident (lid : Longident.t Location.loc) =
+    match lid with
+    | { txt = Lident s; loc = _ } -> s
+    | _ -> failwith "Malformed instance identifier"
+
+  let gather_args mexpr =
+    let rec loop mexpr rev_acc =
+      match mexpr.pmod_desc with
+      | Pmod_apply (f, v) -> (
+        match f.pmod_desc with
+        | Pmod_apply (f, n) -> loop f ((n, v) :: rev_acc)
+        | _ -> failwith "Malformed instance identifier")
+      | head -> head, List.rev rev_acc
+    in
+    loop mexpr []
+
+  let rec instance_of_module_expr mexpr =
+    match gather_args mexpr with
+    | Pmod_ident i, args ->
+      let head = head_of_ident i in
+      let args = List.map instances_of_arg_pair args in
+      { head; args }
+    | _ -> failwith "Malformed instance identifier"
+
+  and instances_of_arg_pair (n, v) =
+    instance_of_module_expr n, instance_of_module_expr v
+
+  let of_module_expr mexpr = Imod_instance (instance_of_module_expr mexpr)
+end
+
 (******************************************************************************)
 (** The interface to our novel syntax, which we export *)
 
@@ -2214,6 +2274,18 @@ module Module_type = struct
     | _ :: _ as attrs ->
       (* See Note [Outer attributes at end] *)
       { mty with pmty_attributes = mty.pmty_attributes @ attrs }
+end
+
+module Module_expr = struct
+  type t = Emod_instance of Instances.module_expr
+
+  let of_ast_internal (feat : Feature.t) sigi =
+    match feat with
+    | Language_extension Instances ->
+      Some (Emod_instance (Instances.of_module_expr sigi))
+    | _ -> None
+
+  let of_ast = Module_expr.make_of_ast ~of_ast_internal
 end
 
 module Signature_item = struct
