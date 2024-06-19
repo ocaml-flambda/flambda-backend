@@ -17,6 +17,7 @@
    category_of_monoid.ml category_of_monoid.mli \
    category_utils.ml category_utils.mli \
    chain.ml chain.mli \
+   float_list_element.ml float_list_element.mli \
    import.ml \
    int_list_element.ml int_list_element.mli \
    list_element.mli \
@@ -223,6 +224,10 @@
          module = "int_list_element.mli int_list_element.ml";
          ocamlc.byte;
 
+         flags = "-as-argument-for List_element";
+         module = "float_list_element.mli float_list_element.ml";
+         ocamlc.byte;
+
          flags = "";
          module = "widget.mli widget.ml";
          ocamlc.byte;
@@ -255,6 +260,18 @@
          }{
            module = "";
            flags = "-instantiate";
+           program = "monoid_of_semigroup-Int_list_element-String_semigroup.cmo";
+           all_modules =
+             "monoid_of_semigroup.cmo int_list_element.cmo string_semigroup.cmo";
+           compiler_output = "bad_instantiate_no_such_param.output";
+           ocamlc_byte_exit_status = "2";
+           ocamlc.byte;
+
+           compiler_reference = "bad_instantiate_no_such_param.reference";
+           check-ocamlc.byte-output;
+         }{
+           module = "";
+           flags = "-instantiate";
            program = "import-Int_list_element.cmo";
            all_modules = "import.cmo int_list_element.cmo";
            compiler_output = "bad_instantiate_missing_arg.output";
@@ -262,6 +279,17 @@
            ocamlc.byte;
 
            compiler_reference = "bad_instantiate_missing_arg.reference";
+           check-ocamlc.byte-output;
+         }{
+           module = "";
+           flags = "-instantiate";
+           program = "list_monoid-Float_list_element-Int_list_element.cmo";
+           all_modules = "list_monoid.cmo float_list_element.cmo int_list_element.cmo";
+           compiler_output = "bad_instantiate_repeated_param.output";
+           ocamlc_byte_exit_status = "2";
+           ocamlc.byte;
+
+           compiler_reference = "bad_instantiate_repeated_param.reference";
            check-ocamlc.byte-output;
          }{
            module = "";
@@ -598,6 +626,10 @@
          module = "int_list_element.mli int_list_element.ml";
          ocamlopt.byte;
 
+         flags = "-as-argument-for List_element";
+         module = "float_list_element.mli float_list_element.ml";
+         ocamlopt.byte;
+
          flags = "";
          module = "widget.mli widget.ml";
          ocamlopt.byte;
@@ -630,6 +662,18 @@
          }{
            module = "";
            flags = "-instantiate";
+           program = "monoid_of_semigroup-Int_list_element-String_semigroup.cmx";
+           all_modules =
+             "monoid_of_semigroup.cmx int_list_element.cmx string_semigroup.cmx";
+           compiler_output = "bad_instantiate_no_such_param.output";
+           ocamlopt_byte_exit_status = "2";
+           ocamlopt.byte;
+
+           compiler_reference = "bad_instantiate_no_such_param.reference";
+           check-ocamlopt.byte-output;
+         }{
+           module = "";
+           flags = "-instantiate";
            program = "import-Int_list_element.cmx";
            all_modules = "import.cmx int_list_element.cmx";
            compiler_output = "bad_instantiate_missing_arg.output";
@@ -637,6 +681,17 @@
            ocamlopt.byte;
 
            compiler_reference = "bad_instantiate_missing_arg.reference";
+           check-ocamlopt.byte-output;
+         }{
+           module = "";
+           flags = "-instantiate";
+           program = "list_monoid-Float_list_element-Int_list_element.cmx";
+           all_modules = "list_monoid.cmx float_list_element.cmx int_list_element.cmx";
+           compiler_output = "bad_instantiate_repeated_param.output";
+           ocamlopt_byte_exit_status = "2";
+           ocamlopt.byte;
+
+           compiler_reference = "bad_instantiate_repeated_param.reference";
            check-ocamlopt.byte-output;
          }{
            module = "";
