@@ -1,0 +1,65 @@
+(* TEST 
+ native;
+*)
+
+[@@@ocaml.flambda_o3]
+
+type t = float
+type u = float#
+
+external box : (u[@unboxed]) -> (t[@local_opt]) = "%box_float"
+external unbox : (t[@local_opt]) -> (u[@unboxed]) = "%unbox_float"
+external globalize : (t[@local_opt]) -> t = "%obj_dup"
+
+let magic_globalize =
+  let zero = Sys.opaque_identity ~-.0. in
+  fun (local_ t) -> globalize t +. zero
+;;
+
+let old_f t =
+  if t > 0.0
+  then (
+    let t' = ceil t in
+    if t' <= 1.0
+    then Int.of_float t'
+    else invalid_arg (Printf.sprintf "argument (%f) is too large" (magic_globalize t)))
+  else if t >= -1.0
+  then Int.of_float t
+  else invalid_arg (Printf.sprintf "argument (%f) is too small" (magic_globalize t))
+;;
+
+let new_f t =
+  let u = unbox t in
+  if t > 0.0
+  then (
+    let t' = ceil t in
+    if t' <= 1.0
+    then Int.of_float t'
+    else invalid_arg (Printf.sprintf "argument (%f) is too large" (box u)))
+  else if t >= -1.0
+  then Int.of_float t
+  else invalid_arg (Printf.sprintf "argument (%f) is too small" (box u))
+;;
+
+let xs = Sys.opaque_identity [| 0. |]
+
+let old_g () = old_f xs.(0)
+let new_g () = new_f xs.(0)
+
+let check_noalloc name f =
+  let a0 = Gc.allocated_bytes () in
+  let a1 = Gc.allocated_bytes () in
+  let _x = (f[@inlined never]) () in
+  let a2 = Gc.allocated_bytes () in
+  let alloc = (a2 -. 2. *. a1 +. a0) in
+
+  match Sys.backend_type with
+  | Sys.Bytecode -> ()
+  | Sys.Native ->
+      if alloc > 0. then
+        failwith (Printf.sprintf "%s; alloc = %.0f" name alloc)
+  | _ -> assert false
+
+let () = 
+  check_noalloc "fail w/ magic globalize" old_g;
+  check_noalloc "fail w/ explicit box/unbox" new_g
