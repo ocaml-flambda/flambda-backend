@@ -6,6 +6,7 @@
    bad_instance_arg_value_not_arg.ml bad_instance_arg_value_not_arg.reference \
    bad_instance_arg_value_not_found.ml bad_instance_arg_value_not_found.reference \
    bad_instance_arg_value_wrong_type.ml bad_instance_arg_value_wrong_type.reference \
+   bad_instance_repeated_arg_name.ml bad_instance_repeated_arg_name.reference \
    bad_ref_direct.ml bad_ref_direct.reference \
    bad_ref_direct_imported.ml bad_ref_direct_imported.reference \
    bad_ref_indirect.ml bad_ref_indirect.reference \
@@ -133,6 +134,15 @@
 
        reference = "monoid_utils_as_program.reference";
        check-program-output;
+     }{
+       flags = "-parameter Semigroup";
+       module = "bad_instance_repeated_arg_name.ml";
+       compiler_output = "bad_instance_repeated_arg_name.output";
+       ocamlc_byte_exit_status = "2";
+       ocamlc.byte;
+
+       compiler_reference = "bad_instance_repeated_arg_name.reference";
+       check-ocamlc.byte-output;
      }{
        flags = "-parameter List_element";
        module = "bad_instance_arg_name_not_found.ml";
@@ -325,6 +335,15 @@
 
        reference = "monoid_utils_as_program.reference";
        check-program-output;
+     }{
+       flags = "-parameter Semigroup";
+       module = "bad_instance_repeated_arg_name.ml";
+       compiler_output = "bad_instance_repeated_arg_name.output";
+       ocamlopt_byte_exit_status = "2";
+       ocamlopt.byte;
+
+       compiler_reference = "bad_instance_repeated_arg_name.reference";
+       check-ocamlopt.byte-output;
      }{
        flags = "-parameter List_element";
        module = "bad_instance_arg_name_not_found.ml";

@@ -1,5 +1,8 @@
 [@@@ocaml.warning "+a-9-40-41-42"]
 
+type ('name, 'value) duplicate =
+  | Duplicate of { name : 'name; value1 : 'value; value2 : 'value }
+
 module Name : sig
   type t = private {
     head : string;
@@ -8,7 +11,9 @@ module Name : sig
 
   include Identifiable.S with type t := t
 
-  val create : string -> (t * t) list -> t
+  val create : string -> (t * t) list -> (t, (t, t) duplicate) Result.t
+
+  val create_exn : string -> (t * t) list -> t
 
   val to_string : t -> string
 end
@@ -53,7 +58,17 @@ type t = private {
 
 include Identifiable.S with type t := t
 
-val create : string -> (Name.t * t) list -> hidden_args:(Name.t * t) list -> t
+val create
+   : string
+  -> (Name.t * t) list
+  -> hidden_args:(Name.t * t) list
+  -> (t, (Name.t, t) duplicate) Result.t
+
+val create_exn
+   : string
+  -> (Name.t * t) list
+  -> hidden_args:(Name.t * t) list
+  -> t
 
 val to_string : t -> string
 

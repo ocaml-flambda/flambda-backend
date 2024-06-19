@@ -543,7 +543,9 @@ and compute_global penv modname ~params check =
     List.map (fun param -> Global_module.to_name param, param) params
   in
   let global_without_args =
-    Global_module.create modname.Global_module.Name.head [] ~hidden_args
+    (* Won't raise an exception, since the hidden args are all different
+       (since the params are different, or else we have bigger problems) *)
+    Global_module.create_exn modname.Global_module.Name.head [] ~hidden_args
   in
   let global, _changed = Global_module.subst global_without_args subst in
   global

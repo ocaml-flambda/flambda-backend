@@ -160,6 +160,7 @@ type error =
       old_arg_type: Global_module.Name.t option;
       old_source_file: Misc.filepath;
     }
+  | Duplicate_parameter_name of Global_module.Name.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
