@@ -2,9 +2,9 @@ module Test_data = struct
   open Global_module
 
   open struct
-    let n ?(args = []) head : Name.t = Name.create head args
+    let n ?(args = []) head : Name.t = Name.create_exn head args
 
-    let g ?(vis = []) ?(hid = []) head = create head vis ~hidden_args:hid
+    let g ?(vis = []) ?(hid = []) head = create_exn head vis ~hidden_args:hid
   end
 
   let [@ocamlformat "disable"] () =

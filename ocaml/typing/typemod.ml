@@ -98,6 +98,7 @@ type error =
       old_arg_type : Global_module.Name.t option;
       old_source_file : Misc.filepath;
     }
+  | Duplicate_parameter_name of Global_module.Name.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -348,11 +349,18 @@ let path_is_strict_prefix =
        Ident.same ident1 ident2
        && list_is_strict_prefix l1 ~prefix:l2
 
-let rec instance_name ({ head; args } : Jane_syntax.Instances.instance) =
+let rec instance_name ~loc env syntax =
+  let ({ head; args } : Jane_syntax.Instances.instance) = syntax in
   let args =
-    List.map (fun (name, value) -> instance_name name, instance_name value) args
+    List.map
+      (fun (name, value) ->
+         instance_name ~loc env name, instance_name ~loc env value)
+      args
   in
-  Global_module.Name.create head args
+  match Global_module.Name.create head args with
+  | Ok name -> name
+  | Error (Duplicate { name; value1 = _; value2 = _ }) ->
+    raise (Error (loc, env, Duplicate_parameter_name name))
 
 let iterator_with_env env =
   let env = ref (lazy env) in
@@ -2540,7 +2548,7 @@ and type_module_extension_aux ~alias sttn env smod
   | Emod_instance (Imod_instance glob) ->
       ignore (alias, sttn, env, smod);
       Misc.fatal_errorf "@[<hv>Unimplemented: instance identifier@ %a@]"
-        Global_module.Name.print (instance_name glob)
+        Global_module.Name.print (instance_name ~loc:smod.pmod_loc env glob)
 
 and type_application loc strengthen funct_body env smod =
   let rec extract_application funct_body env sargs smod =
@@ -3376,7 +3384,7 @@ let type_params params =
   List.iter
     (fun param_name ->
        (* We don't (yet!) support parameterised parameters *)
-       let param = Global_module.Name.create param_name [] in
+       let param = Global_module.Name.create_exn param_name [] in
        Env.register_parameter param
     )
     params
@@ -3484,7 +3492,7 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           error Cannot_compile_implementation_as_parameter;
         let arg_type =
           !Clflags.as_argument_for
-          |> Option.map (fun name -> Global_module.Name.create name [])
+          |> Option.map (fun name -> Global_module.Name.create_exn name [])
         in
         let sourceintf =
           Filename.remove_extension sourcefile ^ !Config.interface_suffix in
@@ -3638,7 +3646,7 @@ let type_interface ~sourcefile modulename env ast =
   let sg = transl_signature env ast in
   let arg_type =
     !Clflags.as_argument_for
-    |> Option.map (fun name -> Global_module.Name.create name [])
+    |> Option.map (fun name -> Global_module.Name.create_exn name [])
   in
   ignore (check_argument_type_if_given env sourcefile sg.sig_type arg_type
           : Typedtree.argument_interface option);
@@ -3690,7 +3698,7 @@ let package_units initial_env objfiles cmifile modulename =
            |> String.capitalize_ascii
          in
          let unit = Compilation_unit.Name.of_string basename in
-         let global_name = Global_module.Name.create basename [] in
+         let global_name = Global_module.Name.create_exn basename [] in
          let modname = Compilation_unit.create_child modulename unit in
          let sg =
            Env.read_signature global_name (pref ^ ".cmi") ~add_binding:false
@@ -4027,6 +4035,10 @@ let report_error ~loc _env = function
       Location.errorf ~loc
         "Parameter module %a@ specified by -as-argument-for cannot be found."
         Global_module.Name.print arg_type
+  | Duplicate_parameter_name name ->
+      Location.errorf ~loc
+        "This instance has multiple arguments with the name %a."
+        Global_module.Name.print name
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env_error env
