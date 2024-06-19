@@ -182,15 +182,9 @@ end
 
 module Err = Includemod.Error
 
-let buffer = ref Bytes.empty
-let is_big obj =
+let is_big p =
   let size = !Clflags.error_size in
-  size > 0 &&
-  begin
-    if Bytes.length !buffer < size then buffer := Bytes.create size;
-    try ignore (Marshal.to_buffer !buffer 0 size obj []); false
-    with _ -> true
-  end
+  size > 0 && Misc.is_print_longer_than size p
 
 let show_loc msg ppf loc =
   let pos = loc.Location.loc_start in
@@ -575,11 +569,11 @@ let with_context ?loc ctx printer diff =
 let dwith_context ?loc ctx printer =
   Location.msg ?loc "%a%t" Context.pp (List.rev ctx) printer
 
-let dwith_context_and_elision ?loc ctx printer diff =
-  if is_big (diff.got,diff.expected) then
+let dwith_context_and_elision ?loc ctx print_diff =
+  if is_big print_diff then
     Location.msg ?loc "..."
   else
-    dwith_context ?loc ctx (printer diff)
+    dwith_context ?loc ctx print_diff
 
 (* Merge sub msgs into one printer *)
 let coalesce msgs =
@@ -750,7 +744,7 @@ let rec module_type ~expansion_token ~eqmode ~env ~before ~ctx diff =
                It is thus better to avoid eliding the current error message.
             *)
             dwith_context ctx (inner diff)
-        | _ -> dwith_context_and_elision ctx inner diff
+        | _ -> dwith_context_and_elision ctx (inner diff)
       in
       let before = next :: before in
       module_type_symptom ~eqmode ~expansion_token ~env ~before ~ctx
@@ -819,7 +813,7 @@ and sigitem ~expansion_token ~env ~before ~ctx (name,s) = match s with
       module_type_decl ~expansion_token ~env ~before ~ctx name diff
 and module_type_decl ~expansion_token ~env ~before ~ctx id diff =
   let next =
-    dwith_context_and_elision ctx (module_type_declarations id) diff in
+    dwith_context_and_elision ctx (module_type_declarations id diff) in
   let before = next :: before in
   match diff.symptom with
   | Not_less_than mts ->
