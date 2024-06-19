@@ -3,9 +3,10 @@
  expect;
 *)
 
-(* Since [mutable] implies [global] modality, which in turns implies [shared]
-   and [many] modalities, the effect of mutable in isolation is not testable
-   yet. *)
+(* This file tests the typing around mutable() logic. *)
+
+(* For legacy compatibility, [mutable] implies [global] [shared] and [many].
+   Therefore, the effect of mutable in isolation is not testable yet. *)
 
 (* CR zqian: add test for mutable when mutable is decoupled from modalities. *)
 

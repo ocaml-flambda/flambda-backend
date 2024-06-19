@@ -22,6 +22,16 @@
             sed -n -e '/^  /s/ \\([A-Z]\\)/ \\&\\&lbl_\\1/gp' -e '/^}/q'"))))
 
 (rule
+  (targets opnames.h)
+  (deps instruct.h ../../Makefile
+   ../../Makefile.common
+   ../../Makefile.config
+   ../../Makefile.build_config
+   ../../Makefile.config_if_required
+  )
+  (action (run make -s -C ../.. COMPUTE_DEPS=false runtime/caml/opnames.h)))
+
+(rule
  (targets version.h)
  (mode    fallback)
  (action
@@ -66,6 +76,7 @@
     (intext.h as caml/intext.h)
     (io.h as caml/io.h)
     (lf_skiplist.h as caml/lf_skiplist.h)
+    (jumptbl.h as caml/jumptbl.h)
     (m.h as caml/m.h)
     (major_gc.h as caml/major_gc.h)
     (md5.h as caml/md5.h)
@@ -74,6 +85,7 @@
     (minor_gc.h as caml/minor_gc.h)
     (misc.h as caml/misc.h)
     (mlvalues.h as caml/mlvalues.h)
+    (opnames.h as caml/opnames.h)
     (osdeps.h as caml/osdeps.h)
     (platform.h as caml/platform.h)
     (prims.h as caml/prims.h)

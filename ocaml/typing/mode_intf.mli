@@ -89,14 +89,6 @@ module type Common = sig
 end
 
 module type S = sig
-  module Global_flag : sig
-    type t =
-      | Global
-      | Unrestricted
-
-    val compare : t -> t -> int
-  end
-
   type changes
 
   val undo_changes : changes -> unit
@@ -451,4 +443,68 @@ module type S = sig
 
   (** Similar to [regional_to_global], behaves as identity on other axes *)
   val value_to_alloc_r2g : ('l * 'r) Value.t -> ('l * 'r) Alloc.t
+
+  module Modality : sig
+    type ('m, 'a) raw =
+      | Meet_with : 'a -> (('a, 'd) mode_comonadic, 'a) raw
+          (** [Meet_with c] takes [x] and returns [meet c x]. [c] can be [max]
+          in which case it's the identity modality. *)
+      | Join_with : 'a -> (('a, 'd) mode_monadic, 'a) raw
+          (** [Join_with c] takes [x] and returns [join c x]. [c] can be [min]
+          in which case it's the identity modality. *)
+
+    (** An atom modality is a [raw] accompanied by the axis it acts on. *)
+    type t = Atom : ('m, 'a, _) Value.axis * ('m, 'a) raw -> t
+
+    (** Test if the given modality is the identity modality. *)
+    val is_id : t -> bool
+
+    (** Printing for debugging *)
+    val print : Format.formatter -> t -> unit
+
+    module Value : sig
+      type atom := t
+
+      (** A modality that acts on [Value] modes. Conceptually it is a sequnce of
+          [atom] that acts on individual axes. *)
+      type t
+
+      (** The identity modality. *)
+      val id : t
+
+      (** Apply a modality on mode. *)
+      val apply : t -> ('l * 'r) Value.t -> ('l * 'r) Value.t
+
+      (** [cons m t] returns the modality that is [m] after [t]. *)
+      val cons : atom -> t -> t
+
+      (** [singleton m] returns the modality containing only [m]. *)
+      val singleton : atom -> t
+
+      (** Returns the list of [atom] in the given modality. The list is
+          commutative. *)
+      val to_list : t -> atom list
+
+      type error =
+        | Error : ('m, 'a, _) Value.axis * ('m, 'a) raw Solver.error -> error
+
+      (** [sub t0 t1] checks that [t0 <= t1].
+          Definition: [t0 <= t1] iff [forall a. t0(a) <= t1(a)].
+
+          In case of failure, [Error (ax, {left; right})] is returned, where
+          [ax] is the axis on which the modalities disagree. [left] is the
+          projection of [t0] on [ax], and [right] is the projection of [t1] on
+          [ax]. *)
+      val sub : t -> t -> (unit, error) Result.t
+
+      type nonrec equate_error = equate_step * error
+
+      (** [equate t0 t1] checks that [t0 = t1].
+          Definition: [t0 = t1] iff [t0 <= t1] and [t1 <= t0]. *)
+      val equate : t -> t -> (unit, equate_error) Result.t
+
+      (** Printing for debugging. *)
+      val print : Format.formatter -> t -> unit
+    end
+  end
 end

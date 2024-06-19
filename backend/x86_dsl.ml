@@ -205,6 +205,8 @@ module I = struct
   let andps x y = emit (ANDPS (x, y))
   let cmpss i x y = emit (CMPSS (i, x, y))
 
+  let minss x y = emit (SSE (MINSS (x, y)))
+  let maxss x y = emit (SSE (MAXSS (x, y)))
   let cmpps i x y = emit (SSE (CMPPS (i, x, y)))
   let shufps i x y = emit (SSE (SHUFPS (i, x, y)))
   let addps x y = emit (SSE (ADDPS (x, y)))
@@ -372,6 +374,7 @@ module I = struct
   let pminud x y = emit (SSE41 (PMINUD (x, y)))
   let roundpd i x y = emit (SSE41 (ROUNDPD (i, x, y)))
   let roundps i x y = emit (SSE41 (ROUNDPS (i, x, y)))
+  let roundss i x y = emit (SSE41 (ROUNDSS (i, x, y)))
   let mpsadbw i x y = emit (SSE41 (MPSADBW (i, x, y)))
   let phminposuw x y = emit (SSE41 (PHMINPOSUW (x, y)))
   let pmulld x y = emit (SSE41 (PMULLD (x, y)))

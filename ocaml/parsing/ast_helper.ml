@@ -550,11 +550,19 @@ module Type = struct
      pcd_attributes = add_info_attrs info attrs;
     }
 
+  let constructor_arg ?(loc = !default_loc) ?(modalities = []) typ =
+    {
+      pca_modalities = modalities;
+      pca_type = typ;
+      pca_loc = loc;
+    }
+
   let field ?(loc = !default_loc) ?(attrs = []) ?(info = empty_info)
-        ?(mut = Immutable) name typ =
+        ?(mut = Immutable) ?(modalities = []) name typ =
     {
      pld_name = name;
      pld_mutable = mut;
+     pld_modalities = modalities;
      pld_type = typ;
      pld_loc = loc;
      pld_attributes = add_info_attrs info attrs;

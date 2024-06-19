@@ -1091,6 +1091,7 @@ let emit_dpps = suffix emit_osize_rf_rfm_3A 0x40
 let emit_dppd = suffix emit_osize_rf_rfm_3A 0x41
 let emit_roundps = suffix emit_osize_rf_rfm_3A 0x08
 let emit_roundpd = suffix emit_osize_rf_rfm_3A 0x09
+let emit_roundss = suffix emit_osize_rf_rfm_3A 0x0A
 
 let emit_pmulhw = emit_osize_rf_rfm 0xE5
 let emit_pmulhuw = emit_osize_rf_rfm 0xE4
@@ -1754,6 +1755,20 @@ let emit_mfence b = buf_opcodes b [ 0x0F; 0xAE; 0xF0 ]
 
 let emit_leave b = buf_int8 b 0xC9
 
+let emit_maxss b ~dst ~src =
+  match (dst, src) with
+  | (Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm)) ->
+    buf_int8 b 0xF3;
+    emit_mod_rm_reg b no_rex [ 0x0F; 0x5F ] rm (rd_of_regf reg)
+  | _ -> assert false
+
+let emit_minss b ~dst ~src =
+  match (dst, src) with
+  | (Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm)) ->
+    buf_int8 b 0xF3;
+    emit_mod_rm_reg b no_rex [ 0x0F; 0x5D ] rm (rd_of_regf reg)
+  | _ -> assert false
+
 let emit_maxsd b ~dst ~src =
   match (dst, src) with
   | (Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm)) ->
@@ -1933,6 +1948,8 @@ let assemble_instr b loc = function
   | XORPS (src, dst) -> emit_xor_float ~width:Cmm.Float32 b dst src
   | ANDPS (src, dst) -> emit_and_float ~width:Cmm.Float32 b dst src
   | CMPSS (condition, src, dst) -> emit_cmp_float ~width:Cmm.Float32 b ~condition ~dst ~src
+  | SSE MINSS (src, dst) -> emit_minss b ~dst ~src
+  | SSE MAXSS (src, dst) -> emit_maxss b ~dst ~src
   | SSE CMPPS (cmp, src, dst) -> emit_cmpps b (imm8_of_float_condition cmp) dst src
   | SSE ADDPS (src, dst) -> emit_addps b dst src
   | SSE SUBPS (src, dst) -> emit_subps b dst src
@@ -2095,6 +2112,7 @@ let assemble_instr b loc = function
   | SSE41 PMINUD (src, dst) -> emit_pminud b dst src
   | SSE41 ROUNDPD (n, src, dst) -> emit_roundpd b (imm8_of_rounding n) dst src
   | SSE41 ROUNDPS (n, src, dst) -> emit_roundps b (imm8_of_rounding n) dst src
+  | SSE41 ROUNDSS (n, src, dst) -> emit_roundss b (imm8_of_rounding n) dst src
   | SSE41 PHMINPOSUW (src, dst) -> emit_phminposuw b dst src
   | SSE41 PMULLD (src, dst) -> emit_pmulld b dst src
   | SSE41 MPSADBW (n, src, dst) -> emit_mpsadbw b (imm n) dst src

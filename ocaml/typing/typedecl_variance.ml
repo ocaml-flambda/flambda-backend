@@ -253,7 +253,7 @@ let constrained vars ty =
   | _ -> true
 
 let for_constr = function
-  | Types.Cstr_tuple l -> List.map (fun (ty,_) -> false, ty) l
+  | Types.Cstr_tuple l -> List.map (fun {ca_type; _} -> false, ca_type) l
   | Types.Cstr_record l ->
       List.map
         (fun {Types.ld_mutable; ld_type} ->

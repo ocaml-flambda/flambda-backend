@@ -34,7 +34,6 @@ type error =
       Compilation_unit.t * filepath * Compilation_unit.Prefix.t
   | Illegal_import_of_parameter of Compilation_unit.Name.t * filepath
   | Not_compiled_as_parameter of Compilation_unit.Name.t * filepath
-  | Cannot_implement_parameter of Compilation_unit.Name.t * filepath
 
 
 exception Error of error
@@ -84,6 +83,8 @@ type 'a sig_reader =
 
 (* If [add_binding] is false, reads the signature from the .cmi but does not
    bind the module name in the environment. *)
+(* CR-someday lmaurer: [add_binding] is apparently always false, including in the
+   [-instantiate] branch. We should remove this parameter. *)
 val read : 'a t -> 'a sig_reader
   -> Compilation_unit.Name.t -> filepath -> add_binding:bool -> Subst.Lazy.signature
 val find : allow_hidden:bool -> 'a t -> 'a sig_reader
@@ -94,15 +95,14 @@ val find_in_cache : 'a t -> Compilation_unit.Name.t -> 'a option
 val check : allow_hidden:bool -> 'a t -> 'a sig_reader
   -> loc:Location.t -> Compilation_unit.Name.t -> unit
 
-(* Lets it be known that the given module is a parameter and thus is expected
-   to have been compiled as such. It may or may not be a parameter to _this_
-   module (see the forthcoming [register_exported_parameter]). Raises an
-   exception if the module has already been imported as a non-parameter. *)
+(* Lets it be known that the given module is a parameter to this module and thus is
+   expected to have been compiled as such. Raises an exception if the module has already
+   been imported as a non-parameter. *)
 val register_parameter_import : 'a t -> Compilation_unit.Name.t -> unit
 
-(* [is_registered_parameter_import penv md] checks if [md] has been passed to
-   [register_parameter_import penv] *)
-val is_registered_parameter_import : 'a t -> Compilation_unit.Name.t -> bool
+(* [is_parameter_import penv md] checks if [md] is a parameter. Raises a fatal
+   error if the module has not been imported. *)
+val is_parameter_import : 'a t -> Compilation_unit.Name.t -> bool
 
 (* [looked_up penv md] checks if one has already tried
    to read the signature for [md] in the environment
@@ -120,6 +120,11 @@ val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
 (* [register_import_as_opaque penv md] registers [md] in [penv] as an
    opaque module *)
 val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
+
+(* [implemented_parameter penv md] returns the argument to [-as-argument-for]
+   that [md] was compiled with. *)
+val implemented_parameter : 'a t -> Compilation_unit.Name.t
+  -> Compilation_unit.Name.t option
 
 val make_cmi : 'a t
   -> Compilation_unit.Name.t

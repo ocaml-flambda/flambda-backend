@@ -109,6 +109,8 @@ type arg =
   | Mem64_RIP of data_type * string * int
 
 type sse_instruction =
+  | MINSS of arg * arg
+  | MAXSS of arg * arg
   | CMPPS of float_condition * arg * arg
   | SHUFPS of arg * arg * arg
   | ADDPS of arg * arg
@@ -280,6 +282,7 @@ type sse41_instruction =
   | PMINUD of arg * arg
   | ROUNDPD of rounding * arg * arg
   | ROUNDPS of rounding * arg * arg
+  | ROUNDSS of rounding * arg * arg
   | MPSADBW of arg * arg * arg
   | PHMINPOSUW of arg * arg
   | PMULLD of arg * arg

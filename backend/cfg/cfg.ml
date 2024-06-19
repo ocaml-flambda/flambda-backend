@@ -87,11 +87,12 @@ type t =
     fun_contains_calls : bool;
     (* CR-someday gyorsh: compute locally. *)
     fun_num_stack_slots : int array;
-    fun_stack_check_skip_callees : Misc.Stdlib.String.Set.t
+    fun_stack_check_skip_callees : Misc.Stdlib.String.Set.t;
+    fun_poll : Lambda.poll_attribute
   }
 
 let create ~fun_name ~fun_args ~fun_codegen_options ~fun_dbg ~fun_contains_calls
-    ~fun_num_stack_slots =
+    ~fun_num_stack_slots ~fun_poll =
   { fun_name;
     fun_args;
     fun_codegen_options;
@@ -102,7 +103,8 @@ let create ~fun_name ~fun_args ~fun_codegen_options ~fun_dbg ~fun_contains_calls
     blocks = Label.Tbl.create 31;
     fun_contains_calls;
     fun_num_stack_slots;
-    fun_stack_check_skip_callees = Misc.Stdlib.String.Set.empty
+    fun_stack_check_skip_callees = Misc.Stdlib.String.Set.empty;
+    fun_poll
   }
 
 let mem_block t label = Label.Tbl.mem t.blocks label

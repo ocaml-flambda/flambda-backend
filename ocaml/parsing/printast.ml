@@ -884,14 +884,25 @@ and constructor_decl i ppf
   constructor_arguments (i+1) ppf pcd_args;
   option (i+1) core_type ppf pcd_res
 
+and modalities i ppf modalities =
+  list i string_loc ppf (
+    List.map (Location.map (fun (Modality x) -> x)) modalities
+  );
+
+and constructor_argument i ppf {pca_modalities; pca_type; pca_loc} =
+  line i ppf "%a\n" fmt_location pca_loc;
+  modalities (i+1) ppf pca_modalities;
+  core_type (i+1) ppf pca_type
+
 and constructor_arguments i ppf = function
-  | Pcstr_tuple l -> list i core_type ppf l
+  | Pcstr_tuple l -> list i constructor_argument ppf l
   | Pcstr_record l -> list i label_decl ppf l
 
-and label_decl i ppf {pld_name; pld_mutable; pld_type; pld_loc; pld_attributes}=
+and label_decl i ppf {pld_name; pld_mutable; pld_modalities; pld_type; pld_loc; pld_attributes}=
   line i ppf "%a\n" fmt_location pld_loc;
   attributes i ppf pld_attributes;
   line (i+1) ppf "%a\n" fmt_mutable_flag pld_mutable;
+  modalities (i+1) ppf pld_modalities;
   line (i+1) ppf "%a" fmt_string_loc pld_name;
   core_type (i+1) ppf pld_type
 

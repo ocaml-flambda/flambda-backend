@@ -18,6 +18,7 @@
 open Asttypes
 open Path
 open Types
+open Mode
 open Typedtree
 
 type position = Errortrace.position = First | Second
@@ -249,8 +250,6 @@ type privacy_mismatch =
   | Private_extensible_variant
   | Private_row_type
 
-type locality_mismatch = { order : position }
-
 type type_kind =
   | Kind_abstract
   | Kind_record
@@ -268,7 +267,7 @@ type kind_mismatch = type_kind * type_kind
 type label_mismatch =
   | Type of Errortrace.equality_error
   | Mutability of position
-  | Nonlocality of locality_mismatch
+  | Modality of Modality.Value.equate_error
 
 type record_change =
   (Types.label_declaration, Types.label_declaration, label_mismatch)
@@ -287,7 +286,7 @@ type constructor_mismatch =
   | Inline_record of record_change list
   | Kind of position
   | Explicit_return_type of position
-  | Nonlocality of int * locality_mismatch
+  | Modality of int * Modality.Value.equate_error
 
 type extension_constructor_mismatch =
   | Constructor_privacy
@@ -326,13 +325,21 @@ type type_mismatch =
   | Extensible_representation of position
   | Jkind of Jkind.Violation.t
 
-let report_locality_mismatch first second ppf err =
-  let {order} = err in
-  let sort = "global" in
-  Format.fprintf ppf "%s is %s and %s is not."
-    (String.capitalize_ascii  (choose order first second))
-    sort
-    (choose_other order first second)
+let report_modality_sub_error first second ppf e =
+  let print_modality id ppf m =
+    Printtyp.modality ~id:(fun ppf -> Format.pp_print_string ppf id) ppf m
+  in
+  let Modality.Value.Error(ax, {left; right}) = e in
+  Format.fprintf ppf "%s is %a and %s is %a."
+    (String.capitalize_ascii second)
+    (print_modality "empty") (Atom (ax, right) : Modality.t)
+    first
+    (print_modality "not") (Atom (ax, left) : Modality.t)
+
+let report_modality_equate_error first second ppf ((equate_step, sub_error) : Modality.Value.equate_error) =
+  match equate_step with
+  | Left_le_right -> report_modality_sub_error first second ppf sub_error
+  | Right_le_left -> report_modality_sub_error second first ppf sub_error
 
 let report_primitive_mismatch first second ppf err =
   let pr fmt = Format.fprintf ppf fmt in
@@ -410,7 +417,7 @@ let report_label_mismatch first second env ppf err =
       Format.fprintf ppf "%s is mutable and %s is not."
         (String.capitalize_ascii (choose ord first second))
         (choose_other ord first second)
-  | Nonlocality err_ -> report_locality_mismatch first second ppf err_
+  | Modality err_ -> report_modality_equate_error first second ppf err_
 
 let pp_record_diff first second prefix decl env ppf (x : record_change) =
   match x with
@@ -494,9 +501,9 @@ let report_constructor_mismatch first second decl env ppf err =
       pr "%s has explicit return type and %s doesn't."
         (String.capitalize_ascii (choose ord first second))
         (choose_other ord first second)
-  | Nonlocality (i, err) ->
-      pr "Locality mismatch at argument position %i : %a"
-        (i + 1) (report_locality_mismatch first second) err
+  | Modality (i, err) ->
+      pr "Modality mismatch at argument position %i:@ %a"
+        (i + 1) (report_modality_equate_error first second) err
         (* argument position is one-based; more intuitive *)
 
 let pp_variant_diff first second prefix decl env ppf (x : variant_change) =
@@ -619,12 +626,6 @@ let report_type_mismatch first second decl env ppf err =
   | Jkind v ->
       Jkind.Violation.report_with_name ~name:first ppf v
 
-let compare_global_flags flag0 flag1 =
-  let c = Mode.Global_flag.compare flag0 flag1 in
-  if c < 0 then Some {order = First}
-  else if c > 0 then Some {order = Second}
-  else None
-
 module Record_diffing = struct
 
   let compare_labels env params1 params2
@@ -646,8 +647,8 @@ module Record_diffing = struct
         begin match mut with
         | Some mut -> Some (Mutability mut)
         | None ->
-          match compare_global_flags ld1.ld_global ld2.ld_global with
-          | None ->
+          match Modality.Value.equate ld1.ld_modalities ld2.ld_modalities with
+          | Ok () ->
             let tl1 = params1 @ [ld1.ld_type] in
             let tl2 = params2 @ [ld2.ld_type] in
             begin
@@ -656,7 +657,7 @@ module Record_diffing = struct
                 Some (Type err : label_mismatch)
             | () -> None
             end
-          | Some e -> Some (Nonlocality e : label_mismatch)
+          | Error e -> Some (Modality e : label_mismatch)
         end
 
   let rec equal ~loc env params1 params2
@@ -798,6 +799,10 @@ let rec find_map_idx f ?(off = 0) l =
       | Some y -> Some (off, y)
     end
 
+let get_error = function
+  | Ok () -> None
+  | Error e -> Some e
+
 module Variant_diffing = struct
 
   let compare_constructor_arguments ~loc env params1 params2 arg1 arg2 =
@@ -806,15 +811,17 @@ module Variant_diffing = struct
         if List.length arg1 <> List.length arg2 then
           Some (Arity : constructor_mismatch)
         else begin
-          let arg1_tys, arg1_gfs = List.split arg1
-          and arg2_tys, arg2_gfs = List.split arg2
+          let type_and_mode (ca : Types.constructor_argument) = ca.ca_type, ca.ca_modalities in
+          let arg1_tys, arg1_gfs = List.split (List.map type_and_mode arg1)
+          and arg2_tys, arg2_gfs = List.split (List.map type_and_mode arg2)
           in
           (* Ctype.equal must be called on all arguments at once, cf. PR#7378 *)
           match Ctype.equal env true (params1 @ arg1_tys) (params2 @ arg2_tys) with
           | exception Ctype.Equality err -> Some (Type err)
           | () -> List.combine arg1_gfs arg2_gfs
-                  |> find_map_idx (fun (x,y) -> compare_global_flags x y)
-                  |> Option.map (fun (i, err) -> Nonlocality (i, err))
+                  |> find_map_idx
+                    (fun (x,y) -> get_error @@ Modality.Value.equate x y)
+                  |> Option.map (fun (i, err) -> Modality (i, err))
         end
     | Types.Cstr_record l1, Types.Cstr_record l2 ->
         Option.map

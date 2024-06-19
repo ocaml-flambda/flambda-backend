@@ -318,11 +318,11 @@ type type_iterators =
     it_path: Path.t -> unit; }
 
 let iter_type_expr_cstr_args f = function
-  | Cstr_tuple tl -> List.iter (fun (ty, _) -> f ty) tl
+  | Cstr_tuple tl -> List.iter (fun ca -> f ca.ca_type) tl
   | Cstr_record lbls -> List.iter (fun d -> f d.ld_type) lbls
 
 let map_type_expr_cstr_args f = function
-  | Cstr_tuple tl -> Cstr_tuple (List.map (fun (ty, gf) -> (f ty, gf)) tl)
+  | Cstr_tuple tl -> Cstr_tuple (List.map (fun ca -> {ca with ca_type=f ca.ca_type}) tl)
   | Cstr_record lbls ->
       Cstr_record (List.map (fun d -> {d with ld_type=f d.ld_type}) lbls)
 

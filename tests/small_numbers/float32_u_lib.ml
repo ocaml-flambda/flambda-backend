@@ -7,6 +7,8 @@ module F32 = Beta.Float32_u
 
 external box_int32 : int32# -> (int32[@local_opt]) = "%box_int32"
 external unbox_int32 : (int32[@local_opt]) -> int32# = "%unbox_int32"
+external box_int64 : int64# -> (int64[@local_opt]) = "%box_int64"
+external unbox_int64 : (int64[@local_opt]) -> int64# = "%unbox_int64"
 external box_float : float# -> (float[@local_opt]) = "%box_float"
 external unbox_float : (float[@local_opt]) -> float# = "%unbox_float"
 
@@ -16,9 +18,11 @@ module CF32 = struct
   external to_bits : (t [@unboxed]) -> (int32 [@unboxed]) = "float32_bits_to_int_boxed" "float32_bits_to_int" [@@noalloc]
 
   external of_int : (int [@untagged]) -> (t [@unboxed]) = "float32_of_int_boxed" "float32_of_int" [@@noalloc]
+  external of_int64 : (int64 [@unboxed]) -> (t [@unboxed]) = "float32_of_int64_boxed" "float32_of_int64" [@@noalloc]
   external of_float : (float [@unboxed]) -> (t [@unboxed]) = "float32_of_float_boxed" "float32_of_float" [@@noalloc]
 
   external to_int : (t [@unboxed]) -> (int [@untagged]) = "float32_to_int_boxed" "float32_to_int" [@@noalloc]
+  external to_int64 : (t [@unboxed]) -> (int64 [@unboxed]) = "float32_to_int64_boxed" "float32_to_int64" [@@noalloc]
   external to_float : (t [@unboxed]) -> (float [@unboxed]) = "float32_to_float_boxed" "float32_to_float" [@@noalloc]
 
   external zero : unit -> (t [@unboxed]) = "float32_zero_boxed" "float32_zero" [@@noalloc]
@@ -105,10 +109,15 @@ module CF32 = struct
 
   external min : t -> t -> t = "float32_min_boxed"
   external max : t -> t -> t = "float32_max_boxed"
+  external min_weird : t -> t -> t = "float32_min_weird_boxed"
+  external max_weird : t -> t -> t = "float32_max_weird_boxed"
   external min_num : t -> t -> t = "float32_min_num_boxed"
   external max_num : t -> t -> t = "float32_max_num_boxed"
   external min_max : t -> t -> t * t = "float32_min_max_boxed"
   external min_max_num : t -> t -> t * t = "float32_min_max_num_boxed"
+
+  external round_current : t -> t = "float32_round_current_boxed"
+  external iround_current : t -> int64 = "float32_iround_current_boxed"
 
   external compare : t -> t -> int = "float32_compare_boxed" [@@noalloc]
   let equal x y = compare x y = 0
@@ -218,10 +227,23 @@ let () =
     bit_eq (F32.copy_sign u1 u2) (CF32.copy_sign f1 f2);
     bit_eq (F32.min u1 u2) (CF32.min f1 f2);
     bit_eq (F32.max u1 u2) (CF32.max f1 f2);
+    bit_eq (F32.With_weird_nan_behavior.min u1 u2) (CF32.min_weird f1 f2);
+    bit_eq (F32.With_weird_nan_behavior.max u1 u2) (CF32.max_weird f1 f2);
     bit_eq (F32.min_num u1 u2) (CF32.min_num f1 f2);
     bit_eq (F32.max_num u1 u2) (CF32.max_num f1 f2);
     assert((F32.compare u1 u2) = (CF32.compare f1 f2));
     assert((F32.equal u1 u2) = (CF32.equal f1 f2));
+  )
+;;
+
+let () =
+  CF32.check_float32s (fun f _ ->
+    let u = F32.of_float32 f in
+    bit_eq (F32.round_up u) (CF32.ceil f);
+    bit_eq (F32.round_down u) (CF32.floor f);
+    bit_eq (F32.round_half_to_even u) (CF32.round_current f);
+    (* Returns int64, so can compare directly. *)
+    assert (box_int64 (F32.iround_half_to_even u) = (CF32.iround_current f));
   )
 ;;
 
@@ -267,13 +289,16 @@ let () =
   CF32.check_float32s (fun f _ ->
     let u = F32.of_float32 f in
     assert (F32.to_int u = CF32.to_int f);
+    assert (box_int64 (F32.to_int64 u) = CF32.to_int64 f);
     if CF32.is_nan f then assert (Float.is_nan (box_float (F32.to_float u)))
     else assert (box_float (F32.to_float u) = CF32.to_float f)
   );
   for _ = 0 to 100_000 do
     let i = if Random.bool () then Random.full_int Int.max_int else Int.neg (Random.full_int Int.max_int) in
+    let i64 = if Random.bool () then Random.int64 Int64.max_int else Int64.neg (Random.int64 Int64.max_int) in
     let f = if Random.bool () then Random.float Float.max_float else Float.neg (Random.float Float.max_float) in
     bit_eq (F32.of_int i) (CF32.of_int i);
+    bit_eq (F32.of_int64 (unbox_int64 i64)) (CF32.of_int64 i64);
     bit_eq (F32.of_float (unbox_float f)) (CF32.of_float f);
   done
 ;;
