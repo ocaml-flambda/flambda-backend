@@ -1156,9 +1156,10 @@ module Lattices_mono = struct
     | Max_with ax -> Proj (dst, ax)
     | Compose (f, g) ->
       let mid = src dst f in
+      let src = src mid g in
       let f' = left_adjoint dst f in
       let g' = left_adjoint mid g in
-      Compose (g', f')
+      compose src g' f'
     | Join_with c -> Subtract c
     | Meet_with _c ->
       (* The downward closure of [Meet_with c]'s image is all [x <= c].
@@ -1186,9 +1187,10 @@ module Lattices_mono = struct
     | Min_with ax -> Proj (dst, ax)
     | Compose (f, g) ->
       let mid = src dst f in
+      let src = src mid g in
       let f' = right_adjoint dst f in
       let g' = right_adjoint mid g in
-      Compose (g', f')
+      compose src g' f'
     | Meet_with c -> Imply c
     | Subtract c -> Join_with c
     | Join_with _c ->
