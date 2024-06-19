@@ -1099,6 +1099,29 @@ let output_of_print print =
   in
   output
 
+exception LimitExceeded
+
+let is_print_bigger_than size p =
+  let limit = ref size in
+  let count_down len =
+    limit := !limit - len;
+    if !limit < 0 then raise LimitExceeded
+  in
+  let out_string _ _ len = count_down len in
+  let out_newline () = count_down 1 in
+  let out_spaces n = count_down n in
+  let out_flush _ = () in
+  let out_indent _ = () in
+  let out_functions : Format.formatter_out_functions = {
+    out_string;
+    out_flush;
+    out_newline;
+    out_spaces;
+    out_indent}
+  in
+  let ppf = Format.formatter_of_out_functions out_functions in
+  try ignore (p ppf); false
+  with LimitExceeded -> true
 
 type filepath = string
 

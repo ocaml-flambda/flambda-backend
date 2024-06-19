@@ -182,15 +182,9 @@ end
 
 module Err = Includemod.Error
 
-let buffer = ref Bytes.empty
-let is_big obj =
+let is_big p =
   let size = !Clflags.error_size in
-  size > 0 &&
-  begin
-    if Bytes.length !buffer < size then buffer := Bytes.create size;
-    try ignore (Marshal.to_buffer !buffer 0 size obj []); false
-    with _ -> true
-  end
+  size > 0 && Misc.is_print_bigger_than size p
 
 let show_loc msg ppf loc =
   let pos = loc.Location.loc_start in
@@ -576,7 +570,7 @@ let dwith_context ?loc ctx printer =
   Location.msg ?loc "%a%t" Context.pp (List.rev ctx) printer
 
 let dwith_context_and_elision ?loc ctx printer diff =
-  if is_big (diff.got,diff.expected) then
+  if is_big (printer diff) then
     Location.msg ?loc "..."
   else
     dwith_context ?loc ctx (printer diff)

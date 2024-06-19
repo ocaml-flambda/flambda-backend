@@ -630,6 +630,10 @@ val output_of_print :
     Note that naively using [Format.formatter_of_out_channel] typechecks but
     doesn't work because it fails to flush the formatter. *)
 
+val is_print_bigger_than: int -> (Format.formatter -> 'a) -> bool
+(** Returns [true] if the printing would be longer than the given integer. Stops
+    early if so. Spaces and newlines are counted, but indentation are not. *)
+
 (** {1 Displaying configuration variables} *)
 
 val show_config_and_exit : unit -> unit
