@@ -81,7 +81,7 @@ let main unix argv ppf ~flambda2 =
     Compenv.readenv ppf Before_link;
     if
       List.length (List.filter (fun x -> !x)
-                     [make_package; make_archive; shared;
+                     [make_package; make_archive; shared; instantiate;
                       Compenv.stop_early; output_c_object]) > 1
     then
     begin
@@ -89,13 +89,13 @@ let main unix argv ppf ~flambda2 =
       match !stop_after with
       | None ->
           Compenv.fatal "Please specify at most one of -pack, -a, -shared, -c, \
-                         -output-obj";
+                         -output-obj, -instantiate";
       | Some ((P.Parsing | P.Typing | P.Lambda | P.Middle_end | P.Scheduling
               | P.Simplify_cfg | P.Emit | P.Selection) as p) ->
         assert (P.is_compilation_pass p);
         Printf.ksprintf Compenv.fatal
           "Options -i and -stop-after (%s) \
-           are  incompatible with -pack, -a, -shared, -output-obj"
+           are  incompatible with -pack, -a, -shared, -output-obj, -instantiate"
           (String.concat "|"
              (P.available_pass_names ~filter:(fun _ -> true) ~native:true))
     end;
@@ -114,6 +114,23 @@ let main unix argv ppf ~flambda2 =
           ~ppf_dump (Compmisc.initial_env ())
           (Compenv.get_objfiles ~with_ocamlparam:false) target
           ~flambda2);
+      Warnings.check_fatal ();
+    end
+    else if !instantiate then begin
+      Compmisc.init_path ();
+      (* Requiring [-o] isn't really necessary, but we don't intend for humans
+         to be invoking [-instantiate] by hand, and computing the correct value
+         here would be awkward *)
+      let target = Compenv.extract_output !output_name in
+      let src, args =
+        match Compenv.get_objfiles ~with_ocamlparam:false with
+        | [] | [_] ->
+          Printf.ksprintf Compenv.fatal
+            "Must specify at least two .cmx files with -instantiate"
+        | src :: args ->
+          src, args
+      in
+      Asminstantiator.instantiate unix ~src ~args target ~flambda2;
       Warnings.check_fatal ();
     end
     else if !shared then begin

@@ -113,7 +113,7 @@
    debug_event meta opcodes bytesections dll symtable
 
    ;; some of COMP
-   pparse main_args compenv compmisc makedepend compile_common
+   pparse main_args compenv compmisc makedepend compile_common instantiator
    ; manual update: mli only files
    annot value_rec_types asttypes cmo_format outcometree parsetree debug_event
  ))
@@ -130,8 +130,8 @@
  (libraries ocamlcommon)
  (modules
     ;; bytecomp/
-    bytegen bytelibrarian bytelink bytepackager emitcode printinstr
-    instruct
+    bytegen byteinstantiator bytelibrarian bytelink bytepackager emitcode
+    printinstr instruct
 
     ;; driver/
     errors compile maindriver

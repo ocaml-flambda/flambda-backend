@@ -728,6 +728,7 @@ type error =
   | Missing_module of Location.t * Path.t * Path.t
   | Illegal_value_name of Location.t * string
   | Lookup_error of Location.t * t * lookup_error
+  | Incomplete_instantiation of { unset_param : Global_module.Name.t }
 
 exception Error of error
 
@@ -1020,6 +1021,9 @@ let register_import_as_opaque modname =
 
 let is_parameter_unit modname =
   Persistent_env.is_parameter_import !persistent_env modname
+
+let is_imported_parameter modname =
+  Persistent_env.is_imported_parameter !persistent_env modname
 
 let implemented_parameter modname =
   Persistent_env.implemented_parameter !persistent_env modname
@@ -1332,6 +1336,25 @@ let find_hash_type path env =
       let cltda = NameMap.find name c.comp_cltypes in
       cltda.cltda_declaration.clty_hash_type
   | Papply _ | Pextra_ty _ -> raise Not_found
+
+let global_of_instance_compilation_unit cu =
+  let global_name = Compilation_unit.to_global_name_exn cu in
+  (* Must be a complete instantiation, meaning that its [Global_module.t] form has no
+     hidden arguments anywhere. *)
+  let global =
+    (* We could just convert the global name ourselves by filling in empty lists
+       of hidden arguments, but this doubles as a typecheck of the instance. *)
+    Persistent_env.global_of_global_name !persistent_env global_name ~check:true
+  in
+  let rec check (global : Global_module.t) =
+    match global.hidden_args with
+    | (name, _) :: _ ->
+        raise (Error (Incomplete_instantiation { unset_param = name }))
+    | [] ->
+        List.iter (fun (_, value) -> check value) global.visible_args
+  in
+  check global;
+  global
 
 let probes = ref String.Set.empty
 let reset_probes () = probes := String.Set.empty
@@ -4027,6 +4050,10 @@ let report_error ppf = function
       fprintf ppf "'%s' is not a valid value identifier."
         name
   | Lookup_error(loc, t, err) -> report_lookup_error loc t ppf err
+  | Incomplete_instantiation { unset_param } ->
+      fprintf ppf "@[<hov>Not enough instance arguments: the parameter@ %a@ is \
+                   required.@]"
+        Global_module.Name.print unset_param
 
 let () =
   Location.register_error_of_exn
@@ -4037,6 +4064,7 @@ let () =
             | Missing_module (loc, _, _)
             | Illegal_value_name (loc, _)
             | Lookup_error(loc, _, _) -> loc
+            | Incomplete_instantiation _ -> Location.none
           in
           let error_of_printer =
             if loc = Location.none
