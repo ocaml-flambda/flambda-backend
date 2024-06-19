@@ -36,6 +36,12 @@ type error =
       param : Global_module.Name.t;
       arg : Global_module.Name.t
     }
+  | Repeated_parameter of {
+      param : Global_module.Name.t;
+      arg1 : CU.t;
+      arg2 : CU.t;
+    }
+
 
 exception Error of error
 

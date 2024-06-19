@@ -10,6 +10,7 @@
    bad_instantiate_no_such_param.reference \
    bad_instantiate_not_arg.reference \
    bad_instantiate_not_parameterised.reference \
+   bad_instantiate_repeated_param.reference \
    bad_instantiate_wrong_target_name.reference \
    bad_ref_direct.ml bad_ref_direct.reference \
    bad_ref_direct_imported.ml bad_ref_direct_imported.reference \

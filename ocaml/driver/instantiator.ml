@@ -15,6 +15,11 @@ type error =
       param : Global_module.Name.t;
       arg : Global_module.Name.t
     }
+  | Repeated_parameter of {
+      param : Global_module.Name.t;
+      arg1 : CU.t;
+      arg2 : CU.t;
+    }
 
 
 exception Error of error
@@ -44,7 +49,10 @@ let instantiate
       arg_info
   in
   let arg_map : (CU.t * int) Global_module.Name.Map.t =
-    Global_module.Name.Map.of_list arg_info (* FIXME: check for dupes *)
+    match Global_module.Name.Map.of_list_checked arg_info with
+    | Ok map -> map
+    | Error (Duplicate { key; value1 = (arg1, _); value2 = (arg2, _) }) ->
+      error (Repeated_parameter { param = key; arg1; arg2 })
   in
   let compilation_unit = CU.create_instance base_compilation_unit arg_pairs in
   let expected_output_prefix = CU.base_filename compilation_unit in
@@ -155,6 +163,13 @@ let report_error ppf = function
       Global_module.Name.print arg
       Global_module.Name.print param
       CU.print base_unit
+      Global_module.Name.print param
+  | Repeated_parameter { param; arg1; arg2 } ->
+    fprintf ppf
+      "%a@ and %a@ were both compiled with -as-argument-for %a.@ \
+       Only one argument may be given for each parameter."
+      CU.print arg1
+      CU.print arg2
       Global_module.Name.print param
 
 let () =
