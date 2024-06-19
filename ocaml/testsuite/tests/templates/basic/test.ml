@@ -7,6 +7,7 @@
    bad_instance_arg_value_not_found.ml bad_instance_arg_value_not_found.reference \
    bad_instance_arg_value_wrong_type.ml bad_instance_arg_value_wrong_type.reference \
    bad_instantiate_missing_arg.reference \
+   bad_instantiate_no_such_param.reference \
    bad_instantiate_not_arg.reference \
    bad_instantiate_not_parameterised.reference \
    bad_instantiate_wrong_target_name.reference \

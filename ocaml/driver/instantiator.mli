@@ -31,6 +31,11 @@ type error =
     }
   | Not_parameterised of CU.t
   | Missing_argument of { param : Global_module.Name.t }
+  | No_such_parameter of {
+      base_unit : CU.t;
+      param : Global_module.Name.t;
+      arg : Global_module.Name.t
+    }
 
 exception Error of error
 

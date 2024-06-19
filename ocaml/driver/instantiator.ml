@@ -10,6 +10,11 @@ type error =
     }
   | Not_parameterised of CU.t
   | Missing_argument of { param : Global_module.Name.t }
+  | No_such_parameter of {
+      base_unit : CU.t;
+      param : Global_module.Name.t;
+      arg : Global_module.Name.t
+    }
 
 
 exception Error of error
@@ -62,6 +67,16 @@ let instantiate
     with
     | Persistent_env.Error (Imported_module_has_unset_parameter e) ->
       raise (Error (Missing_argument { param = e.parameter }))
+    | Persistent_env.Error (Imported_module_has_no_such_parameter e) ->
+      begin
+        let base_unit = unit_infos.ui_unit in
+        match e.valid_parameters with
+        | [] -> raise (Error (Not_parameterised base_unit))
+        | _ ->
+          let param = e.parameter in
+          let arg = e.value in
+          raise (Error (No_such_parameter { base_unit; param; arg }))
+      end
   in
   let arg_subst : Global_module.subst =
     Global_module.Name.Map.of_list global.visible_args
@@ -69,7 +84,8 @@ let instantiate
   let runtime_params, main_module_block_size =
     match unit_infos.ui_format with
     | Mb_record _ ->
-      error (Not_parameterised unit_infos.ui_unit)
+      (* Should have raised [Not_parameterised] above *)
+      Misc.fatal_errorf "No runtime parameters for %a" CU.print unit_infos.ui_unit
     | Mb_wrapped_function { mb_runtime_params; mb_returned_size } ->
       mb_runtime_params, mb_returned_size
   in
@@ -131,6 +147,14 @@ let report_error ppf = function
       CU.print compilation_unit
   | Missing_argument { param } ->
     fprintf ppf "No argument given for parameter %a"
+      Global_module.Name.print param
+  | No_such_parameter { base_unit; param; arg } ->
+    fprintf ppf
+      "Mismatched argument: %a@ was compiled with -as-argument-for %a@ \
+       but %a@ was not compiled with -parameter %a"
+      Global_module.Name.print arg
+      Global_module.Name.print param
+      CU.print base_unit
       Global_module.Name.print param
 
 let () =
