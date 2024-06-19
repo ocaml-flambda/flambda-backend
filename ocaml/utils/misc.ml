@@ -1099,13 +1099,12 @@ let output_of_print print =
   in
   output
 
-exception LimitExceeded
-
-let is_print_bigger_than size p =
+let is_print_longer_than size p =
+  let exception Limit_exceeded in
   let limit = ref size in
   let count_down len =
     limit := !limit - len;
-    if !limit < 0 then raise LimitExceeded
+    if !limit < 0 then raise Limit_exceeded
   in
   let out_string _ _ len = count_down len in
   let out_newline () = count_down 1 in
@@ -1120,8 +1119,8 @@ let is_print_bigger_than size p =
     out_indent}
   in
   let ppf = Format.formatter_of_out_functions out_functions in
-  try ignore (p ppf); false
-  with LimitExceeded -> true
+  try p ppf; false
+  with Limit_exceeded -> true
 
 type filepath = string
 
