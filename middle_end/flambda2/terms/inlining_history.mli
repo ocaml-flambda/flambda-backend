@@ -70,6 +70,7 @@ module Absolute : sig
     | Call of
         { dbg : Debuginfo.t;
           callee : t;
+          created_at : t;
           prev : path
         }
     | Inline of { prev : path }

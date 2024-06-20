@@ -43,8 +43,6 @@ type t =
 
 val print : Format.formatter -> t -> unit
 
-val report : Format.formatter -> t -> unit
-
 type can_inline = private
   | Do_not_inline of { erase_attribute_if_ignored : bool }
   | Inline of
