@@ -1528,6 +1528,16 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
               false)
           field_kinds);
       Some (Unboxed_float_record (List.length field_kinds))
+    | Pvalue (Pvariant { consts; non_consts }) ->
+      let non_consts =
+        List.map
+          (fun (tag, field_kinds) ->
+            ( tag,
+              List.map Flambda_kind.With_subkind.from_lambda_value_kind
+                field_kinds ))
+          non_consts
+      in
+      Some (Variant { consts; non_consts })
     | Pvalue (Pboxedfloatval Pfloat64) -> Some (Unboxed_number Naked_float)
     | Pvalue (Pboxedfloatval Pfloat32) -> Some (Unboxed_number Naked_float32)
     | Pvalue (Pboxedintval bi) ->
@@ -1543,7 +1553,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
         match bv with Pvec128 _ -> Naked_vec128
       in
       Some (Unboxed_number bn)
-    | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
+    | Pvalue (Pgenval | Pintval | Parrayval _)
     | Ptop | Pbottom | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _
     | Punboxed_product _ ->
       Location.prerr_warning

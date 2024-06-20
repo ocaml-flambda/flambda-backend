@@ -1457,71 +1457,447 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
         (Bound_pattern.singleton untagged_scrutinee')
         untag ~body
 
-let variables_for_unboxing boxed_variable_name (k : Function_decl.unboxing_kind)
-    =
-  match k with
-  | Fields_of_block_with_tag_zero kinds ->
+type unboxing_kind_with_variables =
+  | Fields_of_block_with_tag_zero of
+      (Variable.t * Flambda_kind.With_subkind.t) list
+  | Unboxed_number of Variable.t * Flambda_kind.Boxable_number.t
+  | Unboxed_float_record of Variable.t list
+  | Variant of
+      { is_int : Variable.t;
+        get_tag : Variable.t;
+        immediate : Variable.t;
+        non_consts :
+          (int * (Variable.t * Flambda_kind.With_subkind.t) list) list
+      }
+
+let variables_for_unboxing (k : Function_decl.unboxing_kind) :
+    unboxing_kind_with_variables =
+  let variables_of_fields ~prefix fields =
     List.mapi
       (fun i kind ->
-        ( Variable.create (boxed_variable_name ^ "_field_" ^ Int.to_string i),
-          kind ))
-      kinds
-  | Unboxed_number bn ->
-    [ ( Variable.create (boxed_variable_name ^ "_unboxed"),
-        Flambda_kind.With_subkind.naked_of_boxable_number bn ) ]
-  | Unboxed_float_record num_fields ->
-    List.init num_fields (fun i ->
-        ( Variable.create
-            (boxed_variable_name ^ "_floatfield_" ^ Int.to_string i),
-          Flambda_kind.With_subkind.naked_float ))
-
-let unboxing_primitive (k : Function_decl.unboxing_kind) boxed_variable i =
+        Variable.create (prefix ^ "field_" ^ Int.to_string i), kind)
+      fields
+  in
   match k with
   | Fields_of_block_with_tag_zero kinds ->
+    Fields_of_block_with_tag_zero (variables_of_fields ~prefix:"" kinds)
+  | Unboxed_number bn -> Unboxed_number (Variable.create "unboxed_number", bn)
+  | Unboxed_float_record num_fields ->
+    Unboxed_float_record
+      (List.init num_fields (fun i ->
+           Variable.create ("floatfield_" ^ Int.to_string i)))
+  | Variant { consts = _; non_consts } ->
+    Variant
+      { is_int = Variable.create "unboxed_is_int";
+        get_tag = Variable.create "unboxed_get_tag";
+        immediate = Variable.create "unboxed_immediate";
+        non_consts =
+          List.map
+            (fun (tag, fields) ->
+              ( tag,
+                variables_of_fields
+                  ~prefix:(Format.sprintf "tag_%d_" tag)
+                  fields ))
+            non_consts
+      }
+
+let extract_variables_and_kinds :
+    unboxing_kind_with_variables ->
+    (Variable.t * Flambda_kind.With_subkind.t) list = function
+  | Fields_of_block_with_tag_zero l -> l
+  | Unboxed_number (v, bn) ->
+    [v, Flambda_kind.With_subkind.naked_of_boxable_number bn]
+  | Unboxed_float_record vars ->
+    List.map (fun var -> var, Flambda_kind.With_subkind.naked_float) vars
+  | Variant { is_int; get_tag; immediate; non_consts } ->
+    (is_int, Flambda_kind.With_subkind.naked_immediate)
+    :: (get_tag, Flambda_kind.With_subkind.naked_immediate)
+    :: (immediate, Flambda_kind.With_subkind.naked_immediate)
+    :: List.concat_map (fun (_tag, fields) -> fields) non_consts
+
+let generate_unboxing (kind_and_vars : unboxing_kind_with_variables)
+    (boxed_variable : Variable.t) (acc : 'acc)
+    ~(get_free_names : 'acc -> Name_occurrences.t)
+    ~(reset_free_names : 'acc -> 'acc)
+    ~(add_free_names : Name_occurrences.t -> 'acc -> 'acc)
+    ~(make_let :
+       'acc -> var:Variable.t -> def:Named.t -> body:'expr -> 'acc * 'expr)
+    ~(make_switch :
+       'acc ->
+       scrutinee:Variable.t ->
+       arms:('expr * Name_occurrences.t) Targetint_31_63.Map.t ->
+       'acc * 'expr) ~(return : 'acc -> Simple.t list -> 'acc * 'expr) :
+    'acc * 'expr =
+  let single_block block_access_kind fields =
+    let vars_and_kinds = extract_variables_and_kinds kind_and_vars in
+    let acc_and_body =
+      return acc (List.map (fun (v, _k) -> Simple.var v) vars_and_kinds)
+    in
+    let named i =
+      Named.create_prim
+        (Flambda_primitive.Binary
+           ( Block_load (block_access_kind, Immutable),
+             Simple.var boxed_variable,
+             Simple.const_int i ))
+        Debuginfo.none
+    in
+    let acc_and_expr, _ =
+      List.fold_left
+        (fun ((acc, expr), i) var ->
+          ( make_let acc ~var ~def:(named i) ~body:expr,
+            Targetint_31_63.(add one i) ))
+        (acc_and_body, Targetint_31_63.zero)
+        fields
+    in
+    acc_and_expr
+  in
+  match kind_and_vars with
+  | Fields_of_block_with_tag_zero fields ->
     let block_access_kind : P.Block_access_kind.t =
       Values
         { tag = Known Tag.Scannable.zero;
-          size = Known (Targetint_31_63.of_int (List.length kinds));
+          size = Known (Targetint_31_63.of_int (List.length fields));
           field_kind = Any_value
         }
     in
-    Flambda_primitive.Binary
-      ( Block_load (block_access_kind, Immutable),
-        Simple.var boxed_variable,
-        Simple.const_int i )
-  | Unboxed_number bn ->
-    Flambda_primitive.Unary (Unbox_number bn, Simple.var boxed_variable)
-  | Unboxed_float_record num_fields ->
+    single_block block_access_kind (List.map fst fields)
+  | Unboxed_number (var, bn) ->
+    let acc, body = return acc [Simple.var var] in
+    let def =
+      Named.create_prim
+        (Flambda_primitive.Unary (Unbox_number bn, Simple.var boxed_variable))
+        Debuginfo.none
+    in
+    make_let acc ~var ~def ~body
+  | Unboxed_float_record fields ->
     let block_access_kind : P.Block_access_kind.t =
-      Naked_floats { size = Known (Targetint_31_63.of_int num_fields) }
+      Naked_floats
+        { size = Known (Targetint_31_63.of_int (List.length fields)) }
     in
-    Flambda_primitive.Binary
-      ( Block_load (block_access_kind, Immutable),
-        Simple.var boxed_variable,
-        Simple.const_int i )
+    single_block block_access_kind fields
+  | Variant { is_int; get_tag; immediate; non_consts } ->
+    let mk_return acc ~is_int_s ~get_tag_s ~immediate_s ~non_consts_s =
+      return acc
+        (is_int_s :: get_tag_s :: immediate_s :: List.concat non_consts_s)
+    in
+    let acc, immediates_branch =
+      let free_names_before = get_free_names acc in
+      let acc = reset_free_names acc in
+      let is_int_s = Simple.untagged_const_true in
+      let get_tag_s = Simple.dummy_const K.naked_immediate in
+      let immediate_s = Simple.var immediate in
+      let non_consts_s =
+        List.map
+          (fun (_tag, fields) ->
+            List.map
+              (fun (_var, kind) ->
+                Simple.dummy_const (K.With_subkind.kind kind))
+              fields)
+          non_consts
+      in
+      let acc, body =
+        mk_return acc ~is_int_s ~get_tag_s ~immediate_s ~non_consts_s
+      in
+      let untag_prim =
+        Named.create_prim
+          (Flambda_primitive.Unary (Untag_immediate, Simple.var boxed_variable))
+          Debuginfo.none
+      in
+      let acc, expr = make_let acc ~var:immediate ~def:untag_prim ~body in
+      add_free_names free_names_before acc, (expr, get_free_names acc)
+    in
+    let acc, blocks_branch =
+      let free_names_before = get_free_names acc in
+      let acc = reset_free_names acc in
+      let is_int_s = Simple.untagged_const_false in
+      let immediate_s = Simple.dummy_const K.naked_immediate in
+      let acc, tag_branches =
+        List.fold_left
+          (fun (acc, branches) (tag, fields) ->
+            let free_names_before = get_free_names acc in
+            let acc = reset_free_names acc in
+            let tag_t = Targetint_31_63.of_int tag in
+            let get_tag_s = Simple.untagged_const_int tag_t in
+            let non_consts_s =
+              List.map
+                (fun (tag', fields) ->
+                  if Int.equal tag tag'
+                  then List.map (fun (var, _k) -> Simple.var var) fields
+                  else
+                    List.map
+                      (fun (_v, kind) ->
+                        Simple.dummy_const (Flambda_kind.With_subkind.kind kind))
+                      fields)
+                non_consts
+            in
+            let acc_and_body =
+              mk_return acc ~is_int_s ~get_tag_s ~immediate_s ~non_consts_s
+            in
+            let block_access_kind : P.Block_access_kind.t =
+              Values
+                { tag = Known (Tag.Scannable.create_exn tag);
+                  size = Known (Targetint_31_63.of_int (List.length fields));
+                  field_kind = Any_value
+                }
+            in
+            let named i =
+              Named.create_prim
+                (Flambda_primitive.Binary
+                   ( Block_load (block_access_kind, Immutable),
+                     Simple.var boxed_variable,
+                     Simple.const_int i ))
+                Debuginfo.none
+            in
+            let (acc, expr), _ =
+              List.fold_left
+                (fun ((acc, expr), i) (var, _kind) ->
+                  ( make_let acc ~var ~def:(named i) ~body:expr,
+                    Targetint_31_63.(add one i) ))
+                (acc_and_body, Targetint_31_63.zero)
+                fields
+            in
+            let expr_with_free_names = expr, get_free_names acc in
+            ( add_free_names free_names_before acc,
+              Targetint_31_63.Map.add tag_t expr_with_free_names branches ))
+          (acc, Targetint_31_63.Map.empty)
+          non_consts
+      in
+      let acc, switch = make_switch acc ~scrutinee:get_tag ~arms:tag_branches in
+      let get_tag_def =
+        Named.create_prim
+          (Flambda_primitive.Unary (Get_tag, Simple.var boxed_variable))
+          Debuginfo.none
+      in
+      let acc, expr = make_let acc ~var:get_tag ~def:get_tag_def ~body:switch in
+      add_free_names free_names_before acc, (expr, get_free_names acc)
+    in
+    let acc, switch =
+      let arms =
+        Targetint_31_63.Map.add Targetint_31_63.zero blocks_branch
+          (Targetint_31_63.Map.singleton Targetint_31_63.one immediates_branch)
+      in
+      make_switch acc ~scrutinee:is_int ~arms
+    in
+    let is_int_def =
+      Named.create_prim
+        (Flambda_primitive.Unary
+           (Is_int { variant_only = true }, Simple.var boxed_variable))
+        Debuginfo.none
+    in
+    make_let acc ~var:is_int ~def:is_int_def ~body:switch
 
-let boxing_primitive (k : Function_decl.unboxing_kind) alloc_mode
-    unboxed_variables : Flambda_primitive.t =
-  match k with
-  | Fields_of_block_with_tag_zero kinds ->
-    Flambda_primitive.Variadic
-      ( Make_block (Values (Tag.Scannable.zero, kinds), Immutable, alloc_mode),
-        Simple.vars unboxed_variables )
-  | Unboxed_number bn ->
-    let unboxed_variable =
-      match unboxed_variables with
-      | [var] -> var
-      | [] | _ :: _ :: _ ->
-        Misc.fatal_error
-          "boxing_primitive: Unboxed_number should correspond to a single \
-           variable"
+let generate_boxing (kind_and_vars : unboxing_kind_with_variables)
+    (boxed_variable : Variable.t) (alloc_mode : Alloc_mode.For_allocations.t)
+    (acc : 'acc) ~(get_free_names : 'acc -> Name_occurrences.t)
+    ~(reset_free_names : 'acc -> 'acc)
+    ~(add_free_names : Name_occurrences.t -> 'acc -> 'acc)
+    ~(make_let :
+       'acc -> var:Variable.t -> def:Named.t -> body:'expr -> 'acc * 'expr)
+    ~(make_switch :
+       'acc ->
+       scrutinee:Variable.t ->
+       arms:('expr * Name_occurrences.t) Targetint_31_63.Map.t ->
+       'acc * 'expr) ~(return_boxed_variable : 'acc -> 'acc * 'expr) :
+    'acc * 'expr =
+  let single_block block_kind fields =
+    let acc, body = return_boxed_variable acc in
+    let def =
+      Named.create_prim
+        (Flambda_primitive.Variadic
+           ( Make_block (block_kind, Immutable, alloc_mode),
+             List.map Simple.var fields ))
+        Debuginfo.none
     in
-    Flambda_primitive.Unary
-      (Box_number (bn, alloc_mode), Simple.var unboxed_variable)
-  | Unboxed_float_record _ ->
-    Flambda_primitive.Variadic
-      ( Make_block (Naked_floats, Immutable, alloc_mode),
-        Simple.vars unboxed_variables )
+    make_let acc ~var:boxed_variable ~def ~body
+  in
+  match kind_and_vars with
+  | Fields_of_block_with_tag_zero fields ->
+    let block_kind : P.Block_kind.t =
+      Values (Tag.Scannable.zero, List.map snd fields)
+    in
+    single_block block_kind (List.map fst fields)
+  | Unboxed_number (var, bn) ->
+    let acc, body = return_boxed_variable acc in
+    let def =
+      Named.create_prim
+        (Flambda_primitive.Unary (Box_number (bn, alloc_mode), Simple.var var))
+        Debuginfo.none
+    in
+    make_let acc ~var:boxed_variable ~def ~body
+  | Unboxed_float_record fields ->
+    let block_kind : P.Block_kind.t = Naked_floats in
+    single_block block_kind fields
+  | Variant { is_int; get_tag; immediate; non_consts } ->
+    let acc, immediates_branch =
+      let free_names_before = get_free_names acc in
+      let acc = reset_free_names acc in
+      let acc, body = return_boxed_variable acc in
+      let tag_prim =
+        Named.create_prim
+          (Flambda_primitive.Unary (Tag_immediate, Simple.var immediate))
+          Debuginfo.none
+      in
+      let acc, expr = make_let acc ~var:boxed_variable ~def:tag_prim ~body in
+      add_free_names free_names_before acc, (expr, get_free_names acc)
+    in
+    let acc, blocks_branch =
+      let free_names_before = get_free_names acc in
+      let acc = reset_free_names acc in
+      let acc, tag_branches =
+        List.fold_left
+          (fun (acc, branches) (tag, fields) ->
+            let free_names_before = get_free_names acc in
+            let acc = reset_free_names acc in
+            let acc, body = return_boxed_variable acc in
+            let block_kind : Flambda_primitive.Block_kind.t =
+              Values (Tag.Scannable.create_exn tag, List.map snd fields)
+            in
+            let def =
+              Named.create_prim
+                (Flambda_primitive.Variadic
+                   ( Make_block (block_kind, Immutable, alloc_mode),
+                     List.map (fun (var, _kind) -> Simple.var var) fields ))
+                Debuginfo.none
+            in
+            let acc, expr = make_let acc ~var:boxed_variable ~def ~body in
+            ( add_free_names free_names_before acc,
+              Targetint_31_63.Map.add
+                (Targetint_31_63.of_int tag)
+                (expr, get_free_names acc)
+                branches ))
+          (acc, Targetint_31_63.Map.empty)
+          non_consts
+      in
+      let acc, expr = make_switch acc ~scrutinee:get_tag ~arms:tag_branches in
+      add_free_names free_names_before acc, (expr, get_free_names acc)
+    in
+    let arms =
+      Targetint_31_63.Map.add Targetint_31_63.zero blocks_branch
+        (Targetint_31_63.Map.singleton Targetint_31_63.one immediates_branch)
+    in
+    make_switch acc ~scrutinee:is_int ~arms
+
+let get_free_names_cc acc = Acc.free_names acc
+
+let reset_free_names_cc acc = Acc.with_free_names Name_occurrences.empty acc
+
+let add_free_names_cc free_names acc = Acc.add_free_names free_names acc
+
+let make_let_cc acc ~var ~def ~body =
+  Let_with_acc.create acc
+    (Bound_pattern.singleton (Bound_var.create var Name_mode.normal))
+    def ~body
+
+let make_switch_cc acc ~scrutinee ~arms =
+  let acc, arms, let_cont_handlers =
+    Targetint_31_63.Map.fold
+      (fun index (expr, free_names) (acc, arms, let_cont_handlers) ->
+        let acc, apply_cont, let_cont_handlers =
+          match Flambda.Expr.descr expr with
+          | Apply_cont app_cont -> acc, app_cont, let_cont_handlers
+          | Let _ | Let_cont _ | Apply _ | Switch _ | Invalid _ ->
+            let cont = Continuation.create () in
+            let handler acc = Acc.with_free_names free_names acc, expr in
+            let acc, apply_cont =
+              Apply_cont_with_acc.create acc cont ~args:[] ~dbg:Debuginfo.none
+            in
+            acc, apply_cont, (cont, handler) :: let_cont_handlers
+        in
+        acc, Targetint_31_63.Map.add index apply_cont arms, let_cont_handlers)
+      arms
+      (acc, Targetint_31_63.Map.empty, [])
+  in
+  let switch =
+    Switch.create ~condition_dbg:Debuginfo.none
+      ~scrutinee:(Simple.var scrutinee) ~arms
+  in
+  let acc, body = Expr_with_acc.create_switch acc switch in
+  List.fold_left
+    (fun (acc, body) (cont, handler) ->
+      Let_cont_with_acc.build_non_recursive acc cont
+        ~handler_params:Bound_parameters.empty ~handler
+        ~body:(fun _acc -> acc, body)
+        ~is_exn_handler:false ~is_cold:false)
+    (acc, body) let_cont_handlers
+
+let generate_boxing_cc =
+  generate_boxing ~get_free_names:get_free_names_cc
+    ~reset_free_names:reset_free_names_cc ~add_free_names:add_free_names_cc
+    ~make_let:make_let_cc ~make_switch:make_switch_cc
+
+let generate_unboxing_cc =
+  generate_unboxing ~get_free_names:get_free_names_cc
+    ~reset_free_names:reset_free_names_cc ~add_free_names:add_free_names_cc
+    ~make_let:make_let_cc ~make_switch:make_switch_cc
+
+let get_free_names_fl2 free_names = free_names
+
+let reset_free_names_fl2 _ = Name_occurrences.empty
+
+let add_free_names_fl2 free_names acc = Name_occurrences.union free_names acc
+
+let make_let_fl2 free_names_of_body ~var ~def ~body =
+  let expr =
+    Expr.create_let
+      (Let_expr.create
+         (Bound_pattern.singleton (Bound_var.create var Name_mode.normal))
+         def ~body ~free_names_of_body:(Known free_names_of_body))
+  in
+  let free_names_of_expr =
+    Name_occurrences.union (Named.free_names def)
+      (Name_occurrences.remove_var free_names_of_body ~var)
+  in
+  free_names_of_expr, expr
+
+let make_switch_fl2 _acc ~scrutinee ~arms =
+  let arms, let_cont_handlers =
+    Targetint_31_63.Map.fold
+      (fun index (expr, free_names) (arms, let_cont_handlers) ->
+        let apply_cont, let_cont_handlers =
+          match Flambda.Expr.descr expr with
+          | Apply_cont app_cont -> app_cont, let_cont_handlers
+          | Let _ | Let_cont _ | Apply _ | Switch _ | Invalid _ ->
+            let cont = Continuation.create () in
+            let handler =
+              Continuation_handler.create Bound_parameters.empty ~handler:expr
+                ~free_names_of_handler:(Known free_names) ~is_exn_handler:false
+                ~is_cold:false
+            in
+            let apply_cont =
+              Apply_cont.create cont ~args:[] ~dbg:Debuginfo.none
+            in
+            apply_cont, (cont, handler, free_names) :: let_cont_handlers
+        in
+        Targetint_31_63.Map.add index apply_cont arms, let_cont_handlers)
+      arms
+      (Targetint_31_63.Map.empty, [])
+  in
+  let switch =
+    Switch.create ~condition_dbg:Debuginfo.none
+      ~scrutinee:(Simple.var scrutinee) ~arms
+  in
+  let acc = Switch.free_names switch in
+  let body = Expr.create_switch switch in
+  List.fold_left
+    (fun (acc, body) (cont, handler, free_names_of_handler) ->
+      let body =
+        Let_cont.create_non_recursive cont handler ~body
+          ~free_names_of_body:(Known acc)
+      in
+      let acc = Name_occurrences.remove_continuation acc ~continuation:cont in
+      let acc = Name_occurrences.union acc free_names_of_handler in
+      acc, body)
+    (acc, body) let_cont_handlers
+
+let generate_boxing_fl2 =
+  generate_boxing ~get_free_names:get_free_names_fl2
+    ~reset_free_names:reset_free_names_fl2 ~add_free_names:add_free_names_fl2
+    ~make_let:make_let_fl2 ~make_switch:make_switch_fl2
+
+let generate_unboxing_fl2 =
+  generate_unboxing ~get_free_names:get_free_names_fl2
+    ~reset_free_names:reset_free_names_fl2 ~add_free_names:add_free_names_fl2
+    ~make_let:make_let_fl2 ~make_switch:make_switch_fl2
 
 let compute_body_of_unboxed_function acc my_region my_closure
     ~unarized_params:params params_arity ~unarized_param_modes:param_modes
@@ -1545,22 +1921,30 @@ let compute_body_of_unboxed_function acc my_region my_closure
           param_mode :: main_code_param_modes,
           body )
       | Some k ->
-        let boxed_variable_name = Variable.name (Bound_parameter.var param) in
-        let vars_with_kinds = variables_for_unboxing boxed_variable_name k in
+        let vars_with_kinds = variables_for_unboxing k in
         let body acc =
-          let acc, body = body acc in
-          let alloc_mode =
-            Alloc_mode.For_allocations.from_lambda ~current_region:my_region
-              (Alloc_mode.For_types.to_lambda param_mode)
+          let continuation = Continuation.create () in
+          let handler_params = Bound_parameters.create [param] in
+          let handler acc = body acc in
+          let body acc =
+            let param_v = Variable.rename (Bound_parameter.var param) in
+            let alloc_mode =
+              Alloc_mode.For_allocations.from_lambda ~current_region:my_region
+                (Alloc_mode.For_types.to_lambda param_mode)
+            in
+            generate_boxing_cc vars_with_kinds param_v alloc_mode acc
+              ~return_boxed_variable:(fun acc ->
+                let acc, apply_cont =
+                  Apply_cont_with_acc.create acc continuation
+                    ~args:[Simple.var param_v]
+                    ~dbg:Debuginfo.none
+                in
+                Expr_with_acc.create_apply_cont acc apply_cont)
           in
-          Let_with_acc.create acc
-            (Bound_pattern.singleton
-               (Bound_var.create (Bound_parameter.var param) Name_mode.normal))
-            (Named.create_prim
-               (boxing_primitive k alloc_mode (List.map fst vars_with_kinds))
-               Debuginfo.none)
-            ~body
+          Let_cont_with_acc.build_non_recursive acc continuation ~handler_params
+            ~handler ~body ~is_exn_handler:false ~is_cold:false
         in
+        let vars_with_kinds = extract_variables_and_kinds vars_with_kinds in
         ( List.map
             (fun (var, kind) -> Bound_parameter.create var kind)
             vars_with_kinds
@@ -1594,7 +1978,7 @@ let compute_body_of_unboxed_function acc my_region my_closure
       let acc, body = body acc in
       acc, body, return, return_continuation
     | Some k ->
-      let vars_with_kinds = variables_for_unboxing "result" k in
+      let vars_with_kinds = variables_for_unboxing k in
       let unboxed_return_continuation =
         Continuation.create ~sort:Return ~name:"unboxed_return" ()
       in
@@ -1611,33 +1995,20 @@ let compute_body_of_unboxed_function acc my_region my_closure
         Bound_parameters.create [Bound_parameter.create boxed_variable return]
       in
       let handler acc =
-        let acc, apply_cont =
-          Apply_cont_with_acc.create acc unboxed_return_continuation
-            ~args:
-              (List.map (fun (var, _kind) -> Simple.var var) vars_with_kinds)
-            ~dbg:Debuginfo.none
+        let return acc args =
+          let acc, apply_cont =
+            Apply_cont_with_acc.create acc unboxed_return_continuation ~args
+              ~dbg:Debuginfo.none
+          in
+          Expr_with_acc.create_apply_cont acc apply_cont
         in
-        let acc, apply_cont = Expr_with_acc.create_apply_cont acc apply_cont in
-        let (acc, expr), _ =
-          List.fold_left
-            (fun ((acc, expr), i) (var, _kind) ->
-              ( Let_with_acc.create acc
-                  (Bound_pattern.singleton
-                     (Bound_var.create var Name_mode.normal))
-                  (Named.create_prim
-                     (unboxing_primitive k boxed_variable i)
-                     Debuginfo.none)
-                  ~body:expr,
-                Targetint_31_63.(add one i) ))
-            ((acc, apply_cont), Targetint_31_63.zero)
-            vars_with_kinds
-        in
-        acc, expr
+        generate_unboxing_cc vars_with_kinds boxed_variable acc ~return
       in
       let acc, unboxed_body =
         Let_cont_with_acc.build_non_recursive acc return_continuation
           ~handler_params ~handler ~body ~is_exn_handler:false ~is_cold:false
       in
+      let vars_with_kinds = extract_variables_and_kinds vars_with_kinds in
       ( acc,
         unboxed_body,
         Flambda_arity.create_singletons
@@ -1701,32 +2072,43 @@ let make_unboxed_function_wrapper acc function_slot ~unarized_params:params
           Bound_parameter.kind param :: args_arity,
           body_wrapper )
       | Some k ->
-        let boxed_variable_name = Variable.name (Bound_parameter.var param) in
-        let vars_with_kinds = variables_for_unboxing boxed_variable_name k in
+        let vars_with_kinds = variables_for_unboxing k in
         let new_wrapper body free_names_of_body =
-          let body, free_names_of_body = body_wrapper body free_names_of_body in
-          let body, free_names_of_body, _ =
-            List.fold_left
-              (fun (body, free_names_of_body, i) (var, _kind) ->
-                let named =
-                  Named.create_prim
-                    (unboxing_primitive k (Bound_parameter.var param) i)
-                    Debuginfo.none
-                in
-                ( Expr.create_let
-                    (Let_expr.create
-                       (Bound_pattern.singleton
-                          (Bound_var.create var Name_mode.normal))
-                       named ~body
-                       ~free_names_of_body:(Known free_names_of_body)),
-                  Name_occurrences.union (Named.free_names named)
-                    (Name_occurrences.remove_var free_names_of_body ~var),
-                  Targetint_31_63.(add one i) ))
-              (body, free_names_of_body, Targetint_31_63.zero)
-              vars_with_kinds
+          let continuation = Continuation.create () in
+          let free_names_of_handler, handler =
+            let vars_with_kinds = extract_variables_and_kinds vars_with_kinds in
+            ( List.fold_left
+                (fun free_names (var, _kind) ->
+                  Name_occurrences.remove_var free_names ~var)
+                free_names_of_body vars_with_kinds,
+              Continuation_handler.create
+                (Bound_parameters.create
+                   (List.map
+                      (fun (var, kind) -> Bound_parameter.create var kind)
+                      vars_with_kinds))
+                ~handler:body ~free_names_of_handler:(Known free_names_of_body)
+                ~is_exn_handler:false ~is_cold:false )
           in
-          body, free_names_of_body
+          let free_names_of_body, body =
+            let return _ignored_free_names args =
+              let apply_cont =
+                Apply_cont.create continuation ~args ~dbg:Debuginfo.none
+              in
+              ( Apply_cont.free_names apply_cont,
+                Expr.create_apply_cont apply_cont )
+            in
+            generate_unboxing_fl2 vars_with_kinds
+              (Bound_parameter.var param)
+              free_names_of_body ~return
+          in
+          ( Let_cont_expr.create_non_recursive continuation handler ~body
+              ~free_names_of_body:(Known free_names_of_body),
+            Name_occurrences.union
+              (Name_occurrences.remove_continuation free_names_of_body
+                 ~continuation)
+              free_names_of_handler )
         in
+        let vars_with_kinds = extract_variables_and_kinds vars_with_kinds in
         ( List.map (fun (var, _kind) -> Simple.var var) vars_with_kinds @ args,
           List.map (fun (_var, kind) -> kind) vars_with_kinds @ args_arity,
           new_wrapper ))
@@ -1784,43 +2166,29 @@ let make_unboxed_function_wrapper acc function_slot ~unarized_params:params
     in
     body_wrapper body free_names_of_body
   in
-  let make_return_wrapper box_result =
+  let make_return_wrapper unboxing_kind alloc_mode =
+    let unboxing_kind_with_vars = variables_for_unboxing unboxing_kind in
     let cont = Continuation.create () in
     let body, free_names_of_body = make_body cont in
     let handler, free_names_of_handler =
       let unboxed_returns =
         Bound_parameters.create
           (List.map
-             (fun kind ->
-               let var = Variable.create "unboxed_return" in
-               Bound_parameter.create var kind)
-             (Flambda_arity.unarized_components result_arity_main_code))
+             (fun (var, kind) -> Bound_parameter.create var kind)
+             (extract_variables_and_kinds unboxing_kind_with_vars))
       in
-      let handler, free_names_of_handler =
+      let free_names_of_handler, handler =
         let boxed_return = Variable.create "boxed_return" in
-        let return_apply_cont =
-          Apply_cont.create return_continuation
-            ~args:[Simple.var boxed_return]
-            ~dbg:Debuginfo.none
+        let return_boxed_variable _ignored_free_names =
+          let apply_cont =
+            Apply_cont.create return_continuation
+              ~args:[Simple.var boxed_return]
+              ~dbg:Debuginfo.none
+          in
+          Apply_cont.free_names apply_cont, Expr.create_apply_cont apply_cont
         in
-        let box_result_named =
-          Named.create_prim
-            (box_result (Bound_parameters.vars unboxed_returns))
-            Debuginfo.none
-        in
-        ( Expr.create_let
-            (Let_expr.create
-               (Bound_pattern.singleton
-                  (Bound_var.create boxed_return Name_mode.normal))
-               box_result_named
-               ~body:(Expr.create_apply_cont return_apply_cont)
-               ~free_names_of_body:
-                 (Known (Apply_cont.free_names return_apply_cont))),
-          Name_occurrences.union
-            (Named.free_names box_result_named)
-            (Name_occurrences.remove_var
-               (Apply_cont.free_names return_apply_cont)
-               ~var:boxed_return) )
+        generate_boxing_fl2 unboxing_kind_with_vars boxed_return alloc_mode
+          Name_occurrences.empty ~return_boxed_variable
       in
       ( Continuation_handler.create unboxed_returns ~handler
           ~free_names_of_handler:(Known free_names_of_handler)
@@ -1846,7 +2214,7 @@ let make_unboxed_function_wrapper acc function_slot ~unarized_params:params
   let body, free_names_of_body =
     match unboxed_return with
     | None -> make_body return_continuation
-    | Some k -> make_return_wrapper (boxing_primitive k alloc_mode)
+    | Some k -> make_return_wrapper k alloc_mode
   in
   let wrapper_params_and_body =
     Function_params_and_body.create ~return_continuation ~exn_continuation
