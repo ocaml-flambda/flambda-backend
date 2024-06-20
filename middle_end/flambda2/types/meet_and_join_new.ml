@@ -1337,15 +1337,17 @@ and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
     match bound_name with
     | None -> shared_aliases
     | Some bound_name ->
-      (* We only return one type for each name, so we have to decide whether
-         to return an alias or an expanded head.
-         Usually we prefer aliases, because we hope that the alias itself
-         will have a concrete equation anyway, but we must be careful to
-         ensure that we don't return aliases to self (obviously wrong)
-         or, if two variables [x] and [y] alias each other, redundant equations
-         [x : (= y)] and [y : (= x)]. *)
+      (* We only return one type for each name, so we have to decide whether to
+         return an alias or an expanded head. Usually we prefer aliases, because
+         we hope that the alias itself will have a concrete equation anyway, but
+         we must be careful to ensure that we don't return aliases to self
+         (obviously wrong) or, if two variables [x] and [y] alias each other,
+         redundant equations [x : (= y)] and [y : (= x)]. *)
       Aliases.Alias_set.filter
-        ~f:(fun alias -> TE.alias_is_bound_before (Join_env.target_join_env env) ~bound_name ~alias)
+        ~f:(fun alias ->
+          TE.alias_is_bound_before
+            (Join_env.target_join_env env)
+            ~bound_name ~alias)
         shared_aliases
   in
   let unknown () : _ Or_unknown.t =

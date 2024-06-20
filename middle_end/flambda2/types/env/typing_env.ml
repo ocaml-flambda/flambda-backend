@@ -600,8 +600,14 @@ let mem_simple ?min_name_mode t simple =
     ~const:(fun _ -> true)
 
 let alias_is_bound_before t ~bound_name ~alias =
-  let time_of_name = binding_time_and_mode t bound_name |> Binding_time.With_name_mode.binding_time in
-  let time_of_alias = binding_time_and_mode_of_simple t alias |> Binding_time.With_name_mode.binding_time in
+  let time_of_name =
+    binding_time_and_mode t bound_name
+    |> Binding_time.With_name_mode.binding_time
+  in
+  let time_of_alias =
+    binding_time_and_mode_of_simple t alias
+    |> Binding_time.With_name_mode.binding_time
+  in
   Binding_time.strictly_earlier time_of_alias ~than:time_of_name
 
 let with_current_level t ~current_level = { t with current_level }
