@@ -1312,7 +1312,7 @@ let tree_of_modality (t : Mode.Modality.t) =
   | _ -> Option.map (fun x -> Ogf_new x) (tree_of_modality_new t)
 
 let tree_of_modalities ~has_mutable_implied_modalities t =
-  let l = Mode.Modality.Value.to_list t in
+  let l = Mode.Modality.Value.Const.to_list t in
   (* CR zqian: decouple mutable and modalities *)
   let l =
     if has_mutable_implied_modalities then
@@ -1323,7 +1323,7 @@ let tree_of_modalities ~has_mutable_implied_modalities t =
   List.filter_map tree_of_modality l
 
 let tree_of_modalities_new t =
-  let l = Mode.Modality.Value.to_list t in
+  let l = Mode.Modality.Value.Const.to_list t in
   List.filter_map tree_of_modality_new l
 
 (** [tree_of_mode m l] finds the outcome node in [l] that corresponds to [m].

@@ -97,14 +97,15 @@ let untransl_modalities ~loc m : Parsetree.modality loc list =
     in
     { txt = Parsetree.Modality s; loc }
   in
-  Modality.Value.to_list m |> List.map untransl_atom
+  Modality.Value.Const.to_list m |> List.map untransl_atom
 
 let compose_modalities modalities =
   (* The ordering:
      type r = { x : string @@ foo bar hello }
      is interpreted as
      x = foo (bar (hello (r))) *)
-  List.fold_right Modality.Value.cons modalities Modality.Value.id
+  List.fold_right Modality.Value.Const.compose modalities
+    Modality.Value.Const.id
 
 let mutable_implied_modalities : Modality.t list =
   [ Atom (Comonadic Areality, Meet_with Regionality.Const.Global);

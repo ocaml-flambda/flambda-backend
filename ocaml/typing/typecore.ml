@@ -444,7 +444,7 @@ let mode_legacy = mode_default Value.legacy
 
 let mode_modality modality expected_mode =
   expected_mode.mode
-  |> Modality.Value.apply_user modality
+  |> Modality.Value.Const.apply modality
   |> mode_default
 
 (* used when entering a function;
@@ -1120,7 +1120,7 @@ let add_pattern_variables ?check ?check_as env pv =
        let check = if pv_as_var then check_as else check in
        Env.add_value ?check ~mode:pv_mode pv_id
          {val_type = pv_type; val_kind = Val_reg; Types.val_loc = pv_loc;
-          val_attributes = pv_attributes; val_modalities = Modality.Value.id |> Modality.Value.internalize;
+          val_attributes = pv_attributes; val_modalities = Modality.Value.id;
           val_zero_alloc = Builtin_attributes.Default_zero_alloc;
           val_uid = pv_uid
          } env
@@ -2422,10 +2422,10 @@ and type_pat_aux
     let ty_elt, arg_sort = solve_Ppat_array ~refine loc env mutability expected_ty in
     let modalities =
       if Types.is_mutable mutability then Typemode.mutable_implied_modalities
-      else Modality.Value.id
+      else Modality.Value.Const.id
     in
     check_project_mutability ~loc ~env:!env mutability alloc_mode.mode;
-    let alloc_mode = Modality.Value.apply_user modalities alloc_mode.mode in
+    let alloc_mode = Modality.Value.Const.apply modalities alloc_mode.mode in
     let alloc_mode = simple_pat_mode alloc_mode in
     let pl = List.map (fun p -> type_pat ~alloc_mode tps Value p ty_elt) spl in
     rvp {
@@ -2668,7 +2668,7 @@ and type_pat_aux
       let args =
         List.map2
           (fun p (ty, gf) ->
-             let alloc_mode = Modality.Value.apply_user gf alloc_mode.mode in
+             let alloc_mode = Modality.Value.Const.apply gf alloc_mode.mode in
              let alloc_mode = simple_pat_mode alloc_mode in
              type_pat ~alloc_mode tps Value p ty)
           sargs (List.combine ty_args_ty ty_args_gf)
@@ -2712,7 +2712,7 @@ and type_pat_aux
         let ty_arg =
           solve_Ppat_record_field ~refine loc env label label_lid record_ty in
         check_project_mutability ~loc ~env:!env label.lbl_mut alloc_mode.mode;
-        let mode = Modality.Value.apply_user label.lbl_modalities alloc_mode.mode in
+        let mode = Modality.Value.Const.apply label.lbl_modalities alloc_mode.mode in
         let alloc_mode = simple_pat_mode mode in
         (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
       in
@@ -2915,7 +2915,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
             ; val_kind = Val_reg
             ; val_attributes = pv_attributes
             ; val_zero_alloc = Builtin_attributes.Default_zero_alloc
-            ; val_modalities = Modality.Value.id |> Modality.Value.internalize
+            ; val_modalities = Modality.Value.id
             ; val_loc = pv_loc
             ; val_uid = pv_uid
             }
@@ -2927,7 +2927,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
             ; val_kind = Val_ivar (Immutable, cl_num)
             ; val_attributes = pv_attributes
             ; val_zero_alloc = Builtin_attributes.Default_zero_alloc
-            ; val_modalities = Modality.Value.id |> Modality.Value.internalize
+            ; val_modalities = Modality.Value.id
             ; val_loc = pv_loc
             ; val_uid = pv_uid
             }
@@ -5722,7 +5722,7 @@ and type_expect_
                   with_explanation (fun () ->
                     unify_exp_types loc env (instance ty_expected) ty_res2);
                   check_project_mutability ~loc:exp.exp_loc ~env lbl.lbl_mut mode;
-                  let mode = Modality.Value.apply_user lbl.lbl_modalities mode in
+                  let mode = Modality.Value.Const.apply lbl.lbl_modalities mode in
                   check_construct_mutability ~loc ~env lbl.lbl_mut argument_mode;
                   let argument_mode =
                     mode_modality lbl.lbl_modalities argument_mode
@@ -5773,7 +5773,7 @@ and type_expect_
         end ~post:generalize_structure
       in
       check_project_mutability ~loc:record.exp_loc ~env label.lbl_mut rmode;
-      let mode = Modality.Value.apply_user label.lbl_modalities rmode in
+      let mode = Modality.Value.Const.apply label.lbl_modalities rmode in
       let boxing : texp_field_boxing =
         let is_float_boxing =
           match label.lbl_repres with
@@ -7466,7 +7466,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
           { val_type = ty; val_kind = Val_reg;
             val_attributes = [];
             val_zero_alloc = Builtin_attributes.Default_zero_alloc;
-            val_modalities = Modality.Value.id |> Modality.Value.internalize;
+            val_modalities = Modality.Value.id;
             val_loc = Location.none;
             val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
           }
@@ -8762,7 +8762,7 @@ and type_generic_array
     if Types.is_mutable mutability then
       Predef.type_array, Typemode.mutable_implied_modalities
     else
-      Predef.type_iarray, Modality.Value.id
+      Predef.type_iarray, Modality.Value.Const.id
   in
   check_construct_mutability ~loc ~env mutability argument_mode;
   let argument_mode = mode_modality modalities argument_mode in

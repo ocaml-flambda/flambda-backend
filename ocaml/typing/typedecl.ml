@@ -2893,7 +2893,7 @@ let transl_value_decl env loc valdecl =
       let modalities =
         valdecl.pval_modalities
         |> Typemode.transl_modalities Immutable
-        |> Mode.Modality.Value.internalize
+        |> Mode.Modality.Value.of_const
       in
       let default_arity =
         let rec count_arrows n ty =
@@ -2927,7 +2927,7 @@ let transl_value_decl env loc valdecl =
   | _ ->
       let modalities =
         match valdecl.pval_modalities with
-        | [] -> Mode.Modality.Value.id'
+        | [] -> Mode.Modality.Value.id
         | m :: _ -> raise (Error(m.loc, Modality_on_primitive))
       in
       let global_repr =

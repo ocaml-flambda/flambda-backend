@@ -447,11 +447,6 @@ module type S = sig
   val value_to_alloc_r2g : ('l * 'r) Value.t -> ('l * 'r) Alloc.t
 
   module Modality : sig
-    (* CR zqian: have [const] and [var], and an injection from [const] to [var]. *)
-    type _user = private User
-
-    type _internal = private Internal
-
     type ('m, 'a) raw =
       | Meet_with : 'a -> (('a, 'd) mode_comonadic, 'a) raw
           (** [Meet_with c] takes [x] and returns [meet c x]. [c] can be [max]
@@ -472,52 +467,49 @@ module type S = sig
     module Value : sig
       type atom := t
 
-      (** A modality that acts on [Value] modes. Conceptually it is a sequnce of
-          [atom] that acts on individual axes. *)
-      type 'd t
-
-      type user = _user t
-
-      type internal = _internal t
-
-      (** Internalize a modality. *)
-      val internalize : 'd t -> internal
-
-      (** The identity modality. *)
-      val id : user
-
-      (** Same as [id] but internalized for convenience. *)
-      val id' : internal
-
-      (** The undefined modality. *)
-      val undefined : internal
-
-      (** Apply a user modality on mode. *)
-      val apply_user : user -> ('l * 'r) Value.t -> ('l * 'r) Value.t
-
-      (** Apply a modality on a left mode. *)
-      val apply_left : 'd t -> (allowed * 'r) Value.t -> Value.l
-
-      (* CR zqian: call this [compose]. *)
-
-      (* CR zqian: call this [compose]. *)
-
-      (** [cons m t] returns the modality that is [m] after [t]. *)
-      val cons : atom -> user -> user
-
-      (** [singleton m] returns the modality containing only [m]. *)
-      val singleton : atom -> user
-
-      (* CR zqian: return record, then we don't need [Exist.t]. *)
-
-      (* CR zqian: return record, then we don't need [Exist.t]. *)
-
-      (** Returns the list of [atom] in the given modality. The list is
-          commutative. *)
-      val to_list : user -> atom list
-
       type error =
         | Error : ('m, 'a, _) Value.axis * ('m, 'a) raw Solver.error -> error
+
+      type nonrec equate_error = equate_step * error
+
+      module Const : sig
+        (** A modality that acts on [Value] modes. Conceptually it is a sequnce
+            of [atom] that acts on individual axes. *)
+        type t
+
+        (** The identity modality. *)
+        val id : t
+
+        (** Apply a modality on mode. *)
+        val apply : t -> ('l * 'r) Value.t -> ('l * 'r) Value.t
+
+        (** [compose m t] returns the modality that is [m] after [t]. *)
+        val compose : atom -> t -> t
+
+        (** [singleton m] returns the modality containing only [m]. *)
+        val singleton : atom -> t
+
+        (** Returns the list of [atom] in the given modality. The list is
+            commutative. *)
+        val to_list : t -> atom list
+
+        (** [equate t0 t1] checks that [t0 = t1].
+            Definition: [t0 = t1] iff [t0 <= t1] and [t1 <= t0]. *)
+        val equate : t -> t -> (unit, equate_error) Result.t
+      end
+
+      (** A modality that acts on [Value] modes. Conceptually it is a sequnce of
+          [atom] that acts on individual axes. *)
+      type t
+
+      (** The identity modality. *)
+      val id : t
+
+      (** The undefined modality. *)
+      val undefined : t
+
+      (** Apply a modality on a left mode. *)
+      val apply : t -> (allowed * 'r) Value.t -> Value.l
 
       (** [sub t0 t1] checks that [t0 <= t1].
           Definition: [t0 <= t1] iff [forall a. t0(a) <= t1(a)].
@@ -526,19 +518,17 @@ module type S = sig
           [ax] is the axis on which the modalities disagree. [left] is the
           projection of [t0] on [ax], and [right] is the projection of [t1] on
           [ax]. *)
-      val sub : 'd t -> 'd t -> (unit, error) Result.t
-
-      type nonrec equate_error = equate_step * error
+      val sub : t -> t -> (unit, error) Result.t
 
       (** [equate t0 t1] checks that [t0 = t1].
           Definition: [t0 = t1] iff [t0 <= t1] and [t1 <= t0]. *)
-      val equate : 'd t -> 'd t -> (unit, equate_error) Result.t
+      val equate : t -> t -> (unit, equate_error) Result.t
 
       (** Printing for debugging. *)
-      val print : Format.formatter -> 'd t -> unit
+      val print : Format.formatter -> t -> unit
 
       (* CR zqian: consider spliting the [lr]. *)
-      val infer : md_mode:Value.lr -> mode:Value.l -> internal
+      val infer : md_mode:Value.lr -> mode:Value.l -> t
 
       (** Returns a user modality weaker than the given modality. The returned
       modality will be pushed to identity modality if possible. The given
@@ -550,18 +540,17 @@ module type S = sig
       - [let m' = zap_to_id m in (...; sub m m')] always succeeds, where [...]
         might mutate [m].
       *)
-      val zap_to_id : 'd t -> user
-
-      (* CR zqian: rename to [to_const_exn]. *)
-
-      (* CR zqian: rename to [to_const_exn]. *)
+      val zap_to_id : t -> Const.t
 
       (** Returns a user modality by asserting the given modality is already
       user modality and returning it. *)
-      val zap_assert : 'd t -> user
+      val to_const_exn : t -> Const.t
+
+      (** Convert a const modality. *)
+      val of_const : Const.t -> t
 
       (** The top modality; [sub x max] succeeds for any [x]. *)
-      val max : user
+      val max : t
     end
   end
 end

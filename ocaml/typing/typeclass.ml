@@ -488,7 +488,7 @@ let enter_ancestor_met ~loc name ~sign ~meths ~cl_num ~ty ~attrs met_env =
   let check s = Warnings.Unused_ancestor s in
   let kind = Val_anc (sign, meths, cl_num) in
   let desc =
-    { val_type = ty; val_modalities = Modality.Value.id'; val_kind = kind;
+    { val_type = ty; val_modalities = Modality.Value.id; val_kind = kind;
       val_attributes = attrs;
       val_zero_alloc = Builtin_attributes.Default_zero_alloc;
       Types.val_loc = loc;
@@ -504,7 +504,7 @@ let add_self_met loc id sign self_var_kind vars cl_num
   in
   let kind = Val_self (sign, self_var_kind, vars, cl_num) in
   let desc =
-    { val_type = ty; val_modalities = Modality.Value.id'; val_kind = kind;
+    { val_type = ty; val_modalities = Modality.Value.id; val_kind = kind;
       val_attributes = attrs;
       val_zero_alloc = Builtin_attributes.Default_zero_alloc;
       Types.val_loc = loc;
@@ -520,7 +520,7 @@ let add_instance_var_met loc label id sign cl_num attrs met_env =
   in
   let kind = Val_ivar (mut, cl_num) in
   let desc =
-    { val_type = ty; val_modalities = Modality.Value.id'; val_kind = kind;
+    { val_type = ty; val_modalities = Modality.Value.id; val_kind = kind;
       val_attributes = attrs;
       Types.val_loc = loc;
       val_zero_alloc = Builtin_attributes.Default_zero_alloc;
@@ -1464,7 +1464,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
              in
              let desc =
                {val_type = expr.exp_type;
-                val_modalities = Modality.Value.id';
+                val_modalities = Modality.Value.id;
                 val_kind = Val_ivar (Immutable, cl_num);
                 val_attributes = [];
                 val_zero_alloc = Builtin_attributes.Default_zero_alloc;

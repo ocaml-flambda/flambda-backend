@@ -2119,13 +2119,12 @@ let remove_mode_and_jkind_variables env sg =
   let rm _env ty = Ctype.remove_mode_and_jkind_variables ty; None in
   List.find_map (nongen_signature_item env rm) sg |> ignore
 
-let rec map_inferred_modalities_sg : _ -> (Mode.Modality.Value.internal -> Mode.Modality.Value.user) -> _ -> _
-= fun env map sg ->
+let rec map_inferred_modalities_sg env map sg =
   let rec loop acc = function
     | Sig_value (id, desc, vis) :: rest ->
         let val_modalities =
           desc.val_modalities
-          |> map |> Mode.Modality.Value.internalize
+          |> map |> Mode.Modality.Value.of_const
         in
         let desc = {desc with val_modalities} in
         let item = Sig_value (id, desc, vis) in
@@ -2151,7 +2150,7 @@ and map_inferred_modalities_mty env map mty =
       match param with
       | Named (id, mty) ->
           let mty =
-            map_inferred_modalities_mty env Mode.Modality.Value.zap_assert mty
+            map_inferred_modalities_mty env Mode.Modality.Value.to_const_exn mty
           in
           Named (id, mty)
       | Unit -> Unit
@@ -2159,7 +2158,9 @@ and map_inferred_modalities_mty env map mty =
     let mty = map_inferred_modalities_mty env map mty in
     Mty_functor (param, mty)
   | Mty_strengthen (mty, path, alias) ->
-      let mty = map_inferred_modalities_mty env Mode.Modality.Value.zap_assert mty in
+      let mty = map_inferred_modalities_mty
+        env Mode.Modality.Value.to_const_exn mty
+      in
       Mty_strengthen (mty, path, alias)
 
 (* Helpers for typing recursive modules *)

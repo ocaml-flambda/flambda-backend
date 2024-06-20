@@ -653,7 +653,9 @@ module Record_diffing = struct
         begin match mut with
         | Some mut -> Some (Mutability mut)
         | None ->
-          match Modality.Value.equate ld1.ld_modalities ld2.ld_modalities with
+          match
+            Modality.Value.Const.equate ld1.ld_modalities ld2.ld_modalities
+          with
           | Ok () ->
             let tl1 = params1 @ [ld1.ld_type] in
             let tl2 = params2 @ [ld2.ld_type] in
@@ -826,7 +828,7 @@ module Variant_diffing = struct
           | exception Ctype.Equality err -> Some (Type err)
           | () -> List.combine arg1_gfs arg2_gfs
                   |> find_map_idx
-                    (fun (x,y) -> get_error @@ Modality.Value.equate x y)
+                    (fun (x,y) -> get_error @@ Modality.Value.Const.equate x y)
                   |> Option.map (fun (i, err) -> Modality (i, err))
         end
     | Types.Cstr_record l1, Types.Cstr_record l2 ->

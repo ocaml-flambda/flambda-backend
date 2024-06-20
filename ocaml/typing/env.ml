@@ -906,9 +906,9 @@ let normalize_vda_mode vda =
   let vda_description = vda.vda_description in
   let modalities = vda_description.val_modalities in
   let vda_description =
-    {vda_description with val_modalities = Mode.Modality.Value.id'}
+    {vda_description with val_modalities = Mode.Modality.Value.id}
   in
-  let vda_mode = Mode.Modality.Value.apply_left modalities vda.vda_mode in
+  let vda_mode = Mode.Modality.Value.apply modalities vda.vda_mode in
   {vda with vda_description; vda_mode}
 
 (* Print addresses *)
@@ -2040,7 +2040,6 @@ and store_value ?check ~mode id addr decl shape env =
   Option.iter
     (fun f -> check_usage decl.val_loc id decl.val_uid f !value_declarations)
     check;
-  let _ = Mode.Modality.Value.apply_left decl.val_modalities mode in
   let vda =
     { vda_description = decl;
       vda_address = addr;

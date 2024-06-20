@@ -685,7 +685,7 @@ and label_declaration =
      ld_name: string loc;
      ld_uid: Uid.t;
      ld_mutable: mutability;
-     ld_modalities: Modality.Value.user;
+     ld_modalities: Modality.Value.Const.t;
      ld_type: core_type;
      ld_loc: Location.t;
      ld_attributes: attribute list;
@@ -705,7 +705,7 @@ and constructor_declaration =
 
 and constructor_argument =
   {
-    ca_modalities: Modality.Value.user;
+    ca_modalities: Modality.Value.Const.t;
     ca_type: core_type;
     ca_loc: Location.t;
   }
