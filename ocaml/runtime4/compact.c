@@ -273,6 +273,12 @@ static void do_compaction (intnat new_allocation_policy)
               if (Is_last_closinfo (closinfo)) break;
               arity = Arity_closinfo (closinfo);
               i += 2 + (arity != 0 && arity != 1);
+              /* If space exists between infix headers, skip it. This space is
+                 padded with Val_long(0), which can't be confused with either an
+                 infix header, or an inverted pointer. */
+              while (Field(v, i) == Val_long(0)){
+                ++i;
+              }
               CAMLassert (i < Start_env_closinfo (Closinfo_val (v)));
 
               /* Revert the inverted list for infix header at offset [i]. */

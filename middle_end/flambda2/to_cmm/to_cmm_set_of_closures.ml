@@ -280,6 +280,10 @@ end = struct
         else if starting_offset = slot_offset
         then acc
         else
+          (* The space between slot offsets has to be padded with precisely the
+             value tagged 0, as it is scanned by the GC during compaction. This
+             value can't be confused with either infix headers or inverted
+             pointers, as noted in the comment in compact.c *)
           List.init (slot_offset - starting_offset) (fun _ -> P.int ~dbg 1n)
           @ acc
       in
