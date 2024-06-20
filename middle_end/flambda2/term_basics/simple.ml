@@ -177,3 +177,39 @@ module With_kind = struct
     let simple' = apply_renaming simple renaming in
     if simple == simple' then t else simple', kind
 end
+
+module With_debuginfo = struct
+  type nonrec t = t * Debuginfo.t
+
+  include Container_types.Make (struct
+    type nonrec t = t
+
+    let compare (s1, k1) (s2, k2) =
+      let c = compare s1 s2 in
+      if c <> 0 then c else Debuginfo.compare k1 k2
+
+    let equal t1 t2 = compare t1 t2 = 0
+
+    let hash = Hashtbl.hash
+
+    let [@ocamlformat "disable"] print ppf (s, k) =
+      Format.fprintf ppf "@[<hov 1>(%a@ %a)@]"
+        print s
+        Debuginfo.print_compact k
+  end)
+
+  let create simple dbg = simple, dbg
+
+  let simple (simple, _dbg) = simple
+
+  let dbg (_simple, dbg) = dbg
+
+  let free_names (simple, _kind) = free_names simple
+
+  let apply_renaming ((simple, kind) as t) renaming =
+    let simple' = apply_renaming simple renaming in
+    if simple == simple' then t else simple', kind
+
+  let ids_for_export (simple, _dbg) =
+    Ids_for_export.add_simple Ids_for_export.empty simple
+end

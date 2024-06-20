@@ -170,6 +170,7 @@ module Env : sig
     t ->
     Variable.t ->
     Tag.Scannable.t ->
+    Flambda_kind.Scannable_block_shape.Scannable.t ->
     value_approximation array ->
     Alloc_mode.For_types.t ->
     t

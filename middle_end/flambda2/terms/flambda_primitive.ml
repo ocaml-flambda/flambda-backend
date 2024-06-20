@@ -33,9 +33,10 @@ module Block_kind = struct
 
   let to_shape t : _ * K.Block_shape.t =
     match t with
-    | Values (tag, _) -> Tag.Scannable.to_tag tag, Value_only
+    | Values (tag, _) -> Tag.Scannable.to_tag tag, Scannable Value_only
     | Naked_floats -> Tag.double_array_tag, Float_record
-    | Mixed (tag, fields) -> Tag.Scannable.to_tag tag, Mixed_record fields
+    | Mixed (tag, fields) ->
+      Tag.Scannable.to_tag tag, Scannable (Mixed_record fields)
 
   let [@ocamlformat "disable"] print ppf t =
    match t with
@@ -455,9 +456,9 @@ module Block_access_kind = struct
 
   let to_block_shape t : K.Block_shape.t =
     match t with
-    | Values _ -> Value_only
+    | Values _ -> Scannable Value_only
     | Naked_floats _ -> Float_record
-    | Mixed { shape; _ } -> Mixed_record shape
+    | Mixed { shape; _ } -> Scannable (Mixed_record shape)
 
   let element_kind_for_set = element_kind_for_load
 

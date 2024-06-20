@@ -102,3 +102,19 @@ module With_kind : sig
 
   include Container_types.S with type t := t
 end
+
+module With_debuginfo : sig
+  type nonrec t
+
+  val create : Int_ids.Simple.t -> Debuginfo.t -> t
+
+  val simple : t -> Int_ids.Simple.t
+
+  val dbg : t -> Debuginfo.t
+
+  include Contains_names.S with type t := t
+
+  include Contains_ids.S with type t := t
+
+  include Container_types.S with type t := t
+end

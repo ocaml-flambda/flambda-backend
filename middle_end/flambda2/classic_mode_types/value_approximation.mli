@@ -19,7 +19,7 @@
 type 'code t =
   | Value_unknown
   | Value_symbol of Symbol.t
-  | Value_int of Targetint_31_63.t
+  | Value_const of Reg_width_const.t
   | Closure_approximation of
       { code_id : Code_id.t;
         function_slot : Function_slot.t;
@@ -29,7 +29,10 @@ type 'code t =
         symbol : Symbol.t option
       }
   | Block_approximation of
-      Tag.Scannable.t * 'code t array * Alloc_mode.For_types.t
+      Tag.Scannable.Scannable.t
+      * Flambda_kind.Scannable_block_shape.t
+      * 'code t array
+      * Alloc_mode.For_types.t
 
 val print : Format.formatter -> 'a t -> unit
 

@@ -25,6 +25,7 @@ type to_lift =
   | Immutable_block of
       { tag : Tag.Scannable.t;
         is_unique : bool;
+        shape : Flambda_kind.Scannable_block_shape.t;
         fields : Simple.t list
       }
   | Boxed_float32 of Float32.t
@@ -47,11 +48,14 @@ type reification_result =
   | Cannot_reify
   | Invalid
 
-let try_to_reify_fields env ~var_allowed alloc_mode ~field_types =
+let try_to_reify_fields env ~var_allowed alloc_mode ~field_types ~field_kinds =
+  assert (List.compare_lengths field_types field_kinds = 0);
   let field_simples =
     List.filter_map
-      (fun field_type : Simple.t option ->
-        match Provers.prove_equals_to_simple_of_kind_value env field_type with
+      (fun (field_type, field_kind) : Simple.t option ->
+        match
+          Provers.prove_equals_to_simple_of_kind env field_type field_kind
+        with
         | Proved simple when not (Coercion.is_id (Simple.coercion simple)) ->
           (* CR-someday lmaurer: Support lifting things whose fields have
              coercions. *)
@@ -71,7 +75,7 @@ let try_to_reify_fields env ~var_allowed alloc_mode ~field_types =
                    instead *)
                 None)
         | Unknown -> None)
-      field_types
+      (List.combine field_types field_kinds)
   in
   if List.compare_lengths field_types field_simples = 0
   then Some field_simples
@@ -207,27 +211,45 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
         if Expand_head.is_bottom env imms
         then
           match TG.Row_like_for_blocks.get_singleton blocks with
-          | None -> try_canonical_simple ()
+          | None ->
+            (* CR mshinwell: could recognise tagged immediates *)
+            try_canonical_simple ()
           | Some (tag, shape, size, field_types, alloc_mode) -> (
             assert (
               Targetint_31_63.equal size
                 (TG.Product.Int_indexed.width field_types));
-            (* CR mshinwell: Could recognise other things, e.g. tagged
-               immediates and float arrays, supported by [Static_part]. *)
+            let field_types = TG.Product.Int_indexed.components field_types in
+            let field_kinds =
+              match shape with
+              | Float_record ->
+                List.map (fun _ -> Flambda_kind.naked_float) field_types
+              | Scannable (Mixed_record shape) ->
+                Flambda_kind.Mixed_block_shape.field_kinds shape
+                |> Array.to_list
+              | Scannable Value_only ->
+                List.map (fun _ -> Flambda_kind.value) field_types
+            in
             match shape with
-            | Float_record | Mixed_record _ -> try_canonical_simple ()
-            | Value_only -> (
+            | Float_record ->
+              (* CR mshinwell: lift these and also support arrays (below) with
+                 [Simple]s not just numbers in them *)
+              try_canonical_simple ()
+            | Scannable shape -> (
               let tag =
                 match Tag.Scannable.of_tag tag with
                 | Some tag -> tag
                 | None ->
-                  Misc.fatal_errorf "Value-only block has tag %a" Tag.print tag
+                  Misc.fatal_errorf
+                    "Value-only or mixed block type has tag %a, which is not a \
+                     scannable tag"
+                    Tag.print tag
               in
-              let field_types = TG.Product.Int_indexed.components field_types in
               match
                 try_to_reify_fields env ~var_allowed alloc_mode ~field_types
+                  ~field_kinds
               with
-              | Some fields -> Lift (Immutable_block { tag; is_unique; fields })
+              | Some fields ->
+                Lift (Immutable_block { tag; is_unique; shape; fields })
               | None -> try_canonical_simple ()))
         else if TG.Row_like_for_blocks.is_bottom blocks
         then
@@ -524,9 +546,10 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
           let kind = Flambda_kind.With_subkind.kind element_kind in
           match kind with
           | Value -> (
+            let field_kinds = List.map (fun _ -> Flambda_kind.value) fields in
             match
               try_to_reify_fields env ~var_allowed alloc_mode
-                ~field_types:fields
+                ~field_types:fields ~field_kinds
             with
             | Some fields -> Lift (Immutable_value_array { fields })
             | None -> try_canonical_simple ())

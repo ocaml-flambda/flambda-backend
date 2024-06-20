@@ -94,15 +94,28 @@ module Mixed_block_shape : sig
   val compare : t -> t -> int
 end
 
-module Block_shape : sig
+module Scannable_block_shape : sig
   type t =
     | Value_only
-    | Float_record
     | Mixed_record of Mixed_block_shape.t
 
   (** For now if two block shapes do not compare as equal they will be
       incompatible. If that changes, a [compatible] function will be
       introduced. *)
+  val equal : t -> t -> bool
+
+  val compare : t -> t -> int
+
+  val print : Format.formatter -> t -> unit
+
+  val element_kind : t -> int -> kind
+end
+
+module Block_shape : sig
+  type t =
+    | Scannable of Scannable_block_shape.t
+    | Float_record
+
   val equal : t -> t -> bool
 
   val compare : t -> t -> int

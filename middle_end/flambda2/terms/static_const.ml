@@ -18,12 +18,11 @@ let fprintf = Format.fprintf
 
 type t =
   | Set_of_closures of Set_of_closures.t
-  | Block of Tag.Scannable.t * Mutability.t * Field_of_static_block.t list
-  | Mixed_block of
+  | Block of
       Tag.Scannable.t
       * Mutability.t
-      * Flambda_kind.Mixed_block_shape.t
-      * Field_of_static_block.Mixed_field.t list
+      * Flambda_kind.Scannable_block_shape.t
+      * Simple.With_debuginfo.t list
   | Boxed_float32 of Numeric_types.Float32_by_bit_pattern.t Or_variable.t
   | Boxed_float of Numeric_types.Float_by_bit_pattern.t Or_variable.t
   | Boxed_int32 of Int32.t Or_variable.t
@@ -39,17 +38,14 @@ type t =
   | Immutable_int32_array of Int32.t Or_variable.t list
   | Immutable_int64_array of Int64.t Or_variable.t list
   | Immutable_nativeint_array of Targetint_32_64.t Or_variable.t list
-  | Immutable_value_array of Field_of_static_block.t list
+  | Immutable_value_array of Simple.With_debuginfo.t list
   | Empty_array of Empty_array_kind.t
   | Mutable_string of { initial_value : string }
   | Immutable_string of string
 
 let set_of_closures set = Set_of_closures set
 
-let block tag mutability fields = Block (tag, mutability, fields)
-
-let mixed_block tag mutability shape fields =
-  Mixed_block (tag, mutability, shape, fields)
+let block tag mutability shape fields = Block (tag, mutability, shape, fields)
 
 let boxed_float32 or_var = Boxed_float32 or_var
 
@@ -117,22 +113,15 @@ let [@ocamlformat "disable"] print ppf t =
       Flambda_colours.static_part
       Flambda_colours.pop
       Set_of_closures.print set
-  | Block (tag, mut, fields) ->
-    fprintf ppf "@[<hov 1>(%t%s%t@ (tag %a)@ (%a))@]"
+  | Block (tag, mut, shape, fields) ->
+    fprintf ppf "@[<hov 1>(%t%s%t@ (tag %a)@ (shape %a)@ (%a))@]"
       Flambda_colours.static_part
       (add_mutability_prefix mut ~suffix:"block")
       Flambda_colours.pop
       Tag.Scannable.print tag
+      Flambda_kind.Scannable_block_shape.print shape
       (Format.pp_print_list ~pp_sep:Format.pp_print_space
-        Field_of_static_block.print) fields
-  | Mixed_block (tag, mut, _, fields) ->
-      fprintf ppf "@[<hov 1>(%t%s%t@ (tag %a)@ (%a))@]"
-        Flambda_colours.static_part
-        (add_mutability_prefix mut ~suffix:"mixed_block")
-        Flambda_colours.pop
-        Tag.Scannable.print tag
-        (Format.pp_print_list ~pp_sep:Format.pp_print_space
-           Field_of_static_block.Mixed_field.print) fields
+        Simple.With_debuginfo.print) fields
   | Boxed_float32 or_var ->
     fprintf ppf "@[<hov 1>(%tBoxed_float32%t@ %a)@]"
       Flambda_colours.static_part
@@ -216,7 +205,7 @@ let [@ocamlformat "disable"] print ppf t =
       Flambda_colours.static_part
       Flambda_colours.pop
       (Format.pp_print_list ~pp_sep:Format.pp_print_space
-        Field_of_static_block.print) fields
+        Simple.With_debuginfo.print) fields
   | Empty_array array_kind ->
     fprintf ppf "%tEmpty_array(%a)%t"
       Flambda_colours.static_part
@@ -242,7 +231,8 @@ include Container_types.Make (struct
     match t1, t2 with
     | Set_of_closures set1, Set_of_closures set2 ->
       Set_of_closures.compare set1 set2
-    | Block (tag1, mut1, fields1), Block (tag2, mut2, fields2) ->
+    | Block (tag1, mut1, shape1, fields1), Block (tag2, mut2, shape2, fields2)
+      ->
       let c = Tag.Scannable.compare tag1 tag2 in
       if c <> 0
       then c
@@ -251,23 +241,12 @@ include Container_types.Make (struct
         if c <> 0
         then c
         else
-          Misc.Stdlib.List.compare Field_of_static_block.compare fields1 fields2
-    | ( Mixed_block (tag1, mut1, shape1, fields1),
-        Mixed_block (tag2, mut2, shape2, fields2) ) ->
-      let c = Tag.Scannable.compare tag1 tag2 in
-      if c <> 0
-      then c
-      else
-        let c = Mutability.compare mut1 mut2 in
-        if c <> 0
-        then c
-        else
-          let c = Flambda_kind.Mixed_block_shape.compare shape1 shape2 in
+          let c = Flambda_kind.Scannable_block_shape.compare shape1 shape2 in
           if c <> 0
           then c
           else
-            Misc.Stdlib.List.compare Field_of_static_block.Mixed_field.compare
-              fields1 fields2
+            Misc.Stdlib.List.compare Simple.With_debuginfo.compare fields1
+              fields2
     | Boxed_float32 or_var1, Boxed_float32 or_var2 ->
       Or_variable.compare Numeric_types.Float32_by_bit_pattern.compare or_var1
         or_var2
@@ -308,7 +287,7 @@ include Container_types.Make (struct
         (Or_variable.compare Targetint_32_64.compare)
         fields1 fields2
     | Immutable_value_array fields1, Immutable_value_array fields2 ->
-      Misc.Stdlib.List.compare Field_of_static_block.compare fields1 fields2
+      Misc.Stdlib.List.compare Simple.With_debuginfo.compare fields1 fields2
     | Empty_array array_kind1, Empty_array array_kind2 ->
       Empty_array_kind.compare array_kind1 array_kind2
     | ( Mutable_string { initial_value = s1 },
@@ -349,8 +328,6 @@ include Container_types.Make (struct
     | _, Empty_array _ -> 1
     | Mutable_string _, _ -> -1
     | _, Mutable_string _ -> 1
-    | Immutable_string _, _ -> -1
-    | Mixed_block _, Immutable_string _ -> 1
 
   let equal t1 t2 = compare t1 t2 = 0
 
@@ -360,14 +337,7 @@ end)
 let free_names_of_fields fields =
   List.fold_left
     (fun fvs field ->
-      Name_occurrences.union fvs (Field_of_static_block.free_names field))
-    Name_occurrences.empty fields
-
-let free_names_of_mixed_fields fields =
-  List.fold_left
-    (fun fvs field ->
-      Name_occurrences.union fvs
-        (Field_of_static_block.Mixed_field.free_names field))
+      Name_occurrences.union fvs (Simple.With_debuginfo.free_names field))
     Name_occurrences.empty fields
 
 let free_names t =
@@ -381,9 +351,7 @@ let free_names t =
   in
   match t with
   | Set_of_closures set -> Set_of_closures.free_names set
-  | Block (_tag, _mut, fields) -> free_names_of_fields fields
-  | Mixed_block (_tag, _mut, _shape, fields) ->
-    free_names_of_mixed_fields fields
+  | Block (_tag, _mut, _shape, fields) -> free_names_of_fields fields
   | Boxed_float32 or_var -> Or_variable.free_names or_var
   | Boxed_float or_var -> Or_variable.free_names or_var
   | Boxed_int32 or_var -> Or_variable.free_names or_var
@@ -418,21 +386,13 @@ let apply_renaming t renaming =
     | Set_of_closures set ->
       let set' = Set_of_closures.apply_renaming set renaming in
       if set == set' then t else Set_of_closures set'
-    | Block (tag, mut, fields) ->
+    | Block (tag, mut, shape, fields) ->
       let fields' =
         Misc.Stdlib.List.map_sharing
-          (fun field -> Field_of_static_block.apply_renaming field renaming)
+          (fun field -> Simple.With_debuginfo.apply_renaming field renaming)
           fields
       in
-      if fields' == fields then t else Block (tag, mut, fields')
-    | Mixed_block (tag, mut, shape, fields) ->
-      let fields' =
-        Misc.Stdlib.List.map_sharing
-          (fun field ->
-            Field_of_static_block.Mixed_field.apply_renaming field renaming)
-          fields
-      in
-      if fields' == fields then t else Mixed_block (tag, mut, shape, fields')
+      if fields' == fields then t else Block (tag, mut, shape, fields')
     | Boxed_float32 or_var ->
       let or_var' = Or_variable.apply_renaming or_var renaming in
       if or_var == or_var' then t else Boxed_float32 or_var'
@@ -473,7 +433,7 @@ let apply_renaming t renaming =
     | Immutable_value_array fields ->
       let fields' =
         Misc.Stdlib.List.map_sharing
-          (fun field -> Field_of_static_block.apply_renaming field renaming)
+          (fun field -> Simple.With_debuginfo.apply_renaming field renaming)
           fields
       in
       if fields == fields' then t else Immutable_value_array fields'
@@ -482,14 +442,7 @@ let apply_renaming t renaming =
 let ids_for_export_fields fields =
   List.fold_left
     (fun ids field ->
-      Ids_for_export.union ids (Field_of_static_block.ids_for_export field))
-    Ids_for_export.empty fields
-
-let ids_for_export_mixed_fields fields =
-  List.fold_left
-    (fun ids field ->
-      Ids_for_export.union ids
-        (Field_of_static_block.Mixed_field.ids_for_export field))
+      Ids_for_export.union ids (Simple.With_debuginfo.ids_for_export field))
     Ids_for_export.empty fields
 
 let ids_for_export_number_array_fields fields =
@@ -503,9 +456,7 @@ let ids_for_export_number_array_fields fields =
 let ids_for_export t =
   match t with
   | Set_of_closures set -> Set_of_closures.ids_for_export set
-  | Block (_tag, _mut, fields) -> ids_for_export_fields fields
-  | Mixed_block (_tag, _mut, _shape, fields) ->
-    ids_for_export_mixed_fields fields
+  | Block (_tag, _mut, _shape, fields) -> ids_for_export_fields fields
   | Boxed_float (Var (var, _dbg))
   | Boxed_float32 (Var (var, _dbg))
   | Boxed_int32 (Var (var, _dbg))
@@ -534,8 +485,8 @@ let ids_for_export t =
 
 let is_block t =
   match t with
-  | Block _ | Mixed_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
-  | Boxed_int64 _ | Boxed_nativeint _ | Boxed_vec128 _ | Immutable_float_block _
+  | Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _ | Boxed_int64 _
+  | Boxed_nativeint _ | Boxed_vec128 _ | Immutable_float_block _
   | Immutable_float_array _ | Immutable_float32_array _
   | Immutable_int32_array _ | Immutable_int64_array _
   | Immutable_nativeint_array _ | Immutable_string _ | Mutable_string _
@@ -546,8 +497,8 @@ let is_block t =
 let is_set_of_closures t =
   match t with
   | Set_of_closures _ -> true
-  | Block _ | Mixed_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
-  | Boxed_int64 _ | Boxed_nativeint _ | Boxed_vec128 _ | Immutable_float_block _
+  | Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _ | Boxed_int64 _
+  | Boxed_nativeint _ | Boxed_vec128 _ | Immutable_float_block _
   | Immutable_float_array _ | Immutable_float32_array _
   | Immutable_int32_array _ | Immutable_int64_array _
   | Immutable_nativeint_array _ | Immutable_string _ | Mutable_string _
@@ -558,26 +509,22 @@ let is_fully_static t = free_names t |> Name_occurrences.no_variables
 
 let can_share0 t =
   match t with
-  | Block (_, Immutable, _)
-  | Mixed_block (_, Immutable, _, _)
+  | Block (_, Immutable, _, _)
   | Set_of_closures _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
   | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | Immutable_float_block _
   | Immutable_float_array _ | Immutable_float32_array _ | Immutable_string _
   | Empty_array _ | Immutable_int32_array _ | Immutable_int64_array _
   | Immutable_nativeint_array _ | Immutable_value_array _ ->
     true
-  | Block (_, (Mutable | Immutable_unique), _)
-  | Mixed_block (_, (Mutable | Immutable_unique), _, _)
-  | Mutable_string _ ->
-    false
+  | Block (_, (Mutable | Immutable_unique), _, _) | Mutable_string _ -> false
 
 let can_share t = can_share0 t && is_fully_static t
 
 let must_be_set_of_closures t =
   match t with
   | Set_of_closures set -> set
-  | Block _ | Mixed_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
-  | Boxed_int64 _ | Boxed_nativeint _ | Boxed_vec128 _ | Immutable_float_block _
+  | Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _ | Boxed_int64 _
+  | Boxed_nativeint _ | Boxed_vec128 _ | Immutable_float_block _
   | Immutable_float_array _ | Immutable_float32_array _
   | Immutable_int32_array _ | Immutable_int64_array _
   | Immutable_nativeint_array _ | Empty_array _ | Immutable_value_array _
@@ -604,8 +551,8 @@ let match_against_bound_static_pattern t (pat : Bound_static.Pattern.t)
       Misc.fatal_errorf "Mismatch on declared function slots:@ %a@ =@ %a"
         Bound_static.Pattern.print pat print t;
     set_of_closures_callback ~closure_symbols set_of_closures
-  | ( ( Block _ | Mixed_block _ | Boxed_float _ | Boxed_float32 _
-      | Boxed_int32 _ | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
+  | ( ( Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
+      | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
       | Immutable_float_block _ | Immutable_float_array _
       | Immutable_float32_array _ | Immutable_int32_array _
       | Immutable_int64_array _ | Immutable_nativeint_array _
@@ -614,8 +561,8 @@ let match_against_bound_static_pattern t (pat : Bound_static.Pattern.t)
       Block_like symbol ) ->
     block_like_callback symbol t
   | Set_of_closures _, (Block_like _ | Code _)
-  | ( ( Block _ | Mixed_block _ | Boxed_float _ | Boxed_float32 _
-      | Boxed_int32 _ | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
+  | ( ( Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
+      | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
       | Immutable_float_block _ | Immutable_float_array _
       | Immutable_float32_array _ | Immutable_int32_array _
       | Immutable_int64_array _ | Immutable_nativeint_array _
