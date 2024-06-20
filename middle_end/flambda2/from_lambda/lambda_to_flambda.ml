@@ -299,7 +299,12 @@ let transform_primitive env (prim : L.primitive) args loc =
       if 1 <= num_dimensions && num_dimensions <= 3
       then
         let arity = 1 + num_dimensions in
-        let name = "caml_ba_get_" ^ string_of_int num_dimensions in
+        let is_float32_t =
+          match kind with Pbigarray_float32_t -> "float32_" | _ -> ""
+        in
+        let name =
+          "caml_ba_" ^ is_float32_t ^ "get_" ^ string_of_int num_dimensions
+        in
         let desc = Lambda.simple_prim_on_values ~name ~arity ~alloc:true in
         Primitive (L.Pccall desc, args, loc)
       else
@@ -316,7 +321,12 @@ let transform_primitive env (prim : L.primitive) args loc =
       if 1 <= num_dimensions && num_dimensions <= 3
       then
         let arity = 2 + num_dimensions in
-        let name = "caml_ba_set_" ^ string_of_int num_dimensions in
+        let is_float32_t =
+          match kind with Pbigarray_float32_t -> "float32_" | _ -> ""
+        in
+        let name =
+          "caml_ba_" ^ is_float32_t ^ "set_" ^ string_of_int num_dimensions
+        in
         let desc = Lambda.simple_prim_on_values ~name ~arity ~alloc:true in
         Primitive (L.Pccall desc, args, loc)
       else

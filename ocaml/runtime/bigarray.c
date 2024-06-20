@@ -525,7 +525,7 @@ CAMLprim value caml_ba_create(value vkind, value vlayout, value vdim)
    are within the bounds and return the offset of the corresponding
    array element in the data part of the array. */
 
-static intnat caml_ba_offset(struct caml_ba_array * b, intnat * index)
+CAMLprim intnat caml_ba_offset(struct caml_ba_array * b, intnat * index)
 {
   intnat offset;
   int i;

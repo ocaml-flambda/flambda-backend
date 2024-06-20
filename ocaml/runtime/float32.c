@@ -459,6 +459,97 @@ CAMLprim value caml_ba_uint8_setf32(value vb, value vind, value newval)
   return Val_unit;
 }
 
+/* Defined in bigarray.c */
+
+CAMLextern intnat caml_ba_offset(struct caml_ba_array * b, intnat * index);
+
+static value caml_ba_float32_get_aux(value vb, volatile value * vind, int nind)
+{
+  struct caml_ba_array * b = Caml_ba_array_val(vb);
+  intnat index[CAML_BA_MAX_NUM_DIMS];
+  int i;
+  intnat offset;
+
+  /* Check number of indices = number of dimensions of array
+     (maybe not necessary if ML typing guarantees this) */
+  if (nind != b->num_dims)
+    caml_invalid_argument("Float32.Bigarray.get: wrong number of indices");
+  /* Compute offset and check bounds */
+  for (i = 0; i < b->num_dims; i++) index[i] = Long_val(vind[i]);
+  offset = caml_ba_offset(b, index);
+  /* Perform read */
+  switch ((b->flags) & CAML_BA_KIND_MASK) {
+  default:
+    caml_invalid_argument("Float32.Bigarray.get: wrong kind");
+  case CAML_BA_FLOAT32:
+    return caml_copy_float32(((float *) b->data)[offset]);
+  }
+}
+
+CAMLprim value caml_ba_float32_get_1(value vb, value vind1)
+{
+  return caml_ba_float32_get_aux(vb, &vind1, 1);
+}
+
+CAMLprim value caml_ba_float32_get_2(value vb, value vind1, value vind2)
+{
+  value vind[2];
+  vind[0] = vind1; vind[1] = vind2;
+  return caml_ba_float32_get_aux(vb, vind, 2);
+}
+
+CAMLprim value caml_ba_float32_get_3(value vb, value vind1, value vind2, value vind3)
+{
+  value vind[3];
+  vind[0] = vind1; vind[1] = vind2; vind[2] = vind3;
+  return caml_ba_float32_get_aux(vb, vind, 3);
+}
+
+static value caml_ba_set_aux(value vb, volatile value * vind,
+                             intnat nind, value newval)
+{
+  struct caml_ba_array * b = Caml_ba_array_val(vb);
+  intnat index[CAML_BA_MAX_NUM_DIMS];
+  int i;
+  intnat offset;
+
+  /* Check number of indices = number of dimensions of array
+     (maybe not necessary if ML typing guarantees this) */
+  if (nind != b->num_dims)
+    caml_invalid_argument("Float32.Bigarray.set: wrong number of indices");
+  /* Compute offset and check bounds */
+  for (i = 0; i < b->num_dims; i++) index[i] = Long_val(vind[i]);
+  offset = caml_ba_offset(b, index);
+  /* Perform write */
+  switch (b->flags & CAML_BA_KIND_MASK) {
+  default:
+    caml_invalid_argument("Float32.Bigarray.get: wrong kind");
+  case CAML_BA_FLOAT32:
+    ((float *) b->data)[offset] = Float32_val(newval); break;
+  }
+  return Val_unit;
+}
+
+CAMLprim value caml_ba_set_1(value vb, value vind1, value newval)
+{
+  return caml_ba_set_aux(vb, &vind1, 1, newval);
+}
+
+CAMLprim value caml_ba_set_2(value vb, value vind1, value vind2, value newval)
+{
+  value vind[2];
+  vind[0] = vind1; vind[1] = vind2;
+  return caml_ba_set_aux(vb, vind, 2, newval);
+}
+
+CAMLprim value caml_ba_set_3(value vb, value vind1, value vind2, value vind3,
+                     value newval)
+{
+  value vind[3];
+  vind[0] = vind1; vind[1] = vind2; vind[2] = vind3;
+  return caml_ba_set_aux(vb, vind, 3, newval);
+}
+
 /*
  OCaml runtime itself doesn't call setlocale, i.e. it is using
  standard "C" locale by default, but it is possible that

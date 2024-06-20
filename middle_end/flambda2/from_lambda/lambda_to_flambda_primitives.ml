@@ -1817,8 +1817,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         ~boxed bigstring index new_value ]
   | ( Pbigstring_set_f32 { unsafe = false; boxed },
       [[bigstring]; [index]; [new_value]] ) ->
-    [ bytes_like_set_safe ~dbg ~size_int ~access_size:Thirty_two Bigstring
-        ~boxed bigstring index new_value ]
+    [ bytes_like_set_safe ~dbg ~size_int ~access_size:Single Bigstring ~boxed
+        bigstring index new_value ]
   | ( Pbigstring_set_64 { unsafe = false; boxed },
       [[bigstring]; [index]; [new_value]] ) ->
     [ bytes_like_set_safe ~dbg ~size_int ~access_size:Sixty_four Bigstring
