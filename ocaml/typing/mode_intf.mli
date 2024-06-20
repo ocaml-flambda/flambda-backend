@@ -527,7 +527,8 @@ module type S = sig
       (** Printing for debugging. *)
       val print : Format.formatter -> t -> unit
 
-      (* CR zqian: consider spliting the [lr]. *)
+      (** Returns the inferred modality, given the module's mode [md_mode] and
+          the value's mode [mode]. *)
       val infer : md_mode:Value.lr -> mode:Value.l -> t
 
       (** Returns a user modality weaker than the given modality. The returned

@@ -897,7 +897,6 @@ let md md_type =
 
 (** The caller is not interested in modes, and thus [val_modalities] is
 invalidated. *)
-(* CR zqian: this is not needed *)
 let vda_description vda =
   let vda_description = vda.vda_description in
   {vda_description with val_modalities = Mode.Modality.Value.undefined}
@@ -909,7 +908,7 @@ let normalize_vda_mode vda =
     {vda_description with val_modalities = Mode.Modality.Value.id}
   in
   let vda_mode = Mode.Modality.Value.apply modalities vda.vda_mode in
-  {vda with vda_description; vda_mode}
+  vda_description, vda_mode
 
 (* Print addresses *)
 
@@ -1323,9 +1322,7 @@ let find_value path env =
 let find_value_without_locks id env =
   match IdTbl.find_same_and_locks id env.values with
   | Val_bound _, _ :: _ -> assert false
-  | Val_bound data, [] ->
-      let data = normalize_vda_mode data in
-      data.vda_description, data.vda_mode
+  | Val_bound data, [] -> normalize_vda_mode data
   | Val_unbound _, _ -> raise Not_found
 
 let find_class path env =
@@ -2931,7 +2928,7 @@ let use_module ~use ~loc path mda =
 
 let use_value ~use ~loc path vda =
   if use then begin
-    let desc = vda |> vda_description in
+    let desc = vda.vda_description in
     mark_value_used desc.val_uid;
     Builtin_attributes.check_alerts loc desc.val_attributes
       (Path.name path)
@@ -3447,13 +3444,13 @@ let lookup_value ~errors ~use ~loc lid env =
 
      This is better ergonomics, but dangers as it doesn't reflect the real
      runtime behaviour. With the current set-up, it is sound. *)
-  let vda = normalize_vda_mode vda in
-  let vd = Subst.Lazy.force_value_description vda.vda_description in
+  let vd, mode = normalize_vda_mode vda in
+  let vd = Subst.Lazy.force_value_description vd in
   let vmode =
     if use then
-      walk_locks ~errors ~loc ~env ~item:Value ~lid vda.vda_mode (Some vd.val_type) locks
+      walk_locks ~errors ~loc ~env ~item:Value ~lid mode (Some vd.val_type) locks
     else
-      mode_default vda.vda_mode
+      mode_default mode
   in
   path, vd, vmode
 
@@ -3660,7 +3657,7 @@ let lookup_all_labels_from_type ?(use=true) ~loc usage ty_path env =
 let lookup_instance_variable ?(use=true) ~loc name env =
   match IdTbl.find_name_and_locks wrap_value ~mark:use name env.values with
   | Ok (path, _, Val_bound vda) -> begin
-      let desc = vda |> vda_description in
+      let desc = vda.vda_description in
       match desc.val_kind with
       | Val_ivar(mut, cl_num) ->
           use_value ~use ~loc path vda;
@@ -3808,8 +3805,8 @@ let fold_values f =
        match ve with
        | Val_unbound _ -> acc
        | Val_bound vda ->
-        let vda = normalize_vda_mode vda in
-        f k p vda.vda_description vda.vda_mode acc)
+        let vd, mode = normalize_vda_mode vda in
+        f k p vd mode acc)
 and fold_constructors f =
   find_all_simple_list (fun env -> env.constrs) (fun sc -> sc.comp_constrs)
     (fun cda acc -> f cda.cda_description acc)
