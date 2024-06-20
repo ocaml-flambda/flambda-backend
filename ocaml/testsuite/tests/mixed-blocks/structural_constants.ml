@@ -1,5 +1,4 @@
 (* TEST
-   include dynlink;
    flags="-extension layouts_beta";
 *)
 
@@ -59,10 +58,19 @@ let () =
   match Sys.backend_type with
   | Bytecode -> ()
   | Native | Other _ ->
-    assert (create_r1 () == create_r1 ());
-    assert (create_r2 () == create_r2 ());
-    assert (create_a () == create_a ());
-    assert (create_vs () == create_vs ());
+    (* Need to guard against:
+       - Removal of duplicate immutable block allocations after inlining
+       - Discovery of semantics of functions via result types
+       Wrapping the closures themselves in [opaque_identity] does this.
+    *)
+    assert ((Sys.opaque_identity create_r1) ()
+      == (Sys.opaque_identity create_r1 ()));
+    assert ((Sys.opaque_identity create_r2) ()
+      == (Sys.opaque_identity create_r2) ());
+    assert ((Sys.opaque_identity create_a) ()
+      == (Sys.opaque_identity create_a) ());
+    assert ((Sys.opaque_identity create_vs) ()
+      == (Sys.opaque_identity create_vs) ())
 ;;
 
 let () = print_endline "Success!"
