@@ -198,6 +198,11 @@ module Mixed_block_shape = struct
     && Int.equal (Array.length t1.fields) (Array.length t2.fields)
     && Array.for_all2 equal t1.fields t2.fields
 
+  let print ppf t =
+    Format.fprintf ppf "@[<hov 1>((fields@ %a)@ (lambda_shape@ %a))@]"
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space print)
+      (Array.to_list t.fields) Printlambda.mixed_block_shape t.lambda_shape
+
   let compare t1 t2 =
     let c =
       Int.compare t1.lambda_shape.value_prefix_len
@@ -235,46 +240,68 @@ module Mixed_block_shape = struct
   let to_lambda { fields = _; lambda_shape } = lambda_shape
 end
 
-module Block_shape = struct
+module Scannable_block_shape = struct
   type t =
     | Value_only
-    | Float_record
     | Mixed_record of Mixed_block_shape.t
 
   (* Some users rely on shapes not being compatible if they're not equal. *)
-  let equal shape1 shape2 =
-    match shape1, shape2 with
+  let equal t1 t2 =
+    match t1, t2 with
     | Value_only, Value_only -> true
-    | Float_record, Float_record -> true
-    | Mixed_record shape1, Mixed_record shape2 ->
-      Mixed_block_shape.equal shape1 shape2
-    | (Value_only | Float_record | Mixed_record _), _ -> false
+    | Mixed_record t1, Mixed_record t2 -> Mixed_block_shape.equal t1 t2
+    | (Value_only | Mixed_record _), _ -> false
 
-  let compare shape1 shape2 =
-    match shape1, shape2 with
+  let compare t1 t2 =
+    match t1, t2 with
     | Value_only, Value_only -> 0
     | Value_only, _ -> -1
     | _, Value_only -> 1
-    | Float_record, Float_record -> 0
-    | Float_record, _ -> -1
-    | _, Float_record -> 1
     | Mixed_record kinds1, Mixed_record kinds2 ->
       Mixed_block_shape.compare kinds1 kinds2
 
-  let print ppf shape =
-    match shape with
-    | Value_only -> Format.fprintf ppf "Values"
-    | Float_record -> Format.fprintf ppf "Floats"
-    | Mixed_record { fields; lambda_shape = _ } ->
-      Format.fprintf ppf "Mixed@ (@[<h>";
-      Array.iter (fun k -> Format.fprintf ppf "%a@ " print k) fields;
-      Format.fprintf ppf "@])"
+  let print ppf t =
+    match t with
+    | Value_only -> Format.fprintf ppf "Value_only"
+    | Mixed_record mixed ->
+      Format.fprintf ppf "(Mixed_record@ %a)" Mixed_block_shape.print mixed
 
-  let element_kind shape index =
-    match shape with
+  let element_kind t index =
+    match t with
     | Value_only -> Value
+    | Mixed_record t -> (Mixed_block_shape.field_kinds t).(index)
+end
+
+module Block_shape = struct
+  type t =
+    | Scannable of Scannable_block_shape.t
+    | Float_record
+
+  let equal t1 t2 =
+    match t1, t2 with
+    | Scannable shape1, Scannable shape2 ->
+      Scannable_block_shape.equal shape1 shape2
+    | Float_record, Float_record -> true
+    | (Scannable _ | Float_record), _ -> false
+
+  let compare t1 t2 =
+    match t1, t2 with
+    | Scannable shape1, Scannable shape2 ->
+      Scannable_block_shape.compare shape1 shape2
+    | Scannable _, Float_record -> -1
+    | Float_record, Scannable _ -> 1
+    | Float_record, Float_record -> 0
+
+  let print ppf t =
+    match t with
+    | Scannable shape ->
+      Format.fprintf ppf "(Scannable@ %a)" Scannable_block_shape.print shape
+    | Float_record -> Format.fprintf ppf "Float_record"
+
+  let element_kind t index =
+    match t with
+    | Scannable shape -> Scannable_block_shape.element_kind shape index
     | Float_record -> Naked_number Naked_float
-    | Mixed_record shape -> (Mixed_block_shape.field_kinds shape).(index)
 end
 
 module Standard_int = struct
@@ -696,7 +723,8 @@ module With_subkind = struct
         (Variant
            { consts = Targetint_31_63.Set.empty;
              non_consts =
-               Tag.Scannable.Map.singleton tag (Block_shape.Value_only, fields)
+               Tag.Scannable.Map.singleton tag
+                 (Block_shape.Scannable Value_only, fields)
            })
     | None -> Misc.fatal_errorf "Tag %a is not scannable" Tag.print tag
 
@@ -766,7 +794,7 @@ module With_subkind = struct
                 let shape_and_fields =
                   match (shape : Lambda.constructor_shape) with
                   | Constructor_uniform fields ->
-                    ( Block_shape.Value_only,
+                    ( Block_shape.Scannable Value_only,
                       List.map from_lambda_value_kind fields )
                   | Constructor_mixed { value_prefix; flat_suffix } ->
                     let lambda_shape : Lambda.mixed_block_shape =
@@ -792,8 +820,9 @@ module With_subkind = struct
                       prefix @ suffix
                     in
                     let shape =
-                      Block_shape.Mixed_record
-                        (Mixed_block_shape.from_lambda lambda_shape)
+                      Block_shape.Scannable
+                        (Mixed_record
+                           (Mixed_block_shape.from_lambda lambda_shape))
                     in
                     shape, fields
                 in

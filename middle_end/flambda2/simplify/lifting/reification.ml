@@ -19,38 +19,28 @@ open! Simplify_import
 let create_static_const dacc dbg (to_lift : T.to_lift) : RSC.t =
   let[@inline always] convert_fields fields =
     ListLabels.map fields ~f:(fun field ->
-        let module F = Field_of_static_block in
         Simple.pattern_match' field
-          ~var:(fun var ~coercion ->
+          ~var:(fun _var ~coercion ->
             if not (Coercion.is_id coercion)
             then
               Misc.fatal_errorf "Expected identity coercion on variable:@ %a"
-                Simple.print field;
-            F.Dynamically_computed (var, dbg))
-          ~symbol:(fun sym ~coercion ->
+                Simple.print field)
+          ~symbol:(fun _sym ~coercion ->
             if not (Coercion.is_id coercion)
             then
               Misc.fatal_errorf "Expected identity coercion on symbol:@ %a"
-                Simple.print field;
-            F.Symbol sym)
-          ~const:(fun const ->
-            match Reg_width_const.descr const with
-            | Tagged_immediate imm -> F.Tagged_immediate imm
-            | Naked_immediate _ | Naked_float _ | Naked_float32 _
-            | Naked_int32 _ | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _
-              ->
-              Misc.fatal_errorf
-                "Expected a constant of kind [Value] but got %a (dbg %a)"
-                Reg_width_const.print const Debuginfo.print_compact dbg))
+                Simple.print field)
+          ~const:(fun _const -> ());
+        Simple.With_debuginfo.create field dbg)
   in
   let art = DA.are_rebuilding_terms dacc in
   match to_lift with
-  | Immutable_block { tag; is_unique; fields } ->
+  | Immutable_block { tag; is_unique; shape; fields } ->
     let fields = convert_fields fields in
     let mut : Mutability.t =
       if is_unique then Immutable_unique else Immutable
     in
-    RSC.create_block art tag mut ~fields
+    RSC.create_block art tag mut shape ~fields
   | Boxed_float32 f -> RSC.create_boxed_float32 art (Const f)
   | Boxed_float f -> RSC.create_boxed_float art (Const f)
   | Boxed_int32 i -> RSC.create_boxed_int32 art (Const i)

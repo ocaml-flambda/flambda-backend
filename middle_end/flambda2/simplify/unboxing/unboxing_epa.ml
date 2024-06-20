@@ -174,7 +174,7 @@ let access_kind_and_dummy_const tag shape fields index :
     P.Block_access_kind.t * _ =
   let size = Or_unknown.Known (Targetint_31_63.of_int (List.length fields)) in
   match (shape : K.Block_shape.t) with
-  | Value_only ->
+  | Scannable Value_only ->
     ( Values
         { size;
           tag = Known (Option.get (Tag.Scannable.of_tag tag));
@@ -184,7 +184,7 @@ let access_kind_and_dummy_const tag shape fields index :
   | Float_record ->
     ( Naked_floats { size },
       Const.naked_float Numeric_types.Float_by_bit_pattern.zero )
-  | Mixed_record shape ->
+  | Scannable (Mixed_record shape) ->
     let field_kind, const =
       let field_kind = (K.Mixed_block_shape.field_kinds shape).(index) in
       if index < K.Mixed_block_shape.value_prefix_size shape

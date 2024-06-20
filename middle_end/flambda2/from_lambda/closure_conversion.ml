@@ -50,10 +50,6 @@ type close_functions_result =
   | Lifted of (Symbol.t * Env.value_approximation) Function_slot.Lmap.t
   | Dynamic of Set_of_closures.t * Env.value_approximation Function_slot.Map.t
 
-type declare_const_result =
-  | Field of Field_of_static_block.t
-  | Unboxed_number of Field_of_static_block.Mixed_field.Unboxed_number.t
-
 let manufacture_symbol acc proposed_name =
   let acc, linkage_name =
     if Flambda_features.Expert.shorten_symbol_names ()
@@ -95,51 +91,55 @@ let register_const0 acc constant name =
     acc, symbol
   | symbol -> acc, symbol
 
-let register_const acc constant name : Acc.t * declare_const_result * string =
+let register_const acc dbg constant name =
   let acc, symbol = register_const0 acc constant name in
-  acc, Field (Symbol symbol), name
+  acc, Simple.With_debuginfo.create (Simple.symbol symbol) dbg, name
 
-let rec declare_const acc (const : Lambda.structured_constant) :
-    Acc.t * declare_const_result * string =
+let rec declare_const acc dbg (const : Lambda.structured_constant) =
   let module SC = Static_const in
+  let module RWC = Reg_width_const in
+  let[@inline] reg_width cst =
+    Simple.With_debuginfo.create (Simple.const cst) dbg
+  in
   match const with
   | Const_base (Const_int c) ->
-    acc, Field (Tagged_immediate (Targetint_31_63.of_int c)), "int"
+    acc, reg_width (RWC.tagged_immediate (Targetint_31_63.of_int c)), "int"
   | Const_base (Const_char c) ->
-    acc, Field (Tagged_immediate (Targetint_31_63.of_char c)), "char"
+    acc, reg_width (RWC.tagged_immediate (Targetint_31_63.of_char c)), "char"
   | Const_base (Const_unboxed_float c) ->
     let c = Numeric_types.Float_by_bit_pattern.of_string c in
-    acc, Unboxed_number (Unboxed_float c), "unboxed_float"
+    acc, reg_width (RWC.naked_float c), "unboxed_float"
   | Const_base (Const_unboxed_float32 c) ->
     let c = Numeric_types.Float32_by_bit_pattern.of_string c in
-    acc, Unboxed_number (Unboxed_float32 c), "unboxed_float32"
+    acc, reg_width (RWC.naked_float32 c), "unboxed_float32"
   | Const_base (Const_string (s, _, _)) ->
-    register_const acc (SC.immutable_string s) "immstring"
+    register_const acc dbg (SC.immutable_string s) "immstring"
   | Const_base (Const_float c) ->
     let c = Numeric_types.Float_by_bit_pattern.create (float_of_string c) in
-    register_const acc (SC.boxed_float (Const c)) "float"
+    register_const acc dbg (SC.boxed_float (Const c)) "float"
   | Const_base (Const_float32 c) ->
     let c = Numeric_types.Float32_by_bit_pattern.create (float_of_string c) in
-    register_const acc (SC.boxed_float32 (Const c)) "float32"
+    register_const acc dbg (SC.boxed_float32 (Const c)) "float32"
   | Const_base (Const_int32 c) ->
-    register_const acc (SC.boxed_int32 (Const c)) "int32"
+    register_const acc dbg (SC.boxed_int32 (Const c)) "int32"
   | Const_base (Const_int64 c) ->
-    register_const acc (SC.boxed_int64 (Const c)) "int64"
+    register_const acc dbg (SC.boxed_int64 (Const c)) "int64"
   | Const_base (Const_nativeint c) ->
     (* CR pchambart: this should be pushed further to lambda *)
     let c = Targetint_32_64.of_int64 (Int64.of_nativeint c) in
-    register_const acc (SC.boxed_nativeint (Const c)) "nativeint"
+    register_const acc dbg (SC.boxed_nativeint (Const c)) "nativeint"
   | Const_base (Const_unboxed_int32 c) ->
-    acc, Unboxed_number (Unboxed_int32 c), "unboxed_int32"
+    acc, reg_width (RWC.naked_int32 c), "unboxed_int32"
   | Const_base (Const_unboxed_int64 c) ->
-    acc, Unboxed_number (Unboxed_int64 c), "unboxed_int64"
+    acc, reg_width (RWC.naked_int64 c), "unboxed_int64"
   | Const_base (Const_unboxed_nativeint c) ->
     (* CR pchambart: this should be pushed further to lambda *)
     let c = Targetint_32_64.of_int64 (Int64.of_nativeint c) in
-    acc, Unboxed_number (Unboxed_nativeint c), "unboxed_nativeint"
-  | Const_immstring c -> register_const acc (SC.immutable_string c) "immstring"
+    acc, reg_width (RWC.naked_nativeint c), "unboxed_nativeint"
+  | Const_immstring c ->
+    register_const acc dbg (SC.immutable_string c) "immstring"
   | Const_float_block c ->
-    register_const acc
+    register_const acc dbg
       (SC.immutable_float_block
          (List.map
             (fun s ->
@@ -150,7 +150,7 @@ let rec declare_const acc (const : Lambda.structured_constant) :
             c))
       "float_block"
   | Const_float_array c ->
-    register_const acc
+    register_const acc dbg
       (SC.immutable_float_array
          (List.map
             (fun s ->
@@ -161,81 +161,78 @@ let rec declare_const acc (const : Lambda.structured_constant) :
             c))
       "float_array"
   | Const_block (tag, consts) ->
-    let acc, field_of_blocks =
+    let acc, fields =
       List.fold_left_map
         (fun acc c ->
-          let acc, f, _ = declare_const acc c in
-          match f with
-          | Field f -> acc, f
-          | Unboxed_number _ ->
-            Misc.fatal_errorf
-              "Unboxed constants are not allowed inside of Const_block: %a"
-              Printlambda.structured_constant const)
+          let acc, field, _ = declare_const acc dbg c in
+          Simple.pattern_match'
+            (Simple.With_debuginfo.simple field)
+            ~var:(fun _var ~coercion:_ -> ())
+            ~symbol:(fun _sym ~coercion:_ -> ())
+            ~const:(fun cst ->
+              match RWC.descr cst with
+              | Tagged_immediate _ -> ()
+              | Naked_immediate _ | Naked_float32 _ | Naked_float _
+              | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _ ->
+                Misc.fatal_errorf
+                  "Unboxed constants are not allowed inside of Const_block: %a"
+                  Printlambda.structured_constant const
+              | Naked_vec128 _ ->
+                Misc.fatal_error
+                  "Naked_vec128 not yet supported as a static field initializer");
+          acc, field)
         acc consts
     in
     let const : SC.t =
-      SC.block (Tag.Scannable.create_exn tag) Immutable field_of_blocks
+      SC.block (Tag.Scannable.create_exn tag) Immutable Value_only fields
     in
-    register_const acc const "const_block"
+    register_const acc dbg const "const_block"
   | Const_mixed_block (tag, shape, consts) ->
     let shape = K.Mixed_block_shape.from_lambda shape in
-    let acc, field_of_blocks =
+    let acc, fields =
       List.fold_left_map
-        (fun acc c : (_ * Field_of_static_block.Mixed_field.t) ->
-          let acc, f, _ = declare_const acc c in
-          match f with
-          | Field f -> acc, Value f
-          | Unboxed_number num -> acc, Unboxed_number num)
+        (fun acc c ->
+          let acc, field, _name = declare_const acc dbg c in
+          acc, field)
         acc consts
     in
     let const : SC.t =
-      SC.mixed_block
+      SC.block
         (Tag.Scannable.create_exn tag)
-        Immutable shape field_of_blocks
+        Immutable (Mixed_record shape) fields
     in
-    register_const acc const "const_mixed_block"
+    register_const acc dbg const "const_mixed_block"
 
-let close_const0 acc (const : Lambda.structured_constant) =
-  let acc, const, name = declare_const acc const in
-  match const with
-  | Field (Tagged_immediate i) ->
-    ( acc,
-      Simple.const (Reg_width_const.tagged_immediate i),
-      name,
-      Flambda_kind.With_subkind.tagged_immediate )
-  | Unboxed_number (Unboxed_float f) ->
-    ( acc,
-      Simple.const (Reg_width_const.naked_float f),
-      name,
-      Flambda_kind.With_subkind.naked_float )
-  | Unboxed_number (Unboxed_float32 f) ->
-    ( acc,
-      Simple.const (Reg_width_const.naked_float32 f),
-      name,
-      Flambda_kind.With_subkind.naked_float32 )
-  | Unboxed_number (Unboxed_int32 i) ->
-    ( acc,
-      Simple.const (Reg_width_const.naked_int32 i),
-      name,
-      Flambda_kind.With_subkind.naked_int32 )
-  | Unboxed_number (Unboxed_int64 i) ->
-    ( acc,
-      Simple.const (Reg_width_const.naked_int64 i),
-      name,
-      Flambda_kind.With_subkind.naked_int64 )
-  | Unboxed_number (Unboxed_nativeint i) ->
-    ( acc,
-      Simple.const (Reg_width_const.naked_nativeint i),
-      name,
-      Flambda_kind.With_subkind.naked_nativeint )
-  | Field (Symbol s) ->
-    acc, Simple.symbol s, name, Flambda_kind.With_subkind.any_value
-  | Field (Dynamically_computed _) ->
-    Misc.fatal_errorf "Declaring a computed constant %s" name
+let close_const0 acc dbg (const : Lambda.structured_constant) =
+  let acc, const, name = declare_const acc dbg const in
+  let module KS = Flambda_kind.With_subkind in
+  let kind =
+    Simple.pattern_match'
+      (Simple.With_debuginfo.simple const)
+      ~var:(fun _var ~coercion:_ ->
+        Misc.fatal_errorf "Declaring a computed constant %s" name)
+      ~symbol:(fun _sym ~coercion:_ -> KS.any_value)
+      ~const:(fun cst ->
+        match Reg_width_const.descr cst with
+        | Naked_immediate _ -> KS.naked_immediate
+        | Tagged_immediate _ -> KS.tagged_immediate
+        | Naked_float32 _ -> KS.naked_float32
+        | Naked_float _ -> KS.naked_float
+        | Naked_int32 _ -> KS.naked_int32
+        | Naked_int64 _ -> KS.naked_int64
+        | Naked_nativeint _ -> KS.naked_nativeint
+        | Naked_vec128 _ -> KS.naked_vec128)
+  in
+  acc, const, name, kind
 
 let close_const acc const =
-  let acc, simple, name, _kind = close_const0 acc const in
-  let named = Named.create_simple simple in
+  (* For this code path, the debuginfo is discarded (see just below). *)
+  let acc, simple_with_dbg, name, _kind =
+    close_const0 acc Debuginfo.none const
+  in
+  let named =
+    Named.create_simple (Simple.With_debuginfo.simple simple_with_dbg)
+  in
   acc, named, name
 
 let find_simple_from_id_with_kind env id =
@@ -255,15 +252,17 @@ let find_simple_from_id env id = fst (find_simple_from_id_with_kind env id)
 let find_simple acc env (simple : IR.simple) =
   match simple with
   | Const const ->
-    let acc, simple, _, _ = close_const0 acc const in
-    acc, simple
+    (* For this code path, the debuginfo isn't relevant. *)
+    let acc, simple, _, _ = close_const0 acc Debuginfo.none const in
+    acc, Simple.With_debuginfo.simple simple
   | Var id -> acc, find_simple_from_id env id
 
 let find_simple_with_kind acc env (simple : IR.simple) =
   match simple with
   | Const const ->
-    let acc, simple, _, kind = close_const0 acc const in
-    acc, (simple, kind)
+    (* For this code path, the debuginfo isn't relevant. *)
+    let acc, simple, _, kind = close_const0 acc Debuginfo.none const in
+    acc, (Simple.With_debuginfo.simple simple, kind)
   | Var id -> acc, find_simple_from_id_with_kind env id
 
 let find_simples acc env ids =
@@ -276,12 +275,7 @@ let find_value_approximation env simple =
   Simple.pattern_match' simple
     ~var:(fun var ~coercion:_ -> Env.find_var_approximation env var)
     ~symbol:(fun sym ~coercion:_ -> Value_approximation.Value_symbol sym)
-    ~const:(fun const ->
-      match Reg_width_const.descr const with
-      | Tagged_immediate i -> Value_approximation.Value_int i
-      | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
-      | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ ->
-        Value_approximation.Value_unknown)
+    ~const:(fun const -> Value_approximation.Value_const const)
 
 let find_value_approximation_through_symbol acc env simple =
   match find_value_approximation env simple with
@@ -306,8 +300,9 @@ module Inlining = struct
       Inlining_report.record_decision_at_call_site_for_unknown_function ~tracker
         ~apply ~pass:After_closure_conversion ();
       Not_inlinable
-    | Some (Value_symbol _) | Some (Value_int _) | Some (Block_approximation _)
-      ->
+    | Some (Value_symbol _)
+    | Some (Value_const _)
+    | Some (Block_approximation _) ->
       assert false
     | Some (Closure_approximation { code; _ }) ->
       let metadata = Code_or_metadata.code_metadata code in
@@ -906,7 +901,7 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
             "Non-zero tag on empty block allocation in [Closure_conversion]"
         else
           register_const0 acc
-            (Static_const.block Tag.Scannable.zero Immutable [])
+            (Static_const.block Tag.Scannable.zero Immutable Value_only [])
             "empty_block"
       | Pmakefloatblock _ ->
         Misc.fatal_error "Unexpected empty float block in [Closure_conversion]"
@@ -1041,8 +1036,8 @@ type simplified_block_load =
 let simplify_block_load acc body_env ~block ~field : simplified_block_load =
   match find_value_approximation_through_symbol acc body_env block with
   | Value_unknown -> Unknown
-  | Closure_approximation _ | Value_symbol _ | Value_int _ -> Not_a_block
-  | Block_approximation (_tag, approx, _alloc_mode) -> (
+  | Closure_approximation _ | Value_symbol _ | Value_const _ -> Not_a_block
+  | Block_approximation (_tag, _shape, approx, _alloc_mode) -> (
     let approx =
       Simple.pattern_match field
         ~const:(fun const ->
@@ -1055,14 +1050,14 @@ let simplify_block_load acc body_env ~block ~field : simplified_block_load =
     in
     match approx with
     | Some (Value_symbol sym) -> Field_contents (Simple.symbol sym)
-    | Some (Value_int i) -> Field_contents (Simple.const_int i)
+    | Some (Value_const c) -> Field_contents (Simple.const c)
     | Some approx -> Block_but_cannot_simplify approx
     | None -> Not_a_block)
 
 type block_static_kind =
   | Dynamic_block
-  | Computed_static of Field_of_static_block.t list
-  | Constant of Field_of_static_block.t list
+  | Computed_static of Simple.With_debuginfo.t list
+  | Constant of Simple.With_debuginfo.t list
 
 let classify_fields_of_block env fields alloc_mode =
   let is_local =
@@ -1077,23 +1072,15 @@ let classify_fields_of_block env fields alloc_mode =
         | None -> None
         | Some fields ->
           Simple.pattern_match'
-            ~const:(fun c ->
-              match Reg_width_const.descr c with
-              | Tagged_immediate imm ->
-                Some (Field_of_static_block.Tagged_immediate imm :: fields)
-              | _ -> None)
-            ~symbol:(fun s ~coercion:_ ->
-              Some (Field_of_static_block.Symbol s :: fields))
-            ~var:(fun v ~coercion:_ ->
+            (Simple.With_debuginfo.simple f)
+            ~const:(fun _cst -> Some (f :: fields))
+            ~symbol:(fun _sym ~coercion:_ -> Some (f :: fields))
+            ~var:(fun _var ~coercion:_ ->
               if Env.at_toplevel env
                  && Flambda_features.classic_mode ()
                  && not is_local
-              then
-                Some
-                  (Field_of_static_block.Dynamically_computed (v, Debuginfo.none)
-                  :: fields)
-              else None)
-            f)
+              then Some (f :: fields)
+              else None))
       (Some []) fields
     |> Option.map List.rev
   in
@@ -1101,8 +1088,8 @@ let classify_fields_of_block env fields alloc_mode =
   | None -> Dynamic_block
   | Some fields ->
     if List.exists
-         (function
-           | Field_of_static_block.Dynamically_computed _ -> true | _ -> false)
+         (fun simple_with_dbg ->
+           Simple.is_var (Simple.With_debuginfo.simple simple_with_dbg))
          fields
     then Computed_static fields
     else Constant fields
@@ -1152,88 +1139,153 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
         in
         match defining_expr with
         | Prim
-            ( Variadic
-                (Make_block (Values (tag, _), Immutable, alloc_mode), fields),
-              _ ) -> (
+            ( Variadic (Make_block (block_kind, Immutable, alloc_mode), fields),
+              dbg ) -> (
+          (* CR mshinwell: split into a separate function *)
+          let tag, block_shape = P.Block_kind.to_shape block_kind in
           let approxs =
             List.map (find_value_approximation body_env) fields |> Array.of_list
           in
-          let fields_kind = classify_fields_of_block env fields alloc_mode in
+          let fields_kind =
+            classify_fields_of_block env
+              (List.map
+                 (fun field -> Simple.With_debuginfo.create field dbg)
+                 fields)
+              alloc_mode
+          in
           match fields_kind with
-          | Constant static_fields ->
-            let acc, sym =
-              register_const0 acc
-                (Static_const.block tag Immutable static_fields)
-                (Ident.name id)
+          | Constant static_fields | Computed_static static_fields -> (
+            let approx, static_const =
+              match block_shape with
+              | Scannable scannable_block_shape -> (
+                match Tag.Scannable.of_tag tag with
+                | Some tag ->
+                  let static_const =
+                    Static_const.block tag Immutable scannable_block_shape
+                      static_fields
+                  in
+                  let approx =
+                    Value_approximation.Block_approximation
+                      ( tag,
+                        scannable_block_shape,
+                        approxs,
+                        Alloc_mode.For_allocations.as_type alloc_mode )
+                  in
+                  approx, static_const
+                | None ->
+                  Misc.fatal_errorf
+                    "Binding of %a to %a has yielded a tag %a which is not \
+                     scannable, yet the block shape appears to be: %a"
+                    Ident.print id Named.print defining_expr Tag.print tag
+                    Flambda_kind.Block_shape.print block_shape)
+              | Float_record ->
+                let static_fields =
+                  List.map
+                    (fun simple_with_dbg ->
+                      let dbg = Simple.With_debuginfo.dbg simple_with_dbg in
+                      Simple.pattern_match'
+                        (Simple.With_debuginfo.simple simple_with_dbg)
+                        ~var:(fun var ~coercion:_ -> Or_variable.Var (var, dbg))
+                        ~symbol:(fun _sym ~coercion:_ ->
+                          Misc.fatal_errorf
+                            "Binding of %a to %a contains a symbol inside a \
+                             float record, whereas only naked floats are \
+                             permitted"
+                            Ident.print id Named.print defining_expr)
+                        ~const:(fun cst ->
+                          match Reg_width_const.descr cst with
+                          | Naked_float f -> Or_variable.Const f
+                          | Tagged_immediate _ | Naked_immediate _
+                          | Naked_float32 _ | Naked_int32 _ | Naked_int64 _
+                          | Naked_nativeint _ | Naked_vec128 _ ->
+                            Misc.fatal_errorf
+                              "Binding of %a to %a contains the constant %a \
+                               inside a float record, whereas only naked \
+                               floats are permitted"
+                              Ident.print id Named.print defining_expr
+                              Reg_width_const.print cst))
+                    static_fields
+                in
+                let static_const =
+                  Static_const.immutable_float_block static_fields
+                in
+                (* Note: no approximations are currently provided for these. *)
+                let approx = Value_approximation.Value_unknown in
+                approx, static_const
             in
-            let body_env =
-              Env.add_simple_to_substitute body_env id (Simple.symbol sym) kind
-            in
-            let acc =
-              Acc.add_symbol_approximation acc sym
-                (Value_approximation.Block_approximation
-                   (tag, approxs, Alloc_mode.For_allocations.as_type alloc_mode))
-            in
-            body acc body_env
-          | Computed_static static_fields ->
-            (* This is a inconstant statically-allocated value, so cannot go
-               through [register_const0]. The definition must be placed right
-               away. *)
-            let acc, symbol =
-              manufacture_symbol acc (Variable.unique_name var)
-            in
-            let static_const = Static_const.block tag Immutable static_fields in
-            let static_consts =
-              [Static_const_or_code.create_static_const static_const]
-            in
-            let defining_expr =
-              Static_const_group.create static_consts
-              |> Named.create_static_consts
-            in
-            let body_env =
-              Env.add_simple_to_substitute body_env id (Simple.symbol symbol)
-                kind
-            in
-            let approx =
-              Value_approximation.Block_approximation
-                (tag, approxs, Alloc_mode.For_allocations.as_type alloc_mode)
-            in
-            let acc = Acc.add_symbol_approximation acc symbol approx in
-            let acc, body = body acc body_env in
-            Let_with_acc.create acc
-              (Bound_pattern.static
-                 (Bound_static.create [Bound_static.Pattern.block_like symbol]))
-              defining_expr ~body
+            match fields_kind with
+            | Constant _ ->
+              let acc, sym = register_const0 acc static_const (Ident.name id) in
+              let body_env =
+                Env.add_simple_to_substitute body_env id (Simple.symbol sym)
+                  kind
+              in
+              let acc = Acc.add_symbol_approximation acc sym approx in
+              body acc body_env
+            | Computed_static _ ->
+              (* This is a inconstant statically-allocated value, so cannot go
+                 through [register_const0]. The definition must be placed right
+                 away. *)
+              let acc, symbol =
+                manufacture_symbol acc (Variable.unique_name var)
+              in
+              let static_consts =
+                [Static_const_or_code.create_static_const static_const]
+              in
+              let defining_expr =
+                Static_const_group.create static_consts
+                |> Named.create_static_consts
+              in
+              let body_env =
+                Env.add_simple_to_substitute body_env id (Simple.symbol symbol)
+                  kind
+              in
+              let acc = Acc.add_symbol_approximation acc symbol approx in
+              let acc, body = body acc body_env in
+              Let_with_acc.create acc
+                (Bound_pattern.static
+                   (Bound_static.create
+                      [Bound_static.Pattern.block_like symbol]))
+                defining_expr ~body
+            | Dynamic_block -> (* Handled in outer match *) assert false)
           | Dynamic_block ->
             let body_env =
-              Env.add_block_approximation body_env var tag approxs
-                (Alloc_mode.For_allocations.as_type alloc_mode)
+              match block_shape with
+              | Scannable scannable_block_shape -> (
+                match Tag.Scannable.of_tag tag with
+                | Some tag ->
+                  Env.add_block_approximation body_env var tag
+                    scannable_block_shape approxs
+                    (Alloc_mode.For_allocations.as_type alloc_mode)
+                | None ->
+                  Misc.fatal_errorf
+                    "Binding of %a to %a (dynamic block) has yielded a tag %a \
+                     which is not scannable, yet the block shape appears to \
+                     be: %a"
+                    Ident.print id Named.print defining_expr Tag.print tag
+                    Flambda_kind.Block_shape.print block_shape)
+              | Float_record ->
+                (* No approximations for float records at the moment. *)
+                body_env
             in
             bind acc body_env)
         | Prim
             ( Variadic
                 ( Make_block (Values (tag, _), Immutable_unique, _alloc_mode),
                   [exn_name; exn_id] ),
-              _ )
+              dbg )
           when Tag.Scannable.equal tag Tag.Scannable.object_tag
                && Env.at_toplevel env
                && Flambda_features.classic_mode () ->
           (* Special case to lift toplevel exception declarations *)
           let acc, symbol = manufacture_symbol acc (Variable.unique_name var) in
-          let transform_arg arg =
-            Simple.pattern_match' arg
-              ~var:(fun var ~coercion:_ ->
-                Field_of_static_block.Dynamically_computed (var, Debuginfo.none))
-              ~symbol:(fun sym ~coercion:_ -> Field_of_static_block.Symbol sym)
-              ~const:(fun const ->
-                Misc.fatal_errorf "Constant %a not expected as argument in %a"
-                  Reg_width_const.print const Named.print defining_expr)
-          in
+          let transform_arg arg = Simple.With_debuginfo.create arg dbg in
           (* This is an inconstant statically-allocated value, so cannot go
              through [register_const0]. The definition must be placed right
              away. *)
           let static_const =
             Static_const.block Tag.Scannable.object_tag Immutable_unique
+              Value_only
               [transform_arg exn_name; transform_arg exn_id]
           in
           let static_consts =
@@ -1381,8 +1433,8 @@ let close_exact_or_unknown_apply acc env
           acc, Call_kind.direct_function_call code_id mode, can_erase_callee
       | None -> acc, Call_kind.indirect_function_call_unknown_arity mode, false
       | Some
-          (Value_unknown | Value_symbol _ | Value_int _ | Block_approximation _)
-        ->
+          ( Value_unknown | Value_symbol _ | Value_const _
+          | Block_approximation _ ) ->
         assert false (* See [close_apply] *))
     | Method { kind; obj } ->
       let acc, obj = find_simple acc env obj in
@@ -1449,7 +1501,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
   let untagged_scrutinee' = VB.create untagged_scrutinee Name_mode.normal in
   let known_const_scrutinee =
     match find_value_approximation_through_symbol acc env scrutinee with
-    | Value_approximation.Value_int i -> Some i
+    | Value_approximation.Value_const c -> Reg_width_const.is_tagged_immediate c
     | _ -> None
   in
   let untag =
@@ -3045,7 +3097,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
           Code_metadata.result_mode metadata,
           Code_metadata.contains_no_escaping_local_allocs metadata )
     | Value_unknown -> None
-    | Value_symbol _ | Value_int _ | Block_approximation _ ->
+    | Value_symbol _ | Value_const _ | Block_approximation _ ->
       if Flambda_features.check_invariants ()
       then
         Misc.fatal_errorf
@@ -3291,11 +3343,11 @@ let wrap_final_module_block acc env ~program ~prog_return_cont
       let static_const : Static_const.t =
         let field_vars =
           List.map
-            (fun (_, var) : Field_of_static_block.t ->
-              Dynamically_computed (var, Debuginfo.none))
+            (fun (_, var) ->
+              Simple.With_debuginfo.create (Simple.var var) Debuginfo.none)
             field_vars
         in
-        Static_const.block module_block_tag Immutable field_vars
+        Static_const.block module_block_tag Immutable Value_only field_vars
       in
       let acc, apply_cont =
         (* Module initialisers return unit, but since that is taken care of
@@ -3403,7 +3455,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
          Furthermore, can this hack be removed? *)
       let acc, (_sym : Symbol.t) =
         register_const0 acc
-          (Static_const.block Tag.Scannable.zero Immutable [])
+          (Static_const.block Tag.Scannable.zero Immutable Value_only [])
           "first_const"
       in
       acc

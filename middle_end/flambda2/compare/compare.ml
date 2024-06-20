@@ -285,10 +285,10 @@ let subst_rec_info_expr _env ri =
      symbols and other global names *)
   ri
 
-let subst_field env (field : Field_of_static_block.t) =
-  match field with
-  | Symbol symbol -> Field_of_static_block.Symbol (subst_symbol env symbol)
-  | Tagged_immediate _ | Dynamically_computed _ -> field
+let subst_field env field =
+  Simple.With_debuginfo.create
+    (subst_simple env (Simple.With_debuginfo.simple field))
+    (Simple.With_debuginfo.dbg field)
 
 let subst_call_kind env (call_kind : Call_kind.t) : Call_kind.t =
   match call_kind with
@@ -359,9 +359,10 @@ and subst_static_const env (static_const : Static_const_or_code.t) :
     Static_const_or_code.t =
   match static_const with
   | Code code -> Static_const_or_code.create_code (subst_code env code)
-  | Static_const (Block (tag, mut, fields)) ->
+  | Static_const (Block (tag, mut, shape, fields)) ->
     let fields = List.map (subst_field env) fields in
-    Static_const_or_code.create_static_const (Static_const.block tag mut fields)
+    Static_const_or_code.create_static_const
+      (Static_const.block tag mut shape fields)
   | Static_const (Set_of_closures set_of_closures) ->
     Static_const_or_code.create_static_const
       (Static_const.set_of_closures (subst_set_of_closures env set_of_closures))
@@ -908,14 +909,9 @@ let bound_static env bound_static1 bound_static2 : Bound_static.t Comparison.t =
     (bound_static2 |> Bound_static.to_list)
   |> Comparison.map ~f:Bound_static.create
 
-let fields env (field1 : Field_of_static_block.t)
-    (field2 : Field_of_static_block.t) : Field_of_static_block.t Comparison.t =
-  match field1, field2 with
-  | Symbol symbol1, Symbol symbol2 ->
-    symbols env symbol1 symbol2
-    |> Comparison.map ~f:(fun symbol1' -> Field_of_static_block.Symbol symbol1')
-  | _, _ ->
-    Comparator.of_predicate Field_of_static_block.equal env field1 field2
+let fields env (field1 : Simple.With_debuginfo.t)
+    (field2 : Simple.With_debuginfo.t) : Simple.With_debuginfo.t Comparison.t =
+  Comparator.of_predicate Simple.With_debuginfo.equal env field1 field2
 
 let blocks env block1 block2 =
   triples
@@ -1181,13 +1177,14 @@ and static_consts env (const1 : Static_const_or_code.t)
   match const1, const2 with
   | Code code1, Code code2 ->
     codes env code1 code2 |> Comparison.map ~f:Static_const_or_code.create_code
-  | ( Static_const (Block (tag1, mut1, fields1)),
-      Static_const (Block (tag2, mut2, fields2)) ) ->
+  | ( Static_const (Block (tag1, mut1, shape1, fields1)),
+      Static_const (Block (tag2, mut2, _shape2, fields2)) ) ->
+    (* XXX compare the shapes *)
     blocks env (tag1, mut1, fields1) (tag2, mut2, fields2)
     |> Comparison.map
          ~f:(fun (tag1', mut1', fields1') : Static_const_or_code.t ->
            Static_const_or_code.create_static_const
-             (Static_const.block tag1' mut1' fields1'))
+             (Static_const.block tag1' mut1' shape1 fields1'))
   | Static_const (Set_of_closures set1), Static_const (Set_of_closures set2) ->
     sets_of_closures env set1 set2
     |> Comparison.map ~f:(fun set1' : Static_const_or_code.t ->

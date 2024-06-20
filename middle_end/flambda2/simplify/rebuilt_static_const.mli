@@ -44,15 +44,8 @@ val create_block :
   Are_rebuilding_terms.t ->
   Tag.Scannable.t ->
   Mutability.t ->
-  fields:Field_of_static_block.t list ->
-  t
-
-val create_mixed_block :
-  Are_rebuilding_terms.t ->
-  Tag.Scannable.t ->
-  Mutability.t ->
-  Flambda_kind.Mixed_block_shape.t ->
-  fields:Field_of_static_block.Mixed_field.t list ->
+  Flambda_kind.Scannable_block_shape.t ->
+  fields:Simple.With_debuginfo.t list ->
   t
 
 val create_boxed_float32 :
@@ -100,7 +93,7 @@ val create_immutable_nativeint_array :
   Are_rebuilding_terms.t -> Targetint_32_64.t Or_variable.t list -> t
 
 val create_immutable_value_array :
-  Are_rebuilding_terms.t -> Field_of_static_block.t list -> t
+  Are_rebuilding_terms.t -> Simple.With_debuginfo.t list -> t
 
 val create_empty_array : Are_rebuilding_terms.t -> Empty_array_kind.t -> t
 
