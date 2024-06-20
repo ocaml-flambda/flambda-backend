@@ -46,7 +46,7 @@ let xs = Sys.opaque_identity [| 0. |]
 let old_g () = old_f xs.(0)
 let new_g () = new_f xs.(0)
 
-let check_noalloc name f =
+let check_alloc name f ~expect =
   let a0 = Gc.allocated_bytes () in
   let a1 = Gc.allocated_bytes () in
   let _x = (f[@inlined never]) () in
@@ -55,11 +55,9 @@ let check_noalloc name f =
 
   match Sys.backend_type with
   | Sys.Bytecode -> ()
-  | Sys.Native ->
-      if alloc > 0. then
-        failwith (Printf.sprintf "%s; alloc = %.0f" name alloc)
+  | Sys.Native -> assert (alloc = expect)
   | _ -> assert false
 
 let () = 
-  check_noalloc "fail w/ magic globalize" old_g;
-  check_noalloc "fail w/ explicit box/unbox" new_g
+  check_alloc "fail w/ magic globalize" old_g ~expect:0.;
+  check_alloc "fail w/ explicit box/unbox" new_g ~expect:16.
