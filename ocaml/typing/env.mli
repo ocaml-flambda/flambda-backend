@@ -581,8 +581,8 @@ val print_type_expr: (Format.formatter -> Types.type_expr -> unit) ref
 (** Folds *)
 
 val fold_values:
-  (string -> Path.t -> Subst.Lazy.value_description -> 'a -> 'a) ->
-  Longident.t option -> t -> 'a -> 'a
+  (string -> Path.t -> Subst.Lazy.value_description -> Mode.Value.l -> 'a -> 'a)
+  -> Longident.t option -> t -> 'a -> 'a
 val fold_types:
   (string -> Path.t -> type_declaration -> 'a -> 'a) ->
   Longident.t option -> t -> 'a -> 'a

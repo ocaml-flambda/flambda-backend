@@ -716,6 +716,8 @@ let mda_mode = Mode.Value.legacy |> Mode.Value.disallow_right
 
 let clda_mode = Mode.Value.legacy |> Mode.Value.disallow_right
 
+let cm_mode = Mode.Value.legacy |> Mode.Value.disallow_right
+
 let empty_structure =
   Structure_comps {
     comp_values = NameMap.empty;
@@ -900,16 +902,12 @@ let vda_description vda =
   let vda_description = vda.vda_description in
   {vda_description with val_modalities = Mode.Modality.Value.undefined}
 
-(** The caller wants the mode of the [value_data] *)
-(* CR zqian: call this [normalize_vda_mode] *)
-let apply_val_modalities vda =
-  (* CR zqian: either inline this, or move to [types.ml] *)
-  let decouple_val_modalities (vd : Subst.Lazy.value_description) =
-    let modalities = vd.val_modalities in
-    let vd = {vd with val_modalities = Mode.Modality.Value.id'} in
-    modalities, vd
+let normalize_vda_mode vda =
+  let vda_description = vda.vda_description in
+  let modalities = vda_description.val_modalities in
+  let vda_description =
+    {vda_description with val_modalities = Mode.Modality.Value.id'}
   in
-  let modalities, vda_description = decouple_val_modalities vda.vda_description in
   let vda_mode = Mode.Modality.Value.apply_left modalities vda.vda_mode in
   {vda with vda_description; vda_mode}
 
@@ -1319,8 +1317,6 @@ let find_cltype path env =
       (NameMap.find s sc.comp_cltypes).cltda_declaration
   | Papply _ | Pextra_ty _ -> raise Not_found
 
-(* Have two versions, one takes path, one takes identity. The first doesn't run
-   locks, the second does. *)
 let find_value path env =
   find_value_full path env |> vda_description
 
@@ -1328,7 +1324,7 @@ let find_value_without_locks id env =
   match IdTbl.find_same_and_locks id env.values with
   | Val_bound _, _ :: _ -> assert false
   | Val_bound data, [] ->
-      let data = apply_val_modalities data in
+      let data = normalize_vda_mode data in
       data.vda_description, data.vda_mode
   | Val_unbound _, _ -> raise Not_found
 
@@ -1849,9 +1845,6 @@ let rec components_of_module_maker
         incr pos;
         Lazy_backtrack.create addr
       in
-      (* structures are always legacy *)
-      (* CR zqian: rename this to [module_mode] *)
-      let mmode = Mode.Value.legacy |> Mode.Value.disallow_right in
       List.iter (fun ((item : Subst.Lazy.signature_item), path) ->
         match item with
           Sig_value(id, decl, _) ->
@@ -1864,7 +1857,7 @@ let rec components_of_module_maker
             let vda_shape = Shape.proj cm_shape (Shape.Item.value id) in
             let vda =
               { vda_description = decl'; vda_address = addr;
-                vda_mode = mmode; vda_shape }
+                vda_mode = cm_mode; vda_shape }
             in
             c.comp_values <- NameMap.add (Ident.name id) vda c.comp_values;
         | Sig_type(id, decl, _, _) ->
@@ -3449,8 +3442,13 @@ let lookup_value ~errors ~use ~loc lid env =
   let path, locks, vda =
     lookup_value_lazy ~errors ~use ~loc lid env
   in
-  (* CR zqian: add comments about the ordering the applying modality and walk_locks *)
-  let vda = apply_val_modalities vda in
+  (* First, we apply the modalities to acquire the mode of the value at the
+     definition site. Then, we walk the locks. That means the surrounding
+     closure would be closing over the value instead of the module.
+
+     This is better ergonomics, but dangers as it doesn't reflect the real
+     runtime behaviour. With the current set-up, it is sound. *)
+  let vda = normalize_vda_mode vda in
   let vd = Subst.Lazy.force_value_description vda.vda_description in
   let vmode =
     if use then
@@ -3805,13 +3803,14 @@ let fold_modules f lid env acc =
           acc
       end
 
-(* CR zqian: also passes mode in additional vda_description *)
 let fold_values f =
   find_all wrap_value (fun env -> env.values) (fun sc -> sc.comp_values)
     (fun k p ve acc ->
        match ve with
        | Val_unbound _ -> acc
-       | Val_bound vda -> f k p (vda |> vda_description) acc)
+       | Val_bound vda ->
+        let vda = normalize_vda_mode vda in
+        f k p vda.vda_description vda.vda_mode acc)
 and fold_constructors f =
   find_all_simple_list (fun env -> env.constrs) (fun sc -> sc.comp_constrs)
     (fun cda acc -> f cda.cda_description acc)
@@ -3950,7 +3949,7 @@ let spellcheck_name ppf extract env name =
     (fun () -> Misc.spellcheck (extract env) name)
 
 let extract_values path env =
-  fold_values (fun name _ _ acc -> name :: acc) path env []
+  fold_values (fun name _ _ _ acc -> name :: acc) path env []
 let extract_types path env =
   fold_types (fun name _ _ acc -> name :: acc) path env []
 let extract_modules path env =
@@ -3967,7 +3966,7 @@ let extract_cltypes path env =
   fold_cltypes (fun name _ _ acc -> name :: acc) path env []
 let extract_instance_variables env =
   fold_values
-    (fun name _ descr acc ->
+    (fun name _ descr _ acc ->
        match descr.val_kind with
        | Val_ivar _ -> name :: acc
        | _ -> acc) None env []

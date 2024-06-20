@@ -2291,7 +2291,7 @@ module Modality = struct
       | Left user -> user
       | Right _ -> assert false
 
-    let infer : Mode.lr -> Mode.l -> internal = fun mm m -> Diff (mm, m)
+    let infer ~md_mode ~mode = Diff (md_mode, mode)
 
     let max = Join_const Const.max
   end
@@ -2395,7 +2395,7 @@ module Modality = struct
       | Undefined -> Format.fprintf ppf "undefined"
       | Exactly _ -> Format.fprintf ppf "exactly"
 
-    let infer mm m = Exactly (mm, m)
+    let infer ~md_mode ~mode = Exactly (md_mode, mode)
 
     let max = Meet_const Const.max
 
@@ -2475,10 +2475,12 @@ module Modality = struct
     let print ppf ({ monadic; comonadic } : 'd t) =
       Format.fprintf ppf "%a,%a" Monadic.print monadic Comonadic.print comonadic
 
-    let infer : Value.lr -> Value.l -> internal =
-     fun mmode mode ->
-      let comonadic = Comonadic.infer mmode.comonadic mode.comonadic in
-      let monadic = Monadic.infer mmode.monadic mode.monadic in
+    let infer : md_mode:Value.lr -> mode:Value.l -> internal =
+     fun ~md_mode ~mode ->
+      let comonadic =
+        Comonadic.infer ~md_mode:md_mode.comonadic ~mode:mode.comonadic
+      in
+      let monadic = Monadic.infer ~md_mode:md_mode.monadic ~mode:mode.monadic in
       { monadic; comonadic }
 
     let zap_to_id : type d. d t -> user =

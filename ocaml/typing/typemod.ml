@@ -2828,6 +2828,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
 
   let type_str_item
         env shape_map ({pstr_loc = loc; pstr_desc = desc} as item) sig_acc =
+    let md_mode = Mode.Value.legacy in
     match Jane_syntax.Structure_item.of_ast item with
     | Some jitem -> type_str_item_jst ~loc env shape_map jitem sig_acc
     | None ->
@@ -2886,16 +2887,13 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
               Signature_names.check_value names first_loc id;
               let vd, mode =  Env.find_value_without_locks id newenv in
               let vd = Subst.Lazy.force_value_description vd in
-              (* structures are always legacy *)
-              (* CR zqian: rename this to [module_mode] *)
-              let mmode = Mode.Value.legacy in
               begin match Mode.Value.Comonadic.submode
                 mode.Mode.comonadic
-                mmode.Mode.comonadic with
+                md_mode.Mode.comonadic with
                 | Ok () -> ()
                 | Error e -> raise (Error (first_loc, env, Submode_failed e))
               end;
-              let modalities = Mode.Modality.Value.infer mmode mode in
+              let modalities = Mode.Modality.Value.infer ~md_mode ~mode in
               let vd =
                 { vd with
                   val_zero_alloc = zero_alloc;
