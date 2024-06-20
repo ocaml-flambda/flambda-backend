@@ -202,7 +202,7 @@ let record_representation i ppf = let open Types in function
     line i ppf "Record_unboxed\n"
   | Record_boxed jkinds ->
     line i ppf "Record_boxed %a\n" (jkind_array i) jkinds
-  | Record_inlined (t,v) ->
+  | Record_inlined (t, _c, v) ->
     line i ppf "Record_inlined (%a, %a)\n" tag t (variant_representation i) v
   | Record_float -> line i ppf "Record_float\n"
   | Record_ufloat -> line i ppf "Record_ufloat\n"

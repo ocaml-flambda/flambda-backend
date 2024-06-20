@@ -645,6 +645,86 @@ let _ =
   print_t14 t14_2;
   print_t14 t14_3
 
+(*****************************************************)
+(* Test 14.1: (float32# + float32) variant manipulation *)
+
+(* Same as test 14 for floats, but boxed float32s have to be in the prefix. *)
+
+type t14_variant =
+  | Const
+  | T of   { mutable b : float32;
+             e : float32;
+             a : float32#;
+             c : float32#;
+             mutable d : float32#;
+             mutable f : float32# }
+
+(* Construction *)
+let t14_1 = T
+            { a = Float32_u.of_float32 3.14s;
+              b = 13.s;
+              c = Float32_u.of_float32 7.31s;
+              d = Float32_u.of_float32 1.41s;
+              e = 6.s;
+              f = Float32_u.of_float32 27.1s
+            }
+
+let t14_2 = T
+            { a = Float32_u.of_float32 (-3.14s);
+              b = -13.s;
+              c = Float32_u.of_float32 (-7.31s);
+              d = Float32_u.of_float32 (-1.41s);
+              e = -6.s;
+              f = Float32_u.of_float32 (-27.1s)
+            }
+
+let[@warning "-partial-match"] print_t14_variant (T t14) =
+  print_floatu "  a" t14.a;
+  print_float "  b" t14.b;
+  print_floatu "  c" t14.c;
+  print_floatu "  d" t14.d;
+  print_float "  e" t14.e;
+  print_floatu "  f" t14.f
+
+let _ =
+  Printf.printf "Test 14.1, construction:\n";
+  print_t14_variant t14_1;
+  print_t14_variant t14_2
+
+(* Matching, projection *)
+let[@warning "-partial-match"] f14_1 (T {c; d; f; _}) r =
+  match r with
+  | T ({ a; _ } as r) ->
+    T
+    { a = (Float32_u.of_float32 r.e);
+      b = Float32_u.(to_float32 (a - d));
+      c = Float32_u.(r.c + c);
+      d = Float32_u.(d - (of_float32 r.b));
+      e = Float32_u.(to_float32 (f + (of_float32 r.e)));
+      f = r.f}
+
+let _ =
+  Printf.printf "Test 14.1, matching and projection:\n";
+  print_t14_variant (f14_1 t14_1 t14_2)
+
+(* Record update and mutation *)
+let[@warning "-partial-match"] f14_2 (T ({a; d; _} as r1)) (T r2) =
+  r1.d <- Float32_u.of_float32 42.0s;
+  let T r3 = T { r2 with c = r1.d;
+                     d = Float32_u.of_float32 25.0s }
+  in
+  r3.b <- Float32_u.(to_float32 (a + d));
+  r2.b <- 17.s;
+  r1.f <- r2.c;
+  T r3
+
+let _ =
+  Printf.printf "Test 14.1, variant update and mutation:\n";
+  let t14_3 = f14_2 t14_1 t14_2 in
+  print_t14_variant t14_1;
+  print_t14_variant t14_2;
+  print_t14_variant t14_3
+
 (*************************************************************)
 (* Test 15: (float32# + float32) records in recursive groups *)
 

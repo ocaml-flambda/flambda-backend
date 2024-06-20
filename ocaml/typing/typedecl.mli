@@ -91,6 +91,7 @@ module Mixed_product_kind : sig
   type t =
     | Record
     | Cstr_tuple
+    | Cstr_record
 end
 
 type mixed_product_violation =

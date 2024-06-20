@@ -378,6 +378,88 @@ let _ =
   print_t17 t17_2;
   print_t17 t17_3
 
+(*********************************************)
+(* Test 17.1: mixed constructor manipulation *)
+
+type t17_variant =
+  | Const
+  | T of  { a : float;
+            dummy : string;
+            mutable b : int;
+            c : float#;
+            mutable d : float#;
+            e : int;
+            mutable f : float# }
+
+(* Construction *)
+let t17_1 = T
+            { a = 3.17;
+              b = 13;
+              c = Float_u.of_float 7.31;
+              d = Float_u.of_float 1.41;
+              e = 6;
+              f = Float_u.of_float 27.1;
+              dummy;
+            }
+
+let t17_2 = T
+            { a = (-3.17);
+              b = -13;
+              c = Float_u.of_float (-7.31);
+              d = Float_u.of_float (-1.41);
+              e = -6;
+              f = Float_u.of_float (-27.1);
+              dummy;
+            }
+
+let[@warning "-partial-match"] print_t17_variant (T t17) =
+  print_float "  a" t17.a;
+  print_int "  b" t17.b;
+  print_floatu "  c" t17.c;
+  print_floatu "  d" t17.d;
+  print_int "  e" t17.e;
+  print_floatu "  f" t17.f
+
+let _ =
+  Printf.printf "Test 17.1, construction:\n";
+  print_t17_variant t17_1;
+  print_t17_variant t17_2
+
+(* Matching, projection *)
+let[@warning "-partial-match"] f17_1 (T {c; d; f; _}) r =
+  match r with
+  | T ({ a; _ } as r) ->
+    T
+    { a = Float.of_int r.e;
+      b = Float_u.(to_int (of_float a - d));
+      c = Float_u.(r.c + c);
+      d = Float_u.(d - (of_int r.b));
+      e = Float_u.(to_int (f + (of_int r.e)));
+      f = r.f;
+      dummy}
+
+let _ =
+  Printf.printf "Test 17.1, matching and projection:\n";
+  print_t17_variant (f17_1 t17_1 t17_2)
+
+(* Record update and mutation *)
+let[@warning "-partial-match"] f17_2 (T ({a; d; _} as r1)) (T r2) =
+  r1.d <- Float_u.of_float 42.0;
+  let T r3 = T { r2 with c = r1.d;
+                     d = Float_u.of_float 25.0 }
+  in
+  r3.b <- Float_u.(to_int (of_float a + d));
+  r2.b <- 17;
+  r1.f <- r2.c;
+  T r3
+
+let _ =
+  Printf.printf "Test 17.1, variant update and mutation:\n";
+  let t17_3 = f17_2 t17_1 t17_2 in
+  print_t17_variant t17_1;
+  print_t17_variant t17_2;
+  print_t17_variant t17_3
+
 (************************************************************)
 (* Test 18: (float# + immediate) records in recursive groups *)
 

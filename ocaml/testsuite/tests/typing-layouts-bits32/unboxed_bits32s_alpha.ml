@@ -200,6 +200,87 @@ let _ =
   print_t_mixed t_mixed2;
   print_t_mixed t_mixed3
 
+(**************************************)
+(* Test: mixed constructor manipulation *)
+
+type t_mixed_variant =
+  | Const
+  | T of
+      { a : float;
+        mutable b : int;
+        c : int32#;
+        mutable d : int32#;
+        e : int;
+        mutable f : int32# }
+
+(* Construction *)
+let t_mixed_variant1 = T
+            { a = 317.;
+              b = 1300;
+              c = #731l;
+              d = #141l;
+              e = 600;
+              f = #2710l;
+            }
+
+let t_mixed_variant2 = T
+            { a = (-317.);
+              b = -1300;
+              c = -#731l;
+              d = -#141l;
+              e = -600;
+              f = -#2710l;
+            }
+
+let[@warning "-partial-match"] print_t_mixed_variant (T t) =
+  print_float "  a" t.a;
+  print_int "  b" t.b;
+  print_int32u "  c" t.c;
+  print_int32u "  d" t.d;
+  print_int "  e" t.e;
+  print_int32u "  f" t.f
+
+let _ =
+  Printf.printf "Test mixed variant construction:\n";
+  print_t_mixed_variant t_mixed_variant1;
+  print_t_mixed_variant t_mixed_variant2
+
+(* Matching, projection *)
+let[@warning "-partial-match"] f_mixed1 (T {c; d; f; _}) r =
+  match r with
+  | T ({ a; _ } as r) ->
+    T
+      { a = Float.of_int r.e;
+        b = Int32_u.(to_int (of_float a - d));
+        c = Int32_u.(r.c + c);
+        d = Int32_u.(d - (of_int r.b));
+        e = Int32_u.(to_int (f + (of_int r.e)));
+        f = r.f;
+      }
+
+let _ =
+  Printf.printf "Test mixed variant matching and projection:\n";
+  print_t_mixed_variant (f_mixed1 t_mixed_variant1 t_mixed_variant2)
+
+(* Variant update and mutation *)
+let[@warning "-partial-match"] f_mixed2 (T ({a; d; _} as r1)) (T r2) =
+  r1.d <- #4200l;
+  let T r3 = T { r2 with c = r1.d;
+                         d = #2500l; }
+  in
+  r3.b <- Int32_u.(to_int (of_float a + d));
+  r2.b <- 1700;
+  r1.f <- r2.c;
+  T r3
+
+let _ =
+  Printf.printf "Test mixed variant update and mutation:\n";
+  let t_mixed_variant3 = f_mixed2 t_mixed_variant1 t_mixed_variant2 in
+  print_t_mixed_variant t_mixed_variant1;
+  print_t_mixed_variant t_mixed_variant2;
+  print_t_mixed_variant t_mixed_variant3
+
+
 (************************************************************)
 (* Test mixed records in recursive groups *)
 
