@@ -45,6 +45,7 @@ and head_of_kind_value = private
   | Variant of
       { immediates : t Or_unknown.t;
         blocks : row_like_for_blocks Or_unknown.t;
+        extensions : variant_extensions;
         is_unique : bool
       }
   (* CR mshinwell: It would be better to track per-field mutability. *)
@@ -144,6 +145,13 @@ and array_contents =
   | Mutable
 
 and env_extension = private { equations : t Name.Map.t } [@@unboxed]
+
+and variant_extensions =
+  | No_extensions
+  | Ext of
+      { when_immediate : env_extension;
+        when_block : env_extension
+      }
 
 type flambda_type = t
 
@@ -291,6 +299,7 @@ val create_variant :
   is_unique:bool ->
   immediates:t Or_unknown.t ->
   blocks:row_like_for_blocks Or_unknown.t ->
+  extensions:variant_extensions ->
   t
 
 val mutable_block : Alloc_mode.For_types.t -> t
@@ -609,6 +618,7 @@ module Head_of_kind_value : sig
     is_unique:bool ->
     blocks:Row_like_for_blocks.t Or_unknown.t ->
     immediates:flambda_type Or_unknown.t ->
+    extensions:variant_extensions ->
     t
 
   val create_mutable_block : Alloc_mode.For_types.t -> t
