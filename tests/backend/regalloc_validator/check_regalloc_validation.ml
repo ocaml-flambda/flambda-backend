@@ -95,6 +95,7 @@ module Cfg_desc = struct
         ~fun_codegen_options:[]
          ~fun_contains_calls
         ~fun_num_stack_slots:(Array.make Proc.num_stack_slot_classes 0)
+        ~fun_poll:Lambda.Default_poll
     in
     List.iter
       (fun (block : Block.t) ->

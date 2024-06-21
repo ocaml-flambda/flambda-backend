@@ -18,6 +18,8 @@ type 'a t =
   | Known of 'a
   | Unknown
 
+val known : 'a -> 'a t
+
 val print : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
 
 val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int

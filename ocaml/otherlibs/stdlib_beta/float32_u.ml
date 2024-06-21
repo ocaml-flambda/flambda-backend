@@ -26,6 +26,10 @@ external box_int32 : int32# -> (int32[@local_opt]) = "%box_int32"
 
 external unbox_int32 : (int32[@local_opt]) -> int32# = "%unbox_int32"
 
+external box_int64 : int64# -> (int64[@local_opt]) = "%box_int64"
+
+external unbox_int64 : (int64[@local_opt]) -> int64# = "%unbox_int64"
+
 external to_float32 : t -> (float32[@local_opt]) = "%box_float32"
 
 external of_float32 : (float32[@local_opt]) -> t = "%unbox_float32"
@@ -82,6 +86,9 @@ let[@inline always] of_int x = of_float32 (Float32.of_int x)
 
 let[@inline always] to_int x = Float32.to_int (to_float32 x)
 
+let[@inline always] of_int64 x = of_float32 (Float32.of_int64 (box_int64 x))
+
+let[@inline always] to_int64 x = unbox_int64 (Float32.to_int64 (to_float32 x))
 let[@inline always] of_float x = of_float32 (Float32.of_float (box_float x))
 
 let[@inline always] to_float x = unbox_float (Float32.to_float (to_float32 x))
@@ -177,6 +184,22 @@ let[@inline always] min x y = of_float32 (Float32.min (to_float32 x) (to_float32
 
 let[@inline always] max x y = of_float32 (Float32.max (to_float32 x) (to_float32 y))
 
+module With_weird_nan_behavior = struct
+  let[@inline always] min x y = of_float32 (Float32.With_weird_nan_behavior.min (to_float32 x) (to_float32 y))
+
+  let[@inline always] max x y = of_float32 (Float32.With_weird_nan_behavior.max (to_float32 x) (to_float32 y))
+end
+
 let[@inline always] min_num x y = of_float32 (Float32.min_num (to_float32 x) (to_float32 y))
 
 let[@inline always] max_num x y = of_float32 (Float32.max_num (to_float32 x) (to_float32 y))
+
+let iround_half_to_even x = unbox_int64 (Float32.iround_half_to_even (to_float32 x))
+
+let round_half_to_even x = of_float32 (Float32.round_half_to_even (to_float32 x))
+
+let round_down x = of_float32 (Float32.round_down (to_float32 x))
+
+let round_up x = of_float32 (Float32.round_up (to_float32 x))
+
+let round_towards_zero x = of_float32 (Float32.round_towards_zero (to_float32 x))

@@ -7,7 +7,14 @@ val transl_alloc_mode : Jane_syntax.Mode_expr.t -> Mode.Alloc.Const.t
 
 (** Interpret mode syntax as modalities *)
 val transl_modalities :
-  Types.mutability -> Jane_syntax.Mode_expr.t -> Mode.Modality.Value.t
+  Types.mutability ->
+  Parsetree.modality Location.loc list ->
+  Mode.Modality.Value.t
+
+val untransl_modalities :
+  loc:Location.t ->
+  Mode.Modality.Value.t ->
+  Parsetree.modality Location.loc list
 
 val is_mutable_implied_modality : Mode.Modality.t -> bool
 

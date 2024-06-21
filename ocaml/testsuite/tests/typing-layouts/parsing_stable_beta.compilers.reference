@@ -19,4 +19,8 @@ Line 2, characters 9-17:
 2 | type t = Float.t#;;
              ^^^^^^^^
 Error: Unbound type constructor Float.t#
+type ('a : any, 'b : any, 'c : any) t
+type ('a : float64) s1 = ('a, int, bool) t
+val f : ('a : any) 'b. ('a, 'b, bool) t -> int = <fun>
+type ('a, 'b, 'c : bits32) s2 = ('a, 'b, 'c) t
 

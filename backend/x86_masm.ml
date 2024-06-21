@@ -221,6 +221,8 @@ let print_instr b = function
   | CMPSS (cmp, arg1, arg2) -> i2 b ("cmp" ^ string_of_float_condition cmp ^ "ss") arg1 arg2
   | SSE CMPPS (cmp, arg1, arg2) -> i2 b ("cmp" ^ string_of_float_condition cmp ^ "ps") arg1 arg2
   | SSE SHUFPS (shuf, arg1, arg2) -> i3 b "shufps" shuf arg1 arg2
+  | SSE MINSS (arg1, arg2) -> i2 b "minss" arg1 arg2
+  | SSE MAXSS (arg1, arg2) -> i2 b "maxss" arg1 arg2
   | SSE ADDPS (arg1, arg2) -> i2 b "addps" arg1 arg2
   | SSE SUBPS (arg1, arg2) -> i2 b "subps" arg1 arg2
   | SSE MULPS (arg1, arg2) -> i2 b "mulps" arg1 arg2
@@ -382,6 +384,7 @@ let print_instr b = function
   | SSE41 PMINUD (arg1, arg2) -> i2 b "pminud" arg1 arg2
   | SSE41 ROUNDPD (rd, arg1, arg2) -> i3 b "roundpd" (imm_of_rounding rd) arg1 arg2
   | SSE41 ROUNDPS (rd, arg1, arg2) -> i3 b "roundps" (imm_of_rounding rd) arg1 arg2
+  | SSE41 ROUNDSS (rd, arg1, arg2) -> i3 b "roundss" (imm_of_rounding rd) arg1 arg2
   | SSE41 MPSADBW (n, arg1, arg2) -> i3 b "mpsadbw" n arg1 arg2
   | SSE41 PHMINPOSUW (arg1, arg2) -> i2 b "phminposuw" arg1 arg2
   | SSE41 PMULLD (arg1, arg2) -> i2 b "pmulld" arg1 arg2

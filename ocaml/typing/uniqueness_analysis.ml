@@ -1042,7 +1042,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     let pats_args = List.combine pats cd.cstr_args in
     let ext, uf_pats =
       List.mapi
-        (fun i (pat, (_, gf)) ->
+        (fun i (pat, { Types.ca_modalities = gf; _ }) ->
           let name = Longident.last lbl.txt in
           let paths = Paths.construct_field gf name i paths in
           pattern_match_single pat paths)

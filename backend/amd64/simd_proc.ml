@@ -39,10 +39,12 @@ let register_behavior_clmul = function Clmul_64 _ -> R_RM_to_fst
 let register_behavior_bmi2 = function Extract_64 | Deposit_64 -> R_RM_to_R
 
 let register_behavior_sse = function
-  | Cmp_f32 _ | Add_f32 | Sub_f32 | Mul_f32 | Div_f32 | Max_f32 | Min_f32
-  | Interleave_low_32 | Interleave_high_32 | Shuffle_32 _ ->
+  | Min_scalar_f32 | Max_scalar_f32 | Cmp_f32 _ | Add_f32 | Sub_f32 | Mul_f32
+  | Div_f32 | Max_f32 | Min_f32 | Interleave_low_32 | Interleave_high_32
+  | Shuffle_32 _ ->
     R_RM_to_fst
-  | Rcp_f32 | Sqrt_f32 | Rsqrt_f32 -> RM_to_R
+  | Round_current_f32_i64 | Sqrt_scalar_f32 | Rcp_f32 | Sqrt_f32 | Rsqrt_f32 ->
+    RM_to_R
   | Interleave_low_32_regs | High_64_to_low_64 | Low_64_to_high_64 -> R_R_to_fst
   | Movemask_32 -> R_to_R
 
@@ -64,7 +66,7 @@ let register_behavior_sse2 = function
     R_RM_to_fst
   | Shuffle_high_16 _ | Shuffle_low_16 _ | I32_to_f64 | I32_to_f32 | F64_to_i32
   | Round_current_f64_i64 | F64_to_f32 | F32_to_i32 | F32_to_f64 | Sqrt_f64
-  | Sqrt_scalar_f64 | Sqrt_scalar_f32 ->
+  | Sqrt_scalar_f64 ->
     RM_to_R
   | SLLi_i16 _ | SLLi_i32 _ | SLLi_i64 _ | SRLi_i16 _ | SRLi_i32 _ | SRLi_i64 _
   | SRAi_i16 _ | SRAi_i32 _ | Shift_left_bytes _ | Shift_right_bytes _ ->
@@ -91,7 +93,8 @@ let register_behavior_sse41 = function
     R_RM_to_fst
   | I8_sx_i16 | I8_sx_i32 | I8_sx_i64 | I16_sx_i32 | I16_sx_i64 | I32_sx_i64
   | I8_zx_i16 | I8_zx_i32 | I8_zx_i64 | I16_zx_i32 | I16_zx_i64 | I32_zx_i64
-  | Round_f64 _ | Round_f32 _ | Minpos_unsigned_i16 | Round_scalar_f64 _ ->
+  | Round_f64 _ | Round_f32 _ | Minpos_unsigned_i16 | Round_scalar_f64 _
+  | Round_scalar_f32 _ ->
     RM_to_R
   | Blendv_8 | Blendv_32 | Blendv_64 -> R_RM_xmm0_to_fst
   | Extract_i64 _ | Extract_i32 _ -> R_to_RM

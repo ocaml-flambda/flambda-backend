@@ -476,25 +476,12 @@ let block_access_kind ppf (access_kind : block_access_kind) =
     | Any_value -> ()
     | Immediate -> Format.fprintf ppf "@ imm"
   in
-  let pp_mixed_field_kind ppf
-      (field_kind : Flambda_primitive.Mixed_block_access_field_kind.t) =
-    match field_kind with
-    | Value_prefix Any_value -> ()
-    | Value_prefix Immediate -> Format.fprintf ppf "@ imm"
-    | Flat_suffix flat ->
-      Format.fprintf ppf "@ %s"
-        (Flambda_primitive.Mixed_block_flat_element.to_string flat)
-  in
   match access_kind with
   | Values { field_kind; tag; size } ->
     Format.fprintf ppf "%a%a%a" pp_field_kind field_kind
       (pp_option ~space:Before (pp_like "tag(%a)" Format.pp_print_int))
       tag pp_size size
   | Naked_floats { size } -> Format.fprintf ppf "@ float%a" pp_size size
-  | Mixed { tag; field_kind; size } ->
-    Format.fprintf ppf "%a%a%a" pp_mixed_field_kind field_kind
-      (pp_option ~space:Before (pp_like "tag(%a)" Format.pp_print_int))
-      tag pp_size size
 
 let string_accessor_width ppf saw =
   Format.fprintf ppf "%s"

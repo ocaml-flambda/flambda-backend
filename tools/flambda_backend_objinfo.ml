@@ -68,6 +68,10 @@ let print_impl_import import =
 
 let print_line name = printf "\t%s\n" name
 
+let print_global_line glob =
+  (* Type will change soon for parameterised libraries *)
+  printf "\t%a\n" Compilation_unit.Name.output glob
+
 let print_name_line cu =
   printf "\t%a\n" Compilation_unit.Name.output (Compilation_unit.name cu)
 
@@ -113,6 +117,14 @@ let print_cmi_infos name crcs kind =
       | Parameter -> true
     in
     printf "Is parameter: %s\n" (if is_param then "YES" else "no");
+    begin
+      match kind with
+      | Normal { cmi_arg_for = Some arg_for; _ } ->
+        printf "Argument for parameter:\n";
+        print_global_line arg_for
+      | Normal _ | Parameter ->
+        ()
+    end;
     printf "Interfaces imported:\n";
     Array.iter print_intf_import crcs
   end

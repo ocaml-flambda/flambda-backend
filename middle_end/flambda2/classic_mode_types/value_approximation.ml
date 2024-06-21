@@ -28,7 +28,8 @@ type 'code t =
         code : 'code;
         symbol : Symbol.t option
       }
-  | Block_approximation of Tag.t * 'code t array * Alloc_mode.For_types.t
+  | Block_approximation of
+      Tag.Scannable.t * 'code t array * Alloc_mode.For_types.t
 
 let rec print fmt = function
   | Value_unknown -> Format.fprintf fmt "?"
@@ -41,7 +42,8 @@ let rec print fmt = function
     if len < 1
     then Format.fprintf fmt "{}"
     else (
-      Format.fprintf fmt "@[<hov 2>{%a:%a" Tag.print tag print fields.(0);
+      Format.fprintf fmt "@[<hov 2>{%a:%a" Tag.Scannable.print tag print
+        fields.(0);
       for i = 1 to len - 1 do
         Format.fprintf fmt "@ %a" print fields.(i)
       done;

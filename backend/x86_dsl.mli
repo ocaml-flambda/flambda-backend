@@ -200,6 +200,8 @@ module I : sig
 
   (* Float32 arithmetic *)
 
+  val minss: arg -> arg -> unit
+  val maxss: arg -> arg -> unit
   val addss: arg -> arg -> unit
   val subss: arg -> arg -> unit
   val mulss: arg -> arg -> unit
@@ -388,6 +390,7 @@ module I : sig
   val pminud: arg -> arg -> unit
   val roundpd: rounding -> arg -> arg -> unit
   val roundps: rounding -> arg -> arg -> unit
+  val roundss: rounding -> arg -> arg -> unit
   val mpsadbw: arg -> arg -> arg -> unit
   val phminposuw: arg -> arg -> unit
   val pmulld: arg -> arg -> unit

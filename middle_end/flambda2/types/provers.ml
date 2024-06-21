@@ -333,7 +333,8 @@ let meet_naked_vec128s = meet_naked_number Vec128
 
 type variant_like_proof =
   { const_ctors : Targetint_31_63.Set.t Or_unknown.t;
-    non_const_ctors_with_sizes : Targetint_31_63.t Tag.Scannable.Map.t
+    non_const_ctors_with_sizes :
+      (Targetint_31_63.t * K.Block_shape.t) Tag.Scannable.Map.t
   }
 
 let prove_variant_like_generic env t : variant_like_proof generic_proof =
@@ -506,7 +507,11 @@ let prove_is_a_boxed_vec128 env t : _ proof_of_property =
     wrong_kind "Value" t
 
 let prove_unique_tag_and_size0 env t :
-    (Tag_and_size.t * TG.Product.Int_indexed.t * Alloc_mode.For_types.t)
+    (Tag.t
+    * K.Block_shape.t
+    * Targetint_31_63.t
+    * TG.Product.Int_indexed.t
+    * Alloc_mode.For_types.t)
     proof_of_property =
   match expand_head env t with
   | Value (Ok (Variant blocks_imms)) -> (
@@ -520,8 +525,8 @@ let prove_unique_tag_and_size0 env t :
         | Known blocks -> (
           match TG.Row_like_for_blocks.get_singleton blocks with
           | None -> Unknown
-          | Some (tag_and_size, product, alloc_mode) ->
-            Proved (tag_and_size, product, alloc_mode))
+          | Some (tag, shape, size, product, alloc_mode) ->
+            Proved (tag, shape, size, product, alloc_mode))
       else Unknown)
   | Value (Ok (Mutable_block _)) | Value (Ok _) | Value Unknown | Value Bottom
     ->
@@ -532,16 +537,16 @@ let prove_unique_tag_and_size0 env t :
     wrong_kind "Value" t
 
 let prove_unique_tag_and_size env t :
-    (Tag.t * Targetint_31_63.t) proof_of_property =
+    (Tag.t * K.Block_shape.t * Targetint_31_63.t) proof_of_property =
   match prove_unique_tag_and_size0 env t with
-  | Proved (tag_and_size, _, _) -> Proved tag_and_size
+  | Proved (tag, shape, size, _, _) -> Proved (tag, shape, size)
   | Unknown -> Unknown
 
 let prove_unique_fully_constructed_immutable_heap_block env t :
     _ proof_of_property =
   match prove_unique_tag_and_size0 env t with
-  | Unknown | Proved (_, _, (Heap_or_local | Local)) -> Unknown
-  | Proved (tag_and_size, product, Heap) -> (
+  | Unknown | Proved (_, _, _, _, (Heap_or_local | Local)) -> Unknown
+  | Proved (tag, shape, size, product, Heap) -> (
     let result =
       List.fold_left
         (fun (result : _ proof_of_property) field_ty : _ proof_of_property ->
@@ -556,7 +561,7 @@ let prove_unique_fully_constructed_immutable_heap_block env t :
     in
     match result with
     | Unknown -> Unknown
-    | Proved simples -> Proved (tag_and_size, List.rev simples))
+    | Proved simples -> Proved (tag, shape, size, List.rev simples))
 
 let meet_is_naked_number_array env t naked_number_kind : bool meet_shortcut =
   match expand_head env t with
@@ -1105,17 +1110,19 @@ let prove_physical_equality env t1 t2 =
                   TG.Row_like_for_blocks.get_singleton blocks2 )
               with
               | None, _ | _, None -> Unknown
-              | ( Some ((tag1, size1), _fields1, _alloc_mode1),
-                  Some ((tag2, size2), _fields2, _alloc_mode2) ) ->
-                if Tag.equal tag1 tag2 && Targetint_31_63.equal size1 size2
+              | ( Some (tag1, shape1, size1, _fields1, _alloc_mode1),
+                  Some (tag2, shape2, size2, _fields2, _alloc_mode2) ) ->
+                if Tag.equal tag1 tag2
+                   && Targetint_31_63.equal size1 size2
+                   && K.Block_shape.equal shape1 shape2
                 then
                   (* CR vlaviron and chambart: We could add a special case for
                      extension constructors, to try to remove dead branches in
                      try...with handlers *)
                   Unknown
                 else
-                  (* Different tags or sizes: the blocks can't be physically
-                     equal. *)
+                  (* Different tags, shapes or sizes: the blocks can't be
+                     physically equal. *)
                   Proved false
           in
           (* Note: the [Proved true, Proved true] case cannot be converted to

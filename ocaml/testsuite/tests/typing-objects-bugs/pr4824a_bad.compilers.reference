@@ -2,7 +2,10 @@ File "pr4824a_bad.ml", line 10, characters 2-45:
 10 |   struct class c x = object val x = x end end
        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Signature mismatch:
-       ...
+       Modules do not match:
+         sig class c : 'a -> object val x : 'a end end
+       is not included in
+         sig class c : 'a -> object val x : 'b end end
        Class declarations do not match:
          class c : 'a -> object val x : 'a end
        does not match

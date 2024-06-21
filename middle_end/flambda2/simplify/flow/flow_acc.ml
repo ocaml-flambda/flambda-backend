@@ -408,9 +408,8 @@ let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
 
 let add_extra_args_to_call ~extra_args rewrite_id original_args =
   match Apply_cont_rewrite_id.Map.find rewrite_id extra_args with
-  | exception Not_found -> Some original_args
-  | Or_invalid.Invalid -> None
-  | Or_invalid.Ok extra_args ->
+  | exception Not_found -> original_args
+  | extra_args ->
     let args_acc =
       if Numeric_types.Int.Map.is_empty original_args
       then 0, Numeric_types.Int.Map.empty
@@ -434,7 +433,7 @@ let add_extra_args_to_call ~extra_args rewrite_id original_args =
           i + 1, Numeric_types.Int.Map.add i extra_arg args)
         args_acc extra_args
     in
-    Some args
+    args
 
 let extend_args_with_extra_args (t : T.Acc.t) =
   let map =
@@ -447,7 +446,7 @@ let extend_args_with_extra_args (t : T.Acc.t) =
               | exception Not_found -> rewrite_ids
               | epa ->
                 let extra_args = EPA.extra_args epa in
-                Apply_cont_rewrite_id.Map.filter_map
+                Apply_cont_rewrite_id.Map.mapi
                   (add_extra_args_to_call ~extra_args)
                   rewrite_ids)
             elt.apply_cont_args
@@ -471,8 +470,7 @@ let extend_args_with_extra_args (t : T.Acc.t) =
                         (EPA.extra_args epa)
                     with
                     | exception Not_found -> defined
-                    | Invalid -> defined
-                    | Ok extra_args ->
+                    | extra_args ->
                       let defined =
                         List.fold_left
                           (fun defined -> function

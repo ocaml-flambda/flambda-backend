@@ -239,6 +239,13 @@ let blocks_to_unbox ~escaping ~source_info ~required_names =
                         (fun _ -> Flambda_kind.With_subkind.naked_float)
                         fields
                   }
+                | Mixed (tag, shape) ->
+                  let fields_kinds =
+                    List.map Flambda_kind.With_subkind.anything
+                      (Array.to_list
+                         (Flambda_kind.Mixed_block_shape.field_kinds shape))
+                  in
+                  { tag = Tag.Scannable.to_tag tag; mut; fields_kinds }
               in
               Variable.Map.add var block_to_unbox map)
         map elt.mutable_let_prims_rev)
@@ -664,8 +671,7 @@ let add_to_extra_params_and_args result =
             let epa_for_cont =
               List.fold_left2
                 (fun epa_for_cont extra_param extra_args ->
-                  EPA.add epa_for_cont ~extra_param ~extra_args
-                    ~invalids:Apply_cont_rewrite_id.Set.empty)
+                  EPA.add epa_for_cont ~extra_param ~extra_args)
                 epa_for_cont extra_params extra_args
             in
             Some epa_for_cont)

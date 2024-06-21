@@ -159,14 +159,7 @@ let block_set (kind : Flambda_primitive.Block_access_kind.t)
     does_not_need_caml_c_call_extcall_size (* caml_modify *)
   | Values _, (Assignment Local | Initialization) -> 1 (* cadda + store *)
   | Naked_floats _, (Assignment _ | Initialization) -> 1
-  | ( Mixed
-        { field_kind =
-            ( Value_prefix _
-            | Flat_suffix
-                (Imm | Float_boxed | Float64 | Float32 | Bits32 | Bits64 | Word)
-              );
-          _
-        },
+  | ( Mixed { field_kind = Value_prefix _ | Flat_suffix _; _ },
       (Assignment _ | Initialization) ) ->
     1
 
@@ -420,8 +413,7 @@ let variadic_prim_size prim args =
   | Make_block (_, _mut, _alloc_mode)
   (* CR mshinwell: I think Make_array for a generic array ("Anything") is more
      expensive than the other cases *)
-  | Make_array (_, _mut, _alloc_mode)
-  | Make_mixed_block (_, _, _mut, _alloc_mode) ->
+  | Make_array (_, _mut, _alloc_mode) ->
     alloc_size + List.length args
 
 let prim (prim : Flambda_primitive.t) =

@@ -18,6 +18,8 @@ type 'a t =
   | Known of 'a
   | Unknown
 
+let known x = Known x
+
 let print f ppf t =
   let colour = Flambda_colours.top_or_bottom_type in
   match t with

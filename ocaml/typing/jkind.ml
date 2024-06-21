@@ -1009,6 +1009,9 @@ let get_modal_upper_bounds jk = jk.jkind.modes_upper_bounds
 
 let get_externality_upper_bound jk = jk.jkind.externality_upper_bound
 
+let set_externality_upper_bound jk externality_upper_bound =
+  { jk with jkind = { jk.jkind with externality_upper_bound } }
+
 (*********************************)
 (* pretty printing *)
 
@@ -1315,7 +1318,7 @@ end = struct
 
   let format_interact_reason ppf : History.interact_reason -> _ = function
     | Gadt_equation name ->
-      fprintf ppf "a GADT match on the constructor %a" !printtyp_path name
+      fprintf ppf "a GADT match refining the type %a" !printtyp_path name
     | Tyvar_refinement_intersection -> fprintf ppf "updating a type variable"
     | Subjkind -> fprintf ppf "sublayout check"
 
@@ -1508,7 +1511,10 @@ let combine_histories reason lhs rhs =
         rhs_history = rhs.history
       }
 
-let intersection ~reason t1 t2 =
+let has_intersection t1 t2 =
+  Option.is_some (Jkind_desc.intersection t1.jkind t2.jkind)
+
+let intersection_or_error ~reason t1 t2 =
   match Jkind_desc.intersection t1.jkind t2.jkind with
   | None -> Error (Violation.of_ (No_intersection (t1, t2)))
   | Some jkind ->

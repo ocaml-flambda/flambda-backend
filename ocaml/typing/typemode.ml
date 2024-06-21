@@ -47,10 +47,6 @@ let transl_mode_annots modes =
           match acc.contention with
           | None -> { acc with contention = Some Contended }
           | Some _ -> raise (Error (loc, Duplicated_mode Contention)))
-        | "global" ->
-          (* CR zqian: global modality might leak to here by ppxes.
-             This is a dirty fix that needs to be fixed ASAP. *)
-          acc
         | s -> raise (Error (loc, Unrecognized_mode s))
       in
       loop acc rest
@@ -58,9 +54,10 @@ let transl_mode_annots modes =
   loop Alloc.Const.Option.none modes.txt
 
 let transl_modality m : Modality.t =
-  let { txt; loc } = (m : Mode_expr.Const.t :> _ Location.loc) in
+  let { txt; loc } = m in
+  let (Parsetree.Modality s) = txt in
   Jane_syntax_parsing.assert_extension_enabled ~loc Mode ();
-  match txt with
+  match s with
   | "global" -> Atom (Comonadic Areality, Meet_with Regionality.Const.Global)
   | "local" -> Atom (Comonadic Areality, Meet_with Regionality.Const.Local)
   | "many" -> Atom (Comonadic Linearity, Meet_with Linearity.Const.Many)
@@ -76,6 +73,31 @@ let transl_modality m : Modality.t =
   | "uncontended" ->
     Atom (Monadic Contention, Join_with Contention.Const.Uncontended)
   | s -> raise (Error (loc, Unrecognized_modality s))
+
+let untransl_modalities ~loc m : Parsetree.modality loc list =
+  let untransl_atom (a : Modality.t) =
+    let s =
+      match a with
+      | Atom (Comonadic Areality, Meet_with Regionality.Const.Global) ->
+        "global"
+      | Atom (Comonadic Areality, Meet_with Regionality.Const.Local) -> "local"
+      | Atom (Comonadic Linearity, Meet_with Linearity.Const.Many) -> "many"
+      | Atom (Comonadic Linearity, Meet_with Linearity.Const.Once) -> "once"
+      | Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Shared) -> "shared"
+      | Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Unique) -> "unique"
+      | Atom (Comonadic Portability, Meet_with Portability.Const.Portable) ->
+        "portable"
+      | Atom (Comonadic Portability, Meet_with Portability.Const.Nonportable) ->
+        "nonportable"
+      | Atom (Monadic Contention, Join_with Contention.Const.Contended) ->
+        "contended"
+      | Atom (Monadic Contention, Join_with Contention.Const.Uncontended) ->
+        "uncontended"
+      | _ -> failwith "BUG: impossible modality atom"
+    in
+    { txt = Parsetree.Modality s; loc }
+  in
+  Modality.Value.to_list m |> List.map untransl_atom
 
 let compose_modalities modalities =
   (* The ordering:
@@ -94,7 +116,7 @@ let is_mutable_implied_modality m =
   List.mem m mutable_implied_modalities
 
 let transl_modalities mut modalities =
-  let modalities = List.map transl_modality modalities.txt in
+  let modalities = List.map transl_modality modalities in
   let modalities =
     if Types.is_mutable mut
     then modalities @ mutable_implied_modalities
