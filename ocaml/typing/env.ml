@@ -3552,12 +3552,14 @@ let find_cltype_index id env = find_index_tbl id env.cltypes
 (* Ordinary lookup functions *)
 
 let lookup_module_path ?(use=true) ?(lock=use) ~loc ~load lid env =
-  let path, vmode = lookup_module_path ~errors:true ~use ~lock ~loc ~load lid env in
-  path, vmode.mode, vmode.context
+  let path, vmode =
+    lookup_module_path ~errors:true ~use ~lock ~loc ~load lid env
+  in
+  path, vmode.mode
 
 let lookup_module ?(use=true) ?(lock=use) ~loc lid env =
-  let path, md, vmode = lookup_module ~errors:true ~use ~lock ~loc lid env in
-  path, md, vmode.mode, vmode.context
+  let path, desc, vmode = lookup_module ~errors:true ~use ~lock ~loc lid env in
+  path, desc, vmode.mode
 
 let lookup_value ?(use=true) ~loc lid env =
   lookup_value ~errors:true ~use ~loc lid env
@@ -3572,8 +3574,8 @@ let lookup_modtype_path ?(use=true) ~loc lid env =
   fst (lookup_modtype_lazy ~errors:true ~use ~loc lid env)
 
 let lookup_class ?(use=true) ~loc lid env =
-  let path, cld, vmode = lookup_class ~errors:true ~use ~loc lid env in
-  path, cld, vmode.mode, vmode.context
+  let path, desc, vmode = lookup_class ~errors:true ~use ~loc lid env in
+  path, desc, vmode.mode
 
 let lookup_cltype ?(use=true) ~loc lid env =
   lookup_cltype ~errors:true ~use ~loc lid env

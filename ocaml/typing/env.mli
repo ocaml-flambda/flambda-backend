@@ -254,20 +254,20 @@ val lookup_type:
   Path.t * type_declaration
 val lookup_module:
   ?use:bool -> ?lock:bool -> loc:Location.t -> Longident.t -> t ->
-  Path.t * module_declaration * Mode.Value.l * shared_context option
+  Path.t * module_declaration * Mode.Value.l
 val lookup_modtype:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * modtype_declaration
 val lookup_class:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
-  Path.t * class_declaration * Mode.Value.l * shared_context option
+  Path.t * class_declaration * Mode.Value.l
 val lookup_cltype:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * class_type_declaration
 
 val lookup_module_path:
   ?use:bool -> ?lock:bool -> loc:Location.t -> load:bool -> Longident.t -> t ->
-    Path.t * Mode.Value.l * shared_context option
+    Path.t * Mode.Value.l
 val lookup_modtype_path:
   ?use:bool -> loc:Location.t -> Longident.t -> t -> Path.t
 
