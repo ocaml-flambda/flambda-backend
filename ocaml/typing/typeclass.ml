@@ -1133,7 +1133,7 @@ and class_expr cl_num val_env met_env virt self_scope scl =
 and class_expr_aux cl_num val_env met_env virt self_scope scl =
   match scl.pcl_desc with
   | Pcl_constr (lid, styl) ->
-      let (path, decl, mode, _) =
+      let (path, decl, mode) =
         Env.lookup_class ~loc:scl.pcl_loc lid.txt val_env
       in
       Mode.Value.submode_exn mode Mode.Value.legacy;
