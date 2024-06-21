@@ -143,6 +143,10 @@ module Stdlib : sig
     (** [map_sharing f l] is [map f l]. If for all elements of the list
         [f e == e] then [map_sharing f l == l] *)
 
+    val fold_lefti : (int -> 'a -> 'b -> 'a) -> 'a -> 'b list -> 'a
+    (** [fold_lefti f init l] is like [fold_left] but also takes as parameter
+        the zero-based index of the element *)
+
     val chunks_of : int -> 'a t -> 'a t t
     (** [chunks_of n t] returns a list of nonempty lists whose
         concatenation is equal to the original list. Every list has [n]

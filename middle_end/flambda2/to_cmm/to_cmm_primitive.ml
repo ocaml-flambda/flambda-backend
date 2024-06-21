@@ -92,6 +92,10 @@ let make_block ~dbg kind alloc_mode args =
   | Values (tag, _) -> C.make_alloc ~mode dbg (Tag.Scannable.to_int tag) args
   | Naked_floats ->
     C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
+  | Mixed (tag, shape) ->
+    C.make_mixed_alloc ~mode dbg (Tag.Scannable.to_int tag)
+      (K.Mixed_block_shape.to_lambda shape)
+      args
 
 let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     ~block ~index =
@@ -106,15 +110,25 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
   | Naked_floats _ -> C.unboxed_float_array_ref block index dbg
   | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
     match field_kind with
-    | Imm -> C.get_field_computed Immediate mutability ~block ~index dbg
-    | Float_boxed | Float64 ->
+    | Value ->
+      (* The flat suffix cannot store scannable values, so this must be an
+         immediate *)
+      C.get_field_computed Immediate mutability ~block ~index dbg
+    | Naked_number Naked_float ->
       (* CR layouts v5.1: We should use the mutability here to generate better
          code if the load is immutable. *)
       C.unboxed_float_array_ref block index dbg
-    | Float32 -> C.get_field_unboxed_float32 mutability ~block ~index dbg
-    | Bits32 -> C.get_field_unboxed_int32 mutability ~block ~index dbg
-    | Bits64 | Word ->
-      C.get_field_unboxed_int64_or_nativeint mutability ~block ~index dbg)
+    | Naked_number Naked_float32 ->
+      C.get_field_unboxed_float32 mutability ~block ~index dbg
+    | Naked_number Naked_int32 ->
+      C.get_field_unboxed_int32 mutability ~block ~index dbg
+    | Naked_number (Naked_int64 | Naked_nativeint) ->
+      C.get_field_unboxed_int64_or_nativeint mutability ~block ~index dbg
+    | Naked_number Naked_vec128 ->
+      Misc.fatal_error "Naked_vec128 not supported in mixed blocks"
+    | Naked_number Naked_immediate | Region | Rec_info ->
+      Misc.fatal_errorf "Unexpected kind in mixed block field: %a" K.print
+        field_kind)
 
 let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     ~block ~index ~new_value =
@@ -130,13 +144,21 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     | Naked_floats _ -> C.float_array_set block index new_value dbg
     | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
       match field_kind with
-      | Imm ->
+      | Value ->
+        (* See comment in [block_load] about assuming [Immediate] *)
         C.setfield_computed Immediate init_or_assign block index new_value dbg
-      | Float_boxed | Float64 -> C.float_array_set block index new_value dbg
-      | Float32 -> C.setfield_unboxed_float32 block index new_value dbg
-      | Bits32 -> C.setfield_unboxed_int32 block index new_value dbg
-      | Bits64 | Word ->
-        C.setfield_unboxed_int64_or_nativeint block index new_value dbg)
+      | Naked_number Naked_float -> C.float_array_set block index new_value dbg
+      | Naked_number Naked_float32 ->
+        C.setfield_unboxed_float32 block index new_value dbg
+      | Naked_number Naked_int32 ->
+        C.setfield_unboxed_int32 block index new_value dbg
+      | Naked_number (Naked_int64 | Naked_nativeint) ->
+        C.setfield_unboxed_int64_or_nativeint block index new_value dbg
+      | Naked_number Naked_vec128 ->
+        Misc.fatal_error "Naked_vec128 not supported in mixed blocks"
+      | Naked_number Naked_immediate | Region | Rec_info ->
+        Misc.fatal_errorf "Unexpected kind in mixed block field: %a" K.print
+          field_kind)
   in
   C.return_unit dbg expr
 
@@ -155,13 +177,6 @@ let make_array ~dbg kind alloc_mode args =
   | Naked_int64s -> C.allocate_unboxed_int64_array ~elements:args mode dbg
   | Naked_nativeints ->
     C.allocate_unboxed_nativeint_array ~elements:args mode dbg
-
-let make_mixed_block ~dbg tag shape alloc_mode args =
-  check_alloc_fields args;
-  let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
-  let tag = Tag.Scannable.to_int tag in
-  let shape = P.Mixed_block_kind.to_lambda shape in
-  C.make_mixed_alloc ~mode dbg tag shape args
 
 let array_length ~dbg arr (kind : P.Array_kind.t) =
   match kind with
@@ -819,8 +834,6 @@ let variadic_primitive _env dbg f args =
   match (f : P.variadic_primitive) with
   | Make_block (kind, _mut, alloc_mode) -> make_block ~dbg kind alloc_mode args
   | Make_array (kind, _mut, alloc_mode) -> make_array ~dbg kind alloc_mode args
-  | Make_mixed_block (tag, shape, _mut, alloc_mode) ->
-    make_mixed_block ~dbg tag shape alloc_mode args
 
 let arg ?consider_inlining_effectful_expressions ~dbg env res simple =
   C.simple ?consider_inlining_effectful_expressions ~dbg env res simple
@@ -887,8 +900,7 @@ let consider_inlining_effectful_expressions p =
      that the Cmm translation for such primitive both respects right-to-left
      evaluation order and does not duplicate any arguments. *)
   match[@ocaml.warning "-4"] (p : P.t) with
-  | Variadic ((Make_block _ | Make_array _ | Make_mixed_block _), _) ->
-    Some true
+  | Variadic ((Make_block _ | Make_array _), _) -> Some true
   | Nullary _ | Unary _ | Binary _ | Ternary _ -> None
 
 let prim_simple env res dbg p =
@@ -939,8 +951,7 @@ let prim_simple env res dbg p =
     let effs = Ece.join (Ece.join x.effs y.effs) z.effs in
     let expr = ternary_primitive env dbg ternary x.cmm y.cmm z.cmm in
     Env.simple expr free_vars, None, env, res, effs
-  | Variadic
-      (((Make_block _ | Make_array _ | Make_mixed_block _) as variadic), l) ->
+  | Variadic (((Make_block _ | Make_array _) as variadic), l) ->
     let args, free_vars, env, res, effs =
       arg_list ?consider_inlining_effectful_expressions ~dbg env res l
     in
@@ -975,8 +986,7 @@ let prim_complex env res dbg p =
       let To_cmm_env.{ env; res; expr = z } = arg env res z in
       let effs = Ece.join (Ece.join x.effs y.effs) z.effs in
       prim', [x; y; z], effs, env, res
-    | Variadic
-        (((Make_block _ | Make_array _ | Make_mixed_block _) as variadic), l) ->
+    | Variadic (((Make_block _ | Make_array _) as variadic), l) ->
       let prim' = P.Without_args.Variadic variadic in
       let args, env, res, effs =
         arg_list' ?consider_inlining_effectful_expressions ~dbg env res l

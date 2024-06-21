@@ -898,18 +898,11 @@ let[@inline always] simplify_immutable_block_load0
   let result_var' = Bound_var.var result_var in
   let typing_env = DA.typing_env dacc in
   match[@warning "-fragile-match"]
-    T.meet_equals_single_tagged_immediate typing_env index_ty, access_kind
+    T.meet_equals_single_tagged_immediate typing_env index_ty
   with
-  | _, Mixed _ ->
-    SPR.create_unknown dacc ~result_var result_kind ~original_term
-    (* CR mixed blocks: An flambda2 person will see how to do better here for
-       mixed blocks. Simply extending the existing code would require extending
-       [Block_kind] with [Mixed], but various parts of the code seem to assume
-       blocks have uniform element kinds. *)
-  | Invalid, _ -> SPR.create_invalid dacc
-  | Need_meet, _ ->
-    SPR.create_unknown dacc ~result_var result_kind ~original_term
-  | Known_result index, _ -> (
+  | Invalid -> SPR.create_invalid dacc
+  | Need_meet -> SPR.create_unknown dacc ~result_var result_kind ~original_term
+  | Known_result index -> (
     match
       T.meet_block_field_simple typing_env ~min_name_mode
         ~field_kind:result_kind block_ty index
@@ -924,28 +917,33 @@ let[@inline always] simplify_immutable_block_load0
       let n = Targetint_31_63.add index Targetint_31_63.one in
       (* CR-someday mshinwell: We should be able to use the size in the
          [access_kind] to constrain the type of the block *)
-      let tag : _ Or_unknown.t =
+      let tag, shape =
         match access_kind with
-        | Values { tag; _ } -> Or_unknown.map tag ~f:Tag.Scannable.to_tag
-        | Naked_floats { size } -> (
-          match size with
-          | Known size ->
-            (* We don't expect blocks of naked floats of size zero (it doesn't
-               seem that the frontend currently emits code to create such
-               blocks) and so it isn't clear whether such blocks should have tag
-               zero (like zero-sized naked float arrays) or another tag. *)
-            if Targetint_31_63.equal size Targetint_31_63.zero
-            then Unknown
-            else Known Tag.double_array_tag
-          | Unknown -> Unknown)
-        | Mixed _ -> assert false
+        | Values { tag; _ } ->
+          Or_unknown.map tag ~f:Tag.Scannable.to_tag, K.Block_shape.Value_only
+        | Naked_floats { size } ->
+          ( (match size with
+            | Known size ->
+              (* We don't expect blocks of naked floats of size zero (it doesn't
+                 seem that the frontend currently emits code to create such
+                 blocks) and so it isn't clear whether such blocks should have
+                 tag zero (like zero-sized naked float arrays) or another
+                 tag. *)
+              if Targetint_31_63.equal size Targetint_31_63.zero
+              then Or_unknown.Unknown
+              else Or_unknown.Known Tag.double_array_tag
+            | Unknown -> Or_unknown.Unknown),
+            K.Block_shape.Float_record )
+        | Mixed { tag; size = _; field_kind = _; shape } ->
+          ( Or_unknown.map tag ~f:Tag.Scannable.to_tag,
+            K.Block_shape.Mixed_record shape )
       in
       let result =
         Simplify_common.simplify_projection dacc ~original_term
           ~deconstructing:block_ty
           ~shape:
-            (T.immutable_block_with_size_at_least ~tag ~n
-               ~field_kind:result_kind ~field_n_minus_one:result_var')
+            (T.immutable_block_with_size_at_least ~tag ~n ~shape
+               ~field_n_minus_one:result_var')
           ~result_var ~result_kind
       in
       match result.simplified_named with
@@ -961,8 +959,8 @@ let[@inline always] simplify_immutable_block_load0
             (DA.typing_env dacc) block_ty
         with
         | Unknown -> result
-        | Proved (tag_and_size, field_simples) -> (
-          match Tag_and_size.tag tag_and_size |> Tag.Scannable.of_tag with
+        | Proved (tag, shape_from_type, _size, field_simples) -> (
+          match Tag.Scannable.of_tag tag with
           | None -> result
           | Some tag -> (
             let block_kind : P.Block_kind.t =
@@ -973,7 +971,15 @@ let[@inline always] simplify_immutable_block_load0
                 in
                 Values (tag, arity)
               | Naked_floats _ -> Naked_floats
-              | Mixed _ -> assert false
+              | Mixed { shape; _ } ->
+                (match shape_from_type with
+                | Mixed_record shape_from_type
+                  when K.Mixed_block_shape.equal shape shape_from_type ->
+                  ()
+                | Value_only | Float_record | Mixed_record _ ->
+                  Misc.fatal_error
+                    "Block access kind disagrees with block shape from type");
+                Mixed (tag, shape)
             in
             let prim =
               P.Eligible_for_cse.create

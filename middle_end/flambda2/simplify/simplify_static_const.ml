@@ -84,11 +84,11 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
       let fields = field_tys in
       match is_mutable with
       | Immutable ->
-        T.immutable_block ~is_unique:false tag ~field_kind:K.value ~fields
-          Alloc_mode.For_types.heap
+        T.immutable_block ~is_unique:false tag ~shape:K.Block_shape.Value_only
+          ~fields Alloc_mode.For_types.heap
       | Immutable_unique ->
-        T.immutable_block ~is_unique:true tag ~field_kind:K.value ~fields
-          Alloc_mode.For_types.heap
+        T.immutable_block ~is_unique:true tag ~shape:K.Block_shape.Value_only
+          ~fields Alloc_mode.For_types.heap
       | Mutable -> T.any_value
     in
     let dacc = bind_result_sym ty in
