@@ -1,7 +1,7 @@
 (* TEST
-   flags = "-extension layouts_beta -extension small_numbers";
-   include beta;
+   flags = "-extension layouts_beta";
    flambda2;
+   include stdlib_stable;
    include stdlib_upstream_compatible;
    {
    native;
@@ -13,8 +13,8 @@
 (*****************************************)
 (* Prelude: Functions on unboxed numbers *)
 
-module Float32_u = Beta.Float32_u
-module Float32 = Beta.Float32
+module Float32_u = Stdlib_stable.Float32_u
+module Float32 = Stdlib_stable.Float32
 module Float_u = Stdlib_upstream_compatible.Float_u
 module Int32_u = Stdlib_upstream_compatible.Int32_u
 module Int64_u = Stdlib_upstream_compatible.Int64_u
