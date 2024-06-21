@@ -1729,24 +1729,21 @@ and join_row_like :
     match join_shape i1.shape i2.shape with
     | Unknown -> Unknown
     | Known shape -> (
+      let return_index domain =
+        Or_unknown.Known (TG.Row_like_index.create ~domain ~shape)
+      in
       match i1.domain, i2.domain with
       | Known i1', Known i2' ->
         if equal_index i1' i2'
-        then Known (TG.Row_like_index.create ~domain:i1.domain ~shape)
+        then return_index i1.domain
         else
           (* We can't represent exactly the union, This is the best
              approximation *)
-          Known
-            (TG.Row_like_index.create
-               ~domain:(TG.Row_like_index_domain.at_least (inter_index i1' i2'))
-               ~shape)
+          return_index (TG.Row_like_index_domain.at_least (inter_index i1' i2'))
       | Known i1', At_least i2'
       | At_least i1', Known i2'
       | At_least i1', At_least i2' ->
-        Known
-          (TG.Row_like_index.create
-             ~domain:(TG.Row_like_index_domain.at_least (inter_index i1' i2'))
-             ~shape))
+        return_index (TG.Row_like_index_domain.at_least (inter_index i1' i2')))
   in
   let join_case join_env
       (case1 : ('lattice, 'shape, 'maps_to) TG.Row_like_case.t)
