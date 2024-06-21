@@ -382,7 +382,7 @@ module Const = struct
     let bits64 =
       { jkind = not_mode_crossing Layout.Const.bits64; name = "bits64" }
 
-    let get_all =
+    let all =
       [ any;
         value;
         void;
@@ -472,7 +472,7 @@ module Const = struct
            "simplest" is taken to mean the one with the least number of modes that need to
          follow the [mod]. *)
       let simplest =
-        Primitive.get_all
+        Primitive.all
         |> List.filter_map (fun base -> convert_with_base ~base jkind)
         |> select_simplest
       in

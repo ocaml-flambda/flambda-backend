@@ -220,8 +220,8 @@ module Const : sig
     not mode-cross. *)
     val bits64 : t
 
-    (** Get a list of all primitive jkinds *)
-    val get_all : t list
+    (** A list of all primitive jkinds *)
+    val all : t list
   end
 
   module Sort : module type of struct

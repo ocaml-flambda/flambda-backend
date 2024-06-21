@@ -94,9 +94,22 @@ let with_additional_action (config : additional_action_config) s =
     match config with
     | Duplicate_variables -> Duplicate_variables
     | Prepare_for_saving ->
-        let prepare_jkind loc lay =
-          match Jkind.get lay with
-          | Const const -> Jkind.of_const const ~why:Jkind.History.Imported
+        (* Memoize the built-in jkinds *)
+        let builtins =
+          Jkind.Const.Primitive.all
+          |> List.map (fun (builtin : Jkind.Const.Primitive.t) ->
+                builtin.jkind, Jkind.of_const builtin.jkind ~why:Jkind.History.Imported)
+        in
+        let prepare_jkind loc jkind =
+          match Jkind.get jkind with
+          | Const const ->
+            let builtin =
+              List.find_opt (fun (builtin, _) -> Jkind.Const.equal const builtin) builtins
+            in
+            begin match builtin with
+            | Some (__, jkind) -> jkind
+            | None -> Jkind.of_const const ~why:Jkind.History.Imported
+            end
           | Var _ -> raise(Error (loc, Unconstrained_jkind_variable))
         in
         Prepare_for_saving prepare_jkind
