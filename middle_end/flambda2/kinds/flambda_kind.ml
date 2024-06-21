@@ -188,6 +188,11 @@ module Mixed_block_shape = struct
   let value_prefix_size { fields = _; lambda_shape } =
     lambda_shape.value_prefix_len
 
+  (* This function has two meanings. The first is to say whether two shapes are
+     equivalent (which is why the lambda shape is not compared directly). The
+     second is to tell whether two shapes are compatible. Currently this matches
+     with equivalence, but if we introduce subkinds this will have to be split
+     into two functions. *)
   let equal t1 t2 =
     Int.equal t1.lambda_shape.value_prefix_len t2.lambda_shape.value_prefix_len
     && Int.equal (Array.length t1.fields) (Array.length t2.fields)
@@ -236,6 +241,7 @@ module Block_shape = struct
     | Float_record
     | Mixed_record of Mixed_block_shape.t
 
+  (* Some users rely on shapes not being compatible if they're not equal. *)
   let equal shape1 shape2 =
     match shape1, shape2 with
     | Value_only, Value_only -> true
