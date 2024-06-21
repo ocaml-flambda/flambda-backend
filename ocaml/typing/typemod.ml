@@ -3285,6 +3285,8 @@ let type_module_type_of env smod =
   let mty = Mtype.scrape_for_type_of ~remove_aliases env tmty.mod_type in
   (* PR#5036: must not contain non-generalized type variables *)
   check_nongen_modtype env smod.pmod_loc mty;
+  (* for [module type of], we zap to identity modality for best legacy
+  compatibility *)
   let mty = map_inferred_modalities_mty env Mode.Modality.Value.zap_to_id mty in
   tmty, mty
 
@@ -3499,6 +3501,8 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
       if !Clflags.print_types then begin
         remove_mode_and_jkind_variables finalenv sg;
         let simple_sg =
+          (* Printing [.mli] from [.ml], we zap to identity modality for legacy
+             compatibility. *)
           map_inferred_modalities_sg finalenv Mode.Modality.Value.zap_to_id simple_sg
         in
         Typecore.force_delayed_checks ();
@@ -3596,6 +3600,8 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           in
           check_nongen_signature finalenv simple_sg;
           let simple_sg =
+            (* Generating [cmi] without [mli]. This [cmi] will only be on the
+               LHS of inclusion check, so we zap to floor (strongest). *)
             map_inferred_modalities_sg finalenv Mode.Modality.Value.zap_to_floor
             simple_sg
           in
@@ -4061,7 +4067,7 @@ let report_error ~loc _env = function
         Compilation_unit.Name.print arg_type
   | Submode_failed (Error (ax, {left; right})) ->
       Location.errorf ~loc
-        "This value is %a, but is expected to be %a because it is inside a module."
+        "This value is %a, but expected to be %a because it is inside a module."
         (Mode.Value.Comonadic.Const.print_axis ax) left
         (Mode.Value.Comonadic.Const.print_axis ax) right
 

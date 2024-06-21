@@ -3,14 +3,11 @@
  expect;
 *)
 
-(* CR zqian: exhaust test: module mode could be top/bot, value mode could be
-   top/bot, modality used on left/right. *)
-
 type r = {
   mutable x : string;
 }
 
-let (uncontended_use @ portable) (_ @ uncontended) = ()
+let uncontended_use (_ @ uncontended) = ()
 [%%expect{|
 type r = { mutable x : string; }
 val uncontended_use : 'a -> unit = <fun>
@@ -37,7 +34,8 @@ module M : sig val foo : r end
 |}]
 
 module type S = sig
-    val x : string @@ global local unique shared once many uncontended contended portable nonportable
+    val x : string @@ global local unique shared once many uncontended contended
+      portable nonportable
 end
 [%%expect{|
 module type S =
@@ -52,7 +50,7 @@ end
 Line 2, characters 15-16:
 2 |     let local_ x = "hello"
                    ^
-Error: This value is local, but is expected to be global because it is inside a module.
+Error: This value is local, but expected to be global because it is inside a module.
 |}]
 
 (* Monadic axes don't have such constraint *)
@@ -64,8 +62,8 @@ module M : sig val x : string @@ contended end
 |}]
 
 (* Testing the defaulting behaviour.
-    "module type of", printing, and "generating cmi without mli" share the same
-    logic. Below, we will only test "module type of".
+    "module type of", printing share the same logic. Below, we will only test
+    "module type of".
 
     Note that the defaulting will mutate the original module type, but printing
     will backtrack the mutation after the printing is finished.
@@ -93,9 +91,9 @@ module Module_type_of_monadic = struct
     module M = struct
         let x @ uncontended = "hello"
     end
+    module M' : module type of M = M
     (* for monadic axes, we try to push to the id = join_with_min. The original
-    modality is pushed to floor. It is not testable that [M.x] is fixed and
-    cannot be [contended]. *)
+    modality is pushed to floor. *)
     module M' : module type of M = struct
         let x @ contended = "hello"
     end
@@ -166,6 +164,8 @@ Error: Signature mismatch:
 (* When defaulting, prioritize modes in arrow types over modalities. *)
 (* CR zqian: add tests when this becomes testable. *)
 
+(* When module doesn't have signature, the values' modes/modalities are still
+   flexible. *)
 module Without_inclusion = struct
     module M = struct
         let x @ portable = "hello"
@@ -213,7 +213,7 @@ Error: Signature mismatch:
        The second is empty and the first is contended.
 |}]
 
-module Inclusion_weakens = struct
+module Inclusion_weakens_monadic = struct
     module M : sig
         val x : string @@ contended
     end = struct
@@ -228,6 +228,21 @@ Line 7, characters 28-31:
 Error: This value is contended but expected to be uncontended.
 |}]
 
+module Inclusion_weakens_comonadic = struct
+  module M : sig
+      val x : string @@ nonportable
+  end = struct
+      let x @ portable = "hello"
+  end
+  let _ = portable_use M.x
+end
+[%%expect{|
+Line 7, characters 23-26:
+7 |   let _ = portable_use M.x
+                           ^^^
+Error: This value is nonportable but expected to be portable.
+|}]
+
 module Inclusion_match = struct
     module M : sig
         val x : string @@ uncontended
@@ -240,9 +255,10 @@ end
 module Inclusion_match : sig module M : sig val x : string end end
 |}]
 
+(* [foo] closes over [M.x] instead of [M]. This is better ergonomics. *)
 module Close_over_value = struct
   module M = struct
-    let x @ portable = "hello"
+    let x @ portable uncontended = "hello"
   end
   let (foo @ portable) () =
     let _ = M.x in
@@ -253,22 +269,22 @@ module Close_over_value :
   sig module M : sig val x : string end val foo : unit -> unit end
 |}]
 
-module Close_over_value = struct
+module Close_over_value_monadic = struct
   module M = struct
-    let r @ uncontended portable = {x = "hello"}
+    let r @ uncontended = "hello"
   end
   let (foo @ portable) () =
-    M.r.x <- "world";
-    ()
+    let uncontended_use (_ @ uncontended) = () in
+    uncontended_use M.r
 end
 [%%expect{|
-Line 3, characters 35-48:
-3 |     let r @ uncontended portable = {x = "hello"}
-                                       ^^^^^^^^^^^^^
-Error: This value is nonportable but expected to be portable.
+Line 7, characters 20-23:
+7 |     uncontended_use M.r
+                        ^^^
+Error: This value is contended but expected to be uncontended.
 |}]
 
-module Close_over_value = struct
+module Close_over_value_comonadic = struct
   module M = struct
     let x @ nonportable = "hello"
   end
