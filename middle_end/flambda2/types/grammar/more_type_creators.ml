@@ -34,13 +34,7 @@ let unknown (kind : K.t) =
 let unknown_like t = unknown (TG.kind t)
 
 let unknown_from_shape (shape : K.Block_shape.t) index =
-  let kind =
-    match shape with
-    | Value_only -> K.value
-    | Float_record -> K.naked_float
-    | Mixed_record fields -> (K.Mixed_block_shape.field_kinds fields).(index)
-  in
-  unknown kind
+  unknown (K.Block_shape.element_kind shape index)
 
 let bottom (kind : K.t) =
   match kind with
@@ -175,13 +169,7 @@ let immutable_block_with_size_at_least ~tag ~n ~shape ~field_n_minus_one =
   let n = Targetint_31_63.to_int n in
   let field_tys =
     List.init n (fun index ->
-        let field_kind =
-          match (shape : K.Block_shape.t) with
-          | Value_only -> K.value
-          | Float_record -> K.naked_float
-          | Mixed_record kinds ->
-            (K.Mixed_block_shape.field_kinds kinds).(index)
-        in
+        let field_kind = K.Block_shape.element_kind shape index in
         if index < n - 1
         then unknown field_kind
         else TG.alias_type_of field_kind (Simple.var field_n_minus_one))
