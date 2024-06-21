@@ -371,9 +371,7 @@ let[@inline always] meet_unknown meet_contents ~contents_is_bottom env
   | _, Unknown -> Ok (Left_input, env)
   | Unknown, _ -> Ok (Right_input, env)
   | Known contents1, Known contents2 ->
-    map_result
-      ~f:(fun contents -> Or_unknown.Known contents)
-      (meet_contents env contents1 contents2)
+    map_result ~f:Or_unknown.known (meet_contents env contents1 contents2)
 
 let[@inline always] join_unknown join_contents (env : Join_env.t)
     (or_unknown1 : _ Or_unknown.t) (or_unknown2 : _ Or_unknown.t) :
@@ -1245,8 +1243,8 @@ and meet_row_like_for_closures env
   let merge_map_known merge_case known1 known2 =
     Function_slot.Map.merge
       (fun fslot case1 case2 ->
-        let case1 = Option.map (fun case -> Or_unknown.Known case) case1 in
-        let case2 = Option.map (fun case -> Or_unknown.Known case) case2 in
+        let case1 = Option.map Or_unknown.known case1 in
+        let case2 = Option.map Or_unknown.known case2 in
         match merge_case fslot case1 case2 with
         | None -> None
         | Some (Or_unknown.Known case) -> Some case
@@ -1869,8 +1867,8 @@ and join_row_like_for_closures env
   let merge_map_known join_case known1 known2 =
     Function_slot.Map.merge
       (fun function_slot case1 case2 ->
-        let case1 = Option.map (fun case -> Or_unknown.Known case) case1 in
-        let case2 = Option.map (fun case -> Or_unknown.Known case) case2 in
+        let case1 = Option.map Or_unknown.known case1 in
+        let case2 = Option.map Or_unknown.known case2 in
         match (join_case function_slot case1 case2 : _ Or_unknown.t option) with
         | None -> None
         | Some (Known case) -> Some case

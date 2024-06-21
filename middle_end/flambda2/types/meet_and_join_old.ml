@@ -754,9 +754,7 @@ and meet_row_like :
           join_env_extension other_case.env_extension;
           Some (Known other_case)
         | Known case1 ->
-          Option.map
-            (fun case -> Or_unknown.Known case)
-            (meet_case case1 other_case)))
+          Option.map Or_unknown.known (meet_case case1 other_case)))
     | None, Some case2 -> (
       match other1 with
       | Bottom -> None
@@ -766,9 +764,7 @@ and meet_row_like :
           join_env_extension other_case.env_extension;
           Some (Known other_case)
         | Known case2 ->
-          Option.map
-            (fun case -> Or_unknown.Known case)
-            (meet_case other_case case2)))
+          Option.map Or_unknown.known (meet_case other_case case2)))
     | Some case1, Some case2 -> (
       match case1, case2 with
       | Unknown, Unknown ->
@@ -778,7 +774,7 @@ and meet_row_like :
         join_env_extension case.env_extension;
         Some (Known case)
       | Known case1, Known case2 ->
-        Option.map (fun case -> Or_unknown.Known case) (meet_case case1 case2))
+        Option.map Or_unknown.known (meet_case case1 case2))
   in
   let known =
     merge_map_known
@@ -837,8 +833,8 @@ and meet_row_like_for_closures env
   let merge_map_known merge_case known1 known2 =
     Function_slot.Map.merge
       (fun fslot case1 case2 ->
-        let case1 = Option.map (fun case -> Or_unknown.Known case) case1 in
-        let case2 = Option.map (fun case -> Or_unknown.Known case) case2 in
+        let case1 = Option.map Or_unknown.known case1 in
+        let case2 = Option.map Or_unknown.known case2 in
         match merge_case fslot case1 case2 with
         | None -> None
         | Some (Or_unknown.Known case) -> Some case
@@ -1603,8 +1599,8 @@ and join_row_like_for_closures env
   let merge_map_known join_case known1 known2 =
     Function_slot.Map.merge
       (fun function_slot case1 case2 ->
-        let case1 = Option.map (fun case -> Or_unknown.Known case) case1 in
-        let case2 = Option.map (fun case -> Or_unknown.Known case) case2 in
+        let case1 = Option.map Or_unknown.known case1 in
+        let case2 = Option.map Or_unknown.known case2 in
         match (join_case function_slot case1 case2 : _ Or_unknown.t option) with
         | None -> None
         | Some (Known case) -> Some case
