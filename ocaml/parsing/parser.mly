@@ -153,9 +153,31 @@ let mk_attr ~loc name payload =
   Attr.mk ~loc name payload
 
 let mkpat_with_modes ~loc ~pat ~cty ~modes =
-  match cty, modes with
-  | None, [] -> pat
-  | cty, modes -> mkpat ~loc (Ppat_constraint (pat, cty, modes))
+  match pat.ppat_desc with
+  | Ppat_constraint (pat', cty', modes') ->
+    begin match cty, cty' with
+    | Some _, None ->
+      { pat with
+        ppat_desc = Ppat_constraint (pat', cty, modes @ modes');
+        ppat_loc = make_loc loc
+      }
+    | None, _ ->
+      { pat with
+        ppat_desc = Ppat_constraint (pat', cty', modes @ modes');
+        ppat_loc = make_loc loc
+      }
+    | _ ->
+      mkpat ~loc (Ppat_constraint (pat, cty, modes))
+    end
+  | _ ->
+    begin match cty, modes with
+    | None, [] -> pat
+    | cty, modes -> mkpat ~loc (Ppat_constraint (pat, cty, modes))
+    end
+
+let ghpat_with_modes ~loc ~pat ~cty ~modes = 
+  let pat = mkpat_with_modes ~loc ~pat ~cty ~modes in
+  { pat with ppat_loc = { pat.ppat_loc with loc_ghost = true }}
 
 let add_mode_constraint_to_exp ~loc ~exp ~modes =
   match exp.pexp_desc with
@@ -2268,9 +2290,8 @@ class_fun_def:
 class_self_pattern:
     LPAREN pattern RPAREN
       { reloc_pat ~loc:$sloc $2 }
-  | mkpat(LPAREN pattern COLON core_type RPAREN
-      { Ppat_constraint($2, Some $4, []) })
-      { $1 }
+  | LPAREN pattern COLON core_type RPAREN
+      { mkpat_with_modes ~loc:$sloc ~pat:$2 ~cty:(Some $4) ~modes:[] }
   | /* empty */
       { ghpat ~loc:$sloc Ppat_any }
 ;
@@ -3130,7 +3151,7 @@ let_binding_body_no_punning:
           wrap_type_annotation ~loc:$sloc ~modes:[] ~typloc:$loc($6) $4 $6 $9
         in
         let loc = ($startpos($1), $endpos($6)) in
-        (ghpat ~loc (Ppat_constraint($1, Some poly, [])), exp, None, modes)
+        (ghpat_with_modes ~loc ~pat:$1 ~cty:(Some poly) ~modes:[], exp, None, modes)
        }
   | pattern_no_exn EQUAL seq_expr
       { ($1, $3, None, []) }
@@ -3197,7 +3218,7 @@ letop_binding_body:
   (* CR zqian: support mode annotation on letop. *)
   | pat = simple_pattern COLON typ = core_type EQUAL exp = seq_expr
       { let loc = ($startpos(pat), $endpos(typ)) in
-        (ghpat ~loc (Ppat_constraint(pat, Some typ, [])), exp) }
+        (ghpat_with_modes ~loc ~pat ~cty:(Some typ) ~modes:[], exp) }
   | pat = pattern_no_exn EQUAL exp = seq_expr
       { (pat, exp) }
 ;
@@ -3639,7 +3660,7 @@ simple_pattern_not_ident:
    * | LPAREN pattern COLON core_type modes=optional_atat_mode_expr RPAREN
    *     { mkpat ~loc:$sloc (Ppat_constraint($2, Some $4, modes)) } *)
   | LPAREN pattern COLON core_type RPAREN
-    { mkpat ~loc:$sloc (Ppat_constraint($2, Some $4, [])) }
+    { mkpat_with_modes ~loc:$sloc ~pat:$2 ~cty:(Some $4) ~modes:[] }
   (* CR cgunn: figure out how to get these errors to work without reduce/reduce
      conflicts *)
   (* | LPAREN pattern COLON core_type ATAT error
