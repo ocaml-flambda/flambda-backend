@@ -193,8 +193,8 @@ Error: The layout of type a is value, because
        But the layout of type a must be a sublayout of value, because
          of the definition of b at line 2, characters 0-29.
 |}]
-(* CR layouts v2.8: This is a bad error message. The error should contain information
-  about the modal bounds *)
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 type a : value mod global
 type b : any mod local = a
@@ -235,6 +235,8 @@ Error: The layout of type a is immediate, because
        But the layout of type a must be a sublayout of value, because
          of the definition of b at line 2, characters 0-73.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 (********************************************************)
 (* Test 3: Abbreviation primitives are properly defined *)
@@ -401,6 +403,8 @@ Error: The layout of type string is value, because
        But the layout of type string must be a sublayout of any, because
          of the definition of t at line 1, characters 0-32.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 type t : any mod unique = string
 [%%expect{|
@@ -412,6 +416,8 @@ Error: The layout of type string is value, because
        But the layout of type string must be a sublayout of any, because
          of the definition of t at line 1, characters 0-32.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 type t : any mod many = string
 [%%expect{|
@@ -423,6 +429,8 @@ Error: The layout of type string is value, because
        But the layout of type string must be a sublayout of any, because
          of the definition of t at line 1, characters 0-30.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 type t : any mod uncontended = string
 [%%expect{|
@@ -434,6 +442,8 @@ Error: The layout of type string is value, because
        But the layout of type string must be a sublayout of any, because
          of the definition of t at line 1, characters 0-37.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 type t : any mod portable = string
 [%%expect{|
@@ -445,6 +455,8 @@ Error: The layout of type string is value, because
        But the layout of type string must be a sublayout of any, because
          of the definition of t at line 1, characters 0-34.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 type t : any mod external_ = string
 [%%expect{|
@@ -456,3 +468,83 @@ Error: The layout of type string is value, because
        But the layout of type string must be a sublayout of any, because
          of the definition of t at line 1, characters 0-35.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : any mod global = { x : string }
+[%%expect{|
+Line 1, characters 0-40:
+1 | type t : any mod global = { x : string }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of any, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : any mod unique = { x : string }
+[%%expect{|
+Line 1, characters 0-40:
+1 | type t : any mod unique = { x : string }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of any, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : any mod many = { x : string }
+[%%expect{|
+Line 1, characters 0-38:
+1 | type t : any mod many = { x : string }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of any, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : any mod uncontended = { x : string }
+[%%expect{|
+Line 1, characters 0-45:
+1 | type t : any mod uncontended = { x : string }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of any, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : any mod portable = { x : string }
+[%%expect{|
+Line 1, characters 0-42:
+1 | type t : any mod portable = { x : string }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of any, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : any mod external_ = { x : string }
+[%%expect{|
+Line 1, characters 0-43:
+1 | type t : any mod external_ = { x : string }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of any, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)

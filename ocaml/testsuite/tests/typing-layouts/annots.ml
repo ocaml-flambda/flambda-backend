@@ -146,6 +146,8 @@ Error: This alias is bound to type int list
        But the layout of int list must be a sublayout of value, because
          of the annotation on the type variable 'a.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 (****************************************)
 (* Test 2: Annotation on type parameter *)
@@ -275,6 +277,8 @@ Error: This type string should be an instance of type ('a : immediate)
        But the layout of string must be a sublayout of immediate, because
          of the definition of t2_imm at line 1, characters 0-28.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 type t = string t2_global
 ;;
@@ -288,6 +292,8 @@ Error: This type string should be an instance of type ('a : value mod global)
        But the layout of string must be a sublayout of value, because
          of the definition of t2_global at line 8, characters 0-38.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 type u : word
 type t = u t2_complex
@@ -304,6 +310,8 @@ Error: This type u should be an instance of type
        But the layout of u must be a sublayout of word, because
          of the definition of t2_complex at line 10, characters 0-53.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 let f : 'a t2_imm -> 'a t2_imm = fun x -> x
 let f : 'a t2_global -> 'a t2_global = fun x -> x
@@ -355,6 +363,8 @@ Error: The universal type variable 'a was declared to have layout value.
        But it was inferred to have layout immediate, because
          of the definition of t2_imm at line 1, characters 0-28.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 let f : ('a : value). 'a t2_global -> 'a t2_global = fun x -> x
 ;;
@@ -366,6 +376,8 @@ Error: The universal type variable 'a was declared to have layout value.
        But it was inferred to have layout value, because
          of the definition of t2_global at line 8, characters 0-38.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 let f : ('a : word). 'a t2_complex -> 'a t2_complex = fun x -> x
 ;;
@@ -531,6 +543,8 @@ Error: This expression has type string but an expression was expected of type
        But the layout of string must be a sublayout of immediate, because
          of the definition of r at line 1, characters 0-47.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 let f { fieldg } = fieldg "hello"
 ;;
@@ -545,6 +559,8 @@ Error: This expression has type string but an expression was expected of type
        But the layout of string must be a sublayout of value, because
          of the definition of rg at line 1, characters 0-56.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 let f { fieldc } = fieldc "hello"
 ;;
@@ -559,6 +575,8 @@ Error: This expression has type string but an expression was expected of type
        But the layout of string must be a sublayout of word, because
          of the definition of rc at line 1, characters 0-70.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 let r = { field = fun x -> x }
 let r = { field = Fun.id }
@@ -611,6 +629,7 @@ Error: This field value has type 'b -> 'b which is less general than
        But the layout of 'a must be a sublayout of value, because
          of the annotation on the abstract type declaration for a.
 |}]
+(* CR layouts v1.5: that's a pretty awful error message *)
 
 type ('a : immediate) t_imm
 
@@ -660,6 +679,8 @@ Error: Layout mismatch in final type declaration consistency check.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 type ('a : word mod external_ many shared) t_complex
 
@@ -682,6 +703,8 @@ Error: Layout mismatch in final type declaration consistency check.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 (********************)
 (* Test 5: newtypes *)
@@ -792,6 +815,8 @@ Error: The universal type variable 'a was defaulted to have layout value.
        But it was inferred to have layout immediate, because
          of the definition of t2_imm at line 1, characters 0-28.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 let f : 'a. 'a t2_imm -> 'a t2_imm = fun x -> x
 
@@ -803,6 +828,8 @@ Error: The universal type variable 'a was defaulted to have layout value.
        But it was inferred to have layout immediate, because
          of the definition of t2_imm at line 1, characters 0-28.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 (********************************************)
 (* Test 8: Annotation on universal variable *)
@@ -827,6 +854,8 @@ Error: The universal type variable 'a was declared to have layout value.
        But it was inferred to have layout immediate, because
          of the definition of t2_imm at line 1, characters 0-28.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 module type S = sig
   val f : ('a : value). 'a t2_global -> 'a t2_global
@@ -840,6 +869,8 @@ Error: The universal type variable 'a was declared to have layout value.
        But it was inferred to have layout value, because
          of the definition of t2_global at line 8, characters 0-38.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 module type S = sig
   val f : ('a : value). 'a t2_complex -> 'a t2_complex
@@ -869,6 +900,8 @@ Error: The universal type variable 'a was declared to have layout word.
        But it was inferred to have layout word, because
          of the definition of t2_complex at line 10, characters 0-53.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 module type S = sig
   val f : 'a t2_imm -> 'a t2_imm
@@ -954,6 +987,8 @@ Error: This expression has type string but an expression was expected of type
        But the layout of string must be a sublayout of immediate, because
          of the annotation on the universal variable 'a.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 let f (x : ('a : value mod global). 'a -> 'a) = x "string"
 
@@ -968,6 +1003,8 @@ Error: This expression has type string but an expression was expected of type
        But the layout of string must be a sublayout of value, because
          of the annotation on the universal variable 'a.
 |}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
 
 (**************************************)
 (* Test 10: Parsing & pretty-printing *)
