@@ -400,6 +400,7 @@ let mk_value_description ~val_type ~val_kind ~val_attributes =
     val_type;
     val_kind;
     val_loc = Location.none;
+    val_modalities = Mode.Modality.Value.id;
     val_attributes;
     val_uid = Uid.internal_not_actually_unique;
     val_zero_alloc = Default_zero_alloc;
