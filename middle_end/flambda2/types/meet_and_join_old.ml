@@ -1105,7 +1105,7 @@ and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
          redundant equations [x : (= y)] and [y : (= x)]. *)
       Aliases.Alias_set.filter
         ~f:(fun alias ->
-          TE.alias_is_bound_before
+          TE.alias_is_bound_strictly_earlier
             (Join_env.target_join_env env)
             ~bound_name ~alias)
         shared_aliases

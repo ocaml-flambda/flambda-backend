@@ -599,7 +599,7 @@ let mem_simple ?min_name_mode t simple =
     ~name:(fun name ~coercion:_ -> mem ?min_name_mode t name)
     ~const:(fun _ -> true)
 
-let alias_is_bound_before t ~bound_name ~alias =
+let alias_is_bound_strictly_earlier t ~bound_name ~alias =
   let time_of_name =
     binding_time_and_mode t bound_name
     |> Binding_time.With_name_mode.binding_time

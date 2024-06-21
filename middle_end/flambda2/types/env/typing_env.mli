@@ -169,7 +169,8 @@ val mem : ?min_name_mode:Name_mode.t -> t -> Name.t -> bool
 
 val mem_simple : ?min_name_mode:Name_mode.t -> t -> Simple.t -> bool
 
-val alias_is_bound_before : t -> bound_name:Name.t -> alias:Simple.t -> bool
+val alias_is_bound_strictly_earlier :
+  t -> bound_name:Name.t -> alias:Simple.t -> bool
 
 (* CR vlaviron: If the underlying level in the extension defines several
    variables, then there is no guarantee that the binding order in the result
