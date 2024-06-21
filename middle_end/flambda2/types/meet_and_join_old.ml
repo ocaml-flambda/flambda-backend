@@ -737,15 +737,13 @@ and meet_row_like :
               (Or_unknown.Known
                  (TG.Row_like_case.create ~maps_to ~index ~env_extension)))))
   in
-  let meet_knowns case1 case2 :
+  let meet_knowns
+      (case1 :
+        ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option)
+      (case2 :
+        ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option) :
       ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option =
-    match
-      ( (case1
-          : ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option),
-        (case2
-          : ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option)
-      )
-    with
+    match case1, case2 with
     | None, None -> None
     | Some case1, None -> (
       match other2 with
