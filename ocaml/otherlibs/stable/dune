@@ -45,7 +45,11 @@
   iarrayLabels.ml
   iarrayLabels.mli
   stable.ml
-  stable.mli)
+  stable.mli
+  float32.ml
+  float32.mli
+  float32_u.ml
+  float32_u.mli)
  (action
   (bash
    "cp ../stdlib_stable/*.{ml,mli} .; mv stdlib_stable.ml stable.ml; mv stdlib_stable.mli stable.mli")))

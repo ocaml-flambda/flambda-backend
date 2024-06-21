@@ -41,7 +41,7 @@
 (rule
  (deps
   (glob_files ../stdlib_beta/*.{ml,mli}))
- (targets float32.ml float32.mli float32_u.ml float32_u.mli beta.ml beta.mli)
+ (targets beta.ml beta.mli)
  (action
   (bash
    "cp ../stdlib_beta/*.{ml,mli} .; mv stdlib_beta.ml beta.ml; mv stdlib_beta.mli beta.mli")))
