@@ -6,10 +6,6 @@
 (* CR zqian: exhaust test: module mode could be top/bot, value mode could be
    top/bot, modality used on left/right. *)
 
-(* CR zqian: test generating [cmi] without [mli]. *)
-
-(* CR zqian: test val_modalities from another file-module. *)
-
 type r = {
   mutable x : string;
 }

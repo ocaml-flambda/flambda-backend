@@ -531,7 +531,7 @@ module type S = sig
           the value's mode [mode]. *)
       val infer : md_mode:Value.lr -> mode:Value.l -> t
 
-      (** Returns a user modality weaker than the given modality. The returned
+      (** Returns a const modality weaker than the given modality. The returned
       modality will be pushed to identity modality if possible. The given
       modality might be mutated as a result. This function also enjoys the
       properties:
@@ -543,8 +543,12 @@ module type S = sig
       *)
       val zap_to_id : t -> Const.t
 
-      (** Returns a user modality by asserting the given modality is already
-      user modality and returning it. *)
+      (** Returns a const modality lowest (strongest) possible. The given
+          modality might be mutated as a result. *)
+      val zap_to_floor : t -> Const.t
+
+      (** Returns a const modality by asserting the given modality is already
+      const modality and returning it. *)
       val to_const_exn : t -> Const.t
 
       (** Convert a const modality. *)

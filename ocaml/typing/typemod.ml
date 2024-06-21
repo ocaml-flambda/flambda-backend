@@ -3596,7 +3596,7 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           in
           check_nongen_signature finalenv simple_sg;
           let simple_sg =
-            map_inferred_modalities_sg finalenv Mode.Modality.Value.zap_to_id
+            map_inferred_modalities_sg finalenv Mode.Modality.Value.zap_to_floor
             simple_sg
           in
           normalize_signature simple_sg;

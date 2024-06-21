@@ -2278,13 +2278,15 @@ module Modality = struct
       let mc = Mode.Guts.get_floor mm in
       Mode.subtract mc m
 
-    let zap_to_id = function
+    let zap_to_floor = function
       | Const c -> c
       | Undefined -> assert false
       | Diff (mm, m) ->
         let m' = cross mm m in
         let c = Mode.zap_to_floor m' in
         Const.Join_const c
+
+    let zap_to_id = zap_to_floor
 
     let to_const_exn = function
       | Const c -> c
@@ -2395,10 +2397,19 @@ module Modality = struct
 
     let max = Const Const.max
 
-    let zap_to_id = function
+    let zap_to_ceil = function
       | Const c -> c
       | Undefined -> assert false
       | Exactly _ -> Const.id
+
+    let zap_to_id = zap_to_ceil
+
+    let zap_to_floor = function
+      | Const c -> c
+      | Undefined -> assert false
+      | Exactly (_, m) ->
+        let c = Mode.zap_to_floor m in
+        Const.Meet_const c
 
     let to_const_exn = function
       | Const c -> c
@@ -2488,6 +2499,12 @@ module Modality = struct
       let { monadic; comonadic } = t in
       let comonadic = Comonadic.zap_to_id comonadic in
       let monadic = Monadic.zap_to_id monadic in
+      { monadic; comonadic }
+
+    let zap_to_floor t =
+      let { monadic; comonadic } = t in
+      let comonadic = Comonadic.zap_to_floor comonadic in
+      let monadic = Monadic.zap_to_floor monadic in
       { monadic; comonadic }
 
     let to_const_exn t =
