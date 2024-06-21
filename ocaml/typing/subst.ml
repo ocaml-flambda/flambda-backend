@@ -94,29 +94,9 @@ let with_additional_action (config : additional_action_config) s =
     match config with
     | Duplicate_variables -> Duplicate_variables
     | Prepare_for_saving ->
-        let reason = Jkind.Imported in
-        let any = Jkind.of_const Any ~why:reason in
-        let void = Jkind.of_const Void ~why:reason in
-        let value = Jkind.of_const Value ~why:reason in
-        let immediate = Jkind.of_const Immediate ~why:reason in
-        let immediate64 = Jkind.of_const Immediate64 ~why:reason in
-        let float64 = Jkind.of_const Float64 ~why:reason in
-        let float32 = Jkind.of_const Float32 ~why:reason in
-        let word = Jkind.of_const Word ~why:reason in
-        let bits32 = Jkind.of_const Bits32 ~why:reason in
-        let bits64 = Jkind.of_const Bits64 ~why:reason in
         let prepare_jkind loc lay =
           match Jkind.get lay with
-          | Const Any -> any
-          | Const Void -> void
-          | Const Value -> value
-          | Const Immediate -> immediate
-          | Const Immediate64 -> immediate64
-          | Const Float64 -> float64
-          | Const Float32 -> float32
-          | Const Word -> word
-          | Const Bits32 -> bits32
-          | Const Bits64 -> bits64
+          | Const const -> Jkind.of_const const ~why:Jkind.History.Imported
           | Var _ -> raise(Error (loc, Unconstrained_jkind_variable))
         in
         Prepare_for_saving prepare_jkind
@@ -294,7 +274,7 @@ let rec typexp copy_scope s ty =
     let has_fixed_row =
       not (is_Tconstr ty) && is_constr_row ~allow_ident:false tm in
     (* Make a stub *)
-    let jkind = Jkind.any ~why:Dummy_jkind in
+    let jkind = Jkind.Primitive.any ~why:Dummy_jkind in
     let ty' =
       if should_duplicate_vars then newpersty (Tvar {name = None; jkind})
       else newgenstub ~scope:(get_scope ty) jkind

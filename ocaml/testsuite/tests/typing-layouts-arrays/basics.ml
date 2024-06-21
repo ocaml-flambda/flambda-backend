@@ -278,7 +278,7 @@ end
 Line 9, characters 24-35:
 9 |   let f2 idx : int32# = get arr idx
                             ^^^^^^^^^^^
-Error: This expression has type ('a : float64)
+Error: This expression has type ('a : layout_float64)
        but an expression was expected of type int32#
        The layout of int32# is bits32, because
          it is the primitive bits32 type int32#.

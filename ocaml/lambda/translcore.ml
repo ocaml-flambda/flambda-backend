@@ -54,7 +54,7 @@ let layout_exp sort e = layout e.exp_env e.exp_loc sort e.exp_type
 let layout_pat sort p = layout p.pat_env p.pat_loc sort p.pat_type
 
 let check_record_field_sort loc sort =
-  match Jkind.Sort.get_default_value sort with
+  match Jkind.Sort.default_to_value_and_get sort with
   | Value | Float64 | Float32 | Bits32 | Bits64 | Word -> ()
   | Void -> raise (Error (loc, Illegal_void_record_field))
 
@@ -1022,7 +1022,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             match
               Ctype.check_type_jkind
                 e.exp_env (Ctype.correct_levels val_type)
-                (Jkind.value ~why:Probe)
+                (Jkind.Primitive.value ~why:Probe)
             with
             | Ok _ -> ()
             | Error _ -> raise (Error (e.exp_loc, Bad_probe_layout id))

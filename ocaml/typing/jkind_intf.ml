@@ -33,12 +33,35 @@ module type Sort = sig
   (** A sort variable that can be unified during type-checking. *)
   type var
 
-  (** Create a new sort variable that can be unified. *)
-  val new_var : unit -> t
+  module Const : sig
+    type t = const
 
-  val of_const : const -> t
+    val void : t
 
-  val of_var : var -> t
+    val value : t
+
+    val float64 : t
+
+    val float32 : t
+
+    val word : t
+
+    val bits32 : t
+
+    val bits64 : t
+
+    val equal : t -> t -> bool
+
+    val format : Format.formatter -> t -> unit
+  end
+
+  module Var : sig
+    type t = var
+
+    (** These names are generated lazily and only when this function is called,
+      and are not guaranteed to be efficient to create *)
+    val name : t -> string
+  end
 
   val void : t
 
@@ -54,19 +77,18 @@ module type Sort = sig
 
   val bits64 : t
 
-  (** These names are generated lazily and only when this function is called,
-      and are not guaranteed to be efficient to create *)
-  val var_name : var -> string
+  (** Create a new sort variable that can be unified. *)
+  val new_var : unit -> t
+
+  val of_const : Const.t -> t
+
+  val of_var : Var.t -> t
 
   (** This checks for equality, and sets any variables to make two sorts
       equal, if possible *)
   val equate : t -> t -> bool
 
-  val equal_const : const -> const -> bool
-
   val format : Format.formatter -> t -> unit
-
-  val format_const : Format.formatter -> const -> unit
 
   (** Defaults any variables to value; leaves other sorts alone *)
   val default_to_value : t -> unit
@@ -75,9 +97,9 @@ module type Sort = sig
       variable is unfilled. *)
   val is_void_defaulting : t -> bool
 
-  (** [get_default_value] extracts the sort as a `const`.  If it's a variable,
+  (** [default_to_value_and_get] extracts the sort as a `const`.  If it's a variable,
       it is set to [value] first. *)
-  val get_default_value : t -> const
+  val default_to_value_and_get : t -> Const.t
 
   (** To record changes to sorts, for use with `Types.{snapshot, backtrack}` *)
   type change

@@ -48,6 +48,8 @@ module Externality : sig
     | Internal (* managed by the garbage collector *)
 
   val le : t -> t -> bool
+
+  val print : Format.formatter -> t -> unit
 end
 
 module Sort : Jkind_intf.Sort with type const = Jkind_types.Sort.const
@@ -58,7 +60,28 @@ type sort = Sort.t
    indeterminate [Any] or a sort, which is a concrete memory layout. *)
 module Layout : sig
   module Const : sig
-    type t = (Types.type_expr, Sort.const) Jkind_types.Layout.layout
+    type t = Jkind_types.Layout.Const.t
+
+    val get_sort : t -> Sort.Const.t option
+
+    val to_string : t -> string
+
+    (* CR layouts v2.8: remove this *)
+    module Legacy : sig
+      type t = Jkind_types.Layout.Const.Legacy.t =
+        | Any
+        | Value
+        | Void
+        | Immediate64
+        | Immediate
+        | Float64
+        | Float32
+        | Word
+        | Bits32
+        | Bits64
+
+      val to_string : t -> string
+    end
   end
 end
 
@@ -67,8 +90,22 @@ end
     [Any] and subjkinds of other sorts, such as [Immediate]. *)
 type t = Types.type_expr Jkind_types.t
 
-include module type of struct
-  include Jkind_intf.History
+module History : sig
+  include module type of struct
+    include Jkind_intf.History
+  end
+
+  (* history *)
+
+  val has_imported_history : t -> bool
+
+  val update_reason : t -> creation_reason -> t
+
+  (* Mark the jkind as having produced a compiler warning. *)
+  val with_warning : t -> t
+
+  (* Whether this jkind has produced a compiler warning. *)
+  val has_warned : t -> bool
 end
 
 (******************************)
@@ -115,64 +152,126 @@ end
 (******************************)
 (* constants *)
 
-(** Constant jkinds are used both for user-written annotations and within
-    the type checker when we know a jkind has no variables *)
-type const = Jkind_types.const =
-  | Any
-  | Value
-  | Void
-  | Immediate64
-  | Immediate
-  | Float64
-  | Float32
-  | Word
-  | Bits32
-  | Bits64
+module Const : sig
+  (** Constant jkinds are used for user-written annotations *)
+  type t = Types.type_expr Jkind_types.Const.t
 
-val const_of_user_written_annotation :
-  context:annotation_context -> Jane_syntax.Jkind.annotation -> const
+  val to_out_jkind_const : t -> Outcometree.out_jkind_const
 
-val string_of_const : const -> string
+  val format : Format.formatter -> t -> unit
 
-val equal_const : const -> const -> bool
+  val equal : t -> t -> bool
 
-(** This jkind is the top of the jkind lattice. All types have jkind [any].
+  (** Gets the layout of a constant jkind. Never does mutation. *)
+  val get_layout : t -> Layout.Const.t
+
+  (* CR layouts v2.8: remove this *)
+
+  (** Gets the legacy layout of a constant jkind. Never does mutation. *)
+  val get_legacy_layout : t -> Layout.Const.Legacy.t
+
+  (** Gets the maximum modes for types of this constant jkind. *)
+  val get_modal_upper_bounds : t -> Mode.Alloc.Const.t
+
+  (** Gets the maximum mode on the externality axis for types of this constant jkind. *)
+  val get_externality_upper_bound : t -> Externality.t
+
+  module Primitive : sig
+    type nonrec t =
+      { jkind : t;
+        name : string
+      }
+
+    (** This jkind is the top of the jkind lattice. All types have jkind [any].
     But we cannot compile run-time manipulations of values of types with jkind
     [any]. *)
-val any : why:any_creation_reason -> t
+    val any : t
 
-(** Value of types of this jkind are not retained at all at runtime *)
-val void : why:void_creation_reason -> t
+    (** Value of types of this jkind are not retained at all at runtime *)
+    val void : t
 
-(** This is the jkind of normal ocaml values *)
-val value : why:value_creation_reason -> t
+    (** This is the jkind of normal ocaml values *)
+    val value : t
 
-(** Values of types of this jkind are immediate on 64-bit platforms; on other
+    (** Values of types of this jkind are immediate on 64-bit platforms; on other
     platforms, we know nothing other than that it's a value. *)
-val immediate64 : why:immediate64_creation_reason -> t
+    val immediate64 : t
 
-(** We know for sure that values of types of this jkind are always immediate *)
-val immediate : why:immediate_creation_reason -> t
+    (** We know for sure that values of types of this jkind are always immediate *)
+    val immediate : t
 
-(** This is the jkind of unboxed 64-bit floats.  They have sort
+    (** This is the jkind of unboxed 64-bit floats.  They have sort
     Float64. Mode-crosses. *)
-val float64 : why:float64_creation_reason -> t
+    val float64 : t
 
-(** This is the jkind of unboxed 32-bit floats.  They have sort
+    (** This is the jkind of unboxed 32-bit floats.  They have sort
     Float32. Mode-crosses. *)
-val float32 : why:float32_creation_reason -> t
+    val float32 : t
 
-(** This is the jkind of unboxed native-sized integers. They have sort
+    (** This is the jkind of unboxed native-sized integers. They have sort
     Word. Does not mode-cross. *)
-val word : why:word_creation_reason -> t
+    val word : t
 
-(** This is the jkind of unboxed 32-bit integers. They have sort Bits32. Does
+    (** This is the jkind of unboxed 32-bit integers. They have sort Bits32. Does
     not mode-cross. *)
-val bits32 : why:bits32_creation_reason -> t
+    val bits32 : t
 
-(** This is the jkind of unboxed 64-bit integers. They have sort Bits64. Does
+    (** This is the jkind of unboxed 64-bit integers. They have sort Bits64. Does
     not mode-cross. *)
-val bits64 : why:bits64_creation_reason -> t
+    val bits64 : t
+
+    (** Get a list of all primitive jkinds *)
+    val get_all : t list
+  end
+
+  module Sort : module type of struct
+    include Sort.Const
+  end
+
+  module Layout : module type of struct
+    include Layout.Const
+  end
+end
+
+module Primitive : sig
+  (** This jkind is the top of the jkind lattice. All types have jkind [any].
+    But we cannot compile run-time manipulations of values of types with jkind
+    [any]. *)
+  val any : why:History.any_creation_reason -> t
+
+  (** Value of types of this jkind are not retained at all at runtime *)
+  val void : why:History.void_creation_reason -> t
+
+  (** This is the jkind of normal ocaml values *)
+  val value : why:History.value_creation_reason -> t
+
+  (** Values of types of this jkind are immediate on 64-bit platforms; on other
+    platforms, we know nothing other than that it's a value. *)
+  val immediate64 : why:History.immediate64_creation_reason -> t
+
+  (** We know for sure that values of types of this jkind are always immediate *)
+  val immediate : why:History.immediate_creation_reason -> t
+
+  (** This is the jkind of unboxed 64-bit floats.  They have sort
+    Float64. Mode-crosses. *)
+  val float64 : why:History.float64_creation_reason -> t
+
+  (** This is the jkind of unboxed 32-bit floats.  They have sort
+    Float32. Mode-crosses. *)
+  val float32 : why:History.float32_creation_reason -> t
+
+  (** This is the jkind of unboxed native-sized integers. They have sort
+    Word. Does not mode-cross. *)
+  val word : why:History.word_creation_reason -> t
+
+  (** This is the jkind of unboxed 32-bit integers. They have sort Bits32. Does
+    not mode-cross. *)
+  val bits32 : why:History.bits32_creation_reason -> t
+
+  (** This is the jkind of unboxed 64-bit integers. They have sort Bits64. Does
+    not mode-cross. *)
+  val bits64 : why:History.bits64_creation_reason -> t
+end
 
 (** Take an existing [t] and add an ability to mode-cross along all the axes. *)
 val add_mode_crossing : t -> t
@@ -182,22 +281,27 @@ val add_mode_crossing : t -> t
 
 (** Create a fresh sort variable, packed into a jkind, returning both
     the resulting kind and the sort. *)
-val of_new_sort_var : why:concrete_jkind_reason -> t * sort
+val of_new_sort_var : why:History.concrete_jkind_reason -> t * sort
 
 (** Create a fresh sort variable, packed into a jkind. *)
-val of_new_sort : why:concrete_jkind_reason -> t
+val of_new_sort : why:History.concrete_jkind_reason -> t
 
-val of_const : why:creation_reason -> const -> t
+val of_const : why:History.creation_reason -> Const.t -> t
+
+val const_of_user_written_annotation :
+  context:History.annotation_context -> Jane_syntax.Jkind.annotation -> Const.t
 
 (** The typed jkind together with its user-written annotation. *)
-type annotation = Jkind_types.annotation
+type annotation = Types.type_expr Jkind_types.annotation
 
 val of_annotation :
-  context:annotation_context -> Jane_syntax.Jkind.annotation -> t * annotation
+  context:History.annotation_context ->
+  Jane_syntax.Jkind.annotation ->
+  t * annotation
 
 val of_annotation_option_default :
   default:t ->
-  context:annotation_context ->
+  context:History.annotation_context ->
   Jane_syntax.Jkind.annotation option ->
   t * annotation option
 
@@ -215,7 +319,7 @@ val of_annotation_option_default :
     Raises if a disallowed or unknown jkind is present.
 *)
 val of_type_decl :
-  context:annotation_context ->
+  context:History.annotation_context ->
   Parsetree.type_declaration ->
   (t * annotation * Parsetree.attributes) option
 
@@ -225,7 +329,7 @@ val of_type_decl :
     Raises if a disallowed or unknown jkind is present.
 *)
 val of_type_decl_default :
-  context:annotation_context ->
+  context:History.annotation_context ->
   default:t ->
   Parsetree.type_declaration ->
   t * annotation option * Parsetree.attributes
@@ -241,24 +345,26 @@ val for_boxed_variant : all_voids:bool -> t
 (******************************)
 (* elimination and defaulting *)
 
-(* The description of a jkind, used as a return type from [get]. *)
-type desc =
-  | Const of const
-  | Var of Sort.var
+module Desc : sig
+  (** The description of a jkind, used as a return type from [get]. *)
+  type t =
+    | Const of Const.t
+    | Var of Sort.var
+end
 
 (** Extract the [const] from a [Jkind.t], looking through unified
     sort variables. Returns [Var] if the final, non-variable jkind has not
     yet been determined. *)
-val get : t -> desc
+val get : t -> Desc.t
 
-(** [get_default_value] extracts the jkind as a `const`.  If it's a sort
+(** [default_to_value_and_get] extracts the jkind as a `const`.  If it's a sort
     variable, it is set to [value] first. *)
-val get_default_value : t -> const
+val default_to_value_and_get : t -> Const.t
 
-(** [default_to_value t] is [ignore (get_default_value t)] *)
+(** [default_to_value t] is [ignore (default_to_value_and_get t)] *)
 val default_to_value : t -> unit
 
-(** [is_void t] is [Void = get_default_value t].  In particular, it will
+(** [is_void t] is [Void = default_to_value_and_get t].  In particular, it will
     default the jkind to value if needed to make this false. *)
 val is_void_defaulting : t -> bool
 (* CR layouts v5: When we have proper support for void, we'll want to change
@@ -286,8 +392,6 @@ val set_externality_upper_bound : t -> Externality.t -> t
 (*********************************)
 (* pretty printing *)
 
-val to_string : t -> string
-
 val format : Format.formatter -> t -> unit
 
 (** Format the history of this jkind: what interactions it has had and why
@@ -301,19 +405,6 @@ val format_history :
 (** Provides the [Printtyp.path] formatter back up the dependency chain to
     this module. *)
 val set_printtyp_path : (Format.formatter -> Path.t -> unit) -> unit
-
-(******************************)
-(* history *)
-
-val has_imported_history : t -> bool
-
-val update_reason : t -> creation_reason -> t
-
-(* Mark the jkind as having produced a compiler warning. *)
-val with_warning : t -> t
-
-(* Whether this jkind has produced a compiler warning. *)
-val has_warned : t -> bool
 
 (******************************)
 (* relations *)
@@ -342,7 +433,7 @@ val has_intersection : t -> t -> bool
     it should be thought of as modifying the first jkind to be the
     intersection of the two, not something that modifies the second jkind. *)
 val intersection_or_error :
-  reason:interact_reason -> t -> t -> (t, Violation.t) Result.t
+  reason:History.interact_reason -> t -> t -> (t, Violation.t) Result.t
 
 (** [sub t1 t2] says whether [t1] is a subjkind of [t2]. Might update
     either [t1] or [t2] to make their layouts equal.*)

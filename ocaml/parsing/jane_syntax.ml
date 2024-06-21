@@ -514,7 +514,7 @@ module Jkind = struct
 
   type t =
     | Default
-    | Primitive_layout_or_abbreviation of Const.t
+    | Abbreviation of Const.t
     | Mod of t * Mode_expr.t
     | With of t * core_type
     | Kind_of of core_type
@@ -571,8 +571,8 @@ module Jkind = struct
     let to_structure_item t = to_structure_item (Location.mknoloc t) in
     match t_loc.txt with
     | Default -> struct_item_of_list "default" [] t_loc.loc
-    | Primitive_layout_or_abbreviation c ->
-      struct_item_of_list "prim" [Const.to_structure_item c] t_loc.loc
+    | Abbreviation c ->
+      struct_item_of_list "abbrev" [Const.to_structure_item c] t_loc.loc
     | Mod (t, mode_list) ->
       let mode_list_item =
         struct_item_of_attr
@@ -607,9 +607,8 @@ module Jkind = struct
               ret loc (With (t, ty))))
     | Some ("kind_of", [item_of_ty], loc) ->
       bind (struct_item_to_type item_of_ty) (fun ty -> ret loc (Kind_of ty))
-    | Some ("prim", [item], loc) ->
-      bind (Const.of_structure_item item) (fun c ->
-          ret loc (Primitive_layout_or_abbreviation c))
+    | Some ("abbrev", [item], loc) ->
+      bind (Const.of_structure_item item) (fun c -> ret loc (Abbreviation c))
     | Some _ | None -> None
 end
 
