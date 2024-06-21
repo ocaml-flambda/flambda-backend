@@ -76,12 +76,15 @@ module M = struct
   (* But not this *)
   let () = Format.printf "%f %s\n" (F.to_float (id' #1.)) (id' "abc")
 end
+
+(* CR layouts v2.8: The jkind in the error message is wrong. It should really be
+   ('a : layout float64) *)
 [%%expect{|
 Line 4, characters 63-68:
 4 |   let () = Format.printf "%f %s\n" (F.to_float (id' #1.)) (id' "abc")
                                                                    ^^^^^
 Error: This expression has type string but an expression was expected of type
-         ('a : layout_float64)
+         ('a : float64)
        The layout of string is value, because
          it is the primitive value type string.
        But the layout of string must be a sublayout of float64, because
@@ -533,12 +536,14 @@ Error: Attribute [@layout_poly] can only be used on built-in primitives.
 external[@layout_poly] id : ('a : any) ('b : any). 'a -> 'b = "%identity"
 let f (x: float#): int64# = id x
 
+(* CR layouts v2.8: The jkind in the error message is wrong. It should really be
+   ('a : layout float64) *)
 [%%expect{|
 external id : ('a : any) ('b : any). 'a -> 'b = "%identity" [@@layout_poly]
 Line 2, characters 28-32:
 2 | let f (x: float#): int64# = id x
                                 ^^^^
-Error: This expression has type ('a : layout_float64)
+Error: This expression has type ('a : float64)
        but an expression was expected of type int64#
        The layout of int64# is bits64, because
          it is the primitive bits64 type int64#.

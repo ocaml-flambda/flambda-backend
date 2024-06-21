@@ -479,11 +479,10 @@ module Const = struct
       match simplest with
       | Some simplest -> simplest
       | None ->
-        (* CR layouts: sometimes there is no valid way to build a jkind from a built-in
-           abbreviation. For now, we define the abbreviations layout_<layout>, where
-           <layout> is an underlying constant layout. The modal upper bounds are all max,
-           and users are unable to write this abbreviation. In the longer term, we should
-           make a way for users to express such jkinds *)
+        (* CR layouts v2.8: sometimes there is no valid way to build a jkind from a
+           built-in abbreviation. For now, we just pretend that the layout name is a valid
+           jkind abbreviation whose modal bounds are all max, even though this is a
+           lie. *)
         let out_jkind_verbose =
           convert_with_base
             ~base:
@@ -492,9 +491,7 @@ module Const = struct
                     modes_upper_bounds = Modes.max;
                     externality_upper_bound = Externality.max
                   };
-                name =
-                  Printf.sprintf "layout_%s"
-                    (Layout.Const.to_string jkind.layout)
+                name = Layout.Const.to_string jkind.layout
               }
             jkind
         in
