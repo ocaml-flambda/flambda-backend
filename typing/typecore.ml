@@ -6005,7 +6005,7 @@ and type_expect_
         exp_env = env }
   | Pexp_new cl ->
       submode ~loc ~env Value.legacy expected_mode;
-      let (cl_path, cl_decl, cl_mode, _) =
+      let (cl_path, cl_decl, cl_mode) =
         Env.lookup_class ~loc:cl.loc cl.txt env
       in
       Value.submode_exn cl_mode Value.legacy;

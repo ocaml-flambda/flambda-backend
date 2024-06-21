@@ -194,7 +194,7 @@ let extract_sig_functor_open funct_body env loc mty sig_acc =
 (* Compute the environment after opening a module *)
 
 let type_open_ ?used_slot ?toplevel ovf env loc lid =
-  let path, _, _ =
+  let path, _ =
     Env.lookup_module_path ~lock:false ~load:true ~loc:lid.loc lid.txt env
   in
   match Env.open_signature ~loc ?used_slot ?toplevel ovf path env with
@@ -926,7 +926,7 @@ let rec approx_modtype env smty =
       in
       Mty_ident path
   | Pmty_alias lid ->
-      let path, _, _ =
+      let path, _ =
         Env.lookup_module_path ~use:false ~load:false
           ~loc:smty.pmty_loc lid.txt env
       in
@@ -979,7 +979,7 @@ let rec approx_modtype env smty =
 and approx_modtype_jane_syntax env = function
   | Jane_syntax.Module_type.Jmty_strengthen { mty = smty; mod_id } ->
     let mty = approx_modtype env smty in
-    let path, _, _ =
+    let path, _ =
       (* CR-someday: potentially improve error message for strengthening with
          a mutually recursive module. *)
       Env.lookup_module_path ~use:false ~load:false
@@ -1039,7 +1039,7 @@ and approx_sig env ssg =
           Sig_module(id, pres, md, Trec_not, Exported) :: approx_sig newenv srem
       | Psig_modsubst pms ->
           let scope = Ctype.create_scope () in
-          let _, md, _, _ =
+          let _, md, _ =
             Env.lookup_module ~use:false ~loc:pms.pms_manifest.loc
                pms.pms_manifest.txt env
           in
@@ -1447,7 +1447,7 @@ let transl_modtype_longident loc env lid =
   Env.lookup_modtype_path ~loc lid env
 
 let transl_module_alias loc env lid =
-  let path, _, _ = Env.lookup_module_path ~lock:false ~load:false ~loc lid env in
+  let path, _ = Env.lookup_module_path ~lock:false ~load:false ~loc lid env in
   path
 
 let mkmty desc typ env loc attrs =
@@ -1545,7 +1545,7 @@ and transl_modtype_aux env smty =
 and transl_modtype_jane_syntax_aux ~loc env = function
   | Jane_syntax.Module_type.Jmty_strengthen { mty ; mod_id } ->
       let tmty = transl_modtype_aux env mty in
-      let path, md, _, _ =
+      let path, md, _ =
         Env.lookup_module ~use:false ~loc:mod_id.loc mod_id.txt env
       in
       let aliasable = not (Env.is_functor_arg path env) in
@@ -1569,10 +1569,10 @@ and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
     | Pwith_type (l,decl) ->l , With_type decl
     | Pwith_typesubst (l,decl) ->l , With_typesubst decl
     | Pwith_module (l,l') ->
-        let path, md, _, _ = Env.lookup_module ~lock:false ~loc l'.txt env in
+        let path, md, _ = Env.lookup_module ~lock:false ~loc l'.txt env in
         l , With_module {lid=l';path;md; remove_aliases}
     | Pwith_modsubst (l,l') ->
-        let path, md', _, _ = Env.lookup_module ~lock:false ~loc l'.txt env in
+        let path, md', _ = Env.lookup_module ~lock:false ~loc l'.txt env in
         l , With_modsubst (l',path,md')
     | Pwith_modtype (l,smty) ->
         let mty = transl_modtype env smty in
@@ -1757,7 +1757,7 @@ and transl_signature env (sg : Parsetree.signature) =
         sig_item, tsg, newenv
     | Psig_modsubst pms ->
         let scope = Ctype.create_scope () in
-        let path, md, _, _ =
+        let path, md, _ =
           Env.lookup_module ~loc:pms.pms_manifest.loc ~lock:false
             pms.pms_manifest.txt env
         in
@@ -2390,7 +2390,7 @@ let rec type_module ?(alias=false) sttn funct_body anchor env smod =
 and type_module_aux ~alias sttn funct_body anchor env smod =
   match smod.pmod_desc with
     Pmod_ident lid ->
-      let path, mode, _ =
+      let path, mode =
         Env.lookup_module_path ~load:(not alias) ~loc:smod.pmod_loc lid.txt env
       in
       Mode.Value.submode_exn mode Mode.Value.legacy;
@@ -3214,7 +3214,7 @@ let type_module_type_of env smod =
   let tmty =
     match smod.pmod_desc with
     | Pmod_ident lid -> (* turn off strengthening in this case *)
-        let path, md, _, _ =
+        let path, md, _ =
           Env.lookup_module ~lock:false ~loc:smod.pmod_loc lid.txt env
         in
           { mod_desc = Tmod_ident (path, lid);
