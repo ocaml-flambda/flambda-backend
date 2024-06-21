@@ -159,10 +159,11 @@ module Layout = struct
     if Numeric_types.Int.Map.mem 0 acc
     then acc
     else (
+      (* Dummy function slots have size 2, so make sure there is room for it. *)
       if Numeric_types.Int.Map.mem 1 acc
       then
         Misc.fatal_errorf
-          "[order_function_slots]: a slots exists at offset 1, no room to \
+          "[order_function_slots]: a slot exists at offset 1, no room to \
            insert a dummy function slot.@\n\
            Slots: %a@."
           (Numeric_types.Int.Map.print print_slot)
@@ -221,8 +222,10 @@ module Layout = struct
       let acc_slots = [0, slot] in
       startenv, acc_slots
     | Dummy_function_slot _ ->
-      (* dummy function slots should only appear at offset 0 *)
-      assert false
+      Misc.fatal_errorf
+        "Dummy function slots should only appear at offset 0, but one was \
+         found at offset %d@."
+        offset
     | Function_slot _ ->
       assert (Option.is_none startenv);
       (* see comment above *)
