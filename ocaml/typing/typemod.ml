@@ -2817,18 +2817,10 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
               let zero_alloc =
                 (* We only allow "Check" attributes in signatures.  Here we
                    convert "Assume"s in structures to the equivalent "Check" for
-                   the signature. We also fabricate a "Check" attribute
-                   if a op-level annotation specifies that all functions should
-                   be checked for zero alloc. *)
+                   the signature. *)
                 let open Builtin_attributes in
                 match[@warning "+9"] zero_alloc with
-                | Default_zero_alloc when !Clflags.zero_alloc_check_assert_all ->
-                  Check { strict = false;
-                          arity = Types.invalid_arity;
-                          loc = Location.none;
-                          opt = false }
-                | Default_zero_alloc
-                | Ignore_assert_all -> Default_zero_alloc
+                | Default_zero_alloc | Ignore_assert_all -> Default_zero_alloc
                 | Check _ -> zero_alloc
                 | Assume { strict; arity; loc;
                            never_returns_normally = _;
