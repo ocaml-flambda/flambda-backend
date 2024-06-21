@@ -1651,7 +1651,7 @@ module Monadic = struct
 
   let imply c m = Solver.via_monotone obj (Subtract c) (Solver.disallow_left m)
 
-  let subtract c m = Solver.via_monotone obj (Imply c) (Solver.disallow_right m)
+  let subtract m c = Solver.via_monotone obj (Imply c) (Solver.disallow_right m)
 
   let zap_to_legacy m =
     let uniqueness = proj Uniqueness m |> Uniqueness.zap_to_legacy in
@@ -2268,15 +2268,16 @@ module Modality = struct
       | Diff _ -> Format.fprintf ppf "diff"
 
     let cross mm m =
-      (* We will be producing [join x m] for any [x >= mm].
-         We want to find the minimal [m'] such that [join x m <= join x m'] for any [x >= mm].
+      (* We will be producing [join m x] for any [x >= mm].
+         We want to find the minimal [m'] such that
+         [join m x <= join m' x] for any [x >= mm].
          Or equivalently [m <= join x m'] for any [x >= mm].
          Equivalently [m <= join mm m'].
          Equivalently [m <= join mm.lower m'].
          or [subtract mm.lower m <= m'].
       *)
       let mc = Mode.Guts.get_floor mm in
-      Mode.subtract mc m
+      Mode.subtract m mc
 
     let zap_to_floor = function
       | Const c -> c

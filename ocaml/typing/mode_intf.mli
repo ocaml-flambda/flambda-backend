@@ -531,27 +531,20 @@ module type S = sig
           the value's mode [mode]. *)
       val infer : md_mode:Value.lr -> mode:Value.l -> t
 
-      (** Returns a const modality weaker than the given modality. The returned
-      modality will be pushed to identity modality if possible. The given
-      modality might be mutated as a result. This function also enjoys the
-      properties:
+      (* The following zapping functions possibly mutate a potentially inferred
+         modality [m] to a constant modality [c]. The constant modality is
+         returned. [m <= c] holds, even after further mutations to [m]. *)
 
-      - [let m0 = zap_to_id m in (...); let m1 = zap_to_id m in equate m0 m1]
-        always succeeds, where [...] might mutate [m].
-      - [let m' = zap_to_id m in (...; sub m m')] always succeeds, where [...]
-        might mutate [m].
-      *)
+      (** Returns a const modality weaker than the given modality. *)
       val zap_to_id : t -> Const.t
 
-      (** Returns a const modality lowest (strongest) possible. The given
-          modality might be mutated as a result. *)
+      (** Returns a const modality lowest (strongest) possible. *)
       val zap_to_floor : t -> Const.t
 
-      (** Returns a const modality by asserting the given modality is already
-      const modality and returning it. *)
+      (** Asserts the given modality is a const modality, and returns it. *)
       val to_const_exn : t -> Const.t
 
-      (** Convert a const modality. *)
+      (** Inject a constant modality. *)
       val of_const : Const.t -> t
 
       (** The top modality; [sub x max] succeeds for any [x]. *)

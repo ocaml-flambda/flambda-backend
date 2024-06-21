@@ -902,7 +902,7 @@ module type T = sig val x : int option end
 Line 4, characters 50-51:
 4 |   let _m : (module T) = local_ (module struct let x = thing end) in
                                                       ^
-Error: This value is local, but is expected to be global because it is inside a module.
+Error: This value is local, but expected to be global because it is inside a module.
 |}]
 let local_module () =
   let thing = local_ Some 1 in
@@ -914,7 +914,7 @@ let local_module () =
 Line 4, characters 30-31:
 4 |     let module M = struct let x = thing end in
                                   ^
-Error: This value is local, but is expected to be global because it is inside a module.
+Error: This value is local, but expected to be global because it is inside a module.
 |}]
 let obj () =
   let thing = local_ Some 1 in
@@ -2153,7 +2153,7 @@ end
 Line 2, characters 12-13:
 2 |   let (Some z, _, _) | (None, Some z, _)
                 ^
-Error: This value is local, but is expected to be global because it is inside a module.
+Error: This value is local, but expected to be global because it is inside a module.
 |}]
 
 module M = struct
@@ -2164,7 +2164,7 @@ end
 Line 2, characters 12-13:
 2 |   let (Some z, _, _) | (None, Some z, _)
                 ^
-Error: This value is local, but is expected to be global because it is inside a module.
+Error: This value is local, but expected to be global because it is inside a module.
 |}]
 
 (* Example of backtracking after mode error *)

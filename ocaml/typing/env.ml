@@ -3805,8 +3805,8 @@ let fold_values f =
        match ve with
        | Val_unbound _ -> acc
        | Val_bound vda ->
-        let vd, mode = normalize_vda_mode vda in
-        f k p vd mode acc)
+          let vd, mode = normalize_vda_mode vda in
+          f k p vd mode acc)
 and fold_constructors f =
   find_all_simple_list (fun env -> env.constrs) (fun sc -> sc.comp_constrs)
     (fun cda acc -> f cda.cda_description acc)

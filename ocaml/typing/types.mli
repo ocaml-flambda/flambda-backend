@@ -743,7 +743,7 @@ module type Wrapped = sig
 
   type value_description =
     { val_type: type_expr wrapped;                (* Type of the value *)
-      val_modalities: Mode.Modality.Value.t;     (* Modalities on the value *)
+      val_modalities: Mode.Modality.Value.t;      (* Modalities on the value *)
       val_kind: value_kind;
       val_loc: Location.t;
       val_zero_alloc: Builtin_attributes.zero_alloc_attribute;
@@ -867,8 +867,8 @@ type label_description =
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutability;                (* Is this a mutable field? *)
     lbl_modalities: Mode.Modality.Value.Const.t;
-    (* Modalities on the field *)
-    lbl_jkind : jkind;                (* Jkind of the argument *)
+                                        (* Modalities on the field *)
+    lbl_jkind : jkind;                  (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in the type *)
     lbl_all: label_description array;   (* All the labels in this type *)

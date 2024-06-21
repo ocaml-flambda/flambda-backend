@@ -315,7 +315,9 @@ let build_initial_env add_type add_extension empty_env =
   in
   let variant constrs jkinds = Type_variant (constrs, Variant_boxed jkinds) in
   let unrestricted tvar =
-    {ca_type=tvar; ca_modalities=Mode.Modality.Value.Const.id; ca_loc=Location.none}
+    {ca_type=tvar;
+     ca_modalities=Mode.Modality.Value.Const.id;
+     ca_loc=Location.none}
   in
   empty_env
   (* Predefined types *)

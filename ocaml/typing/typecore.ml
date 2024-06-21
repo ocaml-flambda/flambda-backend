@@ -2712,7 +2712,9 @@ and type_pat_aux
         let ty_arg =
           solve_Ppat_record_field ~refine loc env label label_lid record_ty in
         check_project_mutability ~loc ~env:!env label.lbl_mut alloc_mode.mode;
-        let mode = Modality.Value.Const.apply label.lbl_modalities alloc_mode.mode in
+        let mode =
+          Modality.Value.Const.apply label.lbl_modalities alloc_mode.mode
+        in
         let alloc_mode = simple_pat_mode mode in
         (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
       in
