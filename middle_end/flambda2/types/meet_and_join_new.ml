@@ -924,7 +924,7 @@ and meet_row_like :
       equal_index:('lattice -> 'lattice -> bool) ->
       subset_index:('lattice -> 'lattice -> bool) ->
       union_index:('lattice -> 'lattice -> 'lattice) ->
-      meet_shape:(TE.t -> 'shape -> 'shape -> 'shape meet_result) ->
+      meet_shape:('shape -> 'shape -> 'shape Or_bottom.t) ->
       is_empty_map_known:('known -> bool) ->
       get_singleton_map_known:
         ('known ->
@@ -1008,14 +1008,9 @@ and meet_row_like :
   let meet_index env (i1 : ('lattice, 'shape) TG.row_like_index)
       (i2 : ('lattice, 'shape) TG.row_like_index) :
       ('lattice, 'shape) TG.row_like_index meet_result =
-    match meet_shape env i1.shape i2.shape with
+    match meet_shape i1.shape i2.shape with
     | Bottom -> Bottom
-    | Ok ((Left_input | Right_input | New_result _), _) ->
-      (* For now, we only handle singleton shapes. Generalising to an arbitrary
-         lattice of shapes should be possible, but adds complexity and we will
-         likely never need the extra precision. *)
-      Misc.fatal_error "Meet of shapes should produce Bottom or Both_inputs"
-    | Ok ((Both_inputs as shape_result), env) -> (
+    | Ok shape -> (
       match i1.domain, i2.domain with
       | Known i1', Known i2' ->
         if equal_index i1' i2' then Ok (Both_inputs, env) else Bottom
@@ -1041,7 +1036,6 @@ and meet_row_like :
           let domain =
             TG.Row_like_index_domain.at_least (union_index i1' i2')
           in
-          let shape = extract_value shape_result i1.shape i2.shape in
           Ok (New_result (TG.Row_like_index.create ~domain ~shape), env))
   in
   let bottom_case () =
@@ -1214,8 +1208,8 @@ and meet_row_like_for_blocks env
       TG.Row_like_for_blocks.t)
     ({ known_tags = known2; other_tags = other2; alloc_mode = alloc_mode2 } :
       TG.Row_like_for_blocks.t) : TG.Row_like_for_blocks.t meet_result =
-  let meet_shape env shape1 shape2 : _ meet_result =
-    if K.Block_shape.equal shape1 shape2 then Ok (Both_inputs, env) else Bottom
+  let meet_shape shape1 shape2 : _ Or_bottom.t =
+    if K.Block_shape.equal shape1 shape2 then Ok shape1 else Bottom
   in
   let get_singleton_map_known known =
     match (Tag.Map.get_singleton known : (_ * _ Or_unknown.t) option) with
@@ -1239,7 +1233,7 @@ and meet_row_like_for_closures env
       TG.Row_like_for_closures.t)
     ({ known_closures = known2; other_closures = other2 } :
       TG.Row_like_for_closures.t) : TG.Row_like_for_closures.t meet_result =
-  let meet_shape env () () : _ meet_result = Ok (Both_inputs, env) in
+  let meet_shape () () : _ Or_bottom.t = Ok () in
   let merge_map_known merge_case known1 known2 =
     Function_slot.Map.merge
       (fun fslot case1 case2 ->
