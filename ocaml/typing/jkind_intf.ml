@@ -36,20 +36,6 @@ module type Sort = sig
   module Const : sig
     type t = const
 
-    val void : t
-
-    val value : t
-
-    val float64 : t
-
-    val float32 : t
-
-    val word : t
-
-    val bits32 : t
-
-    val bits64 : t
-
     val equal : t -> t -> bool
 
     val format : Format.formatter -> t -> unit

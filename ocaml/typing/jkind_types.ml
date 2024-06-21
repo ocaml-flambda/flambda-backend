@@ -43,20 +43,6 @@ module Sort = struct
         true
       | (Void | Value | Float64 | Float32 | Word | Bits32 | Bits64), _ -> false
 
-    let void = Void
-
-    let value = Value
-
-    let float64 = Float64
-
-    let float32 = Float32
-
-    let word = Word
-
-    let bits32 = Bits32
-
-    let bits64 = Bits64
-
     let to_string = function
       | Value -> "value"
       | Void -> "void"
@@ -102,30 +88,32 @@ module Sort = struct
     log_change (v, !v);
     v := t_op
 
-  let void = Const Const.void
+  (* Memoize these values for of_const *)
 
-  let value = Const Const.value
+  let void = Const Void
 
-  let float64 = Const Const.float64
+  let value = Const Value
 
-  let float32 = Const Const.float32
+  let float64 = Const Float64
 
-  let word = Const Const.word
+  let float32 = Const Float32
 
-  let bits32 = Const Const.bits32
+  let word = Const Word
 
-  let bits64 = Const Const.bits64
+  let bits32 = Const Bits32
 
-  let some_value = Some (Const Const.value)
+  let bits64 = Const Bits64
+
+  let some_value = Some (Const Value)
 
   let of_const = function
-    | Void -> Const Const.void
-    | Value -> Const Const.value
-    | Float64 -> Const Const.float64
-    | Float32 -> Const Const.float32
-    | Word -> Const Const.word
-    | Bits32 -> Const Const.bits32
-    | Bits64 -> Const Const.bits64
+    | Void -> void
+    | Value -> value
+    | Float64 -> float64
+    | Float32 -> float32
+    | Word -> word
+    | Bits32 -> bits32
+    | Bits64 -> bits64
 
   let of_var v = Var v
 
@@ -289,43 +277,43 @@ module Sort = struct
     and var ppf v = fprintf ppf "{ contents = %a }" opt_t !v
   end
 
-  let for_function = Const Const.value
+  let for_function = Const Value
 
-  let for_predef_value = Const Const.value
+  let for_predef_value = Const Value
 
-  let for_block_element = Const Const.value
+  let for_block_element = Const Value
 
-  let for_probe_body = Const Const.value
+  let for_probe_body = Const Value
 
-  let for_poly_variant = Const Const.value
+  let for_poly_variant = Const Value
 
-  let for_record = Const Const.value
+  let for_record = Const Value
 
-  let for_object = Const Const.value
+  let for_object = Const Value
 
-  let for_lazy_body = Const Const.value
+  let for_lazy_body = Const Value
 
-  let for_tuple_element = Const Const.value
+  let for_tuple_element = Const Value
 
-  let for_variant_arg = Const Const.value
+  let for_variant_arg = Const Value
 
-  let for_instance_var = Const Const.value
+  let for_instance_var = Const Value
 
-  let for_class_arg = Const Const.value
+  let for_class_arg = Const Value
 
-  let for_method = Const Const.value
+  let for_method = Const Value
 
-  let for_initializer = Const Const.value
+  let for_initializer = Const Value
 
-  let for_module = Const Const.value
+  let for_module = Const Value
 
-  let for_tuple = Const Const.value
+  let for_tuple = Const Value
 
-  let for_array_get_result = Const Const.value
+  let for_array_get_result = Const Value
 
-  let for_array_comprehension_element = Const Const.value
+  let for_array_comprehension_element = Const Value
 
-  let for_list_element = Const Const.value
+  let for_list_element = Const Value
 end
 
 module Layout = struct

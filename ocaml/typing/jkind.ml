@@ -53,19 +53,19 @@ module Layout = struct
       | _, Any -> Less
       | Any, Sort _ | Sort _, Sort _ -> Not_le
 
-    let value = Sort Sort.Const.value
+    let value = Sort Sort.Value
 
-    let void = Sort Sort.Const.void
+    let void = Sort Sort.Void
 
-    let float64 = Sort Sort.Const.float64
+    let float64 = Sort Sort.Float64
 
-    let float32 = Sort Sort.Const.float32
+    let float32 = Sort Sort.Float32
 
-    let word = Sort Sort.Const.word
+    let word = Sort Sort.Word
 
-    let bits32 = Sort Sort.Const.bits32
+    let bits32 = Sort Sort.Bits32
 
-    let bits64 = Sort Sort.Const.bits64
+    let bits64 = Sort Sort.Bits64
 
     let get_sort : t -> Sort.Const.t option = function
       | Sort s -> Some s
