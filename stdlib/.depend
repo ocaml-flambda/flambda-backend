@@ -142,6 +142,13 @@ camlinternalComprehension.cmx : \
     stdlib.cmx \
     camlinternalComprehension.cmi
 camlinternalComprehension.cmi :
+camlinternalQuote.cmo : \
+    stdlib.cmi \
+    camlinternalQuote.cmi
+camlinternalQuote.cmx : \
+    stdlib.cmx \
+    camlinternalQuote.cmi
+camlinternalQuote.cmi :
 camlinternalFormat.cmo : \
     stdlib__Sys.cmi \
     stdlib__String.cmi \

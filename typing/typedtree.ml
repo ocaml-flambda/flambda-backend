@@ -301,6 +301,8 @@ and expression_desc =
   | Texp_src_pos
   | Texp_overwrite of expression * expression
   | Texp_hole of unique_use
+  | Texp_quotation of expression
+  | Texp_antiquotation of expression
 
 and ident_kind =
   | Id_value
@@ -1336,3 +1338,166 @@ let loc_of_decl ~uid =
   | Module_substitution msd -> msd.ms_name
   | Class cd -> cd.ci_id_name
   | Class_type ctd -> ctd.ci_id_name
+
+let rec fold_antiquote_exp f  acc exp =
+  match exp.exp_desc with
+  | Texp_ident _ | Texp_constant _ -> acc
+  | Texp_let (_, vbs, exp) ->
+      let acc = fold_antiquote_value_bindings f acc vbs in
+      fold_antiquote_exp f acc exp
+  | Texp_function { params; body; _ } ->
+      let acc = fold_antiquote_fun_params f acc params in
+      fold_antiquote_function_body f acc body
+  | Texp_apply (exp, list, _, _, _) ->
+      let acc = fold_antiquote_exp f acc exp in
+      fold_antiquote_args f acc list
+  | Texp_match (exp, _, cases, _) ->
+      let acc = fold_antiquote_exp f acc exp in
+      fold_antiquote_cases f acc cases
+  | Texp_try (exp, cases) ->
+      let acc = fold_antiquote_exp f acc exp in
+      fold_antiquote_cases f acc cases
+  | Texp_tuple (list, _) ->
+      List.fold_left (fun acc (_, e) -> fold_antiquote_exp f acc e) acc list
+  | Texp_unboxed_tuple list ->
+      List.fold_left (fun acc (_, e, _) -> fold_antiquote_exp f acc e) acc list
+  | Texp_construct (_, _, args, _) ->
+      fold_antiquote_exps f acc args
+  | Texp_variant (_, expo) ->
+      Option.fold
+        ~none:acc
+        ~some:(fun (e, _) -> fold_antiquote_exp f acc e)
+        expo
+  | Texp_record { fields; extended_expression; _} ->
+      let acc = Array.fold_left (fold_antiquote_field f) acc fields in
+      Option.fold
+        ~none:acc
+        ~some:(fun (e, _) -> fold_antiquote_exp f acc e)
+        extended_expression
+  | Texp_record_unboxed_product { fields; extended_expression; _} ->
+      let acc = Array.fold_left (fold_antiquote_field f) acc fields in
+      Option.fold
+        ~none:acc
+        ~some:(fun (e, _) -> fold_antiquote_exp f acc e)
+        extended_expression
+  | Texp_field (exp, _, _, _, _) ->
+      fold_antiquote_exp f acc exp
+  | Texp_unboxed_field (exp, _, _, _, _) ->
+      fold_antiquote_exp f acc exp
+  | Texp_setfield (exp1, _, _, _, exp2) ->
+      let acc = fold_antiquote_exp f acc exp1 in
+      fold_antiquote_exp f acc exp2
+  | Texp_array (_, _, list, _) ->
+      fold_antiquote_exps f acc list
+  | Texp_list_comprehension { comp_body; comp_clauses }
+  | Texp_array_comprehension (_, _, { comp_body; comp_clauses }) ->
+      let acc = fold_antiquote_exp f acc comp_body in
+      fold_antiquote_comprehension_clauses f acc comp_clauses
+  | Texp_ifthenelse (exp1, exp2, expo) ->
+      let acc = fold_antiquote_exp f acc exp1 in
+      let acc = fold_antiquote_exp f acc exp2 in
+      fold_antiquote_exp_opt f acc expo
+  | Texp_sequence (exp1, _, exp2) ->
+      let acc = fold_antiquote_exp f acc exp1 in
+      fold_antiquote_exp f acc exp2
+  | Texp_while { wh_cond; wh_body } ->
+      let acc = fold_antiquote_exp f acc wh_cond in
+      fold_antiquote_exp f acc wh_body
+  | Texp_for {for_from; for_to; for_body} ->
+      let acc = fold_antiquote_exp f acc for_from in
+      let acc = fold_antiquote_exp f acc for_to in
+      fold_antiquote_exp f acc for_body
+  | Texp_send (exp, _, _) -> fold_antiquote_exp f acc exp
+  | Texp_new (_, _, _, _) -> acc
+  | Texp_instvar (_, _, _) -> acc
+  | Texp_setinstvar (_, _, _, exp) -> fold_antiquote_exp f acc exp
+  | Texp_override (_, list) ->
+      List.fold_left (fun acc (_, _, e) -> fold_antiquote_exp f acc e) acc list
+  | Texp_letmodule (_, _, _, _, exp) -> fold_antiquote_exp f acc exp
+  | Texp_letexception (_, exp) -> fold_antiquote_exp f acc exp
+  | Texp_assert (exp, _) -> fold_antiquote_exp f acc exp
+  | Texp_lazy exp -> fold_antiquote_exp f acc exp
+  | Texp_object (_, _) -> acc
+  | Texp_pack _ -> acc
+  | Texp_letop {let_ = l; ands; body; _} ->
+      let acc = fold_antiquote_binding_op f acc l in
+      let acc = List.fold_left (fold_antiquote_binding_op f) acc ands in
+      fold_antiquote_case f acc body
+  | Texp_unreachable -> acc
+  | Texp_extension_constructor (_, _) -> acc
+  | Texp_open (_, e) -> fold_antiquote_exp f acc e
+  | Texp_probe {handler;_} -> fold_antiquote_exp f acc handler
+  | Texp_probe_is_enabled _ -> acc
+  | Texp_exclave exp -> fold_antiquote_exp f acc exp
+  | Texp_src_pos -> acc
+  | Texp_overwrite (exp1, exp2) ->
+      let acc = fold_antiquote_exp f acc exp1 in
+      fold_antiquote_exp f acc exp2
+  | Texp_hole _ -> acc
+  | Texp_quotation exp ->
+      fold_antiquote_exp (fold_antiquote_exp f) acc exp
+  | Texp_antiquotation exp -> f acc exp
+
+and fold_antiquote_exp_opt f acc = function
+  | None -> acc
+  | Some exp -> fold_antiquote_exp f acc exp
+
+and fold_antiquote_exps f acc exps =
+  List.fold_left (fold_antiquote_exp f) acc exps
+
+and fold_antiquote_value_bindings f acc vbs =
+  List.fold_left (fun acc vb -> fold_antiquote_exp f acc vb.vb_expr) acc vbs
+
+and fold_antiquote_fun_param f acc fp =
+  match fp.fp_kind with
+  | Tparam_pat _ -> acc
+  | Tparam_optional_default(_, exp, _) -> fold_antiquote_exp f acc exp
+
+and fold_antiquote_fun_params f acc fps =
+  List.fold_left (fold_antiquote_fun_param f) acc fps
+
+and fold_antiquote_function_body f acc = function
+  | Tfunction_body exp -> fold_antiquote_exp f acc exp
+  | Tfunction_cases fc -> fold_antiquote_cases f acc fc.fc_cases
+
+and fold_antiquote_case : 'k. _ -> _ -> 'k case -> _ =
+  fun f acc c ->
+    let acc = fold_antiquote_exp_opt f acc c.c_guard in
+    fold_antiquote_exp f acc c.c_rhs
+
+and fold_antiquote_cases : 'k. _ -> _ -> 'k case list -> _ =
+  fun f acc cases ->
+    List.fold_left (fold_antiquote_case f) acc cases
+
+and fold_antiquote_arg f acc (_, arg) =
+  match arg with
+  | Omitted _ -> acc
+  | Arg (exp, _) -> fold_antiquote_exp f acc exp
+
+and fold_antiquote_args f acc args =
+  List.fold_left (fold_antiquote_arg f) acc args
+
+and fold_antiquote_field : 'l. _ -> _ -> 'l * _ -> _ =
+  fun f acc -> function
+  | _, Kept _ -> acc
+  | _, Overridden (_, exp) -> fold_antiquote_exp f acc exp
+
+and fold_antiquote_comprehension_clause f acc = function
+  | Texp_comp_for bindings ->
+      List.fold_left
+        (fun acc { comp_cb_iterator; _ } ->
+          match comp_cb_iterator with
+          | Texp_comp_range { ident = _; start; stop; direction = _ } ->
+              let acc = fold_antiquote_exp f acc start in
+              fold_antiquote_exp f acc stop
+          | Texp_comp_in { pattern = _; sequence } ->
+              fold_antiquote_exp f acc sequence)
+        acc bindings
+  | Texp_comp_when exp ->
+      fold_antiquote_exp f acc exp
+
+and fold_antiquote_comprehension_clauses f acc ccs =
+  List.fold_left (fold_antiquote_comprehension_clause f) acc ccs
+
+and fold_antiquote_binding_op f acc op =
+  fold_antiquote_exp f acc op.bop_exp

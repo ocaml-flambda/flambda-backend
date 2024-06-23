@@ -43,6 +43,7 @@
                     camlinternalComprehension
                     camlinternalOO
                     camlinternalAtomic
+                    camlinternalQuote
                     stdlib__Char
                     stdlib__Complex
                     stdlib__Digest

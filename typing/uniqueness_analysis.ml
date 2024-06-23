@@ -226,14 +226,19 @@ end
 module Aliased : sig
   type t
 
+  type lifting_cause =
+    | Closure
+    | Lazy_expr
+    | Quotation
+
   type reason =
-    | Forced  (** aliased because forced due to multiple usage *)
-    | Lazy  (** aliased because of a lazy pattern *)
-    | Array  (** aliased because of an array pattern *)
-    | Constant  (** aliased because of an constant pattern *)
-    | Lifted of Maybe_aliased.access
-        (** aliased because lifted from implicit borrowing, carries the original
-          access *)
+    | Forced  (** Aliased because forced due to multiple usage. *)
+    | Lazy_pat  (** Aliased because of a lazy pattern. *)
+    | Array  (** Aliased because of an array pattern. *)
+    | Constant  (** Aliased because of an constant pattern. *)
+    | Lifted of lifting_cause * Maybe_aliased.access
+        (** Aliased because implicitly borrowed in a closure, lazy or quotation.
+            Carries the original access. *)
 
   (** The occurrence is only for future error messages. The share_reason must
   corresponds to the occurrence *)
@@ -245,12 +250,17 @@ module Aliased : sig
 
   val print : Format.formatter -> t -> unit
 end = struct
+  type lifting_cause =
+    | Closure
+    | Lazy_expr
+    | Quotation
+
   type reason =
     | Forced
-    | Lazy
+    | Lazy_pat
     | Array
     | Constant
-    | Lifted of Maybe_aliased.access
+    | Lifted of lifting_cause * Maybe_aliased.access
 
   type t = Occurrence.t * reason
 
@@ -262,14 +272,23 @@ end = struct
 
   let print ppf (occ, reason) =
     let open Format in
+    let print_lifting_cause ppf = function
+      | Closure -> fprintf ppf "Closure"
+      | Lazy_expr -> fprintf ppf "Lazy_expr"
+      | Quotation -> fprintf ppf "Quotation"
+    in
     let print_reason ppf = function
       | Forced -> fprintf ppf "Forced"
-      | Lazy -> fprintf ppf "Lazy"
+      | Lazy_pat -> fprintf ppf "Lazy_pat"
       | Array -> fprintf ppf "Array"
       | Constant -> fprintf ppf "Constant"
-      | Lifted ma -> fprintf ppf "Lifted(%a)" Maybe_aliased.print_access ma
+      | Lifted(c, ma) ->
+          fprintf ppf "Lifted(%a, %a)"
+            print_lifting_cause c
+            Maybe_aliased.print_access ma
     in
     fprintf ppf "(%a,%a)" Occurrence.print occ print_reason reason
+
 end
 
 (** For error messages, we keep track of whether an access was sequential or parallel *)
@@ -329,6 +348,11 @@ module Usage : sig
     | Aliased of Aliased.t  (** A aliased usage *)
     | Maybe_unique of Maybe_unique.t
         (** A usage that could be either unique or aliased. *)
+    | Antiquote of t
+        (** A usage within an antiquote. Behaves as the underlying
+            usage but is protected from the "lifting" operations
+            that make implicitly borrowed usages into aliased
+            usages. *)
 
   val aliased : Occurrence.t -> Aliased.reason -> t
 
@@ -364,7 +388,14 @@ module Usage : sig
   (** Parallel composition *)
   val par : t -> t -> t
 
+  val lift_implicit_borrowing : Aliased.lifting_cause -> t -> t
+
+  val quote : t -> t
+
+  val antiquote : t -> t
+
   val print : Format.formatter -> t -> unit
+
 end = struct
   (* [Usage.t] describes the extend to which a value is used.
 
@@ -454,22 +485,24 @@ end = struct
     | Maybe_aliased of Maybe_aliased.t
     | Aliased of Aliased.t
     | Maybe_unique of Maybe_unique.t
+    | Antiquote of t
 
   let aliased occ reason = Aliased (Aliased.singleton occ reason)
 
   let maybe_unique unique_use occ =
     Maybe_unique (Maybe_unique.singleton unique_use occ)
 
-  let extract_occurrence = function
+  let rec extract_occurrence = function
     | Unused -> None
     | Borrowed occ -> Some occ
     | Maybe_aliased t -> Some (Maybe_aliased.extract_occurrence t)
     | Aliased t -> Some (Aliased.extract_occurrence t)
     | Maybe_unique t -> Some (Maybe_unique.extract_occurrence t)
+    | Antiquote t -> extract_occurrence t
 
   let empty = Unused
 
-  let choose m0 m1 =
+  let rec choose m0 m1 =
     match m0, m1 with
     | Unused, m | m, Unused -> m
     | Borrowed _, t | t, Borrowed _ -> t
@@ -481,6 +514,9 @@ end = struct
       t
     | Aliased _, t | t, Aliased _ -> t
     | Maybe_unique l0, Maybe_unique l1 -> Maybe_unique (Maybe_unique.meet l0 l1)
+    | Antiquote t1, Antiquote t2 -> Antiquote (choose t1 t2)
+    | Antiquote t1, t2 -> choose t1 t2
+    | t1, Antiquote t2 -> choose t1 t2
 
   type first_or_second =
     | First
@@ -501,7 +537,7 @@ end = struct
     | Error cannot_force ->
       raise (Error { cannot_force; there; first_or_second; access_order })
 
-  let par m0 m1 =
+  let rec par m0 m1 =
     match m0, m1 with
     | Unused, m | m, Unused -> m
     | Borrowed occ, Borrowed _ -> Borrowed occ
@@ -534,8 +570,12 @@ end = struct
       force_aliased_multiuse t0 m1 First Par;
       force_aliased_multiuse t1 m0 Second Par;
       aliased (Maybe_unique.extract_occurrence t0) Aliased.Forced
+    | Antiquote t1, Antiquote t2 -> Antiquote (par t1 t2)
+    | Antiquote t1, t2 -> par t1 t2
+    | t1, Antiquote t2 -> par t1 t2
 
-  let seq m0 m1 =
+
+  let rec seq m0 m1 =
     match m0, m1 with
     | Unused, m | m, Unused -> m
     | Borrowed _, t -> t
@@ -604,15 +644,37 @@ end = struct
       force_aliased_multiuse l0 m1 First Seq;
       force_aliased_multiuse l1 m0 Second Seq;
       aliased (Maybe_unique.extract_occurrence l0) Aliased.Forced
+    | Antiquote t1, Antiquote t2 -> Antiquote (seq t1 t2)
+    | Antiquote t1, t2 -> seq t1 t2
+    | t1, Antiquote t2 -> seq t1 t2
 
-  let print ppf =
-    let open Format in
-    function
+  let lift_implicit_borrowing cause = function
+    | Maybe_aliased a ->
+        (* implicit borrowing lifted. *)
+        let occ = Maybe_aliased.extract_occurrence a in
+        let access = Maybe_aliased.extract_access a in
+        aliased occ (Aliased.Lifted(cause, access))
+    | t -> t
+
+  let quote = function
+    | Maybe_aliased a ->
+        let occ = Maybe_aliased.extract_occurrence a in
+        let access = Maybe_aliased.extract_access a in
+        aliased occ (Aliased.Lifted(Quotation, access))
+    | Antiquote t -> t
+    | t -> t
+
+  let antiquote t = Antiquote t
+
+  let rec print ppf =
+    let open Format in function
     | Unused -> fprintf ppf "Unused"
     | Borrowed occ -> fprintf ppf "Borrowed(%a)" Occurrence.print occ
     | Maybe_aliased ma -> fprintf ppf "Maybe_aliased(%a)" Maybe_aliased.print ma
     | Aliased a -> fprintf ppf "Aliased(%a)" Aliased.print a
     | Maybe_unique mu -> fprintf ppf "Maybe_unique(%a)" Maybe_unique.print mu
+    | Antiquote t -> fprintf ppf "Antiquote(%a)" print t  
+
 end
 
 module Tag : sig
@@ -1103,11 +1165,7 @@ module Usage_tree : sig
 
   (** Runs a function through the tree; the function must be monotone *)
   val mapi :
-    (Path.t -> Usage.t -> Usage.t) ->
-    (Learned_tags.t -> Learned_tags.t) ->
-    (Overwrites.t -> Overwrites.t) ->
-    t ->
-    t
+    (Path.t -> Usage.t -> Usage.t) -> t -> t
 
   (** Check that all overwrites are on known tags *)
   val check_no_remaining_overwritten_as : t -> unit
@@ -1168,7 +1226,7 @@ end = struct
     in
     loop projs t
 
-  let mapi f t = mapi_aux [] f t
+  let mapi f t = mapi_aux [] f Fun.id Fun.id t
 
   let rec mapi2 fu fl fo t0 t1 =
     let usage = fu Self t0.usage t1.usage in
@@ -1331,13 +1389,11 @@ module Usage_forest : sig
   (** The forest with only one usage, given by the path and the usage *)
   val singleton : Usage.t -> Learned_tags.t -> Overwrites.t -> Path.t -> t
 
-  (** Run a function through a forest. The function must be monotone *)
-  val map :
-    (Usage.t -> Usage.t) ->
-    (Learned_tags.t -> Learned_tags.t) ->
-    (Overwrites.t -> Overwrites.t) ->
-    t ->
-    t
+  val lift_implicit_borrowing : Aliased.lifting_cause -> t -> t
+
+  val quote : t -> t
+
+  val antiquote : t -> t
 
   (** Check that all overwrites are on known tags *)
   val check_no_remaining_overwritten_as : t -> unit
@@ -1430,9 +1486,19 @@ end = struct
       (Usage_tree.singleton leaf learned overwrites path')
 
   (** 'fu fl fo' all must be monotone *)
-  let map fu fl fo =
+  let map fu t =
     Root_id.Map.mapi (fun _root tree ->
-        Usage_tree.mapi (fun _projs usage -> fu usage) fl fo tree)
+        Usage_tree.mapi (fun _projs usage -> fu usage) tree)
+          t
+
+  let lift_implicit_borrowing cause t =
+    map (Usage.lift_implicit_borrowing cause) t
+
+  let quote t =
+    map Usage.quote t
+
+  let antiquote t =
+    map Usage.antiquote t
 
   let check_no_remaining_overwritten_as t =
     Root_id.Map.iter
@@ -1913,7 +1979,7 @@ and pattern_match_barrier pat paths : UF.t =
   | Tpat_lazy _ ->
     (* Lazy patterns consume their memory anyway since
        forcing a lazy expression is like calling a nullary-function *)
-    consume_memory_address Lazy
+    consume_memory_address Lazy_pat
   | Tpat_tuple _ -> borrow_memory_address ()
   | Tpat_unboxed_tuple _ ->
     (* unboxed tuples are not allocations *)
@@ -1985,7 +2051,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
       (* forcing a lazy expression is like calling a nullary-function *)
       let loc = pat.pat_loc in
       let occ = Occurrence.mk loc in
-      let uf_force = Paths.mark_aliased occ Lazy paths in
+      let uf_force = Paths.mark_aliased occ Lazy_pat paths in
       let ext, uf_arg = pattern_match_single arg (Paths.fresh ()) in
       ext, UF.par uf_force uf_arg
     | Tpat_tuple args ->
@@ -2083,21 +2149,6 @@ let mark_aliased_open_variables ienv f _loc =
   in
   UF.pars ufs
 
-let lift_implicit_borrowing uf =
-  UF.map
-    (function
-      | Maybe_aliased t ->
-        (* implicit borrowing lifted. *)
-        let occ = Maybe_aliased.extract_occurrence t in
-        let access = Maybe_aliased.extract_access t in
-        Usage.aliased occ (Aliased.Lifted access)
-      | m ->
-        (* other usage stays the same *)
-        m)
-    (fun t -> t)
-    (fun t -> t)
-    uf
-
 let descend proj overwrite =
   match overwrite with
   | None -> None
@@ -2167,7 +2218,7 @@ let rec check_uniqueness_exp ~overwrite (ienv : Ienv.t) exp : UF.t =
     in
     (* we are constructing a closure here, and therefore any implicit
        borrowing of free variables in the closure is in fact using aliased. *)
-    lift_implicit_borrowing uf
+    UF.lift_implicit_borrowing Closure uf
   | Texp_apply (fn, args, _, _, _) ->
     let uf_fn = check_uniqueness_exp ~overwrite:None ienv fn in
     let uf_args =
@@ -2332,7 +2383,7 @@ let rec check_uniqueness_exp ~overwrite (ienv : Ienv.t) exp : UF.t =
   | Texp_assert (e, _) -> check_uniqueness_exp ~overwrite:None ienv e
   | Texp_lazy e ->
     let uf = check_uniqueness_exp ~overwrite:None ienv e in
-    lift_implicit_borrowing uf
+    UF.lift_implicit_borrowing Lazy_expr uf
   | Texp_object (cls_struc, _) ->
     (* the object (methods, values) will be type-checked by Typeclass,
        which invokes uniqueness check.*)
@@ -2353,7 +2404,7 @@ let rec check_uniqueness_exp ~overwrite (ienv : Ienv.t) exp : UF.t =
     let uf_body =
       check_uniqueness_cases ienv (Match_single (Paths.fresh ())) [body]
     in
-    let uf_body = lift_implicit_borrowing uf_body in
+    let uf_body = UF.lift_implicit_borrowing Closure uf_body in
     UF.pars (uf_let :: (uf_ands @ [uf_body]))
   | Texp_unreachable -> UF.unused
   | Texp_extension_constructor _ -> UF.unused
@@ -2389,6 +2440,12 @@ let rec check_uniqueness_exp ~overwrite (ienv : Ienv.t) exp : UF.t =
       Paths.mark
         (Usage.maybe_unique use occ)
         Learned_tags.empty Overwrites.empty p)
+  | Texp_quotation e ->
+      let uf = check_uniqueness_exp ~overwrite:None ienv e in
+      UF.quote uf
+  | Texp_antiquotation e ->
+      let uf = check_uniqueness_exp ~overwrite:None ienv e in
+      UF.antiquote uf
 
 (**
 Corresponds to the first mode.
@@ -2594,12 +2651,18 @@ let report_multi_use inner first_is_of_second =
     | Usage.Aliased t -> (
       match Aliased.reason t with
       | Forced -> "used"
-      | Lazy -> "used in a lazy pattern"
+      | Lazy_pat -> "used in a lazy pattern"
       | Array -> "used in an array pattern"
       | Constant -> "used in a constant pattern"
-      | Lifted access ->
-        Maybe_aliased.string_of_access access
-        ^ " in a closure that might be called later")
+      | Lifted(lifter, access) ->
+          let access = Maybe_aliased.string_of_access access in
+          let lifter =
+            match lifter with
+            | Closure -> " in a closure that might be called later"
+            | Lazy_expr -> " in a lazy expression that might be forced later"
+            | Quotation -> " in a quotation that might be spliced in at a later point"
+          in
+          access ^ lifter)
     | _ -> "used"
   in
   let first, first_usage, second, second_usage =

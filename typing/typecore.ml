@@ -230,6 +230,7 @@ type error =
   | Unrefuted_pattern of pattern
   | Invalid_extension_constructor_payload
   | Not_an_extension_constructor
+  | Invalid_quote_payload
   | Probe_format
   | Probe_name_format of string
   | Probe_name_undefined of string
@@ -4210,7 +4211,9 @@ let rec is_nonexpansive exp =
   | Texp_override _
   | Texp_letexception _
   | Texp_letop _
-  | Texp_extension_constructor _ ->
+  | Texp_extension_constructor _
+  | Texp_quotation _
+  | Texp_antiquotation _ ->
     false
   | Texp_exclave e -> is_nonexpansive e
   (* The underlying mutation of exp1 can not be observed since we have the only reference
@@ -4655,7 +4658,7 @@ let check_partial_application ~statement exp =
             | Texp_lazy _ | Texp_object _ | Texp_pack _ | Texp_unreachable
             | Texp_extension_constructor _ | Texp_ifthenelse (_, _, None)
             | Texp_probe _ | Texp_probe_is_enabled _ | Texp_src_pos
-            | Texp_function _ ->
+            | Texp_function _ | Texp_quotation _ | Texp_antiquotation _ ->
                 check_statement ()
             | Texp_match (_, _, cases, _) ->
                 List.iter (fun {c_rhs; _} -> check c_rhs) cases
@@ -6767,6 +6770,26 @@ and type_expect_
     end
   | Pexp_extension ({ txt = "src_pos"; _ }, _) ->
       rue (src_pos loc sexp.pexp_attributes env)
+  | Pexp_extension ({ txt = ("quote" | "ocaml.quote"); _ }, payload) ->
+      let sarg =
+        match payload with
+        | PStr [{pstr_desc=Pstr_eval (sarg, _)}] -> sarg
+        | _ ->
+            raise (Error (loc, env, Invalid_quote_payload))
+      in
+      let argument_mode = mode_legacy in
+      let jkind = Jkind.Builtin.value ~why:Quotation_result in
+      let ty = newgenvar jkind in
+      let to_unify = Predef.type_code ty in
+      with_explanation (fun () ->
+          unify_exp_types loc env to_unify (generic_instance ty_expected));
+      let arg = type_expect env argument_mode sarg (mk_expected ty) in
+      re {
+          exp_desc = Texp_quotation arg;
+          exp_loc = loc; exp_extra = [];
+          exp_type = instance ty_expected;
+          exp_attributes = sexp.pexp_attributes;
+          exp_env = env }
   | Pexp_extension ext ->
     raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
@@ -10671,6 +10694,9 @@ let report_error ~loc env = function
   | Not_an_extension_constructor ->
       Location.errorf ~loc
         "This constructor is not an extension constructor."
+  | Invalid_quote_payload ->
+      Location.errorf ~loc
+        "Invalid [%%quote] payload, an expression is expected."
   | Probe_name_format name ->
       Location.errorf ~loc
         "Illegal characters in probe name `%s'. \

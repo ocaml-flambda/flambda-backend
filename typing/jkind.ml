@@ -1478,6 +1478,7 @@ module Format_history = struct
       fprintf ppf
         "it's the type of the first argument to a function in a recursive \
          module"
+    | Quotation_result -> fprintf ppf "it's the result type of a quotation"
     | Unknown s ->
       fprintf ppf
         "unknown @[(please alert the Jane Street@;\
@@ -1972,6 +1973,7 @@ module Debug_printers = struct
     | Class_term_argument -> fprintf ppf "Class_term_argument"
     | Debug_printer_argument -> fprintf ppf "Debug_printer_argument"
     | Recmod_fun_arg -> fprintf ppf "Recmod_fun_arg"
+    | Quotation_result -> fprintf ppf "Quotation_result"
     | Unknown s -> fprintf ppf "Unknown %s" s
 
   let product_creation_reason ppf : History.product_creation_reason -> _ =

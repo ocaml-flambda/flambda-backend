@@ -711,6 +711,12 @@ let expression sub exp =
     | Texp_overwrite (exp1, exp2) ->
         Pexp_overwrite(sub.expr sub exp1, sub.expr sub exp2)
     | Texp_hole _ -> Pexp_hole
+    | Texp_quotation exp ->
+        Pexp_extension
+          ({ txt = "quotation"; loc} , PStr ([Str.eval ~loc (sub.expr sub exp)]))
+    | Texp_antiquotation exp ->
+        let op = Exp.ident ~loc (mkloc (Longident.Lident "!#") loc) in
+        Pexp_apply(op, [(Nolabel, sub.expr sub exp)])
   in
   List.fold_right (exp_extra sub) exp.exp_extra
     (Exp.mk ~loc ~attrs desc)

@@ -50,6 +50,7 @@ and ident_string = ident_create "string"
 and ident_extension_constructor = ident_create "extension_constructor"
 and ident_floatarray = ident_create "floatarray"
 and ident_lexing_position = ident_create "lexing_position"
+and ident_code = ident_create "code"
 
 and ident_unboxed_float = ident_create "float#"
 and ident_unboxed_float32 = ident_create "float32#"
@@ -93,6 +94,7 @@ and path_string = Pident ident_string
 and path_extension_constructor = Pident ident_extension_constructor
 and path_floatarray = Pident ident_floatarray
 and path_lexing_position = Pident ident_lexing_position
+and path_code = Pident ident_code
 
 and path_unboxed_float = Pident ident_unboxed_float
 and path_unboxed_float32 = Pident ident_unboxed_float32
@@ -137,6 +139,7 @@ and type_extension_constructor =
       newgenty (Tconstr(path_extension_constructor, [], ref Mnil))
 and type_floatarray = newgenty (Tconstr(path_floatarray, [], ref Mnil))
 and type_lexing_position = newgenty (Tconstr(path_lexing_position, [], ref Mnil))
+and type_code t = newgenty (Tconstr(path_code, [t], ref Mnil))
 
 and type_unboxed_float = newgenty (Tconstr(path_unboxed_float, [], ref Mnil))
 and type_unboxed_float32 = newgenty (Tconstr(path_unboxed_float32, [], ref Mnil))
@@ -418,6 +421,9 @@ let build_initial_env add_type add_extension empty_env =
        )
        ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type ident_string ~jkind:Jkind.Const.Builtin.immutable_data
+  |> add_type1 ident_code
+       ~variance:Variance.covariant
+       ~separability:Separability.Ind
   |> add_type ident_unboxed_float ~jkind:Jkind.Const.Builtin.float64
   |> add_type ident_unboxed_nativeint ~jkind:Jkind.Const.Builtin.word
   |> add_type ident_unboxed_int32 ~jkind:Jkind.Const.Builtin.bits32

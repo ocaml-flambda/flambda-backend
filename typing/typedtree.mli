@@ -505,6 +505,8 @@ and expression_desc =
        Position argument in function application *)
   | Texp_overwrite of expression * expression (** overwrite_ exp with exp *)
   | Texp_hole of unique_use (** _ *)
+  | Texp_quotation of expression
+  | Texp_antiquotation of expression
 
 and function_curry =
   | More_args of { partial_mode : Mode.Alloc.l }
@@ -1288,3 +1290,7 @@ val function_arity : function_param list -> function_body -> int
 
 (** Given a declaration, return the location of the bound identifier *)
 val loc_of_decl : uid:Shape.Uid.t -> item_declaration -> string Location.loc
+
+(** Fold over the antiquotations in an expression. This function defines the
+    evaluation order of antiquotations. *)
+val fold_antiquote_exp : ('a -> expression -> 'a) -> 'a -> expression -> 'a

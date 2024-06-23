@@ -103,7 +103,8 @@ STDLIB_MODULE_BASENAMES = \
   moreLabels \
   stdLabels \
   effect \
-  camlinternalComprehension
+  camlinternalComprehension \
+  camlinternalQuote
 
 STDLIB_PREFIXED_MODULES = \
   $(filter-out stdlib camlinternal%, $(STDLIB_MODULE_BASENAMES))
