@@ -1292,3 +1292,80 @@ Error: The universal type variable 'a was defaulted to have layout value.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
+
+(*****************)
+(* Test 9: GADTs *)
+
+type _ t =
+  | K : (_ : value mod global) t
+
+let f (type a : value) (x : a t) =
+  let y : a @@ local = assert false in
+  match x with
+  | K -> y
+
+[%%expect{|
+type _ t = K : ('a : value mod global). 'a t
+val f : 'a t -> 'a = <fun>
+|}]
+
+type _ t =
+  | A : ('a : immediate) t
+  | B : ('b : value mod portable) -> ('b : value mod unique) t
+  | C : _ t
+
+let f (type a : value) (x : a t) =
+  let y : a = assert false in
+  match x with
+  | A ->
+    let f (_ : _ as (_ : immediate)) = () in
+    f y
+  | B z ->
+    let f : ('a : value mod portable unique). 'a -> 'a -> _ = fun _ _ -> () in
+    f y z
+  | C ->
+    ()
+
+[%%expect{|
+type _ t =
+    A : ('a : immediate). 'a t
+  | B : ('b : value mod unique portable). 'b -> 'b t
+  | C : 'c t
+val f : 'a t -> unit = <fun>
+|}]
+
+type _ t =
+  | A : ('a : immediate) t
+  | B : ('b : value mod portable) -> ('b : value mod unique) t
+  | C : _ t
+
+let f (type a : value) (x : a t) =
+  let y : a = assert false in
+  match x with
+  | A ->
+    let f (_ : _ as (_ : immediate)) = () in
+    f y
+  | B z ->
+    let f : ('a : value mod portable unique). 'a -> 'a -> _ = fun _ _ -> () in
+    f y z
+  | C ->
+    let f (_ : _ as (_ : immediate)) = () in
+    f y
+
+[%%expect{|
+type _ t =
+    A : ('a : immediate). 'a t
+  | B : ('b : value mod unique portable). 'b -> 'b t
+  | C : 'c t
+Line 17, characters 6-7:
+17 |     f y
+           ^
+Error: This expression has type a but an expression was expected of type
+         ('a : immediate)
+       The layout of a is value, because
+         of the annotation on the abstract type declaration for a.
+       But the layout of a must be a sublayout of immediate, because
+         of the definition of f at line 16, characters 10-41.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
