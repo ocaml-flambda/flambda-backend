@@ -117,9 +117,11 @@ val u : unit = ()
 
 (* first class modules are produced at legacy *)
 let x = ((module M : SL) : _ @@ portable)
-(* CR zqian: this should fail *)
 [%%expect{|
-val x : (module SL) = <module>
+Line 1, characters 9-24:
+1 | let x = ((module M : SL) : _ @@ portable)
+             ^^^^^^^^^^^^^^^
+Error: This value is nonportable but expected to be portable.
 |}]
 
 (* first class modules are consumed at legacy *)

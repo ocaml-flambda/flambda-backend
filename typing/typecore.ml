@@ -427,9 +427,6 @@ let meet_regional mode =
   let mode = Value.disallow_left mode in
   Value.meet [mode; (Value.max_with (Comonadic Areality) Regionality.regional)]
 
-let meet_global mode =
-  Value.meet [mode; (Value.max_with (Comonadic Areality) Regionality.global)]
-
 let value_regional_to_local mode =
   mode
   |> value_to_alloc_r2l
@@ -476,10 +473,6 @@ let mode_with_position mode position =
 
 let mode_max_with_position position =
   { mode_max with position }
-
-let mode_global expected_mode =
-  let mode = meet_global expected_mode.mode in
-  {expected_mode with mode}
 
 let mode_exclave expected_mode =
   let mode =
@@ -549,10 +542,6 @@ let mode_argument ~funct ~index ~position_and_mode ~partial_app marg =
       Regionality.regional;
     mode_tailcall_argument vmode, vmode
   end
-
-let mode_lazy expected_mode =
-  { (mode_global expected_mode) with
-    position = RTail (Regionality.disallow_left Regionality.global, FTail) }
 
 (* expected_mode.closure_context explains why expected_mode.mode is low;
    shared_context explains why mode.uniqueness is high *)
@@ -6045,6 +6034,7 @@ and type_expect_
           raise(Error(loc, env, Instance_variable_not_mutable lab.txt))
     end
   | Pexp_override lst ->
+      submode ~loc ~env Value.legacy expected_mode;
       let _ =
        List.fold_right
         (fun (lab, _) l ->
@@ -6177,13 +6167,14 @@ and type_expect_
         exp_env = env;
       }
   | Pexp_lazy e ->
+      submode ~loc ~env Value.legacy expected_mode;
       let ty = newgenvar (Jkind.value ~why:Lazy_expression) in
       let to_unify = Predef.type_lazy_t ty in
       with_explanation (fun () ->
         unify_exp_types loc env to_unify (generic_instance ty_expected));
       let env = Env.add_escape_lock Lazy env in
       let env = Env.add_share_lock Lazy env in
-      let arg = type_expect env (mode_lazy expected_mode) e (mk_expected ty) in
+      let arg = type_expect env mode_legacy e (mk_expected ty) in
       re {
         exp_desc = Texp_lazy arg;
         exp_loc = loc; exp_extra = [];
@@ -6192,6 +6183,7 @@ and type_expect_
         exp_env = env;
       }
   | Pexp_object s ->
+      submode ~loc ~env Value.legacy expected_mode;
       let desc, meths = !type_object env loc s in
       rue {
         exp_desc = Texp_object (desc, meths);
@@ -6253,6 +6245,8 @@ and type_expect_
     type_newtype_expr ~loc ~env ~expected_mode ~rue ~attributes:sexp.pexp_attributes
       name None sbody
   | Pexp_pack m ->
+      (* CR zqian: pass [expected_mode] to [type_package] *)
+      submode ~loc ~env Value.legacy expected_mode;
       let (p, fl) =
         match get_desc (Ctype.expand_head env (instance ty_expected)) with
           Tpackage (p, fl) ->
@@ -6292,6 +6286,7 @@ and type_expect_
         exp_env = env;
       }
   | Pexp_letop{ let_ = slet; ands = sands; body = sbody } ->
+      submode ~loc ~env Value.legacy expected_mode;
       let rec loop spat_acc ty_acc ty_acc_sort sands =
         match sands with
         | [] -> spat_acc, ty_acc, ty_acc_sort
