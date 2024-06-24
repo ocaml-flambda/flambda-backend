@@ -1369,3 +1369,184 @@ Error: This expression has type a but an expression was expected of type
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
+
+(********************)
+(* Test 10: Objects *)
+
+type t : value = < >
+[%%expect {|
+type t = <  >
+|}]
+
+type t : value mod global = < >
+[%%expect {|
+Line 1, characters 0-31:
+1 | type t : value mod global = < >
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type <  > is value, because
+         it's the type of an object.
+       But the layout of type <  > must be a sublayout of value, because
+         of the definition of t at line 1, characters 0-31.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod global = < >
+[%%expect {|
+Line 1, characters 0-31:
+1 | type t : value mod global = < >
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type <  > is value, because
+         it's the type of an object.
+       But the layout of type <  > must be a sublayout of value, because
+         of the definition of t at line 1, characters 0-31.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod global = < >
+[%%expect {|
+Line 1, characters 0-31:
+1 | type t : value mod global = < >
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type <  > is value, because
+         it's the type of an object.
+       But the layout of type <  > must be a sublayout of value, because
+         of the definition of t at line 1, characters 0-31.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod global = < >
+[%%expect {|
+Line 1, characters 0-31:
+1 | type t : value mod global = < >
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type <  > is value, because
+         it's the type of an object.
+       But the layout of type <  > must be a sublayout of value, because
+         of the definition of t at line 1, characters 0-31.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod global = < >
+[%%expect {|
+Line 1, characters 0-31:
+1 | type t : value mod global = < >
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type <  > is value, because
+         it's the type of an object.
+       But the layout of type <  > must be a sublayout of value, because
+         of the definition of t at line 1, characters 0-31.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod global = < >
+[%%expect {|
+Line 1, characters 0-31:
+1 | type t : value mod global = < >
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type <  > is value, because
+         it's the type of an object.
+       But the layout of type <  > must be a sublayout of value, because
+         of the definition of t at line 1, characters 0-31.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+let x : (_ as (_ : value)) = object end
+[%%expect{|
+val x : <  > = <obj>
+|}]
+
+let x : (_ as (_ : value mod global)) = object end
+[%%expect {|
+Line 1, characters 40-50:
+1 | let x : (_ as (_ : value mod global)) = object end
+                                            ^^^^^^^^^^
+Error: This expression has type <  > but an expression was expected of type
+         ('a : value mod global)
+       The layout of <  > is value, because
+         it's the type of an object.
+       But the layout of <  > must be a sublayout of value, because
+         of the annotation on the wildcard _ at line 1, characters 19-35.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+let x : (_ as (_ : value mod many)) = object end
+[%%expect {|
+Line 1, characters 38-48:
+1 | let x : (_ as (_ : value mod many)) = object end
+                                          ^^^^^^^^^^
+Error: This expression has type <  > but an expression was expected of type
+         ('a : value mod many)
+       The layout of <  > is value, because
+         it's the type of an object.
+       But the layout of <  > must be a sublayout of value, because
+         of the annotation on the wildcard _ at line 1, characters 19-33.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+let x : (_ as (_ : value mod unique)) = object end
+[%%expect {|
+Line 1, characters 40-50:
+1 | let x : (_ as (_ : value mod unique)) = object end
+                                            ^^^^^^^^^^
+Error: This expression has type <  > but an expression was expected of type
+         ('a : value mod unique)
+       The layout of <  > is value, because
+         it's the type of an object.
+       But the layout of <  > must be a sublayout of value, because
+         of the annotation on the wildcard _ at line 1, characters 19-35.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+let x : (_ as (_ : value mod portable)) = object end
+[%%expect {|
+Line 1, characters 42-52:
+1 | let x : (_ as (_ : value mod portable)) = object end
+                                              ^^^^^^^^^^
+Error: This expression has type <  > but an expression was expected of type
+         ('a : value mod portable)
+       The layout of <  > is value, because
+         it's the type of an object.
+       But the layout of <  > must be a sublayout of value, because
+         of the annotation on the wildcard _ at line 1, characters 19-37.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+let x : (_ as (_ : value mod uncontended)) = object end
+[%%expect {|
+Line 1, characters 45-55:
+1 | let x : (_ as (_ : value mod uncontended)) = object end
+                                                 ^^^^^^^^^^
+Error: This expression has type <  > but an expression was expected of type
+         ('a : value mod uncontended)
+       The layout of <  > is value, because
+         it's the type of an object.
+       But the layout of <  > must be a sublayout of value, because
+         of the annotation on the wildcard _ at line 1, characters 19-40.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+let x : (_ as (_ : value mod external_)) = object end
+[%%expect {|
+Line 1, characters 43-53:
+1 | let x : (_ as (_ : value mod external_)) = object end
+                                               ^^^^^^^^^^
+Error: This expression has type <  > but an expression was expected of type
+         ('a : value mod external_)
+       The layout of <  > is value, because
+         it's the type of an object.
+       But the layout of <  > must be a sublayout of immediate, because
+         of the annotation on the wildcard _ at line 1, characters 19-38.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
