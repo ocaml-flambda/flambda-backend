@@ -115,10 +115,10 @@ let is_mutable_implied_modality m =
   (* polymorphic equality suffices for now. *)
   List.mem m mutable_implied_modalities
 
-let transl_modalities mut modalities =
+let transl_modalities has_mutable_implied_modalities modalities =
   let modalities = List.map transl_modality modalities in
   let modalities =
-    if Types.is_mutable mut
+    if has_mutable_implied_modalities
     then modalities @ mutable_implied_modalities
     else modalities
   in
