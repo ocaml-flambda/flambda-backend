@@ -1635,31 +1635,41 @@ let make_float_alloc ~mode dbg tag args =
     (List.length args * size_float / size_addr)
     args
 
-let make_mixed_alloc ~mode dbg tag shape args =
-  let ({ value_prefix_len; flat_suffix } : Lambda.mixed_block_shape) = shape in
+module Flat_suffix_element = struct
+  type t =
+    | Tagged_immediate
+    | Naked_float
+    | Naked_float32
+    | Naked_int32
+    | Naked_int64_or_nativeint
+end
+
+let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size
+    ~(flat_suffix : Flat_suffix_element.t array) args =
   (* args with shape [Float] must already have been unboxed. *)
   let set_fn idx arr ofs newval dbg =
-    if idx < value_prefix_len
+    if idx < value_prefix_size
     then addr_array_init arr ofs newval dbg
     else
-      match flat_suffix.(idx - value_prefix_len) with
-      | Imm -> int_array_set arr ofs newval dbg
-      | Float_boxed | Float64 -> float_array_set arr ofs newval dbg
-      | Float32 -> setfield_unboxed_float32 arr ofs newval dbg
-      | Bits32 -> setfield_unboxed_int32 arr ofs newval dbg
-      | Bits64 | Word -> setfield_unboxed_int64_or_nativeint arr ofs newval dbg
+      match flat_suffix.(idx - value_prefix_size) with
+      | Tagged_immediate -> int_array_set arr ofs newval dbg
+      | Naked_float -> float_array_set arr ofs newval dbg
+      | Naked_float32 -> setfield_unboxed_float32 arr ofs newval dbg
+      | Naked_int32 -> setfield_unboxed_int32 arr ofs newval dbg
+      | Naked_int64_or_nativeint ->
+        setfield_unboxed_int64_or_nativeint arr ofs newval dbg
   in
   let size =
     (* CR layouts 5.1: When we pack int32s/float32s more efficiently, this code
        will need to change. *)
-    value_prefix_len + Array.length flat_suffix
+    value_prefix_size + Array.length flat_suffix
   in
   if size_float <> size_addr
   then
     Misc.fatal_error
       "Unable to compile mixed blocks on a platform where a float is not the \
        same width as a value.";
-  make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_len) ~mode
+  make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_size) ~mode
     set_fn dbg tag size args
 
 (* Record application and currying functions *)

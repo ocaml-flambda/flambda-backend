@@ -192,10 +192,13 @@ module With_debuginfo = struct
 
     let hash = Hashtbl.hash
 
-    let [@ocamlformat "disable"] print ppf (s, k) =
-      Format.fprintf ppf "@[<hov 1>(%a@ %a)@]"
-        print s
-        Debuginfo.print_compact k
+    let print ppf (s, k) =
+      if Debuginfo.is_none k
+      then print ppf s
+      else
+        Format.fprintf ppf "@[<hov 1>(%a@ %t%a%t)@]" print s
+          Flambda_colours.debuginfo Debuginfo.print_compact k
+          Flambda_colours.pop
   end)
 
   let create simple dbg = simple, dbg

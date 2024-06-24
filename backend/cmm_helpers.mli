@@ -313,13 +313,23 @@ val make_alloc :
 val make_float_alloc :
   mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
 
+module Flat_suffix_element : sig
+  type t =
+    | Tagged_immediate
+    | Naked_float
+    | Naked_float32
+    | Naked_int32
+    | Naked_int64_or_nativeint
+end
+
 (** Allocate an mixed block of the corresponding tag and shape. Initial values
     of the flat suffix should be provided unboxed. *)
 val make_mixed_alloc :
   mode:Lambda.alloc_mode ->
   Debuginfo.t ->
-  int ->
-  Lambda.mixed_block_shape ->
+  tag:int ->
+  value_prefix_size:int ->
+  flat_suffix:Flat_suffix_element.t array ->
   expression list ->
   expression
 
