@@ -1011,6 +1011,83 @@ val f : t -> int = <fun>
 val v : int = 5
 |}]
 
+type ('a : immediate) t : value mod many portable = { mutable x : 'a }
+[%%expect {|
+Line 1, characters 0-70:
+1 | type ('a : immediate) t : value mod many portable = { mutable x : 'a }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: this should be accepted *)
+
+type ('a : immediate) t : value mod global = { mutable x : 'a }
+[%%expect {|
+Line 1, characters 0-63:
+1 | type ('a : immediate) t : value mod global = { mutable x : 'a }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type ('a : immediate) t : value mod unique = { mutable x : 'a }
+[%%expect {|
+Line 1, characters 0-63:
+1 | type ('a : immediate) t : value mod unique = { mutable x : 'a }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type ('a : immediate) t : value mod uncontended = { mutable x : 'a }
+[%%expect {|
+Line 1, characters 0-68:
+1 | type ('a : immediate) t : value mod uncontended = { mutable x : 'a }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type ('a : immediate) t : value mod external_ = { mutable x : 'a }
+[%%expect {|
+Line 1, characters 0-66:
+1 | type ('a : immediate) t : value mod external_ = { mutable x : 'a }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of immediate, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type ('a : immediate) t : value mod external64 = { mutable x : 'a }
+[%%expect {|
+Line 1, characters 0-67:
+1 | type ('a : immediate) t : value mod external64 = { mutable x : 'a }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of immediate64, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
 (*************************************)
 (* Test 6: Mode crossing of variants *)
 
