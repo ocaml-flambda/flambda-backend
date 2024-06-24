@@ -123,10 +123,7 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     match field_kind with
     | Tagged_immediate ->
       C.get_field_computed Immediate mutability ~block ~index dbg
-    | Naked_float ->
-      (* CR layouts v5.1: We should use the mutability here to generate better
-         code if the load is immutable. *)
-      C.unboxed_float_array_ref block index dbg
+    | Naked_float -> C.unboxed_immutable_float_array_ref block index dbg
     | Naked_float32 -> C.get_field_unboxed_float32 mutability ~block ~index dbg
     | Naked_int32 -> C.get_field_unboxed_int32 mutability ~block ~index dbg
     | Naked_int64 | Naked_nativeint ->

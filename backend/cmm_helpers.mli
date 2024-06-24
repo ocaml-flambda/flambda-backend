@@ -222,6 +222,9 @@ val int_array_ref : expression -> expression -> Debuginfo.t -> expression
 val unboxed_float_array_ref :
   expression -> expression -> Debuginfo.t -> expression
 
+val unboxed_immutable_float_array_ref :
+  expression -> expression -> Debuginfo.t -> expression
+
 val float_array_ref :
   Lambda.alloc_mode -> expression -> expression -> Debuginfo.t -> expression
 

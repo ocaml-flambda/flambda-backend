@@ -1114,6 +1114,9 @@ let int_array_ref arr ofs dbg =
 let unboxed_float_array_ref arr ofs dbg =
   Cop (mk_load_mut Double, [array_indexing log2_size_float arr ofs dbg], dbg)
 
+let unboxed_immutable_float_array_ref arr ofs dbg =
+  Cop (mk_load_immut Double, [array_indexing log2_size_float arr ofs dbg], dbg)
+
 let float_array_ref mode arr ofs dbg =
   box_float dbg mode (unboxed_float_array_ref arr ofs dbg)
 
