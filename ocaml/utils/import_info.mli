@@ -29,31 +29,13 @@ module CU := Compilation_unit
    here, or somewhere alongside, rather than being duplicated around the
    tree. *)
 
-(** Either an interface (.cmi) or implementation (.cmo/x) import. Should be
-    avoided in new code, in preference to [Intf.t] or [Impl.t]. *)
-type t
-
-val create : CU.Name.t -> crc_with_unit:(CU.t * string) option -> t
-
-val create_normal : CU.t -> crc:string option -> t
-
-val name : t -> CU.Name.t
-
-(** This function will cause a fatal error if a [CU.t] was not provided when the
-    supplied value of type [t] was created. *)
-val cu : t -> CU.t
-
-val crc : t -> string option
-
-val has_name : t -> name:CU.Name.t -> bool
-
-val dummy : t
-
-(** The preferred API to use for interface imports. An interface import might be
-    a parameter, in which case it has a CRC but no [CU.t] (since a [CU.t] is for
-    an implementation). *)
+(** An interface (.cmi) import. Always has a name, corresponding to the name of the .cmi.
+    If the interface is imported opaquely by an alias, it has _only_ a name (since we
+    haven't read the file). Otherwise, it has at least a digest. In most cases, it also
+    has a [CU.t] for the implementation (the .cmo or .cmx), but a parameter has no
+    implementation and thus no [CU.t]. *)
 module Intf : sig
-  type nonrec t = t
+  type t
 
   val create_normal : CU.Name.t -> CU.t -> crc:Digest.t -> t
 
@@ -69,7 +51,7 @@ module Intf : sig
     end
 
     (** The "non-alias part" of the import info for an interface. An [Intf.t] is
-        equivalent to a [CU.Name.t * Nonalias.t option] (use [create], [name], and [spec]
+        equivalent to a [CU.Name.t * Nonalias.t option] (use [create], [name], and [info]
         to convert back and forth). *)
     type t = Kind.t * Digest.t
   end
@@ -84,6 +66,8 @@ module Intf : sig
 
   val info : t -> Nonalias.t option
 
+  val cu : t -> CU.t option
+
   val crc : t -> Digest.t option
 
   val has_name : t -> name:CU.Name.t -> bool
@@ -91,8 +75,9 @@ module Intf : sig
   val dummy : t
 end
 
+(** An implementation (.cmx) import. *)
 module Impl : sig
-  type nonrec t = t
+  type t
 
   (** The import info for an implementation we depend on and whose .cmx we actually
       loaded. *)

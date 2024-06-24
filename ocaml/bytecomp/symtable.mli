@@ -32,7 +32,7 @@ val transl_const: Lambda.structured_constant -> Obj.t
 
 (* Functions for the toplevel *)
 
-val init_toplevel: unit -> Import_info.t array
+val init_toplevel: unit -> Import_info.Intf.t array
 val update_global_table: unit -> unit
 val get_global_value: Ident.t -> Obj.t
 val is_global_defined: Ident.t -> bool

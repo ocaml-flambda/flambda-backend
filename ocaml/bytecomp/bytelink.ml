@@ -199,7 +199,7 @@ let check_consistency file_name cu =
   begin try
     Array.iter
       (fun import ->
-        let name = Import_info.name import in
+        let name = Import_info.Intf.name import in
         let info = Import_info.Intf.info import in
         interfaces := name :: !interfaces;
         match info with

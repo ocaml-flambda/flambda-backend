@@ -72,7 +72,7 @@ let check_units members =
       | PM_impl infos ->
           List.iter
             (fun import ->
-              let unit = Import_info.cu import in
+              let unit = Import_info.Impl.cu import in
               let name = CU.name unit in
               if List.mem name forbidden
               then raise(Error(Forward_reference(mb.pm_file, name))))
@@ -160,9 +160,11 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
 let build_package_cmx members cmxfile =
   let unit_names =
     List.map (fun m -> m.pm_name) members in
-  let filter lst =
+  let filter lst ~get_name =
     List.filter (fun import ->
-      not (List.mem (Import_info.name import) unit_names)) lst in
+      not (List.mem (get_name import) unit_names)) lst in
+  let filter_cmi lst = filter lst ~get_name:Import_info.Intf.name in
+  let filter_cmx lst = filter lst ~get_name:Import_info.Impl.name in
   let union lst =
     List.fold_left
       (List.fold_left
@@ -190,11 +192,11 @@ let build_package_cmx members cmxfile =
           List.flatten (List.map (fun info -> info.ui_defines) units) @
           [ui.ui_unit];
       ui_imports_cmi =
-          (Import_info.create modname
-            ~crc_with_unit:(Some (ui.ui_unit, Env.crc_of_unit modname))) ::
-            filter (Asmlink.extract_crc_interfaces ());
+          (Import_info.Intf.create_normal modname ui.ui_unit
+            ~crc:(Env.crc_of_unit modname)) ::
+            filter_cmi (Asmlink.extract_crc_interfaces ());
       ui_imports_cmx =
-          filter(Asmlink.extract_crc_implementations());
+          filter_cmx(Asmlink.extract_crc_implementations());
       ui_generic_fns =
         { curry_fun =
             union(List.map (fun info -> info.ui_generic_fns.curry_fun) units);

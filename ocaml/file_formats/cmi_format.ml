@@ -58,7 +58,7 @@ module Serialized = Types.Make_wrapped(struct type 'a t = int end)
 (* these type abbreviations are not exported;
    they are used to provide consistency across
    input_value and output_value usage. *)
-type crcs = Import_info.t array  (* smaller on disk than using a list *)
+type crcs = Import_info.Intf.t array  (* smaller on disk than using a list *)
 type flags = pers_flags list
 type header = {
     header_name : Compilation_unit.Name.t;

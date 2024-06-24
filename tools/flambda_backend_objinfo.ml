@@ -57,13 +57,13 @@ let print_name_crc name crco =
 (* CR-someday mshinwell: consider moving to [Import_info.print] *)
 
 let print_intf_import import =
-  let name = Import_info.name import in
-  let crco = Import_info.crc import in
+  let name = Import_info.Intf.name import in
+  let crco = Import_info.Intf.crc import in
   print_name_crc name crco
 
 let print_impl_import import =
-  let unit = Import_info.cu import in
-  let crco = Import_info.crc import in
+  let unit = Import_info.Impl.cu import in
+  let crco = Import_info.Impl.crc import in
   print_name_crc (Compilation_unit.name unit) crco
 
 let print_line name = printf "\t%s\n" name
@@ -321,8 +321,8 @@ let dump_byte ic =
       try
         if len > 0 then match section with
           | CRCS ->
-              let imported_units : Import_info.t list =
-                (Bytesections.read_section_struct toc ic section : Import_info.t array)
+              let imported_units : Import_info.Intf.t list =
+                (Bytesections.read_section_struct toc ic section : Import_info.Intf.t array)
                 |> Array.to_list
               in
               p_list "Imported units" print_intf_import imported_units

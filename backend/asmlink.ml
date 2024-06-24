@@ -61,7 +61,7 @@ let check_cmi_consistency file_name cmis =
   try
     Array.iter
       (fun import ->
-        let name = Import_info.name import in
+        let name = Import_info.Intf.name import in
         let info = Import_info.Intf.info import in
         CU.Name.Tbl.replace interfaces name ();
         match info with
@@ -80,8 +80,8 @@ let check_cmx_consistency file_name cmxs =
   try
     Array.iter
       (fun import ->
-        let name = Import_info.cu import in
-        let crco = Import_info.crc import in
+        let name = Import_info.Impl.cu import in
+        let crco = Import_info.Impl.crc import in
         implementations := name :: !implementations;
         match crco with
             None ->
@@ -123,7 +123,7 @@ let extract_crc_implementations () =
   Cmx_consistbl.extract !implementations crc_implementations
   |> List.map (fun (cu, crc) ->
        let crc = Option.map (fun ((), crc) -> crc) crc in
-       Import_info.create_normal cu ~crc)
+       Import_info.Impl.create cu ~crc)
 
 (* Add C objects and options and "custom" info from a library descriptor.
    See bytecomp/bytelink.ml for comments on the order of C objects. *)
@@ -163,7 +163,7 @@ let is_required name =
   with Not_found -> false
 
 let add_required by import =
-  let name = Import_info.cu import in
+  let name = Import_info.Impl.cu import in
   try
     let rq = Hashtbl.find missing_globals name in
     rq := by :: !rq

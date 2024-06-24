@@ -57,7 +57,7 @@ type cmt_infos = {
   cmt_loadpath : Load_path.paths;
   cmt_source_digest : Digest.t option;
   cmt_initial_env : Env.t;
-  cmt_imports : Import_info.t array;
+  cmt_imports : Import_info.Intf.t array;
   cmt_interface_digest : Digest.t option;
   cmt_use_summaries : bool;
   cmt_uid_to_decl : item_declaration Shape.Uid.Tbl.t;
@@ -459,8 +459,8 @@ let save_cmt filename modname binary_annots sourcefile initial_env cmi shape =
          in
          let source_digest = Option.map Digest.file sourcefile in
          let compare_imports import1 import2 =
-           let modname1 = Import_info.name import1 in
-           let modname2 = Import_info.name import2 in
+           let modname1 = Import_info.Intf.name import1 in
+           let modname2 = Import_info.Intf.name import2 in
            Compilation_unit.Name.compare modname1 modname2
          in
          let get_imports () =

@@ -3709,7 +3709,7 @@ let package_units initial_env objfiles cmifile modulename =
     let unit_names = List.map fst units in
     let imports =
       List.filter (fun import ->
-          let name = Import_info.name import in
+          let name = Import_info.Intf.name import in
           not (List.mem name unit_names))
         (Env.imports()) in
     (* Write packaged signature *)

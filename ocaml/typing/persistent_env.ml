@@ -492,7 +492,7 @@ let crc_of_unit penv name =
     match Array.find_opt (Import_info.Intf.has_name ~name) import.imp_crcs with
     | None -> assert false
     | Some import_info ->
-      match Import_info.crc import_info with
+      match Import_info.Intf.crc import_info with
       | None -> assert false
       | Some crc -> crc
 

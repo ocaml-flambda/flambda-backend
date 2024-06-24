@@ -165,7 +165,7 @@ let get_unit_info comp_unit =
               (None, None)
           end
       in
-      let import = Import_info.create_normal comp_unit ~crc in
+      let import = Import_info.Impl.create comp_unit ~crc in
       current_unit.ui_imports_cmx <- import :: current_unit.ui_imports_cmx;
       CU.Name.Tbl.add global_infos_table cmx_name infos;
       infos
