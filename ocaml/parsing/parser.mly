@@ -3879,8 +3879,7 @@ jkind:
     }
   | mkrhs(ident) {
       let {txt; loc} = $1 in
-      Jane_syntax.Jkind.(Primitive_layout_or_abbreviation
-        (Const.mk txt loc))
+      Jane_syntax.Jkind.(Abbreviation (Const.mk txt loc))
     }
   | KIND_OF ty=core_type {
       Jane_syntax.Jkind.Kind_of ty

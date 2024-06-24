@@ -199,7 +199,7 @@ module Jkind : sig
 
   type t =
     | Default
-    | Primitive_layout_or_abbreviation of Const.t
+    | Abbreviation of Const.t
     | Mod of t * Mode_expr.t
     | With of t * Parsetree.core_type
     | Kind_of of Parsetree.core_type

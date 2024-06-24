@@ -313,7 +313,7 @@ let rec class_type_field env sign self_scope ctf =
           let ty = cty.ctyp_type in
           begin match
             Ctype.constrain_type_jkind
-              env ty (Jkind.value ~why:Instance_variable)
+              env ty (Jkind.Primitive.value ~why:Instance_variable)
           with
           | Ok _ -> ()
           | Error err -> raise (Error(loc, env, Non_value_binding(lab, err)))
@@ -328,7 +328,7 @@ let rec class_type_field env sign self_scope ctf =
            match sty.ptyp_desc, priv with
            | Ptyp_poly ([],sty'), Public ->
                let expected_ty =
-                 Ctype.newvar (Jkind.value ~why:Object_field)
+                 Ctype.newvar (Jkind.Primitive.value ~why:Object_field)
                in
                add_method loc env lab priv virt expected_ty sign;
                let returned_cty =
@@ -691,7 +691,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
            begin
              match
                Ctype.constrain_type_jkind
-                 val_env cty.ctyp_type (Jkind.value ~why:Class_field)
+                 val_env cty.ctyp_type (Jkind.Primitive.value ~why:Class_field)
              with
              | Ok _ -> ()
              | Error err -> raise (Error(label.loc, val_env,
@@ -740,7 +740,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
              match
                Ctype.constrain_type_jkind
                  val_env definition.exp_type
-                 (Jkind.value ~why:Class_field)
+                 (Jkind.Primitive.value ~why:Class_field)
              with
              | Ok _ -> ()
              | Error err -> raise (Error(label.loc, val_env,
@@ -810,7 +810,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
            in
            let ty =
              match sty with
-             | None -> Ctype.newvar (Jkind.value ~why:Object_field)
+             | None -> Ctype.newvar (Jkind.Primitive.value ~why:Object_field)
              | Some sty ->
                  let sty = Ast_helper.Typ.force_poly sty in
                  let cty' =
@@ -824,7 +824,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
                match get_desc ty with
                | Tvar _ ->
                    let ty' =
-                     Ctype.newvar (Jkind.value ~why:Object_field)
+                     Ctype.newvar (Jkind.Primitive.value ~why:Object_field)
                    in
                    Ctype.unify val_env (Ctype.newmono ty') ty;
                    Typecore.type_approx val_env sbody ty'
@@ -1562,7 +1562,7 @@ let rec approx_declaration cl =
         | Optional _ -> Ctype.instance var_option
         | Position _ -> Ctype.instance Predef.type_lexing_position
         | Labelled _ | Nolabel ->
-          Ctype.newvar (Jkind.value ~why:Class_term_argument)
+          Ctype.newvar (Jkind.Primitive.value ~why:Class_term_argument)
           (* CR layouts: use of value here may be relaxed when we update
            classes to work with jkinds *)
       in
@@ -1574,7 +1574,7 @@ let rec approx_declaration cl =
       approx_declaration cl
   | Pcl_constraint (cl, _) ->
       approx_declaration cl
-  | _ -> Ctype.newvar (Jkind.value ~why:Object)
+  | _ -> Ctype.newvar (Jkind.Primitive.value ~why:Object)
 
 let rec approx_description ct =
   match ct.pcty_desc with
@@ -1582,7 +1582,7 @@ let rec approx_description ct =
       let l = transl_label l (Some core_type) in
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar (Jkind.value ~why:Class_term_argument)
+        else Ctype.newvar (Jkind.Primitive.value ~why:Class_term_argument)
         (* CR layouts: use of value here may be relaxed when we
            relax jkinds in classes *)
       in
@@ -1590,23 +1590,23 @@ let rec approx_description ct =
       let arrow_desc = l, Mode.Alloc.legacy, Mode.Alloc.legacy in
       Ctype.newty
         (Tarrow (arrow_desc, arg, approx_description ct, commu_ok))
-  | _ -> Ctype.newvar (Jkind.value ~why:Object)
+  | _ -> Ctype.newvar (Jkind.Primitive.value ~why:Object)
 
 (*******************************)
 
 let temp_abbrev loc id arity uid =
   let params = ref [] in
   for i = 1 to arity do
-    params := Ctype.newvar (Jkind.value ~why:(
+    params := Ctype.newvar (Jkind.Primitive.value ~why:(
       Type_argument {parent_path = Path.Pident id; position = i; arity})
     ) :: !params
   done;
-  let ty = Ctype.newobj (Ctype.newvar (Jkind.value ~why:Object)) in
+  let ty = Ctype.newobj (Ctype.newvar (Jkind.Primitive.value ~why:Object)) in
   let ty_td =
       {type_params = !params;
        type_arity = arity;
        type_kind = Type_abstract Abstract_def;
-       type_jkind = Jkind.value ~why:Object;
+       type_jkind = Jkind.Primitive.value ~why:Object;
        type_jkind_annotation = None;
        type_private = Public;
        type_manifest = Some ty;
@@ -1696,7 +1696,7 @@ let class_infos define_class kind
                we should lift this restriction. Doing so causes bad error messages
                today, so we wait for tomorrow. *)
             Ctype.unify env param.ctyp_type
-              (Ctype.newvar (Jkind.value ~why:Class_type_argument));
+              (Ctype.newvar (Jkind.Primitive.value ~why:Class_type_argument));
             (param, v)
           with Already_bound ->
             raise(Error(sty.ptyp_loc, env, Repeated_parameter))
@@ -1837,7 +1837,7 @@ let class_infos define_class kind
      type_params = obj_params;
      type_arity = arity;
      type_kind = Type_abstract Abstract_def;
-     type_jkind = Jkind.value ~why:Object;
+     type_jkind = Jkind.Primitive.value ~why:Object;
      type_jkind_annotation = None;
      type_private = Public;
      type_manifest = Some obj_ty;

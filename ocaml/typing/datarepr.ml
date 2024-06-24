@@ -207,7 +207,7 @@ let none =
 let dummy_label =
   { lbl_name = ""; lbl_res = none; lbl_arg = none;
     lbl_mut = Immutable; lbl_modalities = Mode.Modality.Value.id;
-    lbl_jkind = Jkind.any ~why:Dummy_jkind;
+    lbl_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
     lbl_num = -1; lbl_pos = -1; lbl_all = [||];
     lbl_repres = Record_unboxed;
     lbl_private = Public;
