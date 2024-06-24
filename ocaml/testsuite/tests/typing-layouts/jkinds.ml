@@ -1117,3 +1117,68 @@ Error: The layout of type t is value, because
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
+
+(*****************************)
+(* Test 8: Kind intersection *)
+
+type ('a : value mod unique) t = ('a : value mod global)
+type ('a : immediate) t = ('a : value)
+type ('a : value) t = ('a : immediate)
+type ('a : value mod external_ portable many) t = ('a : value mod uncontended global unique)
+type ('a : value) t = ('a : any)
+type ('a : value) t = ('a : value)
+type ('a : bits32 mod unique) t = ('a : any mod global)
+[%%expect {|
+type ('a : value mod global unique) t = 'a
+type ('a : immediate) t = 'a
+type ('a : immediate) t = 'a
+type ('a : immediate) t = 'a
+type 'a t = 'a
+type 'a t = 'a
+type ('a : bits32 mod global unique) t = 'a
+|}]
+
+type ('a : bits32) t = ('a : word)
+[%%expect {|
+Line 1, characters 23-34:
+1 | type ('a : bits32) t = ('a : word)
+                           ^^^^^^^^^^^
+Error: This type ('a : word) should be an instance of type ('a0 : bits32)
+       The layout of 'a is bits32, because
+         of the annotation on 'a in the declaration of the type t.
+       But the layout of 'a must overlap with word, because
+         of the annotation on the type variable 'a.
+|}]
+
+let f : ('a : any mod global unique) -> ('a: any mod uncontended) = fun x -> x
+let f : ('a : value mod external64) -> ('a: any mod external_) = fun x -> x
+let f : ('a : value) -> ('a: immediate) = fun x -> x
+[%%expect {|
+val f : ('a : value mod global unique uncontended). 'a -> 'a = <fun>
+val f : ('a : value mod external_). 'a -> 'a = <fun>
+val f : ('a : immediate). 'a -> 'a = <fun>
+|}]
+
+let f : ('a : value) -> ('a: float32) = fun x -> x
+[%%expect {|
+Line 1, characters 29-36:
+1 | let f : ('a : value) -> ('a: float32) = fun x -> x
+                                 ^^^^^^^
+Error: Bad layout annotation:
+         The layout of 'a is value, because
+           of the annotation on the type variable 'a.
+         But the layout of 'a must overlap with float32, because
+           of the annotation on the type variable 'a.
+|}]
+
+val x : 'a. ('a : value mod global)
+[%%expect {|
+Line 1, characters 8-35:
+1 | val x : 'a. ('a : value mod global)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The universal type variable 'a was defaulted to have layout value.
+       But it was inferred to have layout value, because
+         of the annotation on the type variable 'a.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
