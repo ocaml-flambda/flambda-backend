@@ -897,3 +897,6 @@ type t : value = private { x : int; } [@@unboxed]
 val f : t -> t = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
+
+(**)
+(* Test 5:  *)

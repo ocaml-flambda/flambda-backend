@@ -1069,6 +1069,84 @@ type t : immediate = { x : int; } [@@unboxed]
 val f : t -> t = <fun>
 |}]
 
+type t : value mod global = { x : string }
+[%%expect {|
+Line 1, characters 0-42:
+1 | type t : value mod global = { x : string }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod unique = { x : string }
+[%%expect {|
+Line 1, characters 0-42:
+1 | type t : value mod unique = { x : string }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod many = { x : string }
+[%%expect {|
+Line 1, characters 0-40:
+1 | type t : value mod many = { x : string }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod portable = { x : string }
+[%%expect {|
+Line 1, characters 0-44:
+1 | type t : value mod portable = { x : string }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod uncontended = { x : string }
+[%%expect {|
+Line 1, characters 0-47:
+1 | type t : value mod uncontended = { x : string }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod external_ = { x : string }
+[%%expect {|
+Line 1, characters 0-45:
+1 | type t : value mod external_ = { x : string }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of immediate, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
 (***************************************)
 (* Test 11: Annotation of variant type *)
 
@@ -1154,6 +1232,84 @@ type t : immediate = Foo of int [@@unboxed]
 val f : t -> t = <fun>
 |}]
 
+type t : value mod global = Foo of string
+[%%expect {|
+Line 1, characters 0-41:
+1 | type t : value mod global = Foo of string
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed variant type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod unique = Foo of string
+[%%expect {|
+Line 1, characters 0-41:
+1 | type t : value mod unique = Foo of string
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed variant type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod many = Foo of string
+[%%expect {|
+Line 1, characters 0-39:
+1 | type t : value mod many = Foo of string
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed variant type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod portable = Foo of string
+[%%expect {|
+Line 1, characters 0-43:
+1 | type t : value mod portable = Foo of string
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed variant type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod uncontended = Foo of string
+[%%expect {|
+Line 1, characters 0-46:
+1 | type t : value mod uncontended = Foo of string
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed variant type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod external_ = Foo of string
+[%%expect {|
+Line 1, characters 0-44:
+1 | type t : value mod external_ = Foo of string
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed variant type.
+       But the layout of type t must be a sublayout of immediate, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
 (***************************************)
 (* Test 12: Annotation on private type *)
 
@@ -1206,6 +1362,111 @@ type t : bits64 mod portable unique
 type u = private t
 val f : t -> t = <fun>
 |}]
+
+type t : float64 mod global portable
+type u : bits64 mod global portable = private t
+[%%expect {|
+type t : float64 mod global portable
+Line 2, characters 0-47:
+2 | type u : bits64 mod global portable = private t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is float64, because
+         of the definition of t at line 1, characters 0-36.
+       But the layout of type t must be a sublayout of bits64, because
+         of the definition of u at line 2, characters 0-47.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : word
+type u : word mod global = private t
+[%%expect {|
+type t : word
+Line 2, characters 0-36:
+2 | type u : word mod global = private t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is word, because
+         of the definition of t at line 1, characters 0-13.
+       But the layout of type t must be a sublayout of word, because
+         of the definition of u at line 2, characters 0-36.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+  mismatch, not a layout mismatch. *)
+
+type t : word
+type u : word mod unique = private t
+[%%expect {|
+type t : word
+Line 2, characters 0-36:
+2 | type u : word mod unique = private t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is word, because
+         of the definition of t at line 1, characters 0-13.
+       But the layout of type t must be a sublayout of word, because
+         of the definition of u at line 2, characters 0-36.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+  mismatch, not a layout mismatch. *)
+
+type t : word
+type u : word mod many = private t
+[%%expect {|
+type t : word
+Line 2, characters 0-34:
+2 | type u : word mod many = private t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is word, because
+         of the definition of t at line 1, characters 0-13.
+       But the layout of type t must be a sublayout of word, because
+         of the definition of u at line 2, characters 0-34.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+  mismatch, not a layout mismatch. *)
+
+type t : word
+type u : word mod portable = private t
+[%%expect {|
+type t : word
+Line 2, characters 0-38:
+2 | type u : word mod portable = private t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is word, because
+         of the definition of t at line 1, characters 0-13.
+       But the layout of type t must be a sublayout of word, because
+         of the definition of u at line 2, characters 0-38.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+  mismatch, not a layout mismatch. *)
+
+type t : word
+type u : word mod uncontended = private t
+[%%expect {|
+type t : word
+Line 2, characters 0-41:
+2 | type u : word mod uncontended = private t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is word, because
+         of the definition of t at line 1, characters 0-13.
+       But the layout of type t must be a sublayout of word, because
+         of the definition of u at line 2, characters 0-41.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+  mismatch, not a layout mismatch. *)
+
+type t : word
+type u : word mod external_ = private t
+[%%expect {|
+type t : word
+Line 2, characters 0-39:
+2 | type u : word mod external_ = private t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is word, because
+         of the definition of t at line 1, characters 0-13.
+       But the layout of type t must be a sublayout of word, because
+         of the definition of u at line 2, characters 0-39.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+  mismatch, not a layout mismatch. *)
 
 (**************************************)
 (* Test 13: Parsing & pretty-printing *)
