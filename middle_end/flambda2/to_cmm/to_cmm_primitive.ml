@@ -93,9 +93,20 @@ let make_block ~dbg kind alloc_mode args =
   | Naked_floats ->
     C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
   | Mixed (tag, shape) ->
-    C.make_mixed_alloc ~mode dbg (Tag.Scannable.to_int tag)
-      (K.Mixed_block_shape.to_lambda shape)
-      args
+    let value_prefix_size = K.Mixed_block_shape.value_prefix_size shape in
+    let flat_suffix =
+      Array.map
+        (fun (flat_elt : K.Flat_suffix_element.t) : C.Flat_suffix_element.t ->
+          match flat_elt with
+          | Tagged_immediate -> Tagged_immediate
+          | Naked_float -> Naked_float
+          | Naked_float32 -> Naked_float32
+          | Naked_int32 -> Naked_int32
+          | Naked_int64 | Naked_nativeint -> Naked_int64_or_nativeint)
+        (K.Mixed_block_shape.flat_suffix shape)
+    in
+    C.make_mixed_alloc ~mode dbg ~tag:(Tag.Scannable.to_int tag)
+      ~value_prefix_size ~flat_suffix args
 
 let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     ~block ~index =
