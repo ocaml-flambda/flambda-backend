@@ -1118,6 +1118,116 @@ Error: The layout of type t is value, because
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
 
+(***********************************************)
+(* Test 7: Inference with modality annotations *)
+
+type 'a t : value mod global portable uncontended many unique =
+  { x : 'a @@ global portable uncontended many unique } [@@unboxed]
+[%%expect {|
+Lines 1-2, characters 0-67:
+1 | type 'a t : value mod global portable uncontended many unique =
+2 |   { x : 'a @@ global portable uncontended many unique } [@@unboxed]
+Error: The layout of type t is value, because
+         it instantiates an unannotated type parameter of t, defaulted to layout value.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: this should be accepted *)
+
+type 'a t : value mod global portable uncontended many unique =
+  Foo of 'a @@ global portable uncontended many unique [@@unboxed]
+[%%expect {|
+Lines 1-2, characters 0-66:
+1 | type 'a t : value mod global portable uncontended many unique =
+2 |   Foo of 'a @@ global portable uncontended many unique [@@unboxed]
+Error: The layout of type t is value, because
+         it instantiates an unannotated type parameter of t, defaulted to layout value.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: this should be accepted *)
+
+type ('a : value mod global) t : value mod global = { x : 'a @@ global } [@@unboxed]
+type ('a : immediate) t : immediate = { x : 'a @@ global } [@@unboxed]
+type ('a : value mod global) t : value mod global = { x : 'a @@ local } [@@unboxed]
+type ('a : value mod global) t : value mod global = Foo of 'a @@ global [@@unboxed]
+type ('a : immediate) t : immediate = Foo of 'a @@ global [@@unboxed]
+type ('a : value mod global) t : value mod global = Foo of 'a @@ local [@@unboxed]
+[%%expect {|
+type ('a : value mod global) t : value mod global = { global_ x : 'a; } [@@unboxed]
+type ('a : immediate) t : immediate = { global_ x : 'a; } [@@unboxed]
+type ('a : value mod global) t : value mod global = { x : 'a; } [@@unboxed]
+type ('a : value mod global) t : value mod global = Foo of global_ 'a [@@unboxed]
+type ('a : immediate) t : immediate = Foo of global_ 'a [@@unboxed]
+type ('a : value mod global) t : value mod global = Foo of 'a [@@unboxed]
+|}]
+
+type ('a : value mod uncontended many) t : value mod uncontended many unique =
+  { x : 'a @@ unique } [@@unboxed]
+[%%expect {|
+Lines 1-2, characters 0-34:
+1 | type ('a : value mod uncontended many) t : value mod uncontended many unique =
+2 |   { x : 'a @@ unique } [@@unboxed]
+Error: The layout of type t is value, because
+         of the annotation on 'a in the declaration of the type t.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: this should be accepted *)
+
+type ('a : value mod external_) t : immediate =
+  Foo of 'a @@ global portable uncontended many unique [@@unboxed]
+[%%expect {|
+Lines 1-2, characters 0-66:
+1 | type ('a : value mod external_) t : immediate =
+2 |   Foo of 'a @@ global portable uncontended many unique [@@unboxed]
+Error: The layout of type t is immediate, because
+         of the annotation on 'a in the declaration of the type t.
+       But the layout of type t must be a sublayout of immediate, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: this should be accepted *)
+
+type 'a t : value mod many = { x : 'a @@ many }
+type 'a t : value mod uncontended = { x : 'a @@ uncontended }
+type 'a t : value mod portable = { x : 'a @@ portable }
+[%%expect {|
+Line 1, characters 0-47:
+1 | type 'a t : value mod many = { x : 'a @@ many }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: this should be accepted *)
+
+type 'a t : value mod unique = { x : 'a @@ unique }
+[%%expect {|
+Line 1, characters 0-51:
+1 | type 'a t : value mod unique = { x : 'a @@ unique }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type 'a t : value mod global = { x : 'a @@ global }
+[%%expect {|
+Line 1, characters 0-51:
+1 | type 'a t : value mod global = { x : 'a @@ global }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
 (*****************************)
 (* Test 8: Kind intersection *)
 
