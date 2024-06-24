@@ -1491,8 +1491,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             (match read with
             | Flat_read flat_element ->
               K.Flat_suffix_element.from_lambda flat_element
-              |> K.Flat_suffix_element.kind
-            | Flat_read_float_boxed _ -> K.naked_float)
+            | Flat_read_float_boxed _ -> K.Flat_suffix_element.naked_float)
       in
       let shape = K.Mixed_block_shape.from_lambda shape in
       Mixed { tag = Unknown; field_kind; shape; size = Unknown }
@@ -1554,9 +1553,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
               Value_prefix
                 (convert_block_access_field_kind immediate_or_pointer)
             | Mwrite_flat_suffix flat ->
-              Flat_suffix
-                (K.Flat_suffix_element.from_lambda flat
-                |> K.Flat_suffix_element.kind));
+              Flat_suffix (K.Flat_suffix_element.from_lambda flat));
           shape = K.Mixed_block_shape.from_lambda shape;
           tag = Unknown;
           size = Unknown

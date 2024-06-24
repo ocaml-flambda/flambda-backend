@@ -360,7 +360,7 @@ end
 module Mixed_block_access_field_kind = struct
   type t =
     | Value_prefix of Block_access_field_kind.t
-    | Flat_suffix of K.t
+    | Flat_suffix of K.Flat_suffix_element.t
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
@@ -375,20 +375,20 @@ module Mixed_block_access_field_kind = struct
           "@[<hov 1>(Flat_suffix \
            @[<hov 1>(flat_element@ %a)@]\
            )@]"
-          K.print flat_element
+          K.Flat_suffix_element.print flat_element
 
   let compare t1 t2 =
     match t1, t2 with
     | Value_prefix field_kind1, Value_prefix field_kind2 ->
       Block_access_field_kind.compare field_kind1 field_kind2
     | Flat_suffix element_kind1, Flat_suffix element_kind2 ->
-      K.compare element_kind1 element_kind2
+      K.Flat_suffix_element.compare element_kind1 element_kind2
     | Value_prefix _, Flat_suffix _ -> -1
     | Flat_suffix _, Value_prefix _ -> 1
 
   let to_element_kind = function
     | Value_prefix _ -> K.value
-    | Flat_suffix kind -> kind
+    | Flat_suffix kind -> K.Flat_suffix_element.kind kind
 end
 
 module Block_access_kind = struct
@@ -451,8 +451,14 @@ module Block_access_kind = struct
     | Mixed { field_kind = Value_prefix Immediate; _ } ->
       K.With_subkind.tagged_immediate
     | Naked_floats _ -> K.With_subkind.naked_float
-    | Mixed { field_kind = Flat_suffix field_kind; _ } ->
-      K.With_subkind.anything field_kind
+    | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
+      match field_kind with
+      | Tagged_immediate -> K.With_subkind.tagged_immediate
+      | Naked_float -> K.With_subkind.naked_float
+      | Naked_float32 -> K.With_subkind.naked_float32
+      | Naked_int32 -> K.With_subkind.naked_int32
+      | Naked_int64 -> K.With_subkind.naked_int64
+      | Naked_nativeint -> K.With_subkind.naked_nativeint)
 
   let to_block_shape t : K.Block_shape.t =
     match t with
