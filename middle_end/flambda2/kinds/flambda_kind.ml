@@ -215,6 +215,13 @@ module Mixed_block_shape = struct
     { value_prefix_size : int;
       flat_suffix : Flat_suffix_element.t array;
       field_kinds : kind array
+          (* [field_kinds] is uniquely determined by [flat_suffix]. The kinds
+             are the thing used during most of Flambda 2, but the [flat_suffix]
+             is required for compilation to Cmm. We could also use a kind with
+             subkind, but that would require significant restructuring in this
+             file, and would provide an overly-permissive type in the face of
+             the various restrictions as to what suffix elements are
+             permitted. *)
     }
 
   let value_prefix_size t = t.value_prefix_size
@@ -237,7 +244,6 @@ module Mixed_block_shape = struct
         flat_suffix = flat_suffix2;
         field_kinds = _
       } =
-    (* [field_kinds] is uniquely determined by [flat_suffix]. *)
     Int.equal value_prefix_size1 value_prefix_size2
     && Int.equal (Array.length flat_suffix1) (Array.length flat_suffix2)
     && Array.for_all2 Flat_suffix_element.equal flat_suffix1 flat_suffix2
