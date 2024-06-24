@@ -109,7 +109,7 @@ layout ::= layout_of σ | const_layout
 
 δ ::= (* left abstract; internal representation of a [type_kind] *)
 
-tconstr_jkind = π [[ 'a : κ ]]. κ₀
+tconstr_jkind ::= π [[ 'a : κ ]]. κ₀
   (* That should be a capital π, but that looks too much like ⨅. *)
 
 rec {
@@ -688,8 +688,31 @@ rec {
 # Examples
 
 ```
-kind_abbrev_ immutable_data = value mod many portable uncontended
-type 'a t = { x : 'a; y : ('a -> 'a) @@ portable; z : ('a -> 'a) @@ many }
+(* To remind ourselves:
+lm ::= global | local
+om ::= many | separate | once
+pm ::= portable | observing | nonportable
+em ::= external | external64 | internal
+
+(* monadic axes = descriptive axes *)
+um ::= unique | exclusive | aliased
+cm ::= uncontended | shared | contended
+*)
+
+type 'a t = { x : 'a }
+↠
+type 'a t : value mod many portable uncontended with 'a
+
+goal:
+  We want int list to mode-cross portability
+  We want (int -> int) list *not* to mode-cross portability
+  And similarly Set.Make(X).t (whose kind must have `with X.t` in it)
+
+============
+
+kind_abbrev_ data = value mod many portable  (* no functions *)
+kind_abbrev_ immutable_data = data mod uncontended
+type 'a t = { x : 'a; y : ('a -> 'a) @@ portable many; z : ('a -> 'a) @@ many }
 
 ↠
 type 'a t : immutable_data
