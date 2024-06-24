@@ -402,6 +402,42 @@ let is_bottom env t = ET.is_bottom (expand_head env t)
 
 let is_unknown env t = ET.is_unknown (expand_head env t)
 
+let[@warning "-4"] reduce_is_int env t : _ Or_unknown_or_bottom.t =
+  match ET.descr (expand_head env t) with
+  | Unknown -> Unknown
+  | Bottom -> Bottom
+  | Ok (Value (Variant { immediates; blocks; _ })) ->
+    Ok
+      (Targetint_31_63.Set.union
+         (match immediates with
+         | Unknown -> Targetint_31_63.Set.singleton Targetint_31_63.one
+         | Known ty ->
+           if TG.is_obviously_bottom ty
+           then Targetint_31_63.Set.empty
+           else Targetint_31_63.Set.singleton Targetint_31_63.one)
+         (match blocks with
+         | Unknown -> Targetint_31_63.Set.singleton Targetint_31_63.zero
+         | Known blocks ->
+           if TG.Row_like_for_blocks.is_bottom blocks
+           then Targetint_31_63.Set.empty
+           else Targetint_31_63.Set.singleton Targetint_31_63.zero))
+  | Ok _ -> Unknown
+
+let[@warning "-4"] reduce_get_tag env t : _ Or_unknown_or_bottom.t =
+  match ET.descr (expand_head env t) with
+  | Unknown -> Unknown
+  | Bottom -> Bottom
+  | Ok (Value (Variant { blocks = Known blocks; _ })) -> (
+    match blocks.other_tags with
+    | Bottom ->
+      Ok
+        (Tag.Map.fold
+           (fun tag _ imms ->
+             Targetint_31_63.Set.add (Tag.to_targetint_31_63 tag) imms)
+           blocks.known_tags Targetint_31_63.Set.empty)
+    | Ok _ -> Unknown)
+  | Ok _ -> Unknown
+
 let missing_kind env free_names =
   Name_occurrences.fold_variables free_names ~init:false
     ~f:(fun missing_kind var ->

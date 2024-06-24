@@ -29,6 +29,12 @@ module Block_size : sig
   val inter : t -> t -> t
 end
 
+type relation = private
+  | Is_int of Name.t
+  | Get_tag of Name.t
+
+module RelationSet : Set.S with type elt = relation
+
 type t = private
   | Value of head_of_kind_value Type_descr.t
   | Naked_immediate of head_of_kind_naked_immediate Type_descr.t
@@ -68,9 +74,9 @@ and head_of_kind_value = private
       }
 
 and head_of_kind_naked_immediate = private
-  | Naked_immediates of Targetint_31_63.Set.t
-  | Is_int of t  (** For variants only *)
-  | Get_tag of t  (** For variants only *)
+  { immediates : Targetint_31_63.Set.t Or_unknown.t;
+    relations : RelationSet.t
+  }
 
 (** Invariant: the float/integer sets for naked float, int32, int64 and
     nativeint heads are non-empty. (Empty sets are represented as an overall
@@ -287,9 +293,9 @@ val tagged_immediate_alias_to : naked_immediate:Variable.t -> t
 
 val tag_immediate : t -> t
 
-val is_int_for_scrutinee : scrutinee:Simple.t -> t
+val is_int_for_scrutinee : scrutinee:Name.t -> t
 
-val get_tag_for_block : block:Simple.t -> t
+val get_tag_for_block : block:Name.t -> t
 
 val create_variant :
   is_unique:bool ->
@@ -668,15 +674,20 @@ end
 module Head_of_kind_naked_immediate : sig
   type t = head_of_kind_naked_immediate
 
+  val create :
+    immediates:Targetint_31_63.Set.t Or_unknown.t ->
+    relations:RelationSet.t ->
+    t
+
   val create_naked_immediate : Targetint_31_63.t -> t
 
   val create_naked_immediates : Targetint_31_63.Set.t -> t Or_bottom.t
 
   val create_naked_immediates_non_empty : Targetint_31_63.Set.t -> t
 
-  val create_is_int : flambda_type -> t
+  val create_is_int : Name.t -> t
 
-  val create_get_tag : flambda_type -> t
+  val create_get_tag : Name.t -> t
 end
 
 module type Head_of_kind_naked_number_intf = sig

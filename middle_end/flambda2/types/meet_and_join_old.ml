@@ -534,52 +534,41 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     (t2 : TG.head_of_kind_naked_immediate) :
     (TG.head_of_kind_naked_immediate * TEE.t) Or_bottom.t =
   let module I = Targetint_31_63 in
-  match t1, t2 with
-  | Naked_immediates is1, Naked_immediates is2 ->
-    let is = I.Set.inter is1 is2 in
-    let<+ ty = TG.Head_of_kind_naked_immediate.create_naked_immediates is in
-    ty, TEE.empty
-  | Is_int ty, Naked_immediates is_int | Naked_immediates is_int, Is_int ty -> (
-    match I.Set.elements is_int with
-    | [] -> Bottom
-    | [is_int] -> (
-      let shape =
-        if I.equal is_int I.zero
-        then Some MTC.any_block
-        else if I.equal is_int I.one
-        then Some MTC.any_tagged_immediate
-        else None
-      in
-      match shape with
-      | Some shape ->
-        let<+ ty, env_extension = meet env ty shape in
-        TG.Head_of_kind_naked_immediate.create_is_int ty, env_extension
-      | None -> Bottom)
-    | _ :: _ :: _ ->
-      (* Note: we're potentially losing precision because the set could end up
-         not containing either 0 or 1 or both, but this should be uncommon. *)
-      Ok (TG.Head_of_kind_naked_immediate.create_is_int ty, TEE.empty))
-  | Get_tag ty, Naked_immediates tags | Naked_immediates tags, Get_tag ty -> (
-    let tags =
-      I.Set.fold
-        (fun tag tags ->
-          match Tag.create_from_targetint tag with
-          | Some tag -> Tag.Set.add tag tags
-          | None -> tags
-          (* No blocks exist with this tag *))
-        tags Tag.Set.empty
+  let immediates : _ Or_unknown.t =
+    match t1.immediates, t2.immediates with
+    | Known is1, Known is2 ->
+      let is = I.Set.inter is1 is2 in
+      Known is
+    | Known is, Unknown | Unknown, Known is -> Known is
+    | Unknown, Unknown -> Unknown
+  in
+  let relations = TG.RelationSet.union t1.relations t2.relations in
+  match immediates with
+  | Unknown ->
+    Ok (TG.Head_of_kind_naked_immediate.create ~immediates ~relations, TEE.empty)
+  | Known is when I.Set.is_empty is -> Bottom
+  | Known is ->
+    let initial_result : _ Or_bottom.t =
+      Ok
+        ( TG.Head_of_kind_naked_immediate.create ~immediates ~relations,
+          TEE.empty )
     in
-    match MTC.blocks_with_these_tags tags (Alloc_mode.For_types.unknown ()) with
-    | Known shape ->
-      let<+ ty, env_extension = meet env ty shape in
-      TG.Head_of_kind_naked_immediate.create_get_tag ty, env_extension
-    | Unknown ->
-      Ok (TG.Head_of_kind_naked_immediate.create_get_tag ty, TEE.empty))
-  | (Is_int _ | Get_tag _), (Is_int _ | Get_tag _) ->
-    (* We can't return Bottom, as it would be unsound, so we need to either do
-       the actual meet with Naked_immediates, or just give up and return one of
-       the arguments. N.B. Also see comment in meet_and_join_new.ml *)
-    Ok (t1, TEE.empty)
+    let reduce relation (result : _ Or_bottom.t) : _ Or_bottom.t =
+      match result with
+      | Bottom -> Bottom
+      | Ok (head, env_extension) -> (
+        match MTC.shape_of_relation is relation with
+        | Bottom -> Bottom
+        | Unknown -> result
+        | Ok (name, shape) ->
+          let ty = TE.find (Meet_env.env env) name (Some Flambda_kind.value) in
+          let<* _ty, new_extension = meet env ty shape in
+          let<+ env_extension =
+            meet_env_extension env env_extension new_extension
+          in
+          head, env_extension)
+    in
+    TG.RelationSet.fold reduce relations initial_result
 
 and meet_head_of_kind_naked_float32 _env t1 t2 : _ Or_bottom.t =
   let<+ head = TG.Head_of_kind_naked_float32.inter t1 t2 in
@@ -1363,51 +1352,21 @@ and join_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
   | Known _, Unknown | Unknown, Known _ | Known _, Known _ ->
     Known (blocks, imms)
 
-and join_head_of_kind_naked_immediate env
+and join_head_of_kind_naked_immediate _env
     (head1 : TG.Head_of_kind_naked_immediate.t)
     (head2 : TG.Head_of_kind_naked_immediate.t) :
     TG.Head_of_kind_naked_immediate.t Or_unknown.t =
   let module I = Targetint_31_63 in
-  match head1, head2 with
-  | Naked_immediates is1, Naked_immediates is2 -> (
-    assert (not (Targetint_31_63.Set.is_empty is1));
-    assert (not (Targetint_31_63.Set.is_empty is2));
-    let is = I.Set.union is1 is2 in
-    let head = TG.Head_of_kind_naked_immediate.create_naked_immediates is in
-    match head with
-    | Ok head -> Known head
-    | Bottom ->
-      Misc.fatal_error "Did not expect [Bottom] from [create_naked_immediates]")
-  | Is_int ty1, Is_int ty2 ->
-    let>+ ty = join env ty1 ty2 in
-    TG.Head_of_kind_naked_immediate.create_is_int ty
-  | Get_tag ty1, Get_tag ty2 ->
-    let>+ ty = join env ty1 ty2 in
-    TG.Head_of_kind_naked_immediate.create_get_tag ty
-  (* From now on: Irregular cases *)
-  (* CR vlaviron: There could be improvements based on reduction (trying to
-     reduce the is_int and get_tag cases to naked_immediate sets, then joining
-     those) but this looks unlikely to be useful and could end up begin quite
-     expensive. *)
-  | Is_int ty, Naked_immediates is_int | Naked_immediates is_int, Is_int ty -> (
-    if I.Set.is_empty is_int
-    then Known (TG.Head_of_kind_naked_immediate.create_is_int ty)
-    else
-      (* Slightly better than Unknown *)
-      let head =
-        TG.Head_of_kind_naked_immediate.create_naked_immediates
-          (I.Set.add I.zero (I.Set.add I.one is_int))
-      in
-      match head with
-      | Ok head -> Known head
-      | Bottom ->
-        Misc.fatal_error
-          "Did not expect [Bottom] from [create_naked_immediates]")
-  | Get_tag ty, Naked_immediates tags | Naked_immediates tags, Get_tag ty ->
-    if I.Set.is_empty tags
-    then Known (TG.Head_of_kind_naked_immediate.create_get_tag ty)
-    else Unknown
-  | (Is_int _ | Get_tag _), (Is_int _ | Get_tag _) -> Unknown
+  let immediates : _ Or_unknown.t =
+    match head1.immediates, head2.immediates with
+    | Unknown, _ | _, Unknown -> Unknown
+    | Known is1, Known is2 -> Known (I.Set.union is1 is2)
+  in
+  let relations = TG.RelationSet.inter head1.relations head2.relations in
+  match immediates with
+  | Unknown when TG.RelationSet.is_empty relations -> Unknown
+  | Known _ | Unknown ->
+    Known (TG.Head_of_kind_naked_immediate.create ~immediates ~relations)
 
 and join_head_of_kind_naked_float32 _env t1 t2 : _ Or_unknown.t =
   Known (TG.Head_of_kind_naked_float32.union t1 t2)
