@@ -183,6 +183,8 @@ module Flat_suffix_element = struct
     | Naked_int64 -> naked_int64
     | Naked_nativeint -> naked_nativeint
 
+  let naked_float = Naked_float
+
   let compare = Stdlib.compare
 
   let equal = Stdlib.( = )

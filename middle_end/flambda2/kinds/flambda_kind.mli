@@ -87,9 +87,15 @@ module Flat_suffix_element : sig
     | Naked_int64
     | Naked_nativeint
 
+  val naked_float : t
+
   val kind : t -> kind
 
   val from_lambda : Lambda.flat_element -> t
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
 end
 
 module Mixed_block_shape : sig

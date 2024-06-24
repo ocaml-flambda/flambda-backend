@@ -121,25 +121,16 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
   | Naked_floats _ -> C.unboxed_float_array_ref block index dbg
   | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
     match field_kind with
-    | Value ->
-      (* The flat suffix cannot store scannable values, so this must be an
-         immediate *)
+    | Tagged_immediate ->
       C.get_field_computed Immediate mutability ~block ~index dbg
-    | Naked_number Naked_float ->
+    | Naked_float ->
       (* CR layouts v5.1: We should use the mutability here to generate better
          code if the load is immutable. *)
       C.unboxed_float_array_ref block index dbg
-    | Naked_number Naked_float32 ->
-      C.get_field_unboxed_float32 mutability ~block ~index dbg
-    | Naked_number Naked_int32 ->
-      C.get_field_unboxed_int32 mutability ~block ~index dbg
-    | Naked_number (Naked_int64 | Naked_nativeint) ->
-      C.get_field_unboxed_int64_or_nativeint mutability ~block ~index dbg
-    | Naked_number Naked_vec128 ->
-      Misc.fatal_error "Naked_vec128 not supported in mixed blocks"
-    | Naked_number Naked_immediate | Region | Rec_info ->
-      Misc.fatal_errorf "Unexpected kind in mixed block field: %a" K.print
-        field_kind)
+    | Naked_float32 -> C.get_field_unboxed_float32 mutability ~block ~index dbg
+    | Naked_int32 -> C.get_field_unboxed_int32 mutability ~block ~index dbg
+    | Naked_int64 | Naked_nativeint ->
+      C.get_field_unboxed_int64_or_nativeint mutability ~block ~index dbg)
 
 let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     ~block ~index ~new_value =
@@ -155,21 +146,13 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     | Naked_floats _ -> C.float_array_set block index new_value dbg
     | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
       match field_kind with
-      | Value ->
-        (* See comment in [block_load] about assuming [Immediate] *)
+      | Tagged_immediate ->
         C.setfield_computed Immediate init_or_assign block index new_value dbg
-      | Naked_number Naked_float -> C.float_array_set block index new_value dbg
-      | Naked_number Naked_float32 ->
-        C.setfield_unboxed_float32 block index new_value dbg
-      | Naked_number Naked_int32 ->
-        C.setfield_unboxed_int32 block index new_value dbg
-      | Naked_number (Naked_int64 | Naked_nativeint) ->
-        C.setfield_unboxed_int64_or_nativeint block index new_value dbg
-      | Naked_number Naked_vec128 ->
-        Misc.fatal_error "Naked_vec128 not supported in mixed blocks"
-      | Naked_number Naked_immediate | Region | Rec_info ->
-        Misc.fatal_errorf "Unexpected kind in mixed block field: %a" K.print
-          field_kind)
+      | Naked_float -> C.float_array_set block index new_value dbg
+      | Naked_float32 -> C.setfield_unboxed_float32 block index new_value dbg
+      | Naked_int32 -> C.setfield_unboxed_int32 block index new_value dbg
+      | Naked_int64 | Naked_nativeint ->
+        C.setfield_unboxed_int64_or_nativeint block index new_value dbg)
   in
   C.return_unit dbg expr
 

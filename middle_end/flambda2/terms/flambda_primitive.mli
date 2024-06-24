@@ -146,7 +146,7 @@ end
 module Mixed_block_access_field_kind : sig
   type t =
     | Value_prefix of Block_access_field_kind.t
-    | Flat_suffix of Flambda_kind.t
+    | Flat_suffix of Flambda_kind.Flat_suffix_element.t
 
   val print : Format.formatter -> t -> unit
 
