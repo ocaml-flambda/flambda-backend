@@ -1007,7 +1007,208 @@ Error: This expression has type string but an expression was expected of type
    mismatch, not a layout mismatch. *)
 
 (**************************************)
-(* Test 10: Parsing & pretty-printing *)
+(* Test 10: Annotation of record type *)
+
+type t = { x : int }
+let f (x : t) : _ as (_ : value) = x
+[%%expect {|
+type t = { x : int; }
+val f : t -> t = <fun>
+|}]
+
+type t : value = { x : string }
+[%%expect {|
+type t = { x : string; }
+|}]
+
+type t : value mod global = { x : int}
+[%%expect {|
+Line 1, characters 0-38:
+1 | type t : value mod global = { x : int}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : any mod portable = { x : float }
+[%%expect {|
+Line 1, characters 0-41:
+1 | type t : any mod portable = { x : float }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of any, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t = { x : int } [@@unboxed]
+let f (x : t) : _ as (_ : immediate) = x
+[%%expect {|
+type t = { x : int; } [@@unboxed]
+val f : t -> t = <fun>
+|}]
+
+type t : value = { x : int } [@@unboxed]
+let f (x : t) : _ as (_ : immediate) = x
+[%%expect {|
+type t : value = { x : int; } [@@unboxed]
+val f : t -> t = <fun>
+|}]
+(* CR layouts v2.8: This should fail since t is nominative *)
+
+type t : immediate = { x : int } [@@unboxed]
+let f (x : t) : _ as (_ : immediate) = x
+[%%expect {|
+type t : immediate = { x : int; } [@@unboxed]
+val f : t -> t = <fun>
+|}]
+
+(***************************************)
+(* Test 11: Annotation of variant type *)
+
+type t = Foo of int
+let f (x : t) : _ as (_ : value) = x
+[%%expect {|
+type t = Foo of int
+val f : t -> t = <fun>
+|}]
+
+type t : value = Foo of string
+[%%expect {|
+type t = Foo of string
+|}]
+
+type t : value mod global = Foo of int
+[%%expect {|
+Line 1, characters 0-38:
+1 | type t : value mod global = Foo of int
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed variant type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : any mod portable = Foo of float
+[%%expect {|
+Line 1, characters 0-40:
+1 | type t : any mod portable = Foo of float
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed variant type.
+       But the layout of type t must be a sublayout of any, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t = Foo | Bar
+let f (x : t) : _ as (_ : immediate) = x
+[%%expect {|
+type t = Foo | Bar
+val f : t -> t = <fun>
+|}]
+
+type t : value = Foo | Bar
+let f (x : t) : _ as (_ : immediate) = x
+[%%expect {|
+type t = Foo | Bar
+val f : t -> t = <fun>
+|}]
+(* CR layouts v2.8: This should fail since t is nominative *)
+
+type t : immediate = Foo | Bar
+let f (x : t) : _ as (_ : immediate) = x
+[%%expect {|
+type t = Foo | Bar
+val f : t -> t = <fun>
+|}]
+
+type t = Foo of int [@@unboxed]
+let f (x : t) : _ as (_ : immediate) = x
+[%%expect {|
+type t = Foo of int [@@unboxed]
+val f : t -> t = <fun>
+|}]
+
+type t : value = Foo of int [@@unboxed]
+let f (x : t) : _ as (_ : immediate) = x
+[%%expect {|
+type t : value = Foo of int [@@unboxed]
+val f : t -> t = <fun>
+|}]
+(* CR layouts v2.8: This should fail since t is nominative *)
+
+type t : immediate = Foo of int [@@unboxed]
+let f (x : t) : _ as (_ : immediate) = x
+[%%expect {|
+type t : immediate = Foo of int [@@unboxed]
+val f : t -> t = <fun>
+|}]
+
+(***************************************)
+(* Test 12: Annotation on private type *)
+
+type t = private int
+let f (x : t) : _ as (_ : immediate) = x
+[%%expect {|
+type t = private int
+val f : t -> t = <fun>
+|}]
+
+type t : value = private int
+let f (x : t) : _ as (_ : immediate) = x
+[%%expect {|
+type t = private int
+val f : t -> t = <fun>
+|}]
+(* CR layouts v2.8: This should fail since t is nominative *)
+
+type t : immediate = private int
+let f (x : t) : _ as (_ : immediate) = x
+[%%expect {|
+type t = private int
+val f : t -> t = <fun>
+|}]
+
+type t : bits64 mod portable unique
+type u = private t
+let f (x : t) : _ as (_ : bits64 mod portable unique) = x
+[%%expect {|
+type t : bits64 mod portable unique
+type u = private t
+val f : t -> t = <fun>
+|}]
+
+type t : bits64 mod portable unique
+type u : bits64 = private t
+let f (x : t) : _ as (_ : bits64 mod portable unique) = x
+[%%expect {|
+type t : bits64 mod portable unique
+type u = private t
+val f : t -> t = <fun>
+|}]
+(* CR layouts v2.8: This should fail since u is nominative *)
+
+type t : bits64 mod portable unique
+type u : bits64 mod portable unique = private t
+let f (x : t) : _ as (_ : bits64 mod portable unique) = x
+[%%expect {|
+type t : bits64 mod portable unique
+type u = private t
+val f : t -> t = <fun>
+|}]
+
+(**************************************)
+(* Test 13: Parsing & pretty-printing *)
 
 let f (type a : value) (x : a) = x
 let f (type a : immediate) (x : a) = x

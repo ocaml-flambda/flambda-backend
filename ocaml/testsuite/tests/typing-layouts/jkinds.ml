@@ -353,8 +353,8 @@ type c : bits64 mod local shared once contended nonportable internal
 type d = c
 |}]
 
-(******************************************)
-(* Test 4: Mode crossing when appropriate *)
+(****************************************)
+(* Test 4: Appropriate types mode cross *)
 
 type t : any mod global unique many uncontended portable external_ = int
 [%%expect{|
@@ -391,6 +391,18 @@ type t : any mod global unique many uncontended portable external_ = indirect_in
 [%%expect{|
 type indirect_int = int
 type t = indirect_int
+|}]
+
+let x : (_ : value mod uncontended) = 10
+[%%expect {|
+val x : int = 10
+|}]
+
+let f (x : nativeint#) =
+  let _ : (_ : word mod portable many unique) = x in
+  ()
+[%%expect {|
+val f : nativeint# -> unit = <fun>
 |}]
 
 type t : any mod global = string
@@ -467,6 +479,23 @@ Error: The layout of type string is value, because
          it is the primitive value type string.
        But the layout of type string must be a sublayout of any, because
          of the definition of t at line 1, characters 0-35.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type ('a : value mod unique) t = { unique_field : 'a }
+let x = { unique_field = "string" }
+[%%expect {|
+type ('a : value mod unique) t = { unique_field : 'a; }
+Line 2, characters 25-33:
+2 | let x = { unique_field = "string" }
+                             ^^^^^^^^
+Error: This expression has type string but an expression was expected of type
+         ('a : value mod unique)
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of value, because
+         of the definition of t at line 1, characters 0-54.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
@@ -548,3 +577,323 @@ Error: The layout of type t is value, because
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
+
+type t = { x : string }
+let foo : _ as (_ : value mod external_) = { x = "string" }
+[%%expect {|
+type t = { x : string; }
+Line 2, characters 43-59:
+2 | let foo : _ as (_ : value mod external_) = { x = "string" }
+                                               ^^^^^^^^^^^^^^^^
+Error: This expression has type t but an expression was expected of type
+         ('a : value mod external_)
+       The layout of t is value, because
+         of the definition of t at line 1, characters 0-23.
+       But the layout of t must be a sublayout of immediate, because
+         of the annotation on the wildcard _ at line 2, characters 20-39.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : any mod global = { x : int }
+[%%expect{|
+Line 1, characters 0-37:
+1 | type t : any mod global = { x : int }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of any, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: this should be accepted *)
+
+type t : any mod global = { x : int } [@@unboxed]
+[%%expect {|
+type t : any mod global = { x : int; } [@@unboxed]
+|}]
+
+type t : any mod portable = { x : int } [@@unboxed]
+[%%expect {|
+type t : any mod portable = { x : int; } [@@unboxed]
+|}]
+
+type t : any mod uncontended = { x : int } [@@unboxed]
+[%%expect {|
+type t : any mod uncontended = { x : int; } [@@unboxed]
+|}]
+
+type t : any mod external_ = { x : int } [@@unboxed]
+[%%expect {|
+type t : any mod external_ = { x : int; } [@@unboxed]
+|}]
+
+type t : any mod many = { x : int } [@@unboxed]
+[%%expect {|
+type t : any mod many = { x : int; } [@@unboxed]
+|}]
+
+type t : any mod unique = { x : int } [@@unboxed]
+[%%expect {|
+type t : any mod unique = { x : int; } [@@unboxed]
+|}]
+
+type t : value mod global = { x : int } [@@unboxed]
+let f (x : _ as (_ : immediate)) : (_ as (_ : value mod many)) = x.x
+let v : (int as (_ : value mod portable)) = f { x = 5 }
+[%%expect {|
+type t : value mod global = { x : int; } [@@unboxed]
+val f : t -> int = <fun>
+val v : int = 5
+|}]
+
+type t : any mod global = Foo | Bar
+[%%expect {|
+type t = Foo | Bar
+|}]
+
+type t : any mod unique = Foo of int | Bar
+[%%expect {|
+Line 1, characters 0-42:
+1 | type t : any mod unique = Foo of int | Bar
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed variant type.
+       But the layout of type t must be a sublayout of any, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : any mod many = Foo of string | Bar
+[%%expect {|
+Line 1, characters 0-43:
+1 | type t : any mod many = Foo of string | Bar
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed variant type.
+       But the layout of type t must be a sublayout of any, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : any mod portable = Foo of bool [@@unboxed]
+let x = (Foo true : _ as (_ : value mod portable uncontended unique))
+[%%expect {|
+type t : any mod portable = Foo of bool [@@unboxed]
+val x : t = <unknown constructor>
+|}]
+
+type t : any mod portable = Foo of string [@@unboxed]
+[%%expect {|
+Line 1, characters 0-53:
+1 | type t : any mod portable = Foo of string [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it is the primitive value type string.
+       But the layout of type t must be a sublayout of any, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod global
+let g (x : t) : ('a : value mod global) = x
+[%%expect{|
+type t : value mod global
+val g : t -> t = <fun>
+|}]
+
+type t : value mod many
+let g (x : t) : ('a : value mod global) = x
+[%%expect{|
+type t : value mod many
+Line 2, characters 42-43:
+2 | let g (x : t) : ('a : value mod global) = x
+                                              ^
+Error: This expression has type t but an expression was expected of type
+         ('a : value mod global)
+       The layout of t is value, because
+         of the definition of t at line 1, characters 0-23.
+       But the layout of t must be a sublayout of value, because
+         of the annotation on the type variable 'a.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod unique
+let f (x : _ as (_ : value mod unique)) = ()
+let g (x : t) = f x
+[%%expect {|
+type t : value mod unique
+val f : ('a : value mod unique). 'a -> unit = <fun>
+val g : t -> unit = <fun>
+|}]
+
+type t : value mod external64
+let f (x : _ as (_ : value mod unique)) = ()
+let g (x : t) = f x
+[%%expect {|
+type t : value mod external64
+val f : ('a : value mod unique). 'a -> unit = <fun>
+Line 3, characters 18-19:
+3 | let g (x : t) = f x
+                      ^
+Error: This expression has type t but an expression was expected of type
+         ('a : value mod unique)
+       The layout of t is immediate64, because
+         of the definition of t at line 1, characters 0-29.
+       But the layout of t must be a sublayout of value, because
+         of the definition of f at line 2, characters 6-44.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+module A : sig
+  type t : immediate
+end = struct
+  type t = int
+end
+
+type t : immediate = A.t
+
+[%%expect {|
+module A : sig type t : immediate end
+type t = A.t
+|}]
+
+module A : sig
+  type t : value
+end = struct
+  type t = int
+end
+
+type t : immediate = A.t
+
+[%%expect {|
+module A : sig type t : value end
+Line 7, characters 0-24:
+7 | type t : immediate = A.t
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type A.t is value, because
+         of the definition of t at line 2, characters 2-16.
+       But the layout of type A.t must be a sublayout of immediate, because
+         of the definition of t at line 7, characters 0-24.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value = private int
+let f (x : t) : _ as (_ : value mod global) = x
+[%%expect {|
+type t = private int
+val f : t -> t = <fun>
+|}]
+(* CR layouts v2.8: This should fail since t is nominative *)
+
+type t : value = private int
+let f (x : t) : _ as (_ : value mod unique) = x
+[%%expect {|
+type t = private int
+val f : t -> t = <fun>
+|}]
+(* CR layouts v2.8: This should fail since t is nominative *)
+
+type t : value = private int
+let f (x : t) : _ as (_ : value mod many) = x
+[%%expect {|
+type t = private int
+val f : t -> t = <fun>
+|}]
+(* CR layouts v2.8: This should fail since t is nominative *)
+
+type t : value = private int
+let f (x : t) : _ as (_ : value mod portable) = x
+[%%expect {|
+type t = private int
+val f : t -> t = <fun>
+|}]
+(* CR layouts v2.8: This should fail since t is nominative *)
+
+type t : value = private int
+let f (x : t) : _ as (_ : value mod uncontended) = x
+[%%expect {|
+type t = private int
+val f : t -> t = <fun>
+|}]
+(* CR layouts v2.8: This should fail since t is nominative *)
+
+type t : value = private int
+let f (x : t) : _ as (_ : value mod external_) = x
+[%%expect {|
+type t = private int
+val f : t -> t = <fun>
+|}]
+(* CR layouts v2.8: This should fail since t is nominative *)
+
+type t = private int
+let f (x : t) : _ as (_ : value mod global) = x
+let f (x : t) : _ as (_ : value mod unique) = x
+let f (x : t) : _ as (_ : value mod many) = x
+let f (x : t) : _ as (_ : value mod portable) = x
+let f (x : t) : _ as (_ : value mod uncontended) = x
+let f (x : t) : _ as (_ : value mod external_) = x
+let f (x : t) : _ as (_ : immediate) = x
+[%%expect {|
+type t = private int
+val f : t -> t = <fun>
+val f : t -> t = <fun>
+val f : t -> t = <fun>
+val f : t -> t = <fun>
+val f : t -> t = <fun>
+val f : t -> t = <fun>
+val f : t -> t = <fun>
+|}]
+
+type t : value = private { x : int } [@@unboxed]
+let f (x : t) : _ as (_ : value mod global) = x
+[%%expect {|
+type t : value = private { x : int; } [@@unboxed]
+val f : t -> t = <fun>
+|}]
+(* CR layouts v2.8: This should fail since t is nominative *)
+
+type t : value = private { x : int } [@@unboxed]
+let f (x : t) : _ as (_ : value mod unique) = x
+[%%expect {|
+type t : value = private { x : int; } [@@unboxed]
+val f : t -> t = <fun>
+|}]
+(* CR layouts v2.8: This should fail since t is nominative *)
+
+type t : value = private { x : int } [@@unboxed]
+let f (x : t) : _ as (_ : value mod many) = x
+[%%expect {|
+type t : value = private { x : int; } [@@unboxed]
+val f : t -> t = <fun>
+|}]
+(* CR layouts v2.8: This should fail since t is nominative *)
+
+type t : value = private { x : int } [@@unboxed]
+let f (x : t) : _ as (_ : value mod portable) = x
+[%%expect {|
+type t : value = private { x : int; } [@@unboxed]
+val f : t -> t = <fun>
+|}]
+(* CR layouts v2.8: This should fail since t is nominative *)
+
+type t : value = private { x : int } [@@unboxed]
+let f (x : t) : _ as (_ : value mod uncontended) = x
+[%%expect {|
+type t : value = private { x : int; } [@@unboxed]
+val f : t -> t = <fun>
+|}]
+(* CR layouts v2.8: This should fail since t is nominative *)
+
+type t : value = private { x : int } [@@unboxed]
+let f (x : t) : _ as (_ : value mod external_) = x
+[%%expect {|
+type t : value = private { x : int; } [@@unboxed]
+val f : t -> t = <fun>
+|}]
+(* CR layouts v2.8: This should fail since t is nominative *)
