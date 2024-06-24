@@ -1009,6 +1009,11 @@ Error: This expression has type string but an expression was expected of type
 (**************************************)
 (* Test 10: Annotation of record type *)
 
+type t_value : value
+[%%expect {|
+type t_value : value
+|}]
+
 type t = { x : int }
 let f (x : t) : _ as (_ : value) = x
 [%%expect {|
@@ -1016,9 +1021,9 @@ type t = { x : int; }
 val f : t -> t = <fun>
 |}]
 
-type t : value = { x : string }
+type t : value = { x : t_value }
 [%%expect {|
-type t = { x : string; }
+type t = { x : t_value; }
 |}]
 
 type t : value mod global = { x : int}
@@ -1069,11 +1074,11 @@ type t : immediate = { x : int; } [@@unboxed]
 val f : t -> t = <fun>
 |}]
 
-type t : value mod global = { x : string }
+type t : value mod global = { x : t_value }
 [%%expect {|
-Line 1, characters 0-42:
-1 | type t : value mod global = { x : string }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-43:
+1 | type t : value mod global = { x : t_value }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type t is value, because
          it's a boxed record type.
        But the layout of type t must be a sublayout of value, because
@@ -1082,11 +1087,11 @@ Error: The layout of type t is value, because
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
 
-type t : value mod unique = { x : string }
+type t : value mod unique = { x : t_value }
 [%%expect {|
-Line 1, characters 0-42:
-1 | type t : value mod unique = { x : string }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-43:
+1 | type t : value mod unique = { x : t_value }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type t is value, because
          it's a boxed record type.
        But the layout of type t must be a sublayout of value, because
@@ -1095,11 +1100,11 @@ Error: The layout of type t is value, because
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
 
-type t : value mod many = { x : string }
+type t : value mod many = { x : t_value }
 [%%expect {|
-Line 1, characters 0-40:
-1 | type t : value mod many = { x : string }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-41:
+1 | type t : value mod many = { x : t_value }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type t is value, because
          it's a boxed record type.
        But the layout of type t must be a sublayout of value, because
@@ -1108,37 +1113,37 @@ Error: The layout of type t is value, because
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
 
-type t : value mod portable = { x : string }
-[%%expect {|
-Line 1, characters 0-44:
-1 | type t : value mod portable = { x : string }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed record type.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
-|}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
-
-type t : value mod uncontended = { x : string }
-[%%expect {|
-Line 1, characters 0-47:
-1 | type t : value mod uncontended = { x : string }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed record type.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
-|}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
-
-type t : value mod external_ = { x : string }
+type t : value mod portable = { x : t_value }
 [%%expect {|
 Line 1, characters 0-45:
-1 | type t : value mod external_ = { x : string }
+1 | type t : value mod portable = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod uncontended = { x : t_value }
+[%%expect {|
+Line 1, characters 0-48:
+1 | type t : value mod uncontended = { x : t_value }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod external_ = { x : t_value }
+[%%expect {|
+Line 1, characters 0-46:
+1 | type t : value mod external_ = { x : t_value }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type t is value, because
          it's a boxed record type.
        But the layout of type t must be a sublayout of immediate, because
@@ -1157,9 +1162,9 @@ type t = Foo of int
 val f : t -> t = <fun>
 |}]
 
-type t : value = Foo of string
+type t : value = Foo of t_value
 [%%expect {|
-type t = Foo of string
+type t = Foo of t_value
 |}]
 
 type t : value mod global = Foo of int
@@ -1232,11 +1237,11 @@ type t : immediate = Foo of int [@@unboxed]
 val f : t -> t = <fun>
 |}]
 
-type t : value mod global = Foo of string
+type t : value mod global = Foo of t_value
 [%%expect {|
-Line 1, characters 0-41:
-1 | type t : value mod global = Foo of string
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-42:
+1 | type t : value mod global = Foo of t_value
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type t is value, because
          it's a boxed variant type.
        But the layout of type t must be a sublayout of value, because
@@ -1245,11 +1250,11 @@ Error: The layout of type t is value, because
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
 
-type t : value mod unique = Foo of string
+type t : value mod unique = Foo of t_value
 [%%expect {|
-Line 1, characters 0-41:
-1 | type t : value mod unique = Foo of string
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-42:
+1 | type t : value mod unique = Foo of t_value
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type t is value, because
          it's a boxed variant type.
        But the layout of type t must be a sublayout of value, because
@@ -1258,11 +1263,11 @@ Error: The layout of type t is value, because
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
 
-type t : value mod many = Foo of string
+type t : value mod many = Foo of t_value
 [%%expect {|
-Line 1, characters 0-39:
-1 | type t : value mod many = Foo of string
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-40:
+1 | type t : value mod many = Foo of t_value
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type t is value, because
          it's a boxed variant type.
        But the layout of type t must be a sublayout of value, because
@@ -1271,37 +1276,37 @@ Error: The layout of type t is value, because
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
 
-type t : value mod portable = Foo of string
-[%%expect {|
-Line 1, characters 0-43:
-1 | type t : value mod portable = Foo of string
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed variant type.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
-|}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
-
-type t : value mod uncontended = Foo of string
-[%%expect {|
-Line 1, characters 0-46:
-1 | type t : value mod uncontended = Foo of string
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed variant type.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
-|}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
-
-type t : value mod external_ = Foo of string
+type t : value mod portable = Foo of t_value
 [%%expect {|
 Line 1, characters 0-44:
-1 | type t : value mod external_ = Foo of string
+1 | type t : value mod portable = Foo of t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed variant type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod uncontended = Foo of t_value
+[%%expect {|
+Line 1, characters 0-47:
+1 | type t : value mod uncontended = Foo of t_value
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed variant type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
+   mismatch, not a layout mismatch. *)
+
+type t : value mod external_ = Foo of t_value
+[%%expect {|
+Line 1, characters 0-45:
+1 | type t : value mod external_ = Foo of t_value
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type t is value, because
          it's a boxed variant type.
        But the layout of type t must be a sublayout of immediate, because
