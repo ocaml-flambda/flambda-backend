@@ -2867,10 +2867,11 @@ let error_if_containing_unexpected_jkind prim env cty ty =
 
 (* Translate a value declaration *)
 let transl_value_decl env loc valdecl =
-  match Jane_syntax.Mode_expr.maybe_of_attrs valdecl.pval_type.ptyp_attributes with
-  | Some modes, _ -> raise (Error(modes.loc, Modalities_on_value_description))
-  | None, _ ->
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
+  begin match valdecl.pval_modalities with
+  | [] -> ()
+  | m :: _ -> raise (Error(m.loc, Modalities_on_value_description))
+  end;
   (* CR layouts v5: relax this to check for representability. *)
   begin match Ctype.constrain_type_jkind env cty.ctyp_type
                 (Jkind.Primitive.value ~why:Structure_element) with

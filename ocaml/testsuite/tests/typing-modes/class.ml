@@ -172,3 +172,25 @@ Line 3, characters 17-20:
                      ^^^
 Error: This value is nonportable but expected to be portable.
 |}]
+
+let foo () =
+    let x = object end in
+    portable_use x
+[%%expect{|
+Line 3, characters 17-18:
+3 |     portable_use x
+                     ^
+Error: This value is nonportable but expected to be portable.
+|}]
+
+class cla = object
+    method m =
+        let o = {< >} in
+        portable_use o
+end
+[%%expect{|
+Line 4, characters 21-22:
+4 |         portable_use o
+                         ^
+Error: This value is nonportable but expected to be portable.
+|}]
