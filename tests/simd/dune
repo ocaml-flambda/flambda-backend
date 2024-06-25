@@ -92,7 +92,7 @@
   consts_nodynlink
   arrays_nodynlink
   scalar_ops_nodynlink)
- (libraries simd_test_helpers)
+ (libraries simd_test_helpers stdlib_stable)
  (foreign_archives stubs)
  (ocamlopt_flags
   (:standard -extension simd -nodynlink)))
