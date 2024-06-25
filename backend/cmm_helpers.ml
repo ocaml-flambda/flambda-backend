@@ -1111,14 +1111,20 @@ let addr_array_ref arr ofs dbg =
 let int_array_ref arr ofs dbg =
   Cop (mk_load_mut Word_int, [array_indexing log2_size_addr arr ofs dbg], dbg)
 
-let unboxed_float_array_ref arr ofs dbg =
+let unboxed_mutable_float_array_ref arr ofs dbg =
   Cop (mk_load_mut Double, [array_indexing log2_size_float arr ofs dbg], dbg)
 
 let unboxed_immutable_float_array_ref arr ofs dbg =
   Cop (mk_load_immut Double, [array_indexing log2_size_float arr ofs dbg], dbg)
 
+let unboxed_float_array_ref (mutability : Asttypes.mutable_flag) ~block:arr
+    ~index:ofs dbg =
+  match mutability with
+  | Immutable -> unboxed_immutable_float_array_ref arr ofs dbg
+  | Mutable -> unboxed_mutable_float_array_ref arr ofs dbg
+
 let float_array_ref mode arr ofs dbg =
-  box_float dbg mode (unboxed_float_array_ref arr ofs dbg)
+  box_float dbg mode (unboxed_mutable_float_array_ref arr ofs dbg)
 
 let addr_array_set_heap arr ofs newval dbg =
   Cop
