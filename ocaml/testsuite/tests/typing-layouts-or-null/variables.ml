@@ -6,29 +6,28 @@
 type t_value_or_null : value_or_null
 type ('a : value_or_null) id_value_or_null = 'a
 
-
 [%%expect{|
 type t_value_or_null : value_or_null
 type ('a : value_or_null) id_value_or_null = 'a
 |}]
 
-(* CR layouts v3.0: sort variables in functions should start as [Or_null]. *)
+(* Type parameters default to [value] and need
+   explicit annotations to accept [value_or_null]. *)
 
-type 'a should_accept_or_null = 'a id_value_or_null
+type 'a should_not_accept_or_null = 'a id_value_or_null
 
-type should_work = t_value_or_null should_accept_or_null
+type should_not_work = t_value_or_null should_accept_or_null
 
 [%%expect{|
-type 'a should_accept_or_null = 'a id_value_or_null
-Line 3, characters 19-34:
-3 | type should_work = t_value_or_null should_accept_or_null
-                       ^^^^^^^^^^^^^^^
-Error: This type t_value_or_null should be an instance of type ('a : value)
-       The layout of t_value_or_null is value_or_null, because
-         of the definition of t_value_or_null at line 1, characters 0-36.
-       But the layout of t_value_or_null must be a sublayout of value, because
-         of the definition of should_accept_or_null at line 1, characters 0-51.
+type 'a should_not_accept_or_null = 'a id_value_or_null
+Line 3, characters 39-60:
+3 | type should_not_work = t_value_or_null should_accept_or_null
+                                           ^^^^^^^^^^^^^^^^^^^^^
+Error: Unbound type constructor should_accept_or_null
 |}]
+
+(* CR layouts v3.0: [value_or_null] types should be accepted for
+   function arguments and results. *)
 
 let should_work (x : t_value_or_null) = x
 
@@ -44,36 +43,38 @@ Error: This pattern matches values of type t_value_or_null
          we must know concretely how to pass a function argument, defaulted to layout value.
 |}]
 
+(* Type variables in function definitions default to [value]. *)
+
 module type S = sig
-  val should_work : 'a -> unit
+  val should_not_work : 'a -> unit
 end
 
 module M (X : S) : sig
-  val should_work : ('a : value_or_null) . 'a -> unit
+  val should_not_work : ('a : value_or_null) . 'a -> unit
 end = X
 
 [%%expect{|
-module type S = sig val should_work : 'a -> unit end
+module type S = sig val should_not_work : 'a -> unit end
 Line 7, characters 6-7:
 7 | end = X
           ^
 Error: Signature mismatch:
        Modules do not match:
-         sig val should_work : 'a -> unit end
+         sig val should_not_work : 'a -> unit end
        is not included in
-         sig val should_work : ('a : value_or_null). 'a -> unit end
+         sig val should_not_work : ('a : value_or_null). 'a -> unit end
        Values do not match:
-         val should_work : 'a -> unit
+         val should_not_work : 'a -> unit
        is not included in
-         val should_work : ('a : value_or_null). 'a -> unit
+         val should_not_work : ('a : value_or_null). 'a -> unit
        The type 'a -> unit is not compatible with the type 'b -> unit
        The layout of 'a is value_or_null, because
-         of the definition of should_work at line 6, characters 2-53.
+         of the definition of should_not_work at line 6, characters 2-57.
        But the layout of 'a must be a sublayout of value, because
-         of the definition of should_work at line 2, characters 2-30.
+         of the definition of should_not_work at line 2, characters 2-34.
 |}]
 
-(* Type parameters should default to [value] for fully abstract types *)
+(* Type parameters default to [value] for fully abstract types *)
 
 module M (X : sig type 'a t end) : sig type ('a : value_or_null) t end = X
 
@@ -95,8 +96,7 @@ Error: Signature mismatch:
        because their layouts are different.
 |}]
 
-(* CR layouts v3.0: type parameters should default to [any] for abstract types
-   with equalities. *)
+(* Ttype parameters default to [value] for abstract types with equalities. *)
 
 module type S = sig
   type 'a t = 'a
@@ -143,8 +143,7 @@ Error: Signature mismatch:
        because their layouts are different.
 |}]
 
-(* CR layouts v3.0: type parameters should default to [any] for
-   non-abstract types. *)
+(* Type parameters default to [value] for non-abstract types. *)
 
 module type S = sig
   type 'a t = Value of 'a
@@ -161,4 +160,102 @@ Error: This type t_value_or_null should be an instance of type ('a : value)
          of the definition of t_value_or_null at line 1, characters 0-36.
        But the layout of t_value_or_null must be a sublayout of value, because
          of the definition of t at line 2, characters 2-25.
+|}]
+
+(* Rigid type variables default to [value]. *)
+
+module M : sig
+  val f : ('a : value_or_null). 'a -> 'a
+end = struct
+  let f (type a) (x : a) = x
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   let f (type a) (x : a) = x
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a end
+       is not included in
+         sig val f : ('a : value_or_null). 'a -> 'a end
+       Values do not match:
+         val f : 'a -> 'a
+       is not included in
+         val f : ('a : value_or_null). 'a -> 'a
+       The type 'a -> 'a is not compatible with the type 'b -> 'b
+       The layout of 'a is value_or_null, because
+         of the definition of f at line 2, characters 2-40.
+       But the layout of 'a must be a sublayout of value, because
+         of the definition of f at line 4, characters 8-28.
+|}]
+
+module M : sig
+  val f : ('a : value_or_null). 'a -> 'a
+end = struct
+  let f : 'a. 'a -> 'a = fun x -> x
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   let f : 'a. 'a -> 'a = fun x -> x
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a end
+       is not included in
+         sig val f : ('a : value_or_null). 'a -> 'a end
+       Values do not match:
+         val f : 'a -> 'a
+       is not included in
+         val f : ('a : value_or_null). 'a -> 'a
+       The type 'a -> 'a is not compatible with the type 'b -> 'b
+       The layout of 'a is value_or_null, because
+         of the definition of f at line 2, characters 2-40.
+       But the layout of 'a must be a sublayout of value, because
+         of the definition of f at line 4, characters 6-7.
+|}]
+
+(* CR layouts v3.0: this should work. *)
+
+module M : sig
+  val f : ('a : value_or_null). 'a -> 'a
+end = struct
+  let f x = x
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   let f x = x
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a end
+       is not included in
+         sig val f : ('a : value_or_null). 'a -> 'a end
+       Values do not match:
+         val f : 'a -> 'a
+       is not included in
+         val f : ('a : value_or_null). 'a -> 'a
+       The type 'a -> 'a is not compatible with the type 'b -> 'b
+       The layout of 'a is value_or_null, because
+         of the definition of f at line 2, characters 2-40.
+       But the layout of 'a must be a sublayout of value, because
+         of the definition of f at line 4, characters 8-13.
+|}]
+
+(* CR layouts v3.0: annotations on non-rigid type variables are upper bounds.
+   This is in line with similar OCaml behavior, but is confusing. *)
+
+module M : sig
+  val f : ('a : value_or_null) -> 'a
+end = struct
+  let f x = x
+end
+
+[%%expect{|
+module M : sig val f : 'a -> 'a end
 |}]
