@@ -2810,7 +2810,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                          ~why:Structure_item_expression env sexpr)
         in
         if force_toplevel then
-          begin match Jkind.Sort.get_default_value sort with
+          begin match Jkind.Sort.default_to_value_and_get sort with
           | Value -> ()
           | Void | Float64 | Float32 | Word | Bits32 | Bits64 ->
             raise (Error (sexpr.pexp_loc, env, Str_eval_nonvalue sort))

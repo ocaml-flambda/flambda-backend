@@ -8370,7 +8370,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
        see the special case in [Opttoploop.execute_phrase]. *)
     match pat.ppat_desc with
     | Ppat_any when force_toplevel ->
-      newvar (Jkind.value ~why:Unnamed_toplevel_expression),
+      newvar (Jkind.Primitive.value ~why:Unnamed_toplevel_expression),
       Jkind.Sort.value
     | _ -> new_rep_var ~why:Let_binding ()
   in
