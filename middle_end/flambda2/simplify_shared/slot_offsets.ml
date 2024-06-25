@@ -137,18 +137,18 @@ module Layout = struct
     Format.fprintf fmt "@]"
 
   let order_function_slots env l acc =
-      Function_slot.Lmap.fold
-        (fun function_slot _ acc ->
-          match EO.function_slot_offset env function_slot with
-          | Some Dead_function_slot -> acc
-          | Some (Live_function_slot { size; offset }) ->
-            Numeric_types.Int.Map.add offset
-              (Function_slot { size; function_slot; last_function_slot = false })
-              acc
-          | None ->
-            Misc.fatal_errorf "No function_slot offset for %a"
-              Function_slot.print function_slot)
-        l acc
+    Function_slot.Lmap.fold
+      (fun function_slot _ acc ->
+        match EO.function_slot_offset env function_slot with
+        | Some Dead_function_slot -> acc
+        | Some (Live_function_slot { size; offset }) ->
+          Numeric_types.Int.Map.add offset
+            (Function_slot { size; function_slot; last_function_slot = false })
+            acc
+        | None ->
+          Misc.fatal_errorf "No function_slot offset for %a" Function_slot.print
+            function_slot)
+      l acc
 
   let mark_last_function_slot map =
     match Numeric_types.Int.Map.max_binding map with
@@ -258,11 +258,7 @@ module Layout = struct
     let res = { startenv; slots; empty_env } in
     match slots with
     | (0, Function_slot _) :: _ -> res
-    | []
-    | ( _,
-        (Function_slot _ | Infix_header | Value_slot _)
-      )
-      :: _ ->
+    | [] | (_, (Function_slot _ | Infix_header | Value_slot _)) :: _ ->
       Misc.fatal_errorf
         "Sets of closures must start with a function slot at offset 0:@\n%a"
         print res
