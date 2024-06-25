@@ -250,7 +250,9 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       | Print_as of string (* can't print *)
 
     let get_and_default_jkind_for_printing jkind =
-      match Jkind.get_default_value jkind with
+      let const = Jkind.default_to_value_and_get jkind in
+      let legacy_layout = Jkind.Const.get_legacy_layout const in
+      match legacy_layout with
       (* CR layouts v3.0: [Value] should probably require special
          printing to avoid descending into NULL. (This module uses
          lots of unsafe Obj features.)
@@ -707,7 +709,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       with Ctype.Cannot_apply -> abstract_type
 
     and instantiate_types env type_params ty_list args =
-      List.map (fun (ty, _) -> instantiate_type env type_params ty_list ty) args
+      List.map (fun {ca_type=ty; _} -> instantiate_type env type_params ty_list ty) args
 
     and find_printer depth env ty =
       let rec find = function

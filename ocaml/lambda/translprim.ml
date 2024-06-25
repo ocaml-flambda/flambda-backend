@@ -143,7 +143,7 @@ let to_modify_mode ~poly = function
 let extern_repr_of_native_repr:
   poly_sort:Jkind.Sort.t option -> Primitive.native_repr -> Lambda.extern_repr
   = fun ~poly_sort r -> match r, poly_sort with
-  | Repr_poly, Some s -> Same_as_ocaml_repr (Jkind.Sort.get_default_value s)
+  | Repr_poly, Some s -> Same_as_ocaml_repr (Jkind.Sort.default_to_value_and_get s)
   | Repr_poly, None -> Misc.fatal_error "Unexpected Repr_poly"
   | Same_as_ocaml_repr s, _ -> Same_as_ocaml_repr s
   | Unboxed_float f, _ -> Unboxed_float f

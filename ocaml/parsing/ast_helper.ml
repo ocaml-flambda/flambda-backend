@@ -412,11 +412,12 @@ end
 
 module Val = struct
   let mk ?(loc = !default_loc) ?(attrs = []) ?(docs = empty_docs)
-        ?(prim = []) name typ =
+        ?(prim = []) ?(modalities=[]) name typ =
     {
      pval_name = name;
      pval_type = typ;
      pval_attributes = add_docs_attrs docs attrs;
+     pval_modalities = modalities;
      pval_loc = loc;
      pval_prim = prim;
     }
@@ -550,11 +551,19 @@ module Type = struct
      pcd_attributes = add_info_attrs info attrs;
     }
 
+  let constructor_arg ?(loc = !default_loc) ?(modalities = []) typ =
+    {
+      pca_modalities = modalities;
+      pca_type = typ;
+      pca_loc = loc;
+    }
+
   let field ?(loc = !default_loc) ?(attrs = []) ?(info = empty_info)
-        ?(mut = Immutable) name typ =
+        ?(mut = Immutable) ?(modalities = []) name typ =
     {
      pld_name = name;
      pld_mutable = mut;
+     pld_modalities = modalities;
      pld_type = typ;
      pld_loc = loc;
      pld_attributes = add_info_attrs info attrs;

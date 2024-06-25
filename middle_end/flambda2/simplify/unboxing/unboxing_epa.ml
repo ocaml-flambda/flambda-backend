@@ -167,6 +167,39 @@ let compute_extra_arg_for_number kind unboxer epa rewrite_id ~typing_env_at_use
   let epa = Extra_param_and_args.update_param_args epa rewrite_id extra_arg in
   Unbox (Number (kind, epa))
 
+(* Helpers for the block case *)
+(* ************************** *)
+
+let access_kind_and_dummy_const tag shape fields index :
+    P.Block_access_kind.t * _ =
+  let size = Or_unknown.Known (Targetint_31_63.of_int (List.length fields)) in
+  match (shape : K.Block_shape.t) with
+  | Value_only ->
+    ( Values
+        { size;
+          tag = Known (Option.get (Tag.Scannable.of_tag tag));
+          field_kind = Any_value
+        },
+      Const.const_zero )
+  | Float_record ->
+    ( Naked_floats { size },
+      Const.naked_float Numeric_types.Float_by_bit_pattern.zero )
+  | Mixed_record shape ->
+    let field_kind, const =
+      let field_kind = (K.Mixed_block_shape.field_kinds shape).(index) in
+      if index < K.Mixed_block_shape.value_prefix_size shape
+      then
+        (* CR vlaviron: we're not trying to infer if this can only be an
+           immediate. In most cases it should be fine, as the primitive will get
+           simplified away. *)
+        P.Mixed_block_access_field_kind.Value_prefix Any_value, Const.const_zero
+      else
+        ( P.Mixed_block_access_field_kind.Flat_suffix field_kind,
+          Const.of_int_of_kind field_kind 0 )
+    in
+    let tag = Or_unknown.Known (Option.get (Tag.Scannable.of_tag tag)) in
+    Mixed { tag; size; shape; field_kind }, const
+
 (* Recursive descent on decisions *)
 (* ****************************** *)
 
@@ -185,9 +218,9 @@ and compute_extra_args_for_one_decision_and_use_aux ~(pass : U.pass) rewrite_id
     ~typing_env_at_use arg_being_unboxed (decision : U.decision) : U.decision =
   match decision with
   | Do_not_unbox _ -> decision
-  | Unbox (Unique_tag_and_size { tag; fields }) ->
+  | Unbox (Unique_tag_and_size { tag; shape; fields }) ->
     compute_extra_args_for_block ~pass rewrite_id ~typing_env_at_use
-      arg_being_unboxed tag fields
+      arg_being_unboxed tag shape fields
   | Unbox (Closure_single_entry { function_slot; vars_within_closure }) ->
     compute_extra_args_for_closure ~pass rewrite_id ~typing_env_at_use
       arg_being_unboxed function_slot vars_within_closure
@@ -234,25 +267,15 @@ and compute_extra_args_for_one_decision_and_use_aux ~(pass : U.pass) rewrite_id
       rewrite_id ~typing_env_at_use arg_being_unboxed
 
 and compute_extra_args_for_block ~pass rewrite_id ~typing_env_at_use
-    arg_being_unboxed tag fields : U.decision =
-  let size = Or_unknown.Known (Targetint_31_63.of_int (List.length fields)) in
-  let bak, poison_const =
-    if Tag.equal tag Tag.double_array_tag
-    then
-      ( P.Block_access_kind.Naked_floats { size },
-        Const.naked_float Numeric_types.Float_by_bit_pattern.zero )
-    else
-      ( P.Block_access_kind.Values
-          { size;
-            tag = Known (Option.get (Tag.Scannable.of_tag tag));
-            field_kind = Any_value
-          },
-        Const.const_zero )
-  in
+    arg_being_unboxed tag (shape : K.Block_shape.t) fields : U.decision =
   let _, fields =
     List.fold_left_map
       (fun field_nth ({ epa; decision; kind } : U.field_decision) :
            (_ * U.field_decision) ->
+        let bak, poison_const =
+          access_kind_and_dummy_const tag shape fields
+            (Targetint_31_63.to_int field_nth)
+        in
         let unboxer =
           Unboxers.Field.unboxer ~poison_const bak ~index:field_nth
         in
@@ -269,7 +292,7 @@ and compute_extra_args_for_block ~pass rewrite_id ~typing_env_at_use
         Targetint_31_63.(add one field_nth), { epa; decision; kind })
       Targetint_31_63.zero fields
   in
-  Unbox (Unique_tag_and_size { tag; fields })
+  Unbox (Unique_tag_and_size { tag; shape; fields })
 
 and compute_extra_args_for_closure ~pass rewrite_id ~typing_env_at_use
     arg_being_unboxed function_slot vars_within_closure : U.decision =
@@ -342,21 +365,19 @@ and compute_extra_args_for_variant ~pass rewrite_id ~typing_env_at_use
   in
   let fields_by_tag =
     Tag.Scannable.Map.mapi
-      (fun tag_decision block_fields ->
-        let size = List.length block_fields in
+      (fun tag_decision (shape, block_fields) ->
         (* See doc/unboxing.md about invalid constants, poison and aliases. *)
         let poison_const = Const.const_int (Targetint_31_63.of_int 0xbaba) in
-        let bak : Flambda_primitive.Block_access_kind.t =
-          Values
-            { size = Known (Targetint_31_63.of_int size);
-              tag = Known tag_decision;
-              field_kind = Any_value
-            }
-        in
         let new_fields_decisions, _ =
           List.fold_left
             (fun (new_decisions, field_nth)
                  ({ epa; decision; kind } : U.field_decision) ->
+              let bak, _const =
+                access_kind_and_dummy_const
+                  (Tag.Scannable.to_tag tag_decision)
+                  shape block_fields
+                  (Targetint_31_63.to_int field_nth)
+              in
               let new_extra_arg, new_arg_being_unboxed =
                 if are_there_non_const_ctors_at_use
                    && Tag.Scannable.equal tag_at_use_site tag_decision
@@ -382,7 +403,7 @@ and compute_extra_args_for_variant ~pass rewrite_id ~typing_env_at_use
               new_decisions, Targetint_31_63.(add one field_nth))
             ([], Targetint_31_63.zero) block_fields
         in
-        List.rev new_fields_decisions)
+        shape, List.rev new_fields_decisions)
       fields_by_tag_from_decision
   in
   Unbox (Variant { tag; const_ctors; fields_by_tag })
@@ -391,7 +412,7 @@ let add_extra_params_and_args extra_params_and_args ~invalids decision =
   let rec aux extra_params_and_args (decision : U.decision) =
     match decision with
     | Do_not_unbox _ -> extra_params_and_args
-    | Unbox (Unique_tag_and_size { tag = _; fields }) ->
+    | Unbox (Unique_tag_and_size { tag = _; shape = _; fields }) ->
       List.fold_left
         (fun extra_params_and_args ({ epa; decision; kind } : U.field_decision) ->
           let extra_param = BP.create epa.param kind in
@@ -415,7 +436,7 @@ let add_extra_params_and_args extra_params_and_args ~invalids decision =
     | Unbox (Variant { tag; const_ctors; fields_by_tag }) ->
       let extra_params_and_args =
         Tag.Scannable.Map.fold
-          (fun _ block_fields extra_params_and_args ->
+          (fun _ (_shape, block_fields) extra_params_and_args ->
             List.fold_left
               (fun extra_params_and_args
                    ({ epa; decision; kind } : U.field_decision) ->

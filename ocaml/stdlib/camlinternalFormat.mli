@@ -1,4 +1,4 @@
-# 1 "camlinternalFormat.mli"
+# 2 "camlinternalFormat.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)

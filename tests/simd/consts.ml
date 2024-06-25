@@ -1,5 +1,7 @@
 open Stdlib
 
+[@@@ocaml.warning "-unused-module"]
+
 let eq lv hv l h =
     if l <> lv then Printf.printf "%016Lx <> %016Lx\n" lv l;
     if h <> hv then Printf.printf "%016Lx <> %016Lx\n" hv h

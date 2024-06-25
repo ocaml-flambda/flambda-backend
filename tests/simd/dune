@@ -1,9 +1,3 @@
-(env
- (_
-  ; FIXME Fix warnings or suppress them more finely
-  (flags
-   (:standard -w -32-33-35-60))))
-
 ; Helpers
 
 (library
@@ -28,7 +22,7 @@
  (libraries simd_test_helpers stdlib_stable)
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -extension simd -dump-into-file -dsel)))
+  (:standard -extension simd)))
 
 (rule
  (enabled_if
@@ -66,6 +60,87 @@
    (diff empty.expected arrays.out)
    (diff empty.expected scalar_ops.out)
    (diff empty.expected consts.out))))
+
+; Tests with nodynlink
+
+(rule
+ (targets
+  basic_nodynlink.ml
+  ops_nodynlink.ml
+  consts_nodynlink.ml
+  arrays_nodynlink.ml
+  scalar_ops_nodynlink.ml)
+ (deps basic.ml ops.ml consts.ml scalar_ops.ml)
+ (action
+  (progn
+   (copy basic.ml basic_nodynlink.ml)
+   (copy ops.ml ops_nodynlink.ml)
+   (copy consts.ml consts_nodynlink.ml)
+   (copy arrays.ml arrays_nodynlink.ml)
+   (copy scalar_ops.ml scalar_ops_nodynlink.ml))))
+
+(executables
+ (names
+  basic_nodynlink
+  ops_nodynlink
+  consts_nodynlink
+  arrays_nodynlink
+  scalar_ops_nodynlink)
+ (modules
+  basic_nodynlink
+  ops_nodynlink
+  consts_nodynlink
+  arrays_nodynlink
+  scalar_ops_nodynlink)
+ (libraries simd_test_helpers)
+ (foreign_archives stubs)
+ (ocamlopt_flags
+  (:standard -extension simd -nodynlink)))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets
+  basic_nodynlink.out
+  ops_nodynlink.out
+  arrays_nodynlink.out
+  scalar_ops_nodynlink.out)
+ (deps
+  basic_nodynlink.exe
+  ops_nodynlink.exe
+  arrays_nodynlink.exe
+  scalar_ops_nodynlink.exe)
+ (action
+  (progn
+   (with-outputs-to
+    basic_nodynlink.out
+    (run ./basic_nodynlink.exe))
+   (with-outputs-to
+    ops_nodynlink.out
+    (run ./ops_nodynlink.exe))
+   (with-outputs-to
+    arrays_nodynlink.out
+    (run ./arrays_nodynlink.exe))
+   (with-outputs-to
+    scalar_ops_nodynlink.out
+    (run ./scalar_ops_nodynlink.exe))
+   (with-outputs-to
+    consts_nodynlink.out
+    (run ./consts_nodynlink.exe)))))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (= %{architecture} amd64)))
+ (action
+  (progn
+   (diff empty.expected basic_nodynlink.out)
+   (diff empty.expected ops_nodynlink.out)
+   (diff empty.expected arrays_nodynlink.out)
+   (diff empty.expected scalar_ops_nodynlink.out)
+   (diff empty.expected consts_nodynlink.out))))
 
 ; Tests with probes / internal assembler - not supported on macOS
 
