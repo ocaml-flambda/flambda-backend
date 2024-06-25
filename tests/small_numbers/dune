@@ -67,7 +67,7 @@
   float32_builtin_nodynlink
   float32_lib_nodynlink
   float32_u_lib_nodynlink)
- (libraries beta)
+ (libraries stdlib_beta)
  (foreign_archives stubs)
  (ocamlopt_flags
   (:standard -extension-universe beta -nodynlink)))
