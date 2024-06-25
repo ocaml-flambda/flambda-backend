@@ -255,12 +255,12 @@ module Primitive : sig
     [any]. *)
   val any : why:History.any_creation_reason -> t
 
-  val any_non_null : why:History.any_creation_reason -> t
+  val any_non_null : why:History.any_non_null_creation_reason -> t
 
   (** Value of types of this jkind are not retained at all at runtime *)
   val void : why:History.void_creation_reason -> t
 
-  val value_or_null : why:History.value_creation_reason -> t
+  val value_or_null : why:History.value_or_null_creation_reason -> t
 
   (** This is the jkind of normal ocaml values *)
   val value : why:History.value_creation_reason -> t
@@ -299,12 +299,14 @@ val add_mode_crossing : t -> t
 (******************************)
 (* construction *)
 
+(* CR layouts v3.0: split those functions in two versions,
+   one [or_null] and one [non_null]. *)
 (** Create a fresh sort variable, packed into a jkind, returning both
     the resulting kind and the sort. *)
-val of_new_sort_var : why:History.concrete_jkind_reason -> t * sort
+val of_new_sort_var : why:History.concrete_non_null_jkind_reason -> t * sort
 
 (** Create a fresh sort variable, packed into a jkind. *)
-val of_new_sort : why:History.concrete_jkind_reason -> t
+val of_new_sort : why:History.concrete_non_null_jkind_reason -> t
 
 val of_const : why:History.creation_reason -> Const.t -> t
 
