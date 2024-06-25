@@ -224,6 +224,18 @@ let attributes i ppf l =
 let jkind_annotation i ppf (jkind, _) =
   line i ppf "%a" Jkind.Const.format jkind
 
+let application_zero_alloc i ppf (za : Builtin_attributes.zero_alloc_attribute) =
+  match za with
+  | Default_zero_alloc -> ()
+  | Assume { strict; never_returns_normally; never_raises; arity; loc = _ } ->
+    line i ppf "assume_zero_alloc arity=%d%s%s%s\n"
+      arity
+      (if strict then " strict" else "")
+      (if never_returns_normally then " never_returns_normally" else "")
+      (if never_raises then " never_raises" else "")
+  | Ignore_assert_all | Check _ ->
+    Misc.fatal_error "printtyped: application_zero_alloc"
+
 let rec core_type i ppf x =
   line i ppf "core_type %a\n" fmt_location x.ctyp_loc;
   attributes i ppf x.ctyp_attributes;
@@ -452,9 +464,7 @@ and expression i ppf x =
          | Nontail -> "Nontail"
          | Default -> "Default");
       locality_mode i ppf am;
-      if not (Zero_alloc_utils.Assume_info.is_none za) then
-        line i ppf "assume_zero_alloc %a\n"
-          Zero_alloc_utils.Assume_info.print za;
+      application_zero_alloc i ppf za;
       expression i ppf e;
       list i label_x_apply_arg ppf l;
   | Texp_match (e, sort, l, _partial) ->

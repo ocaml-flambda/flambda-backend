@@ -5109,44 +5109,6 @@ let add_check_attribute expr attributes =
     end
   | _ -> expr
 
-let zero_alloc_of_application ~num_args attrs funct =
-  let zero_alloc =
-    Builtin_attributes.get_zero_alloc_attribute ~in_signature:false
-      ~default_arity:num_args attrs
-  in
-  let zero_alloc =
-    match zero_alloc with
-    | Assume _ | Ignore_assert_all | Check _ ->
-      (* The user wrote a zero_alloc attribute on the application - keep it.
-         (Note that `ignore` and `check` aren't really allowed here, and will be
-         rejected by the call to `Builtin_attributes.assume_zero_alloc` below.)
-       *)
-      zero_alloc
-    | Default_zero_alloc ->
-      (* We assume the call is zero_alloc if the function is known to be
-         zero_alloc. If the function is zero_alloc opt, then we need to be sure
-         that the opt checks were run to license this assumption. We judge
-         whether the opt checks were run based on the argument to the
-         [-zero-alloc-check] command line flag. *)
-      let use_opt =
-        match !Clflags.zero_alloc_check with
-        | Check_default | No_check -> false
-        | Check_all | Check_opt_only -> true
-      in
-      match funct.exp_desc with
-      | Texp_ident (_, _, { val_zero_alloc = (Check c); _ }, _, _)
-        when c.arity = num_args && (use_opt || not c.opt) ->
-        Builtin_attributes.Assume {
-          strict = c.strict;
-          never_returns_normally = false;
-          never_raises = false;
-          arity = c.arity;
-          loc = c.loc
-        }
-      | _ -> Builtin_attributes.Default_zero_alloc
-  in
-  Builtin_attributes.assume_zero_alloc ~is_check_allowed:false zero_alloc
-
 let rec type_exp ?recarg env expected_mode sexp =
   (* We now delegate everything to type_expect *)
   type_expect ?recarg env expected_mode sexp
@@ -5475,14 +5437,15 @@ and type_expect_
       let (args, ty_res, ap_mode, pm) =
         type_application env loc expected_mode pm funct funct_mode sargs rt
       in
-      let assume_zero_alloc =
-        zero_alloc_of_application ~num_args:(List.length args)
-          sfunct.pexp_attributes funct
+      let zero_alloc =
+        Builtin_attributes.get_zero_alloc_attribute ~in_signature:false
+          ~default_arity:(List.length args) sfunct.pexp_attributes
+        |> Builtin_attributes.zero_alloc_attribute_may_not_be_check
       in
 
       rue {
         exp_desc = Texp_apply(funct, args, pm.apply_position, ap_mode,
-                              assume_zero_alloc);
+                              zero_alloc);
         exp_loc = loc; exp_extra = [];
         exp_type = ty_res;
         exp_attributes = sexp.pexp_attributes;
@@ -7520,7 +7483,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
               |> Value.proj (Comonadic Areality)
               |> regional_to_global
               |> Locality.disallow_right,
-              Zero_alloc_utils.Assume_info.none)}
+              Builtin_attributes.Default_zero_alloc)}
         in
         let cases = [ case eta_pat e ] in
         let cases_loc = { texp.exp_loc with loc_ghost = true } in

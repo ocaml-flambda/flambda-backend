@@ -271,8 +271,12 @@ val get_zero_alloc_attribute :
   in_signature:bool -> default_arity:int -> Parsetree.attributes ->
   zero_alloc_attribute
 
-val assume_zero_alloc :
-  is_check_allowed:bool -> zero_alloc_attribute -> Zero_alloc_utils.Assume_info.t
+(* If the input attribute is [Check], this issues a warning and returns
+   [Default_zero_alloc].  Otherwise, it is the identity. *)
+val zero_alloc_attribute_may_not_be_check :
+  zero_alloc_attribute -> zero_alloc_attribute
+
+val assume_zero_alloc : zero_alloc_attribute -> Zero_alloc_utils.Assume_info.t
 
 type tracing_probe =
   { name : string;
