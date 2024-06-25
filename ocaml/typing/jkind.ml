@@ -844,9 +844,9 @@ module Jkind_desc = struct
             nullability_upper_bound = Nullability.meet null1 null2
           })
 
-  let of_new_sort_var () =
+  let of_new_sort_var nullability_upper_bound =
     let layout, sort = Layout.of_new_sort_var () in
-    { (not_mode_crossing layout) with nullability_upper_bound = Non_null }, sort
+    { (not_mode_crossing layout) with nullability_upper_bound }, sort
 
   module Primitive = struct
     let any = max
@@ -970,7 +970,7 @@ module Primitive = struct
     | _ -> fresh_jkind Jkind_desc.Primitive.any ~why:(Any_creation why)
 
   let any_non_null ~why =
-    fresh_jkind Jkind_desc.Primitive.any_non_null ~why:(Any_creation why)
+    fresh_jkind Jkind_desc.Primitive.any_non_null ~why:(Any_non_null_creation why)
 
   let value_v1_safety_check =
     { jkind = Jkind_desc.Primitive.value;
@@ -981,7 +981,7 @@ module Primitive = struct
   let void ~why = fresh_jkind Jkind_desc.Primitive.void ~why:(Void_creation why)
 
   let value_or_null ~why =
-    fresh_jkind Jkind_desc.Primitive.value_or_null ~why:(Value_creation why)
+    fresh_jkind Jkind_desc.Primitive.value_or_null ~why:(Value_or_null_creation why)
 
   let value ~(why : History.value_creation_reason) =
     match why with
@@ -1033,8 +1033,8 @@ let get_required_layouts_level (context : History.annotation_context)
 (* construction *)
 
 let of_new_sort_var ~why =
-  let jkind, sort = Jkind_desc.of_new_sort_var () in
-  fresh_jkind jkind ~why:(Concrete_creation why), sort
+  let jkind, sort = Jkind_desc.of_new_sort_var Non_null in
+  fresh_jkind jkind ~why:(Concrete_non_null_creation why), sort
 
 let of_new_sort ~why = fst (of_new_sort_var ~why)
 
@@ -1265,8 +1265,8 @@ end = struct
     let to_ordinal num = Int.to_string num ^ Misc.ordinal_suffix num in
     match arity with 1 -> "" | _ -> to_ordinal position ^ " "
 
-  let format_concrete_jkind_reason ppf : History.concrete_jkind_reason -> unit =
-    function
+  let format_concrete_non_null_jkind_reason ppf :
+      History.concrete_non_null_jkind_reason -> unit = function
     | Match -> fprintf ppf "a value of this type is matched against a pattern"
     | Constructor_declaration _ ->
       fprintf ppf "it's the type of a constructor field"
@@ -1459,18 +1459,22 @@ end = struct
     | Missing_cmi p ->
       fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
     | Any_creation any -> format_any_creation_reason ppf any
+    | Any_non_null_creation _ -> .
     | Immediate_creation immediate ->
       format_immediate_creation_reason ppf immediate
     | Immediate64_creation immediate64 ->
       format_immediate64_creation_reason ppf immediate64
     | Void_creation _ -> .
+    | Value_or_null_creation _ -> .
     | Value_creation value -> format_value_creation_reason ppf value
     | Float64_creation float -> format_float64_creation_reason ppf float
     | Float32_creation float -> format_float32_creation_reason ppf float
     | Word_creation word -> format_word_creation_reason ppf word
     | Bits32_creation bits32 -> format_bits32_creation_reason ppf bits32
     | Bits64_creation bits64 -> format_bits64_creation_reason ppf bits64
-    | Concrete_creation concrete -> format_concrete_jkind_reason ppf concrete
+    | Concrete_creation _ -> .
+    | Concrete_non_null_creation concrete ->
+      format_concrete_non_null_jkind_reason ppf concrete
     | Imported ->
       fprintf ppf "of layout requirements from an imported definition"
     | Imported_type_argument { parent_path; position; arity } ->
@@ -1504,7 +1508,7 @@ end = struct
     | Creation reason -> (
       fprintf ppf ", because@ %a" format_creation_reason reason;
       match reason, jkind_desc with
-      | Concrete_creation _, Const _ ->
+      | Concrete_non_null_creation _, Const _ ->
         fprintf ppf ", defaulted to layout %a" Desc.format jkind_desc
       | _ -> ())
     | _ -> assert false);
@@ -1656,7 +1660,7 @@ let score_reason = function
   (* error_message annotated by the user should always take priority *)
   | Creation (Annotated (With_error_message _, _)) -> 1
   (* Concrete creation is quite vague, prefer more specific reasons *)
-  | Creation (Concrete_creation _) -> -1
+  | Creation (Concrete_creation _ | Concrete_non_null_creation _) -> -1
   | _ -> 0
 
 let combine_histories reason lhs rhs =
@@ -1724,8 +1728,8 @@ let has_layout_any jkind =
 module Debug_printers = struct
   open Format
 
-  let concrete_jkind_reason ppf : History.concrete_jkind_reason -> unit =
-    function
+  let concrete_non_null_jkind_reason ppf :
+      History.concrete_non_null_jkind_reason -> unit = function
     | Match -> fprintf ppf "Match"
     | Constructor_declaration idx ->
       fprintf ppf "Constructor_declaration %d" idx
@@ -1850,11 +1854,13 @@ module Debug_printers = struct
         loc
     | Missing_cmi p -> fprintf ppf "Missing_cmi %a" !printtyp_path p
     | Any_creation any -> fprintf ppf "Any_creation %a" any_creation_reason any
+    | Any_non_null_creation _ -> .
     | Immediate_creation immediate ->
       fprintf ppf "Immediate_creation %a" immediate_creation_reason immediate
     | Immediate64_creation immediate64 ->
       fprintf ppf "Immediate64_creation %a" immediate64_creation_reason
         immediate64
+    | Value_or_null_creation _ -> .
     | Value_creation value ->
       fprintf ppf "Value_creation %a" value_creation_reason value
     | Void_creation _ -> .
@@ -1868,8 +1874,10 @@ module Debug_printers = struct
       fprintf ppf "Bits32_creation %a" bits32_creation_reason bits32
     | Bits64_creation bits64 ->
       fprintf ppf "Bits64_creation %a" bits64_creation_reason bits64
-    | Concrete_creation concrete ->
-      fprintf ppf "Concrete_creation %a" concrete_jkind_reason concrete
+    | Concrete_creation _ -> .
+    | Concrete_non_null_creation concrete ->
+      fprintf ppf "Concrete_non_null_creation %a" concrete_non_null_jkind_reason
+        concrete
     | Imported -> fprintf ppf "Imported"
     | Imported_type_argument { parent_path; position; arity } ->
       fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a" position
