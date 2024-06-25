@@ -752,6 +752,7 @@ type to_lift = private
   | Immutable_block of
       { tag : Tag.Scannable.t;
         is_unique : bool;
+        shape : Flambda_kind.Scannable_block_shape.t;
         fields : Simple.t list
       }
   | Boxed_float32 of Numeric_types.Float32_by_bit_pattern.t

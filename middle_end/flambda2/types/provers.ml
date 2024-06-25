@@ -57,10 +57,10 @@ let as_meet_shortcut (p : _ generic_proof) : _ meet_shortcut =
 let as_property (p : _ generic_proof) : _ proof_of_property =
   match p with Proved x -> Proved x | Unknown | Invalid -> Unknown
 
-let prove_equals_to_simple_of_kind_value env t : Simple.t proof_of_property =
+let prove_equals_to_simple_of_kind env t kind : Simple.t proof_of_property =
   let original_kind = TG.kind t in
-  if not (K.equal original_kind K.value)
-  then wrong_kind "Value" t
+  if not (K.equal original_kind kind)
+  then wrong_kind (Format.asprintf "%a" K.print kind) t
   else
     (* CR pchambart: add TE.get_alias_opt *)
     match TG.get_alias_exn t with

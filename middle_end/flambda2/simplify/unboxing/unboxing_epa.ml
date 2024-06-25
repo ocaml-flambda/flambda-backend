@@ -174,7 +174,7 @@ let access_kind_and_dummy_const tag shape fields index :
     P.Block_access_kind.t * _ =
   let size = Or_unknown.Known (Targetint_31_63.of_int (List.length fields)) in
   match (shape : K.Block_shape.t) with
-  | Value_only ->
+  | Scannable Value_only ->
     ( Values
         { size;
           tag = Known (Option.get (Tag.Scannable.of_tag tag));
@@ -182,11 +182,13 @@ let access_kind_and_dummy_const tag shape fields index :
         },
       Const.const_zero )
   | Float_record ->
+    (* CR vlaviron: I suspect that this case is unreachable. At least the
+       previous version of this code didn't handle it, and it seems likely that
+       float records were handled by the unique tag and size case instead. *)
     ( Naked_floats { size },
       Const.naked_float Numeric_types.Float_by_bit_pattern.zero )
-  | Mixed_record shape ->
+  | Scannable (Mixed_record shape) ->
     let field_kind, const =
-      let field_kind = (K.Mixed_block_shape.field_kinds shape).(index) in
       if index < K.Mixed_block_shape.value_prefix_size shape
       then
         (* CR vlaviron: we're not trying to infer if this can only be an
@@ -194,8 +196,15 @@ let access_kind_and_dummy_const tag shape fields index :
            simplified away. *)
         P.Mixed_block_access_field_kind.Value_prefix Any_value, Const.const_zero
       else
+        let field_kind =
+          let flat_suffix_index =
+            index - K.Mixed_block_shape.value_prefix_size shape
+          in
+          assert (flat_suffix_index >= 0);
+          (K.Mixed_block_shape.flat_suffix shape).(flat_suffix_index)
+        in
         ( P.Mixed_block_access_field_kind.Flat_suffix field_kind,
-          Const.of_int_of_kind field_kind 0 )
+          Const.of_int_of_kind (K.Flat_suffix_element.kind field_kind) 0 )
     in
     let tag = Or_unknown.Known (Option.get (Tag.Scannable.of_tag tag)) in
     Mixed { tag; size; shape; field_kind }, const
