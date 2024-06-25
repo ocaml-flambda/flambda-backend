@@ -21,6 +21,8 @@ let test mapper s =
   ignore (mapper.Ast_mapper.structure mapper p);
   Format.printf "------------------------------\n"
 
+(* CR zqian: add [modalities] to mapper so the following [bar hello] can be
+   printed *)
 let () =
   test mapper "let f (local_ x) = x";
   test mapper "let unique_ f (local_ x) = x";

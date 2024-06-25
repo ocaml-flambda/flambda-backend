@@ -254,7 +254,7 @@ type type_declaration =
     type_arity: int;
     type_kind: type_decl_kind;
     type_jkind: jkind;
-    type_jkind_annotation: Jkind_types.annotation option;
+    type_jkind_annotation: type_expr Jkind_types.annotation option;
     type_private: private_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
@@ -336,8 +336,15 @@ and constructor_declaration =
     cd_uid: Uid.t;
   }
 
+and constructor_argument =
+  {
+    ca_modalities: Mode.Modality.Value.t;
+    ca_type: type_expr;
+    ca_loc: Location.t;
+  }
+
 and constructor_arguments =
-  | Cstr_tuple of (type_expr * Mode.Modality.Value.t) list
+  | Cstr_tuple of constructor_argument list
   | Cstr_record of label_declaration list
 
 type extension_constructor =
@@ -360,7 +367,7 @@ and type_transparence =
   | Type_private     (* private type *)
 
 let tys_of_constr_args = function
-  | Cstr_tuple tl -> List.map fst tl
+  | Cstr_tuple tl -> List.map (fun ca -> ca.ca_type) tl
   | Cstr_record lbls -> List.map (fun l -> l.ld_type) lbls
 
 (* Type expressions for the class language *)
@@ -561,8 +568,8 @@ type constructor_description =
   { cstr_name: string;                  (* Constructor name *)
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
-    cstr_args: (type_expr * Mode.Modality.Value.t) list;          (* Type of the arguments *)
-    cstr_arg_jkinds: jkind array;     (* Jkinds of the arguments *)
+    cstr_args: constructor_argument list; (* Type of the arguments *)
+    cstr_arg_jkinds: jkind array;       (* Jkinds of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
     cstr_repr: variant_representation;  (* Repr of the outer variant *)
@@ -666,7 +673,7 @@ let find_unboxed_type decl =
   match decl.type_kind with
     Type_record ([{ld_type = arg; _}], Record_unboxed)
   | Type_record ([{ld_type = arg; _}], Record_inlined (_, Variant_unboxed))
-  | Type_variant ([{cd_args = Cstr_tuple [arg,_]; _}], Variant_unboxed)
+  | Type_variant ([{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}], Variant_unboxed)
   | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}],
                   Variant_unboxed) ->
     Some arg

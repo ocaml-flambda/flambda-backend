@@ -79,6 +79,16 @@ let region = Region
 
 let rec_info = Rec_info
 
+let from_lambda_flat_element (elt : Lambda.flat_element) =
+  match elt with
+  | Imm -> Value
+  | Float_boxed -> Naked_number Naked_float
+  | Float64 -> Naked_number Naked_float
+  | Float32 -> Naked_number Naked_float32
+  | Bits32 -> Naked_number Naked_int32
+  | Bits64 -> Naked_number Naked_int64
+  | Word -> Naked_number Naked_nativeint
+
 let to_lambda (t : t) : Lambda.layout =
   match t with
   | Value -> Pvalue Pgenval
@@ -162,6 +172,110 @@ let is_naked_float t =
       | Naked_nativeint | Naked_vec128 )
   | Region | Rec_info ->
     false
+
+module Mixed_block_shape = struct
+  type kind = t
+
+  type t =
+    { fields : kind array;
+      (* For compiling to Cmm, we need the lambda shape. We also use it to know
+         the value prefix length. *)
+      lambda_shape : Lambda.mixed_block_shape
+    }
+
+  let field_kinds { fields; lambda_shape = _ } = fields
+
+  let value_prefix_size { fields = _; lambda_shape } =
+    lambda_shape.value_prefix_len
+
+  (* This function has two meanings. The first is to say whether two shapes are
+     equivalent (which is why the lambda shape is not compared directly). The
+     second is to tell whether two shapes are compatible. Currently this matches
+     with equivalence, but if we introduce subkinds this will have to be split
+     into two functions. *)
+  let equal t1 t2 =
+    Int.equal t1.lambda_shape.value_prefix_len t2.lambda_shape.value_prefix_len
+    && Int.equal (Array.length t1.fields) (Array.length t2.fields)
+    && Array.for_all2 equal t1.fields t2.fields
+
+  let compare t1 t2 =
+    let c =
+      Int.compare t1.lambda_shape.value_prefix_len
+        t2.lambda_shape.value_prefix_len
+    in
+    if c <> 0
+    then c
+    else
+      let length1 = Array.length t1.fields in
+      let length2 = Array.length t2.fields in
+      let c = Int.compare length1 length2 in
+      if c <> 0
+      then c
+      else
+        let exception Result of int in
+        try
+          for i = 0 to length1 - 1 do
+            let c = compare t1.fields.(i) t2.fields.(i) in
+            if c <> 0 then raise_notrace (Result c)
+          done;
+          0
+        with Result c -> c
+
+  let from_lambda (shape : Lambda.mixed_block_shape) =
+    let value_prefix_shape =
+      List.init shape.value_prefix_len (fun _ -> Value)
+    in
+    let flat_suffix_shape =
+      List.map from_lambda_flat_element (Array.to_list shape.flat_suffix)
+    in
+    { fields = Array.of_list (value_prefix_shape @ flat_suffix_shape);
+      lambda_shape = shape
+    }
+
+  let to_lambda { fields = _; lambda_shape } = lambda_shape
+end
+
+module Block_shape = struct
+  type t =
+    | Value_only
+    | Float_record
+    | Mixed_record of Mixed_block_shape.t
+
+  (* Some users rely on shapes not being compatible if they're not equal. *)
+  let equal shape1 shape2 =
+    match shape1, shape2 with
+    | Value_only, Value_only -> true
+    | Float_record, Float_record -> true
+    | Mixed_record shape1, Mixed_record shape2 ->
+      Mixed_block_shape.equal shape1 shape2
+    | (Value_only | Float_record | Mixed_record _), _ -> false
+
+  let compare shape1 shape2 =
+    match shape1, shape2 with
+    | Value_only, Value_only -> 0
+    | Value_only, _ -> -1
+    | _, Value_only -> 1
+    | Float_record, Float_record -> 0
+    | Float_record, _ -> -1
+    | _, Float_record -> 1
+    | Mixed_record kinds1, Mixed_record kinds2 ->
+      Mixed_block_shape.compare kinds1 kinds2
+
+  let print ppf shape =
+    match shape with
+    | Value_only -> Format.fprintf ppf "Values"
+    | Float_record -> Format.fprintf ppf "Floats"
+    | Mixed_record { fields; lambda_shape = _ } ->
+      Format.fprintf ppf "Mixed@ (@[<h>";
+      Array.iter (fun k -> Format.fprintf ppf "%a@ " print k) fields;
+      Format.fprintf ppf "@])"
+
+  let element_kind shape index =
+    match shape with
+    | Value_only -> Value
+    | Float_record -> Naked_number Naked_float
+    | Mixed_record shape -> (Mixed_block_shape.field_kinds shape).(index)
+end
 
 module Standard_int = struct
   type t =
@@ -333,7 +447,8 @@ module With_subkind = struct
       | Tagged_immediate
       | Variant of
           { consts : Targetint_31_63.Set.t;
-            non_consts : kind_and_subkind list Tag.Scannable.Map.t
+            non_consts :
+              (Block_shape.t * kind_and_subkind list) Tag.Scannable.Map.t
           }
       | Float_block of { num_fields : int }
       | Float_array
@@ -383,8 +498,10 @@ module With_subkind = struct
             let field_lists2 = Tag.Scannable.Map.data non_consts2 in
             assert (List.compare_lengths field_lists1 field_lists2 = 0);
             List.for_all2
-              (fun fields1 fields2 ->
-                if List.compare_lengths fields1 fields2 <> 0
+              (fun (shape1, fields1) (shape2, fields2) ->
+                if not (Block_shape.equal shape1 shape2)
+                then false
+                else if List.compare_lengths fields1 fields2 <> 0
                 then false
                 else
                   List.for_all2
@@ -450,7 +567,7 @@ module With_subkind = struct
           let print_field ppf { kind = _; subkind } = print ppf subkind in
           Format.fprintf ppf "%t=Variant((consts (%a))@ (non_consts (%a)))%t"
             colour Targetint_31_63.Set.print consts
-            (Tag.Scannable.Map.print (fun ppf fields ->
+            (Tag.Scannable.Map.print (fun ppf (_shape, fields) ->
                  Format.fprintf ppf "[%a]"
                    (Format.pp_print_list ~pp_sep:Format.pp_print_space
                       print_field)
@@ -578,7 +695,8 @@ module With_subkind = struct
       create value
         (Variant
            { consts = Targetint_31_63.Set.empty;
-             non_consts = Tag.Scannable.Map.singleton tag fields
+             non_consts =
+               Tag.Scannable.Map.singleton tag (Block_shape.Value_only, fields)
            })
     | None -> Misc.fatal_errorf "Tag %a is not scannable" Tag.print tag
 
@@ -623,45 +741,68 @@ module With_subkind = struct
     | Pboxedvectorval (Pvec128 _) -> boxed_vec128
     | Pintval -> tagged_immediate
     | Pvariant { consts; non_consts } -> (
-      let all_uniform_non_consts =
-        List.map
-          (fun (tag, (shape : Lambda.constructor_shape)) ->
-            match shape with
-            | Constructor_uniform shape -> Some (tag, shape)
-            | Constructor_mixed _ -> None)
-          non_consts
-        |> Misc.Stdlib.List.some_if_all_elements_are_some
-      in
-      match all_uniform_non_consts with
-      | None ->
-        (* CR mixed blocks v2: have a better representation of mixed blocks in
-           the flambda2 middle end so that they can be optimized more. *)
-        any_value
-      | Some non_consts -> (
-        match consts, non_consts with
-        | [], [] -> Misc.fatal_error "[Pvariant] with no constructors at all"
-        | [], [(tag, fields)] when tag = Obj.double_array_tag ->
-          (* If we have [Obj.double_array_tag] here, this is always an all-float
-             block, not an array. *)
-          float_block ~num_fields:(List.length fields)
-        | [], _ :: _ | _ :: _, [] | _ :: _, _ :: _ ->
-          let consts =
-            Targetint_31_63.Set.of_list
-              (List.map (fun const -> Targetint_31_63.of_int const) consts)
-          in
-          let non_consts =
-            List.fold_left
-              (fun non_consts (tag, fields) ->
-                match Tag.Scannable.create tag with
-                | Some tag ->
-                  Tag.Scannable.Map.add tag
-                    (List.map from_lambda_value_kind fields)
-                    non_consts
-                | None ->
-                  Misc.fatal_errorf "Non-scannable tag %d in [Pvariant]" tag)
-              Tag.Scannable.Map.empty non_consts
-          in
-          create value (Variant { consts; non_consts })))
+      match consts, non_consts with
+      | [], [] -> Misc.fatal_error "[Pvariant] with no constructors at all"
+      | [], [(tag, shape)] when tag = Obj.double_array_tag ->
+        (* If we have [Obj.double_array_tag] here, this is always an all-float
+           block, not an array. *)
+        (* CR vlaviron: change the Lambda type *)
+        let num_fields =
+          match shape with
+          | Constructor_uniform fields -> List.length fields
+          | Constructor_mixed _ -> assert false
+        in
+        float_block ~num_fields
+      | [], _ :: _ | _ :: _, [] | _ :: _, _ :: _ ->
+        let consts =
+          Targetint_31_63.Set.of_list
+            (List.map (fun const -> Targetint_31_63.of_int const) consts)
+        in
+        let non_consts =
+          List.fold_left
+            (fun non_consts (tag, shape) ->
+              match Tag.Scannable.create tag with
+              | Some tag ->
+                let shape_and_fields =
+                  match (shape : Lambda.constructor_shape) with
+                  | Constructor_uniform fields ->
+                    ( Block_shape.Value_only,
+                      List.map from_lambda_value_kind fields )
+                  | Constructor_mixed { value_prefix; flat_suffix } ->
+                    let lambda_shape : Lambda.mixed_block_shape =
+                      { value_prefix_len = List.length value_prefix;
+                        flat_suffix = Array.of_list flat_suffix
+                      }
+                    in
+                    let fields =
+                      let flat_element_kind (elt : Lambda.flat_element) =
+                        match elt with
+                        | Imm -> tagged_immediate
+                        | Float_boxed -> naked_float
+                        | Float64 -> naked_float
+                        | Float32 -> naked_float32
+                        | Bits32 -> naked_int32
+                        | Bits64 -> naked_int64
+                        | Word -> naked_nativeint
+                      in
+                      let prefix =
+                        List.map from_lambda_value_kind value_prefix
+                      in
+                      let suffix = List.map flat_element_kind flat_suffix in
+                      prefix @ suffix
+                    in
+                    let shape =
+                      Block_shape.Mixed_record
+                        (Mixed_block_shape.from_lambda lambda_shape)
+                    in
+                    shape, fields
+                in
+                Tag.Scannable.Map.add tag shape_and_fields non_consts
+              | None ->
+                Misc.fatal_errorf "Non-scannable tag %d in [Pvariant]" tag)
+            Tag.Scannable.Map.empty non_consts
+        in
+        create value (Variant { consts; non_consts }))
     | Parrayval Pfloatarray -> float_array
     | Parrayval Pintarray -> immediate_array
     | Parrayval Paddrarray -> value_array

@@ -369,7 +369,7 @@ let name_expression ~loc ~attrs sort exp =
       str_loc = loc;
       str_env = exp.exp_env; }
   in
-  let final_env = Env.add_value id vd exp.exp_env in
+  let final_env = Env.add_value ~mode:Mode.Value.legacy id vd exp.exp_env in
   let str =
     { str_items = [item];
       str_type = sg;

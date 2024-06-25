@@ -120,10 +120,12 @@ module Example = struct
   let tyvar            = "no_tyvars_require_extensions"
   let jkind            = Jane_syntax.Jkind.(
                             With (
-                              Primitive_layout_or_abbreviation
+                              Abbreviation
                                 (Const.mk "value" loc),
                               core_type
                             ))
+
+  let mode = Jane_syntax.Mode_expr.Const.mk "global" loc
 end
 
 let print_test_header name =
@@ -205,6 +207,7 @@ end = struct
 
   let tyvar = test "tyvar" tyvar Example.tyvar
   let jkind = test "jkind" jkind Example.jkind
+  let mode = test "mode" mode Example.mode
 end
 
 
