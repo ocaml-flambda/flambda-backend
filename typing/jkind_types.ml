@@ -28,17 +28,49 @@ module Sort = struct
 
   and var = t option ref
 
-  let equal_const c1 c2 =
-    match c1, c2 with
-    | Void, Void
-    | Value, Value
-    | Float64, Float64
-    | Float32, Float32
-    | Word, Word
-    | Bits32, Bits32
-    | Bits64, Bits64 ->
-      true
-    | (Void | Value | Float64 | Float32 | Word | Bits32 | Bits64), _ -> false
+  module Const = struct
+    type t = const
+
+    let equal c1 c2 =
+      match c1, c2 with
+      | Void, Void
+      | Value, Value
+      | Float64, Float64
+      | Float32, Float32
+      | Word, Word
+      | Bits32, Bits32
+      | Bits64, Bits64 ->
+        true
+      | (Void | Value | Float64 | Float32 | Word | Bits32 | Bits64), _ -> false
+
+    let to_string = function
+      | Value -> "value"
+      | Void -> "void"
+      | Float64 -> "float64"
+      | Float32 -> "float32"
+      | Word -> "word"
+      | Bits32 -> "bits32"
+      | Bits64 -> "bits64"
+
+    let format ppf const = Format.fprintf ppf "%s" (to_string const)
+  end
+
+  module Var = struct
+    type t = var
+
+    let name : var -> string =
+      let next_id = ref 1 in
+      let named = ref [] in
+      fun v ->
+        match List.assq_opt v !named with
+        | Some name -> name
+        | None ->
+          let id = !next_id in
+          let name = "'_representable_layout_" ^ Int.to_string id in
+          next_id := id + 1;
+          named := (v, name) :: !named;
+          name
+  end
 
   (* To record changes to sorts, for use with `Types.{snapshot, backtrack}` *)
   type change = var * t option
@@ -51,23 +83,12 @@ module Sort = struct
 
   let undo_change (v, t_op) = v := t_op
 
-  let var_name : var -> string =
-    let next_id = ref 1 in
-    let named = ref [] in
-    fun v ->
-      match List.assq_opt v !named with
-      | Some name -> name
-      | None ->
-        let id = !next_id in
-        let name = "'_representable_layout_" ^ Int.to_string id in
-        next_id := id + 1;
-        named := (v, name) :: !named;
-        name
-
   let set : var -> t option -> unit =
    fun v t_op ->
     log_change (v, !v);
     v := t_op
+
+  (* Memoize these values for of_const *)
 
   let void = Const Void
 
@@ -83,7 +104,7 @@ module Sort = struct
 
   let bits64 = Const Bits64
 
-  let some_value = Some value
+  let some_value = Some (Const Value)
 
   let of_const = function
     | Void -> void
@@ -133,7 +154,7 @@ module Sort = struct
     | Bits32 -> memoized_bits32
     | Bits64 -> memoized_bits64
 
-  let rec get_default_value : t -> const = function
+  let rec default_to_value_and_get : t -> const = function
     | Const c -> c
     | Var r -> (
       match !r with
@@ -141,12 +162,12 @@ module Sort = struct
         set r memoized_value;
         Value
       | Some s ->
-        let result = get_default_value s in
+        let result = default_to_value_and_get s in
         set r (get_memoized result);
         (* path compression *)
         result)
 
-  let default_to_value t = ignore (get_default_value t)
+  let default_to_value t = ignore (default_to_value_and_get t)
 
   (***********************)
   (* equality *)
@@ -226,21 +247,10 @@ module Sort = struct
 
   (*** pretty printing ***)
 
-  let string_of_const = function
-    | Value -> "value"
-    | Void -> "void"
-    | Float64 -> "float64"
-    | Float32 -> "float32"
-    | Word -> "word"
-    | Bits32 -> "bits32"
-    | Bits64 -> "bits64"
-
   let to_string s =
-    match get s with Var v -> var_name v | Const c -> string_of_const c
+    match get s with Var v -> Var.name v | Const c -> Const.to_string c
 
   let format ppf t = Format.fprintf ppf "%s" (to_string t)
-
-  let format_const ppf const = Format.fprintf ppf "%s" (string_of_const const)
 
   (*** debug printing **)
 
@@ -307,11 +317,29 @@ module Sort = struct
 end
 
 module Layout = struct
-  type ('type_expr, 'sort) layout =
+  type 'sort layout =
     | Sort of 'sort
     | Any
 
-  type 'type_expr t = ('type_expr, Sort.t) layout
+  module Const = struct
+    type t = Sort.const layout
+
+    module Legacy = struct
+      type t =
+        | Any
+        | Value
+        | Void
+        | Immediate64
+        | Immediate
+        | Float64
+        | Float32
+        | Word
+        | Bits32
+        | Bits64
+    end
+  end
+
+  type t = Sort.t layout
 end
 
 module Externality = struct
@@ -325,7 +353,7 @@ module Modes = Mode.Alloc.Const
 
 module Jkind_desc = struct
   type 'type_expr t =
-    { layout : 'type_expr Layout.t;
+    { layout : Layout.t;
       modes_upper_bounds : Modes.t;
       externality_upper_bound : Externality.t
     }
@@ -353,16 +381,14 @@ type 'type_expr t =
     has_warned : bool
   }
 
-type const =
-  | Any
-  | Value
-  | Void
-  | Immediate64
-  | Immediate
-  | Float64
-  | Float32
-  | Word
-  | Bits32
-  | Bits64
+module Const = struct
+  type 'type_expr t =
+    { layout : Layout.Const.t;
+      modes_upper_bounds : Modes.t;
+      externality_upper_bound : Externality.t
+    }
+end
 
-type annotation = const * Jane_syntax.Jkind.annotation
+type 'type_expr const = 'type_expr Const.t
+
+type 'type_expr annotation = 'type_expr const * Jane_syntax.Jkind.annotation

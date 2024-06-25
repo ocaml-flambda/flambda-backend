@@ -254,7 +254,7 @@ type type_declaration =
     type_arity: int;
     type_kind: type_decl_kind;
     type_jkind: jkind;
-    type_jkind_annotation: Jkind_types.annotation option;
+    type_jkind_annotation: type_expr Jkind_types.annotation option;
     type_private: private_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
