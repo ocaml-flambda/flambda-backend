@@ -382,9 +382,9 @@ let expand_head0 env ty ~known_canonical_simple_at_in_types_mode =
       ET.of_non_alias_type (MTC.unknown (TG.kind ty)))
 
 let expand_head env ty =
-  match TG.get_alias_exn ty with
-  | exception Not_found -> ET.of_non_alias_type ty
-  | simple -> (
+  match TG.get_alias_opt ty with
+  | None -> ET.of_non_alias_type ty
+  | Some simple -> (
     let kind = TG.kind ty in
     match
       TE.get_canonical_simple_exn env simple ~min_name_mode:Name_mode.in_types
@@ -401,6 +401,11 @@ let expand_head env ty =
 let is_bottom env t = ET.is_bottom (expand_head env t)
 
 let is_unknown env t = ET.is_unknown (expand_head env t)
+
+let is_alias_to_a_symbol t =
+  match TG.get_alias_opt t with
+  | None -> false
+  | Some simple -> Simple.is_symbol simple
 
 let missing_kind env free_names =
   Name_occurrences.fold_variables free_names ~init:false
