@@ -158,6 +158,9 @@ module Const : sig
 
   val to_out_jkind_const : t -> Outcometree.out_jkind_const
 
+  val print_out_jkind_const :
+    Format.formatter -> Outcometree.out_jkind_const -> unit
+
   val format : Format.formatter -> t -> unit
 
   val equal : t -> t -> bool
@@ -391,6 +394,8 @@ val set_externality_upper_bound : t -> Externality.t -> t
 
 (*********************************)
 (* pretty printing *)
+
+val print_out_jkind : Format.formatter -> Outcometree.out_jkind -> unit
 
 val format : Format.formatter -> t -> unit
 

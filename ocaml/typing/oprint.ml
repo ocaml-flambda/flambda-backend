@@ -323,37 +323,15 @@ let pr_var = Pprintast.tyvar
 let ty_var ~non_gen ppf s =
   pr_var ppf (if non_gen then "_" ^ s else s)
 
-let print_jkind_with_modes ppf print_jkind base modes =
-  fprintf ppf "%a mod @[%a@]" print_jkind base
-          (print_list (fun ppf -> fprintf ppf "%s") (fun ppf -> fprintf ppf "@ "))
-          modes
-
-let print_out_jkind ppf = function
-  | Ojkind_const { base; modal_bounds=[] } ->
-    fprintf ppf "%s" base
-  | Ojkind_const { base; modal_bounds=_::_ as modal_bounds } ->
-    print_jkind_with_modes ppf (fun ppf -> fprintf ppf "%s") base modal_bounds
-  | Ojkind_var v -> fprintf ppf "%s" v
-  | Ojkind_user jkind ->
-    let rec print_out_jkind_user ppf = function
-      | Ojkind_user_default -> fprintf ppf "_"
-      | Ojkind_user_abbreviation abbrev -> fprintf ppf "%s" abbrev
-      | Ojkind_user_mod (base, modes) ->
-        print_jkind_with_modes ppf print_out_jkind_user base modes
-      | Ojkind_user_with _ | Ojkind_user_kind_of _ ->
-        failwith "XXX unimplemented jkind syntax"
-    in
-    print_out_jkind_user ppf jkind
-
 let print_out_jkind_annot ppf = function
   | None -> ()
-  | Some lay -> fprintf ppf "@ : %a" print_out_jkind lay
+  | Some lay -> fprintf ppf "@ : %a" Jkind.print_out_jkind lay
 
 let pr_var_jkind ppf (v, l) = match l with
     | None -> pr_var ppf v
     | Some lay -> fprintf ppf "(%a : %a)"
                     pr_var v
-                    print_out_jkind lay
+                    Jkind.print_out_jkind lay
 
 let pr_var_jkinds =
   print_list pr_var_jkind (fun ppf -> fprintf ppf "@ ")
@@ -569,7 +547,7 @@ and print_out_type_3 ppf =
   | Otyp_jkind_annot (t, lay) ->
     fprintf ppf "@[<1>(%a@ :@ %a)@]"
       print_out_type_0 t
-      print_out_jkind lay
+      Jkind.print_out_jkind lay
 and print_out_type ppf typ =
   print_out_type_0 ppf typ
 and print_simple_out_type ppf typ =
