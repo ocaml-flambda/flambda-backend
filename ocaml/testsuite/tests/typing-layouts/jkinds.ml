@@ -1105,6 +1105,7 @@ type t = Foo | Bar
 type t = Foo | Bar
 type t = Foo | Bar
 |}]
+(* CR layouts v2.8: These outputs should include kinds *)
 
 type t : any mod uncontended = Foo of int | Bar
 type t : any mod portable = Foo of int | Bar
@@ -1166,6 +1167,7 @@ let x = (Foo true : _ as (_ : value mod portable uncontended unique))
 type t : any mod portable = Foo of bool [@@unboxed]
 val x : t = <unknown constructor>
 |}]
+(* CR layouts v2.8: This should be rejected once nominative types remember their kinds *)
 
 type t : value mod global = Foo of int [@@unboxed]
 type t : value mod many = Foo of int [@@unboxed]
@@ -1193,7 +1195,8 @@ Error: The layout of type t is value, because
          of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
+   mismatch, not a layout mismatch. But this will be accepted once [string] mode-crosses
+   portability *)
 
 (***********************************************)
 (* Test 7: Inference with modality annotations *)
@@ -1454,71 +1457,6 @@ type t : value = < >
 [%%expect {|
 type t = <  >
 |}]
-
-type t : value mod global = < >
-[%%expect {|
-Line 1, characters 0-31:
-1 | type t : value mod global = < >
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type <  > is value, because
-         it's the type of an object.
-       But the layout of type <  > must be a sublayout of value, because
-         of the definition of t at line 1, characters 0-31.
-|}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
-
-type t : value mod global = < >
-[%%expect {|
-Line 1, characters 0-31:
-1 | type t : value mod global = < >
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type <  > is value, because
-         it's the type of an object.
-       But the layout of type <  > must be a sublayout of value, because
-         of the definition of t at line 1, characters 0-31.
-|}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
-
-type t : value mod global = < >
-[%%expect {|
-Line 1, characters 0-31:
-1 | type t : value mod global = < >
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type <  > is value, because
-         it's the type of an object.
-       But the layout of type <  > must be a sublayout of value, because
-         of the definition of t at line 1, characters 0-31.
-|}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
-
-type t : value mod global = < >
-[%%expect {|
-Line 1, characters 0-31:
-1 | type t : value mod global = < >
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type <  > is value, because
-         it's the type of an object.
-       But the layout of type <  > must be a sublayout of value, because
-         of the definition of t at line 1, characters 0-31.
-|}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
-
-type t : value mod global = < >
-[%%expect {|
-Line 1, characters 0-31:
-1 | type t : value mod global = < >
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type <  > is value, because
-         it's the type of an object.
-       But the layout of type <  > must be a sublayout of value, because
-         of the definition of t at line 1, characters 0-31.
-|}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 type t : value mod global = < >
 [%%expect {|
