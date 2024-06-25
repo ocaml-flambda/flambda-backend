@@ -199,11 +199,13 @@ module Const : sig
     [any]. *)
     val any : t
 
+    (** [any], except for null pointers. *)
     val any_non_null : t
 
     (** Value of types of this jkind are not retained at all at runtime *)
     val void : t
 
+    (** This is the jkind of normal ocaml values or null pointers *)
     val value_or_null : t
 
     (** This is the jkind of normal ocaml values *)
