@@ -381,7 +381,7 @@ let equal_native_repr nr1 nr2 =
                | Untagged_int | Unboxed_vector _ | Same_as_ocaml_repr _)
   | (Unboxed_float _ | Unboxed_integer _
     | Untagged_int | Unboxed_vector _ | Same_as_ocaml_repr _), Repr_poly -> false
-  | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 -> Jkind_types.Sort.equal_const s1 s2
+  | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 -> Jkind_types.Sort.Const.equal s1 s2
   | Same_as_ocaml_repr _,
     (Unboxed_float _ | Unboxed_integer _ | Untagged_int |
      Unboxed_vector _) -> false
