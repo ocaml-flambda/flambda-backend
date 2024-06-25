@@ -98,7 +98,8 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
     Simplify_nullary_primitive.simplify_nullary_primitive dacc prim prim' dbg
       ~result_var
   | Unary (unary_prim, orig_arg) -> (
-    let arg_ty, arg = S.simplify_simple dacc orig_arg ~min_name_mode in
+    let arg_ty = S.simplify_simple dacc orig_arg ~min_name_mode in
+    let arg = T.get_alias_exn arg_ty in
     (if Flambda_features.check_invariants ()
     then
       let arg_kind = P.arg_kind_of_unary_primitive unary_prim in
@@ -112,8 +113,10 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
       Simplify_unary_primitive.simplify_unary_primitive dacc original_prim
         unary_prim ~arg ~arg_ty dbg ~result_var)
   | Binary (binary_prim, orig_arg1, orig_arg2) -> (
-    let arg1_ty, arg1 = S.simplify_simple dacc orig_arg1 ~min_name_mode in
-    let arg2_ty, arg2 = S.simplify_simple dacc orig_arg2 ~min_name_mode in
+    let arg1_ty = S.simplify_simple dacc orig_arg1 ~min_name_mode in
+    let arg1 = T.get_alias_exn arg1_ty in
+    let arg2_ty = S.simplify_simple dacc orig_arg2 ~min_name_mode in
+    let arg2 = T.get_alias_exn arg2_ty in
     (if Flambda_features.check_invariants ()
     then
       let arg1_kind, arg2_kind = P.args_kind_of_binary_primitive binary_prim in
@@ -129,9 +132,12 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
       Simplify_binary_primitive.simplify_binary_primitive dacc original_prim
         binary_prim ~arg1 ~arg1_ty ~arg2 ~arg2_ty dbg ~result_var)
   | Ternary (ternary_prim, orig_arg1, orig_arg2, orig_arg3) -> (
-    let arg1_ty, arg1 = S.simplify_simple dacc orig_arg1 ~min_name_mode in
-    let arg2_ty, arg2 = S.simplify_simple dacc orig_arg2 ~min_name_mode in
-    let arg3_ty, arg3 = S.simplify_simple dacc orig_arg3 ~min_name_mode in
+    let arg1_ty = S.simplify_simple dacc orig_arg1 ~min_name_mode in
+    let arg1 = T.get_alias_exn arg1_ty in
+    let arg2_ty = S.simplify_simple dacc orig_arg2 ~min_name_mode in
+    let arg2 = T.get_alias_exn arg2_ty in
+    let arg3_ty = S.simplify_simple dacc orig_arg3 ~min_name_mode in
+    let arg3 = T.get_alias_exn arg3_ty in
     (if Flambda_features.check_invariants ()
     then
       let arg1_kind, arg2_kind, arg3_kind =
@@ -153,7 +159,8 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
   | Variadic (variadic_prim, orig_args) -> (
     let args_with_tys =
       ListLabels.fold_right orig_args ~init:[] ~f:(fun arg args_rev ->
-          let arg_ty, arg = S.simplify_simple dacc arg ~min_name_mode in
+          let arg_ty = S.simplify_simple dacc arg ~min_name_mode in
+          let arg = T.get_alias_exn arg_ty in
           (arg, arg_ty) :: args_rev)
     in
     (if Flambda_features.check_invariants ()

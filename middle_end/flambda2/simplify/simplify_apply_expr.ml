@@ -1018,14 +1018,12 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
       down_to_up dacc ~rebuild)
 
 let simplify_apply_shared dacc apply =
-  let callee_ty, simplified_callee =
+  let simplified_callee, callee_ty =
     match Apply.callee apply with
     | None -> None, None
     | Some callee ->
-      let callee_ty, simplified_callee =
-        S.simplify_simple dacc callee ~min_name_mode:NM.normal
-      in
-      Some callee_ty, Some simplified_callee
+      let callee_ty = S.simplify_simple dacc callee ~min_name_mode:NM.normal in
+      Some (T.get_alias_exn callee_ty), Some callee_ty
   in
   let { S.simples = args; simple_tys = arg_types } =
     S.simplify_simples dacc (Apply.args apply)

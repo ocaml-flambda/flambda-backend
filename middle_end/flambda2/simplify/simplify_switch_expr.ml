@@ -579,9 +579,10 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
 
 let simplify_switch0 dacc switch ~down_to_up =
   let scrutinee = Switch.scrutinee switch in
-  let scrutinee_ty, scrutinee =
+  let scrutinee_ty =
     S.simplify_simple dacc scrutinee ~min_name_mode:NM.normal
   in
+  let scrutinee = T.get_alias_exn scrutinee_ty in
   let dacc_before_switch = dacc in
   let typing_env_at_use = DA.typing_env dacc in
   let arms, dacc =
