@@ -8249,7 +8249,7 @@ let t_orig599_A = t599_A;;
   check_float32 (Stdlib_stable.Float32_u.to_float32 t299.float32_u2) (Stdlib_stable.Float32_u.to_float32 t_orig299.float32_u2) ~message:"t299.float32_u2";
   let () = match t300_A, t_orig300_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t300_A.0";
-
+      
     in
   let () = match t301_A, t_orig301_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t301_A.0";
@@ -8262,7 +8262,7 @@ let t_orig599_A = t599_A;;
   let () = match t302_A, t_orig302_A with
       | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t302_A.0";
 check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t302_A.1";
-
+      
     in
   let () = match t303_A, t_orig303_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t303_A.0";
@@ -8287,7 +8287,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
     in
   let () = match t305_A, t_orig305_A with
       | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t305_A.0";
-
+      
     in
   let () = match t306_A, t_orig306_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t306_A.0";
@@ -8322,7 +8322,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
   let () = match t309_A, t_orig309_A with
       | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t309_A.0";
 check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t309_A.1";
-
+      
     in
   let () = match t310_A, t_orig310_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t310_A.0";
@@ -8374,7 +8374,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
   let () = match t314_A, t_orig314_A with
       | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t314_A.0";
 check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t314_A.1";
-
+      
     in
   let () = match t315_A, t_orig315_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t315_A.0";
@@ -8439,7 +8439,7 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
     in
   let () = match t320_A, t_orig320_A with
       | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t320_A.0";
-
+      
     in
   let () = match t321_A, t_orig321_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t321_A.0";
@@ -8514,7 +8514,7 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t327_A.0";
 check_string a1 b1 ~message:"t327_A.1";
 check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t327_A.2";
-
+      
     in
   let () = match t328_A, t_orig328_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t328_A.0";
@@ -8603,7 +8603,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
   let () = match t335_A, t_orig335_A with
       | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t335_A.0";
 check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t335_A.1";
-
+      
     in
   let () = match t336_A, t_orig336_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t336_A.0";
@@ -8710,7 +8710,7 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
   let () = match t344_A, t_orig344_A with
       | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t344_A.0";
 check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t344_A.1";
-
+      
     in
   let () = match t345_A, t_orig345_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t345_A.0";
@@ -8829,7 +8829,7 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
     in
   let () = match t354_A, t_orig354_A with
       | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t354_A.0";
-
+      
     in
   let () = match t355_A, t_orig355_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t355_A.0";
@@ -8959,7 +8959,7 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t365_A.0";
 check_string a1 b1 ~message:"t365_A.1";
 check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t365_A.2";
-
+      
     in
   let () = match t366_A, t_orig366_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t366_A.0";
@@ -9111,7 +9111,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t377_A.0";
 check_string a1 b1 ~message:"t377_A.1";
 check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t377_A.2";
-
+      
     in
   let () = match t378_A, t_orig378_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t378_A.0";
@@ -9278,7 +9278,7 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.t
   let () = match t390_A, t_orig390_A with
       | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t390_A.0";
 check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t390_A.1";
-
+      
     in
   let () = match t391_A, t_orig391_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t391_A.0";
@@ -9462,7 +9462,7 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
   let () = match t404_A, t_orig404_A with
       | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t404_A.0";
 check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_compatible.Int64_u.to_int64 b1) ~message:"t404_A.1";
-
+      
     in
   let () = match t405_A, t_orig405_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t405_A.0";
@@ -9659,7 +9659,7 @@ check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_co
     in
   let () = match t419_A, t_orig419_A with
       | A (a0), A (b0) -> check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a0) (Stdlib_upstream_compatible.Nativeint_u.to_int b0) ~message:"t419_A.0";
-
+      
     in
   let () = match t420_A, t_orig420_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t420_A.0";
@@ -9867,7 +9867,7 @@ check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_co
       | A (a0,a1,a2), A (b0,b1,b2) -> check_int a0 b0 ~message:"t435_A.0";
 check_string a1 b1 ~message:"t435_A.1";
 check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t435_A.2";
-
+      
     in
   let () = match t436_A, t_orig436_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t436_A.0";
@@ -10094,7 +10094,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t452_A.0";
 check_string a1 b1 ~message:"t452_A.1";
 check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t452_A.2";
-
+      
     in
   let () = match t453_A, t_orig453_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t453_A.0";
@@ -10344,7 +10344,7 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.t
       | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t470_A.0";
 check_string a1 b1 ~message:"t470_A.1";
 check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a2) (Stdlib_upstream_compatible.Int32_u.to_int32 b2) ~message:"t470_A.2";
-
+      
     in
   let () = match t471_A, t_orig471_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t471_A.0";
@@ -10608,7 +10608,7 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a2) (Stdlib_upstream_co
   let () = match t489_A, t_orig489_A with
       | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t489_A.0";
 check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_compatible.Int64_u.to_int64 b1) ~message:"t489_A.1";
-
+      
     in
   let () = match t490_A, t_orig490_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t490_A.0";
@@ -10890,7 +10890,7 @@ check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_co
   let () = match t509_A, t_orig509_A with
       | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t509_A.0";
 check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a1) (Stdlib_upstream_compatible.Nativeint_u.to_int b1) ~message:"t509_A.1";
-
+      
     in
   let () = match t510_A, t_orig510_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t510_A.0";
@@ -11186,7 +11186,7 @@ check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a1) (Stdlib_upstream_co
   let () = match t530_A, t_orig530_A with
       | A (a0,a1), A (b0,b1) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t530_A.0";
 check_int a1 b1 ~message:"t530_A.1";
-
+      
     in
   let () = match t531_A, t_orig531_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t531_A.0";
@@ -11492,7 +11492,7 @@ check_int a1 b1 ~message:"t551_A.1";
       | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t552_A.0";
 check_float a1 b1 ~message:"t552_A.1";
 check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t552_A.2";
-
+      
     in
   let () = match t553_A, t_orig553_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t553_A.0";
@@ -11812,7 +11812,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | A (a0,a1,a2), A (b0,b1,b2) -> check_int a0 b0 ~message:"t575_A.0";
 check_string a1 b1 ~message:"t575_A.1";
 check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t575_A.2";
-
+      
     in
   let () = match t576_A, t_orig576_A with
       | A (a0), A (b0) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t576_A.0";
@@ -12152,7 +12152,7 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.t
       | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t599_A.0";
 check_string a1 b1 ~message:"t599_A.1";
 check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a2) (Stdlib_upstream_compatible.Int32_u.to_int32 b2) ~message:"t599_A.2";
-
+      
     in
   print_endline "    - Checking [Obj.reachable_words]";
   check_reachable_words (Obj.reachable_words (Obj.repr t0)) (3 + 2 + 2) "Reachable words 0";
