@@ -308,6 +308,7 @@ module Const = struct
     match layout, externality_upper_bound, nullability_upper_bound with
     | Any, _, Or_null -> Any
     | Any, _, Non_null -> Any_non_null
+    (* CR layouts v3.0: support [Immediate(64)_or_null]. *)
     | Sort Value, _, Or_null -> Value_or_null
     | Sort Value, Internal, Non_null -> Value
     | Sort Value, External64, Non_null -> Immediate64
@@ -578,6 +579,8 @@ module Const = struct
            built-in abbreviation. For now, we just pretend that the layout name is a valid
            jkind abbreviation whose modal bounds are all max, even though this is a
            lie. *)
+        (* CR layouts v3.0: we also pretend its nullability is [Non_null]
+           to match "legacy" behavior. *)
         let out_jkind_verbose =
           convert_with_base
             ~base:
@@ -970,7 +973,8 @@ module Primitive = struct
     | _ -> fresh_jkind Jkind_desc.Primitive.any ~why:(Any_creation why)
 
   let any_non_null ~why =
-    fresh_jkind Jkind_desc.Primitive.any_non_null ~why:(Any_non_null_creation why)
+    fresh_jkind Jkind_desc.Primitive.any_non_null
+      ~why:(Any_non_null_creation why)
 
   let value_v1_safety_check =
     { jkind = Jkind_desc.Primitive.value;
@@ -981,7 +985,8 @@ module Primitive = struct
   let void ~why = fresh_jkind Jkind_desc.Primitive.void ~why:(Void_creation why)
 
   let value_or_null ~why =
-    fresh_jkind Jkind_desc.Primitive.value_or_null ~why:(Value_or_null_creation why)
+    fresh_jkind Jkind_desc.Primitive.value_or_null
+      ~why:(Value_or_null_creation why)
 
   let value ~(why : History.value_creation_reason) =
     match why with
