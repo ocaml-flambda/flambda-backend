@@ -52,6 +52,16 @@ module Externality : sig
   val print : Format.formatter -> t -> unit
 end
 
+module Nullability : sig
+  type t = Jkind_types.Nullability.t =
+    | Non_null (* can't be null *)
+    | Or_null (* can be null *)
+
+  val le : t -> t -> bool
+
+  val print : Format.formatter -> t -> unit
+end
+
 module Sort : Jkind_intf.Sort with type const = Jkind_types.Sort.const
 
 type sort = Sort.t
@@ -70,6 +80,8 @@ module Layout : sig
     module Legacy : sig
       type t = Jkind_types.Layout.Const.Legacy.t =
         | Any
+        | Any_non_null
+        | Value_or_null
         | Value
         | Void
         | Immediate64
@@ -187,8 +199,12 @@ module Const : sig
     [any]. *)
     val any : t
 
+    val any_non_null : t
+
     (** Value of types of this jkind are not retained at all at runtime *)
     val void : t
+
+    val value_or_null : t
 
     (** This is the jkind of normal ocaml values *)
     val value : t
@@ -239,8 +255,12 @@ module Primitive : sig
     [any]. *)
   val any : why:History.any_creation_reason -> t
 
+  val any_non_null : why:History.any_creation_reason -> t
+
   (** Value of types of this jkind are not retained at all at runtime *)
   val void : why:History.void_creation_reason -> t
+
+  val value_or_null : why:History.value_creation_reason -> t
 
   (** This is the jkind of normal ocaml values *)
   val value : why:History.value_creation_reason -> t
