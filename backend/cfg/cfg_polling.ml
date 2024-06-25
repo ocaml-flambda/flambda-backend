@@ -7,6 +7,44 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 let function_is_assumed_to_never_poll func =
   Polling.function_is_assumed_to_never_poll func
 
+(* Compututation of the "safe" map, which is a map from labels to booleans where
+   `true` indicates the block contains a safe point such as a poll or an alloc
+   instruction. *)
+
+(* CR-soon xclerc for xclerc: given how we use the safe map below, it is not
+   clear taking into accounts terminator makes a difference; maybe matching over
+   the terminator to always return `false` would be better. *)
+
+let is_safe_basic : Cfg.basic Cfg.instruction -> bool =
+ fun instr ->
+  match[@ocaml.warning "-4"] instr.desc with
+  | Op (Poll | Alloc _) -> true
+  | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
+    false
+
+let is_safe_terminator : Cfg.terminator Cfg.instruction -> bool =
+ fun term ->
+  match term.desc with
+  | Never -> assert false
+  | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+  | Switch _ ->
+    false
+  | Raise _ -> false
+  | Tailcall_self _ | Tailcall_func _ | Return -> true
+  | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ -> false
+
+let is_safe_block : Cfg.basic_block -> bool =
+ fun block ->
+  is_safe_terminator block.terminator || DLL.exists block.body ~f:is_safe_basic
+
+let safe_map_of_cfg : Cfg.t -> bool Label.Tbl.t =
+ fun cfg ->
+  Cfg.fold_blocks cfg
+    ~init:(Label.Tbl.create (Label.Tbl.length cfg.blocks))
+    ~f:(fun label block acc ->
+      Label.Tbl.replace acc label (is_safe_block block);
+      acc)
+
 (* These are used for the poll error annotation later on*)
 type polling_point = Polling.polling_point =
   | Alloc
@@ -17,83 +55,6 @@ type polling_point = Polling.polling_point =
 type error = Polling.error = Poll_error of (polling_point * Debuginfo.t) list
 
 exception Error = Polling.Error
-
-(* Detection of recursive handlers that are not guaranteed to poll at every loop
-   iteration. *)
-
-(* We use a backwards dataflow analysis to compute a mapping from handlers H (=
-   loop heads) to either "safe" or "unsafe".
-
-   H is "safe" if every path starting from H goes through an Alloc, Poll,
-   Return, Tailcall_self or Tailcall_func instruction.
-
-   H is "unsafe", therefore, if starting from H we can loop infinitely without
-   crossing an Alloc or Poll instruction. *)
-
-module Unsafe_or_safe_domain = struct
-  type t = Polling.Unsafe_or_safe.t
-
-  let bot = Polling.Unsafe_or_safe.bot
-
-  let join = Polling.Unsafe_or_safe.join
-
-  let less_equal = Polling.Unsafe_or_safe.lessequal
-end
-
-module Unsafe_or_safe_transfer = struct
-  type domain = Unsafe_or_safe_domain.t
-
-  type context = unit
-
-  type error = |
-
-  let basic :
-      domain -> Cfg.basic Cfg.instruction -> context -> (domain, error) result =
-   fun dom instr () ->
-    match[@ocaml.warning "-4"] instr.desc with
-    | Op (Poll | Alloc _) -> Ok Safe
-    | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
-      Ok dom
-
-  let terminator :
-      domain ->
-      exn:domain ->
-      Cfg.terminator Cfg.instruction ->
-      context ->
-      (domain, error) result =
-   fun dom ~exn term () ->
-    match term.desc with
-    | Never -> assert false
-    | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-    | Switch _ ->
-      Ok dom
-    | Raise _ -> Ok exn
-    | Tailcall_self _ | Tailcall_func _ | Return -> Ok Safe
-    | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
-      if Cfg.can_raise_terminator term.desc
-      then Ok (Unsafe_or_safe_domain.join dom exn)
-      else Ok dom
-
-  let exception_ : domain -> context -> (domain, error) result =
-   fun dom () -> Ok dom
-end
-
-module PolledLoopsAnalysis =
-  Cfg_dataflow.Backward (Unsafe_or_safe_domain) (Unsafe_or_safe_transfer)
-
-let polled_loops_analysis :
-    Cfg_with_layout.t -> PolledLoopsAnalysis.domain Label.Tbl.t =
- fun cfg_with_layout ->
-  let init : Unsafe_or_safe_domain.t = Unsafe_or_safe_domain.bot in
-  let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  match
-    PolledLoopsAnalysis.run ~init ~map:PolledLoopsAnalysis.Block ~exnescape:Safe
-      cfg ()
-  with
-  | Ok res -> res
-  | Aborted _ -> .
-  | Max_iterations_reached ->
-    Misc.fatal_error "Cfg_polling.polled_loops_analysis has been interrupted"
 
 (* Detection of functions that can loop via a tail-call without going through a
    poll point. *)
@@ -188,21 +149,54 @@ let potentially_recursive_tailcall :
     Misc.fatal_error
       "Cfg_polling.potentially_recursive_tailcall has been interrupted"
 
+(* Insertion of poll instruction onto back edges: a poll instruction is needed
+   if there is an unsafe path from the header of the loop to the back edge. An
+   unsafe path is simply a path such that all blocks are unsafe. *)
+
+let exists_unsafe_path :
+    Cfg.t -> safe_map:bool Label.Tbl.t -> from:Label.t -> to_:Label.t -> bool =
+ fun cfg ~safe_map ~from ~to_ ->
+  let exception Found in
+  try
+    let open_ = ref (Label.Set.singleton from) in
+    let closed = ref Label.Set.empty in
+    while not (Label.Set.is_empty !open_) do
+      let label = Label.Set.choose !open_ in
+      if Label.equal label to_ then raise Found;
+      open_ := Label.Set.remove label !open_;
+      closed := Label.Set.add label !closed;
+      match Label.Tbl.find_opt safe_map label with
+      | None ->
+        Misc.fatal_errorf
+          "Cfg_polling.exists_unsafe_path: missing safety information for \
+           block %d"
+          label
+      | Some true -> ()
+      | Some false ->
+        let block = Cfg.get_block_exn cfg label in
+        let successor_labels =
+          Cfg.successor_labels ~normal:true ~exn:true block
+        in
+        Label.Set.iter
+          (fun successor_label ->
+            match Label.Set.mem successor_label !closed with
+            | true -> ()
+            | false -> open_ := Label.Set.add successor_label !open_)
+          successor_labels
+    done;
+    false
+  with Found -> true
+
 let instr_cfg_with_layout :
     Cfg_with_layout.t ->
-    block_needs_poll:PolledLoopsAnalysis.domain Label.Tbl.t ->
+    safe_map:bool Label.Tbl.t ->
     back_edges:Cfg_loop_infos.EdgeSet.t ->
     bool =
- fun cfg_with_layout ~block_needs_poll ~back_edges ->
+ fun cfg_with_layout ~safe_map ~back_edges ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   Cfg_loop_infos.EdgeSet.fold
     (fun { Cfg_loop_infos.Edge.src; dst } added_poll ->
-      let needs_poll =
-        match Label.Tbl.find_opt block_needs_poll dst with
-        | None -> assert false
-        | Some Safe -> false
-        | Some Unsafe -> true
-      in
+      let needs_poll = exists_unsafe_path cfg ~safe_map ~from:dst ~to_:src in
       if needs_poll
       then (
         let after = Cfg.get_block_exn cfg src in
@@ -230,11 +224,14 @@ let instr_cfg_with_layout :
           let instrs = DLL.of_list [poll] in
           (* CR-soon xclerc: that kind of indicates the `insert_block` function
              should be moved outside of "regalloc/" *)
-          let (_ : Cfg.basic_block list) =
+          let inserted_blocks =
             Regalloc_utils.insert_block cfg_with_layout instrs ~after ~before
               ~next_instruction_id
           in
-          ());
+          (* All the inserted blocks are safe since they contain a poll
+             instruction *)
+          List.iter inserted_blocks ~f:(fun block ->
+              Label.Tbl.replace safe_map block.Cfg.start true));
         true)
       else added_poll)
     back_edges false
@@ -332,13 +329,13 @@ let instrument_fundecl :
   if is_disabled cfg.fun_name
   then cfg_with_layout
   else
-    let block_needs_poll = polled_loops_analysis cfg_with_layout in
+    let safe_map = safe_map_of_cfg cfg in
     (* CR-soon xclerc for xclerc: consider using `Cfg_with_infos` to cache the
        computations *)
     let doms = Cfg_dominators.build cfg in
     let back_edges = Cfg_loop_infos.compute_back_edges cfg doms in
     let added_poll =
-      instr_cfg_with_layout cfg_with_layout ~block_needs_poll ~back_edges
+      instr_cfg_with_layout cfg_with_layout ~safe_map ~back_edges
     in
     (match cfg.fun_poll with
     | Error_poll -> (
