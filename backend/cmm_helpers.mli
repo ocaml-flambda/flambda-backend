@@ -220,10 +220,11 @@ val addr_array_ref : expression -> expression -> Debuginfo.t -> expression
 val int_array_ref : expression -> expression -> Debuginfo.t -> expression
 
 val unboxed_float_array_ref :
-  expression -> expression -> Debuginfo.t -> expression
-
-val unboxed_immutable_float_array_ref :
-  expression -> expression -> Debuginfo.t -> expression
+  Asttypes.mutable_flag ->
+  block:expression ->
+  index:expression ->
+  Debuginfo.t ->
+  expression
 
 val float_array_ref :
   Lambda.alloc_mode -> expression -> expression -> Debuginfo.t -> expression
