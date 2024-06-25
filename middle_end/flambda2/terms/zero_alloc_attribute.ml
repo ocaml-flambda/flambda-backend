@@ -35,21 +35,14 @@ let print ppf t =
     Format.fprintf ppf "@[assert_zero_alloc%s@]"
       (if strict then "_strict" else "")
 
-let from_lambda : Lambda.zero_alloc_attribute -> Location.t -> t =
- fun a loc ->
+let from_lambda : Lambda.zero_alloc_attribute -> t =
+ fun a ->
   match a with
-  | Default_zero_alloc ->
-    if !Clflags.zero_alloc_check_assert_all
-       && Builtin_attributes.is_zero_alloc_check_enabled ~opt:false
-    then Check { strict = false; loc }
-    else Default_check
-  | Ignore_assert_all -> Default_check
-  | Assume { strict; never_returns_normally; never_raises; loc; arity = _ } ->
+  | Default_zero_alloc -> Default_check
+  | Assume { strict; never_returns_normally; never_raises; loc; } ->
     Assume { strict; never_returns_normally; never_raises; loc }
-  | Check { strict; opt; loc; arity = _ } ->
-    if Builtin_attributes.is_zero_alloc_check_enabled ~opt
-    then Check { strict; loc }
-    else Default_check
+  | Check { strict; loc; } ->
+    Check { strict; loc }
 
 let equal x y =
   match x, y with
