@@ -279,8 +279,8 @@ end = struct
              deleted of size %d"
             Function_slot.print function_slot size function_slot_size;
         let closure_info =
-          C.closure_info'
-            ~arity:(Curried { nlocal = 0 }, if size = 2 then [()] else [(); ()])
+          C.pack_closure_info
+            ~arity:(if size = 2 then 1 else 2)
             ~startenv:(startenv - slot_offset) ~is_last:last_function_slot
         in
         let acc =
