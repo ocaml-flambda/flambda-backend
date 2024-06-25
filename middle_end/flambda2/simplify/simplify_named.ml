@@ -72,7 +72,8 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
   | Simple simple ->
     let bound_var = Bound_pattern.must_be_singleton bound_pattern in
     let min_name_mode = Bound_var.name_mode bound_var in
-    let ty, new_simple = S.simplify_simple dacc simple ~min_name_mode in
+    let ty = S.simplify_simple dacc simple ~min_name_mode in
+    let new_simple = T.get_alias_exn ty in
     let dacc = DA.add_variable dacc bound_var ty in
     let defining_expr =
       if simple == new_simple

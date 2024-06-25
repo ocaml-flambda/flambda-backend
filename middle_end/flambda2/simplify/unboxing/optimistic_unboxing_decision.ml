@@ -60,11 +60,14 @@ let deciders =
 let rec make_optimistic_decision ~depth ~recursive tenv ~param_type : U.decision
     =
   let param_type_is_alias_to_symbol =
-    (* The parameter types will have been computed from the types of the
-       continuation's arguments at the use site(s), which in turn will have been
-       computed from simplified [Simple]s. As such we shouldn't need to
-       canonicalise any alias again here. *)
-    T.is_alias_to_a_symbol param_type
+    match T.get_alias_exn param_type with
+    | exception Not_found -> false
+    | alias ->
+      (* The parameter types will have been computed from the types of the
+         continuation's arguments at the use site(s), which in turn will have
+         been computed from simplified [Simple]s. As such we shouldn't need to
+         canonicalise any alias again here. *)
+      Simple.is_symbol alias
   in
   let param_kind_is_not_value =
     match T.kind param_type with

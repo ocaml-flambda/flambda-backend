@@ -191,7 +191,7 @@ val add_env_extension_from_level :
   t -> Typing_env_level.t -> meet_type:meet_type -> t
 
 val type_simple_in_term_exn :
-  t -> ?min_name_mode:Name_mode.t -> Simple.t -> Type_grammar.t * Simple.t
+  t -> ?min_name_mode:Name_mode.t -> Simple.t -> Type_grammar.t
 
 (** [name_mode_of_existing_simple] can be provided to improve performance of
     this function. *)
