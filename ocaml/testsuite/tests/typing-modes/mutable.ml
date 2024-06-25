@@ -42,6 +42,14 @@ Line 2, characters 9-25:
 Error: This value escapes its region.
 |}]
 
+let foo (local_ r) = ref r.s
+[%%expect{|
+Line 1, characters 25-28:
+1 | let foo (local_ r) = ref r.s
+                             ^^^
+Error: This value escapes its region.
+|}]
+
 let foo (local_ r) =
   r.s <- "hello"
 [%%expect{|
@@ -81,6 +89,58 @@ Line 1, characters 51-52:
 1 | let foo (r @ uncontended) (s @ contended) = r.s <- s
                                                        ^
 Error: This value is contended but expected to be uncontended.
+|}]
+
+module M : sig
+  type t = { mutable s : string [@no_mutable_implied_modalities] }
+end = struct
+  type t = { mutable s : string }
+end
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = { mutable s : string }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = { mutable s : string; } end
+       is not included in
+         sig type t = { mutable s : string; } end
+       Type declarations do not match:
+         type t = { mutable s : string; }
+       is not included in
+         type t = { mutable s : string; }
+       Fields do not match:
+         mutable s : string;
+       is not the same as:
+         mutable s : string;
+       The second is empty and the first is shared.
+|}]
+
+module M : sig
+  type t = { mutable s : string }
+end = struct
+  type t = { mutable s : string [@no_mutable_implied_modalities] }
+end
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = { mutable s : string [@no_mutable_implied_modalities] }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = { mutable s : string; } end
+       is not included in
+         sig type t = { mutable s : string; } end
+       Type declarations do not match:
+         type t = { mutable s : string; }
+       is not included in
+         type t = { mutable s : string; }
+       Fields do not match:
+         mutable s : string;
+       is not the same as:
+         mutable s : string;
+       The second is global_ and the first is not.
 |}]
 
 type r =
