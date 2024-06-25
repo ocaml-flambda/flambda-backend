@@ -632,8 +632,7 @@ and raw_lid_type_list tl =
     tl
 and raw_type_desc ppf = function
     Tvar { name; jkind } ->
-      fprintf ppf "Tvar (@,%a,@,%s)" print_name name
-        (Jkind.to_string jkind)
+      fprintf ppf "Tvar (@,%a,@,%a)" print_name name Jkind.format jkind
   | Tarrow((l,arg,ret),t1,t2,c) ->
       fprintf ppf "@[<hov1>Tarrow((\"%s\",%a,%a),@,%a,@,%a,@,%s)@]"
         (string_of_label l)
@@ -663,8 +662,7 @@ and raw_type_desc ppf = function
   | Tsubst (t, Some t') ->
       fprintf ppf "@[<1>Tsubst@,(%a,@ Some%a)@]" raw_type t raw_type t'
   | Tunivar { name; jkind } ->
-      fprintf ppf "Tunivar (@,%a,@,%s)" print_name name
-        (Jkind.to_string jkind)
+      fprintf ppf "Tunivar (@,%a,@,%a)" print_name name Jkind.format jkind
   | Tpoly (t, tl) ->
       fprintf ppf "@[<hov1>Tpoly(@,%a,@,%a)@]"
         raw_type t
@@ -1251,15 +1249,37 @@ let add_type_to_preparation = prepare_type
 (* Disabled in classic mode when printing an unification error *)
 let print_labels = ref true
 
+let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
+  let rec out_jkind_user_of_user_jkind : Jane_syntax.Jkind.t -> out_jkind_user = function
+    | Default -> Ojkind_user_default
+    | Abbreviation abbrev -> Ojkind_user_abbreviation (abbrev :> string Location.loc).txt
+    | Mod (base, modes) ->
+      let base = out_jkind_user_of_user_jkind base in
+      let modes =
+        List.map
+          (fun mode -> (mode : Jane_syntax.Mode_expr.Const.t :> string Location.loc).txt)
+          modes.txt
+      in
+      Ojkind_user_mod (base, modes)
+    | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
+  in
+  Ojkind_user (out_jkind_user_of_user_jkind jkind.txt)
+
+let out_jkind_of_const_jkind jkind =
+  Ojkind_const (Jkind.Const.to_out_jkind_const jkind)
+
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
 let out_jkind_option_of_jkind jkind =
   match Jkind.get jkind with
-  | Const Value -> None
-  | Const jkind -> Some (Olay_const jkind)
+  | Const jkind ->
+    begin match Jkind.Const.equal jkind Jkind.Const.Primitive.value.jkind with
+    | true -> None
+    | false -> Some (out_jkind_of_const_jkind jkind)
+    end
   | Var v -> (* This handles (X1). *)
     if !Clflags.verbose_types
-    then Some (Olay_var (Jkind.Sort.var_name v))
+    then Some (Ojkind_var (Jkind.Sort.Var.name v))
     else None
 
 let alias_nongen_row mode px ty =
@@ -1481,7 +1501,7 @@ and tree_of_typlist mode tyl =
 and tree_of_labeled_typlist mode tyl =
   List.map (fun (label, ty) -> label, tree_of_typexp mode Alloc.Const.legacy ty) tyl
 
-and tree_of_typ_gf (ty, gf) =
+and tree_of_typ_gf {ca_type=ty; ca_modalities=gf; _} =
   (tree_of_typexp Type Alloc.Const.legacy ty, tree_of_modalities Immutable gf)
 
 (** We are on the RHS of an arrow type, where [ty] is the return type, and [m]
@@ -1854,7 +1874,7 @@ let tree_of_type_decl id decl =
       otype_private = priv;
       otype_jkind =
         Option.map
-          (fun (const, _) -> Olay_const const)
+          (fun (_, user_annot) -> out_jkind_of_user_jkind user_annot)
           jkind_annotation;
       otype_unboxed = unboxed;
       otype_cstrs = constraints }
@@ -2286,7 +2306,7 @@ let dummy =
     type_params = [];
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
-    type_jkind = Jkind.any ~why:Dummy_jkind;
+    type_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
     type_jkind_annotation = None;
     type_private = Public;
     type_manifest = None;
@@ -2627,8 +2647,8 @@ let trees_of_type_expansion'
       match get_desc ty with
       | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
           let olay = match Jkind.get jkind with
-            | Const clay -> Olay_const clay
-            | Var v      -> Olay_var (Jkind.Sort.var_name v)
+            | Const clay -> out_jkind_of_const_jkind clay
+            | Var v      -> Ojkind_var (Jkind.Sort.Var.name v)
           in
           Otyp_jkind_annot (out, olay)
       | _ ->
@@ -2747,7 +2767,7 @@ let hide_variant_name t =
         (Tvariant
            (create_row ~fields ~fixed ~closed ~name:None
               ~more:(newvar2 (get_level more)
-                       (Jkind.value ~why:Row_variable))))
+                       (Jkind.Primitive.value ~why:Row_variable))))
   | _ -> t
 
 let prepare_expansion Errortrace.{ty; expanded} =

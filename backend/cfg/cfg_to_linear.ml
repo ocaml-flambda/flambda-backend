@@ -328,8 +328,7 @@ let need_starting_label (cfg_with_layout : CL.t) (block : Cfg.basic_block)
       (* This block has a single predecessor which appears in the layout
          immediately prior to this block. *)
       (* No need for the label, unless the predecessor's terminator is [Switch]
-         when the label is needed for the jump table; or [Poll_and_jump], in
-         which case there will always be a jump to such label. *)
+         when the label is needed for the jump table. *)
       match prev_block.terminator.desc with
       | Switch _ -> true
       | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
@@ -452,6 +451,7 @@ let print_assembly (blocks : Cfg.basic_block list) =
   let cfg =
     Cfg.create ~fun_name ~fun_args:[||] ~fun_codegen_options:[]
       ~fun_dbg:Debuginfo.none ~fun_contains_calls:true ~fun_num_stack_slots:[||]
+      ~fun_poll:Default_poll
   in
   List.iter
     (fun (block : Cfg.basic_block) ->

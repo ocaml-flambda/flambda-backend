@@ -169,7 +169,7 @@ module Env : sig
   val add_block_approximation :
     t ->
     Variable.t ->
-    Tag.t ->
+    Tag.Scannable.t ->
     value_approximation array ->
     Alloc_mode.For_types.t ->
     t

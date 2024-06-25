@@ -106,6 +106,9 @@ let map_loc sub {loc; txt} = {loc = sub.location sub loc; txt}
 let map_loc_txt sub f {loc; txt} =
   {loc = sub.location sub loc; txt = f sub txt}
 
+let map_modalities sub modalities =
+  List.map (map_loc sub) modalities
+
 let map_mode_and_attributes sub attrs =
   let open Jane_syntax.Mode_expr in
   let modes, attrs = maybe_of_attrs attrs in
@@ -263,8 +266,14 @@ module T = struct
     | Ptype_record l -> Ptype_record (List.map (sub.label_declaration sub) l)
     | Ptype_open -> Ptype_open
 
+  let map_constructor_argument sub x =
+    let pca_type = sub.typ sub x.pca_type in
+    let pca_loc = sub.location sub x.pca_loc in
+    let pca_modalities = map_modalities sub x.pca_modalities in
+    { pca_type; pca_loc; pca_modalities }
+
   let map_constructor_arguments sub = function
-    | Pcstr_tuple l -> Pcstr_tuple (List.map (sub.typ sub) l)
+    | Pcstr_tuple l -> Pcstr_tuple (List.map (map_constructor_argument sub) l)
     | Pcstr_record l ->
         Pcstr_record (List.map (sub.label_declaration sub) l)
 
@@ -950,11 +959,12 @@ let default_mapper =
     type_exception = T.map_type_exception;
     extension_constructor = T.map_extension_constructor;
     value_description =
-      (fun this {pval_name; pval_type; pval_prim; pval_loc;
+      (fun this {pval_name; pval_type; pval_modalities; pval_prim; pval_loc;
                  pval_attributes} ->
         Val.mk
           (map_loc this pval_name)
           (this.typ this pval_type)
+          ~modalities:(map_modalities this pval_modalities)
           ~attrs:(this.attributes this pval_attributes)
           ~loc:(this.location this pval_loc)
           ~prim:pval_prim
@@ -1074,11 +1084,12 @@ let default_mapper =
       );
 
     label_declaration =
-      (fun this {pld_name; pld_type; pld_loc; pld_mutable; pld_attributes} ->
+      (fun this {pld_name; pld_type; pld_loc; pld_mutable; pld_modalities; pld_attributes} ->
          Type.field
            (map_loc this pld_name)
            (this.typ this pld_type)
            ~mut:pld_mutable
+           ~modalities:(map_modalities this pld_modalities)
            ~loc:(this.location this pld_loc)
            ~attrs:(this.attributes this pld_attributes)
       );
@@ -1119,11 +1130,11 @@ let default_mapper =
       let open Jane_syntax in
       function
       | Default -> Default
-      | Primitive_layout_or_abbreviation s ->
+      | Abbreviation s ->
         let {txt; loc} =
           map_loc this (s : Jkind.Const.t :> _ loc)
         in
-        Primitive_layout_or_abbreviation (Jkind.Const.mk txt loc)
+        Abbreviation (Jkind.Const.mk txt loc)
       | Mod (t, mode_list) ->
         Mod (this.jkind_annotation this t, this.modes this mode_list)
       | With (t, ty) ->

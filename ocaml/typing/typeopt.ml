@@ -122,7 +122,7 @@ type classification =
    Returning [Any] is safe, though may skip some optimizations. *)
 let classify env loc ty sort : classification =
   let ty = scrape_ty env ty in
-  match Jkind.(Sort.get_default_value sort) with
+  match Jkind.(Sort.default_to_value_and_get sort) with
   | Value -> begin
   if is_always_gc_ignorable env ty then Int
   else match get_desc ty with
@@ -234,12 +234,16 @@ let bigarray_type_kind_and_layout env typ =
       (Pbigarray_unknown, Pbigarray_unknown_layout)
 
 let value_kind_of_value_jkind jkind =
-  match Jkind.get_default_value jkind with
-  | Value -> Pgenval
-  | Immediate -> Pintval
-  | Immediate64 ->
+  let const_jkind = Jkind.default_to_value_and_get jkind in
+  let externality_upper_bound =
+    Jkind.Const.get_externality_upper_bound const_jkind
+  in
+  (* CR: assert the sort is a value *)
+  match externality_upper_bound with
+  | External -> Pintval
+  | External64 ->
     if !Clflags.native_code && Sys.word_size = 64 then Pintval else Pgenval
-  | Any | Void | Float64 | Float32 | Word | Bits32 | Bits64 -> assert false
+  | Internal -> Pgenval
 
 (* [value_kind] has a pre-condition that it is only called on values.  With the
    current set of sort restrictions, there are two reasons this invariant may
@@ -341,13 +345,13 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
 
        This should be understood, but for now the simple fall back thing is
        sufficient.  *)
-    match Ctype.check_type_jkind env scty (Jkind.value ~why:V1_safety_check)
+    match Ctype.check_type_jkind env scty (Jkind.Primitive.value ~why:V1_safety_check)
     with
     | Ok _ -> ()
     | Error _ ->
       match
         Ctype.(check_type_jkind env
-                 (correct_levels ty) (Jkind.value ~why:V1_safety_check))
+                 (correct_levels ty) (Jkind.Primitive.value ~why:V1_safety_check))
       with
       | Ok _ -> ()
       | Error violation ->
@@ -449,7 +453,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
          cmi, according to the comment on scrape_ty.  Reevaluate whether it's
          needed when we deal with missing cmis. *)
       match cstrs with
-      | [{cd_args=Cstr_tuple [ty,_]}]
+      | [{cd_args=Cstr_tuple [{ca_type=ty}]}]
       | [{cd_args=Cstr_record [{ld_type=ty}]}] ->
         value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
       | _ -> assert false
@@ -464,7 +468,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
       | Cstr_tuple fields ->
         let fold_value_fields fields ~num_nodes_visited =
           List.fold_left_map
-            (fun num_nodes_visited (ty, _) ->
+            (fun num_nodes_visited {Types.ca_type=ty; _} ->
                let num_nodes_visited = num_nodes_visited + 1 in
                value_kind env ~loc ~visited ~depth ~num_nodes_visited ty)
             num_nodes_visited
@@ -677,7 +681,7 @@ let[@inline always] layout_of_const_sort_generic ~value_kind ~error
 
 let layout env loc sort ty =
   layout_of_const_sort_generic
-    (Jkind.Sort.get_default_value sort)
+    (Jkind.Sort.default_to_value_and_get sort)
     ~value_kind:(lazy (value_kind env loc ty))
     ~error:(function
       | Value -> assert false
@@ -689,7 +693,7 @@ let layout env loc sort ty =
 
 let layout_of_sort loc sort =
   layout_of_const_sort_generic
-    (Jkind.Sort.get_default_value sort)
+    (Jkind.Sort.default_to_value_and_get sort)
     ~value_kind:(lazy Pgenval)
     ~error:(function
     | Value -> assert false
@@ -705,7 +709,7 @@ let layout_of_const_sort s =
     ~value_kind:(lazy Pgenval)
     ~error:(fun const ->
       Misc.fatal_errorf "layout_of_const_sort: %a encountered"
-        Jkind.Sort.format_const const)
+        Jkind.Sort.Const.format const)
 
 let function_return_layout env loc sort ty =
   match is_function_type env ty with
@@ -851,7 +855,7 @@ let report_error ppf = function
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
   | Unsupported_sort const ->
-      fprintf ppf "Layout %a is not supported yet." Jkind.Sort.format_const const
+      fprintf ppf "Layout %a is not supported yet." Jkind.Sort.Const.format const
 
 let () =
   Location.register_error_of_exn

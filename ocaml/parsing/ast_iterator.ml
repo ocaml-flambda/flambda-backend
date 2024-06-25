@@ -99,6 +99,9 @@ let iter_loc_txt sub f { loc; txt } =
   sub.location sub loc;
   f sub txt
 
+let iter_modalities sub modalities =
+  List.iter (iter_loc sub) modalities
+
 module T = struct
   (* Type expressions for the core language *)
 
@@ -222,8 +225,13 @@ module T = struct
     | Ptype_record l -> List.iter (sub.label_declaration sub) l
     | Ptype_open -> ()
 
+  let iter_constructor_argument sub {pca_type; pca_loc; pca_modalities} =
+    sub.typ sub pca_type;
+    sub.location sub pca_loc;
+    iter_modalities sub pca_modalities
+
   let iter_constructor_arguments sub = function
-    | Pcstr_tuple l -> List.iter (sub.typ sub) l
+    | Pcstr_tuple l -> List.iter (iter_constructor_argument sub) l
     | Pcstr_record l ->
         List.iter (sub.label_declaration sub) l
 
@@ -827,15 +835,11 @@ let default_iterator =
     type_exception = T.iter_type_exception;
     extension_constructor = T.iter_extension_constructor;
     value_description =
-      (fun this {pval_name; pval_type; pval_prim = _; pval_loc;
+      (fun this {pval_name; pval_type; pval_modalities; pval_prim = _; pval_loc;
                  pval_attributes} ->
-        let modes, ptyp_attributes =
-          Jane_syntax.Mode_expr.maybe_of_attrs pval_type.ptyp_attributes
-        in
-        Option.iter (this.modes this) modes;
-        let pval_type = {pval_type with ptyp_attributes} in
         iter_loc this pval_name;
         this.typ this pval_type;
+        iter_modalities this pval_modalities;
         this.location this pval_loc;
         this.attributes this pval_attributes;
       );
@@ -958,11 +962,12 @@ let default_iterator =
       );
 
     label_declaration =
-      (fun this {pld_name; pld_type; pld_loc; pld_mutable = _; pld_attributes}->
+      (fun this {pld_name; pld_type; pld_loc; pld_mutable = _; pld_modalities; pld_attributes}->
          iter_loc this pld_name;
          this.typ this pld_type;
          this.location this pld_loc;
-         this.attributes this pld_attributes
+         this.attributes this pld_attributes;
+         iter_modalities this pld_modalities
       );
 
     cases = (fun this l -> List.iter (this.case this) l);
@@ -1000,7 +1005,7 @@ let default_iterator =
     jkind_annotation =
       (fun this -> function
         | Default -> ()
-        | Primitive_layout_or_abbreviation s ->
+        | Abbreviation s ->
           iter_loc this (s : Jane_syntax.Jkind.Const.t :> _ loc)
         | Mod (t, mode_list) ->
           this.jkind_annotation this t;

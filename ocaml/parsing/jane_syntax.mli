@@ -105,14 +105,12 @@ module Mode_expr : sig
   - let local_ x = ...
   - local_ exp
   - local string -> string
-  - {global_ x : int}
 
   Note that in the first two cases, axes other than locality are not specified;
-  in the second case, other axes are defaulted to legacy. In the last case, we
-  are specifying modalities.
+  in the second case, other axes are defaulted to legacy.
 
-  In the future the three annotations will be quite different, but for now they
-  are all lists of modes/modalities. [Typemode] has the three different
+  In the future the two annotations will be quite different, but for now they
+  are just lists of modes. [Typemode] has the two different
   interpretations of the annotation.
 
   (TODO: in the future we will have mutable(...), which is similar to the second
@@ -201,7 +199,7 @@ module Jkind : sig
 
   type t =
     | Default
-    | Primitive_layout_or_abbreviation of Const.t
+    | Abbreviation of Const.t
     | Mod of t * Mode_expr.t
     | With of t * Parsetree.core_type
     | Kind_of of Parsetree.core_type

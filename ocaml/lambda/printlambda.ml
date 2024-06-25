@@ -468,7 +468,7 @@ let primitive ppf = function
   | Pufloatfield (n, sem) ->
       fprintf ppf "ufloatfield%a %i"
         field_read_semantics sem n
-  | Pmixedfield (n, read, sem) ->
+  | Pmixedfield (n, read, _shape, sem) ->
       fprintf ppf "mixedfield%a %i %a"
         field_read_semantics sem n mixed_block_read read
   | Psetfloatfield (n, init) ->
@@ -489,7 +489,7 @@ let primitive ppf = function
         | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
       fprintf ppf "setufloatfield%s %i" init n
-  | Psetmixedfield (n, write, init) ->
+  | Psetmixedfield (n, write, _shape, init) ->
       let init =
         match init with
         | Heap_initialization -> "(heap-init)"

@@ -11,7 +11,7 @@ File "test_assume_error.ml", line 53, characters 7-17:
 Error: Annotation check for zero_alloc failed on function Test_assume_error.A2.foo (camlTest_assume_error.foo_HIDE_STAMP)
 
 File "test_assume_error.ml", line 56, characters 6-30:
-Error: called function may allocate (direct call camlCamlinternalFormat.make_printf_HIDE_STAMP) (test_assume_error.ml:56,6--30;printf.ml:37,17--35;printf.ml:33,21--43;printf.ml:26,2--63)
+Error: called function may allocate (direct call camlCamlinternalFormat.make_printf_HIDE_STAMP) (test_assume_error.ml:56,6--30;printf.ml:38,17--35;printf.ml:34,21--43;printf.ml:27,2--63)
 
 File "test_assume_error.ml", line 54, characters 16-19:
 Error: called function may allocate (direct call camlTest_assume_error.g_HIDE_STAMP) (test_assume_error.ml:54,16--19;test_assume_error.ml:47,10--13)

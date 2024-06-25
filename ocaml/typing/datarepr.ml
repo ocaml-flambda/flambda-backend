@@ -18,7 +18,6 @@
 
 open Asttypes
 open Types
-open Mode
 open Btype
 
 (* Simplified version of Ctype.free_vars *)
@@ -95,7 +94,13 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
         }
       in
       existentials,
-      [ newgenconstr path type_params, Modality.Value.id ],
+      [
+        {
+          ca_type = newgenconstr path type_params;
+          ca_modalities = Mode.Modality.Value.id;
+          ca_loc = Location.none
+        }
+      ],
       Some tdecl
 
 let constructor_descrs ~current_unit ty_path decl cstrs rep =
@@ -201,8 +206,8 @@ let none =
 
 let dummy_label =
   { lbl_name = ""; lbl_res = none; lbl_arg = none;
-    lbl_mut = Immutable; lbl_modalities = Modality.Value.id;
-    lbl_jkind = Jkind.any ~why:Dummy_jkind;
+    lbl_mut = Immutable; lbl_modalities = Mode.Modality.Value.id;
+    lbl_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
     lbl_num = -1; lbl_pos = -1; lbl_all = [||];
     lbl_repres = Record_unboxed;
     lbl_private = Public;

@@ -387,7 +387,7 @@ let comp_primitive stack_info p sz args =
      instructions for the ufloat primitives. *)
   | Pufloatfield (n, _sem) -> Kgetfloatfield n
   | Psetufloatfield (n, _init) -> Ksetfloatfield n
-  | Pmixedfield (n, _, _sem) ->
+  | Pmixedfield (n, _, _, _sem) ->
       (* CR layouts: This will need reworking if we ever want bytecode
          to unbox fields that are written with unboxed types in the source
          language. *)
@@ -395,7 +395,7 @@ let comp_primitive stack_info p sz args =
          aren't stored flat like they are in native code.
       *)
       Kgetfield n
-  | Psetmixedfield (n, _shape, _init) ->
+  | Psetmixedfield (n, _, _shape, _init) ->
       (* See the comment in the [Pmixedfield] case. *)
       Ksetfield n
   | Pduprecord _ -> Kccall("caml_obj_dup", 1)

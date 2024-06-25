@@ -1,4 +1,4 @@
-# 1 "camlinternalOO.ml"
+# 2 "camlinternalOO.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -200,8 +200,9 @@ let set_method table label element =
     table.hidden_meths <- (label, element) :: table.hidden_meths
 
 let get_method table label =
-  try List.assoc label table.hidden_meths
-  with Not_found -> table.methods.(label)
+  match List.assoc_opt label table.hidden_meths with
+  | Some x -> x
+  | None -> table.methods.(label)
 
 let to_list arr =
   if arr == Obj.magic 0 then [] else Array.to_list arr
@@ -228,7 +229,9 @@ let narrow table vars virt_meths concr_meths =
        by_name := Meths.add met label !by_name;
        by_label :=
           Labs.add label
-            (try Labs.find label table.methods_by_label with Not_found -> true)
+            (match Labs.find_opt label table.methods_by_label with
+             | Some x -> x
+             | None -> true)
             !by_label)
     concr_meths concr_meth_labs;
   List.iter2
@@ -269,8 +272,9 @@ let new_slot table =
   index
 
 let new_variable table name =
-  try Vars.find name table.vars
-  with Not_found ->
+  match Vars.find_opt name table.vars with
+  | Some x -> x
+  | None ->
     let index = new_slot table in
     if name <> "" then table.vars <- Vars.add name index table.vars;
     index

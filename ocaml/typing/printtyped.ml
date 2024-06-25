@@ -222,7 +222,7 @@ let attributes i ppf l =
   ) l
 
 let jkind_annotation i ppf (jkind, _) =
-  line i ppf "%s" (Jkind.string_of_const jkind)
+  line i ppf "%a" Jkind.Const.format jkind
 
 let rec core_type i ppf x =
   line i ppf "core_type %a\n" fmt_location x.ctyp_loc;
@@ -1073,7 +1073,7 @@ and label_decl i ppf {ld_id; ld_name = _; ld_mutable; ld_type; ld_loc;
   line (i+1) ppf "%a" fmt_ident ld_id;
   core_type (i+1) ppf ld_type
 
-and field_decl i ppf (ty, _) =
+and field_decl i ppf {ca_type=ty; ca_loc=_; ca_modalities=_} =
   core_type (i+1) ppf ty
 
 and longident_x_pattern i ppf (li, _, p) =

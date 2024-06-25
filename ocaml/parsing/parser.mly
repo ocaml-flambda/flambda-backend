@@ -3710,13 +3710,12 @@ value_description:
   id = mkrhs(val_ident)
   COLON
   ty = possibly_poly(core_type)
-  modes = optional_atat_mode_expr
+  modalities = optional_atat_modalities_expr
   attrs2 = post_item_attributes
     { let attrs = attrs1 @ attrs2 in
-      let ty = mktyp_with_modes modes ty in
       let loc = make_loc $sloc in
       let docs = symbol_docs $sloc in
-      Val.mk id ty ~attrs ~loc ~docs,
+      Val.mk id ty ~attrs ~modalities ~loc ~docs,
       ext }
 ;
 
@@ -3729,13 +3728,14 @@ primitive_declaration:
   id = mkrhs(val_ident)
   COLON
   ty = possibly_poly(core_type)
+  modalities = optional_atat_modalities_expr
   EQUAL
   prim = raw_string+
   attrs2 = post_item_attributes
     { let attrs = attrs1 @ attrs2 in
       let loc = make_loc $sloc in
       let docs = symbol_docs $sloc in
-      Val.mk id ty ~prim ~attrs ~loc ~docs,
+      Val.mk id ty ~prim ~attrs ~modalities ~loc ~docs,
       ext }
 ;
 
@@ -3879,8 +3879,7 @@ jkind:
     }
   | mkrhs(ident) {
       let {txt; loc} = $1 in
-      Jane_syntax.Jkind.(Primitive_layout_or_abbreviation
-        (Const.mk txt loc))
+      Jane_syntax.Jkind.(Abbreviation (Const.mk txt loc))
     }
   | KIND_OF ty=core_type {
       Jane_syntax.Jkind.Kind_of ty
@@ -4052,16 +4051,15 @@ generalized_constructor_arguments:
                                   { ($2,Pcstr_tuple [],Some $4) }
 ;
 
-%inline atomic_type_with_modality:
-  gbl = global_flag cty = atomic_type m1 = optional_atat_mode_expr {
-    let m = Mode.concat gbl m1 in
-    mktyp_with_modes m cty
-}
+%inline constructor_argument:
+  gbl=global_flag cty=atomic_type m1=optional_atat_modalities_expr {
+    let modalities = gbl @ m1 in
+    Type.constructor_arg cty ~modalities ~loc:(make_loc $sloc)
+  }
 ;
 
 constructor_arguments:
-  | tys = inline_separated_nonempty_llist(STAR, atomic_type_with_modality)
-    %prec below_HASH
+  | tys = inline_separated_nonempty_llist(STAR, constructor_argument)
       { Pcstr_tuple tys }
   | LBRACE label_declarations RBRACE
       { Pcstr_record $2 }
@@ -4072,15 +4070,14 @@ label_declarations:
   | label_declaration_semi label_declarations   { $1 :: $2 }
 ;
 label_declaration:
-    mutable_or_global_flag mkrhs(label) COLON poly_type_no_attr m1=optional_atat_mode_expr attrs=attributes
+    mutable_or_global_flag mkrhs(label) COLON poly_type_no_attr m1=optional_atat_modalities_expr attrs=attributes
       { let info = symbol_info $endpos in
         let mut, m0 = $1 in
-        let m = Mode.concat m0 m1 in
-        let typ = mktyp_with_modes m $4 in
-        Type.field $2 typ ~mut ~attrs ~loc:(make_loc $sloc) ~info}
+        let modalities = m0 @ m1 in
+        Type.field $2 $4 ~mut ~modalities ~attrs ~loc:(make_loc $sloc) ~info}
 ;
 label_declaration_semi:
-    mutable_or_global_flag mkrhs(label) COLON poly_type_no_attr m1=optional_atat_mode_expr attrs0=attributes
+    mutable_or_global_flag mkrhs(label) COLON poly_type_no_attr m1=optional_atat_modalities_expr attrs0=attributes
       SEMI attrs1=attributes
       { let info =
           match rhs_info $endpos(attrs0) with
@@ -4088,9 +4085,8 @@ label_declaration_semi:
           | None -> symbol_info $endpos
        in
        let mut, m0 = $1 in
-       let m = Mode.concat m0 m1 in
-       let typ = mktyp_with_modes m $4 in
-       Type.field $2 typ ~mut ~attrs:(attrs0 @ attrs1) ~loc:(make_loc $sloc) ~info}
+       let modalities = m0 @ m1 in
+       Type.field $2 $4 ~mut ~modalities ~attrs:(attrs0 @ attrs1) ~loc:(make_loc $sloc) ~info}
 ;
 
 /* Type Extensions */
@@ -4418,6 +4414,21 @@ atat_mode_expr:
   | atat_mode_expr {$1}
 ;
 
+/* Modalities */
+
+%inline modality:
+  | LIDENT { mkloc (Modality $1) (make_loc $sloc) }
+
+%inline modalities:
+  | modality+ { $1 }
+
+optional_atat_modalities_expr:
+  | %prec below_HASH
+    { [] }
+  | ATAT modalities { $2 }
+  | ATAT error { expecting $loc($2) "modality expression" }
+;
+
 %inline param_type:
   | mktyp_jane_syntax_ltyp(
     LPAREN bound_vars = typevar_list DOT inner_type = core_type RPAREN
@@ -4536,8 +4547,23 @@ atomic_type:
       { [] }
   | ty = atomic_type
       { [ty] }
-  | LPAREN tys = separated_nontrivial_llist(COMMA, core_type) RPAREN
+  | LPAREN
+    tys = separated_nontrivial_llist(COMMA, one_type_parameter_of_several)
+    RPAREN
       { tys }
+
+(* Layout annotations on type expressions typically require parens, as in [('a :
+   float64)].  But this is unnecessary when the type expression is used as the
+   parameter of a tconstr with more than one argument, as in [(int, 'b :
+   float64) t]. *)
+%inline one_type_parameter_of_several:
+  | core_type { $1 }
+  | QUOTE id=ident COLON jkind=jkind_annotation
+    { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) @@
+      Ltyp_var { name = Some id; jkind } }
+  | UNDERSCORE COLON jkind=jkind_annotation
+    { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) @@
+      Ltyp_var { name = None; jkind } }
 
 %inline package_type: module_type
       { let (lid, cstrs, attrs) = package_type_of_module_type $1 in
@@ -4854,15 +4880,15 @@ mutable_flag:
 ;
 mutable_or_global_flag:
     /* empty */
-    { Immutable, Mode.empty }
+    { Immutable, [] }
   | MUTABLE
-    { Mutable, Mode.empty }
+    { Mutable, [] }
   | GLOBAL
-    { Immutable, Mode.singleton (Mode.Const.mk "global" (make_loc $sloc)) }
+    { Immutable, [ mkloc (Modality "global") (make_loc $sloc)] }
 ;
 %inline global_flag:
-           { Mode.empty }
-  | GLOBAL { Mode.singleton (Mode.Const.mk "global" (make_loc $sloc)) }
+           { [] }
+  | GLOBAL { [ mkloc (Modality "global") (make_loc $sloc)] }
 ;
 virtual_flag:
     /* empty */                                 { Concrete }

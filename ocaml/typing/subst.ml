@@ -79,7 +79,14 @@ type additional_action_config =
   | Duplicate_variables
   | Prepare_for_saving
 
-let with_additional_action (config : additional_action_config) s =
+let with_additional_action =
+  (* Memoize the built-in jkinds *)
+  let builtins =
+    Jkind.Const.Primitive.all
+    |> List.map (fun (builtin : Jkind.Const.Primitive.t) ->
+          builtin.jkind, Jkind.of_const builtin.jkind ~why:Jkind.History.Imported)
+  in
+  fun (config : additional_action_config) s ->
   (* CR layouts: it would be better to put all this stuff outside this
      function, but it's in here because we really want to tailor the reason
      to describe the module a symbol is imported from. But RAE's initial
@@ -94,29 +101,16 @@ let with_additional_action (config : additional_action_config) s =
     match config with
     | Duplicate_variables -> Duplicate_variables
     | Prepare_for_saving ->
-        let reason = Jkind.Imported in
-        let any = Jkind.of_const Any ~why:reason in
-        let void = Jkind.of_const Void ~why:reason in
-        let value = Jkind.of_const Value ~why:reason in
-        let immediate = Jkind.of_const Immediate ~why:reason in
-        let immediate64 = Jkind.of_const Immediate64 ~why:reason in
-        let float64 = Jkind.of_const Float64 ~why:reason in
-        let float32 = Jkind.of_const Float32 ~why:reason in
-        let word = Jkind.of_const Word ~why:reason in
-        let bits32 = Jkind.of_const Bits32 ~why:reason in
-        let bits64 = Jkind.of_const Bits64 ~why:reason in
-        let prepare_jkind loc lay =
-          match Jkind.get lay with
-          | Const Any -> any
-          | Const Void -> void
-          | Const Value -> value
-          | Const Immediate -> immediate
-          | Const Immediate64 -> immediate64
-          | Const Float64 -> float64
-          | Const Float32 -> float32
-          | Const Word -> word
-          | Const Bits32 -> bits32
-          | Const Bits64 -> bits64
+        let prepare_jkind loc jkind =
+          match Jkind.get jkind with
+          | Const const ->
+            let builtin =
+              List.find_opt (fun (builtin, _) -> Jkind.Const.equal const builtin) builtins
+            in
+            begin match builtin with
+            | Some (__, jkind) -> jkind
+            | None -> Jkind.of_const const ~why:Jkind.History.Imported
+            end
           | Var _ -> raise(Error (loc, Unconstrained_jkind_variable))
         in
         Prepare_for_saving prepare_jkind
@@ -294,7 +288,7 @@ let rec typexp copy_scope s ty =
     let has_fixed_row =
       not (is_Tconstr ty) && is_constr_row ~allow_ident:false tm in
     (* Make a stub *)
-    let jkind = Jkind.any ~why:Dummy_jkind in
+    let jkind = Jkind.Primitive.any ~why:Dummy_jkind in
     let ty' =
       if should_duplicate_vars then newpersty (Tvar {name = None; jkind})
       else newgenstub ~scope:(get_scope ty) jkind
@@ -410,16 +404,23 @@ let label_declaration copy_scope s l =
     ld_uid = l.ld_uid;
   }
 
-let constructor_arguments copy_scope s loc = function
+let constructor_argument copy_scope s ca =
+  {
+    ca_type = typexp copy_scope s ca.ca_loc ca.ca_type;
+    ca_loc = loc s ca.ca_loc;
+    ca_modalities = ca.ca_modalities;
+  }
+
+let constructor_arguments copy_scope s = function
   | Cstr_tuple l ->
-      Cstr_tuple (List.map (fun (ty, gf) -> (typexp copy_scope s loc ty, gf)) l)
+      Cstr_tuple (List.map (constructor_argument copy_scope s) l)
   | Cstr_record l ->
       Cstr_record (List.map (label_declaration copy_scope s) l)
 
 let constructor_declaration copy_scope s c =
   {
     cd_id = c.cd_id;
-    cd_args = constructor_arguments copy_scope s c.cd_loc c.cd_args;
+    cd_args = constructor_arguments copy_scope s c.cd_args;
     cd_res = Option.map (typexp copy_scope s c.cd_loc) c.cd_res;
     cd_loc = loc s c.cd_loc;
     cd_attributes = attrs s c.cd_attributes;
@@ -572,7 +573,7 @@ let extension_constructor' copy_scope s ext =
   { ext_type_path = type_path s ext.ext_type_path;
     ext_type_params =
       List.map (typexp copy_scope s ext.ext_loc) ext.ext_type_params;
-    ext_args = constructor_arguments copy_scope s ext.ext_loc ext.ext_args;
+    ext_args = constructor_arguments copy_scope s ext.ext_args;
     ext_arg_jkinds = begin match s.additional_action with
       | Prepare_for_saving prepare_jkind ->
           Array.map (prepare_jkind ext.ext_loc) ext.ext_arg_jkinds

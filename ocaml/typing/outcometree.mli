@@ -57,15 +57,6 @@ type out_value =
   | Oval_tuple of (string option * out_value) list
   | Oval_variant of string * out_value option
 
-type out_jkind =
-  | Olay_const of Jkind_types.const
-  | Olay_var of string
-
-type out_type_param =
-  { oparam_name : string;
-    oparam_variance : Asttypes.variance;
-    oparam_injectivity : Asttypes.injectivity;
-    oparam_jkind : out_jkind option }
 
 type out_modality_legacy = Ogf_global
 
@@ -79,8 +70,7 @@ type out_mutability =
   | Om_immutable
   | Om_mutable of string option
 
-(* should be empty if all the jkind annotations are missing *)
-type out_vars_jkinds = (string * out_jkind option) list
+
 
 (** This definition avoids a cyclic dependency between Outcometree and Types. *)
 type arg_label =
@@ -111,7 +101,31 @@ type out_ret_mode =
   (** The ret type is arrow, and need to print parens around the arrow, with
       modes annotating. *)
 
-type out_type =
+(** Represents a user-written jkind annotation *)
+type out_jkind_user =
+  | Ojkind_user_default
+  | Ojkind_user_abbreviation of string
+  | Ojkind_user_mod of out_jkind_user * string list
+  | Ojkind_user_with of out_jkind_user * out_type
+  | Ojkind_user_kind_of of out_type
+
+and out_jkind_const = { base : string; modal_bounds : string list }
+
+and out_jkind =
+  | Ojkind_user of out_jkind_user
+  | Ojkind_const of out_jkind_const
+  | Ojkind_var of string
+
+and out_type_param =
+  { oparam_name : string;
+    oparam_variance : Asttypes.variance;
+    oparam_injectivity : Asttypes.injectivity;
+    oparam_jkind : out_jkind option }
+
+(* should be empty if all the jkind annotations are missing *)
+and out_vars_jkinds = (string * out_jkind option) list
+
+and out_type =
   | Otyp_abstract
   | Otyp_open
   | Otyp_alias of {non_gen:bool; aliased:out_type; alias:string}

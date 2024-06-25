@@ -313,7 +313,7 @@ let rec class_type_field env sign self_scope ctf =
           let ty = cty.ctyp_type in
           begin match
             Ctype.constrain_type_jkind
-              env ty (Jkind.value ~why:Instance_variable)
+              env ty (Jkind.Primitive.value ~why:Instance_variable)
           with
           | Ok _ -> ()
           | Error err -> raise (Error(loc, env, Non_value_binding(lab, err)))
@@ -328,7 +328,7 @@ let rec class_type_field env sign self_scope ctf =
            match sty.ptyp_desc, priv with
            | Ptyp_poly ([],sty'), Public ->
                let expected_ty =
-                 Ctype.newvar (Jkind.value ~why:Object_field)
+                 Ctype.newvar (Jkind.Primitive.value ~why:Object_field)
                in
                add_method loc env lab priv virt expected_ty sign;
                let returned_cty =
@@ -494,7 +494,7 @@ let enter_ancestor_met ~loc name ~sign ~meths ~cl_num ~ty ~attrs met_env =
       Types.val_loc = loc;
       val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
   in
-  Env.enter_value ~check name desc met_env
+  Env.enter_value ~check ~mode:Mode.Value.legacy name desc met_env
 
 let add_self_met loc id sign self_var_kind vars cl_num
       as_var ty attrs met_env =
@@ -510,7 +510,7 @@ let add_self_met loc id sign self_var_kind vars cl_num
       Types.val_loc = loc;
       val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
   in
-  Env.add_value ~check id desc met_env
+  Env.add_value ~check ~mode:Mode.Value.legacy id desc met_env
 
 let add_instance_var_met loc label id sign cl_num attrs met_env =
   let mut, ty =
@@ -526,7 +526,7 @@ let add_instance_var_met loc label id sign cl_num attrs met_env =
       val_zero_alloc = Builtin_attributes.Default_zero_alloc;
       val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
   in
-  Env.add_value id desc met_env
+  Env.add_value ~mode:Mode.Value.legacy id desc met_env
 
 let add_instance_vars_met loc vars sign cl_num met_env =
   List.fold_left
@@ -691,7 +691,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
            begin
              match
                Ctype.constrain_type_jkind
-                 val_env cty.ctyp_type (Jkind.value ~why:Class_field)
+                 val_env cty.ctyp_type (Jkind.Primitive.value ~why:Class_field)
              with
              | Ok _ -> ()
              | Error err -> raise (Error(label.loc, val_env,
@@ -740,7 +740,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
              match
                Ctype.constrain_type_jkind
                  val_env definition.exp_type
-                 (Jkind.value ~why:Class_field)
+                 (Jkind.Primitive.value ~why:Class_field)
              with
              | Ok _ -> ()
              | Error err -> raise (Error(label.loc, val_env,
@@ -810,7 +810,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
            in
            let ty =
              match sty with
-             | None -> Ctype.newvar (Jkind.value ~why:Object_field)
+             | None -> Ctype.newvar (Jkind.Primitive.value ~why:Object_field)
              | Some sty ->
                  let sty = Ast_helper.Typ.force_poly sty in
                  let cty' =
@@ -824,7 +824,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
                match get_desc ty with
                | Tvar _ ->
                    let ty' =
-                     Ctype.newvar (Jkind.value ~why:Object_field)
+                     Ctype.newvar (Jkind.Primitive.value ~why:Object_field)
                    in
                    Ctype.unify val_env (Ctype.newmono ty') ty;
                    Typecore.type_approx val_env sbody ty'
@@ -1024,6 +1024,11 @@ and class_structure cl_num virt self_scope final val_env met_env loc
      - cannot refer to local or once variables in the
      environment
      - access to unique variables will be relaxed to shared *)
+  (* CR zqian: We should add [Env.add_sync_lock] which restricts
+  syncness/contention to legacy, but that lock would be a no-op. However, we
+  should be future-proof for potential axes who legacy is set otherwise. The
+  best is to call [Env.add_legacy_lock] (which can be defined by
+  [Env.add_closure_lock]) that covers all axes. *)
   let val_env = Env.add_escape_lock Class (Env.add_unboxed_lock val_env) in
   let val_env = Env.add_share_lock Class val_env in
   let met_env = Env.add_escape_lock Class (Env.add_unboxed_lock met_env) in
@@ -1128,7 +1133,10 @@ and class_expr cl_num val_env met_env virt self_scope scl =
 and class_expr_aux cl_num val_env met_env virt self_scope scl =
   match scl.pcl_desc with
   | Pcl_constr (lid, styl) ->
-      let (path, decl) = Env.lookup_class ~loc:scl.pcl_loc lid.txt val_env in
+      let (path, decl, mode) =
+        Env.lookup_class ~loc:scl.pcl_loc lid.txt val_env
+      in
+      Mode.Value.submode_exn mode Mode.Value.legacy;
       if Path.same decl.cty_path unbound_class then
         raise(Error(scl.pcl_loc, val_env, Unbound_class_2 lid.txt));
       let tyl = List.map
@@ -1466,7 +1474,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
              let id' = Ident.create_local (Ident.name id) in
              ((id', expr)
               :: vals,
-              Env.add_value id' desc met_env))
+              Env.add_value ~mode:Mode.Value.legacy id' desc met_env))
           (let_bound_idents_with_modes_sorts_and_checks defs)
           ([], met_env)
       in
@@ -1554,7 +1562,7 @@ let rec approx_declaration cl =
         | Optional _ -> Ctype.instance var_option
         | Position _ -> Ctype.instance Predef.type_lexing_position
         | Labelled _ | Nolabel ->
-          Ctype.newvar (Jkind.value ~why:Class_term_argument)
+          Ctype.newvar (Jkind.Primitive.value ~why:Class_term_argument)
           (* CR layouts: use of value here may be relaxed when we update
            classes to work with jkinds *)
       in
@@ -1566,7 +1574,7 @@ let rec approx_declaration cl =
       approx_declaration cl
   | Pcl_constraint (cl, _) ->
       approx_declaration cl
-  | _ -> Ctype.newvar (Jkind.value ~why:Object)
+  | _ -> Ctype.newvar (Jkind.Primitive.value ~why:Object)
 
 let rec approx_description ct =
   match ct.pcty_desc with
@@ -1574,7 +1582,7 @@ let rec approx_description ct =
       let l = transl_label l (Some core_type) in
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar (Jkind.value ~why:Class_term_argument)
+        else Ctype.newvar (Jkind.Primitive.value ~why:Class_term_argument)
         (* CR layouts: use of value here may be relaxed when we
            relax jkinds in classes *)
       in
@@ -1582,23 +1590,23 @@ let rec approx_description ct =
       let arrow_desc = l, Mode.Alloc.legacy, Mode.Alloc.legacy in
       Ctype.newty
         (Tarrow (arrow_desc, arg, approx_description ct, commu_ok))
-  | _ -> Ctype.newvar (Jkind.value ~why:Object)
+  | _ -> Ctype.newvar (Jkind.Primitive.value ~why:Object)
 
 (*******************************)
 
 let temp_abbrev loc id arity uid =
   let params = ref [] in
   for i = 1 to arity do
-    params := Ctype.newvar (Jkind.value ~why:(
+    params := Ctype.newvar (Jkind.Primitive.value ~why:(
       Type_argument {parent_path = Path.Pident id; position = i; arity})
     ) :: !params
   done;
-  let ty = Ctype.newobj (Ctype.newvar (Jkind.value ~why:Object)) in
+  let ty = Ctype.newobj (Ctype.newvar (Jkind.Primitive.value ~why:Object)) in
   let ty_td =
       {type_params = !params;
        type_arity = arity;
        type_kind = Type_abstract Abstract_def;
-       type_jkind = Jkind.value ~why:Object;
+       type_jkind = Jkind.Primitive.value ~why:Object;
        type_jkind_annotation = None;
        type_private = Public;
        type_manifest = Some ty;
@@ -1688,7 +1696,7 @@ let class_infos define_class kind
                we should lift this restriction. Doing so causes bad error messages
                today, so we wait for tomorrow. *)
             Ctype.unify env param.ctyp_type
-              (Ctype.newvar (Jkind.value ~why:Class_type_argument));
+              (Ctype.newvar (Jkind.Primitive.value ~why:Class_type_argument));
             (param, v)
           with Already_bound ->
             raise(Error(sty.ptyp_loc, env, Repeated_parameter))
@@ -1829,7 +1837,7 @@ let class_infos define_class kind
      type_params = obj_params;
      type_arity = arity;
      type_kind = Type_abstract Abstract_def;
-     type_jkind = Jkind.value ~why:Object;
+     type_jkind = Jkind.Primitive.value ~why:Object;
      type_jkind_annotation = None;
      type_private = Public;
      type_manifest = Some obj_ty;

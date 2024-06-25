@@ -139,16 +139,12 @@ let _ =
   register_modifiers "dynlink" dynlink;
   register_modifiers "str" str;
   List.iter
-    (fun old_name ->
-      let new_name = "stdlib_" ^ old_name in
-      register_modifiers old_name (extension_universe_lib old_name);
-      register_modifiers new_name (extension_universe_lib new_name);
-    )
+    (fun name -> register_modifiers name (extension_universe_lib name))
     [
-      "upstream_compatible";
-      "stable";
-      "beta";
-      "alpha";
+      "stdlib_upstream_compatible";
+      "stdlib_stable";
+      "stdlib_beta";
+      "stdlib_alpha";
     ];
   List.iter
     (fun archive -> register_modifiers archive (compilerlibs_archive archive))

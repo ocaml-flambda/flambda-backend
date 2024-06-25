@@ -703,8 +703,15 @@ and constructor_declaration =
      cd_attributes: attribute list;
     }
 
+and constructor_argument =
+  {
+    ca_modalities: Modality.Value.t;
+    ca_type: core_type;
+    ca_loc: Location.t;
+  }
+
 and constructor_arguments =
-  | Cstr_tuple of (core_type * Modality.Value.t) list
+  | Cstr_tuple of constructor_argument list
   | Cstr_record of label_declaration list
 
 and type_extension =
@@ -798,10 +805,16 @@ and 'a class_infos =
     ci_attributes: attribute list;
    }
 
+type argument_interface = {
+  ai_signature: Types.signature;
+  ai_coercion_from_primary: module_coercion;
+}
+
 type implementation = {
   structure: structure;
   coercion: module_coercion;
   signature: Types.signature;
+  argument_interface: argument_interface option;
   shape: Shape.t;
 }
 
@@ -830,6 +843,12 @@ let as_computation_pattern (p : pattern) : computation general_pattern =
     pat_env = p.pat_env;
     pat_attributes = [];
   }
+
+let function_arity params body =
+  List.length params +
+  match body with
+  | Tfunction_body _ -> 0
+  | Tfunction_cases _ -> 1
 
 let rec classify_pattern_desc : type k . k pattern_desc -> k pattern_category =
   function
@@ -1049,7 +1068,24 @@ let let_bound_idents_with_modes_sorts_and_checks bindings =
       iter_pattern_full ~both_sides_of_or:true f vb.vb_sort vb.vb_pat;
        match vb.vb_pat.pat_desc, vb.vb_expr.exp_desc with
        | Tpat_var (id, _, _, _), Texp_function fn ->
-         Ident.Map.add id fn.zero_alloc checks
+         let zero_alloc : Builtin_attributes.zero_alloc_attribute =
+           match fn.zero_alloc with
+           | Ignore_assert_all | Check _ | Assume _ -> fn.zero_alloc
+           | Default_zero_alloc when !Clflags.zero_alloc_check_assert_all ->
+             (* We fabricate a "Check" attribute if a top-level annotation
+                specifies that all functions should be checked for zero
+                alloc. *)
+             let arity = function_arity fn.params fn.body in
+             if arity > 0 then
+               Check { strict = false;
+                       arity;
+                       loc = Location.none;
+                       opt = false }
+             else
+               Default_zero_alloc
+           | Default_zero_alloc -> Default_zero_alloc
+         in
+         Ident.Map.add id zero_alloc checks
        | _ -> checks
     ) Ident.Map.empty bindings
   in
@@ -1137,9 +1173,3 @@ let rec exp_is_nominal exp =
   | Texp_field (parent, _, _, _) | Texp_send (parent, _, _) ->
       exp_is_nominal parent
   | _ -> false
-
-let function_arity params body =
-  List.length params +
-  match body with
-  | Tfunction_body _ -> 0
-  | Tfunction_cases _ -> 1
