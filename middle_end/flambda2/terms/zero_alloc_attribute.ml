@@ -39,10 +39,9 @@ let from_lambda : Lambda.zero_alloc_attribute -> t =
  fun a ->
   match a with
   | Default_zero_alloc -> Default_check
-  | Assume { strict; never_returns_normally; never_raises; loc; } ->
+  | Assume { strict; never_returns_normally; never_raises; loc } ->
     Assume { strict; never_returns_normally; never_raises; loc }
-  | Check { strict; loc; } ->
-    Check { strict; loc }
+  | Check { strict; loc } -> Check { strict; loc }
 
 let equal x y =
   match x, y with
