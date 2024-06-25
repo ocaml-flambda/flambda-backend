@@ -54,6 +54,7 @@ and ident_unboxed_float32 = ident_create "float32#"
 and ident_unboxed_nativeint = ident_create "nativeint#"
 and ident_unboxed_int32 = ident_create "int32#"
 and ident_unboxed_int64 = ident_create "int64#"
+and ident_or_null = ident_create "or_null"
 
 and ident_int8x16 = ident_create "int8x16"
 and ident_int16x8 = ident_create "int16x8"
@@ -88,6 +89,7 @@ and path_unboxed_float32 = Pident ident_unboxed_float32
 and path_unboxed_nativeint = Pident ident_unboxed_nativeint
 and path_unboxed_int32 = Pident ident_unboxed_int32
 and path_unboxed_int64 = Pident ident_unboxed_int64
+and path_or_null = Pident ident_or_null
 
 and path_int8x16 = Pident ident_int8x16
 and path_int16x8 = Pident ident_int16x8
@@ -124,6 +126,7 @@ and type_unboxed_nativeint =
       newgenty (Tconstr(path_unboxed_nativeint, [], ref Mnil))
 and type_unboxed_int32 = newgenty (Tconstr(path_unboxed_int32, [], ref Mnil))
 and type_unboxed_int64 = newgenty (Tconstr(path_unboxed_int64, [], ref Mnil))
+and type_or_null t = newgenty (Tconstr(path_or_null, [t], ref Mnil))
 
 and type_int8x16 = newgenty (Tconstr(path_int8x16, [], ref Mnil))
 and type_int16x8 = newgenty (Tconstr(path_int16x8, [], ref Mnil))
@@ -184,6 +187,9 @@ and ident_cons = ident_create "::"
 and ident_none = ident_create "None"
 and ident_some = ident_create "Some"
 
+and ident_null = ident_create "Null"
+and ident_this = ident_create "This"
+
 let predef_jkind_annotation primitive =
   Option.map
     (fun (primitive : Jkind.Const.Primitive.t) ->
@@ -204,6 +210,9 @@ let option_argument_jkind = Jkind.Primitive.value ~why:(
 
 let list_argument_jkind = Jkind.Primitive.value ~why:(
   Type_argument {parent_path = path_list; position = 1; arity = 1})
+
+let or_null_argument_jkind = Jkind.Primitive.value ~why:(
+  Type_argument {parent_path = path_or_null; position = 1; arity = 1})
 
 let mk_add_type add_type
       ?manifest type_ident
@@ -374,6 +383,15 @@ let build_initial_env add_type add_extension empty_env =
               Constructor_uniform_value, [| option_argument_jkind |];
            |])
        ~jkind:(Jkind.Primitive.value ~why:Boxed_variant)
+  |> add_type1 ident_or_null
+       ~variance:Variance.covariant
+       ~separability:Separability.Sep
+       ~kind:(fun tvar ->
+        variant [cstr ident_null []; cstr ident_this [unrestricted tvar]]
+          [| Constructor_uniform_value, [| |];
+             Constructor_uniform_value, [| or_null_argument_jkind |];
+          |])
+       ~jkind:(Jkind.Primitive.value_or_null ~why:(Primitive ident_or_null))
   |> add_type ident_lexing_position
        ~kind:(
          let lbl (field, field_type, jkind) =

@@ -42,6 +42,7 @@ val type_unboxed_float32:type_expr
 val type_unboxed_nativeint:type_expr
 val type_unboxed_int32:type_expr
 val type_unboxed_int64:type_expr
+val type_or_null: type_expr -> type_expr
 
 val type_int8x16: type_expr
 val type_int16x8: type_expr
@@ -76,6 +77,7 @@ val path_unboxed_float32: Path.t
 val path_unboxed_nativeint: Path.t
 val path_unboxed_int32: Path.t
 val path_unboxed_int64: Path.t
+val path_or_null: Path.t
 
 val path_int8x16: Path.t
 val path_int16x8: Path.t
