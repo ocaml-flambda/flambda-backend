@@ -203,19 +203,6 @@ end = struct
         res,
         eff,
         updates )
-    | Dummy_function_slot { last_function_slot } ->
-      let closure_info =
-        C.closure_info'
-          ~arity:(Curried { nlocal = 0 }, [()])
-          ~startenv:(startenv - slot_offset) ~is_last:last_function_slot
-      in
-      ( P.int ~dbg closure_info :: P.int ~dbg 0n :: acc,
-        Backend_var.Set.empty,
-        slot_offset + 2,
-        env,
-        res,
-        Ece.pure,
-        updates )
     | Function_slot { size; function_slot; last_function_slot } -> (
       let code_id =
         (Function_slot.Map.find function_slot decls
@@ -530,7 +517,7 @@ let let_static_set_of_closures0 env res closure_symbols
         (fun (offset, (layout_slot : Slot_offsets.Layout.slot)) ->
           match layout_slot with
           | Function_slot { function_slot; _ } -> Some (offset, function_slot)
-          | Infix_header | Value_slot _ | Dummy_function_slot _ -> None)
+          | Infix_header | Value_slot _ -> None)
         layout.slots
     with
     | Some (function_slot_offset, function_slot) -> (

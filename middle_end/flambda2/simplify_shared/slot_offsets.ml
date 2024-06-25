@@ -112,7 +112,6 @@ module Layout = struct
           function_slot : Function_slot.t;
           last_function_slot : bool
         }
-    | Dummy_function_slot of { last_function_slot : bool }
 
   type t =
     { startenv : words;
@@ -129,9 +128,6 @@ module Layout = struct
       Format.fprintf fmt "function_slot%s(%d) %a"
         (if last_function_slot then "[last]" else "")
         size Function_slot.print function_slot
-    | Dummy_function_slot { last_function_slot } ->
-      Format.fprintf fmt "dummy_function_slot%s"
-        (if last_function_slot then "[last]" else "")
 
   let print fmt l =
     Format.fprintf fmt "@[<v>startenv: %d;@ " l.startenv;
@@ -141,7 +137,6 @@ module Layout = struct
     Format.fprintf fmt "@]"
 
   let order_function_slots env l acc =
-    let acc =
       Function_slot.Lmap.fold
         (fun function_slot _ acc ->
           match EO.function_slot_offset env function_slot with
@@ -154,33 +149,12 @@ module Layout = struct
             Misc.fatal_errorf "No function_slot offset for %a"
               Function_slot.print function_slot)
         l acc
-    in
-    (* Make sure there's a slot at offset 0 *)
-    if Numeric_types.Int.Map.mem 0 acc
-    then acc
-    else (
-      (* Dummy function slots have size 2, so make sure there is room for it. *)
-      if Numeric_types.Int.Map.mem 1 acc
-      then
-        Misc.fatal_errorf
-          "[order_function_slots]: a slot exists at offset 1, no room to \
-           insert a dummy function slot.@\n\
-           Slots: %a@."
-          (Numeric_types.Int.Map.print print_slot)
-          acc;
-      Numeric_types.Int.Map.add 0
-        (Dummy_function_slot { last_function_slot = false })
-        acc)
 
   let mark_last_function_slot map =
     match Numeric_types.Int.Map.max_binding map with
     | offset, Function_slot slot ->
       Numeric_types.Int.Map.add offset
         (Function_slot { slot with last_function_slot = true })
-        map
-    | offset, Dummy_function_slot _ ->
-      Numeric_types.Int.Map.add offset
-        (Dummy_function_slot { last_function_slot = true })
         map
     | _, (Value_slot _ | Infix_header) ->
       Misc.fatal_errorf
@@ -215,17 +189,12 @@ module Layout = struct
        when scanning the block. Thus, if we see a function slot, we check that
        then the environment has not started yet (i.e. we have not seen any value
        slots). *)
-    | (Dummy_function_slot _ | Function_slot _) when offset = 0 ->
+    | Function_slot _ when offset = 0 ->
       assert (match acc_slots with [] -> true | _ :: _ -> false);
       assert (Option.is_none startenv);
       (* see comment above *)
       let acc_slots = [0, slot] in
       startenv, acc_slots
-    | Dummy_function_slot _ ->
-      Misc.fatal_errorf
-        "Dummy function slots should only appear at offset 0, but one was \
-         found at offset %d@."
-        offset
     | Function_slot _ ->
       assert (Option.is_none startenv);
       (* see comment above *)
@@ -269,7 +238,6 @@ module Layout = struct
       | Some i, _ -> i, false
       | None, [] -> 0, true (* will raise a fatal_error later *)
       | None, (offset, Function_slot { size; _ }) :: _ -> offset + size, true
-      | None, (offset, Dummy_function_slot _) :: _ -> offset + 2, true
       | None, (offset, Value_slot { is_scanned = false; size; _ }) :: _ ->
         offset + size, false
       | None, (_, Infix_header) :: _ ->
@@ -289,10 +257,10 @@ module Layout = struct
        slot at offset 0. *)
     let res = { startenv; slots; empty_env } in
     match slots with
-    | (0, (Function_slot _ | Dummy_function_slot _)) :: _ -> res
+    | (0, Function_slot _) :: _ -> res
     | []
     | ( _,
-        (Function_slot _ | Infix_header | Value_slot _ | Dummy_function_slot _)
+        (Function_slot _ | Infix_header | Value_slot _)
       )
       :: _ ->
       Misc.fatal_errorf
