@@ -14,6 +14,11 @@
 let[@poll error] rec c x l =
   match l with
   | [] -> 0
+  | _ :: tl -> (d[@tailcall]) (x+1) tl
+
+and d x l =
+  match l with
+  | [] -> 0
   | _ :: tl -> (c[@tailcall]) (x+1) tl
 
 (* TEST
