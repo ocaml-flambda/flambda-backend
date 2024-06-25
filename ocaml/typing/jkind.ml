@@ -560,7 +560,7 @@ module Const = struct
                   { layout = jkind.layout;
                     modes_upper_bounds = Modes.max;
                     externality_upper_bound = Externality.max;
-                    nullability_upper_bound = Nullability.max
+                    nullability_upper_bound = Nullability.Non_null
                   };
                 name = Layout.Const.to_string jkind.layout
               }
