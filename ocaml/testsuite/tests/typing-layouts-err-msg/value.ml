@@ -292,9 +292,9 @@ Line 1, characters 49-54:
 1 | type ('a : immediate) t2 = {a: 'a} and t3 = t t2 and t
                                                      ^^^^^
 Error:
-       The layout of t is value, because
-         an abstract type has the value layout by default.
-       But the layout of t must be a sublayout of immediate, because
+       The kind of t is value, because
+         an abstract type has the value kind by default.
+       But the kind of t must be a subkind of immediate, because
          of the annotation on 'a in the declaration of the type t2.
 |}];;
 

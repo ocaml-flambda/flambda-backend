@@ -339,9 +339,9 @@ Line 8, characters 32-36:
                                     ^^^^
 Error: This expression has type float but an expression was expected of type
          ('a : immediate)
-       The layout of float is value, because
+       The kind of float is value, because
          it is the primitive value type float.
-       But the layout of float must be a sublayout of immediate, because
+       But the kind of float must be a subkind of immediate, because
          of the definition of s6 at line 2, characters 0-35.
 |}];;
 
@@ -394,7 +394,7 @@ Error: Layout mismatch in final type declaration consistency check.
          The layout of 'a is float64, because
            of the definition of float64_t at line 2, characters 0-29.
          But the layout of 'a must overlap with value, because
-           it instantiates an unannotated type parameter of t8_5, defaulted to layout value.
+           it instantiates an unannotated type parameter of t8_5, defaulted to kind value.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]

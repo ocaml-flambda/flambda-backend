@@ -550,7 +550,7 @@ Error: This expression has type ('a : float64)
        But the layout of int64# must be a sublayout of float64, because
          it's the layout polymorphic type in an external declaration
          ([@layout_poly] forces all variables of layout 'any' to be
-         representable at call sites), defaulted to layout float64.
+         representable at call sites), defaulted to kind float64.
 |}]
 (* CR layouts v2.9: the default part is not quite correct *)
 
@@ -628,7 +628,7 @@ Line 1, characters 28-58:
                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The universal type variable 'a was declared to have layout any.
        But it was inferred to have layout value, because
-         the type argument of list has layout value.
+         the type argument of list has kind value.
 |}]
 
 (* Test this when sorts can be inside unboxed records *)
