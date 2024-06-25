@@ -210,8 +210,8 @@ module Exp:
 (** Value declarations *)
 module Val:
   sig
-    val mk: ?loc:loc -> ?attrs:attrs -> ?docs:docs ->
-      ?prim:string list -> ?modalities:modality with_loc list -> str -> core_type -> value_description
+    val mk: ?loc:loc -> ?attrs:attrs -> ?docs:docs -> ?prim:string list ->
+      ?modalities:modality with_loc list -> str -> core_type -> value_description
   end
 
 (** Type declarations *)

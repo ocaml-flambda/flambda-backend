@@ -406,8 +406,8 @@ and value_description i ppf x =
        x.pval_name fmt_location x.pval_loc;
   attributes i ppf x.pval_attributes;
   core_type (i+1) ppf x.pval_type;
-  list (i+1) string ppf x.pval_prim;
-  modalities (i+1) ppf x.pval_modalities
+  modalities (i+1) ppf x.pval_modalities;
+  list (i+1) string ppf x.pval_prim
 
 and type_parameter i ppf (x, _variance) = core_type i ppf x
 

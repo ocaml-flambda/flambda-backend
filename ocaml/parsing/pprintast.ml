@@ -305,6 +305,10 @@ let legacy_mode f m =
 let legacy_modes f m =
   pp_print_list ~pp_sep:(fun f () -> pp f " ") legacy_mode f m
 
+let space_modality f {txt = Modality m; _} =
+  pp_print_string f " ";
+  pp_print_string f m
+
 let legacy_modality f m =
   let {txt; _} = (m : modality Location.loc) in
   let s =
@@ -323,6 +327,13 @@ let optional_legacy_modalities f m =
   | m ->
     legacy_modalities f m;
     pp_print_space f ()
+
+let maybe_atat_modalities f m =
+  match m with
+  | [] -> ()
+  | _ :: _ ->
+    pp_print_string f " @@";
+    pp_print_list space_modality f m
 
 let mode f m =
   let {txt = Mode txt; _} = m in
@@ -356,18 +367,6 @@ let modalities_type pty ctxt f pca =
   | [] -> pty ctxt f pca.pca_type
   | m ->
     pp f "%a %a" legacy_modalities m (pty ctxt) pca.pca_type
-
-let modality f m =
-  let {txt = Modality txt; _} = m in
-  pp_print_string f txt
-
-let modalities f m =
-  pp_print_list ~pp_sep:(fun f () -> pp f " ") modality f m
-
-let maybe_type_atat_modalities pty ctxt f (c, m) =
-  match m with
-  | _ :: _ -> pp f "%a@ %@%@@ %a" (pty ctxt) c modalities m
-  | [] -> pty ctxt f c
 
 (* c ['a,'b] *)
 let rec class_params_def ctxt f =  function
@@ -1100,7 +1099,8 @@ and floating_attribute ctxt f a =
 and value_description ctxt f x =
   (* note: value_description has an attribute field,
            but they're already printed by the callers this method *)
-  pp f "@[<hov2>%a%a@]" (maybe_type_atat_modalities core_type ctxt) (x.pval_type, x.pval_modalities)
+  pp f "@[<hov2>%a%a%a@]" (core_type ctxt) x.pval_type
+    maybe_atat_modalities x.pval_modalities
     (fun f x ->
        if x.pval_prim <> []
        then pp f "@ =@ %a" (list constant_string) x.pval_prim

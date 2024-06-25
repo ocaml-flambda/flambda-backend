@@ -939,7 +939,7 @@ let default_mapper =
     type_exception = T.map_type_exception;
     extension_constructor = T.map_extension_constructor;
     value_description =
-      (fun this {pval_name; pval_type; pval_prim; pval_loc; pval_modalities;
+      (fun this {pval_name; pval_type; pval_modalities; pval_prim; pval_loc;
                  pval_attributes} ->
         Val.mk
           (map_loc this pval_name)

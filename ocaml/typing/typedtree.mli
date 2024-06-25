@@ -208,7 +208,7 @@ and expression =
 
 and exp_extra =
   | Texp_constraint of core_type option * Parsetree.mode loc list
-        (** E : T @@ M *)
+        (** E : T *)
   | Texp_coerce of core_type option * core_type
         (** E :> T           [Texp_coerce (None, T)]
             E : T0 :> T      [Texp_coerce (Some T0, T)]
@@ -937,7 +937,7 @@ and label_declaration =
      ld_name: string loc;
      ld_uid: Uid.t;
      ld_mutable: Types.mutability;
-     ld_global: Mode.Global_flag.t loc;
+     ld_modalities: Mode.Modality.Value.t;
      ld_type: core_type;
      ld_loc: Location.t;
      ld_attributes: attributes;
@@ -957,9 +957,7 @@ and constructor_declaration =
 
 and constructor_argument =
   {
-    ca_global: Mode.Global_flag.t loc;
-    (** [ca_global]'s [loc] field is [Location.none] when its [txt] field is
-        [Unrestricted] *)
+    ca_modalities: Mode.Modality.Value.t;
     ca_type: core_type;
     ca_loc: Location.t;
   }
@@ -1059,10 +1057,20 @@ and 'a class_infos =
     ci_attributes: attributes;
    }
 
+type argument_interface = {
+  ai_signature: Types.signature;
+  ai_coercion_from_primary: module_coercion;
+}
+(** For a module [M] compiled with [-as-argument-for P] for some parameter
+    module [P], the signature of [P] along with the coercion from [M]'s
+    exported signature (the _primary interface_) to [P]'s signature (the
+    _argument interface_). *)
+
 type implementation = {
   structure: structure;
   coercion: module_coercion;
   signature: Types.signature;
+  argument_interface: argument_interface option;
   shape: Shape.t;
 }
 (** A typechecked implementation including its module structure, its exported
@@ -1073,6 +1081,10 @@ type implementation = {
 
     If there isn't one, the signature will be inferred from the module
     structure.
+
+    If the module is compiled with [-as-argument-for] and is thus typechecked
+    against the .mli for a parameter in addition to its own .mli, it has an
+    additional signature stored in [argument_interface].
 *)
 
 type item_declaration =

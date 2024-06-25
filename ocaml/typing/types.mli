@@ -622,7 +622,7 @@ and label_declaration =
   {
     ld_id: Ident.t;
     ld_mutable: mutability;
-    ld_global: Mode.Global_flag.t;
+    ld_modalities: Mode.Modality.Value.t;
     ld_type: type_expr;
     ld_jkind : jkind;
     ld_loc: Location.t;
@@ -642,7 +642,7 @@ and constructor_declaration =
 
 and constructor_argument =
   {
-    ca_global: Mode.Global_flag.t;
+    ca_modalities: Mode.Modality.Value.t;
     ca_type: type_expr;
     ca_loc: Location.t;
   }
@@ -865,7 +865,7 @@ type label_description =
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutability;                (* Is this a mutable field? *)
-    lbl_global: Mode.Global_flag.t;     (* Is this a global field? *)
+    lbl_modalities: Mode.Modality.Value.t; (* Modalities on the field *)
     lbl_jkind : jkind;                (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in the type *)

@@ -90,14 +90,14 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
       <def_rec>
         pattern (test_locations.ml[17,534+8]..test_locations.ml[17,534+11])
           Tpat_var "fib"
-          value_mode global,many,shared
+          value_mode global,many,nonportable,shared,uncontended
         expression (test_locations.ml[17,534+14]..test_locations.ml[19,572+34])
           Texp_function
           region true
-          alloc_mode global,many,shared
+          alloc_mode global,many,nonportable,shared,uncontended
           []
           Tfunction_cases (test_locations.ml[17,534+14]..test_locations.ml[19,572+34])
-          alloc_mode global,many,shared
+          alloc_mode global,many,nonportable,shared,uncontended
           value
             [
               <case>
@@ -112,7 +112,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
               <case>
                 pattern (test_locations.ml[19,572+4]..test_locations.ml[19,572+5])
                   Tpat_var "n"
-                  value_mode global,many,unique
+                  value_mode global,many,portable,unique,uncontended
                 expression (test_locations.ml[19,572+9]..test_locations.ml[19,572+34])
                   Texp_apply
                   apply_mode Tail

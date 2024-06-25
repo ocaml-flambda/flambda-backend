@@ -241,12 +241,11 @@ Error: This value is shared but expected to be unique.
 |}]
 
 
-(* global modality entails shared modality;
-this is crucial once we introduce borrowing whose scope is controlled
-by locality *)
-type 'a glob = { global_ glob: 'a } [@@unboxed]
+(* CR zqian: [global] should imply [shared]/[many], once we introduce borrowing whose
+scope is controlled by locality *)
+type 'a glob = { glob: 'a @@ shared many } [@@unboxed]
 [%%expect{|
-type 'a glob = { global_ glob : 'a; } [@@unboxed]
+type 'a glob = { glob : 'a @@ many shared; } [@@unboxed]
 |}]
 let dup (glob : 'a) : 'a glob * 'a glob = unique_ ({glob}, {glob})
 [%%expect{|
@@ -655,4 +654,3 @@ Line 2, characters 11-19:
                ^^^^^^^^
 
 |}]
-

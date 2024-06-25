@@ -430,7 +430,7 @@ let reg_show_prim name to_sig doc =
 let () =
   reg_show_prim "show_val"
     (fun env loc id lid ->
-       let _path, desc, _, _ = Env.lookup_value ~loc lid env in
+       let _path, desc, _ = Env.lookup_value ~loc lid env in
        [ Sig_value (id, desc, Exported) ]
     )
     "Print the signature of the corresponding value."
@@ -573,7 +573,7 @@ let secretly_the_same_path env path1 path2 =
 let () =
   reg_show_prim "show_module"
     (fun env loc id lid ->
-       let path, md = Env.lookup_module ~loc lid env in
+       let path, md, _ = Env.lookup_module ~loc lid env in
        let id = match path with
          | Pident id -> id
          | _ -> id
@@ -624,7 +624,7 @@ let () =
 let () =
   reg_show_prim "show_class"
     (fun env loc id lid ->
-       let _path, desc_class = Env.lookup_class ~loc lid env in
+       let _path, desc_class, _ = Env.lookup_class ~loc lid env in
        let _path, desc_cltype = Env.lookup_cltype ~loc lid env in
        let _path, typedcl = Env.lookup_type ~loc lid env in
        [

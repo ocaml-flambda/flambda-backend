@@ -195,6 +195,28 @@ Line 1, characters 25-30:
 Error: The locality axis has already been specified.
 |}]
 
+(* Mixing legacy and new modes *)
+type r = local_ unique_ once_ string -> string
+[%%expect{|
+type r = local_ once_ unique_ string -> string
+|}]
+
+type r = local_ unique_ once_ string @ portable contended -> string
+[%%expect{|
+type r = local_ once_ unique_ string @ portable contended -> string
+|}]
+
+type r = string @ local unique once portable contended -> string
+[%%expect{|
+type r = local_ once_ unique_ string @ portable contended -> string
+|}]
+
+type r = string @ local unique once nonportable uncontended -> string
+[%%expect{|
+type r = local_ once_ unique_ string -> string
+|}]
+
+
 (* modality on constructor arguments and record fields *)
 
 type t = Foo of string @@ global * global_ string
@@ -211,12 +233,8 @@ Error: Unrecognized modality foo.
 |}]
 
 type t = Foo of global_ string @@ global
+(* CR reduced-modality: this should warn. *)
 [%%expect{|
-Line 1, characters 34-40:
-1 | type t = Foo of global_ string @@ global
-                                      ^^^^^^
-Warning 250 [redundant-modality]: This global modality is redundant.
-
 type t = Foo of global_ string
 |}]
 
@@ -240,14 +258,48 @@ Error: Unrecognized modality foo.
 type r = {
   global_ x : string @@ global
 }
+(* CR reduced-modality: this should warn. *)
 [%%expect{|
-Line 2, characters 24-30:
-2 |   global_ x : string @@ global
-                            ^^^^^^
-Warning 250 [redundant-modality]: This global modality is redundant.
-
 type r = { global_ x : string; }
 |}]
+
+(* Modalities don't imply each other; this will change as we add borrowing. *)
+type r = {
+  global_ x : string @@ shared
+}
+[%%expect{|
+type r = { global_ x : string @@ shared; }
+|}]
+
+type r = {
+  x : string @@ shared global many
+}
+[%%expect{|
+type r = { global_ x : string @@ many shared; }
+|}]
+
+type r = {
+  x : string @@ shared global many shared
+}
+(* CR reduced-modality: this should warn. *)
+[%%expect{|
+type r = { global_ x : string @@ many shared; }
+|}]
+
+type r = Foo of string @@ global shared many
+[%%expect{|
+type r = Foo of global_ string @@ many shared
+|}]
+
+(* mutable implies global shared many. No warnings are given since we imagine
+   that the coupling will be removed soon. *)
+type r = {
+  mutable x : string @@ global shared many
+}
+[%%expect{|
+type r = { mutable x : string; }
+|}]
+
 
 (* patterns *)
 
@@ -322,5 +374,15 @@ end
 Line 2, characters 38-41:
 2 |   val x : string -> string @ local @@ foo bar
                                           ^^^
+Error: Modalities on value descriptions are not supported yet.
+|}]
+
+module type S = sig
+  external x : string -> string @ local @@ foo bar = "%hello"
+end
+[%%expect{|
+Line 2, characters 43-46:
+2 |   external x : string -> string @ local @@ foo bar = "%hello"
+                                               ^^^
 Error: Modalities on value descriptions are not supported yet.
 |}]

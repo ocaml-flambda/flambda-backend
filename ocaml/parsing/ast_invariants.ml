@@ -43,6 +43,9 @@ let no_val_params loc = err loc "Functions must have a value parameter."
 let non_jane_syntax_function loc =
   err loc "Functions must be constructed using Jane Street syntax."
 
+let redundant_nested_constraints loc =
+  err loc "Nested pattern constraints must all specify a type"
+
 let simple_longident id =
   let rec is_simple = function
     | Longident.Lident _ -> true
@@ -114,6 +117,16 @@ let iterator =
     | Ppat_construct (id, _) -> simple_longident id
     | Ppat_record (fields, _) ->
       List.iter (fun (id, _) -> simple_longident id) fields
+    | Ppat_constraint (pat', cty, _) ->
+      begin match pat'.ppat_desc with
+      | Ppat_constraint (_, cty', _) ->
+        begin match cty, cty' with
+        | None, Some _ | Some _, None ->
+          redundant_nested_constraints loc
+        | _ -> ()
+        end
+      | _ -> ()
+      end
     | _ -> ()
   in
   let n_ary_function loc (params, _constraint, body) =

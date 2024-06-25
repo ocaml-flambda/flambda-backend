@@ -805,7 +805,7 @@ let default_iterator =
     type_exception = T.iter_type_exception;
     extension_constructor = T.iter_extension_constructor;
     value_description =
-      (fun this {pval_name; pval_type; pval_prim = _; pval_loc; pval_modalities;
+      (fun this {pval_name; pval_type; pval_modalities; pval_prim = _; pval_loc;
                  pval_attributes} ->
         iter_loc this pval_name;
         this.typ this pval_type;

@@ -279,8 +279,12 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ pass_dump_if ppf_dump dump_selection "After instruction selection"
   ++ Profile.record ~accumulate:true "save_mach_as_cfg"
        (save_mach_as_cfg Compiler_pass.Selection)
-  ++ Profile.record ~accumulate:true "polling"
-       (Polling.instrument_fundecl ~future_funcnames:funcnames)
+   ++ Profile.record ~accumulate:true "polling"
+       (fun fd ->
+         match register_allocator with
+         | IRC | LS | GI -> fd
+         | Upstream ->
+           Polling.instrument_fundecl ~future_funcnames:funcnames fd)
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_polling
   ++ (fun fd ->
       match !Flambda_backend_flags.cfg_zero_alloc_checker with
@@ -320,6 +324,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         let cfg =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
+          ++ Profile.record ~accumulate:true "cfg_polling" (Cfg_polling.instrument_fundecl ~future_funcnames:funcnames)
           ++ (fun cfg_with_layout ->
               match !Flambda_backend_flags.cfg_zero_alloc_checker with
               | false -> cfg_with_layout

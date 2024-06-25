@@ -7,6 +7,17 @@ val transl_mode_annots : Parsetree.mode loc list -> Mode.Alloc.Const.Option.t
     legacy if unspecified *)
 val transl_alloc_mode : Parsetree.mode loc list -> Mode.Alloc.Const.t
 
-(** Interpret modality annotation *)
-val transl_global_flags :
-  Parsetree.modality loc list -> Mode.Global_flag.t loc
+(** Interpret mode syntax as modalities *)
+val transl_modalities :
+  Types.mutability ->
+  Parsetree.modality Location.loc list ->
+  Mode.Modality.Value.t
+
+val untransl_modalities :
+  loc:Location.t ->
+  Mode.Modality.Value.t ->
+  Parsetree.modality Location.loc list
+
+val is_mutable_implied_modality : Mode.Modality.t -> bool
+
+val mutable_implied_modalities : Mode.Modality.Value.t

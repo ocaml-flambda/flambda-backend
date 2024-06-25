@@ -696,11 +696,11 @@
             []
           core_type (shortcut_ext_attr.ml[85,1728+23]..[85,1728+24])
             Ptyp_any
+          modalities
+          []
           [
             ""
           ]
-          modalities
-          []
     ]
   structure_item (shortcut_ext_attr.ml[86,1759+0]..[86,1759+21]) ghost
     Pstr_extension "foo"
@@ -800,8 +800,8 @@
                   core_type (shortcut_ext_attr.ml[98,1965+20]..[98,1965+21])
                     Ptyp_constr "t" (shortcut_ext_attr.ml[98,1965+20]..[98,1965+21])
                     []
-                  []
                   modalities
+                  []
                   []
             ]
           signature_item (shortcut_ext_attr.ml[99,1987+2]..[99,1987+31]) ghost
@@ -815,11 +815,11 @@
                   core_type (shortcut_ext_attr.ml[99,1987+25]..[99,1987+26])
                     Ptyp_constr "t" (shortcut_ext_attr.ml[99,1987+25]..[99,1987+26])
                     []
+                  modalities
+                  []
                   [
                     ""
                   ]
-                  modalities
-                  []
             ]
           signature_item (shortcut_ext_attr.ml[101,2020+2]..[102,2045+20]) ghost
             Psig_extension "foo"

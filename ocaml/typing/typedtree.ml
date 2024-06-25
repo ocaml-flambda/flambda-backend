@@ -684,7 +684,7 @@ and label_declaration =
      ld_name: string loc;
      ld_uid: Uid.t;
      ld_mutable: mutability;
-     ld_global: Global_flag.t loc;
+     ld_modalities: Modality.Value.t;
      ld_type: core_type;
      ld_loc: Location.t;
      ld_attributes: attribute list;
@@ -704,7 +704,7 @@ and constructor_declaration =
 
 and constructor_argument =
   {
-    ca_global: Global_flag.t loc;
+    ca_modalities: Modality.Value.t;
     ca_type: core_type;
     ca_loc: Location.t;
   }
@@ -804,10 +804,16 @@ and 'a class_infos =
     ci_attributes: attribute list;
    }
 
+type argument_interface = {
+  ai_signature: Types.signature;
+  ai_coercion_from_primary: module_coercion;
+}
+
 type implementation = {
   structure: structure;
   coercion: module_coercion;
   signature: Types.signature;
+  argument_interface: argument_interface option;
   shape: Shape.t;
 }
 

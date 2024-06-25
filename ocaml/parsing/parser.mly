@@ -3743,7 +3743,7 @@ value_description:
     { let attrs = attrs1 @ attrs2 in
       let loc = make_loc $sloc in
       let docs = symbol_docs $sloc in
-      Val.mk id ty ~modalities ~attrs ~loc ~docs,
+      Val.mk id ty ~attrs ~modalities ~loc ~docs,
       ext }
 ;
 
@@ -3756,13 +3756,14 @@ primitive_declaration:
   id = mkrhs(val_ident)
   COLON
   ty = possibly_poly(core_type)
+  modalities = optional_atat_modalities_expr
   EQUAL
   prim = raw_string+
   attrs2 = post_item_attributes
     { let attrs = attrs1 @ attrs2 in
       let loc = make_loc $sloc in
       let docs = symbol_docs $sloc in
-      Val.mk id ty ~prim ~attrs ~loc ~docs,
+      Val.mk id ty ~prim ~attrs ~modalities ~loc ~docs,
       ext }
 ;
 
@@ -4574,8 +4575,23 @@ atomic_type:
       { [] }
   | ty = atomic_type
       { [ty] }
-  | LPAREN tys = separated_nontrivial_llist(COMMA, core_type) RPAREN
+  | LPAREN
+    tys = separated_nontrivial_llist(COMMA, one_type_parameter_of_several)
+    RPAREN
       { tys }
+
+(* Layout annotations on type expressions typically require parens, as in [('a :
+   float64)].  But this is unnecessary when the type expression is used as the
+   parameter of a tconstr with more than one argument, as in [(int, 'b :
+   float64) t]. *)
+%inline one_type_parameter_of_several:
+  | core_type { $1 }
+  | QUOTE id=ident COLON jkind=jkind_annotation
+    { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) @@
+      Ltyp_var { name = Some id; jkind } }
+  | UNDERSCORE COLON jkind=jkind_annotation
+    { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) @@
+      Ltyp_var { name = None; jkind } }
 
 %inline package_type: module_type
       { let (lid, cstrs, attrs) = package_type_of_module_type $1 in

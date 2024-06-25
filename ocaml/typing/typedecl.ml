@@ -131,7 +131,7 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
-  | Unexpected_jkind_any_in_primitive of string
+  | Unexpected_layout_any_in_primitive of string
   | Useless_layout_poly
   | Modalities_on_value_description
   | Zero_alloc_attr_unsupported of Builtin_attributes.zero_alloc_attribute
@@ -421,23 +421,19 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
           pld_type=arg;pld_loc=loc;pld_attributes=attrs} =
     Builtin_attributes.warning_scope attrs
       (fun () ->
-         let gbl =
-           match mut with
-           | Mutable -> {txt = Mode.Global_flag.Global; loc = Location.none}
-           | Immutable -> Typemode.transl_global_flags modalities
-         in
          let mut : mutability =
           match mut with
           | Immutable -> Immutable
           | Mutable -> Mutable Mode.Alloc.Comonadic.Const.legacy
          in
+         let modalities = Typemode.transl_modalities mut modalities in
          let arg = Ast_helper.Typ.force_poly arg in
          let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
          {ld_id = Ident.create_local name.txt;
           ld_name = name;
           ld_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
           ld_mutable = mut;
-          ld_global = gbl;
+          ld_modalities = modalities;
           ld_type = cty; ld_loc = loc; ld_attributes = attrs}
       )
   in
@@ -451,7 +447,7 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
           ~allow_unboxed env ld.ld_loc kloc ty;
          {Types.ld_id = ld.ld_id;
           ld_mutable = ld.ld_mutable;
-          ld_global = ld.ld_global.txt;
+          ld_modalities = ld.ld_modalities;
           ld_jkind = Jkind.any ~why:Dummy_jkind;
             (* Updated by [update_label_jkinds] *)
           ld_type = ty;
@@ -467,15 +463,15 @@ let transl_types_gf ~new_var_jkind ~allow_unboxed
   env loc univars closed cal kloc =
   let mk arg =
     let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg.pca_type in
-    let gf = Typemode.transl_global_flags arg.pca_modalities in
-    {ca_global = gf; ca_type = cty; ca_loc = arg.pca_loc}
+    let gf = Typemode.transl_modalities Immutable arg.pca_modalities in
+    {ca_modalities = gf; ca_type = cty; ca_loc = arg.pca_loc}
   in
   let tyl_gfl = List.map mk cal in
   let tyl_gfl' = List.mapi (fun idx (ca : Typedtree.constructor_argument) ->
     check_representable ~why:(Constructor_declaration idx) ~allow_unboxed
       env loc kloc ca.ca_type.ctyp_type;
     {
-      Types.ca_global = ca.ca_global.txt;
+      Types.ca_modalities = ca.ca_modalities;
       ca_loc = ca.ca_loc;
       ca_type = ca.ca_type.ctyp_type;
     }) tyl_gfl
@@ -2655,7 +2651,7 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
   error_if_has_deep_native_repr_attributes core_type;
   let sort_or_poly =
     match get_desc (Ctype.get_unboxed_type_approximation env ty) with
-    (* This only captures tvars with jkind [any] explicitly quantified within
+    (* This only captures tvars with layout [any] explicitly quantified within
        the declaration.
 
        This is sufficient since [transl_type_scheme] promises that:
@@ -2664,7 +2660,7 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
          transl)
     *)
     | Tvar {jkind} when is_layout_poly
-                      && Jkind.is_any jkind
+                      && Jkind.has_layout_any jkind
                       && get_level ty = Btype.generic_level -> Poly
     | _ ->
       let sort =
@@ -2795,18 +2791,18 @@ let check_unboxable env loc ty =
     all_unboxable_types
     ()
 
-let has_ty_var_with_jkind_any env ty =
+let has_ty_var_with_layout_any env ty =
   List.exists
-    (fun ty -> Jkind.is_any (Ctype.estimate_type_jkind env ty))
+    (fun ty -> Jkind.has_layout_any (Ctype.estimate_type_jkind env ty))
     (Ctype.free_variables ty)
 
-let unexpected_jkind_any_check prim env cty ty =
-  if Primitive.prim_can_contain_jkind_any prim ||
+let unexpected_layout_any_check prim env cty ty =
+  if Primitive.prim_can_contain_layout_any prim ||
      prim.prim_is_layout_poly then ()
   else
-  if has_ty_var_with_jkind_any env ty then
+  if has_ty_var_with_layout_any env ty then
     raise(Error (cty.ctyp_loc,
-            Unexpected_jkind_any_in_primitive(prim.prim_name)))
+            Unexpected_layout_any_in_primitive(prim.prim_name)))
 
 (* Note regarding jkind checks on external declarations
 
@@ -2854,20 +2850,22 @@ let unexpected_jkind_any_check prim env cty ty =
       point to the source of the mistake which is, in fact, the external
       declaration.
 
-      For this reason, we have [unexpected_jkind_any_check].  It's here to point
-      out this type of mistake early and suggest the use of [@layout_poly].
+      For this reason, we have [unexpected_layout_any_check].  It's here to
+      point out this type of mistake early and suggest the use of
+      [@layout_poly].
 
       An exception is raised if any of these checks fails. *)
 let error_if_containing_unexpected_jkind prim env cty ty =
   Primitive.prim_has_valid_reprs ~loc:cty.ctyp_loc prim;
-  unexpected_jkind_any_check prim env cty ty
+  unexpected_layout_any_check prim env cty ty
 
 (* Translate a value declaration *)
 let transl_value_decl env loc valdecl =
-  match valdecl.pval_modalities with
-  | x :: _ -> raise (Error(x.loc, Modalities_on_value_description))
-  | _ ->
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
+  begin match valdecl.pval_modalities with
+  | [] -> ()
+  | m :: _ -> raise (Error(m.loc, Modalities_on_value_description))
+  end;
   (* CR layouts v5: relax this to check for representability. *)
   begin match Ctype.constrain_type_jkind env cty.ctyp_type
                 (Jkind.value ~why:Structure_element) with
@@ -2920,7 +2918,7 @@ let transl_value_decl env loc valdecl =
         Builtin_attributes.has_layout_poly valdecl.pval_attributes
       in
       if is_layout_poly &&
-         not (has_ty_var_with_jkind_any env ty) then
+         not (has_ty_var_with_layout_any env ty) then
         raise(Error(valdecl.pval_type.ptyp_loc, Useless_layout_poly));
       let native_repr_args, native_repr_res =
         parse_native_repr_attributes
@@ -2948,7 +2946,7 @@ let transl_value_decl env loc valdecl =
       }
   in
   let (id, newenv) =
-    Env.enter_value valdecl.pval_name.txt v env
+    Env.enter_value ~mode:Mode.Value.legacy valdecl.pval_name.txt v env
       ~check:(fun s -> Warnings.Unused_value_declaration s)
   in
   Ctype.check_and_update_generalized_ty_jkind ~name:id ~loc ty;
@@ -3690,7 +3688,7 @@ let report_error ppf = function
   | Local_not_enabled ->
       fprintf ppf "@[The local extension is disabled@ \
                    To enable it, pass the '-extension local' flag@]"
-  | Unexpected_jkind_any_in_primitive name ->
+  | Unexpected_layout_any_in_primitive name ->
       fprintf ppf
         "@[The primitive [%s] doesn't work well with type variables of@ \
            layout any. Consider using [@@layout_poly].@]" name

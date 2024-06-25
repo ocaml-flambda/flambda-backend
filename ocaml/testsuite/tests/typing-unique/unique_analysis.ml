@@ -555,66 +555,10 @@ let foo () =
 val foo : unit -> unit = <fun>
 |}]
 
-
-(* testing Tpat_lazy *)
-let foo () =
-  match lazy (unique_ "hello") with
-  | (lazy y) as x -> ignore (shared_id x)
-[%%expect{|
-val foo : unit -> unit = <fun>
-|}]
-
-
-let foo () =
-match lazy (unique_ "hello") with
-| (lazy y) as x -> ignore (unique_id x)
-
-[%%expect{|
-Line 3, characters 37-38:
-3 | | (lazy y) as x -> ignore (unique_id x)
-                                         ^
-Error: This value is used here as unique, but it has already been used:
-Line 3, characters 2-10:
-3 | | (lazy y) as x -> ignore (unique_id x)
-      ^^^^^^^^
-
-|}]
-
-type 'a r_lazy = {x_lazy : 'a Lazy.t; y : string}
-
-let foo () =
-  match {x_lazy = lazy (unique_ "hello"); y = "world"} with
-  | {x_lazy = lazy y} as r -> ignore (unique_id r.x_lazy)
-[%%expect{|
-type 'a r_lazy = { x_lazy : 'a Lazy.t; y : string; }
-Line 5, characters 48-56:
-5 |   | {x_lazy = lazy y} as r -> ignore (unique_id r.x_lazy)
-                                                    ^^^^^^^^
-Error: This value is used here as unique, but it has already been used:
-Line 5, characters 14-20:
-5 |   | {x_lazy = lazy y} as r -> ignore (unique_id r.x_lazy)
-                  ^^^^^^
-
-|}]
-
-let foo () =
-  match {x_lazy = lazy (unique_ "hello"); y = "world"} with
-  | {x_lazy = lazy y} as r -> ignore (shared_id r.x_lazy)
-[%%expect{|
-val foo : unit -> unit = <fun>
-|}]
-
-let foo () =
-  match {x_lazy = lazy (unique_ "hello"); y = "world"} with
-  | {x_lazy = lazy y} as r -> ignore (unique_id r.y)
-[%%expect{|
-val foo : unit -> unit = <fun>
-|}]
-
 (* Testing modalities in records *)
-type r_global = {x : string; global_ y : string}
+type r_shared = {x : string; y : string @@ shared many}
 [%%expect{|
-type r_global = { x : string; global_ y : string; }
+type r_shared = { x : string; y : string @@ many shared; }
 |}]
 
 let foo () =
@@ -697,14 +641,14 @@ Line 3, characters 19-20:
 |}]
 
 (* testing modalities in constructors *)
-type r_global = R_global of string * global_ string
+type r_shared = R_shared of string * string @@ shared many
 [%%expect{|
-type r_global = R_global of string * global_ string
+type r_shared = R_shared of string * string @@ many shared
 |}]
 
 let foo () =
-  let r = R_global ("hello", "world") in
-  let R_global (_, y) = r in
+  let r = R_shared ("hello", "world") in
+  let R_shared (_, y) = r in
   ignore (shared_id y);
   (* the following is allowed, because using r uniquely implies using r.x
      shared *)
@@ -715,8 +659,8 @@ val foo : unit -> unit = <fun>
 
  (* Similarly for linearity *)
 let foo () =
-  let r = once_ (R_global ("hello", "world")) in
-  let R_global (_, y) = r in
+  let r = once_ (R_shared ("hello", "world")) in
+  let R_shared (_, y) = r in
   ignore_once y;
   ignore_once r;
 [%%expect{|
@@ -724,8 +668,8 @@ val foo : unit -> unit = <fun>
 |}]
 
 let foo () =
-  let r = once_ (R_global ("hello", "world")) in
-  let R_global (x, _) = r in
+  let r = once_ (R_shared ("hello", "world")) in
+  let R_shared (x, _) = r in
   ignore_once x;
   ignore_once r;
 [%%expect{|
@@ -741,8 +685,8 @@ Line 4, characters 14-15:
 |}]
 
 let foo () =
-  let r = R_global ("hello", "world") in
-  let R_global (x, _) = r in
+  let r = R_shared ("hello", "world") in
+  let R_shared (x, _) = r in
   ignore (shared_id x);
   (* doesn't work for normal fields *)
   ignore (unique_id r)
