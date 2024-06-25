@@ -93,6 +93,7 @@ module Layout : sig
         | Value_or_null
         | Value
         | Void
+        (* CR layouts v3.0: implement [Immediate(64)_or_null]. *)
         | Immediate64
         | Immediate
         | Float64

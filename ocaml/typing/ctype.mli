@@ -551,6 +551,7 @@ val type_jkind : Env.t -> type_expr -> jkind
    expansion. *)
 val type_jkind_purely : Env.t -> type_expr -> jkind
 
+(* CR layouts v3.0: this should allow [or_null]. *)
 (* Find a type's sort (constraining it to be an arbitrary sort variable, if
    needed) *)
 val type_sort :

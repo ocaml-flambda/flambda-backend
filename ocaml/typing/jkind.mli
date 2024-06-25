@@ -301,6 +301,7 @@ val add_mode_crossing : t -> t
 
 (* CR layouts v3.0: split those functions in two versions,
    one [or_null] and one [non_null]. *)
+
 (** Create a fresh sort variable, packed into a jkind, returning both
     the resulting kind and the sort. *)
 val of_new_sort_var : why:History.concrete_non_null_jkind_reason -> t * sort

@@ -148,7 +148,7 @@ module type Sort = sig
 end
 
 module History = struct
-  (* CR layouts v3: make more creation reasons *)
+  (* CR layouts v3: move most [concrete_non_null_jkind_reason]s here. *)
   type concrete_creation_reason = |
 
   type concrete_non_null_jkind_reason =
@@ -181,7 +181,7 @@ module History = struct
     | Type_wildcard of Location.t
     | With_error_message of string * annotation_context
 
-  (* CR layouts v3: make more creation reasons *)
+  (* CR layouts v3: move some [value_creation_reason]s here. *)
   type value_or_null_creation_reason = |
 
   type value_creation_reason =
@@ -249,7 +249,7 @@ module History = struct
     | Unification_var
     | Array_type_argument
 
-  (* CR layouts v3: make more creation reasons *)
+  (* CR layouts v3: move some [any_creation_reason]s here. *)
   type any_non_null_creation_reason = |
 
   type float64_creation_reason = Primitive of Ident.t
