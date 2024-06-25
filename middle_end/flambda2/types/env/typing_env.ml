@@ -1262,7 +1262,6 @@ end = struct
         TG.alias_type_of Flambda_kind.value (Simple.symbol symbol)
       | Block_approximation (tag, shape, fields, alloc_mode) ->
         let fields = List.map type_from_approx (Array.to_list fields) in
-        let shape : Flambda_kind.Block_shape.t = Value_only in
         MTC.immutable_block ~is_unique:false (Tag.Scannable.to_tag tag)
           ~shape:(Scannable shape) ~fields alloc_mode
       | Closure_approximation
