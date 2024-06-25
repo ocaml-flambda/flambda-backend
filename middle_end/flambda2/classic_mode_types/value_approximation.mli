@@ -29,7 +29,7 @@ type 'code t =
         symbol : Symbol.t option
       }
   | Block_approximation of
-      Tag.Scannable.Scannable.t
+      Tag.Scannable.t
       * Flambda_kind.Scannable_block_shape.t
       * 'code t array
       * Alloc_mode.For_types.t

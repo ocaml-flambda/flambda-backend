@@ -182,11 +182,13 @@ let access_kind_and_dummy_const tag shape fields index :
         },
       Const.const_zero )
   | Float_record ->
+    (* CR vlaviron: I suspect that this case is unreachable. At least the
+       previous version of this code didn't handle it, and it seems likely that
+       float records were handled by the unique tag and size case instead. *)
     ( Naked_floats { size },
       Const.naked_float Numeric_types.Float_by_bit_pattern.zero )
   | Scannable (Mixed_record shape) ->
     let field_kind, const =
-      let field_kind = (K.Mixed_block_shape.field_kinds shape).(index) in
       if index < K.Mixed_block_shape.value_prefix_size shape
       then
         (* CR vlaviron: we're not trying to infer if this can only be an
@@ -194,8 +196,15 @@ let access_kind_and_dummy_const tag shape fields index :
            simplified away. *)
         P.Mixed_block_access_field_kind.Value_prefix Any_value, Const.const_zero
       else
+        let field_kind =
+          let flat_suffix_index =
+            index - K.Mixed_block_shape.value_prefix_size shape
+          in
+          assert (flat_suffix_index >= 0);
+          (K.Mixed_block_shape.flat_suffix shape).(flat_suffix_index)
+        in
         ( P.Mixed_block_access_field_kind.Flat_suffix field_kind,
-          Const.of_int_of_kind field_kind 0 )
+          Const.of_int_of_kind (K.Flat_suffix_element.kind field_kind) 0 )
     in
     let tag = Or_unknown.Known (Option.get (Tag.Scannable.of_tag tag)) in
     Mixed { tag; size; shape; field_kind }, const
@@ -268,42 +277,6 @@ and compute_extra_args_for_one_decision_and_use_aux ~(pass : U.pass) rewrite_id
 
 and compute_extra_args_for_block ~pass rewrite_id ~typing_env_at_use
     arg_being_unboxed tag (shape : K.Block_shape.t) fields : U.decision =
-  let size = Or_unknown.Known (Targetint_31_63.of_int (List.length fields)) in
-  let access_kind_and_const index : P.Block_access_kind.t * _ =
-    match shape with
-    | Scannable Value_only ->
-      ( Values
-          { size;
-            tag = Known (Option.get (Tag.Scannable.of_tag tag));
-            field_kind = Any_value
-          },
-        Const.const_zero )
-    | Float_record ->
-      ( Naked_floats { size },
-        Const.naked_float Numeric_types.Float_by_bit_pattern.zero )
-    | Scannable (Mixed_record shape) ->
-      let field_kind, const =
-        if index < K.Mixed_block_shape.value_prefix_size shape
-        then
-          (* CR vlaviron: we're not trying to infer if this can only be an
-             immediate. In most cases it should be fine, as the primitive will
-             get simplified away. *)
-          ( P.Mixed_block_access_field_kind.Value_prefix Any_value,
-            Const.const_zero )
-        else
-          let field_kind =
-            let flat_suffix_index =
-              index - K.Mixed_block_shape.value_prefix_size shape
-            in
-            assert (flat_suffix_index >= 0);
-            (K.Mixed_block_shape.flat_suffix shape).(flat_suffix_index)
-          in
-          ( P.Mixed_block_access_field_kind.Flat_suffix field_kind,
-            Const.of_int_of_kind (K.Flat_suffix_element.kind field_kind) 0 )
-      in
-      let tag = Or_unknown.Known (Option.get (Tag.Scannable.of_tag tag)) in
-      Mixed { tag; size; shape; field_kind }, const
-  in
   let _, fields =
     List.fold_left_map
       (fun field_nth ({ epa; decision; kind } : U.field_decision) :
@@ -404,44 +377,6 @@ and compute_extra_args_for_variant ~pass rewrite_id ~typing_env_at_use
       (fun tag_decision (shape, block_fields) ->
         (* See doc/unboxing.md about invalid constants, poison and aliases. *)
         let poison_const = Const.const_int (Targetint_31_63.of_int 0xbaba) in
-        let bak index : Flambda_primitive.Block_access_kind.t =
-          match (shape : K.Block_shape.t) with
-          | Scannable Value_only ->
-            Values
-              { size = Known (Targetint_31_63.of_int size);
-                tag = Known tag_decision;
-                field_kind = Any_value
-              }
-          | Float_record ->
-            (* CR vlaviron: I suspect that this case is unreachable. At least
-               the previous version of this code didn't handle it, and it seems
-               likely that float records were handled by the unique tag and size
-               case instead. *)
-            Naked_floats { size = Known (Targetint_31_63.of_int size) }
-          | Scannable (Mixed_record shape) ->
-            let field_kind =
-              let field_kind =
-                let flat_suffix_index =
-                  index - K.Mixed_block_shape.value_prefix_size shape
-                in
-                assert (flat_suffix_index >= 0);
-                (K.Mixed_block_shape.flat_suffix shape).(flat_suffix_index)
-              in
-              if index < K.Mixed_block_shape.value_prefix_size shape
-              then
-                (* CR vlaviron: we're not trying to infer if this can only be an
-                   immediate. In most cases it should be fine, as the primitive
-                   will get simplified away. *)
-                P.Mixed_block_access_field_kind.Value_prefix Any_value
-              else P.Mixed_block_access_field_kind.Flat_suffix field_kind
-            in
-            Mixed
-              { tag = Known tag_decision;
-                size = Known (Targetint_31_63.of_int size);
-                shape;
-                field_kind
-              }
-        in
         let new_fields_decisions, _ =
           List.fold_left
             (fun (new_decisions, field_nth)
