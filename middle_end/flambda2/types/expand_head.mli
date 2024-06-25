@@ -102,6 +102,8 @@ val is_bottom : Typing_env.t -> Type_grammar.t -> bool
 
 val is_unknown : Typing_env.t -> Type_grammar.t -> bool
 
+val is_alias_to_a_symbol : Type_grammar.t -> bool
+
 type to_erase =
   | Everything_not_in of Typing_env.t
   | All_variables_except of Variable.Set.t
