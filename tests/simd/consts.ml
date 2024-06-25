@@ -17,6 +17,12 @@ let eqi lv hv l h =
     if h <> hv then Printf.printf "%016x <> %016x\n" hv h
 ;;
 
+let eqf32 lv hv l h =
+    let f32 = Stdlib_stable.Float32.to_float in
+    if l <> lv then Printf.printf "%f <> %f\n" (f32 l) (f32 lv);
+    if h <> hv then Printf.printf "%f <> %f\n" (f32 h) (f32 hv);
+;;
+
 let eqf lv hv l h =
     if l <> lv then Printf.printf "%f <> %f\n" l lv;
     if h <> hv then Printf.printf "%f <> %f\n" h hv
@@ -39,17 +45,17 @@ module Float32x4 = struct
 
     type t = float32x4
 
-    external low_to : t -> float = "" "caml_float32x4_low_to_float"
+    external low_to : t -> float32 = "" "caml_float32x4_low_to_float32"
         [@@noalloc] [@@unboxed] [@@builtin]
 
-    external const1 : float -> t = "" "caml_float32x4_const1"
+    external const1 : float32 -> t = "" "caml_float32x4_const1"
         [@@noalloc] [@@unboxed] [@@builtin]
-    external const4 : float -> float -> float -> float -> t = "" "caml_float32x4_const4"
+    external const4 : float32 -> float32 -> float32 -> float32 -> t = "" "caml_float32x4_const4"
         [@@noalloc] [@@unboxed] [@@builtin]
 
     let () =
-        let v1 = const1 1. in
-        let v2 = const1 2. in
+        let v1 = const1 1.s in
+        let v2 = const1 2.s in
         let l1 = float32x4_low_int64 v1 in
         let h1 = float32x4_high_int64 v1 in
         let l2 = float32x4_low_int64 v2 in
@@ -58,12 +64,12 @@ module Float32x4 = struct
         eq l2 h2 0x4000000040000000L 0x4000000040000000L;
         let f0 = low_to v1 in
         let f1 = low_to v2 in
-        eqf f0 f1 1. 2.
+        eqf32 f0 f1 1.s 2.s
     ;;
 
     let () =
-        let v1 = const4 1. 2. 3. 4. in
-        let v2 = const4 5. 6. 7. 8. in
+        let v1 = const4 1.s 2.s 3.s 4.s in
+        let v2 = const4 5.s 6.s 7.s 8.s in
         let l1 = float32x4_low_int64 v1 in
         let h1 = float32x4_high_int64 v1 in
         let l2 = float32x4_low_int64 v2 in
@@ -72,7 +78,7 @@ module Float32x4 = struct
         eq l2 h2 0x40c0000040a00000L 0x4100000040e00000L;
         let f0 = low_to v1 in
         let f1 = low_to v2 in
-        eqf f0 f1 1. 5.
+        eqf32 f0 f1 1.s 5.s
     ;;
 end
 

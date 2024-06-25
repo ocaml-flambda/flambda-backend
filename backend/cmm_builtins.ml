@@ -195,30 +195,45 @@ let bigstring_atomic_add size (arg1, arg2, arg3) dbg =
 let bigstring_atomic_sub size (arg1, arg2, arg3) dbg =
   bigstring_atomic_add size (arg1, arg2, neg_int arg3 dbg) dbg
 
-(* Assumes unboxed float64 *)
-let rec const_float_args n args name =
+let rec const_args_gen ~extract ~type_name n args name =
   match n, args with
   | 0, [] -> []
-  | n, Cconst_float (f, _) :: args -> f :: const_float_args (n - 1) args name
-  | _ -> bad_immediate "Did not find constant float arguments for %s" name
+  | _, [] ->
+    bad_immediate "Missing %d constant %s argument(s) for %s" n type_name name
+  | n, arg :: args -> (
+    match extract arg with
+    | Some value ->
+      value :: const_args_gen ~extract ~type_name (n - 1) args name
+    | None ->
+      bad_immediate "Did not find constant %s arguments for %s" type_name name)
+
+(* Assumes unboxed float32 *)
+let const_float32_args =
+  const_args_gen
+    ~extract:(function Cconst_float32 (f, _) -> Some f | _ -> None)
+    ~type_name:"float32"
+
+(* Assumes unboxed float64 *)
+let const_float_args =
+  const_args_gen
+    ~extract:(function Cconst_float (f, _) -> Some f | _ -> None)
+    ~type_name:"float"
 
 (* Assumes untagged int or unboxed int32, always representable by int63 *)
-let rec const_int_args n args name =
-  match n, args with
-  | 0, [] -> []
-  | n, Cconst_int (i, _) :: args -> i :: const_int_args (n - 1) args name
-  | _ -> bad_immediate "Did not find constant int arguments for %s" name
+let const_int_args =
+  const_args_gen
+    ~extract:(function Cconst_int (i, _) -> Some i | _ -> None)
+    ~type_name:"int"
 
 (* Assumes unboxed int64: no tag, comes as Cconst_int when representable by
    int63, otherwise we get Cconst_natint *)
-let rec const_int64_args n args name =
-  match n, args with
-  | 0, [] -> []
-  | n, Cconst_int (i, _) :: args ->
-    Int64.of_int i :: const_int64_args (n - 1) args name
-  | n, Cconst_natint (i, _) :: args ->
-    Int64.of_nativeint i :: const_int64_args (n - 1) args name
-  | _ -> bad_immediate "Did not find constant int64 arguments for %s" name
+let const_int64_args =
+  const_args_gen
+    ~extract:(function
+      | Cconst_int (i, _) -> Some (Int64.of_int i)
+      | Cconst_natint (i, _) -> Some (Int64.of_nativeint i)
+      | _ -> None)
+    ~type_name:"int64"
 
 let int64_of_int8 i =
   (* CR mslater: (SIMD) replace once we have unboxed int8 *)
@@ -238,7 +253,6 @@ let int64_of_int32 i =
   Int64.of_int i |> Int64.logand 0xffffffffL
 
 let int64_of_float32 f =
-  (* CR mslater: (SIMD) replace once we have unboxed float32 *)
   Int32.bits_of_float f |> Int64.of_int32 |> Int64.logand 0xffffffffL
 
 let pack_int32s i0 i1 = Int64.(logor (shift_left i1 32) i0)
@@ -272,12 +286,10 @@ let transl_vec128_builtin name args dbg _typ_res =
   | "caml_float64x2_low_to_float" ->
     let op = Cstatic_cast (Scalar_of_v128 Float64x2) in
     if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
-  | "caml_float32x4_low_of_float" ->
-    (* CR mslater: (SIMD) replace once we have unboxed float32 *)
+  | "caml_float32x4_low_of_float32" ->
     let op = Cstatic_cast (V128_of_scalar Float32x4) in
     if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
-  | "caml_float32x4_low_to_float" ->
-    (* CR mslater: (SIMD) replace once we have unboxed float32 *)
+  | "caml_float32x4_low_to_float32" ->
     let op = Cstatic_cast (Scalar_of_v128 Float32x4) in
     if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
   | "caml_int64x2_low_of_int64" ->
@@ -310,15 +322,13 @@ let transl_vec128_builtin name args dbg _typ_res =
     if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
   (* Constants *)
   | "caml_float32x4_const1" ->
-    (* CR mslater: (SIMD) replace once we have unboxed float32 *)
-    let f = const_float_args 1 args name |> List.hd in
+    let f = const_float32_args 1 args name |> List.hd in
     let i = int64_of_float32 f in
     let i = pack_int32s i i in
     Some (Cconst_vec128 ({ low = i; high = i }, dbg))
   | "caml_float32x4_const4" ->
-    (* CR mslater: (SIMD) replace once we have unboxed float32 *)
     let i0, i1, i2, i3 =
-      match const_float_args 4 args name |> List.map int64_of_float32 with
+      match const_float32_args 4 args name |> List.map int64_of_float32 with
       | [i0; i1; i2; i3] -> i0, i1, i2, i3
       | _ -> assert false
     in

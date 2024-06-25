@@ -186,9 +186,8 @@ let oper_result_type = function
   | Cstatic_cast (Float32_of_float | Float_of_int Float32) -> typ_float32
   | Cstatic_cast (Int_of_float (Float64 | Float32)) -> typ_int
   | Cstatic_cast (V128_of_scalar _) -> typ_vec128
-  | Cstatic_cast (Scalar_of_v128 (Float64x2 | Float32x4)) ->
-    (* CR mslater: (SIMD) replace once we have unboxed float32 *)
-    typ_float
+  | Cstatic_cast (Scalar_of_v128 Float64x2) -> typ_float
+  | Cstatic_cast (Scalar_of_v128 Float32x4) -> typ_float32
   | Cstatic_cast (Scalar_of_v128 (Int8x16 | Int16x8 | Int32x4 | Int64x2)) -> typ_int
   | Craise _ -> typ_void
   | Cprobe _ -> typ_void

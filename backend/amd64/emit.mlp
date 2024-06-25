@@ -1016,12 +1016,8 @@ let emit_static_cast (cast : Cmm.static_cast) i =
     I.movq (arg i 0) (res i 0)
   | Scalar_of_v128 Int32x4 -> I.movd (arg i 0) (res32 i 0)
   | V128_of_scalar Int32x4 -> I.movd (arg32 i 0) (res i 0)
-  | V128_of_scalar Float32x4 ->
-    (* CR mslater: (SIMD) remove cvt once we have unboxed float32 *)
-    I.cvtsd2ss (arg i 0) (res i 0)
-  | Scalar_of_v128 Float32x4 ->
-    (* CR mslater: (SIMD) remove cvt once we have unboxed float32 *)
-    I.cvtss2sd (arg i 0) (res i 0)
+  | V128_of_scalar Float32x4 | Scalar_of_v128 Float32x4 ->
+    if distinct then I.movss (arg i 0) (res i 0)
   | Scalar_of_v128 Int16x8 ->
     (* [movw] and [movzx] cannot operate on vector registers.
        We must zero extend as the result is an untagged positive int.

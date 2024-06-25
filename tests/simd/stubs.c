@@ -113,8 +113,8 @@ BUILTIN(caml_sse41_float64_round);
 
 BUILTIN(caml_vec128_cast);
 
-BUILTIN(caml_float32x4_low_of_float);
-BUILTIN(caml_float32x4_low_to_float);
+BUILTIN(caml_float32x4_low_of_float32);
+BUILTIN(caml_float32x4_low_to_float32);
 BUILTIN(caml_float32x4_const1);
 BUILTIN(caml_float32x4_const4);
 

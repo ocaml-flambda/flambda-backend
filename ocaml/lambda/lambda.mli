@@ -147,7 +147,6 @@ type primitive =
   | Poffsetint of int
   | Poffsetref of int
   (* Float operations *)
-  (* CR mslater: (float32) use a single cast primitive *)
   | Pfloatoffloat32 of alloc_mode
   | Pfloat32offloat of alloc_mode
   | Pintoffloat of boxed_float
