@@ -1632,12 +1632,12 @@ let addr_array_init arr ofs newval dbg =
       [array_indexing log2_size_addr arr ofs dbg; newval],
       dbg )
 
-let make_alloc ~mode dbg tag args =
+let make_alloc ~mode dbg ~tag args =
   make_alloc_generic ~mode
     (fun _ arr ofs newval dbg -> addr_array_init arr ofs newval dbg)
     dbg tag (List.length args) args
 
-let make_float_alloc ~mode dbg tag args =
+let make_float_alloc ~mode dbg ~tag args =
   make_alloc_generic ~mode
     (fun _ -> float_array_set)
     dbg tag

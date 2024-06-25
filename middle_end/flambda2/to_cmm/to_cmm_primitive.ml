@@ -88,25 +88,27 @@ let check_alloc_fields = function
 let make_block ~dbg kind alloc_mode args =
   check_alloc_fields args;
   let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
-  match (kind : P.Block_kind.t) with
-  | Values (tag, _) -> C.make_alloc ~mode dbg (Tag.Scannable.to_int tag) args
-  | Naked_floats ->
-    C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
-  | Mixed (tag, shape) ->
-    let value_prefix_size = K.Mixed_block_shape.value_prefix_size shape in
-    let flat_suffix =
-      Array.map
-        (fun (flat_elt : K.Flat_suffix_element.t) : C.Flat_suffix_element.t ->
-          match flat_elt with
-          | Tagged_immediate -> Tagged_immediate
-          | Naked_float -> Naked_float
-          | Naked_float32 -> Naked_float32
-          | Naked_int32 -> Naked_int32
-          | Naked_int64 | Naked_nativeint -> Naked_int64_or_nativeint)
-        (K.Mixed_block_shape.flat_suffix shape)
-    in
-    C.make_mixed_alloc ~mode dbg ~tag:(Tag.Scannable.to_int tag)
-      ~value_prefix_size ~flat_suffix args
+  let allocator, tag =
+    match (kind : P.Block_kind.t) with
+    | Values (tag, _) -> C.make_alloc, Tag.Scannable.to_tag tag
+    | Naked_floats -> C.make_float_alloc, Tag.double_array_tag
+    | Mixed (tag, shape) ->
+      let value_prefix_size = K.Mixed_block_shape.value_prefix_size shape in
+      let flat_suffix =
+        Array.map
+          (fun (flat_elt : K.Flat_suffix_element.t) : C.Flat_suffix_element.t ->
+            match flat_elt with
+            | Tagged_immediate -> Tagged_immediate
+            | Naked_float -> Naked_float
+            | Naked_float32 -> Naked_float32
+            | Naked_int32 -> Naked_int32
+            | Naked_int64 | Naked_nativeint -> Naked_int64_or_nativeint)
+          (K.Mixed_block_shape.flat_suffix shape)
+      in
+      ( C.make_mixed_alloc ~value_prefix_size ~flat_suffix,
+        Tag.Scannable.to_tag tag )
+  in
+  allocator ~mode dbg ~tag:(Tag.to_int tag) args
 
 let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     ~block ~index =
@@ -159,9 +161,9 @@ let make_array ~dbg kind alloc_mode args =
   check_alloc_fields args;
   let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
   match (kind : P.Array_kind.t) with
-  | Immediates | Values -> C.make_alloc ~mode dbg 0 args
+  | Immediates | Values -> C.make_alloc ~mode dbg ~tag:0 args
   | Naked_floats ->
-    C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
+    C.make_float_alloc ~mode dbg ~tag:(Tag.to_int Tag.double_array_tag) args
   | Naked_float32s -> C.allocate_unboxed_float32_array ~elements:args mode dbg
   | Naked_int32s -> C.allocate_unboxed_int32_array ~elements:args mode dbg
   | Naked_int64s -> C.allocate_unboxed_int64_array ~elements:args mode dbg
