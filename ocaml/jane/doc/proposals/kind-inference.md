@@ -289,6 +289,22 @@ TODO
 Γ ⊢ class_type : value; ⟪⊤_Ξ⟫
 
 
+Γ ⊢ σ is fully concrete
+=======================
+
+(* This is meant to signify that we'll never learn something more
+   about σ in reachable code. It holds of primitive types like string
+   or int, as well as types in the type algebra whose kind doesn't
+   depend on any non-concrete type. If we remove the ability to give a
+   new (higher in the lattice) kind to types with definitions
+   (e.g. [type t : data = { x : int }], where we could have said
+   [immutable_data] but chose not to), then those types could be
+   fully concrete, too. Or, conservatively, we could say that no type
+   is fully concrete. *)
+
+(* Richard basically hates this. *)
+
+
 Γ ⊢ground layout ↠ const_layout   (* ground out the layout, resolving [layout_of] *)
 ================================
 
@@ -303,12 +319,24 @@ TODO
 Γ ⊢ layout₁ ≤ layout₂
 =============================
 
-Γ ⊢ground layout₁ ↠ const_layout₁
-Γ ⊢ground layout₂ ↠ const_layout₂
 const_layout₁ ≤ const_layout₂
-------------------------------- L_SUB
-Γ ⊢ layout₁ ≤ layout₂
+------------------------------- L_CONST_CONST
+Γ ⊢ const_layout₁ ≤ const_layout₂
 
+Γ ⊢ σ₁ : κ₁
+lay(κ₁) ≤ const_layout₂      (* this is a conservative check *)
+-------------------------------- L_SIGMA_CONST
+Γ ⊢ layout_of σ₁ ≤ const_layout₂
+
+Γ ⊢ σ₂ : κ₂
+σ₂ is fully concrete
+const_layout₁ ≤ lay(κ₂)
+-------------------------------- L_CONST_SIGMA
+Γ ⊢ const_layout₁ ≤ layout_of σ₂
+
+Γ ⊢ σ₁ = σ₂
+------------------------------- L_SIGMA_SIGMA
+Γ ⊢ layout_of σ₁ ≤ layout_of σ₂
 
 Γ ⊢ground modal_bound_Ξ ↠ m_Ξ   (* ground out the bound, resolving [with] *)
 =============================
@@ -499,7 +527,7 @@ to accept
       type b = c
     end
   ]}
-  
+
 The struct is acceptable only with the last equation, which occurs *after* the definition
 of [c]. *)
 
@@ -539,7 +567,7 @@ tconstr_jkind₁ = π [[ 'aᵢ : κ₁ᵢ ]]ₙ. κ₁₀
 Γ ⊢find t ∈ Γ₂ ↠ (Γ₂' ⊢ π [[ 'bᵢ : κ₂ᵢ ]]ₙ. κ₂₀)
 ∀ 1 ≤ j ≤ n:
   Γ, Γ₀, [[ 'aᵢ : κ₁ᵢ ]]ⱼ₋₁ ⊢ground κ₁ᵢ ↠ κ₁ᵢ'
-  Γ, Γ₂', [[ 'bᵢ : κ₁ᵢ' ]]ⱼ₋₁ ⊢ κ₁ᵢ' ≤ κ₂ᵢ 
+  Γ, Γ₂', [[ 'bᵢ : κ₁ᵢ' ]]ⱼ₋₁ ⊢ κ₁ᵢ' ≤ κ₂ᵢ
     (* check with more restrictive κ₁, not κ₂; this is also contravariant *)
 Γ, Γ₀, [[ 'aᵢ : κ₁ᵢ ]]ₙ ⊢ground κ₁₀ ↠ κ₁₀'
 Γ, Γ₂', [[ 'bᵢ : κ₁ᵢ' ]]ₙ ⊢ κ₂₀ ≤ κ₁₀'
