@@ -79,7 +79,14 @@ type additional_action_config =
   | Duplicate_variables
   | Prepare_for_saving
 
-let with_additional_action (config : additional_action_config) s =
+let with_additional_action =
+  (* Memoize the built-in jkinds *)
+  let builtins =
+    Jkind.Const.Primitive.all
+    |> List.map (fun (builtin : Jkind.Const.Primitive.t) ->
+          builtin.jkind, Jkind.of_const builtin.jkind ~why:Jkind.History.Imported)
+  in
+  fun (config : additional_action_config) s ->
   (* CR layouts: it would be better to put all this stuff outside this
      function, but it's in here because we really want to tailor the reason
      to describe the module a symbol is imported from. But RAE's initial
@@ -94,12 +101,6 @@ let with_additional_action (config : additional_action_config) s =
     match config with
     | Duplicate_variables -> Duplicate_variables
     | Prepare_for_saving ->
-        (* Memoize the built-in jkinds *)
-        let builtins =
-          Jkind.Const.Primitive.all
-          |> List.map (fun (builtin : Jkind.Const.Primitive.t) ->
-                builtin.jkind, Jkind.of_const builtin.jkind ~why:Jkind.History.Imported)
-        in
         let prepare_jkind loc jkind =
           match Jkind.get jkind with
           | Const const ->
