@@ -277,43 +277,43 @@ module Sort = struct
     and var ppf v = fprintf ppf "{ contents = %a }" opt_t !v
   end
 
-  let for_function = Const Value
+  let for_function = value
 
-  let for_predef_value = Const Value
+  let for_predef_value = value
 
-  let for_block_element = Const Value
+  let for_block_element = value
 
-  let for_probe_body = Const Value
+  let for_probe_body = value
 
-  let for_poly_variant = Const Value
+  let for_poly_variant = value
 
-  let for_record = Const Value
+  let for_record = value
 
-  let for_object = Const Value
+  let for_object = value
 
-  let for_lazy_body = Const Value
+  let for_lazy_body = value
 
-  let for_tuple_element = Const Value
+  let for_tuple_element = value
 
-  let for_variant_arg = Const Value
+  let for_variant_arg = value
 
-  let for_instance_var = Const Value
+  let for_instance_var = value
 
-  let for_class_arg = Const Value
+  let for_class_arg = value
 
-  let for_method = Const Value
+  let for_method = value
 
-  let for_initializer = Const Value
+  let for_initializer = value
 
-  let for_module = Const Value
+  let for_module = value
 
-  let for_tuple = Const Value
+  let for_tuple = value
 
-  let for_array_get_result = Const Value
+  let for_array_get_result = value
 
-  let for_array_comprehension_element = Const Value
+  let for_array_comprehension_element = value
 
-  let for_list_element = Const Value
+  let for_list_element = value
 end
 
 module Layout = struct
