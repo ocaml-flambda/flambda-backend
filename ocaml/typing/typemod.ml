@@ -87,6 +87,7 @@ type error =
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
   | Toplevel_nonvalue of string * Jkind.sort
+  | Str_eval_nonvalue of Jkind.sort
   | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
   | Cannot_compile_implementation_as_parameter
@@ -2782,6 +2783,18 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         Misc.fatal_error "kind_abbrev not supported!"
   in
 
+  let force_toplevel =
+    (* A couple special cases are needed for the toplevel:
+
+       - Expressions bound by '_' still escape in the toplevel, because they may
+         be printed even though they are not named, and therefore can't be local
+       - Those expressions and also all [Pstr_eval]s must have types of layout
+         value for the same reason (see the special case in
+         [Opttoploop.execute_phrase]).
+    *)
+    Option.is_some toplevel
+  in
+
   let type_str_item
         env shape_map ({pstr_loc = loc; pstr_desc = desc} as item) sig_acc =
     match Jane_syntax.Structure_item.of_ast item with
@@ -2789,21 +2802,21 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
     | None ->
     match desc with
     | Pstr_eval (sexpr, attrs) ->
-        (* We restrict [Tstr_eval] expressions to representable jkinds to
-           support the native toplevel.  See the special handling of [Tstr_eval]
-           near the top of [execute_phrase] in [opttoploop.ml]. *)
         let expr, sort =
+          (* We could consider allowing [any] here when not in the toplevel,
+             though for now the sort is used in the void safety check. *)
           Builtin_attributes.warning_scope attrs
             (fun () -> Typecore.type_representable_expression
                          ~why:Structure_item_expression env sexpr)
         in
+        if force_toplevel then
+          begin match Jkind.Sort.get_default_value sort with
+          | Value -> ()
+          | Void | Float64 | Float32 | Word | Bits32 | Bits64 ->
+            raise (Error (sexpr.pexp_loc, env, Str_eval_nonvalue sort))
+          end;
         Tstr_eval (expr, sort, attrs), [], shape_map, env
-    | Pstr_value(rec_flag, sdefs) ->
-        let force_toplevel =
-          (* Values bound by '_' still escape in the toplevel, because
-             they may be printed even though they are not named *)
-          Option.is_some toplevel
-        in
+    | Pstr_value (rec_flag, sdefs) ->
         let (defs, newenv) =
           Typecore.type_binding env rec_flag ~force_toplevel sdefs in
         let defs = match rec_flag with
@@ -3951,6 +3964,11 @@ let report_error ~loc _env = function
       Location.errorf ~loc
         "@[Types of top-level module bindings must have layout value, but@ \
          the type of %s has layout@ %a.@]" id Jkind.Sort.format sort
+  | Str_eval_nonvalue sort ->
+      Location.errorf ~loc
+        "@[Types of unnamed expressions must have layout value when using@ \
+           the toplevel, but this expression has layout@ %a.@]"
+        Jkind.Sort.format sort
  | Strengthening_mismatch(lid, explanation) ->
       let main = Includemod_errorprinter.err_msgs explanation in
       Location.errorf ~loc

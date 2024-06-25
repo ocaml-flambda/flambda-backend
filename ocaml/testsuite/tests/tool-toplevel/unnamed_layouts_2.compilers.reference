@@ -1,0 +1,10 @@
+Line 14, characters 8-13:
+14 | let _ = #3.14;;
+             ^^^^^
+Error: This expression has type float# but an expression was expected of type
+         ('a : value)
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         it's the type of an unnamed expression in the toplevel.
+
