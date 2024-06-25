@@ -99,6 +99,8 @@ module Layout = struct
 
       let to_string = function
         | Any -> "any"
+        (* CR layouts v3.0: drop [or_null]/[non_null] suffixes
+           if the layout extension level is less than alpha. *)
         | Any_non_null -> "any_non_null"
         | Value_or_null -> "value_or_null"
         | Value -> "value"
