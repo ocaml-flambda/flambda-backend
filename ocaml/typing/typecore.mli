@@ -186,6 +186,13 @@ type contention_context =
   | Read_mutable
   | Write_mutable
 
+type unsupported_stack_allocation =
+  | Lazy
+  | Module
+  | Object
+  | List_comprehension
+  | Array_comprehension
+
 type error =
   | Constructor_arity_mismatch of Longident.t * int * int
   | Constructor_labeled_arg
@@ -304,6 +311,7 @@ type error =
   | Invalid_label_for_src_pos of arg_label
   | Nonoptional_call_pos_label of string
   | Cannot_stack_allocate of Env.closure_context option
+  | Unsupported_stack_allocation of unsupported_stack_allocation
   | Not_allocation
 
 exception Error of Location.t * Env.t * error

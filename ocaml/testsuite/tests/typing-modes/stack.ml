@@ -1,4 +1,5 @@
 (* TEST
+flags += "-extension comprehensions";
 expect;
 *)
 
@@ -26,7 +27,7 @@ type t = Foo | Bar of int
 Line 3, characters 20-23:
 3 | let f = ref (stack_ Foo)
                         ^^^
-Error: This expression is not an allocation.
+Error: This expression is not an allocation site.
 |}]
 
 let f = ref (stack_ (Bar 42))
@@ -42,7 +43,7 @@ let f = ref (stack_ `Foo)
 Line 1, characters 20-24:
 1 | let f = ref (stack_ `Foo)
                         ^^^^
-Error: This expression is not an allocation.
+Error: This expression is not an allocation site.
 |}]
 
 let f = ref (stack_ (`Bar 42))
@@ -61,7 +62,7 @@ type r = { x : string; } [@@unboxed]
 Line 3, characters 20-33:
 3 | let f = ref (stack_ {x = "hello"})
                         ^^^^^^^^^^^^^
-Error: This expression is not an allocation.
+Error: This expression is not an allocation site.
 |}]
 
 type r = {x : string}
@@ -83,7 +84,7 @@ type r = { x : float; y : string; }
 Line 3, characters 28-31:
 3 | let f (r : r) = ref (stack_ r.x)
                                 ^^^
-Error: This expression is not an allocation.
+Error: This expression is not an allocation site.
 |}]
 
 type r = {x : float; y : float}
@@ -150,4 +151,69 @@ Line 2, characters 24-33:
 Error: This allocation cannot be on the stack.
   Hint: This argument cannot be stack-allocated,
   because it is an argument in a tail call.
+|}]
+
+(* Allocations that are not supported for stack *)
+let f () = stack_ [i for i = 0 to 9]
+[%%expect{|
+Line 1, characters 18-36:
+1 | let f () = stack_ [i for i = 0 to 9]
+                      ^^^^^^^^^^^^^^^^^^
+Error: Stack allocating list comprehensions is unsupported yet.
+|}]
+
+let f () = stack_ [|i for i = 0 to 9|]
+[%%expect{|
+Line 1, characters 18-38:
+1 | let f () = stack_ [|i for i = 0 to 9|]
+                      ^^^^^^^^^^^^^^^^^^^^
+Error: Stack allocating array comprehensions is unsupported yet.
+|}]
+
+class foo cla = object end
+
+let f () = stack_ (new cla)
+[%%expect{|
+class foo : 'a -> object  end
+Line 3, characters 23-26:
+3 | let f () = stack_ (new cla)
+                           ^^^
+Error: Unbound class cla
+|}]
+
+class foo cla = object method bar = stack_ {< >} end
+[%%expect{|
+Line 1, characters 43-48:
+1 | class foo cla = object method bar = stack_ {< >} end
+                                               ^^^^^
+Error: Stack allocating objects is unsupported yet.
+|}]
+
+let f() = stack_ (object end)
+[%%expect{|
+Line 1, characters 17-29:
+1 | let f() = stack_ (object end)
+                     ^^^^^^^^^^^^
+Error: Stack allocating objects is unsupported yet.
+|}]
+
+let f() = stack_ (lazy "hello")
+[%%expect{|
+Line 1, characters 17-31:
+1 | let f() = stack_ (lazy "hello")
+                     ^^^^^^^^^^^^^^
+Error: Stack allocating lazy expressions is unsupported yet.
+|}]
+
+module M = struct end
+module type S = sig end
+
+let f() = stack_ (module M : S)
+[%%expect{|
+module M : sig end
+module type S = sig end
+Line 4, characters 17-31:
+4 | let f() = stack_ (module M : S)
+                     ^^^^^^^^^^^^^^
+Error: Stack allocating modules is unsupported yet.
 |}]

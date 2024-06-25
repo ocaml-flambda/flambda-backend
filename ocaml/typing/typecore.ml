@@ -110,6 +110,20 @@ type contention_context =
   | Read_mutable
   | Write_mutable
 
+type unsupported_stack_allocation =
+  | Lazy
+  | Module
+  | Object
+  | List_comprehension
+  | Array_comprehension
+
+let print_unsupported_stack_allocation ppf = function
+  | Lazy -> Format.fprintf ppf "lazy expressions"
+  | Module -> Format.fprintf ppf "modules"
+  | Object -> Format.fprintf ppf "objects"
+  | List_comprehension -> Format.fprintf ppf "list comprehensions"
+  | Array_comprehension -> Format.fprintf ppf "array comprehensions"
+
 type error =
   | Constructor_arity_mismatch of Longident.t * int * int
   | Constructor_labeled_arg
@@ -238,6 +252,7 @@ type error =
   | Invalid_label_for_src_pos of arg_label
   | Nonoptional_call_pos_label of string
   | Cannot_stack_allocate of Env.closure_context option
+  | Unsupported_stack_allocation of unsupported_stack_allocation
   | Not_allocation
 
 exception Error of Location.t * Env.t * error
@@ -6461,6 +6476,9 @@ and type_expect_
            exp_env = env }
   | Pexp_stack e ->
       let exp = type_expect env expected_mode e ty_expected_explained in
+      let unsupported category =
+        raise (Error (exp.exp_loc, env, Unsupported_stack_allocation category))
+      in
       begin match exp.exp_desc with
       | Texp_function { alloc_mode; _} | Texp_tuple (_, alloc_mode)
       | Texp_construct (_, _, _, Some alloc_mode)
@@ -6474,6 +6492,13 @@ and type_expect_
         | Error _ -> raise (Error (exp.exp_loc, env,
             Cannot_stack_allocate alloc_mode.closure_context))
         end
+      | Texp_list_comprehension _ -> unsupported List_comprehension
+      | Texp_array_comprehension _ -> unsupported Array_comprehension
+      | Texp_new _ -> unsupported Object
+      | Texp_override _ -> unsupported Object
+      | Texp_lazy _ -> unsupported Lazy
+      | Texp_object _ -> unsupported Object
+      | Texp_pack _ -> unsupported Module
       | _ ->
         raise (Error (exp.exp_loc, env, Not_allocation))
       end;
@@ -9070,7 +9095,7 @@ and type_comprehension_expr
       {body = sbody; clauses}, jkind =
     match cexpr with
     | Cexp_list_comprehension comp ->
-        List_comprehension,
+        (List_comprehension : comprehension_type),
         Predef.type_list,
         (fun tcomp -> Texp_list_comprehension tcomp),
         comp,
@@ -9080,7 +9105,7 @@ and type_comprehension_expr
           | Mutable   -> Predef.type_array, Mutable Alloc.Comonadic.Const.legacy
           | Immutable -> Predef.type_iarray, Immutable
         in
-        Array_comprehension mut,
+        (Array_comprehension mut : comprehension_type),
         container_type,
         (fun tcomp ->
           Texp_array_comprehension
@@ -10307,11 +10332,12 @@ let report_error ~loc env = function
          automatically if ommitted. It cannot be passed with '?'.@]" label
   | Cannot_stack_allocate closure_context ->
       let sub = stack_hint closure_context in
-      Location.errorf ~loc ~sub
-        "@[This allocation cannot be on the stack.@]"
+      Location.errorf ~loc ~sub "@[This allocation cannot be on the stack.@]"
+  | Unsupported_stack_allocation category ->
+    Location.errorf ~loc "@[Stack allocating %a is unsupported yet.@]"
+      print_unsupported_stack_allocation category
   | Not_allocation ->
-      Location.errorf ~loc
-        "This expression is not an allocation."
+      Location.errorf ~loc "This expression is not an allocation site."
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env_error env
