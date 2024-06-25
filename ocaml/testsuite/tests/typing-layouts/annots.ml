@@ -1036,8 +1036,8 @@ Error: The layout of type t is value, because
        But the layout of type t must be a sublayout of value, because
          of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
+(* CR layouts v2.8: This should be accepted, because t should be inferred to be
+   immediate *)
 
 type t : any mod portable = { x : float }
 [%%expect {|
@@ -1049,8 +1049,8 @@ Error: The layout of type t is value, because
        But the layout of type t must be a sublayout of any, because
          of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
+(* CR layouts v2.8: This should be accepted, because t should be inferred to be
+   immediate *)
 
 type t = { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : immediate) = x
