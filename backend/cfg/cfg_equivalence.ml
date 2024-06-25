@@ -204,6 +204,9 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
     ()
   | Const_float expected, Const_float result when Int64.equal expected result ->
     ()
+  | Const_float32 expected, Const_float32 result
+    when Int32.equal expected result ->
+    ()
   | Const_symbol expected, Const_symbol result
     when String.equal expected.sym_name result.sym_name ->
     ()
