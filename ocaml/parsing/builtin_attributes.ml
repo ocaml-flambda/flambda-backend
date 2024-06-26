@@ -641,7 +641,8 @@ let has_layout_poly attrs =
   has_attribute ["ocaml.layout_poly"; "layout_poly"] attrs
 
 let has_curry attrs =
-  has_attribute ["extension.curry"; "ocaml.curry"; "curry"] attrs
+  has_attribute
+    [Jane_syntax.Arrow_curry.curry_attr_name; "ocaml.curry"; "curry"] attrs
 
 let tailcall attr =
   let has_nontail = has_attribute ["ocaml.nontail"; "nontail"] attr in

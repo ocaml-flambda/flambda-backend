@@ -338,6 +338,15 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
   Make_payload_protocol_of_structure_item_encodable
     (Make_structure_item_encodable_of_stringable (Stringable))
 
+module Arrow_curry = struct
+  let curry_attr_name = "extension.curry"
+
+  let curry_attr loc =
+    Ast_helper.Attr.mk ~loc:Location.none
+      (Location.mkloc curry_attr_name loc)
+      (PStr [])
+end
+
 module Mode_expr = struct
   module Const : sig
     type raw = string
