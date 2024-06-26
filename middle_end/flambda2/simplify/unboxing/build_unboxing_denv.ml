@@ -155,7 +155,9 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
           ( shape,
             List.mapi
               (fun i (field : U.field_decision) ->
-                T.alias_type_of (K.Block_shape.element_kind shape i) (Simple.var field.epa.param))
+                T.alias_type_of
+                  (K.Block_shape.element_kind shape i)
+                  (Simple.var field.epa.param))
               block_fields ))
         fields_by_tag
     in
