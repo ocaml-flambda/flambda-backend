@@ -69,7 +69,7 @@ type import = {
   imp_is_param : bool;
   imp_params : Compilation_unit.Name.t list;
   imp_arg_for : Compilation_unit.Name.t option;
-  imp_impl : CU.t option;
+  imp_impl : CU.t option; (* None iff import is a parameter *)
   imp_sign : Subst.Lazy.signature;
   imp_filename : string;
   imp_visibility: Load_path.visibility;
@@ -348,10 +348,10 @@ let check_for_unset_parameters penv modname import =
            }))
     import.imp_params
 
-let make_binding _penv modname (impl : CU.t option) : binding =
-  match impl with
-  | Some unit -> Static unit
-  | None ->
+let make_binding _penv modname (import : import) : binding =
+  match import with
+  | { imp_impl = Some unit; imp_params = [] } -> Static unit
+  | { imp_impl = None } | { imp_params = _ :: _ } ->
       Local (Ident.create_local_binding_for_global (CU.Name.to_string modname))
 
 type address =
@@ -387,7 +387,7 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
   | true, true
   | false, false -> ()
   end;
-  let binding = make_binding penv modname impl in
+  let binding = make_binding penv modname import in
   let address : address =
     match binding with
     | Local id -> Alocal id
