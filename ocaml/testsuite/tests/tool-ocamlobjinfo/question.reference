@@ -23,6 +23,3 @@ Currying functions:
 Apply functions:
 Send functions:
 Force link: no
-Function summaries for static checks:
-		camlQuestion__answer_0_1_code = 0x29
-		camlQuestion__entry = 0x29

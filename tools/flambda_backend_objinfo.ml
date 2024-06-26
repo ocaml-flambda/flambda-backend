@@ -278,7 +278,9 @@ let print_cmx_infos (uir, sections, crc) =
   end;
   print_generic_fns uir.uir_generic_fns;
   printf "Force link: %s\n" (if uir.uir_force_link then "YES" else "no");
-  Zero_alloc_info.Raw.print uir.uir_zero_alloc_info
+  if not (!no_code || !no_approx) then begin
+    Zero_alloc_info.Raw.print uir.uir_zero_alloc_info
+  end
 
 let print_cmxa_infos (lib : Cmx_format.library_infos) =
   printf "Extra C object files:";
