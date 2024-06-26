@@ -5910,7 +5910,7 @@ and type_expect_
   | Pexp_constraint (sarg, None, modes) ->
       let expected_mode = type_expect_mode ~loc ~env ~modes expected_mode in
       let exp = type_expect env expected_mode sarg (mk_expected ty_expected ?explanation) in
-      exp
+      { exp with exp_loc = loc }
   | Pexp_constraint (sarg, Some sty, modes) ->
       let (ty, extra_cty) =
         type_constraint env sty (Typemode.transl_alloc_mode modes)
@@ -5928,8 +5928,10 @@ and type_expect_
         exp_type = ty';
         exp_attributes = arg.exp_attributes;
         exp_env = env;
-        exp_extra = (Texp_constraint (Some extra_cty, modes), loc, sexp.pexp_attributes)
-                    :: arg.exp_extra;
+        exp_extra =
+          (Texp_constraint (Some extra_cty, Typemode.transl_mode_annots modes),
+           loc,
+           sexp.pexp_attributes) :: arg.exp_extra;
       }
   | Pexp_coerce(sarg, sty, sty') ->
       let arg, ty', exp_extra =
@@ -6568,7 +6570,9 @@ and type_constraint_expect
           type_mode ~loc_arg
     | Pconstraint ty_constrain ->
         let ty, extra_cty = type_constraint env ty_constrain type_mode in
-        constraint_arg.type_with_constraint env expected_mode ty, ty, Texp_constraint (Some extra_cty, [])
+        constraint_arg.type_with_constraint env expected_mode ty,
+        ty,
+        Texp_constraint (Some extra_cty, Mode.Alloc.Const.Option.none)
   in
   unify_exp_types loc env ty (instance ty_expected);
   ret, ty, exp_extra

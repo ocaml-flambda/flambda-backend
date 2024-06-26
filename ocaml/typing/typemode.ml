@@ -52,6 +52,33 @@ let transl_mode_annots modes =
   in
   loop Alloc.Const.Option.none modes
 
+let untransl_mode_annots ~loc (modes : Mode.Alloc.Const.Option.t) =
+  let print_to_string print a =
+    let buf = Buffer.create 32 in
+    let fmt = Format.formatter_of_buffer buf in
+    print fmt a;
+    Format.pp_print_flush fmt ();
+    Buffer.contents buf
+  in
+  let areality =
+    Option.map (print_to_string Mode.Locality.Const.print) modes.areality
+  in
+  let uniqueness =
+    Option.map (print_to_string Mode.Uniqueness.Const.print) modes.uniqueness
+  in
+  let linearity =
+    Option.map (print_to_string Mode.Linearity.Const.print) modes.linearity
+  in
+  let portability =
+    Option.map (print_to_string Mode.Portability.Const.print) modes.portability
+  in
+  let contention =
+    Option.map (print_to_string Mode.Contention.Const.print) modes.contention
+  in
+  List.filter_map
+    (fun x -> Option.map (fun s -> { txt = Parsetree.Mode s; loc }) x)
+    [areality; uniqueness; linearity; portability; contention]
+
 let transl_modality m : Modality.t =
   let { txt; loc } = m in
   let (Parsetree.Modality s) = txt in
@@ -73,7 +100,7 @@ let transl_modality m : Modality.t =
     Atom (Monadic Contention, Join_with Contention.Const.Uncontended)
   | s -> raise (Error (loc, Unrecognized_modality s))
 
-let untransl_modalities ~loc m : Parsetree.modality loc list =
+let untransl_modalities ~loc m : Parsetree.modalities =
   let untransl_atom (a : Modality.t) =
     let s =
       match a with

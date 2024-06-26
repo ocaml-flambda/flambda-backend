@@ -65,8 +65,6 @@
               expression (quotedextensions.ml[22,417+4]..[22,417+26]) ghost
                 Pexp_constant PConst_string (" <hello>{x} ",(quotedextensions.ml[22,417+12]..[22,417+24]),Some "")
           ]
-        modes
-        []
     ]
   structure_item (quotedextensions.ml[23,444+0]..[25,516+35])
     Pstr_value Nonrec
@@ -96,8 +94,6 @@
               expression (quotedextensions.ml[25,516+4]..[25,516+35]) ghost
                 Pexp_constant PConst_string (" <hello>{|x|} ",(quotedextensions.ml[25,516+16]..[25,516+30]),Some "bar")
           ]
-        modes
-        []
     ]
   structure_item (quotedextensions.ml[28,569+0]..[32,605+2])
     Pstr_extension "M.foo"

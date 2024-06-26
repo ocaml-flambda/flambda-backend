@@ -383,9 +383,8 @@ and expression_extra i ppf x attrs =
       line i ppf "Texp_constraint\n";
       attributes i ppf attrs;
       option i core_type ppf ct;
-      list i string ppf (
-        List.map (fun {txt = Parsetree.Mode x; _} -> x) modes
-      )
+      ignore modes;
+      (* CR cgunn: print modes *)
   | Texp_coerce (cto1, cto2) ->
       line i ppf "Texp_coerce\n";
       attributes i ppf attrs;

@@ -46,8 +46,10 @@ type constant =
 type location_stack = Location.t list
 
 type modality = | Modality of string [@@unboxed]
+type modalities = modality loc list
 
 type mode = | Mode of string [@@unboxed]
+type modes = mode loc list
 
 (** {1 Extension points} *)
 
@@ -91,7 +93,7 @@ and core_type =
 and core_type_desc =
   | Ptyp_any  (** [_] *)
   | Ptyp_var of string  (** A type variable such as ['a] *)
-  | Ptyp_arrow of arg_label * core_type * core_type * mode loc list * mode loc list
+  | Ptyp_arrow of arg_label * core_type * core_type * modes * modes
       (** [Ptyp_arrow(lbl, T1, T2, M1, M2)] represents:
             - [T1 @ M1 -> T2 @ M2]    when [lbl] is
                                      {{!arg_label.Nolabel}[Nolabel]},
@@ -273,7 +275,7 @@ and pattern_desc =
          *)
   | Ppat_array of pattern list  (** Pattern [[| P1; ...; Pn |]] *)
   | Ppat_or of pattern * pattern  (** Pattern [P1 | P2] *)
-  | Ppat_constraint of pattern * core_type option * mode loc list
+  | Ppat_constraint of pattern * core_type option * modes
       (** [Ppat_constraint(tyopt, modes)] represents:
           - [(P : ty @@ modes)] when [tyopt] is [Some ty]
           - [(P @ modes)] when [tyopt] is [None]
@@ -403,7 +405,7 @@ and expression_desc =
             - [for i = E1 downto E2 do E3 done]
                  when [direction] is {{!Asttypes.direction_flag.Downto}[Downto]}
          *)
-  | Pexp_constraint of expression * core_type option * mode loc list  (** [(E : T @@ modes)] *)
+  | Pexp_constraint of expression * core_type option * modes  (** [(E : T @@ modes)] *)
   | Pexp_coerce of expression * core_type option * core_type
       (** [Pexp_coerce(E, from, T)] represents
             - [(E :> T)]      when [from] is [None],
@@ -476,7 +478,7 @@ and value_description =
     {
      pval_name: string loc;
      pval_type: core_type;
-     pval_modalities : modality loc list;
+     pval_modalities : modalities;
      pval_prim: string list;
      pval_attributes: attributes;  (** [... [\@\@id1] [\@\@id2]] *)
      pval_loc: Location.t;
@@ -539,7 +541,7 @@ and label_declaration =
     {
      pld_name: string loc;
      pld_mutable: mutable_flag;
-     pld_modalities: modality loc list;
+     pld_modalities: modalities;
      pld_type: core_type;
      pld_loc: Location.t;
      pld_attributes: attributes;  (** [l : T [\@id1] [\@id2]] *)
@@ -567,7 +569,7 @@ and constructor_declaration =
 
 and constructor_argument =
   {
-    pca_modalities: modality loc list;
+    pca_modalities: modalities;
     pca_type: core_type;
     pca_loc: Location.t;
   }
@@ -1073,7 +1075,7 @@ and value_binding =
     pvb_pat: pattern;
     pvb_expr: expression;
     pvb_constraint: value_constraint option;
-    pvb_modes: mode loc list;
+    pvb_modes: modes;
     pvb_attributes: attributes;
     pvb_loc: Location.t;
   }(** [let pat : type_constraint = exp] *)

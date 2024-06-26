@@ -27,8 +27,8 @@ open Location
 type iterator = {
   attribute: iterator -> attribute -> unit;
   attributes: iterator -> attribute list -> unit;
-  modes : iterator -> mode loc list -> unit;
-  modalities : iterator -> modality loc list -> unit;
+  modes : iterator -> modes -> unit;
+  modalities : iterator -> modalities -> unit;
   binding_op: iterator -> binding_op -> unit;
   case: iterator -> case -> unit;
   cases: iterator -> case list -> unit;

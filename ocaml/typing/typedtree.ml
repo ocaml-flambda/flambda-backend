@@ -122,7 +122,7 @@ and expression =
    }
 
 and exp_extra =
-  | Texp_constraint of core_type option * Parsetree.mode loc list
+  | Texp_constraint of core_type option * Mode.Alloc.Const.Option.t
   | Texp_coerce of core_type option * core_type
   | Texp_poly of core_type option
   | Texp_newtype of string * Jkind.annotation option

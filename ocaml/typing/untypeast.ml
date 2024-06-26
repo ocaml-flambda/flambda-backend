@@ -449,7 +449,10 @@ let exp_extra sub (extra, loc, attrs) sexp =
                      Option.map (sub.typ sub) cty1,
                      sub.typ sub cty2)
     | Texp_constraint (cty, modes) ->
-        Pexp_constraint (sexp, Option.map (sub.typ sub) cty, modes)
+      Pexp_constraint
+        (sexp,
+         Option.map (sub.typ sub) cty,
+         Typemode.untransl_mode_annots ~loc modes)
     | Texp_poly cto -> Pexp_poly (sexp, Option.map (sub.typ sub) cto)
     | Texp_newtype (s, None) ->
         Pexp_newtype (add_loc s, sexp)
@@ -557,7 +560,10 @@ let expression sub exp =
                     Some
                       (Pcoerce (Option.map (sub.typ sub) ty1, sub.typ sub ty2), [])
                 | Some (Texp_constraint (Some ty, modes)) ->
-                    Some (Pconstraint (sub.typ sub ty), modes)
+                  Some (
+                    Pconstraint (sub.typ sub ty),
+                    Typemode.untransl_mode_annots ~loc modes
+                  )
                 | Some (Texp_poly _ | Texp_newtype _) | Some (Texp_constraint (None, _))
                 | None -> None
               in

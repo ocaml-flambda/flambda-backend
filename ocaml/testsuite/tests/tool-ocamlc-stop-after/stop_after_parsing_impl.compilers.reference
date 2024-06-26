@@ -31,8 +31,6 @@
               expression (stop_after_parsing_impl.ml[12,306+23]..[12,306+24])
                 Pexp_ident "x" (stop_after_parsing_impl.ml[12,306+23]..[12,306+24])
           ]
-        modes
-        []
     ]
 ]
 

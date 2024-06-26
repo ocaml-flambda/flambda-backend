@@ -207,8 +207,8 @@ and expression =
    }
 
 and exp_extra =
-  | Texp_constraint of core_type option * Parsetree.mode loc list
-        (** E : T *)
+  | Texp_constraint of core_type option * Mode.Alloc.Const.Option.t
+        (** E : T @@ M *)
   | Texp_coerce of core_type option * core_type
         (** E :> T           [Texp_coerce (None, T)]
             E : T0 :> T      [Texp_coerce (Some T0, T)]

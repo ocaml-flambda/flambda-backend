@@ -393,25 +393,25 @@ module type F =
 
 let app1 (f : a:int -> b:local_ int ref -> unit -> unit) = f ~b:(local_ ref 42) ()
 [%%expect{|
-Line 1, characters 72-78:
+Line 1, characters 64-79:
 1 | let app1 (f : a:int -> b:local_ int ref -> unit -> unit) = f ~b:(local_ ref 42) ()
-                                                                            ^^^^^^
+                                                                    ^^^^^^^^^^^^^^^
 Error: This value escapes its region.
   Hint: It is captured by a partial application.
 |}]
 let app2 (f : a:int -> b:local_ int ref -> unit -> unit) = f ~b:(local_ ref 42)
 [%%expect{|
-Line 1, characters 72-78:
+Line 1, characters 64-79:
 1 | let app2 (f : a:int -> b:local_ int ref -> unit -> unit) = f ~b:(local_ ref 42)
-                                                                            ^^^^^^
+                                                                    ^^^^^^^^^^^^^^^
 Error: This value escapes its region.
   Hint: It is captured by a partial application.
 |}]
 let app3 (f : a:int -> b:local_ int ref -> unit) = f ~b:(local_ ref 42)
 [%%expect{|
-Line 1, characters 64-70:
+Line 1, characters 56-71:
 1 | let app3 (f : a:int -> b:local_ int ref -> unit) = f ~b:(local_ ref 42)
-                                                                    ^^^^^^
+                                                            ^^^^^^^^^^^^^^^
 Error: This value escapes its region.
   Hint: It is captured by a partial application.
 |}]

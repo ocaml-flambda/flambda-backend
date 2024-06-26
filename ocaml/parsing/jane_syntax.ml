@@ -341,16 +341,16 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
 (* only used for [Jkind] below *)
 module Mode = struct
   module Protocol = Make_payload_protocol_of_stringable (struct
-      type t = mode
+    type t = mode
 
-      let indefinite_article_and_name = "a", "mode"
+    let indefinite_article_and_name = "a", "mode"
 
-      let to_string (Mode s) = s
+    let to_string (Mode s) = s
 
-      let of_string' s = Mode s
+    let of_string' s = Mode s
 
-      let of_string s = Some (of_string' s)
-    end)
+    let of_string s = Some (of_string' s)
+  end)
 
   let list_as_payload = Protocol.Encode.list_as_payload
 
@@ -393,7 +393,7 @@ module Jkind = struct
   type t =
     | Default
     | Primitive_layout_or_abbreviation of Const.t
-    | Mod of t * mode loc list
+    | Mod of t * modes
     | With of t * core_type
     | Kind_of of core_type
 
@@ -475,9 +475,7 @@ module Jkind = struct
     | Some ("mod", [item_of_t; item_of_mode_expr], loc) ->
       bind (of_structure_item item_of_t) (fun { txt = t } ->
           bind (struct_item_to_attr item_of_mode_expr) (fun attr ->
-              let modes =
-                Mode.list_from_payload ~loc attr.attr_payload
-              in
+              let modes = Mode.list_from_payload ~loc attr.attr_payload in
               ret loc (Mod (t, modes))))
     | Some ("with", [item_of_t; item_of_ty], loc) ->
       bind (of_structure_item item_of_t) (fun { txt = t } ->
@@ -816,7 +814,7 @@ module N_ary_functions = struct
     | Pcoerce of core_type option * core_type
 
   type function_constraint =
-    { mode_annotations : mode loc list;
+    { mode_annotations : modes;
       type_constraint : type_constraint
     }
 
@@ -1219,7 +1217,8 @@ module N_ary_functions = struct
                 let loc = { body.pexp_loc with loc_ghost = true } in
                 match type_constraint with
                 | Pconstraint ty ->
-                  Ast_helper.Exp.constraint_ body (Some ty) ~loc mode_annotations
+                  Ast_helper.Exp.constraint_ body (Some ty) ~loc
+                    mode_annotations
                 | Pcoerce (ty1, ty2) -> Ast_helper.Exp.coerce body ty1 ty2 ~loc
               in
               constrained_body

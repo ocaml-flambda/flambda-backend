@@ -21,8 +21,6 @@
                       Ppat_var "x" (shortcut_ext_attr.ml[10,179+16]..[10,179+17])
                     expression (shortcut_ext_attr.ml[10,179+20]..[10,179+21])
                       Pexp_constant PConst_int (3,None)
-                    modes
-                    []
                   <def>
                       attribute "foo"
                         []
@@ -30,8 +28,6 @@
                       Ppat_var "y" (shortcut_ext_attr.ml[11,201+12]..[11,201+13])
                     expression (shortcut_ext_attr.ml[11,201+16]..[11,201+17])
                       Pexp_constant PConst_int (4,None)
-                    modes
-                    []
                 ]
                 expression (shortcut_ext_attr.ml[12,222+2]..[30,721+31])
                   Pexp_sequence
@@ -321,8 +317,6 @@
                                                       ]
                                   ]
           ]
-        modes
-        []
     ]
   structure_item (shortcut_ext_attr.ml[34,779+0]..[46,1049+5])
     Pstr_class
@@ -351,8 +345,6 @@
                     Ppat_var "x" (shortcut_ext_attr.ml[36,806+12]..[36,806+13])
                   expression (shortcut_ext_attr.ml[36,806+16]..[36,806+17])
                     Pexp_constant PConst_int (3,None)
-                  modes
-                  []
               ]
               class_expr (shortcut_ext_attr.ml[37,827+2]..[46,1049+5])
                 attribute "foo"
@@ -575,8 +567,6 @@
               Ppat_var "x" (shortcut_ext_attr.ml[76,1578+14]..[76,1578+15])
             expression (shortcut_ext_attr.ml[76,1578+18]..[76,1578+19])
               Pexp_constant PConst_int (4,None)
-            modes
-            []
           <def>
               attribute "foo"
                 []
@@ -584,8 +574,6 @@
               Ppat_var "y" (shortcut_ext_attr.ml[77,1598+10]..[77,1598+11])
             expression (shortcut_ext_attr.ml[77,1598+14]..[77,1598+15])
               Pexp_ident "x" (shortcut_ext_attr.ml[77,1598+14]..[77,1598+15])
-            modes
-            []
         ]
     ]
   structure_item (shortcut_ext_attr.ml[79,1615+0]..[80,1638+17]) ghost
@@ -696,8 +684,6 @@
             []
           core_type (shortcut_ext_attr.ml[85,1728+23]..[85,1728+24])
             Ptyp_any
-          modalities
-          []
           [
             ""
           ]
@@ -800,8 +786,6 @@
                   core_type (shortcut_ext_attr.ml[98,1965+20]..[98,1965+21])
                     Ptyp_constr "t" (shortcut_ext_attr.ml[98,1965+20]..[98,1965+21])
                     []
-                  modalities
-                  []
                   []
             ]
           signature_item (shortcut_ext_attr.ml[99,1987+2]..[99,1987+31]) ghost
@@ -815,8 +799,6 @@
                   core_type (shortcut_ext_attr.ml[99,1987+25]..[99,1987+26])
                     Ptyp_constr "t" (shortcut_ext_attr.ml[99,1987+25]..[99,1987+26])
                     []
-                  modalities
-                  []
                   [
                     ""
                   ]

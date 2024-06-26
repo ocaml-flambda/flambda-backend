@@ -2,7 +2,7 @@
  include ocamlcommon;
 *)
 
-let mode_to_string (modes : Parsetree.mode Location.loc list) =
+let mode_to_string (modes : Parsetree.modes) =
   List.map
     (fun (m : _ Location.loc) ->
        let (Parsetree.Mode s) = m.txt in

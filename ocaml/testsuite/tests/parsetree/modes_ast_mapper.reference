@@ -16,15 +16,12 @@ local [File "_none_", line 1, characters 7-13]
             Ppat_constraint
             pattern ([1,0+14]..[1,0+15])
               Ppat_var "x" ([1,0+14]..[1,0+15])
-            None
             modes
             [
               "local" ([1,0+7]..[1,0+13])
             ]
           expression ([1,0+19]..[1,0+20])
             Pexp_ident "x" ([1,0+19]..[1,0+20])
-        modes
-        []
     ]
 ]
 
@@ -48,7 +45,6 @@ unique [File "_none_", line 1, characters 4-11]
             Ppat_constraint
             pattern ([1,0+22]..[1,0+23])
               Ppat_var "x" ([1,0+22]..[1,0+23])
-            None
             modes
             [
               "local" ([1,0+15]..[1,0+21])
@@ -84,20 +80,19 @@ local [File "_none_", line 1, characters 4-10]
             Pexp_constraint
             expression ([1,0+29]..[1,0+30])
               Pexp_ident "x" ([1,0+29]..[1,0+30])
-            Some
-              core_type ([1,0+16]..[1,0+26])
-                Ptyp_arrow
-                Nolabel
-                core_type ([1,0+16]..[1,0+19])
-                  Ptyp_constr "int" ([1,0+16]..[1,0+19])
-                  []
-                core_type ([1,0+23]..[1,0+26])
-                  Ptyp_constr "int" ([1,0+23]..[1,0+26])
-                  []
-                modes
+            core_type ([1,0+16]..[1,0+26])
+              Ptyp_arrow
+              Nolabel
+              core_type ([1,0+16]..[1,0+19])
+                Ptyp_constr "int" ([1,0+16]..[1,0+19])
                 []
-                modes
+              core_type ([1,0+23]..[1,0+26])
+                Ptyp_constr "int" ([1,0+23]..[1,0+26])
                 []
+              modes
+              []
+              modes
+              []
             modes
             [
               "local" ([1,0+4]..[1,0+10])

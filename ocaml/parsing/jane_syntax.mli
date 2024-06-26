@@ -117,7 +117,7 @@ module Jkind : sig
   type t =
     | Default
     | Primitive_layout_or_abbreviation of Const.t
-    | Mod of t * Parsetree.mode Location.loc list
+    | Mod of t * Parsetree.modes
     | With of t * Parsetree.core_type
     | Kind_of of Parsetree.core_type
 
@@ -193,7 +193,7 @@ module N_ary_functions : sig
       [let local_ f x : int -> int = ...].
   *)
   type function_constraint =
-    { mode_annotations : Parsetree.mode Location.loc list;
+    { mode_annotations : Parsetree.modes;
       type_constraint : type_constraint
     }
 

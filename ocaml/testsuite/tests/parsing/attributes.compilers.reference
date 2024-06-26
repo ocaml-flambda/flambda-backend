@@ -27,8 +27,6 @@
             Pext_decl
               [
                 (attributes.ml[10,150+17]..[10,150+29])
-                  modalities
-                  []
                   core_type (attributes.ml[10,150+18]..[10,150+21])
                     attribute "foo"
                       []
@@ -59,8 +57,6 @@
             []
           Pexp_construct "()" (attributes.ml[14,206+30]..[14,206+32])
           None
-        modes
-        []
     ]
   structure_item (attributes.ml[17,256+0]..[19,293+7])
     Pstr_type Rec
@@ -81,8 +77,6 @@
                   []
                 [
                   (attributes.ml[18,265+11]..[18,265+20])
-                    modalities
-                    []
                     core_type (attributes.ml[18,265+12]..[18,265+13])
                       attribute "foo"
                         []
@@ -127,8 +121,6 @@
                         attribute "foo"
                           []
                         Immutable
-                        modalities
-                        []
                         "l" (attributes.ml[26,344+4]..[26,344+5])                        core_type (attributes.ml[26,344+9]..[26,344+10])
                           attribute "foo"
                             []
@@ -166,8 +158,6 @@
                     Pext_decl
                       [
                         (attributes.ml[37,450+19]..[37,450+31])
-                          modalities
-                          []
                           core_type (attributes.ml[37,450+20]..[37,450+23])
                             attribute "foo"
                               []
@@ -286,16 +276,11 @@
             Pexp_pack
             module_expr (attributes.ml[55,728+16]..[55,728+19])
               Pmod_ident "Int" (attributes.ml[55,728+16]..[55,728+19])
-          Some
-            core_type (attributes.ml[55,728+22]..[55,728+30])
-              attribute "foo"
-                []
-              Ptyp_package "T" (attributes.ml[55,728+22]..[55,728+23])
+          core_type (attributes.ml[55,728+22]..[55,728+30])
+            attribute "foo"
               []
-          modes
-          []
-        modes
-        []
+            Ptyp_package "T" (attributes.ml[55,728+22]..[55,728+23])
+            []
     ]
   structure_item (attributes.ml[57,761+0]..[57,761+49])
     Pstr_value Nonrec
@@ -309,21 +294,16 @@
             Pexp_pack
             module_expr (attributes.ml[57,761+16]..[57,761+19])
               Pmod_ident "Int" (attributes.ml[57,761+16]..[57,761+19])
-          Some
-            core_type (attributes.ml[57,761+22]..[57,761+48])
-              attribute "foo"
+          core_type (attributes.ml[57,761+22]..[57,761+48])
+            attribute "foo"
+              []
+            Ptyp_package "T" (attributes.ml[57,761+22]..[57,761+23])
+            [
+              with type "t" (attributes.ml[57,761+34]..[57,761+35])
+              core_type (attributes.ml[57,761+38]..[57,761+41])
+                Ptyp_constr "int" (attributes.ml[57,761+38]..[57,761+41])
                 []
-              Ptyp_package "T" (attributes.ml[57,761+22]..[57,761+23])
-              [
-                with type "t" (attributes.ml[57,761+34]..[57,761+35])
-                core_type (attributes.ml[57,761+38]..[57,761+41])
-                  Ptyp_constr "int" (attributes.ml[57,761+38]..[57,761+41])
-                  []
-              ]
-          modes
-          []
-        modes
-        []
+            ]
     ]
 ]
 
