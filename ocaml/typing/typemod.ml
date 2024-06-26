@@ -2837,7 +2837,6 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
               end
             | _ -> ()
           ) defs;
-
         (* Note: Env.find_value does not trigger the value_used event. Values
            will be marked as being used during the signature inclusion test. *)
         let items, shape_map =
