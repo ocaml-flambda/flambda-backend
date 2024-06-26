@@ -8,3 +8,21 @@ Interfaces imported:
 	00000000000000000000000000000000	Question
 	00000000000000000000000000000000	CamlinternalFormatBasics
 Implementations imported:
+File question.cmx
+Name: Question
+CRC of implementation: 00000000000000000000000000000000
+Globals defined:
+	Question
+Interfaces imported:
+	00000000000000000000000000000000	Stdlib
+	00000000000000000000000000000000	Question
+	00000000000000000000000000000000	CamlinternalFormatBasics
+Implementations imported:
+Flambda 2 unit with export information
+Currying functions:
+Apply functions:
+Send functions:
+Force link: no
+Function summaries for static checks:
+		camlQuestion__answer_0_1_code = 0x29
+		camlQuestion__entry = 0x29

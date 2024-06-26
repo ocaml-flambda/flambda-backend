@@ -268,6 +268,8 @@ let print_cmx_infos (uir, sections, crc) =
     match uir.uir_export_info with
     | None ->
       printf "Flambda 2 unit (with no export information)\n"
+    | Some _ when !no_code || !no_approx ->
+      printf "Flambda 2 unit with export information\n"
     | Some cmx ->
       printf "Flambda 2 export information:\n";
       flush stdout;
