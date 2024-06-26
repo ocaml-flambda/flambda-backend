@@ -3,6 +3,11 @@ flags += "-extension comprehensions";
 expect;
 *)
 
+let ignore_local : 'a @ local -> unit = fun _ -> ()
+[%%expect{|
+val ignore_local : local_ 'a -> unit = <fun>
+|}]
+
 let f = ref (stack_ (fun x -> x))
 [%%expect{|
 Line 1, characters 20-32:
@@ -17,6 +22,11 @@ Line 1, characters 20-26:
 1 | let f = ref (stack_ (2, 3))
                         ^^^^^^
 Error: This allocation cannot be on the stack.
+|}]
+
+let f = ignore_local (stack_ (2, 3))
+[%%expect{|
+val f : unit = ()
 |}]
 
 type t = Foo | Bar of int
@@ -38,6 +48,11 @@ Line 1, characters 20-28:
 Error: This allocation cannot be on the stack.
 |}]
 
+let f = ignore_local (stack_ (Bar 42))
+[%%expect{|
+val f : unit = ()
+|}]
+
 let f = ref (stack_ `Foo)
 [%%expect{|
 Line 1, characters 20-24:
@@ -52,6 +67,11 @@ Line 1, characters 20-29:
 1 | let f = ref (stack_ (`Bar 42))
                         ^^^^^^^^^
 Error: This allocation cannot be on the stack.
+|}]
+
+let f = ignore_local (stack_ (`Bar 42))
+[%%expect{|
+val f : unit = ()
 |}]
 
 type r = {x : string} [@@unboxed]
@@ -76,6 +96,11 @@ Line 3, characters 20-33:
 Error: This allocation cannot be on the stack.
 |}]
 
+let f = ignore_local (stack_ {x = "hello"})
+[%%expect{|
+val f : unit = ()
+|}]
+
 type r = {x : float; y : string}
 
 let f (r : r) = ref (stack_ r.x)
@@ -97,12 +122,22 @@ Line 2, characters 28-31:
 Error: This allocation cannot be on the stack.
 |}]
 
+let f (r : r) = ignore_local (stack_ r.x) [@nontail]
+[%%expect{|
+val f : r -> unit = <fun>
+|}]
+
 let f = ref (stack_ [| 42; 56 |])
 [%%expect{|
 Line 1, characters 20-32:
 1 | let f = ref (stack_ [| 42; 56 |])
                         ^^^^^^^^^^^^
 Error: This allocation cannot be on the stack.
+|}]
+
+let f = ignore_local (stack_ [| 42; 56 |])
+[%%expect{|
+val f : unit = ()
 |}]
 
 (* tail-position stack_ does not indicate local-returning *)
