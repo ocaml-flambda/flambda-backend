@@ -460,8 +460,8 @@ value `x` remains available.
 
 The region around the body of a function prevents local allocations inside that
 function from escaping. Occasionally, it is useful to write a function that
-allocates and returns value in caller's region. For instance, consider this code
-that uses an `int ref` as a counter:
+allocates and returns a value in the caller's region. For instance, consider
+this code that uses an `int ref` as a counter:
 
 ```ocaml
 let f () =
@@ -502,8 +502,9 @@ In this code, the counter will *not* be allocated locally. The reason is the
 allocated. This remains the case no matter how many `local_` annotations we
 write inside `f`: the issue is the definition of `make`, not its uses.
 
-To allow the counter to be locally allocated, we need to make `Counter.make`
-allocate and return in caller's region. This can be done by `exclave_`:
+To allow the counter to be locally allocated, we need to make `Counter.make` end
+its region early so that it can allocate its return value in the caller's
+region. This can be done with `exclave_`:
 
 ```ocaml
 let make () = exclave_
@@ -517,7 +518,7 @@ region of `f` ends.
 
 ## Advanced usage of exclaves
 In the previous section, the example function exits its own region immediately,
-which allows allocating and returning in caller's region. This approach,
+which allows allocating and returning in the caller's region. This approach,
 however, has certain disadvantages. Consider the following example:
 
 ```ocaml
@@ -542,9 +543,9 @@ let f (local_ x) =
 In this example, the function `f` has a region where the allocation for the
 complex computation occurs. This region is terminated by `exclave_`, releasing
 all temporary allocations. Both `None` and `Some x` are considered "local"
-relative to the outer region and are allowed to be returned. In summary, we have
-temporary allocations in the `f`'s region that are promptly released and result
-allocations in the caller's region that can be returned.
+relative to the outer region and are allowed to be returned. In summary, the
+temporary allocations in the `f`'s region are promptly released, and the result
+allocation in the caller's region is returned.
 
 Here is another example in which the stack usage can be improved asymptotically
 by delaying `exclave_`:
@@ -569,7 +570,7 @@ val maybe_length : ('a -> bool) -> 'a list -> local_ int option
 It is designed not to allocate heap memory by using the stack for all `Some`
 allocations. However, it will currently use O(N) stack space because all
 allocations occur in the original caller's stack frame. To improve its space
-usage, we delay the `exclave_` annotation until returning result:
+usage, we delay the `exclave_` annotation until returning the result:
 ```ocaml
 let rec maybe_length p l =
   match l with
