@@ -87,7 +87,7 @@ type error =
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
   | Toplevel_nonvalue of string * Jkind.sort
-  | Str_eval_nonvalue of Jkind.sort
+  | Toplevel_unnamed_nonvalue of Jkind.sort
   | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
   | Cannot_compile_implementation_as_parameter
@@ -2810,10 +2810,11 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                          ~why:Structure_item_expression env sexpr)
         in
         if force_toplevel then
+          (* See comment on [force_toplevel]. *)
           begin match Jkind.Sort.default_to_value_and_get sort with
           | Value -> ()
           | Void | Float64 | Float32 | Word | Bits32 | Bits64 ->
-            raise (Error (sexpr.pexp_loc, env, Str_eval_nonvalue sort))
+            raise (Error (sexpr.pexp_loc, env, Toplevel_unnamed_nonvalue sort))
           end;
         Tstr_eval (expr, sort, attrs), [], shape_map, env
     | Pstr_value (rec_flag, sdefs) ->
@@ -2823,6 +2824,20 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           | Recursive -> Typecore.annotate_recursive_bindings env defs
           | Nonrecursive -> defs
         in
+        if force_toplevel then
+          (* See comment on [force_toplevel] *)
+          List.iter (fun vb ->
+            match vb.vb_pat.pat_desc with
+            | Tpat_any ->
+              begin match Jkind.Sort.default_to_value_and_get vb.vb_sort with
+              | Value -> ()
+              | Void | Float64 | Float32 | Word | Bits32 | Bits64 ->
+                raise (Error (vb.vb_loc, env,
+                              Toplevel_unnamed_nonvalue vb.vb_sort))
+              end
+            | _ -> ()
+          ) defs;
+
         (* Note: Env.find_value does not trigger the value_used event. Values
            will be marked as being used during the signature inclusion test. *)
         let items, shape_map =
@@ -3964,7 +3979,7 @@ let report_error ~loc _env = function
       Location.errorf ~loc
         "@[Types of top-level module bindings must have layout value, but@ \
          the type of %s has layout@ %a.@]" id Jkind.Sort.format sort
-  | Str_eval_nonvalue sort ->
+  | Toplevel_unnamed_nonvalue sort ->
       Location.errorf ~loc
         "@[Types of unnamed expressions must have layout value when using@ \
            the toplevel, but this expression has layout@ %a.@]"

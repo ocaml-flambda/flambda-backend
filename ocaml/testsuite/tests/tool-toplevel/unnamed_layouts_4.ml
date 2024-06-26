@@ -12,4 +12,4 @@
    fine to allow these to be non-value in the bytecode toplevel but for now we
    don't. *)
 
-let _ = #3.14;;
+let (String.(((_ : _) : _)) : _) : _ = #3.14;;

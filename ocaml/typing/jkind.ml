@@ -1251,8 +1251,6 @@ end = struct
       fprintf ppf
         "it's the type of the first argument to a function in a recursive \
          module"
-    | Unnamed_toplevel_expression ->
-      fprintf ppf "it's the type of an unnamed expression in the toplevel"
     | Unknown s ->
       fprintf ppf
         "unknown @[(please alert the Jane Street@;\
@@ -1653,7 +1651,6 @@ module Debug_printers = struct
     | V1_safety_check -> fprintf ppf "V1_safety_check"
     | Captured_in_object -> fprintf ppf "Captured_in_object"
     | Recmod_fun_arg -> fprintf ppf "Recmod_fun_arg"
-    | Unnamed_toplevel_expression -> fprintf ppf "Unnamed_toplevel_expression"
     | Unknown s -> fprintf ppf "Unknown %s" s
 
   let float64_creation_reason ppf : History.float64_creation_reason -> _ =

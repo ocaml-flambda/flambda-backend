@@ -8365,23 +8365,14 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
   let attrs_list = List.map (fun (attrs, _, _, _) -> attrs) spatl in
   let is_recursive = (rec_flag = Recursive) in
 
-  let var_for_binding (_, _, _, pat) =
-    (* The native code toplevel requires special handling of [let _ = ...],
-       see the special case in [Opttoploop.execute_phrase]. *)
-    match pat.ppat_desc with
-    | Ppat_any when force_toplevel ->
-      newvar (Jkind.Primitive.value ~why:Unnamed_toplevel_expression),
-      Jkind.Sort.value
-    | _ -> new_rep_var ~why:Let_binding ()
-  in
-
   let (pat_list, exp_list, new_env, mvs, sorts, _pvs) =
     with_local_level begin fun () ->
       if existential_context = At_toplevel then Typetexp.TyVarEnv.reset ();
       let (pat_list, new_env, force, pvs, mvs), sorts =
         with_local_level_if_principal begin fun () ->
           let nvs, sorts =
-            List.split (List.map var_for_binding spatl)
+            List.split (List.map (fun _ -> new_rep_var ~why:Let_binding ())
+                          spatl)
           in
           let (pat_list, _new_env, _force, _pvs, _mvs as res) =
             with_local_level_if is_recursive (fun () ->

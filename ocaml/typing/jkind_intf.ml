@@ -217,7 +217,6 @@ module History = struct
     | V1_safety_check
     | Captured_in_object
     | Recmod_fun_arg
-    | Unnamed_toplevel_expression
     | Unknown of string (* CR layouts: get rid of these *)
 
   type immediate_creation_reason =
