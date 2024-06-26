@@ -153,9 +153,9 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
       Tag.Scannable.Map.map
         (fun (shape, block_fields) ->
           ( shape,
-            List.map
-              (fun (field : U.field_decision) ->
-                T.alias_type_of K.value (Simple.var field.epa.param))
+            List.mapi
+              (fun i (field : U.field_decision) ->
+                T.alias_type_of (K.Block_shape.element_kind shape i) (Simple.var field.epa.param))
               block_fields ))
         fields_by_tag
     in
