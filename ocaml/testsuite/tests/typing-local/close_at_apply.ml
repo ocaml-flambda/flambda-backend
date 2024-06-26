@@ -1,9 +1,9 @@
 (* TEST
    * flambda2;
    {
-     ocamlopt_flags="-Oclassic"
+     ocamlopt_flags="-Oclassic";
    }{
-     ocamlopt_flags="-O3"
+     ocamlopt_flags="-O3";
    }
 *)
 
