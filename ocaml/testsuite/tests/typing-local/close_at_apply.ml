@@ -1,5 +1,5 @@
 (* TEST
-   * flambda2;
+   flambda2;
    {
      ocamlopt_flags="-Oclassic";
    }{
