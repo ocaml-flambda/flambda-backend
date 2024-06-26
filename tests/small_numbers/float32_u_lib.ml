@@ -4,7 +4,7 @@
 
 (* Tests for the float32 otherlib  *)
 
-module F32 = Stdlib_beta.Float32_u
+module F32 = Stdlib_stable.Float32_u
 
 external box_int32 : int32# -> (int32[@local_opt]) = "%box_int32"
 external unbox_int32 : (int32[@local_opt]) -> int32# = "%unbox_int32"
@@ -153,8 +153,8 @@ module CF32 = struct
       for _ = 0 to 100_000 do
           let f0 = Random.int32 Int32.max_int in
           let f1 = Random.int32 Int32.max_int in
-          f ((if Random.bool () then f0 else Int32.neg f0) |> Int32.float_of_bits |> Stdlib_beta.Float32.of_float)
-            ((if Random.bool () then f1 else Int32.neg f1) |> Int32.float_of_bits |> Stdlib_beta.Float32.of_float)
+          f ((if Random.bool () then f0 else Int32.neg f0) |> Int32.float_of_bits |> Stdlib_stable.Float32.of_float)
+            ((if Random.bool () then f1 else Int32.neg f1) |> Int32.float_of_bits |> Stdlib_stable.Float32.of_float)
       done
   ;;
 end

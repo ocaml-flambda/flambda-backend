@@ -116,7 +116,7 @@ let assert_simd_enabled () =
   (extension_universe stable) in your library configuration file."
 
 let assert_float32_enabled () =
-  if not (Language_extension.is_enabled Small_numbers) then
+  if not (Language_extension.(is_at_least Small_numbers Stable)) then
   Misc.fatal_error "float32 is not enabled. This error might happen \
   if you are using float32 yourself or are linking code that uses it. \
   Pass [-extension-universe beta] to the compiler, or set \
