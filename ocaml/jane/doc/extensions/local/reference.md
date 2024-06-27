@@ -158,9 +158,9 @@ As well as function bodies, a region is also placed around:
 Module bindings are wrapped in regions to enforce the rule (as mentioned above)
 that modules never contain locally-allocated values.
 
-Additionally, it is possible to write functions that do *not* have
-a region around their body, which is useful to write functions that
-return locally-allocated values. See "Local-returning functions" below.
+Additionally, it is possible to write functions that do *not* have a region
+around their body, which is useful to write functions that return
+locally-allocated values. See "Use exclave_ to return a local value" below.
 
 ### Runtime behavior
 
@@ -280,10 +280,9 @@ it refers to a local value `x`), and it is locally allocated from within the
 region of `f3`. When this region ends, the any-region local value `42 :: x` is
 not allowed to escape it.
 
-It is possible to write functions like `f3` that return
-locally-allocated values, but this requires explicit annotation, as it
-would otherwise be easy to do by mistake.  See "Local-returning
-functions" below.
+It is possible to write functions like `f3` that return locally-allocated
+values, but this requires explicit annotation, as it would otherwise be easy to
+do by mistake.  See "Use exclave_ to return a local value" below.
 
 Like local variables, inference can determine whether function arguments are
 local. However, note that for arguments of exported functions to be local, the
@@ -454,17 +453,12 @@ let f3 (local_ x) =
 Here, even though the region of `f3` ends before the call to `some_func`, the
 value `x` remains available.
 
-
-
-## Local-returning functions
+## Use `exclave_` to return a local value
 
 The region around the body of a function prevents local allocations inside that
 function from escaping. Occasionally, it is useful to write a function that
-allows local allocations to escape, which can be done by explicitly marking
-such functions.
-
-This is useful particularly for constructor functions of abstract types. For
-instance, consider this code that uses an `int ref` as a counter:
+allocates and returns a value in the caller's region. For instance, consider
+this code that uses an `int ref` as a counter:
 
 ```ocaml
 let f () =
@@ -502,46 +496,39 @@ let f () =
 In this code, the counter will *not* be allocated locally. The reason is the
 `Counter.make` function: the allocation of `ref 0` escapes the region of
 `Counter.make`, and the compiler will therefore not allow it to be locally
-allocated. This remains the case no matter how many local_ annotations we write
-inside `f`: the issue is the definition of `make`, not its uses.
+allocated. This remains the case no matter how many `local_` annotations we
+write inside `f`: the issue is the definition of `make`, not its uses.
 
-To allow the counter to be locally allocated, we need to specify that
-`Counter.make` may return local allocations. This can be done by wrapping the
-entire body of `make` with the `local_` keyword:
+To allow the counter to be locally allocated, we need to make `Counter.make` end
+its region early so that it can allocate its return value in the caller's
+region. This can be done with `exclave_`:
 
 ```ocaml
-let make () = local_
+let make () = exclave_
   ref 0
 ```
 
-The `local_` keyword around a function body like this specifies not only that
-the allocation of the `ref` should be local, but more importantly that the
-function `make` *should not have its own region*.
+The keyword `exclave_` terminates the current region and executes the subsequent
+code in the outer region. Therefore, `ref 0` is executed in `f`'s region, which
+allows its local allocation. The allocation will only be cleaned up when the
+region of `f` ends.
 
-Instead, local allocations during `make` are considered part of `f`s region,
-and will only be cleaned up when that region ends. Local allocations are
-allocated as always in the nearest enclosing region. However if the current
-function is a local-returning function, then the nearest enclosing region will
-be the caller's (or that of the caller's caller, etc., if the caller is also
-local-returning).
-
-## Exclave
-In the previous section, we discussed that a function can return local values
-without having its own region. Consequently, it operates within the caller's
-region. This approach, however, has certain disadvantages. Consider the
-following example:
+## Delaying exclaves
+In the previous section, the example function exits its own region immediately,
+which allows allocating and returning in the caller's region. This approach,
+however, has certain disadvantages. Consider the following example:
 
 ```ocaml
-let f (local_ x) = local_
+let f (local_ x) = exclave_
   let local_ y = (complex computation on x) in
-  if y then local_ None
-  else local_ (Some x)
+  if y then None
+  else (Some x)
 ```
 The function `f` allocates memory within the caller's region to store
 intermediate and temporary data for the complex computation. This allocation
 remains in the region even after `f` returns and is released only when the
 program exits the caller's region. To allow temporary allocations to be released
-upon the function's return, we can rewrite the example as follows:
+upon the function's return, we delay `exclave_` as follows:
 
 ```ocaml
 let f (local_ x) =
@@ -550,18 +537,17 @@ let f (local_ x) =
   else exclave_ Some x
 ```
 
-The new primitive `exclave_` terminates the current region early and executes
-the subsequent code in the outer region. In this example, the function `f` has a
-region where the allocation for the complex computation occurs. This region is
-terminated by `exclave_`, releasing all temporary allocations. Both `None` and
-`Some x` are considered "local" relative to the outer region and are allowed to
-escape. In summary, we have temporary allocations on the stack that are promptly
-released and result allocations on the stack that can escape.
+In this example, the function `f` has a region where the allocation for the
+complex computation occurs. This region is terminated by `exclave_`, releasing
+all temporary allocations. Both `None` and `Some x` are considered "local"
+relative to the outer region and are allowed to be returned. In summary, the
+temporary allocations in the `f`'s region are promptly released, and the result
+allocation in the caller's region is returned.
 
 Here is another example in which the stack usage can be improved asymptotically
-by applying `exclave_`:
+by delaying `exclave_`:
 ```ocaml
-let rec maybe_length p l = local_
+let rec maybe_length p l = exclave_
   match l with
   | [] -> Some 0
   | x :: xs ->
@@ -579,11 +565,9 @@ This function is intended to have the type:
 val maybe_length : ('a -> bool) -> 'a list -> local_ int option
 ```
 It is designed not to allocate heap memory by using the stack for all `Some`
-allocations.  However, it will currently use O(N) stack space because all
+allocations. However, it will currently use O(N) stack space because all
 allocations occur in the original caller's stack frame. To improve its space
-usage, we remove the `local_` annotation (so the function has its own region),
-and wrap `Some (count + 1)` inside `exclave_` to release the region before the
-allocation:
+usage, we delay the `exclave_` annotation until returning the result:
 ```ocaml
 let rec maybe_length p l =
   match l with
