@@ -374,7 +374,6 @@ type 'a sig_reader =
 let acknowledge_pers_struct penv modname import val_of_pers_sig =
   let {persistent_structures; _} = penv in
   let is_param = import.imp_is_param in
-  let impl = import.imp_impl in
   let sign = import.imp_sign in
   let filename = import.imp_filename in
   let flags = import.imp_flags in
