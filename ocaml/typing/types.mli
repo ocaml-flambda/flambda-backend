@@ -746,7 +746,7 @@ module type Wrapped = sig
       val_modalities: Mode.Modality.Value.t;      (* Modalities on the value *)
       val_kind: value_kind;
       val_loc: Location.t;
-      val_zero_alloc: Builtin_attributes.zero_alloc_attribute;
+      val_zero_alloc: Zero_alloc.t;
       val_attributes: Parsetree.attributes;
       val_uid: Uid.t;
     }
