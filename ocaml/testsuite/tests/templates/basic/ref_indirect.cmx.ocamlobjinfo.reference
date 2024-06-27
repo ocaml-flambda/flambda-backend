@@ -10,30 +10,13 @@ Interfaces imported:
 	00000000000000000000000000000000	Monoid
 	00000000000000000000000000000000	CamlinternalFormatBasics
 Implementations imported:
-Flambda 2 export information:
-Original unit: Ref_indirect
-Typing env:
-((defined_symbols_without_equations ()) (code_age_relation {})
- (type_equations
-  {([0m[38;5;111;1m[0m[38;5;98;1mRef_indirect.camlRef_indirect[0m[38;5;111;1m[0m
-    (Val
-     (Variant
-      (blocks
-       ((alloc_mode Heap) (known
-         {(tag_0 => (Known 1), ((kind [0m[38;5;37;1m𝕍[0m) (Val ([0m[38;5;160;1m=[0m [0m[38;5;111;1mconcat/9UV[0m))))})
-        (other Bottom))) (tagged_imms (Naked_immediate [0m[38;5;37;1m⊥[0m)))))
-   ([0m[38;5;111;1mconcat/9UV[0m (Val [0m[38;5;37;1m⊤[0m))})
- (aliases
-  ((canonical_elements {}) (aliases_of_canonical_names {})
-   (aliases_of_consts {})))) Code: {} Offsets: {closures: {}
-                                                value_slots: {}}
-
+Flambda 2 unit (with no export information)
 Currying functions:
 Apply functions:
 Send functions:
 Force link: no
 Function summaries for static checks:
-		camlRef_indirect__entry = 0x29
+		camlRef_indirect__entry = 0x15
 File ref_indirect.cmi
 Unit name: Ref_indirect
 Is parameter: no
