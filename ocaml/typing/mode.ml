@@ -1651,8 +1651,6 @@ module Monadic = struct
 
   let imply c m = Solver.via_monotone obj (Subtract c) (Solver.disallow_left m)
 
-  let subtract m c = Solver.via_monotone obj (Imply c) (Solver.disallow_right m)
-
   let zap_to_legacy m =
     let uniqueness = proj Uniqueness m |> Uniqueness.zap_to_legacy in
     let contention = proj Contention m |> Contention.zap_to_legacy in
@@ -2221,6 +2219,21 @@ module Modality = struct
 
       let print ppf = function
         | Join_const c -> Format.fprintf ppf "join_const(%a)" Mode.Const.print c
+
+      (** Given a modality and a guarantee that the modality will only be appled
+    on [x >= mm], we can find some lower modality that is equivalent on the
+    restricted range. This is similar to mode-crossing, where we can push a mode
+    lower given a restricted range of types. *)
+      let modality_cross_left ~mm = function
+        | Join_const c ->
+          (* We want to find the minimal [c'] such that [join c x <= join c' x] for
+             all [x >= mm]. By definition of join, this is equivalent to [c <= join
+             x c'] for all [x >= mm]. This is equivalent to [c <= join mm c'].
+             Equivalently [subtract c mm <= c']. Note that [mm] is a mode variable,
+             but we need a constant. Therefore, we
+             conservatively take its incomplete lower bound [mm.lower]. *)
+          let mm = Mode.Guts.get_floor mm in
+          Join_const (Mode.Const.subtract c mm)
     end
 
     type t =
@@ -2232,9 +2245,9 @@ module Modality = struct
       match left, right with
       | Const c0, Const c1 -> Const.sub c0 c1
       | Diff (mm, m), Const (Join_const c) -> (
-        (* Check that for any x >= mm, join(x, m) <= join(x, c).
-           By definition of join, equivalent to check m <= join(x, c)
-           Since x >= mm, equivalent to check m <= join(mm, c). *)
+        (* Check that for any x >= mm, join(x, m) <= join(x, c), which (by
+           definition of join) is equivalent to m <= join(x, c). This has to
+           hold for all x >= mm, so we check m <= join(mm, c). *)
         match Mode.submode_log m (Mode.join_const c mm) ~log with
         | Ok () -> Ok ()
         | Error (Error (ax, { left; _ })) ->
@@ -2243,10 +2256,11 @@ module Modality = struct
                ( ax,
                  { left = Join_with left; right = Join_with (Axis.proj ax c) }
                )))
-      | Diff _, Diff _ ->
-        (* [m1] is a left mode so there is no good way to check.
-           However, this branch is only hit by [wrap_constraint_with_shape],
-           in which case LHS and RHS should be physically equal. *)
+      | Diff (_, _m0), Diff (_, _m1) ->
+        (* [m1] is a left mode so it cannot appear on the right. So we can't do
+           a proper check. However, this branch is only hit by
+           [wrap_constraint_with_shape], in which case LHS and RHS should be
+           physically equal. *)
         assert (left == right);
         Ok ()
       | Const _, Diff _ -> assert false
@@ -2267,25 +2281,14 @@ module Modality = struct
       | Undefined -> Format.fprintf ppf "undefined"
       | Diff _ -> Format.fprintf ppf "diff"
 
-    let cross mm m =
-      (* We will be producing [join m x] for any [x >= mm].
-         We want to find the minimal [m'] such that
-         [join m x <= join m' x] for any [x >= mm].
-         Or equivalently [m <= join x m'] for any [x >= mm].
-         Equivalently [m <= join mm m'].
-         Equivalently [m <= join mm.lower m'].
-         or [subtract mm.lower m <= m'].
-      *)
-      let mc = Mode.Guts.get_floor mm in
-      Mode.subtract m mc
-
     let zap_to_floor = function
       | Const c -> c
       | Undefined -> assert false
       | Diff (mm, m) ->
-        let m' = cross mm m in
-        let c = Mode.zap_to_floor m' in
-        Const.Join_const c
+        let c = Mode.zap_to_floor m in
+        let m = Const.Join_const c in
+        (* To give the best modality, we try to cross modality. *)
+        Const.modality_cross_left ~mm m
 
     let zap_to_id = zap_to_floor
 
@@ -2360,9 +2363,10 @@ module Modality = struct
       match left, right with
       | Const c0, Const c1 -> Const.sub c0 c1
       | Exactly (_mm, m), Const (Meet_const c) -> (
-        (* check for any x >= mm, meet(m, x) <= meet(c, x).
-           Equivalent to check meet(m, x) <= c.
-           Equivalent to check m <= c. *)
+        (* Check for all x >= mm, m <= meet x c. Equivalent to check [m <= meet
+           mm c]. By definition of meet, equivalent to check [m <= mm] and [m <=
+           c]. The former is the precondition of [Exactly]. So we only check the
+           latter. *)
         match Mode.submode_log m (Mode.of_const c) ~log with
         | Ok () -> Ok ()
         | Error (Error (ax, { left; _ })) ->
@@ -2371,7 +2375,7 @@ module Modality = struct
                ( ax,
                  { left = Meet_with left; right = Meet_with (Axis.proj ax c) }
                )))
-      | Exactly _, Exactly _ ->
+      | Exactly (_, _m0), Exactly (_, _m1) ->
         (* [m1] is a left mode, so there is no good way to check.
            However, this branch only hit by [wrap_constraint_with_shape],
            in which case LHS and RHS should be physically equal. *)
