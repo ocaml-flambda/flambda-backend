@@ -353,14 +353,14 @@ let can_apply_primitive p pmode pos args =
 let zero_alloc_of_application
       ~num_args (annotation : Builtin_attributes.zero_alloc_attribute) funct =
   let zero_alloc =
-    match annotation with
-    | Assume _ ->
+    match annotation, funct.exp_desc with
+    | Assume _, _ ->
       (* The user wrote a zero_alloc attribute on the application - keep it. *)
       annotation
-    | Ignore_assert_all | Check _ ->
+    | (Ignore_assert_all | Check _), _ ->
       (* These are rejected in typecore *)
       Misc.fatal_error "Translcore.zero_alloc_of_application: illegal attr"
-    | Default_zero_alloc ->
+    | Default_zero_alloc, Texp_ident (_, _, { val_zero_alloc; _ }, _, _) ->
       (* We assume the call is zero_alloc if the function is known to be
          zero_alloc. If the function is zero_alloc opt, then we need to be sure
          that the opt checks were run to license this assumption. We judge
@@ -371,9 +371,8 @@ let zero_alloc_of_application
         | Check_default | No_check -> false
         | Check_all | Check_opt_only -> true
       in
-      match funct.exp_desc with
-      | Texp_ident (_, _, { val_zero_alloc = (Check c); _ }, _, _)
-        when c.arity = num_args && (use_opt || not c.opt) ->
+      begin match Zero_alloc.get val_zero_alloc with
+      | Check c when c.arity = num_args && (use_opt || not c.opt) ->
         Builtin_attributes.Assume {
           strict = c.strict;
           never_returns_normally = false;
@@ -381,8 +380,10 @@ let zero_alloc_of_application
           arity = c.arity;
           loc = c.loc
         }
-      | _ -> Builtin_attributes.Default_zero_alloc
-
+      | Check _ | Default_zero_alloc | Ignore_assert_all | Assume _ ->
+        Builtin_attributes.Default_zero_alloc
+      end
+    | Default_zero_alloc, _ -> Builtin_attributes.Default_zero_alloc
   in
   Builtin_attributes.assume_zero_alloc zero_alloc
 
@@ -1619,6 +1620,7 @@ and transl_function ~in_new_scope ~scopes e params body
       ~zero_alloc =
   let attrs = e.exp_attributes in
   let mode = transl_alloc_mode_r alloc_mode in
+  let zero_alloc = Zero_alloc.get zero_alloc in
   let assume_zero_alloc = Builtin_attributes.assume_zero_alloc zero_alloc in
   let scopes =
     if in_new_scope then

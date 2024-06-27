@@ -777,6 +777,7 @@ type change =
   | Cuniv : type_expr option ref * type_expr option -> change
   | Cmodes : Mode.changes -> change
   | Csort : Jkind_types.Sort.change -> change
+  | Czero_alloc : Zero_alloc.change -> change
 
 type changes =
     Change of change * changes ref
@@ -792,7 +793,8 @@ let log_change ch =
 
 let () =
   Mode.set_append_changes (fun changes -> log_change (Cmodes !changes));
-  Jkind_types.Sort.set_change_log (fun change -> log_change (Csort change))
+  Jkind_types.Sort.set_change_log (fun change -> log_change (Csort change));
+  Zero_alloc.set_change_log (fun change -> log_change (Czero_alloc change))
 
 (* constructor and accessors for [field_kind] *)
 
@@ -1043,6 +1045,7 @@ let undo_change = function
   | Cuniv  (r, v)    -> r := v
   | Cmodes c          -> Mode.undo_changes c
   | Csort change -> Jkind_types.Sort.undo_change change
+  | Czero_alloc c -> Zero_alloc.undo_change c
 
 type snapshot = changes ref * int
 let last_snapshot = Local_store.s_ref 0

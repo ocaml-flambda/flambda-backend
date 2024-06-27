@@ -1068,32 +1068,34 @@ let let_bound_idents_with_modes_sorts_and_checks bindings =
       iter_pattern_full ~both_sides_of_or:true f vb.vb_sort vb.vb_pat;
        match vb.vb_pat.pat_desc, vb.vb_expr.exp_desc with
        | Tpat_var (id, _, _, _), Texp_function fn ->
-         let zero_alloc : Builtin_attributes.zero_alloc_attribute =
-           match fn.zero_alloc with
-           | Ignore_assert_all | Check _ | Assume _ -> fn.zero_alloc
-           | Default_zero_alloc when !Clflags.zero_alloc_check_assert_all ->
+         let zero_alloc =
+           match Zero_alloc.get fn.zero_alloc with
+           | Default_zero_alloc ->
              (* We fabricate a "Check" attribute if a top-level annotation
                 specifies that all functions should be checked for zero
-                alloc. *)
+                alloc. There is no need to update the zero_alloc variable on the
+                function - if it remains [Default_zero_alloc], translcore adds
+                the check. *)
              let arity = function_arity fn.params fn.body in
-             if arity > 0 then
-               Check { strict = false;
-                       arity;
-                       loc = Location.none;
-                       opt = false }
+             if !Clflags.zero_alloc_check_assert_all && arity > 0 then
+               Zero_alloc.create (Check { strict = false;
+                                          arity;
+                                          loc = Location.none;
+                                          opt = false })
              else
-               Default_zero_alloc
-           | Default_zero_alloc -> Default_zero_alloc
+               fn.zero_alloc
+           | Ignore_assert_all | Check _ | Assume _ -> fn.zero_alloc
          in
          Ident.Map.add id zero_alloc checks
+         (* CR ccasinghino: we could copy the zero-allocness if the vb_expr
+            is an ident. *)
        | _ -> checks
     ) Ident.Map.empty bindings
   in
   List.rev_map
     (fun (id, _, _, _) ->
        let zero_alloc =
-         Option.value (Ident.Map.find_opt id checks)
-           ~default:Zero_alloc.Default_zero_alloc
+         Option.value (Ident.Map.find_opt id checks) ~default:Zero_alloc.default
        in
        id, List.rev (Ident.Tbl.find_all modes_and_sorts id), zero_alloc)
     (rev_let_bound_idents_full bindings)
