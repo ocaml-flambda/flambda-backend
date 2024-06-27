@@ -426,13 +426,15 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
           | Immutable -> Immutable
           | Mutable -> Mutable Mode.Alloc.Comonadic.Const.legacy
          in
-         let mut_mod =
+         let has_mutable_implied_modalities =
           if Types.is_mutable mut then
             not (Builtin_attributes.has_no_mutable_implied_modalities attrs)
           else
             false
          in
-         let modalities = Typemode.transl_modalities mut_mod modalities in
+         let modalities =
+          Typemode.transl_modalities ~has_mutable_implied_modalities modalities
+         in
          let arg = Ast_helper.Typ.force_poly arg in
          let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
          {ld_id = Ident.create_local name.txt;
@@ -469,7 +471,10 @@ let transl_types_gf ~new_var_jkind ~allow_unboxed
   env loc univars closed cal kloc =
   let mk arg =
     let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg.pca_type in
-    let gf = Typemode.transl_modalities false arg.pca_modalities in
+    let gf =
+      Typemode.transl_modalities ~has_mutable_implied_modalities:false
+        arg.pca_modalities
+    in
     {ca_modalities = gf; ca_type = cty; ca_loc = arg.pca_loc}
   in
   let tyl_gfl = List.map mk cal in

@@ -1289,7 +1289,7 @@ let tree_of_modality (t : Mode.Modality.t) =
       Some (Ogf_legacy Ogf_global)
   | _ -> Option.map (fun x -> Ogf_new x) (tree_of_modality_new t)
 
-let tree_of_modalities has_mutable_implied_modalities t =
+let tree_of_modalities ~has_mutable_implied_modalities t =
   let l = Mode.Modality.Value.to_list t in
   (* CR zqian: decouple mutable and modalities *)
   let l =
@@ -1483,7 +1483,7 @@ and tree_of_labeled_typlist mode tyl =
 
 and tree_of_typ_gf {ca_type=ty; ca_modalities=gf; _} =
   (tree_of_typexp Type Alloc.Const.legacy ty,
-   tree_of_modalities false gf)
+   tree_of_modalities ~has_mutable_implied_modalities:false gf)
 
 (** We are on the RHS of an arrow type, where [ty] is the return type, and [m]
     is the return mode. This function decides the printed modes on [ty].
@@ -1670,14 +1670,14 @@ let tree_of_label l =
         mut
     | Immutable -> Om_immutable
   in
-  let mut_mod =
+  let has_mutable_implied_modalities =
     if is_mutable l.ld_mutable then
       not (Builtin_attributes.has_no_mutable_implied_modalities l.ld_attributes)
     else
       false
   in
   let ld_modalities =
-    tree_of_modalities mut_mod l.ld_modalities
+    tree_of_modalities ~has_mutable_implied_modalities l.ld_modalities
   in
   (Ident.name l.ld_id, mut, tree_of_typexp Type l.ld_type, ld_modalities)
 
