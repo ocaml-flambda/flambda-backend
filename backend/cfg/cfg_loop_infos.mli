@@ -11,7 +11,9 @@ end
 
 module EdgeMap : Map.S with type key = Edge.t
 
-val compute_back_edges : Cfg.t -> Cfg_dominators.t -> Edge.t list
+module EdgeSet : Set.S with type elt = Edge.t
+
+val compute_back_edges : Cfg.t -> Cfg_dominators.t -> EdgeSet.t
 
 type loop = Label.Set.t
 (* Blocks in a loop; if a node is part of several/nested loops, it will appear
@@ -23,7 +25,7 @@ val compute_loop_of_back_edge : Cfg.t -> Edge.t -> loop
 type loops = loop EdgeMap.t
 (* Map from back edge to loop. *)
 
-val compute_loops_of_back_edges : Cfg.t -> Edge.t list -> loops
+val compute_loops_of_back_edges : Cfg.t -> EdgeSet.t -> loops
 (* Assumes the passed edges are back edges. *)
 
 type header_map = loop list Label.Map.t
@@ -37,7 +39,7 @@ type loop_depths = int Label.Map.t
 val compute_loop_depths : Cfg.t -> header_map -> loop_depths
 
 type t = private
-  { back_edges : Edge.t list;
+  { back_edges : EdgeSet.t;
     loops : loops;
     header_map : header_map;
     loop_depths : loop_depths

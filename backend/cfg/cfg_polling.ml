@@ -191,12 +191,12 @@ let potentially_recursive_tailcall :
 let instr_cfg_with_layout :
     Cfg_with_layout.t ->
     block_needs_poll:PolledLoopsAnalysis.domain Label.Tbl.t ->
-    back_edges:Cfg_loop_infos.Edge.t list ->
+    back_edges:Cfg_loop_infos.EdgeSet.t ->
     bool =
  fun cfg_with_layout ~block_needs_poll ~back_edges ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  List.fold_left back_edges ~init:false
-    ~f:(fun added_poll { Cfg_loop_infos.Edge.src; dst } ->
+  Cfg_loop_infos.EdgeSet.fold
+    (fun { Cfg_loop_infos.Edge.src; dst } added_poll ->
       let needs_poll =
         match Label.Tbl.find_opt block_needs_poll dst with
         | None -> assert false
@@ -237,6 +237,7 @@ let instr_cfg_with_layout :
           ());
         true)
       else added_poll)
+    back_edges false
 
 type polling_points = (polling_point * Debuginfo.t) list
 
