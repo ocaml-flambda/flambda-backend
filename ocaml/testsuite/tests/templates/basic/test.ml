@@ -211,6 +211,9 @@
        output = "ref_indirect.cmx.ocamlobjinfo.output";
        ocamlobjinfo;
 
+       reason = "sensitive to runtime4 vs. runtime5; will be fixed by PR 2737";
+       skip;
+
        reference = "ref_indirect.cmx.ocamlobjinfo.reference";
        check-program-output;
      }{
