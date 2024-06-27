@@ -158,9 +158,9 @@ As well as function bodies, a region is also placed around:
 Module bindings are wrapped in regions to enforce the rule (as mentioned above)
 that modules never contain locally-allocated values.
 
-Additionally, it is possible to write functions that do *not* have
-a region around their body, which is useful to write functions that
-return locally-allocated values. See "Local-returning functions" below.
+Additionally, it is possible to write functions that do *not* have a region
+around their body, which is useful to write functions that return
+locally-allocated values. See "Use exclave_ to return a local value" below.
 
 ### Runtime behavior
 
@@ -280,10 +280,9 @@ it refers to a local value `x`), and it is locally allocated from within the
 region of `f3`. When this region ends, the any-region local value `42 :: x` is
 not allowed to escape it.
 
-It is possible to write functions like `f3` that return
-locally-allocated values, but this requires explicit annotation, as it
-would otherwise be easy to do by mistake.  See "Local-returning
-functions" below.
+It is possible to write functions like `f3` that return locally-allocated
+values, but this requires explicit annotation, as it would otherwise be easy to
+do by mistake.  See "Use exclave_ to return a local value" below.
 
 Like local variables, inference can determine whether function arguments are
 local. However, note that for arguments of exported functions to be local, the
@@ -454,9 +453,7 @@ let f3 (local_ x) =
 Here, even though the region of `f3` ends before the call to `some_func`, the
 value `x` remains available.
 
-
-
-## Local-returning functions
+## Use `exclave_` to return a local value
 
 The region around the body of a function prevents local allocations inside that
 function from escaping. Occasionally, it is useful to write a function that
@@ -516,7 +513,7 @@ code in the outer region. Therefore, `ref 0` is executed in `f`'s region, which
 allows its local allocation. The allocation will only be cleaned up when the
 region of `f` ends.
 
-## Advanced usage of exclaves
+## Delaying exclaves
 In the previous section, the example function exits its own region immediately,
 which allows allocating and returning in the caller's region. This approach,
 however, has certain disadvantages. Consider the following example:
