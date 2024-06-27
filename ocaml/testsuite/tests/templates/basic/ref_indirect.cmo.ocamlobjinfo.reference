@@ -7,7 +7,6 @@ Interfaces imported:
 	00000000000000000000000000000000	Monoid
 	00000000000000000000000000000000	CamlinternalFormatBasics
 Required globals:
-	Monoid_utils
 Uses unsafe features: no
 Force link: no
 File ref_indirect.cmi

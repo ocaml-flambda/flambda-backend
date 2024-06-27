@@ -10,7 +10,6 @@ Interfaces imported:
 	00000000000000000000000000000000	Monoid
 	00000000000000000000000000000000	CamlinternalFormatBasics
 Implementations imported:
-	00000000000000000000000000000000	Monoid_utils
 Flambda 2 export information:
 Original unit: Ref_indirect
 Typing env:
