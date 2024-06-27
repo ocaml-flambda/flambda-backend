@@ -353,14 +353,10 @@ let optional_atat_modes f m =
   | m -> pp f " %@%@ %a" modes m
 
 let maybe_type_at_modes pty ctxt f (c, m) =
-  match m with
-  | _ :: _ -> pp f "%a@ %@@ %a" (pty ctxt) c modes m
-  | [] -> pty ctxt f c
+  pp f "%a%a" (pty ctxt) c optional_at_modes m
 
 let maybe_type_atat_modes pty ctxt f (c, m) =
-  match m with
-  | _ :: _ -> pp f "%a@ %@%@@ %a" (pty ctxt) c modes m
-  | [] -> pty ctxt f c
+  pp f "%a%a" (pty ctxt) c optional_atat_modes m
 
 let modalities_type pty ctxt f pca =
   match pca.pca_modalities with

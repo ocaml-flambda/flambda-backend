@@ -135,28 +135,6 @@ let typevars ppf vs =
     (* Don't use Pprintast.tyvar, as that causes a dependency cycle with
        Jane_syntax, which depends on this module for debugging. *)
 
-(* let modality i ppf modality =
- *   string_loc i ppf
- *     (Location.map (fun (Modality x) -> x) modality)
- *
- * let modalities i ppf modalities =
- *   match modalities with
- *   | [] -> ()
- *   | _ ->
- *     line i ppf "modalities\n";
- *     list i modality ppf modalities *)
-
-(* let mode i ppf mode =
- *   string_loc i ppf
- *     (Location.map (fun (Mode x) -> x) mode)
- *
- * let modes ?(print_even_if_empty = false) i ppf modes =
- *   match modes with
- *   | [] when not print_even_if_empty -> ()
- *   | _ ->
- *     line i ppf "modes\n";
- *     list i mode ppf modes *)
-
 let modality i ppf modality =
   line i ppf "modality %a\n" fmt_string_loc
     (Location.map (fun (Modality x) -> x) modality)

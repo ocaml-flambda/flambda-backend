@@ -163,10 +163,6 @@
             core_type (extensions.ml[16,344+34]..[16,344+35])
               Ptyp_constr "t" (extensions.ml[16,344+34]..[16,344+35])
               []
-            modes
-            []
-            modes
-            []
         expression (extensions.ml[16,344+40]..[16,344+60])
           Pexp_extension "foo"
           core_type (extensions.ml[16,344+47]..[16,344+58])

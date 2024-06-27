@@ -4046,12 +4046,12 @@ let rec approx_type env sty =
   | Some (jty, attrs) -> approx_type_jst env attrs jty
   | None ->
   match sty.ptyp_desc with
-  | Ptyp_arrow (p, ({ ptyp_desc = Ptyp_poly _ } as arg_sty), sty, m, _) ->
+  | Ptyp_arrow (p, ({ ptyp_desc = Ptyp_poly _ } as arg_sty), sty, arg_mode, _) ->
       let p = Typetexp.transl_label p (Some arg_sty) in
+      let arg_mode = Typemode.transl_alloc_mode arg_mode in
       (* CR layouts v5: value requirement here to be relaxed *)
       if is_optional p then newvar Predef.option_argument_jkind
       else begin
-        let arg_mode = Typemode.transl_alloc_mode m in
         let arg_ty =
           (* Polymorphic types will only unify with types that match all of their
            polymorphic parts, so we need to fully translate the type here
@@ -4063,8 +4063,8 @@ let rec approx_type env sty =
         let mret = Alloc.newvar () in
         newty (Tarrow ((p,marg,mret), arg_ty.ctyp_type, ret, commu_ok))
       end
-  | Ptyp_arrow (p, arg_sty, sty, arg_m, _) ->
-      let arg_mode = Typemode.transl_alloc_mode arg_m in
+  | Ptyp_arrow (p, arg_sty, sty, arg_mode, _) ->
+      let arg_mode = Typemode.transl_alloc_mode arg_mode in
       let p = Typetexp.transl_label p (Some arg_sty) in
       let arg =
         if is_optional p
@@ -4106,8 +4106,8 @@ let type_pattern_approx env spat ty_expected =
   | Some (jpat, _attrs) -> type_pattern_approx_jane_syntax jpat
   | None      ->
   match spat.ppat_desc with
-  | Ppat_constraint(_, Some ({ptyp_desc=Ptyp_poly _} as sty), m) ->
-      let arg_type_mode = Typemode.transl_alloc_mode m in
+  | Ppat_constraint(_, Some ({ptyp_desc=Ptyp_poly _} as sty), arg_type_mode) ->
+      let arg_type_mode = Typemode.transl_alloc_mode arg_type_mode in
       let ty_pat =
         Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false arg_type_mode sty
       in

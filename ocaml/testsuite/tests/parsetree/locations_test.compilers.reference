@@ -252,10 +252,6 @@ Ptop_def
                   Ptyp_var a
                 core_type (//toplevel//[2,1+21]..[2,1+22])
                   Ptyp_var a
-                modes
-                []
-                modes
-                []
           expression (//toplevel//[2,1+4]..[2,1+35])
             Pexp_newtype "a"
             expression (//toplevel//[2,1+4]..[2,1+35])
@@ -279,10 +275,6 @@ Ptop_def
                 core_type (//toplevel//[2,1+21]..[2,1+22])
                   Ptyp_constr "a" (//toplevel//[2,1+21]..[2,1+22])
                   []
-                modes
-                []
-                modes
-                []
       ]
   ]
 
@@ -330,10 +322,6 @@ Ptop_def
                             core_type (//toplevel//[3,16+26]..[3,16+27])
                               Ptyp_constr "a" (//toplevel//[3,16+26]..[3,16+27])
                               []
-                            modes
-                            []
-                            modes
-                            []
                       Some
                         core_type (//toplevel//[3,16+9]..[4,46+14]) ghost
                           Ptyp_poly 'a
@@ -344,10 +332,6 @@ Ptop_def
                               Ptyp_var a
                             core_type (//toplevel//[3,16+26]..[3,16+27])
                               Ptyp_var a
-                            modes
-                            []
-                            modes
-                            []
               ]
       ]
   ]

@@ -2255,9 +2255,9 @@ let poly : ('a. 'a -> 'a) -> int * bool =
   fun (id : ('a : immediate). 'a -> 'a) -> id 3, id true
 
 [%%expect{|
-Line 2, characters 6-39:
+Line 2, characters 7-38:
 2 |   fun (id : ('a : immediate). 'a -> 'a) -> id 3, id true
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This pattern matches values of type ('a : immediate). 'a -> 'a
        but a pattern was expected which matches values of type 'a. 'a -> 'a
        Type 'a is not compatible with type 'a0

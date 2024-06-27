@@ -151,15 +151,19 @@ let arg_label i ppf = function
 let typevars ppf vs =
   List.iter (fun x -> fprintf ppf " %a" Pprintast.tyvar x.txt) vs
 
-let modalities i ppf modes =
-  list i string_loc ppf (
-    List.map (Location.map (fun (Modality x) -> x)) modes
-  )
+let modality i ppf modality =
+  line i ppf "modality %a\n" fmt_string_loc
+    (Location.map (fun (Modality x) -> x) modality)
+
+let modalities i ppf modalities =
+  List.iter (fun m -> modality i ppf m) modalities
+
+let mode i ppf mode =
+  line i ppf "mode %a\n" fmt_string_loc
+    (Location.map (fun (Mode x) -> x) mode)
 
 let modes i ppf modes =
-  list i string_loc ppf (
-    List.map (Location.map (fun (Mode x) -> x)) modes
-  )
+  List.iter (fun m -> mode i ppf m) modes
 
 let rec core_type i ppf x =
   with_location_mapping ~loc:x.ptyp_loc ppf (fun () ->
@@ -267,7 +271,7 @@ and pattern i ppf x =
   | Ppat_constraint (p, ct, m) ->
       line i ppf "Ppat_constraint\n";
       pattern i ppf p;
-      option i core_type ppf ct;
+      Option.iter (core_type i ppf) ct;
       modes i ppf m;
   | Ppat_type (li) ->
       line i ppf "Ppat_type\n";
@@ -365,7 +369,7 @@ and expression i ppf x =
   | Pexp_constraint (e, ct, m) ->
       line i ppf "Pexp_constraint\n";
       expression i ppf e;
-      option i core_type ppf ct;
+      Option.iter (core_type i ppf) ct;
       modes i ppf m;
   | Pexp_coerce (e, cto1, cto2) ->
       line i ppf "Pexp_coerce\n";

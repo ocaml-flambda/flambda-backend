@@ -2619,8 +2619,9 @@ labeled_simple_pattern:
       { (Nolabel, None, $1) }
   | LPAREN modes=mode_expr_legacy x=let_pattern_no_modes RPAREN
       { let pat, cty = x in
+        let loc = $startpos(modes), $endpos(x) in
         (Nolabel, None,
-         mkpat_with_modes ~loc:$sloc ~pat ~cty ~modes)
+         mkpat_with_modes ~loc ~pat ~cty ~modes)
       }
   | LPAREN modes0=optional_mode_expr_legacy x=let_pattern_required_modes RPAREN
       { let pat, cty, modes = x in
@@ -2640,7 +2641,7 @@ labeled_simple_pattern:
   | LPAREN x=poly_pattern_no_modes RPAREN
       { let pat, cty = x in
         (Nolabel, None,
-         mkpat_with_modes ~loc:$sloc ~pat ~cty ~modes:[])
+         mkpat_with_modes ~loc:$loc(x) ~pat ~cty ~modes:[])
       }
 ;
 
