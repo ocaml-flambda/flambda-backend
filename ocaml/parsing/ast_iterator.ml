@@ -964,7 +964,7 @@ let default_iterator =
     jkind_annotation =
       (fun this -> function
         | Default -> ()
-        | Primitive_layout_or_abbreviation s ->
+        | Abbreviation s ->
           iter_loc this (s : Jane_syntax.Jkind.Const.t :> _ loc)
         | Mod (t, mode_list) ->
           this.jkind_annotation this t;

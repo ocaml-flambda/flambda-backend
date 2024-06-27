@@ -4,10 +4,10 @@
 
 
 
-
-
-
 *)
+
+type r0 = {s : string [@no_mutable_implied_modalities]} (* rejected *)
+type r1 = {mutable s : string [@no_mutable_implied_modalities]} (* accepted *)
 
 let h x = x [@inline] (* rejected *)
 let h x = x [@ocaml.inline] (* rejected *)

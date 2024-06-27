@@ -112,9 +112,7 @@ let protect_longident ppf print_longident longprefix txt =
   fprintf ppf format print_longident longprefix txt
 
 let is_curry_attr attr =
-  match attr.attr_name.txt with
-  | "extension.curry" -> true
-  | _ -> false
+  attr.attr_name.txt = Jane_syntax.Arrow_curry.curry_attr_name
 
 let filter_curry_attrs attrs =
   List.filter (fun attr -> not (is_curry_attr attr)) attrs
@@ -379,7 +377,7 @@ and type_with_label ctxt f (label, c, mode) =
 
 and jkind ctxt f k = match (k : Jane_syntax.Jkind.t) with
   | Default -> pp f "_"
-  | Primitive_layout_or_abbreviation s ->
+  | Abbreviation s ->
     pp f "%s" (s : Jane_syntax.Jkind.Const.t :> _ loc).txt
   | Mod (t, modes) ->
     begin match modes with

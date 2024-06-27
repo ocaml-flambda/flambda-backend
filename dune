@@ -176,7 +176,6 @@
   label
   linear_utils
   simplify_terminator
-  cfg_equivalence
   ;; backend/regalloc
   regalloc_gi
   regalloc_gi_state

@@ -249,7 +249,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let type_jkind, type_jkind_annotation, sdecl_attributes =
     Jkind.of_type_decl_default
       ~context:(Type_declaration path)
-      ~default:(Jkind.any ~why:Initial_typedecl_env)
+      ~default:(Jkind.Primitive.any ~why:Initial_typedecl_env)
       sdecl
   in
   let abstract_reason, type_manifest =
@@ -401,7 +401,7 @@ let check_representable ~why ~allow_unboxed env loc kloc typ =
       yet. *)
   | Ok s -> begin
     if not allow_unboxed then
-      match Jkind.Sort.get_default_value s with
+      match Jkind.Sort.default_to_value_and_get s with
       | Void | Value -> ()
       | Float64 | Float32 | Word | Bits32 | Bits64 as const ->
         raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
@@ -426,7 +426,15 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
           | Immutable -> Immutable
           | Mutable -> Mutable Mode.Alloc.Comonadic.Const.legacy
          in
-         let modalities = Typemode.transl_modalities mut modalities in
+         let has_mutable_implied_modalities =
+          if Types.is_mutable mut then
+            not (Builtin_attributes.has_no_mutable_implied_modalities attrs)
+          else
+            false
+         in
+         let modalities =
+          Typemode.transl_modalities ~has_mutable_implied_modalities modalities
+         in
          let arg = Ast_helper.Typ.force_poly arg in
          let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
          {ld_id = Ident.create_local name.txt;
@@ -448,7 +456,7 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
          {Types.ld_id = ld.ld_id;
           ld_mutable = ld.ld_mutable;
           ld_modalities = ld.ld_modalities;
-          ld_jkind = Jkind.any ~why:Dummy_jkind;
+          ld_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
             (* Updated by [update_label_jkinds] *)
           ld_type = ty;
           ld_loc = ld.ld_loc;
@@ -463,7 +471,10 @@ let transl_types_gf ~new_var_jkind ~allow_unboxed
   env loc univars closed cal kloc =
   let mk arg =
     let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg.pca_type in
-    let gf = Typemode.transl_modalities Immutable arg.pca_modalities in
+    let gf =
+      Typemode.transl_modalities ~has_mutable_implied_modalities:false
+        arg.pca_modalities
+    in
     {ca_modalities = gf; ca_type = cty; ca_loc = arg.pca_loc}
   in
   let tyl_gfl = List.map mk cal in
@@ -767,7 +778,7 @@ let transl_declaration env sdecl (id, uid) =
       let cty = transl_simple_type ~new_var_jkind:Any env ~closed:no_row Mode.Alloc.Const.legacy sty in
       Some cty, Some cty.ctyp_type
   in
-  let any = Jkind.any ~why:Initial_typedecl_env in
+  let any = Jkind.Primitive.any ~why:Initial_typedecl_env in
   (* jkind_default is the jkind to use for now as the type_jkind when there
      is no annotation and no manifest.
      See Note [Default jkinds in transl_declaration].
@@ -775,7 +786,7 @@ let transl_declaration env sdecl (id, uid) =
   let (tkind, kind, jkind_default) =
     match sdecl.ptype_kind with
       | Ptype_abstract ->
-        Ttype_abstract, Type_abstract Abstract_def, Jkind.value ~why:Default_type_jkind
+        Ttype_abstract, Type_abstract Abstract_def, Jkind.Primitive.value ~why:Default_type_jkind
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
           match cstrs with
@@ -856,7 +867,7 @@ let transl_declaration env sdecl (id, uid) =
                    Constructor_uniform_value, jkinds)
                 (Array.of_list cstrs)
             ),
-            Jkind.value ~why:Boxed_variant
+            Jkind.Primitive.value ~why:Boxed_variant
         in
           Ttype_variant tcstrs, Type_variant (cstrs, rep), jkind
       | Ptype_record lbls ->
@@ -875,11 +886,11 @@ let transl_declaration env sdecl (id, uid) =
               Record_unboxed, any
             else
               Record_boxed (Array.make (List.length lbls) any),
-              Jkind.value ~why:Boxed_record
+              Jkind.Primitive.value ~why:Boxed_record
           in
           Ttype_record lbls, Type_record(lbls', rep), jkind
       | Ptype_open ->
-        Ttype_open, Type_open, Jkind.value ~why:Extensible_variant
+        Ttype_open, Type_open, Jkind.Primitive.value ~why:Extensible_variant
       in
     let jkind =
     (* - If there's an annotation, we use that. It's checked against
@@ -894,7 +905,7 @@ let transl_declaration env sdecl (id, uid) =
     *)
       match jkind_from_annotation, man with
       | Some annot, _ -> annot
-      | None, Some _ -> Jkind.any ~why:Initial_typedecl_env
+      | None, Some _ -> Jkind.Primitive.any ~why:Initial_typedecl_env
       | None, None -> jkind_default
     in
     let arity = List.length params in
@@ -1182,7 +1193,7 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
     let lbls, all_void =
       update_label_jkinds env loc lbls None
     in
-    jkinds.(0) <- Jkind.value ~why:Boxed_record;
+    jkinds.(0) <- Jkind.Primitive.value ~why:Boxed_record;
     Types.Cstr_record lbls, all_void
 
 let assert_mixed_product_support =
@@ -1232,8 +1243,14 @@ module Element_repr = struct
 
   let classify env loc ty jkind =
     if is_float env ty then Float_element
-    else match Jkind.get_default_value jkind with
-      (* CR layouts v5.1: We don't allow [Immediate64] in the flat suffix of
+    else
+      let const_jkind = Jkind.default_to_value_and_get jkind in
+      let sort = Jkind.Const.(Layout.get_sort (get_layout const_jkind)) in
+      let externality_upper_bound =
+        Jkind.Const.get_externality_upper_bound const_jkind
+      in
+      match sort, externality_upper_bound with
+      (* CR layouts v5.1: We don't allow [External64] in the flat suffix of
          mixed blocks. That's because we haven't committed to whether the
          unboxing features of flambda2 can be used together with 32 bit
          platforms. (If flambda2 stores unboxed things as flat in 32 bits, then
@@ -1249,16 +1266,16 @@ module Element_repr = struct
          We may revisit this decision later when we know better whether we want
          flambda2 to unbox for 32 bit platforms.
       *)
-      | Immediate64 -> Value_element
-      | Value -> Value_element
-      | Immediate -> Imm_element
-      | Float64 -> Unboxed_element Float64
-      | Float32 -> Unboxed_element Float32
-      | Word -> Unboxed_element Word
-      | Bits32 -> Unboxed_element Bits32
-      | Bits64 -> Unboxed_element Bits64
-      | Void -> Element_without_runtime_component { loc; ty }
-      | Any ->
+      | Some Value, (Internal | External64) ->
+        Value_element
+      | Some Value, External -> Imm_element
+      | Some Float64, _ -> Unboxed_element Float64
+      | Some Float32, _ -> Unboxed_element Float32
+      | Some Word, _ -> Unboxed_element Word
+      | Some Bits32, _ -> Unboxed_element Bits32
+      | Some Bits64, _ -> Unboxed_element Bits64
+      | Some Void, _ -> Element_without_runtime_component { loc; ty }
+      | None, _ ->
           Misc.fatal_error "Element_repr.classify: unexpected Any"
 
   let unboxed_to_flat : unboxed_element -> flat_element = function
@@ -1577,7 +1594,7 @@ let update_decl_jkind env dpath decl =
   let new_decl, new_jkind = match decl.type_kind with
     | Type_abstract _ -> decl, decl.type_jkind
     | Type_open ->
-      let type_jkind = Jkind.value ~why:Extensible_variant in
+      let type_jkind = Jkind.Primitive.value ~why:Extensible_variant in
       { decl with type_jkind }, type_jkind
     | Type_record (lbls, rep) ->
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
@@ -1609,9 +1626,9 @@ let update_decls_jkind_reason decls =
        List.iter update_generalized decl.type_params;
        Btype.iter_type_expr_kind update_generalized decl.type_kind;
        Option.iter update_generalized decl.type_manifest;
-       let reason = Jkind.(Generalized (Some id, decl.type_loc)) in
+       let reason = Jkind.History.Generalized (Some id, decl.type_loc) in
        let new_decl = {decl with type_jkind =
-                                   Jkind.(update_reason decl.type_jkind reason)} in
+                                   Jkind.History.update_reason decl.type_jkind reason} in
        (id, new_decl)
     )
     decls
@@ -1823,7 +1840,7 @@ let check_well_founded_manifest ~abs_env env loc path decl =
   let args =
     (* The jkinds here shouldn't matter for the purposes of
        [check_well_founded] *)
-    List.map (fun _ -> Ctype.newvar (Jkind.any ~why:Dummy_jkind))
+    List.map (fun _ -> Ctype.newvar (Jkind.Primitive.any ~why:Dummy_jkind))
       decl.type_params
   in
   let visited = ref TypeMap.empty in
@@ -2229,7 +2246,7 @@ let transl_extension_constructor_decl
     | Cstr_tuple args -> List.length args
     | Cstr_record _ -> 1
   in
-  let jkinds = Array.make num_args (Jkind.any ~why:Dummy_jkind) in
+  let jkinds = Array.make num_args (Jkind.Primitive.any ~why:Dummy_jkind) in
   let args, constant =
     update_constructor_arguments_jkinds env loc args jkinds
   in
@@ -2638,7 +2655,7 @@ let error_if_has_deep_native_repr_attributes core_type =
    In such cases, we raise an expection. *)
 let type_sort_external ~is_layout_poly ~why env loc typ =
   match Ctype.type_sort ~why env typ with
-  | Ok s -> Jkind.Sort.get_default_value s
+  | Ok s -> Jkind.Sort.default_to_value_and_get s
   | Error err ->
     let kloc =
       if is_layout_poly then External_with_layout_poly else External
@@ -2868,7 +2885,7 @@ let transl_value_decl env loc valdecl =
   end;
   (* CR layouts v5: relax this to check for representability. *)
   begin match Ctype.constrain_type_jkind env cty.ctyp_type
-                (Jkind.value ~why:Structure_element) with
+                (Jkind.Primitive.value ~why:Structure_element) with
   | Ok () -> ()
   | Error err ->
     raise(Error(cty.ctyp_loc, Non_value_in_sig(err,valdecl.pval_name.txt,cty.ctyp_type)))
@@ -3134,7 +3151,7 @@ let transl_package_constraint ~loc ty =
   { type_params = [];
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
-    type_jkind = Jkind.any ~why:Dummy_jkind;
+    type_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
     (* There is no reason to calculate an accurate jkind here.  This typedecl
        will be thrown away once it is used for the package constraint inclusion
        check, and that check will expand the manifest as needed. *)
@@ -3185,7 +3202,7 @@ let approx_type_decl sdecl_list =
        let jkind, jkind_annotation, _sdecl_attributes =
          Jkind.of_type_decl_default
            ~context:(Type_declaration path)
-           ~default:(Jkind.value ~why:Default_type_jkind)
+           ~default:(Jkind.Primitive.value ~why:Default_type_jkind)
            sdecl
        in
        let params =
@@ -3610,7 +3627,7 @@ let report_error ppf = function
     in
     fprintf ppf
       "@[Type %a has layout %a.@ %s may not yet contain types of this layout.@]"
-      Printtyp.type_expr typ Jkind.Sort.format_const sort_const struct_desc
+      Printtyp.type_expr typ Jkind.Sort.Const.format sort_const struct_desc
   | Illegal_mixed_product error -> begin
       match error with
       | Flat_field_expected { boxed_lbl; non_value_lbl } ->

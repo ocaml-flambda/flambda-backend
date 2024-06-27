@@ -100,6 +100,8 @@ tyvar: 'no_tyvars_require_extensions
 
 jkind: value with ('a : value) @ local -> unit
 
+mode: global
+
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 ##### Extensions disallowed
@@ -203,6 +205,8 @@ modal_kind_sig:
 tyvar: 'no_tyvars_require_extensions
 
 jkind: value with ('a : value) @ local -> unit
+
+mode: global
 
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 

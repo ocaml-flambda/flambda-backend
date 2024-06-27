@@ -10,7 +10,9 @@ val transl_alloc_mode : Parsetree.modes -> Mode.Alloc.Const.t
 
 (** Interpret mode syntax as modalities *)
 val transl_modalities :
-  Types.mutability -> Parsetree.modalities -> Mode.Modality.Value.t
+  has_mutable_implied_modalities:bool ->
+  Parsetree.modalities ->
+  Mode.Modality.Value.t
 
 val untransl_modalities :
   loc:Location.t -> Mode.Modality.Value.t -> Parsetree.modalities

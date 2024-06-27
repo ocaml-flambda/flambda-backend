@@ -59,3 +59,4 @@ val tyvar: Format.formatter -> string -> unit
       position, or for keywords by escaping them with \#. No-op on "_". *)
 
 val jkind : Format.formatter -> Jane_syntax.Jkind.t -> unit
+val mode : Format.formatter -> Parsetree.mode Location.loc -> unit
