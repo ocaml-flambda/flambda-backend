@@ -42,4 +42,10 @@ val with_exported_offsets : t -> Exported_offsets.t -> t
 val merge : t option -> t option -> t option
 
 (** For ocamlobjinfo *)
-val print : Format.formatter -> t -> unit
+val print :
+  print_typing_env:bool ->
+  print_code:bool ->
+  print_offsets:bool ->
+  Format.formatter ->
+  t ->
+  unit

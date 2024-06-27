@@ -9,7 +9,7 @@
  {
    ocamlobjinfo;
 
-   program = "-no-code question.cmx";
+   program = "-no-code -no-approx question.cmx";
    ocamlobjinfo;
 
    check-program-output;
