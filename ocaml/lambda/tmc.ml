@@ -900,6 +900,8 @@ let rec choice ctx t =
     | Pisint _ | Pisout
     | Pignore
     | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+    | Preinterpret_tagged_int63_as_unboxed_int64
+    | Preinterpret_unboxed_int64_as_tagged_int63
 
     (* we don't handle effect or DLS primitives *)
     | Prunstack | Pperform | Presume | Preperform | Pdls_get

@@ -777,6 +777,10 @@ let primitive ppf = function
   | Parray_to_iarray -> fprintf ppf "array_to_iarray"
   | Parray_of_iarray -> fprintf ppf "array_of_iarray"
   | Pget_header m -> fprintf ppf "get_header%s" (alloc_kind m)
+  | Preinterpret_tagged_int63_as_unboxed_int64 ->
+      fprintf ppf "reinterpret_tagged_int63_as_unboxed_int64"
+  | Preinterpret_unboxed_int64_as_tagged_int63 ->
+      fprintf ppf "reinterpret_unboxed_int64_as_tagged_int63"
 
 let name_of_primitive = function
   | Pbytes_of_string -> "Pbytes_of_string"
@@ -935,6 +939,10 @@ let name_of_primitive = function
   | Parray_of_iarray -> "Parray_of_iarray"
   | Parray_to_iarray -> "Parray_to_iarray"
   | Pget_header _ -> "Pget_header"
+  | Preinterpret_tagged_int63_as_unboxed_int64 ->
+      "Preinterpret_tagged_int63_as_unboxed_int64"
+  | Preinterpret_unboxed_int64_as_tagged_int63 ->
+      "Preinterpret_unboxed_int64_as_tagged_int63"
 
 let zero_alloc_attribute ppf check =
   match check with

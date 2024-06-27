@@ -3648,6 +3648,8 @@ let binary op ~dbg x y = Cop (op, [x; y], dbg)
 
 let int64_as_float = unary (Creinterpret_cast Float_of_int64)
 
+let float_as_int64 = unary (Creinterpret_cast Int64_of_float)
+
 let int_of_float = unary (Cstatic_cast (Int_of_float Float64))
 
 let float_of_int = unary (Cstatic_cast (Float_of_int Float64))
