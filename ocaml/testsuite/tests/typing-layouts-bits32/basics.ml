@@ -196,7 +196,7 @@ Error: This type ('b : value) should be an instance of type ('a : bits32)
        The layout of 'a is bits32, because
          of the annotation on 'a in the declaration of the type t4_7.
        But the layout of 'a must overlap with value, because
-         it's the type of a tuple element.
+         it instantiates an unannotated type parameter of t4_7, defaulted to layout value.
 |}]
 
 (*********************************************************)

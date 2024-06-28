@@ -47,7 +47,7 @@ Line 1, characters 9-14:
 Error: Tuple element types must have layout value.
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-18.
-       But the layout of t_any must be a sublayout of value, because
+       But the layout of t_any must be a sublayout of value_or_null, because
          it's the type of a tuple element.
 |}];;
 
@@ -278,10 +278,10 @@ Line 1, characters 27-28:
 1 | let f (x : t_float64) = `A x;;
                                ^
 Error: This expression has type t_float64
-       but an expression was expected of type ('a : value)
+       but an expression was expected of type ('a : value_or_null)
        The layout of t_float64 is float64, because
          of the definition of t_float64 at line 5, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value, because
+       But the layout of t_float64 must be a sublayout of value_or_null, because
          it's the type of the field of a polymorphic variant.
 |}];;
 
@@ -377,7 +377,7 @@ Line 1, characters 28-34:
 Error: This type signature for x is not a value type.
        The layout of type t_void is void, because
          of the definition of t_void at line 6, characters 0-19.
-       But the layout of type t_void must be a sublayout of value, because
+       But the layout of type t_void must be a sublayout of value_or_null, because
          it's the type of something stored in a module structure.
 |}];;
 

@@ -1,4 +1,4 @@
 type ('a : float64) t = 'a
-val f : 'b ('a : float64). 'b -> 'a t -> unit = <fun>
+val f : ('b : value_or_null) ('a : float64). 'b -> 'a t -> unit = <fun>
 f has the wrong type for a printing function.
 

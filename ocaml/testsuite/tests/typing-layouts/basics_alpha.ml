@@ -225,7 +225,7 @@ Line 1, characters 27-33:
 Error: This type signature for x is not a value type.
        The layout of type t_void is void, because
          of the definition of t_void at line 6, characters 0-19.
-       But the layout of type t_void must be a sublayout of value, because
+       But the layout of type t_void must be a sublayout of value_or_null, because
          it's the type of something stored in a module structure.
 |}];;
 (* CR layouts v5: the test above should be made to work *)
@@ -241,7 +241,7 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
          of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value, because
+       But the layout of t_void must be a sublayout of value_or_null, because
          it has to be value for the V1 safety check.
 |}];;
 
@@ -252,14 +252,7 @@ module type S2 = sig
 end
 
 [%%expect{|
-Line 2, characters 10-25:
-2 |   val x : t_value_or_null
-              ^^^^^^^^^^^^^^^
-Error: This type signature for x is not a value type.
-       The layout of type t_value_or_null is value_or_null, because
-         of the definition of t_value_or_null at line 8, characters 0-36.
-       But the layout of type t_value_or_null must be a sublayout of value, because
-         it's the type of something stored in a module structure.
+module type S2 = sig val x : t_value_or_null end
 |}]
 
 (* CR layouts v3.0: this should work *)
@@ -271,25 +264,7 @@ end = struct
 end
 
 [%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   let f x = x
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig val f : 'a -> 'a end
-       is not included in
-         sig val f : t_value_or_null -> t_value_or_null end
-       Values do not match:
-         val f : 'a -> 'a
-       is not included in
-         val f : t_value_or_null -> t_value_or_null
-       The type 'a -> 'a is not compatible with the type
-         t_value_or_null -> t_value_or_null
-       The layout of t_value_or_null is value_or_null, because
-         of the definition of t_value_or_null at line 8, characters 0-36.
-       But the layout of t_value_or_null must be a sublayout of value, because
-         of the definition of f at line 4, characters 8-13.
+module M2 : sig val f : t_value_or_null -> t_value_or_null end
 |}]
 
 (**************************************)
@@ -457,7 +432,7 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of 'a is void, because
          of the definition of void5 at line 1, characters 0-37.
-       But the layout of 'a must be a sublayout of value, because
+       But the layout of 'a must be a sublayout of value_or_null, because
          it has to be value for the V1 safety check.
 |}];;
 
@@ -581,7 +556,7 @@ Line 2, characters 40-46:
 Error: Polymorphic variant constructor argument types must have layout value.
        The layout of t_void is void, because
          of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value, because
+       But the layout of t_void must be a sublayout of value_or_null, because
          it's the type of the field of a polymorphic variant.
 |}];;
 
@@ -630,7 +605,7 @@ Error: The type constraints are not consistent.
        The layout of void_unboxed_record is void, because
          of the definition of t_void at line 6, characters 0-19.
        But the layout of void_unboxed_record must be a sublayout of value, because
-         it's the type of the field of a polymorphic variant.
+         it instantiates an unannotated type parameter of t, defaulted to layout value.
 |}];;
 
 module type S8_5 = sig
@@ -643,7 +618,7 @@ Line 2, characters 17-23:
 Error: Polymorphic variant constructor argument types must have layout value.
        The layout of t_void is void, because
          of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value, because
+       But the layout of t_void must be a sublayout of value_or_null, because
          it's the type of the field of a polymorphic variant.
 |}]
 
@@ -661,7 +636,7 @@ Line 2, characters 20-26:
 Error: Tuple element types must have layout value.
        The layout of t_void is void, because
          of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value, because
+       But the layout of t_void must be a sublayout of value_or_null, because
          it's the type of a tuple element.
 |}];;
 
@@ -675,7 +650,7 @@ Line 2, characters 31-50:
 Error: Tuple element types must have layout value.
        The layout of void_unboxed_record is void, because
          of the definition of t_void at line 6, characters 0-19.
-       But the layout of void_unboxed_record must be a sublayout of value, because
+       But the layout of void_unboxed_record must be a sublayout of value_or_null, because
          it's the type of a tuple element.
 |}];;
 
@@ -692,10 +667,10 @@ Line 7, characters 13-14:
 7 |     | V t -> t, 27
                  ^
 Error: This expression has type void_unboxed_record
-       but an expression was expected of type ('a : value)
+       but an expression was expected of type ('a : value_or_null)
        The layout of void_unboxed_record is void, because
          of the definition of t_void at line 6, characters 0-19.
-       But the layout of void_unboxed_record must be a sublayout of value, because
+       But the layout of void_unboxed_record must be a sublayout of value_or_null, because
          it's the type of a tuple element.
 |}];;
 
@@ -744,7 +719,7 @@ Error: The type constraints are not consistent.
        The layout of void_unboxed_record is void, because
          of the definition of t_void at line 6, characters 0-19.
        But the layout of void_unboxed_record must be a sublayout of value, because
-         it's the type of a tuple element.
+         it instantiates an unannotated type parameter of t, defaulted to layout value.
 |}];;
 
 module type S9_7 = sig
@@ -757,7 +732,7 @@ Line 2, characters 16-22:
 Error: Tuple element types must have layout value.
        The layout of t_void is void, because
          of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value, because
+       But the layout of t_void must be a sublayout of value_or_null, because
          it's the type of a tuple element.
 |}];;
 
@@ -773,10 +748,10 @@ Line 5, characters 11-23:
 5 |   match 3, X.vr.vr_void with
                ^^^^^^^^^^^^
 Error: This expression has type t_void but an expression was expected of type
-         ('a : value)
+         ('a : value_or_null)
        The layout of t_void is void, because
          of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value, because
+       But the layout of t_void must be a sublayout of value_or_null, because
          it's the type of a tuple element.
 |}];;
 
@@ -1243,7 +1218,7 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
          of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value, because
+       But the layout of t_void must be a sublayout of value_or_null, because
          it has to be value for the V1 safety check.
 |}];;
 
@@ -1389,7 +1364,7 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of 'a is void, because
          of the definition of r at line 3, characters 0-40.
-       But the layout of 'a must be a sublayout of value, because
+       But the layout of 'a must be a sublayout of value_or_null, because
          it has to be value for the V1 safety check.
 |}];;
 
@@ -1518,7 +1493,7 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) : t_float64 -> 'a -> unit = <fun>
+val ( let* ) : ('a : value_or_null). t_float64 -> 'a -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1544,7 +1519,8 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) : 'a ('b : any). 'a -> (t_float64 -> 'b) -> unit = <fun>
+val ( let* ) :
+  ('a : value_or_null) ('b : any). 'a -> (t_float64 -> 'b) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1570,7 +1546,8 @@ let q () =
   assert false
 
 [%%expect{|
-val ( let* ) : 'a ('b : any). 'a -> ('b -> t_float64) -> unit = <fun>
+val ( let* ) :
+  ('a : value_or_null) ('b : any). 'a -> ('b -> t_float64) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1596,7 +1573,8 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) : 'a -> 'b -> t_float64 = <fun>
+val ( let* ) :
+  ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> t_float64 = <fun>
 val q : unit -> t_float64 = <fun>
 |}]
 
@@ -1626,8 +1604,9 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : 'a -> 'b -> unit = <fun>
-val ( and* ) : 'a -> t_float64 -> unit = <fun>
+val ( let* ) : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> unit =
+  <fun>
+val ( and* ) : ('a : value_or_null). 'a -> t_float64 -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1657,8 +1636,9 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : 'a -> 'b -> unit = <fun>
-val ( and* ) : t_float64 -> 'a -> unit = <fun>
+val ( let* ) : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> unit =
+  <fun>
+val ( and* ) : ('a : value_or_null). t_float64 -> 'a -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1688,8 +1668,9 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : ('a : float64) 'b. 'a -> 'b -> unit = <fun>
-val ( and* ) : 'a -> 'b -> t_float64 = <fun>
+val ( let* ) : ('a : float64) ('b : value_or_null). 'a -> 'b -> unit = <fun>
+val ( and* ) :
+  ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> t_float64 = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1709,10 +1690,11 @@ Line 4, characters 9-19:
 4 |     let* x : t_void = assert false
              ^^^^^^^^^^
 Error: This pattern matches values of type t_void
-       but a pattern was expected which matches values of type ('a : value)
+       but a pattern was expected which matches values of type
+         ('a : value_or_null)
        The layout of t_void is void, because
          of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value, because
+       But the layout of t_void must be a sublayout of value_or_null, because
          it's the type of a tuple element.
 |}]
 
@@ -1725,16 +1707,21 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : 'a -> 'b -> unit = <fun>
-val ( and* ) : 'a -> 'b -> 'c = <fun>
+val ( let* ) : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> unit =
+  <fun>
+val ( and* ) :
+  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
+    'a -> 'b -> 'c =
+  <fun>
 Line 4, characters 9-22:
 4 |     let* x : t_float64 = assert false
              ^^^^^^^^^^^^^
 Error: This pattern matches values of type t_float64
-       but a pattern was expected which matches values of type ('a : value)
+       but a pattern was expected which matches values of type
+         ('a : value_or_null)
        The layout of t_float64 is float64, because
          of the definition of t_float64 at line 5, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value, because
+       But the layout of t_float64 must be a sublayout of value_or_null, because
          it's the type of a tuple element.
 |}]
 
@@ -1804,10 +1791,11 @@ let f #poly_var = "hello"
 Line 1, characters 41-43:
 1 | type ('a : void) poly_var = [`A of int * 'a | `B]
                                              ^^
-Error: This type ('a : value) should be an instance of type ('a0 : void)
+Error: This type ('a : value_or_null) should be an instance of type
+         ('a0 : void)
        The layout of 'a is void, because
          of the annotation on 'a in the declaration of the type poly_var.
-       But the layout of 'a must overlap with value, because
+       But the layout of 'a must overlap with value_or_null, because
          it's the type of a tuple element.
 |}]
 
@@ -1826,10 +1814,10 @@ Line 1, characters 14-37:
 1 | let f _ = `Mk (assert false : t_void)
                   ^^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type t_void but an expression was expected of type
-         ('a : value)
+         ('a : value_or_null)
        The layout of t_void is void, because
          of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value, because
+       But the layout of t_void must be a sublayout of value_or_null, because
          it's the type of the field of a polymorphic variant.
 |}]
 
@@ -1844,7 +1832,7 @@ Line 1, characters 17-22:
 Error: This type signature for foo33 is not a value type.
        The layout of type t_any is any, because
          of the definition of t_any at line 1, characters 0-18.
-       But the layout of type t_any must be a sublayout of value, because
+       But the layout of type t_any must be a sublayout of value_or_null, because
          it's the type of something stored in a module structure.
 |}]
 
