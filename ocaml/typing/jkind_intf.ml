@@ -251,14 +251,12 @@ module History = struct
       (* This is used when the jkind is about to get overwritten;
          key example: when creating a fresh tyvar that is immediately
          unified to correct levels *)
-    | Type_expression_call
-    | Inside_of_Tarrow
     | Wildcard
     | Unification_var
-    | Array_type_argument
+    | Type_expression_call
+    | Inside_of_Tarrow
 
-  (* CR layouts v3: move some [any_creation_reason]s here. *)
-  type any_non_null_creation_reason = |
+  type any_non_null_creation_reason = Array_type_argument
 
   type float64_creation_reason = Primitive of Ident.t
 

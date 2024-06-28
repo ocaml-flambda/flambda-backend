@@ -1396,9 +1396,6 @@ module Format_history = struct
     function
     | Missing_cmi p ->
       fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
-    | Wildcard -> format_with_notify_js ppf "there's a _ in the type"
-    | Unification_var ->
-      format_with_notify_js ppf "it's a fresh unification variable"
     | Initial_typedecl_env ->
       format_with_notify_js ppf
         "a dummy kind of any is used to check mutually recursive datatypes"
@@ -1406,10 +1403,16 @@ module Format_history = struct
       format_with_notify_js ppf
         "it's assigned a dummy kind that should have been overwritten"
     (* CR layouts: Improve output or remove this constructor ^^ *)
+    | Wildcard -> format_with_notify_js ppf "there's a _ in the type"
+    | Unification_var ->
+      format_with_notify_js ppf "it's a fresh unification variable"
     | Type_expression_call ->
       format_with_notify_js ppf
         "there's a call to [type_expression] via the ocaml API"
     | Inside_of_Tarrow -> fprintf ppf "argument or result of a function type"
+
+  let format_any_non_null_creation_reason ppf :
+      History.any_non_null_creation_reason -> unit = function
     | Array_type_argument ->
       fprintf ppf "it's the type argument to the array type"
 
@@ -1532,7 +1535,7 @@ module Format_history = struct
     | Missing_cmi p ->
       fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
     | Any_creation any -> format_any_creation_reason ppf any
-    | Any_non_null_creation _ -> .
+    | Any_non_null_creation any -> format_any_non_null_creation_reason ppf any
     | Immediate_creation immediate ->
       format_immediate_creation_reason ppf immediate
     | Immediate64_creation immediate64 ->
@@ -1881,10 +1884,13 @@ module Debug_printers = struct
     | Missing_cmi p -> fprintf ppf "Missing_cmi %a" Path.print p
     | Initial_typedecl_env -> fprintf ppf "Initial_typedecl_env"
     | Dummy_jkind -> fprintf ppf "Dummy_jkind"
-    | Type_expression_call -> fprintf ppf "Type_expression_call"
-    | Inside_of_Tarrow -> fprintf ppf "Inside_of_Tarrow"
     | Wildcard -> fprintf ppf "Wildcard"
     | Unification_var -> fprintf ppf "Unification_var"
+    | Type_expression_call -> fprintf ppf "Type_expression_call"
+    | Inside_of_Tarrow -> fprintf ppf "Inside_of_Tarrow"
+
+  let any_non_null_creation_reason ppf :
+      History.any_non_null_creation_reason -> unit = function
     | Array_type_argument -> fprintf ppf "Array_type_argument"
 
   let immediate_creation_reason ppf : History.immediate_creation_reason -> _ =
@@ -1965,7 +1971,8 @@ module Debug_printers = struct
         loc
     | Missing_cmi p -> fprintf ppf "Missing_cmi %a" !printtyp_path p
     | Any_creation any -> fprintf ppf "Any_creation %a" any_creation_reason any
-    | Any_non_null_creation _ -> .
+    | Any_non_null_creation any ->
+      fprintf ppf "Any_non_null_creation %a" any_non_null_creation_reason any
     | Immediate_creation immediate ->
       fprintf ppf "Immediate_creation %a" immediate_creation_reason immediate
     | Immediate64_creation immediate64 ->
