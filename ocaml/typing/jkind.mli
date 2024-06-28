@@ -306,10 +306,10 @@ val add_mode_crossing : t -> t
 
 (** Create a fresh sort variable, packed into a jkind, returning both
     the resulting kind and the sort. *)
-val of_new_sort_var : why:History.concrete_non_null_jkind_reason -> t * sort
+val of_new_sort_var : why:History.concrete_non_null_creation_reason -> t * sort
 
 (** Create a fresh sort variable, packed into a jkind. *)
-val of_new_sort : why:History.concrete_non_null_jkind_reason -> t
+val of_new_sort : why:History.concrete_non_null_creation_reason -> t
 
 val of_const : why:History.creation_reason -> Const.t -> t
 

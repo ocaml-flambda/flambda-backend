@@ -128,7 +128,7 @@ val type_let:
 val type_expression:
         Env.t -> Parsetree.expression -> Typedtree.expression
 val type_representable_expression:
-        why:Jkind.History.concrete_non_null_jkind_reason ->
+        why:Jkind.History.concrete_non_null_creation_reason ->
         Env.t -> Parsetree.expression -> Typedtree.expression * Jkind.sort
 val type_class_arg_pattern:
         string -> Env.t -> Env.t -> arg_label -> Parsetree.pattern ->

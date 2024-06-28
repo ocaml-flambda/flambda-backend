@@ -1272,8 +1272,8 @@ end = struct
     let to_ordinal num = Int.to_string num ^ Misc.ordinal_suffix num in
     match arity with 1 -> "" | _ -> to_ordinal position ^ " "
 
-  let format_concrete_non_null_jkind_reason ppf :
-      History.concrete_non_null_jkind_reason -> unit = function
+  let format_concrete_non_null_creation_reason ppf :
+      History.concrete_non_null_creation_reason -> unit = function
     | Match -> fprintf ppf "a value of this type is matched against a pattern"
     | Constructor_declaration _ ->
       fprintf ppf "it's the type of a constructor field"
@@ -1481,7 +1481,7 @@ end = struct
     | Bits64_creation bits64 -> format_bits64_creation_reason ppf bits64
     | Concrete_creation _ -> .
     | Concrete_non_null_creation concrete ->
-      format_concrete_non_null_jkind_reason ppf concrete
+      format_concrete_non_null_creation_reason ppf concrete
     | Imported ->
       fprintf ppf "of layout requirements from an imported definition"
     | Imported_type_argument { parent_path; position; arity } ->
@@ -1735,8 +1735,8 @@ let has_layout_any jkind =
 module Debug_printers = struct
   open Format
 
-  let concrete_non_null_jkind_reason ppf :
-      History.concrete_non_null_jkind_reason -> unit = function
+  let concrete_non_null_creation_reason ppf :
+      History.concrete_non_null_creation_reason -> unit = function
     | Match -> fprintf ppf "Match"
     | Constructor_declaration idx ->
       fprintf ppf "Constructor_declaration %d" idx
@@ -1883,8 +1883,8 @@ module Debug_printers = struct
       fprintf ppf "Bits64_creation %a" bits64_creation_reason bits64
     | Concrete_creation _ -> .
     | Concrete_non_null_creation concrete ->
-      fprintf ppf "Concrete_non_null_creation %a" concrete_non_null_jkind_reason
-        concrete
+      fprintf ppf "Concrete_non_null_creation %a"
+        concrete_non_null_creation_reason concrete
     | Imported -> fprintf ppf "Imported"
     | Imported_type_argument { parent_path; position; arity } ->
       fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a" position
