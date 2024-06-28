@@ -252,3 +252,41 @@ Line 4, characters 17-31:
                      ^^^^^^^^^^^^^^
 Error: Stack allocating modules is unsupported yet.
 |}]
+
+(* stack_ works shallowly *)
+let f () =
+  let r = ref "hello" in
+  let _ = stack_ (r.contents, r.contents) in
+  r.contents
+[%%expect{|
+val f : unit -> string = <fun>
+|}]
+
+let f () =
+  let r = "hello" in
+  let _ = stack_ (r, r) in
+  r
+[%%expect{|
+val f : unit -> string = <fun>
+|}]
+
+type t = { x : int list; y : int list @@ global }
+
+let mk () =
+  let r = stack_ { x = [1;2;3]; y = [4;5;6] } in
+  r.y
+[%%expect{|
+type t = { x : int list; global_ y : int list; }
+val mk : unit -> int list = <fun>
+|}]
+
+let mk () =
+  let r = stack_ { x = [1;2;3]; y = [4;5;6] } in
+  r.x
+[%%expect{|
+Line 3, characters 2-5:
+3 |   r.x
+      ^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
