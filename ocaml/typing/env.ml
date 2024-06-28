@@ -1319,9 +1319,9 @@ let find_cltype path env =
 let find_value path env =
   find_value_full path env |> vda_description
 
-let find_value_without_locks id env =
+let find_value_no_locks_exn id env =
   match IdTbl.find_same_and_locks id env.values with
-  | Val_bound _, _ :: _ -> assert false
+  | Val_bound _, _ :: _ -> Misc.fatal_error "locks encountered"
   | Val_bound data, [] -> normalize_vda_mode data
   | Val_unbound _, _ -> raise Not_found
 
@@ -3438,12 +3438,18 @@ let lookup_value ~errors ~use ~loc lid env =
   let path, locks, vda =
     lookup_value_lazy ~errors ~use ~loc lid env
   in
-  (* First, we apply the modalities to acquire the mode of the value at the
-     definition site. Then, we walk the locks. That means the surrounding
-     closure would be closing over the value instead of the module.
+  (* There can be locks between the definition and a use of a value. For
+  example, if a function closes over a value, there will be Closure_lock between
+  the value's definition and the value's use in the function. Walking the locks
+  will constrain the function and the value's modes accrodingly.
 
-     This is better ergonomics, but dangers as it doesn't reflect the real
-     runtime behaviour. With the current set-up, it is sound. *)
+  Here, we apply the modalities to acquire the mode of the value at the
+  definition site, using which we walk the locks. That means the surrounding
+  closure would be closing over the value instead of the module. The latter can
+  be achieved by walking the locks before apply modalities.
+
+  Our route provides better ergonomics, but is dangerous as it doesn't reflect
+  the real runtime behaviour. With the current set-up, it is sound. *)
   let vd, mode = normalize_vda_mode vda in
   let vd = Subst.Lazy.force_value_description vd in
   let vmode =

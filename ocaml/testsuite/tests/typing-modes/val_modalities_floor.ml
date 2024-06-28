@@ -1,4 +1,4 @@
-(* We test that cmi generaeted without mli has the modalities pushed to the
+(* We test that cmi generated without mli has the modalities pushed to the
 strongest instead of legacy *)
 
 (* TEST

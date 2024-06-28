@@ -84,7 +84,7 @@ val without_cmis: ('a -> 'b) -> 'a -> 'b
 
 (* Lookup by paths *)
 
-val find_value_without_locks: Ident.t -> t ->
+val find_value_no_locks_exn: Ident.t -> t ->
   Subst.Lazy.value_description * Mode.Value.l
 (** Find a value by an [Ident.t]. Raises if encounters any locks. *)
 

@@ -2883,8 +2883,16 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
               in
               let (first_loc, _, _) = List.hd id_info in
               Signature_names.check_value names first_loc id;
-              let vd, mode =  Env.find_value_without_locks id newenv in
+              let vd, mode =  Env.find_value_no_locks_exn id newenv in
               let vd = Subst.Lazy.force_value_description vd in
+              (* Upon construction, for comonadic (prescriptive) axes, module
+              must be weaker than the values therein, for otherwise operations
+              would be allowed to performed on the module (and extended to the
+              values) that's disallowed for the values.
+
+              For monadic (descriptive) axes, the restriction is not on the
+              construction but on the projection, which is modelled by the
+              [Diff] modality in [mode.ml]. *)
               begin match Mode.Value.Comonadic.submode
                 mode.Mode.comonadic
                 md_mode.Mode.comonadic with
