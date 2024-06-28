@@ -511,7 +511,7 @@ let simplify_function context ~outer_dacc function_slot code_id
     let code_metadata = Code_or_metadata.code_metadata code_or_metadata in
     let never_delete =
       match Code_metadata.zero_alloc_attribute code_metadata with
-      | Default_check -> false
+      | Default_zero_alloc -> false
       | Assume _ -> false
       | Check _ -> true
     in

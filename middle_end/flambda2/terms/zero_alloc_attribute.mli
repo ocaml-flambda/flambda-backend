@@ -10,16 +10,16 @@
 (*                                                                        *)
 (**************************************************************************)
 (** [@zero_alloc ...] annotations on function declaration (not call sites) *)
-type t =
-  | Default_check
+type t = Lambda.zero_alloc_attribute =
+  | Default_zero_alloc
+  | Check of
+      { strict : bool;
+        loc : Location.t
+      }
   | Assume of
       { strict : bool;
         never_returns_normally : bool;
         never_raises : bool;
-        loc : Location.t
-      }
-  | Check of
-      { strict : bool;
         loc : Location.t
       }
 
