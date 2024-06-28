@@ -275,7 +275,7 @@ let print_cmx_infos (uir, sections, crc) =
       flush stdout;
       let print_typing_env = not !no_approx in
       let print_code = not !no_code in
-      let print_offsets = not (!no_code || !no_approx) in
+      let print_offsets = print_code && print_typing_env in
       let cmx = Flambda2_cmx.Flambda_cmx_format.from_raw cmx ~sections in
       Format.printf "%a\n%!" (Flambda2_cmx.Flambda_cmx_format.print ~print_typing_env ~print_code ~print_offsets) cmx
   end;
