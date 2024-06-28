@@ -193,10 +193,10 @@ Line 1, characters 31-33:
 1 | type ('a : bits32, 'b) t4_7 = ('a as 'b) -> ('b * 'b);;
                                    ^^
 Error: This type ('b : value) should be an instance of type ('a : bits32)
-       The layout of 'a is bits32
-         because of the annotation on 'a in the declaration of the type t4_7.
-       But the layout of 'a must overlap with value
-         because it's the type of a tuple element.
+       The layout of 'a is bits32, because
+         of the annotation on 'a in the declaration of the type t4_7.
+       But the layout of 'a must overlap with value, because
+         it instantiates an unannotated type parameter of t4_7, defaulted to layout value.
 |}]
 
 (*********************************************************)

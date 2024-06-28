@@ -97,12 +97,16 @@ module Layout = struct
         | Bits32
         | Bits64
 
-      let to_string = function
+      let to_string t =
+        let is_layouts_alpha = Language_extension.(is_at_least Layouts Alpha) in
+        match t with
         | Any -> "any"
-        (* CR layouts v3.0: drop [or_null]/[non_null] suffixes
-           if the layout extension level is less than alpha. *)
-        | Any_non_null -> "any_non_null"
-        | Value_or_null -> "value_or_null"
+        (* CR layouts v3.0: remove this hack once [or_null] is out
+           of [Alpha]. *)
+        | Any_non_null when is_layouts_alpha -> "any_non_null"
+        | Any_non_null -> "any"
+        | Value_or_null when is_layouts_alpha -> "value_or_null"
+        | Value_or_null -> "value"
         | Value -> "value"
         | Void -> "void"
         | Immediate64 -> "immediate64"
@@ -508,6 +512,21 @@ module Const = struct
         word;
         bits32;
         bits64 ]
+
+    (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
+    let all_non_null =
+      [ any;
+        { any_non_null with name = "any" };
+        { value_or_null with name = "value" };
+        value;
+        void;
+        immediate;
+        immediate64;
+        float64;
+        float32;
+        word;
+        bits32;
+        bits64 ]
   end
 
   module To_out_jkind_const = struct
@@ -594,7 +613,7 @@ module Const = struct
            "simplest" is taken to mean the one with the least number of modes that need to
          follow the [mod]. *)
       let simplest =
-        Primitive.all
+        (if Language_extension.(is_at_least Layouts Alpha) then Primitive.all else Primitive.all_non_null)
         |> List.filter_map (fun base -> convert_with_base ~base jkind)
         |> select_simplest
       in
@@ -685,7 +704,11 @@ module Const = struct
       in
       (* CR layouts 2.8: move this to predef *)
       match name with
-      | "any" -> Primitive.any.jkind
+      (* CR layouts 3.0: remove this hack once non-null jkinds
+         are out of alpha. It is confusing, but preserves
+         backwards compatibility for arrays. *)
+      | "any" when Language_extension.(is_at_least Layouts Alpha) -> Primitive.any.jkind
+      | "any" -> Primitive.any_non_null.jkind
       | "any_non_null" -> Primitive.any_non_null.jkind
       | "value_or_null" -> Primitive.value_or_null.jkind
       | "value" -> Primitive.value.jkind
@@ -1088,9 +1111,9 @@ let get_required_layouts_level (context : History.annotation_context)
   match context, legacy_layout with
   | ( _,
       ( Value | Immediate | Immediate64 | Any | Float64 | Float32 | Word
-      | Bits32 | Bits64 ) ) ->
+      | Bits32 | Bits64 | Any_non_null) ) ->
     Stable
-  | _, (Any_non_null | Value_or_null | Void) -> Alpha
+  | _, (Value_or_null | Void) -> Alpha
 
 (******************************)
 (* construction *)

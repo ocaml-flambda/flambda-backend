@@ -34,11 +34,7 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 type t_any_non_null : any_non_null;;
 
 [%%expect{|
-Line 1, characters 22-34:
-1 | type t_any_non_null : any_non_null;;
-                          ^^^^^^^^^^^^
-Error: Layout any_non_null is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+type t_any_non_null : any_non_null
 |}]
 
 type t_value_or_null : value_or_null;;
@@ -47,7 +43,7 @@ type t_value_or_null : value_or_null;;
 Line 1, characters 23-36:
 1 | type t_value_or_null : value_or_null;;
                            ^^^^^^^^^^^^^
-Error: Layout value_or_null is more experimental than allowed by the enabled layouts extension.
+Error: Layout value is more experimental than allowed by the enabled layouts extension.
        You must enable -extension layouts_alpha to use this feature.
 |}]
 
@@ -764,10 +760,10 @@ Line 2, characters 54-68:
                                                           ^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
        Type ('a : value) is not compatible with type t_float64
-       The layout of t_float64 is float64
-         because of the definition of t_float64 at line 4, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value
-         because it's the type of the field of a polymorphic variant.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         it instantiates an unannotated type parameter of t, defaulted to layout value.
 |}];;
 
 module type S8_5f = sig
@@ -860,10 +856,10 @@ Line 2, characters 34-48:
                                       ^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
        Type ('a : value) is not compatible with type t_float64
-       The layout of t_float64 is float64
-         because of the definition of t_float64 at line 4, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value
-         because it's the type of a tuple element.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         it instantiates an unannotated type parameter of t, defaulted to layout value.
 |}];;
 
 module type S9_7f = sig

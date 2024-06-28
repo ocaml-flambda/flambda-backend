@@ -1277,7 +1277,11 @@ let out_jkind_of_const_jkind jkind =
 let out_jkind_option_of_jkind jkind =
   match Jkind.get jkind with
   | Const jkind ->
-    begin match Jkind.Const.equal jkind Jkind.Const.Primitive.value.jkind with
+    let is_value = Jkind.Const.equal jkind Jkind.Const.Primitive.value.jkind
+      || (not Language_extension.(is_at_least Layouts Alpha)
+          && Jkind.Const.equal jkind Jkind.Const.Primitive.value_or_null.jkind)
+    in
+    begin match is_value with
     | true -> None
     | false -> Some (out_jkind_of_const_jkind jkind)
     end
