@@ -2,7 +2,7 @@ File "bad_arg_impl.ml", line 1:
 Error: The argument module bad_arg_impl.ml
        does not match the parameter signature monoid.cmi: 
        Values do not match:
-         val append : unit -> unit -> [> `Banana ] @@ global many portable
+         val append : unit -> unit -> [> `Banana ]
        is not included in
          val append : t -> t -> t
        The type unit -> unit -> [> `Banana ] is not compatible with the type

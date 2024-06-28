@@ -14,7 +14,8 @@ let transl_mode_annots modes =
     | [] -> acc
     | m :: rest ->
       let { txt; loc } = (m : Mode_expr.Const.t :> _ Location.loc) in
-      Jane_syntax_parsing.assert_extension_enabled ~loc Mode ();
+      Jane_syntax_parsing.assert_extension_enabled ~loc Mode
+        Language_extension.Stable;
       let acc : Alloc.Const.Option.t =
         match txt with
         (* CR zqian: We should interpret other mode names (global, shared, once)
@@ -53,10 +54,10 @@ let transl_mode_annots modes =
   in
   loop Alloc.Const.Option.none modes.txt
 
-let transl_modality m : Modality.t =
+let transl_modality ~maturity m : Modality.t =
   let { txt; loc } = m in
   let (Parsetree.Modality s) = txt in
-  Jane_syntax_parsing.assert_extension_enabled ~loc Mode ();
+  Jane_syntax_parsing.assert_extension_enabled ~loc Mode maturity;
   match s with
   | "global" -> Atom (Comonadic Areality, Meet_with Regionality.Const.Global)
   | "local" -> Atom (Comonadic Areality, Meet_with Regionality.Const.Local)
@@ -117,8 +118,8 @@ let is_mutable_implied_modality m =
   (* polymorphic equality suffices for now. *)
   List.mem m mutable_implied_modalities
 
-let transl_modalities ~has_mutable_implied_modalities modalities =
-  let modalities = List.map transl_modality modalities in
+let transl_modalities ~maturity ~has_mutable_implied_modalities modalities =
+  let modalities = List.map (transl_modality ~maturity) modalities in
   let modalities =
     if has_mutable_implied_modalities
     then modalities @ mutable_implied_modalities

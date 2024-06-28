@@ -9,6 +9,7 @@ strongest instead of legacy *)
  ";
 {
    setup-ocamlopt.byte-build-env;
+   flags = "-extension mode_alpha";
 
    {
     src = "def_portable.ml";

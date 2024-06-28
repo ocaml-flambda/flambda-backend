@@ -98,7 +98,7 @@ type error =
       old_arg_type : Compilation_unit.Name.t option;
       old_source_file : Misc.filepath;
     }
-  | Submode_failed of Mode.Value.Comonadic.error
+  | Submode_failed of Mode.Value.error
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -2425,6 +2425,31 @@ let simplify_app_summary app_view = match app_view.arg with
     | false, Some p -> Includemod.Error.Named p, mty
     | false, None   -> Includemod.Error.Anonymous, mty
 
+let maybe_infer_modalities ~loc ~env ~md_mode ~mode =
+  if Language_extension.(is_at_least Mode Alpha) then begin
+    (* Upon construction, for comonadic (prescriptive) axes, module
+    must be weaker than the values therein, for otherwise operations
+    would be allowed to performed on the module (and extended to the
+    values) that's disallowed for the values.
+
+    For monadic (descriptive) axes, the restriction is not on the
+    construction but on the projection, which is modelled by the
+    [Diff] modality in [mode.ml]. *)
+    begin match Mode.Value.Comonadic.submode
+      mode.Mode.comonadic
+      md_mode.Mode.comonadic with
+      | Ok () -> ()
+      | Error (Error (ax, e)) -> raise (Error (loc, env, Submode_failed (Error (Comonadic ax, e))))
+    end;
+    Mode.Modality.Value.infer ~md_mode ~mode
+  end else begin
+    begin match Mode.Value.submode mode md_mode with
+      | Ok () -> ()
+      | Error e -> raise (Error (loc, env, Submode_failed e))
+    end;
+    Mode.Modality.Value.id
+  end
+
 let rec type_module ?(alias=false) sttn funct_body anchor env smod =
   Builtin_attributes.warning_scope smod.pmod_attributes
     (fun () -> type_module_aux ~alias sttn funct_body anchor env smod)
@@ -2885,21 +2910,9 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
               Signature_names.check_value names first_loc id;
               let vd, mode =  Env.find_value_no_locks_exn id newenv in
               let vd = Subst.Lazy.force_value_description vd in
-              (* Upon construction, for comonadic (prescriptive) axes, module
-              must be weaker than the values therein, for otherwise operations
-              would be allowed to performed on the module (and extended to the
-              values) that's disallowed for the values.
-
-              For monadic (descriptive) axes, the restriction is not on the
-              construction but on the projection, which is modelled by the
-              [Diff] modality in [mode.ml]. *)
-              begin match Mode.Value.Comonadic.submode
-                mode.Mode.comonadic
-                md_mode.Mode.comonadic with
-                | Ok () -> ()
-                | Error e -> raise (Error (first_loc, env, Submode_failed e))
-              end;
-              let modalities = Mode.Modality.Value.infer ~md_mode ~mode in
+              let modalities =
+                maybe_infer_modalities ~loc:first_loc ~env ~md_mode ~mode
+              in
               let vd =
                 { vd with
                   val_zero_alloc = zero_alloc;
@@ -4073,8 +4086,8 @@ let report_error ~loc _env = function
   | Submode_failed (Error (ax, {left; right})) ->
       Location.errorf ~loc
         "This value is %a, but expected to be %a because it is inside a module."
-        (Mode.Value.Comonadic.Const.print_axis ax) left
-        (Mode.Value.Comonadic.Const.print_axis ax) right
+        (Mode.Value.Const.print_axis ax) left
+        (Mode.Value.Const.print_axis ax) right
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env_error env

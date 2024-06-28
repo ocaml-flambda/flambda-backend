@@ -433,7 +433,8 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
             false
          in
          let modalities =
-          Typemode.transl_modalities ~has_mutable_implied_modalities modalities
+          Typemode.transl_modalities ~maturity:Stable
+            ~has_mutable_implied_modalities modalities
          in
          let arg = Ast_helper.Typ.force_poly arg in
          let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
@@ -470,10 +471,13 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
 let transl_types_gf ~new_var_jkind ~allow_unboxed
   env loc univars closed cal kloc =
   let mk arg =
-    let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg.pca_type in
+    let cty =
+      transl_simple_type ~new_var_jkind env ?univars ~closed
+        Mode.Alloc.Const.legacy arg.pca_type
+    in
     let gf =
-      Typemode.transl_modalities ~has_mutable_implied_modalities:false
-        arg.pca_modalities
+      Typemode.transl_modalities ~maturity:Stable
+        ~has_mutable_implied_modalities:false arg.pca_modalities
     in
     {ca_modalities = gf; ca_type = cty; ca_loc = arg.pca_loc}
   in
@@ -2892,7 +2896,7 @@ let transl_value_decl env loc valdecl =
     [] when Env.is_in_signature env ->
       let modalities =
         valdecl.pval_modalities
-        |> Typemode.transl_modalities Immutable
+        |> Typemode.transl_modalities ~maturity:Alpha Immutable
         |> Mode.Modality.Value.of_const
       in
       let default_arity =

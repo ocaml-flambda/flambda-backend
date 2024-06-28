@@ -2056,7 +2056,7 @@ let tree_of_value_description id decl =
   (* Important: process the fvs *after* the type; tree_of_type_scheme
      resets the naming context *)
   let snap = Btype.snapshot () in
-  let moda = Mode.Modality.Value.zap_to_id decl.val_modalities in
+  let moda = Mode.Modality.Value.zap_to_floor decl.val_modalities in
   let qtvs = extract_qtvs [decl.val_type] in
   let apparent_arity =
     let rec count n typ =

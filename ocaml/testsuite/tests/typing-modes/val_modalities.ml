@@ -1,5 +1,5 @@
 (* TEST
- flags = "-extension unique";
+ flags = "-extension unique -extension mode_alpha";
  expect;
 *)
 
@@ -7,20 +7,24 @@ type r = {
   mutable x : string;
 }
 
+(* In below, printing always gives the strongest modalities possible. Printing
+   backtracks the "zapping to strongest" mutation, so the mutation doesn't
+   persist. *)
+
 let uncontended_use (_ @ uncontended) = ()
 [%%expect{|
 type r = { mutable x : string; }
-val uncontended_use : 'a -> unit = <fun>
+val uncontended_use : 'a -> unit @@ global many = <fun>
 |}]
 
 let share_use : 'a -> unit @@ portable = fun _ -> ()
 [%%expect{|
-val share_use : 'a -> unit = <fun>
+val share_use : 'a -> unit @@ global many = <fun>
 |}]
 
 let (portable_use @ portable) (_ @ portable) = ()
 [%%expect{|
-val portable_use : 'a @ portable -> unit = <fun>
+val portable_use : 'a @ portable -> unit @@ global many = <fun>
 |}]
 
 (* The compiler building itself is a comprehensive test of legacy modules/values.
@@ -30,7 +34,7 @@ module M = struct
   let foo = {x = "hello"}
 end
 [%%expect{|
-module M : sig val foo : r end
+module M : sig val foo : r @@ global many end
 |}]
 
 module type S = sig
@@ -58,15 +62,12 @@ module M = struct
     let x @ contended = "hello"
 end
 [%%expect{|
-module M : sig val x : string @@ contended end
+module M : sig val x : string @@ global many portable contended end
 |}]
 
 (* Testing the defaulting behaviour.
-    "module type of", printing share the same logic. Below, we will only test
-    "module type of".
-
-    Note that the defaulting will mutate the original module type, but printing
-    will backtrack the mutation after the printing is finished.
+   "module type of" triggers the defaulting logic.
+    Note that the defaulting will mutate the original module type.
 *)
 module Module_type_of_comonadic = struct
     module M = struct
@@ -105,11 +106,11 @@ Lines 8-10, characters 35-7:
 10 |     end
 Error: Signature mismatch:
        Modules do not match:
-         sig val x : string @@ contended end
+         sig val x : string @@ global many portable contended end
        is not included in
          sig val x : string end
        Values do not match:
-         val x : string @@ contended
+         val x : string @@ global many portable contended
        is not included in
          val x : string
        The second is empty and the first is contended.
@@ -140,8 +141,9 @@ Lines 8-13, characters 35-7:
 Error: Signature mismatch:
        Modules do not match:
          sig
-           val x : string
-           module N : sig val y : string @@ contended end
+           val x : string @@ global many portable
+           module N :
+             sig val y : string @@ global many portable contended end
          end
        is not included in
          sig
@@ -150,12 +152,12 @@ Error: Signature mismatch:
          end
        In module N:
        Modules do not match:
-         sig val y : string @@ contended end
+         sig val y : string @@ global many portable contended end
        is not included in
          sig val y : string end
        In module N:
        Values do not match:
-         val y : string @@ contended
+         val y : string @@ global many portable contended
        is not included in
          val y : string
        The second is empty and the first is contended.
@@ -173,7 +175,8 @@ module Without_inclusion = struct
     let () = portable_use M.x
 end
 [%%expect{|
-module Without_inclusion : sig module M : sig val x : string end end
+module Without_inclusion :
+  sig module M : sig val x : string @@ global many portable end end
 |}]
 
 module Without_inclusion = struct
@@ -203,11 +206,11 @@ Lines 4-6, characters 10-7:
 6 |     end
 Error: Signature mismatch:
        Modules do not match:
-         sig val x : string @@ contended end
+         sig val x : string @@ global many portable contended end
        is not included in
          sig val x : string end
        Values do not match:
-         val x : string @@ contended
+         val x : string @@ global many portable contended
        is not included in
          val x : string
        The second is empty and the first is contended.
@@ -266,7 +269,10 @@ module Close_over_value = struct
 end
 [%%expect{|
 module Close_over_value :
-  sig module M : sig val x : string end val foo : unit -> unit end
+  sig
+    module M : sig val x : string @@ global many portable end
+    val foo : unit -> unit @@ global many portable
+  end
 |}]
 
 module Close_over_value_monadic = struct
