@@ -1278,6 +1278,7 @@ let out_jkind_option_of_jkind jkind =
   match Jkind.get jkind with
   | Const jkind ->
     let is_value = Jkind.Const.equal jkind Jkind.Const.Primitive.value.jkind
+      (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
       || (not Language_extension.(is_at_least Layouts Alpha)
           && Jkind.Const.equal jkind Jkind.Const.Primitive.value_or_null.jkind)
     in
