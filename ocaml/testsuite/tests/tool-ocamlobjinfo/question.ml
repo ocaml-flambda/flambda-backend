@@ -12,6 +12,9 @@
    program = "-no-code -no-approx question.cmx";
    ocamlobjinfo;
 
+   program = "-no-code question.cmx";
+   ocamlobjinfo;
+
    check-program-output;
  }{
    program = "question.cmx";
