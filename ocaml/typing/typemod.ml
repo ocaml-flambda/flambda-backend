@@ -89,6 +89,7 @@ type error =
   | Toplevel_nonvalue of string * Jkind.sort
   | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
+  | Compiling_as_parameterised_parameter
   | Cannot_compile_implementation_as_parameter
   | Cannot_implement_parameter of Compilation_unit.Name.t * Misc.filepath
   | Argument_for_non_parameter of Compilation_unit.Name.t * Misc.filepath
@@ -3604,8 +3605,14 @@ let cms_register_toplevel_signature_attributes ~sourcefile ~uid ast =
         | _ -> None)
 
 let type_interface ~sourcefile modulename env ast =
+  let error e =
+    raise (Error (Location.none, Env.empty, e))
+  in
   if !Clflags.as_parameter && Compilation_unit.is_packed modulename then begin
-    raise(Error(Location.none, Env.empty, Cannot_pack_parameter))
+    error Cannot_pack_parameter
+  end;
+  if !Clflags.as_parameter && !Clflags.parameters <> [] then begin
+    error Compiling_as_parameterised_parameter
   end;
   type_params !Clflags.parameters;
   if !Clflags.binary_annotations_cms then begin
@@ -3967,6 +3974,10 @@ let report_error ~loc _env = function
   | Cannot_pack_parameter ->
       Location.errorf ~loc
         "Cannot compile a parameter with -for-pack."
+  | Compiling_as_parameterised_parameter ->
+      Location.errorf ~loc
+        "@[Cannot combine -as-parameter with -parameter: parameters cannot@ \
+         be parameterised.@]"
   | Cannot_compile_implementation_as_parameter ->
       Location.errorf ~loc
         "Cannot compile an implementation with -as-parameter."
