@@ -126,8 +126,6 @@ val transl_type_param:
 val get_type_param_jkind: Path.t -> Parsetree.core_type -> jkind
 val get_type_param_name: Parsetree.core_type -> string option
 
-val get_alloc_mode : Parsetree.core_type -> Alloc.Const.t
-
 exception Already_bound
 
 type value_loc =

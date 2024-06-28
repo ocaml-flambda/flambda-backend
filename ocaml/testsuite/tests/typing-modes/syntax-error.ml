@@ -91,3 +91,7 @@ let foo () =
   bar 42 24;
   ()
 ;;
+
+let foo ((x @ unique once), (y@local unique)) = x + y;;
+
+let foo ((x : _ @@ unique once), (y : _ @@ local unique)) = x + y;;

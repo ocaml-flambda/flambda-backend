@@ -232,7 +232,7 @@ module Error = struct
           required_layouts_level : Language_extension.maturity
         }
     | Unknown_jkind of Jane_syntax.Jkind.t
-    | Unknown_mode of Jane_syntax.Mode_expr.Const.t
+    | Unknown_mode of Parsetree.mode Location.loc
     | Multiple_jkinds of
         { from_annotation : const;
           from_attribute : const
@@ -520,10 +520,8 @@ module Const = struct
       | Portability of Portability.Const.t
       | Externality of Externality.t
 
-    let parse_mode unparsed_mode =
-      let { txt = name; loc } =
-        (unparsed_mode : Jane_syntax.Mode_expr.Const.t :> _ Location.loc)
-      in
+    let parse_mode (unparsed_mode : Parsetree.mode Location.loc) =
+      let { txt = Parsetree.Mode name; loc } = unparsed_mode in
       match name with
       | "global" -> Areality Global
       | "local" -> Areality Local
@@ -540,9 +538,7 @@ module Const = struct
       | "nonportable" -> Portability Nonportable
       | _ -> raise ~loc (Unknown_mode unparsed_mode)
 
-    let parse_modes
-        (Location.{ txt = modes; loc = _ } : Jane_syntax.Mode_expr.t) =
-      List.map parse_mode modes
+    let parse_modes modes = List.map parse_mode modes
   end
 
   let rec of_user_written_annotation_unchecked_level

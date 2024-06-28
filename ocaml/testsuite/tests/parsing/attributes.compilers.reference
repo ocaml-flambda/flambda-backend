@@ -27,7 +27,6 @@
             Pext_decl
               [
                 (attributes.ml[10,150+17]..[10,150+29])
-                  []
                   core_type (attributes.ml[10,150+18]..[10,150+21])
                     attribute "foo"
                       []
@@ -78,7 +77,6 @@
                   []
                 [
                   (attributes.ml[18,265+11]..[18,265+20])
-                    []
                     core_type (attributes.ml[18,265+12]..[18,265+13])
                       attribute "foo"
                         []
@@ -123,7 +121,6 @@
                         attribute "foo"
                           []
                         Immutable
-                        []
                         "l" (attributes.ml[26,344+4]..[26,344+5])                        core_type (attributes.ml[26,344+9]..[26,344+10])
                           attribute "foo"
                             []
@@ -161,7 +158,6 @@
                     Pext_decl
                       [
                         (attributes.ml[37,450+19]..[37,450+31])
-                          []
                           core_type (attributes.ml[37,450+20]..[37,450+23])
                             attribute "foo"
                               []

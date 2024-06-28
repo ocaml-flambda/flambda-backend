@@ -18,6 +18,17 @@ let functor_id loc = Location.mkloc
 let complex_record loc =
   H.Pat.record ~loc [functor_id loc, H.Pat.any ~loc () ] Asttypes.Closed
 
+let nested_pat_constraint loc =
+  let mode s = Location.mkloc (Mode s) loc in
+  H.Pat.constraint_
+    (H.Pat.constraint_
+       (H.Pat.mk Ppat_any)
+       None
+       [mode "bar"]
+    )
+    (Some (H.Typ.mk Ptyp_any))
+    [mode "foo"]
+
 (* Malformed labeled tuples *)
 
 let lt_empty_open_pat loc =
@@ -51,6 +62,8 @@ let pat mapper p =
       lt_empty_open_pat loc
   | Ppat_extension ({txt="lt_short_closed_pat";loc},_) ->
       lt_short_closed_pat loc
+  | Ppat_extension ({txt="nested_pat_constraint";loc},_) ->
+      nested_pat_constraint loc
   | _ -> super.M.pat mapper p
 
 let structure_item mapper stri = match stri.pstr_desc with
