@@ -1608,6 +1608,21 @@ and transl_function ~in_new_scope ~scopes e params body
            ~mode ~return_sort ~return_mode
            ~scopes e.exp_loc repr ~region params body)
   in
+  let zero_alloc : Lambda.zero_alloc_attribute =
+    match (zero_alloc : Builtin_attributes.zero_alloc_attribute) with
+    | Default_zero_alloc ->
+      if !Clflags.zero_alloc_check_assert_all &&
+         Builtin_attributes.is_zero_alloc_check_enabled ~opt:false
+      then Check { strict = false; loc = e.exp_loc }
+      else Default_zero_alloc
+    | Check { strict; opt; arity = _; loc } ->
+      if Builtin_attributes.is_zero_alloc_check_enabled ~opt
+      then Check { strict; loc }
+      else Default_zero_alloc
+    | Assume { strict; never_returns_normally; never_raises; loc; arity = _; } ->
+      Assume { strict; never_returns_normally; never_raises; loc }
+    | Ignore_assert_all -> Default_zero_alloc
+  in
   let attr =
     { function_attribute_disallowing_arity_fusion with zero_alloc }
   in
