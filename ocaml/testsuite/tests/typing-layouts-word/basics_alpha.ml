@@ -1,8 +1,6 @@
 (* TEST
  {
-   expect;
- }{
-   flags = "-extension layouts_beta";
+   flags = "-extension layouts_alpha";
    expect;
  }
 *)
@@ -114,10 +112,10 @@ Line 1, characters 24-25:
 1 | let f4_1 (x : t_word) = x, false;;
                             ^
 Error: This expression has type t_word but an expression was expected of type
-         ('a : value)
+         ('a : value_or_null)
        The layout of t_word is word, because
          of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value, because
+       But the layout of t_word must be a sublayout of value_or_null, because
          it's the type of a tuple element.
 |}];;
 
@@ -127,10 +125,10 @@ Line 1, characters 30-31:
 1 | let f4_2 (x : 'a t_word_id) = x, false;;
                                   ^
 Error: This expression has type 'a t_word_id = ('a : word)
-       but an expression was expected of type ('b : value)
+       but an expression was expected of type ('b : value_or_null)
        The layout of 'a t_word_id is word, because
          of the definition of t_word_id at line 2, characters 0-31.
-       But the layout of 'a t_word_id must overlap with value, because
+       But the layout of 'a t_word_id must overlap with value_or_null, because
          it's the type of a tuple element.
 |}];;
 
@@ -140,10 +138,10 @@ Line 1, characters 28-29:
 1 | let f4_3 (x : nativeint#) = x, false;;
                                 ^
 Error: This expression has type nativeint#
-       but an expression was expected of type ('a : value)
+       but an expression was expected of type ('a : value_or_null)
        The layout of nativeint# is word, because
          it is the primitive word type nativeint#.
-       But the layout of nativeint# must be a sublayout of value, because
+       But the layout of nativeint# must be a sublayout of value_or_null, because
          it's the type of a tuple element.
 |}];;
 
@@ -155,7 +153,7 @@ Line 1, characters 12-18:
 Error: Tuple element types must have layout value.
        The layout of t_word is word, because
          of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value, because
+       But the layout of t_word must be a sublayout of value_or_null, because
          it's the type of a tuple element.
 |}];;
 
@@ -167,7 +165,7 @@ Line 1, characters 18-28:
 Error: Tuple element types must have layout value.
        The layout of nativeint# is word, because
          it is the primitive word type nativeint#.
-       But the layout of nativeint# must be a sublayout of value, because
+       But the layout of nativeint# must be a sublayout of value_or_null, because
          it's the type of a tuple element.
 |}];;
 
@@ -176,10 +174,11 @@ type ('a : word) t4_6 = 'a * 'a
 Line 1, characters 24-26:
 1 | type ('a : word) t4_6 = 'a * 'a
                             ^^
-Error: This type ('a : value) should be an instance of type ('a0 : word)
+Error: This type ('a : value_or_null) should be an instance of type
+         ('a0 : word)
        The layout of 'a is word, because
          of the annotation on 'a in the declaration of the type t4_6.
-       But the layout of 'a must overlap with value, because
+       But the layout of 'a must overlap with value_or_null, because
          it's the type of a tuple element.
 |}];;
 
@@ -273,7 +272,7 @@ Line 1, characters 31-37:
 Error: This type signature for x is not a value type.
        The layout of type t_word is word, because
          of the definition of t_word at line 1, characters 0-18.
-       But the layout of type t_word must be a sublayout of value, because
+       But the layout of type t_word must be a sublayout of value_or_null, because
          it's the type of something stored in a module structure.
 |}];;
 
@@ -285,7 +284,7 @@ Line 1, characters 31-43:
 Error: This type signature for x is not a value type.
        The layout of type 'a t_word_id is word, because
          of the definition of t_word_id at line 2, characters 0-31.
-       But the layout of type 'a t_word_id must be a sublayout of value, because
+       But the layout of type 'a t_word_id must be a sublayout of value_or_null, because
          it's the type of something stored in a module structure.
 |}];;
 
@@ -297,7 +296,7 @@ Line 1, characters 31-41:
 Error: This type signature for x is not a value type.
        The layout of type nativeint# is word, because
          it is the primitive word type nativeint#.
-       But the layout of type nativeint# must be a sublayout of value, because
+       But the layout of type nativeint# must be a sublayout of value_or_null, because
          it's the type of something stored in a module structure.
 |}];;
 
@@ -310,10 +309,10 @@ Line 1, characters 27-28:
 1 | let f7_1 (x : t_word) = `A x;;
                                ^
 Error: This expression has type t_word but an expression was expected of type
-         ('a : value)
+         ('a : value_or_null)
        The layout of t_word is word, because
          of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value, because
+       But the layout of t_word must be a sublayout of value_or_null, because
          it's the type of the field of a polymorphic variant.
 |}];;
 
@@ -323,10 +322,10 @@ Line 1, characters 33-34:
 1 | let f7_2 (x : 'a t_word_id) = `A x;;
                                      ^
 Error: This expression has type 'a t_word_id = ('a : word)
-       but an expression was expected of type ('b : value)
+       but an expression was expected of type ('b : value_or_null)
        The layout of 'a t_word_id is word, because
          of the definition of t_word_id at line 2, characters 0-31.
-       But the layout of 'a t_word_id must overlap with value, because
+       But the layout of 'a t_word_id must overlap with value_or_null, because
          it's the type of the field of a polymorphic variant.
 |}];;
 
@@ -336,10 +335,10 @@ Line 1, characters 31-32:
 1 | let f7_3 (x : nativeint#) = `A x;;
                                    ^
 Error: This expression has type nativeint#
-       but an expression was expected of type ('a : value)
+       but an expression was expected of type ('a : value_or_null)
        The layout of nativeint# is word, because
          it is the primitive word type nativeint#.
-       But the layout of nativeint# must be a sublayout of value, because
+       But the layout of nativeint# must be a sublayout of value_or_null, because
          it's the type of the field of a polymorphic variant.
 |}];;
 
@@ -351,7 +350,7 @@ Line 1, characters 20-26:
 Error: Polymorphic variant constructor argument types must have layout value.
        The layout of t_word is word, because
          of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value, because
+       But the layout of t_word must be a sublayout of value_or_null, because
          it's the type of the field of a polymorphic variant.
 |}];;
 
@@ -360,10 +359,11 @@ type ('a : word) f7_5 = [ `A of 'a ];;
 Line 1, characters 32-34:
 1 | type ('a : word) f7_5 = [ `A of 'a ];;
                                     ^^
-Error: This type ('a : value) should be an instance of type ('a0 : word)
+Error: This type ('a : value_or_null) should be an instance of type
+         ('a0 : word)
        The layout of 'a is word, because
          of the annotation on 'a in the declaration of the type f7_5.
-       But the layout of 'a must overlap with value, because
+       But the layout of 'a must overlap with value_or_null, because
          it's the type of the field of a polymorphic variant.
 |}];;
 
@@ -379,7 +379,7 @@ let id_value x = x;;
 val make_t_word : unit -> t_word = <fun>
 val make_t_word_id : ('a : word). unit -> 'a t_word_id = <fun>
 val make_nativeintu : unit -> nativeint# = <fun>
-val id_value : 'a -> 'a = <fun>
+val id_value : ('a : value_or_null). 'a -> 'a = <fun>
 |}];;
 
 let x8_1 = id_value (make_t_word ());;
@@ -388,10 +388,10 @@ Line 1, characters 20-36:
 1 | let x8_1 = id_value (make_t_word ());;
                         ^^^^^^^^^^^^^^^^
 Error: This expression has type t_word but an expression was expected of type
-         ('a : value)
+         ('a : value_or_null)
        The layout of t_word is word, because
          of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value, because
+       But the layout of t_word must be a sublayout of value_or_null, because
          of the definition of id_value at line 5, characters 13-18.
 |}];;
 
@@ -401,10 +401,10 @@ Line 1, characters 20-39:
 1 | let x8_2 = id_value (make_t_word_id ());;
                         ^^^^^^^^^^^^^^^^^^^
 Error: This expression has type 'a t_word_id = ('a : word)
-       but an expression was expected of type ('b : value)
+       but an expression was expected of type ('b : value_or_null)
        The layout of 'a t_word_id is word, because
          of the definition of make_t_word_id at line 2, characters 19-51.
-       But the layout of 'a t_word_id must overlap with value, because
+       But the layout of 'a t_word_id must overlap with value_or_null, because
          of the definition of id_value at line 5, characters 13-18.
 |}];;
 
@@ -414,10 +414,10 @@ Line 1, characters 20-40:
 1 | let x8_3 = id_value (make_nativeintu ());;
                         ^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type nativeint#
-       but an expression was expected of type ('a : value)
+       but an expression was expected of type ('a : value_or_null)
        The layout of nativeint# is word, because
          it is the primitive word type nativeint#.
-       But the layout of nativeint# must be a sublayout of value, because
+       But the layout of nativeint# must be a sublayout of value_or_null, because
          of the definition of id_value at line 5, characters 13-18.
 |}];;
 

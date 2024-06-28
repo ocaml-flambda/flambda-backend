@@ -92,7 +92,6 @@ module Layout : sig
         | Bits32
         | Bits64
 
-      val to_string : t -> string
     end
   end
 end
@@ -301,15 +300,19 @@ val add_mode_crossing : t -> t
 (******************************)
 (* construction *)
 
-(* CR layouts v3.0: split those functions in two versions,
-   one [or_null] and one [non_null]. *)
-
 (** Create a fresh sort variable, packed into a jkind, returning both
     the resulting kind and the sort. *)
-val of_new_sort_var : why:History.concrete_non_null_creation_reason -> t * sort
+val of_new_sort_var : why:History.concrete_creation_reason -> t * sort
 
 (** Create a fresh sort variable, packed into a jkind. *)
-val of_new_sort : why:History.concrete_non_null_creation_reason -> t
+val of_new_sort : why:History.concrete_creation_reason -> t
+
+(** Same as [of_new_sort_var], but the jkind is non-null. *)
+val of_new_non_null_sort_var :
+  why:History.concrete_non_null_creation_reason -> t * sort
+
+(** Same as [of_new_sort], but the jkind is non-null. *)
+val of_new_non_null_sort : why:History.concrete_non_null_creation_reason -> t
 
 val of_const : why:History.creation_reason -> Const.t -> t
 

@@ -75,7 +75,7 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of void_rec is void, because
          of the definition of t_void at line 1, characters 0-18.
-       But the layout of void_rec must be a sublayout of value, because
+       But the layout of void_rec must be a sublayout of value_or_null, because
          it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
@@ -137,7 +137,7 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of void_rec is void, because
          of the definition of t_void at line 1, characters 0-18.
-       But the layout of void_rec must be a sublayout of value, because
+       But the layout of void_rec must be a sublayout of value_or_null, because
          it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
@@ -226,7 +226,7 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
          of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value, because
+       But the layout of t_void must be a sublayout of value_or_null, because
          it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
@@ -440,7 +440,7 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
          of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value, because
+       But the layout of t_void must be a sublayout of value_or_null, because
          it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
@@ -486,7 +486,7 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of void_rec is void, because
          of the definition of t_void at line 1, characters 0-18.
-       But the layout of void_rec must be a sublayout of value, because
+       But the layout of void_rec must be a sublayout of value_or_null, because
          it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
@@ -515,7 +515,7 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
          of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value, because
+       But the layout of t_void must be a sublayout of value_or_null, because
          it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
@@ -787,7 +787,7 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of unboxed_inlined_void_rec is void, because
          of the definition of t_void at line 1, characters 0-18.
-       But the layout of unboxed_inlined_void_rec must be a sublayout of value, because
+       But the layout of unboxed_inlined_void_rec must be a sublayout of value_or_null, because
          it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
@@ -836,7 +836,7 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
          of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value, because
+       But the layout of t_void must be a sublayout of value_or_null, because
          it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
@@ -904,7 +904,7 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
          of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value, because
+       But the layout of t_void must be a sublayout of value_or_null, because
          it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
@@ -948,7 +948,7 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
          of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value, because
+       But the layout of t_void must be a sublayout of value_or_null, because
          it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
