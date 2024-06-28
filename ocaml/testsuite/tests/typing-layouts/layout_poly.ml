@@ -83,8 +83,12 @@ end
 Line 4, characters 63-68:
 4 |   let () = Format.printf "%f %s\n" (F.to_float (id' #1.)) (id' "abc")
                                                                    ^^^^^
-Error: Uncaught exception: Typecore.Error(_, _, _)
-
+Error: This expression has type string but an expression was expected of type
+         ('a : float64)
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of float64, because
+         of the definition of id' at line 2, characters 10-18.
 |}]
 
 (********************)
@@ -539,8 +543,14 @@ external id : ('a : any) ('b : any). 'a -> 'b = "%identity" [@@layout_poly]
 Line 2, characters 28-32:
 2 | let f (x: float#): int64# = id x
                                 ^^^^
-Error: Uncaught exception: Typecore.Error(_, _, _)
-
+Error: This expression has type ('a : float64)
+       but an expression was expected of type int64#
+       The layout of int64# is bits64, because
+         it is the primitive bits64 type int64#.
+       But the layout of int64# must be a sublayout of float64, because
+         it's the layout polymorphic type in an external declaration
+         ([@layout_poly] forces all variables of layout 'any' to be
+         representable at call sites).
 |}]
 (* CR layouts v2.9: the default part is not quite correct *)
 

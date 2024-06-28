@@ -638,9 +638,26 @@ module Const = struct
                 }
               jkind
           in
+          match out_jkind_verbose with
+        | Some out_jkind -> out_jkind
+        | None ->
+          (* If we fail, try again with nullable jkinds. *)
+          let out_jkind_verbose =
+            convert_with_base
+              ~base:
+                { jkind =
+                    { layout = jkind.layout;
+                      modes_upper_bounds = Modes.max;
+                      externality_upper_bound = Externality.max;
+                      nullability_upper_bound = Nullability.max
+                    };
+                  name = Layout.Const.to_string jkind.layout
+                }
+              jkind
+          in
           (* convert_with_base is guaranteed to succeed since the layout matches and the
-             modal bounds are all max *)
-          Option.get out_jkind_verbose
+              modal bounds are all max *)
+            Option.get out_jkind_verbose
       in
       match printable_jkind with
       | { base; modal_bounds = _ :: _ as modal_bounds } ->
