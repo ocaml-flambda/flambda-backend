@@ -245,8 +245,6 @@ Error: Non-value detected in [value_kind].
          it has to be value for the V1 safety check.
 |}];;
 
-(* CR layouts v3.0: this should work *)
-
 module type S2 = sig
   val x : t_value_or_null
 end
@@ -254,8 +252,6 @@ end
 [%%expect{|
 module type S2 = sig val x : t_value_or_null end
 |}]
-
-(* CR layouts v3.0: this should work *)
 
 module M2 : sig
   val f : t_value_or_null -> t_value_or_null
