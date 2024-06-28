@@ -1,8 +1,6 @@
 (* TEST
  {
-   expect;
- }{
-   flags = "-extension layouts_beta";
+   flags = "-extension layouts_alpha";
    expect;
  }
 *)
@@ -114,10 +112,10 @@ Line 1, characters 26-27:
 1 | let f4_1 (x : t_bits64) = x, false;;
                               ^
 Error: This expression has type t_bits64
-       but an expression was expected of type ('a : value)
+       but an expression was expected of type ('a : value_or_null)
        The layout of t_bits64 is bits64, because
          of the definition of t_bits64 at line 1, characters 0-22.
-       But the layout of t_bits64 must be a sublayout of value, because
+       But the layout of t_bits64 must be a sublayout of value_or_null, because
          it's the type of a tuple element.
 |}];;
 
@@ -127,10 +125,10 @@ Line 1, characters 32-33:
 1 | let f4_2 (x : 'a t_bits64_id) = x, false;;
                                     ^
 Error: This expression has type 'a t_bits64_id = ('a : bits64)
-       but an expression was expected of type ('b : value)
+       but an expression was expected of type ('b : value_or_null)
        The layout of 'a t_bits64_id is bits64, because
          of the definition of t_bits64_id at line 2, characters 0-35.
-       But the layout of 'a t_bits64_id must overlap with value, because
+       But the layout of 'a t_bits64_id must overlap with value_or_null, because
          it's the type of a tuple element.
 |}];;
 
@@ -140,10 +138,10 @@ Line 1, characters 24-25:
 1 | let f4_3 (x : int64#) = x, false;;
                             ^
 Error: This expression has type int64# but an expression was expected of type
-         ('a : value)
+         ('a : value_or_null)
        The layout of int64# is bits64, because
          it is the primitive bits64 type int64#.
-       But the layout of int64# must be a sublayout of value, because
+       But the layout of int64# must be a sublayout of value_or_null, because
          it's the type of a tuple element.
 |}];;
 
@@ -155,7 +153,7 @@ Line 1, characters 12-20:
 Error: Tuple element types must have layout value.
        The layout of t_bits64 is bits64, because
          of the definition of t_bits64 at line 1, characters 0-22.
-       But the layout of t_bits64 must be a sublayout of value, because
+       But the layout of t_bits64 must be a sublayout of value_or_null, because
          it's the type of a tuple element.
 |}];;
 
@@ -167,7 +165,7 @@ Line 1, characters 18-24:
 Error: Tuple element types must have layout value.
        The layout of int64# is bits64, because
          it is the primitive bits64 type int64#.
-       But the layout of int64# must be a sublayout of value, because
+       But the layout of int64# must be a sublayout of value_or_null, because
          it's the type of a tuple element.
 |}];;
 
@@ -176,10 +174,11 @@ type ('a : bits64) t4_6 = 'a * 'a
 Line 1, characters 26-28:
 1 | type ('a : bits64) t4_6 = 'a * 'a
                               ^^
-Error: This type ('a : value) should be an instance of type ('a0 : bits64)
+Error: This type ('a : value_or_null) should be an instance of type
+         ('a0 : bits64)
        The layout of 'a is bits64, because
          of the annotation on 'a in the declaration of the type t4_6.
-       But the layout of 'a must overlap with value, because
+       But the layout of 'a must overlap with value_or_null, because
          it's the type of a tuple element.
 |}];;
 
@@ -274,7 +273,7 @@ Line 1, characters 31-39:
 Error: This type signature for x is not a value type.
        The layout of type t_bits64 is bits64, because
          of the definition of t_bits64 at line 1, characters 0-22.
-       But the layout of type t_bits64 must be a sublayout of value, because
+       But the layout of type t_bits64 must be a sublayout of value_or_null, because
          it's the type of something stored in a module structure.
 |}];;
 
@@ -286,7 +285,7 @@ Line 1, characters 31-45:
 Error: This type signature for x is not a value type.
        The layout of type 'a t_bits64_id is bits64, because
          of the definition of t_bits64_id at line 2, characters 0-35.
-       But the layout of type 'a t_bits64_id must be a sublayout of value, because
+       But the layout of type 'a t_bits64_id must be a sublayout of value_or_null, because
          it's the type of something stored in a module structure.
 |}];;
 
@@ -298,7 +297,7 @@ Line 1, characters 31-37:
 Error: This type signature for x is not a value type.
        The layout of type int64# is bits64, because
          it is the primitive bits64 type int64#.
-       But the layout of type int64# must be a sublayout of value, because
+       But the layout of type int64# must be a sublayout of value_or_null, because
          it's the type of something stored in a module structure.
 |}];;
 
@@ -311,10 +310,10 @@ Line 1, characters 29-30:
 1 | let f7_1 (x : t_bits64) = `A x;;
                                  ^
 Error: This expression has type t_bits64
-       but an expression was expected of type ('a : value)
+       but an expression was expected of type ('a : value_or_null)
        The layout of t_bits64 is bits64, because
          of the definition of t_bits64 at line 1, characters 0-22.
-       But the layout of t_bits64 must be a sublayout of value, because
+       But the layout of t_bits64 must be a sublayout of value_or_null, because
          it's the type of the field of a polymorphic variant.
 |}];;
 
@@ -324,10 +323,10 @@ Line 1, characters 35-36:
 1 | let f7_2 (x : 'a t_bits64_id) = `A x;;
                                        ^
 Error: This expression has type 'a t_bits64_id = ('a : bits64)
-       but an expression was expected of type ('b : value)
+       but an expression was expected of type ('b : value_or_null)
        The layout of 'a t_bits64_id is bits64, because
          of the definition of t_bits64_id at line 2, characters 0-35.
-       But the layout of 'a t_bits64_id must overlap with value, because
+       But the layout of 'a t_bits64_id must overlap with value_or_null, because
          it's the type of the field of a polymorphic variant.
 |}];;
 
@@ -337,10 +336,10 @@ Line 1, characters 27-28:
 1 | let f7_3 (x : int64#) = `A x;;
                                ^
 Error: This expression has type int64# but an expression was expected of type
-         ('a : value)
+         ('a : value_or_null)
        The layout of int64# is bits64, because
          it is the primitive bits64 type int64#.
-       But the layout of int64# must be a sublayout of value, because
+       But the layout of int64# must be a sublayout of value_or_null, because
          it's the type of the field of a polymorphic variant.
 |}];;
 
@@ -352,7 +351,7 @@ Line 1, characters 20-28:
 Error: Polymorphic variant constructor argument types must have layout value.
        The layout of t_bits64 is bits64, because
          of the definition of t_bits64 at line 1, characters 0-22.
-       But the layout of t_bits64 must be a sublayout of value, because
+       But the layout of t_bits64 must be a sublayout of value_or_null, because
          it's the type of the field of a polymorphic variant.
 |}];;
 
@@ -361,10 +360,11 @@ type ('a : bits64) f7_5 = [ `A of 'a ];;
 Line 1, characters 34-36:
 1 | type ('a : bits64) f7_5 = [ `A of 'a ];;
                                       ^^
-Error: This type ('a : value) should be an instance of type ('a0 : bits64)
+Error: This type ('a : value_or_null) should be an instance of type
+         ('a0 : bits64)
        The layout of 'a is bits64, because
          of the annotation on 'a in the declaration of the type f7_5.
-       But the layout of 'a must overlap with value, because
+       But the layout of 'a must overlap with value_or_null, because
          it's the type of the field of a polymorphic variant.
 |}];;
 
@@ -380,7 +380,7 @@ let id_value x = x;;
 val make_t_bits64 : unit -> t_bits64 = <fun>
 val make_t_bits64_id : ('a : bits64). unit -> 'a t_bits64_id = <fun>
 val make_int64u : unit -> int64# = <fun>
-val id_value : 'a -> 'a = <fun>
+val id_value : ('a : value_or_null). 'a -> 'a = <fun>
 |}];;
 
 let x8_1 = id_value (make_t_bits64 ());;
@@ -389,10 +389,10 @@ Line 1, characters 20-38:
 1 | let x8_1 = id_value (make_t_bits64 ());;
                         ^^^^^^^^^^^^^^^^^^
 Error: This expression has type t_bits64
-       but an expression was expected of type ('a : value)
+       but an expression was expected of type ('a : value_or_null)
        The layout of t_bits64 is bits64, because
          of the definition of t_bits64 at line 1, characters 0-22.
-       But the layout of t_bits64 must be a sublayout of value, because
+       But the layout of t_bits64 must be a sublayout of value_or_null, because
          of the definition of id_value at line 5, characters 13-18.
 |}];;
 
@@ -402,10 +402,10 @@ Line 1, characters 20-41:
 1 | let x8_2 = id_value (make_t_bits64_id ());;
                         ^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type 'a t_bits64_id = ('a : bits64)
-       but an expression was expected of type ('b : value)
+       but an expression was expected of type ('b : value_or_null)
        The layout of 'a t_bits64_id is bits64, because
          of the definition of make_t_bits64_id at line 2, characters 21-55.
-       But the layout of 'a t_bits64_id must overlap with value, because
+       But the layout of 'a t_bits64_id must overlap with value_or_null, because
          of the definition of id_value at line 5, characters 13-18.
 |}];;
 
@@ -415,10 +415,10 @@ Line 1, characters 20-36:
 1 | let x8_3 = id_value (make_int64u ());;
                         ^^^^^^^^^^^^^^^^
 Error: This expression has type int64# but an expression was expected of type
-         ('a : value)
+         ('a : value_or_null)
        The layout of int64# is bits64, because
          it is the primitive bits64 type int64#.
-       But the layout of int64# must be a sublayout of value, because
+       But the layout of int64# must be a sublayout of value_or_null, because
          of the definition of id_value at line 5, characters 13-18.
 |}];;
 
