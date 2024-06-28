@@ -431,7 +431,7 @@ end = struct
   let new_jkind ~is_named { jkind_initialization } =
     match jkind_initialization with
     | Any -> Jkind.Primitive.any ~why:(if is_named then Unification_var else Wildcard)
-    | Sort -> Jkind.of_new_sort ~why:(if is_named then Unification_var else Wildcard)
+    | Sort -> Jkind.of_new_non_null_sort ~why:(if is_named then Unification_var else Wildcard)
 
 
   let new_any_var loc env jkind = function
@@ -538,7 +538,7 @@ let transl_type_param env path styp =
    to ask for it with an annotation.  Some restriction here seems necessary
    for backwards compatibility (e.g., we wouldn't want [type 'a id = 'a] to
    have jkind any).  But it might be possible to infer [any] in some cases. *)
-  let jkind = Jkind.of_new_sort ~why:(Unannotated_type_parameter path) in
+  let jkind = Jkind.of_new_non_null_sort ~why:(Unannotated_type_parameter path) in
   let attrs = styp.ptyp_attributes in
   match styp.ptyp_desc with
     Ptyp_any -> transl_type_param_var env loc attrs None jkind None
@@ -554,7 +554,7 @@ let transl_type_param env path styp =
 
 let get_type_param_jkind path styp =
   match Jane_syntax.Core_type.of_ast styp with
-  | None -> Jkind.of_new_sort ~why:(Unannotated_type_parameter path)
+  | None -> Jkind.of_new_non_null_sort ~why:(Unannotated_type_parameter path)
   | Some (Jtyp_layout (Ltyp_var { name; jkind }), _attrs) ->
     let jkind, _ =
       Jkind.of_annotation

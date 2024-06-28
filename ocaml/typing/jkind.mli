@@ -306,15 +306,21 @@ val add_portability_and_contention_crossing : from:t -> t -> t * bool
 (******************************)
 (* construction *)
 
-(* CR layouts v3.0: split those functions in two versions,
-   one [or_null] and one [non_null]. *)
-
 (** Create a fresh sort variable, packed into a jkind, returning both
     the resulting kind and the sort. *)
-val of_new_sort_var : why:History.concrete_default_creation_reason -> t * sort
+val of_new_sort_var : why:History.concrete_creation_reason -> t * sort
 
 (** Create a fresh sort variable, packed into a jkind. *)
-val of_new_sort : why:History.concrete_default_creation_reason -> t
+val of_new_sort : why:History.concrete_creation_reason -> t
+
+(** Same as [of_new_sort_var], but the jkind is lowered to [Non_null].
+    Defaulting the sort variable produces exactly [value].  *)
+val of_new_default_sort_var :
+  why:History.concrete_default_creation_reason -> t * sort
+
+(** Same as [of_new_sort], but the jkind is lowered to [Non_null].
+    Defaulting the sort variable produces exactly [value].  *)
+val of_new_default_sort : why:History.concrete_default_creation_reason -> t
 
 val of_const : why:History.creation_reason -> Const.t -> t
 

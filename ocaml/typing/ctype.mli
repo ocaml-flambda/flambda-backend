@@ -78,10 +78,9 @@ val newty: type_desc -> type_expr
 val new_scoped_ty: int -> type_desc -> type_expr
 val newvar: ?name:string -> Jkind.t -> type_expr
 
-(* CR layouts v3.0: this should allow [or_null]. *)
 val new_rep_var
   : ?name:string
-  -> why:Jkind.History.concrete_default_creation_reason
+  -> why:Jkind.History.concrete_creation_reason
   -> unit
   -> type_expr * Jkind.sort
         (* Return a fresh representable variable, along with its sort *)
@@ -551,10 +550,15 @@ val type_jkind : Env.t -> type_expr -> jkind
    expansion. *)
 val type_jkind_purely : Env.t -> type_expr -> jkind
 
-(* CR layouts v3.0: this should allow [or_null]. *)
 (* Find a type's sort (constraining it to be an arbitrary sort variable, if
    needed) *)
 val type_sort :
+  why:Jkind.History.concrete_creation_reason ->
+  Env.t -> type_expr -> (Jkind.sort, Jkind.Violation.t) result
+
+(* As [type_sort], but constrain the jkind to be non-null.
+   Used for checking array elements. *)
+val type_non_null_sort :
   why:Jkind.History.concrete_default_creation_reason ->
   Env.t -> type_expr -> (Jkind.sort, Jkind.Violation.t) result
 

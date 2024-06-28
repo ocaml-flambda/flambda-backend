@@ -148,17 +148,11 @@ module type Sort = sig
 end
 
 module History = struct
-  (* CR layouts v3: move most [concrete_default_creation_reason]s here. *)
   (* For sort variables that are topmost on the jkind lattice. *)
-  type concrete_creation_reason = |
-
-  (* For sort variables that are in the "default" position
-     on the jkind lattice, defaulting exactly to [value]. *)
-  type concrete_default_creation_reason =
+  type concrete_creation_reason =
     | Match
     | Constructor_declaration of int
     | Label_declaration of Ident.t
-    | Unannotated_type_parameter of Path.t
     | Record_projection
     | Record_assignment
     | Let_binding
@@ -168,10 +162,17 @@ module History = struct
     | External_argument
     | External_result
     | Statement
-    | Wildcard
-    | Unification_var
     | Optional_arg_default
     | Layout_poly_in_external
+
+  (* For sort variables that are in the "default" position
+     on the jkind lattice, defaulting exactly to [value]. *)
+  (* CR layouts v3: after implementing separability, [Array_element]
+     should instead accept representable separable jkinds. *)
+  type concrete_default_creation_reason =
+    | Unannotated_type_parameter of Path.t
+    | Wildcard
+    | Unification_var
     | Array_element
 
   type annotation_context =

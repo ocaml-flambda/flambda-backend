@@ -1095,10 +1095,16 @@ let get_required_layouts_level (context : History.annotation_context)
 (* construction *)
 
 let of_new_sort_var ~why =
+  let jkind, sort = Jkind_desc.of_new_sort_var Maybe_null in
+  fresh_jkind jkind ~why:(Concrete_creation why), sort
+
+let of_new_sort ~why = fst (of_new_sort_var ~why)
+
+let of_new_default_sort_var ~why =
   let jkind, sort = Jkind_desc.of_new_sort_var Non_null in
   fresh_jkind jkind ~why:(Concrete_default_creation why), sort
 
-let of_new_sort ~why = fst (of_new_sort_var ~why)
+let of_new_non_null_sort ~why = fst (of_new_default_sort_var ~why)
 
 (* CR layouts v2.8: remove this function *)
 let of_const ~why
@@ -1324,16 +1330,13 @@ module Format_history = struct
     let to_ordinal num = Int.to_string num ^ Misc.ordinal_suffix num in
     match arity with 1 -> "" | _ -> to_ordinal position ^ " "
 
-  let format_concrete_default_creation_reason ppf :
-      History.concrete_default_creation_reason -> unit = function
+  let format_concrete_creation_reason ppf :
+      History.concrete_creation_reason -> unit = function
     | Match -> fprintf ppf "a value of this type is matched against a pattern"
     | Constructor_declaration _ ->
       fprintf ppf "it's the type of a constructor field"
     | Label_declaration lbl ->
       fprintf ppf "it is the type of record field %s" (Ident.name lbl)
-    | Unannotated_type_parameter path ->
-      fprintf ppf "it instantiates an unannotated type parameter of %a"
-        !printtyp_path path
     | Record_projection ->
       fprintf ppf "it's the record type used in a projection"
     | Record_assignment ->
@@ -1350,8 +1353,6 @@ module Format_history = struct
     | External_result ->
       fprintf ppf "it's the type of the result of an external declaration"
     | Statement -> fprintf ppf "it's the type of a statement"
-    | Wildcard -> fprintf ppf "it's a _ in the type"
-    | Unification_var -> fprintf ppf "it's a fresh unification variable"
     | Optional_arg_default ->
       fprintf ppf "it's the type of an optional argument default"
     | Layout_poly_in_external ->
@@ -1359,6 +1360,14 @@ module Format_history = struct
         "it's the layout polymorphic type in an external declaration@ \
          ([@@layout_poly] forces all variables of layout 'any' to be@ \
          representable at call sites)"
+
+  let format_concrete_default_creation_reason ppf :
+      History.concrete_default_creation_reason -> unit = function
+    | Unannotated_type_parameter path ->
+      fprintf ppf "it instantiates an unannotated type parameter of %a"
+        !printtyp_path path
+    | Wildcard -> fprintf ppf "it's a _ in the type"
+    | Unification_var -> fprintf ppf "it's a fresh unification variable"
     | Array_element -> fprintf ppf "it's the type of an array element"
 
   let rec format_annotation_context ppf : History.annotation_context -> unit =
@@ -1533,7 +1542,7 @@ module Format_history = struct
     | Word_creation word -> format_word_creation_reason ppf word
     | Bits32_creation bits32 -> format_bits32_creation_reason ppf bits32
     | Bits64_creation bits64 -> format_bits64_creation_reason ppf bits64
-    | Concrete_creation _ -> .
+    | Concrete_creation concrete -> format_concrete_creation_reason ppf concrete
     | Concrete_default_creation concrete ->
       format_concrete_default_creation_reason ppf concrete
     | Imported ->
@@ -1819,15 +1828,13 @@ let has_layout_any jkind =
 module Debug_printers = struct
   open Format
 
-  let concrete_default_creation_reason ppf :
-      History.concrete_default_creation_reason -> unit = function
+  let concrete_creation_reason ppf :
+      History.concrete_creation_reason -> unit = function
     | Match -> fprintf ppf "Match"
     | Constructor_declaration idx ->
       fprintf ppf "Constructor_declaration %d" idx
     | Label_declaration lbl ->
       fprintf ppf "Label_declaration %a" Ident.print lbl
-    | Unannotated_type_parameter path ->
-      fprintf ppf "Unannotated_type_parameter %a" !printtyp_path path
     | Record_projection -> fprintf ppf "Record_projection"
     | Record_assignment -> fprintf ppf "Record_assignment"
     | Let_binding -> fprintf ppf "Let_binding"
@@ -1837,10 +1844,15 @@ module Debug_printers = struct
     | External_argument -> fprintf ppf "External_argument"
     | External_result -> fprintf ppf "External_result"
     | Statement -> fprintf ppf "Statement"
-    | Wildcard -> fprintf ppf "Wildcard"
-    | Unification_var -> fprintf ppf "Unification_var"
     | Optional_arg_default -> fprintf ppf "Optional_arg_default"
     | Layout_poly_in_external -> fprintf ppf "Layout_poly_in_external"
+
+  let concrete_default_creation_reason ppf :
+      History.concrete_default_creation_reason -> unit = function
+    | Unannotated_type_parameter path ->
+      fprintf ppf "Unannotated_type_parameter %a" !printtyp_path path
+    | Wildcard -> fprintf ppf "Wildcard"
+    | Unification_var -> fprintf ppf "Unification_var"
     | Array_element -> fprintf ppf "Array_element"
 
   let rec annotation_context ppf : History.annotation_context -> unit = function
@@ -1965,7 +1977,8 @@ module Debug_printers = struct
       fprintf ppf "Bits32_creation %a" bits32_creation_reason bits32
     | Bits64_creation bits64 ->
       fprintf ppf "Bits64_creation %a" bits64_creation_reason bits64
-    | Concrete_creation _ -> .
+    | Concrete_creation concrete ->
+      fprintf ppf "Concrete_creation %a" concrete_creation_reason concrete
     | Concrete_default_creation concrete ->
       fprintf ppf "Concrete_default_creation %a"
         concrete_default_creation_reason concrete

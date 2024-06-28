@@ -2278,6 +2278,12 @@ let type_sort ~why env ty =
   | Ok _ -> Ok sort
   | Error _ as e -> e
 
+let type_non_null_sort ~why env ty =
+  let jkind, sort = Jkind.of_new_non_null_sort_var ~why in
+  match constrain_type_jkind env ty jkind with
+  | Ok _ -> Ok sort
+  | Error _ as e -> e
+
 (* Note: Because [estimate_type_jkind] actually returns an upper bound, this
    function computes an inaccurate intersection in some cases.
 
