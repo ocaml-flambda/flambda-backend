@@ -1399,13 +1399,13 @@ end = struct
     | Initial_typedecl_env ->
       format_with_notify_js ppf
         "a dummy layout of any is used to check mutually recursive datatypes"
+    | Wildcard -> format_with_notify_js ppf "there's a _ in the type"
+    | Unification_var ->
+      format_with_notify_js ppf "it's a fresh unification variable"
     | Dummy_jkind ->
       format_with_notify_js ppf
         "it's assigned a dummy layout that should have been overwritten"
     (* CR layouts: Improve output or remove this constructor ^^ *)
-    | Wildcard -> format_with_notify_js ppf "there's a _ in the type"
-    | Unification_var ->
-      format_with_notify_js ppf "it's a fresh unification variable"
     | Type_expression_call ->
       format_with_notify_js ppf
         "there's a call to [type_expression] via the ocaml API"
