@@ -2120,24 +2120,21 @@ let remove_mode_and_jkind_variables env sg =
   List.find_map (nongen_signature_item env rm) sg |> ignore
 
 let rec map_inferred_modalities_sg env map sg =
-  let rec loop acc = function
-    | Sig_value (id, desc, vis) :: rest ->
+  let sg_item = function
+    | Sig_value (id, desc, vis) ->
         let val_modalities =
           desc.val_modalities
           |> map |> Mode.Modality.Value.of_const
         in
         let desc = {desc with val_modalities} in
-        let item = Sig_value (id, desc, vis) in
-        loop (item :: acc) rest
-    | Sig_module (id, pres, md, re, vis) :: rest ->
+        Sig_value (id, desc, vis)
+    | Sig_module (id, pres, md, re, vis) ->
         let md_type = map_inferred_modalities_mty env map md.md_type in
         let md = {md with md_type} in
-        let item = Sig_module (id, pres, md, re, vis) in
-        loop (item :: acc) rest
-    | item :: rest -> loop (item :: acc) rest
-    | [] -> acc
+        Sig_module (id, pres, md, re, vis)
+    | item -> item
   in
-  List.rev (loop [] sg)
+  List.map sg_item sg
 
 and map_inferred_modalities_mty env map mty =
   match mty with

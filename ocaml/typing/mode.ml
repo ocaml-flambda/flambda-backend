@@ -2221,17 +2221,19 @@ module Modality = struct
         | Join_const c -> Format.fprintf ppf "join_const(%a)" Mode.Const.print c
 
       (** Given a modality and a guarantee that the modality will only be appled
-    on [x >= mm], we can find some lower modality that is equivalent on the
-    restricted range. This is similar to mode-crossing, where we can push a mode
-    lower given a restricted range of types. *)
+      on [x >= mm], we can find some lower modality that is equivalent on the
+      restricted range. This is similar to mode-crossing, where we can push a
+      mode lower given a restricted range of types. *)
       let modality_cross_left ~mm = function
         | Join_const c ->
-          (* We want to find the minimal [c'] such that [join c x <= join c' x] for
-             all [x >= mm]. By definition of join, this is equivalent to [c <= join
-             x c'] for all [x >= mm]. This is equivalent to [c <= join mm c'].
-             Equivalently [subtract c mm <= c']. Note that [mm] is a mode variable,
-             but we need a constant. Therefore, we
-             conservatively take its incomplete lower bound [mm.lower]. *)
+          (* We want to find the minimal [c'] such that [join c x <= join c' x]
+             for all [x >= mm]. By definition of join, this is equivalent to [c
+             <= join x c'] for all [x >= mm]. This is equivalent to [c <= join
+             mm c']. Equivalently [subtract c mm <= c']. Note that [mm] is a
+             mode variable, but we need a constant. Therefore, we conservatively
+             take its incomplete lower bound [mm.lower]. Also recall that we
+             want the smallest such [c']. So we take [c' = subtract c mm.lower].
+          *)
           let mm = Mode.Guts.get_floor mm in
           Join_const (Mode.Const.subtract c mm)
     end
@@ -2263,9 +2265,11 @@ module Modality = struct
            physically equal. *)
         assert (left == right);
         Ok ()
-      | Const _, Diff _ -> assert false
+      | Const _, Diff _ ->
+        Misc.fatal_error
+          "inferred modality Diff should not be on the RHS of sub."
       | Undefined, _ | _, Undefined ->
-        Misc.fatal_error "undefined modality should not be inspected."
+        Misc.fatal_error "modality Undefined should not be in sub."
 
     let id = Const Const.id
 
@@ -2273,7 +2277,8 @@ module Modality = struct
      fun t x ->
       match t with
       | Const c -> Const.apply c x |> Mode.disallow_right
-      | Undefined -> assert false
+      | Undefined ->
+        Misc.fatal_error "modality Undefined should not be applied."
       | Diff (_, m) -> Mode.join [m; Mode.disallow_right x]
 
     let print ppf = function
@@ -2283,7 +2288,7 @@ module Modality = struct
 
     let zap_to_floor = function
       | Const c -> c
-      | Undefined -> assert false
+      | Undefined -> Misc.fatal_error "modality Undefined should not be zapped."
       | Diff (mm, m) ->
         let c = Mode.zap_to_floor m in
         let m = Const.Join_const c in
@@ -2294,7 +2299,8 @@ module Modality = struct
 
     let to_const_exn = function
       | Const c -> c
-      | Undefined | Diff _ -> assert false
+      | Undefined | Diff _ ->
+        Misc.fatal_error "Got infered modality but constant modality expected."
 
     let of_const c = Const c
 
@@ -2381,8 +2387,11 @@ module Modality = struct
            in which case LHS and RHS should be physically equal. *)
         assert (left == right);
         Ok ()
-      | Const _, Exactly _ -> assert false
-      | Undefined, _ | _, Undefined -> assert false
+      | Const _, Exactly _ ->
+        Misc.fatal_error
+          "inferred modaltiy Exactly should not be on the RHS of sub."
+      | Undefined, _ | _, Undefined ->
+        Misc.fatal_error "modality Undefined should not be in sub."
 
     let id = Const Const.id
 
@@ -2390,7 +2399,8 @@ module Modality = struct
      fun t x ->
       match t with
       | Const c -> Const.apply c x |> Mode.disallow_right
-      | Undefined -> assert false
+      | Undefined ->
+        Misc.fatal_error "modality Undefined should not be applied."
       | Exactly (_mm, m) -> m
 
     let print ppf = function
@@ -2404,21 +2414,22 @@ module Modality = struct
 
     let zap_to_ceil = function
       | Const c -> c
-      | Undefined -> assert false
+      | Undefined -> Misc.fatal_error "modality Undefined should not be zapped."
       | Exactly _ -> Const.id
 
     let zap_to_id = zap_to_ceil
 
     let zap_to_floor = function
       | Const c -> c
-      | Undefined -> assert false
+      | Undefined -> Misc.fatal_error "modality Undefined should not be zapped."
       | Exactly (_, m) ->
         let c = Mode.zap_to_floor m in
         Const.Meet_const c
 
     let to_const_exn = function
       | Const c -> c
-      | Undefined | Exactly _ -> assert false
+      | Undefined | Exactly _ ->
+        Misc.fatal_error "Got inferred modality but expected constant modality."
 
     let of_const c = Const c
   end
@@ -2452,7 +2463,7 @@ module Modality = struct
         let comonadic = Comonadic.apply t.comonadic comonadic in
         { monadic; comonadic }
 
-      let compose (Atom (ax, a)) t =
+      let compose ~then_:(Atom (ax, a)) t =
         match ax with
         | Monadic ax ->
           let monadic = Monadic.compose ax a t.monadic in
@@ -2461,7 +2472,7 @@ module Modality = struct
           let comonadic = Comonadic.compose ax a t.comonadic in
           { t with comonadic }
 
-      let singleton a = compose a id
+      let singleton a = compose ~then_:a id
 
       let to_list { monadic; comonadic } =
         Comonadic.to_list comonadic @ Monadic.to_list monadic

@@ -484,7 +484,7 @@ module type S = sig
         val apply : t -> ('l * 'r) Value.t -> ('l * 'r) Value.t
 
         (** [compose m t] returns the modality that is [m] after [t]. *)
-        val compose : atom -> t -> t
+        val compose : then_:atom -> t -> t
 
         (** [singleton m] returns the modality containing only [m]. *)
         val singleton : atom -> t
@@ -527,8 +527,9 @@ module type S = sig
       (** Printing for debugging. *)
       val print : Format.formatter -> t -> unit
 
-      (** Returns the inferred modality, given the module's mode [md_mode] and
-          the value's mode [mode]. *)
+      (** Given [md_mode] the mode of a module, and [mode] the mode of a value
+      to be put in that module, return the inferred modality to be put on the
+      value description in the inferred module type. *)
       val infer : md_mode:Value.lr -> mode:Value.l -> t
 
       (* The following zapping functions possibly mutate a potentially inferred

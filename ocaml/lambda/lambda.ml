@@ -1399,6 +1399,11 @@ let build_substs update_env ?(freshen_bound_variables = false) s =
         let old_env = evt.lev_env in
         let env_updates =
           let find_in_old id =
+            (* Looking up [id] might encounter locks, which we shouldn't apply
+               as we are not using the values. But adding the value to [new_env]
+               with the unlocked mode is just wrong. Therefore, we set the mode
+               to be [max] for conservative soundness. [new_env] is only used
+               for printing in debugger. *)
             let vd = Env.find_value (Path.Pident id) old_env in
             let vd = {vd with val_modalities = Mode.Modality.Value.id} in
             let mode = Mode.Value.max |> Mode.Value.disallow_right in

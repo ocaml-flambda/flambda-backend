@@ -104,8 +104,9 @@ let compose_modalities modalities =
      type r = { x : string @@ foo bar hello }
      is interpreted as
      x = foo (bar (hello (r))) *)
-  List.fold_right Modality.Value.Const.compose modalities
-    Modality.Value.Const.id
+  List.fold_right
+    (fun atom m -> Modality.Value.Const.compose ~then_:atom m)
+    modalities Modality.Value.Const.id
 
 let mutable_implied_modalities : Modality.t list =
   [ Atom (Comonadic Areality, Meet_with Regionality.Const.Global);
