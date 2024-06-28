@@ -251,10 +251,10 @@ module History = struct
       (* This is used when the jkind is about to get overwritten;
          key example: when creating a fresh tyvar that is immediately
          unified to correct levels *)
-    | Wildcard
-    | Unification_var
     | Type_expression_call
     | Inside_of_Tarrow
+    | Wildcard
+    | Unification_var
 
   type any_non_null_creation_reason = Array_type_argument
 
