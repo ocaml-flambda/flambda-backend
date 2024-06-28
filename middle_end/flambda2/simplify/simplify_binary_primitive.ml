@@ -52,7 +52,7 @@ module type Binary_arith_like_sig = sig
 
   val unknown : op -> T.t
 
-  val these : Result.Set.t -> T.t
+  val these : Result.Set.t -> T.t * Simple.t option
 
   val op : op -> Lhs.t -> Rhs.t -> Result.t option
 
@@ -147,7 +147,7 @@ end = struct
           | Some (Simple simple) -> Named.create_simple simple
           | None -> original_term
         in
-        let ty =
+        let ty, simple_opt =
           let is =
             List.filter_map
               (fun (possible_result : PR.t) ->
@@ -160,13 +160,13 @@ end = struct
           then N.these (N.Result.Set.of_list is)
           else
             match PR.Set.get_singleton possible_results with
-            | Some (Simple simple) -> T.alias_type_of kind simple
-            | Some (Exactly _) | Some (Prim _) | None -> N.unknown op
+            | Some (Simple simple) -> T.alias_type_of kind simple, Some simple
+            | Some (Exactly _) | Some (Prim _) | None -> N.unknown op, None
         in
         let dacc = DA.add_variable dacc result_var ty in
-        match T.get_alias_exn ty with
-        | exception Not_found -> SPR.create named ~try_reify:false dacc
-        | simple ->
+        match simple_opt with
+        | None -> SPR.create named ~try_reify:false dacc
+        | Some simple ->
           let named = Named.create_simple simple in
           SPR.create named ~try_reify:false dacc
     in
@@ -275,7 +275,14 @@ end = struct
     | Naked_int64 -> T.any_naked_int64
     | Naked_nativeint -> T.any_naked_nativeint
 
-  let these = I.these_unboxed
+  let these s =
+    let ty = I.these_unboxed s in
+    let simple_opt =
+      match I.Num.Set.get_singleton s with
+      | None -> None
+      | Some i -> Some (Simple.const (I.Num.to_const i))
+    in
+    ty, simple_opt
 
   let term = I.term_unboxed
 
@@ -431,7 +438,14 @@ end = struct
     | Naked_int64 -> T.any_naked_int64
     | Naked_nativeint -> T.any_naked_nativeint
 
-  let these = I.these_unboxed
+  let these s =
+    let ty = I.these_unboxed s in
+    let simple_opt =
+      match I.Num.Set.get_singleton s with
+      | None -> None
+      | Some i -> Some (Simple.const (I.Num.to_const i))
+    in
+    ty, simple_opt
 
   let term = I.term_unboxed
 
@@ -539,7 +553,14 @@ end = struct
     | Yielding_int_like_compare_functions _signedness ->
       T.these_naked_immediates Targetint_31_63.zero_one_and_minus_one
 
-  let these = T.these_naked_immediates
+  let these s =
+    let ty = T.these_naked_immediates s in
+    let simple_opt =
+      match Targetint_31_63.Set.get_singleton s with
+      | None -> None
+      | Some i -> Some (Simple.const (Reg_width_const.naked_immediate i))
+    in
+    ty, simple_opt
 
   let term imm : Named.t =
     Named.create_simple (Simple.const (Reg_width_const.naked_immediate imm))
@@ -645,7 +666,14 @@ end = struct
 
   let unknown _ = FP.unknown
 
-  let these = FP.these
+  let these s =
+    let ty = FP.these s in
+    let simple_opt =
+      match F.Set.get_singleton s with
+      | None -> None
+      | Some f -> Some (Simple.const (FP.const f))
+    in
+    ty, simple_opt
 
   let term f = Named.create_simple (Simple.const (FP.const f))
 
@@ -784,7 +812,14 @@ end = struct
     | Yielding_int_like_compare_functions () ->
       T.these_naked_immediates Targetint_31_63.zero_one_and_minus_one
 
-  let these = T.these_naked_immediates
+  let these s =
+    let ty = T.these_naked_immediates s in
+    let simple_opt =
+      match Targetint_31_63.Set.get_singleton s with
+      | None -> None
+      | Some i -> Some (Simple.const (Reg_width_const.naked_immediate i))
+    in
+    ty, simple_opt
 
   let term imm : Named.t =
     Named.create_simple (Simple.const (Reg_width_const.naked_immediate imm))

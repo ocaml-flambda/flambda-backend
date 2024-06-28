@@ -23,8 +23,7 @@ let simplify_field_of_block dacc (field : Field_of_static_block.t) =
   | Tagged_immediate i -> field, T.this_tagged_immediate i
   | Dynamically_computed (var, dbg) ->
     let min_name_mode = Name_mode.normal in
-    let ty = S.simplify_simple dacc (Simple.var var) ~min_name_mode in
-    let simple = T.get_alias_exn ty in
+    let ty, simple = S.simplify_simple dacc (Simple.var var) ~min_name_mode in
     Simple.pattern_match simple
       ~name:(fun name ~coercion:_ ->
         (* CR mshinwell: It's safe to drop the coercion, but perhaps not

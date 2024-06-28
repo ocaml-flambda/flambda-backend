@@ -786,11 +786,10 @@ let type_value_slots_and_make_lifting_decision_for_one_set dacc
       (fun value_slot env_entry
            (value_slots, value_slot_types, symbol_projections) ->
         let env_entry, ty, symbol_projections =
-          let ty =
+          let ty, simple =
             S.simplify_simple dacc env_entry
               ~min_name_mode:name_mode_of_bound_vars
           in
-          let simple = T.get_alias_exn ty in
           (* Note down separately if [simple] remains a variable and is known to
              be equal to a projection from a symbol. *)
           let symbol_projections =
