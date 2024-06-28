@@ -2785,8 +2785,8 @@ let initial =
     empty
 
 let add_language_extension_types env =
-  let add ext f env  =
-    match Language_extension.is_enabled ext with
+  let add ext lvl f env  =
+    match Language_extension.is_at_least ext lvl with
     | true ->
       (* CR-someday poechsel: Pass a correct shape here *)
       f (add_type ?shape:None ~check:false) env
@@ -2794,8 +2794,9 @@ let add_language_extension_types env =
   in
   lazy
     (env
-    |> add SIMD Predef.add_simd_extension_types
-    |> add Small_numbers Predef.add_small_number_extension_types)
+    |> add SIMD () Predef.add_simd_extension_types
+    |> add Small_numbers () Predef.add_small_number_extension_types
+    |> add Layouts Language_extension.Alpha Predef.add_or_null)
 
 (* Some predefined types are part of language extensions, and we don't want to
    make them available in the initial environment if those extensions are not

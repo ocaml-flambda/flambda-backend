@@ -245,91 +245,94 @@ let mk_add_type add_type
   in
   add_type type_ident decl env
 
+let mk_add_type1 add_type type_ident
+      ?(kind=fun _ -> Type_abstract Abstract_def)
+      ?(jkind=Jkind.Primitive.value ~why:(Primitive type_ident))
+      (* See the comment on the [jkind_annotation] argument to [mk_add_type]
+      *)
+      ?jkind_annotation
+      ?(param_jkind=Jkind.Primitive.value ~why:(
+        Type_argument {
+          parent_path = Path.Pident type_ident;
+          position = 1;
+          arity = 1}
+      ))
+    ~variance ~separability env =
+  let param = newgenvar param_jkind in
+  let decl =
+    {type_params = [param];
+      type_arity = 1;
+      type_kind = kind param;
+      type_jkind = jkind;
+      type_jkind_annotation = predef_jkind_annotation jkind_annotation;
+      type_loc = Location.none;
+      type_private = Asttypes.Public;
+      type_manifest = None;
+      type_variance = [variance];
+      type_separability = [separability];
+      type_is_newtype = false;
+      type_expansion_scope = lowest_level;
+      type_attributes = [];
+      type_unboxed_default = false;
+      type_uid = Uid.of_predef_id type_ident;
+       type_has_illegal_crossings = false;
+    }
+  in
+  add_type type_ident decl env
+
+let mk_add_extension add_extension id args jkinds =
+  Array.iter (fun jkind ->
+      let raise_error () = Misc.fatal_error
+          "sanity check failed: non-value jkind in predef extension \
+            constructor; should this have Constructor_mixed shape?" in
+      match Jkind.get jkind with
+      | Const const ->
+          begin
+            match Jkind.Const.get_layout const with
+            | Sort Value -> ()
+            | Any | Sort (Void | Float32 | Float64 | Word | Bits32 | Bits64) ->
+                raise_error ()
+          end
+      | _ -> raise_error ())
+    jkinds;
+  add_extension id
+    { ext_type_path = path_exn;
+      ext_type_params = [];
+      ext_args =
+        Cstr_tuple
+          (List.map
+            (fun x ->
+              {
+                ca_type=x;
+                ca_modalities=Mode.Modality.Value.Const.id;
+                ca_loc=Location.none
+              })
+            args);
+      ext_arg_jkinds = jkinds;
+      ext_shape = Constructor_uniform_value;
+      ext_constant = args = [];
+      ext_ret_type = None;
+      ext_private = Asttypes.Public;
+      ext_loc = Location.none;
+      ext_attributes = [Ast_helper.Attr.mk
+                          (Location.mknoloc "ocaml.warn_on_literal_pattern")
+                          (Parsetree.PStr [])];
+      ext_uid = Uid.of_predef_id id;
+    }
+
+let variant constrs jkinds = Type_variant (constrs, Variant_boxed jkinds)
+
+let unrestricted tvar =
+  {ca_type=tvar;
+     ca_modalities=Mode.Modality.Value.Const.id;
+     ca_loc=Location.none}
+
 (* CR layouts: Changes will be needed here as we add support for the built-ins
    to work with non-values, and as we relax the mixed block restriction. *)
 let build_initial_env add_type add_extension empty_env =
   let add_type = mk_add_type add_type
-  and add_type1 type_ident
-        ?(kind=fun _ -> Type_abstract Abstract_def)
-        ?(jkind=Jkind.Primitive.value ~why:(Primitive type_ident))
-        (* See the comment on the [jkind_annotation] argument to [mk_add_type]
-        *)
-        ?jkind_annotation
-        ?(param_jkind=Jkind.Primitive.value ~why:(
-          Type_argument {
-            parent_path = Path.Pident type_ident;
-            position = 1;
-            arity = 1}
-        ))
-      ~variance ~separability env =
-    let param = newgenvar param_jkind in
-    let decl =
-      {type_params = [param];
-       type_arity = 1;
-       type_kind = kind param;
-       type_jkind = jkind;
-       type_jkind_annotation = predef_jkind_annotation jkind_annotation;
-       type_loc = Location.none;
-       type_private = Asttypes.Public;
-       type_manifest = None;
-       type_variance = [variance];
-       type_separability = [separability];
-       type_is_newtype = false;
-       type_expansion_scope = lowest_level;
-       type_attributes = [];
-       type_unboxed_default = false;
-       type_uid = Uid.of_predef_id type_ident;
-       type_has_illegal_crossings = false;
-      }
-    in
-    add_type type_ident decl env
-  in
-  let add_extension id args jkinds =
-    Array.iter (fun jkind ->
-        let raise_error () = Misc.fatal_error
-            "sanity check failed: non-value jkind in predef extension \
-             constructor; should this have Constructor_mixed shape?" in
-        match Jkind.get jkind with
-        | Const const ->
-            begin
-              match Jkind.Const.get_layout const with
-              | Sort Value -> ()
-              | Any | Sort (Void | Float32 | Float64 | Word | Bits32 | Bits64) ->
-                  raise_error ()
-            end
-        | _ -> raise_error ())
-      jkinds;
-    add_extension id
-      { ext_type_path = path_exn;
-        ext_type_params = [];
-        ext_args =
-          Cstr_tuple
-            (List.map
-              (fun x ->
-                {
-                  ca_type=x;
-                  ca_modalities=Mode.Modality.Value.Const.id;
-                  ca_loc=Location.none
-                })
-              args);
-        ext_arg_jkinds = jkinds;
-        ext_shape = Constructor_uniform_value;
-        ext_constant = args = [];
-        ext_ret_type = None;
-        ext_private = Asttypes.Public;
-        ext_loc = Location.none;
-        ext_attributes = [Ast_helper.Attr.mk
-                            (Location.mknoloc "ocaml.warn_on_literal_pattern")
-                            (Parsetree.PStr [])];
-        ext_uid = Uid.of_predef_id id;
-      }
-  in
-  let variant constrs jkinds = Type_variant (constrs, Variant_boxed jkinds) in
-  let unrestricted tvar =
-    {ca_type=tvar;
-     ca_modalities=Mode.Modality.Value.Const.id;
-     ca_loc=Location.none}
-  in
+  and add_type1 = mk_add_type1 add_type
+  and add_extension = mk_add_extension add_extension in
   empty_env
   (* Predefined types *)
   |> add_type1 ident_array
@@ -383,15 +386,6 @@ let build_initial_env add_type add_extension empty_env =
               Constructor_uniform_value, [| option_argument_jkind |];
            |])
        ~jkind:(Jkind.Primitive.value ~why:Boxed_variant)
-  |> add_type1 ident_or_null
-       ~variance:Variance.covariant
-       ~separability:Separability.Sep
-       ~kind:(fun tvar ->
-        variant [cstr ident_null []; cstr ident_this [unrestricted tvar]]
-          [| Constructor_uniform_value, [| |];
-             Constructor_uniform_value, [| or_null_argument_jkind |];
-          |])
-       ~jkind:(Jkind.Primitive.value_or_null ~why:(Primitive ident_or_null))
   |> add_type ident_lexing_position
        ~kind:(
          let lbl (field, field_type, jkind) =
@@ -479,6 +473,19 @@ let add_small_number_extension_types add_type env =
   |> add_type ident_unboxed_float32
        ~jkind:(Jkind.Primitive.float32 ~why:(Primitive ident_unboxed_float32))
        ~jkind_annotation:Jkind.Const.Primitive.float32
+
+let add_or_null add_type env =
+  let add_type1 = mk_add_type1 add_type in
+  env
+  |> add_type1 ident_or_null
+  ~variance:Variance.covariant
+  ~separability:Separability.Sep
+  ~kind:(fun tvar ->
+    variant [cstr ident_null []; cstr ident_this [unrestricted tvar]]
+      [| Constructor_uniform_value, [| |];
+          Constructor_uniform_value, [| or_null_argument_jkind |];
+      |])
+  ~jkind:(Jkind.Primitive.value_or_null ~why:(Primitive ident_or_null))
 
 let builtin_values =
   List.map (fun id -> (Ident.name id, id)) all_predef_exns
