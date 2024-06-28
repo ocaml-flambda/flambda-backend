@@ -431,8 +431,9 @@ end = struct
   let new_jkind ~is_named { jkind_initialization } =
     match jkind_initialization with
     (* CR layouts v3.0: while [Any] case allows nullable jkinds, [Sort] does not.
-       But there might be cases in which even [Sort] initialization can allow
-       nullable jkinds. Split [Non_null_sort] away from [Sort]. *)
+       From testing, we need all callsites that use [Sort] to be non-null to
+       preserve backwards compatibility. But we also need [Any] callsites
+       to accept nullable jkinds to allow cases like [type ('a : value_or_null) t = 'a]. *)
     | Any -> Jkind.Primitive.any ~why:(if is_named then Unification_var else Wildcard)
     | Sort -> Jkind.of_new_non_null_sort ~why:(if is_named then Unification_var else Wildcard)
 
