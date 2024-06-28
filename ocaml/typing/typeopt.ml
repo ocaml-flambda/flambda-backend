@@ -99,13 +99,15 @@ let maybe_pointer_type env ty =
 
 let maybe_pointer exp = maybe_pointer_type exp.exp_env exp.exp_type
 
-(* CR layouts v2.8: Calling [type_sort] in [typeopt] is not ideal and
-   this function should be removed at some point. To do that, there
+(* CR layouts v2.8: Calling [type_non_null_sort] in [typeopt] is not ideal
+   and this function should be removed at some point. To do that, there
    needs to be a way to store sort vars on [Tconstr]s. That means
    either introducing a [Tpoly_constr], allow type parameters with
    sort info, or do something else. *)
-let type_sort ~why env loc ty =
-  match Ctype.type_sort ~why env ty with
+(* CR layouts v3.0: have a better error message
+   for nullable jkinds.*)
+let type_non_null_sort ~why env loc ty =
+  match Ctype.type_non_null_sort ~why env ty with
   | Ok sort -> sort
   | Error err -> raise (Error (loc, Not_a_sort (ty, err)))
 
@@ -172,7 +174,7 @@ let array_type_kind ~elt_sort env loc ty =
         match elt_sort with
         | Some s -> s
         | None ->
-          type_sort ~why:Array_element env loc elt_ty
+          type_non_null_sort ~why:Array_element env loc elt_ty
       in
       begin match classify env loc elt_ty elt_sort with
       | Any -> if Config.flat_float_array then Pgenarray else Paddrarray

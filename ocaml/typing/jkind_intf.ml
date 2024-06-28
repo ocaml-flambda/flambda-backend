@@ -148,14 +148,10 @@ module type Sort = sig
 end
 
 module History = struct
-  (* CR layouts v3: move most [concrete_non_null_creation_reason]s here. *)
-  type concrete_creation_reason = |
-
-  type concrete_non_null_creation_reason =
+  type concrete_creation_reason =
     | Match
     | Constructor_declaration of int
     | Label_declaration of Ident.t
-    | Unannotated_type_parameter of Path.t
     | Record_projection
     | Record_assignment
     | Let_binding
@@ -165,10 +161,13 @@ module History = struct
     | External_argument
     | External_result
     | Statement
-    | Wildcard
-    | Unification_var
     | Optional_arg_default
     | Layout_poly_in_external
+
+  type concrete_non_null_creation_reason =
+    | Unannotated_type_parameter of Path.t
+    | Wildcard
+    | Unification_var
     | Array_element
 
   type annotation_context =
