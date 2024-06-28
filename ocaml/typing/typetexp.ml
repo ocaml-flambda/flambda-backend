@@ -430,9 +430,11 @@ end = struct
 
   let new_jkind ~is_named { jkind_initialization } =
     match jkind_initialization with
+    (* CR layouts v3.0: while [Any] case allows nullable jkinds, [Sort] does not.
+       But there might be cases in which even [Sort] initialization can allow
+       nullable jkinds. Split [Non_null_sort] away from [Sort]. *)
     | Any -> Jkind.Primitive.any ~why:(if is_named then Unification_var else Wildcard)
     | Sort -> Jkind.of_new_non_null_sort ~why:(if is_named then Unification_var else Wildcard)
-
 
   let new_any_var loc env jkind = function
     | { extensibility = Fixed } -> raise(Error(loc, env, No_type_wildcards))
