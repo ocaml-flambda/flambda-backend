@@ -634,18 +634,14 @@ type poll_attribute =
   | Error_poll (* [@poll error] *)
   | Default_poll (* no [@poll] attribute *)
 
-type zero_alloc_attribute = Builtin_attributes.zero_alloc_attribute =
+type zero_alloc_attribute =
   | Default_zero_alloc
-  | Ignore_assert_all
   | Check of { strict: bool;
-               opt: bool;
-               arity: int;
                loc: Location.t;
              }
   | Assume of { strict: bool;
                 never_returns_normally: bool;
                 never_raises: bool;
-                arity: int;
                 loc: Location.t;
               }
 
@@ -925,7 +921,7 @@ let default_function_attribute = {
 }
 
 let default_stub_attribute =
-  { default_function_attribute with stub = true; zero_alloc = Ignore_assert_all }
+  { default_function_attribute with stub = true; zero_alloc = Default_zero_alloc }
 
 let default_param_attribute = { unbox_param = false }
 
