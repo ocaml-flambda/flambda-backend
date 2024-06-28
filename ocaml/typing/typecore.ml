@@ -4713,6 +4713,18 @@ let check_apply_prim_type prim typ =
       end
   | _ -> false
 
+(* The explanation is suppressed if the location is ghost (e.g. the construct is
+   in ppx-generated code), unless the explanation originates from the
+   [@error_message] attribute, which a ppx may reasonably have inserted itself
+   to get a better error message.
+*)
+let should_show_explanation ~explanation ~loc =
+  if not loc.Location.loc_ghost then true
+  else
+    match explanation with
+    | Error_message_attr _ -> true
+    | _ -> false
+
 (* Merge explanation to type clash error *)
 
 let with_explanation explanation f =
@@ -4721,7 +4733,7 @@ let with_explanation explanation f =
   | Some explanation ->
       try f ()
       with Error (loc', env', Expr_type_clash(err', None, exp'))
-        when not loc'.Location.loc_ghost ->
+        when should_show_explanation ~loc:loc' ~explanation ->
         let err = Expr_type_clash(err', Some explanation, exp') in
         raise (Error (loc', env', err))
 
