@@ -112,7 +112,6 @@ type error =
   | Multiple_native_repr_attributes
   | Cannot_unbox_or_untag_type of native_repr_kind
   | Deep_unbox_or_untag_attribute of native_repr_kind
-  | Jkind_mismatch_of_type of type_expr * Jkind.Violation.t
   | Jkind_mismatch_of_path of Path.t * Jkind.Violation.t
   | Jkind_mismatch_due_to_bad_inference of
       type_expr * Jkind.Violation.t * bad_jkind_inference_location
@@ -641,12 +640,12 @@ let verify_unboxed_attr unboxed_attr sdecl =
    1. If there is a jkind annotation, use that. We might later compute a more
       precise jkind for the type (e.g. [type t : value = int] or [type t :
       value = A | B | C]); this will be updated in [update_decl_jkind] (updates
-      from the kind) or [check_coherence] (updates from the manifest), which
+      from the manifest if available, or the kind otherwise), which
       also ensures that the updated jkind is a subjkind of the annotated
       jkind.
 
    2. If there is no annotation but there is a manifest, use the jkind
-      of the manifest. This gets improved in [check_coherence], after
+      of the manifest. This gets improved in [update_decl_jkind], after
       the manifest jkind might be more accurate.
 
    3. If there is no annotation and no manifest, the default jkind
@@ -883,11 +882,10 @@ let transl_declaration env sdecl (id, uid) =
       in
     let jkind =
     (* - If there's an annotation, we use that. It's checked against
-         a kind in [update_decl_jkind] and the manifest in [check_coherence].
-         Both of those functions update the [type_jkind] field in the
-         [type_declaration] as appropriate.
+         the manifest (or the kind if there's no manifest) in [update_decl_jkind].
+         It updates the [type_jkind] field in the [type_declaration] as appropriate.
        - If there's no annotation but there is a manifest, just use [any].
-         This will get updated to the manifest's jkind in [check_coherence].
+         This will get updated to the manifest's jkind in [update_decl_jkind].
        - If there's no annotation and no manifest, we fill in with the
          default calculated above here. It will get updated in
          [update_decl_jkind]. See Note [Default jkinds in transl_declaration].
@@ -1084,15 +1082,6 @@ let check_constraints env sdecl (_, decl) =
    If both a variant/record definition and a type equation are given,
    need to check that the equation refers to a type of the same kind
    with the same constructors and labels.
-
-   If the kind is [Type_abstract], we need to check that [type_jkind] (where
-   we've stored the jkind annotation, if any) corresponds to the manifest
-   (e.g., in the case where [type_jkind] is immediate, we should check the
-   manifest is immediate).  It would also be nice to store the best possible
-   jkind for this type in the kind, to avoid expansions later.  So, we do the
-   relatively expensive thing of computing the best possible jkind for the
-   manifest, checking that it's a subjkind of [type_jkind], and then replacing
-   [type_jkind] with what we computed.
 *)
 let check_coherence env loc dpath decl =
   match decl with
@@ -1122,24 +1111,18 @@ let check_coherence env loc dpath decl =
             if err <> None then
               raise(Error(loc, Definition_mismatch (ty, env, err)))
             else
-              decl
+              ()
           with Not_found ->
             raise(Error(loc, Unavailable_type_constructor path))
           end
       | _ -> raise(Error(loc, Definition_mismatch (ty, env, None)))
       end
   | { type_kind = Type_abstract _;
-      type_manifest = Some ty } ->
-    let jkind' = Ctype.type_jkind_purely env ty in
-    begin match Jkind.sub_with_history jkind' decl.type_jkind with
-    | Ok jkind' -> { decl with type_jkind = jkind' }
-    | Error v ->
-      raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
-    end
-  | { type_manifest = None } -> decl
+      type_manifest = Some _ }
+  | { type_manifest = None } -> ()
 
 let check_abbrev env sdecl (id, decl) =
-  (id, check_coherence env sdecl.ptype_loc (Path.Pident id) decl)
+  check_coherence env sdecl.ptype_loc (Path.Pident id) decl
 
 (* The [update_x_jkinds] functions infer more precise jkinds in the type kind,
    including which fields of a record are void.  This would be hard to do during
@@ -1580,7 +1563,7 @@ let update_decl_jkind env dpath decl =
       assert false
   in
 
-  let new_decl, new_jkind = match decl.type_kind with
+  let inferred_decl, inferred_jkind = match decl.type_kind with
     | Type_abstract _ -> decl, decl.type_jkind
     | Type_open ->
       let type_jkind = Jkind.Primitive.value ~why:Extensible_variant in
@@ -1595,8 +1578,18 @@ let update_decl_jkind env dpath decl =
       type_jkind
   in
 
-  (* check that the jkind computed from the kind matches the jkind
-     annotation, which was stored in decl.type_jkind *)
+  let new_decl, new_jkind =
+  (* Override the jkind to the manifest jkind if available. This is necessary
+     to support types like ['a or_null], which have a non-standard jkind. *)
+    match decl.type_manifest with
+    | None -> inferred_decl, inferred_jkind
+    | Some ty ->
+      let type_jkind = Ctype.type_jkind_purely env ty in
+      { inferred_decl with type_jkind }, type_jkind
+  in
+
+  (* Check that the computed jkind matches the jkind annotation,
+     which was stored in [decl.type_jkind]. *)
   if new_jkind != decl.type_jkind then
     begin match Jkind.sub_or_error new_jkind decl.type_jkind with
     | Ok () -> ()
@@ -2209,7 +2202,7 @@ let transl_type_decl env rec_flag sdecl_list =
         raise (Error (loc, Separability err))
   in
   (* Check re-exportation, updating [type_jkind] from the manifest *)
-  let decls = List.map2 (check_abbrev new_env) sdecl_list decls in
+  List.iter2 (check_abbrev new_env) sdecl_list decls;
   (* Compute the final environment with variance and immediacy *)
   let final_env = add_types_to_env decls shapes env in
   (* Keep original declaration *)
@@ -3210,9 +3203,9 @@ let check_recmod_typedecl env loc recmod_ids path decl =
   let to_check path = Path.exists_free recmod_ids path in
   check_well_founded_decl ~abs_env:env env loc path decl to_check;
   check_regularity ~abs_env:env env loc path decl to_check;
-  (* additionally check coherece, as one might build an incoherent signature,
+  (* additionally check coherence, as one might build an incoherent signature,
      and use it to build an incoherent module, cf. #7851 *)
-  ignore (check_coherence env loc path decl)
+  check_coherence env loc path decl
 
 
 (**** Error report ****)
@@ -3568,9 +3561,6 @@ let report_error ppf = function
     (* the type is always printed just above, so print out just the head of the
        path instead of something like [t/3] *)
     let offender ppf = fprintf ppf "type %s" (Ident.name (Path.head dpath)) in
-    Jkind.Violation.report_with_offender ~offender ppf v
-  | Jkind_mismatch_of_type (ty,v) ->
-    let offender ppf = fprintf ppf "type %a" Printtyp.type_expr ty in
     Jkind.Violation.report_with_offender ~offender ppf v
   | Jkind_sort {kloc; typ; err} ->
     let s =

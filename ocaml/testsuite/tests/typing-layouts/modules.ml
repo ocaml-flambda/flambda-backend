@@ -79,13 +79,7 @@ Error: The type constraints are not consistent.
 module type S1f'' = S1f with type s = t_float64;;
 
 [%%expect{|
-Line 1, characters 29-47:
-1 | module type S1f'' = S1f with type s = t_float64;;
-                                 ^^^^^^^^^^^^^^^^^^
-Error: The layout of type t_float64 is float64, because
-         of the definition of t_float64 at line 4, characters 0-24.
-       But the layout of type t_float64 must be a sublayout of value, because
-         of the definition of s at line 3, characters 2-8.
+module type S1f'' = sig type ('a : float64) t type s = t_float64 end
 |}]
 
 module type S1_2 = sig
@@ -265,10 +259,10 @@ end;;
 Line 2, characters 2-29:
 2 |   type t : immediate = Bar3.t
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type Bar3.t is value, because
+Error: The layout of type t is value, because
          of the annotation on the declaration of the type t.
-       But the layout of type Bar3.t must be a sublayout of immediate, because
-         of the definition of t at line 2, characters 2-29.
+       But the layout of type t must be a sublayout of immediate, because
+         of the annotation on the declaration of the type t.
 |}];;
 
 module rec Foo3 : sig
@@ -463,13 +457,7 @@ end
 module type S3_2' = S3_2 with type t := string;;
 [%%expect{|
 module type S3_2 = sig type t : immediate end
-Line 5, characters 30-46:
-5 | module type S3_2' = S3_2 with type t := string;;
-                                  ^^^^^^^^^^^^^^^^
-Error: The layout of type string is value, because
-         it is the primitive value type string.
-       But the layout of type string must be a sublayout of immediate, because
-         of the definition of t at line 2, characters 2-20.
+module type S3_2' = sig end
 |}]
 
 (*****************************************)
