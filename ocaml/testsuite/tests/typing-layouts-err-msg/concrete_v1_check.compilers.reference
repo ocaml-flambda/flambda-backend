@@ -1,5 +1,7 @@
 type t_void : void
-File "_none_", line 1:
-Error: Non-value sort void detected in [translmod] in type t_void:
-       Please report this error to the Jane Street compilers team.
+Line 1, characters 0-23:
+1 | (assert false : t_void);;
+    ^^^^^^^^^^^^^^^^^^^^^^^
+Error: Types of unnamed expressions must have layout value when using
+       the toplevel, but this expression has layout void.
 
