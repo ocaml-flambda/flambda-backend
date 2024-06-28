@@ -31,8 +31,7 @@ Error: This type t_value_or_null should be an instance of type ('a : value)
          because of the definition of should_not_accept_or_null at line 1, characters 0-55.
 |}]
 
-(* CR layouts v3.0: [value_or_null] types should be accepted for
-   function arguments and results. *)
+(* [value_or_null] is accepted for function arguments and results. *)
 
 let should_work (x : t_value_or_null) = x
 
@@ -283,9 +282,9 @@ Error: Signature mismatch:
 (* CR layouts v3.0: this should work. *)
 
 module M : sig
-  val f : ('a : value_or_null). 'a -> 'a
+  val f : ('a : value_or_null) . 'a -> 'a
 end = struct
-  let f x = x
+  let f : type a. a -> a = fun x -> x
 end
 
 [%%expect{|

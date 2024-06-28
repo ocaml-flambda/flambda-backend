@@ -57,7 +57,7 @@ Line 2, characters 10-24:
 Error: This type signature for x is not a value type.
        The layout of type t_any_non_null is any
          because of the definition of t_any_non_null at line 2, characters 0-34.
-       But the layout of type t_any_non_null must be a sublayout of value
+       But the layout of type t_any_non_null must be a sublayout of value_or_null
          because it's the type of something stored in a module structure.
 |}]
 
@@ -86,35 +86,18 @@ Error: This expression has type t_any_non_null
          because we must know concretely how to return a function result.
 |}]
 
-(* CR layouts v3.0: [value_or_null] should be representable *)
+(* [value_or_null] is representable *)
 
 let f (x : t_value_or_null) = x
 
 [%%expect{|
-Line 1, characters 6-27:
-1 | let f (x : t_value_or_null) = x
-          ^^^^^^^^^^^^^^^^^^^^^
-Error: This pattern matches values of type t_value_or_null
-       but a pattern was expected which matches values of type ('a : value)
-       The kind of t_value_or_null is value_or_null
-         because of the definition of t_value_or_null at line 3, characters 0-36.
-       But the kind of t_value_or_null must be a subkind of value
-         because we must know concretely how to pass a function argument,
-         defaulted to kind value.
+val f : t_value_or_null -> t_value_or_null = <fun>
 |}]
 
 type t = { x : t_value_or_null }
 
 [%%expect {|
-Line 1, characters 11-30:
-1 | type t = { x : t_value_or_null }
-               ^^^^^^^^^^^^^^^^^^^
-Error: Record element types must have a representable layout.
-       The kind of t_value_or_null is value_or_null
-         because of the definition of t_value_or_null at line 3, characters 0-36.
-       But the kind of t_value_or_null must be a subkind of value
-         because it is the type of record field x,
-         defaulted to kind value.
+type t = { x : t_value_or_null; }
 |}]
 
 module type S1 = sig
@@ -122,14 +105,7 @@ module type S1 = sig
 end
 
 [%%expect {|
-Line 2, characters 10-25:
-2 |   val x : t_value_or_null
-              ^^^^^^^^^^^^^^^
-Error: This type signature for x is not a value type.
-       The kind of type t_value_or_null is value_or_null
-         because of the definition of t_value_or_null at line 3, characters 0-36.
-       But the kind of type t_value_or_null must be a subkind of value
-         because it's the type of something stored in a module structure.
+module type S1 = sig val x : t_value_or_null end
 |}]
 
 module type S2 = sig
@@ -145,16 +121,7 @@ module M2 (X : S2) = struct
 end
 
 [%%expect{|
-Line 2, characters 13-19:
-2 |   let f () = X.f ()
-                 ^^^^^^
-Error: This expression has type t_value_or_null
-       but an expression was expected of type ('a : value)
-       The kind of t_value_or_null is value_or_null
-         because of the definition of t_value_or_null at line 3, characters 0-36.
-       But the kind of t_value_or_null must be a subkind of value
-         because we must know concretely how to return a function result,
-         defaulted to kind value.
+module M2 : functor (X : S2) -> sig val f : unit -> t_value_or_null end
 |}]
 
 type ('a : any) id_any = 'a
