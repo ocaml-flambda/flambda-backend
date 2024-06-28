@@ -2896,7 +2896,8 @@ let transl_value_decl env loc valdecl =
     [] when Env.is_in_signature env ->
       let modalities =
         valdecl.pval_modalities
-        |> Typemode.transl_modalities ~maturity:Alpha Immutable
+        |> Typemode.transl_modalities ~maturity:Alpha
+            ~has_mutable_implied_modalities:false
         |> Mode.Modality.Value.of_const
       in
       let default_arity =
