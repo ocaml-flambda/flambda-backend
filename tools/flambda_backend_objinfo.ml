@@ -268,13 +268,16 @@ let print_cmx_infos (uir, sections, crc) =
     match uir.uir_export_info with
     | None ->
       printf "Flambda 2 unit (with no export information)\n"
-    | Some _ when !no_code || !no_approx ->
+    | Some _ when !no_code && !no_approx ->
       printf "Flambda 2 unit with export information\n"
     | Some cmx ->
       printf "Flambda 2 export information:\n";
       flush stdout;
+      let print_typing_env = not !no_approx in
+      let print_code = not !no_code in
+      let print_offsets = print_code && print_typing_env in
       let cmx = Flambda2_cmx.Flambda_cmx_format.from_raw cmx ~sections in
-      Format.printf "%a\n%!" Flambda2_cmx.Flambda_cmx_format.print cmx
+      Format.printf "%a\n%!" (Flambda2_cmx.Flambda_cmx_format.print ~print_typing_env ~print_code ~print_offsets) cmx
   end;
   print_generic_fns uir.uir_generic_fns;
   printf "Force link: %s\n" (if uir.uir_force_link then "YES" else "no");

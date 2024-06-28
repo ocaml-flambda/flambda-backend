@@ -210,27 +210,35 @@ let merge t1_opt t2_opt =
     in
     Some (t1 @ t2, nsections)
 
-let print0 ~sections ppf t =
+let print0 ~sections ~print_typing_env ~print_code ~print_offsets ppf t =
   Format.fprintf ppf "@[<hov>Original unit:@ %a@]@;" Compilation_unit.print
     t.original_compilation_unit;
   Compilation_unit.set_current (Some t.original_compilation_unit);
   let typing_env, code = import_typing_env_and_code0 ~sections t in
-  Format.fprintf ppf "@[<hov>Typing env:@ %a@]@;"
-    Flambda2_types.Typing_env.Serializable.print typing_env;
-  Format.fprintf ppf "@[<hov>Code:@ %a@]@;" Exported_code.print code;
-  Format.fprintf ppf "@[<hov>Offsets:@ %a@]@;" Exported_offsets.print
-    t.exported_offsets
+  if print_typing_env
+  then
+    Format.fprintf ppf "@[<hov>Typing env:@ %a@]@;"
+      Flambda2_types.Typing_env.Serializable.print typing_env;
+  if print_code
+  then Format.fprintf ppf "@[<hov>Code:@ %a@]@;" Exported_code.print code;
+  if print_offsets
+  then
+    Format.fprintf ppf "@[<hov>Offsets:@ %a@]@;" Exported_offsets.print
+      t.exported_offsets
 
-let print ppf (t, sections) =
+let print ~print_typing_env ~print_code ~print_offsets ppf (t, sections) =
   let rec print_rest ppf = function
     | [] -> ()
     | t0 :: t ->
-      Format.fprintf ppf "@ (%a)" (print0 ~sections) t0;
+      Format.fprintf ppf "@ (%a)"
+        (print0 ~sections ~print_typing_env ~print_code ~print_offsets)
+        t0;
       print_rest ppf t
   in
   match t with
   | [] -> assert false
-  | [t0] -> print0 ~sections ppf t0
+  | [t0] -> print0 ~sections ~print_typing_env ~print_code ~print_offsets ppf t0
   | t0 :: t ->
-    Format.fprintf ppf "Packed units:@ @[<v>(%a)%a@]" (print0 ~sections) t0
-      print_rest t
+    Format.fprintf ppf "Packed units:@ @[<v>(%a)%a@]"
+      (print0 ~sections ~print_typing_env ~print_code ~print_offsets)
+      t0 print_rest t
