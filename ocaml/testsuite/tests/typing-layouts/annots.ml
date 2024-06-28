@@ -44,7 +44,7 @@ type t_value_or_null : value_or_null;;
 Line 1, characters 23-36:
 1 | type t_value_or_null : value_or_null;;
                            ^^^^^^^^^^^^^
-Error: Layout value is more experimental than allowed by the enabled layouts extension.
+Error: Layout value_or_null is more experimental than allowed by the enabled layouts extension.
        You must enable -extension layouts_alpha to use this feature.
 |}]
 

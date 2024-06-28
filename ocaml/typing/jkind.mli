@@ -92,7 +92,7 @@ module Layout : sig
         | Bits32
         | Bits64
 
-      val to_string : t -> string
+      (* val to_string : t -> string *)
     end
   end
 end
