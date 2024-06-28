@@ -2967,6 +2967,24 @@ let () = foo_f (local_ (fun M_constructor -> ()))
 [%%expect{|
 |}]
 
+let _ret () : M.t -> unit = (fun M_constructor -> ())
+[%%expect{|
+val _ret : unit -> M.t -> unit = <fun>
+|}]
+
+let _ret () : M.t -> unit = local_ (fun M_constructor -> ())
+[%%expect{|
+val _ret : unit -> local_ (M.t -> unit) = <fun>
+|}]
+
+let _ret () : M.t -> unit = exclave_ (fun M_constructor -> ())
+[%%expect{|
+Line 1, characters 42-55:
+1 | let _ret () : M.t -> unit = exclave_ (fun M_constructor -> ())
+                                              ^^^^^^^^^^^^^
+Error: Unbound constructor M_constructor
+|}]
+
 type r = {global_ x : string; y : string}
 
 let foo () =
