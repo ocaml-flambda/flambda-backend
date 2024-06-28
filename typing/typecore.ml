@@ -4663,6 +4663,10 @@ let unify_exp ?sdesc_for_hint env exp expected_ty =
   with Error(loc, env, Expr_type_clash(err, tfc, None)) ->
     raise (Error(loc, env, Expr_type_clash(err, tfc, sdesc_for_hint)))
 
+let is_exclave_extension_node = function
+  | "extension.exclave" | "ocaml.exclave" | "exclave" -> true
+  | _ -> false
+
 (* If [is_inferred e] is true, [e] will be typechecked without using
    the "expected type" provided by the context. *)
 
@@ -4670,6 +4674,10 @@ let rec is_inferred sexp =
   match Jane_syntax.Expression.of_ast sexp with
   | Some (jexp, _attrs) -> is_inferred_jane_syntax jexp
   | None      -> match sexp.pexp_desc with
+  | Pexp_apply
+      ({ pexp_desc = Pexp_extension({ txt }, PStr []) },
+        [Nolabel, sbody]) when is_exclave_extension_node txt ->
+      is_inferred sbody
   | Pexp_ident _ | Pexp_apply _ | Pexp_field _ | Pexp_constraint _
   | Pexp_coerce _ | Pexp_send _ | Pexp_new _ -> true
   | Pexp_sequence (_, e) | Pexp_open (_, e) -> is_inferred e
@@ -5345,9 +5353,8 @@ and type_expect_
       in
       {exp with exp_loc = loc}
   | Pexp_apply
-      ({ pexp_desc = Pexp_extension({
-         txt = "extension.exclave" | "ocaml.exclave" | "exclave" as txt}, PStr []) },
-       [Nolabel, sbody]) ->
+      ({ pexp_desc = Pexp_extension({ txt }, PStr []) },
+       [Nolabel, sbody]) when is_exclave_extension_node txt ->
       if (txt = "extension.exclave") && not (Language_extension.is_enabled Mode) then
           raise (Typetexp.Error (loc, Env.empty, Unsupported_extension Mode));
       begin

@@ -2967,6 +2967,21 @@ let () = foo_f (local_ (fun M_constructor -> ()))
 [%%expect{|
 |}]
 
+let _ret () : M.t -> unit = (fun M_constructor -> ())
+[%%expect{|
+val _ret : unit -> M.t -> unit = <fun>
+|}]
+
+let _ret () : M.t -> unit = local_ (fun M_constructor -> ())
+[%%expect{|
+val _ret : unit -> local_ (M.t -> unit) = <fun>
+|}]
+
+let _ret () : M.t -> unit = exclave_ (fun M_constructor -> ())
+[%%expect{|
+val _ret : unit -> local_ (M.t -> unit) = <fun>
+|}]
+
 type r = {global_ x : string; y : string}
 
 let foo () =
