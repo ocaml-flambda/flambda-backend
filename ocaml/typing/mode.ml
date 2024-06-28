@@ -842,9 +842,9 @@ module Lattices_mono = struct
       type a b d. b obj -> Format.formatter -> (a, b, d) morph -> unit =
    fun dst ppf -> function
     | Id -> Format.fprintf ppf "id"
-    | Join_with c -> Format.fprintf ppf "join_%a" (print dst) c
-    | Meet_with c -> Format.fprintf ppf "meet_%a" (print dst) c
-    | Imply c -> Format.fprintf ppf "imply_%a" (print dst) c
+    | Join_with c -> Format.fprintf ppf "join(%a)" (print dst) c
+    | Meet_with c -> Format.fprintf ppf "meet(%a)" (print dst) c
+    | Imply c -> Format.fprintf ppf "imply(%a)" (print dst) c
     | Subtract c -> Format.fprintf ppf "subtract_%a" (print dst) c
     | Proj (_, ax) -> Format.fprintf ppf "proj_%a" Axis.print ax
     | Max_with ax -> Format.fprintf ppf "max_with_%a" Axis.print ax
@@ -1726,7 +1726,7 @@ module Value_with (Areality : Areality) = struct
     { areality; linearity; portability; uniqueness; contention }
 
   let print ?verbose () ppf { monadic; comonadic } =
-    Format.fprintf ppf "%a,%a"
+    Format.fprintf ppf "%a;%a"
       (Comonadic.print ?verbose ())
       comonadic
       (Monadic.print ?verbose ())
@@ -2502,7 +2502,7 @@ module Modality = struct
     let equate m0 m1 = try_with_log (equate_from_submode sub_log m0 m1)
 
     let print ppf ({ monadic; comonadic } : t) =
-      Format.fprintf ppf "%a,%a" Monadic.print monadic Comonadic.print comonadic
+      Format.fprintf ppf "%a;%a" Monadic.print monadic Comonadic.print comonadic
 
     let infer ~md_mode ~mode : t =
       let comonadic =

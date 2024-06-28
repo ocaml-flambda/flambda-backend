@@ -154,8 +154,8 @@ module Solver_mono (C : Lattices_mono) = struct
   let rec print_var : type a. ?traversed:VarSet.t -> a C.obj -> _ -> a var -> _
       =
    fun ?traversed obj ppf v ->
-    Format.fprintf ppf "%x[%a,%a]" v.id (C.print obj) v.lower (C.print obj)
-      v.upper;
+    Format.fprintf ppf "modevar#%x[%a ... %a]" v.id (C.print obj) v.lower
+      (C.print obj) v.upper;
     match traversed with
     | None -> ()
     | Some traversed ->
