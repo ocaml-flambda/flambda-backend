@@ -43,9 +43,7 @@ let pi' =
 val pi' : float t = This 3.14
 |}]
 
-type myrec = { x : int
-         ; y : int or_null
-         }
+type myrec = { x : int; y : int or_null }
 
 [%%expect{|
 type myrec = { x : int; y : int or_null; }
@@ -127,4 +125,77 @@ let mk' n = `Foo (This n)
 
 [%%expect{|
 val mk' : 'a -> [> `Foo of 'a t ] = <fun>
+|}]
+
+module type S = sig
+  type a = float or_null
+
+  val x : a
+  val f : float -> a
+  val g : a -> float
+end
+
+[%%expect{|
+module type S =
+  sig
+    type a = float or_null
+    val x : a
+    val f : float -> a
+    val g : a -> float
+  end
+|}]
+
+module M : S with type a = float t = struct
+  type a = float or_null
+
+  let x = This 3.14
+  let f x = This x
+  let g = function
+    | This x -> x
+    | Null -> 0.
+end
+
+[%%expect{|
+module M :
+  sig type a = float t val x : a val f : float -> a val g : a -> float end
+|}]
+
+external this : 'a -> 'a or_null = "%identity"
+
+[%%expect{|
+external this : 'a -> 'a or_null = "%identity"
+|}]
+
+external unsafe_get : 'a or_null -> 'a = "%identity"
+
+[%%expect{|
+external unsafe_get : 'a or_null -> 'a = "%identity"
+|}]
+
+let should_fail = [| Null; This 5 |]
+
+[%%expect{|
+Line 1, characters 21-25:
+1 | let should_fail = [| Null; This 5 |]
+                         ^^^^
+Error: This expression has type 'a t = 'a or_null
+       but an expression was expected of type ('b : value)
+       The layout of 'a t is value_or_null, because
+         it is the primitive value_or_null type or_null.
+       But the layout of 'a t must be a sublayout of value, because
+         it's the type of an array element, defaulted to layout value.
+|}]
+
+type should_fail = float or_null array
+
+[%%expect{|
+Line 1, characters 19-32:
+1 | type should_fail = float or_null array
+                       ^^^^^^^^^^^^^
+Error: This type float or_null should be an instance of type
+         ('a : any_non_null)
+       The layout of float or_null is value_or_null, because
+         it is the primitive value_or_null type or_null.
+       But the layout of float or_null must be a sublayout of any_non_null, because
+         it's the type argument to the array type.
 |}]
