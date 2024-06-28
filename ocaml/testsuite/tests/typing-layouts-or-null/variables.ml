@@ -26,21 +26,12 @@ Line 3, characters 39-60:
 Error: Unbound type constructor should_accept_or_null
 |}]
 
-(* CR layouts v3.0: [value_or_null] types should be accepted for
-   function arguments and results. *)
+(* [value_or_null] is accepted for function arguments and results. *)
 
 let should_work (x : t_value_or_null) = x
 
 [%%expect{|
-Line 1, characters 16-37:
-1 | let should_work (x : t_value_or_null) = x
-                    ^^^^^^^^^^^^^^^^^^^^^
-Error: This pattern matches values of type t_value_or_null
-       but a pattern was expected which matches values of type ('a : value)
-       The layout of t_value_or_null is value_or_null, because
-         of the definition of t_value_or_null at line 1, characters 0-36.
-       But the layout of t_value_or_null must be a sublayout of value, because
-         we must know concretely how to pass a function argument, defaulted to layout value.
+val should_work : t_value_or_null -> t_value_or_null = <fun>
 |}]
 
 (* Type variables in function definitions default to [value]. *)
@@ -218,7 +209,7 @@ Error: Signature mismatch:
          of the definition of f at line 4, characters 6-7.
 |}]
 
-(* CR layouts v3.0: this should work. *)
+(* This should work. *)
 
 module M : sig
   val f : ('a : value_or_null). 'a -> 'a
@@ -227,24 +218,7 @@ end = struct
 end
 
 [%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   let f x = x
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig val f : 'a -> 'a end
-       is not included in
-         sig val f : ('a : value_or_null). 'a -> 'a end
-       Values do not match:
-         val f : 'a -> 'a
-       is not included in
-         val f : ('a : value_or_null). 'a -> 'a
-       The type 'a -> 'a is not compatible with the type 'b -> 'b
-       The layout of 'a is value_or_null, because
-         of the definition of f at line 2, characters 2-40.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of f at line 4, characters 8-13.
+module M : sig val f : ('a : value_or_null). 'a -> 'a end
 |}]
 
 (* CR layouts v3.0: annotations on non-rigid type variables are upper bounds.
