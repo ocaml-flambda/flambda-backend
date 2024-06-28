@@ -81,7 +81,7 @@ val newvar: ?name:string -> Jkind.t -> type_expr
 (* CR layouts v3.0: this should allow [or_null]. *)
 val new_rep_var
   : ?name:string
-  -> why:Jkind.History.concrete_non_null_jkind_reason
+  -> why:Jkind.History.concrete_non_null_creation_reason
   -> unit
   -> type_expr * Jkind.sort
         (* Return a fresh representable variable, along with its sort *)
@@ -555,7 +555,7 @@ val type_jkind_purely : Env.t -> type_expr -> jkind
 (* Find a type's sort (constraining it to be an arbitrary sort variable, if
    needed) *)
 val type_sort :
-  why:Jkind.History.concrete_non_null_jkind_reason ->
+  why:Jkind.History.concrete_non_null_creation_reason ->
   Env.t -> type_expr -> (Jkind.sort, Jkind.Violation.t) result
 
 (* Jkind checking. [constrain_type_jkind] will update the jkind of type
