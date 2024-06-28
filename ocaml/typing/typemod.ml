@@ -3436,6 +3436,8 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
       Env.reset_probes ();
       if !Clflags.print_types then (* #7656 *)
         ignore @@ Warnings.parse_options false "-32-34-37-38-60";
+      if !Clflags.as_parameter then
+        error Cannot_compile_implementation_as_parameter;
       type_params !Clflags.parameters;
       let (str, sg, names, shape, finalenv) =
         Profile.record_call "infer" (fun () ->
@@ -3462,8 +3464,6 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           argument_interface = None;
         } (* result is ignored by Compile.implementation *)
       end else begin
-        if !Clflags.as_parameter then
-          error Cannot_compile_implementation_as_parameter;
         let arg_type =
           !Clflags.as_argument_for
           |> Option.map Compilation_unit.Name.of_string
@@ -3531,8 +3531,6 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
             argument_interface;
           }
         end else begin
-          if !Clflags.as_parameter then
-            error Cannot_compile_implementation_as_parameter;
           Location.prerr_warning (Location.in_file sourcefile)
             Warnings.Missing_mli;
           let coercion, shape =
