@@ -2,10 +2,7 @@
  include stdlib_upstream_compatible;
  flambda2;
  {
-   flags = "-extension layouts_beta -extension small_numbers";
-   expect;
- }{
-   flags = "-extension small_numbers";
+   flags = "-extension layouts_alpha -extension small_numbers";
    expect;
  }
 *)
@@ -15,35 +12,35 @@
 (*******************************************)
 (* Test 1: Support unboxed types in arrays *)
 
-type t_any : any
+type t_any_non_null : any_non_null
 
 type t1 = float# array
 type t2 = int32# array
 type t3 = int64# array
 type t4 = nativeint# array
-type t5 = t_any array
+type t5 = t_any_non_null array
 type t6 = float32# array
 
 type ('a : float64) t1' = 'a array
 type ('a : bits32) t2' = 'a array
 type ('a : bits64) t3' = 'a array
 type ('a : word) t4' = 'a array
-type ('a : any) t5' = 'a array
+type ('a : any_non_null) t5' = 'a array
 type ('a : float32) t6' = 'a array
 
 [%%expect{|
-type t_any : any
+type t_any_non_null : any_non_null
 type t1 = float# array
 type t2 = int32# array
 type t3 = int64# array
 type t4 = nativeint# array
-type t5 = t_any array
+type t5 = t_any_non_null array
 type t6 = float32# array
 type ('a : float64) t1' = 'a array
 type ('a : bits32) t2' = 'a array
 type ('a : bits64) t3' = 'a array
 type ('a : word) t4' = 'a array
-type ('a : any) t5' = 'a array
+type ('a : any_non_null) t5' = 'a array
 type ('a : float32) t6' = 'a array
 |}];;
 
@@ -88,10 +85,10 @@ Line 1, characters 27-28:
                                ^
 Error: This expression has type float# array
        but an expression was expected of type 'a array
-       The layout of float# is float64
-         because it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value
-         because of layout requirements from an imported definition.
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         of layout requirements from an imported definition.
 |}];;
 
 let f (x : float# array) = Array.length x
@@ -101,10 +98,10 @@ Line 1, characters 40-41:
                                             ^
 Error: This expression has type float# array
        but an expression was expected of type 'a array
-       The layout of float# is float64
-         because it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value
-         because of layout requirements from an imported definition.
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         of layout requirements from an imported definition.
 |}];;
 
 (*****************************************************************)
@@ -132,19 +129,20 @@ external get : floatarray -> int -> float = "%floatarray_safe_get"
 val d : float# array -> float = <fun>
 |}];;
 
-external get : ('a : any). 'a array -> int -> float = "%floatarray_safe_get"
+external get : ('a : any_non_null). 'a array -> int -> float = "%floatarray_safe_get"
 let d (x : 'a array) = get x 0
 
 [%%expect{|
-external get : ('a : any). 'a array -> int -> float = "%floatarray_safe_get"
+external get : ('a : any_non_null). 'a array -> int -> float
+  = "%floatarray_safe_get"
 Line 2, characters 23-30:
 2 | let d (x : 'a array) = get x 0
                            ^^^^^^^
 Error: A representable layout is required here.
-       The layout of 'a is any
-         because of the definition of d at line 2, characters 6-30.
-       But the layout of 'a must be representable
-         because it's the type of an array element.
+       The layout of 'a is any_non_null, because
+         of the definition of d at line 2, characters 6-30.
+       But the layout of 'a must be representable, because
+         it's the type of an array element.
 |}];;
 
 external get : int32# array -> int -> float = "%floatarray_safe_get"
@@ -198,7 +196,7 @@ Error: Floatarray primitives can't be used on arrays containing
 (**************************)
 (* Test 5: [@layout_poly] *)
 
-external[@layout_poly] get : ('a : any). 'a array -> int -> 'a = "%array_safe_get"
+external[@layout_poly] get : ('a : any_non_null). 'a array -> int -> 'a = "%array_safe_get"
 let f1 (x : float# array) = get x 0
 let f2 (x : int32# array) = get x 0
 let f3 (x : int64# array) = get x 0
@@ -206,7 +204,7 @@ let f4 (x : nativeint# array) = get x 0
 let f5 (x : float32# array) = get x 0
 
 [%%expect{|
-external get : ('a : any). 'a array -> int -> 'a = "%array_safe_get"
+external get : ('a : any_non_null). 'a array -> int -> 'a = "%array_safe_get"
   [@@layout_poly]
 val f1 : float# array -> float# = <fun>
 val f2 : int32# array -> int32# = <fun>
@@ -215,7 +213,7 @@ val f4 : nativeint# array -> nativeint# = <fun>
 val f5 : float32# array -> float32# = <fun>
 |}];;
 
-external[@layout_poly] set : ('a : any). 'a array -> int -> 'a -> unit = "%array_safe_set"
+external[@layout_poly] set : ('a : any_non_null). 'a array -> int -> 'a -> unit = "%array_safe_set"
 let f1 (x : float# array) v = set x 0 v
 let f2 (x : int32# array) v = set x 0 v
 let f3 (x : int64# array) v = set x 0 v
@@ -223,8 +221,8 @@ let f4 (x : nativeint# array) v = set x 0 v
 let f5 (x : float32# array) v = set x 0 v
 
 [%%expect{|
-external set : ('a : any). 'a array -> int -> 'a -> unit = "%array_safe_set"
-  [@@layout_poly]
+external set : ('a : any_non_null). 'a array -> int -> 'a -> unit
+  = "%array_safe_set" [@@layout_poly]
 val f1 : float# array -> float# -> unit = <fun>
 val f2 : int32# array -> int32# -> unit = <fun>
 val f3 : int64# array -> int64# -> unit = <fun>
@@ -254,16 +252,16 @@ Line 11, characters 79-82:
                                                                                     ^^^
 Error: This expression has type int64# but an expression was expected of type
          ('a : bits32)
-       The layout of int64# is bits64
-         because it is the primitive bits64 type int64#.
-       But the layout of int64# must be a sublayout of bits32
-         because of the definition of get_third at lines 4-7, characters 16-23.
+       The layout of int64# is bits64, because
+         it is the primitive bits64 type int64#.
+       But the layout of int64# must be a sublayout of bits32, because
+         of the definition of get_third at lines 4-7, characters 16-23.
 |}]
 
 module M6_2 = struct
   (* sort var in exp *)
 
-  external[@layout_poly] get : ('a : any). 'a array -> int -> 'a = "%array_safe_get"
+  external[@layout_poly] get : ('a : any_non_null). 'a array -> int -> 'a = "%array_safe_get"
 
   let arr = [||]
 
@@ -279,10 +277,10 @@ Line 9, characters 24-35:
                             ^^^^^^^^^^^
 Error: This expression has type ('a : float64)
        but an expression was expected of type int32#
-       The layout of int32# is bits32
-         because it is the primitive bits32 type int32#.
-       But the layout of int32# must be a sublayout of float64
-         because of the definition of arr at line 6, characters 12-16.
+       The layout of int32# is bits32, because
+         it is the primitive bits32 type int32#.
+       But the layout of int32# must be a sublayout of float64, because
+         of the definition of arr at line 6, characters 12-16.
 |}]
 
 (*********************)
