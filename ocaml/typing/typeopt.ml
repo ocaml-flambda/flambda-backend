@@ -347,13 +347,13 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
 
        This should be understood, but for now the simple fall back thing is
        sufficient.  *)
-    match Ctype.check_type_jkind env scty (Jkind.Primitive.value ~why:V1_safety_check)
+    match Ctype.check_type_jkind env scty (Jkind.Primitive.value_or_null ~why:V1_safety_check)
     with
     | Ok _ -> ()
     | Error _ ->
       match
         Ctype.(check_type_jkind env
-                 (correct_levels ty) (Jkind.Primitive.value ~why:V1_safety_check))
+                 (correct_levels ty) (Jkind.Primitive.value_or_null ~why:V1_safety_check))
       with
       | Ok _ -> ()
       | Error violation ->

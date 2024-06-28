@@ -185,12 +185,20 @@ module History = struct
     | Type_wildcard of Location.t
     | With_error_message of string * annotation_context
 
-  (* CR layouts v3: move some [value_creation_reason]s here. *)
-  type value_or_null_creation_reason = |
+  (* CR layouts v3: move some [value_creation_reason]s
+     related to objects here. *)
+  (* CR layouts v3: add a copy of [Type_argument] once we support
+     enough subjkinding for interfaces to accept [value_or_null]
+     in [list] or [option]. *)
+  type value_or_null_creation_reason =
+    | Tuple_element
+    | Separability_check
+    | Polymorphic_variant_field
+    | Structure_element
+    | V1_safety_check
 
   type value_creation_reason =
     | Class_let_binding
-    | Tuple_element
     | Probe
     | Object
     | Instance_variable
@@ -213,18 +221,14 @@ module History = struct
     | Tfield
     | Tnil
     | First_class_module
-    | Separability_check
     | Univar
-    | Polymorphic_variant_field
     | Default_type_jkind
     | Existential_type_variable
     | Array_comprehension_element
     | Lazy_expression
     | Class_type_argument
     | Class_term_argument
-    | Structure_element
     | Debug_printer_argument
-    | V1_safety_check
     | Captured_in_object
     | Recmod_fun_arg
     | Unknown of string (* CR layouts: get rid of these *)
