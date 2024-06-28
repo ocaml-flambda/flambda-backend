@@ -97,16 +97,14 @@ module Layout = struct
         | Bits32
         | Bits64
 
-      let to_string t =
-        let is_layouts_alpha = Language_extension.(is_at_least Layouts Alpha) in
+      let to_string ~hide_null t =
         match t with
         | Any -> "any"
-        (* CR layouts v3.0: remove this hack once [or_null] is out
-           of [Alpha]. *)
-        | Any_non_null when is_layouts_alpha -> "any_non_null"
-        | Any_non_null -> "any"
-        | Value_or_null when is_layouts_alpha -> "value_or_null"
-        | Value_or_null -> "value"
+        (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
+        | Any_non_null when hide_null -> "any"
+        | Any_non_null -> "any_non_null"
+        | Value_or_null when hide_null -> "value"
+        | Value_or_null -> "value_or_null"
         | Value -> "value"
         | Void -> "void"
         | Immediate64 -> "immediate64"
@@ -613,14 +611,16 @@ module Const = struct
            "simplest" is taken to mean the one with the least number of modes that need to
          follow the [mod]. *)
       let simplest =
-        (if Language_extension.(is_at_least Layouts Alpha) then Primitive.all else Primitive.all_non_null)
+        (if Language_extension.(is_at_least Layouts Alpha)
+        then Primitive.all
+        else Primitive.all_non_null)
         |> List.filter_map (fun base -> convert_with_base ~base jkind)
         |> select_simplest
       in
       let printable_jkind =
         match simplest with
         | Some simplest -> simplest
-        | None ->
+        | None -> (
           (* CR layouts v2.8: sometimes there is no valid way to build a jkind from a
              built-in abbreviation. For now, we just pretend that the layout name is a valid
              jkind abbreviation whose modal bounds are all max, even though this is a
@@ -656,8 +656,8 @@ module Const = struct
               jkind
           in
           (* convert_with_base is guaranteed to succeed since the layout matches and the
-              modal bounds are all max *)
-            Option.get out_jkind_verbose
+               modal bounds are all max *)
+            Option.get out_jkind_verbose)
       in
       match printable_jkind with
       | { base; modal_bounds = _ :: _ as modal_bounds } ->
@@ -721,10 +721,10 @@ module Const = struct
       in
       (* CR layouts 2.8: move this to predef *)
       match name with
-      (* CR layouts 3.0: remove this hack once non-null jkinds
-         are out of alpha. It is confusing, but preserves
-         backwards compatibility for arrays. *)
-      | "any" when Language_extension.(is_at_least Layouts Alpha) -> Primitive.any.jkind
+      (* CR layouts 3.0: remove this hack once non-null jkinds are out of alpha.
+         It is confusing, but preserves backwards compatibility for arrays. *)
+      | "any" when Language_extension.(is_at_least Layouts Alpha) ->
+        Primitive.any.jkind
       | "any" -> Primitive.any_non_null.jkind
       | "any_non_null" -> Primitive.any_non_null.jkind
       | "value_or_null" -> Primitive.value_or_null.jkind
@@ -1128,7 +1128,10 @@ let get_required_layouts_level (context : History.annotation_context)
   match context, legacy_layout with
   | ( _,
       ( Value | Immediate | Immediate64 | Any | Float64 | Float32 | Word
-      | Bits32 | Bits64 | Any_non_null) ) ->
+      | Bits32 | Bits64 | Any_non_null ) ) ->
+    (* CR layouts v3.0: we allow [Any_non_null] because, without [Alpha],
+       explicit [Any] annotations are converted to [Any_non_null] to
+       preserve compatibility with array arguments. *)
     Stable
   | _, (Value_or_null | Void) -> Alpha
 
@@ -2083,7 +2086,7 @@ let report_error ~loc : Error.t -> _ = function
       "@[<v>A type declaration's layout can be given at most once.@;\
        This declaration has an layout annotation (%a) and a layout attribute \
        ([@@@@%a]).@]"
-      Const.format from_annotation Const.format from_attribute
+      Const.format_no_hiding from_annotation Const.format from_attribute
   | Insufficient_level { jkind; required_layouts_level } -> (
     let hint ppf =
       Format.fprintf ppf "You must enable -extension %s to use this feature."
@@ -2102,7 +2105,7 @@ let report_error ~loc : Error.t -> _ = function
         "@[<v>Layout %a is more experimental than allowed by the enabled \
          layouts extension.@;\
          %t@]"
-        Const.format jkind hint)
+        Const.format_no_hiding jkind hint)
 
 let () =
   Location.register_error_of_exn (function
