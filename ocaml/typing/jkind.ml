@@ -979,21 +979,22 @@ module Primitive = struct
       ~why:(Any_non_null_creation why)
 
   let value_v1_safety_check =
-    { jkind = Jkind_desc.Primitive.value;
-      history = Creation (Value_creation V1_safety_check);
+    { jkind = Jkind_desc.Primitive.value_or_null;
+      history = Creation (Value_or_null_creation V1_safety_check);
       has_warned = false
     }
 
   let void ~why = fresh_jkind Jkind_desc.Primitive.void ~why:(Void_creation why)
 
   let value_or_null ~why =
-    fresh_jkind Jkind_desc.Primitive.value_or_null
-      ~why:(Value_or_null_creation why)
+    match (why : History.value_or_null_creation_reason) with
+    | V1_safety_check -> value_v1_safety_check
+    | _ ->
+      fresh_jkind Jkind_desc.Primitive.value_or_null
+        ~why:(Value_or_null_creation why)
 
   let value ~(why : History.value_creation_reason) =
-    match why with
-    | V1_safety_check -> value_v1_safety_check
-    | _ -> fresh_jkind Jkind_desc.Primitive.value ~why:(Value_creation why)
+    fresh_jkind Jkind_desc.Primitive.value ~why:(Value_creation why)
 
   let immediate64 ~why =
     fresh_jkind Jkind_desc.Primitive.immediate64 ~why:(Immediate64_creation why)
@@ -1378,11 +1379,22 @@ end = struct
     | Separability_check ->
       fprintf ppf "the check that a type is definitely not `float`"
 
+  let format_value_or_null_creation_reason ppf :
+      History.value_or_null_creation_reason -> _ = function
+    | Tuple_element -> fprintf ppf "it's the type of a tuple element"
+    | Separability_check ->
+      fprintf ppf "the check that a type is definitely not `float`"
+    | Polymorphic_variant_field ->
+      fprintf ppf "it's the type of the field of a polymorphic variant"
+    | Structure_element ->
+      fprintf ppf "it's the type of something stored in a module structure"
+    | V1_safety_check ->
+      fprintf ppf "it has to be value for the V1 safety check"
+
   let format_value_creation_reason ppf : History.value_creation_reason -> _ =
     function
     | Class_let_binding ->
       fprintf ppf "it's the type of a let-bound variable in a class expression"
-    | Tuple_element -> fprintf ppf "it's the type of a tuple element"
     | Probe -> format_with_notify_js ppf "it's a probe"
     | Object -> fprintf ppf "it's the type of an object"
     | Instance_variable -> fprintf ppf "it's the type of an instance variable"
@@ -1408,12 +1420,8 @@ end = struct
       format_with_notify_js ppf
         "it's an internal Tnil type (you shouldn't see this)"
     | First_class_module -> fprintf ppf "it's a first-class module type"
-    | Separability_check ->
-      fprintf ppf "the check that a type is definitely not `float`"
     | Univar ->
       fprintf ppf "it is or unifies with an unannotated universal variable"
-    | Polymorphic_variant_field ->
-      fprintf ppf "it's the type of the field of a polymorphic variant"
     | Default_type_jkind ->
       fprintf ppf "an abstract type has the value layout by default"
     | Existential_type_variable ->
@@ -1426,13 +1434,9 @@ end = struct
     | Class_term_argument ->
       fprintf ppf
         "it's the type of a term-level argument to a class constructor"
-    | Structure_element ->
-      fprintf ppf "it's the type of something stored in a module structure"
     | Debug_printer_argument ->
       format_with_notify_js ppf
         "it's the type of an argument to a debugger printer function"
-    | V1_safety_check ->
-      fprintf ppf "it has to be value for the V1 safety check"
     | Captured_in_object ->
       fprintf ppf "it's the type of a variable captured in an object"
     | Recmod_fun_arg ->
@@ -1481,7 +1485,8 @@ end = struct
     | Immediate64_creation immediate64 ->
       format_immediate64_creation_reason ppf immediate64
     | Void_creation _ -> .
-    | Value_or_null_creation _ -> .
+    | Value_or_null_creation value ->
+      format_value_or_null_creation_reason ppf value
     | Value_creation value -> format_value_creation_reason ppf value
     | Float64_creation float -> format_float64_creation_reason ppf float
     | Float32_creation float -> format_float32_creation_reason ppf float
@@ -1810,9 +1815,16 @@ module Debug_printers = struct
       = function
     | Separability_check -> fprintf ppf "Separability_check"
 
+  let value_or_null_creation_reason ppf :
+      History.value_or_null_creation_reason -> _ = function
+    | Tuple_element -> fprintf ppf "Tuple_element"
+    | Separability_check -> fprintf ppf "Separability_check"
+    | Polymorphic_variant_field -> fprintf ppf "Polymorphic_variant_field"
+    | Structure_element -> fprintf ppf "Structure_element"
+    | V1_safety_check -> fprintf ppf "V1_safety_check"
+
   let value_creation_reason ppf : History.value_creation_reason -> _ = function
     | Class_let_binding -> fprintf ppf "Class_let_binding"
-    | Tuple_element -> fprintf ppf "Tuple_element"
     | Probe -> fprintf ppf "Probe"
     | Object -> fprintf ppf "Object"
     | Instance_variable -> fprintf ppf "Instance_variable"
@@ -1832,18 +1844,14 @@ module Debug_printers = struct
     | Tfield -> fprintf ppf "Tfield"
     | Tnil -> fprintf ppf "Tnil"
     | First_class_module -> fprintf ppf "First_class_module"
-    | Separability_check -> fprintf ppf "Separability_check"
     | Univar -> fprintf ppf "Univar"
-    | Polymorphic_variant_field -> fprintf ppf "Polymorphic_variant_field"
     | Default_type_jkind -> fprintf ppf "Default_type_jkind"
     | Existential_type_variable -> fprintf ppf "Existential_type_variable"
     | Array_comprehension_element -> fprintf ppf "Array_comprehension_element"
     | Lazy_expression -> fprintf ppf "Lazy_expression"
     | Class_type_argument -> fprintf ppf "Class_type_argument"
     | Class_term_argument -> fprintf ppf "Class_term_argument"
-    | Structure_element -> fprintf ppf "Structure_element"
     | Debug_printer_argument -> fprintf ppf "Debug_printer_argument"
-    | V1_safety_check -> fprintf ppf "V1_safety_check"
     | Captured_in_object -> fprintf ppf "Captured_in_object"
     | Recmod_fun_arg -> fprintf ppf "Recmod_fun_arg"
     | Unknown s -> fprintf ppf "Unknown %s" s
@@ -1879,7 +1887,9 @@ module Debug_printers = struct
     | Immediate64_creation immediate64 ->
       fprintf ppf "Immediate64_creation %a" immediate64_creation_reason
         immediate64
-    | Value_or_null_creation _ -> .
+    | Value_or_null_creation value ->
+      fprintf ppf "Value_or_null_creation %a" value_or_null_creation_reason
+        value
     | Value_creation value ->
       fprintf ppf "Value_creation %a" value_creation_reason value
     | Void_creation _ -> .

@@ -853,7 +853,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
                  polymorphic variants. *)
               match
                 constrain_type_jkind env ctyp_type
-                  (Jkind.Primitive.value ~why:Polymorphic_variant_field)
+                  (Jkind.Primitive.value_or_null ~why:Polymorphic_variant_field)
               with
               | Ok _ -> ()
               | Error e ->
@@ -1146,7 +1146,7 @@ and transl_type_aux_tuple env ~policy ~row_context stl =
   List.iter (fun (_, {ctyp_type; ctyp_loc}) ->
     (* CR layouts v5: remove value requirement *)
     match
-      constrain_type_jkind env ctyp_type (Jkind.Primitive.value ~why:Tuple_element)
+      constrain_type_jkind env ctyp_type (Jkind.Primitive.value_or_null ~why:Tuple_element)
     with
     | Ok _ -> ()
     | Error e ->
