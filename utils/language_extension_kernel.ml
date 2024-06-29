@@ -3,7 +3,7 @@ type maturity = Stable | Beta | Alpha
 (* Remember to update [all] when changing this type. *)
 type _ t =
   | Comprehensions : unit t
-  | Mode : unit t
+  | Mode : maturity t
   | Unique : unit t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t
@@ -59,7 +59,9 @@ let to_string : type a. a t -> string = function
 let pair_of_string extn_name : Exist_pair.t option =
   match String.lowercase_ascii extn_name with
   | "comprehensions" -> Some (Pair (Comprehensions, ()))
-  | "mode" -> Some (Pair (Mode, ()))
+  | "mode" -> Some (Pair (Mode, Stable))
+  | "mode_beta" -> Some (Pair (Mode, Beta))
+  | "mode_alpha" -> Some (Pair (Mode, Alpha))
   | "unique" -> Some (Pair (Unique, ()))
   | "include_functor" -> Some (Pair (Include_functor, ()))
   | "polymorphic_parameters" -> Some (Pair (Polymorphic_parameters, ()))

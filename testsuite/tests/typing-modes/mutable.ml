@@ -167,7 +167,7 @@ let r @ portable =
 (* CR mode-crossing: The [m0] in mutable corresponds to the field type wrapped
    in modality; as a result, it enjoys mode crossing enabled by the modality. *)
 [%%expect{|
-type r = { f : string -> string; mutable g : string -> string; }
+type r = { f : string -> string; mutable g : string -> string @@ portable; }
 Lines 5-6, characters 2-20:
 5 | ..{ f = (fun x -> x);
 6 |     g = fun x -> x }

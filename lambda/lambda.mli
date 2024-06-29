@@ -850,7 +850,7 @@ val flat_read_float_boxed : alloc_mode -> flat_element_read
 val make_sequence: ('a -> lambda) -> 'a list -> lambda
 
 val subst:
-  (Ident.t -> Subst.Lazy.value_description -> Env.t -> Env.t) ->
+  (Ident.t -> Subst.Lazy.value_description * Mode.Value.l -> Env.t -> Env.t) ->
   ?freshen_bound_variables:bool ->
   lambda Ident.Map.t -> lambda -> lambda
 (** [subst update_env ?freshen_bound_variables s lt]
