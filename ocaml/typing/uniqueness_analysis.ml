@@ -739,18 +739,18 @@ module Paths : sig
 
   (** [modal_child gf proj t] is [child prof t] when [gf] is [Unrestricted]
       and is [untracked] otherwise. *)
-  val modal_child : Modality.Value.t -> Projection.t -> t -> t
+  val modal_child : Modality.Value.Const.t -> Projection.t -> t -> t
 
   (** [tuple_field i t] is [child (Projection.Tuple_field i) t]. *)
   val tuple_field : int -> t -> t
 
   (** [record_field gf s t] is
       [modal_child gf (Projection.Record_field s) t]. *)
-  val record_field : Modality.Value.t -> string -> t -> t
+  val record_field : Modality.Value.Const.t -> string -> t -> t
 
   (** [construct_field gf s i t] is
       [modal_child gf (Projection.Construct_field(s, i)) t]. *)
-  val construct_field : Modality.Value.t -> string -> int -> t -> t
+  val construct_field : Modality.Value.Const.t -> string -> int -> t -> t
 
   (** [variant_field s t] is [child (Projection.Variant_field s) t]. *)
   val variant_field : string -> t -> t
@@ -780,7 +780,7 @@ end = struct
   let modal_child gf proj t =
     (* CR zqian: Instead of just ignoring such children, we should add modality
        to [Projection.t] and add corresponding logic in [UsageTree]. *)
-    let gf = Modality.Value.to_list gf in
+    let gf = Modality.Value.Const.to_list gf in
     let l =
       List.filter
         (function
@@ -849,7 +849,8 @@ module Value : sig
       are the paths of [t] and [o] is [t]'s occurrence. This is used for the
       implicit record field values for kept fields in a [{ foo with ... }]
       expression. *)
-  val implicit_record_field : Modality.Value.t -> string -> t -> unique_use -> t
+  val implicit_record_field :
+    Modality.Value.Const.t -> string -> t -> unique_use -> t
 
   (** Mark the value as shared_or_unique   *)
   val mark_maybe_unique : t -> UF.t

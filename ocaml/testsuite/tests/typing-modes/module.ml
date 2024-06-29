@@ -2,7 +2,9 @@
    expect;
 *)
 
-(* This file tests that modules are sound wrt modes. *)
+(* This file tests the legacy aspect of modules. The non-legacy aspects are
+   tested in [val_modalities.ml]. As we enrich modules with modes, this file
+   will shrink. *)
 
 let portable_use : 'a @ portable -> unit = fun _ -> ()
 
@@ -68,38 +70,6 @@ let u =
 [%%expect{|
 Line 6, characters 17-20:
 6 |     portable_use foo
-                     ^^^
-Error: This value is nonportable but expected to be portable.
-|}]
-
-(* Values in modules are defined as legacy *)
-module M = struct
-    let x = local_ "hello"
-end
-[%%expect{|
-Line 2, characters 8-9:
-2 |     let x = local_ "hello"
-            ^
-Error: This value escapes its region.
-|}]
-
-(* Values from modules are available as legacy *)
-let u =
-    let foo () = M.x in
-    portable_use foo
-[%%expect{|
-Line 3, characters 17-20:
-3 |     portable_use foo
-                     ^^^
-Error: This value is nonportable but expected to be portable.
-|}]
-
-let u =
-    let foo () = List.length in
-    portable_use foo
-[%%expect{|
-Line 3, characters 17-20:
-3 |     portable_use foo
                      ^^^
 Error: This value is nonportable but expected to be portable.
 |}]
