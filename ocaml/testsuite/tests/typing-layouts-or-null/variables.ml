@@ -292,31 +292,33 @@ end
 module M : sig val f : 'a -> 'a end
 |}]
 
+(* GADTs and constraints tests. *)
 
-type ('a : value_or_null) dummy
+type (!'a : value_or_null) dummy
 
 (* This must infer ('a : value) for backwards compatibility. *)
 type t = Packed : 'a dummy -> t
 
 [%%expect{|
-type ('a : value_or_null) dummy
+type (!'a : value_or_null) dummy
 type t = Packed : 'a dummy -> t
 |}]
 
 (* CR layouts v3.0: annotations here are upper bounds, so
-   due to defaulting we can't set ['a : value_or_null].
-   Fixing this might be hard, see [Note about [new_var_jkind]]. *)
+   due to defaulting we can't set ['a : value_or_null]. *)
 type t = Packed : ('a : value_or_null) dummy -> t
 [%%expect{|
 type t = Packed : 'a dummy -> t
 |}]
 
-(* CR layouts v3.0: variables on the right side of
-   constraints default to being non-null. This must be the case: the same mechanism is used for . *)
-type 'b constrained = unit constraint 'b = 'a dummy
+(* Variables on the right side of constraints default to non-null.
+   This must be the case for backwards compatibility: ['b constrained]
+   below should be a [value] to allow upgrading existing types like [list]
+   to accept [value_or_null]. *)
+type 'b constrained = 'a constraint 'b = 'a dummy
 
 [%%expect{|
-type 'b constrained = unit constraint 'b = 'a dummy
+type 'b constrained = 'a constraint 'b = 'a dummy
 |}]
 
 type fails = bool constrained
@@ -338,7 +340,7 @@ Error: This type t_value_or_null dummy should be an instance of type 'a dummy
        The layout of t_value_or_null is value_or_null, because
          of the definition of t_value_or_null at line 1, characters 0-36.
        But the layout of t_value_or_null must be a sublayout of value, because
-         of the definition of constrained at line 1, characters 0-51.
+         of the definition of constrained at line 1, characters 0-49.
 |}]
 
 type succeeds = (int dummy) constrained
@@ -347,9 +349,10 @@ type succeeds = (int dummy) constrained
 type succeeds = int dummy constrained
 |}]
 
-(* CR layouts v3.0: we can't set a variable on the right side
-   of the constraint to be [or_null]. This might be unfixable. *)
-type ('c : value_or_null) constrained' = bool constraint 'c = ('a : value_or_null) dummy
+(* CR layouts v3.0: we can't set a variable on the right side of the constraint
+   to be [or_null]. This might be hard to fix, see [Note about [new_var_jkind]]. *)
+type ('c : value_or_null) constrained' = bool
+  constraint 'c = ('a : value_or_null) dummy
 
 [%%expect{|
 type 'b constrained' = bool constraint 'b = 'a dummy
