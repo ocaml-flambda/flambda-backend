@@ -91,7 +91,6 @@ module Layout : sig
         | Word
         | Bits32
         | Bits64
-
     end
   end
 end
