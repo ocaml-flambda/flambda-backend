@@ -46,13 +46,7 @@ Error: The type constraints are not consistent.
 module type S1'' = S1 with type s = t_void;;
 
 [%%expect{|
-Line 1, characters 27-42:
-1 | module type S1'' = S1 with type s = t_void;;
-                               ^^^^^^^^^^^^^^^
-Error: The layout of type s is void, because
-         of the definition of t_void at line 5, characters 0-19.
-       But the layout of type s must be a sublayout of value, because
-         of the definition of s at line 11, characters 2-8.
+module type S1'' = sig type ('a : void) t type s = t_void end
 |}]
 
 module type S1_2 = sig
@@ -389,13 +383,7 @@ end
 module type S3_2' = S3_2 with type t := string;;
 [%%expect{|
 module type S3_2 = sig type t : immediate end
-Line 5, characters 30-46:
-5 | module type S3_2' = S3_2 with type t := string;;
-                                  ^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it is the primitive value type string.
-       But the layout of type t must be a sublayout of immediate, because
-         of the definition of t at line 2, characters 2-20.
+module type S3_2' = sig end
 |}]
 
 (*****************************************)
