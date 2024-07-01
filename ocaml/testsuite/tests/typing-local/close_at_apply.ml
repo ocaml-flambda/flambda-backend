@@ -24,8 +24,8 @@ let locally_allocate =
 let foo list =
   (* The Simplif local function optimization will transform [run] and
      [wrapper] into continuations. *)
-  let[@inline never] run f = f () in
-  let[@inline never] wrapper f =
+  let[@local always][@inline never] run f = f () in
+  let[@local always][@inline never] wrapper f =
     match Sys.opaque_identity true with
     | true ->
       (* This tail call gets moved into non-tail position after the above
