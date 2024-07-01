@@ -27,9 +27,10 @@ open! Simplify_import
 module C = Simplify_set_of_closures_context
 
 let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
-    ~my_depth function_slot_opt ~closure_bound_names_inside_function
-    ~inlining_arguments ~absolute_history code_id ~return_continuation
-    ~exn_continuation ~loopify_state code_metadata =
+    ~my_ghost_region ~my_depth function_slot_opt
+    ~closure_bound_names_inside_function ~inlining_arguments ~absolute_history
+    code_id ~return_continuation ~exn_continuation ~loopify_state code_metadata
+    =
   let dacc = C.dacc_inside_functions context in
   let alloc_modes = Code_metadata.param_modes code_metadata in
   let denv =
@@ -66,6 +67,10 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
   let denv =
     let my_region = Bound_var.create my_region Name_mode.normal in
     DE.add_variable denv my_region (T.unknown K.region)
+  in
+  let denv =
+    let my_ghost_region = Bound_var.create my_ghost_region Name_mode.normal in
+    DE.add_variable denv my_ghost_region (T.unknown K.region)
   in
   let denv =
     let my_depth = Bound_var.create my_depth Name_mode.normal in
@@ -145,7 +150,8 @@ type simplify_function_body_result =
 let simplify_function_body context ~outer_dacc function_slot_opt
     ~closure_bound_names_inside_function ~inlining_arguments ~absolute_history
     code_id code ~return_continuation ~exn_continuation params ~body ~my_closure
-    ~is_my_closure_used:_ ~my_region ~my_depth ~free_names_of_body:_ =
+    ~is_my_closure_used:_ ~my_region ~my_ghost_region ~my_depth
+    ~free_names_of_body:_ =
   let loopify_state =
     if Loopify_attribute.should_loopify (Code.loopify code)
     then Loopify_state.loopify (Continuation.create ~name:"self" ())
@@ -153,9 +159,10 @@ let simplify_function_body context ~outer_dacc function_slot_opt
   in
   let dacc_at_function_entry =
     dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
-      ~my_depth function_slot_opt ~closure_bound_names_inside_function
-      ~inlining_arguments ~absolute_history code_id ~return_continuation
-      ~exn_continuation ~loopify_state (Code.code_metadata code)
+      ~my_ghost_region ~my_depth function_slot_opt
+      ~closure_bound_names_inside_function ~inlining_arguments ~absolute_history
+      code_id ~return_continuation ~exn_continuation ~loopify_state
+      (Code.code_metadata code)
   in
   let dacc = dacc_at_function_entry in
   if not (DA.no_lifted_constants dacc)
@@ -171,6 +178,8 @@ let simplify_function_body context ~outer_dacc function_slot_opt
            [ Bound_parameter.create my_closure
                Flambda_kind.With_subkind.any_value;
              Bound_parameter.create my_region Flambda_kind.With_subkind.region;
+             Bound_parameter.create my_ghost_region
+               Flambda_kind.With_subkind.region;
              Bound_parameter.create my_depth Flambda_kind.With_subkind.rec_info
            ])
       ~loopify_state ~params
@@ -186,7 +195,7 @@ let simplify_function_body context ~outer_dacc function_slot_opt
     let params_and_body =
       RE.Function_params_and_body.create ~free_names_of_body
         ~return_continuation ~exn_continuation params ~body ~my_closure
-        ~my_region ~my_depth
+        ~my_region ~my_ghost_region ~my_depth
     in
     let is_my_closure_used = NO.mem_var free_names_of_body my_closure in
     let previously_free_depth_variables =
@@ -204,12 +213,20 @@ let simplify_function_body context ~outer_dacc function_slot_opt
         "Unexpected free my_region in code with heap result mode:\n%a"
         (RE.print (UA.are_rebuilding_terms uacc))
         body;
+    if NO.mem_var free_names_of_body my_ghost_region
+       && Lambda.is_heap_mode (Code.result_mode code)
+    then
+      Misc.fatal_errorf
+        "Unexpected free my_ghost_region in code with heap result mode:\n%a"
+        (RE.print (UA.are_rebuilding_terms uacc))
+        body;
     let free_names_of_code =
       free_names_of_body
       |> NO.remove_continuation ~continuation:return_continuation
       |> NO.remove_continuation ~continuation:exn_continuation
       |> NO.remove_var ~var:my_closure
       |> NO.remove_var ~var:my_region
+      |> NO.remove_var ~var:my_ghost_region
       |> NO.remove_var ~var:my_depth
       |> NO.diff ~without:(Bound_parameters.free_names params)
       |> NO.diff ~without:previously_free_depth_variables
@@ -221,10 +238,10 @@ let simplify_function_body context ~outer_dacc function_slot_opt
       Misc.fatal_errorf
         "Unexpected free name(s):@ %a@ in:@ \n\
          %a@ \n\
-         Simplified version:@ fun %a %a %a %a ->@ \n\
+         Simplified version:@ fun %a %a %a %a %a ->@ \n\
         \  %a" NO.print free_names_of_code Code_id.print code_id
         Bound_parameters.print params Variable.print my_closure Variable.print
-        my_region Variable.print my_depth
+        my_region Variable.print my_ghost_region Variable.print my_depth
         (RE.print (UA.are_rebuilding_terms uacc))
         body;
     { params;

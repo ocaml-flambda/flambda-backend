@@ -91,7 +91,7 @@ let project_tuple ~dbg ~size ~field tuple =
   Named.create_prim prim dbg
 
 let split_direct_over_application apply
-    ~(apply_alloc_mode : Alloc_mode.For_allocations.t) ~callee's_code_id
+    ~(apply_alloc_mode : Alloc_mode.For_applications.t) ~callee's_code_id
     ~callee's_code_metadata =
   let callee's_params_arity =
     Code_metadata.params_arity callee's_code_metadata
@@ -129,13 +129,14 @@ let split_direct_over_application apply
        value is still live (and with the caller expecting such value to have
        been allocated in their region). *)
     match result_mode with
-    | Alloc_heap -> None, Alloc_mode.For_allocations.heap
+    | Alloc_heap -> None, Alloc_mode.For_applications.heap
     | Alloc_local -> (
       match apply_alloc_mode with
       | Heap ->
         let region = Variable.create "over_app_region" in
-        ( Some (region, Continuation.create ()),
-          Alloc_mode.For_allocations.local ~region )
+        let ghost_region = Variable.create "over_app_ghost_region" in
+        ( Some (region, ghost_region, Continuation.create ()),
+          Alloc_mode.For_applications.local ~region ~ghost_region )
       | Local _ -> None, apply_alloc_mode)
   in
   let perform_over_application =
@@ -147,7 +148,7 @@ let split_direct_over_application apply
          inserted. *)
       match needs_region with
       | None -> Apply.continuation apply
-      | Some (_, cont) -> Apply.Result_continuation.Return cont
+      | Some (_, _, cont) -> Apply.Result_continuation.Return cont
     in
     Apply.create
       ~callee:(Some (Simple.var func_var))
@@ -168,14 +169,14 @@ let split_direct_over_application apply
   let perform_over_application =
     match needs_region with
     | None -> Expr.create_apply perform_over_application
-    | Some (region, after_over_application) ->
+    | Some (region, ghost_region, after_over_application) ->
       (* This wraps both applications (the full application and the second
-         application) with [Begin_region] ... [End_region]. The applications
-         might raise an exception, but that doesn't need any special handling,
-         since we're not actually introducing any more local allocations here.
-         (Missing the [End_region] on the exceptional return path is fine, c.f.
-         the usual compilation of [try ... with] -- see
-         [Closure_conversion].) *)
+         application) with [Begin_region] ... [End_region] for both the normal
+         and ghost regions. The applications might raise an exception, but that
+         doesn't need any special handling, since we're not actually introducing
+         any more local allocations here. (Missing the [End_region]s on the
+         exceptional return path is fine, c.f. the usual compilation of [try ...
+         with] -- see [Closure_conversion].) *)
       let over_application_results =
         List.mapi
           (fun i kind ->
@@ -201,10 +202,22 @@ let split_direct_over_application apply
           (Bound_pattern.singleton
              (Bound_var.create (Variable.create "unit") Name_mode.normal))
           (Named.create_prim
-             (Unary (End_region, Simple.var region))
+             (Unary (End_region { ghost = false }, Simple.var region))
              (Apply.dbg apply))
-          ~body:call_return_continuation
-          ~free_names_of_body:(Known call_return_continuation_free_names)
+          ~body:
+            (Let.create
+               (Bound_pattern.singleton
+                  (Bound_var.create (Variable.create "unit") Name_mode.normal))
+               (Named.create_prim
+                  (Unary (End_region { ghost = true }, Simple.var ghost_region))
+                  (Apply.dbg apply))
+               ~body:call_return_continuation
+               ~free_names_of_body:(Known call_return_continuation_free_names)
+            |> Expr.create_let)
+          ~free_names_of_body:
+            (Known
+               (NO.remove_var call_return_continuation_free_names
+                  ~var:ghost_region))
         |> Expr.create_let
       in
       let handler_expr_free_names =
@@ -252,16 +265,27 @@ let split_direct_over_application apply
   in
   match needs_region with
   | None -> both_applications
-  | Some (region, _) ->
+  | Some (region, ghost_region, _) ->
+    let free_names_of_body =
+      NO.union (Apply.free_names full_apply) perform_over_application_free_names
+    in
     Let.create
       (Bound_pattern.singleton (Bound_var.create region Name_mode.normal))
-      (Named.create_prim (Nullary Begin_region) (Apply.dbg apply))
-      ~body:both_applications
+      (Named.create_prim
+         (Nullary (Begin_region { ghost = false }))
+         (Apply.dbg apply))
+      ~body:
+        (Let.create
+           (Bound_pattern.singleton
+              (Bound_var.create ghost_region Name_mode.normal))
+           (Named.create_prim
+              (Nullary (Begin_region { ghost = false }))
+              (Apply.dbg apply))
+           ~body:both_applications
+           ~free_names_of_body:(Known free_names_of_body)
+        |> Expr.create_let)
       ~free_names_of_body:
-        (Known
-           (NO.union
-              (Apply.free_names full_apply)
-              perform_over_application_free_names))
+        (Known (NO.remove_var free_names_of_body ~var:ghost_region))
     |> Expr.create_let
 
 type apply_cont_context =

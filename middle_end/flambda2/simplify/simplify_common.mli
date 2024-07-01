@@ -115,7 +115,7 @@ val project_tuple :
     application of the leftover arguments. *)
 val split_direct_over_application :
   Apply_expr.t ->
-  apply_alloc_mode:Alloc_mode.For_allocations.t ->
+  apply_alloc_mode:Alloc_mode.For_applications.t ->
   callee's_code_id:Code_id.t ->
   callee's_code_metadata:Code_metadata.t ->
   Expr.t

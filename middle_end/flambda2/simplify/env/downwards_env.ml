@@ -110,7 +110,7 @@ let create ~round ~(resolver : resolver)
     ~(get_imported_names : get_imported_names)
     ~(get_imported_code : get_imported_code) ~propagating_float_consts
     ~unit_toplevel_exn_continuation ~unit_toplevel_return_continuation
-    ~toplevel_my_region =
+    ~toplevel_my_region ~toplevel_my_ghost_region =
   let typing_env = TE.create ~resolver ~get_imported_names in
   let t =
     { round;
@@ -134,8 +134,11 @@ let create ~round ~(resolver : resolver)
       loopify_state = Loopify_state.do_not_loopify
     }
   in
-  define_variable t
-    (Bound_var.create toplevel_my_region Name_mode.normal)
+  define_variable
+    (define_variable t
+       (Bound_var.create toplevel_my_region Name_mode.normal)
+       K.region)
+    (Bound_var.create toplevel_my_ghost_region Name_mode.normal)
     K.region
 
 let all_code t = t.all_code

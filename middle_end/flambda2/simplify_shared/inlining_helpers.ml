@@ -18,9 +18,9 @@ open! Flambda.Import
 module RC = Apply.Result_continuation
 
 let make_inlined_body ~callee ~called_code_id:_ ~region_inlined_into ~params
-    ~args ~my_closure ~my_region ~my_depth ~rec_info ~body ~exn_continuation
-    ~return_continuation ~apply_exn_continuation ~apply_return_continuation
-    ~bind_params ~bind_depth ~apply_renaming =
+    ~args ~my_closure ~my_region ~my_ghost_region ~my_depth ~rec_info ~body
+    ~exn_continuation ~return_continuation ~apply_exn_continuation
+    ~apply_return_continuation ~bind_params ~bind_depth ~apply_renaming =
   let renaming = Renaming.empty in
   let renaming =
     match (apply_return_continuation : RC.t) with
@@ -34,13 +34,16 @@ let make_inlined_body ~callee ~called_code_id:_ ~region_inlined_into ~params
     (* If region_inlined_into is Heap, then this function should return a heap
        value, and as such, never allocate in the caller's region. As such,
        [my_region] should be unused in the body. *)
-    match (region_inlined_into : Alloc_mode.For_allocations.t) with
+    match (region_inlined_into : Alloc_mode.For_applications.t) with
     | Heap -> renaming
-    | Local { region } ->
+    | Local { region; ghost_region } ->
       (* Unlike for parameters, we know that the argument for the [my_region]
          parameter is fresh for [body], so we can use a permutation without fear
-         of swapping out existing occurrences of such argument within [body]. *)
-      Renaming.add_variable renaming my_region region
+         of swapping out existing occurrences of such argument within [body].
+         Similarly for [ghost_region]. *)
+      Renaming.add_variable
+        (Renaming.add_variable renaming my_region region)
+        my_ghost_region ghost_region
   in
   let body =
     match callee with
