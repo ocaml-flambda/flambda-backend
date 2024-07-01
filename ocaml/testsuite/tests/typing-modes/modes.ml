@@ -315,9 +315,9 @@ val foo : ?x:local_ once_ unique_ int -> unit -> unit = <fun>
 
 let foo ?(local_ x : 'a. 'a -> 'a @@ unique once) = ()
 [%%expect{|
-Line 1, characters 8-49:
+Line 1, characters 10-48:
 1 | let foo ?(local_ x : 'a. 'a -> 'a @@ unique once) = ()
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Optional parameters cannot be polymorphic
 |}]
 
@@ -333,9 +333,9 @@ val foo : ?x:local_ once_ unique_ int * int -> unit -> unit = <fun>
 
 let foo ?x:(local_ (x,y) : 'a.'a->'a @@ unique once) () = ()
 [%%expect{|
-Line 1, characters 8-52:
+Line 1, characters 12-51:
 1 | let foo ?x:(local_ (x,y) : 'a.'a->'a @@ unique once) () = ()
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Optional parameters cannot be polymorphic
 |}]
 
