@@ -253,7 +253,7 @@ Error: Signature mismatch:
 module M : sig
   val f : ('a : value_or_null) -> 'a
 end = struct
-  let f x = x
+  let f (type a) (x : a) = x
 end
 
 [%%expect{|
