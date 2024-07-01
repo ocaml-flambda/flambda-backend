@@ -1082,6 +1082,11 @@ let check_constraints env sdecl (_, decl) =
    If both a variant/record definition and a type equation are given,
    need to check that the equation refers to a type of the same kind
    with the same constructors and labels.
+
+   If the kind is [Type_abstract], we need to check that [type_jkind] (where
+   we've stored the jkind annotation, if any) corresponds to the manifest
+   (e.g., in the case where [type_jkind] is immediate, we should check the
+   manifest is immediate).
 *)
 let check_coherence env loc dpath decl =
   match decl with
@@ -1118,7 +1123,12 @@ let check_coherence env loc dpath decl =
       | _ -> raise(Error(loc, Definition_mismatch (ty, env, None)))
       end
   | { type_kind = Type_abstract _;
-      type_manifest = Some _ }
+      type_manifest = Some ty } ->
+    let jkind' = Ctype.type_jkind_purely env ty in
+    begin match Jkind.sub_with_history jkind' decl.type_jkind with
+    | Ok _ -> ()
+    | Error v -> raise (Error (loc, Jkind_mismatch_of_path (dpath ,v)))
+    end
   | { type_manifest = None } -> ()
 
 let check_abbrev env sdecl (id, decl) =
