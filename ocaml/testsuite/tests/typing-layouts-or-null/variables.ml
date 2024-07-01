@@ -368,5 +368,5 @@ Error: This type t_value_or_null dummy should be an instance of type 'a dummy
        The layout of t_value_or_null is value_or_null, because
          of the definition of t_value_or_null at line 1, characters 0-36.
        But the layout of t_value_or_null must be a sublayout of value, because
-         of the definition of constrained' at line 1, characters 0-88.
+         of the definition of constrained' at lines 1-2, characters 0-44.
 |}]
