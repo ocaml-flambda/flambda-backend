@@ -140,6 +140,7 @@
   selection
   spill
   split
+  stack_check_info
   string_table
   symbol_entry
   symbol_table

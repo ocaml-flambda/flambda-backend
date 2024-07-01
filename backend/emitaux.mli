@@ -155,17 +155,6 @@ exception Error of error
 
 val report_error : Format.formatter -> error -> unit
 
-type preproc_stack_check_result =
-  { max_frame_size : int;
-    contains_nontail_calls : bool
-  }
-
-val preproc_stack_check :
-  fun_body:Linear.instruction ->
-  frame_size:int ->
-  trap_size:int ->
-  preproc_stack_check_result
-
 val add_stack_checks_if_needed :
   Linear.fundecl ->
   stack_offset:int ->

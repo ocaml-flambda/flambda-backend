@@ -183,6 +183,9 @@ let build_package_cmx members cmxfile =
   let ui_zero_alloc_info = Zero_alloc_info.create () in
   List.iter (fun info -> Zero_alloc_info.merge info.ui_zero_alloc_info
                            ~into:ui_zero_alloc_info) units;
+  (* CR-soon xclerc for xclerc: merge with the iter for zero_alloc *)
+  let ui_stack_check_info = Stack_check_info.create () in
+  List.iter (fun info -> Stack_check_info.merge info.ui_stack_check_info ~into:ui_stack_check_info) units;
   let modname = Compilation_unit.name ui.ui_unit in
   let pkg_infos =
     { ui_unit = ui.ui_unit;
@@ -206,6 +209,7 @@ let build_package_cmx members cmxfile =
           List.exists (fun info -> info.ui_force_link) units;
       ui_export_info;
       ui_zero_alloc_info;
+      ui_stack_check_info;
       ui_external_symbols = union (List.map (fun info -> info.ui_external_symbols) units);
     } in
   Compilenv.write_unit_info pkg_infos cmxfile

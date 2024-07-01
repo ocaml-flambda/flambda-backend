@@ -48,6 +48,7 @@ type basic_block =
 type codegen_option =
   | Reduce_code_size
   | No_CSE
+  | Stack_check_move_allowed
   | Assume_zero_alloc of
       { strict : bool;
         never_returns_normally : bool;
@@ -67,6 +68,8 @@ let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
     match hd with
     | No_CSE -> No_CSE :: of_cmm_codegen_option tl
     | Reduce_code_size -> Reduce_code_size :: of_cmm_codegen_option tl
+    | Stack_check_move_allowed ->
+      Stack_check_move_allowed :: of_cmm_codegen_option tl
     | Assume_zero_alloc { strict; never_returns_normally; never_raises; loc } ->
       Assume_zero_alloc { strict; never_returns_normally; never_raises; loc }
       :: of_cmm_codegen_option tl
@@ -84,6 +87,7 @@ type t =
     fun_contains_calls : bool;
     (* CR-someday gyorsh: compute locally. *)
     fun_num_stack_slots : int array;
+    fun_stack_check_skip_callees : Misc.Stdlib.String.Set.t;
     fun_poll : Lambda.poll_attribute
   }
 
@@ -99,6 +103,7 @@ let create ~fun_name ~fun_args ~fun_codegen_options ~fun_dbg ~fun_contains_calls
     blocks = Label.Tbl.create 31;
     fun_contains_calls;
     fun_num_stack_slots;
+    fun_stack_check_skip_callees = Misc.Stdlib.String.Set.empty;
     fun_poll
   }
 

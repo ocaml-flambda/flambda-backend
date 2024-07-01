@@ -73,6 +73,7 @@ type basic_block =
 type codegen_option =
   | Reduce_code_size
   | No_CSE
+  | Stack_check_move_allowed
   | Assume_zero_alloc of
       { strict : bool;
         never_returns_normally : bool;
@@ -103,6 +104,8 @@ type t =
         (** Precomputed during selection and poll insertion. *)
     fun_num_stack_slots : int array;
         (** Precomputed at register allocation time *)
+    fun_stack_check_skip_callees : Misc.Stdlib.String.Set.t;
+        (** Callees for which the stack checks will be skipped *)
     fun_poll : Lambda.poll_attribute (* Whether to insert polling points. *)
   }
 

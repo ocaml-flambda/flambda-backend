@@ -1478,7 +1478,9 @@ end = struct
                 never_raises;
                 loc
               }
-          | Reduce_code_size | No_CSE | Use_linscan_regalloc -> None)
+          | Reduce_code_size | No_CSE | Use_linscan_regalloc
+          | Stack_check_move_allowed ->
+            None)
         codegen_options
     in
     match a with
@@ -1510,7 +1512,7 @@ end = struct
                 never_raises;
                 loc
               }
-          | Reduce_code_size | No_CSE -> None)
+          | Stack_check_move_allowed | Reduce_code_size | No_CSE -> None)
         codegen_options
     in
     match a with

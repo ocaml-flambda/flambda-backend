@@ -57,6 +57,10 @@ val cached_zero_alloc_info : Zero_alloc_info.t
 val cache_zero_alloc_info : Zero_alloc_info.t -> unit
         (* [cache_zero_alloc_info c] adds [c] to [cached_zero_alloc_info] *)
 
+(* CR-soon xclerc for xclerc: share with zero_alloc *)
+val cached_stack_check_info : Stack_check_info.t
+val cache_stack_check_info : Stack_check_info.t -> unit
+
 val new_const_symbol : unit -> string
 
 val read_unit_info: string -> unit_infos * Digest.t

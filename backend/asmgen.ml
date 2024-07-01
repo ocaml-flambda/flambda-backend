@@ -87,6 +87,7 @@ let (pass_to_cfg : Cfg_format.cfg_unit_info Compiler_pass_map.t) =
 
 let reset () =
   Zero_alloc_checker.reset_unit_info ();
+  Stack_check_info.reset Compilenv.cached_stack_check_info;
   start_from_emit := false;
   Compiler_pass_map.iter (fun pass (cfg_unit_info : Cfg_format.cfg_unit_info) ->
     if should_save_ir_after pass then begin
@@ -263,6 +264,10 @@ let register_allocator fd : register_allocator =
   | "" -> default_allocator
   | other -> Misc.fatal_errorf "unknown register allocator (%S)" other
 
+let use_cfg_stack_checks fd_cmm =
+  !Flambda_backend_flags.cfg_stack_checks
+  && List.mem Stack_check_move_allowed fd_cmm.fun_codegen_options
+
 let is_upstream = function
   | Upstream -> true
   | GI | IRC | LS -> false
@@ -365,7 +370,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         ++ Profile.record ~accumulate:true "peephole_optimize_cfg"
              Peephole_optimize.peephole_optimize_cfg
         ++ (fun (cfg_with_layout : Cfg_with_layout.t) ->
-          match !Flambda_backend_flags.cfg_stack_checks with
+          match use_cfg_stack_checks fd_cmm with
           | false -> cfg_with_layout
           | true -> Cfg_stack_checks.cfg cfg_with_layout)
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg
@@ -410,7 +415,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg
         ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After cfgize"
         ++ (fun (cfg_with_layout : Cfg_with_layout.t) ->
-          match !Flambda_backend_flags.cfg_stack_checks with
+          match use_cfg_stack_checks fd_cmm with
           | false -> cfg_with_layout
           | true -> Cfg_stack_checks.cfg cfg_with_layout)
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg
@@ -423,7 +428,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
   ++ Profile.record ~accumulate:true "save_linear" save_linear
   ++ (fun (fd : Linear.fundecl) ->
-    match !Flambda_backend_flags.cfg_stack_checks with
+    match use_cfg_stack_checks fd_cmm with
     | false -> Stack_check.linear fd
     | true -> fd)
   ++ Profile.record ~accumulate:true "emit_fundecl" emit_fundecl
@@ -492,6 +497,8 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
             Zero_alloc_checker.record_unit_info ppf_dump;
             Compiler_hooks.execute Compiler_hooks.Check_allocations
               Zero_alloc_checker.iter_witnesses;
+            Compilenv.cache_stack_check_info
+              (Compilenv.current_unit_infos ()).ui_stack_check_info;
             write_ir output_prefix)
          ~always:(fun () ->
              if create_asm then close_out !Emitaux.output_channel)
