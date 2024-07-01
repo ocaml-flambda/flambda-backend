@@ -16,14 +16,18 @@ type ('a : value_or_null) id_value_or_null = 'a
 
 type 'a should_not_accept_or_null = 'a id_value_or_null
 
-type should_not_work = t_value_or_null should_accept_or_null
+type should_not_work = t_value_or_null should_not_accept_or_null
 
 [%%expect{|
 type 'a should_not_accept_or_null = 'a id_value_or_null
-Line 3, characters 39-60:
-3 | type should_not_work = t_value_or_null should_accept_or_null
-                                           ^^^^^^^^^^^^^^^^^^^^^
-Error: Unbound type constructor should_accept_or_null
+Line 3, characters 23-38:
+3 | type should_not_work = t_value_or_null should_not_accept_or_null
+                           ^^^^^^^^^^^^^^^
+Error: This type t_value_or_null should be an instance of type ('a : value)
+       The layout of t_value_or_null is value_or_null, because
+         of the definition of t_value_or_null at line 1, characters 0-36.
+       But the layout of t_value_or_null must be a sublayout of value, because
+         of the definition of should_not_accept_or_null at line 1, characters 0-55.
 |}]
 
 (* CR layouts v3.0: [value_or_null] types should be accepted for
@@ -218,6 +222,34 @@ Error: Signature mismatch:
          of the definition of f at line 4, characters 6-7.
 |}]
 
+
+module M : sig
+  val f : ('a : value_or_null) . 'a -> 'a
+end = struct
+  let f : type a. a -> a = fun x -> x
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   let f : type a. a -> a = fun x -> x
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a end
+       is not included in
+         sig val f : ('a : value_or_null). 'a -> 'a end
+       Values do not match:
+         val f : 'a -> 'a
+       is not included in
+         val f : ('a : value_or_null). 'a -> 'a
+       The type 'a -> 'a is not compatible with the type 'b -> 'b
+       The layout of 'a is value_or_null, because
+         of the definition of f at line 2, characters 2-41.
+       But the layout of 'a must be a sublayout of value, because
+         of the definition of f at line 4, characters 6-7.
+|}]
+
 (* CR layouts v3.0: this should work. *)
 
 module M : sig
@@ -258,4 +290,80 @@ end
 
 [%%expect{|
 module M : sig val f : 'a -> 'a end
+|}]
+
+
+type ('a : value_or_null) dummy
+
+(* This must infer ('a : value) for backwards compatibility. *)
+type t = Packed : 'a dummy -> t
+
+[%%expect{|
+type ('a : value_or_null) dummy
+type t = Packed : 'a dummy -> t
+|}]
+
+(* CR layouts v3.0: annotations here are upper bounds, so
+   due to defaulting we can't set ['a : value_or_null].
+   Fixing this might be hard, see [Note about [new_var_jkind]]. *)
+type t = Packed : ('a : value_or_null) dummy -> t
+[%%expect{|
+type t = Packed : 'a dummy -> t
+|}]
+
+(* CR layouts v3.0: variables on the right side of
+   constraints default to being non-null. This must be the case: the same mechanism is used for . *)
+type 'b constrained = unit constraint 'b = 'a dummy
+
+[%%expect{|
+type 'b constrained = unit constraint 'b = 'a dummy
+|}]
+
+type fails = bool constrained
+
+[%%expect{|
+Line 1, characters 13-17:
+1 | type fails = bool constrained
+                 ^^^^
+Error: This type bool should be an instance of type 'a dummy
+|}]
+
+type fails = (t_value_or_null dummy) constrained
+
+[%%expect{|
+Line 1, characters 14-35:
+1 | type fails = (t_value_or_null dummy) constrained
+                  ^^^^^^^^^^^^^^^^^^^^^
+Error: This type t_value_or_null dummy should be an instance of type 'a dummy
+       The layout of t_value_or_null is value_or_null, because
+         of the definition of t_value_or_null at line 1, characters 0-36.
+       But the layout of t_value_or_null must be a sublayout of value, because
+         of the definition of constrained at line 1, characters 0-51.
+|}]
+
+type succeeds = (int dummy) constrained
+
+[%%expect{|
+type succeeds = int dummy constrained
+|}]
+
+(* CR layouts v3.0: we can't set a variable on the right side
+   of the constraint to be [or_null]. This might be unfixable. *)
+type ('c : value_or_null) constrained' = bool constraint 'c = ('a : value_or_null) dummy
+
+[%%expect{|
+type 'b constrained' = bool constraint 'b = 'a dummy
+|}]
+
+type fails = (t_value_or_null dummy) constrained'
+
+[%%expect{|
+Line 1, characters 14-35:
+1 | type fails = (t_value_or_null dummy) constrained'
+                  ^^^^^^^^^^^^^^^^^^^^^
+Error: This type t_value_or_null dummy should be an instance of type 'a dummy
+       The layout of t_value_or_null is value_or_null, because
+         of the definition of t_value_or_null at line 1, characters 0-36.
+       But the layout of t_value_or_null must be a sublayout of value, because
+         of the definition of constrained' at line 1, characters 0-88.
 |}]
