@@ -143,10 +143,10 @@ end;;
 Line 2, characters 2-31:
 2 |   type t = string [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The layout of type string is value, because
          it is the primitive value type string.
-       But the layout of type t must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t.
+       But the layout of type string must be a sublayout of immediate, because
+         of the definition of t at line 2, characters 2-31.
 |}];;
 (* CR layouts v2.9: The "of the definition of t ..." part is not great and it
    should only refer to definitions that type check. Fixing it will involve
@@ -189,10 +189,10 @@ end;;
 Line 3, characters 2-26:
 3 |   type s = t [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type s is value, because
+Error: The layout of type t is value, because
          of the definition of t at line 2, characters 2-8.
-       But the layout of type s must be a sublayout of immediate, because
-         of the annotation on the declaration of the type s.
+       But the layout of type t must be a sublayout of immediate, because
+         of the definition of s at line 3, characters 2-26.
 |}];;
 
 (* Can't ascribe to an immediate type signature with a non-immediate type *)
@@ -263,10 +263,10 @@ end;;
 Line 2, characters 2-26:
 2 |   type t = s [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The layout of type s is value, because
          it is the primitive value type string.
-       But the layout of type t must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t.
+       But the layout of type s must be a sublayout of immediate, because
+         of the definition of t at line 2, characters 2-26.
 |}];;
 
 

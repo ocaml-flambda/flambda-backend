@@ -63,8 +63,10 @@ val approx_type_decl:
 val check_recmod_typedecl:
     Env.t -> Location.t -> Ident.t list -> Path.t -> type_declaration -> unit
 
+(* Returns an updated decl that may include improved jkind estimates, but it's
+   sound to throw it away. *)
 val check_coherence:
-    Env.t -> Location.t -> Path.t -> type_declaration -> unit
+    Env.t -> Location.t -> Path.t -> type_declaration -> type_declaration
 
 (* for fixed types *)
 val is_fixed_type : Parsetree.type_declaration -> bool
@@ -150,6 +152,7 @@ type error =
   | Multiple_native_repr_attributes
   | Cannot_unbox_or_untag_type of native_repr_kind
   | Deep_unbox_or_untag_attribute of native_repr_kind
+  | Jkind_mismatch_of_type of type_expr * Jkind.Violation.t
   | Jkind_mismatch_of_path of Path.t * Jkind.Violation.t
   | Jkind_mismatch_due_to_bad_inference of
       type_expr * Jkind.Violation.t * bad_jkind_inference_location

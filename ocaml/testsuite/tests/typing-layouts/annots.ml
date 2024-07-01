@@ -1391,10 +1391,10 @@ type t : float64 mod global portable
 Line 2, characters 0-47:
 2 | type u : bits64 mod global portable = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type u is float64, because
+Error: The layout of type t is float64, because
          of the definition of t at line 1, characters 0-36.
-       But the layout of type u must be a sublayout of bits64, because
-         of the annotation on the declaration of the type u.
+       But the layout of type t must be a sublayout of bits64, because
+         of the definition of u at line 2, characters 0-47.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
@@ -1406,10 +1406,10 @@ type t : word
 Line 2, characters 0-36:
 2 | type u : word mod global = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type u is word, because
+Error: The layout of type t is word, because
          of the definition of t at line 1, characters 0-13.
-       But the layout of type u must be a sublayout of word, because
-         of the annotation on the declaration of the type u.
+       But the layout of type t must be a sublayout of word, because
+         of the definition of u at line 2, characters 0-36.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
   mismatch, not a layout mismatch. *)
@@ -1421,10 +1421,10 @@ type t : word
 Line 2, characters 0-36:
 2 | type u : word mod unique = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type u is word, because
+Error: The layout of type t is word, because
          of the definition of t at line 1, characters 0-13.
-       But the layout of type u must be a sublayout of word, because
-         of the annotation on the declaration of the type u.
+       But the layout of type t must be a sublayout of word, because
+         of the definition of u at line 2, characters 0-36.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
   mismatch, not a layout mismatch. *)
@@ -1436,10 +1436,10 @@ type t : word
 Line 2, characters 0-34:
 2 | type u : word mod many = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type u is word, because
+Error: The layout of type t is word, because
          of the definition of t at line 1, characters 0-13.
-       But the layout of type u must be a sublayout of word, because
-         of the annotation on the declaration of the type u.
+       But the layout of type t must be a sublayout of word, because
+         of the definition of u at line 2, characters 0-34.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
   mismatch, not a layout mismatch. *)
@@ -1451,10 +1451,10 @@ type t : word
 Line 2, characters 0-38:
 2 | type u : word mod portable = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type u is word, because
+Error: The layout of type t is word, because
          of the definition of t at line 1, characters 0-13.
-       But the layout of type u must be a sublayout of word, because
-         of the annotation on the declaration of the type u.
+       But the layout of type t must be a sublayout of word, because
+         of the definition of u at line 2, characters 0-38.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
   mismatch, not a layout mismatch. *)
@@ -1466,10 +1466,10 @@ type t : word
 Line 2, characters 0-41:
 2 | type u : word mod uncontended = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type u is word, because
+Error: The layout of type t is word, because
          of the definition of t at line 1, characters 0-13.
-       But the layout of type u must be a sublayout of word, because
-         of the annotation on the declaration of the type u.
+       But the layout of type t must be a sublayout of word, because
+         of the definition of u at line 2, characters 0-41.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
   mismatch, not a layout mismatch. *)
@@ -1481,10 +1481,10 @@ type t : word
 Line 2, characters 0-39:
 2 | type u : word mod external_ = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type u is word, because
+Error: The layout of type t is word, because
          of the definition of t at line 1, characters 0-13.
-       But the layout of type u must be a sublayout of word, because
-         of the annotation on the declaration of the type u.
+       But the layout of type t must be a sublayout of word, because
+         of the definition of u at line 2, characters 0-39.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
   mismatch, not a layout mismatch. *)

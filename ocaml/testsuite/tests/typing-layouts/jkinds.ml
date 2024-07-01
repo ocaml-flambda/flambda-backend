@@ -114,10 +114,10 @@ type a : any
 Line 2, characters 0-18:
 2 | type b : value = a
     ^^^^^^^^^^^^^^^^^^
-Error: The layout of type b is any, because
+Error: The layout of type a is any, because
          of the definition of a at line 1, characters 0-12.
-       But the layout of type b must be a sublayout of value, because
-         of the annotation on the declaration of the type b.
+       But the layout of type a must be a sublayout of value, because
+         of the definition of b at line 2, characters 0-18.
 |}]
 
 type a : float32
@@ -141,10 +141,10 @@ type a : any
 Line 2, characters 0-20:
 2 | type b : float32 = a
     ^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type b is any, because
+Error: The layout of type a is any, because
          of the definition of a at line 1, characters 0-12.
-       But the layout of type b must be a sublayout of float32, because
-         of the annotation on the declaration of the type b.
+       But the layout of type a must be a sublayout of float32, because
+         of the definition of b at line 2, characters 0-20.
 |}]
 
 type a : float32
@@ -154,10 +154,10 @@ type a : float32
 Line 2, characters 0-17:
 2 | type b : word = a
     ^^^^^^^^^^^^^^^^^
-Error: The layout of type b is float32, because
+Error: The layout of type a is float32, because
          of the definition of a at line 1, characters 0-16.
-       But the layout of type b must be a sublayout of word, because
-         of the annotation on the declaration of the type b.
+       But the layout of type a must be a sublayout of word, because
+         of the definition of b at line 2, characters 0-17.
 |}]
 
 type a : value mod local
@@ -188,10 +188,10 @@ type a : value mod local
 Line 2, characters 0-29:
 2 | type b : value mod global = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type b is value, because
+Error: The layout of type a is value, because
          of the definition of a at line 1, characters 0-24.
-       But the layout of type b must be a sublayout of value, because
-         of the annotation on the declaration of the type b.
+       But the layout of type a must be a sublayout of value, because
+         of the definition of b at line 2, characters 0-29.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
@@ -210,10 +210,10 @@ type a : value mod global
 Line 2, characters 0-30:
 2 | type b : float32 mod local = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type b is value, because
+Error: The layout of type a is value, because
          of the definition of a at line 1, characters 0-25.
-       But the layout of type b must be a sublayout of float32, because
-         of the annotation on the declaration of the type b.
+       But the layout of type a must be a sublayout of float32, because
+         of the definition of b at line 2, characters 0-30.
 |}]
 
 type a : value mod global unique many uncontended portable external_
@@ -230,10 +230,10 @@ type a : value mod global unique once uncontended portable external_
 Line 2, characters 0-73:
 2 | type b : value mod local shared many uncontended nonportable internal = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type b is immediate, because
+Error: The layout of type a is immediate, because
          of the definition of a at line 1, characters 0-68.
-       But the layout of type b must be a sublayout of value, because
-         of the annotation on the declaration of the type b.
+       But the layout of type a must be a sublayout of value, because
+         of the definition of b at line 2, characters 0-73.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
@@ -415,10 +415,10 @@ type t : any mod global = t_value
 Line 1, characters 0-33:
 1 | type t : any mod global = t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The layout of type t_value is value, because
          of the definition of t_value at line 1, characters 0-20.
-       But the layout of type t must be a sublayout of any, because
-         of the annotation on the declaration of the type t.
+       But the layout of type t_value must be a sublayout of any, because
+         of the definition of t at line 1, characters 0-33.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
@@ -428,10 +428,10 @@ type t : any mod unique = t_value
 Line 1, characters 0-33:
 1 | type t : any mod unique = t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The layout of type t_value is value, because
          of the definition of t_value at line 1, characters 0-20.
-       But the layout of type t must be a sublayout of any, because
-         of the annotation on the declaration of the type t.
+       But the layout of type t_value must be a sublayout of any, because
+         of the definition of t at line 1, characters 0-33.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
@@ -441,10 +441,10 @@ type t : any mod many = t_value
 Line 1, characters 0-31:
 1 | type t : any mod many = t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The layout of type t_value is value, because
          of the definition of t_value at line 1, characters 0-20.
-       But the layout of type t must be a sublayout of any, because
-         of the annotation on the declaration of the type t.
+       But the layout of type t_value must be a sublayout of any, because
+         of the definition of t at line 1, characters 0-31.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
@@ -454,10 +454,10 @@ type t : any mod uncontended = t_value
 Line 1, characters 0-38:
 1 | type t : any mod uncontended = t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The layout of type t_value is value, because
          of the definition of t_value at line 1, characters 0-20.
-       But the layout of type t must be a sublayout of any, because
-         of the annotation on the declaration of the type t.
+       But the layout of type t_value must be a sublayout of any, because
+         of the definition of t at line 1, characters 0-38.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
@@ -467,10 +467,10 @@ type t : any mod portable = t_value
 Line 1, characters 0-35:
 1 | type t : any mod portable = t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The layout of type t_value is value, because
          of the definition of t_value at line 1, characters 0-20.
-       But the layout of type t must be a sublayout of any, because
-         of the annotation on the declaration of the type t.
+       But the layout of type t_value must be a sublayout of any, because
+         of the definition of t at line 1, characters 0-35.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
@@ -480,10 +480,10 @@ type t : any mod external_ = t_value
 Line 1, characters 0-36:
 1 | type t : any mod external_ = t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The layout of type t_value is value, because
          of the definition of t_value at line 1, characters 0-20.
-       But the layout of type t must be a sublayout of any, because
-         of the annotation on the declaration of the type t.
+       But the layout of type t_value must be a sublayout of any, because
+         of the definition of t at line 1, characters 0-36.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
@@ -583,10 +583,10 @@ module A : sig type t : value end
 Line 7, characters 0-24:
 7 | type t : immediate = A.t
     ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The layout of type A.t is value, because
          of the definition of t at line 2, characters 2-16.
-       But the layout of type t must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t.
+       But the layout of type A.t must be a sublayout of immediate, because
+         of the definition of t at line 7, characters 0-24.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
@@ -1463,10 +1463,10 @@ type t : value mod global = < >
 Line 1, characters 0-31:
 1 | type t : value mod global = < >
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The layout of type <  > is value, because
          it's the type of an object.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
+       But the layout of type <  > must be a sublayout of value, because
+         of the definition of t at line 1, characters 0-31.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
