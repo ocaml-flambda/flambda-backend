@@ -923,25 +923,27 @@ let get_zero_alloc_attribute ~in_signature ~default_arity l =
        register_zero_alloc_attribute attr.attr_name);
    res
 
-let assume_zero_alloc ~is_check_allowed check : Zero_alloc_utils.Assume_info.t =
+let zero_alloc_attribute_may_not_be_check za =
+  match za with
+  | Default_zero_alloc | Ignore_assert_all | Assume _ -> za
+  | Check { loc; _ } ->
+    let name = "zero_alloc" in
+    let msg = "Only the following combinations are supported in this context: \
+               'zero_alloc assume', \
+               `zero_alloc assume strict`, \
+               `zero_alloc assume error`,\
+               `zero_alloc assume never_returns_normally`,\
+               `zero_alloc assume never_returns_normally strict`."
+    in
+    Location.prerr_warning loc (Warnings.Attribute_payload (name, msg));
+    Default_zero_alloc
+
+let assume_zero_alloc check : Zero_alloc_utils.Assume_info.t =
   match check with
-  | Default_zero_alloc -> Zero_alloc_utils.Assume_info.none
-  | Ignore_assert_all -> Zero_alloc_utils.Assume_info.none
+  | Default_zero_alloc | Ignore_assert_all | Check _ ->
+    Zero_alloc_utils.Assume_info.none
   | Assume { strict; never_returns_normally; never_raises; } ->
     Zero_alloc_utils.Assume_info.create ~strict ~never_returns_normally ~never_raises
-  | Check { loc; _ } ->
-    if not is_check_allowed then begin
-      let name = "zero_alloc" in
-      let msg = "Only the following combinations are supported in this context: \
-                 'zero_alloc assume', \
-                 `zero_alloc assume strict`, \
-                 `zero_alloc assume error`,\
-                 `zero_alloc assume never_returns_normally`,\
-                 `zero_alloc assume never_returns_normally strict`."
-      in
-      Location.prerr_warning loc (Warnings.Attribute_payload (name, msg))
-    end;
-    Zero_alloc_utils.Assume_info.none
 
 type tracing_probe =
   { name : string;

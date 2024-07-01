@@ -197,4 +197,13 @@ let () =
   print_test_expected_output ~cutoff:3
     ~extra_flags:"-zero-alloc-check default -zero-alloc-checker-join 0"
     ~extra_dep:None ~exit_code:2 "test_bounded_join4";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~output:"test_inference.output"
+    ~extra_dep:(Some "test_inference.mli")
+    ~exit_code:2 "test_inference";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~output:"test_inference.opt.output"
+    ~extra_dep:(Some "test_inference.mli")
+    ~extra_flags:"-zero-alloc-check all"
+    ~exit_code:2 "test_inference";
   ()
