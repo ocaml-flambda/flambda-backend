@@ -42,6 +42,7 @@ val type_unboxed_float32:type_expr
 val type_unboxed_nativeint:type_expr
 val type_unboxed_int32:type_expr
 val type_unboxed_int64:type_expr
+val type_or_null: type_expr -> type_expr
 
 val type_int8x16: type_expr
 val type_int16x8: type_expr
@@ -76,6 +77,7 @@ val path_unboxed_float32: Path.t
 val path_unboxed_nativeint: Path.t
 val path_unboxed_int32: Path.t
 val path_unboxed_int64: Path.t
+val path_or_null: Path.t
 
 val path_int8x16: Path.t
 val path_int16x8: Path.t
@@ -119,6 +121,11 @@ val add_simd_extension_types :
 (* Add small number types to an environment.  This is separate from [build_initial_env]
    because we'd like to only do it if the small numbers extension is on. *)
 val add_small_number_extension_types :
+   (Ident.t -> type_declaration -> 'a -> 'a) -> 'a -> 'a
+
+(* Add [or_null] to an environment.  This is separate from [build_initial_env]
+   because we'd like to only do it if layouts are set to [Alpha]. *)
+val add_or_null :
    (Ident.t -> type_declaration -> 'a -> 'a) -> 'a -> 'a
 
 (* To initialize linker tables *)
