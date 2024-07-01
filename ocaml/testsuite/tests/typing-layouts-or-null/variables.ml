@@ -17,6 +17,7 @@ type ('a : value_or_null) id_value_or_null = 'a
 type 'a should_not_accept_or_null = 'a id_value_or_null
 
 type should_not_work = t_value_or_null should_not_accept_or_null
+type should_not_work = t_value_or_null should_not_accept_or_null
 
 [%%expect{|
 type 'a should_not_accept_or_null = 'a id_value_or_null
@@ -249,6 +250,34 @@ Error: Signature mismatch:
          because of the definition of f at line 2, characters 2-41.
        But the kind of 'a must be a subkind of value
          because of the definition of f at line 4, characters 6-7.
+|}]
+
+
+module M : sig
+  val f : ('a : value_or_null) . 'a -> 'a
+end = struct
+  let f : type a. a -> a = fun x -> x
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   let f : type a. a -> a = fun x -> x
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a end
+       is not included in
+         sig val f : ('a : value_or_null). 'a -> 'a end
+       Values do not match:
+         val f : 'a -> 'a
+       is not included in
+         val f : ('a : value_or_null). 'a -> 'a
+       The type 'a -> 'a is not compatible with the type 'b -> 'b
+       The layout of 'a is value_or_null, because
+         of the definition of f at line 2, characters 2-41.
+       But the layout of 'a must be a sublayout of value, because
+         of the definition of f at line 4, characters 6-7.
 |}]
 
 (* CR layouts v3.0: this should work. *)
