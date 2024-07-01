@@ -3,7 +3,7 @@
     (empty_cases_returning_string/270 =
        (function {nlocal = 0} param/272
          (raise
-           (makeblock 0 (getpredef Match_failure/32!!) [0: "test.ml" 28 50])))
+           (makeblock 0 (getpredef Match_failure/33!!) [0: "test.ml" 28 50])))
      empty_cases_returning_float64/273 =
        (function {nlocal = 0} param/275 : unboxed_float
          (raise
