@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stddef.h>
+#include <unistd.h>
 #include "caml/config.h"
 #include "caml/misc.h"
 #include "caml/fail.h"
@@ -765,6 +766,22 @@ CAMLexport caml_stat_block caml_stat_calloc_noexc(asize_t num, asize_t sz)
       memset(result, 0, total);
     return result;
   }
+}
+
+CAMLexport void* caml_stat_alloc_aligned_to_page_size(
+  asize_t num_extra_pages, asize_t num_bytes)
+{
+  int page_size = getpagesize();
+  num_bytes += num_extra_pages * page_size;
+
+  void* block;
+  int memalign_res =
+    posix_memalign(&block, page_size, num_bytes);
+  if (memalign_res) {
+    return NULL;
+  }
+
+  return block;
 }
 
 CAMLexport caml_stat_string caml_stat_strdup_noexc(const char *s)

@@ -72,7 +72,7 @@ let win64 = Arch.win64
        3. C callee-saved registers.
      This translates to the set { r10, r11 }.  These registers hence cannot
      be used for OCaml parameter passing and must also be marked as
-     destroyed across [Ialloc] and [Ipoll] (otherwise a call to
+     destroyed across [Ialloc] (otherwise a call to
      caml_call_gc@PLT might clobber these two registers before the assembly
      stub saves them into the GC regs block).
 *)
@@ -436,11 +436,15 @@ let destroyed_at_c_call =
      is marked as destroyed. *)
   if win64 then destroyed_at_c_call_win64 else destroyed_at_c_call_unix
 
-let destroyed_at_alloc_or_poll =
+let destroyed_at_alloc =
   if X86_proc.use_plt then
     destroyed_by_plt_stub
   else
     [| r11 |]
+
+let destroyed_at_poll =
+  (* This one must be suitable for use in a 32-bit load instruction *)
+  [| rcx |]
 
 let destroyed_at_pushtrap =
   [| r11 |]
@@ -475,7 +479,8 @@ let destroyed_at_oper = function
         -> [| rax; rdx |]
   | Iop(Istore(Single { reg = Float64 }, _, _))
         -> destroy_xmm 15
-  | Iop(Ialloc _ | Ipoll _) -> destroyed_at_alloc_or_poll
+  | Iop(Ialloc _) -> destroyed_at_alloc
+  | Iop(Ipoll _) -> destroyed_at_poll
   | Iop(Iintop(Imulh _ | Icomp _) | Iintop_imm((Icomp _), _))
         -> [| rax |]
   | Iswitch(_, _) -> [| rax; rdx |]
@@ -534,9 +539,9 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
     [| rax |]
   | Op (Specific (Irdtsc | Irdpmc)) ->
     [| rax; rdx |]
-  | Op Poll -> destroyed_at_alloc_or_poll
+  | Op Poll -> destroyed_at_poll
   | Op (Alloc _) ->
-    destroyed_at_alloc_or_poll
+    destroyed_at_alloc
   | Op (Specific (Isimd op)) -> destroyed_by_simd_op op
   | Op (Move | Spill | Reload
        | Const_int _ | Const_float _ | Const_float32 _ | Const_symbol _
@@ -656,8 +661,10 @@ let max_register_pressure =
       else consumes ~int:9 ~float:16
   | Iintop(Idiv | Imod) | Iintop_imm((Idiv | Imod), _) ->
     consumes ~int:2 ~float:0
-  | Ialloc _ | Ipoll _ ->
+  | Ialloc _ ->
     consumes ~int:(1 + num_destroyed_by_plt_stub) ~float:0
+  | Ipoll _ ->
+    consumes ~int:1 ~float:0
   | Iintop(Icomp _) | Iintop_imm((Icomp _), _) ->
     consumes ~int:1 ~float:0
   | Istore(Single { reg = Float64 }, _, _)

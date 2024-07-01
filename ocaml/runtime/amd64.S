@@ -118,6 +118,8 @@
 #define LEAVE_FUNCTION                      \
         popq    %rbp; CFI_ADJUST(-8);
 #else
+// XXX mshinwell: I don't understand why these aren't adjusting %rsp,
+// won't this cause stack misalignment?
 #define ENTER_FUNCTION
 #define LEAVE_FUNCTION
 #endif
@@ -560,6 +562,32 @@ CFI_STARTPROC
         CHECK_STACK_ALIGNMENT; jmp GCALL(caml_raise_stack_overflow)
 CFI_ENDPROC
 ENDFUNCTION(G(caml_raise_stack_overflow_nat))
+
+
+/* This version is entered with the stack misaligned, 0 mod 16 after the
+   return address was pushed. */
+FUNCTION(G(caml_call_gc_16_alignment))
+CFI_STARTPROC
+        CFI_SIGNAL_FRAME
+        ENTER_FUNCTION
+        /* XXX what is happening here?  caml_garbage_collection seems to be
+         * expecting there to be no padding if frame pointers are off */
+/*        subq    $8, %rsp
+        CFI_ADJUST(8) */
+        SAVE_ALL_REGS
+        movq    %r15, Caml_state(gc_regs)
+        SWITCH_OCAML_TO_C
+        C_call (GCALL(caml_garbage_collection))
+        SWITCH_C_TO_OCAML
+        movq    Caml_state(gc_regs), %r15
+        RESTORE_ALL_REGS
+/*        addq    $8, %rsp
+        CFI_ADJUST(-8) */
+        LEAVE_FUNCTION
+        ret
+CFI_ENDPROC
+ENDFUNCTION(G(caml_call_gc_16_alignment))
+
 
 FUNCTION(G(caml_alloc1))
 CFI_STARTPROC

@@ -39,6 +39,7 @@ let cl  = Reg8L RCX
 let ax  = Reg16 RAX
 let rax = Reg64 RAX
 let rbx = Reg64 RBX
+let rcx = Reg64 RCX
 let rdx = Reg64 RDX
 let r10 = Reg64 R10
 let r11 = Reg64 R11
