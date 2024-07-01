@@ -20,6 +20,7 @@
 #include "caml/finalise.h"
 #include "caml/gc.h"
 #include "caml/gc_ctrl.h"
+#include "caml/gc_stats.h"
 #include "caml/major_gc.h"
 #include "caml/minor_gc.h"
 #include "caml/shared_heap.h"
@@ -362,7 +363,10 @@ void caml_init_gc (void)
   #ifdef NATIVE_CODE
   caml_init_frame_descriptors();
   #endif
-  caml_init_domains(caml_params->init_minor_heap_wsz);
+  caml_init_domains(caml_params->max_domains,
+                    caml_params->init_minor_heap_wsz);
+  caml_init_gc_stats(caml_params->max_domains);
+
 /*
   caml_major_heap_increment = major_incr;
   caml_percent_free = norm_pfree (percent_fr);
