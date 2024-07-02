@@ -36,16 +36,7 @@ Error: This type t_value_or_null should be an instance of type ('a : value)
 let should_work (x : t_value_or_null) = x
 
 [%%expect{|
-Line 1, characters 16-37:
-1 | let should_work (x : t_value_or_null) = x
-                    ^^^^^^^^^^^^^^^^^^^^^
-Error: This pattern matches values of type t_value_or_null
-       but a pattern was expected which matches values of type ('a : value)
-       The kind of t_value_or_null is value_or_null
-         because of the definition of t_value_or_null at line 1, characters 0-36.
-       But the kind of t_value_or_null must be a subkind of value
-         because we must know concretely how to pass a function argument,
-         defaulted to kind value.
+val should_work : t_value_or_null -> t_value_or_null = <fun>
 |}]
 
 (* Type variables in function definitions default to [value]. *)
@@ -290,7 +281,7 @@ end
 [%%expect{|
 Lines 3-5, characters 6-3:
 3 | ......struct
-4 |   let f x = x
+4 |   let f : type a. a -> a = fun x -> x
 5 | end
 Error: Signature mismatch:
        Modules do not match:
@@ -302,10 +293,10 @@ Error: Signature mismatch:
        is not included in
          val f : ('a : value_or_null). 'a -> 'a
        The type 'a -> 'a is not compatible with the type 'b -> 'b
-       The kind of 'a is value_or_null
-         because of the definition of f at line 2, characters 2-40.
-       But the kind of 'a must be a subkind of value
-         because of the definition of f at line 4, characters 8-13.
+       The layout of 'a is value_or_null, because
+         of the definition of f at line 2, characters 2-41.
+       But the layout of 'a must be a sublayout of value, because
+         of the definition of f at line 4, characters 6-7.
 |}]
 
 (* CR layouts v3.0: annotations on non-rigid type variables are upper bounds.
