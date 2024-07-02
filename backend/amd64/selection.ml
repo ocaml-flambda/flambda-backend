@@ -52,6 +52,9 @@ let rec select_addr exp =
       | ((Asymbol _ | Aadd (_, _) | Ascale (_,_) | Ascaledadd (_, _, _)), _)
         -> default
       end
+  | Cop(Cmuli, [(Cvar _ as arg); Cconst_int(3|5|9 as mult, _)], _)
+  | Cop(Cmuli, [Cconst_int(3|5|9 as mult, _); (Cvar _ as arg)], _) ->
+      Ascaledadd (arg, arg, mult - 1), 0
   | Cop(Cmuli, [arg; Cconst_int((2|4|8 as mult), _)], _)
   | Cop(Cmuli, [Cconst_int((2|4|8 as mult), _); arg], _) ->
       let default = (Ascale (arg, mult), 0) in
