@@ -31,6 +31,26 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
        You must enable -extension layouts_alpha to use this feature.
 |}];;
 
+type t_any_non_null : any_non_null;;
+
+[%%expect{|
+Line 1, characters 22-34:
+1 | type t_any_non_null : any_non_null;;
+                          ^^^^^^^^^^^^
+Error: Layout any_non_null is more experimental than allowed by the enabled layouts extension.
+       You must enable -extension layouts_alpha to use this feature.
+|}]
+
+type t_value_or_null : value_or_null;;
+
+[%%expect{|
+Line 1, characters 23-36:
+1 | type t_value_or_null : value_or_null;;
+                           ^^^^^^^^^^^^^
+Error: Layout value_or_null is more experimental than allowed by the enabled layouts extension.
+       You must enable -extension layouts_alpha to use this feature.
+|}]
+
 (******************************************************************)
 (* Test 1: Allow non-representable function args/returns in types *)
 
