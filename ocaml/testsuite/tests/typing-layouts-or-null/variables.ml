@@ -304,11 +304,17 @@ type (!'a : value_or_null) dummy
 type t = Packed : 'a dummy -> t
 |}]
 
-(* CR layouts v3.0: annotations here are upper bounds, so
-   due to defaulting we can't set ['a : value_or_null]. *)
+(* Annotations here are upper bounds, so due to defaulting we can't
+   set ['a : value_or_null]. *)
 type t = Packed : ('a : value_or_null) dummy -> t
 [%%expect{|
 type t = Packed : 'a dummy -> t
+|}]
+
+(* However, this works. *)
+type t = Packed : ('a : value_or_null). 'a dummy -> t
+[%%expect{|
+type t = Packed : ('a : value_or_null). 'a dummy -> t
 |}]
 
 (* Variables on the right side of constraints default to non-null.
@@ -349,8 +355,9 @@ type succeeds = (int dummy) constrained
 type succeeds = int dummy constrained
 |}]
 
-(* CR layouts v3.0: we can't set a variable on the right side of the constraint
-   to be [or_null]. This might be hard to fix, see [Note about [new_var_jkind]]. *)
+(* CR layouts v3.0: we can't set a variable on the right side of
+   the constraint to be [maybe_null]. This might be hard to fix, see
+   [Note about [new_var_jkind]]. *)
 type ('c : value_or_null) constrained' = bool
   constraint 'c = ('a : value_or_null) dummy
 
