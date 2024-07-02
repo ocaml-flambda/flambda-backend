@@ -290,7 +290,7 @@ let fuse_method_arity (parent : fusable_function) : fusable_function =
         (function (Texp_poly _, _, _) -> true | _ -> false)
         exp_extra
     ->
-      begin match transl_alloc_mode_r method_.alloc_mode with
+      begin match transl_alloc_mode method_.alloc_mode with
       | Alloc_heap -> ()
       | Alloc_local ->
           (* If we support locally-allocated objects, we'll also have to
@@ -466,7 +466,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         Lconst(Const_block(0, List.map extract_constant ll))
       with Not_constant ->
         Lprim(Pmakeblock(0, Immutable, Some shape,
-                         transl_alloc_mode_r alloc_mode),
+                         transl_alloc_mode alloc_mode),
               ll,
               (of_location ~scopes e.exp_loc))
       end
@@ -508,7 +508,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           begin match const_block with
           | Some const_block -> const_block
           | None ->
-            let alloc_mode = transl_alloc_mode_r (Option.get alloc_mode) in
+            let alloc_mode = transl_alloc_mode (Option.get alloc_mode) in
             let makeblock =
               match cstr.cstr_shape with
               | Constructor_uniform_value ->
@@ -534,7 +534,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                that out by checking that the sort list is empty *)
             lam)
           else
-            let alloc_mode = transl_alloc_mode_r (Option.get alloc_mode) in
+            let alloc_mode = transl_alloc_mode (Option.get alloc_mode) in
             let makeblock =
               match cstr.cstr_shape with
               | Constructor_uniform_value ->
@@ -569,13 +569,13 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                                    extract_constant lam]))
           with Not_constant ->
             Lprim(Pmakeblock(0, Immutable, None,
-                             transl_alloc_mode_r alloc_mode),
+                             transl_alloc_mode alloc_mode),
                   [Lconst(const_int tag); lam],
                   of_location ~scopes e.exp_loc)
       end
   | Texp_record {fields; representation; extended_expression; alloc_mode} ->
       transl_record ~scopes e.exp_loc e.exp_env
-        (Option.map transl_alloc_mode_r alloc_mode)
+        (Option.map transl_alloc_mode alloc_mode)
         fields representation extended_expression
   | Texp_field(arg, id, lbl, float) ->
       let targ = transl_exp ~scopes Jkind.Sort.for_record arg in
@@ -595,7 +595,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             | Boxing (alloc_mode, _) -> alloc_mode
             | Non_boxing _ -> assert false
           in
-          let mode = transl_alloc_mode_r alloc_mode in
+          let mode = transl_alloc_mode alloc_mode in
           Lprim (Pfloatfield (lbl.lbl_pos, sem, mode), [targ],
                  of_location ~scopes e.exp_loc)
         | Record_ufloat ->
@@ -614,7 +614,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                 | Float_boxed ->
                   (match float with
                     | Boxing (mode, _) ->
-                        flat_read_float_boxed (transl_alloc_mode_r mode)
+                        flat_read_float_boxed (transl_alloc_mode mode)
                     | Non_boxing _ ->
                         Misc.fatal_error
                           "expected typechecking to make [float] boxing mode\
@@ -668,7 +668,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                      transl_exp ~scopes lbl_sort newval],
             of_location ~scopes e.exp_loc)
   | Texp_array (amut, element_sort, expr_list, alloc_mode) ->
-      let mode = transl_alloc_mode_r alloc_mode in
+      let mode = transl_alloc_mode alloc_mode in
       let kind = array_kind e element_sort in
       let ll =
         transl_list ~scopes
@@ -1578,7 +1578,7 @@ and transl_function ~in_new_scope ~scopes e params body
       ~alloc_mode ~ret_mode:sreturn_mode ~ret_sort:sreturn_sort ~region:sregion
       ~zero_alloc =
   let attrs = e.exp_attributes in
-  let mode = transl_alloc_mode_r alloc_mode in
+  let mode = transl_alloc_mode alloc_mode in
   let assume_zero_alloc =
     Builtin_attributes.assume_zero_alloc ~is_check_allowed:true zero_alloc
   in
@@ -1981,7 +1981,7 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
     match arg, exn_cases with
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, [] ->
       assert (static_handlers = []);
-      let mode = transl_alloc_mode_r alloc_mode in
+      let mode = transl_alloc_mode alloc_mode in
       let argl =
         List.map (fun (_, a) -> (a, Jkind.Sort.for_tuple_element)) argl
       in
@@ -2000,7 +2000,7 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
             argl
           |> List.split
         in
-        let mode = transl_alloc_mode_r alloc_mode in
+        let mode = transl_alloc_mode alloc_mode in
         static_catch (transl_list ~scopes argl) val_ids
           (Matching.for_multiple_match ~scopes ~return_layout e.exp_loc
              lvars mode val_cases partial)

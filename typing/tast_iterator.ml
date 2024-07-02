@@ -282,6 +282,7 @@ let extra sub = function
   | Texp_newtype _ -> ()
   | Texp_poly cto -> Option.iter (sub.typ sub) cto
   | Texp_mode_coerce _ -> ()
+  | Texp_stack -> ()
 
 let function_param sub { fp_loc; fp_kind; fp_newtypes; _ } =
   sub.location sub fp_loc;

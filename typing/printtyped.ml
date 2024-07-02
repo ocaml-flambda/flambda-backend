@@ -371,7 +371,7 @@ and function_body i ppf (body : function_body) =
         fc_arg_sort; fc_param = _; fc_partial = _; fc_env = _; fc_ret_type = _ }
     ->
       line i ppf "Tfunction_cases %a\n" fmt_location fc_loc;
-      alloc_mode i ppf fc_arg_mode;
+      alloc_mode_raw i ppf fc_arg_mode;
       line i ppf "%a\n" Jkind.Sort.format fc_arg_sort;
       attributes (i+1) ppf fc_attributes;
       Option.iter (fun e -> expression_extra (i+1) ppf e []) fc_exp_extra;
@@ -403,9 +403,14 @@ and expression_extra i ppf x attrs =
             (fun loc -> Printf.sprintf "\"%s\"" loc.txt)
             modes.txt));
       attributes i ppf attrs;
+  | Texp_stack ->
+      line i ppf "Texp_stack\n";
+      attributes i ppf attrs
 
-and alloc_mode: type l r. _ -> _ -> (l * r) Mode.Alloc.t -> _
+and alloc_mode_raw: type l r. _ -> _ -> (l * r) Mode.Alloc.t -> _
   = fun i ppf m -> line i ppf "alloc_mode %a\n" (Mode.Alloc.print ()) m
+
+and alloc_mode i ppf (m : alloc_mode) = alloc_mode_raw i ppf m.mode
 
 and alloc_mode_option i ppf m = Option.iter (alloc_mode i ppf) m
 
