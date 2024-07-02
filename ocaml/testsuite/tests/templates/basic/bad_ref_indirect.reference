@@ -1,0 +1,4 @@
+File "bad_ref_indirect.ml", line 1:
+Error: The module Monoid_utils has parameter Monoid.
+       Monoid is not declared as a parameter for the current unit (-parameter Monoid)
+       and therefore Monoid_utils is not accessible.
