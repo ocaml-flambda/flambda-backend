@@ -1113,6 +1113,14 @@ let check_coherence env loc dpath decl =
   match decl with
     { type_kind = (Type_variant _ | Type_record _| Type_open);
       type_manifest = Some ty } ->
+      if !Clflags.allow_illegal_crossing then begin 
+        let jkind' = Ctype.type_jkind_purely env ty in
+        begin match Jkind.sub_with_history jkind' decl.type_jkind with
+        | Ok _ -> ()
+        | Error v ->
+          raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
+        end
+      end;
       begin match get_desc ty with
         Tconstr(path, args, _) ->
           begin try
@@ -1146,6 +1154,12 @@ let check_coherence env loc dpath decl =
   | { type_kind = Type_abstract _;
       type_manifest = Some ty } ->
     let jkind' = Ctype.type_jkind_purely env ty in
+    let jkind' =
+      match decl.type_private, !Clflags.allow_illegal_crossing with
+      | Private, true ->
+          Jkind.add_portability_and_contention_crossing ~from:decl.type_jkind jkind'
+      | Public, _ | _, false -> jkind'
+    in
     begin match Jkind.sub_with_history jkind' decl.type_jkind with
     | Ok jkind' -> { decl with type_jkind = jkind' }
     | Error v ->
@@ -1595,6 +1609,12 @@ let update_decl_jkind env dpath decl =
       assert false
   in
 
+  let add_crossings jkind =
+    match !Clflags.allow_illegal_crossing with
+    | true -> Jkind.add_portability_and_contention_crossing ~from:decl.type_jkind jkind
+    | false -> jkind
+  in
+
   let new_decl, new_jkind = match decl.type_kind with
     | Type_abstract _ -> decl, decl.type_jkind
     | Type_open ->
@@ -1602,10 +1622,12 @@ let update_decl_jkind env dpath decl =
       { decl with type_jkind }, type_jkind
     | Type_record (lbls, rep) ->
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
+      let type_jkind = add_crossings type_jkind in
       { decl with type_kind = Type_record (lbls, rep); type_jkind },
       type_jkind
     | Type_variant (cstrs, rep) ->
       let cstrs, rep, type_jkind = update_variant_kind cstrs rep in
+      let type_jkind = add_crossings type_jkind in
       { decl with type_kind = Type_variant (cstrs, rep); type_jkind },
       type_jkind
   in
