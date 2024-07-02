@@ -95,18 +95,34 @@ let add t ~invalids ~extra_param ~extra_args =
     let extra_params = Bound_parameters.cons extra_param extra_params in
     let extra_args =
       Apply_cont_rewrite_id.Map.merge
-        (fun id already_extra_args extra_args ->
-          match already_extra_args, extra_args with
+        (fun id already_extra_args extra_arg ->
+          match already_extra_args, extra_arg with
           | None, None -> None
           | None, Some _ ->
-            Misc.fatal_errorf "Cannot change domain: %a"
-              Apply_cont_rewrite_id.print id
+            Misc.fatal_errorf
+              "[Extra Params and Args] Unexpected New Apply_cont_rewrite_id \
+               (%a) for:\n\
+               new param: %a\n\
+               new args: %a\n\
+               new invalids: %a\n\
+               existing epa: %a" Apply_cont_rewrite_id.print id
+              Bound_parameter.print extra_param
+              (Apply_cont_rewrite_id.Map.print Extra_arg.print)
+              extra_args Apply_cont_rewrite_id.Set.print invalids print t
           | Some _, None ->
             if Apply_cont_rewrite_id.Set.mem id invalids
             then Some Or_invalid.Invalid
             else
-              Misc.fatal_errorf "Cannot change domain: %a"
-                Apply_cont_rewrite_id.print id
+              Misc.fatal_errorf
+                "[Extra Params and Args] Existing Apply_cont_rewrite_id (%a) \
+                 missing for:\n\
+                 new param: %a\n\
+                 new args: %a\n\
+                 new invalids: %a\n\
+                 existing epa: %a" Apply_cont_rewrite_id.print id
+                Bound_parameter.print extra_param
+                (Apply_cont_rewrite_id.Map.print Extra_arg.print)
+                extra_args Apply_cont_rewrite_id.Set.print invalids print t
           | Some Or_invalid.Invalid, Some _ -> Some Or_invalid.Invalid
           | Some (Or_invalid.Ok already_extra_args), Some extra_arg ->
             Some (Or_invalid.Ok (extra_arg :: already_extra_args)))
