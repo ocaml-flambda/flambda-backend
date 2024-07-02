@@ -420,43 +420,67 @@ CAMLprim value caml_modf_float32(value f)
   CAMLreturn (res);
 }
 
+/* The functions on bytes, strings, and bigstrings (ba_uint8) are only used
+   in bytecode builds. Otherwise, the flambda-backend compiler translates
+   the corresponding primitives directly to load/store instructions. */
+
 CAMLprim value caml_string_getf32(value str, value index)
 {
+#ifdef ARCH_BIG_ENDIAN
+  caml_failwith("Raw float32 load/store is not supported on big-endian architectures.");
+#else
   intnat idx = Long_val(index);
   if (idx < 0 || idx + 3 >= caml_string_length(str)) caml_array_bound_error();
   float res = *(float*)&Byte_u(str, idx);
   return caml_copy_float32(res);
+#endif
 }
 
 CAMLprim value caml_bytes_getf32(value str, value index)
 {
+#ifdef ARCH_BIG_ENDIAN
+  caml_failwith("Raw float32 load/store is not supported on big-endian architectures.");
+#else
   return caml_string_getf32(str,index);
+#endif
 }
 
 CAMLprim value caml_bytes_setf32(value str, value index, value newval)
 {
+#ifdef ARCH_BIG_ENDIAN
+  caml_failwith("Raw float32 load/store is not supported on big-endian architectures.");
+#else
   intnat idx = Long_val(index);
   if (idx < 0 || idx + 3 >= caml_string_length(str)) caml_array_bound_error();
   *(float*)&Byte_u(str, idx) = Float32_val(newval);
   return Val_unit;
+#endif
 }
 
 CAMLprim value caml_ba_uint8_getf32(value vb, value vind)
 {
+#ifdef ARCH_BIG_ENDIAN
+  caml_failwith("Raw float32 load/store is not supported on big-endian architectures.");
+#else
   intnat idx = Long_val(vind);
   struct caml_ba_array * b = Caml_ba_array_val(vb);
   if (idx < 0 || idx >= b->dim[0] - 3) caml_array_bound_error();
   float res = *(float*)&Byte_u(b->data, idx);
   return caml_copy_float32(res);
+#endif
 }
 
 CAMLprim value caml_ba_uint8_setf32(value vb, value vind, value newval)
 {
+#ifdef ARCH_BIG_ENDIAN
+  caml_failwith("Raw float32 load/store is not supported on big-endian architectures.");
+#else
   intnat idx = Long_val(vind);
   struct caml_ba_array * b = Caml_ba_array_val(vb);
   if (idx < 0 || idx >= b->dim[0] - 3) caml_array_bound_error();
   *(float*)&Byte_u(b->data, idx) = Float32_val(newval);
   return Val_unit;
+#endif
 }
 
 /* Defined in bigarray.c */
