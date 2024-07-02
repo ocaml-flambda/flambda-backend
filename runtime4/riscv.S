@@ -46,7 +46,7 @@
 #define DOMAIN_STATE(c_type, name) \
         .equ    domain_field_caml_##name, domain_curr_field ; \
         .set    domain_curr_field, domain_curr_field + 1
-#include "../runtime/caml/domain_state.tbl"
+#include "../runtime4/caml/domain_state.tbl"
 #undef DOMAIN_STATE
 
 #define Caml_state(var) (8*domain_field_caml_##var)(DOMAIN_STATE_PTR)
@@ -143,7 +143,7 @@ FUNCTION(caml_call_gc)
         /* Save current allocation pointer for debugging purposes */
         STORE   ALLOC_PTR, Caml_state(young_ptr)
         /* Save trap pointer in case an exception is raised during GC */
-        STORE   TRAP_PTR, Caml_state(exception_pointer)
+        STORE   TRAP_PTR, Caml_state(exn_handler)
         /* Call the garbage collector */
         call    PLT(caml_garbage_collection)
         /* Restore registers */
@@ -211,7 +211,7 @@ FUNCTION(caml_c_call)
         STORE   sp, Caml_state(bottom_of_stack)
         /* Make the exception handler alloc ptr available to the C code */
         STORE   ALLOC_PTR, Caml_state(young_ptr)
-        STORE   TRAP_PTR, Caml_state(exception_pointer)
+        STORE   TRAP_PTR, Caml_state(exn_handler)
         /* Call the function */
         jalr    ARG
         /* Reload alloc ptr */
@@ -253,7 +253,7 @@ END_FUNCTION(caml_raise_exn)
 FUNCTION(caml_raise_exception)
         mv      DOMAIN_STATE_PTR, a0
         mv      a0, a1
-        LOAD    TRAP_PTR, Caml_state(exception_pointer)
+        LOAD    TRAP_PTR, Caml_state(exn_handler)
         LOAD    ALLOC_PTR, Caml_state(young_ptr)
         LOAD    TMP, Caml_state(backtrace_active)
         bnez    TMP, 2f
@@ -326,7 +326,7 @@ FUNCTION(caml_start_program)
         /* set up a trap frame */
         addi    sp, sp, -16
         CFI_ADJUST(16)
-        LOAD    TMP, Caml_state(exception_pointer)
+        LOAD    TMP, Caml_state(exn_handler)
         STORE   TMP, 0(sp)
         lla     TMP, .Ltrap_handler
         STORE   TMP, 8(sp)
@@ -334,9 +334,9 @@ FUNCTION(caml_start_program)
         LOAD    ALLOC_PTR, Caml_state(young_ptr)
         STORE   x0, Caml_state(last_return_address)
         jalr    ARG
-.Lcaml_retaddr:         /* pop trap frame, restoring caml_exception_pointer */
+.Lcaml_retaddr:         /* pop trap frame, restoring caml_exn_handler */
         LOAD    TMP, 0(sp)
-        STORE   TMP, Caml_state(exception_pointer)
+        STORE   TMP, Caml_state(exn_handler)
         addi    sp, sp, 16
         CFI_ADJUST(-16)
 .Lreturn_result:        /* pop callback link, restoring global variables */
@@ -386,7 +386,7 @@ END_FUNCTION(caml_start_program)
         .align  2
 .Ltrap_handler:
         CFI_STARTPROC
-        STORE   TRAP_PTR, Caml_state(exception_pointer)
+        STORE   TRAP_PTR, Caml_state(exn_handler)
         ori     a0, a0, 2
         j       .Lreturn_result
         .type   .Ltrap_handler, @function

@@ -13,9 +13,10 @@
 /*                                                                        */
 /**************************************************************************/
 
-/* CR ocaml 5 runtime: This file is the 4.x version together with
+/* CR ocaml 5 domains: This file is the 4.x version together with
    adjustments to the names of exported functions ("unix_" -> "caml_unix").
-   (mshinwell/xclerc)
+   (mshinwell/xclerc).
+   For multi-domain support we'll need to revisit this.
 */
 
 #define CAML_INTERNALS
@@ -74,11 +75,18 @@ CAMLprim value caml_unix_sigprocmask(value vaction, value vset)
   how = sigprocmask_cmd[Int_val(vaction)];
   decode_sigset(vset, &set);
   caml_enter_blocking_section();
+#ifdef CAML_RUNTIME_5
+  // Differs from upstream at the point we branched, but this PR
+  // changes the behaviour to what we have here:
+  // https://github.com/ocaml/ocaml/pull/12743
+  retcode = pthread_sigmask(how, &set, &oldset);
+#else
   retcode = caml_sigmask_hook(how, &set, &oldset);
+#endif
   caml_leave_blocking_section();
   /* Run any handlers for just-unmasked pending signals */
   caml_process_pending_actions();
-  if (retcode != 0) unix_error(retcode, "sigprocmask", Nothing);
+  if (retcode != 0) caml_unix_error(retcode, "sigprocmask", Nothing);
   return encode_sigset(&oldset);
 }
 
@@ -86,7 +94,7 @@ CAMLprim value caml_unix_sigpending(value unit)
 {
   sigset_t pending;
   int i;
-  if (sigpending(&pending) == -1) uerror("sigpending", Nothing);
+  if (sigpending(&pending) == -1) caml_uerror("sigpending", Nothing);
   for (i = 1; i < NSIG; i++)
     if(caml_pending_signals[i])
       sigaddset(&pending, i);
@@ -101,7 +109,7 @@ CAMLprim value caml_unix_sigsuspend(value vset)
   caml_enter_blocking_section();
   retcode = sigsuspend(&set);
   caml_leave_blocking_section();
-  if (retcode == -1 && errno != EINTR) uerror("sigsuspend", Nothing);
+  if (retcode == -1 && errno != EINTR) caml_uerror("sigsuspend", Nothing);
   return Val_unit;
 }
 

@@ -18,12 +18,14 @@ open Outcometree
 
 val out_ident : (formatter -> out_ident -> unit) ref
 val out_value : (formatter -> out_value -> unit) ref
-val out_label : (formatter -> string * out_mutable_or_global * out_type -> unit) ref
+val out_label : (formatter -> string * out_mutability * out_type
+  * out_modality list -> unit) ref
+val out_modality : (formatter -> out_modality -> unit) ref
 val out_type : (formatter -> out_type -> unit) ref
 val out_type_args : (formatter -> out_type list -> unit) ref
 val out_constr : (formatter -> out_constructor -> unit) ref
 val out_constr_args :
-  (formatter -> ((out_type * out_global) list) -> unit) ref
+  (formatter -> ((out_type * out_modality list) list) -> unit) ref
 val out_class_type : (formatter -> out_class_type -> unit) ref
 val out_module_type : (formatter -> out_module_type -> unit) ref
 val out_sig_item : (formatter -> out_sig_item -> unit) ref

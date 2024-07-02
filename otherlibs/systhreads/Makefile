@@ -22,7 +22,7 @@ ifneq "$(CCOMPTYPE)" "msvc"
 OC_CFLAGS += -g
 endif
 
-OC_CFLAGS += $(SHAREDLIB_CFLAGS) $(PTHREAD_CFLAGS)
+OC_CFLAGS += $(SHAREDLIB_CFLAGS)
 
 LIBS = $(STDLIBFLAGS) -I $(ROOTDIR)/otherlibs/unix
 
@@ -45,12 +45,12 @@ LIBNAME=threads
 BYTECODE_C_OBJS=st_stubs.b.$(O)
 NATIVECODE_C_OBJS=st_stubs.n.$(O)
 
-THREADS_SOURCES = thread.ml mutex.ml condition.ml event.ml semaphore.ml
+THREADS_SOURCES = thread.ml event.ml
 
 THREADS_BCOBJS = $(THREADS_SOURCES:.ml=.cmo)
 THREADS_NCOBJS = $(THREADS_SOURCES:.ml=.cmx)
 
-MLIFILES=thread.mli mutex.mli condition.mli event.mli semaphore.mli
+MLIFILES=thread.mli event.mli
 
 CMIFILES=$(MLIFILES:.mli=.cmi)
 

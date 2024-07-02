@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Input channels.
 
     This module provides functions for working with input channels.

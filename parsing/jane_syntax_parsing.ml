@@ -243,9 +243,7 @@ module Embedded_name : sig
 
   val components : t -> components
 
-  (** Convert one of these Jane syntax names to the embedded string form used in
-      the OCaml AST as the name of an extension node or an attribute; not
-      exposed. *)
+  (** See the mli. *)
   val to_string : t -> string
 
   (** Parse a Jane syntax name from the OCaml AST, either as the name of an
@@ -755,6 +753,21 @@ module Constructor_declaration0 = Make_with_attribute (struct
   let with_attributes pcd pcd_attributes = { pcd with pcd_attributes }
 end)
 
+(** Type declarations; embedded with attributes. *)
+module Type_declaration0 = Make_with_attribute (struct
+  type ast = Parsetree.type_declaration
+
+  let plural = "type declarations"
+
+  let location ptype = ptype.ptype_loc
+
+  let with_location ptype loc = { ptype with ptype_loc = loc }
+
+  let attributes ptype = ptype.ptype_attributes
+
+  let with_attributes ptype ptype_attributes = { ptype with ptype_attributes }
+end)
+
 (******************************************************************************)
 (* Main exports *)
 
@@ -770,6 +783,14 @@ module type AST = sig
   val make_of_ast :
     of_ast_internal:(Feature.t -> ast -> 'a option) -> ast -> 'a option
 end
+
+(* Most of our features make full use of the Jane Syntax framework, which
+   encodes information in a specific way (e.g., payload left empty on purpose).
+   It is therefore nice to check that these conditions are met. This functions
+   returns [true] if the given feature needs these extra checks. *)
+let needs_extra_checks = function
+  | Feature.Language_extension Mode -> false
+  | _ -> true
 
 (* See Note [Hiding internal details] *)
 module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
@@ -800,18 +821,22 @@ module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
             syntax_loc,
             payload,
             ast ) -> (
-        (match payload with
-        | PStr [] -> ()
-        | _ ->
-          raise_error syntax_loc
-            (Introduction_has_payload
-               (AST.embedding_syntax, embedded_name, payload)));
         match Feature.of_component name with
         | Ok feat -> (
+          (if needs_extra_checks feat
+          then
+            match payload with
+            | PStr [] -> ()
+            | _ ->
+              raise_error syntax_loc
+                (Introduction_has_payload
+                   (AST.embedding_syntax, embedded_name, payload)));
           match of_ast_internal feat ast with
           | Some ext_ast -> Some ext_ast
           | None ->
-            raise_error loc (Wrong_syntactic_category (feat, AST.plural)))
+            if needs_extra_checks feat
+            then raise_error loc (Wrong_syntactic_category (feat, AST.plural))
+            else None)
         | Error err ->
           raise_error loc
             (match err with
@@ -841,3 +866,4 @@ module Core_type = Make_ast (Core_type0)
 module Constructor_argument = Make_ast (Constructor_argument0)
 module Extension_constructor = Make_ast (Extension_constructor0)
 module Constructor_declaration = Make_ast (Constructor_declaration0)
+module Type_declaration = Make_ast (Type_declaration0)

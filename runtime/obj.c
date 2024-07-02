@@ -66,6 +66,20 @@ CAMLprim value caml_obj_set_raw_field(value arg, value pos, value bits)
   return Val_unit;
 }
 
+CAMLprim value caml_obj_make_forward(value blk, value fwd)
+{
+  caml_modify(&Field(blk, 0), fwd);
+  Tag_val (blk) = Forward_tag;
+  return Val_unit;
+}
+
+CAMLprim value caml_get_header(value blk)
+{
+  // undefined behaviour if blk is not a block
+  intnat r = Hd_val(blk);
+  return caml_copy_nativeint(r);
+}
+
 /* [size] is a value encoding a number of blocks */
 CAMLprim value caml_obj_block(value tag, value size)
 {
@@ -101,7 +115,7 @@ CAMLprim value caml_obj_block(value tag, value size)
     /* Closinfo_val is the second field, so we need size at least 2 */
     if (sz < 2) caml_invalid_argument ("Obj.new_block");
     res = caml_alloc(sz, tg);
-    Closinfo_val(res) = Make_closinfo(0, 2); /* does not allocate */
+    Closinfo_val(res) = Make_closinfo(0, 2, 1); /* does not allocate */
     break;
   }
   case String_tag: {
@@ -144,14 +158,25 @@ CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
     res = caml_alloc(sz, tg);
     memcpy(Bp_val(res), Bp_val(arg), sz * sizeof(value));
   } else if (sz <= Max_young_wosize) {
-    res = caml_alloc_small(sz, tg);
+    reserved_t reserved = Reserved_val(arg);
+    res = caml_alloc_small_with_reserved(sz, tg, reserved);
     for (i = 0; i < sz; i++) Field(res, i) = Field(arg, i);
   } else {
-    res = caml_alloc_shr(sz, tg);
+    mlsize_t scannable_sz = Scannable_wosize_val(arg);
+    reserved_t reserved = Reserved_val(arg);
+
+    res = caml_alloc_shr_reserved(sz, tg, reserved);
     /* It is safe to use [caml_initialize] even if [tag == Closure_tag]
        and some of the "values" being copied are actually code pointers.
        That's because the new "value" does not point to the minor heap. */
-    for (i = 0; i < sz; i++) caml_initialize(&Field(res, i), Field(arg, i));
+    for (i = 0; i < scannable_sz; i++) {
+      caml_initialize(&Field(res, i), Field(arg, i));
+    }
+
+    for (i = scannable_sz; i < sz; i++) {
+      Field(res, i) = Field(arg, i);
+    }
+
     /* Give gc a chance to run, and run memprof callbacks */
     caml_process_pending_actions();
   }
@@ -161,6 +186,7 @@ CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
 
 CAMLprim value caml_obj_dup(value arg)
 {
+  if (!Is_block(arg)) return arg;
   return caml_obj_with_tag(Val_long(Tag_val(arg)), arg);
 }
 
@@ -250,6 +276,11 @@ CAMLprim value caml_lazy_update_to_forcing (value v)
   }
 }
 
+CAMLprim value caml_obj_is_stack (value v)
+{
+  return Val_int(caml_is_stack(v));
+}
+
 /* For mlvalues.h and camlinternalOO.ml
    See also GETPUBMET in interp.c
  */
@@ -299,3 +330,19 @@ struct queue_chunk {
   struct queue_chunk *next;
   value entries[ENTRIES_PER_QUEUE_CHUNK];
 };
+
+/* Return 0 for uniform blocks and 1+n for a mixed block with scannable prefix
+   len n.
+ */
+CAMLprim value caml_succ_scannable_prefix_len (value v) {
+#ifdef NATIVE_CODE
+  return Val_long(Reserved_val(v));
+#else
+  reserved_t reserved = Reserved_val(v);
+  if (reserved == Faux_mixed_block_sentinel) {
+    return Val_long(Scannable_wosize_val(v) + 1);
+  } else {
+    return Val_long(0);
+  }
+#endif /* NATIVE_CODE */
+}

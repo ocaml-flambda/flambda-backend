@@ -1,4 +1,4 @@
-# 1 "lexing.mli"
+# 2 "lexing.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -20,12 +20,13 @@ open! Stdlib
 
 (** {1 Positions} *)
 
-type position = {
+type position = lexing_position = {
   pos_fname : string;
   pos_lnum : int;
   pos_bol : int;
   pos_cnum : int;
 }
+
 (** A value of type [position] describes a point in a source file.
    [pos_fname] is the file name; [pos_lnum] is the line number;
    [pos_bol] is the offset of the beginning of the line (number

@@ -70,12 +70,12 @@ val register_attr : attr_tracking_time -> string Location.loc -> unit
 val mark_alert_used : Parsetree.attribute -> unit
 val mark_alerts_used : Parsetree.attributes -> unit
 
-(** Properties such as the zero_alloc attribute that are checked
+(** Zero_alloc attributes are checked
     in late stages of compilation in the backend.
     Registering them helps detect code that is not checked,
     because it is optimized away by the middle-end.  *)
-val register_property : string Location.loc -> unit
-val mark_property_checked : string -> Location.t -> unit
+val register_zero_alloc_attribute : string Location.loc -> unit
+val mark_zero_alloc_attribute_checked : string -> Location.t -> unit
 
 (** Marks "warn_on_literal_pattern" attributes used for the purposes of
     misplaced attribute warnings.  Call this when moving things with alert
@@ -92,6 +92,7 @@ val mark_payload_attrs_used : Parsetree.payload -> unit
 (** Issue misplaced attribute warnings for all attributes created with
     [mk_internal] but not yet marked used. *)
 val warn_unused : unit -> unit
+val warn_unchecked_zero_alloc_attribute : unit -> unit
 
 val check_alerts: Location.t -> Parsetree.attributes -> string -> unit
 val check_alerts_inclusion:
@@ -158,7 +159,15 @@ end
     count as misplaced if the compiler could use it in some configuration.
 *)
 val filter_attributes :
+  ?mark:bool ->
   Attributes_filter.t -> Parsetree.attributes -> Parsetree.attributes
+
+(** [find_attribute] behaves like [filter_attribute], except that it returns at
+    most one matching attribute and issues a "duplicated attribute" warning if
+    there are multiple matches. *)
+val find_attribute :
+  ?mark_used:bool -> Attributes_filter.t -> Parsetree.attributes ->
+  Parsetree.attribute option
 
 val warn_on_literal_pattern: Parsetree.attributes -> bool
 val explicit_arity: Parsetree.attributes -> bool
@@ -169,60 +178,118 @@ val has_boxed: Parsetree.attributes -> bool
 val parse_standard_interface_attributes : Parsetree.attribute -> unit
 val parse_standard_implementation_attributes : Parsetree.attribute -> unit
 
+val has_no_mutable_implied_modalities: Parsetree.attributes -> bool
 val has_local_opt: Parsetree.attributes -> bool
+val has_layout_poly: Parsetree.attributes -> bool
 val has_curry: Parsetree.attributes -> bool
 
-(* These functions report Error if the builtin extension.* attributes
-   are present despite the extension being disabled *)
-val has_local: Parsetree.attributes -> (bool,unit) result
-val has_global: Parsetree.attributes -> (bool,unit) result
 val tailcall : Parsetree.attributes ->
     ([`Tail|`Nontail|`Tail_if_possible] option, [`Conflict]) result
 
-val has_unique: Parsetree.attributes -> (bool,unit) result
+(* CR layouts v1.5: Remove everything except for [Immediate64] and [Immediate]
+   after rerouting [@@immediate]. *)
+type jkind_attribute =
+  | Immediate64
+  | Immediate
 
-val has_once : Parsetree.attributes -> (bool, unit) result
+val jkind_attribute_to_string : jkind_attribute -> string
+val jkind_attribute_of_string : string -> jkind_attribute option
 
-(** This filter selects attributes corresponding to mode annotations on
-    let-bindings.
-
-    This filter is used principally by the type-checker when it copies [local_],
-    [unique_], and [once_] mode annotation attributes from let-bindings to both
-    the let-bound expression and its pattern.
+(* [jkind] gets the first jkind in the attributes if one is present.  All such
+   attributes can be provided even in the absence of the layouts extension
+   as the attribute mechanism predates layouts.
 *)
-val mode_annotation_attributes_filter : Attributes_filter.t
+val jkind : Parsetree.attributes -> jkind_attribute Location.loc option
 
-(* [jkind] gets the jkind in the attributes if one is present.  We always
-   allow the [value] annotation, even if the layouts extensions are disabled.
-   If [~legacy_immediate] is true, we allow [immediate] and [immediate64]
-   attributes even if the layouts extensions are disabled - this is used to
-   support the original immediacy attributes, which are now implemented in terms
-   of jkinds.
+(** Finds the first "error_message" attribute, marks it as used, and returns its
+    string payload. Returns [None] if no such attribute is present.
 
-   The return value is [Error <jkind>] if a jkind attribute is present but
-   not allowed by the current set of extensions.  Otherwise it is [Ok None] if
-   there is no jkind annotation and [Ok (Some jkind)] if there is one.
+    There should be at most one "error_message" attribute, additional ones are sliently
+    ignored. **)
+val error_message_attr : Parsetree.attributes -> string option
 
-   - If no layout extensions are on and [~legacy_immediate] is false, this will
-     always return [Ok None], [Ok (Some Value)], or [Error ...].
-   - If no layout extensions are on and [~legacy_immediate] is true, this will
-     error on [void], [float64], or [any], but allow [immediate], [immediate64],
-     and [value].
-   - If the [Layouts_beta] extension is on, this behaves like the previous case
-     regardless of the value of [~legacy_immediate], except that it allows
-     [float64] and [any].
-   - If the [Layouts_alpha] extension is on, this can return any jkind and
-     never errors.
+(** [get_int_payload] is a helper for working with attribute payloads.
+    Given a payload that consist of a structure containing exactly
+    {[
+      PStr [
+        {pstr_desc =
+           Pstr_eval (Pexp_constant (Pconst_integer(i, None)), [])
+        }
+      ]
+    ]}
+    it returns [i].
+  *)
+val get_int_payload : Parsetree.payload -> (int, unit) Result.t
 
-   Currently, the [Layouts] extension is ignored - it's no different than
-   turning on no layout extensions.
+(** [get_optional_bool_payload] is a helper for working with attribute payloads.
+    It behaves like [get_int_payload], except that it looks for a boolean
+    constant rather than an int constant, and returns [None] rather than [Error]
+    if the payload is empty. *)
+val get_optional_bool_payload :
+    Parsetree.payload -> (bool option, unit) Result.t
 
-   This is not the only place the layouts extension level is checked.  If you're
-   changing what's allowed in a given level, you may also need to make changes
-   in the parser, Jkind.get_required_layouts_level, and Typeopt.
+(** [parse_id_payload] is a helper for parsing information from an attribute
+   whose payload is an identifier. If the given payload consists of a single
+   identifier, that identifier is looked up in the association list.  The result
+   is returned, if it exists.  The [empty] value is returned if the payload is
+   empty.  Otherwise, [Error ()] is returned and a warning is issued. *)
+val parse_optional_id_payload :
+  string -> Location.t -> empty:'a -> (string * 'a) list ->
+  Parsetree.payload -> ('a,unit) Result.t
+
+(* Support for property attributes like zero_alloc *)
+type zero_alloc_attribute =
+  | Default_zero_alloc
+  | Ignore_assert_all
+  | Check of { strict: bool;
+               (* [strict=true] property holds on all paths.
+                  [strict=false] if the function returns normally,
+                  then the property holds (but property violations on
+                  exceptional returns or diverging loops are ignored).
+                  This definition may not be applicable to new properties. *)
+               opt: bool;
+               arity: int;
+               loc: Location.t;
+             }
+  | Assume of { strict: bool;
+                never_returns_normally: bool;
+                never_raises: bool;
+                (* [never_raises=true] the function never returns
+                   via an exception. The function (directly or transitively)
+                   may raise exceptions that do not escape, i.e.,
+                   handled before the function returns. *)
+                arity: int;
+                loc: Location.t;
+              }
+
+val is_zero_alloc_check_enabled : opt:bool -> bool
+
+(* Gets a zero_alloc attribute.  [~in_signature] controls both whether the
+   "arity n" field is allowed, and whether we track this attribute for
+   warning 199. *)
+val get_zero_alloc_attribute :
+  in_signature:bool -> default_arity:int -> Parsetree.attributes ->
+  zero_alloc_attribute
+
+val assume_zero_alloc :
+  is_check_allowed:bool -> zero_alloc_attribute -> Zero_alloc_utils.Assume_info.t
+
+type tracing_probe =
+  { name : string;
+    name_loc : Location.t;
+    enabled_at_init : bool;
+    arg : Parsetree.expression;
+  }
+
+(* Gets the payload of a [probe] extension node. Example syntax of a probe
+   that's disabled by default:
+
+   [%probe "my_probe" arg]
+
+   You can use [enabled_at_init] to control whether the probe is enabled
+   by default:
+
+   [%probe "my_probe" ~enabled_at_init:true arg]
 *)
-(* CR layouts: we should eventually be able to delete ~legacy_immediate (after we
-   turn on layouts by default). *)
-val jkind : legacy_immediate:bool -> Parsetree.attributes ->
-  (Jane_asttypes.jkind_annotation option,
-   Jane_asttypes.jkind_annotation) result
+val get_tracing_probe_payload :
+  Parsetree.payload -> (tracing_probe, unit) result

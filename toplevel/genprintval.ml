@@ -132,6 +132,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       | Generic of Path.t * (int -> (int -> O.t -> Outcometree.out_value,
                                      O.t -> Outcometree.out_value) gen_printer)
 
+    (* CR mixed blocks v1: It would be good, and not hard, to add proper
+       printing support for unboxed values. *)
     let printers = ref ([
       ( Pident(Ident.create_local "print_int"),
         Simple (Predef.type_int,
@@ -139,6 +141,9 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       ( Pident(Ident.create_local "print_float"),
         Simple (Predef.type_float,
                 (fun x -> Oval_float (O.obj x : float))) );
+      ( Pident(Ident.create_local "print_float32"),
+        Simple (Predef.type_float32,
+                (fun x -> Oval_float32 (O.obj x : Obj.t))) );
       ( Pident(Ident.create_local "print_char"),
         Simple (Predef.type_char,
                 (fun x -> Oval_char (O.obj x : char))) );
@@ -235,6 +240,28 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
 
     (* The main printing function *)
 
+    type outval_record_rep =
+      | Outval_record_boxed
+      | Outval_record_unboxed
+      | Outval_record_mixed_block of mixed_product_shape
+
+    type printing_jkind =
+      | Print_as_value (* can interpret as a value and print *)
+      | Print_as of string (* can't print *)
+
+    let get_and_default_jkind_for_printing jkind =
+      let const = Jkind.default_to_value_and_get jkind in
+      let legacy_layout = Jkind.Const.get_legacy_layout const in
+      match legacy_layout with
+      (* CR layouts v3.0: [Value] should probably require special
+         printing to avoid descending into NULL. (This module uses
+         lots of unsafe Obj features.)
+      *)
+      | Immediate64 | Immediate | Value -> Print_as_value
+      | Void -> Print_as "<void>"
+      | Any -> Print_as "<any>"
+      | Float64 | Float32 | Bits32 | Bits64 | Word -> Print_as "<abstr>"
+
     let outval_of_value max_steps max_depth check_depth env obj ty =
 
       let printer_steps = ref max_steps in
@@ -269,9 +296,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               Oval_stuff "<poly>"
           | Tarrow _ ->
               Oval_stuff "<fun>"
-          | Ttuple(ty_list) ->
-              let ty_list = List.map (fun t -> (t,false)) ty_list in
-              Oval_tuple (tree_of_val_list 0 depth obj ty_list)
+          | Ttuple(labeled_tys) ->
+              Oval_tuple (tree_of_labeled_val_list 0 depth obj labeled_tys)
           | Tconstr(path, [ty_arg], _)
             when Path.same path Predef.path_list ->
               if O.is_block obj then
@@ -430,17 +456,24 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                             List.mapi
                               (fun i ty_arg ->
                                  (ty_arg,
-                                  Jkind.is_void_defaulting cstr_arg_jkinds.(i))
+                                 get_and_default_jkind_for_printing
+                                   cstr_arg_jkinds.(i))
                               ) ty_args
                           in
                           tree_of_constr_with_args (tree_of_constr env path)
                             (Ident.name cd_id) false 0 depth obj
                             ty_args unbx
                       | Cstr_record lbls ->
+                          let rep =
+                            if unbx then
+                              Outval_record_unboxed
+                            else
+                              Outval_record_boxed
+                          in
                           let r =
                             tree_of_record_fields depth
                               env path type_params ty_list
-                              lbls 0 obj unbx
+                              lbls 0 obj rep
                           in
                           Oval_constr(tree_of_constr env path
                                         (Out_name.create (Ident.name cd_id)),
@@ -455,12 +488,26 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                           | Record_inlined (_, Variant_extensible) -> 1
                           | _ -> 0
                         in
-                        let unbx =
-                          match rep with Record_unboxed -> true | _ -> false
+                        let rep =
+                          match rep with
+                          | Record_inlined (_, Variant_unboxed)
+                          | Record_unboxed
+                              -> Outval_record_unboxed
+                          | Record_boxed _ | Record_float | Record_ufloat
+                          | Record_inlined _
+                              -> Outval_record_boxed
+                          | Record_mixed mixed
+                              ->
+                                (* Mixed records are only represented as
+                                   mixed blocks in native code.
+                                *)
+                                if !Clflags.native_code
+                                then Outval_record_mixed_block mixed
+                                else Outval_record_boxed
                         in
                         tree_of_record_fields depth
                           env path decl.type_params ty_list
-                          lbl_list pos obj unbx
+                          lbl_list pos obj rep
                     end
                 | {type_kind = Type_open} ->
                     tree_of_extension path ty_list depth obj
@@ -506,7 +553,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         end
 
       and tree_of_record_fields depth env path type_params ty_list
-          lbl_list pos obj unboxed =
+          lbl_list pos obj rep =
         let rec tree_of_fields first pos = function
           | [] -> []
           | {ld_id; ld_type; ld_jkind} :: remainder ->
@@ -520,22 +567,43 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                 else Oide_ident (Out_name.create name)
               and v =
                 if is_void then Oval_stuff "<void>"
-                else if unboxed then
-                  tree_of_val (depth - 1) obj ty_arg
-                else begin
-                  let fld =
-                    if O.tag obj = O.double_array_tag then
-                      O.repr (O.double_field obj pos)
-                    else
-                      O.field obj pos
-                  in
-                  nest tree_of_val (depth - 1) fld ty_arg
-                end
+                else match rep with
+                  | Outval_record_unboxed -> tree_of_val (depth - 1) obj ty_arg
+                  | Outval_record_boxed ->
+                      let fld =
+                        if O.tag obj = O.double_array_tag then
+                          O.repr (O.double_field obj pos)
+                        else
+                          O.field obj pos
+                      in
+                      nest tree_of_val (depth - 1) fld ty_arg
+                  | Outval_record_mixed_block shape ->
+                      let fld =
+                        match Types.get_mixed_product_element shape pos with
+                        | Value_prefix -> `Continue (O.field obj pos)
+                        | Flat_suffix Imm -> `Continue (O.field obj pos)
+                        | Flat_suffix (Float_boxed | Float64) ->
+                            `Continue (O.repr (O.double_field obj pos))
+                        | Flat_suffix (Float32 | Bits32 | Bits64 | Word) ->
+                            `Stop (Oval_stuff "<abstr>")
+                      in
+                      match fld with
+                      | `Continue fld ->
+                          nest tree_of_val (depth - 1) fld ty_arg
+                      | `Stop result -> result
               in
               let pos = if is_void then pos else pos + 1 in
               (lid, v) :: tree_of_fields false pos remainder
         in
         Oval_record (tree_of_fields (pos = 0) pos lbl_list)
+
+      and tree_of_labeled_val_list start depth obj labeled_tys =
+        let rec tree_list i = function
+          | [] -> []
+          | (label, ty) :: labeled_tys ->
+              let tree = nest tree_of_val (depth - 1) (O.field obj i) ty in
+              (label, tree) :: tree_list (i + 1) labeled_tys in
+      tree_list start labeled_tys
 
       (* CR layouts v4: When we allow other jkinds in tuples, this should be
          generalized to take a list or array of jkinds, rather than just
@@ -543,32 +611,37 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       and tree_of_val_list start depth obj ty_list =
         let rec tree_list i = function
           | [] -> []
-          | (_,true) :: ty_list -> Oval_stuff "<void>" :: tree_list i ty_list
-          | (ty,false) :: ty_list ->
+          | (_, Print_as msg) :: ty_list ->
+              Oval_stuff msg :: tree_list i ty_list
+          | (ty, Print_as_value) :: ty_list ->
               let tree = nest tree_of_val (depth - 1) (O.field obj i) ty in
-              tree :: tree_list (i + 1) ty_list in
+              tree :: tree_list (i + 1) ty_list
+        in
       tree_list start ty_list
 
       and tree_of_generic_array am depth obj ty_arg =
-        let oval elts = Oval_array (elts, am) in
-        let length = O.size obj in
-        if length > 0 then
-          match check_depth depth obj ty with
-            Some x -> x
-          | None ->
-              let rec tree_of_items tree_list i =
-                if !printer_steps < 0 || depth < 0 then
-                  Oval_ellipsis :: tree_list
-                else if i < length then
-                  let tree =
-                    nest tree_of_val (depth - 1) (O.field obj i) ty_arg
-                  in
-                  tree_of_items (tree :: tree_list) (i + 1)
-                else tree_list
-              in
-              oval (List.rev (tree_of_items [] 0))
+        if O.tag obj = Obj.custom_tag then
+          Oval_stuff "<abstr array>"
         else
-          oval []
+          let oval elts = Oval_array (elts, am) in
+          let length = O.size obj in
+          if length > 0 then
+            match check_depth depth obj ty with
+              Some x -> x
+            | None ->
+                let rec tree_of_items tree_list i =
+                  if !printer_steps < 0 || depth < 0 then
+                    Oval_ellipsis :: tree_list
+                  else if i < length then
+                    let tree =
+                      nest tree_of_val (depth - 1) (O.field obj i) ty_arg
+                    in
+                    tree_of_items (tree :: tree_list) (i + 1)
+                  else tree_list
+                in
+                oval (List.rev (tree_of_items [] 0))
+          else
+            oval []
 
       and tree_of_constr_with_args
              tree_of_cstr cstr_name inlined start depth obj ty_args unboxed =
@@ -576,8 +649,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         let args =
           if inlined || unboxed then
             match ty_args with
-            | [_,true] -> [ Oval_stuff "<void>" ]
-            | [ty,false] -> [ tree_of_val (depth - 1) obj ty ]
+            | [_,Print_as msg] -> [ Oval_stuff msg ]
+            | [ty,Print_as_value] -> [ tree_of_val (depth - 1) obj ty ]
             | _ -> assert false
           else
             tree_of_val_list start depth obj ty_args
@@ -619,7 +692,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         in
         let args = instantiate_types env type_params ty_list cstr.cstr_args in
         let args = List.mapi (fun i arg ->
-            (arg, Jkind.is_void_defaulting cstr.cstr_arg_jkinds.(i)))
+            (arg, get_and_default_jkind_for_printing cstr.cstr_arg_jkinds.(i)))
             args
         in
         tree_of_constr_with_args
@@ -639,7 +712,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       with Ctype.Cannot_apply -> abstract_type
 
     and instantiate_types env type_params ty_list args =
-      List.map (fun (ty, _) -> instantiate_type env type_params ty_list ty) args
+      List.map (fun {ca_type=ty; _} -> instantiate_type env type_params ty_list ty) args
 
     and find_printer depth env ty =
       let rec find = function

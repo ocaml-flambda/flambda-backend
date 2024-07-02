@@ -1,6 +1,6 @@
 (* TEST
-   flags = "-extension layouts_alpha"
-   * expect
+ flags = "-extension layouts_alpha";
+ expect;
 *)
 
 type t_any   : any
@@ -26,29 +26,39 @@ type void_record = { vr_void : t_void; vr_int : int; }
 type void_unboxed_record = { vur_void : t_void; } [@@unboxed]
 |}];;
 
-(************************************************************)
-(* Test 1: Disallow non-representable function args/returns *)
+(******************************************************************)
+(* Test 1: Allow non-representable function args/returns in types *)
 module type S1 = sig
   val f : int -> t_any
 end;;
 [%%expect {|
-Line 2, characters 17-22:
-2 |   val f : int -> t_any
-                     ^^^^^
-Error: Function return types must have a representable layout.
-        t_any has layout any, which is not representable.
+module type S1 = sig val f : int -> t_any end
 |}];;
 
 module type S1 = sig
   val f : t_any -> int
 end;;
 [%%expect {|
-Line 2, characters 10-15:
-2 |   val f : t_any -> int
-              ^^^^^
-Error: Function argument types must have a representable layout.
-        t_any has layout any, which is not representable.
+module type S1 = sig val f : t_any -> int end
 |}];;
+
+module type S1 = sig
+  type t : any
+
+  type ('a : any) s = 'a -> int constraint 'a = t
+end;;
+[%%expect{|
+module type S1 = sig type t : any type 'a s = 'a -> int constraint 'a = t end
+|}]
+
+module type S1 = sig
+  type t : any
+
+  type ('a : any) s = int -> 'a constraint 'a = t
+end;;
+[%%expect{|
+module type S1 = sig type t : any type 'a s = int -> 'a constraint 'a = t end
+|}]
 
 module type S1 = sig
   type t : any
@@ -61,7 +71,10 @@ Line 4, characters 35-41:
                                        ^^^^^^
 Error: The type constraints are not consistent.
        Type ('a : '_representable_layout_1) is not compatible with type t
-       t has layout any, which is not representable.
+       The layout of t is any, because
+         of the definition of t at line 2, characters 2-14.
+       But the layout of t must be representable, because
+         it instantiates an unannotated type parameter of s.
 |}]
 
 module type S1 = sig
@@ -75,7 +88,10 @@ Line 4, characters 35-41:
                                        ^^^^^^
 Error: The type constraints are not consistent.
        Type ('a : '_representable_layout_2) is not compatible with type t
-       t has layout any, which is not representable.
+       The layout of t is any, because
+         of the definition of t at line 2, characters 2-14.
+       But the layout of t must be representable, because
+         it instantiates an unannotated type parameter of s.
 |}]
 
 let f1 () : t_any = assert false;;
@@ -85,7 +101,10 @@ Line 1, characters 20-32:
                         ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
          ('a : '_representable_layout_3)
-       t_any has layout any, which is not representable.
+       The layout of t_any is any, because
+         of the definition of t_any at line 1, characters 0-18.
+       But the layout of t_any must be representable, because
+         we must know concretely how to return a function result.
 |}];;
 
 let f1 (x : t_any) = ();;
@@ -96,7 +115,10 @@ Line 1, characters 7-18:
 Error: This pattern matches values of type t_any
        but a pattern was expected which matches values of type
          ('a : '_representable_layout_4)
-       t_any has layout any, which is not representable.
+       The layout of t_any is any, because
+         of the definition of t_any at line 1, characters 0-18.
+       But the layout of t_any must be representable, because
+         we must know concretely how to pass a function argument.
 |}];;
 
 (*****************************************************)
@@ -174,7 +196,10 @@ Line 1, characters 27-33:
 1 | module F2 (X : sig val x : t_void end) = struct
                                ^^^^^^
 Error: This type signature for x is not a value type.
-       x has layout void, which is not a sublayout of value.
+       The layout of type t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of type t_void must be a sublayout of value, because
+         it's the type of something stored in a module structure.
 |}];;
 (* CR layouts v5: the test above should be made to work *)
 
@@ -182,11 +207,15 @@ module F2 (X : sig val f : void_record -> unit end) = struct
   let g z = X.f { vr_void = z; vr_int = 42 }
 end;;
 [%%expect{|
-Line 2, characters 8-44:
+Line 2, characters 16-44:
 2 |   let g z = X.f { vr_void = z; vr_int = 42 }
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value layout void detected in [Typeopt.layout] as sort for type
-       t_void. Please report this error to the Jane Street compilers team.
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         it has to be value for the V1 safety check.
 |}];;
 
 (**************************************)
@@ -213,7 +242,10 @@ Line 1, characters 19-25:
 1 | let string_id (x : string imm_id) = x;;
                        ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the definition of imm_id at line 1, characters 0-33.
 |}];;
 
 let id_for_imms (x : 'a imm_id) = x
@@ -233,7 +265,10 @@ Line 1, characters 33-46:
                                      ^^^^^^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          'a imm_id = ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the definition of id_for_imms at line 1, characters 16-35.
 |}]
 
 (************************************)
@@ -246,7 +281,10 @@ Line 2, characters 9-15:
 2 | and s4 = string t4;;
              ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t4.
 |}];;
 
 type s4 = string t4
@@ -257,7 +295,10 @@ Line 1, characters 10-16:
 1 | type s4 = string t4
               ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t4.
 |}]
 
 type s4 = int t4
@@ -287,9 +328,11 @@ Line 3, characters 0-15:
 3 | and s5 = string;;
     ^^^^^^^^^^^^^^^
 Error:
-       s5 has layout value, which is not a sublayout of immediate.
+       The layout of s5 is value, because
+         it is the primitive value type string.
+       But the layout of s5 must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t4.
 |}]
-(* CR layouts v2.9: improve error, which will require jkind histories *)
 
 type ('a : any) t4 = 'a
 and s4 = string t4;;
@@ -312,7 +355,6 @@ and ('a : any) t4
    moved to [basics_beta.ml]. *)
 
 type ('a : void) void5 = Void5  of 'a
-type ('a : any) any5 = Any5 of 'a
 
 let id5 : 'a void5 -> 'a void5 = function
   | Void5 x -> Void5 x
@@ -334,13 +376,15 @@ let id5 : 'a void5 -> 'a void5 = function
 
 [%%expect{|
 type ('a : void) void5 = Void5 of 'a
-type 'a any5 = Any5 of 'a
-Lines 4-5, characters 33-22:
-4 | .................................function
-5 |   | Void5 x -> Void5 x
+Lines 3-4, characters 33-22:
+3 | .................................function
+4 |   | Void5 x -> Void5 x
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       'a has layout void, which is not a sublayout of value.
+       The layout of 'a is void, because
+         of the definition of void5 at line 1, characters 0-37.
+       But the layout of 'a must be a sublayout of value, because
+         it has to be value for the V1 safety check.
 |}];;
 
 (* disallowed attempts to use f5 and Void5 on non-voids *)
@@ -350,17 +394,23 @@ Line 1, characters 12-15:
 1 | let h5 (x : int void5) = f5 x
                 ^^^
 Error: This type int should be an instance of type ('a : void)
-       int has layout immediate, which is not a sublayout of void.
+       The layout of int is immediate, because
+         it is the primitive immediate type int.
+       But the layout of int must be a sublayout of void, because
+         of the definition of void5 at line 1, characters 0-37.
 |}];;
 
-let h5' (x : int any5) = Void5 x
+let h5' (x : int) = Void5 x
 [%%expect{|
-Line 1, characters 31-32:
-1 | let h5' (x : int any5) = Void5 x
-                                   ^
-Error: This expression has type int any5
-       but an expression was expected of type ('a : void)
-       int any5 has layout value, which is not a sublayout of void.
+Line 1, characters 26-27:
+1 | let h5' (x : int) = Void5 x
+                              ^
+Error: This expression has type int but an expression was expected of type
+         ('a : void)
+       The layout of int is immediate, because
+         it is the primitive immediate type int.
+       But the layout of int must be a sublayout of void, because
+         of the definition of void5 at line 1, characters 0-37.
 |}];;
 
 (* disallowed - tries to return void *)
@@ -368,13 +418,11 @@ let g (x : 'a void5) =
   match x with
   | Void5 x -> x;;
 [%%expect{|
-Lines 1-3, characters 6-16:
-1 | ......(x : 'a void5) =
-2 |   match x with
+Lines 2-3, characters 2-16:
+2 | ..match x with
 3 |   | Void5 x -> x..
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       'a has layout void, which is not a sublayout of value.
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       'a. Please report this error to the Jane Street compilers team.
 |}]
 
 (****************************************)
@@ -400,7 +448,10 @@ Line 2, characters 2-32:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This definition has type 'b -> unit which is less general than
          'a. 'a -> unit
-       'a has layout value, which is not a sublayout of immediate.
+       The layout of 'a is value, because
+         it is or unifies with an unannotated universal variable.
+       But the layout of 'a must be a sublayout of immediate, because
+         of the definition of t6_imm at line 1, characters 0-42.
 |}];;
 
 let o6 = object
@@ -413,7 +464,10 @@ Line 3, characters 4-34:
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This method has type 'b -> unit which is less general than
          'a. 'a -> unit
-       'a has layout value, which is not a sublayout of immediate.
+       The layout of 'a is value, because
+         it is or unifies with an unannotated universal variable.
+       But the layout of 'a must be a sublayout of immediate, because
+         of the definition of t6_imm at line 1, characters 0-42.
 |}];;
 
 (* CR layouts v1.5: add more tests here once you can annotate these types with
@@ -432,7 +486,10 @@ Line 3, characters 12-21:
 3 | type t7' = (int * int) t7;;
                 ^^^^^^^^^
 Error: This type int * int should be an instance of type ('a : immediate)
-       int * int has layout value, which is not a sublayout of immediate.
+       The layout of int * int is value, because
+         it's a tuple type.
+       But the layout of int * int must be a sublayout of immediate, because
+         of the definition of t7 at line 1, characters 0-37.
 |}]
 
 (**********************************************************)
@@ -448,7 +505,10 @@ Line 2, characters 40-46:
 2 |   type foo1 = [ `Foo1 of int | `Baz1 of t_void | `Bar1 of string ];;
                                             ^^^^^^
 Error: Polymorphic variant constructor argument types must have layout value.
-        t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         it's the type of the field of a polymorphic variant.
 |}];;
 
 module M8_2 = struct
@@ -478,7 +538,10 @@ Line 4, characters 13-19:
 4 |   type bad = t_void t
                  ^^^^^^
 Error: This type t_void should be an instance of type ('a : value)
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         of the definition of t at line 2, characters 2-42.
 |}];;
 
 module M8_4 = struct
@@ -490,8 +553,10 @@ Line 2, characters 54-78:
                                                           ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
        Type ('a : value) is not compatible with type void_unboxed_record
-       void_unboxed_record has layout void,
-         which is not a sublayout of value.
+       The layout of void_unboxed_record is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of void_unboxed_record must be a sublayout of value, because
+         it's the type of the field of a polymorphic variant.
 |}];;
 
 module type S8_5 = sig
@@ -502,7 +567,10 @@ Line 2, characters 17-23:
 2 |   val x : [`A of t_void]
                      ^^^^^^
 Error: Polymorphic variant constructor argument types must have layout value.
-        t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         it's the type of the field of a polymorphic variant.
 |}]
 
 (************************************************)
@@ -517,7 +585,10 @@ Line 2, characters 20-26:
 2 |   type foo1 = int * t_void * [ `Foo1 of int | `Bar1 of string ];;
                         ^^^^^^
 Error: Tuple element types must have layout value.
-        t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         it's the type of a tuple element.
 |}];;
 
 module M9_2 = struct
@@ -528,8 +599,10 @@ Line 2, characters 31-50:
 2 |   type result = V of (string * void_unboxed_record) | I of int
                                    ^^^^^^^^^^^^^^^^^^^
 Error: Tuple element types must have layout value.
-        void_unboxed_record has layout void,
-          which is not a sublayout of value.
+       The layout of void_unboxed_record is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of void_unboxed_record must be a sublayout of value, because
+         it's the type of a tuple element.
 |}];;
 
 module M9_3 = struct
@@ -546,8 +619,10 @@ Line 7, characters 13-14:
                  ^
 Error: This expression has type void_unboxed_record
        but an expression was expected of type ('a : value)
-       void_unboxed_record has layout void,
-         which is not a sublayout of value.
+       The layout of void_unboxed_record is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of void_unboxed_record must be a sublayout of value, because
+         it's the type of a tuple element.
 |}];;
 
 module M9_4 = struct
@@ -561,8 +636,10 @@ Line 4, characters 8-16:
             ^^^^^^^^
 Error: The record field vur_void belongs to the type void_unboxed_record
        but is mixed here with fields of type ('a : value)
-       void_unboxed_record has layout void,
-         which is not a sublayout of value.
+       The layout of void_unboxed_record is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of void_unboxed_record must be a sublayout of value, because
+         it's a boxed record type.
 |}];;
 
 module M9_5 = struct
@@ -575,7 +652,10 @@ Line 4, characters 13-19:
 4 |   type bad = t_void t
                  ^^^^^^
 Error: This type t_void should be an instance of type ('a : value)
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         of the definition of t at line 2, characters 2-24.
 |}];;
 
 module M9_6 = struct
@@ -587,8 +667,10 @@ Line 2, characters 34-58:
                                       ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
        Type ('a : value) is not compatible with type void_unboxed_record
-       void_unboxed_record has layout void,
-         which is not a sublayout of value.
+       The layout of void_unboxed_record is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of void_unboxed_record must be a sublayout of value, because
+         it's the type of a tuple element.
 |}];;
 
 module type S9_7 = sig
@@ -599,7 +681,10 @@ Line 2, characters 16-22:
 2 |   val x : int * t_void
                     ^^^^^^
 Error: Tuple element types must have layout value.
-        t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         it's the type of a tuple element.
 |}];;
 
 module M9_9 (X : sig
@@ -615,7 +700,10 @@ Line 5, characters 11-23:
                ^^^^^^^^^^^^
 Error: This expression has type t_void but an expression was expected of type
          ('a : value)
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         it's the type of a tuple element.
 |}];;
 
 (*************************************************)
@@ -655,7 +743,10 @@ Error: Signature mismatch:
        is not included in
          val x : string
        The type ('a : immediate) is not compatible with the type string
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the definition of x at line 8, characters 10-26.
 |}];;
 
 (* This hits the second linktype in moregen (requires expansion to see it's a
@@ -693,7 +784,10 @@ Error: Signature mismatch:
          val x : string
        The type 'a t = ('a : immediate) is not compatible with the type
          string
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the definition of x at line 8, characters 10-26.
 |}]
 
 (**************************************************************)
@@ -708,8 +802,11 @@ end;;
 Line 5, characters 4-7:
 5 |     t.v # baz11
         ^^^
-Error: Method types must have layout value.
-       This expression has layout void, which does not overlap with value.
+Error: Object types must have layout value.
+       The layout of the type of this expression is void, because
+         of the definition of t at line 2, characters 2-42.
+       But the layout of the type of this expression must overlap with value, because
+         it's the type of an object.
 |}]
 
 module M11_2 = struct
@@ -721,7 +818,10 @@ Line 2, characters 17-30:
                      ^^^^^^^^^^^^^
 Error: This expression has type ('a : value)
        but an expression was expected of type t_void
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         it's the type of an object field.
 |}];;
 
 module M11_3 = struct
@@ -730,12 +830,11 @@ module M11_3 = struct
   let foo o (A x) = o # usevoid x
 end;;
 [%%expect{|
-Line 4, characters 12-33:
+Line 4, characters 32-33:
 4 |   let foo o (A x) = o # usevoid x
-                ^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       'a has layout void, which is not a sublayout of value.
+                                    ^
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       'a. Please report this error to the Jane Street compilers team.
 |}];;
 
 module M11_4 = struct
@@ -746,7 +845,10 @@ Line 2, characters 12-22:
 2 |   val x : < l : t_void >
                 ^^^^^^^^^^
 Error: Object field types must have layout value.
-        t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         it's the type of an object field.
 |}];;
 
 module M11_5 = struct
@@ -758,7 +860,10 @@ Line 3, characters 2-24:
 3 |   and ('a : void) s = 'a
       ^^^^^^^^^^^^^^^^^^^^^^
 Error:
-       'a s has layout void, which does not overlap with value.
+       The layout of 'a s is void, because
+         of the annotation on 'a in the declaration of the type s.
+       But the layout of 'a s must be a sublayout of value, because
+         it's the type of an object field.
 |}];;
 
 module M11_6 = struct
@@ -770,7 +875,10 @@ Line 2, characters 36-47:
                                         ^^^^^^^^^^^
 Error: The type constraints are not consistent.
        Type ('a : value) is not compatible with type t_void
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         it's the type of an object field.
 |}];;
 
 (*******************************************************************)
@@ -804,7 +912,10 @@ Line 4, characters 10-13:
 4 |       val bar = v.vr_void
               ^^^
 Error: Variables bound in a class must have layout value.
-       bar has layout void, which is not a sublayout of value.
+       The layout of bar is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of bar must be a sublayout of value, because
+         it's the type of a class field.
 |}];;
 
 (* Hits the Cfk_virtual case of Pcf_val *)
@@ -819,7 +930,10 @@ Line 4, characters 18-21:
 4 |       val virtual bar : t_void
                       ^^^
 Error: Variables bound in a class must have layout value.
-       bar has layout void, which is not a sublayout of value.
+       The layout of bar is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of bar must be a sublayout of value, because
+         it's the type of a class field.
 |}];;
 
 module M12_4 = struct
@@ -835,7 +949,10 @@ Line 6, characters 24-26:
 6 |       val virtual baz : 'a t
                             ^^
 Error: This type ('a : void) should be an instance of type ('a0 : value)
-       'a has layout value, which does not overlap with void.
+       The layout of 'a is value, because
+         it's a type argument to a class constructor.
+       But the layout of 'a must overlap with void, because
+         of the definition of t at line 2, characters 2-20.
 |}];;
 
 module M12_5 = struct
@@ -851,7 +968,10 @@ Line 6, characters 29-31:
 6 |       method void_id (A a) : 'a t = a
                                  ^^
 Error: This type ('a : void) should be an instance of type ('a0 : value)
-       'a has layout value, which does not overlap with void.
+       The layout of 'a is value, because
+         it's a type argument to a class constructor.
+       But the layout of 'a must overlap with void, because
+         of the definition of t at line 2, characters 2-30.
 |}];;
 
 module type S12_6 = sig
@@ -868,7 +988,10 @@ Line 5, characters 4-6:
 5 |     'a t ->
         ^^
 Error: This type ('a : void) should be an instance of type ('a0 : value)
-       'a has layout value, which does not overlap with void.
+       The layout of 'a is value, because
+         it's a type argument to a class constructor.
+       But the layout of 'a must overlap with void, because
+         of the definition of t at line 2, characters 2-30.
 |}];;
 
 module type S12_7 = sig
@@ -882,11 +1005,14 @@ Line 4, characters 6-22:
 4 |       val baz : t_void
           ^^^^^^^^^^^^^^^^
 Error: Variables bound in a class must have layout value.
-       baz has layout void, which is not a sublayout of value.
+       The layout of baz is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of baz must be a sublayout of value, because
+         it's the type of an instance variable.
 |}];;
 
-(***********************************************************)
-(* Test 13: built-in type constructors work only on values *)
+(*************************************************************************)
+(* Test 13: built-in type constructors and support for non-value layouts *)
 
 (* lazy *)
 type t13 = t_void Lazy.t;;
@@ -895,7 +1021,10 @@ Line 1, characters 11-17:
 1 | type t13 = t_void Lazy.t;;
                ^^^^^^
 Error: This type t_void should be an instance of type ('a : value)
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         the type argument of Lazy.t has this layout.
 |}];;
 
 let x13 (VV v) = lazy v;;
@@ -905,7 +1034,10 @@ Line 1, characters 22-23:
                           ^
 Error: This expression has type t_void but an expression was expected of type
          ('a : value)
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         it's the type of a lazy expression.
 |}];;
 
 let x13 v =
@@ -917,7 +1049,10 @@ Line 3, characters 17-18:
                      ^
 Error: This expression has type ('a : value)
        but an expression was expected of type t_void
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         it's the type of a lazy expression.
 |}];;
 
 (* option *)
@@ -928,7 +1063,10 @@ Line 1, characters 11-17:
 1 | type t13 = t_void option;;
                ^^^^^^
 Error: This type t_void should be an instance of type ('a : value)
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         the type argument of option has layout value.
 |}];;
 
 let x13 (VV v) = Some v;;
@@ -938,7 +1076,10 @@ Line 1, characters 22-23:
                           ^
 Error: This expression has type t_void but an expression was expected of type
          ('a : value)
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         the type argument of option has layout value.
 |}];;
 
 let x13 v =
@@ -951,7 +1092,10 @@ Line 3, characters 17-18:
                      ^
 Error: This expression has type ('a : value)
        but an expression was expected of type t_void
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         the type argument of option has layout value.
 |}];;
 
 (* list *)
@@ -962,7 +1106,10 @@ Line 1, characters 11-17:
 1 | type t13 = t_void list;;
                ^^^^^^
 Error: This type t_void should be an instance of type ('a : value)
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 let x13 (VV v) = [v];;
@@ -972,7 +1119,10 @@ Line 1, characters 18-19:
                       ^
 Error: This expression has type t_void but an expression was expected of type
          ('a : value)
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 let x13 v =
@@ -985,28 +1135,25 @@ Line 3, characters 14-15:
                   ^
 Error: This expression has type ('a : value)
        but an expression was expected of type t_void
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 (* array *)
 (* CR layouts v4: should work *)
 type t13 = t_void array;;
 [%%expect{|
-Line 1, characters 11-17:
-1 | type t13 = t_void array;;
-               ^^^^^^
-Error: This type t_void should be an instance of type ('a : value)
-       t_void has layout void, which is not a sublayout of value.
+type t13 = t_void array
 |}];;
 
 let x13 (VV v) = [| v |];;
 [%%expect{|
-Line 1, characters 20-21:
+Line 1, characters 17-24:
 1 | let x13 (VV v) = [| v |];;
-                        ^
-Error: This expression has type t_void but an expression was expected of type
-         ('a : value)
-       t_void has layout void, which is not a sublayout of value.
+                     ^^^^^^^
+Error: Layout void is not supported yet.
 |}];;
 
 let x13 v =
@@ -1014,12 +1161,16 @@ let x13 v =
   | [| v |] -> VV v
   | _ -> assert false
 [%%expect{|
-Line 3, characters 18-19:
+Lines 2-4, characters 2-21:
+2 | ..match v with
 3 |   | [| v |] -> VV v
-                      ^
-Error: This expression has type ('a : value)
-       but an expression was expected of type t_void
-       t_void has layout void, which is not a sublayout of value.
+4 |   | _ -> assert false
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         it has to be value for the V1 safety check.
 |}];;
 
 (****************************************************************************)
@@ -1038,7 +1189,10 @@ Line 2, characters 0-18:
 2 | and foo14 = t_void;;
     ^^^^^^^^^^^^^^^^^^
 Error:
-       foo14 has layout void, which is not a sublayout of value.
+       The layout of foo14 is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of foo14 must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 (****************************************************)
@@ -1154,19 +1308,21 @@ let f () =
 [%%expect{|
 type t_void : void
 type ('a : void) r = { x : int; y : 'a; }
-Lines 5-7, characters 6-20:
-5 | ......() =
-6 |   let rec g { x = x ; y = y } : _ r = g { x; y } in
+Lines 6-7, characters 2-20:
+6 | ..let rec g { x = x ; y = y } : _ r = g { x; y } in
 7 |   g (failwith "foo")..
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       'a has layout void, which is not a sublayout of value.
+       The layout of 'a is void, because
+         of the definition of r at line 3, characters 0-40.
+       But the layout of 'a must be a sublayout of value, because
+         it has to be value for the V1 safety check.
 |}];;
 
 (********************************************************************)
 (* Test 23: checking the error message from impossible GADT matches *)
 
-type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a : any). ('a, 'a) eq
 
 module M : sig
   type t_void : void
@@ -1191,11 +1347,11 @@ Line 15, characters 4-8:
 Error: This pattern matches values of type (M.t_void, M.t_void) eq
        but a pattern was expected which matches values of type
          (M.t_void, M.t_imm) eq
-       M.t_void has layout void, which does not overlap with immediate.
+       The layout of M.t_void is void, because
+         of the definition of t_void at line 4, characters 2-20.
+       But the layout of M.t_void must overlap with immediate, because
+         of the definition of t_imm at line 5, characters 2-24.
 |}]
-(* CR layouts v2.9: error message is OK, but it could probably be better.
-   But a similar case without jkinds is already pretty bad, so try
-   that before spending too much time here. *)
 
 (*****************************************************)
 (* Test 24: Polymorphic parameter with exotic layout *)
@@ -1206,11 +1362,11 @@ let f (x : 'a. 'a t2_void) = x
 
 [%%expect{|
 type 'a t2_void : void
-Line 3, characters 6-30:
+Line 3, characters 29-30:
 3 | let f (x : 'a. 'a t2_void) = x
-          ^^^^^^^^^^^^^^^^^^^^^^^^
+                                 ^
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
-       'a. 'a t2_void.
+       'a t2_void.
        Please report this error to the Jane Street compilers team.
 |}]
 
@@ -1227,7 +1383,10 @@ Line 2, characters 15-16:
                    ^
 Error: This expression has type t_void but an expression was expected of type
          ('a : value)
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 1, characters 0-18.
+       But the layout of t_void must be a sublayout of value, because
+         the type argument of option has layout value.
 |}]
 
 (*********************************************************)
@@ -1236,9 +1395,9 @@ Error: This expression has type t_void but an expression was expected of type
 let g f (x : t_void) : t_void = f x
 
 [%%expect{|
-Line 1, characters 8-35:
+Line 1, characters 32-35:
 1 | let g f (x : t_void) : t_void = f x
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                    ^^^
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
@@ -1249,9 +1408,9 @@ Error: Non-value layout void detected in [Typeopt.layout] as sort for type
 let rec f : _ -> _ = fun (x : t_void) -> x
 
 [%%expect{|
-Line 1, characters 21-42:
+Line 1, characters 41-42:
 1 | let rec f : _ -> _ = fun (x : t_void) -> x
-                         ^^^^^^^^^^^^^^^^^^^^^
+                                             ^
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
@@ -1271,9 +1430,9 @@ and q () =
   ()
 
 [%%expect{|
-Line 1, characters 17-36:
+Line 1, characters 17-29:
 1 | let rec ( let* ) (x : t_void) f = ()
-                     ^^^^^^^^^^^^^^^^^^^
+                     ^^^^^^^^^^^^
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
@@ -1297,9 +1456,9 @@ and q () =
   ()
 
 [%%expect{|
-Lines 4-5, characters 2-4:
-4 | ..let* x = assert false in
-5 |   ()
+Line 4, characters 7-8:
+4 |   let* x = assert false in
+           ^
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
@@ -1311,7 +1470,7 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) : 'a -> (t_float64 -> 'b) -> unit = <fun>
+val ( let* ) : 'a ('b : any). 'a -> (t_float64 -> 'b) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1337,7 +1496,7 @@ let q () =
   assert false
 
 [%%expect{|
-val ( let* ) : 'a -> ('b -> t_float64) -> unit = <fun>
+val ( let* ) : 'a ('b : any). 'a -> ('b -> t_float64) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1349,9 +1508,9 @@ and q () =
   ()
 
 [%%expect{|
-Line 1, characters 19-44:
+Line 1, characters 32-44:
 1 | let rec ( let* ) x f : t_void = assert false
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^
+                                    ^^^^^^^^^^^^
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
@@ -1377,9 +1536,9 @@ and q () =
     ()
 
 [%%expect{|
-Line 2, characters 16-34:
+Line 2, characters 16-29:
 2 | and ( and* ) x1 (x2 : t_void) = ()
-                    ^^^^^^^^^^^^^^^^^^
+                    ^^^^^^^^^^^^^
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
@@ -1408,9 +1567,9 @@ and q () =
     ()
 
 [%%expect{|
-Line 2, characters 13-34:
+Line 2, characters 13-26:
 2 | and ( and* ) (x1 : t_void) x2 = ()
-                 ^^^^^^^^^^^^^^^^^^^^^
+                 ^^^^^^^^^^^^^
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
@@ -1439,9 +1598,9 @@ and q () =
     ()
 
 [%%expect{|
-Line 1, characters 17-25:
+Line 1, characters 17-18:
 1 | let rec ( let* ) x f = ()
-                     ^^^^^^^^
+                     ^
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
@@ -1455,7 +1614,7 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : 'b ('a : float64). 'a -> 'b -> unit = <fun>
+val ( let* ) : ('a : float64) 'b. 'a -> 'b -> unit = <fun>
 val ( and* ) : 'a -> 'b -> t_float64 = <fun>
 val q : unit -> unit = <fun>
 |}]
@@ -1477,7 +1636,10 @@ Line 4, characters 9-19:
              ^^^^^^^^^^
 Error: This pattern matches values of type t_void
        but a pattern was expected which matches values of type ('a : value)
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 1, characters 0-18.
+       But the layout of t_void must be a sublayout of value, because
+         it's the type of a tuple element.
 |}]
 
 let ( let* ) x f = ()
@@ -1496,7 +1658,10 @@ Line 4, characters 9-22:
              ^^^^^^^^^^^^^
 Error: This pattern matches values of type t_float64
        but a pattern was expected which matches values of type ('a : value)
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 5, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         it's the type of a tuple element.
 |}]
 
 
@@ -1519,7 +1684,10 @@ Line 4, characters 16-28:
                     ^^^^^^^^^^^^
 Error: This expression has type t_void but an expression was expected of type
          ('a : value)
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 1, characters 0-18.
+       But the layout of t_void must be a sublayout of value, because
+         of the definition of eq at line 2, characters 2-43.
 |}]
 
 (**************************************)
@@ -1545,7 +1713,10 @@ Line 8, characters 27-28:
                                ^
 Error: This expression has type t_void but an expression was expected of type
          ('a : value)
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 1, characters 0-18.
+       But the layout of t_void must be a sublayout of value, because
+         of the definition of f at line 3, characters 4-20.
 |}]
 
 (**************************************************)
@@ -1560,7 +1731,10 @@ Line 1, characters 41-43:
 1 | type ('a : void) poly_var = [`A of int * 'a | `B]
                                              ^^
 Error: This type ('a : value) should be an instance of type ('a0 : void)
-       'a has layout void, which does not overlap with value.
+       The layout of 'a is void, because
+         of the annotation on 'a in the declaration of the type poly_var.
+       But the layout of 'a must overlap with value, because
+         it's the type of a tuple element.
 |}]
 
 (* CR layouts bug: this should be accepted (or maybe we should reject
@@ -1579,7 +1753,10 @@ Line 1, characters 14-37:
                   ^^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type t_void but an expression was expected of type
          ('a : value)
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 1, characters 0-18.
+       But the layout of t_void must be a sublayout of value, because
+         it's the type of the field of a polymorphic variant.
 |}]
 
 (******************************************************)
@@ -1591,7 +1768,10 @@ Line 1, characters 17-22:
 1 | external foo33 : t_any = "foo33";;
                      ^^^^^
 Error: This type signature for foo33 is not a value type.
-       foo33 has layout any, which is not a sublayout of value.
+       The layout of type t_any is any, because
+         of the definition of t_any at line 1, characters 0-18.
+       But the layout of type t_any must be a sublayout of value, because
+         it's the type of something stored in a module structure.
 |}]
 
 
@@ -1612,7 +1792,10 @@ Line 2, characters 19-31:
 2 | let f35 : 'a t35 = fun () -> ()
                        ^^^^^^^^^^^^
 Error:
-       'a -> 'b has layout value, which is not a sublayout of immediate.
+       The layout of 'a -> 'b is value, because
+         it's a function type.
+       But the layout of 'a -> 'b must be a sublayout of immediate, because
+         of the definition of t35 at line 1, characters 0-30.
 |}]
 
 (**************************************************)
@@ -1631,7 +1814,10 @@ Line 1, characters 10-22:
 Error: This expression has type t_any but an expression was expected of type
          ('a : '_representable_layout_5)
        because it is in the left-hand side of a sequence
-       t_any has layout any, which is not representable.
+       The layout of t_any is any, because
+         of the definition of t_any at line 1, characters 0-18.
+       But the layout of t_any must be representable, because
+         it's the type of a statement.
 |}]
 
 let () = while false do (assert false : t_any); done
@@ -1647,7 +1833,10 @@ Line 1, characters 25-37:
 Error: This expression has type t_any but an expression was expected of type
          ('a : '_representable_layout_6)
        because it is in the body of a while-loop
-       t_any has layout any, which is not representable.
+       The layout of t_any is any, because
+         of the definition of t_any at line 1, characters 0-18.
+       But the layout of t_any must be representable, because
+         it's the type of a statement.
 |}]
 
 let () = for i = 0 to 0 do (assert false : t_any); done
@@ -1663,5 +1852,35 @@ Line 1, characters 28-40:
 Error: This expression has type t_any but an expression was expected of type
          ('a : '_representable_layout_7)
        because it is in the body of a for-loop
-       t_any has layout any, which is not representable.
+       The layout of t_any is any, because
+         of the definition of t_any at line 1, characters 0-18.
+       But the layout of t_any must be representable, because
+         it's the type of a statement.
 |}]
+
+(******************************************************)
+(* Test 37: Ensure signature inclusion checks layouts *)
+
+(* Doesn't need layouts_alpha. *)
+
+
+(*****************************************************)
+(* Test 38: Ensure Univar unification checks layouts *)
+
+(* Doesn't need layouts_alpha. *)
+
+
+(*************************************************************)
+(* Test 39: Inference of functions that don't bind arguments *)
+
+(* Doesn't need layouts_alpha. *)
+
+(****************************************************)
+(* Test 40: unannotated type parameter defaults to layout value *)
+
+(* Doesn't need layouts_alpha. *)
+
+(**********************************************************************)
+(* Test 41: constraints in manifests in mutually recursive typedecls. *)
+
+(* Doesn't need layouts_alpha. *)

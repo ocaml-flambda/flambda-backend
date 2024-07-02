@@ -33,39 +33,35 @@ type t = {
 }
 
 let add_default_argument_wrappers lam =
-  let defs_are_all_functions (defs : (_ * Lambda.lambda) list) =
-    List.for_all (function (_, Lambda.Lfunction _) -> true | _ -> false) defs
-  in
   let f (lam : Lambda.lambda) : Lambda.lambda =
     match lam with
     | Llet (( Strict | Alias | StrictOpt), _k, id,
         Lfunction {kind; params; body = fbody; attr; loc;
-                   mode; region; return }, body) ->
+                   ret_mode; mode; region; return }, body) ->
       begin match
         Simplif.split_default_wrapper ~id ~kind ~params
-          ~body:fbody ~return ~attr ~loc ~mode ~region
+          ~body:fbody ~return ~attr ~loc ~ret_mode ~mode ~region
       with
-      | [fun_id, def] -> Llet (Alias, Lambda.layout_function, fun_id, def, body)
-      | [fun_id, def; inner_fun_id, def_inner] ->
-        Llet (Alias, Lambda.layout_function, inner_fun_id, def_inner,
-              Llet (Alias, Lambda.layout_function, fun_id, def, body))
+      | [{ id = fun_id; def }] ->
+        Llet (Alias, Lambda.layout_function, fun_id, Lfunction def, body)
+      | [{ id = fun_id; def };
+         { id = inner_fun_id; def = def_inner }] ->
+        Llet (Alias, Lambda.layout_function, inner_fun_id, Lfunction def_inner,
+              Llet (Alias, Lambda.layout_function, fun_id, Lfunction def, body))
       | _ -> assert false
       end
-    | Lletrec (defs, body) as lam ->
-      if defs_are_all_functions defs then
+    | Lletrec (defs, body) ->
         let defs =
           List.flatten
             (List.map
-               (function
-                 | (id, Lambda.Lfunction {kind; params; body; attr; loc;
-                                          mode; region; return }) ->
+               (fun Lambda.{ id;
+                     def = {kind; params; body; attr; loc;
+                            ret_mode; mode; region; return} } ->
                    Simplif.split_default_wrapper ~id ~kind ~params ~body
-                     ~return ~attr ~loc ~mode ~region
-                 | _ -> assert false)
+                     ~return ~attr ~loc ~ret_mode ~mode ~region)
                defs)
         in
         Lletrec (defs, body)
-      else lam
     | lam -> lam
   in
   Lambda.map f lam
@@ -123,6 +119,10 @@ let rec declare_const t (const : Lambda.structured_constant)
   match const with
   | Const_base (Const_int c) -> (Const (Int c), Names.const_int)
   | Const_base (Const_char c) -> (Const (Char c), Names.const_char)
+  | Const_base (Const_unboxed_float _ | Const_unboxed_int32 _
+               | Const_unboxed_int64 _ | Const_unboxed_nativeint _) ->
+    (* CR alanechang: implement unboxed constants in flambda *)
+    Misc.fatal_error "Unboxed constants are not supported in flambda. Consider using flambda2."
   | Const_base (Const_string (s, _, _)) ->
     let const, name =
       (Flambda.Allocated_const (Immutable_string s),
@@ -133,6 +133,8 @@ let rec declare_const t (const : Lambda.structured_constant)
     register_const t
       (Allocated_const (Float (float_of_string c)))
       Names.const_float
+  | Const_base (Const_float32 _ | Const_unboxed_float32 _) ->
+      Misc.fatal_error "float32 is not supported in flambda. Consider using flambda2."
   | Const_base (Const_int32 c) ->
     register_const t (Allocated_const (Int32 c))
       Names.const_int32
@@ -219,7 +221,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     (* CR-soon mshinwell: some of this is now very similar to the let rec case
        below *)
     let set_of_closures_var = Variable.create Names.set_of_closures in
-    let params = List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout)) params in
+    let params = List.map (fun (p : Lambda.lparam) -> (p.name, p.layout)) params in
     let set_of_closures =
       let decl =
         Function_decl.create ~let_rec_ident:None ~closure_bound_var ~kind ~mode
@@ -258,74 +260,45 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
 
   | Lletrec (defs, body) ->
     let env =
-      List.fold_right (fun (id,  _) env ->
+      List.fold_right (fun { Lambda.id } env ->
           Env.add_var env id (Variable.create_with_same_name_as_ident id)
             Lambda.layout_letrec)
         defs env
     in
     let function_declarations =
-      (* Identify any bindings in the [let rec] that are functions.  These
-         will be named after the corresponding identifier in the [let rec]. *)
-      List.map (function
-          | (let_rec_ident,
-             Lambda.Lfunction { kind; params; return; body; attr; loc; mode; region }) ->
+      (* Name functions *)
+      List.map (fun Lambda.{ id = let_rec_ident;
+                             def = { kind; params; return; body; attr; loc; mode; region } } ->
             let closure_bound_var =
               Variable.create_with_same_name_as_ident let_rec_ident
             in
-            let params = List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout)) params in
-            let function_declaration =
-              Function_decl.create ~let_rec_ident:(Some let_rec_ident)
-                ~closure_bound_var ~kind ~mode ~region
-                ~params ~body ~attr ~loc ~return_layout:return
-            in
-            Some function_declaration
-          | _ -> None)
+            let params = List.map (fun (p : Lambda.lparam) -> (p.name, p.layout)) params in
+            Function_decl.create ~let_rec_ident:(Some let_rec_ident)
+              ~closure_bound_var ~kind ~mode ~region
+              ~params ~body ~attr ~loc ~return_layout:return)
         defs
     in
-    begin match
-      Misc.Stdlib.List.some_if_all_elements_are_some function_declarations
-    with
-    | Some function_declarations ->
-      (* When all the bindings are (syntactically) functions, we can
-         eliminate the [let rec] construction, instead producing a normal
-         [Let] that binds a set of closures containing all of the functions.
-      *)
-      (* CR-someday lwhite: This is a very syntactic criteria. Adding an
-         unused value to a set of recursive bindings changes how
-         functions are represented at runtime. *)
-      let set_of_closures_var = Variable.create (Names.set_of_closures) in
-      let set_of_closures =
-        close_functions t env (Function_decls.create function_declarations)
-      in
-      let body =
-        List.fold_left (fun body decl ->
-            let let_rec_ident = Function_decl.let_rec_ident decl in
-            let closure_bound_var = Function_decl.closure_bound_var decl in
-            let let_bound_var, _kind = Env.find_var env let_rec_ident in
-            (* Inside the body of the [let], each function is referred to by
-               a [Project_closure] expression, which projects from the set of
-               closures. *)
-            (Flambda.create_let let_bound_var
-              (Project_closure {
-                set_of_closures = set_of_closures_var;
-                closure_id = Closure_id.wrap closure_bound_var;
-              })
-              body))
-          (close t env body) function_declarations
-      in
-      Flambda.create_let set_of_closures_var set_of_closures body
-    | None ->
-      (* If the condition above is not satisfied, we build a [Let_rec]
-         expression; any functions bound by it will have their own
-         individual closures. *)
-      let defs =
-        List.map (fun (id, def) ->
-            let var, _kind = Env.find_var env id in
-            var, close_let_bound_expression t ~let_rec_ident:id var env def)
-          defs
-      in
-      Let_rec (defs, close t env body)
-    end
+    let set_of_closures_var = Variable.create (Names.set_of_closures) in
+    let set_of_closures =
+      close_functions t env (Function_decls.create function_declarations)
+    in
+    let body =
+      List.fold_left (fun body decl ->
+          let let_rec_ident = Function_decl.let_rec_ident decl in
+          let closure_bound_var = Function_decl.closure_bound_var decl in
+          let let_bound_var, _kind = Env.find_var env let_rec_ident in
+          (* Inside the body of the [let], each function is referred to by
+             a [Project_closure] expression, which projects from the set of
+             closures. *)
+          (Flambda.create_let let_bound_var
+             (Project_closure {
+                 set_of_closures = set_of_closures_var;
+                 closure_id = Closure_id.wrap closure_bound_var;
+               })
+             body))
+        (close t env body) function_declarations
+    in
+    Flambda.create_let set_of_closures_var set_of_closures body
   | Lsend (kind, meth, obj, args, reg_close, mode, loc, result_layout) ->
     let meth_var = Variable.create Names.meth in
     let obj_var = Variable.create Names.obj in
@@ -451,6 +424,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
         | Ostype_cygwin -> lambda_const_bool (String.equal Sys.os_type "Cygwin")
         | Backend_type ->
             Lambda.const_int 0 (* tag 0 is the same as Native *)
+        | Runtime5 -> lambda_const_bool Config.runtime5
         end
       in
       close t env
@@ -691,7 +665,7 @@ and close_let_bound_expression t ?let_rec_ident let_bound_var env
     (* Ensure that [let] and [let rec]-bound functions have appropriate
        names. *)
     let closure_bound_var = Variable.rename let_bound_var in
-    let params = List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout)) params in
+    let params = List.map (fun (p : Lambda.lparam) -> (p.name, p.layout)) params in
     let decl =
       Function_decl.create ~let_rec_ident ~closure_bound_var ~kind ~mode ~region
         ~params ~body ~attr ~loc ~return_layout:return

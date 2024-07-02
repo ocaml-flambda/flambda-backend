@@ -19,6 +19,7 @@
 #ifdef CAML_INTERNALS
 
 typedef enum {
+  Phase_sweep_main,
   Phase_sweep_and_mark_main,
   Phase_mark_final,
   Phase_sweep_ephe
@@ -27,6 +28,8 @@ extern gc_phase_t caml_gc_phase;
 
 Caml_inline char caml_gc_phase_char(gc_phase_t phase) {
   switch (phase) {
+    case Phase_sweep_main:
+      return 'S';
     case Phase_sweep_and_mark_main:
       return 'M';
     case Phase_mark_final:
@@ -36,6 +39,10 @@ Caml_inline char caml_gc_phase_char(gc_phase_t phase) {
     default:
       return 'U';
   }
+}
+
+Caml_inline int caml_marking_started(void) {
+  return caml_gc_phase != Phase_sweep_main;
 }
 
 intnat caml_opportunistic_major_work_available (void);
@@ -53,8 +60,10 @@ void caml_darken(void*, value, volatile value* ignored);
 void caml_darken_cont(value);
 void caml_mark_root(value, value*);
 void caml_empty_mark_stack(void);
-void caml_finish_major_cycle(void);
-
+void caml_finish_major_cycle(int force_compaction);
+#ifdef DEBUG
+int caml_mark_stack_is_empty(void);
+#endif
 /* Ephemerons and finalisers */
 void caml_orphan_allocated_words(void);
 void caml_add_to_orphaned_ephe_list(struct caml_ephe_info* ephe_info);

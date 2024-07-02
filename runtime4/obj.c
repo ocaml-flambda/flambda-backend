@@ -30,17 +30,22 @@
 #include "caml/prims.h"
 #include "caml/signals.h"
 
-CAMLprim value caml_obj_tag(value arg)
+static int obj_tag (value arg)
 {
   if (Is_long (arg)){
-    return Val_int (1000);   /* int_tag */
+    return 1000;   /* int_tag */
   }else if ((long) arg & (sizeof (value) - 1)){
-    return Val_int (1002);   /* unaligned_tag */
+    return 1002;   /* unaligned_tag */
   }else if (Is_in_value_area (arg)){
-    return Val_int(Tag_val(arg));
+    return Tag_val(arg);
   }else{
-    return Val_int (1001);   /* out_of_heap_tag */
+    return 1001;   /* out_of_heap_tag */
   }
+}
+
+CAMLprim value caml_obj_tag(value arg)
+{
+  return Val_int (obj_tag(arg));
 }
 
 CAMLprim value caml_obj_set_tag (value arg, value new_tag)
@@ -158,14 +163,25 @@ CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
     res = caml_alloc(sz, tg);
     memcpy(Bp_val(res), Bp_val(arg), sz * sizeof(value));
   } else if (sz <= Max_young_wosize) {
-    res = caml_alloc_small(sz, tg);
+    reserved_t reserved = Reserved_val(arg);
+    res = caml_alloc_small_with_reserved(sz, tg, reserved);
     for (i = 0; i < sz; i++) Field(res, i) = Field(arg, i);
   } else {
-    res = caml_alloc_shr(sz, tg);
+    mlsize_t scannable_sz = Scannable_wosize_val(arg);
+    reserved_t reserved = Reserved_val(arg);
+
+    res = caml_alloc_shr_reserved(sz, tg, reserved);
     /* It is safe to use [caml_initialize] even if [tag == Closure_tag]
        and some of the "values" being copied are actually code pointers.
        That's because the new "value" does not point to the minor heap. */
-    for (i = 0; i < sz; i++) caml_initialize(&Field(res, i), Field(arg, i));
+    for (i = 0; i < scannable_sz; i++) {
+      caml_initialize(&Field(res, i), Field(arg, i));
+    }
+
+    for (i = scannable_sz; i < sz; i++) {
+      Field(res, i) = Field(arg, i);
+    }
+
     /* Give gc a chance to run, and run memprof callbacks */
     caml_process_pending_actions();
   }
@@ -214,12 +230,22 @@ CAMLprim value caml_obj_truncate (value v, value newsize)
      beyond new_wosize in v, erase them explicitly so that the GC
      can darken them as appropriate. */
   if (tag < No_scan_tag) {
-    for (i = new_wosize; i < wosize; i++){
+    mlsize_t scannable_wosize = Scannable_wosize_hd(hd);
+    for (i = new_wosize; i < scannable_wosize; i++){
       caml_modify(&Field(v, i), Val_unit);
 #ifdef DEBUG
       Field (v, i) = Debug_free_truncate;
 #endif
     }
+#ifdef DEBUG
+    /* Unless we're in debug mode, it's not necessary to empty out
+       the non-scannable suffix, as the GC knows not to look there
+       anyway.
+     */
+    for (; i < wosize; i++) {
+      Field (v, i) = Debug_free_truncate;
+    }
+#endif
   }
   /* We must use an odd tag for the header of the leftovers so it does not
      look like a pointer because there may be some references to it in
@@ -236,11 +262,9 @@ CAMLprim value caml_obj_add_offset (value v, value offset)
   return v + (unsigned long) Int32_val (offset);
 }
 
-/* The following function is used in stdlib/lazy.ml.
-   It is not written in OCaml because it must be atomic with respect
-   to the GC.
- */
-
+/* The following functions are used to support lazy values. They are not
+ * written in OCaml in order to ensure atomicity guarantees with respect to the
+ * GC. */
 CAMLprim value caml_lazy_make_forward (value v)
 {
   CAMLparam1 (v);
@@ -249,6 +273,53 @@ CAMLprim value caml_lazy_make_forward (value v)
   res = caml_alloc_small (1, Forward_tag);
   Field (res, 0) = v;
   CAMLreturn (res);
+}
+
+static int obj_update_tag (value blk, int old_tag, int new_tag)
+{
+  header_t hd;
+  tag_t tag;
+
+  hd = Hd_val(blk);
+  tag = Tag_hd(hd);
+
+  if (tag != old_tag) return 0;
+  Unsafe_store_tag_val(blk, new_tag);
+  return 1;
+}
+
+CAMLprim value caml_lazy_reset_to_lazy (value v)
+{
+  CAMLassert (Tag_val(v) == Forcing_tag);
+
+  obj_update_tag (v, Forcing_tag, Lazy_tag);
+  return Val_unit;
+}
+
+CAMLprim value caml_lazy_update_to_forward (value v)
+{
+  CAMLassert (Tag_val(v) == Forcing_tag);
+
+  obj_update_tag (v, Forcing_tag, Forward_tag);
+  return Val_unit;
+}
+
+CAMLprim value caml_lazy_read_result (value v)
+{
+  if (obj_tag(v) == Forward_tag)
+    return Field(v,0);
+  return v;
+}
+
+CAMLprim value caml_lazy_update_to_forcing (value v)
+{
+  if (Is_block(v) && /* Needed to ensure that we don't attempt to update the
+                        header of a integer value */
+      obj_update_tag (v, Lazy_tag, Forcing_tag)) {
+    return Val_int(0);
+  } else {
+    return Val_int(1);
+  }
 }
 
 /* For mlvalues.h and camlinternalOO.ml
@@ -294,3 +365,19 @@ struct queue_chunk {
   struct queue_chunk *next;
   value entries[ENTRIES_PER_QUEUE_CHUNK];
 };
+
+/* Return 0 for uniform blocks and 1+n for a mixed block with scannable prefix
+   len n.
+*/
+CAMLprim value caml_succ_scannable_prefix_len (value v) {
+#ifdef NATIVE_CODE
+  return Val_long(Reserved_val(v));
+#else
+  reserved_t reserved = Reserved_val(v);
+  if (reserved == Faux_mixed_block_sentinel) {
+    return Val_long(Scannable_wosize_val(v) + 1);
+  } else {
+    return Val_long(0);
+  }
+#endif /* NATIVE_CODE */
+}

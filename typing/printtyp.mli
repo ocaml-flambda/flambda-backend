@@ -43,17 +43,28 @@ val strings_of_paths: namespace -> Path.t list -> string list
 
 val raw_type_expr: formatter -> type_expr -> unit
 val raw_field : formatter -> row_field -> unit
-val string_of_label: Asttypes.arg_label -> string
+val string_of_label: Types.arg_label -> string
 
 val wrap_printing_env: error:bool -> Env.t -> (unit -> 'a) -> 'a
     (* Call the function using the environment for type path shortening *)
     (* This affects all the printing functions below *)
     (* Also, if [~error:true], then disable the loading of cmis *)
 
+(** [wrap_printing_env_error env f] ensures that all printing functions in a
+    [Location.error] report are evaluated within the [wrap_printing_env
+    ~error:true env] context. (The original call to [f] is also evaluated
+    within that context.)
+*)
+val wrap_printing_env_error :
+  Env.t -> (unit -> Location.error) -> Location.error
+
 module Naming_context: sig
   val enable: bool -> unit
   (** When contextual names are enabled, the mapping between identifiers
       and names is ensured to be one-to-one. *)
+
+  val reset: unit -> unit
+  (** Reset the naming context *)
 end
 
 (** The [Conflicts] module keeps track of conflicts arising when attributing
@@ -94,6 +105,10 @@ val reset: unit -> unit
     types to use common names for type variables, see [prepare_for_printing] and
     [prepared_type_expr].  *)
 val type_expr: formatter -> type_expr -> unit
+
+(** Prints a modality. If it is the identity modality, prints [id], which
+    defaults to nothing. *)
+val modality : ?id:(formatter -> unit) -> formatter -> Mode.Modality.t -> unit
 
 (** [prepare_for_printing] resets the global printing environment, a la [reset],
     and prepares the types for printing by reserving names and marking loops.

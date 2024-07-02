@@ -32,11 +32,12 @@
 #include "caml/major_gc.h"
 #include "caml/memory.h"
 #include "caml/startup_aux.h"
+#include "caml/shared_heap.h"
 #ifdef NATIVE_CODE
 #include "caml/stack.h"
 #include "caml/frame_descriptors.h"
 #endif
-#ifdef USE_MMAP_MAP_STACK
+#if defined(USE_MMAP_MAP_STACK) || !defined(STACK_CHECKS_ENABLED)
 #include <sys/mman.h>
 #endif
 
@@ -48,13 +49,22 @@
 
 static _Atomic int64_t fiber_id = 0;
 
-uintnat caml_get_init_stack_wsize (void)
+uintnat caml_get_init_stack_wsize (int thread_stack_wsz)
 {
-  uintnat default_stack_wsize = Wsize_bsize(Stack_init_bsize);
+#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+  uintnat init_stack_wsize =
+    thread_stack_wsz < 0
+    ? caml_params->init_main_stack_wsz
+    : caml_params->init_thread_stack_wsz > 0
+    ? caml_params->init_thread_stack_wsz : thread_stack_wsz;
+#else
+  (void) thread_stack_wsz;
+  uintnat init_stack_wsize = Wsize_bsize(Stack_init_bsize);
+#endif
   uintnat stack_wsize;
 
-  if (default_stack_wsize < caml_max_stack_wsize)
-    stack_wsize = default_stack_wsize;
+  if (init_stack_wsize < caml_max_stack_wsize)
+    stack_wsize = init_stack_wsize;
   else
     stack_wsize = caml_max_stack_wsize;
 
@@ -96,11 +106,11 @@ struct stack_info** caml_alloc_stack_cache (void)
 
 Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
 {
+#ifdef USE_MMAP_MAP_STACK
   size_t len = sizeof(struct stack_info) +
                sizeof(value) * wosize +
                8 /* for alignment to 16-bytes, needed for arm64 */ +
                sizeof(struct stack_handler);
-#ifdef USE_MMAP_MAP_STACK
   struct stack_info* si;
   si = mmap(NULL, len, PROT_WRITE | PROT_READ,
              MAP_ANONYMOUS | MAP_PRIVATE | MAP_STACK, -1, 0);
@@ -110,7 +120,92 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
   si->size = len;
   return si;
 #else
+#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+  /* (We use the following strategy only in native code, because bytecode
+   * has its own way of dealing with stack checks.)
+   *
+   * We want to detect a stack overflow by triggering a segfault when a
+   * given part of the memory is accessed; in order to do so, we protect
+   * a page near the end of the stack to make it unreadable/unwritable.
+   * A signal handler for segfault will be installed, that will check if
+   * the invalid address is in the range we protect, and will raise a stack
+   * overflow exception accordingly.
+   *
+   * The sequence of steps to achieve that is loosely based on the glibc
+   * code (See nptl/allocatestack.c):
+   * - first, we mmap the memory for the stack, with PROT_NONE so that
+   *   the allocated memory is not committed;
+   * - second, we madvise to not use huge pages for this memory chunk;
+   * - third, we restore the read/write permissions for the whole memory
+   *   chunk;
+   * - finally, we disable the read/write permissions again, but only
+   *   for the page that will act as the guard.
+   *
+   * The reasoning behind this convoluted process is that if we only
+   * mmap and then mprotect, we incur the risk of splitting a huge page
+   * and losing its benefits while causing more bookkeeping.
+   */
+  size_t bsize = Bsize_wsize(wosize);
+  int page_size = getpagesize();
+  int num_pages = (bsize + page_size - 1) / page_size;
+
+  // If we were using this for arm64, another 8 bytes is needed before
+  // the struct stack_handler.
+  CAMLassert(sizeof(struct stack_info) + 8 + sizeof(struct stack_handler)
+             < page_size);
+  // We need two clear pages in order to be able to guarantee we can create
+  // a guard page which is page-aligned.
+  size_t len = (num_pages + 4) * page_size;
+
+  // Stack layout (higher addresses are at the top):
+  //
+  // --------------------
+  // struct stack_handler
+  // 8 bytes on arm64
+  // --------------------
+  // the stack itself
+  // -------------------- <- page-aligned
+  // guard page
+  // -------------------- <- page-aligned
+  // ... (for alignment)
+  // struct stack_info
+  // -------------------- <- block, possibly unaligned
+
+  struct stack_info* block;
+  block = mmap(NULL, len, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK,
+               -1, 0);
+  if (block == MAP_FAILED) {
+    return NULL;
+  }
+  if (madvise (block, len, MADV_NOHUGEPAGE)) {
+    munmap(block, len);
+    return NULL;
+  }
+  if (mprotect(block, len, PROT_READ | PROT_WRITE)) {
+    munmap(block, len);
+    return NULL;
+  }
+
+  // Note that there is no assumption here on the alignment of the return
+  // value from [mmap].  See the definition of [Protected_stack_page].
+  if (mprotect(Protected_stack_page(block, page_size), page_size, PROT_NONE)) {
+    munmap(block, len);
+    return NULL;
+  }
+
+  // Assert that the guard page does not impinge on the actual stack area.
+  CAMLassert((char*) block + len - (sizeof(struct stack_handler) + 8 + bsize)
+    >= Protected_stack_page(block, page_size) + page_size);
+
+  block->size = len;
+  return block;
+#else
+  size_t len = sizeof(struct stack_info) +
+               sizeof(value) * wosize +
+               8 /* for alignment to 16-bytes, needed for arm64 */ +
+               sizeof(struct stack_handler);
   return caml_stat_alloc_noexc(len);
+#endif /* NATIVE_CODE */
 #endif /* USE_MMAP_MAP_STACK */
 }
 
@@ -222,18 +317,180 @@ void caml_get_stack_sp_pc (struct stack_info* stack,
   *sp = p + sizeof(value);
 }
 
+
+/* Returns the arena number of a block,
+   or -1 if it is not in any local arena */
+static int get_local_ix(caml_local_arenas* loc, value v)
+{
+  int i;
+  CAMLassert(Is_block(v));
+  /* Search local arenas, starting from the largest (last) */
+  for (i = 0; i < loc->count; i++) {
+    struct caml_local_arena arena = loc->arenas[i];
+    if (arena.base <= (char*)v && (char*)v < arena.base + arena.length)
+      return i;
+  }
+  return -1;
+}
+
+
+/* If it visits an unmarked local block,
+      returns the index of the containing arena
+   Otherwise returns -1.
+   Temporarily marks local blocks with colors.GARBAGE
+    (which is not otherwise the color of reachable blocks) */
+static int visit(scanning_action f, void* fdata,
+                 struct caml_local_arenas* locals,
+                 struct global_heap_state colors,
+                 value* p)
+{
+  value v = *p, vblock = v;
+  header_t hd;
+  int ix;
+  if (!Is_block(v))
+    return -1;
+
+  if (Is_young(v)) {
+    f(fdata, v, p);
+    return -1;
+  }
+
+  /* major or local or external */
+
+  hd = Hd_val(vblock);
+  if (Tag_hd(hd) == Infix_tag) {
+    vblock -= Infix_offset_val(v);
+    hd = Hd_val(vblock);
+  }
+
+  if (Color_hd(hd) == colors.GARBAGE) {
+    /* Local, marked */
+    return -1;
+  } else if (Color_hd(hd) == NOT_MARKABLE) {
+    /* Local (unmarked) or external */
+
+    if (locals == NULL)
+      /* external */
+      return -1;
+
+    ix = get_local_ix(locals, vblock);
+
+    if (ix != -1) {
+      /* Mark this unmarked local */
+      *Hp_val(vblock) = With_status_hd(hd, colors.GARBAGE);
+    }
+
+    return ix;
+  } else {
+    /* Major heap */
+    f(fdata, v, p);
+    return -1;
+  }
+}
+
+static void scan_local_allocations(scanning_action f, void* fdata,
+                                   caml_local_arenas* loc)
+{
+  int arena_ix;
+  intnat sp;
+  struct caml_local_arena arena;
+  /* does not change during scanning */
+  struct global_heap_state colors = caml_global_heap_state;
+
+  if (loc == NULL) return;
+  CAMLassert(loc->count > 0);
+  sp = loc->saved_sp;
+  arena_ix = loc->count - 1;
+  arena = loc->arenas[arena_ix];
+#ifdef DEBUG
+  { header_t* hp;
+    for (hp = (header_t*)arena.base;
+         hp < (header_t*)(arena.base + arena.length + sp);
+         hp++) {
+      *hp = Debug_free_local;
+    }
+  }
+#endif
+
+  while (sp < 0) {
+    header_t* hp = (header_t*)(arena.base + arena.length + sp), hd = *hp;
+    intnat i;
+
+    if (hd == Local_uninit_hd) {
+      CAMLassert(arena_ix > 0);
+      arena = loc->arenas[--arena_ix];
+#ifdef DEBUG
+      for (hp = (header_t*)arena.base;
+           hp < (header_t*)(arena.base + arena.length + sp);
+           hp++) {
+        *hp = Debug_free_local;
+      }
+#endif
+      continue;
+    }
+    CAMLassert(Color_hd(hd) == NOT_MARKABLE ||
+               Color_hd(hd) == colors.GARBAGE);
+    if (Color_hd(hd) == NOT_MARKABLE) {
+      /* Local allocation, not marked */
+#ifdef DEBUG
+      /* We don't check the reserved bits here because this is OK even for mixed
+         blocks. */
+      for (i = 0; i < Wosize_hd(hd); i++)
+        Field(Val_hp(hp), i) = Debug_free_local;
+#endif
+      sp += Bhsize_hd(hd);
+      continue;
+    }
+    /* reset mark */
+    hd = With_status_hd(hd, NOT_MARKABLE);
+    *hp = hd;
+    CAMLassert(Tag_hd(hd) != Infix_tag);  /* start of object, no infix */
+    CAMLassert(Tag_hd(hd) != Cont_tag);   /* no local continuations */
+    if (Tag_hd(hd) >= No_scan_tag) {
+      sp += Bhsize_hd(hd);
+      continue;
+    }
+    i = 0;
+    if (Tag_hd(hd) == Closure_tag)
+      i = Start_env_closinfo(Closinfo_val(Val_hp(hp)));
+
+    mlsize_t scannable_wosize = Scannable_wosize_hd(hd);
+
+    for (; i < scannable_wosize; i++) {
+      value *p = Op_val(Val_hp(hp)) + i;
+      int marked_ix = visit(f, fdata, loc, colors, p);
+      if (marked_ix != -1) {
+        struct caml_local_arena a = loc->arenas[marked_ix];
+        intnat newsp = (char*)*p - (a.base + a.length);
+        if (sp <= newsp) {
+          /* forwards pointer, common case */
+          CAMLassert(marked_ix <= arena_ix);
+        } else {
+          /* If backwards pointers are ever supported (e.g. local recursive
+             values), then this should reset sp and iterate to a fixpoint */
+          CAMLassert(marked_ix >= arena_ix);
+          caml_fatal_error("backwards local pointer");
+        }
+      }
+    }
+    sp += Bhsize_hd(hd);
+  }
+}
+
+
 Caml_inline void scan_stack_frames(
   scanning_action f, scanning_action_flags fflags, void* fdata,
-  struct stack_info* stack, value* gc_regs)
+  struct stack_info* stack, value* gc_regs,
+  struct caml_local_arenas* locals)
 {
   char * sp;
   uintnat retaddr;
   value * regs;
   frame_descr * d;
-  int n, ofs;
-  unsigned short * p;
   value *root;
   caml_frame_descrs fds = caml_get_frame_descrs();
+  /* does not change during marking */
+  struct global_heap_state colors = caml_global_heap_state;
 
   sp = (char*)stack->sp;
   regs = gc_regs;
@@ -250,14 +507,31 @@ next_chunk:
     CAMLassert(d);
     if (!frame_return_to_C(d)) {
       /* Scan the roots in this frame */
-      for (p = d->live_ofs, n = d->num_live; n > 0; n--, p++) {
-        ofs = *p;
-        if (ofs & 1) {
-          root = regs + (ofs >> 1);
-        } else {
-          root = (value *)(sp + ofs);
+      if (frame_is_long(d)) {
+        frame_descr_long *dl = frame_as_long(d);
+        uint32_t *p;
+        uint32_t n;
+        for (p = dl->live_ofs, n = dl->num_live; n > 0; n--, p++) {
+          uint32_t ofs = *p;
+          if (ofs & 1) {
+            root = regs + (ofs >> 1);
+          } else {
+            root = (value *)(sp + ofs);
+          }
+          visit (f, fdata, locals, colors, root);
         }
-        f (fdata, *root, root);
+      } else {
+        uint16_t *p;
+        uint16_t n;
+        for (p = d->live_ofs, n = d->num_live; n > 0; n--, p++) {
+          uint16_t ofs = *p;
+          if (ofs & 1) {
+            root = regs + (ofs >> 1);
+          } else {
+            root = (value *)(sp + ofs);
+          }
+          visit (f, fdata, locals, colors, root);
+        }
       }
       /* Move to next frame */
       sp += frame_size(d);
@@ -276,10 +550,11 @@ next_chunk:
 
 void caml_scan_stack(
   scanning_action f, scanning_action_flags fflags, void* fdata,
-  struct stack_info* stack, value* gc_regs)
+  struct stack_info* stack, value* gc_regs,
+  struct caml_local_arenas* locals)
 {
   while (stack != NULL) {
-    scan_stack_frames(f, fflags, fdata, stack, gc_regs);
+    scan_stack_frames(f, fflags, fdata, stack, gc_regs, locals);
 
     f(fdata, Stack_handle_value(stack), &Stack_handle_value(stack));
     f(fdata, Stack_handle_exception(stack), &Stack_handle_exception(stack));
@@ -296,7 +571,8 @@ void caml_maybe_expand_stack (void)
     (value*)stk->sp - Stack_base(stk);
   uintnat stack_needed =
     Stack_threshold / sizeof(value)
-    + 8 /* for words pushed by caml_start_program */;
+    + 10 /* for words pushed by caml_start_program */;
+  /* XXX does this "8" need updating?  Provisionally changed to 10 */
 
   if (stack_available < stack_needed)
     if (!caml_try_realloc_stack (stack_needed))
@@ -362,7 +638,8 @@ CAMLprim value caml_ensure_stack_capacity(value required_space)
 
 void caml_scan_stack(
   scanning_action f, scanning_action_flags fflags, void* fdata,
-  struct stack_info* stack, value* v_gc_regs)
+  struct stack_info* stack, value* v_gc_regs,
+  struct caml_local_arenas* unused)
 {
   value *low, *high, *sp;
 
@@ -391,6 +668,40 @@ void caml_scan_stack(
 
 #endif /* end BYTE_CODE */
 
+CAMLexport void caml_do_local_roots (
+  scanning_action f, scanning_action_flags fflags, void* fdata,
+  struct caml__roots_block *local_roots,
+  struct stack_info *current_stack,
+  value * v_gc_regs,
+  struct caml_local_arenas* locals)
+{
+  struct caml__roots_block *lr;
+  int i, j;
+  value* sp;
+
+  for (lr = local_roots; lr != NULL; lr = lr->next) {
+    for (i = 0; i < lr->ntables; i++){
+      for (j = 0; j < lr->nitems; j++){
+        sp = &(lr->tables[i][j]);
+        if (*sp != 0) {
+#ifdef NATIVE_CODE
+          visit (f, fdata, locals, caml_global_heap_state, sp);
+#else
+          f (fdata, *sp, sp);
+#endif
+        }
+      }
+    }
+  }
+  caml_scan_stack(f, fflags, fdata, current_stack, v_gc_regs, locals);
+#ifdef NATIVE_CODE
+  scan_local_allocations(f, fdata, locals);
+#else
+  CAMLassert(locals == NULL);
+#endif
+}
+
+
 /*
   Stack management.
 
@@ -400,19 +711,28 @@ void caml_scan_stack(
 #ifdef NATIVE_CODE
 /* Update absolute exception pointers for new stack*/
 void caml_rewrite_exception_stack(struct stack_info *old_stack,
-                                  value** exn_ptr, struct stack_info *new_stack)
+                                  value** exn_ptr, value** async_exn_ptr,
+                                  struct stack_info *new_stack)
 {
   fiber_debug_log("Old [%p, %p]", Stack_base(old_stack), Stack_high(old_stack));
   fiber_debug_log("New [%p, %p]", Stack_base(new_stack), Stack_high(new_stack));
   if(exn_ptr) {
+    CAMLassert(async_exn_ptr != NULL);
+
     fiber_debug_log ("*exn_ptr=%p", *exn_ptr);
+    fiber_debug_log ("*async_exn_ptr=%p", *async_exn_ptr);
 
     while (Stack_base(old_stack) < *exn_ptr &&
            *exn_ptr <= Stack_high(old_stack)) {
+      int must_update_async_exn_ptr = *exn_ptr == *async_exn_ptr;
 #ifdef DEBUG
       value* old_val = *exn_ptr;
 #endif
       *exn_ptr = Stack_high(new_stack) - (Stack_high(old_stack) - *exn_ptr);
+
+      if (must_update_async_exn_ptr) *async_exn_ptr = *exn_ptr;
+      fiber_debug_log ("must_update_async_exn_ptr=%d",
+        must_update_async_exn_ptr);
 
       fiber_debug_log ("Rewriting %p to %p", old_val, *exn_ptr);
 
@@ -424,10 +744,12 @@ void caml_rewrite_exception_stack(struct stack_info *old_stack,
     fiber_debug_log ("finished with *exn_ptr=%p", *exn_ptr);
   } else {
     fiber_debug_log ("exn_ptr is null");
+    CAMLassert(async_exn_ptr == NULL);
   }
 }
 
 #ifdef WITH_FRAME_POINTERS
+#if defined(STACK_CHECKS_ENABLED)
 /* Update absolute base pointers for new stack */
 static void rewrite_frame_pointers(struct stack_info *old_stack,
     struct stack_info *new_stack)
@@ -482,9 +804,14 @@ static void rewrite_frame_pointers(struct stack_info *old_stack,
 }
 #endif
 #endif
+#endif
 
 int caml_try_realloc_stack(asize_t required_space)
 {
+#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+  (void) required_space;
+  abort();
+#else
   struct stack_info *old_stack, *new_stack;
   asize_t wsize;
   int stack_used;
@@ -521,8 +848,13 @@ int caml_try_realloc_stack(asize_t required_space)
   new_stack->sp = Stack_high(new_stack) - stack_used;
   Stack_parent(new_stack) = Stack_parent(old_stack);
 #ifdef NATIVE_CODE
+  /* There's no need to do another pass rewriting from
+     Caml_state->async_exn_handler because every asynchronous exception trap
+     frame is also a normal exception trap frame.  However
+     Caml_state->async_exn_handler itself must be updated. */
   caml_rewrite_exception_stack(old_stack, (value**)&Caml_state->exn_handler,
-                              new_stack);
+                               (value**) &Caml_state->async_exn_handler,
+                               new_stack);
 #ifdef WITH_FRAME_POINTERS
   rewrite_frame_pointers(old_stack, new_stack);
 #endif
@@ -539,12 +871,27 @@ int caml_try_realloc_stack(asize_t required_space)
         link->sp = (void*)((char*)Stack_high(new_stack) -
                            ((char*)Stack_high(old_stack) - (char*)link->sp));
       }
+      if (link->async_exn_handler >= (char*) Stack_base(old_stack)
+          && link->async_exn_handler < (char*) Stack_high(old_stack)) {
+        /* The asynchronous exception trap frame pointed to by the current
+           c_stack_link lies on the OCaml stack being reallocated.  Repoint the
+           trap frame to the new stack. */
+        fiber_debug_log("Rewriting link->async_exn_handler %p...",
+          link->async_exn_handler);
+        link->async_exn_handler +=
+          (char*) Stack_high(new_stack) - (char*) Stack_high(old_stack);
+        fiber_debug_log("...to %p", link->async_exn_handler);
+      } else {
+        fiber_debug_log("Not touching link->async_exn_handler %p",
+          link->async_exn_handler);
+      }
     }
   }
 
   caml_free_stack(old_stack);
   Caml_state->current_stack = new_stack;
   return 1;
+#endif
 }
 
 struct stack_info* caml_alloc_main_stack (uintnat init_wsize)
@@ -562,6 +909,16 @@ void caml_free_stack (struct stack_info* stack)
 
   CAMLassert(stack->magic == 42);
   CAMLassert(cache != NULL);
+
+#ifndef USE_MMAP_MAP_STACK
+#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+  int page_size = getpagesize();
+  mprotect((void *) Protected_stack_page(stack, page_size),
+           page_size,
+           PROT_READ | PROT_WRITE);
+#endif
+#endif
+
   if (stack->cache_bucket != -1) {
     stack->exception_ptr =
       (void*)(cache[stack->cache_bucket]);
@@ -571,13 +928,17 @@ void caml_free_stack (struct stack_info* stack)
            (Stack_high(stack)-Stack_base(stack))*sizeof(value));
 #endif
   } else {
-#ifdef DEBUG
+#if defined(DEBUG) && defined(STACK_CHECKS_ENABLED)
     memset(stack, 0x42, (char*)stack->handler - (char*)stack);
 #endif
 #ifdef USE_MMAP_MAP_STACK
     munmap(stack, stack->size);
 #else
+#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+    munmap(stack, stack->size);
+#else
     caml_stat_free(stack);
+#endif
 #endif
   }
 }
@@ -604,9 +965,9 @@ CAMLprim value caml_continuation_use_noexc (value cont)
 
   /* this forms a barrier between execution and any other domains
      that might be marking this continuation */
-  if (!Is_young(cont) ) caml_darken_cont(cont);
+  if (!Is_young(cont) && caml_marking_started())
+    caml_darken_cont(cont);
 
-  /* at this stage the stack is assured to be marked */
   v = Field(cont, 0);
 
   if (caml_domain_alone()) {

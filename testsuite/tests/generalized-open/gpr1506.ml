@@ -1,5 +1,5 @@
 (* TEST
-   * expect
+ expect;
 *)
 
 type t = A
@@ -12,7 +12,7 @@ module M = struct
     type t = B of t * t' | C
 end
 [%%expect{|
-module M : sig type t = B of t * t/2 | C end
+module M : sig type t = B of t/1 * t/2 | C end
 |}]
 
 (* test *)

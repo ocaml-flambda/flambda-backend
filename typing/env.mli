@@ -18,11 +18,6 @@
 open Types
 open Misc
 
-val register_uid : Uid.t -> loc:Location.t -> attributes:Parsetree.attribute list -> unit
-
-val get_uid_to_loc_tbl : unit -> Location.t Types.Uid.Tbl.t
-val get_uid_to_attributes_tbl : unit ->  Parsetree.attribute list Types.Uid.Tbl.t
-
 type value_unbound_reason =
   | Val_unbound_instance_variable
   | Val_unbound_self
@@ -34,7 +29,7 @@ type module_unbound_reason =
 
 type summary =
     Env_empty
-  | Env_value of summary * Ident.t * value_description * Mode.Value.t
+  | Env_value of summary * Ident.t * value_description * Mode.Value.l
   | Env_type of summary * Ident.t * type_declaration
   | Env_extension of summary * Ident.t * extension_constructor
   | Env_module of summary * Ident.t * module_presence * module_declaration
@@ -88,6 +83,10 @@ val without_cmis: ('a -> 'b) -> 'a -> 'b
    allow opening cmis during its execution *)
 
 (* Lookup by paths *)
+
+val find_value_no_locks_exn: Ident.t -> t ->
+  Subst.Lazy.value_description * Mode.Value.l
+(** Find a value by an [Ident.t]. Raises if encounters any locks. *)
 
 val find_value: Path.t -> t -> Subst.Lazy.value_description
 val find_type: Path.t -> t -> type_declaration
@@ -198,9 +197,11 @@ type shared_context =
   | Probe
   | Lazy
 
-type closure_error =
-  | Locality of closure_context option
-  | Linearity
+(** Items whose accesses are affected by locks *)
+type lock_item =
+  | Value
+  | Module
+  | Class
 
 type lookup_error =
   | Unbound_value of Longident.t * unbound_value_hint
@@ -223,10 +224,10 @@ type lookup_error =
   | Generative_used_as_applicative of Longident.t
   | Illegal_reference_to_recursive_module
   | Cannot_scrape_alias of Longident.t * Path.t
-  | Local_value_escaping of Longident.t * escaping_context
-  | Once_value_used_in of Longident.t * shared_context
-  | Value_used_in_closure of Longident.t * closure_error
-  | Local_value_used_in_exclave of Longident.t
+  | Local_value_escaping of lock_item * Longident.t * escaping_context
+  | Once_value_used_in of lock_item * Longident.t * shared_context
+  | Value_used_in_closure of lock_item * Longident.t * Mode.Value.Comonadic.error * closure_context option
+  | Local_value_used_in_exclave of lock_item * Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
 
 val lookup_error: Location.t -> t -> lookup_error -> 'a
@@ -243,34 +244,34 @@ val lookup_error: Location.t -> t -> lookup_error -> 'a
    [lookup_foo ~use:true] exactly one time -- otherwise warnings may be
    emitted the wrong number of times. *)
 
-(** The returned shared_context looks strange, but useful for error printing
-    when the returned uniqueness mode is too high because of some linearity_lock
-    during lookup, and fail to satisfy expected_mode in the caller.
+type actual_mode = {
+  mode : Mode.Value.l;
+  context : shared_context option
+  (** Explains why [mode] is high. *)
+}
 
-    TODO: A better approach is passing down the expected mode to this function
-    as argument, so that sub-moding error is triggered at the place where error
-    hints are immediately available. *)
 val lookup_value:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
-  Path.t * value_description * Mode.Value.t * shared_context option
+  Path.t * value_description * actual_mode
 val lookup_type:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * type_declaration
 val lookup_module:
-  ?use:bool -> loc:Location.t -> Longident.t -> t ->
-  Path.t * module_declaration
+  ?use:bool -> ?lock:bool -> loc:Location.t -> Longident.t -> t ->
+  Path.t * module_declaration * Mode.Value.l
 val lookup_modtype:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * modtype_declaration
 val lookup_class:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
-  Path.t * class_declaration
+  Path.t * class_declaration * Mode.Value.l
 val lookup_cltype:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * class_type_declaration
 
 val lookup_module_path:
-  ?use:bool -> loc:Location.t -> load:bool -> Longident.t -> t -> Path.t
+  ?use:bool -> ?lock:bool -> loc:Location.t -> load:bool -> Longident.t -> t ->
+    Path.t * Mode.Value.l
 val lookup_modtype_path:
   ?use:bool -> loc:Location.t -> Longident.t -> t -> Path.t
 
@@ -347,14 +348,16 @@ val make_copy_of_types: t -> (t -> t)
 (* Insertion by identifier *)
 
 val add_value_lazy:
-    ?check:(string -> Warnings.t) -> ?mode:(Mode.Value.t) ->
+    ?check:(string -> Warnings.t) -> mode:(Mode.allowed * 'r) Mode.Value.t ->
     Ident.t -> Subst.Lazy.value_description -> t -> t
 val add_value:
-    ?check:(string -> Warnings.t) -> ?mode:(Mode.Value.t) ->
+    ?check:(string -> Warnings.t) -> mode:(Mode.allowed * 'r) Mode.Value.t ->
     Ident.t -> Types.value_description -> t -> t
-val add_type: check:bool -> Ident.t -> type_declaration -> t -> t
+val add_type:
+    check:bool -> ?shape:Shape.t -> Ident.t -> type_declaration -> t -> t
 val add_extension:
-  check:bool -> rebind:bool -> Ident.t -> extension_constructor -> t -> t
+  check:bool -> ?shape:Shape.t -> rebind:bool -> Ident.t ->
+  extension_constructor -> t -> t
 val add_module: ?arg:bool -> ?shape:Shape.t ->
   Ident.t -> module_presence -> module_type -> t -> t
 val add_module_lazy: update_summary:bool ->
@@ -410,7 +413,7 @@ val remove_last_open: Path.t -> t -> t option
 (* Insertion by name *)
 
 val enter_value:
-    ?check:(string -> Warnings.t) ->
+    ?check:(string -> Warnings.t) -> mode:(Mode.allowed * 'r) Mode.Value.t ->
     string -> value_description -> t -> Ident.t * t
 val enter_type: scope:int -> string -> type_declaration -> t -> Ident.t * t
 val enter_extension:
@@ -451,8 +454,8 @@ val add_escape_lock : escaping_context -> t -> t
     `unique` variables beyond the lock can still be accessed, but will be
     relaxed to `shared` *)
 val add_share_lock : shared_context -> t -> t
-val add_closure_lock : ?closure_context:closure_context -> Mode.Locality.t
-  -> Mode.Linearity.t -> t -> t
+val add_closure_lock : ?closure_context:closure_context
+  -> ('l * Mode.allowed) Mode.Value.Comonadic.t -> t -> t
 val add_region_lock : t -> t
 val add_exclave_lock : t -> t
 val add_unboxed_lock : t -> t
@@ -469,20 +472,22 @@ val get_unit_name: unit -> Compilation_unit.t option
 
 (* Read, save a signature to/from a file *)
 val read_signature:
-  Compilation_unit.t -> filepath -> add_binding:bool -> signature
+  Compilation_unit.Name.t -> filepath -> add_binding:bool -> signature
         (* Arguments: module name, file name, [add_binding] flag.
            Results: signature. If [add_binding] is true, creates an entry for
            the module in the environment. *)
 val save_signature:
-  alerts:alerts -> signature -> Compilation_unit.t -> filepath
-  -> Cmi_format.cmi_infos_lazy
-        (* Arguments: signature, module name, file name. *)
+  alerts:alerts -> signature -> Compilation_unit.Name.t -> Cmi_format.kind
+  -> filepath -> Cmi_format.cmi_infos_lazy
+        (* Arguments: signature, module name, module kind, file name. *)
 val save_signature_with_imports:
-  alerts:alerts -> signature -> Compilation_unit.t -> filepath
-  -> Import_info.t array
-  -> Cmi_format.cmi_infos_lazy
-        (* Arguments: signature, module name, file name,
-           imported units with their CRCs. *)
+  alerts:alerts -> signature -> Compilation_unit.Name.t -> Cmi_format.kind
+  -> filepath -> Import_info.t array -> Cmi_format.cmi_infos_lazy
+        (* Arguments: signature, module name, module kind,
+           file name, imported units with their CRCs. *)
+
+(* Register a module as a parameter to this unit. *)
+val register_parameter_import: Compilation_unit.Name.t -> unit
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: Compilation_unit.Name.t -> Digest.t
@@ -498,6 +503,15 @@ val is_imported_opaque: Compilation_unit.Name.t -> bool
 
 (* [register_import_as_opaque md] registers [md] as an opaque imported module *)
 val register_import_as_opaque: Compilation_unit.Name.t -> unit
+
+(* [is_parameter_unit md] returns true if [md] was compiled with
+   -as-parameter *)
+val is_parameter_unit: Compilation_unit.Name.t -> bool
+
+(* [implemented_parameter md] is the argument given to -as-argument-for when
+   [md] was compiled *)
+val implemented_parameter:
+  Compilation_unit.Name.t -> Compilation_unit.Name.t option
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)
@@ -539,8 +553,8 @@ val set_type_used_callback:
 val check_functor_application:
   (errors:bool -> loc:Location.t ->
    lid_whole_app:Longident.t ->
-   f0_path:Path.t -> args:(Path.t * Types.module_type) list ->
-   arg_path:Path.t -> arg_mty:Types.module_type ->
+   f0_path:Path.t -> args:(Path.t * Types.module_type * Mode.Value.l) list ->
+   arg_path:Path.t -> arg_mty:Types.module_type -> arg_mode:Mode.Value.l ->
    param_mty:Types.module_type ->
    t -> unit) ref
 (* Forward declaration to break mutual recursion with Typemod. *)
@@ -567,8 +581,8 @@ val print_type_expr: (Format.formatter -> Types.type_expr -> unit) ref
 (** Folds *)
 
 val fold_values:
-  (string -> Path.t -> Subst.Lazy.value_description -> 'a -> 'a) ->
-  Longident.t option -> t -> 'a -> 'a
+  (string -> Path.t -> Subst.Lazy.value_description -> Mode.Value.l -> 'a -> 'a)
+  -> Longident.t option -> t -> 'a -> 'a
 val fold_types:
   (string -> Path.t -> type_declaration -> 'a -> 'a) ->
   Longident.t option -> t -> 'a -> 'a
@@ -605,3 +619,5 @@ type address_head =
   | AHlocal of Ident.t
 
 val address_head : address -> address_head
+
+val sharedness_hint : Format.formatter -> shared_context -> unit

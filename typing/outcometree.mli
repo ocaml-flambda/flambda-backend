@@ -44,6 +44,7 @@ type out_value =
   | Oval_constr of out_ident * out_value list
   | Oval_ellipsis
   | Oval_float of float
+  | Oval_float32 of Obj.t (* We cannot use the [float32] type in the compiler. *)
   | Oval_int of int
   | Oval_int32 of int32
   | Oval_int64 of int64
@@ -53,44 +54,92 @@ type out_value =
   | Oval_record of (out_ident * out_value) list
   | Oval_string of string * int * out_string (* string, size-to-print, kind *)
   | Oval_stuff of string
-  | Oval_tuple of out_value list
+  | Oval_tuple of (string option * out_value) list
   | Oval_variant of string * out_value option
 
-type out_jkind =
-  | Olay_const of Jane_asttypes.const_jkind
-  | Olay_var of string
 
-type out_type_param =
+type out_modality_legacy = Ogf_global
+
+type out_modality_new = string
+
+type out_modality =
+  | Ogf_legacy of out_modality_legacy
+  | Ogf_new of out_modality_new
+
+type out_mutability =
+  | Om_immutable
+  | Om_mutable of string option
+
+
+
+(** This definition avoids a cyclic dependency between Outcometree and Types. *)
+type arg_label =
+  | Nolabel
+  | Labelled of string
+  | Optional of string
+  | Position of string
+
+type out_mode_legacy =
+  | Omd_local
+  | Omd_unique
+  | Omd_once
+
+type out_mode_new = string
+
+type out_mode =
+  | Omd_legacy of out_mode_legacy
+  | Omd_new of out_mode_new
+
+type out_arg_mode = out_mode list
+
+type out_ret_mode =
+  | Orm_not_arrow of out_mode list
+  (** The ret type is not arrow, with modes annotating. *)
+  | Orm_no_parens
+  (** The ret type is arrow, and no need to print parens around the arrow *)
+  | Orm_parens of out_mode list
+  (** The ret type is arrow, and need to print parens around the arrow, with
+      modes annotating. *)
+
+(** Represents a user-written jkind annotation *)
+type out_jkind_user =
+  | Ojkind_user_default
+  | Ojkind_user_abbreviation of string
+  | Ojkind_user_mod of out_jkind_user * string list
+  | Ojkind_user_with of out_jkind_user * out_type
+  | Ojkind_user_kind_of of out_type
+
+and out_jkind_const = { base : string; modal_bounds : string list }
+
+and out_jkind =
+  | Ojkind_user of out_jkind_user
+  | Ojkind_const of out_jkind_const
+  | Ojkind_var of string
+
+and out_type_param =
   { oparam_name : string;
     oparam_variance : Asttypes.variance;
     oparam_injectivity : Asttypes.injectivity;
     oparam_jkind : out_jkind option }
 
-type out_mutable_or_global =
-  | Ogom_mutable
-  | Ogom_global
-  | Ogom_immutable
-
-type out_global =
-  | Ogf_global
-  | Ogf_unrestricted
-
 (* should be empty if all the jkind annotations are missing *)
-type out_vars_jkinds = (string * out_jkind option) list
+and out_vars_jkinds = (string * out_jkind option) list
 
-type out_type =
+and out_type =
   | Otyp_abstract
   | Otyp_open
   | Otyp_alias of {non_gen:bool; aliased:out_type; alias:string}
-  | Otyp_arrow of string * out_alloc_mode * out_type * out_alloc_mode * out_type
+  | Otyp_arrow of arg_label * out_arg_mode * out_type * out_ret_mode * out_type
+  (* INVARIANT: the [out_ret_mode] is [Orm_not_arrow] unless the RHS [out_type]
+    is [Otyp_arrow] *)
   | Otyp_class of out_ident * out_type list
   | Otyp_constr of out_ident * out_type list
   | Otyp_manifest of out_type * out_type
   | Otyp_object of { fields: (string * out_type) list; open_row:bool}
-  | Otyp_record of (string * out_mutable_or_global * out_type) list
+  | Otyp_record of (string * out_mutability * out_type * out_modality list) list
   | Otyp_stuff of string
   | Otyp_sum of out_constructor list
-  | Otyp_tuple of out_type list
+  | Otyp_tuple of (string option * out_type) list
   | Otyp_var of bool * string
   | Otyp_variant of out_variant * bool * (string list) option
   | Otyp_poly of out_vars_jkinds * out_type
@@ -102,7 +151,7 @@ type out_type =
 
 and out_constructor = {
   ocstr_name: string;
-  ocstr_args: (out_type * out_global) list;
+  ocstr_args: (out_type * out_modality list) list;
   ocstr_return_type: (out_vars_jkinds * out_type) option;
 }
 
@@ -110,29 +159,9 @@ and out_variant =
   | Ovar_fields of (string * bool * out_type list) list
   | Ovar_typ of out_type
 
-and out_locality =
-  | Olm_local
-  | Olm_global
-  | Olm_unknown
-
-and out_uniqueness =
-  | Oum_unique
-  | Oum_shared
-  | Oum_unknown
-
-and out_linearity =
-  | Olinm_many
-  | Olinm_once
-  | Olinm_unknown
-
-and out_alloc_mode =
-  { oam_locality : out_locality;
-    oam_uniqueness : out_uniqueness;
-    oam_linearity : out_linearity }
-
 type out_class_type =
   | Octy_constr of out_ident * out_type list
-  | Octy_arrow of string * out_type * out_class_type
+  | Octy_arrow of arg_label * out_type * out_class_type
   | Octy_signature of out_type option * out_class_sig_item list
 and out_class_sig_item =
   | Ocsg_constraint of out_type * out_type
@@ -176,7 +205,7 @@ and out_extension_constructor =
   { oext_name: string;
     oext_type_name: string;
     oext_type_params: string list;
-    oext_args: (out_type * out_global) list;
+    oext_args: (out_type * out_modality list) list;
     oext_ret_type: (out_vars_jkinds * out_type) option;
     oext_private: Asttypes.private_flag }
 and out_type_extension =
@@ -187,6 +216,8 @@ and out_type_extension =
 and out_val_decl =
   { oval_name: string;
     oval_type: out_type;
+    oval_modalities : out_modality_new list;
+    (* Modalities on value descriptions are always new, even for [global_] *)
     oval_prims: string list;
     oval_attributes: out_attribute list }
 and out_rec_status =

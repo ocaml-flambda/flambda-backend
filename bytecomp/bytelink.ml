@@ -184,7 +184,7 @@ let scan_file obj_name tolink =
 
 (* Consistency check between interfaces *)
 
-module Consistbl = Consistbl.Make (CU.Name) (Compilation_unit)
+module Consistbl = Consistbl.Make (CU.Name) (Import_info.Intf.Nonalias.Kind)
 
 let crc_interfaces = Consistbl.create ()
 let interfaces = ref ([] : CU.Name.t list)
@@ -200,12 +200,12 @@ let check_consistency file_name cu =
     Array.iter
       (fun import ->
         let name = Import_info.name import in
-        let crco = Import_info.crc_with_unit import in
+        let info = Import_info.Intf.info import in
         interfaces := name :: !interfaces;
-        match crco with
+        match info with
           None -> ()
-        | Some (full_name, crc) ->
-            Consistbl.check crc_interfaces name full_name crc file_name)
+        | Some (kind, crc) ->
+            Consistbl.check crc_interfaces name kind crc file_name)
       cu.cu_imports
   with Consistbl.Inconsistency {
       unit_name = name;
@@ -220,7 +220,7 @@ let check_consistency file_name cu =
 let extract_crc_interfaces () =
   Consistbl.extract !interfaces crc_interfaces
   |> List.map (fun (name, crc_with_unit) ->
-       Import_info.create name ~crc_with_unit)
+       Import_info.Intf.create name crc_with_unit)
 
 let clear_crc_interfaces () =
   Consistbl.clear crc_interfaces;
@@ -376,7 +376,7 @@ let link_bytecode ?final_name tolink exec_name standalone =
        if check_dlls then begin
          (* Initialize the DLL machinery *)
          Dll.init_compile !Clflags.no_std_include;
-         Dll.add_path (Load_path.get_paths ());
+         Dll.add_path (Load_path.get_path_list ());
          try Dll.open_dlls Dll.For_checking sharedobjs
          with Failure reason -> raise(Error(Cannot_open_dll reason))
        end;

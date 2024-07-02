@@ -1,9 +1,19 @@
 (* TEST
-  * native
-    reference = "${test_source_directory}/get_header.opt.reference"
-  * bytecode
-    reference = "${test_source_directory}/get_header.byte.reference"
+ {
+   stack-allocation;
+   reference = "${test_source_directory}/get_header.stack.reference";
+   native;
+ }{
+   no-stack-allocation;
+   reference = "${test_source_directory}/get_header.heap.reference";
+   native;
+ }
 *)
+
+(* We're likely to remove %get_header in favour of calls to
+   caml_obj_is_stack under runtime5 (since testing a block's colour isn't
+   sufficient to check for local allocations) so this doesn't check for local
+   allocations any more. *)
 
 external repr : ('a[@local_opt]) -> (Obj.t[@local_opt]) = "%identity"
 external get_header_unsafe : (Obj.t[@local_opt]) -> nativeint = "%get_header"
@@ -49,31 +59,15 @@ let print_maybe_header ppf header =
   | None -> Format.fprintf ppf "None"
   | Some header -> Format.fprintf ppf "Some(%a)" print_header header
 
-let is_local repr =
-  match get_header_parsed repr with
-  | None -> false
-  | Some {color; _} -> color = 2
-
 (* immediate *)
 let () =
   let x = 42 in
   let rp = repr x in
-  Format.printf "%a %a\n" print_maybe_header (get_header_parsed rp)
-    Format.pp_print_bool (is_local rp)
+  Format.printf "%a\n" print_maybe_header (get_header_parsed rp)
 
 (* global*)
 let () =
   let s = "hello" in
   let _r = ref s in
   let rp = repr s in
-  Format.printf "%a %a\n" print_maybe_header (get_header_parsed rp)
-    Format.pp_print_bool (is_local rp)
-
-(* local *)
-let foo x =
-  let local_ s = ref x in
-  let rp = repr s in
-  Format.printf "%a %a\n" print_maybe_header (get_header_parsed rp)
-    Format.pp_print_bool (is_local rp)
-
-let () = foo 42
+  Format.printf "%a\n" print_maybe_header (get_header_parsed rp)

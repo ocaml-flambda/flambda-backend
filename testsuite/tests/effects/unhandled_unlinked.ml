@@ -1,9 +1,11 @@
 (* TEST
-   * skip
-
-     exit_status= "2"
-     * skip
-     reason = "OCaml 5 only"
+ {
+   exit_status = "2";
+   skip;
+ }{
+   reason = "CR ocaml 5 effects: re-enable this test";
+   skip;
+ }
 *)
 
 open Effect

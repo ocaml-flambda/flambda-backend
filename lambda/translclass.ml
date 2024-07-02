@@ -37,12 +37,12 @@ let layout_meth = layout_any_value
 let layout_tables = Lambda.Pvalue Pgenval
 
 
-let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) return_layout params body =
+let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) ?(ret_mode=alloc_heap) return_layout params body =
   if params = [] then body else
   match kind, body with
   | Curried {nlocal=0},
     Lfunction {kind = Curried _ as kind; params = params';
-               body = body'; attr; loc}
+               body = body'; attr; loc; mode = Alloc_heap; ret_mode; region}
     when List.length params + List.length params' <= Lambda.max_arity() ->
       lfunction ~kind ~params:(params @ params')
                 ~return:return_layout
@@ -50,6 +50,7 @@ let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) return_layout params bod
                 ~attr
                 ~loc
                 ~mode:alloc_heap
+                ~ret_mode
                 ~region
   |  _ ->
       lfunction ~kind ~params ~return:return_layout
@@ -57,6 +58,7 @@ let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) return_layout params bod
                 ~attr:default_function_attribute
                 ~loc:Loc_unknown
                 ~mode:alloc_heap
+                ~ret_mode
                 ~region
 
 let lapply ap =
@@ -226,6 +228,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
                    ~loc:(of_location ~scopes pat.pat_loc)
                    ~body
                    ~mode:alloc_heap
+                   ~ret_mode:alloc_heap
                    ~region:true
        in
        begin match obj_init with
@@ -460,11 +463,12 @@ let rec build_class_lets ~scopes cl =
   match cl.cl_desc with
     Tcl_let (rec_flag, defs, _vals, cl') ->
       let env, wrap = build_class_lets ~scopes cl' in
-      (env, fun return_layout x ->
-          Translcore.transl_let ~scopes ~return_layout rec_flag defs
-            (wrap return_layout x))
+      (env, fun return_layout lam_and_kind ->
+          let lam, rkind = wrap return_layout lam_and_kind in
+          Translcore.transl_let ~scopes ~return_layout rec_flag defs lam,
+          rkind)
   | _ ->
-      (cl.cl_env, fun _ x -> x)
+      (cl.cl_env, fun _ lam_and_kind -> lam_and_kind)
 
 let rec get_class_meths cl =
   match cl.cl_desc with
@@ -514,6 +518,7 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
                   ~loc:(of_location ~scopes pat.pat_loc)
                   ~body
                   ~mode:alloc_heap
+                  ~ret_mode:alloc_heap
                   ~region:true
       in
       (path, path_lam,
@@ -739,8 +744,8 @@ let free_methods l =
     | Lmutlet(_k, id, _arg, _body) ->
         fv := Ident.Set.remove id !fv
     | Lletrec(decl, _body) ->
-        List.iter (fun (id, _exp) -> fv := Ident.Set.remove id !fv) decl
-    | Lstaticcatch(_e1, (_,vars), _e2, _kind) ->
+        List.iter (fun { id } -> fv := Ident.Set.remove id !fv) decl
+    | Lstaticcatch(_e1, (_,vars), _e2, _, _kind) ->
         List.iter (fun (id, _) -> fv := Ident.Set.remove id !fv) vars
     | Ltrywith(_e1, exn, _e2, _k) ->
         fv := Ident.Set.remove exn !fv
@@ -754,9 +759,10 @@ let free_methods l =
   in free l; !fv
 
 let transl_class ~scopes ids cl_id pub_meths cl vflag =
+  let open Value_rec_types in
   (* First check if it is not only a rebind *)
   let rebind = transl_class_rebind ~scopes cl vflag in
-  if rebind <> lambda_unit then rebind else
+  if rebind <> lambda_unit then rebind, Dynamic else
 
   (* Prepare for heavy environment handling *)
   let scopes = enter_class_definition ~scopes cl_id in
@@ -792,7 +798,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   let new_ids_meths = ref [] in
   let no_env_update _ _ env = env in
   let msubst arr = function
-      Lfunction {kind = Curried _ as kind; region;
+      Lfunction {kind = Curried _ as kind; region; ret_mode;
                  params = self :: args; return; body} ->
         let env = Ident.create_local "env" in
         let body' =
@@ -804,7 +810,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
           if not arr || !Clflags.debug then raise Not_found;
           builtin_meths [self.name] env env2 (lfunction return args body')
         with Not_found ->
-          [lfunction ~kind ~region return (self :: args)
+          [lfunction ~kind ~region ~ret_mode return (self :: args)
              (if not (Ident.Set.mem env (free_variables body')) then body' else
               Llet(Alias, layout_block, env,
                    Lprim(Pfield_computed Reads_vary,
@@ -865,23 +871,31 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                    mkappl (Lvar obj_init, [lambda_unit], layout_function)))
   in
   (* Simplest case: an object defined at toplevel (ids=[]) *)
-  if top && ids = [] then llets layout_table (ltable cla (ldirect obj_init)) else
+  if top && ids = [] then llets layout_table (ltable cla (ldirect obj_init), Dynamic) else
 
   let concrete = (vflag = Concrete)
-  and lclass lam =
-    let cl_init = llets layout_function (Lambda.lfunction
-                           ~kind:(Curried {nlocal=0})
-                           ~attr:default_function_attribute
-                           ~loc:Loc_unknown
-                           ~return:layout_function
-                           ~mode:alloc_heap
-                           ~region:true
-                           ~params:[lparam cla layout_table] ~body:cl_init) in
-    Llet(Strict, layout_function, class_init, cl_init, lam (free_variables cl_init))
+  and lclass mk_lam_and_kind =
+    let cl_init, _ =
+      llets layout_function
+        (Lambda.lfunction
+           ~kind:(Curried {nlocal=0})
+           ~attr:default_function_attribute
+           ~loc:Loc_unknown
+           ~return:layout_function
+           ~mode:alloc_heap
+           ~ret_mode:alloc_heap
+           ~region:true
+           ~params:[lparam cla layout_table]
+           ~body:cl_init,
+         Dynamic (* Placeholder, real kind is computed in [lbody] below *))
+    in
+    let lam, rkind = mk_lam_and_kind (free_variables cl_init) in
+    Llet(Strict, layout_function, class_init, cl_init, lam), rkind
   and lbody fv =
     if List.for_all (fun id -> not (Ident.Set.mem id fv)) ids then
       mkappl (oo_prim "make_class",[transl_meth_list pub_meths;
-                                    Lvar class_init], layout_block)
+                                    Lvar class_init], layout_block),
+      Dynamic
     else
       ltable table (
       Llet(
@@ -891,7 +905,8 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
       Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
             [mkappl (Lvar env_init, [lambda_unit], layout_obj);
              Lvar class_init; Lvar env_init; lambda_unit],
-            Loc_unknown))))
+            Loc_unknown)))),
+      Static
   and lbody_virt lenvs =
     Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
           [lambda_unit; Lambda.lfunction
@@ -900,10 +915,12 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                           ~loc:Loc_unknown
                           ~return:layout_function
                           ~mode:alloc_heap
+                          ~ret_mode:alloc_heap
                           ~region:true
                           ~params:[lparam cla layout_table] ~body:cl_init;
            lambda_unit; lenvs],
-         Loc_unknown)
+         Loc_unknown),
+    Static
   in
   (* Still easy: a class defined at toplevel *)
   if top && concrete then lclass lbody else
@@ -931,12 +948,13 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
       (fun (_, path_lam, _) -> Lprim(class_field 3, [path_lam], Loc_unknown))
       (List.rev inh_init)
   in
-  let make_envs lam =
+  let make_envs (lam, rkind) =
     Llet(StrictOpt, layout_block, envs,
          (if linh_envs = [] then lenv else
          Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
                lenv :: linh_envs, Loc_unknown)),
-         lam)
+         lam),
+    rkind
   and def_ids cla lam =
     Llet(StrictOpt, layout_int, env2,
          mkappl (oo_prim "new_variable", [Lvar cla; transl_label ""], layout_int),
@@ -960,15 +978,9 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                    ~attr:default_function_attribute
                    ~loc:Loc_unknown
                    ~mode:alloc_heap
+                   ~ret_mode:alloc_heap
                    ~region:true
                    ~body:(def_ids cla cl_init), lam)
-  and lcache lam =
-    if inh_keys = [] then Llet(Alias, layout_tables, cached, Lvar tables, lam) else
-    Llet(Strict, layout_tables, cached,
-         mkappl (oo_prim "lookup_tables",
-                [Lvar tables; Lprim(Pmakearray(Paddrarray, Immutable, alloc_heap),
-                                    inh_keys, Loc_unknown)], layout_tables),
-         lam)
   and lset cached i lam =
     Lprim(Psetfield(i, Pointer, Assignment modify_heap),
           [Lvar cached; lam], Loc_unknown)
@@ -985,6 +997,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
          ~attr:default_function_attribute
          ~loc:Loc_unknown
          ~mode:alloc_heap
+         ~ret_mode:alloc_heap
          ~region:true
          ~return:layout_function
          ~params:[lparam cla layout_table]
@@ -1004,12 +1017,27 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
       lupdate_cache
     else
       Lifthenelse(lfield cached 0, lambda_unit, lupdate_cache, layout_unit) in
+  let lcache (lam, rkind) =
+    let lam = Lsequence (lcheck_cache, lam) in
+    let lam =
+      if inh_keys = []
+      then Llet(Alias, layout_tables, cached, Lvar tables, lam)
+      else
+        Llet(Strict, layout_tables, cached,
+             mkappl (oo_prim "lookup_tables",
+                     [Lvar tables; Lprim(Pmakearray(Paddrarray, Immutable, alloc_heap),
+                                         inh_keys, Loc_unknown)], layout_tables),
+             lam)
+    in
+    lam, rkind
+  in
   llets layout_block (
   lcache (
-  Lsequence(lcheck_cache,
   make_envs (
-  if ids = [] then mkappl (lfield cached 0, [lenvs], layout_obj) else
-  Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+  if ids = []
+  then mkappl (lfield cached 0, [lenvs], layout_obj), Dynamic
+  else
+    Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
         (if concrete then
           [mkappl (lfield cached 0, [lenvs], layout_obj);
            lfield cached 1;
@@ -1017,7 +1045,8 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
            lenvs]
         else [lambda_unit; lfield cached 0; lambda_unit; lenvs]),
         Loc_unknown
-       )))))
+       ),
+    Static)))
 
 (* Wrapper for class compilation *)
 (*
@@ -1030,11 +1059,12 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
 *)
 
 let transl_class ~scopes ids id pub_meths cl vf =
-  oo_wrap cl.cl_env false (transl_class ~scopes ids id pub_meths cl) vf
+  oo_wrap_gen cl.cl_env false (transl_class ~scopes ids id pub_meths cl) vf
 
 let () =
   transl_object := (fun ~scopes id meths cl ->
-    transl_class ~scopes [] id meths cl Concrete)
+    let lam, _rkind = transl_class ~scopes [] id meths cl Concrete in
+    lam)
 
 (* Error report *)
 

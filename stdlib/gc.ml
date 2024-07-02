@@ -1,4 +1,4 @@
-# 1 "gc.ml"
+# 2 "gc.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -67,9 +67,9 @@ external full_major : unit -> unit = "caml_gc_full_major"
 external compact : unit -> unit = "caml_gc_compaction"
 external get_minor_free : unit -> int = "caml_get_minor_free"
 
-(* CR ocaml 5 runtime: These functions are no-ops upstream. We should make them
-   no-ops internally when we delete the corresponding C functions from the
-   runtime -- they're already marked as deprecated in the mli.
+(* CR ocaml 5 all-runtime5: These functions are no-ops upstream. We should
+   make them no-ops internally when we delete the corresponding C functions
+   from the runtime -- they're already marked as deprecated in the mli.
 *)
 
 external eventlog_pause : unit -> unit = "caml_eventlog_pause"
@@ -135,11 +135,7 @@ let delete_alarm a = Atomic.set a false
 
 module Memprof =
   struct
-(* BACKPORT BEGIN
     type t
-*)
-    type t = unit
-(* BACKPORT END *)
     type allocation_source = Normal | Marshal | Custom
     type allocation =
       { n_samples : int;
@@ -164,7 +160,7 @@ module Memprof =
     }
 
     external c_start :
-      float -> int -> ('minor, 'major) tracker -> unit
+      float -> int -> ('minor, 'major) tracker -> t
       = "caml_memprof_start"
 
     let start
@@ -175,7 +171,5 @@ module Memprof =
 
     external stop : unit -> unit = "caml_memprof_stop"
 
-(* BACKPORT
     external discard : t -> unit = "caml_memprof_discard"
-*)
   end

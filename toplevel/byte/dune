@@ -18,14 +18,15 @@
  (name ocamltoplevel)
  (wrapped false)
  (modes byte)
- (flags (:standard -principal))
  (libraries ocamlcommon ocamlbytecomp)
  (modules :standard \ topstart expunge))
 
 (rule
  (targets bytetop)
  ; This should be generated from the stdlib modules files
- (action (run %{ocaml_where}/../../bin/ocamlrun %{exe:../expunge.bc} %{dep:../topstart.bc} %{targets}
+ (action (run %{ocaml_where}/../../bin/ocamlrun 
+              -I ../../../middle_end/flambda2/numbers/floats
+              %{exe:../expunge.bc} %{dep:../topstart.bc} %{targets}
                     stdlib__Arg
                     stdlib__Array
                     stdlib__ArrayLabels
@@ -45,19 +46,25 @@
                     stdlib__Char
                     stdlib__Complex
                     stdlib__Digest
+                    stdlib__Domain
                     stdlib__Either
                     stdlib__Ephemeron
                     stdlib__Filename
                     stdlib__Float
+                    stdlib__Float_u
                     stdlib__Format
                     stdlib__Fun
                     stdlib__Gc
                     stdlib__Genlex
                     stdlib__Hashtbl
+                    stdlib__Iarray
+                    stdlib__IarrayLabels
                     stdlib__In_channel
                     stdlib__Int
                     stdlib__Int32
+                    stdlib__Int32_u
                     stdlib__Int64
+                    stdlib__Int64_u
                     stdlib__Lazy
                     stdlib__Lexing
                     stdlib__List
@@ -66,6 +73,7 @@
                     stdlib__Marshal
                     stdlib__MoreLabels
                     stdlib__Nativeint
+                    stdlib__Nativeint_u
                     stdlib__Obj
                     stdlib__Oo
                     stdlib__Option

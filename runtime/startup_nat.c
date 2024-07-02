@@ -94,7 +94,9 @@ value caml_startup_common(char_os **argv, int pooling)
   caml_parse_ocamlrunparam();
 
 #ifdef DEBUG
-  caml_gc_message (-1, "### OCaml runtime: debug mode ###\n");
+  // Silenced in flambda-backend to make it easier to run tests that
+  // check program output.
+  // caml_gc_message (-1, "### OCaml runtime: debug mode ###\n");
 #endif
   if (caml_params->cleanup_on_exit)
     pooling = 1;
@@ -116,6 +118,7 @@ value caml_startup_common(char_os **argv, int pooling)
 
   init_segments();
   caml_init_signals();
+  caml_init_nat_signals();
 #ifdef _WIN32
   caml_win32_overflow_detection();
 #endif
@@ -130,6 +133,9 @@ value caml_startup_common(char_os **argv, int pooling)
   caml_sys_init(exe_name, argv);
   caml_maybe_expand_stack();
   res = caml_start_program(Caml_state);
+  /* ignore distinction between async and normal,
+     it's an uncaught exception either way */
+  Caml_state->raising_async_exn = 0;
   caml_terminate_signals();
   return res;
 }

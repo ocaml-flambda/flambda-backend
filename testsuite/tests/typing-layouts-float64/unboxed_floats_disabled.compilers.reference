@@ -1,4 +1,4 @@
-File "unboxed_floats.ml", line 316, characters 25-31:
-316 | let ( let* ) x (f : _ -> float#) = f x
-                               ^^^^^^
-Error: This construct requires the beta version of the extension "layouts", which is disabled and cannot be used
+File "unboxed_floats.ml", line 76, characters 11-16:
+76 |   let pi = #3.14 in
+                ^^^^^
+Error: The extension "layouts" is disabled and cannot be used

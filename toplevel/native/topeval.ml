@@ -39,15 +39,17 @@ let global_symbol comp_unit =
 
 let remembered = ref Ident.empty
 
-let rec remember phrase_name i = function
-  | [] -> ()
-  | Sig_value  (id, _, _) :: rest
-  | Sig_module (id, _, _, _, _) :: rest
-  | Sig_typext (id, _, _, _) :: rest
-  | Sig_class  (id, _, _, _) :: rest ->
-      remembered := Ident.add id (phrase_name, i) !remembered;
-      remember phrase_name (succ i) rest
-  | _ :: rest -> remember phrase_name i rest
+let remember phrase_name signature =
+  let exported = List.filter Includemod.is_runtime_component signature in
+  List.iteri (fun i sg ->
+    match sg with
+    | Sig_value  (id, _, _)
+    | Sig_module (id, _, _, _, _)
+    | Sig_typext (id, _, _, _)
+    | Sig_class  (id, _, _, _) ->
+      remembered := Ident.add id (phrase_name, i) !remembered
+    | _ -> ())
+    exported
 
 let toplevel_value id =
   try Ident.find_same id !remembered
@@ -130,11 +132,13 @@ let name_expression ~loc ~attrs sort exp =
       val_kind = Val_reg;
       val_loc = loc;
       val_attributes = attrs;
-      val_uid = Uid.internal_not_actually_unique; }
+      val_uid = Uid.internal_not_actually_unique;
+      val_zero_alloc = Default_check }
    in
    let sg = [Sig_value(id, vd, Exported)] in
    let pat =
-     { pat_desc = Tpat_var(id, mknoloc name, vd.val_uid, Mode.Value.legacy);
+     { pat_desc = Tpat_var(id, mknoloc name, vd.val_uid,
+        Mode.Value.disallow_right Mode.Value.legacy);
        pat_loc = loc;
        pat_extra = [];
        pat_type = exp.exp_type;
@@ -144,6 +148,7 @@ let name_expression ~loc ~attrs sort exp =
    let vb =
      { vb_pat = pat;
        vb_expr = exp;
+       vb_rec_kind = Dynamic;
        vb_sort = sort;
        vb_attributes = attrs;
        vb_loc = loc; }
@@ -181,7 +186,7 @@ let execute_phrase print_outcome ppf phr =
       let sg' = Typemod.Signature_names.simplify newenv names sg in
       ignore (Includemod.signatures oldenv ~mark:Mark_positive sg sg');
       Typecore.force_delayed_checks ();
-      let shape = Shape.local_reduce shape in
+      let shape = Shape_reduce.local_reduce Env.empty shape in
       if !Clflags.dump_shape then Shape.print ppf shape;
       (* `let _ = <expression>` or even just `<expression>` require special
          handling in toplevels, or nothing is displayed. In bytecode, the
@@ -210,7 +215,7 @@ let execute_phrase print_outcome ppf phr =
             Translmod.transl_implementation phrase_comp_unit (str, Tcoerce_none)
               ~style:Plain_block
           in
-          remember compilation_unit 0 sg';
+          remember compilation_unit sg';
           compilation_unit, close_phrase res, required_globals, size
         else
           let size, res = Translmod.transl_store_phrases phrase_comp_unit str in

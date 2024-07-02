@@ -1,11 +1,19 @@
 (* TEST
-   include runtime_events
-   include unix
-   * skip
-   reason = "OCaml 5 only"
-   ** libunix
-   *** bytecode
-   *** native *)
+ {
+   runtime4;
+   skip;
+ }{
+   include runtime_events;
+   include unix;
+   runtime5;
+   libunix;
+   {
+     bytecode;
+   }{
+     native;
+   }
+ }
+*)
 
 let got_start = ref false
 let got_fork_child = ref false

@@ -1,6 +1,6 @@
 (* TEST
-* skip
-reason = "OCaml 5 only"
+ reason = "CR ocaml 5 domains: re-enable this test";
+ skip;
 *)
 
 (* Due to GCs running at non-deterministic places, the output from these tests

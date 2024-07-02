@@ -440,7 +440,7 @@ module Analyser =
       let comment_opt = analyze_alerts comment_opt ld_attributes in
       {
         rf_name = field_name ;
-        rf_mutable = mutable_flag = Mutable ;
+        rf_mutable = Types.is_mutable mutable_flag;
         rf_type = Odoc_env.subst_type env type_expr ;
         rf_text = comment_opt
       }
@@ -461,7 +461,7 @@ module Analyser =
             let comment_opt = analyze_alerts comment_opt cd_attributes in
             let vc_args =
               match cd_args with
-              | Cstr_tuple l -> Cstr_tuple (List.map (fun (ty, _) -> Odoc_env.subst_type env ty) l)
+              | Cstr_tuple l -> Cstr_tuple (List.map (fun {ca_type=ty; _} -> Odoc_env.subst_type env ty) l)
               | Cstr_record l ->
                   Cstr_record (List.map (get_field env name_comment_list) l)
             in
@@ -492,14 +492,14 @@ module Analyser =
       let record comments
           { Typedtree.ld_id; ld_mutable; ld_type; ld_loc; ld_attributes } =
         get_field env comments @@
-        {Types.ld_id; ld_mutable; ld_global = Unrestricted;
-         ld_jkind=Jkind.any ~why:Dummy_jkind (* ignored *);
+        {Types.ld_id; ld_mutable; ld_modalities = Mode.Modality.Value.Const.id;
+         ld_jkind=Jkind.Primitive.any ~why:Dummy_jkind (* ignored *);
          ld_type=ld_type.Typedtree.ctyp_type;
          ld_loc; ld_attributes; ld_uid=Types.Uid.internal_not_actually_unique} in
       let open Typedtree in
       function
       | Cstr_tuple l ->
-          Odoc_type.Cstr_tuple (List.map (fun (ty, _) -> tuple ty) l)
+          Odoc_type.Cstr_tuple (List.map (fun {ca_type=ty; _} -> tuple ty) l)
       | Cstr_record l ->
           let comments = Record.(doc typedtree) pos_end l in
           Odoc_type.Cstr_record (List.map (record comments) l)
@@ -559,6 +559,8 @@ module Analyser =
     let filter_out_erased_item_from_signature_jst _erased acc
       : Jane_syntax.Signature_item.t -> _ = function
       | Jsig_include_functor (Ifsig_include_functor _) -> acc
+      | Jsig_layout (Lsig_kind_abbrev _) ->
+        Misc.fatal_error "Lsig_kind_abbrev"
 
     let filter_out_erased_items_from_signature erased signature =
       if Name.Map.is_empty erased then signature
@@ -890,6 +892,8 @@ module Analyser =
           | Ifsig_include_functor incl ->
               analyse_signature_item_desc_include ~env ~comment_opt incl
         end
+      | Jsig_layout (Lsig_kind_abbrev _) ->
+        Misc.fatal_error "Lsig_kind_abbrev"
 
     (** Analyse the given signature_item_desc to create the corresponding module element
        (with the given attached comment).*)
@@ -976,7 +980,7 @@ module Analyser =
               let xt_args =
                 match types_ext.ext_args with
                 | Cstr_tuple l ->
-                    Cstr_tuple (List.map (fun (ty, _) -> Odoc_env.subst_type new_env ty) l)
+                    Cstr_tuple (List.map (fun {ca_type=ty; _} -> Odoc_env.subst_type new_env ty) l)
                 | Cstr_record l ->
                     let docs = Record.(doc types ext_loc_end) l in
                     Cstr_record (List.map (get_field new_env docs) l)
@@ -1022,7 +1026,7 @@ module Analyser =
             let ex_args =
               let pos_end = Loc.end_ types_ext.ext_loc in
               match types_ext.ext_args with
-              | Cstr_tuple l -> Cstr_tuple (List.map (fun (ty, _) -> Odoc_env.subst_type env ty) l)
+              | Cstr_tuple l -> Cstr_tuple (List.map (fun {ca_type=ty; _} -> Odoc_env.subst_type env ty) l)
               | Cstr_record l ->
                   let docs = Record.(doc types) pos_end l in
                   Cstr_record (List.map (get_field env docs) l)
@@ -1847,10 +1851,10 @@ module Analyser =
           in
           ([], Class_structure (inher_l, ele))
 
-      | (Parsetree.Pcty_arrow (parse_label, _, pclass_type), Types.Cty_arrow (label, type_expr, class_type)) ->
+      | (Parsetree.Pcty_arrow (parse_label, type_, pclass_type), Types.Cty_arrow (label, type_expr, class_type)) ->
           (* label = string. In signature, there is no parameter names inside tuples *)
           (* if label = "", no label . Here we have the information to determine if a label is explicit or not. *)
-          if parse_label = label then
+          if (Typetexp.transl_label parse_label (Some type_)) = label then
             (
              let new_param = Simple_name
                  {

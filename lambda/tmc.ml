@@ -130,7 +130,7 @@ end = struct
   let tmc_placeholder =
     (* we choose a placeholder whose tagged representation will be
        reconizable. *)
-    Lconst (Const_base (Const_int (0xBBBB / 2)))
+    Lambda.dummy_constant
 
   let with_placeholder constr (body : offset destination -> lambda) =
     let k_with_placeholder =
@@ -169,7 +169,7 @@ end = struct
       List.fold_right (fun binding body ->
           match binding with
           | None -> body
-          | Some (v, lam) -> Llet(Strict, Lambda.layout_field, v, lam, body)
+          | Some (v, lam) -> Llet(Strict, Lambda.layout_tmc_field, v, lam, body)
         ) bindings body in
     fun ~block_id constr body ->
     bind_list ~block_id ~arg_offset:0 constr.before @@ fun vbefore ->
@@ -657,12 +657,12 @@ let rec choice ctx t =
         let l1 = traverse ctx l1 in
         let+ l2 = choice ctx ~tail l2 in
         Ltrywith (l1, id, l2, kind)
-    | Lstaticcatch (l1, ids, l2, kind) ->
+    | Lstaticcatch (l1, ids, l2, r, kind) ->
         (* In [static-catch l1 with ids -> l2],
            the term [l1] is in fact in tail-position *)
         let+ l1 = choice ctx ~tail l1
         and+ l2 = choice ctx ~tail l2 in
-        Lstaticcatch (l1, ids, l2, kind)
+        Lstaticcatch (l1, ids, l2, r, kind)
     | Levent (lam, lev) ->
         let+ lam = choice ctx ~tail lam in
         Levent (lam, lev)
@@ -879,31 +879,34 @@ let rec choice ctx t =
     | Psetfield _ | Psetfield_computed _
     | Pfloatfield _ | Psetfloatfield _
     | Pufloatfield _ | Psetufloatfield _
+    | Pmixedfield _  | Psetmixedfield _
     | Pccall _
     | Praise _
     | Pnot
     | Pnegint | Paddint | Psubint | Pmulint | Pdivint _ | Pmodint _
     | Pandint | Porint | Pxorint
     | Plslint | Plsrint | Pasrint
-    | Pintcomp _
+    | Pintcomp _ | Punboxed_int_comp _
     | Poffsetint _ | Poffsetref _
-    | Pintoffloat | Pfloatofint _
-    | Pnegfloat _ | Pabsfloat _
-    | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
-    | Pfloatcomp _
+    | Pintoffloat _ | Pfloatofint (_, _)
+    | Pfloatoffloat32 _ | Pfloat32offloat _
+    | Pnegfloat (_, _) | Pabsfloat (_, _)
+    | Paddfloat (_, _) | Psubfloat (_, _)
+    | Pmulfloat (_, _) | Pdivfloat (_, _)
+    | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
     | Pstringlength | Pstringrefu  | Pstringrefs
     | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
     | Parraylength _ | Parrayrefu _ | Parraysetu _ | Parrayrefs _ | Parraysets _
     | Pisint _ | Pisout
     | Pignore
-    | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+    | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
 
     (* we don't handle effect or DLS primitives *)
     | Prunstack | Pperform | Presume | Preperform | Pdls_get
 
     (* we don't handle atomic primitives *)
     | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
-    | Punbox_float | Pbox_float _
+    | Punbox_float _ | Pbox_float (_, _)
     | Punbox_int _ | Pbox_int _
 
     (* we don't handle array indices as destinations yet *)
@@ -912,9 +915,12 @@ let rec choice ctx t =
     (* we don't handle { foo with x = ...; y = recursive-call } *)
     | Pduprecord _
 
-    (* we don't handle all-float records *)
+    (* we don't handle all-float records or mixed blocks. If we
+       did, we'd need to remove references to Lambda.layout_tmc_field
+    *)
     | Pmakefloatblock _
     | Pmakeufloatblock _
+    | Pmakemixedblock _
 
     (* nor unboxed products *)
     | Pmake_unboxed_product _ | Punboxed_product_field _
@@ -941,6 +947,20 @@ let rec choice ctx t =
     | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
     | Pbigstring_load_128 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
     | Pbigstring_set_64 _ | Pbigstring_set_128 _
+    | Pfloatarray_load_128 _
+    | Pfloat_array_load_128 _
+    | Pint_array_load_128 _
+    | Punboxed_float_array_load_128 _
+    | Punboxed_int32_array_load_128 _
+    | Punboxed_int64_array_load_128 _
+    | Punboxed_nativeint_array_load_128 _
+    | Pfloatarray_set_128 _
+    | Pfloat_array_set_128 _
+    | Pint_array_set_128 _
+    | Punboxed_float_array_set_128 _
+    | Punboxed_int32_array_set_128 _
+    | Punboxed_int64_array_set_128 _
+    | Punboxed_nativeint_array_set_128 _
     | Pget_header _
     | Pctconst _
     | Pbswap16
@@ -970,20 +990,43 @@ and traverse ctx = function
   | lam ->
       shallow_map ~tail:(traverse ctx) ~non_tail:(traverse ctx) lam
 
+and traverse_lfunction ctx lfun =
+  map_lfunction (traverse ctx) lfun
+
 and traverse_let outer_ctx var def =
   let inner_ctx = declare_binding outer_ctx (var, def) in
-  let bindings = traverse_binding outer_ctx inner_ctx (var, def) in
+  let bindings =
+    traverse_let_binding outer_ctx inner_ctx var def
+  in
   inner_ctx, bindings
 
 and traverse_letrec ctx bindings =
-  let ctx = List.fold_left declare_binding ctx bindings in
-  let bindings = List.concat_map (traverse_binding ctx ctx) bindings in
+  let ctx =
+    List.fold_left (fun ctx { id; def } ->
+        declare_binding ctx (id, Lfunction def)
+      ) ctx bindings
+  in
+  let bindings =
+    List.concat_map (traverse_letrec_binding ctx) bindings
+  in
   ctx, bindings
 
-and traverse_binding outer_ctx inner_ctx (var, def) =
+and traverse_let_binding outer_ctx inner_ctx var def =
   match find_candidate def with
-  | None -> [(var, traverse outer_ctx def)]
+  | None -> [ var, traverse outer_ctx def ]
   | Some lfun ->
+      let functions = make_dps_variant var inner_ctx outer_ctx lfun in
+      List.map (fun (var, lfun) -> var, Lfunction lfun) functions
+
+and traverse_letrec_binding ctx { id; def } =
+  if def.attr.tmc_candidate
+  then
+    let functions = make_dps_variant id ctx ctx def in
+    List.map (fun (id, def) -> { id; def }) functions
+  else
+    [ { id; def = traverse_lfunction ctx def } ]
+
+and make_dps_variant var inner_ctx outer_ctx (lfun : lfunction) =
   let special = Ident.Map.find var inner_ctx.specialized in
   let fun_choice = choice outer_ctx ~tail:true lfun.body in
   if fun_choice.Choice.tmc_calls = [] then
@@ -991,9 +1034,9 @@ and traverse_binding outer_ctx inner_ctx (var, def) =
       (Debuginfo.Scoped_location.to_location lfun.loc)
       Warnings.Unused_tmc_attribute;
   let direct =
-    let { kind; params; return; body = _; attr; loc; mode; region } = lfun in
+    let { kind; params; return; body = _; attr; loc; mode; ret_mode; region } = lfun in
     let body = Choice.direct fun_choice in
-    lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region in
+    lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region in
   let dps =
     let dst_param = {
       var = Ident.create_local "dst";
@@ -1006,14 +1049,14 @@ and traverse_binding outer_ctx inner_ctx (var, def) =
       match lfun.mode, lfun.kind with
       | Alloc_heap, Tupled ->
          (* Support of Tupled function: see [choice_apply]. *)
-         Curried {nlocal=0}
+          Curried {nlocal=0}
       | Alloc_local, (Tupled | Curried _) ->
-         Curried {nlocal=List.length params}
+          Curried {nlocal=List.length params}
       | Alloc_heap, (Curried _ as k) ->
          (* Prepending arguments does not affect nlocal *)
          k
     in
-    Lambda.duplicate @@ lfunction
+    Lambda.duplicate_function @@ lfunction'
       ~kind
       ~params
       ~return:lfun.return
@@ -1021,10 +1064,11 @@ and traverse_binding outer_ctx inner_ctx (var, def) =
       ~attr:lfun.attr
       ~loc:lfun.loc
       ~mode:lfun.mode
+      ~ret_mode:lfun.ret_mode
       ~region:true
   in
   let dps_var = special.dps_id in
-  [(var, direct); (dps_var, dps)]
+  [var, direct; dps_var, dps]
 
 and traverse_list ctx terms =
   List.map (traverse ctx) terms

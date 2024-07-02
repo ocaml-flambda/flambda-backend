@@ -75,7 +75,7 @@ let _ = add_directive "quit" (Directive_none dir_quit)
 let dir_directory s =
   let d = expand_directory Config.standard_library s in
   Dll.add_path [d];
-  let dir = Load_path.Dir.create d in
+  let dir = Load_path.Dir.create ~hidden:false d in
   Load_path.prepend_dir dir;
   toplevel_env :=
     Stdlib.String.Set.fold
@@ -110,7 +110,7 @@ let _ = add_directive "remove_directory" (Directive_string dir_remove_directory)
     }
 
 let dir_show_dirs () =
-  List.iter print_endline (Load_path.get_paths ())
+  List.iter print_endline (Load_path.get_path_list ())
 
 let _ = add_directive "show_dirs" (Directive_none dir_show_dirs)
     {
@@ -201,7 +201,7 @@ end
 let filter_arrow ty =
   let ty = Ctype.expand_head !toplevel_env ty in
   match get_desc ty with
-  | Tarrow ((lbl,_,_), l, r, _) when not (Btype.is_optional lbl) -> Some (l, r)
+  | Tarrow ((lbl,_,_), l, r, _) when not (Btype.is_omittable lbl) -> Some (l, r)
   | _ -> None
 
 let extract_last_arrow ty =
@@ -240,7 +240,7 @@ let match_simple_printer_type desc ~is_old_style =
   in
   match
     Ctype.with_local_level ~post:Ctype.generalize begin fun () ->
-      let ty_arg = Ctype.newvar (Jkind.value ~why:Debug_printer_argument) in
+      let ty_arg = Ctype.newvar (Jkind.Primitive.value ~why:Debug_printer_argument) in
       Ctype.unify !toplevel_env
         (make_printer_type ty_arg)
         (Ctype.instance desc.val_type);
@@ -259,7 +259,7 @@ let match_generic_printer_type desc ty_path params =
   match
     Ctype.with_local_level ~post:(List.iter Ctype.generalize) begin fun () ->
       let args = List.map (fun _ -> Ctype.newvar
-                                      (Jkind.value ~why:Debug_printer_argument))
+                                      (Jkind.Primitive.value ~why:Debug_printer_argument))
                           params in
       let ty_target = Ctype.newty (Tconstr (ty_path, args, ref Mnil)) in
       let printer_args_ty =
@@ -430,7 +430,7 @@ let reg_show_prim name to_sig doc =
 let () =
   reg_show_prim "show_val"
     (fun env loc id lid ->
-       let _path, desc, _, _ = Env.lookup_value ~loc lid env in
+       let _path, desc, _ = Env.lookup_value ~loc lid env in
        [ Sig_value (id, desc, Exported) ]
     )
     "Print the signature of the corresponding value."
@@ -504,6 +504,7 @@ let () =
              ext_type_params = type_decl.type_params;
              ext_args = Cstr_tuple desc.cstr_args;
              ext_arg_jkinds = desc.cstr_arg_jkinds;
+             ext_shape = desc.cstr_shape;
              ext_constant = desc.cstr_constant;
              ext_ret_type = ret_type;
              ext_private = Asttypes.Public;
@@ -537,6 +538,7 @@ let () =
            ext_type_params = [];
            ext_args = Cstr_tuple desc.cstr_args;
            ext_arg_jkinds = desc.cstr_arg_jkinds;
+           ext_shape = desc.cstr_shape;
            ext_constant = desc.cstr_constant;
            ext_ret_type = ret_type;
            ext_private = Asttypes.Public;
@@ -571,7 +573,7 @@ let secretly_the_same_path env path1 path2 =
 let () =
   reg_show_prim "show_module"
     (fun env loc id lid ->
-       let path, md = Env.lookup_module ~loc lid env in
+       let path, md, _ = Env.lookup_module ~loc lid env in
        let id = match path with
          | Pident id -> id
          | _ -> id
@@ -622,7 +624,7 @@ let () =
 let () =
   reg_show_prim "show_class"
     (fun env loc id lid ->
-       let _path, desc_class = Env.lookup_class ~loc lid env in
+       let _path, desc_class, _ = Env.lookup_class ~loc lid env in
        let _path, desc_cltype = Env.lookup_cltype ~loc lid env in
        let _path, typedcl = Env.lookup_type ~loc lid env in
        [

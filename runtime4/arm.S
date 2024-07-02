@@ -126,7 +126,7 @@ caml_hot__code_end:
 #define DOMAIN_STATE(c_type, name) \
         .equ    domain_field_caml_##name, domain_curr_field ; \
         .set    domain_curr_field, domain_curr_field + 1
-#include "../runtime/caml/domain_state.tbl"
+#include "../runtime4/caml/domain_state.tbl"
 #undef DOMAIN_STATE
 
 #define Caml_state(var) [domain_state_ptr, 8*domain_field_caml_##var]
@@ -159,7 +159,7 @@ FUNCTION(caml_call_gc)
     /* Save current allocation pointer for debugging purposes */
         str     alloc_ptr, Caml_state(young_ptr)
     /* Save trap pointer in case an exception is raised during GC */
-        str     trap_ptr, Caml_state(exception_pointer)
+        str     trap_ptr, Caml_state(exn_handler)
     /* Call the garbage collector */
         bl      caml_garbage_collection
     /* Restore integer registers and return address from the stack */
@@ -228,7 +228,7 @@ FUNCTION(caml_c_call)
         CFI_REGISTER(lr, r4)
     /* Make the exception handler alloc ptr available to the C code */
         str     alloc_ptr, Caml_state(young_ptr)
-        str     trap_ptr, Caml_state(exception_pointer)
+        str     trap_ptr, Caml_state(exn_handler)
     /* Call the function */
         blx     r7
     /* Reload alloc ptr */
@@ -273,7 +273,7 @@ FUNCTION(caml_start_program)
     /* Setup a trap frame to catch exceptions escaping the OCaml code */
         sub     sp, sp, 8; CFI_ADJUST(8)
         ldr     r5, =.Ltrap_handler
-        ldr     r4, Caml_state(exception_pointer)
+        ldr     r4, Caml_state(exn_handler)
         str     r4, [sp, 0]
         str     r5, [sp, 4]
         mov     trap_ptr, sp
@@ -282,9 +282,9 @@ FUNCTION(caml_start_program)
     /* Call the OCaml code */
         blx     r12
 .Lcaml_retaddr:
-    /* Pop the trap frame, restoring caml_exception_pointer */
+    /* Pop the trap frame, restoring caml_exn_handler */
         ldr     r5, [sp, 0]
-        str     r5, Caml_state(exception_pointer)
+        str     r5, Caml_state(exn_handler)
         add     sp, sp, 8; CFI_ADJUST(-8)
     /* Pop the callback link, restoring the global variables */
 .Lreturn_result:
@@ -315,7 +315,7 @@ FUNCTION(caml_start_program)
 .Ltrap_handler:
         CFI_STARTPROC
     /* Save exception pointer */
-        str     trap_ptr, Caml_state(exception_pointer)
+        str     trap_ptr, Caml_state(exn_handler)
     /* Encode exception bucket as an exception result */
         orr     r0, r0, 2
     /* Return it */
@@ -356,7 +356,7 @@ FUNCTION(caml_raise_exception)
     /* Load exception bucket */
         mov     r0, r1
     /* Reload trap ptr and alloc ptr */
-        ldr     trap_ptr, Caml_state(exception_pointer)
+        ldr     trap_ptr, Caml_state(exn_handler)
         ldr     alloc_ptr, Caml_state(young_ptr)
     /* Test if backtrace is active */
         ldr     r1, Caml_state(backtrace_active)

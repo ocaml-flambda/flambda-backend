@@ -15,9 +15,15 @@
 /**************************************************************************/
 
 DOMAIN_STATE(atomic_uintnat, young_limit)
-/* Minor heap limit. Typically young_limit == young_start, but this field is set
- * by other domains to signal this domain by causing a spurious allocation
- * failure. */
+
+/* Minor heap limit. Typically [young_start] <= [young_limit] <=
+ * [young_end], but this field can be set atomically to UINTNAT_MAX by
+ * another thread (typically from another domain), or by the memory
+ * profiler, in order to interrupt this domain (by causing an
+ * allocation failure). Setting [young_limit] to UINTNAT_MAX can be
+ * done safely at any time whatsoever by any thread. To avoid races,
+ * setting [young_limit] to anything else than UINTNAT_MAX should only
+ * be done via [caml_reset_young_limit] by the domain itself. */
 
 DOMAIN_STATE(value*, young_ptr)
 /* Minor heap pointer */
@@ -36,6 +42,15 @@ DOMAIN_STATE(struct stack_info*, current_stack)
 
 DOMAIN_STATE(void*, exn_handler)
 /* Pointer into the current stack */
+
+DOMAIN_STATE(char*, async_exn_handler)
+/* Async exception pointer that points into the current stack */
+
+/* Local allocations */
+DOMAIN_STATE(struct caml_local_arenas*, local_arenas)
+DOMAIN_STATE(intnat, local_sp)
+DOMAIN_STATE(void*, local_top)
+DOMAIN_STATE(intnat, local_limit)
 
 DOMAIN_STATE(int, action_pending)
 /* Whether we are due to start the processing of delayable pending
@@ -81,6 +96,9 @@ DOMAIN_STATE(struct caml_final_info*, final_info)
 
 DOMAIN_STATE(intnat, backtrace_pos)
 
+DOMAIN_STATE(intnat, raising_async_exn)
+/* Set when an async exn is raised, cleared when caught */
+
 DOMAIN_STATE(intnat, backtrace_active)
 
 DOMAIN_STATE(backtrace_slot*, backtrace_buffer)
@@ -102,6 +120,8 @@ DOMAIN_STATE(int, parser_trace)
 /* See parsing.c */
 
 DOMAIN_STATE(asize_t, minor_heap_wsz)
+
+DOMAIN_STATE(intnat, in_minor_collection)
 
 DOMAIN_STATE(struct caml_heap_state*, shared_heap)
 
@@ -150,7 +170,11 @@ DOMAIN_STATE(intnat, trap_sp_off)
 DOMAIN_STATE(intnat, trap_barrier_off)
 DOMAIN_STATE(int64_t, trap_barrier_block)
 DOMAIN_STATE(struct caml_exception_context*, external_raise)
+DOMAIN_STATE(struct caml_exception_context*, external_raise_async)
 /* Bytecode TLS vars, not used for native code */
+
+DOMAIN_STATE(struct memprof_domain_s *, memprof)
+DOMAIN_STATE(value *, memprof_young_trigger)
 
 DOMAIN_STATE(extra_params_area, extra_params)
 /* This member must occur last, because it is an array, not a scalar */

@@ -123,4 +123,4 @@ Then build the compiler &mdash; the following command will build the compiler us
 We can now benchmark our compiler against `typecore.ml`. The following `_bootinstall` is built using the opam switch and has FP enabled. 
 
     $ cd _build/main
-    $ perf stat -r 5 ../_bootinstall/bin/ocamlc.opt -strict-sequence -principal -w +a-4-9-40-41-42-44-45-48-66-70 -warn-error A -bin-annot -safe-string -strict-formats -w -67 -g -bin-annot -I .ocamlcommon.objs/byte -I ../install/runtime_stdlib/lib/ocaml_runtime_stdlib/  -intf-suffix .ml -no-alias-deps -o .ocamlcommon.objs/byte/typecore.cmo -c -impl typecore.ml
+    $ perf stat -r 5 ../_bootinstall/bin/ocamlc.opt -strict-sequence -principal -w +a-4-9-40-41-42-44-45-48-66-70 -warn-error A -bin-annot -safe-string -strict-formats -w -67 -g -bin-annot -I .ocamlcommon.objs/byte -I ../runtime_stdlib_install/lib/ocaml_runtime_stdlib/  -intf-suffix .ml -no-alias-deps -o .ocamlcommon.objs/byte/typecore.cmo -c -impl typecore.ml

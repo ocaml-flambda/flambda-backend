@@ -686,8 +686,15 @@ Caml_inline mlsize_t extern_closure_up_to_env(value v)
   startenv = Start_env_closinfo(Closinfo_val(v));
   i = 0;
   do {
-    /* The infix header */
-    if (i > 0) extern_int(Long_val(Field(v, i++)));
+    if (i > 0) {
+      /* The padding before an infix header */
+      while (Field(v, i) == Val_long(0)) {
+        extern_int(0);
+        i++;
+      }
+      /* The infix header */
+      extern_int(Long_val(Field(v, i++)));
+    }
     /* The default entry point */
     extern_code_pointer((char *) Field(v, i++));
     /* The closure info. */
@@ -730,12 +737,17 @@ static void extern_rec(value v)
     header_t hd = Hd_val(v);
     tag_t tag = Tag_hd(hd);
     mlsize_t sz = Wosize_hd(hd);
+    reserved_t reserved = Reserved_hd(hd);
+    if (Is_mixed_block_reserved(reserved)) {
+      extern_invalid_argument("output_value: mixed block");
+      break;
+    }
 
     if (tag == Forward_tag) {
       value f = Forward_val (v);
       if (Is_block (f)
           && (!Is_in_value_area(f) || Tag_val (f) == Forward_tag
-              || Tag_val (f) == Lazy_tag
+              || Tag_val (f) == Lazy_tag || Tag_val (f) == Forcing_tag
 #ifdef FLAT_FLOAT_ARRAY
               || Tag_val (f) == Double_tag
 #endif
@@ -1274,16 +1286,19 @@ intnat reachable_words_once(value root, intnat identifier, value sizes_by_root_i
           }
         }
         if (tag < No_scan_tag) {
-          /* i is the position of the first field to traverse recursively */
+          /* i is the position of the first field to traverse recursively,
+             and j is the position of the last such field.
+          */
           uintnat i =
             tag == Closure_tag ? Start_env_closinfo(Closinfo_val(v)) : 0;
-          if (i < sz) {
-            if (i < sz - 1) {
-              /* Remember that we need to count fields i + 1 ... sz - 1 */
+          uintnat j = Scannable_wosize_hd(hd);
+          if (i < j) {
+            if (i < j - 1) {
+              /* Remember that we need to count fields i + 1 ... j - 1 */
               sp++;
               if (sp >= extern_stack_limit) sp = extern_resize_stack(sp);
               sp->v = &Field(v, i + 1);
-              sp->count = sz - i - 1;
+              sp->count = j - i - 1;
             }
             /* Continue with field i */
             v = Field(v, i);
@@ -1301,7 +1316,7 @@ intnat reachable_words_once(value root, intnat identifier, value sizes_by_root_i
   return size;
 }
 
-void reachable_words_init()
+void reachable_words_init(void)
 {
   obj_counter = 0;
   extern_flags = 0;
@@ -1315,7 +1330,7 @@ void reachable_words_mark_root(value v)
   extern_record_location_with_data(v, h, RootUnprocessed);
 }
 
-void reachable_words_cleanup()
+void reachable_words_cleanup(void)
 {
   extern_free_stack();
   extern_free_position_table();

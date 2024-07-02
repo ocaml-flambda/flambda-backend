@@ -60,6 +60,11 @@ extern "C" {
 typedef intnat value;
 typedef uintnat header_t;
 typedef uintnat mlsize_t;
+typedef header_t reserved_t; /* Same role as reserved_t in runtime 5 (reserved
+                                header bits). The mechanism for reserving bits
+                                in runtime 4 is different than runtime 5: it's
+                                the WITH_PROFINFO and PROFINFO_WIDTH macros.
+                              */
 typedef unsigned int tag_t;             /* Actually, an unsigned char */
 typedef uintnat color_t;
 typedef uintnat mark_t;
@@ -103,14 +108,15 @@ For 64-bit architectures:
      +--------+-------+-----+
 bits  63    10 9     8 7   0
 
-For x86-64 with Spacetime profiling:
-  P = PROFINFO_WIDTH (as set by "configure", currently 26 bits, giving a
-    maximum block size of just under 4Gb)
+For 64-bit architectures with mixed block support enabled:
+  P = PROFINFO_WIDTH (as set by "configure", currently 8 bits)
      +----------------+----------------+-------------+
-     | profiling info | wosize         | color | tag |
+     | scannable size | wosize         | color | tag |
      +----------------+----------------+-------------+
 bits  63        (64-P) (63-P)        10 9     8 7   0
 
+Mixed block support uses the PROFINFO_WIDTH functionality
+originally built for Spacetime profiling, hence the odd name.
 */
 
 #define Tag_hd(hd) ((tag_t) ((hd) & 0xFF))
@@ -124,16 +130,96 @@ bits  63        (64-P) (63-P)        10 9     8 7   0
 #ifdef WITH_PROFINFO
 #define PROFINFO_SHIFT (Gen_profinfo_shift(PROFINFO_WIDTH))
 #define PROFINFO_MASK (Gen_profinfo_mask(PROFINFO_WIDTH))
-/* Use NO_PROFINFO to debug problems with profinfo macros */
-#define NO_PROFINFO 0xff
+#define NO_PROFINFO 0
 #define Hd_no_profinfo(hd) ((hd) & ~(PROFINFO_MASK << PROFINFO_SHIFT))
-#define Wosize_hd(hd) ((mlsize_t) ((Hd_no_profinfo(hd)) >> 10))
+#define Allocated_wosize_hd(hd) ((mlsize_t) ((Hd_no_profinfo(hd)) >> 10))
 #define Profinfo_hd(hd) (Gen_profinfo_hd(PROFINFO_WIDTH, hd))
 #else
 #define NO_PROFINFO 0
-#define Wosize_hd(hd) ((mlsize_t) ((hd) >> 10))
+#define Allocated_wosize_hd(hd) ((mlsize_t) ((hd) >> 10))
 #define Profinfo_hd(hd) NO_PROFINFO
 #endif /* WITH_PROFINFO */
+
+/* Header bits reserved for mixed blocks */
+
+#define Reserved_hd(hd) ((reserved_t)(Profinfo_hd(hd)))
+#define Reserved_val(val) ((reserved_t)(Profinfo_val(val)))
+
+#define Is_mixed_block_reserved(res) (((reserved_t)(res)) > 0)
+
+/* Native code versions of mixed block macros.
+
+   The scannable size of a block is how many fields are values as opposed
+   to flat floats/ints/etc. This is different than the (normal) size of a
+   block for mixed blocks.
+
+   The runtime has several functions that traverse over the structure of
+   an OCaml value. (e.g. polymorphic comparison, GC marking/sweeping)
+   All of these traversals must be written to have one of the following
+   properties:
+   - it's known that the input can never be a mixed block,
+   - it raises an exception on mixed blocks, or
+   - it uses the scannable size (not the normal size) to figure out which
+   fields to recursively descend into.
+
+   Otherwise, the traversal could attempt to recursively descend into
+   a flat field, which could segfault (or worse).
+*/
+
+#define Scannable_wosize_val_native(val) (Scannable_wosize_hd (Hd_val (val)))
+#define Reserved_mixed_block_scannable_wosize_native(sz)  (((mlsize_t)(sz)) + 1)
+#define Mixed_block_scannable_wosize_reserved_native(res) \
+  (((reserved_t)(res)) - 1)
+
+Caml_inline mlsize_t Scannable_wosize_reserved_native(reserved_t res,
+                                                      mlsize_t sz) {
+  return
+    Is_mixed_block_reserved(res)
+    ? Mixed_block_scannable_wosize_reserved_native(res)
+    : sz;
+}
+
+Caml_inline mlsize_t Scannable_wosize_hd_native(header_t hd) {
+  reserved_t res = Reserved_hd(hd);
+  return
+    Is_mixed_block_reserved(res)
+    ? Mixed_block_scannable_wosize_reserved_native(res)
+    : Allocated_wosize_hd(hd);
+}
+
+/* Bytecode versions of mixed block macros.
+
+   Bytecode always uses the size of the block as the scannable size. That's
+   because bytecode doesn't represent mixed records as mixed blocks. They're
+   "faux mixed blocks", which are regular blocks with a sentinel value set
+   in the header bits.
+*/
+
+#define Scannable_wosize_hd_byte(hd)  (Allocated_wosize_hd (hd))
+#define Scannable_wosize_val_byte(val) (Allocated_wosize_hd (Hd_val (val)))
+Caml_inline mlsize_t Scannable_wosize_reserved_byte(reserved_t res,
+                                                    mlsize_t size) {
+  (void)res;
+  return size;
+}
+
+/* Users should specify whether they want to use the bytecode or native
+   versions of these macros. Internally to the runtime, the NATIVE_CODE
+   macro lets us make that determination, so we can define suffixless
+   versions of the mixed block macros.
+*/
+#ifdef CAML_INTERNALS
+#ifdef NATIVE_CODE
+#define Scannable_wosize_reserved(r, s) Scannable_wosize_reserved_native(r, s)
+#define Scannable_wosize_hd(hd)         Scannable_wosize_hd_native(hd)
+#define Scannable_wosize_val(val)       Scannable_wosize_val_native(val)
+#else
+#define Faux_mixed_block_sentinel ((reserved_t) 0xff)
+#define Scannable_wosize_reserved(r, s) Scannable_wosize_reserved_byte(r, s)
+#define Scannable_wosize_hd(hd)         Scannable_wosize_hd_byte(hd)
+#define Scannable_wosize_val(val)       Scannable_wosize_val_byte(val)
+#endif // NATIVE_CODE
+#endif // CAML_INTERNALS
 
 #define Hd_val(val) (((header_t *) (val)) [-1])        /* Also an l-value. */
 #define Hd_op(op) (Hd_val (op))                        /* Also an l-value. */
@@ -158,10 +244,6 @@ bits  63        (64-P) (63-P)        10 9     8 7   0
 #define Max_wosize ((1 << 22) - 1)
 #endif /* ARCH_SIXTYFOUR */
 
-#define Wosize_val(val) (Wosize_hd (Hd_val (val)))
-#define Wosize_op(op) (Wosize_val (op))
-#define Wosize_bp(bp) (Wosize_val (bp))
-#define Wosize_hp(hp) (Wosize_hd (Hd_hp (hp)))
 #define Whsize_wosize(sz) ((sz) + 1)
 #define Wosize_whsize(sz) ((sz) - 1)
 #define Wosize_bhsize(sz) ((sz) / sizeof (value) - 1)
@@ -169,16 +251,49 @@ bits  63        (64-P) (63-P)        10 9     8 7   0
 #define Wsize_bsize(sz) ((sz) / sizeof (value))
 #define Bhsize_wosize(sz) (Bsize_wsize (Whsize_wosize (sz)))
 #define Bhsize_bosize(sz) ((sz) + sizeof (header_t))
-#define Bosize_val(val) (Bsize_wsize (Wosize_val (val)))
-#define Bosize_op(op) (Bosize_val (Val_op (op)))
-#define Bosize_bp(bp) (Bosize_val (Val_bp (bp)))
-#define Bosize_hd(hd) (Bsize_wsize (Wosize_hd (hd)))
-#define Whsize_hp(hp) (Whsize_wosize (Wosize_hp (hp)))
-#define Whsize_val(val) (Whsize_hp (Hp_val (val)))
-#define Whsize_bp(bp) (Whsize_val (Val_bp (bp)))
-#define Whsize_hd(hd) (Whsize_wosize (Wosize_hd (hd)))
-#define Bhsize_hp(hp) (Bsize_wsize (Whsize_hp (hp)))
-#define Bhsize_hd(hd) (Bsize_wsize (Whsize_hd (hd)))
+
+/* flambda-backend: We rename the size macros to [Allocated_...] so that we're
+   forced to think about whether C code needs to updated for mixed blocks, which
+   have separate notions of scannable size and total size of an object, even for
+   scannable tags. We call an object's size (including possibly non-scannable
+   fields) its "allocated" size to document the fact that you shouldn't scan
+   fields on the basis of this size alone.
+*/
+
+#define Allocated_wosize_val(val) (Allocated_wosize_hd (Hd_val (val)))
+#define Allocated_wosize_op(op) (Allocated_wosize_val (op))
+#define Allocated_wosize_bp(bp) (Allocated_wosize_val (bp))
+#define Allocated_wosize_hp(hp) (Allocated_wosize_hd (Hd_hp (hp)))
+#define Allocated_bosize_val(val) (Bsize_wsize (Allocated_wosize_val (val)))
+#define Allocated_bosize_op(op) (Allocated_bosize_val (Val_op (op)))
+#define Allocated_bosize_bp(bp) (Allocated_bosize_val (Val_bp (bp)))
+#define Allocated_bosize_hd(hd) (Bsize_wsize (Allocated_wosize_hd (hd)))
+#define Allocated_whsize_hp(hp) (Whsize_wosize (Allocated_wosize_hp (hp)))
+#define Allocated_whsize_val(val) (Allocated_whsize_hp (Hp_val (val)))
+#define Allocated_whsize_bp(bp) (Allocated_whsize_val (Val_bp (bp)))
+#define Allocated_whsize_hd(hd) (Whsize_wosize (Allocated_wosize_hd (hd)))
+#define Allocated_bhsize_hp(hp) (Bsize_wsize (Allocated_whsize_hp (hp)))
+#define Allocated_bhsize_hd(hd) (Bsize_wsize (Allocated_whsize_hd (hd)))
+
+#ifndef Hide_upstream_size_macros
+#define Wosize_hd(hd)   Allocated_wosize_hd(hd)
+#define Wosize_val(val) Allocated_wosize_val(val)
+#define Wosize_op(op)   Allocated_wosize_op(op)
+#define Wosize_bp(bp)   Allocated_wosize_bp(bp)
+#define Wosize_hp(hp)   Allocated_wosize_hp(hp)
+#define Bosize_val(val) Allocated_bosize_val(val)
+#define Bosize_op(op)   Allocated_bosize_op(op)
+#define Bosize_bp(bp)   Allocated_bosize_bp(bp)
+#define Bosize_hd(hd)   Allocated_bosize_hd(hd)
+#define Whsize_hp(hp)   Allocated_whsize_hp(hp)
+#define Whsize_val(val) Allocated_whsize_val(val)
+#define Whsize_bp(bp)   Allocated_whsize_bp(bp)
+#define Whsize_hd(hd)   Allocated_whsize_hd(hd)
+#define Bhsize_hp(hp)   Allocated_bhsize_hp(hp)
+#define Bhsize_hd(hd)   Allocated_bhsize_hd(hd)
+#endif // Hide_upstream_size_macros
+
+#define Scannable_wosize_hp(hp) (Scannable_wosize_hd (Hd_hp (hp)))
 
 #define Profinfo_val(val) (Profinfo_hd (Hd_val (val)))
 
@@ -193,6 +308,14 @@ bits  63        (64-P) (63-P)        10 9     8 7   0
 #define Tag_hp(hp) (((unsigned char *) (hp)) [0])
                                                  /* Also an l-value. */
 #endif
+
+#define Unsafe_store_tag_val(dst, val) (Tag_val(dst) = val)
+/* Currently [Tag_val(dst)] is an lvalue, but in the future we may
+   have to break this property by using explicit (relaxed) atomics to
+   avoid undefined behaviors. [Unsafe_store_tag_val(dst, val)] is
+   provided to avoid direct uses of [Tag_val(dst)] on the left of an
+   assignment. The use of [Unsafe] emphasizes that the function
+   may result in unsafe data races in a concurrent setting. */
 
 /* The lowest tag for blocks containing no value. */
 #define No_scan_tag 251
@@ -226,7 +349,7 @@ typedef opcode_t * code_t;
    with tag Closure_tag (see compact.c). */
 
 #define Infix_tag 249
-#define Infix_offset_hd(hd) (Bosize_hd(hd))
+#define Infix_offset_hd(hd) (Allocated_bosize_hd(hd))
 #define Infix_offset_val(v) Infix_offset_hd(Hd_val(v))
 
 /* Another special case: objects */
@@ -270,9 +393,13 @@ CAMLextern value caml_get_public_method (value obj, value tag);
     + ((uintnat)(delta) << 1) + 1)
 #endif
 
-/* This tag is used (with Forward_tag) to implement lazy values.
+/* This tag is used (with Forcing_tag & Forward_tag) to implement lazy values.
    See major_gc.c and stdlib/lazy.ml. */
 #define Lazy_tag 246
+
+/* This tag is used (with Lazy_tag & Forward_tag) to implement lazy values.
+ * See major_gc.c and stdlib/lazy.ml. */
+#define Forcing_tag 244
 
 /* Another special case: variants */
 CAMLextern value caml_hash_variant(char const * tag);
@@ -420,6 +547,22 @@ CAMLextern header_t *caml_atom_table;
 extern value caml_global_data;
 
 CAMLextern value caml_set_oo_id(value obj);
+
+/* Users write this to assert that the ensuing C code is sensitive
+   to the current layout of mixed blocks in a way that's subject
+   to change in future compiler releases. We'll bump the version
+   number when we make a breaking change. For example, we currently
+   don't pack int32's efficiently, and we will want to someday.
+
+   Users can write:
+
+   Assert_mixed_block_layout_v1;
+
+   (Hack: we define using _Static_assert rather than just an empty
+   definition so that users can write a semicolon, which is treated
+   better by C formatters.)
+ */
+#define Assert_mixed_block_layout_v1 _Static_assert(1, "")
 
 /* Header for out-of-heap blocks. */
 

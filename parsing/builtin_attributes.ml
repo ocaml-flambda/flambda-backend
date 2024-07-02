@@ -14,7 +14,6 @@
 (**************************************************************************)
 
 open Asttypes
-open Jane_asttypes
 open Parsetree
 open Ast_helper
 
@@ -33,16 +32,20 @@ let mark_used t = Attribute_table.remove unused_attrs t
 *)
 let attr_order a1 a2 = Location.compare a1.loc a2.loc
 
-let unchecked_properties = Attribute_table.create 1
-let mark_property_checked txt loc =
-  Attribute_table.remove unchecked_properties { txt; loc }
-let register_property attr =
-    Attribute_table.replace unchecked_properties attr ()
-let warn_unchecked_property () =
-  let keys = List.of_seq (Attribute_table.to_seq_keys unchecked_properties) in
+let unchecked_zero_alloc_attributes = Attribute_table.create 1
+let mark_zero_alloc_attribute_checked txt loc =
+  Attribute_table.remove unchecked_zero_alloc_attributes { txt; loc }
+let register_zero_alloc_attribute attr =
+    Attribute_table.replace unchecked_zero_alloc_attributes attr ()
+let warn_unchecked_zero_alloc_attribute () =
+    (* When using -i, attributes will not have been translated, so we can't
+     warn about missing ones. *)
+  if !Clflags.print_types then ()
+  else
+  let keys = List.of_seq (Attribute_table.to_seq_keys unchecked_zero_alloc_attributes) in
   let keys = List.sort attr_order keys in
   List.iter (fun sloc ->
-    Location.prerr_warning sloc.loc (Warnings.Unchecked_property_attribute sloc.txt))
+    Location.prerr_warning sloc.loc (Warnings.Unchecked_zero_alloc_attribute))
     keys
 
 let warn_unused () =
@@ -51,7 +54,6 @@ let warn_unused () =
   if !Clflags.print_types then ()
   else
   begin
-    warn_unchecked_property ();
     let keys = List.of_seq (Attribute_table.to_seq_keys unused_attrs) in
     let keys = List.sort attr_order keys in
     List.iter (fun sloc ->
@@ -77,12 +79,8 @@ let builtin_attrs =
   ; "ppwarning"; "ocaml.ppwarning"
   ; "explicit_arity"; "ocaml.explicit_arity"
   ; "warn_on_literal_pattern"; "ocaml.warn_on_literal_pattern"
-  ; "float64"; "ocaml.float64"
   ; "immediate"; "ocaml.immediate"
   ; "immediate64"; "ocaml.immediate64"
-  ; "void"; "ocaml.void"
-  ; "value"; "ocaml.value"
-  ; "any"; "ocaml.any"
   ; "boxed"; "ocaml.boxed"
   ; "unboxed"; "ocaml.unboxed"
   ; "principal"; "ocaml.principal"
@@ -93,6 +91,7 @@ let builtin_attrs =
   ; "afl_inst_ratio"; "ocaml.afl_inst_ratio"
   ; "local_opt"; "ocaml.local_opt"
   ; "curry"; "ocaml.curry"; "extension.curry"
+  (* [local] and [global] are never used and always trigger warning 53 *)
   ; "global"; "ocaml.global"; "extension.global"
   ; "local"; "ocaml.local"; "extension.local"
   ; "nontail"; "ocaml.nontail"; "extension.nontail"
@@ -107,7 +106,10 @@ let builtin_attrs =
   ; "builtin"; "ocaml.builtin"
   ; "no_effects"; "ocaml.no_effects"
   ; "no_coeffects"; "ocaml.no_coeffects"
-  ; "only_generative_effects"; "ocaml.only_generative_effects";
+  ; "only_generative_effects"; "ocaml.only_generative_effects"
+  ; "error_message"; "ocaml.error_message"
+  ; "layout_poly"; "ocaml.layout_poly"
+  ; "no_mutable_implied_modalities"; "ocaml.no_mutable_implied_modalities"
   ]
 
 (* nroberts: When we upstream the builtin-attribute whitelisting, we shouldn't
@@ -218,6 +220,8 @@ let error_of_extension ext =
       | _ ->
           Location.errorf ~loc "Invalid syntax for extension '%s'." txt
       end
+  | ({txt = "call_pos"; loc}, _) ->
+      Location.errorf ~loc "[%%call_pos] can only exist as the type of a labelled argument"
   | ({txt; loc}, _) ->
       Location.errorf ~loc "Uninterpreted extension '%s'." txt
 
@@ -437,14 +441,28 @@ module Attributes_filter = struct
   let create (t : t) = t
 end
 
-let filter_attributes (nms_and_conds : Attributes_filter.t) attrs =
+let filter_attributes ?(mark=true) (nms_and_conds : Attributes_filter.t) attrs =
   List.filter (fun a ->
     List.exists (fun (nms, cond) ->
       if List.mem a.attr_name.txt nms
-      then (mark_used a.attr_name; cond)
+      then (if mark then mark_used a.attr_name; cond)
       else false)
       nms_and_conds
   ) attrs
+
+let find_attribute ?mark_used p attributes =
+  let inline_attribute =
+    filter_attributes ?mark:mark_used p attributes
+  in
+  let attr =
+    match inline_attribute with
+    | [] -> None
+    | [attr] -> Some attr
+    | attr :: {Parsetree.attr_name = {txt;loc}; _} :: _ ->
+      Location.prerr_warning loc (Warnings.Duplicated_attribute txt);
+      Some attr
+  in
+  attr
 
 let when_attribute_is nms attr ~f =
   if List.mem attr.attr_name.txt nms then begin
@@ -459,39 +477,33 @@ let warn_on_literal_pattern attrs =
 let explicit_arity attrs =
   has_attribute ["ocaml.explicit_arity"; "explicit_arity"] attrs
 
-let jkind ~legacy_immediate attrs =
+type jkind_attribute =
+  | Immediate64
+  | Immediate
+
+let jkind_attribute_of_string = function
+  | "ocaml.immediate64" | "immediate64" -> Some Immediate64
+  | "ocaml.immediate" | "immediate" -> Some Immediate
+  | _ -> None
+
+let jkind_attribute_to_string = function
+  | Immediate64 -> "immediate64"
+  | Immediate -> "immediate"
+
+let jkind attrs =
   let jkind =
     List.find_map
       (fun a ->
-         match a.attr_name.txt with
-         | "ocaml.void"|"void" -> Some (a, Void)
-         | "ocaml.value"|"value" -> Some (a, Value)
-         | "ocaml.any"|"any" -> Some (a, Any)
-         | "ocaml.immediate"|"immediate" -> Some (a, Immediate)
-         | "ocaml.immediate64"|"immediate64" -> Some (a, Immediate64)
-         | "ocaml.float64"|"float64" -> Some (a, Float64)
-         | _ -> None
-        ) attrs
+         match jkind_attribute_of_string a.attr_name.txt with
+         | Some attr -> Some (a, attr)
+         | None -> None
+      ) attrs
   in
   match jkind with
-  | None -> Ok None
+  | None -> None
   | Some (a, l) ->
      mark_used a.attr_name;
-     let l_loc = Location.mkloc l a.attr_loc in
-     let check b =
-       if b
-       then Ok (Some l_loc)
-       else Error l_loc
-     in
-     match l with
-     | Value -> check true
-     | Immediate | Immediate64 ->
-        check  (legacy_immediate
-             || Language_extension.(is_at_least Layouts Beta))
-     | Any | Float64 ->
-        check Language_extension.(is_at_least Layouts Beta)
-     | Void ->
-        check Language_extension.(is_at_least Layouts Alpha)
+     Some (Location.mkloc l a.attr_loc)
 
 (* The "ocaml.boxed (default)" and "ocaml.unboxed (default)"
    attributes cannot be input by the user, they are added by the
@@ -592,12 +604,15 @@ let parse_attribute_with_ident_payload attr ~name ~f =
 let zero_alloc_attribute (attr : Parsetree.attribute)  =
   parse_attribute_with_ident_payload attr
     ~name:"zero_alloc" ~f:(function
-      | "check" -> Clflags.zero_alloc_check := Clflags.Annotations.Check_default
+      | "check" -> Clflags.zero_alloc_check := Zero_alloc_annotations.Check_default
+      | "check_opt" -> Clflags.zero_alloc_check := Zero_alloc_annotations.Check_opt_only
+      | "check_all" -> Clflags.zero_alloc_check := Zero_alloc_annotations.Check_all
+      | "check_none" -> Clflags.zero_alloc_check := Zero_alloc_annotations.No_check
       | "all" ->
         Clflags.zero_alloc_check_assert_all := true
       | _ ->
         warn_payload attr.attr_loc attr.attr_name.txt
-          "Only 'check' and 'all' are supported")
+          "Only 'all', 'check', 'check_opt', 'check_all', and 'check_none' are supported")
 
 let afl_inst_ratio_attribute attr =
   clflags_attribute_with_int_payload attr
@@ -620,69 +635,18 @@ let parse_standard_implementation_attributes attr =
   flambda_oclassic_attribute attr;
   zero_alloc_attribute attr
 
+let has_no_mutable_implied_modalities attrs =
+  has_attribute ["ocaml.no_mutable_implied_modalities";"no_mutable_implied_modalities"] attrs
+
 let has_local_opt attrs =
   has_attribute ["ocaml.local_opt"; "local_opt"] attrs
 
+let has_layout_poly attrs =
+  has_attribute ["ocaml.layout_poly"; "layout_poly"] attrs
+
 let has_curry attrs =
-  has_attribute ["extension.curry"; "ocaml.curry"; "curry"] attrs
-
-(* Mode annotation attributes are handled fairly uniformly, so we have
-   a dedicated submodule for them.
-*)
-module Mode_annotation_attribute = struct
-
-  (* When you add a constructor here, be sure to add it to [all]. *)
-  type t =
-    | Local
-    | Global
-    | Unique
-    | Once
-
-  let all = [ Local; Global; Unique; Once; ]
-
-  (* extension.* is generated by the parser and not usually written directly,
-     so does not have a short form. An error is reported if it is seen when
-     the extension is disabled *)
-  let name = function
-    | Local -> "extension.local"
-    | Global -> "extension.global"
-    | Unique -> "extension.unique"
-    | Once -> "extension.once"
-
-  let extra_user_written_names = function
-    | Local -> [ "ocaml.local"; "local" ]
-    | Global -> [ "ocaml.global"; "global" ]
-    | Unique -> [ "ocaml.unique"; "unique" ]
-    | Once -> [ "ocaml.once"; "once" ]
-
-  let is_language_extension_enabled = function
-    | Local | Global -> Language_extension.is_enabled Local
-    | Unique | Once -> Language_extension.is_enabled Unique
-
-  let check t attr =
-    if has_attribute [ name t ] attr then
-      if not (is_language_extension_enabled t) then
-        Error ()
-      else
-        Ok true
-    else
-      Ok (has_attribute (extra_user_written_names t) attr)
-end
-
-let has_local attr = Mode_annotation_attribute.check Local attr
-let has_global attr = Mode_annotation_attribute.check Global attr
-let has_unique attr = Mode_annotation_attribute.check Unique attr
-let has_once attr = Mode_annotation_attribute.check Once attr
-
-let mode_annotation_attributes_filter =
-  List.map
-    (fun attr ->
-      let names =
-        Mode_annotation_attribute.name attr
-        :: Mode_annotation_attribute.extra_user_written_names attr
-      in
-      names, true)
-    Mode_annotation_attribute.all
+  has_attribute
+    [Jane_syntax.Arrow_curry.curry_attr_name; "ocaml.curry"; "curry"] attrs
 
 let tailcall attr =
   let has_nontail = has_attribute ["ocaml.nontail"; "nontail"] attr in
@@ -701,3 +665,324 @@ let tailcall attr =
           (Warnings.Attribute_payload
              (t.attr_name.txt, "Only 'hint' is supported"));
         Ok (Some `Tail_if_possible)
+
+let error_message_attr l =
+  let inner x =
+    match x.attr_name.txt with
+    | "ocaml.error_message"|"error_message" ->
+      begin match string_of_payload x.attr_payload with
+      | Some _ as r ->
+        mark_used x.attr_name;
+        r
+      | None -> warn_payload x.attr_loc x.attr_name.txt
+                  "error_message attribute expects a string argument";
+        None
+      end
+    | _ -> None in
+  List.find_map inner l
+
+type zero_alloc_attribute =
+  | Default_zero_alloc
+  | Ignore_assert_all
+  | Check of { strict: bool;
+               opt: bool;
+               arity: int;
+               loc: Location.t;
+             }
+  | Assume of { strict: bool;
+                never_returns_normally: bool;
+                never_raises: bool;
+                arity: int;
+                loc: Location.t;
+              }
+
+let is_zero_alloc_check_enabled ~opt =
+  match !Clflags.zero_alloc_check with
+  | No_check -> false
+  | Check_all -> true
+  | Check_default -> not opt
+  | Check_opt_only -> opt
+
+let is_zero_alloc_attribute =
+  [ ["zero_alloc"; "ocaml.zero_alloc"], true ]
+
+let get_payload get_from_exp =
+  let open Parsetree in
+  function
+  | PStr [{pstr_desc = Pstr_eval (exp, [])}] -> get_from_exp exp
+  | _ -> Result.Error ()
+
+let get_optional_payload get_from_exp =
+  let open Parsetree in
+  function
+  | PStr [] -> Result.Ok None
+  | other -> Result.map Option.some (get_payload get_from_exp other)
+
+let get_int_from_exp =
+  let open Parsetree in
+  function
+    | { pexp_desc = Pexp_constant (Pconst_integer(s, None)) } ->
+        begin match Misc.Int_literal_converter.int s with
+        | n -> Result.Ok n
+        | exception (Failure _) -> Result.Error ()
+        end
+    | _ -> Result.Error ()
+
+let get_construct_from_exp =
+  let open Parsetree in
+  function
+    | { pexp_desc =
+          Pexp_construct ({ txt = Longident.Lident constr }, None) } ->
+        Result.Ok constr
+    | _ -> Result.Error ()
+
+let get_bool_from_exp exp =
+  Result.bind (get_construct_from_exp exp)
+    (function
+      | "true" -> Result.Ok true
+      | "false" -> Result.Ok false
+      | _ -> Result.Error ())
+
+let get_int_payload = get_payload get_int_from_exp
+let get_optional_bool_payload = get_optional_payload get_bool_from_exp
+
+let get_id_from_exp =
+  let open Parsetree in
+  function
+  | { pexp_desc = Pexp_ident { txt = Longident.Lident id } } -> Result.Ok id
+  | _ -> Result.Error ()
+
+let get_id_or_constant_from_exp =
+  let open Parsetree in
+  function
+  | { pexp_desc = Pexp_ident { txt = Longident.Lident id } } -> Result.Ok id
+  | { pexp_desc = Pexp_constant (Pconst_integer (s,None)) } -> Result.Ok s
+  | _ -> Result.Error ()
+
+let get_ids_and_constants_from_exp exp =
+  let open Parsetree in
+  (match exp with
+   | { pexp_desc = Pexp_apply (exp, args) } ->
+     get_id_or_constant_from_exp exp ::
+     List.map (function
+       | (Asttypes.Nolabel, arg) -> get_id_or_constant_from_exp arg
+       | (_, _) -> Result.Error ())
+       args
+   | _ -> [get_id_or_constant_from_exp exp])
+  |> List.fold_left (fun acc r ->
+    match acc, r with
+    | Result.Ok ids, Ok id -> Result.Ok (id::ids)
+    | (Result.Error _ | Ok _), _ -> Result.Error ())
+    (Ok [])
+  |> Result.map List.rev
+
+let parse_optional_id_payload txt loc ~empty cases payload =
+  let[@local] warn () =
+    let ( %> ) f g x = g (f x) in
+    let msg =
+      cases
+      |> List.map (fst %> Printf.sprintf "'%s'")
+      |> String.concat ", "
+      |> Printf.sprintf "It must be either %s or empty"
+    in
+    Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg));
+    Error ()
+  in
+  match get_optional_payload get_id_from_exp payload with
+  | Error () -> warn ()
+  | Ok None -> Ok empty
+  | Ok (Some id) ->
+      match List.assoc_opt id cases with
+      | Some r -> Ok r
+      | None -> warn ()
+
+(* Looks for `arity n` in payload. If present, this returns `n` and an updated
+   payload with `arity n` removed. Note it may change the order of the payload,
+   which is fine because we sort it later. *)
+let filter_arity payload =
+  let is_arity s1 s2 =
+    match s1 with
+    | "arity" -> int_of_string_opt s2
+    | _ -> None
+  in
+  let rec find_arity acc payload =
+    match payload with
+    | [] | [_] -> None
+    | s1 :: ((s2 :: payload) as payload') ->
+      begin match is_arity s1 s2 with
+      | Some n -> Some (n, acc @ payload)
+      | None -> find_arity (s1 :: acc) payload'
+      end
+  in
+  find_arity [] payload
+
+let zero_alloc_lookup_table =
+  (* These are the possible payloads (sans arity) paired with a function that
+     returns the corresponding check_attribute, given the arity and the loc. *)
+  [
+    (["assume"],
+     fun arity loc ->
+       Assume { strict = false; never_returns_normally = false;
+                never_raises = false;
+                arity; loc; });
+    (["strict"],
+     fun arity loc ->
+       Check { strict = true; opt = false; arity; loc; });
+    (["opt"],
+     fun arity loc ->
+       Check { strict = false; opt = true; arity; loc; });
+    (["opt"; "strict"; ],
+     fun arity loc ->
+       Check { strict = true; opt = true; arity; loc; });
+    (["assume"; "strict"],
+     fun arity loc ->
+       Assume { strict = true; never_returns_normally = false;
+                never_raises = false;
+                arity; loc; });
+    (["assume"; "never_returns_normally"],
+     fun arity loc ->
+       Assume {  strict = false; never_returns_normally = true;
+                never_raises = false;
+                arity; loc; });
+    (["assume"; "never_returns_normally"; "strict"],
+     fun arity loc ->
+       Assume { strict = true; never_returns_normally = true;
+                never_raises = false;
+                arity; loc; });
+    (["assume"; "error"],
+     fun arity loc ->
+       Assume { strict = true; never_returns_normally = true;
+                never_raises = true;
+                arity; loc; });
+    (["ignore"], fun _ _ -> Ignore_assert_all)
+  ]
+
+let parse_zero_alloc_payload ~loc ~arity ~warn ~empty payload =
+  (* This parses the remainder of the payload after arity has been parsed
+     out. *)
+  match payload with
+  | [] -> empty
+  | _ :: _ ->
+    let payload = List.sort String.compare payload in
+    match List.assoc_opt payload zero_alloc_lookup_table with
+    | None -> warn ();  Default_zero_alloc
+    | Some ca -> ca arity loc
+
+let parse_zero_alloc_attribute ~is_arity_allowed ~default_arity attr =
+  match attr with
+  | None -> Default_zero_alloc
+  | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload} ->
+    let warn () =
+      let ( %> ) f g x = g (f x) in
+      let msg =
+        zero_alloc_lookup_table
+        |> List.map (fst %> String.concat " " %> Printf.sprintf "'%s'")
+        |> String.concat ", "
+        |> Printf.sprintf "It must be either %s or empty"
+      in
+      Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg))
+    in
+    let empty arity =
+      Check { strict = false; opt = false; arity; loc; }
+    in
+    match get_optional_payload get_ids_and_constants_from_exp payload with
+    | Error () -> warn (); Default_zero_alloc
+    | Ok None -> empty default_arity
+    | Ok (Some payload) ->
+      let arity, payload =
+        match filter_arity payload with
+        | None -> default_arity, payload
+        | Some (user_arity, payload) ->
+          if is_arity_allowed then
+            user_arity, payload
+          else
+            (warn_payload loc txt
+               "The \"arity\" field is only supported on \"zero_alloc\" in \
+                signatures";
+             default_arity, payload)
+      in
+      parse_zero_alloc_payload ~loc ~arity ~warn ~empty:(empty arity) payload
+
+let get_zero_alloc_attribute ~in_signature ~default_arity l =
+  let attr = find_attribute is_zero_alloc_attribute l in
+  let res =
+      parse_zero_alloc_attribute ~is_arity_allowed:in_signature ~default_arity
+        attr
+  in
+  (match attr, res with
+   | None, Default_zero_alloc -> ()
+   | _, Default_zero_alloc -> ()
+   | None, (Check _ | Assume _ | Ignore_assert_all) -> assert false
+   | Some _, Ignore_assert_all -> ()
+   | Some _, Assume _ -> ()
+   | Some attr, Check { opt; _ } ->
+     if not in_signature && is_zero_alloc_check_enabled ~opt && !Clflags.native_code then
+       (* The warning for unchecked functions will not trigger if the check is
+          requested through the [@@@zero_alloc all] top-level annotation rather
+          than through the function annotation [@zero_alloc]. *)
+       register_zero_alloc_attribute attr.attr_name);
+   res
+
+let assume_zero_alloc ~is_check_allowed check : Zero_alloc_utils.Assume_info.t =
+  match check with
+  | Default_zero_alloc -> Zero_alloc_utils.Assume_info.none
+  | Ignore_assert_all -> Zero_alloc_utils.Assume_info.none
+  | Assume { strict; never_returns_normally; never_raises; } ->
+    Zero_alloc_utils.Assume_info.create ~strict ~never_returns_normally ~never_raises
+  | Check { loc; _ } ->
+    if not is_check_allowed then begin
+      let name = "zero_alloc" in
+      let msg = "Only the following combinations are supported in this context: \
+                 'zero_alloc assume', \
+                 `zero_alloc assume strict`, \
+                 `zero_alloc assume error`,\
+                 `zero_alloc assume never_returns_normally`,\
+                 `zero_alloc assume never_returns_normally strict`."
+      in
+      Location.prerr_warning loc (Warnings.Attribute_payload (name, msg))
+    end;
+    Zero_alloc_utils.Assume_info.none
+
+type tracing_probe =
+  { name : string;
+    name_loc : Location.t;
+    enabled_at_init : bool;
+    arg : Parsetree.expression;
+  }
+
+let get_tracing_probe_payload (payload : Parsetree.payload) =
+  let ( let* ) = Result.bind in
+  let* name, name_loc, args =
+    match payload with
+    | PStr
+        ([{ pstr_desc =
+              Pstr_eval
+                ({ pexp_desc =
+                      (Pexp_apply
+                        ({ pexp_desc=
+                              (Pexp_constant (Pconst_string(name,_,None)));
+                            pexp_loc = name_loc;
+                            _ }
+                        , args))
+                  ; _ }
+                , _)}]) -> Ok (name, name_loc, args)
+    | _ -> Error ()
+  in
+  let bool_of_string = function
+    | "true" -> Ok true
+    | "false" -> Ok false
+    | _ -> Error ()
+  in
+  let* arg, enabled_at_init =
+    match args with
+    | [Nolabel, arg] -> Ok (arg, false)
+    | [Labelled "enabled_at_init",
+        { pexp_desc =
+            Pexp_construct({ txt = Longident.Lident b; _ },
+                          None); _ };
+        Nolabel, arg] ->
+          let* enabled_at_init = bool_of_string b in
+          Ok (arg, enabled_at_init)
+    | _ -> Error ()
+  in
+  Ok { name; name_loc; enabled_at_init; arg }

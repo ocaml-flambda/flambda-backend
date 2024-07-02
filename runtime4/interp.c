@@ -211,6 +211,13 @@ static intnat caml_bcodcount;
 
 /* The interpreter itself */
 
+typedef value (*primitive_arity_1)(value);
+typedef value (*primitive_arity_2)(value, value);
+typedef value (*primitive_arity_3)(value, value, value);
+typedef value (*primitive_arity_4)(value, value, value, value);
+typedef value (*primitive_arity_5)(value, value, value, value, value);
+typedef value (*primitive_arity_n)(value*, int);
+
 value caml_interprete(code_t prog, asize_t prog_size)
 {
 #ifdef PC_REG
@@ -747,6 +754,25 @@ value caml_interprete(code_t prog, asize_t prog_size)
       accu = block;
       Next;
     }
+    Instruct(MAKE_FAUX_MIXEDBLOCK): {
+      mlsize_t wosize = *pc++;
+      tag_t tag = *pc++;
+      mlsize_t i;
+      value block;
+      if (wosize <= Max_young_wosize) {
+        Alloc_small_with_reserved(block, wosize, tag,
+                                  Faux_mixed_block_sentinel);
+        Field(block, 0) = accu;
+        for (i = 1; i < wosize; i++) Field(block, i) = *sp++;
+      } else {
+        block =
+          caml_alloc_shr_reserved(wosize, tag, Faux_mixed_block_sentinel);
+        caml_initialize(&Field(block, 0), accu);
+        for (i = 1; i < wosize; i++) caml_initialize(&Field(block, i), *sp++);
+      }
+      accu = block;
+      Next;
+    }
     Instruct(MAKEFLOATBLOCK): {
       mlsize_t size = *pc++;
       mlsize_t i;
@@ -959,34 +985,34 @@ value caml_interprete(code_t prog, asize_t prog_size)
 
     Instruct(C_CALL1):
       Setup_for_c_call;
-      accu = Primitive(*pc)(accu);
+      accu = ((primitive_arity_1) Primitive(*pc))(accu);
       Restore_after_c_call;
       pc++;
       Next;
     Instruct(C_CALL2):
       Setup_for_c_call;
-      accu = Primitive(*pc)(accu, sp[2]);
+      accu = ((primitive_arity_2) Primitive(*pc))(accu, sp[2]);
       Restore_after_c_call;
       sp += 1;
       pc++;
       Next;
     Instruct(C_CALL3):
       Setup_for_c_call;
-      accu = Primitive(*pc)(accu, sp[2], sp[3]);
+      accu = ((primitive_arity_3)Primitive(*pc))(accu, sp[2], sp[3]);
       Restore_after_c_call;
       sp += 2;
       pc++;
       Next;
     Instruct(C_CALL4):
       Setup_for_c_call;
-      accu = Primitive(*pc)(accu, sp[2], sp[3], sp[4]);
+      accu = ((primitive_arity_4) Primitive(*pc))(accu, sp[2], sp[3], sp[4]);
       Restore_after_c_call;
       sp += 3;
       pc++;
       Next;
     Instruct(C_CALL5):
       Setup_for_c_call;
-      accu = Primitive(*pc)(accu, sp[2], sp[3], sp[4], sp[5]);
+      accu = ((primitive_arity_5) Primitive(*pc))(accu, sp[2], sp[3], sp[4], sp[5]);
       Restore_after_c_call;
       sp += 4;
       pc++;
@@ -995,7 +1021,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
       int nargs = *pc++;
       *--sp = accu;
       Setup_for_c_call;
-      accu = Primitive(*pc)(sp + 2, nargs);
+      accu = ((primitive_arity_n) Primitive(*pc))(sp + 2, nargs);
       Restore_after_c_call;
       sp += nargs;
       pc++;

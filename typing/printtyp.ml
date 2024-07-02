@@ -123,6 +123,7 @@ let () = Env.print_longident := longident
 module Out_name = struct
   let create x = { printed_name = x }
   let print x = x.printed_name
+  let set out_name x = out_name.printed_name <- x
 end
 
 (** Some identifiers may require hiding when printing *)
@@ -136,9 +137,13 @@ let printing_env = ref Env.empty
    cmi present on the file system *)
 let in_printing_env f = Env.without_cmis f !printing_env
 
+let human_unique n id = Printf.sprintf "%s/%d" (Ident.name id) n
+
  type namespace = Sig_component_kind.t =
     | Value
     | Type
+    | Constructor
+    | Label
     | Module
     | Module_type
     | Extension_constructor
@@ -154,7 +159,7 @@ module Namespace = struct
     | Module_type -> 2
     | Class -> 3
     | Class_type -> 4
-    | Extension_constructor | Value -> 5
+    | Extension_constructor | Value | Constructor | Label -> 5
      (* we do not handle those component *)
 
   let size = 1 + id Value
@@ -174,7 +179,8 @@ module Namespace = struct
     | Some Module_type -> to_lookup Env.find_modtype_by_name
     | Some Class -> to_lookup Env.find_class_by_name
     | Some Class_type -> to_lookup Env.find_cltype_by_name
-    | None | Some(Value|Extension_constructor) -> fun _ -> raise Not_found
+    | None | Some(Value|Extension_constructor|Constructor|Label) ->
+         fun _ -> raise Not_found
 
   let location namespace id =
     let path = Path.Pident id in
@@ -185,7 +191,8 @@ module Namespace = struct
         | Some Module_type -> (in_printing_env @@ Env.find_modtype path).mtd_loc
         | Some Class -> (in_printing_env @@ Env.find_class path).cty_loc
         | Some Class_type -> (in_printing_env @@ Env.find_cltype path).clty_loc
-        | Some (Extension_constructor|Value) | None -> Location.none
+        | Some (Extension_constructor|Value|Constructor|Label) | None ->
+            Location.none
       ) with Not_found -> None
 
   let best_class_namespace = function
@@ -209,32 +216,15 @@ module Conflicts = struct
   type explanation =
     { kind: namespace; name:string; root_name:string; location:Location.t}
   let explanations = ref M.empty
-
-  let add namespace name id =
-    match Namespace.location (Some namespace) id with
-    | None -> ()
-    | Some location ->
-        let explanation =
-          { kind = namespace; location; name; root_name=Ident.name id}
-        in
-        explanations := M.add name explanation !explanations
-
-  let collect_explanation namespace id ~name =
+  let collect_explanation namespace n id =
+    let name = human_unique n id in
     let root_name = Ident.name id in
-    (* if [name] is of the form "root_name/%d", we register both
-      [id] and the identifier in scope for [root_name].
-     *)
-    if root_name <> name && not (M.mem name !explanations) then
-      begin
-        add namespace name id;
-        if not (M.mem root_name !explanations) then
-          (* lookup the identifier in scope with name [root_name] and
-             add it too
-           *)
-          match Namespace.lookup (Some namespace) root_name with
-          | Pident root_id -> add namespace root_name root_id
-          | exception Not_found | _ -> ()
-      end
+    if not (M.mem name !explanations) then
+      match Namespace.location (Some namespace) id with
+      | None -> ()
+      | Some location ->
+          let explanation = { kind = namespace; location; name; root_name } in
+          explanations := M.add name explanation !explanations
 
   let pp_explanation ppf r=
     Format.fprintf ppf "@[<v 2>%a:@,Definition of %s %s@]"
@@ -308,30 +298,43 @@ module S = String.Set
 let enabled = ref true
 let enable b = enabled := b
 
-(* Names bound in recursive definitions should be considered as bound
-   in the environment when printing identifiers but not when trying
-   to find shortest path.
-   For instance, if we define
-   [{
-   module Avoid__me = struct
-     type t = A
-   end
-   type t = X
-   type u = [` A of t * t ]
-   module M = struct
-     type t = A of [ u | `B ]
-     type r = Avoid__me.t
-   end
-  }]
-  It is is important that in the definition of [t] that the outer type [t] is
-  printed as [t/2] reserving the name [t] to the type being defined in the
-  current recursive definition.
-     Contrarily, in the definition of [r], one should not shorten the
-  path [Avoid__me.t] to [r] until the end of the definition of [r].
-  The [bound_in_recursion] bridges the gap between those two slightly different
-  notions of printing environment.
-*)
-let bound_in_recursion = ref M.empty
+(** Name mapping *)
+type mapping =
+  | Need_unique_name of int Ident.Map.t
+  (** The same name has already been attributed to multiple types.
+      The [map] argument contains the specific binding time attributed to each
+      types.
+  *)
+  | Uniquely_associated_to of Ident.t * out_name
+  (** For now, the name [Ident.name id] has been attributed to [id],
+      [out_name] is used to expand this name if a conflict arises
+      at a later point
+  *)
+  | Associated_to_pervasives of out_name
+  (** [Associated_to_pervasives out_name] is used when the item
+      [Stdlib.$name] has been associated to the name [$name].
+      Upon a conflict, this name will be expanded to ["Stdlib." ^ name ] *)
+
+let hid_start = 0
+
+let add_hid_id id map =
+  let new_id = 1 + Ident.Map.fold (fun _ -> Int.max) map hid_start in
+  new_id, Ident.Map.add id new_id  map
+
+let find_hid id map =
+  try Ident.Map.find id map, map with
+    Not_found -> add_hid_id id map
+
+let pervasives name = "Stdlib." ^ name
+
+let map = Array.make Namespace.size M.empty
+let get namespace = map.(Namespace.id namespace)
+let set namespace x = map.(Namespace.id namespace) <- x
+
+(* Names used in recursive definitions are not considered when determining
+   if a name is already attributed in the current environment.
+   This is a complementary version of hidden_rec_items used by short-path. *)
+let protected = ref S.empty
 
 (* When dealing with functor arguments, identity becomes fuzzy because the same
    syntactic argument may be represented by different identifiers during the
@@ -343,71 +346,93 @@ let with_arg id f =
 let fuzzy_id namespace id = namespace = Module && S.mem (Ident.name id) !fuzzy
 
 let with_hidden ids f =
-  let update m id = M.add (Ident.name id.ident) id.ident m in
-  let updated = List.fold_left update !bound_in_recursion ids in
-  protect_refs [ R(bound_in_recursion, updated )] f
+  let update m id = S.add (Ident.name id.ident) m in
+  protect_refs [ R(protected, List.fold_left update !protected ids)] f
 
-let human_id id index =
-  (* The identifier with index [k] is the (k+1)-th most recent identifier in
-     the printing environment. We print them as [name/(k+1)] except for [k=0]
-     which is printed as [name] rather than [name/1].
-  *)
-  if index = 0 then
-    Ident.name id
-  else
-    let ordinal = index + 1 in
-    String.concat "/" [Ident.name id; string_of_int ordinal]
+let pervasives_name namespace name =
+  match namespace, !enabled with
+  | None, _ | _, true -> Out_name.create name
+  | Some namespace, false ->
+      match M.find name (get namespace) with
+      | Associated_to_pervasives r -> r
+      | Need_unique_name _ -> Out_name.create (pervasives name)
+      | Uniquely_associated_to (id',r) ->
+          let hid, map = add_hid_id id' Ident.Map.empty in
+          Out_name.set r (human_unique hid id');
+          Conflicts.collect_explanation namespace hid id';
+          set namespace @@ M.add name (Need_unique_name map) (get namespace);
+          Out_name.create (pervasives name)
+      | exception Not_found ->
+          let r = Out_name.create name in
+          set namespace @@ M.add name (Associated_to_pervasives r) (get namespace);
+          r
 
-let indexed_name namespace id =
-  let find namespace id env = match namespace with
-    | Type -> Env.find_type_index id env
-    | Module -> Env.find_module_index id env
-    | Module_type -> Env.find_modtype_index id env
-    | Class -> Env.find_class_index id env
-    | Class_type-> Env.find_cltype_index id env
-    | Value | Extension_constructor -> None
-  in
-  let index =
-    match M.find_opt (Ident.name id) !bound_in_recursion with
-    | Some rec_bound_id ->
-        (* the identifier name appears in the current group of recursive
-           definition *)
-        if Ident.same rec_bound_id id then
-          Some 0
-        else
-          (* the current recursive definition shadows one more time the
-            previously existing identifier with the same name *)
-          Option.map succ (in_printing_env (find namespace id))
-    | None ->
-        in_printing_env (find namespace id)
-  in
-  let index =
-    (* If [index] is [None] at this point, it might indicate that
-       the identifier id is not defined in the environment, while there
-       are other identifiers in scope that share the same name.
-       Currently, this kind of partially incoherent environment happens
-       within functor error messages where the left and right hand side
-       have a different views of the environment at the source level.
-       Printing the source-level by using a default index of `0`
-       seems like a reasonable compromise in this situation however.*)
-    Option.value index ~default:0
-  in
-  human_id id index
+(** Lookup for preexisting named item within the current {!printing_env} *)
+let env_ident namespace name =
+  if S.mem name !protected then None else
+  match Namespace.lookup namespace name with
+  | Pident id -> Some id
+  | _ -> None
+  | exception Not_found -> None
 
-let ident_name namespace id =
+(** Associate a name to the identifier [id] within [namespace] *)
+let ident_name_simple namespace id =
   match namespace, !enabled with
   | None, _ | _, false -> Out_name.create (Ident.name id)
   | Some namespace, true ->
-      if fuzzy_id namespace id then Out_name.create (Ident.name id)
-      else
-        let name = indexed_name namespace id in
-        Conflicts.collect_explanation namespace id ~name;
-        Out_name.create name
+    if fuzzy_id namespace id then Out_name.create (Ident.name id)
+    else
+      let name = Ident.name id in
+      match M.find name (get namespace) with
+      | Uniquely_associated_to (id',r) when Ident.same id id' ->
+          r
+      | Need_unique_name map ->
+          let hid, m = find_hid id map in
+          Conflicts.collect_explanation namespace hid id;
+          set namespace @@ M.add name (Need_unique_name m) (get namespace);
+          Out_name.create (human_unique hid id)
+      | Uniquely_associated_to (id',r) ->
+          let hid', m = find_hid id' Ident.Map.empty in
+          let hid, m = find_hid id m in
+          Out_name.set r (human_unique hid' id');
+          List.iter (fun (id,hid) -> Conflicts.collect_explanation namespace hid id)
+            [id, hid; id', hid' ];
+          set namespace @@ M.add name (Need_unique_name m) (get namespace);
+          Out_name.create (human_unique hid id)
+      | Associated_to_pervasives r ->
+          Out_name.set r ("Stdlib." ^ Out_name.print r);
+          let hid, m = find_hid id Ident.Map.empty in
+          set namespace @@ M.add name (Need_unique_name m) (get namespace);
+          Out_name.create (human_unique hid id)
+      | exception Not_found ->
+          let r = Out_name.create name in
+          set namespace
+          @@ M.add name (Uniquely_associated_to (id,r) ) (get namespace);
+          r
+
+(** Same as {!ident_name_simple} but lookup to existing named identifiers
+    in the current {!printing_env} *)
+let ident_name namespace id =
+  begin match env_ident namespace (Ident.name id) with
+  | Some id' -> ignore (ident_name_simple namespace id')
+  | None -> ()
+  end;
+  ident_name_simple namespace id
+
+let reset () =
+  Array.iteri ( fun i _ -> map.(i) <- M.empty ) map
+
+let with_ctx f =
+  let old = Array.copy map in
+  try_finally f
+    ~always:(fun () -> Array.blit old 0 map 0 (Array.length map))
+
 end
 let ident_name = Naming_context.ident_name
+let reset_naming_context = Naming_context.reset
 
 let ident ppf id = pp_print_string ppf
-    (Out_name.print (Naming_context.ident_name None id))
+    (Out_name.print (Naming_context.ident_name_simple None id))
 
 let namespaced_ident namespace  id =
   Out_name.print (Naming_context.ident_name (Some namespace) id)
@@ -417,11 +442,11 @@ let namespaced_ident namespace  id =
 
 let ident_stdlib = Ident.create_persistent "Stdlib"
 
-let non_shadowed_stdlib namespace = function
+let non_shadowed_pervasive = function
   | Pdot(Pident id, s) as path ->
       Ident.same id ident_stdlib &&
-      (match Namespace.lookup namespace s with
-       | path' -> Path.same path path'
+      (match in_printing_env (Env.find_type_by_name (Lident s)) with
+       | (path', _) -> Path.same path path'
        | exception Not_found -> true)
   | _ -> false
 
@@ -504,20 +529,15 @@ let rec rewrite_double_underscore_longidents env (l : Longident.t) =
           else
           l
 
-let rec tree_of_path ?(disambiguation=true) namespace p =
-  let tree_of_path namespace p = tree_of_path ~disambiguation namespace p in
-  let namespace = if disambiguation then namespace else None in
-  match p with
+let rec tree_of_path namespace = function
   | Pident id ->
       Oide_ident (ident_name namespace id)
-  | Pdot(_, s) as path when non_shadowed_stdlib namespace path ->
-      Oide_ident (Out_name.create s)
+  | Pdot(_, s) as path when non_shadowed_pervasive path ->
+      Oide_ident (Naming_context.pervasives_name namespace s)
   | Pdot(p, s) ->
       Oide_dot (tree_of_path (Some Module) p, s)
   | Papply(p1, p2) ->
-      let t1 = tree_of_path (Some Module) p1 in
-      let t2 = tree_of_path (Some Module) p2 in
-      Oide_apply (t1, t2)
+      Oide_apply (tree_of_path (Some Module) p1, tree_of_path (Some Module) p2)
   | Pextra_ty (p, extra) -> begin
       (* inline record types are syntactically prevented from escaping their
          binding scope, and are never shown to users. *)
@@ -528,9 +548,8 @@ let rec tree_of_path ?(disambiguation=true) namespace p =
           tree_of_path None p
     end
 
-let tree_of_path ?disambiguation namespace p =
-  tree_of_path ?disambiguation namespace
-    (rewrite_double_underscore_paths !printing_env p)
+let tree_of_path namespace p =
+  tree_of_path namespace (rewrite_double_underscore_paths !printing_env p)
 
 let path ppf p =
   !Oprint.out_ident ppf (tree_of_path None p)
@@ -539,6 +558,7 @@ let string_of_path p =
   Format.asprintf "%a" path p
 
 let strings_of_paths namespace p =
+  reset_naming_context ();
   let trees = List.map (tree_of_path namespace) p in
   List.map (Format.asprintf "%a" !Oprint.out_ident) trees
 
@@ -584,9 +604,9 @@ let print_name ppf = function
     None -> fprintf ppf "None"
   | Some name -> fprintf ppf "\"%s\"" name
 
-let string_of_label = function
+let string_of_label : Types.arg_label -> string = function
     Nolabel -> ""
-  | Labelled s -> s
+  | Labelled s | Position s -> s
   | Optional s -> "?"^s
 
 let visited = ref []
@@ -597,20 +617,31 @@ let rec raw_type ppf ty =
     fprintf ppf "@[<1>{id=%d;level=%d;scope=%d;desc=@,%a}@]" ty.id ty.level
       ty.scope raw_type_desc ty.desc
   end
+and labeled_type ppf (label, ty) =
+  begin match label with
+    | Some s -> fprintf ppf "label=\"%s\" " s
+    | None -> ()
+  end;
+  raw_type ppf ty
+
 and raw_type_list tl = raw_list raw_type tl
+and labeled_type_list tl = raw_list labeled_type tl
+and raw_lid_type_list tl =
+  raw_list (fun ppf (lid, typ) ->
+             fprintf ppf "(@,%a,@,%a)" longident lid raw_type typ)
+    tl
 and raw_type_desc ppf = function
     Tvar { name; jkind } ->
-      fprintf ppf "Tvar (@,%a,@,%s)" print_name name
-        (Jkind.to_string jkind)
+      fprintf ppf "Tvar (@,%a,@,%a)" print_name name Jkind.format jkind
   | Tarrow((l,arg,ret),t1,t2,c) ->
       fprintf ppf "@[<hov1>Tarrow((\"%s\",%a,%a),@,%a,@,%a,@,%s)@]"
         (string_of_label l)
-        (Alloc.print' ~verbose:true) arg
-        (Alloc.print' ~verbose:true) ret
+        (Alloc.print ~verbose:true ()) arg
+        (Alloc.print ~verbose:true ()) ret
         raw_type t1 raw_type t2
         (if is_commu_ok c then "Cok" else "Cunknown")
   | Ttuple tl ->
-      fprintf ppf "@[<1>Ttuple@,%a@]" raw_type_list tl
+      fprintf ppf "@[<1>Ttuple@,%a@]" labeled_type_list tl
   | Tconstr (p, tl, abbrev) ->
       fprintf ppf "@[<hov1>Tconstr(@,%a,@,%a,@,%a)@]" path p
         raw_type_list tl
@@ -631,8 +662,7 @@ and raw_type_desc ppf = function
   | Tsubst (t, Some t') ->
       fprintf ppf "@[<1>Tsubst@,(%a,@ Some%a)@]" raw_type t raw_type t'
   | Tunivar { name; jkind } ->
-      fprintf ppf "Tunivar (@,%a,@,%s)" print_name name
-        (Jkind.to_string jkind)
+      fprintf ppf "Tunivar (@,%a,@,%a)" print_name name Jkind.format jkind
   | Tpoly (t, tl) ->
       fprintf ppf "@[<hov1>Tpoly(@,%a,@,%a)@]"
         raw_type t
@@ -654,8 +684,8 @@ and raw_type_desc ppf = function
           | Some(p,tl) ->
               fprintf ppf "Some(@,%a,@,%a)" path p raw_type_list tl)
   | Tpackage (p, fl) ->
-      fprintf ppf "@[<hov1>Tpackage(@,%a@,%a)@]" path p
-        raw_type_list (List.map snd fl)
+      fprintf ppf "@[<hov1>Tpackage(@,%a,@,%a)@]" path p
+        raw_lid_type_list fl
 and raw_row_fixed ppf = function
 | None -> fprintf ppf "None"
 | Some Types.Fixed_private -> fprintf ppf "Some Fixed_private"
@@ -708,6 +738,9 @@ let apply_subst s1 tyl =
     | Map l1 -> List.map (List.nth tyl) l1
     | Id -> tyl
 
+(* In the [Paths] constructor, more preferred paths are stored later in the
+   list. *)
+
 type best_path = Paths of Path.t list | Best of Path.t
 
 (** Short-paths cache: the five mutable variables below implement a one-slot
@@ -759,24 +792,6 @@ let rec normalize_type_path ?(cache=false) env p =
     Not_found ->
       (Env.normalize_type_path None env p, Id)
 
-let penalty s =
-  if s <> "" && s.[0] = '_' then
-    10
-  else
-    match find_double_underscore s with
-    | None -> 1
-    | Some _ -> 10
-
-let rec path_size = function
-    Pident id ->
-      penalty (Ident.name id), -Ident.scope id
-  | Pdot (p, _) | Pextra_ty (p, Pcstr_ty _) ->
-      let (l, b) = path_size p in (1+l, b)
-  | Papply (p1, p2) ->
-      let (l, b) = path_size p1 in
-      (l + fst (path_size p2), b)
-  | Pextra_ty (p, _) -> path_size p
-
 let same_printing_env env =
   let used_pers = Env.used_persistent () in
   Env.same_types !printing_old env
@@ -807,18 +822,38 @@ let set_printing_env env =
               Paths l -> r := Paths (p :: l)
             | Best p' -> r := Paths [p; p'] (* assert false *)
           with Not_found ->
-            printing_map := Path.Map.add p1 (ref (Paths [p])) !printing_map)
+            (* Jane Street: Often the best choice for printing [p1] is
+               [p1] itself. And often [p1] is a path whose "penalty"
+               would be reduced if the double-underscore rewrite
+               applied.
+            *)
+            let rewritten_p1 = rewrite_double_underscore_paths env p1 in
+            printing_map := Path.Map.add p1 (ref (Paths [ p; rewritten_p1 ])) !printing_map)
         env in
     printing_cont := [cont];
   end
 
 let wrap_printing_env env f =
-  set_printing_env env;
+  set_printing_env env; reset_naming_context ();
   try_finally f ~always:(fun () -> set_printing_env Env.empty)
 
 let wrap_printing_env ~error env f =
   if error then Env.without_cmis (wrap_printing_env env) f
   else wrap_printing_env env f
+
+let wrap_printing_env_error env f =
+  let wrap (loc : _ Location.loc) =
+    { loc with txt =
+        (fun fmt -> Env.without_cmis (fun () -> loc.txt fmt) ())
+  (* CR nroberts: See https://github.com/ocaml-flambda/flambda-backend/pull/2529
+     for an explanation of why this has drifted from upstream. *)
+    }
+  in
+  let err : Location.error = wrap_printing_env ~error:true env f in
+  { Location.kind = err.kind;
+    main = wrap err.main;
+    sub = List.map wrap err.sub;
+  }
 
 let rec lid_of_path = function
     Path.Pident id ->
@@ -844,7 +879,34 @@ let is_unambiguous path env =
       List.for_all (fun p -> lid_of_path p = id) rem &&
       Path.same p (fst (Env.find_type_by_name id env))
 
-let rec get_best_path r =
+let penalty_size = 10
+
+let name_penalty s =
+  if s <> "" && s.[0] = '_' then
+    penalty_size
+  else
+    match find_double_underscore s with
+    | None -> 1
+    | Some _ -> penalty_size
+
+let ambiguity_penalty path env =
+  if is_unambiguous path env then 0 else penalty_size
+
+let path_size path env =
+  let rec size = function
+      Pident id ->
+        name_penalty (Ident.name id), -Ident.scope id
+    | Pdot (p, id) | Pextra_ty (p, Pcstr_ty id) ->
+        let (l, b) = size p in (name_penalty id + l, b)
+    | Papply (p1, p2) ->
+        let (l, b) = size p1 in
+        (l + fst (size p2), b)
+    | Pextra_ty (p, _) -> size p
+  in
+  let l, s = size path in
+  l + ambiguity_penalty path env, s
+
+let rec get_best_path r env =
   match !r with
     Best p' -> p'
   | Paths [] -> raise Not_found
@@ -854,11 +916,10 @@ let rec get_best_path r =
         (fun p ->
           (* Format.eprintf "evaluating %a@." path p; *)
           match !r with
-            Best p' when path_size p >= path_size p' -> ()
-          | _ -> if is_unambiguous p !printing_env then r := Best p)
-              (* else Format.eprintf "%a ignored as ambiguous@." path p *)
-        l;
-      get_best_path r
+            Best p' when path_size p env >= path_size p' env -> ()
+          | _ -> r := Best p)
+        (List.rev l);
+      get_best_path r env
 
 let best_type_path p =
   if !printing_env == Env.empty
@@ -867,23 +928,20 @@ let best_type_path p =
   then (p, Id)
   else
     let (p', s) = normalize_type_path !printing_env p in
-    let get_path () = get_best_path (Path.Map.find  p' !printing_map) in
+    let get_path () =
+      try
+        get_best_path (Path.Map.find p' !printing_map) !printing_env
+      with Not_found -> rewrite_double_underscore_paths !printing_env p'
+    in
     while !printing_cont <> [] &&
-      try fst (path_size (get_path ())) > !printing_depth with Not_found -> true
+      fst (path_size (get_path ()) !printing_env) > !printing_depth
     do
       printing_cont := List.map snd (Env.run_iter_cont !printing_cont);
       incr printing_depth;
     done;
-    let p'' = try get_path () with Not_found -> p' in
+    let p'' = get_path () in
     (* Format.eprintf "%a = %a -> %a@." path p path p' path p''; *)
     (p'', s)
-
-(* When building a tree for a best type path, we should not disambiguate
-   identifiers whenever the short-path algorithm detected a better path than
-   the original one.*)
-let tree_of_best_type_path p p' =
-  if Path.same p p' then tree_of_path (Some Type) p'
-  else tree_of_path ~disambiguation:false None p'
 
 (* Print a type expression *)
 
@@ -1179,7 +1237,7 @@ let reset_except_context () =
   Names.reset_names (); reset_loop_marks ()
 
 let reset () =
-  Conflicts.reset ();
+  reset_naming_context (); Conflicts.reset ();
   reset_except_context ()
 
 let prepare_for_printing tyl =
@@ -1191,38 +1249,38 @@ let add_type_to_preparation = prepare_type
 (* Disabled in classic mode when printing an unification error *)
 let print_labels = ref true
 
+let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
+  let rec out_jkind_user_of_user_jkind : Jane_syntax.Jkind.t -> out_jkind_user = function
+    | Default -> Ojkind_user_default
+    | Abbreviation abbrev -> Ojkind_user_abbreviation (abbrev :> string Location.loc).txt
+    | Mod (base, modes) ->
+      let base = out_jkind_user_of_user_jkind base in
+      let modes =
+        List.map
+          (fun mode -> (mode : Jane_syntax.Mode_expr.Const.t :> string Location.loc).txt)
+          modes.txt
+      in
+      Ojkind_user_mod (base, modes)
+    | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
+  in
+  Ojkind_user (out_jkind_user_of_user_jkind jkind.txt)
+
+let out_jkind_of_const_jkind jkind =
+  Ojkind_const (Jkind.Const.to_out_jkind_const jkind)
+
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
 let out_jkind_option_of_jkind jkind =
   match Jkind.get jkind with
-  | Const Value -> None
-  | Const clay -> Some (Olay_const clay)
+  | Const jkind ->
+    begin match Jkind.Const.equal jkind Jkind.Const.Primitive.value.jkind with
+    | true -> None
+    | false -> Some (out_jkind_of_const_jkind jkind)
+    end
   | Var v -> (* This handles (X1). *)
     if !Clflags.verbose_types
-    then Some (Olay_var (Jkind.Sort.var_name v))
+    then Some (Ojkind_var (Jkind.Sort.Var.name v))
     else None
-
-let tree_of_mode mode =
-  let {locality; uniqueness; linearity} = Alloc.check_const mode in
-  let oam_locality =
-    match locality with
-    | Some Global -> Olm_global
-    | Some Local -> Olm_local
-    | None -> Olm_unknown
-  in
-  let oam_uniqueness =
-    match uniqueness with
-    | Some Unique -> Oum_unique
-    | Some Shared -> Oum_shared
-    | None -> Oum_unknown
-  in
-  let oam_linearity =
-    match linearity with
-    | Some Many -> Olinm_many
-    | Some Once -> Olinm_once
-    | None -> Olinm_unknown
-  in
-  {oam_locality; oam_uniqueness; oam_linearity}
 
 let alias_nongen_row mode px ty =
     match get_desc ty with
@@ -1231,7 +1289,65 @@ let alias_nongen_row mode px ty =
           add_alias_proxy px
     | _ -> ()
 
-let rec tree_of_typexp mode ty =
+let outcome_label : Types.arg_label -> Outcometree.arg_label = function
+  | Nolabel -> Nolabel
+  | Labelled l -> Labelled l
+  | Optional l -> Optional l
+  | Position l -> Position l
+
+let tree_of_modality_new (t : Mode.Modality.t) =
+  if Mode.Modality.is_id t then None
+  else match t with
+  | Atom (Comonadic Areality, Meet_with Global) -> Some "global"
+  | Atom (Comonadic Linearity, Meet_with Many) -> Some "many"
+  | Atom (Monadic Uniqueness, Join_with Shared) -> Some "shared"
+  | Atom (Comonadic Portability, Meet_with Portable) -> Some "portable"
+  | Atom (Monadic Contention, Join_with Contended) -> Some "contended"
+  | e -> Misc.fatal_errorf "Unexpected modality %a" Mode.Modality.print e
+
+let tree_of_modality (t : Mode.Modality.t) =
+  match t with
+  | Atom (Comonadic Areality, Meet_with Global) ->
+      Some (Ogf_legacy Ogf_global)
+  | _ -> Option.map (fun x -> Ogf_new x) (tree_of_modality_new t)
+
+let tree_of_modalities ~has_mutable_implied_modalities t =
+  let l = Mode.Modality.Value.Const.to_list t in
+  (* CR zqian: decouple mutable and modalities *)
+  let l =
+    if has_mutable_implied_modalities then
+      List.filter (fun m -> not @@ Typemode.is_mutable_implied_modality m) l
+    else
+      l
+  in
+  List.filter_map tree_of_modality l
+
+let tree_of_modalities_new t =
+  let l = Mode.Modality.Value.Const.to_list t in
+  List.filter_map tree_of_modality_new l
+
+(** [tree_of_mode m l] finds the outcome node in [l] that corresponds to [m].
+Raise if not found. *)
+let tree_of_mode (mode : 'm option) (l : ('m * out_mode) list) : out_mode option =
+  Option.map (fun x -> List.assoc x l) mode
+
+let tree_of_modes modes =
+  let diff = Mode.Alloc.Const.diff modes Mode.Alloc.Const.legacy in
+  (* The mapping passed to [tree_of_mode] must cover all non-legacy modes *)
+  let l = [
+    tree_of_mode diff.areality [Mode.Locality.Const.Local, Omd_legacy Omd_local];
+    tree_of_mode diff.linearity [Mode.Linearity.Const.Once, Omd_legacy Omd_once];
+    tree_of_mode diff.portability [Mode.Portability.Const.Portable, Omd_new "portable"];
+    tree_of_mode diff.uniqueness [Mode.Uniqueness.Const.Unique, Omd_legacy Omd_unique];
+    tree_of_mode diff.contention [Mode.Contention.Const.Contended, Omd_new "contended"]]
+  in
+  List.filter_map Fun.id l
+
+(* [alloc_mode] is the mode that our printing has expressed on [ty]. For the
+  example [A -> local_ (B -> C)], we will call [tree_of_typexp] on (B -> C) with
+  alloc_mode = local. This is helpful for reproducing the mode currying logic in
+  [ctype.ml], so that parsing and printing roundtrip. *)
+let rec tree_of_typexp mode alloc_mode ty =
   let px = proxy ty in
   if List.memq px !printed_aliases && not (List.memq px !delayed) then
    let non_gen = is_non_gen mode (Transient_expr.type_expr px) in
@@ -1246,33 +1362,40 @@ let rec tree_of_typexp mode ty =
         let name_gen = Names.new_var_name ~non_gen ty in
         Otyp_var (non_gen, Names.name_of_type name_gen tty)
     | Tarrow ((l, marg, mret), ty1, ty2, _) ->
+        (* In this branch we do some mutation that needs to be reverted, as
+           printing should not mutate states. *)
+        let snap = Btype.snapshot () in
         let lab =
-          if !print_labels || is_optional l then string_of_label l else ""
+          if !print_labels || is_omittable l then outcome_label l
+          else Nolabel
         in
+        (* [marg] will contain undetermined axes. It would be imprecise if we
+           don't print anything for those axes, since user would interpret that
+           as legacy. The best we can do is to zap to legacy and if they do land
+           at legacy, we will be able to omit printing them. *)
+        let arg_mode = Alloc.zap_to_legacy marg in
         let t1 =
           if is_optional l then
             match get_desc (tpoly_get_mono ty1) with
             | Tconstr(path, [ty], _)
               when Path.same path Predef.path_option ->
-                tree_of_typexp mode ty
+                tree_of_typexp mode arg_mode ty
             | _ -> Otyp_stuff "<hidden>"
           else
-            tree_of_typexp mode ty1
+            tree_of_typexp mode arg_mode ty1
         in
-        let am = tree_of_mode marg in
-        let t2 = tree_of_typexp mode ty2 in
-        let rm = tree_of_mode mret in
-        Otyp_arrow (lab, am, t1, rm, t2)
-    | Ttuple tyl ->
-        Otyp_tuple (tree_of_typlist mode tyl)
+        let acc_mode = curry_mode alloc_mode arg_mode in
+        let (rm, t2) = tree_of_ret_typ_mutating mode acc_mode (mret, ty2) in
+        Btype.backtrack snap;
+        Otyp_arrow (lab, tree_of_modes arg_mode, t1, rm, t2)
+    | Ttuple labeled_tyl ->
+        Otyp_tuple (tree_of_labeled_typlist mode labeled_tyl)
     | Tconstr(p, tyl, _abbrev) ->
         let p', s = best_type_path p in
         let tyl' = apply_subst s tyl in
         if is_nth s && not (tyl'=[])
-        then tree_of_typexp mode (List.hd tyl')
-        else
-          let tpath = tree_of_best_type_path p p' in
-          Otyp_constr (tpath, tree_of_typlist mode tyl')
+        then tree_of_typexp mode Alloc.Const.legacy (List.hd tyl')
+        else Otyp_constr (tree_of_path (Some Type) p', tree_of_typlist mode tyl')
     | Tvariant row ->
         let Row {fields; name; closed; _} = row_repr row in
         let fields =
@@ -1291,7 +1414,7 @@ let rec tree_of_typexp mode ty =
         begin match name with
         | Some(p, tyl) when nameable_row row ->
             let (p', s) = best_type_path p in
-            let id = tree_of_best_type_path p p' in
+            let id = tree_of_path (Some Type) p' in
             let args = tree_of_typlist mode (apply_subst s tyl) in
             let out_variant =
               if is_nth s then List.hd args else Otyp_constr (id, args) in
@@ -1317,7 +1440,7 @@ let rec tree_of_typexp mode ty =
     | Tlink _ ->
         fatal_error "Printtyp.tree_of_typexp"
     | Tpoly (ty, []) ->
-        tree_of_typexp mode ty
+        tree_of_typexp mode alloc_mode ty
     | Tpoly (ty, tyl) ->
         (*let print_names () =
           List.iter (fun (_, name) -> prerr_string (name ^ " ")) !names;
@@ -1328,7 +1451,7 @@ let rec tree_of_typexp mode ty =
            printed once when used as proxy *)
         List.iter add_delayed tyl;
         let tl = tree_of_qtvs tyl in
-        let tr = Otyp_poly (tl, tree_of_typexp mode ty) in
+        let tr = Otyp_poly (tl, tree_of_typexp mode alloc_mode ty) in
         (* Forget names when we leave scope *)
         Names.remove_names tyl;
         delayed := old_delayed; tr
@@ -1339,7 +1462,7 @@ let rec tree_of_typexp mode ty =
           List.map
             (fun (li, ty) -> (
               String.concat "." (Longident.flatten li),
-              tree_of_typexp mode ty
+              tree_of_typexp mode Alloc.Const.legacy ty
             )) fl in
         Otyp_module (tree_of_path (Some Module_type) p, fl)
   in
@@ -1371,7 +1494,7 @@ and tree_of_qtvs qtvs =
 and tree_of_row_field mode (l, f) =
   match row_field_repr f with
   | Rpresent None | Reither(true, [], _) -> (l, false, [])
-  | Rpresent(Some ty) -> (l, false, [tree_of_typexp mode ty])
+  | Rpresent(Some ty) -> (l, false, [tree_of_typexp mode Alloc.Const.legacy ty])
   | Reither(c, tyl, _) ->
       if c (* contradiction: constant constructor with an argument *)
       then (l, true, tree_of_typlist mode tyl)
@@ -1379,15 +1502,44 @@ and tree_of_row_field mode (l, f) =
   | Rabsent -> (l, false, [] (* actually, an error *))
 
 and tree_of_typlist mode tyl =
-  List.map (tree_of_typexp mode) tyl
+  List.map (tree_of_typexp mode Alloc.Const.legacy) tyl
 
-and tree_of_typ_gf (ty, gf) =
-  let gf =
-    match gf with
-    | Global -> Ogf_global
-    | Unrestricted -> Ogf_unrestricted
-  in
-  (tree_of_typexp Type ty, gf)
+and tree_of_labeled_typlist mode tyl =
+  List.map (fun (label, ty) -> label, tree_of_typexp mode Alloc.Const.legacy ty) tyl
+
+and tree_of_typ_gf {ca_type=ty; ca_modalities=gf; _} =
+  (tree_of_typexp Type Alloc.Const.legacy ty,
+   tree_of_modalities ~has_mutable_implied_modalities:false gf)
+
+(** We are on the RHS of an arrow type, where [ty] is the return type, and [m]
+    is the return mode. This function decides the printed modes on [ty].
+    - If [ty] is another arrow type, [acc_mode] is the mode that has accumulated
+      from the currying, and thus the mode that the user would interpret as on
+      [ty] if it doesn't have parens around it.
+    - If [ty] is not an arrow type, [acc_mode] is meaningless.
+
+    NB: This function might mutate states; the caller is responsible for
+    reverting them. *)
+and tree_of_ret_typ_mutating mode acc_mode (m, ty) =
+  match get_desc ty with
+  | Tarrow _ -> begin
+      (* We first try to equate [m] with the [acc_mode]; if that succeeds, we
+        can omit parens and modes. *)
+      match Alloc.equate (Alloc.of_const acc_mode) m with
+      | Ok () ->
+        let ty = tree_of_typexp mode acc_mode ty in
+        (Orm_no_parens, ty)
+      | Error _ ->
+        (* In this branch we need to print parens. [m] might have undetermined
+        axes and we adopt a similar logic to the [marg] above. *)
+        let m = Alloc.zap_to_legacy m in
+        let ty = tree_of_typexp mode m ty in
+        (Orm_parens (tree_of_modes m), ty)
+      end
+  | _ ->
+    let m = Alloc.zap_to_legacy m in
+    let ty = tree_of_typexp mode m ty in
+    (Orm_not_arrow (tree_of_modes m), ty)
 
 and tree_of_typobject mode fi nm =
   begin match nm with
@@ -1411,7 +1563,7 @@ and tree_of_typobject mode fi nm =
       let args = tree_of_typlist mode tyl in
       let (p', s) = best_type_path p in
       assert (s = Id);
-      Otyp_class (tree_of_best_type_path p p', args)
+      Otyp_class (tree_of_path (Some Type) p', args)
   | _ ->
       fatal_error "Printtyp.tree_of_typobject"
   end
@@ -1426,12 +1578,19 @@ and tree_of_typfields mode rest = function
       in
       ([], open_row)
   | (s, t) :: l ->
-      let field = (s, tree_of_typexp mode t) in
+      let field = (s, tree_of_typexp mode Alloc.Const.legacy t) in
       let (fields, rest) = tree_of_typfields mode rest l in
       (field :: fields, rest)
 
+let tree_of_typexp mode ty = tree_of_typexp mode Alloc.Const.legacy ty
+
 let typexp mode ppf ty =
   !Oprint.out_type ppf (tree_of_typexp mode ty)
+
+let modality ?(id = fun _ppf -> ()) ppf modality =
+  match tree_of_modality modality with
+  | None -> id ppf
+  | Some m -> !Oprint.out_modality ppf m
 
 let prepared_type_expr ppf ty = typexp Type ppf ty
 
@@ -1463,7 +1622,7 @@ let type_scheme ppf ty =
 let type_path ppf p =
   let (p', s) = best_type_path p in
   let p'' = if (s = Id) then p' else p in
-  let t = tree_of_best_type_path p p'' in
+  let t = tree_of_path (Some Type) p'' in
   !Oprint.out_ident ppf t
 
 let tree_of_type_scheme ty =
@@ -1487,7 +1646,7 @@ let filter_params tyl =
     List.fold_left
       (fun tyl ty ->
         if List.exists (eq_type ty) tyl
-        then newty2 ~level:generic_level (Ttuple [ty]) :: tyl
+        then newty2 ~level:generic_level (Ttuple [None, ty]) :: tyl
         else ty :: tyl)
       (* Two parameters might be identical due to a constraint but we need to
          print them differently in order to make the output syntactically valid.
@@ -1510,6 +1669,10 @@ let zap_qtvs_if_boring qtvs =
    This implements Case (C3) from Note [When to print jkind annotations]. *)
 let extract_qtvs tyl =
   let fvs = Ctype.free_non_row_variables_of_list tyl in
+  (* The [Ctype.free*variables] family of functions returns the free
+     variables in reverse order they were encountered in the list of types.
+  *)
+  let fvs = List.rev fvs in
   let tfvs = List.map Transient_expr.repr fvs in
   let vars_jkinds = tree_of_qtvs tfvs in
   zap_qtvs_if_boring vars_jkinds
@@ -1521,17 +1684,32 @@ let param_jkind ty =
   | _ -> None (* this is (C2.2) from Note [When to print jkind annotations] *)
 
 let tree_of_label l =
-  let gom =
-    match l.ld_mutable, l.ld_global with
-    | Mutable, _ -> Ogom_mutable
-    | Immutable, Global -> Ogom_global
-    | Immutable, Unrestricted -> Ogom_immutable
+  let mut =
+    match l.ld_mutable with
+    | Mutable m ->
+        let mut =
+          if Alloc.Comonadic.Const.eq m Alloc.Comonadic.Const.legacy then
+            Om_mutable None
+          else
+            Om_mutable (Some "<non-legacy>")
+        in
+        mut
+    | Immutable -> Om_immutable
   in
-  (Ident.name l.ld_id, gom, tree_of_typexp Type l.ld_type)
+  let has_mutable_implied_modalities =
+    if is_mutable l.ld_mutable then
+      not (Builtin_attributes.has_no_mutable_implied_modalities l.ld_attributes)
+    else
+      false
+  in
+  let ld_modalities =
+    tree_of_modalities ~has_mutable_implied_modalities l.ld_modalities
+  in
+  (Ident.name l.ld_id, mut, tree_of_typexp Type l.ld_type, ld_modalities)
 
 let tree_of_constructor_arguments = function
   | Cstr_tuple l -> List.map tree_of_typ_gf l
-  | Cstr_record l -> [ Otyp_record (List.map tree_of_label l), Ogf_unrestricted ]
+  | Cstr_record l -> [ Otyp_record (List.map tree_of_label l), [] ]
 
 let tree_of_constructor_args_and_ret_type args ret_type =
   match ret_type with
@@ -1697,26 +1875,22 @@ let tree_of_type_decl id decl =
   in
   (* The algorithm for setting [lay] here is described as Case (C1) in
      Note [When to print jkind annotations] *)
-  let lay = match ty, unboxed with
+  let jkind_annotation = match ty, unboxed with
     | (Otyp_abstract, _) | (_, true) ->
-        (* (C1.1) from the Note corresponds to Otyp_abstract. Anything
-           but the default must be user-written, so we just look in the
-           attributes. Similarly, look in the attributes for (C1.2), the
-           unboxed case. Because this is just printing, we liberally
-           allow [@@immediate]. *)
-       begin match
-         Builtin_attributes.jkind ~legacy_immediate:true decl.type_attributes
-       with
-       | Ok annot -> annot
-       | Error annot -> Some annot  (* don't care here about extensions *)
-       end
+        (* The two cases of (C1) from the Note correspond to Otyp_abstract.
+           Anything but the default must be user-written, so we print the
+           user-written annotation. *)
+        decl.type_jkind_annotation
     | _ -> None (* other cases have no jkind annotation *)
   in
     { otype_name = name;
       otype_params = args;
       otype_type = ty;
       otype_private = priv;
-      otype_jkind = Option.map (fun { txt } -> Olay_const txt) lay;
+      otype_jkind =
+        Option.map
+          (fun (_, user_annot) -> out_jkind_of_user_jkind user_annot)
+          jkind_annotation;
       otype_unboxed = unboxed;
       otype_cstrs = constraints }
 
@@ -1881,19 +2055,56 @@ let tree_of_value_description id decl =
   let ty = tree_of_type_scheme decl.val_type in
   (* Important: process the fvs *after* the type; tree_of_type_scheme
      resets the naming context *)
+  let snap = Btype.snapshot () in
+  let moda = Mode.Modality.Value.zap_to_floor decl.val_modalities in
   let qtvs = extract_qtvs [decl.val_type] in
+  let apparent_arity =
+    let rec count n typ =
+      match get_desc typ with
+      | Tarrow (_,_,typ,_) -> count (n+1) typ
+      | _ -> n
+    in
+    count 0 decl.val_type
+  in
+  let attrs =
+    match decl.val_zero_alloc with
+    | Default_zero_alloc | Ignore_assert_all -> []
+    | Check { strict; opt; arity; _ } ->
+      [{ oattr_name =
+           String.concat ""
+             ["zero_alloc";
+              if strict then " strict" else "";
+              if opt then " opt" else "";
+              if arity = apparent_arity then "" else
+                Printf.sprintf " arity %d" arity;
+             ] }]
+    | Assume { strict; never_returns_normally; arity; _ } ->
+      [{ oattr_name =
+           String.concat ""
+             ["zero_alloc assume";
+              if strict then " strict" else "";
+              if never_returns_normally then " never_returns_normally" else "";
+              if arity = apparent_arity then "" else
+                Printf.sprintf " arity %d" arity;
+             ]
+       }]
+  in
   let vd =
     { oval_name = id;
       oval_type = Otyp_poly(qtvs, ty);
+      oval_modalities = tree_of_modalities_new moda;
       oval_prims = [];
-      oval_attributes = [] }
+      oval_attributes = attrs
+    }
   in
   let vd =
     match decl.val_kind with
     | Val_prim p -> Primitive.print p vd
     | _ -> vd
   in
-  Osig_value vd
+  let r = Osig_value vd in
+  Btype.backtrack snap;
+  r
 
 let value_description id ppf decl =
   !Oprint.out_sig_item ppf (tree_of_value_description id decl)
@@ -1972,7 +2183,7 @@ let rec tree_of_class_type mode params =
       let csil =
         List.fold_left
           (fun csil (l, m, v, t) ->
-            Ocsg_value (l, m = Mutable, v = Virtual, tree_of_typexp mode t)
+            Ocsg_value (l, m = Asttypes.Mutable, v = Virtual, tree_of_typexp mode t)
             :: csil)
           csil all_vars
       in
@@ -1990,7 +2201,8 @@ let rec tree_of_class_type mode params =
       Octy_signature (self_ty, List.rev csil)
   | Cty_arrow (l, ty, cty) ->
       let lab =
-        if !print_labels || is_optional l then string_of_label l else ""
+        if !print_labels || is_omittable l then outcome_label l
+        else Nolabel
       in
       let tr =
        if is_optional l then
@@ -2114,7 +2326,8 @@ let dummy =
     type_params = [];
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
-    type_jkind = Jkind.any ~why:Dummy_jkind;
+    type_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
+    type_jkind_annotation = None;
     type_private = Public;
     type_manifest = None;
     type_variance = [];
@@ -2284,7 +2497,8 @@ and tree_of_signature_rec ?abbrev ?max_items env' sg =
     | Some _ | None ->
         let env = !printing_env in
         let env', group_trees =
-            trees_of_recursive_sigitem_group ?abbrev env group
+          Naming_context.with_ctx
+            (fun () -> trees_of_recursive_sigitem_group ?abbrev env group)
         in
         set_printing_env env';
         let max_items, group_trees = match max_items with
@@ -2377,6 +2591,7 @@ let modtype_declaration id ppf decl =
 
 let print_items showval env x =
   Names.refresh_weak();
+  reset_naming_context ();
   Conflicts.reset ();
   let extend_val env (sigitem,outcome) = outcome, showval env sigitem in
   let post_process (env,l) = List.map (extend_val env) l in
@@ -2394,6 +2609,7 @@ let signature ppf sg =
 let printed_signature sourcefile ppf sg =
   (* we are tracking any collision event for warning 63 *)
   Conflicts.reset ();
+  reset_naming_context ();
   let t = tree_of_signature sg in
   if Warnings.(is_active @@ Erroneous_printed_signature "")
   && Conflicts.exists ()
@@ -2451,8 +2667,8 @@ let trees_of_type_expansion'
       match get_desc ty with
       | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
           let olay = match Jkind.get jkind with
-            | Const clay -> Olay_const clay
-            | Var v      -> Olay_var (Jkind.Sort.var_name v)
+            | Const clay -> out_jkind_of_const_jkind clay
+            | Var v      -> Ojkind_var (Jkind.Sort.Var.name v)
           in
           Otyp_jkind_annot (out, olay)
       | _ ->
@@ -2571,7 +2787,7 @@ let hide_variant_name t =
         (Tvariant
            (create_row ~fields ~fixed ~closed ~name:None
               ~more:(newvar2 (get_level more)
-                       (Jkind.value ~why:Row_variable))))
+                       (Jkind.Primitive.value ~why:Row_variable))))
   | _ -> t
 
 let prepare_expansion Errortrace.{ty; expanded} =
@@ -2782,11 +2998,14 @@ let explanation (type variety) intro prev env
               (Jkind.Violation.report_with_offender_sort
                  ~offender:(fun ppf -> type_expr ppf t)) e)
   | Errortrace.Unequal_var_jkinds (t1,l1,t2,l2) ->
-      let fmt_history t =
-        Jkind.format_history ~intro:(fun ppf -> type_expr ppf t)
+      let fmt_history t l ppf =
+        Jkind.(format_history ~intro:(
+          dprintf "The layout of %a is %a" type_expr t format l) ppf l)
       in
-      Some (dprintf "@ because their layouts are different.@[<v>%a%a@]"
-              (fmt_history t1) l1 (fmt_history t2) l2)
+      Some (dprintf "@ because their layouts are different.@ @[<v>%t@;%t@]"
+              (fmt_history t1 l1) (fmt_history t2 l2))
+  | Errortrace.Unequal_var_jkinds_with_no_history ->
+      Some (dprintf "@ because their layouts are different.")
 
 let mismatch intro env trace =
   Errortrace.explain trace (fun ~prev h -> explanation intro prev env h)
@@ -2849,7 +3068,8 @@ let error trace_format mode subst env tr txt1 ppf txt2 ty_expect_explanation =
       tr
   in
   let jkind_error = match Misc.last tr with
-    | Some (Bad_jkind _ | Bad_jkind_sort _ | Unequal_var_jkinds _) ->
+    | Some (Bad_jkind _ | Bad_jkind_sort _ | Unequal_var_jkinds _
+           | Unequal_var_jkinds_with_no_history) ->
         true
     | Some (Diff _ | Escape _ | Variant _ | Obj _ | Incompatible_fields _
            | Rec_occur _)

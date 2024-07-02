@@ -1,6 +1,6 @@
 (* TEST
-   * stack-allocation
-   ** native
+ stack-allocation;
+ native;
 *)
 
 (* PR902 (return mode on second application expression in a split

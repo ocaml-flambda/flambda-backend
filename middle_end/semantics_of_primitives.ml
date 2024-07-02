@@ -30,6 +30,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   match prim with
   | Pmakeblock (_, _, _, m)
   | Pmakeufloatblock (_, m)
+  | Pmakemixedblock (_, _, _, m)
   | Pmakearray (_, Mutable, m) -> Only_generative_effects, coeffects_of m
   | Pmakearray (_, (Immutable | Immutable_unique), m) ->
      No_effects, coeffects_of m
@@ -58,8 +59,9 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Plslint
   | Plsrint
   | Pasrint
-  | Pintcomp _ -> No_effects, No_coeffects
-  | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+  | Pintcomp _
+  | Punboxed_int_comp _ -> No_effects, No_coeffects
+  | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
     -> No_effects, No_coeffects
   | Pdivbint { is_safe = Unsafe }
   | Pmodbint { is_safe = Unsafe }
@@ -73,17 +75,18 @@ let for_primitive (prim : Clambda_primitives.primitive) =
       Arbitrary_effects, No_coeffects
   | Poffsetint _ -> No_effects, No_coeffects
   | Poffsetref _ -> Arbitrary_effects, Has_coeffects
-  | Punbox_float | Punbox_int _
-  | Pintoffloat
-  | Pfloatcomp _ -> No_effects, No_coeffects
-  | Pbox_float m | Pbox_int (_, m)
-  | Pfloatofint m
-  | Pnegfloat m
-  | Pabsfloat m
-  | Paddfloat m
-  | Psubfloat m
-  | Pmulfloat m
-  | Pdivfloat m -> No_effects, coeffects_of m
+  | Punbox_float _ | Punbox_int _
+  | Pintoffloat _
+  | Pfloatcomp (_, _)
+  | Punboxed_float_comp (_, _) -> No_effects, No_coeffects
+  | Pbox_float (_, m) | Pbox_int (_, m)
+  | Pfloatofint (_, m)
+  | Pnegfloat (_, m)
+  | Pabsfloat (_, m)
+  | Paddfloat (_, m)
+  | Psubfloat (_, m)
+  | Pmulfloat (_, m)
+  | Pdivfloat (_, m) -> No_effects, coeffects_of m
   | Pstringlength | Pbyteslength
   | Parraylength _ -> No_effects, No_coeffects
   | Pisint
@@ -109,6 +112,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Pfield_computed
   | Pfloatfield _
   | Pufloatfield _
+  | Pmixedfield _
   | Parrayrefu _
   | Pstringrefu
   | Pbytesrefu
@@ -130,6 +134,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Psetfield_computed _
   | Psetfloatfield _
   | Psetufloatfield _
+  | Psetmixedfield _
   | Patomic_load _
   | Patomic_exchange
   | Patomic_cas
@@ -155,7 +160,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Pget_header _ -> No_effects, No_coeffects
   | Pdls_get ->
       (* only read *)
-      No_effects, No_coeffects
+      No_effects, Has_coeffects
 
 type return_type =
   | Float
@@ -163,13 +168,13 @@ type return_type =
 
 let return_type_of_primitive (prim:Clambda_primitives.primitive) =
   match prim with
-  | Pfloatofint _
-  | Pnegfloat _
-  | Pabsfloat _
-  | Paddfloat _
-  | Psubfloat _
-  | Pmulfloat _
-  | Pdivfloat _
+  | Pfloatofint (Pfloat64, _)
+  | Pnegfloat (Pfloat64, _)
+  | Pabsfloat (Pfloat64, _)
+  | Paddfloat (Pfloat64, _)
+  | Psubfloat (Pfloat64, _)
+  | Pmulfloat (Pfloat64, _)
+  | Pdivfloat (Pfloat64, _)
   | Pfloatfield _
   | Parrayrefu (Pfloatarray_ref _)
   | Parrayrefs (Pfloatarray_ref _) ->
@@ -185,6 +190,7 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   match prim with
   | Pmakeblock (_, _, _, m)
   | Pmakeufloatblock (_, m)
+  | Pmakemixedblock (_, _, _, m)
   | Pmakearray (_, _, m) -> is_local_alloc m
   | Pduparray (_, _)
   | Pduprecord (_,_) -> false
@@ -209,27 +215,29 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   | Plsrint
   | Pasrint
   | Pintcomp _ -> false
-  | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+  | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
     -> false
   | Poffsetint _ -> false
   | Poffsetref _ -> false
-  | Punbox_float | Punbox_int _
-  | Pintoffloat
-  | Pfloatcomp _ -> false
-  | Pbox_float m | Pbox_int (_, m)
-  | Pfloatofint m
-  | Pnegfloat m
-  | Pabsfloat m
-  | Paddfloat m
-  | Psubfloat m
-  | Pmulfloat m
-  | Pdivfloat m -> is_local_alloc m
+  | Punbox_float _ | Punbox_int _
+  | Pintoffloat _
+  | Pfloatcomp (_, _)
+  | Punboxed_float_comp (_, _) -> false
+  | Pbox_float (_, m) | Pbox_int (_, m)
+  | Pfloatofint (_, m)
+  | Pnegfloat (_, m)
+  | Pabsfloat (_, m)
+  | Paddfloat (_, m)
+  | Psubfloat (_, m)
+  | Pmulfloat (_, m)
+  | Pdivfloat (_, m) -> is_local_alloc m
   | Pstringlength | Pbyteslength
   | Parraylength _ -> false
   | Pisint
   | Pisout
   | Pintofbint _
-  | Pbintcomp _ -> false
+  | Pbintcomp _
+  | Punboxed_int_comp _ -> false
   | Pdivbint { mode = m }
   | Pmodbint { mode = m }
   | Pbintofint (_,m)
@@ -248,6 +256,7 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   | Pread_symbol _
   | Pfield _
   | Pfield_computed
+  | Pmixedfield (_, Mread_value_prefix _)
   | Parrayrefu _
   | Pstringrefu
   | Pbytesrefu
@@ -258,6 +267,11 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
       false
   | Pfloatfield (_, m) -> is_local_alloc m
   | Pufloatfield _ -> false
+  | Pmixedfield (_, Mread_flat_suffix shape) -> begin
+      match shape with
+      | Flat_read _ -> false
+      | Flat_read_float m -> is_local_alloc m
+    end
   | Pstring_load (_, Safe, m)
   | Pbytes_load (_, Safe, m)
   | Pbigstring_load (_, Safe, m) -> is_local_alloc m
@@ -269,6 +283,7 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   | Psetfield_computed _
   | Psetfloatfield _
   | Psetufloatfield _
+  | Psetmixedfield _
   | Parraysetu _
   | Parraysets _
   | Pbytessetu

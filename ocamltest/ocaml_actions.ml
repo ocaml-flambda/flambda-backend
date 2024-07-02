@@ -794,17 +794,22 @@ let cc =
 
 let run_expect_once input_file principal log env =
   let expect_flags = Sys.safe_getenv "EXPECT_FLAGS" in
-  let repo_root = "-repo-root " ^ Ocaml_directories.srcdir in
   let principal_flag = if principal then "-principal" else "" in
   let commandline =
   [
     Ocaml_commands.ocamlrun_expect_test;
     expect_flags;
+    Ocaml_flags.toplevel_default_flags;
+    Ocaml_flags.stdlib;
+    directory_flags env;
+    Ocaml_flags.include_toplevel_directory;
     flags env;
-    repo_root;
     principal_flag;
+    libraries Bytecode env;
+    binary_modules Bytecode env;
     input_file
-  ] in
+  ]
+  in
   let exit_status =
     Actions_helpers.run_cmd ~environment:default_ocaml_env log env commandline
   in
@@ -1144,6 +1149,8 @@ let config_variables _log env =
     Ocaml_variables.ocamlrunparam, Sys.safe_getenv "OCAMLRUNPARAM";
     Ocaml_variables.ocamlsrcdir, Ocaml_directories.srcdir;
     Ocaml_variables.os_type, Sys.os_type;
+    Ocaml_variables.runtime_dir,
+      if Config.runtime5 then "runtime" else "runtime4"
   ] env
 
 let flat_float_array = Actions.make
@@ -1177,6 +1184,20 @@ let no_flambda = make
      (not (Ocamltest_config.flambda || Ocamltest_config.flambda2))
     "support for flambda disabled"
     "support for flambda enabled")
+
+let flambda2 = Actions.make
+  ~name:"flambda2"
+  ~description:"Passes if the compiler is configured with flambda2 enabled"
+  (Actions_helpers.pass_or_skip (Ocamltest_config.flambda2)
+    "support for flambda2 enabled"
+    "support for flambda2 disabled")
+
+let no_flambda2 = make
+  ~name:"no-flambda2"
+  ~description:"Passes if the compiler is NOT configured with flambda2 enabled"
+  (Actions_helpers.pass_or_skip (not (Ocamltest_config.flambda2))
+    "support for flambda2 disabled"
+    "support for flambda2 enabled")
 
 let shared_libraries = Actions.make
   ~name:"shared-libraries"
@@ -1273,9 +1294,22 @@ let no_poll_insertion = Actions.make
   ~name:"no-poll-insertion"
   ~description:"Passes if poll insertion is disabled"
   (Actions_helpers.pass_or_skip (not Ocamltest_config.poll_insertion)
-    "Stack allocation disabled"
-    "Stack allocation enabled")
+    "Poll insertion disabled"
+    "Poll insertion enabled")
 
+let runtime4 = Actions.make
+  ~name:"runtime4"
+  ~description:"Passes if the OCaml 4.x runtime is being used"
+  (Actions_helpers.pass_or_skip (not Config.runtime5)
+    "4.x runtime being used"
+    "5.x runtime being used")
+
+let runtime5 = Actions.make
+  ~name:"runtime5"
+  ~description:"Passes if the OCaml 5.x runtime is being used"
+  (Actions_helpers.pass_or_skip Config.runtime5
+    "5.x runtime being used"
+    "4.x runtime being used")
 let ocamldoc = Ocaml_tools.ocamldoc
 
 let ocamldoc_output_file env prefix =
@@ -1463,6 +1497,8 @@ let _ =
     no_flat_float_array;
     flambda;
     no_flambda;
+    flambda2;
+    no_flambda2;
     shared_libraries;
     no_shared_libraries;
     native_compiler;
@@ -1484,5 +1520,7 @@ let _ =
     ocamlmklib;
     codegen;
     cc;
-    ocamlobjinfo
+    ocamlobjinfo;
+    runtime4;
+    runtime5
   ]

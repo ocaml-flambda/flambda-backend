@@ -17,7 +17,13 @@
 
 open Asttypes
 
-type jkind = Jkind.t
+type mutability =
+  | Immutable
+  | Mutable of Mode.Alloc.Comonadic.Const.t
+
+let is_mutable = function
+  | Immutable -> false
+  | Mutable _ -> true
 
 (* Type expressions for the core language *)
 
@@ -30,9 +36,9 @@ type transient_expr =
 and type_expr = transient_expr
 
 and type_desc =
-  | Tvar of { name : string option; jkind : Jkind.t }
+  | Tvar of { name : string option; jkind : jkind }
   | Tarrow of arrow_desc * type_expr * type_expr * commutable
-  | Ttuple of type_expr list
+  | Ttuple of (string option * type_expr) list
   | Tconstr of Path.t * type_expr list * abbrev_memo ref
   | Tobject of type_expr * (Path.t * type_expr list) option ref
   | Tfield of string * field_kind * type_expr * type_expr
@@ -40,12 +46,18 @@ and type_desc =
   | Tlink of type_expr
   | Tsubst of type_expr * type_expr option
   | Tvariant of row_desc
-  | Tunivar of { name : string option; jkind : Jkind.t }
+  | Tunivar of { name : string option; jkind : jkind }
   | Tpoly of type_expr * type_expr list
   | Tpackage of Path.t * (Longident.t * type_expr) list
 
+and arg_label =
+  | Nolabel
+  | Labelled of string
+  | Optional of string
+  | Position of string
+
 and arrow_desc =
-  arg_label * Mode.Alloc.t * Mode.Alloc.t
+  arg_label * Mode.Alloc.lr * Mode.Alloc.lr
 
 and row_desc =
     { row_fields: (label * row_field) list;
@@ -84,6 +96,16 @@ and _ commutable_gen =
     Cok      : [> `some] commutable_gen
   | Cunknown : [> `none] commutable_gen
   | Cvar : {mutable commu: any commutable_gen} -> [> `var] commutable_gen
+
+and jkind = type_expr Jkind_types.t
+
+(* jkind depends on types defined in this file, but Jkind.equal is required
+   here. When jkind.ml is loaded, it calls set_jkind_equal to fill a ref to the
+   function. *)
+(** Corresponds to [Jkind.equal] *)
+let jkind_equal = ref (fun _ _ ->
+    failwith "jkind_equal should be set by jkind.ml")
+let set_jkind_equal f = jkind_equal := f
 
 module TransientTypeOps = struct
   type t = type_expr
@@ -231,7 +253,8 @@ type type_declaration =
   { type_params: type_expr list;
     type_arity: int;
     type_kind: type_decl_kind;
-    type_jkind: Jkind.t;
+    type_jkind: jkind;
+    type_jkind_annotation: type_expr Jkind_types.annotation option;
     type_private: private_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
@@ -254,35 +277,50 @@ and ('lbl, 'cstr) type_kind =
 
 and tag = Ordinary of {src_index: int;     (* Unique name (per type) *)
                        runtime_tag: int}   (* The runtime tag *)
-        | Extension of Path.t * Jkind.t array
+        | Extension of Path.t * jkind array
 
 and abstract_reason =
     Abstract_def
   | Abstract_rec_check_regularity
 
+and flat_element =
+  | Imm
+  | Float_boxed
+  | Float64
+  | Float32
+  | Bits32
+  | Bits64
+  | Word
+
+and mixed_product_shape =
+  { value_prefix_len : int;
+    flat_suffix : flat_element array;
+  }
+
 and record_representation =
   | Record_unboxed
   | Record_inlined of tag * variant_representation
-  | Record_boxed of Jkind.t array
+  | Record_boxed of jkind array
   | Record_float
   | Record_ufloat
+  | Record_mixed of mixed_product_shape
 
 and variant_representation =
   | Variant_unboxed
-  | Variant_boxed of jkind array array
+  | Variant_boxed of (constructor_representation * jkind array) array
   | Variant_extensible
 
-and global_flag =
-  | Global
-  | Unrestricted
+and constructor_representation =
+  | Constructor_uniform_value
+  | Constructor_mixed of mixed_product_shape
 
 and label_declaration =
   {
     ld_id: Ident.t;
-    ld_mutable: mutable_flag;
-    ld_global: global_flag;
+    ld_mutable: mutability;
+    ld_modalities: Mode.Modality.Value.Const.t;
     ld_type: type_expr;
-    ld_jkind : Jkind.t;
+    ld_jkind : jkind;
     ld_loc: Location.t;
     ld_attributes: Parsetree.attributes;
     ld_uid: Uid.t;
@@ -298,15 +336,23 @@ and constructor_declaration =
     cd_uid: Uid.t;
   }
 
+and constructor_argument =
+  {
+    ca_modalities: Mode.Modality.Value.Const.t;
+    ca_type: type_expr;
+    ca_loc: Location.t;
+  }
+
 and constructor_arguments =
-  | Cstr_tuple of (type_expr * global_flag) list
+  | Cstr_tuple of constructor_argument list
   | Cstr_record of label_declaration list
 
 type extension_constructor =
   { ext_type_path: Path.t;
     ext_type_params: type_expr list;
     ext_args: constructor_arguments;
-    ext_arg_jkinds: Jkind.t array;
+    ext_arg_jkinds: jkind array;
+    ext_shape: constructor_representation;
     ext_constant: bool;
     ext_ret_type: type_expr option;
     ext_private: private_flag;
@@ -321,7 +367,7 @@ and type_transparence =
   | Type_private     (* private type *)
 
 let tys_of_constr_args = function
-  | Cstr_tuple tl -> List.map fst tl
+  | Cstr_tuple tl -> List.map (fun ca -> ca.ca_type) tl
   | Cstr_record lbls -> List.map (fun l -> l.ld_type) lbls
 
 (* Type expressions for the class language *)
@@ -392,8 +438,10 @@ module type Wrapped = sig
 
   type value_description =
     { val_type: type_expr wrapped;                (* Type of the value *)
+      val_modalities : Mode.Modality.Value.t;     (* Modalities on the value *)
       val_kind: value_kind;
       val_loc: Location.t;
+      val_zero_alloc: Builtin_attributes.zero_alloc_attribute;
       val_attributes: Parsetree.attributes;
       val_uid: Uid.t;
     }
@@ -468,10 +516,13 @@ module Map_wrapped(From : Wrapped)(To : Wrapped) = struct
       | Unit -> To.Unit
       | Named (id,mty) -> To.Named (id, module_type m mty)
 
-  let value_description m {val_type; val_kind; val_attributes; val_loc; val_uid} =
+  let value_description m {val_type; val_modalities; val_kind; val_zero_alloc;
+                           val_attributes; val_loc; val_uid} =
     To.{
       val_type = m.map_type_expr m val_type;
+      val_modalities;
       val_kind;
+      val_zero_alloc;
       val_attributes;
       val_loc;
       val_uid
@@ -519,11 +570,12 @@ type constructor_description =
   { cstr_name: string;                  (* Constructor name *)
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
-    cstr_args: (type_expr * global_flag) list;          (* Type of the arguments *)
-    cstr_arg_jkinds: Jkind.t array;     (* Jkinds of the arguments *)
+    cstr_args: constructor_argument list; (* Type of the arguments *)
+    cstr_arg_jkinds: jkind array;       (* Jkinds of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
     cstr_repr: variant_representation;  (* Repr of the outer variant *)
+    cstr_shape: constructor_representation; (* Repr of the constructor itself *)
     cstr_constant: bool;                (* True if all args are void *)
     cstr_consts: int;                   (* Number of constant constructors *)
     cstr_nonconsts: int;                (* Number of non-const constructors *)
@@ -542,11 +594,53 @@ let equal_tag t1 t2 =
   | Extension (path1,_), Extension (path2,_) -> Path.same path1 path2
   | (Ordinary _ | Extension _), _ -> false
 
+let equal_flat_element e1 e2 =
+  match e1, e2 with
+  | Imm, Imm | Float64, Float64 | Float32, Float32 | Float_boxed, Float_boxed
+  | Word, Word | Bits32, Bits32 | Bits64, Bits64
+    -> true
+  | (Imm | Float64 | Float32 | Float_boxed | Word | Bits32 | Bits64), _ -> false
+
+let compare_flat_element e1 e2 =
+  match e1, e2 with
+  | Imm, Imm | Float_boxed, Float_boxed | Float64, Float64 | Float32, Float32
+  | Word, Word | Bits32, Bits32 | Bits64, Bits64
+    -> 0
+  | Imm, _ -> -1
+  | _, Imm -> 1
+  | Float_boxed, _ -> -1
+  | _, Float_boxed -> 1
+  | Float64, _ -> -1
+  | _, Float64 -> 1
+  | Float32, _ -> -1
+  | _, Float32 -> 1
+  | Word, _ -> -1
+  | _, Word -> 1
+  | Bits32, _ -> -1
+  | _, Bits32 -> 1
+
+let equal_mixed_product_shape r1 r2 = r1 == r2 ||
+  (* Warning 9 alerts us if we add another field *)
+  let[@warning "+9"] { value_prefix_len = l1; flat_suffix = s1 } = r1
+  and                { value_prefix_len = l2; flat_suffix = s2 } = r2
+  in
+  l1 = l2 && Misc.Stdlib.Array.equal equal_flat_element s1 s2
+
+let equal_constructor_representation r1 r2 = r1 == r2 || match r1, r2 with
+  | Constructor_uniform_value, Constructor_uniform_value -> true
+  | Constructor_mixed mx1, Constructor_mixed mx2 ->
+      equal_mixed_product_shape mx1 mx2
+  | (Constructor_mixed _ | Constructor_uniform_value), _ -> false
+
 let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
   | Variant_unboxed, Variant_unboxed ->
       true
-  | Variant_boxed lays1, Variant_boxed lays2 ->
-      Misc.Stdlib.Array.equal (Misc.Stdlib.Array.equal Jkind.equal) lays1 lays2
+  | Variant_boxed cstrs_and_jkinds1, Variant_boxed cstrs_and_jkinds2 ->
+      Misc.Stdlib.Array.equal (fun (cstr1, jkinds1) (cstr2, jkinds2) ->
+          equal_constructor_representation cstr1 cstr2
+          && Misc.Stdlib.Array.equal !jkind_equal jkinds1 jkinds2)
+        cstrs_and_jkinds1
+        cstrs_and_jkinds2
   | Variant_extensible, Variant_extensible ->
       true
   | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
@@ -558,13 +652,14 @@ let equal_record_representation r1 r2 = match r1, r2 with
   | Record_inlined (tag1, vr1), Record_inlined (tag2, vr2) ->
       equal_tag tag1 tag2 && equal_variant_representation vr1 vr2
   | Record_boxed lays1, Record_boxed lays2 ->
-      Misc.Stdlib.Array.equal Jkind.equal lays1 lays2
+      Misc.Stdlib.Array.equal !jkind_equal lays1 lays2
   | Record_float, Record_float ->
       true
   | Record_ufloat, Record_ufloat ->
       true
+  | Record_mixed mx1, Record_mixed mx2 -> equal_mixed_product_shape mx1 mx2
   | (Record_unboxed | Record_inlined _ | Record_boxed _ | Record_float
-    | Record_ufloat ), _ ->
+    | Record_ufloat | Record_mixed _), _ ->
       false
 
 let may_equal_constr c1 c2 =
@@ -580,12 +675,13 @@ let find_unboxed_type decl =
   match decl.type_kind with
     Type_record ([{ld_type = arg; _}], Record_unboxed)
   | Type_record ([{ld_type = arg; _}], Record_inlined (_, Variant_unboxed))
-  | Type_variant ([{cd_args = Cstr_tuple [arg,_]; _}], Variant_unboxed)
+  | Type_variant ([{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}], Variant_unboxed)
   | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}],
                   Variant_unboxed) ->
     Some arg
   | Type_record (_, ( Record_inlined _ | Record_unboxed
-                    | Record_boxed _ | Record_float | Record_ufloat ))
+                    | Record_boxed _ | Record_float | Record_ufloat
+                    | Record_mixed _))
   | Type_variant (_, ( Variant_boxed _ | Variant_unboxed
                      | Variant_extensible ))
   | Type_abstract _ | Type_open ->
@@ -604,9 +700,9 @@ type label_description =
   { lbl_name: string;                   (* Short name *)
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
-    lbl_mut: mutable_flag;              (* Is this a mutable field? *)
-    lbl_global: global_flag;        (* Is this a global field? *)
-    lbl_jkind : Jkind.t;                (* Jkind of the argument *)
+    lbl_mut: mutability;                (* Is this a mutable field? *)
+    lbl_modalities: Mode.Modality.Value.Const.t;(* Modalities on the field *)
+    lbl_jkind : jkind;                (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in type *)
     lbl_all: label_description array;   (* All the labels in this type *)
@@ -639,6 +735,33 @@ let signature_item_id = function
   | Sig_class_type (id, _, _, _)
     -> id
 
+type mixed_product_element =
+  | Value_prefix
+  | Flat_suffix of flat_element
+
+let get_mixed_product_element { value_prefix_len; flat_suffix } i =
+  if i < 0 then Misc.fatal_errorf "Negative index: %d" i;
+  if i < value_prefix_len then Value_prefix
+  else Flat_suffix flat_suffix.(i - value_prefix_len)
+
+let flat_element_to_string = function
+  | Imm -> "Imm"
+  | Float_boxed -> "Float_boxed"
+  | Float32 -> "Float32"
+  | Float64 -> "Float64"
+  | Bits32 -> "Bits32"
+  | Bits64 -> "Bits64"
+  | Word -> "Word"
+
+let flat_element_to_lowercase_string = function
+  | Imm -> "imm"
+  | Float_boxed -> "float"
+  | Float32 -> "float32"
+  | Float64 -> "float64"
+  | Bits32 -> "bits32"
+  | Bits64 -> "bits64"
+  | Word -> "word"
+
 (**** Definitions for backtracking ****)
 
 type change =
@@ -653,7 +776,7 @@ type change =
   | Ccommu : [`var] commutable_gen -> change
   | Cuniv : type_expr option ref * type_expr option -> change
   | Cmodes : Mode.changes -> change
-  | Csort : Jkind.Sort.change -> change
+  | Csort : Jkind_types.Sort.change -> change
 
 type changes =
     Change of change * changes ref
@@ -668,8 +791,8 @@ let log_change ch =
   trail := r'
 
 let () =
-  Mode.change_log := (fun changes -> log_change (Cmodes changes));
-  Jkind.Sort.change_log := (fun change -> log_change (Csort change))
+  Mode.set_append_changes (fun changes -> log_change (Cmodes !changes));
+  Jkind_types.Sort.set_change_log (fun change -> log_change (Csort change))
 
 (* constructor and accessors for [field_kind] *)
 
@@ -918,8 +1041,8 @@ let undo_change = function
   | Ckind  (FKvar r) -> r.field_kind <- FKprivate
   | Ccommu (Cvar r)  -> r.commu <- Cunknown
   | Cuniv  (r, v)    -> r := v
-  | Cmodes ms -> Mode.undo_changes ms
-  | Csort change -> Jkind.Sort.undo_change change
+  | Cmodes c          -> Mode.undo_changes c
+  | Csort change -> Jkind_types.Sort.undo_change change
 
 type snapshot = changes ref * int
 let last_snapshot = Local_store.s_ref 0

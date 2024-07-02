@@ -70,6 +70,13 @@ let rec map_end f l1 l2 =
     [] -> l2
   | hd::tl -> f hd :: map_end f tl l2
 
+let rev_map_end f l1 l2 =
+  let rec rmap_f accu = function
+    | [] -> accu
+    | hd::tl -> rmap_f (f hd :: accu) tl
+  in
+  rmap_f l2 l1
+
 let rec map_left_right f = function
     [] -> []
   | hd::tl -> let res = f hd in res :: map_left_right f tl
@@ -161,6 +168,27 @@ module Stdlib = struct
         if a' == a && l' == l then l0 else a' :: l'
       | [] -> []
 
+    let fold_lefti f accu l =
+      let rec aux f i accu l =
+        match l with
+        | [] -> accu
+        | a::l -> aux f (succ i) (f i accu a) l
+      in
+      aux f 0 accu l
+
+    let chunks_of n l =
+      if n <= 0 then raise (Invalid_argument "chunks_of");
+      (* Invariant: List.length l = remaining *)
+      let rec aux n acc l ~remaining =
+        match remaining with
+        | 0 -> List.rev acc
+        | _ when remaining <= n -> List.rev (l :: acc)
+        | _ ->
+            let chunk, rest = split_at n l in
+            aux n (chunk :: acc) rest ~remaining:(remaining - n)
+      in
+      aux n [] l ~remaining:(List.length l)
+
     let rec is_prefix ~equal t ~of_ =
       match t, of_ with
       | [], [] -> true
@@ -213,6 +241,15 @@ module Stdlib = struct
         else loop (succ i) in
       loop 0
 
+    let fold_left2 f x a1 a2 =
+      if Array.length a1 <> Array.length a2
+      then invalid_arg "Misc.Stdlib.Array.fold_left2";
+      let r = ref x in
+      for i = 0 to Array.length a1 - 1 do
+        r := f !r (Array.unsafe_get a1 i) (Array.unsafe_get a2 i)
+      done;
+      !r
+
     let for_alli p a =
       let n = Array.length a in
       let rec loop i =
@@ -240,12 +277,48 @@ module Stdlib = struct
           false
       in
       loop 0
+
+    let compare compare arr1 arr2 =
+      let len1 = Array.length arr1 in
+      let len2 = Array.length arr2 in
+      if len1 <> len2 then
+        Int.compare len1 len2
+      else
+        let rec loop i =
+          if i >= len1 then 0
+          else
+            let cmp = compare arr1.(i) arr2.(i) in
+            if cmp <> 0 then cmp else loop (i + 1)
+        in
+        loop 0
+
+    let map_sharing f a =
+      let same = ref true in
+      let f' x =
+        let x' = f x in
+        if x != x' then
+          same := false;
+        x'
+      in
+      let a' = (Array.map [@inlined hint]) f' a in
+      if !same then a else a'
   end
 
   module String = struct
     include String
     module Set = Set.Make(String)
-    module Map = Map.Make(String)
+    module Map = struct
+      include Map.Make(String)
+
+      let of_seq_multi seq =
+        Seq.fold_left
+          (fun tbl (key, elt) ->
+            update key
+              (function None -> Some [elt] | Some s -> Some (elt :: s))
+              tbl)
+          empty seq
+    end
+
     module Tbl = Hashtbl.Make(struct
       include String
       let hash = Hashtbl.hash
@@ -295,10 +368,17 @@ module Stdlib = struct
       in
       helper chars str []
 
-    let split_last_exn str ~split_on =
+    let split_once str ~idx =
       let n = String.length str in
+      String.sub str 0 idx, String.sub str (idx + 1) (n - idx - 1)
+
+    let split_last_exn str ~split_on =
       let ridx = String.rindex str split_on in
-      String.sub str 0 ridx, String.sub str (ridx + 1) (n - ridx - 1)
+      split_once str ~idx:ridx
+
+    let split_first_exn str ~split_on =
+      let idx = String.index str split_on in
+      split_once str ~idx
 
     let starts_with ~prefix s =
       let len_s = length s
@@ -743,6 +823,11 @@ let ordinal_suffix n =
   | 3 when not teen -> "rd"
   | _ -> "th"
 
+let format_as_unboxed_literal s =
+  if String.starts_with ~prefix:"-" s
+  then "-#" ^ (String.sub s 1 (String.length s - 1))
+  else "#" ^ s
+
 (* Color handling *)
 module Color = struct
   (* use ANSI color codes, see https://en.wikipedia.org/wiki/ANSI_escape_code *)
@@ -1012,6 +1097,38 @@ let print_see_manual ppf manual_section =
     (pp_print_list ~pp_sep:(fun f () -> pp_print_char f '.') pp_print_int)
     manual_section
 
+let output_of_print print =
+  let output out_channel t =
+    let ppf = Format.formatter_of_out_channel out_channel in
+    print ppf t;
+    (* Must flush the formatter immediately because it has a buffer separate
+       from the output channel's buffer *)
+    Format.pp_print_flush ppf ()
+  in
+  output
+
+let is_print_longer_than size p =
+  let exception Limit_exceeded in
+  let limit = ref size in
+  let count_down len =
+    limit := !limit - len;
+    if !limit < 0 then raise Limit_exceeded
+  in
+  let out_string _ _ len = count_down len in
+  let out_newline () = count_down 1 in
+  let out_spaces n = count_down n in
+  let out_flush _ = () in
+  let out_indent _ = () in
+  let out_functions : Format.formatter_out_functions = {
+    out_string;
+    out_flush;
+    out_newline;
+    out_spaces;
+    out_indent}
+  in
+  let ppf = Format.formatter_of_out_functions out_functions in
+  try p ppf; false
+  with Limit_exceeded -> true
 
 type filepath = string
 
@@ -1323,8 +1440,74 @@ module Magic_number = struct
            | Ok () -> Ok info
 end
 
+module Le_result = struct
+  type t =
+    | Equal
+    | Less
+    | Not_le
+
+  let combine sr1 sr2 =
+    match sr1, sr2 with
+    | Equal, Equal -> Equal
+    | Equal, Less | Less, Equal | Less, Less -> Less
+    | Not_le, _ | _, Not_le -> Not_le
+
+  let combine_list ts = List.fold_left combine Equal ts
+
+  let is_le = function
+    | Equal -> true
+    | Less -> true
+    | Not_le -> false
+
+  let is_equal = function
+    | Equal -> true
+    | Less | Not_le -> false
+end
+
 (*********************************************)
 (* Fancy types *)
 
 type (_, _) eq = Refl : ('a, 'a) eq
+(*********************************************)
+(* Fancy modules *)
 
+module type T = sig
+  type t
+end
+
+module type T1 = sig
+  type 'a t
+end
+
+module type T2 = sig
+  type ('a, 'b) t
+end
+
+module type T3 = sig
+  type ('a, 'b, 'c) t
+end
+
+module type T4 = sig
+  type ('a, 'b, 'c, 'd) t
+end
+
+let remove_double_underscores s =
+  let len = String.length s in
+  let buf = Buffer.create len in
+  let skip = ref false in
+  let rec loop i =
+    if i < len
+    then (
+      let c = String.get s i in
+      if c = '.' then skip := true;
+      if (not !skip) && c = '_' && i + 1 < len && String.get s (i + 1) = '_'
+      then (
+        Buffer.add_char buf '.';
+        skip := true;
+        loop (i + 2))
+      else (
+        Buffer.add_char buf c;
+        loop (i + 1)))
+  in
+  loop 0;
+  Buffer.contents buf

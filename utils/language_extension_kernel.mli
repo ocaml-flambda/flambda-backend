@@ -12,7 +12,7 @@ type maturity = Stable | Beta | Alpha
     or off, while a [maturity t] can have different maturity settings. *)
 type _ t =
   | Comprehensions : unit t
-  | Local : unit t
+  | Mode : maturity t
   | Unique : unit t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t
@@ -20,6 +20,8 @@ type _ t =
   | Module_strengthening : unit t
   | Layouts : maturity t
   | SIMD : unit t
+  | Labeled_tuples : unit t
+  | Small_numbers : unit t
 
 module Exist : sig
   type 'a extn = 'a t

@@ -1,17 +1,17 @@
-(* TEST
-readonly_files = "ppx_empty_cases.ml"
-include ocamlcommon
-* setup-ocamlc.byte-build-env
-** ocamlc.byte
-program = "${test_build_directory}/ppx_empty_cases.exe"
-all_modules = "ppx_empty_cases.ml"
-*** ocamlc.byte
-module = "test.ml"
-flags = "-I ${test_build_directory} \
-         -ppx ${program} \
-         -extension layouts_alpha \
-         -dlambda"
-**** check-ocamlc.byte-output
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
+
+
+
+
+
+
+
+
+
+
+
+
 *)
 
 (* It's possible for ppx code to generate empty function cases. This is
@@ -34,3 +34,16 @@ let non_empty_cases_returning_float64 : t -> float# = function _ -> assert false
 let non_empty_cases_accepting_string  : string -> t = function _ -> assert false
 let non_empty_cases_accepting_float64 : float# -> t = function _ -> assert false
 
+
+(* TEST
+ readonly_files = "ppx_empty_cases.ml";
+ include ocamlcommon;
+ setup-ocamlc.byte-build-env;
+ program = "${test_build_directory}/ppx_empty_cases.exe";
+ all_modules = "ppx_empty_cases.ml";
+ ocamlc.byte;
+ module = "test.ml";
+ flags = "-I ${test_build_directory} -ppx ${program} -extension layouts_alpha -dlambda";
+ ocamlc.byte;
+ check-ocamlc.byte-output;
+*)

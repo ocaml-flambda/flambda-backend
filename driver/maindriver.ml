@@ -19,6 +19,7 @@ open Clflags
 module Options = Main_args.Make_bytecomp_options (Main_args.Default.Main)
 
 let main argv ppf =
+  Symbol.this_is_ocamlc ();
   let program = "ocamlc" in
   Clflags.add_arguments __LOC__ Options.list;
   Clflags.add_arguments __LOC__
@@ -66,7 +67,7 @@ let main argv ppf =
            are  incompatible with -pack, -a, -output-obj"
           (String.concat "|"
              (P.available_pass_names ~filter:(fun _ -> true) ~native:false))
-      | Some (P.Scheduling | P.Simplify_cfg | P.Emit | P.Selection) ->
+      | Some (P.Middle_end | P.Scheduling | P.Simplify_cfg | P.Emit | P.Selection) ->
         assert false (* native only *)
     end;
     if !make_archive then begin
@@ -112,7 +113,7 @@ let main argv ppf =
     n
   | exception Continue
   | () ->
-    Compmisc.with_ppf_dump ~file_prefix:"profile"
+    Compmisc.with_ppf_dump ~stdout:() ~file_prefix:"profile"
       (fun ppf -> Profile.print ppf !Clflags.profile_columns
         ~timings_precision:!Clflags.timings_precision);
     0

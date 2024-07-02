@@ -1,7 +1,11 @@
 (* TEST
-include runtime_events
-* skip
-reason = "OCaml 5 only"
+ {
+   runtime4;
+   skip;
+ }{
+   include runtime_events;
+   runtime5;
+ }
 *)
 open Runtime_events
 

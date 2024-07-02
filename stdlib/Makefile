@@ -36,7 +36,7 @@ CAMLOPT=$(OCAMLRUN) $(OPTCOMPILER)
 CAMLDEP=$(BOOT_OCAMLC) -depend
 DEPFLAGS=-slash
 
-OC_CPPFLAGS += -I$(ROOTDIR)/runtime
+OC_CPPFLAGS += -I$(ROOTDIR)/$(RUNTIME_DIR)
 
 include StdlibModules
 
@@ -206,30 +206,6 @@ stdlib.cmo: stdlib.ml
 stdlib.cmx: stdlib.ml
 	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) \
 	 -pp "$(AWK) -f ./expand_module_aliases.awk" -c $<
-
-
-# special cases to add the extension flag when compiling float_u
-# CR layouts: eventually these can be just [-extension layouts]
-stdlib__Float_u.cmi:
-	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha \
-	         -o $@ -c $(filter %.mli, $^)
-
-stdlib__Float_u.cmo:
-	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha \
-	         -o $@ -c $(filter %.ml, $^)
-
-stdlib__Float_u.cmx:
-	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -extension layouts_alpha \
-	           -o $@ -c $(filter %.ml, $^)
-
-float_u.cmi: %.mli
-	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha -c $<
-
-float_u.cmo: %.ml
-	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha -c $<
-
-float_u.cmx: %.ml
-	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -extension layouts_alpha -c $<
 
 %.cmi: %.mli
 	$(V_OCAMLC)$(CAMLC) $(COMPFLAGS) -c $<

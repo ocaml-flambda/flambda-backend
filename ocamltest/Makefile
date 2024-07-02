@@ -46,7 +46,8 @@ core := \
   tsl_semantics.mli tsl_semantics.ml \
   builtin_variables.mli builtin_variables.ml \
   actions_helpers.mli actions_helpers.ml \
-  builtin_actions.mli builtin_actions.ml
+  builtin_actions.mli builtin_actions.ml \
+  translate.mli translate.ml
 
 ocaml_plugin := \
   ocaml_backends.mli ocaml_backends.ml \
@@ -151,7 +152,7 @@ ocamltest.opt$(EXE): $(deps_opt) $(native_modules)
 %.cmi: %.mli $(deps_byte)
 	$(V_OCAMLC)$(ocamlc) -c $<
 
-ocamltest_unix.ml: ocamltest_unix_$(ocamltest_unix_impl).ml
+ocamltest_unix.ml: ocamltest_unix.$(ocamltest_unix_impl).ml
 	$(V_GEN)echo '# 1 "$<"' > $@ && \
 	cat $< >> $@
 

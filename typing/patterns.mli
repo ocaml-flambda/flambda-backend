@@ -40,13 +40,13 @@ module Simple : sig
   type view = [
     | `Any
     | `Constant of constant
-    | `Tuple of pattern list
+    | `Tuple of (string option * pattern) list
     | `Construct of
         Longident.t loc * constructor_description * pattern list
     | `Variant of label * pattern option * row_desc ref
     | `Record of
         (Longident.t loc * label_description * pattern) list * closed_flag
-    | `Array of mutable_flag * pattern list
+    | `Array of mutability * Jkind.sort * pattern list
     | `Lazy of pattern
   ]
   type pattern = view pattern_data
@@ -65,8 +65,8 @@ end
 module General : sig
   type view = [
     | Half_simple.view
-    | `Var of Ident.t * string loc * Uid.t * Mode.Value.t
-    | `Alias of pattern * Ident.t * string loc * Uid.t * Mode.Value.t
+    | `Var of Ident.t * string loc * Uid.t * Mode.Value.l
+    | `Alias of pattern * Ident.t * string loc * Uid.t * Mode.Value.l
   ]
   type pattern = view pattern_data
 
@@ -81,7 +81,7 @@ module Head : sig
     | Any
     | Construct of constructor_description
     | Constant of constant
-    | Tuple of int
+    | Tuple of string option list
     | Record of label_description list
     | Variant of
         { tag: label; has_arg: bool;
@@ -89,7 +89,7 @@ module Head : sig
           type_row : unit -> row_desc; }
           (* the row of the type may evolve if [close_variant] is called,
              hence the (unit -> ...) delay *)
-    | Array of mutable_flag * int
+    | Array of mutability * Jkind.sort * int
     | Lazy
 
   type t = desc pattern_data

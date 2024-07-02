@@ -1,7 +1,12 @@
 (* TEST
-   flags = "-strict-sequence"
-   * expect
+ flags = "-strict-sequence";
+ expect;
 *)
+(* CR layouts: Using layout annotations here is not backward-compatible.
+   We can delete this when internal ticket 1110 is resolved.
+*)
+
+
 external a : (int [@untagged]) -> unit = "a" "a_nat"
 external b : (int32 [@unboxed]) -> unit = "b" "b_nat"
 external c : (int64 [@unboxed]) -> unit = "c" "c_nat"
@@ -639,7 +644,8 @@ Line 1, characters 14-17:
 1 | external h : (int [@unboxed]) -> float = "h" "h_nat";;
                   ^^^
 Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
+       Only float, int32, int64, nativeint, vector primitives, and
+       concrete unboxed types can be marked unboxed.
 |}]
 
 (* Bad: unboxing the function type *)
@@ -649,7 +655,8 @@ Line 1, characters 13-25:
 1 | external i : int -> float [@unboxed] = "i" "i_nat";;
                  ^^^^^^^^^^^^
 Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
+       Only float, int32, int64, nativeint, vector primitives, and
+       concrete unboxed types can be marked unboxed.
 |}]
 
 (* Bad: unboxing a "deep" sub-type. *)
@@ -746,7 +753,7 @@ Error: The native code version of the primitive is mandatory
 |}]
 
 (* PR#7424 *)
-type 'a b = B of 'a b b [@@unboxed] [@@value];;
+type 'a b : value = B of 'a b b [@@unboxed];;
 [%%expect{|
 type 'a b : value = B of 'a b b [@@unboxed]
 |}]

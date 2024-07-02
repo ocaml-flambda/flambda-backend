@@ -1,7 +1,7 @@
 (* TEST
-   * stack-allocation
-   ** native
- *)
+ stack-allocation;
+ native;
+*)
 
 open Printexc
 
@@ -38,6 +38,77 @@ let[@inline never][@specialise never][@local never] bar stack =
 let foo () =
   let stack = get_backtrace () in
   bar stack
+
+(* Test the local functions optimisation *)
+
+let[@inline never] ignore_local (local_ x) = ()
+
+let rec foo n p a b stack =
+  if n <= 0 then () else
+  let stack' = get_backtrace () in
+  begin match stack with
+  | None -> ()
+  | Some stack -> assert (equal_backtraces stack stack')
+  end;
+  let bar x y =
+    foo (n - 1) p x y (Some stack')
+  in
+  ignore_local (Some a);
+  if p then
+    bar a b
+  else
+    bar b a
+
+let () = foo 10 true 1 2 None
+
+let rec foo2 n p a b stack =
+  if n <= 0 then () else
+  let stack' = get_backtrace () in
+  begin match stack with
+  | None -> ()
+  | Some stack -> assert (equal_backtraces stack stack')
+  end;
+  let bar x y =
+    foo2 (n - 1) p x y (Some stack')
+  in
+  let bar2 p x y =
+    if p then
+      bar y x
+    else
+      bar x y
+  in
+  ignore_local (Some a);
+  if p then
+    bar2 p a b
+  else
+    bar2 p b a
+
+let () = foo2 10 true 1 2 None
+
+let rec foo3 n p a b stack =
+  if n <= 0 then () else
+  let stack' = get_backtrace () in
+  begin match stack with
+  | None -> ()
+  | Some stack -> assert (equal_backtraces stack stack')
+  end;
+  let bar x y =
+    foo3 (n - 1) p x y (Some stack')
+  in
+  let bar2 p x y =
+    ignore_local (Some a);
+    if p then
+      bar y x
+    else
+      bar x y
+  in
+  ignore_local (Some a);
+  if p then
+    bar2 p a b
+  else
+    bar2 p b a
+
+let () = foo3 10 true 1 2 None
 
 external local_stack_offset : unit -> int = "caml_local_stack_offset"
 

@@ -24,8 +24,83 @@
 #include "caml/mlvalues.h"
 #include "caml/signals.h"
 #include "caml/eventlog.h"
+#include "caml/custom.h"
 
 static const mlsize_t mlsize_t_max = -1;
+
+#define Max_array_wosize                   (Max_wosize)
+#define Max_custom_array_wosize            (Max_wosize - 1)
+#define Max_unboxed_float_array_wosize     (Max_array_wosize / (sizeof(double) / sizeof(intnat)))
+#define Max_unboxed_int64_array_wosize     (Max_custom_array_wosize / (sizeof(int64_t) / sizeof(intnat)))
+#define Max_unboxed_int32_array_wosize     (Max_custom_array_wosize * (sizeof(intnat) / sizeof(int32_t)))
+#define Max_unboxed_nativeint_array_wosize (Max_custom_array_wosize)
+
+/* Unboxed arrays */
+
+CAMLprim int caml_unboxed_array_no_polymorphic_compare(value v1, value v2)
+{
+  caml_failwith("Polymorphic comparison is not permitted for unboxed arrays");
+}
+
+CAMLprim intnat caml_unboxed_array_no_polymorphic_hash(value v)
+{
+  caml_failwith("Polymorphic hash is not permitted for unboxed arrays");
+}
+
+CAMLprim void caml_unboxed_array_serialize(value v, uintnat* bsize_32, uintnat* bsize_64)
+{
+  caml_failwith("Marshalling is not yet implemented for unboxed arrays");
+}
+
+CAMLprim uintnat caml_unboxed_array_deserialize(void* dst)
+{
+  caml_failwith("Marshalling is not yet implemented for unboxed arrays");
+}
+
+// Note: if polymorphic comparison and/or hashing are implemented for
+// the int32 unboxed arrays, care needs to be taken with the last word
+// when the array is of odd length -- this is not currently initialized.
+
+CAMLexport struct custom_operations caml_unboxed_int32_array_ops[2] = {
+  { "_unboxed_int32_even_array",
+    custom_finalize_default,
+    caml_unboxed_array_no_polymorphic_compare,
+    caml_unboxed_array_no_polymorphic_hash,
+    caml_unboxed_array_serialize,
+    caml_unboxed_array_deserialize,
+    custom_compare_ext_default,
+    custom_fixed_length_default },
+  { "_unboxed_int32_odd_array",
+    custom_finalize_default,
+    caml_unboxed_array_no_polymorphic_compare,
+    caml_unboxed_array_no_polymorphic_hash,
+    caml_unboxed_array_serialize,
+    caml_unboxed_array_deserialize,
+    custom_compare_ext_default,
+    custom_fixed_length_default },
+};
+
+CAMLexport struct custom_operations caml_unboxed_int64_array_ops = {
+  "_unboxed_int64_array",
+  custom_finalize_default,
+  caml_unboxed_array_no_polymorphic_compare,
+  caml_unboxed_array_no_polymorphic_hash,
+  caml_unboxed_array_serialize,
+  caml_unboxed_array_deserialize,
+  custom_compare_ext_default,
+  custom_fixed_length_default
+};
+
+CAMLexport struct custom_operations caml_unboxed_nativeint_array_ops = {
+  "_unboxed_nativeint_array",
+  custom_finalize_default,
+  caml_unboxed_array_no_polymorphic_compare,
+  caml_unboxed_array_no_polymorphic_hash,
+  caml_unboxed_array_serialize,
+  caml_unboxed_array_deserialize,
+  custom_compare_ext_default,
+  custom_fixed_length_default
+};
 
 /* returns number of elements (either fields or floats) */
 /* [ 'a array -> int ] */
@@ -64,7 +139,11 @@ CAMLprim value caml_floatarray_get(value array, value index)
   double d;
   value res;
 
-  CAMLassert (Tag_val(array) == Double_array_tag);
+  // [caml_floatarray_get] may be called on a floatarray
+  // or a mixed block.
+  CAMLassert (  Tag_val(array) == Double_array_tag
+                || index > Scannable_wosize_val(array) );
+
   if (idx < 0 || idx >= Wosize_val(array) / Double_wosize)
     caml_array_bound_error();
   d = Double_flat_field(array, idx);
@@ -84,7 +163,11 @@ CAMLprim value caml_floatarray_get_local(value array, value index)
   double d;
   value res;
 
-  CAMLassert (Tag_val(array) == Double_array_tag);
+  // [caml_floatarray_get] may be called on a floatarray
+  // or a mixed block.
+  CAMLassert (  Tag_val(array) == Double_array_tag
+                || index > Scannable_wosize_val(array) );
+
   if (idx < 0 || idx >= Wosize_val(array) / Double_wosize)
     caml_array_bound_error();
   d = Double_flat_field(array, idx);
@@ -309,7 +392,7 @@ CAMLprim value caml_floatarray_create(value len)
       Alloc_small (result, wosize, Double_array_tag);
 #undef Setup_for_gc
 #undef Restore_after_gc
-  }else if (wosize > Max_wosize)
+  }else if (wosize > Max_unboxed_float_array_wosize)
     caml_invalid_argument("Float.Array.create");
   else {
     result = caml_alloc_shr (wosize, Double_array_tag);
@@ -341,8 +424,8 @@ static value make_vect_gen(value len, value init, int local)
     mlsize_t wsize;
     double d;
     d = Double_val(init);
+    if (size > Max_unboxed_float_array_wosize) caml_invalid_argument("Array.make");
     wsize = size * Double_wosize;
-    if (wsize > Max_wosize) caml_invalid_argument("Array.make");
     res = local ?
       caml_alloc_local(wsize, Double_array_tag) :
       caml_alloc(wsize, Double_array_tag);
@@ -351,7 +434,7 @@ static value make_vect_gen(value len, value init, int local)
     }
 #endif
   } else {
-    if (size > Max_wosize) caml_invalid_argument("Array.make");
+    if (size > Max_array_wosize) caml_invalid_argument("Array.make");
     else if (local) {
       res = caml_alloc_local(size, 0);
       for (i = 0; i < size; i++) Field(res, i) = init;
@@ -402,6 +485,57 @@ CAMLprim value caml_make_float_vect(value len)
   }
   return caml_make_vect (len, uninitialized_float);
 #endif
+}
+
+CAMLprim value caml_make_unboxed_int32_vect(value len)
+{
+  /* This is only used on 64-bit targets. */
+
+  mlsize_t num_elements = Long_val(len);
+  if (num_elements > Max_unboxed_int32_array_wosize) caml_invalid_argument("Array.make");
+
+  /* [num_fields] does not include the custom operations field. */
+  mlsize_t num_fields = num_elements / 2 + num_elements % 2;
+
+  return caml_alloc_custom(&caml_unboxed_int32_array_ops[num_elements % 2],
+                           num_fields * sizeof(value), 0, 0);
+}
+
+CAMLprim value caml_make_unboxed_int32_vect_bytecode(value len)
+{
+  return caml_make_vect(len, caml_copy_int32(0));
+}
+
+CAMLprim value caml_make_unboxed_int64_vect(value len)
+{
+  mlsize_t num_elements = Long_val(len);
+  if (num_elements > Max_unboxed_int64_array_wosize) caml_invalid_argument("Array.make");
+
+  struct custom_operations* ops = &caml_unboxed_int64_array_ops;
+
+  return caml_alloc_custom(ops, num_elements * sizeof(value), 0, 0);
+}
+
+CAMLprim value caml_make_unboxed_int64_vect_bytecode(value len)
+{
+  return caml_make_vect(len, caml_copy_int64(0));
+}
+
+CAMLprim value caml_make_unboxed_nativeint_vect(value len)
+{
+  /* This is only used on 64-bit targets. */
+
+  mlsize_t num_elements = Long_val(len);
+  if (num_elements > Max_unboxed_nativeint_array_wosize) caml_invalid_argument("Array.make");
+
+  struct custom_operations* ops = &caml_unboxed_nativeint_array_ops;
+
+  return caml_alloc_custom(ops, num_elements * sizeof(value), 0, 0);
+}
+
+CAMLprim value caml_make_unboxed_nativeint_vect_bytecode(value len)
+{
+  return caml_make_vect(len, caml_copy_nativeint(0));
 }
 
 /* This primitive is used internally by the compiler to compile
@@ -468,6 +602,36 @@ CAMLprim value caml_floatarray_blit(value a1, value ofs1, value a2, value ofs2,
   memmove((double *)a2 + Long_val(ofs2),
           (double *)a1 + Long_val(ofs1),
           Long_val(n) * sizeof(double));
+  return Val_unit;
+}
+
+CAMLprim value caml_unboxed_int32_vect_blit(value a1, value ofs1, value a2,
+                                            value ofs2, value n)
+{
+  // Need to skip the custom_operations field
+  memmove((int32_t *)((uintnat *)a2 + 1) + Long_val(ofs2),
+          (int32_t *)((uintnat *)a1 + 1) + Long_val(ofs1),
+          Long_val(n) * sizeof(int32_t));
+  return Val_unit;
+}
+
+CAMLprim value caml_unboxed_int64_vect_blit(value a1, value ofs1, value a2, value ofs2,
+                                            value n)
+{
+  // Need to skip the custom_operations field
+  memmove((int64_t *)((uintnat *)a2 + 1) + Long_val(ofs2),
+          (int64_t *)((uintnat *)a1 + 1) + Long_val(ofs1),
+          Long_val(n) * sizeof(int64_t));
+  return Val_unit;
+}
+
+CAMLprim value caml_unboxed_nativeint_vect_blit(value a1, value ofs1, value a2,
+                                                value ofs2, value n)
+{
+  // Need to skip the custom_operations field
+  memmove((uintnat *)((uintnat *)a2 + 1) + Long_val(ofs2),
+          (uintnat *)((uintnat *)a1 + 1) + Long_val(ofs1),
+          Long_val(n) * sizeof(uintnat));
   return Val_unit;
 }
 
@@ -551,7 +715,7 @@ static value caml_array_gather(intnat num_arrays,
 #ifdef FLAT_FLOAT_ARRAY
   else if (isfloat) {
     /* This is an array of floats.  We can use memcpy directly. */
-    if (size > Max_wosize/Double_wosize) caml_invalid_argument("Array.concat");
+    if (size > Max_unboxed_float_array_wosize) caml_invalid_argument("Array.concat");
     wsize = size * Double_wosize;
     res = local ?
       caml_alloc_local(wsize, Double_array_tag) :
@@ -565,7 +729,7 @@ static value caml_array_gather(intnat num_arrays,
     CAMLassert(pos == size);
   }
 #endif
-  else if (size > Max_wosize) {
+  else if (size > Max_array_wosize) {
     /* Array of values, too big. */
     caml_invalid_argument("Array.concat");
   } else if (size <= Max_young_wosize || local) {
@@ -744,3 +908,51 @@ CAMLprim value caml_array_of_iarray(value a)
 {
   return a;
 }
+
+
+/* We need these pre-declared for [gen_primitives.sh] to work. */
+CAMLprim value caml_array_get_indexed_by_int64(value, value);
+CAMLprim value caml_array_unsafe_get_indexed_by_int64(value, value);
+CAMLprim value caml_array_set_indexed_by_int64(value, value, value);
+CAMLprim value caml_array_unsafe_set_indexed_by_int64(value, value, value);
+
+CAMLprim value caml_array_get_indexed_by_int32(value, value);
+CAMLprim value caml_array_unsafe_get_indexed_by_int32(value, value);
+CAMLprim value caml_array_set_indexed_by_int32(value, value, value);
+CAMLprim value caml_array_unsafe_set_indexed_by_int32(value, value, value);
+
+CAMLprim value caml_array_get_indexed_by_nativeint(value, value);
+CAMLprim value caml_array_unsafe_get_indexed_by_nativeint(value, value);
+CAMLprim value caml_array_set_indexed_by_nativeint(value, value, value);
+CAMLprim value caml_array_unsafe_set_indexed_by_nativeint(value, value, value);
+
+#define CAMLprim_indexed_by(name, index_type, val_func)                     \
+  CAMLprim value caml_array_get_indexed_by_##name(value array, value index) \
+  {                                                                         \
+    index_type idx = val_func(index);                                       \
+    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();           \
+    return caml_array_get(array, Val_long(idx));                            \
+  }                                                                         \
+  CAMLprim value caml_array_unsafe_get_indexed_by_##name(value array,       \
+                                                         value index)       \
+  {                                                                         \
+    return caml_array_unsafe_get(array, Val_long(val_func(index)));         \
+  }                                                                         \
+  CAMLprim value caml_array_set_indexed_by_##name(value array,              \
+                                                  value index,              \
+                                                  value newval)             \
+  {                                                                         \
+    index_type idx = val_func(index);                                       \
+    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();           \
+    return caml_array_set(array, Val_long(idx), newval);                    \
+  }                                                                         \
+  CAMLprim value caml_array_unsafe_set_indexed_by_##name(value array,       \
+                                                         value index,       \
+                                                         value newval)      \
+  {                                                                         \
+    return caml_array_unsafe_set(array, Val_long(val_func(index)), newval); \
+  }
+
+CAMLprim_indexed_by(int64, int64_t, Int64_val)
+CAMLprim_indexed_by(int32, int32_t, Int32_val)
+CAMLprim_indexed_by(nativeint, intnat, Nativeint_val)

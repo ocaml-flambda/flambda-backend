@@ -269,7 +269,7 @@ let fold_type_expr f init ty =
   | Tarrow (_, ty1, ty2, _) ->
       let result = f init ty1 in
       f result ty2
-  | Ttuple l            -> List.fold_left f init l
+  | Ttuple l            -> List.fold_left f init (List.map snd l)
   | Tconstr (_, l, _)   -> List.fold_left f init l
   | Tobject(ty, {contents = Some (_, p)}) ->
       let result = f init ty in
@@ -318,11 +318,11 @@ type type_iterators =
     it_path: Path.t -> unit; }
 
 let iter_type_expr_cstr_args f = function
-  | Cstr_tuple tl -> List.iter (fun (ty, _) -> f ty) tl
+  | Cstr_tuple tl -> List.iter (fun ca -> f ca.ca_type) tl
   | Cstr_record lbls -> List.iter (fun d -> f d.ld_type) lbls
 
 let map_type_expr_cstr_args f = function
-  | Cstr_tuple tl -> Cstr_tuple (List.map (fun (ty, gf) -> (f ty, gf)) tl)
+  | Cstr_tuple tl -> Cstr_tuple (List.map (fun ca -> {ca with ca_type=f ca.ca_type}) tl)
   | Cstr_record lbls ->
       Cstr_record (List.map (fun d -> {d with ld_type=f d.ld_type}) lbls)
 
@@ -449,7 +449,7 @@ let rec copy_type_desc ?(keep_names=false) f = function
     Tvar { jkind; _ } as tv ->
      if keep_names then tv else Tvar { name=None; jkind }
   | Tarrow (p, ty1, ty2, c)-> Tarrow (p, f ty1, f ty2, copy_commu c)
-  | Ttuple l            -> Ttuple (List.map f l)
+  | Ttuple l            -> Ttuple (List.map (fun (label, t) -> label, f t) l)
   | Tconstr (p, l, _)   -> Tconstr (p, List.map f l, ref Mnil)
   | Tobject(ty, {contents = Some (p, tl)})
                         -> Tobject (f ty, ref (Some(p, List.map f tl)))
@@ -578,16 +578,28 @@ let backtrack = backtrack ~cleanup_abbrev
                   (*  Utilities for labels          *)
                   (**********************************)
 
+let is_optional_parsetree : Parsetree.arg_label -> bool = function
+    Optional _ -> true
+  | _ -> false
+
 let is_optional = function Optional _ -> true | _ -> false
+
+let is_position = function Position _ -> true | _ -> false
+
+let is_omittable = function
+  Optional _
+| Position _ -> true
+| Nolabel | Labelled _ -> false
 
 let label_name = function
     Nolabel -> ""
   | Labelled s
-  | Optional s -> s
+  | Optional s
+  | Position s -> s
 
 let prefixed_label_name = function
     Nolabel -> ""
-  | Labelled s -> "~" ^ s
+  | Labelled s | Position s -> "~" ^ s
   | Optional s -> "?" ^ s
 
 let rec extract_label_aux hd l = function

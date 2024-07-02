@@ -1,7 +1,7 @@
 (* TEST
-   * skip
-   reason = "OCaml 5 only"
-   ** expect
+ reason = "CR ocaml 5 domains: re-enable this test";
+ skip;
+ expect;
 *)
 
 (* Test the behavior of channel refcounting. *)

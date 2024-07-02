@@ -51,7 +51,9 @@ let constructor_existentials cd_args cd_res =
     match cd_res with
     | None -> []
     | Some type_ret ->
-        let arg_vars_set = free_vars (newgenty (Ttuple tyl)) in
+        let arg_vars_set =
+          free_vars (newgenty (Ttuple (List.map (fun ty -> None, ty) tyl)))
+        in
         let res_vars = free_vars type_ret in
         TypeSet.elements (TypeSet.diff arg_vars_set res_vars)
   in
@@ -62,7 +64,10 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
   match cd_args with
   | Cstr_tuple l -> existentials, l, None
   | Cstr_record lbls ->
-      let arg_vars_set = free_vars ~param:true (newgenty (Ttuple tyl)) in
+      let arg_vars_set =
+        free_vars ~param:true
+          (newgenty (Ttuple (List.map (fun ty -> None, ty) tyl)))
+      in
       let type_params = TypeSet.elements arg_vars_set in
       let arity = List.length type_params in
       let is_void_label lbl = Jkind.is_void_defaulting lbl.ld_jkind in
@@ -75,6 +80,7 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
           type_arity = arity;
           type_kind = Type_record (lbls, rep);
           type_jkind = jkind;
+          type_jkind_annotation = None;
           type_private = priv;
           type_manifest = None;
           type_variance = Variance.unknown_signature ~injective:true ~arity;
@@ -88,26 +94,32 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
         }
       in
       existentials,
-      [ newgenconstr path type_params, Unrestricted ],
+      [
+        {
+          ca_type = newgenconstr path type_params;
+          ca_modalities = Mode.Modality.Value.Const.id;
+          ca_loc = Location.none
+        }
+      ],
       Some tdecl
 
 let constructor_descrs ~current_unit ty_path decl cstrs rep =
   let ty_res = newgenconstr ty_path decl.type_params in
-  let cstr_arg_jkinds : Jkind.t array array =
+  let cstr_shapes_and_arg_jkinds =
     match rep with
     | Variant_extensible -> assert false
-    | Variant_boxed jkinds -> jkinds
-    | Variant_unboxed -> [| [| decl.type_jkind |] |]
+    | Variant_boxed x -> x
+    | Variant_unboxed -> [| Constructor_uniform_value, [| decl.type_jkind |] |]
   in
   let all_void jkinds = Array.for_all Jkind.is_void_defaulting jkinds in
   let num_consts = ref 0 and num_nonconsts = ref 0 in
   let cstr_constant =
     Array.map
-      (fun jkinds ->
+      (fun (_, jkinds) ->
          let all_void = all_void jkinds in
          if all_void then incr num_consts else incr num_nonconsts;
          all_void)
-      cstr_arg_jkinds
+      cstr_shapes_and_arg_jkinds
   in
   let describe_constructor (src_index, const_tag, nonconst_tag, acc)
         {cd_id; cd_args; cd_res; cd_loc; cd_attributes; cd_uid} =
@@ -117,7 +129,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       | Some ty_res' -> ty_res'
       | None -> ty_res
     in
-    let cstr_arg_jkinds = cstr_arg_jkinds.(src_index) in
+    let cstr_shape, cstr_arg_jkinds = cstr_shapes_and_arg_jkinds.(src_index) in
     let cstr_constant = cstr_constant.(src_index) in
     let runtime_tag, const_tag, nonconst_tag =
       if cstr_constant
@@ -140,6 +152,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
         cstr_arity = List.length cstr_args;
         cstr_tag;
         cstr_repr = rep;
+        cstr_shape = cstr_shape;
         cstr_constant;
         cstr_consts = !num_consts;
         cstr_nonconsts = !num_nonconsts;
@@ -175,6 +188,7 @@ let extension_descr ~current_unit path_ext ext =
       cstr_arity = List.length cstr_args;
       cstr_tag;
       cstr_repr = Variant_extensible;
+      cstr_shape = ext.ext_shape;
       cstr_constant = ext.ext_constant;
       cstr_consts = -1;
       cstr_nonconsts = -1;
@@ -192,8 +206,8 @@ let none =
 
 let dummy_label =
   { lbl_name = ""; lbl_res = none; lbl_arg = none;
-    lbl_mut = Immutable; lbl_global = Unrestricted;
-    lbl_jkind = Jkind.any ~why:Dummy_jkind;
+    lbl_mut = Immutable; lbl_modalities = Mode.Modality.Value.Const.id;
+    lbl_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
     lbl_num = -1; lbl_pos = -1; lbl_all = [||];
     lbl_repres = Record_unboxed;
     lbl_private = Public;
@@ -213,7 +227,7 @@ let label_descrs ty_res lbls repres priv =
             lbl_res = ty_res;
             lbl_arg = l.ld_type;
             lbl_mut = l.ld_mutable;
-            lbl_global = l.ld_global;
+            lbl_modalities = l.ld_modalities;
             lbl_jkind = l.ld_jkind;
             lbl_pos = if is_void then lbl_pos_void else pos;
             lbl_num = num;

@@ -105,8 +105,10 @@ For 64-bit architectures:
      +----------+--------+-------+-----+
 bits  63    64-R 63-R  10 9     8 7   0
 
-where 0 <= R <= 31 is HEADER_RESERVED_BITS, set with the
---enable-reserved-header-bits=R argument to configure.
+where 0 <= R <= 31 is HEADER_RESERVED_BITS. R is always
+set to 8 for the flambda-backend compiler in order to support
+mixed blocks. In the upstream compiler, R is set with the
+--enable-reserved-header-bits=R argument.
 
 */
 
@@ -128,7 +130,7 @@ where 0 <= R <= 31 is HEADER_RESERVED_BITS, set with the
 
 #define Tag_hd(hd) ((tag_t) ((hd) & HEADER_TAG_MASK))
 #define Hd_with_tag(hd, tag) (((hd) &~ HEADER_TAG_MASK) | (tag))
-#define Wosize_hd(hd) ((mlsize_t) (((hd) & HEADER_WOSIZE_MASK) \
+#define Allocated_wosize_hd(hd) ((mlsize_t) (((hd) & HEADER_WOSIZE_MASK) \
                                      >> HEADER_WOSIZE_SHIFT))
 
 /* A "clean" header, without reserved or color bits. */
@@ -147,6 +149,85 @@ where 0 <= R <= 31 is HEADER_RESERVED_BITS, set with the
 #define Hd_reserved(res)  ((header_t)0)
 
 #endif
+
+
+/* Header bits reserved for mixed blocks */
+
+#define Is_mixed_block_reserved(res) (((reserved_t)(res)) > 0)
+
+/* Native code versions of mixed block macros.
+
+   The scannable size of a block is how many fields are values as opposed
+   to flat floats/ints/etc. This is different than the (normal) size of a
+   block for mixed blocks.
+
+   The runtime has several functions that traverse over the structure of
+   an OCaml value. (e.g. polymorphic comparison, GC marking/sweeping)
+   All of these traversals must be written to have one of the following
+   properties:
+   - it's known that the input can never be a mixed block,
+   - it raises an exception on mixed blocks, or
+   - it uses the scannable size (not the normal size) to figure out which
+   fields to recursively descend into.
+
+   Otherwise, the traversal could attempt to recursively descend into
+   a flat field, which could segfault (or worse).
+*/
+
+#define Scannable_wosize_val_native(val) (Scannable_wosize_hd (Hd_val (val)))
+#define Reserved_mixed_block_scannable_wosize_native(sz)  (((mlsize_t)(sz)) + 1)
+#define Mixed_block_scannable_wosize_reserved_native(res) \
+  (((reserved_t)(res)) - 1)
+
+Caml_inline mlsize_t Scannable_wosize_reserved_native(reserved_t res,
+                                                      mlsize_t sz) {
+  return
+    Is_mixed_block_reserved(res)
+    ? Mixed_block_scannable_wosize_reserved_native(res)
+    : sz;
+}
+
+Caml_inline mlsize_t Scannable_wosize_hd_native(header_t hd) {
+  reserved_t res = Reserved_hd(hd);
+  return
+    Is_mixed_block_reserved(res)
+    ? Mixed_block_scannable_wosize_reserved_native(res)
+    : Allocated_wosize_hd(hd);
+}
+
+/* Bytecode versions of mixed block macros.
+
+   Bytecode always uses the size of the block as the scannable size. That's
+   because bytecode doesn't represent mixed records as mixed blocks. They're
+   "faux mixed blocks", which are regular blocks with a sentinel value set
+   in the header bits.
+*/
+
+#define Scannable_wosize_hd_byte(hd)  (Allocated_wosize_hd (hd))
+#define Scannable_wosize_val_byte(val) (Allocated_wosize_hd (Hd_val (val)))
+Caml_inline mlsize_t Scannable_wosize_reserved_byte(reserved_t res,
+                                                    mlsize_t size) {
+  (void)res;
+  return size;
+}
+
+/* Users should specify whether they want to use the bytecode or native
+   versions of these macros. Internally to the runtime, the NATIVE_CODE
+   macro lets us make that determination, so we can define suffixless
+   versions of the mixed block macros.
+*/
+#ifdef CAML_INTERNALS
+#ifdef NATIVE_CODE
+#define Scannable_wosize_reserved(r, s) Scannable_wosize_reserved_native(r, s)
+#define Scannable_wosize_hd(hd)         Scannable_wosize_hd_native(hd)
+#define Scannable_wosize_val(val)       Scannable_wosize_val_native(val)
+#else
+#define Faux_mixed_block_sentinel ((reserved_t) 0xff)
+#define Scannable_wosize_reserved(r, s) Scannable_wosize_reserved_byte(r, s)
+#define Scannable_wosize_hd(hd)         Scannable_wosize_hd_byte(hd)
+#define Scannable_wosize_val(val)       Scannable_wosize_val_byte(val)
+#endif // NATIVE_CODE
+#endif // CAML_INTERNALS
 
 /* Color values are pre-shifted */
 
@@ -171,10 +252,6 @@ where 0 <= R <= 31 is HEADER_RESERVED_BITS, set with the
 #define Num_tags (1ull << HEADER_TAG_BITS)
 #define Max_wosize ((1ull << HEADER_WOSIZE_BITS) - 1ull)
 
-#define Wosize_val(val) (Wosize_hd (Hd_val (val)))
-#define Wosize_op(op) (Wosize_val (op))
-#define Wosize_bp(bp) (Wosize_val (bp))
-#define Wosize_hp(hp) (Wosize_hd (Hd_hp (hp)))
 #define Whsize_wosize(sz) ((sz) + 1)
 #define Wosize_whsize(sz) ((sz) - 1)
 #define Wosize_bhsize(sz) ((sz) / sizeof (value) - 1)
@@ -182,16 +259,54 @@ where 0 <= R <= 31 is HEADER_RESERVED_BITS, set with the
 #define Wsize_bsize(sz) ((sz) / sizeof (value))
 #define Bhsize_wosize(sz) (Bsize_wsize (Whsize_wosize (sz)))
 #define Bhsize_bosize(sz) ((sz) + sizeof (header_t))
-#define Bosize_val(val) (Bsize_wsize (Wosize_val (val)))
-#define Bosize_op(op) (Bosize_val (Val_op (op)))
-#define Bosize_bp(bp) (Bosize_val (Val_bp (bp)))
-#define Bosize_hd(hd) (Bsize_wsize (Wosize_hd (hd)))
-#define Whsize_hp(hp) (Whsize_wosize (Wosize_hp (hp)))
-#define Whsize_val(val) (Whsize_hp (Hp_val (val)))
-#define Whsize_bp(bp) (Whsize_val (Val_bp (bp)))
-#define Whsize_hd(hd) (Whsize_wosize (Wosize_hd (hd)))
-#define Bhsize_hp(hp) (Bsize_wsize (Whsize_hp (hp)))
-#define Bhsize_hd(hd) (Bsize_wsize (Whsize_hd (hd)))
+
+/* Note that Allocated_wosize_val and the other macros that read headers will not
+   be optimized by common subexpression elimination, because of the
+   atomic header loads.  It is best to bind the results of such macros
+   to variables if they will be tested repeatedly, e.g. as the end condition
+   in a for-loop.
+*/
+
+/* flambda-backend: We rename the size macros to [Allocated_...] so that we're
+   forced to think about whether C code needs to updated for mixed blocks, which
+   have separate notions of scannable size and total size of an object, even for
+   scannable tags. We call an object's size (including possibly non-scannable
+   fields) its "allocated" size to document the fact that you shouldn't scan
+   fields on the basis of this size alone.
+ */
+
+#define Allocated_wosize_val(val) (Allocated_wosize_hd (Hd_val (val)))
+#define Allocated_wosize_op(op) (Allocated_wosize_val (op))
+#define Allocated_wosize_bp(bp) (Allocated_wosize_val (bp))
+#define Allocated_wosize_hp(hp) (Allocated_wosize_hd (Hd_hp (hp)))
+#define Allocated_bosize_val(val) (Bsize_wsize (Allocated_wosize_val (val)))
+#define Allocated_bosize_op(op) (Allocated_bosize_val (Val_op (op)))
+#define Allocated_bosize_bp(bp) (Allocated_bosize_val (Val_bp (bp)))
+#define Allocated_bosize_hd(hd) (Bsize_wsize (Allocated_wosize_hd (hd)))
+#define Allocated_whsize_hp(hp) (Whsize_wosize (Allocated_wosize_hp (hp)))
+#define Allocated_whsize_val(val) (Allocated_whsize_hp (Hp_val (val)))
+#define Allocated_whsize_bp(bp) (Allocated_whsize_val (Val_bp (bp)))
+#define Allocated_whsize_hd(hd) (Whsize_wosize (Allocated_wosize_hd (hd)))
+#define Allocated_bhsize_hp(hp) (Bsize_wsize (Allocated_whsize_hp (hp)))
+#define Allocated_bhsize_hd(hd) (Bsize_wsize (Allocated_whsize_hd (hd)))
+
+#ifndef Hide_upstream_size_macros
+#define Wosize_hd(hd)   Allocated_wosize_hd(hd)
+#define Wosize_val(val) Allocated_wosize_val(val)
+#define Wosize_op(op)   Allocated_wosize_op(op)
+#define Wosize_bp(bp)   Allocated_wosize_bp(bp)
+#define Wosize_hp(hp)   Allocated_wosize_hp(hp)
+#define Bosize_val(val) Allocated_bosize_val(val)
+#define Bosize_op(op)   Allocated_bosize_op(op)
+#define Bosize_bp(bp)   Allocated_bosize_bp(bp)
+#define Bosize_hd(hd)   Allocated_bosize_hd(hd)
+#define Whsize_hp(hp)   Allocated_whsize_hp(hp)
+#define Whsize_val(val) Allocated_whsize_val(val)
+#define Whsize_bp(bp)   Allocated_whsize_bp(bp)
+#define Whsize_hd(hd)   Allocated_whsize_hd(hd)
+#define Bhsize_hp(hp)   Allocated_bhsize_hp(hp)
+#define Bhsize_hd(hd)   Allocated_bhsize_hd(hd)
+#endif // Hide_upstream_size_macros
 
 #define Reserved_val(val) (Reserved_hd (Hd_val (val)))
 
@@ -246,7 +361,7 @@ where 0 <= R <= 31 is HEADER_RESERVED_BITS, set with the
    with tag Closure_tag (see compact.c). */
 
 #define Infix_tag 249
-#define Infix_offset_hd(hd) (Bosize_hd(hd))
+#define Infix_offset_hd(hd) (Allocated_bosize_hd(hd))
 #define Infix_offset_val(v) Infix_offset_hd(Hd_val(v))
 
 /* Another special case: objects */
@@ -276,20 +391,29 @@ Caml_inline void* Ptr_val(value val)
 #define Code_val(val) (((code_t *) (val)) [0])     /* Also an l-value. */
 #define Closinfo_val(val) Field((val), 1)          /* Arity and start env */
 /* In the closure info field, the top 8 bits are the arity (signed).
+   The next least significant bit is set iff the current closure is the
+   last one to occur in the block.  (This is used in the compactor.)
    The low bit is set to one, to look like an integer.
-   The remaining bits are the field number for the first word of the
-   environment, or, in other words, the offset (in words) from the closure
-   to the environment part. */
+   The remaining bits are the field number for the first word of the scannable
+   part of the environment, or, in other words, the offset (in words) from the
+   closure to the scannable part of the environment.
+   The non-scannable part of the environment lives between the end of the
+   last closure and the start of the scannable environment within the block. */
+/* CR ncourant: it might be cleaner to use a packed struct here */
 #ifdef ARCH_SIXTYFOUR
 #define Arity_closinfo(info) ((intnat)(info) >> 56)
-#define Start_env_closinfo(info) (((uintnat)(info) << 8) >> 9)
-#define Make_closinfo(arity,delta) \
-  (((uintnat)(arity) << 56) + ((uintnat)(delta) << 1) + 1)
+#define Start_env_closinfo(info) (((uintnat)(info) << 9) >> 10)
+#define Is_last_closinfo(info) (((uintnat)(info) << 8) >> 63)
+#define Make_closinfo(arity,delta,is_last) \
+  (((uintnat)(arity) << 56) + ((uintnat)(is_last) << 55) \
+    + ((uintnat)(delta) << 1) + 1)
 #else
 #define Arity_closinfo(info) ((intnat)(info) >> 24)
-#define Start_env_closinfo(info) (((uintnat)(info) << 8) >> 9)
-#define Make_closinfo(arity,delta) \
-  (((uintnat)(arity) << 24) + ((uintnat)(delta) << 1) + 1)
+#define Start_env_closinfo(info) (((uintnat)(info) << 9) >> 10)
+#define Is_last_closinfo(info) (((uintnat)(info) << 8) >> 31)
+#define Make_closinfo(arity,delta,is_last) \
+  (((uintnat)(arity) << 24) + ((uintnat)(is_last) << 23) \
+    + ((uintnat)(delta) << 1) + 1)
 #endif
 
 /* This tag is used (with Forcing_tag & Forward_tag) to implement lazy values.
@@ -443,6 +567,22 @@ CAMLextern value caml_atom(tag_t);
 #define Is_some(v) Is_block(v)
 
 CAMLextern value caml_set_oo_id(value obj);
+
+/* Users write this to assert that the ensuing C code is sensitive
+   to the current layout of mixed blocks in a way that's subject
+   to change in future compiler releases. We'll bump the version
+   number when we make a breaking change. For example, we currently
+   don't pack int32's efficiently, and we will want to someday.
+
+   Users can write:
+
+   Assert_mixed_block_layout_v1;
+
+   (Hack: we define using _Static_assert rather than just an empty
+   definition so that users can write a semicolon, which is treated
+   better by C formatters.)
+ */
+#define Assert_mixed_block_layout_v1 _Static_assert(1, "")
 
 /* Header for out-of-heap blocks. */
 

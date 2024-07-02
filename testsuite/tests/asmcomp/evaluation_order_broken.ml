@@ -1,5 +1,5 @@
 (* TEST
- * bytecode
+ bytecode;
 *)
 
 (* The following examples have different output on bytecode and native.

@@ -100,6 +100,124 @@ module Immutable_arrays : sig
   val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
 end
 
+(** The attribute placed on the inner [Ptyp_arrow] node in [x -> (y -> z)]
+    (meaning the [y -> z] node) to indicate parenthesization. This is relevant
+    for locals, as [local_ x -> (y -> z)] is different than
+    [local_ x -> y -> z].
+*)
+module Arrow_curry : sig
+  val curry_attr_name : string
+
+  val curry_attr : Location.t -> Parsetree.attribute
+end
+
+module Mode_expr : sig
+  (** [Mode_expr] appears in several places:
+  - let local_ x = ...
+  - local_ exp
+  - local string -> string
+
+  Note that in the first two cases, axes other than locality are not specified;
+  in the second case, other axes are defaulted to legacy.
+
+  In the future the two annotations will be quite different, but for now they
+  are just lists of modes. [Typemode] has the two different
+  interpretations of the annotation.
+
+  (TODO: in the future we will have mutable(...), which is similar to the second
+  occurrence above and should be covered by this module)
+  *)
+
+  module Const : sig
+    (** Constant modes *)
+
+    type raw = string
+
+    (** Represent a user-written mode constant, containing a string and its
+        location *)
+    type t = private raw Location.loc
+
+    (** Constructs a mode constant mode *)
+    val mk : string -> Location.t -> t
+  end
+
+  type t = Const.t list Location.loc
+
+  (** The empty mode expression. *)
+  val empty : t
+
+  (** The mode expression containing a single mode constant. *)
+  val singleton : Const.t -> t
+
+  (** Merging two mode expressions. This will be hard to define as mode
+      expressions gets complex. Currently it's for merging legacy and new syntax
+      *)
+  val concat : t -> t -> t
+
+  (** Extract the mode attribute (if any) from a list of attributes; also
+      returns the rest of the attributes; Raises if multiple relevant attributes
+      are found *)
+  val extract_attr :
+    Parsetree.attributes -> Parsetree.attribute option * Parsetree.attributes
+
+  (** Encode a mode expression into a [attribute]. If the expression is safe to
+      empty (and thus safe to ignore), returns [None]. *)
+  val attr_of : t -> Parsetree.attribute option
+
+  (** Given a list of attributes, extracts the mode expression and returns the
+      rest of attributes. Raises if multiple relevant attributes are found.
+      Raises if attributes encodes empty mode expression *)
+  val maybe_of_attrs : Parsetree.attributes -> t option * Parsetree.attributes
+
+  (* Similar to [maybe_of_attrs], but default to [empty] if no relevant
+      attribute is found. *)
+  val of_attrs : Parsetree.attributes -> t * Parsetree.attributes
+
+  (** In some cases, a single mode expression appears twice in the parsetree;
+      one of them needs to be made ghost to make our internal tools happy. *)
+  val ghostify : t -> t
+end
+
+(** A subset of the mode-related syntax extensions that is embedded
+    using full-blown Jane Syntax. By "full-blown" Jane Syntax, we
+    mean the [Expression], [Pattern], (etc.) modules below that
+    attempt to create a variant of all possible Jane Street syntax
+    for the syntactic form.
+
+    We avoid full-blown Jane Syntax when it isn't very lightweight to fit the
+    new construct into the (somewhat opinionated) framework. Mode coercions are
+    lightweight to fit into full-blown Jane Syntax.
+*)
+module Modes : sig
+  type expression = Coerce of Mode_expr.t * Parsetree.expression
+
+  val expr_of : loc:Location.t -> expression -> Parsetree.expression
+end
+
+module Jkind : sig
+  module Const : sig
+    (** Constant jkind *)
+
+    type raw = string
+
+    (** Represent a user-written kind primitive/abbreviation,
+        containing a string and its location *)
+    type t = private raw Location.loc
+
+    (** Constructs a jkind constant *)
+    val mk : string -> Location.t -> t
+  end
+
+  type t =
+    | Default
+    | Abbreviation of Const.t
+    | Mod of t * Mode_expr.t
+    | With of t * Parsetree.core_type
+    | Kind_of of Parsetree.core_type
+
+  type annotation = t Location.loc
+end
+
 module N_ary_functions : sig
   (** These types use the [P] prefix to match how they are represented in the
       upstream compiler *)
@@ -134,8 +252,7 @@ module N_ary_functions : sig
         Note: If [E0] is provided, only
         {{!Asttypes.arg_label.Optional}[Optional]} is allowed.
     *)
-    | Pparam_newtype of
-        string Asttypes.loc * Jane_asttypes.jkind_annotation option
+    | Pparam_newtype of string Asttypes.loc * Jkind.annotation option
         (** [Pparam_newtype (x, jkind)] represents the parameter [(type x)].
         [x] carries the location of the identifier, whereas [pparam_loc] is
         the location of the [(type x)] as a whole.
@@ -169,13 +286,8 @@ module N_ary_functions : sig
       has a type constraint on the body, e.g.
       [let local_ f x : int -> int = ...].
   *)
-  type mode_annotation =
-    | Local
-    | Unique
-    | Once
-
   type function_constraint =
-    { mode_annotations : mode_annotation Location.loc list;
+    { mode_annotations : Mode_expr.t;
       type_constraint : type_constraint
     }
 
@@ -197,6 +309,59 @@ module N_ary_functions : sig
     function_param list * function_constraint option * function_body
 
   val expr_of : loc:Location.t -> expression -> Parsetree.expression
+end
+
+(** The ASTs for labeled tuples. When we merge this upstream, we'll replace
+    existing [P{typ,exp,pat}_tuple] constructors with these. *)
+module Labeled_tuples : sig
+  (** [tl] represents a product type:
+          - [T1 * ... * Tn]       when [tl] is [(None,T1);...;(None,Tn)]
+          - [L1:T1 * ... * Ln:Tn] when [tl] is [(Some L1,T1);...;(Some Ln,Tn)]
+          - A mix, e.g. [L1:T1,T2] when [tl] is [(Some L1,T1);(None,T2)]
+
+          Invariant: [n >= 2].
+      *)
+  type core_type = (string option * Parsetree.core_type) list
+
+  (** [el] represents
+          - [(E1, ..., En)]
+              when [el] is [(None, E1);...;(None, En)]
+          - [(~L1:E1, ..., ~Ln:En)]
+              when [el] is [(Some L1, E1);...;(Some Ln, En)]
+          - A mix, e.g.:
+              [(~L1:E1, E2)] when [el] is [(Some L1, E1); (None, E2)]
+
+          Invariant: [n >= 2].
+      *)
+  type expression = (string option * Parsetree.expression) list
+
+  (** [(pl, Closed)] represents
+          - [(P1, ..., Pn)]       when [pl] is [(None, P1);...;(None, Pn)]
+          - [(L1:P1, ..., Ln:Pn)] when [pl] is
+                                              [(Some L1, P1);...;(Some Ln, Pn)]
+          - A mix, e.g. [(L1:P1, P2)] when [pl] is [(Some L1, P1);(None, P2)]
+          - If pattern is open, then it also ends in a [..]
+
+        Invariant:
+        - If Closed, [n >= 2].
+        - If Open, [n >= 1].
+      *)
+  type pattern = (string option * Parsetree.pattern) list * Asttypes.closed_flag
+
+  (** Embeds the core type in Jane Syntax only if there are any labels.
+      Otherwise, returns a normal [Ptyp_tuple].
+  *)
+  val typ_of : loc:Location.t -> core_type -> Parsetree.core_type
+
+  (** Embeds the expression in Jane Syntax only if there are any labels.
+      Otherwise, returns a normal [Pexp_tuple].
+  *)
+  val expr_of : loc:Location.t -> expression -> Parsetree.expression
+
+  (** Embeds the pattern in Jane Syntax only if there are any labels or
+      if the pattern is open. Otherwise, returns a normal [Ppat_tuple].
+  *)
+  val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
 end
 
 (** The ASTs for [include functor].  When we merge this upstream, we'll merge
@@ -235,9 +400,7 @@ module Layouts : sig
     (* [fun (type a : immediate) -> ...] *)
     (* This is represented as an attribute wrapping a [Pexp_newtype] node. *)
     | Lexp_newtype of
-        string Location.loc
-        * Jane_asttypes.jkind_annotation
-        * Parsetree.expression
+        string Location.loc * Jkind.annotation * Parsetree.expression
 
   type nonrec pattern =
     (* examples: [ #2.0 ] or [ #42L ] *)
@@ -250,7 +413,7 @@ module Layouts : sig
        a [Ptyp_var] node. *)
     | Ltyp_var of
         { name : string option;
-          jkind : Jane_asttypes.jkind_annotation
+          jkind : Jkind.annotation
         }
     (* [('a : immediate) 'b 'c ('d : value). 'a -> 'b -> 'c -> 'd] *)
     (* This is represented by an attribute wrapping a [Ptyp_poly] node. *)
@@ -260,8 +423,7 @@ module Layouts : sig
        parsed representation and guarantees that we don't accidentally try to
        require the layouts extension. *)
     | Ltyp_poly of
-        { bound_vars :
-            (string Location.loc * Jane_asttypes.jkind_annotation option) list;
+        { bound_vars : (string Location.loc * Jkind.annotation option) list;
           inner_type : Parsetree.core_type
         }
     (* [ty as ('a : immediate)] *)
@@ -271,7 +433,7 @@ module Layouts : sig
     | Ltyp_alias of
         { aliased_type : Parsetree.core_type;
           name : string option;
-          jkind : Jane_asttypes.jkind_annotation
+          jkind : Jkind.annotation
         }
 
   type nonrec extension_constructor =
@@ -280,16 +442,15 @@ module Layouts : sig
     (* Like [Ltyp_poly], this is used only when there is at least one jkind
        annotation. Otherwise, we will have a [Pext_decl]. *)
     | Lext_decl of
-        (string Location.loc * Jane_asttypes.jkind_annotation option) list
+        (string Location.loc * Jkind.annotation option) list
         * Parsetree.constructor_arguments
         * Parsetree.core_type option
 
-  module Pprint : sig
-    val const_jkind : Format.formatter -> Jane_asttypes.const_jkind -> unit
+  type signature_item =
+    | Lsig_kind_abbrev of string Location.loc * Jkind.annotation
 
-    val jkind_annotation :
-      Format.formatter -> Jane_asttypes.jkind_annotation -> unit
-  end
+  type structure_item =
+    | Lstr_kind_abbrev of string Location.loc * Jkind.annotation
 
   val expr_of : loc:Location.t -> expression -> Parsetree.expression
 
@@ -306,13 +467,12 @@ module Layouts : sig
     Parsetree.extension_constructor
 
   (** See also [Ast_helper.Type.constructor], which is a direct inspiration for
-      the interface here. It's meant to be able to be a drop-in replacement.  *)
+      the interface here. *)
   val constructor_declaration_of :
     loc:Location.t ->
     attrs:Parsetree.attributes ->
     info:Docstrings.info ->
-    vars_jkinds:
-      (string Location.loc * Jane_asttypes.jkind_annotation option) list ->
+    vars_jkinds:(string Location.loc * Jkind.annotation option) list ->
     args:Parsetree.constructor_arguments ->
     res:Parsetree.core_type option ->
     string Location.loc ->
@@ -324,9 +484,39 @@ module Layouts : sig
       the remaining pieces of the original [constructor_declaration]. *)
   val of_constructor_declaration :
     Parsetree.constructor_declaration ->
-    ((string Location.loc * Jane_asttypes.jkind_annotation option) list
+    ((string Location.loc * Jkind.annotation option) list
     * Parsetree.attributes)
     option
+
+  (** See also [Ast_helper.Type.mk], which is a direct inspiration for
+      the interface here. *)
+  val type_declaration_of :
+    loc:Location.t ->
+    attrs:Parsetree.attributes ->
+    docs:Docstrings.docs ->
+    text:Docstrings.text option ->
+    params:
+      (Parsetree.core_type * (Asttypes.variance * Asttypes.injectivity)) list ->
+    cstrs:(Parsetree.core_type * Parsetree.core_type * Location.t) list ->
+    kind:Parsetree.type_kind ->
+    priv:Asttypes.private_flag ->
+    manifest:Parsetree.core_type option ->
+    jkind:Jkind.annotation option ->
+    string Location.loc ->
+    Parsetree.type_declaration
+
+  val sig_item_of : loc:Location.t -> signature_item -> Parsetree.signature_item
+
+  val str_item_of : loc:Location.t -> structure_item -> Parsetree.structure_item
+
+  (** Extract the jkind annotation from a [type_declaration]; returns
+      leftover attributes. Similar to [of_constructor_declaration] in the
+      sense that users of this function will have to process the remaining
+      pieces of the original [type_declaration].
+  *)
+  val of_type_declaration :
+    Parsetree.type_declaration ->
+    (Jkind.annotation * Parsetree.attributes) option
 end
 
 (******************************************)
@@ -407,7 +597,9 @@ end
 
 (** Novel syntax in types *)
 module Core_type : sig
-  type t = Jtyp_layout of Layouts.core_type
+  type t =
+    | Jtyp_layout of Layouts.core_type
+    | Jtyp_tuple of Labeled_tuples.core_type
 
   include
     AST
@@ -436,6 +628,8 @@ module Expression : sig
     | Jexp_immutable_array of Immutable_arrays.expression
     | Jexp_layout of Layouts.expression
     | Jexp_n_ary_function of N_ary_functions.expression
+    | Jexp_tuple of Labeled_tuples.expression
+    | Jexp_modes of Modes.expression
 
   include
     AST
@@ -451,6 +645,7 @@ module Pattern : sig
   type t =
     | Jpat_immutable_array of Immutable_arrays.pattern
     | Jpat_layout of Layouts.pattern
+    | Jpat_tuple of Labeled_tuples.pattern
 
   include
     AST
@@ -476,14 +671,18 @@ end
 
 (** Novel syntax in signature items *)
 module Signature_item : sig
-  type t = Jsig_include_functor of Include_functor.signature_item
+  type t =
+    | Jsig_include_functor of Include_functor.signature_item
+    | Jsig_layout of Layouts.signature_item
 
   include AST with type t := t and type ast := Parsetree.signature_item
 end
 
 (** Novel syntax in structure items *)
 module Structure_item : sig
-  type t = Jstr_include_functor of Include_functor.structure_item
+  type t =
+    | Jstr_include_functor of Include_functor.structure_item
+    | Jstr_layout of Layouts.structure_item
 
   include AST with type t := t and type ast := Parsetree.structure_item
 end

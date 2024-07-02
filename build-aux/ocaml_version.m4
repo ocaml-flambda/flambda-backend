@@ -36,7 +36,7 @@ m4_define([OCAML__VERSION_MINOR], [1])
 m4_define([OCAML__VERSION_PATCHLEVEL], [1])
 # Note that the OCAML__VERSION_EXTRA string defined below is always empty
 # for officially-released versions of OCaml.
-m4_define([OCAML__VERSION_EXTRA], [jst-runtime4])
+m4_define([OCAML__VERSION_EXTRA], [jst])
 
 # The OCAML__VERSION_EXTRA_PREFIX macro defined below should be a
 # single character:

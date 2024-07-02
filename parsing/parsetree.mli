@@ -45,6 +45,8 @@ type constant =
 
 type location_stack = Location.t list
 
+type modality = | Modality of string [@@unboxed]
+
 (** {1 Extension points} *)
 
 type attribute = {
@@ -90,11 +92,11 @@ and core_type_desc =
   | Ptyp_arrow of arg_label * core_type * core_type
       (** [Ptyp_arrow(lbl, T1, T2)] represents:
             - [T1 -> T2]    when [lbl] is
-                                     {{!Asttypes.arg_label.Nolabel}[Nolabel]},
+                                     {{!arg_label.Nolabel}[Nolabel]},
             - [~l:T1 -> T2] when [lbl] is
-                                     {{!Asttypes.arg_label.Labelled}[Labelled]},
+                                     {{!arg_label.Labelled}[Labelled]},
             - [?l:T1 -> T2] when [lbl] is
-                                     {{!Asttypes.arg_label.Optional}[Optional]}.
+                                     {{!arg_label.Optional}[Optional]}.
          *)
   | Ptyp_tuple of core_type list
       (** [Ptyp_tuple([T1 ; ... ; Tn])]
@@ -167,6 +169,11 @@ and core_type_desc =
          *)
   | Ptyp_package of package_type  (** [(module S)]. *)
   | Ptyp_extension of extension  (** [[%id]]. *)
+
+and arg_label = Asttypes.arg_label =
+    Nolabel
+  | Labelled of string
+  | Optional of string
 
 and package_type = Longident.t loc * (Longident.t loc * core_type) list
 (** As {!package_type} typed values:
@@ -314,34 +321,37 @@ and expression_desc =
   | Pexp_fun of arg_label * expression option * pattern * expression
       (** [Pexp_fun(lbl, exp0, P, E1)] represents:
             - [fun P -> E1]
-                      when [lbl] is {{!Asttypes.arg_label.Nolabel}[Nolabel]}
+                      when [lbl] is {{!arg_label.Nolabel}[Nolabel]}
                        and [exp0] is [None]
             - [fun ~l:P -> E1]
-                      when [lbl] is {{!Asttypes.arg_label.Labelled}[Labelled l]}
+                      when [lbl] is {{!arg_label.Labelled}[Labelled l]}
                        and [exp0] is [None]
             - [fun ?l:P -> E1]
-                      when [lbl] is {{!Asttypes.arg_label.Optional}[Optional l]}
+                      when [lbl] is {{!arg_label.Optional}[Optional l]}
                        and [exp0] is [None]
             - [fun ?l:(P = E0) -> E1]
-                      when [lbl] is {{!Asttypes.arg_label.Optional}[Optional l]}
+                      when [lbl] is {{!arg_label.Optional}[Optional l]}
                        and [exp0] is [Some E0]
 
            Notes:
            - If [E0] is provided, only
-             {{!Asttypes.arg_label.Optional}[Optional]} is allowed.
+             {{!arg_label.Optional}[Optional]} is allowed.
            - [fun P1 P2 .. Pn -> E1] is represented as nested
              {{!expression_desc.Pexp_fun}[Pexp_fun]}.
            - [let f P = E] is represented using
              {{!expression_desc.Pexp_fun}[Pexp_fun]}.
+           - While Position arguments ([lbl:[%call_pos] -> ...]) are parsed as
+             {{!Asttypes.arg_label.Labelled}[Labelled l]}, they are converted to
+             {{!Types.arg_label.Position}[Position l]} arguments for type-checking.
          *)
   | Pexp_apply of expression * (arg_label * expression) list
       (** [Pexp_apply(E0, [(l1, E1) ; ... ; (ln, En)])]
             represents [E0 ~l1:E1 ... ~ln:En]
 
             [li] can be
-              {{!Asttypes.arg_label.Nolabel}[Nolabel]}   (non labeled argument),
-              {{!Asttypes.arg_label.Labelled}[Labelled]} (labelled arguments) or
-              {{!Asttypes.arg_label.Optional}[Optional]} (optional argument).
+              {{!arg_label.Nolabel}[Nolabel]}   (non labeled argument),
+              {{!arg_label.Labelled}[Labelled]} (labelled arguments) or
+              {{!arg_label.Optional}[Optional]} (optional argument).
 
            Invariant: [n > 0]
          *)
@@ -460,6 +470,7 @@ and value_description =
     {
      pval_name: string loc;
      pval_type: core_type;
+     pval_modalities : modality loc list;
      pval_prim: string list;
      pval_attributes: attributes;  (** [... [\@\@id1] [\@\@id2]] *)
      pval_loc: Location.t;
@@ -522,6 +533,7 @@ and label_declaration =
     {
      pld_name: string loc;
      pld_mutable: mutable_flag;
+     pld_modalities: modality loc list;
      pld_type: core_type;
      pld_loc: Location.t;
      pld_attributes: attributes;  (** [l : T [\@id1] [\@id2]] *)
@@ -547,8 +559,15 @@ and constructor_declaration =
      pcd_attributes: attributes;  (** [C of ... [\@id1] [\@id2]] *)
     }
 
+and constructor_argument =
+  {
+    pca_modalities: modality loc list;
+    pca_type: core_type;
+    pca_loc: Location.t;
+  }
+
 and constructor_arguments =
-  | Pcstr_tuple of core_type list
+  | Pcstr_tuple of constructor_argument list
   | Pcstr_record of label_declaration list
       (** Values of type {!constructor_declaration}
     represents the constructor arguments of:
@@ -636,11 +655,11 @@ and class_type_desc =
   | Pcty_arrow of arg_label * core_type * class_type
       (** [Pcty_arrow(lbl, T, CT)] represents:
             - [T -> CT]
-                     when [lbl] is {{!Asttypes.arg_label.Nolabel}[Nolabel]},
+                     when [lbl] is {{!arg_label.Nolabel}[Nolabel]},
             - [~l:T -> CT]
-                     when [lbl] is {{!Asttypes.arg_label.Labelled}[Labelled l]},
+                     when [lbl] is {{!arg_label.Labelled}[Labelled l]},
             - [?l:T -> CT]
-                     when [lbl] is {{!Asttypes.arg_label.Optional}[Optional l]}.
+                     when [lbl] is {{!arg_label.Optional}[Optional l]}.
          *)
   | Pcty_extension of extension  (** [%id] *)
   | Pcty_open of open_description * class_type  (** [let open M in CT] *)
@@ -713,16 +732,16 @@ and class_expr_desc =
   | Pcl_fun of arg_label * expression option * pattern * class_expr
       (** [Pcl_fun(lbl, exp0, P, CE)] represents:
             - [fun P -> CE]
-                     when [lbl]  is {{!Asttypes.arg_label.Nolabel}[Nolabel]}
+                     when [lbl]  is {{!arg_label.Nolabel}[Nolabel]}
                       and [exp0] is [None],
             - [fun ~l:P -> CE]
-                     when [lbl]  is {{!Asttypes.arg_label.Labelled}[Labelled l]}
+                     when [lbl]  is {{!arg_label.Labelled}[Labelled l]}
                       and [exp0] is [None],
             - [fun ?l:P -> CE]
-                     when [lbl]  is {{!Asttypes.arg_label.Optional}[Optional l]}
+                     when [lbl]  is {{!arg_label.Optional}[Optional l]}
                       and [exp0] is [None],
             - [fun ?l:(P = E0) -> CE]
-                     when [lbl]  is {{!Asttypes.arg_label.Optional}[Optional l]}
+                     when [lbl]  is {{!arg_label.Optional}[Optional l]}
                       and [exp0] is [Some E0].
         *)
   | Pcl_apply of class_expr * (arg_label * expression) list
