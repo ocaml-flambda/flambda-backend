@@ -226,3 +226,5 @@ val cut : t -> cut_after:Scope.t -> Typing_env_level.t
 val cut_as_extension : t -> cut_after:Scope.t -> Typing_env_extension.t
 
 val free_names_transitive : t -> Type_grammar.t -> Name_occurrences.t
+
+val bump_current_level_scope : t -> t

@@ -44,6 +44,8 @@ module One_level : sig
     t -> used_value_slots:Value_slot.Set.t -> t
 
   val canonicalise : t -> Simple.t -> Simple.t
+
+  val bump_scope : t -> t
 end = struct
   type t =
     { scope : Scope.t;
@@ -51,12 +53,16 @@ end = struct
       just_after_level : Cached_level.t
     }
 
-  let print ~min_binding_time ppf { scope = _; level; just_after_level } =
+  let print ~min_binding_time ppf { scope; level; just_after_level } =
     let restrict_to = TEL.defined_names level in
     if Name.Set.is_empty restrict_to
-    then Format.fprintf ppf "@[<hov 0>%a@]" TEL.print level
+    then
+      Format.fprintf ppf "@[<hov 0>((scope@ %a)@ %a)@]" Scope.print scope
+        TEL.print level
     else
-      Format.fprintf ppf "@[<hov 0>@[<hov 1>(defined_vars@ %a)@]@ %a@]"
+      Format.fprintf ppf
+        "@[<hov 0>@[<hov 1>((scope@ %a)@ (defined_vars@ %a))@]@ %a@]"
+        Scope.print scope
         (Cached_level.print_name_modes ~restrict_to ~min_binding_time)
         just_after_level TEL.print level
 
@@ -93,6 +99,8 @@ end = struct
     { t with just_after_level }
 
   let canonicalise t = Cached_level.canonicalise t.just_after_level
+
+  let bump_scope t = { t with scope = Scope.next t.scope }
 end
 
 type t =
@@ -1033,6 +1041,9 @@ let add_to_code_age_relation t ~new_code_id ~old_code_id =
 let code_age_relation t = t.code_age_relation
 
 let with_code_age_relation t code_age_relation = { t with code_age_relation }
+
+let bump_current_level_scope t =
+  { t with current_level = One_level.bump_scope t.current_level }
 
 let cut t ~cut_after =
   let current_scope = current_scope t in
