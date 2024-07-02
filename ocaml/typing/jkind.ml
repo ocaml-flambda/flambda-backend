@@ -1879,8 +1879,8 @@ let has_layout_any jkind =
 module Debug_printers = struct
   open Format
 
-  let concrete_creation_reason ppf :
-      History.concrete_creation_reason -> unit = function
+  let concrete_creation_reason ppf : History.concrete_creation_reason -> unit =
+    function
     | Match -> fprintf ppf "Match"
     | Constructor_declaration idx ->
       fprintf ppf "Constructor_declaration %d" idx
