@@ -4,10 +4,6 @@ open Mode
 
 let dummy_jkind = Jkind.Primitive.value ~why:(Unknown "dummy_layout")
 let dummy_value_mode = Value.disallow_right Value.legacy
-
-let dummy_alloc_mode =
-  { mode = Alloc.disallow_left Alloc.legacy; closure_context = None }
-
 let mkTvar name = Tvar { name; jkind = dummy_jkind }
 
 let mkTarrow (label, t1, t2, comm) =
@@ -35,20 +31,21 @@ let mkTexp_apply
   in
   Texp_apply (exp, args, pos, mode, za)
 
-type texp_tuple_identifier = string option list * alloc_mode
+type texp_tuple_identifier = string option list * Alloc.r
 
 let mkTexp_tuple ?id exps =
   let labels, alloc =
     match id with
-    | None -> (List.map (fun _ -> None) exps, dummy_alloc_mode)
+    | None -> (List.map (fun _ -> None) exps, Alloc.disallow_left Alloc.legacy)
     | Some id -> id
   in
   let exps = List.combine labels exps in
   Texp_tuple (exps, alloc)
 
-type texp_construct_identifier = alloc_mode option
+type texp_construct_identifier = Alloc.r option
 
-let mkTexp_construct ?id:(mode = Some dummy_alloc_mode) (name, desc, args) =
+let mkTexp_construct ?id:(mode = Some (Alloc.disallow_left Alloc.legacy))
+    (name, desc, args) =
   Texp_construct (name, desc, args, mode)
 
 type texp_function_param_identifier = {
@@ -91,7 +88,7 @@ type texp_function = {
 }
 
 type texp_function_identifier = {
-  alloc_mode : alloc_mode;
+  alloc_mode : Alloc.r;
   ret_sort : Jkind.sort;
   region : bool;
   ret_mode : Alloc.l;
@@ -118,7 +115,7 @@ let texp_function_param_identifier_defaults =
 
 let texp_function_defaults =
   {
-    alloc_mode = dummy_alloc_mode;
+    alloc_mode = Alloc.disallow_left Alloc.legacy;
     ret_sort = Jkind.Sort.value;
     ret_mode = Alloc.disallow_right Alloc.legacy;
     region = false;

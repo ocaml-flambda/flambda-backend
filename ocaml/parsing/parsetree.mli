@@ -440,7 +440,6 @@ and expression_desc =
             - [let* P0 = E00 and* P1 = E01 in E1] *)
   | Pexp_extension of extension  (** [[%id]] *)
   | Pexp_unreachable  (** [.] *)
-  | Pexp_stack of expression (** stack_ exp *)
 
 and case =
     {
