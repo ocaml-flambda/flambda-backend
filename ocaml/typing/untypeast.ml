@@ -459,7 +459,6 @@ let exp_extra sub (extra, loc, attrs) sexp =
         Jane_syntax.Modes.expr_of ~loc
           (Coerce (modes, sexp))
         |> add_jane_syntax_attributes
-    | Texp_stack -> Pexp_stack sexp
   in
   Exp.mk ~loc ~attrs:!attrs desc
 
@@ -561,8 +560,7 @@ let expression sub exp =
                       (Pcoerce (Option.map (sub.typ sub) ty1, sub.typ sub ty2))
                 | Some (Texp_constraint ty) ->
                     Some (Pconstraint (sub.typ sub ty))
-                | Some (Texp_poly _ | Texp_newtype _ | Texp_mode_coerce _
-                    | Texp_stack)
+                | Some (Texp_poly _ | Texp_newtype _ | Texp_mode_coerce _)
                 | None -> None
               in
               let constraint_ =

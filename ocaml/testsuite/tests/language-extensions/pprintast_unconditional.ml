@@ -34,11 +34,6 @@ module Example = struct
      end"
 
   let local_exp = parse expression "let x = foo (local_ x) in local_ y"
-  let stack_exp = parse expression
-    "let x = stack_ 42 in \
-     let y = stack_ (f x) in \
-     let z = foo (stack_ 42) in \
-     foo (stack_ (f x))"
 
   let modal_kind_struct =
     parse module_expr "struct \
@@ -183,7 +178,6 @@ end = struct
   let modality_val = test "modality_val" module_type Example.modality_val
 
   let local_exp = test "local_exp" expression Example.local_exp
-  let stack_exp = test "stack_exp" expression Example.stack_exp
 
   let longident = test "longident" longident Example.longident
   let expression = test "expression" expression Example.expression
