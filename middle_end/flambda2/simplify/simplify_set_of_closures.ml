@@ -539,33 +539,49 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
         all_function_decls_in_set ) =
     Function_slot.Lmap.fold_left_map
       (fun (result_code_ids_to_never_delete_this_set, fun_types, outer_dacc)
-           function_slot old_code_id ->
-        let code_id, outer_dacc, code_ids_to_never_delete_this_set =
-          simplify_function context ~outer_dacc function_slot old_code_id
-            ~closure_bound_names_inside_function:closure_bound_names_inside
-        in
-        let function_type =
-          let rec_info =
-            (* This is the intrinsic type of the function as seen outside its
-               own scope, so its [Rec_info] needs to say its depth is zero *)
-            T.this_rec_info Rec_info_expr.initial
+           function_slot
+           (old_code_id : Function_declarations.code_id_in_function_declaration) ->
+        match old_code_id with
+        | Deleted _ ->
+          ( ( result_code_ids_to_never_delete_this_set,
+              Function_slot.Map.add function_slot Or_unknown_or_bottom.Unknown
+                fun_types,
+              outer_dacc ),
+            old_code_id )
+        | Code_id old_code_id ->
+          let code_id, outer_dacc, code_ids_to_never_delete_this_set =
+            simplify_function context ~outer_dacc function_slot old_code_id
+              ~closure_bound_names_inside_function:closure_bound_names_inside
           in
-          C.function_decl_type code_id ~rec_info
-        in
-        let fun_types =
-          Function_slot.Map.add function_slot function_type fun_types
-        in
-        let code_ids_to_never_delete_this_set =
-          Code_id.Set.union code_ids_to_never_delete_this_set
-            result_code_ids_to_never_delete_this_set
-        in
-        (code_ids_to_never_delete_this_set, fun_types, outer_dacc), code_id)
+          let function_type =
+            let rec_info =
+              (* This is the intrinsic type of the function as seen outside its
+                 own scope, so its [Rec_info] needs to say its depth is zero *)
+              T.this_rec_info Rec_info_expr.initial
+            in
+            C.function_decl_type code_id ~rec_info
+          in
+          let fun_types =
+            Function_slot.Map.add function_slot function_type fun_types
+          in
+          let code_ids_to_never_delete_this_set =
+            Code_id.Set.union code_ids_to_never_delete_this_set
+              result_code_ids_to_never_delete_this_set
+          in
+          ( (code_ids_to_never_delete_this_set, fun_types, outer_dacc),
+            (Code_id code_id
+              : Function_declarations.code_id_in_function_declaration) ))
       (Code_id.Set.empty, Function_slot.Map.empty, outer_dacc)
       all_function_decls_in_set
   in
   let code_ids_to_remember_this_set =
     Function_slot.Lmap.fold
-      (fun _function_slot code_id code_ids -> Code_id.Set.add code_id code_ids)
+      (fun _function_slot
+           (code_id : Function_declarations.code_id_in_function_declaration)
+           code_ids ->
+        match code_id with
+        | Deleted _ -> code_ids
+        | Code_id code_id -> Code_id.Set.add code_id code_ids)
       all_function_decls_in_set Code_id.Set.empty
   in
   let dacc =

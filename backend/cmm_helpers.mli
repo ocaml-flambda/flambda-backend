@@ -44,6 +44,8 @@ val infix_header : int -> nativeint
 
 val black_custom_header : size:int -> nativeint
 
+val pack_closure_info : arity:int -> startenv:int -> is_last:bool -> nativeint
+
 (** Closure info for a closure of given arity and distance to environment *)
 val closure_info : arity:arity -> startenv:int -> is_last:bool -> nativeint
 

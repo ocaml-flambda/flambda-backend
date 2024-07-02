@@ -111,7 +111,7 @@ module Make_layout_filler (P : sig
 end) : sig
   val fill_layout :
     for_static_sets option ->
-    Code_id.t Function_slot.Map.t ->
+    Function_declarations.code_id_in_function_declaration Function_slot.Map.t ->
     Debuginfo.t ->
     startenv:int ->
     Simple.t Value_slot.Map.t ->
@@ -204,16 +204,9 @@ end = struct
         eff,
         updates )
     | Function_slot { size; function_slot; last_function_slot } -> (
-      let code_id = Function_slot.Map.find function_slot decls in
-      let code_symbol =
-        R.symbol_of_code_id res code_id ~currently_in_inlined_body:false
-      in
-      let (kind, params_ty, result_ty), closure_code_pointers, dbg =
-        get_func_decl_params_arity env code_id
-      in
-      let closure_info =
-        C.closure_info' ~arity:(kind, params_ty)
-          ~startenv:(startenv - slot_offset) ~is_last:last_function_slot
+      let code_id =
+        (Function_slot.Map.find function_slot decls
+          : Function_declarations.code_id_in_function_declaration)
       in
       let acc =
         match for_static_sets with
@@ -224,40 +217,78 @@ end = struct
           in
           List.rev_append (P.define_symbol (R.symbol res function_symbol)) acc
       in
-      (* We build here the **reverse** list of fields for the function slot *)
-      match closure_code_pointers with
-      | Full_application_only ->
-        if size <> 2
-        then
-          Misc.fatal_errorf
-            "fill_slot: Function slot %a is of size %d, but it is used to \
-             store code ID %a which is classified as Full_application_only (so \
-             the expected size is 2)"
-            Function_slot.print function_slot size Code_id.print code_id;
-        let acc =
-          P.int ~dbg closure_info :: P.term_of_symbol ~dbg code_symbol :: acc
+      match code_id with
+      | Code_id code_id -> (
+        let code_symbol =
+          R.symbol_of_code_id res ~currently_in_inlined_body:false code_id
         in
-        ( acc,
-          Backend_var.Set.empty,
-          slot_offset + size,
-          env,
-          res,
-          Ece.pure,
-          updates )
-      | Full_and_partial_application ->
-        if size <> 3
+        let (kind, params_ty, result_ty), closure_code_pointers, dbg =
+          get_func_decl_params_arity env code_id
+        in
+        let closure_info =
+          C.closure_info' ~arity:(kind, params_ty)
+            ~startenv:(startenv - slot_offset) ~is_last:last_function_slot
+        in
+        (* We build here the **reverse** list of fields for the function slot *)
+        match closure_code_pointers with
+        | Full_application_only ->
+          if size <> 2
+          then
+            Misc.fatal_errorf
+              "fill_slot: Function slot %a is of size %d, but it is used to \
+               store code ID %a which is classified as Full_application_only \
+               (so the expected size is 2)"
+              Function_slot.print function_slot size Code_id.print code_id;
+          let acc =
+            P.int ~dbg closure_info :: P.term_of_symbol ~dbg code_symbol :: acc
+          in
+          ( acc,
+            Backend_var.Set.empty,
+            slot_offset + size,
+            env,
+            res,
+            Ece.pure,
+            updates )
+        | Full_and_partial_application ->
+          if size <> 3
+          then
+            Misc.fatal_errorf
+              "fill_slot: Function slot %a is of size %d, but it is used to \
+               store code ID %a which is classified as \
+               Full_and_partial_application (so the expected size is 3)"
+              Function_slot.print function_slot size Code_id.print code_id;
+          let acc =
+            P.term_of_symbol ~dbg code_symbol
+            :: P.int ~dbg closure_info
+            :: P.term_of_symbol ~dbg
+                 (C.curry_function_sym kind params_ty result_ty)
+            :: acc
+          in
+          ( acc,
+            Backend_var.Set.empty,
+            slot_offset + size,
+            env,
+            res,
+            Ece.pure,
+            updates ))
+      | Deleted { function_slot_size } ->
+        if size <> function_slot_size
         then
           Misc.fatal_errorf
-            "fill_slot: Function slot %a is of size %d, but it is used to \
-             store code ID %a which is classified as \
-             Full_and_partial_application (so the expected size is 3)"
-            Function_slot.print function_slot size Code_id.print code_id;
+            "fill_slot: Function slot %a is of size %d, but it is said to be \
+             deleted of size %d"
+            Function_slot.print function_slot size function_slot_size;
+        let closure_info =
+          C.pack_closure_info
+            ~arity:(if size = 2 then 1 else 2)
+            ~startenv:(startenv - slot_offset) ~is_last:last_function_slot
+        in
         let acc =
-          P.term_of_symbol ~dbg code_symbol
-          :: P.int ~dbg closure_info
-          :: P.term_of_symbol ~dbg
-               (C.curry_function_sym kind params_ty result_ty)
-          :: acc
+          match size with
+          | 2 -> P.int ~dbg closure_info :: P.int ~dbg 0n :: acc
+          | 3 ->
+            P.int ~dbg 0n :: P.int ~dbg closure_info :: P.int ~dbg 0n :: acc
+          | _ -> assert false
         in
         ( acc,
           Backend_var.Set.empty,
@@ -460,6 +491,12 @@ let debuginfo_for_set_of_closures env set =
   let code_ids_in_set =
     Set_of_closures.function_decls set
     |> Function_declarations.funs |> Function_slot.Map.data
+    |> List.filter_map
+         (fun (code_id : Function_declarations.code_id_in_function_declaration)
+         ->
+           match code_id with
+           | Deleted _ -> None
+           | Code_id code_id -> Some code_id)
   in
   let dbg =
     List.map
