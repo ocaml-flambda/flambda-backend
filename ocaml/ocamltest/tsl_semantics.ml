@@ -92,6 +92,19 @@ type test_tree =
     string located list *
     (test_tree list)
 
+let tests_do_something (tests : Tests.t) =
+  List.exists Actions.does_something tests.test_actions
+
+let rec test_tree_does_something_on_all_branches tree =
+  match tree with
+  | Node (_, tests, _, children) ->
+    let from_children =
+      List.fold_left (fun acc child ->
+          acc || test_tree_does_something_on_all_branches child)
+        false children
+    in
+    tests_do_something tests || from_children
+
 let too_deep testname max_level real_level =
   Printf.eprintf "Test %s should have depth atmost %d but has depth %d\n%!"
     testname max_level real_level;
@@ -119,7 +132,7 @@ let lookup_test located_name =
   | Some test -> test
 
 let test_trees_of_tsl_block tsl_block =
-  let rec env_of_lines = function
+  let rec env_of_lines = function [@ocaml.warning "-fragile-match"]
     | [] -> ([], [])
     | Environment_statement s :: lines ->
       let (env', remaining_lines) = env_of_lines lines in
@@ -156,7 +169,7 @@ let test_trees_of_tsl_block tsl_block =
     (List.rev !trees, !remaining_lines) in
   let (env, rem) = env_of_lines tsl_block in
   let (trees, rem) = trees_of_lines 1 rem in
-  match rem with
+  match[@ocaml.warning "-fragile-match"] rem with
     | [] -> (env, trees)
     | (Environment_statement s)::_ -> unexpected_environment_statement s
     | _ -> assert false
@@ -180,7 +193,7 @@ let actions_in_tests tests =
   Tests.TestSet.fold f tests Actions.ActionSet.empty
 
 let rec split_env l =
-  match l with
+  match[@ocaml.warning "-fragile-match"] l with
   | Environment_statement env :: tl ->
     let (env2, rest) = split_env tl in (env :: env2, rest)
   | _ -> ([], l)
@@ -199,9 +212,24 @@ let rec test_trees_of_tsl_ast (Ast (seq, subs)) =
   in (env, trees)
 
 and test_tree_of_tsl_ast ast =
-  match test_trees_of_tsl_ast ast with
+  match[@ocaml.warning "-fragile-match"] test_trees_of_tsl_ast ast with
   | (env, [Node (env1, t, m, s)]) -> Node (env @ env1, t, m, s)
   | (env, trees) -> Node (env, Tests.null, [], trees)
+
+let test_trees_of_tsl_ast ast =
+  let (env, trees) = test_trees_of_tsl_ast ast in
+  let does_something =
+    List.for_all test_tree_does_something_on_all_branches trees
+  in
+  if does_something then env, trees
+  else
+    let tree =
+      match trees with
+      | [] -> []
+      | Node (_, _, name, _) :: _ ->
+        [Node ([], Tests.does_nothing, name, [])]
+    in
+    env, tree
 
 let rec ast_of_tree (Node (env, test, mods, subs)) =
   let tst = [Test (0, Tsl_ast.make_identifier test.Tests.test_name, mods)] in
@@ -209,7 +237,7 @@ let rec ast_of_tree (Node (env, test, mods, subs)) =
 
 and ast_of_tree_aux env tst subs =
   let env = List.map (fun x -> Environment_statement x) env in
-  match List.map ast_of_tree subs with
+  match[@ocaml.warning "-fragile-match"] List.map ast_of_tree subs with
   | [ Ast (stmts, subs) ] -> Ast (env @ tst @ stmts, subs)
   | asts -> Ast (env @ tst, asts)
 
