@@ -338,57 +338,57 @@ module Float_arrays = struct
 
   let () =
     let float_array = float_array () in
-    let _01 = f64x2 0.0 1.0 in
-    let _12 = f64x2 1.0 2.0 in
+    let f_01 = f64x2 0.0 1.0 in
+    let f_12 = f64x2 1.0 2.0 in
     let get = float_array_get_float64x2 float_array 0 in
-    eq (float64x2_low_int64 _01) (float64x2_high_int64 _01)
+    eq (float64x2_low_int64 f_01) (float64x2_high_int64 f_01)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
     let get = float_array_get_float64x2 float_array 1 in
-    eq (float64x2_low_int64 _12) (float64x2_high_int64 _12)
+    eq (float64x2_low_int64 f_12) (float64x2_high_int64 f_12)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
 
-    let _45 = f64x2 4.0 5.0 in
-    let _67 = f64x2 6.0 7.0 in
-    float_array_set_float64x2 float_array 0 _45;
+    let f_45 = f64x2 4.0 5.0 in
+    let f_67 = f64x2 6.0 7.0 in
+    float_array_set_float64x2 float_array 0 f_45;
     let get = float_array_get_float64x2 float_array 0 in
-    eq (float64x2_low_int64 _45) (float64x2_high_int64 _45)
+    eq (float64x2_low_int64 f_45) (float64x2_high_int64 f_45)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
-    float_array_set_float64x2 float_array 1 _67;
+    float_array_set_float64x2 float_array 1 f_67;
     let get = float_array_get_float64x2 float_array 1 in
-    eq (float64x2_low_int64 _67) (float64x2_high_int64 _67)
+    eq (float64x2_low_int64 f_67) (float64x2_high_int64 f_67)
        (float64x2_low_int64 get) (float64x2_high_int64 get)
   ;;
 
   let () =
     let float_array = float_array () in
-    let _01 = f64x2 0.0 1.0 in
-    let _12 = f64x2 1.0 2.0 in
+    let f_01 = f64x2 0.0 1.0 in
+    let f_12 = f64x2 1.0 2.0 in
     let get = float_array_get_float64x2_unsafe float_array 0 in
-    eq (float64x2_low_int64 _01) (float64x2_high_int64 _01)
+    eq (float64x2_low_int64 f_01) (float64x2_high_int64 f_01)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
     let get = float_array_get_float64x2_unsafe float_array 1 in
-    eq (float64x2_low_int64 _12) (float64x2_high_int64 _12)
+    eq (float64x2_low_int64 f_12) (float64x2_high_int64 f_12)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
 
-    let _45 = f64x2 4.0 5.0 in
-    let _67 = f64x2 6.0 7.0 in
-    float_array_set_float64x2_unsafe float_array 0 _45;
+    let f_45 = f64x2 4.0 5.0 in
+    let f_67 = f64x2 6.0 7.0 in
+    float_array_set_float64x2_unsafe float_array 0 f_45;
     let get = float_array_get_float64x2_unsafe float_array 0 in
-    eq (float64x2_low_int64 _45) (float64x2_high_int64 _45)
+    eq (float64x2_low_int64 f_45) (float64x2_high_int64 f_45)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
-    float_array_set_float64x2_unsafe float_array 1 _67;
+    float_array_set_float64x2_unsafe float_array 1 f_67;
     let get = float_array_get_float64x2_unsafe float_array 1 in
-    eq (float64x2_low_int64 _67) (float64x2_high_int64 _67)
+    eq (float64x2_low_int64 f_67) (float64x2_high_int64 f_67)
        (float64x2_low_int64 get) (float64x2_high_int64 get)
   ;;
 
   let () =
     let a = float_array () in
-    let _0 = f64x2 0.0 0.0 in
+    let f_0 = f64x2 0.0 0.0 in
     let fail a i =
       try
         let _ = float_array_get_float64x2 a i in
-        let _ = float_array_set_float64x2 a i _0 in
+        let _ = float_array_set_float64x2 a i f_0 in
         Printf.printf "Did not fail on index %d\n" i
       with | Invalid_argument s when s = "index out of bounds" -> ()
     in
@@ -403,60 +403,60 @@ module Float_arrays = struct
 
   let () =
     let float_array = float_array () in
-    let _01 = f64x2 0.0 1.0 in
-    let _12 = f64x2 1.0 2.0 in
+    let f_01 = f64x2 0.0 1.0 in
+    let f_12 = f64x2 1.0 2.0 in
     let get = float_array_get_float64x2 float_array 0 in
-    eq (float64x2_low_int64 _01) (float64x2_high_int64 _01)
+    eq (float64x2_low_int64 f_01) (float64x2_high_int64 f_01)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
     let get = float_array_get_float64x2 float_array 1 in
-    eq (float64x2_low_int64 _12) (float64x2_high_int64 _12)
+    eq (float64x2_low_int64 f_12) (float64x2_high_int64 f_12)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
 
-    let _45 = f64x2 4.0 5.0 in
-    let _67 = f64x2 6.0 7.0 in
-    float_array_set_float64x2 float_array 0 _45;
+    let f_45 = f64x2 4.0 5.0 in
+    let f_67 = f64x2 6.0 7.0 in
+    float_array_set_float64x2 float_array 0 f_45;
     let get = float_array_get_float64x2 float_array 0 in
-    eq (float64x2_low_int64 _45) (float64x2_high_int64 _45)
+    eq (float64x2_low_int64 f_45) (float64x2_high_int64 f_45)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
-    float_array_set_float64x2 float_array 1 _67;
+    float_array_set_float64x2 float_array 1 f_67;
     let get = float_array_get_float64x2 float_array 1 in
-    eq (float64x2_low_int64 _67) (float64x2_high_int64 _67)
+    eq (float64x2_low_int64 f_67) (float64x2_high_int64 f_67)
        (float64x2_low_int64 get) (float64x2_high_int64 get)
   ;;
 
   let () =
     let floatarray = floatarray () in
-    let _01 = f64x2 0.0 1.0 in
-    let _12 = f64x2 1.0 2.0 in
+    let f_01 = f64x2 0.0 1.0 in
+    let f_12 = f64x2 1.0 2.0 in
     let get = floatarray_get_float64x2_unsafe floatarray 0 in
-    eq (float64x2_low_int64 _01) (float64x2_high_int64 _01)
+    eq (float64x2_low_int64 f_01) (float64x2_high_int64 f_01)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
     let get = floatarray_get_float64x2_unsafe floatarray 1 in
-    eq (float64x2_low_int64 _12) (float64x2_high_int64 _12)
+    eq (float64x2_low_int64 f_12) (float64x2_high_int64 f_12)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
 
-    let _45 = f64x2 4.0 5.0 in
-    let _67 = f64x2 6.0 7.0 in
-    floatarray_set_float64x2_unsafe floatarray 0 _45;
+    let f_45 = f64x2 4.0 5.0 in
+    let f_67 = f64x2 6.0 7.0 in
+    floatarray_set_float64x2_unsafe floatarray 0 f_45;
     let get = floatarray_get_float64x2_unsafe floatarray 0 in
-    eq (float64x2_low_int64 _45) (float64x2_high_int64 _45)
+    eq (float64x2_low_int64 f_45) (float64x2_high_int64 f_45)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
-    floatarray_set_float64x2_unsafe floatarray 1 _67;
+    floatarray_set_float64x2_unsafe floatarray 1 f_67;
     let get = floatarray_get_float64x2_unsafe floatarray 1 in
-    eq (float64x2_low_int64 _67) (float64x2_high_int64 _67)
+    eq (float64x2_low_int64 f_67) (float64x2_high_int64 f_67)
        (float64x2_low_int64 get) (float64x2_high_int64 get)
   ;;
 
   let () =
     let a = floatarray () in
-    let _0 = f64x2 0.0 0.0 in
+    let f_0 = f64x2 0.0 0.0 in
     let fail a i =
       try
         let _ = floatarray_get_float64x2 a i in
         Printf.printf "Did not fail on index %d\n" i
       with | Invalid_argument s when s = "index out of bounds" -> ();
       try
-        let _ = floatarray_set_float64x2 a i _0 in
+        let _ = floatarray_set_float64x2 a i f_0 in
         Printf.printf "Did not fail on index %d\n" i
       with | Invalid_argument s when s = "index out of bounds" -> ()
     in
@@ -473,19 +473,18 @@ module Float_arrays = struct
 
   let () =
     let float_iarray = float_iarray () in
-    let _01 = f64x2 0.0 1.0 in
-    let _12 = f64x2 1.0 2.0 in
+    let f_01 = f64x2 0.0 1.0 in
+    let f_12 = f64x2 1.0 2.0 in
     let get = float_iarray_get_float64x2_unsafe float_iarray 0 in
-    eq (float64x2_low_int64 _01) (float64x2_high_int64 _01)
+    eq (float64x2_low_int64 f_01) (float64x2_high_int64 f_01)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
     let get = float_iarray_get_float64x2_unsafe float_iarray 1 in
-    eq (float64x2_low_int64 _12) (float64x2_high_int64 _12)
+    eq (float64x2_low_int64 f_12) (float64x2_high_int64 f_12)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
   ;;
 
   let () =
     let a = float_iarray () in
-    let _0 = f64x2 0.0 0.0 in
     let fail a i =
       try
         let _ = float_iarray_get_float64x2 a i in
@@ -504,57 +503,57 @@ module Float_arrays = struct
 
   let () =
     let unboxed_float_array = unboxed_float_array () in
-    let _01 = f64x2 0.0 1.0 in
-    let _12 = f64x2 1.0 2.0 in
+    let f_01 = f64x2 0.0 1.0 in
+    let f_12 = f64x2 1.0 2.0 in
     let get = unboxed_float_array_get_float64x2 unboxed_float_array 0 in
-    eq (float64x2_low_int64 _01) (float64x2_high_int64 _01)
+    eq (float64x2_low_int64 f_01) (float64x2_high_int64 f_01)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
     let get = unboxed_float_array_get_float64x2 unboxed_float_array 1 in
-    eq (float64x2_low_int64 _12) (float64x2_high_int64 _12)
+    eq (float64x2_low_int64 f_12) (float64x2_high_int64 f_12)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
 
-    let _45 = f64x2 4.0 5.0 in
-    let _67 = f64x2 6.0 7.0 in
-    unboxed_float_array_set_float64x2 unboxed_float_array 0 _45;
+    let f_45 = f64x2 4.0 5.0 in
+    let f_67 = f64x2 6.0 7.0 in
+    unboxed_float_array_set_float64x2 unboxed_float_array 0 f_45;
     let get = unboxed_float_array_get_float64x2 unboxed_float_array 0 in
-    eq (float64x2_low_int64 _45) (float64x2_high_int64 _45)
+    eq (float64x2_low_int64 f_45) (float64x2_high_int64 f_45)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
-    unboxed_float_array_set_float64x2 unboxed_float_array 1 _67;
+    unboxed_float_array_set_float64x2 unboxed_float_array 1 f_67;
     let get = unboxed_float_array_get_float64x2 unboxed_float_array 1 in
-    eq (float64x2_low_int64 _67) (float64x2_high_int64 _67)
+    eq (float64x2_low_int64 f_67) (float64x2_high_int64 f_67)
        (float64x2_low_int64 get) (float64x2_high_int64 get)
   ;;
 
   let () =
     let unboxed_float_array = unboxed_float_array () in
-    let _01 = f64x2 0.0 1.0 in
-    let _12 = f64x2 1.0 2.0 in
+    let f_01 = f64x2 0.0 1.0 in
+    let f_12 = f64x2 1.0 2.0 in
     let get = unboxed_float_array_get_float64x2_unsafe unboxed_float_array 0 in
-    eq (float64x2_low_int64 _01) (float64x2_high_int64 _01)
+    eq (float64x2_low_int64 f_01) (float64x2_high_int64 f_01)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
     let get = unboxed_float_array_get_float64x2_unsafe unboxed_float_array 1 in
-    eq (float64x2_low_int64 _12) (float64x2_high_int64 _12)
+    eq (float64x2_low_int64 f_12) (float64x2_high_int64 f_12)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
 
-    let _45 = f64x2 4.0 5.0 in
-    let _67 = f64x2 6.0 7.0 in
-    unboxed_float_array_set_float64x2_unsafe unboxed_float_array 0 _45;
+    let f_45 = f64x2 4.0 5.0 in
+    let f_67 = f64x2 6.0 7.0 in
+    unboxed_float_array_set_float64x2_unsafe unboxed_float_array 0 f_45;
     let get = unboxed_float_array_get_float64x2_unsafe unboxed_float_array 0 in
-    eq (float64x2_low_int64 _45) (float64x2_high_int64 _45)
+    eq (float64x2_low_int64 f_45) (float64x2_high_int64 f_45)
        (float64x2_low_int64 get) (float64x2_high_int64 get);
-    unboxed_float_array_set_float64x2_unsafe unboxed_float_array 1 _67;
+    unboxed_float_array_set_float64x2_unsafe unboxed_float_array 1 f_67;
     let get = unboxed_float_array_get_float64x2_unsafe unboxed_float_array 1 in
-    eq (float64x2_low_int64 _67) (float64x2_high_int64 _67)
+    eq (float64x2_low_int64 f_67) (float64x2_high_int64 f_67)
        (float64x2_low_int64 get) (float64x2_high_int64 get)
   ;;
 
   let () =
     let a = unboxed_float_array () in
-    let _0 = f64x2 0.0 0.0 in
+    let f_0 = f64x2 0.0 0.0 in
     let fail a i =
       try
         let _ = unboxed_float_array_get_float64x2 a i in
-        let _ = unboxed_float_array_set_float64x2 a i _0 in
+        let _ = unboxed_float_array_set_float64x2 a i f_0 in
         Printf.printf "Did not fail on index %d\n" i
       with | Invalid_argument s when s = "index out of bounds" -> ()
     in
@@ -569,57 +568,57 @@ module Float_arrays = struct
 
   let () =
     let unboxed_float32_array = unboxed_float32_array () in
-    let _0123 = f32x4 0.0s 1.0s 2.0s 3.0s in
-    let _3456 = f32x4 3.0s 4.0s 5.0s 6.0s in
+    let f_0123 = f32x4 0.0s 1.0s 2.0s 3.0s in
+    let f_3456 = f32x4 3.0s 4.0s 5.0s 6.0s in
     let get = unboxed_float32_array_get_float32x4 unboxed_float32_array 0 in
-    eq (float32x4_low_int64 _0123) (float32x4_high_int64 _0123)
+    eq (float32x4_low_int64 f_0123) (float32x4_high_int64 f_0123)
        (float32x4_low_int64 get) (float32x4_high_int64 get);
     let get = unboxed_float32_array_get_float32x4 unboxed_float32_array 3 in
-    eq (float32x4_low_int64 _3456) (float32x4_high_int64 _3456)
+    eq (float32x4_low_int64 f_3456) (float32x4_high_int64 f_3456)
        (float32x4_low_int64 get) (float32x4_high_int64 get);
 
-    let _89ab = f32x4 8.0s 9.0s 10.0s 11.0s in
-    let _cdef = f32x4 12.0s 13.0s 14.0s 15.0s in
-    unboxed_float32_array_set_float32x4 unboxed_float32_array 0 _89ab;
+    let f_89ab = f32x4 8.0s 9.0s 10.0s 11.0s in
+    let f_cdef = f32x4 12.0s 13.0s 14.0s 15.0s in
+    unboxed_float32_array_set_float32x4 unboxed_float32_array 0 f_89ab;
     let get = unboxed_float32_array_get_float32x4 unboxed_float32_array 0 in
-    eq (float32x4_low_int64 _89ab) (float32x4_high_int64 _89ab)
+    eq (float32x4_low_int64 f_89ab) (float32x4_high_int64 f_89ab)
        (float32x4_low_int64 get) (float32x4_high_int64 get);
-    unboxed_float32_array_set_float32x4 unboxed_float32_array 3 _cdef;
+    unboxed_float32_array_set_float32x4 unboxed_float32_array 3 f_cdef;
     let get = unboxed_float32_array_get_float32x4 unboxed_float32_array 3 in
-    eq (float32x4_low_int64 _cdef) (float32x4_high_int64 _cdef)
+    eq (float32x4_low_int64 f_cdef) (float32x4_high_int64 f_cdef)
        (float32x4_low_int64 get) (float32x4_high_int64 get)
   ;;
 
   let () =
     let unboxed_float32_array = unboxed_float32_array () in
-    let _0123 = f32x4 0.0s 1.0s 2.0s 3.0s in
-    let _3456 = f32x4 3.0s 4.0s 5.0s 6.0s in
+    let f_0123 = f32x4 0.0s 1.0s 2.0s 3.0s in
+    let f_3456 = f32x4 3.0s 4.0s 5.0s 6.0s in
     let get = unboxed_float32_array_get_float32x4_unsafe unboxed_float32_array 0 in
-    eq (float32x4_low_int64 _0123) (float32x4_high_int64 _0123)
+    eq (float32x4_low_int64 f_0123) (float32x4_high_int64 f_0123)
        (float32x4_low_int64 get) (float32x4_high_int64 get);
     let get = unboxed_float32_array_get_float32x4_unsafe unboxed_float32_array 3 in
-    eq (float32x4_low_int64 _3456) (float32x4_high_int64 _3456)
+    eq (float32x4_low_int64 f_3456) (float32x4_high_int64 f_3456)
        (float32x4_low_int64 get) (float32x4_high_int64 get);
 
-    let _89ab = f32x4 8.0s 9.0s 10.0s 11.0s in
-    let _cdef = f32x4 12.0s 13.0s 14.0s 15.0s in
-    unboxed_float32_array_set_float32x4_unsafe unboxed_float32_array 0 _89ab;
+    let f_89ab = f32x4 8.0s 9.0s 10.0s 11.0s in
+    let f_cdef = f32x4 12.0s 13.0s 14.0s 15.0s in
+    unboxed_float32_array_set_float32x4_unsafe unboxed_float32_array 0 f_89ab;
     let get = unboxed_float32_array_get_float32x4_unsafe unboxed_float32_array 0 in
-    eq (float32x4_low_int64 _89ab) (float32x4_high_int64 _89ab)
+    eq (float32x4_low_int64 f_89ab) (float32x4_high_int64 f_89ab)
        (float32x4_low_int64 get) (float32x4_high_int64 get);
-    unboxed_float32_array_set_float32x4_unsafe unboxed_float32_array 3 _cdef;
+    unboxed_float32_array_set_float32x4_unsafe unboxed_float32_array 3 f_cdef;
     let get = unboxed_float32_array_get_float32x4_unsafe unboxed_float32_array 3 in
-    eq (float32x4_low_int64 _cdef) (float32x4_high_int64 _cdef)
+    eq (float32x4_low_int64 f_cdef) (float32x4_high_int64 f_cdef)
        (float32x4_low_int64 get) (float32x4_high_int64 get)
   ;;
 
   let () =
     let a = unboxed_float32_array () in
-    let _0 = f32x4 0.0s 0.0s 0.0s 0.0s in
+    let f_0 = f32x4 0.0s 0.0s 0.0s 0.0s in
     let fail a i =
       try
         let _ = unboxed_float32_array_get_float32x4 a i in
-        let _ = unboxed_float32_array_set_float32x4 a i _0 in
+        let _ = unboxed_float32_array_set_float32x4 a i f_0 in
         Printf.printf "Did not fail on index %d\n" i
       with | Invalid_argument s when s = "index out of bounds" -> ()
     in
@@ -675,60 +674,60 @@ module Int_arrays = struct
 
   let () =
     let int_array = int_array () in
-    let _01 = i64x2 (tag 0L) (tag 1L) in
-    let _12 = i64x2 (tag 1L) (tag 2L) in
+    let i_01 = i64x2 (tag 0L) (tag 1L) in
+    let i_12 = i64x2 (tag 1L) (tag 2L) in
     let get = int_array_get_int64x2 int_array 0 in
-    eq (int64x2_low_int64 _01) (int64x2_high_int64 _01)
+    eq (int64x2_low_int64 i_01) (int64x2_high_int64 i_01)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
     let get = int_array_get_int64x2 int_array 1 in
-    eq (int64x2_low_int64 _12) (int64x2_high_int64 _12)
+    eq (int64x2_low_int64 i_12) (int64x2_high_int64 i_12)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
 
-    let _45 = i64x2 (tag 4L) (tag 5L) in
-    let _67 = i64x2 (tag 6L) (tag 7L) in
-    int_array_set_int64x2 int_array 0 _45;
+    let i_45 = i64x2 (tag 4L) (tag 5L) in
+    let i_67 = i64x2 (tag 6L) (tag 7L) in
+    int_array_set_int64x2 int_array 0 i_45;
     let get = int_array_get_int64x2 int_array 0 in
-    eq (int64x2_low_int64 _45) (int64x2_high_int64 _45)
+    eq (int64x2_low_int64 i_45) (int64x2_high_int64 i_45)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
-    int_array_set_int64x2 int_array 1 _67;
+    int_array_set_int64x2 int_array 1 i_67;
     let get = int_array_get_int64x2 int_array 1 in
-    eq (int64x2_low_int64 _67) (int64x2_high_int64 _67)
+    eq (int64x2_low_int64 i_67) (int64x2_high_int64 i_67)
        (int64x2_low_int64 get) (int64x2_high_int64 get)
   ;;
 
   let () =
     let int_array = int_array () in
-    let _01 = i64x2 (tag 0L) (tag 1L) in
-    let _12 = i64x2 (tag 1L) (tag 2L) in
+    let i_01 = i64x2 (tag 0L) (tag 1L) in
+    let i_12 = i64x2 (tag 1L) (tag 2L) in
     let get = int_array_get_int64x2_unsafe int_array 0 in
-    eq (int64x2_low_int64 _01) (int64x2_high_int64 _01)
+    eq (int64x2_low_int64 i_01) (int64x2_high_int64 i_01)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
     let get = int_array_get_int64x2_unsafe int_array 1 in
-    eq (int64x2_low_int64 _12) (int64x2_high_int64 _12)
+    eq (int64x2_low_int64 i_12) (int64x2_high_int64 i_12)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
 
-    let _45 = i64x2 (tag 4L) (tag 5L) in
-    let _67 = i64x2 (tag 6L) (tag 7L) in
-    int_array_set_int64x2 int_array 0 _45;
+    let i_45 = i64x2 (tag 4L) (tag 5L) in
+    let i_67 = i64x2 (tag 6L) (tag 7L) in
+    int_array_set_int64x2 int_array 0 i_45;
     let get = int_array_get_int64x2_unsafe int_array 0 in
-    eq (int64x2_low_int64 _45) (int64x2_high_int64 _45)
+    eq (int64x2_low_int64 i_45) (int64x2_high_int64 i_45)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
-    int_array_set_int64x2 int_array 1 _67;
+    int_array_set_int64x2 int_array 1 i_67;
     let get = int_array_get_int64x2_unsafe int_array 1 in
-    eq (int64x2_low_int64 _67) (int64x2_high_int64 _67)
+    eq (int64x2_low_int64 i_67) (int64x2_high_int64 i_67)
        (int64x2_low_int64 get) (int64x2_high_int64 get)
   ;;
 
   let () =
     let a = int_array () in
-    let _0 = i64x2 (tag 0L) (tag 0L) in
+    let i_0 = i64x2 (tag 0L) (tag 0L) in
     let fail a i =
       try
         let _ = int_array_get_int64x2 a i in
         Printf.printf "Did not fail on index %d\n" i
       with | Invalid_argument s when s = "index out of bounds" -> ();
       try
-        let _ = int_array_set_int64x2 a i _0 in
+        let _ = int_array_set_int64x2 a i i_0 in
         Printf.printf "Did not fail on index %d\n" i
       with | Invalid_argument s when s = "index out of bounds" -> ()
     in
@@ -743,19 +742,18 @@ module Int_arrays = struct
 
   let () =
     let int_iarray = int_iarray () in
-    let _01 = i64x2 (tag 0L) (tag 1L) in
-    let _12 = i64x2 (tag 1L) (tag 2L) in
+    let i_01 = i64x2 (tag 0L) (tag 1L) in
+    let i_12 = i64x2 (tag 1L) (tag 2L) in
     let get = int_iarray_get_int64x2_unsafe int_iarray 0 in
-    eq (int64x2_low_int64 _01) (int64x2_high_int64 _01)
+    eq (int64x2_low_int64 i_01) (int64x2_high_int64 i_01)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
     let get = int_iarray_get_int64x2_unsafe int_iarray 1 in
-    eq (int64x2_low_int64 _12) (int64x2_high_int64 _12)
+    eq (int64x2_low_int64 i_12) (int64x2_high_int64 i_12)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
   ;;
 
   let () =
     let a = int_iarray () in
-    let _0 = i64x2 (tag 0L) (tag 0L) in
     let fail a i =
       try
         let _ = int_iarray_get_int64x2 a i in
@@ -773,57 +771,57 @@ module Int_arrays = struct
 
   let () =
     let unboxed_int64_array = unboxed_int64_array () in
-    let _01 = i64x2 0L 1L in
-    let _12 = i64x2 1L 2L in
+    let i_01 = i64x2 0L 1L in
+    let i_12 = i64x2 1L 2L in
     let get = unboxed_int64_array_get_int64x2 unboxed_int64_array 0 in
-    eq (int64x2_low_int64 _01) (int64x2_high_int64 _01)
+    eq (int64x2_low_int64 i_01) (int64x2_high_int64 i_01)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
     let get = unboxed_int64_array_get_int64x2 unboxed_int64_array 1 in
-    eq (int64x2_low_int64 _12) (int64x2_high_int64 _12)
+    eq (int64x2_low_int64 i_12) (int64x2_high_int64 i_12)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
 
-    let _45 = i64x2 4L 5L in
-    let _67 = i64x2 6L 7L in
-    unboxed_int64_array_set_int64x2 unboxed_int64_array 0 _45;
+    let i_45 = i64x2 4L 5L in
+    let i_67 = i64x2 6L 7L in
+    unboxed_int64_array_set_int64x2 unboxed_int64_array 0 i_45;
     let get = unboxed_int64_array_get_int64x2 unboxed_int64_array 0 in
-    eq (int64x2_low_int64 _45) (int64x2_high_int64 _45)
+    eq (int64x2_low_int64 i_45) (int64x2_high_int64 i_45)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
-    unboxed_int64_array_set_int64x2 unboxed_int64_array 1 _67;
+    unboxed_int64_array_set_int64x2 unboxed_int64_array 1 i_67;
     let get = unboxed_int64_array_get_int64x2 unboxed_int64_array 1 in
-    eq (int64x2_low_int64 _67) (int64x2_high_int64 _67)
+    eq (int64x2_low_int64 i_67) (int64x2_high_int64 i_67)
        (int64x2_low_int64 get) (int64x2_high_int64 get)
   ;;
 
   let () =
     let unboxed_int64_array = unboxed_int64_array () in
-    let _01 = i64x2 0L 1L in
-    let _12 = i64x2 1L 2L in
+    let i_01 = i64x2 0L 1L in
+    let i_12 = i64x2 1L 2L in
     let get = unboxed_int64_array_get_int64x2_unsafe unboxed_int64_array 0 in
-    eq (int64x2_low_int64 _01) (int64x2_high_int64 _01)
+    eq (int64x2_low_int64 i_01) (int64x2_high_int64 i_01)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
     let get = unboxed_int64_array_get_int64x2_unsafe unboxed_int64_array 1 in
-    eq (int64x2_low_int64 _12) (int64x2_high_int64 _12)
+    eq (int64x2_low_int64 i_12) (int64x2_high_int64 i_12)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
 
-    let _45 = i64x2 4L 5L in
-    let _67 = i64x2 6L 7L in
-    unboxed_int64_array_set_int64x2_unsafe unboxed_int64_array 0 _45;
+    let i_45 = i64x2 4L 5L in
+    let i_67 = i64x2 6L 7L in
+    unboxed_int64_array_set_int64x2_unsafe unboxed_int64_array 0 i_45;
     let get = unboxed_int64_array_get_int64x2_unsafe unboxed_int64_array 0 in
-    eq (int64x2_low_int64 _45) (int64x2_high_int64 _45)
+    eq (int64x2_low_int64 i_45) (int64x2_high_int64 i_45)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
-    unboxed_int64_array_set_int64x2_unsafe unboxed_int64_array 1 _67;
+    unboxed_int64_array_set_int64x2_unsafe unboxed_int64_array 1 i_67;
     let get = unboxed_int64_array_get_int64x2_unsafe unboxed_int64_array 1 in
-    eq (int64x2_low_int64 _67) (int64x2_high_int64 _67)
+    eq (int64x2_low_int64 i_67) (int64x2_high_int64 i_67)
        (int64x2_low_int64 get) (int64x2_high_int64 get)
   ;;
 
   let () =
     let a = unboxed_int64_array () in
-    let _0 = i64x2 0L 0L in
+    let i_0 = i64x2 0L 0L in
     let fail a i =
       try
         let _ = unboxed_int64_array_get_int64x2 a i in
-        let _ = unboxed_int64_array_set_int64x2 a i _0 in
+        let _ = unboxed_int64_array_set_int64x2 a i i_0 in
         Printf.printf "Did not fail on index %d\n" i
       with | Invalid_argument s when s = "index out of bounds" -> ()
     in
@@ -838,57 +836,57 @@ module Int_arrays = struct
 
   let () =
     let unboxed_nativeint_array = unboxed_nativeint_array () in
-    let _01 = i64x2 0L 1L in
-    let _12 = i64x2 1L 2L in
+    let i_01 = i64x2 0L 1L in
+    let i_12 = i64x2 1L 2L in
     let get = unboxed_nativeint_array_get_int64x2 unboxed_nativeint_array 0 in
-    eq (int64x2_low_int64 _01) (int64x2_high_int64 _01)
+    eq (int64x2_low_int64 i_01) (int64x2_high_int64 i_01)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
     let get = unboxed_nativeint_array_get_int64x2 unboxed_nativeint_array 1 in
-    eq (int64x2_low_int64 _12) (int64x2_high_int64 _12)
+    eq (int64x2_low_int64 i_12) (int64x2_high_int64 i_12)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
 
-    let _45 = i64x2 4L 5L in
-    let _67 = i64x2 6L 7L in
-    unboxed_nativeint_array_set_int64x2 unboxed_nativeint_array 0 _45;
+    let i_45 = i64x2 4L 5L in
+    let i_67 = i64x2 6L 7L in
+    unboxed_nativeint_array_set_int64x2 unboxed_nativeint_array 0 i_45;
     let get = unboxed_nativeint_array_get_int64x2 unboxed_nativeint_array 0 in
-    eq (int64x2_low_int64 _45) (int64x2_high_int64 _45)
+    eq (int64x2_low_int64 i_45) (int64x2_high_int64 i_45)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
-    unboxed_nativeint_array_set_int64x2 unboxed_nativeint_array 1 _67;
+    unboxed_nativeint_array_set_int64x2 unboxed_nativeint_array 1 i_67;
     let get = unboxed_nativeint_array_get_int64x2 unboxed_nativeint_array 1 in
-    eq (int64x2_low_int64 _67) (int64x2_high_int64 _67)
+    eq (int64x2_low_int64 i_67) (int64x2_high_int64 i_67)
        (int64x2_low_int64 get) (int64x2_high_int64 get)
   ;;
 
   let () =
     let unboxed_nativeint_array = unboxed_nativeint_array () in
-    let _01 = i64x2 0L 1L in
-    let _12 = i64x2 1L 2L in
+    let i_01 = i64x2 0L 1L in
+    let i_12 = i64x2 1L 2L in
     let get = unboxed_nativeint_array_get_int64x2_unsafe unboxed_nativeint_array 0 in
-    eq (int64x2_low_int64 _01) (int64x2_high_int64 _01)
+    eq (int64x2_low_int64 i_01) (int64x2_high_int64 i_01)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
     let get = unboxed_nativeint_array_get_int64x2_unsafe unboxed_nativeint_array 1 in
-    eq (int64x2_low_int64 _12) (int64x2_high_int64 _12)
+    eq (int64x2_low_int64 i_12) (int64x2_high_int64 i_12)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
 
-    let _45 = i64x2 4L 5L in
-    let _67 = i64x2 6L 7L in
-    unboxed_nativeint_array_set_int64x2_unsafe unboxed_nativeint_array 0 _45;
+    let i_45 = i64x2 4L 5L in
+    let i_67 = i64x2 6L 7L in
+    unboxed_nativeint_array_set_int64x2_unsafe unboxed_nativeint_array 0 i_45;
     let get = unboxed_nativeint_array_get_int64x2_unsafe unboxed_nativeint_array 0 in
-    eq (int64x2_low_int64 _45) (int64x2_high_int64 _45)
+    eq (int64x2_low_int64 i_45) (int64x2_high_int64 i_45)
        (int64x2_low_int64 get) (int64x2_high_int64 get);
-    unboxed_nativeint_array_set_int64x2_unsafe unboxed_nativeint_array 1 _67;
+    unboxed_nativeint_array_set_int64x2_unsafe unboxed_nativeint_array 1 i_67;
     let get = unboxed_nativeint_array_get_int64x2_unsafe unboxed_nativeint_array 1 in
-    eq (int64x2_low_int64 _67) (int64x2_high_int64 _67)
+    eq (int64x2_low_int64 i_67) (int64x2_high_int64 i_67)
        (int64x2_low_int64 get) (int64x2_high_int64 get)
   ;;
 
   let () =
     let a = unboxed_nativeint_array () in
-    let _0 = i64x2 0L 0L in
+    let i_0 = i64x2 0L 0L in
     let fail a i =
       try
         let _ = unboxed_nativeint_array_get_int64x2 a i in
-        let _ = unboxed_nativeint_array_set_int64x2 a i _0 in
+        let _ = unboxed_nativeint_array_set_int64x2 a i i_0 in
         Printf.printf "Did not fail on index %d\n" i
       with | Invalid_argument s when s = "index out of bounds" -> ()
     in
@@ -903,57 +901,57 @@ module Int_arrays = struct
 
   let () =
     let unboxed_int32_array = unboxed_int32_array () in
-    let _0123 = i32x4 0l 1l 2l 3l in
-    let _2345 = i32x4 2l 3l 4l 5l in
+    let i_0123 = i32x4 0l 1l 2l 3l in
+    let i_2345 = i32x4 2l 3l 4l 5l in
     let get = unboxed_int32_array_get_int32x4 unboxed_int32_array 0 in
-    eq (int32x4_low_int64 _0123) (int32x4_high_int64 _0123)
+    eq (int32x4_low_int64 i_0123) (int32x4_high_int64 i_0123)
        (int32x4_low_int64 get) (int32x4_high_int64 get);
     let get = unboxed_int32_array_get_int32x4 unboxed_int32_array 2 in
-    eq (int32x4_low_int64 _2345) (int32x4_high_int64 _2345)
+    eq (int32x4_low_int64 i_2345) (int32x4_high_int64 i_2345)
        (int32x4_low_int64 get) (int32x4_high_int64 get);
 
-    let _4567 = i32x4 4l 5l 6l 7l in
-    let _6789 = i32x4 6l 7l 8l 9l in
-    unboxed_int32_array_set_int32x4 unboxed_int32_array 0 _4567;
+    let i_4567 = i32x4 4l 5l 6l 7l in
+    let i_6789 = i32x4 6l 7l 8l 9l in
+    unboxed_int32_array_set_int32x4 unboxed_int32_array 0 i_4567;
     let get = unboxed_int32_array_get_int32x4 unboxed_int32_array 0 in
-    eq (int32x4_low_int64 _4567) (int32x4_high_int64 _4567)
+    eq (int32x4_low_int64 i_4567) (int32x4_high_int64 i_4567)
        (int32x4_low_int64 get) (int32x4_high_int64 get);
-    unboxed_int32_array_set_int32x4 unboxed_int32_array 1 _6789;
+    unboxed_int32_array_set_int32x4 unboxed_int32_array 1 i_6789;
     let get = unboxed_int32_array_get_int32x4 unboxed_int32_array 1 in
-    eq (int32x4_low_int64 _6789) (int32x4_high_int64 _6789)
+    eq (int32x4_low_int64 i_6789) (int32x4_high_int64 i_6789)
        (int32x4_low_int64 get) (int32x4_high_int64 get)
   ;;
 
   let () =
     let unboxed_int32_array = unboxed_int32_array () in
-    let _0123 = i32x4 0l 1l 2l 3l in
-    let _2345 = i32x4 2l 3l 4l 5l in
+    let i_0123 = i32x4 0l 1l 2l 3l in
+    let i_2345 = i32x4 2l 3l 4l 5l in
     let get = unboxed_int32_array_get_int32x4_unsafe unboxed_int32_array 0 in
-    eq (int32x4_low_int64 _0123) (int32x4_high_int64 _0123)
+    eq (int32x4_low_int64 i_0123) (int32x4_high_int64 i_0123)
        (int32x4_low_int64 get) (int32x4_high_int64 get);
     let get = unboxed_int32_array_get_int32x4_unsafe unboxed_int32_array 2 in
-    eq (int32x4_low_int64 _2345) (int32x4_high_int64 _2345)
+    eq (int32x4_low_int64 i_2345) (int32x4_high_int64 i_2345)
        (int32x4_low_int64 get) (int32x4_high_int64 get);
 
-    let _4567 = i32x4 4l 5l 6l 7l in
-    let _6789 = i32x4 6l 7l 8l 9l in
-    unboxed_int32_array_set_int32x4_unsafe unboxed_int32_array 0 _4567;
+    let i_4567 = i32x4 4l 5l 6l 7l in
+    let i_6789 = i32x4 6l 7l 8l 9l in
+    unboxed_int32_array_set_int32x4_unsafe unboxed_int32_array 0 i_4567;
     let get = unboxed_int32_array_get_int32x4_unsafe unboxed_int32_array 0 in
-    eq (int32x4_low_int64 _4567) (int32x4_high_int64 _4567)
+    eq (int32x4_low_int64 i_4567) (int32x4_high_int64 i_4567)
        (int32x4_low_int64 get) (int32x4_high_int64 get);
-    unboxed_int32_array_set_int32x4_unsafe unboxed_int32_array 1 _6789;
+    unboxed_int32_array_set_int32x4_unsafe unboxed_int32_array 1 i_6789;
     let get = unboxed_int32_array_get_int32x4_unsafe unboxed_int32_array 1 in
-    eq (int32x4_low_int64 _6789) (int32x4_high_int64 _6789)
+    eq (int32x4_low_int64 i_6789) (int32x4_high_int64 i_6789)
        (int32x4_low_int64 get) (int32x4_high_int64 get)
   ;;
 
   let () =
     let a = unboxed_int32_array () in
-    let _0 = i32x4 0l 0l 0l 0l in
+    let i_0 = i32x4 0l 0l 0l 0l in
     let fail a i =
       try
         let _ = unboxed_int32_array_get_int32x4 a i in
-        let _ = unboxed_int32_array_set_int32x4 a i _0 in
+        let _ = unboxed_int32_array_set_int32x4 a i i_0 in
         Printf.printf "Did not fail on index %d\n" i
       with | Invalid_argument s when s = "index out of bounds" -> ()
     in
