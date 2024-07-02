@@ -148,10 +148,13 @@ module type Sort = sig
 end
 
 module History = struct
-  (* CR layouts v3: move most [concrete_non_null_creation_reason]s here. *)
+  (* CR layouts v3: move most [concrete_default_creation_reason]s here. *)
+  (* For sort variables that are topmost on the jkind lattice. *)
   type concrete_creation_reason = |
 
-  type concrete_non_null_creation_reason =
+  (* For sort variables that are in the "default" position
+     on the jkind lattice, defaulting exactly to [value]. *)
+  type concrete_default_creation_reason =
     | Match
     | Constructor_declaration of int
     | Label_declaration of Ident.t
@@ -278,7 +281,7 @@ module History = struct
     | Bits32_creation of bits32_creation_reason
     | Bits64_creation of bits64_creation_reason
     | Concrete_creation of concrete_creation_reason
-    | Concrete_non_null_creation of concrete_non_null_creation_reason
+    | Concrete_default_creation of concrete_default_creation_reason
     | Imported
     | Imported_type_argument of
         { parent_path : Path.t;

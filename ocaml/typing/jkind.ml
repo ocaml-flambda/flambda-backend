@@ -1041,7 +1041,7 @@ let get_required_layouts_level (context : History.annotation_context)
 
 let of_new_sort_var ~why =
   let jkind, sort = Jkind_desc.of_new_sort_var Non_null in
-  fresh_jkind jkind ~why:(Concrete_non_null_creation why), sort
+  fresh_jkind jkind ~why:(Concrete_default_creation why), sort
 
 let of_new_sort ~why = fst (of_new_sort_var ~why)
 
@@ -1272,8 +1272,8 @@ end = struct
     let to_ordinal num = Int.to_string num ^ Misc.ordinal_suffix num in
     match arity with 1 -> "" | _ -> to_ordinal position ^ " "
 
-  let format_concrete_non_null_creation_reason ppf :
-      History.concrete_non_null_creation_reason -> unit = function
+  let format_concrete_default_creation_reason ppf :
+      History.concrete_default_creation_reason -> unit = function
     | Match -> fprintf ppf "a value of this type is matched against a pattern"
     | Constructor_declaration _ ->
       fprintf ppf "it's the type of a constructor field"
@@ -1480,8 +1480,8 @@ end = struct
     | Bits32_creation bits32 -> format_bits32_creation_reason ppf bits32
     | Bits64_creation bits64 -> format_bits64_creation_reason ppf bits64
     | Concrete_creation _ -> .
-    | Concrete_non_null_creation concrete ->
-      format_concrete_non_null_creation_reason ppf concrete
+    | Concrete_default_creation concrete ->
+      format_concrete_default_creation_reason ppf concrete
     | Imported ->
       fprintf ppf "of layout requirements from an imported definition"
     | Imported_type_argument { parent_path; position; arity } ->
@@ -1515,7 +1515,7 @@ end = struct
     | Creation reason -> (
       fprintf ppf ", because@ %a" format_creation_reason reason;
       match reason, jkind_desc with
-      | Concrete_non_null_creation _, Const _ ->
+      | Concrete_default_creation _, Const _ ->
         fprintf ppf ", defaulted to layout %a" Desc.format jkind_desc
       | _ -> ())
     | _ -> assert false);
@@ -1667,7 +1667,7 @@ let score_reason = function
   (* error_message annotated by the user should always take priority *)
   | Creation (Annotated (With_error_message _, _)) -> 1
   (* Concrete creation is quite vague, prefer more specific reasons *)
-  | Creation (Concrete_creation _ | Concrete_non_null_creation _) -> -1
+  | Creation (Concrete_creation _ | Concrete_default_creation _) -> -1
   | _ -> 0
 
 let combine_histories reason lhs rhs =
@@ -1735,8 +1735,8 @@ let has_layout_any jkind =
 module Debug_printers = struct
   open Format
 
-  let concrete_non_null_creation_reason ppf :
-      History.concrete_non_null_creation_reason -> unit = function
+  let concrete_default_creation_reason ppf :
+      History.concrete_default_creation_reason -> unit = function
     | Match -> fprintf ppf "Match"
     | Constructor_declaration idx ->
       fprintf ppf "Constructor_declaration %d" idx
@@ -1882,9 +1882,9 @@ module Debug_printers = struct
     | Bits64_creation bits64 ->
       fprintf ppf "Bits64_creation %a" bits64_creation_reason bits64
     | Concrete_creation _ -> .
-    | Concrete_non_null_creation concrete ->
-      fprintf ppf "Concrete_non_null_creation %a"
-        concrete_non_null_creation_reason concrete
+    | Concrete_default_creation concrete ->
+      fprintf ppf "Concrete_default_creation %a"
+        concrete_default_creation_reason concrete
     | Imported -> fprintf ppf "Imported"
     | Imported_type_argument { parent_path; position; arity } ->
       fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a" position
