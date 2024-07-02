@@ -8,11 +8,18 @@
  check-ocamlopt.byte-output;
  {
    ocamlobjinfo;
+
+   program = "-no-code -no-approx question.cmx";
+   ocamlobjinfo;
+
+   program = "-no-code question.cmx";
+   ocamlobjinfo;
+
    check-program-output;
  }{
    program = "question.cmx";
    ocamlobjinfo;
-   (* The cmx output varies too much to check. We're just happy it didn't
+   (* The full cmx output varies too much to check. We're just happy it didn't
       segfault on us. *)
  }
 *)
