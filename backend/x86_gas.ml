@@ -138,7 +138,7 @@ let print_instr b = function
   | CQO ->  i0 b "cqto"
   | CVTSS2SI (arg1, arg2) -> i2 b "cvtss2si" arg1 arg2
   | CVTSD2SI (arg1, arg2) -> i2 b "cvtsd2si" arg1 arg2
-  | CVTSI2SS (arg1, arg2) -> i2 b "cvtsi2ss" arg1 arg2
+  | CVTSI2SS (arg1, arg2) -> i2 b ("cvtsi2ss" ^ suf arg1) arg1 arg2
   | CVTSD2SS (arg1, arg2) -> i2 b "cvtsd2ss" arg1 arg2
   | CVTSI2SD (arg1, arg2) -> i2 b ("cvtsi2sd" ^ suf arg1) arg1 arg2
   | CVTSS2SD (arg1, arg2) -> i2 b "cvtss2sd" arg1 arg2

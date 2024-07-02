@@ -186,7 +186,7 @@ let string_or_bigstring_load kind width =
        desirable ? *)
     | Sixteen -> 2 (* add, load (allow_unaligned_access) *)
     (* 7 (not allow_unaligned_access) *)
-    | Thirty_two -> 2 (* add, load (allow_unaligned_access) *)
+    | Thirty_two | Single -> 2 (* add, load (allow_unaligned_access) *)
     (* 17 (not allow_unaligned_access) *)
     | Sixty_four -> if arch32 then does_not_need_caml_c_call_extcall_size else 2
     (* add, load (allow_unaligned_access) *)

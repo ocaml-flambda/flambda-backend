@@ -86,8 +86,10 @@ value float32_sign_bit(float f) { return Val_bool(signbit(f)); }
 
 value float32_bits_to_int_boxed(value f) { return caml_copy_int32(*(int32_t *)&Float32_val(f)); }
 value float32_of_int_boxed(value i) { return caml_copy_float32((float)Long_val(i)); }
+value float32_of_int64_boxed(value i) { return caml_copy_float32((float)Int64_val(i)); }
 value float32_of_float_boxed(value d) { return caml_copy_float32((float)Double_val(d)); }
 value float32_to_int_boxed(value f) { return Val_int((intnat)Float32_val(f)); }
+value float32_to_int64_boxed(value f) { return caml_copy_int64((int64_t)Float32_val(f)); }
 value float32_to_float_boxed(value f) { return caml_copy_double((double)Float32_val(f)); }
 value float32_zero_boxed(value unit) { return caml_copy_float32(0.0f); }
 value float32_neg_zero_boxed(value unit) { return caml_copy_float32(-0.0f); }
