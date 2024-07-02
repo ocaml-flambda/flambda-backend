@@ -1,11 +1,12 @@
 (* TEST
-   modules = "cstubs.c";
    stack-allocation;
    flambda2;
    {
      ocamlopt_flags="-Oclassic";
+     native;
    }{
      ocamlopt_flags="-O3";
+     native;
    }
 *)
 
@@ -30,8 +31,8 @@ let saved_stack_offset = ref 0
 let foo list =
   (* The Simplif local function optimization will transform [run] and
      [wrapper] into continuations. *)
-  let[@local always][@inline never] run f = f () in
-  let[@local always][@inline never] wrapper f =
+  let[@inline never][@local] run f = f () in
+  let[@inline never][@local] wrapper f =
     match Sys.opaque_identity true with
     | true ->
       (* Make a local allocation *)
