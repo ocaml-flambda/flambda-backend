@@ -957,8 +957,7 @@ module Expr_with_acc = struct
             { function_call = Indirect_unknown_arity | Indirect_known_arity; _ }
           ->
           false
-        | Method _ -> false
-        | C_call _ -> false)
+        | Method _ | C_call _ | Effect _ -> false)
     in
     let acc =
       match Apply.callee apply with

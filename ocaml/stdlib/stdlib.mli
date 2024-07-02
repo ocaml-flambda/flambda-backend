@@ -1410,14 +1410,10 @@ module Domain         = Domain
 [@@alert unstable
     "The Domain interface may change in incompatible ways in the future."
 ]
-(* CR ocaml 5 effects:
-BACKPORT
 module Effect         = Effect
-[@@alert "-unstable"]
 [@@alert unstable
     "The Effect interface may change in incompatible ways in the future."
 ]
-*)
 module Either         = Either
 module Ephemeron      = Ephemeron
 module Filename       = Filename

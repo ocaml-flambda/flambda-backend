@@ -1993,7 +1993,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
        %a (%a)"
       Printlambda.primitive prim H.print_list_of_lists_of_simple_or_prim args
   | ( ( Pignore | Psequand | Psequor | Pbytes_of_string | Pbytes_to_string
-      | Parray_of_iarray | Parray_to_iarray ),
+      | Parray_of_iarray | Parray_to_iarray | Prunstack | Pperform | Presume
+      | Preperform ),
       _ ) ->
     Misc.fatal_errorf
       "[%a] should have been removed by [Lambda_to_flambda.transform_primitive]"
@@ -2001,9 +2002,6 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pgetglobal _, _ | Pgetpredef _, _ ->
     Misc.fatal_errorf
       "[%a] should have been handled by [Closure_conversion.close_primitive]"
-      Printlambda.primitive prim
-  | (Prunstack | Pperform | Presume | Preperform), _ ->
-    Misc.fatal_errorf "Primitive %a is not yet supported by Flambda 2"
       Printlambda.primitive prim
 
 module Acc = Closure_conversion_aux.Acc

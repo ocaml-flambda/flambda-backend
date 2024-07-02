@@ -323,8 +323,7 @@ let result_layout (p : primitive) =
     Lambda.layout_any_value
   | Pget_header _ -> Lambda.layout_boxedint Pnativeint
   | Prunstack | Presume | Pperform | Preperform ->
-    (* CR mshinwell/ncourant: to be thought about later *)
-    Misc.fatal_error "Effects-related primitives are not yet supported"
+    Lambda.layout_any_value
   | Patomic_load { immediate_or_pointer = Immediate } -> Lambda.layout_int
   | Patomic_load { immediate_or_pointer = Pointer } -> Lambda.layout_any_value
   | Patomic_exchange
