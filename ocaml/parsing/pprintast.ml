@@ -303,6 +303,13 @@ let legacy_mode f m =
 let legacy_modes f m =
   pp_print_list ~pp_sep:(fun f () -> pp f " ") legacy_mode f m
 
+let optional_legacy_modes f m =
+  match m with
+  | [] -> ()
+  | m ->
+    legacy_modes f m;
+    pp_print_space f ()
+
 let space_modality f {txt = Modality m; _} =
   pp_print_string f " ";
   pp_print_string f m
@@ -350,8 +357,20 @@ let optional_atat_modes f m =
   | [] -> ()
   | m -> pp f " %@%@ %a" modes m
 
+let split_out_legacy_modes =
+  List.partition (fun m ->
+    let Mode txt = m.txt in
+    match txt with
+    | "local" | "unique" | "once" -> true
+    | _ -> false
+  )
+
 let maybe_type_at_modes pty ctxt f (c, m) =
   pp f "%a%a" (pty ctxt) c optional_at_modes m
+
+let maybe_legacy_modes_type_at_modes pty ctxt f (c, m) =
+  let legacy, m = split_out_legacy_modes m in
+  pp f "%a%a" optional_legacy_modes legacy (maybe_type_at_modes pty ctxt) (c, m)
 
 let maybe_type_atat_modes pty ctxt f (c, m) =
   pp f "%a%a" (pty ctxt) c optional_atat_modes m
@@ -371,9 +390,9 @@ let rec class_params_def ctxt f =  function
 
 and type_with_label ctxt f (label, c, mode) =
   match label with
-  | Nolabel    -> maybe_type_at_modes core_type1 ctxt f (c, mode) (* otherwise parenthesize *)
-  | Labelled s -> pp f "%s:%a" s (maybe_type_at_modes core_type1 ctxt) (c, mode)
-  | Optional s -> pp f "?%s:%a" s (maybe_type_at_modes core_type1 ctxt) (c, mode)
+  | Nolabel    -> maybe_legacy_modes_type_at_modes core_type1 ctxt f (c, mode) (* otherwise parenthesize *)
+  | Labelled s -> pp f "%s:%a" s (maybe_legacy_modes_type_at_modes core_type1 ctxt) (c, mode)
+  | Optional s -> pp f "?%s:%a" s (maybe_legacy_modes_type_at_modes core_type1 ctxt) (c, mode)
 
 and jkind ctxt f k = match (k : Jane_syntax.Jkind.t) with
   | Default -> pp f "_"
@@ -566,8 +585,8 @@ and labeled_core_type1 ctxt f (label, ty) =
   core_type1 ctxt f ty
 
 and return_type ctxt f (x, m) =
-  if x.ptyp_attributes <> [] then maybe_type_at_modes core_type1 ctxt f (x, m)
-  else maybe_type_at_modes core_type ctxt f (x, m)
+  if x.ptyp_attributes <> [] then maybe_legacy_modes_type_at_modes core_type1 ctxt f (x, m)
+  else maybe_legacy_modes_type_at_modes core_type ctxt f (x, m)
 
 (********************pattern********************)
 (* be cautious when use [pattern], [pattern1] is preferred *)
@@ -686,11 +705,19 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
     | Ppat_interval (c1, c2) -> pp f "%a..%a" constant c1 constant c2
     | Ppat_variant (l,None) ->  pp f "`%s" l
     | Ppat_constraint (p, ct, m) ->
+        let legacy, m = split_out_legacy_modes m in
         begin match ct with
         | Some ct ->
-            pp f "@[<2>(%a@;:@;%a%a)@]" (pattern1 ctxt) p (core_type ctxt) ct optional_atat_modes m
+            pp f "@[<2>(%a%a@;:@;%a%a)@]"
+              optional_legacy_modes legacy
+              (pattern1 ctxt) p
+              (core_type ctxt) ct
+              optional_atat_modes m
         | None ->
-            pp f "@[<2>(%a%a)@]" (pattern1 ctxt) p optional_at_modes m
+            pp f "@[<2>(%a%a%a)@]"
+              optional_legacy_modes legacy
+              (pattern1 ctxt) p
+              optional_at_modes m
         end
     | Ppat_lazy p ->
         pp f "@[<2>(lazy@;%a)@]" (simple_pattern ctxt) p
@@ -746,8 +773,22 @@ and label_exp ctxt f (l,opt,p) =
       | _ ->
           (match opt with
            | Some o ->
-               pp f "?%s:(%a=@;%a)"
+               (* Remove the legacy modes from the pattern here *)
+               let legacy, p =
+                 match p.ppat_desc with
+                 | Ppat_constraint (p', cty', m') ->
+                   let legacy, m' = split_out_legacy_modes m' in
+                   let p =
+                     match cty', m' with
+                     | None, [] -> p'
+                     | _ -> { p with ppat_desc = Ppat_constraint (p', cty', m') }
+                   in
+                   legacy, p
+                 | _ -> [], p
+               in
+               pp f "?%s:(%a%a=@;%a)"
                  rest
+                 optional_legacy_modes legacy
                  (pattern1 ctxt) p
                  (expression ctxt) o
            | None -> pp f "?%s:%a" rest (simple_pattern ctxt) p)
@@ -1042,7 +1083,11 @@ and simple_expr ctxt f x =
       | None ->
         pp f "(%a %a)" legacy_modes m (expression ctxt) e
       | Some ct ->
-        pp f "(%a : %a)" (expression ctxt) e (maybe_type_atat_modes core_type ctxt) (ct, m)
+        let legacy, m = split_out_legacy_modes m in
+        pp f "(%a%a : %a)"
+          optional_legacy_modes legacy
+          (expression ctxt) e
+          (maybe_type_atat_modes core_type ctxt) (ct, m)
       end
     | Pexp_coerce (e, cto1, ct) ->
         pp f "(%a%a :> %a)" (expression ctxt) e
@@ -1581,6 +1626,7 @@ and pp_print_pexp_function ctxt sep f x =
 (* transform [f = fun g h -> ..] to [f g h = ... ] could be improved *)
 and binding ctxt f {pvb_pat=p; pvb_expr=x; pvb_constraint = ct; pvb_modes = modes; _} =
   (* .pvb_attributes have already been printed by the caller, #bindings *)
+  let _, modes = split_out_legacy_modes modes in
   match ct with
   | Some (Pvc_constraint { locally_abstract_univars = []; typ }) ->
       pp f "%a@;:@;%a%a@;=@;%a"
@@ -1665,14 +1711,20 @@ and binding ctxt f {pvb_pat=p; pvb_expr=x; pvb_constraint = ct; pvb_modes = mode
               (pp_print_pexp_function ctxt "=") x
           end
         | _ ->
-            pp f "%a%a@;=@;%a" (pattern ctxt) p optional_at_modes modes (expression ctxt) x
+          pp f "%a%a@;=@;%a"
+            (pattern ctxt) p
+            optional_at_modes modes
+            (expression ctxt) x
         end
       end
 
 (* [in] is not printed *)
 and bindings ctxt f (rf,l) =
   let binding kwd rf f x =
-    pp f "@[<2>%s %a%a@]%a" kwd rec_flag rf
+    (* The other modes are printed inside [binding] *)
+    let legacy, _ = split_out_legacy_modes x.pvb_modes in
+    pp f "@[<2>%s %a%a%a@]%a" kwd rec_flag rf
+      optional_legacy_modes legacy
       (binding ctxt) x
       (item_attributes ctxt) x.pvb_attributes
   in
@@ -2182,12 +2234,14 @@ and function_constraint
   *)
   match[@ocaml.warning "+9"] x with
   | { type_constraint = Pconstraint ty; mode_annotations } ->
-    pp f ":@;%a%a" (core_type ctxt) ty optional_atat_modes mode_annotations
+    let _, modes = split_out_legacy_modes mode_annotations in
+    pp f ":@;%a%a" (core_type ctxt) ty optional_atat_modes modes
   | { type_constraint = Pcoerce (ty1, ty2); mode_annotations } ->
+    let _, modes = split_out_legacy_modes mode_annotations in
     pp f "%a:>@;%a%a"
       (option ~first:":@;" (core_type ctxt)) ty1
       (core_type ctxt) ty2
-      optional_atat_modes mode_annotations
+      optional_atat_modes modes
 
 and function_params_then_body ctxt f params constraint_ body ~delimiter =
   let pp_params f =

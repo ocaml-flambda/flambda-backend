@@ -13,13 +13,13 @@ modality_cstrarg:
       | Foo: global_ string * global_ string -> u 
   end
 
-modality_val: sig val t : string -> string @ local @@ foo bar end
+modality_val: sig val t : string -> local_ string @@ foo bar end
 
 local_exp: let x = foo (local_ x) in (local_ y)
 
 fun_with_modes_on_arg:
-  let f (a @ local) ~b:(b @ local) ?c:(c @ local) ?d:((d @ local)= 1)
-    ~e:(e @ local) ?f:((f @ local)= 2) () = () in
+  let f (local_ a) ~b:(local_ b) ?c:(local_ c) ?d:(local_ d= 1) ~e:(local_ e)
+    ?f:(local_ f= 2) () = () in
   f
 
 longident: No.Longidents.Require.extensions
@@ -28,7 +28,7 @@ expression: [x for x = 1 to 10]
 
 pattern: [:_:]
 
-core_type: ('a : value) @ local -> unit
+core_type: local_ ('a : value) -> unit
 
 signature: include functor F
 
@@ -45,11 +45,11 @@ top_phrase:
 class_field: initializer [x for x = 1 to 10]
 
 class_type_field:
-  constraint ('a : value) @ local -> unit = ('a : value) @ local -> unit
+  constraint local_ ('a : value) -> unit = local_ ('a : value) -> unit
 
-class_expr: [('a : value) @ local -> unit] No.Longidents.Require.extensions
+class_expr: [local_ ('a : value) -> unit] No.Longidents.Require.extensions
 
-class_type: [('a : value) @ local -> unit] No.Longidents.Require.extensions
+class_type: [local_ ('a : value) -> unit] No.Longidents.Require.extensions
 
 module_type: sig include functor F end
 
@@ -62,11 +62,11 @@ binding: [:_:] = [x for x = 1 to 10]
 payload: include functor F
 
 class_signature:
-  object (('a : value) @ local -> unit)
-    constraint ('a : value) @ local -> unit = ('a : value) @ local -> unit
+  object (local_ ('a : value) -> unit)
+    constraint local_ ('a : value) -> unit = local_ ('a : value) -> unit
   end
 
-type_declaration:  ('a : value) @ local -> unit
+type_declaration:  local_ ('a : value) -> unit
 
 string_of_expression: [x for x = 1 to 10]
 
@@ -98,7 +98,7 @@ modal_kind_sig:
 
 tyvar: 'no_tyvars_require_extensions
 
-jkind: value with ('a : value) @ local -> unit
+jkind: value with local_ ('a : value) -> unit
 
 mode: global
 
@@ -119,13 +119,13 @@ modality_cstrarg:
       | Foo: global_ string * global_ string -> u 
   end
 
-modality_val: sig val t : string -> string @ local @@ foo bar end
+modality_val: sig val t : string -> local_ string @@ foo bar end
 
 local_exp: let x = foo (local_ x) in (local_ y)
 
 fun_with_modes_on_arg:
-  let f (a @ local) ~b:(b @ local) ?c:(c @ local) ?d:((d @ local)= 1)
-    ~e:(e @ local) ?f:((f @ local)= 2) () = () in
+  let f (local_ a) ~b:(local_ b) ?c:(local_ c) ?d:(local_ d= 1) ~e:(local_ e)
+    ?f:(local_ f= 2) () = () in
   f
 
 longident: No.Longidents.Require.extensions
@@ -134,7 +134,7 @@ expression: [x for x = 1 to 10]
 
 pattern: [:_:]
 
-core_type: ('a : value) @ local -> unit
+core_type: local_ ('a : value) -> unit
 
 signature: include functor F
 
@@ -151,11 +151,11 @@ top_phrase:
 class_field: initializer [x for x = 1 to 10]
 
 class_type_field:
-  constraint ('a : value) @ local -> unit = ('a : value) @ local -> unit
+  constraint local_ ('a : value) -> unit = local_ ('a : value) -> unit
 
-class_expr: [('a : value) @ local -> unit] No.Longidents.Require.extensions
+class_expr: [local_ ('a : value) -> unit] No.Longidents.Require.extensions
 
-class_type: [('a : value) @ local -> unit] No.Longidents.Require.extensions
+class_type: [local_ ('a : value) -> unit] No.Longidents.Require.extensions
 
 module_type: sig include functor F end
 
@@ -168,11 +168,11 @@ binding: [:_:] = [x for x = 1 to 10]
 payload: include functor F
 
 class_signature:
-  object (('a : value) @ local -> unit)
-    constraint ('a : value) @ local -> unit = ('a : value) @ local -> unit
+  object (local_ ('a : value) -> unit)
+    constraint local_ ('a : value) -> unit = local_ ('a : value) -> unit
   end
 
-type_declaration:  ('a : value) @ local -> unit
+type_declaration:  local_ ('a : value) -> unit
 
 string_of_expression: [x for x = 1 to 10]
 
@@ -204,7 +204,7 @@ modal_kind_sig:
 
 tyvar: 'no_tyvars_require_extensions
 
-jkind: value with ('a : value) @ local -> unit
+jkind: value with local_ ('a : value) -> unit
 
 mode: global
 

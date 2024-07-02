@@ -175,15 +175,36 @@ let mkpat_with_modes ~loc ~pat ~cty ~modes =
     | cty, modes -> mkpat ~loc (Ppat_constraint (pat, cty, modes))
     end
 
-let ghpat_with_modes ~loc ~pat ~cty ~modes = 
+let ghpat_with_modes ~loc ~pat ~cty ~modes =
   let pat = mkpat_with_modes ~loc ~pat ~cty ~modes in
   { pat with ppat_loc = { pat.ppat_loc with loc_ghost = true }}
 
-let add_mode_constraint_to_exp ~loc ~exp ~modes =
+let mkexp_with_modes ~loc ~exp ~cty ~modes =
   match exp.pexp_desc with
   | Pexp_constraint (exp', cty', modes') ->
-    { exp with pexp_desc = Pexp_constraint (exp', cty', modes @ modes')}
-  | _ -> mkexp ~loc (Pexp_constraint (exp, None, modes))
+     begin match cty, cty' with
+     | Some _, None ->
+        { exp with
+          pexp_desc = Pexp_constraint (exp', cty, modes @ modes');
+          pexp_loc = make_loc loc
+        }
+     | None, _ ->
+        { exp with
+          pexp_desc = Pexp_constraint (exp', cty', modes @ modes');
+          pexp_loc = make_loc loc
+        }
+     | _ ->
+        mkexp ~loc (Pexp_constraint (exp, cty, modes))
+     end
+  | _ ->
+     begin match cty, modes with
+     | None, [] -> exp
+     | cty, modes -> mkexp ~loc (Pexp_constraint (exp, cty, modes))
+     end
+
+let ghexp_with_modes ~loc ~exp ~cty ~modes =
+  let exp = mkexp_with_modes ~loc ~exp ~cty ~modes in
+  { exp with pexp_loc = { exp.pexp_loc with loc_ghost = true }}
 
 let exclave_ext_loc loc = mkloc "extension.exclave" loc
 
@@ -251,13 +272,14 @@ let mkstrexp e attrs =
   { pstr_desc = Pstr_eval (e, attrs); pstr_loc = e.pexp_loc }
 
 let mkexp_type_constraint ?(ghost=false) ~loc ~modes e t =
-  let desc =
-    match t with
-  | N_ary.Pconstraint t -> Pexp_constraint(e, Some t, modes)
-  | N_ary.Pcoerce(t1, t2)  -> Pexp_coerce(e, t1, t2)
-  in
-  if ghost then ghexp ~loc desc
-  else mkexp ~loc desc
+  match t with
+  | N_ary.Pconstraint t ->
+     let mk = if ghost then ghexp_with_modes else mkexp_with_modes in
+     mk ~loc ~exp:e ~cty:(Some t) ~modes
+  | N_ary.Pcoerce(t1, t2)  ->
+     let desc = Pexp_coerce(e, t1, t2) in
+     if ghost then ghexp ~loc desc
+     else mkexp ~loc desc
 
 let mkexp_opt_type_constraint ~loc ~modes e = function
   | None -> e
@@ -547,7 +569,7 @@ let mk_newtypes ~loc newtypes exp =
    in [let_binding_body_no_punning]. *)
 let wrap_type_annotation ~loc ?(typloc=loc) ~modes newtypes core_type body =
   let mk_newtypes = mk_newtypes ~loc in
-  let exp = mkexp ~loc (Pexp_constraint(body,Some core_type,modes)) in
+  let exp = mkexp_with_modes ~loc ~exp:body ~cty:(Some core_type) ~modes in
   let exp = mk_newtypes newtypes exp in
   let inner_type = Typ.varify_constructors (List.map fst newtypes) core_type in
   let ltyp =
@@ -1679,7 +1701,7 @@ paren_module_expr:
     e = expr
       { e }
   | e = expr COLON ty = package_type
-      { ghexp ~loc:$loc (Pexp_constraint (e, Some ty, [])) }
+      { ghexp_with_modes ~loc:$loc ~exp:e ~cty:(Some ty) ~modes:[] }
   | e = expr COLON ty1 = package_type COLONGREATER ty2 = package_type
       { ghexp ~loc:$loc (Pexp_coerce (e, Some ty1, ty2)) }
   | e = expr COLONGREATER ty2 = package_type
@@ -2792,7 +2814,7 @@ fun_expr:
      { not_expecting $loc($1) "wildcard \"_\"" }
 /* END AVOID */
   | mode=mode_legacy exp=seq_expr
-     { add_mode_constraint_to_exp ~loc:$sloc ~exp ~modes:[mode] }
+     { mkexp_with_modes ~loc:$sloc ~exp ~cty:None ~modes:[mode] }
   | EXCLAVE seq_expr
      { mkexp_exclave ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
 ;
@@ -2928,7 +2950,7 @@ comprehension_clause_binding:
      over to the RHS of the binding, so we need everything to be visible. *)
   | attributes mode_legacy pattern IN expr
       { let expr =
-          add_mode_constraint_to_exp ~loc:$sloc ~exp:$5 ~modes:[$2]
+          mkexp_with_modes ~loc:$sloc ~exp:$5 ~cty:None ~modes:[$2]
         in
         Jane_syntax.Comprehensions.
           { pattern    = $3
