@@ -207,8 +207,6 @@ module Nullability = struct
 
   let max = Or_null
 
-  let min = Non_null
-
   let equal n1 n2 =
     match n1, n2 with
     | Non_null, Non_null -> true
@@ -355,18 +353,16 @@ module Const = struct
         Externality.less_or_equal ext1 ext2;
         Nullability.less_or_equal null1 null2 ]
 
-  let not_mode_crossing layout =
+  let of_layout ~mode_crossing ~nullability layout =
+    let modes_upper_bounds, externality_upper_bound =
+      match mode_crossing with
+      | true -> Modes.min, Externality.min
+      | false -> Modes.max, Externality.max
+    in
     { layout;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = Externality.max;
-      nullability_upper_bound = Nullability.max
-    }
-
-  let mode_crossing layout =
-    { layout;
-      modes_upper_bounds = Modes.min;
-      externality_upper_bound = Externality.min;
-      nullability_upper_bound = Nullability.min
+      modes_upper_bounds;
+      externality_upper_bound;
+      nullability_upper_bound = nullability
     }
 
   module Primitive = struct
@@ -375,35 +371,41 @@ module Const = struct
         name : string
       }
 
-    let any = { jkind = not_mode_crossing Any; name = "any" }
+    let any =
+      { jkind = of_layout Any ~mode_crossing:false ~nullability:Or_null;
+        name = "any"
+      }
 
     let any_non_null =
-      let jkind =
-        { (not_mode_crossing Any) with nullability_upper_bound = Non_null }
-      in
-      { jkind; name = "any_non_null" }
+      { jkind = of_layout Any ~mode_crossing:false ~nullability:Non_null;
+        name = "any_non_null"
+      }
 
     let value_or_null =
-      { jkind = not_mode_crossing Layout.Const.value; name = "value_or_null" }
+      { jkind =
+          of_layout Layout.Const.value ~mode_crossing:false ~nullability:Or_null;
+        name = "value_or_null"
+      }
 
     let value =
-      let jkind =
-        { (not_mode_crossing Layout.Const.value) with
-          nullability_upper_bound = Non_null
-        }
-      in
-      { jkind; name = "value" }
+      { jkind =
+          of_layout Layout.Const.value ~mode_crossing:false
+            ~nullability:Non_null;
+        name = "value"
+      }
 
+    (* CR layouts v3: change to [or_null] when separability is implemented. *)
     let void =
-      let jkind =
-        { (not_mode_crossing Layout.Const.void) with
-          nullability_upper_bound = Non_null
-        }
-      in
-      { jkind; name = "void" }
+      { jkind =
+          of_layout Layout.Const.void ~mode_crossing:false ~nullability:Non_null;
+        name = "void"
+      }
 
     let immediate =
-      { jkind = mode_crossing Layout.Const.value; name = "immediate" }
+      { jkind =
+          of_layout Layout.Const.value ~mode_crossing:true ~nullability:Non_null;
+        name = "immediate"
+      }
 
     (* [immediate64] describes types that are stored directly (no indirection)
        on 64-bit platforms but indirectly on 32-bit platforms. The key question:
@@ -442,37 +444,46 @@ module Const = struct
 
     (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
        crossing first *)
+    (* CR layouts v3: change to [Or_null] when separability is implemented. *)
     let float64 =
-      { jkind = mode_crossing Layout.Const.float64; name = "float64" }
+      { jkind =
+          of_layout Layout.Const.float64 ~mode_crossing:true
+            ~nullability:Non_null;
+        name = "float64"
+      }
 
     (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
        crossing first *)
+    (* CR layouts v3: change to [Or_null] when separability is implemented. *)
     let float32 =
-      { jkind = mode_crossing Layout.Const.float32; name = "float32" }
+      { jkind =
+          of_layout Layout.Const.float32 ~mode_crossing:true
+            ~nullability:Non_null;
+        name = "float32"
+      }
 
+    (* CR layouts v3: change to [Or_null] when separability is implemented. *)
     let word =
-      let jkind =
-        { (not_mode_crossing Layout.Const.word) with
-          nullability_upper_bound = Non_null
-        }
-      in
-      { jkind; name = "word" }
+      { jkind =
+          of_layout Layout.Const.word ~mode_crossing:false ~nullability:Non_null;
+        name = "word"
+      }
 
+    (* CR layouts v3: change to [Or_null] when separability is implemented. *)
     let bits32 =
-      let jkind =
-        { (not_mode_crossing Layout.Const.bits32) with
-          nullability_upper_bound = Non_null
-        }
-      in
-      { jkind; name = "bits32" }
+      { jkind =
+          of_layout Layout.Const.bits32 ~mode_crossing:false
+            ~nullability:Non_null;
+        name = "bits32"
+      }
 
+    (* CR layouts v3: change to [Or_null] when separability is implemented. *)
     let bits64 =
-      let jkind =
-        { (not_mode_crossing Layout.Const.bits64) with
-          nullability_upper_bound = Non_null
-        }
-      in
-      { jkind; name = "bits64" }
+      { jkind =
+          of_layout Layout.Const.bits64 ~mode_crossing:false
+            ~nullability:Non_null;
+        name = "bits64"
+      }
 
     let all =
       [ any;
@@ -782,13 +793,6 @@ module Jkind_desc = struct
       nullability_upper_bound
     }
 
-  let not_mode_crossing layout =
-    { layout;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = Externality.max;
-      nullability_upper_bound = Nullability.max
-    }
-
   let add_mode_crossing t =
     { t with
       modes_upper_bounds = Modes.min;
@@ -851,7 +855,12 @@ module Jkind_desc = struct
 
   let of_new_sort_var nullability_upper_bound =
     let layout, sort = Layout.of_new_sort_var () in
-    { (not_mode_crossing layout) with nullability_upper_bound }, sort
+    ( { layout;
+        modes_upper_bounds = Modes.max;
+        externality_upper_bound = Externality.max;
+        nullability_upper_bound
+      },
+      sort )
 
   module Primitive = struct
     let any = max
