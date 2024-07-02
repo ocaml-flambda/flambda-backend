@@ -17,10 +17,6 @@ modality_val: sig val t : string -> local_ string @@ foo bar end
 
 local_exp: let x = foo (local_ x) in local_ y
 
-stack_exp:
-  let x = stack_ 42 in
-  let y = stack_ (f x) in let z = foo (stack_ 42) in foo (stack_ (f x))
-
 longident: No.Longidents.Require.extensions
 
 expression: [x for x = 1 to 10]
@@ -121,10 +117,6 @@ modality_cstrarg:
 modality_val: sig val t : string -> local_ string @@ foo bar end
 
 local_exp: let x = foo (local_ x) in local_ y
-
-stack_exp:
-  let x = stack_ 42 in
-  let y = stack_ (f x) in let z = foo (stack_ 42) in foo (stack_ (f x))
 
 longident: No.Longidents.Require.extensions
 
