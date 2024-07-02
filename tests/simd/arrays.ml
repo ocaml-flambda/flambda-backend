@@ -18,6 +18,9 @@ external int32x4_high_int64 : int32x4 -> int64 = "" "vec128_high_int64" [@@noall
 external float64x2_low_int64 : float64x2 -> int64 = "" "vec128_low_int64" [@@noalloc] [@@unboxed]
 external float64x2_high_int64 : float64x2 -> int64 = "" "vec128_high_int64" [@@noalloc] [@@unboxed]
 
+external float32x4_low_int64 : float32x4 -> int64 = "" "vec128_low_int64" [@@noalloc] [@@unboxed]
+external float32x4_high_int64 : float32x4 -> int64 = "" "vec128_high_int64" [@@noalloc] [@@unboxed]
+
 let eq lv hv l h =
   if l <> lv then Printf.printf "%016Lx <> %016Lx\n" lv l;
   if h <> hv then Printf.printf "%016Lx <> %016Lx\n" hv h
@@ -264,16 +267,34 @@ end
 
 module Float_arrays = struct
 
-  external interleave_low_64 : float64x2 -> float64x2 -> float64x2 = "caml_vec128_unreachable" "caml_sse2_vec128_interleave_low_64"
-      [@@noalloc] [@@unboxed] [@@builtin]
+  external interleave_low_32 : float32x4 -> float32x4 -> float32x4 = "caml_vec128_unreachable" "caml_sse_vec128_interleave_low_32"
+    [@@noalloc] [@@unboxed] [@@builtin]
 
-  external low_of : float -> float64x2 = "caml_vec128_unreachable" "caml_float64x2_low_of_float"
-      [@@noalloc] [@@unboxed] [@@builtin]
+  external interleave_low_64s : float32x4 -> float32x4 -> float32x4 = "caml_vec128_unreachable" "caml_sse2_vec128_interleave_low_64"
+    [@@noalloc] [@@unboxed] [@@builtin]
+
+  external interleave_low_64 : float64x2 -> float64x2 -> float64x2 = "caml_vec128_unreachable" "caml_sse2_vec128_interleave_low_64"
+    [@@noalloc] [@@unboxed] [@@builtin]
+
+  external low_of64 : float -> float64x2 = "caml_vec128_unreachable" "caml_float64x2_low_of_float"
+    [@@noalloc] [@@unboxed] [@@builtin]
+
+  external low_of32 : float32 -> float32x4 = "caml_vec128_unreachable" "caml_float32x4_low_of_float32"
+    [@@noalloc] [@@unboxed] [@@builtin]
 
   let f64x2 x y =
-    let x = low_of x in
-    let y = low_of y in
+    let x = low_of64 x in
+    let y = low_of64 y in
     interleave_low_64 x y
+
+  let f32x4 x y z w =
+    let x = low_of32 x in
+    let y = low_of32 y in
+    let z = low_of32 z in
+    let w = low_of32 w in
+    let xy = interleave_low_32 x y in
+    let zw = interleave_low_32 z w in
+    interleave_low_64s xy zw
 
   external float_array_get_float64x2 : float array -> int -> float64x2 = "%caml_float_array_get128"
   external float_array_get_float64x2_unsafe : float array -> int -> float64x2 = "%caml_float_array_get128u"
@@ -296,6 +317,12 @@ module Float_arrays = struct
   external unboxed_float_array_set_float64x2 : float# array -> int -> float64x2 -> unit = "%caml_unboxed_float_array_set128"
   external unboxed_float_array_set_float64x2_unsafe : float# array -> int -> float64x2 -> unit = "%caml_unboxed_float_array_set128u"
 
+  external unboxed_float32_array_get_float32x4 : float32# array -> int -> float32x4 = "%caml_unboxed_float32_array_get128"
+  external unboxed_float32_array_get_float32x4_unsafe : float32# array -> int -> float32x4 = "%caml_unboxed_float32_array_get128u"
+
+  external unboxed_float32_array_set_float32x4 : float32# array -> int -> float32x4 -> unit = "%caml_unboxed_float32_array_set128"
+  external unboxed_float32_array_set_float32x4_unsafe : float32# array -> int -> float32x4 -> unit = "%caml_unboxed_float32_array_set128u"
+
   let float_array () = [| 0.0; 1.0; 2.0; 3.0 |]
   let float_iarray () = [: 0.0; 1.0; 2.0; 3.0 :]
   let floatarray () =
@@ -307,6 +334,7 @@ module Float_arrays = struct
     a
   ;;
   let unboxed_float_array () = [| #0.0; #1.0; #2.0; #3.0 |]
+  let unboxed_float32_array () = [| #0.0s; #1.0s; #2.0s; #3.0s; #4.0s; #5.0s; #6.0s; #7.0s |]
 
   let () =
     let float_array = float_array () in
@@ -537,6 +565,73 @@ module Float_arrays = struct
     fail [|#0.0|] 0;
     fail [|#0.0|] 1;
     fail [|#0.0|] (-1)
+  ;;
+
+  let () =
+    let unboxed_float32_array = unboxed_float32_array () in
+    let _0123 = f32x4 0.0s 1.0s 2.0s 3.0s in
+    let _3456 = f32x4 3.0s 4.0s 5.0s 6.0s in
+    let get = unboxed_float32_array_get_float32x4 unboxed_float32_array 0 in
+    eq (float32x4_low_int64 _0123) (float32x4_high_int64 _0123)
+       (float32x4_low_int64 get) (float32x4_high_int64 get);
+    let get = unboxed_float32_array_get_float32x4 unboxed_float32_array 3 in
+    eq (float32x4_low_int64 _3456) (float32x4_high_int64 _3456)
+       (float32x4_low_int64 get) (float32x4_high_int64 get);
+
+    let _89ab = f32x4 8.0s 9.0s 10.0s 11.0s in
+    let _cdef = f32x4 12.0s 13.0s 14.0s 15.0s in
+    unboxed_float32_array_set_float32x4 unboxed_float32_array 0 _89ab;
+    let get = unboxed_float32_array_get_float32x4 unboxed_float32_array 0 in
+    eq (float32x4_low_int64 _89ab) (float32x4_high_int64 _89ab)
+       (float32x4_low_int64 get) (float32x4_high_int64 get);
+    unboxed_float32_array_set_float32x4 unboxed_float32_array 3 _cdef;
+    let get = unboxed_float32_array_get_float32x4 unboxed_float32_array 3 in
+    eq (float32x4_low_int64 _cdef) (float32x4_high_int64 _cdef)
+       (float32x4_low_int64 get) (float32x4_high_int64 get)
+  ;;
+
+  let () =
+    let unboxed_float32_array = unboxed_float32_array () in
+    let _0123 = f32x4 0.0s 1.0s 2.0s 3.0s in
+    let _3456 = f32x4 3.0s 4.0s 5.0s 6.0s in
+    let get = unboxed_float32_array_get_float32x4_unsafe unboxed_float32_array 0 in
+    eq (float32x4_low_int64 _0123) (float32x4_high_int64 _0123)
+       (float32x4_low_int64 get) (float32x4_high_int64 get);
+    let get = unboxed_float32_array_get_float32x4_unsafe unboxed_float32_array 3 in
+    eq (float32x4_low_int64 _3456) (float32x4_high_int64 _3456)
+       (float32x4_low_int64 get) (float32x4_high_int64 get);
+
+    let _89ab = f32x4 8.0s 9.0s 10.0s 11.0s in
+    let _cdef = f32x4 12.0s 13.0s 14.0s 15.0s in
+    unboxed_float32_array_set_float32x4_unsafe unboxed_float32_array 0 _89ab;
+    let get = unboxed_float32_array_get_float32x4_unsafe unboxed_float32_array 0 in
+    eq (float32x4_low_int64 _89ab) (float32x4_high_int64 _89ab)
+       (float32x4_low_int64 get) (float32x4_high_int64 get);
+    unboxed_float32_array_set_float32x4_unsafe unboxed_float32_array 3 _cdef;
+    let get = unboxed_float32_array_get_float32x4_unsafe unboxed_float32_array 3 in
+    eq (float32x4_low_int64 _cdef) (float32x4_high_int64 _cdef)
+       (float32x4_low_int64 get) (float32x4_high_int64 get)
+  ;;
+
+  let () =
+    let a = unboxed_float32_array () in
+    let _0 = f32x4 0.0s 0.0s 0.0s 0.0s in
+    let fail a i =
+      try
+        let _ = unboxed_float32_array_get_float32x4 a i in
+        let _ = unboxed_float32_array_set_float32x4 a i _0 in
+        Printf.printf "Did not fail on index %d\n" i
+      with | Invalid_argument s when s = "index out of bounds" -> ()
+    in
+    fail a (-1);
+    fail a 5;
+    fail a 6;
+    fail [||] 0;
+    fail [|#0.0s|] 0;
+    fail [|#0.0s;#0.0s|] 0;
+    fail [|#0.0s;#0.0s;#0.0s|] 0;
+    fail [|#0.0s;#0.0s;#0.0s;#0.0s|] 1;
+    fail [|#0.0s|] (-1)
   ;;
 end
 

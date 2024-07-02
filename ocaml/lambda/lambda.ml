@@ -270,6 +270,7 @@ type primitive =
   | Pfloat_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Pint_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Punboxed_float_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_float32_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Punboxed_int32_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Punboxed_int64_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Punboxed_nativeint_array_load_128 of { unsafe : bool; mode : alloc_mode }
@@ -277,6 +278,7 @@ type primitive =
   | Pfloat_array_set_128 of { unsafe : bool }
   | Pint_array_set_128 of { unsafe : bool }
   | Punboxed_float_array_set_128 of { unsafe : bool }
+  | Punboxed_float32_array_set_128 of { unsafe : bool }
   | Punboxed_int32_array_set_128 of { unsafe : bool }
   | Punboxed_int64_array_set_128 of { unsafe : bool }
   | Punboxed_nativeint_array_set_128 of { unsafe : bool }
@@ -1758,6 +1760,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pfloat_array_load_128 { mode = m; _ }
   | Pint_array_load_128 { mode = m; _ }
   | Punboxed_float_array_load_128 { mode = m; _ }
+  | Punboxed_float32_array_load_128 { mode = m; _ }
   | Punboxed_int32_array_load_128 { mode = m; _ }
   | Punboxed_int64_array_load_128 { mode = m; _ }
   | Punboxed_nativeint_array_load_128 { mode = m; _ }
@@ -1776,8 +1779,9 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_f32 _
   | Pbigstring_set_64 _ | Pbigstring_set_128 _
   | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
-  | Punboxed_float_array_set_128 _ | Punboxed_int32_array_set_128 _
-  | Punboxed_int64_array_set_128 _ | Punboxed_nativeint_array_set_128 _ -> None
+  | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
+  | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
+  | Punboxed_nativeint_array_set_128 _ -> None
   | Pctconst _ -> None
   | Pbswap16 -> None
   | Pbbswap (_, m) -> Some m
@@ -1867,8 +1871,9 @@ let primitive_result_layout (p : primitive) =
   | Pbytes_set_128 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_f32 _
   | Pbigstring_set_64 _ | Pbigstring_set_128 _
   | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
-  | Punboxed_float_array_set_128 _ | Punboxed_int32_array_set_128 _
-  | Punboxed_int64_array_set_128 _ | Punboxed_nativeint_array_set_128 _
+  | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
+  | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
+  | Punboxed_nativeint_array_set_128 _
     -> layout_unit
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> layout_module_field
   | Pmakeblock _ | Pmakefloatblock _ | Pmakearray _ | Pduprecord _
@@ -1934,6 +1939,8 @@ let primitive_result_layout (p : primitive) =
   | Pfloatarray_load_128 _ | Pfloat_array_load_128 _
   | Punboxed_float_array_load_128 _ ->
     layout_boxed_vector (Pvec128 Float64x2)
+  | Punboxed_float32_array_load_128 _ ->
+    layout_boxed_vector (Pvec128 Float32x4)
   | Pint_array_load_128 _ | Punboxed_int64_array_load_128 _
   | Punboxed_nativeint_array_load_128 _ ->
     (* 128-bit types are only supported in the x86_64 backend, so we may
