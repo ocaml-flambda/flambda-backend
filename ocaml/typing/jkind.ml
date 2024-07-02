@@ -1148,7 +1148,7 @@ let of_new_default_sort_var ~why =
   let jkind, sort = Jkind_desc.of_new_sort_var Non_null in
   fresh_jkind jkind ~why:(Concrete_default_creation why), sort
 
-let of_new_non_null_sort ~why = fst (of_new_default_sort_var ~why)
+let of_new_default_sort ~why = fst (of_new_default_sort_var ~why)
 
 (* CR layouts v2.8: remove this function *)
 let of_const ~why

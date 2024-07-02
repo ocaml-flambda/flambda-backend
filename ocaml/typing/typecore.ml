@@ -1622,7 +1622,7 @@ let solve_Ppat_array ~refine loc env mutability expected_ty =
     if Types.is_mutable mutability then Predef.type_array
     else Predef.type_iarray
   in
-  let jkind, arg_sort = Jkind.of_new_non_null_sort_var ~why:Array_element in
+  let jkind, arg_sort = Jkind.of_new_default_sort_var ~why:Array_element in
   let ty_elt = newgenvar jkind in
   let expected_ty = generic_instance expected_ty in
   unify_pat_types ~refine
@@ -8753,7 +8753,7 @@ and type_generic_array
   in
   check_construct_mutability ~loc ~env mutability argument_mode;
   let argument_mode = mode_modality modalities argument_mode in
-  let jkind, elt_sort = Jkind.of_new_non_null_sort_var ~why:Array_element in
+  let jkind, elt_sort = Jkind.of_new_default_sort_var ~why:Array_element in
   let ty = newgenvar jkind in
   let to_unify = type_ ty in
   with_explanation explanation (fun () ->
