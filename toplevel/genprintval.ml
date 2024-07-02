@@ -253,13 +253,13 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       let const = Jkind.default_to_value_and_get jkind in
       let legacy_layout = Jkind.Const.get_legacy_layout const in
       match legacy_layout with
-      (* CR layouts v3.0: [Value] should probably require special
+      (* CR layouts v3.0: [Value_or_null] should probably require special
          printing to avoid descending into NULL. (This module uses
          lots of unsafe Obj features.)
       *)
-      | Immediate64 | Immediate | Value -> Print_as_value
+      | Immediate64 | Immediate | Value | Value_or_null -> Print_as_value
       | Void -> Print_as "<void>"
-      | Any -> Print_as "<any>"
+      | Any | Any_non_null -> Print_as "<any>"
       | Float64 | Float32 | Bits32 | Bits64 | Word -> Print_as "<abstr>"
 
     let outval_of_value max_steps max_depth check_depth env obj ty =

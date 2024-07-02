@@ -89,8 +89,11 @@ module Layout : sig
     module Legacy : sig
       type t =
         | Any
+        | Any_non_null
+        | Value_or_null
         | Value
         | Void
+        (* CR layouts v3.0: implement [Immediate(64)_or_null]. *)
         | Immediate64
         | Immediate
         | Float64
@@ -111,13 +114,20 @@ module Externality : sig
     | Internal
 end
 
+module Nullability : sig
+  type t =
+    | Non_null
+    | Maybe_null
+end
+
 module Modes = Mode.Alloc.Const
 
 module Jkind_desc : sig
   type 'type_expr t =
     { layout : Layout.t;
       modes_upper_bounds : Modes.t;
-      externality_upper_bound : Externality.t
+      externality_upper_bound : Externality.t;
+      nullability_upper_bound : Nullability.t
     }
 end
 
@@ -141,7 +151,8 @@ module Const : sig
   type 'type_expr t =
     { layout : Layout.Const.t;
       modes_upper_bounds : Modes.t;
-      externality_upper_bound : Externality.t
+      externality_upper_bound : Externality.t;
+      nullability_upper_bound : Nullability.t
     }
 end
 
