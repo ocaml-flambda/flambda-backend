@@ -54,8 +54,8 @@ end
 
 module Nullability : sig
   type t = Jkind_types.Nullability.t =
-    | Non_null (* can't be null *)
-    | Or_null (* can be null *)
+    | Non_null (* proven to not have NULL values *)
+    | Maybe_null (* may have NULL values *)
 
   val le : t -> t -> bool
 

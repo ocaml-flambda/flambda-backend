@@ -203,33 +203,33 @@ end
 module Nullability = struct
   type t = Jkind_types.Nullability.t =
     | Non_null
-    | Or_null
+    | Maybe_null
 
-  let max = Or_null
+  let max = Maybe_null
 
   let equal n1 n2 =
     match n1, n2 with
     | Non_null, Non_null -> true
-    | Or_null, Or_null -> true
-    | (Non_null | Or_null), _ -> false
+    | Maybe_null, Maybe_null -> true
+    | (Non_null | Maybe_null), _ -> false
 
   let less_or_equal n1 n2 : Misc.Le_result.t =
     match n1, n2 with
     | Non_null, Non_null -> Equal
-    | Non_null, Or_null -> Less
-    | Or_null, Non_null -> Not_le
-    | Or_null, Or_null -> Equal
+    | Non_null, Maybe_null -> Less
+    | Maybe_null, Non_null -> Not_le
+    | Maybe_null, Maybe_null -> Equal
 
   let le n1 n2 = Misc.Le_result.is_le (less_or_equal n1 n2)
 
   let meet n1 n2 =
     match n1, n2 with
-    | Non_null, (Non_null | Or_null) | Or_null, Non_null -> Non_null
-    | Or_null, Or_null -> Or_null
+    | Non_null, (Non_null | Maybe_null) | Maybe_null, Non_null -> Non_null
+    | Maybe_null, Maybe_null -> Maybe_null
 
   let print ppf = function
     | Non_null -> Format.fprintf ppf "non_null"
-    | Or_null -> Format.fprintf ppf "or_null"
+    | Maybe_null -> Format.fprintf ppf "maybe_null"
 end
 
 module Modes = struct
@@ -306,10 +306,10 @@ module Const = struct
         nullability_upper_bound
       } : Layout.Const.Legacy.t =
     match layout, externality_upper_bound, nullability_upper_bound with
-    | Any, _, Or_null -> Any
+    | Any, _, Maybe_null -> Any
     | Any, _, Non_null -> Any_non_null
     (* CR layouts v3.0: support [Immediate(64)_or_null]. *)
-    | Sort Value, _, Or_null -> Value_or_null
+    | Sort Value, _, Maybe_null -> Value_or_null
     | Sort Value, Internal, Non_null -> Value
     | Sort Value, External64, Non_null -> Immediate64
     | Sort Value, External, Non_null -> Immediate
@@ -372,7 +372,7 @@ module Const = struct
       }
 
     let any =
-      { jkind = of_layout Any ~mode_crossing:false ~nullability:Or_null;
+      { jkind = of_layout Any ~mode_crossing:false ~nullability:Maybe_null;
         name = "any"
       }
 
@@ -383,7 +383,7 @@ module Const = struct
 
     let value_or_null =
       { jkind =
-          of_layout Layout.Const.value ~mode_crossing:false ~nullability:Or_null;
+          of_layout Layout.Const.value ~mode_crossing:false ~nullability:Maybe_null;
         name = "value_or_null"
       }
 
@@ -444,7 +444,7 @@ module Const = struct
 
     (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
        crossing first *)
-    (* CR layouts v3: change to [Or_null] when separability is implemented. *)
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let float64 =
       { jkind =
           of_layout Layout.Const.float64 ~mode_crossing:true
@@ -454,7 +454,7 @@ module Const = struct
 
     (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
        crossing first *)
-    (* CR layouts v3: change to [Or_null] when separability is implemented. *)
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let float32 =
       { jkind =
           of_layout Layout.Const.float32 ~mode_crossing:true
@@ -462,14 +462,14 @@ module Const = struct
         name = "float32"
       }
 
-    (* CR layouts v3: change to [Or_null] when separability is implemented. *)
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let word =
       { jkind =
           of_layout Layout.Const.word ~mode_crossing:false ~nullability:Non_null;
         name = "word"
       }
 
-    (* CR layouts v3: change to [Or_null] when separability is implemented. *)
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let bits32 =
       { jkind =
           of_layout Layout.Const.bits32 ~mode_crossing:false
@@ -477,7 +477,7 @@ module Const = struct
         name = "bits32"
       }
 
-    (* CR layouts v3: change to [Or_null] when separability is implemented. *)
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let bits64 =
       { jkind =
           of_layout Layout.Const.bits64 ~mode_crossing:false
@@ -652,7 +652,7 @@ module Const = struct
       | "portable" -> Portability Portable
       | "nonportable" -> Portability Nonportable
       | "non_null" -> Nullability Non_null
-      | "or_null" -> Nullability Or_null
+      | "maybe_null" -> Nullability Maybe_null
       | _ -> raise ~loc (Unknown_mode unparsed_mode)
 
     let parse_modes

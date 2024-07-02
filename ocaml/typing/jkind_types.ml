@@ -354,7 +354,7 @@ end
 module Nullability = struct
   type t =
     | Non_null
-    | Or_null
+    | Maybe_null
 end
 
 module Modes = Mode.Alloc.Const
