@@ -54,8 +54,13 @@ type unique_barrier = Mode.Uniqueness.r option
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
+type alloc_mode = {
+  mode : Mode.Alloc.r;
+  closure_context : Env.closure_context option;
+}
+
 type texp_field_boxing =
-  | Boxing of Mode.Alloc.r * unique_use
+  | Boxing of alloc_mode * unique_use
   | Non_boxing of unique_use
 
 let shared_many_use =
@@ -127,6 +132,7 @@ and exp_extra =
   | Texp_poly of core_type option
   | Texp_newtype of string * Jkind.annotation option
   | Texp_mode_coerce of Jane_syntax.Mode_expr.t
+  | Texp_stack
 
 and arg_label = Types.arg_label =
   | Nolabel
@@ -145,7 +151,7 @@ and expression_desc =
         region : bool;
         ret_mode : Mode.Alloc.l;
         ret_sort : Jkind.sort;
-        alloc_mode : Mode.Alloc.r;
+        alloc_mode : alloc_mode;
         zero_alloc : Builtin_attributes.zero_alloc_attribute;
       }
   | Texp_apply of
@@ -153,21 +159,21 @@ and expression_desc =
         Mode.Locality.l * Zero_alloc_utils.Assume_info.t
   | Texp_match of expression * Jkind.sort * computation case list * partial
   | Texp_try of expression * value case list
-  | Texp_tuple of (string option * expression) list * Mode.Alloc.r
+  | Texp_tuple of (string option * expression) list * alloc_mode
   | Texp_construct of
-      Longident.t loc * constructor_description * expression list * Mode.Alloc.r option
-  | Texp_variant of label * (expression * Mode.Alloc.r) option
+      Longident.t loc * constructor_description * expression list * alloc_mode option
+  | Texp_variant of label * (expression * alloc_mode) option
   | Texp_record of {
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
       extended_expression : expression option;
-      alloc_mode : Mode.Alloc.r option
+      alloc_mode : alloc_mode option
     }
   | Texp_field of
       expression * Longident.t loc * label_description * texp_field_boxing
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc * label_description * expression
-  | Texp_array of mutability * Jkind.Sort.t * expression list * Mode.Alloc.r
+  | Texp_array of mutability * Jkind.Sort.t * expression list * alloc_mode
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of mutability * Jkind.sort * comprehension
   | Texp_ifthenelse of expression * expression * expression option
