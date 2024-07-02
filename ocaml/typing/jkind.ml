@@ -383,7 +383,8 @@ module Const = struct
 
     let value_or_null =
       { jkind =
-          of_layout Layout.Const.value ~mode_crossing:false ~nullability:Maybe_null;
+          of_layout Layout.Const.value ~mode_crossing:false
+            ~nullability:Maybe_null;
         name = "value_or_null"
       }
 
