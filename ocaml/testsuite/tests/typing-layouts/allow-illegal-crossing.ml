@@ -669,8 +669,69 @@ val f : ('a : value mod uncontended portable). 'a -> 'a = <fun>
 - : int = 0
 |}]
 
-(*********************************************************************************)
-(* Test 5: layout check is not ignored *)
+(*****************************************)
+(* Test 5: values cannot illegally cross *)
+
+let x : _ as (_ : value mod portable) = "hello world"
+[%%expect {|
+Line 1, characters 40-53:
+1 | let x : _ as (_ : value mod portable) = "hello world"
+                                            ^^^^^^^^^^^^^
+Error: This expression has type string but an expression was expected of type
+         ('a : value mod portable)
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of value, because
+         of the annotation on the wildcard _ at line 1, characters 18-36.
+|}]
+
+type t = { str : string }
+let f _ : _ as (_ : value mod uncontended) = { str = "hello world" }
+[%%expect {|
+type t = { str : string; }
+Line 2, characters 45-68:
+2 | let f _ : _ as (_ : value mod uncontended) = { str = "hello world" }
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type t but an expression was expected of type
+         ('a : value mod uncontended)
+       The layout of t is value, because
+         of the definition of t at line 1, characters 0-25.
+       But the layout of t must be a sublayout of value, because
+         of the annotation on the wildcard _ at line 2, characters 20-41.
+|}]
+
+type t = Foo of string
+let f : ('a : value mod portable). 'a -> 'a = fun _ -> Foo "hello world"
+[%%expect {|
+type t = Foo of string
+Line 2, characters 55-72:
+2 | let f : ('a : value mod portable). 'a -> 'a = fun _ -> Foo "hello world"
+                                                           ^^^^^^^^^^^^^^^^^
+Error: This expression has type t but an expression was expected of type
+         ('a : value mod portable)
+       The layout of t is value, because
+         of the definition of t at line 1, characters 0-22.
+       But the layout of t must be a sublayout of value, because
+         of the annotation on the universal variable 'a.
+|}]
+
+type t = string
+let x : ('a : value mod uncontended) = ("hello world" : t)
+[%%expect {|
+type t = string
+Line 2, characters 39-58:
+2 | let x : ('a : value mod uncontended) = ("hello world" : t)
+                                           ^^^^^^^^^^^^^^^^^^^
+Error: This expression has type t = string
+       but an expression was expected of type ('a : value mod uncontended)
+       The layout of t is value, because
+         it is the primitive value type string.
+       But the layout of t must be a sublayout of value, because
+         of the annotation on the type variable 'a.
+|}]
+
+(***************************************)
+(* Test 6: layout check is not ignored *)
 
 type a : word
 type b : value mod portable = a
