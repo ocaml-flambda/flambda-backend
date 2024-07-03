@@ -47,10 +47,10 @@ let () =
  }{
    runtime5;
    {
-     reference = "${test_source_directory}/backtrace_c_exn.byte.reference";
+     reference = "${test_source_directory}/backtrace_c_exn.r5.reference";
      bytecode;
    }{
-     reference = "${test_source_directory}/backtrace_c_exn.byte.reference";
+     reference = "${test_source_directory}/backtrace_c_exn.r5.reference";
      native;
    }
  }
