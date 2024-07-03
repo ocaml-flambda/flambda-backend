@@ -3355,7 +3355,7 @@ let () =
 
 (* File-level details *)
 
-let type_params params =
+let register_params params =
   List.iter
     (fun param_name ->
        let param = Compilation_unit.Name.of_string param_name in
@@ -3439,7 +3439,7 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
         ignore @@ Warnings.parse_options false "-32-34-37-38-60";
       if !Clflags.as_parameter then
         error Cannot_compile_implementation_as_parameter;
-      type_params !Clflags.parameters;
+      register_params !Clflags.parameters;
       let (str, sg, names, shape, finalenv) =
         Profile.record_call "infer" (fun () ->
           type_structure initial_env ast) in
@@ -3614,7 +3614,7 @@ let type_interface ~sourcefile modulename env ast =
   if !Clflags.as_parameter && !Clflags.parameters <> [] then begin
     error Compiling_as_parameterised_parameter
   end;
-  type_params !Clflags.parameters;
+  register_params !Clflags.parameters;
   if !Clflags.binary_annotations_cms then begin
     let uid = Shape.Uid.of_compilation_unit_id modulename in
     cms_register_toplevel_signature_attributes ~uid ~sourcefile ast

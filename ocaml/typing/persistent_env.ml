@@ -84,8 +84,8 @@ type import_info =
   | Found of import
 
 type binding =
-  | Local of Ident.t (* Bound to a runtime parameter *)
-  | Static of Compilation_unit.t (* Bound to a static constant *)
+  | Variable of Ident.t (* Bound to a runtime parameter *)
+  | Constant of Compilation_unit.t (* Bound to a static constant *)
 
 (* Data relating to an actual referenceable module, with a signature and a
    representation in memory. *)
@@ -350,9 +350,9 @@ let check_for_unset_parameters penv modname import =
 
 let make_binding _penv modname (import : import) : binding =
   match import with
-  | { imp_impl = Some unit; imp_params = [] } -> Static unit
+  | { imp_impl = Some unit; imp_params = [] } -> Constant unit
   | { imp_impl = None } | { imp_params = _ :: _ } ->
-      Local (Ident.create_local_binding_for_global (CU.Name.to_string modname))
+      Variable (Ident.create_local_binding_for_global (CU.Name.to_string modname))
 
 type address =
   | Aunit of Compilation_unit.t
@@ -389,20 +389,20 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
   let binding = make_binding penv modname import in
   let address : address =
     match binding with
-    | Local id -> Alocal id
-    | Static unit -> Aunit unit
+    | Variable id -> Alocal id
+    | Constant unit -> Aunit unit
   in
   let uid =
     (* The uid neeeds to include the either the pack prefix, if it's packed, or
        the arguments, if it has any. It cannot have both. *)
     match binding with
-    | Local _ -> (* FIXME *) Shape.Uid.internal_not_actually_unique
-    | Static unit -> Shape.Uid.of_compilation_unit_id unit
+    | Variable _ -> (* FIXME *) Shape.Uid.internal_not_actually_unique
+    | Constant unit -> Shape.Uid.of_compilation_unit_id unit
   in
   let shape =
     match binding with
-    | Static unit -> Shape.for_persistent_unit (CU.full_path_as_string unit)
-    | Local ident ->
+    | Constant unit -> Shape.for_persistent_unit (CU.full_path_as_string unit)
+    | Variable ident ->
         (* FIXME This is probably wrong for non-parameter modules *)
         Shape.var uid ident
   in
@@ -535,8 +535,8 @@ let imports {imported_units; crc_units; _} =
 
 let local_ident penv modname =
   match find_info_in_cache penv modname with
-  | Some { ps_binding = Local local_ident; _ } -> Some local_ident
-  | Some { ps_binding = Static _; _ }
+  | Some { ps_binding = Variable local_ident; _ } -> Some local_ident
+  | Some { ps_binding = Constant _; _ }
   | None -> None
 
 let locally_bound_imports ({persistent_structures; _} as penv) =
