@@ -1,5 +1,8 @@
 (* TEST
-   runtime5; *)
+   runtime5;
+   { bytecode; }
+   { native; }
+*)
 
 (* Tests the effects of stopping and discarding the current profile
    in an allocation callback, particularly in a combined allocation.

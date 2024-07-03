@@ -6,6 +6,8 @@
    modules = "stubs.c";
    include runtime_events;
    runtime5;
+   { bytecode; }
+   { native; }
  }
 *)
 

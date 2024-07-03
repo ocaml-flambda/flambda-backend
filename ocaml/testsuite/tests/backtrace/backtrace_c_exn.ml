@@ -45,7 +45,13 @@ let () =
      native;
    }
  }{
-   reference = "${test_source_directory}/backtrace_c_exn.byte.reference";
    runtime5;
+   {
+     reference = "${test_source_directory}/backtrace_c_exn.byte.reference";
+     bytecode;
+   }{
+     reference = "${test_source_directory}/backtrace_c_exn.byte.reference";
+     native;
+   }
  }
 *)

@@ -3,9 +3,13 @@
  {
    reference = "${test_source_directory}/callstacks.flat-float-array.reference";
    flat-float-array;
+   { bytecode; }
+   { native; }
  }{
    reference = "${test_source_directory}/callstacks.no-flat-float-array.reference";
    no-flat-float-array;
+   { bytecode; }
+   { native; }
  }
 *)
 
