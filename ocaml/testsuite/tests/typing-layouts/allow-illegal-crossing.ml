@@ -90,16 +90,16 @@ type ('a, 'b) t = { a : 'a; b : 'b; }
 |}]
 
 type a : value mod portable uncontended = private b
-and b : value
+and b
 [%%expect {|
 type a = private b
-and b : value
+and b
 |}]
 
-type a : value
+type a
 and b : value mod portable uncontended = private a
 [%%expect {|
-type a : value
+type a
 and b = private a
 |}]
 
@@ -109,19 +109,19 @@ end = struct
   type t : value mod portable uncontended = private B.t
 end
 and B : sig
-  type t : value
+  type t
 end = struct
-  type t : value
+  type t
 end
 [%%expect {|
 module rec A : sig type t : value mod portable uncontended end
-and B : sig type t : value end
+and B : sig type t end
 |}]
 
 module rec A : sig
-  type t : value
+  type t
 end = struct
-  type t : value
+  type t
 end
 and B : sig
   type t : value mod portable uncontended
@@ -129,7 +129,7 @@ end = struct
   type t : value mod portable uncontended = private A.t
 end
 [%%expect {|
-module rec A : sig type t : value end
+module rec A : sig type t end
 and B : sig type t : value mod portable uncontended end
 |}]
 
@@ -240,60 +240,60 @@ val x : A.t = {A.a = "hello"}
 (********************************************************)
 (* Test 3: types cannot cross other axes when annotated *)
 
-type a : value mod local
+type a
 type b : value mod global = private a
 [%%expect {|
-type a : value mod local
+type a
 Line 2, characters 0-37:
 2 | type b : value mod global = private a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type a is value, because
-         of the definition of a at line 1, characters 0-24.
+         of the definition of a at line 1, characters 0-6.
        But the layout of type a must be a sublayout of value, because
          of the definition of b at line 2, characters 0-37.
 |}]
 
-type a : value mod once
+type a
 type b : value mod many = private a
 [%%expect {|
-type a : value mod once
+type a
 Line 2, characters 0-35:
 2 | type b : value mod many = private a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type a is value, because
-         of the definition of a at line 1, characters 0-23.
+         of the definition of a at line 1, characters 0-6.
        But the layout of type a must be a sublayout of value, because
          of the definition of b at line 2, characters 0-35.
 |}]
 
-type a : value mod shared
+type a
 type b : value mod unique = private a
 [%%expect {|
-type a : value mod shared
+type a
 Line 2, characters 0-37:
 2 | type b : value mod unique = private a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type a is value, because
-         of the definition of a at line 1, characters 0-25.
+         of the definition of a at line 1, characters 0-6.
        But the layout of type a must be a sublayout of value, because
          of the definition of b at line 2, characters 0-37.
 |}]
 
-type a : value
+type a
 type b : immediate = private a
 [%%expect {|
-type a : value
+type a
 Line 2, characters 0-30:
 2 | type b : immediate = private a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type a is value, because
-         of the definition of a at line 1, characters 0-14.
+         of the definition of a at line 1, characters 0-6.
        But the layout of type a must be a sublayout of immediate, because
          of the definition of b at line 2, characters 0-30.
 |}]
 
 module _ = struct
-  type a : value mod local
+  type a
   type b : value mod global = private a
 end
 [%%expect {|
@@ -301,7 +301,7 @@ Line 3, characters 2-39:
 3 |   type b : value mod global = private a
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type a/2 is value, because
-         of the definition of a at line 2, characters 2-26.
+         of the definition of a at line 2, characters 2-8.
        But the layout of type a/2 must be a sublayout of value, because
          of the definition of b at line 3, characters 2-39.
 |}]
@@ -366,25 +366,25 @@ Error: The layout of type t is value, because
 |}]
 
 type a : value mod unique = private b
-and b : value
+and b
 [%%expect {|
 Line 1, characters 0-37:
 1 | type a : value mod unique = private b
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type b is value, because
-         of the annotation on the declaration of the type b.
+         an abstract type has the value layout by default.
        But the layout of type b must be a sublayout of value, because
          of the definition of a at line 1, characters 0-37.
 |}]
 
-type a : value
+type a
 and b : value mod global = private a
 [%%expect {|
 Line 2, characters 0-36:
 2 | and b : value mod global = private a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type a/3 is value, because
-         of the annotation on the declaration of the type a.
+         an abstract type has the value layout by default.
        But the layout of type a/3 must be a sublayout of value, because
          of the definition of b at line 2, characters 0-36.
 |}]
@@ -395,24 +395,24 @@ end = struct
   type t : value mod external_ = private B.t
 end
 and B : sig
-  type t : value
+  type t
 end = struct
-  type t : value
+  type t
 end
 [%%expect {|
 Line 4, characters 2-44:
 4 |   type t : value mod external_ = private B.t
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type B.t is value, because
-         of the definition of t at line 7, characters 2-16.
+         of the definition of t at line 7, characters 2-8.
        But the layout of type B.t must be a sublayout of immediate, because
          of the definition of t at line 4, characters 2-44.
 |}]
 
 module rec A : sig
-  type t : value
+  type t
 end = struct
-  type t : value
+  type t
 end
 and B : sig
   type t : value mod many
@@ -424,7 +424,7 @@ Line 9, characters 2-39:
 9 |   type t : value mod many = private A.t
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type A.t is value, because
-         of the definition of t at line 2, characters 2-16.
+         of the definition of t at line 2, characters 2-8.
        But the layout of type A.t must be a sublayout of value, because
          of the definition of t at line 9, characters 2-39.
 |}]
