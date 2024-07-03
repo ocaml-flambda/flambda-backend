@@ -98,8 +98,9 @@ let value_descriptions ~loc env name
     loc
     vd1.val_attributes vd2.val_attributes
     name;
-  begin try Zero_alloc.sub_exn vd1.val_zero_alloc vd2.val_zero_alloc with
-  | Zero_alloc.Error e -> raise (Dont_match (Zero_alloc e))
+  begin match Zero_alloc.sub vd1.val_zero_alloc vd2.val_zero_alloc with
+  | Ok () -> ()
+  | Error e -> raise (Dont_match (Zero_alloc e))
   end;
   begin match Mode.Modality.Value.sub vd1.val_modalities vd2.val_modalities with
   | Ok () -> ()

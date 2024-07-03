@@ -177,3 +177,10 @@ let sub_exn za1 za2 =
   | _, (Const Default_zero_alloc) -> ()
   | Var v, Const c -> sub_var_const_exn v c
   | Const c1, Const c2 -> sub_const_const_exn c1 c2
+
+let sub za1 za2 =
+  try
+    sub_exn za1 za2;
+    Ok ()
+  with
+  | Error e -> Result.Error e

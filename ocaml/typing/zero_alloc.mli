@@ -41,10 +41,9 @@ val undo_change : change -> unit
 
 (* These are the errors that may be raised by [sub_exn] below. *)
 type error
-exception Error of error
 val print_error : Format.formatter -> error -> unit
 
-(* [sub_exn t1 t2] checks whether the zero_alloc check t1 is stronger than the
-   zero_alloc check t2. If not, it raises [Error]. If [t1] is a variable, it may
-   be set to make the relation hold. *)
-val sub_exn : t -> t -> unit
+(* [sub t1 t2] checks whether the zero_alloc check t1 is stronger than the
+   zero_alloc check t2. It returns [Ok ()] if so, and [Error e] if not.  If [t1]
+   is a variable, it may be set to make the relation hold. *)
+val sub : t -> t -> (unit, error) Result.t
