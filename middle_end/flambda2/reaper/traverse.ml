@@ -48,7 +48,7 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
   in
   let never_delete =
     match Code.zero_alloc_attribute code with
-    | Default_check -> !Clflags.zero_alloc_check_assert_all
+    | Default_zero_alloc -> !Clflags.zero_alloc_check_assert_all
     | Assume _ -> false
     | Check _ -> true
   in
@@ -77,7 +77,7 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
           : Function_declarations.code_id_in_function_declaration)
       in
       match code_id with
-      | Deleted -> ()
+      | Deleted _ -> ()
       | Code_id code_id -> Acc.add_set_of_closures_dep name code_id acc
       (* let code_id = Code_id_or_name.code_id code_id in Acc.record_dep ~denv
          name (Graph.Dep.Contains code_id) acc *))
