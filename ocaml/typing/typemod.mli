@@ -160,6 +160,7 @@ type error =
       old_arg_type: Compilation_unit.Name.t option;
       old_source_file: Misc.filepath;
     }
+  | Submode_failed of Mode.Value.error
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

@@ -112,9 +112,7 @@ let protect_longident ppf print_longident longprefix txt =
   fprintf ppf format print_longident longprefix txt
 
 let is_curry_attr attr =
-  match attr.attr_name.txt with
-  | "extension.curry" -> true
-  | _ -> false
+  attr.attr_name.txt = Jane_syntax.Arrow_curry.curry_attr_name
 
 let filter_curry_attrs attrs =
   List.filter (fun attr -> not (is_curry_attr attr)) attrs

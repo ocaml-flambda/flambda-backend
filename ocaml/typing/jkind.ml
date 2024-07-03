@@ -85,6 +85,8 @@ module Layout = struct
       (* CR layouts v2.8: get rid of this *)
       type t = Jkind_types.Layout.Const.Legacy.t =
         | Any
+        | Any_non_null
+        | Value_or_null
         | Value
         | Void
         | Immediate64
@@ -97,6 +99,10 @@ module Layout = struct
 
       let to_string = function
         | Any -> "any"
+        (* CR layouts v3.0: drop [or_null]/[non_null] suffixes
+           if the layout extension level is less than alpha. *)
+        | Any_non_null -> "any_non_null"
+        | Value_or_null -> "value_or_null"
         | Value -> "value"
         | Void -> "void"
         | Immediate64 -> "immediate64"
@@ -194,6 +200,38 @@ module Externality = struct
     | Internal -> Format.fprintf ppf "internal"
 end
 
+module Nullability = struct
+  type t = Jkind_types.Nullability.t =
+    | Non_null
+    | Maybe_null
+
+  let max = Maybe_null
+
+  let equal n1 n2 =
+    match n1, n2 with
+    | Non_null, Non_null -> true
+    | Maybe_null, Maybe_null -> true
+    | (Non_null | Maybe_null), _ -> false
+
+  let less_or_equal n1 n2 : Misc.Le_result.t =
+    match n1, n2 with
+    | Non_null, Non_null -> Equal
+    | Non_null, Maybe_null -> Less
+    | Maybe_null, Non_null -> Not_le
+    | Maybe_null, Maybe_null -> Equal
+
+  let le n1 n2 = Misc.Le_result.is_le (less_or_equal n1 n2)
+
+  let meet n1 n2 =
+    match n1, n2 with
+    | Non_null, (Non_null | Maybe_null) | Maybe_null, Non_null -> Non_null
+    | Maybe_null, Maybe_null -> Maybe_null
+
+  let print ppf = function
+    | Non_null -> Format.fprintf ppf "non_null"
+    | Maybe_null -> Format.fprintf ppf "maybe_null"
+end
+
 module Modes = struct
   include Alloc.Const
 
@@ -251,7 +289,8 @@ module Const = struct
   let max =
     { layout = Layout.Const.max;
       modes_upper_bounds = Modes.max;
-      externality_upper_bound = Externality.max
+      externality_upper_bound = Externality.max;
+      nullability_upper_bound = Nullability.max
     }
 
   let get_layout const = const.layout
@@ -261,57 +300,69 @@ module Const = struct
   let get_externality_upper_bound const = const.externality_upper_bound
 
   let get_legacy_layout
-      { layout; modes_upper_bounds = _; externality_upper_bound } :
-      Layout.Const.Legacy.t =
-    match layout, externality_upper_bound with
-    | Any, _ -> Any
-    | Sort Value, Internal -> Value
-    | Sort Value, External64 -> Immediate64
-    | Sort Value, External -> Immediate
-    | Sort Void, _ -> Void
-    | Sort Float64, _ -> Float64
-    | Sort Float32, _ -> Float32
-    | Sort Word, _ -> Word
-    | Sort Bits32, _ -> Bits32
-    | Sort Bits64, _ -> Bits64
+      { layout;
+        modes_upper_bounds = _;
+        externality_upper_bound;
+        nullability_upper_bound
+      } : Layout.Const.Legacy.t =
+    match layout, externality_upper_bound, nullability_upper_bound with
+    | Any, _, Maybe_null -> Any
+    | Any, _, Non_null -> Any_non_null
+    (* CR layouts v3.0: support [Immediate(64)_or_null]. *)
+    | Sort Value, _, Maybe_null -> Value_or_null
+    | Sort Value, Internal, Non_null -> Value
+    | Sort Value, External64, Non_null -> Immediate64
+    | Sort Value, External, Non_null -> Immediate
+    | Sort Void, _, _ -> Void
+    | Sort Float64, _, _ -> Float64
+    | Sort Float32, _, _ -> Float32
+    | Sort Word, _, _ -> Word
+    | Sort Bits32, _, _ -> Bits32
+    | Sort Bits64, _, _ -> Bits64
 
   let equal
       { layout = lay1;
         modes_upper_bounds = modes1;
-        externality_upper_bound = ext1
+        externality_upper_bound = ext1;
+        nullability_upper_bound = null1
       }
       { layout = lay2;
         modes_upper_bounds = modes2;
-        externality_upper_bound = ext2
+        externality_upper_bound = ext2;
+        nullability_upper_bound = null2
       } =
     Layout.Const.equal lay1 lay2
     && Modes.equal modes1 modes2
     && Externality.equal ext1 ext2
+    && Nullability.equal null1 null2
 
   let sub
       { layout = lay1;
         modes_upper_bounds = modes1;
-        externality_upper_bound = ext1
+        externality_upper_bound = ext1;
+        nullability_upper_bound = null1
       }
       { layout = lay2;
         modes_upper_bounds = modes2;
-        externality_upper_bound = ext2
+        externality_upper_bound = ext2;
+        nullability_upper_bound = null2
       } =
     Misc.Le_result.combine_list
       [ Layout.Const.sub lay1 lay2;
         Modes.less_or_equal modes1 modes2;
-        Externality.less_or_equal ext1 ext2 ]
+        Externality.less_or_equal ext1 ext2;
+        Nullability.less_or_equal null1 null2 ]
 
-  let not_mode_crossing layout =
+  let of_layout ~mode_crossing ~nullability layout =
+    let modes_upper_bounds, externality_upper_bound =
+      match mode_crossing with
+      | true -> Modes.min, Externality.min
+      | false -> Modes.max, Externality.max
+    in
     { layout;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = Externality.max
-    }
-
-  let mode_crossing layout =
-    { layout;
-      modes_upper_bounds = Modes.min;
-      externality_upper_bound = Externality.min
+      modes_upper_bounds;
+      externality_upper_bound;
+      nullability_upper_bound = nullability
     }
 
   module Primitive = struct
@@ -320,14 +371,42 @@ module Const = struct
         name : string
       }
 
-    let any = { jkind = not_mode_crossing Any; name = "any" }
+    let any =
+      { jkind = of_layout Any ~mode_crossing:false ~nullability:Maybe_null;
+        name = "any"
+      }
 
-    let value = { jkind = not_mode_crossing Layout.Const.value; name = "value" }
+    let any_non_null =
+      { jkind = of_layout Any ~mode_crossing:false ~nullability:Non_null;
+        name = "any_non_null"
+      }
 
-    let void = { jkind = not_mode_crossing Layout.Const.void; name = "void" }
+    let value_or_null =
+      { jkind =
+          of_layout Layout.Const.value ~mode_crossing:false
+            ~nullability:Maybe_null;
+        name = "value_or_null"
+      }
+
+    let value =
+      { jkind =
+          of_layout Layout.Const.value ~mode_crossing:false
+            ~nullability:Non_null;
+        name = "value"
+      }
+
+    (* CR layouts v3: change to [or_null] when separability is implemented. *)
+    let void =
+      { jkind =
+          of_layout Layout.Const.void ~mode_crossing:false ~nullability:Non_null;
+        name = "void"
+      }
 
     let immediate =
-      { jkind = mode_crossing Layout.Const.value; name = "immediate" }
+      { jkind =
+          of_layout Layout.Const.value ~mode_crossing:true ~nullability:Non_null;
+        name = "immediate"
+      }
 
     (* [immediate64] describes types that are stored directly (no indirection)
        on 64-bit platforms but indirectly on 32-bit platforms. The key question:
@@ -366,24 +445,51 @@ module Const = struct
 
     (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
        crossing first *)
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let float64 =
-      { jkind = mode_crossing Layout.Const.float64; name = "float64" }
+      { jkind =
+          of_layout Layout.Const.float64 ~mode_crossing:true
+            ~nullability:Non_null;
+        name = "float64"
+      }
 
     (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
        crossing first *)
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let float32 =
-      { jkind = mode_crossing Layout.Const.float32; name = "float32" }
+      { jkind =
+          of_layout Layout.Const.float32 ~mode_crossing:true
+            ~nullability:Non_null;
+        name = "float32"
+      }
 
-    let word = { jkind = not_mode_crossing Layout.Const.word; name = "word" }
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
+    let word =
+      { jkind =
+          of_layout Layout.Const.word ~mode_crossing:false ~nullability:Non_null;
+        name = "word"
+      }
 
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let bits32 =
-      { jkind = not_mode_crossing Layout.Const.bits32; name = "bits32" }
+      { jkind =
+          of_layout Layout.Const.bits32 ~mode_crossing:false
+            ~nullability:Non_null;
+        name = "bits32"
+      }
 
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let bits64 =
-      { jkind = not_mode_crossing Layout.Const.bits64; name = "bits64" }
+      { jkind =
+          of_layout Layout.Const.bits64 ~mode_crossing:false
+            ~nullability:Non_null;
+        name = "bits64"
+      }
 
     let all =
       [ any;
+        any_non_null;
+        value_or_null;
         value;
         void;
         immediate;
@@ -401,12 +507,14 @@ module Const = struct
     module Bounds = struct
       type t =
         { alloc_bounds : Alloc.Const.t;
-          externality_bound : Externality.t
+          externality_bound : Externality.t;
+          nullability_bound : Nullability.t
         }
 
       let of_jkind jkind =
         { alloc_bounds = jkind.modes_upper_bounds;
-          externality_bound = jkind.externality_upper_bound
+          externality_bound = jkind.externality_upper_bound;
+          nullability_bound = jkind.nullability_upper_bound
         }
     end
 
@@ -430,7 +538,9 @@ module Const = struct
         get_modal_bound ~le:Portability.Const.le ~print:Portability.Const.print
           ~base:base.alloc_bounds.portability actual.alloc_bounds.portability;
         get_modal_bound ~le:Externality.le ~print:Externality.print
-          ~base:base.externality_bound actual.externality_bound ]
+          ~base:base.externality_bound actual.externality_bound;
+        get_modal_bound ~le:Nullability.le ~print:Nullability.print
+          ~base:base.nullability_bound actual.nullability_bound ]
       |> List.rev
       |> List.fold_left
            (fun acc mode ->
@@ -483,13 +593,16 @@ module Const = struct
            built-in abbreviation. For now, we just pretend that the layout name is a valid
            jkind abbreviation whose modal bounds are all max, even though this is a
            lie. *)
+        (* CR layouts v3.0: we also pretend its nullability is [Non_null]
+           to match "legacy" behavior. *)
         let out_jkind_verbose =
           convert_with_base
             ~base:
               { jkind =
                   { layout = jkind.layout;
                     modes_upper_bounds = Modes.max;
-                    externality_upper_bound = Externality.max
+                    externality_upper_bound = Externality.max;
+                    nullability_upper_bound = Nullability.Non_null
                   };
                 name = Layout.Const.to_string jkind.layout
               }
@@ -519,6 +632,7 @@ module Const = struct
       | Contention of Contention.Const.t
       | Portability of Portability.Const.t
       | Externality of Externality.t
+      | Nullability of Nullability.t
 
     let parse_mode unparsed_mode =
       let { txt = name; loc } =
@@ -538,6 +652,8 @@ module Const = struct
       | "uncontended" -> Contention Uncontended
       | "portable" -> Portability Portable
       | "nonportable" -> Portability Nonportable
+      | "non_null" -> Nullability Non_null
+      | "maybe_null" -> Nullability Maybe_null
       | _ -> raise ~loc (Unknown_mode unparsed_mode)
 
     let parse_modes
@@ -555,6 +671,8 @@ module Const = struct
       (* CR layouts 2.8: move this to predef *)
       match name with
       | "any" -> Primitive.any.jkind
+      | "any_non_null" -> Primitive.any_non_null.jkind
+      | "value_or_null" -> Primitive.value_or_null.jkind
       | "value" -> Primitive.value.jkind
       | "void" -> Primitive.void.jkind
       | "immediate64" -> Primitive.immediate64.jkind
@@ -624,6 +742,11 @@ module Const = struct
             externality_upper_bound =
               Externality.meet jkind.externality_upper_bound externality
           }
+        | Nullability nullability ->
+          { jkind with
+            nullability_upper_bound =
+              Nullability.meet jkind.nullability_upper_bound nullability
+          }
       in
       List.fold_left meet_mode base parsed_modes
     | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
@@ -659,16 +782,16 @@ module Jkind_desc = struct
   open Jkind_types.Jkind_desc
 
   let of_const
-      ({ layout; modes_upper_bounds; externality_upper_bound } : Const.t) =
+      ({ layout;
+         modes_upper_bounds;
+         externality_upper_bound;
+         nullability_upper_bound
+       } :
+        Const.t) =
     { layout = Layout.of_const layout;
       modes_upper_bounds;
-      externality_upper_bound
-    }
-
-  let not_mode_crossing layout =
-    { layout;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = Externality.max
+      externality_upper_bound;
+      nullability_upper_bound
     }
 
   let add_mode_crossing t =
@@ -682,52 +805,70 @@ module Jkind_desc = struct
   let equate_or_equal ~allow_mutation
       { layout = lay1;
         modes_upper_bounds = modes1;
-        externality_upper_bound = ext1
+        externality_upper_bound = ext1;
+        nullability_upper_bound = null1
       }
       { layout = lay2;
         modes_upper_bounds = modes2;
-        externality_upper_bound = ext2
+        externality_upper_bound = ext2;
+        nullability_upper_bound = null2
       } =
     Layout.equate_or_equal ~allow_mutation lay1 lay2
     && Modes.equal modes1 modes2
     && Externality.equal ext1 ext2
+    && Nullability.equal null1 null2
 
   let sub
       { layout = lay1;
         modes_upper_bounds = modes1;
-        externality_upper_bound = ext1
+        externality_upper_bound = ext1;
+        nullability_upper_bound = null1
       }
       { layout = lay2;
         modes_upper_bounds = modes2;
-        externality_upper_bound = ext2
+        externality_upper_bound = ext2;
+        nullability_upper_bound = null2
       } =
     Misc.Le_result.combine_list
       [ Layout.sub lay1 lay2;
         Modes.less_or_equal modes1 modes2;
-        Externality.less_or_equal ext1 ext2 ]
+        Externality.less_or_equal ext1 ext2;
+        Nullability.less_or_equal null1 null2 ]
 
   let intersection
       { layout = lay1;
         modes_upper_bounds = modes1;
-        externality_upper_bound = ext1
+        externality_upper_bound = ext1;
+        nullability_upper_bound = null1
       }
       { layout = lay2;
         modes_upper_bounds = modes2;
-        externality_upper_bound = ext2
+        externality_upper_bound = ext2;
+        nullability_upper_bound = null2
       } =
     Option.bind (Layout.intersection lay1 lay2) (fun layout ->
         Some
           { layout;
             modes_upper_bounds = Modes.meet modes1 modes2;
-            externality_upper_bound = Externality.meet ext1 ext2
+            externality_upper_bound = Externality.meet ext1 ext2;
+            nullability_upper_bound = Nullability.meet null1 null2
           })
 
-  let of_new_sort_var () =
+  let of_new_sort_var nullability_upper_bound =
     let layout, sort = Layout.of_new_sort_var () in
-    not_mode_crossing layout, sort
+    ( { layout;
+        modes_upper_bounds = Modes.max;
+        externality_upper_bound = Externality.max;
+        nullability_upper_bound
+      },
+      sort )
 
   module Primitive = struct
     let any = max
+
+    let any_non_null = of_const Const.Primitive.any_non_null.jkind
+
+    let value_or_null = of_const Const.Primitive.value_or_null.jkind
 
     let value = of_const Const.Primitive.value.jkind
 
@@ -779,24 +920,46 @@ module Jkind_desc = struct
   end
 
   (* Post-condition: If the result is [Var v], then [!v] is [None]. *)
-  let get { layout; modes_upper_bounds; externality_upper_bound } : Desc.t =
+  let get
+      { layout;
+        modes_upper_bounds;
+        externality_upper_bound;
+        nullability_upper_bound
+      } : Desc.t =
     match layout with
-    | Any -> Const { layout = Any; modes_upper_bounds; externality_upper_bound }
+    | Any ->
+      Const
+        { layout = Any;
+          modes_upper_bounds;
+          externality_upper_bound;
+          nullability_upper_bound
+        }
     | Sort s -> (
       match Sort.get s with
       | Const s ->
-        Const { layout = Sort s; modes_upper_bounds; externality_upper_bound }
+        Const
+          { layout = Sort s;
+            modes_upper_bounds;
+            externality_upper_bound;
+            nullability_upper_bound
+          }
       | Var v -> Var v)
 
   module Debug_printers = struct
     open Format
 
-    let t ppf { layout; modes_upper_bounds; externality_upper_bound } =
+    let t ppf
+        { layout;
+          modes_upper_bounds;
+          externality_upper_bound;
+          nullability_upper_bound
+        } =
       fprintf ppf
         "{ layout = %a;@ modes_upper_bounds = %a;@ externality_upper_bound = \
-         %a }"
+         %a;@ nullability_upper_bound = %a }"
         Layout.Debug_printers.t layout Modes.print modes_upper_bounds
-        Externality.print externality_upper_bound
+        Externality.print externality_upper_bound Nullability.print
+        nullability_upper_bound
   end
 end
 
@@ -821,6 +984,10 @@ module Primitive = struct
     | Dummy_jkind -> any_dummy_jkind (* share this one common case *)
     | _ -> fresh_jkind Jkind_desc.Primitive.any ~why:(Any_creation why)
 
+  let any_non_null ~why =
+    fresh_jkind Jkind_desc.Primitive.any_non_null
+      ~why:(Any_non_null_creation why)
+
   let value_v1_safety_check =
     { jkind = Jkind_desc.Primitive.value;
       history = Creation (Value_creation V1_safety_check);
@@ -828,6 +995,10 @@ module Primitive = struct
     }
 
   let void ~why = fresh_jkind Jkind_desc.Primitive.void ~why:(Void_creation why)
+
+  let value_or_null ~why =
+    fresh_jkind Jkind_desc.Primitive.value_or_null
+      ~why:(Value_or_null_creation why)
 
   let value ~(why : History.value_creation_reason) =
     match why with
@@ -873,24 +1044,30 @@ let get_required_layouts_level (context : History.annotation_context)
       ( Value | Immediate | Immediate64 | Any | Float64 | Float32 | Word
       | Bits32 | Bits64 ) ) ->
     Stable
-  | _, Void -> Alpha
+  | _, (Any_non_null | Value_or_null | Void) -> Alpha
 
 (******************************)
 (* construction *)
 
 let of_new_sort_var ~why =
-  let jkind, sort = Jkind_desc.of_new_sort_var () in
-  fresh_jkind jkind ~why:(Concrete_creation why), sort
+  let jkind, sort = Jkind_desc.of_new_sort_var Non_null in
+  fresh_jkind jkind ~why:(Concrete_default_creation why), sort
 
 let of_new_sort ~why = fst (of_new_sort_var ~why)
 
 (* CR layouts v2.8: remove this function *)
 let of_const ~why
-    ({ layout; modes_upper_bounds; externality_upper_bound } : Const.t) =
+    ({ layout;
+       modes_upper_bounds;
+       externality_upper_bound;
+       nullability_upper_bound
+     } :
+      Const.t) =
   { jkind =
       { layout = Layout.of_const layout;
         modes_upper_bounds;
-        externality_upper_bound
+        externality_upper_bound;
+        nullability_upper_bound
       };
     history = Creation why;
     has_warned = false
@@ -974,14 +1151,26 @@ let for_boxed_variant ~all_voids =
 (* elimination and defaulting *)
 
 let default_to_value_and_get
-    { jkind = { layout; modes_upper_bounds; externality_upper_bound }; _ } :
-    Const.t =
+    { jkind =
+        { layout;
+          modes_upper_bounds;
+          externality_upper_bound;
+          nullability_upper_bound
+        };
+      _
+    } : Const.t =
   match layout with
-  | Any -> { layout = Any; modes_upper_bounds; externality_upper_bound }
+  | Any ->
+    { layout = Any;
+      modes_upper_bounds;
+      externality_upper_bound;
+      nullability_upper_bound
+    }
   | Sort s ->
     { layout = Sort (Sort.default_to_value_and_get s);
       modes_upper_bounds;
-      externality_upper_bound
+      externality_upper_bound;
+      nullability_upper_bound
     }
 
 let default_to_value t = ignore (default_to_value_and_get t)
@@ -1093,8 +1282,8 @@ end = struct
     let to_ordinal num = Int.to_string num ^ Misc.ordinal_suffix num in
     match arity with 1 -> "" | _ -> to_ordinal position ^ " "
 
-  let format_concrete_jkind_reason ppf : History.concrete_jkind_reason -> unit =
-    function
+  let format_concrete_default_creation_reason ppf :
+      History.concrete_default_creation_reason -> unit = function
     | Match -> fprintf ppf "a value of this type is matched against a pattern"
     | Constructor_declaration _ ->
       fprintf ppf "it's the type of a constructor field"
@@ -1287,18 +1476,22 @@ end = struct
     | Missing_cmi p ->
       fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
     | Any_creation any -> format_any_creation_reason ppf any
+    | Any_non_null_creation _ -> .
     | Immediate_creation immediate ->
       format_immediate_creation_reason ppf immediate
     | Immediate64_creation immediate64 ->
       format_immediate64_creation_reason ppf immediate64
     | Void_creation _ -> .
+    | Value_or_null_creation _ -> .
     | Value_creation value -> format_value_creation_reason ppf value
     | Float64_creation float -> format_float64_creation_reason ppf float
     | Float32_creation float -> format_float32_creation_reason ppf float
     | Word_creation word -> format_word_creation_reason ppf word
     | Bits32_creation bits32 -> format_bits32_creation_reason ppf bits32
     | Bits64_creation bits64 -> format_bits64_creation_reason ppf bits64
-    | Concrete_creation concrete -> format_concrete_jkind_reason ppf concrete
+    | Concrete_creation _ -> .
+    | Concrete_default_creation concrete ->
+      format_concrete_default_creation_reason ppf concrete
     | Imported ->
       fprintf ppf "of layout requirements from an imported definition"
     | Imported_type_argument { parent_path; position; arity } ->
@@ -1332,7 +1525,7 @@ end = struct
     | Creation reason -> (
       fprintf ppf ", because@ %a" format_creation_reason reason;
       match reason, jkind_desc with
-      | Concrete_creation _, Const _ ->
+      | Concrete_default_creation _, Const _ ->
         fprintf ppf ", defaulted to layout %a" Desc.format jkind_desc
       | _ -> ())
     | _ -> assert false);
@@ -1484,7 +1677,7 @@ let score_reason = function
   (* error_message annotated by the user should always take priority *)
   | Creation (Annotated (With_error_message _, _)) -> 1
   (* Concrete creation is quite vague, prefer more specific reasons *)
-  | Creation (Concrete_creation _) -> -1
+  | Creation (Concrete_creation _ | Concrete_default_creation _) -> -1
   | _ -> 0
 
 let combine_histories reason lhs rhs =
@@ -1552,8 +1745,8 @@ let has_layout_any jkind =
 module Debug_printers = struct
   open Format
 
-  let concrete_jkind_reason ppf : History.concrete_jkind_reason -> unit =
-    function
+  let concrete_default_creation_reason ppf :
+      History.concrete_default_creation_reason -> unit = function
     | Match -> fprintf ppf "Match"
     | Constructor_declaration idx ->
       fprintf ppf "Constructor_declaration %d" idx
@@ -1678,11 +1871,13 @@ module Debug_printers = struct
         loc
     | Missing_cmi p -> fprintf ppf "Missing_cmi %a" !printtyp_path p
     | Any_creation any -> fprintf ppf "Any_creation %a" any_creation_reason any
+    | Any_non_null_creation _ -> .
     | Immediate_creation immediate ->
       fprintf ppf "Immediate_creation %a" immediate_creation_reason immediate
     | Immediate64_creation immediate64 ->
       fprintf ppf "Immediate64_creation %a" immediate64_creation_reason
         immediate64
+    | Value_or_null_creation _ -> .
     | Value_creation value ->
       fprintf ppf "Value_creation %a" value_creation_reason value
     | Void_creation _ -> .
@@ -1696,8 +1891,10 @@ module Debug_printers = struct
       fprintf ppf "Bits32_creation %a" bits32_creation_reason bits32
     | Bits64_creation bits64 ->
       fprintf ppf "Bits64_creation %a" bits64_creation_reason bits64
-    | Concrete_creation concrete ->
-      fprintf ppf "Concrete_creation %a" concrete_jkind_reason concrete
+    | Concrete_creation _ -> .
+    | Concrete_default_creation concrete ->
+      fprintf ppf "Concrete_default_creation %a"
+        concrete_default_creation_reason concrete
     | Imported -> fprintf ppf "Imported"
     | Imported_type_argument { parent_path; position; arity } ->
       fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a" position

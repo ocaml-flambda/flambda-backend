@@ -206,7 +206,7 @@ module Typing_env : sig
 
   (** Raises [Not_found] if no canonical [Simple] was found. *)
   val type_simple_in_term_exn :
-    t -> ?min_name_mode:Name_mode.t -> Simple.t -> flambda_type
+    t -> ?min_name_mode:Name_mode.t -> Simple.t -> flambda_type * Simple.t
 
   (** Raises [Not_found] if no canonical [Simple] was found. *)
   val get_alias_then_canonical_simple_exn :
@@ -539,8 +539,6 @@ val alias_type_of : Flambda_kind.t -> Simple.t -> t
 (** Determine the (unique) kind of a type. *)
 val kind : t -> Flambda_kind.t
 
-val get_alias_exn : t -> Simple.t
-
 (** For each of the kinds in an arity, create an "unknown" type. *)
 val unknown_types_from_arity : [`Unarized] Flambda_arity.t -> t list
 
@@ -549,6 +547,8 @@ val unknown_types_from_arity : [`Unarized] Flambda_arity.t -> t list
 val is_bottom : Typing_env.t -> t -> bool
 
 val is_unknown : Typing_env.t -> t -> bool
+
+val is_alias_to_a_symbol : t -> bool
 
 val type_for_const : Reg_width_const.t -> t
 

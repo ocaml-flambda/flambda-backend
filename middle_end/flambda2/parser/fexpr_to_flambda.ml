@@ -525,7 +525,11 @@ let set_of_closures env fun_decls value_slots alloc =
       function_slot, code_id
     in
     List.map translate_fun_decl fun_decls
-    |> Function_slot.Lmap.of_list |> Function_declarations.create
+    |> Function_slot.Lmap.of_list
+    |> Function_slot.Lmap.map
+         (fun code_id : Function_declarations.code_id_in_function_declaration ->
+           Code_id code_id)
+    |> Function_declarations.create
   in
   let value_slots = Option.value value_slots ~default:[] in
   let value_slots : Simple.t Value_slot.Map.t =
@@ -925,7 +929,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             ~first_complex_local_param:(Flambda_arity.num_params params_arity)
             ~result_arity ~result_types:Unknown ~result_mode
             ~contains_no_escaping_local_allocs:false ~stub:false ~inline
-            ~zero_alloc_attribute:Default_check
+            ~zero_alloc_attribute:Default_zero_alloc
               (* CR gyorsh: should [check] be set properly? *)
             ~is_a_functor:false ~is_opaque:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)

@@ -133,7 +133,7 @@ type error =
   | Local_not_enabled
   | Unexpected_layout_any_in_primitive of string
   | Useless_layout_poly
-  | Modalities_on_value_description
+  | Modality_on_primitive
   | Zero_alloc_attr_unsupported of Builtin_attributes.zero_alloc_attribute
   | Zero_alloc_attr_non_function
   | Zero_alloc_attr_bad_user_arity
@@ -426,7 +426,16 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
           | Immutable -> Immutable
           | Mutable -> Mutable Mode.Alloc.Comonadic.Const.legacy
          in
-         let modalities = Typemode.transl_modalities mut modalities in
+         let has_mutable_implied_modalities =
+          if Types.is_mutable mut then
+            not (Builtin_attributes.has_no_mutable_implied_modalities attrs)
+          else
+            false
+         in
+         let modalities =
+          Typemode.transl_modalities ~maturity:Stable
+            ~has_mutable_implied_modalities modalities
+         in
          let arg = Ast_helper.Typ.force_poly arg in
          let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
          {ld_id = Ident.create_local name.txt;
@@ -462,8 +471,14 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
 let transl_types_gf ~new_var_jkind ~allow_unboxed
   env loc univars closed cal kloc =
   let mk arg =
-    let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg.pca_type in
-    let gf = Typemode.transl_modalities Immutable arg.pca_modalities in
+    let cty =
+      transl_simple_type ~new_var_jkind env ?univars ~closed
+        Mode.Alloc.Const.legacy arg.pca_type
+    in
+    let gf =
+      Typemode.transl_modalities ~maturity:Stable
+        ~has_mutable_implied_modalities:false arg.pca_modalities
+    in
     {ca_modalities = gf; ca_type = cty; ca_loc = arg.pca_loc}
   in
   let tyl_gfl = List.map mk cal in
@@ -2868,10 +2883,6 @@ let error_if_containing_unexpected_jkind prim env cty ty =
 (* Translate a value declaration *)
 let transl_value_decl env loc valdecl =
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
-  begin match valdecl.pval_modalities with
-  | [] -> ()
-  | m :: _ -> raise (Error(m.loc, Modalities_on_value_description))
-  end;
   (* CR layouts v5: relax this to check for representability. *)
   begin match Ctype.constrain_type_jkind env cty.ctyp_type
                 (Jkind.Primitive.value ~why:Structure_element) with
@@ -2883,6 +2894,12 @@ let transl_value_decl env loc valdecl =
   let v =
   match valdecl.pval_prim with
     [] when Env.is_in_signature env ->
+      let modalities =
+        valdecl.pval_modalities
+        |> Typemode.transl_modalities ~maturity:Alpha
+            ~has_mutable_implied_modalities:false
+        |> Mode.Modality.Value.of_const
+      in
       let default_arity =
         let rec count_arrows n ty =
           match get_desc ty with
@@ -2906,13 +2923,18 @@ let transl_value_decl env loc valdecl =
         raise (Error(valdecl.pval_loc, Zero_alloc_attr_unsupported zero_alloc))
       end;
       { val_type = ty; val_kind = Val_reg; Types.val_loc = loc;
-        val_attributes = valdecl.pval_attributes;
+        val_attributes = valdecl.pval_attributes; val_modalities = modalities;
         val_zero_alloc = zero_alloc;
         val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
       }
   | [] ->
       raise (Error(valdecl.pval_loc, Val_in_structure))
   | _ ->
+      let modalities =
+        match valdecl.pval_modalities with
+        | [] -> Mode.Modality.Value.id
+        | m :: _ -> raise (Error(m.loc, Modality_on_primitive))
+      in
       let global_repr =
         match
           get_native_repr_attribute valdecl.pval_attributes ~global_repr:None
@@ -2946,7 +2968,7 @@ let transl_value_decl env loc valdecl =
       then raise(Error(valdecl.pval_type.ptyp_loc, Missing_native_external));
       check_unboxable env loc ty;
       { val_type = ty; val_kind = Val_prim prim; Types.val_loc = loc;
-        val_attributes = valdecl.pval_attributes;
+        val_attributes = valdecl.pval_attributes; val_modalities = modalities;
         val_zero_alloc = Builtin_attributes.Default_zero_alloc;
         val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
       }
@@ -3703,9 +3725,9 @@ let report_error ppf = function
         "@[[@@layout_poly] on this external declaration has no@ \
            effect. Consider removing it or adding a type@ \
            variable for it to operate on.@]"
-  | Modalities_on_value_description ->
+  | Modality_on_primitive ->
       fprintf ppf
-        "@[Modalities on value descriptions are not supported yet.@]"
+        "@[Modality on primitive is not supported yet.@]"
   | Zero_alloc_attr_unsupported ca ->
       let variety = match ca with
         | Default_zero_alloc  | Check _ -> assert false

@@ -665,7 +665,11 @@ let set_of_closures env sc =
       (fun (function_slot, fun_decl) ->
         function_declaration env fun_decl function_slot alloc)
       (Set_of_closures.function_decls sc
-      |> Function_declarations.funs_in_order |> Function_slot.Lmap.bindings)
+      |> Function_declarations.funs_in_order
+      |> Function_slot.Lmap.map (function
+           | Function_declarations.Deleted _ -> Misc.fatal_error "todo"
+           | Function_declarations.Code_id code_id -> code_id)
+      |> Function_slot.Lmap.bindings)
   in
   let elts = value_slots env (Set_of_closures.value_slots sc) in
   let elts = match elts with [] -> None | _ -> Some elts in

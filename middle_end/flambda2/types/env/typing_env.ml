@@ -1098,8 +1098,9 @@ let type_simple_in_term_exn t ?min_name_mode simple =
     Format.eprintf "\n%tContext is:%t typing environment@ %a\n"
       Flambda_colours.error Flambda_colours.pop print t;
     Printexc.raise_with_backtrace Misc.Fatal_error bt
-  | exception Binding_time_resolver_failure -> TG.alias_type_of kind simple
-  | alias -> TG.alias_type_of kind alias
+  | exception Binding_time_resolver_failure ->
+    TG.alias_type_of kind simple, simple
+  | alias -> TG.alias_type_of kind alias, alias
 
 let get_canonical_simple_exn t ?min_name_mode ?name_mode_of_existing_simple
     simple =

@@ -960,15 +960,12 @@ let name_of_primitive = function
 let zero_alloc_attribute ppf check =
   match check with
   | Default_zero_alloc -> ()
-  | Ignore_assert_all ->
-    fprintf ppf "ignore assert all zero_alloc@ "
   | Assume {strict; never_returns_normally; loc = _} ->
     fprintf ppf "assume_zero_alloc%s%s@ "
       (if strict then "_strict" else "")
       (if never_returns_normally then "_never_returns_normally" else "")
-  | Check {strict; loc = _; opt} ->
-    fprintf ppf "assert_zero_alloc%s%s@ "
-      (if opt then "_opt" else "")
+  | Check {strict; loc = _; } ->
+    fprintf ppf "assert_zero_alloc%s@ "
       (if strict then "_strict" else "")
 
 let function_attribute ppf t =

@@ -128,11 +128,11 @@ module Solver_mono (C : Lattices_mono) = struct
     | Amodejoin :
         'a * ('a, 'l * disallowed) morphvar list
         -> ('a, 'l * disallowed) mode
-        (** [Amodejoin a [mv0, mv1, ...]] represents [a join mv0 join mv1 join ...] *)
+        (** [Amodejoin a [mv0, mv1, ..]] represents [a join mv0 join mv1 join ..] *)
     | Amodemeet :
         'a * ('a, disallowed * 'r) morphvar list
         -> ('a, disallowed * 'r) mode
-        (** [Amodemeet a [mv0, mv1, ...]] represents [a meet mv0 meet mv1 meet ...]. *)
+        (** [Amodemeet a [mv0, mv1, ..]] represents [a meet mv0 meet mv1 meet ..]. *)
 
   (** Prints a mode variable, including the set of variables below it
       (recursively). To handle cycles, [traversed] is the set of variables that
@@ -154,8 +154,8 @@ module Solver_mono (C : Lattices_mono) = struct
   let rec print_var : type a. ?traversed:VarSet.t -> a C.obj -> _ -> a var -> _
       =
    fun ?traversed obj ppf v ->
-    Format.fprintf ppf "%x[%a,%a]" v.id (C.print obj) v.lower (C.print obj)
-      v.upper;
+    Format.fprintf ppf "modevar#%x[%a .. %a]" v.id (C.print obj) v.lower
+      (C.print obj) v.upper;
     match traversed with
     | None -> ()
     | Some traversed ->
