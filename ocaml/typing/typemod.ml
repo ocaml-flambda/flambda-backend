@@ -2127,7 +2127,7 @@ let rec remove_modality_and_zero_alloc_variables_sg env ~zap_modality sg =
           |> zap_modality |> Mode.Modality.Value.of_const
         in
         let val_zero_alloc =
-          Zero_alloc.create (Zero_alloc.get desc.val_zero_alloc)
+          Zero_alloc.create_const (Zero_alloc.get desc.val_zero_alloc)
         in
         let desc = {desc with val_modalities; val_zero_alloc} in
         Sig_value (id, desc, vis)
@@ -2915,7 +2915,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                 | Assume { strict; arity; loc;
                            never_returns_normally = _;
                            never_raises = _} ->
-                  Zero_alloc.create (Check { strict; arity; loc; opt = false })
+                  Zero_alloc.create_const (Check { strict; arity; loc; opt = false })
                 | Ignore_assert_all -> Zero_alloc.default
               in
               let (first_loc, _, _) = List.hd id_info in

@@ -1078,10 +1078,11 @@ let let_bound_idents_with_modes_sorts_and_checks bindings =
                 the check. *)
              let arity = function_arity fn.params fn.body in
              if !Clflags.zero_alloc_check_assert_all && arity > 0 then
-               Zero_alloc.create (Check { strict = false;
-                                          arity;
-                                          loc = Location.none;
-                                          opt = false })
+               Zero_alloc.create_const
+                 (Check { strict = false;
+                          arity;
+                          loc = Location.none;
+                          opt = false })
              else
                fn.zero_alloc
            | Ignore_assert_all | Check _ | Assume _ -> fn.zero_alloc

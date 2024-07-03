@@ -2920,7 +2920,7 @@ let transl_value_decl env loc valdecl =
             raise (Error(valdecl.pval_loc, Zero_alloc_attr_non_function));
           if za.arity <= 0 then
             raise (Error(valdecl.pval_loc, Zero_alloc_attr_bad_user_arity));
-          Zero_alloc.create zero_alloc
+          Zero_alloc.create_const zero_alloc
         | Assume _ | Ignore_assert_all ->
           raise (Error(valdecl.pval_loc, Zero_alloc_attr_unsupported zero_alloc))
       in

@@ -23,7 +23,7 @@ type t
    done. *)
 val default : t
 
-val create : const -> t
+val create_const : const -> t
 
 (* [create_var loc n] creates a variable. [loc] is the location of the function
    you are creating a variable for, and [n] is its syntactic arity of the

@@ -755,7 +755,7 @@ let rec subst_lazy_value_description s descr =
          more strictly than the signature indicates, which is sound). *)
      (match s.additional_action with
       | Prepare_for_saving _ ->
-        Zero_alloc.create (Zero_alloc.get descr.val_zero_alloc)
+        Zero_alloc.create_const (Zero_alloc.get descr.val_zero_alloc)
       | _ -> descr.val_zero_alloc);
     val_attributes = attrs s descr.val_attributes;
     val_uid = descr.val_uid;

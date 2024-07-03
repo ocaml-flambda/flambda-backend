@@ -36,7 +36,7 @@ let undo_change (d, v) = v.desc <- d
 let log_change = ref (fun _ -> ())
 let set_change_log f = log_change := f
 
-let create x = Const x
+let create_const x = Const x
 let create_var loc arity = Var { loc; arity; desc = None }
 let default = Const Default_zero_alloc
 

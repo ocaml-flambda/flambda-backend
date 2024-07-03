@@ -5106,7 +5106,7 @@ let add_zero_alloc_attribute expr attributes =
       end;
       (* Here, we may be throwing away a zero_alloc variable. There's no need
          to set it, because it can't have gotten anywhere else yet. *)
-      let zero_alloc = Zero_alloc.create za in
+      let zero_alloc = Zero_alloc.create_const za in
       let exp_desc = Texp_function { fn with zero_alloc } in
       { expr with exp_desc }
     end
@@ -8913,7 +8913,8 @@ and type_n_ary_function
     let zero_alloc =
       match zero_alloc with
       | Default_zero_alloc -> Zero_alloc.create_var loc syntactic_arity
-      | (Check _ | Assume _ | Ignore_assert_all) -> Zero_alloc.create zero_alloc
+      | (Check _ | Assume _ | Ignore_assert_all) ->
+        Zero_alloc.create_const zero_alloc
     in
     re
       { exp_desc =
