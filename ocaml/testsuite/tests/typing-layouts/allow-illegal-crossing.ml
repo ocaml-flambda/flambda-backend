@@ -5,78 +5,42 @@
  }
 *)
 
-(******************************************************************************)
-(* Test 1: types can cross the portability and contention axes when annotated *)
+(*************************************************************************************)
+(* Test 1: nominative types can cross portability and contention axes when annotated *)
 
-type a : value mod nonportable
-type b : value mod portable = private a
+type a
+type b : value mod portable = { a : int; b : int }
 [%%expect {|
-type a : value mod nonportable
-type b = private a
+type a
+type b = { a : int; b : int; }
 |}]
 
-type a : value mod contended
-type b : value mod uncontended = private a
+type a
+type b : value mod uncontended = Foo of int
 [%%expect {|
-type a : value mod contended
-type b = private a
+type a
+type b = Foo of int
 |}]
 
-type a : value mod contended nonportable
-type b : value mod uncontended portable = private a
+type a
+type b : value mod uncontended portable = Foo of int | Bar of int
 [%%expect {|
-type a : value mod contended nonportable
-type b = private a
-|}]
-
-type a : word
-type b : word mod uncontended portable = private a
-[%%expect {|
-type a : word
-type b = private a
-|}]
-
-type a : word
-type b : any mod uncontended portable = private a
-[%%expect {|
-type a : word
-type b = private a
-|}]
-
-type a : value mod global many unique external_
-type b : immediate = private a
-[%%expect {|
-type a : value mod global many unique external_
-type b = private a
+type a
+type b = Foo of int | Bar of int
 |}]
 
 module _ = struct
-  type a : value mod contended
+  type a
   type b : value mod uncontended = private a
 end
 [%%expect {|
-|}]
-
-module A : sig
-  type t
-end = struct
-  type t : value mod portable = private string
-end
-
-type t : value mod portable = private A.t
-[%%expect {|
-module A : sig type t end
-type t = private A.t
-|}]
-
-type 'a t : value mod portable = private 'a
-[%%expect {|
-type 'a t = private 'a
-|}]
-
-type t : value mod portable = private string
-[%%expect {|
-type t = private string
+Line 3, characters 2-44:
+3 |   type b : value mod uncontended = private a
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type a is value, because
+         of the definition of a at line 2, characters 2-8.
+       But the layout of type a must be a sublayout of value, because
+         of the definition of b at line 3, characters 2-44.
 |}]
 
 type t : value mod portable uncontended = { a : int; b : int }
@@ -87,50 +51,6 @@ type t = { a : int; b : int; }
 type ('a, 'b) t : value mod portable uncontended = { a : 'a; b : 'b }
 [%%expect {|
 type ('a, 'b) t = { a : 'a; b : 'b; }
-|}]
-
-type a : value mod portable uncontended = private b
-and b
-[%%expect {|
-type a = private b
-and b
-|}]
-
-type a
-and b : value mod portable uncontended = private a
-[%%expect {|
-type a
-and b = private a
-|}]
-
-module rec A : sig
-  type t : value mod portable uncontended
-end = struct
-  type t : value mod portable uncontended = private B.t
-end
-and B : sig
-  type t
-end = struct
-  type t
-end
-[%%expect {|
-module rec A : sig type t : value mod portable uncontended end
-and B : sig type t end
-|}]
-
-module rec A : sig
-  type t
-end = struct
-  type t
-end
-and B : sig
-  type t : value mod portable uncontended
-end = struct
-  type t : value mod portable uncontended = private A.t
-end
-[%%expect {|
-module rec A : sig type t end
-and B : sig type t : value mod portable uncontended end
 |}]
 
 type t : value mod portable = private { foo : string }
@@ -172,7 +92,7 @@ type b = a = private Foo of int | Bar
 |}]
 
 module A : sig
-  type t : value mod contended portable = { a : string }
+  type t : value mod portable = { a : string }
 end = struct
   type t = { a : string }
 end
@@ -183,20 +103,20 @@ module A : sig type t = { a : string; } end
 (********************************************)
 (* Test 2: illegal mode crossing propogates *)
 
-type a : value mod portable uncontended = private string
+type a : value mod portable uncontended = Foo of string
 type ('a : value mod portable uncontended) b
 type c = a b
 [%%expect {|
-type a = private string
+type a = Foo of string
 type ('a : value mod uncontended portable) b
 type c = a b
 |}]
 
-type t : value mod portable uncontended = private string
+type t : value mod portable uncontended = { a : string; b : int }
 let f : ('a : value mod portable uncontended). 'a -> 'a = fun x -> x
 let g (x : t) = f x
 [%%expect {|
-type t = private string
+type t = { a : string; b : int; }
 val f : ('a : value mod uncontended portable). 'a -> 'a = <fun>
 val g : t -> t = <fun>
 |}]
@@ -223,13 +143,13 @@ val x : t = Foo "hello world"
 |}]
 
 module A : sig
-  type t : value mod contended portable = { a : string }
+  type t : value mod portable = { a : string }
 end = struct
   type t = { a : string }
 end
-type ('a : value mod contended portable) u = 'a
+type ('a : value mod portable) u = 'a
 type v = A.t u
-let x : _ as (_ : value mod contended portable) = ({ a = "hello" } : A.t)
+let x : _ as (_ : value mod portable) = ({ a = "hello" } : A.t)
 [%%expect {|
 module A : sig type t = { a : string; } end
 type ('a : value mod portable) u = 'a
@@ -433,7 +353,7 @@ Error: The layout of type A.t is value, because
 (* Test 4: types cannot cross portability and contention axes when not annotated *)
 
 module A : sig
-  type t : value mod contended portable
+  type t : value mod portable
 end = struct
   type t = { a : string }
 end
@@ -446,22 +366,22 @@ Error: Signature mismatch:
        Modules do not match:
          sig type t = { a : string; } end
        is not included in
-         sig type t : value mod contended portable end
+         sig type t : value mod portable end
        Type declarations do not match:
          type t = { a : string; }
        is not included in
-         type t : value mod contended portable
+         type t : value mod portable
        The layout of the first is value, because
          of the definition of t at line 4, characters 2-25.
        But the layout of the first must be a sublayout of value, because
-         of the definition of t at line 2, characters 2-39.
+         of the definition of t at line 2, characters 2-29.
 |}]
 
 module A : sig
-  type t : value mod contended portable = { a : string }
+  type t : value mod portable = { a : string }
 end = struct
   type t = { a : string }
-  type ('a : value mod contended portable) u = 'a
+  type ('a : value mod portable) u = 'a
   type v = t u
 end
 [%%expect {|
@@ -472,25 +392,25 @@ Error: This type t should be an instance of type ('a : value mod portable)
        The layout of t is value, because
          of the definition of t at line 4, characters 2-25.
        But the layout of t must be a sublayout of value, because
-         of the definition of u at line 5, characters 2-49.
+         of the definition of u at line 5, characters 2-39.
 |}]
 
 module A : sig
-  type t : value mod contended portable = { a : string }
+  type t : value mod portable = { a : string }
 end = struct
   type t = { a : string }
-  let x : _ as (_ : value mod contended portable) = { a = "hello" }
+  let x : _ as (_ : value mod portable) = { a = "hello" }
 end
 [%%expect {|
-Line 5, characters 52-67:
-5 |   let x : _ as (_ : value mod contended portable) = { a = "hello" }
-                                                        ^^^^^^^^^^^^^^^
+Line 5, characters 42-57:
+5 |   let x : _ as (_ : value mod portable) = { a = "hello" }
+                                              ^^^^^^^^^^^^^^^
 Error: This expression has type t but an expression was expected of type
          ('a : value mod portable)
        The layout of t is value, because
          of the definition of t at line 4, characters 2-25.
        But the layout of t must be a sublayout of value, because
-         of the annotation on the wildcard _ at line 5, characters 20-48.
+         of the annotation on the wildcard _ at line 5, characters 20-38.
 |}]
 
 type a
@@ -770,4 +690,164 @@ Error: The layout of type a is any, because
          of the definition of a at line 1, characters 0-12.
        But the layout of type a must be a sublayout of value, because
          of the definition of b at line 2, characters 0-34.
+|}]
+
+(****************************************************************)
+(* Test 6: Non-nominative types cannot perform illegal crossing *)
+
+type a
+type b : value mod portable = a
+[%%expect {|
+type a
+Line 2, characters 0-31:
+2 | type b : value mod portable = a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type a is value, because
+         of the definition of a at line 1, characters 0-6.
+       But the layout of type a must be a sublayout of value, because
+         of the definition of b at line 2, characters 0-31.
+|}]
+
+type a
+type b : value mod uncontended = a
+[%%expect {|
+type a
+Line 2, characters 0-34:
+2 | type b : value mod uncontended = a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type a is value, because
+         of the definition of a at line 1, characters 0-6.
+       But the layout of type a must be a sublayout of value, because
+         of the definition of b at line 2, characters 0-34.
+|}]
+
+type a
+type b : value mod portable = private a
+[%%expect {|
+type a
+Line 2, characters 0-39:
+2 | type b : value mod portable = private a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type a is value, because
+         of the definition of a at line 1, characters 0-6.
+       But the layout of type a must be a sublayout of value, because
+         of the definition of b at line 2, characters 0-39.
+|}]
+
+type a
+type b : value mod uncontended = private a
+[%%expect {|
+type a
+Line 2, characters 0-42:
+2 | type b : value mod uncontended = private a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type a is value, because
+         of the definition of a at line 1, characters 0-6.
+       But the layout of type a must be a sublayout of value, because
+         of the definition of b at line 2, characters 0-42.
+|}]
+
+type a : word
+type b : any mod uncontended portable = private a
+[%%expect {|
+type a : word
+Line 2, characters 0-49:
+2 | type b : any mod uncontended portable = private a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type a is word, because
+         of the definition of a at line 1, characters 0-13.
+       But the layout of type a must be a sublayout of any, because
+         of the definition of b at line 2, characters 0-49.
+|}]
+
+type a : value mod global many unique external_
+type b : immediate = private a
+[%%expect {|
+type a : value mod global many unique external_
+Line 2, characters 0-30:
+2 | type b : immediate = private a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type a is immediate, because
+         of the definition of a at line 1, characters 0-47.
+       But the layout of type a must be a sublayout of immediate, because
+         of the definition of b at line 2, characters 0-30.
+|}]
+
+module A : sig
+  type t
+end = struct
+  type t : value mod portable = private string
+end
+[%%expect {|
+Line 4, characters 2-46:
+4 |   type t : value mod portable = private string
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type string is value, because
+         it is the primitive value type string.
+       But the layout of type string must be a sublayout of value, because
+         of the definition of t at line 4, characters 2-46.
+|}]
+
+type a : value mod portable uncontended = private b
+and b
+[%%expect {|
+Line 1, characters 0-51:
+1 | type a : value mod portable uncontended = private b
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type b is value, because
+         an abstract type has the value layout by default.
+       But the layout of type b must be a sublayout of value, because
+         of the definition of a at line 1, characters 0-51.
+|}]
+
+type a
+and b : value mod portable uncontended = a
+[%%expect {|
+Line 2, characters 0-42:
+2 | and b : value mod portable uncontended = a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type a/2 is value, because
+         an abstract type has the value layout by default.
+       But the layout of type a/2 must be a sublayout of value, because
+         of the definition of b at line 2, characters 0-42.
+|}]
+
+module rec A : sig
+  type t : value mod portable uncontended
+end = struct
+  type t : value mod portable uncontended = B.t
+end
+and B : sig
+  type t
+end = struct
+  type t
+end
+[%%expect {|
+Line 4, characters 2-47:
+4 |   type t : value mod portable uncontended = B.t
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type B.t is value, because
+         of the definition of t at line 7, characters 2-8.
+       But the layout of type B.t must be a sublayout of value, because
+         of the definition of t at line 4, characters 2-47.
+|}]
+
+module rec A : sig
+  type t
+end = struct
+  type t
+end
+and B : sig
+  type t : value mod portable uncontended
+end = struct
+  type t : value mod portable uncontended = private A.t
+end
+[%%expect {|
+Line 9, characters 2-55:
+9 |   type t : value mod portable uncontended = private A.t
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type A.t is value, because
+         of the definition of t at line 2, characters 2-8.
+       But the layout of type A.t must be a sublayout of value, because
+         of the definition of t at line 9, characters 2-55.
 |}]

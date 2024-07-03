@@ -1139,12 +1139,6 @@ let check_coherence env loc dpath decl =
   | { type_kind = Type_abstract _;
       type_manifest = Some ty } ->
     let jkind' = Ctype.type_jkind_purely env ty in
-    let jkind' =
-      match decl.type_private, !Clflags.allow_illegal_crossing with
-      | Private, true ->
-          Jkind.add_portability_and_contention_crossing ~from:decl.type_jkind jkind'
-      | Public, _ | _, false -> jkind'
-    in
     begin match Jkind.sub_with_history jkind' decl.type_jkind with
     | Ok jkind' -> { decl with type_jkind = jkind' }
     | Error v ->
