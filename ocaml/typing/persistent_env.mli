@@ -152,13 +152,18 @@ val import_crcs : 'a t -> source:filepath ->
 (* Return the set of compilation units imported, with their CRC *)
 val imports : 'a t -> Import_info.t list
 
-(* Return the set of imports represented as runtime parameters (namely,
-   parameter imports and parameterised imports), along with the
-   local variable representing each *)
-val locally_bound_imports : 'a t -> (Compilation_unit.Name.t * Ident.t) list
+(* Return the set of imports represented as runtime parameters. If this module is indeed
+   parameterised (that is, [parameters] returns a non-empty list), it will be compiled as
+   a functor rather than a [struct] as usual, and the parameters to this functor are what
+   we refer to as "runtime parameters." They include (a) all imported parameters (not all
+   parameters are necessarily imported; see [parameters]) and (b) all imported
+   parameterised modules. *)
+val runtime_parameters : 'a t -> (Compilation_unit.Name.t * Ident.t) list
 
-(* Return the list of parameters registered to be exported from the current
-   unit, in alphabetical order *)
+(* Return the list of parameters specified for the current unit, in alphabetical order.
+   All of these will have been specified by [-parameter] but not all of them are
+   necessarily imported - any that don't appear in the source are still considered
+   parameters of the module but will not appear in [imports]. *)
 val parameters : 'a t -> Compilation_unit.Name.t list
 
 (* Return the CRC of the interface of the given compilation unit *)

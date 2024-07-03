@@ -83,8 +83,9 @@ type import_info =
   | Missing
   | Found of import
 
+(* What a global identifier is actually bound to in Lambda code *)
 type binding =
-  | Variable of Ident.t (* Bound to a runtime parameter *)
+  | Runtime_parameter of Ident.t (* Bound to a runtime parameter *)
   | Constant of Compilation_unit.t (* Bound to a static constant *)
 
 (* Data relating to an actual referenceable module, with a signature and a
@@ -352,7 +353,7 @@ let make_binding _penv modname (import : import) : binding =
   match import with
   | { imp_impl = Some unit; imp_params = [] } -> Constant unit
   | { imp_impl = None } | { imp_params = _ :: _ } ->
-      Variable (Ident.create_local_binding_for_global (CU.Name.to_string modname))
+      Runtime_parameter (Ident.create_local_binding_for_global (CU.Name.to_string modname))
 
 type address =
   | Aunit of Compilation_unit.t
@@ -389,20 +390,20 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
   let binding = make_binding penv modname import in
   let address : address =
     match binding with
-    | Variable id -> Alocal id
+    | Runtime_parameter id -> Alocal id
     | Constant unit -> Aunit unit
   in
   let uid =
     (* The uid neeeds to include the either the pack prefix, if it's packed, or
        the arguments, if it has any. It cannot have both. *)
     match binding with
-    | Variable _ -> (* FIXME *) Shape.Uid.internal_not_actually_unique
+    | Runtime_parameter _ -> (* FIXME *) Shape.Uid.internal_not_actually_unique
     | Constant unit -> Shape.Uid.of_compilation_unit_id unit
   in
   let shape =
     match binding with
     | Constant unit -> Shape.for_persistent_unit (CU.full_path_as_string unit)
-    | Variable ident ->
+    | Runtime_parameter ident ->
         (* FIXME This is probably wrong for non-parameter modules *)
         Shape.var uid ident
   in
@@ -535,11 +536,11 @@ let imports {imported_units; crc_units; _} =
 
 let local_ident penv modname =
   match find_info_in_cache penv modname with
-  | Some { ps_binding = Variable local_ident; _ } -> Some local_ident
+  | Some { ps_binding = Runtime_parameter local_ident; _ } -> Some local_ident
   | Some { ps_binding = Constant _; _ }
   | None -> None
 
-let locally_bound_imports ({persistent_structures; _} as penv) =
+let runtime_parameters ({persistent_structures; _} as penv) =
   persistent_structures
   |> Hashtbl.to_seq_keys
   |> Seq.filter_map
