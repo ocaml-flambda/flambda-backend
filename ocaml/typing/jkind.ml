@@ -244,6 +244,10 @@ end
 let raise ~loc err = raise (Error.User_error (loc, err))
 
 module Type_jkind = struct
+  open Jkind_types.Type_jkind
+
+  type nonrec t = type_expr t
+
   module Const = struct
     open Jkind_types.Type_jkind.Const
 
@@ -792,24 +796,54 @@ module Type_jkind = struct
         | Const s ->
           Const { layout = Sort s; modes_upper_bounds; externality_upper_bound }
         | Var v -> Var v)
-
-    module Debug_printers = struct
-      open Format
-
-      let t ppf { layout; modes_upper_bounds; externality_upper_bound } =
-        fprintf ppf
-          "{ layout = %a;@ modes_upper_bounds = %a;@ externality_upper_bound = \
-           %a }"
-          Layout.Debug_printers.t layout Modes.print modes_upper_bounds
-          Externality.print externality_upper_bound
-    end
   end
+
+  let fresh_jkind jkind ~why =
+    { jkind; history = Creation why; has_warned = false }
+
+  let of_new_sort_var ~why =
+    let jkind, sort = Jkind_desc.of_new_sort_var () in
+    fresh_jkind jkind ~why:(Concrete_creation why), sort
+
+  let of_new_sort ~why = fst (of_new_sort_var ~why)
+
+  (* CR layouts v2.8: remove this function *)
+  let of_const ~why
+      ({ layout; modes_upper_bounds; externality_upper_bound } : Const.t) =
+    { jkind =
+        { layout = Layout.of_const layout;
+          modes_upper_bounds;
+          externality_upper_bound
+        };
+      history = Creation why;
+      has_warned = false
+    }
+end
+
+(******************************)
+(* general jkinds *)
+
+module Const = struct
+  open Jkind_types.Const
+
+  type nonrec t = type_expr t
 end
 
 module Jkind_desc = struct
   open Jkind_types.Jkind_desc
 
   let of_type_jkind t = Type_kind t
+
+  let rec of_const (t : Const.t) =
+    match t with
+    | Type_kind { layout; modes_upper_bounds; externality_upper_bound } ->
+      Type_kind
+        { layout = Layout.of_const layout;
+          modes_upper_bounds;
+          externality_upper_bound
+        }
+    | Arrow_kind { args; result } ->
+      Arrow_kind { args = List.map of_const args; result = of_const result }
 
   let add_mode_crossing = function
     | Type_kind t -> Type_kind (Type_jkind.Jkind_desc.add_mode_crossing t)
@@ -837,6 +871,21 @@ module Jkind_desc = struct
     let bits32 = of_type_jkind Type_jkind.Jkind_desc.Primitive.bits32
 
     let bits64 = of_type_jkind Type_jkind.Jkind_desc.Primitive.bits64
+  end
+
+  module Debug_printers = struct
+    open Format
+
+    let rec t ppf = function
+      | Type_kind { layout; modes_upper_bounds; externality_upper_bound } ->
+        fprintf ppf
+          "{ layout = %a;@ modes_upper_bounds = %a;@ externality_upper_bound = \
+           %a }"
+          Layout.Debug_printers.t layout Modes.print modes_upper_bounds
+          Externality.print externality_upper_bound
+      | Arrow_kind { args; result } ->
+        fprintf ppf "{ args = [%a];@ result = %a }" (pp_print_list t) args t
+          result
   end
 end
 
@@ -906,8 +955,8 @@ let add_mode_crossing t =
 *)
 (* CR layouts: When everything is stable, remove this function. *)
 let get_required_layouts_level (context : History.annotation_context)
-    (jkind : Const.t) : Language_extension.maturity =
-  let legacy_layout = Const.get_legacy_layout jkind in
+    (jkind : Type_jkind.Const.t) : Language_extension.maturity =
+  let legacy_layout = Type_jkind.Const.get_legacy_layout jkind in
   match context, legacy_layout with
   | ( _,
       ( Value | Immediate | Immediate64 | Any | Float64 | Float32 | Word
@@ -919,22 +968,14 @@ let get_required_layouts_level (context : History.annotation_context)
 (* construction *)
 
 let of_new_sort_var ~why =
-  let jkind, sort = Jkind_desc.of_new_sort_var () in
+  let jkind, sort = Type_jkind.Jkind_desc.of_new_sort_var () in
   fresh_jkind jkind ~why:(Concrete_creation why), sort
 
 let of_new_sort ~why = fst (of_new_sort_var ~why)
 
 (* CR layouts v2.8: remove this function *)
-let of_const ~why
-    ({ layout; modes_upper_bounds; externality_upper_bound } : Const.t) =
-  { jkind =
-      { layout = Layout.of_const layout;
-        modes_upper_bounds;
-        externality_upper_bound
-      };
-    history = Creation why;
-    has_warned = false
-  }
+let rec of_const ~why (t : Const.t) =
+  { jkind = Jkind_desc.of_const t; history = Creation why; has_warned = false }
 
 let const_of_user_written_annotation ~context Location.{ loc; txt = annot } =
   let const = Const.of_user_written_annotation_unchecked_level annot in
