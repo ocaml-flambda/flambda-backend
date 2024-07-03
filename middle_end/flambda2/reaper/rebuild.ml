@@ -90,7 +90,7 @@ let rewrite_static_const kinds (uses : uses) (sc : Static_const.t) =
            (fun _slot (code_id : FD.code_id_in_function_declaration) :
                 FD.code_id_in_function_declaration ->
              match code_id with
-             | Deleted -> Deleted
+             | Deleted _ -> code_id
              | Code_id code_id ->
                if (* slot_is_used (Function_slot slot) *)
                   match
@@ -102,7 +102,7 @@ let rewrite_static_const kinds (uses : uses) (sc : Static_const.t) =
                          (Code_id.get_compilation_unit code_id))
                   | Some Top | Some (Fields _) -> true
                then Code_id code_id
-               else Deleted)
+               else Deleted { function_slot_size = failwith "TODO" })
            (FD.funs_in_order function_decls))
     in
     let set_of_closures =
@@ -197,7 +197,7 @@ let rewrite_set_of_closures bound (uses : uses) value_slots alloc_mode
       (Function_slot.Lmap.mapi
          (fun _slot code_id ->
            match code_id with
-           | Deleted -> Deleted
+           | Deleted _ -> code_id
            | Code_id code_id ->
              if (* slot_is_used (Function_slot slot) *)
                 match
@@ -209,7 +209,7 @@ let rewrite_set_of_closures bound (uses : uses) value_slots alloc_mode
                        (Code_id.get_compilation_unit code_id))
                 | Some Top | Some (Fields _) -> true
              then Code_id code_id
-             else Deleted)
+             else Deleted { function_slot_size = failwith "TODO" })
          (Function_declarations.funs_in_order function_decls))
   in
   (* TODO remove unused function slots as well *)
