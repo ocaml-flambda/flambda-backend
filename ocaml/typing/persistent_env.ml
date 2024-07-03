@@ -610,6 +610,9 @@ let save_cmi penv psig =
     )
     ~exceptionally:(fun () -> remove_file filename)
 
+(* TODO: These should really have locations in them where possible (adapting
+   [Typemod]'s [Error] constructor is probably the easiest path) *)
+
 let report_error ppf =
   let open Format in
   function
@@ -658,14 +661,15 @@ let report_error ppf =
   | Imported_module_has_unset_parameter
         { imported = modname; parameter = param } ->
       fprintf ppf
-        "@[<hov>The module %a@ has parameter %a.@ \
-         %a is not declared as a parameter for the current unit (-parameter %a)@ \
-         and therefore %a@ is not accessible.@]"
+        "@[<hov>The module %a@ is not accessible because it takes %a@ \
+         as a parameter and the current unit does not.@]@.\
+         @[<hov>@{<hint>Hint@}: \
+           @[<hov>Pass `-parameter %a`@ to add %a@ as a parameter@ \
+           of the current unit.@]@]"
         CU.Name.print modname
         CU.Name.print param
         CU.Name.print param
         CU.Name.print param
-        CU.Name.print modname
 
 let () =
   Location.register_error_of_exn
