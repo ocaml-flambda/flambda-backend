@@ -45,3 +45,9 @@ Error: called function may allocate on a path to exceptional return (indirect ca
 
 File "test_inference.ml", line 66, characters 10-15:
 Error: allocation of 24 bytes on a path to exceptional return
+
+File "test_inference.ml", line 93, characters 8-18:
+Error: Annotation check for zero_alloc failed on function Test_inference.F.f (camlTest_inference.f_HIDE_STAMP)
+
+File "test_inference.ml", line 93, characters 12-18:
+Error: allocation of 16 bytes

@@ -82,3 +82,15 @@ let f_strict_opt_fail x =
   if x = 42 then () else
     let s = Printf.sprintf "%d\n" x in
     raise (E s)
+
+(* Spooky action a distance: the fact that [f] gets checked for zero_alloc is
+   very non-local to its definition.  It would be a nice improvement for the
+   error to reflect the location of the attribute that, via inference, resulted
+   in the check. *)
+module type S = functor () -> sig val[@zero_alloc] f : 'a -> 'a option end
+
+module F () = struct
+  let f x = Some x
+end
+
+module _ : S = F

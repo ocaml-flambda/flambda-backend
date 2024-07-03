@@ -163,7 +163,7 @@ let sub_exn za1 za2 =
 
        The typing of modules (e.g., the [Pmod_structure] case of
        [Typemod.type_module_aux]) works by (1) computing a naive signature
-       containing every definition in the module, (2) constructing a simplfied
+       containing every definition in the module, (2) constructing a simplified
        signature that, for example, removes shadowed things, and (3)
        constraining the original signature by the simplfied signature.  These
        signatures _do_ have variables in them, so we allow the special case of

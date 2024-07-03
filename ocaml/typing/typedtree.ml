@@ -1087,8 +1087,8 @@ let let_bound_idents_with_modes_sorts_and_checks bindings =
            | Ignore_assert_all | Check _ | Assume _ -> fn.zero_alloc
          in
          Ident.Map.add id zero_alloc checks
-         (* CR ccasinghino: we could copy the zero-allocness if the vb_expr
-            is an ident. *)
+         (* CR ccasinghino: To keep the zero-alloc annotation info aliases, it
+            may be enough to copy it if the vb_expr is an ident. *)
        | _ -> checks
     ) Ident.Map.empty bindings
   in

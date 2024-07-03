@@ -3,12 +3,13 @@
    setup-ocamlc.byte-build-env;
    module = "cmi_test_lib.ml";
    ocamlc.byte;
-   flags += "-I ocamlc.byte";
+   flags += "-I ocamlc.byte ocamlc.byte/cmi_test_lib.cmo";
    expect;
 *)
 
 (* Here we show the signatures of [cmi_test_a] and the modules within it do not
-   have zero_alloc variables - we can't add further zero_alloc constraints. *)
+   have zero_alloc variables - we can't add further zero_alloc constraints, but
+   we do get the ones already present in the cmi. *)
 module M1 : sig
   val[@zero_alloc] f_unconstrained_variable : int -> int
 end = Cmi_test_lib
@@ -56,6 +57,13 @@ Error: Signature mismatch:
 |}]
 
 module M3 : sig
+  val[@zero_alloc] f : int -> int
+end = Cmi_test_lib.M_constrained_variable
+        [%%expect{|
+module M3 : sig val f : int -> int [@@zero_alloc] end
+|}]
+
+module M4 : sig
   val[@zero_alloc] f : int -> int
 end = Cmi_test_lib.M_no_variable
 [%%expect{|

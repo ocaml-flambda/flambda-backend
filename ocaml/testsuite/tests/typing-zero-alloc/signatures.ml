@@ -1137,7 +1137,7 @@ module M_for_mto = struct
   let f x = x+1
 end
 
-(* The current state of the variales is "no check" *)
+(* The current state of the variables is "no check" *)
 module type S = module type of M_for_mto
 [%%expect{|
 module M_for_mto : sig val f : int -> int end
