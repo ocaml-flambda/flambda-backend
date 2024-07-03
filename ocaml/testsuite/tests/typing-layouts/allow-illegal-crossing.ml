@@ -408,8 +408,6 @@ Error: The layout of type A.t is value, because
 (*********************************************************************************)
 (* Test 4: types cannot cross portability and contention axes when not annotated *)
 
-(* CR: should this be allowed? I think no, the user should have to specify at the
-   definition of t *)
 module A : sig
   type t : value mod contended portable
 end = struct
