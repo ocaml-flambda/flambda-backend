@@ -285,7 +285,7 @@ method! select_store is_assign addr exp =
 method! select_operation op args dbg =
   match op with
   (* Recognize the LEA instruction *)
-    Caddi | Caddv | Cadda | Csubi ->
+    Caddi | Caddv | Cadda | Csubi | Cmuli ->
       begin match self#select_addressing Word_int (Cop(op, args, dbg)) with
         (Iindexed _, _)
       | (Iindexed2 0, _) -> super#select_operation op args dbg
