@@ -171,6 +171,15 @@ type a = private Foo of int | Bar
 type b = a = private Foo of int | Bar
 |}]
 
+module A : sig
+  type t : value mod contended portable = { a : string }
+end = struct
+  type t = { a : string }
+end
+[%%expect {|
+module A : sig type t = { a : string; } end
+|}]
+
 (********************************************)
 (* Test 2: illegal mode crossing propogates *)
 
@@ -211,6 +220,21 @@ let x : _ as (_ : value mod portable uncontended) = Foo "hello world"
 [%%expect {|
 type t = Foo of string | Bar of int
 val x : t = Foo "hello world"
+|}]
+
+module A : sig
+  type t : value mod contended portable = { a : string }
+end = struct
+  type t = { a : string }
+end
+type ('a : value mod contended portable) u = 'a
+type v = A.t u
+let x : _ as (_ : value mod contended portable) = ({ a = "hello" } : A.t)
+[%%expect {|
+module A : sig type t = { a : string; } end
+type ('a : value mod portable) u = 'a
+type v = A.t u
+val x : A.t = {A.a = "hello"}
 |}]
 
 (********************************************************)
@@ -431,6 +455,42 @@ Error: Signature mismatch:
          of the definition of t at line 4, characters 2-25.
        But the layout of the first must be a sublayout of value, because
          of the definition of t at line 2, characters 2-39.
+|}]
+
+module A : sig
+  type t : value mod contended portable = { a : string }
+end = struct
+  type t = { a : string }
+  type ('a : value mod contended portable) u = 'a
+  type v = t u
+end
+[%%expect {|
+Line 6, characters 11-12:
+6 |   type v = t u
+               ^
+Error: This type t should be an instance of type ('a : value mod portable)
+       The layout of t is value, because
+         of the definition of t at line 4, characters 2-25.
+       But the layout of t must be a sublayout of value, because
+         of the definition of u at line 5, characters 2-49.
+|}]
+
+module A : sig
+  type t : value mod contended portable = { a : string }
+end = struct
+  type t = { a : string }
+  let x : _ as (_ : value mod contended portable) = { a = "hello" }
+end
+[%%expect {|
+Line 5, characters 52-67:
+5 |   let x : _ as (_ : value mod contended portable) = { a = "hello" }
+                                                        ^^^^^^^^^^^^^^^
+Error: This expression has type t but an expression was expected of type
+         ('a : value mod portable)
+       The layout of t is value, because
+         of the definition of t at line 4, characters 2-25.
+       But the layout of t must be a sublayout of value, because
+         of the annotation on the wildcard _ at line 5, characters 20-48.
 |}]
 
 type a
