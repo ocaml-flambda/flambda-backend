@@ -792,4 +792,39 @@ type 'a id =
   | Id of 'a [@@unboxed]
 (* string id crosses uniqueness, but only because of the [@@unboxed]
   *)
+  
+==============================
+
+(* example showing how grounding out a right-hand argument
+   to ≤ is unsound *)
+
+module type S = sig
+  type t1 : any
+  type t2 : any
+end
+
+module F (X : S) = struct
+  type t3 : layout_of_ X.t1 = X.t2
+end
+
+module M = F (struct
+  type t1 = int
+  type t2 = float#
+end)
+
+(* ^^ strange, but not actually problematic *)
+
+module F2 (X : S) = struct
+  type t4 : layout_of_ X.t1 = private X.t2
+end
+
+module M2 = F2 (struct
+  type t1 = int
+  type t2 = float#
+end)
+
+(* ^^ actually problematic. *)
+
+(* I think we just want to reject [F]. *)
+  
 ```
