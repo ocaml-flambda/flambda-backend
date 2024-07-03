@@ -125,6 +125,7 @@ rec {
 }
 
 μ ::= (* semantic modality *)
+q ::= best | not_best   (* quality of an inferred kind; best < not_best *)
 ```
 
 Meta-syntax:
@@ -176,7 +177,9 @@ This extracts all types `σᵢ` such that its modality along `Ξ`
 is the identity. Put another way, this gets all the types from
 `field_types`, omitting those with a modality along `Ξ`.
 
-We write `Ξ(κ)` to denote the mode in `κ` corresponding to axis `Ξ`
+We write `Ξ(κ)` to denote the modal_bound in `κ` corresponding to axis `Ξ`,
+`mode(modal_bound)` to denote the mode stored in a modal bound,
+`with_types(modal_bound)` to denote the set of types stored in a modal bound,
 and `lay(κ)` to denote the layout in `κ`.
 
 Typing rules:
@@ -201,6 +204,11 @@ k = κ ∈ Γ
 Γ ⊢ jkind ↠ κ
 ------------------------------------------------- K_MOD
 Γ ⊢ jkind mod modes ↠ lay(κ); ⟪Ξ(κ) ⊓ ⨅ extract(Ξ, modes)⟫
+  (* This rule isn't right if κ already has [with] constraints; probably
+     should just forbid that syntactically. Not right: we can't meet out
+     the with-added modes because we don't really know what they are.
+     So we'd have to retain the [mod] clause just like we retain the
+     [with] clause, which is terrible. *)
 
 Γ ⊢ jkind ↠ κ
 ∀ σᵢ ∈ field_types, Γ ⊢ σᵢ : κᵢ
@@ -213,30 +221,32 @@ to make use of refinements to `τ` that we learn later, perhaps through
 functor application or GADT refinement.
 
 ```
-Γ ⊢ σ : κ   (* check a type σ to have kind κ *)
-=========
+Γ ⊢ σ : κ {q}   (* check a type σ to have kind κ, with quality q *)
+=============   (* the {q} can be omitted in a premise if we don't care about it *)
 
 t : π [[ 'aᵢ : κᵢ ]]ₙ. κ ∈ Γ
 ∀ i, Γ ⊢ τᵢ : κᵢ
 ------------------ T_ABSTRACT
-Γ ⊢ [[ τᵢ ]]ₙ t : κ[ [[ τᵢ/'aᵢ ]] ]
+Γ ⊢ [[ τᵢ ]]ₙ t : κ[ [[ τᵢ/'aᵢ ]] ] {not_best}
 
 t = λ [[ 'aᵢ : κᵢ ]]ₙ. τ ∈ Γ
 ∀ i, Γ ⊢ τᵢ : κᵢ
-Γ ⊢ τ[ [[ τᵢ/'aᵢ ]] ] : κ
+Γ ⊢ τ[ [[ τᵢ/'aᵢ ]] ] : κ {q}
 ------------------- T_ABBREV
-Γ ⊢ [[ τᵢ ]]ₙ t : κ
+Γ ⊢ [[ τᵢ ]]ₙ t : κ {q}
 
 t := λ [[ 'aᵢ : κᵢ ]]ₙ. τ ∈ Γ
 ∀ i, Γ ⊢ τᵢ : κᵢ
-Γ ⊢ τ[ [[ τᵢ/'aᵢ ]] ] : κ
+Γ ⊢ τ[ [[ τᵢ/'aᵢ ]] ] : κ {q}
 ------------------- T_SUBST
-Γ ⊢ [[ τᵢ ]]ₙ t : κ
+Γ ⊢ [[ τᵢ ]]ₙ t : κ {q}
 
 t := λ [[ 'aᵢ : κᵢ ]]. δ : κ ∈ Γ
 ∀ i, Γ ⊢ τᵢ : κᵢ
 ------------------- T_NOMINATIVE
-Γ ⊢ [[ τᵢ ]]ₙ t : κ[ [[ τᵢ/'aᵢ ]] ]
+Γ ⊢ [[ τᵢ ]]ₙ t : κ[ [[ τᵢ/'aᵢ ]] ] {best}
+  (* this can be [best] only because we require the kind of a nominative
+     type in a sig to *equal* the kind of a nominative type in a struct *)
 
 ∀ i, Γ ⊢ τᵢ : κᵢ
 ∃ j ∈ [0, n],
@@ -245,66 +255,56 @@ t := λ [[ 'aᵢ : κᵢ ]]. δ : κ ∈ Γ
 -------------------------- T_TUPLE
 Γ ⊢ [[ τᵢ | * ]]ₙ++ :
   value; local; many with [[ τᵢ ]]; aliased; uncontended with [[ τᵢ ]];
-  portable with [[ τᵢ ]]; internal
+  portable with [[ τᵢ ]]; internal {best}
 
 ∀ i, Γ ⊢ τᵢ : κᵢ
 -------------------------------- T_UNBOXED_TUPLE
-Γ ⊢ #( [[ τᵢ | * ]]ₙ++ ) : [[ layout_of τᵢ | * ]]; ⟪⊥_Ξ with [[ τᵢ ]]⟫
+Γ ⊢ #( [[ τᵢ | * ]]ₙ++ ) : [[ layout_of τᵢ | * ]]; ⟪⊥_Ξ with [[ τᵢ ]]⟫ {best}
 
 ------------------------ T_UNBOXED_UNIT
-Γ ⊢ #( ) : void; ⟪⊥_Ξ⟫
+Γ ⊢ #( ) : void; ⟪⊥_Ξ⟫ {best}
 
 Γ ⊢ σ₁ : κ₁
 Γ ⊢ τ₂ : κ₂
 ----------------------------------------------------------------------------- T_ARROW
-Γ ⊢ σ₁ -> τ₂ : value; local; once; unique; uncontended; nonportable; internal
+Γ ⊢ σ₁ -> τ₂ : value; local; once; unique; uncontended; nonportable; internal {best}
 
 'a : κ ∈ Γ
 ---------- T_VAR
-Γ ⊢ 'a : κ
+Γ ⊢ 'a : κ {not_best}
 
-Γ ⊢ τ : κ₁
+Γ ⊢ τ : κ₁ {q}
 Γ ⊢ jkind ↠ κ₂
 Γ ⊢ κ₁ ≤ κ₂
 ------------------------- T_CONSTRAINT
-Γ ⊢ τ as (_ : jkind) : κ₂
+Γ ⊢ τ as (_ : jkind) : κ₁ {q}
 
-Γ, 'a : value; ⟪⊤_Ξ⟫ ⊢ σ : κ  (* or the kind of ['a] is κ₀ if we decide to infer it *)
+Γ, 'a : value; ⟪⊤_Ξ⟫ ⊢ σ : κ {q} (* or the kind of ['a] is κ₀ if we decide to infer it *)
 'a # κ
 -------------- T_POLY_DEFAULT
-Γ ⊢ 'a. σ : κ
+Γ ⊢ 'a. σ : κ {q}
 
 Γ ⊢ jkind ↠ κ₀
-Γ, 'a : κ₀ ⊢ σ : κ
+Γ, 'a : κ₀ ⊢ σ : κ {q}
 'a # κ
 ----------------------- T_POLY
-Γ ⊢ ('a : jkind). σ : κ
+Γ ⊢ ('a : jkind). σ : κ {q}
 
 TODO
 ---------------------------------------- T_POLY_VARIANT
-Γ ⊢ polymorphic_variant : value; ⟪⊤_Ξ⟫
+Γ ⊢ polymorphic_variant : value; ⟪⊤_Ξ⟫ {not_best}
 
 TODO
 ------------------------------- T_CLASS
-Γ ⊢ class_type : value; ⟪⊤_Ξ⟫
+Γ ⊢ class_type : value; ⟪⊤_Ξ⟫ {not_best}
+
+Γ ⊢ σ : κ₁
+Γ ⊢ κ₁ ≤ κ₂
+----------- T_SUB
+Γ ⊢ σ : κ₂ {not_best}
 
 
-Γ ⊢ σ is fully concrete
-=======================
-
-(* This is meant to signify that we'll never learn something more
-   about σ in reachable code. It holds of primitive types like string
-   or int, as well as types in the type algebra whose kind doesn't
-   depend on any non-concrete type. If we remove the ability to give a
-   new (higher in the lattice) kind to types with definitions
-   (e.g. [type t : data = { x : int }], where we could have said
-   [immutable_data] but chose not to), then those types could be
-   fully concrete, too. Or, conservatively, we could say that no type
-   is fully concrete. *)
-
-(* Richard basically hates this. *)
-
-
+(* CR reisenberg: Probably don't need this any more *)
 Γ ⊢ground layout ↠ const_layout   (* ground out the layout, resolving [layout_of] *)
 ================================
 
@@ -328,8 +328,7 @@ lay(κ₁) ≤ const_layout₂      (* this is a conservative check *)
 -------------------------------- L_SIGMA_CONST
 Γ ⊢ layout_of σ₁ ≤ const_layout₂
 
-Γ ⊢ σ₂ : κ₂
-σ₂ is fully concrete
+Γ ⊢ σ₂ : κ₂ {best}           (* this is where we care about [best] *)
 const_layout₁ ≤ lay(κ₂)
 -------------------------------- L_CONST_SIGMA
 Γ ⊢ const_layout₁ ≤ layout_of σ₂
@@ -338,6 +337,8 @@ const_layout₁ ≤ lay(κ₂)
 ------------------------------- L_SIGMA_SIGMA
 Γ ⊢ layout_of σ₁ ≤ layout_of σ₂
 
+
+(* CR reisenberg: Probably don't need this anymore. *)
 Γ ⊢ground modal_bound_Ξ ↠ m_Ξ   (* ground out the bound, resolving [with] *)
 =============================
 
@@ -346,14 +347,41 @@ const_layout₁ ≤ lay(κ₂)
 Γ ⊢ground m_Ξ with [[ σᵢ ]] ↠ m_Ξ ⊔ (⨆ [[ Ξ(κᵢ) ]])
 
 
+
+Γ ⊢simpl_q modal_bound_Ξ ↠ modal_bound'_Ξ
+=========================================
+
+(* RAE was here *)
+∀ i, Γ ⊢ σᵢ : κᵢ {qᵢ}
+m'_Ξ = ⨆ { mode(Ξ(κᵢ)) | ∀ i, qᵢ ≤ q }
+[[ σ' ]] = concat( { with_types(Ξ(κᵢ)) | ∀ i, qᵢ ≤ q } )
+m'_Ξ = m_Ξ ⊔ ⨆ { Ξ(κᵢ) | ∀ i, qᵢ ≤ q }
+[[ σ' ]] = { σᵢ | ∀ i, ¬ (qᵢ ≤ q) ∧ ¬ (Ξ(κᵢ) ≤ m'_Ξ) }
+------------------------------ M_SIMPL
+Γ ⊢simpl_q m_Ξ with [[ σᵢ ]] ↠ m'_Ξ with [[ σ' ]]
+
+
+Γ ⊢ m₁_Ξ with [[ σ₁ ]] ≤ m₂_Ξ with [[ σ₂ ]]
+===========================================
+
+σ₂₀ ∈ [[ σ₁ ]]
+m₁_Ξ with [[ σ₁ ]] ≤ m₂_Ξ with [[ σ₂ ]]
+--------------------------------------------------- MLE_CONS
+Γ ⊢ m₁_Ξ with [[ σ₁ ]] ≤ m₂_Ξ with σ₂₀ and [[ σ₂ ]]
+
+m₁_Ξ ≤ m₂_Ξ
+----------------------------- MLE_NIL
+Γ ⊢ m₁_Ξ with [[ σ₁ ]] ≤ m₂_Ξ
+
+
 Γ ⊢ κ₁ ≤ κ₂
 ===========
 
 Γ ⊢ layout₁ ≤ layout₂
 ∀ Ξ:
-  Γ ⊢ground modal_bound₁_Ξ ↠ m₁_Ξ
-  Γ ⊢ground modal_bound₂_Ξ ↠ m₂_Ξ
-  m₁_Ξ ≤ m₂_Ξ
+  Γ ⊢simpl_best modal_bound₁_Ξ ↠ m₁_Ξ with [[ σ₁ ]]
+  Γ ⊢simpl_best modal_bound₂_Ξ ↠ m₂_Ξ with [[ σ₂ ]]
+  Γ ⊢ m₁_Ξ with [[ σ₁ ]] ≤ m₂_Ξ with [[ σ₂ ]]
 -------------------------------------------------------- SUB
 Γ ⊢ layout₁; ⟪modal_bound₁_Ξ⟫ ≤ layout₂; ⟪modal_bound₂_Ξ⟫
 
