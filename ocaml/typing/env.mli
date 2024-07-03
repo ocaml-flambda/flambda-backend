@@ -489,7 +489,8 @@ val imports: unit -> Import_info.t list
 (* may raise Persistent_env.Consistbl.Inconsistency *)
 val import_crcs: source:string -> Import_info.t array -> unit
 
-(* Return the set of imports represented as parameters, along with the
+(* Return the set of imports represented as runtime parameters (namely,
+   parameter imports and parameterised imports), along with the
    local variable representing each *)
 val locally_bound_imports: unit -> (Compilation_unit.Name.t * Ident.t) list
 

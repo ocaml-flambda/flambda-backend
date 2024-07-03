@@ -152,8 +152,9 @@ val import_crcs : 'a t -> source:filepath ->
 (* Return the set of compilation units imported, with their CRC *)
 val imports : 'a t -> Import_info.t list
 
-(* Return the list of imported modules (including parameters) that must be bound
-   as parameters in a toplevel functor *)
+(* Return the set of imports represented as runtime parameters (namely,
+   parameter imports and parameterised imports), along with the
+   local variable representing each *)
 val locally_bound_imports : 'a t -> (Compilation_unit.Name.t * Ident.t) list
 
 (* Return the list of parameters registered to be exported from the current
