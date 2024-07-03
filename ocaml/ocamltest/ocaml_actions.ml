@@ -620,7 +620,7 @@ let objinfo log env =
 let ocamlobjinfo =
   Actions.make ~name:"ocamlobjinfo"
     ~description:"Run ocamlobjinfo on the program"
-    ~does_something:false
+    ~does_something:true
     objinfo
 
 let mklib log env =
