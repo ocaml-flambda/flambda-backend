@@ -351,20 +351,59 @@ end
 
 module Modes = Mode.Alloc.Const
 
-module Jkind_desc = struct
+module Type_jkind = struct
+  module Jkind_desc = struct
+    type 'type_expr t =
+      { layout : Layout.t;
+        modes_upper_bounds : Modes.t;
+        externality_upper_bound : Externality.t
+      }
+  end
+
+  (* A history of conditions placed on a jkind.
+
+     INVARIANT: at most one sort variable appears in this history.
+     This is a natural consequence of producing this history by comparing
+     jkinds.
+
+     An analogous type is defined for general kinds.
+  *)
+  type 'type_expr history =
+    | Interact of
+        { reason : Jkind_intf.History.interact_reason;
+          lhs_jkind : 'type_expr Jkind_desc.t;
+          lhs_history : 'type_expr history;
+          rhs_jkind : 'type_expr Jkind_desc.t;
+          rhs_history : 'type_expr history
+        }
+    | Creation of Jkind_intf.History.creation_reason
+
   type 'type_expr t =
-    { layout : Layout.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Externality.t
+    { jkind : 'type_expr Jkind_desc.t;
+      history : 'type_expr history;
+      has_warned : bool
     }
+
+  module Const = struct
+    type 'type_expr t =
+      { layout : Layout.Const.t;
+        modes_upper_bounds : Modes.t;
+        externality_upper_bound : Externality.t
+      }
+  end
 end
 
-(* A history of conditions placed on a jkind.
+type 'a arrow =
+  { args : 'a list;
+    result : 'a
+  }
 
-   INVARIANT: at most one sort variable appears in this history.
-   This is a natural consequence of producing this history by comparing
-   jkinds.
-*)
+module Jkind_desc = struct
+  type 'type_expr t =
+    | Type_kind of 'type_expr Type_jkind.Jkind_desc.t
+    | Arrow_kind of 'type_expr t arrow
+end
+
 type 'type_expr history =
   | Interact of
       { reason : Jkind_intf.History.interact_reason;
@@ -383,10 +422,8 @@ type 'type_expr t =
 
 module Const = struct
   type 'type_expr t =
-    { layout : Layout.Const.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Externality.t
-    }
+    | Type_kind of 'type_expr Type_jkind.Const.t
+    | Arrow_kind of 'type_expr t arrow
 end
 
 type 'type_expr const = 'type_expr Const.t

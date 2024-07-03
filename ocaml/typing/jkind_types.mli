@@ -113,12 +113,49 @@ end
 
 module Modes = Mode.Alloc.Const
 
+module Type_jkind : sig
+  module Jkind_desc : sig
+    type 'type_expr t =
+      { layout : Layout.t;
+        modes_upper_bounds : Modes.t;
+        externality_upper_bound : Externality.t
+      }
+  end
+
+  type 'type_expr history =
+    | Interact of
+        { reason : Jkind_intf.History.interact_reason;
+          lhs_jkind : 'type_expr Jkind_desc.t;
+          lhs_history : 'type_expr history;
+          rhs_jkind : 'type_expr Jkind_desc.t;
+          rhs_history : 'type_expr history
+        }
+    | Creation of Jkind_intf.History.creation_reason
+
+  type 'type_expr t =
+    { jkind : 'type_expr Jkind_desc.t;
+      history : 'type_expr history;
+      has_warned : bool
+    }
+
+  module Const : sig
+    type 'type_expr t =
+      { layout : Layout.Const.t;
+        modes_upper_bounds : Modes.t;
+        externality_upper_bound : Externality.t
+      }
+  end
+end
+
+type 'a arrow =
+  { args : 'a list;
+    result : 'a
+  }
+
 module Jkind_desc : sig
   type 'type_expr t =
-    { layout : Layout.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Externality.t
-    }
+    | Type_kind of 'type_expr Type_jkind.Jkind_desc.t
+    | Arrow_kind of 'type_expr t arrow
 end
 
 type 'type_expr history =
@@ -139,10 +176,8 @@ type 'type_expr t =
 
 module Const : sig
   type 'type_expr t =
-    { layout : Layout.Const.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Externality.t
-    }
+    | Type_kind of 'type_expr Type_jkind.Const.t
+    | Arrow_kind of 'type_expr t arrow
 end
 
 type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation
