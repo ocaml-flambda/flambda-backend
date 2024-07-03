@@ -678,17 +678,28 @@ module Jkind_desc = struct
     }
 
   let add_portability_and_contention_crossing ~from t =
-    { t with
-      modes_upper_bounds =
-        { t.modes_upper_bounds with
-          portability =
-            Portability.Const.meet t.modes_upper_bounds.portability
-              from.modes_upper_bounds.portability;
-          contention =
-            Contention.Const.meet t.modes_upper_bounds.contention
-              from.modes_upper_bounds.contention
-        }
-    }
+    let new_portability =
+      Portability.Const.meet t.modes_upper_bounds.portability
+        from.modes_upper_bounds.portability
+    in
+    let new_contention =
+      Contention.Const.meet t.modes_upper_bounds.contention
+        from.modes_upper_bounds.contention
+    in
+    let added_crossings =
+      (not
+         (Portability.Const.le t.modes_upper_bounds.portability new_portability))
+      || not
+           (Contention.Const.le t.modes_upper_bounds.contention new_contention)
+    in
+    ( { t with
+        modes_upper_bounds =
+          { t.modes_upper_bounds with
+            portability = new_portability;
+            contention = new_contention
+          }
+      },
+      added_crossings )
 
   let max = of_const Const.max
 
@@ -872,11 +883,10 @@ let add_mode_crossing t =
   { t with jkind = Jkind_desc.add_mode_crossing t.jkind }
 
 let add_portability_and_contention_crossing ~from t =
-  { t with
-    jkind =
-      Jkind_desc.add_portability_and_contention_crossing ~from:from.jkind
-        t.jkind
-  }
+  let jkind, added_crossings =
+    Jkind_desc.add_portability_and_contention_crossing ~from:from.jkind t.jkind
+  in
+  { t with jkind }, added_crossings
 
 (*** extension requirements ***)
 (* The [annotation_context] parameter can be used to allow annotations / kinds

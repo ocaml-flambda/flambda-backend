@@ -1860,8 +1860,8 @@ let tree_of_type_decl id decl =
   in
   (* The algorithm for setting [lay] here is described as Case (C1) in
      Note [When to print jkind annotations] *)
-  let jkind_annotation = match ty, unboxed with
-    | (Otyp_abstract, _) | (_, true) ->
+  let jkind_annotation = match ty, unboxed, decl.type_has_illegal_crossings with
+    | (Otyp_abstract, _, _) | (_, true, _) | (_, _, true) ->
         (* The two cases of (C1) from the Note correspond to Otyp_abstract.
            Anything but the default must be user-written, so we print the
            user-written annotation. *)
@@ -2318,6 +2318,7 @@ let dummy =
     type_attributes = [];
     type_unboxed_default = false;
     type_uid = Uid.internal_not_actually_unique;
+    type_has_illegal_crossings = false;
   }
 
 (** we hide items being defined from short-path to avoid shortening

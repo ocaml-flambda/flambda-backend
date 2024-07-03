@@ -277,8 +277,9 @@ end
 val add_mode_crossing : t -> t
 
 (** Take an existing [t] and add an ability to mode-cross along the portability and
-    contention axes, if [from] crosses the respective axes. *)
-val add_portability_and_contention_crossing : from:t -> t -> t
+    contention axes, if [from] crosses the respective axes. Return the new jkind,
+    along with a boolean of whether illegal crossing was added *)
+val add_portability_and_contention_crossing : from:t -> t -> t * bool
 
 (******************************)
 (* construction *)

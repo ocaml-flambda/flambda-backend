@@ -12,21 +12,21 @@ type a
 type b : value mod portable = { a : int; b : int }
 [%%expect {|
 type a
-type b = { a : int; b : int; }
+type b : value mod portable = { a : int; b : int; }
 |}]
 
 type a
 type b : value mod uncontended = Foo of int
 [%%expect {|
 type a
-type b = Foo of int
+type b : value mod uncontended = Foo of int
 |}]
 
 type a
 type b : value mod uncontended portable = Foo of int | Bar of int
 [%%expect {|
 type a
-type b = Foo of int | Bar of int
+type b : value mod uncontended portable = Foo of int | Bar of int
 |}]
 
 module _ = struct
@@ -45,50 +45,50 @@ Error: The layout of type a is value, because
 
 type t : value mod portable uncontended = { a : int; b : int }
 [%%expect {|
-type t = { a : int; b : int; }
+type t : value mod portable uncontended = { a : int; b : int; }
 |}]
 
 type ('a, 'b) t : value mod portable uncontended = { a : 'a; b : 'b }
 [%%expect {|
-type ('a, 'b) t = { a : 'a; b : 'b; }
+type ('a, 'b) t : value mod portable uncontended = { a : 'a; b : 'b; }
 |}]
 
 type t : value mod portable = private { foo : string }
 [%%expect {|
-type t = private { foo : string; }
+type t : value mod portable = private { foo : string; }
 |}]
 
 type a : value mod portable = { foo : string }
 type b : value mod portable = a = { foo : string }
 [%%expect {|
-type a = { foo : string; }
-type b = a = { foo : string; }
+type a : value mod portable = { foo : string; }
+type b = a : value mod portable = { foo : string; }
 |}]
 
 type a : value mod uncontended = private { foo : string }
 type b : value mod uncontended = a = private { foo : string }
 [%%expect {|
-type a = private { foo : string; }
-type b = a = private { foo : string; }
+type a : value mod uncontended = private { foo : string; }
+type b = a : value mod uncontended = private { foo : string; }
 |}]
 
 type t : value mod uncontended = private Foo of int | Bar
 [%%expect {|
-type t = private Foo of int | Bar
+type t : value mod uncontended = private Foo of int | Bar
 |}]
 
 type a : value mod uncontended = Foo of int | Bar
 type b : value mod uncontended = a = Foo of int | Bar
 [%%expect {|
-type a = Foo of int | Bar
-type b = a = Foo of int | Bar
+type a : value mod uncontended = Foo of int | Bar
+type b = a : value mod uncontended = Foo of int | Bar
 |}]
 
 type a : value mod portable = private Foo of int | Bar
 type b : value mod portable = a = private Foo of int | Bar
 [%%expect {|
-type a = private Foo of int | Bar
-type b = a = private Foo of int | Bar
+type a : value mod portable = private Foo of int | Bar
+type b = a : value mod portable = private Foo of int | Bar
 |}]
 
 module A : sig
@@ -97,7 +97,7 @@ end = struct
   type t = { a : string }
 end
 [%%expect {|
-module A : sig type t = { a : string; } end
+module A : sig type t : value mod portable = { a : string; } end
 |}]
 
 (********************************************)
@@ -107,7 +107,7 @@ type a : value mod portable uncontended = Foo of string
 type ('a : value mod portable uncontended) b
 type c = a b
 [%%expect {|
-type a = Foo of string
+type a : value mod portable uncontended = Foo of string
 type ('a : value mod uncontended portable) b
 type c = a b
 |}]
@@ -116,7 +116,7 @@ type t : value mod portable uncontended = { a : string; b : int }
 let f : ('a : value mod portable uncontended). 'a -> 'a = fun x -> x
 let g (x : t) = f x
 [%%expect {|
-type t = { a : string; b : int; }
+type t : value mod portable uncontended = { a : string; b : int; }
 val f : ('a : value mod uncontended portable). 'a -> 'a = <fun>
 val g : t -> t = <fun>
 |}]
@@ -124,21 +124,21 @@ val g : t -> t = <fun>
 type t : value mod portable uncontended = { a : int; b : int }
 let x : _ as (_ : value mod portable uncontended) = { a = 5; b = 5 }
 [%%expect {|
-type t = { a : int; b : int; }
+type t : value mod portable uncontended = { a : int; b : int; }
 val x : t = {a = 5; b = 5}
 |}]
 
 type ('a, 'b) t : value mod portable uncontended = { a : 'a; b : 'b }
 let x : _ as (_ : value mod portable uncontended) = { a = 5; b = 5 }
 [%%expect {|
-type ('a, 'b) t = { a : 'a; b : 'b; }
+type ('a, 'b) t : value mod portable uncontended = { a : 'a; b : 'b; }
 val x : (int, int) t = {a = 5; b = 5}
 |}]
 
 type t : value mod portable uncontended = Foo of string | Bar of int
 let x : _ as (_ : value mod portable uncontended) = Foo "hello world"
 [%%expect {|
-type t = Foo of string | Bar of int
+type t : value mod portable uncontended = Foo of string | Bar of int
 val x : t = Foo "hello world"
 |}]
 
@@ -151,7 +151,7 @@ type ('a : value mod portable) u = 'a
 type v = A.t u
 let x : _ as (_ : value mod portable) = ({ a = "hello" } : A.t)
 [%%expect {|
-module A : sig type t = { a : string; } end
+module A : sig type t : value mod portable = { a : string; } end
 type ('a : value mod portable) u = 'a
 type v = A.t u
 val x : A.t = {A.a = "hello"}
