@@ -204,7 +204,7 @@ k = κ ∈ Γ
 Γ ⊢ jkind ↠ κ
 ------------------------------------------------- K_MOD
 Γ ⊢ jkind mod modes ↠ lay(κ); ⟪Ξ(κ) ⊓ ⨅ extract(Ξ, modes)⟫
-  (* This rule isn't right if κ already has [with] constraints; probably
+  (* CR reisenberg: This rule isn't right if κ already has [with] constraints; probably
      should just forbid that syntactically. Not right: we can't meet out
      the with-added modes because we don't really know what they are.
      So we'd have to retain the [mod] clause just like we retain the
@@ -304,23 +304,17 @@ TODO
 Γ ⊢ σ : κ₂ {not_best}
 
 
-(* CR reisenberg: Probably don't need this any more *)
-Γ ⊢ground layout ↠ const_layout   (* ground out the layout, resolving [layout_of] *)
-================================
+Γ ⊢ σ₁ = σ₂
+===========
 
-------------------------------- LG_CONST
-Γ ⊢ground const_layout ↠ const_layout
-
-Γ ⊢ σ : κ
------------------------- LG_OF
-Γ ⊢ground layout_of σ ↠ lay(κ)
-
+(* left abstract; checks equality between `σ₁` and `σ₂` *)
+   
 
 Γ ⊢ layout₁ ≤ layout₂
-=============================
+=====================
 
 const_layout₁ ≤ const_layout₂
-------------------------------- LSUB_CONST_CONST
+--------------------------------- LSUB_CONST_CONST
 Γ ⊢ const_layout₁ ≤ const_layout₂
 
 Γ ⊢ σ₁ : κ₁
@@ -398,14 +392,15 @@ m'_Ξ = m_Ξ ⊔ mode(Ξ(κ₀))
 Γ ⊢ m₁_Ξ with [[ σ₁ ]] ≤ m₂_Ξ with [[ σ₂ ]]
 ===========================================
 
-m₁_Ξ with [[ σ₁ ]] ≤ m₂_Ξ with [[ σ₂ ]]
---------------------------------------------------- MSUB_MATCH
-Γ ⊢ m₁_Ξ with σ₀ and [[ σ₁ ]] ≤ m₂_Ξ with σ₀ and [[ σ₂ ]]
+Γ ⊢ σ₁₀ = σ₂₀
+Γ ⊢ m₁_Ξ with [[ σ₁ ]] ≤ m₂_Ξ with [[ σ₂ ]]
+----------------------------------------------------------- MSUB_MATCH
+Γ ⊢ m₁_Ξ with σ₁₀ and [[ σ₁ ]] ≤ m₂_Ξ with σ₂₀ and [[ σ₂ ]]
   (* As elsewhere, the `with σ and [[ σ ]]` notation means to
   non-deterministically select. *)
   
 Γ ⊢ground_Ξ [[ σ₁ ]] ↠ m₁'_Ξ
-m₁_Ξ ⊔ m₁'_Ξ ≤ m₂_Ξ
+(m₁_Ξ ⊔ m₁'_Ξ) ≤ m₂_Ξ
 ----------------------------- MSUB_BOUND
 Γ ⊢ m₁_Ξ with [[ σ₁ ]] ≤ m₂_Ξ
 
@@ -418,7 +413,7 @@ m₁_Ξ ⊔ m₁'_Ξ ≤ m₂_Ξ
   Γ ⊢ modal_bound₁_Ξ ⤋ m₁_Ξ with [[ σ₁ ]]
   Γ ⊢ modal_bound₂_Ξ ⤋ m₂_Ξ with [[ σ₂ ]]
   Γ ⊢ m₁_Ξ with [[ σ₁ ]] ≤ m₂_Ξ with [[ σ₂ ]]
--------------------------------------------------------- SUB
+--------------------------------------------------------- SUB
 Γ ⊢ layout₁; ⟪modal_bound₁_Ξ⟫ ≤ layout₂; ⟪modal_bound₂_Ξ⟫
 
 }
@@ -573,96 +568,62 @@ t' := λ [[ 'aᵢ : κᵢ ]]. δ' ∈ Γ
 Γ ⊢ type type_params t : jkind = τ = type_kind ↠ Γ'
 
 
-(Γ₁ ⊢ τ₁) =_Γ₀ (Γ₂ ⊢ τ₂)
-========================
-
-(* left abstract; This checks whether τ₁ (in context Γ₁) equals τ₂ (in context Γ₂),
-but with access to equalities in Γ₀. This "access to equalities" bit seems necessary
-to accept
-
-  {[
-    module M : sig
-      type a
-      type b
-      type c = b
-    end = struct
-      type a
-      type c = a
-      type b = c
-    end
-  ]}
-
-The struct is acceptable only with the last equation, which occurs *after* the definition
-of [c]. *)
-
-
-Γ ⊢ground κ ↠ const_layout; ⟪m_Ξ⟫
-=================================
-
-Γ ⊢ground layout ↠ const_layout
-∀ Ξ, Γ ⊢ground modal_bound_Ξ ↠ m_Ξ
-------------------------------------------------------- KG
-Γ ⊢ground layout; ⟪modal_bound_Ξ⟫ ↠ const_layout; ⟪m_Ξ⟫
-
-
-Γ ⊢find t ∈ Γ₂ ↠ (Γ₂' ⊢ tconstr_jkind)  (* find [t] in Γ₂, with prefix env Γ₂' *)
+Γ ⊢find t ∈ Γ₂ ↠ tconstr_jkind  (* find [t] in Γ₂ *)
 ======================================
+  (* pre-condition: Γ₂ ⊆ Γ *)
 
-Γ₂ = Γ₂', t : tconstr_jkind ∈ Γ₂, Γ₂''
+t : tconstr_jkind ∈ Γ₂
 --------------------------- FIND_ABSTRACT
-Γ ⊢find t ∈ Γ₂ ↠ (Γ₂' ⊢ tconstr_jkind)
+Γ ⊢find t ∈ Γ₂ ↠ tconstr_jkind
 
-Γ₂ = Γ₂', t = λ [[ 'aᵢ : κᵢ ]]. τ, Γ₂''
-Γ, Γ₂', [[ 'aᵢ : κᵢ ]] ⊢ τ : κ₀
+t = λ [[ 'aᵢ : κᵢ ]]. τ ∈ Γ₂
+Γ, [[ 'aᵢ : κᵢ ]] ⊢ τ : κ₀
 ------------------------------------- FIND_ABBREV
-Γ ⊢find t ∈ Γ₂ ↠ (Γ₂' ⊢ π [[ 'aᵢ : κᵢ ]]. κ₀)
+Γ ⊢find t ∈ Γ₂ ↠ π [[ 'aᵢ : κᵢ ]]. κ₀
 
-Γ₂ = Γ₂', t := λ [[ 'aᵢ : κᵢ ]]. δ : κ₀, Γ₂''
+t := λ [[ 'aᵢ : κᵢ ]]. δ : κ₀ ∈ Γ₂
 --------------------------------------- FIND_NOMINATIVE
-Γ ⊢find t ∈ Γ₂ ↠ (Γ₂' ⊢ π [[ 'aᵢ : κᵢ ]]. κ₀)
+Γ ⊢find t ∈ Γ₂ ↠ π [[ 'aᵢ : κᵢ ]]. κ₀
 
 
-Γ ⊢include (Γ₀ ⊢ type_binding) ∈~ Γ₂
-  (* check whether type_binding (in env Γ₀) is more general than a definition in Γ₂,
+Γ ⊢include type_binding ∈~ Γ₂
+  (* check whether type_binding is more general than a definition in Γ₂,
      with ambient env Γ *)
 ====================================
 
 tconstr_jkind₁ = π [[ 'aᵢ : κ₁ᵢ ]]ₙ. κ₁₀
-Γ ⊢find t ∈ Γ₂ ↠ (Γ₂' ⊢ π [[ 'bᵢ : κ₂ᵢ ]]ₙ. κ₂₀)
+Γ ⊢find t ∈ Γ₂ ↠ π [[ 'aᵢ : κ₂ᵢ ]]ₙ. κ₂₀
 ∀ 1 ≤ j ≤ n:
-  Γ, Γ₀, [[ 'aᵢ : κ₁ᵢ ]]ⱼ₋₁ ⊢ground κ₁ᵢ ↠ κ₁ᵢ'
-  Γ, Γ₂', [[ 'bᵢ : κ₁ᵢ' ]]ⱼ₋₁ ⊢ κ₁ᵢ' ≤ κ₂ᵢ
-    (* check with more restrictive κ₁, not κ₂; this is also contravariant *)
-Γ, Γ₀, [[ 'aᵢ : κ₁ᵢ ]]ₙ ⊢ground κ₁₀ ↠ κ₁₀'
-Γ, Γ₂', [[ 'bᵢ : κ₁ᵢ' ]]ₙ ⊢ κ₂₀ ≤ κ₁₀'
+  Γ, [[ 'aᵢ : κ₁ᵢ ]]ⱼ₋₁ ⊢ κ₁ⱼ ≤ κ₂ⱼ
+    (* check with more restrictive κ₁ in env, not κ₂; this is also contravariant *)
+Γ, [[ 'aᵢ : κ₁ᵢ ]]ₙ ⊢ κ₂₀ ≤ κ₁₀
 ------------------------------------------ INCL_ABSTRACT
-Γ ⊢include (Γ₀ ⊢ t : tconstr_jkind₁) ∈~ Γ₂
+Γ ⊢include (t : tconstr_jkind₁) ∈~ Γ₂
 
-Γ₂ = Γ₂', t = λ [[ 'aᵢ ]]ₙ. τ₂, Γ₂''
-t : π [[ 'aᵢ : κᵢ ]]ₙ. κ₀ ∈ Γ₀
+(t = λ [[ 'aᵢ : κ₂ᵢ ]]ₙ. τ₂) ∈ Γ₂
 ∀ 1 ≤ j ≤ n:
-  Γ, Γ₀, [[ 'aᵢ : κᵢ ]]ⱼ₋₁ ⊢ground κᵢ ↠ κᵢ'
-(Γ, Γ₀, [[ 'aᵢ : κᵢ' ]]ₙ ⊢ τ₁) =_Γ₂ (Γ, Γ₂', [[ 'aᵢ : κᵢ' ]]ₙ ⊢ τ₂)
+  Γ, [[ 'aᵢ : κ₁ᵢ ]]ⱼ₋₁ ⊢ κ₁ⱼ ≤ κ₂ⱼ
+Γ, [[ 'aᵢ : κ₁ᵢ ]]ₙ ⊢ τ₁ = τ₂
 ----------------------------------------- INCL_ABBREV
-Γ ⊢include (Γ₀ ⊢ t = λ [[ 'aᵢ ]]. τ₁) ∈~ Γ₂
+Γ ⊢include (t = λ [[ 'aᵢ : κ₁ᵢ ]]ₙ. τ₁) ∈~ Γ₂
 
 (* nothing to check for here *)
 ------------------------------------------ INCL_SUBST
-Γ ⊢include (Γ₀ ⊢ t := λ [[ 'aᵢ ]]. τ) ∈~ Γ₂
+Γ ⊢include (t := λ [[ 'aᵢ ]]. τ) ∈~ Γ₂
 
 TODO: More type_binding rules
 
 
-Γ ⊢includemod Γ₂ ≤ (Γ₀ ⊢ Γ₁)  (* check whether Γ₁, with prefix Γ₀, covers Γ₂ *)
+Γ ⊢includemod Γ₂ ≤ Γ₁  (* check whether Γ₁, covers Γ₂ *)
 ============================
 
---------------------------- IM_EMPTY
-Γ ⊢includemod Γ₂ ≤ (Γ₀ ⊢ ∅)
+-------------------- IM_EMPTY
+Γ ⊢includemod Γ₂ ≤ ∅
 
-Γ ⊢include (Γ₀ ⊢ type_binding) ∈~ Γ₂
-Γ ⊢includemod Γ₂ ≤ (Γ₀, type_binding ⊢ Γ₁)
+Γ ⊢include type_binding ∈~ Γ₂
+Γ ⊢includemod Γ₂ ≤ Γ₁
 ----------------------------------- IM_BINDING
-Γ ⊢includemod Γ₂ ≤ (Γ₀ ⊢ type_binding, Γ₁)
+Γ ⊢includemod Γ₂ ≤ type_binding, Γ₁
 
 
 Γ ⊢sig sig_item ↠ Γ'
@@ -705,7 +666,7 @@ rec {
 
 Γ ⊢mty module_type ↠ Γ₁
 Γ ⊢mod module_expr ↠ Γ₂
-Γ ⊢includemod Γ₂ ≤ (∅ ⊢ Γ₁)
+Γ, Γ₂ ⊢includemod Γ₂ ≤ Γ₁
 ---------------------------------------------- STRUCT_MOD
 Γ ⊢struct module M : module_type = module_expr ↠ M = Γ₁
 
