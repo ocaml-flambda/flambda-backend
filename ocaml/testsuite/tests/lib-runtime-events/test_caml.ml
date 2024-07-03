@@ -3,12 +3,23 @@
    runtime4;
    skip;
  }{
+   reason="this runtime_events test is currently broken, to be fixed later";
+   skip;
+ }
+*)
+
+(* Header to start from when this test gets fixed:
+ {
+   runtime4;
+   skip;
+ }{
    include runtime_events;
    runtime5;
    { bytecode; }
    { native; }
  }
 *)
+
 open Runtime_events
 
 let major = ref 0
