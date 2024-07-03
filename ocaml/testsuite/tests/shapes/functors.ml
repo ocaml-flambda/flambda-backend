@@ -20,11 +20,6 @@ module Falias (X : S) = X
  "Falias"[module] -> Abs<.4>(X, X<.3>);
  }
 module Falias : functor (X : S) -> sig type t = X.t val x : t end
-|}, Principal{|
-{
- "Falias"[module] -> Abs<.4>(X/281, X/281<.3>);
- }
-module Falias : functor (X : S) -> sig type t = X.t val x : t end
 |}]
 
 module Finclude (X : S) = struct
@@ -40,17 +35,6 @@ end
            });
  }
 module Finclude : functor (X : S) -> sig type t = X.t val x : t end
-|}, Principal{|
-{
- "Finclude"[module] ->
-   Abs<.6>
-      (X/285,
-       {
-        "t"[type] -> X/285<.5> . "t"[type];
-        "x"[value] -> X/285<.5> . "x"[value];
-        });
- }
-module Finclude : functor (X : S) -> sig type t = X.t val x : t end
 |}]
 
 module Fredef (X : S) = struct
@@ -63,15 +47,6 @@ end
                                   "t"[type] -> <.8>;
                                   "x"[value] -> <.9>;
                                   });
- }
-module Fredef : functor (X : S) -> sig type t = X.t val x : X.t end
-|}, Principal{|
-{
- "Fredef"[module] ->
-   Abs<.10>(X/292, {
-                    "t"[type] -> <.8>;
-                    "x"[value] -> <.9>;
-                    });
  }
 module Fredef : functor (X : S) -> sig type t = X.t val x : X.t end
 |}]
@@ -273,14 +248,6 @@ module Big_to_small1 : B2S = functor (X : Big) -> X
                 });
  }
 module Big_to_small1 : B2S
-|}, Principal{|
-{
- "Big_to_small1"[module] ->
-   Abs<.40>(X/385, {<.39>
-                    "t"[type] -> X/385<.39> . "t"[type];
-                    });
- }
-module Big_to_small1 : B2S
 |}]
 
 module Big_to_small2 : B2S = functor (X : Big) -> struct include X end
@@ -289,14 +256,6 @@ module Big_to_small2 : B2S = functor (X : Big) -> struct include X end
  "Big_to_small2"[module] -> Abs<.42>(X, {
                                          "t"[type] -> X<.41> . "t"[type];
                                          });
- }
-module Big_to_small2 : B2S
-|}, Principal{|
-{
- "Big_to_small2"[module] ->
-   Abs<.42>(X/388, {
-                    "t"[type] -> X/388<.41> . "t"[type];
-                    });
  }
 module Big_to_small2 : B2S
 |}]
