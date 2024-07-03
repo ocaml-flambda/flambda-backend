@@ -237,30 +237,36 @@ val parse_optional_id_payload :
   string -> Location.t -> empty:'a -> (string * 'a) list ->
   Parsetree.payload -> ('a,unit) Result.t
 
-(* Support for property attributes like zero_alloc *)
+(* Support for zero_alloc *)
+type zero_alloc_check =
+  { strict: bool;
+    (* [strict=true] property holds on all paths.
+       [strict=false] if the function returns normally,
+       then the property holds (but property violations on
+       exceptional returns or diverging loops are ignored).
+       This definition may not be applicable to new properties. *)
+    opt: bool;
+    arity: int;
+    loc: Location.t;
+  }
+
+type zero_alloc_assume =
+  { strict: bool;
+    never_returns_normally: bool;
+    never_raises: bool;
+    (* [never_raises=true] the function never returns
+       via an exception. The function (directly or transitively)
+       may raise exceptions that do not escape, i.e.,
+       handled before the function returns. *)
+    arity: int;
+    loc: Location.t;
+  }
+
 type zero_alloc_attribute =
   | Default_zero_alloc
   | Ignore_assert_all
-  | Check of { strict: bool;
-               (* [strict=true] property holds on all paths.
-                  [strict=false] if the function returns normally,
-                  then the property holds (but property violations on
-                  exceptional returns or diverging loops are ignored).
-                  This definition may not be applicable to new properties. *)
-               opt: bool;
-               arity: int;
-               loc: Location.t;
-             }
-  | Assume of { strict: bool;
-                never_returns_normally: bool;
-                never_raises: bool;
-                (* [never_raises=true] the function never returns
-                   via an exception. The function (directly or transitively)
-                   may raise exceptions that do not escape, i.e.,
-                   handled before the function returns. *)
-                arity: int;
-                loc: Location.t;
-              }
+  | Check of zero_alloc_check
+  | Assume of zero_alloc_assume
 
 val is_zero_alloc_check_enabled : opt:bool -> bool
 
@@ -271,12 +277,12 @@ val get_zero_alloc_attribute :
   in_signature:bool -> default_arity:int -> Parsetree.attributes ->
   zero_alloc_attribute
 
-(* If the input attribute is [Check], this issues a warning and returns
-   [Default_zero_alloc].  Otherwise, it is the identity. *)
-val zero_alloc_attribute_may_not_be_check :
-  zero_alloc_attribute -> zero_alloc_attribute
+(* This returns the [zero_alloc_assume] if the input is an assume.  Otherwise,
+   it returns None. If the input attribute is [Check], this issues a warning. *)
+val zero_alloc_attribute_only_assume_allowed :
+  zero_alloc_attribute -> zero_alloc_assume option
 
-val assume_zero_alloc : zero_alloc_attribute -> Zero_alloc_utils.Assume_info.t
+val assume_zero_alloc : zero_alloc_assume -> Zero_alloc_utils.Assume_info.t
 
 type tracing_probe =
   { name : string;

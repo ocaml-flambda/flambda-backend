@@ -280,7 +280,7 @@ and expression_desc =
       *)
   | Texp_apply of
       expression * (arg_label * apply_arg) list * apply_position *
-        Mode.Locality.l * Builtin_attributes.zero_alloc_attribute
+        Mode.Locality.l * Zero_alloc.assume option
         (** E0 ~l1:E1 ... ~ln:En
 
             The expression can be Omitted if the expression is abstracted over
@@ -296,10 +296,8 @@ and expression_desc =
                          (Labelled "y", Some (Texp_constant Const_int 3))
                         ])
 
-            The [zero_alloc_attribute] records the optional [@zero_alloc assume]
-            attribute that may appear on applications.  Invariant: it is either
-            [Default_zero_alloc] (if the user wrote no attribute) or [Assume]
-            (if they did). *)
+            The [Zero_alloc.assume option] records the optional [@zero_alloc
+            assume] attribute that may appear on applications. *)
   | Texp_match of expression * Jkind.sort * computation case list * partial
         (** match E0 with
             | P1 -> E1

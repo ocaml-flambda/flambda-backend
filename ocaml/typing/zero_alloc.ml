@@ -1,19 +1,26 @@
 module ZA = Zero_alloc_utils
 
+(* Support for zero_alloc *)
+type check = Builtin_attributes.zero_alloc_check =
+  { strict: bool;
+    opt: bool;
+    arity: int;
+    loc: Location.t;
+  }
+
+type assume = Builtin_attributes.zero_alloc_assume =
+  { strict: bool;
+    never_returns_normally: bool;
+    never_raises: bool;
+    arity: int;
+    loc: Location.t;
+  }
+
 type const = Builtin_attributes.zero_alloc_attribute =
   | Default_zero_alloc
   | Ignore_assert_all
-  | Check of { strict: bool;
-               opt: bool;
-               arity: int;
-               loc: Location.t;
-             }
-  | Assume of { strict: bool;
-                never_returns_normally: bool;
-                never_raises: bool;
-                arity: int;
-                loc: Location.t;
-              }
+  | Check of check
+  | Assume of assume
 
 type desc = { strict : bool; opt : bool }
 

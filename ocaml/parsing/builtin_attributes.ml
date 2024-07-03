@@ -681,20 +681,26 @@ let error_message_attr l =
     | _ -> None in
   List.find_map inner l
 
+type zero_alloc_check =
+  { strict: bool;
+    opt: bool;
+    arity: int;
+    loc: Location.t;
+  }
+
+type zero_alloc_assume =
+  { strict: bool;
+    never_returns_normally: bool;
+    never_raises: bool;
+    arity: int;
+    loc: Location.t;
+  }
+
 type zero_alloc_attribute =
   | Default_zero_alloc
   | Ignore_assert_all
-  | Check of { strict: bool;
-               opt: bool;
-               arity: int;
-               loc: Location.t;
-             }
-  | Assume of { strict: bool;
-                never_returns_normally: bool;
-                never_raises: bool;
-                arity: int;
-                loc: Location.t;
-              }
+  | Check of zero_alloc_check
+  | Assume of zero_alloc_assume
 
 let is_zero_alloc_check_enabled ~opt =
   match !Clflags.zero_alloc_check with
@@ -923,9 +929,10 @@ let get_zero_alloc_attribute ~in_signature ~default_arity l =
        register_zero_alloc_attribute attr.attr_name);
    res
 
-let zero_alloc_attribute_may_not_be_check za =
+let zero_alloc_attribute_only_assume_allowed za =
   match za with
-  | Default_zero_alloc | Ignore_assert_all | Assume _ -> za
+  | Assume assume -> Some assume
+  | Default_zero_alloc | Ignore_assert_all -> None
   | Check { loc; _ } ->
     let name = "zero_alloc" in
     let msg = "Only the following combinations are supported in this context: \
@@ -936,13 +943,11 @@ let zero_alloc_attribute_may_not_be_check za =
                `zero_alloc assume never_returns_normally strict`."
     in
     Location.prerr_warning loc (Warnings.Attribute_payload (name, msg));
-    Default_zero_alloc
+    None
 
-let assume_zero_alloc check : Zero_alloc_utils.Assume_info.t =
-  match check with
-  | Default_zero_alloc | Ignore_assert_all | Check _ ->
-    Zero_alloc_utils.Assume_info.none
-  | Assume { strict; never_returns_normally; never_raises; } ->
+let assume_zero_alloc assume : Zero_alloc_utils.Assume_info.t =
+  match assume with
+  | { strict; never_returns_normally; never_raises; } ->
     Zero_alloc_utils.Assume_info.create ~strict ~never_returns_normally ~never_raises
 
 type tracing_probe =

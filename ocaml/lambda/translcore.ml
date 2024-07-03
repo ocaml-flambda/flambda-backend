@@ -351,41 +351,36 @@ let can_apply_primitive p pmode pos args =
   end
 
 let zero_alloc_of_application
-      ~num_args (annotation : Builtin_attributes.zero_alloc_attribute) funct =
-  let zero_alloc =
-    match annotation, funct.exp_desc with
-    | Assume _, _ ->
-      (* The user wrote a zero_alloc attribute on the application - keep it. *)
-      annotation
-    | (Ignore_assert_all | Check _), _ ->
-      (* These are rejected in typecore *)
-      Misc.fatal_error "Translcore.zero_alloc_of_application: illegal attr"
-    | Default_zero_alloc, Texp_ident (_, _, { val_zero_alloc; _ }, _, _) ->
-      (* We assume the call is zero_alloc if the function is known to be
-         zero_alloc. If the function is zero_alloc opt, then we need to be sure
-         that the opt checks were run to license this assumption. We judge
-         whether the opt checks were run based on the argument to the
-         [-zero-alloc-check] command line flag. *)
-      let use_opt =
-        match !Clflags.zero_alloc_check with
-        | Check_default | No_check -> false
-        | Check_all | Check_opt_only -> true
-      in
-      begin match Zero_alloc.get val_zero_alloc with
-      | Check c when c.arity = num_args && (use_opt || not c.opt) ->
-        Builtin_attributes.Assume {
-          strict = c.strict;
+      ~num_args (annotation : Zero_alloc.assume option) funct =
+  match annotation, funct.exp_desc with
+  | Some assume, _ ->
+    (* The user wrote a zero_alloc attribute on the application - keep it. *)
+    Builtin_attributes.assume_zero_alloc assume
+  | None, Texp_ident (_, _, { val_zero_alloc; _ }, _, _) ->
+    (* We assume the call is zero_alloc if the function is known to be
+       zero_alloc. If the function is zero_alloc opt, then we need to be sure
+       that the opt checks were run to license this assumption. We judge
+       whether the opt checks were run based on the argument to the
+       [-zero-alloc-check] command line flag. *)
+    let use_opt =
+      match !Clflags.zero_alloc_check with
+      | Check_default | No_check -> false
+      | Check_all | Check_opt_only -> true
+    in
+    begin match Zero_alloc.get val_zero_alloc with
+    | Check c when c.arity = num_args && (use_opt || not c.opt) ->
+      let assume : Zero_alloc.assume =
+        { strict = c.strict;
           never_returns_normally = false;
           never_raises = false;
           arity = c.arity;
-          loc = c.loc
-        }
-      | Check _ | Default_zero_alloc | Ignore_assert_all | Assume _ ->
-        Builtin_attributes.Default_zero_alloc
-      end
-    | Default_zero_alloc, _ -> Builtin_attributes.Default_zero_alloc
-  in
-  Builtin_attributes.assume_zero_alloc zero_alloc
+          loc = c.loc }
+      in
+      Builtin_attributes.assume_zero_alloc assume
+    | Check _ | Default_zero_alloc | Ignore_assert_all | Assume _ ->
+      Zero_alloc_utils.Assume_info.none
+    end
+  | None, _ -> Zero_alloc_utils.Assume_info.none
 
 let rec transl_exp ~scopes sort e =
   transl_exp1 ~scopes ~in_new_scope:false sort e
@@ -446,7 +441,11 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         if extra_args = [] then transl_apply_position pos
         else Rc_normal
       in
-      let assume_zero_alloc = Builtin_attributes.assume_zero_alloc zero_alloc in
+      let assume_zero_alloc =
+        match zero_alloc with
+        | None -> Zero_alloc_utils.Assume_info.none
+        | Some assume -> Builtin_attributes.assume_zero_alloc assume
+      in
       let lam =
         let loc =
           map_scopes (update_assume_zero_alloc ~assume_zero_alloc)
@@ -1621,7 +1620,13 @@ and transl_function ~in_new_scope ~scopes e params body
   let attrs = e.exp_attributes in
   let mode = transl_alloc_mode_r alloc_mode in
   let zero_alloc = Zero_alloc.get zero_alloc in
-  let assume_zero_alloc = Builtin_attributes.assume_zero_alloc zero_alloc in
+  let assume_zero_alloc =
+    match zero_alloc with
+    | Default_zero_alloc | Check _ | Ignore_assert_all ->
+      Zero_alloc_utils.Assume_info.none
+    | Assume assume ->
+      Builtin_attributes.assume_zero_alloc assume
+  in
   let scopes =
     if in_new_scope then
       update_assume_zero_alloc ~scopes ~assume_zero_alloc

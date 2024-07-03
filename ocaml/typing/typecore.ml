@@ -5443,7 +5443,7 @@ and type_expect_
       let zero_alloc =
         Builtin_attributes.get_zero_alloc_attribute ~in_signature:false
           ~default_arity:(List.length args) sfunct.pexp_attributes
-        |> Builtin_attributes.zero_alloc_attribute_may_not_be_check
+        |> Builtin_attributes.zero_alloc_attribute_only_assume_allowed
       in
 
       rue {
@@ -7486,7 +7486,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
               |> Value.proj (Comonadic Areality)
               |> regional_to_global
               |> Locality.disallow_right,
-              Builtin_attributes.Default_zero_alloc)}
+              None)}
         in
         let cases = [ case eta_pat e ] in
         let cases_loc = { texp.exp_loc with loc_ghost = true } in
