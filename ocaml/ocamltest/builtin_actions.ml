@@ -53,7 +53,9 @@ let fail = make
 let cd = make
   ~name:"cd"
   ~description:"Change working directory"
-  ~does_something:false
+  ~does_something:true
+  (* CR mshinwell: This should be [does_something:false], but see
+     tests/lib-dynlink-pr4839/test.ml *)
   (fun _log env ->
     let cwd = Environments.safe_lookup Builtin_variables.cwd env in
     begin

@@ -97,13 +97,10 @@ let tests_do_something (tests : Tests.t) =
 
 let rec test_tree_does_something_on_all_branches tree =
   match tree with
+  | Node (_, tests, _, []) -> tests_do_something tests
   | Node (_, tests, _, children) ->
-    let from_children =
-      List.fold_left (fun acc child ->
-          acc || test_tree_does_something_on_all_branches child)
-        false children
-    in
-    tests_do_something tests || from_children
+    tests_do_something tests
+    || List.for_all test_tree_does_something_on_all_branches children
 
 let too_deep testname max_level real_level =
   Printf.eprintf "Test %s should have depth atmost %d but has depth %d\n%!"
