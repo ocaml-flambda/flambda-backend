@@ -157,7 +157,10 @@ val imports : 'a t -> Import_info.t list
    a functor rather than a [struct] as usual, and the parameters to this functor are what
    we refer to as "runtime parameters." They include (a) all imported parameters (not all
    parameters are necessarily imported; see [parameters]) and (b) all imported
-   parameterised modules. *)
+   parameterised modules.
+
+   Note that the word "runtime" is a bit of a fiction reflecting a front-end view of the
+   world. In fact we aim to inline away all passing of runtime parameters. *)
 val runtime_parameters : 'a t -> (Compilation_unit.Name.t * Ident.t) list
 
 (* Return the list of parameters specified for the current unit, in alphabetical order.
