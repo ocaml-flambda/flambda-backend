@@ -865,13 +865,14 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pbigstring_set_32 _ | Pbigstring_set_f32 _ | Pbigstring_set_64 _
       | Pbigstring_set_128 _ | Pfloatarray_load_128 _ | Pfloat_array_load_128 _
       | Pint_array_load_128 _ | Punboxed_float_array_load_128 _
-      | Punboxed_int32_array_load_128 _ | Punboxed_int64_array_load_128 _
-      | Punboxed_nativeint_array_load_128 _ | Pfloatarray_set_128 _
-      | Pfloat_array_set_128 _ | Pint_array_set_128 _
-      | Punboxed_float_array_set_128 _ | Punboxed_int32_array_set_128 _
-      | Punboxed_int64_array_set_128 _ | Punboxed_nativeint_array_set_128 _
-      | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ | Popaque _
-      | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _ | Punbox_float _
+      | Punboxed_float32_array_load_128 _ | Punboxed_int32_array_load_128 _
+      | Punboxed_int64_array_load_128 _ | Punboxed_nativeint_array_load_128 _
+      | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
+      | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
+      | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
+      | Punboxed_nativeint_array_set_128 _ | Pctconst _ | Pbswap16 | Pbbswap _
+      | Pint_as_pointer _ | Popaque _ | Pprobe_is_enabled _ | Pobj_dup
+      | Pobj_magic _ | Punbox_float _
       | Pbox_float (_, _)
       | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
       | Punboxed_product_field _ | Pget_header _ | Prunstack | Pperform

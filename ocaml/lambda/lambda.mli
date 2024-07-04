@@ -235,6 +235,7 @@ type primitive =
   | Pfloat_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Pint_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Punboxed_float_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_float32_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Punboxed_int32_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Punboxed_int64_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Punboxed_nativeint_array_load_128 of { unsafe : bool; mode : alloc_mode }
@@ -242,6 +243,7 @@ type primitive =
   | Pfloat_array_set_128 of { unsafe : bool }
   | Pint_array_set_128 of { unsafe : bool }
   | Punboxed_float_array_set_128 of { unsafe : bool }
+  | Punboxed_float32_array_set_128 of { unsafe : bool }
   | Punboxed_int32_array_set_128 of { unsafe : bool }
   | Punboxed_int64_array_set_128 of { unsafe : bool }
   | Punboxed_nativeint_array_set_128 of { unsafe : bool }
