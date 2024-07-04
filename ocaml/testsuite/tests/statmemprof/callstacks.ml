@@ -1,16 +1,16 @@
-(* TEST
- flags = "-g";
- {
-   reference = "${test_source_directory}/callstacks.flat-float-array.reference";
-   flat-float-array;
-   { bytecode; }
-   { native; }
- }{
-   reference = "${test_source_directory}/callstacks.no-flat-float-array.reference";
-   no-flat-float-array;
-   { bytecode; }
-   { native; }
- }
+(* TEST_BELOW
+   Blank lines added to preserve locations
+
+
+
+
+
+
+
+
+
+
+
 *)
 
 module MP = Gc.Memprof
@@ -105,3 +105,24 @@ let () =
     | t :: ts -> test t; test_all ts
   in
   test_all allocators
+
+(* TEST
+ flags = "-g";
+ {
+   flat-float-array;
+   { reference = "${test_source_directory}/callstacks.flat-float-array.byte.reference";
+     bytecode;
+   }
+   { reference = "${test_source_directory}/callstacks.flat-float-array.opt.reference";
+     native;
+   }
+ }{
+   no-flat-float-array;
+   { reference = "${test_source_directory}/callstacks.no-flat-float-array.byte.reference";
+     bytecode;
+   }
+   { reference = "${test_source_directory}/callstacks.no-flat-float-array.opt.reference";
+     native;
+   }
+ }
+*)
