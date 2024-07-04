@@ -207,6 +207,10 @@ module Bigarray_kind : sig
   type t =
     | Float32
     | Float32_t
+        (** [Float32_t] is used for bigarrays that contain (unboxed) float32
+            values and are read and written to using the [float32] type.  This
+            is in contrast to [Float32] bigarrays, where the accesses are done
+            at type [float]. *)
     | Float64
     | Sint8
     | Uint8

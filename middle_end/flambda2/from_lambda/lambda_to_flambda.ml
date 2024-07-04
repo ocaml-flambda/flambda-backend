@@ -291,6 +291,7 @@ let transform_primitive env (prim : L.primitive) args loc =
     Primitive
       (L.Pnot, [L.Lprim (Punboxed_float_comp (bf, CFge), args, loc)], loc)
   | Pbigarrayref (_unsafe, num_dimensions, kind, layout), args -> (
+    (* CR mshinwell: factor out with the [Pbigarrayset] case *)
     match
       P.Bigarray_kind.from_lambda kind, P.Bigarray_layout.from_lambda layout
     with
@@ -300,7 +301,14 @@ let transform_primitive env (prim : L.primitive) args loc =
       then
         let arity = 1 + num_dimensions in
         let is_float32_t =
-          match kind with Pbigarray_float32_t -> "float32_" | _ -> ""
+          match kind with
+          | Pbigarray_float32_t -> "float32_"
+          | Pbigarray_unknown | Pbigarray_float32 | Pbigarray_float64
+          | Pbigarray_sint8 | Pbigarray_uint8 | Pbigarray_sint16
+          | Pbigarray_uint16 | Pbigarray_int32 | Pbigarray_int64
+          | Pbigarray_caml_int | Pbigarray_native_int | Pbigarray_complex32
+          | Pbigarray_complex64 ->
+            ""
         in
         let name =
           "caml_ba_" ^ is_float32_t ^ "get_" ^ string_of_int num_dimensions
@@ -322,7 +330,13 @@ let transform_primitive env (prim : L.primitive) args loc =
       then
         let arity = 2 + num_dimensions in
         let is_float32_t =
-          match kind with Pbigarray_float32_t -> "float32_" | _ -> ""
+          match kind with Pbigarray_float32_t -> "float32_"
+          | Pbigarray_unknown | Pbigarray_float32 | Pbigarray_float64
+          | Pbigarray_sint8 | Pbigarray_uint8 | Pbigarray_sint16
+          | Pbigarray_uint16 | Pbigarray_int32 | Pbigarray_int64
+          | Pbigarray_caml_int | Pbigarray_native_int | Pbigarray_complex32
+          | Pbigarray_complex64 ->
+            ""
         in
         let name =
           "caml_ba_" ^ is_float32_t ^ "set_" ^ string_of_int num_dimensions
