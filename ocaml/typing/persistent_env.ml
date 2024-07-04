@@ -394,18 +394,22 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
     | Constant unit -> Aunit unit
   in
   let uid =
-    (* The uid neeeds to include the either the pack prefix, if it's packed, or
-       the arguments, if it has any. It cannot have both. *)
-    match binding with
-    | Runtime_parameter _ -> (* FIXME *) Shape.Uid.internal_not_actually_unique
-    | Constant unit -> Shape.Uid.of_compilation_unit_id unit
+    (* This is source-level information that depends only on the import, not the
+       arguments. (TODO: Consider moving this bit into [acknowledge_import].) *)
+    match import.imp_impl with
+    | Some unit -> Shape.Uid.of_compilation_unit_id unit
+    | None ->
+        (* TODO: [Shape.Uid.of_compilation_unit_id] is actually the wrong type, since
+           parameters should also have uids but they don't have .cmx files and thus
+           they don't have [CU.t]s *)
+        Shape.Uid.internal_not_actually_unique
   in
   let shape =
-    match binding with
-    | Constant unit -> Shape.for_persistent_unit (CU.full_path_as_string unit)
-    | Runtime_parameter ident ->
-        (* FIXME This is probably wrong for non-parameter modules *)
-        Shape.var uid ident
+    match import.imp_impl, import.imp_params with
+    | Some unit, [] -> Shape.for_persistent_unit (CU.full_path_as_string unit)
+    | _, _ ->
+        (* TODO Implement shapes for parameters and parameterised modules *)
+        Shape.error ~uid "parameter or parameterised module"
   in
   let pm = val_of_pers_sig sign modname uid ~shape ~address ~flags in
   let ps =
