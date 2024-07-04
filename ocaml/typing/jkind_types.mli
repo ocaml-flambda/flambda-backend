@@ -23,8 +23,8 @@
    types.ml(i). jkind.ml(i) redefines the types from this file types.ml
    with the type variables instantiated. types.ml also redefines the types
    from this file with the type variables instantiated, but only for internal
-   use. primitive.ml(i) uses the type [Jkind.const], and types.ml(i) depends on
-   prmitive.ml(i), so [Jkind.const] is defined here and primitive.ml(i) also
+   use. primitive.ml(i) uses the type [Jkind.Type.const], and types.ml(i) depends on
+   prmitive.ml(i), so [Jkind.Type.const] is defined here and primitive.ml(i) also
    uses this module.
 
    Dependency chain without Jkind_types:
@@ -157,13 +157,9 @@ type 'a arrow =
     result : 'a
   }
 
-module Jkind_desc : sig
-  type 'type_expr t =
-    | Type of 'type_expr Type.Jkind_desc.t
-    | Arrow of 'type_expr t arrow
-end
-
-type 'type_expr t = { jkind : 'type_expr Jkind_desc.t }
+type 'type_expr t =
+  | Type of 'type_expr Type.t
+  | Arrow of 'type_expr t arrow
 
 module Const : sig
   type 'type_expr t =

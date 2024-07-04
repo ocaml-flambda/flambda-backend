@@ -108,8 +108,8 @@ type error =
   | Duplicate of string * string
   | Closing_self_type of class_signature
   | Polymorphic_class_parameter
-  | Non_value_binding of string * Jkind.Violation.t
-  | Non_value_let_binding of string * Jkind.sort
+  | Non_value_binding of string * Jkind.Type.Violation.t
+  | Non_value_let_binding of string * Jkind.Type.sort
   | Nonoptional_call_pos_label of string
 
 exception Error of Location.t * Env.t * error
@@ -313,7 +313,7 @@ let rec class_type_field env sign self_scope ctf =
           let ty = cty.ctyp_type in
           begin match
             Ctype.constrain_type_jkind
-              env ty (Jkind.Primitive.value ~why:Instance_variable)
+              env ty (Jkind.Type.Primitive.value ~why:Instance_variable)
           with
           | Ok _ -> ()
           | Error err -> raise (Error(loc, env, Non_value_binding(lab, err)))
@@ -328,7 +328,7 @@ let rec class_type_field env sign self_scope ctf =
            match sty.ptyp_desc, priv with
            | Ptyp_poly ([],sty'), Public ->
                let expected_ty =
-                 Ctype.newvar (Jkind.Primitive.value ~why:Object_field)
+                 Ctype.newvar (Jkind.Type.Primitive.value ~why:Object_field)
                in
                add_method loc env lab priv virt expected_ty sign;
                let returned_cty =
@@ -691,7 +691,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
            begin
              match
                Ctype.constrain_type_jkind
-                 val_env cty.ctyp_type (Jkind.Primitive.value ~why:Class_field)
+                 val_env cty.ctyp_type (Jkind.Type.Primitive.value ~why:Class_field)
              with
              | Ok _ -> ()
              | Error err -> raise (Error(label.loc, val_env,
@@ -740,7 +740,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
              match
                Ctype.constrain_type_jkind
                  val_env definition.exp_type
-                 (Jkind.Primitive.value ~why:Class_field)
+                 (Jkind.Type.Primitive.value ~why:Class_field)
              with
              | Ok _ -> ()
              | Error err -> raise (Error(label.loc, val_env,
@@ -810,7 +810,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
            in
            let ty =
              match sty with
-             | None -> Ctype.newvar (Jkind.Primitive.value ~why:Object_field)
+             | None -> Ctype.newvar (Jkind.Type.Primitive.value ~why:Object_field)
              | Some sty ->
                  let sty = Ast_helper.Typ.force_poly sty in
                  let cty' =
@@ -824,7 +824,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
                match get_desc ty with
                | Tvar _ ->
                    let ty' =
-                     Ctype.newvar (Jkind.Primitive.value ~why:Object_field)
+                     Ctype.newvar (Jkind.Type.Primitive.value ~why:Object_field)
                    in
                    Ctype.unify val_env (Ctype.newmono ty') ty;
                    Typecore.type_approx val_env sbody ty'
@@ -1331,24 +1331,24 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
               Arg (
                 if not optional || Btype.is_optional l' then
                   let arg = Typecore.type_argument val_env sarg ty ty0 in
-                  arg, Jkind.Sort.value
+                  arg, Jkind.Type.Sort.value
                 else
                   Typecore.type_option_some val_env sarg ty ty0,
                   (* CR layouts v5: Change the sort when options can hold
                      non-values. *)
-                  Jkind.Sort.value
+                  Jkind.Type.Sort.value
               )
             in
             let eliminate_optional_arg () =
               Arg (Typecore.type_option_none val_env ty0 Location.none,
                    (* CR layouts v5: Change the sort when options can hold
                       non-values. *)
-                   Jkind.Sort.value
+                   Jkind.Type.Sort.value
                   )
             in
             let eliminate_position_arg () =
               let arg = Typecore.src_pos (Location.ghostify scl.pcl_loc) [] val_env in
-              Arg (arg, Jkind.Sort.value)
+              Arg (arg, Jkind.Type.Sort.value)
             in
             let remaining_sargs, arg =
               if ignore_labels then begin
@@ -1394,7 +1394,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                       let mode_closure = Mode.Alloc.disallow_left Mode.Alloc.legacy in
                       let mode_arg = Mode.Alloc.disallow_right Mode.Alloc.legacy in
                       let mode_ret = Mode.Alloc.disallow_right Mode.Alloc.legacy in
-                      let sort_arg = Jkind.Sort.value in
+                      let sort_arg = Jkind.Type.Sort.value in
                       Omitted { mode_closure; mode_arg; mode_ret; sort_arg }
                     end
             in
@@ -1437,7 +1437,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
              List.iter
                (fun (loc, mode, sort) ->
                   Typecore.escape ~loc ~env:val_env ~reason:Other mode;
-                  if not (Jkind.Sort.(equate sort value))
+                  if not (Jkind.Type.Sort.(equate sort value))
                   then
                     raise (Error(loc, met_env,
                                  Non_value_let_binding (Ident.name id, sort)))
@@ -1563,7 +1563,7 @@ let rec approx_declaration cl =
         | Optional _ -> Ctype.instance var_option
         | Position _ -> Ctype.instance Predef.type_lexing_position
         | Labelled _ | Nolabel ->
-          Ctype.newvar (Jkind.Primitive.value ~why:Class_term_argument)
+          Ctype.newvar (Jkind.Type.Primitive.value ~why:Class_term_argument)
           (* CR layouts: use of value here may be relaxed when we update
            classes to work with jkinds *)
       in
@@ -1575,7 +1575,7 @@ let rec approx_declaration cl =
       approx_declaration cl
   | Pcl_constraint (cl, _) ->
       approx_declaration cl
-  | _ -> Ctype.newvar (Jkind.Primitive.value ~why:Object)
+  | _ -> Ctype.newvar (Jkind.Type.Primitive.value ~why:Object)
 
 let rec approx_description ct =
   match ct.pcty_desc with
@@ -1583,7 +1583,7 @@ let rec approx_description ct =
       let l = transl_label l (Some core_type) in
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar (Jkind.Primitive.value ~why:Class_term_argument)
+        else Ctype.newvar (Jkind.Type.Primitive.value ~why:Class_term_argument)
         (* CR layouts: use of value here may be relaxed when we
            relax jkinds in classes *)
       in
@@ -1591,23 +1591,23 @@ let rec approx_description ct =
       let arrow_desc = l, Mode.Alloc.legacy, Mode.Alloc.legacy in
       Ctype.newty
         (Tarrow (arrow_desc, arg, approx_description ct, commu_ok))
-  | _ -> Ctype.newvar (Jkind.Primitive.value ~why:Object)
+  | _ -> Ctype.newvar (Jkind.Type.Primitive.value ~why:Object)
 
 (*******************************)
 
 let temp_abbrev loc id arity uid =
   let params = ref [] in
   for i = 1 to arity do
-    params := Ctype.newvar (Jkind.Primitive.value ~why:(
+    params := Ctype.newvar (Jkind.Type.Primitive.value ~why:(
       Type_argument {parent_path = Path.Pident id; position = i; arity})
     ) :: !params
   done;
-  let ty = Ctype.newobj (Ctype.newvar (Jkind.Primitive.value ~why:Object)) in
+  let ty = Ctype.newobj (Ctype.newvar (Jkind.Type.Primitive.value ~why:Object)) in
   let ty_td =
       {type_params = !params;
        type_arity = arity;
        type_kind = Type_abstract Abstract_def;
-       type_jkind = Jkind.Primitive.value ~why:Object;
+       type_jkind = Jkind.Type.Primitive.value ~why:Object;
        type_jkind_annotation = None;
        type_private = Public;
        type_manifest = Some ty;
@@ -1697,7 +1697,7 @@ let class_infos define_class kind
                we should lift this restriction. Doing so causes bad error messages
                today, so we wait for tomorrow. *)
             Ctype.unify env param.ctyp_type
-              (Ctype.newvar (Jkind.Primitive.value ~why:Class_type_argument));
+              (Ctype.newvar (Jkind.Type.Primitive.value ~why:Class_type_argument));
             (param, v)
           with Already_bound ->
             raise(Error(sty.ptyp_loc, env, Repeated_parameter))
@@ -1838,7 +1838,7 @@ let class_infos define_class kind
      type_params = obj_params;
      type_arity = arity;
      type_kind = Type_abstract Abstract_def;
-     type_jkind = Jkind.Primitive.value ~why:Object;
+     type_jkind = Jkind.Type.Primitive.value ~why:Object;
      type_jkind_annotation = None;
      type_private = Public;
      type_manifest = Some obj_ty;
@@ -2344,12 +2344,12 @@ let report_error env ppf = function
   | Non_value_binding (nm, err) ->
     fprintf ppf
       "@[Variables bound in a class must have layout value.@ %a@]"
-      (Jkind.Violation.report_with_name ~name:nm) err
+      (Jkind.Type.Violation.report_with_name ~name:nm) err
   | Non_value_let_binding (nm, sort) ->
     fprintf ppf
       "@[The types of variables bound by a 'let' in a class function@ \
        must have layout value. Instead, %s's type has layout %a.@]"
-      nm Jkind.Sort.format sort
+      nm Jkind.Type.Sort.format sort
   | Nonoptional_call_pos_label label ->
     fprintf ppf
       "@[the argument labeled '%s' is a [%%call_pos] argument, filled in @ \

@@ -221,11 +221,11 @@ and abbrev_memo =
 (* CR layouts v2.8: Say more here. *)
 and jkind = type_expr Jkind_types.Type.t
 
-(* jkind depends on types defined in this file, but Jkind.equal is required
+(* jkind depends on types defined in this file, but Jkind.Type.equal is required
    here. When jkind.ml is loaded, it calls set_jkind_equal to fill a ref to the
    function. *)
 (** INTERNAL USE ONLY
-    jkind.ml should call this with the definition of Jkind.equal *)
+    jkind.ml should call this with the definition of Jkind.Type.equal *)
 val set_jkind_equal : (jkind -> jkind -> bool) -> unit
 
 val is_commu_ok: commutable -> bool
@@ -868,7 +868,7 @@ type label_description =
     lbl_mut: mutability;                (* Is this a mutable field? *)
     lbl_modalities: Mode.Modality.Value.Const.t;
                                         (* Modalities on the field *)
-    lbl_jkind : jkind;                  (* Jkind of the argument *)
+    lbl_jkind : jkind;                  (* Jkind.Type of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in the type *)
     lbl_all: label_description array;   (* All the labels in this type *)

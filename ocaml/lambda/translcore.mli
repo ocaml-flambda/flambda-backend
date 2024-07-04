@@ -24,7 +24,7 @@ open Debuginfo.Scoped_location
 val pure_module : module_expr -> let_kind
 
 (* Used for translating Alloc_heap values in classes and modules. *)
-val transl_exp: scopes:scopes -> Jkind.sort -> expression -> lambda
+val transl_exp: scopes:scopes -> Jkind.Type.sort -> expression -> lambda
 val transl_apply: scopes:scopes
                   -> ?tailcall:tailcall_attribute
                   -> ?inlined:inlined_attribute
@@ -42,7 +42,7 @@ val transl_extension_constructor: scopes:scopes ->
   Env.t -> Longident.t option ->
   extension_constructor -> lambda
 
-val transl_scoped_exp : scopes:scopes -> Jkind.sort -> expression -> lambda
+val transl_scoped_exp : scopes:scopes -> Jkind.Type.sort -> expression -> lambda
 
 type error =
     Free_super_var

@@ -82,9 +82,9 @@ type additional_action_config =
 let with_additional_action =
   (* Memoize the built-in jkinds *)
   let builtins =
-    Jkind.Const.Primitive.all
-    |> List.map (fun (builtin : Jkind.Const.Primitive.t) ->
-          builtin.jkind, Jkind.of_const builtin.jkind ~why:Jkind.History.Imported)
+    Jkind.Type.Const.Primitive.all
+    |> List.map (fun (builtin : Jkind.Type.Const.Primitive.t) ->
+          builtin.jkind, Jkind.Type.of_const builtin.jkind ~why:Jkind.Type.History.Imported)
   in
   fun (config : additional_action_config) s ->
   (* CR layouts: it would be better to put all this stuff outside this
@@ -102,14 +102,14 @@ let with_additional_action =
     | Duplicate_variables -> Duplicate_variables
     | Prepare_for_saving ->
         let prepare_jkind loc jkind =
-          match Jkind.get jkind with
+          match Jkind.Type.get jkind with
           | Const const ->
             let builtin =
-              List.find_opt (fun (builtin, _) -> Jkind.Const.equal const builtin) builtins
+              List.find_opt (fun (builtin, _) -> Jkind.Type.Const.equal const builtin) builtins
             in
             begin match builtin with
             | Some (__, jkind) -> jkind
-            | None -> Jkind.of_const const ~why:Jkind.History.Imported
+            | None -> Jkind.Type.of_const const ~why:Jkind.Type.History.Imported
             end
           | Var _ -> raise(Error (loc, Unconstrained_jkind_variable))
         in
@@ -288,7 +288,7 @@ let rec typexp copy_scope s ty =
     let has_fixed_row =
       not (is_Tconstr ty) && is_constr_row ~allow_ident:false tm in
     (* Make a stub *)
-    let jkind = Jkind.Primitive.any ~why:Dummy_jkind in
+    let jkind = Jkind.Type.Primitive.any ~why:Dummy_jkind in
     let ty' =
       if should_duplicate_vars then newpersty (Tvar {name = None; jkind})
       else newgenstub ~scope:(get_scope ty) jkind

@@ -328,7 +328,7 @@ type type_mismatch =
   | Variant_mismatch of variant_change list
   | Unboxed_representation of position * attributes
   | Extensible_representation of position
-  | Jkind of Jkind.Violation.t
+  | Jkind of Jkind.Type.Violation.t
 
 let report_modality_sub_error first second ppf e =
   let print_modality id ppf m =
@@ -630,7 +630,7 @@ let report_type_mismatch first second decl env ppf err =
          (choose ord first second) decl
          "is extensible"
   | Jkind v ->
-      Jkind.Violation.report_with_name ~name:first ppf v
+      Jkind.Type.Violation.report_with_name ~name:first ppf v
 
 module Record_diffing = struct
 

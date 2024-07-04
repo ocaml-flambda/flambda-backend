@@ -32,7 +32,7 @@ module Sig_component_kind = Shape.Sig_component_kind
 
 (* Note [When to print jkind annotations]
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-   Jkind annotations are only occasionally necessary to write
+   Jkind.Type annotations are only occasionally necessary to write
    (compilation can often infer jkinds), so when should we print
    them? This Note addresses all the cases.
 
@@ -563,7 +563,7 @@ let strings_of_paths namespace p =
   List.map (Format.asprintf "%a" !Oprint.out_ident) trees
 
 let () = Env.print_path := path
-let () = Jkind.set_printtyp_path path
+let () = Jkind.Type.set_printtyp_path path
 
 (* Print a recursive annotation *)
 
@@ -632,7 +632,7 @@ and raw_lid_type_list tl =
     tl
 and raw_type_desc ppf = function
     Tvar { name; jkind } ->
-      fprintf ppf "Tvar (@,%a,@,%a)" print_name name Jkind.format jkind
+      fprintf ppf "Tvar (@,%a,@,%a)" print_name name Jkind.Type.format jkind
   | Tarrow((l,arg,ret),t1,t2,c) ->
       fprintf ppf "@[<hov1>Tarrow((\"%s\",%a,%a),@,%a,@,%a,@,%s)@]"
         (string_of_label l)
@@ -662,7 +662,7 @@ and raw_type_desc ppf = function
   | Tsubst (t, Some t') ->
       fprintf ppf "@[<1>Tsubst@,(%a,@ Some%a)@]" raw_type t raw_type t'
   | Tunivar { name; jkind } ->
-      fprintf ppf "Tunivar (@,%a,@,%a)" print_name name Jkind.format jkind
+      fprintf ppf "Tunivar (@,%a,@,%a)" print_name name Jkind.Type.format jkind
   | Tpoly (t, tl) ->
       fprintf ppf "@[<hov1>Tpoly(@,%a,@,%a)@]"
         raw_type t
@@ -1266,20 +1266,20 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
   Ojkind_user (out_jkind_user_of_user_jkind jkind.txt)
 
 let out_jkind_of_const_jkind jkind =
-  Ojkind_const (Jkind.Const.to_out_jkind_const jkind)
+  Ojkind_const (Jkind.Type.Const.to_out_jkind_const jkind)
 
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
 let out_jkind_option_of_jkind jkind =
-  match Jkind.get jkind with
+  match Jkind.Type.get jkind with
   | Const jkind ->
-    begin match Jkind.Const.equal jkind Jkind.Const.Primitive.value.jkind with
+    begin match Jkind.Type.Const.equal jkind Jkind.Type.Const.Primitive.value.jkind with
     | true -> None
     | false -> Some (out_jkind_of_const_jkind jkind)
     end
   | Var v -> (* This handles (X1). *)
     if !Clflags.verbose_types
-    then Some (Ojkind_var (Jkind.Sort.Var.name v))
+    then Some (Ojkind_var (Jkind.Type.Sort.Var.name v))
     else None
 
 let alias_nongen_row mode px ty =
@@ -2326,7 +2326,7 @@ let dummy =
     type_params = [];
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
-    type_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
+    type_jkind = Jkind.Type.Primitive.any ~why:Dummy_jkind;
     type_jkind_annotation = None;
     type_private = Public;
     type_manifest = None;
@@ -2666,9 +2666,9 @@ let trees_of_type_expansion'
     if var_jkinds then
       match get_desc ty with
       | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
-          let olay = match Jkind.get jkind with
+          let olay = match Jkind.Type.get jkind with
             | Const clay -> out_jkind_of_const_jkind clay
-            | Var v      -> Ojkind_var (Jkind.Sort.Var.name v)
+            | Var v      -> Ojkind_var (Jkind.Type.Sort.Var.name v)
           in
           Otyp_jkind_annot (out, olay)
       | _ ->
@@ -2787,7 +2787,7 @@ let hide_variant_name t =
         (Tvariant
            (create_row ~fields ~fixed ~closed ~name:None
               ~more:(newvar2 (get_level more)
-                       (Jkind.Primitive.value ~why:Row_variable))))
+                       (Jkind.Type.Primitive.value ~why:Row_variable))))
   | _ -> t
 
 let prepare_expansion Errortrace.{ty; expanded} =
@@ -2991,15 +2991,15 @@ let explanation (type variety) intro prev env
     end
   | Errortrace.Bad_jkind (t,e) ->
       Some (dprintf "@ @[<hov>%a@]"
-              (Jkind.Violation.report_with_offender
+              (Jkind.Type.Violation.report_with_offender
                  ~offender:(fun ppf -> type_expr ppf t)) e)
   | Errortrace.Bad_jkind_sort (t,e) ->
       Some (dprintf "@ @[<hov>%a@]"
-              (Jkind.Violation.report_with_offender_sort
+              (Jkind.Type.Violation.report_with_offender_sort
                  ~offender:(fun ppf -> type_expr ppf t)) e)
   | Errortrace.Unequal_var_jkinds (t1,l1,t2,l2) ->
       let fmt_history t l ppf =
-        Jkind.(format_history ~intro:(
+        Jkind.Type.(format_history ~intro:(
           dprintf "The layout of %a is %a" type_expr t format l) ppf l)
       in
       Some (dprintf "@ because their layouts are different.@ @[<v>%t@;%t@]"

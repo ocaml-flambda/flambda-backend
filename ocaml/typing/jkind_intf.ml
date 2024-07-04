@@ -13,7 +13,7 @@
 (**************************************************************************)
 
 (* This module contains definitions that we do not otherwise need to repeat
-   between the various Jkind modules. See comment in jkind_types.mli. *)
+   between the various Jkind.Type modules. See comment in jkind_types.mli. *)
 module type Sort = sig
   (** A sort classifies how a type is represented at runtime. Every concrete
       jkind has a sort, and knowing the sort is sufficient for knowing the
