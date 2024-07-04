@@ -4,7 +4,6 @@
  {
    all_modules = "index_aliases.ml";
    setup-ocamlc.byte-build-env;
- }{
    ocamlc.byte;
    program = "-quiet -index -decls index_aliases.cmt";
    output = "out_objinfo";
