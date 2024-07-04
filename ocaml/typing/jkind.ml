@@ -923,10 +923,13 @@ module Type = struct
     let jkind = of_annotated_const ~const ~const_loc:annot.loc ~context in
     jkind, (const, annot)
 
-  let of_annotation_option_default ~default ~context =
+  let of_annotation_option_default' ~default ~context ~of_annotation =
     Option.fold ~none:(default, None) ~some:(fun annot ->
         let t, annot = of_annotation ~context annot in
         t, Some annot)
+
+  let of_annotation_option_default ~default ~context t =
+    of_annotation_option_default' ~default ~context ~of_annotation t
 
   let of_attribute ~context
       (attribute : Builtin_attributes.jkind_attribute Location.loc) =
@@ -970,11 +973,13 @@ module Type = struct
       raise ~loc:decl.ptype_loc
         (Multiple_jkinds { from_annotation; from_attribute })
 
-  let of_type_decl_default ~context ~default (decl : Parsetree.type_declaration)
-      =
+  let of_type_decl_default' ~of_type_decl ~context ~default
+      (decl : Parsetree.type_declaration) =
     match of_type_decl ~context decl with
     | Some (t, const, attrs) -> t, Some const, attrs
     | None -> default, None, decl.ptype_attributes
+
+  let of_type_decl_default = of_type_decl_default' ~of_type_decl
 
   let for_boxed_record ~all_void =
     if all_void
@@ -1800,3 +1805,263 @@ module Type = struct
 
   let default_to_value_and_get t = default_to_value_and_get t
 end
+
+type nonrec t = Types.type_expr Jkind_types.t
+
+(******************************)
+(* constants *)
+(* Mostly wrapping implementations for Type jkinds *)
+
+module Const = struct
+  type nonrec t = Types.type_expr Jkind_types.Const.t
+
+  let rec format ppf (t : t) =
+    match t with
+    | Type t -> Type.Const.format ppf t
+    | Arrow { args; result } ->
+      Format.fprintf ppf "(%a;@ => %a;@)"
+        (Format.pp_print_list format)
+        args format result
+
+  let kind_case2 ~typ ~arrow ~default (t : t) (t' : t) =
+    match t, t' with
+    | Type s, Type s' -> typ s s'
+    | Arrow a, Arrow a' -> arrow a a'
+    | _, _ -> default
+
+  let rec equal t t' =
+    kind_case2 ~typ:Type.Const.equal
+      ~arrow:
+        (fun { args = args1; result = result1 }
+             { args = args2; result = result2 } ->
+        List.for_all2 equal args1 args2 && equal result1 result2)
+      ~default:false t t'
+
+  let of_type_jkind t = Jkind_types.Const.Type t
+
+  module Primitive = struct
+    type nonrec t =
+      { jkind : t;
+        name : string
+      }
+
+    let of_type_jkind ({ jkind; name } : Type.Const.Primitive.t) =
+      { jkind = Type jkind; name }
+
+    let any = of_type_jkind Type.Const.Primitive.any
+
+    let void = of_type_jkind Type.Const.Primitive.void
+
+    let value = of_type_jkind Type.Const.Primitive.value
+
+    let immediate64 = of_type_jkind Type.Const.Primitive.immediate64
+
+    let immediate = of_type_jkind Type.Const.Primitive.immediate
+
+    let float64 = of_type_jkind Type.Const.Primitive.float64
+
+    let float32 = of_type_jkind Type.Const.Primitive.float32
+
+    let word = of_type_jkind Type.Const.Primitive.word
+
+    let bits32 = of_type_jkind Type.Const.Primitive.bits32
+
+    let bits64 = of_type_jkind Type.Const.Primitive.bits64
+  end
+end
+
+let rec of_const ~why (t : Const.t) : t =
+  match t with
+  | Type t -> Type (Type.of_const ~why t)
+  | Arrow { args; result } ->
+    Arrow
+      { args = List.map (of_const ~why) args; result = of_const ~why result }
+
+let of_type_jkind t : t = Type t
+
+module Primitive = struct
+  let any ~why = of_type_jkind (Type.Primitive.any ~why)
+
+  let void ~why = of_type_jkind (Type.Primitive.void ~why)
+
+  let value ~why = of_type_jkind (Type.Primitive.value ~why)
+
+  let immediate64 ~why = of_type_jkind (Type.Primitive.immediate64 ~why)
+
+  let immediate ~why = of_type_jkind (Type.Primitive.immediate ~why)
+
+  let float64 ~why = of_type_jkind (Type.Primitive.float64 ~why)
+
+  let float32 ~why = of_type_jkind (Type.Primitive.float32 ~why)
+
+  let word ~why = of_type_jkind (Type.Primitive.word ~why)
+
+  let bits32 ~why = of_type_jkind (Type.Primitive.bits32 ~why)
+
+  let bits64 ~why = of_type_jkind (Type.Primitive.bits64 ~why)
+end
+
+(******************************)
+(* construction *)
+(* Mostly wrapping implementations for Type jkinds *)
+
+let of_new_sort_var ~why =
+  Type.of_new_sort_var ~why |> fun (a, b) -> of_type_jkind a, b
+
+let of_new_sort ~why = Type.of_new_sort ~why |> of_type_jkind
+
+(* of_const is defined above for use in Primitive *)
+
+(* The following are placeholders, which assume general higher-order kinds are
+   not present in annotations and declarations. *)
+
+(* TODO jbachurski: annotation parsing *)
+
+let const_of_user_written_annotation ~context a =
+  Jkind_types.Const.Type (Type.const_of_user_written_annotation ~context a)
+
+type annotation = Types.type_expr Jkind_types.annotation
+
+let annotation_of_type_jkind (c, l) = Const.of_type_jkind c, l
+
+let of_annotation ~context a =
+  Type.of_annotation ~context a |> fun (a, b) ->
+  of_type_jkind a, annotation_of_type_jkind b
+
+let of_annotation_option_default ~default ~context a =
+  Type.of_annotation_option_default' ~default ~context ~of_annotation a
+
+(* TODO jbachurski: type declaration parsing *)
+
+let of_type_decl ~context d =
+  Type.of_type_decl ~context d
+  |> Option.map (fun (a, b, c) ->
+         of_type_jkind a, annotation_of_type_jkind b, c)
+
+let of_type_decl_default = Type.of_type_decl_default' ~of_type_decl
+
+(******************************)
+(* elimination and defaulting *)
+
+module Desc = struct
+  (** The description of a jkind, used as a return type from [get]. *)
+  type t =
+    | Type of Type.Desc.t
+    | Arrow of t Jkind_types.arrow
+end
+
+(** Eliminates a Jkind.t, with zeroth-order kinds eliminated as in Jkind.Type.get *)
+let rec get (t : t) =
+  match t with
+  | Type ty -> Desc.Type (Type.get ty)
+  | Arrow { args; result } ->
+    Desc.Arrow { args = List.map get args; result = get result }
+
+(*********************************)
+(* pretty printing *)
+
+let format = Obj.magic ()
+
+let format_history = Obj.magic ()
+
+let set_printtyp_path = Obj.magic ()
+
+(******************************)
+(* relations *)
+let equate = Obj.magic ()
+
+let equal = Obj.magic ()
+
+let has_intersection = Obj.magic ()
+
+let intersection_or_error = Obj.magic ()
+
+let sub = Obj.magic ()
+
+let sub_or_error = Obj.magic ()
+
+let sub_with_history = Obj.magic ()
+
+let is_max = Obj.magic ()
+
+(*********************************)
+(* debugging *)
+
+module Debug_printers = struct
+  let t _ppf = Obj.magic ()
+end
+
+(*
+
+(*********************************)
+(* pretty printing *)
+
+val format : Format.formatter -> t -> unit
+
+(** Format the history of this jkind: what interactions it has had and why
+    it is the jkind that it is. Might be a no-op: see [display_histories]
+    in the implementation of the [Jkind] module.
+
+    The [intro] is something like "The jkind of t is". *)
+val format_history :
+  intro:(Format.formatter -> unit) -> Format.formatter -> t -> unit
+
+(** Provides the [Printtyp.path] formatter back up the dependency chain to
+    this module. *)
+val set_printtyp_path : (Format.formatter -> Path.t -> unit) -> unit
+
+(******************************)
+(* relations *)
+
+(** This checks for equality, and sets any variables to make two jkinds
+    equal, if possible. e.g. [equate] on a var and [value] will set the
+    variable to be [value] *)
+val equate : t -> t -> bool
+
+(** This checks for equality, but has the invariant that it can only be called
+    when there is no need for unification; e.g. [equal] on a var and [value]
+    will crash.
+
+    CR layouts (v1.5): At the moment, this is actually the same as [equate]! *)
+val equal : t -> t -> bool
+
+(** Checks whether two jkinds have a non-empty intersection. Might mutate
+    sort variables. *)
+val has_intersection : t -> t -> bool
+
+(** Finds the intersection of two jkinds, constraining sort variables to
+    create one if needed, or returns a [Violation.t] if an intersection does
+    not exist.  Can update the jkinds.  The returned jkind's history
+    consists of the provided reason followed by the history of the first
+    jkind argument.  That is, due to histories, this function is asymmetric;
+    it should be thought of as modifying the first jkind to be the
+    intersection of the two, not something that modifies the second jkind. *)
+val intersection_or_error :
+  reason:Type.History.interact_reason ->
+  t ->
+  t ->
+  (t, Type.Violation.t) Result.t
+
+(** [sub t1 t2] says whether [t1] is a subjkind of [t2]. Might update
+    either [t1] or [t2] to make their layouts equal.*)
+val sub : t -> t -> bool
+
+(** [sub_or_error t1 t2] returns [Ok ()] iff [t1] is a subjkind of
+  of [t2]. Otherwise returns an appropriate error to report to the user. *)
+val sub_or_error : t -> t -> (unit, Type.Violation.t) result
+
+(** Like [sub], but returns the subjkind with an updated history. *)
+val sub_with_history : t -> t -> (t, Type.Violation.t) result
+
+(** Checks to see whether a jkind is the maximum jkind. Never does any
+    mutation. *)
+val is_max : t -> bool
+
+(*********************************)
+(* debugging *)
+
+module Debug_printers : sig
+  val t : Format.formatter -> t -> unit
+end
+
+*)

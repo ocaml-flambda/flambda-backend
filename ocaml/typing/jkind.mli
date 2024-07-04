@@ -465,21 +465,17 @@ module Type : sig
   end
 end
 
-(*
-
-(** A Jkind.Type.t is a full description of the runtime representation of values
-    of a given type. It includes sorts, but also the abstract top jkind
-    [Any] and subjkinds of other sorts, such as [Immediate]. *)
+(** A Jkind.t is a type representing general, higher-order kinds. Its special
+    case is a zeroth-order kind of runtime-representable types (Jkind.Type.t). *)
 type t = Types.type_expr Jkind_types.t
 
 (******************************)
 (* constants *)
+(* See documentation of relevant functions in Jkind.Type for details
+   - the functions here wrap them *)
 
 module Const : sig
-  (** Constant jkinds are used for user-written annotations *)
-  type t = Types.type_expr Jkind_types.Type.Const.t
-
-  val to_out_jkind_const : t -> Outcometree.out_jkind_const
+  type t = Types.type_expr Jkind_types.Const.t
 
   val format : Format.formatter -> t -> unit
 
@@ -491,88 +487,53 @@ module Const : sig
         name : string
       }
 
-    (** This jkind is the top of the jkind lattice. All types have jkind [any].
-    But we cannot compile run-time manipulations of values of types with jkind
-    [any]. *)
     val any : t
 
-    (** Value of types of this jkind are not retained at all at runtime *)
     val void : t
 
-    (** This is the jkind of normal ocaml values *)
     val value : t
 
-    (** Values of types of this jkind are immediate on 64-bit platforms; on other
-    platforms, we know nothing other than that it's a value. *)
     val immediate64 : t
 
-    (** We know for sure that values of types of this jkind are always immediate *)
     val immediate : t
 
-    (** This is the jkind of unboxed 64-bit floats.  They have sort
-    Float64. Mode-crosses. *)
     val float64 : t
 
-    (** This is the jkind of unboxed 32-bit floats.  They have sort
-    Float32. Mode-crosses. *)
     val float32 : t
 
-    (** This is the jkind of unboxed native-sized integers. They have sort
-    Word. Does not mode-cross. *)
     val word : t
 
-    (** This is the jkind of unboxed 32-bit integers. They have sort Bits32. Does
-    not mode-cross. *)
     val bits32 : t
 
-    (** This is the jkind of unboxed 64-bit integers. They have sort Bits64. Does
-    not mode-cross. *)
     val bits64 : t
   end
 end
 
 module Primitive : sig
-  (** This jkind is the top of the jkind lattice. All types have jkind [any].
-    But we cannot compile run-time manipulations of values of types with jkind
-    [any]. *)
   val any : why:Type.History.any_creation_reason -> t
 
-  (** Value of types of this jkind are not retained at all at runtime *)
   val void : why:Type.History.void_creation_reason -> t
 
-  (** This is the jkind of normal ocaml values *)
   val value : why:Type.History.value_creation_reason -> t
 
-  (** Values of types of this jkind are immediate on 64-bit platforms; on other
-    platforms, we know nothing other than that it's a value. *)
   val immediate64 : why:Type.History.immediate64_creation_reason -> t
 
-  (** We know for sure that values of types of this jkind are always immediate *)
   val immediate : why:Type.History.immediate_creation_reason -> t
 
-  (** This is the jkind of unboxed 64-bit floats.  They have sort
-    Float64. Mode-crosses. *)
   val float64 : why:Type.History.float64_creation_reason -> t
 
-  (** This is the jkind of unboxed 32-bit floats.  They have sort
-    Float32. Mode-crosses. *)
   val float32 : why:Type.History.float32_creation_reason -> t
 
-  (** This is the jkind of unboxed native-sized integers. They have sort
-    Word. Does not mode-cross. *)
   val word : why:Type.History.word_creation_reason -> t
 
-  (** This is the jkind  of unboxed 32-bit integers. They have sort Bits32. Does
-    not mode-cross. *)
   val bits32 : why:Type.History.bits32_creation_reason -> t
 
-  (** This is the jkind of unboxed 64-bit integers. They have sort Bits64. Does
-    not mode-cross. *)
   val bits64 : why:Type.History.bits64_creation_reason -> t
 end
 
 (******************************)
 (* construction *)
+(* See Jkind.Type for details *)
 
 (** Create a fresh sort variable, packed into a jkind, returning both
     the resulting kind and the sort. *)
@@ -589,7 +550,7 @@ val const_of_user_written_annotation :
   Const.t
 
 (** The typed jkind together with its user-written annotation. *)
-type annotation = Type.annotation
+type annotation = Types.type_expr Jkind_types.annotation
 
 val of_annotation :
   context:Type.History.annotation_context ->
@@ -716,4 +677,3 @@ val is_max : t -> bool
 module Debug_printers : sig
   val t : Format.formatter -> t -> unit
 end
-*)
