@@ -1160,6 +1160,39 @@ let aliases_of_simple t ~min_name_mode simple =
 let aliases_of_simple_allowable_in_types t simple =
   aliases_of_simple t ~min_name_mode:Name_mode.in_types simple
 
+let compute_joined_aliases base_env alias_candidates envs_at_uses =
+  let aliases_at_first_use, aliases_at_other_uses =
+    match List.map aliases envs_at_uses with
+    | hd :: tl -> hd, tl
+    | [] -> Misc.fatal_error "Empty uses in join"
+  in
+  let new_aliases =
+    Name.Set.fold
+      (fun name new_aliases ->
+        let alias_set =
+          List.fold_left
+            (fun alias_set aliases ->
+              Aliases.Alias_set.inter alias_set
+                (Aliases.get_aliases aliases (Simple.name name)))
+            (Aliases.get_aliases aliases_at_first_use (Simple.name name))
+            aliases_at_other_uses
+        in
+        let alias_set =
+          Aliases.Alias_set.filter alias_set ~f:(fun simple ->
+              mem_simple base_env simple
+              && not (Simple.equal simple (Simple.name name)))
+        in
+        if Aliases.Alias_set.is_empty alias_set
+        then new_aliases
+        else
+          Aliases.add_alias_set
+            ~binding_time_resolver:base_env.binding_time_resolver
+            ~binding_times_and_modes:(names_to_types base_env) new_aliases name
+            alias_set)
+      alias_candidates (aliases base_env)
+  in
+  with_aliases base_env ~aliases:new_aliases
+
 let closure_env t =
   increment_scope { t with min_binding_time = t.next_binding_time }
 
