@@ -89,6 +89,7 @@ type error =
   | Toplevel_nonvalue of string * Jkind.sort
   | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
+  | Compiling_as_parameterised_parameter
   | Cannot_compile_implementation_as_parameter
   | Cannot_implement_parameter of Compilation_unit.Name.t * Misc.filepath
   | Argument_for_non_parameter of Compilation_unit.Name.t * Misc.filepath
@@ -3435,6 +3436,17 @@ let () =
   type_module_type_of_fwd := type_module_type_of
 
 
+(* File-level details *)
+
+let register_params params =
+  List.iter
+    (fun param_name ->
+       let param = Compilation_unit.Name.of_string param_name in
+       Env.register_parameter param
+    )
+    params
+
+
 (* Typecheck an implementation file *)
 
 let gen_annot outputprefix sourcefile annots =
@@ -3508,6 +3520,9 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
       Env.reset_probes ();
       if !Clflags.print_types then (* #7656 *)
         ignore @@ Warnings.parse_options false "-32-34-37-38-60";
+      if !Clflags.as_parameter then
+        error Cannot_compile_implementation_as_parameter;
+      register_params !Clflags.parameters;
       let (str, sg, names, shape, finalenv) =
         Profile.record_call "infer" (fun () ->
           type_structure initial_env ast) in
@@ -3538,8 +3553,6 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           argument_interface = None;
         } (* result is ignored by Compile.implementation *)
       end else begin
-        if !Clflags.as_parameter then
-          error Cannot_compile_implementation_as_parameter;
         let arg_type =
           !Clflags.as_argument_for
           |> Option.map Compilation_unit.Name.of_string
@@ -3607,8 +3620,6 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
             argument_interface;
           }
         end else begin
-          if !Clflags.as_parameter then
-            error Cannot_compile_implementation_as_parameter;
           Location.prerr_warning (Location.in_file sourcefile)
             Warnings.Missing_mli;
           let coercion, shape =
@@ -3688,9 +3699,16 @@ let cms_register_toplevel_signature_attributes ~sourcefile ~uid ast =
         | _ -> None)
 
 let type_interface ~sourcefile modulename env ast =
+  let error e =
+    raise (Error (Location.none, Env.empty, e))
+  in
   if !Clflags.as_parameter && Compilation_unit.is_packed modulename then begin
-    raise(Error(Location.none, Env.empty, Cannot_pack_parameter))
+    error Cannot_pack_parameter
   end;
+  if !Clflags.as_parameter && !Clflags.parameters <> [] then begin
+    error Compiling_as_parameterised_parameter
+  end;
+  register_params !Clflags.parameters;
   if !Clflags.binary_annotations_cms then begin
     let uid = Shape.Uid.of_compilation_unit_id modulename in
     cms_register_toplevel_signature_attributes ~uid ~sourcefile ast
@@ -4050,6 +4068,10 @@ let report_error ~loc _env = function
   | Cannot_pack_parameter ->
       Location.errorf ~loc
         "Cannot compile a parameter with -for-pack."
+  | Compiling_as_parameterised_parameter ->
+      Location.errorf ~loc
+        "@[Cannot combine -as-parameter with -parameter: parameters cannot@ \
+         be parameterised.@]"
   | Cannot_compile_implementation_as_parameter ->
       Location.errorf ~loc
         "Cannot compile an implementation with -as-parameter."
