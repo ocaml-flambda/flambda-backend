@@ -16,6 +16,8 @@
 (* Definition of test-result related types and functions *)
 
 type status = Pass | Skip | Fail | Predicate of bool
+(* CR xclerc/mshinwell: maybe [Predicate] should be split and put under
+   [Pass] and [Skip]? *)
 
 type t = {
   status : status;

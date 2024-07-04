@@ -38,6 +38,9 @@ let skip_with_reason reason =
 let predicate test pass_reason _skip_reason _log env =
   let open Result in
   let result =
+    (* We always use the [pass_reason].  If we used the [skip_reason] in the
+       failure case, there would be a double negation, and the error message
+       printed would be wrong. *)
     if test
     then predicate_satisfied_with_reason pass_reason
     else predicate_not_satisfied_with_reason pass_reason in
