@@ -58,7 +58,7 @@ let data_size buff ofs =
   else data_size_unsafe buff ofs
 let total_size buff ofs = header_size + data_size buff ofs
 
-let[@inline never] from_bytes buff ofs =
+let from_bytes buff ofs =
   if ofs < 0 || ofs > Bytes.length buff - header_size
   then invalid_arg "Marshal.from_bytes"
   else begin
