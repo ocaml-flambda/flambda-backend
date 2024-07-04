@@ -50,6 +50,9 @@ let create_persistent s =
 let create_instance f args =
   Instance (f, args)
 
+let create_local_binding_for_global glob =
+  create_local glob
+
 let format_instance f args =
   let args_with_brackets = List.map (Format.sprintf "[%s]") args in
   String.concat "" (f :: args_with_brackets)

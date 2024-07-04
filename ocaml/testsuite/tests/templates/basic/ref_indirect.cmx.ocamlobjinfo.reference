@@ -1,0 +1,30 @@
+File ref_indirect.cmx
+Name: Ref_indirect
+CRC of implementation: 00000000000000000000000000000000
+Globals defined:
+	Ref_indirect
+Interfaces imported:
+	00000000000000000000000000000000	Stdlib
+	00000000000000000000000000000000	Ref_indirect
+	00000000000000000000000000000000	Monoid_utils
+	00000000000000000000000000000000	Monoid
+	00000000000000000000000000000000	CamlinternalFormatBasics
+Implementations imported:
+Flambda 2 unit (with no export information)
+Currying functions:
+Apply functions:
+Send functions:
+Force link: no
+Function summaries for static checks:
+		camlRef_indirect__entry = 0x15
+File ref_indirect.cmi
+Unit name: Ref_indirect
+Is parameter: no
+Parameters:
+	Monoid
+Interfaces imported:
+	00000000000000000000000000000000	Ref_indirect
+	00000000000000000000000000000000	Stdlib
+	00000000000000000000000000000000	Monoid_utils
+	00000000000000000000000000000000	Monoid
+	00000000000000000000000000000000	CamlinternalFormatBasics
