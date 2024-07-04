@@ -18,14 +18,13 @@ open! Flambda.Import
 open! Simplify_import
 
 let simplify_field_of_block dacc (field, kind) =
-  let ty =
+  let ty, simple =
     S.simplify_simple dacc
       (Simple.With_debuginfo.simple field)
       ~min_name_mode:Name_mode.normal
   in
   let field =
-    Simple.With_debuginfo.create (T.get_alias_exn ty)
-      (Simple.With_debuginfo.dbg field)
+    Simple.With_debuginfo.create simple (Simple.With_debuginfo.dbg field)
   in
   (* XXX double-check this can be a compile-time failure *)
   if not (K.equal (T.kind ty) kind)

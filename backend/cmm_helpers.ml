@@ -4148,7 +4148,7 @@ let dls_get ~dbg = Cop (Cdls_get, [], dbg)
 
 let perform ~dbg eff =
   let cont =
-    make_alloc dbg Runtimetags.cont_tag
+    make_alloc dbg ~tag:Runtimetags.cont_tag
       [int_const dbg 0]
       ~mode:Lambda.alloc_heap
   in
