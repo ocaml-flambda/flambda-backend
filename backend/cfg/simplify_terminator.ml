@@ -117,7 +117,7 @@ let evaluate_terminator ~(reg : Reg.t) ~(const : nativeint)
   | Never -> assert false
   | Always _ | Float_test _ | Return | Raise _ | Tailcall_self _
   | Tailcall_func _ | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _
-  | Poll_and_jump _ ->
+    ->
     None
 
 (* CR-someday gyorsh: merge (Lbranch | Lcondbranch | Lcondbranch3)+ into a
