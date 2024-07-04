@@ -1,5 +1,7 @@
 (* TEST *)
 
+[@@@flambda_o3]
+
 type _ foo =
   | Int : int foo
   | Float : float foo
