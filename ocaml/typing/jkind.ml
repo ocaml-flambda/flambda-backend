@@ -142,6 +142,12 @@ module Type = struct
       | Any, _ -> Some t2
       | Sort s1, Sort s2 -> if Sort.equate s1 s2 then Some t1 else None
 
+    let union t1 t2 =
+      match t1, t2 with
+      | Sort s1, Sort s2 -> if Sort.equate s1 s2 then t1 else Any
+      | _, Any -> Any
+      | Any, _ -> Any
+
     let of_new_sort_var () =
       let sort = Sort.new_var () in
       Sort sort, sort
@@ -728,6 +734,20 @@ module Type = struct
               modes_upper_bounds = Modes.meet modes1 modes2;
               externality_upper_bound = Externality.meet ext1 ext2
             })
+
+    let union
+        { layout = lay1;
+          modes_upper_bounds = modes1;
+          externality_upper_bound = ext1
+        }
+        { layout = lay2;
+          modes_upper_bounds = modes2;
+          externality_upper_bound = ext2
+        } =
+      { layout = Layout.union lay1 lay2;
+        modes_upper_bounds = Modes.meet modes1 modes2;
+        externality_upper_bound = Externality.meet ext1 ext2
+      }
 
     let of_new_sort_var () =
       let layout, sort = Layout.of_new_sort_var () in
@@ -1823,14 +1843,14 @@ module Const = struct
         (Format.pp_print_list format)
         args format result
 
-  let kind_case2 ~typ ~arrow ~default (t : t) (t' : t) =
+  let jkind_case2 ~typ ~arrow ~default (t : t) (t' : t) =
     match t, t' with
     | Type s, Type s' -> typ s s'
     | Arrow a, Arrow a' -> arrow a a'
     | _, _ -> default
 
   let rec equal t t' =
-    kind_case2 ~typ:Type.Const.equal
+    jkind_case2 ~typ:Type.Const.equal
       ~arrow:
         (fun { args = args1; result = result1 }
              { args = args2; result = result2 } ->
@@ -1968,15 +1988,45 @@ let set_printtyp_path = Obj.magic ()
 
 (******************************)
 (* relations *)
-let equate = Obj.magic ()
 
-let equal = Obj.magic ()
+let jkind_case2 ~typ ~arrow ~default (t : t) (t' : t) =
+  match t, t' with
+  | Type s, Type s' -> typ s s'
+  | Arrow a, Arrow a' -> arrow a a'
+  | _, _ -> default
+
+let rec equate_or_equal ~allow_mutation t t' =
+  jkind_case2
+    ~typ:(Type.equate_or_equal ~allow_mutation)
+    ~arrow:
+      (fun { args = args1; result = result1 } { args = args2; result = result2 } ->
+      (* FIXME jbachurski: don't short-circuit at for_all *)
+      equate_or_equal ~allow_mutation result1 result2
+      && List.for_all2 (equate_or_equal ~allow_mutation) args1 args2)
+    ~default:false t t'
+
+let equate = equate_or_equal ~allow_mutation:true
+
+(* This mirrors the choice for Jkind.Type, following the note:
+   (layouts v2.8) allow_mutation is to be set to false *)
+let equal = equate_or_equal ~allow_mutation:true
 
 let has_intersection = Obj.magic ()
 
-let intersection_or_error = Obj.magic ()
+let intersection_or_error =
+  ignore Type.Jkind_desc.union;
+  Obj.magic ()
 
-let sub = Obj.magic ()
+let rec check_sub t t' : Misc.Le_result.t =
+  jkind_case2 ~typ:Type.check_sub
+    ~arrow:
+      (fun { args = args1; result = result1 } { args = args2; result = result2 }
+           : Misc.Le_result.t ->
+      Misc.Le_result.combine_list
+        (check_sub result1 result2 :: List.map2 check_sub args2 args1))
+    ~default:Misc.Le_result.Not_le t t'
+
+let sub t t' = Misc.Le_result.is_le (check_sub t t')
 
 let sub_or_error = Obj.magic ()
 
