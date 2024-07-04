@@ -113,6 +113,16 @@ end
 
 module Modes = Mode.Alloc.Const
 
+type 'jkind_desc desc_history =
+  | Interact of
+      { reason : Jkind_intf.History.interact_reason;
+        lhs_jkind : 'jkind_desc;
+        lhs_history : 'jkind_desc desc_history;
+        rhs_jkind : 'jkind_desc;
+        rhs_history : 'jkind_desc desc_history
+      }
+  | Creation of Jkind_intf.History.creation_reason
+
 module Type_jkind : sig
   module Jkind_desc : sig
     type 'type_expr t =
@@ -122,15 +132,7 @@ module Type_jkind : sig
       }
   end
 
-  type 'type_expr history =
-    | Interact of
-        { reason : Jkind_intf.History.interact_reason;
-          lhs_jkind : 'type_expr Jkind_desc.t;
-          lhs_history : 'type_expr history;
-          rhs_jkind : 'type_expr Jkind_desc.t;
-          rhs_history : 'type_expr history
-        }
-    | Creation of Jkind_intf.History.creation_reason
+  type 'type_expr history = 'type_expr Jkind_desc.t desc_history
 
   type 'type_expr t =
     { jkind : 'type_expr Jkind_desc.t;
@@ -158,15 +160,7 @@ module Jkind_desc : sig
     | Arrow_kind of 'type_expr t arrow
 end
 
-type 'type_expr history =
-  | Interact of
-      { reason : Jkind_intf.History.interact_reason;
-        lhs_jkind : 'type_expr Jkind_desc.t;
-        lhs_history : 'type_expr history;
-        rhs_jkind : 'type_expr Jkind_desc.t;
-        rhs_history : 'type_expr history
-      }
-  | Creation of Jkind_intf.History.creation_reason
+type 'type_expr history = 'type_expr Jkind_desc.t desc_history
 
 type 'type_expr t =
   { jkind : 'type_expr Jkind_desc.t;

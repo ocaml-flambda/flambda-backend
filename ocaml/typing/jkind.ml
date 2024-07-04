@@ -818,6 +818,27 @@ module Type_jkind = struct
       history = Creation why;
       has_warned = false
     }
+
+  (* CR layouts: this function is suspect; it seems likely to reisenberg
+     that refactoring could get rid of it *)
+  let sort_of_jkind l =
+    match Jkind_desc.get l.jkind with
+    | Const { layout = Sort s; _ } -> Sort.of_const s
+    | Const { layout = Any; _ } -> Misc.fatal_error "Jkind.sort_of_jkind"
+    | Var v -> Sort.of_var v
+
+  let get_layout jk : Layout.Const.t option =
+    match jk.jkind.layout with
+    | Any -> Some Any
+    | Sort s -> (
+      match Sort.get s with Const s -> Some (Sort s) | Var _ -> None)
+
+  let get_modal_upper_bounds jk = jk.jkind.modes_upper_bounds
+
+  let get_externality_upper_bound jk = jk.jkind.externality_upper_bound
+
+  let set_externality_upper_bound jk externality_upper_bound =
+    { jk with jkind = { jk.jkind with externality_upper_bound } }
 end
 
 (******************************)
@@ -850,6 +871,45 @@ module Jkind_desc = struct
     | Arrow_kind a -> Arrow_kind a
 
   let max = of_type_jkind Type_jkind.Jkind_desc.max
+
+  let map_per_kind_case ~star ~arrow ~default k k' =
+    match k, k' with
+    | Type_kind s, Type_kind s' -> star s s'
+    | Arrow_kind a, Arrow_kind a' -> arrow a a'
+    | _, _ -> default
+
+  let rec equate_or_equal ~allow_mutation =
+    map_per_kind_case
+      ~star:(Type_jkind.Jkind_desc.equate_or_equal ~allow_mutation)
+      ~arrow:
+        (fun { args = args1; result = result1 }
+             { args = args2; result = result2 } ->
+        (* FIXME jbachurski: This might inconsistently mutate (equate) only some pairs *)
+        let eqs =
+          List.map2
+            (equate_or_equal ~allow_mutation)
+            (result1 :: args1) (result2 :: args2)
+        in
+        List.for_all (fun x -> x) eqs)
+      ~default:false
+
+  let equal t t' = equate_or_equal ~allow_mutation:false t t'
+
+  let rec sub t t' =
+    map_per_kind_case ~star:Type_jkind.Jkind_desc.sub
+      ~arrow:
+        (fun { args = args1; result = result1 }
+             { args = args2; result = result2 } ->
+        Misc.Le_result.combine_list
+          (sub result1 result2 :: List.map2 sub args2 args1))
+      ~default:Misc.Le_result.Not_le t t'
+
+  let intersection =
+    map_per_kind_case
+      ~star:Type_jkind.Jkind_desc.intersection
+        (* TODO jbachurski: Implement [intersection] for Arrow_kind *)
+      ~arrow:(fun _ _ -> None)
+      ~default:None
 
   module Primitive = struct
     let any = of_type_jkind Type_jkind.Jkind_desc.Primitive.any
@@ -969,7 +1029,7 @@ let get_required_layouts_level (context : History.annotation_context)
 
 let of_new_sort_var ~why =
   let jkind, sort = Type_jkind.Jkind_desc.of_new_sort_var () in
-  fresh_jkind jkind ~why:(Concrete_creation why), sort
+  fresh_jkind (Type_kind jkind) ~why:(Concrete_creation why), sort
 
 let of_new_sort ~why = fst (of_new_sort_var ~why)
 
@@ -1068,27 +1128,6 @@ let default_to_value_and_get
 let default_to_value t = ignore (default_to_value_and_get t)
 
 let get t = Jkind_desc.get t.jkind
-
-(* CR layouts: this function is suspect; it seems likely to reisenberg
-   that refactoring could get rid of it *)
-let sort_of_jkind l =
-  match get l with
-  | Const { layout = Sort s; _ } -> Sort.of_const s
-  | Const { layout = Any; _ } -> Misc.fatal_error "Jkind.sort_of_jkind"
-  | Var v -> Sort.of_var v
-
-let get_layout jk : Layout.Const.t option =
-  match jk.jkind.layout with
-  | Any -> Some Any
-  | Sort s -> (
-    match Sort.get s with Const s -> Some (Sort s) | Var _ -> None)
-
-let get_modal_upper_bounds jk = jk.jkind.modes_upper_bounds
-
-let get_externality_upper_bound jk = jk.jkind.externality_upper_bound
-
-let set_externality_upper_bound jk externality_upper_bound =
-  { jk with jkind = { jk.jkind with externality_upper_bound } }
 
 (*********************************)
 (* pretty printing *)
@@ -1617,15 +1656,16 @@ let sub_with_history sub super =
   | Not_le -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
 
 let is_void_defaulting = function
-  | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
+  | { jkind = Type_kind { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
   | _ -> false
 
 (* This doesn't do any mutation because mutating a sort variable can't make it
    any, and modal upper bounds are constant. *)
 let is_max jkind = sub Primitive.any_dummy_jkind jkind
 
-let has_layout_any jkind =
-  match jkind.jkind.layout with Any -> true | _ -> false
+let has_layout_any = function
+  | { jkind = Type_kind { layout = Any; _ }; _ } -> true
+  | _ -> false
 
 (*********************************)
 (* debugging *)

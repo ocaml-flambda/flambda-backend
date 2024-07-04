@@ -371,23 +371,27 @@ val is_void_defaulting : t -> bool
    these three functions to default to void - it's the most efficient thing
    when we have a choice. *)
 
-(** Returns the sort corresponding to the jkind.  Call only on representable
+module Type_jkind : sig
+  type t = Types.type_expr Jkind_types.Type_jkind.t
+
+  (** Returns the sort corresponding to the jkind.  Call only on representable
     jkinds - raises on Any. *)
-val sort_of_jkind : t -> sort
+  val sort_of_jkind : t -> sort
 
-(** Gets the layout of a jkind; returns [None] if the layout is still unknown.
+  (** Gets the layout of a jkind; returns [None] if the layout is still unknown.
     Never does mutation. *)
-val get_layout : t -> Layout.Const.t option
+  val get_layout : t -> Layout.Const.t option
 
-(** Gets the maximum modes for types of this jkind. *)
-val get_modal_upper_bounds : t -> Mode.Alloc.Const.t
+  (** Gets the maximum modes for types of this jkind. *)
+  val get_modal_upper_bounds : t -> Mode.Alloc.Const.t
 
-(** Gets the maximum mode on the externality axis for types of this jkind. *)
-val get_externality_upper_bound : t -> Externality.t
+  (** Gets the maximum mode on the externality axis for types of this jkind. *)
+  val get_externality_upper_bound : t -> Externality.t
 
-(** Computes a jkind that is the same as the input but with an updated maximum
+  (** Computes a jkind that is the same as the input but with an updated maximum
     mode for the externality axis *)
-val set_externality_upper_bound : t -> Externality.t -> t
+  val set_externality_upper_bound : t -> Externality.t -> t
+end
 
 (*********************************)
 (* pretty printing *)

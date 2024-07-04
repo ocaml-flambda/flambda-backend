@@ -351,6 +351,24 @@ end
 
 module Modes = Mode.Alloc.Const
 
+(* A history of conditions placed on a jkind.
+
+   INVARIANT: at most one sort variable appears in this history.
+   This is a natural consequence of producing this history by comparing
+   jkinds.
+
+   An analogous type is defined for general kinds.
+*)
+type 'jkind_desc desc_history =
+  | Interact of
+      { reason : Jkind_intf.History.interact_reason;
+        lhs_jkind : 'jkind_desc;
+        lhs_history : 'jkind_desc desc_history;
+        rhs_jkind : 'jkind_desc;
+        rhs_history : 'jkind_desc desc_history
+      }
+  | Creation of Jkind_intf.History.creation_reason
+
 module Type_jkind = struct
   module Jkind_desc = struct
     type 'type_expr t =
@@ -360,23 +378,7 @@ module Type_jkind = struct
       }
   end
 
-  (* A history of conditions placed on a jkind.
-
-     INVARIANT: at most one sort variable appears in this history.
-     This is a natural consequence of producing this history by comparing
-     jkinds.
-
-     An analogous type is defined for general kinds.
-  *)
-  type 'type_expr history =
-    | Interact of
-        { reason : Jkind_intf.History.interact_reason;
-          lhs_jkind : 'type_expr Jkind_desc.t;
-          lhs_history : 'type_expr history;
-          rhs_jkind : 'type_expr Jkind_desc.t;
-          rhs_history : 'type_expr history
-        }
-    | Creation of Jkind_intf.History.creation_reason
+  type 'type_expr history = 'type_expr Jkind_desc.t desc_history
 
   type 'type_expr t =
     { jkind : 'type_expr Jkind_desc.t;
@@ -404,15 +406,7 @@ module Jkind_desc = struct
     | Arrow_kind of 'type_expr t arrow
 end
 
-type 'type_expr history =
-  | Interact of
-      { reason : Jkind_intf.History.interact_reason;
-        lhs_jkind : 'type_expr Jkind_desc.t;
-        lhs_history : 'type_expr history;
-        rhs_jkind : 'type_expr Jkind_desc.t;
-        rhs_history : 'type_expr history
-      }
-  | Creation of Jkind_intf.History.creation_reason
+type 'type_expr history = 'type_expr Jkind_desc.t desc_history
 
 type 'type_expr t =
   { jkind : 'type_expr Jkind_desc.t;
