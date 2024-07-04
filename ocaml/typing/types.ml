@@ -97,7 +97,7 @@ and _ commutable_gen =
   | Cunknown : [> `none] commutable_gen
   | Cvar : {mutable commu: any commutable_gen} -> [> `var] commutable_gen
 
-and jkind = type_expr Jkind_types.t
+and jkind = type_expr Jkind_types.Type.t
 
 (* jkind depends on types defined in this file, but Jkind.equal is required
    here. When jkind.ml is loaded, it calls set_jkind_equal to fill a ref to the
@@ -254,7 +254,7 @@ type type_declaration =
     type_arity: int;
     type_kind: type_decl_kind;
     type_jkind: jkind;
-    type_jkind_annotation: type_expr Jkind_types.annotation option;
+    type_jkind_annotation: type_expr Jkind_types.Type.annotation option;
     type_private: private_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
@@ -776,7 +776,7 @@ type change =
   | Ccommu : [`var] commutable_gen -> change
   | Cuniv : type_expr option ref * type_expr option -> change
   | Cmodes : Mode.changes -> change
-  | Csort : Jkind_types.Sort.change -> change
+  | Csort : Jkind_types.Type.Sort.change -> change
 
 type changes =
     Change of change * changes ref
@@ -792,7 +792,7 @@ let log_change ch =
 
 let () =
   Mode.set_append_changes (fun changes -> log_change (Cmodes !changes));
-  Jkind_types.Sort.set_change_log (fun change -> log_change (Csort change))
+  Jkind_types.Type.Sort.set_change_log (fun change -> log_change (Csort change))
 
 (* constructor and accessors for [field_kind] *)
 
@@ -1042,7 +1042,7 @@ let undo_change = function
   | Ccommu (Cvar r)  -> r.commu <- Cunknown
   | Cuniv  (r, v)    -> r := v
   | Cmodes c          -> Mode.undo_changes c
-  | Csort change -> Jkind_types.Sort.undo_change change
+  | Csort change -> Jkind_types.Type.Sort.undo_change change
 
 type snapshot = changes ref * int
 let last_snapshot = Local_store.s_ref 0

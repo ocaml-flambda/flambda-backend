@@ -2700,7 +2700,7 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
     (if Language_extension.erasable_extensions_only ()
     then
       (* Non-value sorts without [@unboxed] are not erasable. *)
-      let layout = Jkind_types.Sort.to_string (Const sort) in
+      let layout = Jkind_types.Type.Sort.to_string (Const sort) in
       Location.prerr_warning core_type.ptyp_loc
         (Warnings.Incompatible_with_upstream
               (Warnings.Unboxed_attribute layout)));
@@ -2737,7 +2737,7 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
     then
       (* There are additional requirements if we are operating in
          upstream compatible mode. *)
-      let layout = Jkind_types.Sort.to_string (Const sort) in
+      let layout = Jkind_types.Type.Sort.to_string (Const sort) in
       Location.prerr_warning core_type.ptyp_loc
         (Warnings.Incompatible_with_upstream
               (Warnings.Non_value_sort layout)));

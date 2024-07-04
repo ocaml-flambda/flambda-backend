@@ -41,108 +41,134 @@
 
    All definitions here are commented in jkind.ml or jkind.mli. *)
 
-module Sort : sig
-  (* We need to expose these details for use in [Jkind] *)
+module Type : sig
+  module Sort : sig
+    (* We need to expose these details for use in [Jkind] *)
 
-  (* Comments in [Jkind_intf.ml] *)
-  type const =
-    | Void
-    | Value
-    | Float64
-    | Float32
-    | Word
-    | Bits32
-    | Bits64
+    (* Comments in [Jkind_intf.ml] *)
+    type const =
+      | Void
+      | Value
+      | Float64
+      | Float32
+      | Word
+      | Bits32
+      | Bits64
 
-  type t =
-    | Var of var
-    | Const of const
+    type t =
+      | Var of var
+      | Const of const
 
-  and var = t option ref
+    and var = t option ref
 
-  include
-    Jkind_intf.Sort with type t := t and type var := var and type const := const
+    include
+      Jkind_intf.Sort
+        with type t := t
+         and type var := var
+         and type const := const
 
-  val set_change_log : (change -> unit) -> unit
+    val set_change_log : (change -> unit) -> unit
 
-  type equate_result =
-    | Unequal
-    | Equal_mutated_first
-    | Equal_mutated_second
-    | Equal_no_mutation
+    type equate_result =
+      | Unequal
+      | Equal_mutated_first
+      | Equal_mutated_second
+      | Equal_no_mutation
 
-  val equate_tracking_mutation : t -> t -> equate_result
+    val equate_tracking_mutation : t -> t -> equate_result
 
-  val get : t -> t
+    val get : t -> t
 
-  val to_string : t -> string
-end
-
-module Layout : sig
-  type 'sort layout =
-    | Sort of 'sort
-    | Any
-
-  module Const : sig
-    type t = Sort.const layout
-
-    module Legacy : sig
-      type t =
-        | Any
-        | Value
-        | Void
-        | Immediate64
-        | Immediate
-        | Float64
-        | Float32
-        | Word
-        | Bits32
-        | Bits64
-    end
+    val to_string : t -> string
   end
 
-  type t = Sort.t layout
+  module Layout : sig
+    type 'sort layout =
+      | Sort of 'sort
+      | Any
+
+    module Const : sig
+      type t = Sort.const layout
+
+      module Legacy : sig
+        type t =
+          | Any
+          | Value
+          | Void
+          | Immediate64
+          | Immediate
+          | Float64
+          | Float32
+          | Word
+          | Bits32
+          | Bits64
+      end
+    end
+
+    type t = Sort.t layout
+  end
+
+  module Externality : sig
+    type t =
+      | External
+      | External64
+      | Internal
+  end
+
+  module Modes = Mode.Alloc.Const
+
+  module Jkind_desc : sig
+    type 'type_expr t =
+      { layout : Layout.t;
+        modes_upper_bounds : Modes.t;
+        externality_upper_bound : Externality.t
+      }
+  end
+
+  type 'type_expr history =
+    | Interact of
+        { reason : Jkind_intf.History.interact_reason;
+          lhs_jkind : 'type_expr Jkind_desc.t;
+          lhs_history : 'type_expr history;
+          rhs_jkind : 'type_expr Jkind_desc.t;
+          rhs_history : 'type_expr history
+        }
+    | Creation of Jkind_intf.History.creation_reason
+
+  type 'type_expr t =
+    { jkind : 'type_expr Jkind_desc.t;
+      history : 'type_expr history;
+      has_warned : bool
+    }
+
+  module Const : sig
+    type 'type_expr t =
+      { layout : Layout.Const.t;
+        modes_upper_bounds : Modes.t;
+        externality_upper_bound : Externality.t
+      }
+  end
+
+  type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation
 end
 
-module Externality : sig
-  type t =
-    | External
-    | External64
-    | Internal
-end
-
-module Modes = Mode.Alloc.Const
+type 'a arrow =
+  { args : 'a list;
+    result : 'a
+  }
 
 module Jkind_desc : sig
   type 'type_expr t =
-    { layout : Layout.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Externality.t
-    }
+    | Type of 'type_expr Type.Jkind_desc.t
+    | Arrow of 'type_expr t arrow
 end
 
-type 'type_expr history =
-  | Interact of
-      { reason : Jkind_intf.History.interact_reason;
-        lhs_jkind : 'type_expr Jkind_desc.t;
-        lhs_history : 'type_expr history;
-        rhs_jkind : 'type_expr Jkind_desc.t;
-        rhs_history : 'type_expr history
-      }
-  | Creation of Jkind_intf.History.creation_reason
-
-type 'type_expr t =
-  { jkind : 'type_expr Jkind_desc.t;
-    history : 'type_expr history;
-    has_warned : bool
-  }
+type 'type_expr t = { jkind : 'type_expr Jkind_desc.t }
 
 module Const : sig
   type 'type_expr t =
-    { layout : Layout.Const.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Externality.t
-    }
+    | Type of 'type_expr Type.Const.t
+    | Arrow of 'type_expr t arrow
 end
 
 type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation
