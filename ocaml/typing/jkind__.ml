@@ -243,393 +243,402 @@ end
 
 let raise ~loc err = raise (Error.User_error (loc, err))
 
-module Const = struct
-  open Jkind_types.Const
+module Type_jkind = struct
+  module Const = struct
+    open Jkind_types.Type_jkind.Const
 
-  type t = const
+    type t = type_expr Jkind_types.Type_jkind.Const.t
 
-  let max =
-    { layout = Layout.Const.max;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = Externality.max
-    }
-
-  let get_layout const = const.layout
-
-  let get_modal_upper_bounds const = const.modes_upper_bounds
-
-  let get_externality_upper_bound const = const.externality_upper_bound
-
-  let get_legacy_layout
-      { layout; modes_upper_bounds = _; externality_upper_bound } :
-      Layout.Const.Legacy.t =
-    match layout, externality_upper_bound with
-    | Any, _ -> Any
-    | Sort Value, Internal -> Value
-    | Sort Value, External64 -> Immediate64
-    | Sort Value, External -> Immediate
-    | Sort Void, _ -> Void
-    | Sort Float64, _ -> Float64
-    | Sort Float32, _ -> Float32
-    | Sort Word, _ -> Word
-    | Sort Bits32, _ -> Bits32
-    | Sort Bits64, _ -> Bits64
-
-  let equal
-      { layout = lay1;
-        modes_upper_bounds = modes1;
-        externality_upper_bound = ext1
-      }
-      { layout = lay2;
-        modes_upper_bounds = modes2;
-        externality_upper_bound = ext2
-      } =
-    Layout.Const.equal lay1 lay2
-    && Modes.equal modes1 modes2
-    && Externality.equal ext1 ext2
-
-  let sub
-      { layout = lay1;
-        modes_upper_bounds = modes1;
-        externality_upper_bound = ext1
-      }
-      { layout = lay2;
-        modes_upper_bounds = modes2;
-        externality_upper_bound = ext2
-      } =
-    Misc.Le_result.combine_list
-      [ Layout.Const.sub lay1 lay2;
-        Modes.less_or_equal modes1 modes2;
-        Externality.less_or_equal ext1 ext2 ]
-
-  let not_mode_crossing layout =
-    { layout;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = Externality.max
-    }
-
-  let mode_crossing layout =
-    { layout;
-      modes_upper_bounds = Modes.min;
-      externality_upper_bound = Externality.min
-    }
-
-  module Primitive = struct
-    type nonrec t =
-      { jkind : t;
-        name : string
+    let max =
+      { layout = Layout.Const.max;
+        modes_upper_bounds = Modes.max;
+        externality_upper_bound = Externality.max
       }
 
-    let any = { jkind = not_mode_crossing Any; name = "any" }
+    let get_layout const = const.layout
 
-    let value = { jkind = not_mode_crossing Layout.Const.value; name = "value" }
+    let get_modal_upper_bounds const = const.modes_upper_bounds
 
-    let void = { jkind = not_mode_crossing Layout.Const.void; name = "void" }
+    let get_externality_upper_bound const = const.externality_upper_bound
 
-    let immediate =
-      { jkind = mode_crossing Layout.Const.value; name = "immediate" }
+    let get_legacy_layout
+        { layout; modes_upper_bounds = _; externality_upper_bound } :
+        Layout.Const.Legacy.t =
+      match layout, externality_upper_bound with
+      | Any, _ -> Any
+      | Sort Value, Internal -> Value
+      | Sort Value, External64 -> Immediate64
+      | Sort Value, External -> Immediate
+      | Sort Void, _ -> Void
+      | Sort Float64, _ -> Float64
+      | Sort Float32, _ -> Float32
+      | Sort Word, _ -> Word
+      | Sort Bits32, _ -> Bits32
+      | Sort Bits64, _ -> Bits64
 
-    (* [immediate64] describes types that are stored directly (no indirection)
-       on 64-bit platforms but indirectly on 32-bit platforms. The key question:
-       along which modes should a [immediate64] cross? As of today, all of them,
-       but the reasoning for each is independent and somewhat subtle:
+    let equal
+        { layout = lay1;
+          modes_upper_bounds = modes1;
+          externality_upper_bound = ext1
+        }
+        { layout = lay2;
+          modes_upper_bounds = modes2;
+          externality_upper_bound = ext2
+        } =
+      Layout.Const.equal lay1 lay2
+      && Modes.equal modes1 modes2
+      && Externality.equal ext1 ext2
 
-       * Locality: This is fine, because we do not have stack-allocation on
-       32-bit platforms. Thus mode-crossing is sound at any type on 32-bit,
-       including immediate64 types.
+    let sub
+        { layout = lay1;
+          modes_upper_bounds = modes1;
+          externality_upper_bound = ext1
+        }
+        { layout = lay2;
+          modes_upper_bounds = modes2;
+          externality_upper_bound = ext2
+        } =
+      Misc.Le_result.combine_list
+        [ Layout.Const.sub lay1 lay2;
+          Modes.less_or_equal modes1 modes2;
+          Externality.less_or_equal ext1 ext2 ]
 
-       * Linearity: This is fine, because linearity matters only for function
-       types, and an immediate64 cannot be a function type and cannot store
-       one either.
-
-       * Uniqueness: This is fine, because uniqueness matters only for
-       in-place update, and no record supporting in-place update is an
-       immediate64. ([@@unboxed] records do not support in-place update.)
-
-       * Syncness: This is fine, because syncness matters only for function
-       types, and an immediate64 cannot be a function type and cannot store
-       one either.
-
-       * Contention: This is fine, because contention matters only for
-       types with mutable fields, and an immediate64 does not have immutable
-       fields.
-
-       In practice, the functor that creates immediate64s,
-       [Stdlib.Sys.Immediate64.Make], will require these conditions on its
-       argument. But the arguments that we expect here will have no trouble
-       meeting the conditions.
-    *)
-    let immediate64 =
-      { jkind = { immediate.jkind with externality_upper_bound = External64 };
-        name = "immediate64"
+    let not_mode_crossing layout =
+      { layout;
+        modes_upper_bounds = Modes.max;
+        externality_upper_bound = Externality.max
       }
 
-    (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
-       crossing first *)
-    let float64 =
-      { jkind = mode_crossing Layout.Const.float64; name = "float64" }
+    let mode_crossing layout =
+      { layout;
+        modes_upper_bounds = Modes.min;
+        externality_upper_bound = Externality.min
+      }
 
-    (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
-       crossing first *)
-    let float32 =
-      { jkind = mode_crossing Layout.Const.float32; name = "float32" }
-
-    let word = { jkind = not_mode_crossing Layout.Const.word; name = "word" }
-
-    let bits32 =
-      { jkind = not_mode_crossing Layout.Const.bits32; name = "bits32" }
-
-    let bits64 =
-      { jkind = not_mode_crossing Layout.Const.bits64; name = "bits64" }
-
-    let all =
-      [ any;
-        value;
-        void;
-        immediate;
-        immediate64;
-        float64;
-        float32;
-        word;
-        bits32;
-        bits64 ]
-  end
-
-  module To_out_jkind_const = struct
-    open Outcometree
-
-    module Bounds = struct
-      type t =
-        { alloc_bounds : Alloc.Const.t;
-          externality_bound : Externality.t
+    module Primitive = struct
+      type nonrec t =
+        { jkind : t;
+          name : string
         }
 
-      let of_jkind jkind =
-        { alloc_bounds = jkind.modes_upper_bounds;
-          externality_bound = jkind.externality_upper_bound
+      let any = { jkind = not_mode_crossing Any; name = "any" }
+
+      let value =
+        { jkind = not_mode_crossing Layout.Const.value; name = "value" }
+
+      let void = { jkind = not_mode_crossing Layout.Const.void; name = "void" }
+
+      let immediate =
+        { jkind = mode_crossing Layout.Const.value; name = "immediate" }
+
+      (* [immediate64] describes types that are stored directly (no indirection)
+         on 64-bit platforms but indirectly on 32-bit platforms. The key question:
+         along which modes should a [immediate64] cross? As of today, all of them,
+         but the reasoning for each is independent and somewhat subtle:
+
+         * Locality: This is fine, because we do not have stack-allocation on
+         32-bit platforms. Thus mode-crossing is sound at any type on 32-bit,
+         including immediate64 types.
+
+         * Linearity: This is fine, because linearity matters only for function
+         types, and an immediate64 cannot be a function type and cannot store
+         one either.
+
+         * Uniqueness: This is fine, because uniqueness matters only for
+         in-place update, and no record supporting in-place update is an
+         immediate64. ([@@unboxed] records do not support in-place update.)
+
+         * Syncness: This is fine, because syncness matters only for function
+         types, and an immediate64 cannot be a function type and cannot store
+         one either.
+
+         * Contention: This is fine, because contention matters only for
+         types with mutable fields, and an immediate64 does not have immutable
+         fields.
+
+         In practice, the functor that creates immediate64s,
+         [Stdlib.Sys.Immediate64.Make], will require these conditions on its
+         argument. But the arguments that we expect here will have no trouble
+         meeting the conditions.
+      *)
+      let immediate64 =
+        { jkind = { immediate.jkind with externality_upper_bound = External64 };
+          name = "immediate64"
         }
+
+      (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
+         crossing first *)
+      let float64 =
+        { jkind = mode_crossing Layout.Const.float64; name = "float64" }
+
+      (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
+         crossing first *)
+      let float32 =
+        { jkind = mode_crossing Layout.Const.float32; name = "float32" }
+
+      let word = { jkind = not_mode_crossing Layout.Const.word; name = "word" }
+
+      let bits32 =
+        { jkind = not_mode_crossing Layout.Const.bits32; name = "bits32" }
+
+      let bits64 =
+        { jkind = not_mode_crossing Layout.Const.bits64; name = "bits64" }
+
+      let all =
+        [ any;
+          value;
+          void;
+          immediate;
+          immediate64;
+          float64;
+          float32;
+          word;
+          bits32;
+          bits64 ]
     end
 
-    let get_modal_bound ~le ~print ~base actual =
-      match le actual base with
-      | true -> (
-        match le base actual with
-        | true -> `Valid None
-        | false -> `Valid (Some (Format.asprintf "%a" print actual)))
-      | false -> `Invalid
+    module To_out_jkind_const = struct
+      open Outcometree
 
-    let get_modal_bounds ~(base : Bounds.t) (actual : Bounds.t) =
-      [ get_modal_bound ~le:Locality.Const.le ~print:Locality.Const.print
-          ~base:base.alloc_bounds.areality actual.alloc_bounds.areality;
-        get_modal_bound ~le:Uniqueness.Const.le ~print:Uniqueness.Const.print
-          ~base:base.alloc_bounds.uniqueness actual.alloc_bounds.uniqueness;
-        get_modal_bound ~le:Linearity.Const.le ~print:Linearity.Const.print
-          ~base:base.alloc_bounds.linearity actual.alloc_bounds.linearity;
-        get_modal_bound ~le:Contention.Const.le ~print:Contention.Const.print
-          ~base:base.alloc_bounds.contention actual.alloc_bounds.contention;
-        get_modal_bound ~le:Portability.Const.le ~print:Portability.Const.print
-          ~base:base.alloc_bounds.portability actual.alloc_bounds.portability;
-        get_modal_bound ~le:Externality.le ~print:Externality.print
-          ~base:base.externality_bound actual.externality_bound ]
-      |> List.rev
-      |> List.fold_left
-           (fun acc mode ->
-             match acc, mode with
-             | _, `Invalid | None, _ -> None
-             | acc, `Valid None -> acc
-             | Some acc, `Valid (Some mode) -> Some (mode :: acc))
-           (Some [])
+      module Bounds = struct
+        type t =
+          { alloc_bounds : Alloc.Const.t;
+            externality_bound : Externality.t
+          }
 
-    (** Write [actual] in terms of [base] *)
-    let convert_with_base ~(base : Primitive.t) actual =
-      let matching_layouts =
-        Layout.Const.equal base.jkind.layout actual.layout
-      in
-      let modal_bounds =
-        get_modal_bounds
-          ~base:(Bounds.of_jkind base.jkind)
-          (Bounds.of_jkind actual)
-      in
-      match matching_layouts, modal_bounds with
-      | true, Some modal_bounds -> Some { base = base.name; modal_bounds }
-      | false, _ | _, None -> None
+        let of_jkind jkind =
+          { alloc_bounds = jkind.modes_upper_bounds;
+            externality_bound = jkind.externality_upper_bound
+          }
+      end
 
-    (** Select the out_jkind_const with the least number of modal bounds to print *)
-    let rec select_simplest = function
-      | a :: b :: tl ->
-        let simpler =
-          if List.length a.modal_bounds < List.length b.modal_bounds
-          then a
-          else b
+      let get_modal_bound ~le ~print ~base actual =
+        match le actual base with
+        | true -> (
+          match le base actual with
+          | true -> `Valid None
+          | false -> `Valid (Some (Format.asprintf "%a" print actual)))
+        | false -> `Invalid
+
+      let get_modal_bounds ~(base : Bounds.t) (actual : Bounds.t) =
+        [ get_modal_bound ~le:Locality.Const.le ~print:Locality.Const.print
+            ~base:base.alloc_bounds.areality actual.alloc_bounds.areality;
+          get_modal_bound ~le:Uniqueness.Const.le ~print:Uniqueness.Const.print
+            ~base:base.alloc_bounds.uniqueness actual.alloc_bounds.uniqueness;
+          get_modal_bound ~le:Linearity.Const.le ~print:Linearity.Const.print
+            ~base:base.alloc_bounds.linearity actual.alloc_bounds.linearity;
+          get_modal_bound ~le:Contention.Const.le ~print:Contention.Const.print
+            ~base:base.alloc_bounds.contention actual.alloc_bounds.contention;
+          get_modal_bound ~le:Portability.Const.le
+            ~print:Portability.Const.print ~base:base.alloc_bounds.portability
+            actual.alloc_bounds.portability;
+          get_modal_bound ~le:Externality.le ~print:Externality.print
+            ~base:base.externality_bound actual.externality_bound ]
+        |> List.rev
+        |> List.fold_left
+             (fun acc mode ->
+               match acc, mode with
+               | _, `Invalid | None, _ -> None
+               | acc, `Valid None -> acc
+               | Some acc, `Valid (Some mode) -> Some (mode :: acc))
+             (Some [])
+
+      (** Write [actual] in terms of [base] *)
+      let convert_with_base ~(base : Primitive.t) actual =
+        let matching_layouts =
+          Layout.Const.equal base.jkind.layout actual.layout
         in
-        select_simplest (simpler :: tl)
-      | [out] -> Some out
-      | [] -> None
-
-    let convert jkind =
-      (* For each primitive jkind, we try to print the jkind in terms of it (this is
-         possible if the primitive is a subjkind of it). We then choose the "simplest". The
-           "simplest" is taken to mean the one with the least number of modes that need to
-         follow the [mod]. *)
-      let simplest =
-        Primitive.all
-        |> List.filter_map (fun base -> convert_with_base ~base jkind)
-        |> select_simplest
-      in
-      match simplest with
-      | Some simplest -> simplest
-      | None ->
-        (* CR layouts v2.8: sometimes there is no valid way to build a jkind from a
-           built-in abbreviation. For now, we just pretend that the layout name is a valid
-           jkind abbreviation whose modal bounds are all max, even though this is a
-           lie. *)
-        let out_jkind_verbose =
-          convert_with_base
-            ~base:
-              { jkind =
-                  { layout = jkind.layout;
-                    modes_upper_bounds = Modes.max;
-                    externality_upper_bound = Externality.max
-                  };
-                name = Layout.Const.to_string jkind.layout
-              }
-            jkind
+        let modal_bounds =
+          get_modal_bounds
+            ~base:(Bounds.of_jkind base.jkind)
+            (Bounds.of_jkind actual)
         in
-        (* convert_with_base is guaranteed to succeed since the layout matches and the
-           modal bounds are all max *)
-        Option.get out_jkind_verbose
+        match matching_layouts, modal_bounds with
+        | true, Some modal_bounds -> Some { base = base.name; modal_bounds }
+        | false, _ | _, None -> None
+
+      (** Select the out_jkind_const with the least number of modal bounds to print *)
+      let rec select_simplest = function
+        | a :: b :: tl ->
+          let simpler =
+            if List.length a.modal_bounds < List.length b.modal_bounds
+            then a
+            else b
+          in
+          select_simplest (simpler :: tl)
+        | [out] -> Some out
+        | [] -> None
+
+      let convert jkind =
+        (* For each primitive jkind, we try to print the jkind in terms of it (this is
+           possible if the primitive is a subjkind of it). We then choose the "simplest". The
+             "simplest" is taken to mean the one with the least number of modes that need to
+           follow the [mod]. *)
+        let simplest =
+          Primitive.all
+          |> List.filter_map (fun base -> convert_with_base ~base jkind)
+          |> select_simplest
+        in
+        match simplest with
+        | Some simplest -> simplest
+        | None ->
+          (* CR layouts v2.8: sometimes there is no valid way to build a jkind from a
+             built-in abbreviation. For now, we just pretend that the layout name is a valid
+             jkind abbreviation whose modal bounds are all max, even though this is a
+             lie. *)
+          let out_jkind_verbose =
+            convert_with_base
+              ~base:
+                { jkind =
+                    { layout = jkind.layout;
+                      modes_upper_bounds = Modes.max;
+                      externality_upper_bound = Externality.max
+                    };
+                  name = Layout.Const.to_string jkind.layout
+                }
+              jkind
+          in
+          (* convert_with_base is guaranteed to succeed since the layout matches and the
+             modal bounds are all max *)
+          Option.get out_jkind_verbose
+    end
+
+    let to_out_jkind_const = To_out_jkind_const.convert
+
+    let format ppf jkind =
+      let legacy_layout = get_legacy_layout jkind in
+      let layout_str = Layout.Const.Legacy.to_string legacy_layout in
+      Format.fprintf ppf "%s" layout_str
+
+    let of_attribute : Builtin_attributes.jkind_attribute -> t = function
+      | Immediate -> Primitive.immediate.jkind
+      | Immediate64 -> Primitive.immediate64.jkind
+
+    module ModeParser = struct
+      type mode =
+        | Areality of Locality.Const.t
+        | Linearity of Linearity.Const.t
+        | Uniqueness of Uniqueness.Const.t
+        | Contention of Contention.Const.t
+        | Portability of Portability.Const.t
+        | Externality of Externality.t
+
+      let parse_mode unparsed_mode =
+        let { txt = name; loc } =
+          (unparsed_mode : Jane_syntax.Mode_expr.Const.t :> _ Location.loc)
+        in
+        match name with
+        | "global" -> Areality Global
+        | "local" -> Areality Local
+        | "many" -> Linearity Many
+        | "once" -> Linearity Once
+        | "unique" -> Uniqueness Unique
+        | "shared" -> Uniqueness Shared
+        | "internal" -> Externality Internal
+        | "external64" -> Externality External64
+        | "external_" -> Externality External
+        | "contended" -> Contention Contended
+        | "uncontended" -> Contention Uncontended
+        | "portable" -> Portability Portable
+        | "nonportable" -> Portability Nonportable
+        | _ -> raise ~loc (Unknown_mode unparsed_mode)
+
+      let parse_modes
+          (Location.{ txt = modes; loc = _ } : Jane_syntax.Mode_expr.t) =
+        List.map parse_mode modes
+    end
+
+    let rec of_user_written_annotation_unchecked_level
+        (jkind : Jane_syntax.Jkind.t) : t =
+      match jkind with
+      | Abbreviation const -> (
+        let { txt = name; loc } =
+          (const : Jane_syntax.Jkind.Const.t :> _ Location.loc)
+        in
+        (* CR layouts 2.8: move this to predef *)
+        match name with
+        | "any" -> Primitive.any.jkind
+        | "value" -> Primitive.value.jkind
+        | "void" -> Primitive.void.jkind
+        | "immediate64" -> Primitive.immediate64.jkind
+        | "immediate" -> Primitive.immediate.jkind
+        | "float64" -> Primitive.float64.jkind
+        | "float32" -> Primitive.float32.jkind
+        | "word" -> Primitive.word.jkind
+        | "bits32" -> Primitive.bits32.jkind
+        | "bits64" -> Primitive.bits64.jkind
+        | _ -> raise ~loc (Unknown_jkind jkind))
+      | Mod (jkind, modes) ->
+        let base = of_user_written_annotation_unchecked_level jkind in
+        (* for each mode, lower the corresponding modal bound to be that mode *)
+        let parsed_modes = ModeParser.parse_modes modes in
+        let meet_mode jkind (mode : ModeParser.mode) =
+          match mode with
+          | Areality areality ->
+            { jkind with
+              modes_upper_bounds =
+                { jkind.modes_upper_bounds with
+                  areality =
+                    Locality.Const.meet jkind.modes_upper_bounds.areality
+                      areality
+                }
+            }
+          | Linearity linearity ->
+            { jkind with
+              modes_upper_bounds =
+                Modes.meet jkind.modes_upper_bounds
+                  { jkind.modes_upper_bounds with
+                    linearity =
+                      Linearity.Const.meet jkind.modes_upper_bounds.linearity
+                        linearity
+                  }
+            }
+          | Uniqueness uniqueness ->
+            { jkind with
+              modes_upper_bounds =
+                Modes.meet jkind.modes_upper_bounds
+                  { jkind.modes_upper_bounds with
+                    uniqueness =
+                      Uniqueness.Const.meet jkind.modes_upper_bounds.uniqueness
+                        uniqueness
+                  }
+            }
+          | Contention contention ->
+            { jkind with
+              modes_upper_bounds =
+                Modes.meet jkind.modes_upper_bounds
+                  { jkind.modes_upper_bounds with
+                    contention =
+                      Contention.Const.meet jkind.modes_upper_bounds.contention
+                        contention
+                  }
+            }
+          | Portability portability ->
+            { jkind with
+              modes_upper_bounds =
+                Modes.meet jkind.modes_upper_bounds
+                  { jkind.modes_upper_bounds with
+                    portability =
+                      Portability.Const.meet
+                        jkind.modes_upper_bounds.portability portability
+                  }
+            }
+          | Externality externality ->
+            { jkind with
+              externality_upper_bound =
+                Externality.meet jkind.externality_upper_bound externality
+            }
+        in
+        List.fold_left meet_mode base parsed_modes
+      | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
+
+    module Sort = Sort.Const
+    module Layout = Layout.Const
   end
+end
 
-  let to_out_jkind_const = To_out_jkind_const.convert
-
-  let format ppf jkind =
-    let legacy_layout = get_legacy_layout jkind in
-    let layout_str = Layout.Const.Legacy.to_string legacy_layout in
-    Format.fprintf ppf "%s" layout_str
-
-  let of_attribute : Builtin_attributes.jkind_attribute -> t = function
-    | Immediate -> Primitive.immediate.jkind
-    | Immediate64 -> Primitive.immediate64.jkind
-
-  module ModeParser = struct
-    type mode =
-      | Areality of Locality.Const.t
-      | Linearity of Linearity.Const.t
-      | Uniqueness of Uniqueness.Const.t
-      | Contention of Contention.Const.t
-      | Portability of Portability.Const.t
-      | Externality of Externality.t
-
-    let parse_mode unparsed_mode =
-      let { txt = name; loc } =
-        (unparsed_mode : Jane_syntax.Mode_expr.Const.t :> _ Location.loc)
-      in
-      match name with
-      | "global" -> Areality Global
-      | "local" -> Areality Local
-      | "many" -> Linearity Many
-      | "once" -> Linearity Once
-      | "unique" -> Uniqueness Unique
-      | "shared" -> Uniqueness Shared
-      | "internal" -> Externality Internal
-      | "external64" -> Externality External64
-      | "external_" -> Externality External
-      | "contended" -> Contention Contended
-      | "uncontended" -> Contention Uncontended
-      | "portable" -> Portability Portable
-      | "nonportable" -> Portability Nonportable
-      | _ -> raise ~loc (Unknown_mode unparsed_mode)
-
-    let parse_modes
-        (Location.{ txt = modes; loc = _ } : Jane_syntax.Mode_expr.t) =
-      List.map parse_mode modes
-  end
-
-  let rec of_user_written_annotation_unchecked_level
-      (jkind : Jane_syntax.Jkind.t) : t =
-    match jkind with
-    | Abbreviation const -> (
-      let { txt = name; loc } =
-        (const : Jane_syntax.Jkind.Const.t :> _ Location.loc)
-      in
-      (* CR layouts 2.8: move this to predef *)
-      match name with
-      | "any" -> Primitive.any.jkind
-      | "value" -> Primitive.value.jkind
-      | "void" -> Primitive.void.jkind
-      | "immediate64" -> Primitive.immediate64.jkind
-      | "immediate" -> Primitive.immediate.jkind
-      | "float64" -> Primitive.float64.jkind
-      | "float32" -> Primitive.float32.jkind
-      | "word" -> Primitive.word.jkind
-      | "bits32" -> Primitive.bits32.jkind
-      | "bits64" -> Primitive.bits64.jkind
-      | _ -> raise ~loc (Unknown_jkind jkind))
-    | Mod (jkind, modes) ->
-      let base = of_user_written_annotation_unchecked_level jkind in
-      (* for each mode, lower the corresponding modal bound to be that mode *)
-      let parsed_modes = ModeParser.parse_modes modes in
-      let meet_mode jkind (mode : ModeParser.mode) =
-        match mode with
-        | Areality areality ->
-          { jkind with
-            modes_upper_bounds =
-              { jkind.modes_upper_bounds with
-                areality =
-                  Locality.Const.meet jkind.modes_upper_bounds.areality areality
-              }
-          }
-        | Linearity linearity ->
-          { jkind with
-            modes_upper_bounds =
-              Modes.meet jkind.modes_upper_bounds
-                { jkind.modes_upper_bounds with
-                  linearity =
-                    Linearity.Const.meet jkind.modes_upper_bounds.linearity
-                      linearity
-                }
-          }
-        | Uniqueness uniqueness ->
-          { jkind with
-            modes_upper_bounds =
-              Modes.meet jkind.modes_upper_bounds
-                { jkind.modes_upper_bounds with
-                  uniqueness =
-                    Uniqueness.Const.meet jkind.modes_upper_bounds.uniqueness
-                      uniqueness
-                }
-          }
-        | Contention contention ->
-          { jkind with
-            modes_upper_bounds =
-              Modes.meet jkind.modes_upper_bounds
-                { jkind.modes_upper_bounds with
-                  contention =
-                    Contention.Const.meet jkind.modes_upper_bounds.contention
-                      contention
-                }
-          }
-        | Portability portability ->
-          { jkind with
-            modes_upper_bounds =
-              Modes.meet jkind.modes_upper_bounds
-                { jkind.modes_upper_bounds with
-                  portability =
-                    Portability.Const.meet jkind.modes_upper_bounds.portability
-                      portability
-                }
-          }
-        | Externality externality ->
-          { jkind with
-            externality_upper_bound =
-              Externality.meet jkind.externality_upper_bound externality
-          }
-      in
-      List.fold_left meet_mode base parsed_modes
-    | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
-
-  module Sort = Sort.Const
-  module Layout = Layout.Const
+module Const = struct
+  type t = type_expr Jkind_types.Const.t
 end
 
 module Desc = struct
@@ -658,69 +667,113 @@ end
 module Jkind_desc = struct
   open Jkind_types.Jkind_desc
 
+  let map_star ~f = function
+    | Type_kind s -> Type_kind (f s)
+    | Arrow_kind a -> Arrow_kind a
+
+  let map_per_kind_case ~star ~arrow ~default k k' =
+    match k, k' with
+    | Type_kind s, Type_kind s' -> star s s'
+    | Arrow_kind a, Arrow_kind a' -> arrow a a'
+    | _, _ -> default
+
   let of_const
       ({ layout; modes_upper_bounds; externality_upper_bound } : Const.t) =
-    { layout = Layout.of_const layout;
-      modes_upper_bounds;
-      externality_upper_bound
-    }
+    Type_kind
+      { layout = Layout.of_const layout;
+        modes_upper_bounds;
+        externality_upper_bound
+      }
 
   let not_mode_crossing layout =
-    { layout;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = Externality.max
-    }
+    Type_kind
+      { layout;
+        modes_upper_bounds = Modes.max;
+        externality_upper_bound = Externality.max
+      }
 
-  let add_mode_crossing t =
-    { t with
-      modes_upper_bounds = Modes.min;
-      externality_upper_bound = Externality.min
-    }
+  let add_mode_crossing =
+    map_star ~f:(fun s ->
+        { s with
+          modes_upper_bounds = Modes.min;
+          externality_upper_bound = Externality.min
+        })
 
   let max = of_const Const.max
 
-  let equate_or_equal ~allow_mutation
-      { layout = lay1;
-        modes_upper_bounds = modes1;
-        externality_upper_bound = ext1
-      }
-      { layout = lay2;
-        modes_upper_bounds = modes2;
-        externality_upper_bound = ext2
-      } =
-    Layout.equate_or_equal ~allow_mutation lay1 lay2
-    && Modes.equal modes1 modes2
-    && Externality.equal ext1 ext2
+  let rec equate_or_equal ~allow_mutation =
+    map_per_kind_case
+      ~star:
+        (fun { layout = lay1;
+               modes_upper_bounds = modes1;
+               externality_upper_bound = ext1
+             }
+             { layout = lay2;
+               modes_upper_bounds = modes2;
+               externality_upper_bound = ext2
+             } ->
+        Layout.equate_or_equal ~allow_mutation lay1 lay2
+        && Modes.equal modes1 modes2
+        && Externality.equal ext1 ext2)
+      ~arrow:
+        (fun { args = args1; result = result1 }
+             { args = args2; result = result2 } ->
+        (* FIXME jbachurski: This might inconsistently mutate (equate) only some pairs *)
+        let eqs =
+          List.map2
+            (equate_or_equal ~allow_mutation)
+            (result1 :: args1) (result2 :: args2)
+        in
+        List.for_all (fun x -> x) eqs)
+      ~default:false
 
-  let sub
-      { layout = lay1;
-        modes_upper_bounds = modes1;
-        externality_upper_bound = ext1
-      }
-      { layout = lay2;
-        modes_upper_bounds = modes2;
-        externality_upper_bound = ext2
-      } =
-    Misc.Le_result.combine_list
-      [ Layout.sub lay1 lay2;
-        Modes.less_or_equal modes1 modes2;
-        Externality.less_or_equal ext1 ext2 ]
+  let equal t t' = equate_or_equal ~allow_mutation:false t t'
 
-  let intersection
-      { layout = lay1;
-        modes_upper_bounds = modes1;
-        externality_upper_bound = ext1
-      }
-      { layout = lay2;
-        modes_upper_bounds = modes2;
-        externality_upper_bound = ext2
-      } =
-    Option.bind (Layout.intersection lay1 lay2) (fun layout ->
-        Some
-          { layout;
-            modes_upper_bounds = Modes.meet modes1 modes2;
-            externality_upper_bound = Externality.meet ext1 ext2
-          })
+  let rec sub t t' =
+    map_per_kind_case
+      ~star:
+        (fun { layout = lay1;
+               modes_upper_bounds = modes1;
+               externality_upper_bound = ext1
+             }
+             { layout = lay2;
+               modes_upper_bounds = modes2;
+               externality_upper_bound = ext2
+             } ->
+        Misc.Le_result.combine_list
+          [ Layout.sub lay1 lay2;
+            Modes.less_or_equal modes1 modes2;
+            Externality.less_or_equal ext1 ext2 ])
+      ~arrow:
+        (fun { args = args1; result = result1 }
+             { args = args2; result = result2 } ->
+        (* FIXME jbachurski: does this work out the right way round?
+           args contravariant, results covariant *)
+        Misc.Le_result.combine_list
+          (sub result1 result2 :: List.map2 sub args2 args1))
+      ~default:Misc.Le_result.Not_le t t'
+
+  let intersection =
+    map_per_kind_case
+      ~star:
+          (fun { layout = lay1;
+                 modes_upper_bounds = modes1;
+                 externality_upper_bound = ext1
+               }
+               { layout = lay2;
+                 modes_upper_bounds = modes2;
+                 externality_upper_bound = ext2
+               } ->
+        Option.bind (Layout.intersection lay1 lay2) (fun layout ->
+            Some
+              (Type_kind
+                 { layout;
+                   modes_upper_bounds = Modes.meet modes1 modes2;
+                   externality_upper_bound = Externality.meet ext1 ext2
+                 })))
+        (* TODO jbachurski: Implement [intersection] for Arrow_kind *)
+      ~arrow:(fun _ _ -> None)
+      ~default:None
 
   let of_new_sort_var () =
     let layout, sort = Layout.of_new_sort_var () in
@@ -779,24 +832,35 @@ module Jkind_desc = struct
   end
 
   (* Post-condition: If the result is [Var v], then [!v] is [None]. *)
-  let get { layout; modes_upper_bounds; externality_upper_bound } : Desc.t =
-    match layout with
-    | Any -> Const { layout = Any; modes_upper_bounds; externality_upper_bound }
-    | Sort s -> (
-      match Sort.get s with
-      | Const s ->
-        Const { layout = Sort s; modes_upper_bounds; externality_upper_bound }
-      | Var v -> Var v)
+  let get t : Desc.t =
+    match t with
+    | { jkind =
+          Type_kind { layout; modes_upper_bounds; externality_upper_bound };
+        _
+      } -> (
+      match layout with
+      | Any ->
+        Const { layout = Any; modes_upper_bounds; externality_upper_bound }
+      | Sort s -> (
+        match Sort.get s with
+        | Const s ->
+          Const { layout = Sort s; modes_upper_bounds; externality_upper_bound }
+        | Var v -> Var v))
+    | _ -> failwith "FIXME jbachurski: Unexpected [Arrow_kind] in [get]"
 
   module Debug_printers = struct
     open Format
 
-    let t ppf { layout; modes_upper_bounds; externality_upper_bound } =
-      fprintf ppf
-        "{ layout = %a;@ modes_upper_bounds = %a;@ externality_upper_bound = \
-         %a }"
-        Layout.Debug_printers.t layout Modes.print modes_upper_bounds
-        Externality.print externality_upper_bound
+    let rec t ppf = function
+      | Type_kind { layout; modes_upper_bounds; externality_upper_bound } ->
+        fprintf ppf
+          "{ layout = %a;@ modes_upper_bounds = %a;@ externality_upper_bound = \
+           %a }"
+          Layout.Debug_printers.t layout Modes.print modes_upper_bounds
+          Externality.print externality_upper_bound
+      | Arrow_kind { args; result } ->
+        fprintf ppf "{ args = [%a];@ result = %a }" (pp_print_list t) args t
+          result
   end
 end
 
@@ -888,10 +952,11 @@ let of_new_sort ~why = fst (of_new_sort_var ~why)
 let of_const ~why
     ({ layout; modes_upper_bounds; externality_upper_bound } : Const.t) =
   { jkind =
-      { layout = Layout.of_const layout;
-        modes_upper_bounds;
-        externality_upper_bound
-      };
+      Type_kind
+        { layout = Layout.of_const layout;
+          modes_upper_bounds;
+          externality_upper_bound
+        };
     history = Creation why;
     has_warned = false
   }
@@ -973,16 +1038,21 @@ let for_boxed_variant ~all_voids =
 (******************************)
 (* elimination and defaulting *)
 
-let default_to_value_and_get
-    { jkind = { layout; modes_upper_bounds; externality_upper_bound }; _ } :
-    Const.t =
-  match layout with
-  | Any -> { layout = Any; modes_upper_bounds; externality_upper_bound }
-  | Sort s ->
-    { layout = Sort (Sort.default_to_value_and_get s);
-      modes_upper_bounds;
-      externality_upper_bound
-    }
+let default_to_value_and_get t : Const.t =
+  match t with
+  | { jkind = Type_kind { layout; modes_upper_bounds; externality_upper_bound };
+      _
+    } -> (
+    match layout with
+    | Any -> { layout = Any; modes_upper_bounds; externality_upper_bound }
+    | Sort s ->
+      { layout = Sort (Sort.default_to_value_and_get s);
+        modes_upper_bounds;
+        externality_upper_bound
+      })
+  | _ ->
+    failwith
+      "FIXME jbachurski: Unexpected [Arrow_kind] in [default_to_value_and_get]"
 
 let default_to_value t = ignore (default_to_value_and_get t)
 
@@ -997,17 +1067,23 @@ let sort_of_jkind l =
   | Var v -> Sort.of_var v
 
 let get_layout jk : Layout.Const.t option =
-  match jk.jkind.layout with
-  | Any -> Some Any
-  | Sort s -> (
-    match Sort.get s with Const s -> Some (Sort s) | Var _ -> None)
+  match jk.jkind with
+  | Type_kind { layout; _ } -> (
+    match layout with
+    | Any -> Some Any
+    | Sort s -> (
+      match Sort.get s with Const s -> Some (Sort s) | Var _ -> None))
+  | Arrow_kind _ -> None
 
-let get_modal_upper_bounds jk = jk.jkind.modes_upper_bounds
+(* TODO jbachurski: next 3 defns *)
+let get_modal_upper_bounds jk = (* jk.jkind.modes_upper_bounds *) Obj.magic ()
 
-let get_externality_upper_bound jk = jk.jkind.externality_upper_bound
+let get_externality_upper_bound jk =
+  (* jk.jkind.externality_upper_bound *) Obj.magic ()
 
 let set_externality_upper_bound jk externality_upper_bound =
-  { jk with jkind = { jk.jkind with externality_upper_bound } }
+  (* { jk with jkind = { jk.jkind with externality_upper_bound } } *)
+  Obj.magic ()
 
 (*********************************)
 (* pretty printing *)
@@ -1536,7 +1612,7 @@ let sub_with_history sub super =
   | Not_le -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
 
 let is_void_defaulting = function
-  | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
+  | { jkind = Type_kind { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
   | _ -> false
 
 (* This doesn't do any mutation because mutating a sort variable can't make it
@@ -1544,7 +1620,9 @@ let is_void_defaulting = function
 let is_max jkind = sub Primitive.any_dummy_jkind jkind
 
 let has_layout_any jkind =
-  match jkind.jkind.layout with Any -> true | _ -> false
+  match jkind.jkind with
+  | Type_kind s -> ( match s.layout with Any -> true | _ -> false)
+  | Arrow_kind _ -> false
 
 (*********************************)
 (* debugging *)

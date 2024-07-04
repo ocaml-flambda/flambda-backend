@@ -369,7 +369,7 @@ type 'jkind_desc desc_history =
       }
   | Creation of Jkind_intf.History.creation_reason
 
-module Type_jkind = struct
+module Type = struct
   module Jkind_desc = struct
     type 'type_expr t =
       { layout : Layout.t;
