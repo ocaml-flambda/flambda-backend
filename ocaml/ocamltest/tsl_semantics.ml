@@ -95,6 +95,9 @@ type test_tree =
 let tests_do_something (tests : Tests.t) =
   List.exists Actions.does_something tests.test_actions
 
+(* CR mshinwell/xclerc: maybe sequences of actions that "do something" and
+   then have further actions that do not "do something" should be
+   flagged *)
 let rec test_tree_does_something_on_all_branches tree =
   match tree with
   | Node (_, tests, _, []) -> tests_do_something tests
