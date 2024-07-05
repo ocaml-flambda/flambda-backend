@@ -502,7 +502,10 @@ module Const = struct
   end
 
   module To_out_jkind_const = struct
-    open Outcometree
+    type printable_jkind =
+      { base : string;
+        modal_bounds : string list
+      }
 
     module Bounds = struct
       type t =
@@ -586,39 +589,56 @@ module Const = struct
         |> List.filter_map (fun base -> convert_with_base ~base jkind)
         |> select_simplest
       in
-      match simplest with
-      | Some simplest -> simplest
-      | None ->
-        (* CR layouts v2.8: sometimes there is no valid way to build a jkind from a
-           built-in abbreviation. For now, we just pretend that the layout name is a valid
-           jkind abbreviation whose modal bounds are all max, even though this is a
-           lie. *)
-        (* CR layouts v3.0: we also pretend its nullability is [Non_null]
-           to match "legacy" behavior. *)
-        let out_jkind_verbose =
-          convert_with_base
-            ~base:
-              { jkind =
-                  { layout = jkind.layout;
-                    modes_upper_bounds = Modes.max;
-                    externality_upper_bound = Externality.max;
-                    nullability_upper_bound = Nullability.Non_null
-                  };
-                name = Layout.Const.to_string jkind.layout
-              }
-            jkind
-        in
-        (* convert_with_base is guaranteed to succeed since the layout matches and the
-           modal bounds are all max *)
-        Option.get out_jkind_verbose
+      let printable_jkind =
+        match simplest with
+        | Some simplest -> simplest
+        | None ->
+          (* CR layouts v2.8: sometimes there is no valid way to build a jkind from a
+             built-in abbreviation. For now, we just pretend that the layout name is a valid
+             jkind abbreviation whose modal bounds are all max, even though this is a
+             lie. *)
+          let out_jkind_verbose =
+            convert_with_base
+              ~base:
+                { jkind =
+                    { layout = jkind.layout;
+                      modes_upper_bounds = Modes.max;
+                      externality_upper_bound = Externality.max;
+                      nullability_upper_bound = Nullability.Non_null
+                    };
+                  name = Layout.Const.to_string jkind.layout
+                }
+              jkind
+          in
+          (* convert_with_base is guaranteed to succeed since the layout matches and the
+             modal bounds are all max *)
+          Option.get out_jkind_verbose
+      in
+      match printable_jkind with
+      | { base; modal_bounds = _ :: _ as modal_bounds } ->
+        Outcometree.Ojkind_const_mod
+          (Ojkind_const_abbreviation base, modal_bounds)
+      | { base; modal_bounds = [] } ->
+        Outcometree.Ojkind_const_abbreviation base
   end
 
   let to_out_jkind_const = To_out_jkind_const.convert
 
-  let format ppf jkind =
-    let legacy_layout = get_legacy_layout jkind in
-    let layout_str = Layout.Const.Legacy.to_string legacy_layout in
-    Format.fprintf ppf "%s" layout_str
+  let rec print_out_jkind_const ppf (ojkind : Outcometree.out_jkind_const) =
+    let open Format in
+    match ojkind with
+    | Ojkind_const_default -> fprintf ppf "_"
+    | Ojkind_const_abbreviation abbrev -> fprintf ppf "%s" abbrev
+    | Ojkind_const_mod (base, modes) ->
+      fprintf ppf "%a mod @[%a@]" print_out_jkind_const base
+        (pp_print_list
+           ~pp_sep:(fun ppf () -> fprintf ppf "@ ")
+           (fun ppf -> fprintf ppf "%s"))
+        modes
+    | Ojkind_const_with _ | Ojkind_const_kind_of _ ->
+      failwith "XXX unimplemented jkind syntax"
+
+  let format ppf jkind = to_out_jkind_const jkind |> print_out_jkind_const ppf
 
   let of_attribute : Builtin_attributes.jkind_attribute -> t = function
     | Immediate -> Primitive.immediate.jkind
@@ -1230,6 +1250,11 @@ let set_externality_upper_bound jk externality_upper_bound =
 
 (*********************************)
 (* pretty printing *)
+
+let print_out_jkind ppf (ojkind : Outcometree.out_jkind) =
+  match ojkind with
+  | Ojkind_var v -> Format.fprintf ppf "%s" v
+  | Ojkind_const jkind -> Const.print_out_jkind_const ppf jkind
 
 let format ppf jkind =
   match get jkind with
