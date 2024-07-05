@@ -37,11 +37,11 @@ val create_instance:
       string -> (Global_module.Name.t * Global_module.Name.t) list -> t
 val create_global: Global_module.Name.t -> t
 
+val create_local_binding_for_global: Global_module.Name.t -> t
         (** Creates a local identifier intended to bind the value of a global
             that is not a static constant (that is, it is a parameter or depends
             on one). The global is used purely for the mnemonic name for
             debugging purposes - no semantic connection to the global is kept. *)
-val create_local_binding_for_global: Global_module.Name.t -> t
 
 val rename: t -> t
         (** Creates an identifier with the same name as the input, a fresh

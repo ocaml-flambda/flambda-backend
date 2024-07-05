@@ -1554,7 +1554,7 @@ let transl_implementation0 compilation_unit impl ~style =
   | Set_individual_fields -> transl_implementation_set_fields compilation_unit impl
 
 let stub_out_runtime_parameters compilation_unit code =
-  let runtime_parameters = Env.locally_bound_imports () in
+  let runtime_parameters = Env.runtime_parameters () in
   match runtime_parameters with
   | [] -> code
   | _ ->

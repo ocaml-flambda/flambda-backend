@@ -995,7 +995,7 @@ let imports () = Persistent_env.imports !persistent_env
 let import_crcs ~source crcs =
   Persistent_env.import_crcs !persistent_env ~source crcs
 
-let locally_bound_imports () = Persistent_env.locally_bound_imports !persistent_env
+let runtime_parameters () = Persistent_env.runtime_parameters !persistent_env
 
 let parameters () = Persistent_env.parameters !persistent_env
 
