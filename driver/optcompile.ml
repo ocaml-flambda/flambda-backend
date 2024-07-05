@@ -128,7 +128,7 @@ let implementation0 unix ~(flambda2 : flambda2) ~start_from
       |> Option.map (fun param ->
            (* Currently, parameters don't have parameters, so we assume the argument
               list is empty *)
-           Global_module.Name.create param [])
+           Global_module.Name.create_exn param [])
     in
     if not (Config.flambda || Config.flambda2) then Clflags.set_oclassic ();
     compile_from_typed info typed ~unix ~transl_style ~pipeline ~as_arg_for

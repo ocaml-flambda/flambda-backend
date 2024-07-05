@@ -1024,7 +1024,7 @@ let transl_implementation_plain_block compilation_unit impl =
         body, Mb_record { mb_size = size }
     | true ->
         let mb_runtime_params, runtime_param_idents =
-          match Env.locally_bound_imports () with
+          match Env.runtime_parameters () with
           | [] ->
               (* We didn't end up using any of the parameters, but this is still a
                  parameterised module, so it must still be implemented as a function that
