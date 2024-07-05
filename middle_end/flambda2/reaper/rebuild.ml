@@ -102,7 +102,7 @@ let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
              match code_id with
              | Deleted _ -> code_id
              | Code_id code_id ->
-               if is_code_id_used env code_id then
+               if is_code_id_used env code_id || not (Compilation_unit.is_current (Code_id.get_compilation_unit code_id))then
                  Code_id code_id
                else
                   let code_metadata = env.get_code_metadata code_id in
