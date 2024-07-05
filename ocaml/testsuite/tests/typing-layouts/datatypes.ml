@@ -339,9 +339,9 @@ Line 8, characters 32-36:
                                     ^^^^
 Error: This expression has type float but an expression was expected of type
          ('a : immediate)
-       The layout of float is value, because
+       The kind of float is value, because
          it is the primitive value type float.
-       But the layout of float must be a sublayout of immediate, because
+       But the kind of float must be a subkind of immediate, because
          of the definition of s6 at line 2, characters 0-35.
 |}];;
 

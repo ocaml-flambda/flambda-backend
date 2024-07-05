@@ -626,9 +626,9 @@ external[@layout_poly] id : ('a : any). 'a list -> 'a list = "%identity"
 Line 1, characters 28-58:
 1 | external[@layout_poly] id : ('a : any). 'a list -> 'a list = "%identity"
                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have layout any.
-       But it was inferred to have layout value, because
-         the type argument of list has layout value.
+Error: The universal type variable 'a was declared to have kind any.
+       But it was inferred to have kind value, because
+         the type argument of list has kind value.
 |}]
 
 (* Test this when sorts can be inside unboxed records *)
