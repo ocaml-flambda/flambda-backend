@@ -1292,7 +1292,7 @@ module Element_repr = struct
     if is_float env ty then Float_element
     else
       let const_jkind = Jkind.default_to_value_and_get jkind in
-      let sort = Jkind.Const.(Layout.get_sort (get_layout const_jkind)) in
+      let sort = Jkind.(Layout.Const.get_sort (Const.get_layout const_jkind)) in
       let externality_upper_bound =
         Jkind.Const.get_externality_upper_bound const_jkind
       in
