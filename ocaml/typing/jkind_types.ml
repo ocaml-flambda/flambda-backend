@@ -399,6 +399,4 @@ module Const = struct
     }
 end
 
-type 'type_expr const = 'type_expr Const.t
-
-type 'type_expr annotation = 'type_expr const * Jane_syntax.Jkind.annotation
+type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation
