@@ -1586,12 +1586,12 @@ module Format_history = struct
     fprintf ppf "@[<v 2>%t" intro;
     (match t.history with
     | Creation reason -> (
-      fprintf ppf ", because@ %a"
+      fprintf ppf "@ because %a"
         (format_creation_reason ~layout_or_kind)
         reason;
       match reason, jkind_desc with
       | Concrete_default_creation _, Const _ ->
-        fprintf ppf ", defaulted to %s %a" layout_or_kind Desc.format jkind_desc
+        fprintf ppf ",@ defaulted to %s %a" layout_or_kind Desc.format jkind_desc
       | _ -> ())
     | _ -> assert false);
     fprintf ppf ".";
@@ -1662,7 +1662,7 @@ module Violation = struct
     in
     let format_layout_or_kind =
       match mismatch_type with
-      | `Mode -> format
+      | `Mode -> fun ppf jkind -> Format.fprintf ppf "@,%a" format jkind
       | `Layout -> fun ppf jkind -> Layout.format ppf jkind.jkind.layout
     in
     let subjkind_format verb k2 =
@@ -1717,13 +1717,13 @@ module Violation = struct
       fprintf ppf "@[<v>%a@;%a@]"
         (Format_history.format_history
            ~intro:
-             (dprintf "The %s of %a is %a" layout_or_kind pp_former former
+             (dprintf "@[<hov 2>The %s of %a is %a@]" layout_or_kind pp_former former
                 format_layout_or_kind k1)
            ~layout_or_kind)
         k1
         (Format_history.format_history
            ~intro:
-             (dprintf "But the %s of %a must %t" layout_or_kind pp_former former
+             (dprintf "@[<hov 2>But the %s of %a must %t@]" layout_or_kind pp_former former
                 connective)
            ~layout_or_kind)
         k2
