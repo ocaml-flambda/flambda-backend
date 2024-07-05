@@ -38,27 +38,27 @@ Original unit: Question
 Typing env:
 ((defined_symbols_without_equations ())
  (code_age_relation
-  {([0m[38;5;169;1mcamlQuestion__answer_0_1_code[0m [0m[38;5;169;1mcamlQuestion__answer_0_0_code[0m)})
+  {([0m[38;5;169;1mcamlQuestion.answer_0_1_code[0m [0m[38;5;169;1mcamlQuestion.answer_0_0_code[0m)})
  (type_equations
   {([0m[38;5;111;1m[0m[38;5;98;1mQuestion.camlQuestion[0m[38;5;111;1m[0m
     (Val
      (Variant
       (blocks
        ((alloc_mode Heap) (known
-         {(tag_0 => (Known 1), ((Val ([0m[38;5;160;1m=[0m [0m[38;5;111;1m[0m[38;5;98;1mQuestion.camlQuestion__answer_1[0m[38;5;111;1m[0m))))})
+         {(tag_0 => (Known 1), ((Val ([0m[38;5;160;1m=[0m [0m[38;5;111;1m[0m[38;5;98;1mQuestion.camlQuestion.answer_1[0m[38;5;111;1m[0m))))})
         (other Bottom))) (tagged_imms (Naked_immediate [0m[38;5;37;1m⊥[0m)))))
-   ([0m[38;5;111;1m[0m[38;5;98;1mQuestion.camlQuestion__answer_1[0m[38;5;111;1m[0m
+   ([0m[38;5;111;1m[0m[38;5;98;1mQuestion.camlQuestion.answer_1[0m[38;5;111;1m[0m
     (Val
      ((alloc_mode Heap) (known
        {([0m[38;5;31;1m(answer/0 ∷ [0m[38;5;37;1m𝕍[0m[38;5;31;1m)[0m
          => (Known ((closures { [0m[38;5;31;1m(answer/0 ∷ [0m[38;5;37;1m𝕍[0m[38;5;31;1m)[0m }) (value_slots { }))),
          ((function_types
            {([0m[38;5;31;1m(answer/0 ∷ [0m[38;5;37;1m𝕍[0m[38;5;31;1m)[0m
-             (Ok (function_type (code_id [0m[38;5;169;1mcamlQuestion__answer_0_1_code[0m)
+             (Ok (function_type (code_id [0m[38;5;169;1mcamlQuestion.answer_0_1_code[0m)
                   (rec_info (Rec_info [0m[38;5;249;1m0[0m)))))})
           (closure_types
            ((function_slot_components_by_index
-             {([0m[38;5;31;1m(answer/0 ∷ [0m[38;5;37;1m𝕍[0m[38;5;31;1m)[0m (Val ([0m[38;5;160;1m=[0m [0m[38;5;111;1m[0m[38;5;98;1mQuestion.camlQuestion__answer_1[0m[38;5;111;1m[0m)))})))
+             {([0m[38;5;31;1m(answer/0 ∷ [0m[38;5;37;1m𝕍[0m[38;5;31;1m)[0m (Val ([0m[38;5;160;1m=[0m [0m[38;5;111;1m[0m[38;5;98;1mQuestion.camlQuestion.answer_1[0m[38;5;111;1m[0m)))})))
           (value_slot_types ((value_slot_components_by_index {})))))})
       (other Bottom))))})
  (aliases
