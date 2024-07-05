@@ -253,8 +253,7 @@ let print_general_infos print_name name crc defines arg_descr mbf
   iter_cmi print_intf_import;
   printf "Implementations imported:\n";
   iter_cmx print_impl_import;
-  Option.iter print_module_block_format mbf;
-  ()
+  Option.iter print_module_block_format mbf
 
 let print_global_table table =
   printf "Globals defined:\n";

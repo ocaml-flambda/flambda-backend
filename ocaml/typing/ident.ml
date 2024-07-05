@@ -59,7 +59,7 @@ let create_local_binding_for_global glob =
   create_local (Global_module.Name.to_string glob)
 
 let create_instance head args =
-  create_global (Global_module.Name.create head args)
+  create_global (Global_module.Name.create_exn head args)
 
 let global_name g = Format.asprintf "%a" Global_module.Name.print g
 
@@ -162,7 +162,7 @@ let is_instance = function
   | _ -> false
 
 let to_global = function
-  | Global head -> Some (Global_module.Name.create head [])
+  | Global head -> Some (Global_module.Name.create_exn head [])
   | Instance g -> Some g
   | _ -> None
 

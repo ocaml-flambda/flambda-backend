@@ -996,7 +996,7 @@ let imports () = Persistent_env.imports !persistent_env
 let import_crcs ~source crcs =
   Persistent_env.import_crcs !persistent_env ~source crcs
 
-let locally_bound_imports () = Persistent_env.locally_bound_imports !persistent_env
+let runtime_parameters () = Persistent_env.runtime_parameters !persistent_env
 
 let parameters () = Persistent_env.parameters !persistent_env
 
@@ -2976,7 +2976,7 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
   | Mod_persistent -> begin
       (* This is only used when processing [Longident.t]s, which never have
          instance arguments *)
-      let name = Global_module.Name.create s [] in
+      let name = Global_module.Name.create_exn s [] in
       lookup_global_name_module load ~errors ~use ~loc path name env
     end
 
@@ -3584,7 +3584,8 @@ let bound_module name env =
       if Current_unit_name.is name then false
       else begin
         match
-          find_pers_mod ~allow_hidden:false (Global_module.Name.create name [])
+          find_pers_mod ~allow_hidden:false
+            (Global_module.Name.create_exn name [])
         with
         | _ -> true
         | exception Not_found -> false
@@ -3674,7 +3675,7 @@ let fold_modules f lid env acc =
                     rather than just the name. It looks like the only immediate
                     consequence of this is that spellcheck won't suggest
                     instance names (which is good!). *)
-                 let modname = Global_module.Name.create name [] in
+                 let modname = Global_module.Name.create_exn name [] in
                  Persistent_env.find_in_cache !persistent_env modname
                with
                | None -> acc
@@ -3743,7 +3744,7 @@ let filter_non_loaded_persistent f env =
              match
                (* CR lmaurer: Again, setting args to [] here is weird but fine
                   for the moment *)
-               let modname = Global_module.Name.create name [] in
+               let modname = Global_module.Name.create_exn name [] in
                Persistent_env.find_in_cache !persistent_env modname
              with
              | Some _ -> acc

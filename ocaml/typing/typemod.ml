@@ -89,6 +89,7 @@ type error =
   | Toplevel_nonvalue of string * Jkind.sort
   | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
+  | Compiling_as_parameterised_parameter
   | Cannot_compile_implementation_as_parameter
   | Cannot_implement_parameter of Compilation_unit.Name.t * Misc.filepath
   | Argument_for_non_parameter of Global_module.Name.t * Misc.filepath
@@ -98,6 +99,7 @@ type error =
       old_arg_type : Global_module.Name.t option;
       old_source_file : Misc.filepath;
     }
+  | Duplicate_parameter_name of Global_module.Name.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -348,11 +350,18 @@ let path_is_strict_prefix =
        Ident.same ident1 ident2
        && list_is_strict_prefix l1 ~prefix:l2
 
-let rec instance_name ({ head; args } : Jane_syntax.Instances.instance) =
+let rec instance_name ~loc env syntax =
+  let ({ head; args } : Jane_syntax.Instances.instance) = syntax in
   let args =
-    List.map (fun (name, value) -> instance_name name, instance_name value) args
+    List.map
+      (fun (name, value) ->
+         instance_name ~loc env name, instance_name ~loc env value)
+      args
   in
-  Global_module.Name.create head args
+  match Global_module.Name.create head args with
+  | Ok name -> name
+  | Error (Duplicate { name; value1 = _; value2 = _ }) ->
+    raise (Error (loc, env, Duplicate_parameter_name name))
 
 let iterator_with_env env =
   let env = ref (lazy env) in
@@ -2507,7 +2516,7 @@ and type_module_extension_aux ~alias sttn env smod
       : Jane_syntax.Module_expr.t -> _ =
   function
   | Emod_instance (Imod_instance glob) ->
-      let glob = instance_name glob in
+      let glob = instance_name ~loc:smod.pmod_loc env glob in
       let path =
         Env.lookup_module_instance_path ~load:(not alias) ~loc:smod.pmod_loc
           glob env
@@ -3385,11 +3394,11 @@ let () =
 
 (* File-level details *)
 
-let type_params params =
+let register_params params =
   List.iter
     (fun param_name ->
        (* We don't (yet!) support parameterised parameters *)
-       let param = Global_module.Name.create param_name [] in
+       let param = Global_module.Name.create_exn param_name [] in
        Env.register_parameter param
     )
     params
@@ -3467,7 +3476,9 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
       Env.reset_probes ();
       if !Clflags.print_types then (* #7656 *)
         ignore @@ Warnings.parse_options false "-32-34-37-38-60";
-      type_params !Clflags.parameters;
+      if !Clflags.as_parameter then
+        error Cannot_compile_implementation_as_parameter;
+      register_params !Clflags.parameters;
       let (str, sg, names, shape, finalenv) =
         Profile.record_call "infer" (fun () ->
           type_structure initial_env ast) in
@@ -3493,11 +3504,9 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           argument_interface = None;
         } (* result is ignored by Compile.implementation *)
       end else begin
-        if !Clflags.as_parameter then
-          error Cannot_compile_implementation_as_parameter;
         let arg_type =
           !Clflags.as_argument_for
-          |> Option.map (fun name -> Global_module.Name.create name [])
+          |> Option.map (fun name -> Global_module.Name.create_exn name [])
         in
         let sourceintf =
           Filename.remove_extension sourcefile ^ !Config.interface_suffix in
@@ -3565,8 +3574,6 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
             argument_interface;
           }
         end else begin
-          if !Clflags.as_parameter then
-            error Cannot_compile_implementation_as_parameter;
           Location.prerr_warning (Location.in_file sourcefile)
             Warnings.Missing_mli;
           let coercion, shape =
@@ -3640,10 +3647,16 @@ let cms_register_toplevel_signature_attributes ~sourcefile ~uid ast =
         | _ -> None)
 
 let type_interface ~sourcefile modulename env ast =
+  let error e =
+    raise (Error (Location.none, Env.empty, e))
+  in
   if !Clflags.as_parameter && Compilation_unit.is_packed modulename then begin
-    raise(Error(Location.none, Env.empty, Cannot_pack_parameter))
+    error Cannot_pack_parameter
   end;
-  type_params !Clflags.parameters;
+  if !Clflags.as_parameter && !Clflags.parameters <> [] then begin
+    error Compiling_as_parameterised_parameter
+  end;
+  register_params !Clflags.parameters;
   if !Clflags.binary_annotations_cms then begin
     let uid = Shape.Uid.of_compilation_unit_id modulename in
     cms_register_toplevel_signature_attributes ~uid ~sourcefile ast
@@ -3651,7 +3664,7 @@ let type_interface ~sourcefile modulename env ast =
   let sg = transl_signature env ast in
   let arg_type =
     !Clflags.as_argument_for
-    |> Option.map (fun name -> Global_module.Name.create name [])
+    |> Option.map (fun name -> Global_module.Name.create_exn name [])
   in
   ignore (check_argument_type_if_given env sourcefile sg.sig_type arg_type
           : Typedtree.argument_interface option);
@@ -3703,7 +3716,7 @@ let package_units initial_env objfiles cmifile modulename =
            |> String.capitalize_ascii
          in
          let unit = Compilation_unit.Name.of_string basename in
-         let global_name = Global_module.Name.create basename [] in
+         let global_name = Global_module.Name.create_exn basename [] in
          let modname = Compilation_unit.create_child modulename unit in
          let sg =
            Env.read_signature global_name (pref ^ ".cmi") ~add_binding:false
@@ -4012,6 +4025,10 @@ let report_error ~loc _env = function
   | Cannot_pack_parameter ->
       Location.errorf ~loc
         "Cannot compile a parameter with -for-pack."
+  | Compiling_as_parameterised_parameter ->
+      Location.errorf ~loc
+        "@[Cannot combine -as-parameter with -parameter: parameters cannot@ \
+         be parameterised.@]"
   | Cannot_compile_implementation_as_parameter ->
       Location.errorf ~loc
         "Cannot compile an implementation with -as-parameter."
@@ -4045,6 +4062,10 @@ let report_error ~loc _env = function
       Location.errorf ~loc
         "Parameter module %a@ specified by -as-argument-for cannot be found."
         Global_module.Name.print arg_type
+  | Duplicate_parameter_name name ->
+      Location.errorf ~loc
+        "This instance has multiple arguments with the name %a."
+        Global_module.Name.print name
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env_error env

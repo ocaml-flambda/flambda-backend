@@ -6,15 +6,17 @@
    bad_instance_arg_value_not_arg.ml bad_instance_arg_value_not_arg.reference \
    bad_instance_arg_value_not_found.ml bad_instance_arg_value_not_found.reference \
    bad_instance_arg_value_wrong_type.ml bad_instance_arg_value_wrong_type.reference \
+   bad_instance_repeated_arg_name.ml bad_instance_repeated_arg_name.reference \
    bad_instantiate_missing_arg.reference \
    bad_instantiate_no_such_param.reference \
    bad_instantiate_not_arg.reference \
    bad_instantiate_not_parameterised.reference \
    bad_instantiate_repeated_param.reference \
    bad_instantiate_wrong_target_name.reference \
+   bad_param_param.mli bad_param_param.reference \
    bad_ref_direct.ml bad_ref_direct.reference \
    bad_ref_direct_imported.ml bad_ref_direct_imported.reference \
-   bad_ref_indirect.ml bad_ref_indirect.reference \
+   bad_ref_indirect.reference \
    category.ml category.mli \
    category_of_monoid.ml category_of_monoid.mli \
    category_utils.ml category_utils.mli \
@@ -28,6 +30,9 @@
    monoid.mli \
    monoid_of_semigroup.ml monoid_of_semigroup.mli \
    monoid_utils.ml monoid_utils.mli monoid_utils_as_program.reference \
+   ref_indirect.ml \
+   ref_indirect.cmo.ocamlobjinfo.reference \
+   ref_indirect.cmx.ocamlobjinfo.reference \
    run.ml \
    semigroup.mli \
    string_monoid.ml string_monoid.mli \
@@ -50,6 +55,15 @@
      ocamlc.byte;
 
      compiler_reference = "bad_ref_direct.reference";
+     check-ocamlc.byte-output;
+   }{
+     flags = "-parameter Monoid -as-parameter";
+     module = "bad_param_param.mli";
+     compiler_output = "bad_param_param.output";
+     ocamlc_byte_exit_status = "2";
+     ocamlc.byte;
+
+     compiler_reference = "bad_param_param.reference";
      check-ocamlc.byte-output;
    }{
      flags = "-as-argument-for Monoid";
@@ -124,6 +138,10 @@
      module = "monoid_utils.mli monoid_utils.ml";
      ocamlc.byte;
      {
+       src = "ref_indirect.ml";
+       dst = "bad_ref_indirect.ml";
+       copy;
+
        flags = "";
        module = "bad_ref_indirect.ml";
        compiler_output = "bad_ref_indirect.output";
@@ -132,6 +150,20 @@
 
        compiler_reference = "bad_ref_indirect.reference";
        check-ocamlc.byte-output;
+     }{
+       flags = "-parameter Monoid";
+       module = "ref_indirect.ml";
+       ocamlc.byte;
+
+       (* [-no-code] and [-no-approx] are currently unimplemented (see PR 2737), which
+          sadly does make the reference file here a mite bloated and sensitive to
+          random changes in flambda2. *)
+       program = "-no-code -no-approx ref_indirect.cmo ref_indirect.cmi";
+       output = "ref_indirect.cmo.ocamlobjinfo.output";
+       ocamlobjinfo;
+
+       reference = "ref_indirect.cmo.ocamlobjinfo.reference";
+       check-program-output;
      }{
        (* Linking an uninstantiated parameterised module is weird but should be harmless
           (it's just a module that exports a single functor). We should probably warn in
@@ -147,6 +179,15 @@
 
        reference = "monoid_utils_as_program.reference";
        check-program-output;
+     }{
+       flags = "-parameter Semigroup";
+       module = "bad_instance_repeated_arg_name.ml";
+       compiler_output = "bad_instance_repeated_arg_name.output";
+       ocamlc_byte_exit_status = "2";
+       ocamlc.byte;
+
+       compiler_reference = "bad_instance_repeated_arg_name.reference";
+       check-ocamlc.byte-output;
      }{
        flags = "-parameter List_element";
        module = "bad_instance_arg_name_not_found.ml";
@@ -454,6 +495,15 @@
      compiler_reference = "bad_ref_direct.reference";
      check-ocamlopt.byte-output;
    }{
+     flags = "-parameter Monoid -as-parameter";
+     module = "bad_param_param.mli";
+     compiler_output = "bad_param_param.output";
+     ocamlopt_byte_exit_status = "2";
+     ocamlopt.byte;
+
+     compiler_reference = "bad_param_param.reference";
+     check-ocamlopt.byte-output;
+   }{
      flags = "-as-argument-for Monoid";
      module = "bad_arg_impl.ml";
      compiler_output = "bad_arg_impl.output";
@@ -526,6 +576,10 @@
      module = "monoid_utils.mli monoid_utils.ml";
      ocamlopt.byte;
      {
+       src = "ref_indirect.ml";
+       dst = "bad_ref_indirect.ml";
+       copy;
+
        flags = "";
        module = "bad_ref_indirect.ml";
        compiler_output = "bad_ref_indirect.output";
@@ -534,6 +588,23 @@
 
        compiler_reference = "bad_ref_indirect.reference";
        check-ocamlopt.byte-output;
+     }{
+       flags = "-parameter Monoid";
+       module = "ref_indirect.ml";
+       ocamlopt.byte;
+
+       (* [-no-code] and [-no-approx] are currently unimplemented (see PR 2737), which
+          sadly does make the reference file here a mite bloated and sensitive to
+          random changes in flambda2. *)
+       program = "-no-code -no-approx ref_indirect.cmx ref_indirect.cmi";
+       output = "ref_indirect.cmx.ocamlobjinfo.output";
+       ocamlobjinfo;
+
+       reason = "sensitive to runtime4 vs. runtime5; will be fixed by PR 2737";
+       skip;
+
+       reference = "ref_indirect.cmx.ocamlobjinfo.reference";
+       check-program-output;
      }{
        (* Linking an uninstantiated parameterised module is weird but should be harmless
           (it's just a module that exports a single functor). We should probably warn in
@@ -549,6 +620,15 @@
 
        reference = "monoid_utils_as_program.reference";
        check-program-output;
+     }{
+       flags = "-parameter Semigroup";
+       module = "bad_instance_repeated_arg_name.ml";
+       compiler_output = "bad_instance_repeated_arg_name.output";
+       ocamlopt_byte_exit_status = "2";
+       ocamlopt.byte;
+
+       compiler_reference = "bad_instance_repeated_arg_name.reference";
+       check-ocamlopt.byte-output;
      }{
        flags = "-parameter List_element";
        module = "bad_instance_arg_name_not_found.ml";

@@ -656,18 +656,17 @@ let mk_match_context_rows f =
 
 let mk_parameter f =
   "-parameter", Arg.String f,
-  "<module name> Registers the imported interface as a parameter for this \n\
-                 open module."
+  "<module name> Compile the module with <module name> as a parameter."
 ;;
 
 let mk_as_parameter f =
   "-as-parameter", Arg.Unit f,
-  " Compiles the interface as a parameter for an open module."
+  " Compile the interface as a parameter module."
 ;;
 
 let mk_as_argument_for f =
   "-as-argument-for", Arg.String f,
-  "<module name> Compiles the module as an argument for the named parameter."
+  "<module name> Compile the module as an argument for the named parameter."
 ;;
 
 let mk_instantiate0 f ~ext =

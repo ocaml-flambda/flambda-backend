@@ -82,7 +82,7 @@ end = struct
 
   let of_head_of_global_name (name : Global_module.Name.t) = of_string name.head
 
-  let to_global_name t = Global_module.Name.create t []
+  let to_global_name t = Global_module.Name.create_exn t []
 
   (* This is so called (and separate from [of_string]) because we only want to
      check a name if it has a prefix. In particular, this allows single-module
@@ -326,7 +326,7 @@ end = struct
     if is_plain_name t
     then
       let name = Sys.opaque_identity (Obj.obj t : Name.t) in
-      Global_module.Name.create (Name.to_string name) []
+      Global_module.Name.create_exn (Name.to_string name) []
     else
       let full = Sys.opaque_identity (Obj.obj t : full) in
       match full with
@@ -341,12 +341,12 @@ end = struct
     if is_plain_name t
     then
       let name = Sys.opaque_identity (Obj.obj t : Name.t) in
-      Global_module.Name.create (Name.to_string name) []
+      Global_module.Name.create_exn (Name.to_string name) []
     else
       let full = Sys.opaque_identity (Obj.obj t : full) in
       match full with
       | With_prefix { name; _ } ->
-        Global_module.Name.create (Name.to_string name) []
+        Global_module.Name.create_exn (Name.to_string name) []
       | Global glob -> glob
 
   let of_global_name (name : Global_module.Name.t) =
@@ -387,7 +387,7 @@ end = struct
             to_global_name_exn name, to_global_name_exn value)
           arguments
       in
-      of_full (Global (Global_module.Name.create head arguments))
+      of_full (Global (Global_module.Name.create_exn head arguments))
     else of_full (With_prefix { for_pack_prefix; name })
 end
 
