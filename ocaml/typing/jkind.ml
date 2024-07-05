@@ -1982,9 +1982,120 @@ let rec get (t : t) =
 
 let format = Obj.magic ()
 
-let format_history = Obj.magic ()
+let format_history ~intro:_ = Obj.magic ()
 
 let set_printtyp_path = Obj.magic ()
+
+(******************************)
+(* errors *)
+
+(* This has been moved from Jkind.Type *)
+
+module Violation = struct
+  open Format
+
+  type violation =
+    | Not_a_subjkind of t * t
+    | No_intersection of t * t
+    | No_union of t * t
+
+  type nonrec t =
+    { violation : violation;
+      missing_cmi : Path.t option
+    }
+  (* [missing_cmi]: is this error a result of a missing cmi file?
+     This is stored separately from the [violation] because it's
+     used to change the behavior of [value_kind], and we don't
+     want that function to inspect something that is purely about
+     the choice of error message. (Though the [Path.t] payload *is*
+     indeed just about the payload.) *)
+
+  let of_ ?missing_cmi violation = { violation; missing_cmi }
+
+  let is_missing_cmi viol = Option.is_some viol.missing_cmi
+
+  (* TODO jbachurski: extend this to properly handle violations at arrows *)
+  let[@warning "-8"] report_general_type_jkind preamble pp_former former ppf t =
+    let subjkind_format verb l2 =
+      match Type.get l2 with
+      | Var _ -> dprintf "%s representable" verb
+      | Const _ -> dprintf "%s a sublayout of %a" verb format l2
+    in
+    let l1, l2, fmt_l1, fmt_l2, missing_cmi_option =
+      match t with
+      | { violation = Not_a_subjkind (Type l1, Type l2); missing_cmi } -> (
+        let missing_cmi =
+          match missing_cmi with
+          | None -> (
+            match l1.history with
+            | Creation (Missing_cmi p) -> Some p
+            | Creation (Any_creation (Missing_cmi p)) -> Some p
+            | _ -> None)
+          | Some _ -> missing_cmi
+        in
+        match missing_cmi with
+        | None ->
+          ( l1,
+            l2,
+            dprintf "layout %a" format l1,
+            subjkind_format "is not" l2,
+            None )
+        | Some p ->
+          ( l1,
+            l2,
+            dprintf "an unknown layout",
+            subjkind_format "might not be" l2,
+            Some p ))
+      | { violation = No_intersection (Type l1, Type l2); missing_cmi } ->
+        assert (Option.is_none missing_cmi);
+        ( l1,
+          l2,
+          dprintf "layout %a" format l1,
+          dprintf "does not overlap with %a" format l2,
+          None )
+      | { violation = No_union (Type l1, Type l2); missing_cmi } ->
+        assert (Option.is_none missing_cmi);
+        ( l1,
+          l2,
+          dprintf "layout %a" format l1,
+          dprintf "cannot be summed with %a" format l2,
+          None )
+    in
+    if Type.display_histories
+    then
+      let connective =
+        match t.violation, Type.get l2 with
+        | Not_a_subjkind _, Const _ -> dprintf "be a sublayout of %a" format l2
+        | No_intersection _, Const _ -> dprintf "overlap with %a" format l2
+        | No_union _, Const _ -> dprintf "sum with %a" format l2
+        | _, Var _ -> dprintf "be representable"
+      in
+      fprintf ppf "@[<v>%a@;%a@]"
+        (format_history
+           ~intro:(dprintf "The layout of %a is %a" pp_former former format l1))
+        l1
+        (format_history
+           ~intro:
+             (dprintf "But the layout of %a must %t" pp_former former connective))
+        l2
+    else
+      fprintf ppf "@[<hov 2>%s%a has %t,@ which %t.@]" preamble pp_former former
+        fmt_l1 fmt_l2;
+    Type.report_missing_cmi ppf missing_cmi_option
+
+  let report_general preamble pp_former former ppf t =
+    try report_general_type_jkind preamble pp_former former ppf t
+    with Match_failure _ -> fprintf ppf "((arrow violation))"
+
+  let pp_t ppf x = fprintf ppf "%t" x
+
+  let report_with_offender ~offender = report_general "" pp_t offender
+
+  let report_with_offender_sort ~offender =
+    report_general "A representable layout was expected, but " pp_t offender
+
+  let report_with_name ~name = report_general "" pp_print_string name
+end
 
 (******************************)
 (* relations *)
@@ -2011,11 +2122,61 @@ let equate = equate_or_equal ~allow_mutation:true
    (layouts v2.8) allow_mutation is to be set to false *)
 let equal = equate_or_equal ~allow_mutation:true
 
-let has_intersection = Obj.magic ()
+(* Generalises union and intersection at Arrows, as they are mutually recursive when
+   defining Arrow kind intersection *)
+let arrow_connective_or_error ~on_args ~on_result
+    ({ args = args1; result = result1 } : _ Jkind_types.arrow)
+    ({ args = args2; result = result2 } : _ Jkind_types.arrow) =
+  let args = List.map2 on_args args1 args2 in
+  let result = on_result result1 result2 in
+  (* TODO jbachurski: collect all errors rather than picking first? *)
+  if List.exists Result.is_error args || Result.is_error result
+  then List.find Result.is_error (result :: args)
+  else
+    let args = List.map Result.get_ok args in
+    let result = Result.get_ok result in
+    Ok (Arrow { args; result } : t)
 
-let intersection_or_error =
-  ignore Type.Jkind_desc.union;
-  Obj.magic ()
+let rec intersection_or_error ~reason t t' =
+  jkind_case2
+    ~typ:(fun ty ty' : (t, _) result ->
+      match Type.Jkind_desc.intersection ty.jkind ty'.jkind with
+      | None -> Error (Violation.of_ (No_intersection (Type ty, Type ty')))
+      | Some jkind ->
+        Ok
+          (Type
+             { jkind;
+               history = Type.combine_histories reason ty ty';
+               has_warned = ty.has_warned || ty'.has_warned
+             }))
+    ~arrow:
+      (arrow_connective_or_error ~on_args:(union_or_error ~reason)
+         ~on_result:(intersection_or_error ~reason))
+    ~default:(Error (Violation.of_ (No_intersection (t, t'))))
+    t t'
+
+and union_or_error ~reason t t' =
+  jkind_case2
+    ~typ:(fun ty ty' : (t, _) result ->
+      (* Union is infallible at type jkinds due to [any] *)
+      Ok
+        (Type
+           { jkind = Type.Jkind_desc.union ty.jkind ty'.jkind;
+             history = Type.combine_histories reason ty ty';
+             has_warned = ty.has_warned || ty'.has_warned
+           }))
+    ~arrow:
+      (arrow_connective_or_error
+         ~on_args:(intersection_or_error ~reason)
+         ~on_result:(union_or_error ~reason))
+    ~default:(Error (Violation.of_ (No_union (t, t'))))
+    t t'
+
+let has_intersection t t' =
+  Result.is_ok
+    (intersection_or_error
+     (* This reason is just used as a dummy for the test *)
+       ~reason:Type.History.Subjkind t t')
 
 let rec check_sub t t' : Misc.Le_result.t =
   jkind_case2 ~typ:Type.check_sub
@@ -2028,11 +2189,20 @@ let rec check_sub t t' : Misc.Le_result.t =
 
 let sub t t' = Misc.Le_result.is_le (check_sub t t')
 
-let sub_or_error = Obj.magic ()
+let sub_or_error t t' =
+  if sub t t' then Ok () else Error (Violation.of_ (Not_a_subjkind (t, t')))
 
-let sub_with_history = Obj.magic ()
+let sub_with_history sub super =
+  match check_sub sub super with
+  | Less | Equal -> (
+    match (sub, super : t * t) with
+    | Type ty, Type ty' ->
+      Ok (Type { ty with history = Type.combine_histories Subjkind ty ty' } : t)
+    (* TODO jbachurski: Is there a sensible way to combine histories here? *)
+    | _ -> Ok sub)
+  | Not_le -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
 
-let is_max = Obj.magic ()
+let is_max jkind = sub (Type Type.Primitive.any_dummy_jkind) jkind
 
 (*********************************)
 (* debugging *)
@@ -2090,7 +2260,7 @@ val intersection_or_error :
   reason:Type.History.interact_reason ->
   t ->
   t ->
-  (t, Type.Violation.t) Result.t
+  (t, Violation.t) Result.t
 
 (** [sub t1 t2] says whether [t1] is a subjkind of [t2]. Might update
     either [t1] or [t2] to make their layouts equal.*)
@@ -2098,10 +2268,10 @@ val sub : t -> t -> bool
 
 (** [sub_or_error t1 t2] returns [Ok ()] iff [t1] is a subjkind of
   of [t2]. Otherwise returns an appropriate error to report to the user. *)
-val sub_or_error : t -> t -> (unit, Type.Violation.t) result
+val sub_or_error : t -> t -> (unit, Violation.t) result
 
 (** Like [sub], but returns the subjkind with an updated history. *)
-val sub_with_history : t -> t -> (t, Type.Violation.t) result
+val sub_with_history : t -> t -> (t, Violation.t) result
 
 (** Checks to see whether a jkind is the maximum jkind. Never does any
     mutation. *)

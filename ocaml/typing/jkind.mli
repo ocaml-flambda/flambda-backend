@@ -429,6 +429,9 @@ module Type : sig
     sort variables. *)
   val has_intersection : t -> t -> bool
 
+  (* TODO jbachurski: Should fallibles (Violation) be defined for Jkind.Type?
+     Are relations needed at all outside type inference, where they are general? *)
+
   (** Finds the intersection of two jkinds, constraining sort variables to
     create one if needed, or returns a [Violation.t] if an intersection does
     not exist.  Can update the jkinds.  The returned jkind's history
@@ -625,6 +628,48 @@ val format_history :
 val set_printtyp_path : (Format.formatter -> Path.t -> unit) -> unit
 
 (******************************)
+(* errors *)
+
+module Violation : sig
+  type violation =
+    | Not_a_subjkind of t * t
+    | No_intersection of t * t
+    | No_union of t * t
+
+  type t
+
+  (** Set [?missing_cmi] to mark [t] as having arisen from a missing cmi *)
+
+  val of_ : ?missing_cmi:Path.t -> violation -> t
+
+  (** Is this error from a missing cmi? *)
+  val is_missing_cmi : t -> bool
+
+  (* CR layouts: The [offender] arguments below are always
+     [Printtyp.type_expr], so we should either stash that in a ref (like with
+     [set_printtyp_path] below) or just move all the printing machinery
+     downstream of both [Jkinds] and [Printtyp]. *)
+
+  (* CR layouts: Having these options for printing a violation was a choice
+     made based on the needs of expedient debugging during development, but
+     probably should be rethought at some point. *)
+
+  (** Prints a violation and the thing that had an unexpected jkind
+      ([offender], which you supply an arbitrary printer for). *)
+  val report_with_offender :
+    offender:(Format.formatter -> unit) -> Format.formatter -> t -> unit
+
+  (** Like [report_with_offender], but additionally prints that the issue is
+      that a representable jkind was expected. *)
+  val report_with_offender_sort :
+    offender:(Format.formatter -> unit) -> Format.formatter -> t -> unit
+
+  (** Simpler version of [report_with_offender] for when the thing that had an
+      unexpected jkind is available as a string. *)
+  val report_with_name : name:string -> Format.formatter -> t -> unit
+end
+
+(******************************)
 (* relations *)
 
 (** This checks for equality, and sets any variables to make two jkinds
@@ -651,10 +696,7 @@ val has_intersection : t -> t -> bool
     it should be thought of as modifying the first jkind to be the
     intersection of the two, not something that modifies the second jkind. *)
 val intersection_or_error :
-  reason:Type.History.interact_reason ->
-  t ->
-  t ->
-  (t, Type.Violation.t) Result.t
+  reason:Type.History.interact_reason -> t -> t -> (t, Violation.t) Result.t
 
 (** [sub t1 t2] says whether [t1] is a subjkind of [t2]. Might update
     either [t1] or [t2] to make their layouts equal.*)
@@ -662,10 +704,10 @@ val sub : t -> t -> bool
 
 (** [sub_or_error t1 t2] returns [Ok ()] iff [t1] is a subjkind of
   of [t2]. Otherwise returns an appropriate error to report to the user. *)
-val sub_or_error : t -> t -> (unit, Type.Violation.t) result
+val sub_or_error : t -> t -> (unit, Violation.t) result
 
 (** Like [sub], but returns the subjkind with an updated history. *)
-val sub_with_history : t -> t -> (t, Type.Violation.t) result
+val sub_with_history : t -> t -> (t, Violation.t) result
 
 (** Checks to see whether a jkind is the maximum jkind. Never does any
     mutation. *)
