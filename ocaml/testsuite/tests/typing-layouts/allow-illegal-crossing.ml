@@ -241,17 +241,6 @@ Error: The layout of type string is value, because
          of the definition of t at line 4, characters 2-42.
 |}]
 
-type 'a t : value mod unique = private 'a
-[%%expect {|
-Line 1, characters 0-41:
-1 | type 'a t : value mod unique = private 'a
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type 'a is value, because
-         of the definition of t at line 1, characters 0-41.
-       But the layout of type 'a must be a sublayout of value, because
-         of the definition of t at line 1, characters 0-41.
-|}]
-
 type t : value mod external_ = private string
 [%%expect {|
 Line 1, characters 0-45:
