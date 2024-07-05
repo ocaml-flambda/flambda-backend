@@ -1453,7 +1453,7 @@ let solve_Ppat_tuple ~refine ~alloc_mode loc env args expected_ty =
       (fun (label, p) mode ->
         ( label,
           p,
-          newgenvar (Jkind.Type.Primitive.value ~why:Tuple_element),
+          newgenvar (Jkind.Primitive.value ~why:Tuple_element),
           simple_pat_mode mode ))
       args arg_modes
   in
@@ -1622,7 +1622,7 @@ let solve_Ppat_array ~refine loc env mutability expected_ty =
     if Types.is_mutable mutability then Predef.type_array
     else Predef.type_iarray
   in
-  let jkind, arg_sort = Jkind.Type.of_new_sort_var ~why:Array_element in
+  let jkind, arg_sort = Jkind.of_new_sort_var ~why:Array_element in
   let ty_elt = newgenvar jkind in
   let expected_ty = generic_instance expected_ty in
   unify_pat_types ~refine
@@ -1630,7 +1630,7 @@ let solve_Ppat_array ~refine loc env mutability expected_ty =
   ty_elt, arg_sort
 
 let solve_Ppat_lazy  ~refine loc env expected_ty =
-  let nv = newgenvar (Jkind.Type.Primitive.value ~why:Lazy_expression) in
+  let nv = newgenvar (Jkind.Primitive.value ~why:Lazy_expression) in
   unify_pat_types ~refine loc env (Predef.type_lazy_t nv)
     (generic_instance expected_ty);
   nv
@@ -1656,13 +1656,13 @@ let solve_Ppat_variant ~refine loc env tag no_arg expected_ty =
   let arg_type =
     if no_arg
     then []
-    else [newgenvar (Jkind.Type.Primitive.value ~why:Polymorphic_variant_field)]
+    else [newgenvar (Jkind.Primitive.value ~why:Polymorphic_variant_field)]
   in
   let fields = [tag, rf_either ~no_arg arg_type ~matched:true] in
   let make_row more =
     create_row ~fields ~closed:false ~more ~fixed:None ~name:None
   in
-  let row = make_row (newgenvar (Jkind.Type.Primitive.value ~why:Row_variable)) in
+  let row = make_row (newgenvar (Jkind.Primitive.value ~why:Row_variable)) in
   let expected_ty = generic_instance expected_ty in
   (* PR#7404: allow some_private_tag blindly, as it would not unify with
      the abstract row variable *)
@@ -4341,7 +4341,7 @@ let check_univars env kind exp ty_expected vars =
                2) [polyfy] actually calls [expand_head] twice!  why?!
             *)
             match get_desc (expand_head env var) with
-            | Tvar { jkind = jkind2; } -> begin
+            | Tvar { jkind = Type jkind2; } -> begin
                 match check_type_jkind env uvar jkind2 with
                 | Ok _ -> ()
                 | Error err ->
@@ -4351,7 +4351,8 @@ let check_univars env kind exp ty_expected vars =
             | _ ->
               (* It would be semantically correct for this case to error. But
                  these errors are caught below anyway, and erroring earlier
-                 results in small differences in error messages vs upstream. *)
+                 results in small differences in error messages vs upstream.
+                 FIXME jbachurski: what about when only checking the Type jkind? *)
               ())
             univars vars;
           unify_exp_types exp.exp_loc env exp_ty ty';
@@ -4965,7 +4966,7 @@ type type_function_result =
   { function_ :
       type_expr * type_function_result_param list * function_body;
     (* The uninterrupted prefix of newtypes of the parameter suffix. *)
-    newtypes: (string loc * Jkind.Type.annotation option) list;
+    newtypes: (string loc * Jkind.annotation option) list;
     (* Whether any of the value parameters contains a GADT pattern. *)
     params_contain_gadt: contains_gadt;
     (* The alloc mode of the "rest of the function". None only for recursive
@@ -6187,7 +6188,7 @@ and type_expect_
       }
   | Pexp_lazy e ->
       submode ~loc ~env Value.legacy expected_mode;
-      let ty = newgenvar (Jkind.Type.Primitive.value ~why:Lazy_expression) in
+      let ty = newgenvar (Jkind.Primitive.value ~why:Lazy_expression) in
       let to_unify = Predef.type_lazy_t ty in
       with_explanation (fun () ->
         unify_exp_types loc env to_unify (generic_instance ty_expected));
@@ -7749,7 +7750,7 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
   (* CR layouts v5: non-values in tuples *)
   let labeled_subtypes =
     List.map (fun (label, _) -> label,
-                                newgenvar (Jkind.Type.Primitive.value ~why:Tuple_element))
+                                newgenvar (Jkind.Primitive.value ~why:Tuple_element))
     sexpl
   in
   let to_unify = newgenty (Ttuple labeled_subtypes) in
@@ -8298,7 +8299,7 @@ and type_function_cases_expect
 *)
 and type_newtype
   : type a. _ -> _ -> _ -> (Env.t -> a * type_expr)
-    -> a * type_expr * Jkind.Type.annotation option =
+    -> a * type_expr * Jkind.annotation option =
   fun env name jkind_annot_opt type_body  ->
   let { txt = name; loc = name_loc } : _ Location.loc = name in
   let jkind, jkind_annot =
@@ -8775,7 +8776,7 @@ and type_generic_array
   in
   check_construct_mutability ~loc ~env mutability argument_mode;
   let argument_mode = mode_modality modalities argument_mode in
-  let jkind, elt_sort = Jkind.Type.of_new_sort_var ~why:Array_element in
+  let jkind, elt_sort = Jkind.of_new_sort_var ~why:Array_element in
   let ty = newgenvar jkind in
   let to_unify = type_ ty in
   with_explanation explanation (fun () ->

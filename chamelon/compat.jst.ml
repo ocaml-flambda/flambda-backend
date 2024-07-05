@@ -52,7 +52,7 @@ type texp_function_param_identifier = {
   param_sort : Jkind.Type.Sort.t;
   param_mode : Alloc.l;
   param_curry : function_curry;
-  param_newtypes : (string Location.loc * Jkind.Type.annotation option) list;
+  param_newtypes : (string Location.loc * Jkind.annotation option) list;
 }
 
 type texp_function_param = {

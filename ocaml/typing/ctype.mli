@@ -177,7 +177,7 @@ val instance_list: type_expr list -> type_expr list
         (* Take an instance of a list of type schemes *)
 val new_local_type:
         ?loc:Location.t -> ?manifest_and_scope:(type_expr * int) ->
-        Jkind.Type.t -> jkind_annot:Jkind.Type.annotation option -> type_declaration
+        Jkind.Type.t -> jkind_annot:Jkind.annotation option -> type_declaration
 val existential_name: constructor_description -> type_expr -> string
 
 type existential_treatment =
@@ -537,15 +537,15 @@ val tvariant_not_immediate : row_desc -> bool
 
 (* Cheap upper bound on jkind.  Will not expand unboxed types - call
    [type_jkind] if that's needed. *)
-val estimate_type_jkind : Env.t ->  type_expr -> jkind
+val estimate_type_jkind : Env.t ->  type_expr -> type_jkind
 
 (* Get the jkind of a type, expanding it and looking through [[@@unboxed]]
    types. *)
-val type_jkind : Env.t -> type_expr -> jkind
+val type_jkind : Env.t -> type_expr -> type_jkind
 
 (* Get the jkind of a type, dropping any changes to types caused by
    expansion. *)
-val type_jkind_purely : Env.t -> type_expr -> jkind
+val type_jkind_purely : Env.t -> type_expr -> type_jkind
 
 (* Find a type's sort (constraining it to be an arbitrary sort variable, if
    needed) *)
@@ -553,16 +553,16 @@ val type_sort :
   why:Jkind.Type.History.concrete_jkind_reason ->
   Env.t -> type_expr -> (Jkind.Type.sort, Jkind.Type.Violation.t) result
 
-(* Jkind.Type checking. [constrain_type_jkind] will update the jkind of type
+(* Jkind checking. [constrain_type_jkind] will update the jkind of type
    variables to make the check true, if possible.  [check_decl_jkind] and
    [check_type_jkind] won't, but will still instantiate sort variables.
 *)
 (* CR layouts: When we improve errors, it may be convenient to change these to
    raise on error, like unify. *)
 val check_decl_jkind :
-  Env.t -> type_declaration -> Jkind.Type.t -> (unit, Jkind.Type.Violation.t) result
+  Env.t -> type_declaration -> Jkind.t -> (unit, Jkind.Violation.t) result
 val constrain_decl_jkind :
-  Env.t -> type_declaration -> Jkind.Type.t -> (unit, Jkind.Type.Violation.t) result
+  Env.t -> type_declaration -> Jkind.t -> (unit, Jkind.Violation.t) result
 val check_type_jkind :
   Env.t -> type_expr -> Jkind.Type.t -> (unit, Jkind.Type.Violation.t) result
 val constrain_type_jkind :

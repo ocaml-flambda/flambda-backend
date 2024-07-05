@@ -56,7 +56,7 @@ type cannot_quantify_reason =
    the body of the type *)
 type jkind_info =
   { original_jkind : jkind;
-    jkind_annot : Jkind.Type.annotation option;
+    jkind_annot : Jkind.annotation option;
     defaulted : bool;
   }
 
@@ -112,7 +112,7 @@ module TyVarEnv : sig
   val with_univars : poly_univars -> (unit -> 'a) -> 'a
   (* evaluate with a locally extended set of univars *)
 
-  val ttyp_poly_arg : poly_univars -> (string * Jkind.Type.annotation option) list
+  val ttyp_poly_arg : poly_univars -> (string * Jkind.annotation option) list
   (* something suitable as an argument to [Ttyp_poly] *)
 
   val make_poly_univars : string Location.loc list -> poly_univars
@@ -278,7 +278,7 @@ end = struct
   let mk_poly_univars_tuple_with_jkind ~context var jkind =
     let name = var.txt in
     let original_jkind, jkind_annot =
-      Jkind.Type.of_annotation ~context:(context name) jkind
+      Jkind.of_annotation ~context:(context name) jkind
     in
     let jkind_info =
       { original_jkind; jkind_annot = Some jkind_annot; defaulted = false }
@@ -1459,8 +1459,8 @@ let report_error env ppf = function
         "@[<hov>The universal type variable %a was %s to have layout %a.@;%a@]"
         Pprintast.tyvar name
         (if jkind_info.defaulted then "defaulted" else "declared")
-        Jkind.Type.format jkind_info.original_jkind
-        (Jkind.Type.format_history ~intro:(
+        Jkind.format jkind_info.original_jkind
+        (Jkind.format_history ~intro:(
           dprintf "But it was inferred to have %t"
             (fun ppf -> match Jkind.Type.get inferred_jkind with
             | Const c -> fprintf ppf "layout %a" Jkind.Type.Const.format c

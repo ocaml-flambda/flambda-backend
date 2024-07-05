@@ -1970,6 +1970,17 @@ module Desc = struct
     | Arrow of t Jkind_types.arrow
 end
 
+let rec default_to_value_and_get (t : t) : Const.t =
+  match t with
+  | Type ty -> Type (Type.default_to_value_and_get ty)
+  | Arrow { args; result } ->
+    Arrow
+      { args = List.map default_to_value_and_get args;
+        result = default_to_value_and_get result
+      }
+
+let default_to_value t = ignore (default_to_value_and_get t)
+
 (** Eliminates a Jkind.t, with zeroth-order kinds eliminated as in Jkind.Type.get *)
 let rec get (t : t) =
   match t with

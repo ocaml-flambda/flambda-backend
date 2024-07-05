@@ -1197,7 +1197,7 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
     let lbls, all_void =
       update_label_jkinds env loc lbls None
     in
-    jkinds.(0) <- Jkind.Type.Primitive.value ~why:Boxed_record;
+    jkinds.(0) <- Jkind.Primitive.value ~why:Boxed_record;
     Types.Cstr_record lbls, all_void
 
 let assert_mixed_product_support =
