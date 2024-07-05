@@ -148,6 +148,15 @@ module Layout = struct
     let sort = Sort.new_var () in
     Sort sort, sort
 
+  let format ppf =
+    let open Format in
+    function
+    | Any -> fprintf ppf "any"
+    | Sort s -> (
+      match Sort.get s with
+      | Const s -> fprintf ppf "%a" Sort.Const.format s
+      | Var v -> fprintf ppf "%s" (Sort.Var.name v))
+
   module Debug_printers = struct
     open Format
 
@@ -1318,10 +1327,7 @@ let flattened_histories = true
 
 (* This module is just to keep all the helper functions more locally
    scoped. *)
-module Format_history : sig
-  val format_history :
-    intro:(Format.formatter -> unit) -> Format.formatter -> t -> unit
-end = struct
+module Format_history = struct
   (* CR layouts: all the output in this section is subject to change;
      actually look closely at error messages once this is activated *)
 
@@ -1404,10 +1410,10 @@ end = struct
       format_with_notify_js ppf "it's a fresh unification variable"
     | Initial_typedecl_env ->
       format_with_notify_js ppf
-        "a dummy layout of any is used to check mutually recursive datatypes"
+        "a dummy kind of any is used to check mutually recursive datatypes"
     | Dummy_jkind ->
       format_with_notify_js ppf
-        "it's assigned a dummy layout that should have been overwritten"
+        "it's assigned a dummy kind that should have been overwritten"
     (* CR layouts: Improve output or remove this constructor ^^ *)
     | Type_expression_call ->
       format_with_notify_js ppf
@@ -1434,8 +1440,8 @@ end = struct
     | Separability_check ->
       fprintf ppf "the check that a type is definitely not `float`"
 
-  let format_value_creation_reason ppf : History.value_creation_reason -> _ =
-    function
+  let format_value_creation_reason ppf ~layout_or_kind :
+      History.value_creation_reason -> _ = function
     | Class_let_binding ->
       fprintf ppf "it's the type of a let-bound variable in a class expression"
     | Tuple_element -> fprintf ppf "it's the type of a tuple element"
@@ -1450,9 +1456,9 @@ end = struct
     | Primitive id ->
       fprintf ppf "it is the primitive value type %s" (Ident.name id)
     | Type_argument { parent_path; position; arity } ->
-      fprintf ppf "the %stype argument of %a has layout value"
+      fprintf ppf "the %stype argument of %a has %s value"
         (format_position ~arity position)
-        !printtyp_path parent_path
+        !printtyp_path parent_path layout_or_kind
     | Tuple -> fprintf ppf "it's a tuple type"
     | Row_variable -> format_with_notify_js ppf "it's a row variable"
     | Polymorphic_variant -> fprintf ppf "it's a polymorphic variant type"
@@ -1471,7 +1477,7 @@ end = struct
     | Polymorphic_variant_field ->
       fprintf ppf "it's the type of the field of a polymorphic variant"
     | Default_type_jkind ->
-      fprintf ppf "an abstract type has the value layout by default"
+      fprintf ppf "an abstract type has the value %s by default" layout_or_kind
     | Existential_type_variable ->
       fprintf ppf "it's an unannotated existential type variable"
     | Array_comprehension_element ->
@@ -1525,7 +1531,8 @@ end = struct
     | Primitive id ->
       fprintf ppf "it is the primitive bits64 type %s" (Ident.name id)
 
-  let format_creation_reason ppf : History.creation_reason -> unit = function
+  let format_creation_reason ppf ~layout_or_kind :
+      History.creation_reason -> unit = function
     | Annotated (ctx, _) ->
       fprintf ppf "of the annotation on %a" format_annotation_context ctx
     | Missing_cmi p ->
@@ -1538,7 +1545,7 @@ end = struct
       format_immediate64_creation_reason ppf immediate64
     | Void_creation _ -> .
     | Value_or_null_creation _ -> .
-    | Value_creation value -> format_value_creation_reason ppf value
+    | Value_creation value -> format_value_creation_reason ppf ~layout_or_kind value
     | Float64_creation float -> format_float64_creation_reason ppf float
     | Float32_creation float -> format_float32_creation_reason ppf float
     | Word_creation word -> format_word_creation_reason ppf word
@@ -1548,11 +1555,12 @@ end = struct
     | Concrete_default_creation concrete ->
       format_concrete_default_creation_reason ppf concrete
     | Imported ->
-      fprintf ppf "of layout requirements from an imported definition"
+      fprintf ppf "of %s requirements from an imported definition"
+        layout_or_kind
     | Imported_type_argument { parent_path; position; arity } ->
-      fprintf ppf "the %stype argument of %a has this layout"
+      fprintf ppf "the %stype argument of %a has this %s"
         (format_position ~arity position)
-        !printtyp_path parent_path
+        !printtyp_path parent_path layout_or_kind
     | Generalized (id, loc) ->
       let format_id ppf = function
         | Some id -> fprintf ppf " of %s" (Ident.name id)
@@ -1565,7 +1573,7 @@ end = struct
     | Gadt_equation name ->
       fprintf ppf "a GADT match refining the type %a" !printtyp_path name
     | Tyvar_refinement_intersection -> fprintf ppf "updating a type variable"
-    | Subjkind -> fprintf ppf "sublayout check"
+    | Subjkind -> fprintf ppf "subkind check"
 
   (* CR layouts: An older implementation of format_flattened_history existed
       which displays more information not limited to one layout and one creation_reason
@@ -1573,15 +1581,17 @@ end = struct
 
       Consider revisiting that if the current implementation becomes insufficient. *)
 
-  let format_flattened_history ~intro ppf t =
+  let format_flattened_history ~intro ~layout_or_kind ppf t =
     let jkind_desc = Jkind_desc.get t.jkind in
     fprintf ppf "@[<v 2>%t" intro;
     (match t.history with
     | Creation reason -> (
-      fprintf ppf ", because@ %a" format_creation_reason reason;
+      fprintf ppf ", because@ %a"
+        (format_creation_reason ~layout_or_kind)
+        reason;
       match reason, jkind_desc with
       | Concrete_default_creation _, Const _ ->
-        fprintf ppf ", defaulted to layout %a" Desc.format jkind_desc
+        fprintf ppf ", defaulted to kind %a" Desc.format jkind_desc
       | _ -> ())
     | _ -> assert false);
     fprintf ppf ".";
@@ -1592,26 +1602,26 @@ end = struct
     fprintf ppf "@]"
 
   (* this isn't really formatted for user consumption *)
-  let format_history_tree ~intro ppf t =
+  let format_history_tree ~intro ~layout_or_kind ppf t =
     let rec in_order ppf = function
       | Interact
           { reason; lhs_history; rhs_history; lhs_jkind = _; rhs_jkind = _ } ->
         fprintf ppf "@[<v 2>  %a@]@;%a@ @[<v 2>  %a@]" in_order lhs_history
           format_interact_reason reason in_order rhs_history
-      | Creation c -> format_creation_reason ppf c
+      | Creation c -> format_creation_reason ppf ~layout_or_kind c
     in
-    fprintf ppf "@;%t has this layout history:@;@[<v 2>  %a@]" intro in_order
-      t.history
+    fprintf ppf "@;%t has this %s history:@;@[<v 2>  %a@]" intro layout_or_kind
+      in_order t.history
 
-  let format_history ~intro ppf t =
+  let format_history ~intro ~layout_or_kind ppf t =
     if display_histories
     then
       if flattened_histories
-      then format_flattened_history ~intro ppf t
-      else format_history_tree ~intro ppf t
+      then format_flattened_history ~intro ~layout_or_kind ppf t
+      else format_history_tree ~intro ~layout_or_kind ppf t
 end
 
-include Format_history
+let format_history = Format_history.format_history ~layout_or_kind:"kind"
 
 (******************************)
 (* errors *)
@@ -1639,18 +1649,35 @@ module Violation = struct
   let is_missing_cmi viol = Option.is_some viol.missing_cmi
 
   let report_general preamble pp_former former ppf t =
-    let subjkind_format verb l2 =
-      match get l2 with
-      | Var _ -> dprintf "%s representable" verb
-      | Const _ -> dprintf "%s a sublayout of %a" verb format l2
+    let mismatch_type =
+      match t.violation with
+      | Not_a_subjkind (k1, k2) ->
+        if Misc.Le_result.is_le (Layout.sub k1.jkind.layout k2.jkind.layout)
+        then `Mode
+        else `Layout
+      | No_intersection _ -> `Layout
     in
-    let l1, l2, fmt_l1, fmt_l2, missing_cmi_option =
+    let layout_or_kind =
+      match mismatch_type with `Mode -> "kind" | `Layout -> "layout"
+    in
+    let format_layout_or_kind =
+      match mismatch_type with
+      | `Mode -> format
+      | `Layout -> fun ppf jkind -> Layout.format ppf jkind.jkind.layout
+    in
+    let subjkind_format verb k2 =
+      match get k2 with
+      | Var _ -> dprintf "%s representable" verb
+      | Const _ ->
+        dprintf "%s a sub%s of %a" verb layout_or_kind format_layout_or_kind k2
+    in
+    let k1, k2, fmt_k1, fmt_k2, missing_cmi_option =
       match t with
-      | { violation = Not_a_subjkind (l1, l2); missing_cmi } -> (
+      | { violation = Not_a_subjkind (k1, k2); missing_cmi } -> (
         let missing_cmi =
           match missing_cmi with
           | None -> (
-            match l1.history with
+            match k1.history with
             | Creation (Missing_cmi p) -> Some p
             | Creation (Any_creation (Missing_cmi p)) -> Some p
             | _ -> None)
@@ -1658,44 +1685,51 @@ module Violation = struct
         in
         match missing_cmi with
         | None ->
-          ( l1,
-            l2,
-            dprintf "layout %a" format l1,
-            subjkind_format "is not" l2,
+          ( k1,
+            k2,
+            dprintf "%s %a" layout_or_kind format_layout_or_kind k1,
+            subjkind_format "is not" k2,
             None )
         | Some p ->
-          ( l1,
-            l2,
-            dprintf "an unknown layout",
-            subjkind_format "might not be" l2,
+          ( k1,
+            k2,
+            dprintf "an unknown %s" layout_or_kind,
+            subjkind_format "might not be" k2,
             Some p ))
-      | { violation = No_intersection (l1, l2); missing_cmi } ->
+      | { violation = No_intersection (k1, k2); missing_cmi } ->
         assert (Option.is_none missing_cmi);
-        ( l1,
-          l2,
-          dprintf "layout %a" format l1,
-          dprintf "does not overlap with %a" format l2,
+        ( k1,
+          k2,
+          dprintf "%s %a" layout_or_kind format_layout_or_kind k1,
+          dprintf "does not overlap with %a" format_layout_or_kind k2,
           None )
     in
     if display_histories
     then
       let connective =
-        match t.violation, get l2 with
-        | Not_a_subjkind _, Const _ -> dprintf "be a sublayout of %a" format l2
-        | No_intersection _, Const _ -> dprintf "overlap with %a" format l2
+        match t.violation, get k2 with
+        | Not_a_subjkind _, Const _ ->
+          dprintf "be a sub%s of %a" layout_or_kind format_layout_or_kind k2
+        | No_intersection _, Const _ ->
+          dprintf "overlap with %a" format_layout_or_kind k2
         | _, Var _ -> dprintf "be representable"
       in
       fprintf ppf "@[<v>%a@;%a@]"
-        (format_history
-           ~intro:(dprintf "The layout of %a is %a" pp_former former format l1))
-        l1
-        (format_history
+        (Format_history.format_history
            ~intro:
-             (dprintf "But the layout of %a must %t" pp_former former connective))
-        l2
+             (dprintf "The %s of %a is %a" layout_or_kind pp_former former
+                format_layout_or_kind k1)
+           ~layout_or_kind)
+        k1
+        (Format_history.format_history
+           ~intro:
+             (dprintf "But the %s of %a must %t" layout_or_kind pp_former former
+                connective)
+           ~layout_or_kind)
+        k2
     else
       fprintf ppf "@[<hov 2>%s%a has %t,@ which %t.@]" preamble pp_former former
-        fmt_l1 fmt_l2;
+        fmt_k1 fmt_k2;
     report_missing_cmi ppf missing_cmi_option
 
   let pp_t ppf x = fprintf ppf "%t" x
