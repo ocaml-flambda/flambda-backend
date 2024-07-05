@@ -206,14 +206,12 @@ let exclave_extension loc =
 let mkexp_exclave ~loc ~kwd_loc exp =
   ghexp ~loc (Pexp_apply(exclave_extension (make_loc kwd_loc), [Nolabel, exp]))
 
-let curry_attr loc =
-  mk_attr ~loc:Location.none (mkloc "extension.curry" loc) (PStr [])
-
 let is_curry_attr attr =
-  attr.attr_name.txt = "extension.curry"
+  attr.attr_name.txt = Jane_syntax.Arrow_curry.curry_attr_name
 
 let mktyp_curry typ loc =
-  {typ with ptyp_attributes = curry_attr loc :: typ.ptyp_attributes}
+  {typ with ptyp_attributes =
+     Jane_syntax.Arrow_curry.curry_attr loc :: typ.ptyp_attributes}
 
 let maybe_curry_typ typ loc =
   match typ.ptyp_desc with
@@ -3710,13 +3708,12 @@ value_description:
   id = mkrhs(val_ident)
   COLON
   ty = possibly_poly(core_type)
-  modes = optional_atat_mode_expr
+  modalities = optional_atat_modalities_expr
   attrs2 = post_item_attributes
     { let attrs = attrs1 @ attrs2 in
-      let ty = mktyp_with_modes modes ty in
       let loc = make_loc $sloc in
       let docs = symbol_docs $sloc in
-      Val.mk id ty ~attrs ~loc ~docs,
+      Val.mk id ty ~attrs ~modalities ~loc ~docs,
       ext }
 ;
 
@@ -3729,13 +3726,14 @@ primitive_declaration:
   id = mkrhs(val_ident)
   COLON
   ty = possibly_poly(core_type)
+  modalities = optional_atat_modalities_expr
   EQUAL
   prim = raw_string+
   attrs2 = post_item_attributes
     { let attrs = attrs1 @ attrs2 in
       let loc = make_loc $sloc in
       let docs = symbol_docs $sloc in
-      Val.mk id ty ~prim ~attrs ~loc ~docs,
+      Val.mk id ty ~prim ~attrs ~modalities ~loc ~docs,
       ext }
 ;
 
@@ -3879,8 +3877,7 @@ jkind:
     }
   | mkrhs(ident) {
       let {txt; loc} = $1 in
-      Jane_syntax.Jkind.(Primitive_layout_or_abbreviation
-        (Const.mk txt loc))
+      Jane_syntax.Jkind.(Abbreviation (Const.mk txt loc))
     }
   | KIND_OF ty=core_type {
       Jane_syntax.Jkind.Kind_of ty

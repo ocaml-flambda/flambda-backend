@@ -555,62 +555,6 @@ let foo () =
 val foo : unit -> unit = <fun>
 |}]
 
-
-(* testing Tpat_lazy *)
-let foo () =
-  match lazy (unique_ "hello") with
-  | (lazy y) as x -> ignore (shared_id x)
-[%%expect{|
-val foo : unit -> unit = <fun>
-|}]
-
-
-let foo () =
-match lazy (unique_ "hello") with
-| (lazy y) as x -> ignore (unique_id x)
-
-[%%expect{|
-Line 3, characters 37-38:
-3 | | (lazy y) as x -> ignore (unique_id x)
-                                         ^
-Error: This value is used here as unique, but it has already been used:
-Line 3, characters 2-10:
-3 | | (lazy y) as x -> ignore (unique_id x)
-      ^^^^^^^^
-
-|}]
-
-type 'a r_lazy = {x_lazy : 'a Lazy.t; y : string}
-
-let foo () =
-  match {x_lazy = lazy (unique_ "hello"); y = "world"} with
-  | {x_lazy = lazy y} as r -> ignore (unique_id r.x_lazy)
-[%%expect{|
-type 'a r_lazy = { x_lazy : 'a Lazy.t; y : string; }
-Line 5, characters 48-56:
-5 |   | {x_lazy = lazy y} as r -> ignore (unique_id r.x_lazy)
-                                                    ^^^^^^^^
-Error: This value is used here as unique, but it has already been used:
-Line 5, characters 14-20:
-5 |   | {x_lazy = lazy y} as r -> ignore (unique_id r.x_lazy)
-                  ^^^^^^
-
-|}]
-
-let foo () =
-  match {x_lazy = lazy (unique_ "hello"); y = "world"} with
-  | {x_lazy = lazy y} as r -> ignore (shared_id r.x_lazy)
-[%%expect{|
-val foo : unit -> unit = <fun>
-|}]
-
-let foo () =
-  match {x_lazy = lazy (unique_ "hello"); y = "world"} with
-  | {x_lazy = lazy y} as r -> ignore (unique_id r.y)
-[%%expect{|
-val foo : unit -> unit = <fun>
-|}]
-
 (* Testing modalities in records *)
 type r_shared = {x : string; y : string @@ shared many}
 [%%expect{|

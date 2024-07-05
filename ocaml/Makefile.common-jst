@@ -60,7 +60,8 @@ boot_targets = \
   $(boot_ocamlopt) \
   $(boot_ocamlmklib) \
   $(boot_ocamldep) \
-  $(boot_ocamlobjinfo)
+  $(boot_ocamlobjinfo) \
+  ocaml/ocamltest/ocamltest.byte
 
 boot-compiler: _build/_bootinstall
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) $(coverage_dune_flags) $(boot_targets)

@@ -106,8 +106,10 @@ exception Error of Location.t * error
 let dbg = false
 
 let jkind_layout_default_to_value_and_check_not_void loc jkind =
-  match Jkind.get_default_value jkind with
-  | Void -> raise (Error (loc, Void_layout))
+  let const = Jkind.default_to_value_and_get jkind in
+  let layout = Jkind.Const.get_layout const in
+  match layout with
+  | Sort Void -> raise (Error (loc, Void_layout))
   | _ -> ()
 ;;
 
@@ -1819,7 +1821,8 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
                 in
                 Mread_flat_suffix flat_read
           in
-          Pmixedfield (pos, read, Reads_agree)
+          let shape = Lambda.transl_mixed_product_shape shape in
+          Pmixedfield (pos, read, shape, Reads_agree)
     in
     let jkind = cstr.cstr_arg_jkinds.(field) in
     let sort = Jkind.sort_of_jkind jkind in
@@ -2191,7 +2194,10 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
                 in
                 Mread_flat_suffix read
             in
-            Lprim (Pmixedfield (lbl.lbl_pos, read, sem), [ arg ], loc),
+            let shape : Lambda.mixed_block_shape =
+              { value_prefix_len; flat_suffix }
+            in
+            Lprim (Pmixedfield (lbl.lbl_pos, read, shape, sem), [ arg ], loc),
             lbl_sort, lbl_layout
       in
       let str = if Types.is_mutable lbl.lbl_mut then StrictOpt else Alias in

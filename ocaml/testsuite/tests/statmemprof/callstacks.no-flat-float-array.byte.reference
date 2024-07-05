@@ -50,13 +50,9 @@ Called from Callstacks.test in file "callstacks.ml", line 92, characters 2-10
 Called from Stdlib__List.iter in file "list.ml", line 110, characters 12-15
 Called from Callstacks in file "callstacks.ml", line 99, characters 2-27
 -----------
-Raised by primitive operation at Callstacks.get0 in file "callstacks.ml", line 54, characters 28-33
-Called from Callstacks.getfloatfield in file "callstacks.ml", line 56, characters 30-47
-Called from Callstacks.test in file "callstacks.ml", line 92, characters 2-10
-Called from Stdlib__List.iter in file "list.ml", line 110, characters 12-15
-Called from Callstacks in file "callstacks.ml", line 99, characters 2-27
+No callstack
 -----------
-Raised by primitive operation at Stdlib__Marshal.from_bytes in file "marshal.ml", line 61, characters 9-35
+Raised by primitive operation at Stdlib__Marshal.from_bytes in file "marshal.ml", line 68, characters 9-35
 Called from Callstacks.alloc_unmarshal in file "callstacks.ml", line 62, characters 12-87
 Called from Callstacks.test in file "callstacks.ml", line 92, characters 2-10
 Called from Stdlib__List.iter in file "list.ml", line 110, characters 12-15

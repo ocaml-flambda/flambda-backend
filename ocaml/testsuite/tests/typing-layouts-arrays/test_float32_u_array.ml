@@ -1,7 +1,7 @@
 (* TEST
  readonly_files = "gen_u_array.ml test_gen_u_array.ml";
  modules = "${readonly_files}";
- include beta;
+ include stdlib_beta;
  flambda2;
  {
    flags = "-extension small_numbers";
@@ -21,7 +21,7 @@
    tests around type-checking should go to [basics.ml]. *)
 
 module Float32_I = struct
-  include Beta.Float32
+  include Stdlib_beta.Float32
   let max_val = max_float
   let min_val = min_float
   let rand f = of_float (Random.float (to_float f))
@@ -66,7 +66,7 @@ module Float32_u_array0 : Gen_u_array.S0
     "caml_array_blit" "caml_unboxed_float32_vect_blit"
   let empty () = [||]
   external to_boxed : ('a : float32) -> (float32[@local_opt]) = "%box_float32"
-  let compare_element x y = Beta.Float32.compare (to_boxed (x ())) (to_boxed (y ()))
+  let compare_element x y = Stdlib_beta.Float32.compare (to_boxed (x ())) (to_boxed (y ()))
 end
 
 module Float32_u_array = Gen_u_array.Make (Float32_u_array0)
@@ -74,7 +74,7 @@ module Float32_u_array_boxed : Test_gen_u_array.S with type t = float32# array =
   module M = Float32_u_array
   module I = Float32_I
   module E = struct
-    open Beta.Float32_u
+    open Stdlib_beta.Float32_u
     let to_boxed x = to_float32 (x ())
     let of_boxed x () = of_float32 x
   end
@@ -189,7 +189,7 @@ let () =
 
 (* expression and patterns *)
 let () =
-  let ( = ) = Beta.Float32_u.equal in
+  let ( = ) = Stdlib_beta.Float32_u.equal in
   (* match statement *)
   let d = [| #1.s; #2.s |] in
   (match d with

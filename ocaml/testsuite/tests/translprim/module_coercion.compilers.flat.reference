@@ -2,178 +2,146 @@
   (let (M = (makeblock 0))
     (makeblock 0 M
       (makeblock 0
-        (function {nlocal = 0} prim[intarray] stub
-          ignore assert all zero_alloc : int (array.length[int] prim))
-        (function {nlocal = 0} prim[intarray] prim[int] stub
-          ignore assert all zero_alloc : int
+        (function {nlocal = 0} prim[intarray] stub : int
+          (array.length[int] prim))
+        (function {nlocal = 0} prim[intarray] prim[int] stub : int
           (array.get[int indexed by int] prim prim))
-        (function {nlocal = 0} prim[intarray] prim[int] stub
-          ignore assert all zero_alloc : int
+        (function {nlocal = 0} prim[intarray] prim[int] stub : int
           (array.unsafe_get[int indexed by int] prim prim))
-        (function {nlocal = 0} prim[intarray] prim[int] prim[int] stub
-          ignore assert all zero_alloc : int
+        (function {nlocal = 0} prim[intarray] prim[int] prim[int] stub : int
           (array.set[int indexed by int] prim prim prim))
-        (function {nlocal = 0} prim[intarray] prim[int] prim[int] stub
-          ignore assert all zero_alloc : int
+        (function {nlocal = 0} prim[intarray] prim[int] prim[int] stub : int
           (array.unsafe_set[int indexed by int] prim prim prim))
-        (function {nlocal = 0} prim[int] prim[int] stub
-          ignore assert all zero_alloc : int (compare_ints prim prim))
-        (function {nlocal = 0} prim[int] prim[int] stub
-          ignore assert all zero_alloc : int (== prim prim))
-        (function {nlocal = 0} prim[int] prim[int] stub
-          ignore assert all zero_alloc : int (!= prim prim))
-        (function {nlocal = 0} prim[int] prim[int] stub
-          ignore assert all zero_alloc : int (< prim prim))
-        (function {nlocal = 0} prim[int] prim[int] stub
-          ignore assert all zero_alloc : int (> prim prim))
-        (function {nlocal = 0} prim[int] prim[int] stub
-          ignore assert all zero_alloc : int (<= prim prim))
-        (function {nlocal = 0} prim[int] prim[int] stub
-          ignore assert all zero_alloc : int (>= prim prim)))
+        (function {nlocal = 0} prim[int] prim[int] stub : int
+          (compare_ints prim prim))
+        (function {nlocal = 0} prim[int] prim[int] stub : int (== prim prim))
+        (function {nlocal = 0} prim[int] prim[int] stub : int (!= prim prim))
+        (function {nlocal = 0} prim[int] prim[int] stub : int (< prim prim))
+        (function {nlocal = 0} prim[int] prim[int] stub : int (> prim prim))
+        (function {nlocal = 0} prim[int] prim[int] stub : int (<= prim prim))
+        (function {nlocal = 0} prim[int] prim[int] stub : int (>= prim prim)))
       (makeblock 0
-        (function {nlocal = 0} prim[floatarray] stub
-          ignore assert all zero_alloc : int (array.length[float] prim))
-        (function {nlocal = 0} prim[floatarray] prim[int] stub
-          ignore assert all zero_alloc : float
+        (function {nlocal = 0} prim[floatarray] stub : int
+          (array.length[float] prim))
+        (function {nlocal = 0} prim[floatarray] prim[int] stub : float
           (array.get[float indexed by int] prim prim))
-        (function {nlocal = 0} prim[floatarray] prim[int] stub
-          ignore assert all zero_alloc : float
+        (function {nlocal = 0} prim[floatarray] prim[int] stub : float
           (array.unsafe_get[float indexed by int] prim prim))
         (function {nlocal = 0} prim[floatarray] prim[int] prim[float] stub
-          ignore assert all zero_alloc : int
-          (array.set[float indexed by int] prim prim prim))
+          : int (array.set[float indexed by int] prim prim prim))
         (function {nlocal = 0} prim[floatarray] prim[int] prim[float] stub
-          ignore assert all zero_alloc : int
-          (array.unsafe_set[float indexed by int] prim prim prim))
-        (function {nlocal = 0} prim[float] prim[float] stub
-          ignore assert all zero_alloc : int
+          : int (array.unsafe_set[float indexed by int] prim prim prim))
+        (function {nlocal = 0} prim[float] prim[float] stub : int
           (compare_floats float prim prim))
-        (function {nlocal = 0} prim[float] prim[float] stub
-          ignore assert all zero_alloc : int (Float.== prim prim))
-        (function {nlocal = 0} prim[float] prim[float] stub
-          ignore assert all zero_alloc : int (Float.!= prim prim))
-        (function {nlocal = 0} prim[float] prim[float] stub
-          ignore assert all zero_alloc : int (Float.< prim prim))
-        (function {nlocal = 0} prim[float] prim[float] stub
-          ignore assert all zero_alloc : int (Float.> prim prim))
-        (function {nlocal = 0} prim[float] prim[float] stub
-          ignore assert all zero_alloc : int (Float.<= prim prim))
-        (function {nlocal = 0} prim[float] prim[float] stub
-          ignore assert all zero_alloc : int (Float.>= prim prim)))
+        (function {nlocal = 0} prim[float] prim[float] stub : int
+          (Float.== prim prim))
+        (function {nlocal = 0} prim[float] prim[float] stub : int
+          (Float.!= prim prim))
+        (function {nlocal = 0} prim[float] prim[float] stub : int
+          (Float.< prim prim))
+        (function {nlocal = 0} prim[float] prim[float] stub : int
+          (Float.> prim prim))
+        (function {nlocal = 0} prim[float] prim[float] stub : int
+          (Float.<= prim prim))
+        (function {nlocal = 0} prim[float] prim[float] stub : int
+          (Float.>= prim prim)))
       (makeblock 0
-        (function {nlocal = 0} prim[addrarray] stub
-          ignore assert all zero_alloc : int (array.length[addr] prim))
+        (function {nlocal = 0} prim[addrarray] stub : int
+          (array.length[addr] prim))
         (function {nlocal = 0} prim[addrarray] prim[int] stub
-          ignore assert all zero_alloc
           (array.get[addr indexed by int] prim prim))
         (function {nlocal = 0} prim[addrarray] prim[int] stub
-          ignore assert all zero_alloc
           (array.unsafe_get[addr indexed by int] prim prim))
-        (function {nlocal = 0} prim[addrarray] prim[int] prim stub
-          ignore assert all zero_alloc : int
+        (function {nlocal = 0} prim[addrarray] prim[int] prim stub : int
           (array.set[addr indexed by int] prim prim prim))
-        (function {nlocal = 0} prim[addrarray] prim[int] prim stub
-          ignore assert all zero_alloc : int
+        (function {nlocal = 0} prim[addrarray] prim[int] prim stub : int
           (array.unsafe_set[addr indexed by int] prim prim prim))
-        (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
-          : int (caml_string_compare prim prim))
-        (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
-          : int (caml_string_equal prim prim))
-        (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
-          : int (caml_string_notequal prim prim))
-        (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
-          : int (caml_string_lessthan prim prim))
-        (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
-          : int (caml_string_greaterthan prim prim))
-        (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
-          : int (caml_string_lessequal prim prim))
-        (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
-          : int (caml_string_greaterequal prim prim)))
+        (function {nlocal = 0} prim prim stub : int
+          (caml_string_compare prim prim))
+        (function {nlocal = 0} prim prim stub : int
+          (caml_string_equal prim prim))
+        (function {nlocal = 0} prim prim stub : int
+          (caml_string_notequal prim prim))
+        (function {nlocal = 0} prim prim stub : int
+          (caml_string_lessthan prim prim))
+        (function {nlocal = 0} prim prim stub : int
+          (caml_string_greaterthan prim prim))
+        (function {nlocal = 0} prim prim stub : int
+          (caml_string_lessequal prim prim))
+        (function {nlocal = 0} prim prim stub : int
+          (caml_string_greaterequal prim prim)))
       (makeblock 0
-        (function {nlocal = 0} prim[addrarray] stub
-          ignore assert all zero_alloc : int (array.length[addr] prim))
-        (function {nlocal = 0} prim[addrarray] prim[int] stub
-          ignore assert all zero_alloc : int32
+        (function {nlocal = 0} prim[addrarray] stub : int
+          (array.length[addr] prim))
+        (function {nlocal = 0} prim[addrarray] prim[int] stub : int32
           (array.get[addr indexed by int] prim prim))
-        (function {nlocal = 0} prim[addrarray] prim[int] stub
-          ignore assert all zero_alloc : int32
+        (function {nlocal = 0} prim[addrarray] prim[int] stub : int32
           (array.unsafe_get[addr indexed by int] prim prim))
         (function {nlocal = 0} prim[addrarray] prim[int] prim[int32] stub
-          ignore assert all zero_alloc : int
-          (array.set[addr indexed by int] prim prim prim))
+          : int (array.set[addr indexed by int] prim prim prim))
         (function {nlocal = 0} prim[addrarray] prim[int] prim[int32] stub
-          ignore assert all zero_alloc : int
-          (array.unsafe_set[addr indexed by int] prim prim prim))
-        (function {nlocal = 0} prim[int32] prim[int32] stub
-          ignore assert all zero_alloc : int (compare_bints int32 prim prim))
-        (function {nlocal = 0} prim[int32] prim[int32] stub
-          ignore assert all zero_alloc : int (Int32.== prim prim))
-        (function {nlocal = 0} prim[int32] prim[int32] stub
-          ignore assert all zero_alloc : int (Int32.!= prim prim))
-        (function {nlocal = 0} prim[int32] prim[int32] stub
-          ignore assert all zero_alloc : int (Int32.< prim prim))
-        (function {nlocal = 0} prim[int32] prim[int32] stub
-          ignore assert all zero_alloc : int (Int32.> prim prim))
-        (function {nlocal = 0} prim[int32] prim[int32] stub
-          ignore assert all zero_alloc : int (Int32.<= prim prim))
-        (function {nlocal = 0} prim[int32] prim[int32] stub
-          ignore assert all zero_alloc : int (Int32.>= prim prim)))
+          : int (array.unsafe_set[addr indexed by int] prim prim prim))
+        (function {nlocal = 0} prim[int32] prim[int32] stub : int
+          (compare_bints int32 prim prim))
+        (function {nlocal = 0} prim[int32] prim[int32] stub : int
+          (Int32.== prim prim))
+        (function {nlocal = 0} prim[int32] prim[int32] stub : int
+          (Int32.!= prim prim))
+        (function {nlocal = 0} prim[int32] prim[int32] stub : int
+          (Int32.< prim prim))
+        (function {nlocal = 0} prim[int32] prim[int32] stub : int
+          (Int32.> prim prim))
+        (function {nlocal = 0} prim[int32] prim[int32] stub : int
+          (Int32.<= prim prim))
+        (function {nlocal = 0} prim[int32] prim[int32] stub : int
+          (Int32.>= prim prim)))
       (makeblock 0
-        (function {nlocal = 0} prim[addrarray] stub
-          ignore assert all zero_alloc : int (array.length[addr] prim))
-        (function {nlocal = 0} prim[addrarray] prim[int] stub
-          ignore assert all zero_alloc : int64
+        (function {nlocal = 0} prim[addrarray] stub : int
+          (array.length[addr] prim))
+        (function {nlocal = 0} prim[addrarray] prim[int] stub : int64
           (array.get[addr indexed by int] prim prim))
-        (function {nlocal = 0} prim[addrarray] prim[int] stub
-          ignore assert all zero_alloc : int64
+        (function {nlocal = 0} prim[addrarray] prim[int] stub : int64
           (array.unsafe_get[addr indexed by int] prim prim))
         (function {nlocal = 0} prim[addrarray] prim[int] prim[int64] stub
-          ignore assert all zero_alloc : int
-          (array.set[addr indexed by int] prim prim prim))
+          : int (array.set[addr indexed by int] prim prim prim))
         (function {nlocal = 0} prim[addrarray] prim[int] prim[int64] stub
-          ignore assert all zero_alloc : int
-          (array.unsafe_set[addr indexed by int] prim prim prim))
-        (function {nlocal = 0} prim[int64] prim[int64] stub
-          ignore assert all zero_alloc : int (compare_bints int64 prim prim))
-        (function {nlocal = 0} prim[int64] prim[int64] stub
-          ignore assert all zero_alloc : int (Int64.== prim prim))
-        (function {nlocal = 0} prim[int64] prim[int64] stub
-          ignore assert all zero_alloc : int (Int64.!= prim prim))
-        (function {nlocal = 0} prim[int64] prim[int64] stub
-          ignore assert all zero_alloc : int (Int64.< prim prim))
-        (function {nlocal = 0} prim[int64] prim[int64] stub
-          ignore assert all zero_alloc : int (Int64.> prim prim))
-        (function {nlocal = 0} prim[int64] prim[int64] stub
-          ignore assert all zero_alloc : int (Int64.<= prim prim))
-        (function {nlocal = 0} prim[int64] prim[int64] stub
-          ignore assert all zero_alloc : int (Int64.>= prim prim)))
+          : int (array.unsafe_set[addr indexed by int] prim prim prim))
+        (function {nlocal = 0} prim[int64] prim[int64] stub : int
+          (compare_bints int64 prim prim))
+        (function {nlocal = 0} prim[int64] prim[int64] stub : int
+          (Int64.== prim prim))
+        (function {nlocal = 0} prim[int64] prim[int64] stub : int
+          (Int64.!= prim prim))
+        (function {nlocal = 0} prim[int64] prim[int64] stub : int
+          (Int64.< prim prim))
+        (function {nlocal = 0} prim[int64] prim[int64] stub : int
+          (Int64.> prim prim))
+        (function {nlocal = 0} prim[int64] prim[int64] stub : int
+          (Int64.<= prim prim))
+        (function {nlocal = 0} prim[int64] prim[int64] stub : int
+          (Int64.>= prim prim)))
       (makeblock 0
-        (function {nlocal = 0} prim[addrarray] stub
-          ignore assert all zero_alloc : int (array.length[addr] prim))
-        (function {nlocal = 0} prim[addrarray] prim[int] stub
-          ignore assert all zero_alloc : nativeint
+        (function {nlocal = 0} prim[addrarray] stub : int
+          (array.length[addr] prim))
+        (function {nlocal = 0} prim[addrarray] prim[int] stub : nativeint
           (array.get[addr indexed by int] prim prim))
-        (function {nlocal = 0} prim[addrarray] prim[int] stub
-          ignore assert all zero_alloc : nativeint
+        (function {nlocal = 0} prim[addrarray] prim[int] stub : nativeint
           (array.unsafe_get[addr indexed by int] prim prim))
         (function {nlocal = 0} prim[addrarray] prim[int] prim[nativeint] stub
-          ignore assert all zero_alloc : int
-          (array.set[addr indexed by int] prim prim prim))
+          : int (array.set[addr indexed by int] prim prim prim))
         (function {nlocal = 0} prim[addrarray] prim[int] prim[nativeint] stub
-          ignore assert all zero_alloc : int
-          (array.unsafe_set[addr indexed by int] prim prim prim))
-        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub
-          ignore assert all zero_alloc : int
+          : int (array.unsafe_set[addr indexed by int] prim prim prim))
+        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub : int
           (compare_bints nativeint prim prim))
-        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub
-          ignore assert all zero_alloc : int (Nativeint.== prim prim))
-        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub
-          ignore assert all zero_alloc : int (Nativeint.!= prim prim))
-        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub
-          ignore assert all zero_alloc : int (Nativeint.< prim prim))
-        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub
-          ignore assert all zero_alloc : int (Nativeint.> prim prim))
-        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub
-          ignore assert all zero_alloc : int (Nativeint.<= prim prim))
-        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub
-          ignore assert all zero_alloc : int (Nativeint.>= prim prim))))))
+        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub : int
+          (Nativeint.== prim prim))
+        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub : int
+          (Nativeint.!= prim prim))
+        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub : int
+          (Nativeint.< prim prim))
+        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub : int
+          (Nativeint.> prim prim))
+        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub : int
+          (Nativeint.<= prim prim))
+        (function {nlocal = 0} prim[nativeint] prim[nativeint] stub : int
+          (Nativeint.>= prim prim))))))

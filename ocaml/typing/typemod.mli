@@ -161,6 +161,7 @@ type error =
       old_arg_type: Global_module.Name.t option;
       old_source_file: Misc.filepath;
     }
+  | Submode_failed of Mode.Value.error
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

@@ -1,15 +1,14 @@
 (* TEST
  {
+   not-macos;
    include systhreads;
    hassysthreads;
+   { bytecode; }
+   { native; }
  }{
+   macos;
    reason = "off-by-one error on MacOS+Clang (#408)";
    skip;
-   {
-     bytecode;
-   }{
-     native;
-   }
  }
 *)
 
