@@ -21,7 +21,7 @@ open Typedtree
 open Lambda
 
 type error =
-    Non_value_layout of type_expr * Jkind.Type.Violation.t option
+    Non_value_layout of type_expr * Jkind.Violation.t option
   | Non_value_sort of Jkind.Type.Sort.t * type_expr
   | Sort_without_extension of
       Jkind.Type.Sort.t * Language_extension.maturity * type_expr option
@@ -234,6 +234,7 @@ let bigarray_type_kind_and_layout env typ =
       (Pbigarray_unknown, Pbigarray_unknown_layout)
 
 let value_kind_of_value_jkind jkind =
+  let jkind = Jkind.to_type_jkind jkind in
   let const_jkind = Jkind.Type.default_to_value_and_get jkind in
   let externality_upper_bound =
     Jkind.Type.Const.get_externality_upper_bound const_jkind
@@ -345,17 +346,17 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
 
        This should be understood, but for now the simple fall back thing is
        sufficient.  *)
-    match Ctype.check_type_jkind env scty (Jkind.Type.Primitive.value ~why:V1_safety_check)
+    match Ctype.check_type_jkind env scty (Jkind.Primitive.value ~why:V1_safety_check)
     with
     | Ok _ -> ()
     | Error _ ->
       match
         Ctype.(check_type_jkind env
-                 (correct_levels ty) (Jkind.Type.Primitive.value ~why:V1_safety_check))
+                 (correct_levels ty) (Jkind.Primitive.value ~why:V1_safety_check))
       with
       | Ok _ -> ()
       | Error violation ->
-        if (Jkind.Type.Violation.is_missing_cmi violation)
+        if (Jkind.Violation.is_missing_cmi violation)
         then raise Missing_cmi_fallback
         else raise (Error (loc, Non_value_layout (ty, Some violation)))
   end;
@@ -805,7 +806,7 @@ let report_error ppf = function
         fprintf ppf "@ Could not find cmi for: %a" Printtyp.type_expr ty
       | Some err ->
         fprintf ppf "@ %a"
-        (Jkind.Type.Violation.report_with_offender
+        (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
       end
   | Non_value_sort (sort, ty) ->

@@ -228,7 +228,7 @@ type lookup_error =
   | Once_value_used_in of lock_item * Longident.t * shared_context
   | Value_used_in_closure of lock_item * Longident.t * Mode.Value.Comonadic.error * closure_context option
   | Local_value_used_in_exclave of lock_item * Longident.t
-  | Non_value_used_in_object of Longident.t * type_expr * Jkind.Type.Violation.t
+  | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
 
 val lookup_error: Location.t -> t -> lookup_error -> 'a
 
@@ -569,7 +569,7 @@ val scrape_alias:
 val same_constr: (t -> type_expr -> type_expr -> bool) ref
 (* Forward declaration to break mutual recursion with Ctype. *)
 val constrain_type_jkind:
-  (t -> type_expr -> jkind -> (unit, Jkind.Type.Violation.t) result) ref
+  (t -> type_expr -> higher_jkind -> (unit, Jkind.Violation.t) result) ref
 (* Forward declaration to break mutual recursion with Printtyp. *)
 val print_longident: (Format.formatter -> Longident.t -> unit) ref
 (* Forward declaration to break mutual recursion with Printtyp. *)

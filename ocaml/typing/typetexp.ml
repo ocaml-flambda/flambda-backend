@@ -86,10 +86,10 @@ type error =
   | Unsupported_extension : _ Language_extension.t -> error
   | Polymorphic_optional_param
   | Non_value of
-      {vloc : value_loc; typ : type_expr; err : Jkind.Type.Violation.t}
+      {vloc : value_loc; typ : type_expr; err : Jkind.Violation.t}
   | Non_sort of
       {vloc : sort_loc; typ : type_expr; err : Jkind.Type.Violation.t}
-  | Bad_jkind_annot of type_expr * Jkind.Type.Violation.t
+  | Bad_jkind_annot of type_expr * Jkind.Violation.t
   | Did_you_mean_unboxed of Longident.t
   | Invalid_label_for_call_pos of Parsetree.arg_label
 
@@ -628,7 +628,7 @@ let enrich_with_attributes attrs annotation_context =
   | None -> annotation_context
 
 let jkind_of_annotation annotation_context attrs jkind =
-  Jkind.Type.of_annotation ~context:(enrich_with_attributes attrs annotation_context) jkind
+  Jkind.of_annotation ~context:(enrich_with_attributes attrs annotation_context) jkind
 
 (* translate the ['a 'b ('c : immediate) .] part of a polytype,
    returning a [poly_univars] *)
@@ -853,7 +853,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
                  polymorphic variants. *)
               match
                 constrain_type_jkind env ctyp_type
-                  (Jkind.Type.Primitive.value ~why:Polymorphic_variant_field)
+                  (Jkind.Primitive.value ~why:Polymorphic_variant_field)
               with
               | Ok _ -> ()
               | Error e ->
@@ -1090,7 +1090,8 @@ and transl_type_alias env ~row_context ~policy mode attrs alias_loc styp name_op
                 let jkind, annot =
                   jkind_of_annotation (Type_variable ("'" ^ alias)) attrs jkind_annot
                 in
-                jkind, Some annot
+                (* FIXME: Avoid to_type_jkind when implementing vars. *)
+                Jkind.to_type_jkind jkind, Some annot
             in
             let t = newvar jkind in
             TyVarEnv.remember_used alias t alias_loc;
@@ -1146,7 +1147,7 @@ and transl_type_aux_tuple env ~policy ~row_context stl =
   List.iter (fun (_, {ctyp_type; ctyp_loc}) ->
     (* CR layouts v5: remove value requirement *)
     match
-      constrain_type_jkind env ctyp_type (Jkind.Type.Primitive.value ~why:Tuple_element)
+      constrain_type_jkind env ctyp_type (Jkind.Primitive.value ~why:Tuple_element)
     with
     | Ok _ -> ()
     | Error e ->
@@ -1182,7 +1183,7 @@ and transl_fields env ~policy ~row_context o fields =
         begin
           match
             constrain_type_jkind
-              env ty1.ctyp_type (Jkind.Type.Primitive.value ~why:Object_field)
+              env ty1.ctyp_type (Jkind.Primitive.value ~why:Object_field)
           with
           | Ok _ -> ()
           | Error e ->
@@ -1495,7 +1496,7 @@ let report_error env ppf = function
       | Object_field -> "Object field"
     in
     fprintf ppf "@[%s types must have layout value.@ %a@]"
-      s (Jkind.Type.Violation.report_with_offender
+      s (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Non_sort {vloc; typ; err} ->
     let s =
@@ -1508,7 +1509,7 @@ let report_error env ppf = function
            ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Bad_jkind_annot(ty, violation) ->
     fprintf ppf "@[<b 2>Bad layout annotation:@ %a@]"
-      (Jkind.Type.Violation.report_with_offender
+      (Jkind.Violation.report_with_offender
          ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
   | Did_you_mean_unboxed lid ->
     fprintf ppf "@[%a isn't a class type.@ \

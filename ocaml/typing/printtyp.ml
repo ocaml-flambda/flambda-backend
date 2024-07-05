@@ -2326,7 +2326,7 @@ let dummy =
     type_params = [];
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
-    type_jkind = Jkind.Type.Primitive.any ~why:Dummy_jkind;
+    type_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
     type_jkind_annotation = None;
     type_private = Public;
     type_manifest = None;
@@ -2991,7 +2991,7 @@ let explanation (type variety) intro prev env
     end
   | Errortrace.Bad_jkind (t,e) ->
       Some (dprintf "@ @[<hov>%a@]"
-              (Jkind.Type.Violation.report_with_offender
+              (Jkind.Violation.report_with_offender
                  ~offender:(fun ppf -> type_expr ppf t)) e)
   | Errortrace.Bad_jkind_sort (t,e) ->
       Some (dprintf "@ @[<hov>%a@]"

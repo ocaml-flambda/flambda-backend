@@ -108,7 +108,7 @@ type error =
   | Duplicate of string * string
   | Closing_self_type of class_signature
   | Polymorphic_class_parameter
-  | Non_value_binding of string * Jkind.Type.Violation.t
+  | Non_value_binding of string * Jkind.Violation.t
   | Non_value_let_binding of string * Jkind.Type.sort
   | Nonoptional_call_pos_label of string
 
@@ -313,7 +313,7 @@ let rec class_type_field env sign self_scope ctf =
           let ty = cty.ctyp_type in
           begin match
             Ctype.constrain_type_jkind
-              env ty (Jkind.Type.Primitive.value ~why:Instance_variable)
+              env ty (Jkind.Primitive.value ~why:Instance_variable)
           with
           | Ok _ -> ()
           | Error err -> raise (Error(loc, env, Non_value_binding(lab, err)))
@@ -691,7 +691,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
            begin
              match
                Ctype.constrain_type_jkind
-                 val_env cty.ctyp_type (Jkind.Type.Primitive.value ~why:Class_field)
+                 val_env cty.ctyp_type (Jkind.Primitive.value ~why:Class_field)
              with
              | Ok _ -> ()
              | Error err -> raise (Error(label.loc, val_env,
@@ -740,7 +740,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
              match
                Ctype.constrain_type_jkind
                  val_env definition.exp_type
-                 (Jkind.Type.Primitive.value ~why:Class_field)
+                 (Jkind.Primitive.value ~why:Class_field)
              with
              | Ok _ -> ()
              | Error err -> raise (Error(label.loc, val_env,
@@ -1607,7 +1607,7 @@ let temp_abbrev loc id arity uid =
       {type_params = !params;
        type_arity = arity;
        type_kind = Type_abstract Abstract_def;
-       type_jkind = Jkind.Type.Primitive.value ~why:Object;
+       type_jkind = Jkind.Primitive.value ~why:Object;
        type_jkind_annotation = None;
        type_private = Public;
        type_manifest = Some ty;
@@ -1838,7 +1838,7 @@ let class_infos define_class kind
      type_params = obj_params;
      type_arity = arity;
      type_kind = Type_abstract Abstract_def;
-     type_jkind = Jkind.Type.Primitive.value ~why:Object;
+     type_jkind = Jkind.Primitive.value ~why:Object;
      type_jkind_annotation = None;
      type_private = Public;
      type_manifest = Some obj_ty;
@@ -2344,7 +2344,7 @@ let report_error env ppf = function
   | Non_value_binding (nm, err) ->
     fprintf ppf
       "@[Variables bound in a class must have layout value.@ %a@]"
-      (Jkind.Type.Violation.report_with_name ~name:nm) err
+      (Jkind.Violation.report_with_name ~name:nm) err
   | Non_value_let_binding (nm, sort) ->
     fprintf ppf
       "@[The types of variables bound by a 'let' in a class function@ \

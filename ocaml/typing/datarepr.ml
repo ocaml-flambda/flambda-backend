@@ -79,7 +79,7 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
           type_params;
           type_arity = arity;
           type_kind = Type_record (lbls, rep);
-          type_jkind = jkind;
+          type_jkind = Type jkind;
           type_jkind_annotation = None;
           type_private = priv;
           type_manifest = None;
@@ -109,7 +109,8 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
     match rep with
     | Variant_extensible -> assert false
     | Variant_boxed x -> x
-    | Variant_unboxed -> [| Constructor_uniform_value, [| decl.type_jkind |] |]
+    | Variant_unboxed -> [| Constructor_uniform_value,
+                            [| Jkind.to_type_jkind decl.type_jkind |] |]
   in
   let all_void jkinds = Array.for_all Jkind.Type.is_void_defaulting jkinds in
   let num_consts = ref 0 and num_nonconsts = ref 0 in

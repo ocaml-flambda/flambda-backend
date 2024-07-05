@@ -219,7 +219,7 @@ let mk_add_type add_type
     {type_params = [];
      type_arity = 0;
      type_kind = kind;
-     type_jkind = jkind;
+     type_jkind = Type jkind;
      type_jkind_annotation = predef_jkind_annotation jkind_annotation;
      type_loc = Location.none;
      type_private = Asttypes.Public;
@@ -257,7 +257,7 @@ let build_initial_env add_type add_extension empty_env =
       {type_params = [param];
        type_arity = 1;
        type_kind = kind param;
-       type_jkind = jkind;
+       type_jkind = Type jkind;
        type_jkind_annotation = predef_jkind_annotation jkind_annotation;
        type_loc = Location.none;
        type_private = Asttypes.Public;

@@ -35,6 +35,7 @@ type transient_expr =
 
 and type_expr = transient_expr
 
+(* TODO jbachurski: Tvars and Tunivars *)
 and type_desc =
   | Tvar of { name : string option; jkind : jkind }
   | Tarrow of arrow_desc * type_expr * type_expr * commutable
@@ -98,6 +99,7 @@ and _ commutable_gen =
   | Cvar : {mutable commu: any commutable_gen} -> [> `var] commutable_gen
 
 and jkind = type_expr Jkind_types.Type.t
+and higher_jkind = type_expr Jkind_types.t
 
 (* jkind depends on types defined in this file, but Jkind.Type.equal is required
    here. When jkind.ml is loaded, it calls set_jkind_equal to fill a ref to the
@@ -253,7 +255,7 @@ type type_declaration =
   { type_params: type_expr list;
     type_arity: int;
     type_kind: type_decl_kind;
-    type_jkind: jkind;
+    type_jkind: higher_jkind;
     type_jkind_annotation: type_expr Jkind_types.Type.annotation option;
     type_private: private_flag;
     type_manifest: type_expr option;

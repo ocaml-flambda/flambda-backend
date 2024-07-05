@@ -799,7 +799,9 @@ let mode_cross_left env ty mode =
   let mode =
     if not (is_principal ty) then mode else
     let jkind = type_jkind_purely env ty in
-    let upper_bounds = Jkind.Type.get_modal_upper_bounds jkind in
+    (* FIXME jbachurski: What should happen for higher jkinds here?
+       Analogous question for other uses of to_type_jkind in this file. *)
+    let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind jkind) in
     let upper_bounds = Const.alloc_as_value upper_bounds in
     Value.meet_const upper_bounds mode
   in
@@ -817,7 +819,7 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
   let comonadic = Alloc.Comonadic.disallow_right comonadic in
   if not (is_principal ty) then { monadic; comonadic } else
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.Type.get_modal_upper_bounds jkind in
+  let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind jkind) in
   let upper_bounds = Alloc.Const.split upper_bounds in
   let comonadic = Alloc.Comonadic.meet_const upper_bounds.comonadic comonadic in
   let monadic = Alloc.Monadic.imply upper_bounds.monadic monadic in
@@ -827,7 +829,7 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
 let expect_mode_cross env ty (expected_mode : expected_mode) =
   if not (is_principal ty) then expected_mode else
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.Type.get_modal_upper_bounds jkind in
+  let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind jkind) in
   let upper_bounds = Const.alloc_as_value upper_bounds in
   let mode = Value.imply upper_bounds expected_mode.mode in
   (* - [strict_local] doesn't need to be updated, because it's only relavant for
@@ -4342,7 +4344,7 @@ let check_univars env kind exp ty_expected vars =
             *)
             match get_desc (expand_head env var) with
             | Tvar { jkind = jkind2; } -> begin
-                match check_type_jkind env uvar jkind2 with
+                match check_type_jkind env uvar (Type jkind2) with
                 | Ok _ -> ()
                 | Error err ->
                   error exp_ty ty_expected

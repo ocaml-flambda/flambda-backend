@@ -541,11 +541,11 @@ val estimate_type_jkind : Env.t ->  type_expr -> jkind
 
 (* Get the jkind of a type, expanding it and looking through [[@@unboxed]]
    types. *)
-val type_jkind : Env.t -> type_expr -> jkind
+val type_jkind : Env.t -> type_expr -> higher_jkind
 
 (* Get the jkind of a type, dropping any changes to types caused by
    expansion. *)
-val type_jkind_purely : Env.t -> type_expr -> jkind
+val type_jkind_purely : Env.t -> type_expr -> higher_jkind
 
 (* Find a type's sort (constraining it to be an arbitrary sort variable, if
    needed) *)
@@ -560,13 +560,13 @@ val type_sort :
 (* CR layouts: When we improve errors, it may be convenient to change these to
    raise on error, like unify. *)
 val check_decl_jkind :
-  Env.t -> type_declaration -> Jkind.Type.t -> (unit, Jkind.Type.Violation.t) result
+  Env.t -> type_declaration -> Jkind.t -> (unit, Jkind.Violation.t) result
 val constrain_decl_jkind :
-  Env.t -> type_declaration -> Jkind.Type.t -> (unit, Jkind.Type.Violation.t) result
+  Env.t -> type_declaration -> Jkind.t -> (unit, Jkind.Violation.t) result
 val check_type_jkind :
-  Env.t -> type_expr -> Jkind.Type.t -> (unit, Jkind.Type.Violation.t) result
+  Env.t -> type_expr -> Jkind.t -> (unit, Jkind.Violation.t) result
 val constrain_type_jkind :
-  Env.t -> type_expr -> Jkind.Type.t -> (unit, Jkind.Type.Violation.t) result
+  Env.t -> type_expr -> Jkind.t -> (unit, Jkind.Violation.t) result
 
 (* Check whether a type's externality's upper bound is less than some target.
    Potentially cheaper than just calling [type_jkind], because this can stop

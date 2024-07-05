@@ -770,7 +770,7 @@ let transl_declaration env sdecl (id, uid) =
   in
   verify_unboxed_attr unboxed_attr sdecl;
   let jkind_from_annotation, jkind_annotation, sdecl_attributes =
-    match Jkind.Type.of_type_decl ~context:(Type_declaration path) sdecl with
+    match Jkind.of_type_decl ~context:(Type_declaration path) sdecl with
     | Some (jkind, jkind_annotation, sdecl_attributes) ->
         Some jkind, Some jkind_annotation, sdecl_attributes
     | None -> None, None, sdecl.ptype_attributes
@@ -909,7 +909,7 @@ let transl_declaration env sdecl (id, uid) =
     *)
       match jkind_from_annotation, man with
       | Some annot, _ -> annot
-      | None, Some _ -> Jkind.Type.Primitive.any ~why:Initial_typedecl_env
+      | None, Some _ -> Jkind.Primitive.any ~why:Initial_typedecl_env
       | None, None -> jkind_default
     in
     let arity = List.length params in
@@ -1146,10 +1146,11 @@ let check_coherence env loc dpath decl =
   | { type_kind = Type_abstract _;
       type_manifest = Some ty } ->
     let jkind' = Ctype.type_jkind_purely env ty in
-    begin match Jkind.Type.sub_with_history jkind' decl.type_jkind with
+    (* FIXME : This coercion should be fine, as the type is abstract. *)
+    begin match Jkind.sub_with_history jkind' decl.type_jkind with
     | Ok jkind' -> { decl with type_jkind = jkind' }
     | Error v ->
-      raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
+      raise (Error (loc, Jkind_mismatch_of_type (ty, v)))
     end
   | { type_manifest = None } -> decl
 
@@ -1598,7 +1599,7 @@ let update_decl_jkind env dpath decl =
   let new_decl, new_jkind = match decl.type_kind with
     | Type_abstract _ -> decl, decl.type_jkind
     | Type_open ->
-      let type_jkind = Jkind.Type.Primitive.value ~why:Extensible_variant in
+      let type_jkind = Jkind.Primitive.value ~why:Extensible_variant in
       { decl with type_jkind }, type_jkind
     | Type_record (lbls, rep) ->
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in

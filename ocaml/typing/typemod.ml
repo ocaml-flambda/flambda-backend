@@ -604,7 +604,7 @@ let merge_constraint initial_env loc sg lid constr =
                 sdecl.ptype_params;
             type_arity = arity;
             type_kind = Type_abstract Abstract_def;
-            type_jkind = Jkind.Type.Primitive.value ~why:(Unknown "merge_constraint");
+            type_jkind = Jkind.Primitive.value ~why:(Unknown "merge_constraint");
             type_jkind_annotation = None;
             type_private = Private;
             type_manifest = None;

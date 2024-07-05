@@ -16,6 +16,8 @@ open Mode
 
 [@@@warning "+9"]
 
+exception Unexpected_higher_jkind
+
 module Type = struct
   open Jkind_types.Type
 
@@ -1959,6 +1961,9 @@ let of_type_decl ~context d =
          of_type_jkind a, annotation_of_type_jkind b, c)
 
 let of_type_decl_default = Type.of_type_decl_default' ~of_type_decl
+
+let to_type_jkind (t : t) =
+  match t with Type ty -> ty | _ -> raise Unexpected_higher_jkind
 
 (******************************)
 (* elimination and defaulting *)

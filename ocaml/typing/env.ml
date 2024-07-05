@@ -758,7 +758,7 @@ type lookup_error =
   | Value_used_in_closure of lock_item * Longident.t *
       Mode.Value.Comonadic.error * closure_context option
   | Local_value_used_in_exclave of lock_item * Longident.t
-  | Non_value_used_in_object of Longident.t * type_expr * Jkind.Type.Violation.t
+  | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
 
 type error =
   | Missing_module of Location.t * Path.t * Path.t
@@ -3090,7 +3090,7 @@ let unboxed_type ~errors ~env ~loc ~lid ty =
   match ty with
   | None -> ()
   | Some ty ->
-    match !constrain_type_jkind env ty Jkind.Type.Primitive.(value ~why:Captured_in_object) with
+    match !constrain_type_jkind env ty Jkind.Primitive.(value ~why:Captured_in_object) with
     | Ok () -> ()
     | Result.Error err ->
       may_lookup_error errors loc env (Non_value_used_in_object (lid, ty, err))

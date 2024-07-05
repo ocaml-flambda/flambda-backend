@@ -1366,8 +1366,8 @@ let instance_constructor existential_treatment cstr =
                for it *)
             let jkind =
               match get_desc existential with
-              | Tvar { jkind } -> jkind
-              | Tvariant _ -> Jkind.Type.Primitive.value ~why:Row_variable
+              | Tvar { jkind } -> Jkind_types.Type jkind
+              | Tvariant _ -> Jkind.Primitive.value ~why:Row_variable
                   (* Existential row variable *)
               | _ -> assert false
             in
@@ -2065,8 +2065,8 @@ let get_unboxed_type_approximation env ty =
    - Var: The type was a var, we return the jkind and the type_expr it was in,
      in case the caller wants to update it. *)
 type jkind_result =
-  | Jkind of Jkind.Type.t
-  | TyVar of Jkind.Type.t * type_expr
+  | Jkind of Jkind.t
+  | TyVar of Jkind.t * type_expr
 
 let jkind_of_result = function
   | Jkind l -> l
@@ -2092,7 +2092,7 @@ let tvariant_not_immediate row =
    or when the type is a Tconstr that is missing from the Env due to a missing
    cmi). *)
 let rec estimate_type_jkind env ty =
-  let open Jkind.Type in
+  let open Jkind in
   match get_desc ty with
   | Tconstr(p, _, _) -> begin
     try
@@ -2113,15 +2113,15 @@ let rec estimate_type_jkind env ty =
        generalized.
 
        This, however, still allows sort variables to get instantiated. *)
-    Jkind jkind
-  | Tvar { jkind } -> TyVar (jkind, ty)
+    Jkind (Type jkind)
+  | Tvar { jkind } -> TyVar (Type jkind, ty)
   | Tarrow _ -> Jkind (Primitive.value ~why:Arrow)
   | Ttuple _ -> Jkind (Primitive.value ~why:Tuple)
   | Tobject _ -> Jkind (Primitive.value ~why:Object)
   | Tfield _ -> Jkind (Primitive.value ~why:Tfield)
   | Tnil -> Jkind (Primitive.value ~why:Tnil)
   | (Tlink _ | Tsubst _) -> assert false
-  | Tunivar { jkind } -> Jkind jkind
+  | Tunivar { jkind } -> Jkind (Type jkind)
   | Tpoly (ty, _) -> estimate_type_jkind env ty
   | Tpackage _ -> Jkind (Primitive.value ~why:First_class_module)
 
@@ -2132,15 +2132,15 @@ type type_jkind_sub_result =
     (* The [Type_var] case might still be "success"; caller should check.
        We don't just report success here because if the caller unifies the
        tyvar, error messages improve. *)
-  | Type_var of Jkind.Type.t * type_expr
-  | Missing_cmi of Jkind.Type.t * Path.t
-  | Failure of Jkind.Type.t
+  | Type_var of Jkind.t * type_expr
+  | Missing_cmi of Jkind.t * Path.t
+  | Failure of Jkind.t
 
 let type_jkind_sub env ty jkind =
   let shallow_check ty =
     match estimate_type_jkind env ty with
     | Jkind ty_jkind ->
-      if Jkind.Type.sub ty_jkind jkind then Success else Failure ty_jkind
+      if Jkind.sub ty_jkind jkind then Success else Failure ty_jkind
     | TyVar (ty_jkind, ty) -> Type_var (ty_jkind, ty)
   in
   (* The "fuel" argument here is used because we're duplicating the loop of
@@ -2164,9 +2164,9 @@ let type_jkind_sub env ty jkind =
     | Tconstr(p, _args, _abbrev) ->
         let jkind_bound =
           try (Env.find_type p env).type_jkind
-          with Not_found -> Jkind.Type.Primitive.any ~why:(Missing_cmi p)
+          with Not_found -> Jkind.Primitive.any ~why:(Missing_cmi p)
         in
-        if Jkind.Type.sub jkind_bound jkind
+        if Jkind.sub jkind_bound jkind
         then Success
         else if fuel < 0 then Failure jkind_bound
         else begin match unbox_once env ty with
@@ -2192,23 +2192,23 @@ let constrain_type_jkind ~fixed env ty jkind =
   match type_jkind_sub env ty jkind with
   | Success -> Ok ()
   | Type_var (ty_jkind, ty) ->
-    if fixed then Jkind.Type.sub_or_error ty_jkind jkind else
+    if fixed then Jkind.sub_or_error ty_jkind jkind else
     let jkind_inter =
-      Jkind.Type.intersection_or_error ~reason:Tyvar_refinement_intersection
+      Jkind.intersection_or_error ~reason:Tyvar_refinement_intersection
         ty_jkind jkind
     in
     Result.map (set_var_jkind ty) jkind_inter
   | Missing_cmi (ty_jkind, missing_cmi) ->
-    Error Jkind.Type.(Violation.of_ ~missing_cmi
+    Error Jkind.(Violation.of_ ~missing_cmi
       (Not_a_subjkind
          (History.update_reason ty_jkind (Missing_cmi missing_cmi), jkind)))
   | Failure ty_jkind ->
-    Error (Jkind.Type.Violation.of_ (Not_a_subjkind (ty_jkind, jkind)))
+    Error (Jkind.Violation.of_ (Not_a_subjkind (ty_jkind, jkind)))
 
 let constrain_type_jkind ~fixed env ty jkind =
   (* An optimization to avoid doing any work if we're checking against
      any. *)
-  if Jkind.Type.is_max jkind then Ok ()
+  if Jkind.is_max jkind then Ok ()
   else constrain_type_jkind ~fixed env ty jkind
 
 let check_type_jkind env ty jkind =
@@ -2224,12 +2224,12 @@ let check_type_externality env ty ext =
   let upper_bound =
     Jkind.Type.set_externality_upper_bound (Jkind.Type.Primitive.any ~why:Dummy_jkind) ext
   in
-  match check_type_jkind env ty upper_bound with
+  match check_type_jkind env ty (Type upper_bound) with
   | Ok () -> true
   | Error _ -> false
 
 let check_decl_jkind env decl jkind =
-  match Jkind.Type.sub_or_error decl.type_jkind jkind with
+  match Jkind.sub_or_error decl.type_jkind jkind with
   | Ok () as ok -> ok
   | Error _ as err ->
       match decl.type_manifest with
@@ -2237,7 +2237,7 @@ let check_decl_jkind env decl jkind =
       | Some ty -> check_type_jkind env ty jkind
 
 let constrain_decl_jkind env decl jkind =
-  match Jkind.Type.sub_or_error decl.type_jkind jkind with
+  match Jkind.sub_or_error decl.type_jkind jkind with
   | Ok () as ok -> ok
   | Error _ as err ->
       match decl.type_manifest with
@@ -2294,7 +2294,7 @@ let rec intersect_type_jkind ~reason env ty1 jkind2 =
     (* [intersect_type_jkind] is called rarely, so we don't bother with trying
        to avoid this call as in [constrain_type_jkind] *)
     let ty1 = get_unboxed_type_approximation env ty1 in
-    Jkind.Type.intersection_or_error ~reason (estimate_type_jkind env ty1) jkind2
+    Jkind.intersection_or_error ~reason (estimate_type_jkind env ty1) jkind2
 
 (* See comment on [jkind_unification_mode] *)
 let unification_jkind_check env ty jkind =
@@ -2810,7 +2810,7 @@ let reify env t =
   let fresh_constr_scope = get_gadt_equations_level () in
   let create_fresh_constr lev name jkind =
     let name = match name with Some s -> "$'"^s | _ -> "$" in
-    let decl = new_local_type jkind ~jkind_annot:None in
+    let decl = new_local_type (Type jkind) ~jkind_annot:None in
     let (id, new_env) =
       Env.enter_type (get_new_abstract_name !env name) decl !env
         ~scope:fresh_constr_scope in
@@ -2922,7 +2922,7 @@ let equivalent_with_nolabels l1 l2 =
 
 (* the [tk] means we're comparing a type against a jkind *)
 let has_jkind_intersection_tk env ty jkind =
-  Jkind.Type.has_intersection (type_jkind env ty) jkind
+  Jkind.has_intersection (type_jkind env ty) jkind
 
 (* [mcomp] tests if two types are "compatible" -- i.e., if they could ever
    unify.  (This is distinct from [eqtype], which checks if two types *are*
@@ -2944,7 +2944,7 @@ let rec mcomp type_pairs env t1 t2 =
   if eq_type t1 t2 then () else
   match (get_desc t1, get_desc t2, t1, t2) with
   | (Tvar { jkind }, _, _, other)
-  | (_, Tvar { jkind }, other, _) -> check_jkinds other jkind
+  | (_, Tvar { jkind }, other, _) -> check_jkinds other (Type jkind)
   | (Tconstr (p1, [], _), Tconstr (p2, [], _), _, _) when Path.same p1 p2 ->
       ()
   | _ ->
@@ -2956,7 +2956,7 @@ let rec mcomp type_pairs env t1 t2 =
         TypePairs.add type_pairs (t1', t2');
         match (get_desc t1', get_desc t2', t1', t2') with
         | (Tvar { jkind }, _, _, other)
-        | (_, Tvar { jkind }, other, _)  -> check_jkinds other jkind
+        | (_, Tvar { jkind }, other, _)  -> check_jkinds other (Type jkind)
         | (Tarrow ((l1,_,_), t1, u1, _), Tarrow ((l2,_,_), t2, u2, _), _, _)
           when equivalent_with_nolabels l1 l2 ->
             mcomp type_pairs env t1 t2;
@@ -3075,7 +3075,7 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
     let decl = Env.find_type p1 env in
     let decl' = Env.find_type p2 env in
     let check_jkinds () =
-      if not (Jkind.Type.has_intersection decl.type_jkind decl'.type_jkind)
+      if not (Jkind.has_intersection decl.type_jkind decl'.type_jkind)
       then raise Incompatible
     in
     if compatible_paths p1 p2 then begin
@@ -3204,7 +3204,7 @@ let add_jkind_equation ~reason env destination jkind1 =
         begin
           try
             let decl = Env.find_type p !env in
-            if not (Jkind.Type.equal jkind decl.type_jkind)
+            if not (Jkind.equal jkind decl.type_jkind)
             then
               let refined_decl = { decl with type_jkind = jkind } in
               env := Env.add_local_type p refined_decl !env
@@ -3348,7 +3348,7 @@ let unify1_var env t1 t2 =
   occur_for Unify env t1 t2;
   match
     occur_univar_for Unify env t2;
-    unification_jkind_check env t2 jkind
+    unification_jkind_check env t2 (Type jkind)
   with
   | () ->
       begin
@@ -3530,9 +3530,9 @@ and unify3 env t1 t1' t2 t2' =
       unify_univar_for Unify t1' t2' k1 k2 !univar_pairs;
       link_type t1' t2'
   | (Tvar { jkind }, _) ->
-      unify3_var env jkind t1' t2 t2'
+      unify3_var env (Type jkind) t1' t2 t2'
   | (_, Tvar { jkind }) ->
-      unify3_var env jkind t2' t1 t1'
+      unify3_var env (Type jkind) t2' t1 t1'
   | (Tfield _, Tfield _) -> (* special case for GADTs *)
       unify_fields env t1' t2'
   | _ ->
@@ -4006,7 +4006,7 @@ let unify_var ~from_subst env t1 t2 =
         update_level_for Unify env (get_level t1) t2;
         update_scope_for Unify (get_scope t1) t2;
         if not from_subst then begin
-          unification_jkind_check env t2 jkind
+          unification_jkind_check env t2 (Type jkind)
         end;
         link_type t1 t2;
         reset_trace_gadt_instances reset_tracing;
@@ -4120,7 +4120,7 @@ let filter_arrow env t l ~force_tpoly =
   match get_desc t with
     Tvar { jkind } ->
       let t', arrow_desc = function_type (get_level t) in
-      begin match constrain_type_jkind env t' jkind with
+      begin match constrain_type_jkind env t' (Type jkind) with
       | Ok _ -> ()
       | Error err ->
         raise (Filter_arrow_failed
@@ -4164,7 +4164,7 @@ type filter_method_failure =
   | Unification_error of unification_error
   | Not_a_method
   | Not_an_object of type_expr
-  | Not_a_value of Jkind.Type.Violation.t
+  | Not_a_value of Jkind.Violation.t
 
 exception Filter_method_failed of filter_method_failure
 
@@ -4228,7 +4228,7 @@ let filter_method env name ty =
       let scope = get_scope ty in
       let ty', ty_meth = object_type ~level ~scope in
       begin match
-        constrain_type_jkind env ty (Jkind.Type.Primitive.value ~why:Object)
+        constrain_type_jkind env ty (Jkind.Primitive.value ~why:Object)
       with
       | Ok _ -> ()
       | Error err -> raise (Filter_method_failed (Not_a_value err))
@@ -4624,7 +4624,7 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
         occur_for Moregen env t1 t2;
         (* use [check], not [constrain], here because [constrain] would be like
         instantiating [t2], which we do not wish to do *)
-        check_type_jkind_exn env Moregen t2 jkind;
+        check_type_jkind_exn env Moregen t2 (Type jkind);
         link_type t1 t2
     | (Tconstr (p1, [], _), Tconstr (p2, [], _)) when Path.same p1 p2 ->
         ()
@@ -4642,7 +4642,7 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
               update_scope_for Moregen (get_scope t1') t2;
               (* use [check], not [constrain], here because [constrain] would be like
               instantiating [t2], which we do not wish to do *)
-              check_type_jkind_exn env Moregen t2 jkind;
+              check_type_jkind_exn env Moregen t2 (Type jkind);
               link_type t1' t2
           | (Tarrow ((l1,a1,r1), t1, u1, _),
              Tarrow ((l2,a2,r2), t2, u2, _)) when
@@ -5625,7 +5625,7 @@ let mode_cross_left env ty mode =
      the types here aren't principal. In any case, leaving the check out
      now; will return and figure this out later. *)
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.Type.get_modal_upper_bounds jkind in
+  let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind jkind) in
   Alloc.meet_const upper_bounds mode
 
 (* CR layouts v2.8: merge with Typecore.expect_mode_cross when [Value]
@@ -5634,7 +5634,7 @@ let mode_cross_right env ty mode =
   (* CR layouts v2.8: This should probably check for principality. See
      similar comment in [mode_cross_left]. *)
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.Type.get_modal_upper_bounds jkind in
+  let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind jkind) in
   Alloc.imply upper_bounds mode
 
 let rec build_subtype env (visited : transient_expr list)
