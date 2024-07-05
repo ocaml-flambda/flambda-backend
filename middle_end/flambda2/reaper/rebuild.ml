@@ -32,7 +32,8 @@ type env = {
 
 let is_used (env : env) cn = Hashtbl.mem env.uses cn
 
-let is_code_id_used (env : env) code_id = is_used env (Code_id_or_name.code_id code_id)
+let is_code_id_used (env : env) code_id =
+  is_used env (Code_id_or_name.code_id code_id) || not (Compilation_unit.is_current (Code_id.get_compilation_unit code_id))
 let is_name_used (env : env) name = is_used env (Code_id_or_name.name name)
 let is_var_used (env : env) var = is_used env (Code_id_or_name.var var)
 let is_symbol_used (env : env) symbol = is_used env (Code_id_or_name.symbol symbol)
@@ -102,7 +103,7 @@ let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
              match code_id with
              | Deleted _ -> code_id
              | Code_id code_id ->
-               if is_code_id_used env code_id || not (Compilation_unit.is_current (Code_id.get_compilation_unit code_id))then
+               if is_code_id_used env code_id then
                  Code_id code_id
                else
                   let code_metadata = env.get_code_metadata code_id in
@@ -204,7 +205,7 @@ let rewrite_set_of_closures bound (env : env) value_slots alloc_mode
            | Deleted _ -> code_id
            | Code_id code_id ->
              if (* slot_is_used (Function_slot slot) *)
-               is_code_id_used env code_id || not (Compilation_unit.is_current (Code_id.get_compilation_unit code_id))
+               is_code_id_used env code_id
              then Code_id code_id
              else
                 let code_metadata = env.get_code_metadata code_id in
@@ -258,14 +259,34 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (env : env)
 
          mshinwell: I'll move this to a function on Apply and fix it *)
       let call_kind =
+        let rewrite_simple = rewrite_simple kinds env in
         match Apply.call_kind apply with
         | Function _ as ck -> ck (* todo alloc_mode? *)
         | Method { kind; obj; alloc_mode } ->
           (* todo alloc_mode? *)
           Call_kind.method_call kind
-            ~obj:(rewrite_simple kinds env obj)
+            ~obj:(rewrite_simple obj)
             alloc_mode
         | C_call _ as ck -> ck
+        | Effect (Perform { eff }) ->
+          Call_kind.effect (Call_kind.Effect.perform
+                            ~eff:(rewrite_simple eff))
+        | Effect (Reperform { eff; cont; last_fiber }) ->
+          Call_kind.effect (Call_kind.Effect.reperform
+                              ~eff:(rewrite_simple eff)
+                              ~cont:(rewrite_simple cont)
+                              ~last_fiber:(rewrite_simple last_fiber)
+                          )
+        | Effect (Run_stack { stack; f; arg }) ->
+          Call_kind.effect (Call_kind.Effect.run_stack
+                              ~stack:(rewrite_simple stack)
+                              ~f:(rewrite_simple f)
+                              ~arg:(rewrite_simple arg))
+        | Effect (Resume { stack; f; arg }) ->
+          Call_kind.effect (Call_kind.Effect.resume
+                              ~stack:(rewrite_simple stack)
+                              ~f:(rewrite_simple f)
+                              ~arg:(rewrite_simple arg))
       in
       let apply =
         Apply.create
