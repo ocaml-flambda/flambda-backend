@@ -79,6 +79,8 @@ module type Code_metadata_accessors_result_type = sig
   val relative_history : 'a t -> Inlining_history.Relative.t
 
   val loopify : 'a t -> Loopify_attribute.t
+
+  val function_slot_size : 'a t -> int
 end
 
 module Code_metadata_accessors : functor (X : Metadata_view_type) ->

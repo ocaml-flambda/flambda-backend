@@ -22,7 +22,7 @@ let unit_with_body (unit : Flambda_unit.t) (body : Flambda.Expr.t) =
     ~module_symbol:(Flambda_unit.module_symbol unit)
     ~used_value_slots:(Flambda_unit.used_value_slots unit)
 
-let run ~cmx_loader (unit : Flambda_unit.t) =
+let run ~cmx_loader ~all_code (unit : Flambda_unit.t) =
   let debug_print = Flambda_features.dump_reaper () in
   let holed, deps, kinds = Traverse.run unit in
   if debug_print
@@ -35,7 +35,7 @@ let run ~cmx_loader (unit : Flambda_unit.t) =
     then Dot_printer.print_solved_dep solved_dep (Code_id.Map.empty, deps)
   in
   let Rebuild.{ body; free_names; all_code; slot_offsets } =
-    Rebuild.rebuild kinds solved_dep holed
+    Rebuild.rebuild kinds solved_dep (fun code_id -> Code_or_metadata.code_metadata (Exported_code.find_exn all_code code_id)) holed
   in
   (* Is this what we really want? This keeps all the code that has not been
      deleted by this pass to be exported in the cmx. It looks like this does the
