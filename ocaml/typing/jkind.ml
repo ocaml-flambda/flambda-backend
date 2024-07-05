@@ -1591,7 +1591,7 @@ module Format_history = struct
         reason;
       match reason, jkind_desc with
       | Concrete_default_creation _, Const _ ->
-        fprintf ppf ", defaulted to kind %a" Desc.format jkind_desc
+        fprintf ppf ", defaulted to %s %a" layout_or_kind Desc.format jkind_desc
       | _ -> ())
     | _ -> assert false);
     fprintf ppf ".";
