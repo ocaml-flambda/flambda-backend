@@ -1545,7 +1545,8 @@ module Format_history = struct
       format_immediate64_creation_reason ppf immediate64
     | Void_creation _ -> .
     | Value_or_null_creation _ -> .
-    | Value_creation value -> format_value_creation_reason ppf ~layout_or_kind value
+    | Value_creation value ->
+      format_value_creation_reason ppf ~layout_or_kind value
     | Float64_creation float -> format_float64_creation_reason ppf float
     | Float32_creation float -> format_float32_creation_reason ppf float
     | Word_creation word -> format_word_creation_reason ppf word
@@ -1586,12 +1587,11 @@ module Format_history = struct
     fprintf ppf "@[<v 2>%t" intro;
     (match t.history with
     | Creation reason -> (
-      fprintf ppf "@ because %a"
-        (format_creation_reason ~layout_or_kind)
-        reason;
+      fprintf ppf "@ because %a" (format_creation_reason ~layout_or_kind) reason;
       match reason, jkind_desc with
       | Concrete_default_creation _, Const _ ->
-        fprintf ppf ",@ defaulted to %s %a" layout_or_kind Desc.format jkind_desc
+        fprintf ppf ",@ defaulted to %s %a" layout_or_kind Desc.format
+          jkind_desc
       | _ -> ())
     | _ -> assert false);
     fprintf ppf ".";
@@ -1717,14 +1717,14 @@ module Violation = struct
       fprintf ppf "@[<v>%a@;%a@]"
         (Format_history.format_history
            ~intro:
-             (dprintf "@[<hov 2>The %s of %a is %a@]" layout_or_kind pp_former former
-                format_layout_or_kind k1)
+             (dprintf "@[<hov 2>The %s of %a is %a@]" layout_or_kind pp_former
+                former format_layout_or_kind k1)
            ~layout_or_kind)
         k1
         (Format_history.format_history
            ~intro:
-             (dprintf "@[<hov 2>But the %s of %a must %t@]" layout_or_kind pp_former former
-                connective)
+             (dprintf "@[<hov 2>But the %s of %a must %t@]" layout_or_kind
+                pp_former former connective)
            ~layout_or_kind)
         k2
     else
