@@ -107,7 +107,7 @@ module History : sig
 
   (* history *)
 
-  val has_imported_history : t -> bool
+  val is_imported : t -> bool
 
   val update_reason : t -> creation_reason -> t
 
