@@ -455,6 +455,11 @@ and traverse_apply denv acc apply : rev_expr =
     | Function _ -> ()
     | Method { obj; kind = _; alloc_mode = _ } -> Acc.used ~denv obj acc
     | C_call _ -> ()
+    | Effect (Perform { eff }) -> Acc.used ~denv eff acc
+    | Effect (Reperform { eff; cont; last_fiber }) ->
+      Acc.used ~denv eff acc; Acc.used ~denv cont acc; Acc.used ~denv last_fiber acc
+    | Effect (Run_stack { stack; f; arg } | Resume { stack; f; arg }) ->
+      Acc.used ~denv stack acc; Acc.used ~denv f acc; Acc.used ~denv arg acc
   in
   let return_args =
     match Apply.continuation apply with
@@ -551,7 +556,7 @@ and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
       (Code_id_or_name.var exn_arg)
       (Field { relation = Apply Exn; target = !partial_apply })
       acc
-  | Method _ | C_call _ -> default_acc acc
+  | Method _ | C_call _ | Effect _ -> default_acc acc
 
 and traverse_apply_cont denv acc apply_cont : rev_expr =
   let expr = Apply_cont apply_cont in
