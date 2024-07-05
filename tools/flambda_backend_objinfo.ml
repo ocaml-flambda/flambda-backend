@@ -227,8 +227,7 @@ let print_general_infos print_name name crc defines iter_cmi iter_cmx =
   printf "Interfaces imported:\n";
   iter_cmi print_intf_import;
   printf "Implementations imported:\n";
-  iter_cmx print_impl_import;
-  ()
+  iter_cmx print_impl_import
 
 let print_global_table table =
   printf "Globals defined:\n";

@@ -2,10 +2,14 @@
  readonly_files = "\
    bad_arg_impl.ml bad_arg_impl.reference \
    bad_arg_intf.mli bad_arg_intf.reference \
+   bad_param_param.mli bad_param_param.reference \
    bad_ref_direct.ml bad_ref_direct.reference \
-   bad_ref_indirect.ml bad_ref_indirect.reference \
+   bad_ref_indirect.reference \
    monoid.mli \
    monoid_utils.ml monoid_utils.mli monoid_utils_as_program.reference \
+   ref_indirect.ml \
+   ref_indirect.cmo.ocamlobjinfo.reference \
+   ref_indirect.cmx.ocamlobjinfo.reference \
    string_monoid.ml string_monoid.mli \
    test_direct_access.ml test_direct_access.reference \
  ";
@@ -24,6 +28,15 @@
      ocamlc.byte;
 
      compiler_reference = "bad_ref_direct.reference";
+     check-ocamlc.byte-output;
+   }{
+     flags = "-parameter Monoid -as-parameter";
+     module = "bad_param_param.mli";
+     compiler_output = "bad_param_param.output";
+     ocamlc_byte_exit_status = "2";
+     ocamlc.byte;
+
+     compiler_reference = "bad_param_param.reference";
      check-ocamlc.byte-output;
    }{
      flags = "-as-argument-for Monoid";
@@ -77,6 +90,10 @@
      module = "monoid_utils.mli monoid_utils.ml";
      ocamlc.byte;
      {
+       src = "ref_indirect.ml";
+       dst = "bad_ref_indirect.ml";
+       copy;
+
        flags = "";
        module = "bad_ref_indirect.ml";
        compiler_output = "bad_ref_indirect.output";
@@ -85,6 +102,20 @@
 
        compiler_reference = "bad_ref_indirect.reference";
        check-ocamlc.byte-output;
+     }{
+       flags = "-parameter Monoid";
+       module = "ref_indirect.ml";
+       ocamlc.byte;
+
+       (* [-no-code] and [-no-approx] are currently unimplemented (see PR 2737), which
+          sadly does make the reference file here a mite bloated and sensitive to
+          random changes in flambda2. *)
+       program = "-no-code -no-approx ref_indirect.cmo ref_indirect.cmi";
+       output = "ref_indirect.cmo.ocamlobjinfo.output";
+       ocamlobjinfo;
+
+       reference = "ref_indirect.cmo.ocamlobjinfo.reference";
+       check-program-output;
      }{
        program = "${test_build_directory}/monoid_utils_as_program.bc";
        module = "";
@@ -113,6 +144,15 @@
      ocamlopt.byte;
 
      compiler_reference = "bad_ref_direct.reference";
+     check-ocamlopt.byte-output;
+   }{
+     flags = "-parameter Monoid -as-parameter";
+     module = "bad_param_param.mli";
+     compiler_output = "bad_param_param.output";
+     ocamlopt_byte_exit_status = "2";
+     ocamlopt.byte;
+
+     compiler_reference = "bad_param_param.reference";
      check-ocamlopt.byte-output;
    }{
      flags = "-as-argument-for Monoid";
@@ -166,6 +206,10 @@
      module = "monoid_utils.mli monoid_utils.ml";
      ocamlopt.byte;
      {
+       src = "ref_indirect.ml";
+       dst = "bad_ref_indirect.ml";
+       copy;
+
        flags = "";
        module = "bad_ref_indirect.ml";
        compiler_output = "bad_ref_indirect.output";
@@ -174,6 +218,23 @@
 
        compiler_reference = "bad_ref_indirect.reference";
        check-ocamlopt.byte-output;
+     }{
+       flags = "-parameter Monoid";
+       module = "ref_indirect.ml";
+       ocamlopt.byte;
+
+       (* [-no-code] and [-no-approx] are currently unimplemented (see PR 2737), which
+          sadly does make the reference file here a mite bloated and sensitive to
+          random changes in flambda2. *)
+       program = "-no-code -no-approx ref_indirect.cmx ref_indirect.cmi";
+       output = "ref_indirect.cmx.ocamlobjinfo.output";
+       ocamlobjinfo;
+
+       reason = "sensitive to runtime4 vs. runtime5; will be fixed by PR 2737";
+       skip;
+
+       reference = "ref_indirect.cmx.ocamlobjinfo.reference";
+       check-program-output;
      }{
        program = "${test_build_directory}/monoid_utils_as_program.exe";
        module = "";

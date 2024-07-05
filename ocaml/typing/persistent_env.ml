@@ -69,7 +69,7 @@ type import = {
   imp_is_param : bool;
   imp_params : Global_module.Name.t list;
   imp_arg_for : Global_module.Name.t option;
-  imp_impl : CU.t option;
+  imp_impl : CU.t option; (* None iff import is a parameter *)
   imp_sign : Subst.Lazy.signature;
   imp_filename : string;
   imp_visibility: Load_path.visibility;
@@ -83,9 +83,10 @@ type import_info =
   | Missing
   | Found of import
 
+(* What a global identifier is actually bound to in Lambda code *)
 type binding =
-  | Local of Ident.t (* Bound to a runtime parameter *)
-  | Static of Compilation_unit.t (* Bound to a static constant *)
+  | Runtime_parameter of Ident.t (* Bound to a runtime parameter *)
+  | Constant of Compilation_unit.t (* Bound to a static constant *)
 
 (* Data relating to an actual referenceable module, with a signature and a
    representation in memory. *)
@@ -349,11 +350,11 @@ let check_for_unset_parameters penv modname import =
            }))
     import.imp_params
 
-let make_binding _penv modname (impl : CU.t option) : binding =
-  match impl with
-  | Some unit -> Static unit
-  | None ->
-      Local (Ident.create_local_binding_for_global modname)
+let make_binding _penv modname (import : import) : binding =
+  match import with
+  | { imp_impl = Some unit; imp_params = [] } -> Constant unit
+  | { imp_impl = None } | { imp_params = _ :: _ } ->
+      Runtime_parameter (Ident.create_local_binding_for_global modname)
 
 type address =
   | Aunit of Compilation_unit.t
@@ -375,7 +376,6 @@ type 'a sig_reader =
 let acknowledge_pers_struct penv modname import val_of_pers_sig =
   let {persistent_structures; _} = penv in
   let is_param = import.imp_is_param in
-  let impl = import.imp_impl in
   let sign = import.imp_sign in
   let filename = import.imp_filename in
   let flags = import.imp_flags in
@@ -388,25 +388,29 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
   | true, true
   | false, false -> ()
   end;
-  let binding = make_binding penv modname impl in
+  let binding = make_binding penv modname import in
   let address : address =
     match binding with
-    | Local id -> Alocal id
-    | Static unit -> Aunit unit
+    | Runtime_parameter id -> Alocal id
+    | Constant unit -> Aunit unit
   in
   let uid =
-    (* The uid neeeds to include the either the pack prefix, if it's packed, or
-       the arguments, if it has any. It cannot have both. *)
-    match binding with
-    | Local _ -> (* no pack prefix *) Shape.Uid.of_global_name modname
-    | Static unit -> Shape.Uid.of_compilation_unit_id unit
+    (* This is source-level information that depends only on the import, not the
+       arguments. (TODO: Consider moving this bit into [acknowledge_import].) *)
+    match import.imp_impl with
+    | Some unit -> Shape.Uid.of_compilation_unit_id unit
+    | None ->
+        (* TODO: [Shape.Uid.of_compilation_unit_id] is actually the wrong type, since
+           parameters should also have uids but they don't have .cmx files and thus
+           they don't have [CU.t]s *)
+        Shape.Uid.internal_not_actually_unique
   in
   let shape =
-    match binding with
-    | Static unit -> Shape.for_persistent_unit (CU.full_path_as_string unit)
-    | Local ident ->
-        (* FIXME This is probably wrong for non-parameter modules *)
-        Shape.var uid ident
+    match import.imp_impl, import.imp_params with
+    | Some unit, [] -> Shape.for_persistent_unit (CU.full_path_as_string unit)
+    | _, _ ->
+        (* TODO Implement shapes for parameters and parameterised modules *)
+        Shape.error ~uid "parameter or parameterised module"
   in
   let pm = val_of_pers_sig sign modname uid ~shape ~address ~flags in
   let ps =
@@ -539,11 +543,11 @@ let imports {imported_units; crc_units; _} =
 
 let local_ident penv modname =
   match find_info_in_cache penv modname with
-  | Some { ps_binding = Local local_ident; _ } -> Some local_ident
-  | Some { ps_binding = Static _; _ }
+  | Some { ps_binding = Runtime_parameter local_ident; _ } -> Some local_ident
+  | Some { ps_binding = Constant _; _ }
   | None -> None
 
-let locally_bound_imports ({persistent_structures; _} as penv) =
+let runtime_parameters ({persistent_structures; _} as penv) =
   persistent_structures
   |> Hashtbl.to_seq_keys
   |> Seq.filter_map
@@ -616,6 +620,9 @@ let save_cmi penv psig =
     )
     ~exceptionally:(fun () -> remove_file filename)
 
+(* TODO: These should really have locations in them where possible (adapting
+   [Typemod]'s [Error] constructor is probably the easiest path) *)
+
 let report_error ppf =
   let open Format in
   function
@@ -664,14 +671,15 @@ let report_error ppf =
   | Imported_module_has_unset_parameter
         { imported = modname; parameter = param } ->
       fprintf ppf
-        "@[<hov>The module %a@ has parameter %a.@ \
-         %a is not declared as a parameter for the current unit (-parameter %a)@ \
-         and therefore %a@ is not accessible.@]"
+        "@[<hov>The module %a@ is not accessible because it takes %a@ \
+         as a parameter and the current unit does not.@]@.\
+         @[<hov>@{<hint>Hint@}: \
+           @[<hov>Pass `-parameter %a`@ to add %a@ as a parameter@ \
+           of the current unit.@]@]"
         Global_module.Name.print modname
         Global_module.Name.print param
         Global_module.Name.print param
         Global_module.Name.print param
-        Global_module.Name.print modname
 
 let () =
   Location.register_error_of_exn
