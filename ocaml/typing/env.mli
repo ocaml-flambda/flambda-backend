@@ -491,11 +491,11 @@ val imports: unit -> Import_info.t list
 (* may raise Persistent_env.Consistbl.Inconsistency *)
 val import_crcs: source:string -> Import_info.t array -> unit
 
-(* Return the set of imports represented as parameters, along with the
-   local variable representing each *)
-val locally_bound_imports: unit -> (Global_module.Name.t * Ident.t) list
+(* Return the set of imports represented as runtime parameters (see
+   [Persistent_env.runtime_parameters] for details) *)
+val runtime_parameters: unit -> (Global_module.Name.t * Ident.t) list
 
-(* Return the list of parameters registered for the current unit, in
+(* Return the list of parameters specified for the current unit, in
    alphabetical order *)
 val parameters: unit -> Global_module.Name.t list
 
