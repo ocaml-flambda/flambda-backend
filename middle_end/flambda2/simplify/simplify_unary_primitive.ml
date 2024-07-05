@@ -502,7 +502,7 @@ Make_simplify_reinterpret_64_bit_word (struct
   (* This primitive is logical OR with 1 on machine words, but here, we are
      working in the tagged world. As such a different computation is
      required. *)
-  let convert i = Targetint_31_63.of_int64 (Int64.div i 2L)
+  let convert i = Targetint_31_63.of_int64 (Int64.shift_right_logical i 1)
 
   let these = T.these_tagged_immediates
 
