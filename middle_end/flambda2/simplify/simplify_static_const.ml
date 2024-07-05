@@ -23,8 +23,7 @@ let simplify_field_of_block dacc (field : Field_of_static_block.t) =
   | Tagged_immediate i -> field, T.this_tagged_immediate i
   | Dynamically_computed (var, dbg) ->
     let min_name_mode = Name_mode.normal in
-    let ty = S.simplify_simple dacc (Simple.var var) ~min_name_mode in
-    let simple = T.get_alias_exn ty in
+    let ty, simple = S.simplify_simple dacc (Simple.var var) ~min_name_mode in
     Simple.pattern_match simple
       ~name:(fun name ~coercion:_ ->
         (* CR mshinwell: It's safe to drop the coercion, but perhaps not
@@ -84,11 +83,11 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
       let fields = field_tys in
       match is_mutable with
       | Immutable ->
-        T.immutable_block ~is_unique:false tag ~field_kind:K.value ~fields
-          Alloc_mode.For_types.heap
+        T.immutable_block ~is_unique:false tag ~shape:K.Block_shape.Value_only
+          ~fields Alloc_mode.For_types.heap
       | Immutable_unique ->
-        T.immutable_block ~is_unique:true tag ~field_kind:K.value ~fields
-          Alloc_mode.For_types.heap
+        T.immutable_block ~is_unique:true tag ~shape:K.Block_shape.Value_only
+          ~fields Alloc_mode.For_types.heap
       | Mutable -> T.any_value
     in
     let dacc = bind_result_sym ty in

@@ -396,6 +396,52 @@ Error: Expected all flat fields after non-value field, x,
        but found boxed field, y.
 |}];;
 
+(* Types with external mode are allowed in flat suffix *)
+
+type ('a : value mod external_) t = A of float# * 'a
+type ('a : immediate) t = A of float# * 'a
+[%%expect {|
+type ('a : value mod external_) t = A of float# * 'a
+type ('a : immediate) t = A of float# * 'a
+|}]
+
+type u : value mod external_
+type t = A of float * u
+[%%expect {|
+type u : value mod external_
+type t = A of float * u
+|}]
+
+type u : immediate
+type t = A of float# * u
+[%%expect {|
+type u : immediate
+type t = A of float# * u
+|}]
+
+(* Types with external mode and value layout are allowed in scannable prefix *)
+
+type ('a : value mod external_) t = A of 'a * string
+type ('a : immediate) t = A of 'a * string
+[%%expect {|
+type ('a : value mod external_) t = A of 'a * string
+type ('a : immediate) t = A of 'a * string
+|}]
+
+type u : value mod external_
+type t = A of u * string
+[%%expect {|
+type u : value mod external_
+type t = A of u * string
+|}]
+
+type u : immediate
+type t = A of u * string
+[%%expect {|
+type u : immediate
+type t = A of u * string
+|}]
+
 (* Recursive groups. There's not a good way to exercise the same functionality
    for extensible variants, so we omit that aspect of this test.
 *)

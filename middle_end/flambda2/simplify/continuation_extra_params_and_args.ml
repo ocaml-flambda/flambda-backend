@@ -47,7 +47,7 @@ type t =
   | Empty
   | Non_empty of
       { extra_params : Bound_parameters.t;
-        extra_args : Extra_arg.t list Apply_cont_rewrite_id.Map.t
+        extra_args : Extra_arg.t list Or_invalid.t Apply_cont_rewrite_id.Map.t
       }
 
 let [@ocamlformat "disable"] print ppf = function
@@ -58,35 +58,74 @@ let [@ocamlformat "disable"] print ppf = function
         @[<hov 1>(extra_args@ %a)@]\
         )@]"
       Bound_parameters.print extra_params
-      (Apply_cont_rewrite_id.Map.print Extra_arg.List.print) extra_args
+      (Apply_cont_rewrite_id.Map.print (Or_invalid.print Extra_arg.List.print)) extra_args
 
 let empty = Empty
 
 let is_empty = function Empty -> true | Non_empty _ -> false
 
-let add t ~extra_param ~extra_args =
+let add t ~invalids ~extra_param ~extra_args =
+  (* Note: there can be some overlap between the invalid ids and the keys of the
+     [extra_args] map. This is notably used by the unboxing code which may
+     compute some extra args and only later (when computing extra args for
+     another parameter) realize that some rewrite ids are invalids, and then
+     call this function with this new invalid set and the extra_args computed
+     before this invalid set was known. *)
   match t with
   | Empty ->
-    Non_empty
-      { extra_params = Bound_parameters.create [extra_param];
-        extra_args =
-          Apply_cont_rewrite_id.Map.map
-            (fun extra_args -> [extra_args])
-            extra_args
-      }
+    let extra_params = Bound_parameters.create [extra_param] in
+    let valid_extra_args =
+      Apply_cont_rewrite_id.Map.map
+        (fun extra_args -> Or_invalid.Ok [extra_args])
+        extra_args
+    in
+    let extra_args =
+      Apply_cont_rewrite_id.Set.fold
+        (fun id map -> Apply_cont_rewrite_id.Map.add id Or_invalid.Invalid map)
+        invalids valid_extra_args
+    in
+    Non_empty { extra_params; extra_args }
   | Non_empty { extra_params; extra_args = already_extra_args } ->
     let extra_params = Bound_parameters.cons extra_param extra_params in
     let extra_args =
       Apply_cont_rewrite_id.Map.merge
-        (fun id already_extra_args extra_args ->
-          match already_extra_args, extra_args with
+        (fun id already_extra_args extra_arg ->
+          (* The [invalids] set is expected to be small (actually, empty most of
+             the time), so the lookups in each case of the merge should be
+             reasonable, compared to merging (and allocating) the [invalids] set
+             and the [extra_args] map. *)
+          match already_extra_args, extra_arg with
           | None, None -> None
-          | Some l, None ->
-            Misc.fatal_errorf "Cannot change domain (1) %a %i"
-              Apply_cont_rewrite_id.print id (List.length l)
-          | None, Some _ -> Misc.fatal_error "Cannot change domain"
-          | Some already_extra_args, Some extra_arg ->
-            Some (extra_arg :: already_extra_args))
+          | None, Some _ ->
+            Misc.fatal_errorf
+              "[Extra Params and Args] Unexpected New Apply_cont_rewrite_id \
+               (%a) for:\n\
+               new param: %a\n\
+               new args: %a\n\
+               new invalids: %a\n\
+               existing epa: %a" Apply_cont_rewrite_id.print id
+              Bound_parameter.print extra_param
+              (Apply_cont_rewrite_id.Map.print Extra_arg.print)
+              extra_args Apply_cont_rewrite_id.Set.print invalids print t
+          | Some _, None ->
+            if Apply_cont_rewrite_id.Set.mem id invalids
+            then Some Or_invalid.Invalid
+            else
+              Misc.fatal_errorf
+                "[Extra Params and Args] Existing Apply_cont_rewrite_id (%a) \
+                 missing for:\n\
+                 new param: %a\n\
+                 new args: %a\n\
+                 new invalids: %a\n\
+                 existing epa: %a" Apply_cont_rewrite_id.print id
+                Bound_parameter.print extra_param
+                (Apply_cont_rewrite_id.Map.print Extra_arg.print)
+                extra_args Apply_cont_rewrite_id.Set.print invalids print t
+          | Some Or_invalid.Invalid, Some _ -> Some Or_invalid.Invalid
+          | Some (Or_invalid.Ok already_extra_args), Some extra_arg ->
+            if Apply_cont_rewrite_id.Set.mem id invalids
+            then Some Or_invalid.Invalid
+            else Some (Or_invalid.Ok (extra_arg :: already_extra_args)))
         already_extra_args extra_args
     in
     Non_empty { extra_params; extra_args }
@@ -108,8 +147,11 @@ let concat ~outer:t1 ~inner:t2 =
           | Some _, None | None, Some _ ->
             Misc.fatal_errorf "concat: mismatching domains on id %a"
               Apply_cont_rewrite_id.print id
-          | Some extra_args1, Some extra_args2 ->
-            Some (extra_args1 @ extra_args2))
+          | Some Or_invalid.Invalid, Some _ | Some _, Some Or_invalid.Invalid ->
+            Some Or_invalid.Invalid
+          | Some (Or_invalid.Ok extra_args1), Some (Or_invalid.Ok extra_args2)
+            ->
+            Some (Or_invalid.Ok (extra_args1 @ extra_args2)))
         t1.extra_args t2.extra_args
     in
     Non_empty

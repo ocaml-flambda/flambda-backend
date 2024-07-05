@@ -72,6 +72,10 @@ let print_global_line glob =
   (* Type will change soon for parameterised libraries *)
   printf "\t%a\n" Compilation_unit.Name.output glob
 
+let print_global_as_name_line glob =
+  (* Type will change soon for parameterised libraries *)
+  printf "\t%a\n" Compilation_unit.Name.output glob
+
 let print_name_line cu =
   printf "\t%a\n" Compilation_unit.Name.output (Compilation_unit.name cu)
 
@@ -107,7 +111,7 @@ let print_cma_infos (lib : Cmo_format.library) =
   printf "\n";
   List.iter print_cmo_infos lib.lib_units
 
-let print_cmi_infos name crcs kind =
+let print_cmi_infos name crcs kind params =
   if not !quiet then begin
     let open Cmi_format in
     printf "Unit name: %a\n" Compilation_unit.Name.output name;
@@ -117,6 +121,8 @@ let print_cmi_infos name crcs kind =
       | Parameter -> true
     in
     printf "Is parameter: %s\n" (if is_param then "YES" else "no");
+    print_string "Parameters:\n";
+    List.iter print_global_as_name_line params;
     begin
       match kind with
       | Normal { cmi_arg_for = Some arg_for; _ } ->
@@ -268,15 +274,22 @@ let print_cmx_infos (uir, sections, crc) =
     match uir.uir_export_info with
     | None ->
       printf "Flambda 2 unit (with no export information)\n"
+    | Some _ when !no_code && !no_approx ->
+      printf "Flambda 2 unit with export information\n"
     | Some cmx ->
       printf "Flambda 2 export information:\n";
       flush stdout;
+      let print_typing_env = not !no_approx in
+      let print_code = not !no_code in
+      let print_offsets = print_code && print_typing_env in
       let cmx = Flambda2_cmx.Flambda_cmx_format.from_raw cmx ~sections in
-      Format.printf "%a\n%!" Flambda2_cmx.Flambda_cmx_format.print cmx
+      Format.printf "%a\n%!" (Flambda2_cmx.Flambda_cmx_format.print ~print_typing_env ~print_code ~print_offsets) cmx
   end;
   print_generic_fns uir.uir_generic_fns;
   printf "Force link: %s\n" (if uir.uir_force_link then "YES" else "no");
-  Zero_alloc_info.Raw.print uir.uir_zero_alloc_info
+  if not (!no_code || !no_approx) then begin
+    Zero_alloc_info.Raw.print uir.uir_zero_alloc_info
+  end
 
 let print_cmxa_infos (lib : Cmx_format.library_infos) =
   printf "Extra C object files:";
@@ -400,7 +413,7 @@ let dump_obj_by_kind filename ic obj_kind =
       | None -> ()
       | Some cmi ->
         print_cmi_infos cmi.Cmi_format.cmi_name cmi.Cmi_format.cmi_crcs
-          cmi.Cmi_format.cmi_kind
+          cmi.Cmi_format.cmi_kind cmi.Cmi_format.cmi_params
     end;
     begin
       match cmt with None -> () | Some cmt -> print_cmt_infos cmt

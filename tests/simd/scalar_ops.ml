@@ -1,5 +1,6 @@
 
 [@@@ocaml.warning "-unused-value-declaration"]
+[@@@ocaml.warning "-unused-module"]
 
 external int64x2_of_int64s : int64 -> int64 -> int64x2 = "caml_vec128_unreachable" "vec128_of_int64s" [@@noalloc] [@@unboxed]
 external int64x2_low_int64 : int64x2 -> int64 = "caml_vec128_unreachable" "vec128_low_int64" [@@noalloc] [@@unboxed]

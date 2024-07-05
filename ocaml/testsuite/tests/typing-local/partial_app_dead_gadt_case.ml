@@ -2,9 +2,11 @@
    {
      stack-allocation;
      ocamlopt_flags = "-Oclassic";
+     native;
    }{
      stack-allocation;
      ocamlopt_flags = "-O3";
+     native;
    }
 *)
 

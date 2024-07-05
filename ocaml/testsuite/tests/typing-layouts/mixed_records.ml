@@ -138,6 +138,52 @@ type ('a : float64, 'b : immediate) t = { x : string; y : 'a; z : 'b }
 type ('a : float64, 'b : immediate) t = { x : string; y : 'a; z : 'b; }
 |}];;
 
+(* Types with external mode are allowed in flat suffix *)
+
+type ('a : value mod external_) t = { x : float#; y : 'a }
+type ('a : immediate) t = { x : float#; y : 'a }
+[%%expect {|
+type ('a : value mod external_) t = { x : float#; y : 'a; }
+type ('a : immediate) t = { x : float#; y : 'a; }
+|}]
+
+type u : value mod external_
+type t = { x : float#; y : u }
+[%%expect {|
+type u : value mod external_
+type t = { x : float#; y : u; }
+|}]
+
+type u : immediate
+type t = { x : float#; y : u }
+[%%expect {|
+type u : immediate
+type t = { x : float#; y : u; }
+|}]
+
+(* Types with external mode and value layout are allowed in scannable prefix *)
+
+type ('a : value mod external_) t = { x : 'a; y : string }
+type ('a : immediate) t = { x : 'a; y : string }
+[%%expect {|
+type ('a : value mod external_) t = { x : 'a; y : string; }
+type ('a : immediate) t = { x : 'a; y : string; }
+|}]
+
+type u : value mod external_
+type t = { x : u ; y : string }
+[%%expect {|
+type u : value mod external_
+type t = { x : u; y : string; }
+|}]
+
+type u : immediate
+type t = { x : u ; y : string }
+[%%expect {|
+type u : immediate
+type t = { x : u; y : string; }
+|}]
+
 (* Recursive groups *)
 
 type ('a : float64) t_float64_id = 'a

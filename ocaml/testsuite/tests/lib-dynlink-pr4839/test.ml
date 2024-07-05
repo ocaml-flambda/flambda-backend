@@ -295,3 +295,7 @@
    }
  }
 *)
+
+(* CR mshinwell/xclerc: The above "cd" statements are in the wrong place
+   in the test stanzas and are only working by virtue of the
+   changing-directory side effect leaking across children of the [Node]s *)

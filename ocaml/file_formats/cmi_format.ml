@@ -64,12 +64,14 @@ type header = {
     header_name : Compilation_unit.Name.t;
     header_kind : kind;
     header_sign : Serialized.signature;
+    header_params : Compilation_unit.Name.t list;
 }
 
 type 'sg cmi_infos_generic = {
     cmi_name : Compilation_unit.Name.t;
     cmi_kind : kind;
     cmi_sign : 'sg;
+    cmi_params : Compilation_unit.Name.t list;
     cmi_crcs : crcs;
     cmi_flags : flags;
 }
@@ -124,6 +126,7 @@ let input_cmi_lazy ic =
       header_name = name;
       header_kind = kind;
       header_sign = sign;
+      header_params = params;
     } = (input_value ic : header) in
   let crcs = (input_value ic : crcs) in
   let flags = (input_value ic : flags) in
@@ -131,6 +134,7 @@ let input_cmi_lazy ic =
       cmi_name = name;
       cmi_kind = kind;
       cmi_sign = deserialize data sign;
+      cmi_params = params;
       cmi_crcs = crcs;
       cmi_flags = flags;
     }
@@ -191,6 +195,7 @@ let output_cmi filename oc cmi =
       header_name = cmi.cmi_name;
       header_kind = cmi.cmi_kind;
       header_sign = sign;
+      header_params = cmi.cmi_params;
     };
   (* BACKPORT END *)
   flush oc;

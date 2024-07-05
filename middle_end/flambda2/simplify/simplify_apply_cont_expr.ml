@@ -91,6 +91,10 @@ let rebuild_apply_cont apply_cont ~args ~rewrite_id uacc ~after_rebuild =
     in
     let expr, cost_metrics, free_names =
       match rewrite_use_result with
+      | Invalid { message } ->
+        ( RE.create_invalid (Message message),
+          Cost_metrics.zero,
+          Name_occurrences.empty )
       | Apply_cont apply_cont -> apply_cont_to_expr apply_cont
       | Expr build_expr -> build_expr ~apply_cont_to_expr
     in

@@ -252,7 +252,12 @@ let subst_primitive env (p : Flambda_primitive.t) : Flambda_primitive.t =
     Unary (subst_unary_primitive env unary_primitive, subst_simple env arg)
   | _ -> p
 
-let subst_func_decl env code_id = subst_code_id env code_id
+let subst_func_decl env
+    (code_id : Function_declarations.code_id_in_function_declaration) :
+    Function_declarations.code_id_in_function_declaration =
+  match code_id with
+  | Deleted _ -> code_id
+  | Code_id code_id -> Code_id (subst_code_id env code_id)
 
 let subst_func_decls env decls =
   Function_declarations.funs_in_order decls
@@ -708,10 +713,20 @@ let primitives env prim1 prim2 : Flambda_primitive.t Comparison.t =
   | _, _ -> Different { approximant = subst_primitive env prim1 }
 
 (* Returns unit because the approximant isn't used by sets_of_closures *)
-let function_decls env code_id1 code_id2 : unit Comparison.t =
-  if code_ids env code_id1 code_id2 |> Comparison.is_equivalent
-  then Equivalent
-  else Different { approximant = () }
+let function_decls env
+    (fun_decl1 : Function_declarations.code_id_in_function_declaration)
+    (fun_decl2 : Function_declarations.code_id_in_function_declaration) :
+    unit Comparison.t =
+  match fun_decl1, fun_decl2 with
+  | ( Deleted { function_slot_size = size1 },
+      Deleted { function_slot_size = size2 } ) ->
+    if Int.equal size1 size2 then Equivalent else Different { approximant = () }
+  | Code_id code_id1, Code_id code_id2 ->
+    if code_ids env code_id1 code_id2 |> Comparison.is_equivalent
+    then Equivalent
+    else Different { approximant = () }
+  | Deleted _, Code_id _ | Code_id _, Deleted _ ->
+    Different { approximant = () }
 
 (** Match up equal elements in two lists and iterate through both of them, using
     [f] analogously to [Map.S.merge] *)
@@ -772,10 +787,27 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
   in
   let function_slots_and_fun_decls_by_code_id set =
     let map = Function_declarations.funs (Set_of_closures.function_decls set) in
-    Function_slot.Map.bindings map
-    |> List.map (fun (function_slot, code_id) ->
-           subst_code_id env code_id, (function_slot, code_id))
-    |> Code_id.Map.of_list
+    let function_slot_map, deleted_function_slot_set =
+      Function_slot.Map.bindings map
+      |> List.partition_map
+           (fun
+             ( function_slot,
+               (code_id : Function_declarations.code_id_in_function_declaration)
+             )
+           ->
+             match code_id with
+             | Deleted _ -> Right function_slot
+             | Code_id code_id0 ->
+               Left (subst_code_id env code_id0, (function_slot, code_id)))
+    in
+    ( Code_id.Map.of_list function_slot_map,
+      Function_slot.Set.of_list deleted_function_slot_set )
+  in
+  let function_slot_map1, deleted_function_slot_set1 =
+    function_slots_and_fun_decls_by_code_id set1
+  in
+  let function_slot_map2, deleted_function_slot_set2 =
+    function_slots_and_fun_decls_by_code_id set2
   in
   (* Using merge here as a map version of [List.iter2]; always returning None
    * means the returned map is always empty, so this shouldn't waste much *)
@@ -794,9 +826,13 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
           | Equivalent -> ()
           | Different _ -> ok := false));
         None)
-      (function_slots_and_fun_decls_by_code_id set1)
-      (function_slots_and_fun_decls_by_code_id set2)
+      function_slot_map1 function_slot_map2
   in
+  (* Trying to find a mapping between the deleted function_slots is not easy, so
+     we simply say the sets are equal if they have the same cardinality *)
+  if Function_slot.Set.cardinal deleted_function_slot_set1
+     <> Function_slot.Set.cardinal deleted_function_slot_set2
+  then ok := false;
   if !ok
   then Equivalent
   else Different { approximant = subst_set_of_closures env set1 }

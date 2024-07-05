@@ -161,3 +161,5 @@ let elide ppf = push ~fg:243 ppf
 let each_file ppf = push ~fg:51 ppf
 
 let lambda = expr_keyword
+
+let effect ppf = push ~fg:46 ppf

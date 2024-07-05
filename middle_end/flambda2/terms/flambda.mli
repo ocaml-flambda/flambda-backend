@@ -153,6 +153,9 @@ module Named : sig
   (** Convert a register-width value into the defining expression of a [Let]. *)
   val create_simple : Simple.t -> t
 
+  (** Like [create_simple] but for variables. *)
+  val create_var : Variable.t -> t
+
   (** Convert a primitive, with associated debugging information, into the
       defining expression of a [Let]. *)
   val create_prim : Flambda_primitive.t -> Debuginfo.t -> t

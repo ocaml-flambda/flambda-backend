@@ -427,9 +427,6 @@ let meet_regional mode =
   let mode = Value.disallow_left mode in
   Value.meet [mode; (Value.max_with (Comonadic Areality) Regionality.regional)]
 
-let meet_global mode =
-  Value.meet [mode; (Value.max_with (Comonadic Areality) Regionality.global)]
-
 let value_regional_to_local mode =
   mode
   |> value_to_alloc_r2l
@@ -447,7 +444,7 @@ let mode_legacy = mode_default Value.legacy
 
 let mode_modality modality expected_mode =
   expected_mode.mode
-  |> Modality.Value.apply modality
+  |> Modality.Value.Const.apply modality
   |> mode_default
 
 (* used when entering a function;
@@ -476,10 +473,6 @@ let mode_with_position mode position =
 
 let mode_max_with_position position =
   { mode_max with position }
-
-let mode_global expected_mode =
-  let mode = meet_global expected_mode.mode in
-  {expected_mode with mode}
 
 let mode_exclave expected_mode =
   let mode =
@@ -550,10 +543,6 @@ let mode_argument ~funct ~index ~position_and_mode ~partial_app marg =
     mode_tailcall_argument vmode, vmode
   end
 
-let mode_lazy expected_mode =
-  { (mode_global expected_mode) with
-    position = RTail (Regionality.disallow_left Regionality.global, FTail) }
-
 (* expected_mode.closure_context explains why expected_mode.mode is low;
    shared_context explains why mode.uniqueness is high *)
 let submode ~loc ~env ?(reason = Other) ?shared_context mode expected_mode =
@@ -572,6 +561,11 @@ let submode ~loc ~env ?(reason = Other) ?shared_context mode expected_mode =
           contention_context, shared_context)
       in
       raise (Error(loc, env, error))
+
+let actual_submode ~loc ~env ?reason (actual_mode : Env.actual_mode)
+    expected_mode =
+  submode ~loc ~env ?reason ?shared_context:actual_mode.context actual_mode.mode
+    expected_mode
 
 let escape ~loc ~env ~reason m =
   submode ~loc ~env ~reason m mode_legacy
@@ -610,8 +604,16 @@ let register_allocation (expected_mode : expected_mode) =
   alloc_mode, mode_default mode
 
 let optimise_allocations () =
+  (* CR zqian: Ideally we want to optimise all axes relavant to allocation. For
+  example, pushing an allocation to [contended] is useful to the middle-end.
+  However, a [contended] value in a module causes extra modality in printing.
+  Therefore, here we only optimise allocation for stack/heap. Proper solutions:
+  - Remove [Contention] axis from [Alloc].
+  - Add it back when middle-end can really utilize this information. *)
   List.iter
-    (fun mode -> ignore (Alloc.zap_to_ceil mode))
+    (fun mode ->
+      Locality.zap_to_ceil (Alloc.proj (Comonadic Areality) mode)
+      |> ignore)
     !allocations;
   reset_allocations ()
 
@@ -802,6 +804,11 @@ let mode_cross_left env ty mode =
     Value.meet_const upper_bounds mode
   in
   mode |> Value.disallow_right
+
+let actual_mode_cross_left env ty (actual_mode : Env.actual_mode)
+  : Env.actual_mode =
+  let mode = mode_cross_left env ty actual_mode.mode in
+  {actual_mode with mode}
 
 (** Mode cross a mode whose monadic fragment is a right mode, and whose comonadic
     fragment is a left mode. *)
@@ -1113,7 +1120,7 @@ let add_pattern_variables ?check ?check_as env pv =
        let check = if pv_as_var then check_as else check in
        Env.add_value ?check ~mode:pv_mode pv_id
          {val_type = pv_type; val_kind = Val_reg; Types.val_loc = pv_loc;
-          val_attributes = pv_attributes;
+          val_attributes = pv_attributes; val_modalities = Modality.Value.id;
           val_zero_alloc = Builtin_attributes.Default_zero_alloc;
           val_uid = pv_uid
          } env
@@ -1222,7 +1229,7 @@ let enter_orpat_variables loc env  p1_vs p2_vs =
             pv1 :: vars, alist
           else begin
             begin try
-              unify_var env (newvar (Jkind.any ~why:Dummy_jkind)) t1;
+              unify_var env (newvar (Jkind.Primitive.any ~why:Dummy_jkind)) t1;
               unify env t1 t2
             with
             | Unify err ->
@@ -1308,7 +1315,7 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
       let ty =
         let fields = [l, rf_present ty] in
         newty (Tvariant (create_row ~fields
-                           ~more:(newvar (Jkind.value ~why:Row_variable))
+                           ~more:(newvar (Jkind.Primitive.value ~why:Row_variable))
                          ~name:None ~fixed:None ~closed:false))
       in
       ty, mode
@@ -1321,7 +1328,7 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
          think about when it gets defaulted.)
 
          RAE: why? It looks fine as-is. *)
-      let ty = newvar (Jkind.any ~why:Dummy_jkind) in
+      let ty = newvar (Jkind.Primitive.any ~why:Dummy_jkind) in
       let ppl = List.map (fun (_, l, p) -> l.lbl_num, p) lpl in
       let do_label lbl =
         let _, ty_arg, ty_res = instance_label false lbl in
@@ -1364,7 +1371,7 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
             newty (Tvariant (create_row ~fields ~fixed ~name
                                ~closed:false
                                ~more:(newvar
-                                        (Jkind.value ~why:Row_variable))))
+                                        (Jkind.Primitive.value ~why:Row_variable))))
           in
           ty, mode
       end
@@ -1446,7 +1453,7 @@ let solve_Ppat_tuple ~refine ~alloc_mode loc env args expected_ty =
       (fun (label, p) mode ->
         ( label,
           p,
-          newgenvar (Jkind.value ~why:Tuple_element),
+          newgenvar (Jkind.Primitive.value ~why:Tuple_element),
           simple_pat_mode mode ))
       args arg_modes
   in
@@ -1465,7 +1472,7 @@ let solve_constructor_annotation tps env name_list sty ty_args ty_ex =
             See: https://github.com/ocaml/ocaml/pull/9584/ *)
         let decl = new_local_type ~loc:name.loc
                      ~jkind_annot:None
-                     (Jkind.value ~why:Existential_type_variable) in
+                     (Jkind.Primitive.value ~why:Existential_type_variable) in
         let (id, new_env) =
           Env.enter_type ~scope:expansion_scope name.txt decl !env in
         env := new_env;
@@ -1623,7 +1630,7 @@ let solve_Ppat_array ~refine loc env mutability expected_ty =
   ty_elt, arg_sort
 
 let solve_Ppat_lazy  ~refine loc env expected_ty =
-  let nv = newgenvar (Jkind.value ~why:Lazy_expression) in
+  let nv = newgenvar (Jkind.Primitive.value ~why:Lazy_expression) in
   unify_pat_types ~refine loc env (Predef.type_lazy_t nv)
     (generic_instance expected_ty);
   nv
@@ -1649,19 +1656,19 @@ let solve_Ppat_variant ~refine loc env tag no_arg expected_ty =
   let arg_type =
     if no_arg
     then []
-    else [newgenvar (Jkind.value ~why:Polymorphic_variant_field)]
+    else [newgenvar (Jkind.Primitive.value ~why:Polymorphic_variant_field)]
   in
   let fields = [tag, rf_either ~no_arg arg_type ~matched:true] in
   let make_row more =
     create_row ~fields ~closed:false ~more ~fixed:None ~name:None
   in
-  let row = make_row (newgenvar (Jkind.value ~why:Row_variable)) in
+  let row = make_row (newgenvar (Jkind.Primitive.value ~why:Row_variable)) in
   let expected_ty = generic_instance expected_ty in
   (* PR#7404: allow some_private_tag blindly, as it would not unify with
      the abstract row variable *)
   if tag <> Parmatch.some_private_tag then
     unify_pat_types ~refine loc env (newgenty(Tvariant row)) expected_ty;
-  (arg_type, make_row (newvar (Jkind.value ~why:Row_variable)),
+  (arg_type, make_row (newvar (Jkind.Primitive.value ~why:Row_variable)),
    instance expected_ty)
 
 (* Building the or-pattern corresponding to a polymorphic variant type *)
@@ -1672,7 +1679,7 @@ let build_or_pat env loc lid =
      see Test 24 in tests/typing-layouts/basics_alpha.ml *)
   let arity = List.length decl.type_params in
   let tyl = List.mapi (fun i _ ->
-    newvar (Jkind.value ~why:(Type_argument {parent_path = path; position = i+1; arity}))
+    newvar (Jkind.Primitive.value ~why:(Type_argument {parent_path = path; position = i+1; arity}))
   ) decl.type_params in
   let row0 =
     let ty = expand_head env (newty(Tconstr(path, tyl, ref Mnil))) in
@@ -1703,10 +1710,10 @@ let build_or_pat env loc lid =
     create_row ~fields ~more ~closed:false ~fixed:None ~name in
   let ty = newty (Tvariant (make_row
                               (newvar
-                                 (Jkind.value ~why:Row_variable))))
+                                 (Jkind.Primitive.value ~why:Row_variable))))
   in
   let gloc = Location.ghostify loc in
-  let row' = ref (make_row (newvar (Jkind.value ~why:Row_variable))) in
+  let row' = ref (make_row (newvar (Jkind.Primitive.value ~why:Row_variable))) in
   let pats =
     List.map
       (fun (l,p) ->
@@ -2415,10 +2422,10 @@ and type_pat_aux
     let ty_elt, arg_sort = solve_Ppat_array ~refine loc env mutability expected_ty in
     let modalities =
       if Types.is_mutable mutability then Typemode.mutable_implied_modalities
-      else Modality.Value.id
+      else Modality.Value.Const.id
     in
     check_project_mutability ~loc ~env:!env mutability alloc_mode.mode;
-    let alloc_mode = Modality.Value.apply modalities alloc_mode.mode in
+    let alloc_mode = Modality.Value.Const.apply modalities alloc_mode.mode in
     let alloc_mode = simple_pat_mode alloc_mode in
     let pl = List.map (fun p -> type_pat ~alloc_mode tps Value p ty_elt) spl in
     rvp {
@@ -2661,7 +2668,7 @@ and type_pat_aux
       let args =
         List.map2
           (fun p (ty, gf) ->
-             let alloc_mode = Modality.Value.apply gf alloc_mode.mode in
+             let alloc_mode = Modality.Value.Const.apply gf alloc_mode.mode in
              let alloc_mode = simple_pat_mode alloc_mode in
              type_pat ~alloc_mode tps Value p ty)
           sargs (List.combine ty_args_ty ty_args_gf)
@@ -2696,7 +2703,7 @@ and type_pat_aux
             let ty = generic_instance expected_ty in
             Some (p0, p, is_principal expected_ty), ty
         | Maybe_a_record_type ->
-          None, newvar (Jkind.value ~why:Boxed_record)
+          None, newvar (Jkind.Primitive.value ~why:Boxed_record)
         | Not_a_record_type ->
           let error = Wrong_expected_kind(Record, Pattern, expected_ty) in
           raise (Error (loc, !env, error))
@@ -2705,7 +2712,9 @@ and type_pat_aux
         let ty_arg =
           solve_Ppat_record_field ~refine loc env label label_lid record_ty in
         check_project_mutability ~loc ~env:!env label.lbl_mut alloc_mode.mode;
-        let mode = Modality.Value.apply label.lbl_modalities alloc_mode.mode in
+        let mode =
+          Modality.Value.Const.apply label.lbl_modalities alloc_mode.mode
+        in
         let alloc_mode = simple_pat_mode mode in
         (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
       in
@@ -2875,7 +2884,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
   let pvs, pat =
     with_local_level_if_principal begin fun () ->
       let tps = create_type_pat_state Modules_rejected in
-      let nv = newvar (Jkind.value ~why:Class_term_argument) in
+      let nv = newvar (Jkind.Primitive.value ~why:Class_term_argument) in
       let alloc_mode = simple_pat_mode Value.legacy in
       let pat =
         type_pat tps Value ~no_existentials:In_class_args ~alloc_mode
@@ -2903,22 +2912,24 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
            else Warnings.Unused_var_strict s in
          let id' = Ident.rename pv_id in
          let val_env =
-          Env.add_value pv_id
+          Env.add_value ~mode:Mode.Value.legacy pv_id
             { val_type = pv_type
             ; val_kind = Val_reg
             ; val_attributes = pv_attributes
             ; val_zero_alloc = Builtin_attributes.Default_zero_alloc
+            ; val_modalities = Modality.Value.id
             ; val_loc = pv_loc
             ; val_uid = pv_uid
             }
             val_env
          in
          let met_env =
-          Env.add_value id' ~check
+          Env.add_value ~mode:Mode.Value.legacy id' ~check
             { val_type = pv_type
             ; val_kind = Val_ivar (Immutable, cl_num)
             ; val_attributes = pv_attributes
             ; val_zero_alloc = Builtin_attributes.Default_zero_alloc
+            ; val_modalities = Modality.Value.id
             ; val_loc = pv_loc
             ; val_uid = pv_uid
             }
@@ -2933,7 +2944,7 @@ let type_self_pattern env spat =
   let open Ast_helper in
   let spat = Pat.mk(Ppat_alias (spat, mknoloc "selfpat-*")) in
   let tps = create_type_pat_state Modules_rejected in
-  let nv = newvar (Jkind.value ~why:Object) in
+  let nv = newvar (Jkind.Primitive.value ~why:Object) in
   let alloc_mode = simple_pat_mode Value.legacy in
   let pat =
     type_pat tps Value ~no_existentials:In_self_pattern ~alloc_mode
@@ -4054,7 +4065,7 @@ let loc_rest_of_function
    (which mentions approx_type) for why it can't be value.  *)
 (* CR layouts v2: RAE thinks this any is fine in perpetuity. Before changing
    this, let's talk. *)
-let approx_type_default () = newvar (Jkind.any ~why:Dummy_jkind)
+let approx_type_default () = newvar (Jkind.Primitive.any ~why:Dummy_jkind)
 
 let rec approx_type env sty =
   match Jane_syntax.Core_type.of_ast sty with
@@ -4084,7 +4095,7 @@ let rec approx_type env sty =
       let arg =
         if is_optional p
         then type_option (newvar Predef.option_argument_jkind)
-        else newvar (Jkind.any ~why:Inside_of_Tarrow)
+        else newvar (Jkind.Primitive.any ~why:Inside_of_Tarrow)
       in
       let ret = approx_type env sty in
       let marg = Alloc.of_const arg_mode in
@@ -4095,7 +4106,7 @@ let rec approx_type env sty =
   | Ptyp_constr (lid, ctl) ->
       let path, decl = Env.lookup_type ~use:false ~loc:lid.loc lid.txt env in
       if List.length ctl <> decl.type_arity
-      then newvar (Jkind.any ~why:Dummy_jkind)
+      then newvar (Jkind.Primitive.any ~why:Dummy_jkind)
       else begin
         let tyl = List.map (approx_type env) ctl in
         newconstr path tyl
@@ -4237,7 +4248,7 @@ and type_approx_aux_jane_syntax
 
 and type_tuple_approx (env: Env.t) loc ty_expected l =
   let labeled_tys = List.map
-    (fun (label, _) -> label, newvar (Jkind.value ~why:Tuple_element)) l
+    (fun (label, _) -> label, newvar (Jkind.Primitive.value ~why:Tuple_element)) l
   in
   let ty = newty (Ttuple labeled_tys) in
   begin try unify env ty ty_expected with Unify err ->
@@ -4611,7 +4622,7 @@ let check_absent_variant env =
       let fields = [s, rf_either ty_arg ~no_arg:(arg=None) ~matched:true] in
       let row' =
         create_row ~fields
-          ~more:(newvar (Jkind.value ~why:Row_variable))
+          ~more:(newvar (Jkind.Primitive.value ~why:Row_variable))
           ~closed:false ~fixed:None ~name:None
       in
       (* Should fail *)
@@ -4664,6 +4675,10 @@ let unify_exp ?sdesc_for_hint env exp expected_ty =
   with Error(loc, env, Expr_type_clash(err, tfc, None)) ->
     raise (Error(loc, env, Expr_type_clash(err, tfc, sdesc_for_hint)))
 
+let is_exclave_extension_node = function
+  | "extension.exclave" | "ocaml.exclave" | "exclave" -> true
+  | _ -> false
+
 (* If [is_inferred e] is true, [e] will be typechecked without using
    the "expected type" provided by the context. *)
 
@@ -4671,6 +4686,10 @@ let rec is_inferred sexp =
   match Jane_syntax.Expression.of_ast sexp with
   | Some (jexp, _attrs) -> is_inferred_jane_syntax jexp
   | None      -> match sexp.pexp_desc with
+  | Pexp_apply
+      ({ pexp_desc = Pexp_extension({ txt }, PStr []) },
+        [Nolabel, sbody]) when is_exclave_extension_node txt ->
+      is_inferred sbody
   | Pexp_ident _ | Pexp_apply _ | Pexp_field _ | Pexp_constraint _
   | Pexp_coerce _ | Pexp_send _ | Pexp_new _ -> true
   | Pexp_sequence (_, e) | Pexp_open (_, e) -> is_inferred e
@@ -4714,6 +4733,18 @@ let check_apply_prim_type prim typ =
       end
   | _ -> false
 
+(* The explanation is suppressed if the location is ghost (e.g. the construct is
+   in ppx-generated code), unless the explanation originates from the
+   [@error_message] attribute, which a ppx may reasonably have inserted itself
+   to get a better error message.
+*)
+let should_show_explanation ~explanation ~loc =
+  if not loc.Location.loc_ghost then true
+  else
+    match explanation with
+    | Error_message_attr _ -> true
+    | _ -> false
+
 (* Merge explanation to type clash error *)
 
 let with_explanation explanation f =
@@ -4722,7 +4753,7 @@ let with_explanation explanation f =
   | Some explanation ->
       try f ()
       with Error (loc', env', Expr_type_clash(err', None, exp'))
-        when not loc'.Location.loc_ghost ->
+        when should_show_explanation ~loc:loc' ~explanation ->
         let err = Expr_type_clash(err', Some explanation, exp') in
         raise (Error (loc', env', err))
 
@@ -4860,7 +4891,7 @@ let split_function_ty
     let snap = Btype.snapshot () in
     let really_poly =
       try
-        unify env (newmono (newvar (Jkind.any ~why:Dummy_jkind))) ty_arg;
+        unify env (newmono (newvar (Jkind.Primitive.any ~why:Dummy_jkind))) ty_arg;
         false
       with Unify _ -> true
     in
@@ -5131,7 +5162,7 @@ let zero_alloc_of_application ~num_args attrs funct =
 let rec type_exp ?recarg env expected_mode sexp =
   (* We now delegate everything to type_expect *)
   type_expect ?recarg env expected_mode sexp
-    (mk_expected (newvar (Jkind.any ~why:Dummy_jkind)))
+    (mk_expected (newvar (Jkind.Primitive.any ~why:Dummy_jkind)))
 
 (* Typing of an expression with an expected type.
    This provide better error messages, and allows controlled
@@ -5180,7 +5211,9 @@ and type_expect_
         jexp
   | None -> match desc with
   | Pexp_ident lid ->
-      let path, mode, shared_context, desc, kind = type_ident env ~recarg lid in
+      let path, (actual_mode : Env.actual_mode), desc, kind =
+        type_ident env ~recarg lid
+      in
       let exp_desc =
         match desc.val_kind with
         | Val_ivar (_, cl_num) ->
@@ -5197,10 +5230,10 @@ and type_expect_
               Env.find_value_by_name (Longident.Lident ("self-" ^ cl_num)) env
             in
             Texp_ident(path, lid, desc, kind,
-              unique_use ~loc ~env mode expected_mode.mode)
+              unique_use ~loc ~env actual_mode.mode expected_mode.mode)
         | _ ->
             Texp_ident(path, lid, desc, kind,
-              unique_use ~loc ~env mode expected_mode.mode)
+              unique_use ~loc ~env actual_mode.mode expected_mode.mode)
       in
       let exp = rue {
         exp_desc; exp_loc = loc; exp_extra = [];
@@ -5208,7 +5241,7 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
       in
-      submode ~loc ~env ?shared_context mode expected_mode;
+      actual_submode ~loc ~env actual_mode expected_mode;
       exp
   | Pexp_constant(Pconst_string (str, _, _) as cst) -> (
       let cst = constant_or_raise env loc cst in
@@ -5308,7 +5341,7 @@ and type_expect_
                 let bound_exp_type = Ctype.instance bound_exp.exp_type in
                 let loc = proper_exp_loc bound_exp in
                 let outer_var =
-                  newvar2 outer_level (Jkind.any ~why:Dummy_jkind)
+                  newvar2 outer_level (Jkind.Primitive.any ~why:Dummy_jkind)
                 in
                 (* Checking unification within an environment extended with the
                    module bindings allows us to correctly accept more programs.
@@ -5322,7 +5355,7 @@ and type_expect_
         end
         ~post:(fun (_pat_exp_list, body, new_env) ->
           (* The "body" component of the scope escape check. *)
-          unify_exp new_env body (newvar (Jkind.any ~why:Dummy_jkind)))
+          unify_exp new_env body (newvar (Jkind.Primitive.any ~why:Dummy_jkind)))
       in
       re {
         exp_desc = Texp_let(rec_flag, pat_exp_list, body);
@@ -5344,9 +5377,8 @@ and type_expect_
       in
       {exp with exp_loc = loc}
   | Pexp_apply
-      ({ pexp_desc = Pexp_extension({
-         txt = "extension.exclave" | "ocaml.exclave" | "exclave" as txt}, PStr []) },
-       [Nolabel, sbody]) ->
+      ({ pexp_desc = Pexp_extension({ txt }, PStr []) },
+       [Nolabel, sbody]) when is_exclave_extension_node txt ->
       if (txt = "extension.exclave") && not (Language_extension.is_enabled Mode) then
           raise (Typetexp.Error (loc, Env.empty, Unsupported_extension Mode));
       begin
@@ -5402,12 +5434,12 @@ and type_expect_
                with Unify _ -> assert false);
               ret_tvar (TypeSet.add ty seen) ty_fun
           | Tvar _ ->
-              let v = newvar (Jkind.any ~why:Dummy_jkind) in
+              let v = newvar (Jkind.Primitive.any ~why:Dummy_jkind) in
               let rt = get_level ty > get_level v in
               unify_var env v ty;
               rt
           | _ ->
-            let v = newvar (Jkind.any ~why:Dummy_jkind) in
+            let v = newvar (Jkind.Primitive.any ~why:Dummy_jkind) in
             unify_var env v ty;
             false
       in
@@ -5554,7 +5586,7 @@ and type_expect_
         | None -> None
         | Some sarg ->
             let ty_expected =
-              newvar (Jkind.value ~why:Polymorphic_variant_field)
+              newvar (Jkind.Primitive.value ~why:Polymorphic_variant_field)
             in
             let alloc_mode, argument_mode = register_allocation expected_mode in
             let arg =
@@ -5566,7 +5598,7 @@ and type_expect_
         let row =
           create_row
             ~fields: [l, rf_present arg_type]
-            ~more:   (newvar (Jkind.value ~why:Row_variable))
+            ~more:   (newvar (Jkind.Primitive.value ~why:Row_variable))
             ~closed: false
             ~fixed:  None
             ~name:   None
@@ -5711,7 +5743,7 @@ and type_expect_
                   with_explanation (fun () ->
                     unify_exp_types loc env (instance ty_expected) ty_res2);
                   check_project_mutability ~loc:exp.exp_loc ~env lbl.lbl_mut mode;
-                  let mode = Modality.Value.apply lbl.lbl_modalities mode in
+                  let mode = Modality.Value.Const.apply lbl.lbl_modalities mode in
                   check_construct_mutability ~loc ~env lbl.lbl_mut argument_mode;
                   let argument_mode =
                     mode_modality lbl.lbl_modalities argument_mode
@@ -5762,7 +5794,7 @@ and type_expect_
         end ~post:generalize_structure
       in
       check_project_mutability ~loc:record.exp_loc ~env label.lbl_mut rmode;
-      let mode = Modality.Value.apply label.lbl_modalities rmode in
+      let mode = Modality.Value.Const.apply label.lbl_modalities rmode in
       let boxing : texp_field_boxing =
         let is_float_boxing =
           match label.lbl_repres with
@@ -5960,6 +5992,7 @@ and type_expect_
         exp_extra = (exp_extra, loc, sexp.pexp_attributes) :: arg.exp_extra;
       }
   | Pexp_send (e, {txt=met}) ->
+      submode ~loc ~env Mode.Value.legacy expected_mode;
       let pm = position_and_mode env expected_mode sexp in
       let (obj,meth,typ) =
         with_local_level_if_principal
@@ -5976,7 +6009,7 @@ and type_expect_
                 (Warnings.Not_principal "this use of a polymorphic method");
             snd (instance_poly false tl ty)
         | Tvar _ ->
-            let ty' = newvar (Jkind.value ~why:Object_field) in
+            let ty' = newvar (Jkind.Primitive.value ~why:Object_field) in
             unify env (instance typ) (newty(Tpoly(ty',[])));
             (* if not !Clflags.nolabels then
                Location.prerr_warning loc (Warnings.Unknown_method met); *)
@@ -5991,7 +6024,11 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_new cl ->
-      let (cl_path, cl_decl) = Env.lookup_class ~loc:cl.loc cl.txt env in
+      submode ~loc ~env Value.legacy expected_mode;
+      let (cl_path, cl_decl, cl_mode) =
+        Env.lookup_class ~loc:cl.loc cl.txt env
+      in
+      Value.submode_exn cl_mode Value.legacy;
       let pm = position_and_mode env expected_mode sexp in
       begin match cl_decl.cty_new with
           None ->
@@ -6028,6 +6065,7 @@ and type_expect_
           raise(Error(loc, env, Instance_variable_not_mutable lab.txt))
     end
   | Pexp_override lst ->
+      submode ~loc ~env Value.legacy expected_mode;
       let _ =
        List.fold_right
         (fun (lab, _) l ->
@@ -6160,13 +6198,14 @@ and type_expect_
         exp_env = env;
       }
   | Pexp_lazy e ->
-      let ty = newgenvar (Jkind.value ~why:Lazy_expression) in
+      submode ~loc ~env Value.legacy expected_mode;
+      let ty = newgenvar (Jkind.Primitive.value ~why:Lazy_expression) in
       let to_unify = Predef.type_lazy_t ty in
       with_explanation (fun () ->
         unify_exp_types loc env to_unify (generic_instance ty_expected));
       let env = Env.add_escape_lock Lazy env in
       let env = Env.add_share_lock Lazy env in
-      let arg = type_expect env (mode_lazy expected_mode) e (mk_expected ty) in
+      let arg = type_expect env mode_legacy e (mk_expected ty) in
       re {
         exp_desc = Texp_lazy arg;
         exp_loc = loc; exp_extra = [];
@@ -6175,6 +6214,7 @@ and type_expect_
         exp_env = env;
       }
   | Pexp_object s ->
+      submode ~loc ~env Value.legacy expected_mode;
       let desc, meths = !type_object env loc s in
       rue {
         exp_desc = Texp_object (desc, meths);
@@ -6232,10 +6272,12 @@ and type_expect_
       in
       re { exp with exp_extra =
              (Texp_poly cty, loc, sexp.pexp_attributes) :: exp.exp_extra }
-  | Pexp_newtype({txt=name}, sbody) ->
+  | Pexp_newtype(name, sbody) ->
     type_newtype_expr ~loc ~env ~expected_mode ~rue ~attributes:sexp.pexp_attributes
       name None sbody
   | Pexp_pack m ->
+      (* CR zqian: pass [expected_mode] to [type_package] *)
+      submode ~loc ~env Value.legacy expected_mode;
       let (p, fl) =
         match get_desc (Ctype.expand_head env (instance ty_expected)) with
           Tpackage (p, fl) ->
@@ -6260,7 +6302,7 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_open (od, e) ->
-      let tv = newvar (Jkind.any ~why:Dummy_jkind) in
+      let tv = newvar (Jkind.Primitive.any ~why:Dummy_jkind) in
       let (od, _, newenv) = !type_open_decl env od in
       let exp = type_expect newenv expected_mode e ty_expected_explained in
       (* Force the return type to be well-formed in the original
@@ -6275,12 +6317,13 @@ and type_expect_
         exp_env = env;
       }
   | Pexp_letop{ let_ = slet; ands = sands; body = sbody } ->
+      submode ~loc ~env Value.legacy expected_mode;
       let rec loop spat_acc ty_acc ty_acc_sort sands =
         match sands with
         | [] -> spat_acc, ty_acc, ty_acc_sort
         | { pbop_pat = spat; _} :: rest ->
             (* CR layouts v5: eliminate value requirement *)
-            let ty = newvar (Jkind.value ~why:Tuple_element) in
+            let ty = newvar (Jkind.Primitive.value ~why:Tuple_element) in
             let loc = Location.ghostify slet.pbop_op.loc in
             let spat_acc = Ast_helper.Pat.tuple ~loc [spat_acc; spat] in
             let ty_acc = newty (Ttuple [None, ty_acc; None, ty]) in
@@ -6299,7 +6342,7 @@ and type_expect_
               | [] ->
                 Jkind.of_new_sort_var ~why:Function_argument
               (* CR layouts v5: eliminate value requirement for tuple elements *)
-              | _ -> Jkind.value ~why:Tuple_element, Jkind.Sort.value
+              | _ -> Jkind.Primitive.value ~why:Tuple_element, Jkind.Sort.value
             in
             loop slet.pbop_pat (newvar initial_jkind) initial_sort sands
           in
@@ -6573,11 +6616,11 @@ and type_constraint_expect
   ret, ty, exp_extra
 
 and type_ident env ?(recarg=Rejected) lid =
-  let (path, desc, mode, reason) = Env.lookup_value ~loc:lid.loc lid.txt env in
+  let path, desc, actual_mode = Env.lookup_value ~loc:lid.loc lid.txt env in
   (* Mode crossing here is needed only because of the strange behaviour of
   [type_let] - it checks the LHS before RHS. Had it checks the RHS before LHS,
   identifiers would be mode crossed when being added to the environment. *)
-  let mode = mode_cross_left env desc.val_type mode in
+  let actual_mode = actual_mode_cross_left env desc.val_type actual_mode in
   let is_recarg =
     match get_desc desc.val_type with
     | Tconstr(p, _, _) -> Path.is_constructor_typath p
@@ -6609,13 +6652,13 @@ and type_ident env ?(recarg=Rejected) lid =
        ty, Id_prim (Option.map Locality.disallow_right mode, sort)
     | _ ->
        instance desc.val_type, Id_value in
-  path, mode, reason, { desc with val_type }, kind
+  path, actual_mode, { desc with val_type }, kind
 
 and type_binding_op_ident env s =
   let loc = s.loc in
   let lid = Location.mkloc (Longident.Lident s.txt) loc in
-  let path, mode, _reason, desc, kind = type_ident env lid in
-  submode ~env ~loc:lid.loc ~reason:Other mode mode_legacy;
+  let path, actual_mode, desc, kind = type_ident env lid in
+  actual_submode ~env ~loc:lid.loc ~reason:Other actual_mode mode_legacy;
   let path =
     match desc.val_kind with
     | Val_ivar _ ->
@@ -6670,7 +6713,7 @@ and type_function
       (* Check everything else in the scope of (type a). *)
       let (params, body, newtypes, contains_gadt, fun_alloc_mode, ret_info),
           exp_type, jkind_annot =
-        type_newtype loc env newtype_var.txt jkind_annot (fun env ->
+        type_newtype env newtype_var jkind_annot (fun env ->
           let { function_ = exp_type, params, body;
                 newtypes; params_contain_gadt = contains_gadt;
                 fun_alloc_mode; ret_info;
@@ -6680,7 +6723,7 @@ and type_function
                 like [type_exp].
             *)
             type_function env expected_mode
-              (newvar (Jkind.any ~why:Dummy_jkind))
+              (newvar (Jkind.Primitive.any ~why:Dummy_jkind))
               rest body_constraint body ~in_function ~first
           in
           (params, body, newtypes, contains_gadt, fun_alloc_mode, ret_info),
@@ -6946,7 +6989,7 @@ and type_function
                     let cases, ty_fun, fun_alloc_mode, ret_info =
                       (* The analogy to [type_exp] for expressions. *)
                       type_cases_expect env expected_mode
-                        (newvar (Jkind.any ~why:Dummy_jkind))
+                        (newvar (Jkind.Primitive.any ~why:Dummy_jkind))
                     in
                     (cases, fun_alloc_mode, ret_info), ty_fun);
                 }
@@ -7444,6 +7487,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
           { val_type = ty; val_kind = Val_reg;
             val_attributes = [];
             val_zero_alloc = Builtin_attributes.Default_zero_alloc;
+            val_modalities = Modality.Value.id;
             val_loc = Location.none;
             val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
           }
@@ -7568,7 +7612,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
             let snap = Btype.snapshot () in
             let really_poly =
               try
-                unify env (newmono (newvar (Jkind.any ~why:Dummy_jkind)))
+                unify env (newmono (newvar (Jkind.Primitive.any ~why:Dummy_jkind)))
                   ty_arg;
                 false
               with Unify _ -> true
@@ -7717,7 +7761,7 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
   (* CR layouts v5: non-values in tuples *)
   let labeled_subtypes =
     List.map (fun (label, _) -> label,
-                                newgenvar (Jkind.value ~why:Tuple_element))
+                                newgenvar (Jkind.Primitive.value ~why:Tuple_element))
     sexpl
   in
   let to_unify = newgenty (Ttuple labeled_subtypes) in
@@ -8022,7 +8066,7 @@ and map_half_typed_cases
         else ty_res, (fun env -> env)
       in
       (* Unify all cases (delayed to keep it order-free) *)
-      let ty_arg' = newvar (Jkind.any ~why:Dummy_jkind) in
+      let ty_arg' = newvar (Jkind.Primitive.any ~why:Dummy_jkind) in
       let unify_pats ty =
         List.iter (fun { typed_pat = pat; pat_type_for_unif = pat_ty; _ } ->
           unify_pat_types pat.pat_loc (ref env) pat_ty ty
@@ -8265,12 +8309,13 @@ and type_function_cases_expect
       by the user.
 *)
 and type_newtype
-  : type a. _ -> _ -> _ -> _ -> (Env.t -> a * type_expr)
+  : type a. _ -> _ -> _ -> (Env.t -> a * type_expr)
     -> a * type_expr * Jkind.annotation option =
-  fun loc env name jkind_annot_opt type_body  ->
+  fun env name jkind_annot_opt type_body  ->
+  let { txt = name; loc = name_loc } : _ Location.loc = name in
   let jkind, jkind_annot =
     Jkind.of_annotation_option_default ~context:(Newtype_declaration name)
-      ~default:(Jkind.value ~why:Univar) jkind_annot_opt
+      ~default:(Jkind.Primitive.value ~why:Univar) jkind_annot_opt
   in
   let ty =
     if Typetexp.valid_tyvar_name name then
@@ -8281,7 +8326,7 @@ and type_newtype
   (* Use [with_local_level] just for scoping *)
   with_local_level begin fun () ->
     (* Create a fake abstract type declaration for name. *)
-    let decl = new_local_type ~loc jkind ~jkind_annot in
+    let decl = new_local_type ~loc:name_loc jkind ~jkind_annot in
     let scope = create_scope () in
     let (id, new_env) = Env.enter_type ~scope name decl env in
 
@@ -8307,7 +8352,7 @@ and type_newtype
 and type_newtype_expr
     ~loc ~env ~expected_mode ~rue ~attributes name jkind_annot_opt sbody =
   let body, ety, jkind_annot =
-    type_newtype loc env name jkind_annot_opt (fun env ->
+    type_newtype env name jkind_annot_opt (fun env ->
       let expr = type_exp env expected_mode sbody in
       expr, expr.exp_type)
   in
@@ -8315,7 +8360,7 @@ and type_newtype_expr
      any new extra node in the typed AST. *)
   rue { body with exp_loc = loc; exp_type = ety;
         exp_extra =
-        (Texp_newtype (name, jkind_annot),
+        (Texp_newtype (name.txt, jkind_annot),
          loc, attributes) :: body.exp_extra }
 
 (* Typing of let bindings *)
@@ -8738,7 +8783,7 @@ and type_generic_array
     if Types.is_mutable mutability then
       Predef.type_array, Typemode.mutable_implied_modalities
     else
-      Predef.type_iarray, Modality.Value.id
+      Predef.type_iarray, Modality.Value.Const.id
   in
   check_construct_mutability ~loc ~env mutability argument_mode;
   let argument_mode = mode_modality modalities argument_mode in
@@ -9040,7 +9085,7 @@ and type_comprehension_expr
         (* CR layouts v4: When this changes from [value], you will also have to
            update the use of [transl_exp] in transl_array_comprehension.ml. See
            a companion CR layouts v4 at the point of interest in that file. *)
-        Jkind.value ~why:Jkind.Array_comprehension_element
+        Jkind.Primitive.value ~why:Jkind.History.Array_comprehension_element
   in
   let element_ty =
     with_local_level_if_principal begin fun () ->
@@ -9150,7 +9195,7 @@ and type_comprehension_iterator
       in
       Texp_comp_range { ident; pattern; start; stop; direction }
   | In seq ->
-      let item_ty = newvar (Jkind.any ~why:Dummy_jkind) in
+      let item_ty = newvar (Jkind.Primitive.any ~why:Dummy_jkind) in
       let seq_ty = container_type item_ty in
       let sequence =
         (* To understand why we can currently only iterate over [mode_global]
@@ -9197,7 +9242,7 @@ and type_jkind_expr
       ~loc ~env ~expected_mode ~ty_expected:_ ~explanation:_ ~rue ~attributes
   : Jane_syntax.Layouts.expression -> _ = function
   | Lexp_constant x -> type_unboxed_constant ~loc ~env ~rue ~attributes x
-  | Lexp_newtype ({txt=name}, jkind_annot, sbody) ->
+  | Lexp_newtype (name, jkind_annot, sbody) ->
     type_newtype_expr ~loc ~env ~expected_mode ~rue ~attributes
       name (Some jkind_annot) sbody
 
@@ -9237,7 +9282,7 @@ and type_send env loc explanation e met =
               | id -> id, Btype.method_type met sign
               | exception Not_found ->
                   let id = Ident.create_local met in
-                  let ty = newvar (Jkind.value ~why:Object_field) in
+                  let ty = newvar (Jkind.Primitive.value ~why:Object_field) in
                   meths_ref := Meths.add met id !meths_ref;
                   add_method env met Private Virtual ty sign;
                   Location.prerr_warning loc
@@ -9342,7 +9387,7 @@ let type_expression env jkind sexp =
       Pexp_ident lid ->
         let loc = sexp.pexp_loc in
         (* Special case for keeping type variables when looking-up a variable *)
-        let (_path, desc, _mode, _reasons) =
+        let (_path, desc, _actual_mode) =
           Env.lookup_value ~use:false ~loc lid.txt env
         in
         {exp with exp_type = desc.val_type}
@@ -9356,7 +9401,7 @@ let type_representable_expression ~why env sexp =
   exp, sort
 
 let type_expression env sexp =
-  type_expression env (Jkind.any ~why:Type_expression_call) sexp
+  type_expression env (Jkind.Primitive.any ~why:Type_expression_call) sexp
 
 (* Error report *)
 
@@ -9555,50 +9600,6 @@ let escaping_hint (failure_reason : Value.error) submode_reason
   | Other -> []
   end
 
-let sharedness_hint _fail_reason submode_reason context =
-  (match context with
-  | None -> []
-  | Some Env.For_loop ->
-    [Location.msg
-        "@[Hint: This identifier cannot be used uniquely,@ \
-          because it was defined outside of the for-loop.@]"]
-  | Some Env.While_loop ->
-    [Location.msg
-        "@[Hint: This identifier cannot be used uniquely,@ \
-          because it was defined outside of the while-loop.@]"]
-  | Some Env.Comprehension ->
-    [Location.msg
-        "@[Hint: This identifier cannot be used uniquely,@ \
-          because it was defined outside of the comprehension.@]"]
-  | Some Env.Letop ->
-    [Location.msg
-        "@[Hint: This identifier cannot be used uniquely,@ \
-          because it was defined outside of the let-op.@]"]
-  | Some Env.Class ->
-    [Location.msg
-        "@[Hint: This identifier cannot be used uniquely,@ \
-          because it is defined in a class.@]"]
-  | Some Env.Closure ->
-    [Location.msg
-        "@[Hint: This identifier was defined outside of the current closure.@ \
-          Either this closure has to be once, or the identifier can be used only@ \
-          as shared.@]"]
-  | Some Env.Module ->
-    [Location.msg
-        "@[Hint: This identifier cannot be used uniquely,@ \
-          because it is defined in a module.@]"]
-  | Some Env.Probe ->
-    [Location.msg
-        "@[Hint: This identifier cannot be used uniquely,@ \
-          because it is defined outside of the probe.@]"]
-  | Some Env.Lazy ->
-    [Location.msg
-        "@[Hint: This identifier cannot be used uniquely,@ \
-          because it is defined outside of the lazy expression.@]"]
-  )
-  @
-  match submode_reason with
-  | Application _ | Other -> []
 
 let contention_hint _fail_reason _submode_reason context =
   match context with
@@ -10172,7 +10173,11 @@ let report_error ~loc env = function
       let sub =
         match fail_reason with
         | Error (Comonadic Linearity, _) | Error (Monadic Uniqueness, _) ->
-          sharedness_hint fail_reason submode_reason shared_context
+            shared_context
+          |> Option.map
+              (fun context -> Location.mknoloc
+                (fun ppf -> Env.sharedness_hint ppf context))
+          |> Option.to_list
         | Error (Comonadic Areality, _) ->
           escaping_hint fail_reason submode_reason closure_context
         | Error (Monadic Contention, _ ) ->

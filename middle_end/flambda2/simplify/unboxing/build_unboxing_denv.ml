@@ -35,23 +35,22 @@ let denv_of_number_decision naked_kind shape param_var naked_var denv : DE.t =
 let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
   match decision with
   | Do_not_unbox _ -> denv
-  | Unbox (Unique_tag_and_size { tag; fields }) ->
-    let field_kind =
-      if Tag.equal tag Tag.double_array_tag then K.naked_float else K.value
-    in
+  | Unbox (Unique_tag_and_size { tag; shape; fields }) ->
     let denv =
-      List.fold_left
-        (fun denv ({ epa = { param = var; _ }; _ } : U.field_decision) ->
+      Misc.Stdlib.List.fold_lefti
+        (fun index denv ({ epa = { param = var; _ }; _ } : U.field_decision) ->
           let v = VB.create var Name_mode.normal in
-          DE.define_variable denv v field_kind)
+          DE.define_variable denv v (K.Block_shape.element_kind shape index))
         denv fields
     in
-    let type_of_var (field : U.field_decision) =
-      T.alias_type_of field_kind (Simple.var field.epa.param)
+    let type_of_var index (field : U.field_decision) =
+      T.alias_type_of
+        (K.Block_shape.element_kind shape index)
+        (Simple.var field.epa.param)
     in
-    let field_types = List.map type_of_var fields in
+    let field_types = List.mapi type_of_var fields in
     let shape =
-      T.immutable_block ~is_unique:false tag ~field_kind ~fields:field_types
+      T.immutable_block ~is_unique:false tag ~shape ~fields:field_types
         (Alloc_mode.For_types.unknown ())
     in
     let denv = add_equation_on_var denv param_var shape in
@@ -142,21 +141,24 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
     in
     let denv =
       Tag.Scannable.Map.fold
-        (fun _ block_fields denv ->
-          List.fold_left
-            (fun denv ({ epa = { param = var; _ }; _ } : U.field_decision) ->
+        (fun _ (shape, block_fields) denv ->
+          Misc.Stdlib.List.fold_lefti
+            (fun index denv ({ epa = { param = var; _ }; _ } : U.field_decision) ->
               let v = VB.create var Name_mode.normal in
-              DE.define_variable denv v K.value)
+              DE.define_variable denv v (K.Block_shape.element_kind shape index))
             denv block_fields)
         fields_by_tag denv
     in
     let non_const_ctors =
       Tag.Scannable.Map.map
-        (fun block_fields ->
-          List.map
-            (fun (field : U.field_decision) ->
-              T.alias_type_of K.value (Simple.var field.epa.param))
-            block_fields)
+        (fun (shape, block_fields) ->
+          ( shape,
+            List.mapi
+              (fun i (field : U.field_decision) ->
+                T.alias_type_of
+                  (K.Block_shape.element_kind shape i)
+                  (Simple.var field.epa.param))
+              block_fields ))
         fields_by_tag
     in
     let shape =
@@ -165,7 +167,7 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
     let denv = add_equation_on_var denv param_var shape in
     (* Recurse on the fields *)
     Tag.Scannable.Map.fold
-      (fun _ block_fields denv ->
+      (fun _ (_shape, block_fields) denv ->
         List.fold_left
           (fun denv (field : U.field_decision) ->
             denv_of_decision denv ~param_var:field.epa.param field.decision)

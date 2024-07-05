@@ -54,7 +54,7 @@ end
 let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
   function
   | Comprehensions -> (module Unit)
-  | Mode -> (module Unit)
+  | Mode -> (module Maturity)
   | Unique -> (module Unit)
   | Include_functor -> (module Unit)
   | Polymorphic_parameters -> (module Unit)
@@ -70,7 +70,7 @@ module Exist_pair = struct
 
   let maturity : t -> Maturity.t = function
     | Pair (Comprehensions, ()) -> Beta
-    | Pair (Mode, ()) -> Stable
+    | Pair (Mode, m) -> m
     | Pair (Unique, ()) -> Alpha
     | Pair (Include_functor, ()) -> Stable
     | Pair (Polymorphic_parameters, ()) -> Stable
@@ -85,10 +85,11 @@ module Exist_pair = struct
 
   let to_string = function
     | Pair (Layouts, m) -> to_string Layouts ^ "_" ^ maturity_to_string m
+    | Pair (Mode, m) -> to_string Mode ^ "_" ^ maturity_to_string m
     | Pair
-        ( (( Comprehensions | Mode | Unique | Include_functor
-           | Polymorphic_parameters | Immutable_arrays | Module_strengthening
-           | SIMD | Labeled_tuples | Small_numbers ) as ext),
+        ( (( Comprehensions | Unique | Include_functor | Polymorphic_parameters
+           | Immutable_arrays | Module_strengthening | SIMD | Labeled_tuples
+           | Small_numbers ) as ext),
           _ ) ->
       to_string ext
 end

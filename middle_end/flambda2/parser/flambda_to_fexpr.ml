@@ -449,7 +449,7 @@ and variant_subkind consts non_consts : Fexpr.subkind =
   in
   let non_consts =
     non_consts |> Tag.Scannable.Map.bindings
-    |> List.map (fun (tag, sk) ->
+    |> List.map (fun (tag, (_shape, sk)) ->
            Tag.Scannable.to_int tag, List.map kind_with_subkind sk)
   in
   Variant { consts; non_consts }
@@ -571,14 +571,7 @@ let block_access_kind (bk : Flambda_primitive.Block_access_kind.t) :
   | Naked_floats { size = s } ->
     let size = s |> size in
     Naked_floats { size }
-  | Mixed { tag; size = s; field_kind } ->
-    let size = s |> size in
-    let tag =
-      match tag with
-      | Unknown -> None
-      | Known tag -> Some (tag |> Tag.Scannable.to_int)
-    in
-    Mixed { tag; size; field_kind }
+  | Mixed _ -> Misc.fatal_error "Mixed blocks not supported in fexpr"
 
 let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   match op with
@@ -623,7 +616,7 @@ let varop env (op : Flambda_primitive.variadic_primitive) : Fexpr.varop =
     let tag = tag |> Tag.Scannable.to_int in
     let alloc = alloc_mode_for_allocations env alloc in
     Make_block (tag, mutability, alloc)
-  | Make_block (Naked_floats, _, _) | Make_array _ | Make_mixed_block _ ->
+  | Make_block ((Naked_floats | Mixed _), _, _) | Make_array _ ->
     Misc.fatal_errorf "TODO: Variadic primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Variadic op)
@@ -672,7 +665,11 @@ let set_of_closures env sc =
       (fun (function_slot, fun_decl) ->
         function_declaration env fun_decl function_slot alloc)
       (Set_of_closures.function_decls sc
-      |> Function_declarations.funs_in_order |> Function_slot.Lmap.bindings)
+      |> Function_declarations.funs_in_order
+      |> Function_slot.Lmap.map (function
+           | Function_declarations.Deleted _ -> Misc.fatal_error "todo"
+           | Function_declarations.Code_id code_id -> code_id)
+      |> Function_slot.Lmap.bindings)
   in
   let elts = value_slots env (Set_of_closures.value_slots sc) in
   let elts = match elts with [] -> None | _ -> Some elts in
@@ -1043,6 +1040,7 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       Function (Indirect alloc)
     | C_call { needs_caml_c_call; _ } -> C_call { alloc = needs_caml_c_call }
     | Method _ -> Misc.fatal_error "TODO: Method call kind"
+    | Effect _ -> Misc.fatal_error "TODO: Effect call kind"
   in
   let param_arity = Apply_expr.args_arity app in
   let return_arity = Apply_expr.return_arity app in
@@ -1066,9 +1064,9 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       let params_arity = Some (complex_arity param_arity) in
       let ret_arity = arity return_arity in
       Some { params_arity; ret_arity }
-    | Function { function_call = Indirect_unknown_arity; alloc_mode = _ }
-    | Method _ ->
+    | Function { function_call = Indirect_unknown_arity; alloc_mode = _ } ->
       None
+    | Method _ | Effect _ -> assert false
   in
   let inlined : Fexpr.inlined_attribute option =
     if Flambda2_terms.Inlined_attribute.is_default (Apply_expr.inlined app)

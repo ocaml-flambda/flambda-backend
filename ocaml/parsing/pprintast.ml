@@ -112,9 +112,7 @@ let protect_longident ppf print_longident longprefix txt =
   fprintf ppf format print_longident longprefix txt
 
 let is_curry_attr attr =
-  match attr.attr_name.txt with
-  | "extension.curry" -> true
-  | _ -> false
+  attr.attr_name.txt = Jane_syntax.Arrow_curry.curry_attr_name
 
 let filter_curry_attrs attrs =
   List.filter (fun attr -> not (is_curry_attr attr)) attrs
@@ -312,6 +310,10 @@ let optional_legacy_modes f m =
     legacy_modes f m;
     pp_print_space f ()
 
+let space_modality f {txt = Modality m; _} =
+  pp_print_string f " ";
+  pp_print_string f m
+
 let legacy_modality f m =
   let {txt; _} = (m : modality Location.loc) in
   let s =
@@ -331,12 +333,16 @@ let optional_legacy_modalities f m =
     legacy_modalities f m;
     pp_print_space f ()
 
+let maybe_atat_modalities f m =
+  match m with
+  | [] -> ()
+  | _ :: _ ->
+    pp_print_string f " @@";
+    pp_print_list space_modality f m
+
 let mode f m =
   let {txt; _} = (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
   pp_print_string f txt
-
-let modes f m =
-  pp_print_list ~pp_sep:(fun f () -> pp f " ") mode f m.txt
 
 let maybe_modes_of_type c =
   let m, cattrs = Jane_syntax.Mode_expr.maybe_of_attrs c.ptyp_attributes in
@@ -346,12 +352,6 @@ let maybe_modes_type pty ctxt f c =
   let m, c = maybe_modes_of_type c in
   match m with
   | Some m -> pp f "%a %a" legacy_modes m (pty ctxt) c
-  | None -> pty ctxt f c
-
-let maybe_type_atat_modes pty ctxt f c =
-  let m, c = maybe_modes_of_type c in
-  match m with
-  | Some m -> pp f "%a@ @@@@@ %a" (pty ctxt) c modes m
   | None -> pty ctxt f c
 
 let modalities_type pty ctxt f pca =
@@ -375,7 +375,7 @@ and type_with_label ctxt f (label, c) =
 
 and jkind ctxt f k = match (k : Jane_syntax.Jkind.t) with
   | Default -> pp f "_"
-  | Primitive_layout_or_abbreviation s ->
+  | Abbreviation s ->
     pp f "%s" (s : Jane_syntax.Jkind.Const.t :> _ loc).txt
   | Mod (t, { txt = mode_list }) ->
     begin match mode_list with
@@ -1093,7 +1093,8 @@ and floating_attribute ctxt f a =
 and value_description ctxt f x =
   (* note: value_description has an attribute field,
            but they're already printed by the callers this method *)
-  pp f "@[<hov2>%a%a@]" (maybe_type_atat_modes core_type ctxt) x.pval_type
+  pp f "@[<hov2>%a%a%a@]" (core_type ctxt) x.pval_type
+    maybe_atat_modalities x.pval_modalities
     (fun f x ->
        if x.pval_prim <> []
        then pp f "@ =@ %a" (list constant_string) x.pval_prim

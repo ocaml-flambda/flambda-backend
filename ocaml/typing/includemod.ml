@@ -1037,12 +1037,13 @@ let check_modtype_inclusion ~loc env mty1 path1 mty2 =
 
 let check_functor_application_in_path
     ~errors ~loc ~lid_whole_app ~f0_path ~args
-    ~arg_path ~arg_mty ~param_mty env =
+    ~arg_path ~arg_mty ~arg_mode ~param_mty env =
+  Mode.Value.submode_exn arg_mode Mode.Value.legacy;
   match check_modtype_inclusion_raw ~loc env arg_mty arg_path param_mty with
   | Ok _ -> ()
   | Error _errs ->
       if errors then
-        let prepare_arg (arg_path, arg_mty) =
+        let prepare_arg (arg_path, arg_mty, _arg_mode) =
           let aliasable = can_alias env arg_path in
           let smd = Mtype.strengthen ~aliasable arg_mty arg_path in
           (Error.Named arg_path, smd)

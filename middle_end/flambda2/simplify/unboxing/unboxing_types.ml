@@ -54,12 +54,14 @@ end
 type unboxing_decision =
   | Unique_tag_and_size of
       { tag : Tag.t;
+        shape : K.Block_shape.t;
         fields : field_decision list
       }
   | Variant of
       { tag : Extra_param_and_args.t;
         const_ctors : const_ctors_decision;
-        fields_by_tag : field_decision list Tag.Scannable.Map.t
+        fields_by_tag :
+          (K.Block_shape.t * field_decision list) Tag.Scannable.Map.t
       }
   | Closure_single_entry of
       { function_slot : Function_slot.t;
@@ -86,7 +88,8 @@ and decision =
 
 type decisions =
   { decisions : (BP.t * decision) list;
-    rewrite_ids_seen : Apply_cont_rewrite_id.Set.t
+    rewrite_ids_seen : Apply_cont_rewrite_id.Set.t;
+    rewrites_ids_known_as_invalid : Apply_cont_rewrite_id.Set.t
   }
 
 type pass =
@@ -110,17 +113,18 @@ let rec print_decision ppf = function
   | Do_not_unbox reason ->
     Format.fprintf ppf "@[<hov 1>(do_not_unbox@ %a)@]" print_do_not_unbox_reason
       reason
-  | Unbox (Unique_tag_and_size { tag; fields }) ->
+  | Unbox (Unique_tag_and_size { tag; shape; fields }) ->
     Format.fprintf ppf
-      "@[<v 1>(unique_tag_and_size@ @[<h>(static_tag %a)@]@ @[<hv 2>(fields@ \
-       %a)@])@]"
-      Tag.print tag print_fields_decisions fields
+      "@[<v 1>(unique_tag_and_size@ @[<h>(static_tag %a)@]@ @[<h>(shape %a)@]@ \
+       @[<hv 2>(fields@ %a)@])@]"
+      Tag.print tag K.Block_shape.print shape print_fields_decisions fields
   | Unbox (Variant { tag; const_ctors; fields_by_tag }) ->
     Format.fprintf ppf
       "@[<v 2>(variant@ @[<hov>(tag %a)@]@ @[<hv 2>(const_ctors@ %a)@]@ @[<v \
        2>(fields_by_tag@ %a)@])@]"
       Extra_param_and_args.print tag print_const_ctor_num const_ctors
-      (Tag.Scannable.Map.print print_fields_decisions)
+      (Tag.Scannable.Map.print (fun ppf (_shape, fields) ->
+           print_fields_decisions ppf fields))
       fields_by_tag
   | Unbox (Closure_single_entry { function_slot; vars_within_closure }) ->
     Format.fprintf ppf
@@ -151,7 +155,7 @@ and print_const_ctor_num ppf = function
       "@[<hov 1>(const_ctors@ @[<hov 1>(is_int@ %a)@]@ @[<hov 1>(ctor@ %a)@])@]"
       Extra_param_and_args.print is_int print_decision ctor
 
-let [@ocamlformat "disable"] print ppf { decisions; rewrite_ids_seen; } =
+let [@ocamlformat "disable"] print ppf { decisions; rewrite_ids_seen; rewrites_ids_known_as_invalid; } =
   let pp_sep = Format.pp_print_space in
   let aux ppf (param, decision) =
     Format.fprintf ppf "@[<hov 1>(%a@ %a)@]"
@@ -159,15 +163,18 @@ let [@ocamlformat "disable"] print ppf { decisions; rewrite_ids_seen; } =
   in
   Format.fprintf ppf "@[<hov 1>(\
     @[<hov 1>(decisions@ %a)@]@ \
-    @[<hov 1>(rewrite_ids_seen@ %a)@]\
+    @[<hov 1>(rewrite_ids_seen@ %a)@]@ \
+    @[<hov 1>(rewrites_ids_known_as_invalid@ %a)@]\
     )@]"
     (Format.pp_print_list ~pp_sep aux) decisions
     Apply_cont_rewrite_id.Set.print rewrite_ids_seen
+    Apply_cont_rewrite_id.Set.print rewrites_ids_known_as_invalid
 
 module Decisions = struct
   type t = decisions =
     { decisions : (BP.t * decision) list;
-      rewrite_ids_seen : Apply_cont_rewrite_id.Set.t
+      rewrite_ids_seen : Apply_cont_rewrite_id.Set.t;
+      rewrites_ids_known_as_invalid : Apply_cont_rewrite_id.Set.t
     }
 
   let print = print

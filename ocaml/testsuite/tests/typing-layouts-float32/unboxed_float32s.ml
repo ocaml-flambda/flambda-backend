@@ -1,6 +1,6 @@
 (* TEST
  reference = "${test_source_directory}/unboxed_float32s.reference";
- include beta;
+ include stdlib_beta;
  flambda2;
  {
    flags = "-extension layouts_alpha -extension small_numbers";
@@ -34,7 +34,7 @@
 (* Prelude: Functions on unboxed floats. *)
 
 module Float32 = struct
-  include Beta.Float32
+  include Stdlib_beta.Float32
 
   let ( + ) = add
   let ( - ) = sub
@@ -45,7 +45,7 @@ module Float32 = struct
 end
 
 module Float32_u = struct
-  include Beta.Float32_u
+  include Stdlib_beta.Float32_u
 
   let ( + ) = add
   let ( - ) = sub

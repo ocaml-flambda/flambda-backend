@@ -184,34 +184,31 @@ and ident_cons = ident_create "::"
 and ident_none = ident_create "None"
 and ident_some = ident_create "Some"
 
-let predef_jkind_annotation const =
+let predef_jkind_annotation primitive =
   Option.map
-    (fun const ->
+    (fun (primitive : Jkind.Const.Primitive.t) ->
        (* This is a bit of a hack: we're trying to figure out what a user
           could have written on a predef type declaration to give it the
           right kind. But this hack is OK as its result is just used in
           printing/untypeast.
        *)
        let user_written : _ Location.loc =
-         let name = Jkind.string_of_const const in
-         Jane_syntax.Jkind.(
-           Primitive_layout_or_abbreviation
-             (Const.mk name Location.none))
+         Jane_syntax.Jkind.(Abbreviation (Const.mk primitive.name Location.none))
          |> Location.mknoloc
        in
-       const, user_written)
-    const
+       primitive.jkind, user_written)
+    primitive
 
-let option_argument_jkind = Jkind.value ~why:(
+let option_argument_jkind = Jkind.Primitive.value ~why:(
   Type_argument {parent_path = path_option; position = 1; arity = 1})
 
-let list_argument_jkind = Jkind.value ~why:(
+let list_argument_jkind = Jkind.Primitive.value ~why:(
   Type_argument {parent_path = path_list; position = 1; arity = 1})
 
 let mk_add_type add_type
       ?manifest type_ident
       ?(kind=Type_abstract Abstract_def)
-      ?(jkind=Jkind.value ~why:(Primitive type_ident))
+      ?(jkind=Jkind.Primitive.value ~why:(Primitive type_ident))
       (* [jkind_annotation] is just used for printing. It's best to
          provide it if the jkind is not implied by the kind of the
          type, as then the type, if printed, will be clearer.
@@ -244,11 +241,11 @@ let build_initial_env add_type add_extension empty_env =
   let add_type = mk_add_type add_type
   and add_type1 type_ident
         ?(kind=fun _ -> Type_abstract Abstract_def)
-        ?(jkind=Jkind.value ~why:(Primitive type_ident))
+        ?(jkind=Jkind.Primitive.value ~why:(Primitive type_ident))
         (* See the comment on the [jkind_annotation] argument to [mk_add_type]
         *)
         ?jkind_annotation
-        ?(param_jkind=Jkind.value ~why:(
+        ?(param_jkind=Jkind.Primitive.value ~why:(
           Type_argument {
             parent_path = Path.Pident type_ident;
             position = 1;
@@ -278,12 +275,18 @@ let build_initial_env add_type add_extension empty_env =
   in
   let add_extension id args jkinds =
     Array.iter (fun jkind ->
+        let raise_error () = Misc.fatal_error
+            "sanity check failed: non-value jkind in predef extension \
+             constructor; should this have Constructor_mixed shape?" in
         match Jkind.get jkind with
-        | Const Value -> ()
-        | _ ->
-            Misc.fatal_error
-              "sanity check failed: non-value jkind in predef extension \
-               constructor; should this have Constructor_mixed shape?")
+        | Const const ->
+            begin
+              match Jkind.Const.get_layout const with
+              | Sort Value -> ()
+              | Any | Sort (Void | Float32 | Float64 | Word | Bits32 | Bits64) ->
+                  raise_error ()
+            end
+        | _ -> raise_error ())
       jkinds;
     add_extension id
       { ext_type_path = path_exn;
@@ -294,7 +297,7 @@ let build_initial_env add_type add_extension empty_env =
               (fun x ->
                 {
                   ca_type=x;
-                  ca_modalities=Mode.Modality.Value.id;
+                  ca_modalities=Mode.Modality.Value.Const.id;
                   ca_loc=Location.none
                 })
               args);
@@ -312,14 +315,16 @@ let build_initial_env add_type add_extension empty_env =
   in
   let variant constrs jkinds = Type_variant (constrs, Variant_boxed jkinds) in
   let unrestricted tvar =
-    {ca_type=tvar; ca_modalities=Mode.Modality.Value.id; ca_loc=Location.none}
+    {ca_type=tvar;
+     ca_modalities=Mode.Modality.Value.Const.id;
+     ca_loc=Location.none}
   in
   empty_env
   (* Predefined types *)
   |> add_type1 ident_array
        ~variance:Variance.full
        ~separability:Separability.Ind
-       ~param_jkind:(Jkind.any ~why:Array_type_argument)
+       ~param_jkind:(Jkind.Primitive.any ~why:Array_type_argument)
   |> add_type1 ident_iarray
        ~variance:Variance.covariant
        ~separability:Separability.Ind
@@ -327,17 +332,17 @@ let build_initial_env add_type add_extension empty_env =
        ~kind:(variant [ cstr ident_false []; cstr ident_true []]
                 [| Constructor_uniform_value, [| |];
                    Constructor_uniform_value, [| |] |])
-       ~jkind:(Jkind.immediate ~why:Enumeration)
-  |> add_type ident_char ~jkind:(Jkind.immediate ~why:(Primitive ident_char))
-      ~jkind_annotation:Immediate
+       ~jkind:(Jkind.Primitive.immediate ~why:Enumeration)
+  |> add_type ident_char ~jkind:(Jkind.Primitive.immediate ~why:(Primitive ident_char))
+      ~jkind_annotation:Jkind.Const.Primitive.immediate
   |> add_type ident_exn
        ~kind:Type_open
-       ~jkind:(Jkind.value ~why:Extensible_variant)
+       ~jkind:(Jkind.Primitive.value ~why:Extensible_variant)
   |> add_type ident_extension_constructor
   |> add_type ident_float
   |> add_type ident_floatarray
-  |> add_type ident_int ~jkind:(Jkind.immediate ~why:(Primitive ident_int))
-      ~jkind_annotation:Immediate
+  |> add_type ident_int ~jkind:(Jkind.Primitive.immediate ~why:(Primitive ident_int))
+      ~jkind_annotation:Jkind.Const.Primitive.immediate
   |> add_type ident_int32
   |> add_type ident_int64
   |> add_type1 ident_lazy_t
@@ -353,10 +358,10 @@ let build_initial_env add_type add_extension empty_env =
            [| Constructor_uniform_value, [| |];
               Constructor_uniform_value,
                 [| list_argument_jkind;
-                   Jkind.value ~why:Boxed_variant;
+                   Jkind.Primitive.value ~why:Boxed_variant;
                 |];
            |] )
-       ~jkind:(Jkind.value ~why:Boxed_variant)
+       ~jkind:(Jkind.Primitive.value ~why:Boxed_variant)
   |> add_type ident_nativeint
   |> add_type1 ident_option
        ~variance:Variance.covariant
@@ -366,7 +371,7 @@ let build_initial_env add_type add_extension empty_env =
            [| Constructor_uniform_value, [| |];
               Constructor_uniform_value, [| option_argument_jkind |];
            |])
-       ~jkind:(Jkind.value ~why:Boxed_variant)
+       ~jkind:(Jkind.Primitive.value ~why:Boxed_variant)
   |> add_type ident_lexing_position
        ~kind:(
          let lbl (field, field_type, jkind) =
@@ -374,7 +379,7 @@ let build_initial_env add_type add_extension empty_env =
              {
                ld_id=id;
                ld_mutable=Immutable;
-               ld_modalities=Mode.Modality.Value.id;
+               ld_modalities=Mode.Modality.Value.Const.id;
                ld_type=field_type;
                ld_jkind=jkind;
                ld_loc=Location.none;
@@ -382,9 +387,9 @@ let build_initial_env add_type add_extension empty_env =
                ld_uid=Uid.of_predef_id id;
              }
          in
-         let immediate = Jkind.value ~why:(Primitive ident_int) in
+         let immediate = Jkind.Primitive.value ~why:(Primitive ident_int) in
          let labels = List.map lbl [
-           ("pos_fname", type_string, Jkind.value ~why:(Primitive ident_string));
+           ("pos_fname", type_string, Jkind.Primitive.value ~why:(Primitive ident_string));
            ("pos_lnum", type_int, immediate);
            ("pos_bol", type_int, immediate);
            ("pos_cnum", type_int, immediate) ]
@@ -394,48 +399,48 @@ let build_initial_env add_type add_extension empty_env =
            (Record_boxed (List.map (fun label -> label.ld_jkind) labels |> Array.of_list))
          )
        )
-       ~jkind:(Jkind.value ~why:Boxed_record)
+       ~jkind:(Jkind.Primitive.value ~why:Boxed_record)
   |> add_type ident_string
   |> add_type ident_unboxed_float
-       ~jkind:(Jkind.float64 ~why:(Primitive ident_unboxed_float))
-       ~jkind_annotation:Float64
+       ~jkind:(Jkind.Primitive.float64 ~why:(Primitive ident_unboxed_float))
+       ~jkind_annotation:Jkind.Const.Primitive.float64
   |> add_type ident_unboxed_nativeint
-       ~jkind:(Jkind.add_mode_crossing (Jkind.word ~why:(Primitive ident_unboxed_nativeint)))
-       ~jkind_annotation:Word
+       ~jkind:(Jkind.add_mode_crossing (Jkind.Primitive.word ~why:(Primitive ident_unboxed_nativeint)))
+       ~jkind_annotation:Jkind.Const.Primitive.word
   |> add_type ident_unboxed_int32
-       ~jkind:(Jkind.add_mode_crossing (Jkind.bits32 ~why:(Primitive ident_unboxed_int32)))
-       ~jkind_annotation:Bits32
+       ~jkind:(Jkind.add_mode_crossing (Jkind.Primitive.bits32 ~why:(Primitive ident_unboxed_int32)))
+       ~jkind_annotation:Jkind.Const.Primitive.bits32
   |> add_type ident_unboxed_int64
-       ~jkind:(Jkind.add_mode_crossing (Jkind.bits64 ~why:(Primitive ident_unboxed_int64)))
-       ~jkind_annotation:Bits64
+       ~jkind:(Jkind.add_mode_crossing (Jkind.Primitive.bits64 ~why:(Primitive ident_unboxed_int64)))
+       ~jkind_annotation:Jkind.Const.Primitive.bits64
   |> add_type ident_bytes
   |> add_type ident_unit
        ~kind:(variant
                 [cstr ident_void []]
                 [| Constructor_uniform_value, [| |] |])
-       ~jkind:(Jkind.immediate ~why:Enumeration)
+       ~jkind:(Jkind.Primitive.immediate ~why:Enumeration)
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
        [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
-       [| Jkind.value ~why:Tuple |]
+       [| Jkind.Primitive.value ~why:Tuple |]
   |> add_extension ident_division_by_zero [] [||]
   |> add_extension ident_end_of_file [] [||]
   |> add_extension ident_failure [type_string]
-       [| Jkind.value ~why:(Primitive ident_string) |]
+       [| Jkind.Primitive.value ~why:(Primitive ident_string) |]
   |> add_extension ident_invalid_argument [type_string]
-       [| Jkind.value ~why:(Primitive ident_string) |]
+       [| Jkind.Primitive.value ~why:(Primitive ident_string) |]
   |> add_extension ident_match_failure
        [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
-       [| Jkind.value ~why:Tuple |]
+       [| Jkind.Primitive.value ~why:Tuple |]
   |> add_extension ident_not_found [] [||]
   |> add_extension ident_out_of_memory [] [||]
   |> add_extension ident_stack_overflow [] [||]
   |> add_extension ident_sys_blocked_io [] [||]
   |> add_extension ident_sys_error [type_string]
-       [| Jkind.value ~why:(Primitive ident_string) |]
+       [| Jkind.Primitive.value ~why:(Primitive ident_string) |]
   |> add_extension ident_undefined_recursive_module
        [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
-       [| Jkind.value ~why:Tuple |]
+       [| Jkind.Primitive.value ~why:Tuple |]
 
 let add_simd_extension_types add_type env =
   let add_type = mk_add_type add_type in
@@ -452,8 +457,8 @@ let add_small_number_extension_types add_type env =
   env
   |> add_type ident_float32
   |> add_type ident_unboxed_float32
-       ~jkind:(Jkind.float32 ~why:(Primitive ident_unboxed_float32))
-       ~jkind_annotation:Float32
+       ~jkind:(Jkind.Primitive.float32 ~why:(Primitive ident_unboxed_float32))
+       ~jkind_annotation:Jkind.Const.Primitive.float32
 
 let builtin_values =
   List.map (fun id -> (Ident.name id, id)) all_predef_exns

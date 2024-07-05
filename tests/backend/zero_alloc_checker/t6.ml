@@ -25,3 +25,9 @@ let[@zero_alloc strict] call_loud2 x = fail_loud2 (x+1)
 let[@inline never][@specialise never][@zero_alloc strict assume][@zero_alloc ignore] fail_loud1 x = raise (Exn (x,x))
 
 let[@zero_alloc strict] call_loud1 x = fail_loud1 (x+1)
+
+module Module : sig
+  val add : int -> int -> int [@@zero_alloc]
+end = struct
+  let add x y = x + y
+end

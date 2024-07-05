@@ -21,8 +21,9 @@ let test_meet_chains_two_vars () =
   let env = TE.add_definition env (Bound_name.create_var var1') K.value in
   let env =
     TE.add_equation env (Name.var var1)
-      (T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
-         Alloc_mode.For_types.heap ~fields:[T.any_tagged_immediate])
+      (T.immutable_block ~is_unique:false Tag.zero
+         ~shape:K.Block_shape.Value_only Alloc_mode.For_types.heap
+         ~fields:[T.any_tagged_immediate])
   in
   let var2 = Variable.create "var2" in
   let var2' = Bound_var.create var2 Name_mode.normal in
@@ -54,8 +55,9 @@ let test_meet_chains_three_vars () =
   let env = TE.add_definition env (Bound_name.create_var var1') K.value in
   let env =
     TE.add_equation env (Name.var var1)
-      (T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
-         Alloc_mode.For_types.heap ~fields:[T.any_tagged_immediate])
+      (T.immutable_block ~is_unique:false Tag.zero
+         ~shape:K.Block_shape.Value_only Alloc_mode.For_types.heap
+         ~fields:[T.any_tagged_immediate])
   in
   let var2 = Variable.create "var2" in
   let var2' = Bound_var.create var2 Name_mode.normal in
@@ -102,18 +104,24 @@ let meet_variants_don't_lose_aliases () =
   let ty1 =
     let non_const_ctors =
       Tag.Scannable.Map.of_list
-        [ Tag.Scannable.create_exn 0, [T.alias_type_of K.value (Simple.var vx)];
-          Tag.Scannable.create_exn 1, [T.alias_type_of K.value (Simple.var vy)]
-        ]
+        [ ( Tag.Scannable.create_exn 0,
+            (K.Block_shape.Value_only, [T.alias_type_of K.value (Simple.var vx)])
+          );
+          ( Tag.Scannable.create_exn 1,
+            (K.Block_shape.Value_only, [T.alias_type_of K.value (Simple.var vy)])
+          ) ]
     in
     T.variant ~const_ctors ~non_const_ctors Alloc_mode.For_types.heap
   in
   let ty2 =
     let non_const_ctors =
       Tag.Scannable.Map.of_list
-        [ Tag.Scannable.create_exn 0, [T.alias_type_of K.value (Simple.var va)];
-          Tag.Scannable.create_exn 1, [T.alias_type_of K.value (Simple.var vb)]
-        ]
+        [ ( Tag.Scannable.create_exn 0,
+            (K.Block_shape.Value_only, [T.alias_type_of K.value (Simple.var va)])
+          );
+          ( Tag.Scannable.create_exn 1,
+            (K.Block_shape.Value_only, [T.alias_type_of K.value (Simple.var vb)])
+          ) ]
     in
     T.variant ~const_ctors ~non_const_ctors Alloc_mode.For_types.heap
   in
@@ -148,14 +156,14 @@ let test_meet_two_blocks () =
   let env = defines env [block1; block2; field1; field2] in
   let env =
     TE.add_equation env (Name.var block1)
-      (T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
-         Alloc_mode.For_types.heap
+      (T.immutable_block ~is_unique:false Tag.zero
+         ~shape:K.Block_shape.Value_only Alloc_mode.For_types.heap
          ~fields:[T.alias_type_of K.value (Simple.var field1)])
   in
   let env =
     TE.add_equation env (Name.var block2)
-      (T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
-         Alloc_mode.For_types.heap
+      (T.immutable_block ~is_unique:false Tag.zero
+         ~shape:K.Block_shape.Value_only Alloc_mode.For_types.heap
          ~fields:[T.alias_type_of K.value (Simple.var field2)])
   in
   (* let test b1 b2 env =
