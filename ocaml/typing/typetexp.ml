@@ -740,7 +740,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       List.iteri
         (fun idx ((sty, cty), ty') ->
            begin match Types.get_desc ty' with
-           | Tvar {jkind; _} when Jkind.History.has_imported_history jkind ->
+           | Tvar {jkind; _} when Jkind.History.is_imported jkind ->
              (* In case of a Tvar with imported jkind history, we can improve
                 the jkind reason using the in scope [path] to the parent type.
 

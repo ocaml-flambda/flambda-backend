@@ -240,7 +240,7 @@ end
 module History = struct
   include Jkind_intf.History
 
-  let has_imported_history t =
+  let is_imported t =
     match t.history with Creation Imported -> true | _ -> false
 
   let update_reason t reason = { t with history = Creation reason }
