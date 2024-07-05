@@ -25,7 +25,17 @@ let all_slot_offsets = ref Slot_offsets.empty
 
 let all_code = ref Code_id.Map.empty
 
-type uses = Dep_solver.result
+type env = {
+  uses : Dep_solver.result ;
+  get_code_metadata : Code_id.t -> Code_metadata.t ;
+}
+
+let is_used (env : env) cn = Hashtbl.mem env.uses cn
+
+let is_code_id_used (env : env) code_id = is_used env (Code_id_or_name.code_id code_id)
+let is_name_used (env : env) name = is_used env (Code_id_or_name.name name)
+let is_var_used (env : env) var = is_used env (Code_id_or_name.var var)
+let is_symbol_used (env : env) symbol = is_used env (Code_id_or_name.symbol symbol)
 
 let poison_value = 0 (* 123456789 *)
 
@@ -33,10 +43,10 @@ let poison_value_31_63 = Targetint_31_63.of_int poison_value
 
 let poison kind = Simple.const_int_of_kind kind poison_value
 
-let rewrite_simple kinds (uses : uses) simple =
+let rewrite_simple kinds (env : env) simple =
   Simple.pattern_match simple
     ~name:(fun name ~coercion:_ ->
-      if Hashtbl.mem uses (Code_id_or_name.name name)
+      if is_name_used env name
       then simple
       else
         let kind =
@@ -50,36 +60,36 @@ let rewrite_simple kinds (uses : uses) simple =
         poison kind)
     ~const:(fun _ -> simple)
 
-let rewrite_simple_opt (uses : uses) = function
+let rewrite_simple_opt (env : env) = function
   | None -> None
   | Some simple as simpl ->
     Simple.pattern_match simple
       ~name:(fun name ~coercion:_ ->
-        if Hashtbl.mem uses (Code_id_or_name.name name) then simpl else None)
+        if is_name_used env name then simpl else None)
       ~const:(fun _ -> simpl)
 
-let rewrite_or_variable default uses (or_variable : _ Or_variable.t) =
+let rewrite_or_variable default env (or_variable : _ Or_variable.t) =
   match or_variable with
   | Const _ -> or_variable
   | Var (v, _) ->
-    if Hashtbl.mem uses (Code_id_or_name.var v)
+    if is_var_used env v
     then or_variable
     else Or_variable.Const default
 
-let rewrite_field_of_static_block _kinds uses (field : Field_of_static_block.t)
+let rewrite_field_of_static_block _kinds env (field : Field_of_static_block.t)
     : Field_of_static_block.t =
   match field with
   | Tagged_immediate _ -> field
   | Symbol sym ->
-    if Hashtbl.mem uses (Code_id_or_name.symbol sym)
+    if is_symbol_used env sym
     then field
     else Tagged_immediate poison_value_31_63
   | Dynamically_computed (v, _) ->
-    if Hashtbl.mem uses (Code_id_or_name.var v)
+    if is_var_used env v
     then field
     else Tagged_immediate poison_value_31_63
 
-let rewrite_static_const kinds (uses : uses) (sc : Static_const.t) =
+let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
   match sc with
   | Set_of_closures sc ->
     let function_decls = Set_of_closures.function_decls sc in
@@ -92,24 +102,18 @@ let rewrite_static_const kinds (uses : uses) (sc : Static_const.t) =
              match code_id with
              | Deleted _ -> code_id
              | Code_id code_id ->
-               if (* slot_is_used (Function_slot slot) *)
-                  match
-                    Hashtbl.find_opt uses (Code_id_or_name.code_id code_id)
-                  with
-                  | None | Some Bottom ->
-                    not
-                      (Compilation_unit.is_current
-                         (Code_id.get_compilation_unit code_id))
-                  | Some Top | Some (Fields _) -> true
-               then Code_id code_id
-               else Deleted { function_slot_size = failwith "TODO" })
+               if is_code_id_used env code_id then
+                 Code_id code_id
+               else
+                  let code_metadata = env.get_code_metadata code_id in
+                  Deleted { function_slot_size = Code_metadata.function_slot_size code_metadata })
            (FD.funs_in_order function_decls))
     in
     let set_of_closures =
       Set_of_closures.create
         ~value_slots:
           (Value_slot.Map.map
-             (rewrite_simple kinds uses)
+             (rewrite_simple kinds env)
              (Set_of_closures.value_slots sc))
         (Set_of_closures.alloc_mode sc)
         function_decls
@@ -119,65 +123,65 @@ let rewrite_static_const kinds (uses : uses) (sc : Static_const.t) =
            set_of_closures;
     Static_const.set_of_closures set_of_closures
   | Block (tag, mut, fields) ->
-    let fields = List.map (rewrite_field_of_static_block kinds uses) fields in
+    let fields = List.map (rewrite_field_of_static_block kinds env) fields in
     Static_const.block tag mut fields
   | Boxed_float f ->
-    Static_const.boxed_float (rewrite_or_variable Float.zero uses f)
+    Static_const.boxed_float (rewrite_or_variable Float.zero env f)
   | Boxed_float32 f ->
-    Static_const.boxed_float32 (rewrite_or_variable Float32.zero uses f)
+    Static_const.boxed_float32 (rewrite_or_variable Float32.zero env f)
   | Boxed_int32 n ->
-    Static_const.boxed_int32 (rewrite_or_variable Int32.zero uses n)
+    Static_const.boxed_int32 (rewrite_or_variable Int32.zero env n)
   | Boxed_int64 n ->
-    Static_const.boxed_int64 (rewrite_or_variable Int64.zero uses n)
+    Static_const.boxed_int64 (rewrite_or_variable Int64.zero env n)
   | Boxed_nativeint n ->
     Static_const.boxed_nativeint
-      (rewrite_or_variable Targetint_32_64.zero uses n)
+      (rewrite_or_variable Targetint_32_64.zero env n)
   | Boxed_vec128 n ->
     Static_const.boxed_vec128
-      (rewrite_or_variable Vector_types.Vec128.Bit_pattern.zero uses n)
+      (rewrite_or_variable Vector_types.Vec128.Bit_pattern.zero env n)
   | Immutable_float_block fields ->
-    let fields = List.map (rewrite_or_variable Float.zero uses) fields in
+    let fields = List.map (rewrite_or_variable Float.zero env) fields in
     Static_const.immutable_float_block fields
   | Immutable_float_array fields ->
-    let fields = List.map (rewrite_or_variable Float.zero uses) fields in
+    let fields = List.map (rewrite_or_variable Float.zero env) fields in
     Static_const.immutable_float_array fields
   | Immutable_float32_array fields ->
-    let fields = List.map (rewrite_or_variable Float32.zero uses) fields in
+    let fields = List.map (rewrite_or_variable Float32.zero env) fields in
     Static_const.immutable_float32_array fields
   | Immutable_value_array fields ->
-    let fields = List.map (rewrite_field_of_static_block kinds uses) fields in
+    let fields = List.map (rewrite_field_of_static_block kinds env) fields in
     Static_const.immutable_value_array fields
   | Immutable_int32_array fields ->
-    let fields = List.map (rewrite_or_variable Int32.zero uses) fields in
+    let fields = List.map (rewrite_or_variable Int32.zero env) fields in
     Static_const.immutable_int32_array fields
   | Immutable_int64_array fields ->
-    let fields = List.map (rewrite_or_variable Int64.zero uses) fields in
+    let fields = List.map (rewrite_or_variable Int64.zero env) fields in
     Static_const.immutable_int64_array fields
   | Immutable_nativeint_array fields ->
     let fields =
-      List.map (rewrite_or_variable Targetint_32_64.zero uses) fields
+      List.map (rewrite_or_variable Targetint_32_64.zero env) fields
     in
     Static_const.immutable_nativeint_array fields
   | Empty_array _ | Mutable_string _ | Immutable_string _ -> sc
 
-let rewrite_static_const_or_code kinds uses (sc : Static_const_or_code.t) =
+let rewrite_static_const_or_code kinds env (sc : Static_const_or_code.t) =
   match sc with
   | Code _ -> sc
   | Deleted_code -> sc
   | Static_const sc ->
     Static_const_or_code.create_static_const
-      (rewrite_static_const kinds uses sc)
+      (rewrite_static_const kinds env sc)
 
-let rewrite_static_const_group kinds uses (group : Static_const_group.t) =
-  Static_const_group.map ~f:(rewrite_static_const_or_code kinds uses) group
+let rewrite_static_const_group kinds env (group : Static_const_group.t) =
+  Static_const_group.map ~f:(rewrite_static_const_or_code kinds env) group
 
-let rewrite_set_of_closures bound (uses : uses) value_slots alloc_mode
+let rewrite_set_of_closures bound (env : env) value_slots alloc_mode
     function_decls =
   let slot_is_used slot =
     List.exists
       (fun bv ->
         match
-          Hashtbl.find_opt uses (Code_id_or_name.var (Bound_var.var bv))
+          Hashtbl.find_opt env.uses (Code_id_or_name.var (Bound_var.var bv))
         with
         | None | Some Bottom -> false
         | Some Top -> true
@@ -200,38 +204,33 @@ let rewrite_set_of_closures bound (uses : uses) value_slots alloc_mode
            | Deleted _ -> code_id
            | Code_id code_id ->
              if (* slot_is_used (Function_slot slot) *)
-                match
-                  Hashtbl.find_opt uses (Code_id_or_name.code_id code_id)
-                with
-                | None | Some Bottom ->
-                  not
-                    (Compilation_unit.is_current
-                       (Code_id.get_compilation_unit code_id))
-                | Some Top | Some (Fields _) -> true
+               is_code_id_used env code_id || not (Compilation_unit.is_current (Code_id.get_compilation_unit code_id))
              then Code_id code_id
-             else Deleted { function_slot_size = failwith "TODO" })
+             else
+                let code_metadata = env.get_code_metadata code_id in
+               Deleted { function_slot_size = Code_metadata.function_slot_size code_metadata })
          (Function_declarations.funs_in_order function_decls))
   in
   (* TODO remove unused function slots as well *)
   Set_of_closures.create ~value_slots alloc_mode function_decls
 
-let rewrite_named kinds uses (named : Named.t) =
+let rewrite_named kinds env (named : Named.t) =
   match named with
-  | Simple simple -> Named.create_simple (rewrite_simple kinds uses simple)
+  | Simple simple -> Named.create_simple (rewrite_simple kinds env simple)
   | Prim (prim, dbg) ->
-    let prim = Flambda_primitive.map_args (rewrite_simple kinds uses) prim in
+    let prim = Flambda_primitive.map_args (rewrite_simple kinds env) prim in
     Named.create_prim prim dbg
   | Set_of_closures s -> Named.create_set_of_closures s (* TODO *)
   | Static_consts sc ->
-    Named.create_static_consts (rewrite_static_const_group kinds uses sc)
+    Named.create_static_consts (rewrite_static_const_group kinds env sc)
   | Rec_info r -> Named.create_rec_info r
 
-let rewrite_apply_cont_expr kinds uses ac =
+let rewrite_apply_cont_expr kinds env ac =
   Apply_cont_expr.with_continuation_and_args ac
     (Apply_cont_expr.continuation ac)
-    ~args:(List.map (rewrite_simple kinds uses) (Apply_cont_expr.args ac))
+    ~args:(List.map (rewrite_simple kinds env) (Apply_cont_expr.args ac))
 
-let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
+let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (env : env)
     (rev_expr : rev_expr) : RE.t =
   let { expr; holed_expr } = rev_expr in
   let expr, free_names =
@@ -239,7 +238,7 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
     | Invalid { message } ->
       Expr.create_invalid (Message message), Name_occurrences.empty
     | Apply_cont ac ->
-      let ac = rewrite_apply_cont_expr kinds uses ac in
+      let ac = rewrite_apply_cont_expr kinds env ac in
       Expr.create_apply_cont ac, Apply_cont_expr.free_names ac
     | Switch switch ->
       let switch =
@@ -247,10 +246,10 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
           ~condition_dbg:(Switch_expr.condition_dbg switch)
             (* Scrutinee should never need rewriting, do it anyway for
                completeness *)
-          ~scrutinee:(rewrite_simple kinds uses (Switch_expr.scrutinee switch))
+          ~scrutinee:(rewrite_simple kinds env (Switch_expr.scrutinee switch))
           ~arms:
             (Targetint_31_63.Map.map
-               (rewrite_apply_cont_expr kinds uses)
+               (rewrite_apply_cont_expr kinds env)
                (Switch_expr.arms switch))
       in
       Expr.create_switch switch, Switch_expr.free_names switch
@@ -264,16 +263,16 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
         | Method { kind; obj; alloc_mode } ->
           (* todo alloc_mode? *)
           Call_kind.method_call kind
-            ~obj:(rewrite_simple kinds uses obj)
+            ~obj:(rewrite_simple kinds env obj)
             alloc_mode
         | C_call _ as ck -> ck
       in
       let apply =
         Apply.create
-          ~callee:(rewrite_simple_opt uses (Apply.callee apply))
+          ~callee:(rewrite_simple_opt env (Apply.callee apply))
           ~continuation:(Apply.continuation apply)
           (Apply.exn_continuation apply)
-          ~args:(List.map (rewrite_simple kinds uses) (Apply.args apply))
+          ~args:(List.map (rewrite_simple kinds env) (Apply.args apply))
           ~args_arity:(Apply.args_arity apply)
           ~return_arity:(Apply.return_arity apply) ~call_kind (Apply.dbg apply)
           ~inlined:(Apply.inlined apply)
@@ -283,10 +282,10 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
       in
       Expr.create_apply apply, Apply.free_names apply
   in
-  rebuild_holed kinds uses holed_expr (RE.from_expr ~expr ~free_names)
+  rebuild_holed kinds env holed_expr (RE.from_expr ~expr ~free_names)
 
 and rebuild_function_params_and_body (kinds : Flambda_kind.t Name.Map.t)
-    (uses : uses) (params_and_body : rev_params_and_body) =
+    (env : env) (params_and_body : rev_params_and_body) =
   let { return_continuation;
         exn_continuation;
         params;
@@ -297,12 +296,12 @@ and rebuild_function_params_and_body (kinds : Flambda_kind.t Name.Map.t)
       } =
     params_and_body
   in
-  let body = rebuild_expr kinds uses body in
+  let body = rebuild_expr kinds env body in
   Function_params_and_body.create ~return_continuation ~exn_continuation params
     ~body:body.expr ~free_names_of_body:(Known body.free_names) ~my_closure
     ~my_region ~my_depth
 
-and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
+and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (env : env)
     (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t =
   match rev_expr with
   | Up -> hole
@@ -310,7 +309,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
     let[@local] erase () =
       (* Format.eprintf "Removing %a@." Bound_pattern.print
          let_.bound_pattern; *)
-      rebuild_holed kinds uses let_.parent hole
+      rebuild_holed kinds env let_.parent hole
     in
     let[@local] default () =
       let subexpr =
@@ -328,7 +327,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
                 (fun ((p, e) as arg : Bound_static.Pattern.t * _) ->
                   match p with
                   | Code code_id ->
-                    if Hashtbl.mem uses (Code_id_or_name.code_id code_id)
+                    if is_code_id_used env code_id
                     then Some arg
                     else (
                       (match e with
@@ -337,13 +336,12 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
                       | Static_const _ -> assert false);
                       Some (p, Deleted_code))
                   | Block_like sym ->
-                    if Hashtbl.mem uses (Code_id_or_name.symbol sym)
+                    if is_symbol_used env sym
                     then Some arg
                     else None
                   | Set_of_closures m ->
                     if Function_slot.Lmap.exists
-                         (fun _ sym ->
-                           Hashtbl.mem uses (Code_id_or_name.symbol sym))
+                         (fun _ sym -> is_symbol_used env sym)
                          m
                     then Some arg
                     else None)
@@ -357,12 +355,9 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
                     code_metadata;
                     free_names_of_params_and_body
                   } ->
-                let is_my_closure_used =
-                  Hashtbl.mem uses
-                    (Code_id_or_name.var params_and_body.my_closure)
-                in
+                let is_my_closure_used = is_var_used env params_and_body.my_closure in
                 let params_and_body =
-                  rebuild_function_params_and_body kinds uses params_and_body
+                  rebuild_function_params_and_body kinds env params_and_body
                 in
                 let code_metadata =
                   if Bool.equal is_my_closure_used
@@ -394,7 +389,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
               | Static _ | Singleton _ -> assert false
             in
             let set_of_closures =
-              rewrite_set_of_closures bound uses value_slots alloc_mode
+              rewrite_set_of_closures bound env value_slots alloc_mode
                 function_decls
             in
             let is_phantom =
@@ -405,34 +400,34 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
                    set_of_closures;
             let_.bound_pattern, Named.create_set_of_closures set_of_closures
         in
-        let defining_expr = rewrite_named kinds uses defining_expr in
+        let defining_expr = rewrite_named kinds env defining_expr in
         RE.create_let bp defining_expr ~body:hole
       in
-      rebuild_holed kinds uses let_.parent subexpr
+      rebuild_holed kinds env let_.parent subexpr
     in
     match let_.bound_pattern with
     | Set_of_closures _ -> default ()
     | Static _ -> default ()
     | Singleton v ->
       let v = Bound_var.var v in
-      if Hashtbl.mem uses (Code_id_or_name.var v) then default () else erase ())
+      if is_var_used env v then default () else erase ())
   | Let_cont { cont; parent; handler } ->
     let cont_handler =
       let { bound_parameters; expr; is_exn_handler; is_cold } = handler in
-      let handler = rebuild_expr kinds uses expr in
+      let handler = rebuild_expr kinds env expr in
       RE.create_continuation_handler bound_parameters ~handler ~is_exn_handler
         ~is_cold
     in
     let let_cont_expr =
       RE.create_non_recursive_let_cont cont cont_handler ~body:hole
     in
-    rebuild_holed kinds uses parent let_cont_expr
+    rebuild_holed kinds env parent let_cont_expr
   | Let_cont_rec { parent; handlers; invariant_params } ->
     let handlers =
       Continuation.Map.map
         (fun handler ->
           let { bound_parameters; expr; is_exn_handler; is_cold } = handler in
-          let handler = rebuild_expr kinds uses expr in
+          let handler = rebuild_expr kinds env expr in
           RE.create_continuation_handler bound_parameters ~handler
             ~is_exn_handler ~is_cold)
         handlers
@@ -440,7 +435,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
     let let_cont_expr =
       RE.create_recursive_let_cont ~invariant_params handlers ~body:hole
     in
-    rebuild_holed kinds uses parent let_cont_expr
+    rebuild_holed kinds env parent let_cont_expr
 
 type result =
   { body : Expr.t;
@@ -449,12 +444,16 @@ type result =
     slot_offsets : Slot_offsets.t
   }
 
-let rebuild kinds solved_dep holed =
+let rebuild kinds solved_dep get_code_metadata holed =
   all_slot_offsets := Slot_offsets.empty;
   all_code := Code_id.Map.empty;
+  let env = {
+    uses = solved_dep ;
+    get_code_metadata ;
+  } in
   let rebuilt_expr =
     Profile.record_call ~accumulate:true "up" (fun () ->
-        rebuild_expr kinds solved_dep holed)
+        rebuild_expr kinds env holed)
   in
   { body = rebuilt_expr.expr;
     free_names = rebuilt_expr.free_names;

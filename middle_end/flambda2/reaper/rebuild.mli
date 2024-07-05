@@ -21,4 +21,4 @@ type result =
   }
 
 val rebuild :
-  Flambda_kind.t Name.Map.t -> Dep_solver.result -> Rev_expr.t -> result
+  Flambda_kind.t Name.Map.t -> Dep_solver.result -> (Code_id.t -> Code_metadata.t) -> Rev_expr.t -> result

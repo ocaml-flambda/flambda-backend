@@ -170,7 +170,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~keep_symbol_tables
           | _ ->
             let flambda, free_names, all_code, slot_offsets =
               Profile.record_call ~accumulate:true "reaper" (fun () ->
-                  Flambda2_reaper.Reaper.run ~cmx_loader flambda)
+                  Flambda2_reaper.Reaper.run ~cmx_loader ~all_code flambda)
             in
             print_flambda "reaper"
               (Flambda_features.dump_flambda ())
