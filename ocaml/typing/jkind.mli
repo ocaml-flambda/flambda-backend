@@ -245,14 +245,6 @@ module Const : sig
     (** A list of all Builtin jkinds *)
     val all : t list
   end
-
-  module Sort : module type of struct
-    include Sort.Const
-  end
-
-  module Layout : module type of struct
-    include Layout.Const
-  end
 end
 
 module Builtin : sig
