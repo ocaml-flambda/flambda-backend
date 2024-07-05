@@ -100,6 +100,9 @@ let iter_loc_txt sub f { loc; txt } =
   sub.location sub loc;
   f sub txt
 
+let iter_modalities sub modalities =
+  List.iter (iter_loc sub) modalities
+
 module T = struct
   (* Type expressions for the core language *)
 
@@ -222,9 +225,6 @@ module T = struct
         List.iter (sub.constructor_declaration sub) l
     | Ptype_record l -> List.iter (sub.label_declaration sub) l
     | Ptype_open -> ()
-
-  let iter_modalities sub modalities =
-    List.iter (iter_loc sub) modalities
 
   let iter_constructor_argument sub {pca_type; pca_loc; pca_modalities} =
     sub.typ sub pca_type;
@@ -852,15 +852,11 @@ let default_iterator =
     type_exception = T.iter_type_exception;
     extension_constructor = T.iter_extension_constructor;
     value_description =
-      (fun this {pval_name; pval_type; pval_prim = _; pval_loc;
+      (fun this {pval_name; pval_type; pval_modalities; pval_prim = _; pval_loc;
                  pval_attributes} ->
-        let modes, ptyp_attributes =
-          Jane_syntax.Mode_expr.maybe_of_attrs pval_type.ptyp_attributes
-        in
-        Option.iter (this.modes this) modes;
-        let pval_type = {pval_type with ptyp_attributes} in
         iter_loc this pval_name;
         this.typ this pval_type;
+        iter_modalities this pval_modalities;
         this.location this pval_loc;
         this.attributes this pval_attributes;
       );
@@ -988,7 +984,7 @@ let default_iterator =
          this.typ this pld_type;
          this.location this pld_loc;
          this.attributes this pld_attributes;
-         T.iter_modalities this pld_modalities
+         iter_modalities this pld_modalities
       );
 
     cases = (fun this l -> List.iter (this.case this) l);
@@ -1026,7 +1022,7 @@ let default_iterator =
     jkind_annotation =
       (fun this -> function
         | Default -> ()
-        | Primitive_layout_or_abbreviation s ->
+        | Abbreviation s ->
           iter_loc this (s : Jane_syntax.Jkind.Const.t :> _ loc)
         | Mod (t, mode_list) ->
           this.jkind_annotation this t;

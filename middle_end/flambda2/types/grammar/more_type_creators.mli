@@ -21,6 +21,8 @@ val unknown : Flambda_kind.t -> Type_grammar.t
 
 val unknown_like : Type_grammar.t -> Type_grammar.t
 
+val unknown_from_shape : Flambda_kind.Block_shape.t -> int -> Type_grammar.t
+
 val bottom : Flambda_kind.t -> Type_grammar.t
 
 val bottom_like : Type_grammar.t -> Type_grammar.t
@@ -107,7 +109,7 @@ val blocks_with_these_tags :
 val immutable_block :
   is_unique:bool ->
   Tag.t ->
-  field_kind:Flambda_kind.t ->
+  shape:Flambda_kind.Block_shape.t ->
   Alloc_mode.For_types.t ->
   fields:Type_grammar.t list ->
   Type_grammar.t
@@ -115,13 +117,14 @@ val immutable_block :
 val immutable_block_with_size_at_least :
   tag:Tag.t Or_unknown.t ->
   n:Targetint_31_63.t ->
-  field_kind:Flambda_kind.t ->
+  shape:Flambda_kind.Block_shape.t ->
   field_n_minus_one:Variable.t ->
   Type_grammar.t
 
 val variant :
   const_ctors:Type_grammar.t ->
-  non_const_ctors:Type_grammar.t list Tag.Scannable.Map.t ->
+  non_const_ctors:
+    (Flambda_kind.Block_shape.t * Type_grammar.t list) Tag.Scannable.Map.t ->
   Alloc_mode.For_types.t ->
   Type_grammar.t
 

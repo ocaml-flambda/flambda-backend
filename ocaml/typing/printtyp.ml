@@ -632,8 +632,7 @@ and raw_lid_type_list tl =
     tl
 and raw_type_desc ppf = function
     Tvar { name; jkind } ->
-      fprintf ppf "Tvar (@,%a,@,%s)" print_name name
-        (Jkind.to_string jkind)
+      fprintf ppf "Tvar (@,%a,@,%a)" print_name name Jkind.format jkind
   | Tarrow((l,arg,ret),t1,t2,c) ->
       fprintf ppf "@[<hov1>Tarrow((\"%s\",%a,%a),@,%a,@,%a,@,%s)@]"
         (string_of_label l)
@@ -663,8 +662,7 @@ and raw_type_desc ppf = function
   | Tsubst (t, Some t') ->
       fprintf ppf "@[<1>Tsubst@,(%a,@ Some%a)@]" raw_type t raw_type t'
   | Tunivar { name; jkind } ->
-      fprintf ppf "Tunivar (@,%a,@,%s)" print_name name
-        (Jkind.to_string jkind)
+      fprintf ppf "Tunivar (@,%a,@,%a)" print_name name Jkind.format jkind
   | Tpoly (t, tl) ->
       fprintf ppf "@[<hov1>Tpoly(@,%a,@,%a)@]"
         raw_type t
@@ -1251,15 +1249,37 @@ let add_type_to_preparation = prepare_type
 (* Disabled in classic mode when printing an unification error *)
 let print_labels = ref true
 
+let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
+  let rec out_jkind_user_of_user_jkind : Jane_syntax.Jkind.t -> out_jkind_user = function
+    | Default -> Ojkind_user_default
+    | Abbreviation abbrev -> Ojkind_user_abbreviation (abbrev :> string Location.loc).txt
+    | Mod (base, modes) ->
+      let base = out_jkind_user_of_user_jkind base in
+      let modes =
+        List.map
+          (fun mode -> (mode : Jane_syntax.Mode_expr.Const.t :> string Location.loc).txt)
+          modes.txt
+      in
+      Ojkind_user_mod (base, modes)
+    | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
+  in
+  Ojkind_user (out_jkind_user_of_user_jkind jkind.txt)
+
+let out_jkind_of_const_jkind jkind =
+  Ojkind_const (Jkind.Const.to_out_jkind_const jkind)
+
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
 let out_jkind_option_of_jkind jkind =
   match Jkind.get jkind with
-  | Const Value -> None
-  | Const jkind -> Some (Olay_const jkind)
+  | Const jkind ->
+    begin match Jkind.Const.equal jkind Jkind.Const.Primitive.value.jkind with
+    | true -> None
+    | false -> Some (out_jkind_of_const_jkind jkind)
+    end
   | Var v -> (* This handles (X1). *)
     if !Clflags.verbose_types
-    then Some (Olay_var (Jkind.Sort.var_name v))
+    then Some (Ojkind_var (Jkind.Sort.Var.name v))
     else None
 
 let alias_nongen_row mode px ty =
@@ -1281,6 +1301,8 @@ let tree_of_modality_new (t : Mode.Modality.t) =
   | Atom (Comonadic Areality, Meet_with Global) -> Some "global"
   | Atom (Comonadic Linearity, Meet_with Many) -> Some "many"
   | Atom (Monadic Uniqueness, Join_with Shared) -> Some "shared"
+  | Atom (Comonadic Portability, Meet_with Portable) -> Some "portable"
+  | Atom (Monadic Contention, Join_with Contended) -> Some "contended"
   | e -> Misc.fatal_errorf "Unexpected modality %a" Mode.Modality.print e
 
 let tree_of_modality (t : Mode.Modality.t) =
@@ -1289,16 +1311,20 @@ let tree_of_modality (t : Mode.Modality.t) =
       Some (Ogf_legacy Ogf_global)
   | _ -> Option.map (fun x -> Ogf_new x) (tree_of_modality_new t)
 
-let tree_of_modalities mutability t =
-  let l = Mode.Modality.Value.to_list t in
+let tree_of_modalities ~has_mutable_implied_modalities t =
+  let l = Mode.Modality.Value.Const.to_list t in
   (* CR zqian: decouple mutable and modalities *)
   let l =
-    if Types.is_mutable mutability then
+    if has_mutable_implied_modalities then
       List.filter (fun m -> not @@ Typemode.is_mutable_implied_modality m) l
     else
       l
   in
   List.filter_map tree_of_modality l
+
+let tree_of_modalities_new t =
+  let l = Mode.Modality.Value.Const.to_list t in
+  List.filter_map tree_of_modality_new l
 
 (** [tree_of_mode m l] finds the outcome node in [l] that corresponds to [m].
 Raise if not found. *)
@@ -1482,7 +1508,8 @@ and tree_of_labeled_typlist mode tyl =
   List.map (fun (label, ty) -> label, tree_of_typexp mode Alloc.Const.legacy ty) tyl
 
 and tree_of_typ_gf {ca_type=ty; ca_modalities=gf; _} =
-  (tree_of_typexp Type Alloc.Const.legacy ty, tree_of_modalities Immutable gf)
+  (tree_of_typexp Type Alloc.Const.legacy ty,
+   tree_of_modalities ~has_mutable_implied_modalities:false gf)
 
 (** We are on the RHS of an arrow type, where [ty] is the return type, and [m]
     is the return mode. This function decides the printed modes on [ty].
@@ -1669,7 +1696,15 @@ let tree_of_label l =
         mut
     | Immutable -> Om_immutable
   in
-  let ld_modalities = tree_of_modalities l.ld_mutable l.ld_modalities in
+  let has_mutable_implied_modalities =
+    if is_mutable l.ld_mutable then
+      not (Builtin_attributes.has_no_mutable_implied_modalities l.ld_attributes)
+    else
+      false
+  in
+  let ld_modalities =
+    tree_of_modalities ~has_mutable_implied_modalities l.ld_modalities
+  in
   (Ident.name l.ld_id, mut, tree_of_typexp Type l.ld_type, ld_modalities)
 
 let tree_of_constructor_arguments = function
@@ -1854,7 +1889,7 @@ let tree_of_type_decl id decl =
       otype_private = priv;
       otype_jkind =
         Option.map
-          (fun (const, _) -> Olay_const const)
+          (fun (_, user_annot) -> out_jkind_of_user_jkind user_annot)
           jkind_annotation;
       otype_unboxed = unboxed;
       otype_cstrs = constraints }
@@ -2020,6 +2055,8 @@ let tree_of_value_description id decl =
   let ty = tree_of_type_scheme decl.val_type in
   (* Important: process the fvs *after* the type; tree_of_type_scheme
      resets the naming context *)
+  let snap = Btype.snapshot () in
+  let moda = Mode.Modality.Value.zap_to_floor decl.val_modalities in
   let qtvs = extract_qtvs [decl.val_type] in
   let apparent_arity =
     let rec count n typ =
@@ -2055,6 +2092,7 @@ let tree_of_value_description id decl =
   let vd =
     { oval_name = id;
       oval_type = Otyp_poly(qtvs, ty);
+      oval_modalities = tree_of_modalities_new moda;
       oval_prims = [];
       oval_attributes = attrs
     }
@@ -2064,7 +2102,9 @@ let tree_of_value_description id decl =
     | Val_prim p -> Primitive.print p vd
     | _ -> vd
   in
-  Osig_value vd
+  let r = Osig_value vd in
+  Btype.backtrack snap;
+  r
 
 let value_description id ppf decl =
   !Oprint.out_sig_item ppf (tree_of_value_description id decl)
@@ -2286,7 +2326,7 @@ let dummy =
     type_params = [];
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
-    type_jkind = Jkind.any ~why:Dummy_jkind;
+    type_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
     type_jkind_annotation = None;
     type_private = Public;
     type_manifest = None;
@@ -2627,8 +2667,8 @@ let trees_of_type_expansion'
       match get_desc ty with
       | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
           let olay = match Jkind.get jkind with
-            | Const clay -> Olay_const clay
-            | Var v      -> Olay_var (Jkind.Sort.var_name v)
+            | Const clay -> out_jkind_of_const_jkind clay
+            | Var v      -> Ojkind_var (Jkind.Sort.Var.name v)
           in
           Otyp_jkind_annot (out, olay)
       | _ ->
@@ -2747,7 +2787,7 @@ let hide_variant_name t =
         (Tvariant
            (create_row ~fields ~fixed ~closed ~name:None
               ~more:(newvar2 (get_level more)
-                       (Jkind.value ~why:Row_variable))))
+                       (Jkind.Primitive.value ~why:Row_variable))))
   | _ -> t
 
 let prepare_expansion Errortrace.{ty; expanded} =

@@ -152,10 +152,12 @@ type primitive =
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
   | Pufloatfield of int * field_read_semantics
-  | Pmixedfield of int * mixed_block_read * field_read_semantics
+  | Pmixedfield of
+      int * mixed_block_read * mixed_block_shape * field_read_semantics
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
-  | Psetmixedfield of int * mixed_block_write * initialization_or_assignment
+  | Psetmixedfield of
+      int * mixed_block_write * mixed_block_shape * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
@@ -632,18 +634,14 @@ type poll_attribute =
   | Error_poll (* [@poll error] *)
   | Default_poll (* no [@poll] attribute *)
 
-type zero_alloc_attribute = Builtin_attributes.zero_alloc_attribute =
+type zero_alloc_attribute =
   | Default_zero_alloc
-  | Ignore_assert_all
   | Check of { strict: bool;
-               opt: bool;
-               arity: int;
                loc: Location.t;
              }
   | Assume of { strict: bool;
                 never_returns_normally: bool;
                 never_raises: bool;
-                arity: int;
                 loc: Location.t;
               }
 
@@ -923,7 +921,7 @@ let default_function_attribute = {
 }
 
 let default_stub_attribute =
-  { default_function_attribute with stub = true; zero_alloc = Ignore_assert_all }
+  { default_function_attribute with stub = true; zero_alloc = Default_zero_alloc }
 
 let default_param_attribute = { unbox_param = false }
 
@@ -1400,16 +1398,26 @@ let build_substs update_env ?(freshen_bound_variables = false) s =
     | Levent (lam, evt) ->
         let old_env = evt.lev_env in
         let env_updates =
-          let find_in_old id = Env.find_value (Path.Pident id) old_env in
+          let find_in_old id =
+            (* Looking up [id] might encounter locks, which we shouldn't apply
+               as we are not using the values. But adding the value to [new_env]
+               with the unlocked mode is just wrong. Therefore, we set the mode
+               to be [max] for conservative soundness. [new_env] is only used
+               for printing in debugger. *)
+            let vd = Env.find_value (Path.Pident id) old_env in
+            let vd = {vd with val_modalities = Mode.Modality.Value.id} in
+            let mode = Mode.Value.max |> Mode.Value.disallow_right in
+            (vd, mode)
+          in
           let rebind id id' new_env =
             match find_in_old id with
             | exception Not_found -> new_env
-            | vd -> Env.add_value_lazy id' vd new_env
+            | (vd, mode) -> Env.add_value_lazy ~mode id' vd new_env
           in
           let update_free id new_env =
             match find_in_old id with
             | exception Not_found -> new_env
-            | vd -> update_env id vd new_env
+            | vd_mode -> update_env id vd_mode new_env
           in
           Ident.Map.merge (fun id bound free ->
             match bound, free with
@@ -1449,9 +1457,9 @@ let subst update_env ?freshen_bound_variables s =
   (build_substs update_env ?freshen_bound_variables s).subst_lambda
 
 let rename idmap lam =
-  let update_env oldid vd env =
+  let update_env oldid (vd, mode) env =
     let newid = Ident.Map.find oldid idmap in
-    Env.add_value_lazy newid vd env
+    Env.add_value_lazy ~mode newid vd env
   in
   let s = Ident.Map.map (fun new_id -> Lvar new_id) idmap in
   subst update_env s lam
@@ -1678,7 +1686,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _ -> None
   | Pfloatfield (_, _, m) -> Some m
   | Pufloatfield _ -> None
-  | Pmixedfield (_, read, _) -> begin
+  | Pmixedfield (_, read, _, _) -> begin
       match read with
       | Mread_value_prefix _ -> None
       | Mread_flat_suffix (Flat_read_float_boxed m) -> Some m
@@ -1777,7 +1785,8 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Punbox_float _ | Punbox_int _ -> None
   | Pbox_float (_, m) | Pbox_int (_, m) -> Some m
   | Prunstack | Presume | Pperform | Preperform ->
-    Misc.fatal_error "Effects-related primitives are not yet supported"
+    (* CR mshinwell: check *)
+    Some alloc_heap
   | Patomic_load _
   | Patomic_exchange
   | Patomic_cas
@@ -1872,7 +1881,7 @@ let primitive_result_layout (p : primitive) =
   | Pbox_float (f, _) -> layout_boxed_float f
   | Pufloatfield _ -> Punboxed_float Pfloat64
   | Punbox_float float_kind -> Punboxed_float float_kind
-  | Pmixedfield (_, kind, _) -> layout_of_mixed_field kind
+  | Pmixedfield (_, kind, _, _) -> layout_of_mixed_field kind
   | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_extern_repr repr_res
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot
@@ -1952,9 +1961,7 @@ let primitive_result_layout (p : primitive) =
       layout_any_value
   | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
   | Pget_header _ -> layout_boxedint Pnativeint
-  | Prunstack | Presume | Pperform | Preperform ->
-    (* CR mshinwell/ncourant: to be thought about later *)
-    Misc.fatal_error "Effects-related primitives are not yet supported"
+  | Prunstack | Presume | Pperform | Preperform -> layout_any_value
   | Patomic_load { immediate_or_pointer = Immediate } -> layout_int
   | Patomic_load { immediate_or_pointer = Pointer } -> layout_any_value
   | Patomic_exchange

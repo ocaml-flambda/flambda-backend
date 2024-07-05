@@ -1,12 +1,16 @@
-(* TEST
- flags = "-g";
- {
-   reference = "${test_source_directory}/callstacks.flat-float-array.reference";
-   flat-float-array;
- }{
-   reference = "${test_source_directory}/callstacks.no-flat-float-array.reference";
-   no-flat-float-array;
- }
+(* TEST_BELOW
+   Blank lines added to preserve locations
+
+
+
+
+
+
+
+
+
+
+
 *)
 
 module MP = Gc.Memprof
@@ -45,7 +49,7 @@ let alloc_large_array () =
 
 let alloc_closure () =
   let x = Sys.opaque_identity 1 in
-  ignore (Sys.opaque_identity (fun () -> x))
+  ignore (Sys.opaque_identity (fun () -> x) : _ -> _)
 
 let floatarray = [| 1.; 2. |]
 let[@inline never] get0 a = a.(0)
@@ -72,7 +76,7 @@ let allocators =
    alloc_small_array; alloc_large_array; alloc_closure;
    getfloatfield; alloc_unmarshal; alloc_ref; alloc_boxedfloat]
 
-let test alloc =
+let[@inline never] test alloc =
   Printf.printf "-----------\n%!";
   let callstack = ref None in
   let _:MP.t = MP.start ~callstack_size:10 ~sampling_rate:1.
@@ -94,4 +98,31 @@ let test alloc =
   | Some cs -> Printexc.print_raw_backtrace stdout cs
 
 let () =
-  List.iter test allocators
+  (* Manual iteration instead of List.iter, so that backtraces
+     do not depend on stdlib details *)
+  let[@inline never] rec test_all = function
+    | [] -> ()
+    | t :: ts -> test t; test_all ts
+  in
+  test_all allocators
+
+(* TEST
+ flags = "-g";
+ {
+   flat-float-array;
+   { reference = "${test_source_directory}/callstacks.flat-float-array.byte.reference";
+     bytecode;
+   }
+   { reference = "${test_source_directory}/callstacks.flat-float-array.opt.reference";
+     native;
+   }
+ }{
+   no-flat-float-array;
+   { reference = "${test_source_directory}/callstacks.no-flat-float-array.byte.reference";
+     bytecode;
+   }
+   { reference = "${test_source_directory}/callstacks.no-flat-float-array.opt.reference";
+     native;
+   }
+ }
+*)

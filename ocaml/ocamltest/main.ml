@@ -62,22 +62,31 @@ let join_result summary result =
   let open Result in
   match result.status, summary with
   | Fail, _
-  | _, Some_failure -> Some_failure
-  | Skip, All_skipped -> All_skipped
-  | _ -> No_failure
+  | (Pass | Skip | Predicate _), Some_failure -> Some_failure
+  | (Skip | Predicate false), All_skipped -> All_skipped
+  | Pass, All_skipped -> No_failure
+  | Predicate true, All_skipped -> No_failure
+  | (Pass | Skip | Predicate _), No_failure -> No_failure
 
 let join_summaries sa sb =
   match sa, sb with
-  | Some_failure, _
-  | _, Some_failure -> Some_failure
+  | Some_failure, (No_failure | Some_failure | All_skipped)
+  | (No_failure | All_skipped), Some_failure -> Some_failure
   | All_skipped, All_skipped -> All_skipped
-  | _ -> No_failure
+  | No_failure, (No_failure | All_skipped)
+  | All_skipped, No_failure -> No_failure
 
 let rec run_test log common_prefix path behavior = function
   Node (testenvspec, test, env_modifiers, subtrees) ->
-  Printf.printf "%s %s (%s) %!" common_prefix path test.Tests.test_name;
+  let skip_all =
+    match behavior with
+    | Skip_all_tests -> true
+    | Run _ -> false
+  in
+  if not skip_all then
+    Printf.printf "%s %s (%s) %!" common_prefix path test.Tests.test_name;
   let (msg, children_behavior, result) = match behavior with
-    | Skip_all_tests -> "=> n/a", Skip_all_tests, Result.skip
+    | Skip_all_tests -> "", Skip_all_tests, Result.skip
     | Run env ->
       let testenv0 = interpret_environment_statements env testenvspec in
       let testenv = List.fold_left apply_modifiers testenv0 env_modifiers in
@@ -86,7 +95,7 @@ let rec run_test log common_prefix path behavior = function
       let children_behavior =
         if Result.is_pass result then Run newenv else Skip_all_tests in
       (msg, children_behavior, result) in
-  Printf.printf "%s\n%!" msg;
+  if not skip_all then Printf.printf "%s\n%!" msg;
   join_result
     (run_test_trees log common_prefix path children_behavior subtrees) result
 

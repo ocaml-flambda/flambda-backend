@@ -698,10 +698,7 @@ let fundecl :
         fun_dbg;
         fun_num_stack_slots;
         fun_contains_calls;
-        (* CR-someday mshinwell: [fun_poll] will need to be propagated in the
-           future, e.g. when writing a [Polling] equivalent on [Cfg]. We don't
-           do this at present since there is no need. *)
-        fun_poll = _
+        fun_poll
       } =
     fundecl
   in
@@ -718,7 +715,7 @@ let fundecl :
   let cfg =
     Cfg.create ~fun_name ~fun_args
       ~fun_codegen_options:(Cfg.of_cmm_codegen_option fun_codegen_options)
-      ~fun_dbg ~fun_contains_calls ~fun_num_stack_slots
+      ~fun_dbg ~fun_contains_calls ~fun_num_stack_slots ~fun_poll
   in
   let state =
     State.make ~fun_name ~tailrec_label ~contains_calls:fun_contains_calls
@@ -849,7 +846,10 @@ let fundecl :
       then Eliminate_fallthrough_blocks.run cfg_with_layout;
       if simplify_terminators then Merge_straightline_blocks.run cfg_with_layout;
       Eliminate_dead_code.run_dead_block cfg_with_layout;
-      if simplify_terminators then Simplify_terminator.run cfg)
+      if simplify_terminators
+      then (
+        Simplify_terminator.run cfg;
+        Eliminate_dead_code.run_dead_block cfg_with_layout))
     ();
   Cfg_with_layout.reorder_blocks
     ~comparator:(fun label1 label2 ->

@@ -4108,3 +4108,45 @@ let allocate_unboxed_nativeint_array =
 let block_header x y = block_header x y
 
 let dls_get ~dbg = Cop (Cdls_get, [], dbg)
+
+let perform ~dbg eff =
+  let cont =
+    make_alloc dbg Runtimetags.cont_tag
+      [int_const dbg 0]
+      ~mode:Lambda.alloc_heap
+  in
+  (* Rc_normal means "allow tailcalls". Preventing them here by using Rc_nontail
+     improves backtraces of paused fibers. *)
+  Cop
+    ( Capply (typ_val, Rc_nontail),
+      [Cconst_symbol (Cmm.global_symbol "caml_perform", dbg); eff; cont],
+      dbg )
+
+let run_stack ~dbg ~stack ~f ~arg =
+  (* Rc_normal would be fine here, but this is unlikely to ever be a tail call
+     (usages of this primitive shouldn't be generated in tail position), so we
+     use Rc_nontail for clarity. *)
+  Cop
+    ( Capply (typ_val, Rc_nontail),
+      [Cconst_symbol (Cmm.global_symbol "caml_runstack", dbg); stack; f; arg],
+      dbg )
+
+let resume ~dbg ~stack ~f ~arg =
+  (* Rc_normal is required here, because there are some uses of effects with
+     repeated resumes, and these should consume O(1) stack space by tail-calling
+     caml_resume. *)
+  Cop
+    ( Capply (typ_val, Rc_normal),
+      [Cconst_symbol (Cmm.global_symbol "caml_resume", dbg); stack; f; arg],
+      dbg )
+
+let reperform ~dbg ~eff ~cont ~last_fiber =
+  (* Rc_normal is required here, this is used in tail position and should tail
+     call. *)
+  Cop
+    ( Capply (typ_val, Rc_normal),
+      [ Cconst_symbol (Cmm.global_symbol "caml_reperform", dbg);
+        eff;
+        cont;
+        last_fiber ],
+      dbg )

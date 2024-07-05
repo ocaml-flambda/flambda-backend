@@ -32,20 +32,22 @@ let _test_recursive_meet () =
   let env = TE.add_definition env nb_v Flambda_kind.value in
   let alias name = T.alias_type_of Flambda_kind.value (Simple.name name) in
   let mk_block_type name =
-    T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
-      Alloc_mode.For_types.heap
+    T.immutable_block ~is_unique:false Tag.zero
+      ~shape:Flambda_kind.Block_shape.Value_only Alloc_mode.For_types.heap
       ~fields:[alias name]
   in
   let env = TE.add_equation env n_x (mk_block_type n_y) in
   let env = TE.add_equation env n_y (mk_block_type n_z) in
   let env = TE.add_equation env n_z (mk_block_type n_x) in
   let ty1 =
-    T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
+    T.immutable_block ~is_unique:false Tag.zero
+      ~shape:Flambda_kind.Block_shape.Value_only
       ~fields:[alias n_v; alias n_v]
       Alloc_mode.For_types.heap
   in
   let ty2 =
-    T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
+    T.immutable_block ~is_unique:false Tag.zero
+      ~shape:Flambda_kind.Block_shape.Value_only
       ~fields:[alias n_x; alias n_y]
       Alloc_mode.For_types.heap
   in
@@ -71,12 +73,14 @@ let _test_bottom_detection () =
       (Simple.const (Reg_width_const.const_int (Targetint_31_63.of_int n)))
   in
   let ty1 =
-    T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
+    T.immutable_block ~is_unique:false Tag.zero
+      ~shape:Flambda_kind.Block_shape.Value_only
       ~fields:[alias n_x; alias n_x]
       Alloc_mode.For_types.heap
   in
   let ty2 =
-    T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
+    T.immutable_block ~is_unique:false Tag.zero
+      ~shape:Flambda_kind.Block_shape.Value_only
       ~fields:[const 0; const 1]
       Alloc_mode.For_types.heap
   in
@@ -102,18 +106,21 @@ let _test_bottom_recursive () =
       (Simple.const (Reg_width_const.const_int (Targetint_31_63.of_int n)))
   in
   let ty_x =
-    T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
+    T.immutable_block ~is_unique:false Tag.zero
+      ~shape:Flambda_kind.Block_shape.Value_only
       ~fields:[T.unknown Flambda_kind.value; alias n_x]
       Alloc_mode.For_types.heap
   in
   let env = TE.add_equation env n_x ty_x in
   let ty_cell2 =
-    T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
+    T.immutable_block ~is_unique:false Tag.zero
+      ~shape:Flambda_kind.Block_shape.Value_only
       ~fields:[const 1; T.unknown Flambda_kind.value]
       Alloc_mode.For_types.heap
   in
   let ty_cell1 =
-    T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
+    T.immutable_block ~is_unique:false Tag.zero
+      ~shape:Flambda_kind.Block_shape.Value_only
       ~fields:[const 0; ty_cell2]
       Alloc_mode.For_types.heap
   in
@@ -146,17 +153,20 @@ let test_double_recursion () =
   let env = TE.add_definition env nb_z Flambda_kind.value in
   let alias name = T.alias_type_of Flambda_kind.value (Simple.name name) in
   let ty_x =
-    T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
+    T.immutable_block ~is_unique:false Tag.zero
+      ~shape:Flambda_kind.Block_shape.Value_only
       ~fields:[alias n_x; alias n_y; alias n_z]
       Alloc_mode.For_types.heap
   in
   let ty_y =
-    T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
+    T.immutable_block ~is_unique:false Tag.zero
+      ~shape:Flambda_kind.Block_shape.Value_only
       ~fields:[alias n_y; alias n_z; alias n_x]
       Alloc_mode.For_types.heap
   in
   let ty_z =
-    T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
+    T.immutable_block ~is_unique:false Tag.zero
+      ~shape:Flambda_kind.Block_shape.Value_only
       ~fields:[alias n_z; alias n_x; alias n_y]
       Alloc_mode.For_types.heap
   in

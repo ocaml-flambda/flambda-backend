@@ -162,7 +162,7 @@ and apply_coercion_result loc strict funct params args cc_res =
              ~return:Lambda.layout_module
              ~attr:{ default_function_attribute with
                         is_a_functor = true;
-                        zero_alloc = Ignore_assert_all;
+                        zero_alloc = Default_zero_alloc;
                         stub = true; }
              ~loc
              ~mode:alloc_heap
@@ -300,7 +300,7 @@ let init_shape id modl =
             Tarrow(_,ty_arg,_,_) -> begin
               (* CR layouts: We should allow any representable layout here. It
                  will require reworking [camlinternalMod.init_mod]. *)
-              let jkind = Jkind.value ~why:Recmod_fun_arg in
+              let jkind = Jkind.Primitive.value ~why:Recmod_fun_arg in
               let ty_arg = Ctype.correct_levels ty_arg in
               match Ctype.check_type_jkind env ty_arg jkind with
               | Ok _ -> const_int 0 (* camlinternalMod.Function *)
@@ -572,7 +572,7 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
       loop = Never_loop;
       is_a_functor = true;
       is_opaque = false;
-      zero_alloc = Ignore_assert_all;
+      zero_alloc = Default_zero_alloc;
       stub = false;
       tmc_candidate = false;
       may_fuse_arity = true;

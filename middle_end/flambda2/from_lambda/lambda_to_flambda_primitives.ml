@@ -999,8 +999,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
     let tag = Tag.Scannable.create_exn tag in
-    let shape = P.Mixed_block_kind.from_lambda shape in
-    [Variadic (Make_mixed_block (tag, shape, mutability, mode), args)]
+    let shape = K.Mixed_block_shape.from_lambda shape in
+    [Variadic (Make_block (Mixed (tag, shape), mutability, mode), args)]
   | Pmakearray (lambda_array_kind, mutability, mode), _ -> (
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -1447,7 +1447,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Naked_floats { size = Unknown }
     in
     [Binary (Block_load (block_access, mutability), arg, Simple field)]
-  | Pmixedfield (field, read, sem), [[arg]] -> (
+  | Pmixedfield (field, read, shape, sem), [[arg]] -> (
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Pmixedfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
@@ -1460,11 +1460,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         | Mread_flat_suffix read ->
           Flat_suffix
             (match read with
-            | Flat_read flat_element ->
-              P.Mixed_block_flat_element.from_lambda flat_element
-            | Flat_read_float_boxed _ -> Float_boxed)
+            | Flat_read flat_element -> K.from_lambda_flat_element flat_element
+            | Flat_read_float_boxed _ -> K.naked_float)
       in
-      Mixed { tag = Unknown; field_kind; size = Unknown }
+      let shape = K.Mixed_block_shape.from_lambda shape in
+      Mixed { tag = Unknown; field_kind; shape; size = Unknown }
     in
     let block_access : H.expr_primitive =
       Binary (Block_load (block_access, mutability), arg, Simple field)
@@ -1510,7 +1510,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ Ternary
         (Block_set (block_access, init_or_assign), block, Simple field, value)
     ]
-  | ( Psetmixedfield (field, write, initialization_or_assignment),
+  | ( Psetmixedfield (field, write, shape, initialization_or_assignment),
       [[block]; [value]] ) ->
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Psetmixedfield";
@@ -1523,9 +1523,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
               Value_prefix
                 (convert_block_access_field_kind immediate_or_pointer)
             | Mwrite_flat_suffix flat ->
-              Flat_suffix (P.Mixed_block_flat_element.from_lambda flat));
-          size = Unknown;
-          tag = Unknown
+              Flat_suffix (K.from_lambda_flat_element flat));
+          shape = K.Mixed_block_shape.from_lambda shape;
+          tag = Unknown;
+          size = Unknown
         }
     in
     let init_or_assign = convert_init_or_assign initialization_or_assignment in
@@ -1992,7 +1993,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
        %a (%a)"
       Printlambda.primitive prim H.print_list_of_lists_of_simple_or_prim args
   | ( ( Pignore | Psequand | Psequor | Pbytes_of_string | Pbytes_to_string
-      | Parray_of_iarray | Parray_to_iarray ),
+      | Parray_of_iarray | Parray_to_iarray | Prunstack | Pperform | Presume
+      | Preperform ),
       _ ) ->
     Misc.fatal_errorf
       "[%a] should have been removed by [Lambda_to_flambda.transform_primitive]"
@@ -2000,9 +2002,6 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pgetglobal _, _ | Pgetpredef _, _ ->
     Misc.fatal_errorf
       "[%a] should have been handled by [Closure_conversion.close_primitive]"
-      Printlambda.primitive prim
-  | (Prunstack | Pperform | Presume | Preperform), _ ->
-    Misc.fatal_errorf "Primitive %a is not yet supported by Flambda 2"
       Printlambda.primitive prim
 
 module Acc = Closure_conversion_aux.Acc
