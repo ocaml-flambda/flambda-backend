@@ -188,9 +188,9 @@ type a : value mod local
 Line 2, characters 0-29:
 2 | type b : value mod global = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type a is value, because
+Error: The kind of type a is value, because
          of the definition of a at line 1, characters 0-24.
-       But the layout of type a must be a sublayout of value, because
+       But the kind of type a must be a subkind of value mod global, because
          of the definition of b at line 2, characters 0-29.
 |}]
 
@@ -228,9 +228,10 @@ type a : value mod global unique once uncontended portable external_
 Line 2, characters 0-73:
 2 | type b : value mod local shared many uncontended nonportable internal = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type a is immediate, because
+Error: The kind of type a is
+         value mod global unique uncontended portable external_, because
          of the definition of a at line 1, characters 0-68.
-       But the layout of type a must be a sublayout of value, because
+       But the kind of type a must be a subkind of value mod many uncontended, because
          of the definition of b at line 2, characters 0-73.
 |}]
 
@@ -411,9 +412,9 @@ type t : any mod global = t_value
 Line 1, characters 0-33:
 1 | type t : any mod global = t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t_value is value, because
+Error: The kind of type t_value is value, because
          of the definition of t_value at line 1, characters 0-20.
-       But the layout of type t_value must be a sublayout of any, because
+       But the kind of type t_value must be a subkind of any mod global, because
          of the definition of t at line 1, characters 0-33.
 |}]
 
@@ -422,9 +423,9 @@ type t : any mod unique = t_value
 Line 1, characters 0-33:
 1 | type t : any mod unique = t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t_value is value, because
+Error: The kind of type t_value is value, because
          of the definition of t_value at line 1, characters 0-20.
-       But the layout of type t_value must be a sublayout of any, because
+       But the kind of type t_value must be a subkind of any mod unique, because
          of the definition of t at line 1, characters 0-33.
 |}]
 
@@ -433,9 +434,9 @@ type t : any mod many = t_value
 Line 1, characters 0-31:
 1 | type t : any mod many = t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t_value is value, because
+Error: The kind of type t_value is value, because
          of the definition of t_value at line 1, characters 0-20.
-       But the layout of type t_value must be a sublayout of any, because
+       But the kind of type t_value must be a subkind of any mod many, because
          of the definition of t at line 1, characters 0-31.
 |}]
 
@@ -444,9 +445,9 @@ type t : any mod uncontended = t_value
 Line 1, characters 0-38:
 1 | type t : any mod uncontended = t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t_value is value, because
+Error: The kind of type t_value is value, because
          of the definition of t_value at line 1, characters 0-20.
-       But the layout of type t_value must be a sublayout of any, because
+       But the kind of type t_value must be a subkind of any mod uncontended, because
          of the definition of t at line 1, characters 0-38.
 |}]
 
@@ -455,9 +456,9 @@ type t : any mod portable = t_value
 Line 1, characters 0-35:
 1 | type t : any mod portable = t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t_value is value, because
+Error: The kind of type t_value is value, because
          of the definition of t_value at line 1, characters 0-20.
-       But the layout of type t_value must be a sublayout of any, because
+       But the kind of type t_value must be a subkind of any mod portable, because
          of the definition of t at line 1, characters 0-35.
 |}]
 
@@ -466,9 +467,9 @@ type t : any mod external_ = t_value
 Line 1, characters 0-36:
 1 | type t : any mod external_ = t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t_value is value, because
+Error: The kind of type t_value is value, because
          of the definition of t_value at line 1, characters 0-20.
-       But the layout of type t_value must be a sublayout of any, because
+       But the kind of type t_value must be a subkind of any mod external_, because
          of the definition of t at line 1, characters 0-36.
 |}]
 
@@ -481,9 +482,9 @@ Line 2, characters 25-33:
                              ^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : value mod unique)
-       The layout of string is value, because
+       The kind of string is value, because
          it is the primitive value type string.
-       But the layout of string must be a sublayout of value, because
+       But the kind of string must be a subkind of value mod unique, because
          of the definition of t at line 1, characters 0-54.
 |}]
 
@@ -503,9 +504,9 @@ Line 2, characters 42-43:
                                               ^
 Error: This expression has type t but an expression was expected of type
          ('a : value mod global)
-       The layout of t is value, because
+       The kind of t is value mod many, because
          of the definition of t at line 1, characters 0-23.
-       But the layout of t must be a sublayout of value, because
+       But the kind of t must be a subkind of value mod global, because
          of the annotation on the type variable 'a.
 |}]
 
@@ -529,9 +530,9 @@ Line 3, characters 18-19:
                       ^
 Error: This expression has type t but an expression was expected of type
          ('a : value mod unique)
-       The layout of t is immediate64, because
+       The kind of t is value mod external64, because
          of the definition of t at line 1, characters 0-29.
-       But the layout of t must be a sublayout of value, because
+       But the kind of t must be a subkind of value mod unique, because
          of the definition of f at line 2, characters 6-44.
 |}]
 
@@ -561,9 +562,9 @@ module A : sig type t : value end
 Line 7, characters 0-24:
 7 | type t : immediate = A.t
     ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type A.t is value, because
+Error: The kind of type A.t is value, because
          of the definition of t at line 2, characters 2-16.
-       But the layout of type A.t must be a sublayout of immediate, because
+       But the kind of type A.t must be a subkind of immediate, because
          of the definition of t at line 7, characters 0-24.
 |}]
 
@@ -690,9 +691,9 @@ type t : any mod global = { x : string }
 Line 1, characters 0-40:
 1 | type t : any mod global = { x : string }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod global, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -701,9 +702,9 @@ type t : any mod unique = { x : string }
 Line 1, characters 0-40:
 1 | type t : any mod unique = { x : string }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod unique, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -712,9 +713,9 @@ type t : any mod external_ = { x : string }
 Line 1, characters 0-43:
 1 | type t : any mod external_ = { x : string }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod external_, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -725,9 +726,9 @@ type t : any mod uncontended = { x : string }
 Line 1, characters 0-38:
 1 | type t : any mod many = { x : string }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod many, because
          of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: This should be accepted *)
@@ -737,9 +738,9 @@ type t : any mod many = { x : t_value }
 Line 1, characters 0-39:
 1 | type t : any mod many = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod many, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -748,9 +749,9 @@ type t : any mod uncontended = { x : t_value }
 Line 1, characters 0-46:
 1 | type t : any mod uncontended = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod uncontended, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -759,9 +760,9 @@ type t : any mod portable = { x : t_value }
 Line 1, characters 0-43:
 1 | type t : any mod portable = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod portable, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -770,9 +771,10 @@ type t : any mod many uncontended portable global = { x : t_value }
 Line 1, characters 0-67:
 1 | type t : any mod many uncontended portable global = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of
+         any mod global many uncontended portable, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -783,9 +785,10 @@ type u : immediate
 Line 2, characters 0-77:
 2 | type t : value mod portable many uncontended = { x : string; y : int; z : u }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of value, because
+       But the kind of type t must be a subkind of
+         value mod many uncontended portable, because
          of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: This should be accepted *)
@@ -799,9 +802,9 @@ Line 2, characters 43-59:
                                                ^^^^^^^^^^^^^^^^
 Error: This expression has type t but an expression was expected of type
          ('a : value mod external_)
-       The layout of t is value, because
+       The kind of t is value, because
          of the definition of t at line 1, characters 0-23.
-       But the layout of t must be a sublayout of immediate, because
+       But the kind of t must be a subkind of value mod external_, because
          of the annotation on the wildcard _ at line 2, characters 20-39.
 |}]
 
@@ -812,9 +815,9 @@ type t : any mod many = { x : int }
 Line 1, characters 0-42:
 1 | type t : any mod uncontended = { x : int }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod uncontended, because
          of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
@@ -824,9 +827,9 @@ type t : any mod global = { x : int }
 Line 1, characters 0-37:
 1 | type t : any mod global = { x : int }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod global, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -835,9 +838,9 @@ type t : any mod external_ = { x : int }
 Line 1, characters 0-40:
 1 | type t : any mod external_ = { x : int }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod external_, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -846,9 +849,9 @@ type t : any mod unique = { x : int }
 Line 1, characters 0-37:
 1 | type t : any mod unique = { x : int }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod unique, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -896,9 +899,9 @@ type t : any mod global = { x : u } [@@unboxed]
 Line 1, characters 0-47:
 1 | type t : any mod global = { x : u } [@@unboxed]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          of the definition of u at line 1, characters 0-14.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod global, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -907,9 +910,9 @@ type t : any mod portable = { x : u } [@@unboxed]
 Line 1, characters 0-49:
 1 | type t : any mod portable = { x : u } [@@unboxed]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          of the definition of u at line 1, characters 0-14.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod portable, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -918,9 +921,9 @@ type t : any mod uncontended = { x : u } [@@unboxed]
 Line 1, characters 0-52:
 1 | type t : any mod uncontended = { x : u } [@@unboxed]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          of the definition of u at line 1, characters 0-14.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod uncontended, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -929,9 +932,9 @@ type t : any mod external_ = { x : u } [@@unboxed]
 Line 1, characters 0-50:
 1 | type t : any mod external_ = { x : u } [@@unboxed]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          of the definition of u at line 1, characters 0-14.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod external_, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -940,9 +943,9 @@ type t : any mod many = { x : u } [@@unboxed]
 Line 1, characters 0-45:
 1 | type t : any mod many = { x : u } [@@unboxed]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          of the definition of u at line 1, characters 0-14.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod many, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -951,9 +954,9 @@ type t : any mod unique = { x : u } [@@unboxed]
 Line 1, characters 0-47:
 1 | type t : any mod unique = { x : u } [@@unboxed]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          of the definition of u at line 1, characters 0-14.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod unique, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -971,9 +974,9 @@ type ('a : immediate) t : value mod many portable = { mutable x : 'a }
 Line 1, characters 0-70:
 1 | type ('a : immediate) t : value mod many portable = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of value, because
+       But the kind of type t must be a subkind of value mod many portable, because
          of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
@@ -983,9 +986,9 @@ type ('a : immediate) t : value mod global = { mutable x : 'a }
 Line 1, characters 0-63:
 1 | type ('a : immediate) t : value mod global = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of value, because
+       But the kind of type t must be a subkind of value mod global, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -994,9 +997,9 @@ type ('a : immediate) t : value mod unique = { mutable x : 'a }
 Line 1, characters 0-63:
 1 | type ('a : immediate) t : value mod unique = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of value, because
+       But the kind of type t must be a subkind of value mod unique, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -1005,9 +1008,9 @@ type ('a : immediate) t : value mod uncontended = { mutable x : 'a }
 Line 1, characters 0-68:
 1 | type ('a : immediate) t : value mod uncontended = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of value, because
+       But the kind of type t must be a subkind of value mod uncontended, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -1016,9 +1019,9 @@ type ('a : immediate) t : value mod external_ = { mutable x : 'a }
 Line 1, characters 0-66:
 1 | type ('a : immediate) t : value mod external_ = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of immediate, because
+       But the kind of type t must be a subkind of value mod external_, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -1027,9 +1030,9 @@ type ('a : immediate) t : value mod external64 = { mutable x : 'a }
 Line 1, characters 0-67:
 1 | type ('a : immediate) t : value mod external64 = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of immediate64, because
+       But the kind of type t must be a subkind of value mod external64, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -1059,9 +1062,9 @@ type t : any mod many = Foo of int | Bar
 Line 1, characters 0-47:
 1 | type t : any mod uncontended = Foo of int | Bar
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed variant type.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod uncontended, because
          of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
@@ -1071,9 +1074,9 @@ type t : any mod unique = Foo of int | Bar
 Line 1, characters 0-42:
 1 | type t : any mod unique = Foo of int | Bar
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed variant type.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod unique, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -1082,9 +1085,9 @@ type t : any mod global = Foo of int | Bar
 Line 1, characters 0-42:
 1 | type t : any mod global = Foo of int | Bar
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed variant type.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod global, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -1094,9 +1097,9 @@ type t : any mod external_ = Foo of int | Bar
 Line 1, characters 0-45:
 1 | type t : any mod external_ = Foo of int | Bar
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed variant type.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod external_, because
          of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
@@ -1130,9 +1133,9 @@ type t : any mod portable = Foo of string [@@unboxed]
 Line 1, characters 0-53:
 1 | type t : any mod portable = Foo of string [@@unboxed]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it is the primitive value type string.
-       But the layout of type t must be a sublayout of any, because
+       But the kind of type t must be a subkind of any mod portable, because
          of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted portability *)
@@ -1146,10 +1149,11 @@ type 'a t : value mod global portable uncontended many unique =
 Lines 1-2, characters 0-67:
 1 | type 'a t : value mod global portable uncontended many unique =
 2 |   { x : 'a @@ global portable uncontended many unique } [@@unboxed]
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it instantiates an unannotated type parameter of t,
-         defaulted to layout value.
-       But the layout of type t must be a sublayout of value, because
+         defaulted to kind value.
+       But the kind of type t must be a subkind of
+         value mod global unique many uncontended portable, because
          of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
@@ -1160,10 +1164,11 @@ type 'a t : value mod global portable uncontended many unique =
 Lines 1-2, characters 0-66:
 1 | type 'a t : value mod global portable uncontended many unique =
 2 |   Foo of 'a @@ global portable uncontended many unique [@@unboxed]
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it instantiates an unannotated type parameter of t,
-         defaulted to layout value.
-       But the layout of type t must be a sublayout of value, because
+         defaulted to kind value.
+       But the kind of type t must be a subkind of
+         value mod global unique many uncontended portable, because
          of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
@@ -1189,9 +1194,10 @@ type ('a : value mod uncontended many) t : value mod uncontended many unique =
 Lines 1-2, characters 0-34:
 1 | type ('a : value mod uncontended many) t : value mod uncontended many unique =
 2 |   { x : 'a @@ unique } [@@unboxed]
-Error: The layout of type t is value, because
+Error: The kind of type t is value mod many uncontended, because
          of the annotation on 'a in the declaration of the type t.
-       But the layout of type t must be a sublayout of value, because
+       But the kind of type t must be a subkind of
+         value mod unique many uncontended, because
          of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
@@ -1202,9 +1208,9 @@ type ('a : value mod external_) t : immediate =
 Lines 1-2, characters 0-66:
 1 | type ('a : value mod external_) t : immediate =
 2 |   Foo of 'a @@ global portable uncontended many unique [@@unboxed]
-Error: The layout of type t is immediate, because
+Error: The kind of type t is value mod external_, because
          of the annotation on 'a in the declaration of the type t.
-       But the layout of type t must be a sublayout of immediate, because
+       But the kind of type t must be a subkind of immediate, because
          of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
@@ -1216,9 +1222,9 @@ type 'a t : value mod portable = { x : 'a @@ portable }
 Line 1, characters 0-47:
 1 | type 'a t : value mod many = { x : 'a @@ many }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of value, because
+       But the kind of type t must be a subkind of value mod many, because
          of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
@@ -1228,9 +1234,9 @@ type 'a t : value mod unique = { x : 'a @@ unique }
 Line 1, characters 0-51:
 1 | type 'a t : value mod unique = { x : 'a @@ unique }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of value, because
+       But the kind of type t must be a subkind of value mod unique, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -1239,9 +1245,9 @@ type 'a t : value mod global = { x : 'a @@ global }
 Line 1, characters 0-51:
 1 | type 'a t : value mod global = { x : 'a @@ global }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
+Error: The kind of type t is value, because
          it's a boxed record type.
-       But the layout of type t must be a sublayout of value, because
+       But the kind of type t must be a subkind of value mod global, because
          of the annotation on the declaration of the type t.
 |}]
 
@@ -1304,7 +1310,7 @@ Line 1, characters 8-35:
 1 | val x : 'a. ('a : value mod global)
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The universal type variable 'a was defaulted to have kind value.
-       But it was inferred to have kind value, because
+       But it was inferred to have kind value mod global, because
          of the annotation on the type variable 'a.
 |}]
 
@@ -1377,9 +1383,9 @@ Line 17, characters 6-7:
            ^
 Error: This expression has type a but an expression was expected of type
          ('a : immediate)
-       The layout of a is value, because
+       The kind of a is value, because
          of the annotation on the abstract type declaration for a.
-       But the layout of a must be a sublayout of immediate, because
+       But the kind of a must be a subkind of immediate, because
          of the definition of f at line 16, characters 10-41.
 |}]
 
@@ -1396,9 +1402,9 @@ type t : value mod global = < >
 Line 1, characters 0-31:
 1 | type t : value mod global = < >
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type <  > is value, because
+Error: The kind of type <  > is value, because
          it's the type of an object.
-       But the layout of type <  > must be a sublayout of value, because
+       But the kind of type <  > must be a subkind of value mod global, because
          of the definition of t at line 1, characters 0-31.
 |}]
 
@@ -1414,9 +1420,9 @@ Line 1, characters 40-50:
                                             ^^^^^^^^^^
 Error: This expression has type <  > but an expression was expected of type
          ('a : value mod global)
-       The layout of <  > is value, because
+       The kind of <  > is value, because
          it's the type of an object.
-       But the layout of <  > must be a sublayout of value, because
+       But the kind of <  > must be a subkind of value mod global, because
          of the annotation on the wildcard _ at line 1, characters 19-35.
 |}]
 
@@ -1427,9 +1433,9 @@ Line 1, characters 38-48:
                                           ^^^^^^^^^^
 Error: This expression has type <  > but an expression was expected of type
          ('a : value mod many)
-       The layout of <  > is value, because
+       The kind of <  > is value, because
          it's the type of an object.
-       But the layout of <  > must be a sublayout of value, because
+       But the kind of <  > must be a subkind of value mod many, because
          of the annotation on the wildcard _ at line 1, characters 19-33.
 |}]
 
@@ -1440,9 +1446,9 @@ Line 1, characters 40-50:
                                             ^^^^^^^^^^
 Error: This expression has type <  > but an expression was expected of type
          ('a : value mod unique)
-       The layout of <  > is value, because
+       The kind of <  > is value, because
          it's the type of an object.
-       But the layout of <  > must be a sublayout of value, because
+       But the kind of <  > must be a subkind of value mod unique, because
          of the annotation on the wildcard _ at line 1, characters 19-35.
 |}]
 
@@ -1453,9 +1459,9 @@ Line 1, characters 42-52:
                                               ^^^^^^^^^^
 Error: This expression has type <  > but an expression was expected of type
          ('a : value mod portable)
-       The layout of <  > is value, because
+       The kind of <  > is value, because
          it's the type of an object.
-       But the layout of <  > must be a sublayout of value, because
+       But the kind of <  > must be a subkind of value mod portable, because
          of the annotation on the wildcard _ at line 1, characters 19-37.
 |}]
 
@@ -1466,9 +1472,9 @@ Line 1, characters 45-55:
                                                  ^^^^^^^^^^
 Error: This expression has type <  > but an expression was expected of type
          ('a : value mod uncontended)
-       The layout of <  > is value, because
+       The kind of <  > is value, because
          it's the type of an object.
-       But the layout of <  > must be a sublayout of value, because
+       But the kind of <  > must be a subkind of value mod uncontended, because
          of the annotation on the wildcard _ at line 1, characters 19-40.
 |}]
 
@@ -1479,9 +1485,9 @@ Line 1, characters 43-53:
                                                ^^^^^^^^^^
 Error: This expression has type <  > but an expression was expected of type
          ('a : value mod external_)
-       The layout of <  > is value, because
+       The kind of <  > is value, because
          it's the type of an object.
-       But the layout of <  > must be a sublayout of immediate, because
+       But the kind of <  > must be a subkind of value mod external_, because
          of the annotation on the wildcard _ at line 1, characters 19-38.
 |}]
 

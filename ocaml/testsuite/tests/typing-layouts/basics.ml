@@ -508,9 +508,9 @@ Line 1, characters 19-25:
 1 | let string_id (x : string imm_id) = x;;
                        ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       The layout of string is value, because
+       The kind of string is value, because
          it is the primitive value type string.
-       But the layout of string must be a sublayout of immediate, because
+       But the kind of string must be a subkind of immediate, because
          of the definition of imm_id at line 1, characters 0-33.
 |}];;
 
@@ -531,9 +531,9 @@ Line 1, characters 33-46:
                                      ^^^^^^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          'a imm_id = ('a : immediate)
-       The layout of string is value, because
+       The kind of string is value, because
          it is the primitive value type string.
-       But the layout of string must be a sublayout of immediate, because
+       But the kind of string must be a subkind of immediate, because
          of the definition of id_for_imms at line 1, characters 16-35.
 |}]
 
@@ -547,9 +547,9 @@ Line 2, characters 9-15:
 2 | and s4 = string t4;;
              ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       The layout of string is value, because
+       The kind of string is value, because
          it is the primitive value type string.
-       But the layout of string must be a sublayout of immediate, because
+       But the kind of string must be a subkind of immediate, because
          of the annotation on 'a in the declaration of the type t4.
 |}];;
 
@@ -561,9 +561,9 @@ Line 1, characters 10-16:
 1 | type s4 = string t4
               ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       The layout of string is value, because
+       The kind of string is value, because
          it is the primitive value type string.
-       But the layout of string must be a sublayout of immediate, because
+       But the kind of string must be a subkind of immediate, because
          of the annotation on 'a in the declaration of the type t4.
 |}]
 
@@ -594,9 +594,9 @@ Line 3, characters 0-15:
 3 | and s5 = string;;
     ^^^^^^^^^^^^^^^
 Error:
-       The layout of s5 is value, because
+       The kind of s5 is value, because
          it is the primitive value type string.
-       But the layout of s5 must be a sublayout of immediate, because
+       But the kind of s5 must be a subkind of immediate, because
          of the annotation on 'a in the declaration of the type t4.
 |}]
 
@@ -657,9 +657,9 @@ Line 2, characters 2-32:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This definition has type 'b -> unit which is less general than
          'a. 'a -> unit
-       The layout of 'a is value, because
+       The kind of 'a is value, because
          it is or unifies with an unannotated universal variable.
-       But the layout of 'a must be a sublayout of immediate, because
+       But the kind of 'a must be a subkind of immediate, because
          of the definition of t6_imm at line 1, characters 0-42.
 |}];;
 
@@ -673,9 +673,9 @@ Line 3, characters 4-34:
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This method has type 'b -> unit which is less general than
          'a. 'a -> unit
-       The layout of 'a is value, because
+       The kind of 'a is value, because
          it is or unifies with an unannotated universal variable.
-       But the layout of 'a must be a sublayout of immediate, because
+       But the kind of 'a must be a subkind of immediate, because
          of the definition of t6_imm at line 1, characters 0-42.
 |}];;
 
@@ -694,9 +694,9 @@ Line 3, characters 12-21:
 3 | type t7' = (int * int) t7;;
                 ^^^^^^^^^
 Error: This type int * int should be an instance of type ('a : immediate)
-       The layout of int * int is value, because
+       The kind of int * int is value, because
          it's a tuple type.
-       But the layout of int * int must be a sublayout of immediate, because
+       But the kind of int * int must be a subkind of immediate, because
          of the definition of t7 at line 1, characters 0-37.
 |}]
 
@@ -917,9 +917,9 @@ Error: Signature mismatch:
        is not included in
          val x : string
        The type ('a : immediate) is not compatible with the type string
-       The layout of string is value, because
+       The kind of string is value, because
          it is the primitive value type string.
-       But the layout of string must be a sublayout of immediate, because
+       But the kind of string must be a subkind of immediate, because
          of the definition of x at line 8, characters 10-26.
 |}];;
 
@@ -958,9 +958,9 @@ Error: Signature mismatch:
          val x : string
        The type 'a t = ('a : immediate) is not compatible with the type
          string
-       The layout of string is value, because
+       The kind of string is value, because
          it is the primitive value type string.
-       But the layout of string must be a sublayout of immediate, because
+       But the kind of string must be a subkind of immediate, because
          of the definition of x at line 8, characters 10-26.
 |}]
 
@@ -1865,9 +1865,9 @@ Error: Layout mismatch in final type declaration consistency check.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         The layout of 'a is value, because
+         The kind of 'a is value, because
            of the annotation on the universal variable 'a.
-         But the layout of 'a must be a sublayout of immediate, because
+         But the kind of 'a must be a subkind of immediate, because
            of the definition of t2_imm at line 1, characters 0-28.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
@@ -1885,9 +1885,9 @@ Line 2, characters 19-31:
 2 | let f35 : 'a t35 = fun () -> ()
                        ^^^^^^^^^^^^
 Error:
-       The layout of 'a -> 'b is value, because
+       The kind of 'a -> 'b is value, because
          it's a function type.
-       But the layout of 'a -> 'b must be a sublayout of immediate, because
+       But the kind of 'a -> 'b must be a subkind of immediate, because
          of the definition of t35 at line 1, characters 0-30.
 |}]
 
@@ -2374,10 +2374,10 @@ Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
 Error:
-       The layout of 'a t2 is value, because
+       The kind of 'a t2 is value, because
          it instantiates an unannotated type parameter of t2,
-         defaulted to layout value.
-       But the layout of 'a t2 must be a sublayout of immediate, because
+         defaulted to kind value.
+       But the kind of 'a t2 must be a subkind of immediate, because
          of the annotation on the wildcard _ at line 1, characters 28-37.
 |}]
 
@@ -2393,10 +2393,10 @@ Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
 Error:
-       The layout of 'a t2 is value, because
+       The kind of 'a t2 is value, because
          it instantiates an unannotated type parameter of t2,
-         defaulted to layout value.
-       But the layout of 'a t2 must be a sublayout of immediate, because
+         defaulted to kind value.
+       But the kind of 'a t2 must be a subkind of immediate, because
          of the annotation on the wildcard _ at line 1, characters 27-36.
 |}]
 
@@ -2409,10 +2409,10 @@ Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
 Error:
-       The layout of 'a t2 is value, because
+       The kind of 'a t2 is value, because
          it instantiates an unannotated type parameter of t2,
-         defaulted to layout value.
-       But the layout of 'a t2 must be a sublayout of immediate, because
+         defaulted to kind value.
+       But the kind of 'a t2 must be a subkind of immediate, because
          of the annotation on the wildcard _ at line 1, characters 25-34.
 |}]
 
