@@ -56,9 +56,9 @@ Error: In this `with' constraint, the new definition of t
          type t = string
        is not included in
          type t : immediate
-       The kind of the first is value, because
+       The layout of the first is value, because
          it is the primitive value type string.
-       But the kind of the first must be a subkind of immediate, because
+       But the layout of the first must be a sublayout of immediate, because
          of the definition of t at line 2, characters 2-22.
 |}];;
 
@@ -140,9 +140,9 @@ Line 6, characters 0-15:
 6 | and t2 = string;;
     ^^^^^^^^^^^^^^^
 Error:
-       The kind of t2 is value, because
+       The layout of t2 is value, because
          it is the primitive value type string.
-       But the kind of t2 must be a subkind of immediate, because
+       But the layout of t2 must be a sublayout of immediate, because
          of the definition of t at line 2, characters 2-22.
 |}];;
 
@@ -166,10 +166,10 @@ Error: Layout mismatch in checking consistency of mutually recursive groups.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         The kind of 'a t2 is value, because
+         The layout of 'a t2 is value, because
            it instantiates an unannotated type parameter of t2,
-           defaulted to kind value.
-         But the kind of 'a t2 must be a subkind of immediate, because
+           defaulted to layout value.
+         But the layout of 'a t2 must be a sublayout of immediate, because
            of the definition of t at line 2, characters 2-22.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
@@ -192,10 +192,10 @@ Error: Layout mismatch in checking consistency of mutually recursive groups.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         The kind of 'a t2 is value, because
+         The layout of 'a t2 is value, because
            it instantiates an unannotated type parameter of t2,
-           defaulted to kind value.
-         But the kind of 'a t2 must be a subkind of immediate, because
+           defaulted to layout value.
+         But the layout of 'a t2 must be a sublayout of immediate, because
            of the definition of t at line 2, characters 2-22.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
@@ -327,8 +327,8 @@ Line 8, characters 10-16:
 8 | type t2 = string t
               ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       The kind of string is value, because
+       The layout of string is value, because
          it is the primitive value type string.
-       But the kind of string must be a subkind of immediate, because
+       But the layout of string must be a sublayout of immediate, because
          of the definition of t at line 5, characters 0-39.
 |}];;

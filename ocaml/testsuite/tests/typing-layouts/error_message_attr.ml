@@ -232,9 +232,9 @@ Line 1, characters 22-23:
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
        custom message
-       The kind of string is value, because
+       The layout of string is value, because
          it is the primitive value type string.
-       But the kind of string must be a subkind of immediate, because
+       But the layout of string must be a sublayout of immediate, because
          of the annotation on the wildcard _ at line 1, characters 26-41.
 |}]
 
