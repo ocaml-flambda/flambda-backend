@@ -16,7 +16,7 @@ open Mode
 
 [@@@warning "+9"]
 
-exception Unexpected_higher_jkind
+exception Unexpected_higher_jkind of string
 
 (******************************)
 (*** user errors ***)
@@ -1746,7 +1746,10 @@ module Const = struct
       ~default:false t t'
 
   let to_type_jkind (t : t) =
-    match t with Type ty -> ty | Arrow _ -> raise Unexpected_higher_jkind
+    match t with
+    | Type ty -> ty
+    | Arrow _ ->
+      raise (Unexpected_higher_jkind "Coerced arrow to type jkind (const)")
 
   module Primitive = struct
     type nonrec t =
@@ -1924,8 +1927,10 @@ let of_type_decl_default' ~of_type_decl ~context ~default
 
 let of_type_decl_default = of_type_decl_default' ~of_type_decl
 
-let to_type_jkind (t : t) =
-  match t with Type ty -> ty | _ -> raise Unexpected_higher_jkind
+let[@inline never] to_type_jkind (t : t) =
+  match t with
+  | Type ty -> ty
+  | _ -> raise (Unexpected_higher_jkind "Coerced arrow to type jkind")
 
 (******************************)
 (* elimination and defaulting *)
@@ -1959,7 +1964,8 @@ let rec format ppf (jkind : t) =
 let format_history ~intro ppf (t : t) =
   match t with
   | Type ty -> Type.format_history ~intro ppf ty
-  | Arrow _ -> raise Unexpected_higher_jkind
+  | Arrow _ ->
+    raise (Unexpected_higher_jkind "((No history format for arrow jkinds))")
 
 (******************************)
 (* errors *)
@@ -2047,7 +2053,9 @@ module Violation = struct
           dprintf "cannot be summed with %a" Type.format l2,
           None )
       (* TODO jbachurski: Violations at arrows *)
-      | _ -> raise Unexpected_higher_jkind
+      | _ ->
+        raise
+          (Unexpected_higher_jkind "((No violation format for arrow jkinds))")
     in
     if Type.display_histories
     then

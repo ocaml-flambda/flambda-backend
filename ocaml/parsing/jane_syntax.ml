@@ -600,7 +600,7 @@ module Jkind = struct
       struct_item_of_list "kind_of" [struct_item_of_type ty] t_loc.loc
     | Arrow (args, result) ->
       struct_item_of_list "arrow"
-        (List.map to_structure_item args @ [to_structure_item result])
+        (to_structure_item result :: List.map to_structure_item args)
         t_loc.loc
 
   let rec of_structure_item item =
@@ -623,6 +623,15 @@ module Jkind = struct
       bind (struct_item_to_type item_of_ty) (fun ty -> ret loc (Kind_of ty))
     | Some ("abbrev", [item], loc) ->
       bind (Const.of_structure_item item) (fun c -> ret loc (Abbreviation c))
+    | Some ("arrow", result :: args, loc) ->
+      bind (of_structure_item result) (fun { txt = result } ->
+          let args = List.map of_structure_item args in
+          if List.for_all Option.is_some args
+          then
+            let args = List.map Option.get args in
+            let args = List.map (fun { txt } -> txt) args in
+            ret loc (Arrow (args, result))
+          else None)
     | Some _ | None -> None
 end
 
