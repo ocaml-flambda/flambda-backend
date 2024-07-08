@@ -186,7 +186,7 @@ and ident_some = ident_create "Some"
 
 let predef_jkind_annotation primitive =
   Option.map
-    (fun (primitive : Jkind.Type.Const.Primitive.t) ->
+    (fun (primitive : Jkind.Const.Primitive.t) ->
        (* This is a bit of a hack: we're trying to figure out what a user
           could have written on a predef type declaration to give it the
           right kind. But this hack is OK as its result is just used in
@@ -334,7 +334,7 @@ let build_initial_env add_type add_extension empty_env =
                    Constructor_uniform_value, [| |] |])
        ~jkind:(Jkind.Type.Primitive.immediate ~why:Enumeration)
   |> add_type ident_char ~jkind:(Jkind.Type.Primitive.immediate ~why:(Primitive ident_char))
-      ~jkind_annotation:Jkind.Type.Const.Primitive.immediate
+      ~jkind_annotation:Jkind.Const.Primitive.immediate
   |> add_type ident_exn
        ~kind:Type_open
        ~jkind:(Jkind.Type.Primitive.value ~why:Extensible_variant)
@@ -342,7 +342,7 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type ident_float
   |> add_type ident_floatarray
   |> add_type ident_int ~jkind:(Jkind.Type.Primitive.immediate ~why:(Primitive ident_int))
-      ~jkind_annotation:Jkind.Type.Const.Primitive.immediate
+      ~jkind_annotation:Jkind.Const.Primitive.immediate
   |> add_type ident_int32
   |> add_type ident_int64
   |> add_type1 ident_lazy_t
@@ -403,16 +403,16 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type ident_string
   |> add_type ident_unboxed_float
        ~jkind:(Jkind.Type.Primitive.float64 ~why:(Primitive ident_unboxed_float))
-       ~jkind_annotation:Jkind.Type.Const.Primitive.float64
+       ~jkind_annotation:Jkind.Const.Primitive.float64
   |> add_type ident_unboxed_nativeint
        ~jkind:(Jkind.Type.add_mode_crossing (Jkind.Type.Primitive.word ~why:(Primitive ident_unboxed_nativeint)))
-       ~jkind_annotation:Jkind.Type.Const.Primitive.word
+       ~jkind_annotation:Jkind.Const.Primitive.word
   |> add_type ident_unboxed_int32
        ~jkind:(Jkind.Type.add_mode_crossing (Jkind.Type.Primitive.bits32 ~why:(Primitive ident_unboxed_int32)))
-       ~jkind_annotation:Jkind.Type.Const.Primitive.bits32
+       ~jkind_annotation:Jkind.Const.Primitive.bits32
   |> add_type ident_unboxed_int64
        ~jkind:(Jkind.Type.add_mode_crossing (Jkind.Type.Primitive.bits64 ~why:(Primitive ident_unboxed_int64)))
-       ~jkind_annotation:Jkind.Type.Const.Primitive.bits64
+       ~jkind_annotation:Jkind.Const.Primitive.bits64
   |> add_type ident_bytes
   |> add_type ident_unit
        ~kind:(variant
@@ -458,7 +458,7 @@ let add_small_number_extension_types add_type env =
   |> add_type ident_float32
   |> add_type ident_unboxed_float32
        ~jkind:(Jkind.Type.Primitive.float32 ~why:(Primitive ident_unboxed_float32))
-       ~jkind_annotation:Jkind.Type.Const.Primitive.float32
+       ~jkind_annotation:Jkind.Const.Primitive.float32
 
 let builtin_values =
   List.map (fun id -> (Ident.name id, id)) all_predef_exns

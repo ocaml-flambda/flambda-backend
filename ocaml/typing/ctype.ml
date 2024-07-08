@@ -372,7 +372,7 @@ let without_generating_equations f =
 *)
 type jkind_unification_mode =
   | Perform_checks
-  | Delay_checks of (type_expr * Jkind.Type.t) list ref
+  | Delay_checks of (type_expr * Jkind.t) list ref
   | Skip_checks
 
 let lmode = ref Perform_checks
@@ -2273,7 +2273,7 @@ let type_jkind_purely env ty =
 
 let type_sort ~why env ty =
   let jkind, sort = Jkind.Type.of_new_sort_var ~why in
-  match constrain_type_jkind env ty jkind with
+  match constrain_type_jkind env ty (Type jkind) with
   | Ok _ -> Ok sort
   | Error _ as e -> e
 

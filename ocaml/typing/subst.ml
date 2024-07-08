@@ -488,7 +488,9 @@ let type_declaration' copy_scope s decl =
       begin
         match s.additional_action with
         | Prepare_for_saving prepare_jkind ->
-            prepare_jkind decl.type_loc decl.type_jkind
+            (* FIXME jbachurski: I don't think this coercion is safe,
+                but it's annoying to do this properly right now. *)
+            Type (prepare_jkind decl.type_loc (Jkind.to_type_jkind decl.type_jkind))
         | Duplicate_variables | No_action -> decl.type_jkind
       end;
     (* CR layouts v10: Apply the substitution here, too *)

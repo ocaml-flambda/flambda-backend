@@ -247,14 +247,14 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
      are checked and then unified with the real manifest and checked against the
      kind. *)
   let type_jkind, type_jkind_annotation, sdecl_attributes =
-    Jkind.Type.of_type_decl_default
+    Jkind.of_type_decl_default
       ~context:(Type_declaration path)
-      ~default:(Jkind.Type.Primitive.any ~why:Initial_typedecl_env)
+      ~default:(Jkind.Primitive.any ~why:Initial_typedecl_env)
       sdecl
   in
   let abstract_reason, type_manifest =
     match sdecl.ptype_manifest, abstract_abbrevs with
-    | (None, _ | Some _, None) -> Abstract_def, Some (Ctype.newvar type_jkind)
+    | (None, _ | Some _, None) -> Abstract_def, Some (Ctype.newvar (Jkind.to_type_jkind type_jkind))
     | Some _, Some reason -> reason, None
   in
   let type_params =
@@ -790,7 +790,7 @@ let transl_declaration env sdecl (id, uid) =
   let (tkind, kind, jkind_default) =
     match sdecl.ptype_kind with
       | Ptype_abstract ->
-        Ttype_abstract, Type_abstract Abstract_def, Jkind.Type.Primitive.value ~why:Default_type_jkind
+        Ttype_abstract, Type_abstract Abstract_def, Jkind.Primitive.value ~why:Default_type_jkind
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
           match cstrs with
@@ -852,7 +852,7 @@ let transl_declaration env sdecl (id, uid) =
         let tcstrs, cstrs = List.split (List.map make_cstr scstrs) in
         let rep, jkind =
           if unbox then
-            Variant_unboxed, any
+            Variant_unboxed, (Jkind.Primitive.any ~why:Initial_typedecl_env)
           else
             (* We mark all arg jkinds "any" here.  They are updated later,
                after the circular type checks make it safe to check jkinds.
@@ -871,7 +871,7 @@ let transl_declaration env sdecl (id, uid) =
                    Constructor_uniform_value, jkinds)
                 (Array.of_list cstrs)
             ),
-            Jkind.Type.Primitive.value ~why:Boxed_variant
+            Jkind.Primitive.value ~why:Boxed_variant
         in
           Ttype_variant tcstrs, Type_variant (cstrs, rep), jkind
       | Ptype_record lbls ->
@@ -887,14 +887,14 @@ let transl_declaration env sdecl (id, uid) =
                [Record_mixed].  Those cases are fixed up after we can get
                accurate jkinds for the fields, in [update_decl_jkind]. *)
             if unbox then
-              Record_unboxed, any
+              Record_unboxed, (Jkind.Primitive.any ~why:Initial_typedecl_env)
             else
               Record_boxed (Array.make (List.length lbls) any),
-              Jkind.Type.Primitive.value ~why:Boxed_record
+              Jkind.Primitive.value ~why:Boxed_record
           in
           Ttype_record lbls, Type_record(lbls', rep), jkind
       | Ptype_open ->
-        Ttype_open, Type_open, Jkind.Type.Primitive.value ~why:Extensible_variant
+        Ttype_open, Type_open, Jkind.Primitive.value ~why:Extensible_variant
       in
     let jkind =
     (* - If there's an annotation, we use that. It's checked against
@@ -1175,7 +1175,7 @@ let update_label_jkinds env loc lbls named =
   in
   let lbls =
     List.mapi (fun idx (Types.{ld_type} as lbl) ->
-      let ld_jkind = Ctype.type_jkind env ld_type in
+      let ld_jkind = Ctype.type_jkind env ld_type |> Jkind.to_type_jkind in
       update idx ld_jkind;
       {lbl with ld_jkind}
     ) lbls
@@ -1192,7 +1192,7 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
   match cd_args with
   | Types.Cstr_tuple tys ->
     List.iteri (fun idx {Types.ca_type=ty; _} ->
-      jkinds.(idx) <- Ctype.type_jkind env ty) tys;
+      jkinds.(idx) <- Ctype.type_jkind env ty |> Jkind.to_type_jkind) tys;
     cd_args, Array.for_all Jkind.Type.is_void_defaulting jkinds
   | Types.Cstr_record lbls ->
     let lbls, all_void =
@@ -1435,7 +1435,7 @@ let update_decl_jkind env dpath decl =
   let update_record_kind loc lbls rep =
     match lbls, rep with
     | [Types.{ld_type} as lbl], Record_unboxed ->
-      let ld_jkind = Ctype.type_jkind env ld_type in
+      let ld_jkind = Ctype.type_jkind env ld_type |> Jkind.to_type_jkind in
       [{lbl with ld_jkind}], Record_unboxed, ld_jkind
     | _, Record_boxed jkinds ->
       let lbls, all_void =
@@ -1549,11 +1549,11 @@ let update_decl_jkind env dpath decl =
     | [{Types.cd_args} as cstr], Variant_unboxed -> begin
         match cd_args with
         | Cstr_tuple [{ca_type=ty; _}] -> begin
-            let jkind = Ctype.type_jkind env ty in
+            let jkind = Ctype.type_jkind env ty |> Jkind.to_type_jkind in
             cstrs, Variant_unboxed, jkind
           end
         | Cstr_record [{ld_type} as lbl] -> begin
-            let ld_jkind = Ctype.type_jkind env ld_type in
+            let ld_jkind = Ctype.type_jkind env ld_type |> Jkind.to_type_jkind in
             [{ cstr with Types.cd_args =
                            Cstr_record [{ lbl with ld_jkind }] }],
             Variant_unboxed, ld_jkind
@@ -1603,10 +1603,12 @@ let update_decl_jkind env dpath decl =
       { decl with type_jkind }, type_jkind
     | Type_record (lbls, rep) ->
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
+      let type_jkind = Jkind_types.Type type_jkind in
       { decl with type_kind = Type_record (lbls, rep); type_jkind },
       type_jkind
     | Type_variant (cstrs, rep) ->
       let cstrs, rep, type_jkind = update_variant_kind cstrs rep in
+      let type_jkind = Jkind_types.Type type_jkind in
       { decl with type_kind = Type_variant (cstrs, rep); type_jkind },
       type_jkind
   in
@@ -1614,7 +1616,7 @@ let update_decl_jkind env dpath decl =
   (* check that the jkind computed from the kind matches the jkind
      annotation, which was stored in decl.type_jkind *)
   if new_jkind != decl.type_jkind then
-    begin match Jkind.Type.sub_or_error new_jkind decl.type_jkind with
+    begin match Jkind.sub_or_error new_jkind decl.type_jkind with
     | Ok () -> ()
     | Error err ->
       raise(Error(decl.type_loc, Jkind_mismatch_of_path (dpath,err)))
@@ -2886,7 +2888,7 @@ let transl_value_decl env loc valdecl =
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
   (* CR layouts v5: relax this to check for representability. *)
   begin match Ctype.constrain_type_jkind env cty.ctyp_type
-                (Jkind.Type.Primitive.value ~why:Structure_element) with
+                (Jkind.Primitive.value ~why:Structure_element) with
   | Ok () -> ()
   | Error err ->
     raise(Error(cty.ctyp_loc, Non_value_in_sig(err,valdecl.pval_name.txt,cty.ctyp_type)))
@@ -3163,7 +3165,7 @@ let transl_package_constraint ~loc ty =
   { type_params = [];
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
-    type_jkind = Jkind.Type.Primitive.any ~why:Dummy_jkind;
+    type_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
     (* There is no reason to calculate an accurate jkind here.  This typedecl
        will be thrown away once it is used for the package constraint inclusion
        check, and that check will expand the manifest as needed. *)
@@ -3212,9 +3214,9 @@ let approx_type_decl sdecl_list =
        let path = Path.Pident id in
        let injective = sdecl.ptype_kind <> Ptype_abstract in
        let jkind, jkind_annotation, _sdecl_attributes =
-         Jkind.Type.of_type_decl_default
+         Jkind.of_type_decl_default
            ~context:(Type_declaration path)
-           ~default:(Jkind.Type.Primitive.value ~why:Default_type_jkind)
+           ~default:(Jkind.Primitive.value ~why:Default_type_jkind)
            sdecl
        in
        let params =

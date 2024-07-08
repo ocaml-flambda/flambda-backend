@@ -515,7 +515,7 @@ type type_declaration =
        be computed from the decl kind. This happens in
        Ctype.add_jkind_equation. *)
 
-    type_jkind_annotation: type_expr Jkind_types.Type.annotation option;
+    type_jkind_annotation: type_expr Jkind_types.annotation option;
     (* This is the jkind annotation written by the user. If the user did
     not write this declaration (because it's a synthesized declaration
     for an e.g. local abstract type or an inlined record), then this field

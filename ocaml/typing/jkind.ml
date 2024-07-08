@@ -2116,9 +2116,9 @@ let rec equate_or_equal ~allow_mutation t t' =
     ~typ:(Type.equate_or_equal ~allow_mutation)
     ~arrow:
       (fun { args = args1; result = result1 } { args = args2; result = result2 } ->
-      (* FIXME jbachurski: don't short-circuit at for_all *)
+      let arg_eqs = List.map2 (equate_or_equal ~allow_mutation) args1 args2 in
       equate_or_equal ~allow_mutation result1 result2
-      && List.for_all2 (equate_or_equal ~allow_mutation) args1 args2)
+      && List.for_all (fun x -> x) arg_eqs)
     ~default:false t t'
 
 let equate = equate_or_equal ~allow_mutation:true
