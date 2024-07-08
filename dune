@@ -88,7 +88,8 @@
    jane_syntax ; manual update: mli only files asttypes parsetree
 
    ;; TYPING
-   ident path jkind primitive shape shape_reduce types btype oprint subst predef datarepr
+   ident path jkind primitive shape shape_reduce zero_alloc types btype oprint subst
+   predef datarepr
    global_module cmi_format persistent_env env errortrace mode jkind_types jkind_intf
    typedtree printtyped ctype printtyp includeclass mtype envaux includecore
    tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
@@ -291,6 +292,7 @@
     (jkind.mli as compiler-libs/jkind.mli)
     (jkind_types.mli as compiler-libs/jkind_types.mli)
     (primitive.mli as compiler-libs/primitive.mli)
+    (zero_alloc.mli as compiler-libs/zero_alloc.mli)
     (types.mli as compiler-libs/types.mli)
     (btype.mli as compiler-libs/btype.mli)
     (binutils.mli as compiler-libs/binutils.mli)

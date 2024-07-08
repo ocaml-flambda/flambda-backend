@@ -2067,7 +2067,7 @@ let tree_of_value_description id decl =
     count 0 decl.val_type
   in
   let attrs =
-    match decl.val_zero_alloc with
+    match Zero_alloc.get decl.val_zero_alloc with
     | Default_zero_alloc | Ignore_assert_all -> []
     | Check { strict; opt; arity; _ } ->
       [{ oattr_name =
