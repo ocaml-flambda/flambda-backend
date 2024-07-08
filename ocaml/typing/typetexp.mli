@@ -164,10 +164,10 @@ type error =
   | Unsupported_extension : _ Language_extension.t -> error
   | Polymorphic_optional_param
   | Non_value of
-      {vloc : value_loc; typ : type_expr; err : Jkind.Type.Violation.t}
+      {vloc : value_loc; typ : type_expr; err : Jkind.Violation.t}
   | Non_sort of
       {vloc : sort_loc; typ : type_expr; err : Jkind.Type.Violation.t}
-  | Bad_jkind_annot of type_expr * Jkind.Type.Violation.t
+  | Bad_jkind_annot of type_expr * Jkind.Violation.t
   | Did_you_mean_unboxed of Longident.t
   | Invalid_label_for_call_pos of Parsetree.arg_label
 

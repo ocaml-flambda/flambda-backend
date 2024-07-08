@@ -112,17 +112,17 @@ type error =
   | Multiple_native_repr_attributes
   | Cannot_unbox_or_untag_type of native_repr_kind
   | Deep_unbox_or_untag_attribute of native_repr_kind
-  | Jkind_mismatch_of_type of type_expr * Jkind.Type.Violation.t
-  | Jkind_mismatch_of_path of Path.t * Jkind.Type.Violation.t
+  | Jkind_mismatch_of_type of type_expr * Jkind.Violation.t
+  | Jkind_mismatch_of_path of Path.t * Jkind.Violation.t
   | Jkind_mismatch_due_to_bad_inference of
-      type_expr * Jkind.Type.Violation.t * bad_jkind_inference_location
+      type_expr * Jkind.Violation.t * bad_jkind_inference_location
   | Jkind_sort of
       { kloc : jkind_sort_loc
       ; typ : type_expr
-      ; err : Jkind.Type.Violation.t
+      ; err : Jkind.Violation.t
       }
   | Jkind_empty_record
-  | Non_value_in_sig of Jkind.Type.Violation.t * string * type_expr
+  | Non_value_in_sig of Jkind.Violation.t * string * type_expr
   | Invalid_jkind_in_block of type_expr * Jkind.Type.Sort.const * jkind_sort_loc
   | Illegal_mixed_product of mixed_product_violation
   | Separability of Typedecl_separability.error
@@ -1009,6 +1009,7 @@ let rec check_constraints_rec env loc visited ty =
           let violation =
             Jkind.Type.Violation.of_
               (Not_a_subjkind (original_jkind, inferred_jkind))
+            |> Jkind.Violation.of_type_jkind
           in
           raise (Error(loc, Jkind_mismatch_due_to_bad_inference
                             (ty, violation, Check_constraints)))
@@ -1633,10 +1634,14 @@ let update_decls_jkind_reason decls =
        List.iter update_generalized decl.type_params;
        Btype.iter_type_expr_kind update_generalized decl.type_kind;
        Option.iter update_generalized decl.type_manifest;
+       (* FIXME jbachurski: Need to update history here *)
+       (*
        let reason = Jkind.Type.History.Generalized (Some id, decl.type_loc) in
        let new_decl = {decl with type_jkind =
                                    Jkind.Type.History.update_reason decl.type_jkind reason} in
        (id, new_decl)
+       *)
+       (id, decl)
     )
     decls
 
@@ -2816,8 +2821,9 @@ let check_unboxable env loc ty =
     ()
 
 let has_ty_var_with_layout_any env ty =
+  (* FIXME jbachurski: This coercion is unsafe once variables can have higher jkinds *)
   List.exists
-    (fun ty -> Jkind.Type.has_layout_any (Ctype.estimate_type_jkind env ty))
+    (fun ty -> Jkind.Type.has_layout_any (Ctype.estimate_type_jkind env ty |> Jkind.to_type_jkind))
     (Ctype.free_variables ty)
 
 let unexpected_layout_any_check prim env cty ty =
@@ -3343,7 +3349,7 @@ let report_jkind_mismatch_due_to_bad_inference ppf ty violation loc =
      A good next step is to add a layout annotation on a parameter to@ \
      the declaration where this error is reported.@]"
     loc
-    (Jkind.Type.Violation.report_with_offender
+    (Jkind.Violation.report_with_offender
        ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
 
 let report_error ppf = function
@@ -3386,8 +3392,8 @@ let report_error ppf = function
         err
   | Constraint_failed (env, err) ->
       let get_jkind_error : _ Errortrace.elt -> _ = function
-      | Bad_jkind (ty, violation) | Bad_jkind_sort (ty, violation) ->
-        Some (ty, violation)
+      | Bad_jkind (ty, violation) -> Some (ty, violation)
+      | Bad_jkind_sort (ty, violation) -> Some (ty, Jkind.Violation.of_type_jkind violation)
       | Unequal_var_jkinds_with_no_history
       | Unequal_var_jkinds _ | Diff _ | Variant _ | Obj _
       | Escape _ | Incompatible_fields _ | Rec_occur _ -> None
@@ -3593,10 +3599,10 @@ let report_error ppf = function
     (* the type is always printed just above, so print out just the head of the
        path instead of something like [t/3] *)
     let offender ppf = fprintf ppf "type %s" (Ident.name (Path.head dpath)) in
-    Jkind.Type.Violation.report_with_offender ~offender ppf v
+    Jkind.Violation.report_with_offender ~offender ppf v
   | Jkind_mismatch_of_type (ty,v) ->
     let offender ppf = fprintf ppf "type %a" Printtyp.type_expr ty in
-    Jkind.Type.Violation.report_with_offender ~offender ppf v
+    Jkind.Violation.report_with_offender ~offender ppf v
   | Jkind_sort {kloc; typ; err} ->
     let s =
       match kloc with
@@ -3619,14 +3625,14 @@ let report_error ppf = function
     in
     fprintf ppf "@[%s must have a representable layout%t.@ %a@]" s
       extra
-      (Jkind.Type.Violation.report_with_offender
+      (Jkind.Violation.report_with_offender
          ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Jkind_empty_record ->
     fprintf ppf "@[Records must contain at least one runtime value.@]"
   | Non_value_in_sig (err, val_name, ty) ->
     let offender ppf = fprintf ppf "type %a" Printtyp.type_expr ty in
     fprintf ppf "@[This type signature for %s is not a value type.@ %a@]"
-      val_name (Jkind.Type.Violation.report_with_offender ~offender) err
+      val_name (Jkind.Violation.report_with_offender ~offender) err
   | Invalid_jkind_in_block (typ, sort_const, lloc) ->
     let struct_desc =
       match lloc with

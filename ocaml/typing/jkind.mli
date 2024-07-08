@@ -557,6 +557,8 @@ val const_of_user_written_annotation :
 (** The typed jkind together with its user-written annotation. *)
 type annotation = Types.type_expr Jkind_types.annotation
 
+val annotation_of_type_jkind : Type.annotation -> annotation
+
 val of_annotation :
   context:Type.History.annotation_context ->
   Jane_syntax.Jkind.annotation ->
@@ -644,8 +646,10 @@ module Violation : sig
   type t
 
   (** Set [?missing_cmi] to mark [t] as having arisen from a missing cmi *)
-
   val of_ : ?missing_cmi:Path.t -> violation -> t
+
+  (** Promote an existing [Jkind.Type.Violation.t] into [Jkind.Violation.t] *)
+  val of_type_jkind : Type.Violation.t -> t
 
   (** Is this error from a missing cmi? *)
   val is_missing_cmi : t -> bool

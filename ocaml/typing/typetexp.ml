@@ -628,7 +628,7 @@ let enrich_with_attributes attrs annotation_context =
   | None -> annotation_context
 
 let jkind_of_annotation annotation_context attrs jkind =
-  Jkind.of_annotation ~context:(enrich_with_attributes attrs annotation_context) jkind
+  Jkind.Type.of_annotation ~context:(enrich_with_attributes attrs annotation_context) jkind
 
 (* translate the ['a 'b ('c : immediate) .] part of a polytype,
    returning a [poly_univars] *)
@@ -1026,7 +1026,7 @@ and transl_type_var env ~policy ~row_context attrs loc name jkind_annot_opt =
     | None -> None
     | Some jkind_annot ->
       let jkind, annot = of_annot jkind_annot in
-      match constrain_type_jkind env ty jkind with
+      match constrain_type_jkind env ty (Type jkind) with
       | Ok () -> Some annot
       | Error err ->
           raise (Error(jkind_annot.loc, env, Bad_jkind_annot (ty, err)))
@@ -1072,7 +1072,7 @@ and transl_type_alias env ~row_context ~policy mode attrs alias_loc styp name_op
           let jkind, annot =
             jkind_of_annotation (Type_variable ("'" ^ alias)) attrs jkind_annot
           in
-          begin match constrain_type_jkind env t jkind with
+          begin match constrain_type_jkind env t (Type jkind) with
           | Ok () -> ()
           | Error err ->
             raise (Error(jkind_annot.loc, env, Bad_jkind_annot(t, err)))
@@ -1090,8 +1090,7 @@ and transl_type_alias env ~row_context ~policy mode attrs alias_loc styp name_op
                 let jkind, annot =
                   jkind_of_annotation (Type_variable ("'" ^ alias)) attrs jkind_annot
                 in
-                (* FIXME: Avoid to_type_jkind when implementing vars. *)
-                Jkind.to_type_jkind jkind, Some annot
+                jkind, Some annot
             in
             let t = newvar jkind in
             TyVarEnv.remember_used alias t alias_loc;
@@ -1125,7 +1124,7 @@ and transl_type_alias env ~row_context ~policy mode attrs alias_loc styp name_op
       let jkind, annot =
         jkind_of_annotation (Type_wildcard jkind_annot.loc) attrs jkind_annot
       in
-      begin match constrain_type_jkind env cty_expr jkind with
+      begin match constrain_type_jkind env cty_expr (Type jkind) with
       | Ok () -> ()
       | Error err ->
         raise (Error(jkind_annot.loc, env,

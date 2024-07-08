@@ -51,10 +51,10 @@ val transl_package_constraint:
 
 val abstract_type_decl:
   injective:bool ->
-  jkind:Jkind.Type.t ->
+  jkind:Jkind.t ->
   (* [jkind_annotation] is what the user wrote, and is just used when printing
      the type produced by this function. *)
-  jkind_annotation:Jkind.Type.annotation option ->
+  jkind_annotation:Jkind.annotation option ->
   params:Jkind.Type.t list ->
   type_declaration
 
@@ -152,17 +152,17 @@ type error =
   | Multiple_native_repr_attributes
   | Cannot_unbox_or_untag_type of native_repr_kind
   | Deep_unbox_or_untag_attribute of native_repr_kind
-  | Jkind_mismatch_of_type of type_expr * Jkind.Type.Violation.t
-  | Jkind_mismatch_of_path of Path.t * Jkind.Type.Violation.t
+  | Jkind_mismatch_of_type of type_expr * Jkind.Violation.t
+  | Jkind_mismatch_of_path of Path.t * Jkind.Violation.t
   | Jkind_mismatch_due_to_bad_inference of
-      type_expr * Jkind.Type.Violation.t * bad_jkind_inference_location
+      type_expr * Jkind.Violation.t * bad_jkind_inference_location
   | Jkind_sort of
       { kloc : jkind_sort_loc
       ; typ : type_expr
-      ; err : Jkind.Type.Violation.t
+      ; err : Jkind.Violation.t
       }
   | Jkind_empty_record
-  | Non_value_in_sig of Jkind.Type.Violation.t * string * type_expr
+  | Non_value_in_sig of Jkind.Violation.t * string * type_expr
   | Invalid_jkind_in_block of type_expr * Jkind.Type.Sort.const * jkind_sort_loc
   | Illegal_mixed_product of mixed_product_violation
   | Separability of Typedecl_separability.error

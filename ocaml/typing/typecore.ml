@@ -158,7 +158,7 @@ type error =
       Datatype_kind.t * Longident.t * (Path.t * Path.t) * (Path.t * Path.t) list
   | Invalid_format of string
   | Not_an_object of type_expr * type_forcing_context option
-  | Not_a_value of Jkind.Type.Violation.t * type_forcing_context option
+  | Not_a_value of Jkind.Violation.t * type_forcing_context option
   | Undefined_method of type_expr * string * string list option
   | Undefined_self_method of string * string list
   | Virtual_class of Longident.t
@@ -233,7 +233,7 @@ type error =
   | Exclave_in_nontail_position
   | Exclave_returns_not_local
   | Unboxed_int_literals_not_supported
-  | Function_type_not_rep of type_expr * Jkind.Type.Violation.t
+  | Function_type_not_rep of type_expr * Jkind.Violation.t
   | Modes_on_pattern
   | Invalid_label_for_src_pos of arg_label
   | Nonoptional_call_pos_label of string
@@ -1474,7 +1474,7 @@ let solve_constructor_annotation tps env name_list sty ty_args ty_ex =
             See: https://github.com/ocaml/ocaml/pull/9584/ *)
         let decl = new_local_type ~loc:name.loc
                      ~jkind_annot:None
-                     (Jkind.Type.Primitive.value ~why:Existential_type_variable) in
+                     (Jkind.Primitive.value ~why:Existential_type_variable) in
         let (id, new_env) =
           Env.enter_type ~scope:expansion_scope name.txt decl !env in
         env := new_env;
@@ -8316,7 +8316,10 @@ and type_newtype
   (* Use [with_local_level] just for scoping *)
   with_local_level begin fun () ->
     (* Create a fake abstract type declaration for name. *)
-    let decl = new_local_type ~loc:name_loc jkind ~jkind_annot in
+    let decl = new_local_type
+      ~loc:name_loc (Type jkind)
+      ~jkind_annot:(Option.map Jkind.annotation_of_type_jkind jkind_annot)
+    in
     let scope = create_scope () in
     let (id, new_env) = Env.enter_type ~scope name decl env in
 
@@ -9863,7 +9866,7 @@ let report_error ~loc env = function
   | Not_a_value (err, explanation) ->
     Location.error_of_printer ~loc (fun ppf () ->
       fprintf ppf "Object types must have layout value.@ %a"
-        (Jkind.Type.Violation.report_with_name ~name:"the type of this expression")
+        (Jkind.Violation.report_with_name ~name:"the type of this expression")
         err;
       report_type_expected_explanation_opt explanation ppf)
       ()
@@ -10261,7 +10264,7 @@ let report_error ~loc env = function
   | Function_type_not_rep (ty,violation) ->
       Location.errorf ~loc
         "@[Function arguments and returns must be representable.@]@ %a"
-        (Jkind.Type.Violation.report_with_offender
+        (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
   | Modes_on_pattern ->
       Location.errorf ~loc

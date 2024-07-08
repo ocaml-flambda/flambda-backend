@@ -27,7 +27,7 @@ type error =
       Jkind.Type.Sort.t * Language_extension.maturity * type_expr option
   | Non_value_sort_unknown_ty of Jkind.Type.Sort.t
   | Small_number_sort_without_extension of Jkind.Type.Sort.t * type_expr option
-  | Not_a_sort of type_expr * Jkind.Type.Violation.t
+  | Not_a_sort of type_expr * Jkind.Violation.t
   | Unsupported_sort of Jkind.Type.Sort.const
 
 exception Error of Location.t * error
@@ -853,7 +853,7 @@ let report_error ppf = function
         extension verb flags
   | Not_a_sort (ty, err) ->
       fprintf ppf "A representable layout is required here.@ %a"
-        (Jkind.Type.Violation.report_with_offender
+        (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
   | Unsupported_sort const ->
       fprintf ppf "Layout %a is not supported yet." Jkind.Type.Sort.Const.format const

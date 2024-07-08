@@ -2017,6 +2017,18 @@ module Violation = struct
 
   let of_ ?missing_cmi violation = { violation; missing_cmi }
 
+  let of_type_jkind_violation (t : Type.Violation.violation) =
+    match t with
+    | Not_a_subjkind (ty, ty') ->
+      Not_a_subjkind (of_type_jkind ty, of_type_jkind ty')
+    | No_intersection (ty, ty') ->
+      No_intersection (of_type_jkind ty, of_type_jkind ty')
+
+  let of_type_jkind (t : Type.Violation.t) =
+    { violation = of_type_jkind_violation t.violation;
+      missing_cmi = t.missing_cmi
+    }
+
   let is_missing_cmi viol = Option.is_some viol.missing_cmi
 
   (* TODO jbachurski: extend this to properly handle violations at arrows *)

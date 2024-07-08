@@ -2066,11 +2066,11 @@ let get_unboxed_type_approximation env ty =
      in case the caller wants to update it. *)
 type jkind_result =
   | Jkind of Jkind.t
-  | TyVar of Jkind.t * type_expr
+  | TyVar of Jkind.Type.t * type_expr
 
 let jkind_of_result = function
   | Jkind l -> l
-  | TyVar (l,_) -> l
+  | TyVar (l,_) -> Jkind_types.Type l
 
 let tvariant_not_immediate row =
   (* if all labels are devoid of arguments, not a pointer *)
@@ -2114,7 +2114,7 @@ let rec estimate_type_jkind env ty =
 
        This, however, still allows sort variables to get instantiated. *)
     Jkind (Type jkind)
-  | Tvar { jkind } -> TyVar (Type jkind, ty)
+  | Tvar { jkind } -> TyVar (jkind, ty)
   | Tarrow _ -> Jkind (Primitive.value ~why:Arrow)
   | Ttuple _ -> Jkind (Primitive.value ~why:Tuple)
   | Tobject _ -> Jkind (Primitive.value ~why:Object)
@@ -2132,7 +2132,7 @@ type type_jkind_sub_result =
     (* The [Type_var] case might still be "success"; caller should check.
        We don't just report success here because if the caller unifies the
        tyvar, error messages improve. *)
-  | Type_var of Jkind.t * type_expr
+  | Type_var of Jkind.Type.t * type_expr
   | Missing_cmi of Jkind.t * Path.t
   | Failure of Jkind.t
 
@@ -2192,16 +2192,20 @@ let constrain_type_jkind ~fixed env ty jkind =
   match type_jkind_sub env ty jkind with
   | Success -> Ok ()
   | Type_var (ty_jkind, ty) ->
-    if fixed then Jkind.sub_or_error ty_jkind jkind else
+    (* FIXME jbachurski: This should be fixed once type variables have higher jkinds. *)
+    if fixed then Jkind.sub_or_error (Type ty_jkind) jkind else
+    let jkind = Jkind.to_type_jkind jkind in
     let jkind_inter =
-      Jkind.intersection_or_error ~reason:Tyvar_refinement_intersection
+      Jkind.Type.intersection_or_error ~reason:Tyvar_refinement_intersection
         ty_jkind jkind
     in
-    Result.map (set_var_jkind ty) jkind_inter
+    jkind_inter
+    |> Result.map (set_var_jkind ty)
+    |> Result.map_error (Jkind.Violation.of_type_jkind)
   | Missing_cmi (ty_jkind, missing_cmi) ->
-    Error Jkind.(Violation.of_ ~missing_cmi
-      (Not_a_subjkind
-         (History.update_reason ty_jkind (Missing_cmi missing_cmi), jkind)))
+    (* FIXME jbachurski: Removed history tracking here for now *)
+    (* (Type.History.update_reason ty_jkind (Missing_cmi missing_cmi), jkind))) *)
+    Error Jkind.(Violation.of_ ~missing_cmi (Not_a_subjkind (ty_jkind, jkind)))
   | Failure ty_jkind ->
     Error (Jkind.Violation.of_ (Not_a_subjkind (ty_jkind, jkind)))
 
@@ -4063,7 +4067,7 @@ type filter_arrow_failure =
       ; expected_type : type_expr
       }
   | Not_a_function
-  | Jkind_error of type_expr * Jkind.Type.Violation.t
+  | Jkind_error of type_expr * Jkind.Violation.t
 
 exception Filter_arrow_failed of filter_arrow_failure
 
