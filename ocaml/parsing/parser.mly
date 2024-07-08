@@ -3875,8 +3875,9 @@ jkind_parameters:
 ;
 
 jkind_base:
-    LPAREN k=jkind RPAREN { k }
-  | jkind_base MOD mkrhs(LIDENT)+ { (* LIDENTs here are for modes *)
+    (* not parsing this for now as e.g. mod doesn't seem to make sense *)
+    (* LPAREN k=jkind RPAREN { k } *)
+    jkind_base MOD mkrhs(LIDENT)+ { (* LIDENTs here are for modes *)
       let mode_list =
         List.map
           (fun {txt; loc} -> Jane_syntax.Mode_expr.Const.mk txt loc)

@@ -292,54 +292,6 @@ module Type : sig
 
   val of_const : why:History.creation_reason -> Const.t -> t
 
-  val const_of_user_written_annotation :
-    context:History.annotation_context ->
-    Jane_syntax.Jkind.annotation ->
-    Const.t
-
-  (** The typed jkind together with its user-written annotation. *)
-  type annotation = Types.type_expr Jkind_types.Type.annotation
-
-  val of_annotation :
-    context:History.annotation_context ->
-    Jane_syntax.Jkind.annotation ->
-    t * annotation
-
-  val of_annotation_option_default :
-    default:t ->
-    context:History.annotation_context ->
-    Jane_syntax.Jkind.annotation option ->
-    t * annotation option
-
-  (** Find a jkind from a type declaration. Type declarations are special because
-    the jkind may have been provided via [: jkind] syntax (which goes through
-    Jane Syntax) or via the old-style [[@@immediate]] or [[@@immediate64]]
-    attributes, and [of_type_decl] needs to look in two different places on the
-    [type_declaration] to account for these two alternatives.
-
-    Returns the jkind, the user-written annotation, and the remaining unconsumed
-    attributes. (The attributes include old-style [[@@immediate]] or
-    [[@@immediate64]] attributes if those are present, but excludes any
-    attribute used by Jane Syntax to encode a [: jkind]-style jkind.)
-
-    Raises if a disallowed or unknown jkind is present.
-*)
-  val of_type_decl :
-    context:History.annotation_context ->
-    Parsetree.type_declaration ->
-    (t * annotation * Parsetree.attributes) option
-
-  (** Find a jkind from a type declaration in the same way as [of_type_decl],
-    defaulting to ~default.
-
-    Raises if a disallowed or unknown jkind is present.
-*)
-  val of_type_decl_default :
-    context:History.annotation_context ->
-    default:t ->
-    Parsetree.type_declaration ->
-    t * annotation option * Parsetree.attributes
-
   (** Choose an appropriate jkind for a boxed record type, given whether
     all of its fields are [void]. *)
   val for_boxed_record : all_void:bool -> t
@@ -560,8 +512,6 @@ val const_of_user_written_annotation :
 
 (** The typed jkind together with its user-written annotation. *)
 type annotation = Types.type_expr Jkind_types.annotation
-
-val annotation_of_type_jkind : Type.annotation -> annotation
 
 val of_annotation :
   context:Type.History.annotation_context ->

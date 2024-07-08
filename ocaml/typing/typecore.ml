@@ -4967,7 +4967,7 @@ type type_function_result =
   { function_ :
       type_expr * type_function_result_param list * function_body;
     (* The uninterrupted prefix of newtypes of the parameter suffix. *)
-    newtypes: (string loc * Jkind.Type.annotation option) list;
+    newtypes: (string loc * Jkind.annotation option) list;
     (* Whether any of the value parameters contains a GADT pattern. *)
     params_contain_gadt: contains_gadt;
     (* The alloc mode of the "rest of the function". None only for recursive
@@ -8300,14 +8300,16 @@ and type_function_cases_expect
 *)
 and type_newtype
   : type a. _ -> _ -> _ -> (Env.t -> a * type_expr)
-    -> a * type_expr * Jkind.Type.annotation option =
+    -> a * type_expr * Jkind.annotation option =
   fun env name jkind_annot_opt type_body  ->
   let { txt = name; loc = name_loc } : _ Location.loc = name in
   let jkind, jkind_annot =
-    Jkind.Type.of_annotation_option_default ~context:(Newtype_declaration name)
-      ~default:(Jkind.Type.Primitive.value ~why:Univar) jkind_annot_opt
+    Jkind.of_annotation_option_default ~context:(Newtype_declaration name)
+      ~default:(Jkind.Primitive.value ~why:Univar) jkind_annot_opt
   in
   let ty =
+    (* FIXME jbachurski: Remove coercion once vars are higher kinded *)
+    let jkind = Jkind.to_type_jkind jkind in
     if Typetexp.valid_tyvar_name name then
       newvar ~name jkind
     else
@@ -8317,8 +8319,8 @@ and type_newtype
   with_local_level begin fun () ->
     (* Create a fake abstract type declaration for name. *)
     let decl = new_local_type
-      ~loc:name_loc (Type jkind)
-      ~jkind_annot:(Option.map Jkind.annotation_of_type_jkind jkind_annot)
+      ~loc:name_loc jkind
+      ~jkind_annot
     in
     let scope = create_scope () in
     let (id, new_env) = Env.enter_type ~scope name decl env in

@@ -215,7 +215,7 @@ and exp_extra =
          *)
   | Texp_poly of core_type option
         (** Used for method bodies. *)
-  | Texp_newtype of string * Jkind.Type.annotation option
+  | Texp_newtype of string * Jkind.annotation option
         (** fun (type t : immediate) ->  *)
   | Texp_mode_coerce of Jane_syntax.Mode_expr.t
         (** local_ E *)
@@ -436,7 +436,7 @@ and function_param =
     fp_sort: Jkind.Type.sort;
     fp_mode: Mode.Alloc.l;
     fp_curry: function_curry;
-    fp_newtypes: (string loc * Jkind.Type.annotation option) list;
+    fp_newtypes: (string loc * Jkind.annotation option) list;
     (** [fp_newtypes] are the new type declarations that come *after* that
         parameter. The newtypes that come before the first parameter are
         placed as exp_extras on the Texp_function node. This is just used in
@@ -865,15 +865,15 @@ and core_type =
    }
 
 and core_type_desc =
-  | Ttyp_var of string option * Jkind.Type.annotation option
+  | Ttyp_var of string option * Jkind.annotation option
   | Ttyp_arrow of arg_label * core_type * core_type
   | Ttyp_tuple of (string option * core_type) list
   | Ttyp_constr of Path.t * Longident.t loc * core_type list
   | Ttyp_object of object_field list * closed_flag
   | Ttyp_class of Path.t * Longident.t loc * core_type list
-  | Ttyp_alias of core_type * string option * Jkind.Type.annotation option
+  | Ttyp_alias of core_type * string option * Jkind.annotation option
   | Ttyp_variant of row_field list * closed_flag * label list option
-  | Ttyp_poly of (string * Jkind.Type.annotation option) list * core_type
+  | Ttyp_poly of (string * Jkind.annotation option) list * core_type
   | Ttyp_package of package_type
   | Ttyp_call_pos
       (** [Ttyp_call_pos] represents the type of the value of a Position
@@ -954,7 +954,7 @@ and constructor_declaration =
      cd_id: Ident.t;
      cd_name: string loc;
      cd_uid: Uid.t;
-     cd_vars: (string * Jkind.Type.annotation option) list;
+     cd_vars: (string * Jkind.annotation option) list;
      cd_args: constructor_arguments;
      cd_res: core_type option;
      cd_loc: Location.t;
@@ -1001,7 +1001,7 @@ and extension_constructor =
   }
 
 and extension_constructor_kind =
-    Text_decl of (string * Jkind.Type.annotation option) list *
+    Text_decl of (string * Jkind.annotation option) list *
                  constructor_arguments *
                  core_type option
   | Text_rebind of Path.t * Longident.t loc

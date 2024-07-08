@@ -18,6 +18,35 @@ open Mode
 
 exception Unexpected_higher_jkind
 
+(******************************)
+(*** user errors ***)
+
+type const = Types.type_expr Jkind_types.Const.t
+
+module Error = struct
+  type t =
+    | Insufficient_level of
+        { jkind : const;
+          required_layouts_level : Language_extension.maturity
+        }
+    | Unknown_jkind of Jane_syntax.Jkind.t
+    | Unknown_mode of Jane_syntax.Mode_expr.Const.t
+    | Multiple_jkinds of
+        { from_annotation : const;
+          from_attribute : const
+        }
+
+  exception User_error of Location.t * t
+
+  (* FIXME jbachurski: Remove this once Insufficient_level is used again *)
+  let () =
+    ignore
+      (Insufficient_level
+         { jkind = Obj.magic (); required_layouts_level = Obj.magic () })
+end
+
+let user_raise ~loc err = raise (Error.User_error (loc, err))
+
 module Type = struct
   open Jkind_types.Type
 
@@ -239,29 +268,7 @@ module Type = struct
     let has_warned t = t.has_warned
   end
 
-  (* forward declare [Const.t] so we can use it for [Error.t] *)
   type const = type_expr Jkind_types.Type.Const.t
-
-  (******************************)
-  (*** user errors ***)
-
-  module Error = struct
-    type t =
-      | Insufficient_level of
-          { jkind : const;
-            required_layouts_level : Language_extension.maturity
-          }
-      | Unknown_jkind of Jane_syntax.Jkind.t
-      | Unknown_mode of Jane_syntax.Mode_expr.Const.t
-      | Multiple_jkinds of
-          { from_annotation : const;
-            from_attribute : const
-          }
-
-    exception User_error of Location.t * t
-  end
-
-  let raise ~loc err = raise (Error.User_error (loc, err))
 
   module Const = struct
     open Jkind_types.Type.Const
@@ -529,10 +536,6 @@ module Type = struct
       let layout_str = Layout.Const.Legacy.to_string legacy_layout in
       Format.fprintf ppf "%s" layout_str
 
-    let of_attribute : Builtin_attributes.jkind_attribute -> t = function
-      | Immediate -> Primitive.immediate.jkind
-      | Immediate64 -> Primitive.immediate64.jkind
-
     module ModeParser = struct
       type mode =
         | Areality of Locality.Const.t
@@ -560,97 +563,88 @@ module Type = struct
         | "uncontended" -> Contention Uncontended
         | "portable" -> Portability Portable
         | "nonportable" -> Portability Nonportable
-        | _ -> raise ~loc (Unknown_mode unparsed_mode)
+        | _ -> user_raise ~loc (Unknown_mode unparsed_mode)
 
       let parse_modes
           (Location.{ txt = modes; loc = _ } : Jane_syntax.Mode_expr.t) =
         List.map parse_mode modes
     end
 
-    let rec of_user_written_annotation_unchecked_level
-        (jkind : Jane_syntax.Jkind.t) : t =
-      match jkind with
-      | Abbreviation const -> (
-        let { txt = name; loc } =
-          (const : Jane_syntax.Jkind.Const.t :> _ Location.loc)
-        in
-        (* CR layouts 2.8: move this to predef *)
-        match name with
-        | "any" -> Primitive.any.jkind
-        | "value" -> Primitive.value.jkind
-        | "void" -> Primitive.void.jkind
-        | "immediate64" -> Primitive.immediate64.jkind
-        | "immediate" -> Primitive.immediate.jkind
-        | "float64" -> Primitive.float64.jkind
-        | "float32" -> Primitive.float32.jkind
-        | "word" -> Primitive.word.jkind
-        | "bits32" -> Primitive.bits32.jkind
-        | "bits64" -> Primitive.bits64.jkind
-        | _ -> raise ~loc (Unknown_jkind jkind))
-      | Mod (jkind, modes) ->
-        let base = of_user_written_annotation_unchecked_level jkind in
-        (* for each mode, lower the corresponding modal bound to be that mode *)
-        let parsed_modes = ModeParser.parse_modes modes in
-        let meet_mode jkind (mode : ModeParser.mode) =
-          match mode with
-          | Areality areality ->
-            { jkind with
-              modes_upper_bounds =
-                { jkind.modes_upper_bounds with
-                  areality =
-                    Locality.Const.meet jkind.modes_upper_bounds.areality
-                      areality
-                }
+    let of_user_written_abbreviation ~jkind (const : Jane_syntax.Jkind.Const.t)
+        : t =
+      let { txt = name; loc } =
+        (const : Jane_syntax.Jkind.Const.t :> _ Location.loc)
+      in
+      (* CR layouts 2.8: move this to predef *)
+      match name with
+      | "any" -> Primitive.any.jkind
+      | "value" -> Primitive.value.jkind
+      | "void" -> Primitive.void.jkind
+      | "immediate64" -> Primitive.immediate64.jkind
+      | "immediate" -> Primitive.immediate.jkind
+      | "float64" -> Primitive.float64.jkind
+      | "float32" -> Primitive.float32.jkind
+      | "word" -> Primitive.word.jkind
+      | "bits32" -> Primitive.bits32.jkind
+      | "bits64" -> Primitive.bits64.jkind
+      | _ -> user_raise ~loc (Unknown_jkind jkind)
+
+    let meet_mode_in_parse jkind (mode : ModeParser.mode) =
+      (* for each mode, lower the corresponding modal bound to be that mode *)
+      match mode with
+      | Areality areality ->
+        { jkind with
+          modes_upper_bounds =
+            { jkind.modes_upper_bounds with
+              areality =
+                Locality.Const.meet jkind.modes_upper_bounds.areality areality
             }
-          | Linearity linearity ->
-            { jkind with
-              modes_upper_bounds =
-                Modes.meet jkind.modes_upper_bounds
-                  { jkind.modes_upper_bounds with
-                    linearity =
-                      Linearity.Const.meet jkind.modes_upper_bounds.linearity
-                        linearity
-                  }
-            }
-          | Uniqueness uniqueness ->
-            { jkind with
-              modes_upper_bounds =
-                Modes.meet jkind.modes_upper_bounds
-                  { jkind.modes_upper_bounds with
-                    uniqueness =
-                      Uniqueness.Const.meet jkind.modes_upper_bounds.uniqueness
-                        uniqueness
-                  }
-            }
-          | Contention contention ->
-            { jkind with
-              modes_upper_bounds =
-                Modes.meet jkind.modes_upper_bounds
-                  { jkind.modes_upper_bounds with
-                    contention =
-                      Contention.Const.meet jkind.modes_upper_bounds.contention
-                        contention
-                  }
-            }
-          | Portability portability ->
-            { jkind with
-              modes_upper_bounds =
-                Modes.meet jkind.modes_upper_bounds
-                  { jkind.modes_upper_bounds with
-                    portability =
-                      Portability.Const.meet
-                        jkind.modes_upper_bounds.portability portability
-                  }
-            }
-          | Externality externality ->
-            { jkind with
-              externality_upper_bound =
-                Externality.meet jkind.externality_upper_bound externality
-            }
-        in
-        List.fold_left meet_mode base parsed_modes
-      | Default | With _ | Kind_of _ | Arrow _ ->
-        Misc.fatal_error "XXX unimplemented"
+        }
+      | Linearity linearity ->
+        { jkind with
+          modes_upper_bounds =
+            Modes.meet jkind.modes_upper_bounds
+              { jkind.modes_upper_bounds with
+                linearity =
+                  Linearity.Const.meet jkind.modes_upper_bounds.linearity
+                    linearity
+              }
+        }
+      | Uniqueness uniqueness ->
+        { jkind with
+          modes_upper_bounds =
+            Modes.meet jkind.modes_upper_bounds
+              { jkind.modes_upper_bounds with
+                uniqueness =
+                  Uniqueness.Const.meet jkind.modes_upper_bounds.uniqueness
+                    uniqueness
+              }
+        }
+      | Contention contention ->
+        { jkind with
+          modes_upper_bounds =
+            Modes.meet jkind.modes_upper_bounds
+              { jkind.modes_upper_bounds with
+                contention =
+                  Contention.Const.meet jkind.modes_upper_bounds.contention
+                    contention
+              }
+        }
+      | Portability portability ->
+        { jkind with
+          modes_upper_bounds =
+            Modes.meet jkind.modes_upper_bounds
+              { jkind.modes_upper_bounds with
+                portability =
+                  Portability.Const.meet jkind.modes_upper_bounds.portability
+                    portability
+              }
+        }
+      | Externality externality ->
+        { jkind with
+          externality_upper_bound =
+            Externality.meet jkind.externality_upper_bound externality
+        }
 
     module Sort = Sort.Const
     module Layout = Layout.Const
@@ -907,7 +901,7 @@ module Type = struct
      parameter might effectively be unused.
   *)
   (* CR layouts: When everything is stable, remove this function. *)
-  let get_required_layouts_level (context : History.annotation_context)
+  let _get_required_layouts_level (context : History.annotation_context)
       (jkind : Const.t) : Language_extension.maturity =
     let legacy_layout = Const.get_legacy_layout jkind in
     match context, legacy_layout with
@@ -937,80 +931,6 @@ module Type = struct
       history = Creation why;
       has_warned = false
     }
-
-  let const_of_user_written_annotation ~context Location.{ loc; txt = annot } =
-    let const = Const.of_user_written_annotation_unchecked_level annot in
-    let required_layouts_level = get_required_layouts_level context const in
-    if not (Language_extension.is_at_least Layouts required_layouts_level)
-    then
-      raise ~loc (Insufficient_level { jkind = const; required_layouts_level });
-    const
-
-  let of_annotated_const ~context ~const ~const_loc =
-    of_const ~why:(Annotated (context, const_loc)) const
-
-  let of_annotation ~context (annot : _ Location.loc) =
-    let const = const_of_user_written_annotation ~context annot in
-    let jkind = of_annotated_const ~const ~const_loc:annot.loc ~context in
-    jkind, (const, annot)
-
-  let of_annotation_option_default' ~default ~context ~of_annotation =
-    Option.fold ~none:(default, None) ~some:(fun annot ->
-        let t, annot = of_annotation ~context annot in
-        t, Some annot)
-
-  let of_annotation_option_default ~default ~context t =
-    of_annotation_option_default' ~default ~context ~of_annotation t
-
-  let of_attribute ~context
-      (attribute : Builtin_attributes.jkind_attribute Location.loc) =
-    let const = Const.of_attribute attribute.txt in
-    of_annotated_const ~context ~const ~const_loc:attribute.loc, const
-
-  let of_type_decl ~context (decl : Parsetree.type_declaration) =
-    let jkind_of_annotation =
-      Jane_syntax.Layouts.of_type_declaration decl
-      |> Option.map (fun (annot, attrs) ->
-             let t, const = of_annotation ~context annot in
-             t, const, attrs)
-    in
-    let jkind_of_attribute =
-      Builtin_attributes.jkind decl.ptype_attributes
-      |> Option.map (fun attr ->
-             let t, const = of_attribute ~context attr in
-             (* This is a bit of a lie: the "annotation" here is being
-                forged based on the jkind attribute. But: the jkind
-                annotation is just used in printing/untypeast, and the
-                all strings valid to use as a jkind attribute are
-                valid (and equivalent) to write as an annotation, so
-                this lie is harmless.
-             *)
-             let annot =
-               Location.map
-                 (fun attr ->
-                   let name =
-                     Builtin_attributes.jkind_attribute_to_string attr
-                   in
-                   Jane_syntax.Jkind.(
-                     Abbreviation (Const.mk name Location.none)))
-                 attr
-             in
-             t, (const, annot), decl.ptype_attributes)
-    in
-    match jkind_of_annotation, jkind_of_attribute with
-    | None, None -> None
-    | (Some _ as x), None | None, (Some _ as x) -> x
-    | Some (_, (from_annotation, _), _), Some (_, (from_attribute, _), _) ->
-      raise ~loc:decl.ptype_loc
-        (Multiple_jkinds { from_annotation; from_attribute })
-
-  let of_type_decl_default' ~of_type_decl ~context ~default
-      (decl : Parsetree.type_declaration) =
-    match of_type_decl ~context decl with
-    | Some (t, const, attrs) -> t, Some const, attrs
-    | None -> default, None, decl.ptype_attributes
-
-  let of_type_decl_default = of_type_decl_default' ~of_type_decl
 
   let for_boxed_record ~all_void =
     if all_void
@@ -1787,54 +1707,6 @@ module Type = struct
       fprintf ppf "@[<v 2>{ jkind = %a@,; history = %a }@]"
         Jkind_desc.Debug_printers.t jkind history h
   end
-
-  (*** formatting user errors ***)
-  let report_error ~loc : Error.t -> _ = function
-    | Unknown_jkind jkind ->
-      Location.errorf ~loc
-        (* CR layouts v2.9: use the context to produce a better error message.
-           When RAE tried this, some types got printed like [t/2], but the
-           [/2] shouldn't be there. Investigate and fix. *)
-        "@[<v>Unknown layout %a@]" Pprintast.jkind jkind
-    | Unknown_mode mode ->
-      Location.errorf ~loc "@[<v>Unknown mode %a@]" Pprintast.mode mode
-    | Multiple_jkinds { from_annotation; from_attribute } ->
-      Location.errorf ~loc
-        "@[<v>A type declaration's layout can be given at most once.@;\
-         This declaration has an layout annotation (%a) and a layout attribute \
-         ([@@@@%a]).@]"
-        Const.format from_annotation Const.format from_attribute
-    | Insufficient_level { jkind; required_layouts_level } -> (
-      let hint ppf =
-        Format.fprintf ppf "You must enable -extension %s to use this feature."
-          (Language_extension.to_command_line_string Layouts
-             required_layouts_level)
-      in
-      match Language_extension.is_enabled Layouts with
-      | false ->
-        Location.errorf ~loc
-          "@[<v>The appropriate layouts extension is not enabled.@;%t@]" hint
-      | true ->
-        Location.errorf ~loc
-          (* CR layouts errors: use the context to produce a better error message.
-             When RAE tried this, some types got printed like [t/2], but the
-             [/2] shouldn't be there. Investigate and fix. *)
-          "@[<v>Layout %a is more experimental than allowed by the enabled \
-           layouts extension.@;\
-           %t@]"
-          Const.format jkind hint)
-
-  let () =
-    Location.register_error_of_exn (function
-      | Error.User_error (loc, err) -> Some (report_error ~loc err)
-      | _ -> None)
-
-  (* CR layouts v2.8: Remove the definitions below by propagating changes
-     outside of this file. *)
-
-  type annotation = Const.t * Jane_syntax.Jkind.annotation
-
-  let default_to_value_and_get t = default_to_value_and_get t
 end
 
 type nonrec t = Types.type_expr Jkind_types.t
@@ -1879,7 +1751,8 @@ module Const = struct
         List.for_all2 equal args1 args2 && equal result1 result2)
       ~default:false t t'
 
-  let of_type_jkind t = Jkind_types.Const.Type t
+  let to_type_jkind (t : t) =
+    match t with Type ty -> ty | Arrow _ -> raise Unexpected_higher_jkind
 
   module Primitive = struct
     type nonrec t =
@@ -1910,6 +1783,30 @@ module Const = struct
 
     let bits64 = of_type_jkind Type.Const.Primitive.bits64
   end
+
+  let of_attribute : Builtin_attributes.jkind_attribute -> t = function
+    | Immediate -> Primitive.immediate.jkind
+    | Immediate64 -> Primitive.immediate64.jkind
+
+  let rec of_user_written_annotation_unchecked_level
+      (jkind : Jane_syntax.Jkind.t) : t =
+    match jkind with
+    | Abbreviation const ->
+      Type (Type.Const.of_user_written_abbreviation ~jkind const)
+    | Mod (jkind, modes) ->
+      (* FIXME jbachurski: What should be the interaction between [mod] and arrow kinds? *)
+      let jkind =
+        to_type_jkind (of_user_written_annotation_unchecked_level jkind)
+      in
+      Type
+        (List.fold_left Type.Const.meet_mode_in_parse jkind
+           (Type.Const.ModeParser.parse_modes modes))
+    | Arrow (args, result) ->
+      Arrow
+        { args = List.map of_user_written_annotation_unchecked_level args;
+          result = of_user_written_annotation_unchecked_level result
+        }
+    | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
 end
 
 let rec of_const ~why (t : Const.t) : t =
@@ -1957,30 +1854,80 @@ let of_new_sort ~why = Type.of_new_sort ~why |> of_type_jkind
 (* The following are placeholders, which assume general higher-order kinds are
    not present in annotations and declarations. *)
 
-(* TODO jbachurski: annotation parsing *)
+let const_of_user_written_annotation ~context:_
+    Location.{ loc = _; txt = annot } =
+  let const = Const.of_user_written_annotation_unchecked_level annot in
+  (* FIXME jbachurski: Restore extension level checking. *)
+  (*
+  let required_layouts_level = get_required_layouts_level context const in
+  if not (Language_extension.is_at_least Layouts required_layouts_level)
+  then
+    Type.raise ~loc
+      (Insufficient_level { jkind = const; required_layouts_level });
+  *)
+  const
 
-let const_of_user_written_annotation ~context a =
-  Jkind_types.Const.Type (Type.const_of_user_written_annotation ~context a)
+type annotation = Const.t * Jane_syntax.Jkind.annotation
 
-type annotation = Types.type_expr Jkind_types.annotation
+let of_annotated_const ~context ~const ~const_loc =
+  of_const ~why:(Annotated (context, const_loc)) const
 
-let annotation_of_type_jkind (c, l) = Const.of_type_jkind c, l
+let of_annotation ~context (annot : _ Location.loc) =
+  let const = const_of_user_written_annotation ~context annot in
+  let jkind = of_annotated_const ~const ~const_loc:annot.loc ~context in
+  jkind, (const, annot)
 
-let of_annotation ~context a =
-  Type.of_annotation ~context a |> fun (a, b) ->
-  of_type_jkind a, annotation_of_type_jkind b
+let of_annotation_option_default ~default ~context =
+  Option.fold ~none:(default, None) ~some:(fun annot ->
+      let t, annot = of_annotation ~context annot in
+      t, Some annot)
 
-let of_annotation_option_default ~default ~context a =
-  Type.of_annotation_option_default' ~default ~context ~of_annotation a
+let of_attribute ~context
+    (attribute : Builtin_attributes.jkind_attribute Location.loc) =
+  let const = Const.of_attribute attribute.txt in
+  of_annotated_const ~context ~const ~const_loc:attribute.loc, const
 
-(* TODO jbachurski: type declaration parsing *)
+let of_type_decl ~context (decl : Parsetree.type_declaration) =
+  let jkind_of_annotation =
+    Jane_syntax.Layouts.of_type_declaration decl
+    |> Option.map (fun (annot, attrs) ->
+           let t, const = of_annotation ~context annot in
+           t, const, attrs)
+  in
+  let jkind_of_attribute =
+    Builtin_attributes.jkind decl.ptype_attributes
+    |> Option.map (fun attr ->
+           let t, const = of_attribute ~context attr in
+           (* This is a bit of a lie: the "annotation" here is being
+              forged based on the jkind attribute. But: the jkind
+              annotation is just used in printing/untypeast, and the
+              all strings valid to use as a jkind attribute are
+              valid (and equivalent) to write as an annotation, so
+              this lie is harmless.
+           *)
+           let annot =
+             Location.map
+               (fun attr ->
+                 let name = Builtin_attributes.jkind_attribute_to_string attr in
+                 Jane_syntax.Jkind.(Abbreviation (Const.mk name Location.none)))
+               attr
+           in
+           t, (const, annot), decl.ptype_attributes)
+  in
+  match jkind_of_annotation, jkind_of_attribute with
+  | None, None -> None
+  | (Some _ as x), None | None, (Some _ as x) -> x
+  | Some (_, (from_annotation, _), _), Some (_, (from_attribute, _), _) ->
+    user_raise ~loc:decl.ptype_loc
+      (Multiple_jkinds { from_annotation; from_attribute })
 
-let of_type_decl ~context d =
-  Type.of_type_decl ~context d
-  |> Option.map (fun (a, b, c) ->
-         of_type_jkind a, annotation_of_type_jkind b, c)
+let of_type_decl_default' ~of_type_decl ~context ~default
+    (decl : Parsetree.type_declaration) =
+  match of_type_decl ~context decl with
+  | Some (t, const, attrs) -> t, Some const, attrs
+  | None -> default, None, decl.ptype_attributes
 
-let of_type_decl_default = Type.of_type_decl_default' ~of_type_decl
+let of_type_decl_default = of_type_decl_default' ~of_type_decl
 
 let to_type_jkind (t : t) =
   match t with Type ty -> ty | _ -> raise Unexpected_higher_jkind
@@ -2262,4 +2209,45 @@ module Debug_printers = struct
     | Arrow { args; result } ->
       Format.fprintf ppf "@[<v 2>{ args = %a@,; result = %a }@]"
         (Format.pp_print_list t) args t result
+
+  (*** formatting user errors ***)
+  let report_error ~loc : Error.t -> _ = function
+    | Unknown_jkind jkind ->
+      Location.errorf ~loc
+        (* CR layouts v2.9: use the context to produce a better error message.
+           When RAE tried this, some types got printed like [t/2], but the
+           [/2] shouldn't be there. Investigate and fix. *)
+        "@[<v>Unknown layout %a@]" Pprintast.jkind jkind
+    | Unknown_mode mode ->
+      Location.errorf ~loc "@[<v>Unknown mode %a@]" Pprintast.mode mode
+    | Multiple_jkinds { from_annotation; from_attribute } ->
+      Location.errorf ~loc
+        "@[<v>A type declaration's layout can be given at most once.@;\
+         This declaration has an layout annotation (%a) and a layout attribute \
+         ([@@@@%a]).@]"
+        Const.format from_annotation Const.format from_attribute
+    | Insufficient_level { jkind; required_layouts_level } -> (
+      let hint ppf =
+        Format.fprintf ppf "You must enable -extension %s to use this feature."
+          (Language_extension.to_command_line_string Layouts
+             required_layouts_level)
+      in
+      match Language_extension.is_enabled Layouts with
+      | false ->
+        Location.errorf ~loc
+          "@[<v>The appropriate layouts extension is not enabled.@;%t@]" hint
+      | true ->
+        Location.errorf ~loc
+          (* CR layouts errors: use the context to produce a better error message.
+             When RAE tried this, some types got printed like [t/2], but the
+             [/2] shouldn't be there. Investigate and fix. *)
+          "@[<v>Layout %a is more experimental than allowed by the enabled \
+           layouts extension.@;\
+           %t@]"
+          Const.format jkind hint)
+
+  let () =
+    Location.register_error_of_exn (function
+      | Error.User_error (loc, err) -> Some (report_error ~loc err)
+      | _ -> None)
 end

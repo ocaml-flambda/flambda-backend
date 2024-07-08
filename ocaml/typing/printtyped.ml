@@ -222,7 +222,7 @@ let attributes i ppf l =
   ) l
 
 let jkind_annotation i ppf (jkind, _) =
-  line i ppf "%a" Jkind.Type.Const.format jkind
+  line i ppf "%a" Jkind.Const.format jkind
 
 let rec core_type i ppf x =
   line i ppf "core_type %a\n" fmt_location x.ctyp_loc;

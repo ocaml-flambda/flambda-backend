@@ -53,7 +53,7 @@ module TyVarEnv : sig
     (** Same as [check_poly_univars], but instantiates the resulting
        type scheme (i.e. variables become Tvar rather than Tunivar) *)
 
-  val ttyp_poly_arg : poly_univars -> (string * Jkind.Type.annotation option) list
+  val ttyp_poly_arg : poly_univars -> (string * Jkind.annotation option) list
     (** A suitable arg to the corresponding [Ttyp_poly] type. *)
 end
 
@@ -123,7 +123,7 @@ val transl_type_param:
 (* the Path.t above is of the type/class whose param we are processing;
    the level defaults to the current level *)
 
-val get_type_param_jkind: Path.t -> Parsetree.core_type -> jkind
+val get_type_param_jkind: Path.t -> Parsetree.core_type -> higher_jkind
 val get_type_param_name: Parsetree.core_type -> string option
 
 val get_alloc_mode : Parsetree.core_type -> Alloc.Const.t

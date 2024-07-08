@@ -261,7 +261,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
     List.map (fun (param, _) ->
         let name = get_type_param_name param in
         let jkind = get_type_param_jkind path param in
-        Btype.newgenvar ?name jkind)
+        Btype.newgenvar ?name (Jkind.to_type_jkind jkind))
       sdecl.ptype_params
   in
   let decl =
@@ -533,7 +533,7 @@ let make_constructor
             Option.map
               (fun annot ->
                  let const =
-                    Jkind.Type.const_of_user_written_annotation
+                    Jkind.const_of_user_written_annotation
                       ~context:(Constructor_type_parameter (cstr_path, v.txt))
                       annot
                  in
@@ -3189,7 +3189,7 @@ let transl_package_constraint ~loc ty =
 let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
   let arity = List.length params in
   Ctype.with_local_level ~post:generalize_decl begin fun () ->
-    let params = List.map Ctype.newvar params in
+    let params = List.map (fun jkind -> Ctype.newvar (Jkind.to_type_jkind jkind)) params in
     { type_params = params;
       type_arity = arity;
       type_kind = Type_abstract Abstract_def;
