@@ -527,6 +527,7 @@ module Jkind = struct
     | Mod of t * Mode_expr.t
     | With of t * core_type
     | Kind_of of core_type
+    | Arrow of t list * t
 
   type annotation = t loc
 
@@ -597,6 +598,10 @@ module Jkind = struct
         t_loc.loc
     | Kind_of ty ->
       struct_item_of_list "kind_of" [struct_item_of_type ty] t_loc.loc
+    | Arrow (args, result) ->
+      struct_item_of_list "arrow"
+        (List.map to_structure_item args @ [to_structure_item result])
+        t_loc.loc
 
   let rec of_structure_item item =
     let bind = Option.bind in
