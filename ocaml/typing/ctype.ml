@@ -2203,9 +2203,7 @@ let constrain_type_jkind ~fixed env ty jkind =
     |> Result.map (set_var_jkind ty)
     |> Result.map_error (Jkind.Violation.of_type_jkind)
   | Missing_cmi (ty_jkind, missing_cmi) ->
-    (* FIXME jbachurski: Removed history tracking here for now *)
-    (* (Type.History.update_reason ty_jkind (Missing_cmi missing_cmi), jkind))) *)
-    Error Jkind.(Violation.of_ ~missing_cmi (Not_a_subjkind (ty_jkind, jkind)))
+    Error Jkind.(Violation.of_ ~missing_cmi (Not_a_subjkind ((History.update_reason ty_jkind (Missing_cmi missing_cmi), jkind))))
   | Failure ty_jkind ->
     Error (Jkind.Violation.of_ (Not_a_subjkind (ty_jkind, jkind)))
 

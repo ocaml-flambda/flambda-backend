@@ -1838,6 +1838,17 @@ end
 
 type nonrec t = Types.type_expr Jkind_types.t
 
+module History = struct
+  let rec update_reason (t : t) reason : t =
+    match t with
+    | Type ty -> Type (Type.History.update_reason ty reason)
+    | Arrow { args; result } ->
+      Arrow
+        { args = List.map (fun t' -> update_reason t' reason) args;
+          result = update_reason result reason
+        }
+end
+
 (******************************)
 (* constants *)
 (* Mostly wrapping implementations for Type jkinds *)

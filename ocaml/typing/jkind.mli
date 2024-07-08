@@ -474,6 +474,10 @@ end
     case is a zeroth-order kind of runtime-representable types (Jkind.Type.t). *)
 type t = Types.type_expr Jkind_types.t
 
+module History : sig
+  val update_reason : t -> Type.History.creation_reason -> t
+end
+
 (******************************)
 (* constants *)
 (* See documentation of relevant functions in Jkind.Type for details
