@@ -344,7 +344,7 @@ let name_expression ~loc ~attrs sort exp =
       val_kind = Val_reg;
       val_loc = loc;
       val_attributes = attrs;
-      val_zero_alloc = Default_zero_alloc;
+      val_zero_alloc = Zero_alloc.default;
       val_modalities = Mode.Modality.Value.id;
       val_uid = Uid.internal_not_actually_unique; }
   in
