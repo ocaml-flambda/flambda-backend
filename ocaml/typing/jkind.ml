@@ -200,6 +200,14 @@ module Type = struct
       | External64, (External64 | Internal) | Internal, External64 -> External64
       | Internal, Internal -> Internal
 
+    let join t1 t2 =
+      match t1, t2 with
+      | Internal, (External | External64 | Internal)
+      | (External | External64), Internal ->
+        Internal
+      | External64, (External | External64) | External, External64 -> External64
+      | External, External -> External
+
     let print ppf = function
       | External -> Format.fprintf ppf "external_"
       | External64 -> Format.fprintf ppf "external64"
@@ -747,8 +755,8 @@ module Type = struct
           externality_upper_bound = ext2
         } =
       { layout = Layout.union lay1 lay2;
-        modes_upper_bounds = Modes.meet modes1 modes2;
-        externality_upper_bound = Externality.meet ext1 ext2
+        modes_upper_bounds = Modes.join modes1 modes2;
+        externality_upper_bound = Externality.join ext1 ext2
       }
 
     let of_new_sort_var () =
@@ -1841,7 +1849,7 @@ module Const = struct
     match t with
     | Type t -> Type.Const.format ppf t
     | Arrow { args; result } ->
-      Format.fprintf ppf "(%a;@ => %a;@)"
+      Format.fprintf ppf "((%a;@) => %a;@)"
         (Format.pp_print_list format)
         args format result
 
@@ -1971,25 +1979,33 @@ let to_type_jkind (t : t) =
 module Desc = struct
   (** The description of a jkind, used as a return type from [get]. *)
   type t =
-    | Type of Type.Desc.t
+    | Type of Type.t
     | Arrow of t Jkind_types.arrow
 end
 
 (** Eliminates a Jkind.t, with zeroth-order kinds eliminated as in Jkind.Type.get *)
-let rec get (t : t) =
+let rec get (t : t) : Desc.t =
   match t with
-  | Type ty -> Desc.Type (Type.get ty)
+  | Type ty -> Type ty
   | Arrow { args; result } ->
     Desc.Arrow { args = List.map get args; result = get result }
 
 (*********************************)
 (* pretty printing *)
 
-let format = Obj.magic ()
+let rec format ppf (jkind : t) =
+  match jkind with
+  | Type ty -> Type.format ppf ty
+  | Arrow { args; result } ->
+    Format.fprintf ppf "((%a;)@ => %a;@)"
+      (Format.pp_print_list format)
+      args format result
 
-let format_history ~intro:_ = Obj.magic ()
-
-let set_printtyp_path = Obj.magic ()
+(* TODO jbachurski: Format history for higher jkinds *)
+let format_history ~intro ppf (t : t) =
+  match t with
+  | Type ty -> Type.format_history ~intro ppf ty
+  | Arrow _ -> raise Unexpected_higher_jkind
 
 (******************************)
 (* errors *)
@@ -2031,12 +2047,11 @@ module Violation = struct
 
   let is_missing_cmi viol = Option.is_some viol.missing_cmi
 
-  (* TODO jbachurski: extend this to properly handle violations at arrows *)
-  let[@warning "-8"] report_general_type_jkind preamble pp_former former ppf t =
+  let report_general_type_jkind preamble pp_former former ppf t =
     let subjkind_format verb l2 =
       match Type.get l2 with
       | Var _ -> dprintf "%s representable" verb
-      | Const _ -> dprintf "%s a sublayout of %a" verb format l2
+      | Const _ -> dprintf "%s a sublayout of %a" verb Type.format l2
     in
     let l1, l2, fmt_l1, fmt_l2, missing_cmi_option =
       match t with
@@ -2054,7 +2069,7 @@ module Violation = struct
         | None ->
           ( l1,
             l2,
-            dprintf "layout %a" format l1,
+            dprintf "layout %a" Type.format l1,
             subjkind_format "is not" l2,
             None )
         | Some p ->
@@ -2067,31 +2082,35 @@ module Violation = struct
         assert (Option.is_none missing_cmi);
         ( l1,
           l2,
-          dprintf "layout %a" format l1,
-          dprintf "does not overlap with %a" format l2,
+          dprintf "layout %a" Type.format l1,
+          dprintf "does not overlap with %a" Type.format l2,
           None )
       | { violation = No_union (Type l1, Type l2); missing_cmi } ->
         assert (Option.is_none missing_cmi);
         ( l1,
           l2,
-          dprintf "layout %a" format l1,
-          dprintf "cannot be summed with %a" format l2,
+          dprintf "layout %a" Type.format l1,
+          dprintf "cannot be summed with %a" Type.format l2,
           None )
+      (* TODO jbachurski: Violations at arrows *)
+      | _ -> raise Unexpected_higher_jkind
     in
     if Type.display_histories
     then
       let connective =
         match t.violation, Type.get l2 with
-        | Not_a_subjkind _, Const _ -> dprintf "be a sublayout of %a" format l2
-        | No_intersection _, Const _ -> dprintf "overlap with %a" format l2
-        | No_union _, Const _ -> dprintf "sum with %a" format l2
+        | Not_a_subjkind _, Const _ ->
+          dprintf "be a sublayout of %a" Type.format l2
+        | No_intersection _, Const _ -> dprintf "overlap with %a" Type.format l2
+        | No_union _, Const _ -> dprintf "sum with %a" Type.format l2
         | _, Var _ -> dprintf "be representable"
       in
       fprintf ppf "@[<v>%a@;%a@]"
-        (format_history
-           ~intro:(dprintf "The layout of %a is %a" pp_former former format l1))
+        (Type.format_history
+           ~intro:
+             (dprintf "The layout of %a is %a" pp_former former Type.format l1))
         l1
-        (format_history
+        (Type.format_history
            ~intro:
              (dprintf "But the layout of %a must %t" pp_former former connective))
         l2
@@ -2225,80 +2244,10 @@ let is_max jkind = sub (Type Type.Primitive.any_dummy_jkind) jkind
 (* debugging *)
 
 module Debug_printers = struct
-  let t _ppf = Obj.magic ()
+  let rec t ppf (jkind : t) : unit =
+    match jkind with
+    | Type ty -> Type.Debug_printers.t ppf ty
+    | Arrow { args; result } ->
+      Format.fprintf ppf "@[<v 2>{ args = %a@,; result = %a }@]"
+        (Format.pp_print_list t) args t result
 end
-
-(*
-
-(*********************************)
-(* pretty printing *)
-
-val format : Format.formatter -> t -> unit
-
-(** Format the history of this jkind: what interactions it has had and why
-    it is the jkind that it is. Might be a no-op: see [display_histories]
-    in the implementation of the [Jkind] module.
-
-    The [intro] is something like "The jkind of t is". *)
-val format_history :
-  intro:(Format.formatter -> unit) -> Format.formatter -> t -> unit
-
-(** Provides the [Printtyp.path] formatter back up the dependency chain to
-    this module. *)
-val set_printtyp_path : (Format.formatter -> Path.t -> unit) -> unit
-
-(******************************)
-(* relations *)
-
-(** This checks for equality, and sets any variables to make two jkinds
-    equal, if possible. e.g. [equate] on a var and [value] will set the
-    variable to be [value] *)
-val equate : t -> t -> bool
-
-(** This checks for equality, but has the invariant that it can only be called
-    when there is no need for unification; e.g. [equal] on a var and [value]
-    will crash.
-
-    CR layouts (v1.5): At the moment, this is actually the same as [equate]! *)
-val equal : t -> t -> bool
-
-(** Checks whether two jkinds have a non-empty intersection. Might mutate
-    sort variables. *)
-val has_intersection : t -> t -> bool
-
-(** Finds the intersection of two jkinds, constraining sort variables to
-    create one if needed, or returns a [Violation.t] if an intersection does
-    not exist.  Can update the jkinds.  The returned jkind's history
-    consists of the provided reason followed by the history of the first
-    jkind argument.  That is, due to histories, this function is asymmetric;
-    it should be thought of as modifying the first jkind to be the
-    intersection of the two, not something that modifies the second jkind. *)
-val intersection_or_error :
-  reason:Type.History.interact_reason ->
-  t ->
-  t ->
-  (t, Violation.t) Result.t
-
-(** [sub t1 t2] says whether [t1] is a subjkind of [t2]. Might update
-    either [t1] or [t2] to make their layouts equal.*)
-val sub : t -> t -> bool
-
-(** [sub_or_error t1 t2] returns [Ok ()] iff [t1] is a subjkind of
-  of [t2]. Otherwise returns an appropriate error to report to the user. *)
-val sub_or_error : t -> t -> (unit, Violation.t) result
-
-(** Like [sub], but returns the subjkind with an updated history. *)
-val sub_with_history : t -> t -> (t, Violation.t) result
-
-(** Checks to see whether a jkind is the maximum jkind. Never does any
-    mutation. *)
-val is_max : t -> bool
-
-(*********************************)
-(* debugging *)
-
-module Debug_printers : sig
-  val t : Format.formatter -> t -> unit
-end
-
-*)
