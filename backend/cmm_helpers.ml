@@ -3882,6 +3882,8 @@ let infix_field_address ~dbg ptr n =
 
 let cint i = Cmm.Cint i
 
+let cint32 i = Cmm.Cint32 (Nativeint.of_int32 i)
+
 let cfloat32 f = Cmm.Csingle f
 
 let cfloat f = Cmm.Cdouble f
