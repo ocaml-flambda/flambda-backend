@@ -292,7 +292,7 @@ type error =
   | Missing_type_constraint
   | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
   | Expr_not_a_record_type of type_expr
-  | Cannot_infer_functor_path
+  | Cannot_infer_functor_path of Errortrace.unification_error
   | Cannot_commute_label of type_expr
   | Submode_failed of
       Mode.Value.error * submode_reason *
@@ -332,6 +332,10 @@ val type_open:
   (?used_slot:bool ref -> override_flag -> Env.t -> Location.t ->
    Longident.t loc -> Path.t * Env.t)
     ref
+(* Forward declaration, to be filled in by Typemod.check_closed_package *)
+val check_closed_package:
+  (loc:Location.t -> env:Env.t -> typ:type_expr ->
+   (Longident.t * type_expr) list -> unit) ref
 (* Forward declaration, to be filled in by Typemod.type_open_decl *)
 val type_open_decl:
   (?used_slot:bool ref -> Env.t -> Parsetree.open_declaration ->

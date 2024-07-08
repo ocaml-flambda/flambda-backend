@@ -53,7 +53,11 @@ module type S = sig type t val x : t end
 
 let f (module M : S with type t = int) = M.x;;
 [%%expect{|
-val f : (module M : S with type t = int) -> M.t = <fun>
+Line 1, characters 14-15:
+1 | let f (module M : S with type t = 'a) = M.x;; (* Error *)
+                  ^
+Error: The type of this packed module contains variables:
+       "(module S with type t = 'a)"
 |}];;
 
 let f (module M : S with type t = 'a) = M.x;; (* Error *)
@@ -65,14 +69,6 @@ let f (type a) (module M : S with type t = a) = M.x;;
 f (module struct type t = int let x = 1 end);;
 [%%expect{|
 val f : (module M : S with type t = 'a) -> M.t = <fun>
-- : int = 1
-|}, Principal{|
-val f : (module M : S with type t = 'a) -> M.t = <fun>
-Line 2, characters 2-44:
-2 | f (module struct type t = int let x = 1 end);;
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Warning 18 [not-principal]: this module packing is not principal.
-
 - : int = 1
 |}];;
 

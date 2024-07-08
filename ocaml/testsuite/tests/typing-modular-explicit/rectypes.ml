@@ -40,26 +40,6 @@ let f (module M : T) (x : (module M : T) -> 'a as 'a) =
 [%%expect{|
 val f : (module T) -> ((module M : T) -> 'a as 'a) -> 'a = <fun>
 |}, Principal{|
-Line 2, characters 15-25:
-2 |   x (module M) (module M) (module M) (module M) (module M)
-                   ^^^^^^^^^^
-Warning 18 [not-principal]: this module packing is not principal.
-
-Line 2, characters 26-36:
-2 |   x (module M) (module M) (module M) (module M) (module M)
-                              ^^^^^^^^^^
-Warning 18 [not-principal]: this module packing is not principal.
-
-Line 2, characters 37-47:
-2 |   x (module M) (module M) (module M) (module M) (module M)
-                                         ^^^^^^^^^^
-Warning 18 [not-principal]: this module packing is not principal.
-
-Line 2, characters 48-58:
-2 |   x (module M) (module M) (module M) (module M) (module M)
-                                                    ^^^^^^^^^^
-Warning 18 [not-principal]: this module packing is not principal.
-
 val f :
   (module T) ->
   ((module M/1 : T) -> 'a as 'a) -> ((module M/2 : T) -> 'b as 'b) = <fun>

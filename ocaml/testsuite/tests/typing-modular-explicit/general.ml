@@ -11,11 +11,16 @@ let id (module T : Typ) (x : T.t) = x
 let id2 : (module T : Typ) -> T.t -> T.t =
   fun (module A : Typ) (x : A.t) -> x
 
+let id3 : (module T : Typ) -> T.t -> T.t =
+  fun (module T) x -> x
+  
+
 [%%expect{|
 module type Typ = sig type t end
 module type Add = sig type t val add : t -> t -> t end
 val id : (module T : Typ) -> T.t -> T.t = <fun>
 val id2 : (module T : Typ) -> T.t -> T.t = <fun>
+val id3 : (module T : Typ) -> T.t -> T.t = <fun>
 |}]
 
 
@@ -79,9 +84,43 @@ let invalid_arg2 = f 3 4 (module Int)
 Line 1, characters 23-24:
 1 | let invalid_arg2 = f 3 4 (module Int)
                            ^
-Error:
+Error: This expression has type "(module M : Typ) -> M.t -> 'a * M.t"
+       but an expression was expected of type "(module Typ) -> 'b"
        The module "M" would escape its scope
 |}]
+
+(* Here we cannot extract the type of m *)
+let invalid_arg3 =
+  let m = (module Int : Typ) in
+  f 3 m 4
+
+(* We could wish for a better error message like on upstream *)
+[%%expect{|
+Line 3, characters 6-7:
+3 |   f 3 m 4
+          ^
+Error: This expression has type "(module M : Typ) -> M.t -> 'a * M.t"
+       but an expression was expected of type "(module Typ) -> 'b"
+       The module "M" would escape its scope
+|}]
+
+(* Here we cannot extract the type of m. This could be accepted because m does
+not hide any abstract types. *)
+let invalid_arg4 =
+  let m = (module Int : Typ with type t = int) in
+  f 3 m 4
+
+(* We could wish for a better error message like on upstream *)
+[%%expect{|
+Line 3, characters 6-7:
+3 |   f 3 m 4
+          ^
+Error: This expression has type "(module M : Typ) -> M.t -> 'a * M.t"
+       but an expression was expected of type "(module Typ) -> 'b"
+       The module "M" would escape its scope
+|}]
+
+
 
 let labelled (module M : Typ) ~(y:M.t) = y
 
@@ -116,14 +155,6 @@ let principality_warning = build_pair (module Int) ~y:3 ~x:1
 [%%expect{|
 val build_pair : (module M : Typ) -> x:M.t -> y:M.t -> M.t * M.t = <fun>
 val principality_warning : Int.t * Int.t = (1, 3)
-|}, Principal{|
-val build_pair : (module M : Typ) -> x:M.t -> y:M.t -> M.t * M.t = <fun>
-Line 4, characters 59-60:
-4 | let principality_warning = build_pair (module Int) ~y:3 ~x:1
-                                                               ^
-Warning 18 [not-principal]: commuting this argument is not principal.
-
-val principality_warning : Int.t * Int.t = (1, 3)
 |}]
 
 (* Typing rules make sense only if module argument are
@@ -131,10 +162,7 @@ val principality_warning : Int.t * Int.t = (1, 3)
 let x_from_struct = id (module struct type t = int end) 3
 
 [%%expect{|
-Line 1, characters 23-55:
-1 | let x_from_struct = id (module struct type t = int end) 3
-                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Cannot infer path of module for functor.
+val x_from_struct : int = 3
 |}]
 
 
@@ -184,15 +212,29 @@ val s_list_array : string MapCombin(List)(Array).t =
 
 let s_list_arrayb =
     map (module MapCombin(struct type 'a t = 'a list let map = List.map end)(Array))
-    [|[3; 2]; [2]; []|]
+    string_of_int [|[3; 2]; [2]; []|]
 
 [%%expect{|
-Line 2, characters 8-84:
-2 |     map (module MapCombin(struct type 'a t = 'a list let map = List.map end)(Array))
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Cannot infer path of module for functor.
+val s_list_arrayb : string list Array.t = [|["3"; "2"]; ["2"]; []|]
 |}]
 
+module F () : Map = struct
+  type 'a t = 'a list
+  let map = List.map
+end
+
+let fail = map (module F()) string_of_int [3]
+
+[%%expect{|
+module F : functor () -> Map
+Line 6, characters 15-27:
+6 | let fail = map (module F()) string_of_int [3]
+                   ^^^^^^^^^^^^
+Error:
+       The module "M" would escape its scope
+  Attempted to remove dependency because
+  could not extract path from module argument.
+|}]
 
 
 (** Various tests on the coercion between functor types. **)
@@ -671,4 +713,87 @@ Warning 18 [not-principal]: this module packing is not principal.
 val typing_order2 :
   ((module T/1 : Typ) -> T/1.t -> T/1.t) ->
   ((module T/2 : Typ) -> T/2.t -> T/2.t) * Int.t = <fun>
+|}]
+
+(** The following test check that tests at module unpacking still happen with
+    modular explicits *)
+
+(* we test free type variables cannot occur *)
+module type T = sig type t val v : t end;;
+let foo (module X : T with type t = 'a) = X.v X.v;;
+
+[%%expect{|
+module type T = sig type t val v : t end
+Line 6, characters 16-17:
+6 | let foo (module X : T with type t = 'a) = X.v X.v;;
+                    ^
+Error: The type of this packed module contains variables:
+       "(module T with type t = 'a)"
+|}]
+
+(* Test principality warning of type *)
+let principality_warning2 f =
+  let _ : ((module T : Typ) -> T.t -> T.t) -> unit = f in
+  f (fun (module T) x -> x)
+
+[%%expect{|
+val principality_warning2 :
+  (((module T : Typ) -> T.t -> T.t) -> unit) -> unit = <fun>
+|}, Principal{|
+Line 3, characters 9-19:
+3 |   f (fun (module T) x -> x)
+             ^^^^^^^^^^
+Warning 18 [not-principal]: this module unpacking is not principal.
+
+val principality_warning2 :
+  (((module T : Typ) -> T.t -> T.t) -> unit) -> unit = <fun>
+|}]
+
+(* This test check that as `t` is private we cannot inline its definition *)
+module type S = sig
+  type t = private int
+  val f : t
+end
+
+let check_escape : _ -> _ = fun (module M : S) -> M.f
+
+[%%expect{|
+module type S = sig type t = private int val f : t end
+Line 6, characters 50-53:
+6 | let check_escape : _ -> _ = fun (module M : S) -> M.f
+                                                      ^^^
+Error: This expression has type "M.t" but an expression was expected of type "'a"
+       The type constructor "M.t" would escape its scope
+|}]
+
+(* The following test should give a warning only once.
+  Here we test that the structure is typed only once.
+  To achieve this we wrote a code that raises a warning. If the warning is raised
+  twice then that means typing happened twice.
+*)
+
+module type TInt = sig type t = int end
+
+let f (module T : TInt) (x : T.t) = x
+
+let raise_duplicated_warning =
+  f (module struct
+      type t = int
+      let dummy_value = let x = 3 in 0
+    end)
+
+[%%expect{|
+module type TInt = sig type t = int end
+val f : (module T : TInt) -> T.t -> T.t = <fun>
+Line 8, characters 28-29:
+8 |       let dummy_value = let x = 3 in 0
+                                ^
+Warning 26 [unused-var]: unused variable x.
+
+Line 8, characters 28-29:
+8 |       let dummy_value = let x = 3 in 0
+                                ^
+Warning 26 [unused-var]: unused variable x.
+
+val raise_duplicated_warning : int -> int = <fun>
 |}]
