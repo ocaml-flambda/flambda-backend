@@ -2465,6 +2465,10 @@ let maybe_infer_modalities ~loc ~env ~md_mode ~mode =
     Mode.Modality.Value.id
   end
 
+let check_closed_package ~loc ~env ~typ fl =
+  if List.exists (fun (_n, t) -> Ctype.free_variables t <> []) fl then
+    raise (Error (loc, env, Incomplete_packed_module typ));;
+
 let rec type_module ?(alias=false) sttn funct_body anchor env smod =
   Builtin_attributes.warning_scope smod.pmod_attributes
     (fun () -> type_module_aux ~alias sttn funct_body anchor env smod)
@@ -2584,9 +2588,7 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       let mty =
         match get_desc (Ctype.expand_head env exp.exp_type) with
           Tpackage (p, fl) ->
-            if List.exists (fun (_n, t) -> Ctype.free_variables t <> []) fl then
-              raise (Error (smod.pmod_loc, env,
-                            Incomplete_packed_module exp.exp_type));
+            check_closed_package ~loc:smod.pmod_loc ~env ~typ:exp.exp_type fl;
             if !Clflags.principal &&
               not (Typecore.generalizable (Btype.generic_level-1) exp.exp_type)
             then
@@ -3443,6 +3445,7 @@ let type_open_descr ?used_slot env od =
   type_open_descr ?used_slot ?toplevel:None env od
 
 let () =
+  Typecore.check_closed_package := check_closed_package;
   Typecore.type_module := type_module_alias;
   Typetexp.transl_modtype_longident := transl_modtype_longident;
   Typetexp.transl_modtype := transl_modtype;

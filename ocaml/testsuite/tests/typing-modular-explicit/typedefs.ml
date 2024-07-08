@@ -127,6 +127,69 @@ Line 1, characters 52-55:
 Error: Unbound module M
 |}]
 
+(* tests about variance *)
+
+module type V = sig
+  type +'a p
+  type -'a n
+  type !'a i
+end
+
+(* this test is here to compare that both behave the same way *)
+module type F = functor (X : V) -> sig
+  type +'a t_pos = unit -> 'a X.p
+  type -'a t_neg = unit -> 'a X.n
+  type !'a t_inj = unit -> 'a X.i
+  type -'a t_npos = unit -> 'a X.p -> unit
+  type +'a t_pneg = unit -> 'a X.n -> unit
+end
+
+type +'a t_pos = (module X : V) -> 'a X.p
+type -'a t_neg = (module X : V) -> 'a X.n
+type !'a t_inj = (module X : V) -> 'a X.i
+type -'a t_npos = (module X : V) -> 'a X.p -> unit
+type +'a t_pneg = (module X : V) -> 'a X.n -> unit
+
+[%%expect{|
+module type V = sig type +'a p type -'a n type !'a i end
+module type F =
+  functor (X : V) ->
+    sig
+      type 'a t_pos = unit -> 'a X.p
+      type 'a t_neg = unit -> 'a X.n
+      type 'a t_inj = unit -> 'a X.i
+      type 'a t_npos = unit -> 'a X.p -> unit
+      type 'a t_pneg = unit -> 'a X.n -> unit
+    end
+type 'a t_pos = (module X : V) -> 'a X.p
+type 'a t_neg = (module X : V) -> 'a X.n
+type 'a t_inj = (module X : V) -> 'a X.i
+type 'a t_npos = (module X : V) -> 'a X.p -> unit
+type 'a t_pneg = (module X : V) -> 'a X.n -> unit
+|}]
+
+type +'a t_pos = (module X : V) -> 'a X.p -> unit
+
+[%%expect{|
+Line 1, characters 0-49:
+1 | type +'a t_pos = (module X : V) -> 'a X.p -> unit
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In this definition, expected parameter variances are not satisfied.
+       The 1st type parameter was expected to be covariant,
+       but it is contravariant.
+|}]
+
+type -'a t_neg = (module X : V) -> 'a X.n -> unit
+
+[%%expect{|
+Line 1, characters 0-49:
+1 | type -'a t_neg = (module X : V) -> 'a X.n -> unit
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In this definition, expected parameter variances are not satisfied.
+       The 1st type parameter was expected to be contravariant,
+       but it is covariant.
+|}]
+
 let id_fail1 (x : t0) : _ t5 = x
 
 [%%expect{|
@@ -150,4 +213,16 @@ Error: This expression has type
          t0 = (module M/2 : T) -> M/2.t -> M/2.t
        File "_none_", line 1:
          Definition of module M/2
+|}]
+
+(* This test check that no scope escape happens when trying to replace 'a by
+    A.t *)
+type 'a wrapper = 'a
+
+type should_succeed2 =
+  (module A:T) -> A.t wrapper
+
+[%%expect{|
+type 'a wrapper = 'a
+type should_succeed2 = (module A : T) -> A.t wrapper
 |}]

@@ -101,8 +101,6 @@ let print_raw =
 
 let generic_level = Ident.highest_scope
 
-let highest_level = generic_level - 1
-
 (* Used to mark a type during a traversal. *)
 let lowest_level = Ident.lowest_scope
 let pivot_level = 2 * lowest_level - 1
@@ -285,7 +283,7 @@ let fold_type_expr ?(allow_tsubst=false) f init ty =
       f result ty2
   | Tnil                -> init
   | Tlink _ -> assert false
-  | Tsubst (_ty, _oty)    ->
+  | Tsubst _    ->
     assert allow_tsubst; init
   | Tunivar _           -> init
   | Tpoly (ty, tyl)     ->
@@ -473,8 +471,9 @@ let rec copy_type_desc ?(keep_names=false) f = function
       let tyl = List.map f tyl in
       Tpoly (f ty, tyl)
   | Tpackage (p, fl)  -> Tpackage (p, List.map (fun (n, ty) -> (n, f ty)) fl)
-  | Tfunctor (l, id, (p, fl), ty) ->
-      Tfunctor (l, id, (p, List.map (fun (n, ty) -> (n, f ty)) fl), f ty)    
+  | Tfunctor _ ->
+      (* doing this would break unicity of uscoped binding in Tfunctor *)
+      assert false
 
 (* Utilities for copying *)
 

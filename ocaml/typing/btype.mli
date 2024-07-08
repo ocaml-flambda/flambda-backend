@@ -56,7 +56,6 @@ end
 (**** Levels ****)
 
 val generic_level: int
-val highest_level: int
 
 val newgenty: type_desc -> type_expr
         (* Create a generic type *)

@@ -256,8 +256,8 @@ let new_rep_var ?name ~why () =
 let newvar2 ?name level jkind = newty2 ~level (Tvar { name; jkind })
 let new_global_var ?name jkind =
   newty2 ~level:!global_level (Tvar { name; jkind })
-let newstub ~scope jkind =
-  newty3 ~level:!current_level ~scope (Tvar { name = None; jkind })
+let newstub ~level ~scope jkind =
+  newty3 ~level ~scope (Tvar { name = None; jkind })
 
 let newobj fields      = newty (Tobject (fields, ref None))
 
@@ -595,9 +595,7 @@ let free_vars ?env tys =
           if static_row row then acc
           else fv ~kind:Row_variable acc (row_more row)
       | _    ->
-          begin try
           fold_type_expr (fv ~kind) acc ty
-          with Assert_failure _ -> assert false end
   in
   List.fold_left (fv ~kind:Type_variable) [] tys
 
@@ -899,8 +897,7 @@ let update_scope_for tr_exn scope ty =
 *)
 
 let rec update_level env level expand ty =
-  let ty_level = get_level ty in
-  if ty_level > level then begin
+  if get_level ty > level then begin
     if level < get_scope ty then raise_scope_escape_exn ty;
     match get_desc ty with
       Tconstr(p, _tl, _abbrev) when level < Path.scope p ->
@@ -964,6 +961,7 @@ let rec update_level env level expand ty =
         raise_escape_exn Self
     | _ ->
         set_level ty level;
+        (* XXX what about abbreviations in Tconstr ? *)
         iter_type_expr (update_level env level expand) ty
   end
 
@@ -1176,20 +1174,11 @@ let compute_id_from_map id_map ty =
           List.iter (add_parents id_map) inv.inv_parents
         end
   in
-  let rec add_all_parents inv =
-    if TypeSet.mem inv.inv_type !nodes
-    then ()
-    else begin
-      nodes := TypeSet.add inv.inv_type !nodes;
-      List.iter add_all_parents inv.inv_parents
-    end  
-  in
   TypeHash.iter (fun ty inv ->
     match get_desc ty with
     | Tconstr (p, _, _) | Tobject (_, {contents = Some (p, _)})
     | Tfunctor (_, _, (p, _), _) | Tpackage (p, _)
       when path_contains_one p -> add_parents id_map inv
-    | Tsubst _ -> add_all_parents inv
     | _ -> ()) inverted;
   fun ty -> not (TypeSet.mem ty !nodes)
 
@@ -1240,9 +1229,9 @@ let always_true _ = true
   
 (* partial: we may not wish to copy the non generic types
    before we call type_pat *)
-let rec copy ?partial ?keep_names ?(id_map=[]) ?(closed=always_true) copy_scope ty =
+let rec copy ?(keep_level = false) ?partial ?keep_names ?(id_map=[]) ?(closed=always_true) copy_scope ty =
   let copy' id_map closed =
-      copy ?partial ?keep_names ~id_map ~closed copy_scope in
+      copy ~keep_level ?partial ?keep_names ~id_map ~closed copy_scope in
   let copy = copy' id_map closed in
   match get_desc ty with
     Tsubst (ty, _) -> ty
@@ -1268,7 +1257,10 @@ let rec copy ?partial ?keep_names ?(id_map=[]) ?(closed=always_true) copy_scope 
       newty2 ~level:forget
         (Tvar { name = None; jkind = Jkind.Primitive.any ~why:Dummy_jkind })
     else
-    let t = newstub ~scope:(get_scope ty) (Jkind.Primitive.any ~why:Dummy_jkind) in
+    let level = if keep_level && get_level ty = generic_level
+        then generic_level
+        else !current_level in
+    let t = newstub ~level ~scope:(get_scope ty) (Jkind.Primitive.any ~why:Dummy_jkind) in
     For_copy.redirect_desc copy_scope ty (Tsubst (t, None));
     let desc' =
       match desc with
@@ -1349,6 +1341,10 @@ let rec copy ?partial ?keep_names ?(id_map=[]) ?(closed=always_true) copy_scope 
               (* Register new type first for recursion *)
               For_copy.redirect_desc copy_scope more
                 (Tsubst(more', Some t));
+              let row = match row_name row with
+                | Some (p, tl) -> set_row_name row (Some (Path.subst id_map p, tl))
+                | None -> row
+              in
               (* Return a new copy *)
               Tvariant (copy_row copy true row keep more')
           end
@@ -1578,25 +1574,32 @@ let instance_class params cty =
    binding structure.
  *)
 let copy_sep ~copy_scope ~fixed ~(visited : type_expr TypeHash.t) ~id_map sch =
+  let keep_level = id_map <> [] in
   let free = compute_univars sch in
   let delayed_copies = ref [] in
   let add_delayed_copy closed id_map t ty =
     delayed_copies :=
-      lazy (Transient_expr.set_stub_desc t (Tlink (copy ~id_map ~closed copy_scope ty))) ::
+      lazy (Transient_expr.set_stub_desc t (Tlink (copy ~keep_level ~id_map ~closed copy_scope ty))) ::
       !delayed_copies
   in
   let rec copy_rec ~may_share ~closed ~id_map (ty : type_expr) =
     let univars = free ty in
+    let keep_level = keep_level && get_level ty = generic_level in
     if is_Tvar ty || may_share && TypeSet.is_empty univars && closed ty then
       if get_level ty <> generic_level then ty else
       (* jkind not consulted during copy_sep, so Any is safe *)
-      let t = newstub ~scope:(get_scope ty) (Jkind.Primitive.any ~why:Dummy_jkind) in
+      let level = if not (is_Tvar ty) && keep_level
+          then get_level ty
+          else !current_level
+      in
+      let t = newstub ~level ~scope:(get_scope ty) (Jkind.Prmimitive.any ~why:Dummy_jkind) in
       add_delayed_copy closed id_map t ty;
       t
     else try
       TypeHash.find visited ty
     with Not_found -> begin
-      let t = newstub ~scope:(get_scope ty) (Jkind.Primitive.any ~why:Dummy_jkind) in
+      let level = if keep_level then get_level ty else !current_level in
+      let t = newstub ~level ~scope:(get_scope ty) (Jkind.Primitive.any ~why:Dummy_jkind) in
       TypeHash.add visited ty t;
       let desc' =
         match get_desc ty with
@@ -1615,7 +1618,11 @@ let copy_sep ~copy_scope ~fixed ~(visited : type_expr TypeHash.t) ~id_map sch =
             let fixed' = fixed && (is_Tvar more || is_Tunivar more) in
             let row =
               copy_row (copy_rec ~closed ~id_map ~may_share:true) fixed' row keep more' in
-            Tvariant row
+            begin match row_name row with
+            | Some (p, tl) ->
+                Tvariant (set_row_name row (Some (Path.subst id_map p, tl)))
+            | None -> Tvariant row
+            end
         | Tfield (p, k, ty1, ty2) ->
             (* the kind is kept shared, see Btype.copy_type_desc *)
             Tfield (p, field_kind_internal_repr k,
@@ -2903,6 +2910,15 @@ let identifier_escape env idl ty =
         when path_contains_one idl p <> None ->
           set_name nm None;
           occur ~ignore_mark:true idl ty
+      | Tvariant row when row_name row <> None ->
+          begin match row_name row with
+          | None -> assert false (* Should not pass the gard above *)
+          | Some (p, _) ->
+            let row = if path_contains_one idl p = None then row
+                      else set_row_name row None
+            in
+            iter_type_expr (occur idl) (newty (Tvariant row))
+          end
       | Tfunctor (l, id, (p, fl), t) ->
           begin match path_contains_one idl p with
           | Some i ->
@@ -3762,7 +3778,7 @@ and unify2_rec env t10 t1 t20 t2 =
       then begin
         update_level_for Unify !env (get_level t1) t2;
         update_scope_for Unify (get_scope t1) t2;
-        if Path.same p1 p2 then link_type t1 t2
+        link_type t1 t2
       end else
         if find_expansion_scope !env p1 > find_expansion_scope !env p2
         then unify2_rec env t10 t1 t20 (try_expand_safe !env t2)
@@ -4372,6 +4388,7 @@ let enforce_current_level env ty =
 let unify_to_arrow env ty =
   match get_desc ty with
   | Tfunctor (ad, id, (p, fl), t) ->
+    let pck_ty = newmono (newty (Tpackage (p, fl))) in
     let snap = Btype.snapshot () in
     begin try
       let mty = !modtype_of_package env Location.none p fl in
@@ -4380,10 +4397,12 @@ let unify_to_arrow env ty =
           [id] t;
       let ty' =
           newty2 ~level:(get_level ty)
-            (Tarrow (ad, newmono (newty (Tpackage (p, fl))), t, commu_ok)) in
+            (Tarrow (ad, pck_ty, t, commu_ok)) in
       link_type ty ty'
     with Unify_trace trace ->
       undo_compress snap;
+      let expected = newty (Tarrow (ad, pck_ty, newvar (Jkind.any ~why:Dummy_jkind), commu_ok)) in
+      let trace = Diff {got = ty; expected} :: trace in
       raise (Unify (expand_to_unification_error env trace))
     end
   | Tarrow _ -> ()
@@ -6136,12 +6155,18 @@ let rec build_subtype env (visited : transient_expr list)
       if c > Unchanged
       then (newty (Tarrow((l,a',r'), t1', t2', commu_ok)), c)
       else (t, Unchanged)
-  | Tfunctor ((l,a,r), id, (p, fl), ty) ->
+  | Tfunctor ((l,a,r), us, (p, fl), ty) ->
       let tt = Transient_expr.repr t in
       if memq_warn tt visited then (t, Unchanged) else
       let visited = tt :: visited in
       let mty = !modtype_of_package env Location.none p fl in
-      let env = Env.add_module (Ident.of_unscoped id) Mp_present mty env in
+      let env = Env.add_module (Ident.of_unscoped us) Mp_present mty env in
+      let us' = Ident.refresh us in
+      let id_map = [(Ident.of_unscoped us,
+                     Path.Pident (Ident.of_unscoped us'))] in
+      let closed = compute_id_from_map id_map ty in
+      let ty = For_copy.with_scope (fun copy_scope ->
+                                      copy ~keep_level:true ~id_map ~closed copy_scope ty) in
       let (ty, c1) = build_subtype env visited loops posi level ty in
       let (a', c2) =
       if level > 2 then begin
@@ -6165,7 +6190,7 @@ let rec build_subtype env (visited : transient_expr list)
       in
       let c = max_change c1 (max_change c2 c3) in
       if c > Unchanged
-      then (newty (Tfunctor ((l,a',r'), id, (p, fl), ty)), c)
+      then (newty (Tfunctor ((l,a',r'), us', (p, fl), ty)), c)
       else (t, Unchanged)
   | Ttuple labeled_tlist ->
       let tt = Transient_expr.repr t in
@@ -6404,6 +6429,11 @@ let rec subtype_rec env trace t1 t2 cstrs =
           (* RHS mode of arrow types indicates allocation in the parent region
               and is not subject to mode crossing *)
           subtype_alloc_mode env trace r1 r2; 
+          let id_map = [(Ident.of_unscoped id2,
+                    Path.Pident (Ident.of_unscoped id1))] in
+          let closed = compute_id_from_map id_map u2 in
+          let u2 = For_copy.with_scope (fun copy_scope ->
+                                    copy ~keep_level:true ~id_map ~closed copy_scope u2) in
           let mty1 = !modtype_of_package env Location.none p1 fl1 in
           let new_env = Env.add_module (Ident.of_unscoped id1) Mp_present mty1 env in
           let mty2 = !modtype_of_package env Location.none p2 fl2 in
@@ -6765,11 +6795,10 @@ let add_nongen_vars_in_schema =
           visited, TypeSet.add ty weak_set
       | Tconstr _ ->
           let (_, unexpanded_candidate) as unexpanded_candidate' =
-            try fold_type_expr
+            fold_type_expr
               (loop env)
               (visited, weak_set)
               ty
-            with Assert_failure _ -> assert false
           in
           (* Using `==` is okay because `loop` will return the original set
              when it does not change it. Similarly, `TypeSet.add` will return
@@ -6799,9 +6828,7 @@ let add_nongen_vars_in_schema =
           then loop env (visited, weak_set) (row_more row)
           else (visited, weak_set)
       | _ ->
-          begin try
           fold_type_expr (loop env) (visited, weak_set) ty
-          with Assert_failure _ -> assert false end
     end
   in
   fun env acc ty ->
@@ -6935,6 +6962,13 @@ let normalize_type ty =
                               (*  Remove dependencies  *)
                               (*************************)
 
+let identifier_escape env idl t =
+  let snap = Btype.snapshot () in
+  try
+      identifier_escape_for Unify env idl t
+  with Unify_trace trace ->
+      undo_compress snap;
+      raise (Unify (expand_to_unification_error env trace))
 
 (*
    Variables are left unchanged. Other type nodes are duplicated, with
@@ -6948,7 +6982,7 @@ let nondep_variants = TypeHash.create 17
 let clear_hash ()   =
   TypeHash.clear nondep_hash; TypeHash.clear nondep_variants
 
-let rec nondep_type_rec ?(expand_private=false) env ids ty =
+let rec nondep_type_rec ?(expand_private=false) env id_map ids ty =
   let try_expand env t =
     if expand_private then try_expand_safe_opt env t
     else try_expand_safe env t
@@ -6969,10 +7003,10 @@ let rec nondep_type_rec ?(expand_private=false) env ids ty =
             | Some id ->
                raise (Nondep_cannot_erase id)
             | None ->
-               Tconstr(p, List.map (nondep_type_rec env ids) tl, ref Mnil)
+               Tconstr(Path.subst id_map p, List.map (nondep_type_rec env id_map ids) tl, ref Mnil)
           with (Nondep_cannot_erase _) as exn ->
             (* If that doesn't work, try expanding abbrevs *)
-            try Tlink (nondep_type_rec ~expand_private env ids
+            try Tlink (nondep_type_rec ~expand_private env id_map ids
                          (try_expand env (newty2 ~level:(get_level ty) desc)))
               (*
                  The [Tlink] is important. The expanded type may be a
@@ -6982,21 +7016,48 @@ let rec nondep_type_rec ?(expand_private=false) env ids ty =
                *)
             with Cannot_expand -> raise exn
           end
-      | Tpackage(p, fl) when Path.exists_free ids p ->
-          let p' = normalize_package_path env p in
-          begin match Path.find_free_opt ids p' with
+     | Tpackage(p, fl) ->
+          let (p', opt) =
+              if Path.exists_free ids p
+              then let p' = normalize_package_path env p in
+                   (p', Path.find_free_opt ids p')
+              else (p, None)
+          in begin match opt with
           | Some id -> raise (Nondep_cannot_erase id)
           | None ->
-            let nondep_field_rec (n, ty) = (n, nondep_type_rec env ids ty) in
-            Tpackage (p', List.map nondep_field_rec fl)
+            let nondep_field_rec (n, ty) = (n, nondep_type_rec env id_map ids ty) in
+            Tpackage (Path.subst id_map p', List.map nondep_field_rec fl)
+          end
+      | Tfunctor (l, us, (p, fl), t) ->
+          let p', opt =
+              if Path.exists_free ids p
+              then let p' = normalize_package_path env p in
+                   (p', Path.find_free_opt ids p')
+              else (p, None)
+          in
+          begin match opt with
+          | Some id -> raise (Nondep_cannot_erase id)
+          | None ->
+            let p' = Path.subst id_map p' in
+            let nondep_field_rec (n, ty) = (n, nondep_type_rec env id_map ids ty) in
+            let fl' = List.map nondep_field_rec fl in
+            let us_id = Ident.of_unscoped us in
+            let ids' = List.filter (fun i -> not (Ident.same i us_id)) ids in
+            let us' = Ident.refresh us in
+            let id_map = List.filter (fun (i, _) -> not (Ident.same i us_id))
+                                          id_map in
+            let id_map = (us_id, Path.Pident (Ident.of_unscoped us'))
+                              :: id_map in
+            let t' = nondep_type_rec env id_map ids' t in
+            Tfunctor (l, us', (p', fl'), t')
           end
       | Tobject (t1, name) ->
-          Tobject (nondep_type_rec env ids t1,
+          Tobject (nondep_type_rec env id_map ids t1,
                  ref (match !name with
                         None -> None
                       | Some (p, tl) ->
                           if Path.exists_free ids p then None
-                          else Some (p, List.map (nondep_type_rec env ids) tl)))
+                          else Some (Path.subst id_map p, List.map (nondep_type_rec env id_map ids) tl)))
       | Tvariant row ->
           let more = row_more row in
           (* We must keep sharing according to the row variable *)
@@ -7010,17 +7071,19 @@ let rec nondep_type_rec ?(expand_private=false) env ids ty =
             TypeHash.add nondep_variants more ty';
             let static = static_row row in
             let more' =
-              if static then newgenty Tnil else nondep_type_rec env ids more
+              if static then newgenty Tnil else nondep_type_rec env id_map ids more
             in
             (* Return a new copy *)
             let row =
-              copy_row (nondep_type_rec env ids) true row true more' in
+              copy_row (nondep_type_rec env id_map ids) true row true more' in
             match row_name row with
               Some (p, _tl) when Path.exists_free ids p ->
                 Tvariant (set_row_name row None)
+            | Some (p, tl) ->
+                Tvariant (set_row_name row (Some (Path.subst id_map p, tl)))
             | _ -> Tvariant row
           end
-      | desc -> copy_type_desc (nondep_type_rec env ids) desc
+      | desc -> copy_type_desc (nondep_type_rec env id_map ids) desc
     with
     | desc ->
       Transient_expr.set_stub_desc ty' desc;
@@ -7031,7 +7094,7 @@ let rec nondep_type_rec ?(expand_private=false) env ids ty =
 
 let nondep_type env id ty =
   try
-    let ty' = nondep_type_rec env id ty in
+    let ty' = nondep_type_rec env [] id ty in
     clear_hash ();
     ty'
   with Nondep_cannot_erase _ as exn ->
@@ -7043,18 +7106,18 @@ let () = nondep_type' := nondep_type
 (* Preserve sharing inside type declarations. *)
 let nondep_type_decl env mid is_covariant decl =
   try
-    let params = List.map (nondep_type_rec env mid) decl.type_params in
+    let params = List.map (nondep_type_rec env [] mid) decl.type_params in
     let tk =
-      try map_kind (nondep_type_rec env mid) decl.type_kind
+      try map_kind (nondep_type_rec env [] mid) decl.type_kind
       with Nondep_cannot_erase _ when is_covariant -> Type_abstract Abstract_def
     and tm, priv =
       match decl.type_manifest with
       | None -> None, decl.type_private
       | Some ty ->
-          try Some (nondep_type_rec env mid ty), decl.type_private
+          try Some (nondep_type_rec env [] mid ty), decl.type_private
           with Nondep_cannot_erase _ when is_covariant ->
             clear_hash ();
-            try Some (nondep_type_rec ~expand_private:true env mid ty),
+            try Some (nondep_type_rec ~expand_private:true env [] mid ty),
                 Private
             with Nondep_cannot_erase _ ->
               None, decl.type_private
@@ -7095,19 +7158,19 @@ let nondep_extension_constructor env ids ext =
           let ty =
             newgenty (Tconstr(ext.ext_type_path, ext.ext_type_params, ref Mnil))
           in
-          let ty' = nondep_type_rec env ids ty in
+          let ty' = nondep_type_rec env [] ids ty in
             match get_desc ty' with
                 Tconstr(p, tl, _) -> p, tl
               | _ -> raise (Nondep_cannot_erase id)
         end
       | None ->
         let type_params =
-          List.map (nondep_type_rec env ids) ext.ext_type_params
+          List.map (nondep_type_rec env [] ids) ext.ext_type_params
         in
           ext.ext_type_path, type_params
     in
-    let args = map_type_expr_cstr_args (nondep_type_rec env ids) ext.ext_args in
-    let ret_type = Option.map (nondep_type_rec env ids) ext.ext_ret_type in
+    let args = map_type_expr_cstr_args (nondep_type_rec env [] ids) ext.ext_args in
+    let ret_type = Option.map (nondep_type_rec env [] ids) ext.ext_ret_type in
       clear_hash ();
       { ext_type_path = type_path;
         ext_type_params = type_params;
@@ -7128,13 +7191,13 @@ let nondep_extension_constructor env ids ext =
 
 (* Preserve sharing inside class types. *)
 let nondep_class_signature env id sign =
-  { csig_self = nondep_type_rec env id sign.csig_self;
-    csig_self_row = nondep_type_rec env id sign.csig_self_row;
+  { csig_self = nondep_type_rec env [] id sign.csig_self;
+    csig_self_row = nondep_type_rec env [] id sign.csig_self_row;
     csig_vars =
-      Vars.map (function (m, v, t) -> (m, v, nondep_type_rec env id t))
+      Vars.map (function (m, v, t) -> (m, v, nondep_type_rec env [] id t))
         sign.csig_vars;
     csig_meths =
-      Meths.map (function (p, v, t) -> (p, v, nondep_type_rec env id t))
+      Meths.map (function (p, v, t) -> (p, v, nondep_type_rec env [] id t))
         sign.csig_meths }
 
 let rec nondep_class_type env ids =
@@ -7142,24 +7205,24 @@ let rec nondep_class_type env ids =
     Cty_constr (p, _, cty) when Path.exists_free ids p ->
       nondep_class_type env ids cty
   | Cty_constr (p, tyl, cty) ->
-      Cty_constr (p, List.map (nondep_type_rec env ids) tyl,
+      Cty_constr (p, List.map (nondep_type_rec env [] ids) tyl,
                    nondep_class_type env ids cty)
   | Cty_signature sign ->
       Cty_signature (nondep_class_signature env ids sign)
   | Cty_arrow (l, ty, cty) ->
-      Cty_arrow (l, nondep_type_rec env ids ty, nondep_class_type env ids cty)
+      Cty_arrow (l, nondep_type_rec env [] ids ty, nondep_class_type env ids cty)
 
 let nondep_class_declaration env ids decl =
   assert (not (Path.exists_free ids decl.cty_path));
   let decl =
-    { cty_params = List.map (nondep_type_rec env ids) decl.cty_params;
+    { cty_params = List.map (nondep_type_rec env [] ids) decl.cty_params;
       cty_variance = decl.cty_variance;
       cty_type = nondep_class_type env ids decl.cty_type;
       cty_path = decl.cty_path;
       cty_new =
         begin match decl.cty_new with
           None    -> None
-        | Some ty -> Some (nondep_type_rec env ids ty)
+        | Some ty -> Some (nondep_type_rec env [] ids ty)
         end;
       cty_loc = decl.cty_loc;
       cty_attributes = decl.cty_attributes;
@@ -7172,7 +7235,7 @@ let nondep_class_declaration env ids decl =
 let nondep_cltype_declaration env ids decl =
   assert (not (Path.exists_free ids decl.clty_path));
   let decl =
-    { clty_params = List.map (nondep_type_rec env ids) decl.clty_params;
+    { clty_params = List.map (nondep_type_rec env [] ids) decl.clty_params;
       clty_variance = decl.clty_variance;
       clty_type = nondep_class_type env ids decl.clty_type;
       clty_path = decl.clty_path;
