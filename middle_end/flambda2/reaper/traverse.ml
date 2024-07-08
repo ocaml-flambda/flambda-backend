@@ -457,9 +457,13 @@ and traverse_apply denv acc apply : rev_expr =
     | C_call _ -> ()
     | Effect (Perform { eff }) -> Acc.used ~denv eff acc
     | Effect (Reperform { eff; cont; last_fiber }) ->
-      Acc.used ~denv eff acc; Acc.used ~denv cont acc; Acc.used ~denv last_fiber acc
+      Acc.used ~denv eff acc;
+      Acc.used ~denv cont acc;
+      Acc.used ~denv last_fiber acc
     | Effect (Run_stack { stack; f; arg } | Resume { stack; f; arg }) ->
-      Acc.used ~denv stack acc; Acc.used ~denv f acc; Acc.used ~denv arg acc
+      Acc.used ~denv stack acc;
+      Acc.used ~denv f acc;
+      Acc.used ~denv arg acc
   in
   let return_args =
     match Apply.continuation apply with
