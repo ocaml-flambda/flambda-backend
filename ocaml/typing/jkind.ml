@@ -37,12 +37,6 @@ module Error = struct
         }
 
   exception User_error of Location.t * t
-
-  (* FIXME jbachurski: Remove this once Insufficient_level is used again *)
-  let () =
-    ignore
-      (Insufficient_level
-         { jkind = Obj.magic (); required_layouts_level = Obj.magic () })
 end
 
 let user_raise ~loc err = raise (Error.User_error (loc, err))
@@ -901,7 +895,7 @@ module Type = struct
      parameter might effectively be unused.
   *)
   (* CR layouts: When everything is stable, remove this function. *)
-  let _get_required_layouts_level (context : History.annotation_context)
+  let get_required_layouts_level (context : History.annotation_context)
       (jkind : Const.t) : Language_extension.maturity =
     let legacy_layout = Const.get_legacy_layout jkind in
     match context, legacy_layout with
@@ -1854,18 +1848,19 @@ let of_new_sort ~why = Type.of_new_sort ~why |> of_type_jkind
 (* The following are placeholders, which assume general higher-order kinds are
    not present in annotations and declarations. *)
 
-let const_of_user_written_annotation ~context:_
-    Location.{ loc = _; txt = annot } =
+let get_required_layouts_level context (const : Const.t) =
+  match const with
+  | Type ty -> Type.get_required_layouts_level context ty
+  | Arrow _ -> Language_extension.Alpha
+
+let const_of_user_written_annotation ~context Location.{ loc; txt = annot } =
   let const = Const.of_user_written_annotation_unchecked_level annot in
-  (* FIXME jbachurski: Restore extension level checking. *)
-  (*
   let required_layouts_level = get_required_layouts_level context const in
   if not (Language_extension.is_at_least Layouts required_layouts_level)
   then
-    Type.raise ~loc
-      (Insufficient_level { jkind = const; required_layouts_level });
-  *)
-  const
+    user_raise ~loc
+      (Insufficient_level { jkind = const; required_layouts_level })
+  else const
 
 type annotation = Const.t * Jane_syntax.Jkind.annotation
 
