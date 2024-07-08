@@ -1,7 +1,7 @@
 (* TEST
    runtime5;
    include stdlib_beta;
-   ocamlopt_flags="-extension layouts_alpha -extension small_numbers"
+   ocamlopt_flags="-extension layouts_alpha -extension small_numbers";
    native;
 *)
 
