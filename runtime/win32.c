@@ -27,6 +27,7 @@
 #include <winbase.h>
 #include <winsock2.h>
 #include <winioctl.h>
+#include <shlobj.h>
 #include <direct.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -71,11 +72,7 @@ unsigned short caml_win32_minor = 0;
 unsigned short caml_win32_build = 0;
 unsigned short caml_win32_revision = 0;
 
-CAMLnoreturn_start
-static void caml_win32_sys_error (int errnum)
-CAMLnoreturn_end;
-
-static void caml_win32_sys_error(int errnum)
+static CAMLnoret void caml_win32_sys_error(int errnum)
 {
   wchar_t buffer[512];
   value msg;
@@ -96,40 +93,40 @@ static void caml_win32_sys_error(int errnum)
 int caml_read_fd(int fd, int flags, void * buf, int n)
 {
   int retcode;
+  caml_enter_blocking_section_no_pending();
   if ((flags & CHANNEL_FLAG_FROM_SOCKET) == 0) {
-    caml_enter_blocking_section();
     retcode = read(fd, buf, n);
     /* Large reads from console can fail with ENOMEM.  Reduce requested size
        and try again. */
     if (retcode == -1 && errno == ENOMEM && n > 16384) {
       retcode = read(fd, buf, 16384);
     }
-    caml_leave_blocking_section();
-    if (retcode == -1) caml_sys_io_error(NO_ARG);
   } else {
-    caml_enter_blocking_section();
     retcode = recv((SOCKET) _get_osfhandle(fd), buf, n, 0);
-    caml_leave_blocking_section();
-    if (retcode == -1) caml_win32_sys_error(WSAGetLastError());
+    if (retcode == -1) {
+      errno = caml_posixerr_of_win32err(WSAGetLastError());
+      if (errno == 0) errno = EINVAL;
+    }
   }
+  caml_leave_blocking_section();
   return retcode;
 }
 
 int caml_write_fd(int fd, int flags, void * buf, int n)
 {
   int retcode;
+  caml_enter_blocking_section_no_pending();
   if ((flags & CHANNEL_FLAG_FROM_SOCKET) == 0) {
-    caml_enter_blocking_section();
     retcode = write(fd, buf, n);
-    caml_leave_blocking_section();
-    if (retcode == -1) caml_sys_io_error(NO_ARG);
   } else {
-    caml_enter_blocking_section();
     retcode = send((SOCKET) _get_osfhandle(fd), buf, n, 0);
-    caml_leave_blocking_section();
-    if (retcode == -1) caml_win32_sys_error(WSAGetLastError());
+    if (retcode == -1) {
+      errno = caml_posixerr_of_win32err(WSAGetLastError());
+      if (errno == 0) errno = EINVAL;
+    }
   }
-  CAMLassert (retcode > 0);
+  caml_leave_blocking_section();
+  CAMLassert (retcode > 0 || retcode == -1);
   return retcode;
 }
 
@@ -445,7 +442,9 @@ CAMLexport int caml_read_directory(wchar_t * dirname,
   }
   do {
     if (wcscmp(fileinfo.name, L".") != 0 && wcscmp(fileinfo.name, L"..") != 0) {
-      caml_ext_table_add(contents, caml_stat_strdup_of_utf16(fileinfo.name));
+      res = caml_ext_table_add_noexc(contents,
+                                     caml_stat_strdup_of_utf16(fileinfo.name));
+      if (res == -1) { _findclose(h); errno = ENOMEM; return -1; }
     }
   } while (_wfindnext(h, &fileinfo) == 0);
   _findclose(h);
@@ -805,6 +804,7 @@ int caml_win32_rename(const wchar_t * oldpath, const wchar_t * newpath)
                  MOVEFILE_COPY_ALLOWED)) {
     return 0;
   }
+<<<<<<< HEAD
 
   /* Another cornercase not handled by MoveFileEx:
      - dir to empty dir - positive - should succeed */
@@ -838,7 +838,43 @@ int caml_win32_rename(const wchar_t * oldpath, const wchar_t * newpath)
     errno = EEXIST; break;
   default:
     errno = EINVAL;
+||||||| 121bedcfd2
+  /* Modest attempt at mapping Win32 error codes to POSIX error codes.
+     The __dosmaperr() function from the CRT does a better job but is
+     generally not accessible. */
+  switch (GetLastError()) {
+  case ERROR_FILE_NOT_FOUND: case ERROR_PATH_NOT_FOUND:
+    errno = ENOENT; break;
+  case ERROR_ACCESS_DENIED: case ERROR_WRITE_PROTECT: case ERROR_CANNOT_MAKE:
+    errno = EACCES; break;
+  case ERROR_CURRENT_DIRECTORY: case ERROR_BUSY:
+    errno = EBUSY; break;
+  case ERROR_NOT_SAME_DEVICE:
+    errno = EXDEV; break;
+  case ERROR_ALREADY_EXISTS:
+    errno = EEXIST; break;
+  default:
+    errno = EINVAL;
+=======
+  /* Another cornercase not handled by MoveFileEx:
+     - dir to empty dir - positive - should succeed */
+  if ((old_attribs != INVALID_FILE_ATTRIBUTES) &&
+      (old_attribs & FILE_ATTRIBUTE_DIRECTORY) != 0 &&
+      (new_attribs != INVALID_FILE_ATTRIBUTES) &&
+      (new_attribs & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+    /* Try to delete: RemoveDirectoryW fails on non-empty dirs as intended.
+       Then try again. */
+    RemoveDirectoryW(newpath);
+    if (MoveFileEx(oldpath, newpath,
+                   MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH |
+                   MOVEFILE_COPY_ALLOWED)) {
+      return 0;
+    }
+>>>>>>> 5.2.0
   }
+
+  errno = caml_posixerr_of_win32err(GetLastError());
+  if (errno == 0) errno = EINVAL;
   return -1;
 }
 
@@ -1148,12 +1184,12 @@ void caml_init_os_params(void)
   clock_period = (1000000000.0 / frequency.QuadPart);
 }
 
-int64_t caml_time_counter(void)
+uint64_t caml_time_counter(void)
 {
   LARGE_INTEGER now;
 
   QueryPerformanceCounter(&now);
-  return (int64_t)(now.QuadPart * clock_period);
+  return (uint64_t)(now.QuadPart * clock_period);
 }
 
 void *caml_plat_mem_map(uintnat size, int reserve_only)
@@ -1178,4 +1214,113 @@ void caml_plat_mem_unmap(void* mem, uintnat size)
 {
   if (!VirtualFree(mem, 0, MEM_RELEASE))
     CAMLassert(0);
+}
+
+/* Mapping Win32 error codes to POSIX error codes */
+
+struct error_entry { DWORD win_code; int range; int posix_code; };
+
+static struct error_entry win_error_table[] = {
+  { ERROR_INVALID_FUNCTION, 0, EINVAL},
+  { ERROR_FILE_NOT_FOUND, 0, ENOENT},
+  { ERROR_PATH_NOT_FOUND, 0, ENOENT},
+  { ERROR_TOO_MANY_OPEN_FILES, 0, EMFILE},
+  { ERROR_TOO_MANY_LINKS, 0, EMLINK},
+  { ERROR_ACCESS_DENIED, 0, EACCES},
+  { ERROR_INVALID_HANDLE, 0, EBADF},
+  { ERROR_ARENA_TRASHED, 0, ENOMEM},
+  { ERROR_NOT_ENOUGH_MEMORY, 0, ENOMEM},
+  { ERROR_INVALID_BLOCK, 0, ENOMEM},
+  { ERROR_BAD_ENVIRONMENT, 0, E2BIG},
+  { ERROR_BAD_FORMAT, 0, ENOEXEC},
+  { ERROR_INVALID_ACCESS, 0, EINVAL},
+  { ERROR_INVALID_DATA, 0, EINVAL},
+  { ERROR_INVALID_DRIVE, 0, ENOENT},
+  { ERROR_CURRENT_DIRECTORY, 0, EACCES},
+  { ERROR_NOT_SAME_DEVICE, 0, EXDEV},
+  { ERROR_NO_MORE_FILES, 0, ENOENT},
+  { ERROR_LOCK_VIOLATION, 0, EACCES},
+  { ERROR_BAD_NETPATH, 0, ENOENT},
+  { ERROR_NETWORK_ACCESS_DENIED, 0, EACCES},
+  { ERROR_BAD_NET_NAME, 0, ENOENT},
+  { ERROR_FILE_EXISTS, 0, EEXIST},
+  { ERROR_CANNOT_MAKE, 0, EACCES},
+  { ERROR_FAIL_I24, 0, EACCES},
+  { ERROR_INVALID_PARAMETER, 0, EINVAL},
+  { ERROR_NO_PROC_SLOTS, 0, EAGAIN},
+  { ERROR_DRIVE_LOCKED, 0, EACCES},
+  { ERROR_BROKEN_PIPE, 0, EPIPE},
+  { ERROR_NO_DATA, 0, EPIPE},
+  { ERROR_DISK_FULL, 0, ENOSPC},
+  { ERROR_INVALID_TARGET_HANDLE, 0, EBADF},
+  { ERROR_INVALID_HANDLE, 0, EINVAL},
+  { ERROR_WAIT_NO_CHILDREN, 0, ECHILD},
+  { ERROR_CHILD_NOT_COMPLETE, 0, ECHILD},
+  { ERROR_DIRECT_ACCESS_HANDLE, 0, EBADF},
+  { ERROR_NEGATIVE_SEEK, 0, EINVAL},
+  { ERROR_SEEK_ON_DEVICE, 0, EACCES},
+  { ERROR_DIR_NOT_EMPTY, 0, ENOTEMPTY},
+  { ERROR_NOT_LOCKED, 0, EACCES},
+  { ERROR_BAD_PATHNAME, 0, ENOENT},
+  { ERROR_MAX_THRDS_REACHED, 0, EAGAIN},
+  { ERROR_LOCK_FAILED, 0, EACCES},
+  { ERROR_ALREADY_EXISTS, 0, EEXIST},
+  { ERROR_FILENAME_EXCED_RANGE, 0, ENOENT},
+  { ERROR_NESTING_NOT_ALLOWED, 0, EAGAIN},
+  { ERROR_NOT_ENOUGH_QUOTA, 0, ENOMEM},
+  { ERROR_INVALID_STARTING_CODESEG,
+    ERROR_INFLOOP_IN_RELOC_CHAIN - ERROR_INVALID_STARTING_CODESEG,
+    ENOEXEC },
+  { ERROR_WRITE_PROTECT,
+    ERROR_SHARING_BUFFER_EXCEEDED - ERROR_WRITE_PROTECT,
+    EACCES },
+  { ERROR_PRIVILEGE_NOT_HELD, 0, EPERM},
+  { WSAEINVAL, 0, EINVAL },
+  { WSAEACCES, 0, EACCES },
+  { WSAEBADF, 0, EBADF },
+  { WSAEFAULT, 0, EFAULT },
+  { WSAEINTR, 0, EINTR },
+  { WSAEINVAL, 0, EINVAL },
+  { WSAEMFILE, 0, EMFILE },
+  { WSAENAMETOOLONG, 0, ENAMETOOLONG },
+  { WSAENOTEMPTY, 0, ENOTEMPTY },
+  { 0, -1, 0 }
+};
+
+int caml_posixerr_of_win32err(unsigned int errcode)
+{
+  for (int i = 0; win_error_table[i].range >= 0; i++) {
+    if (errcode >= win_error_table[i].win_code &&
+        errcode <= win_error_table[i].win_code + win_error_table[i].range) {
+      return win_error_table[i].posix_code;
+    }
+  }
+  return 0;
+}
+
+value caml_win32_xdg_defaults(void)
+{
+  CAMLparam0();
+  CAMLlocal2(opath, result);
+
+  PWSTR wpath;
+
+  result = Val_emptylist;
+  if (SHGetKnownFolderPath(&FOLDERID_ProgramData, 0, NULL, &wpath) == S_OK) {
+    opath = caml_copy_string_of_utf16(wpath);
+    result = caml_alloc_2(Tag_cons, opath, result);
+  }
+  CoTaskMemFree(wpath); /* wpath must be freed, even on error */
+  if (SHGetKnownFolderPath(&FOLDERID_RoamingAppData, 0, NULL, &wpath) == S_OK) {
+    opath = caml_copy_string_of_utf16(wpath);
+    result = caml_alloc_2(Tag_cons, opath, result);
+  }
+  CoTaskMemFree(wpath);
+  if (SHGetKnownFolderPath(&FOLDERID_LocalAppData, 0, NULL, &wpath) == S_OK) {
+    opath = caml_copy_string_of_utf16(wpath);
+    result = caml_alloc_2(Tag_cons, opath, result);
+  }
+  CoTaskMemFree(wpath);
+
+  CAMLreturn(result);
 }

@@ -26,6 +26,7 @@
  (name ocamltest_core_and_plugin)
  (modes byte)
  (wrapped false)
+<<<<<<< HEAD
  ; -linkall so we don't fail to include e.g. ocaml_modifiers.ml, which only
  ; has top-level side effects.
  (flags
@@ -46,6 +47,22 @@
    ((-DCAML_INTERNALS)
     (:include %{project_root}/oc_cflags.sexp)
     (:include %{project_root}/oc_cppflags.sexp)))))
+||||||| 121bedcfd2
+ (flags (:standard -nostdlib))
+ (libraries ocamlcommon stdlib
+  (select ocamltest_unix.ml from
+   (unix -> ocamltest_unix_real.ml)
+   (-> ocamltest_unix_dummy.ml)))
+ (modules (:standard \ options main))
+ (c_flags (-DCAML_INTERNALS -I%{project_root}/runtime)) ; fixme
+ (c_names run_unix run_stubs))
+=======
+ (flags (:standard -nostdlib))
+ (libraries ocamlcommon stdlib unix)
+ (modules (:standard \ options main ocamltest_unix_dummy ocamltest_unix_real))
+ (c_flags (-DCAML_INTERNALS -I%{project_root}/runtime)) ; fixme
+ (c_names run_unix run_stubs))
+>>>>>>> 5.2.0
 
 (rule
  (targets empty.ml)

@@ -23,6 +23,7 @@ open Debuginfo.Scoped_location
 
 exception Real_reference
 
+<<<<<<< HEAD
 let check_function_escape id lfun =
   (* Check that the identifier is not one of the parameters *)
   let param_is_id { name; _ } = Ident.same id name in
@@ -30,6 +31,16 @@ let check_function_escape id lfun =
   if Ident.Set.mem id (Lambda.free_variables lfun.body) then
     raise Real_reference
 
+||||||| 121bedcfd2
+=======
+let check_function_escape id lfun =
+  (* Check that the identifier is not one of the parameters *)
+  let param_is_id (param, _) = Ident.same id param in
+  assert (not (List.exists param_is_id lfun.params));
+  if Ident.Set.mem id (Lambda.free_variables lfun.body) then
+    raise Real_reference
+
+>>>>>>> 5.2.0
 let rec eliminate_ref id = function
     Lvar v as lam ->
       if Ident.same v id then raise Real_reference else lam
@@ -242,15 +253,28 @@ let simplify_exits lam =
     match l with
   | Lvar _| Lmutvar _ | Lconst _ -> l
   | Lapply ap ->
+<<<<<<< HEAD
       Lapply{ap with ap_func = simplif ~layout:None ~try_depth ap.ap_func;
                      ap_args = List.map (simplif ~layout:None ~try_depth) ap.ap_args}
   | Lfunction lfun ->
       Lfunction (map_lfunction (simplif ~layout:None ~try_depth) lfun)
+||||||| 121bedcfd2
+      Lapply{ap with ap_func = simplif ~try_depth ap.ap_func;
+                     ap_args = List.map (simplif ~try_depth) ap.ap_args}
+  | Lfunction{kind; params; return; body = l; attr; loc} ->
+     lfunction ~kind ~params ~return ~body:(simplif ~try_depth l) ~attr ~loc
+=======
+      Lapply{ap with ap_func = simplif ~try_depth ap.ap_func;
+                     ap_args = List.map (simplif ~try_depth) ap.ap_args}
+  | Lfunction lfun ->
+      Lfunction (map_lfunction (simplif ~try_depth) lfun)
+>>>>>>> 5.2.0
   | Llet(str, kind, v, l1, l2) ->
       Llet(str, kind, v, simplif ~layout:None ~try_depth l1, simplif ~layout ~try_depth l2)
   | Lmutlet(kind, v, l1, l2) ->
       Lmutlet(kind, v, simplif ~layout:None ~try_depth l1, simplif ~layout ~try_depth l2)
   | Lletrec(bindings, body) ->
+<<<<<<< HEAD
       let bindings =
         List.map (fun ({ def = {kind; params; return; body = l; attr; loc;
                                 mode; ret_mode; region} }
@@ -263,6 +287,22 @@ let simplify_exits lam =
           bindings
       in
       Lletrec(bindings, simplif ~layout ~try_depth body)
+||||||| 121bedcfd2
+      Lletrec(List.map (fun (v, l) -> (v, simplif ~try_depth l)) bindings,
+      simplif ~try_depth body)
+=======
+      let bindings =
+        List.map (fun ({ def = {kind; params; return; body = l; attr; loc} }
+                       as rb) ->
+                   let def =
+                     lfunction' ~kind ~params ~return
+                       ~body:(simplif ~try_depth l) ~attr ~loc
+                   in
+                   { rb with def })
+          bindings
+      in
+      Lletrec(bindings, simplif ~try_depth body)
+>>>>>>> 5.2.0
   | Lprim(p, ll, loc) -> begin
     let ll = List.map (simplif ~layout:None ~try_depth) ll in
     match p, ll with
@@ -586,6 +626,7 @@ let simplify_lets lam =
           end
       | _ -> no_opt ()
       end
+<<<<<<< HEAD
   | Lfunction{kind=outer_kind; params; return=outer_return; body = l;
               attr=attr1; loc; ret_mode; mode; region=outer_region} ->
       begin match outer_kind, outer_region, simplif l with
@@ -595,6 +636,20 @@ let simplify_lets lam =
                   body; attr=attr2; loc; mode=inner_mode; ret_mode; region}
         when optimize &&
              attr1.may_fuse_arity && attr2.may_fuse_arity &&
+||||||| 121bedcfd2
+  | Lfunction{kind; params; return=return1; body = l; attr; loc} ->
+      begin match simplif l with
+        Lfunction{kind=Curried; params=params'; return=return2; body; attr; loc}
+        when kind = Curried && optimize &&
+=======
+  | Lfunction{kind; params; return=return1; body = l; attr=attr1; loc}
+    ->
+      begin match simplif l with
+        Lfunction{kind=Curried; params=params'; return=return2; body;
+                  attr=attr2; loc}
+        when kind = Curried && optimize &&
+             attr1.may_fuse_arity && attr2.may_fuse_arity &&
+>>>>>>> 5.2.0
              List.length params + List.length params' <= Lambda.max_arity() ->
           (* The returned function's mode should match the outer return mode *)
           assert (is_heap_mode inner_mode);
@@ -603,9 +658,20 @@ let simplify_lets lam =
              type of the merged function taking [params @ params'] as
              parameters is the type returned after applying [params']. *)
           let return = return2 in
+<<<<<<< HEAD
           lfunction ~kind ~params:(params @ params') ~return ~body ~attr:attr1 ~loc ~mode ~ret_mode ~region
       | kind, region, body ->
           lfunction ~kind ~params ~return:outer_return ~body ~attr:attr1 ~loc ~mode ~ret_mode ~region
+||||||| 121bedcfd2
+          lfunction ~kind ~params:(params @ params') ~return ~body ~attr ~loc
+      | body ->
+          lfunction ~kind ~params ~return:return1 ~body ~attr ~loc
+=======
+          lfunction ~kind ~params:(params @ params') ~return ~body ~attr:attr2
+            ~loc
+      | body ->
+          lfunction ~kind ~params ~return:return1 ~body ~attr:attr1 ~loc
+>>>>>>> 5.2.0
       end
   | Llet(_str, _k, v, Lvar w, l2) when optimize ->
       Hashtbl.add subst v (simplif (Lvar w));
@@ -880,13 +946,31 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
         let body = Lambda.rename subst body in
         let body = if add_region then Lregion (body, return) else body in
         let inner_fun =
+<<<<<<< HEAD
           lfunction' ~kind:(Curried {nlocal=0})
             ~params:new_ids
             ~return ~body ~attr ~loc ~mode ~ret_mode ~region:true
+||||||| 121bedcfd2
+          lfunction ~kind:Curried
+            ~params:(List.map (fun id -> id, Pgenval) new_ids)
+            ~return ~body ~attr ~loc
+=======
+          lfunction' ~kind:Curried
+            ~params:(List.map (fun id -> id, Pgenval) new_ids)
+            ~return ~body ~attr ~loc
+>>>>>>> 5.2.0
         in
+<<<<<<< HEAD
         (wrapper_body, { id = inner_id; def = inner_fun })
+||||||| 121bedcfd2
+        (wrapper_body, (inner_id, inner_fun))
+=======
+        (wrapper_body, { id = inner_id;
+                         def = inner_fun })
+>>>>>>> 5.2.0
   in
   try
+<<<<<<< HEAD
     (* TODO: enable this optimisation even in the presence of local returns *)
     begin match kind with
     | Curried {nlocal} when nlocal > 0 -> raise Exit
@@ -899,10 +983,28 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
        def = lfunction' ~kind ~params ~return ~body ~attr ~loc
            ~mode ~ret_mode ~region:true };
      inner]
+||||||| 121bedcfd2
+    let body, inner = aux [] body in
+    let attr = default_stub_attribute in
+    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc); inner]
+=======
+    let body, inner = aux [] body in
+    let attr = default_stub_attribute in
+    [{ id = fun_id;
+       def = lfunction' ~kind ~params ~return ~body ~attr ~loc };
+     inner]
+>>>>>>> 5.2.0
   with Exit ->
+<<<<<<< HEAD
     [{ id = fun_id;
        def = lfunction' ~kind ~params ~return ~body ~attr ~loc
            ~mode ~ret_mode ~region:orig_region }]
+||||||| 121bedcfd2
+    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc)]
+=======
+    [{ id = fun_id;
+       def = lfunction' ~kind ~params ~return ~body ~attr ~loc }]
+>>>>>>> 5.2.0
 
 (* Simplify local let-bound functions: if all occurrences are
    fully-applied function calls in the same "tail scope", replace the

@@ -54,9 +54,16 @@ end
 
 let compile_only = ref false            (* -c *)
 and output_name = ref (None : string option) (* -o *)
+<<<<<<< HEAD
 and include_dirs = ref ([] : string list) (* -I *)
 and hidden_include_dirs = ref ([] : string list) (* -H *)
 and libloc = ref ([] : Libloc.t list) (* -libloc *)
+||||||| 121bedcfd2
+and include_dirs = ref ([] : string list)(* -I *)
+=======
+and include_dirs = ref ([] : string list) (* -I *)
+and hidden_include_dirs = ref ([] : string list) (* -H *)
+>>>>>>> 5.2.0
 and no_std_include = ref false          (* -nostdlib *)
 and no_cwd = ref false                  (* -nocwd *)
 and print_types = ref false             (* -i *)
@@ -83,8 +90,13 @@ let absname = ref false                 (* -absname *)
 let directory = ref None                (* -directory *)
 let annotations = ref false             (* -annot *)
 let binary_annotations = ref false      (* -bin-annot *)
+<<<<<<< HEAD
 let binary_annotations_cms = ref false  (* -bin-annot-cms *)
 let store_occurrences = ref false       (* -bin-annot-occurrences *)
+||||||| 121bedcfd2
+=======
+let store_occurrences = ref false       (* -bin-annot-occurrences *)
+>>>>>>> 5.2.0
 and use_threads = ref false             (* -thread *)
 and noassert = ref false                (* -noassert *)
 and verbose = ref false                 (* -verbose *)

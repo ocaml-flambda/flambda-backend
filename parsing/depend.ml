@@ -52,8 +52,6 @@ let rec lookup_map lid m =
   | Ldot (l, s) -> String.Map.find s (get_map (lookup_map l m))
   | Lapply _    -> raise Not_found
 
-(* Collect free module identifiers in the a.s.t. *)
-
 let free_structure_names = ref String.Set.empty
 
 let add_names s =
@@ -128,6 +126,9 @@ let rec add_type bv ty =
         fl
   | Ptyp_poly(_, t) -> add_type bv t
   | Ptyp_package pt -> add_package_type bv pt
+  | Ptyp_open (mod_ident, t) ->
+    let bv = open_module bv mod_ident.txt in
+    add_type bv t
   | Ptyp_extension e -> handle_extension e
 
 and add_type_jst bv : Jane_syntax.Core_type.t -> _ = function
@@ -258,10 +259,10 @@ let rec add_expr bv exp =
   | Pexp_constant _ -> add_constant
   | Pexp_let(rf, pel, e) ->
       let bv = add_bindings rf bv pel in add_expr bv e
-  | Pexp_fun (_, opte, p, e) ->
-      add_opt add_expr bv opte; add_expr (add_pattern bv p) e
-  | Pexp_function pel ->
-      add_cases bv pel
+  | Pexp_function (params, constraint_, body) ->
+      let bv = List.fold_left add_function_param bv params in
+      add_opt add_constraint bv constraint_;
+      add_function_body bv body
   | Pexp_apply(e, el) ->
       add_expr bv e; List.iter (fun (_,e) -> add_expr bv e) el
   | Pexp_match(e, pel) -> add_expr bv e; add_cases bv pel
@@ -330,6 +331,7 @@ let rec add_expr bv exp =
   | Pexp_extension e -> handle_extension e
   | Pexp_unreachable -> ()
 
+<<<<<<< HEAD
 and add_expr_jane_syntax bv : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension x -> add_comprehension_expr bv x
   | Jexp_immutable_array x -> add_immutable_array_expr bv x
@@ -421,6 +423,31 @@ and add_function_constraint bv
 and add_labeled_tuple_expr bv : Jane_syntax.Labeled_tuples.expression -> _ =
   function el -> List.iter (add_expr bv) (List.map snd el)
 
+||||||| 121bedcfd2
+=======
+and add_function_param bv param =
+  match param.pparam_desc with
+  | Pparam_val (_, opte, pat) ->
+      add_opt add_expr bv opte;
+      add_pattern bv pat
+  | Pparam_newtype _ -> bv
+
+and add_function_body bv body =
+  match body with
+  | Pfunction_body e ->
+      add_expr bv e
+  | Pfunction_cases (cases, _, _) ->
+      add_cases bv cases
+
+and add_constraint bv constraint_ =
+  match constraint_ with
+  | Pconstraint ty ->
+      add_type bv ty
+  | Pcoerce (ty1, ty2) ->
+      add_opt add_type bv ty1;
+      add_type bv ty2
+
+>>>>>>> 5.2.0
 and add_cases bv cases =
   List.iter (add_case bv) cases
 

@@ -115,13 +115,30 @@ let mut_from_env env ptr =
       else Asttypes.Mutable
     | _ -> Asttypes.Mutable
 
+<<<<<<< HEAD
 (* Minimum of two [mutable_flag] values, assuming [Immutable < Mutable]. *)
 let min_mut x y =
   match x,y with
   | Asttypes.Immutable, _
   | _, Asttypes.Immutable -> Asttypes.Immutable
   | Asttypes.Mutable, Asttypes.Mutable -> Asttypes.Mutable
+||||||| 121bedcfd2
+let get_field env ptr n dbg =
+  let mut = mut_from_env env ptr in
+  get_field_gen mut ptr n dbg
+=======
+(* Minimum of two [mutable_flag] values, assuming [Immutable < Mutable]. *)
+let min_mut x y =
+  match x,y with
+  | Immutable,_ | _,Immutable -> Immutable
+  | Mutable,Mutable -> Mutable
 
+let get_field env mut ptr n dbg =
+  let mut = min_mut mut (mut_from_env env ptr) in
+  get_field_gen mut ptr n dbg
+>>>>>>> 5.2.0
+
+<<<<<<< HEAD
 let mut_from_lambda = function
   | Lambda.Immutable -> Asttypes.Immutable
   | Lambda.Immutable_unique -> Asttypes.Immutable
@@ -151,6 +168,60 @@ let get_field env mut layout ptr n dbg =
   in
   get_field_gen_given_memory_chunk memory_chunk mut ptr n dbg
 
+||||||| 121bedcfd2
+type rhs_kind =
+  | RHS_block of int
+  | RHS_infix of { blocksize : int; offset : int }
+  | RHS_floatblock of int
+  | RHS_nonrec
+
+let rec expr_size env = function
+  | Uvar id ->
+      begin try V.find_same id env with Not_found -> RHS_nonrec end
+  | Uclosure(fundecls, clos_vars) ->
+      RHS_block (fundecls_size fundecls + List.length clos_vars)
+  | Ulet(_str, _kind, id, exp, body) ->
+      expr_size (V.add (VP.var id) (expr_size env exp) env) body
+  | Uletrec(bindings, body) ->
+      let env =
+        List.fold_right
+          (fun (id, exp) env -> V.add (VP.var id) (expr_size env exp) env)
+          bindings env
+      in
+      expr_size env body
+  | Uprim(Pmakeblock _, args, _) ->
+      RHS_block (List.length args)
+  | Uprim(Pmakearray((Paddrarray | Pintarray), _), args, _) ->
+      RHS_block (List.length args)
+  | Uprim(Pmakearray(Pfloatarray, _), args, _) ->
+      RHS_floatblock (List.length args)
+  | Uprim(Pmakearray(Pgenarray, _), _, _) ->
+     (* Pgenarray is excluded from recursive bindings by the
+        check in Translcore.check_recursive_lambda *)
+     RHS_nonrec
+  | Uprim (Pduprecord ((Record_regular | Record_inlined _), sz), _, _) ->
+      RHS_block sz
+  | Uprim (Pduprecord (Record_unboxed _, _), _, _) ->
+      assert false
+  | Uprim (Pduprecord (Record_extension _, sz), _, _) ->
+      RHS_block (sz + 1)
+  | Uprim (Pduprecord (Record_float, sz), _, _) ->
+      RHS_floatblock sz
+  | Uprim (Pccall { prim_name; _ }, closure::_, _)
+        when prim_name = "caml_check_value_is_closure" ->
+      (* Used for "-clambda-checks". *)
+      expr_size env closure
+  | Usequence(_exp, exp') ->
+      expr_size env exp'
+  | Uoffset (exp, offset) ->
+      (match expr_size env exp with
+      | RHS_block blocksize -> RHS_infix { blocksize; offset }
+      | RHS_nonrec -> RHS_nonrec
+      | _ -> assert false)
+  | _ -> RHS_nonrec
+
+=======
+>>>>>>> 5.2.0
 (* Translate structured constants to Cmm data items *)
 
 let transl_constant dbg = function
@@ -424,6 +495,7 @@ let rec transl env e =
         | [] -> Debuginfo.none
         | fundecl::_ -> fundecl.dbg
       in
+<<<<<<< HEAD
       (* #11482, #12481: the 'clos_vars' may be arbitrary expressions
          and may invoke the GC, which would be able to observe the
          partially-filled block. This is safe because 'make_alloc'
@@ -432,6 +504,18 @@ let rec transl env e =
          closure metadata, which comes before the closure variables,
          will always have been written before a GC can happen. *)
       make_alloc ~mode dbg Obj.closure_tag (transl_fundecls 0 functions)
+||||||| 121bedcfd2
+      make_alloc dbg Obj.closure_tag (transl_fundecls 0 fundecls)
+=======
+      (* #11482, #12481: the 'clos_vars' may be arbitrary expressions
+         and may invoke the GC, which would be able to observe the
+         partially-filled block. This is safe because 'make_alloc'
+         evaluates and fills fields from left to right, and does not
+         call a GC between the allocation and filling fields. So the
+         closure metadata, which comes before the closure variables,
+         will always have been written before a GC can happen. *)
+      make_alloc dbg Obj.closure_tag (transl_fundecls 0 fundecls)
+>>>>>>> 5.2.0
   | Uoffset(arg, offset) ->
       (* produces a valid Caml value, pointing just after an infix header *)
       let ptr = transl env arg in
@@ -535,8 +619,15 @@ let rec transl env e =
             bigarray_get unsafe elt_kind layout
               (transl env arg1) (List.map (transl env) argl) dbg in
           begin match elt_kind with
+<<<<<<< HEAD
           (* TODO: local allocation of bigarray elements *)
             Pbigarray_float32 | Pbigarray_float64 -> box_float dbg alloc_heap elt
+||||||| 121bedcfd2
+            Pbigarray_float32 | Pbigarray_float64 -> box_float dbg elt
+=======
+          | Pbigarray_float16 -> box_float dbg (float_of_float16 dbg elt)
+          | Pbigarray_float32 | Pbigarray_float64 -> box_float dbg elt
+>>>>>>> 5.2.0
           | Pbigarray_complex32 | Pbigarray_complex64 -> elt
           | Pbigarray_int32 -> box_int dbg Pint32 alloc_heap elt
           | Pbigarray_int64 -> box_int dbg Pint64 alloc_heap elt
@@ -552,7 +643,9 @@ let rec transl env e =
             (transl env arg1)
             (List.map (transl env) argidx)
             (match elt_kind with
-              Pbigarray_float32 | Pbigarray_float64 ->
+            | Pbigarray_float16 ->
+                float16_of_float dbg (transl_unbox_float dbg env argnewval)
+            | Pbigarray_float32 | Pbigarray_float64 ->
                 transl_unbox_float dbg env argnewval
             | Pbigarray_complex32 | Pbigarray_complex64 -> transl env argnewval
             | Pbigarray_int32 -> transl_unbox_int dbg env Pint32 argnewval
@@ -570,18 +663,38 @@ let rec transl env e =
           let dim_ofs = 4 + n in
           tag_int (Cop(mk_load_mut Word_int,
             [field_address (transl env b) dim_ofs dbg],
+<<<<<<< HEAD
                        dbg)) dbg
       | (Pprobe_is_enabled {name}, []) ->
           tag_int (Cop(Cprobe_is_enabled {name}, [], dbg)) dbg
+||||||| 121bedcfd2
+            dbg)) dbg
+=======
+            dbg)) dbg
+      | (Pintcomp _ as comp,
+         [Uprim(Pcompare_ints, [arg1; arg2], _);
+          Uconst(Uconst_int 0)]) ->
+          transl env (Uprim (comp, [arg1; arg2], dbg))
+      | (Pintcomp comp,
+         [Uprim(Pcompare_bints b, [arg1; arg2], _);
+          Uconst(Uconst_int 0)]) ->
+          transl env (Uprim (Pbintcomp (b, comp), [arg1; arg2], dbg))
+>>>>>>> 5.2.0
       | (p, [arg]) ->
           transl_prim_1 env p arg dbg
       | (p, [arg1; arg2]) ->
           transl_prim_2 env p arg1 arg2 dbg
       | (p, [arg1; arg2; arg3]) ->
           transl_prim_3 env p arg1 arg2 arg3 dbg
+<<<<<<< HEAD
       (* Mixed blocks *)
       | (Pmakemixedblock _ | Psetmixedfield _ | Pmixedfield _), _->
           Misc.fatal_error "Mixed blocks not supported in upstream compiler build"
+||||||| 121bedcfd2
+=======
+      | (p, [arg1; arg2; arg3; arg4]) ->
+          transl_prim_4 env p arg1 arg2 arg3 arg4 dbg
+>>>>>>> 5.2.0
       | (Pread_symbol _, _::_::_::_::_)
       | (Pbigarrayset (_, _, _, _), [])
       | (Pbigarrayref (_, _, _, _), [])
@@ -834,10 +947,16 @@ and transl_ccall env prim args dbg =
           | Pint32 -> XInt32
           | Pint64 -> XInt64 in
         (xty, transl_unbox_int dbg env bi arg)
+<<<<<<< HEAD
     | Unboxed_vector _ ->
       Misc.fatal_error
         "SIMD vectors are not supported in the upstream compiler build."
     | Untagged_int ->
+||||||| 121bedcfd2
+    | Untagged_int ->
+=======
+    | Untagged_immediate ->
+>>>>>>> 5.2.0
         (XInt, untag_int (transl env arg) dbg)
   in
   let rec transl_args native_repr_args args =
@@ -855,6 +974,7 @@ and transl_ccall env prim args dbg =
   in
   let typ_res, wrap_result =
     match prim.prim_native_repr_res with
+<<<<<<< HEAD
     | _, Same_as_ocaml_repr sort -> (machtype_of_sort sort, fun x -> x)
     (* TODO: Allow Alloc_local on suitably typed C stubs *)
     | _, Unboxed_float Pfloat64 -> (typ_float, box_float dbg alloc_heap)
@@ -866,6 +986,17 @@ and transl_ccall env prim args dbg =
     | _, Unboxed_vector _ ->
       Misc.fatal_error
         "SIMD vectors are not supported in the upstream compiler build."
+||||||| 121bedcfd2
+    | Same_as_ocaml_repr -> (typ_val, fun x -> x)
+    | Unboxed_float -> (typ_float, box_float dbg)
+    | Unboxed_integer bi -> (typ_int, box_int dbg bi)
+    | Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
+=======
+    | Same_as_ocaml_repr -> (typ_val, fun x -> x)
+    | Unboxed_float -> (typ_float, box_float dbg)
+    | Unboxed_integer bi -> (typ_int, box_int dbg bi)
+    | Untagged_immediate -> (typ_int, (fun i -> tag_int i dbg))
+>>>>>>> 5.2.0
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in
   wrap_result
@@ -878,9 +1009,19 @@ and transl_prim_1 env p arg dbg =
     Popaque ->
       opaque (transl env arg) dbg
   (* Heap operations *)
+<<<<<<< HEAD
   | Pfield (n, layout, _, mut) ->
       get_field env mut layout (transl env arg) n dbg
   | Pfloatfield (n,mode) ->
+||||||| 121bedcfd2
+  | Pfield(n, _, _) ->
+      get_field env (transl env arg) n dbg
+  | Pfloatfield n ->
+=======
+  | Pfield(n, _, mut) ->
+      get_field env mut (transl env arg) n dbg
+  | Pfloatfield n ->
+>>>>>>> 5.2.0
       let ptr = transl env arg in
       box_float dbg mode (floatfield n ptr dbg)
   | Pufloatfield n ->
@@ -955,6 +1096,7 @@ and transl_prim_1 env p arg dbg =
   | Pget_header m ->
       box_int dbg Pnativeint m (get_header (transl env arg) dbg)
   | Pperform ->
+<<<<<<< HEAD
       Misc.fatal_error "Effects-related primitives not yet supported"
       (* CR mshinwell: use [Runtimetags] once available
       let cont =
@@ -963,6 +1105,15 @@ and transl_prim_1 env p arg dbg =
       (* CR mshinwell: Rc_normal may be wrong, but this code is unlikely
          to be in production by then *)
       Cop(Capply (typ_val, Rc_normal),
+||||||| 121bedcfd2
+      let cont = make_alloc dbg Obj.cont_tag [int_const dbg 0] in
+      Cop(Capply typ_val,
+=======
+      let cont =
+        make_alloc dbg Obj.cont_tag [int_const dbg 0; int_const dbg 0]
+      in
+      Cop(Capply typ_val,
+>>>>>>> 5.2.0
        [Cconst_symbol ("caml_perform", dbg); transl env arg; cont],
        dbg)
       *)
@@ -1263,6 +1414,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
       Misc.fatal_error "Mixed blocks not supported in upstream compiler build"
 
   (* Effects *)
+<<<<<<< HEAD
   | Presume ->
       Misc.fatal_error "Effects-related primitives not yet supported"
       (*
@@ -1273,6 +1425,16 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
            transl env arg1; transl env arg2; transl env arg3],
            dbg)
       *)
+||||||| 121bedcfd2
+  | Presume ->
+      Cop (Capply typ_val,
+           [Cconst_symbol ("caml_resume", dbg);
+           transl env arg1; transl env arg2; transl env arg3],
+           dbg)
+
+=======
+
+>>>>>>> 5.2.0
   | Prunstack ->
       Misc.fatal_error "Effects-related primitives not yet supported"
       (*
@@ -1294,7 +1456,40 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
            dbg)
       *)
 
-  | Pperform | Pdls_get
+  | Pperform | Pdls_get | Presume
+  | Patomic_exchange | Patomic_fetch_add | Patomic_load _
+  | Pfield_computed | Psequand | Psequor | Pnot | Pnegint | Paddint
+  | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint | Plsrint | Pasrint
+  | Pintoffloat | Pfloatofint | Pnegfloat | Pabsfloat | Paddfloat | Psubfloat
+  | Pmulfloat | Pdivfloat | Pstringlength | Pstringrefu | Pstringrefs
+  | Pbyteslength | Pbytesrefu | Pbytesrefs | Pisint | Pisout
+  | Pbswap16 | Pint_as_pointer | Popaque | Pread_symbol _ | Pmakeblock (_, _, _)
+  | Pfield _ | Psetfield (_, _, _) | Pfloatfield _ | Psetfloatfield (_, _)
+  | Pduprecord (_, _) | Pccall _ | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _
+  | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+  | Poffsetint _ | Poffsetref _ | Pfloatcomp _ | Pmakearray (_, _)
+  | Pduparray (_, _) | Parraylength _ | Parrayrefu _ | Parrayrefs _
+  | Pbintofint _ | Pintofbint _ | Pcvtbint (_, _) | Pnegbint _ | Paddbint _
+  | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _ | Porbint _
+  | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _)
+  | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _) | Pbigarraydim _
+  | Pstring_load _ | Pbytes_load _ | Pbigstring_load _ | Pbbswap _
+    ->
+      fatal_errorf "Cmmgen.transl_prim_3: %a"
+        Printclambda_primitives.primitive p
+
+and transl_prim_4 env p arg1 arg2 arg3 arg4 dbg =
+  match p with
+  | Presume ->
+      Cop (Capply typ_val,
+           [Cconst_symbol ("caml_resume", dbg);
+           transl env arg1; transl env arg2;
+           transl env arg3; transl env arg4],
+           dbg)
+  | Psetfield_computed _
+  | Pbytessetu | Pbytessets | Parraysetu _
+  | Parraysets _ | Pbytes_set _ | Pbigstring_set _ | Patomic_cas
+  | Prunstack | Preperform | Pperform | Pdls_get
   | Patomic_exchange | Patomic_fetch_add | Patomic_load _
   | Pfield_computed | Psequand | Psequor | Pnot | Pnegint | Paddint
   | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint | Plsrint | Pasrint
@@ -1580,7 +1775,54 @@ and transl_switch dbg (kind : Cmm.kind_for_unboxing) env arg index cases = match
 | 1 -> transl env cases.(0)
 | _ ->
     let cases = Array.map (transl env) cases in
+<<<<<<< HEAD
     transl_switch_clambda dbg kind arg index cases
+||||||| 121bedcfd2
+    transl_switch_clambda dbg arg index cases
+
+and transl_letrec env bindings cont =
+  let dbg = Debuginfo.none in
+  let bsz =
+    List.map (fun (id, exp) -> (id, exp, expr_size V.empty exp))
+      bindings
+  in
+  let op_alloc prim args =
+    Cop(Cextcall(prim, typ_val, [], true), args, dbg) in
+  let rec init_blocks = function
+    | [] -> fill_nonrec bsz
+    | (id, _exp, RHS_block sz) :: rem ->
+        Clet(id, op_alloc "caml_alloc_dummy" [int_const dbg sz],
+          init_blocks rem)
+    | (id, _exp, RHS_infix { blocksize; offset}) :: rem ->
+        Clet(id, op_alloc "caml_alloc_dummy_infix"
+             [int_const dbg blocksize; int_const dbg offset],
+             init_blocks rem)
+    | (id, _exp, RHS_floatblock sz) :: rem ->
+        Clet(id, op_alloc "caml_alloc_dummy_float" [int_const dbg sz],
+          init_blocks rem)
+    | (id, _exp, RHS_nonrec) :: rem ->
+        Clet (id, Cconst_int (1, dbg), init_blocks rem)
+  and fill_nonrec = function
+    | [] -> fill_blocks bsz
+    | (_id, _exp,
+       (RHS_block _ | RHS_infix _ | RHS_floatblock _)) :: rem ->
+        fill_nonrec rem
+    | (id, exp, RHS_nonrec) :: rem ->
+        Clet(id, transl env exp, fill_nonrec rem)
+  and fill_blocks = function
+    | [] -> cont
+    | (id, exp, (RHS_block _ | RHS_infix _ | RHS_floatblock _)) :: rem ->
+        let op =
+          Cop(Cextcall("caml_update_dummy", typ_void, [], false),
+              [Cvar (VP.var id); transl env exp], dbg) in
+        Csequence(op, fill_blocks rem)
+    | (_id, _exp, RHS_nonrec) :: rem ->
+        fill_blocks rem
+  in init_blocks bsz
+=======
+    transl_switch_clambda dbg arg index cases
+
+>>>>>>> 5.2.0
 
 (* Translate a function definition *)
 
@@ -1592,6 +1834,9 @@ let transl_function f =
       Afl_instrument.instrument_function (transl env body) f.dbg
     else
       transl env body in
+  let cmm_body =
+    if Config.tsan then Thread_sanitizer.instrument cmm_body else cmm_body
+  in
   let fun_codegen_options =
     if !Clflags.optimize_for_speed then
       []
@@ -1699,7 +1944,17 @@ let compunit (ulam, preallocated_blocks, constants) =
         (fun () -> dbg)
     else
       transl empty_env ulam in
+<<<<<<< HEAD
   let c1 = [Cfunction {fun_name = make_symbol "entry";
+||||||| 121bedcfd2
+  let c1 = [Cfunction {fun_name = Compilenv.make_symbol (Some "entry");
+=======
+  let init_code =
+    if Config.tsan then Thread_sanitizer.instrument init_code
+    else init_code
+  in
+  let c1 = [Cfunction {fun_name = Compilenv.make_symbol (Some "entry");
+>>>>>>> 5.2.0
                        fun_args = [];
                        fun_body = init_code;
                        (* This function is often large and run only once.

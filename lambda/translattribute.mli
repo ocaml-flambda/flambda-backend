@@ -45,11 +45,23 @@ val get_local_attribute
 
 val get_inlined_attribute
    : Typedtree.expression
+<<<<<<< HEAD
   -> Lambda.inlined_attribute
+||||||| 121bedcfd2
+  -> Lambda.inline_attribute * Typedtree.expression
+=======
+  -> Lambda.inline_attribute
+>>>>>>> 5.2.0
 
 val get_inlined_attribute_on_module
    : Typedtree.module_expr
+<<<<<<< HEAD
   -> Lambda.inlined_attribute
+||||||| 121bedcfd2
+  -> Lambda.inline_attribute * Typedtree.module_expr
+=======
+  -> Lambda.inline_attribute
+>>>>>>> 5.2.0
 
 val get_specialised_attribute
    : Typedtree.expression

@@ -772,6 +772,7 @@ let error err = raise (Error err)
 let lookup_error loc env err =
   error (Lookup_error(loc, env, err))
 
+<<<<<<< HEAD
 type actual_mode = {
   mode : Mode.Value.l;
   context : shared_context option
@@ -782,6 +783,14 @@ let mode_default mode = {
   context = None
 }
 
+||||||| 121bedcfd2
+=======
+let same_type_declarations e1 e2 =
+  e1.types == e2.types &&
+  e1.modules == e2.modules &&
+  e1.local_constraints == e2.local_constraints
+
+>>>>>>> 5.2.0
 let same_constr = ref (fun _ _ _ -> assert false)
 
 let constrain_type_jkind = ref (fun _ _ _ -> assert false)
@@ -804,9 +813,12 @@ let check_shadowing env = function
   | `Label (Some (l1, l2))
     when not (!same_constr env l1.lbl_res l2.lbl_res) ->
       Some "label"
-  | `Value (Some _) -> Some "value"
+  | `Value (Some (Val_unbound _, _)) -> None
+  | `Value (Some (_, _)) -> Some "value"
   | `Type (Some _) -> Some "type"
-  | `Module (Some _) | `Component (Some _) -> Some "module"
+  | `Module (Some (Mod_unbound _, _)) -> None
+  | `Module (Some _) | `Component (Some _) ->
+      Some "module"
   | `Module_type (Some _) -> Some "module type"
   | `Class (Some _) -> Some "class"
   | `Class_type (Some _) -> Some "class type"
@@ -1058,9 +1070,17 @@ let imports () = Persistent_env.imports !persistent_env
 let import_crcs ~source crcs =
   Persistent_env.import_crcs !persistent_env ~source crcs
 
+<<<<<<< HEAD
 let read_pers_mod modname filename ~add_binding =
   Persistent_env.read !persistent_env read_sign_of_cmi modname filename
     ~add_binding
+||||||| 121bedcfd2
+let read_pers_mod modname filename =
+  Persistent_env.read !persistent_env read_sign_of_cmi modname filename
+=======
+let read_pers_mod cmi =
+  Persistent_env.read !persistent_env read_sign_of_cmi cmi
+>>>>>>> 5.2.0
 
 let find_pers_mod name =
   Persistent_env.find !persistent_env read_sign_of_cmi name
@@ -1158,7 +1178,13 @@ let find_ident_module id env =
   match find_same_module id env.modules with
   | Mod_local data -> data
   | Mod_unbound _ -> raise Not_found
+<<<<<<< HEAD
   | Mod_persistent -> find_pers_mod ~allow_hidden:true (id |> modname_of_ident)
+||||||| 121bedcfd2
+  | Mod_persistent -> find_pers_mod (Ident.name id)
+=======
+  | Mod_persistent -> find_pers_mod ~allow_hidden:true (Ident.name id)
+>>>>>>> 5.2.0
 
 let rec find_module_components path env =
   match path with
@@ -1260,7 +1286,13 @@ let rec find_type_data path env =
   | decl ->
     {
       tda_declaration = decl;
+<<<<<<< HEAD
       tda_descriptions = Type_abstract Abstract_def;
+||||||| 121bedcfd2
+      tda_descriptions = Type_abstract;
+=======
+      tda_descriptions = Type_abstract (Btype.type_origin decl);
+>>>>>>> 5.2.0
       tda_shape = Shape.leaf decl.type_uid;
     }
   | exception Not_found -> begin
@@ -2108,7 +2140,14 @@ and store_label ~check type_decl type_id lbl_id lbl env =
                      loc (Warnings.Unused_field(name, complaint)))
               (label_usage_complaint priv mut used))
   end);
+<<<<<<< HEAD
   Builtin_attributes.mark_alerts_used lbl.lbl_attributes;
+||||||| 121bedcfd2
+=======
+  Builtin_attributes.mark_alerts_used lbl.lbl_attributes;
+  if lbl.lbl_mut = Mutable then
+    Builtin_attributes.mark_deprecated_mutable_used lbl.lbl_attributes;
+>>>>>>> 5.2.0
   { env with
     labels = TycompTbl.add lbl_id lbl env.labels;
   }
@@ -2160,7 +2199,13 @@ and store_type_infos ~tda_shape id info env =
   let tda =
     {
       tda_declaration = info;
+<<<<<<< HEAD
       tda_descriptions = Type_abstract Abstract_def;
+||||||| 121bedcfd2
+      tda_descriptions = Type_abstract;
+=======
+      tda_descriptions = Type_abstract (Btype.type_origin info);
+>>>>>>> 5.2.0
       tda_shape
     }
   in
@@ -2178,9 +2223,15 @@ and store_extension ~check ~rebind id addr ext shape env =
       cda_address = Some addr;
       cda_shape = shape }
   in
+<<<<<<< HEAD
   Builtin_attributes.mark_alerts_used ext.ext_attributes;
   Builtin_attributes.mark_alerts_used cstr.cstr_attributes;
   Builtin_attributes.mark_warn_on_literal_pattern_used cstr.cstr_attributes;
+||||||| 121bedcfd2
+=======
+  Builtin_attributes.mark_alerts_used ext.ext_attributes;
+  Builtin_attributes.mark_warn_on_literal_pattern_used ext.ext_attributes;
+>>>>>>> 5.2.0
   Builtin_attributes.warning_scope ext.ext_attributes (fun () ->
   if check && not loc.Location.loc_ghost &&
     Warnings.is_active (Warnings.Unused_extension ("", false, Unused))
@@ -2213,8 +2264,17 @@ and store_module ?(update_summary=true) ~check
   let open Subst.Lazy in
   let loc = md.md_loc in
   Option.iter
+<<<<<<< HEAD
     (fun f -> check_usage loc id md.md_uid f !module_declarations) check;
   let alerts = Builtin_attributes.alerts_of_attrs md.md_attributes in
+||||||| 121bedcfd2
+    (fun f -> check_usage loc id md.mdl_uid f !module_declarations) check;
+  let alerts = Builtin_attributes.alerts_of_attrs md.mdl_attributes in
+=======
+    (fun f -> check_usage loc id md.mdl_uid f !module_declarations) check;
+  Builtin_attributes.mark_alerts_used md.mdl_attributes;
+  let alerts = Builtin_attributes.alerts_of_attrs md.mdl_attributes in
+>>>>>>> 5.2.0
   let comps =
     components_of_module ~alerts ~uid:md.md_uid
       env Subst.identity (Pident id) addr md.md_type shape
@@ -2233,7 +2293,12 @@ and store_module ?(update_summary=true) ~check
     summary }
 
 and store_modtype ?(update_summary=true) id info shape env =
+<<<<<<< HEAD
   Builtin_attributes.mark_alerts_used info.Subst.Lazy.mtd_attributes;
+||||||| 121bedcfd2
+=======
+  Builtin_attributes.mark_alerts_used info.Subst.Lazy.mtdl_attributes;
+>>>>>>> 5.2.0
   let mtda = { mtda_declaration = info; mtda_shape = shape } in
   let summary =
     if not update_summary then env.summary
@@ -2372,9 +2437,31 @@ let add_module_lazy ~update_summary id presence mty env =
 let add_module ?arg ?shape id presence mty env =
   add_module_declaration ~check:false ?arg ?shape id presence (md mty) env
 
+<<<<<<< HEAD
 let add_local_type path info env =
   (* CR layouts: there should be a safety check for extension universe when the type's
      kind allows mode crossing *)
+||||||| 121bedcfd2
+let add_module_lazy ~update_summary id presence mty env =
+  let md = Subst.Lazy.{mdl_type = mty;
+                       mdl_attributes = [];
+                       mdl_loc = Location.none;
+                       mdl_uid = Uid.internal_not_actually_unique}
+  in
+  add_module_declaration_lazy ~update_summary id presence md env
+
+let add_local_type path info env =
+=======
+let add_module_lazy ~update_summary id presence mty env =
+  let md = Subst.Lazy.{mdl_type = mty;
+                       mdl_attributes = [];
+                       mdl_loc = Location.none;
+                       mdl_uid = Uid.internal_not_actually_unique}
+  in
+  add_module_declaration_lazy ~update_summary id presence md env
+
+let add_local_constraint path info env =
+>>>>>>> 5.2.0
   { env with
     local_constraints = Path.Map.add path info env.local_constraints }
 
@@ -2540,9 +2627,17 @@ let enter_signature ?mod_shape ~scope sg env =
 let enter_signature_and_shape ~scope ~parent_shape mod_shape sg env =
   enter_signature_and_shape ~scope ~parent_shape (Some mod_shape) sg env
 
+<<<<<<< HEAD
 let add_value_lazy = add_value_lazy ?shape:None
 let add_value ?check ~mode id vd =
   add_value_lazy ?check ~mode id (Subst.Lazy.of_value_description vd)
+||||||| 121bedcfd2
+let add_value = add_value ?shape:None
+let add_type = add_type ?shape:None
+let add_extension = add_extension ?shape:None
+=======
+let add_value = add_value ?shape:None
+>>>>>>> 5.2.0
 let add_class = add_class ?shape:None
 let add_cltype = add_cltype ?shape:None
 let add_modtype_lazy = add_modtype_lazy ?shape:None
@@ -2717,29 +2812,36 @@ let open_signature
   else open_signature None root env
 
 (* Read a signature from a file *)
+<<<<<<< HEAD
 let read_signature modname filename ~add_binding =
   let mty = read_pers_mod modname filename ~add_binding in
   Subst.Lazy.force_signature mty
 
 let register_parameter_import import =
   Persistent_env.register_parameter_import !persistent_env import
+||||||| 121bedcfd2
+let read_signature modname filename =
+  let mda = read_pers_mod modname filename in
+  let md = Subst.Lazy.force_module_decl mda.mda_declaration in
+  match md.md_type with
+  | Mty_signature sg -> sg
+  | Mty_ident _ | Mty_functor _ | Mty_alias _ -> assert false
+=======
+let read_signature u =
+  let mda = read_pers_mod u in
+  let md = Subst.Lazy.force_module_decl mda.mda_declaration in
+  match md.md_type with
+  | Mty_signature sg -> sg
+  | Mty_ident _ | Mty_functor _ | Mty_alias _ -> assert false
+>>>>>>> 5.2.0
 
-let is_identchar_latin1 = function
-  | 'A'..'Z' | 'a'..'z' | '_' | '\192'..'\214' | '\216'..'\246'
-  | '\248'..'\255' | '\'' | '0'..'9' -> true
-  | _ -> false
 
 let unit_name_of_filename fn =
   match Filename.extension fn with
-  | ".cmi" -> begin
-      let unit =
-        String.capitalize_ascii (Filename.remove_extension fn)
-      in
-      if String.for_all is_identchar_latin1 unit then
-        Some unit
-      else
-        None
-    end
+  | ".cmi" ->
+      let modname = Unit_info.modname_from_source fn in
+      if Unit_info.is_unit_name modname then Some modname
+      else None
   | _ -> None
 
 let persistent_structures_of_dir dir =
@@ -2749,8 +2851,14 @@ let persistent_structures_of_dir dir =
   |> String.Set.of_seq
 
 (* Save a signature to a file *)
+<<<<<<< HEAD
 let save_signature_with_transform cmi_transform ~alerts sg modname kind
       filename =
+||||||| 121bedcfd2
+let save_signature_with_transform cmi_transform ~alerts sg modname filename =
+=======
+let save_signature_with_transform cmi_transform ~alerts sg cmi_info =
+>>>>>>> 5.2.0
   Btype.cleanup_abbrev ();
   Subst.reset_additional_action_type_id ();
   let sg = Subst.Lazy.of_signature sg
@@ -2758,20 +2866,63 @@ let save_signature_with_transform cmi_transform ~alerts sg modname kind
         (Subst.with_additional_action Prepare_for_saving Subst.identity)
   in
   let cmi =
+<<<<<<< HEAD
     Persistent_env.make_cmi !persistent_env modname kind sg alerts
+||||||| 121bedcfd2
+    Persistent_env.make_cmi !persistent_env modname sg alerts
+=======
+    Persistent_env.make_cmi !persistent_env
+      (Unit_info.Artifact.modname cmi_info) sg alerts
+>>>>>>> 5.2.0
     |> cmi_transform in
+<<<<<<< HEAD
   let pers_sig =
     Persistent_env.Persistent_signature.{ filename; cmi; visibility = Visible }
   in
   Persistent_env.save_cmi !persistent_env pers_sig;
+||||||| 121bedcfd2
+  let pm = save_sign_of_cmi
+      { Persistent_env.Persistent_signature.cmi; filename } in
+  Persistent_env.save_cmi !persistent_env
+    { Persistent_env.Persistent_signature.filename; cmi } pm;
+=======
+  let filename = Unit_info.Artifact.filename cmi_info in
+  let pers_sig =
+    Persistent_env.Persistent_signature.{ cmi; filename; visibility = Visible }
+  in
+  let pm = save_sign_of_cmi pers_sig in
+  Persistent_env.save_cmi !persistent_env pers_sig pm;
+>>>>>>> 5.2.0
   cmi
 
+<<<<<<< HEAD
 let save_signature ~alerts sg modname cu filename =
   save_signature_with_transform (fun cmi -> cmi) ~alerts sg modname cu filename
+||||||| 121bedcfd2
+let save_signature ~alerts sg modname filename =
+  save_signature_with_transform (fun cmi -> cmi)
+    ~alerts sg modname filename
+=======
+let save_signature ~alerts sg cmi =
+  save_signature_with_transform (fun cmi -> cmi) ~alerts sg cmi
+>>>>>>> 5.2.0
 
+<<<<<<< HEAD
 let save_signature_with_imports ~alerts sg modname cu filename imports =
+||||||| 121bedcfd2
+let save_signature_with_imports ~alerts sg modname filename imports =
+=======
+let save_signature_with_imports ~alerts sg cmi imports =
+>>>>>>> 5.2.0
   let with_imports cmi = { cmi with cmi_crcs = imports } in
+<<<<<<< HEAD
   save_signature_with_transform with_imports ~alerts sg modname cu filename
+||||||| 121bedcfd2
+  save_signature_with_transform with_imports
+    ~alerts sg modname filename
+=======
+  save_signature_with_transform with_imports ~alerts sg cmi
+>>>>>>> 5.2.0
 
 (* Make the initial environment, without language extensions *)
 let initial =
@@ -3007,10 +3158,24 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
       let name = s |> Compilation_unit.Name.of_string in
       match load with
       | Don't_load ->
+<<<<<<< HEAD
           check_pers_mod ~allow_hidden:false ~loc name;
           path, locks, (() : a)
+||||||| 121bedcfd2
+          check_pers_mod ~loc s;
+          path, (() : a)
+=======
+          check_pers_mod ~allow_hidden:false ~loc s;
+          path, (() : a)
+>>>>>>> 5.2.0
       | Load -> begin
+<<<<<<< HEAD
           match find_pers_mod ~allow_hidden:false name with
+||||||| 121bedcfd2
+          match find_pers_mod s with
+=======
+          match find_pers_mod ~allow_hidden:false s with
+>>>>>>> 5.2.0
           | mda ->
               use_module ~use ~loc path mda;
               path, locks, (mda : a)
@@ -3690,10 +3855,16 @@ let bound_module name env =
   | Error _ ->
       if Current_unit_name.is name then false
       else begin
+<<<<<<< HEAD
         match
           find_pers_mod ~allow_hidden:false
             (name |> Compilation_unit.Name.of_string)
         with
+||||||| 121bedcfd2
+        match find_pers_mod name with
+=======
+        match find_pers_mod ~allow_hidden:false name with
+>>>>>>> 5.2.0
         | _ -> true
         | exception Not_found -> false
       end
@@ -3973,6 +4144,7 @@ let extract_instance_variables env =
        | Val_ivar _ -> name :: acc
        | _ -> acc) None env []
 
+<<<<<<< HEAD
 let string_of_escaping_context : escaping_context -> string =
   function
   | Letop -> "a letop"
@@ -4038,9 +4210,15 @@ let print_lock_item ppf (item, lid) =
   | Class -> fprintf ppf "Classes are"
   | Value -> fprintf ppf "The value %a is" !print_longident lid
 
+||||||| 121bedcfd2
+=======
+module Style = Misc.Style
+
+>>>>>>> 5.2.0
 let report_lookup_error _loc env ppf = function
   | Unbound_value(lid, hint) -> begin
-      fprintf ppf "Unbound value %a" !print_longident lid;
+      fprintf ppf "Unbound value %a"
+        (Style.as_inline_code !print_longident) lid;
       spellcheck ppf extract_values env lid;
       match hint with
       | No_hint -> ()
@@ -4049,90 +4227,109 @@ let report_lookup_error _loc env ppf = function
             Location.get_pos_info def_loc.Location.loc_start
           in
           fprintf ppf
-            "@.@[@{<hint>Hint@}: If this is a recursive definition,@ %s %i@]"
-            "you should add the 'rec' keyword on line"
+            "@.@[@{<hint>Hint@}: If this is a recursive definition,@ \
+             you should add the %a keyword on line %i@]"
+            Style.inline_code "rec"
             line
     end
   | Unbound_type lid ->
-      fprintf ppf "Unbound type constructor %a" !print_longident lid;
+      fprintf ppf "Unbound type constructor %a"
+        (Style.as_inline_code !print_longident) lid;
       spellcheck ppf extract_types env lid;
   | Unbound_module lid -> begin
-      fprintf ppf "Unbound module %a" !print_longident lid;
+      fprintf ppf "Unbound module %a"
+        (Style.as_inline_code !print_longident) lid;
        match find_modtype_by_name lid env with
       | exception Not_found -> spellcheck ppf extract_modules env lid;
       | _ ->
          fprintf ppf
            "@.@[@{<hint>Hint@}: There is a module type named %a, %s@]"
-           !print_longident lid
+           (Style.as_inline_code !print_longident) lid
            "but module types are not modules"
     end
   | Unbound_constructor lid ->
-      fprintf ppf "Unbound constructor %a" !print_longident lid;
+      fprintf ppf "Unbound constructor %a"
+        (Style.as_inline_code !print_longident) lid;
       spellcheck ppf extract_constructors env lid;
   | Unbound_label lid ->
-      fprintf ppf "Unbound record field %a" !print_longident lid;
+      fprintf ppf "Unbound record field %a"
+        (Style.as_inline_code !print_longident) lid;
       spellcheck ppf extract_labels env lid;
   | Unbound_class lid -> begin
-      fprintf ppf "Unbound class %a" !print_longident lid;
+      fprintf ppf "Unbound class %a"
+        (Style.as_inline_code !print_longident) lid;
       match find_cltype_by_name lid env with
       | exception Not_found -> spellcheck ppf extract_classes env lid;
       | _ ->
          fprintf ppf
            "@.@[@{<hint>Hint@}: There is a class type named %a, %s@]"
-           !print_longident lid
+           (Style.as_inline_code !print_longident) lid
            "but classes are not class types"
     end
   | Unbound_modtype lid -> begin
-      fprintf ppf "Unbound module type %a" !print_longident lid;
+      fprintf ppf "Unbound module type %a"
+        (Style.as_inline_code !print_longident) lid;
       match find_module_by_name lid env with
       | exception Not_found -> spellcheck ppf extract_modtypes env lid;
       | _ ->
          fprintf ppf
            "@.@[@{<hint>Hint@}: There is a module named %a, %s@]"
-           !print_longident lid
+           (Style.as_inline_code !print_longident) lid
            "but modules are not module types"
     end
   | Unbound_cltype lid ->
+<<<<<<< HEAD
       fprintf ppf "Unbound class type %a" !print_longident lid;
       spellcheck ppf extract_cltypes env lid
+||||||| 121bedcfd2
+      fprintf ppf "Unbound class type %a" !print_longident lid;
+      spellcheck ppf extract_cltypes env lid;
+=======
+      fprintf ppf "Unbound class type %a"
+        (Style.as_inline_code !print_longident) lid;
+      spellcheck ppf extract_cltypes env lid;
+>>>>>>> 5.2.0
   | Unbound_instance_variable s ->
-      fprintf ppf "Unbound instance variable %s" s;
+      fprintf ppf "Unbound instance variable %a" Style.inline_code s;
       spellcheck_name ppf extract_instance_variables env s;
   | Not_an_instance_variable s ->
-      fprintf ppf "The value %s is not an instance variable" s;
+      fprintf ppf "The value %a is not an instance variable"
+        Style.inline_code s;
       spellcheck_name ppf extract_instance_variables env s;
   | Masked_instance_variable lid ->
       fprintf ppf
         "The instance variable %a@ \
          cannot be accessed from the definition of another instance variable"
-        !print_longident lid
+        (Style.as_inline_code !print_longident) lid
   | Masked_self_variable lid ->
       fprintf ppf
         "The self variable %a@ \
          cannot be accessed from the definition of an instance variable"
-        !print_longident lid
+        (Style.as_inline_code !print_longident) lid
   | Masked_ancestor_variable lid ->
       fprintf ppf
         "The ancestor variable %a@ \
          cannot be accessed from the definition of an instance variable"
-        !print_longident lid
+       (Style.as_inline_code !print_longident) lid
   | Illegal_reference_to_recursive_module ->
      fprintf ppf "Illegal recursive module reference"
   | Structure_used_as_functor lid ->
       fprintf ppf "@[The module %a is a structure, it cannot be applied@]"
-        !print_longident lid
+        (Style.as_inline_code !print_longident) lid
   | Abstract_used_as_functor lid ->
       fprintf ppf "@[The module %a is abstract, it cannot be applied@]"
-        !print_longident lid
+        (Style.as_inline_code !print_longident) lid
   | Functor_used_as_structure lid ->
       fprintf ppf "@[The module %a is a functor, \
                    it cannot have any components@]" !print_longident lid
   | Abstract_used_as_structure lid ->
       fprintf ppf "@[The module %a is abstract, \
-                   it cannot have any components@]" !print_longident lid
+                   it cannot have any components@]"
+        (Style.as_inline_code !print_longident) lid
   | Generative_used_as_applicative lid ->
       fprintf ppf "@[The functor %a is generative,@ it@ cannot@ be@ \
-                   applied@ in@ type@ expressions@]" !print_longident lid
+                   applied@ in@ type@ expressions@]"
+        (Style.as_inline_code !print_longident) lid
   | Cannot_scrape_alias(lid, p) ->
       let cause =
         if Current_unit_name.is_path p then "is the current compilation unit"
@@ -4140,6 +4337,7 @@ let report_lookup_error _loc env ppf = function
       in
       fprintf ppf
         "The module %a is an alias for module %a, which %s"
+<<<<<<< HEAD
         !print_longident lid !print_path p cause
   | Local_value_escaping (item, lid, context) ->
       fprintf ppf
@@ -4181,21 +4379,30 @@ let report_lookup_error _loc env ppf = function
         !print_longident lid
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> !print_type_expr ppf typ)) err
+||||||| 121bedcfd2
+        !print_longident lid !print_path p cause
+=======
+        (Style.as_inline_code !print_longident) lid
+        (Style.as_inline_code !print_path) p cause
+>>>>>>> 5.2.0
 
 let report_error ppf = function
   | Missing_module(_, path1, path2) ->
       fprintf ppf "@[@[<hov>";
       if Path.same path1 path2 then
-        fprintf ppf "Internal path@ %s@ is dangling." (Path.name path1)
+        fprintf ppf "Internal path@ %a@ is dangling."
+          Style.inline_code (Path.name path1)
       else
-        fprintf ppf "Internal path@ %s@ expands to@ %s@ which is dangling."
-          (Path.name path1) (Path.name path2);
-      fprintf ppf "@]@ @[%s@ %s@ %s.@]@]"
-        "The compiled interface for module" (Ident.name (Path.head path2))
+        fprintf ppf "Internal path@ %a@ expands to@ %a@ which is dangling."
+          Style.inline_code (Path.name path1)
+          Style.inline_code (Path.name path2);
+      fprintf ppf "@]@ @[%s@ %a@ %s.@]@]"
+        "The compiled interface for module"
+        Style.inline_code (Ident.name (Path.head path2))
         "was not found"
   | Illegal_value_name(_loc, name) ->
-      fprintf ppf "'%s' is not a valid value identifier."
-        name
+      fprintf ppf "%a is not a valid value identifier."
+       Style.inline_code name
   | Lookup_error(loc, t, err) -> report_lookup_error loc t ppf err
 
 let () =

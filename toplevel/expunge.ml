@@ -19,34 +19,38 @@
 open Misc
 module String = Misc.Stdlib.String
 
-let is_exn =
-  let h = Hashtbl.create 64 in
-  Array.iter (fun n -> Hashtbl.add h n ()) Runtimedef.builtin_exceptions;
-  Hashtbl.mem h
-
 let to_keep = ref String.Set.empty
 
 let negate = Sys.argv.(3) = "-v"
 
-let keep =
-  if negate then fun name -> is_exn name || not (String.Set.mem name !to_keep)
-  else fun name -> is_exn name || (String.Set.mem name !to_keep)
+let keep = function
+  | Symtable.Global.Glob_predef _ -> true
+  | Symtable.Global.Glob_compunit (Cmo_format.Compunit name) ->
+    if negate then not (String.Set.mem name !to_keep)
+    else (String.Set.mem name !to_keep)
 
 let expunge_map tbl =
-  Symtable.filter_global_map (fun id -> keep (Ident.name id)) tbl
+  Symtable.filter_global_map keep tbl
 
 let expunge_crcs tbl =
+<<<<<<< HEAD
   Array.to_list tbl
   |> List.filter
     (fun import ->
       keep (Import_info.name import |> Compilation_unit.Name.to_string))
   |> Array.of_list
+||||||| 121bedcfd2
+  List.filter (fun (unit, _crc) -> keep unit) tbl
+=======
+  List.filter (fun (compunit, _crc) ->
+    keep (Symtable.Global.Glob_compunit (Cmo_format.Compunit compunit))) tbl
+>>>>>>> 5.2.0
 
 let main () =
   let input_name = Sys.argv.(1) in
   let output_name = Sys.argv.(2) in
   for i = (if negate then 4 else 3) to Array.length Sys.argv - 1 do
-    to_keep := String.Set.add (String.capitalize_ascii Sys.argv.(i)) !to_keep
+    to_keep := String.Set.add (Unit_info.modulize Sys.argv.(i)) !to_keep
   done;
   let ic = open_in_bin input_name in
   let toc = Bytesections.read_toc ic in

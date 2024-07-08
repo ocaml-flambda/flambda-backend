@@ -1,7 +1,14 @@
+<<<<<<< HEAD
 (* TEST
  reason = "CR ocaml 5 domains: re-enable this test";
  skip;
 *)
+||||||| 121bedcfd2
+(* TEST
+*)
+=======
+(* TEST *)
+>>>>>>> 5.2.0
 
 let check_dls () =
   let k1 = Domain.DLS.new_key (fun () -> 10) in

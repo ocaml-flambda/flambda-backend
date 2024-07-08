@@ -18,8 +18,12 @@
 
 #define CAML_INTERNALS
 
+#include "caml/config.h"
 #include <string.h>
+#ifdef HAS_UNISTD
 #include <unistd.h>
+#endif
+#include <assert.h>
 #include "caml/alloc.h"
 #include "caml/callback.h"
 #include "caml/codefrag.h"
@@ -46,6 +50,8 @@
 #else
 #define fiber_debug_log(...)
 #endif
+
+static_assert(sizeof(struct stack_info) == Stack_ctx_words * sizeof(value), "");
 
 static _Atomic int64_t fiber_id = 0;
 
@@ -236,8 +242,8 @@ alloc_size_class_stack_noexc(mlsize_t wosize, int cache_bucket, value hval,
   struct stack_handler* hand;
   struct stack_info **cache = Caml_state->stack_cache;
 
-  CAML_STATIC_ASSERT(sizeof(struct stack_info) % sizeof(value) == 0);
-  CAML_STATIC_ASSERT(sizeof(struct stack_handler) % sizeof(value) == 0);
+  static_assert(sizeof(struct stack_info) % sizeof(value) == 0, "");
+  static_assert(sizeof(struct stack_handler) % sizeof(value) == 0, "");
 
   CAMLassert(cache != NULL);
 
@@ -259,8 +265,8 @@ alloc_size_class_stack_noexc(mlsize_t wosize, int cache_bucket, value hval,
 
     /* Ensure 16-byte alignment because some architectures require it */
     hand = (struct stack_handler*)
-     (((uintnat)stack + sizeof(struct stack_info) + sizeof(value) * wosize + 8)
-      & ((uintnat)-1 << 4));
+     (((uintnat)stack + sizeof(struct stack_info) + sizeof(value) * wosize + 15)
+      & ~((uintnat)15));
     stack->handler = hand;
   }
 
@@ -274,8 +280,9 @@ alloc_size_class_stack_noexc(mlsize_t wosize, int cache_bucket, value hval,
 #ifdef DEBUG
   stack->magic = 42;
 #endif
-  CAMLassert(Stack_high(stack) - Stack_base(stack) == wosize ||
-             Stack_high(stack) - Stack_base(stack) == wosize + 1);
+  /* Due to stack alignment performed above, the actual stack size may be
+   * larger than requested. */
+  CAMLassert(Stack_high(stack) - Stack_base(stack) >= wosize);
   return stack;
 
 }
@@ -311,10 +318,9 @@ void caml_get_stack_sp_pc (struct stack_info* stack,
                            char** sp /* out */, uintnat* pc /* out */)
 {
   char* p = (char*)stack->sp;
-
-  Pop_frame_pointer(p);
-  *pc = *(uintnat*)p; /* ret addr */
-  *sp = p + sizeof(value);
+  p = First_frame(p);
+  *pc = Saved_return_address(p); /* ret addr */
+  *sp = p;                       /* pointer to first frame */
 }
 
 
@@ -497,10 +503,8 @@ Caml_inline void scan_stack_frames(
 
 next_chunk:
   if (sp == (char*)Stack_high(stack)) return;
-
-  Pop_frame_pointer(sp);
-  retaddr = *(uintnat*)sp;
-  sp += sizeof(value);
+  sp = First_frame(sp);
+  retaddr = Saved_return_address(sp);
 
   while(1) {
     d = caml_find_frame_descr(fds, retaddr);
@@ -540,9 +544,8 @@ next_chunk:
     } else {
       /* This marks the top of an ML stack chunk. Move sp to the previous
        * stack chunk.  */
-      sp += 3 * sizeof(value); /* trap frame & DWARF pointer */
-      regs = *(value**)sp;     /* update gc_regs */
-      sp += 1 * sizeof(value); /* gc_regs */
+      regs = Saved_gc_regs(sp); /* update gc_regs */
+      sp += Stack_header_size;  /* skip trap frame, gc_regs, DWARF pointer */
       goto next_chunk;
     }
   }
@@ -758,7 +761,7 @@ static void rewrite_frame_pointers(struct stack_info *old_stack,
     struct frame_walker *base_addr;
     uintnat return_addr;
   } *frame, *next;
-  ssize_t delta;
+  ptrdiff_t delta;
   void *top, **p;
 
   delta = (char*)Stack_high(new_stack) - (char*)Stack_high(old_stack);

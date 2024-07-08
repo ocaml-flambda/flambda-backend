@@ -608,8 +608,13 @@ module Complex        = Complex
 module Condition      = Condition
 module Digest         = Digest
 module Domain         = Domain
+<<<<<<< HEAD
 (* CR ocaml 5 effects:
    BACKPORT
+||||||| 121bedcfd2
+=======
+module Dynarray       = Dynarray
+>>>>>>> 5.2.0
 module Effect         = Effect
 *)
 module Either         = Either

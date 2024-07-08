@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
  reason = "CR ocaml 5 domains: re-enable this test";
  skip;
  include unix;
@@ -8,6 +9,20 @@
  }{
    bytecode;
  }
+||||||| 121bedcfd2
+* hasunix
+include unix
+** native
+** bytecode
+=======
+ include unix;
+ hasunix;
+ {
+   native;
+ }{
+   bytecode;
+ }
+>>>>>>> 5.2.0
 *)
 
 type 'a tree = Empty | Node of 'a tree * 'a tree

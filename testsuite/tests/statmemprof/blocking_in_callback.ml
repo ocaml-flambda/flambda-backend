@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
    include systhreads;
    hassysthreads;
    {
@@ -6,6 +7,27 @@
    }{
      native;
    }
+||||||| 121bedcfd2
+* hassysthreads
+include systhreads
+* skip
+reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634"
+** bytecode
+** native
+=======
+ {
+   include systhreads;
+   hassysthreads;
+ }{
+   reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634";
+   skip;
+   {
+     bytecode;
+   }{
+     native;
+   }
+ }
+>>>>>>> 5.2.0
 *)
 
 let cnt = ref 0

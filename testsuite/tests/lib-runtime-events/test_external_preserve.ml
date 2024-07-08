@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
  {
    runtime4;
    skip;
@@ -15,6 +16,25 @@
    }
  }
 *)
+||||||| 121bedcfd2
+  include runtime_events
+  include unix
+  set OCAML_RUNTIME_EVENTS_PRESERVE = "1"
+  * libunix
+  ** bytecode
+  ** native *)
+=======
+ include runtime_events;
+ include unix;
+ set OCAML_RUNTIME_EVENTS_PRESERVE = "1";
+ libunix;
+ {
+   bytecode;
+ }{
+   native;
+ }
+*)
+>>>>>>> 5.2.0
 
   (* this tests the preservation of ring buffers after termination *)
 

@@ -27,8 +27,16 @@ type raw_data = nativeint  (* @since 4.12 *)
 
 external repr : 'a -> t = "%identity"
 external obj : t -> 'a = "%identity"
+<<<<<<< HEAD
 external magic : 'a -> 'b = "%obj_magic"
 val is_block : t -> bool
+||||||| 121bedcfd2
+external magic : 'a -> 'b = "%identity"
+val [@inline always] is_block : t -> bool
+=======
+external magic : 'a -> 'b = "%identity"
+val is_block : t -> bool
+>>>>>>> 5.2.0
 external is_int : t -> bool = "%obj_is_int"
 external tag : t -> int = "caml_obj_tag" [@@noalloc]
 val size : t -> int
@@ -108,14 +116,6 @@ val custom_tag : int
 val int_tag : int
 val out_of_heap_tag : int
 val unaligned_tag : int   (* should never happen @since 3.11 *)
-
-module Closure : sig
-  type info = {
-    arity: int;
-    start_env: int;
-  }
-  val info : t -> info
-end
 
 module Extension_constructor :
 sig

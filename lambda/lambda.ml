@@ -425,7 +425,7 @@ and boxed_vector =
 
 and bigarray_kind =
     Pbigarray_unknown
-  | Pbigarray_float32 | Pbigarray_float64
+  | Pbigarray_float16 | Pbigarray_float32 | Pbigarray_float64
   | Pbigarray_sint8 | Pbigarray_uint8
   | Pbigarray_sint16 | Pbigarray_uint16
   | Pbigarray_int32 | Pbigarray_int64
@@ -680,8 +680,13 @@ type function_attribute = {
   is_opaque: bool;
   stub: bool;
   tmc_candidate: bool;
+<<<<<<< HEAD
   may_fuse_arity: bool;
   unbox_return: bool;
+||||||| 121bedcfd2
+=======
+  may_fuse_arity: bool;
+>>>>>>> 5.2.0
 }
 
 type scoped_location = Debuginfo.Scoped_location.t
@@ -707,9 +712,19 @@ type lambda =
   | Lconst of structured_constant
   | Lapply of lambda_apply
   | Lfunction of lfunction
+<<<<<<< HEAD
   | Llet of let_kind * layout * Ident.t * lambda * lambda
   | Lmutlet of layout * Ident.t * lambda * lambda
   | Lletrec of rec_binding list * lambda
+||||||| 121bedcfd2
+  | Llet of let_kind * value_kind * Ident.t * lambda * lambda
+  | Lmutlet of value_kind * Ident.t * lambda * lambda
+  | Lletrec of (Ident.t * lambda) list * lambda
+=======
+  | Llet of let_kind * value_kind * Ident.t * lambda * lambda
+  | Lmutlet of value_kind * Ident.t * lambda * lambda
+  | Lletrec of rec_binding list * lambda
+>>>>>>> 5.2.0
   | Lprim of primitive * lambda list * scoped_location
   | Lswitch of lambda * lambda_switch * scoped_location * layout
   | Lstringswitch of
@@ -731,6 +746,11 @@ type lambda =
   | Lifused of Ident.t * lambda
   | Lregion of lambda * layout
   | Lexclave of lambda
+
+and rec_binding = {
+  id : Ident.t;
+  def : lfunction;
+}
 
 and rec_binding = {
   id : Ident.t;
@@ -811,8 +831,15 @@ let max_arity () =
   (* 126 = 127 (the maximal number of parameters supported in C--)
            - 1 (the hidden parameter containing the environment) *)
 
+<<<<<<< HEAD
 let lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
+||||||| 121bedcfd2
+let lfunction ~kind ~params ~return ~body ~attr ~loc =
+=======
+let lfunction' ~kind ~params ~return ~body ~attr ~loc =
+>>>>>>> 5.2.0
   assert (List.length params <= max_arity ());
+<<<<<<< HEAD
   (* A curried function type with n parameters has n arrows. Of these,
      the first [n-nlocal] have return mode Heap, while the remainder
      have return mode Local, except possibly the final one.
@@ -839,6 +866,14 @@ let lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
 let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
   Lfunction
     (lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region)
+||||||| 121bedcfd2
+  Lfunction { kind; params; return; body; attr; loc }
+=======
+  { kind; params; return; body; attr; loc }
+
+let lfunction ~kind ~params ~return ~body ~attr ~loc =
+  Lfunction (lfunction' ~kind ~params ~return ~body ~attr ~loc)
+>>>>>>> 5.2.0
 
 let lambda_unit = Lconst const_unit
 
@@ -909,6 +944,7 @@ let default_function_attribute = {
   is_opaque = false;
   stub = false;
   tmc_candidate = false;
+<<<<<<< HEAD
   (* Plain functions ([fun] and [function]) set [may_fuse_arity] to [false] so
      that runtime arity matches syntactic arity in more situations.
      Many things compile to functions without having a notion of syntactic arity
@@ -918,6 +954,18 @@ let default_function_attribute = {
   *)
   may_fuse_arity = true;
   unbox_return = false;
+||||||| 121bedcfd2
+=======
+  (* Plain functions ([fun] and [function]) set [may_fuse_arity] to [false] so
+     that runtime arity matches syntactic arity in more situations.
+
+     Many things compile to functions without having a notion of syntactic arity
+     that survives typechecking, e.g. functors. Multi-arg functors are compiled
+     as nested unary functions, and rely on the arity fusion in simplif to make
+     them multi-argument. So, we keep arity fusion turned on by default for now.
+  *)
+  may_fuse_arity = true;
+>>>>>>> 5.2.0
 }
 
 let default_stub_attribute =
@@ -1310,6 +1358,7 @@ let build_substs update_env ?(freshen_bound_variables = false) s =
         ((id', rhs) :: ids' , l)
       ) ids ([], l)
   in
+<<<<<<< HEAD
   let bind_params params l =
     List.fold_right (fun p (params', l) ->
         let name', l = bind p.name l in
@@ -1322,6 +1371,15 @@ let build_substs update_env ?(freshen_bound_variables = false) s =
         ({ rb with id = id' } :: ids' , l)
       ) ids ([], l)
   in
+||||||| 121bedcfd2
+=======
+  let bind_rec ids l =
+    List.fold_right (fun rb (ids', l) ->
+        let id', l = bind rb.id l in
+        ({ rb with id = id' } :: ids' , l)
+      ) ids ([], l)
+  in
+>>>>>>> 5.2.0
   let rec subst s l lam =
     match lam with
     | Lvar id as lam ->
@@ -1439,10 +1497,19 @@ let build_substs update_env ?(freshen_bound_variables = false) s =
     | Lexclave e ->
         Lexclave (subst s l e)
   and subst_list s l li = List.map (subst s l) li
+<<<<<<< HEAD
   and subst_decl s l decl = { decl with def = subst_lfun s l decl.def }
   and subst_lfun s l lf =
     let params, l' = bind_params lf.params l in
     { lf with params; body = subst s l' lf.body }
+||||||| 121bedcfd2
+  and subst_decl s l (id, exp) = (id, subst s l exp)
+=======
+  and subst_decl s l decl = { decl with def = subst_lfun s l decl.def }
+  and subst_lfun s l lf =
+    let params, l' = bind_many lf.params l in
+    { lf with params; body = subst s l' lf.body }
+>>>>>>> 5.2.0
   and subst_case s l (key, case) = (key, subst s l case)
   and subst_strcase s l (key, case) = (key, subst s l case)
   and subst_opt s l = function
@@ -1464,11 +1531,30 @@ let rename idmap lam =
   let s = Ident.Map.map (fun new_id -> Lvar new_id) idmap in
   subst update_env s lam
 
+<<<<<<< HEAD
 let duplicate_function =
   (build_substs
      (fun _ _ env -> env)
      ~freshen_bound_variables:true
      Ident.Map.empty).subst_lfunction
+||||||| 121bedcfd2
+let duplicate lam =
+  subst
+    (fun _ _ env -> env)
+    ~freshen_bound_variables:true
+    Ident.Map.empty
+    lam
+=======
+let duplicate_function =
+  (build_substs
+     (fun _ _ env -> env)
+     ~freshen_bound_variables:true
+     Ident.Map.empty).subst_lfunction
+
+let map_lfunction f { kind; params; return; body; attr; loc } =
+  let body = f body in
+  { kind; params; return; body; attr; loc }
+>>>>>>> 5.2.0
 
 let map_lfunction f { kind; params; return; body; attr; loc;
                       mode; ret_mode; region } =
@@ -1493,13 +1579,30 @@ let shallow_map ~tail ~non_tail:f = function
         ap_specialised;
         ap_probe;
       }
+<<<<<<< HEAD
   | Lfunction lfun ->
       Lfunction (map_lfunction f lfun)
   | Llet (str, layout, v, e1, e2) ->
       Llet (str, layout, v, f e1, tail e2)
   | Lmutlet (layout, v, e1, e2) ->
       Lmutlet (layout, v, f e1, tail e2)
+||||||| 121bedcfd2
+  | Lfunction { kind; params; return; body; attr; loc; } ->
+      Lfunction { kind; params; return; body = f body; attr; loc; }
+  | Llet (str, k, v, e1, e2) ->
+      Llet (str, k, v, f e1, f e2)
+  | Lmutlet (k, v, e1, e2) ->
+      Lmutlet (k, v, f e1, f e2)
+=======
+  | Lfunction lfun ->
+      Lfunction (map_lfunction f lfun)
+  | Llet (str, k, v, e1, e2) ->
+      Llet (str, k, v, f e1, f e2)
+  | Lmutlet (k, v, e1, e2) ->
+      Lmutlet (k, v, f e1, f e2)
+>>>>>>> 5.2.0
   | Lletrec (idel, e2) ->
+<<<<<<< HEAD
       Lletrec
         (List.map (fun rb ->
              { rb with def = map_lfunction f rb.def })
@@ -1508,6 +1611,15 @@ let shallow_map ~tail ~non_tail:f = function
   | Lprim (Psequand as p, [l1; l2], loc)
   | Lprim (Psequor as p, [l1; l2], loc) ->
       Lprim(p, [f l1; tail l2], loc)
+||||||| 121bedcfd2
+      Lletrec (List.map (fun (v, e) -> (v, f e)) idel, f e2)
+=======
+      Lletrec
+        (List.map (fun rb ->
+             { rb with def = map_lfunction f rb.def })
+            idel,
+         f e2)
+>>>>>>> 5.2.0
   | Lprim (p, el, loc) ->
       Lprim (p, List.map f el, loc)
   | Lswitch (e, sw, loc, layout) ->

@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
  include unix;
  reason = "CR ocaml 5 domains: re-enable this test";
  skip;
@@ -9,6 +10,22 @@
    native;
  }
 *)
+||||||| 121bedcfd2
+   include unix
+   * libunix
+   ** bytecode
+   ** native
+ *)
+=======
+ include unix;
+ hasunix;
+ {
+   bytecode;
+ }{
+   native;
+ }
+*)
+>>>>>>> 5.2.0
 
 let () = Random.init 42
 

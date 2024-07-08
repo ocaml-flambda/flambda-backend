@@ -43,6 +43,10 @@ Caml_inline void cpu_relax(void) {
 #elif defined(__riscv)
   /* Encoding of the pause instruction */
   __asm__ volatile (".4byte 0x100000F");
+#elif defined(__ppc64__)
+  __asm__ volatile ("or 1, 1, 1 # low priority");
+  __asm__ volatile ("or 2, 2, 2 # medium priority");
+  __asm__ volatile ("" ::: "memory");
 #else
   /* Just a compiler barrier */
   __asm__ volatile ("" ::: "memory");
@@ -100,7 +104,7 @@ Caml_inline uintnat atomic_fetch_add_verify_ge0(atomic_uintnat* p, uintnat v) {
 
 typedef pthread_mutex_t caml_plat_mutex;
 #define CAML_PLAT_MUTEX_INITIALIZER PTHREAD_MUTEX_INITIALIZER
-void caml_plat_mutex_init(caml_plat_mutex*);
+CAMLextern void caml_plat_mutex_init(caml_plat_mutex*);
 Caml_inline void caml_plat_lock(caml_plat_mutex*);
 Caml_inline int caml_plat_try_lock(caml_plat_mutex*);
 void caml_plat_assert_locked(caml_plat_mutex*);
@@ -130,9 +134,7 @@ void caml_mem_decommit(void* mem, uintnat size);
 void caml_mem_unmap(void* mem, uintnat size);
 
 
-CAMLnoreturn_start
-void caml_plat_fatal_error(const char * action, int err)
-CAMLnoreturn_end;
+CAMLnoret void caml_plat_fatal_error(const char * action, int err);
 
 Caml_inline void check_err(const char* action, int err)
 {
@@ -140,7 +142,7 @@ Caml_inline void check_err(const char* action, int err)
 }
 
 #ifdef DEBUG
-static __thread int lockdepth;
+static CAMLthread_local int lockdepth;
 #define DEBUG_LOCK(m) (lockdepth++)
 #define DEBUG_UNLOCK(m) (lockdepth--)
 #else

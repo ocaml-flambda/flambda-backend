@@ -1,6 +1,13 @@
+<<<<<<< HEAD
 (* TEST
  runtime5;
 *)
+||||||| 121bedcfd2
+(* TEST
+*)
+=======
+(* TEST *)
+>>>>>>> 5.2.0
 
 (* Test Mutex.try_lock *)
 

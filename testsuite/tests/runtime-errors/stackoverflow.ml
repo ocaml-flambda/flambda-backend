@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 (* TEST_BELOW
 (* Blank lines added here to preserve locations. *)
 
@@ -6,6 +7,22 @@
 
 
 
+||||||| 121bedcfd2
+(* TEST
+flags = "-w -a"
+ocamlrunparam += "l=100000"
+=======
+(* TEST
+ flags = "-w -a";
+ ocamlrunparam += "l=100000";
+ no-tsan; (* TSan does not support call stacks bigger than 64k frames *)
+ {
+   bytecode;
+ }
+ {
+   native;
+ }
+>>>>>>> 5.2.0
 *)
 
 let rec f x =

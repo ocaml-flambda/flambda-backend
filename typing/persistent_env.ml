@@ -42,9 +42,17 @@ let error err = raise (Error err)
 module Persistent_signature = struct
   type t =
     { filename : string;
+<<<<<<< HEAD
       cmi : Cmi_format.cmi_infos_lazy;
       visibility : Load_path.visibility }
+||||||| 121bedcfd2
+      cmi : Cmi_format.cmi_infos }
+=======
+      cmi : Cmi_format.cmi_infos;
+      visibility : Load_path.visibility }
+>>>>>>> 5.2.0
 
+<<<<<<< HEAD
   let load = ref (fun ~allow_hidden ~unit_name ->
     let unit_name = CU.Name.to_string unit_name in
     match Load_path.find_uncap_with_visibility (unit_name ^ ".cmi") with
@@ -54,12 +62,28 @@ module Persistent_signature = struct
       Some { filename; cmi = read_cmi_lazy filename; visibility = Visible}
     | _, Hidden
     | exception Not_found -> None)
+||||||| 121bedcfd2
+  let load = ref (fun ~unit_name ->
+      match Load_path.find_uncap (unit_name ^ ".cmi") with
+      | filename -> Some { filename; cmi = read_cmi filename }
+      | exception Not_found -> None)
+=======
+  let load = ref (fun ~allow_hidden ~unit_name ->
+    match Load_path.find_normalized_with_visibility (unit_name ^ ".cmi") with
+    | filename, visibility when allow_hidden ->
+      Some { filename; cmi = read_cmi filename; visibility}
+    | filename, Visible ->
+      Some { filename; cmi = read_cmi filename; visibility = Visible}
+    | _, Hidden
+    | exception Not_found -> None)
+>>>>>>> 5.2.0
 end
 
 type can_load_cmis =
   | Can_load_cmis
   | Cannot_load_cmis of Lazy_backtrack.log
 
+<<<<<<< HEAD
 (* Data relating directly to a .cmi *)
 type import = {
   imp_is_param : bool;
@@ -70,6 +94,20 @@ type import = {
   imp_visibility: Load_path.visibility;
   imp_crcs : Import_info.Intf.t array;
   imp_flags : Cmi_format.pers_flags list;
+||||||| 121bedcfd2
+type pers_struct = {
+  ps_name: string;
+  ps_crcs: (string * Digest.t option) list;
+  ps_filename: string;
+  ps_flags: pers_flags list;
+=======
+type pers_struct = {
+  ps_name: string;
+  ps_crcs: (string * Digest.t option) list;
+  ps_filename: string;
+  ps_flags: pers_flags list;
+  ps_visibility: Load_path.visibility;
+>>>>>>> 5.2.0
 }
 
 (* If a .cmi file is missing (or invalid), we
@@ -237,6 +275,7 @@ let save_import penv crc modname impl flags filename =
   Consistbl.check crc_units modname impl crc filename;
   add_import penv modname
 
+<<<<<<< HEAD
 (* Add an import to the hash table. Checks that we are allowed to access
    this .cmi. *)
 
@@ -244,14 +283,42 @@ let acknowledge_import penv ~check modname pers_sig =
   let { Persistent_signature.filename; cmi; visibility } = pers_sig in
   let found_name = cmi.cmi_name in
   let kind = cmi.cmi_kind in
+||||||| 121bedcfd2
+let acknowledge_pers_struct penv check modname pers_sig pm =
+  let { Persistent_signature.filename; cmi } = pers_sig in
+  let name = cmi.cmi_name in
+=======
+let acknowledge_pers_struct penv check modname pers_sig pm =
+  let { Persistent_signature.filename; cmi; visibility } = pers_sig in
+  let name = cmi.cmi_name in
+>>>>>>> 5.2.0
   let crcs = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
+<<<<<<< HEAD
   let sign =
     (* Freshen identifiers bound by signature *)
     Subst.Lazy.signature Make_local Subst.identity cmi.cmi_sign
   in
   if not (CU.Name.equal modname found_name) then
     error (Illegal_renaming(modname, found_name, filename));
+||||||| 121bedcfd2
+  let ps = { ps_name = name;
+             ps_crcs = crcs;
+             ps_filename = filename;
+             ps_flags = flags;
+           } in
+  if ps.ps_name <> modname then
+    error (Illegal_renaming(modname, ps.ps_name, filename));
+=======
+  let ps = { ps_name = name;
+             ps_crcs = crcs;
+             ps_filename = filename;
+             ps_flags = flags;
+             ps_visibility = visibility;
+           } in
+  if ps.ps_name <> modname then
+    error (Illegal_renaming(modname, ps.ps_name, filename));
+>>>>>>> 5.2.0
   List.iter
     (function
         | Rectypes ->
@@ -296,12 +363,35 @@ let acknowledge_import penv ~check modname pers_sig =
   Hashtbl.add imports modname (Found import);
   import
 
+<<<<<<< HEAD
 let read_import penv ~check modname filename =
+||||||| 121bedcfd2
+let read_pers_struct penv val_of_pers_sig check modname filename =
+=======
+let read_pers_struct penv val_of_pers_sig check cmi =
+  let modname = Unit_info.Artifact.modname cmi in
+  let filename = Unit_info.Artifact.filename cmi in
+>>>>>>> 5.2.0
   add_import penv modname;
+<<<<<<< HEAD
   let cmi = read_cmi_lazy filename in
   let pers_sig = { Persistent_signature.filename; cmi; visibility = Visible } in
   acknowledge_import penv ~check modname pers_sig
+||||||| 121bedcfd2
+  let cmi = read_cmi filename in
+  let pers_sig = { Persistent_signature.filename; cmi } in
+  let pm = val_of_pers_sig pers_sig in
+  let ps = acknowledge_pers_struct penv check modname pers_sig pm in
+  (ps, pm)
+=======
+  let cmi = read_cmi filename in
+  let pers_sig = { Persistent_signature.filename; cmi; visibility = Visible } in
+  let pm = val_of_pers_sig pers_sig in
+  let ps = acknowledge_pers_struct penv check modname pers_sig pm in
+  (ps, pm)
+>>>>>>> 5.2.0
 
+<<<<<<< HEAD
 let check_visibility ~allow_hidden imp =
   if not allow_hidden && imp.imp_visibility = Load_path.Hidden then raise Not_found
 
@@ -310,8 +400,24 @@ let find_import ~allow_hidden penv ~check modname =
   if CU.Name.equal modname CU.Name.predef_exn then raise Not_found;
   match Hashtbl.find imports modname with
   | Found imp -> check_visibility ~allow_hidden imp; imp
+||||||| 121bedcfd2
+let find_pers_struct penv val_of_pers_sig check name =
+  let {persistent_structures; _} = penv in
+  if name = "*predef*" then raise Not_found;
+  match Hashtbl.find persistent_structures name with
+  | Found (ps, pm) -> (ps, pm)
+=======
+let find_pers_struct ~allow_hidden penv val_of_pers_sig check name =
+  let {persistent_structures; _} = penv in
+  if name = "*predef*" then raise Not_found;
+  match Hashtbl.find persistent_structures name with
+  | Found (ps, pm) when allow_hidden || ps.ps_visibility = Load_path.Visible ->
+    (ps, pm)
+  | Found _ -> raise Not_found
+>>>>>>> 5.2.0
   | Missing -> raise Not_found
   | exception Not_found ->
+<<<<<<< HEAD
       match can_load_cmis penv with
       | Cannot_load_cmis _ -> raise Not_found
       | Can_load_cmis ->
@@ -409,10 +515,48 @@ let describe_prefix ppf prefix =
     Format.fprintf ppf "outside of any package"
   else
     Format.fprintf ppf "package %a" CU.Prefix.print prefix
+||||||| 121bedcfd2
+    match can_load_cmis penv with
+    | Cannot_load_cmis _ -> raise Not_found
+    | Can_load_cmis ->
+        let psig =
+          match !Persistent_signature.load ~unit_name:name with
+          | Some psig -> psig
+          | None ->
+            Hashtbl.add persistent_structures name Missing;
+            raise Not_found
+        in
+        add_import penv name;
+        let pm = val_of_pers_sig psig in
+        let ps = acknowledge_pers_struct penv check name psig pm in
+        (ps, pm)
+=======
+    match can_load_cmis penv with
+    | Cannot_load_cmis _ -> raise Not_found
+    | Can_load_cmis ->
+        let psig =
+          match !Persistent_signature.load ~allow_hidden ~unit_name:name with
+          | Some psig -> psig
+          | None ->
+            if allow_hidden then Hashtbl.add persistent_structures name Missing;
+            raise Not_found
+        in
+        add_import penv name;
+        let pm = val_of_pers_sig psig in
+        let ps = acknowledge_pers_struct penv check name psig pm in
+        (ps, pm)
+>>>>>>> 5.2.0
 
+module Style = Misc.Style
 (* Emits a warning if there is no valid cmi for name *)
+<<<<<<< HEAD
 let check_pers_struct ~allow_hidden penv f ~loc name =
   let name_as_string = CU.Name.to_string name in
+||||||| 121bedcfd2
+let check_pers_struct penv f ~loc name =
+=======
+let check_pers_struct ~allow_hidden penv f ~loc name =
+>>>>>>> 5.2.0
   try
     ignore (find_pers_struct ~allow_hidden penv f false name)
   with
@@ -429,12 +573,23 @@ let check_pers_struct ~allow_hidden penv f ~loc name =
         | Illegal_renaming(name, ps_name, filename) ->
             Format.asprintf
               " %a@ contains the compiled interface for @ \
+<<<<<<< HEAD
                %a when %a was expected"
               Location.print_filename filename
               CU.Name.print ps_name
               CU.Name.print name
+||||||| 121bedcfd2
+               %s when %s was expected"
+              Location.print_filename filename ps_name name
+=======
+               %a when %a was expected"
+              (Style.as_inline_code Location.print_filename) filename
+              Style.inline_code ps_name
+              Style.inline_code name
+>>>>>>> 5.2.0
         | Inconsistent_import _ -> assert false
         | Need_recursive_types name ->
+<<<<<<< HEAD
             Format.asprintf
               "%a uses recursive types"
               CU.Name.print name
@@ -445,15 +600,40 @@ let check_pers_struct ~allow_hidden penv f ~loc name =
               describe_prefix prefix
         | Illegal_import_of_parameter _ -> assert false
         | Not_compiled_as_parameter _ -> assert false
+||||||| 121bedcfd2
+            Format.sprintf
+              "%s uses recursive types"
+              name
+=======
+            Format.asprintf
+              "%a uses recursive types"
+              Style.inline_code name
+>>>>>>> 5.2.0
       in
       let warn = Warnings.No_cmi_file(name_as_string, Some msg) in
         Location.prerr_warning loc warn
 
+<<<<<<< HEAD
 let read penv f modname filename ~add_binding =
   read_pers_struct penv f true modname filename ~add_binding
+||||||| 121bedcfd2
+let read penv f modname filename =
+  snd (read_pers_struct penv f true modname filename)
+=======
+let read penv f a =
+  snd (read_pers_struct penv f true a)
+>>>>>>> 5.2.0
 
+<<<<<<< HEAD
 let find ~allow_hidden penv f name =
   (find_pers_struct ~allow_hidden penv f true name).ps_val
+||||||| 121bedcfd2
+let find penv f name =
+  snd (find_pers_struct penv f true name)
+=======
+let find ~allow_hidden penv f name =
+  snd (find_pers_struct ~allow_hidden penv f true name)
+>>>>>>> 5.2.0
 
 let check ~allow_hidden penv f ~loc name =
   let {persistent_structures; _} = penv in
@@ -467,6 +647,7 @@ let check ~allow_hidden penv f ~loc name =
         (fun () -> check_pers_struct ~allow_hidden penv f ~loc name)
   end
 
+<<<<<<< HEAD
 (* CR mshinwell: delete this having moved to 4.14 build compilers *)
 module Array = struct
   include Array
@@ -495,6 +676,31 @@ let crc_of_unit penv name =
       match Import_info.crc import_info with
       | None -> assert false
       | Some crc -> crc
+||||||| 121bedcfd2
+let crc_of_unit penv f name =
+  let (ps, _pm) = find_pers_struct penv f true name in
+  let crco =
+    try
+      List.assoc name ps.ps_crcs
+    with Not_found ->
+      assert false
+  in
+    match crco with
+      None -> assert false
+    | Some crc -> crc
+=======
+let crc_of_unit penv f name =
+  let (ps, _pm) = find_pers_struct ~allow_hidden:true penv f true name in
+  let crco =
+    try
+      List.assoc name ps.ps_crcs
+    with Not_found ->
+      assert false
+  in
+    match crco with
+      None -> assert false
+    | Some crc -> crc
+>>>>>>> 5.2.0
 
 let imports {imported_units; crc_units; _} =
   let imports =
@@ -535,8 +741,16 @@ let make_cmi penv modname kind sign alerts =
     cmi_flags = flags
   }
 
+<<<<<<< HEAD
 let save_cmi penv psig =
   let { Persistent_signature.filename; cmi; _ } = psig in
+||||||| 121bedcfd2
+let save_cmi penv psig pm =
+  let { Persistent_signature.filename; cmi } = psig in
+=======
+let save_cmi penv psig pm =
+  let { Persistent_signature.filename; cmi; visibility } = psig in
+>>>>>>> 5.2.0
   Misc.try_finally (fun () ->
       let {
         cmi_name = modname;
@@ -551,12 +765,31 @@ let save_cmi penv psig =
           (fun temp_filename oc -> output_cmi temp_filename oc cmi) in
       (* Enter signature in consistbl so that imports()
          will also return its crc *)
+<<<<<<< HEAD
       let data : Import_info.Intf.Nonalias.Kind.t =
         match kind with
         | Normal { cmi_impl } -> Normal cmi_impl
         | Parameter -> Parameter
       in
       save_import penv crc modname data flags filename
+||||||| 121bedcfd2
+      let ps =
+        { ps_name = modname;
+          ps_crcs = (cmi.cmi_name, Some crc) :: imports;
+          ps_filename = filename;
+          ps_flags = flags;
+        } in
+      save_pers_struct penv crc ps pm
+=======
+      let ps =
+        { ps_name = modname;
+          ps_crcs = (cmi.cmi_name, Some crc) :: imports;
+          ps_filename = filename;
+          ps_flags = flags;
+          ps_visibility = visibility
+        } in
+      save_pers_struct penv crc ps pm
+>>>>>>> 5.2.0
     )
     ~exceptionally:(fun () -> remove_file filename)
 
@@ -565,17 +798,38 @@ let report_error ppf =
   function
   | Illegal_renaming(modname, ps_name, filename) -> fprintf ppf
       "Wrong file naming: %a@ contains the compiled interface for@ \
+<<<<<<< HEAD
        %a when %a was expected"
       Location.print_filename filename
       CU.Name.print ps_name
       CU.Name.print modname
+||||||| 121bedcfd2
+       %s when %s was expected"
+      Location.print_filename filename ps_name modname
+=======
+       %a when %a was expected"
+      (Style.as_inline_code Location.print_filename) filename
+      Style.inline_code ps_name
+      Style.inline_code modname
+>>>>>>> 5.2.0
   | Inconsistent_import(name, source1, source2) -> fprintf ppf
       "@[<hov>The files %a@ and %a@ \
+<<<<<<< HEAD
               make inconsistent assumptions@ over interface %a@]"
       Location.print_filename source1 Location.print_filename source2
       CU.Name.print name
+||||||| 121bedcfd2
+              make inconsistent assumptions@ over interface %s@]"
+      Location.print_filename source1 Location.print_filename source2 name
+=======
+              make inconsistent assumptions@ over interface %a@]"
+      (Style.as_inline_code Location.print_filename) source1
+      (Style.as_inline_code Location.print_filename) source2
+      Style.inline_code name
+>>>>>>> 5.2.0
   | Need_recursive_types(import) ->
       fprintf ppf
+<<<<<<< HEAD
         "@[<hov>Invalid import of %a, which uses recursive types.@ %s@]"
         CU.Name.print import
         "The compilation flag -rectypes is required"
@@ -605,6 +859,15 @@ let report_error ppf =
         filename
         describe_prefix prefix
         "Can only access members of this library's package or a containing package"
+||||||| 121bedcfd2
+        "@[<hov>Invalid import of %s, which uses recursive types.@ %s@]"
+        import "The compilation flag -rectypes is required"
+=======
+        "@[<hov>Invalid import of %a, which uses recursive types.@ \
+         The compilation flag %a is required@]"
+        Style.inline_code import
+        Style.inline_code "-rectypes"
+>>>>>>> 5.2.0
 
 let () =
   Location.register_error_of_exn

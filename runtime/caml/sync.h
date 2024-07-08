@@ -29,6 +29,7 @@ typedef pthread_mutex_t * sync_mutex;
 CAMLextern int caml_mutex_lock(sync_mutex mut);
 CAMLextern int caml_mutex_unlock(sync_mutex mut);
 
+<<<<<<< HEAD
 /* If we're using glibc, use a custom condition variable implementation to
    avoid this bug: https://sourceware.org/bugzilla/show_bug.cgi?id=25847
 
@@ -44,6 +45,13 @@ typedef pthread_cond_t custom_condvar;
 #define CUSTOM_COND_INITIALIZER PTHREAD_COND_INITIALIZER
 #endif
 
+||||||| 121bedcfd2
+=======
+value caml_ml_mutex_lock(value wrapper);
+value caml_ml_mutex_unlock(value wrapper);
+value caml_ml_condition_broadcast(value wrapper);
+
+>>>>>>> 5.2.0
 #endif /* CAML_INTERNALS */
 
 #endif /* CAML_SYNC_H */

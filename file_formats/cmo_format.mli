@@ -15,26 +15,64 @@
 
 (* Symbol table information for .cmo and .cma files *)
 
+<<<<<<< HEAD
+||||||| 121bedcfd2
+open Misc
+
+=======
+type modname = string
+type crcs = (modname * Digest.t option) list
+
+(* Names of compilation units as represented in CMO files *)
+type compunit = Compunit of string [@@unboxed]
+
+(* Predefined symbols as represented in CMO files *)
+
+type predef =
+  | Predef_exn of string [@@unboxed]
+
+>>>>>>> 5.2.0
 (* Relocation information *)
 
 type reloc_info =
-    Reloc_literal of Obj.t                  (* structured constant *)
-  | Reloc_getglobal of Ident.t              (* reference to a global *)
-  | Reloc_setglobal of Ident.t              (* definition of a global *)
-  | Reloc_primitive of string               (* C primitive number *)
+  | Reloc_literal of Obj.t (* structured constant *)
+  | Reloc_getcompunit of compunit (* reference to a compunit *)
+  | Reloc_getpredef of predef (* reference to a predef *)
+  | Reloc_setcompunit of compunit (* definition of a compunit *)
+  | Reloc_primitive of string (* C primitive number *)
 
 (* Descriptor for compilation units *)
 
+<<<<<<< HEAD
 type compilation_unit_descr =
   { cu_name: Compilation_unit.t;        (* Name of compilation unit *)
+||||||| 121bedcfd2
+type compilation_unit =
+  { cu_name: modname;                   (* Name of compilation unit *)
+=======
+type compilation_unit =
+  { cu_name: compunit;                   (* Name of compilation unit *)
+>>>>>>> 5.2.0
     mutable cu_pos: int;                (* Absolute position in file *)
     cu_codesize: int;                   (* Size of code block *)
     cu_reloc: (reloc_info * int) list;  (* Relocation information *)
+<<<<<<< HEAD
     cu_imports: Import_info.t array;    (* Names and CRC of intfs imported *)
     cu_required_globals: Compilation_unit.t list;
                                         (* Compilation units whose
                                            initialization side effects
                                            must occur before this one. *)
+||||||| 121bedcfd2
+    cu_imports: crcs;                   (* Names and CRC of intfs imported *)
+    cu_required_globals: Ident.t list;  (* Compilation units whose
+                                           initialization side effects
+                                           must occur before this one. *)
+=======
+    cu_imports: crcs;                     (* Names and CRC of intfs imported *)
+    cu_required_compunits: compunit list; (* Compilation units whose
+                                             initialization side effects
+                                             must occur before this one. *)
+>>>>>>> 5.2.0
     cu_primitives: string list;         (* Primitives declared inside *)
     mutable cu_force_link: bool;        (* Must be linked even if unref'ed *)
     mutable cu_debug: int;              (* Position of debugging info, or 0 *)

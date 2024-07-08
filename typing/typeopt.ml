@@ -207,7 +207,8 @@ let bigarray_decode_type env ty tbl dfl =
       dfl
 
 let kind_table =
-  ["float32_elt", Pbigarray_float32;
+  ["float16_elt", Pbigarray_float16;
+   "float32_elt", Pbigarray_float32;
    "float64_elt", Pbigarray_float64;
    "int8_signed_elt", Pbigarray_sint8;
    "int8_unsigned_elt", Pbigarray_uint8;
@@ -245,6 +246,7 @@ let value_kind_of_value_jkind jkind =
     if !Clflags.native_code && Sys.word_size = 64 then Pintval else Pgenval
   | Internal -> Pgenval
 
+<<<<<<< HEAD
 (* [value_kind] has a pre-condition that it is only called on values.  With the
    current set of sort restrictions, there are two reasons this invariant may
    be violated:
@@ -726,6 +728,14 @@ let function_arg_layout env loc sort ty =
   | Some (arg_type, _) -> layout env loc sort arg_type
   | None -> Misc.fatal_error "function_arg_layout called on non-function type"
 
+||||||| 121bedcfd2
+let function_return_value_kind env ty =
+  match is_function_type env ty with
+  | Some (_lhs, rhs) -> value_kind env rhs
+  | None -> Pgenval
+
+=======
+>>>>>>> 5.2.0
 (** Whether a forward block is needed for a lazy thunk on a value, i.e.
     if the value can be represented as a float/forward/lazy *)
 let lazy_val_requires_forward env loc ty =

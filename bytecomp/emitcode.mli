@@ -18,8 +18,16 @@
 open Cmo_format
 open Instruct
 
+<<<<<<< HEAD
 val to_file: out_channel -> Compilation_unit.t -> string ->
   required_globals:Compilation_unit.Set.t -> instruction list -> unit
+||||||| 121bedcfd2
+val to_file: out_channel -> string -> string ->
+  required_globals:Ident.Set.t -> instruction list -> unit
+=======
+val to_file: out_channel -> Unit_info.Artifact.t ->
+  required_globals:Ident.Set.t -> instruction list -> unit
+>>>>>>> 5.2.0
         (* Arguments:
              channel on output file
              name of compilation unit implemented
@@ -28,8 +36,9 @@ val to_file: out_channel -> Compilation_unit.t -> string ->
                evaluated before this one
              list of instructions to emit *)
 val to_memory:
-  instruction list -> instruction list ->
-    Misc.LongString.t * (reloc_info * int) list * debug_event list
+  instruction list ->
+    (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t *
+    (reloc_info * int) list * debug_event list
         (* Arguments:
              initialization code (terminated by STOP)
              function code

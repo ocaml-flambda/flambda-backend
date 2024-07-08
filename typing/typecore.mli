@@ -69,6 +69,7 @@ type pattern_variable =
     pv_loc: Location.t;
     pv_as_var: bool;
     pv_attributes: Typedtree.attributes;
+    pv_uid : Uid.t;
   }
 
 val mk_expected:
@@ -111,11 +112,19 @@ type existential_restriction =
   | In_class_def (** or in [class c = let ... in ...] *)
   | In_self_pattern (** or in self pattern *)
 
+<<<<<<< HEAD
 type module_patterns_restriction =
   | Modules_allowed of { scope: int }
   | Modules_rejected
   | Modules_ignored
 
+||||||| 121bedcfd2
+type module_patterns_restriction =
+  | Modules_allowed of { scope : int }
+  | Modules_rejected
+
+=======
+>>>>>>> 5.2.0
 val type_binding:
         Env.t -> rec_flag ->
           ?force_toplevel:bool ->
@@ -252,7 +261,7 @@ type error =
   | Modules_not_allowed
   | Cannot_infer_signature
   | Not_a_packed_module of type_expr
-  | Unexpected_existential of existential_restriction * string * string list
+  | Unexpected_existential of existential_restriction * string
   | Invalid_interval
   | Invalid_for_loop_index
   | Invalid_comprehension_for_range_iterator_index

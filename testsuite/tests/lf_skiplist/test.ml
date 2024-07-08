@@ -1,6 +1,12 @@
 (* TEST
+<<<<<<< HEAD
  modules = "stubs.c";
  runtime5;
+||||||| 121bedcfd2
+   modules = "stubs.c"
+=======
+ modules = "stubs.c";
+>>>>>>> 5.2.0
 *)
 
 external test_skiplist_serial : unit -> unit = "test_skiplist_serial"

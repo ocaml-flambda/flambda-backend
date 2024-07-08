@@ -57,8 +57,28 @@ module EvalPath =
         raise Error
 
     let rec eval_address = function
+<<<<<<< HEAD
     | Env.Aunit cu -> eval_id (cu |> Compilation_unit.to_global_ident_for_bytecode)
     | Env.Alocal id -> eval_id id
+||||||| 121bedcfd2
+    | Env.Aident id ->
+        begin try
+          Debugcom.Remote_value.global (Symtable.get_global_position id)
+        with Symtable.Error _ ->
+          raise Error
+        end
+=======
+    | Env.Aident id ->
+      begin match Symtable.Global.of_ident id with
+        | Some global ->
+          begin
+            try Debugcom.Remote_value.global (Symtable.get_global_position
+              global)
+            with Symtable.Error _ -> raise Error
+          end
+        | None -> raise Error
+      end
+>>>>>>> 5.2.0
     | Env.Adot(root, pos) ->
         let v = eval_address root in
         if not (Debugcom.Remote_value.is_block v)

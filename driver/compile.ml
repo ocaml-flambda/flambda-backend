@@ -33,7 +33,13 @@ let interface ~source_file ~output_prefix =
 let to_bytecode i Typedtree.{structure; coercion; _} =
   (structure, coercion)
   |> Profile.(record transl)
+<<<<<<< HEAD
     (Translmod.transl_implementation i.module_name ~style:Set_global_to_block)
+||||||| 121bedcfd2
+    (Translmod.transl_implementation i.module_name)
+=======
+    (Translmod.transl_implementation (Unit_info.modname i.target))
+>>>>>>> 5.2.0
   |> Profile.(record ~accumulate:true generate)
     (fun { Lambda.code = lambda; required_globals } ->
        Builtin_attributes.warn_unused ();
@@ -41,22 +47,30 @@ let to_bytecode i Typedtree.{structure; coercion; _} =
        |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
        |> Simplif.simplify_lambda
        |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.lambda
+<<<<<<< HEAD
        |> Bytegen.compile_implementation
             (i.module_name |> Compilation_unit.name_as_string)
+||||||| 121bedcfd2
+       |> Bytegen.compile_implementation i.module_name
+=======
+       |> Bytegen.compile_implementation (Unit_info.modname i.target)
+>>>>>>> 5.2.0
        |> print_if i.ppf_dump Clflags.dump_instr Printinstr.instrlist
        |> fun bytecode -> bytecode, required_globals
     )
 
 let emit_bytecode i (bytecode, required_globals) =
-  let cmofile = cmo i in
-  let oc = open_out_bin cmofile in
+  let cmo = Unit_info.cmo i.target in
+  let oc = open_out_bin (Unit_info.Artifact.filename cmo) in
   Misc.try_finally
     ~always:(fun () -> close_out oc)
-    ~exceptionally:(fun () -> Misc.remove_file cmofile)
+    ~exceptionally:(fun () ->
+       Misc.remove_file (Unit_info.Artifact.filename cmo)
+    )
     (fun () ->
        bytecode
        |> Profile.(record ~accumulate:true generate)
-         (Emitcode.to_file oc i.module_name cmofile ~required_globals);
+         (Emitcode.to_file oc cmo ~required_globals);
     )
 
 let implementation ~start_from ~source_file ~output_prefix

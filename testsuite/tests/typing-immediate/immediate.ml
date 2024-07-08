@@ -143,6 +143,7 @@ end;;
 Line 2, characters 2-31:
 2 |   type t = string [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<<<<<<< HEAD
 Error: The layout of type string is value, because
          it is the primitive value type string.
        But the layout of type string must be a sublayout of immediate, because
@@ -178,6 +179,13 @@ Error: The layout of type t is value, because
          it's a boxed record type.
        But the layout of type t must be a sublayout of immediate, because
          of the annotation on the declaration of the type t.
+||||||| 121bedcfd2
+Error: Types marked with the immediate attribute must be non-pointer types
+       like int or bool.
+=======
+Error: Types marked with the immediate attribute must be non-pointer types
+       like "int" or "bool".
+>>>>>>> 5.2.0
 |}];;
 
 (* Not guaranteed that t is immediate, so this is an invalid declaration *)
@@ -189,10 +197,18 @@ end;;
 Line 3, characters 2-26:
 3 |   type s = t [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
+<<<<<<< HEAD
 Error: The layout of type t is value, because
          of the definition of t at line 2, characters 2-8.
        But the layout of type t must be a sublayout of immediate, because
          of the definition of s at line 3, characters 2-26.
+||||||| 121bedcfd2
+Error: Types marked with the immediate attribute must be non-pointer types
+       like int or bool.
+=======
+Error: Types marked with the immediate attribute must be non-pointer types
+       like "int" or "bool".
+>>>>>>> 5.2.0
 |}];;
 
 (* Can't ascribe to an immediate type signature with a non-immediate type *)
@@ -263,6 +279,7 @@ end;;
 Line 2, characters 2-26:
 2 |   type t = s [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
+<<<<<<< HEAD
 Error: The layout of type s is value, because
          it is the primitive value type string.
        But the layout of type s must be a sublayout of immediate, because
@@ -316,4 +333,11 @@ type t = int s [@@immediate] and 'a s = 'a
 [%%expect{|
 type t = int s
 and 'a s = 'a
+||||||| 121bedcfd2
+Error: Types marked with the immediate attribute must be non-pointer types
+       like int or bool.
+=======
+Error: Types marked with the immediate attribute must be non-pointer types
+       like "int" or "bool".
+>>>>>>> 5.2.0
 |}];;

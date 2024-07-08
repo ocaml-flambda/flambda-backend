@@ -19,10 +19,16 @@ open Misc
 open Config
 open Cmo_format
 
+<<<<<<< HEAD
 module CU = Compilation_unit
 
+||||||| 121bedcfd2
+=======
+module Compunit = Symtable.Compunit
+
+>>>>>>> 5.2.0
 module Dep = struct
-  type t = string * string
+  type t = compunit * compunit
   let compare = compare
 end
 
@@ -37,10 +43,22 @@ type error =
   | Custom_runtime
   | File_exists of filepath
   | Cannot_open_dll of filepath
+<<<<<<< HEAD
   | Required_module_unavailable of string * Compilation_unit.t
+||||||| 121bedcfd2
+  | Required_module_unavailable of modname * modname
+=======
+  | Required_compunit_unavailable of (compunit * compunit)
+>>>>>>> 5.2.0
   | Camlheader of string * filepath
   | Wrong_link_order of DepSet.t
+<<<<<<< HEAD
   | Multiple_definition of string * filepath * filepath
+||||||| 121bedcfd2
+  | Multiple_definition of modname * filepath * filepath
+=======
+  | Multiple_definition of compunit * filepath * filepath
+>>>>>>> 5.2.0
 
 exception Error of error
 
@@ -97,38 +115,66 @@ let add_ccobjs origin l =
 
 (* First pass: determine which units are needed *)
 
-let missing_globals = ref Ident.Map.empty
-let provided_globals = ref Ident.Set.empty
+let missing_compunits = ref Compunit.Map.empty
+let provided_compunits = ref Compunit.Set.empty
 let badly_ordered_dependencies : DepSet.t ref = ref DepSet.empty
 
+<<<<<<< HEAD
 let record_badly_ordered_dependency (id, compunit) =
   let dep = ((Ident.name id), CU.name_as_string compunit.cu_name) in
+||||||| 121bedcfd2
+let record_badly_ordered_dependency (id, compunit) =
+  let dep = ((Ident.name id), compunit.cu_name) in
+=======
+let record_badly_ordered_dependency dep =
+>>>>>>> 5.2.0
   badly_ordered_dependencies := DepSet.add dep !badly_ordered_dependencies
 
 let is_required (rel, _pos) =
   match rel with
-    Reloc_setglobal id ->
-      Ident.Map.mem id !missing_globals
-  | _ -> false
+    | Reloc_setcompunit cu ->
+      Compunit.Map.mem cu !missing_compunits
+    | _ -> false
 
 let add_required compunit =
+<<<<<<< HEAD
   let add id =
     if Ident.Set.mem id !provided_globals then begin
       record_badly_ordered_dependency (id, compunit)
     end;
     missing_globals := Ident.Map.add id compunit.cu_name !missing_globals
+||||||| 121bedcfd2
+  let add id =
+    if Ident.Set.mem id !provided_globals then
+      record_badly_ordered_dependency (id, compunit);
+    missing_globals := Ident.Map.add id compunit.cu_name !missing_globals
+=======
+  let add cu =
+    if Compunit.Set.mem cu !provided_compunits then
+      record_badly_ordered_dependency (cu, compunit.cu_name);
+    missing_compunits :=
+      Compunit.Map.add cu compunit.cu_name !missing_compunits
+>>>>>>> 5.2.0
   in
+<<<<<<< HEAD
   let add_unit unit =
     add (unit |> Compilation_unit.to_global_ident_for_bytecode)
   in
   List.iter add (Symtable.required_globals compunit.cu_reloc);
   List.iter add_unit compunit.cu_required_globals
+||||||| 121bedcfd2
+  List.iter add (Symtable.required_globals compunit.cu_reloc);
+  List.iter add compunit.cu_required_globals
+=======
+  List.iter add (Symtable.required_compunits compunit.cu_reloc);
+  List.iter add compunit.cu_required_compunits
+>>>>>>> 5.2.0
 
 let remove_required (rel, _pos) =
   match rel with
-    Reloc_setglobal id ->
-      missing_globals := Ident.Map.remove id !missing_globals;
-      provided_globals := Ident.Set.add id !provided_globals;
+    Reloc_setcompunit cu ->
+      missing_compunits := Compunit.Map.remove cu !missing_compunits;
+      provided_compunits := Compunit.Set.add cu !provided_compunits;
   | _ -> ()
 
 let scan_file obj_name tolink =
@@ -187,8 +233,16 @@ let scan_file obj_name tolink =
 module Consistbl = Consistbl.Make (CU.Name) (Import_info.Intf.Nonalias.Kind)
 
 let crc_interfaces = Consistbl.create ()
+<<<<<<< HEAD
 let interfaces = ref ([] : CU.Name.t list)
 let implementations_defined = ref ([] : (CU.Name.t * string) list)
+||||||| 121bedcfd2
+let interfaces = ref ([] : string list)
+let implementations_defined = ref ([] : (string * string) list)
+=======
+let interfaces = ref ([] : string list)
+let implementations_defined = ref ([] : (compunit * string) list)
+>>>>>>> 5.2.0
 
 let check_consistency file_name cu =
   begin try
@@ -235,12 +289,21 @@ let debug_info = ref ([] : (int * Instruct.debug_event list * string list) list)
 let link_compunit output_fun currpos_fun inchan file_name compunit =
   check_consistency file_name compunit;
   seek_in inchan compunit.cu_pos;
-  let code_block = LongString.input_bytes inchan compunit.cu_codesize in
+  let code_block =
+    Bigarray.Array1.create Bigarray.Char Bigarray.c_layout compunit.cu_codesize
+  in
+  match
+    In_channel.really_input_bigarray inchan code_block 0 compunit.cu_codesize
+  with
+    | None -> raise End_of_file
+    | Some () -> ();
   Symtable.patch_object code_block compunit.cu_reloc;
   if !Clflags.debug && compunit.cu_debug > 0 then begin
     seek_in inchan compunit.cu_debug;
-    let debug_event_list : Instruct.debug_event list = input_value inchan in
-    let debug_dirs : string list = input_value inchan in
+    let debug_event_list : Instruct.debug_event list =
+      Compression.input_value inchan in
+    let debug_dirs : string list =
+      Compression.input_value inchan in
     let file_path = Filename.dirname (Location.absolute_path file_name) in
     let debug_dirs =
       if List.mem file_path debug_dirs
@@ -248,7 +311,7 @@ let link_compunit output_fun currpos_fun inchan file_name compunit =
       else file_path :: debug_dirs in
     debug_info := (currpos_fun(), debug_event_list, debug_dirs) :: !debug_info
   end;
-  Array.iter output_fun code_block;
+  output_fun code_block;
   if !Clflags.link_everything then
     List.iter Symtable.require_primitive compunit.cu_primitives
 
@@ -272,7 +335,14 @@ let link_archive output_fun currpos_fun file_name units_required =
   try
     List.iter
       (fun cu ->
+<<<<<<< HEAD
          let name = file_name ^ "(" ^ (CU.full_path_as_string cu.cu_name) ^ ")" in
+||||||| 121bedcfd2
+         let name = file_name ^ "(" ^ cu.cu_name ^ ")" in
+=======
+         let n = Compunit.name cu.cu_name in
+         let name = file_name ^ "(" ^ n ^ ")" in
+>>>>>>> 5.2.0
          try
            link_compunit output_fun currpos_fun inchan name cu
          with Symtable.Error msg ->
@@ -315,6 +385,165 @@ let make_absolute file =
   else Location.rewrite_absolute_path
          (Filename.concat (Sys.getcwd()) file)
 
+type launch_method =
+| Shebang_bin_sh of string
+| Shebang_runtime
+| Executable
+
+type runtime_launch_info = {
+  buffer : string;
+  bindir : string;
+  launcher : launch_method;
+  executable_offset : int
+}
+
+(* See https://www.in-ulm.de/~mascheck/various/shebang/#origin for a deep
+   dive into shebangs.
+   - Whitespace (space or horizontal tab) delimits the interpreter from an
+     optional argument
+   - The path clearly must not contain a linefeed
+   - A maximum length of 125 (128 less the #! and the newline) is picked as a
+     portable maximum (it's actually Linux's prior to kernel v5.1), rather than
+     actually probing the maximum length in configure *)
+let invalid_for_shebang_line path =
+  let invalid_char = function ' ' | '\t' | '\n' -> true | _ -> false in
+  String.length path > 125 || String.exists invalid_char path
+
+(* The runtime-launch-info file consists of two "lines" followed by binary data.
+   The file is _always_ LF-formatted, even on Windows. The sequence of bytes up
+   to the first '\n' is interpreted:
+     - "sh" - use a shebang-style launcher. If sh is needed, determine its
+              location from [command -p -v sh]
+     - "exe" - use the executable launcher contained in this runtime-launch-info
+               file.
+     - "/" ^ path - use a shebang-style launcher. If sh is needed, path is the
+                    absolute location of sh. path must be valid for a shebang
+                    line.
+   The second "line" is interpreted as the next "\000\n"-terminated sequence and
+   is the directory containing the default runtimes (ocamlrun, ocamlrund, etc.).
+   The null terminator is used since '\n' is valid in a nefarious installation
+   prefix but Posix forbids filenames including the nul character.
+   The remainder of the file is then the executable launcher for bytecode
+   programs (see stdlib/header{,nt}.c). *)
+
+let read_runtime_launch_info file =
+  let buffer =
+    try
+      In_channel.with_open_bin file In_channel.input_all
+    with Sys_error msg -> raise (Error (Camlheader (msg, file)))
+  in
+  try
+    let bindir_start = String.index buffer '\n' + 1 in
+    let bindir_end = String.index_from buffer bindir_start '\000' in
+    let bindir = String.sub buffer bindir_start (bindir_end - bindir_start) in
+    let executable_offset = bindir_end + 2 in
+    let launcher =
+      let kind = String.sub buffer 0 (bindir_start - 1) in
+      if kind = "exe" then
+        Executable
+      else if kind <> "" && (kind.[0] = '/' || kind = "sh") then
+        Shebang_bin_sh kind
+      else
+        raise Not_found in
+    if String.length buffer < executable_offset
+       || buffer.[executable_offset - 1] <> '\n' then
+      raise Not_found
+    else
+      {bindir; launcher; buffer; executable_offset}
+  with Not_found ->
+    raise (Error (Camlheader ("corrupt header", file)))
+
+let find_bin_sh () =
+  let output_file = Filename.temp_file "caml_bin_sh" "" in
+  let result =
+  try
+    let cmd =
+      Filename.quote_command ~stdout:output_file "command" ["-p"; "-v"; "sh"]
+    in
+    if !Clflags.verbose then
+      Printf.eprintf "+ %s\n" cmd;
+    if Sys.command cmd = 0 then
+      In_channel.with_open_text output_file input_line
+    else
+      ""
+  with Sys_error _
+     | End_of_file -> ""
+  in
+  remove_file output_file;
+  result
+
+(* Writes the executable header to outchan and writes the RNTM section, if
+   needed. Returns a toc_writer (i.e. Bytesections.init_record is always
+   called) *)
+
+let write_header outchan =
+  let use_runtime, runtime =
+    if String.length !Clflags.use_runtime > 0 then
+      (true, make_absolute !Clflags.use_runtime)
+    else
+      (false, "ocamlrun" ^ !Clflags.runtime_variant)
+  in
+  (* Write the header *)
+  let runtime_info =
+    let header = "runtime-launch-info" in
+    try read_runtime_launch_info (Load_path.find header)
+    with Not_found -> raise (Error (File_not_found header))
+  in
+  let runtime =
+    (* Historically, the native Windows ports are assumed to be finding
+       ocamlrun using a PATH search. *)
+    if use_runtime || Sys.win32 then
+      runtime
+    else
+      Filename.concat runtime_info.bindir runtime
+  in
+  (* Determine which method will be used for launching the executable:
+     Executable: concatenate the bytecode image to the executable stub
+     Shebang_runtime: #! line with the required runtime
+     Shebang_bin_sh: #! for a shell script calling exec *)
+  let launcher =
+    if runtime_info.launcher = Executable then
+      Executable
+    else
+      if invalid_for_shebang_line runtime then
+        match runtime_info.launcher with
+        | Shebang_bin_sh sh ->
+            let sh =
+              if sh = "sh" then
+                find_bin_sh ()
+              else
+                sh in
+            if sh = "" || invalid_for_shebang_line sh then
+              Executable
+            else
+              Shebang_bin_sh sh
+        | _ ->
+            Executable
+      else
+        Shebang_runtime
+  in
+  match launcher with
+  | Shebang_runtime ->
+      (* Use the runtime directly *)
+      Printf.fprintf outchan "#!%s\n" runtime;
+      Bytesections.init_record outchan
+  | Shebang_bin_sh bin_sh ->
+      (* exec the runtime using sh *)
+      Printf.fprintf outchan "\
+        #!%s\n\
+        exec %s \"$0\" \"$@\"\n" bin_sh (Filename.quote runtime);
+      Bytesections.init_record outchan
+  | Executable ->
+      (* Use the executable stub launcher *)
+      let pos = runtime_info.executable_offset in
+      let len = String.length runtime_info.buffer - pos in
+      Out_channel.output_substring outchan runtime_info.buffer pos len;
+      (* The runtime name needs recording in RNTM *)
+      let toc_writer = Bytesections.init_record outchan in
+      Printf.fprintf outchan "%s\000" runtime;
+      Bytesections.record toc_writer RNTM;
+      toc_writer
+
 (* Create a bytecode executable file *)
 
 let link_bytecode ?final_name tolink exec_name standalone =
@@ -336,37 +565,13 @@ let link_bytecode ?final_name tolink exec_name standalone =
     ~always:(fun () -> close_out outchan)
     ~exceptionally:(fun () -> remove_file exec_name)
     (fun () ->
-       if standalone && !Clflags.with_runtime then begin
-         (* Copy the header *)
-         let header =
-           if String.length !Clflags.use_runtime > 0
-           then "camlheader_ur" else "camlheader" ^ !Clflags.runtime_variant
-         in
-         try
-           let inchan = open_in_bin (Load_path.find header) in
-           copy_file inchan outchan;
-           close_in inchan
-         with
-         | Not_found -> raise (Error (File_not_found header))
-         | Sys_error msg -> raise (Error (Camlheader (header, msg)))
-       end;
-       let toc_writer = Bytesections.init_record outchan in
-       (* The path to the bytecode interpreter (in use_runtime mode) *)
-       if String.length !Clflags.use_runtime > 0 && !Clflags.with_runtime then
-       begin
-         let runtime = make_absolute !Clflags.use_runtime in
-         let runtime =
-           (* shebang mustn't exceed 128 including the #! and \0 *)
-           if String.length runtime > 125 || String.contains runtime ' ' then
-             "/bin/sh\n\
-              exec " ^ Filename.quote runtime ^ " \"$0\" \"$@\""
-           else
-             runtime
-         in
-         output_string outchan runtime;
-         output_char outchan '\n';
-         Bytesections.record toc_writer Bytesections.Name.RNTM
-       end;
+       let toc_writer =
+         (* Write the header and set the path to the bytecode interpreter *)
+         if standalone && !Clflags.with_runtime then
+           write_header outchan
+         else
+           Bytesections.init_record outchan
+       in
        (* The bytecode *)
        let start_code = pos_out outchan in
        Symtable.init();
@@ -380,7 +585,8 @@ let link_bytecode ?final_name tolink exec_name standalone =
          try Dll.open_dlls Dll.For_checking sharedobjs
          with Failure reason -> raise(Error(Cannot_open_dll reason))
        end;
-       let output_fun = output_bytes outchan
+       let output_fun buf =
+         Out_channel.output_bigarray outchan buf 0 (Bigarray.Array1.dim buf)
        and currpos_fun () = pos_out outchan - start_code in
        List.iter (link_file output_fun currpos_fun) tolink;
        if check_dlls then Dll.close_all_dlls();
@@ -426,12 +632,12 @@ let output_code_string_counter = ref 0
 
 let output_code_string outchan code =
   let pos = ref 0 in
-  let len = Bytes.length code in
+  let len = Bigarray.Array1.dim code in
   while !pos < len do
-    let c1 = Char.code(Bytes.get code !pos) in
-    let c2 = Char.code(Bytes.get code (!pos + 1)) in
-    let c3 = Char.code(Bytes.get code (!pos + 2)) in
-    let c4 = Char.code(Bytes.get code (!pos + 3)) in
+    let c1 = Char.code(Bigarray.Array1.get code !pos) in
+    let c2 = Char.code(Bigarray.Array1.get code (!pos + 1)) in
+    let c3 = Char.code(Bigarray.Array1.get code (!pos + 2)) in
+    let c4 = Char.code(Bigarray.Array1.get code (!pos + 3)) in
     pos := !pos + 4;
     Printf.fprintf outchan "0x%02x%02x%02x%02x, " c4 c3 c2 c1;
     incr output_code_string_counter;
@@ -514,7 +720,7 @@ let link_bytecode_as_c tolink outfile with_main =
        let currpos = ref 0 in
        let output_fun code =
          output_code_string outchan code;
-         currpos := !currpos + Bytes.length code
+         currpos := !currpos + (Bigarray.Array1.dim code)
        and currpos_fun () = !currpos in
        List.iter (link_file output_fun currpos_fun) tolink;
        (* The final STOP instruction *)
@@ -525,6 +731,7 @@ let link_bytecode_as_c tolink outfile with_main =
          (Marshal.to_string (Symtable.initial_global_table()) []);
        output_string outchan "\n};\n\n";
        (* The sections *)
+<<<<<<< HEAD
        let sections : (string * Obj.t) list =
          [ Bytesections.Name.to_string SYMB,
            Symtable.data_global_map();
@@ -532,6 +739,21 @@ let link_bytecode_as_c tolink outfile with_main =
            Obj.repr(Symtable.data_primitive_names());
            Bytesections.Name.to_string CRCS,
            Obj.repr(extract_crc_interfaces() |> Array.of_list) ]
+||||||| 121bedcfd2
+       let sections : (string * Obj.t) list =
+         [ Bytesections.Name.to_string SYMB,
+           Symtable.data_global_map();
+           Bytesections.Name.to_string PRIM,
+           Obj.repr(Symtable.data_primitive_names());
+           Bytesections.Name.to_string CRCS,
+           Obj.repr(extract_crc_interfaces()) ]
+=======
+       let sections : (string * Obj.t) array =
+         [| Bytesections.Name.to_string SYMB,
+            Symtable.data_global_map();
+            Bytesections.Name.to_string CRCS,
+            Obj.repr(extract_crc_interfaces()) |]
+>>>>>>> 5.2.0
        in
        output_string outchan "static char caml_sections[] = {\n";
        output_data_string outchan
@@ -655,12 +877,12 @@ let link objfiles output_name =
   in
   let tolink = List.fold_right scan_file objfiles [] in
   begin
-    match Ident.Map.bindings !missing_globals with
+    match Compunit.Map.bindings !missing_compunits with
     | [] -> ()
-    | (id, cu_name) :: _ ->
+    | missing_dependency :: _ ->
         if DepSet.is_empty !badly_ordered_dependencies
         then
-            raise (Error (Required_module_unavailable (Ident.name id, cu_name)))
+            raise (Error (Required_compunit_unavailable missing_dependency))
         else
             raise (Error (Wrong_link_order !badly_ordered_dependencies))
   end;
@@ -766,53 +988,84 @@ let link objfiles output_name =
 (* Error report *)
 
 open Format
+module Style = Misc.Style
 
 let report_error ppf = function
   | File_not_found name ->
-      fprintf ppf "Cannot find file %a" Location.print_filename name
+      fprintf ppf "Cannot find file %a"
+        (Style.as_inline_code Location.print_filename) name
   | Not_an_object_file name ->
       fprintf ppf "The file %a is not a bytecode object file"
-        Location.print_filename name
+        (Style.as_inline_code Location.print_filename) name
   | Wrong_object_name name ->
-      fprintf ppf "The output file %s has the wrong name. The extension implies\
-                  \ an object file but the link step was requested" name
+      fprintf ppf "The output file %a has the wrong name. The extension implies\
+                  \ an object file but the link step was requested"
+        Style.inline_code name
   | Symbol_error(name, err) ->
-      fprintf ppf "Error while linking %a:@ %a" Location.print_filename name
-      Symtable.report_error err
+      fprintf ppf "Error while linking %a:@ %a"
+        (Style.as_inline_code Location.print_filename) name
+        Symtable.report_error err
   | Inconsistent_import(intf, file1, file2) ->
       fprintf ppf
         "@[<hov>Files %a@ and %a@ \
+<<<<<<< HEAD
                  make inconsistent assumptions over interface %a@]"
         Location.print_filename file1
         Location.print_filename file2
         CU.Name.print intf
+||||||| 121bedcfd2
+                 make inconsistent assumptions over interface %s@]"
+        Location.print_filename file1
+        Location.print_filename file2
+        intf
+=======
+                 make inconsistent assumptions over interface %a@]"
+        (Style.as_inline_code Location.print_filename) file1
+        (Style.as_inline_code Location.print_filename) file2
+        Style.inline_code intf
+>>>>>>> 5.2.0
   | Custom_runtime ->
       fprintf ppf "Error while building custom runtime system"
   | File_exists file ->
       fprintf ppf "Cannot overwrite existing file %a"
-        Location.print_filename file
+        (Style.as_inline_code Location.print_filename) file
   | Cannot_open_dll file ->
       fprintf ppf "Error on dynamically loaded library: %a"
         Location.print_filename file
+<<<<<<< HEAD
   | Required_module_unavailable (s, m) ->
       fprintf ppf "Module `%s' is unavailable (required by `%a')"
         s
         Compilation_unit.print m
+||||||| 121bedcfd2
+  | Required_module_unavailable (s, m) ->
+      fprintf ppf "Module `%s' is unavailable (required by `%s')" s m
+=======
+  | Required_compunit_unavailable
+    (Compunit unavailable, Compunit required_by) ->
+      fprintf ppf "Module %a is unavailable (required by %a)"
+        Style.inline_code unavailable
+        Style.inline_code required_by
+>>>>>>> 5.2.0
   | Camlheader (msg, header) ->
-      fprintf ppf "System error while copying file %s: %s" header msg
+      fprintf ppf "System error while copying file %a: %a"
+        Style.inline_code header
+        Style.inline_code msg
   | Wrong_link_order depset ->
       let l = DepSet.elements depset in
       let depends_on ppf (dep, depending) =
-        fprintf ppf "%s depends on %s" depending dep
+        fprintf ppf "%a depends on %a"
+        Style.inline_code (Compunit.name depending)
+        Style.inline_code (Compunit.name dep)
       in
       fprintf ppf "@[<hov 2>Wrong link order: %a@]"
         (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ") depends_on) l
-  | Multiple_definition(modname, file1, file2) ->
+  | Multiple_definition(compunit, file1, file2) ->
       fprintf ppf
-        "@[<hov>Files %a@ and %a@ both define a module named %s@]"
-        Location.print_filename file1
-        Location.print_filename file2
-        modname
+        "@[<hov>Files %a@ and %a@ both define a module named %a@]"
+        (Style.as_inline_code Location.print_filename) file1
+        (Style.as_inline_code Location.print_filename) file2
+        Style.inline_code (Compunit.name compunit)
 
 
 let () =
@@ -826,7 +1079,7 @@ let reset () =
   lib_ccobjs := [];
   lib_ccopts := [];
   lib_dllibs := [];
-  missing_globals := Ident.Map.empty;
+  missing_compunits := Compunit.Map.empty;
   Consistbl.clear crc_interfaces;
   implementations_defined := [];
   debug_info := [];

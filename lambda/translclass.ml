@@ -39,6 +39,7 @@ let layout_tables = Lambda.Pvalue Pgenval
 
 let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) ?(ret_mode=alloc_heap) return_layout params body =
   if params = [] then body else
+<<<<<<< HEAD
   match kind, body with
   | Curried {nlocal=0},
     Lfunction {kind = Curried _ as kind; params = params';
@@ -46,6 +47,20 @@ let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) ?(ret_mode=alloc_heap) r
     when List.length params + List.length params' <= Lambda.max_arity() ->
       lfunction ~kind ~params:(params @ params')
                 ~return:return_layout
+||||||| 121bedcfd2
+  match body with
+  | Lfunction {kind = Curried; params = params'; body = body'; attr; loc}
+    when List.length params + List.length params' <= Lambda.max_arity() ->
+      lfunction ~kind:Curried ~params:(params @ params')
+                ~return:Pgenval
+=======
+  match body with
+  | Lfunction {kind = Curried; params = params'; body = body'; attr; loc}
+    when attr.may_fuse_arity &&
+         List.length params + List.length params' <= Lambda.max_arity() ->
+      lfunction ~kind:Curried ~params:(params @ params')
+                ~return:Pgenval
+>>>>>>> 5.2.0
                 ~body:body'
                 ~attr
                 ~loc
@@ -153,8 +168,16 @@ let create_object cl obj init =
 
 let name_pattern default p =
   match p.pat_desc with
+<<<<<<< HEAD
   | Tpat_var (id, _, _, _) -> id
   | Tpat_alias(_, id, _, _, _) -> id
+||||||| 121bedcfd2
+  | Tpat_var (id, _) -> id
+  | Tpat_alias(_, id, _) -> id
+=======
+  | Tpat_var (id, _, _) -> id
+  | Tpat_alias(_, id, _, _) -> id
+>>>>>>> 5.2.0
   | _ -> Ident.create_local default
 
 let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
@@ -463,12 +486,27 @@ let rec build_class_lets ~scopes cl =
   match cl.cl_desc with
     Tcl_let (rec_flag, defs, _vals, cl') ->
       let env, wrap = build_class_lets ~scopes cl' in
+<<<<<<< HEAD
       (env, fun return_layout lam_and_kind ->
           let lam, rkind = wrap return_layout lam_and_kind in
           Translcore.transl_let ~scopes ~return_layout rec_flag defs lam,
           rkind)
+||||||| 121bedcfd2
+      (env, fun x ->
+          Translcore.transl_let ~scopes rec_flag defs (wrap x))
+=======
+      (env, fun lam_and_kind ->
+          let lam, rkind = wrap lam_and_kind in
+          Translcore.transl_let ~scopes rec_flag defs lam, rkind)
+>>>>>>> 5.2.0
   | _ ->
+<<<<<<< HEAD
       (cl.cl_env, fun _ lam_and_kind -> lam_and_kind)
+||||||| 121bedcfd2
+      (cl.cl_env, fun x -> x)
+=======
+      (cl.cl_env, fun lam_and_kind -> lam_and_kind)
+>>>>>>> 5.2.0
 
 let rec get_class_meths cl =
   match cl.cl_desc with
@@ -744,8 +782,16 @@ let free_methods l =
     | Lmutlet(_k, id, _arg, _body) ->
         fv := Ident.Set.remove id !fv
     | Lletrec(decl, _body) ->
+<<<<<<< HEAD
         List.iter (fun { id } -> fv := Ident.Set.remove id !fv) decl
     | Lstaticcatch(_e1, (_,vars), _e2, _, _kind) ->
+||||||| 121bedcfd2
+        List.iter (fun (id, _exp) -> fv := Ident.Set.remove id !fv) decl
+    | Lstaticcatch(_e1, (_,vars), _e2) ->
+=======
+        List.iter (fun { id } -> fv := Ident.Set.remove id !fv) decl
+    | Lstaticcatch(_e1, (_,vars), _e2) ->
+>>>>>>> 5.2.0
         List.iter (fun (id, _) -> fv := Ident.Set.remove id !fv) vars
     | Ltrywith(_e1, exn, _e2, _k) ->
         fv := Ident.Set.remove exn !fv
@@ -871,9 +917,16 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                    mkappl (Lvar obj_init, [lambda_unit], layout_function)))
   in
   (* Simplest case: an object defined at toplevel (ids=[]) *)
+<<<<<<< HEAD
   if top && ids = [] then llets layout_table (ltable cla (ldirect obj_init), Dynamic) else
+||||||| 121bedcfd2
+  if top && ids = [] then llets (ltable cla (ldirect obj_init)) else
+=======
+  if top && ids = [] then llets (ltable cla (ldirect obj_init), Dynamic) else
+>>>>>>> 5.2.0
 
   let concrete = (vflag = Concrete)
+<<<<<<< HEAD
   and lclass mk_lam_and_kind =
     let cl_init, _ =
       llets layout_function
@@ -891,11 +944,42 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
     in
     let lam, rkind = mk_lam_and_kind (free_variables cl_init) in
     Llet(Strict, layout_function, class_init, cl_init, lam), rkind
+||||||| 121bedcfd2
+  and lclass lam =
+    let cl_init = llets (Lambda.lfunction
+                           ~kind:Curried
+                           ~attr:default_function_attribute
+                           ~loc:Loc_unknown
+                           ~return:Pgenval
+                           ~params:[cla, Pgenval] ~body:cl_init) in
+    Llet(Strict, Pgenval, class_init, cl_init, lam (free_variables cl_init))
+=======
+  and lclass mk_lam_and_kind =
+    let cl_init, _ =
+      llets (Lambda.lfunction
+               ~kind:Curried
+               ~attr:default_function_attribute
+               ~loc:Loc_unknown
+               ~return:Pgenval
+               ~params:[cla, Pgenval]
+               ~body:cl_init,
+            Dynamic (* Placeholder, real kind is computed in [lbody] below *))
+    in
+    let lam, rkind = mk_lam_and_kind (free_variables cl_init) in
+    Llet(Strict, Pgenval, class_init, cl_init, lam), rkind
+>>>>>>> 5.2.0
   and lbody fv =
     if List.for_all (fun id -> not (Ident.Set.mem id fv)) ids then
       mkappl (oo_prim "make_class",[transl_meth_list pub_meths;
+<<<<<<< HEAD
                                     Lvar class_init], layout_block),
       Dynamic
+||||||| 121bedcfd2
+                                    Lvar class_init])
+=======
+                                    Lvar class_init]),
+      Dynamic
+>>>>>>> 5.2.0
     else
       ltable table (
       Llet(
@@ -948,8 +1032,16 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
       (fun (_, path_lam, _) -> Lprim(class_field 3, [path_lam], Loc_unknown))
       (List.rev inh_init)
   in
+<<<<<<< HEAD
   let make_envs (lam, rkind) =
     Llet(StrictOpt, layout_block, envs,
+||||||| 121bedcfd2
+  let make_envs lam =
+    Llet(StrictOpt, Pgenval, envs,
+=======
+  let make_envs (lam, rkind) =
+    Llet(StrictOpt, Pgenval, envs,
+>>>>>>> 5.2.0
          (if linh_envs = [] then lenv else
          Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
                lenv :: linh_envs, Loc_unknown)),
@@ -1016,6 +1108,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
          so that the program's behaviour does not change between runs *)
       lupdate_cache
     else
+<<<<<<< HEAD
       Lifthenelse(lfield cached 0, lambda_unit, lupdate_cache, layout_unit) in
   let lcache (lam, rkind) =
     let lam = Lsequence (lcheck_cache, lam) in
@@ -1032,12 +1125,43 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
     lam, rkind
   in
   llets layout_block (
+||||||| 121bedcfd2
+      Lifthenelse(lfield cached 0, lambda_unit, lupdate_cache) in
+  llets (
+=======
+      Lifthenelse(lfield cached 0, lambda_unit, lupdate_cache) in
+  let lcache (lam, rkind) =
+    let lam = Lsequence (lcheck_cache, lam) in
+    let lam =
+      if inh_keys = []
+      then Llet(Alias, Pgenval, cached, Lvar tables, lam)
+      else
+        Llet(Strict, Pgenval, cached,
+             mkappl (oo_prim "lookup_tables",
+                     [Lvar tables; Lprim(Pmakeblock(0, Immutable, None),
+                                         inh_keys, Loc_unknown)]),
+             lam)
+    in
+    lam, rkind
+  in
+  llets (
+>>>>>>> 5.2.0
   lcache (
   make_envs (
+<<<<<<< HEAD
   if ids = []
   then mkappl (lfield cached 0, [lenvs], layout_obj), Dynamic
   else
     Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+||||||| 121bedcfd2
+  if ids = [] then mkappl (lfield cached 0, [lenvs]) else
+  Lprim(Pmakeblock(0, Immutable, None),
+=======
+  if ids = []
+  then mkappl (lfield cached 0, [lenvs]), Dynamic
+  else
+    Lprim(Pmakeblock(0, Immutable, None),
+>>>>>>> 5.2.0
         (if concrete then
           [mkappl (lfield cached 0, [lenvs], layout_obj);
            lfield cached 1;
@@ -1069,11 +1193,14 @@ let () =
 (* Error report *)
 
 open Format
+module Style = Misc.Style
 
 let report_error ppf = function
   | Tags (lab1, lab2) ->
-      fprintf ppf "Method labels `%s' and `%s' are incompatible.@ %s"
-        lab1 lab2 "Change one of them."
+      fprintf ppf "Method labels %a and %a are incompatible.@ %s"
+        Style.inline_code lab1
+        Style.inline_code lab2
+        "Change one of them."
 
 let () =
   Location.register_error_of_exn

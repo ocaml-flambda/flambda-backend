@@ -35,7 +35,8 @@ ifeq "$(FLAMBDA)" "true"
 OPTCOMPFLAGS += -O3
 endif
 
-COMPFLAGS += -I byte
+%.cmo: COMPFLAGS += -I byte
+%.cmi: COMPFLAGS += -I byte
 OPTCOMPFLAGS += -I native
 
 LOCAL_SRC=dynlink_compilerlibs
@@ -101,13 +102,20 @@ COMPILERLIBS_SOURCES=\
   utils/linkage_name.ml \
   utils/symbol.ml \
   utils/lazy_backtrack.ml \
+<<<<<<< HEAD
   utils/zero_alloc_utils.ml \
+||||||| 121bedcfd2
+=======
+  utils/compression.ml \
+>>>>>>> 5.2.0
   parsing/location.ml \
+  parsing/unit_info.ml \
   parsing/longident.ml \
   parsing/docstrings.ml \
   parsing/printast.ml \
   parsing/syntaxerr.ml \
   parsing/ast_helper.ml \
+<<<<<<< HEAD
   parsing/jane_syntax_parsing.ml \
   parsing/jane_syntax.ml \
   parsing/ast_iterator.ml \
@@ -117,6 +125,21 @@ COMPILERLIBS_SOURCES=\
   parsing/pprintast.ml \
   typing/solver.ml \
   typing/mode.ml \
+||||||| 121bedcfd2
+  parsing/ast_mapper.ml \
+  parsing/attr_helper.ml \
+  parsing/builtin_attributes.ml \
+  typing/ident.ml \
+=======
+  parsing/ast_iterator.ml \
+  parsing/builtin_attributes.ml \
+  parsing/ast_mapper.ml \
+  parsing/camlinternalMenhirLib.ml \
+  parsing/parser.ml \
+  parsing/lexer.ml \
+  parsing/attr_helper.ml \
+  typing/ident.ml \
+>>>>>>> 5.2.0
   typing/path.ml \
   typing/shape.ml \
   typing/jkind_types.ml \
@@ -131,7 +154,13 @@ COMPILERLIBS_SOURCES=\
   file_formats/cmi_format.ml \
   typing/persistent_env.ml \
   typing/env.ml \
+<<<<<<< HEAD
   typing/shape_reduce.ml \
+||||||| 121bedcfd2
+=======
+  typing/shape_reduce.ml \
+  typing/typedtree.ml \
+>>>>>>> 5.2.0
   lambda/debuginfo.ml \
   lambda/lambda.ml \
   lambda/runtimedef.ml \
@@ -145,6 +174,16 @@ COMPILERLIBS_SOURCES=\
   bytecomp/dll.ml \
   bytecomp/meta.ml \
   bytecomp/symtable.ml
+
+# For the native-code version of this library, we need much fewer modules
+MINI_COMPILERLIBS_INTFS=\
+  file_formats/cmxs_format.mli
+
+MINI_COMPILERLIBS_SOURCES=\
+  utils/binutils.ml \
+  utils/config.ml \
+  utils/build_path_prefix_map.ml \
+  utils/misc.ml
 
 # Rules to make a local copy of the .ml and .mli files required.  We also
 # provide .ml files for .mli-only modules---without this, such modules do
@@ -191,6 +230,10 @@ COMPILERLIBS_SOURCES_INTFS=\
 COMPILERLIBS_COPIED_SOURCES_INTFS=\
   $(addsuffix i, $(COMPILERLIBS_COPIED_SOURCES))
 
+MINI_COMPILERLIBS_COPIED_SOURCES=\
+  $(addprefix $(LOCAL_SRC)/, $(notdir $(MINI_COMPILERLIBS_SOURCES))) \
+  $(addprefix $(LOCAL_SRC)/, $(notdir $(MINI_COMPILERLIBS_INTFS)))
+
 # $(LOCAL_SRC)/Makefile uses the variables above in dependencies, so must be
 # include'd after they've been defined.
 -include $(LOCAL_SRC)/Makefile
@@ -199,7 +242,7 @@ COMPILERLIBS_COPIED_SOURCES_INTFS=\
 # that the resulting .cm{o,x} files can be packed.
 
 COMPILERLIBS_CMO=$(COMPILERLIBS_COPIED_SOURCES:.ml=.cmo)
-COMPILERLIBS_CMX=$(COMPILERLIBS_COPIED_SOURCES:.ml=.cmx)
+COMPILERLIBS_CMX=$(MINI_COMPILERLIBS_COPIED_SOURCES:.ml=.cmx)
 
 $(LOCAL_SRC)/%.cmi: $(LOCAL_SRC)/%.mli
 	$(V_OCAMLC)$(OCAMLC) -c -for-pack Dynlink_compilerlibs $(COMPFLAGS) \

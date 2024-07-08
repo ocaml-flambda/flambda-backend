@@ -1,7 +1,14 @@
+<<<<<<< HEAD
 (* TEST
  reason = "CR ocaml 5 domains: re-enable this test";
  skip;
 *)
+||||||| 121bedcfd2
+(* TEST
+*)
+=======
+(* TEST *)
+>>>>>>> 5.2.0
 
 (* when run with the bytecode debug runtime, this test
    used to trigger a bug where the constant [13]

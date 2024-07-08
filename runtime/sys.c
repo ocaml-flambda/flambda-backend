@@ -219,7 +219,7 @@ CAMLprim value caml_sys_exit(value retcode)
 #endif
 #endif
 
-const static int sys_open_flags[] = {
+static const int sys_open_flags[] = {
   O_RDONLY, O_WRONLY, O_APPEND | O_WRONLY, O_CREAT, O_TRUNC, O_EXCL,
   O_BINARY, O_TEXT, O_NONBLOCK
 };
@@ -764,8 +764,24 @@ CAMLprim value caml_sys_isatty(value chan)
 
   return ret;
 }
+<<<<<<< HEAD
 
 CAMLprim value caml_sys_const_naked_pointers_checked(value unit)
 {
   return Val_false;
 }
+||||||| 121bedcfd2
+=======
+
+/* On Windows, returns a string list of directories to search for configuration
+   files. On Unix, this list is more easily computed in OCaml, so the list
+   returned by the primitive is empty. */
+CAMLprim value caml_xdg_defaults(value unit)
+{
+#ifdef _WIN32
+  return caml_win32_xdg_defaults();
+#else
+  return Val_emptylist;
+#endif
+}
+>>>>>>> 5.2.0

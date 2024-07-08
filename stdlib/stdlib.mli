@@ -1410,8 +1410,13 @@ module Domain         = Domain
 [@@alert unstable
     "The Domain interface may change in incompatible ways in the future."
 ]
+<<<<<<< HEAD
 (* CR ocaml 5 effects:
 BACKPORT
+||||||| 121bedcfd2
+=======
+module Dynarray       = Dynarray
+>>>>>>> 5.2.0
 module Effect         = Effect
 [@@alert "-unstable"]
 [@@alert unstable

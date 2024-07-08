@@ -15,10 +15,26 @@
 
 open Lambda
 
+<<<<<<< HEAD
 type compilation_env = Debug_event.compilation_env =
+||||||| 121bedcfd2
+type compilation_env =
+=======
+type closure_entry =
+  | Free_variable of int
+  | Function of int
+
+type closure_env =
+  | Not_in_closure
+  | In_closure of {
+      entries: closure_entry Ident.tbl;
+      env_pos: int;
+    }
+
+type compilation_env =
+>>>>>>> 5.2.0
   { ce_stack: int Ident.tbl;
-    ce_heap: int Ident.tbl;
-    ce_rec: int Ident.tbl }
+    ce_closure: closure_env }
 
 type debug_event = Debug_event.debug_event =
   { mutable ev_pos: int;

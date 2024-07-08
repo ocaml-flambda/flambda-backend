@@ -21,8 +21,13 @@ module type Common_options = sig
   val _no_absname : unit -> unit
   val _alert : string -> unit
   val _I : string -> unit
+<<<<<<< HEAD
   val _H : string -> unit
   val _libloc : string -> unit
+||||||| 121bedcfd2
+=======
+  val _H : string -> unit
+>>>>>>> 5.2.0
   val _labels : unit -> unit
   val _alias_deps : unit -> unit
   val _no_alias_deps : unit -> unit
@@ -91,8 +96,13 @@ module type Compiler_options = sig
   val _as_argument_for : string -> unit
   val _as_parameter : unit -> unit
   val _binannot : unit -> unit
+<<<<<<< HEAD
   val _binannot_cms : unit -> unit
   val _binannot_occurrences : unit -> unit
+||||||| 121bedcfd2
+=======
+  val _binannot_occurrences : unit -> unit
+>>>>>>> 5.2.0
   val _c : unit -> unit
   val _cc : string -> unit
   val _cclib : string -> unit
@@ -151,6 +161,7 @@ module type Toplevel_options = sig
   val _init : string -> unit
   val _noinit : unit -> unit
   val _no_version : unit -> unit
+  val _prompt : unit -> unit
   val _noprompt : unit -> unit
   val _nopromptcont : unit -> unit
   val _stdin : unit -> unit

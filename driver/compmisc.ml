@@ -48,12 +48,24 @@ let init_path ?(auto_include=auto_include) ?(dir="") () =
     (if !Clflags.no_cwd then [] else [dir])
     @ List.rev_append visible (Clflags.std_include_dir ())
   in
+<<<<<<< HEAD
   let hidden =
     List.rev_map (Misc.expand_directory Config.standard_library)
       !Clflags.hidden_include_dirs
   in
   Load_path.init ~auto_include ~visible ~hidden;
   Env.reset_cache ~preserve_persistent_env:false
+||||||| 121bedcfd2
+  Load_path.init ~auto_include dirs;
+  Env.reset_cache ()
+=======
+  let hidden =
+    List.rev_map (Misc.expand_directory Config.standard_library)
+      !Clflags.hidden_include_dirs
+  in
+  Load_path.init ~auto_include ~visible ~hidden;
+  Env.reset_cache ()
+>>>>>>> 5.2.0
 
 (* Return the initial environment in which compilation proceeds. *)
 
@@ -88,10 +100,12 @@ let set_from_env flag Clflags.{ parse; usage; env_var } =
 
 let read_clflags_from_env () =
   set_from_env Clflags.color Clflags.color_reader;
-  if
-    Option.is_none !Clflags.color &&
-    Option.is_some (Sys.getenv_opt "NO_COLOR")
-  then
+  let no_color () = (* See https://no-color.org/ *)
+    match Sys.getenv_opt "NO_COLOR" with
+    | None | Some "" -> false
+    | _ -> true
+  in
+  if Option.is_none !Clflags.color && no_color () then
     Clflags.color := Some Misc.Color.Never;
   set_from_env Clflags.error_style Clflags.error_style_reader;
   ()

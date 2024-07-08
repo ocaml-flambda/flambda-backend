@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
  include systhreads;
  hassysthreads;
  not-bsd;
@@ -8,6 +9,25 @@
  }{
    native;
  }
+||||||| 121bedcfd2
+   * hassysthreads
+   include systhreads
+   ** not-bsd
+   *** libunix
+   **** bytecode
+   **** native
+=======
+ include systhreads;
+ hassysthreads;
+ not-bsd;
+ libunix;
+ no-tsan; (* tsan limitation: starting new threads after fork is not supported *)
+ {
+   bytecode;
+ }{
+   native;
+ }
+>>>>>>> 5.2.0
 *)
 
 (* POSIX threads and fork() *)

@@ -37,7 +37,13 @@ val split_default_wrapper
   -> body:lambda
   -> attr:function_attribute
   -> loc:Lambda.scoped_location
+<<<<<<< HEAD
   -> mode:Lambda.alloc_mode
   -> ret_mode:Lambda.alloc_mode
   -> region:bool
   -> rec_binding list
+||||||| 121bedcfd2
+  -> (Ident.t * lambda) list
+=======
+  -> rec_binding list
+>>>>>>> 5.2.0

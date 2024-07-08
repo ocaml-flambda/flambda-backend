@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
  {
    skip;
  }{
@@ -9,6 +10,20 @@
    all_modules = "${readonly_files} stack_realloc.ml";
    native;
  }
+||||||| 121bedcfd2
+
+* frame_pointers
+** native
+
+readonly_files = "fp_backtrace.c stack_realloc_.c"
+all_modules = "${readonly_files} stack_realloc.ml"
+
+=======
+ frame_pointers;
+ readonly_files = "fp_backtrace.c stack_realloc_.c";
+ all_modules = "${readonly_files} stack_realloc.ml";
+ native;
+>>>>>>> 5.2.0
 *)
 
 open Effect
@@ -16,7 +31,7 @@ open Effect.Deep
 
 type _ t += E : int -> int t
 
-external fp_backtrace : unit -> unit = "fp_backtrace" [@@noalloc]
+external fp_backtrace : string -> unit = "fp_backtrace" [@@noalloc]
 external c_fun : unit -> int = "c_fun"
 
 let[@inline never][@local never] f x = x
@@ -45,7 +60,7 @@ let[@inline never] consume_stack () =
 
 let[@inline never] callback () =
   consume_stack ();
-  fp_backtrace ();
+  fp_backtrace Sys.argv.(0);
   0
 
 let _ = Callback.register "callback" callback

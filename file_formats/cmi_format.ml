@@ -74,6 +74,7 @@ type 'sg cmi_infos_generic = {
     cmi_flags : flags;
 }
 
+<<<<<<< HEAD
 type cmi_infos_lazy = Subst.Lazy.signature cmi_infos_generic
 type cmi_infos = Types.signature cmi_infos_generic
 
@@ -125,6 +126,13 @@ let input_cmi_lazy ic =
       header_kind = kind;
       header_sign = sign;
     } = (input_value ic : header) in
+||||||| 121bedcfd2
+let input_cmi ic =
+  let (name, sign) = (input_value ic : header) in
+=======
+let input_cmi ic =
+  let (name, sign) = (Compression.input_value ic : header) in
+>>>>>>> 5.2.0
   let crcs = (input_value ic : crcs) in
   let flags = (input_value ic : flags) in
   {
@@ -167,6 +175,7 @@ let read_cmi_lazy filename =
 let output_cmi filename oc cmi =
 (* beware: the provided signature must have been substituted for saving *)
   output_string oc Config.cmi_magic_number;
+<<<<<<< HEAD
   let output_int64 oc n =
     let buf = Bytes.create 8 in
     Bytes.set_int64_ne buf 0 n;
@@ -193,6 +202,11 @@ let output_cmi filename oc cmi =
       header_sign = sign;
     };
   (* BACKPORT END *)
+||||||| 121bedcfd2
+  Marshal.(to_channel oc ((cmi.cmi_name, cmi.cmi_sign) : header) [Compression]);
+=======
+  Compression.output_value oc ((cmi.cmi_name, cmi.cmi_sign) : header);
+>>>>>>> 5.2.0
   flush oc;
   let crc = Digest.file filename in
   let my_info =
@@ -214,19 +228,20 @@ let read_cmi filename = read_cmi_lazy filename |> force_cmi_infos
 (* Error report *)
 
 open Format
+module Style = Misc.Style
 
 let report_error ppf = function
   | Not_an_interface filename ->
       fprintf ppf "%a@ is not a compiled interface"
-        Location.print_filename filename
+        (Style.as_inline_code Location.print_filename) filename
   | Wrong_version_interface (filename, older_newer) ->
       fprintf ppf
         "%a@ is not a compiled interface for this version of OCaml.@.\
          It seems to be for %s version of OCaml."
-        Location.print_filename filename older_newer
+        (Style.as_inline_code  Location.print_filename) filename older_newer
   | Corrupted_interface filename ->
       fprintf ppf "Corrupted compiled interface@ %a"
-        Location.print_filename filename
+        (Style.as_inline_code Location.print_filename) filename
 
 let () =
   Location.register_error_of_exn

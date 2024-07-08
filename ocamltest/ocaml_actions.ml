@@ -158,6 +158,8 @@ let generate_lexer = generate_module ocamllex
 
 let generate_parser = generate_module ocamlyacc
 
+exception Cannot_compile_file_type of string
+
 let prepare_module output_variable log env input =
   let input_type = snd input in
   let open Ocaml_filetypes in
@@ -165,12 +167,12 @@ let prepare_module output_variable log env input =
     | Implementation | Interface | C | Obj -> [input]
     | Binary_interface -> [input]
     | Backend_specific _ -> [input]
-    | C_minus_minus -> assert false
     | Lexer ->
       generate_lexer output_variable input log env
     | Grammar ->
       generate_parser output_variable input log env
-    | Text -> assert false
+    | Text | C_minus_minus | Other _ ->
+      raise (Cannot_compile_file_type (string_of_filetype input_type))
 
 let get_program_file backend env =
   let testfile = Actions_helpers.testfile env in
@@ -797,7 +799,7 @@ let run_expect_once input_file principal log env =
   let principal_flag = if principal then "-principal" else "" in
   let commandline =
   [
-    Ocaml_commands.ocamlrun_expect_test;
+    Ocaml_commands.ocamlrun_expect;
     expect_flags;
     Ocaml_flags.toplevel_default_flags;
     Ocaml_flags.stdlib;
@@ -1128,12 +1130,12 @@ let config_variables _log env =
     Ocaml_variables.ocamlopt_byte, Ocaml_files.ocamlopt;
     Ocaml_variables.bytecc_libs, Ocamltest_config.bytecc_libs;
     Ocaml_variables.nativecc_libs, Ocamltest_config.nativecc_libs;
-    Ocaml_variables.mkdll,
-      Sys.getenv_with_default_value "MKDLL" Ocamltest_config.mkdll;
-    Ocaml_variables.mkexe,
-      Sys.getenv_with_default_value "MKEXE" Ocamltest_config.mkexe;
-    Ocaml_variables.c_preprocessor, Ocamltest_config.c_preprocessor;
+    Ocaml_variables.mkdll, Ocamltest_config.mkdll;
+    Ocaml_variables.mkexe, Ocamltest_config.mkexe;
+    Ocaml_variables.cpp, Ocamltest_config.cpp;
+    Ocaml_variables.cppflags, Ocamltest_config.cppflags;
     Ocaml_variables.cc, Ocamltest_config.cc;
+    Ocaml_variables.cflags, Ocamltest_config.cflags;
     Ocaml_variables.csc, Ocamltest_config.csc;
     Ocaml_variables.csc_flags, Ocamltest_config.csc_flags;
     Ocaml_variables.shared_library_cflags,

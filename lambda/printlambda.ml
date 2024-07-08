@@ -281,6 +281,7 @@ let print_bigarray name unsafe kind ppf layout =
     (if unsafe then "unsafe_"^ name else name)
     (match kind with
      | Pbigarray_unknown -> "generic"
+     | Pbigarray_float16 -> "float16"
      | Pbigarray_float32 -> "float32"
      | Pbigarray_float64 -> "float64"
      | Pbigarray_sint8 -> "sint8"
@@ -1030,10 +1031,38 @@ let rec lam ppf = function
         apply_tailcall_attribute ap.ap_tailcall
         apply_inlined_attribute ap.ap_inlined
         apply_specialised_attribute ap.ap_specialised
+<<<<<<< HEAD
         apply_probe ap.ap_probe
   | Lfunction lfun ->
       lfunction ppf lfun
   | Llet _ | Lmutlet _ as expr ->
+||||||| 121bedcfd2
+  | Lfunction{kind; params; return; body; attr} ->
+      let pr_params ppf params =
+        match kind with
+        | Curried ->
+            List.iter (fun (param, k) ->
+                fprintf ppf "@ %a%a" Ident.print param value_kind k) params
+        | Tupled ->
+            fprintf ppf " (";
+            let first = ref true in
+            List.iter
+              (fun (param, k) ->
+                if !first then first := false else fprintf ppf ",@ ";
+                Ident.print ppf param;
+                value_kind ppf k)
+              params;
+            fprintf ppf ")" in
+      fprintf ppf "@[<2>(function%a@ %a%a%a)@]" pr_params params
+        function_attribute attr return_kind return lam body
+  | Llet(_, k, id, arg, body)
+  | Lmutlet(k, id, arg, body) as l ->
+=======
+  | Lfunction lfun ->
+      lfunction ppf lfun
+  | Llet(_, k, id, arg, body)
+  | Lmutlet(k, id, arg, body) as l ->
+>>>>>>> 5.2.0
       let let_kind = begin function
         | Llet(str,_,_,_,_) ->
            begin match str with
@@ -1189,6 +1218,7 @@ and sequence ppf = function
   | l ->
       lam ppf l
 
+<<<<<<< HEAD
 and lfunction ppf {kind; params; return; body; attr; ret_mode; mode} =
   let pr_params ppf params =
     match kind with
@@ -1219,6 +1249,29 @@ and lfunction ppf {kind; params; return; body; attr; ret_mode; mode} =
     function_attribute attr return_kind (ret_mode, return) lam body
 
 
+||||||| 121bedcfd2
+=======
+and lfunction ppf {kind; params; return; body; attr} =
+  let pr_params ppf params =
+    match kind with
+    | Curried ->
+        List.iter (fun (param, k) ->
+            fprintf ppf "@ %a%a" Ident.print param value_kind k) params
+    | Tupled ->
+        fprintf ppf " (";
+        let first = ref true in
+        List.iter
+          (fun (param, k) ->
+             if !first then first := false else fprintf ppf ",@ ";
+             Ident.print ppf param;
+             value_kind ppf k)
+          params;
+            fprintf ppf ")" in
+  fprintf ppf "@[<2>(function%a@ %a%a%a)@]" pr_params params
+    function_attribute attr return_kind return lam body
+
+
+>>>>>>> 5.2.0
 let structured_constant = struct_const
 
 let lambda = lam

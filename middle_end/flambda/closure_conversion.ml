@@ -42,23 +42,51 @@ let add_default_argument_wrappers lam =
         Simplif.split_default_wrapper ~id ~kind ~params
           ~body:fbody ~return ~attr ~loc ~ret_mode ~mode ~region
       with
+<<<<<<< HEAD
       | [{ id = fun_id; def }] ->
         Llet (Alias, Lambda.layout_function, fun_id, Lfunction def, body)
       | [{ id = fun_id; def };
          { id = inner_fun_id; def = def_inner }] ->
         Llet (Alias, Lambda.layout_function, inner_fun_id, Lfunction def_inner,
               Llet (Alias, Lambda.layout_function, fun_id, Lfunction def, body))
+||||||| 121bedcfd2
+      | [fun_id, def] -> Llet (Alias, Pgenval, fun_id, def, body)
+      | [fun_id, def; inner_fun_id, def_inner] ->
+        Llet (Alias, Pgenval, inner_fun_id, def_inner,
+              Llet (Alias, Pgenval, fun_id, def, body))
+=======
+      | [{ id = fun_id; def }] ->
+        Llet (Alias, Pgenval, fun_id, Lfunction def, body)
+      | [{ id = fun_id; def };
+         { id = inner_fun_id; def = def_inner }] ->
+        Llet (Alias, Pgenval, inner_fun_id, Lfunction def_inner,
+              Llet (Alias, Pgenval, fun_id, Lfunction def, body))
+>>>>>>> 5.2.0
       | _ -> assert false
       end
     | Lletrec (defs, body) ->
         let defs =
           List.flatten
             (List.map
+<<<<<<< HEAD
                (fun Lambda.{ id;
                      def = {kind; params; body; attr; loc;
                             ret_mode; mode; region; return} } ->
+||||||| 121bedcfd2
+               (function
+                 | (id, Lambda.Lfunction {kind; params; body; attr; loc}) ->
+=======
+               (function Lambda.{ id; def = {kind; params; body; attr; loc} } ->
+>>>>>>> 5.2.0
                    Simplif.split_default_wrapper ~id ~kind ~params ~body
+<<<<<<< HEAD
                      ~return ~attr ~loc ~ret_mode ~mode ~region)
+||||||| 121bedcfd2
+                     ~return:Pgenval ~attr ~loc
+                 | _ -> assert false)
+=======
+                     ~return:Pgenval ~attr ~loc)
+>>>>>>> 5.2.0
                defs)
         in
         Lletrec (defs, body)
@@ -260,24 +288,60 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
 
   | Lletrec (defs, body) ->
     let env =
+<<<<<<< HEAD
       List.fold_right (fun { Lambda.id } env ->
           Env.add_var env id (Variable.create_with_same_name_as_ident id)
             Lambda.layout_letrec)
+||||||| 121bedcfd2
+      List.fold_right (fun (id,  _) env ->
+          Env.add_var env id (Variable.create_with_same_name_as_ident id))
+=======
+      List.fold_right (fun { Lambda.id } env ->
+          Env.add_var env id (Variable.create_with_same_name_as_ident id))
+>>>>>>> 5.2.0
         defs env
     in
     let function_declarations =
+<<<<<<< HEAD
       (* Name functions *)
       List.map (fun Lambda.{ id = let_rec_ident;
                              def = { kind; params; return; body; attr; loc; mode; region } } ->
+||||||| 121bedcfd2
+      (* Identify any bindings in the [let rec] that are functions.  These
+         will be named after the corresponding identifier in the [let rec]. *)
+      List.map (function
+          | (let_rec_ident,
+             Lambda.Lfunction { kind; params; body; attr; loc }) ->
+=======
+      (* Name functions *)
+      List.map (function
+          | Lambda.{ id = let_rec_ident;
+              def = { kind; params; body; attr; loc }} ->
+>>>>>>> 5.2.0
             let closure_bound_var =
               Variable.create_with_same_name_as_ident let_rec_ident
             in
+<<<<<<< HEAD
             let params = List.map (fun (p : Lambda.lparam) -> (p.name, p.layout)) params in
             Function_decl.create ~let_rec_ident:(Some let_rec_ident)
               ~closure_bound_var ~kind ~mode ~region
               ~params ~body ~attr ~loc ~return_layout:return)
+||||||| 121bedcfd2
+            let function_declaration =
+              Function_decl.create ~let_rec_ident:(Some let_rec_ident)
+                ~closure_bound_var ~kind ~params:(List.map fst params) ~body
+                ~attr ~loc
+            in
+            Some function_declaration
+          | _ -> None)
+=======
+            Function_decl.create ~let_rec_ident:(Some let_rec_ident)
+              ~closure_bound_var ~kind ~params:(List.map fst params) ~body
+              ~attr ~loc)
+>>>>>>> 5.2.0
         defs
     in
+<<<<<<< HEAD
     let set_of_closures_var = Variable.create (Names.set_of_closures) in
     let set_of_closures =
       close_functions t env (Function_decls.create function_declarations)
@@ -300,6 +364,76 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     in
     Flambda.create_let set_of_closures_var set_of_closures body
   | Lsend (kind, meth, obj, args, reg_close, mode, loc, result_layout) ->
+||||||| 121bedcfd2
+    begin match
+      Misc.Stdlib.List.some_if_all_elements_are_some function_declarations
+    with
+    | Some function_declarations ->
+      (* When all the bindings are (syntactically) functions, we can
+         eliminate the [let rec] construction, instead producing a normal
+         [Let] that binds a set of closures containing all of the functions.
+      *)
+      (* CR-someday lwhite: This is a very syntactic criteria. Adding an
+         unused value to a set of recursive bindings changes how
+         functions are represented at runtime. *)
+      let set_of_closures_var = Variable.create (Names.set_of_closures) in
+      let set_of_closures =
+        close_functions t env (Function_decls.create function_declarations)
+      in
+      let body =
+        List.fold_left (fun body decl ->
+            let let_rec_ident = Function_decl.let_rec_ident decl in
+            let closure_bound_var = Function_decl.closure_bound_var decl in
+            let let_bound_var = Env.find_var env let_rec_ident in
+            (* Inside the body of the [let], each function is referred to by
+               a [Project_closure] expression, which projects from the set of
+               closures. *)
+            (Flambda.create_let let_bound_var
+              (Project_closure {
+                set_of_closures = set_of_closures_var;
+                closure_id = Closure_id.wrap closure_bound_var;
+              })
+              body))
+          (close t env body) function_declarations
+      in
+      Flambda.create_let set_of_closures_var set_of_closures body
+    | None ->
+      (* If the condition above is not satisfied, we build a [Let_rec]
+         expression; any functions bound by it will have their own
+         individual closures. *)
+      let defs =
+        List.map (fun (id, def) ->
+            let var = Env.find_var env id in
+            var, close_let_bound_expression t ~let_rec_ident:id var env def)
+          defs
+      in
+      Let_rec (defs, close t env body)
+    end
+  | Lsend (kind, meth, obj, args, loc) ->
+=======
+    let set_of_closures_var = Variable.create (Names.set_of_closures) in
+    let set_of_closures =
+      close_functions t env (Function_decls.create function_declarations)
+    in
+    let body =
+      List.fold_left (fun body decl ->
+          let let_rec_ident = Function_decl.let_rec_ident decl in
+          let closure_bound_var = Function_decl.closure_bound_var decl in
+          let let_bound_var = Env.find_var env let_rec_ident in
+          (* Inside the body of the [let], each function is referred to by
+             a [Project_closure] expression, which projects from the set of
+             closures. *)
+          (Flambda.create_let let_bound_var
+             (Project_closure {
+                 set_of_closures = set_of_closures_var;
+                 closure_id = Closure_id.wrap closure_bound_var;
+               })
+             body))
+        (close t env body) function_declarations
+    in
+    Flambda.create_let set_of_closures_var set_of_closures body
+  | Lsend (kind, meth, obj, args, loc) ->
+>>>>>>> 5.2.0
     let meth_var = Variable.create Names.meth in
     let obj_var = Variable.create Names.obj in
     let dbg = Debuginfo.from_location loc in

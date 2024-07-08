@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
  reason = "CR ocaml 5 domains: re-enable this test";
  skip;
  include str;
@@ -8,6 +9,20 @@
  }{
    native;
  }
+||||||| 121bedcfd2
+* hasstr
+include str
+** bytecode
+** native
+=======
+ include str;
+ hasstr;
+ {
+   bytecode;
+ }{
+   native;
+ }
+>>>>>>> 5.2.0
 *)
 
 let total = Atomic.make 0

@@ -70,8 +70,13 @@ let no_docstring f x =
   Lexer.handle_docstrings := true;
   result
 
+let unit_from_source source_file =
+    Unit_info.make ~check_modname:false ~source_file
+      (Filename.remove_extension source_file)
+
 let process_implementation_file sourcefile =
   init_path ();
+<<<<<<< HEAD
   let prefixname = Filename.chop_extension sourcefile in
   let modulename = String.capitalize_ascii(Filename.basename prefixname) in
   let compilation_unit =
@@ -79,6 +84,14 @@ let process_implementation_file sourcefile =
       (modulename |> Compilation_unit.Name.of_string)
   in
   Env.set_unit_name (Some compilation_unit);
+||||||| 121bedcfd2
+  let prefixname = Filename.chop_extension sourcefile in
+  let modulename = String.capitalize_ascii(Filename.basename prefixname) in
+  Env.set_unit_name modulename;
+=======
+  let source = unit_from_source sourcefile in
+  Env.set_unit_name (Unit_info.modname source);
+>>>>>>> 5.2.0
   let inputfile = preprocess sourcefile in
   let env = initial_env () in
   try
@@ -86,10 +99,19 @@ let process_implementation_file sourcefile =
       Pparse.file ~tool_name inputfile
         (no_docstring Parse.implementation) Pparse.Structure
     in
+<<<<<<< HEAD
     let typedtree =
       Typemod.type_implementation
         ~sourcefile prefixname compilation_unit env parsetree
     in
+||||||| 121bedcfd2
+    let typedtree =
+      Typemod.type_implementation
+        sourcefile prefixname modulename env parsetree
+    in
+=======
+    let typedtree = Typemod.type_implementation source env parsetree in
+>>>>>>> 5.2.0
     (Some (parsetree, typedtree), inputfile)
   with
   | Syntaxerr.Error _ as exn ->
@@ -110,6 +132,7 @@ let process_implementation_file sourcefile =
    no error occurred, else None and an error message is printed.*)
 let process_interface_file sourcefile =
   init_path ();
+<<<<<<< HEAD
   let prefixname = Filename.chop_extension sourcefile in
   let modulename = String.capitalize_ascii(Filename.basename prefixname) in
   let compilation_unit =
@@ -117,6 +140,15 @@ let process_interface_file sourcefile =
       (modulename |> Compilation_unit.Name.of_string)
   in
   Env.set_unit_name (Some compilation_unit);
+||||||| 121bedcfd2
+  let prefixname = Filename.chop_extension sourcefile in
+  let modulename = String.capitalize_ascii(Filename.basename prefixname) in
+  Env.set_unit_name modulename;
+=======
+  let unit = unit_from_source sourcefile in
+  let modulename = Unit_info.modname unit in
+  Env.set_unit_name modulename;
+>>>>>>> 5.2.0
   let inputfile = preprocess sourcefile in
   let ast =
     Pparse.file ~tool_name inputfile
@@ -221,13 +253,7 @@ let process_file sourcefile =
   | Odoc_global.Text_file file ->
       Location.input_name := file;
       try
-        let mod_name =
-          let s =
-            try Filename.chop_extension file
-            with _ -> file
-          in
-          String.capitalize_ascii (Filename.basename s)
-        in
+        let mod_name = Unit_info.modname_from_source file in
         let txt =
           try Odoc_text.Texter.text_of_string (Odoc_misc.input_file_as_string file)
           with Odoc_text.Text_syntax (l, c, s) ->

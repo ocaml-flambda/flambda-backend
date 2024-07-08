@@ -56,6 +56,7 @@
 Caml_inline value alloc_and_clear_stack_parent(caml_domain_state* domain_state)
 {
   struct stack_info* parent_stack = Stack_parent(domain_state->current_stack);
+<<<<<<< HEAD
   if (parent_stack == NULL) {
     return Val_unit;
   } else {
@@ -63,6 +64,15 @@ Caml_inline value alloc_and_clear_stack_parent(caml_domain_state* domain_state)
     Stack_parent(domain_state->current_stack) = NULL;
     return cont;
   }
+||||||| 121bedcfd2
+  value cont = caml_alloc_1(Cont_tag, Val_ptr(parent_stack));
+  Stack_parent(domain_state->current_stack) = NULL;
+  return cont;
+=======
+  value cont = caml_alloc_2(Cont_tag, Val_ptr(parent_stack), Val_long(0));
+  Stack_parent(domain_state->current_stack) = NULL;
+  return cont;
+>>>>>>> 5.2.0
 }
 
 Caml_inline void restore_stack_parent(caml_domain_state* domain_state,
@@ -97,9 +107,10 @@ static value raise_if_exception(value res)
 #include "caml/fix_code.h"
 #include "caml/fiber.h"
 
-static __thread opcode_t callback_code[] = { ACC, 0, APPLY, 0, POP, 1, STOP };
+static CAMLthread_local opcode_t callback_code[] =
+  { ACC, 0, APPLY, 0, POP, 1, STOP };
 
-static __thread int callback_code_inited = 0;
+static CAMLthread_local int callback_code_inited = 0;
 
 static void init_callback_code(void)
 {
@@ -143,6 +154,7 @@ static value caml_callbackN_exn0(value closure, int narg, value args[])
      However, they are never used afterwards,
      as they were copied into the root [domain_state->current_stack]. */
 
+  caml_update_young_limit_after_c_call(domain_state);
   res = caml_interprete(callback_code, sizeof(callback_code));
   if (Is_exception_result(res))
     domain_state->current_stack->sp += narg + 4; /* PR#3419 */
@@ -254,6 +266,7 @@ static value callback(value closure, value arg)
     End_roots();
 
     Begin_roots1(cont);
+    caml_update_young_limit_after_c_call(domain_state);
     res = caml_callback_asm(domain_state, closure, &arg);
     End_roots();
 
@@ -261,6 +274,7 @@ static value callback(value closure, value arg)
 
     return res;
   } else {
+    caml_update_young_limit_after_c_call(domain_state);
     return caml_callback_asm(domain_state, closure, &arg);
   }
 }
@@ -283,6 +297,7 @@ static value callback2(value closure, value arg1, value arg2)
 
     Begin_roots1(cont);
     value args[] = {arg1, arg2};
+    caml_update_young_limit_after_c_call(domain_state);
     res = caml_callback2_asm(domain_state, closure, args);
     End_roots();
 
@@ -291,6 +306,7 @@ static value callback2(value closure, value arg1, value arg2)
     return res;
   } else {
     value args[] = {arg1, arg2};
+    caml_update_young_limit_after_c_call(domain_state);
     return caml_callback2_asm(domain_state, closure, args);
   }
 }
@@ -311,6 +327,7 @@ static value callback3(value closure, value arg1, value arg2, value arg3)
 
     Begin_root(cont);
     value args[] = {arg1, arg2, arg3};
+    caml_update_young_limit_after_c_call(domain_state);
     res = caml_callback3_asm(domain_state, closure, args);
     End_roots();
 
@@ -319,6 +336,7 @@ static value callback3(value closure, value arg1, value arg2, value arg3)
     return res;
   } else {
     value args[] = {arg1, arg2, arg3};
+    caml_update_young_limit_after_c_call(domain_state);
     return caml_callback3_asm(domain_state, closure, args);
   }
 }

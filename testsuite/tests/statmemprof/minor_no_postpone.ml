@@ -1,5 +1,15 @@
 (* TEST
+<<<<<<< HEAD
  modules = "minor_no_postpone_stub.c";
+||||||| 121bedcfd2
+   modules = "minor_no_postpone_stub.c"
+   * skip
+   reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634"
+=======
+ modules = "minor_no_postpone_stub.c";
+ reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634";
+ skip;
+>>>>>>> 5.2.0
 *)
 
 module MP = Gc.Memprof

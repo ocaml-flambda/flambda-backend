@@ -17,9 +17,17 @@
 (** {2 Initialization} *)
 
 type info = {
+<<<<<<< HEAD
   source_file : string;
   module_name : Compilation_unit.t;
   output_prefix : string;
+||||||| 121bedcfd2
+  source_file : string;
+  module_name : string;
+  output_prefix : string;
+=======
+  target : Unit_info.t;
+>>>>>>> 5.2.0
   env : Env.t;
   ppf_dump : Format.formatter;
   tool_name : string;
@@ -84,13 +92,3 @@ val implementation :
   backend:(info -> Typedtree.implementation -> unit) ->
   unit
 (** The complete compilation pipeline for implementations. *)
-
-(** {2 Build artifacts} *)
-
-val cmo : info -> string
-val cmx : info -> string
-val obj : info -> string
-val annot : info -> string
-(** Return the filename of some compiler build artifacts associated
-    with the file being compiled.
-*)

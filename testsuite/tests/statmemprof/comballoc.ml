@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
  flags = "-g";
  {
    reference = "${test_source_directory}/comballoc.byte.reference";
@@ -7,6 +8,26 @@
    reference = "${test_source_directory}/comballoc.opt.reference";
    native;
  }
+||||||| 121bedcfd2
+   flags = "-g"
+   * skip
+   reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634"
+   ** bytecode
+     reference = "${test_source_directory}/comballoc.byte.reference"
+   ** native
+     reference = "${test_source_directory}/comballoc.opt.reference"
+=======
+ flags = "-g";
+ reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634";
+ skip;
+ {
+   reference = "${test_source_directory}/comballoc.byte.reference";
+   bytecode;
+ }{
+   reference = "${test_source_directory}/comballoc.opt.reference";
+   native;
+ }
+>>>>>>> 5.2.0
 *)
 
 (* Tests that combined allocations are counted correctly by statmemprof *)

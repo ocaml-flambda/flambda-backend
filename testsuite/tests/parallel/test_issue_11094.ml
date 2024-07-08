@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
  reason = "CR ocaml 5 effects: re-enable this test";
  skip;
  {
@@ -6,6 +7,16 @@
  }{
    native;
  }
+||||||| 121bedcfd2
+* bytecode
+* native
+=======
+ {
+   bytecode;
+ }{
+   native;
+ }
+>>>>>>> 5.2.0
 *)
 
 open Effect
