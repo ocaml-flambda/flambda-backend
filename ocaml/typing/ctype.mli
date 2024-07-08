@@ -553,7 +553,7 @@ val type_sort :
   why:Jkind.Type.History.concrete_jkind_reason ->
   Env.t -> type_expr -> (Jkind.Type.sort, Jkind.Violation.t) result
 
-(* Jkind.Type checking. [constrain_type_jkind] will update the jkind of type
+(* Jkind checking. [constrain_type_jkind] will update the jkind of type
    variables to make the check true, if possible.  [check_decl_jkind] and
    [check_type_jkind] won't, but will still instantiate sort variables.
 *)

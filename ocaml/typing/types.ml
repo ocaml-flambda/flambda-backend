@@ -704,7 +704,7 @@ type label_description =
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutability;                (* Is this a mutable field? *)
     lbl_modalities: Mode.Modality.Value.Const.t;(* Modalities on the field *)
-    lbl_jkind : jkind;                (* Jkind.Type of the argument *)
+    lbl_jkind : jkind;                (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in type *)
     lbl_all: label_description array;   (* All the labels in this type *)

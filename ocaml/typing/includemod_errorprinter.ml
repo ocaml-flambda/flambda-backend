@@ -611,7 +611,7 @@ let core env id x =
         show_locs (diff.got.val_loc, diff.expected.val_loc)
         Printtyp.Conflicts.print_explanations
   | Err.Type_declarations diff ->
-      (* Jkind.Type history doesn't offer helpful information in the case
+      (* Jkind history doesn't offer helpful information in the case
          of a signature mismatch. This part is here to strip it away. *)
       let strip_jkind_history (err: Errortrace.equality_error) =
         Errortrace.equality_error

@@ -32,7 +32,7 @@ module Sig_component_kind = Shape.Sig_component_kind
 
 (* Note [When to print jkind annotations]
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-   Jkind.Type annotations are only occasionally necessary to write
+   Jkind annotations are only occasionally necessary to write
    (compilation can often infer jkinds), so when should we print
    them? This Note addresses all the cases.
 
