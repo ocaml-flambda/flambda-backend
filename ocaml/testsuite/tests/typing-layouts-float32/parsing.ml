@@ -38,10 +38,10 @@ Line 1, characters 9-17:
 1 | type t = float32# list;;
              ^^^^^^^^
 Error: This type float32# should be an instance of type ('a : value)
-       The layout of float32# is float32
-         because it is the primitive float32 type float32#.
-       But the layout of float32# must be a sublayout of value
-         because the type argument of list has layout value.
+       The layout of float32# is float32, because
+         it is the primitive float32 type float32#.
+       But the layout of float32# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 let f (_ : float32# list) = ();;
@@ -50,10 +50,10 @@ Line 1, characters 11-19:
 1 | let f (_ : float32# list) = ();;
                ^^^^^^^^
 Error: This type float32# should be an instance of type ('a : value)
-       The layout of float32# is float32
-         because it is the primitive float32 type float32#.
-       But the layout of float32# must be a sublayout of value
-         because the type argument of list has layout value.
+       The layout of float32# is float32, because
+         it is the primitive float32 type float32#.
+       But the layout of float32# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 type t = C of float32# list;;
@@ -62,10 +62,10 @@ Line 1, characters 14-22:
 1 | type t = C of float32# list;;
                   ^^^^^^^^
 Error: This type float32# should be an instance of type ('a : value)
-       The layout of float32# is float32
-         because it is the primitive float32 type float32#.
-       But the layout of float32# must be a sublayout of value
-         because the type argument of list has layout value.
+       The layout of float32# is float32, because
+         it is the primitive float32 type float32#.
+       But the layout of float32# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 type t = C : float32# list -> t;;
@@ -74,10 +74,10 @@ Line 1, characters 13-21:
 1 | type t = C : float32# list -> t;;
                  ^^^^^^^^
 Error: This type float32# should be an instance of type ('a : value)
-       The layout of float32# is float32
-         because it is the primitive float32 type float32#.
-       But the layout of float32# must be a sublayout of value
-         because the type argument of list has layout value.
+       The layout of float32# is float32, because
+         it is the primitive float32 type float32#.
+       But the layout of float32# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 (* Syntax: float32#c
@@ -96,10 +96,10 @@ Line 1, characters 9-17:
 1 | type t = float32#c;;
              ^^^^^^^^
 Error: This type float32# should be an instance of type ('a : value)
-       The layout of float32# is float32
-         because it is the primitive float32 type float32#.
-       But the layout of float32# must be a sublayout of value
-         because it's a type argument to a class constructor.
+       The layout of float32# is float32, because
+         it is the primitive float32 type float32#.
+       But the layout of float32# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 let f (_ : float32#c) = ();;
@@ -108,10 +108,10 @@ Line 1, characters 11-19:
 1 | let f (_ : float32#c) = ();;
                ^^^^^^^^
 Error: This type float32# should be an instance of type ('a : value)
-       The layout of float32# is float32
-         because it is the primitive float32 type float32#.
-       But the layout of float32# must be a sublayout of value
-         because it's a type argument to a class constructor.
+       The layout of float32# is float32, because
+         it is the primitive float32 type float32#.
+       But the layout of float32# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C of float32#c;;
@@ -120,10 +120,10 @@ Line 1, characters 14-22:
 1 | type t = C of float32#c;;
                   ^^^^^^^^
 Error: This type float32# should be an instance of type ('a : value)
-       The layout of float32# is float32
-         because it is the primitive float32 type float32#.
-       But the layout of float32# must be a sublayout of value
-         because it's a type argument to a class constructor.
+       The layout of float32# is float32, because
+         it is the primitive float32 type float32#.
+       But the layout of float32# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C : float32#c -> t;;
@@ -132,10 +132,10 @@ Line 1, characters 13-21:
 1 | type t = C : float32#c -> t;;
                  ^^^^^^^^
 Error: This type float32# should be an instance of type ('a : value)
-       The layout of float32# is float32
-         because it is the primitive float32 type float32#.
-       But the layout of float32# must be a sublayout of value
-         because it's a type argument to a class constructor.
+       The layout of float32# is float32, because
+         it is the primitive float32 type float32#.
+       But the layout of float32# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 (* Syntax: float32# c
@@ -147,10 +147,10 @@ Line 1, characters 9-17:
 1 | type t = float32# c;;
              ^^^^^^^^
 Error: This type float32# should be an instance of type ('a : value)
-       The layout of float32# is float32
-         because it is the primitive float32 type float32#.
-       But the layout of float32# must be a sublayout of value
-         because it's a type argument to a class constructor.
+       The layout of float32# is float32, because
+         it is the primitive float32 type float32#.
+       But the layout of float32# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 let f (_ : float32# c) = ();;
@@ -159,10 +159,10 @@ Line 1, characters 11-19:
 1 | let f (_ : float32# c) = ();;
                ^^^^^^^^
 Error: This type float32# should be an instance of type ('a : value)
-       The layout of float32# is float32
-         because it is the primitive float32 type float32#.
-       But the layout of float32# must be a sublayout of value
-         because it's a type argument to a class constructor.
+       The layout of float32# is float32, because
+         it is the primitive float32 type float32#.
+       But the layout of float32# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C of float32# c;;
@@ -171,10 +171,10 @@ Line 1, characters 14-22:
 1 | type t = C of float32# c;;
                   ^^^^^^^^
 Error: This type float32# should be an instance of type ('a : value)
-       The layout of float32# is float32
-         because it is the primitive float32 type float32#.
-       But the layout of float32# must be a sublayout of value
-         because it's a type argument to a class constructor.
+       The layout of float32# is float32, because
+         it is the primitive float32 type float32#.
+       But the layout of float32# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C : float32# c -> t;;
@@ -183,10 +183,10 @@ Line 1, characters 13-21:
 1 | type t = C : float32# c -> t;;
                  ^^^^^^^^
 Error: This type float32# should be an instance of type ('a : value)
-       The layout of float32# is float32
-         because it is the primitive float32 type float32#.
-       But the layout of float32# must be a sublayout of value
-         because it's a type argument to a class constructor.
+       The layout of float32# is float32, because
+         it is the primitive float32 type float32#.
+       But the layout of float32# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 (* Syntax: float32 #c

@@ -2,9 +2,9 @@ File "libc/c2.ml", line 1, characters 12-15:
 1 | let x = B.f B.x
                 ^^^
 Error: Function arguments and returns must be representable.
-       The layout of A.t is any
-         because the .cmi file for A.t is missing.
-       But the layout of A.t must be representable
-         because we must know concretely how to pass a function argument.
+       The layout of A.t is any, because
+         the .cmi file for A.t is missing.
+       But the layout of A.t must be representable, because
+         we must know concretely how to pass a function argument.
        No .cmi file found containing A.t.
        Hint: Adding "a" to your dependencies might help.

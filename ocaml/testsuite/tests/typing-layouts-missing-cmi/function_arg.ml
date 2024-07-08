@@ -23,10 +23,10 @@ Line 1, characters 40-54:
 1 | let f0 (g : Function_b.fun_t) = g ~arg1:(assert false)
                                             ^^^^^^^^^^^^^^
 Error: Function arguments and returns must be representable.
-       The layout of Function_a.t is any
-         because the .cmi file for Function_a.t is missing.
-       But the layout of Function_a.t must be representable
-         because we must know concretely how to pass a function argument.
+       The layout of Function_a.t is any, because
+         the .cmi file for Function_a.t is missing.
+       But the layout of Function_a.t must be representable, because
+         we must know concretely how to pass a function argument.
        No .cmi file found containing Function_a.t.
        Hint: Adding "function_a" to your dependencies might help.
 |}]
@@ -38,10 +38,10 @@ Line 1, characters 34-36:
 1 | let f1 (g : Function_b.fun_t) = g ()
                                       ^^
 Error: Function arguments and returns must be representable.
-       The layout of Function_a.t is any
-         because the .cmi file for Function_a.t is missing.
-       But the layout of Function_a.t must be representable
-         because we must know concretely how to pass a function argument.
+       The layout of Function_a.t is any, because
+         the .cmi file for Function_a.t is missing.
+       But the layout of Function_a.t must be representable, because
+         we must know concretely how to pass a function argument.
        No .cmi file found containing Function_a.t.
        Hint: Adding "function_a" to your dependencies might help.
 |}]
@@ -53,10 +53,10 @@ Line 1, characters 28-56:
 1 | let f2 : Function_b.fun_t = fun ~arg1:_ ~arg2 () -> arg2
                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Function arguments and returns must be representable.
-       The layout of Function_a.t is any
-         because the .cmi file for Function_a.t is missing.
-       But the layout of Function_a.t must be representable
-         because we must know concretely how to pass a function argument.
+       The layout of Function_a.t is any, because
+         the .cmi file for Function_a.t is missing.
+       But the layout of Function_a.t must be representable, because
+         we must know concretely how to pass a function argument.
        No .cmi file found containing Function_a.t.
        Hint: Adding "function_a" to your dependencies might help.
 |}]
@@ -68,10 +68,10 @@ Line 1, characters 31-53:
 1 | let f3 : Function_b.return_t = fun () -> assert false
                                    ^^^^^^^^^^^^^^^^^^^^^^
 Error: Function arguments and returns must be representable.
-       The layout of Function_a.t is any
-         because the .cmi file for Function_a.t is missing.
-       But the layout of Function_a.t must be representable
-         because we must know concretely how to return a function result.
+       The layout of Function_a.t is any, because
+         the .cmi file for Function_a.t is missing.
+       But the layout of Function_a.t must be representable, because
+         we must know concretely how to return a function result.
        No .cmi file found containing Function_a.t.
        Hint: Adding "function_a" to your dependencies might help.
 |}]
@@ -85,10 +85,10 @@ Line 2, characters 12-28:
 2 | let x1 = f4 Function_b.f_opt
                 ^^^^^^^^^^^^^^^^
 Error: Function arguments and returns must be representable.
-       The layout of Function_a.t is any
-         because the .cmi file for Function_a.t is missing.
-       But the layout of Function_a.t must be representable
-         because we must know concretely how to pass a function argument.
+       The layout of Function_a.t is any, because
+         the .cmi file for Function_a.t is missing.
+       But the layout of Function_a.t must be representable, because
+         we must know concretely how to pass a function argument.
        No .cmi file found containing Function_a.t.
        Hint: Adding "function_a" to your dependencies might help.
 |}]
@@ -102,10 +102,10 @@ Line 2, characters 12-30:
 2 | let x2 = f5 Function_b.f_opt_2
                 ^^^^^^^^^^^^^^^^^^
 Error: Function arguments and returns must be representable.
-       The layout of Function_a.t is any
-         because the .cmi file for Function_a.t is missing.
-       But the layout of Function_a.t must be representable
-         because we must know concretely how to return a function result.
+       The layout of Function_a.t is any, because
+         the .cmi file for Function_a.t is missing.
+       But the layout of Function_a.t must be representable, because
+         we must know concretely how to return a function result.
        No .cmi file found containing Function_a.t.
        Hint: Adding "function_a" to your dependencies might help.
 |}]

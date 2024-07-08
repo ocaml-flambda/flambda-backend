@@ -118,10 +118,10 @@ Line 1, characters 24-25:
                             ^
 Error: This expression has type t_word but an expression was expected of type
          ('a : value)
-       The layout of t_word is word
-         because of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value
-         because it's the type of a tuple element.
+       The layout of t_word is word, because
+         of the definition of t_word at line 1, characters 0-18.
+       But the layout of t_word must be a sublayout of value, because
+         it's the type of a tuple element.
 |}];;
 
 let f4_2 (x : 'a t_word_id) = x, false;;
@@ -131,10 +131,10 @@ Line 1, characters 30-31:
                                   ^
 Error: This expression has type 'a t_word_id = ('a : word)
        but an expression was expected of type ('b : value)
-       The layout of 'a t_word_id is word
-         because of the definition of t_word_id at line 2, characters 0-31.
-       But the layout of 'a t_word_id must overlap with value
-         because it's the type of a tuple element.
+       The layout of 'a t_word_id is word, because
+         of the definition of t_word_id at line 2, characters 0-31.
+       But the layout of 'a t_word_id must overlap with value, because
+         it's the type of a tuple element.
 |}];;
 
 let f4_3 (x : nativeint#) = x, false;;
@@ -144,10 +144,10 @@ Line 1, characters 28-29:
                                 ^
 Error: This expression has type nativeint#
        but an expression was expected of type ('a : value)
-       The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
-       But the layout of nativeint# must be a sublayout of value
-         because it's the type of a tuple element.
+       The layout of nativeint# is word, because
+         it is the primitive word type nativeint#.
+       But the layout of nativeint# must be a sublayout of value, because
+         it's the type of a tuple element.
 |}];;
 
 type t4_4 = t_word * string;;
@@ -156,10 +156,10 @@ Line 1, characters 12-18:
 1 | type t4_4 = t_word * string;;
                 ^^^^^^
 Error: Tuple element types must have layout value.
-       The layout of t_word is word
-         because of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value
-         because it's the type of a tuple element.
+       The layout of t_word is word, because
+         of the definition of t_word at line 1, characters 0-18.
+       But the layout of t_word must be a sublayout of value, because
+         it's the type of a tuple element.
 |}];;
 
 type t4_5 = int * nativeint#;;
@@ -168,10 +168,10 @@ Line 1, characters 18-28:
 1 | type t4_5 = int * nativeint#;;
                       ^^^^^^^^^^
 Error: Tuple element types must have layout value.
-       The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
-       But the layout of nativeint# must be a sublayout of value
-         because it's the type of a tuple element.
+       The layout of nativeint# is word, because
+         it is the primitive word type nativeint#.
+       But the layout of nativeint# must be a sublayout of value, because
+         it's the type of a tuple element.
 |}];;
 
 type ('a : word) t4_6 = 'a * 'a
@@ -180,10 +180,10 @@ Line 1, characters 24-26:
 1 | type ('a : word) t4_6 = 'a * 'a
                             ^^
 Error: This type ('a : value) should be an instance of type ('a0 : word)
-       The layout of 'a is word
-         because of the annotation on 'a in the declaration of the type t4_6.
-       But the layout of 'a must overlap with value
-         because it's the type of a tuple element.
+       The layout of 'a is word, because
+         of the annotation on 'a in the declaration of the type t4_6.
+       But the layout of 'a must overlap with value, because
+         it's the type of a tuple element.
 |}];;
 
 (* check for layout propagation *)
@@ -193,10 +193,10 @@ Line 1, characters 29-31:
 1 | type ('a : word, 'b) t4_7 = ('a as 'b) -> ('b * 'b);;
                                  ^^
 Error: This type ('b : value) should be an instance of type ('a : word)
-       The layout of 'a is word
-         because of the annotation on 'a in the declaration of the type t4_7.
-       But the layout of 'a must overlap with value
-         because it's the type of a tuple element.
+       The layout of 'a is word, because
+         of the annotation on 'a in the declaration of the type t4_7.
+       But the layout of 'a must overlap with value, because
+         it's the type of a tuple element.
 |}]
 
 (****************************************************)
@@ -283,10 +283,10 @@ Line 1, characters 31-37:
 1 | module type S6_1 = sig val x : t_word end
                                    ^^^^^^
 Error: This type signature for x is not a value type.
-       The layout of type t_word is word
-         because of the definition of t_word at line 1, characters 0-18.
-       But the layout of type t_word must be a sublayout of value
-         because it's the type of something stored in a module structure.
+       The layout of type t_word is word, because
+         of the definition of t_word at line 1, characters 0-18.
+       But the layout of type t_word must be a sublayout of value, because
+         it's the type of something stored in a module structure.
 |}];;
 
 module type S6_2 = sig val x : 'a t_word_id end
@@ -295,10 +295,10 @@ Line 1, characters 31-43:
 1 | module type S6_2 = sig val x : 'a t_word_id end
                                    ^^^^^^^^^^^^
 Error: This type signature for x is not a value type.
-       The layout of type 'a t_word_id is word
-         because of the definition of t_word_id at line 2, characters 0-31.
-       But the layout of type 'a t_word_id must be a sublayout of value
-         because it's the type of something stored in a module structure.
+       The layout of type 'a t_word_id is word, because
+         of the definition of t_word_id at line 2, characters 0-31.
+       But the layout of type 'a t_word_id must be a sublayout of value, because
+         it's the type of something stored in a module structure.
 |}];;
 
 module type S6_3 = sig val x : nativeint# end
@@ -307,10 +307,10 @@ Line 1, characters 31-41:
 1 | module type S6_3 = sig val x : nativeint# end
                                    ^^^^^^^^^^
 Error: This type signature for x is not a value type.
-       The layout of type nativeint# is word
-         because it is the primitive word type nativeint#.
-       But the layout of type nativeint# must be a sublayout of value
-         because it's the type of something stored in a module structure.
+       The layout of type nativeint# is word, because
+         it is the primitive word type nativeint#.
+       But the layout of type nativeint# must be a sublayout of value, because
+         it's the type of something stored in a module structure.
 |}];;
 
 
@@ -323,10 +323,10 @@ Line 1, characters 27-28:
                                ^
 Error: This expression has type t_word but an expression was expected of type
          ('a : value)
-       The layout of t_word is word
-         because of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value
-         because it's the type of the field of a polymorphic variant.
+       The layout of t_word is word, because
+         of the definition of t_word at line 1, characters 0-18.
+       But the layout of t_word must be a sublayout of value, because
+         it's the type of the field of a polymorphic variant.
 |}];;
 
 let f7_2 (x : 'a t_word_id) = `A x;;
@@ -336,10 +336,10 @@ Line 1, characters 33-34:
                                      ^
 Error: This expression has type 'a t_word_id = ('a : word)
        but an expression was expected of type ('b : value)
-       The layout of 'a t_word_id is word
-         because of the definition of t_word_id at line 2, characters 0-31.
-       But the layout of 'a t_word_id must overlap with value
-         because it's the type of the field of a polymorphic variant.
+       The layout of 'a t_word_id is word, because
+         of the definition of t_word_id at line 2, characters 0-31.
+       But the layout of 'a t_word_id must overlap with value, because
+         it's the type of the field of a polymorphic variant.
 |}];;
 
 let f7_3 (x : nativeint#) = `A x;;
@@ -349,10 +349,10 @@ Line 1, characters 31-32:
                                    ^
 Error: This expression has type nativeint#
        but an expression was expected of type ('a : value)
-       The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
-       But the layout of nativeint# must be a sublayout of value
-         because it's the type of the field of a polymorphic variant.
+       The layout of nativeint# is word, because
+         it is the primitive word type nativeint#.
+       But the layout of nativeint# must be a sublayout of value, because
+         it's the type of the field of a polymorphic variant.
 |}];;
 
 type f7_4 = [ `A of t_word ];;
@@ -361,10 +361,10 @@ Line 1, characters 20-26:
 1 | type f7_4 = [ `A of t_word ];;
                         ^^^^^^
 Error: Polymorphic variant constructor argument types must have layout value.
-       The layout of t_word is word
-         because of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value
-         because it's the type of the field of a polymorphic variant.
+       The layout of t_word is word, because
+         of the definition of t_word at line 1, characters 0-18.
+       But the layout of t_word must be a sublayout of value, because
+         it's the type of the field of a polymorphic variant.
 |}];;
 
 type ('a : word) f7_5 = [ `A of 'a ];;
@@ -373,10 +373,10 @@ Line 1, characters 32-34:
 1 | type ('a : word) f7_5 = [ `A of 'a ];;
                                     ^^
 Error: This type ('a : value) should be an instance of type ('a0 : word)
-       The layout of 'a is word
-         because of the annotation on 'a in the declaration of the type f7_5.
-       But the layout of 'a must overlap with value
-         because it's the type of the field of a polymorphic variant.
+       The layout of 'a is word, because
+         of the annotation on 'a in the declaration of the type f7_5.
+       But the layout of 'a must overlap with value, because
+         it's the type of the field of a polymorphic variant.
 |}];;
 
 (************************************************************)
@@ -401,10 +401,10 @@ Line 1, characters 20-36:
                         ^^^^^^^^^^^^^^^^
 Error: This expression has type t_word but an expression was expected of type
          ('a : value)
-       The layout of t_word is word
-         because of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value
-         because of the definition of id_value at line 5, characters 13-18.
+       The layout of t_word is word, because
+         of the definition of t_word at line 1, characters 0-18.
+       But the layout of t_word must be a sublayout of value, because
+         of the definition of id_value at line 5, characters 13-18.
 |}];;
 
 let x8_2 = id_value (make_t_word_id ());;
@@ -414,10 +414,10 @@ Line 1, characters 20-39:
                         ^^^^^^^^^^^^^^^^^^^
 Error: This expression has type 'a t_word_id = ('a : word)
        but an expression was expected of type ('b : value)
-       The layout of 'a t_word_id is word
-         because of the definition of make_t_word_id at line 2, characters 19-51.
-       But the layout of 'a t_word_id must overlap with value
-         because of the definition of id_value at line 5, characters 13-18.
+       The layout of 'a t_word_id is word, because
+         of the definition of make_t_word_id at line 2, characters 19-51.
+       But the layout of 'a t_word_id must overlap with value, because
+         of the definition of id_value at line 5, characters 13-18.
 |}];;
 
 let x8_3 = id_value (make_nativeintu ());;
@@ -427,10 +427,10 @@ Line 1, characters 20-40:
                         ^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type nativeint#
        but an expression was expected of type ('a : value)
-       The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
-       But the layout of nativeint# must be a sublayout of value
-         because of the definition of id_value at line 5, characters 13-18.
+       The layout of nativeint# is word, because
+         it is the primitive word type nativeint#.
+       But the layout of nativeint# must be a sublayout of value, because
+         of the definition of id_value at line 5, characters 13-18.
 |}];;
 
 (*************************************)
@@ -570,10 +570,10 @@ Line 1, characters 15-25:
 1 | type t12_1 = < x : t_word >;;
                    ^^^^^^^^^^
 Error: Object field types must have layout value.
-       The layout of t_word is word
-         because of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value
-         because it's the type of an object field.
+       The layout of t_word is word, because
+         of the definition of t_word at line 1, characters 0-18.
+       But the layout of t_word must be a sublayout of value, because
+         it's the type of an object field.
 |}];;
 
 type ('a : word) t12_2 = < x : 'a >;;
@@ -582,10 +582,10 @@ Line 1, characters 31-33:
 1 | type ('a : word) t12_2 = < x : 'a >;;
                                    ^^
 Error: This type ('a : value) should be an instance of type ('a0 : word)
-       The layout of 'a is word
-         because of the annotation on 'a in the declaration of the type t12_2.
-       But the layout of 'a must overlap with value
-         because it's the type of an object field.
+       The layout of 'a is word, because
+         of the annotation on 'a in the declaration of the type t12_2.
+       But the layout of 'a must overlap with value, because
+         it's the type of an object field.
 |}]
 
 class c12_3 = object method x : t_word = assert false end;;
@@ -594,10 +594,10 @@ Line 1, characters 21-53:
 1 | class c12_3 = object method x : t_word = assert false end;;
                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The method x has type t_word but is expected to have type ('a : value)
-       The layout of t_word is word
-         because of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value
-         because it's the type of an object field.
+       The layout of t_word is word, because
+         of the definition of t_word at line 1, characters 0-18.
+       But the layout of t_word must be a sublayout of value, because
+         it's the type of an object field.
 |}];;
 
 class ['a] c12_4 = object
@@ -608,10 +608,10 @@ Line 2, characters 13-15:
 2 |   method x : 'a t_word_id -> 'a t_word_id = assert false
                  ^^
 Error: This type ('a : word) should be an instance of type ('a0 : value)
-       The layout of 'a is value
-         because it's a type argument to a class constructor.
-       But the layout of 'a must overlap with word
-         because of the definition of t_word_id at line 2, characters 0-31.
+       The layout of 'a is value, because
+         it's a type argument to a class constructor.
+       But the layout of 'a must overlap with word, because
+         of the definition of t_word_id at line 2, characters 0-31.
 |}];;
 
 class c12_5 = object val x : t_word = assert false end;;
@@ -620,10 +620,10 @@ Line 1, characters 25-26:
 1 | class c12_5 = object val x : t_word = assert false end;;
                              ^
 Error: Variables bound in a class must have layout value.
-       The layout of x is word
-         because of the definition of t_word at line 1, characters 0-18.
-       But the layout of x must be a sublayout of value
-         because it's the type of a class field.
+       The layout of x is word, because
+         of the definition of t_word at line 1, characters 0-18.
+       But the layout of x must be a sublayout of value, because
+         it's the type of a class field.
 |}];;
 
 class type c12_6 = object method x : nativeint# end;;
@@ -633,10 +633,10 @@ Line 1, characters 26-47:
                               ^^^^^^^^^^^^^^^^^^^^^
 Error: The method x has type nativeint# but is expected to have type
          ('a : value)
-       The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
-       But the layout of nativeint# must be a sublayout of value
-         because it's the type of an object field.
+       The layout of nativeint# is word, because
+         it is the primitive word type nativeint#.
+       But the layout of nativeint# must be a sublayout of value, because
+         it's the type of an object field.
 |}];;
 
 class type c12_7 = object val x : nativeint# end
@@ -645,10 +645,10 @@ Line 1, characters 26-44:
 1 | class type c12_7 = object val x : nativeint# end
                               ^^^^^^^^^^^^^^^^^^
 Error: Variables bound in a class must have layout value.
-       The layout of x is word
-         because it is the primitive word type nativeint#.
-       But the layout of x must be a sublayout of value
-         because it's the type of an instance variable.
+       The layout of x is word, because
+         it is the primitive word type nativeint#.
+       But the layout of x must be a sublayout of value, because
+         it's the type of an instance variable.
 |}];;
 
 class type ['a] c12_8 = object
@@ -659,10 +659,10 @@ Line 2, characters 10-12:
 2 |   val x : 'a t_word_id -> 'a t_word_id
               ^^
 Error: This type ('a : word) should be an instance of type ('a0 : value)
-       The layout of 'a is value
-         because it's a type argument to a class constructor.
-       But the layout of 'a must overlap with word
-         because of the definition of t_word_id at line 2, characters 0-31.
+       The layout of 'a is value, because
+         it's a type argument to a class constructor.
+       But the layout of 'a must overlap with word, because
+         of the definition of t_word_id at line 2, characters 0-31.
 |}];;
 
 (* Second, allowed uses: as method parameters / returns *)
@@ -698,10 +698,10 @@ Line 3, characters 17-19:
                      ^^
 Error: This expression has type ('a : value)
        but an expression was expected of type t_word
-       The layout of t_word is word
-         because of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value
-         because it's the type of a variable captured in an object.
+       The layout of t_word is word, because
+         of the definition of t_word at line 1, characters 0-18.
+       But the layout of t_word must be a sublayout of value, because
+         it's the type of a variable captured in an object.
 |}];;
 
 let f12_14 (m1 : t_word) (m2 : t_word) = object
@@ -715,10 +715,10 @@ Line 3, characters 17-19:
 3 |     let _ = f1_1 m1 in
                      ^^
 Error: m1 must have a type of layout value because it is captured by an object.
-       The layout of t_word is word
-         because of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value
-         because it's the type of a variable captured in an object.
+       The layout of t_word is word, because
+         of the definition of t_word at line 1, characters 0-18.
+       But the layout of t_word must be a sublayout of value, because
+         it's the type of a variable captured in an object.
 |}];;
 
 (*********************************************************************)
@@ -734,10 +734,10 @@ Line 1, characters 25-26:
                              ^
 Error: This expression has type t_word but an expression was expected of type
          ('a : value)
-       The layout of t_word is word
-         because of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value
-         because of layout requirements from an imported definition.
+       The layout of t_word is word, because
+         of the definition of t_word at line 1, characters 0-18.
+       But the layout of t_word must be a sublayout of value, because
+         of layout requirements from an imported definition.
 |}];;
 
 let f13_2 (x : t_word) = compare x x;;
@@ -747,10 +747,10 @@ Line 1, characters 33-34:
                                      ^
 Error: This expression has type t_word but an expression was expected of type
          ('a : value)
-       The layout of t_word is word
-         because of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value
-         because of layout requirements from an imported definition.
+       The layout of t_word is word, because
+         of the definition of t_word at line 1, characters 0-18.
+       But the layout of t_word must be a sublayout of value, because
+         of layout requirements from an imported definition.
 |}];;
 
 let f13_3 (x : t_word) = Marshal.to_bytes x;;
@@ -760,10 +760,10 @@ Line 1, characters 42-43:
                                               ^
 Error: This expression has type t_word but an expression was expected of type
          ('a : value)
-       The layout of t_word is word
-         because of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value
-         because of layout requirements from an imported definition.
+       The layout of t_word is word, because
+         of the definition of t_word at line 1, characters 0-18.
+       But the layout of t_word must be a sublayout of value, because
+         of layout requirements from an imported definition.
 |}];;
 
 let f13_4 (x : t_word) = Hashtbl.hash x;;
@@ -773,8 +773,8 @@ Line 1, characters 38-39:
                                           ^
 Error: This expression has type t_word but an expression was expected of type
          ('a : value)
-       The layout of t_word is word
-         because of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value
-         because of layout requirements from an imported definition.
+       The layout of t_word is word, because
+         of the definition of t_word at line 1, characters 0-18.
+       But the layout of t_word must be a sublayout of value, because
+         of layout requirements from an imported definition.
 |}];;

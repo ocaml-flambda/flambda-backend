@@ -28,10 +28,10 @@ Line 3, characters 21-22:
                          ^
 Error: This expression has type v = unit
        but an expression was expected of type 'a t = ('a : void)
-       The layout of unit is value
-         because it's an enumeration variant type (all constructors are constant).
-       But the layout of unit must be a sublayout of void
-         because of the definition of t at line 1, characters 0-22.
+       The layout of unit is value, because
+         it's an enumeration variant type (all constructors are constant).
+       But the layout of unit must be a sublayout of void, because
+         of the definition of t at line 1, characters 0-22.
 |}]
 
 (* Primitive *)
@@ -44,10 +44,10 @@ Line 2, characters 23-24:
                            ^
 Error: This expression has type int but an expression was expected of type
          'a t = ('a : void)
-       The layout of int is value
-         because it is the primitive immediate type int.
-       But the layout of int must be a sublayout of void
-         because of the definition of t at line 1, characters 0-22.
+       The layout of int is value, because
+         it is the primitive immediate type int.
+       But the layout of int must be a sublayout of void, because
+         of the definition of t at line 1, characters 0-22.
 |}];;
 
 (* Immediate_polymorphic_variant *)
@@ -60,9 +60,9 @@ Line 2, characters 29-30:
                                  ^
 Error: This expression has type [ `A | `B ]
        but an expression was expected of type 'a t = ('a : void)
-       The layout of [ `A | `B ] is value
-         because it's an enumeration variant type (all constructors are constant).
-       But the layout of [ `A | `B ] must be a sublayout of void
-         because of the definition of t at line 1, characters 0-22.
+       The layout of [ `A | `B ] is value, because
+         it's an enumeration variant type (all constructors are constant).
+       But the layout of [ `A | `B ] must be a sublayout of void, because
+         of the definition of t at line 1, characters 0-22.
 |}]
 

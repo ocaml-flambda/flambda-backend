@@ -30,10 +30,10 @@ Line 1, characters 9-15:
 1 | type t = float# list;;
              ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
-       The layout of float# is float64
-         because it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value
-         because the type argument of list has layout value.
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 let f (_ : float# list) = ();;
@@ -42,10 +42,10 @@ Line 1, characters 11-17:
 1 | let f (_ : float# list) = ();;
                ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
-       The layout of float# is float64
-         because it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value
-         because the type argument of list has layout value.
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 type t = C of float# list;;
@@ -54,10 +54,10 @@ Line 1, characters 14-20:
 1 | type t = C of float# list;;
                   ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
-       The layout of float# is float64
-         because it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value
-         because the type argument of list has layout value.
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 type t = C : float# list -> t;;
@@ -66,10 +66,10 @@ Line 1, characters 13-19:
 1 | type t = C : float# list -> t;;
                  ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
-       The layout of float# is float64
-         because it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value
-         because the type argument of list has layout value.
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 (* Syntax: float#c
@@ -88,10 +88,10 @@ Line 1, characters 9-15:
 1 | type t = float#c;;
              ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
-       The layout of float# is float64
-         because it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value
-         because it's a type argument to a class constructor.
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 let f (_ : float#c) = ();;
@@ -100,10 +100,10 @@ Line 1, characters 11-17:
 1 | let f (_ : float#c) = ();;
                ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
-       The layout of float# is float64
-         because it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value
-         because it's a type argument to a class constructor.
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C of float#c;;
@@ -112,10 +112,10 @@ Line 1, characters 14-20:
 1 | type t = C of float#c;;
                   ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
-       The layout of float# is float64
-         because it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value
-         because it's a type argument to a class constructor.
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C : float#c -> t;;
@@ -124,10 +124,10 @@ Line 1, characters 13-19:
 1 | type t = C : float#c -> t;;
                  ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
-       The layout of float# is float64
-         because it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value
-         because it's a type argument to a class constructor.
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 (* Syntax: float# c
@@ -139,10 +139,10 @@ Line 1, characters 9-15:
 1 | type t = float# c;;
              ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
-       The layout of float# is float64
-         because it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value
-         because it's a type argument to a class constructor.
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 let f (_ : float# c) = ();;
@@ -151,10 +151,10 @@ Line 1, characters 11-17:
 1 | let f (_ : float# c) = ();;
                ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
-       The layout of float# is float64
-         because it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value
-         because it's a type argument to a class constructor.
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C of float# c;;
@@ -163,10 +163,10 @@ Line 1, characters 14-20:
 1 | type t = C of float# c;;
                   ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
-       The layout of float# is float64
-         because it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value
-         because it's a type argument to a class constructor.
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C : float# c -> t;;
@@ -175,10 +175,10 @@ Line 1, characters 13-19:
 1 | type t = C : float# c -> t;;
                  ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
-       The layout of float# is float64
-         because it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value
-         because it's a type argument to a class constructor.
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 (* Syntax: float #c
