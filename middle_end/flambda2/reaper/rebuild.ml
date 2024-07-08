@@ -25,18 +25,23 @@ let all_slot_offsets = ref Slot_offsets.empty
 
 let all_code = ref Code_id.Map.empty
 
-type env = {
-  uses : Dep_solver.result ;
-  get_code_metadata : Code_id.t -> Code_metadata.t ;
-}
+type env =
+  { uses : Dep_solver.result;
+    get_code_metadata : Code_id.t -> Code_metadata.t
+  }
 
 let is_used (env : env) cn = Hashtbl.mem env.uses cn
 
 let is_code_id_used (env : env) code_id =
-  is_used env (Code_id_or_name.code_id code_id) || not (Compilation_unit.is_current (Code_id.get_compilation_unit code_id))
+  is_used env (Code_id_or_name.code_id code_id)
+  || not (Compilation_unit.is_current (Code_id.get_compilation_unit code_id))
+
 let is_name_used (env : env) name = is_used env (Code_id_or_name.name name)
+
 let is_var_used (env : env) var = is_used env (Code_id_or_name.var var)
-let is_symbol_used (env : env) symbol = is_used env (Code_id_or_name.symbol symbol)
+
+let is_symbol_used (env : env) symbol =
+  is_used env (Code_id_or_name.symbol symbol)
 
 let poison_value = 0 (* 123456789 *)
 
@@ -73,12 +78,10 @@ let rewrite_or_variable default env (or_variable : _ Or_variable.t) =
   match or_variable with
   | Const _ -> or_variable
   | Var (v, _) ->
-    if is_var_used env v
-    then or_variable
-    else Or_variable.Const default
+    if is_var_used env v then or_variable else Or_variable.Const default
 
-let rewrite_field_of_static_block _kinds env (field : Field_of_static_block.t)
-    : Field_of_static_block.t =
+let rewrite_field_of_static_block _kinds env (field : Field_of_static_block.t) :
+    Field_of_static_block.t =
   match field with
   | Tagged_immediate _ -> field
   | Symbol sym ->
@@ -86,9 +89,7 @@ let rewrite_field_of_static_block _kinds env (field : Field_of_static_block.t)
     then field
     else Tagged_immediate poison_value_31_63
   | Dynamically_computed (v, _) ->
-    if is_var_used env v
-    then field
-    else Tagged_immediate poison_value_31_63
+    if is_var_used env v then field else Tagged_immediate poison_value_31_63
 
 let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
   match sc with
@@ -103,18 +104,20 @@ let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
              match code_id with
              | Deleted _ -> code_id
              | Code_id code_id ->
-               if is_code_id_used env code_id then
-                 Code_id code_id
+               if is_code_id_used env code_id
+               then Code_id code_id
                else
-                  let code_metadata = env.get_code_metadata code_id in
-                  Deleted { function_slot_size = Code_metadata.function_slot_size code_metadata })
+                 let code_metadata = env.get_code_metadata code_id in
+                 Deleted
+                   { function_slot_size =
+                       Code_metadata.function_slot_size code_metadata
+                   })
            (FD.funs_in_order function_decls))
     in
     let set_of_closures =
       Set_of_closures.create
         ~value_slots:
-          (Value_slot.Map.map
-             (rewrite_simple kinds env)
+          (Value_slot.Map.map (rewrite_simple kinds env)
              (Set_of_closures.value_slots sc))
         (Set_of_closures.alloc_mode sc)
         function_decls
@@ -170,8 +173,7 @@ let rewrite_static_const_or_code kinds env (sc : Static_const_or_code.t) =
   | Code _ -> sc
   | Deleted_code -> sc
   | Static_const sc ->
-    Static_const_or_code.create_static_const
-      (rewrite_static_const kinds env sc)
+    Static_const_or_code.create_static_const (rewrite_static_const kinds env sc)
 
 let rewrite_static_const_group kinds env (group : Static_const_group.t) =
   Static_const_group.map ~f:(rewrite_static_const_or_code kinds env) group
@@ -205,11 +207,14 @@ let rewrite_set_of_closures bound (env : env) value_slots alloc_mode
            | Deleted _ -> code_id
            | Code_id code_id ->
              if (* slot_is_used (Function_slot slot) *)
-               is_code_id_used env code_id
+                is_code_id_used env code_id
              then Code_id code_id
              else
-                let code_metadata = env.get_code_metadata code_id in
-               Deleted { function_slot_size = Code_metadata.function_slot_size code_metadata })
+               let code_metadata = env.get_code_metadata code_id in
+               Deleted
+                 { function_slot_size =
+                     Code_metadata.function_slot_size code_metadata
+                 })
          (Function_declarations.funs_in_order function_decls))
   in
   (* TODO remove unused function slots as well *)
@@ -264,29 +269,23 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (env : env)
         | Function _ as ck -> ck (* todo alloc_mode? *)
         | Method { kind; obj; alloc_mode } ->
           (* todo alloc_mode? *)
-          Call_kind.method_call kind
-            ~obj:(rewrite_simple obj)
-            alloc_mode
+          Call_kind.method_call kind ~obj:(rewrite_simple obj) alloc_mode
         | C_call _ as ck -> ck
         | Effect (Perform { eff }) ->
-          Call_kind.effect (Call_kind.Effect.perform
-                            ~eff:(rewrite_simple eff))
+          Call_kind.effect (Call_kind.Effect.perform ~eff:(rewrite_simple eff))
         | Effect (Reperform { eff; cont; last_fiber }) ->
-          Call_kind.effect (Call_kind.Effect.reperform
-                              ~eff:(rewrite_simple eff)
-                              ~cont:(rewrite_simple cont)
-                              ~last_fiber:(rewrite_simple last_fiber)
-                          )
+          Call_kind.effect
+            (Call_kind.Effect.reperform ~eff:(rewrite_simple eff)
+               ~cont:(rewrite_simple cont)
+               ~last_fiber:(rewrite_simple last_fiber))
         | Effect (Run_stack { stack; f; arg }) ->
-          Call_kind.effect (Call_kind.Effect.run_stack
-                              ~stack:(rewrite_simple stack)
-                              ~f:(rewrite_simple f)
-                              ~arg:(rewrite_simple arg))
+          Call_kind.effect
+            (Call_kind.Effect.run_stack ~stack:(rewrite_simple stack)
+               ~f:(rewrite_simple f) ~arg:(rewrite_simple arg))
         | Effect (Resume { stack; f; arg }) ->
-          Call_kind.effect (Call_kind.Effect.resume
-                              ~stack:(rewrite_simple stack)
-                              ~f:(rewrite_simple f)
-                              ~arg:(rewrite_simple arg))
+          Call_kind.effect
+            (Call_kind.Effect.resume ~stack:(rewrite_simple stack)
+               ~f:(rewrite_simple f) ~arg:(rewrite_simple arg))
       in
       let apply =
         Apply.create
@@ -357,9 +356,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (env : env)
                       | Static_const _ -> assert false);
                       Some (p, Deleted_code))
                   | Block_like sym ->
-                    if is_symbol_used env sym
-                    then Some arg
-                    else None
+                    if is_symbol_used env sym then Some arg else None
                   | Set_of_closures m ->
                     if Function_slot.Lmap.exists
                          (fun _ sym -> is_symbol_used env sym)
@@ -376,7 +373,9 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (env : env)
                     code_metadata;
                     free_names_of_params_and_body
                   } ->
-                let is_my_closure_used = is_var_used env params_and_body.my_closure in
+                let is_my_closure_used =
+                  is_var_used env params_and_body.my_closure
+                in
                 let params_and_body =
                   rebuild_function_params_and_body kinds env params_and_body
                 in
@@ -468,10 +467,7 @@ type result =
 let rebuild kinds solved_dep get_code_metadata holed =
   all_slot_offsets := Slot_offsets.empty;
   all_code := Code_id.Map.empty;
-  let env = {
-    uses = solved_dep ;
-    get_code_metadata ;
-  } in
+  let env = { uses = solved_dep; get_code_metadata } in
   let rebuilt_expr =
     Profile.record_call ~accumulate:true "up" (fun () ->
         rebuild_expr kinds env holed)

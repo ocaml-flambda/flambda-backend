@@ -110,7 +110,7 @@ module Code_metadata_accessors (X : Metadata_view_type) = struct
   let function_slot_size t =
     let metadata = metadata t in
     let is_tupled = metadata.is_tupled in
-    let arity = Flambda_arity.num_params (metadata.params_arity) in
+    let arity = Flambda_arity.num_params metadata.params_arity in
     if (arity = 0 || arity = 1) && not is_tupled then 2 else 3
 end
 

@@ -35,7 +35,10 @@ let run ~cmx_loader ~all_code (unit : Flambda_unit.t) =
     then Dot_printer.print_solved_dep solved_dep (Code_id.Map.empty, deps)
   in
   let Rebuild.{ body; free_names; all_code; slot_offsets } =
-    Rebuild.rebuild kinds solved_dep (fun code_id -> Code_or_metadata.code_metadata (Exported_code.find_exn all_code code_id)) holed
+    Rebuild.rebuild kinds solved_dep
+      (fun code_id ->
+        Code_or_metadata.code_metadata (Exported_code.find_exn all_code code_id))
+      holed
   in
   (* Is this what we really want? This keeps all the code that has not been
      deleted by this pass to be exported in the cmx. It looks like this does the
