@@ -35,10 +35,10 @@ Line 3, characters 14-36:
                   ^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
          ('a : '_representable_layout_1)
-       The layout of t_any is any, because
-         of the definition of t_any at line 3, characters 0-16.
-       But the layout of t_any must be representable, because
-         it's the layout polymorphic type in an external declaration
+       The layout of t_any is any
+         because of the definition of t_any at line 3, characters 0-16.
+       But the layout of t_any must be representable
+         because it's the layout polymorphic type in an external declaration
          ([@layout_poly] forces all variables of layout 'any' to be
          representable at call sites).
 |}]
@@ -54,10 +54,10 @@ Line 3, characters 14-38:
                   ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type t_any t
        but an expression was expected of type 'a t
-       The layout of t_any is any, because
-         of the definition of t_any at line 3, characters 0-16.
-       But the layout of t_any must be representable, because
-         it's the layout polymorphic type in an external declaration
+       The layout of t_any is any
+         because of the definition of t_any at line 3, characters 0-16.
+       But the layout of t_any must be representable
+         because it's the layout polymorphic type in an external declaration
          ([@layout_poly] forces all variables of layout 'any' to be
          representable at call sites).
 |}]
@@ -85,10 +85,10 @@ Line 4, characters 63-68:
                                                                    ^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : float64)
-       The layout of string is value, because
-         it is the primitive value type string.
-       But the layout of string must be a sublayout of float64, because
-         of the definition of id' at line 2, characters 10-18.
+       The layout of string is value
+         because it is the primitive value type string.
+       But the layout of string must be a sublayout of float64
+         because of the definition of id' at line 2, characters 10-18.
 |}]
 
 (********************)
@@ -137,10 +137,10 @@ Error: Signature mismatch:
        is not included in
          external id : ('a : any). 'a s -> 'a s = "%identity"
        The type 'a s -> 'a s is not compatible with the type 'b s -> 'b s
-       The layout of 'a is any, because
-         of the definition of id at line 3, characters 2-54.
-       But the layout of 'a must be representable, because
-         it's the layout polymorphic type in an external declaration
+       The layout of 'a is any
+         because of the definition of id at line 3, characters 2-54.
+       But the layout of 'a must be representable
+         because it's the layout polymorphic type in an external declaration
          ([@layout_poly] forces all variables of layout 'any' to be
          representable at call sites).
 |}]
@@ -182,10 +182,10 @@ Error: Signature mismatch:
            = "%identity" [@@layout_poly]
        The type ('a, 'b) s -> ('a, 'b) s is not compatible with the type
          (t_any, 'c) s -> (t_any, 'c) s
-       The layout of t_any is any, because
-         of the definition of t_any at line 2, characters 0-16.
-       But the layout of t_any must be representable, because
-         it's the layout polymorphic type in an external declaration
+       The layout of t_any is any
+         because of the definition of t_any at line 2, characters 0-16.
+       But the layout of t_any must be representable
+         because it's the layout polymorphic type in an external declaration
          ([@layout_poly] forces all variables of layout 'any' to be
          representable at call sites).
 |}]
@@ -263,10 +263,10 @@ Line 2, characters 28-30:
 2 |   external id : ('a : any). 'a -> 'a = "%identity"
                                 ^^
 Error: Types in an external must have a representable layout.
-       The layout of 'a is any, because
-         of the annotation on the universal variable 'a.
-       But the layout of 'a must be representable, because
-         it's the type of an argument in an external declaration.
+       The layout of 'a is any
+         because of the annotation on the universal variable 'a.
+       But the layout of 'a must be representable
+         because it's the type of an argument in an external declaration.
 |}]
 
 module S : sig
@@ -280,10 +280,10 @@ Line 4, characters 28-30:
 4 |   external id : ('a : any). 'a -> 'a = "%identity"
                                 ^^
 Error: Types in an external must have a representable layout.
-       The layout of 'a is any, because
-         of the annotation on the universal variable 'a.
-       But the layout of 'a must be representable, because
-         it's the type of an argument in an external declaration.
+       The layout of 'a is any
+         because of the annotation on the universal variable 'a.
+       But the layout of 'a must be representable
+         because it's the type of an argument in an external declaration.
 |}]
 
 (* External in struct *)
@@ -309,10 +309,10 @@ Line 1, characters 36-41:
                                         ^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : float64)
-       The layout of string is value, because
-         it is the primitive value type string.
-       But the layout of string must be a sublayout of float64, because
-         of the definition of id at line 2, characters 2-35.
+       The layout of string is value
+         because it is the primitive value type string.
+       But the layout of string must be a sublayout of float64
+         because of the definition of id at line 2, characters 2-35.
 |}]
 
 
@@ -339,10 +339,10 @@ Error: Signature mismatch:
        is not included in
          val id : ('a : any). 'a -> 'a
        The type 'a -> 'a is not compatible with the type 'b -> 'b
-       The layout of 'a is any, because
-         of the definition of id at line 2, characters 2-31.
-       But the layout of 'a must be representable, because
-         it's the layout polymorphic type in an external declaration
+       The layout of 'a is any
+         because of the definition of id at line 2, characters 2-31.
+       But the layout of 'a must be representable
+         because it's the layout polymorphic type in an external declaration
          ([@layout_poly] forces all variables of layout 'any' to be
          representable at call sites).
 |}]
@@ -397,10 +397,10 @@ Line 9, characters 49-51:
 Error: Types in an external must have a representable layout
        (locally-scoped type variables with layout 'any' are
        made representable by [@layout_poly]).
-       The layout of a1 is any, because
-         of the annotation on the abstract type declaration for a1.
-       But the layout of a1 must be representable, because
-         it's the type of an argument in an external declaration.
+       The layout of a1 is any
+         because of the annotation on the abstract type declaration for a1.
+       But the layout of a1 must be representable
+         because it's the type of an argument in an external declaration.
 |}]
 
 let f (type a2 : any) () =
@@ -417,10 +417,10 @@ Line 4, characters 49-62:
 Error: Types in an external must have a representable layout
        (locally-scoped type variables with layout 'any' are
        made representable by [@layout_poly]).
-       The layout of a2 t_with_any is any, because
-         of the annotation on the abstract type declaration for a2.
-       But the layout of a2 t_with_any must be representable, because
-         it's the type of an argument in an external declaration.
+       The layout of a2 t_with_any is any
+         because of the annotation on the abstract type declaration for a2.
+       But the layout of a2 t_with_any must be representable
+         because it's the type of an argument in an external declaration.
 |}]
 
 let f (type a3 : any) () =
@@ -437,10 +437,10 @@ Line 4, characters 49-59:
 Error: Types in an external must have a representable layout
        (locally-scoped type variables with layout 'any' are
        made representable by [@layout_poly]).
-       The layout of a3 M_any.t is any, because
-         of the annotation on the abstract type declaration for a3.
-       But the layout of a3 M_any.t must be representable, because
-         it's the type of an argument in an external declaration.
+       The layout of a3 M_any.t is any
+         because of the annotation on the abstract type declaration for a3.
+       But the layout of a3 M_any.t must be representable
+         because it's the type of an argument in an external declaration.
 |}]
 
 module type S4 = sig
@@ -482,10 +482,10 @@ Line 4, characters 48-51:
 Error: Types in an external must have a representable layout
        (locally-scoped type variables with layout 'any' are
        made representable by [@layout_poly]).
-       The layout of A.t is any, because
-         of the definition of t at line 2, characters 2-13.
-       But the layout of A.t must be representable, because
-         it's the type of an argument in an external declaration.
+       The layout of A.t is any
+         because of the definition of t at line 2, characters 2-13.
+       But the layout of A.t must be representable
+         because it's the type of an argument in an external declaration.
 |}]
 
 module M (A : sig
@@ -545,10 +545,10 @@ Line 2, characters 28-32:
                                 ^^^^
 Error: This expression has type ('a : float64)
        but an expression was expected of type int64#
-       The layout of int64# is bits64, because
-         it is the primitive bits64 type int64#.
-       But the layout of int64# must be a sublayout of float64, because
-         it's the layout polymorphic type in an external declaration
+       The layout of int64# is bits64
+         because it is the primitive bits64 type int64#.
+       But the layout of int64# must be a sublayout of float64
+         because it's the layout polymorphic type in an external declaration
          ([@layout_poly] forces all variables of layout 'any' to be
          representable at call sites),
          defaulted to layout float64.
@@ -628,8 +628,8 @@ Line 1, characters 28-58:
 1 | external[@layout_poly] id : ('a : any). 'a list -> 'a list = "%identity"
                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The universal type variable 'a was declared to have kind any.
-       But it was inferred to have kind value, because
-         the type argument of list has kind value.
+       But it was inferred to have kind value
+         because the type argument of list has kind value.
 |}]
 
 (* Test this when sorts can be inside unboxed records *)
