@@ -6965,9 +6965,9 @@ and type_function
           begin try
             unify env
               (newty (Tfunctor (ad, id, (path, fl),
-                      newvar (Jkind.any ~why:Dummy_jkind))))
+                      newvar (Jkind.Primitive.any ~why:Dummy_jkind))))
               (newty (Tfunctor (ad, id, (path', fl'),
-                      newvar (Jkind.any ~why:Dummy_jkind))))
+                      newvar (Jkind.Primitive.any ~why:Dummy_jkind))))
           with Unify trace ->
               raise (Error(loc, env, Expr_type_clash(trace, None, None)))
           end;
@@ -7002,7 +7002,7 @@ and type_function
               Option.value ~default:ety
                   (instance_funct ~id_in:(Ident.of_unscoped id)
                                   ~p_out:(Pident s_ident) ~fixed:false ety)
-            | None -> newvar (Jkind.any ~why:Dummy_jkind)
+            | None -> newvar (Jkind.Primitive.any ~why:Dummy_jkind)
           in
           let type_sort ~why ty =
             match Ctype.type_sort ~why env ty with

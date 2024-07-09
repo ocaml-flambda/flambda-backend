@@ -1592,7 +1592,7 @@ let copy_sep ~copy_scope ~fixed ~(visited : type_expr TypeHash.t) ~id_map sch =
           then get_level ty
           else !current_level
       in
-      let t = newstub ~level ~scope:(get_scope ty) (Jkind.Prmimitive.any ~why:Dummy_jkind) in
+      let t = newstub ~level ~scope:(get_scope ty) (Jkind.Primitive.any ~why:Dummy_jkind) in
       add_delayed_copy closed id_map t ty;
       t
     else try
@@ -3267,14 +3267,14 @@ let rec mcomp type_pairs env t1 t2 =
                 raise Incompatible
             with Not_found -> ()
             end
-        | Tfunctor ((l1,_,_), _, _, t1), Tfunctor ((l2,_,_), _, _, t2)
+        | (Tfunctor ((l1,_,_), _, _, t1), Tfunctor ((l2,_,_), _, _, t2), _, _)
           when equivalent_with_nolabels l1 l2 ->
             mcomp type_pairs env t1 t2
-        | (Tfunctor ((l1,_,_), _, (p1, fl1), u1), Tarrow ((l2,_,_), t2, u2, _))
+        | (Tfunctor ((l1,_,_), _, (p1, fl1), u1), Tarrow ((l2,_,_), t2, u2, _), _, _)
           when equivalent_with_nolabels l1 l2 ->
             mcomp type_pairs env (newmono (newty (Tpackage (p1, fl1)))) t2;
             mcomp type_pairs env u1 u2
-        | (Tarrow ((l1,_,_), t1, u1, _), Tfunctor ((l2,_,_), _, (p2, fl2), u2))
+        | (Tarrow ((l1,_,_), t1, u1, _), Tfunctor ((l2,_,_), _, (p2, fl2), u2), _, _)
           when equivalent_with_nolabels l1 l2 ->
             mcomp type_pairs env t1 (newmono (newty (Tpackage (p2, fl2))));
             mcomp type_pairs env u1 u2
@@ -4401,7 +4401,7 @@ let unify_to_arrow env ty =
       link_type ty ty'
     with Unify_trace trace ->
       undo_compress snap;
-      let expected = newty (Tarrow (ad, pck_ty, newvar (Jkind.any ~why:Dummy_jkind), commu_ok)) in
+      let expected = newty (Tarrow (ad, pck_ty, newvar (Jkind.Primitive.any ~why:Dummy_jkind), commu_ok)) in
       let trace = Diff {got = ty; expected} :: trace in
       raise (Unify (expand_to_unification_error env trace))
     end
