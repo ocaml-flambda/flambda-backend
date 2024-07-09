@@ -225,25 +225,30 @@ type primitive =
   (* load/set 16,32,64,128 bits from a string: (unsafe)*)
   | Pstring_load_16 of bool
   | Pstring_load_32 of bool * alloc_mode
+  | Pstring_load_f32 of bool * alloc_mode
   | Pstring_load_64 of bool * alloc_mode
   | Pstring_load_128 of { unsafe : bool; mode: alloc_mode }
   | Pbytes_load_16 of bool
   | Pbytes_load_32 of bool * alloc_mode
+  | Pbytes_load_f32 of bool * alloc_mode
   | Pbytes_load_64 of bool * alloc_mode
   | Pbytes_load_128 of { unsafe : bool; mode: alloc_mode }
   | Pbytes_set_16 of bool
   | Pbytes_set_32 of bool
+  | Pbytes_set_f32 of bool
   | Pbytes_set_64 of bool
   | Pbytes_set_128 of { unsafe : bool }
   (* load/set 16,32,64,128 bits from a
      (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t : (unsafe) *)
   | Pbigstring_load_16 of { unsafe : bool }
   | Pbigstring_load_32 of { unsafe : bool; mode: alloc_mode; boxed : bool }
+  | Pbigstring_load_f32 of { unsafe : bool; mode: alloc_mode; boxed : bool }
   | Pbigstring_load_64 of { unsafe : bool; mode: alloc_mode; boxed : bool }
   | Pbigstring_load_128 of { aligned : bool; unsafe : bool; mode: alloc_mode;
       boxed : bool }
   | Pbigstring_set_16 of { unsafe : bool }
   | Pbigstring_set_32 of { unsafe : bool; boxed : bool }
+  | Pbigstring_set_f32 of { unsafe : bool; boxed : bool }
   | Pbigstring_set_64 of { unsafe : bool; boxed : bool }
   | Pbigstring_set_128 of { aligned : bool; unsafe : bool; boxed : bool }
   (* load/set SIMD vectors in GC-managed arrays *)
@@ -429,7 +434,8 @@ and boxed_vector =
 
 and bigarray_kind =
     Pbigarray_unknown
-  | Pbigarray_float32 | Pbigarray_float64
+  | Pbigarray_float32 | Pbigarray_float32_t
+  | Pbigarray_float64
   | Pbigarray_sint8 | Pbigarray_uint8
   | Pbigarray_sint16 | Pbigarray_uint16
   | Pbigarray_int32 | Pbigarray_int64

@@ -620,6 +620,7 @@ let print_equality_comparison ppf op =
 module Bigarray_kind = struct
   type t =
     | Float32
+    | Float32_t
     | Float64
     | Sint8
     | Uint8
@@ -635,6 +636,7 @@ module Bigarray_kind = struct
   let element_kind t =
     match t with
     | Float32 | Float64 -> K.naked_float
+    | Float32_t -> K.naked_float32
     | Sint8 | Uint8 | Sint16 | Uint16 -> K.naked_immediate
     | Int32 -> K.naked_int32
     | Int64 -> K.naked_int64
@@ -648,6 +650,7 @@ module Bigarray_kind = struct
     let fprintf = Format.fprintf in
     match t with
     | Float32 -> fprintf ppf "Float32"
+    | Float32_t -> fprintf ppf "Float32_t"
     | Float64 -> fprintf ppf "Float64"
     | Sint8 -> fprintf ppf "Sint8"
     | Uint8 -> fprintf ppf "Uint8"
@@ -664,6 +667,7 @@ module Bigarray_kind = struct
     match kind with
     | Pbigarray_unknown -> None
     | Pbigarray_float32 -> Some Float32
+    | Pbigarray_float32_t -> Some Float32_t
     | Pbigarray_float64 -> Some Float64
     | Pbigarray_sint8 -> Some Sint8
     | Pbigarray_uint8 -> Some Uint8
@@ -679,6 +683,7 @@ module Bigarray_kind = struct
   let to_lambda t : Lambda.bigarray_kind =
     match t with
     | Float32 -> Pbigarray_float32
+    | Float32_t -> Pbigarray_float32_t
     | Float64 -> Pbigarray_float64
     | Sint8 -> Pbigarray_sint8
     | Uint8 -> Pbigarray_uint8
@@ -714,8 +719,8 @@ let reading_from_a_bigarray kind =
     ( Effects.Only_generative_effects Immutable,
       Coeffects.Has_coeffects,
       Placement.Strict )
-  | Float32 | Float64 | Sint8 | Uint8 | Sint16 | Uint16 | Int32 | Int64
-  | Int_width_int | Targetint_width_int ->
+  | Float32 | Float32_t | Float64 | Sint8 | Uint8 | Sint16 | Uint16 | Int32
+  | Int64 | Int_width_int | Targetint_width_int ->
     Effects.No_effects, Coeffects.Has_coeffects, Placement.Strict
 
 (* The bound checks are taken care of outside the array primitive (using an
@@ -723,8 +728,8 @@ let reading_from_a_bigarray kind =
    lambda_to_flambda_primitives.ml). *)
 let writing_to_a_bigarray kind =
   match (kind : Bigarray_kind.t) with
-  | Float32 | Float64 | Sint8 | Uint8 | Sint16 | Uint16 | Int32 | Int64
-  | Int_width_int | Targetint_width_int | Complex32
+  | Float32 | Float32_t | Float64 | Sint8 | Uint8 | Sint16 | Uint16 | Int32
+  | Int64 | Int_width_int | Targetint_width_int | Complex32
   | Complex64
     (* Technically, the write of a complex generates read of fields from the
        given complex, but since those reads are immutable, there is no
@@ -757,6 +762,7 @@ type string_accessor_width =
   | Eight
   | Sixteen
   | Thirty_two
+  | Single
   | Sixty_four
   | One_twenty_eight of { aligned : bool }
 
@@ -766,6 +772,7 @@ let print_string_accessor_width ppf w =
   | Eight -> fprintf ppf "8"
   | Sixteen -> fprintf ppf "16"
   | Thirty_two -> fprintf ppf "32"
+  | Single -> fprintf ppf "f32"
   | Sixty_four -> fprintf ppf "64"
   | One_twenty_eight { aligned = false } -> fprintf ppf "128u"
   | One_twenty_eight { aligned = true } -> fprintf ppf "128a"
@@ -775,6 +782,7 @@ let byte_width_of_string_accessor_width width =
   | Eight -> 1
   | Sixteen -> 2
   | Thirty_two -> 4
+  | Single -> 4
   | Sixty_four -> 8
   | One_twenty_eight _ -> 16
 
@@ -782,6 +790,7 @@ let kind_of_string_accessor_width width =
   match width with
   | Eight | Sixteen -> K.value
   | Thirty_two -> K.naked_int32
+  | Single -> K.naked_float32
   | Sixty_four -> K.naked_int64
   | One_twenty_eight _ -> K.naked_vec128
 
@@ -1622,6 +1631,7 @@ let result_kind_of_binary_primitive p : result_kind =
   | String_or_bigstring_load (_, (Eight | Sixteen)) ->
     Singleton K.naked_immediate
   | String_or_bigstring_load (_, Thirty_two) -> Singleton K.naked_int32
+  | String_or_bigstring_load (_, Single) -> Singleton K.naked_float32
   | String_or_bigstring_load (_, Sixty_four) -> Singleton K.naked_int64
   | String_or_bigstring_load (_, One_twenty_eight _) -> Singleton K.naked_vec128
   | Bigarray_load (_, kind, _) -> Singleton (Bigarray_kind.element_kind kind)
@@ -1774,6 +1784,8 @@ let args_kind_of_ternary_primitive p =
     string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_immediate
   | Bytes_or_bigstring_set (Bytes, Thirty_two) ->
     string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_int32
+  | Bytes_or_bigstring_set (Bytes, Single) ->
+    string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_float32
   | Bytes_or_bigstring_set (Bytes, Sixty_four) ->
     string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_int64
   | Bytes_or_bigstring_set (Bytes, One_twenty_eight _) ->
@@ -1782,6 +1794,8 @@ let args_kind_of_ternary_primitive p =
     bigstring_kind, bytes_or_bigstring_index_kind, K.naked_immediate
   | Bytes_or_bigstring_set (Bigstring, Thirty_two) ->
     bigstring_kind, bytes_or_bigstring_index_kind, K.naked_int32
+  | Bytes_or_bigstring_set (Bigstring, Single) ->
+    bigstring_kind, bytes_or_bigstring_index_kind, K.naked_float32
   | Bytes_or_bigstring_set (Bigstring, Sixty_four) ->
     bigstring_kind, bytes_or_bigstring_index_kind, K.naked_int64
   | Bytes_or_bigstring_set (Bigstring, One_twenty_eight _) ->

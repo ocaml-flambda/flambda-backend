@@ -392,6 +392,11 @@ val unaligned_load_32 : expression -> expression -> Debuginfo.t -> expression
 val unaligned_set_32 :
   expression -> expression -> expression -> Debuginfo.t -> expression
 
+val unaligned_load_f32 : expression -> expression -> Debuginfo.t -> expression
+
+val unaligned_set_f32 :
+  expression -> expression -> expression -> Debuginfo.t -> expression
+
 val unaligned_load_64 : expression -> expression -> Debuginfo.t -> expression
 
 val unaligned_set_64 :
