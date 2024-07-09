@@ -213,10 +213,11 @@ let const_static cst =
            (tag_targetint (Targetint_31_63.to_targetint i))) ]
   | Naked_float f -> [cfloat (Numeric_types.Float_by_bit_pattern.to_float f)]
   | Naked_float32 f ->
-    (* Here we are relying on the data section being zero initialized to
-       maintain the invariant that statically-allocated float32 values are zero
-       padded. *)
-    [cfloat32 (Numeric_types.Float32_by_bit_pattern.to_float f)]
+    (* Statically-allocated float32 values are zero padded. We must explicitly
+       add the padding otherwise subsequent values will be misaligned. If this
+       code is ever used on big-endian systems (which seems unlikely), this
+       needs checking. *)
+    [cfloat32 (Numeric_types.Float32_by_bit_pattern.to_float f); cint32 0l]
   | Naked_int32 i -> [cint (Nativeint.of_int32 i)]
   (* We don't compile flambda-backend in 32-bit mode, so nativeint is 64
      bits. *)
