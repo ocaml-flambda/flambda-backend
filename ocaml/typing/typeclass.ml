@@ -1618,7 +1618,7 @@ let temp_abbrev loc id arity uid =
        type_attributes = []; (* or keep attrs from the class decl? *)
        type_unboxed_default = false;
        type_uid = uid;
-       type_has_illegal_crossings = true;
+       type_has_illegal_crossings = false;
       }
   in
   (!params, ty, ty_td)
