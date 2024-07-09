@@ -3000,13 +3000,13 @@ let explanation (type variety) intro prev env
              {[ The type int occurs inside int list -> 'a |}
         *)
     end
-  | Errortrace.Bad_jkind (t,e) ->
-      Some (dprintf "@ @[<hov>%a@]"
+| Errortrace.Bad_jkind (t,e) ->
+    Some (dprintf "@ @[<hov>%a@]"
               (Jkind.Violation.report_with_offender
                  ~offender:(fun ppf -> type_expr ppf t)) e)
   | Errortrace.Bad_jkind_sort (t,e) ->
       Some (dprintf "@ @[<hov>%a@]"
-              (Jkind.Type.Violation.report_with_offender_sort
+              (Jkind.Violation.report_with_offender_sort
                  ~offender:(fun ppf -> type_expr ppf t)) e)
   | Errortrace.Unequal_var_jkinds (t1,l1,t2,l2) ->
       let fmt_history t l ppf =

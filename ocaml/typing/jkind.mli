@@ -329,10 +329,6 @@ module Type : sig
      these three functions to default to void - it's the most efficient thing
      when we have a choice. *)
 
-  (** Returns the sort corresponding to the jkind.  Call only on representable
-    jkinds - raises on Any. *)
-  val sort_of_jkind : t -> sort
-
   (** Gets the layout of a jkind; returns [None] if the layout is still unknown.
     Never does mutation. *)
   val get_layout : t -> Layout.Const.t option
@@ -576,6 +572,10 @@ val default_to_value_and_get : t -> Const.t
 
 (** [default_to_value t] is [ignore (default_to_value_and_get t)] *)
 val default_to_value : t -> unit
+
+(** Returns the sort corresponding to the jkind.  Call only on representable
+    jkinds - raises on Any. *)
+val sort_of_jkind : Type.t -> sort
 
 (** Extract the [const] from a [Jkind.Type.t], looking through unified
     sort variables. Returns [Var] if the final, non-variable jkind has not

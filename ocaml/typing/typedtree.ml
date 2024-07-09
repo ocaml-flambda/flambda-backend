@@ -1007,13 +1007,13 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
             match cstr.cstr_repr with
             | Variant_unboxed -> [ sort ]
             | Variant_boxed _ | Variant_extensible ->
-              Array.to_list (Array.map Jkind.Type.sort_of_jkind
+              Array.to_list (Array.map Jkind.sort_of_jkind
                                           cstr.cstr_arg_jkinds)
           in
           List.iter2 (loop f) sorts patl
       | Tpat_record (lbl_pat_list, _) ->
           List.iter (fun (_, lbl, pat) ->
-            (loop f) (Jkind.Type.sort_of_jkind lbl.lbl_jkind) pat)
+            (loop f) (Jkind.sort_of_jkind lbl.lbl_jkind) pat)
             lbl_pat_list
       (* Cases where the inner things must be value: *)
       | Tpat_variant (_, pat, _) -> Option.iter (loop f Jkind.Sort.value) pat

@@ -3390,7 +3390,7 @@ let report_error ppf = function
   | Constraint_failed (env, err) ->
       let get_jkind_error : _ Errortrace.elt -> _ = function
       | Bad_jkind (ty, violation) -> Some (ty, violation)
-      | Bad_jkind_sort (ty, violation) -> Some (ty, Jkind.Violation.of_type_jkind violation)
+      | Bad_jkind_sort (ty, violation) -> Some (ty, violation)
       | Unequal_var_jkinds_with_no_history
       | Unequal_var_jkinds _ | Diff _ | Variant _ | Obj _
       | Escape _ | Incompatible_fields _ | Rec_occur _ -> None
