@@ -88,6 +88,6 @@ let () =
   ()
 
 (* TEST
-   * flambda2
-   ** native
+   flambda2;
+   native;
 *)
