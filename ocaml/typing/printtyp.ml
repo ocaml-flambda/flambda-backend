@@ -40,7 +40,7 @@ module Sig_component_kind = Shape.Sig_component_kind
    [type 'a t : <<this one>> = ...].
 
    We print the jkind when it cannot be inferred from the rest of what is
-   printed. Specifically, we print the user-written jkind in both of these
+   printed. Specifically, we print the user-written jkind in any of these
    cases:
 
    (C1.1) The type declaration is abstract and has no manifest (i.e.,
@@ -53,6 +53,10 @@ module Sig_component_kind = Shape.Sig_component_kind
    (C1.2) The type is [@@unboxed]. If an [@@unboxed] type is recursive, it can
    be impossible to deduce the jkind.  We thus defer to the user in determining
    whether to print the jkind annotation.
+
+   (* CR layouts v2.8: remove this case *)
+   (C1.3) The type has illegal mode crossings. In this case, the jkind is overridden by
+   the user rather than being inferred from the definition.
 
    Case (C2). The jkind on a type parameter to a type, like
    [type ('a : <<this one>>) t = ...].
