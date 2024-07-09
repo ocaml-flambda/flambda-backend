@@ -330,7 +330,8 @@ let transform_primitive env (prim : L.primitive) args loc =
       then
         let arity = 2 + num_dimensions in
         let is_float32_t =
-          match kind with Pbigarray_float32_t -> "float32_"
+          match kind with
+          | Pbigarray_float32_t -> "float32_"
           | Pbigarray_unknown | Pbigarray_float32 | Pbigarray_float64
           | Pbigarray_sint8 | Pbigarray_uint8 | Pbigarray_sint16
           | Pbigarray_uint16 | Pbigarray_int32 | Pbigarray_int64
