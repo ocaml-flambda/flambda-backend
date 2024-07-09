@@ -44,6 +44,10 @@
 
 exception Unexpected_higher_jkind of string
 
+module Sort : Jkind_intf.Sort with type const = Jkind_types.Type.Sort.const
+
+type sort = Sort.t
+
 module Type : sig
   module Externality : sig
     type t = Jkind_types.Type.Externality.t =
@@ -55,10 +59,6 @@ module Type : sig
 
     val print : Format.formatter -> t -> unit
   end
-
-  module Sort : Jkind_intf.Sort with type const = Jkind_types.Type.Sort.const
-
-  type sort = Sort.t
 
   (* The layout of a type describes its memory layout. A layout is either the
      indeterminate [Any] or a sort, which is a concrete memory layout. *)
@@ -502,7 +502,7 @@ val to_const : t -> Const.t option
 
 (** Create a fresh sort variable, packed into a jkind, returning both
     the resulting kind and the sort. *)
-val of_new_sort_var : why:Type.History.concrete_jkind_reason -> t * Type.sort
+val of_new_sort_var : why:Type.History.concrete_jkind_reason -> t * sort
 
 (** Create a fresh sort variable, packed into a jkind. *)
 val of_new_sort : why:Type.History.concrete_jkind_reason -> t

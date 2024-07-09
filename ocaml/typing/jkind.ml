@@ -41,14 +41,14 @@ end
 
 let user_raise ~loc err = raise (Error.User_error (loc, err))
 
+(* A *sort* is the information the middle/back ends need to be able to
+   compile a manipulation (storing, passing, etc) of a runtime value. *)
+module Sort = Jkind_types.Type.Sort
+
+type sort = Sort.t
+
 module Type = struct
   open Jkind_types.Type
-
-  (* A *sort* is the information the middle/back ends need to be able to
-     compile a manipulation (storing, passing, etc) of a runtime value. *)
-  module Sort = Jkind_types.Type.Sort
-
-  type sort = Sort.t
 
   type type_expr = Types.type_expr
 

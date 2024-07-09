@@ -123,7 +123,7 @@ type error =
       }
   | Jkind_empty_record
   | Non_value_in_sig of Jkind.Violation.t * string * type_expr
-  | Invalid_jkind_in_block of type_expr * Jkind.Type.Sort.const * jkind_sort_loc
+  | Invalid_jkind_in_block of type_expr * Jkind.Sort.const * jkind_sort_loc
   | Illegal_mixed_product of mixed_product_violation
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
@@ -401,7 +401,7 @@ let check_representable ~why ~allow_unboxed env loc kloc typ =
       yet. *)
   | Ok s -> begin
     if not allow_unboxed then
-      match Jkind.Type.Sort.default_to_value_and_get s with
+      match Jkind.Sort.default_to_value_and_get s with
       | Void | Value -> ()
       | Float64 | Float32 | Word | Bits32 | Bits64 as const ->
         raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
@@ -2662,14 +2662,14 @@ let error_if_has_deep_native_repr_attributes core_type =
    In such cases, we raise an expection. *)
 let type_sort_external ~is_layout_poly ~why env loc typ =
   match Ctype.type_sort ~why env typ with
-  | Ok s -> Jkind.Type.Sort.default_to_value_and_get s
+  | Ok s -> Jkind.Sort.default_to_value_and_get s
   | Error err ->
     let kloc =
       if is_layout_poly then External_with_layout_poly else External
     in
     raise(Error (loc, Jkind_sort {kloc; typ; err}))
 
-type sort_or_poly = Sort of Jkind.Type.Sort.const | Poly
+type sort_or_poly = Sort of Jkind.Sort.const | Poly
 
 let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
   error_if_has_deep_native_repr_attributes core_type;
@@ -3644,7 +3644,7 @@ let report_error ppf = function
     in
     fprintf ppf
       "@[Type %a has layout %a.@ %s may not yet contain types of this layout.@]"
-      Printtyp.type_expr typ Jkind.Type.Sort.Const.format sort_const struct_desc
+      Printtyp.type_expr typ Jkind.Sort.Const.format sort_const struct_desc
   | Illegal_mixed_product error -> begin
       match error with
       | Flat_field_expected { boxed_lbl; non_value_lbl } ->

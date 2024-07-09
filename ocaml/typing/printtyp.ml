@@ -1284,7 +1284,7 @@ let out_jkind_option_of_jkind jkind =
       end
     | Var v -> (* This handles (X1). *)
       if !Clflags.verbose_types
-      then Some (Ojkind_var (Jkind.Type.Sort.Var.name v))
+      then Some (Ojkind_var (Jkind.Sort.Var.name v))
       else None
     end
   (* TODO jbachurski: out jkinds for arrows *)
@@ -2677,7 +2677,7 @@ let trees_of_type_expansion'
           let olay = match Jkind.get jkind with
             | Type ty -> begin match Jkind.Type.get ty with
               | Const clay -> out_jkind_of_const_jkind clay
-              | Var v      -> Ojkind_var (Jkind.Type.Sort.Var.name v)
+              | Var v      -> Ojkind_var (Jkind.Sort.Var.name v)
               end
             | Arrow _ -> Ojkind_const { base = "((higher))"; modal_bounds = [] }
           in

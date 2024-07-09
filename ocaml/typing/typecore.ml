@@ -3247,7 +3247,7 @@ let rec check_counter_example_pat
         (fun fields -> mkp k (Tpat_record (fields, closed)))
   | Tpat_array (mut, original_arg_sort, tpl) ->
       let ty_elt, arg_sort = solve_Ppat_array ~refine loc env mut expected_ty in
-      assert (Jkind.Type.Sort.equate original_arg_sort arg_sort);
+      assert (Jkind.Sort.equate original_arg_sort arg_sort);
       map_fold_cont (fun p -> check_rec p ty_elt) tpl
         (fun pl -> mkp k (Tpat_array (mut, arg_sort, pl)))
   | Tpat_or(tp1, tp2, _) ->
@@ -3411,7 +3411,7 @@ type untyped_apply_arg =
       { sarg : Parsetree.expression;
         ty_arg : type_expr;
         ty_arg0 : type_expr;
-        sort_arg : Jkind.Type.sort;
+        sort_arg : Jkind.sort;
         commuted : bool;
         mode_fun : Alloc.lr;
         mode_arg : Alloc.lr;
@@ -3419,14 +3419,14 @@ type untyped_apply_arg =
   | Unknown_arg of
       { sarg : Parsetree.expression;
         ty_arg_mono : type_expr;
-        sort_arg : Jkind.Type.sort;
+        sort_arg : Jkind.sort;
         mode_fun : Alloc.lr;
         mode_arg : Alloc.lr}
   | Eliminated_optional_arg of
       { expected_label: arg_label;
         mode_fun: Alloc.lr;
         ty_arg : type_expr;
-        sort_arg : Jkind.Type.sort;
+        sort_arg : Jkind.sort;
         mode_arg : Alloc.lr;
         level: int; }
 
@@ -3435,7 +3435,7 @@ type untyped_omitted_param =
     ty_arg : type_expr;
     mode_arg : Alloc.lr;
     level: int;
-    sort_arg : Jkind.Type.sort }
+    sort_arg : Jkind.sort }
 
 let is_partial_apply args =
   List.exists
@@ -4801,8 +4801,8 @@ type split_function_ty =
        [a_i -> a_{i+1} -> ... -> b].
     *)
     filtered_arrow: filtered_arrow;
-    arg_sort : Jkind.Type.sort;
-    ret_sort : Jkind.Type.sort;
+    arg_sort : Jkind.sort;
+    ret_sort : Jkind.sort;
     (* An instance of [a_i], unless [x_i] is annotated as polymorphic,
        in which case it's just [a_i] (not an instance).
     *)
@@ -4987,7 +4987,7 @@ and type_function_ret_info =
   { (* The mode the function returns at. *)
     ret_mode: Mode.Alloc.l;
     (* The sort returned by the function. *)
-    ret_sort: Jkind.Type.sort;
+    ret_sort: Jkind.sort;
   }
 
 (* Generalize expressions *)
@@ -6317,7 +6317,7 @@ and type_expect_
             let loc = Location.ghostify slet.pbop_op.loc in
             let spat_acc = Ast_helper.Pat.tuple ~loc [spat_acc; spat] in
             let ty_acc = newty (Ttuple [None, ty_acc; None, ty]) in
-            loop spat_acc ty_acc Jkind.Type.Sort.value rest
+            loop spat_acc ty_acc Jkind.Sort.value rest
       in
       let op_path, op_desc, op_type, spat_params, ty_params, param_sort,
           ty_func_result, body_sort, ty_result, op_result_sort,
@@ -6332,7 +6332,7 @@ and type_expect_
               | [] ->
                 Jkind.of_new_sort_var ~why:Function_argument
               (* CR layouts v5: eliminate value requirement for tuple elements *)
-              | _ -> Jkind.Primitive.value ~why:Tuple_element, Jkind.Type.Sort.value
+              | _ -> Jkind.Primitive.value ~why:Tuple_element, Jkind.Sort.value
             in
             loop slet.pbop_pat (newvar initial_jkind) initial_sort sands
           in
@@ -7440,10 +7440,10 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
             in
             (* CR layouts v5: change value assumption below when we allow
                non-values in structures. *)
-            make_args ((l, Arg (ty, Jkind.Type.Sort.value)) :: args) ty_fun
+            make_args ((l, Arg (ty, Jkind.Sort.value)) :: args) ty_fun
         | Tarrow ((l,_marg,_mret),_,ty_fun,_) when is_position l ->
             let arg = src_pos (Location.ghostify sarg.pexp_loc) [] env in
-            make_args ((l, Arg (arg, Jkind.Type.Sort.value)) :: args) ty_fun
+            make_args ((l, Arg (arg, Jkind.Sort.value)) :: args) ty_fun
         | Tarrow ((l,_,_),_,ty_res',_) when l = Nolabel || !Clflags.classic ->
             List.rev args, ty_fun, no_labels ty_res'
         | Tvar _ ->  List.rev args, ty_fun, false
@@ -7919,7 +7919,7 @@ and type_statement ?explanation ?(position=RNontail) env sexp =
     let expected_ty = instance Predef.type_unit in
     with_explanation explanation (fun () ->
       unify_exp env exp expected_ty);
-    exp, Jkind.Type.Sort.value
+    exp, Jkind.Sort.value
   else begin
     (* We're requiring the statement to have a representable jkind.  But that
        doesn't actually rule out things like "assert false"---we'll just end up
@@ -9073,7 +9073,7 @@ and type_comprehension_expr
         container_type,
         (fun tcomp ->
           Texp_array_comprehension
-            (mut, Jkind.Type.Sort.for_array_comprehension_element, tcomp)),
+            (mut, Jkind.Sort.for_array_comprehension_element, tcomp)),
         comp,
         (* CR layouts v4: When this changes from [value], you will also have to
            update the use of [transl_exp] in transl_array_comprehension.ml. See

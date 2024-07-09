@@ -306,7 +306,7 @@ type primitive =
   | Pdls_get
 
 and extern_repr =
-  | Same_as_ocaml_repr of Jkind.Type.Sort.const
+  | Same_as_ocaml_repr of Jkind.Sort.const
   | Unboxed_float of boxed_float
   | Unboxed_vector of Primitive.boxed_vector
   | Unboxed_integer of Primitive.boxed_integer
@@ -2079,6 +2079,6 @@ let simple_prim_on_values ~name ~arity ~alloc =
     ~native_name:""
     ~native_repr_args:
       (Primitive.make_prim_repr_args arity
-        (Primitive.Prim_global,Same_as_ocaml_repr Jkind.Type.Sort.Value))
-    ~native_repr_res:(Prim_global, Same_as_ocaml_repr Jkind.Type.Sort.Value)
+        (Primitive.Prim_global,Same_as_ocaml_repr Jkind.Sort.Value))
+    ~native_repr_res:(Prim_global, Same_as_ocaml_repr Jkind.Sort.Value)
     ~is_layout_poly:false

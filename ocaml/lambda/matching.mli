@@ -22,7 +22,7 @@ open Debuginfo.Scoped_location
 (* Entry points to match compiler *)
 val for_function:
         scopes:scopes ->
-        arg_sort:Jkind.Type.sort -> arg_layout:layout -> return_layout:layout ->
+        arg_sort:Jkind.sort -> arg_layout:layout -> return_layout:layout ->
         Location.t -> int ref option -> lambda -> (pattern * lambda) list ->
         partial ->
         lambda
@@ -31,12 +31,12 @@ val for_trywith:
         lambda -> (pattern * lambda) list ->
         lambda
 val for_let:
-        scopes:scopes -> arg_sort:Jkind.Type.sort -> return_layout:layout ->
+        scopes:scopes -> arg_sort:Jkind.sort -> return_layout:layout ->
         Location.t -> lambda -> pattern -> lambda ->
         lambda
 val for_multiple_match:
         scopes:scopes -> return_layout:layout -> Location.t ->
-        (lambda * Jkind.Type.sort * layout) list -> alloc_mode ->
+        (lambda * Jkind.sort * layout) list -> alloc_mode ->
         (pattern * lambda) list -> partial ->
         lambda
 
@@ -57,7 +57,7 @@ val for_tupled_function:
 *)
 val for_optional_arg_default:
   scopes:scopes -> Location.t -> pattern -> param:Ident.t ->
-  default_arg:lambda -> default_arg_sort:Jkind.Type.sort ->
+  default_arg:lambda -> default_arg_sort:Jkind.sort ->
   return_layout:layout -> lambda -> lambda
 
 exception Cannot_flatten

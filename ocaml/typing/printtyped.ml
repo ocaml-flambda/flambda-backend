@@ -324,7 +324,7 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
       list i longident_x_pattern ppf l;
   | Tpat_array (am, arg_sort, l) ->
       line i ppf "Tpat_array %a\n" fmt_mutable_mode_flag am;
-      line i ppf "%a\n" Jkind.Type.Sort.format arg_sort;
+      line i ppf "%a\n" Jkind.Sort.format arg_sort;
       list i pattern ppf l;
   | Tpat_lazy p ->
       line i ppf "Tpat_lazy\n";
@@ -372,7 +372,7 @@ and function_body i ppf (body : function_body) =
     ->
       line i ppf "Tfunction_cases %a\n" fmt_location fc_loc;
       alloc_mode i ppf fc_arg_mode;
-      line i ppf "%a\n" Jkind.Type.Sort.format fc_arg_sort;
+      line i ppf "%a\n" Jkind.Sort.format fc_arg_sort;
       attributes (i+1) ppf fc_attributes;
       Option.iter (fun e -> expression_extra (i+1) ppf e []) fc_exp_extra;
       list (i+1) case ppf fc_cases
@@ -460,7 +460,7 @@ and expression i ppf x =
   | Texp_match (e, sort, l, _partial) ->
       line i ppf "Texp_match\n";
       expression i ppf e;
-      line i ppf "%a\n" Jkind.Type.Sort.format sort;
+      line i ppf "%a\n" Jkind.Sort.format sort;
       list i case ppf l;
   | Texp_try (e, l) ->
       line i ppf "Texp_try\n";
@@ -499,7 +499,7 @@ and expression i ppf x =
       expression i ppf e2;
   | Texp_array (amut, sort, l, amode) ->
       line i ppf "Texp_array %a\n" fmt_mutable_mode_flag amut;
-      line i ppf "%a\n" Jkind.Type.Sort.format sort;
+      line i ppf "%a\n" Jkind.Sort.format sort;
       alloc_mode i ppf amode;
       list i expression ppf l;
   | Texp_list_comprehension comp ->
@@ -507,7 +507,7 @@ and expression i ppf x =
       comprehension i ppf comp
   | Texp_array_comprehension (amut, sort, comp) ->
       line i ppf "Texp_array_comprehension %a\n" fmt_mutable_mode_flag amut;
-      line i ppf "%a\n" Jkind.Type.Sort.format sort;
+      line i ppf "%a\n" Jkind.Sort.format sort;
       comprehension i ppf comp
   | Texp_ifthenelse (e1, e2, eo) ->
       line i ppf "Texp_ifthenelse\n";
@@ -517,7 +517,7 @@ and expression i ppf x =
   | Texp_sequence (e1, s, e2) ->
       line i ppf "Texp_sequence\n";
       expression i ppf e1;
-      line i ppf "%a\n" Jkind.Type.Sort.format s;
+      line i ppf "%a\n" Jkind.Sort.format s;
       expression i ppf e2;
   | Texp_while {wh_cond; wh_body} ->
       line i ppf "Texp_while\n";
@@ -612,7 +612,7 @@ and function_param i ppf x =
       pattern (i+1) ppf pat
   | Tparam_optional_default (pat, expr, sort) ->
       line i ppf "Param_optional_default\n";
-      line i ppf "%a\n" Jkind.Type.Sort.format sort;
+      line i ppf "%a\n" Jkind.Sort.format sort;
       pattern (i+1) ppf pat;
       expression (i+1) ppf expr
 
@@ -998,7 +998,7 @@ and structure_item i ppf x =
   | Tstr_eval (e, l, attrs) ->
       line i ppf "Tstr_eval\n";
       attributes i ppf attrs;
-      line i ppf "%a\n" Jkind.Type.Sort.format l;
+      line i ppf "%a\n" Jkind.Sort.format l;
       expression i ppf e;
   | Tstr_value (rf, l) ->
       line i ppf "Tstr_value %a\n" fmt_rec_flag rf;

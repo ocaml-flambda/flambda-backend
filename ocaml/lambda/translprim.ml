@@ -141,9 +141,9 @@ let to_modify_mode ~poly = function
     | Some mode -> transl_modify_mode mode
 
 let extern_repr_of_native_repr:
-  poly_sort:Jkind.Type.Sort.t option -> Primitive.native_repr -> Lambda.extern_repr
+  poly_sort:Jkind.Sort.t option -> Primitive.native_repr -> Lambda.extern_repr
   = fun ~poly_sort r -> match r, poly_sort with
-  | Repr_poly, Some s -> Same_as_ocaml_repr (Jkind.Type.Sort.default_to_value_and_get s)
+  | Repr_poly, Some s -> Same_as_ocaml_repr (Jkind.Sort.default_to_value_and_get s)
   | Repr_poly, None -> Misc.fatal_error "Unexpected Repr_poly"
   | Same_as_ocaml_repr s, _ -> Same_as_ocaml_repr s
   | Unboxed_float f, _ -> Unboxed_float f
@@ -156,7 +156,7 @@ let sort_of_native_repr ~poly_sort repr =
   | Same_as_ocaml_repr s -> s
   | (Unboxed_float _ | Unboxed_integer _ | Untagged_int |
       Unboxed_vector _) ->
-    Jkind.Type.Sort.Value
+    Jkind.Sort.Value
 
 let to_lambda_prim prim ~poly_sort =
   let native_repr_args =
@@ -983,7 +983,7 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       let shape =
         List.map (fun typ ->
           Lambda.must_be_value (Typeopt.layout env (to_location loc)
-                                  Jkind.Type.Sort.for_block_element typ))
+                                  Jkind.Sort.for_block_element typ))
           fields
       in
       let useful = List.exists (fun knd -> knd <> Pgenval) shape in
@@ -1286,7 +1286,7 @@ let check_primitive_arity loc p =
   in
   (* By a similar assumption, the sort shouldn't change the arity.  So it's ok
      to lie here. *)
-  let sort = Some (Jkind.Type.Sort.of_const Value) in
+  let sort = Some (Jkind.Sort.of_const Value) in
   let prim =
     lookup_primitive loc ~poly_mode:mode ~poly_sort:sort Rc_normal p
   in
@@ -1326,7 +1326,7 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
     match repr_args, repr_res with
     | [], (_, res_repr) ->
       let res_sort =
-        Jkind.Type.Sort.of_const (sort_of_native_repr res_repr ~poly_sort)
+        Jkind.Sort.of_const (sort_of_native_repr res_repr ~poly_sort)
       in
       [], Typeopt.layout env (to_location loc) res_sort ty
     | (((_, arg_repr) as arg) :: repr_args), _ ->
@@ -1336,7 +1336,7 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
             (Primitive.byte_name p)
       | Some (arg_ty, ret_ty) ->
           let arg_sort =
-            Jkind.Type.Sort.of_const (sort_of_native_repr arg_repr ~poly_sort)
+            Jkind.Sort.of_const (sort_of_native_repr arg_repr ~poly_sort)
           in
           let arg_layout =
             Typeopt.layout env (to_location loc) arg_sort arg_ty

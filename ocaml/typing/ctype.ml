@@ -2199,7 +2199,10 @@ let constrain_type_jkind ~fixed env ty jkind =
     in
     Result.map (set_var_jkind ty) jkind_inter
   | Missing_cmi (ty_jkind, missing_cmi) ->
-    Error Jkind.(Violation.of_ ~missing_cmi (Not_a_subjkind ((History.update_reason ty_jkind (Missing_cmi missing_cmi), jkind))))
+    Error Jkind.(Violation.of_
+      ~missing_cmi
+        (Not_a_subjkind
+          ((History.update_reason ty_jkind (Missing_cmi missing_cmi), jkind))))
   | Failure ty_jkind ->
     Error (Jkind.Violation.of_ (Not_a_subjkind (ty_jkind, jkind)))
 
