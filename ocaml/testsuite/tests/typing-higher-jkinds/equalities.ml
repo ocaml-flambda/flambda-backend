@@ -1,0 +1,127 @@
+(* TEST
+ flags = "-extension layouts_alpha";
+ expect;
+*)
+
+type t : value => value
+
+[%%expect {|
+type t : (value) => value
+|}]
+
+module M : sig
+  type a : value => value
+end = struct
+  type a : value => value
+end
+
+[%%expect {|
+module M : sig type a : (value) => value end
+|}]
+
+module M : sig
+  type a : value => value
+end = struct
+  type a : value
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type a : value
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type a : value end
+       is not included in
+         sig type a : (value) => value end
+       Type declarations do not match:
+         type a : value
+       is not included in
+         type a : (value) => value
+       The kind of the first is value, because
+         of the definition of a at line 4, characters 2-16.
+       in higher-order jkind ((value) => value):
+       But the kind of the first must be a subkind of ((value) => value), because
+         of the definition of a at line 2, characters 2-25.But the kind of the first must be a subkind of ((value) => value), because
+                                                             of the definition of a at line 2, characters 2-25.
+
+|}]
+
+module M : sig
+  type a : value
+end = struct
+  type a : value => value
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type a : value => value
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type a : (value) => value end
+       is not included in
+         sig type a : value end
+       Type declarations do not match:
+         type a : (value) => value
+       is not included in
+         type a : value
+       in higher-order jkind ((value) => value):
+       The kind of the first is ((value) => value), because
+         of the definition of a at line 4, characters 2-25.The kind of the first is ((value) => value), because
+                                                             of the definition of a at line 4, characters 2-25.
+
+       But the kind of the first must be a subkind of value, because
+         of the definition of a at line 2, characters 2-16.
+|}]
+
+module M : sig
+  type a : (value, value) => value
+end = struct
+  type a : (value, value) => value
+end
+
+[%%expect {|
+module M : sig type a : (value, value) => value end
+|}]
+
+module M : sig
+  type a : (value, value) => value
+end = struct
+  type a : value => value
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type a : value => value
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type a : (value) => value end
+       is not included in
+         sig type a : (value, value) => value end
+       Type declarations do not match:
+         type a : (value) => value
+       is not included in
+         type a : (value, value) => value
+       in higher-order jkind ((value) => value):
+       The kind of the first is ((value) => value), because
+         of the definition of a at line 4, characters 2-25.The kind of the first is ((value) => value), because
+                                                             of the definition of a at line 4, characters 2-25.
+
+       in higher-order jkind ((value
+       value) => value):
+       But the kind of the first must be a subkind of ((value
+         value) => value), because
+         of the definition of a at line 2, characters 2-34.
+But the kind of the first must be a subkind of ((value
+                                                              value) => value), because
+                                                              of the definition of a at line 2, characters 2-34.
+        But the kind of the first must be a subkind of ((value
+          value) => value), because
+          of the definition of a at line 2, characters 2-34.
+
+|}]
