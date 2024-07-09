@@ -1483,8 +1483,10 @@ let simplify_let_cont0 ~(simplify_expr : _ Simplify_common.expr_simplifier) dacc
 
      - bump the scope of the env after join to get an env at scope 'n + 2'
 
-     - recursively for lifted continuations, whose join will take place at level
-     'n + 1' (which is the level for denv_for_join) *)
+     - we repeat this process for each lifted continuation, whose join will take
+     place at level 'n + 1' (which is the level for denv_for_join), after which
+     the scope will be bumped to `n +2`, so that further lifted continuations
+     can also perform their join at level `n + 1`. *)
   let denv_for_join = DE.increment_continuation_scope denv_before_body in
   let denv_for_body = DE.increment_continuation_scope denv_for_join in
   let denv_for_body =
