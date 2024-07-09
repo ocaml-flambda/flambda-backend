@@ -48,6 +48,45 @@ Test mixed record update and mutation:
   d: 2500
   e: -600
   f: -2710
+Test mixed variant construction:
+  a: 317.00
+  b: 1300
+  c: 731
+  d: 141
+  e: 600
+  f: 2710
+  a: -317.00
+  b: -1300
+  c: -731
+  d: -141
+  e: -600
+  f: -2710
+Test mixed variant matching and projection:
+  a: -600.00
+  b: -458
+  c: 0
+  d: 1441
+  e: 2110
+  f: -2710
+Test mixed variant update and mutation:
+  a: 317.00
+  b: 1300
+  c: 731
+  d: 4200
+  e: 600
+  f: -731
+  a: -317.00
+  b: 1700
+  c: -731
+  d: -141
+  e: -600
+  f: -2710
+  a: -317.00
+  b: 458
+  c: 4200
+  d: 2500
+  e: -600
+  f: -2710
 Test 18, mixed records in recursive groups:
   a: 11.00
   b: 2

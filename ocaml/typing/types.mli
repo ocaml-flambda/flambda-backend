@@ -583,9 +583,10 @@ and mixed_product_shape =
 
 and record_representation =
   | Record_unboxed
-  | Record_inlined of tag * variant_representation
+  | Record_inlined of tag * constructor_representation * variant_representation
   (* For an inlined record, we record the representation of the variant that
-     contains it and the tag of the relevant constructor of that variant. *)
+     contains it and the tag/representation of the relevant constructor of that
+     variant. *)
   | Record_boxed of jkind array
   | Record_float (* All fields are floats *)
   | Record_ufloat
@@ -603,9 +604,11 @@ and variant_representation =
   (* The outer array has an element for each constructor. Each inner array
      has a jkind for each argument of the corresponding constructor.
 
-     A constructor with a boxed inlined record constructor has a length-1 inner
-     array. Its single element is the jkind of the record itself. (It doesn't
-     have a jkind for each field.)
+     A constructor with an inlined record argument has a length-1 inner array.
+     Its single element is the jkind of the record itself. (It doesn't have a
+     jkind for each field.) However, the constructor representation is about the
+     fields of the record, not the record itself; that is, it will be
+     [Constructor_mixed] if the inlined record has any unboxed fields.
   *)
   | Variant_extensible
 
@@ -622,7 +625,7 @@ and label_declaration =
   {
     ld_id: Ident.t;
     ld_mutable: mutability;
-    ld_modalities: Mode.Modality.Value.t;
+    ld_modalities: Mode.Modality.Value.Const.t;
     ld_type: type_expr;
     ld_jkind : jkind;
     ld_loc: Location.t;
@@ -642,7 +645,7 @@ and constructor_declaration =
 
 and constructor_argument =
   {
-    ca_modalities: Mode.Modality.Value.t;
+    ca_modalities: Mode.Modality.Value.Const.t;
     ca_type: type_expr;
     ca_loc: Location.t;
   }
@@ -743,9 +746,10 @@ module type Wrapped = sig
 
   type value_description =
     { val_type: type_expr wrapped;                (* Type of the value *)
+      val_modalities: Mode.Modality.Value.t;      (* Modalities on the value *)
       val_kind: value_kind;
       val_loc: Location.t;
-      val_zero_alloc: Builtin_attributes.zero_alloc_attribute;
+      val_zero_alloc: Zero_alloc.t;
       val_attributes: Parsetree.attributes;
       val_uid: Uid.t;
     }
@@ -865,8 +869,9 @@ type label_description =
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutability;                (* Is this a mutable field? *)
-    lbl_modalities: Mode.Modality.Value.t; (* Modalities on the field *)
-    lbl_jkind : jkind;                (* Jkind of the argument *)
+    lbl_modalities: Mode.Modality.Value.Const.t;
+                                        (* Modalities on the field *)
+    lbl_jkind : jkind;                  (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in the type *)
     lbl_all: label_description array;   (* All the labels in this type *)

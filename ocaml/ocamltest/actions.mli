@@ -27,7 +27,8 @@ val action_name : Variables.t
 
 val update : t -> code -> t
 
-val make : name:string -> description:string -> code -> t
+val make : name:string -> description:string ->
+  does_something:bool -> code -> t
 
 val compare : t -> t -> int
 
@@ -42,5 +43,7 @@ val clear_hook : string -> unit
 val clear_all_hooks : unit -> unit
 
 val run : out_channel -> Environments.t -> t -> Result.t * Environments.t
+
+val does_something : t -> bool
 
 module ActionSet : Set.S with type elt = t

@@ -12,7 +12,7 @@ type maturity = Stable | Beta | Alpha
     or off, while a [maturity t] can have different maturity settings. *)
 type _ t =
   | Comprehensions : unit t
-  | Mode : unit t
+  | Mode : maturity t
   | Unique : unit t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t

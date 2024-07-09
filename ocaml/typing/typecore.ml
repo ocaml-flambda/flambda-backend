@@ -444,7 +444,7 @@ let mode_legacy = mode_default Value.legacy
 
 let mode_modality modality expected_mode =
   expected_mode.mode
-  |> Modality.Value.apply modality
+  |> Modality.Value.Const.apply modality
   |> mode_default
 
 (* used when entering a function;
@@ -604,8 +604,16 @@ let register_allocation (expected_mode : expected_mode) =
   alloc_mode, mode_default mode
 
 let optimise_allocations () =
+  (* CR zqian: Ideally we want to optimise all axes relavant to allocation. For
+  example, pushing an allocation to [contended] is useful to the middle-end.
+  However, a [contended] value in a module causes extra modality in printing.
+  Therefore, here we only optimise allocation for stack/heap. Proper solutions:
+  - Remove [Contention] axis from [Alloc].
+  - Add it back when middle-end can really utilize this information. *)
   List.iter
-    (fun mode -> ignore (Alloc.zap_to_ceil mode))
+    (fun mode ->
+      Locality.zap_to_ceil (Alloc.proj (Comonadic Areality) mode)
+      |> ignore)
     !allocations;
   reset_allocations ()
 
@@ -1112,8 +1120,8 @@ let add_pattern_variables ?check ?check_as env pv =
        let check = if pv_as_var then check_as else check in
        Env.add_value ?check ~mode:pv_mode pv_id
          {val_type = pv_type; val_kind = Val_reg; Types.val_loc = pv_loc;
-          val_attributes = pv_attributes;
-          val_zero_alloc = Builtin_attributes.Default_zero_alloc;
+          val_attributes = pv_attributes; val_modalities = Modality.Value.id;
+          val_zero_alloc = Zero_alloc.default;
           val_uid = pv_uid
          } env
     )
@@ -2414,10 +2422,10 @@ and type_pat_aux
     let ty_elt, arg_sort = solve_Ppat_array ~refine loc env mutability expected_ty in
     let modalities =
       if Types.is_mutable mutability then Typemode.mutable_implied_modalities
-      else Modality.Value.id
+      else Modality.Value.Const.id
     in
     check_project_mutability ~loc ~env:!env mutability alloc_mode.mode;
-    let alloc_mode = Modality.Value.apply modalities alloc_mode.mode in
+    let alloc_mode = Modality.Value.Const.apply modalities alloc_mode.mode in
     let alloc_mode = simple_pat_mode alloc_mode in
     let pl = List.map (fun p -> type_pat ~alloc_mode tps Value p ty_elt) spl in
     rvp {
@@ -2660,7 +2668,7 @@ and type_pat_aux
       let args =
         List.map2
           (fun p (ty, gf) ->
-             let alloc_mode = Modality.Value.apply gf alloc_mode.mode in
+             let alloc_mode = Modality.Value.Const.apply gf alloc_mode.mode in
              let alloc_mode = simple_pat_mode alloc_mode in
              type_pat ~alloc_mode tps Value p ty)
           sargs (List.combine ty_args_ty ty_args_gf)
@@ -2704,7 +2712,9 @@ and type_pat_aux
         let ty_arg =
           solve_Ppat_record_field ~refine loc env label label_lid record_ty in
         check_project_mutability ~loc ~env:!env label.lbl_mut alloc_mode.mode;
-        let mode = Modality.Value.apply label.lbl_modalities alloc_mode.mode in
+        let mode =
+          Modality.Value.Const.apply label.lbl_modalities alloc_mode.mode
+        in
         let alloc_mode = simple_pat_mode mode in
         (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
       in
@@ -2906,7 +2916,8 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
             { val_type = pv_type
             ; val_kind = Val_reg
             ; val_attributes = pv_attributes
-            ; val_zero_alloc = Builtin_attributes.Default_zero_alloc
+            ; val_zero_alloc = Zero_alloc.default
+            ; val_modalities = Modality.Value.id
             ; val_loc = pv_loc
             ; val_uid = pv_uid
             }
@@ -2917,7 +2928,8 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
             { val_type = pv_type
             ; val_kind = Val_ivar (Immutable, cl_num)
             ; val_attributes = pv_attributes
-            ; val_zero_alloc = Builtin_attributes.Default_zero_alloc
+            ; val_zero_alloc = Zero_alloc.default
+            ; val_modalities = Modality.Value.id
             ; val_loc = pv_loc
             ; val_uid = pv_uid
             }
@@ -4663,6 +4675,10 @@ let unify_exp ?sdesc_for_hint env exp expected_ty =
   with Error(loc, env, Expr_type_clash(err, tfc, None)) ->
     raise (Error(loc, env, Expr_type_clash(err, tfc, sdesc_for_hint)))
 
+let is_exclave_extension_node = function
+  | "extension.exclave" | "ocaml.exclave" | "exclave" -> true
+  | _ -> false
+
 (* If [is_inferred e] is true, [e] will be typechecked without using
    the "expected type" provided by the context. *)
 
@@ -4670,6 +4686,10 @@ let rec is_inferred sexp =
   match Jane_syntax.Expression.of_ast sexp with
   | Some (jexp, _attrs) -> is_inferred_jane_syntax jexp
   | None      -> match sexp.pexp_desc with
+  | Pexp_apply
+      ({ pexp_desc = Pexp_extension({ txt }, PStr []) },
+        [Nolabel, sbody]) when is_exclave_extension_node txt ->
+      is_inferred sbody
   | Pexp_ident _ | Pexp_apply _ | Pexp_field _ | Pexp_constraint _
   | Pexp_coerce _ | Pexp_send _ | Pexp_new _ -> true
   | Pexp_sequence (_, e) | Pexp_open (_, e) -> is_inferred e
@@ -4713,6 +4733,18 @@ let check_apply_prim_type prim typ =
       end
   | _ -> false
 
+(* The explanation is suppressed if the location is ghost (e.g. the construct is
+   in ppx-generated code), unless the explanation originates from the
+   [@error_message] attribute, which a ppx may reasonably have inserted itself
+   to get a better error message.
+*)
+let should_show_explanation ~explanation ~loc =
+  if not loc.Location.loc_ghost then true
+  else
+    match explanation with
+    | Error_message_attr _ -> true
+    | _ -> false
+
 (* Merge explanation to type clash error *)
 
 let with_explanation explanation f =
@@ -4721,7 +4753,7 @@ let with_explanation explanation f =
   | Some explanation ->
       try f ()
       with Error (loc', env', Expr_type_clash(err', None, exp'))
-        when not loc'.Location.loc_ghost ->
+        when should_show_explanation ~loc:loc' ~explanation ->
         let err = Expr_type_clash(err', Some explanation, exp') in
         raise (Error (loc', env', err))
 
@@ -5056,7 +5088,7 @@ let pat_modes ~force_toplevel rec_mode_var (attrs, spat) =
   in
   attrs, pat_mode, exp_mode, spat
 
-let add_check_attribute expr attributes =
+let add_zero_alloc_attribute expr attributes =
   let open Builtin_attributes in
   let to_string : zero_alloc_attribute -> string = function
     | Check { strict; loc = _} ->
@@ -5077,55 +5109,20 @@ let add_check_attribute expr attributes =
     in
     begin match za with
     | Default_zero_alloc -> expr
-    | (Ignore_assert_all | Check _ | Assume _) as check ->
-      begin match fn.zero_alloc with
+    | Ignore_assert_all | Check _ | Assume _ ->
+      begin match Zero_alloc.get fn.zero_alloc with
       | Default_zero_alloc -> ()
       | Ignore_assert_all | Assume _ | Check _ ->
         Location.prerr_warning expr.exp_loc
-          (Warnings.Duplicated_attribute (to_string fn.zero_alloc));
+          (Warnings.Duplicated_attribute (to_string za));
       end;
-      let exp_desc = Texp_function { fn with zero_alloc = check } in
+      (* Here, we may be throwing away a zero_alloc variable. There's no need
+         to set it, because it can't have gotten anywhere else yet. *)
+      let zero_alloc = Zero_alloc.create_const za in
+      let exp_desc = Texp_function { fn with zero_alloc } in
       { expr with exp_desc }
     end
   | _ -> expr
-
-let zero_alloc_of_application ~num_args attrs funct =
-  let zero_alloc =
-    Builtin_attributes.get_zero_alloc_attribute ~in_signature:false
-      ~default_arity:num_args attrs
-  in
-  let zero_alloc =
-    match zero_alloc with
-    | Assume _ | Ignore_assert_all | Check _ ->
-      (* The user wrote a zero_alloc attribute on the application - keep it.
-         (Note that `ignore` and `check` aren't really allowed here, and will be
-         rejected by the call to `Builtin_attributes.assume_zero_alloc` below.)
-       *)
-      zero_alloc
-    | Default_zero_alloc ->
-      (* We assume the call is zero_alloc if the function is known to be
-         zero_alloc. If the function is zero_alloc opt, then we need to be sure
-         that the opt checks were run to license this assumption. We judge
-         whether the opt checks were run based on the argument to the
-         [-zero-alloc-check] command line flag. *)
-      let use_opt =
-        match !Clflags.zero_alloc_check with
-        | Check_default | No_check -> false
-        | Check_all | Check_opt_only -> true
-      in
-      match funct.exp_desc with
-      | Texp_ident (_, _, { val_zero_alloc = (Check c); _ }, _, _)
-        when c.arity = num_args && (use_opt || not c.opt) ->
-        Builtin_attributes.Assume {
-          strict = c.strict;
-          never_returns_normally = false;
-          never_raises = false;
-          arity = c.arity;
-          loc = c.loc
-        }
-      | _ -> Builtin_attributes.Default_zero_alloc
-  in
-  Builtin_attributes.assume_zero_alloc ~is_check_allowed:false zero_alloc
 
 let rec type_exp ?recarg env expected_mode sexp =
   (* We now delegate everything to type_expect *)
@@ -5345,9 +5342,8 @@ and type_expect_
       in
       {exp with exp_loc = loc}
   | Pexp_apply
-      ({ pexp_desc = Pexp_extension({
-         txt = "extension.exclave" | "ocaml.exclave" | "exclave" as txt}, PStr []) },
-       [Nolabel, sbody]) ->
+      ({ pexp_desc = Pexp_extension({ txt }, PStr []) },
+       [Nolabel, sbody]) when is_exclave_extension_node txt ->
       if (txt = "extension.exclave") && not (Language_extension.is_enabled Mode) then
           raise (Typetexp.Error (loc, Env.empty, Unsupported_extension Mode));
       begin
@@ -5456,14 +5452,15 @@ and type_expect_
       let (args, ty_res, ap_mode, pm) =
         type_application env loc expected_mode pm funct funct_mode sargs rt
       in
-      let assume_zero_alloc =
-        zero_alloc_of_application ~num_args:(List.length args)
-          sfunct.pexp_attributes funct
+      let zero_alloc =
+        Builtin_attributes.get_zero_alloc_attribute ~in_signature:false
+          ~default_arity:(List.length args) sfunct.pexp_attributes
+        |> Builtin_attributes.zero_alloc_attribute_only_assume_allowed
       in
 
       rue {
         exp_desc = Texp_apply(funct, args, pm.apply_position, ap_mode,
-                              assume_zero_alloc);
+                              zero_alloc);
         exp_loc = loc; exp_extra = [];
         exp_type = ty_res;
         exp_attributes = sexp.pexp_attributes;
@@ -5640,7 +5637,7 @@ and type_expect_
         if List.exists
             (fun (_, {lbl_repres; _}, _) ->
               match lbl_repres with
-              | Record_unboxed | Record_inlined (_, Variant_unboxed) -> false
+              | Record_unboxed | Record_inlined (_, _, Variant_unboxed) -> false
               | _ -> true)
             lbl_a_list then
           let alloc_mode, argument_mode = register_allocation expected_mode in
@@ -5712,7 +5709,7 @@ and type_expect_
                   with_explanation (fun () ->
                     unify_exp_types loc env (instance ty_expected) ty_res2);
                   check_project_mutability ~loc:exp.exp_loc ~env lbl.lbl_mut mode;
-                  let mode = Modality.Value.apply lbl.lbl_modalities mode in
+                  let mode = Modality.Value.Const.apply lbl.lbl_modalities mode in
                   check_construct_mutability ~loc ~env lbl.lbl_mut argument_mode;
                   let argument_mode =
                     mode_modality lbl.lbl_modalities argument_mode
@@ -5763,7 +5760,7 @@ and type_expect_
         end ~post:generalize_structure
       in
       check_project_mutability ~loc:record.exp_loc ~env label.lbl_mut rmode;
-      let mode = Modality.Value.apply label.lbl_modalities rmode in
+      let mode = Modality.Value.Const.apply label.lbl_modalities rmode in
       let boxing : texp_field_boxing =
         let is_float_boxing =
           match label.lbl_repres with
@@ -7455,7 +7452,8 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         let desc =
           { val_type = ty; val_kind = Val_reg;
             val_attributes = [];
-            val_zero_alloc = Builtin_attributes.Default_zero_alloc;
+            val_zero_alloc = Zero_alloc.default;
+            val_modalities = Modality.Value.id;
             val_loc = Location.none;
             val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
           }
@@ -7500,7 +7498,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
               |> Value.proj (Comonadic Areality)
               |> regional_to_global
               |> Locality.disallow_right,
-              Zero_alloc_utils.Assume_info.none)}
+              None)}
         in
         let cases = [ case eta_pat e ] in
         let cases_loc = { texp.exp_loc with loc_ghost = true } in
@@ -7520,7 +7518,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
               ret_sort;
               alloc_mode;
               region = false;
-              zero_alloc = Default_zero_alloc
+              zero_alloc = Zero_alloc.default
             }
         }
       in
@@ -8531,7 +8529,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
       (fun (s, ((_,p,_), (e, _))) pvb ->
         (* We check for [zero_alloc] attributes written on the [let] and move
            them to the function. *)
-        let e = add_check_attribute e pvb.pvb_attributes in
+        let e = add_zero_alloc_attribute e pvb.pvb_attributes in
         (* vb_rec_kind will be computed later for recursive bindings *)
         {vb_pat=p; vb_expr=e; vb_sort = s; vb_attributes=pvb.pvb_attributes;
          vb_loc=pvb.pvb_loc; vb_rec_kind = Dynamic;
@@ -8751,7 +8749,7 @@ and type_generic_array
     if Types.is_mutable mutability then
       Predef.type_array, Typemode.mutable_implied_modalities
     else
-      Predef.type_iarray, Modality.Value.id
+      Predef.type_iarray, Modality.Value.Const.id
   in
   check_construct_mutability ~loc ~env mutability argument_mode;
   let argument_mode = mode_modality modalities argument_mode in
@@ -8923,6 +8921,12 @@ and type_n_ary_function
     let zero_alloc =
       Builtin_attributes.get_zero_alloc_attribute ~in_signature:false
         ~default_arity:syntactic_arity attributes
+    in
+    let zero_alloc =
+      match zero_alloc with
+      | Default_zero_alloc -> Zero_alloc.create_var loc syntactic_arity
+      | (Check _ | Assume _ | Ignore_assert_all) ->
+        Zero_alloc.create_const zero_alloc
     in
     re
       { exp_desc =

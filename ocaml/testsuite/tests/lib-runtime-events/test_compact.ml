@@ -5,6 +5,8 @@
  }{
    runtime5;
    include runtime_events;
+   { bytecode; }
+   { native; }
  }
 *)
 open Runtime_events

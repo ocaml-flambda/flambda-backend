@@ -299,7 +299,7 @@ and mixed_product_shape =
 
 and record_representation =
   | Record_unboxed
-  | Record_inlined of tag * variant_representation
+  | Record_inlined of tag * constructor_representation * variant_representation
   | Record_boxed of jkind array
   | Record_float
   | Record_ufloat
@@ -318,7 +318,7 @@ and label_declaration =
   {
     ld_id: Ident.t;
     ld_mutable: mutability;
-    ld_modalities: Mode.Modality.Value.t;
+    ld_modalities: Mode.Modality.Value.Const.t;
     ld_type: type_expr;
     ld_jkind : jkind;
     ld_loc: Location.t;
@@ -338,7 +338,7 @@ and constructor_declaration =
 
 and constructor_argument =
   {
-    ca_modalities: Mode.Modality.Value.t;
+    ca_modalities: Mode.Modality.Value.Const.t;
     ca_type: type_expr;
     ca_loc: Location.t;
   }
@@ -438,9 +438,10 @@ module type Wrapped = sig
 
   type value_description =
     { val_type: type_expr wrapped;                (* Type of the value *)
+      val_modalities : Mode.Modality.Value.t;     (* Modalities on the value *)
       val_kind: value_kind;
       val_loc: Location.t;
-      val_zero_alloc: Builtin_attributes.zero_alloc_attribute;
+      val_zero_alloc: Zero_alloc.t;
       val_attributes: Parsetree.attributes;
       val_uid: Uid.t;
     }
@@ -515,10 +516,11 @@ module Map_wrapped(From : Wrapped)(To : Wrapped) = struct
       | Unit -> To.Unit
       | Named (id,mty) -> To.Named (id, module_type m mty)
 
-  let value_description m {val_type; val_kind; val_zero_alloc;
+  let value_description m {val_type; val_modalities; val_kind; val_zero_alloc;
                            val_attributes; val_loc; val_uid} =
     To.{
       val_type = m.map_type_expr m val_type;
+      val_modalities;
       val_kind;
       val_zero_alloc;
       val_attributes;
@@ -647,7 +649,11 @@ let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
 let equal_record_representation r1 r2 = match r1, r2 with
   | Record_unboxed, Record_unboxed ->
       true
-  | Record_inlined (tag1, vr1), Record_inlined (tag2, vr2) ->
+  | Record_inlined (tag1, cr1, vr1), Record_inlined (tag2, cr2, vr2) ->
+      (* Equality of tag and variant representation imply equality of
+         constructor representation. *)
+      ignore (cr1 : constructor_representation);
+      ignore (cr2 : constructor_representation);
       equal_tag tag1 tag2 && equal_variant_representation vr1 vr2
   | Record_boxed lays1, Record_boxed lays2 ->
       Misc.Stdlib.Array.equal !jkind_equal lays1 lays2
@@ -672,7 +678,7 @@ let may_equal_constr c1 c2 =
 let find_unboxed_type decl =
   match decl.type_kind with
     Type_record ([{ld_type = arg; _}], Record_unboxed)
-  | Type_record ([{ld_type = arg; _}], Record_inlined (_, Variant_unboxed))
+  | Type_record ([{ld_type = arg; _}], Record_inlined (_, _, Variant_unboxed))
   | Type_variant ([{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}], Variant_unboxed)
   | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}],
                   Variant_unboxed) ->
@@ -699,7 +705,7 @@ type label_description =
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutability;                (* Is this a mutable field? *)
-    lbl_modalities: Mode.Modality.Value.t;(* Is this a global field? *)
+    lbl_modalities: Mode.Modality.Value.Const.t;(* Modalities on the field *)
     lbl_jkind : jkind;                (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in type *)
@@ -775,6 +781,7 @@ type change =
   | Cuniv : type_expr option ref * type_expr option -> change
   | Cmodes : Mode.changes -> change
   | Csort : Jkind_types.Sort.change -> change
+  | Czero_alloc : Zero_alloc.change -> change
 
 type changes =
     Change of change * changes ref
@@ -790,7 +797,8 @@ let log_change ch =
 
 let () =
   Mode.set_append_changes (fun changes -> log_change (Cmodes !changes));
-  Jkind_types.Sort.set_change_log (fun change -> log_change (Csort change))
+  Jkind_types.Sort.set_change_log (fun change -> log_change (Csort change));
+  Zero_alloc.set_change_log (fun change -> log_change (Czero_alloc change))
 
 (* constructor and accessors for [field_kind] *)
 
@@ -1041,6 +1049,7 @@ let undo_change = function
   | Cuniv  (r, v)    -> r := v
   | Cmodes c          -> Mode.undo_changes c
   | Csort change -> Jkind_types.Sort.undo_change change
+  | Czero_alloc c -> Zero_alloc.undo_change c
 
 type snapshot = changes ref * int
 let last_snapshot = Local_store.s_ref 0

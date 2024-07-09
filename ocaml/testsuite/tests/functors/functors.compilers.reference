@@ -1,16 +1,14 @@
 (setglobal Functors!
   (let
     (O =
-       (function {nlocal = 0} X is_a_functor always_inline
-         ignore assert all zero_alloc never_loop
+       (function {nlocal = 0} X is_a_functor always_inline never_loop
          (let
            (cow =
               (function {nlocal = 0} x[int] : int (apply (field_imm 0 X) x))
             sheep = (function {nlocal = 0} x[int] : int (+ 1 (apply cow x))))
            (makeblock 0 cow sheep)))
      F =
-       (function {nlocal = 0} X Y is_a_functor always_inline
-         ignore assert all zero_alloc never_loop
+       (function {nlocal = 0} X Y is_a_functor always_inline never_loop
          (let
            (cow =
               (function {nlocal = 0} x[int] : int
@@ -18,8 +16,7 @@
             sheep = (function {nlocal = 0} x[int] : int (+ 1 (apply cow x))))
            (makeblock 0 cow sheep)))
      F1 =
-       (function {nlocal = 0} X Y is_a_functor always_inline
-         ignore assert all zero_alloc never_loop
+       (function {nlocal = 0} X Y is_a_functor always_inline never_loop
          (let
            (cow =
               (function {nlocal = 0} x[int] : int
@@ -27,8 +24,7 @@
             sheep = (function {nlocal = 0} x[int] : int (+ 1 (apply cow x))))
            (makeblock 0 sheep)))
      F2 =
-       (function {nlocal = 0} X Y is_a_functor always_inline
-         ignore assert all zero_alloc never_loop
+       (function {nlocal = 0} X Y is_a_functor always_inline never_loop
          (let
            (X =a (makeblock 0 (field_imm 1 X))
             Y =a (makeblock 0 (field_imm 1 Y))
@@ -40,8 +36,7 @@
      M =
        (let
          (F =
-            (function {nlocal = 0} X Y is_a_functor always_inline
-              ignore assert all zero_alloc never_loop
+            (function {nlocal = 0} X Y is_a_functor always_inline never_loop
               (let
                 (cow =
                    (function {nlocal = 0} x[int] : int
@@ -51,7 +46,6 @@
                 (makeblock 0 cow sheep))))
          (makeblock 0
            (function {nlocal = 0} funarg funarg is_a_functor stub
-             ignore assert all zero_alloc
              (let
                (let =
                   (apply F (makeblock 0 (field_imm 1 funarg))

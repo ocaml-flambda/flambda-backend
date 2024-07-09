@@ -755,17 +755,18 @@ module Bigarray = struct
     ;;
 
     let () =
-      try
-        let _ = F32.Bigarray.Array1.get c_array (-1) in
-        let _ = F32.Bigarray.Array1.set c_array (-1) 0.0s in
-        let _ = F32.Bigarray.Array1.get c_array 4 in
-        let _ = F32.Bigarray.Array1.set c_array 4 0.0s in
-        let _ = F32.Bigarray.Array1.get f_array 0 in
-        let _ = F32.Bigarray.Array1.set f_array 0 0.0s in
-        let _ = F32.Bigarray.Array1.get f_array 5 in
-        let _ = F32.Bigarray.Array1.set f_array 5 0.0s in
-        assert false
-      with | Invalid_argument s when s = "index out of bounds" -> ()
+      let check f =
+        try f () |> ignore; assert false
+        with | Invalid_argument s when s = "index out of bounds" -> ()
+      in
+      check (fun () -> F32.Bigarray.Array1.get c_array (-1));
+      check (fun () -> F32.Bigarray.Array1.set c_array (-1) 0.0s);
+      check (fun () -> F32.Bigarray.Array1.get c_array 4);
+      check (fun () -> F32.Bigarray.Array1.set c_array 4 0.0s);
+      check (fun () -> F32.Bigarray.Array1.get f_array 0);
+      check (fun () -> F32.Bigarray.Array1.set f_array 0 0.0s);
+      check (fun () -> F32.Bigarray.Array1.get f_array 5);
+      check (fun () -> F32.Bigarray.Array1.set f_array 5 0.0s);
     ;;
   end
 
@@ -830,25 +831,26 @@ module Bigarray = struct
     ;;
 
     let () =
-      try
-        let _ = F32.Bigarray.Array2.get c_array (-1) 0 in
-        let _ = F32.Bigarray.Array2.set c_array (-1) 0 0.0s in
-        let _ = F32.Bigarray.Array2.get c_array 4 0 in
-        let _ = F32.Bigarray.Array2.set c_array 4 0 0.0s in
-        let _ = F32.Bigarray.Array2.get c_array 0 (-1) in
-        let _ = F32.Bigarray.Array2.set c_array 0 (-1) 0.0s in
-        let _ = F32.Bigarray.Array2.get c_array 0 4 in
-        let _ = F32.Bigarray.Array2.set c_array 0 4 0.0s in
-        let _ = F32.Bigarray.Array2.get f_array 0 1 in
-        let _ = F32.Bigarray.Array2.set f_array 0 1 0.0s in
-        let _ = F32.Bigarray.Array2.get f_array 5 1 in
-        let _ = F32.Bigarray.Array2.set f_array 5 1 0.0s in
-        let _ = F32.Bigarray.Array2.get f_array 1 0 in
-        let _ = F32.Bigarray.Array2.set f_array 1 0 0.0s in
-        let _ = F32.Bigarray.Array2.get f_array 1 5 in
-        let _ = F32.Bigarray.Array2.set f_array 1 5 0.0s in
-        assert false
-      with | Invalid_argument s when s = "index out of bounds" -> ()
+      let check f =
+        try f () |> ignore; assert false
+        with | Invalid_argument s when s = "index out of bounds" -> ()
+      in
+      check (fun () -> F32.Bigarray.Array2.get c_array (-1) 0);
+      check (fun () -> F32.Bigarray.Array2.set c_array (-1) 0 0.0s);
+      check (fun () -> F32.Bigarray.Array2.get c_array 4 0);
+      check (fun () -> F32.Bigarray.Array2.set c_array 4 0 0.0s);
+      check (fun () -> F32.Bigarray.Array2.get c_array 0 (-1));
+      check (fun () -> F32.Bigarray.Array2.set c_array 0 (-1) 0.0s);
+      check (fun () -> F32.Bigarray.Array2.get c_array 0 4);
+      check (fun () -> F32.Bigarray.Array2.set c_array 0 4 0.0s);
+      check (fun () -> F32.Bigarray.Array2.get f_array 0 1);
+      check (fun () -> F32.Bigarray.Array2.set f_array 0 1 0.0s);
+      check (fun () -> F32.Bigarray.Array2.get f_array 5 1);
+      check (fun () -> F32.Bigarray.Array2.set f_array 5 1 0.0s);
+      check (fun () -> F32.Bigarray.Array2.get f_array 1 0);
+      check (fun () -> F32.Bigarray.Array2.set f_array 1 0 0.0s);
+      check (fun () -> F32.Bigarray.Array2.get f_array 1 5);
+      check (fun () -> F32.Bigarray.Array2.set f_array 1 5 0.0s);
     ;;
   end
 
@@ -913,33 +915,34 @@ module Bigarray = struct
     ;;
 
     let () =
-      try
-        let _ = F32.Bigarray.Array3.get c_array (-1) 0 0 in
-        let _ = F32.Bigarray.Array3.set c_array (-1) 0 0 0.0s in
-        let _ = F32.Bigarray.Array3.get c_array 4 0 0 in
-        let _ = F32.Bigarray.Array3.set c_array 4 0 0 0.0s in
-        let _ = F32.Bigarray.Array3.get c_array 0 (-1) 0 in
-        let _ = F32.Bigarray.Array3.set c_array 0 (-1) 0 0.0s in
-        let _ = F32.Bigarray.Array3.get c_array 0 4 0 in
-        let _ = F32.Bigarray.Array3.set c_array 0 4 0 0.0s in
-        let _ = F32.Bigarray.Array3.get c_array 0 0 (-1) in
-        let _ = F32.Bigarray.Array3.set c_array 0 0 (-1) 0.0s in
-        let _ = F32.Bigarray.Array3.get c_array 0 0 4 in
-        let _ = F32.Bigarray.Array3.set c_array 0 0 4 0.0s in
-        let _ = F32.Bigarray.Array3.get f_array 0 1 1 in
-        let _ = F32.Bigarray.Array3.set f_array 0 1 1 0.0s in
-        let _ = F32.Bigarray.Array3.get f_array 5 1 1 in
-        let _ = F32.Bigarray.Array3.set f_array 5 1 1 0.0s in
-        let _ = F32.Bigarray.Array3.get f_array 1 0 1 in
-        let _ = F32.Bigarray.Array3.set f_array 1 0 1 0.0s in
-        let _ = F32.Bigarray.Array3.get f_array 1 5 1 in
-        let _ = F32.Bigarray.Array3.set f_array 1 5 1 0.0s in
-        let _ = F32.Bigarray.Array3.get f_array 1 1 0 in
-        let _ = F32.Bigarray.Array3.set f_array 1 1 0 0.0s in
-        let _ = F32.Bigarray.Array3.get f_array 1 1 5 in
-        let _ = F32.Bigarray.Array3.set f_array 1 1 5 0.0s in
-        assert false
-      with | Invalid_argument s when s = "index out of bounds" -> ()
+      let check f =
+        try f () |> ignore; assert false
+        with | Invalid_argument s when s = "index out of bounds" -> ()
+      in
+      check (fun () -> F32.Bigarray.Array3.get c_array (-1) 0 0);
+      check (fun () -> F32.Bigarray.Array3.set c_array (-1) 0 0 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get c_array 4 0 0);
+      check (fun () -> F32.Bigarray.Array3.set c_array 4 0 0 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get c_array 0 (-1) 0);
+      check (fun () -> F32.Bigarray.Array3.set c_array 0 (-1) 0 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get c_array 0 4 0);
+      check (fun () -> F32.Bigarray.Array3.set c_array 0 4 0 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get c_array 0 0 (-1));
+      check (fun () -> F32.Bigarray.Array3.set c_array 0 0 (-1) 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get c_array 0 0 4);
+      check (fun () -> F32.Bigarray.Array3.set c_array 0 0 4 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get f_array 0 1 1);
+      check (fun () -> F32.Bigarray.Array3.set f_array 0 1 1 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get f_array 5 1 1);
+      check (fun () -> F32.Bigarray.Array3.set f_array 5 1 1 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get f_array 1 0 1);
+      check (fun () -> F32.Bigarray.Array3.set f_array 1 0 1 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get f_array 1 5 1);
+      check (fun () -> F32.Bigarray.Array3.set f_array 1 5 1 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get f_array 1 1 0);
+      check (fun () -> F32.Bigarray.Array3.set f_array 1 1 0 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get f_array 1 1 5);
+      check (fun () -> F32.Bigarray.Array3.set f_array 1 1 5 0.0s);
     ;;
   end
 end

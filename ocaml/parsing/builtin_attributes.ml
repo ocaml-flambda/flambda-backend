@@ -109,6 +109,7 @@ let builtin_attrs =
   ; "only_generative_effects"; "ocaml.only_generative_effects"
   ; "error_message"; "ocaml.error_message"
   ; "layout_poly"; "ocaml.layout_poly"
+  ; "no_mutable_implied_modalities"; "ocaml.no_mutable_implied_modalities"
   ]
 
 (* nroberts: When we upstream the builtin-attribute whitelisting, we shouldn't
@@ -634,6 +635,9 @@ let parse_standard_implementation_attributes attr =
   flambda_oclassic_attribute attr;
   zero_alloc_attribute attr
 
+let has_no_mutable_implied_modalities attrs =
+  has_attribute ["ocaml.no_mutable_implied_modalities";"no_mutable_implied_modalities"] attrs
+
 let has_local_opt attrs =
   has_attribute ["ocaml.local_opt"; "local_opt"] attrs
 
@@ -641,7 +645,8 @@ let has_layout_poly attrs =
   has_attribute ["ocaml.layout_poly"; "layout_poly"] attrs
 
 let has_curry attrs =
-  has_attribute ["extension.curry"; "ocaml.curry"; "curry"] attrs
+  has_attribute
+    [Jane_syntax.Arrow_curry.curry_attr_name; "ocaml.curry"; "curry"] attrs
 
 let tailcall attr =
   let has_nontail = has_attribute ["ocaml.nontail"; "nontail"] attr in
@@ -676,20 +681,26 @@ let error_message_attr l =
     | _ -> None in
   List.find_map inner l
 
+type zero_alloc_check =
+  { strict: bool;
+    opt: bool;
+    arity: int;
+    loc: Location.t;
+  }
+
+type zero_alloc_assume =
+  { strict: bool;
+    never_returns_normally: bool;
+    never_raises: bool;
+    arity: int;
+    loc: Location.t;
+  }
+
 type zero_alloc_attribute =
   | Default_zero_alloc
   | Ignore_assert_all
-  | Check of { strict: bool;
-               opt: bool;
-               arity: int;
-               loc: Location.t;
-             }
-  | Assume of { strict: bool;
-                never_returns_normally: bool;
-                never_raises: bool;
-                arity: int;
-                loc: Location.t;
-              }
+  | Check of zero_alloc_check
+  | Assume of zero_alloc_assume
 
 let is_zero_alloc_check_enabled ~opt =
   match !Clflags.zero_alloc_check with
@@ -918,25 +929,26 @@ let get_zero_alloc_attribute ~in_signature ~default_arity l =
        register_zero_alloc_attribute attr.attr_name);
    res
 
-let assume_zero_alloc ~is_check_allowed check : Zero_alloc_utils.Assume_info.t =
-  match check with
-  | Default_zero_alloc -> Zero_alloc_utils.Assume_info.none
-  | Ignore_assert_all -> Zero_alloc_utils.Assume_info.none
-  | Assume { strict; never_returns_normally; never_raises; } ->
-    Zero_alloc_utils.Assume_info.create ~strict ~never_returns_normally ~never_raises
+let zero_alloc_attribute_only_assume_allowed za =
+  match za with
+  | Assume assume -> Some assume
+  | Default_zero_alloc | Ignore_assert_all -> None
   | Check { loc; _ } ->
-    if not is_check_allowed then begin
-      let name = "zero_alloc" in
-      let msg = "Only the following combinations are supported in this context: \
-                 'zero_alloc assume', \
-                 `zero_alloc assume strict`, \
-                 `zero_alloc assume error`,\
-                 `zero_alloc assume never_returns_normally`,\
-                 `zero_alloc assume never_returns_normally strict`."
-      in
-      Location.prerr_warning loc (Warnings.Attribute_payload (name, msg))
-    end;
-    Zero_alloc_utils.Assume_info.none
+    let name = "zero_alloc" in
+    let msg = "Only the following combinations are supported in this context: \
+               'zero_alloc assume', \
+               `zero_alloc assume strict`, \
+               `zero_alloc assume error`,\
+               `zero_alloc assume never_returns_normally`,\
+               `zero_alloc assume never_returns_normally strict`."
+    in
+    Location.prerr_warning loc (Warnings.Attribute_payload (name, msg));
+    None
+
+let assume_zero_alloc assume : Zero_alloc_utils.Assume_info.t =
+  match assume with
+  | { strict; never_returns_normally; never_raises; } ->
+    Zero_alloc_utils.Assume_info.create ~strict ~never_returns_normally ~never_raises
 
 type tracing_probe =
   { name : string;

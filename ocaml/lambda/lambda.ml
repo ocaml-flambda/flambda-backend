@@ -642,18 +642,14 @@ type poll_attribute =
   | Error_poll (* [@poll error] *)
   | Default_poll (* no [@poll] attribute *)
 
-type zero_alloc_attribute = Builtin_attributes.zero_alloc_attribute =
+type zero_alloc_attribute =
   | Default_zero_alloc
-  | Ignore_assert_all
   | Check of { strict: bool;
-               opt: bool;
-               arity: int;
                loc: Location.t;
              }
   | Assume of { strict: bool;
                 never_returns_normally: bool;
                 never_raises: bool;
-                arity: int;
                 loc: Location.t;
               }
 
@@ -933,7 +929,7 @@ let default_function_attribute = {
 }
 
 let default_stub_attribute =
-  { default_function_attribute with stub = true; zero_alloc = Ignore_assert_all }
+  { default_function_attribute with stub = true; zero_alloc = Default_zero_alloc }
 
 let default_param_attribute = { unbox_param = false }
 
@@ -1410,16 +1406,26 @@ let build_substs update_env ?(freshen_bound_variables = false) s =
     | Levent (lam, evt) ->
         let old_env = evt.lev_env in
         let env_updates =
-          let find_in_old id = Env.find_value (Path.Pident id) old_env in
+          let find_in_old id =
+            (* Looking up [id] might encounter locks, which we shouldn't apply
+               as we are not using the values. But adding the value to [new_env]
+               with the unlocked mode is just wrong. Therefore, we set the mode
+               to be [max] for conservative soundness. [new_env] is only used
+               for printing in debugger. *)
+            let vd = Env.find_value (Path.Pident id) old_env in
+            let vd = {vd with val_modalities = Mode.Modality.Value.id} in
+            let mode = Mode.Value.max |> Mode.Value.disallow_right in
+            (vd, mode)
+          in
           let rebind id id' new_env =
             match find_in_old id with
             | exception Not_found -> new_env
-            | vd -> Env.add_value_lazy ~mode:Mode.Value.max id' vd new_env
+            | (vd, mode) -> Env.add_value_lazy ~mode id' vd new_env
           in
           let update_free id new_env =
             match find_in_old id with
             | exception Not_found -> new_env
-            | vd -> update_env id vd new_env
+            | vd_mode -> update_env id vd_mode new_env
           in
           Ident.Map.merge (fun id bound free ->
             match bound, free with
@@ -1459,9 +1465,9 @@ let subst update_env ?freshen_bound_variables s =
   (build_substs update_env ?freshen_bound_variables s).subst_lambda
 
 let rename idmap lam =
-  let update_env oldid vd env =
+  let update_env oldid (vd, mode) env =
     let newid = Ident.Map.find oldid idmap in
-    Env.add_value_lazy ~mode:Mode.Value.max newid vd env
+    Env.add_value_lazy ~mode newid vd env
   in
   let s = Ident.Map.map (fun new_id -> Lvar new_id) idmap in
   subst update_env s lam
@@ -1793,7 +1799,8 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Punbox_float _ | Punbox_int _ -> None
   | Pbox_float (_, m) | Pbox_int (_, m) -> Some m
   | Prunstack | Presume | Pperform | Preperform ->
-    Misc.fatal_error "Effects-related primitives are not yet supported"
+    (* CR mshinwell: check *)
+    Some alloc_heap
   | Patomic_load _
   | Patomic_exchange
   | Patomic_cas
@@ -1977,9 +1984,7 @@ let primitive_result_layout (p : primitive) =
       layout_any_value
   | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
   | Pget_header _ -> layout_boxedint Pnativeint
-  | Prunstack | Presume | Pperform | Preperform ->
-    (* CR mshinwell/ncourant: to be thought about later *)
-    Misc.fatal_error "Effects-related primitives are not yet supported"
+  | Prunstack | Presume | Pperform | Preperform -> layout_any_value
   | Patomic_load { immediate_or_pointer = Immediate } -> layout_int
   | Patomic_load { immediate_or_pointer = Pointer } -> layout_any_value
   | Patomic_exchange

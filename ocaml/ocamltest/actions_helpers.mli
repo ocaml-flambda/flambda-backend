@@ -15,9 +15,11 @@
 
 (* Helper functions when writing actions *)
 
+val fail_with_reason : string -> Actions.t
+
 val skip_with_reason : string -> Actions.t
 
-val pass_or_skip
+val predicate
   : bool -> string -> string -> out_channel -> Environments.t
          -> Result.t * Environments.t
 

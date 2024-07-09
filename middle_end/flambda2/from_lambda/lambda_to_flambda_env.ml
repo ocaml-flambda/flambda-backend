@@ -312,6 +312,16 @@ let current_region t =
   then t.my_region
   else match t.region_stack with [] -> t.my_region | region :: _ -> region
 
+let parent_region t =
+  if not (Flambda_features.stack_allocation_enabled ())
+  then t.my_region
+  else
+    match t.region_stack with
+    | [] ->
+      Misc.fatal_error "Cannot determine parent region, region stack is empty"
+    | [_] -> t.my_region
+    | _ :: region :: _ -> region
+
 let my_region t = t.my_region
 
 let region_stack t = t.region_stack
@@ -324,6 +334,14 @@ let region_stack_in_cont_scope t continuation =
   | stack -> stack
 
 let pop_region = function [] -> None | region :: rest -> Some (region, rest)
+
+let pop_one_region t =
+  if not (Flambda_features.stack_allocation_enabled ())
+  then t, t.my_region
+  else
+    match t.region_stack with
+    | [] -> Misc.fatal_error "No regions available to pop"
+    | region :: region_stack -> { t with region_stack }, region
 
 let pop_regions_up_to_context t continuation =
   let initial_stack_context = region_stack_in_cont_scope t continuation in

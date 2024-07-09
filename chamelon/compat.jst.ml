@@ -19,13 +19,11 @@ let mkTexp_ident ?id:(ident_kind, uu = (Id_value, shared_many_use))
 type nonrec apply_arg = apply_arg
 
 type texp_apply_identifier =
-  apply_position * Locality.l * Zero_alloc_utils.Assume_info.t
+  apply_position * Locality.l * Builtin_attributes.zero_alloc_assume option
 
 let mkTexp_apply
     ?id:(pos, mode, za =
-        ( Default,
-          Locality.disallow_right Locality.legacy,
-          Zero_alloc_utils.Assume_info.none )) (exp, args) =
+        (Default, Locality.disallow_right Locality.legacy, None)) (exp, args) =
   let args =
     List.map (fun (label, x) -> (Typetexp.transl_label label None, x)) args
   in
@@ -92,7 +90,7 @@ type texp_function_identifier = {
   ret_sort : Jkind.sort;
   region : bool;
   ret_mode : Alloc.l;
-  zero_alloc : Builtin_attributes.zero_alloc_attribute;
+  zero_alloc : Zero_alloc.t;
 }
 
 let texp_function_cases_identifier_defaults =
@@ -119,7 +117,7 @@ let texp_function_defaults =
     ret_sort = Jkind.Sort.value;
     ret_mode = Alloc.disallow_right Alloc.legacy;
     region = false;
-    zero_alloc = Builtin_attributes.Default_zero_alloc;
+    zero_alloc = Zero_alloc.default;
   }
 
 let mkTexp_function ?(id = texp_function_defaults)
@@ -400,9 +398,10 @@ let mk_value_description ~val_type ~val_kind ~val_attributes =
     val_type;
     val_kind;
     val_loc = Location.none;
+    val_modalities = Mode.Modality.Value.id;
     val_attributes;
     val_uid = Uid.internal_not_actually_unique;
-    val_zero_alloc = Default_zero_alloc;
+    val_zero_alloc = Zero_alloc.default;
   }
 
 let mkTtyp_any = Ttyp_var (None, None)

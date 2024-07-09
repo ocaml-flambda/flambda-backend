@@ -29,6 +29,13 @@ let null = {
   test_description = "dummy test inserted by parser; always pass"
 }
 
+let does_nothing = {
+  test_name = "test does nothing";
+  test_run_by_default = false;
+  test_actions = [Actions_helpers.fail_with_reason "test does nothing"];
+  test_description = "inserted when a test does not do any substantive action"
+}
+
 let compare t1 t2 = String.compare t1.test_name t2.test_name
 
 let (tests: (string, t) Hashtbl.t) = Hashtbl.create 20
@@ -70,7 +77,12 @@ let run_actions log testenv actions =
           action_number total (Actions.name action)
           (Result.string_of_result result);
         if Result.is_pass result
-        then run_actions_aux (action_number+1) env' remaining_actions
+        then (
+          (* Avoid clobbering [Predicate true] results *)
+          match remaining_actions with
+          | [] -> result, env'
+          | _::_ -> run_actions_aux (action_number+1) env' remaining_actions
+        )
         else (result, env')
       end in
   run_actions_aux 1 testenv actions
