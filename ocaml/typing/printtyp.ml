@@ -1869,6 +1869,7 @@ let tree_of_type_decl id decl =
         (* The two cases of (C1) from the Note correspond to Otyp_abstract.
            Anything but the default must be user-written, so we print the
            user-written annotation. *)
+        (* type_has_illegal_crossings corresponds to C1.3 *)
         decl.type_jkind_annotation
     | _ -> None (* other cases have no jkind annotation *)
   in
