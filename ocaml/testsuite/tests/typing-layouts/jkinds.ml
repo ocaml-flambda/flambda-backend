@@ -1675,5 +1675,3 @@ Error: The layout of type t is value, because
        But the layout of type t must be a sublayout of value, because
          of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: this should be accepted; 'a should be inferred to have kind
-  value mod many *)
