@@ -498,6 +498,8 @@ end
 (* construction *)
 (* See Jkind.Type for details *)
 
+val to_const : t -> Const.t option
+
 (** Create a fresh sort variable, packed into a jkind, returning both
     the resulting kind and the sort. *)
 val of_new_sort_var : why:Type.History.concrete_jkind_reason -> t * Type.sort
@@ -680,6 +682,9 @@ val sub_with_history : t -> t -> (t, Violation.t) result
 (** Checks to see whether a jkind is the maximum jkind. Never does any
     mutation. *)
 val is_max : t -> bool
+
+(** Checks to see whether a jkind is has layout. Never does any mutation. *)
+val has_layout_any : t -> bool
 
 (*********************************)
 (* debugging *)

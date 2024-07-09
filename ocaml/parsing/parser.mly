@@ -3867,11 +3867,8 @@ type_parameters:
 jkind_parameters:
     p = jkind_base
       { [p] }
-  | LPAREN
-    p = jkind
-    COMMA
-    ps = separated_nonempty_llist(COMMA, jkind) RPAREN (* ( jkind, jkind+ )  *)
-      { p :: ps }
+  | LPAREN ps = separated_nonempty_llist(COMMA, jkind) RPAREN (* ( jkind+ )  *)
+      { ps }
 ;
 
 jkind_base:

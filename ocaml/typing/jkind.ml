@@ -1733,8 +1733,10 @@ module Const = struct
     match t with
     | Type t -> Type.Const.format ppf t
     | Arrow { args; result } ->
-      Format.fprintf ppf "((%a;@) => %a;@)"
-        (Format.pp_print_list format)
+      Format.fprintf ppf "((%a) => %a)"
+        (Format.pp_print_list
+           ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
+           format)
         args format result
 
   let jkind_case2 ~typ ~arrow ~default (t : t) (t' : t) =
@@ -1851,6 +1853,19 @@ let of_new_sort_var ~why =
   Type.of_new_sort_var ~why |> fun (a, b) -> of_type_jkind a, b
 
 let of_new_sort ~why = Type.of_new_sort ~why |> of_type_jkind
+
+let rec to_const (t : t) : Const.t option =
+  match t with
+  | Type ty -> (
+    match Type.get ty with Const c -> Some (Type c) | Var _ -> None)
+  | Arrow { args; result } ->
+    let args = List.map to_const args in
+    let result = to_const result in
+    if List.for_all Option.is_some args && Option.is_some result
+    then
+      Some
+        (Arrow { args = List.map Option.get args; result = Option.get result })
+    else None
 
 (* of_const is defined above for use in Primitive *)
 
@@ -1972,16 +1987,22 @@ let rec format ppf (jkind : t) =
   match jkind with
   | Type ty -> Type.format ppf ty
   | Arrow { args; result } ->
-    Format.fprintf ppf "((%a;)@ => %a;@)"
-      (Format.pp_print_list format)
+    Format.fprintf ppf "((%a) => %a)"
+      (Format.pp_print_list
+         ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
+         format)
       args format result
 
-(* TODO jbachurski: Format history for higher jkinds *)
-let format_history ~intro ppf (t : t) =
+let rec format_history ~intro ppf (t : t) =
   match t with
   | Type ty -> Type.format_history ~intro ppf ty
-  | Arrow _ ->
-    raise (Unexpected_higher_jkind "((No history format for arrow jkinds))")
+  | Arrow { args; result } ->
+    Format.fprintf ppf "in higher-order jkind %a:@[<b 1>%t@]@;<1 -2>" format t
+      (fun ppf ->
+        Format.pp_print_list
+          ~pp_sep:(fun ppf () -> Format.fprintf ppf "\n")
+          (format_history ~intro) ppf args;
+        format_history ~intro ppf result)
 
 (******************************)
 (* errors *)
@@ -2021,76 +2042,74 @@ module Violation = struct
       missing_cmi = t.missing_cmi
     }
 
+  let rec any_missing_cmi (t : _ Jkind_types.t) =
+    match t with
+    | Type { history; _ } -> (
+      match history with
+      | Creation (Missing_cmi p) -> Some p
+      | Creation (Any_creation (Missing_cmi p)) -> Some p
+      | _ -> None)
+    | Arrow { args; result } ->
+      List.map any_missing_cmi (result :: args)
+      |> List.find_opt Option.is_some
+      |> Option.join
+
   let is_missing_cmi viol = Option.is_some viol.missing_cmi
 
   let report_general_type_jkind preamble pp_former former ppf t =
     let subjkind_format verb l2 =
-      match Type.get l2 with
-      | Var _ -> dprintf "%s representable" verb
-      | Const _ -> dprintf "%s a sublayout of %a" verb Type.format l2
+      match to_const l2 with
+      | None -> dprintf "%s representable" verb
+      | Some _ -> dprintf "%s a subkind of %a" verb format l2
     in
     let l1, l2, fmt_l1, fmt_l2, missing_cmi_option =
       match t with
-      | { violation = Not_a_subjkind (Type l1, Type l2); missing_cmi } -> (
+      | { violation = Not_a_subjkind (l1, l2); missing_cmi } -> (
         let missing_cmi =
           match missing_cmi with
-          | None -> (
-            match l1.history with
-            | Creation (Missing_cmi p) -> Some p
-            | Creation (Any_creation (Missing_cmi p)) -> Some p
-            | _ -> None)
+          | None -> any_missing_cmi l1
           | Some _ -> missing_cmi
         in
         match missing_cmi with
         | None ->
-          ( l1,
-            l2,
-            dprintf "layout %a" Type.format l1,
-            subjkind_format "is not" l2,
-            None )
+          l1, l2, dprintf "kind %a" format l1, subjkind_format "is not" l2, None
         | Some p ->
           ( l1,
             l2,
-            dprintf "an unknown layout",
+            dprintf "an unknown kind",
             subjkind_format "might not be" l2,
             Some p ))
-      | { violation = No_intersection (Type l1, Type l2); missing_cmi } ->
+      | { violation = No_intersection (l1, l2); missing_cmi } ->
         assert (Option.is_none missing_cmi);
         ( l1,
           l2,
-          dprintf "layout %a" Type.format l1,
-          dprintf "does not overlap with %a" Type.format l2,
+          dprintf "kind %a" format l1,
+          dprintf "does not overlap with %a" format l2,
           None )
-      | { violation = No_union (Type l1, Type l2); missing_cmi } ->
+      | { violation = No_union (l1, l2); missing_cmi } ->
         assert (Option.is_none missing_cmi);
         ( l1,
           l2,
-          dprintf "layout %a" Type.format l1,
-          dprintf "cannot be summed with %a" Type.format l2,
+          dprintf "kind %a" format l1,
+          dprintf "cannot be summed with %a" format l2,
           None )
-      (* TODO jbachurski: Violations at arrows *)
-      | _ ->
-        raise
-          (Unexpected_higher_jkind "((No violation format for arrow jkinds))")
     in
     if Type.display_histories
     then
       let connective =
-        match t.violation, Type.get l2 with
-        | Not_a_subjkind _, Const _ ->
-          dprintf "be a sublayout of %a" Type.format l2
-        | No_intersection _, Const _ -> dprintf "overlap with %a" Type.format l2
-        | No_union _, Const _ -> dprintf "sum with %a" Type.format l2
-        | _, Var _ -> dprintf "be representable"
+        match t.violation, to_const l2 with
+        | Not_a_subjkind _, Some _ -> dprintf "be a subkind of %a" format l2
+        | No_intersection _, Some _ -> dprintf "overlap with %a" format l2
+        | No_union _, Some _ -> dprintf "sum with %a" format l2
+        | _, None -> dprintf "be representable"
       in
       fprintf ppf "@[<v>%a@;%a@]"
-        (Type.format_history
-           ~intro:
-             (dprintf "The layout of %a is %a" pp_former former Type.format l1))
+        (format_history
+           ~intro:(dprintf "The kind of %a is %a" pp_former former format l1))
         l1
-        (Type.format_history
+        (format_history
            ~intro:
-             (dprintf "But the layout of %a must %t" pp_former former connective))
+             (dprintf "But the kind of %a must %t" pp_former former connective))
         l2
     else
       fprintf ppf "@[<hov 2>%s%a has %t,@ which %t.@]" preamble pp_former former
@@ -2106,7 +2125,7 @@ module Violation = struct
   let report_with_offender ~offender = report_general "" pp_t offender
 
   let report_with_offender_sort ~offender =
-    report_general "A representable layout was expected, but " pp_t offender
+    report_general "A representable kind was expected, but " pp_t offender
 
   let report_with_name ~name = report_general "" pp_print_string name
 end
@@ -2197,8 +2216,11 @@ let rec check_sub t t' : Misc.Le_result.t =
     ~arrow:
       (fun { args = args1; result = result1 } { args = args2; result = result2 }
            : Misc.Le_result.t ->
-      Misc.Le_result.combine_list
-        (check_sub result1 result2 :: List.map2 check_sub args2 args1))
+      if List.length args1 <> List.length args2
+      then Misc.Le_result.Not_le
+      else
+        Misc.Le_result.combine_list
+          (check_sub result1 result2 :: List.map2 check_sub args2 args1))
     ~default:Misc.Le_result.Not_le t t'
 
 let sub t t' = Misc.Le_result.is_le (check_sub t t')
@@ -2218,6 +2240,9 @@ let sub_with_history sub super =
 
 let is_max jkind = sub (Type Type.Primitive.any_dummy_jkind) jkind
 
+let has_layout_any (jkind : t) =
+  match jkind with Type ty -> Type.has_layout_any ty | _ -> false
+
 (*********************************)
 (* debugging *)
 
@@ -2226,8 +2251,9 @@ module Debug_printers = struct
     match jkind with
     | Type ty -> Type.Debug_printers.t ppf ty
     | Arrow { args; result } ->
-      Format.fprintf ppf "@[<v 2>{ args = %a@,; result = %a }@]"
-        (Format.pp_print_list t) args t result
+      Format.fprintf ppf "{ args = [%a];@ result = %a;@ }"
+        (Format.pp_print_list ~pp_sep:(fun ppf () -> Format.fprintf ppf "; ") t)
+        args t result
 
   (*** formatting user errors ***)
   let report_error ~loc : Error.t -> _ = function

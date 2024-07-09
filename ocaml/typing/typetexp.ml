@@ -1455,18 +1455,16 @@ let report_error env ppf = function
       end;
       fprintf ppf ".@]";
   | Bad_univar_jkind { name; jkind_info; inferred_jkind } ->
-    (* FIXME jbachurski: extend debug print for arrows *)
-    let inferred_jkind =  Jkind.to_type_jkind inferred_jkind in
       fprintf ppf
         "@[<hov>The universal type variable %a was %s to have layout %a.@;%a@]"
         Pprintast.tyvar name
         (if jkind_info.defaulted then "defaulted" else "declared")
         Jkind.format jkind_info.original_jkind
-        (Jkind.Type.format_history ~intro:(
+        (Jkind.format_history ~intro:(
           dprintf "But it was inferred to have %t"
-            (fun ppf -> match Jkind.Type.get (inferred_jkind) with
-            | Const c -> fprintf ppf "layout %a" Jkind.Type.Const.format c
-            | Var _ -> fprintf ppf "a representable layout")))
+            (fun ppf -> match Jkind.to_const inferred_jkind with
+            | Some c -> fprintf ppf "layout %a" Jkind.Const.format c
+            | None -> fprintf ppf "a representable layout")))
         inferred_jkind
   | Multiple_constraints_on_type s ->
       fprintf ppf "Multiple constraints for type %a" longident s

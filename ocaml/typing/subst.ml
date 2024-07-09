@@ -79,18 +79,6 @@ type additional_action_config =
   | Duplicate_variables
   | Prepare_for_saving
 
-let rec const_of_higher_jkind (t : Jkind.t) : Jkind.Const.t option = match Jkind.get t with
-  | Type ty -> begin
-    match Jkind.Type.get ty with Const c -> Some (Type c) | Var _ -> None
-  end
-  | Arrow { args; result } ->
-    let args = List.map const_of_higher_jkind args in
-    let result = const_of_higher_jkind result in
-    if List.for_all Option.is_some args && Option.is_some result then
-      Some (Arrow { args = List.map Option.get args; result = Option.get result })
-    else
-      None
-
 let with_additional_action =
   (* Memoize the built-in jkinds *)
   let builtins =
@@ -114,7 +102,7 @@ let with_additional_action =
     | Duplicate_variables -> Duplicate_variables
     | Prepare_for_saving ->
         let prepare_jkind loc jkind =
-          match const_of_higher_jkind jkind with
+          match Jkind.to_const jkind with
           | Some const ->
             let builtin =
               List.find_opt
