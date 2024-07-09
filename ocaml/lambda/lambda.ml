@@ -1795,7 +1795,8 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Punbox_float _ | Punbox_int _ -> None
   | Pbox_float (_, m) | Pbox_int (_, m) -> Some m
   | Prunstack | Presume | Pperform | Preperform ->
-    Misc.fatal_error "Effects-related primitives are not yet supported"
+    (* CR mshinwell: check *)
+    Some alloc_heap
   | Patomic_load _
   | Patomic_exchange
   | Patomic_cas
@@ -1976,9 +1977,7 @@ let primitive_result_layout (p : primitive) =
       layout_any_value
   | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
   | Pget_header _ -> layout_boxedint Pnativeint
-  | Prunstack | Presume | Pperform | Preperform ->
-    (* CR mshinwell/ncourant: to be thought about later *)
-    Misc.fatal_error "Effects-related primitives are not yet supported"
+  | Prunstack | Presume | Pperform | Preperform -> layout_any_value
   | Patomic_load { immediate_or_pointer = Immediate } -> layout_int
   | Patomic_load { immediate_or_pointer = Pointer } -> layout_any_value
   | Patomic_exchange

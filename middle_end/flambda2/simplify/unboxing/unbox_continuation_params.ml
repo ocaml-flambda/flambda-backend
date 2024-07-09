@@ -22,7 +22,7 @@ let refine_decision_based_on_arg_types_at_uses ~pass ~rewrite_ids_seen
     ~rewrites_ids_known_as_invalid nth_arg arg_type_by_use_id
     (decision : U.decision) =
   match decision with
-  | Do_not_unbox _ as decision -> decision, Apply_cont_rewrite_id.Set.empty
+  | Do_not_unbox _ as decision -> decision, rewrites_ids_known_as_invalid
   | Unbox _ as decision ->
     Apply_cont_rewrite_id.Map.fold
       (fun rewrite_id (arg_at_use : Continuation_uses.arg_at_use)

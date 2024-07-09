@@ -89,6 +89,7 @@ TYPING = \
   typing/jkind_types.cmo \
   typing/primitive.cmo \
   typing/shape.cmo \
+  typing/zero_alloc.cmo \
   typing/types.cmo \
   typing/jkind.cmo \
   typing/btype.cmo \
