@@ -277,3 +277,9 @@ let decrease_continuation_lifting_budget t cost =
     { t with
       continuation_lifting_budget = max 0 (t.continuation_lifting_budget - cost)
     }
+
+let prepare_for_speculative_inlining dacc =
+  let dacc =
+    map_denv ~f:DE.set_do_not_rebuild_terms_and_disable_inlining dacc
+  in
+  with_are_lifting_conts dacc Are_lifting_conts.no_lifting
