@@ -178,25 +178,6 @@ let split_recursive_let_cont handlers =
   in
   body, invariant_params, continuation_handlers
 
-let split_let_cont let_cont : _ * Original_handlers.t =
-  match (let_cont : Let_cont.t) with
-  | Non_recursive { handler; _ } ->
-    let body, non_rec_handler = split_non_recursive_let_cont handler in
-    let original_handlers =
-      Original_handlers.create_non_recursive non_rec_handler
-    in
-    body, original_handlers
-  | Recursive handlers ->
-    let lifted_params = Lifted_cont_params.empty in
-    let body, invariant_params, continuation_handlers =
-      split_recursive_let_cont handlers
-    in
-    let original_handlers =
-      Original_handlers.create_recursive ~invariant_params ~lifted_params
-        ~continuation_handlers
-    in
-    body, original_handlers
-
 let extra_params_and_args_for_lifting callee_lifted_params uses =
   let epa =
     EPA.init_with_params_only
@@ -1509,7 +1490,25 @@ let simplify_let_cont ~simplify_expr dacc let_cont ~down_to_up =
   (* This is the entry point to simplify a let cont expression. The only thing
      it does is to match all handlers to break the name abstraction, and then
      call [simplify_let_cont_stage1]. *)
-  let body, handlers = split_let_cont let_cont in
+  let body, handlers =
+    match (let_cont : Let_cont.t) with
+    | Non_recursive { handler; _ } ->
+      let body, non_rec_handler = split_non_recursive_let_cont handler in
+      let original_handlers =
+        Original_handlers.create_non_recursive non_rec_handler
+      in
+      body, original_handlers
+    | Recursive handlers ->
+      let lifted_params = Lifted_cont_params.empty in
+      let body, invariant_params, continuation_handlers =
+        split_recursive_let_cont handlers
+      in
+      let original_handlers =
+        Original_handlers.create_recursive ~invariant_params ~lifted_params
+          ~continuation_handlers
+      in
+      body, original_handlers
+  in
   simplify_let_cont0 ~simplify_expr dacc { body; handlers } ~down_to_up
 
 let simplify_as_recursive_let_cont ~simplify_expr dacc (body, handlers)
