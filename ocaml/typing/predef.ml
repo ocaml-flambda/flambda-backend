@@ -199,11 +199,15 @@ let predef_jkind_annotation primitive =
        primitive.jkind, user_written)
     primitive
 
-let option_argument_jkind = Jkind.Type.Primitive.value ~why:(
+let option_argument_type_jkind = Jkind.Type.Primitive.value ~why:(
   Type_argument {parent_path = path_option; position = 1; arity = 1})
 
-let list_argument_jkind = Jkind.Type.Primitive.value ~why:(
+let option_argument_jkind : Jkind.t = Type option_argument_type_jkind
+
+let list_argument_type_jkind = Jkind.Type.Primitive.value ~why:(
   Type_argument {parent_path = path_list; position = 1; arity = 1})
+
+let list_argument_jkind : Jkind.t = Type list_argument_type_jkind
 
 let mk_add_type add_type
       ?manifest type_ident
@@ -357,7 +361,7 @@ let build_initial_env add_type add_extension empty_env =
                                    type_list tvar |> unrestricted]]
            [| Constructor_uniform_value, [| |];
               Constructor_uniform_value,
-                [| list_argument_jkind;
+                [| list_argument_type_jkind;
                    Jkind.Type.Primitive.value ~why:Boxed_variant;
                 |];
            |] )
@@ -369,7 +373,7 @@ let build_initial_env add_type add_extension empty_env =
        ~kind:(fun tvar ->
          variant [cstr ident_none []; cstr ident_some [unrestricted tvar]]
            [| Constructor_uniform_value, [| |];
-              Constructor_uniform_value, [| option_argument_jkind |];
+              Constructor_uniform_value, [| option_argument_type_jkind |];
            |])
        ~jkind:(Jkind.Type.Primitive.value ~why:Boxed_variant)
   |> add_type ident_lexing_position

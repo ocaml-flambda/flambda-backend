@@ -41,6 +41,10 @@ end
 
 let user_raise ~loc err = raise (Error.User_error (loc, err))
 
+let printtyp_path = ref (fun _ _ -> assert false)
+
+let set_printtyp_path f = printtyp_path := f
+
 (* A *sort* is the information the middle/back ends need to be able to
    compile a manipulation (storing, passing, etc) of a runtime value. *)
 module Sort = Jkind_types.Type.Sort
@@ -982,10 +986,6 @@ module Type = struct
     match get jkind with
     | Const c -> Format.fprintf ppf "%a" Const.format c
     | Var v -> Format.fprintf ppf "%s" (Sort.Var.name v)
-
-  let printtyp_path = ref (fun _ _ -> assert false)
-
-  let set_printtyp_path f = printtyp_path := f
 
   module Report_missing_cmi : sig
     (* used both in format_history and in Violation.report_general *)

@@ -1552,7 +1552,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
 (* of optional parameters                                         *)
 
 let var_option =
-  Predef.type_option (Btype.newgenvar (Type Predef.option_argument_jkind))
+  Predef.type_option (Btype.newgenvar (Predef.option_argument_jkind))
 
 let rec approx_declaration cl =
   match cl.pcl_desc with

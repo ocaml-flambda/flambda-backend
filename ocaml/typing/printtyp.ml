@@ -563,7 +563,7 @@ let strings_of_paths namespace p =
   List.map (Format.asprintf "%a" !Oprint.out_ident) trees
 
 let () = Env.print_path := path
-let () = Jkind.Type.set_printtyp_path path
+let () = Jkind.set_printtyp_path path
 
 (* Print a recursive annotation *)
 
