@@ -1121,7 +1121,7 @@ let add_pattern_variables ?check ?check_as env pv =
        Env.add_value ?check ~mode:pv_mode pv_id
          {val_type = pv_type; val_kind = Val_reg; Types.val_loc = pv_loc;
           val_attributes = pv_attributes; val_modalities = Modality.Value.id;
-          val_zero_alloc = Builtin_attributes.Default_zero_alloc;
+          val_zero_alloc = Zero_alloc.default;
           val_uid = pv_uid
          } env
     )
@@ -2916,7 +2916,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
             { val_type = pv_type
             ; val_kind = Val_reg
             ; val_attributes = pv_attributes
-            ; val_zero_alloc = Builtin_attributes.Default_zero_alloc
+            ; val_zero_alloc = Zero_alloc.default
             ; val_modalities = Modality.Value.id
             ; val_loc = pv_loc
             ; val_uid = pv_uid
@@ -2928,7 +2928,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
             { val_type = pv_type
             ; val_kind = Val_ivar (Immutable, cl_num)
             ; val_attributes = pv_attributes
-            ; val_zero_alloc = Builtin_attributes.Default_zero_alloc
+            ; val_zero_alloc = Zero_alloc.default
             ; val_modalities = Modality.Value.id
             ; val_loc = pv_loc
             ; val_uid = pv_uid
@@ -5088,7 +5088,7 @@ let pat_modes ~force_toplevel rec_mode_var (attrs, spat) =
   in
   attrs, pat_mode, exp_mode, spat
 
-let add_check_attribute expr attributes =
+let add_zero_alloc_attribute expr attributes =
   let open Builtin_attributes in
   let to_string : zero_alloc_attribute -> string = function
     | Check { strict; loc = _} ->
@@ -5109,55 +5109,20 @@ let add_check_attribute expr attributes =
     in
     begin match za with
     | Default_zero_alloc -> expr
-    | (Ignore_assert_all | Check _ | Assume _) as check ->
-      begin match fn.zero_alloc with
+    | Ignore_assert_all | Check _ | Assume _ ->
+      begin match Zero_alloc.get fn.zero_alloc with
       | Default_zero_alloc -> ()
       | Ignore_assert_all | Assume _ | Check _ ->
         Location.prerr_warning expr.exp_loc
-          (Warnings.Duplicated_attribute (to_string fn.zero_alloc));
+          (Warnings.Duplicated_attribute (to_string za));
       end;
-      let exp_desc = Texp_function { fn with zero_alloc = check } in
+      (* Here, we may be throwing away a zero_alloc variable. There's no need
+         to set it, because it can't have gotten anywhere else yet. *)
+      let zero_alloc = Zero_alloc.create_const za in
+      let exp_desc = Texp_function { fn with zero_alloc } in
       { expr with exp_desc }
     end
   | _ -> expr
-
-let zero_alloc_of_application ~num_args attrs funct =
-  let zero_alloc =
-    Builtin_attributes.get_zero_alloc_attribute ~in_signature:false
-      ~default_arity:num_args attrs
-  in
-  let zero_alloc =
-    match zero_alloc with
-    | Assume _ | Ignore_assert_all | Check _ ->
-      (* The user wrote a zero_alloc attribute on the application - keep it.
-         (Note that `ignore` and `check` aren't really allowed here, and will be
-         rejected by the call to `Builtin_attributes.assume_zero_alloc` below.)
-       *)
-      zero_alloc
-    | Default_zero_alloc ->
-      (* We assume the call is zero_alloc if the function is known to be
-         zero_alloc. If the function is zero_alloc opt, then we need to be sure
-         that the opt checks were run to license this assumption. We judge
-         whether the opt checks were run based on the argument to the
-         [-zero-alloc-check] command line flag. *)
-      let use_opt =
-        match !Clflags.zero_alloc_check with
-        | Check_default | No_check -> false
-        | Check_all | Check_opt_only -> true
-      in
-      match funct.exp_desc with
-      | Texp_ident (_, _, { val_zero_alloc = (Check c); _ }, _, _)
-        when c.arity = num_args && (use_opt || not c.opt) ->
-        Builtin_attributes.Assume {
-          strict = c.strict;
-          never_returns_normally = false;
-          never_raises = false;
-          arity = c.arity;
-          loc = c.loc
-        }
-      | _ -> Builtin_attributes.Default_zero_alloc
-  in
-  Builtin_attributes.assume_zero_alloc ~is_check_allowed:false zero_alloc
 
 let rec type_exp ?recarg env expected_mode sexp =
   (* We now delegate everything to type_expect *)
@@ -5487,14 +5452,15 @@ and type_expect_
       let (args, ty_res, ap_mode, pm) =
         type_application env loc expected_mode pm funct funct_mode sargs rt
       in
-      let assume_zero_alloc =
-        zero_alloc_of_application ~num_args:(List.length args)
-          sfunct.pexp_attributes funct
+      let zero_alloc =
+        Builtin_attributes.get_zero_alloc_attribute ~in_signature:false
+          ~default_arity:(List.length args) sfunct.pexp_attributes
+        |> Builtin_attributes.zero_alloc_attribute_only_assume_allowed
       in
 
       rue {
         exp_desc = Texp_apply(funct, args, pm.apply_position, ap_mode,
-                              assume_zero_alloc);
+                              zero_alloc);
         exp_loc = loc; exp_extra = [];
         exp_type = ty_res;
         exp_attributes = sexp.pexp_attributes;
@@ -7486,7 +7452,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         let desc =
           { val_type = ty; val_kind = Val_reg;
             val_attributes = [];
-            val_zero_alloc = Builtin_attributes.Default_zero_alloc;
+            val_zero_alloc = Zero_alloc.default;
             val_modalities = Modality.Value.id;
             val_loc = Location.none;
             val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
@@ -7532,7 +7498,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
               |> Value.proj (Comonadic Areality)
               |> regional_to_global
               |> Locality.disallow_right,
-              Zero_alloc_utils.Assume_info.none)}
+              None)}
         in
         let cases = [ case eta_pat e ] in
         let cases_loc = { texp.exp_loc with loc_ghost = true } in
@@ -7552,7 +7518,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
               ret_sort;
               alloc_mode;
               region = false;
-              zero_alloc = Default_zero_alloc
+              zero_alloc = Zero_alloc.default
             }
         }
       in
@@ -8563,7 +8529,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
       (fun (s, ((_,p,_), (e, _))) pvb ->
         (* We check for [zero_alloc] attributes written on the [let] and move
            them to the function. *)
-        let e = add_check_attribute e pvb.pvb_attributes in
+        let e = add_zero_alloc_attribute e pvb.pvb_attributes in
         (* vb_rec_kind will be computed later for recursive bindings *)
         {vb_pat=p; vb_expr=e; vb_sort = s; vb_attributes=pvb.pvb_attributes;
          vb_loc=pvb.pvb_loc; vb_rec_kind = Dynamic;
@@ -8955,6 +8921,12 @@ and type_n_ary_function
     let zero_alloc =
       Builtin_attributes.get_zero_alloc_attribute ~in_signature:false
         ~default_arity:syntactic_arity attributes
+    in
+    let zero_alloc =
+      match zero_alloc with
+      | Default_zero_alloc -> Zero_alloc.create_var loc syntactic_arity
+      | (Check _ | Assume _ | Ignore_assert_all) ->
+        Zero_alloc.create_const zero_alloc
     in
     re
       { exp_desc =

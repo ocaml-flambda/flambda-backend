@@ -282,6 +282,7 @@ let print_bigarray name unsafe kind ppf layout =
     (match kind with
      | Pbigarray_unknown -> "generic"
      | Pbigarray_float32 -> "float32"
+     | Pbigarray_float32_t -> "float32_t"
      | Pbigarray_float64 -> "float64"
      | Pbigarray_sint8 -> "sint8"
      | Pbigarray_uint8 -> "uint8"
@@ -643,6 +644,9 @@ let primitive ppf = function
   | Pstring_load_32(unsafe, m) ->
      if unsafe then fprintf ppf "string.unsafe_get32%s" (alloc_kind m)
      else fprintf ppf "string.get32%s" (alloc_kind m)
+  | Pstring_load_f32(unsafe, m) ->
+     if unsafe then fprintf ppf "string.unsafe_getf32%s" (alloc_kind m)
+     else fprintf ppf "string.getf32%s" (alloc_kind m)
   | Pstring_load_64(unsafe, m) ->
      if unsafe then fprintf ppf "string.unsafe_get64%s" (alloc_kind m)
      else fprintf ppf "string.get64%s" (alloc_kind m)
@@ -656,6 +660,9 @@ let primitive ppf = function
   | Pbytes_load_32(unsafe,m) ->
      if unsafe then fprintf ppf "bytes.unsafe_get32%s" (alloc_kind m)
      else fprintf ppf "bytes.get32%s" (alloc_kind m)
+  | Pbytes_load_f32(unsafe,m) ->
+     if unsafe then fprintf ppf "bytes.unsafe_getf32%s" (alloc_kind m)
+     else fprintf ppf "bytes.getf32%s" (alloc_kind m)
   | Pbytes_load_64(unsafe,m) ->
      if unsafe then fprintf ppf "bytes.unsafe_get64%s" (alloc_kind m)
      else fprintf ppf "bytes.get64%s" (alloc_kind m)
@@ -669,6 +676,9 @@ let primitive ppf = function
   | Pbytes_set_32(unsafe) ->
      if unsafe then fprintf ppf "bytes.unsafe_set32"
      else fprintf ppf "bytes.set32"
+  | Pbytes_set_f32(unsafe) ->
+     if unsafe then fprintf ppf "bytes.unsafe_setf32"
+     else fprintf ppf "bytes.setf32"
   | Pbytes_set_64(unsafe) ->
      if unsafe then fprintf ppf "bytes.unsafe_set64"
      else fprintf ppf "bytes.set64"
@@ -682,6 +692,9 @@ let primitive ppf = function
   | Pbigstring_load_32 { unsafe; mode = m } ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_get32%s" (alloc_kind m)
      else fprintf ppf "bigarray.array1.get32%s" (alloc_kind m)
+  | Pbigstring_load_f32 { unsafe; mode = m } ->
+     if unsafe then fprintf ppf "bigarray.array1.unsafe_getf32%s" (alloc_kind m)
+     else fprintf ppf "bigarray.array1.getf32%s" (alloc_kind m)
   | Pbigstring_load_64 { unsafe; mode = m } ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_get64%s" (alloc_kind m)
      else fprintf ppf "bigarray.array1.get64%s" (alloc_kind m)
@@ -699,6 +712,9 @@ let primitive ppf = function
   | Pbigstring_set_32 { unsafe } ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_set32"
      else fprintf ppf "bigarray.array1.set32"
+  | Pbigstring_set_f32 { unsafe } ->
+     if unsafe then fprintf ppf "bigarray.array1.unsafe_setf32"
+     else fprintf ppf "bigarray.array1.setf32"
   | Pbigstring_set_64 { unsafe } ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_set64"
      else fprintf ppf "bigarray.array1.set64"
@@ -877,22 +893,27 @@ let name_of_primitive = function
   | Pbigarraydim _ -> "Pbigarraydim"
   | Pstring_load_16 _ -> "Pstring_load_16"
   | Pstring_load_32 _ -> "Pstring_load_32"
+  | Pstring_load_f32 _ -> "Pstring_load_f32"
   | Pstring_load_64 _ -> "Pstring_load_64"
   | Pstring_load_128 _ -> "Pstring_load_128"
   | Pbytes_load_16 _ -> "Pbytes_load_16"
   | Pbytes_load_32 _ -> "Pbytes_load_32"
+  | Pbytes_load_f32 _ -> "Pbytes_load_f32"
   | Pbytes_load_64 _ -> "Pbytes_load_64"
   | Pbytes_load_128 _ -> "Pbytes_load_128"
   | Pbytes_set_16 _ -> "Pbytes_set_16"
   | Pbytes_set_32 _ -> "Pbytes_set_32"
+  | Pbytes_set_f32 _ -> "Pbytes_set_f32"
   | Pbytes_set_64 _ -> "Pbytes_set_64"
   | Pbytes_set_128 _ -> "Pbytes_set_128"
   | Pbigstring_load_16 _ -> "Pbigstring_load_16"
   | Pbigstring_load_32 _ -> "Pbigstring_load_32"
+  | Pbigstring_load_f32 _ -> "Pbigstring_load_f32"
   | Pbigstring_load_64 _ -> "Pbigstring_load_64"
   | Pbigstring_load_128 _ -> "Pbigstring_load_128"
   | Pbigstring_set_16 _ -> "Pbigstring_set_16"
   | Pbigstring_set_32 _ -> "Pbigstring_set_32"
+  | Pbigstring_set_f32 _ -> "Pbigstring_set_f32"
   | Pbigstring_set_64 _ -> "Pbigstring_set_64"
   | Pbigstring_set_128 _ -> "Pbigstring_set_128"
   | Pfloatarray_load_128 _ -> "Pfloatarray_load_128"

@@ -392,6 +392,11 @@ val unaligned_load_32 : expression -> expression -> Debuginfo.t -> expression
 val unaligned_set_32 :
   expression -> expression -> expression -> Debuginfo.t -> expression
 
+val unaligned_load_f32 : expression -> expression -> Debuginfo.t -> expression
+
+val unaligned_set_f32 :
+  expression -> expression -> expression -> Debuginfo.t -> expression
+
 val unaligned_load_64 : expression -> expression -> Debuginfo.t -> expression
 
 val unaligned_set_64 :
@@ -875,6 +880,9 @@ val infix_field_address : dbg:Debuginfo.t -> expression -> int -> expression
 
 (** Static integer. *)
 val cint : nativeint -> data_item
+
+(** Static 32-bit integer. *)
+val cint32 : int32 -> data_item
 
 (** Static float32. *)
 val cfloat32 : float -> data_item

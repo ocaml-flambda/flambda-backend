@@ -416,3 +416,150 @@ val round_towards_zero : t -> t
 
 (* CR layouts v5: add back hash when we deal with the ad-hoc polymorphic
    functions. *)
+
+module Bytes : sig
+  val get : bytes -> pos:int -> float32#
+  (** [get b ~pos] loads a float32 from [b] at an offset of [pos] bytes.
+
+      @raise Invalid_argument
+      if [pos] is outside the range 0 to [length b - 4]. *)
+
+  val unsafe_get : bytes -> pos:int -> float32#
+  (** [unsafe_get b ~pos] loads a float32 from [b] at an offset of [pos] bytes.
+      Does not check that [pos] is a valid offset. *)
+
+  val set : bytes -> pos:int -> float32# -> unit
+  (** [set b ~pos f] stores a float32 to [b] at an offset of [pos] bytes.
+
+      @raise Invalid_argument
+      if [pos] is outside the range 0 to [length b - 4]. *)
+
+  val unsafe_set : bytes -> pos:int -> float32# -> unit
+  (** [unsafe_set b ~pos f] stores a float32 to [b] at an offset of [pos] bytes.
+      Does not check that [pos] is a valid offset. *)
+end
+
+module String : sig
+  val get : string -> pos:int -> float32#
+  (** [get s ~pos] loads a float32 from [s] at an offset of [pos] bytes.
+
+      @raise Invalid_argument
+      if [pos] is outside the range 0 to [length s - 4]. *)
+
+  val unsafe_get : string -> pos:int -> float32#
+  (** [unsafe_get s ~pos] loads a float32 from [s] at an offset of [pos] bytes.
+      Does not check that [pos] is a valid offset. *)
+end
+
+module Bigstring : sig
+  open Bigarray
+
+  type t = (char, int8_unsigned_elt, c_layout) Array1.t
+
+  external get : t -> pos:int -> float32# = "%caml_bigstring_getf32#"
+  (** [get b ~pos] loads a float32 from [b] at an offset of [pos] bytes.
+
+      @raise Invalid_argument
+      if [pos] is outside the range 0 to [length b - 4]. *)
+
+  external unsafe_get : t -> pos:int -> float32# = "%caml_bigstring_getf32u#"
+  (** [unsafe_get b ~pos] loads a float32 from [b] at an offset of [pos] bytes.
+      Does not check that [pos] is a valid offset. *)
+
+  external set : t -> pos:int -> float32# -> unit = "%caml_bigstring_setf32#"
+  (** [set b ~pos f] stores a float32 to [b] at an offset of [pos] bytes.
+
+      @raise Invalid_argument
+      if [pos] is outside the range 0 to [length b - 4]. *)
+
+  external unsafe_set : t -> pos:int -> float32# -> unit = "%caml_bigstring_setf32u#"
+  (** [unsafe_set b ~pos f] stores a float32 to [b] at an offset of [pos] bytes.
+      Does not check that [pos] is a valid offset. *)
+end
+
+module Bigarray : sig
+    open Bigarray
+
+    module Array1 : sig
+      val get : ('a, float32_elt, 'c) Array1.t -> int -> float32#
+      (** [Array1.get a x], or alternatively [a.{x}],
+          returns the element of [a] at index [x].
+          [x] must be greater or equal than [0] and strictly less than
+          [Array1.dim a] if [a] has C layout.  If [a] has Fortran layout,
+          [x] must be greater or equal than [1] and less or equal than
+          [Array1.dim a].  Otherwise, [Invalid_argument] is raised. *)
+
+      val set : ('a, float32_elt, 'c) Array1.t -> int -> float32# -> unit
+      (** [Array1.set a x v], also written [a.{x} <- v],
+          stores the value [v] at index [x] in [a].
+          [x] must be inside the bounds of [a] as described in
+          {!Bigarray.Array1.get};
+          otherwise, [Invalid_argument] is raised. *)
+
+      val unsafe_get : ('a, float32_elt, 'c) Array1.t -> int -> float32#
+      (** Like {!Bigarray.Array1.get}, but bounds checking is not always performed.
+          Use with caution and only when the program logic guarantees that
+          the access is within bounds. *)
+
+      val unsafe_set :
+        ('a, float32_elt, 'c) Array1.t -> int -> float32# -> unit
+      (** Like {!Bigarray.Array1.set}, but bounds checking is not always performed.
+          Use with caution and only when the program logic guarantees that
+          the access is within bounds. *)
+    end
+
+    module Array2 : sig
+      val get : ('a, float32_elt, 'c) Array2.t -> int -> int -> float32#
+      (** [Array2.get a x y], also written [a.{x,y}],
+        returns the element of [a] at coordinates ([x], [y]).
+        [x] and [y] must be within the bounds
+        of [a], as described for {!Bigarray.Genarray.get};
+        otherwise, [Invalid_argument] is raised. *)
+
+      val set :
+        ('a, float32_elt, 'c) Array2.t -> int -> int -> float32# -> unit
+      (** [Array2.set a x y v], or alternatively [a.{x,y} <- v],
+        stores the value [v] at coordinates ([x], [y]) in [a].
+        [x] and [y] must be within the bounds of [a],
+        as described for {!Bigarray.Genarray.set};
+        otherwise, [Invalid_argument] is raised. *)
+
+      val unsafe_get :
+        ('a, float32_elt, 'c) Array2.t -> int -> int -> float32#
+      (** Like {!Bigarray.Array2.get}, but bounds checking is not always
+          performed. *)
+
+      val unsafe_set :
+        ('a, float32_elt, 'c) Array2.t -> int -> int -> float32# -> unit
+      (** Like {!Bigarray.Array2.set}, but bounds checking is not always
+          performed. *)
+    end
+
+    module Array3 : sig
+      val get :
+        ('a, float32_elt, 'c) Array3.t -> int -> int -> int -> float32#
+      (** [Array3.get a x y z], also written [a.{x,y,z}],
+          returns the element of [a] at coordinates ([x], [y], [z]).
+          [x], [y] and [z] must be within the bounds of [a],
+          as described for {!Bigarray.Genarray.get};
+          otherwise, [Invalid_argument] is raised. *)
+
+      val set :
+        ('a, float32_elt, 'c) Array3.t -> int -> int -> int -> float32# -> unit
+      (** [Array3.set a x y v], or alternatively [a.{x,y,z} <- v],
+          stores the value [v] at coordinates ([x], [y], [z]) in [a].
+          [x], [y] and [z] must be within the bounds of [a],
+          as described for {!Bigarray.Genarray.set};
+          otherwise, [Invalid_argument] is raised. *)
+
+      val unsafe_get :
+        ('a, float32_elt, 'c) Array3.t -> int -> int -> int -> float32#
+      (** Like {!Bigarray.Array3.get}, but bounds checking is not always
+          performed. *)
+
+      val unsafe_set :
+        ('a, float32_elt, 'c) Array3.t -> int -> int -> int -> float32# -> unit
+      (** Like {!Bigarray.Array3.set}, but bounds checking is not always
+          performed. *)
+    end
+end

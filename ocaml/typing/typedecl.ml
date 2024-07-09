@@ -2907,16 +2907,18 @@ let transl_value_decl env loc valdecl =
         Builtin_attributes.get_zero_alloc_attribute ~in_signature:true
           ~default_arity valdecl.pval_attributes
       in
-      begin match zero_alloc with
-      | Default_zero_alloc -> ()
-      | Check za ->
-        if default_arity = 0 && za.arity <= 0 then
-          raise (Error(valdecl.pval_loc, Zero_alloc_attr_non_function));
-        if za.arity <= 0 then
-          raise (Error(valdecl.pval_loc, Zero_alloc_attr_bad_user_arity));
-      | Assume _ | Ignore_assert_all ->
-        raise (Error(valdecl.pval_loc, Zero_alloc_attr_unsupported zero_alloc))
-      end;
+      let zero_alloc =
+        match zero_alloc with
+        | Default_zero_alloc -> Zero_alloc.default
+        | Check za ->
+          if default_arity = 0 && za.arity <= 0 then
+            raise (Error(valdecl.pval_loc, Zero_alloc_attr_non_function));
+          if za.arity <= 0 then
+            raise (Error(valdecl.pval_loc, Zero_alloc_attr_bad_user_arity));
+          Zero_alloc.create_const zero_alloc
+        | Assume _ | Ignore_assert_all ->
+          raise (Error(valdecl.pval_loc, Zero_alloc_attr_unsupported zero_alloc))
+      in
       { val_type = ty; val_kind = Val_reg; Types.val_loc = loc;
         val_attributes = valdecl.pval_attributes; val_modalities = modalities;
         val_zero_alloc = zero_alloc;
@@ -2964,7 +2966,7 @@ let transl_value_decl env loc valdecl =
       check_unboxable env loc ty;
       { val_type = ty; val_kind = Val_prim prim; Types.val_loc = loc;
         val_attributes = valdecl.pval_attributes; val_modalities = modalities;
-        val_zero_alloc = Builtin_attributes.Default_zero_alloc;
+        val_zero_alloc = Zero_alloc.default;
         val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
       }
   in

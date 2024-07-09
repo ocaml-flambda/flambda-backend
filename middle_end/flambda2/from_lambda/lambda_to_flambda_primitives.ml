@@ -425,7 +425,7 @@ let actual_max_length_for_string_like_access ~size_int ~access_size length =
       match (size : Flambda_primitive.string_accessor_width) with
       | Eight -> 0
       | Sixteen -> 1
-      | Thirty_two -> 3
+      | Thirty_two | Single -> 3
       | Sixty_four -> 7
       | One_twenty_eight _ -> 15
     in
@@ -433,7 +433,7 @@ let actual_max_length_for_string_like_access ~size_int ~access_size length =
   in
   match (access_size : Flambda_primitive.string_accessor_width) with
   | Eight -> length (* micro-optimization *)
-  | Sixteen | Thirty_two | Sixty_four | One_twenty_eight _ ->
+  | Sixteen | Thirty_two | Single | Sixty_four | One_twenty_eight _ ->
     let offset = length_offset_of_size access_size in
     let reduced_length =
       H.Prim
@@ -489,7 +489,7 @@ let checked_string_or_bytes_access ~dbg ~size_int ~access_size ~primitive kind
   | One_twenty_eight { aligned = true } ->
     Misc.fatal_error
       "flambda2 cannot yet check string/bytes aligned access safety"
-  | Eight | Sixteen | Thirty_two | Sixty_four
+  | Eight | Sixteen | Thirty_two | Single | Sixty_four
   | One_twenty_eight { aligned = false } ->
     ());
   checked_access ~dbg ~primitive
@@ -503,7 +503,7 @@ let checked_bigstring_access ~dbg ~size_int ~access_size ~primitive arg1 arg2 =
     | One_twenty_eight { aligned = true } ->
       checked_alignment ~dbg ~primitive
         ~conditions:[bigstring_alignment_validity_condition arg1 16 arg2]
-    | Eight | Sixteen | Thirty_two | Sixty_four
+    | Eight | Sixteen | Thirty_two | Single | Sixty_four
     | One_twenty_eight { aligned = false } ->
       primitive
   in
@@ -521,12 +521,14 @@ let string_like_load_unsafe ~access_size kind mode ~boxed string index
       tag_int
     | Thirty_two, Some mode ->
       if boxed then box_bint Pint32 mode ~current_region else Fun.id
+    | Single, Some mode ->
+      if boxed then box_float32 mode ~current_region else Fun.id
     | Sixty_four, Some mode ->
       if boxed then box_bint Pint64 mode ~current_region else Fun.id
     | One_twenty_eight _, Some mode ->
       if boxed then box_vec128 mode ~current_region else Fun.id
     | (Eight | Sixteen), Some _
-    | (Thirty_two | Sixty_four | One_twenty_eight _), None ->
+    | (Thirty_two | Single | Sixty_four | One_twenty_eight _), None ->
       Misc.fatal_error "Inconsistent alloc_mode for string or bytes load"
   in
   wrap (Binary (String_or_bigstring_load (kind, access_size), string, index))
@@ -565,6 +567,7 @@ let bytes_like_set_unsafe ~access_size kind ~boxed bytes index new_value =
       assert (not boxed);
       untag_int
     | Thirty_two -> if boxed then unbox_bint Pint32 else Fun.id
+    | Single -> if boxed then unbox_float32 else Fun.id
     | Sixty_four -> if boxed then unbox_bint Pint64 else Fun.id
     | One_twenty_eight _ -> if boxed then unbox_vec128 else Fun.id
   in
@@ -1306,9 +1309,15 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pstring_load_32 (true (* unsafe *), mode), [[str]; [index]] ->
     [ string_like_load_unsafe ~access_size:Thirty_two String ~boxed:true
         (Some mode) str index ~current_region ]
+  | Pstring_load_f32 (true (* unsafe *), mode), [[str]; [index]] ->
+    [ string_like_load_unsafe ~access_size:Single String ~boxed:true (Some mode)
+        str index ~current_region ]
   | Pbytes_load_32 (true (* unsafe *), mode), [[bytes]; [index]] ->
     [ string_like_load_unsafe ~access_size:Thirty_two Bytes ~boxed:true
         (Some mode) bytes index ~current_region ]
+  | Pbytes_load_f32 (true (* unsafe *), mode), [[bytes]; [index]] ->
+    [ string_like_load_unsafe ~access_size:Single Bytes ~boxed:true (Some mode)
+        bytes index ~current_region ]
   | Pstring_load_64 (true (* unsafe *), mode), [[str]; [index]] ->
     [ string_like_load_unsafe ~access_size:Sixty_four String ~boxed:true
         (Some mode) str index ~current_region ]
@@ -1329,6 +1338,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pstring_load_32 (false (* safe *), mode), [[str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Thirty_two String
         (Some mode) ~boxed:true str index ~current_region ]
+  | Pstring_load_f32 (false (* safe *), mode), [[str]; [index]] ->
+    [ string_like_load_safe ~dbg ~size_int ~access_size:Single String
+        (Some mode) ~boxed:true str index ~current_region ]
   | Pstring_load_64 (false (* safe *), mode), [[str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixty_four String
         (Some mode) ~boxed:true str index ~current_region ]
@@ -1342,6 +1354,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbytes_load_32 (false (* safe *), mode), [[bytes]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Thirty_two Bytes
         ~boxed:true (Some mode) bytes index ~current_region ]
+  | Pbytes_load_f32 (false (* safe *), mode), [[bytes]; [index]] ->
+    [ string_like_load_safe ~dbg ~size_int ~access_size:Single Bytes ~boxed:true
+        (Some mode) bytes index ~current_region ]
   | Pbytes_load_64 (false (* safe *), mode), [[bytes]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixty_four Bytes
         ~boxed:true (Some mode) bytes index ~current_region ]
@@ -1355,6 +1370,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbytes_set_32 true (* unsafe *), [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set_unsafe ~access_size:Thirty_two Bytes ~boxed:true bytes
         index new_value ]
+  | Pbytes_set_f32 true (* unsafe *), [[bytes]; [index]; [new_value]] ->
+    [ bytes_like_set_unsafe ~access_size:Single Bytes ~boxed:true bytes index
+        new_value ]
   | Pbytes_set_64 true (* unsafe *), [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set_unsafe ~access_size:Sixty_four Bytes ~boxed:true bytes
         index new_value ]
@@ -1368,6 +1386,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbytes_set_32 false (* safe *), [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set_safe ~dbg ~size_int ~access_size:Thirty_two Bytes
         ~boxed:true bytes index new_value ]
+  | Pbytes_set_f32 false (* safe *), [[bytes]; [index]; [new_value]] ->
+    [ bytes_like_set_safe ~dbg ~size_int ~access_size:Single Bytes ~boxed:true
+        bytes index new_value ]
   | Pbytes_set_64 false (* safe *), [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set_safe ~dbg ~size_int ~access_size:Sixty_four Bytes
         ~boxed:true bytes index new_value ]
@@ -1748,6 +1769,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbigstring_load_32 { unsafe = true; mode; boxed }, [[big_str]; [index]] ->
     [ string_like_load_unsafe ~access_size:Thirty_two Bigstring (Some mode)
         ~boxed big_str index ~current_region ]
+  | Pbigstring_load_f32 { unsafe = true; mode; boxed }, [[big_str]; [index]] ->
+    [ string_like_load_unsafe ~access_size:Single Bigstring (Some mode) ~boxed
+        big_str index ~current_region ]
   | Pbigstring_load_64 { unsafe = true; mode; boxed }, [[big_str]; [index]] ->
     [ string_like_load_unsafe ~access_size:Sixty_four Bigstring (Some mode)
         ~boxed big_str index ~current_region ]
@@ -1761,6 +1785,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         ~boxed:false None big_str index ~current_region ]
   | Pbigstring_load_32 { unsafe = false; mode; boxed }, [[big_str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Thirty_two Bigstring
+        (Some mode) ~boxed big_str index ~current_region ]
+  | Pbigstring_load_f32 { unsafe = false; mode; boxed }, [[big_str]; [index]] ->
+    [ string_like_load_safe ~dbg ~size_int ~access_size:Single Bigstring
         (Some mode) ~boxed big_str index ~current_region ]
   | Pbigstring_load_64 { unsafe = false; mode; boxed }, [[big_str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixty_four Bigstring
@@ -1777,6 +1804,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       [[bigstring]; [index]; [new_value]] ) ->
     [ bytes_like_set_unsafe ~access_size:Thirty_two Bigstring ~boxed bigstring
         index new_value ]
+  | ( Pbigstring_set_f32 { unsafe = true; boxed },
+      [[bigstring]; [index]; [new_value]] ) ->
+    [ bytes_like_set_unsafe ~access_size:Single Bigstring ~boxed bigstring index
+        new_value ]
   | ( Pbigstring_set_64 { unsafe = true; boxed },
       [[bigstring]; [index]; [new_value]] ) ->
     [ bytes_like_set_unsafe ~access_size:Sixty_four Bigstring ~boxed bigstring
@@ -1793,6 +1824,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       [[bigstring]; [index]; [new_value]] ) ->
     [ bytes_like_set_safe ~dbg ~size_int ~access_size:Thirty_two Bigstring
         ~boxed bigstring index new_value ]
+  | ( Pbigstring_set_f32 { unsafe = false; boxed },
+      [[bigstring]; [index]; [new_value]] ) ->
+    [ bytes_like_set_safe ~dbg ~size_int ~access_size:Single Bigstring ~boxed
+        bigstring index new_value ]
   | ( Pbigstring_set_64 { unsafe = false; boxed },
       [[bigstring]; [index]; [new_value]] ) ->
     [ bytes_like_set_safe ~dbg ~size_int ~access_size:Sixty_four Bigstring
@@ -1940,13 +1975,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pfloatcomp (_, _)
       | Punboxed_float_comp (_, _)
       | Pstringrefu | Pbytesrefu | Pstringrefs | Pbytesrefs | Pstring_load_16 _
-      | Pstring_load_32 _ | Pstring_load_64 _ | Pstring_load_128 _
-      | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _
-      | Pbytes_load_128 _ | Pisout | Paddbint _ | Psubbint _ | Pmulbint _
-      | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
-      | Pasrbint _ | Pfield_computed _ | Pdivbint _ | Pmodbint _
-      | Psetfloatfield _ | Psetufloatfield _ | Pbintcomp _ | Punboxed_int_comp _
-      | Psetmixedfield _ | Pbigstring_load_16 _ | Pbigstring_load_32 _
+      | Pstring_load_32 _ | Pstring_load_f32 _ | Pstring_load_64 _
+      | Pstring_load_128 _ | Pbytes_load_16 _ | Pbytes_load_32 _
+      | Pbytes_load_f32 _ | Pbytes_load_64 _ | Pbytes_load_128 _ | Pisout
+      | Paddbint _ | Psubbint _ | Pmulbint _ | Pandbint _ | Porbint _
+      | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pfield_computed _
+      | Pdivbint _ | Pmodbint _ | Psetfloatfield _ | Psetufloatfield _
+      | Pbintcomp _ | Punboxed_int_comp _ | Psetmixedfield _
+      | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_f32 _
       | Pbigstring_load_64 _ | Pbigstring_load_128 _ | Pfloatarray_load_128 _
       | Pfloat_array_load_128 _ | Pint_array_load_128 _
       | Punboxed_float_array_load_128 _ | Punboxed_int32_array_load_128 _
@@ -1983,12 +2019,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             | Pfloatarray_set | Punboxedfloatarray_set _
             | Punboxedintarray_set _ ),
             _ )
-      | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
-      | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
-      | Pbigstring_set_128 _ | Pfloatarray_set_128 _ | Pfloat_array_set_128 _
-      | Pint_array_set_128 _ | Punboxed_float_array_set_128 _
-      | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
-      | Punboxed_nativeint_array_set_128 _ | Patomic_cas ),
+      | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_f32 _ | Pbytes_set_64 _
+      | Pbytes_set_128 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
+      | Pbigstring_set_f32 _ | Pbigstring_set_64 _ | Pbigstring_set_128 _
+      | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
+      | Punboxed_float_array_set_128 _ | Punboxed_int32_array_set_128 _
+      | Punboxed_int64_array_set_128 _ | Punboxed_nativeint_array_set_128 _
+      | Patomic_cas ),
       ( []
       | [_]
       | [_; _]

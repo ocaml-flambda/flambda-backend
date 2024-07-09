@@ -293,6 +293,7 @@ let string_like_load_aux ~dbg width ~str ~index =
   | Eight -> C.load ~dbg Byte_unsigned Mutable ~addr:(C.add_int str index dbg)
   | Sixteen -> C.unaligned_load_16 str index dbg
   | Thirty_two -> C.sign_extend_32 dbg (C.unaligned_load_32 str index dbg)
+  | Single -> C.unaligned_load_f32 str index dbg
   | Sixty_four -> C.unaligned_load_64 str index dbg
   | One_twenty_eight { aligned = true } -> C.aligned_load_128 str index dbg
   | One_twenty_eight { aligned = false } -> C.unaligned_load_128 str index dbg
@@ -314,6 +315,7 @@ let bytes_or_bigstring_set_aux ~dbg width ~bytes ~index ~new_value =
     C.store ~dbg Byte_unsigned Assignment ~addr ~new_value
   | Sixteen -> C.unaligned_set_16 bytes index new_value dbg
   | Thirty_two -> C.unaligned_set_32 bytes index new_value dbg
+  | Single -> C.unaligned_set_f32 bytes index new_value dbg
   | Sixty_four -> C.unaligned_set_64 bytes index new_value dbg
   | One_twenty_eight { aligned = false } ->
     C.unaligned_set_128 bytes index new_value dbg
