@@ -682,7 +682,7 @@ Error: The layout of type a is any, because
 |}]
 
 (****************************************************************)
-(* Test 6: Non-nominative types cannot perform illegal crossing *)
+(* Test 7: Non-nominative types cannot perform illegal crossing *)
 
 type a
 type b : value mod portable = a
