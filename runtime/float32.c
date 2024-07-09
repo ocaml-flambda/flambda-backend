@@ -28,6 +28,7 @@
 #include <string.h>
 
 #include "caml/alloc.h"
+#include "caml/bigarray.h"
 #include "caml/fail.h"
 #include "caml/custom.h"
 #include "caml/float32.h"
@@ -417,6 +418,168 @@ CAMLprim value caml_modf_float32(value f)
   Field(res, 0) = quo;
   Field(res, 1) = rem;
   CAMLreturn (res);
+}
+
+/* The functions on bytes, strings, and bigstrings (ba_uint8) are only used
+   in bytecode builds. Otherwise, the flambda-backend compiler translates
+   the corresponding primitives directly to load/store instructions. */
+
+CAMLprim value caml_string_getf32(value str, value index)
+{
+#ifdef ARCH_BIG_ENDIAN
+  caml_failwith(
+    "Raw float32 load/store is not supported on big-endian architectures.");
+#else
+  intnat idx = Long_val(index);
+  if (idx < 0 || idx + 3 >= caml_string_length(str)) caml_array_bound_error();
+  float res = *(float*)&Byte_u(str, idx);
+  return caml_copy_float32(res);
+#endif
+}
+
+CAMLprim value caml_bytes_getf32(value str, value index)
+{
+  return caml_string_getf32(str, index);
+}
+
+CAMLprim value caml_bytes_setf32(value str, value index, value newval)
+{
+#ifdef ARCH_BIG_ENDIAN
+  caml_failwith(
+    "Raw float32 load/store is not supported on big-endian architectures.");
+#else
+  intnat idx = Long_val(index);
+  if (idx < 0 || idx + 3 >= caml_string_length(str)) caml_array_bound_error();
+  *(float*)&Byte_u(str, idx) = Float32_val(newval);
+  return Val_unit;
+#endif
+}
+
+CAMLprim value caml_ba_uint8_getf32(value vb, value vind)
+{
+#ifdef ARCH_BIG_ENDIAN
+  caml_failwith(
+    "Raw float32 load/store is not supported on big-endian architectures.");
+#else
+  intnat idx = Long_val(vind);
+  struct caml_ba_array * b = Caml_ba_array_val(vb);
+  if (idx < 0 || idx >= b->dim[0] - 3) caml_array_bound_error();
+  float res = *(float*)&Byte_u(b->data, idx);
+  return caml_copy_float32(res);
+#endif
+}
+
+CAMLprim value caml_ba_uint8_setf32(value vb, value vind, value newval)
+{
+#ifdef ARCH_BIG_ENDIAN
+  caml_failwith(
+    "Raw float32 load/store is not supported on big-endian architectures.");
+#else
+  intnat idx = Long_val(vind);
+  struct caml_ba_array * b = Caml_ba_array_val(vb);
+  if (idx < 0 || idx >= b->dim[0] - 3) caml_array_bound_error();
+  *(float*)&Byte_u(b->data, idx) = Float32_val(newval);
+  return Val_unit;
+#endif
+}
+
+/* Defined in bigarray.c */
+CAMLextern intnat caml_ba_offset(struct caml_ba_array * b, intnat * index);
+
+static value caml_ba_float32_get_aux(value vb, volatile value * vind, int nind)
+{
+  struct caml_ba_array * b = Caml_ba_array_val(vb);
+  intnat index[CAML_BA_MAX_NUM_DIMS];
+  int i;
+  intnat offset;
+
+  /* Check number of indices = number of dimensions of array
+     (maybe not necessary if ML typing guarantees this) */
+  if (nind != b->num_dims)
+    caml_invalid_argument("Float32.Bigarray.get: wrong number of indices");
+  /* Compute offset and check bounds */
+  for (i = 0; i < b->num_dims; i++) index[i] = Long_val(vind[i]);
+  offset = caml_ba_offset(b, index);
+  /* Perform read */
+  switch ((b->flags) & CAML_BA_KIND_MASK) {
+  case CAML_BA_FLOAT32:
+    return caml_copy_float32(((float *) b->data)[offset]);
+  default:
+    caml_invalid_argument("Float32.Bigarray.get: wrong kind");
+  }
+}
+
+CAMLprim value caml_ba_float32_get_1(value vb, value vind1)
+{
+  return caml_ba_float32_get_aux(vb, &vind1, 1);
+}
+
+CAMLprim value caml_ba_float32_get_2(value vb, value vind1, value vind2)
+{
+  value vind[2];
+  vind[0] = vind1;
+  vind[1] = vind2;
+  return caml_ba_float32_get_aux(vb, vind, 2);
+}
+
+CAMLprim value caml_ba_float32_get_3(value vb, value vind1, value vind2,
+                                     value vind3)
+{
+  value vind[3];
+  vind[0] = vind1;
+  vind[1] = vind2;
+  vind[2] = vind3;
+  return caml_ba_float32_get_aux(vb, vind, 3);
+}
+
+static value caml_ba_float32_set_aux(value vb, volatile value * vind,
+                                     intnat nind, value newval)
+{
+  struct caml_ba_array * b = Caml_ba_array_val(vb);
+  intnat index[CAML_BA_MAX_NUM_DIMS];
+  int i;
+  intnat offset;
+
+  /* Check number of indices = number of dimensions of array
+     (maybe not necessary if ML typing guarantees this) */
+  if (nind != b->num_dims)
+    caml_invalid_argument("Float32.Bigarray.set: wrong number of indices");
+  /* Compute offset and check bounds */
+  for (i = 0; i < b->num_dims; i++) index[i] = Long_val(vind[i]);
+  offset = caml_ba_offset(b, index);
+  /* Perform write */
+  switch (b->flags & CAML_BA_KIND_MASK) {
+  case CAML_BA_FLOAT32:
+    ((float *) b->data)[offset] = Float32_val(newval);
+    break;
+  default:
+    caml_invalid_argument("Float32.Bigarray.get: wrong kind");
+  }
+  return Val_unit;
+}
+
+CAMLprim value caml_ba_float32_set_1(value vb, value vind1, value newval)
+{
+  return caml_ba_float32_set_aux(vb, &vind1, 1, newval);
+}
+
+CAMLprim value caml_ba_float32_set_2(value vb, value vind1, value vind2,
+                                     value newval)
+{
+  value vind[2];
+  vind[0] = vind1;
+  vind[1] = vind2;
+  return caml_ba_float32_set_aux(vb, vind, 2, newval);
+}
+
+CAMLprim value caml_ba_float32_set_3(value vb, value vind1, value vind2,
+                                     value vind3, value newval)
+{
+  value vind[3];
+  vind[0] = vind1;
+  vind[1] = vind2;
+  vind[2] = vind3;
+  return caml_ba_float32_set_aux(vb, vind, 3, newval);
 }
 
 /*
