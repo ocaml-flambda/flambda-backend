@@ -358,6 +358,7 @@ let compute_static_size lam =
     | Pfloat_array_set_128 _
     | Pint_array_set_128 _
     | Punboxed_float_array_set_128 _
+    | Punboxed_float32_array_set_128 _
     | Punboxed_int32_array_set_128 _
     | Punboxed_int64_array_set_128 _
     | Punboxed_nativeint_array_set_128 _ ->
@@ -382,6 +383,7 @@ let compute_static_size lam =
     | Pfloat_array_load_128 _
     | Pint_array_load_128 _
     | Punboxed_float_array_load_128 _
+    | Punboxed_float32_array_load_128 _
     | Punboxed_int32_array_load_128 _
     | Punboxed_int64_array_load_128 _
     | Punboxed_nativeint_array_load_128 _
