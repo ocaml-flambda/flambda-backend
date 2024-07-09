@@ -2056,7 +2056,7 @@ module Violation = struct
     let subjkind_format verb l2 =
       match to_const l2 with
       | None -> dprintf "%s representable" verb
-      | Some _ -> dprintf "%s a subkind of %a" verb format l2
+      | Some _ -> dprintf "%s a sublayout of %a" verb format l2
     in
     let l1, l2, fmt_l1, fmt_l2, missing_cmi_option =
       match t with
@@ -2068,25 +2068,29 @@ module Violation = struct
         in
         match missing_cmi with
         | None ->
-          l1, l2, dprintf "kind %a" format l1, subjkind_format "is not" l2, None
+          ( l1,
+            l2,
+            dprintf "layout %a" format l1,
+            subjkind_format "is not" l2,
+            None )
         | Some p ->
           ( l1,
             l2,
-            dprintf "an unknown kind",
+            dprintf "an unknown layout",
             subjkind_format "might not be" l2,
             Some p ))
       | { violation = No_intersection (l1, l2); missing_cmi } ->
         assert (Option.is_none missing_cmi);
         ( l1,
           l2,
-          dprintf "kind %a" format l1,
+          dprintf "layout %a" format l1,
           dprintf "does not overlap with %a" format l2,
           None )
       | { violation = No_union (l1, l2); missing_cmi } ->
         assert (Option.is_none missing_cmi);
         ( l1,
           l2,
-          dprintf "kind %a" format l1,
+          dprintf "layout %a" format l1,
           dprintf "cannot be summed with %a" format l2,
           None )
     in
@@ -2094,18 +2098,18 @@ module Violation = struct
     then
       let connective =
         match t.violation, to_const l2 with
-        | Not_a_subjkind _, Some _ -> dprintf "be a subkind of %a" format l2
+        | Not_a_subjkind _, Some _ -> dprintf "be a sublayout of %a" format l2
         | No_intersection _, Some _ -> dprintf "overlap with %a" format l2
         | No_union _, Some _ -> dprintf "sum with %a" format l2
         | _, None -> dprintf "be representable"
       in
       fprintf ppf "@[<v>%a@;%a@]"
         (format_history
-           ~intro:(dprintf "The kind of %a is %a" pp_former former format l1))
+           ~intro:(dprintf "The layout of %a is %a" pp_former former format l1))
         l1
         (format_history
            ~intro:
-             (dprintf "But the kind of %a must %t" pp_former former connective))
+             (dprintf "But the layout of %a must %t" pp_former former connective))
         l2
     else
       fprintf ppf "@[<hov 2>%s%a has %t,@ which %t.@]" preamble pp_former former
@@ -2121,7 +2125,7 @@ module Violation = struct
   let report_with_offender ~offender = report_general "" pp_t offender
 
   let report_with_offender_sort ~offender =
-    report_general "A representable kind was expected, but " pp_t offender
+    report_general "A representable layout was expected, but " pp_t offender
 
   let report_with_name ~name = report_general "" pp_print_string name
 end
