@@ -247,7 +247,7 @@ let type_to_field_integrity_check type_ ~access1 ~access2 ~message =
     | Imm -> "check_int", None
     | Float -> "check_float", None
     | Float64 -> "check_float", Some "Stdlib_upstream_compatible.Float_u.to_float"
-    | Float32 -> "check_float32", Some "Stdlib_beta.Float32_u.to_float32"
+    | Float32 -> "check_float32", Some "Stdlib_stable.Float32_u.to_float32"
     | Bits32 -> "check_int32", Some "Stdlib_upstream_compatible.Int32_u.to_int32"
     | Bits64 -> "check_int64", Some "Stdlib_upstream_compatible.Int64_u.to_int64"
     | Word -> "check_int", Some "Stdlib_upstream_compatible.Nativeint_u.to_int"
@@ -612,8 +612,8 @@ let main n ~bytecode =
     List.iter2 values (List.tl values @ [ List.hd values]) ~f
   in
   line {|(* TEST
- flags = "-extension layouts_beta -extension small_numbers";
- include stdlib_beta;
+ flags = "-extension layouts_beta";
+ include stdlib_stable;
  include stdlib_upstream_compatible;|};
   if bytecode then (
     line {| bytecode;|};
@@ -628,9 +628,9 @@ let main n ~bytecode =
   line {|let create_string () = String.make (Random.int 100) 'a'|};
   line {|let create_int () = Random.int 0x3FFF_FFFF|};
   line {|let create_float () = Random.float Float.max_float|};
-  line {|let create_float32 () = Stdlib_beta.Float32.of_float (Random.float Float.max_float)|};
+  line {|let create_float32 () = Stdlib_stable.Float32.of_float (Random.float Float.max_float)|};
   line {|let create_float_u () = Stdlib_upstream_compatible.Float_u.of_float (create_float ())|};
-  line {|let create_float32_u () = Stdlib_beta.Float32_u.of_float32 (create_float32 ())|};
+  line {|let create_float32_u () = Stdlib_stable.Float32_u.of_float32 (create_float32 ())|};
   line {|let create_int32_u () = Stdlib_upstream_compatible.Int32_u.of_int32 (Random.int32 0x7FFF_FFFFl)|};
   line {|let create_int64_u () = Stdlib_upstream_compatible.Int64_u.of_int64 (Random.int64 0x7FFF_FFFF_FFFF_FFFFL)|};
   line {|let create_nativeint_u () = Stdlib_upstream_compatible.Nativeint_u.of_nativeint (Random.nativeint 0x7FFF_FFFF_FFFF_FFFFn)|};
@@ -648,7 +648,7 @@ let main n ~bytecode =
   check_gen ~equal:Float.equal ~to_string:Float.to_string|};
   line
    {|let check_float32 =
-  check_gen ~equal:Stdlib_beta.Float32.equal ~to_string:Stdlib_beta.Float32.to_string|};
+  check_gen ~equal:Stdlib_stable.Float32.equal ~to_string:Stdlib_stable.Float32.to_string|};
   line
    {|let check_int32 =
   check_gen ~equal:Int32.equal ~to_string:Int32.to_string|};
