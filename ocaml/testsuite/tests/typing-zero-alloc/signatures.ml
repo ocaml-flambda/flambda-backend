@@ -1219,7 +1219,9 @@ end = struct
 end
 [%%expect{|
 module type S = sig module M : sig val f : int -> int end end
->> Fatal error: zero_alloc: variable constraint
-Uncaught exception: Misc.Fatal_error
-
+module N :
+  sig
+    module Plain : sig val f : int -> int end
+    module type S_plain = sig module M : sig val f : int -> int end end
+  end
 |}]
