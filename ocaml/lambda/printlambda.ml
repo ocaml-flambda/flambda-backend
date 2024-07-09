@@ -738,6 +738,9 @@ let primitive ppf = function
   | Punboxed_float_array_load_128 {unsafe; mode} ->
      if unsafe then fprintf ppf "unboxed_float_array.unsafe_get128%s" (alloc_kind mode)
      else fprintf ppf "unboxed_float_array.get128%s" (alloc_kind mode)
+  | Punboxed_float32_array_load_128 {unsafe; mode} ->
+     if unsafe then fprintf ppf "unboxed_float32_array.unsafe_get128%s" (alloc_kind mode)
+     else fprintf ppf "unboxed_float32_array.get128%s" (alloc_kind mode)
   | Punboxed_int32_array_load_128 {unsafe; mode} ->
      if unsafe then fprintf ppf "unboxed_int32_array.unsafe_get128%s" (alloc_kind mode)
      else fprintf ppf "unboxed_int32_array.get128%s" (alloc_kind mode)
@@ -759,6 +762,9 @@ let primitive ppf = function
   | Punboxed_float_array_set_128 {unsafe} ->
      if unsafe then fprintf ppf "unboxed_float_array.unsafe_set128"
      else fprintf ppf "unboxed_float_array.set128"
+  | Punboxed_float32_array_set_128 {unsafe} ->
+     if unsafe then fprintf ppf "unboxed_float32_array.unsafe_set128"
+     else fprintf ppf "unboxed_float32_array.set128"
   | Punboxed_int32_array_set_128 {unsafe} ->
      if unsafe then fprintf ppf "unboxed_int32_array.unsafe_set128"
      else fprintf ppf "unboxed_int32_array.set128"
@@ -920,6 +926,7 @@ let name_of_primitive = function
   | Pfloat_array_load_128 _ -> "Pfloat_array_load_128"
   | Pint_array_load_128 _ -> "Pint_array_load_128"
   | Punboxed_float_array_load_128 _ -> "Punboxed_float_array_load_128"
+  | Punboxed_float32_array_load_128 _ -> "Punboxed_float32_array_load_128"
   | Punboxed_int32_array_load_128 _ -> "Punboxed_int32_array_load_128"
   | Punboxed_int64_array_load_128 _ -> "Punboxed_int64_array_load_128"
   | Punboxed_nativeint_array_load_128 _ -> "Punboxed_nativeint_array_load_128"
@@ -927,6 +934,7 @@ let name_of_primitive = function
   | Pfloat_array_set_128 _ -> "Pfloat_array_set_128"
   | Pint_array_set_128 _ -> "Pint_array_set_128"
   | Punboxed_float_array_set_128 _ -> "Punboxed_float_array_set_128"
+  | Punboxed_float32_array_set_128 _ -> "Punboxed_float32_array_set_128"
   | Punboxed_int32_array_set_128 _ -> "Punboxed_int32_array_set_128"
   | Punboxed_int64_array_set_128 _ -> "Punboxed_int64_array_set_128"
   | Punboxed_nativeint_array_set_128 _ -> "Punboxed_nativeint_array_set_128"

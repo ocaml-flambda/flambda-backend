@@ -1845,6 +1845,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Punboxed_float_array_load_128 { unsafe; mode }, [[array]; [index]] ->
     [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode
         Naked_floats array index ]
+  | Punboxed_float32_array_load_128 { unsafe; mode }, [[array]; [index]] ->
+    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode
+        Naked_float32s array index ]
   | Pint_array_load_128 { unsafe; mode }, [[array]; [index]] ->
     if Targetint.size <> 64
     then Misc.fatal_error "[Pint_array_load_128]: immediates must be 64 bits.";
@@ -1870,6 +1873,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pfloatarray_set_128 { unsafe }, [[array]; [index]; [new_value]]
   | Punboxed_float_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
     [ array_like_set_128 ~dbg ~size_int ~unsafe Naked_floats array index
+        new_value ]
+  | Punboxed_float32_array_set_128 { unsafe }, [[array]; [index]; [new_value]]
+    ->
+    [ array_like_set_128 ~dbg ~size_int ~unsafe Naked_float32s array index
         new_value ]
   | Pint_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
     if Targetint.size <> 64
@@ -1985,8 +1992,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_f32 _
       | Pbigstring_load_64 _ | Pbigstring_load_128 _ | Pfloatarray_load_128 _
       | Pfloat_array_load_128 _ | Pint_array_load_128 _
-      | Punboxed_float_array_load_128 _ | Punboxed_int32_array_load_128 _
-      | Punboxed_int64_array_load_128 _ | Punboxed_nativeint_array_load_128 _
+      | Punboxed_float_array_load_128 _ | Punboxed_float32_array_load_128 _
+      | Punboxed_int32_array_load_128 _ | Punboxed_int64_array_load_128 _
+      | Punboxed_nativeint_array_load_128 _
       | Parrayrefu
           ( ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref
             | Pfloatarray_ref _ | Punboxedfloatarray_ref _
@@ -2023,9 +2031,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pbytes_set_128 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
       | Pbigstring_set_f32 _ | Pbigstring_set_64 _ | Pbigstring_set_128 _
       | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
-      | Punboxed_float_array_set_128 _ | Punboxed_int32_array_set_128 _
-      | Punboxed_int64_array_set_128 _ | Punboxed_nativeint_array_set_128 _
-      | Patomic_cas ),
+      | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
+      | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
+      | Punboxed_nativeint_array_set_128 _ | Patomic_cas ),
       ( []
       | [_]
       | [_; _]
