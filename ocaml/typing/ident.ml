@@ -61,7 +61,7 @@ let create_local_binding_for_global glob =
 let create_instance head args =
   create_global (Global_module.Name.create head args)
 
-let global_name g = Format.asprintf "%a" Global_module.Name.print g
+let global_name g = Global_module.Name.to_string g
 
 let name = function
   | Local { name; _ }
