@@ -35,9 +35,8 @@ type transient_expr =
 
 and type_expr = transient_expr
 
-(* TODO jbachurski: Tvars and Tunivars *)
 and type_desc =
-  | Tvar of { name : string option; jkind : jkind }
+  | Tvar of { name : string option; jkind : higher_jkind }
   | Tarrow of arrow_desc * type_expr * type_expr * commutable
   | Ttuple of (string option * type_expr) list
   | Tconstr of Path.t * type_expr list * abbrev_memo ref
@@ -47,7 +46,7 @@ and type_desc =
   | Tlink of type_expr
   | Tsubst of type_expr * type_expr option
   | Tvariant of row_desc
-  | Tunivar of { name : string option; jkind : jkind }
+  | Tunivar of { name : string option; jkind : higher_jkind }
   | Tpoly of type_expr * type_expr list
   | Tpackage of Path.t * (Longident.t * type_expr) list
 

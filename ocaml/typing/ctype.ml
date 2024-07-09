@@ -251,7 +251,7 @@ let new_scoped_ty scope desc = newty3 ~level:!current_level ~scope desc
 let newvar ?name jkind =
   newty2 ~level:!current_level (Tvar { name; jkind })
 let new_rep_var ?name ~why () =
-  let jkind, sort = Jkind.Type.of_new_sort_var ~why in
+  let jkind, sort = Jkind.of_new_sort_var ~why in
   newvar ?name jkind, sort
 let newvar2 ?name level jkind = newty2 ~level (Tvar { name; jkind })
 let new_global_var ?name jkind =
@@ -535,8 +535,8 @@ let remove_mode_and_jkind_variables ty =
     if TypeSet.mem ty !visited then () else begin
       visited := TypeSet.add ty !visited;
       match get_desc ty with
-      | Tvar { jkind } -> Jkind.Type.default_to_value jkind
-      | Tunivar { jkind } -> Jkind.Type.default_to_value jkind
+      | Tvar { jkind } -> Jkind.default_to_value jkind
+      | Tunivar { jkind } -> Jkind.default_to_value jkind
       | Tarrow ((_,marg,mret),targ,tret,_) ->
          let _ = Alloc.zap_to_legacy marg in
          let _ = Alloc.zap_to_legacy mret in
@@ -1191,9 +1191,9 @@ let rec copy ?partial ?keep_names copy_scope ty =
       (* Using jkind "any" is ok here: We're forgetting the type because it
          will be unified with the original later. *)
       newty2 ~level:forget
-        (Tvar { name = None; jkind = Jkind.Type.Primitive.any ~why:Dummy_jkind })
+        (Tvar { name = None; jkind = Jkind.Primitive.any ~why:Dummy_jkind })
     else
-    let t = newstub ~scope:(get_scope ty) (Jkind.Type.Primitive.any ~why:Dummy_jkind) in
+    let t = newstub ~scope:(get_scope ty) (Jkind.Primitive.any ~why:Dummy_jkind) in
     For_copy.redirect_desc copy_scope ty (Tsubst (t, None));
     let desc' =
       match desc with
@@ -1263,7 +1263,7 @@ let rec copy ?partial ?keep_names copy_scope ty =
                     if row_closed row && not (is_fixed row)
                     && TypeSet.is_empty (free_univars ty)
                     && not (List.for_all not_reither fields) then
-                      let more' = newvar (Jkind.Type.Primitive.value ~why:Row_variable) in
+                      let more' = newvar (Jkind.Primitive.value ~why:Row_variable) in
                       (more',
                        create_row ~fields:(List.filter not_reither fields)
                          ~more:more' ~closed:false ~fixed:None ~name:None)
@@ -1366,7 +1366,7 @@ let instance_constructor existential_treatment cstr =
                for it *)
             let jkind =
               match get_desc existential with
-              | Tvar { jkind } -> Jkind_types.Type jkind
+              | Tvar { jkind } -> jkind
               | Tvariant _ -> Jkind.Primitive.value ~why:Row_variable
                   (* Existential row variable *)
               | _ -> assert false
@@ -1496,13 +1496,13 @@ let copy_sep ~copy_scope ~fixed ~(visited : type_expr TypeHash.t) sch =
     if is_Tvar ty || may_share && TypeSet.is_empty univars then
       if get_level ty <> generic_level then ty else
       (* jkind not consulted during copy_sep, so Any is safe *)
-      let t = newstub ~scope:(get_scope ty) (Jkind.Type.Primitive.any ~why:Dummy_jkind) in
+      let t = newstub ~scope:(get_scope ty) (Jkind.Primitive.any ~why:Dummy_jkind) in
       add_delayed_copy t ty;
       t
     else try
       TypeHash.find visited ty
     with Not_found -> begin
-      let t = newstub ~scope:(get_scope ty) (Jkind.Type.Primitive.any ~why:Dummy_jkind) in
+      let t = newstub ~scope:(get_scope ty) (Jkind.Primitive.any ~why:Dummy_jkind) in
       TypeHash.add visited ty t;
       let desc' =
         match get_desc ty with
@@ -1515,7 +1515,7 @@ let copy_sep ~copy_scope ~fixed ~(visited : type_expr TypeHash.t) sch =
             if keep then
               (add_delayed_copy t ty;
                Tvar { name = None;
-                      jkind = Jkind.Type.Primitive.value ~why:Polymorphic_variant })
+                      jkind = Jkind.Primitive.value ~why:Polymorphic_variant })
             else
             let more' = copy_rec ~may_share:false more in
             let fixed' = fixed && (is_Tvar more || is_Tunivar more) in
@@ -1666,7 +1666,7 @@ let instance_prim_layout (desc : Primitive.description) ty =
       jkind
     | None ->
       let jkind, sort =
-        Jkind.Type.of_new_sort_var ~why:Layout_poly_in_external
+        Jkind.of_new_sort_var ~why:Layout_poly_in_external
       in
       new_sort_and_jkind := Some (sort, jkind);
       jkind
@@ -1678,10 +1678,10 @@ let instance_prim_layout (desc : Primitive.description) ty =
          from an outer scope *)
       if level = generic_level && try_mark_node ty then begin
         begin match get_desc ty with
-        | Tvar ({ jkind; _ } as r) when Jkind.Type.has_layout_any jkind ->
+        | Tvar ({ jkind = Type jkind; _ } as r) when Jkind.Type.has_layout_any jkind ->
           For_copy.redirect_desc copy_scope ty
             (Tvar {r with jkind = get_jkind ()})
-        | Tunivar ({ jkind; _ } as r) when Jkind.Type.has_layout_any jkind ->
+        | Tunivar ({ jkind = Type jkind; _ } as r) when Jkind.Type.has_layout_any jkind ->
           For_copy.redirect_desc copy_scope ty
             (Tunivar {r with jkind = get_jkind ()})
         | _ -> ()
@@ -1727,7 +1727,7 @@ let subst env level priv abbrev oty params args body =
   if List.length params <> List.length args then raise Cannot_subst;
   let old_level = !current_level in
   current_level := level;
-  let body0 = newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind) in          (* Stub *)
+  let body0 = newvar (Jkind.Primitive.any ~why:Dummy_jkind) in          (* Stub *)
   let undo_abbrev =
     match oty with
     | None -> fun () -> () (* No abbreviation added *)
@@ -2066,11 +2066,11 @@ let get_unboxed_type_approximation env ty =
      in case the caller wants to update it. *)
 type jkind_result =
   | Jkind of Jkind.t
-  | TyVar of Jkind.Type.t * type_expr
+  | TyVar of Jkind.t * type_expr
 
 let jkind_of_result = function
   | Jkind l -> l
-  | TyVar (l,_) -> Jkind_types.Type l
+  | TyVar (l,_) -> l
 
 let tvariant_not_immediate row =
   (* if all labels are devoid of arguments, not a pointer *)
@@ -2113,7 +2113,7 @@ let rec estimate_type_jkind env ty =
        generalized.
 
        This, however, still allows sort variables to get instantiated. *)
-    Jkind (Type jkind)
+    Jkind jkind
   | Tvar { jkind } -> TyVar (jkind, ty)
   | Tarrow _ -> Jkind (Primitive.value ~why:Arrow)
   | Ttuple _ -> Jkind (Primitive.value ~why:Tuple)
@@ -2121,7 +2121,7 @@ let rec estimate_type_jkind env ty =
   | Tfield _ -> Jkind (Primitive.value ~why:Tfield)
   | Tnil -> Jkind (Primitive.value ~why:Tnil)
   | (Tlink _ | Tsubst _) -> assert false
-  | Tunivar { jkind } -> Jkind (Type jkind)
+  | Tunivar { jkind } -> Jkind jkind
   | Tpoly (ty, _) -> estimate_type_jkind env ty
   | Tpackage _ -> Jkind (Primitive.value ~why:First_class_module)
 
@@ -2132,7 +2132,7 @@ type type_jkind_sub_result =
     (* The [Type_var] case might still be "success"; caller should check.
        We don't just report success here because if the caller unifies the
        tyvar, error messages improve. *)
-  | Type_var of Jkind.Type.t * type_expr
+  | Type_var of Jkind.t * type_expr
   | Missing_cmi of Jkind.t * Path.t
   | Failure of Jkind.t
 
@@ -2192,16 +2192,12 @@ let constrain_type_jkind ~fixed env ty jkind =
   match type_jkind_sub env ty jkind with
   | Success -> Ok ()
   | Type_var (ty_jkind, ty) ->
-    (* FIXME jbachurski: This should be fixed once type variables have higher jkinds. *)
-    if fixed then Jkind.sub_or_error (Type ty_jkind) jkind else
-    let jkind = Jkind.to_type_jkind jkind in
+    if fixed then Jkind.sub_or_error ty_jkind jkind else
     let jkind_inter =
-      Jkind.Type.intersection_or_error ~reason:Tyvar_refinement_intersection
+      Jkind.intersection_or_error ~reason:Tyvar_refinement_intersection
         ty_jkind jkind
     in
-    jkind_inter
-    |> Result.map (set_var_jkind ty)
-    |> Result.map_error (Jkind.Violation.of_type_jkind)
+    Result.map (set_var_jkind ty) jkind_inter
   | Missing_cmi (ty_jkind, missing_cmi) ->
     Error Jkind.(Violation.of_ ~missing_cmi (Not_a_subjkind ((History.update_reason ty_jkind (Missing_cmi missing_cmi), jkind))))
   | Failure ty_jkind ->
@@ -2338,14 +2334,16 @@ let check_and_update_generalized_ty_jkind ?name ~loc ty =
     let level = get_level ty in
     if try_mark_node ty then begin
       begin match get_desc ty with
-      | Tvar ({ jkind; _ } as r) ->
+      (* FIXME jbachurski: This just seems to be an interaction with extension levels
+         and histories *)
+      | Tvar ({ jkind = Type jkind; _ } as r) ->
         let new_jkind = immediacy_check jkind in
         let new_jkind = generalization_check level new_jkind in
-        set_type_desc ty (Tvar {r with jkind = new_jkind})
-      | Tunivar ({ jkind; _ } as r) ->
+        set_type_desc ty (Tvar {r with jkind = Type new_jkind})
+      | Tunivar ({ jkind = Type jkind; _ } as r) ->
         let new_jkind = immediacy_check jkind in
         let new_jkind = generalization_check level new_jkind in
-        set_type_desc ty (Tunivar {r with jkind = new_jkind})
+        set_type_desc ty (Tunivar {r with jkind = Type new_jkind})
       | _ -> ()
       end;
       iter_type_expr inner ty
@@ -2529,7 +2527,7 @@ let local_non_recursive_abbrev env p ty =
    They carry redundant information but are added to save two calls to
    [get_desc] which are usually performed already at the call site. *)
 let unify_univar t1 t2 jkind1 jkind2 pairs =
-  if not (Jkind.Type.equal jkind1 jkind2) then raise Cannot_unify_universal_variables;
+  if not (Jkind.equal jkind1 jkind2) then raise Cannot_unify_universal_variables;
   let rec inner t1 t2 = function
     (cl1, cl2) :: rem ->
       let find_univ t cl =
@@ -2827,6 +2825,7 @@ let reify env t =
       visited := TypeSet.add ty !visited;
       match get_desc ty with
         Tvar { name; jkind } ->
+          let jkind = Jkind.to_type_jkind jkind  in
           let level = get_level ty in
           let path, t = create_fresh_constr level name jkind in
           link_type ty t;
@@ -2838,6 +2837,7 @@ let reify env t =
             let m = row_more r in
             match get_desc m with
               Tvar { name; jkind }  ->
+                let jkind = Jkind.to_type_jkind jkind in
                 let level = get_level m in
                 let path, t = create_fresh_constr level name jkind in
                 let row =
@@ -2946,7 +2946,7 @@ let rec mcomp type_pairs env t1 t2 =
   if eq_type t1 t2 then () else
   match (get_desc t1, get_desc t2, t1, t2) with
   | (Tvar { jkind }, _, _, other)
-  | (_, Tvar { jkind }, other, _) -> check_jkinds other (Type jkind)
+  | (_, Tvar { jkind }, other, _) -> check_jkinds other jkind
   | (Tconstr (p1, [], _), Tconstr (p2, [], _), _, _) when Path.same p1 p2 ->
       ()
   | _ ->
@@ -2958,7 +2958,7 @@ let rec mcomp type_pairs env t1 t2 =
         TypePairs.add type_pairs (t1', t2');
         match (get_desc t1', get_desc t2', t1', t2') with
         | (Tvar { jkind }, _, _, other)
-        | (_, Tvar { jkind }, other, _)  -> check_jkinds other (Type jkind)
+        | (_, Tvar { jkind }, other, _)  -> check_jkinds other jkind
         | (Tarrow ((l1,_,_), t1, u1, _), Tarrow ((l2,_,_), t2, u2, _), _, _)
           when equivalent_with_nolabels l1 l2 ->
             mcomp type_pairs env t1 t2;
@@ -3350,7 +3350,7 @@ let unify1_var env t1 t2 =
   occur_for Unify env t1 t2;
   match
     occur_univar_for Unify env t2;
-    unification_jkind_check env t2 (Type jkind)
+    unification_jkind_check env t2 jkind
   with
   | () ->
       begin
@@ -3532,9 +3532,9 @@ and unify3 env t1 t1' t2 t2' =
       unify_univar_for Unify t1' t2' k1 k2 !univar_pairs;
       link_type t1' t2'
   | (Tvar { jkind }, _) ->
-      unify3_var env (Type jkind) t1' t2 t2'
+      unify3_var env jkind t1' t2 t2'
   | (_, Tvar { jkind }) ->
-      unify3_var env (Type jkind) t2' t1 t1'
+      unify3_var env jkind t2' t1 t1'
   | (Tfield _, Tfield _) -> (* special case for GADTs *)
       unify_fields env t1' t2'
   | _ ->
@@ -3732,7 +3732,7 @@ and make_rowvar level use1 rest1 use2 rest2  =
   in
   if use1 then rest1 else
   if use2 then rest2
-  else newty2 ~level (Tvar { name; jkind = Jkind.Type.Primitive.value ~why:Row_variable })
+  else newty2 ~level (Tvar { name; jkind = Jkind.Primitive.value ~why:Row_variable })
 
 and unify_fields env ty1 ty2 =          (* Optimization *)
   let (fields1, rest1) = flatten_fields ty1
@@ -3795,7 +3795,7 @@ and unify_row env row1 row2 =
     | None, Some _ -> rm2
     | None, None ->
         newty2 ~level:(Int.min (get_level rm1) (get_level rm2))
-          (Tvar { name = None; jkind = Jkind.Type.Primitive.value ~why:Row_variable })
+          (Tvar { name = None; jkind = Jkind.Primitive.value ~why:Row_variable })
   in
   let fixed = merge_fixed_explanation fixed1 fixed2
   and closed = row1_closed || row2_closed in
@@ -4008,7 +4008,7 @@ let unify_var ~from_subst env t1 t2 =
         update_level_for Unify env (get_level t1) t2;
         update_scope_for Unify (get_scope t1) t2;
         if not from_subst then begin
-          unification_jkind_check env t2 (Type jkind)
+          unification_jkind_check env t2 jkind
         end;
         link_type t1 t2;
         reset_trace_gadt_instances reset_tracing;
@@ -4039,7 +4039,7 @@ let unify_delaying_jkind_checks env ty1 ty2 =
 
 (* Lower the level of a type to the current level *)
 let enforce_current_level env ty =
-  unify_var env (newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind)) ty
+  unify_var env (newvar (Jkind.Primitive.any ~why:Dummy_jkind)) ty
 
 
 (**** Special cases of unification ****)
@@ -4078,8 +4078,8 @@ type filtered_arrow =
 
 let filter_arrow env t l ~force_tpoly =
   let function_type level =
-    let k_arg = Jkind.Type.Primitive.any ~why:Inside_of_Tarrow in
-    let k_res = Jkind.Type.Primitive.any ~why:Inside_of_Tarrow in
+    let k_arg = Jkind.Primitive.any ~why:Inside_of_Tarrow in
+    let k_res = Jkind.Primitive.any ~why:Inside_of_Tarrow in
     let ty_arg =
       if not force_tpoly then begin
         assert (not (is_optional l));
@@ -4091,7 +4091,7 @@ let filter_arrow env t l ~force_tpoly =
               (* CR layouts v5: Change the Jkind.Type.Primitive.value when option can
                  hold non-values. *)
               (Tconstr(Predef.path_option,
-                       [newvar2 level Predef.option_argument_jkind],
+                       [newvar2 level (Type Predef.option_argument_jkind)],
                        ref Mnil))
           else if is_position l then
             newty2 ~level (Tconstr (Predef.path_lexing_position, [], ref Mnil))
@@ -4122,7 +4122,7 @@ let filter_arrow env t l ~force_tpoly =
   match get_desc t with
     Tvar { jkind } ->
       let t', arrow_desc = function_type (get_level t) in
-      begin match constrain_type_jkind env t' (Type jkind) with
+      begin match constrain_type_jkind env t' jkind with
       | Ok _ -> ()
       | Error err ->
         raise (Filter_arrow_failed
@@ -4173,8 +4173,8 @@ exception Filter_method_failed of filter_method_failure
 (* Used by [filter_method]. *)
 let rec filter_method_field env name ty =
   let method_type ~level =
-      let ty1 = newvar2 level (Jkind.Type.Primitive.value ~why:Object_field) in
-      let ty2 = newvar2 level (Jkind.Type.Primitive.value ~why:Row_variable) in
+      let ty1 = newvar2 level (Jkind.Primitive.value ~why:Object_field) in
+      let ty2 = newvar2 level (Jkind.Primitive.value ~why:Row_variable) in
       let ty' = newty2 ~level (Tfield (name, field_public, ty1, ty2)) in
       ty', ty1
   in
@@ -4207,7 +4207,7 @@ let rec filter_method_field env name ty =
 (* Unify [ty] and [< name : 'a; .. >]. Return ['a]. *)
 let filter_method env name ty =
   let object_type ~level ~scope =
-      let ty1 = newvar2 level (Jkind.Type.Primitive.value ~why:Row_variable) in
+      let ty1 = newvar2 level (Jkind.Primitive.value ~why:Row_variable) in
       let ty' = newty3 ~level ~scope (Tobject (ty1, ref None)) in
       let ty_meth = filter_method_field env name ty1 in
       (ty', ty_meth)
@@ -4249,8 +4249,8 @@ let rec filter_method_row env name priv ty =
   match get_desc ty with
   | Tvar _ ->
       let level = get_level ty in
-      let field = newvar2 level (Jkind.Type.Primitive.value ~why:Object_field) in
-      let row = newvar2 level (Jkind.Type.Primitive.value ~why:Row_variable) in
+      let field = newvar2 level (Jkind.Primitive.value ~why:Object_field) in
+      let row = newvar2 level (Jkind.Primitive.value ~why:Row_variable) in
       let kind, priv =
         match priv with
         | Private ->
@@ -4286,7 +4286,7 @@ let rec filter_method_row env name priv ty =
         | Private ->
           let level = get_level ty in
           let kind = field_absent in
-          Mprivate kind, newvar2 level (Jkind.Type.Primitive.value ~why:Object_field), ty
+          Mprivate kind, newvar2 level (Jkind.Primitive.value ~why:Object_field), ty
       end
   | _ ->
       raise Filter_method_row_failed
@@ -4294,7 +4294,7 @@ let rec filter_method_row env name priv ty =
 (* Operations on class signatures *)
 
 let new_class_signature () =
-  let row = newvar (Jkind.Type.Primitive.value ~why:Row_variable) in
+  let row = newvar (Jkind.Primitive.value ~why:Row_variable) in
   let self = newobj row in
   { csig_self = self;
     csig_self_row = row;
@@ -4529,7 +4529,7 @@ let generalize_class_signature_spine env sign =
   (* But keep levels correct on the type of self *)
   Meths.iter
     (fun _ (_, _, ty) ->
-       unify_var env (newvar (Jkind.Type.Primitive.value ~why:Object)) ty)
+       unify_var env (newvar (Jkind.Primitive.value ~why:Object)) ty)
     meths;
   sign.csig_meths <- new_meths
 
@@ -4626,7 +4626,7 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
         occur_for Moregen env t1 t2;
         (* use [check], not [constrain], here because [constrain] would be like
         instantiating [t2], which we do not wish to do *)
-        check_type_jkind_exn env Moregen t2 (Type jkind);
+        check_type_jkind_exn env Moregen t2 jkind;
         link_type t1 t2
     | (Tconstr (p1, [], _), Tconstr (p2, [], _)) when Path.same p1 p2 ->
         ()
@@ -4644,7 +4644,7 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
               update_scope_for Moregen (get_scope t1') t2;
               (* use [check], not [constrain], here because [constrain] would be like
               instantiating [t2], which we do not wish to do *)
-              check_type_jkind_exn env Moregen t2 (Type jkind);
+              check_type_jkind_exn env Moregen t2 jkind;
               link_type t1' t2
           | (Tarrow ((l1,a1,r1), t1, u1, _),
              Tarrow ((l2,a2,r2), t2, u2, _)) when
@@ -4931,7 +4931,7 @@ let all_distinct_vars env vars =
 
 type matches_result =
   | Unification_failure of Errortrace.unification_error
-  | Jkind_mismatch of { original_jkind : jkind; inferred_jkind : jkind
+  | Jkind_mismatch of { original_jkind : higher_jkind; inferred_jkind : higher_jkind
                        ; ty : type_expr }
   | All_good
 
@@ -4976,7 +4976,7 @@ let rigidify ty =
 module No_trace = struct
   type matches_result_ =
     | Unification_failure
-    | Jkind_mismatch of { original_jkind : jkind; inferred_jkind : jkind
+    | Jkind_mismatch of { original_jkind : higher_jkind; inferred_jkind : higher_jkind
                        ; ty : type_expr }
     | All_good
 end
@@ -4994,7 +4994,7 @@ let all_distinct_vars_with_original_jkinds env vars_jkinds =
          tys := TypeSet.add ty !tys;
          match get_desc ty with
          | Tvar { jkind = inferred_jkind } ->
-           if Jkind.Type.equate inferred_jkind original_jkind
+           if Jkind.equate inferred_jkind original_jkind
            then All_good
            else Jkind_mismatch { original_jkind; inferred_jkind; ty }
          | _ -> Unification_failure
@@ -5047,7 +5047,7 @@ let eqtype_subst type_pairs subst t1 l1 t2 l2 =
       !subst
   then ()
   else begin
-    if not (Jkind.Type.equal l1 l2)
+    if not (Jkind.equal l1 l2)
       then raise_for Equality (Unequal_var_jkinds (t1, l1, t2, l2));
     subst := (t1, t2) :: !subst;
     TypePairs.add type_pairs (t1, t2)
@@ -5719,9 +5719,9 @@ let rec build_subtype env (visited : transient_expr list)
           if deep_occur_list ty tl1 then raise Not_found;
           set_type_desc ty
             (Tvar { name = None;
-                    jkind = Jkind.Type.Primitive.value
+                    jkind = Jkind.Primitive.value
                                ~why:(Unknown "build subtype 1")});
-          let t'' = newvar (Jkind.Type.Primitive.value ~why:(Unknown "build subtype 2"))
+          let t'' = newvar (Jkind.Primitive.value ~why:(Unknown "build subtype 2"))
           in
           let loops = (get_id ty, t'') :: loops in
           (* May discard [visited] as level is going down *)
@@ -5761,7 +5761,7 @@ let rec build_subtype env (visited : transient_expr list)
                 else build_subtype env visited loops (not posi) level t
               else
                 if co then build_subtype env visited loops posi level t
-                else (newvar (Jkind.Type.Primitive.value
+                else (newvar (Jkind.Primitive.value
                                 ~why:(Unknown "build_subtype 3")),
                       Changed))
             decl.type_variance tl
@@ -5800,7 +5800,7 @@ let rec build_subtype env (visited : transient_expr list)
       let c = collect fields in
       let row =
         create_row ~fields:(List.map fst fields)
-          ~more:(newvar (Jkind.Type.Primitive.value ~why:Row_variable))
+          ~more:(newvar (Jkind.Primitive.value ~why:Row_variable))
           ~closed:posi ~fixed:None
           ~name:(if c > Unchanged then None else row_name row)
       in
@@ -5822,7 +5822,7 @@ let rec build_subtype env (visited : transient_expr list)
       else (t, Unchanged)
   | Tnil ->
       if posi then
-        let v = newvar (Jkind.Type.Primitive.value ~why:Tnil) in
+        let v = newvar (Jkind.Primitive.value ~why:Tnil) in
         (v, Changed)
       else begin
         warn := true;
@@ -6033,7 +6033,7 @@ and subtype_fields env trace ty1 ty2 cstrs =
   let cstrs =
     if miss2 = [] then cstrs else
     (trace, rest1, build_fields (get_level ty2) miss2
-                     (newvar (Jkind.Type.Primitive.value ~why:Object_field)),
+                     (newvar (Jkind.Primitive.value ~why:Object_field)),
      !univar_pairs) :: cstrs
   in
   List.fold_left
@@ -6143,7 +6143,7 @@ let rec unalias_object ty =
   | Tunivar _ ->
       ty
   | Tconstr _ ->
-      newvar2 level (Jkind.Type.Primitive.any ~why:Dummy_jkind)
+      newvar2 level (Jkind.Primitive.any ~why:Dummy_jkind)
   | _ ->
       assert false
 
@@ -6370,8 +6370,7 @@ let rec nondep_type_rec ?(expand_private=false) env ids ty =
     Tvar _ | Tunivar _ -> ty
   | _ -> try TypeHash.find nondep_hash ty
   with Not_found ->
-    let ty' = newgenstub ~scope:(get_scope ty)
-                (Jkind.Type.Primitive.any ~why:Dummy_jkind) in
+    let ty' = newgenstub ~scope:(get_scope ty) (Jkind.Primitive.any ~why:Dummy_jkind) in
     TypeHash.add nondep_hash ty ty';
     match
       match get_desc ty with

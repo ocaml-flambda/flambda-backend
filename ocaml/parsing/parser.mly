@@ -3870,7 +3870,7 @@ jkind_parameters:
   | LPAREN
     p = jkind
     COMMA
-    ps = separated_nonempty_llist(COMMA, jkind) RPAREN
+    ps = separated_nonempty_llist(COMMA, jkind) RPAREN (* ( jkind, jkind+ )  *)
       { p :: ps }
 ;
 

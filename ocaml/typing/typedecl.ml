@@ -254,14 +254,14 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   in
   let abstract_reason, type_manifest =
     match sdecl.ptype_manifest, abstract_abbrevs with
-    | (None, _ | Some _, None) -> Abstract_def, Some (Ctype.newvar (Jkind.to_type_jkind type_jkind))
+    | (None, _ | Some _, None) -> Abstract_def, Some (Ctype.newvar type_jkind)
     | Some _, Some reason -> reason, None
   in
   let type_params =
     List.map (fun (param, _) ->
         let name = get_type_param_name param in
         let jkind = get_type_param_jkind path param in
-        Btype.newgenvar ?name (Jkind.to_type_jkind jkind))
+        Btype.newgenvar ?name jkind)
       sdecl.ptype_params
   in
   let decl =
@@ -1007,9 +1007,8 @@ let rec check_constraints_rec env loc visited ty =
           raise (Error(loc, Constraint_failed (env, err)))
         | Jkind_mismatch { original_jkind; inferred_jkind; ty } ->
           let violation =
-            Jkind.Type.Violation.of_
+            Jkind.Violation.of_
               (Not_a_subjkind (original_jkind, inferred_jkind))
-            |> Jkind.Violation.of_type_jkind
           in
           raise (Error(loc, Jkind_mismatch_due_to_bad_inference
                             (ty, violation, Check_constraints)))
@@ -1848,7 +1847,7 @@ let check_well_founded_manifest ~abs_env env loc path decl =
   let args =
     (* The jkinds here shouldn't matter for the purposes of
        [check_well_founded] *)
-    List.map (fun _ -> Ctype.newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind))
+    List.map (fun _ -> Ctype.newvar (Jkind.Primitive.any ~why:Dummy_jkind))
       decl.type_params
   in
   let visited = ref TypeMap.empty in
@@ -2684,7 +2683,10 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
        - this isn't a tvar from an outer scopes ([TyVarEnv] gets reset before
          transl)
     *)
-    | Tvar {jkind} when is_layout_poly
+    (* FIXME jbachurski: Is this the way this unwrapping should happen?
+       Is assigning arrows a sort temporarily okay? *)
+    | Tvar { jkind = Type jkind }
+                 when is_layout_poly
                       && Jkind.Type.has_layout_any jkind
                       && get_level ty = Btype.generic_level -> Poly
     | _ ->
@@ -3189,7 +3191,7 @@ let transl_package_constraint ~loc ty =
 let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
   let arity = List.length params in
   Ctype.with_local_level ~post:generalize_decl begin fun () ->
-    let params = List.map (fun jkind -> Ctype.newvar (Jkind.to_type_jkind jkind)) params in
+    let params = List.map (fun jkind -> Ctype.newvar jkind) params in
     { type_params = params;
       type_arity = arity;
       type_kind = Type_abstract Abstract_def;

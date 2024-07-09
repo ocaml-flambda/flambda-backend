@@ -32,7 +32,7 @@ type type_replacement =
   | Type_function of { params : type_expr list; body : type_expr }
 
 type additional_action =
-  | Prepare_for_saving of (Location.t -> jkind -> jkind)
+  | Prepare_for_saving of (Location.t -> higher_jkind -> higher_jkind)
     (* The [Prepare_for_saving] function should be applied to all jkinds when
        saving; this commons them up, truncates their histories, and runs
        a check that all unconstrained variables have been defaulted to value. *)
@@ -79,6 +79,18 @@ type additional_action_config =
   | Duplicate_variables
   | Prepare_for_saving
 
+let rec const_of_higher_jkind (t : Jkind.t) : Jkind.Const.t option = match Jkind.get t with
+  | Type ty -> begin
+    match Jkind.Type.get ty with Const c -> Some (Type c) | Var _ -> None
+  end
+  | Arrow { args; result } ->
+    let args = List.map const_of_higher_jkind args in
+    let result = const_of_higher_jkind result in
+    if List.for_all Option.is_some args && Option.is_some result then
+      Some (Arrow { args = List.map Option.get args; result = Option.get result })
+    else
+      None
+
 let with_additional_action =
   (* Memoize the built-in jkinds *)
   let builtins =
@@ -102,16 +114,17 @@ let with_additional_action =
     | Duplicate_variables -> Duplicate_variables
     | Prepare_for_saving ->
         let prepare_jkind loc jkind =
-          match Jkind.Type.get jkind with
-          | Const const ->
+          match const_of_higher_jkind jkind with
+          | Some const ->
             let builtin =
-              List.find_opt (fun (builtin, _) -> Jkind.Type.Const.equal const builtin) builtins
+              List.find_opt
+                (fun (builtin, _) -> Jkind.Const.equal const (Type builtin)) builtins
             in
             begin match builtin with
-            | Some (__, jkind) -> jkind
-            | None -> Jkind.Type.of_const const ~why:Jkind.Type.History.Imported
+            | Some (__, jkind) -> (Type jkind : higher_jkind)
+            | None -> Jkind.of_const const ~why:Jkind.Type.History.Imported
             end
-          | Var _ -> raise(Error (loc, Unconstrained_jkind_variable))
+          | None -> raise(Error (loc, Unconstrained_jkind_variable))
         in
         Prepare_for_saving prepare_jkind
   in
@@ -119,7 +132,7 @@ let with_additional_action =
 
 let apply_prepare_jkind s lay loc =
   match s.additional_action with
-  | Prepare_for_saving prepare_jkind -> prepare_jkind loc lay
+  | Prepare_for_saving prepare_jkind -> prepare_jkind loc (Type lay) |> Jkind.to_type_jkind
   | Duplicate_variables | No_action -> lay
 
 let change_locs s loc = { s with loc = Some loc; last_compose = None }
@@ -266,8 +279,7 @@ let rec typexp copy_scope s ty =
         let ty' =
           match s.additional_action with
           | Duplicate_variables -> newpersty desc
-          | Prepare_for_saving prepare_jkind ->
-              newpersty (norm desc ~prepare_jkind)
+          | Prepare_for_saving prepare_jkind -> newpersty (norm desc ~prepare_jkind)
           | No_action -> newty2 ~level:(get_level ty) desc
         in
         For_copy.redirect_desc copy_scope ty (Tsubst (ty', None));
@@ -288,7 +300,7 @@ let rec typexp copy_scope s ty =
     let has_fixed_row =
       not (is_Tconstr ty) && is_constr_row ~allow_ident:false tm in
     (* Make a stub *)
-    let jkind = Jkind.Type.Primitive.any ~why:Dummy_jkind in
+    let jkind = Jkind.Primitive.any ~why:Dummy_jkind in
     let ty' =
       if should_duplicate_vars then newpersty (Tvar {name = None; jkind})
       else newgenstub ~scope:(get_scope ty) jkind
@@ -427,11 +439,14 @@ let constructor_declaration copy_scope s c =
     cd_uid = c.cd_uid;
   }
 
+let prepare_at_type ~prepare_jkind loc ty =
+  prepare_jkind loc (Type ty : higher_jkind) |> Jkind.to_type_jkind
+
 (* called only when additional_action is [Prepare_for_saving] *)
 let constructor_tag ~prepare_jkind loc = function
   | Ordinary _ as tag -> tag
   | Extension (path, lays) ->
-      Extension (path, Array.map (prepare_jkind loc) lays)
+      Extension (path, Array.map (prepare_at_type ~prepare_jkind loc) lays)
 
 (* called only when additional_action is [Prepare_for_saving] *)
 let variant_representation ~prepare_jkind loc = function
@@ -439,7 +454,7 @@ let variant_representation ~prepare_jkind loc = function
   | Variant_boxed cstrs_and_jkinds  ->
     Variant_boxed
       (Array.map
-         (fun (cstr, jkinds) -> cstr, Array.map (prepare_jkind loc) jkinds)
+         (fun (cstr, jkinds) -> cstr, Array.map (prepare_at_type ~prepare_jkind loc) jkinds)
          cstrs_and_jkinds)
   | Variant_extensible -> Variant_extensible
 
@@ -450,7 +465,7 @@ let record_representation ~prepare_jkind loc = function
     Record_inlined (constructor_tag ~prepare_jkind loc tag,
                     variant_representation ~prepare_jkind loc variant_rep)
   | Record_boxed lays ->
-      Record_boxed (Array.map (prepare_jkind loc) lays)
+      Record_boxed (Array.map (prepare_at_type ~prepare_jkind loc) lays)
   | (Record_float | Record_ufloat | Record_mixed _) as rep -> rep
 
 let type_declaration' copy_scope s decl =
@@ -488,9 +503,7 @@ let type_declaration' copy_scope s decl =
       begin
         match s.additional_action with
         | Prepare_for_saving prepare_jkind ->
-            (* FIXME jbachurski: I don't think this coercion is safe,
-                but it's annoying to do this properly right now. *)
-            Type (prepare_jkind decl.type_loc (Jkind.to_type_jkind decl.type_jkind))
+            prepare_jkind decl.type_loc decl.type_jkind
         | Duplicate_variables | No_action -> decl.type_jkind
       end;
     (* CR layouts v10: Apply the substitution here, too *)
@@ -578,7 +591,7 @@ let extension_constructor' copy_scope s ext =
     ext_args = constructor_arguments copy_scope s ext.ext_args;
     ext_arg_jkinds = begin match s.additional_action with
       | Prepare_for_saving prepare_jkind ->
-          Array.map (prepare_jkind ext.ext_loc) ext.ext_arg_jkinds
+          Array.map (prepare_at_type ~prepare_jkind ext.ext_loc) ext.ext_arg_jkinds
       | Duplicate_variables | No_action -> ext.ext_arg_jkinds
     end;
     ext_shape = ext.ext_shape;

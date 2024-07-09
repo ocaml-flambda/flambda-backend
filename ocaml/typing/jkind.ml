@@ -1706,6 +1706,12 @@ end
 type nonrec t = Types.type_expr Jkind_types.t
 
 module History = struct
+  let rec has_imported_history (t : t) : bool =
+    match t with
+    | Type ty -> Type.History.has_imported_history ty
+    | Arrow { args; result } ->
+      List.for_all has_imported_history args && has_imported_history result
+
   let rec update_reason (t : t) reason : t =
     match t with
     | Type ty -> Type (Type.History.update_reason ty reason)
@@ -1937,17 +1943,27 @@ let[@inline never] to_type_jkind (t : t) =
 
 module Desc = struct
   (** The description of a jkind, used as a return type from [get]. *)
-  type t =
+  type nonrec t =
     | Type of Type.t
     | Arrow of t Jkind_types.arrow
 end
 
+let rec default_to_value_and_get (t : t) : Const.t =
+  match t with
+  | Type ty -> Type (Type.default_to_value_and_get ty)
+  | Arrow { args; result } ->
+    Arrow
+      { args = List.map default_to_value_and_get args;
+        result = default_to_value_and_get result
+      }
+
+let default_to_value t = ignore (default_to_value_and_get t)
+
 (** Eliminates a Jkind.t, with zeroth-order kinds eliminated as in Jkind.Type.get *)
-let rec get (t : t) : Desc.t =
+let get (t : t) : Desc.t =
   match t with
   | Type ty -> Type ty
-  | Arrow { args; result } ->
-    Desc.Arrow { args = List.map get args; result = get result }
+  | Arrow { args; result } -> Desc.Arrow { args; result }
 
 (*********************************)
 (* pretty printing *)

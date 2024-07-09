@@ -632,7 +632,7 @@ and raw_lid_type_list tl =
     tl
 and raw_type_desc ppf = function
     Tvar { name; jkind } ->
-      fprintf ppf "Tvar (@,%a,@,%a)" print_name name Jkind.Type.format jkind
+      fprintf ppf "Tvar (@,%a,@,%a)" print_name name Jkind.format jkind
   | Tarrow((l,arg,ret),t1,t2,c) ->
       fprintf ppf "@[<hov1>Tarrow((\"%s\",%a,%a),@,%a,@,%a,@,%s)@]"
         (string_of_label l)
@@ -662,7 +662,7 @@ and raw_type_desc ppf = function
   | Tsubst (t, Some t') ->
       fprintf ppf "@[<1>Tsubst@,(%a,@ Some%a)@]" raw_type t raw_type t'
   | Tunivar { name; jkind } ->
-      fprintf ppf "Tunivar (@,%a,@,%a)" print_name name Jkind.Type.format jkind
+      fprintf ppf "Tunivar (@,%a,@,%a)" print_name name Jkind.format jkind
   | Tpoly (t, tl) ->
       fprintf ppf "@[<hov1>Tpoly(@,%a,@,%a)@]"
         raw_type t
@@ -1261,7 +1261,10 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
           modes.txt
       in
       Ojkind_user_mod (base, modes)
-    | With _ | Kind_of _ | Arrow _ -> failwith "XXX unimplemented jkind syntax"
+    | Arrow (args, result) -> Ojkind_user_arrow (
+        List.map out_jkind_user_of_user_jkind args,
+        out_jkind_user_of_user_jkind result)
+    | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
   in
   Ojkind_user (out_jkind_user_of_user_jkind jkind.txt)
 
@@ -1271,16 +1274,21 @@ let out_jkind_of_const_jkind jkind =
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
 let out_jkind_option_of_jkind jkind =
-  match Jkind.Type.get jkind with
-  | Const jkind ->
-    begin match Jkind.Type.Const.equal jkind Jkind.Type.Const.Primitive.value.jkind with
-    | true -> None
-    | false -> Some (out_jkind_of_const_jkind jkind)
+  match Jkind.get jkind with
+  | Type ty -> begin
+    match Jkind.Type.get ty with
+    | Const jkind -> begin
+      match Jkind.Type.Const.equal jkind Jkind.Type.Const.Primitive.value.jkind with
+      | true -> None
+      | false -> Some (out_jkind_of_const_jkind jkind)
+      end
+    | Var v -> (* This handles (X1). *)
+      if !Clflags.verbose_types
+      then Some (Ojkind_var (Jkind.Type.Sort.Var.name v))
+      else None
     end
-  | Var v -> (* This handles (X1). *)
-    if !Clflags.verbose_types
-    then Some (Ojkind_var (Jkind.Type.Sort.Var.name v))
-    else None
+  (* TODO jbachurski: out jkinds for arrows *)
+  | Arrow _ -> Some (Ojkind_const { base = "((higher))"; modal_bounds = [] })
 
 let alias_nongen_row mode px ty =
     match get_desc ty with
@@ -2666,9 +2674,12 @@ let trees_of_type_expansion'
     if var_jkinds then
       match get_desc ty with
       | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
-          let olay = match Jkind.Type.get jkind with
-            | Const clay -> out_jkind_of_const_jkind clay
-            | Var v      -> Ojkind_var (Jkind.Type.Sort.Var.name v)
+          let olay = match Jkind.get jkind with
+            | Type ty -> begin match Jkind.Type.get ty with
+              | Const clay -> out_jkind_of_const_jkind clay
+              | Var v      -> Ojkind_var (Jkind.Type.Sort.Var.name v)
+              end
+            | Arrow _ -> Ojkind_const { base = "((higher))"; modal_bounds = [] }
           in
           Otyp_jkind_annot (out, olay)
       | _ ->
@@ -2787,7 +2798,7 @@ let hide_variant_name t =
         (Tvariant
            (create_row ~fields ~fixed ~closed ~name:None
               ~more:(newvar2 (get_level more)
-                       (Jkind.Type.Primitive.value ~why:Row_variable))))
+                       (Jkind.Primitive.value ~why:Row_variable))))
   | _ -> t
 
 let prepare_expansion Errortrace.{ty; expanded} =
@@ -2999,7 +3010,7 @@ let explanation (type variety) intro prev env
                  ~offender:(fun ppf -> type_expr ppf t)) e)
   | Errortrace.Unequal_var_jkinds (t1,l1,t2,l2) ->
       let fmt_history t l ppf =
-        Jkind.Type.(format_history ~intro:(
+        Jkind.(format_history ~intro:(
           dprintf "The layout of %a is %a" type_expr t format l) ppf l)
       in
       Some (dprintf "@ because their layouts are different.@ @[<v>%t@;%t@]"

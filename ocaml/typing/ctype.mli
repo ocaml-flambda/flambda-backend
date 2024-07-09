@@ -76,14 +76,14 @@ val create_scope : unit -> int
 
 val newty: type_desc -> type_expr
 val new_scoped_ty: int -> type_desc -> type_expr
-val newvar: ?name:string -> Jkind.Type.t -> type_expr
+val newvar: ?name:string -> Jkind.t -> type_expr
 val new_rep_var :
   ?name:string -> why:Jkind.Type.History.concrete_jkind_reason -> unit ->
   type_expr * Jkind.Type.sort
         (* Return a fresh representable variable, along with its sort *)
-val newvar2: ?name:string -> int -> Jkind.Type.t -> type_expr
+val newvar2: ?name:string -> int -> Jkind.t -> type_expr
         (* Return a fresh variable *)
-val new_global_var: ?name:string -> Jkind.Type.t -> type_expr
+val new_global_var: ?name:string -> Jkind.t -> type_expr
         (* Return a fresh variable, bound at toplevel
            (as type variables ['a] in type constraints). *)
 val newobj: type_expr -> type_expr
@@ -320,8 +320,8 @@ val all_distinct_vars: Env.t -> type_expr list -> bool
 
 type matches_result =
   | Unification_failure of Errortrace.unification_error
-  | Jkind_mismatch of { original_jkind : jkind; inferred_jkind : jkind
-                     ; ty : type_expr }
+  | Jkind_mismatch of { original_jkind : higher_jkind; inferred_jkind : higher_jkind
+                      ; ty : type_expr }
   | All_good
 val matches: expand_error_trace:bool -> Env.t ->
   type_expr -> type_expr -> matches_result

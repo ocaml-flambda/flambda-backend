@@ -427,6 +427,8 @@ end
 type t = Types.type_expr Jkind_types.t
 
 module History : sig
+  val has_imported_history : t -> bool
+
   val update_reason : t -> Type.History.creation_reason -> t
 end
 
@@ -561,10 +563,17 @@ val to_type_jkind : t -> Type.t
 
 module Desc : sig
   (** The description of a jkind, used as a return type from [get]. *)
-  type t =
+  type nonrec t =
     | Type of Type.t
     | Arrow of t Jkind_types.arrow
 end
+
+(** [default_to_value_and_get] extracts the jkind as a `const`.  If it's a sort
+    variable, it is set to [value] first. *)
+val default_to_value_and_get : t -> Const.t
+
+(** [default_to_value t] is [ignore (default_to_value_and_get t)] *)
+val default_to_value : t -> unit
 
 (** Extract the [const] from a [Jkind.Type.t], looking through unified
     sort variables. Returns [Var] if the final, non-variable jkind has not

@@ -252,7 +252,7 @@ let build_initial_env add_type add_extension empty_env =
             arity = 1}
         ))
       ~variance ~separability env =
-    let param = newgenvar param_jkind in
+    let param = newgenvar (Type param_jkind) in
     let decl =
       {type_params = [param];
        type_arity = 1;
