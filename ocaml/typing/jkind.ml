@@ -1993,16 +1993,12 @@ let rec format ppf (jkind : t) =
          format)
       args format result
 
-let rec format_history ~intro ppf (t : t) =
+let format_history ~intro ppf (t : t) =
   match t with
   | Type ty -> Type.format_history ~intro ppf ty
-  | Arrow { args; result } ->
-    Format.fprintf ppf "in higher-order jkind %a:@[<b 1>%t@]@;<1 -2>" format t
-      (fun ppf ->
-        Format.pp_print_list
-          ~pp_sep:(fun ppf () -> Format.fprintf ppf "\n")
-          (format_history ~intro) ppf args;
-        format_history ~intro ppf result)
+  | Arrow _ ->
+    (* TODO jbachurski: Implement history formatting for higher jkinds. *)
+    Format.fprintf ppf "%t (...??)" intro
 
 (******************************)
 (* errors *)

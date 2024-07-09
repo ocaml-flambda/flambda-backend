@@ -41,11 +41,7 @@ Error: Signature mismatch:
          type a : (value) => value
        The kind of the first is value, because
          of the definition of a at line 4, characters 2-16.
-       in higher-order jkind ((value) => value):
-       But the kind of the first must be a subkind of ((value) => value), because
-         of the definition of a at line 2, characters 2-25.But the kind of the first must be a subkind of ((value) => value), because
-                                                             of the definition of a at line 2, characters 2-25.
-
+       But the kind of the first must be a subkind of ((value) => value) (...??)
 |}]
 
 module M : sig
@@ -68,11 +64,7 @@ Error: Signature mismatch:
          type a : (value) => value
        is not included in
          type a : value
-       in higher-order jkind ((value) => value):
-       The kind of the first is ((value) => value), because
-         of the definition of a at line 4, characters 2-25.The kind of the first is ((value) => value), because
-                                                             of the definition of a at line 4, characters 2-25.
-
+       The kind of the first is ((value) => value) (...??)
        But the kind of the first must be a subkind of value, because
          of the definition of a at line 2, characters 2-16.
 |}]
@@ -107,21 +99,6 @@ Error: Signature mismatch:
          type a : (value) => value
        is not included in
          type a : (value, value) => value
-       in higher-order jkind ((value) => value):
-       The kind of the first is ((value) => value), because
-         of the definition of a at line 4, characters 2-25.The kind of the first is ((value) => value), because
-                                                             of the definition of a at line 4, characters 2-25.
-
-       in higher-order jkind ((value
-       value) => value):
-       But the kind of the first must be a subkind of ((value
-         value) => value), because
-         of the definition of a at line 2, characters 2-34.
-But the kind of the first must be a subkind of ((value
-                                                              value) => value), because
-                                                              of the definition of a at line 2, characters 2-34.
-        But the kind of the first must be a subkind of ((value
-          value) => value), because
-          of the definition of a at line 2, characters 2-34.
-
+       The kind of the first is ((value) => value) (...??)
+       But the kind of the first must be a subkind of ((value, value) => value) (...??)
 |}]
