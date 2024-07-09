@@ -234,6 +234,15 @@ Error: Type t_float32 has layout float32.
        Unboxed variants may not yet contain types of this layout.
 |}];;
 
+type t5_6_1 = A of { x : t_float32 } [@@unboxed];;
+[%%expect{|
+Line 1, characters 21-34:
+1 | type t5_6_1 = A of { x : t_float32 } [@@unboxed];;
+                         ^^^^^^^^^^^^^
+Error: Type t_float32 has layout float32.
+       Unboxed inlined records may not yet contain types of this layout.
+|}];;
+
 type ('a : float32) t5_7 = A of int
 type ('a : float32) t5_8 = A of 'a;;
 [%%expect{|
