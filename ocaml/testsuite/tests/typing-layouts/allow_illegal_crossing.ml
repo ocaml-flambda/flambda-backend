@@ -157,6 +157,125 @@ type v = A.t u
 val x : A.t = {A.a = "hello"}
 |}]
 
+type t : value mod portable = { a : string }
+let my_str : string @@ nonportable = ""
+let y = ({ a = my_str } : t @@ portable)
+[%%expect {|
+type t : value mod portable = { a : string; }
+val my_str : string = ""
+val y : t = {a = ""}
+|}]
+
+type t : value mod portable = { a : string }
+let my_str : string @@ nonportable = ""
+let y : t @@ portable = { a = my_str }
+[%%expect {|
+type t : value mod portable = { a : string; }
+val my_str : string = ""
+Line 3, characters 30-36:
+3 | let y : t @@ portable = { a = my_str }
+                                  ^^^^^^
+Error: This value is nonportable but expected to be portable.
+|}]
+(* CR layouts v2.8: this is unfortunate that this isn't accepted, but it is fine
+   since pushing the annotation to the right hand side resolves the issue, and
+   -allow-illegal-crossing is a short-term solution *)
+
+type t : value mod uncontended = { a : string }
+let make_str () : string = failwith ""
+let f () =
+  let _ = ({ a = make_str () } : t @@ uncontended) in
+  ()
+[%%expect {|
+type t : value mod uncontended = { a : string; }
+val make_str : unit -> string = <fun>
+val f : unit -> unit = <fun>
+|}]
+
+type t : value mod uncontended = { a : string }
+let make_str () : string = failwith ""
+let f () =
+  let _ : t @@ uncontended = { a = make_str () } in
+  ()
+[%%expect {|
+type t : value mod uncontended = { a : string; }
+val make_str : unit -> string = <fun>
+val f : unit -> unit = <fun>
+|}]
+(* CR layouts v2.8: this is unfortunate that this isn't accepted, but it is fine
+   since pushing the annotation to the right hand side resolves the issue, and
+   -allow-illegal-crossing is a short-term solution *)
+
+type t_value : value
+type t : value mod portable uncontended = Foo of t_value
+let make_value () : t_value = failwith ""
+let f () =
+  let _ = (Foo (make_value ()) : t @@ portable uncontended) in
+  ()
+[%%expect {|
+type t_value : value
+type t : value mod portable uncontended = Foo of t_value
+val make_value : unit -> t_value = <fun>
+val f : unit -> unit = <fun>
+|}]
+
+type t : value mod portable = { a : string }
+let my_str : string @@ nonportable = ""
+let y = ({ a = my_str } : _ @@ portable)
+[%%expect {|
+type t : value mod portable = { a : string; }
+val my_str : string = ""
+Line 3, characters 15-21:
+3 | let y = ({ a = my_str } : _ @@ portable)
+                   ^^^^^^
+Error: This value is nonportable but expected to be portable.
+|}]
+(* CR layouts v2.8: this is unfortunate that this isn't accepted, but it is fine
+   since adding the type to the annotation resolves the issue, and
+   -allow-illegal-crossing is a short-term solution *)
+
+let f (_x : _ @@ portable uncontended) = ()
+type t : value mod portable uncontended = Foo of string | Bar of int
+let g (x : t @@ nonportable contended) = f x; f (Foo ""); f (Bar 10)
+[%%expect {|
+val f : 'a @ portable -> unit = <fun>
+type t : value mod portable uncontended = Foo of string | Bar of int
+val g : t @ contended -> unit = <fun>
+|}]
+
+(* Demonstrate that -allow-illegal-crossing allows for unsound mode-crossing *)
+module Unsound : sig
+  val cross : 'a @ nonportable contended -> 'a @ portable uncontended
+end = struct
+  type 'a box : value mod portable uncontended = { value : 'a }
+  let cross x =
+    let box = { value = x } in
+    box.value
+end
+
+module Value : sig
+  type t
+  val value : t
+end = struct
+  type t = Foo
+  let value = Foo
+end
+
+let x : Value.t @@ portable uncontended = Unsound.cross Value.value
+[%%expect {|
+module Unsound : sig val cross : 'a @ contended -> 'a @ portable end
+module Value : sig type t val value : t end
+val x : Value.t = <abstr>
+|}]
+
+(* Validate above testing technique *)
+let x : Value.t @@ portable uncontended = Value.value
+[%%expect {|
+Line 1, characters 42-53:
+1 | let x : Value.t @@ portable uncontended = Value.value
+                                              ^^^^^^^^^^^
+Error: This value is nonportable but expected to be portable.
+|}]
 (********************************************************)
 (* Test 3: types cannot cross other axes when annotated *)
 
