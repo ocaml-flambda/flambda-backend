@@ -743,9 +743,20 @@ let force_type_expr ty = Wrap.force (fun _ s ty ->
 
 let rec subst_lazy_value_description s descr =
   { val_type = Wrap.substitute ~compose Keep s descr.val_type;
+    val_modalities = descr.val_modalities;
     val_kind = descr.val_kind;
     val_loc = loc s descr.val_loc;
-    val_zero_alloc = descr.val_zero_alloc;
+    val_zero_alloc =
+      (* When saving a cmi file, we replace zero_alloc variables with constants.
+         This is necessary because users of the library can't change the
+         zero_alloc check that was done on functions in it, and safe because all
+         type inference is done by the time we write the cmi file (and anyway
+         additional inference steps could only cause the funtion to get checked
+         more strictly than the signature indicates, which is sound). *)
+     (match s.additional_action with
+      | Prepare_for_saving _ ->
+        Zero_alloc.create_const (Zero_alloc.get descr.val_zero_alloc)
+      | _ -> descr.val_zero_alloc);
     val_attributes = attrs s descr.val_attributes;
     val_uid = descr.val_uid;
   }

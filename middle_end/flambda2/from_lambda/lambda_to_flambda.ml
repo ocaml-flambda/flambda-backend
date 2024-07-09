@@ -291,6 +291,7 @@ let transform_primitive env (prim : L.primitive) args loc =
     Primitive
       (L.Pnot, [L.Lprim (Punboxed_float_comp (bf, CFge), args, loc)], loc)
   | Pbigarrayref (_unsafe, num_dimensions, kind, layout), args -> (
+    (* CR mshinwell: factor out with the [Pbigarrayset] case *)
     match
       P.Bigarray_kind.from_lambda kind, P.Bigarray_layout.from_lambda layout
     with
@@ -300,7 +301,14 @@ let transform_primitive env (prim : L.primitive) args loc =
       then
         let arity = 1 + num_dimensions in
         let is_float32_t =
-          match kind with Pbigarray_float32_t -> "float32_" | _ -> ""
+          match kind with
+          | Pbigarray_float32_t -> "float32_"
+          | Pbigarray_unknown | Pbigarray_float32 | Pbigarray_float64
+          | Pbigarray_sint8 | Pbigarray_uint8 | Pbigarray_sint16
+          | Pbigarray_uint16 | Pbigarray_int32 | Pbigarray_int64
+          | Pbigarray_caml_int | Pbigarray_native_int | Pbigarray_complex32
+          | Pbigarray_complex64 ->
+            ""
         in
         let name =
           "caml_ba_" ^ is_float32_t ^ "get_" ^ string_of_int num_dimensions
@@ -322,7 +330,14 @@ let transform_primitive env (prim : L.primitive) args loc =
       then
         let arity = 2 + num_dimensions in
         let is_float32_t =
-          match kind with Pbigarray_float32_t -> "float32_" | _ -> ""
+          match kind with
+          | Pbigarray_float32_t -> "float32_"
+          | Pbigarray_unknown | Pbigarray_float32 | Pbigarray_float64
+          | Pbigarray_sint8 | Pbigarray_uint8 | Pbigarray_sint16
+          | Pbigarray_uint16 | Pbigarray_int32 | Pbigarray_int64
+          | Pbigarray_caml_int | Pbigarray_native_int | Pbigarray_complex32
+          | Pbigarray_complex64 ->
+            ""
         in
         let name =
           "caml_ba_" ^ is_float32_t ^ "set_" ^ string_of_int num_dimensions
@@ -479,21 +494,12 @@ let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
   CC.close_let_cont acc ccenv ~name:cont ~is_exn_handler
     ~params:(params @ extra_params) ~recursive:Nonrecursive ~body ~handler
 
-let restore_continuation_context acc env ccenv cont ~close_early body =
-  match Env.pop_regions_up_to_context env cont with
-  | None -> body acc ccenv cont
-  | Some region ->
-    (* If we need to close regions early then do it now; otherwise redirect the
-       return continuation to the one closing such regions, if any exist. See
-       comment in [cps] on the [Lregion] case. *)
-    if close_early
-    then
-      CC.close_let acc ccenv
-        [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
-        Not_user_visible
-        (End_region { is_try_region = false; region })
-        ~body:(fun acc ccenv -> body acc ccenv cont)
-    else
+let restore_continuation_context acc env ccenv cont ~close_current_region_early
+    body =
+  let[@inline] normal_case env acc ccenv =
+    match Env.pop_regions_up_to_context env cont with
+    | None -> body acc ccenv cont
+    | Some region ->
       let ({ continuation_closing_region; continuation_after_closing_region }
             : Env.region_closure_continuation) =
         Env.region_closure_continuation env region
@@ -506,6 +512,21 @@ let restore_continuation_context acc env ccenv cont ~close_early body =
           Continuation.print continuation_after_closing_region
           Continuation.print cont;
       body acc ccenv continuation_closing_region
+  in
+  (* If we need to close the current region early, that has to be done first.
+     Then we redirect the return continuation to the one closing any further
+     regions, if any exist, such that the region stack is brought in line with
+     that expected by the real return continuation. See comment in [cps] on the
+     [Lregion] case. *)
+  if close_current_region_early
+  then
+    let env, region = Env.pop_one_region env in
+    CC.close_let acc ccenv
+      [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
+      Not_user_visible
+      (End_region { is_try_region = false; region })
+      ~body:(fun acc ccenv -> normal_case env acc ccenv)
+  else normal_case env acc ccenv
 
 let restore_continuation_context_for_switch_arm env cont =
   match Env.pop_regions_up_to_context env cont with
@@ -530,16 +551,24 @@ let apply_cont_with_extra_args acc env ccenv ~dbg cont traps args =
       (fun var : IR.simple -> Var var)
       (Env.extra_args_for_continuation env cont)
   in
-  restore_continuation_context acc env ccenv cont ~close_early:false
-    (fun acc ccenv cont ->
+  restore_continuation_context acc env ccenv cont
+    ~close_current_region_early:false (fun acc ccenv cont ->
       CC.close_apply_cont acc ~dbg ccenv cont traps (args @ extra_args))
 
 let wrap_return_continuation acc env ccenv (apply : IR.apply) =
   let extra_args = Env.extra_args_for_continuation env apply.continuation in
-  let close_early, region =
+  let close_current_region_early, region =
     match apply.region_close with
     | Rc_normal | Rc_nontail -> false, apply.region
-    | Rc_close_at_apply -> true, Env.my_region env
+    | Rc_close_at_apply ->
+      (* [Rc_close_at_apply] means that the application is in tail position with
+         respect to the *current region*. Only that region should be closed
+         early, prior to the application, meaning that the region for the
+         application itself is the one which is currently our parent. After the
+         application, further regions should be closed if necessary in order to
+         bring the current region stack in line with the return continuation's
+         region stack. *)
+      true, Env.parent_region env
   in
   let body acc ccenv continuation =
     match extra_args with
@@ -576,8 +605,8 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
       CC.close_let_cont acc ccenv ~name:wrapper_cont ~is_exn_handler:false
         ~params ~recursive:Nonrecursive ~body ~handler
   in
-  restore_continuation_context acc env ccenv apply.continuation ~close_early
-    body
+  restore_continuation_context acc env ccenv apply.continuation
+    ~close_current_region_early body
 
 let primitive_can_raise (prim : Lambda.primitive) =
   match prim with
@@ -724,9 +753,7 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Punboxed_product_field _ | Pget_header _ ->
     false
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _ -> false
-  | Prunstack | Pperform | Presume | Preperform ->
-    Misc.fatal_errorf "Primitive %a is not yet supported by Flambda 2"
-      Printlambda.primitive prim
+  | Prunstack | Pperform | Presume | Preperform -> true (* XXX! *)
   | Pdls_get -> false
 
 type non_tail_continuation =

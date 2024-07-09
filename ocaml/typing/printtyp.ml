@@ -1301,6 +1301,8 @@ let tree_of_modality_new (t : Mode.Modality.t) =
   | Atom (Comonadic Areality, Meet_with Global) -> Some "global"
   | Atom (Comonadic Linearity, Meet_with Many) -> Some "many"
   | Atom (Monadic Uniqueness, Join_with Shared) -> Some "shared"
+  | Atom (Comonadic Portability, Meet_with Portable) -> Some "portable"
+  | Atom (Monadic Contention, Join_with Contended) -> Some "contended"
   | e -> Misc.fatal_errorf "Unexpected modality %a" Mode.Modality.print e
 
 let tree_of_modality (t : Mode.Modality.t) =
@@ -1309,16 +1311,20 @@ let tree_of_modality (t : Mode.Modality.t) =
       Some (Ogf_legacy Ogf_global)
   | _ -> Option.map (fun x -> Ogf_new x) (tree_of_modality_new t)
 
-let tree_of_modalities mutability t =
-  let l = Mode.Modality.Value.to_list t in
+let tree_of_modalities ~has_mutable_implied_modalities t =
+  let l = Mode.Modality.Value.Const.to_list t in
   (* CR zqian: decouple mutable and modalities *)
   let l =
-    if Types.is_mutable mutability then
+    if has_mutable_implied_modalities then
       List.filter (fun m -> not @@ Typemode.is_mutable_implied_modality m) l
     else
       l
   in
   List.filter_map tree_of_modality l
+
+let tree_of_modalities_new t =
+  let l = Mode.Modality.Value.Const.to_list t in
+  List.filter_map tree_of_modality_new l
 
 (** [tree_of_mode m l] finds the outcome node in [l] that corresponds to [m].
 Raise if not found. *)
@@ -1502,7 +1508,8 @@ and tree_of_labeled_typlist mode tyl =
   List.map (fun (label, ty) -> label, tree_of_typexp mode Alloc.Const.legacy ty) tyl
 
 and tree_of_typ_gf {ca_type=ty; ca_modalities=gf; _} =
-  (tree_of_typexp Type Alloc.Const.legacy ty, tree_of_modalities Immutable gf)
+  (tree_of_typexp Type Alloc.Const.legacy ty,
+   tree_of_modalities ~has_mutable_implied_modalities:false gf)
 
 (** We are on the RHS of an arrow type, where [ty] is the return type, and [m]
     is the return mode. This function decides the printed modes on [ty].
@@ -1689,7 +1696,15 @@ let tree_of_label l =
         mut
     | Immutable -> Om_immutable
   in
-  let ld_modalities = tree_of_modalities l.ld_mutable l.ld_modalities in
+  let has_mutable_implied_modalities =
+    if is_mutable l.ld_mutable then
+      not (Builtin_attributes.has_no_mutable_implied_modalities l.ld_attributes)
+    else
+      false
+  in
+  let ld_modalities =
+    tree_of_modalities ~has_mutable_implied_modalities l.ld_modalities
+  in
   (Ident.name l.ld_id, mut, tree_of_typexp Type l.ld_type, ld_modalities)
 
 let tree_of_constructor_arguments = function
@@ -2040,6 +2055,8 @@ let tree_of_value_description id decl =
   let ty = tree_of_type_scheme decl.val_type in
   (* Important: process the fvs *after* the type; tree_of_type_scheme
      resets the naming context *)
+  let snap = Btype.snapshot () in
+  let moda = Mode.Modality.Value.zap_to_floor decl.val_modalities in
   let qtvs = extract_qtvs [decl.val_type] in
   let apparent_arity =
     let rec count n typ =
@@ -2050,7 +2067,7 @@ let tree_of_value_description id decl =
     count 0 decl.val_type
   in
   let attrs =
-    match decl.val_zero_alloc with
+    match Zero_alloc.get decl.val_zero_alloc with
     | Default_zero_alloc | Ignore_assert_all -> []
     | Check { strict; opt; arity; _ } ->
       [{ oattr_name =
@@ -2075,6 +2092,7 @@ let tree_of_value_description id decl =
   let vd =
     { oval_name = id;
       oval_type = Otyp_poly(qtvs, ty);
+      oval_modalities = tree_of_modalities_new moda;
       oval_prims = [];
       oval_attributes = attrs
     }
@@ -2084,7 +2102,9 @@ let tree_of_value_description id decl =
     | Val_prim p -> Primitive.print p vd
     | _ -> vd
   in
-  Osig_value vd
+  let r = Osig_value vd in
+  Btype.backtrack snap;
+  r
 
 let value_description id ppf decl =
   !Oprint.out_sig_item ppf (tree_of_value_description id decl)

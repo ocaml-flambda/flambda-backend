@@ -846,7 +846,10 @@ let fundecl :
       then Eliminate_fallthrough_blocks.run cfg_with_layout;
       if simplify_terminators then Merge_straightline_blocks.run cfg_with_layout;
       Eliminate_dead_code.run_dead_block cfg_with_layout;
-      if simplify_terminators then Simplify_terminator.run cfg)
+      if simplify_terminators
+      then (
+        Simplify_terminator.run cfg;
+        Eliminate_dead_code.run_dead_block cfg_with_layout))
     ();
   Cfg_with_layout.reorder_blocks
     ~comparator:(fun label1 label2 ->

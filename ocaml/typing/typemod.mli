@@ -151,6 +151,7 @@ type error =
   | Toplevel_nonvalue of string * Jkind.sort
   | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
+  | Compiling_as_parameterised_parameter
   | Cannot_compile_implementation_as_parameter
   | Cannot_implement_parameter of Compilation_unit.Name.t * Misc.filepath
   | Argument_for_non_parameter of Compilation_unit.Name.t * Misc.filepath
@@ -160,6 +161,7 @@ type error =
       old_arg_type: Compilation_unit.Name.t option;
       old_source_file: Misc.filepath;
     }
+  | Submode_failed of Mode.Value.error
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

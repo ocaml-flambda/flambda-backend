@@ -543,6 +543,8 @@ let comp_primitive stack_info p sz args =
   | Pbintcomp(_, Cgt) | Punboxed_int_comp(_, Cgt) -> Kccall("caml_greaterthan", 2)
   | Pbintcomp(_, Cle) | Punboxed_int_comp(_, Cle) -> Kccall("caml_lessequal", 2)
   | Pbintcomp(_, Cge) | Punboxed_int_comp(_, Cge) -> Kccall("caml_greaterequal", 2)
+  | Pbigarrayref(_, n, Pbigarray_float32_t, _) -> Kccall("caml_ba_float32_get_" ^ Int.to_string n, n + 1)
+  | Pbigarrayset(_, n, Pbigarray_float32_t, _) -> Kccall("caml_ba_float32_set_" ^ Int.to_string n, n + 2)
   | Pbigarrayref(_, n, _, _) -> Kccall("caml_ba_get_" ^ Int.to_string n, n + 1)
   | Pbigarrayset(_, n, _, _) -> Kccall("caml_ba_set_" ^ Int.to_string n, n + 2)
   | Pbigarraydim(n) -> Kccall("caml_ba_dim_" ^ Int.to_string n, 1)
@@ -1216,4 +1218,3 @@ let compile_phrase expr =
   let init_code = comp_block empty_env expr 1 [Kreturn 1] in
   let fun_code = comp_remainder [] in
   (init_code, fun_code))
-

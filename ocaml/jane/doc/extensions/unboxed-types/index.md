@@ -144,9 +144,10 @@ modules in the `janestreet_shims` library.)
   actually have layout `float64`). No exceptions. This does *not* work for inline or
   `[@@unboxed]` records.
 
-* Existing types all expect `value` arguments. Thus for basically any `t`, you cannot
-  write `float# t` or `int64# t`.
-  This includes obvious candidates like `float# array` or `float# option`.
+* With a few specific exceptions (documented below), existing types all expect
+  `value` arguments. Thus for basically any `t`, you cannot write `float# t` or
+  `int64# t`.  This includes obvious candidates like `float#
+  option`.
 
 * Existing ppxs expect to work with `value` types. Accordingly, using `deriving` with
   types that involve unboxed numbers will lead to inscrutable type errors, and other ppxs

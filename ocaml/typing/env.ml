@@ -434,6 +434,22 @@ module IdTbl =
     let find_same id (tbl : (empty, _, _) t) =
       find_same_without_locks id tbl
 
+    let rec find_same_and_locks id tbl macc =
+      try
+        let desc = Ident.find_same id tbl.current in
+        desc, macc
+      with Not_found as exn ->
+        begin match tbl.layer with
+        | Open {next; _} -> find_same_and_locks id next macc
+        | Map {f; next} ->
+          let desc, locks = find_same_and_locks id next macc in
+          f desc, locks
+        | Lock {lock; next} -> find_same_and_locks id next (lock :: macc)
+        | Nothing -> raise exn
+        end
+
+    let find_same_and_locks id tbl = find_same_and_locks id tbl []
+
     let rec find_name_and_locks wrap ~mark name tbl macc : _ Result.t =
       try
         let (id, desc) = Ident.find_name name tbl.current in
@@ -700,6 +716,8 @@ let mda_mode = Mode.Value.legacy |> Mode.Value.disallow_right
 
 let clda_mode = Mode.Value.legacy |> Mode.Value.disallow_right
 
+let cm_mode = Mode.Value.legacy |> Mode.Value.disallow_right
+
 let empty_structure =
   Structure_comps {
     comp_values = NameMap.empty;
@@ -877,6 +895,21 @@ let md md_type =
   {md_type; md_attributes=[]; md_loc=Location.none
   ;md_uid = Uid.internal_not_actually_unique}
 
+(** The caller is not interested in modes, and thus [val_modalities] is
+invalidated. *)
+let vda_description vda =
+  let vda_description = vda.vda_description in
+  {vda_description with val_modalities = Mode.Modality.Value.undefined}
+
+let normalize_vda_mode vda =
+  let vda_description = vda.vda_description in
+  let modalities = vda_description.val_modalities in
+  let vda_description =
+    {vda_description with val_modalities = Mode.Modality.Value.id}
+  in
+  let vda_mode = Mode.Modality.Value.apply modalities vda.vda_mode in
+  vda_description, vda_mode
+
 (* Print addresses *)
 
 let rec print_address ppf = function
@@ -1024,6 +1057,10 @@ let imports () = Persistent_env.imports !persistent_env
 
 let import_crcs ~source crcs =
   Persistent_env.import_crcs !persistent_env ~source crcs
+
+let runtime_parameters () = Persistent_env.runtime_parameters !persistent_env
+
+let parameters () = Persistent_env.parameters !persistent_env
 
 let read_pers_mod modname filename ~add_binding =
   Persistent_env.read !persistent_env read_sign_of_cmi modname filename
@@ -1284,7 +1321,13 @@ let find_cltype path env =
   | Papply _ | Pextra_ty _ -> raise Not_found
 
 let find_value path env =
-  (find_value_full path env).vda_description
+  find_value_full path env |> vda_description
+
+let find_value_no_locks_exn id env =
+  match IdTbl.find_same_and_locks id env.values with
+  | Val_bound _, _ :: _ -> Misc.fatal_error "locks encountered"
+  | Val_bound data, [] -> normalize_vda_mode data
+  | Val_unbound _, _ -> raise Not_found
 
 let find_class path env =
   (find_class_full path env).clda_declaration
@@ -1815,7 +1858,7 @@ let rec components_of_module_maker
             let vda_shape = Shape.proj cm_shape (Shape.Item.value id) in
             let vda =
               { vda_description = decl'; vda_address = addr;
-                vda_mode = Mode.Value.disallow_right Mode.Value.legacy; vda_shape }
+                vda_mode = cm_mode; vda_shape }
             in
             c.comp_values <- NameMap.add (Ident.name id) vda c.comp_values;
         | Sig_type(id, decl, _, _) ->
@@ -2682,8 +2725,8 @@ let read_signature modname filename ~add_binding =
   let mty = read_pers_mod modname filename ~add_binding in
   Subst.Lazy.force_signature mty
 
-let register_parameter_import import =
-  Persistent_env.register_parameter_import !persistent_env import
+let register_parameter modname =
+  Persistent_env.register_parameter !persistent_env modname
 
 let is_identchar_latin1 = function
   | 'A'..'Z' | 'a'..'z' | '_' | '\192'..'\214' | '\216'..'\246'
@@ -3399,12 +3442,25 @@ let lookup_value ~errors ~use ~loc lid env =
   let path, locks, vda =
     lookup_value_lazy ~errors ~use ~loc lid env
   in
-  let vd = Subst.Lazy.force_value_description vda.vda_description in
+  (* There can be locks between the definition and a use of a value. For
+  example, if a function closes over a value, there will be Closure_lock between
+  the value's definition and the value's use in the function. Walking the locks
+  will constrain the function and the value's modes accrodingly.
+
+  Here, we apply the modalities to acquire the mode of the value at the
+  definition site, using which we walk the locks. That means the surrounding
+  closure would be closing over the value instead of the module. The latter can
+  be achieved by walking the locks before apply modalities.
+
+  Our route provides better ergonomics, but is dangerous as it doesn't reflect
+  the real runtime behaviour. With the current set-up, it is sound. *)
+  let vd, mode = normalize_vda_mode vda in
+  let vd = Subst.Lazy.force_value_description vd in
   let vmode =
     if use then
-      walk_locks ~errors ~loc ~env ~item:Value ~lid vda.vda_mode (Some vd.val_type) locks
+      walk_locks ~errors ~loc ~env ~item:Value ~lid mode (Some vd.val_type) locks
     else
-      mode_default vda.vda_mode
+      mode_default mode
   in
   path, vd, vmode
 
@@ -3758,7 +3814,9 @@ let fold_values f =
     (fun k p ve acc ->
        match ve with
        | Val_unbound _ -> acc
-       | Val_bound vda -> f k p vda.vda_description acc)
+       | Val_bound vda ->
+          let vd, mode = normalize_vda_mode vda in
+          f k p vd mode acc)
 and fold_constructors f =
   find_all_simple_list (fun env -> env.constrs) (fun sc -> sc.comp_constrs)
     (fun cda acc -> f cda.cda_description acc)
@@ -3897,7 +3955,7 @@ let spellcheck_name ppf extract env name =
     (fun () -> Misc.spellcheck (extract env) name)
 
 let extract_values path env =
-  fold_values (fun name _ _ acc -> name :: acc) path env []
+  fold_values (fun name _ _ _ acc -> name :: acc) path env []
 let extract_types path env =
   fold_types (fun name _ _ acc -> name :: acc) path env []
 let extract_modules path env =
@@ -3914,7 +3972,7 @@ let extract_cltypes path env =
   fold_cltypes (fun name _ _ acc -> name :: acc) path env []
 let extract_instance_variables env =
   fold_values
-    (fun name _ descr acc ->
+    (fun name _ descr _ acc ->
        match descr.val_kind with
        | Val_ivar _ -> name :: acc
        | _ -> acc) None env []

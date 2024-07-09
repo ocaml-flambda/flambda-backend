@@ -130,7 +130,7 @@ mark the local parameter in the other module's mli.
 There are a number of other features that allow more precise control
 over which values are locally allocated, including:
 
-  - **Local closures**:
+  - **Local closures**
 
     ```ocaml
     let local_ f a b c = ...
@@ -141,7 +141,7 @@ over which values are locally allocated, including:
   - **Local-returning functions**
 
     ```ocaml
-    let f a b c = local_
+    let f a = exclave_
       ...
     ```
 

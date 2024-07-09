@@ -94,6 +94,7 @@ type prim =
   | Identity
   | Apply of Lambda.region_close * Lambda.layout
   | Revapply of Lambda.region_close * Lambda.layout
+  | Unsupported of Lambda.primitive
 
 let units_with_used_primitives = Hashtbl.create 7
 let add_used_primitive loc env path =
@@ -180,6 +181,7 @@ let to_lambda_prim prim ~poly_sort =
     ~is_layout_poly:prim.prim_is_layout_poly
 
 let lookup_primitive loc ~poly_mode ~poly_sort pos p =
+  let runtime5 = Config.runtime5 in
   let mode = to_locality ~poly:poly_mode p.prim_native_repr_res in
   let arg_modes =
     List.map (to_modify_mode ~poly:poly_mode) p.prim_native_repr_args
@@ -784,10 +786,14 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%atomic_exchange" -> Primitive (Patomic_exchange, 2)
     | "%atomic_cas" -> Primitive (Patomic_cas, 3)
     | "%atomic_fetch_add" -> Primitive (Patomic_fetch_add, 2)
-    | "%runstack" -> Primitive (Prunstack, 3)
-    | "%reperform" -> Primitive (Preperform, 3)
-    | "%perform" -> Primitive (Pperform, 1)
-    | "%resume" -> Primitive (Presume, 3)
+    | "%runstack" ->
+      if runtime5 then Primitive (Prunstack, 3) else Unsupported Prunstack
+    | "%reperform" ->
+      if runtime5 then Primitive (Preperform, 3) else Unsupported Preperform
+    | "%perform" ->
+      if runtime5 then Primitive (Pperform, 1) else Unsupported Pperform
+    | "%resume" ->
+      if runtime5 then Primitive (Presume, 3) else Unsupported Presume
     | "%dls_get" -> Primitive (Pdls_get, 1)
     | "%unbox_nativeint" -> Primitive(Punbox_int Pnativeint, 1)
     | "%box_nativeint" -> Primitive(Pbox_int (Pnativeint, mode), 1)
@@ -1342,6 +1348,21 @@ let lambda_of_prim prim_name prim loc args arg_exps =
         ap_region_close = pos;
         ap_mode = alloc_heap;
       }
+  | Unsupported prim, _ ->
+      let exn =
+        transl_extension_path loc (Lazy.force Env.initial)
+          Predef.path_invalid_argument
+      in
+      let msg =
+        Format.asprintf "Unsupported primitive %a" Printlambda.primitive prim
+      in
+      Lprim (
+        Praise Raise_regular,
+        [Lprim (
+          Pmakeblock (0, Immutable, None, alloc_heap),
+          [exn; Lconst (Const_immstring msg)],
+          loc)],
+        loc)
   | (Raise _ | Raise_with_backtrace
     | Lazy_force _ | Loc _ | Primitive _ | Sys_argv | Comparison _
     | Send _ | Send_self _ | Send_cache _ | Frame_pointers | Identity
@@ -1379,6 +1400,7 @@ let check_primitive_arity loc p =
     | Frame_pointers -> p.prim_arity = 0
     | Identity -> p.prim_arity = 1
     | Apply _ | Revapply _ -> p.prim_arity = 2
+    | Unsupported _ -> true
   in
   if not ok then raise(Error(loc, Wrong_arity_builtin_primitive p.prim_name))
 
@@ -1564,7 +1586,8 @@ let primitive_needs_event_after = function
       lambda_primitive_needs_event_after (comparison_primitive comp knd)
   | Lazy_force _ | Send _ | Send_self _ | Send_cache _
   | Apply _ | Revapply _ -> true
-  | Raise _ | Raise_with_backtrace | Loc _ | Frame_pointers | Identity -> false
+  | Raise _ | Raise_with_backtrace | Loc _ | Frame_pointers | Identity
+  | Unsupported _ -> false
 
 let transl_primitive_application loc p env ty ~poly_mode ~poly_sort
     path exp args arg_exps pos =
