@@ -379,228 +379,228 @@ type t301 =
   | A of float#
   | B of float#
 type t302 =
-  | A of string * float#
+  | A of { mutable float_u0 : float# }
 type t303 =
   | A of float#
   | B of float#
   | C of float#
 type t304 =
-  | A of string * float#
+  | A of { mutable float_u0 : float# }
   | B of float#
 type t305 =
-  | A of float32#
+  | A of string * float#
 type t306 =
   | A of float#
-  | B of string * float#
+  | B of { mutable float_u0 : float# }
 type t307 =
-  | A of string * float#
+  | A of { mutable float_u0 : float# }
   | B of float#
   | C of float#
 type t308 =
-  | A of float32#
+  | A of string * float#
   | B of float#
 type t309 =
-  | A of float * float#
+  | A of { mutable str0 : string; mutable float_u1 : float# }
 type t310 =
   | A of float#
   | B of float#
   | C of float#
   | D of float#
 type t311 =
-  | A of string * float#
-  | B of string * float#
+  | A of { mutable float_u0 : float# }
+  | B of { mutable float_u0 : float# }
 type t312 =
-  | A of float32#
+  | A of string * float#
   | B of float#
   | C of float#
 type t313 =
-  | A of float * float#
+  | A of { mutable str0 : string; mutable float_u1 : float# }
   | B of float#
 type t314 =
-  | A of string * float32#
+  | A of float32#
 type t315 =
   | A of float#
-  | B of string * float#
+  | B of { mutable float_u0 : float# }
   | C of float#
 type t316 =
-  | A of string * float#
+  | A of { mutable float_u0 : float# }
   | B of float#
   | C of float#
   | D of float#
 type t317 =
-  | A of float32#
-  | B of string * float#
+  | A of string * float#
+  | B of { mutable float_u0 : float# }
 type t318 =
-  | A of float * float#
+  | A of { mutable str0 : string; mutable float_u1 : float# }
   | B of float#
   | C of float#
 type t319 =
-  | A of string * float32#
+  | A of float32#
   | B of float#
 type t320 =
-  | A of int32#
+  | A of { float_u0 : float# }
 type t321 =
   | A of float#
-  | B of float32#
-type t322 =
-  | A of string * float#
   | B of string * float#
+type t322 =
+  | A of { mutable float_u0 : float# }
+  | B of { mutable float_u0 : float# }
   | C of float#
 type t323 =
-  | A of float32#
+  | A of string * float#
   | B of float#
   | C of float#
   | D of float#
 type t324 =
-  | A of float * float#
-  | B of string * float#
+  | A of { mutable str0 : string; mutable float_u1 : float# }
+  | B of { mutable float_u0 : float# }
 type t325 =
-  | A of string * float32#
+  | A of float32#
   | B of float#
   | C of float#
 type t326 =
-  | A of int32#
+  | A of { float_u0 : float# }
   | B of float#
 type t327 =
-  | A of string * string * float#
+  | A of float * float#
 type t328 =
   | A of float#
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
 type t329 =
-  | A of string * float#
-  | B of float32#
-type t330 =
-  | A of float32#
+  | A of { mutable float_u0 : float# }
   | B of string * float#
+type t330 =
+  | A of string * float#
+  | B of { mutable float_u0 : float# }
   | C of float#
 type t331 =
-  | A of float * float#
+  | A of { mutable str0 : string; mutable float_u1 : float# }
   | B of float#
   | C of float#
   | D of float#
 type t332 =
-  | A of string * float32#
-  | B of string * float#
+  | A of float32#
+  | B of { mutable float_u0 : float# }
 type t333 =
-  | A of int32#
+  | A of { float_u0 : float# }
   | B of float#
   | C of float#
 type t334 =
-  | A of string * string * float#
+  | A of float * float#
   | B of float#
 type t335 =
-  | A of float * float32#
+  | A of { str0 : string; mutable float_u1 : float# }
 type t336 =
   | A of float#
-  | B of string * float#
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
 type t337 =
-  | A of string * float#
+  | A of { mutable float_u0 : float# }
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
 type t338 =
-  | A of float32#
-  | B of float32#
-type t339 =
-  | A of float * float#
+  | A of string * float#
   | B of string * float#
+type t339 =
+  | A of { mutable str0 : string; mutable float_u1 : float# }
+  | B of { mutable float_u0 : float# }
   | C of float#
 type t340 =
-  | A of string * float32#
+  | A of float32#
   | B of float#
   | C of float#
   | D of float#
 type t341 =
-  | A of int32#
-  | B of string * float#
+  | A of { float_u0 : float# }
+  | B of { mutable float_u0 : float# }
 type t342 =
-  | A of string * string * float#
+  | A of float * float#
   | B of float#
   | C of float#
 type t343 =
-  | A of float * float32#
+  | A of { str0 : string; mutable float_u1 : float# }
   | B of float#
 type t344 =
-  | A of string * int32#
+  | A of string * float32#
 type t345 =
   | A of float#
-  | B of float32#
+  | B of string * float#
   | C of float#
 type t346 =
-  | A of string * float#
-  | B of string * float#
+  | A of { mutable float_u0 : float# }
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
 type t347 =
-  | A of float32#
+  | A of string * float#
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
 type t348 =
-  | A of float * float#
-  | B of float32#
-type t349 =
-  | A of string * float32#
+  | A of { mutable str0 : string; mutable float_u1 : float# }
   | B of string * float#
+type t349 =
+  | A of float32#
+  | B of { mutable float_u0 : float# }
   | C of float#
 type t350 =
-  | A of int32#
+  | A of { float_u0 : float# }
   | B of float#
   | C of float#
   | D of float#
 type t351 =
-  | A of string * string * float#
-  | B of string * float#
+  | A of float * float#
+  | B of { mutable float_u0 : float# }
 type t352 =
-  | A of float * float32#
+  | A of { str0 : string; mutable float_u1 : float# }
   | B of float#
   | C of float#
 type t353 =
-  | A of string * int32#
+  | A of string * float32#
   | B of float#
 type t354 =
-  | A of int64#
+  | A of { mutable str0 : string; float_u1 : float# }
 type t355 =
   | A of float#
-  | B of float * float#
+  | B of { mutable str0 : string; mutable float_u1 : float# }
 type t356 =
-  | A of string * float#
-  | B of float32#
+  | A of { mutable float_u0 : float# }
+  | B of string * float#
   | C of float#
 type t357 =
-  | A of float32#
-  | B of string * float#
+  | A of string * float#
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
 type t358 =
-  | A of float * float#
+  | A of { mutable str0 : string; mutable float_u1 : float# }
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
 type t359 =
-  | A of string * float32#
-  | B of float32#
-type t360 =
-  | A of int32#
+  | A of float32#
   | B of string * float#
+type t360 =
+  | A of { float_u0 : float# }
+  | B of { mutable float_u0 : float# }
   | C of float#
 type t361 =
-  | A of string * string * float#
+  | A of float * float#
   | B of float#
   | C of float#
   | D of float#
 type t362 =
-  | A of float * float32#
-  | B of string * float#
+  | A of { str0 : string; mutable float_u1 : float# }
+  | B of { mutable float_u0 : float# }
 type t363 =
-  | A of string * int32#
+  | A of string * float32#
   | B of float#
   | C of float#
 type t364 =
-  | A of int64#
+  | A of { mutable str0 : string; float_u1 : float# }
   | B of float#
 type t365 =
-  | A of float * string * float#
+  | A of int32#
 type t366 =
   | A of float#
   | B of float#
@@ -608,936 +608,936 @@ type t366 =
   | D of float#
   | E of float#
 type t367 =
-  | A of string * float#
-  | B of float * float#
+  | A of { mutable float_u0 : float# }
+  | B of { mutable str0 : string; mutable float_u1 : float# }
 type t368 =
-  | A of float32#
-  | B of float32#
+  | A of string * float#
+  | B of string * float#
   | C of float#
 type t369 =
-  | A of float * float#
-  | B of string * float#
+  | A of { mutable str0 : string; mutable float_u1 : float# }
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
 type t370 =
-  | A of string * float32#
+  | A of float32#
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
 type t371 =
-  | A of int32#
-  | B of float32#
-type t372 =
-  | A of string * string * float#
+  | A of { float_u0 : float# }
   | B of string * float#
+type t372 =
+  | A of float * float#
+  | B of { mutable float_u0 : float# }
   | C of float#
 type t373 =
-  | A of float * float32#
+  | A of { str0 : string; mutable float_u1 : float# }
   | B of float#
   | C of float#
   | D of float#
 type t374 =
-  | A of string * int32#
-  | B of string * float#
+  | A of string * float32#
+  | B of { mutable float_u0 : float# }
 type t375 =
-  | A of int64#
+  | A of { mutable str0 : string; float_u1 : float# }
   | B of float#
   | C of float#
 type t376 =
-  | A of float * string * float#
+  | A of int32#
   | B of float#
 type t377 =
-  | A of string * string * float32#
+  | A of { mutable float32_u0 : float32# }
 type t378 =
   | A of float#
-  | B of string * float#
-  | C of string * float#
+  | B of { mutable float_u0 : float# }
+  | C of { mutable float_u0 : float# }
 type t379 =
-  | A of string * float#
+  | A of { mutable float_u0 : float# }
   | B of float#
   | C of float#
   | D of float#
   | E of float#
 type t380 =
-  | A of float32#
-  | B of float * float#
+  | A of string * float#
+  | B of { mutable str0 : string; mutable float_u1 : float# }
 type t381 =
-  | A of float * float#
-  | B of float32#
+  | A of { mutable str0 : string; mutable float_u1 : float# }
+  | B of string * float#
   | C of float#
 type t382 =
-  | A of string * float32#
-  | B of string * float#
+  | A of float32#
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
 type t383 =
-  | A of int32#
+  | A of { float_u0 : float# }
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
 type t384 =
-  | A of string * string * float#
-  | B of float32#
-type t385 =
-  | A of float * float32#
+  | A of float * float#
   | B of string * float#
+type t385 =
+  | A of { str0 : string; mutable float_u1 : float# }
+  | B of { mutable float_u0 : float# }
   | C of float#
 type t386 =
-  | A of string * int32#
+  | A of string * float32#
   | B of float#
   | C of float#
   | D of float#
 type t387 =
-  | A of int64#
-  | B of string * float#
+  | A of { mutable str0 : string; float_u1 : float# }
+  | B of { mutable float_u0 : float# }
 type t388 =
-  | A of float * string * float#
+  | A of int32#
   | B of float#
   | C of float#
 type t389 =
-  | A of string * string * float32#
+  | A of { mutable float32_u0 : float32# }
   | B of float#
 type t390 =
-  | A of float * int32#
+  | A of string * string * float#
 type t391 =
   | A of float#
-  | B of float32#
+  | B of string * float#
   | C of float#
   | D of float#
 type t392 =
-  | A of string * float#
-  | B of string * float#
-  | C of string * float#
+  | A of { mutable float_u0 : float# }
+  | B of { mutable float_u0 : float# }
+  | C of { mutable float_u0 : float# }
 type t393 =
-  | A of float32#
+  | A of string * float#
   | B of float#
   | C of float#
   | D of float#
   | E of float#
 type t394 =
-  | A of float * float#
-  | B of float * float#
+  | A of { mutable str0 : string; mutable float_u1 : float# }
+  | B of { mutable str0 : string; mutable float_u1 : float# }
 type t395 =
-  | A of string * float32#
-  | B of float32#
+  | A of float32#
+  | B of string * float#
   | C of float#
 type t396 =
-  | A of int32#
-  | B of string * float#
+  | A of { float_u0 : float# }
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
 type t397 =
-  | A of string * string * float#
+  | A of float * float#
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
 type t398 =
-  | A of float * float32#
-  | B of float32#
-type t399 =
-  | A of string * int32#
+  | A of { str0 : string; mutable float_u1 : float# }
   | B of string * float#
+type t399 =
+  | A of string * float32#
+  | B of { mutable float_u0 : float# }
   | C of float#
 type t400 =
-  | A of int64#
+  | A of { mutable str0 : string; float_u1 : float# }
   | B of float#
   | C of float#
   | D of float#
 type t401 =
-  | A of float * string * float#
-  | B of string * float#
+  | A of int32#
+  | B of { mutable float_u0 : float# }
 type t402 =
-  | A of string * string * float32#
+  | A of { mutable float32_u0 : float32# }
   | B of float#
   | C of float#
 type t403 =
-  | A of float * int32#
+  | A of string * string * float#
   | B of float#
 type t404 =
-  | A of string * int64#
+  | A of { mutable float0 : float; mutable float_u1 : float# }
 type t405 =
   | A of float#
-  | B of float * float#
+  | B of { mutable str0 : string; mutable float_u1 : float# }
   | C of float#
 type t406 =
-  | A of string * float#
-  | B of float32#
+  | A of { mutable float_u0 : float# }
+  | B of string * float#
   | C of float#
   | D of float#
 type t407 =
-  | A of float32#
-  | B of string * float#
-  | C of string * float#
+  | A of string * float#
+  | B of { mutable float_u0 : float# }
+  | C of { mutable float_u0 : float# }
 type t408 =
-  | A of float * float#
+  | A of { mutable str0 : string; mutable float_u1 : float# }
   | B of float#
   | C of float#
   | D of float#
   | E of float#
 type t409 =
-  | A of string * float32#
-  | B of float * float#
+  | A of float32#
+  | B of { mutable str0 : string; mutable float_u1 : float# }
 type t410 =
-  | A of int32#
-  | B of float32#
+  | A of { float_u0 : float# }
+  | B of string * float#
   | C of float#
 type t411 =
-  | A of string * string * float#
-  | B of string * float#
+  | A of float * float#
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
 type t412 =
-  | A of float * float32#
+  | A of { str0 : string; mutable float_u1 : float# }
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
 type t413 =
-  | A of string * int32#
-  | B of float32#
-type t414 =
-  | A of int64#
+  | A of string * float32#
   | B of string * float#
+type t414 =
+  | A of { mutable str0 : string; float_u1 : float# }
+  | B of { mutable float_u0 : float# }
   | C of float#
 type t415 =
-  | A of float * string * float#
+  | A of int32#
   | B of float#
   | C of float#
   | D of float#
 type t416 =
-  | A of string * string * float32#
-  | B of string * float#
+  | A of { mutable float32_u0 : float32# }
+  | B of { mutable float_u0 : float# }
 type t417 =
-  | A of float * int32#
+  | A of string * string * float#
   | B of float#
   | C of float#
 type t418 =
-  | A of string * int64#
+  | A of { mutable float0 : float; mutable float_u1 : float# }
   | B of float#
 type t419 =
-  | A of nativeint#
+  | A of float * float32#
 type t420 =
   | A of float#
-  | B of string * float32#
+  | B of float32#
 type t421 =
-  | A of string * float#
-  | B of float * float#
+  | A of { mutable float_u0 : float# }
+  | B of { mutable str0 : string; mutable float_u1 : float# }
   | C of float#
 type t422 =
-  | A of float32#
-  | B of float32#
+  | A of string * float#
+  | B of string * float#
   | C of float#
   | D of float#
 type t423 =
-  | A of float * float#
-  | B of string * float#
-  | C of string * float#
+  | A of { mutable str0 : string; mutable float_u1 : float# }
+  | B of { mutable float_u0 : float# }
+  | C of { mutable float_u0 : float# }
 type t424 =
-  | A of string * float32#
+  | A of float32#
   | B of float#
   | C of float#
   | D of float#
   | E of float#
 type t425 =
-  | A of int32#
-  | B of float * float#
+  | A of { float_u0 : float# }
+  | B of { mutable str0 : string; mutable float_u1 : float# }
 type t426 =
-  | A of string * string * float#
-  | B of float32#
+  | A of float * float#
+  | B of string * float#
   | C of float#
 type t427 =
-  | A of float * float32#
-  | B of string * float#
+  | A of { str0 : string; mutable float_u1 : float# }
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
 type t428 =
-  | A of string * int32#
+  | A of string * float32#
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
 type t429 =
-  | A of int64#
-  | B of float32#
-type t430 =
-  | A of float * string * float#
+  | A of { mutable str0 : string; float_u1 : float# }
   | B of string * float#
+type t430 =
+  | A of int32#
+  | B of { mutable float_u0 : float# }
   | C of float#
 type t431 =
-  | A of string * string * float32#
+  | A of { mutable float32_u0 : float32# }
   | B of float#
   | C of float#
   | D of float#
 type t432 =
-  | A of float * int32#
-  | B of string * float#
+  | A of string * string * float#
+  | B of { mutable float_u0 : float# }
 type t433 =
-  | A of string * int64#
+  | A of { mutable float0 : float; mutable float_u1 : float# }
   | B of float#
   | C of float#
 type t434 =
-  | A of nativeint#
+  | A of float * float32#
   | B of float#
 type t435 =
-  | A of int * string * float#
+  | A of { str0 : string; float_u1 : float# }
 type t436 =
   | A of float#
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
   | D of float#
 type t437 =
-  | A of string * float#
-  | B of string * float32#
+  | A of { mutable float_u0 : float# }
+  | B of float32#
 type t438 =
-  | A of float32#
-  | B of float * float#
+  | A of string * float#
+  | B of { mutable str0 : string; mutable float_u1 : float# }
   | C of float#
 type t439 =
-  | A of float * float#
-  | B of float32#
+  | A of { mutable str0 : string; mutable float_u1 : float# }
+  | B of string * float#
   | C of float#
   | D of float#
 type t440 =
-  | A of string * float32#
-  | B of string * float#
-  | C of string * float#
+  | A of float32#
+  | B of { mutable float_u0 : float# }
+  | C of { mutable float_u0 : float# }
 type t441 =
-  | A of int32#
+  | A of { float_u0 : float# }
   | B of float#
   | C of float#
   | D of float#
   | E of float#
 type t442 =
-  | A of string * string * float#
-  | B of float * float#
+  | A of float * float#
+  | B of { mutable str0 : string; mutable float_u1 : float# }
 type t443 =
-  | A of float * float32#
-  | B of float32#
+  | A of { str0 : string; mutable float_u1 : float# }
+  | B of string * float#
   | C of float#
 type t444 =
-  | A of string * int32#
-  | B of string * float#
+  | A of string * float32#
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
 type t445 =
-  | A of int64#
+  | A of { mutable str0 : string; float_u1 : float# }
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
 type t446 =
-  | A of float * string * float#
-  | B of float32#
-type t447 =
-  | A of string * string * float32#
+  | A of int32#
   | B of string * float#
+type t447 =
+  | A of { mutable float32_u0 : float32# }
+  | B of { mutable float_u0 : float# }
   | C of float#
 type t448 =
-  | A of float * int32#
+  | A of string * string * float#
   | B of float#
   | C of float#
   | D of float#
 type t449 =
-  | A of string * int64#
-  | B of string * float#
+  | A of { mutable float0 : float; mutable float_u1 : float# }
+  | B of { mutable float_u0 : float# }
 type t450 =
-  | A of nativeint#
+  | A of float * float32#
   | B of float#
   | C of float#
 type t451 =
-  | A of int * string * float#
+  | A of { str0 : string; float_u1 : float# }
   | B of float#
 type t452 =
-  | A of float * string * float32#
+  | A of string * int32#
 type t453 =
   | A of float#
-  | B of string * float#
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
   | E of float#
 type t454 =
-  | A of string * float#
+  | A of { mutable float_u0 : float# }
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
   | D of float#
 type t455 =
-  | A of float32#
-  | B of string * float32#
+  | A of string * float#
+  | B of float32#
 type t456 =
-  | A of float * float#
-  | B of float * float#
+  | A of { mutable str0 : string; mutable float_u1 : float# }
+  | B of { mutable str0 : string; mutable float_u1 : float# }
   | C of float#
 type t457 =
-  | A of string * float32#
-  | B of float32#
+  | A of float32#
+  | B of string * float#
   | C of float#
   | D of float#
 type t458 =
-  | A of int32#
-  | B of string * float#
-  | C of string * float#
+  | A of { float_u0 : float# }
+  | B of { mutable float_u0 : float# }
+  | C of { mutable float_u0 : float# }
 type t459 =
-  | A of string * string * float#
+  | A of float * float#
   | B of float#
   | C of float#
   | D of float#
   | E of float#
 type t460 =
-  | A of float * float32#
-  | B of float * float#
+  | A of { str0 : string; mutable float_u1 : float# }
+  | B of { mutable str0 : string; mutable float_u1 : float# }
 type t461 =
-  | A of string * int32#
-  | B of float32#
+  | A of string * float32#
+  | B of string * float#
   | C of float#
 type t462 =
-  | A of int64#
-  | B of string * float#
+  | A of { mutable str0 : string; float_u1 : float# }
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
 type t463 =
-  | A of float * string * float#
+  | A of int32#
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
 type t464 =
-  | A of string * string * float32#
-  | B of float32#
-type t465 =
-  | A of float * int32#
+  | A of { mutable float32_u0 : float32# }
   | B of string * float#
+type t465 =
+  | A of string * string * float#
+  | B of { mutable float_u0 : float# }
   | C of float#
 type t466 =
-  | A of string * int64#
+  | A of { mutable float0 : float; mutable float_u1 : float# }
   | B of float#
   | C of float#
   | D of float#
 type t467 =
-  | A of nativeint#
-  | B of string * float#
+  | A of float * float32#
+  | B of { mutable float_u0 : float# }
 type t468 =
-  | A of int * string * float#
+  | A of { str0 : string; float_u1 : float# }
   | B of float#
   | C of float#
 type t469 =
-  | A of float * string * float32#
+  | A of string * int32#
   | B of float#
 type t470 =
-  | A of string * string * int32#
+  | A of { mutable str0 : string; mutable float32_u1 : float32# }
 type t471 =
   | A of float#
-  | B of float32#
-  | C of string * float#
-type t472 =
-  | A of string * float#
   | B of string * float#
+  | C of { mutable float_u0 : float# }
+type t472 =
+  | A of { mutable float_u0 : float# }
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
   | E of float#
 type t473 =
-  | A of float32#
+  | A of string * float#
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
   | D of float#
 type t474 =
-  | A of float * float#
-  | B of string * float32#
+  | A of { mutable str0 : string; mutable float_u1 : float# }
+  | B of float32#
 type t475 =
-  | A of string * float32#
-  | B of float * float#
+  | A of float32#
+  | B of { mutable str0 : string; mutable float_u1 : float# }
   | C of float#
 type t476 =
-  | A of int32#
-  | B of float32#
+  | A of { float_u0 : float# }
+  | B of string * float#
   | C of float#
   | D of float#
 type t477 =
-  | A of string * string * float#
-  | B of string * float#
-  | C of string * float#
+  | A of float * float#
+  | B of { mutable float_u0 : float# }
+  | C of { mutable float_u0 : float# }
 type t478 =
-  | A of float * float32#
+  | A of { str0 : string; mutable float_u1 : float# }
   | B of float#
   | C of float#
   | D of float#
   | E of float#
 type t479 =
-  | A of string * int32#
-  | B of float * float#
+  | A of string * float32#
+  | B of { mutable str0 : string; mutable float_u1 : float# }
 type t480 =
-  | A of int64#
-  | B of float32#
+  | A of { mutable str0 : string; float_u1 : float# }
+  | B of string * float#
   | C of float#
 type t481 =
-  | A of float * string * float#
-  | B of string * float#
+  | A of int32#
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
 type t482 =
-  | A of string * string * float32#
+  | A of { mutable float32_u0 : float32# }
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
 type t483 =
-  | A of float * int32#
-  | B of float32#
-type t484 =
-  | A of string * int64#
+  | A of string * string * float#
   | B of string * float#
+type t484 =
+  | A of { mutable float0 : float; mutable float_u1 : float# }
+  | B of { mutable float_u0 : float# }
   | C of float#
 type t485 =
-  | A of nativeint#
+  | A of float * float32#
   | B of float#
   | C of float#
   | D of float#
 type t486 =
-  | A of int * string * float#
-  | B of string * float#
+  | A of { str0 : string; float_u1 : float# }
+  | B of { mutable float_u0 : float# }
 type t487 =
-  | A of float * string * float32#
+  | A of string * int32#
   | B of float#
   | C of float#
 type t488 =
-  | A of string * string * int32#
+  | A of { mutable str0 : string; mutable float32_u1 : float32# }
   | B of float#
 type t489 =
-  | A of float * int64#
+  | A of int64#
 type t490 =
   | A of float#
-  | B of float * float#
+  | B of { mutable str0 : string; mutable float_u1 : float# }
   | C of float#
   | D of float#
 type t491 =
-  | A of string * float#
-  | B of float32#
-  | C of string * float#
-type t492 =
-  | A of float32#
+  | A of { mutable float_u0 : float# }
   | B of string * float#
+  | C of { mutable float_u0 : float# }
+type t492 =
+  | A of string * float#
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
   | E of float#
 type t493 =
-  | A of float * float#
+  | A of { mutable str0 : string; mutable float_u1 : float# }
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
   | D of float#
 type t494 =
-  | A of string * float32#
-  | B of string * float32#
+  | A of float32#
+  | B of float32#
 type t495 =
-  | A of int32#
-  | B of float * float#
+  | A of { float_u0 : float# }
+  | B of { mutable str0 : string; mutable float_u1 : float# }
   | C of float#
 type t496 =
-  | A of string * string * float#
-  | B of float32#
+  | A of float * float#
+  | B of string * float#
   | C of float#
   | D of float#
 type t497 =
-  | A of float * float32#
-  | B of string * float#
-  | C of string * float#
+  | A of { str0 : string; mutable float_u1 : float# }
+  | B of { mutable float_u0 : float# }
+  | C of { mutable float_u0 : float# }
 type t498 =
-  | A of string * int32#
+  | A of string * float32#
   | B of float#
   | C of float#
   | D of float#
   | E of float#
 type t499 =
-  | A of int64#
-  | B of float * float#
+  | A of { mutable str0 : string; float_u1 : float# }
+  | B of { mutable str0 : string; mutable float_u1 : float# }
 type t500 =
-  | A of float * string * float#
-  | B of float32#
+  | A of int32#
+  | B of string * float#
   | C of float#
 type t501 =
-  | A of string * string * float32#
-  | B of string * float#
+  | A of { mutable float32_u0 : float32# }
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
 type t502 =
-  | A of float * int32#
+  | A of string * string * float#
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
 type t503 =
-  | A of string * int64#
-  | B of float32#
-type t504 =
-  | A of nativeint#
+  | A of { mutable float0 : float; mutable float_u1 : float# }
   | B of string * float#
+type t504 =
+  | A of float * float32#
+  | B of { mutable float_u0 : float# }
   | C of float#
 type t505 =
-  | A of int * string * float#
+  | A of { str0 : string; float_u1 : float# }
   | B of float#
   | C of float#
   | D of float#
 type t506 =
-  | A of float * string * float32#
-  | B of string * float#
+  | A of string * int32#
+  | B of { mutable float_u0 : float# }
 type t507 =
-  | A of string * string * int32#
+  | A of { mutable str0 : string; mutable float32_u1 : float32# }
   | B of float#
   | C of float#
 type t508 =
-  | A of float * int64#
+  | A of int64#
   | B of float#
 type t509 =
-  | A of string * nativeint#
+  | A of { float32_u0 : float32# }
 type t510 =
   | A of float#
-  | B of string * float32#
+  | B of float32#
   | C of float#
 type t511 =
-  | A of string * float#
-  | B of float * float#
+  | A of { mutable float_u0 : float# }
+  | B of { mutable str0 : string; mutable float_u1 : float# }
   | C of float#
   | D of float#
 type t512 =
-  | A of float32#
-  | B of float32#
-  | C of string * float#
-type t513 =
-  | A of float * float#
+  | A of string * float#
   | B of string * float#
+  | C of { mutable float_u0 : float# }
+type t513 =
+  | A of { mutable str0 : string; mutable float_u1 : float# }
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
   | E of float#
 type t514 =
-  | A of string * float32#
+  | A of float32#
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
   | D of float#
 type t515 =
-  | A of int32#
-  | B of string * float32#
+  | A of { float_u0 : float# }
+  | B of float32#
 type t516 =
-  | A of string * string * float#
-  | B of float * float#
+  | A of float * float#
+  | B of { mutable str0 : string; mutable float_u1 : float# }
   | C of float#
 type t517 =
-  | A of float * float32#
-  | B of float32#
+  | A of { str0 : string; mutable float_u1 : float# }
+  | B of string * float#
   | C of float#
   | D of float#
 type t518 =
-  | A of string * int32#
-  | B of string * float#
-  | C of string * float#
+  | A of string * float32#
+  | B of { mutable float_u0 : float# }
+  | C of { mutable float_u0 : float# }
 type t519 =
-  | A of int64#
+  | A of { mutable str0 : string; float_u1 : float# }
   | B of float#
   | C of float#
   | D of float#
   | E of float#
 type t520 =
-  | A of float * string * float#
-  | B of float * float#
+  | A of int32#
+  | B of { mutable str0 : string; mutable float_u1 : float# }
 type t521 =
-  | A of string * string * float32#
-  | B of float32#
+  | A of { mutable float32_u0 : float32# }
+  | B of string * float#
   | C of float#
 type t522 =
-  | A of float * int32#
-  | B of string * float#
+  | A of string * string * float#
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
 type t523 =
-  | A of string * int64#
+  | A of { mutable float0 : float; mutable float_u1 : float# }
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
 type t524 =
-  | A of nativeint#
-  | B of float32#
-type t525 =
-  | A of int * string * float#
+  | A of float * float32#
   | B of string * float#
+type t525 =
+  | A of { str0 : string; float_u1 : float# }
+  | B of { mutable float_u0 : float# }
   | C of float#
 type t526 =
-  | A of float * string * float32#
+  | A of string * int32#
   | B of float#
   | C of float#
   | D of float#
 type t527 =
-  | A of string * string * int32#
-  | B of string * float#
+  | A of { mutable str0 : string; mutable float32_u1 : float32# }
+  | B of { mutable float_u0 : float# }
 type t528 =
-  | A of float * int64#
+  | A of int64#
   | B of float#
   | C of float#
 type t529 =
-  | A of string * nativeint#
+  | A of { float32_u0 : float32# }
   | B of float#
 type t530 =
-  | A of float# * int
+  | A of float * string * float#
 type t531 =
   | A of float#
-  | B of int32#
+  | B of { float_u0 : float# }
 type t532 =
-  | A of string * float#
-  | B of string * float32#
+  | A of { mutable float_u0 : float# }
+  | B of float32#
   | C of float#
 type t533 =
-  | A of float32#
-  | B of float * float#
+  | A of string * float#
+  | B of { mutable str0 : string; mutable float_u1 : float# }
   | C of float#
   | D of float#
 type t534 =
-  | A of float * float#
-  | B of float32#
-  | C of string * float#
-type t535 =
-  | A of string * float32#
+  | A of { mutable str0 : string; mutable float_u1 : float# }
   | B of string * float#
+  | C of { mutable float_u0 : float# }
+type t535 =
+  | A of float32#
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
   | E of float#
 type t536 =
-  | A of int32#
+  | A of { float_u0 : float# }
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
   | D of float#
 type t537 =
-  | A of string * string * float#
-  | B of string * float32#
+  | A of float * float#
+  | B of float32#
 type t538 =
-  | A of float * float32#
-  | B of float * float#
+  | A of { str0 : string; mutable float_u1 : float# }
+  | B of { mutable str0 : string; mutable float_u1 : float# }
   | C of float#
 type t539 =
-  | A of string * int32#
-  | B of float32#
+  | A of string * float32#
+  | B of string * float#
   | C of float#
   | D of float#
 type t540 =
-  | A of int64#
-  | B of string * float#
-  | C of string * float#
+  | A of { mutable str0 : string; float_u1 : float# }
+  | B of { mutable float_u0 : float# }
+  | C of { mutable float_u0 : float# }
 type t541 =
-  | A of float * string * float#
+  | A of int32#
   | B of float#
   | C of float#
   | D of float#
   | E of float#
 type t542 =
-  | A of string * string * float32#
-  | B of float * float#
+  | A of { mutable float32_u0 : float32# }
+  | B of { mutable str0 : string; mutable float_u1 : float# }
 type t543 =
-  | A of float * int32#
-  | B of float32#
+  | A of string * string * float#
+  | B of string * float#
   | C of float#
 type t544 =
-  | A of string * int64#
-  | B of string * float#
+  | A of { mutable float0 : float; mutable float_u1 : float# }
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
 type t545 =
-  | A of nativeint#
+  | A of float * float32#
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
 type t546 =
-  | A of int * string * float#
-  | B of float32#
-type t547 =
-  | A of float * string * float32#
+  | A of { str0 : string; float_u1 : float# }
   | B of string * float#
+type t547 =
+  | A of string * int32#
+  | B of { mutable float_u0 : float# }
   | C of float#
 type t548 =
-  | A of string * string * int32#
+  | A of { mutable str0 : string; mutable float32_u1 : float32# }
   | B of float#
   | C of float#
   | D of float#
 type t549 =
-  | A of float * int64#
-  | B of string * float#
+  | A of int64#
+  | B of { mutable float_u0 : float# }
 type t550 =
-  | A of string * nativeint#
+  | A of { float32_u0 : float32# }
   | B of float#
   | C of float#
 type t551 =
-  | A of float# * int
+  | A of float * string * float#
   | B of float#
 type t552 =
-  | A of string * float * float#
+  | A of { float0 : float; mutable float_u1 : float# }
 type t553 =
   | A of float#
   | B of float#
-  | C of float32#
+  | C of string * float#
 type t554 =
-  | A of string * float#
-  | B of int32#
+  | A of { mutable float_u0 : float# }
+  | B of { float_u0 : float# }
 type t555 =
-  | A of float32#
-  | B of string * float32#
+  | A of string * float#
+  | B of float32#
   | C of float#
 type t556 =
-  | A of float * float#
-  | B of float * float#
+  | A of { mutable str0 : string; mutable float_u1 : float# }
+  | B of { mutable str0 : string; mutable float_u1 : float# }
   | C of float#
   | D of float#
 type t557 =
-  | A of string * float32#
-  | B of float32#
-  | C of string * float#
-type t558 =
-  | A of int32#
+  | A of float32#
   | B of string * float#
+  | C of { mutable float_u0 : float# }
+type t558 =
+  | A of { float_u0 : float# }
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
   | E of float#
 type t559 =
-  | A of string * string * float#
+  | A of float * float#
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
   | D of float#
 type t560 =
-  | A of float * float32#
-  | B of string * float32#
+  | A of { str0 : string; mutable float_u1 : float# }
+  | B of float32#
 type t561 =
-  | A of string * int32#
-  | B of float * float#
+  | A of string * float32#
+  | B of { mutable str0 : string; mutable float_u1 : float# }
   | C of float#
 type t562 =
-  | A of int64#
-  | B of float32#
+  | A of { mutable str0 : string; float_u1 : float# }
+  | B of string * float#
   | C of float#
   | D of float#
 type t563 =
-  | A of float * string * float#
-  | B of string * float#
-  | C of string * float#
+  | A of int32#
+  | B of { mutable float_u0 : float# }
+  | C of { mutable float_u0 : float# }
 type t564 =
-  | A of string * string * float32#
+  | A of { mutable float32_u0 : float32# }
   | B of float#
   | C of float#
   | D of float#
   | E of float#
 type t565 =
-  | A of float * int32#
-  | B of float * float#
+  | A of string * string * float#
+  | B of { mutable str0 : string; mutable float_u1 : float# }
 type t566 =
-  | A of string * int64#
-  | B of float32#
+  | A of { mutable float0 : float; mutable float_u1 : float# }
+  | B of string * float#
   | C of float#
 type t567 =
-  | A of nativeint#
-  | B of string * float#
+  | A of float * float32#
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
 type t568 =
-  | A of int * string * float#
+  | A of { str0 : string; float_u1 : float# }
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
 type t569 =
-  | A of float * string * float32#
-  | B of float32#
-type t570 =
-  | A of string * string * int32#
+  | A of string * int32#
   | B of string * float#
+type t570 =
+  | A of { mutable str0 : string; mutable float32_u1 : float32# }
+  | B of { mutable float_u0 : float# }
   | C of float#
 type t571 =
-  | A of float * int64#
+  | A of int64#
   | B of float#
   | C of float#
   | D of float#
 type t572 =
-  | A of string * nativeint#
-  | B of string * float#
+  | A of { float32_u0 : float32# }
+  | B of { mutable float_u0 : float# }
 type t573 =
-  | A of float# * int
+  | A of float * string * float#
   | B of float#
   | C of float#
 type t574 =
-  | A of string * float * float#
+  | A of { float0 : float; mutable float_u1 : float# }
   | B of float#
 type t575 =
-  | A of int * string * float32#
+  | A of string * string * float32#
 type t576 =
   | A of float#
-  | B of string * float#
-  | C of string * float#
+  | B of { mutable float_u0 : float# }
+  | C of { mutable float_u0 : float# }
   | D of float#
 type t577 =
-  | A of string * float#
+  | A of { mutable float_u0 : float# }
   | B of float#
-  | C of float32#
+  | C of string * float#
 type t578 =
-  | A of float32#
-  | B of int32#
+  | A of string * float#
+  | B of { float_u0 : float# }
 type t579 =
-  | A of float * float#
-  | B of string * float32#
+  | A of { mutable str0 : string; mutable float_u1 : float# }
+  | B of float32#
   | C of float#
 type t580 =
-  | A of string * float32#
-  | B of float * float#
+  | A of float32#
+  | B of { mutable str0 : string; mutable float_u1 : float# }
   | C of float#
   | D of float#
 type t581 =
-  | A of int32#
-  | B of float32#
-  | C of string * float#
-type t582 =
-  | A of string * string * float#
+  | A of { float_u0 : float# }
   | B of string * float#
+  | C of { mutable float_u0 : float# }
+type t582 =
+  | A of float * float#
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
   | E of float#
 type t583 =
-  | A of float * float32#
+  | A of { str0 : string; mutable float_u1 : float# }
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
   | D of float#
 type t584 =
-  | A of string * int32#
-  | B of string * float32#
+  | A of string * float32#
+  | B of float32#
 type t585 =
-  | A of int64#
-  | B of float * float#
+  | A of { mutable str0 : string; float_u1 : float# }
+  | B of { mutable str0 : string; mutable float_u1 : float# }
   | C of float#
 type t586 =
-  | A of float * string * float#
-  | B of float32#
+  | A of int32#
+  | B of string * float#
   | C of float#
   | D of float#
 type t587 =
-  | A of string * string * float32#
-  | B of string * float#
-  | C of string * float#
+  | A of { mutable float32_u0 : float32# }
+  | B of { mutable float_u0 : float# }
+  | C of { mutable float_u0 : float# }
 type t588 =
-  | A of float * int32#
+  | A of string * string * float#
   | B of float#
   | C of float#
   | D of float#
   | E of float#
 type t589 =
-  | A of string * int64#
-  | B of float * float#
+  | A of { mutable float0 : float; mutable float_u1 : float# }
+  | B of { mutable str0 : string; mutable float_u1 : float# }
 type t590 =
-  | A of nativeint#
-  | B of float32#
+  | A of float * float32#
+  | B of string * float#
   | C of float#
 type t591 =
-  | A of int * string * float#
-  | B of string * float#
+  | A of { str0 : string; float_u1 : float# }
+  | B of { mutable float_u0 : float# }
   | C of float#
   | D of float#
 type t592 =
-  | A of float * string * float32#
+  | A of string * int32#
   | B of float#
-  | C of string * float#
+  | C of { mutable float_u0 : float# }
 type t593 =
-  | A of string * string * int32#
-  | B of float32#
-type t594 =
-  | A of float * int64#
+  | A of { mutable str0 : string; mutable float32_u1 : float32# }
   | B of string * float#
+type t594 =
+  | A of int64#
+  | B of { mutable float_u0 : float# }
   | C of float#
 type t595 =
-  | A of string * nativeint#
+  | A of { float32_u0 : float32# }
   | B of float#
   | C of float#
   | D of float#
 type t596 =
-  | A of float# * int
-  | B of string * float#
+  | A of float * string * float#
+  | B of { mutable float_u0 : float# }
 type t597 =
-  | A of string * float * float#
+  | A of { float0 : float; mutable float_u1 : float# }
   | B of float#
   | C of float#
 type t598 =
-  | A of int * string * float32#
+  | A of string * string * float32#
   | B of float#
 type t599 =
-  | A of float * string * int32#
+  | A of { mutable float0 : float; float_u1 : float# }
 
 (* Let declarations *)
 let () = print_endline "Creating values";;
@@ -1844,868 +1844,868 @@ let t299 : t299 = { str0 = create_string (); float1 = create_float (); float32_u
 let t300_A : t300 = (A (create_float_u ()));;
 let t301_A : t301 = (A (create_float_u ()));;
 let t301_B : t301 = (B (create_float_u ()));;
-let t302_A : t302 = (A (create_string (), create_float_u ()));;
+let t302_A : t302 = (A { float_u0 = create_float_u () });;
 let t303_A : t303 = (A (create_float_u ()));;
 let t303_B : t303 = (B (create_float_u ()));;
 let t303_C : t303 = (C (create_float_u ()));;
-let t304_A : t304 = (A (create_string (), create_float_u ()));;
+let t304_A : t304 = (A { float_u0 = create_float_u () });;
 let t304_B : t304 = (B (create_float_u ()));;
-let t305_A : t305 = (A (create_float32_u ()));;
+let t305_A : t305 = (A (create_string (), create_float_u ()));;
 let t306_A : t306 = (A (create_float_u ()));;
-let t306_B : t306 = (B (create_string (), create_float_u ()));;
-let t307_A : t307 = (A (create_string (), create_float_u ()));;
+let t306_B : t306 = (B { float_u0 = create_float_u () });;
+let t307_A : t307 = (A { float_u0 = create_float_u () });;
 let t307_B : t307 = (B (create_float_u ()));;
 let t307_C : t307 = (C (create_float_u ()));;
-let t308_A : t308 = (A (create_float32_u ()));;
+let t308_A : t308 = (A (create_string (), create_float_u ()));;
 let t308_B : t308 = (B (create_float_u ()));;
-let t309_A : t309 = (A (create_float (), create_float_u ()));;
+let t309_A : t309 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t310_A : t310 = (A (create_float_u ()));;
 let t310_B : t310 = (B (create_float_u ()));;
 let t310_C : t310 = (C (create_float_u ()));;
 let t310_D : t310 = (D (create_float_u ()));;
-let t311_A : t311 = (A (create_string (), create_float_u ()));;
-let t311_B : t311 = (B (create_string (), create_float_u ()));;
-let t312_A : t312 = (A (create_float32_u ()));;
+let t311_A : t311 = (A { float_u0 = create_float_u () });;
+let t311_B : t311 = (B { float_u0 = create_float_u () });;
+let t312_A : t312 = (A (create_string (), create_float_u ()));;
 let t312_B : t312 = (B (create_float_u ()));;
 let t312_C : t312 = (C (create_float_u ()));;
-let t313_A : t313 = (A (create_float (), create_float_u ()));;
+let t313_A : t313 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t313_B : t313 = (B (create_float_u ()));;
-let t314_A : t314 = (A (create_string (), create_float32_u ()));;
+let t314_A : t314 = (A (create_float32_u ()));;
 let t315_A : t315 = (A (create_float_u ()));;
-let t315_B : t315 = (B (create_string (), create_float_u ()));;
+let t315_B : t315 = (B { float_u0 = create_float_u () });;
 let t315_C : t315 = (C (create_float_u ()));;
-let t316_A : t316 = (A (create_string (), create_float_u ()));;
+let t316_A : t316 = (A { float_u0 = create_float_u () });;
 let t316_B : t316 = (B (create_float_u ()));;
 let t316_C : t316 = (C (create_float_u ()));;
 let t316_D : t316 = (D (create_float_u ()));;
-let t317_A : t317 = (A (create_float32_u ()));;
-let t317_B : t317 = (B (create_string (), create_float_u ()));;
-let t318_A : t318 = (A (create_float (), create_float_u ()));;
+let t317_A : t317 = (A (create_string (), create_float_u ()));;
+let t317_B : t317 = (B { float_u0 = create_float_u () });;
+let t318_A : t318 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t318_B : t318 = (B (create_float_u ()));;
 let t318_C : t318 = (C (create_float_u ()));;
-let t319_A : t319 = (A (create_string (), create_float32_u ()));;
+let t319_A : t319 = (A (create_float32_u ()));;
 let t319_B : t319 = (B (create_float_u ()));;
-let t320_A : t320 = (A (create_int32_u ()));;
+let t320_A : t320 = (A { float_u0 = create_float_u () });;
 let t321_A : t321 = (A (create_float_u ()));;
-let t321_B : t321 = (B (create_float32_u ()));;
-let t322_A : t322 = (A (create_string (), create_float_u ()));;
-let t322_B : t322 = (B (create_string (), create_float_u ()));;
+let t321_B : t321 = (B (create_string (), create_float_u ()));;
+let t322_A : t322 = (A { float_u0 = create_float_u () });;
+let t322_B : t322 = (B { float_u0 = create_float_u () });;
 let t322_C : t322 = (C (create_float_u ()));;
-let t323_A : t323 = (A (create_float32_u ()));;
+let t323_A : t323 = (A (create_string (), create_float_u ()));;
 let t323_B : t323 = (B (create_float_u ()));;
 let t323_C : t323 = (C (create_float_u ()));;
 let t323_D : t323 = (D (create_float_u ()));;
-let t324_A : t324 = (A (create_float (), create_float_u ()));;
-let t324_B : t324 = (B (create_string (), create_float_u ()));;
-let t325_A : t325 = (A (create_string (), create_float32_u ()));;
+let t324_A : t324 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t324_B : t324 = (B { float_u0 = create_float_u () });;
+let t325_A : t325 = (A (create_float32_u ()));;
 let t325_B : t325 = (B (create_float_u ()));;
 let t325_C : t325 = (C (create_float_u ()));;
-let t326_A : t326 = (A (create_int32_u ()));;
+let t326_A : t326 = (A { float_u0 = create_float_u () });;
 let t326_B : t326 = (B (create_float_u ()));;
-let t327_A : t327 = (A (create_string (), create_string (), create_float_u ()));;
+let t327_A : t327 = (A (create_float (), create_float_u ()));;
 let t328_A : t328 = (A (create_float_u ()));;
 let t328_B : t328 = (B (create_float_u ()));;
-let t328_C : t328 = (C (create_string (), create_float_u ()));;
-let t329_A : t329 = (A (create_string (), create_float_u ()));;
-let t329_B : t329 = (B (create_float32_u ()));;
-let t330_A : t330 = (A (create_float32_u ()));;
-let t330_B : t330 = (B (create_string (), create_float_u ()));;
+let t328_C : t328 = (C { float_u0 = create_float_u () });;
+let t329_A : t329 = (A { float_u0 = create_float_u () });;
+let t329_B : t329 = (B (create_string (), create_float_u ()));;
+let t330_A : t330 = (A (create_string (), create_float_u ()));;
+let t330_B : t330 = (B { float_u0 = create_float_u () });;
 let t330_C : t330 = (C (create_float_u ()));;
-let t331_A : t331 = (A (create_float (), create_float_u ()));;
+let t331_A : t331 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t331_B : t331 = (B (create_float_u ()));;
 let t331_C : t331 = (C (create_float_u ()));;
 let t331_D : t331 = (D (create_float_u ()));;
-let t332_A : t332 = (A (create_string (), create_float32_u ()));;
-let t332_B : t332 = (B (create_string (), create_float_u ()));;
-let t333_A : t333 = (A (create_int32_u ()));;
+let t332_A : t332 = (A (create_float32_u ()));;
+let t332_B : t332 = (B { float_u0 = create_float_u () });;
+let t333_A : t333 = (A { float_u0 = create_float_u () });;
 let t333_B : t333 = (B (create_float_u ()));;
 let t333_C : t333 = (C (create_float_u ()));;
-let t334_A : t334 = (A (create_string (), create_string (), create_float_u ()));;
+let t334_A : t334 = (A (create_float (), create_float_u ()));;
 let t334_B : t334 = (B (create_float_u ()));;
-let t335_A : t335 = (A (create_float (), create_float32_u ()));;
+let t335_A : t335 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t336_A : t336 = (A (create_float_u ()));;
-let t336_B : t336 = (B (create_string (), create_float_u ()));;
+let t336_B : t336 = (B { float_u0 = create_float_u () });;
 let t336_C : t336 = (C (create_float_u ()));;
 let t336_D : t336 = (D (create_float_u ()));;
-let t337_A : t337 = (A (create_string (), create_float_u ()));;
+let t337_A : t337 = (A { float_u0 = create_float_u () });;
 let t337_B : t337 = (B (create_float_u ()));;
-let t337_C : t337 = (C (create_string (), create_float_u ()));;
-let t338_A : t338 = (A (create_float32_u ()));;
-let t338_B : t338 = (B (create_float32_u ()));;
-let t339_A : t339 = (A (create_float (), create_float_u ()));;
-let t339_B : t339 = (B (create_string (), create_float_u ()));;
+let t337_C : t337 = (C { float_u0 = create_float_u () });;
+let t338_A : t338 = (A (create_string (), create_float_u ()));;
+let t338_B : t338 = (B (create_string (), create_float_u ()));;
+let t339_A : t339 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t339_B : t339 = (B { float_u0 = create_float_u () });;
 let t339_C : t339 = (C (create_float_u ()));;
-let t340_A : t340 = (A (create_string (), create_float32_u ()));;
+let t340_A : t340 = (A (create_float32_u ()));;
 let t340_B : t340 = (B (create_float_u ()));;
 let t340_C : t340 = (C (create_float_u ()));;
 let t340_D : t340 = (D (create_float_u ()));;
-let t341_A : t341 = (A (create_int32_u ()));;
-let t341_B : t341 = (B (create_string (), create_float_u ()));;
-let t342_A : t342 = (A (create_string (), create_string (), create_float_u ()));;
+let t341_A : t341 = (A { float_u0 = create_float_u () });;
+let t341_B : t341 = (B { float_u0 = create_float_u () });;
+let t342_A : t342 = (A (create_float (), create_float_u ()));;
 let t342_B : t342 = (B (create_float_u ()));;
 let t342_C : t342 = (C (create_float_u ()));;
-let t343_A : t343 = (A (create_float (), create_float32_u ()));;
+let t343_A : t343 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t343_B : t343 = (B (create_float_u ()));;
-let t344_A : t344 = (A (create_string (), create_int32_u ()));;
+let t344_A : t344 = (A (create_string (), create_float32_u ()));;
 let t345_A : t345 = (A (create_float_u ()));;
-let t345_B : t345 = (B (create_float32_u ()));;
+let t345_B : t345 = (B (create_string (), create_float_u ()));;
 let t345_C : t345 = (C (create_float_u ()));;
-let t346_A : t346 = (A (create_string (), create_float_u ()));;
-let t346_B : t346 = (B (create_string (), create_float_u ()));;
+let t346_A : t346 = (A { float_u0 = create_float_u () });;
+let t346_B : t346 = (B { float_u0 = create_float_u () });;
 let t346_C : t346 = (C (create_float_u ()));;
 let t346_D : t346 = (D (create_float_u ()));;
-let t347_A : t347 = (A (create_float32_u ()));;
+let t347_A : t347 = (A (create_string (), create_float_u ()));;
 let t347_B : t347 = (B (create_float_u ()));;
-let t347_C : t347 = (C (create_string (), create_float_u ()));;
-let t348_A : t348 = (A (create_float (), create_float_u ()));;
-let t348_B : t348 = (B (create_float32_u ()));;
-let t349_A : t349 = (A (create_string (), create_float32_u ()));;
-let t349_B : t349 = (B (create_string (), create_float_u ()));;
+let t347_C : t347 = (C { float_u0 = create_float_u () });;
+let t348_A : t348 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t348_B : t348 = (B (create_string (), create_float_u ()));;
+let t349_A : t349 = (A (create_float32_u ()));;
+let t349_B : t349 = (B { float_u0 = create_float_u () });;
 let t349_C : t349 = (C (create_float_u ()));;
-let t350_A : t350 = (A (create_int32_u ()));;
+let t350_A : t350 = (A { float_u0 = create_float_u () });;
 let t350_B : t350 = (B (create_float_u ()));;
 let t350_C : t350 = (C (create_float_u ()));;
 let t350_D : t350 = (D (create_float_u ()));;
-let t351_A : t351 = (A (create_string (), create_string (), create_float_u ()));;
-let t351_B : t351 = (B (create_string (), create_float_u ()));;
-let t352_A : t352 = (A (create_float (), create_float32_u ()));;
+let t351_A : t351 = (A (create_float (), create_float_u ()));;
+let t351_B : t351 = (B { float_u0 = create_float_u () });;
+let t352_A : t352 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t352_B : t352 = (B (create_float_u ()));;
 let t352_C : t352 = (C (create_float_u ()));;
-let t353_A : t353 = (A (create_string (), create_int32_u ()));;
+let t353_A : t353 = (A (create_string (), create_float32_u ()));;
 let t353_B : t353 = (B (create_float_u ()));;
-let t354_A : t354 = (A (create_int64_u ()));;
+let t354_A : t354 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t355_A : t355 = (A (create_float_u ()));;
-let t355_B : t355 = (B (create_float (), create_float_u ()));;
-let t356_A : t356 = (A (create_string (), create_float_u ()));;
-let t356_B : t356 = (B (create_float32_u ()));;
+let t355_B : t355 = (B { str0 = create_string (); float_u1 = create_float_u () });;
+let t356_A : t356 = (A { float_u0 = create_float_u () });;
+let t356_B : t356 = (B (create_string (), create_float_u ()));;
 let t356_C : t356 = (C (create_float_u ()));;
-let t357_A : t357 = (A (create_float32_u ()));;
-let t357_B : t357 = (B (create_string (), create_float_u ()));;
+let t357_A : t357 = (A (create_string (), create_float_u ()));;
+let t357_B : t357 = (B { float_u0 = create_float_u () });;
 let t357_C : t357 = (C (create_float_u ()));;
 let t357_D : t357 = (D (create_float_u ()));;
-let t358_A : t358 = (A (create_float (), create_float_u ()));;
+let t358_A : t358 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t358_B : t358 = (B (create_float_u ()));;
-let t358_C : t358 = (C (create_string (), create_float_u ()));;
-let t359_A : t359 = (A (create_string (), create_float32_u ()));;
-let t359_B : t359 = (B (create_float32_u ()));;
-let t360_A : t360 = (A (create_int32_u ()));;
-let t360_B : t360 = (B (create_string (), create_float_u ()));;
+let t358_C : t358 = (C { float_u0 = create_float_u () });;
+let t359_A : t359 = (A (create_float32_u ()));;
+let t359_B : t359 = (B (create_string (), create_float_u ()));;
+let t360_A : t360 = (A { float_u0 = create_float_u () });;
+let t360_B : t360 = (B { float_u0 = create_float_u () });;
 let t360_C : t360 = (C (create_float_u ()));;
-let t361_A : t361 = (A (create_string (), create_string (), create_float_u ()));;
+let t361_A : t361 = (A (create_float (), create_float_u ()));;
 let t361_B : t361 = (B (create_float_u ()));;
 let t361_C : t361 = (C (create_float_u ()));;
 let t361_D : t361 = (D (create_float_u ()));;
-let t362_A : t362 = (A (create_float (), create_float32_u ()));;
-let t362_B : t362 = (B (create_string (), create_float_u ()));;
-let t363_A : t363 = (A (create_string (), create_int32_u ()));;
+let t362_A : t362 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t362_B : t362 = (B { float_u0 = create_float_u () });;
+let t363_A : t363 = (A (create_string (), create_float32_u ()));;
 let t363_B : t363 = (B (create_float_u ()));;
 let t363_C : t363 = (C (create_float_u ()));;
-let t364_A : t364 = (A (create_int64_u ()));;
+let t364_A : t364 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t364_B : t364 = (B (create_float_u ()));;
-let t365_A : t365 = (A (create_float (), create_string (), create_float_u ()));;
+let t365_A : t365 = (A (create_int32_u ()));;
 let t366_A : t366 = (A (create_float_u ()));;
 let t366_B : t366 = (B (create_float_u ()));;
 let t366_C : t366 = (C (create_float_u ()));;
 let t366_D : t366 = (D (create_float_u ()));;
 let t366_E : t366 = (E (create_float_u ()));;
-let t367_A : t367 = (A (create_string (), create_float_u ()));;
-let t367_B : t367 = (B (create_float (), create_float_u ()));;
-let t368_A : t368 = (A (create_float32_u ()));;
-let t368_B : t368 = (B (create_float32_u ()));;
+let t367_A : t367 = (A { float_u0 = create_float_u () });;
+let t367_B : t367 = (B { str0 = create_string (); float_u1 = create_float_u () });;
+let t368_A : t368 = (A (create_string (), create_float_u ()));;
+let t368_B : t368 = (B (create_string (), create_float_u ()));;
 let t368_C : t368 = (C (create_float_u ()));;
-let t369_A : t369 = (A (create_float (), create_float_u ()));;
-let t369_B : t369 = (B (create_string (), create_float_u ()));;
+let t369_A : t369 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t369_B : t369 = (B { float_u0 = create_float_u () });;
 let t369_C : t369 = (C (create_float_u ()));;
 let t369_D : t369 = (D (create_float_u ()));;
-let t370_A : t370 = (A (create_string (), create_float32_u ()));;
+let t370_A : t370 = (A (create_float32_u ()));;
 let t370_B : t370 = (B (create_float_u ()));;
-let t370_C : t370 = (C (create_string (), create_float_u ()));;
-let t371_A : t371 = (A (create_int32_u ()));;
-let t371_B : t371 = (B (create_float32_u ()));;
-let t372_A : t372 = (A (create_string (), create_string (), create_float_u ()));;
-let t372_B : t372 = (B (create_string (), create_float_u ()));;
+let t370_C : t370 = (C { float_u0 = create_float_u () });;
+let t371_A : t371 = (A { float_u0 = create_float_u () });;
+let t371_B : t371 = (B (create_string (), create_float_u ()));;
+let t372_A : t372 = (A (create_float (), create_float_u ()));;
+let t372_B : t372 = (B { float_u0 = create_float_u () });;
 let t372_C : t372 = (C (create_float_u ()));;
-let t373_A : t373 = (A (create_float (), create_float32_u ()));;
+let t373_A : t373 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t373_B : t373 = (B (create_float_u ()));;
 let t373_C : t373 = (C (create_float_u ()));;
 let t373_D : t373 = (D (create_float_u ()));;
-let t374_A : t374 = (A (create_string (), create_int32_u ()));;
-let t374_B : t374 = (B (create_string (), create_float_u ()));;
-let t375_A : t375 = (A (create_int64_u ()));;
+let t374_A : t374 = (A (create_string (), create_float32_u ()));;
+let t374_B : t374 = (B { float_u0 = create_float_u () });;
+let t375_A : t375 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t375_B : t375 = (B (create_float_u ()));;
 let t375_C : t375 = (C (create_float_u ()));;
-let t376_A : t376 = (A (create_float (), create_string (), create_float_u ()));;
+let t376_A : t376 = (A (create_int32_u ()));;
 let t376_B : t376 = (B (create_float_u ()));;
-let t377_A : t377 = (A (create_string (), create_string (), create_float32_u ()));;
+let t377_A : t377 = (A { float32_u0 = create_float32_u () });;
 let t378_A : t378 = (A (create_float_u ()));;
-let t378_B : t378 = (B (create_string (), create_float_u ()));;
-let t378_C : t378 = (C (create_string (), create_float_u ()));;
-let t379_A : t379 = (A (create_string (), create_float_u ()));;
+let t378_B : t378 = (B { float_u0 = create_float_u () });;
+let t378_C : t378 = (C { float_u0 = create_float_u () });;
+let t379_A : t379 = (A { float_u0 = create_float_u () });;
 let t379_B : t379 = (B (create_float_u ()));;
 let t379_C : t379 = (C (create_float_u ()));;
 let t379_D : t379 = (D (create_float_u ()));;
 let t379_E : t379 = (E (create_float_u ()));;
-let t380_A : t380 = (A (create_float32_u ()));;
-let t380_B : t380 = (B (create_float (), create_float_u ()));;
-let t381_A : t381 = (A (create_float (), create_float_u ()));;
-let t381_B : t381 = (B (create_float32_u ()));;
+let t380_A : t380 = (A (create_string (), create_float_u ()));;
+let t380_B : t380 = (B { str0 = create_string (); float_u1 = create_float_u () });;
+let t381_A : t381 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t381_B : t381 = (B (create_string (), create_float_u ()));;
 let t381_C : t381 = (C (create_float_u ()));;
-let t382_A : t382 = (A (create_string (), create_float32_u ()));;
-let t382_B : t382 = (B (create_string (), create_float_u ()));;
+let t382_A : t382 = (A (create_float32_u ()));;
+let t382_B : t382 = (B { float_u0 = create_float_u () });;
 let t382_C : t382 = (C (create_float_u ()));;
 let t382_D : t382 = (D (create_float_u ()));;
-let t383_A : t383 = (A (create_int32_u ()));;
+let t383_A : t383 = (A { float_u0 = create_float_u () });;
 let t383_B : t383 = (B (create_float_u ()));;
-let t383_C : t383 = (C (create_string (), create_float_u ()));;
-let t384_A : t384 = (A (create_string (), create_string (), create_float_u ()));;
-let t384_B : t384 = (B (create_float32_u ()));;
-let t385_A : t385 = (A (create_float (), create_float32_u ()));;
-let t385_B : t385 = (B (create_string (), create_float_u ()));;
+let t383_C : t383 = (C { float_u0 = create_float_u () });;
+let t384_A : t384 = (A (create_float (), create_float_u ()));;
+let t384_B : t384 = (B (create_string (), create_float_u ()));;
+let t385_A : t385 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t385_B : t385 = (B { float_u0 = create_float_u () });;
 let t385_C : t385 = (C (create_float_u ()));;
-let t386_A : t386 = (A (create_string (), create_int32_u ()));;
+let t386_A : t386 = (A (create_string (), create_float32_u ()));;
 let t386_B : t386 = (B (create_float_u ()));;
 let t386_C : t386 = (C (create_float_u ()));;
 let t386_D : t386 = (D (create_float_u ()));;
-let t387_A : t387 = (A (create_int64_u ()));;
-let t387_B : t387 = (B (create_string (), create_float_u ()));;
-let t388_A : t388 = (A (create_float (), create_string (), create_float_u ()));;
+let t387_A : t387 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t387_B : t387 = (B { float_u0 = create_float_u () });;
+let t388_A : t388 = (A (create_int32_u ()));;
 let t388_B : t388 = (B (create_float_u ()));;
 let t388_C : t388 = (C (create_float_u ()));;
-let t389_A : t389 = (A (create_string (), create_string (), create_float32_u ()));;
+let t389_A : t389 = (A { float32_u0 = create_float32_u () });;
 let t389_B : t389 = (B (create_float_u ()));;
-let t390_A : t390 = (A (create_float (), create_int32_u ()));;
+let t390_A : t390 = (A (create_string (), create_string (), create_float_u ()));;
 let t391_A : t391 = (A (create_float_u ()));;
-let t391_B : t391 = (B (create_float32_u ()));;
+let t391_B : t391 = (B (create_string (), create_float_u ()));;
 let t391_C : t391 = (C (create_float_u ()));;
 let t391_D : t391 = (D (create_float_u ()));;
-let t392_A : t392 = (A (create_string (), create_float_u ()));;
-let t392_B : t392 = (B (create_string (), create_float_u ()));;
-let t392_C : t392 = (C (create_string (), create_float_u ()));;
-let t393_A : t393 = (A (create_float32_u ()));;
+let t392_A : t392 = (A { float_u0 = create_float_u () });;
+let t392_B : t392 = (B { float_u0 = create_float_u () });;
+let t392_C : t392 = (C { float_u0 = create_float_u () });;
+let t393_A : t393 = (A (create_string (), create_float_u ()));;
 let t393_B : t393 = (B (create_float_u ()));;
 let t393_C : t393 = (C (create_float_u ()));;
 let t393_D : t393 = (D (create_float_u ()));;
 let t393_E : t393 = (E (create_float_u ()));;
-let t394_A : t394 = (A (create_float (), create_float_u ()));;
-let t394_B : t394 = (B (create_float (), create_float_u ()));;
-let t395_A : t395 = (A (create_string (), create_float32_u ()));;
-let t395_B : t395 = (B (create_float32_u ()));;
+let t394_A : t394 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t394_B : t394 = (B { str0 = create_string (); float_u1 = create_float_u () });;
+let t395_A : t395 = (A (create_float32_u ()));;
+let t395_B : t395 = (B (create_string (), create_float_u ()));;
 let t395_C : t395 = (C (create_float_u ()));;
-let t396_A : t396 = (A (create_int32_u ()));;
-let t396_B : t396 = (B (create_string (), create_float_u ()));;
+let t396_A : t396 = (A { float_u0 = create_float_u () });;
+let t396_B : t396 = (B { float_u0 = create_float_u () });;
 let t396_C : t396 = (C (create_float_u ()));;
 let t396_D : t396 = (D (create_float_u ()));;
-let t397_A : t397 = (A (create_string (), create_string (), create_float_u ()));;
+let t397_A : t397 = (A (create_float (), create_float_u ()));;
 let t397_B : t397 = (B (create_float_u ()));;
-let t397_C : t397 = (C (create_string (), create_float_u ()));;
-let t398_A : t398 = (A (create_float (), create_float32_u ()));;
-let t398_B : t398 = (B (create_float32_u ()));;
-let t399_A : t399 = (A (create_string (), create_int32_u ()));;
-let t399_B : t399 = (B (create_string (), create_float_u ()));;
+let t397_C : t397 = (C { float_u0 = create_float_u () });;
+let t398_A : t398 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t398_B : t398 = (B (create_string (), create_float_u ()));;
+let t399_A : t399 = (A (create_string (), create_float32_u ()));;
+let t399_B : t399 = (B { float_u0 = create_float_u () });;
 let t399_C : t399 = (C (create_float_u ()));;
-let t400_A : t400 = (A (create_int64_u ()));;
+let t400_A : t400 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t400_B : t400 = (B (create_float_u ()));;
 let t400_C : t400 = (C (create_float_u ()));;
 let t400_D : t400 = (D (create_float_u ()));;
-let t401_A : t401 = (A (create_float (), create_string (), create_float_u ()));;
-let t401_B : t401 = (B (create_string (), create_float_u ()));;
-let t402_A : t402 = (A (create_string (), create_string (), create_float32_u ()));;
+let t401_A : t401 = (A (create_int32_u ()));;
+let t401_B : t401 = (B { float_u0 = create_float_u () });;
+let t402_A : t402 = (A { float32_u0 = create_float32_u () });;
 let t402_B : t402 = (B (create_float_u ()));;
 let t402_C : t402 = (C (create_float_u ()));;
-let t403_A : t403 = (A (create_float (), create_int32_u ()));;
+let t403_A : t403 = (A (create_string (), create_string (), create_float_u ()));;
 let t403_B : t403 = (B (create_float_u ()));;
-let t404_A : t404 = (A (create_string (), create_int64_u ()));;
+let t404_A : t404 = (A { float0 = create_float (); float_u1 = create_float_u () });;
 let t405_A : t405 = (A (create_float_u ()));;
-let t405_B : t405 = (B (create_float (), create_float_u ()));;
+let t405_B : t405 = (B { str0 = create_string (); float_u1 = create_float_u () });;
 let t405_C : t405 = (C (create_float_u ()));;
-let t406_A : t406 = (A (create_string (), create_float_u ()));;
-let t406_B : t406 = (B (create_float32_u ()));;
+let t406_A : t406 = (A { float_u0 = create_float_u () });;
+let t406_B : t406 = (B (create_string (), create_float_u ()));;
 let t406_C : t406 = (C (create_float_u ()));;
 let t406_D : t406 = (D (create_float_u ()));;
-let t407_A : t407 = (A (create_float32_u ()));;
-let t407_B : t407 = (B (create_string (), create_float_u ()));;
-let t407_C : t407 = (C (create_string (), create_float_u ()));;
-let t408_A : t408 = (A (create_float (), create_float_u ()));;
+let t407_A : t407 = (A (create_string (), create_float_u ()));;
+let t407_B : t407 = (B { float_u0 = create_float_u () });;
+let t407_C : t407 = (C { float_u0 = create_float_u () });;
+let t408_A : t408 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t408_B : t408 = (B (create_float_u ()));;
 let t408_C : t408 = (C (create_float_u ()));;
 let t408_D : t408 = (D (create_float_u ()));;
 let t408_E : t408 = (E (create_float_u ()));;
-let t409_A : t409 = (A (create_string (), create_float32_u ()));;
-let t409_B : t409 = (B (create_float (), create_float_u ()));;
-let t410_A : t410 = (A (create_int32_u ()));;
-let t410_B : t410 = (B (create_float32_u ()));;
+let t409_A : t409 = (A (create_float32_u ()));;
+let t409_B : t409 = (B { str0 = create_string (); float_u1 = create_float_u () });;
+let t410_A : t410 = (A { float_u0 = create_float_u () });;
+let t410_B : t410 = (B (create_string (), create_float_u ()));;
 let t410_C : t410 = (C (create_float_u ()));;
-let t411_A : t411 = (A (create_string (), create_string (), create_float_u ()));;
-let t411_B : t411 = (B (create_string (), create_float_u ()));;
+let t411_A : t411 = (A (create_float (), create_float_u ()));;
+let t411_B : t411 = (B { float_u0 = create_float_u () });;
 let t411_C : t411 = (C (create_float_u ()));;
 let t411_D : t411 = (D (create_float_u ()));;
-let t412_A : t412 = (A (create_float (), create_float32_u ()));;
+let t412_A : t412 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t412_B : t412 = (B (create_float_u ()));;
-let t412_C : t412 = (C (create_string (), create_float_u ()));;
-let t413_A : t413 = (A (create_string (), create_int32_u ()));;
-let t413_B : t413 = (B (create_float32_u ()));;
-let t414_A : t414 = (A (create_int64_u ()));;
-let t414_B : t414 = (B (create_string (), create_float_u ()));;
+let t412_C : t412 = (C { float_u0 = create_float_u () });;
+let t413_A : t413 = (A (create_string (), create_float32_u ()));;
+let t413_B : t413 = (B (create_string (), create_float_u ()));;
+let t414_A : t414 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t414_B : t414 = (B { float_u0 = create_float_u () });;
 let t414_C : t414 = (C (create_float_u ()));;
-let t415_A : t415 = (A (create_float (), create_string (), create_float_u ()));;
+let t415_A : t415 = (A (create_int32_u ()));;
 let t415_B : t415 = (B (create_float_u ()));;
 let t415_C : t415 = (C (create_float_u ()));;
 let t415_D : t415 = (D (create_float_u ()));;
-let t416_A : t416 = (A (create_string (), create_string (), create_float32_u ()));;
-let t416_B : t416 = (B (create_string (), create_float_u ()));;
-let t417_A : t417 = (A (create_float (), create_int32_u ()));;
+let t416_A : t416 = (A { float32_u0 = create_float32_u () });;
+let t416_B : t416 = (B { float_u0 = create_float_u () });;
+let t417_A : t417 = (A (create_string (), create_string (), create_float_u ()));;
 let t417_B : t417 = (B (create_float_u ()));;
 let t417_C : t417 = (C (create_float_u ()));;
-let t418_A : t418 = (A (create_string (), create_int64_u ()));;
+let t418_A : t418 = (A { float0 = create_float (); float_u1 = create_float_u () });;
 let t418_B : t418 = (B (create_float_u ()));;
-let t419_A : t419 = (A (create_nativeint_u ()));;
+let t419_A : t419 = (A (create_float (), create_float32_u ()));;
 let t420_A : t420 = (A (create_float_u ()));;
-let t420_B : t420 = (B (create_string (), create_float32_u ()));;
-let t421_A : t421 = (A (create_string (), create_float_u ()));;
-let t421_B : t421 = (B (create_float (), create_float_u ()));;
+let t420_B : t420 = (B (create_float32_u ()));;
+let t421_A : t421 = (A { float_u0 = create_float_u () });;
+let t421_B : t421 = (B { str0 = create_string (); float_u1 = create_float_u () });;
 let t421_C : t421 = (C (create_float_u ()));;
-let t422_A : t422 = (A (create_float32_u ()));;
-let t422_B : t422 = (B (create_float32_u ()));;
+let t422_A : t422 = (A (create_string (), create_float_u ()));;
+let t422_B : t422 = (B (create_string (), create_float_u ()));;
 let t422_C : t422 = (C (create_float_u ()));;
 let t422_D : t422 = (D (create_float_u ()));;
-let t423_A : t423 = (A (create_float (), create_float_u ()));;
-let t423_B : t423 = (B (create_string (), create_float_u ()));;
-let t423_C : t423 = (C (create_string (), create_float_u ()));;
-let t424_A : t424 = (A (create_string (), create_float32_u ()));;
+let t423_A : t423 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t423_B : t423 = (B { float_u0 = create_float_u () });;
+let t423_C : t423 = (C { float_u0 = create_float_u () });;
+let t424_A : t424 = (A (create_float32_u ()));;
 let t424_B : t424 = (B (create_float_u ()));;
 let t424_C : t424 = (C (create_float_u ()));;
 let t424_D : t424 = (D (create_float_u ()));;
 let t424_E : t424 = (E (create_float_u ()));;
-let t425_A : t425 = (A (create_int32_u ()));;
-let t425_B : t425 = (B (create_float (), create_float_u ()));;
-let t426_A : t426 = (A (create_string (), create_string (), create_float_u ()));;
-let t426_B : t426 = (B (create_float32_u ()));;
+let t425_A : t425 = (A { float_u0 = create_float_u () });;
+let t425_B : t425 = (B { str0 = create_string (); float_u1 = create_float_u () });;
+let t426_A : t426 = (A (create_float (), create_float_u ()));;
+let t426_B : t426 = (B (create_string (), create_float_u ()));;
 let t426_C : t426 = (C (create_float_u ()));;
-let t427_A : t427 = (A (create_float (), create_float32_u ()));;
-let t427_B : t427 = (B (create_string (), create_float_u ()));;
+let t427_A : t427 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t427_B : t427 = (B { float_u0 = create_float_u () });;
 let t427_C : t427 = (C (create_float_u ()));;
 let t427_D : t427 = (D (create_float_u ()));;
-let t428_A : t428 = (A (create_string (), create_int32_u ()));;
+let t428_A : t428 = (A (create_string (), create_float32_u ()));;
 let t428_B : t428 = (B (create_float_u ()));;
-let t428_C : t428 = (C (create_string (), create_float_u ()));;
-let t429_A : t429 = (A (create_int64_u ()));;
-let t429_B : t429 = (B (create_float32_u ()));;
-let t430_A : t430 = (A (create_float (), create_string (), create_float_u ()));;
-let t430_B : t430 = (B (create_string (), create_float_u ()));;
+let t428_C : t428 = (C { float_u0 = create_float_u () });;
+let t429_A : t429 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t429_B : t429 = (B (create_string (), create_float_u ()));;
+let t430_A : t430 = (A (create_int32_u ()));;
+let t430_B : t430 = (B { float_u0 = create_float_u () });;
 let t430_C : t430 = (C (create_float_u ()));;
-let t431_A : t431 = (A (create_string (), create_string (), create_float32_u ()));;
+let t431_A : t431 = (A { float32_u0 = create_float32_u () });;
 let t431_B : t431 = (B (create_float_u ()));;
 let t431_C : t431 = (C (create_float_u ()));;
 let t431_D : t431 = (D (create_float_u ()));;
-let t432_A : t432 = (A (create_float (), create_int32_u ()));;
-let t432_B : t432 = (B (create_string (), create_float_u ()));;
-let t433_A : t433 = (A (create_string (), create_int64_u ()));;
+let t432_A : t432 = (A (create_string (), create_string (), create_float_u ()));;
+let t432_B : t432 = (B { float_u0 = create_float_u () });;
+let t433_A : t433 = (A { float0 = create_float (); float_u1 = create_float_u () });;
 let t433_B : t433 = (B (create_float_u ()));;
 let t433_C : t433 = (C (create_float_u ()));;
-let t434_A : t434 = (A (create_nativeint_u ()));;
+let t434_A : t434 = (A (create_float (), create_float32_u ()));;
 let t434_B : t434 = (B (create_float_u ()));;
-let t435_A : t435 = (A (create_int (), create_string (), create_float_u ()));;
+let t435_A : t435 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t436_A : t436 = (A (create_float_u ()));;
 let t436_B : t436 = (B (create_float_u ()));;
-let t436_C : t436 = (C (create_string (), create_float_u ()));;
+let t436_C : t436 = (C { float_u0 = create_float_u () });;
 let t436_D : t436 = (D (create_float_u ()));;
-let t437_A : t437 = (A (create_string (), create_float_u ()));;
-let t437_B : t437 = (B (create_string (), create_float32_u ()));;
-let t438_A : t438 = (A (create_float32_u ()));;
-let t438_B : t438 = (B (create_float (), create_float_u ()));;
+let t437_A : t437 = (A { float_u0 = create_float_u () });;
+let t437_B : t437 = (B (create_float32_u ()));;
+let t438_A : t438 = (A (create_string (), create_float_u ()));;
+let t438_B : t438 = (B { str0 = create_string (); float_u1 = create_float_u () });;
 let t438_C : t438 = (C (create_float_u ()));;
-let t439_A : t439 = (A (create_float (), create_float_u ()));;
-let t439_B : t439 = (B (create_float32_u ()));;
+let t439_A : t439 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t439_B : t439 = (B (create_string (), create_float_u ()));;
 let t439_C : t439 = (C (create_float_u ()));;
 let t439_D : t439 = (D (create_float_u ()));;
-let t440_A : t440 = (A (create_string (), create_float32_u ()));;
-let t440_B : t440 = (B (create_string (), create_float_u ()));;
-let t440_C : t440 = (C (create_string (), create_float_u ()));;
-let t441_A : t441 = (A (create_int32_u ()));;
+let t440_A : t440 = (A (create_float32_u ()));;
+let t440_B : t440 = (B { float_u0 = create_float_u () });;
+let t440_C : t440 = (C { float_u0 = create_float_u () });;
+let t441_A : t441 = (A { float_u0 = create_float_u () });;
 let t441_B : t441 = (B (create_float_u ()));;
 let t441_C : t441 = (C (create_float_u ()));;
 let t441_D : t441 = (D (create_float_u ()));;
 let t441_E : t441 = (E (create_float_u ()));;
-let t442_A : t442 = (A (create_string (), create_string (), create_float_u ()));;
-let t442_B : t442 = (B (create_float (), create_float_u ()));;
-let t443_A : t443 = (A (create_float (), create_float32_u ()));;
-let t443_B : t443 = (B (create_float32_u ()));;
+let t442_A : t442 = (A (create_float (), create_float_u ()));;
+let t442_B : t442 = (B { str0 = create_string (); float_u1 = create_float_u () });;
+let t443_A : t443 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t443_B : t443 = (B (create_string (), create_float_u ()));;
 let t443_C : t443 = (C (create_float_u ()));;
-let t444_A : t444 = (A (create_string (), create_int32_u ()));;
-let t444_B : t444 = (B (create_string (), create_float_u ()));;
+let t444_A : t444 = (A (create_string (), create_float32_u ()));;
+let t444_B : t444 = (B { float_u0 = create_float_u () });;
 let t444_C : t444 = (C (create_float_u ()));;
 let t444_D : t444 = (D (create_float_u ()));;
-let t445_A : t445 = (A (create_int64_u ()));;
+let t445_A : t445 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t445_B : t445 = (B (create_float_u ()));;
-let t445_C : t445 = (C (create_string (), create_float_u ()));;
-let t446_A : t446 = (A (create_float (), create_string (), create_float_u ()));;
-let t446_B : t446 = (B (create_float32_u ()));;
-let t447_A : t447 = (A (create_string (), create_string (), create_float32_u ()));;
-let t447_B : t447 = (B (create_string (), create_float_u ()));;
+let t445_C : t445 = (C { float_u0 = create_float_u () });;
+let t446_A : t446 = (A (create_int32_u ()));;
+let t446_B : t446 = (B (create_string (), create_float_u ()));;
+let t447_A : t447 = (A { float32_u0 = create_float32_u () });;
+let t447_B : t447 = (B { float_u0 = create_float_u () });;
 let t447_C : t447 = (C (create_float_u ()));;
-let t448_A : t448 = (A (create_float (), create_int32_u ()));;
+let t448_A : t448 = (A (create_string (), create_string (), create_float_u ()));;
 let t448_B : t448 = (B (create_float_u ()));;
 let t448_C : t448 = (C (create_float_u ()));;
 let t448_D : t448 = (D (create_float_u ()));;
-let t449_A : t449 = (A (create_string (), create_int64_u ()));;
-let t449_B : t449 = (B (create_string (), create_float_u ()));;
-let t450_A : t450 = (A (create_nativeint_u ()));;
+let t449_A : t449 = (A { float0 = create_float (); float_u1 = create_float_u () });;
+let t449_B : t449 = (B { float_u0 = create_float_u () });;
+let t450_A : t450 = (A (create_float (), create_float32_u ()));;
 let t450_B : t450 = (B (create_float_u ()));;
 let t450_C : t450 = (C (create_float_u ()));;
-let t451_A : t451 = (A (create_int (), create_string (), create_float_u ()));;
+let t451_A : t451 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t451_B : t451 = (B (create_float_u ()));;
-let t452_A : t452 = (A (create_float (), create_string (), create_float32_u ()));;
+let t452_A : t452 = (A (create_string (), create_int32_u ()));;
 let t453_A : t453 = (A (create_float_u ()));;
-let t453_B : t453 = (B (create_string (), create_float_u ()));;
+let t453_B : t453 = (B { float_u0 = create_float_u () });;
 let t453_C : t453 = (C (create_float_u ()));;
 let t453_D : t453 = (D (create_float_u ()));;
 let t453_E : t453 = (E (create_float_u ()));;
-let t454_A : t454 = (A (create_string (), create_float_u ()));;
+let t454_A : t454 = (A { float_u0 = create_float_u () });;
 let t454_B : t454 = (B (create_float_u ()));;
-let t454_C : t454 = (C (create_string (), create_float_u ()));;
+let t454_C : t454 = (C { float_u0 = create_float_u () });;
 let t454_D : t454 = (D (create_float_u ()));;
-let t455_A : t455 = (A (create_float32_u ()));;
-let t455_B : t455 = (B (create_string (), create_float32_u ()));;
-let t456_A : t456 = (A (create_float (), create_float_u ()));;
-let t456_B : t456 = (B (create_float (), create_float_u ()));;
+let t455_A : t455 = (A (create_string (), create_float_u ()));;
+let t455_B : t455 = (B (create_float32_u ()));;
+let t456_A : t456 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t456_B : t456 = (B { str0 = create_string (); float_u1 = create_float_u () });;
 let t456_C : t456 = (C (create_float_u ()));;
-let t457_A : t457 = (A (create_string (), create_float32_u ()));;
-let t457_B : t457 = (B (create_float32_u ()));;
+let t457_A : t457 = (A (create_float32_u ()));;
+let t457_B : t457 = (B (create_string (), create_float_u ()));;
 let t457_C : t457 = (C (create_float_u ()));;
 let t457_D : t457 = (D (create_float_u ()));;
-let t458_A : t458 = (A (create_int32_u ()));;
-let t458_B : t458 = (B (create_string (), create_float_u ()));;
-let t458_C : t458 = (C (create_string (), create_float_u ()));;
-let t459_A : t459 = (A (create_string (), create_string (), create_float_u ()));;
+let t458_A : t458 = (A { float_u0 = create_float_u () });;
+let t458_B : t458 = (B { float_u0 = create_float_u () });;
+let t458_C : t458 = (C { float_u0 = create_float_u () });;
+let t459_A : t459 = (A (create_float (), create_float_u ()));;
 let t459_B : t459 = (B (create_float_u ()));;
 let t459_C : t459 = (C (create_float_u ()));;
 let t459_D : t459 = (D (create_float_u ()));;
 let t459_E : t459 = (E (create_float_u ()));;
-let t460_A : t460 = (A (create_float (), create_float32_u ()));;
-let t460_B : t460 = (B (create_float (), create_float_u ()));;
-let t461_A : t461 = (A (create_string (), create_int32_u ()));;
-let t461_B : t461 = (B (create_float32_u ()));;
+let t460_A : t460 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t460_B : t460 = (B { str0 = create_string (); float_u1 = create_float_u () });;
+let t461_A : t461 = (A (create_string (), create_float32_u ()));;
+let t461_B : t461 = (B (create_string (), create_float_u ()));;
 let t461_C : t461 = (C (create_float_u ()));;
-let t462_A : t462 = (A (create_int64_u ()));;
-let t462_B : t462 = (B (create_string (), create_float_u ()));;
+let t462_A : t462 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t462_B : t462 = (B { float_u0 = create_float_u () });;
 let t462_C : t462 = (C (create_float_u ()));;
 let t462_D : t462 = (D (create_float_u ()));;
-let t463_A : t463 = (A (create_float (), create_string (), create_float_u ()));;
+let t463_A : t463 = (A (create_int32_u ()));;
 let t463_B : t463 = (B (create_float_u ()));;
-let t463_C : t463 = (C (create_string (), create_float_u ()));;
-let t464_A : t464 = (A (create_string (), create_string (), create_float32_u ()));;
-let t464_B : t464 = (B (create_float32_u ()));;
-let t465_A : t465 = (A (create_float (), create_int32_u ()));;
-let t465_B : t465 = (B (create_string (), create_float_u ()));;
+let t463_C : t463 = (C { float_u0 = create_float_u () });;
+let t464_A : t464 = (A { float32_u0 = create_float32_u () });;
+let t464_B : t464 = (B (create_string (), create_float_u ()));;
+let t465_A : t465 = (A (create_string (), create_string (), create_float_u ()));;
+let t465_B : t465 = (B { float_u0 = create_float_u () });;
 let t465_C : t465 = (C (create_float_u ()));;
-let t466_A : t466 = (A (create_string (), create_int64_u ()));;
+let t466_A : t466 = (A { float0 = create_float (); float_u1 = create_float_u () });;
 let t466_B : t466 = (B (create_float_u ()));;
 let t466_C : t466 = (C (create_float_u ()));;
 let t466_D : t466 = (D (create_float_u ()));;
-let t467_A : t467 = (A (create_nativeint_u ()));;
-let t467_B : t467 = (B (create_string (), create_float_u ()));;
-let t468_A : t468 = (A (create_int (), create_string (), create_float_u ()));;
+let t467_A : t467 = (A (create_float (), create_float32_u ()));;
+let t467_B : t467 = (B { float_u0 = create_float_u () });;
+let t468_A : t468 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t468_B : t468 = (B (create_float_u ()));;
 let t468_C : t468 = (C (create_float_u ()));;
-let t469_A : t469 = (A (create_float (), create_string (), create_float32_u ()));;
+let t469_A : t469 = (A (create_string (), create_int32_u ()));;
 let t469_B : t469 = (B (create_float_u ()));;
-let t470_A : t470 = (A (create_string (), create_string (), create_int32_u ()));;
+let t470_A : t470 = (A { str0 = create_string (); float32_u1 = create_float32_u () });;
 let t471_A : t471 = (A (create_float_u ()));;
-let t471_B : t471 = (B (create_float32_u ()));;
-let t471_C : t471 = (C (create_string (), create_float_u ()));;
-let t472_A : t472 = (A (create_string (), create_float_u ()));;
-let t472_B : t472 = (B (create_string (), create_float_u ()));;
+let t471_B : t471 = (B (create_string (), create_float_u ()));;
+let t471_C : t471 = (C { float_u0 = create_float_u () });;
+let t472_A : t472 = (A { float_u0 = create_float_u () });;
+let t472_B : t472 = (B { float_u0 = create_float_u () });;
 let t472_C : t472 = (C (create_float_u ()));;
 let t472_D : t472 = (D (create_float_u ()));;
 let t472_E : t472 = (E (create_float_u ()));;
-let t473_A : t473 = (A (create_float32_u ()));;
+let t473_A : t473 = (A (create_string (), create_float_u ()));;
 let t473_B : t473 = (B (create_float_u ()));;
-let t473_C : t473 = (C (create_string (), create_float_u ()));;
+let t473_C : t473 = (C { float_u0 = create_float_u () });;
 let t473_D : t473 = (D (create_float_u ()));;
-let t474_A : t474 = (A (create_float (), create_float_u ()));;
-let t474_B : t474 = (B (create_string (), create_float32_u ()));;
-let t475_A : t475 = (A (create_string (), create_float32_u ()));;
-let t475_B : t475 = (B (create_float (), create_float_u ()));;
+let t474_A : t474 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t474_B : t474 = (B (create_float32_u ()));;
+let t475_A : t475 = (A (create_float32_u ()));;
+let t475_B : t475 = (B { str0 = create_string (); float_u1 = create_float_u () });;
 let t475_C : t475 = (C (create_float_u ()));;
-let t476_A : t476 = (A (create_int32_u ()));;
-let t476_B : t476 = (B (create_float32_u ()));;
+let t476_A : t476 = (A { float_u0 = create_float_u () });;
+let t476_B : t476 = (B (create_string (), create_float_u ()));;
 let t476_C : t476 = (C (create_float_u ()));;
 let t476_D : t476 = (D (create_float_u ()));;
-let t477_A : t477 = (A (create_string (), create_string (), create_float_u ()));;
-let t477_B : t477 = (B (create_string (), create_float_u ()));;
-let t477_C : t477 = (C (create_string (), create_float_u ()));;
-let t478_A : t478 = (A (create_float (), create_float32_u ()));;
+let t477_A : t477 = (A (create_float (), create_float_u ()));;
+let t477_B : t477 = (B { float_u0 = create_float_u () });;
+let t477_C : t477 = (C { float_u0 = create_float_u () });;
+let t478_A : t478 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t478_B : t478 = (B (create_float_u ()));;
 let t478_C : t478 = (C (create_float_u ()));;
 let t478_D : t478 = (D (create_float_u ()));;
 let t478_E : t478 = (E (create_float_u ()));;
-let t479_A : t479 = (A (create_string (), create_int32_u ()));;
-let t479_B : t479 = (B (create_float (), create_float_u ()));;
-let t480_A : t480 = (A (create_int64_u ()));;
-let t480_B : t480 = (B (create_float32_u ()));;
+let t479_A : t479 = (A (create_string (), create_float32_u ()));;
+let t479_B : t479 = (B { str0 = create_string (); float_u1 = create_float_u () });;
+let t480_A : t480 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t480_B : t480 = (B (create_string (), create_float_u ()));;
 let t480_C : t480 = (C (create_float_u ()));;
-let t481_A : t481 = (A (create_float (), create_string (), create_float_u ()));;
-let t481_B : t481 = (B (create_string (), create_float_u ()));;
+let t481_A : t481 = (A (create_int32_u ()));;
+let t481_B : t481 = (B { float_u0 = create_float_u () });;
 let t481_C : t481 = (C (create_float_u ()));;
 let t481_D : t481 = (D (create_float_u ()));;
-let t482_A : t482 = (A (create_string (), create_string (), create_float32_u ()));;
+let t482_A : t482 = (A { float32_u0 = create_float32_u () });;
 let t482_B : t482 = (B (create_float_u ()));;
-let t482_C : t482 = (C (create_string (), create_float_u ()));;
-let t483_A : t483 = (A (create_float (), create_int32_u ()));;
-let t483_B : t483 = (B (create_float32_u ()));;
-let t484_A : t484 = (A (create_string (), create_int64_u ()));;
-let t484_B : t484 = (B (create_string (), create_float_u ()));;
+let t482_C : t482 = (C { float_u0 = create_float_u () });;
+let t483_A : t483 = (A (create_string (), create_string (), create_float_u ()));;
+let t483_B : t483 = (B (create_string (), create_float_u ()));;
+let t484_A : t484 = (A { float0 = create_float (); float_u1 = create_float_u () });;
+let t484_B : t484 = (B { float_u0 = create_float_u () });;
 let t484_C : t484 = (C (create_float_u ()));;
-let t485_A : t485 = (A (create_nativeint_u ()));;
+let t485_A : t485 = (A (create_float (), create_float32_u ()));;
 let t485_B : t485 = (B (create_float_u ()));;
 let t485_C : t485 = (C (create_float_u ()));;
 let t485_D : t485 = (D (create_float_u ()));;
-let t486_A : t486 = (A (create_int (), create_string (), create_float_u ()));;
-let t486_B : t486 = (B (create_string (), create_float_u ()));;
-let t487_A : t487 = (A (create_float (), create_string (), create_float32_u ()));;
+let t486_A : t486 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t486_B : t486 = (B { float_u0 = create_float_u () });;
+let t487_A : t487 = (A (create_string (), create_int32_u ()));;
 let t487_B : t487 = (B (create_float_u ()));;
 let t487_C : t487 = (C (create_float_u ()));;
-let t488_A : t488 = (A (create_string (), create_string (), create_int32_u ()));;
+let t488_A : t488 = (A { str0 = create_string (); float32_u1 = create_float32_u () });;
 let t488_B : t488 = (B (create_float_u ()));;
-let t489_A : t489 = (A (create_float (), create_int64_u ()));;
+let t489_A : t489 = (A (create_int64_u ()));;
 let t490_A : t490 = (A (create_float_u ()));;
-let t490_B : t490 = (B (create_float (), create_float_u ()));;
+let t490_B : t490 = (B { str0 = create_string (); float_u1 = create_float_u () });;
 let t490_C : t490 = (C (create_float_u ()));;
 let t490_D : t490 = (D (create_float_u ()));;
-let t491_A : t491 = (A (create_string (), create_float_u ()));;
-let t491_B : t491 = (B (create_float32_u ()));;
-let t491_C : t491 = (C (create_string (), create_float_u ()));;
-let t492_A : t492 = (A (create_float32_u ()));;
-let t492_B : t492 = (B (create_string (), create_float_u ()));;
+let t491_A : t491 = (A { float_u0 = create_float_u () });;
+let t491_B : t491 = (B (create_string (), create_float_u ()));;
+let t491_C : t491 = (C { float_u0 = create_float_u () });;
+let t492_A : t492 = (A (create_string (), create_float_u ()));;
+let t492_B : t492 = (B { float_u0 = create_float_u () });;
 let t492_C : t492 = (C (create_float_u ()));;
 let t492_D : t492 = (D (create_float_u ()));;
 let t492_E : t492 = (E (create_float_u ()));;
-let t493_A : t493 = (A (create_float (), create_float_u ()));;
+let t493_A : t493 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t493_B : t493 = (B (create_float_u ()));;
-let t493_C : t493 = (C (create_string (), create_float_u ()));;
+let t493_C : t493 = (C { float_u0 = create_float_u () });;
 let t493_D : t493 = (D (create_float_u ()));;
-let t494_A : t494 = (A (create_string (), create_float32_u ()));;
-let t494_B : t494 = (B (create_string (), create_float32_u ()));;
-let t495_A : t495 = (A (create_int32_u ()));;
-let t495_B : t495 = (B (create_float (), create_float_u ()));;
+let t494_A : t494 = (A (create_float32_u ()));;
+let t494_B : t494 = (B (create_float32_u ()));;
+let t495_A : t495 = (A { float_u0 = create_float_u () });;
+let t495_B : t495 = (B { str0 = create_string (); float_u1 = create_float_u () });;
 let t495_C : t495 = (C (create_float_u ()));;
-let t496_A : t496 = (A (create_string (), create_string (), create_float_u ()));;
-let t496_B : t496 = (B (create_float32_u ()));;
+let t496_A : t496 = (A (create_float (), create_float_u ()));;
+let t496_B : t496 = (B (create_string (), create_float_u ()));;
 let t496_C : t496 = (C (create_float_u ()));;
 let t496_D : t496 = (D (create_float_u ()));;
-let t497_A : t497 = (A (create_float (), create_float32_u ()));;
-let t497_B : t497 = (B (create_string (), create_float_u ()));;
-let t497_C : t497 = (C (create_string (), create_float_u ()));;
-let t498_A : t498 = (A (create_string (), create_int32_u ()));;
+let t497_A : t497 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t497_B : t497 = (B { float_u0 = create_float_u () });;
+let t497_C : t497 = (C { float_u0 = create_float_u () });;
+let t498_A : t498 = (A (create_string (), create_float32_u ()));;
 let t498_B : t498 = (B (create_float_u ()));;
 let t498_C : t498 = (C (create_float_u ()));;
 let t498_D : t498 = (D (create_float_u ()));;
 let t498_E : t498 = (E (create_float_u ()));;
-let t499_A : t499 = (A (create_int64_u ()));;
-let t499_B : t499 = (B (create_float (), create_float_u ()));;
-let t500_A : t500 = (A (create_float (), create_string (), create_float_u ()));;
-let t500_B : t500 = (B (create_float32_u ()));;
+let t499_A : t499 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t499_B : t499 = (B { str0 = create_string (); float_u1 = create_float_u () });;
+let t500_A : t500 = (A (create_int32_u ()));;
+let t500_B : t500 = (B (create_string (), create_float_u ()));;
 let t500_C : t500 = (C (create_float_u ()));;
-let t501_A : t501 = (A (create_string (), create_string (), create_float32_u ()));;
-let t501_B : t501 = (B (create_string (), create_float_u ()));;
+let t501_A : t501 = (A { float32_u0 = create_float32_u () });;
+let t501_B : t501 = (B { float_u0 = create_float_u () });;
 let t501_C : t501 = (C (create_float_u ()));;
 let t501_D : t501 = (D (create_float_u ()));;
-let t502_A : t502 = (A (create_float (), create_int32_u ()));;
+let t502_A : t502 = (A (create_string (), create_string (), create_float_u ()));;
 let t502_B : t502 = (B (create_float_u ()));;
-let t502_C : t502 = (C (create_string (), create_float_u ()));;
-let t503_A : t503 = (A (create_string (), create_int64_u ()));;
-let t503_B : t503 = (B (create_float32_u ()));;
-let t504_A : t504 = (A (create_nativeint_u ()));;
-let t504_B : t504 = (B (create_string (), create_float_u ()));;
+let t502_C : t502 = (C { float_u0 = create_float_u () });;
+let t503_A : t503 = (A { float0 = create_float (); float_u1 = create_float_u () });;
+let t503_B : t503 = (B (create_string (), create_float_u ()));;
+let t504_A : t504 = (A (create_float (), create_float32_u ()));;
+let t504_B : t504 = (B { float_u0 = create_float_u () });;
 let t504_C : t504 = (C (create_float_u ()));;
-let t505_A : t505 = (A (create_int (), create_string (), create_float_u ()));;
+let t505_A : t505 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t505_B : t505 = (B (create_float_u ()));;
 let t505_C : t505 = (C (create_float_u ()));;
 let t505_D : t505 = (D (create_float_u ()));;
-let t506_A : t506 = (A (create_float (), create_string (), create_float32_u ()));;
-let t506_B : t506 = (B (create_string (), create_float_u ()));;
-let t507_A : t507 = (A (create_string (), create_string (), create_int32_u ()));;
+let t506_A : t506 = (A (create_string (), create_int32_u ()));;
+let t506_B : t506 = (B { float_u0 = create_float_u () });;
+let t507_A : t507 = (A { str0 = create_string (); float32_u1 = create_float32_u () });;
 let t507_B : t507 = (B (create_float_u ()));;
 let t507_C : t507 = (C (create_float_u ()));;
-let t508_A : t508 = (A (create_float (), create_int64_u ()));;
+let t508_A : t508 = (A (create_int64_u ()));;
 let t508_B : t508 = (B (create_float_u ()));;
-let t509_A : t509 = (A (create_string (), create_nativeint_u ()));;
+let t509_A : t509 = (A { float32_u0 = create_float32_u () });;
 let t510_A : t510 = (A (create_float_u ()));;
-let t510_B : t510 = (B (create_string (), create_float32_u ()));;
+let t510_B : t510 = (B (create_float32_u ()));;
 let t510_C : t510 = (C (create_float_u ()));;
-let t511_A : t511 = (A (create_string (), create_float_u ()));;
-let t511_B : t511 = (B (create_float (), create_float_u ()));;
+let t511_A : t511 = (A { float_u0 = create_float_u () });;
+let t511_B : t511 = (B { str0 = create_string (); float_u1 = create_float_u () });;
 let t511_C : t511 = (C (create_float_u ()));;
 let t511_D : t511 = (D (create_float_u ()));;
-let t512_A : t512 = (A (create_float32_u ()));;
-let t512_B : t512 = (B (create_float32_u ()));;
-let t512_C : t512 = (C (create_string (), create_float_u ()));;
-let t513_A : t513 = (A (create_float (), create_float_u ()));;
-let t513_B : t513 = (B (create_string (), create_float_u ()));;
+let t512_A : t512 = (A (create_string (), create_float_u ()));;
+let t512_B : t512 = (B (create_string (), create_float_u ()));;
+let t512_C : t512 = (C { float_u0 = create_float_u () });;
+let t513_A : t513 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t513_B : t513 = (B { float_u0 = create_float_u () });;
 let t513_C : t513 = (C (create_float_u ()));;
 let t513_D : t513 = (D (create_float_u ()));;
 let t513_E : t513 = (E (create_float_u ()));;
-let t514_A : t514 = (A (create_string (), create_float32_u ()));;
+let t514_A : t514 = (A (create_float32_u ()));;
 let t514_B : t514 = (B (create_float_u ()));;
-let t514_C : t514 = (C (create_string (), create_float_u ()));;
+let t514_C : t514 = (C { float_u0 = create_float_u () });;
 let t514_D : t514 = (D (create_float_u ()));;
-let t515_A : t515 = (A (create_int32_u ()));;
-let t515_B : t515 = (B (create_string (), create_float32_u ()));;
-let t516_A : t516 = (A (create_string (), create_string (), create_float_u ()));;
-let t516_B : t516 = (B (create_float (), create_float_u ()));;
+let t515_A : t515 = (A { float_u0 = create_float_u () });;
+let t515_B : t515 = (B (create_float32_u ()));;
+let t516_A : t516 = (A (create_float (), create_float_u ()));;
+let t516_B : t516 = (B { str0 = create_string (); float_u1 = create_float_u () });;
 let t516_C : t516 = (C (create_float_u ()));;
-let t517_A : t517 = (A (create_float (), create_float32_u ()));;
-let t517_B : t517 = (B (create_float32_u ()));;
+let t517_A : t517 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t517_B : t517 = (B (create_string (), create_float_u ()));;
 let t517_C : t517 = (C (create_float_u ()));;
 let t517_D : t517 = (D (create_float_u ()));;
-let t518_A : t518 = (A (create_string (), create_int32_u ()));;
-let t518_B : t518 = (B (create_string (), create_float_u ()));;
-let t518_C : t518 = (C (create_string (), create_float_u ()));;
-let t519_A : t519 = (A (create_int64_u ()));;
+let t518_A : t518 = (A (create_string (), create_float32_u ()));;
+let t518_B : t518 = (B { float_u0 = create_float_u () });;
+let t518_C : t518 = (C { float_u0 = create_float_u () });;
+let t519_A : t519 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t519_B : t519 = (B (create_float_u ()));;
 let t519_C : t519 = (C (create_float_u ()));;
 let t519_D : t519 = (D (create_float_u ()));;
 let t519_E : t519 = (E (create_float_u ()));;
-let t520_A : t520 = (A (create_float (), create_string (), create_float_u ()));;
-let t520_B : t520 = (B (create_float (), create_float_u ()));;
-let t521_A : t521 = (A (create_string (), create_string (), create_float32_u ()));;
-let t521_B : t521 = (B (create_float32_u ()));;
+let t520_A : t520 = (A (create_int32_u ()));;
+let t520_B : t520 = (B { str0 = create_string (); float_u1 = create_float_u () });;
+let t521_A : t521 = (A { float32_u0 = create_float32_u () });;
+let t521_B : t521 = (B (create_string (), create_float_u ()));;
 let t521_C : t521 = (C (create_float_u ()));;
-let t522_A : t522 = (A (create_float (), create_int32_u ()));;
-let t522_B : t522 = (B (create_string (), create_float_u ()));;
+let t522_A : t522 = (A (create_string (), create_string (), create_float_u ()));;
+let t522_B : t522 = (B { float_u0 = create_float_u () });;
 let t522_C : t522 = (C (create_float_u ()));;
 let t522_D : t522 = (D (create_float_u ()));;
-let t523_A : t523 = (A (create_string (), create_int64_u ()));;
+let t523_A : t523 = (A { float0 = create_float (); float_u1 = create_float_u () });;
 let t523_B : t523 = (B (create_float_u ()));;
-let t523_C : t523 = (C (create_string (), create_float_u ()));;
-let t524_A : t524 = (A (create_nativeint_u ()));;
-let t524_B : t524 = (B (create_float32_u ()));;
-let t525_A : t525 = (A (create_int (), create_string (), create_float_u ()));;
-let t525_B : t525 = (B (create_string (), create_float_u ()));;
+let t523_C : t523 = (C { float_u0 = create_float_u () });;
+let t524_A : t524 = (A (create_float (), create_float32_u ()));;
+let t524_B : t524 = (B (create_string (), create_float_u ()));;
+let t525_A : t525 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t525_B : t525 = (B { float_u0 = create_float_u () });;
 let t525_C : t525 = (C (create_float_u ()));;
-let t526_A : t526 = (A (create_float (), create_string (), create_float32_u ()));;
+let t526_A : t526 = (A (create_string (), create_int32_u ()));;
 let t526_B : t526 = (B (create_float_u ()));;
 let t526_C : t526 = (C (create_float_u ()));;
 let t526_D : t526 = (D (create_float_u ()));;
-let t527_A : t527 = (A (create_string (), create_string (), create_int32_u ()));;
-let t527_B : t527 = (B (create_string (), create_float_u ()));;
-let t528_A : t528 = (A (create_float (), create_int64_u ()));;
+let t527_A : t527 = (A { str0 = create_string (); float32_u1 = create_float32_u () });;
+let t527_B : t527 = (B { float_u0 = create_float_u () });;
+let t528_A : t528 = (A (create_int64_u ()));;
 let t528_B : t528 = (B (create_float_u ()));;
 let t528_C : t528 = (C (create_float_u ()));;
-let t529_A : t529 = (A (create_string (), create_nativeint_u ()));;
+let t529_A : t529 = (A { float32_u0 = create_float32_u () });;
 let t529_B : t529 = (B (create_float_u ()));;
-let t530_A : t530 = (A (create_float_u (), create_int ()));;
+let t530_A : t530 = (A (create_float (), create_string (), create_float_u ()));;
 let t531_A : t531 = (A (create_float_u ()));;
-let t531_B : t531 = (B (create_int32_u ()));;
-let t532_A : t532 = (A (create_string (), create_float_u ()));;
-let t532_B : t532 = (B (create_string (), create_float32_u ()));;
+let t531_B : t531 = (B { float_u0 = create_float_u () });;
+let t532_A : t532 = (A { float_u0 = create_float_u () });;
+let t532_B : t532 = (B (create_float32_u ()));;
 let t532_C : t532 = (C (create_float_u ()));;
-let t533_A : t533 = (A (create_float32_u ()));;
-let t533_B : t533 = (B (create_float (), create_float_u ()));;
+let t533_A : t533 = (A (create_string (), create_float_u ()));;
+let t533_B : t533 = (B { str0 = create_string (); float_u1 = create_float_u () });;
 let t533_C : t533 = (C (create_float_u ()));;
 let t533_D : t533 = (D (create_float_u ()));;
-let t534_A : t534 = (A (create_float (), create_float_u ()));;
-let t534_B : t534 = (B (create_float32_u ()));;
-let t534_C : t534 = (C (create_string (), create_float_u ()));;
-let t535_A : t535 = (A (create_string (), create_float32_u ()));;
-let t535_B : t535 = (B (create_string (), create_float_u ()));;
+let t534_A : t534 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t534_B : t534 = (B (create_string (), create_float_u ()));;
+let t534_C : t534 = (C { float_u0 = create_float_u () });;
+let t535_A : t535 = (A (create_float32_u ()));;
+let t535_B : t535 = (B { float_u0 = create_float_u () });;
 let t535_C : t535 = (C (create_float_u ()));;
 let t535_D : t535 = (D (create_float_u ()));;
 let t535_E : t535 = (E (create_float_u ()));;
-let t536_A : t536 = (A (create_int32_u ()));;
+let t536_A : t536 = (A { float_u0 = create_float_u () });;
 let t536_B : t536 = (B (create_float_u ()));;
-let t536_C : t536 = (C (create_string (), create_float_u ()));;
+let t536_C : t536 = (C { float_u0 = create_float_u () });;
 let t536_D : t536 = (D (create_float_u ()));;
-let t537_A : t537 = (A (create_string (), create_string (), create_float_u ()));;
-let t537_B : t537 = (B (create_string (), create_float32_u ()));;
-let t538_A : t538 = (A (create_float (), create_float32_u ()));;
-let t538_B : t538 = (B (create_float (), create_float_u ()));;
+let t537_A : t537 = (A (create_float (), create_float_u ()));;
+let t537_B : t537 = (B (create_float32_u ()));;
+let t538_A : t538 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t538_B : t538 = (B { str0 = create_string (); float_u1 = create_float_u () });;
 let t538_C : t538 = (C (create_float_u ()));;
-let t539_A : t539 = (A (create_string (), create_int32_u ()));;
-let t539_B : t539 = (B (create_float32_u ()));;
+let t539_A : t539 = (A (create_string (), create_float32_u ()));;
+let t539_B : t539 = (B (create_string (), create_float_u ()));;
 let t539_C : t539 = (C (create_float_u ()));;
 let t539_D : t539 = (D (create_float_u ()));;
-let t540_A : t540 = (A (create_int64_u ()));;
-let t540_B : t540 = (B (create_string (), create_float_u ()));;
-let t540_C : t540 = (C (create_string (), create_float_u ()));;
-let t541_A : t541 = (A (create_float (), create_string (), create_float_u ()));;
+let t540_A : t540 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t540_B : t540 = (B { float_u0 = create_float_u () });;
+let t540_C : t540 = (C { float_u0 = create_float_u () });;
+let t541_A : t541 = (A (create_int32_u ()));;
 let t541_B : t541 = (B (create_float_u ()));;
 let t541_C : t541 = (C (create_float_u ()));;
 let t541_D : t541 = (D (create_float_u ()));;
 let t541_E : t541 = (E (create_float_u ()));;
-let t542_A : t542 = (A (create_string (), create_string (), create_float32_u ()));;
-let t542_B : t542 = (B (create_float (), create_float_u ()));;
-let t543_A : t543 = (A (create_float (), create_int32_u ()));;
-let t543_B : t543 = (B (create_float32_u ()));;
+let t542_A : t542 = (A { float32_u0 = create_float32_u () });;
+let t542_B : t542 = (B { str0 = create_string (); float_u1 = create_float_u () });;
+let t543_A : t543 = (A (create_string (), create_string (), create_float_u ()));;
+let t543_B : t543 = (B (create_string (), create_float_u ()));;
 let t543_C : t543 = (C (create_float_u ()));;
-let t544_A : t544 = (A (create_string (), create_int64_u ()));;
-let t544_B : t544 = (B (create_string (), create_float_u ()));;
+let t544_A : t544 = (A { float0 = create_float (); float_u1 = create_float_u () });;
+let t544_B : t544 = (B { float_u0 = create_float_u () });;
 let t544_C : t544 = (C (create_float_u ()));;
 let t544_D : t544 = (D (create_float_u ()));;
-let t545_A : t545 = (A (create_nativeint_u ()));;
+let t545_A : t545 = (A (create_float (), create_float32_u ()));;
 let t545_B : t545 = (B (create_float_u ()));;
-let t545_C : t545 = (C (create_string (), create_float_u ()));;
-let t546_A : t546 = (A (create_int (), create_string (), create_float_u ()));;
-let t546_B : t546 = (B (create_float32_u ()));;
-let t547_A : t547 = (A (create_float (), create_string (), create_float32_u ()));;
-let t547_B : t547 = (B (create_string (), create_float_u ()));;
+let t545_C : t545 = (C { float_u0 = create_float_u () });;
+let t546_A : t546 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t546_B : t546 = (B (create_string (), create_float_u ()));;
+let t547_A : t547 = (A (create_string (), create_int32_u ()));;
+let t547_B : t547 = (B { float_u0 = create_float_u () });;
 let t547_C : t547 = (C (create_float_u ()));;
-let t548_A : t548 = (A (create_string (), create_string (), create_int32_u ()));;
+let t548_A : t548 = (A { str0 = create_string (); float32_u1 = create_float32_u () });;
 let t548_B : t548 = (B (create_float_u ()));;
 let t548_C : t548 = (C (create_float_u ()));;
 let t548_D : t548 = (D (create_float_u ()));;
-let t549_A : t549 = (A (create_float (), create_int64_u ()));;
-let t549_B : t549 = (B (create_string (), create_float_u ()));;
-let t550_A : t550 = (A (create_string (), create_nativeint_u ()));;
+let t549_A : t549 = (A (create_int64_u ()));;
+let t549_B : t549 = (B { float_u0 = create_float_u () });;
+let t550_A : t550 = (A { float32_u0 = create_float32_u () });;
 let t550_B : t550 = (B (create_float_u ()));;
 let t550_C : t550 = (C (create_float_u ()));;
-let t551_A : t551 = (A (create_float_u (), create_int ()));;
+let t551_A : t551 = (A (create_float (), create_string (), create_float_u ()));;
 let t551_B : t551 = (B (create_float_u ()));;
-let t552_A : t552 = (A (create_string (), create_float (), create_float_u ()));;
+let t552_A : t552 = (A { float0 = create_float (); float_u1 = create_float_u () });;
 let t553_A : t553 = (A (create_float_u ()));;
 let t553_B : t553 = (B (create_float_u ()));;
-let t553_C : t553 = (C (create_float32_u ()));;
-let t554_A : t554 = (A (create_string (), create_float_u ()));;
-let t554_B : t554 = (B (create_int32_u ()));;
-let t555_A : t555 = (A (create_float32_u ()));;
-let t555_B : t555 = (B (create_string (), create_float32_u ()));;
+let t553_C : t553 = (C (create_string (), create_float_u ()));;
+let t554_A : t554 = (A { float_u0 = create_float_u () });;
+let t554_B : t554 = (B { float_u0 = create_float_u () });;
+let t555_A : t555 = (A (create_string (), create_float_u ()));;
+let t555_B : t555 = (B (create_float32_u ()));;
 let t555_C : t555 = (C (create_float_u ()));;
-let t556_A : t556 = (A (create_float (), create_float_u ()));;
-let t556_B : t556 = (B (create_float (), create_float_u ()));;
+let t556_A : t556 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t556_B : t556 = (B { str0 = create_string (); float_u1 = create_float_u () });;
 let t556_C : t556 = (C (create_float_u ()));;
 let t556_D : t556 = (D (create_float_u ()));;
-let t557_A : t557 = (A (create_string (), create_float32_u ()));;
-let t557_B : t557 = (B (create_float32_u ()));;
-let t557_C : t557 = (C (create_string (), create_float_u ()));;
-let t558_A : t558 = (A (create_int32_u ()));;
-let t558_B : t558 = (B (create_string (), create_float_u ()));;
+let t557_A : t557 = (A (create_float32_u ()));;
+let t557_B : t557 = (B (create_string (), create_float_u ()));;
+let t557_C : t557 = (C { float_u0 = create_float_u () });;
+let t558_A : t558 = (A { float_u0 = create_float_u () });;
+let t558_B : t558 = (B { float_u0 = create_float_u () });;
 let t558_C : t558 = (C (create_float_u ()));;
 let t558_D : t558 = (D (create_float_u ()));;
 let t558_E : t558 = (E (create_float_u ()));;
-let t559_A : t559 = (A (create_string (), create_string (), create_float_u ()));;
+let t559_A : t559 = (A (create_float (), create_float_u ()));;
 let t559_B : t559 = (B (create_float_u ()));;
-let t559_C : t559 = (C (create_string (), create_float_u ()));;
+let t559_C : t559 = (C { float_u0 = create_float_u () });;
 let t559_D : t559 = (D (create_float_u ()));;
-let t560_A : t560 = (A (create_float (), create_float32_u ()));;
-let t560_B : t560 = (B (create_string (), create_float32_u ()));;
-let t561_A : t561 = (A (create_string (), create_int32_u ()));;
-let t561_B : t561 = (B (create_float (), create_float_u ()));;
+let t560_A : t560 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t560_B : t560 = (B (create_float32_u ()));;
+let t561_A : t561 = (A (create_string (), create_float32_u ()));;
+let t561_B : t561 = (B { str0 = create_string (); float_u1 = create_float_u () });;
 let t561_C : t561 = (C (create_float_u ()));;
-let t562_A : t562 = (A (create_int64_u ()));;
-let t562_B : t562 = (B (create_float32_u ()));;
+let t562_A : t562 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t562_B : t562 = (B (create_string (), create_float_u ()));;
 let t562_C : t562 = (C (create_float_u ()));;
 let t562_D : t562 = (D (create_float_u ()));;
-let t563_A : t563 = (A (create_float (), create_string (), create_float_u ()));;
-let t563_B : t563 = (B (create_string (), create_float_u ()));;
-let t563_C : t563 = (C (create_string (), create_float_u ()));;
-let t564_A : t564 = (A (create_string (), create_string (), create_float32_u ()));;
+let t563_A : t563 = (A (create_int32_u ()));;
+let t563_B : t563 = (B { float_u0 = create_float_u () });;
+let t563_C : t563 = (C { float_u0 = create_float_u () });;
+let t564_A : t564 = (A { float32_u0 = create_float32_u () });;
 let t564_B : t564 = (B (create_float_u ()));;
 let t564_C : t564 = (C (create_float_u ()));;
 let t564_D : t564 = (D (create_float_u ()));;
 let t564_E : t564 = (E (create_float_u ()));;
-let t565_A : t565 = (A (create_float (), create_int32_u ()));;
-let t565_B : t565 = (B (create_float (), create_float_u ()));;
-let t566_A : t566 = (A (create_string (), create_int64_u ()));;
-let t566_B : t566 = (B (create_float32_u ()));;
+let t565_A : t565 = (A (create_string (), create_string (), create_float_u ()));;
+let t565_B : t565 = (B { str0 = create_string (); float_u1 = create_float_u () });;
+let t566_A : t566 = (A { float0 = create_float (); float_u1 = create_float_u () });;
+let t566_B : t566 = (B (create_string (), create_float_u ()));;
 let t566_C : t566 = (C (create_float_u ()));;
-let t567_A : t567 = (A (create_nativeint_u ()));;
-let t567_B : t567 = (B (create_string (), create_float_u ()));;
+let t567_A : t567 = (A (create_float (), create_float32_u ()));;
+let t567_B : t567 = (B { float_u0 = create_float_u () });;
 let t567_C : t567 = (C (create_float_u ()));;
 let t567_D : t567 = (D (create_float_u ()));;
-let t568_A : t568 = (A (create_int (), create_string (), create_float_u ()));;
+let t568_A : t568 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t568_B : t568 = (B (create_float_u ()));;
-let t568_C : t568 = (C (create_string (), create_float_u ()));;
-let t569_A : t569 = (A (create_float (), create_string (), create_float32_u ()));;
-let t569_B : t569 = (B (create_float32_u ()));;
-let t570_A : t570 = (A (create_string (), create_string (), create_int32_u ()));;
-let t570_B : t570 = (B (create_string (), create_float_u ()));;
+let t568_C : t568 = (C { float_u0 = create_float_u () });;
+let t569_A : t569 = (A (create_string (), create_int32_u ()));;
+let t569_B : t569 = (B (create_string (), create_float_u ()));;
+let t570_A : t570 = (A { str0 = create_string (); float32_u1 = create_float32_u () });;
+let t570_B : t570 = (B { float_u0 = create_float_u () });;
 let t570_C : t570 = (C (create_float_u ()));;
-let t571_A : t571 = (A (create_float (), create_int64_u ()));;
+let t571_A : t571 = (A (create_int64_u ()));;
 let t571_B : t571 = (B (create_float_u ()));;
 let t571_C : t571 = (C (create_float_u ()));;
 let t571_D : t571 = (D (create_float_u ()));;
-let t572_A : t572 = (A (create_string (), create_nativeint_u ()));;
-let t572_B : t572 = (B (create_string (), create_float_u ()));;
-let t573_A : t573 = (A (create_float_u (), create_int ()));;
+let t572_A : t572 = (A { float32_u0 = create_float32_u () });;
+let t572_B : t572 = (B { float_u0 = create_float_u () });;
+let t573_A : t573 = (A (create_float (), create_string (), create_float_u ()));;
 let t573_B : t573 = (B (create_float_u ()));;
 let t573_C : t573 = (C (create_float_u ()));;
-let t574_A : t574 = (A (create_string (), create_float (), create_float_u ()));;
+let t574_A : t574 = (A { float0 = create_float (); float_u1 = create_float_u () });;
 let t574_B : t574 = (B (create_float_u ()));;
-let t575_A : t575 = (A (create_int (), create_string (), create_float32_u ()));;
+let t575_A : t575 = (A (create_string (), create_string (), create_float32_u ()));;
 let t576_A : t576 = (A (create_float_u ()));;
-let t576_B : t576 = (B (create_string (), create_float_u ()));;
-let t576_C : t576 = (C (create_string (), create_float_u ()));;
+let t576_B : t576 = (B { float_u0 = create_float_u () });;
+let t576_C : t576 = (C { float_u0 = create_float_u () });;
 let t576_D : t576 = (D (create_float_u ()));;
-let t577_A : t577 = (A (create_string (), create_float_u ()));;
+let t577_A : t577 = (A { float_u0 = create_float_u () });;
 let t577_B : t577 = (B (create_float_u ()));;
-let t577_C : t577 = (C (create_float32_u ()));;
-let t578_A : t578 = (A (create_float32_u ()));;
-let t578_B : t578 = (B (create_int32_u ()));;
-let t579_A : t579 = (A (create_float (), create_float_u ()));;
-let t579_B : t579 = (B (create_string (), create_float32_u ()));;
+let t577_C : t577 = (C (create_string (), create_float_u ()));;
+let t578_A : t578 = (A (create_string (), create_float_u ()));;
+let t578_B : t578 = (B { float_u0 = create_float_u () });;
+let t579_A : t579 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t579_B : t579 = (B (create_float32_u ()));;
 let t579_C : t579 = (C (create_float_u ()));;
-let t580_A : t580 = (A (create_string (), create_float32_u ()));;
-let t580_B : t580 = (B (create_float (), create_float_u ()));;
+let t580_A : t580 = (A (create_float32_u ()));;
+let t580_B : t580 = (B { str0 = create_string (); float_u1 = create_float_u () });;
 let t580_C : t580 = (C (create_float_u ()));;
 let t580_D : t580 = (D (create_float_u ()));;
-let t581_A : t581 = (A (create_int32_u ()));;
-let t581_B : t581 = (B (create_float32_u ()));;
-let t581_C : t581 = (C (create_string (), create_float_u ()));;
-let t582_A : t582 = (A (create_string (), create_string (), create_float_u ()));;
-let t582_B : t582 = (B (create_string (), create_float_u ()));;
+let t581_A : t581 = (A { float_u0 = create_float_u () });;
+let t581_B : t581 = (B (create_string (), create_float_u ()));;
+let t581_C : t581 = (C { float_u0 = create_float_u () });;
+let t582_A : t582 = (A (create_float (), create_float_u ()));;
+let t582_B : t582 = (B { float_u0 = create_float_u () });;
 let t582_C : t582 = (C (create_float_u ()));;
 let t582_D : t582 = (D (create_float_u ()));;
 let t582_E : t582 = (E (create_float_u ()));;
-let t583_A : t583 = (A (create_float (), create_float32_u ()));;
+let t583_A : t583 = (A { str0 = create_string (); float_u1 = create_float_u () });;
 let t583_B : t583 = (B (create_float_u ()));;
-let t583_C : t583 = (C (create_string (), create_float_u ()));;
+let t583_C : t583 = (C { float_u0 = create_float_u () });;
 let t583_D : t583 = (D (create_float_u ()));;
-let t584_A : t584 = (A (create_string (), create_int32_u ()));;
-let t584_B : t584 = (B (create_string (), create_float32_u ()));;
-let t585_A : t585 = (A (create_int64_u ()));;
-let t585_B : t585 = (B (create_float (), create_float_u ()));;
+let t584_A : t584 = (A (create_string (), create_float32_u ()));;
+let t584_B : t584 = (B (create_float32_u ()));;
+let t585_A : t585 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t585_B : t585 = (B { str0 = create_string (); float_u1 = create_float_u () });;
 let t585_C : t585 = (C (create_float_u ()));;
-let t586_A : t586 = (A (create_float (), create_string (), create_float_u ()));;
-let t586_B : t586 = (B (create_float32_u ()));;
+let t586_A : t586 = (A (create_int32_u ()));;
+let t586_B : t586 = (B (create_string (), create_float_u ()));;
 let t586_C : t586 = (C (create_float_u ()));;
 let t586_D : t586 = (D (create_float_u ()));;
-let t587_A : t587 = (A (create_string (), create_string (), create_float32_u ()));;
-let t587_B : t587 = (B (create_string (), create_float_u ()));;
-let t587_C : t587 = (C (create_string (), create_float_u ()));;
-let t588_A : t588 = (A (create_float (), create_int32_u ()));;
+let t587_A : t587 = (A { float32_u0 = create_float32_u () });;
+let t587_B : t587 = (B { float_u0 = create_float_u () });;
+let t587_C : t587 = (C { float_u0 = create_float_u () });;
+let t588_A : t588 = (A (create_string (), create_string (), create_float_u ()));;
 let t588_B : t588 = (B (create_float_u ()));;
 let t588_C : t588 = (C (create_float_u ()));;
 let t588_D : t588 = (D (create_float_u ()));;
 let t588_E : t588 = (E (create_float_u ()));;
-let t589_A : t589 = (A (create_string (), create_int64_u ()));;
-let t589_B : t589 = (B (create_float (), create_float_u ()));;
-let t590_A : t590 = (A (create_nativeint_u ()));;
-let t590_B : t590 = (B (create_float32_u ()));;
+let t589_A : t589 = (A { float0 = create_float (); float_u1 = create_float_u () });;
+let t589_B : t589 = (B { str0 = create_string (); float_u1 = create_float_u () });;
+let t590_A : t590 = (A (create_float (), create_float32_u ()));;
+let t590_B : t590 = (B (create_string (), create_float_u ()));;
 let t590_C : t590 = (C (create_float_u ()));;
-let t591_A : t591 = (A (create_int (), create_string (), create_float_u ()));;
-let t591_B : t591 = (B (create_string (), create_float_u ()));;
+let t591_A : t591 = (A { str0 = create_string (); float_u1 = create_float_u () });;
+let t591_B : t591 = (B { float_u0 = create_float_u () });;
 let t591_C : t591 = (C (create_float_u ()));;
 let t591_D : t591 = (D (create_float_u ()));;
-let t592_A : t592 = (A (create_float (), create_string (), create_float32_u ()));;
+let t592_A : t592 = (A (create_string (), create_int32_u ()));;
 let t592_B : t592 = (B (create_float_u ()));;
-let t592_C : t592 = (C (create_string (), create_float_u ()));;
-let t593_A : t593 = (A (create_string (), create_string (), create_int32_u ()));;
-let t593_B : t593 = (B (create_float32_u ()));;
-let t594_A : t594 = (A (create_float (), create_int64_u ()));;
-let t594_B : t594 = (B (create_string (), create_float_u ()));;
+let t592_C : t592 = (C { float_u0 = create_float_u () });;
+let t593_A : t593 = (A { str0 = create_string (); float32_u1 = create_float32_u () });;
+let t593_B : t593 = (B (create_string (), create_float_u ()));;
+let t594_A : t594 = (A (create_int64_u ()));;
+let t594_B : t594 = (B { float_u0 = create_float_u () });;
 let t594_C : t594 = (C (create_float_u ()));;
-let t595_A : t595 = (A (create_string (), create_nativeint_u ()));;
+let t595_A : t595 = (A { float32_u0 = create_float32_u () });;
 let t595_B : t595 = (B (create_float_u ()));;
 let t595_C : t595 = (C (create_float_u ()));;
 let t595_D : t595 = (D (create_float_u ()));;
-let t596_A : t596 = (A (create_float_u (), create_int ()));;
-let t596_B : t596 = (B (create_string (), create_float_u ()));;
-let t597_A : t597 = (A (create_string (), create_float (), create_float_u ()));;
+let t596_A : t596 = (A (create_float (), create_string (), create_float_u ()));;
+let t596_B : t596 = (B { float_u0 = create_float_u () });;
+let t597_A : t597 = (A { float0 = create_float (); float_u1 = create_float_u () });;
 let t597_B : t597 = (B (create_float_u ()));;
 let t597_C : t597 = (C (create_float_u ()));;
-let t598_A : t598 = (A (create_int (), create_string (), create_float32_u ()));;
+let t598_A : t598 = (A (create_string (), create_string (), create_float32_u ()));;
 let t598_B : t598 = (B (create_float_u ()));;
-let t599_A : t599 = (A (create_float (), create_string (), create_int32_u ()));;
+let t599_A : t599 = (A { float0 = create_float (); float_u1 = create_float_u () });;
 let () = print_endline " - Doing GC";;
 let () = Gc.full_major ();;
 
@@ -8260,8 +8260,7 @@ let t_orig599_A = t599_A;;
       | _ -> assert false
     in
   let () = match t302_A, t_orig302_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t302_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t302_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t302_A.float_u0";
       
     in
   let () = match t303_A, t_orig303_A with
@@ -8277,8 +8276,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t304_A, t_orig304_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t304_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t304_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t304_A.float_u0";
       | _ -> assert false
     in
   let () = match t304_B, t_orig304_B with
@@ -8286,7 +8284,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t305_A, t_orig305_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t305_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t305_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t305_A.1";
       
     in
   let () = match t306_A, t_orig306_A with
@@ -8294,13 +8293,11 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t306_B, t_orig306_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t306_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t306_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t306_B.float_u0";
       | _ -> assert false
     in
   let () = match t307_A, t_orig307_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t307_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t307_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t307_A.float_u0";
       | _ -> assert false
     in
   let () = match t307_B, t_orig307_B with
@@ -8312,7 +8309,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t308_A, t_orig308_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t308_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t308_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t308_A.1";
       | _ -> assert false
     in
   let () = match t308_B, t_orig308_B with
@@ -8320,8 +8318,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t309_A, t_orig309_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t309_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t309_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t309_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t309_A.float_u1";
       
     in
   let () = match t310_A, t_orig310_A with
@@ -8341,17 +8339,16 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t311_A, t_orig311_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t311_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t311_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t311_A.float_u0";
       | _ -> assert false
     in
   let () = match t311_B, t_orig311_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t311_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t311_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t311_B.float_u0";
       | _ -> assert false
     in
   let () = match t312_A, t_orig312_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t312_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t312_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t312_A.1";
       | _ -> assert false
     in
   let () = match t312_B, t_orig312_B with
@@ -8363,8 +8360,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t313_A, t_orig313_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t313_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t313_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t313_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t313_A.float_u1";
       | _ -> assert false
     in
   let () = match t313_B, t_orig313_B with
@@ -8372,8 +8369,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t314_A, t_orig314_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t314_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t314_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t314_A.0";
       
     in
   let () = match t315_A, t_orig315_A with
@@ -8381,8 +8377,7 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t315_B, t_orig315_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t315_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t315_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t315_B.float_u0";
       | _ -> assert false
     in
   let () = match t315_C, t_orig315_C with
@@ -8390,8 +8385,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t316_A, t_orig316_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t316_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t316_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t316_A.float_u0";
       | _ -> assert false
     in
   let () = match t316_B, t_orig316_B with
@@ -8407,17 +8401,17 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t317_A, t_orig317_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t317_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t317_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t317_A.1";
       | _ -> assert false
     in
   let () = match t317_B, t_orig317_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t317_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t317_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t317_B.float_u0";
       | _ -> assert false
     in
   let () = match t318_A, t_orig318_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t318_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t318_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t318_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t318_A.float_u1";
       | _ -> assert false
     in
   let () = match t318_B, t_orig318_B with
@@ -8429,8 +8423,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t319_A, t_orig319_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t319_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t319_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t319_A.0";
       | _ -> assert false
     in
   let () = match t319_B, t_orig319_B with
@@ -8438,7 +8431,7 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t320_A, t_orig320_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t320_A.0";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t320_A.float_u0";
       
     in
   let () = match t321_A, t_orig321_A with
@@ -8446,17 +8439,16 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t321_B, t_orig321_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t321_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t321_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t321_B.1";
       | _ -> assert false
     in
   let () = match t322_A, t_orig322_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t322_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t322_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t322_A.float_u0";
       | _ -> assert false
     in
   let () = match t322_B, t_orig322_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t322_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t322_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t322_B.float_u0";
       | _ -> assert false
     in
   let () = match t322_C, t_orig322_C with
@@ -8464,7 +8456,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t323_A, t_orig323_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t323_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t323_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t323_A.1";
       | _ -> assert false
     in
   let () = match t323_B, t_orig323_B with
@@ -8480,18 +8473,16 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t324_A, t_orig324_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t324_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t324_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t324_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t324_A.float_u1";
       | _ -> assert false
     in
   let () = match t324_B, t_orig324_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t324_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t324_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t324_B.float_u0";
       | _ -> assert false
     in
   let () = match t325_A, t_orig325_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t325_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t325_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t325_A.0";
       | _ -> assert false
     in
   let () = match t325_B, t_orig325_B with
@@ -8503,7 +8494,7 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t326_A, t_orig326_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t326_A.0";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t326_A.float_u0";
       | _ -> assert false
     in
   let () = match t326_B, t_orig326_B with
@@ -8511,9 +8502,8 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t327_A, t_orig327_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t327_A.0";
-check_string a1 b1 ~message:"t327_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t327_A.2";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t327_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t327_A.1";
       
     in
   let () = match t328_A, t_orig328_A with
@@ -8525,26 +8515,25 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t328_C, t_orig328_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t328_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t328_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t328_C.float_u0";
       | _ -> assert false
     in
   let () = match t329_A, t_orig329_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t329_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t329_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t329_A.float_u0";
       | _ -> assert false
     in
   let () = match t329_B, t_orig329_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t329_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t329_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t329_B.1";
       | _ -> assert false
     in
   let () = match t330_A, t_orig330_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t330_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t330_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t330_A.1";
       | _ -> assert false
     in
   let () = match t330_B, t_orig330_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t330_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t330_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t330_B.float_u0";
       | _ -> assert false
     in
   let () = match t330_C, t_orig330_C with
@@ -8552,8 +8541,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t331_A, t_orig331_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t331_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t331_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t331_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t331_A.float_u1";
       | _ -> assert false
     in
   let () = match t331_B, t_orig331_B with
@@ -8569,17 +8558,15 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t332_A, t_orig332_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t332_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t332_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t332_A.0";
       | _ -> assert false
     in
   let () = match t332_B, t_orig332_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t332_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t332_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t332_B.float_u0";
       | _ -> assert false
     in
   let () = match t333_A, t_orig333_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t333_A.0";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t333_A.float_u0";
       | _ -> assert false
     in
   let () = match t333_B, t_orig333_B with
@@ -8591,9 +8578,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t334_A, t_orig334_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t334_A.0";
-check_string a1 b1 ~message:"t334_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t334_A.2";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t334_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t334_A.1";
       | _ -> assert false
     in
   let () = match t334_B, t_orig334_B with
@@ -8601,8 +8587,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t335_A, t_orig335_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t335_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t335_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t335_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t335_A.float_u1";
       
     in
   let () = match t336_A, t_orig336_A with
@@ -8610,8 +8596,7 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t336_B, t_orig336_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t336_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t336_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t336_B.float_u0";
       | _ -> assert false
     in
   let () = match t336_C, t_orig336_C with
@@ -8623,8 +8608,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t337_A, t_orig337_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t337_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t337_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t337_A.float_u0";
       | _ -> assert false
     in
   let () = match t337_B, t_orig337_B with
@@ -8632,26 +8616,26 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t337_C, t_orig337_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t337_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t337_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t337_C.float_u0";
       | _ -> assert false
     in
   let () = match t338_A, t_orig338_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t338_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t338_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t338_A.1";
       | _ -> assert false
     in
   let () = match t338_B, t_orig338_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t338_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t338_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t338_B.1";
       | _ -> assert false
     in
   let () = match t339_A, t_orig339_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t339_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t339_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t339_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t339_A.float_u1";
       | _ -> assert false
     in
   let () = match t339_B, t_orig339_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t339_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t339_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t339_B.float_u0";
       | _ -> assert false
     in
   let () = match t339_C, t_orig339_C with
@@ -8659,8 +8643,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t340_A, t_orig340_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t340_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t340_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t340_A.0";
       | _ -> assert false
     in
   let () = match t340_B, t_orig340_B with
@@ -8676,18 +8659,16 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t341_A, t_orig341_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t341_A.0";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t341_A.float_u0";
       | _ -> assert false
     in
   let () = match t341_B, t_orig341_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t341_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t341_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t341_B.float_u0";
       | _ -> assert false
     in
   let () = match t342_A, t_orig342_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t342_A.0";
-check_string a1 b1 ~message:"t342_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t342_A.2";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t342_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t342_A.1";
       | _ -> assert false
     in
   let () = match t342_B, t_orig342_B with
@@ -8699,8 +8680,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t343_A, t_orig343_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t343_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t343_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t343_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t343_A.float_u1";
       | _ -> assert false
     in
   let () = match t343_B, t_orig343_B with
@@ -8708,8 +8689,8 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t344_A, t_orig344_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t344_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t344_A.1";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t344_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t344_A.1";
       
     in
   let () = match t345_A, t_orig345_A with
@@ -8717,7 +8698,8 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t345_B, t_orig345_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t345_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t345_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t345_B.1";
       | _ -> assert false
     in
   let () = match t345_C, t_orig345_C with
@@ -8725,13 +8707,11 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t346_A, t_orig346_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t346_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t346_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t346_A.float_u0";
       | _ -> assert false
     in
   let () = match t346_B, t_orig346_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t346_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t346_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t346_B.float_u0";
       | _ -> assert false
     in
   let () = match t346_C, t_orig346_C with
@@ -8743,7 +8723,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t347_A, t_orig347_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t347_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t347_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t347_A.1";
       | _ -> assert false
     in
   let () = match t347_B, t_orig347_B with
@@ -8751,27 +8732,25 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t347_C, t_orig347_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t347_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t347_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t347_C.float_u0";
       | _ -> assert false
     in
   let () = match t348_A, t_orig348_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t348_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t348_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t348_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t348_A.float_u1";
       | _ -> assert false
     in
   let () = match t348_B, t_orig348_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t348_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t348_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t348_B.1";
       | _ -> assert false
     in
   let () = match t349_A, t_orig349_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t349_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t349_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t349_A.0";
       | _ -> assert false
     in
   let () = match t349_B, t_orig349_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t349_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t349_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t349_B.float_u0";
       | _ -> assert false
     in
   let () = match t349_C, t_orig349_C with
@@ -8779,7 +8758,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t350_A, t_orig350_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t350_A.0";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t350_A.float_u0";
       | _ -> assert false
     in
   let () = match t350_B, t_orig350_B with
@@ -8795,19 +8774,17 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t351_A, t_orig351_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t351_A.0";
-check_string a1 b1 ~message:"t351_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t351_A.2";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t351_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t351_A.1";
       | _ -> assert false
     in
   let () = match t351_B, t_orig351_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t351_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t351_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t351_B.float_u0";
       | _ -> assert false
     in
   let () = match t352_A, t_orig352_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t352_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t352_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t352_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t352_A.float_u1";
       | _ -> assert false
     in
   let () = match t352_B, t_orig352_B with
@@ -8819,8 +8796,8 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t353_A, t_orig353_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t353_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t353_A.1";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t353_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t353_A.1";
       | _ -> assert false
     in
   let () = match t353_B, t_orig353_B with
@@ -8828,7 +8805,8 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t354_A, t_orig354_A with
-      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t354_A.0";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t354_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t354_A.float_u1";
       
     in
   let () = match t355_A, t_orig355_A with
@@ -8836,17 +8814,17 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t355_B, t_orig355_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t355_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t355_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t355_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t355_B.float_u1";
       | _ -> assert false
     in
   let () = match t356_A, t_orig356_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t356_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t356_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t356_A.float_u0";
       | _ -> assert false
     in
   let () = match t356_B, t_orig356_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t356_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t356_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t356_B.1";
       | _ -> assert false
     in
   let () = match t356_C, t_orig356_C with
@@ -8854,12 +8832,12 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t357_A, t_orig357_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t357_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t357_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t357_A.1";
       | _ -> assert false
     in
   let () = match t357_B, t_orig357_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t357_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t357_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t357_B.float_u0";
       | _ -> assert false
     in
   let () = match t357_C, t_orig357_C with
@@ -8871,8 +8849,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t358_A, t_orig358_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t358_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t358_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t358_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t358_A.float_u1";
       | _ -> assert false
     in
   let () = match t358_B, t_orig358_B with
@@ -8880,26 +8858,24 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t358_C, t_orig358_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t358_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t358_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t358_C.float_u0";
       | _ -> assert false
     in
   let () = match t359_A, t_orig359_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t359_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t359_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t359_A.0";
       | _ -> assert false
     in
   let () = match t359_B, t_orig359_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t359_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t359_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t359_B.1";
       | _ -> assert false
     in
   let () = match t360_A, t_orig360_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t360_A.0";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t360_A.float_u0";
       | _ -> assert false
     in
   let () = match t360_B, t_orig360_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t360_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t360_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t360_B.float_u0";
       | _ -> assert false
     in
   let () = match t360_C, t_orig360_C with
@@ -8907,9 +8883,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t361_A, t_orig361_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t361_A.0";
-check_string a1 b1 ~message:"t361_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t361_A.2";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t361_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t361_A.1";
       | _ -> assert false
     in
   let () = match t361_B, t_orig361_B with
@@ -8925,18 +8900,17 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t362_A, t_orig362_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t362_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t362_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t362_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t362_A.float_u1";
       | _ -> assert false
     in
   let () = match t362_B, t_orig362_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t362_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t362_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t362_B.float_u0";
       | _ -> assert false
     in
   let () = match t363_A, t_orig363_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t363_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t363_A.1";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t363_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t363_A.1";
       | _ -> assert false
     in
   let () = match t363_B, t_orig363_B with
@@ -8948,7 +8922,8 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t364_A, t_orig364_A with
-      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t364_A.0";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t364_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t364_A.float_u1";
       | _ -> assert false
     in
   let () = match t364_B, t_orig364_B with
@@ -8956,9 +8931,7 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t365_A, t_orig365_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t365_A.0";
-check_string a1 b1 ~message:"t365_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t365_A.2";
+      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t365_A.0";
       
     in
   let () = match t366_A, t_orig366_A with
@@ -8982,21 +8955,22 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t367_A, t_orig367_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t367_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t367_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t367_A.float_u0";
       | _ -> assert false
     in
   let () = match t367_B, t_orig367_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t367_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t367_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t367_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t367_B.float_u1";
       | _ -> assert false
     in
   let () = match t368_A, t_orig368_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t368_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t368_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t368_A.1";
       | _ -> assert false
     in
   let () = match t368_B, t_orig368_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t368_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t368_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t368_B.1";
       | _ -> assert false
     in
   let () = match t368_C, t_orig368_C with
@@ -9004,13 +8978,12 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t369_A, t_orig369_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t369_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t369_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t369_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t369_A.float_u1";
       | _ -> assert false
     in
   let () = match t369_B, t_orig369_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t369_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t369_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t369_B.float_u0";
       | _ -> assert false
     in
   let () = match t369_C, t_orig369_C with
@@ -9022,8 +8995,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t370_A, t_orig370_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t370_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t370_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t370_A.0";
       | _ -> assert false
     in
   let () = match t370_B, t_orig370_B with
@@ -9031,27 +9003,25 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t370_C, t_orig370_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t370_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t370_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t370_C.float_u0";
       | _ -> assert false
     in
   let () = match t371_A, t_orig371_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t371_A.0";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t371_A.float_u0";
       | _ -> assert false
     in
   let () = match t371_B, t_orig371_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t371_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t371_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t371_B.1";
       | _ -> assert false
     in
   let () = match t372_A, t_orig372_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t372_A.0";
-check_string a1 b1 ~message:"t372_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t372_A.2";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t372_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t372_A.1";
       | _ -> assert false
     in
   let () = match t372_B, t_orig372_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t372_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t372_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t372_B.float_u0";
       | _ -> assert false
     in
   let () = match t372_C, t_orig372_C with
@@ -9059,8 +9029,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t373_A, t_orig373_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t373_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t373_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t373_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t373_A.float_u1";
       | _ -> assert false
     in
   let () = match t373_B, t_orig373_B with
@@ -9076,17 +9046,17 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t374_A, t_orig374_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t374_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t374_A.1";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t374_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t374_A.1";
       | _ -> assert false
     in
   let () = match t374_B, t_orig374_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t374_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t374_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t374_B.float_u0";
       | _ -> assert false
     in
   let () = match t375_A, t_orig375_A with
-      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t375_A.0";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t375_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t375_A.float_u1";
       | _ -> assert false
     in
   let () = match t375_B, t_orig375_B with
@@ -9098,9 +9068,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t376_A, t_orig376_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t376_A.0";
-check_string a1 b1 ~message:"t376_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t376_A.2";
+      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t376_A.0";
       | _ -> assert false
     in
   let () = match t376_B, t_orig376_B with
@@ -9108,9 +9076,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t377_A, t_orig377_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t377_A.0";
-check_string a1 b1 ~message:"t377_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t377_A.2";
+      | A a, A b -> check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u0) (Stdlib_stable.Float32_u.to_float32 b.float32_u0) ~message:"t377_A.float32_u0";
       
     in
   let () = match t378_A, t_orig378_A with
@@ -9118,18 +9084,15 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t378_B, t_orig378_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t378_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t378_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t378_B.float_u0";
       | _ -> assert false
     in
   let () = match t378_C, t_orig378_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t378_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t378_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t378_C.float_u0";
       | _ -> assert false
     in
   let () = match t379_A, t_orig379_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t379_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t379_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t379_A.float_u0";
       | _ -> assert false
     in
   let () = match t379_B, t_orig379_B with
@@ -9149,21 +9112,23 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t380_A, t_orig380_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t380_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t380_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t380_A.1";
       | _ -> assert false
     in
   let () = match t380_B, t_orig380_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t380_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t380_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t380_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t380_B.float_u1";
       | _ -> assert false
     in
   let () = match t381_A, t_orig381_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t381_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t381_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t381_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t381_A.float_u1";
       | _ -> assert false
     in
   let () = match t381_B, t_orig381_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t381_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t381_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t381_B.1";
       | _ -> assert false
     in
   let () = match t381_C, t_orig381_C with
@@ -9171,13 +9136,11 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t382_A, t_orig382_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t382_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t382_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t382_A.0";
       | _ -> assert false
     in
   let () = match t382_B, t_orig382_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t382_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t382_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t382_B.float_u0";
       | _ -> assert false
     in
   let () = match t382_C, t_orig382_C with
@@ -9189,7 +9152,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t383_A, t_orig383_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t383_A.0";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t383_A.float_u0";
       | _ -> assert false
     in
   let () = match t383_B, t_orig383_B with
@@ -9197,28 +9160,26 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t383_C, t_orig383_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t383_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t383_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t383_C.float_u0";
       | _ -> assert false
     in
   let () = match t384_A, t_orig384_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t384_A.0";
-check_string a1 b1 ~message:"t384_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t384_A.2";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t384_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t384_A.1";
       | _ -> assert false
     in
   let () = match t384_B, t_orig384_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t384_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t384_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t384_B.1";
       | _ -> assert false
     in
   let () = match t385_A, t_orig385_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t385_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t385_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t385_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t385_A.float_u1";
       | _ -> assert false
     in
   let () = match t385_B, t_orig385_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t385_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t385_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t385_B.float_u0";
       | _ -> assert false
     in
   let () = match t385_C, t_orig385_C with
@@ -9226,8 +9187,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t386_A, t_orig386_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t386_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t386_A.1";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t386_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t386_A.1";
       | _ -> assert false
     in
   let () = match t386_B, t_orig386_B with
@@ -9243,18 +9204,16 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t387_A, t_orig387_A with
-      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t387_A.0";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t387_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t387_A.float_u1";
       | _ -> assert false
     in
   let () = match t387_B, t_orig387_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t387_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t387_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t387_B.float_u0";
       | _ -> assert false
     in
   let () = match t388_A, t_orig388_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t388_A.0";
-check_string a1 b1 ~message:"t388_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t388_A.2";
+      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t388_A.0";
       | _ -> assert false
     in
   let () = match t388_B, t_orig388_B with
@@ -9266,9 +9225,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t389_A, t_orig389_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t389_A.0";
-check_string a1 b1 ~message:"t389_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t389_A.2";
+      | A a, A b -> check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u0) (Stdlib_stable.Float32_u.to_float32 b.float32_u0) ~message:"t389_A.float32_u0";
       | _ -> assert false
     in
   let () = match t389_B, t_orig389_B with
@@ -9276,8 +9233,9 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t390_A, t_orig390_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t390_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t390_A.1";
+      | A (a0, a1, a2), A (b0, b1, b2) -> check_string a0 b0 ~message:"t390_A.0";
+check_string a1 b1 ~message:"t390_A.1";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t390_A.2";
       
     in
   let () = match t391_A, t_orig391_A with
@@ -9285,7 +9243,8 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t391_B, t_orig391_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t391_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t391_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t391_B.1";
       | _ -> assert false
     in
   let () = match t391_C, t_orig391_C with
@@ -9297,22 +9256,20 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t392_A, t_orig392_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t392_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t392_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t392_A.float_u0";
       | _ -> assert false
     in
   let () = match t392_B, t_orig392_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t392_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t392_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t392_B.float_u0";
       | _ -> assert false
     in
   let () = match t392_C, t_orig392_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t392_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t392_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t392_C.float_u0";
       | _ -> assert false
     in
   let () = match t393_A, t_orig393_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t393_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t393_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t393_A.1";
       | _ -> assert false
     in
   let () = match t393_B, t_orig393_B with
@@ -9332,22 +9289,22 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t394_A, t_orig394_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t394_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t394_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t394_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t394_A.float_u1";
       | _ -> assert false
     in
   let () = match t394_B, t_orig394_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t394_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t394_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t394_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t394_B.float_u1";
       | _ -> assert false
     in
   let () = match t395_A, t_orig395_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t395_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t395_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t395_A.0";
       | _ -> assert false
     in
   let () = match t395_B, t_orig395_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t395_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t395_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t395_B.1";
       | _ -> assert false
     in
   let () = match t395_C, t_orig395_C with
@@ -9355,12 +9312,11 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t396_A, t_orig396_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t396_A.0";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t396_A.float_u0";
       | _ -> assert false
     in
   let () = match t396_B, t_orig396_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t396_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t396_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t396_B.float_u0";
       | _ -> assert false
     in
   let () = match t396_C, t_orig396_C with
@@ -9372,9 +9328,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t397_A, t_orig397_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t397_A.0";
-check_string a1 b1 ~message:"t397_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t397_A.2";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t397_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t397_A.1";
       | _ -> assert false
     in
   let () = match t397_B, t_orig397_B with
@@ -9382,27 +9337,26 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t397_C, t_orig397_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t397_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t397_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t397_C.float_u0";
       | _ -> assert false
     in
   let () = match t398_A, t_orig398_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t398_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t398_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t398_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t398_A.float_u1";
       | _ -> assert false
     in
   let () = match t398_B, t_orig398_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t398_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t398_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t398_B.1";
       | _ -> assert false
     in
   let () = match t399_A, t_orig399_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t399_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t399_A.1";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t399_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t399_A.1";
       | _ -> assert false
     in
   let () = match t399_B, t_orig399_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t399_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t399_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t399_B.float_u0";
       | _ -> assert false
     in
   let () = match t399_C, t_orig399_C with
@@ -9410,7 +9364,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t400_A, t_orig400_A with
-      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t400_A.0";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t400_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t400_A.float_u1";
       | _ -> assert false
     in
   let () = match t400_B, t_orig400_B with
@@ -9426,20 +9381,15 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t401_A, t_orig401_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t401_A.0";
-check_string a1 b1 ~message:"t401_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t401_A.2";
+      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t401_A.0";
       | _ -> assert false
     in
   let () = match t401_B, t_orig401_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t401_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t401_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t401_B.float_u0";
       | _ -> assert false
     in
   let () = match t402_A, t_orig402_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t402_A.0";
-check_string a1 b1 ~message:"t402_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t402_A.2";
+      | A a, A b -> check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u0) (Stdlib_stable.Float32_u.to_float32 b.float32_u0) ~message:"t402_A.float32_u0";
       | _ -> assert false
     in
   let () = match t402_B, t_orig402_B with
@@ -9451,8 +9401,9 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t403_A, t_orig403_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t403_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t403_A.1";
+      | A (a0, a1, a2), A (b0, b1, b2) -> check_string a0 b0 ~message:"t403_A.0";
+check_string a1 b1 ~message:"t403_A.1";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t403_A.2";
       | _ -> assert false
     in
   let () = match t403_B, t_orig403_B with
@@ -9460,8 +9411,8 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t404_A, t_orig404_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t404_A.0";
-check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_compatible.Int64_u.to_int64 b1) ~message:"t404_A.1";
+      | A a, A b -> check_float a.float0 b.float0 ~message:"t404_A.float0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t404_A.float_u1";
       
     in
   let () = match t405_A, t_orig405_A with
@@ -9469,8 +9420,8 @@ check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t405_B, t_orig405_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t405_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t405_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t405_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t405_B.float_u1";
       | _ -> assert false
     in
   let () = match t405_C, t_orig405_C with
@@ -9478,12 +9429,12 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t406_A, t_orig406_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t406_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t406_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t406_A.float_u0";
       | _ -> assert false
     in
   let () = match t406_B, t_orig406_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t406_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t406_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t406_B.1";
       | _ -> assert false
     in
   let () = match t406_C, t_orig406_C with
@@ -9495,22 +9446,21 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t407_A, t_orig407_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t407_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t407_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t407_A.1";
       | _ -> assert false
     in
   let () = match t407_B, t_orig407_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t407_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t407_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t407_B.float_u0";
       | _ -> assert false
     in
   let () = match t407_C, t_orig407_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t407_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t407_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t407_C.float_u0";
       | _ -> assert false
     in
   let () = match t408_A, t_orig408_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t408_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t408_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t408_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t408_A.float_u1";
       | _ -> assert false
     in
   let () = match t408_B, t_orig408_B with
@@ -9530,21 +9480,21 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t409_A, t_orig409_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t409_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t409_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t409_A.0";
       | _ -> assert false
     in
   let () = match t409_B, t_orig409_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t409_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t409_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t409_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t409_B.float_u1";
       | _ -> assert false
     in
   let () = match t410_A, t_orig410_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t410_A.0";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t410_A.float_u0";
       | _ -> assert false
     in
   let () = match t410_B, t_orig410_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t410_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t410_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t410_B.1";
       | _ -> assert false
     in
   let () = match t410_C, t_orig410_C with
@@ -9552,14 +9502,12 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t411_A, t_orig411_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t411_A.0";
-check_string a1 b1 ~message:"t411_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t411_A.2";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t411_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t411_A.1";
       | _ -> assert false
     in
   let () = match t411_B, t_orig411_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t411_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t411_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t411_B.float_u0";
       | _ -> assert false
     in
   let () = match t411_C, t_orig411_C with
@@ -9571,8 +9519,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t412_A, t_orig412_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t412_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t412_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t412_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t412_A.float_u1";
       | _ -> assert false
     in
   let () = match t412_B, t_orig412_B with
@@ -9580,26 +9528,26 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t412_C, t_orig412_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t412_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t412_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t412_C.float_u0";
       | _ -> assert false
     in
   let () = match t413_A, t_orig413_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t413_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t413_A.1";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t413_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t413_A.1";
       | _ -> assert false
     in
   let () = match t413_B, t_orig413_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t413_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t413_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t413_B.1";
       | _ -> assert false
     in
   let () = match t414_A, t_orig414_A with
-      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t414_A.0";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t414_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t414_A.float_u1";
       | _ -> assert false
     in
   let () = match t414_B, t_orig414_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t414_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t414_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t414_B.float_u0";
       | _ -> assert false
     in
   let () = match t414_C, t_orig414_C with
@@ -9607,9 +9555,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t415_A, t_orig415_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t415_A.0";
-check_string a1 b1 ~message:"t415_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t415_A.2";
+      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t415_A.0";
       | _ -> assert false
     in
   let () = match t415_B, t_orig415_B with
@@ -9625,19 +9571,17 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t416_A, t_orig416_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t416_A.0";
-check_string a1 b1 ~message:"t416_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t416_A.2";
+      | A a, A b -> check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u0) (Stdlib_stable.Float32_u.to_float32 b.float32_u0) ~message:"t416_A.float32_u0";
       | _ -> assert false
     in
   let () = match t416_B, t_orig416_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t416_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t416_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t416_B.float_u0";
       | _ -> assert false
     in
   let () = match t417_A, t_orig417_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t417_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t417_A.1";
+      | A (a0, a1, a2), A (b0, b1, b2) -> check_string a0 b0 ~message:"t417_A.0";
+check_string a1 b1 ~message:"t417_A.1";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t417_A.2";
       | _ -> assert false
     in
   let () = match t417_B, t_orig417_B with
@@ -9649,8 +9593,8 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t418_A, t_orig418_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t418_A.0";
-check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_compatible.Int64_u.to_int64 b1) ~message:"t418_A.1";
+      | A a, A b -> check_float a.float0 b.float0 ~message:"t418_A.float0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t418_A.float_u1";
       | _ -> assert false
     in
   let () = match t418_B, t_orig418_B with
@@ -9658,7 +9602,8 @@ check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t419_A, t_orig419_A with
-      | A (a0), A (b0) -> check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a0) (Stdlib_upstream_compatible.Nativeint_u.to_int b0) ~message:"t419_A.0";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t419_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t419_A.1";
       
     in
   let () = match t420_A, t_orig420_A with
@@ -9666,18 +9611,16 @@ check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t420_B, t_orig420_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t420_B.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t420_B.1";
+      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t420_B.0";
       | _ -> assert false
     in
   let () = match t421_A, t_orig421_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t421_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t421_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t421_A.float_u0";
       | _ -> assert false
     in
   let () = match t421_B, t_orig421_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t421_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t421_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t421_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t421_B.float_u1";
       | _ -> assert false
     in
   let () = match t421_C, t_orig421_C with
@@ -9685,11 +9628,13 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t422_A, t_orig422_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t422_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t422_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t422_A.1";
       | _ -> assert false
     in
   let () = match t422_B, t_orig422_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t422_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t422_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t422_B.1";
       | _ -> assert false
     in
   let () = match t422_C, t_orig422_C with
@@ -9701,23 +9646,20 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t423_A, t_orig423_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t423_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t423_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t423_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t423_A.float_u1";
       | _ -> assert false
     in
   let () = match t423_B, t_orig423_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t423_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t423_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t423_B.float_u0";
       | _ -> assert false
     in
   let () = match t423_C, t_orig423_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t423_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t423_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t423_C.float_u0";
       | _ -> assert false
     in
   let () = match t424_A, t_orig424_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t424_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t424_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t424_A.0";
       | _ -> assert false
     in
   let () = match t424_B, t_orig424_B with
@@ -9737,22 +9679,22 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t425_A, t_orig425_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t425_A.0";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t425_A.float_u0";
       | _ -> assert false
     in
   let () = match t425_B, t_orig425_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t425_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t425_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t425_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t425_B.float_u1";
       | _ -> assert false
     in
   let () = match t426_A, t_orig426_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t426_A.0";
-check_string a1 b1 ~message:"t426_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t426_A.2";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t426_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t426_A.1";
       | _ -> assert false
     in
   let () = match t426_B, t_orig426_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t426_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t426_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t426_B.1";
       | _ -> assert false
     in
   let () = match t426_C, t_orig426_C with
@@ -9760,13 +9702,12 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t427_A, t_orig427_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t427_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t427_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t427_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t427_A.float_u1";
       | _ -> assert false
     in
   let () = match t427_B, t_orig427_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t427_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t427_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t427_B.float_u0";
       | _ -> assert false
     in
   let () = match t427_C, t_orig427_C with
@@ -9778,8 +9719,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t428_A, t_orig428_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t428_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t428_A.1";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t428_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t428_A.1";
       | _ -> assert false
     in
   let () = match t428_B, t_orig428_B with
@@ -9787,27 +9728,25 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t428_C, t_orig428_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t428_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t428_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t428_C.float_u0";
       | _ -> assert false
     in
   let () = match t429_A, t_orig429_A with
-      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t429_A.0";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t429_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t429_A.float_u1";
       | _ -> assert false
     in
   let () = match t429_B, t_orig429_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t429_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t429_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t429_B.1";
       | _ -> assert false
     in
   let () = match t430_A, t_orig430_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t430_A.0";
-check_string a1 b1 ~message:"t430_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t430_A.2";
+      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t430_A.0";
       | _ -> assert false
     in
   let () = match t430_B, t_orig430_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t430_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t430_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t430_B.float_u0";
       | _ -> assert false
     in
   let () = match t430_C, t_orig430_C with
@@ -9815,9 +9754,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t431_A, t_orig431_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t431_A.0";
-check_string a1 b1 ~message:"t431_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t431_A.2";
+      | A a, A b -> check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u0) (Stdlib_stable.Float32_u.to_float32 b.float32_u0) ~message:"t431_A.float32_u0";
       | _ -> assert false
     in
   let () = match t431_B, t_orig431_B with
@@ -9833,18 +9770,18 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t432_A, t_orig432_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t432_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t432_A.1";
+      | A (a0, a1, a2), A (b0, b1, b2) -> check_string a0 b0 ~message:"t432_A.0";
+check_string a1 b1 ~message:"t432_A.1";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t432_A.2";
       | _ -> assert false
     in
   let () = match t432_B, t_orig432_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t432_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t432_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t432_B.float_u0";
       | _ -> assert false
     in
   let () = match t433_A, t_orig433_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t433_A.0";
-check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_compatible.Int64_u.to_int64 b1) ~message:"t433_A.1";
+      | A a, A b -> check_float a.float0 b.float0 ~message:"t433_A.float0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t433_A.float_u1";
       | _ -> assert false
     in
   let () = match t433_B, t_orig433_B with
@@ -9856,7 +9793,8 @@ check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t434_A, t_orig434_A with
-      | A (a0), A (b0) -> check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a0) (Stdlib_upstream_compatible.Nativeint_u.to_int b0) ~message:"t434_A.0";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t434_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t434_A.1";
       | _ -> assert false
     in
   let () = match t434_B, t_orig434_B with
@@ -9864,9 +9802,8 @@ check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t435_A, t_orig435_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_int a0 b0 ~message:"t435_A.0";
-check_string a1 b1 ~message:"t435_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t435_A.2";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t435_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t435_A.float_u1";
       
     in
   let () = match t436_A, t_orig436_A with
@@ -9878,8 +9815,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t436_C, t_orig436_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t436_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t436_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t436_C.float_u0";
       | _ -> assert false
     in
   let () = match t436_D, t_orig436_D with
@@ -9887,22 +9823,21 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t437_A, t_orig437_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t437_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t437_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t437_A.float_u0";
       | _ -> assert false
     in
   let () = match t437_B, t_orig437_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t437_B.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t437_B.1";
+      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t437_B.0";
       | _ -> assert false
     in
   let () = match t438_A, t_orig438_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t438_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t438_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t438_A.1";
       | _ -> assert false
     in
   let () = match t438_B, t_orig438_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t438_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t438_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t438_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t438_B.float_u1";
       | _ -> assert false
     in
   let () = match t438_C, t_orig438_C with
@@ -9910,12 +9845,13 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t439_A, t_orig439_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t439_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t439_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t439_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t439_A.float_u1";
       | _ -> assert false
     in
   let () = match t439_B, t_orig439_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t439_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t439_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t439_B.1";
       | _ -> assert false
     in
   let () = match t439_C, t_orig439_C with
@@ -9927,22 +9863,19 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t440_A, t_orig440_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t440_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t440_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t440_A.0";
       | _ -> assert false
     in
   let () = match t440_B, t_orig440_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t440_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t440_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t440_B.float_u0";
       | _ -> assert false
     in
   let () = match t440_C, t_orig440_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t440_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t440_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t440_C.float_u0";
       | _ -> assert false
     in
   let () = match t441_A, t_orig441_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t441_A.0";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t441_A.float_u0";
       | _ -> assert false
     in
   let () = match t441_B, t_orig441_B with
@@ -9962,23 +9895,23 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t442_A, t_orig442_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t442_A.0";
-check_string a1 b1 ~message:"t442_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t442_A.2";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t442_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t442_A.1";
       | _ -> assert false
     in
   let () = match t442_B, t_orig442_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t442_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t442_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t442_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t442_B.float_u1";
       | _ -> assert false
     in
   let () = match t443_A, t_orig443_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t443_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t443_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t443_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t443_A.float_u1";
       | _ -> assert false
     in
   let () = match t443_B, t_orig443_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t443_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t443_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t443_B.1";
       | _ -> assert false
     in
   let () = match t443_C, t_orig443_C with
@@ -9986,13 +9919,12 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t444_A, t_orig444_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t444_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t444_A.1";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t444_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t444_A.1";
       | _ -> assert false
     in
   let () = match t444_B, t_orig444_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t444_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t444_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t444_B.float_u0";
       | _ -> assert false
     in
   let () = match t444_C, t_orig444_C with
@@ -10004,7 +9936,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t445_A, t_orig445_A with
-      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t445_A.0";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t445_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t445_A.float_u1";
       | _ -> assert false
     in
   let () = match t445_B, t_orig445_B with
@@ -10012,29 +9945,24 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t445_C, t_orig445_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t445_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t445_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t445_C.float_u0";
       | _ -> assert false
     in
   let () = match t446_A, t_orig446_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t446_A.0";
-check_string a1 b1 ~message:"t446_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t446_A.2";
+      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t446_A.0";
       | _ -> assert false
     in
   let () = match t446_B, t_orig446_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t446_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t446_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t446_B.1";
       | _ -> assert false
     in
   let () = match t447_A, t_orig447_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t447_A.0";
-check_string a1 b1 ~message:"t447_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t447_A.2";
+      | A a, A b -> check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u0) (Stdlib_stable.Float32_u.to_float32 b.float32_u0) ~message:"t447_A.float32_u0";
       | _ -> assert false
     in
   let () = match t447_B, t_orig447_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t447_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t447_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t447_B.float_u0";
       | _ -> assert false
     in
   let () = match t447_C, t_orig447_C with
@@ -10042,8 +9970,9 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t448_A, t_orig448_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t448_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t448_A.1";
+      | A (a0, a1, a2), A (b0, b1, b2) -> check_string a0 b0 ~message:"t448_A.0";
+check_string a1 b1 ~message:"t448_A.1";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t448_A.2";
       | _ -> assert false
     in
   let () = match t448_B, t_orig448_B with
@@ -10059,17 +9988,17 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t449_A, t_orig449_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t449_A.0";
-check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_compatible.Int64_u.to_int64 b1) ~message:"t449_A.1";
+      | A a, A b -> check_float a.float0 b.float0 ~message:"t449_A.float0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t449_A.float_u1";
       | _ -> assert false
     in
   let () = match t449_B, t_orig449_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t449_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t449_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t449_B.float_u0";
       | _ -> assert false
     in
   let () = match t450_A, t_orig450_A with
-      | A (a0), A (b0) -> check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a0) (Stdlib_upstream_compatible.Nativeint_u.to_int b0) ~message:"t450_A.0";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t450_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t450_A.1";
       | _ -> assert false
     in
   let () = match t450_B, t_orig450_B with
@@ -10081,9 +10010,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t451_A, t_orig451_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_int a0 b0 ~message:"t451_A.0";
-check_string a1 b1 ~message:"t451_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t451_A.2";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t451_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t451_A.float_u1";
       | _ -> assert false
     in
   let () = match t451_B, t_orig451_B with
@@ -10091,9 +10019,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t452_A, t_orig452_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t452_A.0";
-check_string a1 b1 ~message:"t452_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t452_A.2";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t452_A.0";
+check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t452_A.1";
       
     in
   let () = match t453_A, t_orig453_A with
@@ -10101,8 +10028,7 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t453_B, t_orig453_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t453_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t453_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t453_B.float_u0";
       | _ -> assert false
     in
   let () = match t453_C, t_orig453_C with
@@ -10118,8 +10044,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t454_A, t_orig454_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t454_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t454_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t454_A.float_u0";
       | _ -> assert false
     in
   let () = match t454_B, t_orig454_B with
@@ -10127,8 +10052,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t454_C, t_orig454_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t454_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t454_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t454_C.float_u0";
       | _ -> assert false
     in
   let () = match t454_D, t_orig454_D with
@@ -10136,22 +10060,22 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t455_A, t_orig455_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t455_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t455_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t455_A.1";
       | _ -> assert false
     in
   let () = match t455_B, t_orig455_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t455_B.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t455_B.1";
+      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t455_B.0";
       | _ -> assert false
     in
   let () = match t456_A, t_orig456_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t456_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t456_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t456_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t456_A.float_u1";
       | _ -> assert false
     in
   let () = match t456_B, t_orig456_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t456_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t456_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t456_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t456_B.float_u1";
       | _ -> assert false
     in
   let () = match t456_C, t_orig456_C with
@@ -10159,12 +10083,12 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t457_A, t_orig457_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t457_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t457_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t457_A.0";
       | _ -> assert false
     in
   let () = match t457_B, t_orig457_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t457_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t457_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t457_B.1";
       | _ -> assert false
     in
   let () = match t457_C, t_orig457_C with
@@ -10176,23 +10100,20 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t458_A, t_orig458_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t458_A.0";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t458_A.float_u0";
       | _ -> assert false
     in
   let () = match t458_B, t_orig458_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t458_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t458_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t458_B.float_u0";
       | _ -> assert false
     in
   let () = match t458_C, t_orig458_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t458_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t458_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t458_C.float_u0";
       | _ -> assert false
     in
   let () = match t459_A, t_orig459_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t459_A.0";
-check_string a1 b1 ~message:"t459_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t459_A.2";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t459_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t459_A.1";
       | _ -> assert false
     in
   let () = match t459_B, t_orig459_B with
@@ -10212,22 +10133,23 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t460_A, t_orig460_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t460_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t460_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t460_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t460_A.float_u1";
       | _ -> assert false
     in
   let () = match t460_B, t_orig460_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t460_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t460_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t460_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t460_B.float_u1";
       | _ -> assert false
     in
   let () = match t461_A, t_orig461_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t461_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t461_A.1";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t461_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t461_A.1";
       | _ -> assert false
     in
   let () = match t461_B, t_orig461_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t461_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t461_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t461_B.1";
       | _ -> assert false
     in
   let () = match t461_C, t_orig461_C with
@@ -10235,12 +10157,12 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t462_A, t_orig462_A with
-      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t462_A.0";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t462_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t462_A.float_u1";
       | _ -> assert false
     in
   let () = match t462_B, t_orig462_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t462_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t462_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t462_B.float_u0";
       | _ -> assert false
     in
   let () = match t462_C, t_orig462_C with
@@ -10252,9 +10174,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t463_A, t_orig463_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t463_A.0";
-check_string a1 b1 ~message:"t463_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t463_A.2";
+      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t463_A.0";
       | _ -> assert false
     in
   let () = match t463_B, t_orig463_B with
@@ -10262,28 +10182,26 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t463_C, t_orig463_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t463_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t463_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t463_C.float_u0";
       | _ -> assert false
     in
   let () = match t464_A, t_orig464_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t464_A.0";
-check_string a1 b1 ~message:"t464_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t464_A.2";
+      | A a, A b -> check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u0) (Stdlib_stable.Float32_u.to_float32 b.float32_u0) ~message:"t464_A.float32_u0";
       | _ -> assert false
     in
   let () = match t464_B, t_orig464_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t464_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t464_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t464_B.1";
       | _ -> assert false
     in
   let () = match t465_A, t_orig465_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t465_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t465_A.1";
+      | A (a0, a1, a2), A (b0, b1, b2) -> check_string a0 b0 ~message:"t465_A.0";
+check_string a1 b1 ~message:"t465_A.1";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t465_A.2";
       | _ -> assert false
     in
   let () = match t465_B, t_orig465_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t465_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t465_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t465_B.float_u0";
       | _ -> assert false
     in
   let () = match t465_C, t_orig465_C with
@@ -10291,8 +10209,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t466_A, t_orig466_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t466_A.0";
-check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_compatible.Int64_u.to_int64 b1) ~message:"t466_A.1";
+      | A a, A b -> check_float a.float0 b.float0 ~message:"t466_A.float0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t466_A.float_u1";
       | _ -> assert false
     in
   let () = match t466_B, t_orig466_B with
@@ -10308,18 +10226,17 @@ check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t467_A, t_orig467_A with
-      | A (a0), A (b0) -> check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a0) (Stdlib_upstream_compatible.Nativeint_u.to_int b0) ~message:"t467_A.0";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t467_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t467_A.1";
       | _ -> assert false
     in
   let () = match t467_B, t_orig467_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t467_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t467_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t467_B.float_u0";
       | _ -> assert false
     in
   let () = match t468_A, t_orig468_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_int a0 b0 ~message:"t468_A.0";
-check_string a1 b1 ~message:"t468_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t468_A.2";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t468_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t468_A.float_u1";
       | _ -> assert false
     in
   let () = match t468_B, t_orig468_B with
@@ -10331,9 +10248,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t469_A, t_orig469_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t469_A.0";
-check_string a1 b1 ~message:"t469_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t469_A.2";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t469_A.0";
+check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t469_A.1";
       | _ -> assert false
     in
   let () = match t469_B, t_orig469_B with
@@ -10341,9 +10257,8 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t470_A, t_orig470_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t470_A.0";
-check_string a1 b1 ~message:"t470_A.1";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a2) (Stdlib_upstream_compatible.Int32_u.to_int32 b2) ~message:"t470_A.2";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t470_A.str0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u1) (Stdlib_stable.Float32_u.to_float32 b.float32_u1) ~message:"t470_A.float32_u1";
       
     in
   let () = match t471_A, t_orig471_A with
@@ -10351,22 +10266,20 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t471_B, t_orig471_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t471_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t471_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t471_B.1";
       | _ -> assert false
     in
   let () = match t471_C, t_orig471_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t471_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t471_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t471_C.float_u0";
       | _ -> assert false
     in
   let () = match t472_A, t_orig472_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t472_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t472_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t472_A.float_u0";
       | _ -> assert false
     in
   let () = match t472_B, t_orig472_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t472_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t472_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t472_B.float_u0";
       | _ -> assert false
     in
   let () = match t472_C, t_orig472_C with
@@ -10382,7 +10295,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t473_A, t_orig473_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t473_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t473_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t473_A.1";
       | _ -> assert false
     in
   let () = match t473_B, t_orig473_B with
@@ -10390,8 +10304,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t473_C, t_orig473_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t473_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t473_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t473_C.float_u0";
       | _ -> assert false
     in
   let () = match t473_D, t_orig473_D with
@@ -10399,23 +10312,21 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t474_A, t_orig474_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t474_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t474_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t474_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t474_A.float_u1";
       | _ -> assert false
     in
   let () = match t474_B, t_orig474_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t474_B.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t474_B.1";
+      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t474_B.0";
       | _ -> assert false
     in
   let () = match t475_A, t_orig475_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t475_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t475_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t475_A.0";
       | _ -> assert false
     in
   let () = match t475_B, t_orig475_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t475_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t475_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t475_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t475_B.float_u1";
       | _ -> assert false
     in
   let () = match t475_C, t_orig475_C with
@@ -10423,11 +10334,12 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t476_A, t_orig476_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t476_A.0";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t476_A.float_u0";
       | _ -> assert false
     in
   let () = match t476_B, t_orig476_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t476_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t476_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t476_B.1";
       | _ -> assert false
     in
   let () = match t476_C, t_orig476_C with
@@ -10439,24 +10351,21 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t477_A, t_orig477_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t477_A.0";
-check_string a1 b1 ~message:"t477_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t477_A.2";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t477_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t477_A.1";
       | _ -> assert false
     in
   let () = match t477_B, t_orig477_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t477_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t477_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t477_B.float_u0";
       | _ -> assert false
     in
   let () = match t477_C, t_orig477_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t477_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t477_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t477_C.float_u0";
       | _ -> assert false
     in
   let () = match t478_A, t_orig478_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t478_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t478_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t478_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t478_A.float_u1";
       | _ -> assert false
     in
   let () = match t478_B, t_orig478_B with
@@ -10476,21 +10385,23 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t479_A, t_orig479_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t479_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t479_A.1";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t479_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t479_A.1";
       | _ -> assert false
     in
   let () = match t479_B, t_orig479_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t479_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t479_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t479_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t479_B.float_u1";
       | _ -> assert false
     in
   let () = match t480_A, t_orig480_A with
-      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t480_A.0";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t480_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t480_A.float_u1";
       | _ -> assert false
     in
   let () = match t480_B, t_orig480_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t480_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t480_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t480_B.1";
       | _ -> assert false
     in
   let () = match t480_C, t_orig480_C with
@@ -10498,14 +10409,11 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t481_A, t_orig481_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t481_A.0";
-check_string a1 b1 ~message:"t481_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t481_A.2";
+      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t481_A.0";
       | _ -> assert false
     in
   let () = match t481_B, t_orig481_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t481_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t481_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t481_B.float_u0";
       | _ -> assert false
     in
   let () = match t481_C, t_orig481_C with
@@ -10517,9 +10425,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t482_A, t_orig482_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t482_A.0";
-check_string a1 b1 ~message:"t482_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t482_A.2";
+      | A a, A b -> check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u0) (Stdlib_stable.Float32_u.to_float32 b.float32_u0) ~message:"t482_A.float32_u0";
       | _ -> assert false
     in
   let () = match t482_B, t_orig482_B with
@@ -10527,27 +10433,27 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t482_C, t_orig482_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t482_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t482_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t482_C.float_u0";
       | _ -> assert false
     in
   let () = match t483_A, t_orig483_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t483_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t483_A.1";
+      | A (a0, a1, a2), A (b0, b1, b2) -> check_string a0 b0 ~message:"t483_A.0";
+check_string a1 b1 ~message:"t483_A.1";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t483_A.2";
       | _ -> assert false
     in
   let () = match t483_B, t_orig483_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t483_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t483_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t483_B.1";
       | _ -> assert false
     in
   let () = match t484_A, t_orig484_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t484_A.0";
-check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_compatible.Int64_u.to_int64 b1) ~message:"t484_A.1";
+      | A a, A b -> check_float a.float0 b.float0 ~message:"t484_A.float0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t484_A.float_u1";
       | _ -> assert false
     in
   let () = match t484_B, t_orig484_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t484_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t484_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t484_B.float_u0";
       | _ -> assert false
     in
   let () = match t484_C, t_orig484_C with
@@ -10555,7 +10461,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t485_A, t_orig485_A with
-      | A (a0), A (b0) -> check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a0) (Stdlib_upstream_compatible.Nativeint_u.to_int b0) ~message:"t485_A.0";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t485_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t485_A.1";
       | _ -> assert false
     in
   let () = match t485_B, t_orig485_B with
@@ -10571,20 +10478,17 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t486_A, t_orig486_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_int a0 b0 ~message:"t486_A.0";
-check_string a1 b1 ~message:"t486_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t486_A.2";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t486_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t486_A.float_u1";
       | _ -> assert false
     in
   let () = match t486_B, t_orig486_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t486_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t486_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t486_B.float_u0";
       | _ -> assert false
     in
   let () = match t487_A, t_orig487_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t487_A.0";
-check_string a1 b1 ~message:"t487_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t487_A.2";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t487_A.0";
+check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t487_A.1";
       | _ -> assert false
     in
   let () = match t487_B, t_orig487_B with
@@ -10596,9 +10500,8 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t488_A, t_orig488_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t488_A.0";
-check_string a1 b1 ~message:"t488_A.1";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a2) (Stdlib_upstream_compatible.Int32_u.to_int32 b2) ~message:"t488_A.2";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t488_A.str0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u1) (Stdlib_stable.Float32_u.to_float32 b.float32_u1) ~message:"t488_A.float32_u1";
       | _ -> assert false
     in
   let () = match t488_B, t_orig488_B with
@@ -10606,8 +10509,7 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t489_A, t_orig489_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t489_A.0";
-check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_compatible.Int64_u.to_int64 b1) ~message:"t489_A.1";
+      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t489_A.0";
       
     in
   let () = match t490_A, t_orig490_A with
@@ -10615,8 +10517,8 @@ check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t490_B, t_orig490_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t490_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t490_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t490_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t490_B.float_u1";
       | _ -> assert false
     in
   let () = match t490_C, t_orig490_C with
@@ -10628,26 +10530,25 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t491_A, t_orig491_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t491_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t491_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t491_A.float_u0";
       | _ -> assert false
     in
   let () = match t491_B, t_orig491_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t491_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t491_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t491_B.1";
       | _ -> assert false
     in
   let () = match t491_C, t_orig491_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t491_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t491_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t491_C.float_u0";
       | _ -> assert false
     in
   let () = match t492_A, t_orig492_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t492_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t492_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t492_A.1";
       | _ -> assert false
     in
   let () = match t492_B, t_orig492_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t492_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t492_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t492_B.float_u0";
       | _ -> assert false
     in
   let () = match t492_C, t_orig492_C with
@@ -10663,8 +10564,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t493_A, t_orig493_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t493_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t493_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t493_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t493_A.float_u1";
       | _ -> assert false
     in
   let () = match t493_B, t_orig493_B with
@@ -10672,8 +10573,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t493_C, t_orig493_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t493_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t493_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t493_C.float_u0";
       | _ -> assert false
     in
   let () = match t493_D, t_orig493_D with
@@ -10681,22 +10581,20 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t494_A, t_orig494_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t494_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t494_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t494_A.0";
       | _ -> assert false
     in
   let () = match t494_B, t_orig494_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t494_B.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t494_B.1";
+      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t494_B.0";
       | _ -> assert false
     in
   let () = match t495_A, t_orig495_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t495_A.0";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t495_A.float_u0";
       | _ -> assert false
     in
   let () = match t495_B, t_orig495_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t495_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t495_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t495_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t495_B.float_u1";
       | _ -> assert false
     in
   let () = match t495_C, t_orig495_C with
@@ -10704,13 +10602,13 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t496_A, t_orig496_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t496_A.0";
-check_string a1 b1 ~message:"t496_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t496_A.2";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t496_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t496_A.1";
       | _ -> assert false
     in
   let () = match t496_B, t_orig496_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t496_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t496_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t496_B.1";
       | _ -> assert false
     in
   let () = match t496_C, t_orig496_C with
@@ -10722,23 +10620,21 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t497_A, t_orig497_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t497_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t497_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t497_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t497_A.float_u1";
       | _ -> assert false
     in
   let () = match t497_B, t_orig497_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t497_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t497_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t497_B.float_u0";
       | _ -> assert false
     in
   let () = match t497_C, t_orig497_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t497_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t497_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t497_C.float_u0";
       | _ -> assert false
     in
   let () = match t498_A, t_orig498_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t498_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t498_A.1";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t498_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t498_A.1";
       | _ -> assert false
     in
   let () = match t498_B, t_orig498_B with
@@ -10758,22 +10654,22 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t499_A, t_orig499_A with
-      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t499_A.0";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t499_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t499_A.float_u1";
       | _ -> assert false
     in
   let () = match t499_B, t_orig499_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t499_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t499_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t499_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t499_B.float_u1";
       | _ -> assert false
     in
   let () = match t500_A, t_orig500_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t500_A.0";
-check_string a1 b1 ~message:"t500_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t500_A.2";
+      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t500_A.0";
       | _ -> assert false
     in
   let () = match t500_B, t_orig500_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t500_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t500_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t500_B.1";
       | _ -> assert false
     in
   let () = match t500_C, t_orig500_C with
@@ -10781,14 +10677,11 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t501_A, t_orig501_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t501_A.0";
-check_string a1 b1 ~message:"t501_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t501_A.2";
+      | A a, A b -> check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u0) (Stdlib_stable.Float32_u.to_float32 b.float32_u0) ~message:"t501_A.float32_u0";
       | _ -> assert false
     in
   let () = match t501_B, t_orig501_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t501_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t501_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t501_B.float_u0";
       | _ -> assert false
     in
   let () = match t501_C, t_orig501_C with
@@ -10800,8 +10693,9 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t502_A, t_orig502_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t502_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t502_A.1";
+      | A (a0, a1, a2), A (b0, b1, b2) -> check_string a0 b0 ~message:"t502_A.0";
+check_string a1 b1 ~message:"t502_A.1";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t502_A.2";
       | _ -> assert false
     in
   let () = match t502_B, t_orig502_B with
@@ -10809,26 +10703,26 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t502_C, t_orig502_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t502_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t502_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t502_C.float_u0";
       | _ -> assert false
     in
   let () = match t503_A, t_orig503_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t503_A.0";
-check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_compatible.Int64_u.to_int64 b1) ~message:"t503_A.1";
+      | A a, A b -> check_float a.float0 b.float0 ~message:"t503_A.float0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t503_A.float_u1";
       | _ -> assert false
     in
   let () = match t503_B, t_orig503_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t503_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t503_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t503_B.1";
       | _ -> assert false
     in
   let () = match t504_A, t_orig504_A with
-      | A (a0), A (b0) -> check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a0) (Stdlib_upstream_compatible.Nativeint_u.to_int b0) ~message:"t504_A.0";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t504_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t504_A.1";
       | _ -> assert false
     in
   let () = match t504_B, t_orig504_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t504_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t504_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t504_B.float_u0";
       | _ -> assert false
     in
   let () = match t504_C, t_orig504_C with
@@ -10836,9 +10730,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t505_A, t_orig505_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_int a0 b0 ~message:"t505_A.0";
-check_string a1 b1 ~message:"t505_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t505_A.2";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t505_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t505_A.float_u1";
       | _ -> assert false
     in
   let () = match t505_B, t_orig505_B with
@@ -10854,20 +10747,17 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t506_A, t_orig506_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t506_A.0";
-check_string a1 b1 ~message:"t506_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t506_A.2";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t506_A.0";
+check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t506_A.1";
       | _ -> assert false
     in
   let () = match t506_B, t_orig506_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t506_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t506_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t506_B.float_u0";
       | _ -> assert false
     in
   let () = match t507_A, t_orig507_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t507_A.0";
-check_string a1 b1 ~message:"t507_A.1";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a2) (Stdlib_upstream_compatible.Int32_u.to_int32 b2) ~message:"t507_A.2";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t507_A.str0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u1) (Stdlib_stable.Float32_u.to_float32 b.float32_u1) ~message:"t507_A.float32_u1";
       | _ -> assert false
     in
   let () = match t507_B, t_orig507_B with
@@ -10879,8 +10769,7 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t508_A, t_orig508_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t508_A.0";
-check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_compatible.Int64_u.to_int64 b1) ~message:"t508_A.1";
+      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t508_A.0";
       | _ -> assert false
     in
   let () = match t508_B, t_orig508_B with
@@ -10888,8 +10777,7 @@ check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t509_A, t_orig509_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t509_A.0";
-check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a1) (Stdlib_upstream_compatible.Nativeint_u.to_int b1) ~message:"t509_A.1";
+      | A a, A b -> check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u0) (Stdlib_stable.Float32_u.to_float32 b.float32_u0) ~message:"t509_A.float32_u0";
       
     in
   let () = match t510_A, t_orig510_A with
@@ -10897,8 +10785,7 @@ check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t510_B, t_orig510_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t510_B.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t510_B.1";
+      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t510_B.0";
       | _ -> assert false
     in
   let () = match t510_C, t_orig510_C with
@@ -10906,13 +10793,12 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t511_A, t_orig511_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t511_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t511_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t511_A.float_u0";
       | _ -> assert false
     in
   let () = match t511_B, t_orig511_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t511_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t511_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t511_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t511_B.float_u1";
       | _ -> assert false
     in
   let () = match t511_C, t_orig511_C with
@@ -10924,26 +10810,26 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t512_A, t_orig512_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t512_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t512_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t512_A.1";
       | _ -> assert false
     in
   let () = match t512_B, t_orig512_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t512_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t512_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t512_B.1";
       | _ -> assert false
     in
   let () = match t512_C, t_orig512_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t512_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t512_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t512_C.float_u0";
       | _ -> assert false
     in
   let () = match t513_A, t_orig513_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t513_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t513_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t513_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t513_A.float_u1";
       | _ -> assert false
     in
   let () = match t513_B, t_orig513_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t513_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t513_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t513_B.float_u0";
       | _ -> assert false
     in
   let () = match t513_C, t_orig513_C with
@@ -10959,8 +10845,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t514_A, t_orig514_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t514_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t514_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t514_A.0";
       | _ -> assert false
     in
   let () = match t514_B, t_orig514_B with
@@ -10968,8 +10853,7 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t514_C, t_orig514_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t514_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t514_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t514_C.float_u0";
       | _ -> assert false
     in
   let () = match t514_D, t_orig514_D with
@@ -10977,23 +10861,21 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t515_A, t_orig515_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t515_A.0";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t515_A.float_u0";
       | _ -> assert false
     in
   let () = match t515_B, t_orig515_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t515_B.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t515_B.1";
+      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t515_B.0";
       | _ -> assert false
     in
   let () = match t516_A, t_orig516_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t516_A.0";
-check_string a1 b1 ~message:"t516_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t516_A.2";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t516_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t516_A.1";
       | _ -> assert false
     in
   let () = match t516_B, t_orig516_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t516_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t516_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t516_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t516_B.float_u1";
       | _ -> assert false
     in
   let () = match t516_C, t_orig516_C with
@@ -11001,12 +10883,13 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t517_A, t_orig517_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t517_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t517_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t517_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t517_A.float_u1";
       | _ -> assert false
     in
   let () = match t517_B, t_orig517_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t517_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t517_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t517_B.1";
       | _ -> assert false
     in
   let () = match t517_C, t_orig517_C with
@@ -11018,22 +10901,21 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t518_A, t_orig518_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t518_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t518_A.1";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t518_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t518_A.1";
       | _ -> assert false
     in
   let () = match t518_B, t_orig518_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t518_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t518_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t518_B.float_u0";
       | _ -> assert false
     in
   let () = match t518_C, t_orig518_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t518_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t518_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t518_C.float_u0";
       | _ -> assert false
     in
   let () = match t519_A, t_orig519_A with
-      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t519_A.0";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t519_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t519_A.float_u1";
       | _ -> assert false
     in
   let () = match t519_B, t_orig519_B with
@@ -11053,24 +10935,21 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t520_A, t_orig520_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t520_A.0";
-check_string a1 b1 ~message:"t520_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t520_A.2";
+      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t520_A.0";
       | _ -> assert false
     in
   let () = match t520_B, t_orig520_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t520_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t520_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t520_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t520_B.float_u1";
       | _ -> assert false
     in
   let () = match t521_A, t_orig521_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t521_A.0";
-check_string a1 b1 ~message:"t521_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t521_A.2";
+      | A a, A b -> check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u0) (Stdlib_stable.Float32_u.to_float32 b.float32_u0) ~message:"t521_A.float32_u0";
       | _ -> assert false
     in
   let () = match t521_B, t_orig521_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t521_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t521_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t521_B.1";
       | _ -> assert false
     in
   let () = match t521_C, t_orig521_C with
@@ -11078,13 +10957,13 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t522_A, t_orig522_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t522_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t522_A.1";
+      | A (a0, a1, a2), A (b0, b1, b2) -> check_string a0 b0 ~message:"t522_A.0";
+check_string a1 b1 ~message:"t522_A.1";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t522_A.2";
       | _ -> assert false
     in
   let () = match t522_B, t_orig522_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t522_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t522_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t522_B.float_u0";
       | _ -> assert false
     in
   let () = match t522_C, t_orig522_C with
@@ -11096,8 +10975,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t523_A, t_orig523_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t523_A.0";
-check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_compatible.Int64_u.to_int64 b1) ~message:"t523_A.1";
+      | A a, A b -> check_float a.float0 b.float0 ~message:"t523_A.float0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t523_A.float_u1";
       | _ -> assert false
     in
   let () = match t523_B, t_orig523_B with
@@ -11105,27 +10984,26 @@ check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t523_C, t_orig523_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t523_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t523_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t523_C.float_u0";
       | _ -> assert false
     in
   let () = match t524_A, t_orig524_A with
-      | A (a0), A (b0) -> check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a0) (Stdlib_upstream_compatible.Nativeint_u.to_int b0) ~message:"t524_A.0";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t524_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t524_A.1";
       | _ -> assert false
     in
   let () = match t524_B, t_orig524_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t524_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t524_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t524_B.1";
       | _ -> assert false
     in
   let () = match t525_A, t_orig525_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_int a0 b0 ~message:"t525_A.0";
-check_string a1 b1 ~message:"t525_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t525_A.2";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t525_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t525_A.float_u1";
       | _ -> assert false
     in
   let () = match t525_B, t_orig525_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t525_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t525_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t525_B.float_u0";
       | _ -> assert false
     in
   let () = match t525_C, t_orig525_C with
@@ -11133,9 +11011,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t526_A, t_orig526_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t526_A.0";
-check_string a1 b1 ~message:"t526_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t526_A.2";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t526_A.0";
+check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t526_A.1";
       | _ -> assert false
     in
   let () = match t526_B, t_orig526_B with
@@ -11151,19 +11028,16 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t527_A, t_orig527_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t527_A.0";
-check_string a1 b1 ~message:"t527_A.1";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a2) (Stdlib_upstream_compatible.Int32_u.to_int32 b2) ~message:"t527_A.2";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t527_A.str0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u1) (Stdlib_stable.Float32_u.to_float32 b.float32_u1) ~message:"t527_A.float32_u1";
       | _ -> assert false
     in
   let () = match t527_B, t_orig527_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t527_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t527_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t527_B.float_u0";
       | _ -> assert false
     in
   let () = match t528_A, t_orig528_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t528_A.0";
-check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_compatible.Int64_u.to_int64 b1) ~message:"t528_A.1";
+      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t528_A.0";
       | _ -> assert false
     in
   let () = match t528_B, t_orig528_B with
@@ -11175,8 +11049,7 @@ check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t529_A, t_orig529_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t529_A.0";
-check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a1) (Stdlib_upstream_compatible.Nativeint_u.to_int b1) ~message:"t529_A.1";
+      | A a, A b -> check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u0) (Stdlib_stable.Float32_u.to_float32 b.float32_u0) ~message:"t529_A.float32_u0";
       | _ -> assert false
     in
   let () = match t529_B, t_orig529_B with
@@ -11184,8 +11057,9 @@ check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t530_A, t_orig530_A with
-      | A (a0,a1), A (b0,b1) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t530_A.0";
-check_int a1 b1 ~message:"t530_A.1";
+      | A (a0, a1, a2), A (b0, b1, b2) -> check_float a0 b0 ~message:"t530_A.0";
+check_string a1 b1 ~message:"t530_A.1";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t530_A.2";
       
     in
   let () = match t531_A, t_orig531_A with
@@ -11193,17 +11067,15 @@ check_int a1 b1 ~message:"t530_A.1";
       | _ -> assert false
     in
   let () = match t531_B, t_orig531_B with
-      | B (a0), B (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t531_B.0";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t531_B.float_u0";
       | _ -> assert false
     in
   let () = match t532_A, t_orig532_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t532_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t532_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t532_A.float_u0";
       | _ -> assert false
     in
   let () = match t532_B, t_orig532_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t532_B.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t532_B.1";
+      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t532_B.0";
       | _ -> assert false
     in
   let () = match t532_C, t_orig532_C with
@@ -11211,12 +11083,13 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t533_A, t_orig533_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t533_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t533_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t533_A.1";
       | _ -> assert false
     in
   let () = match t533_B, t_orig533_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t533_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t533_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t533_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t533_B.float_u1";
       | _ -> assert false
     in
   let () = match t533_C, t_orig533_C with
@@ -11228,27 +11101,25 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t534_A, t_orig534_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t534_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t534_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t534_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t534_A.float_u1";
       | _ -> assert false
     in
   let () = match t534_B, t_orig534_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t534_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t534_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t534_B.1";
       | _ -> assert false
     in
   let () = match t534_C, t_orig534_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t534_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t534_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t534_C.float_u0";
       | _ -> assert false
     in
   let () = match t535_A, t_orig535_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t535_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t535_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t535_A.0";
       | _ -> assert false
     in
   let () = match t535_B, t_orig535_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t535_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t535_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t535_B.float_u0";
       | _ -> assert false
     in
   let () = match t535_C, t_orig535_C with
@@ -11264,7 +11135,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t536_A, t_orig536_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t536_A.0";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t536_A.float_u0";
       | _ -> assert false
     in
   let () = match t536_B, t_orig536_B with
@@ -11272,8 +11143,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t536_C, t_orig536_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t536_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t536_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t536_C.float_u0";
       | _ -> assert false
     in
   let () = match t536_D, t_orig536_D with
@@ -11281,24 +11151,22 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t537_A, t_orig537_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t537_A.0";
-check_string a1 b1 ~message:"t537_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t537_A.2";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t537_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t537_A.1";
       | _ -> assert false
     in
   let () = match t537_B, t_orig537_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t537_B.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t537_B.1";
+      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t537_B.0";
       | _ -> assert false
     in
   let () = match t538_A, t_orig538_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t538_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t538_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t538_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t538_A.float_u1";
       | _ -> assert false
     in
   let () = match t538_B, t_orig538_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t538_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t538_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t538_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t538_B.float_u1";
       | _ -> assert false
     in
   let () = match t538_C, t_orig538_C with
@@ -11306,12 +11174,13 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t539_A, t_orig539_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t539_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t539_A.1";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t539_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t539_A.1";
       | _ -> assert false
     in
   let () = match t539_B, t_orig539_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t539_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t539_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t539_B.1";
       | _ -> assert false
     in
   let () = match t539_C, t_orig539_C with
@@ -11323,23 +11192,20 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t540_A, t_orig540_A with
-      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t540_A.0";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t540_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t540_A.float_u1";
       | _ -> assert false
     in
   let () = match t540_B, t_orig540_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t540_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t540_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t540_B.float_u0";
       | _ -> assert false
     in
   let () = match t540_C, t_orig540_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t540_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t540_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t540_C.float_u0";
       | _ -> assert false
     in
   let () = match t541_A, t_orig541_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t541_A.0";
-check_string a1 b1 ~message:"t541_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t541_A.2";
+      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t541_A.0";
       | _ -> assert false
     in
   let () = match t541_B, t_orig541_B with
@@ -11359,23 +11225,23 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t542_A, t_orig542_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t542_A.0";
-check_string a1 b1 ~message:"t542_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t542_A.2";
+      | A a, A b -> check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u0) (Stdlib_stable.Float32_u.to_float32 b.float32_u0) ~message:"t542_A.float32_u0";
       | _ -> assert false
     in
   let () = match t542_B, t_orig542_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t542_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t542_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t542_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t542_B.float_u1";
       | _ -> assert false
     in
   let () = match t543_A, t_orig543_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t543_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t543_A.1";
+      | A (a0, a1, a2), A (b0, b1, b2) -> check_string a0 b0 ~message:"t543_A.0";
+check_string a1 b1 ~message:"t543_A.1";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t543_A.2";
       | _ -> assert false
     in
   let () = match t543_B, t_orig543_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t543_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t543_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t543_B.1";
       | _ -> assert false
     in
   let () = match t543_C, t_orig543_C with
@@ -11383,13 +11249,12 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t544_A, t_orig544_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t544_A.0";
-check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_compatible.Int64_u.to_int64 b1) ~message:"t544_A.1";
+      | A a, A b -> check_float a.float0 b.float0 ~message:"t544_A.float0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t544_A.float_u1";
       | _ -> assert false
     in
   let () = match t544_B, t_orig544_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t544_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t544_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t544_B.float_u0";
       | _ -> assert false
     in
   let () = match t544_C, t_orig544_C with
@@ -11401,7 +11266,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t545_A, t_orig545_A with
-      | A (a0), A (b0) -> check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a0) (Stdlib_upstream_compatible.Nativeint_u.to_int b0) ~message:"t545_A.0";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t545_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t545_A.1";
       | _ -> assert false
     in
   let () = match t545_B, t_orig545_B with
@@ -11409,29 +11275,26 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t545_C, t_orig545_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t545_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t545_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t545_C.float_u0";
       | _ -> assert false
     in
   let () = match t546_A, t_orig546_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_int a0 b0 ~message:"t546_A.0";
-check_string a1 b1 ~message:"t546_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t546_A.2";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t546_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t546_A.float_u1";
       | _ -> assert false
     in
   let () = match t546_B, t_orig546_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t546_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t546_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t546_B.1";
       | _ -> assert false
     in
   let () = match t547_A, t_orig547_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t547_A.0";
-check_string a1 b1 ~message:"t547_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t547_A.2";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t547_A.0";
+check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t547_A.1";
       | _ -> assert false
     in
   let () = match t547_B, t_orig547_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t547_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t547_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t547_B.float_u0";
       | _ -> assert false
     in
   let () = match t547_C, t_orig547_C with
@@ -11439,9 +11302,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t548_A, t_orig548_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t548_A.0";
-check_string a1 b1 ~message:"t548_A.1";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a2) (Stdlib_upstream_compatible.Int32_u.to_int32 b2) ~message:"t548_A.2";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t548_A.str0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u1) (Stdlib_stable.Float32_u.to_float32 b.float32_u1) ~message:"t548_A.float32_u1";
       | _ -> assert false
     in
   let () = match t548_B, t_orig548_B with
@@ -11457,18 +11319,15 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t549_A, t_orig549_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t549_A.0";
-check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_compatible.Int64_u.to_int64 b1) ~message:"t549_A.1";
+      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t549_A.0";
       | _ -> assert false
     in
   let () = match t549_B, t_orig549_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t549_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t549_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t549_B.float_u0";
       | _ -> assert false
     in
   let () = match t550_A, t_orig550_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t550_A.0";
-check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a1) (Stdlib_upstream_compatible.Nativeint_u.to_int b1) ~message:"t550_A.1";
+      | A a, A b -> check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u0) (Stdlib_stable.Float32_u.to_float32 b.float32_u0) ~message:"t550_A.float32_u0";
       | _ -> assert false
     in
   let () = match t550_B, t_orig550_B with
@@ -11480,8 +11339,9 @@ check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t551_A, t_orig551_A with
-      | A (a0,a1), A (b0,b1) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t551_A.0";
-check_int a1 b1 ~message:"t551_A.1";
+      | A (a0, a1, a2), A (b0, b1, b2) -> check_float a0 b0 ~message:"t551_A.0";
+check_string a1 b1 ~message:"t551_A.1";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t551_A.2";
       | _ -> assert false
     in
   let () = match t551_B, t_orig551_B with
@@ -11489,9 +11349,8 @@ check_int a1 b1 ~message:"t551_A.1";
       | _ -> assert false
     in
   let () = match t552_A, t_orig552_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t552_A.0";
-check_float a1 b1 ~message:"t552_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t552_A.2";
+      | A a, A b -> check_float a.float0 b.float0 ~message:"t552_A.float0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t552_A.float_u1";
       
     in
   let () = match t553_A, t_orig553_A with
@@ -11503,25 +11362,25 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t553_C, t_orig553_C with
-      | C (a0), C (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t553_C.0";
+      | C (a0, a1), C (b0, b1) -> check_string a0 b0 ~message:"t553_C.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t553_C.1";
       | _ -> assert false
     in
   let () = match t554_A, t_orig554_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t554_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t554_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t554_A.float_u0";
       | _ -> assert false
     in
   let () = match t554_B, t_orig554_B with
-      | B (a0), B (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t554_B.0";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t554_B.float_u0";
       | _ -> assert false
     in
   let () = match t555_A, t_orig555_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t555_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t555_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t555_A.1";
       | _ -> assert false
     in
   let () = match t555_B, t_orig555_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t555_B.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t555_B.1";
+      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t555_B.0";
       | _ -> assert false
     in
   let () = match t555_C, t_orig555_C with
@@ -11529,13 +11388,13 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t556_A, t_orig556_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t556_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t556_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t556_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t556_A.float_u1";
       | _ -> assert false
     in
   let () = match t556_B, t_orig556_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t556_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t556_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t556_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t556_B.float_u1";
       | _ -> assert false
     in
   let () = match t556_C, t_orig556_C with
@@ -11547,26 +11406,24 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t557_A, t_orig557_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t557_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t557_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t557_A.0";
       | _ -> assert false
     in
   let () = match t557_B, t_orig557_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t557_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t557_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t557_B.1";
       | _ -> assert false
     in
   let () = match t557_C, t_orig557_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t557_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t557_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t557_C.float_u0";
       | _ -> assert false
     in
   let () = match t558_A, t_orig558_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t558_A.0";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t558_A.float_u0";
       | _ -> assert false
     in
   let () = match t558_B, t_orig558_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t558_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t558_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t558_B.float_u0";
       | _ -> assert false
     in
   let () = match t558_C, t_orig558_C with
@@ -11582,9 +11439,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t559_A, t_orig559_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t559_A.0";
-check_string a1 b1 ~message:"t559_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t559_A.2";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t559_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t559_A.1";
       | _ -> assert false
     in
   let () = match t559_B, t_orig559_B with
@@ -11592,8 +11448,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t559_C, t_orig559_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t559_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t559_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t559_C.float_u0";
       | _ -> assert false
     in
   let () = match t559_D, t_orig559_D with
@@ -11601,23 +11456,22 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t560_A, t_orig560_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t560_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t560_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t560_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t560_A.float_u1";
       | _ -> assert false
     in
   let () = match t560_B, t_orig560_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t560_B.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t560_B.1";
+      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t560_B.0";
       | _ -> assert false
     in
   let () = match t561_A, t_orig561_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t561_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t561_A.1";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t561_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t561_A.1";
       | _ -> assert false
     in
   let () = match t561_B, t_orig561_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t561_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t561_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t561_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t561_B.float_u1";
       | _ -> assert false
     in
   let () = match t561_C, t_orig561_C with
@@ -11625,11 +11479,13 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t562_A, t_orig562_A with
-      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t562_A.0";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t562_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t562_A.float_u1";
       | _ -> assert false
     in
   let () = match t562_B, t_orig562_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t562_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t562_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t562_B.1";
       | _ -> assert false
     in
   let () = match t562_C, t_orig562_C with
@@ -11641,25 +11497,19 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t563_A, t_orig563_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t563_A.0";
-check_string a1 b1 ~message:"t563_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t563_A.2";
+      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t563_A.0";
       | _ -> assert false
     in
   let () = match t563_B, t_orig563_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t563_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t563_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t563_B.float_u0";
       | _ -> assert false
     in
   let () = match t563_C, t_orig563_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t563_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t563_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t563_C.float_u0";
       | _ -> assert false
     in
   let () = match t564_A, t_orig564_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t564_A.0";
-check_string a1 b1 ~message:"t564_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t564_A.2";
+      | A a, A b -> check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u0) (Stdlib_stable.Float32_u.to_float32 b.float32_u0) ~message:"t564_A.float32_u0";
       | _ -> assert false
     in
   let () = match t564_B, t_orig564_B with
@@ -11679,22 +11529,24 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t565_A, t_orig565_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t565_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t565_A.1";
+      | A (a0, a1, a2), A (b0, b1, b2) -> check_string a0 b0 ~message:"t565_A.0";
+check_string a1 b1 ~message:"t565_A.1";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t565_A.2";
       | _ -> assert false
     in
   let () = match t565_B, t_orig565_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t565_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t565_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t565_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t565_B.float_u1";
       | _ -> assert false
     in
   let () = match t566_A, t_orig566_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t566_A.0";
-check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_compatible.Int64_u.to_int64 b1) ~message:"t566_A.1";
+      | A a, A b -> check_float a.float0 b.float0 ~message:"t566_A.float0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t566_A.float_u1";
       | _ -> assert false
     in
   let () = match t566_B, t_orig566_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t566_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t566_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t566_B.1";
       | _ -> assert false
     in
   let () = match t566_C, t_orig566_C with
@@ -11702,12 +11554,12 @@ check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t567_A, t_orig567_A with
-      | A (a0), A (b0) -> check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a0) (Stdlib_upstream_compatible.Nativeint_u.to_int b0) ~message:"t567_A.0";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t567_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t567_A.1";
       | _ -> assert false
     in
   let () = match t567_B, t_orig567_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t567_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t567_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t567_B.float_u0";
       | _ -> assert false
     in
   let () = match t567_C, t_orig567_C with
@@ -11719,9 +11571,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t568_A, t_orig568_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_int a0 b0 ~message:"t568_A.0";
-check_string a1 b1 ~message:"t568_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t568_A.2";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t568_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t568_A.float_u1";
       | _ -> assert false
     in
   let () = match t568_B, t_orig568_B with
@@ -11729,29 +11580,26 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t568_C, t_orig568_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t568_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t568_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t568_C.float_u0";
       | _ -> assert false
     in
   let () = match t569_A, t_orig569_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t569_A.0";
-check_string a1 b1 ~message:"t569_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t569_A.2";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t569_A.0";
+check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t569_A.1";
       | _ -> assert false
     in
   let () = match t569_B, t_orig569_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t569_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t569_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t569_B.1";
       | _ -> assert false
     in
   let () = match t570_A, t_orig570_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t570_A.0";
-check_string a1 b1 ~message:"t570_A.1";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a2) (Stdlib_upstream_compatible.Int32_u.to_int32 b2) ~message:"t570_A.2";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t570_A.str0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u1) (Stdlib_stable.Float32_u.to_float32 b.float32_u1) ~message:"t570_A.float32_u1";
       | _ -> assert false
     in
   let () = match t570_B, t_orig570_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t570_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t570_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t570_B.float_u0";
       | _ -> assert false
     in
   let () = match t570_C, t_orig570_C with
@@ -11759,8 +11607,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t571_A, t_orig571_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t571_A.0";
-check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_compatible.Int64_u.to_int64 b1) ~message:"t571_A.1";
+      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t571_A.0";
       | _ -> assert false
     in
   let () = match t571_B, t_orig571_B with
@@ -11776,18 +11623,17 @@ check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t572_A, t_orig572_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t572_A.0";
-check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a1) (Stdlib_upstream_compatible.Nativeint_u.to_int b1) ~message:"t572_A.1";
+      | A a, A b -> check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u0) (Stdlib_stable.Float32_u.to_float32 b.float32_u0) ~message:"t572_A.float32_u0";
       | _ -> assert false
     in
   let () = match t572_B, t_orig572_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t572_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t572_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t572_B.float_u0";
       | _ -> assert false
     in
   let () = match t573_A, t_orig573_A with
-      | A (a0,a1), A (b0,b1) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t573_A.0";
-check_int a1 b1 ~message:"t573_A.1";
+      | A (a0, a1, a2), A (b0, b1, b2) -> check_float a0 b0 ~message:"t573_A.0";
+check_string a1 b1 ~message:"t573_A.1";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t573_A.2";
       | _ -> assert false
     in
   let () = match t573_B, t_orig573_B with
@@ -11799,9 +11645,8 @@ check_int a1 b1 ~message:"t573_A.1";
       | _ -> assert false
     in
   let () = match t574_A, t_orig574_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t574_A.0";
-check_float a1 b1 ~message:"t574_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t574_A.2";
+      | A a, A b -> check_float a.float0 b.float0 ~message:"t574_A.float0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t574_A.float_u1";
       | _ -> assert false
     in
   let () = match t574_B, t_orig574_B with
@@ -11809,7 +11654,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t575_A, t_orig575_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_int a0 b0 ~message:"t575_A.0";
+      | A (a0, a1, a2), A (b0, b1, b2) -> check_string a0 b0 ~message:"t575_A.0";
 check_string a1 b1 ~message:"t575_A.1";
 check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t575_A.2";
       
@@ -11819,13 +11664,11 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t576_B, t_orig576_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t576_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t576_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t576_B.float_u0";
       | _ -> assert false
     in
   let () = match t576_C, t_orig576_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t576_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t576_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t576_C.float_u0";
       | _ -> assert false
     in
   let () = match t576_D, t_orig576_D with
@@ -11833,8 +11676,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t577_A, t_orig577_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t577_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t577_A.1";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t577_A.float_u0";
       | _ -> assert false
     in
   let () = match t577_B, t_orig577_B with
@@ -11842,25 +11684,26 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t577_C, t_orig577_C with
-      | C (a0), C (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t577_C.0";
+      | C (a0, a1), C (b0, b1) -> check_string a0 b0 ~message:"t577_C.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t577_C.1";
       | _ -> assert false
     in
   let () = match t578_A, t_orig578_A with
-      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t578_A.0";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t578_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t578_A.1";
       | _ -> assert false
     in
   let () = match t578_B, t_orig578_B with
-      | B (a0), B (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t578_B.0";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t578_B.float_u0";
       | _ -> assert false
     in
   let () = match t579_A, t_orig579_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t579_A.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t579_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t579_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t579_A.float_u1";
       | _ -> assert false
     in
   let () = match t579_B, t_orig579_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t579_B.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t579_B.1";
+      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t579_B.0";
       | _ -> assert false
     in
   let () = match t579_C, t_orig579_C with
@@ -11868,13 +11711,12 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t580_A, t_orig580_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t580_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t580_A.1";
+      | A (a0), A (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t580_A.0";
       | _ -> assert false
     in
   let () = match t580_B, t_orig580_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t580_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t580_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t580_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t580_B.float_u1";
       | _ -> assert false
     in
   let () = match t580_C, t_orig580_C with
@@ -11886,27 +11728,25 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t581_A, t_orig581_A with
-      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t581_A.0";
+      | A a, A b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t581_A.float_u0";
       | _ -> assert false
     in
   let () = match t581_B, t_orig581_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t581_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t581_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t581_B.1";
       | _ -> assert false
     in
   let () = match t581_C, t_orig581_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t581_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t581_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t581_C.float_u0";
       | _ -> assert false
     in
   let () = match t582_A, t_orig582_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t582_A.0";
-check_string a1 b1 ~message:"t582_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t582_A.2";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t582_A.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t582_A.1";
       | _ -> assert false
     in
   let () = match t582_B, t_orig582_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t582_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t582_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t582_B.float_u0";
       | _ -> assert false
     in
   let () = match t582_C, t_orig582_C with
@@ -11922,8 +11762,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t583_A, t_orig583_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t583_A.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t583_A.1";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t583_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t583_A.float_u1";
       | _ -> assert false
     in
   let () = match t583_B, t_orig583_B with
@@ -11931,8 +11771,7 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t583_C, t_orig583_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t583_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t583_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t583_C.float_u0";
       | _ -> assert false
     in
   let () = match t583_D, t_orig583_D with
@@ -11940,22 +11779,22 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t584_A, t_orig584_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t584_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t584_A.1";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t584_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t584_A.1";
       | _ -> assert false
     in
   let () = match t584_B, t_orig584_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t584_B.0";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t584_B.1";
+      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t584_B.0";
       | _ -> assert false
     in
   let () = match t585_A, t_orig585_A with
-      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t585_A.0";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t585_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t585_A.float_u1";
       | _ -> assert false
     in
   let () = match t585_B, t_orig585_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t585_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t585_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t585_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t585_B.float_u1";
       | _ -> assert false
     in
   let () = match t585_C, t_orig585_C with
@@ -11963,13 +11802,12 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t586_A, t_orig586_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t586_A.0";
-check_string a1 b1 ~message:"t586_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t586_A.2";
+      | A (a0), A (b0) -> check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a0) (Stdlib_upstream_compatible.Int32_u.to_int32 b0) ~message:"t586_A.0";
       | _ -> assert false
     in
   let () = match t586_B, t_orig586_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t586_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t586_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t586_B.1";
       | _ -> assert false
     in
   let () = match t586_C, t_orig586_C with
@@ -11981,24 +11819,21 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t587_A, t_orig587_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t587_A.0";
-check_string a1 b1 ~message:"t587_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t587_A.2";
+      | A a, A b -> check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u0) (Stdlib_stable.Float32_u.to_float32 b.float32_u0) ~message:"t587_A.float32_u0";
       | _ -> assert false
     in
   let () = match t587_B, t_orig587_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t587_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t587_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t587_B.float_u0";
       | _ -> assert false
     in
   let () = match t587_C, t_orig587_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t587_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t587_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t587_C.float_u0";
       | _ -> assert false
     in
   let () = match t588_A, t_orig588_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t588_A.0";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t588_A.1";
+      | A (a0, a1, a2), A (b0, b1, b2) -> check_string a0 b0 ~message:"t588_A.0";
+check_string a1 b1 ~message:"t588_A.1";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t588_A.2";
       | _ -> assert false
     in
   let () = match t588_B, t_orig588_B with
@@ -12018,21 +11853,23 @@ check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t589_A, t_orig589_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t589_A.0";
-check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_compatible.Int64_u.to_int64 b1) ~message:"t589_A.1";
+      | A a, A b -> check_float a.float0 b.float0 ~message:"t589_A.float0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t589_A.float_u1";
       | _ -> assert false
     in
   let () = match t589_B, t_orig589_B with
-      | B (a0,a1), B (b0,b1) -> check_float a0 b0 ~message:"t589_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t589_B.1";
+      | B a, B b -> check_string a.str0 b.str0 ~message:"t589_B.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t589_B.float_u1";
       | _ -> assert false
     in
   let () = match t590_A, t_orig590_A with
-      | A (a0), A (b0) -> check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a0) (Stdlib_upstream_compatible.Nativeint_u.to_int b0) ~message:"t590_A.0";
+      | A (a0, a1), A (b0, b1) -> check_float a0 b0 ~message:"t590_A.0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a1) (Stdlib_stable.Float32_u.to_float32 b1) ~message:"t590_A.1";
       | _ -> assert false
     in
   let () = match t590_B, t_orig590_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t590_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t590_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t590_B.1";
       | _ -> assert false
     in
   let () = match t590_C, t_orig590_C with
@@ -12040,14 +11877,12 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t591_A, t_orig591_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_int a0 b0 ~message:"t591_A.0";
-check_string a1 b1 ~message:"t591_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t591_A.2";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t591_A.str0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t591_A.float_u1";
       | _ -> assert false
     in
   let () = match t591_B, t_orig591_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t591_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t591_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t591_B.float_u0";
       | _ -> assert false
     in
   let () = match t591_C, t_orig591_C with
@@ -12059,9 +11894,8 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t592_A, t_orig592_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t592_A.0";
-check_string a1 b1 ~message:"t592_A.1";
-check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t592_A.2";
+      | A (a0, a1), A (b0, b1) -> check_string a0 b0 ~message:"t592_A.0";
+check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a1) (Stdlib_upstream_compatible.Int32_u.to_int32 b1) ~message:"t592_A.1";
       | _ -> assert false
     in
   let () = match t592_B, t_orig592_B with
@@ -12069,28 +11903,25 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t592_C, t_orig592_C with
-      | C (a0,a1), C (b0,b1) -> check_string a0 b0 ~message:"t592_C.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t592_C.1";
+      | C a, C b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t592_C.float_u0";
       | _ -> assert false
     in
   let () = match t593_A, t_orig593_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t593_A.0";
-check_string a1 b1 ~message:"t593_A.1";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a2) (Stdlib_upstream_compatible.Int32_u.to_int32 b2) ~message:"t593_A.2";
+      | A a, A b -> check_string a.str0 b.str0 ~message:"t593_A.str0";
+check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u1) (Stdlib_stable.Float32_u.to_float32 b.float32_u1) ~message:"t593_A.float32_u1";
       | _ -> assert false
     in
   let () = match t593_B, t_orig593_B with
-      | B (a0), B (b0) -> check_float32 (Stdlib_stable.Float32_u.to_float32 a0) (Stdlib_stable.Float32_u.to_float32 b0) ~message:"t593_B.0";
+      | B (a0, a1), B (b0, b1) -> check_string a0 b0 ~message:"t593_B.0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t593_B.1";
       | _ -> assert false
     in
   let () = match t594_A, t_orig594_A with
-      | A (a0,a1), A (b0,b1) -> check_float a0 b0 ~message:"t594_A.0";
-check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a1) (Stdlib_upstream_compatible.Int64_u.to_int64 b1) ~message:"t594_A.1";
+      | A (a0), A (b0) -> check_int64 (Stdlib_upstream_compatible.Int64_u.to_int64 a0) (Stdlib_upstream_compatible.Int64_u.to_int64 b0) ~message:"t594_A.0";
       | _ -> assert false
     in
   let () = match t594_B, t_orig594_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t594_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t594_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t594_B.float_u0";
       | _ -> assert false
     in
   let () = match t594_C, t_orig594_C with
@@ -12098,8 +11929,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t595_A, t_orig595_A with
-      | A (a0,a1), A (b0,b1) -> check_string a0 b0 ~message:"t595_A.0";
-check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a1) (Stdlib_upstream_compatible.Nativeint_u.to_int b1) ~message:"t595_A.1";
+      | A a, A b -> check_float32 (Stdlib_stable.Float32_u.to_float32 a.float32_u0) (Stdlib_stable.Float32_u.to_float32 b.float32_u0) ~message:"t595_A.float32_u0";
       | _ -> assert false
     in
   let () = match t595_B, t_orig595_B with
@@ -12115,19 +11945,18 @@ check_int (Stdlib_upstream_compatible.Nativeint_u.to_int a1) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t596_A, t_orig596_A with
-      | A (a0,a1), A (b0,b1) -> check_float (Stdlib_upstream_compatible.Float_u.to_float a0) (Stdlib_upstream_compatible.Float_u.to_float b0) ~message:"t596_A.0";
-check_int a1 b1 ~message:"t596_A.1";
+      | A (a0, a1, a2), A (b0, b1, b2) -> check_float a0 b0 ~message:"t596_A.0";
+check_string a1 b1 ~message:"t596_A.1";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t596_A.2";
       | _ -> assert false
     in
   let () = match t596_B, t_orig596_B with
-      | B (a0,a1), B (b0,b1) -> check_string a0 b0 ~message:"t596_B.0";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a1) (Stdlib_upstream_compatible.Float_u.to_float b1) ~message:"t596_B.1";
+      | B a, B b -> check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u0) (Stdlib_upstream_compatible.Float_u.to_float b.float_u0) ~message:"t596_B.float_u0";
       | _ -> assert false
     in
   let () = match t597_A, t_orig597_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_string a0 b0 ~message:"t597_A.0";
-check_float a1 b1 ~message:"t597_A.1";
-check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_compatible.Float_u.to_float b2) ~message:"t597_A.2";
+      | A a, A b -> check_float a.float0 b.float0 ~message:"t597_A.float0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t597_A.float_u1";
       | _ -> assert false
     in
   let () = match t597_B, t_orig597_B with
@@ -12139,7 +11968,7 @@ check_float (Stdlib_upstream_compatible.Float_u.to_float a2) (Stdlib_upstream_co
       | _ -> assert false
     in
   let () = match t598_A, t_orig598_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_int a0 b0 ~message:"t598_A.0";
+      | A (a0, a1, a2), A (b0, b1, b2) -> check_string a0 b0 ~message:"t598_A.0";
 check_string a1 b1 ~message:"t598_A.1";
 check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.to_float32 b2) ~message:"t598_A.2";
       | _ -> assert false
@@ -12149,9 +11978,8 @@ check_float32 (Stdlib_stable.Float32_u.to_float32 a2) (Stdlib_stable.Float32_u.t
       | _ -> assert false
     in
   let () = match t599_A, t_orig599_A with
-      | A (a0,a1,a2), A (b0,b1,b2) -> check_float a0 b0 ~message:"t599_A.0";
-check_string a1 b1 ~message:"t599_A.1";
-check_int32 (Stdlib_upstream_compatible.Int32_u.to_int32 a2) (Stdlib_upstream_compatible.Int32_u.to_int32 b2) ~message:"t599_A.2";
+      | A a, A b -> check_float a.float0 b.float0 ~message:"t599_A.float0";
+check_float (Stdlib_upstream_compatible.Float_u.to_float a.float_u1) (Stdlib_upstream_compatible.Float_u.to_float b.float_u1) ~message:"t599_A.float_u1";
       
     in
   print_endline "    - Checking [Obj.reachable_words]";
@@ -15113,868 +14941,868 @@ let go () =
   let local_ t300_A : t300 = (A (create_float_u ())) in
   let local_ t301_A : t301 = (A (create_float_u ())) in
   let local_ t301_B : t301 = (B (create_float_u ())) in
-  let local_ t302_A : t302 = (A (create_string (), create_float_u ())) in
+  let local_ t302_A : t302 = (A { float_u0 = create_float_u () }) in
   let local_ t303_A : t303 = (A (create_float_u ())) in
   let local_ t303_B : t303 = (B (create_float_u ())) in
   let local_ t303_C : t303 = (C (create_float_u ())) in
-  let local_ t304_A : t304 = (A (create_string (), create_float_u ())) in
+  let local_ t304_A : t304 = (A { float_u0 = create_float_u () }) in
   let local_ t304_B : t304 = (B (create_float_u ())) in
-  let local_ t305_A : t305 = (A (create_float32_u ())) in
+  let local_ t305_A : t305 = (A (create_string (), create_float_u ())) in
   let local_ t306_A : t306 = (A (create_float_u ())) in
-  let local_ t306_B : t306 = (B (create_string (), create_float_u ())) in
-  let local_ t307_A : t307 = (A (create_string (), create_float_u ())) in
+  let local_ t306_B : t306 = (B { float_u0 = create_float_u () }) in
+  let local_ t307_A : t307 = (A { float_u0 = create_float_u () }) in
   let local_ t307_B : t307 = (B (create_float_u ())) in
   let local_ t307_C : t307 = (C (create_float_u ())) in
-  let local_ t308_A : t308 = (A (create_float32_u ())) in
+  let local_ t308_A : t308 = (A (create_string (), create_float_u ())) in
   let local_ t308_B : t308 = (B (create_float_u ())) in
-  let local_ t309_A : t309 = (A (create_float (), create_float_u ())) in
+  let local_ t309_A : t309 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t310_A : t310 = (A (create_float_u ())) in
   let local_ t310_B : t310 = (B (create_float_u ())) in
   let local_ t310_C : t310 = (C (create_float_u ())) in
   let local_ t310_D : t310 = (D (create_float_u ())) in
-  let local_ t311_A : t311 = (A (create_string (), create_float_u ())) in
-  let local_ t311_B : t311 = (B (create_string (), create_float_u ())) in
-  let local_ t312_A : t312 = (A (create_float32_u ())) in
+  let local_ t311_A : t311 = (A { float_u0 = create_float_u () }) in
+  let local_ t311_B : t311 = (B { float_u0 = create_float_u () }) in
+  let local_ t312_A : t312 = (A (create_string (), create_float_u ())) in
   let local_ t312_B : t312 = (B (create_float_u ())) in
   let local_ t312_C : t312 = (C (create_float_u ())) in
-  let local_ t313_A : t313 = (A (create_float (), create_float_u ())) in
+  let local_ t313_A : t313 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t313_B : t313 = (B (create_float_u ())) in
-  let local_ t314_A : t314 = (A (create_string (), create_float32_u ())) in
+  let local_ t314_A : t314 = (A (create_float32_u ())) in
   let local_ t315_A : t315 = (A (create_float_u ())) in
-  let local_ t315_B : t315 = (B (create_string (), create_float_u ())) in
+  let local_ t315_B : t315 = (B { float_u0 = create_float_u () }) in
   let local_ t315_C : t315 = (C (create_float_u ())) in
-  let local_ t316_A : t316 = (A (create_string (), create_float_u ())) in
+  let local_ t316_A : t316 = (A { float_u0 = create_float_u () }) in
   let local_ t316_B : t316 = (B (create_float_u ())) in
   let local_ t316_C : t316 = (C (create_float_u ())) in
   let local_ t316_D : t316 = (D (create_float_u ())) in
-  let local_ t317_A : t317 = (A (create_float32_u ())) in
-  let local_ t317_B : t317 = (B (create_string (), create_float_u ())) in
-  let local_ t318_A : t318 = (A (create_float (), create_float_u ())) in
+  let local_ t317_A : t317 = (A (create_string (), create_float_u ())) in
+  let local_ t317_B : t317 = (B { float_u0 = create_float_u () }) in
+  let local_ t318_A : t318 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t318_B : t318 = (B (create_float_u ())) in
   let local_ t318_C : t318 = (C (create_float_u ())) in
-  let local_ t319_A : t319 = (A (create_string (), create_float32_u ())) in
+  let local_ t319_A : t319 = (A (create_float32_u ())) in
   let local_ t319_B : t319 = (B (create_float_u ())) in
-  let local_ t320_A : t320 = (A (create_int32_u ())) in
+  let local_ t320_A : t320 = (A { float_u0 = create_float_u () }) in
   let local_ t321_A : t321 = (A (create_float_u ())) in
-  let local_ t321_B : t321 = (B (create_float32_u ())) in
-  let local_ t322_A : t322 = (A (create_string (), create_float_u ())) in
-  let local_ t322_B : t322 = (B (create_string (), create_float_u ())) in
+  let local_ t321_B : t321 = (B (create_string (), create_float_u ())) in
+  let local_ t322_A : t322 = (A { float_u0 = create_float_u () }) in
+  let local_ t322_B : t322 = (B { float_u0 = create_float_u () }) in
   let local_ t322_C : t322 = (C (create_float_u ())) in
-  let local_ t323_A : t323 = (A (create_float32_u ())) in
+  let local_ t323_A : t323 = (A (create_string (), create_float_u ())) in
   let local_ t323_B : t323 = (B (create_float_u ())) in
   let local_ t323_C : t323 = (C (create_float_u ())) in
   let local_ t323_D : t323 = (D (create_float_u ())) in
-  let local_ t324_A : t324 = (A (create_float (), create_float_u ())) in
-  let local_ t324_B : t324 = (B (create_string (), create_float_u ())) in
-  let local_ t325_A : t325 = (A (create_string (), create_float32_u ())) in
+  let local_ t324_A : t324 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t324_B : t324 = (B { float_u0 = create_float_u () }) in
+  let local_ t325_A : t325 = (A (create_float32_u ())) in
   let local_ t325_B : t325 = (B (create_float_u ())) in
   let local_ t325_C : t325 = (C (create_float_u ())) in
-  let local_ t326_A : t326 = (A (create_int32_u ())) in
+  let local_ t326_A : t326 = (A { float_u0 = create_float_u () }) in
   let local_ t326_B : t326 = (B (create_float_u ())) in
-  let local_ t327_A : t327 = (A (create_string (), create_string (), create_float_u ())) in
+  let local_ t327_A : t327 = (A (create_float (), create_float_u ())) in
   let local_ t328_A : t328 = (A (create_float_u ())) in
   let local_ t328_B : t328 = (B (create_float_u ())) in
-  let local_ t328_C : t328 = (C (create_string (), create_float_u ())) in
-  let local_ t329_A : t329 = (A (create_string (), create_float_u ())) in
-  let local_ t329_B : t329 = (B (create_float32_u ())) in
-  let local_ t330_A : t330 = (A (create_float32_u ())) in
-  let local_ t330_B : t330 = (B (create_string (), create_float_u ())) in
+  let local_ t328_C : t328 = (C { float_u0 = create_float_u () }) in
+  let local_ t329_A : t329 = (A { float_u0 = create_float_u () }) in
+  let local_ t329_B : t329 = (B (create_string (), create_float_u ())) in
+  let local_ t330_A : t330 = (A (create_string (), create_float_u ())) in
+  let local_ t330_B : t330 = (B { float_u0 = create_float_u () }) in
   let local_ t330_C : t330 = (C (create_float_u ())) in
-  let local_ t331_A : t331 = (A (create_float (), create_float_u ())) in
+  let local_ t331_A : t331 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t331_B : t331 = (B (create_float_u ())) in
   let local_ t331_C : t331 = (C (create_float_u ())) in
   let local_ t331_D : t331 = (D (create_float_u ())) in
-  let local_ t332_A : t332 = (A (create_string (), create_float32_u ())) in
-  let local_ t332_B : t332 = (B (create_string (), create_float_u ())) in
-  let local_ t333_A : t333 = (A (create_int32_u ())) in
+  let local_ t332_A : t332 = (A (create_float32_u ())) in
+  let local_ t332_B : t332 = (B { float_u0 = create_float_u () }) in
+  let local_ t333_A : t333 = (A { float_u0 = create_float_u () }) in
   let local_ t333_B : t333 = (B (create_float_u ())) in
   let local_ t333_C : t333 = (C (create_float_u ())) in
-  let local_ t334_A : t334 = (A (create_string (), create_string (), create_float_u ())) in
+  let local_ t334_A : t334 = (A (create_float (), create_float_u ())) in
   let local_ t334_B : t334 = (B (create_float_u ())) in
-  let local_ t335_A : t335 = (A (create_float (), create_float32_u ())) in
+  let local_ t335_A : t335 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t336_A : t336 = (A (create_float_u ())) in
-  let local_ t336_B : t336 = (B (create_string (), create_float_u ())) in
+  let local_ t336_B : t336 = (B { float_u0 = create_float_u () }) in
   let local_ t336_C : t336 = (C (create_float_u ())) in
   let local_ t336_D : t336 = (D (create_float_u ())) in
-  let local_ t337_A : t337 = (A (create_string (), create_float_u ())) in
+  let local_ t337_A : t337 = (A { float_u0 = create_float_u () }) in
   let local_ t337_B : t337 = (B (create_float_u ())) in
-  let local_ t337_C : t337 = (C (create_string (), create_float_u ())) in
-  let local_ t338_A : t338 = (A (create_float32_u ())) in
-  let local_ t338_B : t338 = (B (create_float32_u ())) in
-  let local_ t339_A : t339 = (A (create_float (), create_float_u ())) in
-  let local_ t339_B : t339 = (B (create_string (), create_float_u ())) in
+  let local_ t337_C : t337 = (C { float_u0 = create_float_u () }) in
+  let local_ t338_A : t338 = (A (create_string (), create_float_u ())) in
+  let local_ t338_B : t338 = (B (create_string (), create_float_u ())) in
+  let local_ t339_A : t339 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t339_B : t339 = (B { float_u0 = create_float_u () }) in
   let local_ t339_C : t339 = (C (create_float_u ())) in
-  let local_ t340_A : t340 = (A (create_string (), create_float32_u ())) in
+  let local_ t340_A : t340 = (A (create_float32_u ())) in
   let local_ t340_B : t340 = (B (create_float_u ())) in
   let local_ t340_C : t340 = (C (create_float_u ())) in
   let local_ t340_D : t340 = (D (create_float_u ())) in
-  let local_ t341_A : t341 = (A (create_int32_u ())) in
-  let local_ t341_B : t341 = (B (create_string (), create_float_u ())) in
-  let local_ t342_A : t342 = (A (create_string (), create_string (), create_float_u ())) in
+  let local_ t341_A : t341 = (A { float_u0 = create_float_u () }) in
+  let local_ t341_B : t341 = (B { float_u0 = create_float_u () }) in
+  let local_ t342_A : t342 = (A (create_float (), create_float_u ())) in
   let local_ t342_B : t342 = (B (create_float_u ())) in
   let local_ t342_C : t342 = (C (create_float_u ())) in
-  let local_ t343_A : t343 = (A (create_float (), create_float32_u ())) in
+  let local_ t343_A : t343 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t343_B : t343 = (B (create_float_u ())) in
-  let local_ t344_A : t344 = (A (create_string (), create_int32_u ())) in
+  let local_ t344_A : t344 = (A (create_string (), create_float32_u ())) in
   let local_ t345_A : t345 = (A (create_float_u ())) in
-  let local_ t345_B : t345 = (B (create_float32_u ())) in
+  let local_ t345_B : t345 = (B (create_string (), create_float_u ())) in
   let local_ t345_C : t345 = (C (create_float_u ())) in
-  let local_ t346_A : t346 = (A (create_string (), create_float_u ())) in
-  let local_ t346_B : t346 = (B (create_string (), create_float_u ())) in
+  let local_ t346_A : t346 = (A { float_u0 = create_float_u () }) in
+  let local_ t346_B : t346 = (B { float_u0 = create_float_u () }) in
   let local_ t346_C : t346 = (C (create_float_u ())) in
   let local_ t346_D : t346 = (D (create_float_u ())) in
-  let local_ t347_A : t347 = (A (create_float32_u ())) in
+  let local_ t347_A : t347 = (A (create_string (), create_float_u ())) in
   let local_ t347_B : t347 = (B (create_float_u ())) in
-  let local_ t347_C : t347 = (C (create_string (), create_float_u ())) in
-  let local_ t348_A : t348 = (A (create_float (), create_float_u ())) in
-  let local_ t348_B : t348 = (B (create_float32_u ())) in
-  let local_ t349_A : t349 = (A (create_string (), create_float32_u ())) in
-  let local_ t349_B : t349 = (B (create_string (), create_float_u ())) in
+  let local_ t347_C : t347 = (C { float_u0 = create_float_u () }) in
+  let local_ t348_A : t348 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t348_B : t348 = (B (create_string (), create_float_u ())) in
+  let local_ t349_A : t349 = (A (create_float32_u ())) in
+  let local_ t349_B : t349 = (B { float_u0 = create_float_u () }) in
   let local_ t349_C : t349 = (C (create_float_u ())) in
-  let local_ t350_A : t350 = (A (create_int32_u ())) in
+  let local_ t350_A : t350 = (A { float_u0 = create_float_u () }) in
   let local_ t350_B : t350 = (B (create_float_u ())) in
   let local_ t350_C : t350 = (C (create_float_u ())) in
   let local_ t350_D : t350 = (D (create_float_u ())) in
-  let local_ t351_A : t351 = (A (create_string (), create_string (), create_float_u ())) in
-  let local_ t351_B : t351 = (B (create_string (), create_float_u ())) in
-  let local_ t352_A : t352 = (A (create_float (), create_float32_u ())) in
+  let local_ t351_A : t351 = (A (create_float (), create_float_u ())) in
+  let local_ t351_B : t351 = (B { float_u0 = create_float_u () }) in
+  let local_ t352_A : t352 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t352_B : t352 = (B (create_float_u ())) in
   let local_ t352_C : t352 = (C (create_float_u ())) in
-  let local_ t353_A : t353 = (A (create_string (), create_int32_u ())) in
+  let local_ t353_A : t353 = (A (create_string (), create_float32_u ())) in
   let local_ t353_B : t353 = (B (create_float_u ())) in
-  let local_ t354_A : t354 = (A (create_int64_u ())) in
+  let local_ t354_A : t354 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t355_A : t355 = (A (create_float_u ())) in
-  let local_ t355_B : t355 = (B (create_float (), create_float_u ())) in
-  let local_ t356_A : t356 = (A (create_string (), create_float_u ())) in
-  let local_ t356_B : t356 = (B (create_float32_u ())) in
+  let local_ t355_B : t355 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t356_A : t356 = (A { float_u0 = create_float_u () }) in
+  let local_ t356_B : t356 = (B (create_string (), create_float_u ())) in
   let local_ t356_C : t356 = (C (create_float_u ())) in
-  let local_ t357_A : t357 = (A (create_float32_u ())) in
-  let local_ t357_B : t357 = (B (create_string (), create_float_u ())) in
+  let local_ t357_A : t357 = (A (create_string (), create_float_u ())) in
+  let local_ t357_B : t357 = (B { float_u0 = create_float_u () }) in
   let local_ t357_C : t357 = (C (create_float_u ())) in
   let local_ t357_D : t357 = (D (create_float_u ())) in
-  let local_ t358_A : t358 = (A (create_float (), create_float_u ())) in
+  let local_ t358_A : t358 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t358_B : t358 = (B (create_float_u ())) in
-  let local_ t358_C : t358 = (C (create_string (), create_float_u ())) in
-  let local_ t359_A : t359 = (A (create_string (), create_float32_u ())) in
-  let local_ t359_B : t359 = (B (create_float32_u ())) in
-  let local_ t360_A : t360 = (A (create_int32_u ())) in
-  let local_ t360_B : t360 = (B (create_string (), create_float_u ())) in
+  let local_ t358_C : t358 = (C { float_u0 = create_float_u () }) in
+  let local_ t359_A : t359 = (A (create_float32_u ())) in
+  let local_ t359_B : t359 = (B (create_string (), create_float_u ())) in
+  let local_ t360_A : t360 = (A { float_u0 = create_float_u () }) in
+  let local_ t360_B : t360 = (B { float_u0 = create_float_u () }) in
   let local_ t360_C : t360 = (C (create_float_u ())) in
-  let local_ t361_A : t361 = (A (create_string (), create_string (), create_float_u ())) in
+  let local_ t361_A : t361 = (A (create_float (), create_float_u ())) in
   let local_ t361_B : t361 = (B (create_float_u ())) in
   let local_ t361_C : t361 = (C (create_float_u ())) in
   let local_ t361_D : t361 = (D (create_float_u ())) in
-  let local_ t362_A : t362 = (A (create_float (), create_float32_u ())) in
-  let local_ t362_B : t362 = (B (create_string (), create_float_u ())) in
-  let local_ t363_A : t363 = (A (create_string (), create_int32_u ())) in
+  let local_ t362_A : t362 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t362_B : t362 = (B { float_u0 = create_float_u () }) in
+  let local_ t363_A : t363 = (A (create_string (), create_float32_u ())) in
   let local_ t363_B : t363 = (B (create_float_u ())) in
   let local_ t363_C : t363 = (C (create_float_u ())) in
-  let local_ t364_A : t364 = (A (create_int64_u ())) in
+  let local_ t364_A : t364 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t364_B : t364 = (B (create_float_u ())) in
-  let local_ t365_A : t365 = (A (create_float (), create_string (), create_float_u ())) in
+  let local_ t365_A : t365 = (A (create_int32_u ())) in
   let local_ t366_A : t366 = (A (create_float_u ())) in
   let local_ t366_B : t366 = (B (create_float_u ())) in
   let local_ t366_C : t366 = (C (create_float_u ())) in
   let local_ t366_D : t366 = (D (create_float_u ())) in
   let local_ t366_E : t366 = (E (create_float_u ())) in
-  let local_ t367_A : t367 = (A (create_string (), create_float_u ())) in
-  let local_ t367_B : t367 = (B (create_float (), create_float_u ())) in
-  let local_ t368_A : t368 = (A (create_float32_u ())) in
-  let local_ t368_B : t368 = (B (create_float32_u ())) in
+  let local_ t367_A : t367 = (A { float_u0 = create_float_u () }) in
+  let local_ t367_B : t367 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t368_A : t368 = (A (create_string (), create_float_u ())) in
+  let local_ t368_B : t368 = (B (create_string (), create_float_u ())) in
   let local_ t368_C : t368 = (C (create_float_u ())) in
-  let local_ t369_A : t369 = (A (create_float (), create_float_u ())) in
-  let local_ t369_B : t369 = (B (create_string (), create_float_u ())) in
+  let local_ t369_A : t369 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t369_B : t369 = (B { float_u0 = create_float_u () }) in
   let local_ t369_C : t369 = (C (create_float_u ())) in
   let local_ t369_D : t369 = (D (create_float_u ())) in
-  let local_ t370_A : t370 = (A (create_string (), create_float32_u ())) in
+  let local_ t370_A : t370 = (A (create_float32_u ())) in
   let local_ t370_B : t370 = (B (create_float_u ())) in
-  let local_ t370_C : t370 = (C (create_string (), create_float_u ())) in
-  let local_ t371_A : t371 = (A (create_int32_u ())) in
-  let local_ t371_B : t371 = (B (create_float32_u ())) in
-  let local_ t372_A : t372 = (A (create_string (), create_string (), create_float_u ())) in
-  let local_ t372_B : t372 = (B (create_string (), create_float_u ())) in
+  let local_ t370_C : t370 = (C { float_u0 = create_float_u () }) in
+  let local_ t371_A : t371 = (A { float_u0 = create_float_u () }) in
+  let local_ t371_B : t371 = (B (create_string (), create_float_u ())) in
+  let local_ t372_A : t372 = (A (create_float (), create_float_u ())) in
+  let local_ t372_B : t372 = (B { float_u0 = create_float_u () }) in
   let local_ t372_C : t372 = (C (create_float_u ())) in
-  let local_ t373_A : t373 = (A (create_float (), create_float32_u ())) in
+  let local_ t373_A : t373 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t373_B : t373 = (B (create_float_u ())) in
   let local_ t373_C : t373 = (C (create_float_u ())) in
   let local_ t373_D : t373 = (D (create_float_u ())) in
-  let local_ t374_A : t374 = (A (create_string (), create_int32_u ())) in
-  let local_ t374_B : t374 = (B (create_string (), create_float_u ())) in
-  let local_ t375_A : t375 = (A (create_int64_u ())) in
+  let local_ t374_A : t374 = (A (create_string (), create_float32_u ())) in
+  let local_ t374_B : t374 = (B { float_u0 = create_float_u () }) in
+  let local_ t375_A : t375 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t375_B : t375 = (B (create_float_u ())) in
   let local_ t375_C : t375 = (C (create_float_u ())) in
-  let local_ t376_A : t376 = (A (create_float (), create_string (), create_float_u ())) in
+  let local_ t376_A : t376 = (A (create_int32_u ())) in
   let local_ t376_B : t376 = (B (create_float_u ())) in
-  let local_ t377_A : t377 = (A (create_string (), create_string (), create_float32_u ())) in
+  let local_ t377_A : t377 = (A { float32_u0 = create_float32_u () }) in
   let local_ t378_A : t378 = (A (create_float_u ())) in
-  let local_ t378_B : t378 = (B (create_string (), create_float_u ())) in
-  let local_ t378_C : t378 = (C (create_string (), create_float_u ())) in
-  let local_ t379_A : t379 = (A (create_string (), create_float_u ())) in
+  let local_ t378_B : t378 = (B { float_u0 = create_float_u () }) in
+  let local_ t378_C : t378 = (C { float_u0 = create_float_u () }) in
+  let local_ t379_A : t379 = (A { float_u0 = create_float_u () }) in
   let local_ t379_B : t379 = (B (create_float_u ())) in
   let local_ t379_C : t379 = (C (create_float_u ())) in
   let local_ t379_D : t379 = (D (create_float_u ())) in
   let local_ t379_E : t379 = (E (create_float_u ())) in
-  let local_ t380_A : t380 = (A (create_float32_u ())) in
-  let local_ t380_B : t380 = (B (create_float (), create_float_u ())) in
-  let local_ t381_A : t381 = (A (create_float (), create_float_u ())) in
-  let local_ t381_B : t381 = (B (create_float32_u ())) in
+  let local_ t380_A : t380 = (A (create_string (), create_float_u ())) in
+  let local_ t380_B : t380 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t381_A : t381 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t381_B : t381 = (B (create_string (), create_float_u ())) in
   let local_ t381_C : t381 = (C (create_float_u ())) in
-  let local_ t382_A : t382 = (A (create_string (), create_float32_u ())) in
-  let local_ t382_B : t382 = (B (create_string (), create_float_u ())) in
+  let local_ t382_A : t382 = (A (create_float32_u ())) in
+  let local_ t382_B : t382 = (B { float_u0 = create_float_u () }) in
   let local_ t382_C : t382 = (C (create_float_u ())) in
   let local_ t382_D : t382 = (D (create_float_u ())) in
-  let local_ t383_A : t383 = (A (create_int32_u ())) in
+  let local_ t383_A : t383 = (A { float_u0 = create_float_u () }) in
   let local_ t383_B : t383 = (B (create_float_u ())) in
-  let local_ t383_C : t383 = (C (create_string (), create_float_u ())) in
-  let local_ t384_A : t384 = (A (create_string (), create_string (), create_float_u ())) in
-  let local_ t384_B : t384 = (B (create_float32_u ())) in
-  let local_ t385_A : t385 = (A (create_float (), create_float32_u ())) in
-  let local_ t385_B : t385 = (B (create_string (), create_float_u ())) in
+  let local_ t383_C : t383 = (C { float_u0 = create_float_u () }) in
+  let local_ t384_A : t384 = (A (create_float (), create_float_u ())) in
+  let local_ t384_B : t384 = (B (create_string (), create_float_u ())) in
+  let local_ t385_A : t385 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t385_B : t385 = (B { float_u0 = create_float_u () }) in
   let local_ t385_C : t385 = (C (create_float_u ())) in
-  let local_ t386_A : t386 = (A (create_string (), create_int32_u ())) in
+  let local_ t386_A : t386 = (A (create_string (), create_float32_u ())) in
   let local_ t386_B : t386 = (B (create_float_u ())) in
   let local_ t386_C : t386 = (C (create_float_u ())) in
   let local_ t386_D : t386 = (D (create_float_u ())) in
-  let local_ t387_A : t387 = (A (create_int64_u ())) in
-  let local_ t387_B : t387 = (B (create_string (), create_float_u ())) in
-  let local_ t388_A : t388 = (A (create_float (), create_string (), create_float_u ())) in
+  let local_ t387_A : t387 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t387_B : t387 = (B { float_u0 = create_float_u () }) in
+  let local_ t388_A : t388 = (A (create_int32_u ())) in
   let local_ t388_B : t388 = (B (create_float_u ())) in
   let local_ t388_C : t388 = (C (create_float_u ())) in
-  let local_ t389_A : t389 = (A (create_string (), create_string (), create_float32_u ())) in
+  let local_ t389_A : t389 = (A { float32_u0 = create_float32_u () }) in
   let local_ t389_B : t389 = (B (create_float_u ())) in
-  let local_ t390_A : t390 = (A (create_float (), create_int32_u ())) in
+  let local_ t390_A : t390 = (A (create_string (), create_string (), create_float_u ())) in
   let local_ t391_A : t391 = (A (create_float_u ())) in
-  let local_ t391_B : t391 = (B (create_float32_u ())) in
+  let local_ t391_B : t391 = (B (create_string (), create_float_u ())) in
   let local_ t391_C : t391 = (C (create_float_u ())) in
   let local_ t391_D : t391 = (D (create_float_u ())) in
-  let local_ t392_A : t392 = (A (create_string (), create_float_u ())) in
-  let local_ t392_B : t392 = (B (create_string (), create_float_u ())) in
-  let local_ t392_C : t392 = (C (create_string (), create_float_u ())) in
-  let local_ t393_A : t393 = (A (create_float32_u ())) in
+  let local_ t392_A : t392 = (A { float_u0 = create_float_u () }) in
+  let local_ t392_B : t392 = (B { float_u0 = create_float_u () }) in
+  let local_ t392_C : t392 = (C { float_u0 = create_float_u () }) in
+  let local_ t393_A : t393 = (A (create_string (), create_float_u ())) in
   let local_ t393_B : t393 = (B (create_float_u ())) in
   let local_ t393_C : t393 = (C (create_float_u ())) in
   let local_ t393_D : t393 = (D (create_float_u ())) in
   let local_ t393_E : t393 = (E (create_float_u ())) in
-  let local_ t394_A : t394 = (A (create_float (), create_float_u ())) in
-  let local_ t394_B : t394 = (B (create_float (), create_float_u ())) in
-  let local_ t395_A : t395 = (A (create_string (), create_float32_u ())) in
-  let local_ t395_B : t395 = (B (create_float32_u ())) in
+  let local_ t394_A : t394 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t394_B : t394 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t395_A : t395 = (A (create_float32_u ())) in
+  let local_ t395_B : t395 = (B (create_string (), create_float_u ())) in
   let local_ t395_C : t395 = (C (create_float_u ())) in
-  let local_ t396_A : t396 = (A (create_int32_u ())) in
-  let local_ t396_B : t396 = (B (create_string (), create_float_u ())) in
+  let local_ t396_A : t396 = (A { float_u0 = create_float_u () }) in
+  let local_ t396_B : t396 = (B { float_u0 = create_float_u () }) in
   let local_ t396_C : t396 = (C (create_float_u ())) in
   let local_ t396_D : t396 = (D (create_float_u ())) in
-  let local_ t397_A : t397 = (A (create_string (), create_string (), create_float_u ())) in
+  let local_ t397_A : t397 = (A (create_float (), create_float_u ())) in
   let local_ t397_B : t397 = (B (create_float_u ())) in
-  let local_ t397_C : t397 = (C (create_string (), create_float_u ())) in
-  let local_ t398_A : t398 = (A (create_float (), create_float32_u ())) in
-  let local_ t398_B : t398 = (B (create_float32_u ())) in
-  let local_ t399_A : t399 = (A (create_string (), create_int32_u ())) in
-  let local_ t399_B : t399 = (B (create_string (), create_float_u ())) in
+  let local_ t397_C : t397 = (C { float_u0 = create_float_u () }) in
+  let local_ t398_A : t398 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t398_B : t398 = (B (create_string (), create_float_u ())) in
+  let local_ t399_A : t399 = (A (create_string (), create_float32_u ())) in
+  let local_ t399_B : t399 = (B { float_u0 = create_float_u () }) in
   let local_ t399_C : t399 = (C (create_float_u ())) in
-  let local_ t400_A : t400 = (A (create_int64_u ())) in
+  let local_ t400_A : t400 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t400_B : t400 = (B (create_float_u ())) in
   let local_ t400_C : t400 = (C (create_float_u ())) in
   let local_ t400_D : t400 = (D (create_float_u ())) in
-  let local_ t401_A : t401 = (A (create_float (), create_string (), create_float_u ())) in
-  let local_ t401_B : t401 = (B (create_string (), create_float_u ())) in
-  let local_ t402_A : t402 = (A (create_string (), create_string (), create_float32_u ())) in
+  let local_ t401_A : t401 = (A (create_int32_u ())) in
+  let local_ t401_B : t401 = (B { float_u0 = create_float_u () }) in
+  let local_ t402_A : t402 = (A { float32_u0 = create_float32_u () }) in
   let local_ t402_B : t402 = (B (create_float_u ())) in
   let local_ t402_C : t402 = (C (create_float_u ())) in
-  let local_ t403_A : t403 = (A (create_float (), create_int32_u ())) in
+  let local_ t403_A : t403 = (A (create_string (), create_string (), create_float_u ())) in
   let local_ t403_B : t403 = (B (create_float_u ())) in
-  let local_ t404_A : t404 = (A (create_string (), create_int64_u ())) in
+  let local_ t404_A : t404 = (A { float0 = create_float (); float_u1 = create_float_u () }) in
   let local_ t405_A : t405 = (A (create_float_u ())) in
-  let local_ t405_B : t405 = (B (create_float (), create_float_u ())) in
+  let local_ t405_B : t405 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t405_C : t405 = (C (create_float_u ())) in
-  let local_ t406_A : t406 = (A (create_string (), create_float_u ())) in
-  let local_ t406_B : t406 = (B (create_float32_u ())) in
+  let local_ t406_A : t406 = (A { float_u0 = create_float_u () }) in
+  let local_ t406_B : t406 = (B (create_string (), create_float_u ())) in
   let local_ t406_C : t406 = (C (create_float_u ())) in
   let local_ t406_D : t406 = (D (create_float_u ())) in
-  let local_ t407_A : t407 = (A (create_float32_u ())) in
-  let local_ t407_B : t407 = (B (create_string (), create_float_u ())) in
-  let local_ t407_C : t407 = (C (create_string (), create_float_u ())) in
-  let local_ t408_A : t408 = (A (create_float (), create_float_u ())) in
+  let local_ t407_A : t407 = (A (create_string (), create_float_u ())) in
+  let local_ t407_B : t407 = (B { float_u0 = create_float_u () }) in
+  let local_ t407_C : t407 = (C { float_u0 = create_float_u () }) in
+  let local_ t408_A : t408 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t408_B : t408 = (B (create_float_u ())) in
   let local_ t408_C : t408 = (C (create_float_u ())) in
   let local_ t408_D : t408 = (D (create_float_u ())) in
   let local_ t408_E : t408 = (E (create_float_u ())) in
-  let local_ t409_A : t409 = (A (create_string (), create_float32_u ())) in
-  let local_ t409_B : t409 = (B (create_float (), create_float_u ())) in
-  let local_ t410_A : t410 = (A (create_int32_u ())) in
-  let local_ t410_B : t410 = (B (create_float32_u ())) in
+  let local_ t409_A : t409 = (A (create_float32_u ())) in
+  let local_ t409_B : t409 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t410_A : t410 = (A { float_u0 = create_float_u () }) in
+  let local_ t410_B : t410 = (B (create_string (), create_float_u ())) in
   let local_ t410_C : t410 = (C (create_float_u ())) in
-  let local_ t411_A : t411 = (A (create_string (), create_string (), create_float_u ())) in
-  let local_ t411_B : t411 = (B (create_string (), create_float_u ())) in
+  let local_ t411_A : t411 = (A (create_float (), create_float_u ())) in
+  let local_ t411_B : t411 = (B { float_u0 = create_float_u () }) in
   let local_ t411_C : t411 = (C (create_float_u ())) in
   let local_ t411_D : t411 = (D (create_float_u ())) in
-  let local_ t412_A : t412 = (A (create_float (), create_float32_u ())) in
+  let local_ t412_A : t412 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t412_B : t412 = (B (create_float_u ())) in
-  let local_ t412_C : t412 = (C (create_string (), create_float_u ())) in
-  let local_ t413_A : t413 = (A (create_string (), create_int32_u ())) in
-  let local_ t413_B : t413 = (B (create_float32_u ())) in
-  let local_ t414_A : t414 = (A (create_int64_u ())) in
-  let local_ t414_B : t414 = (B (create_string (), create_float_u ())) in
+  let local_ t412_C : t412 = (C { float_u0 = create_float_u () }) in
+  let local_ t413_A : t413 = (A (create_string (), create_float32_u ())) in
+  let local_ t413_B : t413 = (B (create_string (), create_float_u ())) in
+  let local_ t414_A : t414 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t414_B : t414 = (B { float_u0 = create_float_u () }) in
   let local_ t414_C : t414 = (C (create_float_u ())) in
-  let local_ t415_A : t415 = (A (create_float (), create_string (), create_float_u ())) in
+  let local_ t415_A : t415 = (A (create_int32_u ())) in
   let local_ t415_B : t415 = (B (create_float_u ())) in
   let local_ t415_C : t415 = (C (create_float_u ())) in
   let local_ t415_D : t415 = (D (create_float_u ())) in
-  let local_ t416_A : t416 = (A (create_string (), create_string (), create_float32_u ())) in
-  let local_ t416_B : t416 = (B (create_string (), create_float_u ())) in
-  let local_ t417_A : t417 = (A (create_float (), create_int32_u ())) in
+  let local_ t416_A : t416 = (A { float32_u0 = create_float32_u () }) in
+  let local_ t416_B : t416 = (B { float_u0 = create_float_u () }) in
+  let local_ t417_A : t417 = (A (create_string (), create_string (), create_float_u ())) in
   let local_ t417_B : t417 = (B (create_float_u ())) in
   let local_ t417_C : t417 = (C (create_float_u ())) in
-  let local_ t418_A : t418 = (A (create_string (), create_int64_u ())) in
+  let local_ t418_A : t418 = (A { float0 = create_float (); float_u1 = create_float_u () }) in
   let local_ t418_B : t418 = (B (create_float_u ())) in
-  let local_ t419_A : t419 = (A (create_nativeint_u ())) in
+  let local_ t419_A : t419 = (A (create_float (), create_float32_u ())) in
   let local_ t420_A : t420 = (A (create_float_u ())) in
-  let local_ t420_B : t420 = (B (create_string (), create_float32_u ())) in
-  let local_ t421_A : t421 = (A (create_string (), create_float_u ())) in
-  let local_ t421_B : t421 = (B (create_float (), create_float_u ())) in
+  let local_ t420_B : t420 = (B (create_float32_u ())) in
+  let local_ t421_A : t421 = (A { float_u0 = create_float_u () }) in
+  let local_ t421_B : t421 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t421_C : t421 = (C (create_float_u ())) in
-  let local_ t422_A : t422 = (A (create_float32_u ())) in
-  let local_ t422_B : t422 = (B (create_float32_u ())) in
+  let local_ t422_A : t422 = (A (create_string (), create_float_u ())) in
+  let local_ t422_B : t422 = (B (create_string (), create_float_u ())) in
   let local_ t422_C : t422 = (C (create_float_u ())) in
   let local_ t422_D : t422 = (D (create_float_u ())) in
-  let local_ t423_A : t423 = (A (create_float (), create_float_u ())) in
-  let local_ t423_B : t423 = (B (create_string (), create_float_u ())) in
-  let local_ t423_C : t423 = (C (create_string (), create_float_u ())) in
-  let local_ t424_A : t424 = (A (create_string (), create_float32_u ())) in
+  let local_ t423_A : t423 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t423_B : t423 = (B { float_u0 = create_float_u () }) in
+  let local_ t423_C : t423 = (C { float_u0 = create_float_u () }) in
+  let local_ t424_A : t424 = (A (create_float32_u ())) in
   let local_ t424_B : t424 = (B (create_float_u ())) in
   let local_ t424_C : t424 = (C (create_float_u ())) in
   let local_ t424_D : t424 = (D (create_float_u ())) in
   let local_ t424_E : t424 = (E (create_float_u ())) in
-  let local_ t425_A : t425 = (A (create_int32_u ())) in
-  let local_ t425_B : t425 = (B (create_float (), create_float_u ())) in
-  let local_ t426_A : t426 = (A (create_string (), create_string (), create_float_u ())) in
-  let local_ t426_B : t426 = (B (create_float32_u ())) in
+  let local_ t425_A : t425 = (A { float_u0 = create_float_u () }) in
+  let local_ t425_B : t425 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t426_A : t426 = (A (create_float (), create_float_u ())) in
+  let local_ t426_B : t426 = (B (create_string (), create_float_u ())) in
   let local_ t426_C : t426 = (C (create_float_u ())) in
-  let local_ t427_A : t427 = (A (create_float (), create_float32_u ())) in
-  let local_ t427_B : t427 = (B (create_string (), create_float_u ())) in
+  let local_ t427_A : t427 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t427_B : t427 = (B { float_u0 = create_float_u () }) in
   let local_ t427_C : t427 = (C (create_float_u ())) in
   let local_ t427_D : t427 = (D (create_float_u ())) in
-  let local_ t428_A : t428 = (A (create_string (), create_int32_u ())) in
+  let local_ t428_A : t428 = (A (create_string (), create_float32_u ())) in
   let local_ t428_B : t428 = (B (create_float_u ())) in
-  let local_ t428_C : t428 = (C (create_string (), create_float_u ())) in
-  let local_ t429_A : t429 = (A (create_int64_u ())) in
-  let local_ t429_B : t429 = (B (create_float32_u ())) in
-  let local_ t430_A : t430 = (A (create_float (), create_string (), create_float_u ())) in
-  let local_ t430_B : t430 = (B (create_string (), create_float_u ())) in
+  let local_ t428_C : t428 = (C { float_u0 = create_float_u () }) in
+  let local_ t429_A : t429 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t429_B : t429 = (B (create_string (), create_float_u ())) in
+  let local_ t430_A : t430 = (A (create_int32_u ())) in
+  let local_ t430_B : t430 = (B { float_u0 = create_float_u () }) in
   let local_ t430_C : t430 = (C (create_float_u ())) in
-  let local_ t431_A : t431 = (A (create_string (), create_string (), create_float32_u ())) in
+  let local_ t431_A : t431 = (A { float32_u0 = create_float32_u () }) in
   let local_ t431_B : t431 = (B (create_float_u ())) in
   let local_ t431_C : t431 = (C (create_float_u ())) in
   let local_ t431_D : t431 = (D (create_float_u ())) in
-  let local_ t432_A : t432 = (A (create_float (), create_int32_u ())) in
-  let local_ t432_B : t432 = (B (create_string (), create_float_u ())) in
-  let local_ t433_A : t433 = (A (create_string (), create_int64_u ())) in
+  let local_ t432_A : t432 = (A (create_string (), create_string (), create_float_u ())) in
+  let local_ t432_B : t432 = (B { float_u0 = create_float_u () }) in
+  let local_ t433_A : t433 = (A { float0 = create_float (); float_u1 = create_float_u () }) in
   let local_ t433_B : t433 = (B (create_float_u ())) in
   let local_ t433_C : t433 = (C (create_float_u ())) in
-  let local_ t434_A : t434 = (A (create_nativeint_u ())) in
+  let local_ t434_A : t434 = (A (create_float (), create_float32_u ())) in
   let local_ t434_B : t434 = (B (create_float_u ())) in
-  let local_ t435_A : t435 = (A (create_int (), create_string (), create_float_u ())) in
+  let local_ t435_A : t435 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t436_A : t436 = (A (create_float_u ())) in
   let local_ t436_B : t436 = (B (create_float_u ())) in
-  let local_ t436_C : t436 = (C (create_string (), create_float_u ())) in
+  let local_ t436_C : t436 = (C { float_u0 = create_float_u () }) in
   let local_ t436_D : t436 = (D (create_float_u ())) in
-  let local_ t437_A : t437 = (A (create_string (), create_float_u ())) in
-  let local_ t437_B : t437 = (B (create_string (), create_float32_u ())) in
-  let local_ t438_A : t438 = (A (create_float32_u ())) in
-  let local_ t438_B : t438 = (B (create_float (), create_float_u ())) in
+  let local_ t437_A : t437 = (A { float_u0 = create_float_u () }) in
+  let local_ t437_B : t437 = (B (create_float32_u ())) in
+  let local_ t438_A : t438 = (A (create_string (), create_float_u ())) in
+  let local_ t438_B : t438 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t438_C : t438 = (C (create_float_u ())) in
-  let local_ t439_A : t439 = (A (create_float (), create_float_u ())) in
-  let local_ t439_B : t439 = (B (create_float32_u ())) in
+  let local_ t439_A : t439 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t439_B : t439 = (B (create_string (), create_float_u ())) in
   let local_ t439_C : t439 = (C (create_float_u ())) in
   let local_ t439_D : t439 = (D (create_float_u ())) in
-  let local_ t440_A : t440 = (A (create_string (), create_float32_u ())) in
-  let local_ t440_B : t440 = (B (create_string (), create_float_u ())) in
-  let local_ t440_C : t440 = (C (create_string (), create_float_u ())) in
-  let local_ t441_A : t441 = (A (create_int32_u ())) in
+  let local_ t440_A : t440 = (A (create_float32_u ())) in
+  let local_ t440_B : t440 = (B { float_u0 = create_float_u () }) in
+  let local_ t440_C : t440 = (C { float_u0 = create_float_u () }) in
+  let local_ t441_A : t441 = (A { float_u0 = create_float_u () }) in
   let local_ t441_B : t441 = (B (create_float_u ())) in
   let local_ t441_C : t441 = (C (create_float_u ())) in
   let local_ t441_D : t441 = (D (create_float_u ())) in
   let local_ t441_E : t441 = (E (create_float_u ())) in
-  let local_ t442_A : t442 = (A (create_string (), create_string (), create_float_u ())) in
-  let local_ t442_B : t442 = (B (create_float (), create_float_u ())) in
-  let local_ t443_A : t443 = (A (create_float (), create_float32_u ())) in
-  let local_ t443_B : t443 = (B (create_float32_u ())) in
+  let local_ t442_A : t442 = (A (create_float (), create_float_u ())) in
+  let local_ t442_B : t442 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t443_A : t443 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t443_B : t443 = (B (create_string (), create_float_u ())) in
   let local_ t443_C : t443 = (C (create_float_u ())) in
-  let local_ t444_A : t444 = (A (create_string (), create_int32_u ())) in
-  let local_ t444_B : t444 = (B (create_string (), create_float_u ())) in
+  let local_ t444_A : t444 = (A (create_string (), create_float32_u ())) in
+  let local_ t444_B : t444 = (B { float_u0 = create_float_u () }) in
   let local_ t444_C : t444 = (C (create_float_u ())) in
   let local_ t444_D : t444 = (D (create_float_u ())) in
-  let local_ t445_A : t445 = (A (create_int64_u ())) in
+  let local_ t445_A : t445 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t445_B : t445 = (B (create_float_u ())) in
-  let local_ t445_C : t445 = (C (create_string (), create_float_u ())) in
-  let local_ t446_A : t446 = (A (create_float (), create_string (), create_float_u ())) in
-  let local_ t446_B : t446 = (B (create_float32_u ())) in
-  let local_ t447_A : t447 = (A (create_string (), create_string (), create_float32_u ())) in
-  let local_ t447_B : t447 = (B (create_string (), create_float_u ())) in
+  let local_ t445_C : t445 = (C { float_u0 = create_float_u () }) in
+  let local_ t446_A : t446 = (A (create_int32_u ())) in
+  let local_ t446_B : t446 = (B (create_string (), create_float_u ())) in
+  let local_ t447_A : t447 = (A { float32_u0 = create_float32_u () }) in
+  let local_ t447_B : t447 = (B { float_u0 = create_float_u () }) in
   let local_ t447_C : t447 = (C (create_float_u ())) in
-  let local_ t448_A : t448 = (A (create_float (), create_int32_u ())) in
+  let local_ t448_A : t448 = (A (create_string (), create_string (), create_float_u ())) in
   let local_ t448_B : t448 = (B (create_float_u ())) in
   let local_ t448_C : t448 = (C (create_float_u ())) in
   let local_ t448_D : t448 = (D (create_float_u ())) in
-  let local_ t449_A : t449 = (A (create_string (), create_int64_u ())) in
-  let local_ t449_B : t449 = (B (create_string (), create_float_u ())) in
-  let local_ t450_A : t450 = (A (create_nativeint_u ())) in
+  let local_ t449_A : t449 = (A { float0 = create_float (); float_u1 = create_float_u () }) in
+  let local_ t449_B : t449 = (B { float_u0 = create_float_u () }) in
+  let local_ t450_A : t450 = (A (create_float (), create_float32_u ())) in
   let local_ t450_B : t450 = (B (create_float_u ())) in
   let local_ t450_C : t450 = (C (create_float_u ())) in
-  let local_ t451_A : t451 = (A (create_int (), create_string (), create_float_u ())) in
+  let local_ t451_A : t451 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t451_B : t451 = (B (create_float_u ())) in
-  let local_ t452_A : t452 = (A (create_float (), create_string (), create_float32_u ())) in
+  let local_ t452_A : t452 = (A (create_string (), create_int32_u ())) in
   let local_ t453_A : t453 = (A (create_float_u ())) in
-  let local_ t453_B : t453 = (B (create_string (), create_float_u ())) in
+  let local_ t453_B : t453 = (B { float_u0 = create_float_u () }) in
   let local_ t453_C : t453 = (C (create_float_u ())) in
   let local_ t453_D : t453 = (D (create_float_u ())) in
   let local_ t453_E : t453 = (E (create_float_u ())) in
-  let local_ t454_A : t454 = (A (create_string (), create_float_u ())) in
+  let local_ t454_A : t454 = (A { float_u0 = create_float_u () }) in
   let local_ t454_B : t454 = (B (create_float_u ())) in
-  let local_ t454_C : t454 = (C (create_string (), create_float_u ())) in
+  let local_ t454_C : t454 = (C { float_u0 = create_float_u () }) in
   let local_ t454_D : t454 = (D (create_float_u ())) in
-  let local_ t455_A : t455 = (A (create_float32_u ())) in
-  let local_ t455_B : t455 = (B (create_string (), create_float32_u ())) in
-  let local_ t456_A : t456 = (A (create_float (), create_float_u ())) in
-  let local_ t456_B : t456 = (B (create_float (), create_float_u ())) in
+  let local_ t455_A : t455 = (A (create_string (), create_float_u ())) in
+  let local_ t455_B : t455 = (B (create_float32_u ())) in
+  let local_ t456_A : t456 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t456_B : t456 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t456_C : t456 = (C (create_float_u ())) in
-  let local_ t457_A : t457 = (A (create_string (), create_float32_u ())) in
-  let local_ t457_B : t457 = (B (create_float32_u ())) in
+  let local_ t457_A : t457 = (A (create_float32_u ())) in
+  let local_ t457_B : t457 = (B (create_string (), create_float_u ())) in
   let local_ t457_C : t457 = (C (create_float_u ())) in
   let local_ t457_D : t457 = (D (create_float_u ())) in
-  let local_ t458_A : t458 = (A (create_int32_u ())) in
-  let local_ t458_B : t458 = (B (create_string (), create_float_u ())) in
-  let local_ t458_C : t458 = (C (create_string (), create_float_u ())) in
-  let local_ t459_A : t459 = (A (create_string (), create_string (), create_float_u ())) in
+  let local_ t458_A : t458 = (A { float_u0 = create_float_u () }) in
+  let local_ t458_B : t458 = (B { float_u0 = create_float_u () }) in
+  let local_ t458_C : t458 = (C { float_u0 = create_float_u () }) in
+  let local_ t459_A : t459 = (A (create_float (), create_float_u ())) in
   let local_ t459_B : t459 = (B (create_float_u ())) in
   let local_ t459_C : t459 = (C (create_float_u ())) in
   let local_ t459_D : t459 = (D (create_float_u ())) in
   let local_ t459_E : t459 = (E (create_float_u ())) in
-  let local_ t460_A : t460 = (A (create_float (), create_float32_u ())) in
-  let local_ t460_B : t460 = (B (create_float (), create_float_u ())) in
-  let local_ t461_A : t461 = (A (create_string (), create_int32_u ())) in
-  let local_ t461_B : t461 = (B (create_float32_u ())) in
+  let local_ t460_A : t460 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t460_B : t460 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t461_A : t461 = (A (create_string (), create_float32_u ())) in
+  let local_ t461_B : t461 = (B (create_string (), create_float_u ())) in
   let local_ t461_C : t461 = (C (create_float_u ())) in
-  let local_ t462_A : t462 = (A (create_int64_u ())) in
-  let local_ t462_B : t462 = (B (create_string (), create_float_u ())) in
+  let local_ t462_A : t462 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t462_B : t462 = (B { float_u0 = create_float_u () }) in
   let local_ t462_C : t462 = (C (create_float_u ())) in
   let local_ t462_D : t462 = (D (create_float_u ())) in
-  let local_ t463_A : t463 = (A (create_float (), create_string (), create_float_u ())) in
+  let local_ t463_A : t463 = (A (create_int32_u ())) in
   let local_ t463_B : t463 = (B (create_float_u ())) in
-  let local_ t463_C : t463 = (C (create_string (), create_float_u ())) in
-  let local_ t464_A : t464 = (A (create_string (), create_string (), create_float32_u ())) in
-  let local_ t464_B : t464 = (B (create_float32_u ())) in
-  let local_ t465_A : t465 = (A (create_float (), create_int32_u ())) in
-  let local_ t465_B : t465 = (B (create_string (), create_float_u ())) in
+  let local_ t463_C : t463 = (C { float_u0 = create_float_u () }) in
+  let local_ t464_A : t464 = (A { float32_u0 = create_float32_u () }) in
+  let local_ t464_B : t464 = (B (create_string (), create_float_u ())) in
+  let local_ t465_A : t465 = (A (create_string (), create_string (), create_float_u ())) in
+  let local_ t465_B : t465 = (B { float_u0 = create_float_u () }) in
   let local_ t465_C : t465 = (C (create_float_u ())) in
-  let local_ t466_A : t466 = (A (create_string (), create_int64_u ())) in
+  let local_ t466_A : t466 = (A { float0 = create_float (); float_u1 = create_float_u () }) in
   let local_ t466_B : t466 = (B (create_float_u ())) in
   let local_ t466_C : t466 = (C (create_float_u ())) in
   let local_ t466_D : t466 = (D (create_float_u ())) in
-  let local_ t467_A : t467 = (A (create_nativeint_u ())) in
-  let local_ t467_B : t467 = (B (create_string (), create_float_u ())) in
-  let local_ t468_A : t468 = (A (create_int (), create_string (), create_float_u ())) in
+  let local_ t467_A : t467 = (A (create_float (), create_float32_u ())) in
+  let local_ t467_B : t467 = (B { float_u0 = create_float_u () }) in
+  let local_ t468_A : t468 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t468_B : t468 = (B (create_float_u ())) in
   let local_ t468_C : t468 = (C (create_float_u ())) in
-  let local_ t469_A : t469 = (A (create_float (), create_string (), create_float32_u ())) in
+  let local_ t469_A : t469 = (A (create_string (), create_int32_u ())) in
   let local_ t469_B : t469 = (B (create_float_u ())) in
-  let local_ t470_A : t470 = (A (create_string (), create_string (), create_int32_u ())) in
+  let local_ t470_A : t470 = (A { str0 = create_string (); float32_u1 = create_float32_u () }) in
   let local_ t471_A : t471 = (A (create_float_u ())) in
-  let local_ t471_B : t471 = (B (create_float32_u ())) in
-  let local_ t471_C : t471 = (C (create_string (), create_float_u ())) in
-  let local_ t472_A : t472 = (A (create_string (), create_float_u ())) in
-  let local_ t472_B : t472 = (B (create_string (), create_float_u ())) in
+  let local_ t471_B : t471 = (B (create_string (), create_float_u ())) in
+  let local_ t471_C : t471 = (C { float_u0 = create_float_u () }) in
+  let local_ t472_A : t472 = (A { float_u0 = create_float_u () }) in
+  let local_ t472_B : t472 = (B { float_u0 = create_float_u () }) in
   let local_ t472_C : t472 = (C (create_float_u ())) in
   let local_ t472_D : t472 = (D (create_float_u ())) in
   let local_ t472_E : t472 = (E (create_float_u ())) in
-  let local_ t473_A : t473 = (A (create_float32_u ())) in
+  let local_ t473_A : t473 = (A (create_string (), create_float_u ())) in
   let local_ t473_B : t473 = (B (create_float_u ())) in
-  let local_ t473_C : t473 = (C (create_string (), create_float_u ())) in
+  let local_ t473_C : t473 = (C { float_u0 = create_float_u () }) in
   let local_ t473_D : t473 = (D (create_float_u ())) in
-  let local_ t474_A : t474 = (A (create_float (), create_float_u ())) in
-  let local_ t474_B : t474 = (B (create_string (), create_float32_u ())) in
-  let local_ t475_A : t475 = (A (create_string (), create_float32_u ())) in
-  let local_ t475_B : t475 = (B (create_float (), create_float_u ())) in
+  let local_ t474_A : t474 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t474_B : t474 = (B (create_float32_u ())) in
+  let local_ t475_A : t475 = (A (create_float32_u ())) in
+  let local_ t475_B : t475 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t475_C : t475 = (C (create_float_u ())) in
-  let local_ t476_A : t476 = (A (create_int32_u ())) in
-  let local_ t476_B : t476 = (B (create_float32_u ())) in
+  let local_ t476_A : t476 = (A { float_u0 = create_float_u () }) in
+  let local_ t476_B : t476 = (B (create_string (), create_float_u ())) in
   let local_ t476_C : t476 = (C (create_float_u ())) in
   let local_ t476_D : t476 = (D (create_float_u ())) in
-  let local_ t477_A : t477 = (A (create_string (), create_string (), create_float_u ())) in
-  let local_ t477_B : t477 = (B (create_string (), create_float_u ())) in
-  let local_ t477_C : t477 = (C (create_string (), create_float_u ())) in
-  let local_ t478_A : t478 = (A (create_float (), create_float32_u ())) in
+  let local_ t477_A : t477 = (A (create_float (), create_float_u ())) in
+  let local_ t477_B : t477 = (B { float_u0 = create_float_u () }) in
+  let local_ t477_C : t477 = (C { float_u0 = create_float_u () }) in
+  let local_ t478_A : t478 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t478_B : t478 = (B (create_float_u ())) in
   let local_ t478_C : t478 = (C (create_float_u ())) in
   let local_ t478_D : t478 = (D (create_float_u ())) in
   let local_ t478_E : t478 = (E (create_float_u ())) in
-  let local_ t479_A : t479 = (A (create_string (), create_int32_u ())) in
-  let local_ t479_B : t479 = (B (create_float (), create_float_u ())) in
-  let local_ t480_A : t480 = (A (create_int64_u ())) in
-  let local_ t480_B : t480 = (B (create_float32_u ())) in
+  let local_ t479_A : t479 = (A (create_string (), create_float32_u ())) in
+  let local_ t479_B : t479 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t480_A : t480 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t480_B : t480 = (B (create_string (), create_float_u ())) in
   let local_ t480_C : t480 = (C (create_float_u ())) in
-  let local_ t481_A : t481 = (A (create_float (), create_string (), create_float_u ())) in
-  let local_ t481_B : t481 = (B (create_string (), create_float_u ())) in
+  let local_ t481_A : t481 = (A (create_int32_u ())) in
+  let local_ t481_B : t481 = (B { float_u0 = create_float_u () }) in
   let local_ t481_C : t481 = (C (create_float_u ())) in
   let local_ t481_D : t481 = (D (create_float_u ())) in
-  let local_ t482_A : t482 = (A (create_string (), create_string (), create_float32_u ())) in
+  let local_ t482_A : t482 = (A { float32_u0 = create_float32_u () }) in
   let local_ t482_B : t482 = (B (create_float_u ())) in
-  let local_ t482_C : t482 = (C (create_string (), create_float_u ())) in
-  let local_ t483_A : t483 = (A (create_float (), create_int32_u ())) in
-  let local_ t483_B : t483 = (B (create_float32_u ())) in
-  let local_ t484_A : t484 = (A (create_string (), create_int64_u ())) in
-  let local_ t484_B : t484 = (B (create_string (), create_float_u ())) in
+  let local_ t482_C : t482 = (C { float_u0 = create_float_u () }) in
+  let local_ t483_A : t483 = (A (create_string (), create_string (), create_float_u ())) in
+  let local_ t483_B : t483 = (B (create_string (), create_float_u ())) in
+  let local_ t484_A : t484 = (A { float0 = create_float (); float_u1 = create_float_u () }) in
+  let local_ t484_B : t484 = (B { float_u0 = create_float_u () }) in
   let local_ t484_C : t484 = (C (create_float_u ())) in
-  let local_ t485_A : t485 = (A (create_nativeint_u ())) in
+  let local_ t485_A : t485 = (A (create_float (), create_float32_u ())) in
   let local_ t485_B : t485 = (B (create_float_u ())) in
   let local_ t485_C : t485 = (C (create_float_u ())) in
   let local_ t485_D : t485 = (D (create_float_u ())) in
-  let local_ t486_A : t486 = (A (create_int (), create_string (), create_float_u ())) in
-  let local_ t486_B : t486 = (B (create_string (), create_float_u ())) in
-  let local_ t487_A : t487 = (A (create_float (), create_string (), create_float32_u ())) in
+  let local_ t486_A : t486 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t486_B : t486 = (B { float_u0 = create_float_u () }) in
+  let local_ t487_A : t487 = (A (create_string (), create_int32_u ())) in
   let local_ t487_B : t487 = (B (create_float_u ())) in
   let local_ t487_C : t487 = (C (create_float_u ())) in
-  let local_ t488_A : t488 = (A (create_string (), create_string (), create_int32_u ())) in
+  let local_ t488_A : t488 = (A { str0 = create_string (); float32_u1 = create_float32_u () }) in
   let local_ t488_B : t488 = (B (create_float_u ())) in
-  let local_ t489_A : t489 = (A (create_float (), create_int64_u ())) in
+  let local_ t489_A : t489 = (A (create_int64_u ())) in
   let local_ t490_A : t490 = (A (create_float_u ())) in
-  let local_ t490_B : t490 = (B (create_float (), create_float_u ())) in
+  let local_ t490_B : t490 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t490_C : t490 = (C (create_float_u ())) in
   let local_ t490_D : t490 = (D (create_float_u ())) in
-  let local_ t491_A : t491 = (A (create_string (), create_float_u ())) in
-  let local_ t491_B : t491 = (B (create_float32_u ())) in
-  let local_ t491_C : t491 = (C (create_string (), create_float_u ())) in
-  let local_ t492_A : t492 = (A (create_float32_u ())) in
-  let local_ t492_B : t492 = (B (create_string (), create_float_u ())) in
+  let local_ t491_A : t491 = (A { float_u0 = create_float_u () }) in
+  let local_ t491_B : t491 = (B (create_string (), create_float_u ())) in
+  let local_ t491_C : t491 = (C { float_u0 = create_float_u () }) in
+  let local_ t492_A : t492 = (A (create_string (), create_float_u ())) in
+  let local_ t492_B : t492 = (B { float_u0 = create_float_u () }) in
   let local_ t492_C : t492 = (C (create_float_u ())) in
   let local_ t492_D : t492 = (D (create_float_u ())) in
   let local_ t492_E : t492 = (E (create_float_u ())) in
-  let local_ t493_A : t493 = (A (create_float (), create_float_u ())) in
+  let local_ t493_A : t493 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t493_B : t493 = (B (create_float_u ())) in
-  let local_ t493_C : t493 = (C (create_string (), create_float_u ())) in
+  let local_ t493_C : t493 = (C { float_u0 = create_float_u () }) in
   let local_ t493_D : t493 = (D (create_float_u ())) in
-  let local_ t494_A : t494 = (A (create_string (), create_float32_u ())) in
-  let local_ t494_B : t494 = (B (create_string (), create_float32_u ())) in
-  let local_ t495_A : t495 = (A (create_int32_u ())) in
-  let local_ t495_B : t495 = (B (create_float (), create_float_u ())) in
+  let local_ t494_A : t494 = (A (create_float32_u ())) in
+  let local_ t494_B : t494 = (B (create_float32_u ())) in
+  let local_ t495_A : t495 = (A { float_u0 = create_float_u () }) in
+  let local_ t495_B : t495 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t495_C : t495 = (C (create_float_u ())) in
-  let local_ t496_A : t496 = (A (create_string (), create_string (), create_float_u ())) in
-  let local_ t496_B : t496 = (B (create_float32_u ())) in
+  let local_ t496_A : t496 = (A (create_float (), create_float_u ())) in
+  let local_ t496_B : t496 = (B (create_string (), create_float_u ())) in
   let local_ t496_C : t496 = (C (create_float_u ())) in
   let local_ t496_D : t496 = (D (create_float_u ())) in
-  let local_ t497_A : t497 = (A (create_float (), create_float32_u ())) in
-  let local_ t497_B : t497 = (B (create_string (), create_float_u ())) in
-  let local_ t497_C : t497 = (C (create_string (), create_float_u ())) in
-  let local_ t498_A : t498 = (A (create_string (), create_int32_u ())) in
+  let local_ t497_A : t497 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t497_B : t497 = (B { float_u0 = create_float_u () }) in
+  let local_ t497_C : t497 = (C { float_u0 = create_float_u () }) in
+  let local_ t498_A : t498 = (A (create_string (), create_float32_u ())) in
   let local_ t498_B : t498 = (B (create_float_u ())) in
   let local_ t498_C : t498 = (C (create_float_u ())) in
   let local_ t498_D : t498 = (D (create_float_u ())) in
   let local_ t498_E : t498 = (E (create_float_u ())) in
-  let local_ t499_A : t499 = (A (create_int64_u ())) in
-  let local_ t499_B : t499 = (B (create_float (), create_float_u ())) in
-  let local_ t500_A : t500 = (A (create_float (), create_string (), create_float_u ())) in
-  let local_ t500_B : t500 = (B (create_float32_u ())) in
+  let local_ t499_A : t499 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t499_B : t499 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t500_A : t500 = (A (create_int32_u ())) in
+  let local_ t500_B : t500 = (B (create_string (), create_float_u ())) in
   let local_ t500_C : t500 = (C (create_float_u ())) in
-  let local_ t501_A : t501 = (A (create_string (), create_string (), create_float32_u ())) in
-  let local_ t501_B : t501 = (B (create_string (), create_float_u ())) in
+  let local_ t501_A : t501 = (A { float32_u0 = create_float32_u () }) in
+  let local_ t501_B : t501 = (B { float_u0 = create_float_u () }) in
   let local_ t501_C : t501 = (C (create_float_u ())) in
   let local_ t501_D : t501 = (D (create_float_u ())) in
-  let local_ t502_A : t502 = (A (create_float (), create_int32_u ())) in
+  let local_ t502_A : t502 = (A (create_string (), create_string (), create_float_u ())) in
   let local_ t502_B : t502 = (B (create_float_u ())) in
-  let local_ t502_C : t502 = (C (create_string (), create_float_u ())) in
-  let local_ t503_A : t503 = (A (create_string (), create_int64_u ())) in
-  let local_ t503_B : t503 = (B (create_float32_u ())) in
-  let local_ t504_A : t504 = (A (create_nativeint_u ())) in
-  let local_ t504_B : t504 = (B (create_string (), create_float_u ())) in
+  let local_ t502_C : t502 = (C { float_u0 = create_float_u () }) in
+  let local_ t503_A : t503 = (A { float0 = create_float (); float_u1 = create_float_u () }) in
+  let local_ t503_B : t503 = (B (create_string (), create_float_u ())) in
+  let local_ t504_A : t504 = (A (create_float (), create_float32_u ())) in
+  let local_ t504_B : t504 = (B { float_u0 = create_float_u () }) in
   let local_ t504_C : t504 = (C (create_float_u ())) in
-  let local_ t505_A : t505 = (A (create_int (), create_string (), create_float_u ())) in
+  let local_ t505_A : t505 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t505_B : t505 = (B (create_float_u ())) in
   let local_ t505_C : t505 = (C (create_float_u ())) in
   let local_ t505_D : t505 = (D (create_float_u ())) in
-  let local_ t506_A : t506 = (A (create_float (), create_string (), create_float32_u ())) in
-  let local_ t506_B : t506 = (B (create_string (), create_float_u ())) in
-  let local_ t507_A : t507 = (A (create_string (), create_string (), create_int32_u ())) in
+  let local_ t506_A : t506 = (A (create_string (), create_int32_u ())) in
+  let local_ t506_B : t506 = (B { float_u0 = create_float_u () }) in
+  let local_ t507_A : t507 = (A { str0 = create_string (); float32_u1 = create_float32_u () }) in
   let local_ t507_B : t507 = (B (create_float_u ())) in
   let local_ t507_C : t507 = (C (create_float_u ())) in
-  let local_ t508_A : t508 = (A (create_float (), create_int64_u ())) in
+  let local_ t508_A : t508 = (A (create_int64_u ())) in
   let local_ t508_B : t508 = (B (create_float_u ())) in
-  let local_ t509_A : t509 = (A (create_string (), create_nativeint_u ())) in
+  let local_ t509_A : t509 = (A { float32_u0 = create_float32_u () }) in
   let local_ t510_A : t510 = (A (create_float_u ())) in
-  let local_ t510_B : t510 = (B (create_string (), create_float32_u ())) in
+  let local_ t510_B : t510 = (B (create_float32_u ())) in
   let local_ t510_C : t510 = (C (create_float_u ())) in
-  let local_ t511_A : t511 = (A (create_string (), create_float_u ())) in
-  let local_ t511_B : t511 = (B (create_float (), create_float_u ())) in
+  let local_ t511_A : t511 = (A { float_u0 = create_float_u () }) in
+  let local_ t511_B : t511 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t511_C : t511 = (C (create_float_u ())) in
   let local_ t511_D : t511 = (D (create_float_u ())) in
-  let local_ t512_A : t512 = (A (create_float32_u ())) in
-  let local_ t512_B : t512 = (B (create_float32_u ())) in
-  let local_ t512_C : t512 = (C (create_string (), create_float_u ())) in
-  let local_ t513_A : t513 = (A (create_float (), create_float_u ())) in
-  let local_ t513_B : t513 = (B (create_string (), create_float_u ())) in
+  let local_ t512_A : t512 = (A (create_string (), create_float_u ())) in
+  let local_ t512_B : t512 = (B (create_string (), create_float_u ())) in
+  let local_ t512_C : t512 = (C { float_u0 = create_float_u () }) in
+  let local_ t513_A : t513 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t513_B : t513 = (B { float_u0 = create_float_u () }) in
   let local_ t513_C : t513 = (C (create_float_u ())) in
   let local_ t513_D : t513 = (D (create_float_u ())) in
   let local_ t513_E : t513 = (E (create_float_u ())) in
-  let local_ t514_A : t514 = (A (create_string (), create_float32_u ())) in
+  let local_ t514_A : t514 = (A (create_float32_u ())) in
   let local_ t514_B : t514 = (B (create_float_u ())) in
-  let local_ t514_C : t514 = (C (create_string (), create_float_u ())) in
+  let local_ t514_C : t514 = (C { float_u0 = create_float_u () }) in
   let local_ t514_D : t514 = (D (create_float_u ())) in
-  let local_ t515_A : t515 = (A (create_int32_u ())) in
-  let local_ t515_B : t515 = (B (create_string (), create_float32_u ())) in
-  let local_ t516_A : t516 = (A (create_string (), create_string (), create_float_u ())) in
-  let local_ t516_B : t516 = (B (create_float (), create_float_u ())) in
+  let local_ t515_A : t515 = (A { float_u0 = create_float_u () }) in
+  let local_ t515_B : t515 = (B (create_float32_u ())) in
+  let local_ t516_A : t516 = (A (create_float (), create_float_u ())) in
+  let local_ t516_B : t516 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t516_C : t516 = (C (create_float_u ())) in
-  let local_ t517_A : t517 = (A (create_float (), create_float32_u ())) in
-  let local_ t517_B : t517 = (B (create_float32_u ())) in
+  let local_ t517_A : t517 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t517_B : t517 = (B (create_string (), create_float_u ())) in
   let local_ t517_C : t517 = (C (create_float_u ())) in
   let local_ t517_D : t517 = (D (create_float_u ())) in
-  let local_ t518_A : t518 = (A (create_string (), create_int32_u ())) in
-  let local_ t518_B : t518 = (B (create_string (), create_float_u ())) in
-  let local_ t518_C : t518 = (C (create_string (), create_float_u ())) in
-  let local_ t519_A : t519 = (A (create_int64_u ())) in
+  let local_ t518_A : t518 = (A (create_string (), create_float32_u ())) in
+  let local_ t518_B : t518 = (B { float_u0 = create_float_u () }) in
+  let local_ t518_C : t518 = (C { float_u0 = create_float_u () }) in
+  let local_ t519_A : t519 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t519_B : t519 = (B (create_float_u ())) in
   let local_ t519_C : t519 = (C (create_float_u ())) in
   let local_ t519_D : t519 = (D (create_float_u ())) in
   let local_ t519_E : t519 = (E (create_float_u ())) in
-  let local_ t520_A : t520 = (A (create_float (), create_string (), create_float_u ())) in
-  let local_ t520_B : t520 = (B (create_float (), create_float_u ())) in
-  let local_ t521_A : t521 = (A (create_string (), create_string (), create_float32_u ())) in
-  let local_ t521_B : t521 = (B (create_float32_u ())) in
+  let local_ t520_A : t520 = (A (create_int32_u ())) in
+  let local_ t520_B : t520 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t521_A : t521 = (A { float32_u0 = create_float32_u () }) in
+  let local_ t521_B : t521 = (B (create_string (), create_float_u ())) in
   let local_ t521_C : t521 = (C (create_float_u ())) in
-  let local_ t522_A : t522 = (A (create_float (), create_int32_u ())) in
-  let local_ t522_B : t522 = (B (create_string (), create_float_u ())) in
+  let local_ t522_A : t522 = (A (create_string (), create_string (), create_float_u ())) in
+  let local_ t522_B : t522 = (B { float_u0 = create_float_u () }) in
   let local_ t522_C : t522 = (C (create_float_u ())) in
   let local_ t522_D : t522 = (D (create_float_u ())) in
-  let local_ t523_A : t523 = (A (create_string (), create_int64_u ())) in
+  let local_ t523_A : t523 = (A { float0 = create_float (); float_u1 = create_float_u () }) in
   let local_ t523_B : t523 = (B (create_float_u ())) in
-  let local_ t523_C : t523 = (C (create_string (), create_float_u ())) in
-  let local_ t524_A : t524 = (A (create_nativeint_u ())) in
-  let local_ t524_B : t524 = (B (create_float32_u ())) in
-  let local_ t525_A : t525 = (A (create_int (), create_string (), create_float_u ())) in
-  let local_ t525_B : t525 = (B (create_string (), create_float_u ())) in
+  let local_ t523_C : t523 = (C { float_u0 = create_float_u () }) in
+  let local_ t524_A : t524 = (A (create_float (), create_float32_u ())) in
+  let local_ t524_B : t524 = (B (create_string (), create_float_u ())) in
+  let local_ t525_A : t525 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t525_B : t525 = (B { float_u0 = create_float_u () }) in
   let local_ t525_C : t525 = (C (create_float_u ())) in
-  let local_ t526_A : t526 = (A (create_float (), create_string (), create_float32_u ())) in
+  let local_ t526_A : t526 = (A (create_string (), create_int32_u ())) in
   let local_ t526_B : t526 = (B (create_float_u ())) in
   let local_ t526_C : t526 = (C (create_float_u ())) in
   let local_ t526_D : t526 = (D (create_float_u ())) in
-  let local_ t527_A : t527 = (A (create_string (), create_string (), create_int32_u ())) in
-  let local_ t527_B : t527 = (B (create_string (), create_float_u ())) in
-  let local_ t528_A : t528 = (A (create_float (), create_int64_u ())) in
+  let local_ t527_A : t527 = (A { str0 = create_string (); float32_u1 = create_float32_u () }) in
+  let local_ t527_B : t527 = (B { float_u0 = create_float_u () }) in
+  let local_ t528_A : t528 = (A (create_int64_u ())) in
   let local_ t528_B : t528 = (B (create_float_u ())) in
   let local_ t528_C : t528 = (C (create_float_u ())) in
-  let local_ t529_A : t529 = (A (create_string (), create_nativeint_u ())) in
+  let local_ t529_A : t529 = (A { float32_u0 = create_float32_u () }) in
   let local_ t529_B : t529 = (B (create_float_u ())) in
-  let local_ t530_A : t530 = (A (create_float_u (), create_int ())) in
+  let local_ t530_A : t530 = (A (create_float (), create_string (), create_float_u ())) in
   let local_ t531_A : t531 = (A (create_float_u ())) in
-  let local_ t531_B : t531 = (B (create_int32_u ())) in
-  let local_ t532_A : t532 = (A (create_string (), create_float_u ())) in
-  let local_ t532_B : t532 = (B (create_string (), create_float32_u ())) in
+  let local_ t531_B : t531 = (B { float_u0 = create_float_u () }) in
+  let local_ t532_A : t532 = (A { float_u0 = create_float_u () }) in
+  let local_ t532_B : t532 = (B (create_float32_u ())) in
   let local_ t532_C : t532 = (C (create_float_u ())) in
-  let local_ t533_A : t533 = (A (create_float32_u ())) in
-  let local_ t533_B : t533 = (B (create_float (), create_float_u ())) in
+  let local_ t533_A : t533 = (A (create_string (), create_float_u ())) in
+  let local_ t533_B : t533 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t533_C : t533 = (C (create_float_u ())) in
   let local_ t533_D : t533 = (D (create_float_u ())) in
-  let local_ t534_A : t534 = (A (create_float (), create_float_u ())) in
-  let local_ t534_B : t534 = (B (create_float32_u ())) in
-  let local_ t534_C : t534 = (C (create_string (), create_float_u ())) in
-  let local_ t535_A : t535 = (A (create_string (), create_float32_u ())) in
-  let local_ t535_B : t535 = (B (create_string (), create_float_u ())) in
+  let local_ t534_A : t534 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t534_B : t534 = (B (create_string (), create_float_u ())) in
+  let local_ t534_C : t534 = (C { float_u0 = create_float_u () }) in
+  let local_ t535_A : t535 = (A (create_float32_u ())) in
+  let local_ t535_B : t535 = (B { float_u0 = create_float_u () }) in
   let local_ t535_C : t535 = (C (create_float_u ())) in
   let local_ t535_D : t535 = (D (create_float_u ())) in
   let local_ t535_E : t535 = (E (create_float_u ())) in
-  let local_ t536_A : t536 = (A (create_int32_u ())) in
+  let local_ t536_A : t536 = (A { float_u0 = create_float_u () }) in
   let local_ t536_B : t536 = (B (create_float_u ())) in
-  let local_ t536_C : t536 = (C (create_string (), create_float_u ())) in
+  let local_ t536_C : t536 = (C { float_u0 = create_float_u () }) in
   let local_ t536_D : t536 = (D (create_float_u ())) in
-  let local_ t537_A : t537 = (A (create_string (), create_string (), create_float_u ())) in
-  let local_ t537_B : t537 = (B (create_string (), create_float32_u ())) in
-  let local_ t538_A : t538 = (A (create_float (), create_float32_u ())) in
-  let local_ t538_B : t538 = (B (create_float (), create_float_u ())) in
+  let local_ t537_A : t537 = (A (create_float (), create_float_u ())) in
+  let local_ t537_B : t537 = (B (create_float32_u ())) in
+  let local_ t538_A : t538 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t538_B : t538 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t538_C : t538 = (C (create_float_u ())) in
-  let local_ t539_A : t539 = (A (create_string (), create_int32_u ())) in
-  let local_ t539_B : t539 = (B (create_float32_u ())) in
+  let local_ t539_A : t539 = (A (create_string (), create_float32_u ())) in
+  let local_ t539_B : t539 = (B (create_string (), create_float_u ())) in
   let local_ t539_C : t539 = (C (create_float_u ())) in
   let local_ t539_D : t539 = (D (create_float_u ())) in
-  let local_ t540_A : t540 = (A (create_int64_u ())) in
-  let local_ t540_B : t540 = (B (create_string (), create_float_u ())) in
-  let local_ t540_C : t540 = (C (create_string (), create_float_u ())) in
-  let local_ t541_A : t541 = (A (create_float (), create_string (), create_float_u ())) in
+  let local_ t540_A : t540 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t540_B : t540 = (B { float_u0 = create_float_u () }) in
+  let local_ t540_C : t540 = (C { float_u0 = create_float_u () }) in
+  let local_ t541_A : t541 = (A (create_int32_u ())) in
   let local_ t541_B : t541 = (B (create_float_u ())) in
   let local_ t541_C : t541 = (C (create_float_u ())) in
   let local_ t541_D : t541 = (D (create_float_u ())) in
   let local_ t541_E : t541 = (E (create_float_u ())) in
-  let local_ t542_A : t542 = (A (create_string (), create_string (), create_float32_u ())) in
-  let local_ t542_B : t542 = (B (create_float (), create_float_u ())) in
-  let local_ t543_A : t543 = (A (create_float (), create_int32_u ())) in
-  let local_ t543_B : t543 = (B (create_float32_u ())) in
+  let local_ t542_A : t542 = (A { float32_u0 = create_float32_u () }) in
+  let local_ t542_B : t542 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t543_A : t543 = (A (create_string (), create_string (), create_float_u ())) in
+  let local_ t543_B : t543 = (B (create_string (), create_float_u ())) in
   let local_ t543_C : t543 = (C (create_float_u ())) in
-  let local_ t544_A : t544 = (A (create_string (), create_int64_u ())) in
-  let local_ t544_B : t544 = (B (create_string (), create_float_u ())) in
+  let local_ t544_A : t544 = (A { float0 = create_float (); float_u1 = create_float_u () }) in
+  let local_ t544_B : t544 = (B { float_u0 = create_float_u () }) in
   let local_ t544_C : t544 = (C (create_float_u ())) in
   let local_ t544_D : t544 = (D (create_float_u ())) in
-  let local_ t545_A : t545 = (A (create_nativeint_u ())) in
+  let local_ t545_A : t545 = (A (create_float (), create_float32_u ())) in
   let local_ t545_B : t545 = (B (create_float_u ())) in
-  let local_ t545_C : t545 = (C (create_string (), create_float_u ())) in
-  let local_ t546_A : t546 = (A (create_int (), create_string (), create_float_u ())) in
-  let local_ t546_B : t546 = (B (create_float32_u ())) in
-  let local_ t547_A : t547 = (A (create_float (), create_string (), create_float32_u ())) in
-  let local_ t547_B : t547 = (B (create_string (), create_float_u ())) in
+  let local_ t545_C : t545 = (C { float_u0 = create_float_u () }) in
+  let local_ t546_A : t546 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t546_B : t546 = (B (create_string (), create_float_u ())) in
+  let local_ t547_A : t547 = (A (create_string (), create_int32_u ())) in
+  let local_ t547_B : t547 = (B { float_u0 = create_float_u () }) in
   let local_ t547_C : t547 = (C (create_float_u ())) in
-  let local_ t548_A : t548 = (A (create_string (), create_string (), create_int32_u ())) in
+  let local_ t548_A : t548 = (A { str0 = create_string (); float32_u1 = create_float32_u () }) in
   let local_ t548_B : t548 = (B (create_float_u ())) in
   let local_ t548_C : t548 = (C (create_float_u ())) in
   let local_ t548_D : t548 = (D (create_float_u ())) in
-  let local_ t549_A : t549 = (A (create_float (), create_int64_u ())) in
-  let local_ t549_B : t549 = (B (create_string (), create_float_u ())) in
-  let local_ t550_A : t550 = (A (create_string (), create_nativeint_u ())) in
+  let local_ t549_A : t549 = (A (create_int64_u ())) in
+  let local_ t549_B : t549 = (B { float_u0 = create_float_u () }) in
+  let local_ t550_A : t550 = (A { float32_u0 = create_float32_u () }) in
   let local_ t550_B : t550 = (B (create_float_u ())) in
   let local_ t550_C : t550 = (C (create_float_u ())) in
-  let local_ t551_A : t551 = (A (create_float_u (), create_int ())) in
+  let local_ t551_A : t551 = (A (create_float (), create_string (), create_float_u ())) in
   let local_ t551_B : t551 = (B (create_float_u ())) in
-  let local_ t552_A : t552 = (A (create_string (), create_float (), create_float_u ())) in
+  let local_ t552_A : t552 = (A { float0 = create_float (); float_u1 = create_float_u () }) in
   let local_ t553_A : t553 = (A (create_float_u ())) in
   let local_ t553_B : t553 = (B (create_float_u ())) in
-  let local_ t553_C : t553 = (C (create_float32_u ())) in
-  let local_ t554_A : t554 = (A (create_string (), create_float_u ())) in
-  let local_ t554_B : t554 = (B (create_int32_u ())) in
-  let local_ t555_A : t555 = (A (create_float32_u ())) in
-  let local_ t555_B : t555 = (B (create_string (), create_float32_u ())) in
+  let local_ t553_C : t553 = (C (create_string (), create_float_u ())) in
+  let local_ t554_A : t554 = (A { float_u0 = create_float_u () }) in
+  let local_ t554_B : t554 = (B { float_u0 = create_float_u () }) in
+  let local_ t555_A : t555 = (A (create_string (), create_float_u ())) in
+  let local_ t555_B : t555 = (B (create_float32_u ())) in
   let local_ t555_C : t555 = (C (create_float_u ())) in
-  let local_ t556_A : t556 = (A (create_float (), create_float_u ())) in
-  let local_ t556_B : t556 = (B (create_float (), create_float_u ())) in
+  let local_ t556_A : t556 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t556_B : t556 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t556_C : t556 = (C (create_float_u ())) in
   let local_ t556_D : t556 = (D (create_float_u ())) in
-  let local_ t557_A : t557 = (A (create_string (), create_float32_u ())) in
-  let local_ t557_B : t557 = (B (create_float32_u ())) in
-  let local_ t557_C : t557 = (C (create_string (), create_float_u ())) in
-  let local_ t558_A : t558 = (A (create_int32_u ())) in
-  let local_ t558_B : t558 = (B (create_string (), create_float_u ())) in
+  let local_ t557_A : t557 = (A (create_float32_u ())) in
+  let local_ t557_B : t557 = (B (create_string (), create_float_u ())) in
+  let local_ t557_C : t557 = (C { float_u0 = create_float_u () }) in
+  let local_ t558_A : t558 = (A { float_u0 = create_float_u () }) in
+  let local_ t558_B : t558 = (B { float_u0 = create_float_u () }) in
   let local_ t558_C : t558 = (C (create_float_u ())) in
   let local_ t558_D : t558 = (D (create_float_u ())) in
   let local_ t558_E : t558 = (E (create_float_u ())) in
-  let local_ t559_A : t559 = (A (create_string (), create_string (), create_float_u ())) in
+  let local_ t559_A : t559 = (A (create_float (), create_float_u ())) in
   let local_ t559_B : t559 = (B (create_float_u ())) in
-  let local_ t559_C : t559 = (C (create_string (), create_float_u ())) in
+  let local_ t559_C : t559 = (C { float_u0 = create_float_u () }) in
   let local_ t559_D : t559 = (D (create_float_u ())) in
-  let local_ t560_A : t560 = (A (create_float (), create_float32_u ())) in
-  let local_ t560_B : t560 = (B (create_string (), create_float32_u ())) in
-  let local_ t561_A : t561 = (A (create_string (), create_int32_u ())) in
-  let local_ t561_B : t561 = (B (create_float (), create_float_u ())) in
+  let local_ t560_A : t560 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t560_B : t560 = (B (create_float32_u ())) in
+  let local_ t561_A : t561 = (A (create_string (), create_float32_u ())) in
+  let local_ t561_B : t561 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t561_C : t561 = (C (create_float_u ())) in
-  let local_ t562_A : t562 = (A (create_int64_u ())) in
-  let local_ t562_B : t562 = (B (create_float32_u ())) in
+  let local_ t562_A : t562 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t562_B : t562 = (B (create_string (), create_float_u ())) in
   let local_ t562_C : t562 = (C (create_float_u ())) in
   let local_ t562_D : t562 = (D (create_float_u ())) in
-  let local_ t563_A : t563 = (A (create_float (), create_string (), create_float_u ())) in
-  let local_ t563_B : t563 = (B (create_string (), create_float_u ())) in
-  let local_ t563_C : t563 = (C (create_string (), create_float_u ())) in
-  let local_ t564_A : t564 = (A (create_string (), create_string (), create_float32_u ())) in
+  let local_ t563_A : t563 = (A (create_int32_u ())) in
+  let local_ t563_B : t563 = (B { float_u0 = create_float_u () }) in
+  let local_ t563_C : t563 = (C { float_u0 = create_float_u () }) in
+  let local_ t564_A : t564 = (A { float32_u0 = create_float32_u () }) in
   let local_ t564_B : t564 = (B (create_float_u ())) in
   let local_ t564_C : t564 = (C (create_float_u ())) in
   let local_ t564_D : t564 = (D (create_float_u ())) in
   let local_ t564_E : t564 = (E (create_float_u ())) in
-  let local_ t565_A : t565 = (A (create_float (), create_int32_u ())) in
-  let local_ t565_B : t565 = (B (create_float (), create_float_u ())) in
-  let local_ t566_A : t566 = (A (create_string (), create_int64_u ())) in
-  let local_ t566_B : t566 = (B (create_float32_u ())) in
+  let local_ t565_A : t565 = (A (create_string (), create_string (), create_float_u ())) in
+  let local_ t565_B : t565 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t566_A : t566 = (A { float0 = create_float (); float_u1 = create_float_u () }) in
+  let local_ t566_B : t566 = (B (create_string (), create_float_u ())) in
   let local_ t566_C : t566 = (C (create_float_u ())) in
-  let local_ t567_A : t567 = (A (create_nativeint_u ())) in
-  let local_ t567_B : t567 = (B (create_string (), create_float_u ())) in
+  let local_ t567_A : t567 = (A (create_float (), create_float32_u ())) in
+  let local_ t567_B : t567 = (B { float_u0 = create_float_u () }) in
   let local_ t567_C : t567 = (C (create_float_u ())) in
   let local_ t567_D : t567 = (D (create_float_u ())) in
-  let local_ t568_A : t568 = (A (create_int (), create_string (), create_float_u ())) in
+  let local_ t568_A : t568 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t568_B : t568 = (B (create_float_u ())) in
-  let local_ t568_C : t568 = (C (create_string (), create_float_u ())) in
-  let local_ t569_A : t569 = (A (create_float (), create_string (), create_float32_u ())) in
-  let local_ t569_B : t569 = (B (create_float32_u ())) in
-  let local_ t570_A : t570 = (A (create_string (), create_string (), create_int32_u ())) in
-  let local_ t570_B : t570 = (B (create_string (), create_float_u ())) in
+  let local_ t568_C : t568 = (C { float_u0 = create_float_u () }) in
+  let local_ t569_A : t569 = (A (create_string (), create_int32_u ())) in
+  let local_ t569_B : t569 = (B (create_string (), create_float_u ())) in
+  let local_ t570_A : t570 = (A { str0 = create_string (); float32_u1 = create_float32_u () }) in
+  let local_ t570_B : t570 = (B { float_u0 = create_float_u () }) in
   let local_ t570_C : t570 = (C (create_float_u ())) in
-  let local_ t571_A : t571 = (A (create_float (), create_int64_u ())) in
+  let local_ t571_A : t571 = (A (create_int64_u ())) in
   let local_ t571_B : t571 = (B (create_float_u ())) in
   let local_ t571_C : t571 = (C (create_float_u ())) in
   let local_ t571_D : t571 = (D (create_float_u ())) in
-  let local_ t572_A : t572 = (A (create_string (), create_nativeint_u ())) in
-  let local_ t572_B : t572 = (B (create_string (), create_float_u ())) in
-  let local_ t573_A : t573 = (A (create_float_u (), create_int ())) in
+  let local_ t572_A : t572 = (A { float32_u0 = create_float32_u () }) in
+  let local_ t572_B : t572 = (B { float_u0 = create_float_u () }) in
+  let local_ t573_A : t573 = (A (create_float (), create_string (), create_float_u ())) in
   let local_ t573_B : t573 = (B (create_float_u ())) in
   let local_ t573_C : t573 = (C (create_float_u ())) in
-  let local_ t574_A : t574 = (A (create_string (), create_float (), create_float_u ())) in
+  let local_ t574_A : t574 = (A { float0 = create_float (); float_u1 = create_float_u () }) in
   let local_ t574_B : t574 = (B (create_float_u ())) in
-  let local_ t575_A : t575 = (A (create_int (), create_string (), create_float32_u ())) in
+  let local_ t575_A : t575 = (A (create_string (), create_string (), create_float32_u ())) in
   let local_ t576_A : t576 = (A (create_float_u ())) in
-  let local_ t576_B : t576 = (B (create_string (), create_float_u ())) in
-  let local_ t576_C : t576 = (C (create_string (), create_float_u ())) in
+  let local_ t576_B : t576 = (B { float_u0 = create_float_u () }) in
+  let local_ t576_C : t576 = (C { float_u0 = create_float_u () }) in
   let local_ t576_D : t576 = (D (create_float_u ())) in
-  let local_ t577_A : t577 = (A (create_string (), create_float_u ())) in
+  let local_ t577_A : t577 = (A { float_u0 = create_float_u () }) in
   let local_ t577_B : t577 = (B (create_float_u ())) in
-  let local_ t577_C : t577 = (C (create_float32_u ())) in
-  let local_ t578_A : t578 = (A (create_float32_u ())) in
-  let local_ t578_B : t578 = (B (create_int32_u ())) in
-  let local_ t579_A : t579 = (A (create_float (), create_float_u ())) in
-  let local_ t579_B : t579 = (B (create_string (), create_float32_u ())) in
+  let local_ t577_C : t577 = (C (create_string (), create_float_u ())) in
+  let local_ t578_A : t578 = (A (create_string (), create_float_u ())) in
+  let local_ t578_B : t578 = (B { float_u0 = create_float_u () }) in
+  let local_ t579_A : t579 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t579_B : t579 = (B (create_float32_u ())) in
   let local_ t579_C : t579 = (C (create_float_u ())) in
-  let local_ t580_A : t580 = (A (create_string (), create_float32_u ())) in
-  let local_ t580_B : t580 = (B (create_float (), create_float_u ())) in
+  let local_ t580_A : t580 = (A (create_float32_u ())) in
+  let local_ t580_B : t580 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t580_C : t580 = (C (create_float_u ())) in
   let local_ t580_D : t580 = (D (create_float_u ())) in
-  let local_ t581_A : t581 = (A (create_int32_u ())) in
-  let local_ t581_B : t581 = (B (create_float32_u ())) in
-  let local_ t581_C : t581 = (C (create_string (), create_float_u ())) in
-  let local_ t582_A : t582 = (A (create_string (), create_string (), create_float_u ())) in
-  let local_ t582_B : t582 = (B (create_string (), create_float_u ())) in
+  let local_ t581_A : t581 = (A { float_u0 = create_float_u () }) in
+  let local_ t581_B : t581 = (B (create_string (), create_float_u ())) in
+  let local_ t581_C : t581 = (C { float_u0 = create_float_u () }) in
+  let local_ t582_A : t582 = (A (create_float (), create_float_u ())) in
+  let local_ t582_B : t582 = (B { float_u0 = create_float_u () }) in
   let local_ t582_C : t582 = (C (create_float_u ())) in
   let local_ t582_D : t582 = (D (create_float_u ())) in
   let local_ t582_E : t582 = (E (create_float_u ())) in
-  let local_ t583_A : t583 = (A (create_float (), create_float32_u ())) in
+  let local_ t583_A : t583 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t583_B : t583 = (B (create_float_u ())) in
-  let local_ t583_C : t583 = (C (create_string (), create_float_u ())) in
+  let local_ t583_C : t583 = (C { float_u0 = create_float_u () }) in
   let local_ t583_D : t583 = (D (create_float_u ())) in
-  let local_ t584_A : t584 = (A (create_string (), create_int32_u ())) in
-  let local_ t584_B : t584 = (B (create_string (), create_float32_u ())) in
-  let local_ t585_A : t585 = (A (create_int64_u ())) in
-  let local_ t585_B : t585 = (B (create_float (), create_float_u ())) in
+  let local_ t584_A : t584 = (A (create_string (), create_float32_u ())) in
+  let local_ t584_B : t584 = (B (create_float32_u ())) in
+  let local_ t585_A : t585 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t585_B : t585 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
   let local_ t585_C : t585 = (C (create_float_u ())) in
-  let local_ t586_A : t586 = (A (create_float (), create_string (), create_float_u ())) in
-  let local_ t586_B : t586 = (B (create_float32_u ())) in
+  let local_ t586_A : t586 = (A (create_int32_u ())) in
+  let local_ t586_B : t586 = (B (create_string (), create_float_u ())) in
   let local_ t586_C : t586 = (C (create_float_u ())) in
   let local_ t586_D : t586 = (D (create_float_u ())) in
-  let local_ t587_A : t587 = (A (create_string (), create_string (), create_float32_u ())) in
-  let local_ t587_B : t587 = (B (create_string (), create_float_u ())) in
-  let local_ t587_C : t587 = (C (create_string (), create_float_u ())) in
-  let local_ t588_A : t588 = (A (create_float (), create_int32_u ())) in
+  let local_ t587_A : t587 = (A { float32_u0 = create_float32_u () }) in
+  let local_ t587_B : t587 = (B { float_u0 = create_float_u () }) in
+  let local_ t587_C : t587 = (C { float_u0 = create_float_u () }) in
+  let local_ t588_A : t588 = (A (create_string (), create_string (), create_float_u ())) in
   let local_ t588_B : t588 = (B (create_float_u ())) in
   let local_ t588_C : t588 = (C (create_float_u ())) in
   let local_ t588_D : t588 = (D (create_float_u ())) in
   let local_ t588_E : t588 = (E (create_float_u ())) in
-  let local_ t589_A : t589 = (A (create_string (), create_int64_u ())) in
-  let local_ t589_B : t589 = (B (create_float (), create_float_u ())) in
-  let local_ t590_A : t590 = (A (create_nativeint_u ())) in
-  let local_ t590_B : t590 = (B (create_float32_u ())) in
+  let local_ t589_A : t589 = (A { float0 = create_float (); float_u1 = create_float_u () }) in
+  let local_ t589_B : t589 = (B { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t590_A : t590 = (A (create_float (), create_float32_u ())) in
+  let local_ t590_B : t590 = (B (create_string (), create_float_u ())) in
   let local_ t590_C : t590 = (C (create_float_u ())) in
-  let local_ t591_A : t591 = (A (create_int (), create_string (), create_float_u ())) in
-  let local_ t591_B : t591 = (B (create_string (), create_float_u ())) in
+  let local_ t591_A : t591 = (A { str0 = create_string (); float_u1 = create_float_u () }) in
+  let local_ t591_B : t591 = (B { float_u0 = create_float_u () }) in
   let local_ t591_C : t591 = (C (create_float_u ())) in
   let local_ t591_D : t591 = (D (create_float_u ())) in
-  let local_ t592_A : t592 = (A (create_float (), create_string (), create_float32_u ())) in
+  let local_ t592_A : t592 = (A (create_string (), create_int32_u ())) in
   let local_ t592_B : t592 = (B (create_float_u ())) in
-  let local_ t592_C : t592 = (C (create_string (), create_float_u ())) in
-  let local_ t593_A : t593 = (A (create_string (), create_string (), create_int32_u ())) in
-  let local_ t593_B : t593 = (B (create_float32_u ())) in
-  let local_ t594_A : t594 = (A (create_float (), create_int64_u ())) in
-  let local_ t594_B : t594 = (B (create_string (), create_float_u ())) in
+  let local_ t592_C : t592 = (C { float_u0 = create_float_u () }) in
+  let local_ t593_A : t593 = (A { str0 = create_string (); float32_u1 = create_float32_u () }) in
+  let local_ t593_B : t593 = (B (create_string (), create_float_u ())) in
+  let local_ t594_A : t594 = (A (create_int64_u ())) in
+  let local_ t594_B : t594 = (B { float_u0 = create_float_u () }) in
   let local_ t594_C : t594 = (C (create_float_u ())) in
-  let local_ t595_A : t595 = (A (create_string (), create_nativeint_u ())) in
+  let local_ t595_A : t595 = (A { float32_u0 = create_float32_u () }) in
   let local_ t595_B : t595 = (B (create_float_u ())) in
   let local_ t595_C : t595 = (C (create_float_u ())) in
   let local_ t595_D : t595 = (D (create_float_u ())) in
-  let local_ t596_A : t596 = (A (create_float_u (), create_int ())) in
-  let local_ t596_B : t596 = (B (create_string (), create_float_u ())) in
-  let local_ t597_A : t597 = (A (create_string (), create_float (), create_float_u ())) in
+  let local_ t596_A : t596 = (A (create_float (), create_string (), create_float_u ())) in
+  let local_ t596_B : t596 = (B { float_u0 = create_float_u () }) in
+  let local_ t597_A : t597 = (A { float0 = create_float (); float_u1 = create_float_u () }) in
   let local_ t597_B : t597 = (B (create_float_u ())) in
   let local_ t597_C : t597 = (C (create_float_u ())) in
-  let local_ t598_A : t598 = (A (create_int (), create_string (), create_float32_u ())) in
+  let local_ t598_A : t598 = (A (create_string (), create_string (), create_float32_u ())) in
   let local_ t598_B : t598 = (B (create_float_u ())) in
-  let local_ t599_A : t599 = (A (create_float (), create_string (), create_int32_u ())) in
+  let local_ t599_A : t599 = (A { float0 = create_float (); float_u1 = create_float_u () }) in
     let module _ = struct
     let () = print_endline " - Doing GC";;
     let () = Gc.full_major ();;
