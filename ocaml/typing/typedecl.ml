@@ -1623,7 +1623,7 @@ let update_decl_jkind env dpath decl =
       type_jkind
   in
 
-  (* Do not override the jkind if the manifest jkind if available. This is
+  (* Do not override the jkind if the manifest jkind is available. This is
      necessary to support types like ['a or_null], which have a non-standard
      jkind. [check_coherence] will update the jkind to match the manifest. *)
   let new_decl, new_jkind =
