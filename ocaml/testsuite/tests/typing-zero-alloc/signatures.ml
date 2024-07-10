@@ -1198,31 +1198,135 @@ Error: Signature mismatch:
    type of].  Regression test: the below used to hit an assert, as a result of
    not removing the vars in the signature of [S_plain] in the implementation of
    [N]. *)
-module type S = sig
-  module M : sig
+module type S1 = sig
+  module M1 : sig
     val f : int -> int
   end
 end
 
-module N : sig
+module N1 : sig
   module Plain : sig
     val f : int -> int
   end
 
-  module type S_plain = S with module M = Plain
+  module type S_plain1 = S1 with module M1 = Plain1
 end = struct
-  module Plain = struct
+  module Plain1 = struct
     let f x = x+1
   end
 
-  module type S_plain = S with module M = Plain
+  module type S_plain1 = S1 with module M1 = Plain1
 end
 [%%expect{|
-module type S = sig module M : sig val f : int -> int end end
-module N :
+module type S1 = sig module M1 : sig val f : int -> int end end
+Line 12, characters 25-51:
+12 |   module type S_plain1 = S1 with module M1 = Plain1
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Unbound module Plain1
+Hint: Did you mean Plain?
+|}]
+
+(* This revised version does not typecheck, because the signature on [S_plain2]
+   in the structure has no zero_alloc variable left to fill in. It would be nice
+   if it did, but that seems hard, and at least the error gives a useful Hint.
+*)
+module type S2 = sig
+  module M2 : sig
+    val f : int -> int
+  end
+end
+
+module N2 : sig
+  module Plain2 : sig
+    val[@zero_alloc] f : int -> int
+  end
+
+  module type S_plain2 = S2 with module M2 = Plain2
+end = struct
+  module Plain2 = struct
+    let f x = x+1
+  end
+
+  module type S_plain2 = S2 with module M2 = Plain2
+end
+[%%expect{|
+module type S2 = sig module M2 : sig val f : int -> int end end
+Lines 13-19, characters 6-3:
+13 | ......struct
+14 |   module Plain2 = struct
+15 |     let f x = x+1
+16 |   end
+17 |
+18 |   module type S_plain2 = S2 with module M2 = Plain2
+19 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           module Plain2 : sig val f : int -> int [@@zero_alloc] end
+           module type S_plain2 =
+             sig module M2 : sig val f : int -> int end end
+         end
+       is not included in
+         sig
+           module Plain2 : sig val f : int -> int [@@zero_alloc] end
+           module type S_plain2 =
+             sig module M2 : sig val f : int -> int [@@zero_alloc] end end
+         end
+       Module type declarations do not match:
+         module type S_plain2 =
+           sig module M2 : sig val f : int -> int end end
+       does not match
+         module type S_plain2 =
+           sig module M2 : sig val f : int -> int [@@zero_alloc] end end
+       The first module type is not included in the second
+       At position module type S_plain2 = <here>
+       Module types do not match:
+         sig module M2 : sig val f : int -> int end end
+       is not equal to
+         sig module M2 : sig val f : int -> int [@@zero_alloc] end end
+       At position module type S_plain2 = sig module M2 : <here> end
+       Modules do not match:
+         sig val f : int -> int end
+       is not included in
+         sig val f : int -> int [@@zero_alloc] end
+       At position module type S_plain2 = sig module M2 : <here> end
+       Values do not match:
+         val f : int -> int
+       is not included in
+         val f : int -> int [@@zero_alloc]
+       The former provides a weaker "zero_alloc" guarantee than the latter.
+       Hint: Add a "zero_alloc" attribute to the implementation.
+|}]
+
+(* But you can repair the previous example by specifying the zero_allocness
+   explicitly, so that when the `with module` constraint makes the variable into
+   a const, it has the right value. *)
+module type S3 = sig
+  module M3 : sig
+    val f : int -> int
+  end
+end
+
+module N3 : sig
+  module Plain3 : sig
+    val[@zero_alloc] f : int -> int
+  end
+
+  module type S_plain3 = S3 with module M3 = Plain3
+end = struct
+  module Plain3 = struct
+    let[@zero_alloc] f x = x+1
+  end
+
+  module type S_plain3 = S3 with module M3 = Plain3
+end
+[%%expect{|
+module type S3 = sig module M3 : sig val f : int -> int end end
+module N3 :
   sig
-    module Plain : sig val f : int -> int end
-    module type S_plain = sig module M : sig val f : int -> int end end
+    module Plain3 : sig val f : int -> int [@@zero_alloc] end
+    module type S_plain3 =
+      sig module M3 : sig val f : int -> int [@@zero_alloc] end end
   end
 |}]
 
