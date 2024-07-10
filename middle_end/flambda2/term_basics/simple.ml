@@ -209,9 +209,9 @@ module With_debuginfo = struct
 
   let free_names (simple, _dbg) = free_names simple
 
-  let apply_renaming ((simple, kind) as t) renaming =
+  let apply_renaming ((simple, dbg) as t) renaming =
     let simple' = apply_renaming simple renaming in
-    if simple == simple' then t else simple', kind
+    if simple == simple' then t else simple', dbg
 
   let ids_for_export (simple, _dbg) =
     Ids_for_export.add_simple Ids_for_export.empty simple
