@@ -70,7 +70,7 @@ let simplify_static_const_block_type ~tag ~fields ~shape
   | Immutable_unique ->
     T.immutable_block ~is_unique:true tag ~shape ~fields
       Alloc_mode.For_types.heap
-  | Mutable -> T.any_value
+  | Mutable -> T.mutable_block Alloc_mode.For_types.heap
 
 let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
     ~result_sym : Rebuilt_static_const.t * DA.t =
