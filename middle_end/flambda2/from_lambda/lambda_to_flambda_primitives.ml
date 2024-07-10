@@ -1939,6 +1939,20 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Patomic_fetch_add, [[atomic]; [i]] ->
     [Binary (Atomic_fetch_and_add, atomic, i)]
   | Pdls_get, _ -> [Nullary Dls_get]
+  | Preinterpret_unboxed_int64_as_tagged_int63, [[i]] ->
+    if not (Target_system.is_64_bit ())
+    then
+      Misc.fatal_error
+        "Preinterpret_unboxed_int64_as_tagged_int63 can only be used on 64-bit \
+         targets";
+    [Unary (Reinterpret_64_bit_word Unboxed_int64_as_tagged_int63, i)]
+  | Preinterpret_tagged_int63_as_unboxed_int64, [[i]] ->
+    if not (Target_system.is_64_bit ())
+    then
+      Misc.fatal_error
+        "Preinterpret_tagged_int63_as_unboxed_int64 can only be used on 64-bit \
+         targets";
+    [Unary (Reinterpret_64_bit_word Tagged_int63_as_unboxed_int64, i)]
   | ( ( Pmodint Unsafe
       | Pdivbint { is_safe = Unsafe; size = _; mode = _ }
       | Pmodbint { is_safe = Unsafe; size = _; mode = _ }
@@ -1967,7 +1981,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Punbox_float _
       | Pbox_float (_, _)
       | Punbox_int _ | Pbox_int _ | Punboxed_product_field _ | Pget_header _
-      | Pufloatfield _ | Patomic_load _ | Pmixedfield _ ),
+      | Pufloatfield _ | Patomic_load _ | Pmixedfield _
+      | Preinterpret_unboxed_int64_as_tagged_int63
+      | Preinterpret_tagged_int63_as_unboxed_int64 ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \

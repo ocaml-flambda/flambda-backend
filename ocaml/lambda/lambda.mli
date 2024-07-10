@@ -290,6 +290,17 @@ type primitive =
   | Pbox_float of boxed_float * alloc_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
+  | Preinterpret_unboxed_int64_as_tagged_int63
+  | Preinterpret_tagged_int63_as_unboxed_int64
+    (** At present [Preinterpret_unboxed_int64_as_tagged_int63] and
+        [Preinterpret_tagged_int63_as_unboxed_int64] will cause a fatal error
+        if the target system is 32-bit bytecode.
+
+        The [Preinterpret_tagged_int63_as_unboxed_int64] primitive is the
+        identity on machine words.  The
+        [Preinterpret_unboxed_int64_as_tagged_int63] compiles to logical OR
+        with 1 on machine words, to ensure that the tag bit is always set in
+        the result, just in case it was not in the incoming unboxed int64. *)
   (* Jane Street extensions *)
   | Parray_to_iarray (* Unsafely reinterpret a mutable array as an immutable
                         one; O(1) *)

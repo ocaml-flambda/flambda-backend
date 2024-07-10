@@ -313,6 +313,15 @@ type unary_float_arith_op =
   | Abs
   | Neg
 
+(** Reinterpretation operations for 64-bit words. *)
+module Reinterpret_64_bit_word : sig
+  type t =
+    | Tagged_int63_as_unboxed_int64
+    | Unboxed_int64_as_tagged_int63
+    | Unboxed_int64_as_unboxed_float64
+    | Unboxed_float64_as_unboxed_int64
+end
+
 (** Primitives taking exactly one argument. *)
 type unary_primitive =
   | Duplicate_block of { kind : Duplicate_block_kind.t }
@@ -355,10 +364,8 @@ type unary_primitive =
   (* CR gbury: add test for this as soon as we can write tests in flambda *)
   | Boolean_not
   (* CR-someday mshinwell: We should maybe change int32.ml and friends to use a
-     %-primitive instead of directly calling C stubs for conversions; then we
-     could have a single primitive here taking two
-     [Flambda_kind.Of_naked_number.t] arguments (one input, one output). *)
-  | Reinterpret_int64_as_float
+     %-primitive instead of directly calling C stubs for conversions *)
+  | Reinterpret_64_bit_word of Reinterpret_64_bit_word.t
   | Unbox_number of Flambda_kind.Boxable_number.t
   | Box_number of Flambda_kind.Boxable_number.t * Alloc_mode.For_allocations.t
   | Untag_immediate

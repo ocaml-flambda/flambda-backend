@@ -585,27 +585,20 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
   in
   let call args acc =
     (* Some C primitives have implementations within Flambda itself. *)
-    match prim_native_name with
-    | "caml_int64_float_of_bits_unboxed"
-    (* There is only one case where this operation is not the identity: on
-       32-bit pre-EABI ARM platforms. It is very unlikely anyone would still be
-       using one of those, but just in case, we only optimise this primitive on
-       64-bit systems. (There is no easy way here of detecting just the specific
-       ARM case in question.) *)
-      when match Targetint_32_64.num_bits with
-           | Thirty_two -> false
-           | Sixty_four -> true -> (
+    let[@inline] unboxed_int64_to_and_from_unboxed_float ~src_kind ~dst_kind ~op
+        =
       if prim_arity <> 1
       then Misc.fatal_errorf "Expected arity one for %s" prim_native_name
       else
         match prim_native_repr_args, prim_native_repr_res with
-        | [(_, Unboxed_integer Pint64)], (_, Unboxed_float Pfloat64) -> (
+        | [(_, src)], (_, dst)
+          when Stdlib.( = ) src src_kind && Stdlib.( = ) dst dst_kind -> (
           match args with
           | [arg] ->
-            let result = Variable.create "reinterpreted_int64" in
+            let result = Variable.create "reinterpreted" in
             let result' = Bound_var.create result Name_mode.normal in
             let bindable = Bound_pattern.singleton result' in
-            let prim = P.Unary (Reinterpret_int64_as_float, arg) in
+            let prim = P.Unary (Reinterpret_64_bit_word op, arg) in
             let acc, return_result =
               Apply_cont_with_acc.create acc return_continuation
                 ~args:[Simple.var result]
@@ -621,7 +614,15 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
             Misc.fatal_errorf "Expected one arg for %s" prim_native_name)
         | _, _ ->
           Misc.fatal_errorf "Wrong argument and/or result kind(s) for %s"
-            prim_native_name)
+            prim_native_name
+    in
+    match prim_native_name with
+    | "caml_int64_float_of_bits_unboxed" ->
+      unboxed_int64_to_and_from_unboxed_float ~src_kind:(Unboxed_integer Pint64)
+        ~dst_kind:(Unboxed_float Pfloat64) ~op:Unboxed_int64_as_unboxed_float64
+    | "caml_int64_bits_of_float_unboxed" ->
+      unboxed_int64_to_and_from_unboxed_float ~src_kind:(Unboxed_float Pfloat64)
+        ~dst_kind:(Unboxed_integer Pint64) ~op:Unboxed_float64_as_unboxed_int64
     | _ ->
       let callee = Simple.symbol call_symbol in
       let apply =
@@ -951,7 +952,9 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
       | Punboxed_product_field _ | Pget_header _ | Prunstack | Pperform
       | Presume | Preperform | Patomic_exchange | Patomic_cas
-      | Patomic_fetch_add | Pdls_get | Patomic_load _ ->
+      | Patomic_fetch_add | Pdls_get | Patomic_load _
+      | Preinterpret_tagged_int63_as_unboxed_int64
+      | Preinterpret_unboxed_int64_as_tagged_int63 ->
         (* Inconsistent with outer match *)
         assert false
     in
