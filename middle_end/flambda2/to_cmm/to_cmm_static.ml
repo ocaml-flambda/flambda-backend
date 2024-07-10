@@ -28,32 +28,7 @@ let static_field res field =
     (Simple.With_debuginfo.simple field)
     ~var:(fun _var ~coercion:_ -> [C.cint 1n])
     ~symbol:(fun sym ~coercion:_ -> [C.symbol_address (R.symbol res sym)])
-    ~const:(fun cst ->
-      match Reg_width_const.descr cst with
-      | Tagged_immediate i ->
-        [ C.cint
-            (C.nativeint_of_targetint
-               (C.tag_targetint (Targetint_31_63.to_targetint i))) ]
-      | Naked_immediate i ->
-        [C.cint (Targetint_31_63.to_int64 i |> Int64.to_nativeint)]
-      | Naked_float32 f ->
-        [ C.cfloat32 (Numeric_types.Float32_by_bit_pattern.to_float f);
-          C.cint32 0l ]
-      | Naked_float f ->
-        [C.cfloat (Numeric_types.Float_by_bit_pattern.to_float f)]
-      | Naked_int32 i -> [C.cint32 i; C.cint32 0l]
-      (* XCR nroberts: Could somebody check the below cases? They feel funny to
-         me.
-
-         mshinwell: they seem to be correct, what did you think is wrong? *)
-      | Naked_int64 i -> [C.cint (Int64.to_nativeint i)]
-      | Naked_nativeint i -> (
-        match Targetint_32_64.repr i with
-        | Int32 i -> [C.cint (Nativeint.of_int32 i)]
-        | Int64 i -> [C.cint (Int64.to_nativeint i)])
-      | Naked_vec128 _ ->
-        Misc.fatal_error
-          "Naked_vec128 not yet supported as a static field initializer")
+    ~const:C.const_static
 
 let or_variable f default v cont =
   match (v : _ Or_variable.t) with
