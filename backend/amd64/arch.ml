@@ -119,8 +119,8 @@ let assert_float32_enabled () =
   if not (Language_extension.(is_at_least Small_numbers Stable)) then
   Misc.fatal_error "float32 is not enabled. This error might happen \
   if you are using float32 yourself or are linking code that uses it. \
-  Pass [-extension-universe beta] to the compiler, or set \
-  (extension_universe beta) in your library configuration file."
+  Pass [-extension-universe stable] to the compiler, or set \
+  (extension_universe stable) in your library configuration file."
 
 (* Specific operations for the AMD64 processor *)
 
