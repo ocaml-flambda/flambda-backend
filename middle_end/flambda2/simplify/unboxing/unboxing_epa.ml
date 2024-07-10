@@ -182,9 +182,6 @@ let access_kind_and_dummy_const tag shape fields index :
         },
       Const.const_zero )
   | Float_record ->
-    (* CR vlaviron: I suspect that this case is unreachable. At least the
-       previous version of this code didn't handle it, and it seems likely that
-       float records were handled by the unique tag and size case instead. *)
     ( Naked_floats { size },
       Const.naked_float Numeric_types.Float_by_bit_pattern.zero )
   | Scannable (Mixed_record shape) ->
