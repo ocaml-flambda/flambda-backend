@@ -839,6 +839,8 @@ module With_subkind = struct
               match Tag.Scannable.create tag with
               | Some tag ->
                 let shape_and_fields : Block_shape.t * _ =
+                  (* CR mshinwell/vlaviron: In both of these cases it would be
+                     nice to propagate immediacy information. *)
                   match (shape : Lambda.constructor_shape) with
                   | Constructor_uniform fields ->
                     Scannable Value_only, List.map from_lambda_value_kind fields
