@@ -26,7 +26,6 @@ let simplify_field_of_block dacc (field, kind) =
   let field =
     Simple.With_debuginfo.create simple (Simple.With_debuginfo.dbg field)
   in
-  (* XXX double-check this can be a compile-time failure *)
   if not (K.equal (T.kind ty) kind)
   then
     Misc.fatal_errorf
