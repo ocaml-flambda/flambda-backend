@@ -305,6 +305,8 @@ type primitive =
   | Pbox_float of boxed_float * alloc_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
+  | Preinterpret_unboxed_int64_as_tagged_int63
+  | Preinterpret_tagged_int63_as_unboxed_int64
   (* Jane Street extensions *)
   | Parray_to_iarray
   | Parray_of_iarray
@@ -1805,7 +1807,16 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Patomic_exchange
   | Patomic_cas
   | Patomic_fetch_add
-  | Pdls_get -> None
+  | Pdls_get
+  | Preinterpret_unboxed_int64_as_tagged_int63 -> None
+  | Preinterpret_tagged_int63_as_unboxed_int64 ->
+    if !Clflags.native_code then None
+    else
+      (* We don't provide a locally-allocating version of this primitive
+         since it would only apply to bytecode, and code requiring performance
+         at a level where these primitives are necessary is very likely going
+         to be native. *)
+      Some alloc_heap
 
 let constant_layout: constant -> layout = function
   | Const_int _ | Const_char _ -> Pvalue Pintval
@@ -1991,6 +2002,8 @@ let primitive_result_layout (p : primitive) =
   | Patomic_cas
   | Patomic_fetch_add
   | Pdls_get -> layout_any_value
+  | Preinterpret_tagged_int63_as_unboxed_int64 -> layout_unboxed_int64
+  | Preinterpret_unboxed_int64_as_tagged_int63 -> layout_int
 
 let compute_expr_layout free_vars_kind lam =
   let rec compute_expr_layout kinds = function
