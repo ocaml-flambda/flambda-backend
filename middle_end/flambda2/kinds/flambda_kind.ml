@@ -799,6 +799,12 @@ module With_subkind = struct
     | Naked_nativeint -> boxed_nativeint
     | Naked_vec128 -> boxed_vec128
 
+  let of_flat_suffix_element elt =
+    create (Flat_suffix_element0.kind elt) Anything
+
+  let of_lambda_flat_element_kind elt =
+    Flat_suffix_element0.from_lambda elt |> of_flat_suffix_element
+
   let rec from_lambda_value_kind (vk : Lambda.value_kind) =
     match vk with
     | Pgenval -> any_value
@@ -832,40 +838,22 @@ module With_subkind = struct
             (fun non_consts (tag, shape) ->
               match Tag.Scannable.create tag with
               | Some tag ->
-                let shape_and_fields =
+                let shape_and_fields : Block_shape.t * _ =
                   match (shape : Lambda.constructor_shape) with
                   | Constructor_uniform fields ->
-                    ( Block_shape.Scannable Value_only,
-                      List.map from_lambda_value_kind fields )
+                    Scannable Value_only, List.map from_lambda_value_kind fields
                   | Constructor_mixed { value_prefix; flat_suffix } ->
-                    let lambda_shape : Lambda.mixed_block_shape =
-                      { value_prefix_len = List.length value_prefix;
-                        flat_suffix = Array.of_list flat_suffix
-                      }
+                    let mixed_block_shape =
+                      Mixed_block_shape.from_lambda
+                        { value_prefix_len = List.length value_prefix;
+                          flat_suffix = Array.of_list flat_suffix
+                        }
                     in
                     let fields =
-                      let flat_element_kind (elt : Lambda.flat_element) =
-                        match elt with
-                        | Imm -> tagged_immediate
-                        | Float_boxed -> naked_float
-                        | Float64 -> naked_float
-                        | Float32 -> naked_float32
-                        | Bits32 -> naked_int32
-                        | Bits64 -> naked_int64
-                        | Word -> naked_nativeint
-                      in
-                      let prefix =
-                        List.map from_lambda_value_kind value_prefix
-                      in
-                      let suffix = List.map flat_element_kind flat_suffix in
-                      prefix @ suffix
+                      List.map from_lambda_value_kind value_prefix
+                      @ List.map of_lambda_flat_element_kind flat_suffix
                     in
-                    let shape =
-                      Block_shape.Scannable
-                        (Mixed_record
-                           (Mixed_block_shape.from_lambda lambda_shape))
-                    in
-                    shape, fields
+                    Scannable (Mixed_record mixed_block_shape), fields
                 in
                 Tag.Scannable.Map.add tag shape_and_fields non_consts
               | None ->
