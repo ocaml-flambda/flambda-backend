@@ -532,6 +532,10 @@ type type_declaration =
     type_unboxed_default: bool;
     (* true if the unboxed-ness of this type was chosen by a compiler flag *)
     type_uid: Uid.t;
+    type_has_illegal_crossings: bool;
+    (* true iff the type definition has illegal crossings of the portability and
+       contention axes *)
+    (* CR layouts v2.8: remove type_has_illegal_crossings *)
   }
 
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind

@@ -282,6 +282,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
       type_attributes = sdecl_attributes;
       type_unboxed_default = false;
       type_uid = uid;
+      type_has_illegal_crossings = false;
     }
   in
   add_type ~check:true id decl env
@@ -928,6 +929,7 @@ let transl_declaration env sdecl (id, uid) =
         type_attributes = sdecl_attributes;
         type_unboxed_default = unboxed_default;
         type_uid = uid;
+        type_has_illegal_crossings = false;
       } in
   (* Check constraints *)
     List.iter
@@ -1112,6 +1114,14 @@ let check_coherence env loc dpath decl =
   match decl with
     { type_kind = (Type_variant _ | Type_record _| Type_open);
       type_manifest = Some ty } ->
+      if !Clflags.allow_illegal_crossing then begin 
+        let jkind' = Ctype.type_jkind_purely env ty in
+        begin match Jkind.sub_with_history jkind' decl.type_jkind with
+        | Ok _ -> ()
+        | Error v ->
+          raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
+        end
+      end;
       begin match get_desc ty with
         Tconstr(path, args, _) ->
           begin try
@@ -1590,6 +1600,12 @@ let update_decl_jkind env dpath decl =
       assert false
   in
 
+  let add_crossings jkind =
+    match !Clflags.allow_illegal_crossing with
+    | true -> Jkind.add_portability_and_contention_crossing ~from:decl.type_jkind jkind
+    | false -> jkind, false
+  in
+
   let new_decl, new_jkind = match decl.type_kind with
     | Type_abstract _ -> decl, decl.type_jkind
     | Type_open ->
@@ -1597,11 +1613,17 @@ let update_decl_jkind env dpath decl =
       { decl with type_jkind }, type_jkind
     | Type_record (lbls, rep) ->
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
-      { decl with type_kind = Type_record (lbls, rep); type_jkind },
+      let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
+      { decl with type_kind = Type_record (lbls, rep);
+                  type_jkind;
+                  type_has_illegal_crossings },
       type_jkind
     | Type_variant (cstrs, rep) ->
       let cstrs, rep, type_jkind = update_variant_kind cstrs rep in
-      { decl with type_kind = Type_variant (cstrs, rep); type_jkind },
+      let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
+      { decl with type_kind = Type_variant (cstrs, rep);
+                  type_jkind;
+                  type_has_illegal_crossings },
       type_jkind
   in
 
@@ -3095,6 +3117,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_attributes = sdecl.ptype_attributes;
       type_unboxed_default;
       type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+      type_has_illegal_crossings = false;
     }
   in
   Option.iter (fun p -> set_private_row env sdecl.ptype_loc p new_sig_decl)
@@ -3135,6 +3158,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
 
       type_variance = new_type_variance;
       type_separability = new_type_separability;
+      type_has_illegal_crossings = false;
     } in
   {
     typ_id = id;
@@ -3173,7 +3197,8 @@ let transl_package_constraint ~loc ty =
     type_loc = loc;
     type_attributes = [];
     type_unboxed_default = false;
-    type_uid = Uid.mk ~current_unit:(Env.get_unit_name ())
+    type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+    type_has_illegal_crossings = false;
   }
 
 (* Approximate a type declaration: just make all types abstract *)
@@ -3197,6 +3222,7 @@ let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
       type_attributes = [];
       type_unboxed_default = false;
       type_uid = Uid.internal_not_actually_unique;
+      type_has_illegal_crossings = false;
     }
   end
 

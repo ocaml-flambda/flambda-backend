@@ -1565,3 +1565,113 @@ Error: This expression has type <  > but an expression was expected of type
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
+
+(****************************************)
+(* Test 11: Inference of type parameter *)
+
+type 'a t : any = 'a
+[%%expect {|
+type 'a t = 'a
+|}]
+
+type 'a t : value = 'a
+[%%expect {|
+type 'a t = 'a
+|}]
+
+type 'a t : value mod global = 'a
+[%%expect {|
+Line 1, characters 0-33:
+1 | type 'a t : value mod global = 'a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type 'a is value, because
+         of the definition of t at line 1, characters 0-33.
+       But the layout of type 'a must be a sublayout of value, because
+         of the definition of t at line 1, characters 0-33.
+|}]
+(* CR layouts v2.8: this should be accepted; 'a should be inferred to have kind
+   value mod global *)
+
+type 'a t : word = 'a
+[%%expect {|
+Line 1, characters 0-21:
+1 | type 'a t : word = 'a
+    ^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type 'a is value, because
+         of the definition of t at line 1, characters 0-21.
+       But the layout of type 'a must be a sublayout of word, because
+         of the definition of t at line 1, characters 0-21.
+|}]
+(* CR layouts v2.8: this should be accepted; 'a should be inferred to have kind
+   word *)
+
+type 'a t : any = private 'a
+[%%expect {|
+type 'a t = private 'a
+|}]
+
+type 'a t : value = private 'a
+[%%expect {|
+type 'a t = private 'a
+|}]
+
+type 'a t : value mod global = private 'a
+[%%expect {|
+Line 1, characters 0-41:
+1 | type 'a t : value mod global = private 'a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type 'a is value, because
+         of the definition of t at line 1, characters 0-41.
+       But the layout of type 'a must be a sublayout of value, because
+         of the definition of t at line 1, characters 0-41.
+|}]
+(* CR layouts v2.8: this should be accepted; 'a should be inferred to have kind
+  value mod global *)
+
+type 'a t : word = private 'a
+[%%expect {|
+Line 1, characters 0-29:
+1 | type 'a t : word = private 'a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type 'a is value, because
+         of the definition of t at line 1, characters 0-29.
+       But the layout of type 'a must be a sublayout of word, because
+         of the definition of t at line 1, characters 0-29.
+|}]
+(* CR layouts v2.8: this should be accepted; 'a should be inferred to have kind
+  word *)
+
+type 'a t : value mod global = Foo of 'a [@@unboxed]
+[%%expect {|
+Line 1, characters 0-52:
+1 | type 'a t : value mod global = Foo of 'a [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it instantiates an unannotated type parameter of t, defaulted to layout value.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+(* CR layouts v2.8: this should be accepted; 'a should be inferred to have kind
+  value mod global *)
+
+type 'a t : value mod global = { x : 'a }
+[%%expect {|
+Line 1, characters 0-41:
+1 | type 'a t : value mod global = { x : 'a }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
+
+type 'a t : value mod many = { x : 'a }
+[%%expect {|
+Line 1, characters 0-39:
+1 | type 'a t : value mod many = { x : 'a }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type t is value, because
+         it's a boxed record type.
+       But the layout of type t must be a sublayout of value, because
+         of the annotation on the declaration of the type t.
+|}]
