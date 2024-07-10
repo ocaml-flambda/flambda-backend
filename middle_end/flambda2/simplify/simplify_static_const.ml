@@ -26,7 +26,7 @@ let simplify_field_of_block dacc (field, expected_kind) =
   let field =
     Simple.With_debuginfo.create simple (Simple.With_debuginfo.dbg field)
   in
-  if not (K.equal (T.expected_kind ty) expected_kind)
+  if not (K.equal (T.kind ty) expected_kind)
   then
     Misc.fatal_errorf
       "Kind %a specified for a field of a static block, but the field has \
