@@ -17,7 +17,7 @@
 open! Flambda.Import
 open! Simplify_import
 
-let simplify_field_of_block dacc (field, kind) =
+let simplify_field_of_block dacc (field, expected_kind) =
   let ty, simple =
     S.simplify_simple dacc
       (Simple.With_debuginfo.simple field)
@@ -26,12 +26,12 @@ let simplify_field_of_block dacc (field, kind) =
   let field =
     Simple.With_debuginfo.create simple (Simple.With_debuginfo.dbg field)
   in
-  if not (K.equal (T.kind ty) kind)
+  if not (K.equal (T.expected_kind ty) expected_kind)
   then
     Misc.fatal_errorf
       "Kind %a specified for a field of a static block, but the field has \
        type:@ %a"
-      K.print kind T.print ty;
+      K.print expected_kind T.print ty;
   field, ty
 
 let simplify_or_variable dacc type_for_const (or_variable : _ Or_variable.t)
