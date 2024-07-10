@@ -40,7 +40,7 @@ let static_field res field =
         C.cfloat32 (Numeric_types.Float32_by_bit_pattern.to_float f)
       | Naked_float f ->
         C.cfloat (Numeric_types.Float_by_bit_pattern.to_float f)
-      | Naked_int32 i -> C.cint32 (Nativeint.of_int32 i)
+      | Naked_int32 i -> C.cint32 i
       (* XCR nroberts: Could somebody check the below cases? They feel funny to
          me.
 
