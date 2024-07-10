@@ -398,47 +398,9 @@ end = struct
 end
 [%%expect{|
 module type S = sig module M : sig val f : int -> int end end
-Lines 13-19, characters 6-3:
-13 | ......struct
-14 |   module Plain = struct
-15 |     let f x = x+1
-16 |   end
-17 |
-18 |   module type S_plain = S with module M = Plain
-19 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig
-           module Plain : sig val f : int -> int @@ global many end
-           module type S_plain =
-             sig module M : sig val f : int -> int @@ global many end end
-         end
-       is not included in
-         sig
-           module Plain : sig val f : int -> int end
-           module type S_plain =
-             sig module M : sig val f : int -> int end end
-         end
-       Module type declarations do not match:
-         module type S_plain =
-           sig module M : sig val f : int -> int @@ global many end end
-       does not match
-         module type S_plain = sig module M : sig val f : int -> int end end
-       The second module type is not included in the first
-       At position module type S_plain = <here>
-       Module types do not match:
-         sig module M : sig val f : int -> int end end
-       is not equal to
-         sig module M : sig val f : int -> int @@ global many end end
-       At position module type S_plain = sig module M : <here> end
-       Modules do not match:
-         sig val f : int -> int end
-       is not included in
-         sig val f : int -> int @@ global many end
-       At position module type S_plain = sig module M : <here> end
-       Values do not match:
-         val f : int -> int
-       is not included in
-         val f : int -> int @@ global many
-       The second is global_ and the first is not.
+module N :
+  sig
+    module Plain : sig val f : int -> int end
+    module type S_plain = sig module M : sig val f : int -> int end end
+  end
 |}]
