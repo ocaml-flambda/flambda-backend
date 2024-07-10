@@ -83,9 +83,13 @@ let create_recursive_let_cont ~invariant_params handlers0 ~body =
     Flambda.Let_cont_expr.create_recursive ~invariant_params handlers.handlers
       ~body:body.expr
   in
+  let handlers_free_names =
+    Name_occurrences.diff handlers.free_names
+      ~without:(Bound_parameters.free_names invariant_params)
+  in
   let free_names =
     Name_occurrences.union body.free_names
-      (Name_occurrences.increase_counts handlers.free_names)
+      (Name_occurrences.increase_counts handlers_free_names)
   in
   let free_names =
     Continuation.Map.fold
