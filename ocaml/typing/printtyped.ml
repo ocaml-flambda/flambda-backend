@@ -379,12 +379,11 @@ and function_body i ppf (body : function_body) =
 
 and expression_extra i ppf x attrs =
   match x with
-  | Texp_constraint (ct, modes) ->
+  | Texp_constraint (ct, m) ->
       line i ppf "Texp_constraint\n";
       attributes i ppf attrs;
       option i core_type ppf ct;
-      ignore modes;
-      (* CR cgunn: print modes *)
+      alloc_const_option_mode i ppf m;
   | Texp_coerce (cto1, cto2) ->
       line i ppf "Texp_coerce\n";
       attributes i ppf attrs;
@@ -409,6 +408,9 @@ and locality_mode i ppf m =
 
 and value_mode i ppf m =
   line i ppf "value_mode %a\n" (Mode.Value.print ()) m
+
+and alloc_const_option_mode i ppf m =
+  line i ppf "alloc_const_option_mode %a\n" Mode.Alloc.Const.Option.print m
 
 and expression_alloc_mode i ppf (expr, am) =
   alloc_mode i ppf am;

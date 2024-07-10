@@ -53,27 +53,19 @@ let transl_mode_annots modes =
   loop Alloc.Const.Option.none modes
 
 let untransl_mode_annots ~loc (modes : Mode.Alloc.Const.Option.t) =
-  let print_to_string print a =
-    let buf = Buffer.create 32 in
-    let fmt = Format.formatter_of_buffer buf in
-    print fmt a;
-    Format.pp_print_flush fmt ();
-    Buffer.contents buf
-  in
-  let areality =
-    Option.map (print_to_string Mode.Locality.Const.print) modes.areality
-  in
+  let print_to_string_opt print a = Option.map (Format.asprintf "%a" print) a in
+  let areality = print_to_string_opt Mode.Locality.Const.print modes.areality in
   let uniqueness =
-    Option.map (print_to_string Mode.Uniqueness.Const.print) modes.uniqueness
+    print_to_string_opt Mode.Uniqueness.Const.print modes.uniqueness
   in
   let linearity =
-    Option.map (print_to_string Mode.Linearity.Const.print) modes.linearity
+    print_to_string_opt Mode.Linearity.Const.print modes.linearity
   in
   let portability =
-    Option.map (print_to_string Mode.Portability.Const.print) modes.portability
+    print_to_string_opt Mode.Portability.Const.print modes.portability
   in
   let contention =
-    Option.map (print_to_string Mode.Contention.Const.print) modes.contention
+    print_to_string_opt Mode.Contention.Const.print modes.contention
   in
   List.filter_map
     (fun x -> Option.map (fun s -> { txt = Parsetree.Mode s; loc }) x)

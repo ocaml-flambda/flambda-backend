@@ -1799,6 +1799,24 @@ module Value_with (Areality : Areality) = struct
           Option.value opt.contention ~default:default.contention
         in
         { areality; uniqueness; linearity; portability; contention }
+
+      let print ppf { areality; uniqueness; linearity; portability; contention }
+          =
+        let option_print print ppf = function
+          | None -> Format.fprintf ppf "None"
+          | Some a -> Format.fprintf ppf "Some %a" print a
+        in
+        Format.fprintf ppf "%a,%a,%a,%a,%a"
+          (option_print Areality.Const.print)
+          areality
+          (option_print Linearity.Const.print)
+          linearity
+          (option_print Uniqueness.Const.print)
+          uniqueness
+          (option_print Portability.Const.print)
+          portability
+          (option_print Contention.Const.print)
+          contention
     end
 
     let diff m0 m1 =

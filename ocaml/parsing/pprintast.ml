@@ -365,12 +365,9 @@ let split_out_legacy_modes =
     | _ -> false
   )
 
-let maybe_type_at_modes pty ctxt f (c, m) =
-  pp f "%a%a" (pty ctxt) c optional_at_modes m
-
 let maybe_legacy_modes_type_at_modes pty ctxt f (c, m) =
   let legacy, m = split_out_legacy_modes m in
-  pp f "%a%a" optional_legacy_modes legacy (maybe_type_at_modes pty ctxt) (c, m)
+  pp f "%a%a%a" optional_legacy_modes legacy (pty ctxt) c optional_at_modes m
 
 let maybe_type_atat_modes pty ctxt f (c, m) =
   pp f "%a%a" (pty ctxt) c optional_atat_modes m

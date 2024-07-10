@@ -342,6 +342,8 @@ module type S = sig
         val none : t
 
         val value : t -> default:some -> some
+
+        val print : Format.formatter -> t -> unit
       end
 
       val split : t -> (Monadic.Const.t, Comonadic.Const.t) monadic_comonadic

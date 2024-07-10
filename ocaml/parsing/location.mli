@@ -91,6 +91,13 @@ val rhs_interval: int -> int -> t
 val get_pos_info: Lexing.position -> string * int * int
 (** file, line, char *)
 
+(** [merge locs] returns the location covering all locations from [locs]. It raises if
+    [locs] is empty, and the result only makes sense if all the locations are from the
+    same file. If [~ghost:false] is passed, the result location will only be ghost if one
+    of the input locations was ghost. The default is [~ghost:true], which causes the
+    result location to be ghost no matter what *)
+val merge: ?ghost:bool -> t list -> t
+
 type 'a loc = {
   txt : 'a;
   loc : t;

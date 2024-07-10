@@ -60,9 +60,9 @@ val foo : r @ contended -> bytes @ contended = <fun>
 (* Force top level to be uncontended and nonportable *)
 let r @ contended = best_bytes ()
 [%%expect{|
-Line 1, characters 20-33:
+Line 1, characters 4-33:
 1 | let r @ contended = best_bytes ()
-                        ^^^^^^^^^^^^^
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value is contended but expected to be uncontended.
 |}]
 
@@ -226,9 +226,9 @@ Error: This expression has type bytes but an expression was expected of type
 let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportable contended = fun a b -> best_bytes ()
 (* CR layouts v2.8: arrows should cross contention. *)
 [%%expect{|
-Line 1, characters 94-118:
+Line 1, characters 4-118:
 1 | let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportable contended = fun a b -> best_bytes ()
-                                                                                                  ^^^^^^^^^^^^^^^^^^^^^^^^
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value is contended but expected to be uncontended.
 |}]
 

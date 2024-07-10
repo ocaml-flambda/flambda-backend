@@ -2684,7 +2684,7 @@ pattern_var:
     { $1 }
 ;
 label_let_pattern:
-   x = label_var modes = optional_at_mode_expr
+    x = label_var modes = optional_at_mode_expr
       { let lab, pat = x in
         lab, pat, None, modes
       }

@@ -5,25 +5,25 @@
 (* Let bindings *)
 let local_ foo : string @@ unique = "hello"
 [%%expect{|
-Line 1, characters 36-43:
+Line 1, characters 4-43:
 1 | let local_ foo : string @@ unique = "hello"
-                                        ^^^^^^^
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
 |}]
 
 let local_ foo @ unique = "hello"
 [%%expect{|
-Line 1, characters 26-33:
+Line 1, characters 4-33:
 1 | let local_ foo @ unique = "hello"
-                              ^^^^^^^
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
 |}]
 
 let local_ foo : 'a. 'a -> 'a @@ unique = fun x -> x
 [%%expect{|
-Line 1, characters 42-52:
+Line 1, characters 4-52:
 1 | let local_ foo : 'a. 'a -> 'a @@ unique = fun x -> x
-                                              ^^^^^^^^^^
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
 |}]
 
@@ -34,17 +34,17 @@ val foo : 'a -> 'a = <fun>
 
 let (x, y) @ local unique = "hello", "world"
 [%%expect{|
-Line 1, characters 28-44:
+Line 1, characters 4-44:
 1 | let (x, y) @ local unique = "hello", "world"
-                                ^^^^^^^^^^^^^^^^
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
 |}]
 
 let (x, y) : _ @@ local unique = "hello", "world"
 [%%expect{|
-Line 1, characters 33-49:
+Line 1, characters 4-49:
 1 | let (x, y) : _ @@ local unique = "hello", "world"
-                                     ^^^^^^^^^^^^^^^^
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
 |}]
 
