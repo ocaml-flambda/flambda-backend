@@ -1,6 +1,8 @@
 (* TEST
    flambda2;
    flags="-extension layouts_beta";
+   { bytecode; }
+   { native; }
 *)
 
 type r1 = { x1 : string; y1 : float#; }
@@ -71,16 +73,17 @@ let () =
     assert ((Sys.opaque_identity create_a) ()
       == (Sys.opaque_identity create_a) ());
     assert ((Sys.opaque_identity create_vs) ()
-      == (Sys.opaque_identity create_vs) ())
+      == (Sys.opaque_identity create_vs) ());
     (* Both classic mode and optimized mode should be able to statically
        allocate the inconstant list. *)
     let s = Sys.opaque_identity "foo" in
-    let bytes_start = Gc.allocated_bytes () in
+    let bytes_start0 = Gc.allocated_bytes () in
+    let bytes_start1 = Gc.allocated_bytes () in
     let _ =
       Sys.opaque_identity [A #4.0; B ("B", #5.0); C ("C", #6.0, 6); D s]
     in
     let bytes_end = Gc.allocated_bytes () in
-    assert (bytes_start = bytes_end)
+    assert (bytes_start0 +. bytes_end = 2. *. bytes_start1)
 ;;
 
 let () = print_endline "Success!"
