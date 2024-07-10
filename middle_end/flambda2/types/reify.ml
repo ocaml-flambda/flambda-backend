@@ -48,8 +48,8 @@ type reification_result =
   | Cannot_reify
   | Invalid
 
-let try_to_reify_fields env ~var_allowed alloc_mode ~field_types ~field_kinds =
-  assert (List.compare_lengths field_types field_kinds = 0);
+let try_to_reify_fields env ~var_allowed alloc_mode
+    ~field_types_and_expected_kinds =
   let field_simples =
     List.filter_map
       (fun (field_type, field_kind) : Simple.t option ->
@@ -75,9 +75,9 @@ let try_to_reify_fields env ~var_allowed alloc_mode ~field_types ~field_kinds =
                    instead *)
                 None)
         | Unknown -> None)
-      (List.combine field_types field_kinds)
+      field_types_and_expected_kinds
   in
-  if List.compare_lengths field_types field_simples = 0
+  if List.compare_lengths field_types_and_expected_kinds field_simples = 0
   then Some field_simples
   else None
 
@@ -219,15 +219,15 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
               Targetint_31_63.equal size
                 (TG.Product.Int_indexed.width field_types));
             let field_types = TG.Product.Int_indexed.components field_types in
-            let field_kinds =
+            let field_types_and_expected_kinds =
               match shape with
               | Float_record ->
-                List.map (fun _ -> Flambda_kind.naked_float) field_types
+                List.map (fun ty -> ty, Flambda_kind.naked_float) field_types
               | Scannable (Mixed_record shape) ->
                 Flambda_kind.Mixed_block_shape.field_kinds shape
-                |> Array.to_list
+                |> Array.to_list |> List.combine field_types
               | Scannable Value_only ->
-                List.map (fun _ -> Flambda_kind.value) field_types
+                List.map (fun ty -> ty, Flambda_kind.value) field_types
             in
             match shape with
             | Float_record ->
@@ -245,8 +245,8 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
                     Tag.print tag
               in
               match
-                try_to_reify_fields env ~var_allowed alloc_mode ~field_types
-                  ~field_kinds
+                try_to_reify_fields env ~var_allowed alloc_mode
+                  ~field_types_and_expected_kinds
               with
               | Some fields ->
                 Lift (Immutable_block { tag; is_unique; shape; fields })
@@ -546,10 +546,12 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
           let kind = Flambda_kind.With_subkind.kind element_kind in
           match kind with
           | Value -> (
-            let field_kinds = List.map (fun _ -> Flambda_kind.value) fields in
+            let field_types_and_expected_kinds =
+              List.map (fun ty -> ty, Flambda_kind.value) fields
+            in
             match
               try_to_reify_fields env ~var_allowed alloc_mode
-                ~field_types:fields ~field_kinds
+                ~field_types_and_expected_kinds
             with
             | Some fields -> Lift (Immutable_value_array { fields })
             | None -> try_canonical_simple ())
