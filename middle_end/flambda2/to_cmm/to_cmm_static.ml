@@ -26,30 +26,30 @@ module UK = C.Update_kind
 let static_field res field =
   Simple.pattern_match'
     (Simple.With_debuginfo.simple field)
-    ~var:(fun _var ~coercion:_ -> C.cint 1n)
-    ~symbol:(fun sym ~coercion:_ -> C.symbol_address (R.symbol res sym))
+    ~var:(fun _var ~coercion:_ -> [C.cint 1n])
+    ~symbol:(fun sym ~coercion:_ -> [C.symbol_address (R.symbol res sym)])
     ~const:(fun cst ->
       match Reg_width_const.descr cst with
       | Tagged_immediate i ->
-        C.cint
+        [C.cint
           (C.nativeint_of_targetint
-             (C.tag_targetint (Targetint_31_63.to_targetint i)))
+             (C.tag_targetint (Targetint_31_63.to_targetint i)))]
       | Naked_immediate i ->
-        C.cint (Targetint_31_63.to_int64 i |> Int64.to_nativeint)
+        [C.cint (Targetint_31_63.to_int64 i |> Int64.to_nativeint)]
       | Naked_float32 f ->
-        C.cfloat32 (Numeric_types.Float32_by_bit_pattern.to_float f)
+        [C.cfloat32 (Numeric_types.Float32_by_bit_pattern.to_float f); C.cint32 0l]
       | Naked_float f ->
-        C.cfloat (Numeric_types.Float_by_bit_pattern.to_float f)
-      | Naked_int32 i -> C.cint32 i
+        [C.cfloat (Numeric_types.Float_by_bit_pattern.to_float f)]
+      | Naked_int32 i -> [C.cint32 i; C.cint32 0l]
       (* XCR nroberts: Could somebody check the below cases? They feel funny to
          me.
 
          mshinwell: they seem to be correct, what did you think is wrong? *)
-      | Naked_int64 i -> C.cint (Int64.to_nativeint i)
+      | Naked_int64 i -> [C.cint (Int64.to_nativeint i)]
       | Naked_nativeint i -> (
         match Targetint_32_64.repr i with
-        | Int32 i -> C.cint (Nativeint.of_int32 i)
-        | Int64 i -> C.cint (Int64.to_nativeint i))
+        | Int32 i -> [C.cint (Nativeint.of_int32 i)]
+        | Int64 i -> [C.cint (Int64.to_nativeint i)])
       | Naked_vec128 _ ->
         Misc.fatal_error
           "Naked_vec128 not yet supported as a static field initializer")
@@ -253,7 +253,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
           ~scannable_prefix_len:
             (Flambda_kind.Mixed_block_shape.value_prefix_size shape)
     in
-    let static_fields = List.map (static_field res) fields in
+    let static_fields = List.concat_map (static_field res) fields in
     let block = C.emit_block sym header static_fields in
     let env, res, updates = static_block_updates sym env res updates 0 fields in
     env, R.set_data res block, updates
@@ -354,7 +354,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
   | Block_like s, Immutable_value_array fields ->
     let sym = R.symbol res s in
     let header = C.black_block_header 0 (List.length fields) in
-    let static_fields = List.map (static_field res) fields in
+    let static_fields = List.concat_map (static_field res) fields in
     let block = C.emit_block sym header static_fields in
     let env, res, updates = static_block_updates sym env res updates 0 fields in
     env, R.set_data res block, updates
