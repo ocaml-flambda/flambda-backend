@@ -574,13 +574,6 @@ let expression sub exp =
         let params =
           List.concat_map
             (fun fp ->
-               let pat, default_arg =
-                 match fp.fp_kind with
-                 | Tparam_pat pat -> pat, None
-                 | Tparam_optional_default (pat, expr, _) -> pat, Some expr
-               in
-               let pat = sub.pat sub pat in
-               let default_arg = Option.map (sub.expr sub) default_arg in
                let newtypes =
                  List.map
                    (fun (x, annot) ->
@@ -590,8 +583,15 @@ let expression sub exp =
                    fp.fp_newtypes
                in
                let pparam_desc =
-                 let parg_label = label fp.fp_arg_label in
-                 Pparam_val (parg_label, default_arg, pat)
+                   let parg_label = label fp.fp_arg_label in
+                   let pat, default_arg =
+                     match fp.fp_kind with
+                     | Tparam_pat pat -> pat, None
+                     | Tparam_optional_default (pat, expr, _) -> pat, Some expr
+                   in
+                   let pat = sub.pat sub pat in
+                   let default_arg = Option.map (sub.expr sub) default_arg in
+                   Pparam_val (parg_label, default_arg, pat)
                in
                { pparam_desc; pparam_loc = fp.fp_loc } :: newtypes)
             params
@@ -1068,6 +1068,9 @@ let core_type sub ct =
     | Ttyp_package pack -> Ptyp_package (sub.package_type sub pack)
     | Ttyp_call_pos ->
         Ptyp_extension call_pos_extension
+    | Ttyp_functor (arg_label, name, pack, ct) ->
+        let name = Location.mkloc (Ident.name name.txt) name.loc in
+        Ptyp_functor (label arg_label, name, sub.package_type sub pack, sub.typ sub ct)
   in
   Typ.mk ~loc ~attrs:!attrs desc
 

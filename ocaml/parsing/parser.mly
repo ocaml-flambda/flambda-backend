@@ -139,7 +139,8 @@ let mkuminus ~oploc name arg =
   | ("-" | "-."), Pexp_constant(Pconst_float (f, m)) ->
       Pexp_constant(Pconst_float(neg_string f, m)), arg.pexp_attributes
   | _ ->
-      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg]), []
+      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name),
+                 [Nolabel, arg]), []
 
 let mkuplus ~oploc name arg =
   let desc = arg.pexp_desc in
@@ -147,7 +148,8 @@ let mkuplus ~oploc name arg =
   | "+", Pexp_constant(Pconst_integer _)
   | ("+" | "+."), Pexp_constant(Pconst_float _) -> desc, arg.pexp_attributes
   | _ ->
-      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg]), []
+      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name),
+                 [Nolabel, arg]), []
 
 let mk_attr ~loc name payload =
   Builtin_attributes.(register_attr Parser name);
@@ -204,7 +206,8 @@ let exclave_extension loc =
     (Pexp_extension(exclave_ext_loc loc, PStr []))
 
 let mkexp_exclave ~loc ~kwd_loc exp =
-  ghexp ~loc (Pexp_apply(exclave_extension (make_loc kwd_loc), [Nolabel, exp]))
+  ghexp ~loc (Pexp_apply(exclave_extension (make_loc kwd_loc),
+                         [Nolabel, exp]))
 
 let is_curry_attr attr =
   attr.attr_name.txt = Jane_syntax.Arrow_curry.curry_attr_name
@@ -469,8 +472,11 @@ let builtin_arraylike_index loc paren_kind index = match paren_kind with
        match bigarray_untuplify index with
      | [x] -> One, [Nolabel, x]
      | [x;y] -> Two, [Nolabel, x; Nolabel, y]
-     | [x;y;z] -> Three, [Nolabel, x; Nolabel, y; Nolabel, z]
-     | coords -> Many, [Nolabel, ghexp ~loc (Pexp_array coords)]
+     | [x;y;z] -> Three,
+        [Nolabel, x;
+         Nolabel, y;
+         Nolabel, z]
+     | coords -> Many, [Nolabel, (ghexp ~loc (Pexp_array coords))]
 
 let builtin_indexing_operators : (unit, expression) array_family  =
   { index = builtin_arraylike_index; name = builtin_arraylike_name }
@@ -498,7 +504,7 @@ let user_index loc _ index =
      ([a.%[1;2;3;4]]) *)
   match index with
     | [a] -> One, [Nolabel, a]
-    | l -> Many, [Nolabel, mkexp ~loc (Pexp_array l)]
+    | l -> Many, [Nolabel, (mkexp ~loc (Pexp_array l))]
 
 let user_indexing_operators:
       (Longident.t option * string, expression list) array_family
@@ -512,7 +518,7 @@ let mk_indexop_expr array_indexing_operator ~loc
   let set_arg = match set_expr with
     | None -> []
     | Some expr -> [Nolabel, expr] in
-  let args = (Nolabel,array) :: index @ set_arg in
+  let args = (Nolabel, array) :: index @ set_arg in
   mkexp ~loc (Pexp_apply(ghexp ~loc (Pexp_ident fn), args))
 
 let indexop_unclosed_error loc_s s loc_e =
@@ -2972,9 +2978,9 @@ comprehension_clause:
   | name_tag %prec prec_constant_constructor
       { Pexp_variant($1, None) }
   | op(PREFIXOP) simple_expr
-      { Pexp_apply($1, [Nolabel,$2]) }
+      { Pexp_apply($1, [Nolabel, $2]) }
   | op(BANG {"!"}) simple_expr
-      { Pexp_apply($1, [Nolabel,$2]) }
+      { Pexp_apply($1, [Nolabel, $2]) }
   | LBRACELESS object_expr_content GREATERRBRACE
       { Pexp_override $2 }
   | LBRACELESS object_expr_content error
@@ -4339,6 +4345,19 @@ strict_function_or_labeled_tuple_type:
     { let ty, ltys = $3 in
       ptyp_ltuple $sloc ((Some label, ty) :: ltys)
     }
+  (* TODO handle modes *)
+  | mktyp(
+      label = arg_label
+      LPAREN
+        MODULE _attrs = ext_attributes id = mkrhs(UIDENT) COLON
+        mty = module_type
+      RPAREN
+      MINUSGREATER
+      codomain = function_type
+        { let (lid, cstrs, _attrs) = package_type_of_module_type mty in
+          Ptyp_functor(label, id, (lid, cstrs), codomain) }
+    )
+    { $1 }
 ;
 
 %inline strict_arg_label:

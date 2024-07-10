@@ -129,6 +129,7 @@ let rec add_type bv ty =
   | Ptyp_poly(_, t) -> add_type bv t
   | Ptyp_package pt -> add_package_type bv pt
   | Ptyp_extension e -> handle_extension e
+  | Ptyp_functor (_, _, pt, t2) -> add_package_type bv pt; add_type bv t2
 
 and add_type_jst bv : Jane_syntax.Core_type.t -> _ = function
   | Jtyp_layout typ -> add_type_jst_layouts bv typ

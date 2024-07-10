@@ -206,6 +206,12 @@ let rec core_type i ppf x =
   | Ptyp_extension (s, arg) ->
       line i ppf "Ptyp_extension \"%s\"\n" s.txt;
       payload i ppf arg
+  | Ptyp_functor (lbl, id, (p, fl), ty) ->
+      line i ppf "Ptyp_functor\n";
+      arg_label i ppf lbl;
+      line i ppf "%s : %a\n" id.txt fmt_longident_loc p;
+      list i package_with ppf fl;
+      core_type i ppf ty
   )
 
 and package_with i ppf (s, t) =
@@ -993,7 +999,7 @@ and label_x_expression i ppf (l,e) =
   line i ppf "<arg>\n";
   arg_label i ppf l;
   expression (i+1) ppf e;
-
+  
 and label_x_bool_x_core_type_list i ppf x =
   match x.prf_desc with
     Rtag (l, b, ctl) ->

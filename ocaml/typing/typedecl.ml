@@ -114,6 +114,7 @@ type error =
   | Multiple_native_repr_attributes
   | Cannot_unbox_or_untag_type of native_repr_kind
   | Deep_unbox_or_untag_attribute of native_repr_kind
+  | Type_cannot_be_external
   | Jkind_mismatch_of_type of type_expr * Jkind.Violation.t
   | Jkind_mismatch_of_path of Path.t * Jkind.Violation.t
   | Jkind_mismatch_due_to_bad_inference of
@@ -1016,6 +1017,15 @@ let rec check_constraints_rec env loc visited ty =
       List.iter (check_constraints_rec env loc visited) args
   | Tpoly (ty, tl) ->
       let _, ty = Ctype.instance_poly false tl ty in
+      check_constraints_rec env loc visited ty
+  | Tfunctor (_, id, (p, fl), ty) ->
+      List.iter (fun (_, t) -> check_constraints_rec env loc visited t) fl;
+      let mty = !Ctype.modtype_of_package env loc p fl in
+      let id' = Ident.(create_scoped ~scope:lowest_scope (name_unscoped id)) in
+      let env = Env.add_module id' Mp_present mty env in
+      let ty = Option.value ~default:ty
+          (Ctype.instance_funct ~id_in:(Ident.of_unscoped id)
+              ~p_out:(Pident id') ~fixed:false ty) in
       check_constraints_rec env loc visited ty
   | _ ->
       Btype.iter_type_expr (check_constraints_rec env loc visited) ty
@@ -2770,6 +2780,8 @@ let rec parse_native_repr_attributes env core_type ty rmode
         ~global_repr ~is_layout_poly
     in
     ((mode, repr_arg) :: repr_args, repr_res)
+  | Ptyp_functor _, Tfunctor _, _ ->
+    raise (Error (core_type.ptyp_loc, Type_cannot_be_external))
   | (Ptyp_poly (_, t) | Ptyp_alias (t, _)), _, _ ->
      parse_native_repr_attributes env t ty rmode ~global_repr ~is_layout_poly
   | _ ->
@@ -3583,6 +3595,9 @@ let report_error ppf = function
          a direct argument or result of the primitive,@ \
          it should not occur deeply into its type.@]"
         (match kind with Unboxed -> "@unboxed" | Untagged -> "@untagged")
+  | Type_cannot_be_external ->
+      fprintf ppf "@[This type cannot be used to annotate an \
+                   external function.@]"
   | Jkind_mismatch_of_path (dpath,v) ->
     (* the type is always printed just above, so print out just the head of the
        path instead of something like [t/3] *)
