@@ -76,27 +76,13 @@ val to_lambda : t -> Lambda.layout
 
 include Container_types.S with type t := t
 
-module Flat_suffix_element : sig
-  type kind = t
-
-  type t = private
-    | Tagged_immediate
-    | Naked_float
-    | Naked_float32
-    | Naked_int32
-    | Naked_int64
-    | Naked_nativeint
-
-  val naked_float : t
-
-  val kind : t -> kind
-
-  val from_lambda : Lambda.flat_element -> t
-
-  val print : Format.formatter -> t -> unit
-
-  val compare : t -> t -> int
-end
+type flat_suffix_element = private
+  | Tagged_immediate
+  | Naked_float
+  | Naked_float32
+  | Naked_int32
+  | Naked_int64
+  | Naked_nativeint
 
 module Mixed_block_shape : sig
   type t
@@ -107,7 +93,7 @@ module Mixed_block_shape : sig
 
   val value_prefix_size : t -> int
 
-  val flat_suffix : t -> Flat_suffix_element.t array
+  val flat_suffix : t -> flat_suffix_element array
 
   val equal : t -> t -> bool
 
@@ -307,4 +293,20 @@ module With_subkind : sig
   include Container_types.S with type t := t
 
   val equal_ignoring_subkind : t -> t -> bool
+end
+
+module Flat_suffix_element : sig
+  type t = flat_suffix_element
+
+  val naked_float : t
+
+  val kind : t -> kind
+
+  val from_lambda : Lambda.flat_element -> t
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+
+  val to_kind_with_subkind : t -> With_subkind.t
 end

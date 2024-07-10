@@ -163,16 +163,16 @@ let is_naked_float t =
   | Region | Rec_info ->
     false
 
-module Flat_suffix_element = struct
-  type kind = t
+type flat_suffix_element =
+  | Tagged_immediate
+  | Naked_float
+  | Naked_float32
+  | Naked_int32
+  | Naked_int64
+  | Naked_nativeint
 
-  type t =
-    | Tagged_immediate
-    | Naked_float
-    | Naked_float32
-    | Naked_int32
-    | Naked_int64
-    | Naked_nativeint
+module Flat_suffix_element0 = struct
+  type t = flat_suffix_element
 
   let kind t =
     match t with
@@ -213,7 +213,7 @@ module Mixed_block_shape = struct
 
   type t =
     { value_prefix_size : int;
-      flat_suffix : Flat_suffix_element.t array;
+      flat_suffix : Flat_suffix_element0.t array;
       field_kinds : kind array
           (* [field_kinds] is uniquely determined by [flat_suffix]. The kinds
              are the thing used during most of Flambda 2, but the [flat_suffix]
@@ -245,12 +245,12 @@ module Mixed_block_shape = struct
       } =
     Int.equal value_prefix_size1 value_prefix_size2
     && Int.equal (Array.length flat_suffix1) (Array.length flat_suffix2)
-    && Array.for_all2 Flat_suffix_element.equal flat_suffix1 flat_suffix2
+    && Array.for_all2 Flat_suffix_element0.equal flat_suffix1 flat_suffix2
 
   let print ppf t =
     Format.fprintf ppf "@[<hov 1>((fields@ %a)@ (value_prefix_size@ %d))@]"
       (Format.pp_print_list ~pp_sep:Format.pp_print_space
-         Flat_suffix_element.print)
+         Flat_suffix_element0.print)
       (Array.to_list t.flat_suffix)
       t.value_prefix_size
 
@@ -267,14 +267,14 @@ module Mixed_block_shape = struct
     if c <> 0
     then c
     else
-      Misc.Stdlib.Array.compare Flat_suffix_element.compare flat_suffix1
+      Misc.Stdlib.Array.compare Flat_suffix_element0.compare flat_suffix1
         flat_suffix2
 
   let from_lambda ({ value_prefix_len; flat_suffix } : Lambda.mixed_block_shape)
       =
     let value_prefix_kinds = Array.init value_prefix_len (fun _ -> value) in
-    let flat_suffix = Array.map Flat_suffix_element.from_lambda flat_suffix in
-    let flat_suffix_kinds = Array.map Flat_suffix_element.kind flat_suffix in
+    let flat_suffix = Array.map Flat_suffix_element0.from_lambda flat_suffix in
+    let flat_suffix_kinds = Array.map Flat_suffix_element0.kind flat_suffix in
     { flat_suffix;
       value_prefix_size = value_prefix_len;
       field_kinds = Array.concat [value_prefix_kinds; flat_suffix_kinds]
@@ -938,4 +938,17 @@ module With_subkind = struct
   let erase_subkind (t : t) : t = { t with subkind = Anything }
 
   let equal_ignoring_subkind t1 t2 = equal (erase_subkind t1) (erase_subkind t2)
+end
+
+module Flat_suffix_element = struct
+  include Flat_suffix_element0
+
+  let to_kind_with_subkind t =
+    match t with
+    | Tagged_immediate -> With_subkind.tagged_immediate
+    | Naked_float -> With_subkind.naked_float
+    | Naked_float32 -> With_subkind.naked_float32
+    | Naked_int32 -> With_subkind.naked_int32
+    | Naked_int64 -> With_subkind.naked_int64
+    | Naked_nativeint -> With_subkind.naked_nativeint
 end

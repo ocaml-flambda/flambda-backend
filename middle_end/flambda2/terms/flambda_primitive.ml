@@ -451,14 +451,8 @@ module Block_access_kind = struct
     | Mixed { field_kind = Value_prefix Immediate; _ } ->
       K.With_subkind.tagged_immediate
     | Naked_floats _ -> K.With_subkind.naked_float
-    | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
-      match field_kind with
-      | Tagged_immediate -> K.With_subkind.tagged_immediate
-      | Naked_float -> K.With_subkind.naked_float
-      | Naked_float32 -> K.With_subkind.naked_float32
-      | Naked_int32 -> K.With_subkind.naked_int32
-      | Naked_int64 -> K.With_subkind.naked_int64
-      | Naked_nativeint -> K.With_subkind.naked_nativeint)
+    | Mixed { field_kind = Flat_suffix field_kind; _ } ->
+      K.Flat_suffix_element.to_kind_with_subkind field_kind
 
   let to_block_shape t : K.Block_shape.t =
     match t with
