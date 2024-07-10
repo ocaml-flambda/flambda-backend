@@ -602,8 +602,8 @@ let main n ~bytecode =
     line ?indent {|print_endline "%s";|} (String.escaped s)
   in
   let do_gc ?indent () =
-    print_in_test ?indent " - Doing GC";
-    line ?indent "let () = Gc.full_major ();;"
+    seq_print_in_test ?indent " - Doing GC";
+    line ?indent "Gc.full_major ();"
   in
   let per_type f = List.iter types ~f in
   let per_value f = List.iter values ~f in
@@ -703,29 +703,32 @@ let check_reachable_words expected actual message =
   line "(* Type declarations *)";
   per_type (fun t -> line "%s" (Type.type_decl t));
   print_endline "";
+  line {|external opaque_ignore : ('a [@local_opt]) -> unit = "%%opaque"|};
+  print_endline "";
+  print_endline "let[@opaque] run () =";
   print_endline "(* Let declarations *)";
-  print_in_test "Creating values";
+  seq_print_in_test "Creating values";
   per_value (fun t ->
     line
-      "let %s : %s = %s;;"
+      "let %s : %s = %s in"
       (Value.value t)
       (Value.type_ t)
       (Value.construction t));
   do_gc ();
   line "";
   line "(* Copies *)";
-  print_in_test "Copying values using [with] record update";
+  seq_print_in_test "Copying values using [with] record update";
   per_value (fun t ->
     match t with
     | Constructor _ ->
         line
-          "let %s = %s;;"
+          "let %s = %s in"
           (Value.value t ~base:"t_orig")
           (Value.value t)
     | Record record ->
       let field = List.hd record.fields in
       line
-        "let %s = { %s%s = %s.%s };;"
+        "let %s = { %s%s = %s.%s } in"
         (Value.value t ~base:"t_orig")
         (match record.fields with
          | [_] -> ""
@@ -800,32 +803,33 @@ let check_reachable_words expected actual message =
                   t.index field.name)
           |> String.concat ~sep:"")
           t.index);
-    line "();;"
+    line "()"
   in
+  print_endline "in";
   let run_checks ?indent () =
-    print_in_test " - Running checks";
+    seq_print_in_test " - Running checks";
     line
       ?indent
-      "let () = run_checks %s;;"
+      "let () = run_checks %s in"
       (List.map values ~f:Value.value |> String.concat ~sep:" ")
   in
   run_checks ();
   do_gc ();
   run_checks ();
-  print_in_test "Copying values via [Stdlib.Weak]";
+  seq_print_in_test "Copying values via [Stdlib.Weak]";
   per_value (fun t ->
     line
-      "let %s : %s = copy_via_weak %s"
+      "let %s : %s = copy_via_weak %s in"
       (Value.value t)
       (Value.type_ t)
       (Value.value t));
   run_checks ();
   do_gc ();
   run_checks ();
-  print_in_test "Copying values via [Obj.with_tag]";
+  seq_print_in_test "Copying values via [Obj.with_tag]";
   per_value (fun t ->
     line
-      "let %s : %s = copy_via_tag %s"
+      "let %s : %s = copy_via_tag %s in"
       (Value.value t)
       (Value.type_ t)
       (Value.value t));
@@ -834,7 +838,6 @@ let check_reachable_words expected actual message =
   run_checks ();
   line "";
   line "(* Testing local allocation *)";
-  line {|external opaque_ignore : ('a [@local_opt]) -> unit = "%%opaque"|};
   print_endline "let go () =";
   let () =
     let indent = 2 in
@@ -845,14 +848,14 @@ let check_reachable_words expected actual message =
         (Value.value t)
         (Value.type_ t)
         (Value.construction t));
-    line "  let module _ = struct";
-    do_gc () ~indent:4;
-    line "end in";
+    do_gc () ~indent;
     per_value (fun t -> line "opaque_ignore %s;" (Value.value t));
-    line "();;"
+    line "()"
   in
-  print_in_test "Testing local allocations";
-  print_endline "let () = go ();;"
+  print_endline "in";
+  seq_print_in_test "Testing local allocations";
+  print_endline "go ();;";
+  print_endline "let () = run ();;"
 ;;
 
 let () =
