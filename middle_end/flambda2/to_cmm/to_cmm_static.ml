@@ -31,13 +31,14 @@ let static_field res field =
     ~const:(fun cst ->
       match Reg_width_const.descr cst with
       | Tagged_immediate i ->
-        [C.cint
-          (C.nativeint_of_targetint
-             (C.tag_targetint (Targetint_31_63.to_targetint i)))]
+        [ C.cint
+            (C.nativeint_of_targetint
+               (C.tag_targetint (Targetint_31_63.to_targetint i))) ]
       | Naked_immediate i ->
         [C.cint (Targetint_31_63.to_int64 i |> Int64.to_nativeint)]
       | Naked_float32 f ->
-        [C.cfloat32 (Numeric_types.Float32_by_bit_pattern.to_float f); C.cint32 0l]
+        [ C.cfloat32 (Numeric_types.Float32_by_bit_pattern.to_float f);
+          C.cint32 0l ]
       | Naked_float f ->
         [C.cfloat (Numeric_types.Float_by_bit_pattern.to_float f)]
       | Naked_int32 i -> [C.cint32 i; C.cint32 0l]
