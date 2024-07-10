@@ -167,7 +167,11 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
           let acc, field, _ = declare_const acc dbg c in
           Simple.pattern_match'
             (Simple.With_debuginfo.simple field)
-            ~var:(fun _var ~coercion:_ -> ())
+            ~var:(fun _var ~coercion:_ ->
+              Misc.fatal_errorf
+                "Did not expect field %a of [Const_block] to be a variable:@ %a"
+                Simple.With_debuginfo.print field
+                Printlambda.structured_constant const)
             ~symbol:(fun _sym ~coercion:_ -> ())
             ~const:(fun cst ->
               match RWC.descr cst with
