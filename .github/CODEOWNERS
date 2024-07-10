@@ -1,11 +1,3 @@
 # Later lines in the file take precedence.
 
-.github/CODEOWNERS      @mshinwell @lpw25
-
-flambda_backend.opam    @mshinwell @lthls
-
-build_ocaml_compiler.sexp       @poechsel
-
-chamelon/                       @Ekdohibs
-
-external/memtrace/              @stedolan
+* @dvulakh
