@@ -231,10 +231,9 @@ module Mixed_block_shape = struct
   let field_kinds t = t.field_kinds
 
   (* This function has two meanings. The first is to say whether two shapes are
-     equivalent (which is why the lambda shape is not compared directly). The
-     second is to tell whether two shapes are compatible. Currently this matches
-     with equivalence, but if we introduce subkinds this will have to be split
-     into two functions. *)
+     equivalent. The second is to tell whether two shapes are compatible.
+     Currently this matches with equivalence, but if we introduce subkinds this
+     will have to be split into two functions. *)
   let equal
       { value_prefix_size = value_prefix_size1;
         flat_suffix = flat_suffix1;
