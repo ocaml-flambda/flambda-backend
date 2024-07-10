@@ -207,7 +207,7 @@ module With_debuginfo = struct
 
   let dbg (_simple, dbg) = dbg
 
-  let free_names (simple, _kind) = free_names simple
+  let free_names (simple, _dbg) = free_names simple
 
   let apply_renaming ((simple, kind) as t) renaming =
     let simple' = apply_renaming simple renaming in
