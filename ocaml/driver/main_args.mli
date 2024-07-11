@@ -39,6 +39,8 @@ module type Common_options = sig
   val _nostdlib : unit -> unit
   val _no_auto_include_otherlibs : unit -> unit
   val _nocwd : unit -> unit
+  val _always_tco : unit -> unit
+  val _no_always_tco : unit -> unit
   val _open : string -> unit
   val _ppx : string -> unit
   val _principal : unit -> unit
