@@ -96,6 +96,7 @@
     primitive
     zero_alloc
     types
+    oprint
     jkind
     value_rec_types
     btype
@@ -194,6 +195,7 @@
 (copy_files ../../typing/jkind.ml)
 (copy_files ../../typing/jkind_intf.ml)
 (copy_files ../../typing/jkind_types.ml)
+(copy_files ../../typing/oprint.ml)
 (copy_files ../../typing/primitive.ml)
 (copy_files ../../typing/shape.ml)
 (copy_files ../../typing/solver.ml)
@@ -264,6 +266,7 @@
 (copy_files ../../typing/jkind.mli)
 (copy_files ../../typing/jkind_intf.mli)
 (copy_files ../../typing/jkind_types.mli)
+(copy_files ../../typing/oprint.mli)
 (copy_files ../../typing/primitive.mli)
 (copy_files ../../typing/shape.mli)
 (copy_files ../../typing/solver.mli)
