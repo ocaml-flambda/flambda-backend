@@ -93,13 +93,18 @@ let clean_for_export t ~reachable_names =
            && Compilation_unit.equal
                 (Name.compilation_unit name)
                 current_compilation_unit
-        then
+        then (
           let binding_time_and_mode =
             if Name.is_var name
             then Binding_time.With_name_mode.imported_variables
             else binding_time_and_mode
           in
-          Some (ty, binding_time_and_mode)
+          (match Type_grammar.get_alias_opt ty with
+          | None -> ()
+          | Some alias ->
+            Misc.fatal_errorf "Remaining alias after cleanup: %a -> %a@."
+              Name.print name Simple.print alias);
+          Some (ty, binding_time_and_mode))
         else None)
       t.names_to_types
   in
