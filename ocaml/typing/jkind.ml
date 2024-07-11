@@ -633,21 +633,7 @@ module Const = struct
 
   let to_out_jkind_const = To_out_jkind_const.convert
 
-  let rec print_out_jkind_const ppf (ojkind : Outcometree.out_jkind_const) =
-    let open Format in
-    match ojkind with
-    | Ojkind_const_default -> fprintf ppf "_"
-    | Ojkind_const_abbreviation abbrev -> fprintf ppf "%s" abbrev
-    | Ojkind_const_mod (base, modes) ->
-      fprintf ppf "%a mod @[%a@]" print_out_jkind_const base
-        (pp_print_list
-           ~pp_sep:(fun ppf () -> fprintf ppf "@ ")
-           (fun ppf -> fprintf ppf "%s"))
-        modes
-    | Ojkind_const_with _ | Ojkind_const_kind_of _ ->
-      failwith "XXX unimplemented jkind syntax"
-
-  let format ppf jkind = to_out_jkind_const jkind |> print_out_jkind_const ppf
+  let format ppf jkind = to_out_jkind_const jkind |> !Oprint.out_jkind_const ppf
 
   let of_attribute : Builtin_attributes.jkind_attribute -> t = function
     | Immediate -> Primitive.immediate.jkind
@@ -1259,11 +1245,6 @@ let set_externality_upper_bound jk externality_upper_bound =
 
 (*********************************)
 (* pretty printing *)
-
-let print_out_jkind ppf (ojkind : Outcometree.out_jkind) =
-  match ojkind with
-  | Ojkind_var v -> Format.fprintf ppf "%s" v
-  | Ojkind_const jkind -> Const.print_out_jkind_const ppf jkind
 
 let format ppf jkind =
   match get jkind with
