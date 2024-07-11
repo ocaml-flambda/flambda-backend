@@ -106,7 +106,9 @@ let inline_object f =
 
 let[@inline never] lazy_ f =
   let x = Sys.opaque_identity (lazy (1 + f ())) in
-  Lazy.force x
+  Lazy.force x [@tail]
+  (* CR less-tco: Force this to be TCO'd so that it does not show up in the stacktrace.
+     (The stacktrace for lazy_ differs between the native and bytecode compilers.) *)
 
 
 let[@inline never] nontailcall f =

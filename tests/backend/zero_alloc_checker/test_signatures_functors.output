@@ -2,4 +2,4 @@ File "test_signatures_functors.ml", line 18, characters 7-17:
 Error: Annotation check for zero_alloc strict failed on function Test_signatures_functors.F_strict_bad.g (camlTest_signatures_functors.g_HIDE_STAMP)
 
 File "test_signatures_functors.ml", line 18, characters 32-37:
-Error: called function may allocate on a path to exceptional return (indirect tailcall)
+Error: called function may allocate on a path to exceptional return (indirect call)
