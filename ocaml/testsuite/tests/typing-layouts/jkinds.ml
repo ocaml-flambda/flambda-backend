@@ -1102,8 +1102,6 @@ Error: The kind of type t is value
        But the kind of type t must be a subkind of any mod external_
          because of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-  mismatch, not a layout mismatch. *)
 
 type t : any mod portable = Foo of bool [@@unboxed]
 let x = (Foo true : _ as (_ : value mod portable uncontended unique))
@@ -1509,10 +1507,10 @@ type 'a t : value mod global = 'a
 Line 1, characters 0-33:
 1 | type 'a t : value mod global = 'a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type 'a is value, because
-         of the definition of t at line 1, characters 0-33.
-       But the layout of type 'a must be a sublayout of value, because
-         of the definition of t at line 1, characters 0-33.
+Error: The kind of type 'a is value
+         because of the definition of t at line 1, characters 0-33.
+       But the kind of type 'a must be a subkind of value mod global
+         because of the definition of t at line 1, characters 0-33.
 |}]
 (* CR layouts v2.8: this should be accepted; 'a should be inferred to have kind
    value mod global *)
@@ -1522,10 +1520,10 @@ type 'a t : word = 'a
 Line 1, characters 0-21:
 1 | type 'a t : word = 'a
     ^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type 'a is value, because
-         of the definition of t at line 1, characters 0-21.
-       But the layout of type 'a must be a sublayout of word, because
-         of the definition of t at line 1, characters 0-21.
+Error: The layout of type 'a is value
+         because of the definition of t at line 1, characters 0-21.
+       But the layout of type 'a must be a sublayout of word
+         because of the definition of t at line 1, characters 0-21.
 |}]
 (* CR layouts v2.8: this should be accepted; 'a should be inferred to have kind
    word *)
@@ -1545,10 +1543,10 @@ type 'a t : value mod global = private 'a
 Line 1, characters 0-41:
 1 | type 'a t : value mod global = private 'a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type 'a is value, because
-         of the definition of t at line 1, characters 0-41.
-       But the layout of type 'a must be a sublayout of value, because
-         of the definition of t at line 1, characters 0-41.
+Error: The kind of type 'a is value
+         because of the definition of t at line 1, characters 0-41.
+       But the kind of type 'a must be a subkind of value mod global
+         because of the definition of t at line 1, characters 0-41.
 |}]
 (* CR layouts v2.8: this should be accepted; 'a should be inferred to have kind
   value mod global *)
@@ -1558,10 +1556,10 @@ type 'a t : word = private 'a
 Line 1, characters 0-29:
 1 | type 'a t : word = private 'a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type 'a is value, because
-         of the definition of t at line 1, characters 0-29.
-       But the layout of type 'a must be a sublayout of word, because
-         of the definition of t at line 1, characters 0-29.
+Error: The layout of type 'a is value
+         because of the definition of t at line 1, characters 0-29.
+       But the layout of type 'a must be a sublayout of word
+         because of the definition of t at line 1, characters 0-29.
 |}]
 (* CR layouts v2.8: this should be accepted; 'a should be inferred to have kind
   word *)
@@ -1571,10 +1569,11 @@ type 'a t : value mod global = Foo of 'a [@@unboxed]
 Line 1, characters 0-52:
 1 | type 'a t : value mod global = Foo of 'a [@@unboxed]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it instantiates an unannotated type parameter of t, defaulted to layout value.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it instantiates an unannotated type parameter of t,
+         defaulted to kind value.
+       But the kind of type t must be a subkind of value mod global
+         because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted; 'a should be inferred to have kind
   value mod global *)
@@ -1584,10 +1583,10 @@ type 'a t : value mod global = { x : 'a }
 Line 1, characters 0-41:
 1 | type 'a t : value mod global = { x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed record type.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed record type.
+       But the kind of type t must be a subkind of value mod global
+         because of the annotation on the declaration of the type t.
 |}]
 
 type 'a t : value mod many = { x : 'a }
@@ -1595,8 +1594,8 @@ type 'a t : value mod many = { x : 'a }
 Line 1, characters 0-39:
 1 | type 'a t : value mod many = { x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed record type.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed record type.
+       But the kind of type t must be a subkind of value mod many
+         because of the annotation on the declaration of the type t.
 |}]
