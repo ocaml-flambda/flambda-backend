@@ -1046,7 +1046,6 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
           (instance_funct ~id_in:scoped_ident ~p_out:(Pident (Ident.of_unscoped ident))
                           ~fixed:false cty.ctyp_type)
     in
-    (* could be newty or Btype.newgenty *)
     let l' = List.map (fun (s, cty) -> (s.txt, cty.ctyp_type)) ptys in
     let arg_mode = Alloc.legacy in
     let ret_mode = Alloc.legacy in

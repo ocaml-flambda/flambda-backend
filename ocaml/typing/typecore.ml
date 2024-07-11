@@ -7071,7 +7071,7 @@ and type_function
               Option.value ~default:ety
                   (instance_funct ~id_in:(Ident.of_unscoped id)
                                   ~p_out:(Pident s_ident) ~fixed:false ety)
-            | None -> newvar (Jkind.Builtin.any ~why:Dummy_jkind)
+            | None -> newvar (Jkind.Builtin.any ~why:Unification_var)
           in
           let type_sort ~why ty =
             match Ctype.type_sort ~why ~fixed:false env ty with
@@ -7098,6 +7098,7 @@ and type_function
               let pck_ty = newty (Tpackage (path, fl)) in
               newgenty (Tarrow (ad, newmono pck_ty, res_ty, commu_ok))
       in
+      let exp_type = instance exp_type in
       unify_exp_types loc env exp_type (instance ty_expected);
       let pat_desc = Tpat_var (s_ident, name, pv_uid, Value.disallow_right Value.legacy) in
       let pattern = {

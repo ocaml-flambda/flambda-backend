@@ -3290,14 +3290,11 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
 (* A simplified version of [transl_with_constraint], for the case of packages.
    Package constraints are much simpler than normal with type constraints (e.g.,
    they can not have parameters and can only update abstract types.) *)
-let transl_package_constraint ~loc ty =
+let transl_package_constraint ~loc type_jkind ty =
   { type_params = [];
     type_arity = 0;
     type_kind = Type_abstract Definition;
-    type_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
-    (* There is no reason to calculate an accurate jkind here.  This typedecl
-       will be thrown away once it is used for the package constraint inclusion
-       check, and that check will expand the manifest as needed. *)
+    type_jkind;
     type_jkind_annotation = None;
     type_private = Public;
     type_manifest = Some ty;

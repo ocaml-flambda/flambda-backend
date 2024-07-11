@@ -752,8 +752,9 @@ let merge_constraint initial_env loc sg lid constr =
         | Some ty ->
           raise (Error(loc, outer_sig_env, With_package_manifest (lid.txt, ty)))
         end;
+        let jkind = Ctype.type_jkind initial_env cty.ctyp_type in
         let tdecl =
-          Typedecl.transl_package_constraint ~loc cty.ctyp_type
+          Typedecl.transl_package_constraint ~loc jkind cty.ctyp_type
         in
         (* Here we constrain the jkind of "with type" manifest by the jkind from
            the declaration from the original signature.  Note that this is also
