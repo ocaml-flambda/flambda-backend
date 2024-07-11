@@ -2073,8 +2073,11 @@ Error: Signature mismatch:
          type 'a t = 'a
        is not included in
          type ('a : any) t = 'a
-       The type "('a : value)" is not equal to the type "('a0 : any)"
-       because their layouts are different.
+       The problem is in the kinds of a parameter:
+       The layout of 'a is any, because
+         of the definition of t at line 2, characters 2-24.
+       But the layout of 'a must be a sublayout of value, because
+         of the definition of t at line 4, characters 2-26.
 |}]
 
 module M3 : sig
@@ -2097,8 +2100,11 @@ Error: Signature mismatch:
          type 'a t = 'a -> 'a
        is not included in
          type ('a : any) t = 'a -> 'a
-       The type "('a : value)" is not equal to the type "('a0 : any)"
-       because their layouts are different.
+       The problem is in the kinds of a parameter:
+       The layout of 'a is any, because
+         of the definition of t at line 2, characters 2-30.
+       But the layout of 'a must be a sublayout of value, because
+         of the definition of t at line 4, characters 2-22.
 |}]
 
 module M4 : sig
@@ -2231,9 +2237,11 @@ Error: Signature mismatch:
          type 'a t = K of ('a -> 'a)
        is not included in
          type ('a : any) t = K of ('a -> 'a)
-       Their parameters differ:
-       The type "('a : value)" is not equal to the type "('a0 : any)"
-       because their layouts are different.
+       The problem is in the kinds of a parameter:
+       The layout of 'a is any, because
+         of the definition of t at line 2, characters 2-37.
+       But the layout of 'a must be a sublayout of value, because
+         of the definition of t at line 4, characters 2-29.
 |}]
 
 module M9 : sig
@@ -2243,24 +2251,8 @@ end = struct
 end
 
 [%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type ('a : any) t = K of ('a -> 'a)
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type ('a : any) t = K of ('a -> 'a) end
-       is not included in
-         sig type 'a t = K of ('a -> 'a) end
-       Type declarations do not match:
-         type ('a : any) t = K of ('a -> 'a)
-       is not included in
-         type 'a t = K of ('a -> 'a)
-       Their parameters differ:
-       The type "('a : any)" is not equal to the type "('a0 : value)"
-       because their layouts are different.
+module M9 : sig type 'a t = K of ('a -> 'a) end
 |}]
-(* CR layouts: This one should be fine to accept *)
 
 (*****************************************************)
 (* Test 38: Ensure Univar unification checks layouts *)

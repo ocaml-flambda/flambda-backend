@@ -97,7 +97,6 @@ type ('a, 'variety) elt =
   | Bad_jkind_sort : type_expr * Jkind.Violation.t -> ('a, _) elt
   | Unequal_var_jkinds :
       type_expr * jkind_lr * type_expr * jkind_lr -> ('a, _) elt
-  | Unequal_var_jkinds_with_no_history
 
 type ('a, 'variety) t = ('a, 'variety) elt list
 

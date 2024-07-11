@@ -1091,7 +1091,7 @@ end = struct
   (* We map from types to names, but not directly; we also store a substitution,
      which maps from types to types.  The lookup process is
      "type -> apply substitution -> find name".  The substitution is presumed to
-     be acyclic. *)
+     be one-shot. *)
   let names = ref ([] : (transient_expr * string) list)
   let name_subst = ref ([] : (transient_expr * transient_expr) list)
   let name_counter = ref 0
@@ -3088,12 +3088,11 @@ let explanation (type variety) intro prev env
   | Errortrace.Unequal_var_jkinds (t1,l1,t2,l2) ->
       let fmt_history t l ppf =
         Jkind.(format_history ~intro:(
-          dprintf "The layout of %a is %a" type_expr t format l) ppf l)
+          dprintf "The layout of %a is %a" prepared_type_expr t format l) ppf l)
       in
-      Some (dprintf "@ because their layouts are different.@ @[<v>%t@;%t@]"
+      Some (dprintf "@ because the layouts of their variables are different.\
+                     @ @[<v>%t@;%t@]"
               (fmt_history t1 l1) (fmt_history t2 l2))
-  | Errortrace.Unequal_var_jkinds_with_no_history ->
-      Some (dprintf "@ because their layouts are different.")
 
 let mismatch intro env trace =
   Errortrace.explain trace (fun ~prev h -> explanation intro prev env h)
@@ -3157,8 +3156,7 @@ let error trace_format mode subst env tr txt1 ppf txt2 ty_expect_explanation =
       tr
   in
   let jkind_error = match Misc.last tr with
-    | Some (Bad_jkind _ | Bad_jkind_sort _ | Unequal_var_jkinds _
-           | Unequal_var_jkinds_with_no_history) ->
+    | Some (Bad_jkind _ | Bad_jkind_sort _ | Unequal_var_jkinds _) ->
         true
     | Some (Diff _ | Escape _ | Variant _ | Obj _ | Incompatible_fields _
            | Rec_occur _)
@@ -3204,9 +3202,9 @@ let report_error trace_format ppf mode env tr
     error trace_format mode subst env tr txt1 ppf txt2
       type_expected_explanation)
 
-let report_unification_error
+let report_unification_error ?type_expected_explanation
       ppf env ({trace} : Errortrace.unification_error) =
-  report_error Unification ppf Type env
+  report_error ?type_expected_explanation Unification ppf Type env
     ?subst:None trace
 
 let report_equality_error

@@ -395,17 +395,16 @@ type class_match_failure =
 val match_class_types:
     ?trace:bool -> Env.t -> class_type -> class_type -> class_match_failure list
         (* Check if the first class type is more general than the second. *)
-val equal: Env.t -> bool -> type_expr list -> type_expr list -> unit
+val equal: ?do_jkind_check:bool ->
+  Env.t -> bool -> type_expr list -> type_expr list -> unit
         (* [equal env [x1...xn] tau [y1...yn] sigma]
            checks whether the parameterized types
            [/\x1.../\xn.tau] and [/\y1.../\yn.sigma] are equivalent. *)
 val is_equal : Env.t -> bool -> type_expr list -> type_expr list -> bool
-val equal_private :
-        Env.t -> type_expr list -> type_expr ->
-        type_expr list -> type_expr -> unit
-(* [equal_private env t1 params1 t2 params2] checks that [t1::params1]
-   equals [t2::params2] but it is allowed to expand [t1] if it is a
-   private abbreviations. *)
+val equal_private : Env.t -> type_expr -> type_expr -> unit
+(* [equal_private env t1 t2] checks that [t1] equals [t2] but it is allowed to
+   expand [t1] if it is a private abbreviation. No renaming is allowed, but
+   jkinds are checked. *)
 
 val match_class_declarations:
         Env.t -> type_expr list -> class_type -> type_expr list ->
@@ -419,6 +418,35 @@ val subtype: Env.t -> type_expr -> type_expr -> unit -> unit
            It accumulates the constraints the type variables must
            enforce and returns a function that enforces this
            constraints. *)
+
+(* This module allows a type to become "rigid": after unifying such a type,
+   we can check to see whether any of its variables were unified, issuing
+   an error in such a case. *)
+module Rigidify : sig
+  type t
+
+  type matches_result =
+    (* A variable with name [name] has been unified with a type [ty]. *)
+    | Unification_failure of
+        { name : string option
+        ; ty : type_expr }
+
+    (* A variable [ty] started with an [original_jkind] but now has a
+       [inferred_jkind]. *)
+    | Jkind_mismatch of
+        { original_jkind : jkind; inferred_jkind : jkind; ty : type_expr }
+
+    (* No problems *)
+    | All_good
+
+  (* Mark all the variables in the types given as rigid; these will be tracked
+     for unification. Every call to this function should be paired with a call
+     to [all_distinct_vars_with_original_jkinds]. *)
+  val rigidify_list : type_expr list -> t
+
+  (* Check that no variables in a [t] have actually been unified. *)
+  val all_distinct_vars_with_original_jkinds : Env.t -> t -> matches_result
+end
 
 (* Operations on class signatures *)
 

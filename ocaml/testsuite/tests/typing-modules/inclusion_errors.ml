@@ -56,6 +56,8 @@ module M: sig
 end = struct
   type ('b,'c,'a) t = ('b * 'c * 'a * 'c * 'a) x
 end
+(* CR reisenberg: The change here is like a change in variants_errors_test.
+   Comment over there. *)
 [%%expect{|
 type 'a x
 Lines 4-6, characters 6-3:
@@ -71,9 +73,9 @@ Error: Signature mismatch:
          type ('b, 'c, 'a) t = ('b * 'c * 'a * 'c * 'a) x
        is not included in
          type ('a, 'b, 'c) t = ('a * 'b * 'c * 'b * 'a) x
-       The type "('b * 'c * 'a * 'c * 'a) x" is not equal to the type
-         "('b * 'c * 'a * 'c * 'b) x"
-       Type "'a" is not equal to type "'b"
+       The type "('a * 'b * 'c * 'b * 'c) x" is not equal to the type
+         "('a * 'b * 'c * 'b * 'a) x"
+       Type "'c" is not equal to type "'a"
 |}]
 
 module M : sig
@@ -427,6 +429,7 @@ Error: Signature mismatch:
          type 'a t = 'a constraint 'a = [> `A of int ]
        is not included in
          type 'a t = 'a constraint 'a = [> `A of int | `B of int ]
+       Their parameters differ:
        The type "[> `A of int ]" is not equal to the type
          "[> `A of int | `B of int ]"
        The first variant type does not allow tag(s) "`B"
@@ -451,6 +454,7 @@ Error: Signature mismatch:
          type 'a t = 'a constraint 'a = [> `A of int | `C of float ]
        is not included in
          type 'a t = 'a constraint 'a = [> `A of int ]
+       Their parameters differ:
        The type "[> `A of int | `C of float ]" is not equal to the type
          "[> `A of int ]"
        The second variant type does not allow tag(s) "`C"

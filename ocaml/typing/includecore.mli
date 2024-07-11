@@ -108,6 +108,7 @@ type type_mismatch =
   | Kind of kind_mismatch
   | Constraint of Errortrace.equality_error
   | Manifest of Errortrace.equality_error
+  | Parameter_jkind of type_expr * Jkind.Violation.t
   | Private_variant of type_expr * type_expr * private_variant_mismatch
   | Private_object of type_expr * type_expr * private_object_mismatch
   | Variance
