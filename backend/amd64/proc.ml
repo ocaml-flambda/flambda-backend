@@ -507,7 +507,7 @@ let destroyed_at_oper = function
        | Iconst_int _ | Iconst_float32 _ | Iconst_float _
        | Iconst_symbol _ | Iconst_vec128 _
        | Itailcall_ind | Itailcall_imm _ | Istackoffset _ | Iload _
-       | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque | Idls_get)
+       | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque | Idls_get | Ireturn_addr)
   | Iend | Ireturn _ | Iifthenelse (_, _, _) | Icatch (_, _, _, _)
   | Iexit _ | Iraise _
   | Iop(Ibeginregion | Iendregion)
@@ -567,7 +567,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
                   | Ifloatarithmem _ | Ibswap _
                   | Isextend32 | Izextend32 | Ipause
                   | Iprefetch _ | Ilfence | Isfence | Imfence)
-       | Name_for_debugger _ | Dls_get)
+       | Name_for_debugger _ | Dls_get | Return_addr)
   | Poptrap | Prologue ->
     if fp then [| rbp |] else [||]
   | Stack_check _ ->
@@ -644,7 +644,7 @@ let safe_register_pressure = function
   | Iintop _ | Iintop_imm (_, _) | Iintop_atomic _
   | Ispecific _ | Iname_for_debugger _
   | Iprobe _ | Iprobe_is_enabled _ | Iopaque
-  | Ibeginregion | Iendregion | Idls_get
+  | Ibeginregion | Iendregion | Idls_get | Ireturn_addr
     -> if fp then 10 else 11
 
 let max_register_pressure =
@@ -704,7 +704,7 @@ let max_register_pressure =
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _, _)
              | Ibswap _)
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
-  | Ibeginregion | Iendregion | Idls_get
+  | Ibeginregion | Iendregion | Idls_get | Ireturn_addr
     -> consumes ~int:0 ~float:0
 
 (* Layout of the stack frame *)

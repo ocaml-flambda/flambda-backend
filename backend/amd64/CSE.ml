@@ -53,7 +53,7 @@ method! class_of_operation op =
   | Istackoffset _ | Iload _ | Istore _ | Ialloc _
   | Iintop _ | Iintop_imm _ | Iintop_atomic _
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
-  | Ibeginregion | Iendregion | Ipoll _ | Idls_get
+  | Ibeginregion | Iendregion | Ipoll _ | Idls_get | Ireturn_addr
     -> super#class_of_operation op
 
 end
@@ -95,7 +95,7 @@ class cfg_cse = object
   | Stackoffset _ | Load _ | Store _ | Alloc _
   | Intop _ | Intop_imm _ | Intop_atomic _
   | Name_for_debugger _ | Probe_is_enabled _ | Opaque
-  | Begin_region | End_region | Poll | Dls_get
+  | Begin_region | End_region | Poll | Dls_get | Return_addr
     -> super#class_of_operation op
 
 end

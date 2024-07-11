@@ -226,7 +226,7 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
            | Iconst_symbol _ | Iextcall _ | Istackoffset _ | Iload _ | Istore _
            | Iintop _ | Iintop_imm _ | Iintop_atomic _ | Ifloatop _ | Icsel _
            | Iopaque | Ispecific _ | Istatic_cast _ | Ireinterpret_cast _
-           | Iprobe_is_enabled _ | Ibeginregion | Iendregion | Idls_get ) as op)
+           | Iprobe_is_enabled _ | Ibeginregion | Iendregion | Idls_get | Ireturn_addr) as op)
         ->
         (* We split the calculation of registers that become unavailable after a
            call into two parts. First: anything that the target marks as
@@ -288,7 +288,7 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
           | Itailcall_imm _ | Iextcall _ | Istackoffset _ | Iload _ | Istore _
           | Iintop _ | Iintop_imm _ | Iintop_atomic _ | Ifloatop _ | Icsel _
           | Iopaque | Ispecific _ | Istatic_cast _ | Ireinterpret_cast _
-          | Iname_for_debugger _ | Iprobe_is_enabled _ | Ibeginregion | Idls_get
+          | Iname_for_debugger _ | Iprobe_is_enabled _ | Ibeginregion | Idls_get | Ireturn_addr
             ->
             RD.Set.empty
         in

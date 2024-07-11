@@ -425,7 +425,7 @@ let is_cmm_simple cmm =
   | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ ->
     true
   | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Cop _
-  | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ ->
+  | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ | Creturn_addr ->
     false
 
 (* Helper function to create bindings *)

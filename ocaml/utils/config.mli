@@ -69,6 +69,9 @@ val bytecomp_c_libraries: string
 val native_c_libraries: string
 (** The C libraries to link with native-code programs *)
 
+val native_ldflags : string
+(** Flags to pass to the system linker *)
+
 val native_pack_linker: string
 (** The linker to use for packaging (ocamlopt -pack) and for partial
     links (ocamlopt -output-obj). *)
@@ -285,6 +288,9 @@ val poll_insertion : bool
 
 val ar_supports_response_files: bool
 (** Whether ar supports @FILE arguments. *)
+
+val tsan : bool
+(** Whether ThreadSanitizer instrumentation is enabled *)
 
 val runtime5 : bool
 (** [true] if using the OCaml 5.x runtime, [false] if using the

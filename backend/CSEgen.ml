@@ -81,6 +81,7 @@ method class_of_operation op =
   | Iprobe_is_enabled _ -> Op_other
   | Ibeginregion | Iendregion -> Op_other
   | Idls_get -> Op_load Mutable
+  | Ireturn_addr -> Op_load Immutable
 
 (* Operations that are so cheap that it isn't worth factoring them. *)
 

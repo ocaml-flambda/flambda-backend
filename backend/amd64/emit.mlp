@@ -1782,6 +1782,9 @@ let emit_instr ~first ~fallthrough i =
     if Config.runtime5
     then I.mov (domain_field Domainstate.Domain_dls_root) (res i 0)
     else Misc.fatal_error "Dls is not supported in runtime4.";
+  | Lop (Ireturn_addr) ->
+    let offset = frame_size() - 8 in
+    I.mov (mem64 QWORD offset RSP) (res i 0)
   | Lreloadretaddr ->
       ()
   | Lreturn ->
@@ -1873,10 +1876,17 @@ let emit_instr ~first ~fallthrough i =
             (if Config.runtime5 then "caml_reraise_exn" else "caml_raise_exn"));
           record_frame Reg.Set.empty (Dbg_raise i.dbg)
       | Lambda.Raise_notrace ->
-          I.mov (domain_field Domainstate.Domain_exn_handler) rsp;
-          I.pop (domain_field Domainstate.Domain_exn_handler);
-          I.pop r11;
-          I.jmp r11
+          if Config.tsan then begin
+            (* TSan requires to signal function exits upon exceptions,
+               even with [Raise_notrace] *)
+            emit_call { sym_name = "caml_tsan_raise_notrace_exn"; sym_global = Global; };
+            record_frame Reg.Set.empty (Dbg_raise i.dbg)
+          end else begin
+            I.mov (domain_field Domainstate.Domain_exn_handler) rsp;
+            I.pop (domain_field Domainstate.Domain_exn_handler);
+            I.pop r11;
+            I.jmp r11
+          end
     end
   | Lstackcheck { max_frame_size_bytes; } ->
     emit_stack_check ~size_in_bytes:max_frame_size_bytes ~save_registers:(not first)

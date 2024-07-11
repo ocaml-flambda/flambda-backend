@@ -143,6 +143,7 @@
   string_table
   symbol_entry
   symbol_table
+  thread_sanitizer
   x86_ast
   x86_binary_emitter
   x86_dsl

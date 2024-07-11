@@ -105,6 +105,7 @@ type operation =
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
   | Idls_get
+  | Ireturn_addr
 
 type instruction =
   { desc: instruction_desc;
@@ -201,7 +202,7 @@ let rec instr_iter f i =
             | Icsel _ | Ireinterpret_cast _ | Istatic_cast _
             | Ispecific _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
             | Iopaque
-            | Ibeginregion | Iendregion | Ipoll _ | Idls_get) ->
+            | Ibeginregion | Iendregion | Ipoll _ | Idls_get | Ireturn_addr) ->
         instr_iter f i.next
 
 let operation_is_pure = function
@@ -213,6 +214,7 @@ let operation_is_pure = function
   | Ireinterpret_cast (Value_of_int | Int_of_value) | Iintop_atomic _ -> false
   | Ibeginregion | Iendregion -> false
   | Iprobe _ -> false
+  | Ireturn_addr -> false
   | Iprobe_is_enabled _-> true
   | Ispecific sop -> Arch.operation_is_pure sop
   | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
@@ -251,7 +253,7 @@ let operation_can_raise op =
   | Istackoffset _ | Istore _  | Iload _ | Iname_for_debugger _
   | Itailcall_imm _ | Itailcall_ind
   | Iopaque | Ibeginregion | Iendregion
-  | Iprobe_is_enabled _ | Ialloc _ | Ipoll _ | Idls_get
+  | Iprobe_is_enabled _ | Ialloc _ | Ipoll _ | Idls_get | Ireturn_addr
     -> false
 
 let free_conts_for_handlers fundecl =

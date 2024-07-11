@@ -2248,6 +2248,7 @@ end = struct
       transform_top t ~next ~exn w ("external call to " ^ func) dbg
     | Ispecific s -> transform_specific t s ~next ~exn dbg
     | Idls_get -> next
+    | Ireturn_addr -> next
 
   module D = Dataflow.Backward ((Value : Dataflow.DOMAIN))
 
@@ -2575,6 +2576,7 @@ end = struct
           transform t ~effect ~next ~exn:Value.bot "heap allocation" dbg
         | Specific s -> transform_specific t s ~next ~exn:Value.bot dbg
         | Dls_get -> next
+        | Return_addr -> next
 
       let basic next (i : Cfg.basic Cfg.instruction) t : (domain, error) result
           =
