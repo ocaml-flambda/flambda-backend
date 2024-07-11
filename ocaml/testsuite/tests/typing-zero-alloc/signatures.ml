@@ -1205,7 +1205,7 @@ module type S1 = sig
 end
 
 module N1 : sig
-  module Plain : sig
+  module Plain1 : sig
     val f : int -> int
   end
 
@@ -1219,11 +1219,11 @@ end = struct
 end
 [%%expect{|
 module type S1 = sig module M1 : sig val f : int -> int end end
-Line 12, characters 25-51:
-12 |   module type S_plain1 = S1 with module M1 = Plain1
-                              ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Unbound module Plain1
-Hint: Did you mean Plain?
+module N1 :
+  sig
+    module Plain1 : sig val f : int -> int end
+    module type S_plain1 = sig module M1 : sig val f : int -> int end end
+  end
 |}]
 
 (* This revised version does not typecheck, because the signature on [S_plain2]
