@@ -628,7 +628,7 @@ module Stack_offset_and_exn = struct
         | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Static_cast _
         | Reinterpret_cast _ | Probe_is_enabled _ | Opaque | Begin_region
         | End_region | Specific _ | Name_for_debugger _ | Dls_get | Poll
-        | Alloc _ | Return_addr)
+        | Alloc _ | Return_addr )
     | Reloadretaddr | Prologue ->
       stack_offset, traps
     | Stack_check _ ->

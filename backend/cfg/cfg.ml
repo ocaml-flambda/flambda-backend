@@ -315,8 +315,7 @@ let dump_op ppf = function
     Format.fprintf ppf "alloc %i" bytes
   | Alloc { bytes; dbginfo = _; mode = Alloc_local } ->
     Format.fprintf ppf "alloc_local %i" bytes
-  | Return_addr ->
-    Format.fprintf ppf "return_addr"
+  | Return_addr -> Format.fprintf ppf "return_addr"
 
 let dump_basic ppf (basic : basic) =
   let open Format in
@@ -567,7 +566,7 @@ let is_noop_move instr =
       | Const_vec128 _ | Stackoffset _ | Load _ | Store _ | Intop _
       | Intop_imm _ | Intop_atomic _ | Floatop _ | Opaque | Reinterpret_cast _
       | Static_cast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
-      | Begin_region | End_region | Dls_get | Poll | Alloc _ | Return_addr)
+      | Begin_region | End_region | Dls_get | Poll | Alloc _ | Return_addr )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
     false
 

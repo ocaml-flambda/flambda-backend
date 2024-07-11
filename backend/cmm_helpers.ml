@@ -3944,7 +3944,8 @@ let cmm_arith_size (e : Cmm.expression) =
     Some 0
   | Cop _ -> Some (cmm_arith_size0 e)
   | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Csequence _
-  | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ | Creturn_addr ->
+  | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ | Creturn_addr
+    ->
     None
 
 let kind_of_layout (layout : Lambda.layout) =
