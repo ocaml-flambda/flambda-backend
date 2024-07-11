@@ -2,5 +2,5 @@ amd64/stdlib_stable.mli
 amd64/stdlib_stable.ml
 amd64/float32.mli
 amd64/float32.ml
-arm64/stdlib_stable.mli
-arm64/stdlib_stable.ml
+generic/stdlib_stable.mli
+generic/stdlib_stable.ml
