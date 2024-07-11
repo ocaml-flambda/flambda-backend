@@ -370,18 +370,37 @@ let position_and_mode_default = {
   region_mode = None;
 }
 
-(* Calls to functions that have a dot (e.g. [M.f]) are inferred to be nontail. *)
-let should_infer_nontail maybe_ident =
-  match maybe_ident with
-  | Some ident -> begin match ident with
-    | Longident.Ldot _ -> true
-    | _ -> false
+type callee_expr =
+  | Not_a_function_callee
+  | Function_callee of Parsetree.expression
+
+type should_infer_tail_t = Infer_tail | Don't_infer_tail
+
+let should_infer_tail env (callee_expr: callee_expr) =
+  let infer = begin
+    if not !Clflags.less_tco then Infer_tail else begin
+      match callee_expr with
+      | Not_a_function_callee -> Infer_tail  (* Preserve existing behavior *)
+      | Function_callee { pexp_desc; pexp_loc = loc; _ } -> begin
+          match pexp_desc with
+          | Pexp_ident { txt = ident; _ } -> begin
+              let (path, _, _, _) = Env.lookup_value ~use:false ~loc ident env in
+              (* Calls to functions defined by some ancestor letrec might need TCO. *)
+              match Env.is_fn_defined_by_letrec path env with
+              | true -> Infer_tail
+              | false -> Don't_infer_tail
+            end
+          | _ -> Infer_tail
+        end
     end
-  | None -> false
+  end in
+  match infer with
+  | Infer_tail -> true
+  | Don't_infer_tail -> false
 
 (** Decides the runtime tail call behaviour based on lexical structures and user
     annotation. *)
-let position_and_mode env (expected_mode : expected_mode) sexp ~maybe_ident
+let position_and_mode env (expected_mode : expected_mode) sexp ~callee_expr
   : position_and_mode =
   let fail err =
     raise (Error (sexp.pexp_loc, env, Bad_tail_annotation err))
@@ -394,9 +413,11 @@ let position_and_mode env (expected_mode : expected_mode) sexp ~maybe_ident
   match expected_mode.position with
   | RTail (m ,FTail) -> begin
       match requested with
-      | None when should_infer_nontail maybe_ident ->
+      | None -> if should_infer_tail env callee_expr then
+          {apply_position = Tail; region_mode = Some m}
+        else
           {apply_position = Nontail; region_mode = None}
-      | Some `Tail | Some `Tail_if_possible | None ->
+      | Some `Tail | Some `Tail_if_possible ->
           {apply_position = Tail; region_mode = Some m}
       | Some `Nontail -> {apply_position = Nontail; region_mode = None}
     end
@@ -1093,6 +1114,11 @@ let maybe_add_pattern_variables_ghost loc_let env pv =
            (Val_unbound_ghost_recursive loc_let) env
        end
     ) pv env
+
+let add_fns_defined_by_letrec env pvs =
+  List.fold_right
+    (fun {pv_id; _} env -> Env.add_fn_defined_by_letrec pv_id env)
+    pvs env
 
 let iter_pattern_variables_type f : pattern_variable list -> unit =
   List.iter (fun {pv_type; _} -> f pv_type)
@@ -5361,10 +5387,7 @@ and type_expect_
       end
   | Pexp_apply(sfunct, sargs) ->
       assert (sargs <> []);
-      let maybe_ident = match sfunct.pexp_desc with
-        | Pexp_ident { txt = ident; _ } -> Some ident
-        | _ -> None in
-      let pm = position_and_mode env expected_mode sexp ~maybe_ident in
+      let pm = position_and_mode env expected_mode sexp ~callee_expr:(Function_callee sfunct) in
       let funct_mode, funct_expected_mode =
         match pm.apply_position with
         | Tail ->
@@ -5942,7 +5965,7 @@ and type_expect_
         exp_extra = (exp_extra, loc, sexp.pexp_attributes) :: arg.exp_extra;
       }
   | Pexp_send (e, {txt=met}) ->
-      let pm = position_and_mode env expected_mode sexp ~maybe_ident:None in
+      let pm = position_and_mode env expected_mode sexp ~callee_expr:Not_a_function_callee in
       let (obj,meth,typ) =
         with_local_level_if_principal
           (fun () -> type_send env loc explanation e met)
@@ -5974,7 +5997,7 @@ and type_expect_
         exp_env = env }
   | Pexp_new cl ->
       let (cl_path, cl_decl) = Env.lookup_class ~loc:cl.loc cl.txt env in
-      let pm = position_and_mode env expected_mode sexp ~maybe_ident:None in
+      let pm = position_and_mode env expected_mode sexp ~callee_expr:Not_a_function_callee in
       begin match cl_decl.cty_new with
           None ->
             raise(Error(loc, env, Virtual_class cl.txt))
@@ -8333,7 +8356,6 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
   let spatl = List.map (pat_modes ~force_toplevel rec_mode_var) spatl in
   let attrs_list = List.map (fun (attrs, _, _, _) -> attrs) spatl in
   let is_recursive = (rec_flag = Recursive) in
-
   let (pat_list, exp_list, new_env, mvs, sorts, _pvs) =
     with_local_level begin fun () ->
       if existential_context = At_toplevel then Typetexp.TyVarEnv.reset ();
@@ -8561,6 +8583,14 @@ and type_let_def_wrap_warnings
       | {pvb_loc; _} :: _ ->
           maybe_add_pattern_variables_ghost pvb_loc exp_env pvs
       | _ -> assert false
+    end
+    else exp_env
+  in
+  let exp_env = if is_recursive then begin
+    (* (less-tco project) Used to infer whether function applications should be tail-call
+       optimized. Tail-position applications of functions defined via letrec should likely
+       be tail-call optimized inside the letrec bindings. *)
+      add_fns_defined_by_letrec exp_env pvs
     end
     else exp_env
   in

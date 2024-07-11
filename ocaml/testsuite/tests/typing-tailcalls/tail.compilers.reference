@@ -1,0 +1,190 @@
+[
+  structure_item (tail.ml[8,217+0]..tail.ml[9,233+35])
+    Tstr_value Rec
+    [
+      <def_rec>
+        pattern (tail.ml[8,217+8]..tail.ml[8,217+11])
+          Tpat_var "foo"
+          value_mode global,many,shared
+        expression (tail.ml[8,217+12]..tail.ml[9,233+35]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (tail.ml[8,217+12]..tail.ml[8,217+13])
+                Tpat_var "n"
+                value_mode global,many,shared
+          ]
+          Tfunction_body
+            expression (tail.ml[9,233+2]..tail.ml[9,233+35])
+              Texp_ifthenelse
+              expression (tail.ml[9,233+5]..tail.ml[9,233+10])
+                Texp_apply
+                apply_mode Default
+                locality_mode global
+                expression (tail.ml[9,233+7]..tail.ml[9,233+8])
+                  Texp_ident "Stdlib!.>"
+                [
+                  <arg>
+                    Nolabel
+                    expression (tail.ml[9,233+5]..tail.ml[9,233+6])
+                      Texp_ident "n"
+                  <arg>
+                    Nolabel
+                    expression (tail.ml[9,233+9]..tail.ml[9,233+10])
+                      Texp_constant Const_int 0
+                ]
+              expression (tail.ml[9,233+16]..tail.ml[9,233+27])
+                Texp_apply
+                apply_mode Tail
+                locality_mode global
+                expression (tail.ml[9,233+16]..tail.ml[9,233+19])
+                  Texp_ident "foo"
+                [
+                  <arg>
+                    Nolabel
+                    expression (tail.ml[9,233+20]..tail.ml[9,233+27])
+                      Texp_apply
+                      apply_mode Default
+                      locality_mode global
+                      expression (tail.ml[9,233+23]..tail.ml[9,233+24])
+                        Texp_ident "Stdlib!.-"
+                      [
+                        <arg>
+                          Nolabel
+                          expression (tail.ml[9,233+21]..tail.ml[9,233+22])
+                            Texp_ident "n"
+                        <arg>
+                          Nolabel
+                          expression (tail.ml[9,233+25]..tail.ml[9,233+26])
+                            Texp_constant Const_int 2
+                      ]
+                ]
+              Some
+                expression (tail.ml[9,233+33]..tail.ml[9,233+35])
+                  Texp_construct "()"
+                  []
+    ]
+  structure_item (tail.ml[11,270+0]..tail.ml[13,322+23])
+    Tstr_value Rec
+    [
+      <def_rec>
+        pattern (tail.ml[11,270+8]..tail.ml[11,270+11])
+          Tpat_var "bar"
+          value_mode global,many,shared
+        expression (tail.ml[11,270+12]..tail.ml[12,286+35]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (tail.ml[11,270+12]..tail.ml[11,270+13])
+                Tpat_var "n"
+                value_mode global,many,shared
+          ]
+          Tfunction_body
+            expression (tail.ml[12,286+2]..tail.ml[12,286+35])
+              Texp_ifthenelse
+              expression (tail.ml[12,286+5]..tail.ml[12,286+10])
+                Texp_apply
+                apply_mode Default
+                locality_mode global
+                expression (tail.ml[12,286+7]..tail.ml[12,286+8])
+                  Texp_ident "Stdlib!.>"
+                [
+                  <arg>
+                    Nolabel
+                    expression (tail.ml[12,286+5]..tail.ml[12,286+6])
+                      Texp_ident "n"
+                  <arg>
+                    Nolabel
+                    expression (tail.ml[12,286+9]..tail.ml[12,286+10])
+                      Texp_constant Const_int 0
+                ]
+              expression (tail.ml[12,286+16]..tail.ml[12,286+27])
+                Texp_apply
+                apply_mode Tail
+                locality_mode global
+                expression (tail.ml[12,286+16]..tail.ml[12,286+19])
+                  Texp_ident "baz"
+                [
+                  <arg>
+                    Nolabel
+                    expression (tail.ml[12,286+20]..tail.ml[12,286+27])
+                      Texp_apply
+                      apply_mode Default
+                      locality_mode global
+                      expression (tail.ml[12,286+23]..tail.ml[12,286+24])
+                        Texp_ident "Stdlib!.-"
+                      [
+                        <arg>
+                          Nolabel
+                          expression (tail.ml[12,286+21]..tail.ml[12,286+22])
+                            Texp_ident "n"
+                        <arg>
+                          Nolabel
+                          expression (tail.ml[12,286+25]..tail.ml[12,286+26])
+                            Texp_constant Const_int 2
+                      ]
+                ]
+              Some
+                expression (tail.ml[12,286+33]..tail.ml[12,286+35])
+                  Texp_construct "()"
+                  []
+      <def_rec>
+        pattern (tail.ml[13,322+4]..tail.ml[13,322+7])
+          Tpat_var "baz"
+          value_mode global,many,shared
+        expression (tail.ml[13,322+8]..tail.ml[13,322+23]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (tail.ml[13,322+8]..tail.ml[13,322+9])
+                Tpat_var "n"
+                value_mode global,many,unique
+          ]
+          Tfunction_body
+            expression (tail.ml[13,322+12]..tail.ml[13,322+23])
+              Texp_apply
+              apply_mode Tail
+              locality_mode global
+              expression (tail.ml[13,322+12]..tail.ml[13,322+15])
+                Texp_ident "bar"
+              [
+                <arg>
+                  Nolabel
+                  expression (tail.ml[13,322+16]..tail.ml[13,322+23])
+                    Texp_apply
+                    apply_mode Default
+                    locality_mode global
+                    expression (tail.ml[13,322+19]..tail.ml[13,322+20])
+                      Texp_ident "Stdlib!.+"
+                    [
+                      <arg>
+                        Nolabel
+                        expression (tail.ml[13,322+17]..tail.ml[13,322+18])
+                          Texp_ident "n"
+                      <arg>
+                        Nolabel
+                        expression (tail.ml[13,322+21]..tail.ml[13,322+22])
+                          Texp_constant Const_int 1
+                    ]
+              ]
+    ]
+]
+
+(letrec
+  (foo
+     (function {nlocal = 0} n[int] : int (if (> n 0) (apply foo (- n 2)) 0)))
+  (letrec
+    (bar
+       (function {nlocal = 0} n[int] : int
+         (if (> n 0) (apply baz (- n 2)) 0))
+      baz (function {nlocal = 0} n[int] : int (apply bar (+ n 1))))
+    (makeblock 0 foo bar baz)))

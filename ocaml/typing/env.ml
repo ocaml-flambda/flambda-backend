@@ -578,6 +578,7 @@ type t = {
   modtypes: (empty, modtype_data, modtype_data) IdTbl.t;
   classes: (empty, class_data, class_data) IdTbl.t;
   cltypes: (empty, cltype_data, cltype_data) IdTbl.t;
+  fn_defined_by_letrec: unit Ident.tbl;
   functor_args: unit Ident.tbl;
   summary: summary;
   local_constraints: type_declaration Path.Map.t;
@@ -777,6 +778,7 @@ let empty = {
   summary = Env_empty; local_constraints = Path.Map.empty;
   flags = 0;
   functor_args = Ident.empty;
+  fn_defined_by_letrec = Ident.empty;
  }
 
 let in_signature b env =
@@ -1496,11 +1498,15 @@ let find_modtype_expansion path env =
 let rec is_functor_arg path env =
   match path with
     Pident id ->
-      begin try Ident.find_same id env.functor_args; true
-      with Not_found -> false
-      end
+      Option.is_some (Ident.find_same_opt id env.functor_args)
   | Pdot (p, _) | Pextra_ty (p, _) -> is_functor_arg p env
   | Papply _ -> true
+
+let is_fn_defined_by_letrec path env =
+  match path with
+    Pident id ->
+      Option.is_some (Ident.find_same_opt id env.fn_defined_by_letrec)
+  | Pdot _ | Pextra_ty _ | Papply _ -> false
 
 (* Copying types associated with values *)
 
@@ -2234,6 +2240,10 @@ let add_functor_arg id env =
   {env with
    functor_args = Ident.add id () env.functor_args;
    summary = Env_functor_arg (env.summary, id)}
+
+let add_fn_defined_by_letrec id env =
+  { env with fn_defined_by_letrec = Ident.add id () env.fn_defined_by_letrec }
+  (* CR less-tco: Add to summary? *)
 
 let add_value_lazy ?check ?shape ?(mode=Mode.Value.allow_right Mode.Value.legacy)  id desc env =
   let addr = value_declaration_address env id desc in

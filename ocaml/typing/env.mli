@@ -121,6 +121,9 @@ val shape_of_path:
 val add_functor_arg: Ident.t -> t -> t
 val is_functor_arg: Path.t -> t -> bool
 
+val add_fn_defined_by_letrec: Ident.t -> t -> t
+val is_fn_defined_by_letrec: Path.t -> t -> bool
+
 val normalize_module_path: Location.t option -> t -> Path.t -> Path.t
 (* Normalize the path to a concrete module.
    If the option is None, allow returning dangling paths.

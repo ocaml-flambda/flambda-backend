@@ -5,8 +5,7 @@
          ignore assert all zero_alloc never_loop
          (let
            (cow =
-              (function {nlocal = 0} x[int] : int
-                (applynontail (field_imm 0 X) x))
+              (function {nlocal = 0} x[int] : int (apply (field_imm 0 X) x))
             sheep = (function {nlocal = 0} x[int] : int (+ 1 (apply cow x))))
            (makeblock 0 cow sheep)))
      F =
@@ -15,7 +14,7 @@
          (let
            (cow =
               (function {nlocal = 0} x[int] : int
-                (applynontail (field_imm 0 Y) (apply (field_imm 0 X) x)))
+                (apply (field_imm 0 Y) (apply (field_imm 0 X) x)))
             sheep = (function {nlocal = 0} x[int] : int (+ 1 (apply cow x))))
            (makeblock 0 cow sheep)))
      F1 =
@@ -24,7 +23,7 @@
          (let
            (cow =
               (function {nlocal = 0} x[int] : int
-                (applynontail (field_imm 0 Y) (apply (field_imm 0 X) x)))
+                (apply (field_imm 0 Y) (apply (field_imm 0 X) x)))
             sheep = (function {nlocal = 0} x[int] : int (+ 1 (apply cow x))))
            (makeblock 0 sheep)))
      F2 =
@@ -35,7 +34,7 @@
             Y =a (makeblock 0 (field_imm 1 Y))
             cow =
               (function {nlocal = 0} x[int] : int
-                (applynontail (field_imm 0 Y) (apply (field_imm 0 X) x)))
+                (apply (field_imm 0 Y) (apply (field_imm 0 X) x)))
             sheep = (function {nlocal = 0} x[int] : int (+ 1 (apply cow x))))
            (makeblock 0 sheep)))
      M =
@@ -46,7 +45,7 @@
               (let
                 (cow =
                    (function {nlocal = 0} x[int] : int
-                     (applynontail (field_imm 0 Y) (apply (field_imm 0 X) x)))
+                     (apply (field_imm 0 Y) (apply (field_imm 0 X) x)))
                  sheep =
                    (function {nlocal = 0} x[int] : int (+ 1 (apply cow x))))
                 (makeblock 0 cow sheep))))

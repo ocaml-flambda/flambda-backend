@@ -492,7 +492,8 @@ let enter_ancestor_met ~loc name ~sign ~meths ~cl_num ~ty ~attrs met_env =
       val_attributes = attrs;
       val_zero_alloc = Builtin_attributes.Default_zero_alloc;
       Types.val_loc = loc;
-      val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
+      val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+    }
   in
   Env.enter_value ~check name desc met_env
 
@@ -508,7 +509,8 @@ let add_self_met loc id sign self_var_kind vars cl_num
       val_attributes = attrs;
       val_zero_alloc = Builtin_attributes.Default_zero_alloc;
       Types.val_loc = loc;
-      val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
+      val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+    }
   in
   Env.add_value ~check id desc met_env
 

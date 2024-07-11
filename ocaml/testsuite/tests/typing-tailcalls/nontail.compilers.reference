@@ -1,0 +1,167 @@
+[
+  structure_item (nontail.ml[6,80+0]..nontail.ml[6,80+45])
+    Tstr_value Nonrec
+    [
+      <def>
+          attribute "inline"
+            [
+              structure_item (nontail.ml[6,80+13]..[6,80+18])
+                Pstr_eval
+                expression (nontail.ml[6,80+13]..[6,80+18])
+                  Pexp_ident "never" (nontail.ml[6,80+13]..[6,80+18])
+            ]
+        pattern (nontail.ml[6,80+20]..nontail.ml[6,80+21])
+          Tpat_var "f"
+          value_mode global,many,shared
+        expression (nontail.ml[6,80+22]..nontail.ml[6,80+45]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[6,80+22]..nontail.ml[6,80+25])
+                Tpat_var "str"
+                value_mode global,many,shared
+          ]
+          Tfunction_body
+            expression (nontail.ml[6,80+28]..nontail.ml[6,80+45])
+              Texp_apply
+              apply_mode Nontail
+              locality_mode global
+              expression (nontail.ml[6,80+28]..nontail.ml[6,80+41])
+                Texp_ident "Stdlib!.print_endline"
+              [
+                <arg>
+                  Nolabel
+                  expression (nontail.ml[6,80+42]..nontail.ml[6,80+45])
+                    Texp_ident "str"
+              ]
+    ]
+  structure_item (nontail.ml[8,127+0]..nontail.ml[10,157+3])
+    Tstr_module
+    M
+      module_expr (nontail.ml[8,127+11]..nontail.ml[10,157+3])
+        Tmod_structure
+        [
+          structure_item (nontail.ml[9,145+2]..nontail.ml[9,145+11])
+            Tstr_value Nonrec
+            [
+              <def>
+                pattern (nontail.ml[9,145+6]..nontail.ml[9,145+7])
+                  Tpat_var "f"
+                  value_mode global,many,shared
+                expression (nontail.ml[9,145+10]..nontail.ml[9,145+11])
+                  Texp_ident "f"
+            ]
+        ]
+  structure_item (nontail.ml[14,284+0]..nontail.ml[16,310+13])
+    Tstr_value Nonrec
+    [
+      <def>
+        pattern (nontail.ml[14,284+4]..nontail.ml[14,284+7])
+          Tpat_var "foo"
+          value_mode global,many,shared
+        expression (nontail.ml[14,284+8]..nontail.ml[16,310+13]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[14,284+8]..nontail.ml[14,284+10])
+                Tpat_construct "()"
+                []
+                None
+          ]
+          Tfunction_body
+            expression (nontail.ml[15,297+2]..nontail.ml[16,310+13])
+              Texp_sequence
+              expression (nontail.ml[15,297+2]..nontail.ml[15,297+11])
+                Texp_apply
+                apply_mode Default
+                locality_mode global
+                expression (nontail.ml[15,297+2]..nontail.ml[15,297+3])
+                  Texp_ident "f"
+                [
+                  <arg>
+                    Nolabel
+                    expression (nontail.ml[15,297+4]..nontail.ml[15,297+11])
+                      Texp_constant Const_string("hello",(nontail.ml[15,297+5]..nontail.ml[15,297+10]),None)
+                ]
+              value
+              expression (nontail.ml[16,310+2]..nontail.ml[16,310+13])
+                Texp_apply
+                apply_mode Nontail
+                locality_mode global
+                expression (nontail.ml[16,310+2]..nontail.ml[16,310+3])
+                  Texp_ident "f"
+                [
+                  <arg>
+                    Nolabel
+                    expression (nontail.ml[16,310+4]..nontail.ml[16,310+13])
+                      Texp_constant Const_string("goodbye",(nontail.ml[16,310+5]..nontail.ml[16,310+12]),None)
+                ]
+    ]
+  structure_item (nontail.ml[18,325+0]..nontail.ml[20,351+15])
+    Tstr_value Nonrec
+    [
+      <def>
+        pattern (nontail.ml[18,325+4]..nontail.ml[18,325+7])
+          Tpat_var "bar"
+          value_mode global,many,shared
+        expression (nontail.ml[18,325+8]..nontail.ml[20,351+15]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[18,325+8]..nontail.ml[18,325+10])
+                Tpat_construct "()"
+                []
+                None
+          ]
+          Tfunction_body
+            expression (nontail.ml[19,338+2]..nontail.ml[20,351+15])
+              Texp_sequence
+              expression (nontail.ml[19,338+2]..nontail.ml[19,338+11])
+                Texp_apply
+                apply_mode Default
+                locality_mode global
+                expression (nontail.ml[19,338+2]..nontail.ml[19,338+3])
+                  Texp_ident "f"
+                [
+                  <arg>
+                    Nolabel
+                    expression (nontail.ml[19,338+4]..nontail.ml[19,338+11])
+                      Texp_constant Const_string("hello",(nontail.ml[19,338+5]..nontail.ml[19,338+10]),None)
+                ]
+              value
+              expression (nontail.ml[20,351+2]..nontail.ml[20,351+15])
+                Texp_apply
+                apply_mode Nontail
+                locality_mode global
+                expression (nontail.ml[20,351+2]..nontail.ml[20,351+5])
+                  Texp_ident "M.f"
+                [
+                  <arg>
+                    Nolabel
+                    expression (nontail.ml[20,351+6]..nontail.ml[20,351+15])
+                      Texp_constant Const_string("goodbye",(nontail.ml[20,351+7]..nontail.ml[20,351+14]),None)
+                ]
+    ]
+]
+
+(let
+  (f =
+     (function {nlocal = 0} str never_inline : int
+       (applynontail (field_imm 45 (global Stdlib!)) str))
+   M = (makeblock 0 f)
+   foo =
+     (function {nlocal = 0} param[int] : int
+       (seq (apply f "hello") (applynontail f "goodbye")))
+   bar =
+     (function {nlocal = 0} param[int] : int
+       (seq (apply f "hello") (applynontail (field_imm 0 M) "goodbye"))))
+  (makeblock 0 f M foo bar))
