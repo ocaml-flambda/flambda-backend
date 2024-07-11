@@ -896,6 +896,8 @@ let transl_declaration env sdecl (id, uid) =
       | Ptype_open ->
         Ttype_open, Type_open, Jkind.Primitive.value ~why:Extensible_variant
       in
+    (* TODO jbachurski: If non-type jkinds should be inferrable without annotation,
+       this would happen here (?). *)
     let jkind =
     (* - If there's an annotation, we use that. It's checked against
          a kind in [update_decl_jkind] and the manifest in [check_coherence].
@@ -996,8 +998,9 @@ let rec check_constraints_rec env loc visited ty =
         try Env.find_type path env
         with Not_found ->
           raise (Error(loc, Unavailable_type_constructor path)) in
-      let ty' = Ctype.newconstr path (Ctype.instance_list decl.type_params) in
-      begin
+      (* Don't perform the instantiation check for unapplied constructors *)
+      if args <> [] then begin
+        let ty' = Ctype.newconstr path (Ctype.instance_list decl.type_params) in
         (* We don't expand the error trace because that produces types that
            *already* violate the constraints -- we need to report a problem with
            the unexpanded types, or we get errors that talk about the same type

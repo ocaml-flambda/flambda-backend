@@ -2083,6 +2083,28 @@ let tvariant_not_immediate row =
       | _ -> false)
     (row_fields row)
 
+let is_datatype_decl (k : type_decl_kind) =
+  match k with
+  | Type_record _ | Type_variant _ | Type_open -> true
+  | Type_abstract _ -> false
+
+let rec jkind_of_decl_unapplied env (decl : type_declaration) : higher_jkind option =
+  (* FIXME jbachurski: Shouldn't we look at type_variance and type_separability here? *)
+  if decl.type_arity > 0 && is_datatype_decl decl.type_kind then
+    Some (Arrow
+    { args = List.map (type_jkind env) decl.type_params
+    ; result = decl.type_jkind })
+  (* else if (decl.type_arity = 0)
+          && Jkind.is_higher decl.type_jkind
+          && (match Option.map get_desc decl.type_manifest with
+              | Some (Tconstr (path, [], _))
+                when is_datatype_decl (Env.find_type path env).type_kind -> true
+              | Some (Tconstr (_, [], _))
+                when decl.type_arity = 0 -> true
+              | _ -> false) then
+    Some decl.type_jkind *)
+  else None
+
 (* We assume here that [get_unboxed_type_representation] has already been
    called, if the type is a Tconstr.  This allows for some optimization by
    callers (e.g., skip expanding if the kind tells them enough).
@@ -2091,14 +2113,23 @@ let tvariant_not_immediate row =
    in some edge cases (when [get_unboxed_type_representation] ran out of fuel,
    or when the type is a Tconstr that is missing from the Env due to a missing
    cmi). *)
-let rec estimate_type_jkind env ty =
+
+and estimate_type_jkind env ty =
   let open Jkind in
   match get_desc ty with
-  | Tconstr(p, _, _) -> begin
-    try
-      Jkind (Env.find_type p env).type_jkind
-    with
-      Not_found -> Jkind (Primitive.any ~why:(Missing_cmi p))
+  | Tconstr(p, tys, _) -> begin
+    match (try Some (Env.find_type p env) with Not_found -> None) with
+    | Some decl -> begin
+      match jkind_of_decl_unapplied env decl with
+      | Some jkind when tys = [] -> Jkind jkind
+      | Some (Arrow { args; result }) ->
+        if args = List.map (type_jkind env) tys
+        then Jkind result
+        else failwith "bad higher kind application"
+      | Some (Type _) -> failwith "application to base kind"
+      | None -> Jkind decl.type_jkind
+    end
+    | None -> Jkind (Primitive.any ~why:(Missing_cmi p))
   end
   | Tvariant row ->
       if tvariant_not_immediate row
@@ -2124,6 +2155,10 @@ let rec estimate_type_jkind env ty =
   | Tunivar { jkind } -> Jkind jkind
   | Tpoly (ty, _) -> estimate_type_jkind env ty
   | Tpackage _ -> Jkind (Primitive.value ~why:First_class_module)
+
+and type_jkind env ty =
+  jkind_of_result (estimate_type_jkind env (get_unboxed_type_approximation env ty))
+
 
 (**** checking jkind relationships ****)
 
@@ -2257,9 +2292,6 @@ let constrain_type_jkind_exn env texn ty jkind =
 
 let estimate_type_jkind env typ =
   jkind_of_result (estimate_type_jkind env typ)
-
-let type_jkind env ty =
-  estimate_type_jkind env (get_unboxed_type_approximation env ty)
 
 let type_jkind_purely env ty =
   if !Clflags.principal || Env.has_local_constraints env then

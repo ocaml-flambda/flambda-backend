@@ -6,8 +6,8 @@
 *)
 
 
-module M : sig
-  type a : (value, value) => value
-end = struct
-  type a : (value, value) => value
-end
+type 'a lst = Nil | Cons of 'a * 'a lst
+
+type t : value => value = lst
+
+type a = int t

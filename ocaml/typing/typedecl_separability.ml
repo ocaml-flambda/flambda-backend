@@ -442,6 +442,8 @@ let check_type
     | (Tpoly(pty,_)       , m      ) ->
         check_type hyps pty m
     | (Tunivar(_)         , _      ) -> empty
+    (* The next case assumes the datatype constructor is applied. *)
+    | (Tconstr(_,[],_)    , _      ) -> empty
     (* Type constructor case. *)
     | (Tconstr(path,tys,_), m      ) ->
         let msig = (Env.find_type path env).type_separability in

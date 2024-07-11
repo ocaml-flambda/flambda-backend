@@ -714,22 +714,30 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
     ctyp desc typ
   | Ptyp_constr(lid, stl) ->
       let (path, decl) = Env.lookup_type ~loc:lid.loc lid.txt env in
+      let type_arity, type_params, type_manifest = match decl.type_jkind with
+        | Arrow { args; result = _ } when decl.type_arity = 0 ->
+          List.length args, List.map newvar args, None
+        | _ -> decl.type_arity, decl.type_params, decl.type_manifest
+      in
       let stl =
         match stl with
-        | [ {ptyp_desc=Ptyp_any} as t ] when decl.type_arity > 1 ->
-            List.map (fun _ -> t) decl.type_params
+        | [ {ptyp_desc=Ptyp_any} as t ] when type_arity > 1 ->
+            List.map (fun _ -> t) type_params
         | _ -> stl
       in
-      if List.length stl <> decl.type_arity then
+      if stl = [] && Option.is_some (jkind_of_decl_unapplied env decl) then
+        ctyp (Ttyp_constr (path, lid, [])) (newconstr path [])
+      else begin
+      if List.length stl <> type_arity then
         raise(Error(styp.ptyp_loc, env,
-                    Type_arity_mismatch(lid.txt, decl.type_arity,
+                    Type_arity_mismatch(lid.txt, type_arity,
                                         List.length stl)));
       let args =
         List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
       in
-      let params = instance_list decl.type_params in
+      let params = instance_list type_params in
       let unify_param =
-        match decl.type_manifest with
+        match type_manifest with
           None -> unify_var
         | Some ty ->
             if get_level ty = Btype.generic_level then unify_var else unify
@@ -759,6 +767,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       let constr =
         newconstr path (List.map (fun ctyp -> ctyp.ctyp_type) args) in
       ctyp (Ttyp_constr (path, lid, args)) constr
+      end
   | Ptyp_object (fields, o) ->
       let ty, fields = transl_fields env ~policy ~row_context o fields in
       ctyp (Ttyp_object (fields, o)) (newobj ty)

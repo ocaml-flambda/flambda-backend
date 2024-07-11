@@ -679,6 +679,9 @@ val sub_or_error : t -> t -> (unit, Violation.t) result
 (** Like [sub], but returns the subjkind with an updated history. *)
 val sub_with_history : t -> t -> (t, Violation.t) result
 
+(** Checks whether the jkind is higher-order, i.e. not a type jkind. *)
+val is_higher : t -> bool
+
 (** Checks to see whether a jkind is the maximum jkind. Never does any
     mutation. *)
 val is_max : t -> bool

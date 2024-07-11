@@ -1239,6 +1239,51 @@ let find_extension_full path env =
     end
   | Papply _ | Pextra_ty _ -> raise Not_found
 
+
+(* FIXME jbachurski: Move back down *)
+let print_type_expr =
+  ref ((fun _ _ -> assert false) : Format.formatter -> Types.type_expr -> unit)
+
+
+let with_expanded_constructor_jkind decl =
+  match decl.type_jkind with
+  _ -> decl
+  (* | _ when decl.type_arity > 0 -> decl
+  | Type _ -> decl
+  | Arrow { args; result } ->
+    let type_params = List.map Btype.newgenvar args in
+    let arity = List.length type_params in
+    let type_jkind_annotation =
+      Option.bind
+        decl.type_jkind_annotation
+        (function
+          | (Arrow { result; _ } : Jkind.Const.t),
+            { txt = Jane_syntax.Jkind.Arrow (_, ret); loc }
+              -> Some (result, { txt = ret; loc = loc })
+          | _ -> None)
+    in
+    let type_manifest =
+      Option.map
+        (fun ty -> match get_desc ty with
+          (* TODO jbachurski: Tapp should be used here in the general case. *)
+          | Tconstr (path, [], _) ->
+            newty2 ~level:(get_level ty) (Tconstr (path, type_params, ref Mnil))
+          | _ ->
+            raise (Jkind.Unexpected_higher_jkind
+                    (Format.asprintf "Cannot give type manifest to application of higher jkind %a" !print_type_expr ty)))
+        decl.type_manifest
+    in
+    {decl with
+      type_params;
+      type_arity = arity;
+      type_jkind = result;
+      type_jkind_annotation;
+      type_manifest;
+      type_variance = Variance.unknown_signature ~injective:true ~arity;
+      type_separability = Separability.default_signature ~arity
+    } *)
+
+
 let type_of_cstr path = function
   | {cstr_inlined = Some decl; _} ->
       let labels =
@@ -1247,7 +1292,7 @@ let type_of_cstr path = function
       begin match decl.type_kind with
       | Type_record (_, repr) ->
         {
-          tda_declaration = decl;
+          tda_declaration = with_expanded_constructor_jkind decl;
           tda_descriptions = Type_record (labels, repr);
           tda_shape = Shape.leaf decl.type_uid;
         }
@@ -1259,7 +1304,7 @@ let rec find_type_data path env =
   match Path.Map.find path env.local_constraints with
   | decl ->
     {
-      tda_declaration = decl;
+      tda_declaration = with_expanded_constructor_jkind decl;
       tda_descriptions = Type_abstract Abstract_def;
       tda_shape = Shape.leaf decl.type_uid;
     }
@@ -1895,7 +1940,7 @@ let rec components_of_module_maker
             in
             let shape = Shape.proj cm_shape (Shape.Item.type_ id) in
             let tda =
-              { tda_declaration = final_decl;
+              { tda_declaration = with_expanded_constructor_jkind final_decl;
                 tda_descriptions = descrs;
                 tda_shape = shape; }
             in
@@ -2142,7 +2187,7 @@ and store_type ~check id info shape env =
     | Type_open -> Type_open, env
   in
   let tda =
-    { tda_declaration = info;
+    { tda_declaration = with_expanded_constructor_jkind info;
       tda_descriptions = descrs;
       tda_shape = shape }
   in
@@ -2159,7 +2204,7 @@ and store_type_infos ~tda_shape id info env =
      computation of label representations. *)
   let tda =
     {
-      tda_declaration = info;
+      tda_declaration = with_expanded_constructor_jkind info;
       tda_descriptions = Type_abstract Abstract_def;
       tda_shape
     }
@@ -3933,9 +3978,6 @@ let print_longident =
 
 let print_path =
   ref ((fun _ _ -> assert false) : formatter -> Path.t -> unit)
-
-let print_type_expr =
-  ref ((fun _ _ -> assert false) : formatter -> Types.type_expr -> unit)
 
 let spellcheck ppf extract env lid =
   let choices ~path name = Misc.spellcheck (extract path env) name in

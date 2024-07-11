@@ -2239,7 +2239,9 @@ let sub_with_history sub super =
     | _ -> Ok sub)
   | Not_le -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
 
-let is_max jkind = sub (Type Type.Primitive.any_dummy_jkind) jkind
+let is_higher (t : t) = match t with Arrow _ -> true | Type _ -> false
+
+let is_max t = sub (Type Type.Primitive.any_dummy_jkind) t
 
 let has_layout_any (jkind : t) =
   match jkind with Type ty -> Type.has_layout_any ty | _ -> false
