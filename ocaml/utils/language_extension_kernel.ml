@@ -3,7 +3,7 @@ type maturity = Stable | Beta | Alpha
 (* Remember to update [all] when changing this type. *)
 type _ t =
   | Comprehensions : unit t
-  | Mode : unit t
+  | Mode : maturity t
   | Unique : unit t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t
@@ -12,7 +12,7 @@ type _ t =
   | Layouts : maturity t
   | SIMD : unit t
   | Labeled_tuples : unit t
-  | Small_numbers : unit t
+  | Small_numbers : maturity t
 
 type 'a language_extension_kernel = 'a t
 
@@ -59,7 +59,9 @@ let to_string : type a. a t -> string = function
 let pair_of_string extn_name : Exist_pair.t option =
   match String.lowercase_ascii extn_name with
   | "comprehensions" -> Some (Pair (Comprehensions, ()))
-  | "mode" -> Some (Pair (Mode, ()))
+  | "mode" -> Some (Pair (Mode, Stable))
+  | "mode_beta" -> Some (Pair (Mode, Beta))
+  | "mode_alpha" -> Some (Pair (Mode, Alpha))
   | "unique" -> Some (Pair (Unique, ()))
   | "include_functor" -> Some (Pair (Include_functor, ()))
   | "polymorphic_parameters" -> Some (Pair (Polymorphic_parameters, ()))
@@ -70,7 +72,8 @@ let pair_of_string extn_name : Exist_pair.t option =
   | "layouts_beta" -> Some (Pair (Layouts, Beta))
   | "simd" -> Some (Pair (SIMD, ()))
   | "labeled_tuples" -> Some (Pair (Labeled_tuples, ()))
-  | "small_numbers" -> Some (Pair (Small_numbers, ()))
+  | "small_numbers" -> Some (Pair (Small_numbers, Stable))
+  | "small_numbers_beta" -> Some (Pair (Small_numbers, Beta))
   | _ -> None
 
 let maturity_to_string = function

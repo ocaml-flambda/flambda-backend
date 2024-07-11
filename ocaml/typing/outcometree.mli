@@ -216,6 +216,8 @@ and out_type_extension =
 and out_val_decl =
   { oval_name: string;
     oval_type: out_type;
+    oval_modalities : out_modality_new list;
+    (* Modalities on value descriptions are always new, even for [global_] *)
     oval_prims: string list;
     oval_attributes: out_attribute list }
 and out_rec_status =

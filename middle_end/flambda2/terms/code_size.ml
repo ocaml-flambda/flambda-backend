@@ -186,7 +186,7 @@ let string_or_bigstring_load kind width =
        desirable ? *)
     | Sixteen -> 2 (* add, load (allow_unaligned_access) *)
     (* 7 (not allow_unaligned_access) *)
-    | Thirty_two -> 2 (* add, load (allow_unaligned_access) *)
+    | Thirty_two | Single -> 2 (* add, load (allow_unaligned_access) *)
     (* 17 (not allow_unaligned_access) *)
     | Sixty_four -> if arch32 then does_not_need_caml_c_call_extcall_size else 2
     (* add, load (allow_unaligned_access) *)
@@ -360,7 +360,12 @@ let unary_prim_size prim =
   | Float_arith _ -> 2
   | Num_conv { src; dst } -> arith_conversion_size src dst
   | Boolean_not -> 1
-  | Reinterpret_int64_as_float -> 0
+  | Reinterpret_64_bit_word reinterpret -> (
+    match reinterpret with
+    | Tagged_int63_as_unboxed_int64 -> 0
+    | Unboxed_int64_as_tagged_int63 -> (* Needs a logical OR. *) 1
+    | Unboxed_int64_as_unboxed_float64 | Unboxed_float64_as_unboxed_int64 ->
+      (* Needs a move between register classes. *) 1)
   | Unbox_number k -> unbox_number k
   | Untag_immediate -> 1 (* 1 shift *)
   | Box_number (k, _alloc_mode) -> box_number k
@@ -442,7 +447,11 @@ let apply apply =
   | C_call { needs_caml_c_call = false; _ } ->
     does_not_need_caml_c_call_extcall_size
   | Method _ -> 8
-(* from flambda/inlining_cost.ml *)
+  (* from flambda/inlining_cost.ml *)
+  | Effect _ ->
+    (* Even though the effect operations aren't written in OCaml, they are
+       called like OCaml functions. *)
+    direct_call_size
 
 let apply_cont apply_cont =
   let size =

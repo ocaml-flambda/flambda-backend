@@ -1,5 +1,7 @@
 (* TEST
  runtime5;
+ { bytecode; }
+ { native; }
 *)
 
 (* Test Mutex.try_lock *)

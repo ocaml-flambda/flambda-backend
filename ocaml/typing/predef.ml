@@ -231,6 +231,7 @@ let mk_add_type add_type
      type_attributes = [];
      type_unboxed_default = false;
      type_uid = Uid.of_predef_id type_ident;
+     type_has_illegal_crossings = false;
     }
   in
   add_type type_ident decl env
@@ -269,6 +270,7 @@ let build_initial_env add_type add_extension empty_env =
        type_attributes = [];
        type_unboxed_default = false;
        type_uid = Uid.of_predef_id type_ident;
+       type_has_illegal_crossings = false;
       }
     in
     add_type type_ident decl env
@@ -297,7 +299,7 @@ let build_initial_env add_type add_extension empty_env =
               (fun x ->
                 {
                   ca_type=x;
-                  ca_modalities=Mode.Modality.Value.id;
+                  ca_modalities=Mode.Modality.Value.Const.id;
                   ca_loc=Location.none
                 })
               args);
@@ -315,7 +317,9 @@ let build_initial_env add_type add_extension empty_env =
   in
   let variant constrs jkinds = Type_variant (constrs, Variant_boxed jkinds) in
   let unrestricted tvar =
-    {ca_type=tvar; ca_modalities=Mode.Modality.Value.id; ca_loc=Location.none}
+    {ca_type=tvar;
+     ca_modalities=Mode.Modality.Value.Const.id;
+     ca_loc=Location.none}
   in
   empty_env
   (* Predefined types *)
@@ -377,7 +381,7 @@ let build_initial_env add_type add_extension empty_env =
              {
                ld_id=id;
                ld_mutable=Immutable;
-               ld_modalities=Mode.Modality.Value.id;
+               ld_modalities=Mode.Modality.Value.Const.id;
                ld_type=field_type;
                ld_jkind=jkind;
                ld_loc=Location.none;

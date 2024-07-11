@@ -91,6 +91,7 @@ module Mixed_product_kind : sig
   type t =
     | Record
     | Cstr_tuple
+    | Cstr_record
 end
 
 type mixed_product_violation =
@@ -173,7 +174,7 @@ type error =
   | Local_not_enabled
   | Unexpected_layout_any_in_primitive of string
   | Useless_layout_poly
-  | Modalities_on_value_description
+  | Modality_on_primitive
   | Zero_alloc_attr_unsupported of Builtin_attributes.zero_alloc_attribute
   | Zero_alloc_attr_non_function
   | Zero_alloc_attr_bad_user_arity

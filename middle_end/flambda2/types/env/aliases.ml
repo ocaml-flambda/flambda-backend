@@ -757,13 +757,13 @@ let add_alias ~binding_time_resolver ~binding_times_and_modes t
     ~canonical_element2 =
   assert (not (Simple.has_coercion canonical_element1));
   assert (not (Simple.has_coercion canonical_element2));
+  let which_element =
+    choose_canonical_element_to_be_demoted ~binding_time_resolver
+      ~binding_times_and_modes ~canonical_element1 ~canonical_element2
+  in
   let ( canonical_element,
         demoted_canonical,
         coercion_from_demoted_canonical_to_canonical ) =
-    let which_element =
-      choose_canonical_element_to_be_demoted ~binding_time_resolver
-        ~binding_times_and_modes ~canonical_element1 ~canonical_element2
-    in
     match which_element with
     | Demote_canonical_element1 ->
       let coercion_from_canonical_element1_to_canonical_element2 =
@@ -784,11 +784,7 @@ let add_alias ~binding_time_resolver ~binding_times_and_modes t
       ~coercion_to_canonical:coercion_from_demoted_canonical_to_canonical
       ~to_be_demoted:demoted_canonical
   in
-  let alias_of_demoted_element =
-    Simple.with_coercion demoted_canonical
-      coercion_from_demoted_canonical_to_canonical
-  in
-  { t; canonical_element; alias_of_demoted_element }
+  t, which_element
 
 let add ~binding_time_resolver ~binding_times_and_modes t
     ~canonical_element1:element1_with_coercion
@@ -823,19 +819,25 @@ let add ~binding_time_resolver ~binding_times_and_modes t
           ~const:(fun const2 ->
             Misc.fatal_errorf "Cannot add alias between two consts: %a, %a"
               Reg_width_const.print const1 Reg_width_const.print const2)));
-  let add_result =
+  let open Or_bottom.Let_syntax in
+  let<+ t, which_element =
     add_alias ~binding_time_resolver ~binding_times_and_modes t
       ~canonical_element1
       ~coercion_from_canonical_element2_to_canonical_element1
       ~canonical_element2
   in
-  (if Flambda_features.check_invariants ()
+  let canonical_element, alias_of_demoted_element =
+    match which_element with
+    | Demote_canonical_element1 ->
+      element2_with_coercion, element1_with_coercion
+    | Demote_canonical_element2 ->
+      element1_with_coercion, element2_with_coercion
+  in
+  let add_result = { t; canonical_element; alias_of_demoted_element } in
+  if Flambda_features.check_invariants ()
   then
-    match add_result with
-    | Ok add_result ->
-      invariant_add_result ~binding_time_resolver ~binding_times_and_modes
-        ~original_t add_result
-    | Bottom -> ());
+    invariant_add_result ~binding_time_resolver ~binding_times_and_modes
+      ~original_t add_result;
   add_result
 
 (* CR-someday mshinwell: For the moment we allow relations between canonical

@@ -168,22 +168,35 @@ let enumeration_of_mixed_blocks_except_all_floats_mixed
       not all_float_u_suffix || not all_float_prefix)
 
 type constructor =
-  { cstr_prefix : value_element list;
-    cstr_suffix : flat_element Nonempty_list.t;
-  }
+  | Cstr_tuple of
+      { cstr_prefix : value_element list;
+        cstr_suffix : flat_element Nonempty_list.t;
+      }
+  | Cstr_record of block
 
 type variant = constructor Nonempty_list.t
 
-let enumeration_of_mixed_variants =
+let enumeration_of_cstr_tuples =
   let all_of_mutability = [ `Mutability_not_relevant ] in
   Seq.product
     (enumeration_of_prefix all_of_mutability)
     (enumeration_of_suffix_except_all_floats_mixed all_of_mutability)
   |> Seq.map (fun (prefix, suffix) ->
       let ignore_mut (x, `Mutability_not_relevant) = x in
-      { cstr_prefix = List.map prefix ~f:ignore_mut;
-        cstr_suffix = Nonempty_list.map suffix ~f:ignore_mut;
-      })
+      Cstr_tuple
+        { cstr_prefix = List.map prefix ~f:ignore_mut;
+          cstr_suffix = Nonempty_list.map suffix ~f:ignore_mut;
+        })
+
+let enumeration_of_cstr_records =
+  Seq.product
+    (enumeration_of_prefix all_of_mutability)
+    (enumeration_of_suffix_except_all_floats_mixed all_of_mutability)
+  |> Seq.map (fun (prefix, suffix) ->
+      Cstr_record { prefix; suffix })
+
+let enumeration_of_mixed_variants =
+  Seq.interleave enumeration_of_cstr_tuples enumeration_of_cstr_records
   |> nonempty_list_enumeration
 
 let enumeration_of_mixed_blocks_except_all_floats_mixed =
@@ -234,7 +247,7 @@ let type_to_field_integrity_check type_ ~access1 ~access2 ~message =
     | Imm -> "check_int", None
     | Float -> "check_float", None
     | Float64 -> "check_float", Some "Stdlib_upstream_compatible.Float_u.to_float"
-    | Float32 -> "check_float32", Some "Stdlib_beta.Float32_u.to_float32"
+    | Float32 -> "check_float32", Some "Stdlib_stable.Float32_u.to_float32"
     | Bits32 -> "check_int32", Some "Stdlib_upstream_compatible.Int32_u.to_int32"
     | Bits64 -> "check_int64", Some "Stdlib_upstream_compatible.Int64_u.to_int64"
     | Word -> "check_int", Some "Stdlib_upstream_compatible.Nativeint_u.to_int"
@@ -335,30 +348,35 @@ module Mixed_record = struct
   let value ?(base = "t") { index; _ } = sprintf "%s%d" base index
   let type_ { index; _ } = sprintf "t%d" index
 
+  let fields_to_type_decl fields =
+    String.concat
+      ~sep:"; "
+      (List.map fields ~f:(fun { type_; name; mutable_ } ->
+           sprintf
+             "%s%s : %s"
+             (if mutable_ then "mutable " else "")
+             name
+             (type_to_string type_)))
+
   let type_decl t =
     sprintf
       "type %s = { %s }"
       (type_ t)
-      (String.concat
-         ~sep:"; "
-         (List.map t.fields ~f:(fun { type_; name; mutable_ } ->
-            sprintf
-              "%s%s : %s"
-              (if mutable_ then "mutable " else "")
-              name
-              (type_to_string type_))))
+      (fields_to_type_decl t.fields)
   ;;
 
-  let record_value t =
+  let record_value_of_fields fields =
     String.concat
       ~sep:"; "
-      (List.map t.fields ~f:(fun { type_; name; mutable_ = _ } ->
+      (List.map fields ~f:(fun { type_; name; mutable_ = _ } ->
          sprintf
            "%s = %s"
            name
            (type_to_creation_function type_)))
     |> sprintf "{ %s }"
   ;;
+
+  let record_value t = record_value_of_fields t.fields
 
   let check_field_integrity t =
     List.map t.fields ~f:(fun field ->
@@ -371,10 +389,14 @@ module Mixed_record = struct
 end
 
 module Mixed_variant = struct
+  type args =
+    | Args_tuple of field_or_arg_type list
+    | Args_record of Mixed_record.field list
+
   type constructor =
     { name : string;
       index : int;
-      args : field_or_arg_type list;
+      args : args;
     }
 
   type t =
@@ -382,14 +404,21 @@ module Mixed_variant = struct
     ; constructors : constructor list
     }
 
-  let of_constructor name { cstr_prefix; cstr_suffix } index =
-    let prefix_args = List.map cstr_prefix ~f:value_element_to_type in
-    let suffix_args =
-      List.map
-        (Nonempty_list.to_list cstr_suffix)
-        ~f:flat_element_to_type
+  let of_constructor name cstr index =
+    let args =
+      match cstr with
+      | Cstr_tuple { cstr_prefix; cstr_suffix } ->
+          let prefix_args = List.map cstr_prefix ~f:value_element_to_type in
+          let suffix_args =
+            List.map
+              (Nonempty_list.to_list cstr_suffix)
+              ~f:flat_element_to_type
+          in
+          Args_tuple (prefix_args @ suffix_args)
+      | Cstr_record record ->
+          let { fields; _ } : Mixed_record.t = Mixed_record.of_block index record in
+          Args_record fields
     in
-    let args = prefix_args @ suffix_args in
     { name; args; index }
   ;;
 
@@ -406,9 +435,11 @@ module Mixed_variant = struct
     sprintf
       "  | %s of %s"
       cstr.name
-      (String.concat
-         ~sep:" * "
-         (List.map cstr.args ~f:type_to_string))
+      (match cstr.args with
+       | Args_tuple args ->
+           String.concat ~sep:" * " (List.map args ~f:type_to_string)
+       | Args_record fields ->
+           sprintf "{ %s }" (Mixed_record.fields_to_type_decl fields))
   ;;
 
   let type_ { index; _ } = sprintf "t%d" index
@@ -417,14 +448,17 @@ module Mixed_variant = struct
   let constructor_value { name; args } =
     sprintf "(%s %s)"
       name
-      (let args_str =
-        String.concat
-        ~sep:", "
-        (List.map args ~f:type_to_creation_function)
-        in
-        match args with
-        | [] -> args_str
-        | _ -> sprintf "(%s)" args_str)
+      (match args with
+       | Args_record fields -> Mixed_record.record_value_of_fields fields
+       | Args_tuple args ->
+           let args_str =
+             String.concat
+               ~sep:", "
+               (List.map args ~f:type_to_creation_function)
+           in
+           match args with
+           | [] -> args_str
+           | _ -> sprintf "(%s)" args_str)
 
   let type_decl t =
     sprintf
@@ -437,12 +471,16 @@ module Mixed_variant = struct
     let value = value ~index in
     let arg_var i ~base = sprintf "%s%i" base i in
     let arg_vars cstr ~base =
-      String.concat ~sep:","
-        (List.mapi cstr.args ~f:(fun i _ ->
-             arg_var i ~base))
+      match cstr.args with
+      | Args_record _ -> base
+      | Args_tuple args ->
+          sprintf "(%s)"
+            (String.concat ~sep:", "
+              (List.mapi args ~f:(fun i _ ->
+                  arg_var i ~base)))
     in
     sprintf {|let () = match %s, %s with
-      | %s (%s), %s (%s) -> %s
+      | %s %s, %s %s -> %s
       %s
     in|}
     (value cstr)
@@ -450,12 +488,21 @@ module Mixed_variant = struct
     cstr.name (arg_vars cstr ~base:"a")
     cstr.name (arg_vars cstr ~base:"b")
     (String.concat ~sep:"\n"
-       (List.mapi cstr.args ~f:(fun i type_ ->
-          type_to_field_integrity_check
-            type_
-            ~access1:(arg_var i ~base:"a")
-            ~access2:(arg_var i ~base:"b")
-            ~message:(sprintf "%s.%i" (value cstr) i))))
+       (match cstr.args with
+        | Args_record fields ->
+            List.map fields ~f:(fun (field : Mixed_record.field) ->
+                type_to_field_integrity_check
+                  field.type_
+                  ~access1:(sprintf "a.%s" field.name)
+                  ~access2:(sprintf "b.%s" field.name)
+                  ~message:(sprintf "%s.%s" (value cstr) field.name))
+        | Args_tuple args ->
+            List.mapi args ~f:(fun i type_ ->
+                type_to_field_integrity_check
+                  type_
+                  ~access1:(arg_var i ~base:"a")
+                  ~access2:(arg_var i ~base:"b")
+                  ~message:(sprintf "%s.%i" (value cstr) i))))
     (if catchall then "| _ -> assert false" else "")
   ;;
 end
@@ -565,8 +612,8 @@ let main n ~bytecode =
     List.iter2 values (List.tl values @ [ List.hd values]) ~f
   in
   line {|(* TEST
- flags = "-extension layouts_beta -extension small_numbers";
- include stdlib_beta;
+ flags = "-extension layouts_beta";
+ include stdlib_stable;
  include stdlib_upstream_compatible;|};
   if bytecode then (
     line {| bytecode;|};
@@ -581,9 +628,9 @@ let main n ~bytecode =
   line {|let create_string () = String.make (Random.int 100) 'a'|};
   line {|let create_int () = Random.int 0x3FFF_FFFF|};
   line {|let create_float () = Random.float Float.max_float|};
-  line {|let create_float32 () = Stdlib_beta.Float32.of_float (Random.float Float.max_float)|};
+  line {|let create_float32 () = Stdlib_stable.Float32.of_float (Random.float Float.max_float)|};
   line {|let create_float_u () = Stdlib_upstream_compatible.Float_u.of_float (create_float ())|};
-  line {|let create_float32_u () = Stdlib_beta.Float32_u.of_float32 (create_float32 ())|};
+  line {|let create_float32_u () = Stdlib_stable.Float32_u.of_float32 (create_float32 ())|};
   line {|let create_int32_u () = Stdlib_upstream_compatible.Int32_u.of_int32 (Random.int32 0x7FFF_FFFFl)|};
   line {|let create_int64_u () = Stdlib_upstream_compatible.Int64_u.of_int64 (Random.int64 0x7FFF_FFFF_FFFF_FFFFL)|};
   line {|let create_nativeint_u () = Stdlib_upstream_compatible.Nativeint_u.of_nativeint (Random.nativeint 0x7FFF_FFFF_FFFF_FFFFn)|};
@@ -601,7 +648,7 @@ let main n ~bytecode =
   check_gen ~equal:Float.equal ~to_string:Float.to_string|};
   line
    {|let check_float32 =
-  check_gen ~equal:Stdlib_beta.Float32.equal ~to_string:Stdlib_beta.Float32.to_string|};
+  check_gen ~equal:Stdlib_stable.Float32.equal ~to_string:Stdlib_stable.Float32.to_string|};
   line
    {|let check_int32 =
   check_gen ~equal:Int32.equal ~to_string:Int32.to_string|};

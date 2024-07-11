@@ -64,7 +64,9 @@ let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
       let simple =
         if Coercion.is_id (Simple.coercion simple)
         then simple
-        else T.get_alias_exn (S.simplify_simple dacc simple ~min_name_mode)
+        else
+          let _ty, simple = S.simplify_simple dacc simple ~min_name_mode in
+          simple
       in
       let dacc =
         DA.add_variable dacc result_var
@@ -429,24 +431,115 @@ let simplify_boolean_not dacc ~original_term ~arg:_ ~arg_ty ~result_var =
     SPR.create original_term ~try_reify:false dacc
   | Invalid -> SPR.create_invalid dacc
 
-let simplify_reinterpret_int64_as_float dacc ~original_term ~arg:_ ~arg_ty
-    ~result_var =
-  let typing_env = DE.typing_env (DA.denv dacc) in
-  let proof = T.meet_naked_int64s typing_env arg_ty in
-  match proof with
-  | Known_result int64s ->
-    let floats =
-      Int64.Set.fold
-        (fun int64 floats -> Float.Set.add (Float.of_bits int64) floats)
-        int64s Float.Set.empty
-    in
-    let ty = T.these_naked_floats floats in
-    let dacc = DA.add_variable dacc result_var ty in
-    SPR.create original_term ~try_reify:true dacc
-  | Need_meet ->
-    let dacc = DA.add_variable dacc result_var T.any_naked_float in
-    SPR.create original_term ~try_reify:false dacc
-  | Invalid -> SPR.create_invalid dacc
+module Make_simplify_reinterpret_64_bit_word (P : sig
+  module Src : Container_types.S
+
+  module Dst : Container_types.S
+
+  val prover : TE.t -> T.t -> Src.Set.t meet_shortcut
+
+  val convert : Src.t -> Dst.t
+
+  val these : Dst.Set.t -> T.t
+
+  val any_dst : T.t
+end) =
+struct
+  let simplify dacc ~original_term ~arg:_ ~arg_ty ~result_var =
+    let typing_env = DE.typing_env (DA.denv dacc) in
+    let proof = P.prover typing_env arg_ty in
+    match proof with
+    | Known_result src ->
+      let dst =
+        P.Src.Set.fold
+          (fun src dst -> P.Dst.Set.add (P.convert src) dst)
+          src P.Dst.Set.empty
+      in
+      let ty = P.these dst in
+      let dacc = DA.add_variable dacc result_var ty in
+      SPR.create original_term ~try_reify:true dacc
+    | Need_meet ->
+      let dacc = DA.add_variable dacc result_var P.any_dst in
+      SPR.create original_term ~try_reify:false dacc
+    | Invalid -> SPR.create_invalid dacc
+end
+
+module Simplify_reinterpret_unboxed_int64_as_unboxed_float64 =
+Make_simplify_reinterpret_64_bit_word (struct
+  module Src = Int64
+  module Dst = Float
+
+  let prover = T.meet_naked_int64s
+
+  let convert = Float.of_bits
+
+  let these = T.these_naked_floats
+
+  let any_dst = T.any_naked_float
+end)
+
+module Simplify_reinterpret_unboxed_float64_as_unboxed_int64 =
+Make_simplify_reinterpret_64_bit_word (struct
+  module Src = Float
+  module Dst = Int64
+
+  let prover = T.meet_naked_floats
+
+  let convert = Float.to_bits
+
+  let these = T.these_naked_int64s
+
+  let any_dst = T.any_naked_int64
+end)
+
+module Simplify_reinterpret_unboxed_int64_as_tagged_int63 =
+Make_simplify_reinterpret_64_bit_word (struct
+  module Src = Int64
+  module Dst = Targetint_31_63
+
+  let prover = T.meet_naked_int64s
+
+  (* This primitive is logical OR with 1 on machine words, but here, we are
+     working in the tagged world. As such a different computation is
+     required. *)
+  let convert i = Targetint_31_63.of_int64 (Int64.shift_right_logical i 1)
+
+  let these = T.these_tagged_immediates
+
+  let any_dst = T.any_tagged_immediate
+end)
+
+module Simplify_reinterpret_tagged_int63_as_unboxed_int64 =
+Make_simplify_reinterpret_64_bit_word (struct
+  module Src = Targetint_31_63
+  module Dst = Int64
+
+  let prover = T.meet_equals_tagged_immediates
+
+  (* This primitive is the identity on machine words, but as above, we are
+     working in the tagged world. *)
+  let convert i = Int64.add (Int64.mul (Targetint_31_63.to_int64 i) 2L) 1L
+
+  let these = T.these_naked_int64s
+
+  let any_dst = T.any_naked_int64
+end)
+
+let simplify_reinterpret_64_bit_word (reinterpret : P.Reinterpret_64_bit_word.t)
+    dacc ~original_term ~arg ~arg_ty ~result_var =
+  match reinterpret with
+  | Unboxed_int64_as_unboxed_float64 ->
+    Simplify_reinterpret_unboxed_int64_as_unboxed_float64.simplify dacc
+      ~original_term ~arg ~arg_ty ~result_var
+  | Unboxed_float64_as_unboxed_int64 ->
+    Simplify_reinterpret_unboxed_float64_as_unboxed_int64.simplify dacc
+      ~original_term ~arg ~arg_ty ~result_var
+  | Unboxed_int64_as_tagged_int63 ->
+    Simplify_reinterpret_unboxed_int64_as_tagged_int63.simplify dacc
+      ~original_term ~arg ~arg_ty ~result_var
+  | Tagged_int63_as_unboxed_int64 ->
+    Simplify_reinterpret_tagged_int63_as_unboxed_int64.simplify dacc
+      ~original_term ~arg ~arg_ty ~result_var
 
 module Make_simplify_float_arith_op (FP : sig
   module F : Numeric_types.Float_by_bit_pattern
@@ -710,7 +803,8 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
       | Naked_int64 -> Simplify_int_conv_naked_int64.simplify ~dst
       | Naked_nativeint -> Simplify_int_conv_naked_nativeint.simplify ~dst)
     | Boolean_not -> simplify_boolean_not
-    | Reinterpret_int64_as_float -> simplify_reinterpret_int64_as_float
+    | Reinterpret_64_bit_word reinterpret ->
+      simplify_reinterpret_64_bit_word reinterpret
     | Is_boxed_float -> simplify_is_boxed_float
     | Is_flat_float_array -> simplify_is_flat_float_array
     | Int_as_pointer mode -> simplify_int_as_pointer ~mode

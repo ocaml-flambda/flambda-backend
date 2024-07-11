@@ -260,7 +260,7 @@ and expression_desc =
         ret_sort : Jkind.sort;
         alloc_mode : Mode.Alloc.r;
         (* Mode at which the closure is allocated *)
-        zero_alloc : Builtin_attributes.zero_alloc_attribute
+        zero_alloc : Zero_alloc.t;
         (* zero-alloc attributes *)
       }
       (** fun P0 P1 -> function p1 -> e1 | p2 -> e2  (body = Tfunction_cases _)
@@ -274,7 +274,7 @@ and expression_desc =
       *)
   | Texp_apply of
       expression * (arg_label * apply_arg) list * apply_position *
-        Mode.Locality.l * Zero_alloc_utils.Assume_info.t
+        Mode.Locality.l * Zero_alloc.assume option
         (** E0 ~l1:E1 ... ~ln:En
 
             The expression can be Omitted if the expression is abstracted over
@@ -290,10 +290,8 @@ and expression_desc =
                          (Labelled "y", Some (Texp_constant Const_int 3))
                         ])
 
-            The [Zero_alloc_utils.Assume_info.t] records the optional
-            [@zero_alloc assume] attribute that may appear on applications.  If
-            that attribute is absent, it is [Assume_info.none].
-          *)
+            The [Zero_alloc.assume option] records the optional [@zero_alloc
+            assume] attribute that may appear on applications. *)
   | Texp_match of expression * Jkind.sort * computation case list * partial
         (** match E0 with
             | P1 -> E1
@@ -937,7 +935,7 @@ and label_declaration =
      ld_name: string loc;
      ld_uid: Uid.t;
      ld_mutable: Types.mutability;
-     ld_modalities: Mode.Modality.Value.t;
+     ld_modalities: Mode.Modality.Value.Const.t;
      ld_type: core_type;
      ld_loc: Location.t;
      ld_attributes: attributes;
@@ -957,7 +955,7 @@ and constructor_declaration =
 
 and constructor_argument =
   {
-    ca_modalities: Mode.Modality.Value.t;
+    ca_modalities: Mode.Modality.Value.Const.t;
     ca_type: core_type;
     ca_loc: Location.t;
   }
@@ -1151,7 +1149,7 @@ val let_bound_idents_full:
 val let_bound_idents_with_modes_sorts_and_checks:
   value_binding list
   -> (Ident.t * (Location.t * Mode.Value.l * Jkind.sort) list
-              * Builtin_attributes.zero_alloc_attribute) list
+              * Zero_alloc.t) list
 
 (** Alpha conversion of patterns *)
 val alpha_pat:

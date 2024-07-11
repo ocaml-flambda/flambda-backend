@@ -293,6 +293,7 @@ let string_like_load_aux ~dbg width ~str ~index =
   | Eight -> C.load ~dbg Byte_unsigned Mutable ~addr:(C.add_int str index dbg)
   | Sixteen -> C.unaligned_load_16 str index dbg
   | Thirty_two -> C.sign_extend_32 dbg (C.unaligned_load_32 str index dbg)
+  | Single -> C.unaligned_load_f32 str index dbg
   | Sixty_four -> C.unaligned_load_64 str index dbg
   | One_twenty_eight { aligned = true } -> C.aligned_load_128 str index dbg
   | One_twenty_eight { aligned = false } -> C.unaligned_load_128 str index dbg
@@ -314,6 +315,7 @@ let bytes_or_bigstring_set_aux ~dbg width ~bytes ~index ~new_value =
     C.store ~dbg Byte_unsigned Assignment ~addr ~new_value
   | Sixteen -> C.unaligned_set_16 bytes index new_value dbg
   | Thirty_two -> C.unaligned_set_32 bytes index new_value dbg
+  | Single -> C.unaligned_set_f32 bytes index new_value dbg
   | Sixty_four -> C.unaligned_set_64 bytes index new_value dbg
   | One_twenty_eight { aligned = false } ->
     C.unaligned_set_128 bytes index new_value dbg
@@ -714,7 +716,15 @@ let unary_primitive env res dbg f arg =
     let extra, expr = arithmetic_conversion dbg src dst arg in
     extra, res, expr
   | Boolean_not -> None, res, C.mk_not dbg arg
-  | Reinterpret_int64_as_float -> None, res, C.int64_as_float ~dbg arg
+  | Reinterpret_64_bit_word reinterpret ->
+    let cmm =
+      match reinterpret with
+      | Tagged_int63_as_unboxed_int64 -> arg
+      | Unboxed_int64_as_tagged_int63 -> C.or_int (C.int 1 ~dbg) arg dbg
+      | Unboxed_int64_as_unboxed_float64 -> C.int64_as_float ~dbg arg
+      | Unboxed_float64_as_unboxed_int64 -> C.float_as_int64 ~dbg arg
+    in
+    None, res, cmm
   | Unbox_number kind -> None, res, unbox_number ~dbg kind arg
   | Untag_immediate -> Some (Env.Untag arg), res, C.untag_int arg dbg
   | Box_number (kind, alloc_mode) ->

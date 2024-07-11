@@ -282,6 +282,7 @@ let print_bigarray name unsafe kind ppf layout =
     (match kind with
      | Pbigarray_unknown -> "generic"
      | Pbigarray_float32 -> "float32"
+     | Pbigarray_float32_t -> "float32_t"
      | Pbigarray_float64 -> "float64"
      | Pbigarray_sint8 -> "sint8"
      | Pbigarray_uint8 -> "uint8"
@@ -643,6 +644,9 @@ let primitive ppf = function
   | Pstring_load_32(unsafe, m) ->
      if unsafe then fprintf ppf "string.unsafe_get32%s" (alloc_kind m)
      else fprintf ppf "string.get32%s" (alloc_kind m)
+  | Pstring_load_f32(unsafe, m) ->
+     if unsafe then fprintf ppf "string.unsafe_getf32%s" (alloc_kind m)
+     else fprintf ppf "string.getf32%s" (alloc_kind m)
   | Pstring_load_64(unsafe, m) ->
      if unsafe then fprintf ppf "string.unsafe_get64%s" (alloc_kind m)
      else fprintf ppf "string.get64%s" (alloc_kind m)
@@ -656,6 +660,9 @@ let primitive ppf = function
   | Pbytes_load_32(unsafe,m) ->
      if unsafe then fprintf ppf "bytes.unsafe_get32%s" (alloc_kind m)
      else fprintf ppf "bytes.get32%s" (alloc_kind m)
+  | Pbytes_load_f32(unsafe,m) ->
+     if unsafe then fprintf ppf "bytes.unsafe_getf32%s" (alloc_kind m)
+     else fprintf ppf "bytes.getf32%s" (alloc_kind m)
   | Pbytes_load_64(unsafe,m) ->
      if unsafe then fprintf ppf "bytes.unsafe_get64%s" (alloc_kind m)
      else fprintf ppf "bytes.get64%s" (alloc_kind m)
@@ -669,6 +676,9 @@ let primitive ppf = function
   | Pbytes_set_32(unsafe) ->
      if unsafe then fprintf ppf "bytes.unsafe_set32"
      else fprintf ppf "bytes.set32"
+  | Pbytes_set_f32(unsafe) ->
+     if unsafe then fprintf ppf "bytes.unsafe_setf32"
+     else fprintf ppf "bytes.setf32"
   | Pbytes_set_64(unsafe) ->
      if unsafe then fprintf ppf "bytes.unsafe_set64"
      else fprintf ppf "bytes.set64"
@@ -682,6 +692,9 @@ let primitive ppf = function
   | Pbigstring_load_32 { unsafe; mode = m } ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_get32%s" (alloc_kind m)
      else fprintf ppf "bigarray.array1.get32%s" (alloc_kind m)
+  | Pbigstring_load_f32 { unsafe; mode = m } ->
+     if unsafe then fprintf ppf "bigarray.array1.unsafe_getf32%s" (alloc_kind m)
+     else fprintf ppf "bigarray.array1.getf32%s" (alloc_kind m)
   | Pbigstring_load_64 { unsafe; mode = m } ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_get64%s" (alloc_kind m)
      else fprintf ppf "bigarray.array1.get64%s" (alloc_kind m)
@@ -699,6 +712,9 @@ let primitive ppf = function
   | Pbigstring_set_32 { unsafe } ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_set32"
      else fprintf ppf "bigarray.array1.set32"
+  | Pbigstring_set_f32 { unsafe } ->
+     if unsafe then fprintf ppf "bigarray.array1.unsafe_setf32"
+     else fprintf ppf "bigarray.array1.setf32"
   | Pbigstring_set_64 { unsafe } ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_set64"
      else fprintf ppf "bigarray.array1.set64"
@@ -722,6 +738,9 @@ let primitive ppf = function
   | Punboxed_float_array_load_128 {unsafe; mode} ->
      if unsafe then fprintf ppf "unboxed_float_array.unsafe_get128%s" (alloc_kind mode)
      else fprintf ppf "unboxed_float_array.get128%s" (alloc_kind mode)
+  | Punboxed_float32_array_load_128 {unsafe; mode} ->
+     if unsafe then fprintf ppf "unboxed_float32_array.unsafe_get128%s" (alloc_kind mode)
+     else fprintf ppf "unboxed_float32_array.get128%s" (alloc_kind mode)
   | Punboxed_int32_array_load_128 {unsafe; mode} ->
      if unsafe then fprintf ppf "unboxed_int32_array.unsafe_get128%s" (alloc_kind mode)
      else fprintf ppf "unboxed_int32_array.get128%s" (alloc_kind mode)
@@ -743,6 +762,9 @@ let primitive ppf = function
   | Punboxed_float_array_set_128 {unsafe} ->
      if unsafe then fprintf ppf "unboxed_float_array.unsafe_set128"
      else fprintf ppf "unboxed_float_array.set128"
+  | Punboxed_float32_array_set_128 {unsafe} ->
+     if unsafe then fprintf ppf "unboxed_float32_array.unsafe_set128"
+     else fprintf ppf "unboxed_float32_array.set128"
   | Punboxed_int32_array_set_128 {unsafe} ->
      if unsafe then fprintf ppf "unboxed_int32_array.unsafe_set128"
      else fprintf ppf "unboxed_int32_array.set128"
@@ -777,6 +799,10 @@ let primitive ppf = function
   | Parray_to_iarray -> fprintf ppf "array_to_iarray"
   | Parray_of_iarray -> fprintf ppf "array_of_iarray"
   | Pget_header m -> fprintf ppf "get_header%s" (alloc_kind m)
+  | Preinterpret_tagged_int63_as_unboxed_int64 ->
+      fprintf ppf "reinterpret_tagged_int63_as_unboxed_int64"
+  | Preinterpret_unboxed_int64_as_tagged_int63 ->
+      fprintf ppf "reinterpret_unboxed_int64_as_tagged_int63"
 
 let name_of_primitive = function
   | Pbytes_of_string -> "Pbytes_of_string"
@@ -877,28 +903,34 @@ let name_of_primitive = function
   | Pbigarraydim _ -> "Pbigarraydim"
   | Pstring_load_16 _ -> "Pstring_load_16"
   | Pstring_load_32 _ -> "Pstring_load_32"
+  | Pstring_load_f32 _ -> "Pstring_load_f32"
   | Pstring_load_64 _ -> "Pstring_load_64"
   | Pstring_load_128 _ -> "Pstring_load_128"
   | Pbytes_load_16 _ -> "Pbytes_load_16"
   | Pbytes_load_32 _ -> "Pbytes_load_32"
+  | Pbytes_load_f32 _ -> "Pbytes_load_f32"
   | Pbytes_load_64 _ -> "Pbytes_load_64"
   | Pbytes_load_128 _ -> "Pbytes_load_128"
   | Pbytes_set_16 _ -> "Pbytes_set_16"
   | Pbytes_set_32 _ -> "Pbytes_set_32"
+  | Pbytes_set_f32 _ -> "Pbytes_set_f32"
   | Pbytes_set_64 _ -> "Pbytes_set_64"
   | Pbytes_set_128 _ -> "Pbytes_set_128"
   | Pbigstring_load_16 _ -> "Pbigstring_load_16"
   | Pbigstring_load_32 _ -> "Pbigstring_load_32"
+  | Pbigstring_load_f32 _ -> "Pbigstring_load_f32"
   | Pbigstring_load_64 _ -> "Pbigstring_load_64"
   | Pbigstring_load_128 _ -> "Pbigstring_load_128"
   | Pbigstring_set_16 _ -> "Pbigstring_set_16"
   | Pbigstring_set_32 _ -> "Pbigstring_set_32"
+  | Pbigstring_set_f32 _ -> "Pbigstring_set_f32"
   | Pbigstring_set_64 _ -> "Pbigstring_set_64"
   | Pbigstring_set_128 _ -> "Pbigstring_set_128"
   | Pfloatarray_load_128 _ -> "Pfloatarray_load_128"
   | Pfloat_array_load_128 _ -> "Pfloat_array_load_128"
   | Pint_array_load_128 _ -> "Pint_array_load_128"
   | Punboxed_float_array_load_128 _ -> "Punboxed_float_array_load_128"
+  | Punboxed_float32_array_load_128 _ -> "Punboxed_float32_array_load_128"
   | Punboxed_int32_array_load_128 _ -> "Punboxed_int32_array_load_128"
   | Punboxed_int64_array_load_128 _ -> "Punboxed_int64_array_load_128"
   | Punboxed_nativeint_array_load_128 _ -> "Punboxed_nativeint_array_load_128"
@@ -906,6 +938,7 @@ let name_of_primitive = function
   | Pfloat_array_set_128 _ -> "Pfloat_array_set_128"
   | Pint_array_set_128 _ -> "Pint_array_set_128"
   | Punboxed_float_array_set_128 _ -> "Punboxed_float_array_set_128"
+  | Punboxed_float32_array_set_128 _ -> "Punboxed_float32_array_set_128"
   | Punboxed_int32_array_set_128 _ -> "Punboxed_int32_array_set_128"
   | Punboxed_int64_array_set_128 _ -> "Punboxed_int64_array_set_128"
   | Punboxed_nativeint_array_set_128 _ -> "Punboxed_nativeint_array_set_128"
@@ -935,19 +968,20 @@ let name_of_primitive = function
   | Parray_of_iarray -> "Parray_of_iarray"
   | Parray_to_iarray -> "Parray_to_iarray"
   | Pget_header _ -> "Pget_header"
+  | Preinterpret_tagged_int63_as_unboxed_int64 ->
+      "Preinterpret_tagged_int63_as_unboxed_int64"
+  | Preinterpret_unboxed_int64_as_tagged_int63 ->
+      "Preinterpret_unboxed_int64_as_tagged_int63"
 
 let zero_alloc_attribute ppf check =
   match check with
   | Default_zero_alloc -> ()
-  | Ignore_assert_all ->
-    fprintf ppf "ignore assert all zero_alloc@ "
   | Assume {strict; never_returns_normally; loc = _} ->
     fprintf ppf "assume_zero_alloc%s%s@ "
       (if strict then "_strict" else "")
       (if never_returns_normally then "_never_returns_normally" else "")
-  | Check {strict; loc = _; opt} ->
-    fprintf ppf "assert_zero_alloc%s%s@ "
-      (if opt then "_opt" else "")
+  | Check {strict; loc = _; } ->
+    fprintf ppf "assert_zero_alloc%s@ "
       (if strict then "_strict" else "")
 
 let function_attribute ppf t =

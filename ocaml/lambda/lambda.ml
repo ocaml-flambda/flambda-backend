@@ -239,25 +239,30 @@ type primitive =
   (* load/set 16,32,64,128 bits from a string: (unsafe)*)
   | Pstring_load_16 of bool
   | Pstring_load_32 of bool * alloc_mode
+  | Pstring_load_f32 of bool * alloc_mode
   | Pstring_load_64 of bool * alloc_mode
   | Pstring_load_128 of { unsafe : bool; mode: alloc_mode }
   | Pbytes_load_16 of bool
   | Pbytes_load_32 of bool * alloc_mode
+  | Pbytes_load_f32 of bool * alloc_mode
   | Pbytes_load_64 of bool * alloc_mode
   | Pbytes_load_128 of { unsafe : bool; mode: alloc_mode }
   | Pbytes_set_16 of bool
   | Pbytes_set_32 of bool
+  | Pbytes_set_f32 of bool
   | Pbytes_set_64 of bool
   | Pbytes_set_128 of { unsafe : bool }
   (* load/set 16,32,64,128 bits from a
      (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t : (unsafe) *)
   | Pbigstring_load_16 of { unsafe : bool }
   | Pbigstring_load_32 of { unsafe : bool; mode: alloc_mode; boxed : bool }
+  | Pbigstring_load_f32 of { unsafe : bool; mode: alloc_mode; boxed : bool }
   | Pbigstring_load_64 of { unsafe : bool; mode: alloc_mode; boxed : bool }
   | Pbigstring_load_128 of { aligned : bool; unsafe : bool; mode: alloc_mode;
       boxed : bool }
   | Pbigstring_set_16 of { unsafe : bool }
   | Pbigstring_set_32 of { unsafe : bool; boxed : bool }
+  | Pbigstring_set_f32 of { unsafe : bool; boxed : bool }
   | Pbigstring_set_64 of { unsafe : bool; boxed : bool }
   | Pbigstring_set_128 of { aligned : bool; unsafe : bool; boxed : bool }
   (* load/set SIMD vectors in GC-managed arrays *)
@@ -265,6 +270,7 @@ type primitive =
   | Pfloat_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Pint_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Punboxed_float_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_float32_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Punboxed_int32_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Punboxed_int64_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Punboxed_nativeint_array_load_128 of { unsafe : bool; mode : alloc_mode }
@@ -272,6 +278,7 @@ type primitive =
   | Pfloat_array_set_128 of { unsafe : bool }
   | Pint_array_set_128 of { unsafe : bool }
   | Punboxed_float_array_set_128 of { unsafe : bool }
+  | Punboxed_float32_array_set_128 of { unsafe : bool }
   | Punboxed_int32_array_set_128 of { unsafe : bool }
   | Punboxed_int64_array_set_128 of { unsafe : bool }
   | Punboxed_nativeint_array_set_128 of { unsafe : bool }
@@ -298,6 +305,8 @@ type primitive =
   | Pbox_float of boxed_float * alloc_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
+  | Preinterpret_unboxed_int64_as_tagged_int63
+  | Preinterpret_tagged_int63_as_unboxed_int64
   (* Jane Street extensions *)
   | Parray_to_iarray
   | Parray_of_iarray
@@ -425,7 +434,8 @@ and boxed_vector =
 
 and bigarray_kind =
     Pbigarray_unknown
-  | Pbigarray_float32 | Pbigarray_float64
+  | Pbigarray_float32 | Pbigarray_float32_t
+  | Pbigarray_float64
   | Pbigarray_sint8 | Pbigarray_uint8
   | Pbigarray_sint16 | Pbigarray_uint16
   | Pbigarray_int32 | Pbigarray_int64
@@ -634,18 +644,14 @@ type poll_attribute =
   | Error_poll (* [@poll error] *)
   | Default_poll (* no [@poll] attribute *)
 
-type zero_alloc_attribute = Builtin_attributes.zero_alloc_attribute =
+type zero_alloc_attribute =
   | Default_zero_alloc
-  | Ignore_assert_all
   | Check of { strict: bool;
-               opt: bool;
-               arity: int;
                loc: Location.t;
              }
   | Assume of { strict: bool;
                 never_returns_normally: bool;
                 never_raises: bool;
-                arity: int;
                 loc: Location.t;
               }
 
@@ -925,7 +931,7 @@ let default_function_attribute = {
 }
 
 let default_stub_attribute =
-  { default_function_attribute with stub = true; zero_alloc = Ignore_assert_all }
+  { default_function_attribute with stub = true; zero_alloc = Default_zero_alloc }
 
 let default_param_attribute = { unbox_param = false }
 
@@ -1402,16 +1408,26 @@ let build_substs update_env ?(freshen_bound_variables = false) s =
     | Levent (lam, evt) ->
         let old_env = evt.lev_env in
         let env_updates =
-          let find_in_old id = Env.find_value (Path.Pident id) old_env in
+          let find_in_old id =
+            (* Looking up [id] might encounter locks, which we shouldn't apply
+               as we are not using the values. But adding the value to [new_env]
+               with the unlocked mode is just wrong. Therefore, we set the mode
+               to be [max] for conservative soundness. [new_env] is only used
+               for printing in debugger. *)
+            let vd = Env.find_value (Path.Pident id) old_env in
+            let vd = {vd with val_modalities = Mode.Modality.Value.id} in
+            let mode = Mode.Value.max |> Mode.Value.disallow_right in
+            (vd, mode)
+          in
           let rebind id id' new_env =
             match find_in_old id with
             | exception Not_found -> new_env
-            | vd -> Env.add_value_lazy ~mode:Mode.Value.max id' vd new_env
+            | (vd, mode) -> Env.add_value_lazy ~mode id' vd new_env
           in
           let update_free id new_env =
             match find_in_old id with
             | exception Not_found -> new_env
-            | vd -> update_env id vd new_env
+            | vd_mode -> update_env id vd_mode new_env
           in
           Ident.Map.merge (fun id bound free ->
             match bound, free with
@@ -1451,9 +1467,9 @@ let subst update_env ?freshen_bound_variables s =
   (build_substs update_env ?freshen_bound_variables s).subst_lambda
 
 let rename idmap lam =
-  let update_env oldid vd env =
+  let update_env oldid (vd, mode) env =
     let newid = Ident.Map.find oldid idmap in
-    Env.add_value_lazy ~mode:Mode.Value.max newid vd env
+    Env.add_value_lazy ~mode newid vd env
   in
   let s = Ident.Map.map (fun new_id -> Lvar new_id) idmap in
   subst update_env s lam
@@ -1745,29 +1761,35 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
      Some alloc_heap
   | Pstring_load_16 _ | Pbytes_load_16 _ -> None
   | Pstring_load_32 (_, m) | Pbytes_load_32 (_, m)
+  | Pstring_load_f32 (_, m) | Pbytes_load_f32 (_, m)
   | Pstring_load_64 (_, m) | Pbytes_load_64 (_, m)
   | Pstring_load_128 { mode = m; _ } | Pbytes_load_128 { mode = m; _ }
   | Pfloatarray_load_128 { mode = m; _ }
   | Pfloat_array_load_128 { mode = m; _ }
   | Pint_array_load_128 { mode = m; _ }
   | Punboxed_float_array_load_128 { mode = m; _ }
+  | Punboxed_float32_array_load_128 { mode = m; _ }
   | Punboxed_int32_array_load_128 { mode = m; _ }
   | Punboxed_int64_array_load_128 { mode = m; _ }
   | Punboxed_nativeint_array_load_128 { mode = m; _ }
   | Pget_header m -> Some m
-  | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _ -> None
+  | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_f32 _
+  | Pbytes_set_64 _ | Pbytes_set_128 _ -> None
   | Pbigstring_load_16 _ -> None
   | Pbigstring_load_32 { mode = m; boxed = true; _ }
+  | Pbigstring_load_f32 { mode = m; boxed = true; _ }
   | Pbigstring_load_64 { mode = m; boxed = true; _ }
   | Pbigstring_load_128 { mode = m; boxed = true; _ } -> Some m
   | Pbigstring_load_32 { boxed = false; _ }
+  | Pbigstring_load_f32 { boxed = false; _ }
   | Pbigstring_load_64 { boxed = false; _ }
   | Pbigstring_load_128 { boxed = false; _ } -> None
-  | Pbigstring_set_16 _ | Pbigstring_set_32 _
+  | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_f32 _
   | Pbigstring_set_64 _ | Pbigstring_set_128 _
   | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
-  | Punboxed_float_array_set_128 _ | Punboxed_int32_array_set_128 _
-  | Punboxed_int64_array_set_128 _ | Punboxed_nativeint_array_set_128 _ -> None
+  | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
+  | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
+  | Punboxed_nativeint_array_set_128 _ -> None
   | Pctconst _ -> None
   | Pbswap16 -> None
   | Pbbswap (_, m) -> Some m
@@ -1779,12 +1801,22 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Punbox_float _ | Punbox_int _ -> None
   | Pbox_float (_, m) | Pbox_int (_, m) -> Some m
   | Prunstack | Presume | Pperform | Preperform ->
-    Misc.fatal_error "Effects-related primitives are not yet supported"
+    (* CR mshinwell: check *)
+    Some alloc_heap
   | Patomic_load _
   | Patomic_exchange
   | Patomic_cas
   | Patomic_fetch_add
-  | Pdls_get -> None
+  | Pdls_get
+  | Preinterpret_unboxed_int64_as_tagged_int63 -> None
+  | Preinterpret_tagged_int63_as_unboxed_int64 ->
+    if !Clflags.native_code then None
+    else
+      (* We don't provide a locally-allocating version of this primitive
+         since it would only apply to bytecode, and code requiring performance
+         at a level where these primitives are necessary is very likely going
+         to be native. *)
+      Some alloc_heap
 
 let constant_layout: constant -> layout = function
   | Const_int _ | Const_char _ -> Pvalue Pintval
@@ -1853,11 +1885,13 @@ let primitive_result_layout (p : primitive) =
   | Pignore | Psetfield _ | Psetfield_computed _ | Psetfloatfield _ | Poffsetref _
   | Psetufloatfield _ | Psetmixedfield _
   | Pbytessetu | Pbytessets | Parraysetu _ | Parraysets _ | Pbigarrayset _
-  | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
-  | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pbigstring_set_128 _
+  | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_f32 _ | Pbytes_set_64 _
+  | Pbytes_set_128 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_f32 _
+  | Pbigstring_set_64 _ | Pbigstring_set_128 _
   | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
-  | Punboxed_float_array_set_128 _ | Punboxed_int32_array_set_128 _
-  | Punboxed_int64_array_set_128 _ | Punboxed_nativeint_array_set_128 _
+  | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
+  | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
+  | Punboxed_nativeint_array_set_128 _
     -> layout_unit
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> layout_module_field
   | Pmakeblock _ | Pmakefloatblock _ | Pmakearray _ | Pduprecord _
@@ -1906,6 +1940,9 @@ let primitive_result_layout (p : primitive) =
   | Pstring_load_32 _ | Pbytes_load_32 _
   | Pbigstring_load_32 { boxed = true; _ } ->
       layout_boxedint Pint32
+  | Pstring_load_f32 _ | Pbytes_load_f32 _
+  | Pbigstring_load_f32 { boxed = true; _ } ->
+      layout_boxed_float Pfloat32
   | Pstring_load_64 _ | Pbytes_load_64 _
   | Pbigstring_load_64 { boxed = true; _ } ->
       layout_boxedint Pint64
@@ -1913,12 +1950,15 @@ let primitive_result_layout (p : primitive) =
   | Pbigstring_load_128 { boxed = true; _ } ->
       layout_boxed_vector (Pvec128 Int8x16)
   | Pbigstring_load_32 { boxed = false; _ } -> layout_unboxed_int Pint32
+  | Pbigstring_load_f32 { boxed = false; _ } -> layout_unboxed_float Pfloat32
   | Pbigstring_load_64 { boxed = false; _ } -> layout_unboxed_int Pint64
   | Pbigstring_load_128 { boxed = false; _ } ->
       layout_unboxed_vector (Pvec128 Int8x16)
   | Pfloatarray_load_128 _ | Pfloat_array_load_128 _
   | Punboxed_float_array_load_128 _ ->
     layout_boxed_vector (Pvec128 Float64x2)
+  | Punboxed_float32_array_load_128 _ ->
+    layout_boxed_vector (Pvec128 Float32x4)
   | Pint_array_load_128 _ | Punboxed_int64_array_load_128 _
   | Punboxed_nativeint_array_load_128 _ ->
     (* 128-bit types are only supported in the x86_64 backend, so we may
@@ -1932,6 +1972,7 @@ let primitive_result_layout (p : primitive) =
       | Pbigarray_float32 ->
         (* float32 bigarrays return 64-bit floats for backward compatibility. *)
         layout_boxed_float Pfloat64
+      | Pbigarray_float32_t -> layout_boxed_float Pfloat32
       | Pbigarray_float64 -> layout_boxed_float Pfloat64
       | Pbigarray_sint8 | Pbigarray_uint8
       | Pbigarray_sint16 | Pbigarray_uint16
@@ -1954,15 +1995,15 @@ let primitive_result_layout (p : primitive) =
       layout_any_value
   | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
   | Pget_header _ -> layout_boxedint Pnativeint
-  | Prunstack | Presume | Pperform | Preperform ->
-    (* CR mshinwell/ncourant: to be thought about later *)
-    Misc.fatal_error "Effects-related primitives are not yet supported"
+  | Prunstack | Presume | Pperform | Preperform -> layout_any_value
   | Patomic_load { immediate_or_pointer = Immediate } -> layout_int
   | Patomic_load { immediate_or_pointer = Pointer } -> layout_any_value
   | Patomic_exchange
   | Patomic_cas
   | Patomic_fetch_add
   | Pdls_get -> layout_any_value
+  | Preinterpret_tagged_int63_as_unboxed_int64 -> layout_unboxed_int64
+  | Preinterpret_unboxed_int64_as_tagged_int63 -> layout_int
 
 let compute_expr_layout free_vars_kind lam =
   let rec compute_expr_layout kinds = function

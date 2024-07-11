@@ -548,7 +548,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | String_length string_or_bytes -> String_length string_or_bytes
   | Boolean_not -> Boolean_not
   | Int_as_pointer _ | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
-  | Float_arith _ | Reinterpret_int64_as_float | Is_boxed_float | Obj_dup
+  | Float_arith _ | Reinterpret_64_bit_word _ | Is_boxed_float | Obj_dup
   | Get_header | Atomic_load _ ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
@@ -665,7 +665,11 @@ let set_of_closures env sc =
       (fun (function_slot, fun_decl) ->
         function_declaration env fun_decl function_slot alloc)
       (Set_of_closures.function_decls sc
-      |> Function_declarations.funs_in_order |> Function_slot.Lmap.bindings)
+      |> Function_declarations.funs_in_order
+      |> Function_slot.Lmap.map (function
+           | Function_declarations.Deleted _ -> Misc.fatal_error "todo"
+           | Function_declarations.Code_id code_id -> code_id)
+      |> Function_slot.Lmap.bindings)
   in
   let elts = value_slots env (Set_of_closures.value_slots sc) in
   let elts = match elts with [] -> None | _ -> Some elts in
@@ -1036,6 +1040,7 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       Function (Indirect alloc)
     | C_call { needs_caml_c_call; _ } -> C_call { alloc = needs_caml_c_call }
     | Method _ -> Misc.fatal_error "TODO: Method call kind"
+    | Effect _ -> Misc.fatal_error "TODO: Effect call kind"
   in
   let param_arity = Apply_expr.args_arity app in
   let return_arity = Apply_expr.return_arity app in
@@ -1059,9 +1064,9 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       let params_arity = Some (complex_arity param_arity) in
       let ret_arity = arity return_arity in
       Some { params_arity; ret_arity }
-    | Function { function_call = Indirect_unknown_arity; alloc_mode = _ }
-    | Method _ ->
+    | Function { function_call = Indirect_unknown_arity; alloc_mode = _ } ->
       None
+    | Method _ | Effect _ -> assert false
   in
   let inlined : Fexpr.inlined_attribute option =
     if Flambda2_terms.Inlined_attribute.is_default (Apply_expr.inlined app)

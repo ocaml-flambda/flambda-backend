@@ -166,8 +166,8 @@ let hard_float32_reg =
   for i = 0 to 15 do v.(i) <- Reg.at_location Float32 (Reg (100 + i)) done;
   fun () -> assert_float32_enabled (); v
 
-let extension_regs (type a) ?prefix (ext : a Language_extension.t) () =
-  if not (Language_extension.is_enabled ext) then [||]
+let extension_regs (type a) ?prefix (ext : a Language_extension.t) (maturity : a) () =
+  if not (Language_extension.is_at_least ext maturity) then [||]
   else let regs =
     match ext with
     | SIMD -> hard_vec128_reg ()
@@ -180,9 +180,10 @@ let extension_regs (type a) ?prefix (ext : a Language_extension.t) () =
   | Some p -> Array.sub regs 0 (Int.min p (Array.length regs))
 
 let all_phys_regs =
+  let open Language_extension in
   let basic_regs = Array.append hard_int_reg hard_float_reg in
-  let simd_regs = extension_regs SIMD in
-  let f32_regs = extension_regs Small_numbers in
+  let simd_regs = extension_regs SIMD () in
+  let f32_regs = extension_regs Small_numbers Stable in
   fun () -> Array.append basic_regs
             (Array.append (simd_regs ()) (f32_regs ()))
 
@@ -204,7 +205,7 @@ let rbp = phys_reg Int 12
 let destroy_xmm n =
   let f64 = [| phys_reg Float (100 + n) |] in
   let f32 =
-    if Language_extension.is_enabled Small_numbers
+    if Language_extension.(is_at_least Small_numbers Stable)
     then [| phys_reg Float32 (100 + n) |]
     else [||]
   in
@@ -410,23 +411,25 @@ let int_regs_destroyed_at_c_call =
 
 let destroyed_at_c_call_win64 =
   (* Win64: rbx, rbp, rsi, rdi, r12-r15, xmm6-xmm15 preserved *)
+  let open Language_extension in
   let basic_regs = Array.append
     (Array.map (phys_reg Int) int_regs_destroyed_at_c_call_win64)
     (Array.sub hard_float_reg 0 6)
   in
-  let v128_regs = extension_regs ~prefix:6 SIMD in
-  let f32_regs = extension_regs ~prefix:6 Small_numbers in
+  let v128_regs = extension_regs ~prefix:6 SIMD () in
+  let f32_regs = extension_regs ~prefix:6 Small_numbers Stable in
   fun () -> Array.append basic_regs
               (Array.append (v128_regs ()) (f32_regs ()))
 
 let destroyed_at_c_call_unix =
+  let open Language_extension in
   (* Unix: rbx, rbp, r12-r15 preserved *)
   let basic_regs = Array.append
       (Array.map (phys_reg Int) int_regs_destroyed_at_c_call)
     hard_float_reg
   in
-  let v128_regs = extension_regs SIMD in
-  let f32_regs = extension_regs Small_numbers in
+  let v128_regs = extension_regs SIMD () in
+  let f32_regs = extension_regs Small_numbers Stable in
   fun () -> Array.append basic_regs
               (Array.append (v128_regs ()) (f32_regs ()))
 

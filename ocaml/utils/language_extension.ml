@@ -54,7 +54,7 @@ end
 let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
   function
   | Comprehensions -> (module Unit)
-  | Mode -> (module Unit)
+  | Mode -> (module Maturity)
   | Unique -> (module Unit)
   | Include_functor -> (module Unit)
   | Polymorphic_parameters -> (module Unit)
@@ -63,14 +63,14 @@ let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
   | Layouts -> (module Maturity)
   | SIMD -> (module Unit)
   | Labeled_tuples -> (module Unit)
-  | Small_numbers -> (module Unit)
+  | Small_numbers -> (module Maturity)
 
 module Exist_pair = struct
   include Exist_pair
 
   let maturity : t -> Maturity.t = function
     | Pair (Comprehensions, ()) -> Beta
-    | Pair (Mode, ()) -> Stable
+    | Pair (Mode, m) -> m
     | Pair (Unique, ()) -> Alpha
     | Pair (Include_functor, ()) -> Stable
     | Pair (Polymorphic_parameters, ()) -> Stable
@@ -79,16 +79,19 @@ module Exist_pair = struct
     | Pair (Layouts, m) -> m
     | Pair (SIMD, ()) -> Stable
     | Pair (Labeled_tuples, ()) -> Stable
-    | Pair (Small_numbers, ()) -> Beta
+    | Pair (Small_numbers, m) -> m
 
   let is_erasable : t -> bool = function Pair (ext, _) -> is_erasable ext
 
   let to_string = function
     | Pair (Layouts, m) -> to_string Layouts ^ "_" ^ maturity_to_string m
+    | Pair (Mode, m) -> to_string Mode ^ "_" ^ maturity_to_string m
+    | Pair (Small_numbers, m) ->
+      to_string Small_numbers ^ "_" ^ maturity_to_string m
     | Pair
-        ( (( Comprehensions | Mode | Unique | Include_functor
-           | Polymorphic_parameters | Immutable_arrays | Module_strengthening
-           | SIMD | Labeled_tuples | Small_numbers ) as ext),
+        ( (( Comprehensions | Unique | Include_functor | Polymorphic_parameters
+           | Immutable_arrays | Module_strengthening | SIMD | Labeled_tuples )
+          as ext),
           _ ) ->
       to_string ext
 end

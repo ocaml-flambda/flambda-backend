@@ -19,7 +19,7 @@
 (executables
  (names basic ops arrays scalar_ops consts)
  (modules basic ops arrays scalar_ops consts)
- (libraries simd_test_helpers)
+ (libraries simd_test_helpers stdlib_stable)
  (foreign_archives stubs)
  (ocamlopt_flags
   (:standard -extension simd)))
@@ -92,7 +92,7 @@
   consts_nodynlink
   arrays_nodynlink
   scalar_ops_nodynlink)
- (libraries simd_test_helpers)
+ (libraries simd_test_helpers stdlib_stable)
  (foreign_archives stubs)
  (ocamlopt_flags
   (:standard -extension simd -nodynlink)))
@@ -182,7 +182,7 @@
   consts_internal
   arrays_internal
   scalar_ops_internal)
- (libraries simd_test_helpers)
+ (libraries simd_test_helpers stdlib_stable)
  (enabled_if
   (<> %{system} macosx))
  (foreign_archives stubs)

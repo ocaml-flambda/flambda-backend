@@ -40,7 +40,7 @@ module Sig_component_kind = Shape.Sig_component_kind
    [type 'a t : <<this one>> = ...].
 
    We print the jkind when it cannot be inferred from the rest of what is
-   printed. Specifically, we print the user-written jkind in both of these
+   printed. Specifically, we print the user-written jkind in any of these
    cases:
 
    (C1.1) The type declaration is abstract and has no manifest (i.e.,
@@ -53,6 +53,10 @@ module Sig_component_kind = Shape.Sig_component_kind
    (C1.2) The type is [@@unboxed]. If an [@@unboxed] type is recursive, it can
    be impossible to deduce the jkind.  We thus defer to the user in determining
    whether to print the jkind annotation.
+
+   (* CR layouts v2.8: remove this case *)
+   (C1.3) The type has illegal mode crossings. In this case, the jkind is overridden by
+   the user rather than being inferred from the definition.
 
    Case (C2). The jkind on a type parameter to a type, like
    [type ('a : <<this one>>) t = ...].
@@ -1299,6 +1303,8 @@ let tree_of_modality_new (t : Mode.Modality.t) =
   | Atom (Comonadic Areality, Meet_with Global) -> Some "global"
   | Atom (Comonadic Linearity, Meet_with Many) -> Some "many"
   | Atom (Monadic Uniqueness, Join_with Shared) -> Some "shared"
+  | Atom (Comonadic Portability, Meet_with Portable) -> Some "portable"
+  | Atom (Monadic Contention, Join_with Contended) -> Some "contended"
   | e -> Misc.fatal_errorf "Unexpected modality %a" Mode.Modality.print e
 
 let tree_of_modality (t : Mode.Modality.t) =
@@ -1308,7 +1314,7 @@ let tree_of_modality (t : Mode.Modality.t) =
   | _ -> Option.map (fun x -> Ogf_new x) (tree_of_modality_new t)
 
 let tree_of_modalities ~has_mutable_implied_modalities t =
-  let l = Mode.Modality.Value.to_list t in
+  let l = Mode.Modality.Value.Const.to_list t in
   (* CR zqian: decouple mutable and modalities *)
   let l =
     if has_mutable_implied_modalities then
@@ -1317,6 +1323,10 @@ let tree_of_modalities ~has_mutable_implied_modalities t =
       l
   in
   List.filter_map tree_of_modality l
+
+let tree_of_modalities_new t =
+  let l = Mode.Modality.Value.Const.to_list t in
+  List.filter_map tree_of_modality_new l
 
 (** [tree_of_mode m l] finds the outcome node in [l] that corresponds to [m].
 Raise if not found. *)
@@ -1867,11 +1877,12 @@ let tree_of_type_decl id decl =
   in
   (* The algorithm for setting [lay] here is described as Case (C1) in
      Note [When to print jkind annotations] *)
-  let jkind_annotation = match ty, unboxed with
-    | (Otyp_abstract, _) | (_, true) ->
+  let jkind_annotation = match ty, unboxed, decl.type_has_illegal_crossings with
+    | (Otyp_abstract, _, _) | (_, true, _) | (_, _, true) ->
         (* The two cases of (C1) from the Note correspond to Otyp_abstract.
            Anything but the default must be user-written, so we print the
            user-written annotation. *)
+        (* type_has_illegal_crossings corresponds to C1.3 *)
         decl.type_jkind_annotation
     | _ -> None (* other cases have no jkind annotation *)
   in
@@ -2047,6 +2058,8 @@ let tree_of_value_description id decl =
   let ty = tree_of_type_scheme decl.val_type in
   (* Important: process the fvs *after* the type; tree_of_type_scheme
      resets the naming context *)
+  let snap = Btype.snapshot () in
+  let moda = Mode.Modality.Value.zap_to_floor decl.val_modalities in
   let qtvs = extract_qtvs [decl.val_type] in
   let apparent_arity =
     let rec count n typ =
@@ -2057,7 +2070,7 @@ let tree_of_value_description id decl =
     count 0 decl.val_type
   in
   let attrs =
-    match decl.val_zero_alloc with
+    match Zero_alloc.get decl.val_zero_alloc with
     | Default_zero_alloc | Ignore_assert_all -> []
     | Check { strict; opt; arity; _ } ->
       [{ oattr_name =
@@ -2082,6 +2095,7 @@ let tree_of_value_description id decl =
   let vd =
     { oval_name = id;
       oval_type = Otyp_poly(qtvs, ty);
+      oval_modalities = tree_of_modalities_new moda;
       oval_prims = [];
       oval_attributes = attrs
     }
@@ -2091,7 +2105,9 @@ let tree_of_value_description id decl =
     | Val_prim p -> Primitive.print p vd
     | _ -> vd
   in
-  Osig_value vd
+  let r = Osig_value vd in
+  Btype.backtrack snap;
+  r
 
 let value_description id ppf decl =
   !Oprint.out_sig_item ppf (tree_of_value_description id decl)
@@ -2325,6 +2341,7 @@ let dummy =
     type_attributes = [];
     type_unboxed_default = false;
     type_uid = Uid.internal_not_actually_unique;
+    type_has_illegal_crossings = false;
   }
 
 (** we hide items being defined from short-path to avoid shortening

@@ -148,7 +148,13 @@ module type Sort = sig
 end
 
 module History = struct
-  type concrete_jkind_reason =
+  (* CR layouts v3: move most [concrete_default_creation_reason]s here. *)
+  (* For sort variables that are topmost on the jkind lattice. *)
+  type concrete_creation_reason = |
+
+  (* For sort variables that are in the "default" position
+     on the jkind lattice, defaulting exactly to [value]. *)
+  type concrete_default_creation_reason =
     | Match
     | Constructor_declaration of int
     | Label_declaration of Ident.t
@@ -177,6 +183,9 @@ module History = struct
     | Type_variable of string
     | Type_wildcard of Location.t
     | With_error_message of string * annotation_context
+
+  (* CR layouts v3: move some [value_creation_reason]s here. *)
+  type value_or_null_creation_reason = |
 
   type value_creation_reason =
     | Class_let_binding
@@ -243,6 +252,9 @@ module History = struct
     | Unification_var
     | Array_type_argument
 
+  (* CR layouts v3: move some [any_creation_reason]s here. *)
+  type any_non_null_creation_reason = |
+
   type float64_creation_reason = Primitive of Ident.t
 
   type float32_creation_reason = Primitive of Ident.t
@@ -256,17 +268,20 @@ module History = struct
   type creation_reason =
     | Annotated of annotation_context * Location.t
     | Missing_cmi of Path.t
+    | Value_or_null_creation of value_or_null_creation_reason
     | Value_creation of value_creation_reason
     | Immediate_creation of immediate_creation_reason
     | Immediate64_creation of immediate64_creation_reason
     | Void_creation of void_creation_reason
     | Any_creation of any_creation_reason
+    | Any_non_null_creation of any_non_null_creation_reason
     | Float64_creation of float64_creation_reason
     | Float32_creation of float32_creation_reason
     | Word_creation of word_creation_reason
     | Bits32_creation of bits32_creation_reason
     | Bits64_creation of bits64_creation_reason
-    | Concrete_creation of concrete_jkind_reason
+    | Concrete_creation of concrete_creation_reason
+    | Concrete_default_creation of concrete_default_creation_reason
     | Imported
     | Imported_type_argument of
         { parent_path : Path.t;

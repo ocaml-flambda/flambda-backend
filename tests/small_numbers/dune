@@ -12,10 +12,8 @@
 (executables
  (names float32_builtin float32_lib float32_u_lib)
  (modules float32_builtin float32_lib float32_u_lib)
- (libraries stdlib_beta)
- (foreign_archives stubs)
- (ocamlopt_flags
-  (:standard -extension-universe beta)))
+ (libraries stdlib_stable)
+ (foreign_archives stubs))
 
 (rule
  (enabled_if
@@ -44,6 +42,74 @@
    (diff empty.expected float32_lib.out)
    (diff empty.expected float32_u_lib.out))))
 
+; Bytecode tests
+
+(rule
+ (targets
+  stubs_bytecode.c
+  float32_builtin_bytecode.ml
+  float32_lib_bytecode.ml
+  float32_u_lib_bytecode.ml)
+ (deps stubs.c float32_builtin.ml float32_lib.ml float32_u_lib.ml)
+ (action
+  (progn
+   (copy stubs.c stubs_bytecode.c)
+   (copy float32_builtin.ml float32_builtin_bytecode.ml)
+   (copy float32_lib.ml float32_lib_bytecode.ml)
+   (copy float32_u_lib.ml float32_u_lib_bytecode.ml))))
+
+(library
+ (name stubs_bytecode)
+ (modules)
+ (foreign_stubs
+  (language c)
+  (names stubs_bytecode)))
+
+(executables
+ (names float32_builtin_bytecode float32_lib_bytecode float32_u_lib_bytecode)
+ (modes
+  (byte exe))
+ (modules
+  float32_builtin_bytecode
+  float32_lib_bytecode
+  float32_u_lib_bytecode)
+ (libraries stdlib_stable stubs_bytecode)
+ (ocamlc_flags
+  (:standard -extension-universe beta)))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets
+  float32_builtin_bytecode.out
+  float32_lib_bytecode.out
+  float32_u_lib_bytecode.out)
+ (deps
+  float32_builtin_bytecode.exe
+  float32_lib_bytecode.exe
+  float32_u_lib_bytecode.exe)
+ (action
+  (progn
+   (with-outputs-to
+    float32_builtin_bytecode.out
+    (run ./float32_builtin_bytecode.exe))
+   (with-outputs-to
+    float32_lib_bytecode.out
+    (run ./float32_lib_bytecode.exe))
+   (with-outputs-to
+    float32_u_lib_bytecode.out
+    (run ./float32_u_lib_bytecode.exe)))))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (= %{context_name} "main"))
+ (action
+  (progn
+   (diff empty.expected float32_builtin_bytecode.out)
+   (diff empty.expected float32_lib_bytecode.out)
+   (diff empty.expected float32_u_lib_bytecode.out))))
+
 ; Tests with nodynlink
 
 (rule
@@ -67,10 +133,10 @@
   float32_builtin_nodynlink
   float32_lib_nodynlink
   float32_u_lib_nodynlink)
- (libraries stdlib_beta)
+ (libraries stdlib_stable)
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -extension-universe beta -nodynlink)))
+  (:standard -nodynlink)))
 
 (rule
  (enabled_if
@@ -125,12 +191,12 @@
   float32_builtin_internal
   float32_lib_internal
   float32_u_lib_internal)
- (libraries stdlib_beta)
+ (libraries stdlib_stable)
  (enabled_if
   (<> %{system} macosx))
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -extension-universe beta -internal-assembler)))
+  (:standard -internal-assembler)))
 
 (rule
  (enabled_if

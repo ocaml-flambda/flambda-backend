@@ -1,2 +1,2 @@
-upstream_compatible.mli
-upstream_compatible.ml
+stdlib_upstream_compatible.mli
+stdlib_upstream_compatible.ml

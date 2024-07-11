@@ -264,6 +264,15 @@ Error: Type t_word has layout word.
        Unboxed variants may not yet contain types of this layout.
 |}];;
 
+type t5_6_1 = A of { x : t_word } [@@unboxed];;
+[%%expect{|
+Line 1, characters 21-31:
+1 | type t5_6_1 = A of { x : t_word } [@@unboxed];;
+                         ^^^^^^^^^^
+Error: Type t_word has layout word.
+       Unboxed inlined records may not yet contain types of this layout.
+|}];;
+
 (****************************************************)
 (* Test 6: Can't be put at top level of signatures. *)
 module type S6_1 = sig val x : t_word end

@@ -290,6 +290,8 @@ module type S = sig
         include Lattice with type t = Areality.Const.t comonadic_with
 
         val eq : t -> t -> bool
+
+        val print_axis : (t, 'a) Axis.t -> Format.formatter -> 'a -> unit
       end
 
       type error = Error : (Const.t, 'a) Axis.t * 'a Solver.error -> error
@@ -467,6 +469,37 @@ module type S = sig
     module Value : sig
       type atom := t
 
+      type error =
+        | Error : ('m, 'a, _) Value.axis * ('m, 'a) raw Solver.error -> error
+
+      type nonrec equate_error = equate_step * error
+
+      module Const : sig
+        (** A modality that acts on [Value] modes. Conceptually it is a sequnce
+            of [atom] that acts on individual axes. *)
+        type t
+
+        (** The identity modality. *)
+        val id : t
+
+        (** Apply a modality on mode. *)
+        val apply : t -> ('l * 'r) Value.t -> ('l * 'r) Value.t
+
+        (** [compose m t] returns the modality that is [m] after [t]. *)
+        val compose : then_:atom -> t -> t
+
+        (** [singleton m] returns the modality containing only [m]. *)
+        val singleton : atom -> t
+
+        (** Returns the list of [atom] in the given modality. The list is
+            commutative. *)
+        val to_list : t -> atom list
+
+        (** [equate t0 t1] checks that [t0 = t1].
+            Definition: [t0 = t1] iff [t0 <= t1] and [t1 <= t0]. *)
+        val equate : t -> t -> (unit, equate_error) Result.t
+      end
+
       (** A modality that acts on [Value] modes. Conceptually it is a sequnce of
           [atom] that acts on individual axes. *)
       type t
@@ -474,21 +507,11 @@ module type S = sig
       (** The identity modality. *)
       val id : t
 
-      (** Apply a modality on mode. *)
-      val apply : t -> ('l * 'r) Value.t -> ('l * 'r) Value.t
+      (** The undefined modality. *)
+      val undefined : t
 
-      (** [cons m t] returns the modality that is [m] after [t]. *)
-      val cons : atom -> t -> t
-
-      (** [singleton m] returns the modality containing only [m]. *)
-      val singleton : atom -> t
-
-      (** Returns the list of [atom] in the given modality. The list is
-          commutative. *)
-      val to_list : t -> atom list
-
-      type error =
-        | Error : ('m, 'a, _) Value.axis * ('m, 'a) raw Solver.error -> error
+      (** Apply a modality on a left mode. *)
+      val apply : t -> (allowed * 'r) Value.t -> Value.l
 
       (** [sub t0 t1] checks that [t0 <= t1].
           Definition: [t0 <= t1] iff [forall a. t0(a) <= t1(a)].
@@ -499,14 +522,36 @@ module type S = sig
           [ax]. *)
       val sub : t -> t -> (unit, error) Result.t
 
-      type nonrec equate_error = equate_step * error
-
       (** [equate t0 t1] checks that [t0 = t1].
           Definition: [t0 = t1] iff [t0 <= t1] and [t1 <= t0]. *)
       val equate : t -> t -> (unit, equate_error) Result.t
 
       (** Printing for debugging. *)
       val print : Format.formatter -> t -> unit
+
+      (** Given [md_mode] the mode of a module, and [mode] the mode of a value
+      to be put in that module, return the inferred modality to be put on the
+      value description in the inferred module type. *)
+      val infer : md_mode:Value.lr -> mode:Value.l -> t
+
+      (* The following zapping functions possibly mutate a potentially inferred
+         modality [m] to a constant modality [c]. The constant modality is
+         returned. [m <= c] holds, even after further mutations to [m]. *)
+
+      (** Returns a const modality weaker than the given modality. *)
+      val zap_to_id : t -> Const.t
+
+      (** Returns a const modality lowest (strongest) possible. *)
+      val zap_to_floor : t -> Const.t
+
+      (** Asserts the given modality is a const modality, and returns it. *)
+      val to_const_exn : t -> Const.t
+
+      (** Inject a constant modality. *)
+      val of_const : Const.t -> t
+
+      (** The top modality; [sub x max] succeeds for any [x]. *)
+      val max : t
     end
   end
 end

@@ -654,14 +654,19 @@ let mk_match_context_rows f =
   Printf.sprintf
   "<n>  (advanced, see manual section %d.%d.)" chapter section
 
+let mk_parameter f =
+  "-parameter", Arg.String f,
+  "<module name> Compile the module with <module name> as a parameter."
+;;
+
 let mk_as_parameter f =
   "-as-parameter", Arg.Unit f,
-  " Compiles the interface as a parameter for an open module."
+  " Compile the interface as a parameter module."
 ;;
 
 let mk_as_argument_for f =
   "-as-argument-for", Arg.String f,
-  "<module name> Compiles the module as an argument for the named parameter."
+  "<module name> Compile the module as an argument for the named parameter."
 ;;
 
 let mk_use_prims f =
@@ -722,6 +727,10 @@ in
   " Set the extension universe and enable all extensions in it. Each universe\n\
   \    allows a set of extensions, and every successive universe includes \n\
   \    the previous one."
+
+let mk_allow_illegal_crossing f =
+  "-allow-illegal-crossing", Arg.Unit f,
+  "Type declarations will not be checked along the portability or contention axes"
 
 let mk_dump_dir f =
   "-dump-dir", Arg.String f,
@@ -915,6 +924,7 @@ module type Common_options = sig
   val _extension : string -> unit
   val _no_extension : string -> unit
   val _extension_universe : string -> unit
+  val _allow_illegal_crossing : unit -> unit
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit
@@ -1001,6 +1011,7 @@ module type Compiler_options = sig
   val _output_obj : unit -> unit
   val _output_complete_obj : unit -> unit
   val _pack : unit -> unit
+  val _parameter : string -> unit
   val _plugin : string -> unit
   val _pp : string -> unit
   val _principal : unit -> unit
@@ -1195,6 +1206,7 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
+    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_for_pack_byt F._for_pack;
     mk_g_byt F._g;
     mk_no_g F._no_g;
@@ -1236,6 +1248,7 @@ struct
     mk_output_complete_obj F._output_complete_obj;
     mk_output_complete_exe F._output_complete_exe;
     mk_pack_byt F._pack;
+    mk_parameter F._parameter;
     mk_pp F._pp;
     mk_ppx F._ppx;
     mk_plugin F._plugin;
@@ -1321,6 +1334,7 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
+    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
     mk_nolabels F._nolabels;
@@ -1414,6 +1428,7 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
+    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_for_pack_opt F._for_pack;
     mk_g_opt F._g;
     mk_no_g F._no_g;
@@ -1473,6 +1488,7 @@ struct
     mk_output_complete_obj F._output_complete_obj;
     mk_p F._p;
     mk_pack_opt F._pack;
+    mk_parameter F._parameter;
     mk_plugin F._plugin;
     mk_pp F._pp;
     mk_ppx F._ppx;
@@ -1599,6 +1615,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
+    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_no_float_const_prop F._no_float_const_prop;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
@@ -1706,6 +1723,7 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
+    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_noassert F._noassert;
     mk_nolabels F._nolabels;
     mk_nostdlib F._nostdlib;
@@ -1817,6 +1835,7 @@ module Default = struct
     let _no_extension s = Language_extension.(disable_of_string_exn s)
     let _extension_universe s =
       Language_extension.(set_universe_and_enable_all_of_string_exn s)
+    let _allow_illegal_crossing = set Clflags.allow_illegal_crossing
     let _noassert = set noassert
     let _nolabels = set classic
     let _nostdlib = set no_std_include
@@ -2012,6 +2031,7 @@ module Default = struct
     let _o s = output_name := (Some s)
     let _opaque = set opaque
     let _pack = set make_package
+    let _parameter s = parameters := !parameters @ [ s ]
     let _plugin _p = plugin := true
     let _pp s = preprocessor := (Some s)
     let _runtime_variant s = runtime_variant := s

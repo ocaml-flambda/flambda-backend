@@ -327,6 +327,8 @@ module Layout = struct
     module Legacy = struct
       type t =
         | Any
+        | Any_non_null
+        | Value_or_null
         | Value
         | Void
         | Immediate64
@@ -349,13 +351,20 @@ module Externality = struct
     | Internal
 end
 
+module Nullability = struct
+  type t =
+    | Non_null
+    | Maybe_null
+end
+
 module Modes = Mode.Alloc.Const
 
 module Jkind_desc = struct
   type 'type_expr t =
     { layout : Layout.t;
       modes_upper_bounds : Modes.t;
-      externality_upper_bound : Externality.t
+      externality_upper_bound : Externality.t;
+      nullability_upper_bound : Nullability.t
     }
 end
 
@@ -385,7 +394,8 @@ module Const = struct
   type 'type_expr t =
     { layout : Layout.Const.t;
       modes_upper_bounds : Modes.t;
-      externality_upper_bound : Externality.t
+      externality_upper_bound : Externality.t;
+      nullability_upper_bound : Nullability.t
     }
 end
 

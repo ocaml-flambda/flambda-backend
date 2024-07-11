@@ -44,6 +44,8 @@ val infix_header : int -> nativeint
 
 val black_custom_header : size:int -> nativeint
 
+val pack_closure_info : arity:int -> startenv:int -> is_last:bool -> nativeint
+
 (** Closure info for a closure of given arity and distance to environment *)
 val closure_info : arity:arity -> startenv:int -> is_last:bool -> nativeint
 
@@ -390,6 +392,11 @@ val unaligned_load_32 : expression -> expression -> Debuginfo.t -> expression
 val unaligned_set_32 :
   expression -> expression -> expression -> Debuginfo.t -> expression
 
+val unaligned_load_f32 : expression -> expression -> Debuginfo.t -> expression
+
+val unaligned_set_f32 :
+  expression -> expression -> expression -> Debuginfo.t -> expression
+
 val unaligned_load_64 : expression -> expression -> Debuginfo.t -> expression
 
 val unaligned_set_64 :
@@ -687,6 +694,8 @@ val asr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
 val int64_as_float : dbg:Debuginfo.t -> expression -> expression
 
+val float_as_int64 : dbg:Debuginfo.t -> expression -> expression
+
 (** Conversions functions between integers and floats. *)
 
 val int_of_float : dbg:Debuginfo.t -> expression -> expression
@@ -874,6 +883,9 @@ val infix_field_address : dbg:Debuginfo.t -> expression -> int -> expression
 (** Static integer. *)
 val cint : nativeint -> data_item
 
+(** Static 32-bit integer. *)
+val cint32 : int32 -> data_item
+
 (** Static float32. *)
 val cfloat32 : float -> data_item
 
@@ -961,6 +973,29 @@ val atomic_compare_and_set :
   expression
 
 val emit_gc_roots_table : symbols:symbol list -> phrase list -> phrase list
+
+val perform : dbg:Debuginfo.t -> expression -> expression
+
+val run_stack :
+  dbg:Debuginfo.t ->
+  stack:expression ->
+  f:expression ->
+  arg:expression ->
+  expression
+
+val resume :
+  dbg:Debuginfo.t ->
+  stack:expression ->
+  f:expression ->
+  arg:expression ->
+  expression
+
+val reperform :
+  dbg:Debuginfo.t ->
+  eff:expression ->
+  cont:expression ->
+  last_fiber:expression ->
+  expression
 
 (** Allocate a block to hold an unboxed float32 array for the given number of
     elements. *)

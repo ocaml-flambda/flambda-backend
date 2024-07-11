@@ -203,3 +203,49 @@ let round_down x = of_float32 (Float32.round_down (to_float32 x))
 let round_up x = of_float32 (Float32.round_up (to_float32 x))
 
 let round_towards_zero x = of_float32 (Float32.round_towards_zero (to_float32 x))
+
+module Bytes = struct
+  let get bytes ~pos = of_float32 (Float32.Bytes.get bytes ~pos)
+  let unsafe_get bytes ~pos = of_float32 (Float32.Bytes.unsafe_get bytes ~pos)
+  let set bytes ~pos x = Float32.Bytes.set bytes ~pos (to_float32 x)
+  let unsafe_set bytes ~pos x = Float32.Bytes.unsafe_set bytes ~pos (to_float32 x)
+end
+
+module String = struct
+  let get string ~pos = of_float32 (Float32.String.get string ~pos)
+  let unsafe_get string ~pos = of_float32 (Float32.String.unsafe_get string ~pos)
+end
+
+module Bigstring = struct
+  open Bigarray
+
+  type t = (char, int8_unsigned_elt, c_layout) Array1.t
+
+  external get : t -> pos:int -> float32# = "%caml_bigstring_getf32#"
+  external unsafe_get : t -> pos:int -> float32# = "%caml_bigstring_getf32u#"
+  external set : t -> pos:int -> float32# -> unit = "%caml_bigstring_setf32#"
+  external unsafe_set : t -> pos:int -> float32# -> unit = "%caml_bigstring_setf32u#"
+end
+
+module Bigarray = struct
+  module Array1 = struct
+    let get ba ix = of_float32 (Float32.Bigarray.Array1.get ba ix)
+    let set ba ix x = Float32.Bigarray.Array1.set ba ix (to_float32 x)
+    let unsafe_get ba ix = of_float32 (Float32.Bigarray.Array1.unsafe_get ba ix)
+    let unsafe_set ba ix x = Float32.Bigarray.Array1.unsafe_set ba ix (to_float32 x)
+  end
+
+  module Array2 = struct
+    let get ba ix iy = of_float32 (Float32.Bigarray.Array2.get ba ix iy)
+    let set ba ix iy x = Float32.Bigarray.Array2.set ba ix iy (to_float32 x)
+    let unsafe_get ba ix iy = of_float32 (Float32.Bigarray.Array2.unsafe_get ba ix iy)
+    let unsafe_set ba ix iy x = Float32.Bigarray.Array2.unsafe_set ba ix iy (to_float32 x)
+  end
+
+  module Array3 = struct
+    let get ba ix iy iz = of_float32 (Float32.Bigarray.Array3.get ba ix iy iz)
+    let set ba ix iy iz x = Float32.Bigarray.Array3.set ba ix iy iz (to_float32 x)
+    let unsafe_get ba ix iy iz = of_float32 (Float32.Bigarray.Array3.unsafe_get ba ix iy iz)
+    let unsafe_set ba ix iy iz x = Float32.Bigarray.Array3.unsafe_set ba ix iy iz (to_float32 x)
+  end
+end

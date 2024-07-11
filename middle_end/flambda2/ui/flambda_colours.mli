@@ -94,4 +94,6 @@ val lambda : directive
 
 val unboxed_product : directive
 
+val effect : directive
+
 val without_colours : f:(unit -> 'a) -> 'a

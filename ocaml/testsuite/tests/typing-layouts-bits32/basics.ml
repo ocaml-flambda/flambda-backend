@@ -265,6 +265,15 @@ Error: Type t_bits32 has layout bits32.
        Unboxed variants may not yet contain types of this layout.
 |}];;
 
+type t5_6_1 = A of { x : t_bits32 } [@@unboxed];;
+[%%expect{|
+Line 1, characters 21-33:
+1 | type t5_6_1 = A of { x : t_bits32 } [@@unboxed];;
+                         ^^^^^^^^^^^^
+Error: Type t_bits32 has layout bits32.
+       Unboxed inlined records may not yet contain types of this layout.
+|}];;
+
 (****************************************************)
 (* Test 6: Can't be put at top level of signatures. *)
 module type S6_1 = sig val x : t_bits32 end

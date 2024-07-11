@@ -89,6 +89,7 @@ type error =
   | Toplevel_nonvalue of string * Jkind.sort
   | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
+  | Compiling_as_parameterised_parameter
   | Cannot_compile_implementation_as_parameter
   | Cannot_implement_parameter of Compilation_unit.Name.t * Misc.filepath
   | Argument_for_non_parameter of Compilation_unit.Name.t * Misc.filepath
@@ -98,6 +99,7 @@ type error =
       old_arg_type : Compilation_unit.Name.t option;
       old_source_file : Misc.filepath;
     }
+  | Submode_failed of Mode.Value.error
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -550,6 +552,59 @@ let params_are_constrained =
   in
   loop
 
+let rec remove_modality_and_zero_alloc_variables_sg env ~zap_modality sg =
+  let sg_item = function
+    | Sig_value (id, desc, vis) ->
+        let val_modalities =
+          desc.val_modalities
+          |> zap_modality |> Mode.Modality.Value.of_const
+        in
+        let val_zero_alloc =
+          Zero_alloc.create_const (Zero_alloc.get desc.val_zero_alloc)
+        in
+        let desc = {desc with val_modalities; val_zero_alloc} in
+        Sig_value (id, desc, vis)
+    | Sig_module (id, pres, md, re, vis) ->
+        let md_type =
+          remove_modality_and_zero_alloc_variables_mty env ~zap_modality
+            md.md_type
+        in
+        let md = {md with md_type} in
+        Sig_module (id, pres, md, re, vis)
+    | item -> item
+  in
+  List.map sg_item sg
+
+and remove_modality_and_zero_alloc_variables_mty env ~zap_modality mty =
+  match mty with
+  | Mty_ident _ | Mty_alias _ ->
+    (* module types with names can't have inferred modalities. *)
+    mty
+  | Mty_signature sg ->
+    Mty_signature
+      (remove_modality_and_zero_alloc_variables_sg env ~zap_modality sg)
+  | Mty_functor (param, mty) ->
+    let param : Types.functor_parameter =
+      match param with
+      | Named (id, mty) ->
+          let mty =
+            remove_modality_and_zero_alloc_variables_mty env
+              ~zap_modality:Mode.Modality.Value.to_const_exn mty
+          in
+          Named (id, mty)
+      | Unit -> Unit
+    in
+    let mty =
+      remove_modality_and_zero_alloc_variables_mty env ~zap_modality mty
+    in
+    Mty_functor (param, mty)
+  | Mty_strengthen (mty, path, alias) ->
+      let mty =
+        remove_modality_and_zero_alloc_variables_mty env
+        ~zap_modality:Mode.Modality.Value.to_const_exn mty
+      in
+      Mty_strengthen (mty, path, alias)
+
 type with_info =
   | With_type of Parsetree.type_declaration
   | With_typesubst of Parsetree.type_declaration
@@ -627,6 +682,7 @@ let merge_constraint initial_env loc sg lid constr =
             type_attributes = [];
             type_unboxed_default = false;
             type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+            type_has_illegal_crossings = false;
           }
         and id_row = Ident.create_local (s^"#row") in
         let initial_env =
@@ -744,6 +800,10 @@ let merge_constraint initial_env loc sg lid constr =
         let sig_env = Env.add_signature sg_for_env outer_sig_env in
         let mty = md'.md_type in
         let mty = Mtype.scrape_for_type_of ~remove_aliases sig_env mty in
+        let mty =
+          remove_modality_and_zero_alloc_variables_mty sig_env
+            ~zap_modality:Mode.Modality.Value.zap_to_floor mty
+        in
         let md'' = { md' with md_type = mty } in
         let newmd = Mtype.strengthen_decl ~aliasable:false md'' path in
         ignore(Includemod.modtypes  ~mark:Mark_both ~loc sig_env
@@ -2383,6 +2443,31 @@ let simplify_app_summary app_view = match app_view.arg with
     | false, Some p -> Includemod.Error.Named p, mty
     | false, None   -> Includemod.Error.Anonymous, mty
 
+let maybe_infer_modalities ~loc ~env ~md_mode ~mode =
+  if Language_extension.(is_at_least Mode Alpha) then begin
+    (* Upon construction, for comonadic (prescriptive) axes, module
+    must be weaker than the values therein, for otherwise operations
+    would be allowed to performed on the module (and extended to the
+    values) that's disallowed for the values.
+
+    For monadic (descriptive) axes, the restriction is not on the
+    construction but on the projection, which is modelled by the
+    [Diff] modality in [mode.ml]. *)
+    begin match Mode.Value.Comonadic.submode
+      mode.Mode.comonadic
+      md_mode.Mode.comonadic with
+      | Ok () -> ()
+      | Error (Error (ax, e)) -> raise (Error (loc, env, Submode_failed (Error (Comonadic ax, e))))
+    end;
+    Mode.Modality.Value.infer ~md_mode ~mode
+  end else begin
+    begin match Mode.Value.submode mode md_mode with
+      | Ok () -> ()
+      | Error e -> raise (Error (loc, env, Submode_failed e))
+    end;
+    Mode.Modality.Value.id
+  end
+
 let rec type_module ?(alias=false) sttn funct_body anchor env smod =
   Builtin_attributes.warning_scope smod.pmod_attributes
     (fun () -> type_module_aux ~alias sttn funct_body anchor env smod)
@@ -2784,6 +2869,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
 
   let type_str_item
         env shape_map ({pstr_loc = loc; pstr_desc = desc} as item) sig_acc =
+    let md_mode = Mode.Value.legacy in
     match Jane_syntax.Structure_item.of_ast item with
     | Some jitem -> type_str_item_jst ~loc env shape_map jitem sig_acc
     | None ->
@@ -2816,8 +2902,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           List.fold_left
             (fun (acc, shape_map) (id, id_info, zero_alloc) ->
               List.iter
-                (fun (loc, mode, sort) ->
-                   Typecore.escape ~loc ~env:newenv ~reason:Other mode;
+                (fun (loc, _mode, sort) ->
                    (* CR layouts v5: this jkind check has the effect of
                       defaulting the sort of top-level bindings to value, which
                       will change. *)
@@ -2831,19 +2916,26 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                    convert "Assume"s in structures to the equivalent "Check" for
                    the signature. *)
                 let open Builtin_attributes in
-                match[@warning "+9"] zero_alloc with
-                | Default_zero_alloc | Ignore_assert_all -> Default_zero_alloc
-                | Check _ -> zero_alloc
+                match[@warning "+9"] Zero_alloc.get zero_alloc with
+                | Default_zero_alloc | Check _ -> zero_alloc
                 | Assume { strict; arity; loc;
                            never_returns_normally = _;
                            never_raises = _} ->
-                  Check { strict; arity; loc; opt = false }
+                  Zero_alloc.create_const (Check { strict; arity; loc; opt = false })
+                | Ignore_assert_all -> Zero_alloc.default
               in
               let (first_loc, _, _) = List.hd id_info in
               Signature_names.check_value names first_loc id;
-              let vd =  Env.find_value (Pident id) newenv in
+              let vd, mode =  Env.find_value_no_locks_exn id newenv in
               let vd = Subst.Lazy.force_value_description vd in
-              let vd = { vd with val_zero_alloc = zero_alloc } in
+              let modalities =
+                maybe_infer_modalities ~loc:first_loc ~env ~md_mode ~mode
+              in
+              let vd =
+                { vd with
+                  val_zero_alloc = zero_alloc;
+                  val_modalities = modalities }
+              in
               Sig_value(id, vd, Exported) :: acc,
               Shape.Map.add_value shape_map id vd.val_uid
             )
@@ -3229,6 +3321,12 @@ let type_module_type_of env smod =
   let mty = Mtype.scrape_for_type_of ~remove_aliases env tmty.mod_type in
   (* PR#5036: must not contain non-generalized type variables *)
   check_nongen_modtype env smod.pmod_loc mty;
+  (* for [module type of], we zap to identity modality for best legacy
+  compatibility *)
+  let mty =
+    remove_modality_and_zero_alloc_variables_mty env
+      ~zap_modality:Mode.Modality.Value.zap_to_id mty
+  in
   tmty, mty
 
 (* For Typecore *)
@@ -3358,6 +3456,17 @@ let () =
   type_module_type_of_fwd := type_module_type_of
 
 
+(* File-level details *)
+
+let register_params params =
+  List.iter
+    (fun param_name ->
+       let param = Compilation_unit.Name.of_string param_name in
+       Env.register_parameter param
+    )
+    params
+
+
 (* Typecheck an implementation file *)
 
 let gen_annot outputprefix sourcefile annots =
@@ -3431,6 +3540,9 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
       Env.reset_probes ();
       if !Clflags.print_types then (* #7656 *)
         ignore @@ Warnings.parse_options false "-32-34-37-38-60";
+      if !Clflags.as_parameter then
+        error Cannot_compile_implementation_as_parameter;
+      register_params !Clflags.parameters;
       let (str, sg, names, shape, finalenv) =
         Profile.record_call "infer" (fun () ->
           type_structure initial_env ast) in
@@ -3441,6 +3553,12 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
       let simple_sg = Signature_names.simplify finalenv names sg in
       if !Clflags.print_types then begin
         remove_mode_and_jkind_variables finalenv sg;
+        let simple_sg =
+          (* Printing [.mli] from [.ml], we zap to identity modality for legacy
+             compatibility. *)
+          remove_modality_and_zero_alloc_variables_sg finalenv
+            ~zap_modality:Mode.Modality.Value.zap_to_id simple_sg
+        in
         Typecore.force_delayed_checks ();
         Typecore.optimise_allocations ();
         let shape = Shape_reduce.local_reduce Env.empty shape in
@@ -3456,8 +3574,6 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           argument_interface = None;
         } (* result is ignored by Compile.implementation *)
       end else begin
-        if !Clflags.as_parameter then
-          error Cannot_compile_implementation_as_parameter;
         let arg_type =
           !Clflags.as_argument_for
           |> Option.map Compilation_unit.Name.of_string
@@ -3525,8 +3641,6 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
             argument_interface;
           }
         end else begin
-          if !Clflags.as_parameter then
-            error Cannot_compile_implementation_as_parameter;
           Location.prerr_warning (Location.in_file sourcefile)
             Warnings.Missing_mli;
           let coercion, shape =
@@ -3535,6 +3649,12 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
                 sourcefile sg "(inferred signature)" simple_sg shape)
           in
           check_nongen_signature finalenv simple_sg;
+          let simple_sg =
+            (* Generating [cmi] without [mli]. This [cmi] will only be on the
+               LHS of inclusion check, so we zap to floor (strongest). *)
+            remove_modality_and_zero_alloc_variables_sg finalenv
+              ~zap_modality:Mode.Modality.Value.zap_to_floor simple_sg
+          in
           normalize_signature simple_sg;
           let argument_interface =
             check_argument_type_if_given initial_env sourcefile simple_sg arg_type
@@ -3600,9 +3720,16 @@ let cms_register_toplevel_signature_attributes ~sourcefile ~uid ast =
         | _ -> None)
 
 let type_interface ~sourcefile modulename env ast =
+  let error e =
+    raise (Error (Location.none, Env.empty, e))
+  in
   if !Clflags.as_parameter && Compilation_unit.is_packed modulename then begin
-    raise(Error(Location.none, Env.empty, Cannot_pack_parameter))
+    error Cannot_pack_parameter
   end;
+  if !Clflags.as_parameter && !Clflags.parameters <> [] then begin
+    error Compiling_as_parameterised_parameter
+  end;
+  register_params !Clflags.parameters;
   if !Clflags.binary_annotations_cms then begin
     let uid = Shape.Uid.of_compilation_unit_id modulename in
     cms_register_toplevel_signature_attributes ~uid ~sourcefile ast
@@ -3962,6 +4089,10 @@ let report_error ~loc _env = function
   | Cannot_pack_parameter ->
       Location.errorf ~loc
         "Cannot compile a parameter with -for-pack."
+  | Compiling_as_parameterised_parameter ->
+      Location.errorf ~loc
+        "@[Cannot combine -as-parameter with -parameter: parameters cannot@ \
+         be parameterised.@]"
   | Cannot_compile_implementation_as_parameter ->
       Location.errorf ~loc
         "Cannot compile an implementation with -as-parameter."
@@ -3995,6 +4126,11 @@ let report_error ~loc _env = function
       Location.errorf ~loc
         "Parameter module %a@ specified by -as-argument-for cannot be found."
         Compilation_unit.Name.print arg_type
+  | Submode_failed (Error (ax, {left; right})) ->
+      Location.errorf ~loc
+        "This value is %a, but expected to be %a because it is inside a module."
+        (Mode.Value.Const.print_axis ax) left
+        (Mode.Value.Const.print_axis ax) right
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env_error env

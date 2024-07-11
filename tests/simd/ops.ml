@@ -29,6 +29,13 @@ let eqf lv hv l h =
     if l <> lv || h <> hv then !failmsg ()
 ;;
 
+let eqf32 lv hv l h =
+    let f32 = Stdlib_stable.Float32.to_float in
+    if l <> lv then Printf.printf "%f <> %f\n" (f32 l) (f32 lv);
+    if h <> hv then Printf.printf "%f <> %f\n" (f32 h) (f32 hv);
+    if l <> lv || h <> hv then !failmsg ()
+;;
+
 let eqf' lv l =
     let fail = lv <> l && not (Float.is_nan lv && Float.is_nan l) in
     if fail then Printf.printf "%f <> %f\n" l lv;
@@ -701,20 +708,20 @@ module Float32x4 = struct
        At least in the initial version, we will not provide set1/set4 intrinsics that
        produce constants when given constant args. Instead we provide explicit const intrinsics. *)
 
-    external low_of : float -> t = "caml_vec128_unreachable" "caml_float32x4_low_of_float"
+    external low_of : float32 -> t = "caml_vec128_unreachable" "caml_float32x4_low_of_float32"
         [@@noalloc] [@@unboxed] [@@builtin]
-    external low_to : t -> float = "caml_vec128_unreachable" "caml_float32x4_low_to_float"
+    external low_to : t -> float32 = "caml_vec128_unreachable" "caml_float32x4_low_to_float32"
         [@@noalloc] [@@unboxed] [@@builtin]
 
     let () =
-        let v1 = low_of 1. in
-        let v2 = low_of 2. in
+        let v1 = low_of 1.s in
+        let v2 = low_of 2.s in
         let i1 = Int64.logand (float32x4_low_int64 v1) 0xffffffffL in
         let i2 = Int64.logand (float32x4_low_int64 v2) 0xffffffffL in
         eq i1 i2 0x3f800000L 0x40000000L;
         let f1 = low_to v1 in
         let f2 = low_to v2 in
-        eqf f1 f2 1. 2.
+        eqf32 f1 f2 1.s 2.s
     ;;
 
     (* Math *)
