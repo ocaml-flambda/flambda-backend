@@ -490,7 +490,9 @@ val of_type_jkind : Type.t -> t
 
 module Desc : sig
   (** The description of a jkind, used as a return type from [get]. *)
-  type nonrec t = Type.Desc.t
+  type nonrec t =
+    | Type of Type.t
+    | Arrow of t Jkind_types.arrow
 end
 
 (** [default_to_value_and_get] extracts the jkind as a `const`.  If it's a sort
@@ -533,6 +535,7 @@ module Violation : sig
   type violation =
     | Not_a_subjkind of t * t
     | No_intersection of t * t
+    | No_union of t * t
 
   type t
 
