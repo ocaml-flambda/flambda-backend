@@ -58,13 +58,11 @@ type cmt_infos = {
   cmt_sourcefile : string option;
   cmt_builddir : string;
   cmt_loadpath : Load_path.paths;
-  cmt_loadpath : Load_path.paths;
   cmt_source_digest : string option;
   cmt_initial_env : Env.t;
   cmt_imports : Import_info.t array;
   cmt_interface_digest : Digest.t option;
   cmt_use_summaries : bool;
-  cmt_uid_to_decl : item_declaration Shape.Uid.Tbl.t;
   cmt_uid_to_decl : item_declaration Shape.Uid.Tbl.t;
   cmt_impl_shape : Shape.t option; (* None for mli *)
   cmt_ident_occurrences :
