@@ -66,13 +66,8 @@ val cmi_file : string option ref
 val compile_only : bool ref
 val output_name : string option ref
 val include_dirs : string list ref
-<<<<<<< HEAD
-val hidden_include_dirs : string list ref
 val libloc : Libloc.t list ref
-||||||| 121bedcfd2
-=======
 val hidden_include_dirs : string list ref
->>>>>>> 5.2.0
 val no_std_include : bool ref
 val no_cwd : bool ref
 val print_types : bool ref
@@ -100,13 +95,8 @@ val absname : bool ref
 val directory : string option ref
 val annotations : bool ref
 val binary_annotations : bool ref
-<<<<<<< HEAD
 val binary_annotations_cms : bool ref
 val store_occurrences : bool ref
-||||||| 121bedcfd2
-=======
-val store_occurrences : bool ref
->>>>>>> 5.2.0
 val use_threads : bool ref
 val noassert : bool ref
 val verbose : bool ref

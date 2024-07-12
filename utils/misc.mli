@@ -77,16 +77,9 @@ val reraise_preserving_backtrace : exn -> (unit -> unit) -> 'a
 val map_end: ('a -> 'b) -> 'a list -> 'b list -> 'b list
        (** [map_end f l t] is [map f l @ t], just more efficient. *)
 
-<<<<<<< HEAD
 val rev_map_end: ('a -> 'b) -> 'a list -> 'b list -> 'b list
        (** [rev_map_end f l t] is [map f (rev l) @ t], just more efficient. *)
 
-||||||| 121bedcfd2
-=======
-val rev_map_end: ('a -> 'b) -> 'a list -> 'b list -> 'b list
-       (** [map_end f l t] is [map f (rev l) @ t], just more efficient. *)
-
->>>>>>> 5.2.0
 val map_left_right: ('a -> 'b) -> 'a list -> 'b list
        (** Like [List.map], with guaranteed left-to-right evaluation order *)
 
@@ -150,7 +143,6 @@ module Stdlib : sig
         the [n] first elements of [l] and [after] the remaining ones.
         If [l] has less than [n] elements, raises Invalid_argument. *)
 
-<<<<<<< HEAD
     val map_sharing : ('a -> 'a) -> 'a t -> 'a t
     (** [map_sharing f l] is [map f l]. If for all elements of the list
         [f e == e] then [map_sharing f l == l] *)
@@ -165,15 +157,6 @@ module Stdlib : sig
         elements, except for possibly the last list, which may have fewer.
         [chunks_of] raises if [n <= 0]. *)
 
-||||||| 121bedcfd2
-=======
-    val chunks_of : int -> 'a t -> 'a t t
-    (** [chunks_of n t] returns a list of nonempty lists whose
-        concatenation is equal to the original list. Every list has [n]
-        elements, except for possibly the last list, which may have fewer.
-        [chunks_of] raises if [n <= 0]. *)
-
->>>>>>> 5.2.0
     val is_prefix
        : equal:('a -> 'a -> bool)
       -> 'a list
