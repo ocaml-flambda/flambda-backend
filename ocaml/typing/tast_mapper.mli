@@ -38,7 +38,7 @@ type mapper =
     expr: mapper -> expression -> expression;
     extension_constructor: mapper -> extension_constructor ->
       extension_constructor;
-    jkind_annotation: mapper -> Jkind.annotation -> Jkind.annotation;
+    jkind_annotation: mapper -> Jkind.Type.annotation -> Jkind.Type.annotation;
     location: mapper -> Location.t -> Location.t;
     module_binding: mapper -> module_binding -> module_binding;
     module_coercion: mapper -> module_coercion -> module_coercion;

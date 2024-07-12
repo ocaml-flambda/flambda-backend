@@ -99,10 +99,10 @@ and _ commutable_gen =
 
 and jkind = type_expr Jkind_types.t
 
-(* jkind depends on types defined in this file, but Jkind.equal is required
+(* jkind depends on types defined in this file, but Jkind.Type.equal is required
    here. When jkind.ml is loaded, it calls set_jkind_equal to fill a ref to the
    function. *)
-(** Corresponds to [Jkind.equal] *)
+(** Corresponds to [Jkind.Type.equal] *)
 let jkind_equal = ref (fun _ _ ->
     failwith "jkind_equal should be set by jkind.ml")
 let set_jkind_equal f = jkind_equal := f

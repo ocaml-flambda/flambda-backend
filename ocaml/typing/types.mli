@@ -221,11 +221,11 @@ and abbrev_memo =
 (* CR layouts v2.8: Say more here. *)
 and jkind = type_expr Jkind_types.t
 
-(* jkind depends on types defined in this file, but Jkind.equal is required
+(* jkind depends on types defined in this file, but Jkind.Type.equal is required
    here. When jkind.ml is loaded, it calls set_jkind_equal to fill a ref to the
    function. *)
 (** INTERNAL USE ONLY
-    jkind.ml should call this with the definition of Jkind.equal *)
+    jkind.ml should call this with the definition of Jkind.Type.equal *)
 val set_jkind_equal : (jkind -> jkind -> bool) -> unit
 
 val is_commu_ok: commutable -> bool

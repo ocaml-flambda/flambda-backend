@@ -17,6 +17,7 @@ open Jkind_types
 
 [@@@warning "+9"]
 
+module Type = struct
 (* A *sort* is the information the middle/back ends need to be able to
    compile a manipulation (storing, passing, etc) of a runtime value. *)
 module Sort = Jkind_types.Sort
@@ -119,7 +120,7 @@ module Layout = struct
     | Sort s1, Sort s2 -> (
       match Sort.equate_tracking_mutation s1 s2 with
       | (Equal_mutated_first | Equal_mutated_second) when not allow_mutation ->
-        Misc.fatal_errorf "Jkind.equal: Performed unexpected mutation"
+        Misc.fatal_errorf "Jkind.Type.equal: Performed unexpected mutation"
       | Unequal -> false
       | Equal_no_mutation | Equal_mutated_first | Equal_mutated_second -> true)
     | Any, Any -> true
@@ -993,7 +994,7 @@ let get t = Jkind_desc.get t.jkind
 let sort_of_jkind l =
   match get l with
   | Const { layout = Sort s; _ } -> Sort.of_const s
-  | Const { layout = Any; _ } -> Misc.fatal_error "Jkind.sort_of_jkind"
+  | Const { layout = Any; _ } -> Misc.fatal_error "Jkind.Type.sort_of_jkind"
   | Var v -> Sort.of_var v
 
 let get_layout jk : Layout.Const.t option =
@@ -1774,3 +1775,4 @@ let () =
 type annotation = Const.t * Jane_syntax.Jkind.annotation
 
 let default_to_value_and_get t = default_to_value_and_get t
+    end
