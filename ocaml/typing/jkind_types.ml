@@ -12,6 +12,36 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module History = struct
+  type 'desc t =
+    | Interact of
+        { reason : Jkind_intf.History.interact_reason;
+          lhs_jkind : 'desc;
+          lhs_history : 'desc t;
+          rhs_jkind : 'desc;
+          rhs_history : 'desc t
+        }
+    | Projection of
+        { reason : Jkind_intf.History.project_reason;
+          jkind : 'desc;
+          history : 'desc t
+        }
+    | Creation of Jkind_intf.History.creation_reason
+
+  let rec desc_map f = function
+    | Interact { reason; lhs_jkind; lhs_history; rhs_jkind; rhs_history } ->
+      Interact
+        { reason;
+          lhs_jkind = f lhs_jkind;
+          lhs_history = desc_map f lhs_history;
+          rhs_jkind = f rhs_jkind;
+          rhs_history = desc_map f rhs_history
+        }
+    | Projection { reason; jkind; history } ->
+      Projection { reason; jkind = f jkind; history = desc_map f history }
+    | Creation why -> Creation why
+end
+
 module Type = struct
   module Sort = struct
     type const =
@@ -371,28 +401,6 @@ module Type = struct
       }
   end
 
-  (* A history of conditions placed on a jkind.
-
-     INVARIANT: at most one sort variable appears in this history.
-     This is a natural consequence of producing this history by comparing
-     jkinds.
-  *)
-  type 'type_expr history =
-    | Interact of
-        { reason : Jkind_intf.History.interact_reason;
-          lhs_jkind : 'type_expr Jkind_desc.t;
-          lhs_history : 'type_expr history;
-          rhs_jkind : 'type_expr Jkind_desc.t;
-          rhs_history : 'type_expr history
-        }
-    | Creation of Jkind_intf.History.creation_reason
-
-  type 'type_expr t =
-    { jkind : 'type_expr Jkind_desc.t;
-      history : 'type_expr history;
-      has_warned : bool
-    }
-
   module Const = struct
     type 'type_expr t =
       { layout : Layout.Const.t;
@@ -407,12 +415,28 @@ module Type = struct
   type 'type_expr annotation = 'type_expr const * Jane_syntax.Jkind.annotation
 end
 
+module Jkind_desc = struct
+  type 'type_expr t =
+    | Type of 'type_expr Type.Jkind_desc.t
+    | Arrow of
+        { args : 'type_expr t list;
+          result : 'type_expr t
+        }
+end
+
+type 'type_expr history = 'type_expr Jkind_desc.t History.t
+
+type 'type_expr type_jkind =
+  { jkind : 'type_expr Type.Jkind_desc.t;
+    history : 'type_expr history;
+    has_warned : bool
+  }
+
 type 'type_expr t =
-  | Type of 'type_expr Type.t
-  | Arrow of
-      { args : 'type_expr t list;
-        result : 'type_expr t
-      }
+  { jkind : 'type_expr Jkind_desc.t;
+    history : 'type_expr history;
+    has_warned : bool
+  }
 
 module Const = struct
   type 'type_expr t =

@@ -65,7 +65,8 @@ end
 Line 2, characters 2-12:
 2 |   type t = l
       ^^^^^^^^^^
-Error: The kind of type l is ((value) => value) (...??)
+Error: The kind of type l is ((value) => value)
+         because of the definition of l at line 1, characters 0-23.
        But the kind of type l must be a subkind of any
          because of the definition of t at line 2, characters 2-12.
 |}]
@@ -78,7 +79,8 @@ end
 Line 4, characters 2-12:
 4 |   type t = l
       ^^^^^^^^^^
-Error: The kind of type l is ((value) => value) (...??)
+Error: The kind of type l is ((value) => value)
+         because of the definition of l at line 1, characters 0-23.
        But the kind of type l must be a subkind of any
          because of the definition of t at line 4, characters 2-12.
 |}]

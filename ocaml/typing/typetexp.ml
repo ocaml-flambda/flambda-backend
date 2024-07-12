@@ -119,7 +119,7 @@ module TyVarEnv : sig
   (* a version of [make_poly_univars_jkinds] that doesn't take jkinds *)
 
   val make_poly_univars_jkinds :
-    context:(string -> Jkind.Type.History.annotation_context) ->
+    context:(string -> Jkind_intf.History.annotation_context) ->
     (string Location.loc * Jane_syntax.Jkind.annotation option) list -> poly_univars
   (* see mli file *)
 
@@ -629,7 +629,7 @@ let transl_label_from_pat (label : Parsetree.arg_label)
 
 let enrich_with_attributes attrs annotation_context =
   match Builtin_attributes.error_message_attr attrs with
-  | Some msg -> Jkind.Type.History.With_error_message (msg, annotation_context)
+  | Some msg -> Jkind_intf.History.With_error_message (msg, annotation_context)
   | None -> annotation_context
 
 let jkind_of_annotation annotation_context attrs jkind =
@@ -645,7 +645,7 @@ let check_arity_matches_decl ~loc ~txt env decl arity =
       | Some _ -> true
     end
     | m, 0 -> begin
-      match decl.type_jkind with
+      match Jkind.get decl.type_jkind with
       | Type _ -> false
       | Arrow { args = kind_args; result = _ } -> List.length kind_args = m
     end
@@ -767,7 +767,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
                 of a performance impact: compiling [types.ml] resulted in 13k
                 extra alloc (~0.01% increase) and building the core library had
                 no statistically significant increase in build time. *)
-             let reason = Jkind.Type.History.Imported_type_argument
+             let reason = Jkind_intf.History.Imported_type_argument
                             {parent_path = path; position = idx + 1; arity} in
              Types.set_var_jkind ty' (Jkind.History.update_reason jkind reason)
            | _ -> ()

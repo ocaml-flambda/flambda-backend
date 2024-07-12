@@ -43,7 +43,8 @@ Error: Signature mismatch:
          type a : value => value
        The kind of the first is value
          because of the definition of a at line 4, characters 2-16.
-       But the kind of the first must be a subkind of ((value) => value) (...??)
+       But the kind of the first must be a subkind of ((value) => value)
+         because of the definition of a at line 2, characters 2-25.
 |}]
 
 module M : sig
@@ -65,7 +66,8 @@ Error: Signature mismatch:
          type a : value => value
        is not included in
          type a : value
-       The kind of the first is ((value) => value) (...??)
+       The kind of the first is ((value) => value)
+         because of the definition of a at line 4, characters 2-25.
        But the kind of the first must be a subkind of value
          because of the definition of a at line 2, characters 2-16.
 |}]
@@ -98,9 +100,11 @@ Error: Signature mismatch:
          type a : value => value
        is not included in
          type a : (value, value) => value
-       The kind of the first is ((value) => value) (...??)
+       The kind of the first is ((value) => value)
+         because of the definition of a at line 4, characters 2-25.
        But the kind of the first must be a subkind of
-         ((value, value) => value) (...??)
+         ((value, value) => value)
+         because of the definition of a at line 2, characters 2-34.
 |}]
 
 module M : sig
@@ -122,8 +126,10 @@ Error: Signature mismatch:
          type a : value => any
        is not included in
          type a : value => value
-       The kind of the first is ((value) => any) (...??)
-       But the kind of the first must be a subkind of ((value) => value) (...??)
+       The kind of the first is ((value) => any)
+         because of the definition of a at line 4, characters 2-23.
+       But the kind of the first must be a subkind of ((value) => value)
+         because of the definition of a at line 2, characters 2-25.
 |}]
 
 module M : sig
@@ -154,8 +160,10 @@ Error: Signature mismatch:
          type a : value => value
        is not included in
          type a : any => value
-       The kind of the first is ((value) => value) (...??)
-       But the kind of the first must be a subkind of ((any) => value) (...??)
+       The kind of the first is ((value) => value)
+         because of the definition of a at line 4, characters 2-25.
+       But the kind of the first must be a subkind of ((any) => value)
+         because of the definition of a at line 2, characters 2-23.
 |}]
 
 module M : sig
@@ -195,6 +203,8 @@ Error: Signature mismatch:
          type a : immediate => value
        is not included in
          type a : value => value
-       The kind of the first is ((immediate) => value) (...??)
-       But the kind of the first must be a subkind of ((value) => value) (...??)
+       The kind of the first is ((immediate) => value)
+         because of the definition of a at line 4, characters 2-29.
+       But the kind of the first must be a subkind of ((value) => value)
+         because of the definition of a at line 2, characters 2-25.
 |}]

@@ -889,19 +889,20 @@ let update_scope_for tr_exn scope ty =
 *)
 
 let applied_params_of_decl decl =
-  match decl.type_arity, decl.type_jkind with
+  match decl.type_arity, Jkind.get decl.type_jkind with
   | 0, Type _ -> []
-  | 0, Arrow { args; result = _ } -> List.map Btype.newgenvar args
+  | 0, Arrow { args; result = _ } ->
+    List.map Btype.newgenvar args
   | _ -> decl.type_params
 
 let applied_variance_of_decl decl =
-  match decl.type_arity, decl.type_jkind with
+  match decl.type_arity, Jkind.get decl.type_jkind with
   | 0, Type _ -> []
   | 0, Arrow { args; result = _ } -> Variance.unknown_signature ~injective:true ~arity:(List.length args)
   | _ -> decl.type_variance
 
 let applied_separability_of_decl decl =
-  match decl.type_arity, decl.type_jkind with
+  match decl.type_arity, Jkind.get decl.type_jkind with
   | 0, Type _ -> []
   | 0, Arrow { args; result = _ } -> Separability.default_signature ~arity:(List.length args)
   | _ -> decl.type_separability
@@ -2119,18 +2120,19 @@ let is_datatype_decl (k : type_decl_kind) =
   | Type_record _ | Type_variant _ | Type_open -> true
   | Type_abstract _ -> false
 
-let rec jkind_of_decl_unapplied env (decl : type_declaration) : jkind option =
+let rec jkind_of_decl_unapplied env (decl : type_declaration) =
   (* FIXME jbachurski: Shouldn't we look at type_variance and type_separability here? *)
   match decl.type_arity with
   | 0 -> Some decl.type_jkind
   | _ when is_datatype_decl decl.type_kind ->
-    Some (Arrow
-    { args = List.map (type_jkind env) decl.type_params
-    ; result = decl.type_jkind })
+    Some (Jkind.of_arrow
+      ~history:decl.type_jkind.history
+      ~args:(List.map (type_jkind env) decl.type_params)
+      ~result:decl.type_jkind)
   | _ -> None
 
-and type_jkind_for_app (app_jkind : jkind) app_arity tys : jkind option =
-  match tys, app_jkind with
+and type_jkind_for_app app_jkind app_arity tys =
+  match tys, Jkind.get app_jkind with
   | Unapplied, _ when app_arity = 0 -> Some app_jkind
   | Unapplied, _ -> None
   | Applied tys, _ when app_arity > 0 ->
@@ -2155,8 +2157,7 @@ and type_jkind_for_app_decl env decl tys =
 and type_jkind_for_app_path env path tys =
   match Env.find_type path env with
   | decl -> type_jkind_for_app_decl env decl tys
-  | exception Not_found ->
-    Some (Jkind.Type.Primitive.any ~why:(Missing_cmi path) |> Jkind.of_type_jkind)
+  | exception Not_found -> Some (Jkind.Type.Primitive.any ~why:(Missing_cmi path) |> Jkind.of_type_jkind)
 
 (* We assume here that [get_unboxed_type_representation] has already been
    called, if the type is a Tconstr.  This allows for some optimization by
@@ -2204,7 +2205,7 @@ and estimate_type_jkind env ty =
   | Tpoly (ty, _) -> estimate_type_jkind env ty
   | Tpackage _ -> Jkind (Type.Primitive.value ~why:First_class_module |> Jkind.of_type_jkind)
 
-and type_jkind env ty =
+and type_jkind env ty : Jkind.t =
   jkind_of_result (estimate_type_jkind env (get_unboxed_type_approximation env ty))
 
 (**** checking jkind relationships ****)
@@ -2387,17 +2388,19 @@ let unification_jkind_check env ty jkind =
 
 let check_and_update_generalized_ty_jkind ?name ~loc ty =
   let immediacy_check jkind =
-    let is_immediate jkind =
+    let is_immediate jkind = match Jkind.get jkind with
       (* Just check externality and layout, because that's what actually matters
          for upstream code. We check both for a known value and something that
          might turn out later to be value. This is the conservative choice. *)
-      Jkind.Type.(Externality.le (get_externality_upper_bound jkind) External64 &&
-             match get_layout jkind with
+      | Type ty ->
+      Jkind.Type.(Externality.le (get_externality_upper_bound ty) External64 &&
+             match get_layout ty with
                | Some (Sort Value) | None -> true
                | _ -> false)
+      | Arrow _ -> false
     in
     if Language_extension.erasable_extensions_only ()
-      && is_immediate jkind && not (Jkind.Type.History.has_warned jkind)
+      && is_immediate jkind && not (Jkind.History.has_warned jkind)
     then
       let id =
         match name with
@@ -2406,28 +2409,26 @@ let check_and_update_generalized_ty_jkind ?name ~loc ty =
       in
       Location.prerr_warning loc (Warnings.Incompatible_with_upstream
         (Warnings.Immediate_erasure id));
-      Jkind.Type.History.with_warning jkind
+      Jkind.History.with_warning jkind
     else jkind
   in
   let generalization_check level jkind =
     if level = generic_level then
-      Jkind.Type.History.(update_reason jkind (Generalized (name, loc)))
+      Jkind.History.(update_reason jkind (Generalized (name, loc)))
     else jkind
   in
   let rec inner ty =
     let level = get_level ty in
     if try_mark_node ty then begin
       begin match get_desc ty with
-      (* FIXME jbachurski: This just seems to be an interaction with extension levels
-         and histories *)
-      | Tvar ({ jkind = Type jkind; _ } as r) ->
+      | Tvar ({ jkind; _ } as r) ->
         let new_jkind = immediacy_check jkind in
         let new_jkind = generalization_check level new_jkind in
-        set_type_desc ty (Tvar {r with jkind = Jkind.of_type_jkind new_jkind})
-      | Tunivar ({ jkind = Type jkind; _ } as r) ->
+        set_type_desc ty (Tvar {r with jkind = new_jkind})
+      | Tunivar ({ jkind; _ } as r) ->
         let new_jkind = immediacy_check jkind in
         let new_jkind = generalization_check level new_jkind in
-        set_type_desc ty (Tunivar {r with jkind = Jkind.of_type_jkind new_jkind})
+        set_type_desc ty (Tunivar {r with jkind = new_jkind})
       | _ -> ()
       end;
       iter_type_expr inner ty

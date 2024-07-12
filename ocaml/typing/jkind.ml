@@ -13,10 +13,13 @@
 (**************************************************************************)
 
 open Mode
+open Jkind_types.History
 
 [@@@warning "+9"]
 
 exception Unexpected_higher_jkind of string
+
+type type_expr = Types.type_expr
 
 (******************************)
 (*** user errors ***)
@@ -49,15 +52,11 @@ let printtyp_path = ref (fun _ _ -> assert false)
 let set_printtyp_path f = printtyp_path := f
 
 module Type = struct
-  open Jkind_types.Type
-
   (* A *sort* is the information the middle/back ends need to be able to
      compile a manipulation (storing, passing, etc) of a runtime value. *)
   module Sort = Jkind_types.Type.Sort
 
   type sort = Sort.t
-
-  type type_expr = Types.type_expr
 
   (* A *layout* of a type describes the way values of that type are stored at
      runtime, including details like width, register convention, calling
@@ -295,19 +294,6 @@ module Type = struct
       | false, _ -> Not_le
 
     let equal a b = Misc.Le_result.is_equal (less_or_equal a b)
-  end
-
-  module History = struct
-    include Jkind_intf.History
-
-    let has_imported_history t =
-      match t.history with Creation Imported -> true | _ -> false
-
-    let update_reason t reason = { t with history = Creation reason }
-
-    let with_warning t = { t with has_warned = true }
-
-    let has_warned t = t.has_warned
   end
 
   type const = type_expr Jkind_types.Type.Const.t
@@ -832,12 +818,6 @@ module Type = struct
       | Const of Const.t
       | Var of Sort.var (* all modes will be [max] *)
 
-    let format ppf =
-      let open Format in
-      function
-      | Const c -> fprintf ppf "%a" Const.format c
-      | Var v -> fprintf ppf "%s" (Sort.Var.name v)
-
     (* considers sort variables < Any. Two sort variables are in a [sub]
        relationship only when they are equal.
        Never does mutation.
@@ -865,6 +845,26 @@ module Type = struct
         externality_upper_bound;
         nullability_upper_bound
       }
+
+    let default_to_value_and_get
+        { layout;
+          modes_upper_bounds;
+          externality_upper_bound;
+          nullability_upper_bound
+        } : Const.t =
+      match layout with
+      | Any ->
+        { layout = Any;
+          modes_upper_bounds;
+          externality_upper_bound;
+          nullability_upper_bound
+        }
+      | Sort s ->
+        { layout = Sort (Sort.default_to_value_and_get s);
+          modes_upper_bounds;
+          externality_upper_bound;
+          nullability_upper_bound
+        }
 
     let add_mode_crossing t =
       { t with
@@ -1059,6 +1059,11 @@ module Type = struct
             }
         | Var v -> Var v)
 
+    let format ppf t =
+      match get t with
+      | Const c -> Format.fprintf ppf "%a" Const.format c
+      | Var v -> Format.fprintf ppf "%s" (Sort.Var.name v)
+
     module Debug_printers = struct
       open Format
 
@@ -1077,7 +1082,15 @@ module Type = struct
     end
   end
 
-  type t = type_expr Jkind_types.Type.t
+  type 'type_expr jkind = 'type_expr Jkind_types.type_jkind =
+    { jkind : 'type_expr Jkind_types.Type.Jkind_desc.t;
+      history : 'type_expr Jkind_types.history;
+      has_warned : bool
+    }
+
+  type desc = Types.type_expr Jkind_types.Type.Jkind_desc.t
+
+  type nonrec t = Types.type_expr jkind
 
   let fresh_jkind jkind ~why =
     { jkind; history = Creation why; has_warned = false }
@@ -1086,6 +1099,8 @@ module Type = struct
   (* constants *)
 
   module Primitive = struct
+    open Jkind_intf
+
     let any_dummy_jkind =
       { jkind = Jkind_desc.max;
         history = Creation (Any_creation Dummy_jkind);
@@ -1161,8 +1176,9 @@ module Type = struct
      parameter might effectively be unused.
   *)
   (* CR layouts: When everything is stable, remove this function. *)
-  let get_required_layouts_level (context : History.annotation_context)
-      (jkind : Const.t) : Language_extension.maturity =
+  let get_required_layouts_level
+      (context : Jkind_intf.History.annotation_context) (jkind : Const.t) :
+      Language_extension.maturity =
     let legacy_layout = Const.get_legacy_layout jkind in
     match context, legacy_layout with
     | ( _,
@@ -1220,28 +1236,8 @@ module Type = struct
   (******************************)
   (* elimination and defaulting *)
 
-  let default_to_value_and_get
-      { jkind =
-          { layout;
-            modes_upper_bounds;
-            externality_upper_bound;
-            nullability_upper_bound
-          };
-        _
-      } : Const.t =
-    match layout with
-    | Any ->
-      { layout = Any;
-        modes_upper_bounds;
-        externality_upper_bound;
-        nullability_upper_bound
-      }
-    | Sort s ->
-      { layout = Sort (Sort.default_to_value_and_get s);
-        modes_upper_bounds;
-        externality_upper_bound;
-        nullability_upper_bound
-      }
+  let default_to_value_and_get t : Const.t =
+    Jkind_desc.default_to_value_and_get t.jkind
 
   let default_to_value t = ignore (default_to_value_and_get t)
 
@@ -1270,11 +1266,6 @@ module Type = struct
 
   (*********************************)
   (* pretty printing *)
-
-  let format ppf jkind =
-    match get jkind with
-    | Const c -> Format.fprintf ppf "%a" Const.format c
-    | Var v -> Format.fprintf ppf "%s" (Sort.Var.name v)
 
   module Report_missing_cmi : sig
     (* used both in format_history and in Violation.report_general *)
@@ -1316,336 +1307,6 @@ module Type = struct
 
   include Report_missing_cmi
 
-  (* CR layouts: should this be configurable? In the meantime, you
-     may want to change these to experiment / debug. *)
-
-  (* should we print histories at all? *)
-  let display_histories = true
-
-  (* should we print histories in a way users can understand?
-     The alternative is to print out all the data, which may be useful
-     during debugging. *)
-  let flattened_histories = true
-
-  (* This module is just to keep all the helper functions more locally
-     scoped. *)
-  module Format_history = struct
-    (* CR layouts: all the output in this section is subject to change;
-       actually look closely at error messages once this is activated *)
-
-    open Format
-
-    let format_with_notify_js ppf str =
-      fprintf ppf
-        "@[%s.@ Please notify the Jane Street compilers group if you see this \
-         output@]"
-        str
-
-    let format_position ~arity position =
-      let to_ordinal num = Int.to_string num ^ Misc.ordinal_suffix num in
-      match arity with 1 -> "" | _ -> to_ordinal position ^ " "
-
-    let format_concrete_creation_reason ppf :
-        History.concrete_creation_reason -> unit = function
-      | Match -> fprintf ppf "a value of this type is matched against a pattern"
-      | Constructor_declaration _ ->
-        fprintf ppf "it's the type of a constructor field"
-      | Label_declaration lbl ->
-        fprintf ppf "it is the type of record field %s" (Ident.name lbl)
-      | Record_projection ->
-        fprintf ppf "it's the record type used in a projection"
-      | Record_assignment ->
-        fprintf ppf "it's the record type used in an assignment"
-      | Let_binding ->
-        fprintf ppf "it's the type of a variable bound by a `let`"
-      | Function_argument ->
-        fprintf ppf "we must know concretely how to pass a function argument"
-      | Function_result ->
-        fprintf ppf "we must know concretely how to return a function result"
-      | Structure_item_expression ->
-        fprintf ppf "it's the type of an expression in a structure"
-      | External_argument ->
-        fprintf ppf "it's the type of an argument in an external declaration"
-      | External_result ->
-        fprintf ppf "it's the type of the result of an external declaration"
-      | Statement -> fprintf ppf "it's the type of a statement"
-      | Optional_arg_default ->
-        fprintf ppf "it's the type of an optional argument default"
-      | Layout_poly_in_external ->
-        fprintf ppf
-          "it's the layout polymorphic type in an external declaration@ \
-           ([@@layout_poly] forces all variables of layout 'any' to be@ \
-           representable at call sites)"
-
-    let format_concrete_legacy_creation_reason ppf :
-        History.concrete_legacy_creation_reason -> unit = function
-      | Unannotated_type_parameter path ->
-        fprintf ppf "it instantiates an unannotated type parameter of %a"
-          !printtyp_path path
-      | Wildcard -> fprintf ppf "it's a _ in the type"
-      | Unification_var -> fprintf ppf "it's a fresh unification variable"
-      | Array_element -> fprintf ppf "it's the type of an array element"
-
-    let rec format_annotation_context ppf : History.annotation_context -> unit =
-      function
-      | Type_declaration p ->
-        fprintf ppf "the declaration of the type %a" !printtyp_path p
-      | Type_parameter (path, var) ->
-        let var_string = match var with None -> "_" | Some v -> "'" ^ v in
-        fprintf ppf "@[%s@ in the declaration of the type@ %a@]" var_string
-          !printtyp_path path
-      | Newtype_declaration name ->
-        fprintf ppf "the abstract type declaration for %s" name
-      | Constructor_type_parameter (cstr, name) ->
-        fprintf ppf "@[%s@ in the declaration of constructor@ %a@]" name
-          !printtyp_path cstr
-      | Univar name -> fprintf ppf "the universal variable %s" name
-      | Type_variable name -> fprintf ppf "the type variable %s" name
-      | Type_wildcard loc ->
-        fprintf ppf "the wildcard _ at %a" Location.print_loc_in_lowercase loc
-      | With_error_message (_message, context) ->
-        (* message gets printed in [format_flattened_history] so we ignore it here *)
-        format_annotation_context ppf context
-
-    let format_any_creation_reason ppf : History.any_creation_reason -> unit =
-      function
-      | Missing_cmi p ->
-        fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
-      | Initial_typedecl_env ->
-        format_with_notify_js ppf
-          "a dummy kind of any is used to check mutually recursive datatypes"
-      | Wildcard -> format_with_notify_js ppf "there's a _ in the type"
-      | Unification_var ->
-        format_with_notify_js ppf "it's a fresh unification variable"
-      | Dummy_jkind ->
-        format_with_notify_js ppf
-          "it's assigned a dummy kind that should have been overwritten"
-      (* CR layouts: Improve output or remove this constructor ^^ *)
-      | Type_expression_call ->
-        format_with_notify_js ppf
-          "there's a call to [type_expression] via the ocaml API"
-      | Inside_of_Tarrow -> fprintf ppf "argument or result of a function type"
-
-    let format_any_non_null_creation_reason ppf :
-        History.any_non_null_creation_reason -> unit = function
-      | Array_type_argument ->
-        fprintf ppf "it's the type argument to the array type"
-
-    let format_immediate_creation_reason ppf :
-        History.immediate_creation_reason -> _ = function
-      | Empty_record ->
-        fprintf ppf "it's a record type containing all void elements"
-      | Enumeration ->
-        fprintf ppf
-          "it's an enumeration variant type (all constructors are constant)"
-      | Primitive id ->
-        fprintf ppf "it is the primitive immediate type %s" (Ident.name id)
-      | Immediate_polymorphic_variant ->
-        fprintf ppf
-          "it's an enumeration variant type (all constructors are constant)"
-
-    let format_immediate64_creation_reason ppf :
-        History.immediate64_creation_reason -> _ = function
-      | Separability_check ->
-        fprintf ppf "the check that a type is definitely not `float`"
-
-    let format_value_or_null_creation_reason ppf :
-        History.value_or_null_creation_reason -> _ = function
-      | Primitive id ->
-        fprintf ppf "it is the primitive value_or_null type %s" (Ident.name id)
-      | Tuple_element -> fprintf ppf "it's the type of a tuple element"
-      | Separability_check ->
-        fprintf ppf "the check that a type is definitely not `float`"
-      | Polymorphic_variant_field ->
-        fprintf ppf "it's the type of the field of a polymorphic variant"
-      | Structure_element ->
-        fprintf ppf "it's the type of something stored in a module structure"
-      | V1_safety_check ->
-        fprintf ppf "it has to be value for the V1 safety check"
-      | Probe -> format_with_notify_js ppf "it's a probe"
-      | Captured_in_object ->
-        fprintf ppf "it's the type of a variable captured in an object"
-
-    let format_value_creation_reason ppf ~layout_or_kind :
-        History.value_creation_reason -> _ = function
-      | Class_let_binding ->
-        fprintf ppf
-          "it's the type of a let-bound variable in a class expression"
-      | Object -> fprintf ppf "it's the type of an object"
-      | Instance_variable -> fprintf ppf "it's the type of an instance variable"
-      | Object_field -> fprintf ppf "it's the type of an object field"
-      | Class_field -> fprintf ppf "it's the type of a class field"
-      | Boxed_record -> fprintf ppf "it's a boxed record type"
-      | Boxed_variant -> fprintf ppf "it's a boxed variant type"
-      | Extensible_variant -> fprintf ppf "it's an extensible variant type"
-      | Primitive id ->
-        fprintf ppf "it is the primitive value type %s" (Ident.name id)
-      | Type_argument { parent_path; position; arity } ->
-        fprintf ppf "the %stype argument of %a has %s value"
-          (format_position ~arity position)
-          !printtyp_path parent_path layout_or_kind
-      | Tuple -> fprintf ppf "it's a tuple type"
-      | Row_variable -> format_with_notify_js ppf "it's a row variable"
-      | Polymorphic_variant -> fprintf ppf "it's a polymorphic variant type"
-      | Arrow -> fprintf ppf "it's a function type"
-      | Tfield ->
-        format_with_notify_js ppf
-          "it's an internal Tfield type (you shouldn't see this)"
-      | Tnil ->
-        format_with_notify_js ppf
-          "it's an internal Tnil type (you shouldn't see this)"
-      | First_class_module -> fprintf ppf "it's a first-class module type"
-      | Univar ->
-        fprintf ppf "it is or unifies with an unannotated universal variable"
-      | Default_type_jkind ->
-        fprintf ppf "an abstract type has the value %s by default"
-          layout_or_kind
-      | Existential_type_variable ->
-        fprintf ppf "it's an unannotated existential type variable"
-      | Array_comprehension_element ->
-        fprintf ppf "it's the element type of array comprehension"
-      | Lazy_expression -> fprintf ppf "it's the type of a lazy expression"
-      | Class_type_argument ->
-        fprintf ppf "it's a type argument to a class constructor"
-      | Class_term_argument ->
-        fprintf ppf
-          "it's the type of a term-level argument to a class constructor"
-      | Debug_printer_argument ->
-        format_with_notify_js ppf
-          "it's the type of an argument to a debugger printer function"
-      | Recmod_fun_arg ->
-        fprintf ppf
-          "it's the type of the first argument to a function in a recursive \
-           module"
-      | Unknown s ->
-        fprintf ppf
-          "unknown @[(please alert the Jane Street@;\
-           compilers team with this message: %s)@]" s
-
-    let format_float64_creation_reason ppf :
-        History.float64_creation_reason -> _ = function
-      | Primitive id ->
-        fprintf ppf "it is the primitive float64 type %s" (Ident.name id)
-
-    let format_float32_creation_reason ppf :
-        History.float32_creation_reason -> _ = function
-      | Primitive id ->
-        fprintf ppf "it is the primitive float32 type %s" (Ident.name id)
-
-    let format_word_creation_reason ppf : History.word_creation_reason -> _ =
-      function
-      | Primitive id ->
-        fprintf ppf "it is the primitive word type %s" (Ident.name id)
-
-    let format_bits32_creation_reason ppf : History.bits32_creation_reason -> _
-        = function
-      | Primitive id ->
-        fprintf ppf "it is the primitive bits32 type %s" (Ident.name id)
-
-    let format_bits64_creation_reason ppf : History.bits64_creation_reason -> _
-        = function
-      | Primitive id ->
-        fprintf ppf "it is the primitive bits64 type %s" (Ident.name id)
-
-    let format_creation_reason ppf ~layout_or_kind :
-        History.creation_reason -> unit = function
-      | Annotated (ctx, _) ->
-        fprintf ppf "of the annotation on %a" format_annotation_context ctx
-      | Missing_cmi p ->
-        fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
-      | Any_creation any -> format_any_creation_reason ppf any
-      | Any_non_null_creation any -> format_any_non_null_creation_reason ppf any
-      | Immediate_creation immediate ->
-        format_immediate_creation_reason ppf immediate
-      | Immediate64_creation immediate64 ->
-        format_immediate64_creation_reason ppf immediate64
-      | Void_creation _ -> .
-      | Value_or_null_creation value ->
-        format_value_or_null_creation_reason ppf value
-      | Value_creation value ->
-        format_value_creation_reason ppf ~layout_or_kind value
-      | Float64_creation float -> format_float64_creation_reason ppf float
-      | Float32_creation float -> format_float32_creation_reason ppf float
-      | Word_creation word -> format_word_creation_reason ppf word
-      | Bits32_creation bits32 -> format_bits32_creation_reason ppf bits32
-      | Bits64_creation bits64 -> format_bits64_creation_reason ppf bits64
-      | Concrete_creation concrete ->
-        format_concrete_creation_reason ppf concrete
-      | Concrete_legacy_creation concrete ->
-        format_concrete_legacy_creation_reason ppf concrete
-      | Imported ->
-        fprintf ppf "of %s requirements from an imported definition"
-          layout_or_kind
-      | Imported_type_argument { parent_path; position; arity } ->
-        fprintf ppf "the %stype argument of %a has this %s"
-          (format_position ~arity position)
-          !printtyp_path parent_path layout_or_kind
-      | Generalized (id, loc) ->
-        let format_id ppf = function
-          | Some id -> fprintf ppf " of %s" (Ident.name id)
-          | None -> ()
-        in
-        fprintf ppf "of the definition%a at %a" format_id id
-          Location.print_loc_in_lowercase loc
-
-    let format_interact_reason ppf : History.interact_reason -> _ = function
-      | Gadt_equation name ->
-        fprintf ppf "a GADT match refining the type %a" !printtyp_path name
-      | Tyvar_refinement_intersection -> fprintf ppf "updating a type variable"
-      | Subjkind -> fprintf ppf "subkind check"
-
-    (* CR layouts: An older implementation of format_flattened_history existed
-        which displays more information not limited to one layout and one creation_reason
-        around commit 66a832d70bf61d9af3b0ec6f781dcf0a188b324d in main.
-
-        Consider revisiting that if the current implementation becomes insufficient. *)
-
-    let format_flattened_history ~intro ~layout_or_kind ppf t =
-      let jkind_desc = Jkind_desc.get t.jkind in
-      fprintf ppf "@[<v 2>%t" intro;
-      (match t.history with
-      | Creation reason -> (
-        fprintf ppf "@ because %a"
-          (format_creation_reason ~layout_or_kind)
-          reason;
-        match reason, jkind_desc with
-        | Concrete_legacy_creation _, Const _ ->
-          fprintf ppf ",@ defaulted to %s %a" layout_or_kind Desc.format
-            jkind_desc
-        | _ -> ())
-      | _ -> assert false);
-      fprintf ppf ".";
-      (match t.history with
-      | Creation (Annotated (With_error_message (message, _), _)) ->
-        fprintf ppf "@ @[%s@]" message
-      | _ -> ());
-      fprintf ppf "@]"
-
-    (* this isn't really formatted for user consumption *)
-    let format_history_tree ~intro ~layout_or_kind ppf t =
-      let rec in_order ppf = function
-        | Interact
-            { reason; lhs_history; rhs_history; lhs_jkind = _; rhs_jkind = _ }
-          ->
-          fprintf ppf "@[<v 2>  %a@]@;%a@ @[<v 2>  %a@]" in_order lhs_history
-            format_interact_reason reason in_order rhs_history
-        | Creation c -> format_creation_reason ppf ~layout_or_kind c
-      in
-      fprintf ppf "@;%t has this %s history:@;@[<v 2>  %a@]" intro
-        layout_or_kind in_order t.history
-
-    let format_history ~intro ~layout_or_kind ppf t =
-      if display_histories
-      then
-        if flattened_histories
-        then format_flattened_history ~intro ~layout_or_kind ppf t
-        else format_history_tree ~intro ~layout_or_kind ppf t
-  end
-
-  let format_history_gen = Format_history.format_history
-
-  let format_history = format_history_gen ~layout_or_kind:"kind"
-
   (******************************)
   (* relations *)
 
@@ -1659,39 +1320,6 @@ module Type = struct
 
   let () = Types.set_jkind_equal equal
 
-  (* Not all jkind history reasons are created equal. Some are more helpful than others.
-       This function encodes that information.
-
-     The reason with higher score should get preserved when combined with one of lower
-     score. *)
-  let score_reason = function
-    (* error_message annotated by the user should always take priority *)
-    | Creation (Annotated (With_error_message _, _)) -> 1
-    (* Concrete creation is quite vague, prefer more specific reasons *)
-    | Creation (Concrete_creation _ | Concrete_legacy_creation _) -> -1
-    | _ -> 0
-
-  let combine_histories reason lhs rhs =
-    if flattened_histories
-    then
-      match Desc.sub (Jkind_desc.get lhs.jkind) (Jkind_desc.get rhs.jkind) with
-      | Less -> lhs.history
-      | Not_le ->
-        rhs.history
-        (* CR layouts: this will be wrong if we ever have a non-trivial meet in the layout lattice *)
-      | Equal ->
-        if score_reason lhs.history >= score_reason rhs.history
-        then lhs.history
-        else rhs.history
-    else
-      Interact
-        { reason;
-          lhs_jkind = lhs.jkind;
-          lhs_history = lhs.history;
-          rhs_jkind = rhs.jkind;
-          rhs_history = rhs.history
-        }
-
   (* this is hammered on; it must be fast! *)
   let check_sub sub super = Jkind_desc.sub sub.jkind super.jkind
 
@@ -1704,6 +1332,7 @@ module Type = struct
 
   module Debug_printers = struct
     open Format
+    open Jkind_intf
 
     let concrete_creation_reason ppf : History.concrete_creation_reason -> unit
         = function
@@ -1880,6 +1509,11 @@ module Type = struct
         fprintf ppf "Generalized (%s, %a)"
           (match id with Some id -> Ident.unique_name id | None -> "")
           Location.print_loc loc
+      | Temporary -> fprintf ppf "Temporary"
+
+    let project_reason ppf : History.project_reason -> _ = function
+      | Arrow_argument i -> fprintf ppf "Arrow_argument %d" i
+      | Arrow_result -> fprintf ppf "Arrow_result"
 
     let interact_reason ppf : History.interact_reason -> _ = function
       | Gadt_equation p -> fprintf ppf "Gadt_equation %a" Path.print p
@@ -1887,38 +1521,35 @@ module Type = struct
         fprintf ppf "Tyvar_refinement_intersection"
       | Subjkind -> fprintf ppf "Subjkind"
 
-    let rec history ppf = function
-      | Interact { reason; lhs_jkind; lhs_history; rhs_jkind; rhs_history } ->
-        fprintf ppf
-          "Interact {@[reason = %a;@ lhs_jkind = %a;@ lhs_history = %a;@ \
-           rhs_jkind = %a;@ rhs_history = %a}@]"
-          interact_reason reason Jkind_desc.Debug_printers.t lhs_jkind history
-          lhs_history Jkind_desc.Debug_printers.t rhs_jkind history rhs_history
-      | Creation c -> fprintf ppf "Creation (%a)" creation_reason c
+    let history = ref (fun _ppf _h -> ())
 
     let t ppf ({ jkind; history = h; has_warned = _ } : t) : unit =
       fprintf ppf "@[<v 2>{ jkind = %a@,; history = %a }@]"
-        Jkind_desc.Debug_printers.t jkind history h
+        Jkind_desc.Debug_printers.t jkind !history h
   end
 end
 
-type nonrec t = Types.type_expr Jkind_types.t
+open Jkind_types.Jkind_desc
+
+type 'type_expr jkind = 'type_expr Jkind_types.t =
+  { jkind : 'type_expr Jkind_types.Jkind_desc.t;
+    history : 'type_expr Jkind_types.history;
+    has_warned : bool
+  }
+
+type desc = type_expr Jkind_types.Jkind_desc.t
+
+type nonrec t = type_expr jkind
 
 module History = struct
-  let rec has_imported_history (t : t) : bool =
-    match t with
-    | Type ty -> Type.History.has_imported_history ty
-    | Arrow { args; result } ->
-      List.exists has_imported_history args || has_imported_history result
+  let has_imported_history t : bool =
+    match t.history with Creation Imported -> true | _ -> false
 
-  let rec update_reason (t : t) reason : t =
-    match t with
-    | Type ty -> Type (Type.History.update_reason ty reason)
-    | Arrow { args; result } ->
-      Arrow
-        { args = List.map (fun t' -> update_reason t' reason) args;
-          result = update_reason result reason
-        }
+  let update_reason t reason = { t with history = Creation reason }
+
+  let with_warning (t : t) = { t with has_warned = true }
+
+  let has_warned (t : t) = t.has_warned
 end
 (* module Type *)
 
@@ -1988,14 +1619,24 @@ module Const = struct
     | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
 end
 
-let rec of_const ~why (t : Const.t) : t =
-  match t with
-  | Type t -> Type (Type.of_const ~why t)
-  | Arrow { args; result } ->
-    Arrow
-      { args = List.map (of_const ~why) args; result = of_const ~why result }
+let of_const ~why (c : Const.t) : t =
+  let rec go (c : Const.t) : desc =
+    match c with
+    | Type ty -> Type (Type.of_const ~why ty).jkind
+    | Arrow { args; result } ->
+      Arrow { args = List.map go args; result = go result }
+  in
+  { jkind = go c; history = Creation why; has_warned = false }
 
-let of_type_jkind t : t = Type t
+let of_type_jkind ({ jkind; history; has_warned } : Type.t) : t =
+  { jkind = Type jkind; history; has_warned }
+
+let of_arrow ~history ~args ~result : t =
+  { jkind =
+      Arrow { args = List.map (fun t -> t.jkind) args; result = result.jkind };
+    history;
+    has_warned = false
+  }
 
 module Primitive = struct
   (* TODO jbachurski: Implement the top element for the jkind lattice *)
@@ -2003,27 +1644,62 @@ module Primitive = struct
 end
 
 (******************************)
+
+module Jkind_desc = struct
+  type t = desc
+
+  let rec to_const : t -> Const.t option = function
+    | Type ty -> (
+      match Type.Jkind_desc.get ty with
+      | Const c -> Some (Type c)
+      | Var _ -> None)
+    | Arrow { args; result } ->
+      let args = List.map to_const args in
+      let result = to_const result in
+      if List.for_all Option.is_some args && Option.is_some result
+      then
+        Some
+          (Arrow { args = List.map Option.get args; result = Option.get result })
+      else None
+
+  let rec format ppf = function
+    | Type ty -> Type.Jkind_desc.format ppf ty
+    | Arrow { args; result } ->
+      Format.fprintf ppf "((%a) => %a)"
+        (Format.pp_print_list
+           ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
+           format)
+        args format result
+
+  module Debug_printers = struct
+    open Format
+
+    let rec t ppf = function
+      | Type ty -> Type.Jkind_desc.Debug_printers.t ppf ty
+      | Arrow { args; result } ->
+        fprintf ppf "{ args = [%a];@ result = %a }"
+          (Format.pp_print_list
+             ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
+             t)
+          args t result
+  end
+end
+
+(******************************)
 (* construction *)
 (* Mostly wrapping implementations for Type jkinds *)
 
 let of_new_sort_var ~why =
-  let t, sort = Type.of_new_sort_var ~why in
-  of_type_jkind t, sort
+  Type.of_new_sort_var ~why |> fun (a, b) -> of_type_jkind a, b
 
 let of_new_sort ~why = Type.of_new_sort ~why |> of_type_jkind
 
-let rec to_const (t : t) : Const.t option =
-  match t with
-  | Type ty -> (
-    match Type.get ty with Const c -> Some (Type c) | Var _ -> None)
-  | Arrow { args; result } ->
-    let args = List.map to_const args in
-    let result = to_const result in
-    if List.for_all Option.is_some args && Option.is_some result
-    then
-      Some
-        (Arrow { args = List.map Option.get args; result = Option.get result })
-    else None
+let to_const (t : t) = Jkind_desc.to_const t.jkind
+
+(* of_const is defined above for use in Primitive *)
+
+(* The following are placeholders, which assume general higher-order kinds are
+   not present in annotations and declarations. *)
 
 let get_required_layouts_level context (const : Const.t) =
   match const with
@@ -2098,9 +1774,9 @@ let of_type_decl_default ~context ~default (decl : Parsetree.type_declaration) =
   | Some (t, const, attrs) -> t, Some const, attrs
   | None -> default, None, decl.ptype_attributes
 
-let[@inline never] to_type_jkind (t : t) =
-  match t with
-  | Type ty -> ty
+let[@inline never] to_type_jkind ({ jkind; history; has_warned } : t) : Type.t =
+  match jkind with
+  | Type ty -> { jkind = ty; history; has_warned }
   | _ -> raise (Unexpected_higher_jkind "Coerced arrow to type jkind")
 
 (******************************)
@@ -2116,37 +1792,383 @@ module Desc = struct
         }
 end
 
-let rec default_all_sort_variables_to_value (t : t) =
-  match t with
-  | Type ty -> Type.default_to_value ty
-  | Arrow { args; result } ->
-    List.iter default_all_sort_variables_to_value args;
-    default_all_sort_variables_to_value result
+let default_all_sort_variables_to_value (t : t) =
+  let rec go = function
+    | Type ty -> ignore (Type.Jkind_desc.default_to_value_and_get ty)
+    | Arrow { args; result } ->
+      List.iter go args;
+      go result
+  in
+  go t.jkind
 
-let get (t : t) : Desc.t =
-  match t with
-  | Type ty -> Type ty
-  | Arrow { args; result } -> Desc.Arrow { args; result }
+let get t : Desc.t =
+  match t.jkind with
+  | Type ty -> Type { jkind = ty; history = t.history; has_warned = false }
+  | Arrow { args; result } ->
+    Arrow
+      { args =
+          List.mapi
+            (fun i arg : t ->
+              { jkind = arg;
+                history =
+                  Projection
+                    { reason = Arrow_argument i;
+                      jkind = t.jkind;
+                      history = t.history
+                    };
+                has_warned = false
+              })
+            args;
+        result =
+          { jkind = result;
+            history =
+              Projection
+                { reason = Arrow_result; jkind = t.jkind; history = t.history };
+            has_warned = false
+          }
+      }
 
 (*********************************)
 (* pretty printing *)
 
-let rec format ppf (jkind : t) =
-  match jkind with
-  | Type ty -> Type.format ppf ty
-  | Arrow { args; result } ->
-    Format.fprintf ppf "((%a) => %a)"
-      (Format.pp_print_list
-         ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
-         format)
-      args format result
+let format ppf (t : t) = Jkind_desc.format ppf t.jkind
 
-let format_history_gen ?(layout_or_kind = "kind") ~intro ppf (t : t) =
-  match t with
-  | Type ty -> Type.format_history_gen ~layout_or_kind ~intro ppf ty
-  | Arrow _ ->
-    (* TODO jbachurski: Implement history formatting for higher jkinds. *)
-    Format.fprintf ppf "%t (...??)" intro
+(* CR layouts: should this be configurable? In the meantime, you
+   may want to change these to experiment / debug. *)
+
+(* should we print histories at all? *)
+let display_histories = true
+
+(* should we print histories in a way users can understand?
+   The alternative is to print out all the data, which may be useful
+   during debugging. *)
+let flattened_histories = true
+
+(* This module is just to keep all the helper functions more locally
+   scoped. *)
+module Format_history = struct
+  (* CR layouts: all the output in this section is subject to change;
+     actually look closely at error messages once this is activated *)
+
+  open Format
+  open Jkind_intf
+
+  let format_with_notify_js ppf str =
+    fprintf ppf
+      "@[%s.@ Please notify the Jane Street compilers group if you see this \
+       output@]"
+      str
+
+  let format_position ~arity position =
+    let to_ordinal num = Int.to_string num ^ Misc.ordinal_suffix num in
+    match arity with 1 -> "" | _ -> to_ordinal position ^ " "
+
+  let format_concrete_creation_reason ppf :
+      History.concrete_creation_reason -> unit = function
+    | Match -> fprintf ppf "a value of this type is matched against a pattern"
+    | Constructor_declaration _ ->
+      fprintf ppf "it's the type of a constructor field"
+    | Label_declaration lbl ->
+      fprintf ppf "it is the type of record field %s" (Ident.name lbl)
+    | Record_projection ->
+      fprintf ppf "it's the record type used in a projection"
+    | Record_assignment ->
+      fprintf ppf "it's the record type used in an assignment"
+    | Let_binding -> fprintf ppf "it's the type of a variable bound by a `let`"
+    | Function_argument ->
+      fprintf ppf "we must know concretely how to pass a function argument"
+    | Function_result ->
+      fprintf ppf "we must know concretely how to return a function result"
+    | Structure_item_expression ->
+      fprintf ppf "it's the type of an expression in a structure"
+    | External_argument ->
+      fprintf ppf "it's the type of an argument in an external declaration"
+    | External_result ->
+      fprintf ppf "it's the type of the result of an external declaration"
+    | Statement -> fprintf ppf "it's the type of a statement"
+    | Optional_arg_default ->
+      fprintf ppf "it's the type of an optional argument default"
+    | Layout_poly_in_external ->
+      fprintf ppf
+        "it's the layout polymorphic type in an external declaration@ \
+         ([@@layout_poly] forces all variables of layout 'any' to be@ \
+         representable at call sites)"
+
+  let format_concrete_legacy_creation_reason ppf :
+      History.concrete_legacy_creation_reason -> unit = function
+    | Unannotated_type_parameter path ->
+      fprintf ppf "it instantiates an unannotated type parameter of %a"
+        !printtyp_path path
+    | Wildcard -> fprintf ppf "it's a _ in the type"
+    | Unification_var -> fprintf ppf "it's a fresh unification variable"
+    | Array_element -> fprintf ppf "it's the type of an array element"
+
+  let rec format_annotation_context ppf : History.annotation_context -> unit =
+    function
+    | Type_declaration p ->
+      fprintf ppf "the declaration of the type %a" !printtyp_path p
+    | Type_parameter (path, var) ->
+      let var_string = match var with None -> "_" | Some v -> "'" ^ v in
+      fprintf ppf "@[%s@ in the declaration of the type@ %a@]" var_string
+        !printtyp_path path
+    | Newtype_declaration name ->
+      fprintf ppf "the abstract type declaration for %s" name
+    | Constructor_type_parameter (cstr, name) ->
+      fprintf ppf "@[%s@ in the declaration of constructor@ %a@]" name
+        !printtyp_path cstr
+    | Univar name -> fprintf ppf "the universal variable %s" name
+    | Type_variable name -> fprintf ppf "the type variable %s" name
+    | Type_wildcard loc ->
+      fprintf ppf "the wildcard _ at %a" Location.print_loc_in_lowercase loc
+    | With_error_message (_message, context) ->
+      (* message gets printed in [format_flattened_history] so we ignore it here *)
+      format_annotation_context ppf context
+
+  let format_any_creation_reason ppf : History.any_creation_reason -> unit =
+    function
+    | Missing_cmi p ->
+      fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
+    | Wildcard -> format_with_notify_js ppf "there's a _ in the type"
+    | Unification_var ->
+      format_with_notify_js ppf "it's a fresh unification variable"
+    | Initial_typedecl_env ->
+      format_with_notify_js ppf
+        "a dummy kind of any is used to check mutually recursive datatypes"
+    | Dummy_jkind ->
+      format_with_notify_js ppf
+        "it's assigned a dummy kind that should have been overwritten"
+    (* CR layouts: Improve output or remove this constructor ^^ *)
+    | Type_expression_call ->
+      format_with_notify_js ppf
+        "there's a call to [type_expression] via the ocaml API"
+    | Inside_of_Tarrow -> fprintf ppf "argument or result of a function type"
+
+  let format_any_non_null_creation_reason ppf :
+      History.any_non_null_creation_reason -> unit = function
+    | Array_type_argument ->
+      fprintf ppf "it's the type argument to the array type"
+
+  let format_immediate_creation_reason ppf :
+      History.immediate_creation_reason -> _ = function
+    | Empty_record ->
+      fprintf ppf "it's a record type containing all void elements"
+    | Enumeration ->
+      fprintf ppf
+        "it's an enumeration variant type (all constructors are constant)"
+    | Primitive id ->
+      fprintf ppf "it is the primitive immediate type %s" (Ident.name id)
+    | Immediate_polymorphic_variant ->
+      fprintf ppf
+        "it's an enumeration variant type (all constructors are constant)"
+
+  let format_immediate64_creation_reason ppf :
+      History.immediate64_creation_reason -> _ = function
+    | Separability_check ->
+      fprintf ppf "the check that a type is definitely not `float`"
+
+  let format_value_or_null_creation_reason ppf :
+      History.value_or_null_creation_reason -> _ = function
+    | Primitive id ->
+      fprintf ppf "it is the primitive value_or_null type %s" (Ident.name id)
+    | Tuple_element -> fprintf ppf "it's the type of a tuple element"
+    | Separability_check ->
+      fprintf ppf "the check that a type is definitely not `float`"
+    | Polymorphic_variant_field ->
+      fprintf ppf "it's the type of the field of a polymorphic variant"
+    | Structure_element ->
+      fprintf ppf "it's the type of something stored in a module structure"
+    | V1_safety_check ->
+      fprintf ppf "it has to be value for the V1 safety check"
+    | Probe -> format_with_notify_js ppf "it's a probe"
+    | Captured_in_object ->
+      fprintf ppf "it's the type of a variable captured in an object"
+
+  let format_value_creation_reason ppf ~layout_or_kind :
+      History.value_creation_reason -> _ = function
+    | Class_let_binding ->
+      fprintf ppf "it's the type of a let-bound variable in a class expression"
+    | Object -> fprintf ppf "it's the type of an object"
+    | Instance_variable -> fprintf ppf "it's the type of an instance variable"
+    | Object_field -> fprintf ppf "it's the type of an object field"
+    | Class_field -> fprintf ppf "it's the type of a class field"
+    | Boxed_record -> fprintf ppf "it's a boxed record type"
+    | Boxed_variant -> fprintf ppf "it's a boxed variant type"
+    | Extensible_variant -> fprintf ppf "it's an extensible variant type"
+    | Primitive id ->
+      fprintf ppf "it is the primitive value type %s" (Ident.name id)
+    | Type_argument { parent_path; position; arity } ->
+      fprintf ppf "the %stype argument of %a has %s value"
+        (format_position ~arity position)
+        !printtyp_path parent_path layout_or_kind
+    | Tuple -> fprintf ppf "it's a tuple type"
+    | Row_variable -> format_with_notify_js ppf "it's a row variable"
+    | Polymorphic_variant -> fprintf ppf "it's a polymorphic variant type"
+    | Arrow -> fprintf ppf "it's a function type"
+    | Tfield ->
+      format_with_notify_js ppf
+        "it's an internal Tfield type (you shouldn't see this)"
+    | Tnil ->
+      format_with_notify_js ppf
+        "it's an internal Tnil type (you shouldn't see this)"
+    | First_class_module -> fprintf ppf "it's a first-class module type"
+    | Univar ->
+      fprintf ppf "it is or unifies with an unannotated universal variable"
+    | Default_type_jkind ->
+      fprintf ppf "an abstract type has the value %s by default" layout_or_kind
+    | Existential_type_variable ->
+      fprintf ppf "it's an unannotated existential type variable"
+    | Array_comprehension_element ->
+      fprintf ppf "it's the element type of array comprehension"
+    | Lazy_expression -> fprintf ppf "it's the type of a lazy expression"
+    | Class_type_argument ->
+      fprintf ppf "it's a type argument to a class constructor"
+    | Class_term_argument ->
+      fprintf ppf
+        "it's the type of a term-level argument to a class constructor"
+    | Debug_printer_argument ->
+      format_with_notify_js ppf
+        "it's the type of an argument to a debugger printer function"
+    | Recmod_fun_arg ->
+      fprintf ppf
+        "it's the type of the first argument to a function in a recursive \
+         module"
+    | Unknown s ->
+      fprintf ppf
+        "unknown @[(please alert the Jane Street@;\
+         compilers team with this message: %s)@]" s
+
+  let format_float64_creation_reason ppf : History.float64_creation_reason -> _
+      = function
+    | Primitive id ->
+      fprintf ppf "it is the primitive float64 type %s" (Ident.name id)
+
+  let format_float32_creation_reason ppf : History.float32_creation_reason -> _
+      = function
+    | Primitive id ->
+      fprintf ppf "it is the primitive float32 type %s" (Ident.name id)
+
+  let format_word_creation_reason ppf : History.word_creation_reason -> _ =
+    function
+    | Primitive id ->
+      fprintf ppf "it is the primitive word type %s" (Ident.name id)
+
+  let format_bits32_creation_reason ppf : History.bits32_creation_reason -> _ =
+    function
+    | Primitive id ->
+      fprintf ppf "it is the primitive bits32 type %s" (Ident.name id)
+
+  let format_bits64_creation_reason ppf : History.bits64_creation_reason -> _ =
+    function
+    | Primitive id ->
+      fprintf ppf "it is the primitive bits64 type %s" (Ident.name id)
+
+  let format_creation_reason ppf ~layout_or_kind :
+      History.creation_reason -> unit = function
+    | Annotated (ctx, _) ->
+      fprintf ppf "of the annotation on %a" format_annotation_context ctx
+    | Missing_cmi p ->
+      fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
+    | Any_creation any -> format_any_creation_reason ppf any
+    | Any_non_null_creation any -> format_any_non_null_creation_reason ppf any
+    | Immediate_creation immediate ->
+      format_immediate_creation_reason ppf immediate
+    | Immediate64_creation immediate64 ->
+      format_immediate64_creation_reason ppf immediate64
+    | Void_creation _ -> .
+    | Value_or_null_creation value ->
+      format_value_or_null_creation_reason ppf value
+    | Value_creation value ->
+      format_value_creation_reason ppf ~layout_or_kind value
+    | Float64_creation float -> format_float64_creation_reason ppf float
+    | Float32_creation float -> format_float32_creation_reason ppf float
+    | Word_creation word -> format_word_creation_reason ppf word
+    | Bits32_creation bits32 -> format_bits32_creation_reason ppf bits32
+    | Bits64_creation bits64 -> format_bits64_creation_reason ppf bits64
+    | Concrete_creation concrete -> format_concrete_creation_reason ppf concrete
+    | Concrete_legacy_creation concrete ->
+      format_concrete_legacy_creation_reason ppf concrete
+    | Imported ->
+      fprintf ppf "of %s requirements from an imported definition"
+        layout_or_kind
+    | Imported_type_argument { parent_path; position; arity } ->
+      fprintf ppf "the %stype argument of %a has this %s"
+        (format_position ~arity position)
+        !printtyp_path parent_path layout_or_kind
+    | Generalized (id, loc) ->
+      let format_id ppf = function
+        | Some id -> fprintf ppf " of %s" (Ident.name id)
+        | None -> ()
+      in
+      fprintf ppf "of the definition%a at %a" format_id id
+        Location.print_loc_in_lowercase loc
+    | Temporary -> fprintf ppf "it is an intermediate created by an operation"
+
+  let format_interact_reason ppf : History.interact_reason -> _ = function
+    | Gadt_equation name ->
+      fprintf ppf "a GADT match refining the type %a" !printtyp_path name
+    | Tyvar_refinement_intersection -> fprintf ppf "updating a type variable"
+    | Subjkind -> fprintf ppf "subkind check"
+
+  let format_project_reason ppf : History.project_reason -> _ = function
+    | Arrow_argument i -> fprintf ppf "in an application at position %d to" i
+    | Arrow_result -> fprintf ppf "result of an application to"
+
+  (* CR layouts: An older implementation of format_flattened_history existed
+      which displays more information not limited to one layout and one creation_reason
+      around commit 66a832d70bf61d9af3b0ec6f781dcf0a188b324d in main.
+
+      Consider revisiting that if the current implementation becomes insufficient. *)
+
+  let format_flattened_history ~intro ~layout_or_kind ppf t =
+    fprintf ppf "@[<v 2>%t" intro;
+    (* FIXME jbachurski: Application to higher-kinded types should probably
+        be described here, but this is a good approximation of existing
+        errors messages. *)
+    let rec leaf h =
+      match h with
+      | Creation reason -> reason
+      | Projection { history; _ } -> leaf history
+      | _ -> assert false
+    in
+    let reason = leaf t.history in
+    fprintf ppf "@ because %a" (format_creation_reason ~layout_or_kind) reason;
+    (match reason, to_const t with
+    | Concrete_legacy_creation _, Some c ->
+      fprintf ppf ",@ defaulted to %s %a" layout_or_kind Const.format c
+    | _ -> ());
+    fprintf ppf ".";
+    (match t.history with
+    | Creation (Annotated (With_error_message (message, _), _)) ->
+      fprintf ppf "@ @[%s@]" message
+    | _ -> ());
+    fprintf ppf "@]"
+
+  let format_jkind = ref (fun _ _ -> ())
+
+  (* this isn't really formatted for user consumption *)
+  let format_history_tree ~intro ~layout_or_kind ppf t =
+    let rec in_order ppf = function
+      | Interact
+          { reason; lhs_history; rhs_history; lhs_jkind = _; rhs_jkind = _ } ->
+        fprintf ppf "@[<v 2>  %a@]@;%a@ @[<v 2>  %a@]" in_order lhs_history
+          format_interact_reason reason in_order rhs_history
+      | Projection { reason; jkind; history } ->
+        fprintf ppf "@[<v 2>  %a@]@;%a@ %a" in_order history
+          format_project_reason reason !format_jkind jkind
+      | Creation c -> format_creation_reason ppf ~layout_or_kind c
+    in
+    fprintf ppf "@;%t has this %s history:@;@[<v 2>  %a@]" intro layout_or_kind
+      in_order t.history
+
+  let format_history ~intro ~layout_or_kind ppf t =
+    if display_histories
+    then
+      if flattened_histories
+      then format_flattened_history ~intro ~layout_or_kind ppf t
+      else format_history_tree ~intro ~layout_or_kind ppf t
+end
+
+let format_history_gen = Format_history.format_history
 
 let format_history = format_history_gen ~layout_or_kind:"kind"
 
@@ -2174,14 +2196,11 @@ module Violation = struct
 
   let of_ ?missing_cmi violation = { violation; missing_cmi }
 
-  let rec any_missing_cmi (t : _ Jkind_types.t) =
-    match t with
-    | Type { history; _ } -> (
-      match history with
-      | Creation (Missing_cmi p) -> Some p
-      | Creation (Any_creation (Missing_cmi p)) -> Some p
-      | _ -> None)
-    | Arrow { args; result } -> List.find_map any_missing_cmi (result :: args)
+  let any_missing_cmi (t : _ Jkind_types.t) =
+    match t.history with
+    | Creation (Missing_cmi p) -> Some p
+    | Creation (Any_creation (Missing_cmi p)) -> Some p
+    | _ -> None
 
   let is_missing_cmi viol = Option.is_some viol.missing_cmi
 
@@ -2192,12 +2211,13 @@ module Violation = struct
   let report_general_type_jkind preamble pp_former former ppf t =
     let mismatch_type =
       match t.violation with
-      | Not_a_subjkind (Type k1, Type k2) ->
-        if Misc.Le_result.is_le
-             (Type.Layout.sub k1.jkind.layout k2.jkind.layout)
+      | Not_a_subjkind ({ jkind = Type k1; _ }, { jkind = Type k2; _ }) ->
+        if Misc.Le_result.is_le (Type.Layout.sub k1.layout k2.layout)
         then Mode
         else Layout
-      | No_intersection (Type _, Type _) | No_union (Type _, Type _) -> Layout
+      | No_intersection ({ jkind = Type _; _ }, { jkind = Type _; _ })
+      | No_union ({ jkind = Type _; _ }, { jkind = Type _; _ }) ->
+        Layout
       | Not_a_subjkind _ | No_intersection _ | No_union _ -> Mode
     in
     let layout_or_kind =
@@ -2207,8 +2227,8 @@ module Violation = struct
       match mismatch_type with
       | Mode -> Format.fprintf ppf "@,%a" format jkind
       | Layout -> (
-        match (jkind : _ Jkind_types.t) with
-        | Type ty -> Type.Layout.format ppf ty.jkind.layout
+        match jkind.jkind with
+        | Type ty -> Type.Layout.format ppf ty.layout
         | _ -> Format.fprintf ppf "@,%a" format jkind)
     in
     let subjkind_format verb k2 =
@@ -2253,7 +2273,7 @@ module Violation = struct
           dprintf "does not sum with %a" format_layout_or_kind k2,
           None )
     in
-    if Type.display_histories
+    if display_histories
     then
       let connective =
         match t.violation, to_const k2 with
@@ -2295,17 +2315,22 @@ module Violation = struct
 
   let report_with_name ~name = report_general "" pp_print_string name
 end
+
 (******************************)
 (* relations *)
 
-let rec equate_or_equal ~allow_mutation (t : t) (t' : t) =
-  match t, t' with
-  | Type ty, Type ty' -> Type.equate_or_equal ~allow_mutation ty ty'
-  | ( Arrow { args = args1; result = result1 },
-      Arrow { args = args2; result = result2 } ) ->
-    equate_or_equal ~allow_mutation result1 result2
-    && List.for_all2 (equate_or_equal ~allow_mutation) args1 args2
-  | Type _, Arrow _ | Arrow _, Type _ -> false
+let equate_or_equal ~allow_mutation (t : t) (t' : t) =
+  let rec go k k' =
+    match k, k' with
+    | Type ty, Type ty' ->
+      Type.Jkind_desc.equate_or_equal ~allow_mutation ty ty'
+    | ( Arrow { args = args1; result = result1 },
+        Arrow { args = args2; result = result2 } ) ->
+      let arg_eqs = List.map2 go args1 args2 in
+      go result1 result2 && List.for_all (fun x -> x) arg_eqs
+    | Type _, Arrow _ | Arrow _, Type _ -> false
+  in
+  go t.jkind t'.jkind
 
 let equate = equate_or_equal ~allow_mutation:true
 
@@ -2313,14 +2338,43 @@ let equate = equate_or_equal ~allow_mutation:true
    (layouts v2.8) allow_mutation is to be set to false *)
 let equal = equate_or_equal ~allow_mutation:true
 
-(* TODO jbachurski: This helper is redundant once histories
-   are properly tracked on higher kinds. *)
-let combining_type_jkinds ~reason (ty1 : Type.t) (ty2 : Type.t) jkind : t =
-  Type
-    { jkind;
-      history = Type.combine_histories reason ty1 ty2;
-      has_warned = ty1.has_warned || ty2.has_warned
-    }
+(* Not all jkind history reasons are created equal. Some are more helpful than others.
+    This function encodes that information.
+
+    The reason with higher score should get preserved when combined with one of lower
+    score. *)
+let score_reason = function
+  (* error_message annotated by the user should always take priority *)
+  | Creation (Annotated (With_error_message _, _)) -> 1
+  (* Concrete creation is quite vague, prefer more specific reasons *)
+  | Creation (Concrete_creation _ | Concrete_legacy_creation _) -> -1
+  | _ -> 0
+
+let combine_histories reason lhs rhs =
+  if flattened_histories
+  then
+    let break_tie lh rh =
+      if score_reason lh >= score_reason rh then lh else rh
+    in
+    match lhs.jkind, rhs.jkind with
+    | Type ty, Type ty' -> (
+      match
+        Type.Desc.sub (Type.Jkind_desc.get ty) (Type.Jkind_desc.get ty')
+      with
+      | Less -> lhs.history
+      | Not_le ->
+        rhs.history
+        (* CR layouts: this will be wrong if we ever have a non-trivial meet in the layout lattice *)
+      | Equal -> break_tie lhs.history rhs.history)
+    | _ -> break_tie lhs.history rhs.history
+  else
+    Interact
+      { reason;
+        lhs_jkind = lhs.jkind;
+        lhs_history = lhs.history;
+        rhs_jkind = rhs.jkind;
+        rhs_history = rhs.history
+      }
 
 let rec combine_list_or_error ~violation combine ts1 ts2 =
   let ( let* ) = Result.bind in
@@ -2334,35 +2388,42 @@ let rec combine_list_or_error ~violation combine ts1 ts2 =
     Ok (t :: ts)
   | [], _ :: _ | _ :: _, [] -> Error violation
 
-let rec intersection_or_error ~reason (t1 : t) (t2 : t) : (t, _) result =
+let rec intersection_or_error ~reason (t1 : t) (t2 : t) =
   let ( let* ) = Result.bind in
   let violation = Violation.of_ (No_intersection (t1, t2)) in
-  match t1, t2 with
-  | Type ty1, Type ty2 ->
-    Type.Jkind_desc.intersection ty1.jkind ty2.jkind
-    |> Option.map (combining_type_jkinds ~reason ty1 ty2)
-    |> Option.to_result ~none:violation
+  match get t1, get t2 with
+  | Type ty1, Type ty2 -> (
+    match Type.Jkind_desc.intersection ty1.jkind ty2.jkind with
+    | None -> Error (Violation.of_ (No_intersection (t1, t2)))
+    | Some jkind ->
+      Ok
+        { jkind = Type jkind;
+          history = combine_histories reason t1 t2;
+          has_warned = t1.has_warned || t2.has_warned
+        })
   | ( Arrow { args = args1; result = result1 },
       Arrow { args = args2; result = result2 } ) ->
     let* args = union_list_or_error ~reason ~violation args1 args2 in
     let* result = intersection_or_error ~reason result1 result2 in
-    Ok (Arrow { args; result } : t)
+    Ok (of_arrow ~history:(combine_histories reason t1 t2) ~args ~result)
   | Type _, Arrow _ | Arrow _, Type _ -> Error violation
 
 and union_or_error ~reason (t1 : t) (t2 : t) =
   let ( let* ) = Result.bind in
   let violation = Violation.of_ (No_union (t1, t2)) in
-  match t1, t2 with
+  match get t1, get t2 with
   | Type ty1, Type ty2 ->
     (* Union is infallible at type jkinds *)
-    Type.Jkind_desc.union ty1.jkind ty2.jkind
-    |> combining_type_jkinds ~reason ty1 ty2
-    |> Result.ok
+    Ok
+      { jkind = Type (Type.Jkind_desc.union ty1.jkind ty2.jkind);
+        history = combine_histories reason t1 t2;
+        has_warned = ty1.has_warned || ty2.has_warned
+      }
   | ( Arrow { args = args1; result = result1 },
       Arrow { args = args2; result = result2 } ) ->
     let* args = intersection_list_or_error ~reason ~violation args1 args2 in
     let* result = union_or_error ~reason result1 result2 in
-    Ok (Arrow { args; result } : t)
+    Ok (of_arrow ~history:(combine_histories reason t1 t2) ~args ~result)
   | Type _, Arrow _ | Arrow _, Type _ -> Error violation
 
 and intersection_list_or_error ~reason ~violation =
@@ -2375,10 +2436,10 @@ let has_intersection t t' =
   Result.is_ok
     (intersection_or_error
      (* This reason is just used as a dummy for the test *)
-       ~reason:Type.History.Subjkind t t')
+       ~reason:Jkind_intf.History.Subjkind t t')
 
 let rec check_sub (t : t) (t' : t) : Misc.Le_result.t =
-  match t, t' with
+  match get t, get t' with
   | Type ty, Type ty' -> Type.check_sub ty ty'
   | ( Arrow { args = args1; result = result1 },
       Arrow { args = args2; result = result2 } ) ->
@@ -2399,12 +2460,7 @@ let sub_or_error t t' =
 
 let sub_with_history (t : t) (t' : t) =
   if sub t t'
-  then
-    match t, t' with
-    | Type ty, Type ty' ->
-      Ok (Type { ty with history = Type.combine_histories Subjkind ty ty' } : t)
-    (* FIXME jbachurski: Is there a sensible way to combine histories here? *)
-    | _ -> Ok t
+  then Ok { t with history = combine_histories Subjkind t t' }
   else Error (Violation.of_ (Not_a_subjkind (t, t')))
 
 (* This doesn't do any mutation because mutating a sort variable can't make it
@@ -2413,22 +2469,39 @@ let sub_with_history (t : t) (t' : t) =
 (* let is_max jkind = sub (Type Type.Primitive.any_dummy_jkind) jkind *)
 let is_max _jkind = false
 
-let has_layout_any (jkind : t) =
-  match jkind with
-  | Type ty -> ( match ty.jkind.layout with Any -> true | _ -> false)
+let has_layout_any (t : t) =
+  match t.jkind with
+  | Type ty -> ( match ty.layout with Any -> true | _ -> false)
   | _ -> false
 
 (*********************************)
 (* debugging *)
 
 module Debug_printers = struct
-  let rec t ppf (jkind : t) : unit =
-    match jkind with
-    | Type ty -> Format.fprintf ppf "Type %a" Type.Debug_printers.t ty
-    | Arrow { args; result } ->
-      Format.fprintf ppf "Arrow { args = [%a];@ result = %a }"
-        (Format.pp_print_list ~pp_sep:(fun ppf () -> Format.fprintf ppf "; ") t)
-        args t result
+  open Format
+
+  let rec history ppf =
+    let open Jkind_types.History in
+    function
+    | Interact { reason; lhs_jkind; lhs_history; rhs_jkind; rhs_history } ->
+      fprintf ppf
+        "Interact {@[reason = %a;@ lhs_jkind = %a;@ lhs_history = %a;@ \
+         rhs_jkind = %a;@ rhs_history = %a}@]"
+        Type.Debug_printers.interact_reason reason Jkind_desc.Debug_printers.t
+        lhs_jkind history lhs_history Jkind_desc.Debug_printers.t rhs_jkind
+        history rhs_history
+    | Projection { reason; jkind; history = history_ } ->
+      fprintf ppf "Projection {@[reason = %a;@ jkind = %a;@ history = %a}@]"
+        Type.Debug_printers.project_reason reason Jkind_desc.Debug_printers.t
+        jkind history history_
+    | Creation c ->
+      fprintf ppf "Creation (%a)" Type.Debug_printers.creation_reason c
+
+  and t ppf ({ jkind; history = h; has_warned = _ } : t) : unit =
+    fprintf ppf "@[<v 2>{ jkind = %a@,; history = %a }@]"
+      Jkind_desc.Debug_printers.t jkind history h
+
+  let () = Type.Debug_printers.history := history
 
   (*** formatting user errors ***)
   let report_error ~loc : Error.t -> _ = function
