@@ -27,6 +27,7 @@ end
 module M : sig type k end
 |}]
 
+(* TODO jbachurski: Perhaps this should work. *)
 type t = list
 
 [%%expect {|
@@ -36,6 +37,18 @@ Line 1, characters 0-13:
 Error: The layout of type list is ((value) => value) (...??)
        But the layout of type list must be a sublayout of any, because
          of the definition of t at line 1, characters 0-13.
+|}]
+
+type q = list list
+
+[%%expect {|
+Line 1, characters 9-13:
+1 | type q = list list
+             ^^^^
+Error: This type list should be an instance of type ('a : value)
+       The layout of list is ((value) => value) (...??)
+       But the layout of list must be a sublayout of value, because
+         the type argument of list has layout value.
 |}]
 
 module M : sig
@@ -79,8 +92,10 @@ type s = t list
 Line 1, characters 9-10:
 1 | type s = t list
              ^
-Error: The type constructor t expects 1 argument(s),
-       but is here applied to 0 argument(s)
+Error: This type t = list should be an instance of type ('a : value)
+       The layout of t is ((value) => value) (...??)
+       But the layout of t must be a sublayout of value, because
+         the type argument of list has layout value.
 |}]
 
 module type M = sig
@@ -114,7 +129,7 @@ module type M = sig val g : ('a : ((higher))). 'a r -> 'a r end
 module type M = sig
   type r : (value => value) => value
   type s : value => value
-  val g : int s r -> int s r
+  val g : s r -> s r
 end
 
 [%%expect{|
@@ -122,6 +137,38 @@ module type M =
   sig
     type r : ((value) => value) => value
     type s : (value) => value
-    val g : int s r -> int s r
+    val g : s r -> s r
   end
+|}]
+
+module type M = sig
+  type r : (value => value) => value
+  type s : value => value
+  val g : int s r -> int s r
+end
+
+[%%expect{|
+Line 4, characters 10-15:
+4 |   val g : int s r -> int s r
+              ^^^^^
+Error: This type int s should be an instance of type ('a : ((higher)))
+       The layout of int s is value, because
+         of the definition of s at line 3, characters 2-25.
+       But the layout of int s must be a sublayout of ((value) => value) (...??)
+|}]
+
+module type M = sig
+  type r : (value => value) => value
+  type s : value => value
+  val g : list s r -> list s r
+end
+
+[%%expect{|
+Line 4, characters 10-14:
+4 |   val g : list s r -> list s r
+              ^^^^
+Error: This type list should be an instance of type ('a : value)
+       The layout of list is ((value) => value) (...??)
+       But the layout of list must be a sublayout of value, because
+         of the definition of s at line 3, characters 2-25.
 |}]

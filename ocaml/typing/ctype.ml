@@ -2195,9 +2195,15 @@ let type_jkind_sub env ty jkind =
     (* This is an optimization to avoid unboxing if we can tell the constraint
        is satisfied from the type_kind *)
     match get_desc ty with
-    | Tconstr(p, _args, _abbrev) ->
+    | Tconstr(p, args, _abbrev) ->
         let jkind_bound =
-          try (Env.find_type p env).type_jkind
+          try
+            let decl = Env.find_type p env in
+            let app_decl = Env.with_expanded_constructor_jkind decl in
+            match args, jkind_of_decl_unapplied env decl with
+            | [], Some k -> k
+            | [], None -> failwith "bad type constructor application"
+            | _ -> app_decl.type_jkind
           with Not_found -> Jkind.Primitive.any ~why:(Missing_cmi p)
         in
         if Jkind.sub jkind_bound jkind
@@ -2240,11 +2246,11 @@ let constrain_type_jkind ~fixed env ty jkind =
   | Failure ty_jkind ->
     Error (Jkind.Violation.of_ (Not_a_subjkind (ty_jkind, jkind)))
 
-let constrain_type_jkind ~fixed env ty jkind =
+(* let constrain_type_jkind ~fixed env ty jkind =
   (* An optimization to avoid doing any work if we're checking against
      any. *)
   if Jkind.is_max jkind then Ok ()
-  else constrain_type_jkind ~fixed env ty jkind
+  else constrain_type_jkind ~fixed env ty jkind *)
 
 let check_type_jkind env ty jkind =
   constrain_type_jkind ~fixed:true env ty jkind

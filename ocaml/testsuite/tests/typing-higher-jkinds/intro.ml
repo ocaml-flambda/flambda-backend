@@ -12,7 +12,7 @@ type t : value => value = lst
 
 type a = int t *)
 
-type t = list list
+type t = int list
 
 (* module type M = sig
   type r : (value => value) => value
