@@ -164,14 +164,8 @@ CPPFLAGS=@CPPFLAGS@
 OCAMLC_CFLAGS=@ocamlc_cflags@
 
 OCAMLC_CPPFLAGS=@ocamlc_cppflags@
-<<<<<<< HEAD
-BYTECCLIBS=@cclibs@
-||||||| 121bedcfd2
-BYTECCLIBS=@bytecclibs@
-=======
 ZSTD_LIBS=@zstd_libs@
 BYTECCLIBS=@zstd_libs@ @cclibs@
->>>>>>> 5.2.0
 EXE=@exeext@
 OUTPUTEXE=@outputexe@$(EMPTY)
 SUPPORTS_SHARED_LIBRARIES=@supports_shared_libraries@
@@ -209,18 +203,11 @@ WITH_CPP_MANGLING=@cpp_mangling@
 WITH_PROFINFO=@profinfo@
 PROFINFO_WIDTH=@profinfo_width@
 HEADER_RESERVED_BITS=@reserved_header_bits@
-<<<<<<< HEAD
 CUSTOM_OPS_STRUCT_SIZE=@custom_ops_struct_size@
 NO_PARTIAL_INLINING_CFLAGS=@no_partial_inlining_cflags@
 LIBUNWIND_AVAILABLE=@libunwind_available@
 LIBUNWIND_INCLUDE_FLAGS=@libunwind_include_flags@
 LIBUNWIND_LINK_FLAGS=@libunwind_link_flags@
-||||||| 121bedcfd2
-LIBUNWIND_AVAILABLE=@libunwind_available@
-LIBUNWIND_INCLUDE_FLAGS=@libunwind_include_flags@
-LIBUNWIND_LINK_FLAGS=@libunwind_link_flags@
-=======
->>>>>>> 5.2.0
 WITH_FPIC=@fpic@
 TARGET=@target@
 HOST=@host@
@@ -236,7 +223,6 @@ FLAT_FLOAT_ARRAY=@flat_float_array@
 FUNCTION_SECTIONS=@function_sections@
 PROBES=@probes@
 AWK=@AWK@
-<<<<<<< HEAD
 STDLIB_MANPAGES=@stdlib_manpages@
 NAKED_POINTERS=@naked_pointers@
 INTEL_JCC_BUG_CFLAGS=@intel_jcc_bug_cflags@
@@ -247,12 +233,6 @@ DUNE=@dune@
 # Selection of OCaml 4.x or 5.x runtime
 RUNTIME_SUFFIX=@runtime_suffix@
 RUNTIME_DIR=runtime$(RUNTIME_SUFFIX)
-||||||| 121bedcfd2
-STDLIB_MANPAGES=@stdlib_manpages@
-NAKED_POINTERS=false
-=======
-NAKED_POINTERS=false
->>>>>>> 5.2.0
 
 # Deprecated variables
 
