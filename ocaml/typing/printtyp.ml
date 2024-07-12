@@ -1266,7 +1266,7 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
   Ojkind_user (out_jkind_user_of_user_jkind jkind.txt)
 
 let out_jkind_of_const_jkind jkind =
-  Ojkind_const (Jkind.Const.to_out_jkind_const jkind)
+  Ojkind_const (Jkind.Type.Const.to_out_jkind_const jkind)
 
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)

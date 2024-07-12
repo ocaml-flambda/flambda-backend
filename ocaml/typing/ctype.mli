@@ -78,7 +78,7 @@ val newty: type_desc -> type_expr
 val new_scoped_ty: int -> type_desc -> type_expr
 val newvar: ?name:string -> Jkind.t -> type_expr
 val new_rep_var :
-  ?name:string -> why:Jkind.History.concrete_jkind_reason -> unit ->
+  ?name:string -> why:Jkind.Type.History.concrete_jkind_reason -> unit ->
   type_expr * Jkind.sort
         (* Return a fresh representable variable, along with its sort *)
 val newvar2: ?name:string -> int -> Jkind.t -> type_expr
@@ -321,7 +321,7 @@ val all_distinct_vars: Env.t -> type_expr list -> bool
 type matches_result =
   | Unification_failure of Errortrace.unification_error
   | Jkind_mismatch of { original_jkind : jkind; inferred_jkind : jkind
-                     ; ty : type_expr }
+                      ; ty : type_expr }
   | All_good
 val matches: expand_error_trace:bool -> Env.t ->
   type_expr -> type_expr -> matches_result
@@ -550,7 +550,7 @@ val type_jkind_purely : Env.t -> type_expr -> jkind
 (* Find a type's sort (constraining it to be an arbitrary sort variable, if
    needed) *)
 val type_sort :
-  why:Jkind.History.concrete_jkind_reason ->
+  why:Jkind.Type.History.concrete_jkind_reason ->
   Env.t -> type_expr -> (Jkind.sort, Jkind.Violation.t) result
 
 (* Jkind checking. [constrain_type_jkind] will update the jkind of type
@@ -571,7 +571,7 @@ val constrain_type_jkind :
 (* Check whether a type's externality's upper bound is less than some target.
    Potentially cheaper than just calling [type_jkind], because this can stop
    expansion once it succeeds. *)
-val check_type_externality : Env.t -> type_expr -> Jkind.Externality.t -> bool
+val check_type_externality : Env.t -> type_expr -> Jkind.Type.Externality.t -> bool
 
 (* This function should get called after a type is generalized.
 

@@ -1678,10 +1678,10 @@ let instance_prim_layout (desc : Primitive.description) ty =
          from an outer scope *)
       if level = generic_level && try_mark_node ty then begin
         begin match get_desc ty with
-        | Tvar ({ jkind; _ } as r) when Jkind.has_layout_any jkind ->
+        | Tvar ({ jkind; _ } as r) when Jkind.Type.has_layout_any jkind ->
           For_copy.redirect_desc copy_scope ty
             (Tvar {r with jkind = get_jkind ()})
-        | Tunivar ({ jkind; _ } as r) when Jkind.has_layout_any jkind ->
+        | Tunivar ({ jkind; _ } as r) when Jkind.Type.has_layout_any jkind ->
           For_copy.redirect_desc copy_scope ty
             (Tunivar {r with jkind = get_jkind ()})
         | _ -> ()
@@ -2200,14 +2200,14 @@ let constrain_type_jkind ~fixed env ty jkind =
     Result.map (set_var_jkind ty) jkind_inter
   | Missing_cmi (ty_jkind, missing_cmi) ->
     Error Jkind.(Violation.of_ ~missing_cmi
-      (Not_a_subjkind
-         (History.update_reason ty_jkind (Missing_cmi missing_cmi), jkind)))
+        (Not_a_subjkind
+           (History.update_reason ty_jkind (Missing_cmi missing_cmi), jkind)))
   | Failure ty_jkind ->
     Error (Jkind.Violation.of_ (Not_a_subjkind (ty_jkind, jkind)))
 
 let constrain_type_jkind ~fixed env ty jkind =
   (* An optimization to avoid doing any work if we're checking against
-     any. *)
+      any. *)
   if Jkind.is_max jkind then Ok ()
   else constrain_type_jkind ~fixed env ty jkind
 
@@ -2222,9 +2222,9 @@ let () =
 
 let check_type_externality env ty ext =
   let upper_bound =
-    Jkind.set_externality_upper_bound (Jkind.Primitive.any ~why:Dummy_jkind) ext
+    Jkind.Type.set_externality_upper_bound (Jkind.Type.Primitive.any ~why:Dummy_jkind) ext
   in
-  match check_type_jkind env ty upper_bound with
+  match check_type_jkind env ty (Jkind.of_type_jkind upper_bound) with
   | Ok () -> true
   | Error _ -> false
 
@@ -2272,8 +2272,8 @@ let type_jkind_purely env ty =
     type_jkind env ty
 
 let type_sort ~why env ty =
-  let jkind, sort = Jkind.of_new_sort_var ~why in
-  match constrain_type_jkind env ty jkind with
+  let jkind, sort = Jkind.Type.of_new_sort_var ~why in
+  match constrain_type_jkind env ty (Jkind.of_type_jkind jkind) with
   | Ok _ -> Ok sort
   | Error _ as e -> e
 
@@ -2309,13 +2309,13 @@ let check_and_update_generalized_ty_jkind ?name ~loc ty =
       (* Just check externality and layout, because that's what actually matters
          for upstream code. We check both for a known value and something that
          might turn out later to be value. This is the conservative choice. *)
-      Jkind.(Externality.le (get_externality_upper_bound jkind) External64 &&
+      Jkind.Type.(Externality.le (get_externality_upper_bound jkind) External64 &&
              match get_layout jkind with
                | Some (Sort Value) | None -> true
                | _ -> false)
     in
     if Language_extension.erasable_extensions_only ()
-      && is_immediate jkind && not (Jkind.History.has_warned jkind)
+      && is_immediate jkind && not (Jkind.Type.History.has_warned jkind)
     then
       let id =
         match name with
@@ -2324,12 +2324,12 @@ let check_and_update_generalized_ty_jkind ?name ~loc ty =
       in
       Location.prerr_warning loc (Warnings.Incompatible_with_upstream
         (Warnings.Immediate_erasure id));
-      Jkind.History.with_warning jkind
+      Jkind.Type.History.with_warning jkind
     else jkind
   in
   let generalization_check level jkind =
     if level = generic_level then
-      Jkind.History.(update_reason jkind (Generalized (name, loc)))
+      Jkind.Type.History.(update_reason jkind (Generalized (name, loc)))
     else jkind
   in
   let rec inner ty =
@@ -2339,11 +2339,11 @@ let check_and_update_generalized_ty_jkind ?name ~loc ty =
       | Tvar ({ jkind; _ } as r) ->
         let new_jkind = immediacy_check jkind in
         let new_jkind = generalization_check level new_jkind in
-        set_type_desc ty (Tvar {r with jkind = new_jkind})
+        set_type_desc ty (Tvar {r with jkind = Jkind.of_type_jkind new_jkind})
       | Tunivar ({ jkind; _ } as r) ->
         let new_jkind = immediacy_check jkind in
         let new_jkind = generalization_check level new_jkind in
-        set_type_desc ty (Tunivar {r with jkind = new_jkind})
+        set_type_desc ty (Tunivar {r with jkind = Jkind.of_type_jkind new_jkind})
       | _ -> ()
       end;
       iter_type_expr inner ty
@@ -2810,7 +2810,7 @@ let reify env t =
   let fresh_constr_scope = get_gadt_equations_level () in
   let create_fresh_constr lev name jkind =
     let name = match name with Some s -> "$'"^s | _ -> "$" in
-    let decl = new_local_type jkind ~jkind_annot:None in
+    let decl = new_local_type (Jkind.of_type_jkind jkind) ~jkind_annot:None in
     let (id, new_env) =
       Env.enter_type (get_new_abstract_name !env name) decl !env
         ~scope:fresh_constr_scope in
@@ -2825,6 +2825,7 @@ let reify env t =
       visited := TypeSet.add ty !visited;
       match get_desc ty with
         Tvar { name; jkind } ->
+          let jkind = Jkind.to_type_jkind jkind  in
           let level = get_level ty in
           let path, t = create_fresh_constr level name jkind in
           link_type ty t;
@@ -2836,6 +2837,7 @@ let reify env t =
             let m = row_more r in
             match get_desc m with
               Tvar { name; jkind }  ->
+                let jkind = Jkind.to_type_jkind jkind in
                 let level = get_level m in
                 let path, t = create_fresh_constr level name jkind in
                 let row =
@@ -5625,7 +5627,7 @@ let mode_cross_left env ty mode =
      the types here aren't principal. In any case, leaving the check out
      now; will return and figure this out later. *)
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind jkind) in
   Alloc.meet_const upper_bounds mode
 
 (* CR layouts v2.8: merge with Typecore.expect_mode_cross when [Value]
@@ -5634,7 +5636,7 @@ let mode_cross_right env ty mode =
   (* CR layouts v2.8: This should probably check for principality. See
      similar comment in [mode_cross_left]. *)
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind jkind) in
   Alloc.imply upper_bounds mode
 
 let rec build_subtype env (visited : transient_expr list)

@@ -457,7 +457,7 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
          {Types.ld_id = ld.ld_id;
           ld_mutable = ld.ld_mutable;
           ld_modalities = ld.ld_modalities;
-          ld_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
+          ld_jkind = Jkind.Type.Primitive.any ~why:Dummy_jkind;
             (* Updated by [update_label_jkinds] *)
           ld_type = ty;
           ld_loc = ld.ld_loc;
@@ -782,7 +782,8 @@ let transl_declaration env sdecl (id, uid) =
       let cty = transl_simple_type ~new_var_jkind:Any env ~closed:no_row Mode.Alloc.Const.legacy sty in
       Some cty, Some cty.ctyp_type
   in
-  let any = Jkind.Primitive.any ~why:Initial_typedecl_env in
+  let any = Jkind.Type.Primitive.any ~why:Initial_typedecl_env in
+  let any' = Jkind.Primitive.any ~why:Initial_typedecl_env in
   (* jkind_default is the jkind to use for now as the type_jkind when there
      is no annotation and no manifest.
      See Note [Default jkinds in transl_declaration].
@@ -852,7 +853,7 @@ let transl_declaration env sdecl (id, uid) =
         let tcstrs, cstrs = List.split (List.map make_cstr scstrs) in
         let rep, jkind =
           if unbox then
-            Variant_unboxed, any
+            Variant_unboxed, any'
           else
             (* We mark all arg jkinds "any" here.  They are updated later,
                after the circular type checks make it safe to check jkinds.
@@ -887,7 +888,7 @@ let transl_declaration env sdecl (id, uid) =
                [Record_mixed].  Those cases are fixed up after we can get
                accurate jkinds for the fields, in [update_decl_jkind]. *)
             if unbox then
-              Record_unboxed, any
+              Record_unboxed, any'
             else
               Record_boxed (Array.make (List.length lbls) any),
               Jkind.Primitive.value ~why:Boxed_record
@@ -1174,12 +1175,12 @@ let update_label_jkinds env loc lbls named =
   in
   let lbls =
     List.mapi (fun idx (Types.{ld_type} as lbl) ->
-      let ld_jkind = Ctype.type_jkind env ld_type in
+      let ld_jkind = Ctype.type_jkind env ld_type |> Jkind.to_type_jkind in
       update idx ld_jkind;
       {lbl with ld_jkind}
     ) lbls
   in
-  if List.for_all (fun l -> Jkind.is_void_defaulting l.ld_jkind) lbls then
+  if List.for_all (fun l -> Jkind.Type.is_void_defaulting l.ld_jkind) lbls then
     raise (Error (loc, Jkind_empty_record))
   else lbls, false
 (* CR layouts v5: return true for a record with all voids *)
@@ -1191,13 +1192,13 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
   match cd_args with
   | Types.Cstr_tuple tys ->
     List.iteri (fun idx {Types.ca_type=ty; _} ->
-      jkinds.(idx) <- Ctype.type_jkind env ty) tys;
-    cd_args, Array.for_all Jkind.is_void_defaulting jkinds
+      jkinds.(idx) <- Ctype.type_jkind env ty |> Jkind.to_type_jkind) tys;
+    cd_args, Array.for_all Jkind.Type.is_void_defaulting jkinds
   | Types.Cstr_record lbls ->
     let lbls, all_void =
       update_label_jkinds env loc lbls None
     in
-    jkinds.(0) <- Jkind.Primitive.value ~why:Boxed_record;
+    jkinds.(0) <- Jkind.Type.Primitive.value ~why:Boxed_record;
     Types.Cstr_record lbls, all_void
 
 let assert_mixed_product_support =
@@ -1248,10 +1249,10 @@ module Element_repr = struct
   let classify env loc ty jkind =
     if is_float env ty then Float_element
     else
-      let const_jkind = Jkind.default_to_value_and_get jkind in
-      let sort = Jkind.Const.(Layout.get_sort (get_layout const_jkind)) in
+      let const_jkind = Jkind.Type.default_to_value_and_get jkind in
+      let sort = Jkind.Type.Const.(Layout.get_sort (get_layout const_jkind)) in
       let externality_upper_bound =
-        Jkind.Const.get_externality_upper_bound const_jkind
+        Jkind.Type.Const.get_externality_upper_bound const_jkind
       in
       match sort, externality_upper_bound with
       (* CR layouts v5.1: We don't allow [External64] in the flat suffix of
@@ -1434,13 +1435,13 @@ let update_decl_jkind env dpath decl =
   let update_record_kind loc lbls rep =
     match lbls, rep with
     | [Types.{ld_type} as lbl], Record_unboxed ->
-      let ld_jkind = Ctype.type_jkind env ld_type in
+      let ld_jkind = Ctype.type_jkind env ld_type |> Jkind.to_type_jkind in
       [{lbl with ld_jkind}], Record_unboxed, ld_jkind
     | _, Record_boxed jkinds ->
       let lbls, all_void =
         update_label_jkinds env loc lbls (Some jkinds)
       in
-      let jkind = Jkind.for_boxed_record ~all_void in
+      let jkind = Jkind.Type.for_boxed_record ~all_void in
       let reprs =
         List.mapi
           (fun i lbl ->
@@ -1548,11 +1549,11 @@ let update_decl_jkind env dpath decl =
     | [{Types.cd_args} as cstr], Variant_unboxed -> begin
         match cd_args with
         | Cstr_tuple [{ca_type=ty; _}] -> begin
-            let jkind = Ctype.type_jkind env ty in
+            let jkind = Ctype.type_jkind env ty |> Jkind.to_type_jkind in
             cstrs, Variant_unboxed, jkind
           end
         | Cstr_record [{ld_type} as lbl] -> begin
-            let ld_jkind = Ctype.type_jkind env ld_type in
+            let ld_jkind = Ctype.type_jkind env ld_type |> Jkind.to_type_jkind in
             [{ cstr with Types.cd_args =
                            Cstr_record [{ lbl with ld_jkind }] }],
             Variant_unboxed, ld_jkind
@@ -1589,7 +1590,7 @@ let update_decl_jkind env dpath decl =
           (idx+1,cstr::cstrs,all_voids && all_void)
         ) (0,[],true) cstrs
       in
-      let jkind = Jkind.for_boxed_variant ~all_voids in
+      let jkind = Jkind.Type.for_boxed_variant ~all_voids in
       List.rev cstrs, rep, jkind
     | (([] | (_ :: _)), Variant_unboxed | _, Variant_extensible) ->
       assert false
@@ -1630,7 +1631,7 @@ let update_decls_jkind_reason decls =
        List.iter update_generalized decl.type_params;
        Btype.iter_type_expr_kind update_generalized decl.type_kind;
        Option.iter update_generalized decl.type_manifest;
-       let reason = Jkind.History.Generalized (Some id, decl.type_loc) in
+       let reason = Jkind.Type.History.Generalized (Some id, decl.type_loc) in
        let new_decl = {decl with type_jkind =
                                    Jkind.History.update_reason decl.type_jkind reason} in
        (id, new_decl)
@@ -2250,7 +2251,7 @@ let transl_extension_constructor_decl
     | Cstr_tuple args -> List.length args
     | Cstr_record _ -> 1
   in
-  let jkinds = Array.make num_args (Jkind.Primitive.any ~why:Dummy_jkind) in
+  let jkinds = Array.make num_args (Jkind.Type.Primitive.any ~why:Dummy_jkind) in
   let args, constant =
     update_constructor_arguments_jkinds env loc args jkinds
   in
@@ -2680,9 +2681,11 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
        - this isn't a tvar from an outer scopes ([TyVarEnv] gets reset before
          transl)
     *)
+    (* FIXME jbachurski: Is this the way this unwrapping should happen?
+       Is assigning arrows a sort temporarily okay? *)
     | Tvar {jkind} when is_layout_poly
-                      && Jkind.has_layout_any jkind
-                      && get_level ty = Btype.generic_level -> Poly
+                       && Jkind.Type.has_layout_any jkind
+                       && get_level ty = Btype.generic_level -> Poly
     | _ ->
       let sort =
         type_sort_external ~is_layout_poly ~why env core_type.ptyp_loc ty
@@ -2700,7 +2703,7 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
     (if Language_extension.erasable_extensions_only ()
     then
       (* Non-value sorts without [@unboxed] are not erasable. *)
-      let layout = Jkind_types.Sort.to_string (Const sort) in
+      let layout = Jkind_types.Type.Sort.to_string (Const sort) in
       Location.prerr_warning core_type.ptyp_loc
         (Warnings.Incompatible_with_upstream
               (Warnings.Unboxed_attribute layout)));
@@ -2737,7 +2740,7 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
     then
       (* There are additional requirements if we are operating in
          upstream compatible mode. *)
-      let layout = Jkind_types.Sort.to_string (Const sort) in
+      let layout = Jkind_types.Type.Sort.to_string (Const sort) in
       Location.prerr_warning core_type.ptyp_loc
         (Warnings.Incompatible_with_upstream
               (Warnings.Non_value_sort layout)));
@@ -3184,7 +3187,7 @@ let transl_package_constraint ~loc ty =
 let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
   let arity = List.length params in
   Ctype.with_local_level ~post:generalize_decl begin fun () ->
-    let params = List.map Ctype.newvar params in
+    let params = List.map (fun jkind -> Ctype.newvar jkind) params in
     { type_params = params;
       type_arity = arity;
       type_kind = Type_abstract Abstract_def;

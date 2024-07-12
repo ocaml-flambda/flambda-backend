@@ -83,7 +83,7 @@ let is_base_type env ty base_ty_path =
   | _ -> false
 
 let is_always_gc_ignorable env ty =
-  let ext : Jkind.Externality.t =
+  let ext : Jkind.Type.Externality.t =
     (* We check that we're compiling to (64-bit) native code before counting
        External64 types as gc_ignorable, because bytecode is intended to be
        platform independent. *)
@@ -122,7 +122,7 @@ type classification =
    Returning [Any] is safe, though may skip some optimizations. *)
 let classify env loc ty sort : classification =
   let ty = scrape_ty env ty in
-  match Jkind.(Sort.default_to_value_and_get sort) with
+  match Jkind.Sort.default_to_value_and_get sort with
   | Value -> begin
   if is_always_gc_ignorable env ty then Int
   else match get_desc ty with
@@ -234,9 +234,10 @@ let bigarray_type_kind_and_layout env typ =
       (Pbigarray_unknown, Pbigarray_unknown_layout)
 
 let value_kind_of_value_jkind jkind =
-  let const_jkind = Jkind.default_to_value_and_get jkind in
+  let jkind = Jkind.to_type_jkind jkind in
+  let const_jkind = Jkind.Type.default_to_value_and_get jkind in
   let externality_upper_bound =
-    Jkind.Const.get_externality_upper_bound const_jkind
+    Jkind.Type.Const.get_externality_upper_bound const_jkind
   in
   (* CR: assert the sort is a value *)
   match externality_upper_bound with
