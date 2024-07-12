@@ -1142,7 +1142,7 @@ and jkind_const_annotation  = string Location.loc
 
 and jkind_annotation =
   | Default
-  | Primitive_layout_or_abbreviation of jkind_const_annotation
+  | Abbreviation of jkind_const_annotation
   | Mod of jkind_annotation * mode_expression
   | With of jkind_annotation * core_type
   | Kind_of of core_type

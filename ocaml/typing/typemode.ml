@@ -1,6 +1,5 @@
 open Location
 open Mode
-open Jane_syntax
 
 type error =
   | Duplicated_mode : ('a, 'b) Axis.t -> error
@@ -12,8 +11,7 @@ exception Error of Location.t * error
 let transl_mode_annots modes =
   let rec loop (acc : Alloc.Const.Option.t) = function
     | [] -> acc
-    | m :: rest ->
-      let { txt; loc } = (m : Mode_expr.Const.t :> _ Location.loc) in
+    | { txt; loc } :: rest ->
       Jane_syntax_parsing.assert_extension_enabled ~loc Mode
         Language_extension.Stable;
       let acc : Alloc.Const.Option.t =
