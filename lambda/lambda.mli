@@ -568,9 +568,10 @@ type function_attribute = {
   is_opaque: bool;
   stub: bool;
   tmc_candidate: bool;
-<<<<<<< HEAD
-  (* [may_fuse_arity] is true if [simplif.ml] is permitted to fuse arity, i.e.,
-     to perform the rewrite [fun x -> fun y -> e] to [fun x y -> e] *)
+  (* [simplif.ml] (in the `simplif` function within `simplify_lets`) attempts to
+     fuse nested functions, rewriting e.g. [fun x -> fun y -> e] to
+     [fun x y -> e]. This fusion is allowed only when the [may_fuse_arity] field
+     on *both* functions involved is [true]. *)
   may_fuse_arity: bool;
   unbox_return: bool;
 }
@@ -584,14 +585,6 @@ type lparam = {
   layout : layout;
   attributes : parameter_attribute;
   mode : alloc_mode
-||||||| 121bedcfd2
-=======
-  (* [simplif.ml] (in the `simplif` function within `simplify_lets`) attempts to
-     fuse nested functions, rewriting e.g. [fun x -> fun y -> e] to
-     [fun x y -> e]. This fusion is allowed only when the [may_fuse_arity] field
-     on *both* functions involved is [true]. *)
-  may_fuse_arity: bool;
->>>>>>> 5.2.0
 }
 
 type scoped_location = Debuginfo.Scoped_location.t
@@ -606,19 +599,9 @@ type lambda =
   | Lconst of structured_constant
   | Lapply of lambda_apply
   | Lfunction of lfunction
-<<<<<<< HEAD
   | Llet of let_kind * layout * Ident.t * lambda * lambda
   | Lmutlet of layout * Ident.t * lambda * lambda
   | Lletrec of rec_binding list * lambda
-||||||| 121bedcfd2
-  | Llet of let_kind * value_kind * Ident.t * lambda * lambda
-  | Lmutlet of value_kind * Ident.t * lambda * lambda
-  | Lletrec of (Ident.t * lambda) list * lambda
-=======
-  | Llet of let_kind * value_kind * Ident.t * lambda * lambda
-  | Lmutlet of value_kind * Ident.t * lambda * lambda
-  | Lletrec of rec_binding list * lambda
->>>>>>> 5.2.0
   | Lprim of primitive * lambda list * scoped_location
   | Lswitch of lambda * lambda_switch * scoped_location * layout
 (* switch on strings, clauses are sorted by string order,
@@ -657,14 +640,6 @@ type lambda =
   (* [Lexclave] closes the newest region opened.
      Note that [Lexclave] nesting is currently unsupported. *)
   | Lexclave of lambda
-
-and rec_binding = {
-  id : Ident.t;
-  def : lfunction;
-  (* Generic recursive bindings have been removed from Lambda in 5.2.
-     [Value_rec_compiler.compile_letrec] deals with transforming generic
-     definitions into basic Lambda code. *)
-}
 
 and rec_binding = {
   id : Ident.t;
@@ -758,7 +733,6 @@ val make_key: lambda -> lambda option
 val const_unit: structured_constant
 val const_int : int -> structured_constant
 val lambda_unit: lambda
-<<<<<<< HEAD
 
 val layout_unit : layout
 val layout_int : layout
@@ -808,17 +782,6 @@ val layout_bottom : layout
 val dummy_constant: lambda
 val name_lambda: let_kind -> lambda -> layout -> (Ident.t -> lambda) -> lambda
 val name_lambda_list: (lambda * layout) list -> (lambda list -> lambda) -> lambda
-||||||| 121bedcfd2
-val name_lambda: let_kind -> lambda -> (Ident.t -> lambda) -> lambda
-val name_lambda_list: lambda list -> (lambda list -> lambda) -> lambda
-=======
-
-(** [dummy_constant] produces a plecholder value with a recognizable
-    bit pattern (currently 0xBBBB in its tagged form) *)
-val dummy_constant: lambda
-val name_lambda: let_kind -> lambda -> (Ident.t -> lambda) -> lambda
-val name_lambda_list: lambda list -> (lambda list -> lambda) -> lambda
->>>>>>> 5.2.0
 
 val lfunction :
   kind:function_kind ->
@@ -832,7 +795,6 @@ val lfunction :
   region:bool ->
   lambda
 
-<<<<<<< HEAD
 val lfunction' :
   kind:function_kind ->
   params:lparam list ->
@@ -845,18 +807,6 @@ val lfunction' :
   region:bool ->
   lfunction
 
-||||||| 121bedcfd2
-=======
-val lfunction' :
-  kind:function_kind ->
-  params:(Ident.t * value_kind) list ->
-  return:value_kind ->
-  body:lambda ->
-  attr:function_attribute -> (* specified with [@inline] attribute *)
-  loc:scoped_location ->
-  lfunction
-
->>>>>>> 5.2.0
 
 val iter_head_constructor: (lambda -> unit) -> lambda -> unit
 (** [iter_head_constructor f lam] apply [f] to only the first level of
@@ -929,7 +879,6 @@ val map : (lambda -> lambda) -> lambda -> lambda
   (** Bottom-up rewriting, applying the function on
       each node from the leaves to the root. *)
 
-<<<<<<< HEAD
 val map_lfunction : (lambda -> lambda) -> lfunction -> lfunction
   (** Apply the given transformation on the function's body *)
 
@@ -937,14 +886,6 @@ val shallow_map  :
   tail:(lambda -> lambda) ->
   non_tail:(lambda -> lambda) ->
   lambda -> lambda
-||||||| 121bedcfd2
-val shallow_map  : (lambda -> lambda) -> lambda -> lambda
-=======
-val map_lfunction : (lambda -> lambda) -> lfunction -> lfunction
-  (** Apply the given transformation on the function's body *)
-
-val shallow_map  : (lambda -> lambda) -> lambda -> lambda
->>>>>>> 5.2.0
   (** Rewrite each immediate sub-term with the function. *)
 
 val bind_with_layout:
