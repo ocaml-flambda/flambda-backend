@@ -629,6 +629,7 @@ and labeled_type ppf (label, ty) =
   raw_type ppf ty
 
 and raw_type_list tl = raw_list raw_type tl
+and raw_app_args ppf tl = raw_type_list ppf (AppArgs.to_list tl)
 and labeled_type_list tl = raw_list labeled_type tl
 and raw_lid_type_list tl =
   raw_list (fun ppf (lid, typ) ->
@@ -648,14 +649,18 @@ and raw_type_desc ppf = function
       fprintf ppf "@[<1>Ttuple@,%a@]" labeled_type_list tl
   | Tconstr (p, tl, abbrev) ->
       fprintf ppf "@[<hov1>Tconstr(@,%a,@,%a,@,%a)@]" path p
-        raw_type_list tl
+        raw_app_args tl
         (raw_list path) (list_of_memo !abbrev)
+  | Tapp (t, tl) ->
+      fprintf ppf "@[<hov1>Tapp(@,%a,@,%a)@]"
+        raw_type t
+        raw_type_list tl
   | Tobject (t, nm) ->
       fprintf ppf "@[<hov1>Tobject(@,%a,@,@[<1>ref%t@])@]" raw_type t
         (fun ppf ->
           match !nm with None -> fprintf ppf " None"
           | Some(p,tl) ->
-              fprintf ppf "(Some(@,%a,@,%a))" path p raw_type_list tl)
+              fprintf ppf "(Some(@,%a,@,%a))" path p raw_app_args tl)
   | Tfield (f, k, t1, t2) ->
       fprintf ppf "@[<hov1>Tfield(@,%s,@,%s,@,%a,@;<0 -1>%a)@]" f
         (string_of_field_kind k)
@@ -686,7 +691,7 @@ and raw_type_desc ppf = function
         (fun ppf ->
           match name with None -> fprintf ppf "None"
           | Some(p,tl) ->
-              fprintf ppf "Some(@,%a,@,%a)" path p raw_type_list tl)
+              fprintf ppf "Some(@,%a,@,%a)" path p raw_app_args tl)
   | Tpackage (p, fl) ->
       fprintf ppf "@[<hov1>Tpackage(@,%a,@,%a)@]" path p
         raw_lid_type_list fl
@@ -734,6 +739,7 @@ let compose l1 = function
   | Nth n  -> Nth (List.nth l1 n)
 
 let apply_subst s1 tyl =
+  let tyl = AppArgs.to_list tyl in
   if tyl = [] then []
   (* cf. PR#7543: Typemod.type_package doesn't respect type constructor arity *)
   else
@@ -781,6 +787,7 @@ let rec normalize_type_path ?(cache=false) env p =
     let (params, ty, _) = Env.find_type_expansion p env in
     match get_desc ty with
       Tconstr (p1, tyl, _) ->
+        let tyl = AppArgs.to_list tyl in
         if List.length params = List.length tyl
         && List.for_all2 eq_type params tyl
         then normalize_type_path ~cache env p1
@@ -981,7 +988,7 @@ let printer_iter_type_expr f ty =
   | Tvariant row -> begin
       match row_name row with
       | Some(_p, tyl) when nameable_row row ->
-          List.iter f tyl
+          AppArgs.iter f tyl
       | _ ->
           iter_row f row
     end
@@ -995,7 +1002,7 @@ let printer_iter_type_expr f ty =
                  f ty)
             fields
       | Some (_, l) ->
-          List.iter f (List.tl l)
+          List.iter f (AppArgs.to_list l |> List.tl)
     end
   | Tfield(_, kind, ty1, ty2) ->
       if field_kind_repr kind = Fpublic then
@@ -1293,7 +1300,7 @@ let out_jkind_option_of_jkind jkind =
   match Jkind.get jkind with
   | Type ty -> begin
     match Jkind.Type.get ty with
-    | Const jkind -> 
+    | Const jkind ->
       let value_jkind = Jkind.Type.Const.Primitive.value.jkind in
       let value_or_null_jkind = Jkind.Type.Const.Primitive.value_or_null.jkind in
       let is_value = Jkind.Type.Const.equal jkind value_jkind
@@ -1408,7 +1415,7 @@ let rec tree_of_typexp mode alloc_mode ty =
         let t1 =
           if is_optional l then
             match get_desc (tpoly_get_mono ty1) with
-            | Tconstr(path, [ty], _)
+            | Tconstr(path, Applied [ty], _)
               when Path.same path Predef.path_option ->
                 tree_of_typexp mode arg_mode ty
             | _ -> Otyp_stuff "<hidden>"
@@ -1427,6 +1434,9 @@ let rec tree_of_typexp mode alloc_mode ty =
         if is_nth s && not (tyl'=[])
         then tree_of_typexp mode Alloc.Const.legacy (List.hd tyl')
         else Otyp_constr (tree_of_path (Some Type) p', tree_of_typlist mode tyl')
+    | Tapp (ty, tyl) ->
+        Otyp_app (tree_of_typexp mode Alloc.Const.legacy ty,
+                  tree_of_typlist mode tyl)
     | Tvariant row ->
         let Row {fields; name; closed; _} = row_repr row in
         let fields =
@@ -1590,7 +1600,7 @@ and tree_of_typobject mode fi nm =
         tree_of_typfields mode rest sorted_fields in
       let (fields, open_row) = pr_fields fi in
       Otyp_object {fields; open_row}
-  | Some (p, _ty :: tyl) ->
+  | Some (p, Applied (_ty :: tyl)) ->
       let args = tree_of_typlist mode tyl in
       let (p', s) = best_type_path p in
       assert (s = Id);
@@ -2239,7 +2249,7 @@ let rec tree_of_class_type mode params =
       let tr =
        if is_optional l then
          match get_desc ty with
-         | Tconstr(path, [ty], _) when Path.same path Predef.path_option ->
+         | Tconstr(path, Applied [ty], _) when Path.same path Predef.path_option ->
              tree_of_typexp mode ty
          | _ -> Otyp_stuff "<hidden>"
        else tree_of_typexp mode ty in

@@ -724,7 +724,7 @@ let unboxed_constant_or_raise env loc cst =
 (* Specific version of type_option, using newty rather than newgenty *)
 
 let type_option ty =
-  newty (Tconstr(Predef.path_option,[ty], ref Mnil))
+  newty (Tconstr(Predef.path_option, AppArgs.one ty, ref Mnil))
 
 let mkexp exp_desc exp_type exp_loc exp_env =
   { exp_desc; exp_type;
@@ -737,7 +737,7 @@ let type_option_none env ty loc =
 
 let extract_option_type env ty =
   match get_desc (expand_head env ty) with
-    Tconstr(path, [ty], _) when Path.same path Predef.path_option -> ty
+    Tconstr(path, Applied [ty], _) when Path.same path Predef.path_option -> ty
   | _ -> assert false
 
 let protect_expansion env ty =
@@ -1506,7 +1506,7 @@ let solve_constructor_annotation tps env name_list sty ty_args ty_ex =
       List.fold_left
         (fun rem tv ->
           match get_desc tv with
-            Tconstr(Path.Pident id, [], _) when List.mem id rem ->
+            Tconstr(Path.Pident id, Unapplied, _) when List.mem id rem ->
               list_remove id rem
           | _ ->
               raise (Error (cty.ctyp_loc, !env,
@@ -1684,7 +1684,7 @@ let build_or_pat env loc lid =
       Jkind.Type.Primitive.value
       ~why:(Type_argument {parent_path = path; position = i+1; arity})
     )
-  ) decl.type_params in
+  ) decl.type_params |> AppArgs.of_list in
   let row0 =
     let ty = expand_head env (newty(Tconstr(path, tyl, ref Mnil))) in
     match get_desc ty with
@@ -9407,7 +9407,7 @@ let report_literal_type_constraint expected_type const =
 let report_literal_type_constraint const = function
   | Some tr ->
       begin match get_desc Errortrace.(tr.expected.ty) with
-        Tconstr (typ, [], _) ->
+        Tconstr (typ, Unapplied, _) ->
           report_literal_type_constraint typ const
       | _ -> []
       end

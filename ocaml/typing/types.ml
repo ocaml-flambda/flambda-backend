@@ -39,8 +39,9 @@ and type_desc =
   | Tvar of { name : string option; jkind : jkind }
   | Tarrow of arrow_desc * type_expr * type_expr * commutable
   | Ttuple of (string option * type_expr) list
-  | Tconstr of Path.t * type_expr list * abbrev_memo ref
-  | Tobject of type_expr * (Path.t * type_expr list) option ref
+  | Tconstr of Path.t * app_args * abbrev_memo ref
+  | Tapp of type_expr * type_expr list
+  | Tobject of type_expr * (Path.t * app_args) option ref
   | Tfield of string * field_kind * type_expr * type_expr
   | Tnil
   | Tlink of type_expr
@@ -49,6 +50,10 @@ and type_desc =
   | Tunivar of { name : string option; jkind : jkind }
   | Tpoly of type_expr * type_expr list
   | Tpackage of Path.t * (Longident.t * type_expr) list
+
+and app_args =
+  | Unapplied
+  | Applied of type_expr list
 
 and arg_label =
   | Nolabel
@@ -64,7 +69,7 @@ and row_desc =
       row_more: type_expr;
       row_closed: bool;
       row_fixed: fixed_explanation option;
-      row_name: (Path.t * type_expr list) option }
+      row_name: (Path.t * app_args) option }
 and fixed_explanation =
   | Univar of type_expr | Fixed_private | Reified of Path.t | Rigid
 and row_field = [`some] row_field_gen
@@ -776,7 +781,7 @@ type change =
   | Clevel : type_expr * int -> change
   | Cscope : type_expr * int -> change
   | Cname :
-      (Path.t * type_expr list) option ref * (Path.t * type_expr list) option -> change
+      (Path.t * app_args) option ref * (Path.t * app_args) option -> change
   | Crow : [`none|`some] row_field_gen ref -> change
   | Ckind : [`var] field_kind_gen -> change
   | Ccommu : [`var] commutable_gen -> change
@@ -942,7 +947,7 @@ type row_desc_repr =
              more:type_expr;
              closed:bool;
              fixed:fixed_explanation option;
-             name:(Path.t * type_expr list) option }
+             name:(Path.t * app_args) option }
 
 let row_repr row =
   let fields = row_fields row in
@@ -1209,3 +1214,38 @@ let undo_compress (changes, _old) =
             Transient_expr.set_desc ty desc; r := !next
         | _ -> ())
         log
+
+(* Application arguments for [Tconstr] *)
+
+module AppArgs = struct
+  type t = app_args =
+    | Unapplied
+    | Applied of type_expr list
+
+  let one e = Applied [e]
+  let unapp = Unapplied
+
+  let of_list = function
+  | [] -> Unapplied
+  | args -> Applied args
+
+  let to_list = function
+  | Unapplied -> []
+  | Applied args -> args
+
+  let map f = function
+  | Unapplied -> Unapplied
+  | Applied args -> Applied (List.map f args)
+
+  let iter f = function
+  | Unapplied -> ()
+  | Applied args -> List.iter f args
+
+  let iter_with_list f xs = function
+  | Unapplied -> ()
+  | Applied args -> List.iter2 f xs args
+
+  let fold_left f init = function
+  | Unapplied -> init
+  | Applied args -> List.fold_left f init args
+end
