@@ -632,7 +632,7 @@ module Type = struct
             }
         in
         List.fold_left meet_mode base parsed_modes
-      | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
+      | Default | With _ | Kind_of _ | Arrow _ -> Misc.fatal_error "XXX unimplemented"
 
     module Sort = Sort.Const
     module Layout = Layout.Const
