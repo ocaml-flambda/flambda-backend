@@ -1629,22 +1629,26 @@ module Violation = struct
 
   let is_missing_cmi viol = Option.is_some viol.missing_cmi
 
+  type locale =
+    | Mode
+    | Layout
+
   let report_general preamble pp_former former ppf t =
     let mismatch_type =
       match t.violation with
       | Not_a_subjkind (k1, k2) ->
         if Misc.Le_result.is_le (Layout.sub k1.jkind.layout k2.jkind.layout)
-        then `Mode
-        else `Layout
-      | No_intersection _ -> `Layout
+        then Mode
+        else Layout
+      | No_intersection _ -> Layout
     in
     let layout_or_kind =
-      match mismatch_type with `Mode -> "kind" | `Layout -> "layout"
+      match mismatch_type with Mode -> "kind" | Layout -> "layout"
     in
     let format_layout_or_kind =
       match mismatch_type with
-      | `Mode -> fun ppf jkind -> Format.fprintf ppf "@,%a" format jkind
-      | `Layout -> fun ppf jkind -> Layout.format ppf jkind.jkind.layout
+      | Mode -> fun ppf jkind -> Format.fprintf ppf "@,%a" format jkind
+      | Layout -> fun ppf jkind -> Layout.format ppf jkind.jkind.layout
     in
     let subjkind_format verb k2 =
       match get k2 with
