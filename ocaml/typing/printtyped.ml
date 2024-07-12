@@ -396,7 +396,6 @@ and expression_extra i ppf x attrs =
       line i ppf "Texp_newtype %a\n" (typevar_jkind ~print_quote:false) (s, lay);
       attributes i ppf attrs;
   | Texp_mode_coerce modes ->
-      let modes = (modes :> string Location.loc list Location.loc) in
       line i ppf "Texp_mode_coerce %s\n"
         (String.concat ","
           (List.map

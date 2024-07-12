@@ -1107,7 +1107,7 @@ let default_mapper =
       | Default -> Default
       | Primitive_layout_or_abbreviation s ->
         let {txt; loc} =
-          map_loc this (s : Jkind.Const.t :> _ loc)
+          map_loc this s
         in
         Primitive_layout_or_abbreviation (Jkind.Const.mk txt loc)
       | Mod (t, mode_list) ->
@@ -1129,7 +1129,7 @@ let default_mapper =
       let map_const sub : Const.t -> Const.t =
         fun m ->
           let {txt; loc} =
-            map_loc sub (m : Const.t :> _ Location.loc)
+            map_loc sub m
           in
           Const.mk txt loc
       in
