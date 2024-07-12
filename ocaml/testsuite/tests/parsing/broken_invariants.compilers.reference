@@ -26,6 +26,10 @@ Line 2, characters 4-15:
 2 |  [%%missing_rhs]
         ^^^^^^^^^^^
 Error: broken invariant in parsetree: Module type substitution with no right hand side
+Line 3, characters 5-22:
+3 |   [%%underscore_as_rhs]
+         ^^^^^^^^^^^^^^^^^
+Error: broken invariant in parsetree: Module type substitution with underscore as the right hand side
 Line 2, characters 9-26:
 2 | let f ([%lt_empty_open_pat]) = ();;
              ^^^^^^^^^^^^^^^^^

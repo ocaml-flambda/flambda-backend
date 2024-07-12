@@ -490,6 +490,10 @@ module MT = struct
        let mty = sub.module_type sub mty in
        let mod_id = map_loc sub mod_id in
        Jmty_strengthen { mty; mod_id }
+
+  let map_module_type_declaration_type sub = function
+    | Pmtd_abstract | Pmtd_underscore as decl_type -> decl_type
+    | Pmtd_define ty -> Pmtd_define (sub.module_type sub ty)
 end
 
 
@@ -996,7 +1000,7 @@ let default_mapper =
       (fun this {pmtd_name; pmtd_type; pmtd_attributes; pmtd_loc} ->
          Mtd.mk
            (map_loc this pmtd_name)
-           ?typ:(map_opt (this.module_type this) pmtd_type)
+           (MT.map_module_type_declaration_type this pmtd_type)
            ~attrs:(this.attributes this pmtd_attributes)
            ~loc:(this.location this pmtd_loc)
       );

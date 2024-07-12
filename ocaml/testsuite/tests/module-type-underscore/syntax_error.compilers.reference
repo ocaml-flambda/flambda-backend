@@ -1,0 +1,5 @@
+Line 12, characters 19-20:
+12 |   module type T := _
+                        ^
+Error: Syntax error
+

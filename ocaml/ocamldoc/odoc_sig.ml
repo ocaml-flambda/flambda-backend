@@ -1431,8 +1431,9 @@ module Analyser =
             in
             let module_type_kind =
               match pmodtype_decl with
-                None -> None
-              | Some module_type ->
+                Pmtd_abstract -> None
+              | Pmtd_underscore -> raise (Failure (Odoc_messages.module_type_not_found current_module_name name.txt))
+              | Pmtd_define module_type ->
                 match sig_mtype with
                 | Some sig_mtype -> Some (analyse_module_type_kind env complete_name module_type sig_mtype)
                 | None -> None

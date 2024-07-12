@@ -1468,16 +1468,16 @@ and signature_item ctxt f x : unit =
       pp f "@[<hov2>module@ type@ %s%a@]%a"
         s.txt
         (fun f md -> match md with
-           | None -> ()
-           | Some mt ->
+           | Pmtd_abstract | Pmtd_underscore -> ()
+           | Pmtd_define mt ->
                pp_print_space f () ;
                pp f "@ =@ %a" (module_type ctxt) mt
         ) md
         (item_attributes ctxt) attrs
   | Psig_modtypesubst {pmtd_name=s; pmtd_type=md; pmtd_attributes=attrs} ->
       let md = match md with
-        | None -> assert false (* ast invariant *)
-        | Some mt -> mt in
+        | Pmtd_abstract | Pmtd_underscore -> assert false (* ast invariant *)
+        | Pmtd_define mt -> mt in
       pp f "@[<hov2>module@ type@ %s@ :=@ %a@]%a"
         s.txt (module_type ctxt) md
         (item_attributes ctxt) attrs
@@ -1766,8 +1766,8 @@ and structure_item ctxt f x =
       pp f "@[<hov2>module@ type@ %s%a@]%a"
         s.txt
         (fun f md -> match md with
-           | None -> ()
-           | Some mt ->
+           | Pmtd_abstract | Pmtd_underscore -> ()
+           | Pmtd_define mt ->
                pp_print_space f () ;
                pp f "@ =@ %a" (module_type ctxt) mt
         ) md

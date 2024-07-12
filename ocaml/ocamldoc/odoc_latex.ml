@@ -786,6 +786,9 @@ class latex =
             [ Code "module type of ";
               Code (self#relative_idents father s);
             ]
+      | Module_type_underscore ->
+          self#latex_of_text fmt
+            [ Code "_" ];
 
     method latex_of_module_kind fmt father kind =
       match kind with

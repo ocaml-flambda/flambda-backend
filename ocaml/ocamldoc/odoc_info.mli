@@ -566,6 +566,7 @@ module Module :
             (** The module type kind and the code of the with constraint. *)
       | Module_type_typeof of string
             (** by now only the code of the module expression *)
+      | Module_type_underscore
 
     (** Representation of a module type. *)
     and t_module_type = Odoc_module.t_module_type =

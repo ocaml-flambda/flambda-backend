@@ -8,7 +8,12 @@ let empty_apply loc f =
 
 let missing_rhs loc =
   let name = Location.mkloc "T" loc in
-  let mtd = H.Mtd.mk ~loc name in
+  let mtd = H.Mtd.mk ~loc name Pmtd_abstract in
+  H.Sig.modtype_subst ~loc mtd
+
+let underscore_as_rhs loc =
+  let name = Location.mkloc "T" loc in
+  let mtd = H.Mtd.mk ~loc name Pmtd_underscore in
   H.Sig.modtype_subst ~loc mtd
 
 let empty_let loc = H.Str.value ~loc Asttypes.Nonrecursive []
@@ -60,6 +65,7 @@ let structure_item mapper stri = match stri.pstr_desc with
 
 let signature_item mapper stri = match stri.psig_desc with
   | Psig_extension (({Location.txt="missing_rhs";loc},_),_) -> missing_rhs loc
+  | Psig_extension (({Location.txt="underscore_as_rhs";loc},_),_) -> underscore_as_rhs loc
   | _ -> super.signature_item mapper stri
 
 

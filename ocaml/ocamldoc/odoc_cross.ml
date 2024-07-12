@@ -425,7 +425,11 @@ and associate_in_module_type module_list (acc_b_modif, acc_incomplete_top_module
                   mta.mta_module <- Some mt ;
                   (true, acc_inc, acc_names)
         end
+
     | Module_type_typeof _ ->
+        (acc_b, acc_inc, acc_names)
+
+    | Module_type_underscore ->
         (acc_b, acc_inc, acc_names)
   in
   match mt.mt_kind with
@@ -968,6 +972,7 @@ and assoc_comments_module_type_kind parent_name module_list mtk =
       Module_type_with
         (assoc_comments_module_type_kind parent_name module_list mtk1, s)
   | Module_type_typeof _ -> mtk
+  | Module_type_underscore -> mtk
 
 and assoc_comments_class_kind parent_name module_list ck =
   match ck with

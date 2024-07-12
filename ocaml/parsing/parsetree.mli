@@ -921,15 +921,23 @@ and module_substitution =
 and module_type_declaration =
     {
      pmtd_name: string loc;
-     pmtd_type: module_type option;
+     pmtd_type: module_type_declaration_type;
      pmtd_attributes: attributes;  (** [... [\@\@id1] [\@\@id2]] *)
      pmtd_loc: Location.t;
     }
 (** Values of type [module_type_declaration] represents:
    - [S = MT],
+     when {{!module_type_declaration.pmtd_type}[pmtd_type]} is [Pmtd_define MT].
    - [S] for abstract module type declaration,
-     when {{!module_type_declaration.pmtd_type}[pmtd_type]} is [None].
+     when {{!module_type_declaration.pmtd_type}[pmtd_type]} is [Pmtd_abstract].
+   - [S = _] for inferring module type from definition in the signature,
+     when {{!module_type_declaration.pmtd_type}[pmtd_type]} is [Pmtd_underscore].
 *)
+
+and module_type_declaration_type =
+  | Pmtd_abstract
+  | Pmtd_underscore
+  | Pmtd_define of module_type
 
 and 'a open_infos =
     {

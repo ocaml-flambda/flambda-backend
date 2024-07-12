@@ -410,6 +410,10 @@ module MT = struct
     | Jmty_strengthen { mty; mod_id } ->
        iter sub mty;
        iter_loc sub mod_id
+
+  let iter_module_type_declaration_type sub = function
+    | Pmtd_abstract | Pmtd_underscore -> ()
+    | Pmtd_define ty -> sub.module_type sub ty
 end
 
 
@@ -870,7 +874,7 @@ let default_iterator =
     module_type_declaration =
       (fun this {pmtd_name; pmtd_type; pmtd_attributes; pmtd_loc} ->
          iter_loc this pmtd_name;
-         iter_opt (this.module_type this) pmtd_type;
+         MT.iter_module_type_declaration_type this pmtd_type;
          this.location this pmtd_loc;
          this.attributes this pmtd_attributes;
       );

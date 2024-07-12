@@ -551,12 +551,12 @@ and module_substitution =
 
 and module_type_declaration =
     {
-     mtd_id: Ident.t;
-     mtd_name: string loc;
-     mtd_uid: Uid.t;
-     mtd_type: module_type option;
-     mtd_attributes: attribute list;
-     mtd_loc: Location.t;
+      mtd_id: Ident.t;
+      mtd_name: string loc;
+      mtd_uid: Uid.t;
+      mtd_type: module_type option;
+      mtd_attributes: attribute list;
+      mtd_loc: Location.t;
     }
 
 and 'a open_infos =

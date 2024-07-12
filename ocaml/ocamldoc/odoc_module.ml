@@ -88,6 +88,7 @@ and module_type_kind =
   | Module_type_alias of module_type_alias (** complete name and corresponding module type if we found it *)
   | Module_type_with of module_type_kind * string (** the module type kind and the code of the with constraint *)
   | Module_type_typeof of string (** by now only the code of the module expression *)
+  | Module_type_underscore
 
 and t_module_type = {
     mt_name : Name.t ;
@@ -218,6 +219,7 @@ let rec module_type_elements ?(trans=true) mt =
         else
           []
   | Some (Module_type_typeof _) -> []
+  | Some (Module_type_underscore) -> []
   in
   iter_kind mt.mt_kind
 
@@ -341,6 +343,7 @@ let rec module_type_parameters ?(trans=true) mt =
     | Some (Module_type_typeof _) -> []
       | None ->
         []
+    | Some (Module_type_underscore) -> []
   in
   iter mt.mt_kind
 
@@ -405,6 +408,7 @@ let rec module_type_is_functor mt =
         iter (Some k)
     | Some (Module_type_struct _)
     | Some (Module_type_typeof _)
+    | Some (Module_type_underscore)
     | None -> false
   in
   iter mt.mt_kind

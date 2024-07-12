@@ -100,6 +100,7 @@ type error =
       old_source_file : Misc.filepath;
     }
   | Submode_failed of Mode.Value.error
+  | Underscore_not_allowed_in_signature
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -1115,8 +1116,13 @@ and approx_sig env ssg =
           approx_sig env srem
 
 and approx_modtype_info env sinfo =
+  let mtd_type = match sinfo.pmtd_type with
+    | Pmtd_underscore -> raise (Error (sinfo.pmtd_loc, env, Underscore_not_allowed_in_signature))
+    | Pmtd_abstract -> None
+    | Pmtd_define ty -> Some (approx_modtype env ty)
+  in
   {
-   mtd_type = Option.map (approx_modtype env) sinfo.pmtd_type;
+   mtd_type;
    mtd_attributes = sinfo.pmtd_attributes;
    mtd_loc = sinfo.pmtd_loc;
    mtd_uid = Uid.internal_not_actually_unique;
@@ -1934,8 +1940,10 @@ and transl_modtype_decl env pmtd =
 
 and transl_modtype_decl_aux env
     {pmtd_name; pmtd_type; pmtd_attributes; pmtd_loc} =
-  let tmty =
-    Option.map (transl_modtype (Env.in_signature true env)) pmtd_type
+  let tmty = match pmtd_type with
+    | Pmtd_abstract -> None
+    | Pmtd_underscore -> failwith "underscore not implemented"
+    | Pmtd_define ty -> Some (transl_modtype (Env.in_signature true env) ty)
   in
   let decl =
     {
@@ -4110,6 +4118,9 @@ let report_error ~loc _env = function
         "This value is %a, but expected to be %a because it is inside a module."
         (Mode.Value.Const.print_axis ax) left
         (Mode.Value.Const.print_axis ax) right
+  | Underscore_not_allowed_in_signature ->
+    Location.errorf ~loc
+      "Inferrence of module types is not allowed within a signature."
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env_error env

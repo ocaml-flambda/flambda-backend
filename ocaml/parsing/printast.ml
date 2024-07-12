@@ -743,8 +743,9 @@ and signature_item i ppf x =
       attribute i ppf "Psig_attribute" a
 
 and modtype_declaration i ppf = function
-  | None -> line i ppf "#abstract"
-  | Some mt -> module_type (i+1) ppf mt
+  | Pmtd_abstract -> line i ppf "#abstract"
+  | Pmtd_underscore -> line i ppf "#underscore"
+  | Pmtd_define mt -> module_type (i+1) ppf mt
 
 and with_constraint i ppf x =
   match x with
