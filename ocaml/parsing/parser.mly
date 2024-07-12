@@ -30,7 +30,6 @@ open Parsetree
 open Ast_helper
 open Docstrings
 open Docstrings.WithMenhir
-module N_ary = Jane_syntax.N_ary_functions
 module Mode = Jane_syntax.Mode_expr
 
 let mkloc = Location.mkloc
@@ -264,12 +263,13 @@ let rec mktailpat nilloc = let open Location in function
 let mkstrexp e attrs =
   { pstr_desc = Pstr_eval (e, attrs); pstr_loc = e.pexp_loc }
 
+let mkexp_desc_type_constraint e t =
+  match t with
+  | Pconstraint t -> Pexp_constraint(e, t)
+  | Pcoerce(t1, t2)  -> Pexp_coerce(e, t1, t2)
+
 let mkexp_type_constraint ?(ghost=false) ~loc e t =
-  let desc =
-    match t with
-  | N_ary.Pconstraint t -> Pexp_constraint(e, t)
-  | N_ary.Pcoerce(t1, t2)  -> Pexp_coerce(e, t1, t2)
-  in
+  let desc = mkexp_desc_type_constraint e t in
   if ghost then ghexp ~loc desc
   else mkexp ~loc desc
 
@@ -746,7 +746,6 @@ let class_of_let_bindings ~loc lbs body =
    parameter.
 *)
 let all_params_as_newtypes =
-  let open N_ary in
   let is_newtype { pparam_desc; _ } =
     match pparam_desc with
     | Pparam_newtype _ -> true
@@ -770,7 +769,7 @@ let mkghost_newtype_function_body newtypes body_constraint body ~loc =
   let wrapped_body =
     match body_constraint with
     | None -> body
-    | Some { N_ary.type_constraint; mode_annotations } ->
+    | Some { type_constraint; mode_annotations } ->
         let {Location.loc_start; loc_end} = body.pexp_loc in
         let loc = loc_start, loc_end in
         let body = mkexp_type_constraint ~ghost:true ~loc body type_constraint in
@@ -778,23 +777,21 @@ let mkghost_newtype_function_body newtypes body_constraint body ~loc =
   in
   mk_newtypes ~loc newtypes wrapped_body
 
-let n_ary_function expr ~attrs ~loc =
-  wrap_exp_attrs ~loc (N_ary.expr_of expr ~loc:(make_loc loc)) attrs
-
 let mkfunction ~loc ~attrs params body_constraint body =
   match body with
-  | N_ary.Pfunction_cases _ ->
-      n_ary_function (params, body_constraint, body) ~loc ~attrs
-  | N_ary.Pfunction_body body_exp -> begin
+  | Pfunction_cases _ ->
+      mkexp_attrs (Pexp_function (params, body_constraint, body)) attrs ~loc
+  | Pfunction_body body_exp -> begin
     (* If all the params are newtypes, then we don't create a function node;
-       we create a newtype node. *)
+       we create nested newtype nodes. *)
       match all_params_as_newtypes params with
-      | None -> n_ary_function (params, body_constraint, body) ~loc ~attrs
+      | None ->
+          mkexp_attrs (Pexp_function (params, body_constraint, body)) attrs ~loc
       | Some newtypes ->
           wrap_exp_attrs
             ~loc
             (mkghost_newtype_function_body newtypes body_constraint body_exp
-               ~loc)
+                ~loc)
             attrs
     end
 
@@ -2567,8 +2564,15 @@ class_type_declarations:
   | FUNCTION ext_attributes match_cases
       { let loc = make_loc $sloc in
         let cases = $3 in
-        mkfunction [] None (Pfunction_cases (cases, loc, []))
-          ~loc:$sloc ~attrs:$2
+        (* There are two choices of where to put attributes: on the
+           Pexp_function node; on the Pfunction_cases body. We put them on the
+           Pexp_function node here because the compiler only uses
+           Pfunction_cases attributes for enabling/disabling warnings in
+           typechecking. For standalone function cases, we want the compiler to
+           respect, e.g., [@inline] attributes.
+         *)
+        mkfunction [] None (Pfunction_cases (cases, loc, [])) ~attrs:$2
+          ~loc:$sloc
       }
 ;
 
@@ -2719,7 +2723,7 @@ let_pattern:
 fun_expr:
     simple_expr %prec below_HASH
       { $1 }
-  | expr_attrs
+  | fun_expr_attrs
       { let desc, attrs = $1 in
         mkexp_attrs ~loc:$sloc desc attrs }
     /* Cf #5939: we used to accept (fun p when e0 -> e) */
@@ -2727,7 +2731,7 @@ fun_expr:
       MINUSGREATER fun_body
       { let body_constraint =
           Option.map
-            (fun x : N_ary.function_constraint ->
+            (fun x ->
               { type_constraint = Pconstraint x
               ; mode_annotations = Mode.empty
               })
@@ -2769,7 +2773,7 @@ fun_expr:
 %inline expr:
   | or_function(fun_expr) { $1 }
 ;
-%inline expr_attrs:
+%inline fun_expr_attrs:
   | LET MODULE ext_attributes mkrhs(module_name) module_binding_body IN seq_expr
       { Pexp_letmodule($4, $5, $7), $3 }
   | LET EXCEPTION ext_attributes let_exception_declaration IN seq_expr
@@ -3086,9 +3090,9 @@ let_binding_body_no_punning:
         let typ, modes1 = $3 in
         let t =
           Option.map (function
-          | N_ary.Pconstraint t ->
+          | Pconstraint t ->
              Pvc_constraint { locally_abstract_univars = []; typ=t }
-          | N_ary.Pcoerce (ground, coercion) -> Pvc_coercion { ground; coercion}
+          | Pcoerce (ground, coercion) -> Pvc_coercion { ground; coercion}
           ) typ
         in
         let modes = Mode.concat modes0 modes1 in
@@ -3225,13 +3229,14 @@ strict_binding_modes:
   (* CR zqian: The above [type_constraint] should be replaced by [constraint_]
     to support mode annotation *)
     { fun mode_annotations ->
-        let constraint_ : N_ary.function_constraint option =
+        let constraint_ : function_constraint option =
           match $2 with
           | None -> None
           | Some type_constraint -> Some { type_constraint; mode_annotations }
         in
         let exp = mkfunction $1 constraint_ $4 ~loc:$sloc ~attrs:(None, []) in
         { exp with pexp_loc = { exp.pexp_loc with loc_ghost = true } }
+
     }
 ;
 %inline strict_binding:
@@ -3242,15 +3247,15 @@ fun_body:
   | FUNCTION ext_attributes match_cases
       { let ext, attrs = $2 in
         match ext with
-        | None -> N_ary.Pfunction_cases ($3, make_loc $sloc, attrs)
+        | None -> Pfunction_cases ($3, make_loc $sloc, attrs)
         | Some _ ->
           (* function%foo extension nodes interrupt the arity *)
-          let cases = N_ary.Pfunction_cases ($3, make_loc $sloc, []) in
+          let cases = Pfunction_cases ($3, make_loc $sloc, []) in
           let function_ = mkfunction [] None cases ~loc:$sloc ~attrs:$2 in
-          N_ary.Pfunction_body function_
+          Pfunction_body function_
       }
   | fun_seq_expr
-      { N_ary.Pfunction_body $1 }
+      { Pfunction_body $1 }
 ;
 %inline match_cases:
   xs = preceded_or_separated_nonempty_llist(BAR, match_case)
@@ -3276,20 +3281,20 @@ fun_param_as_list:
         in
         List.map
           (fun (newtype, jkind) ->
-             { N_ary.pparam_loc = loc;
+             { pparam_loc = loc;
                pparam_desc = Pparam_newtype (newtype, jkind)
              })
           ty_params
       }
   | LPAREN TYPE mkrhs(LIDENT) COLON jkind_annotation RPAREN
-      { [ { N_ary.pparam_loc = make_loc $sloc;
+      { [ { pparam_loc = make_loc $sloc;
             pparam_desc = Pparam_newtype ($3, Some $5)
           }
         ]
       }
   | labeled_simple_pattern
       { let a, b, c = $1 in
-        [ { N_ary.pparam_loc = make_loc $sloc;
+        [ { pparam_loc = make_loc $sloc;
             pparam_desc = Pparam_val (a, b, c)
           }
         ]
@@ -3419,9 +3424,9 @@ record_expr_content:
     { es }
 ;
 type_constraint:
-    COLON core_type                             { N_ary.Pconstraint $2 }
-  | COLON core_type COLONGREATER core_type      { N_ary.Pcoerce (Some $2, $4) }
-  | COLONGREATER core_type                      { N_ary.Pcoerce (None, $2) }
+    COLON core_type                             { Pconstraint $2 }
+  | COLON core_type COLONGREATER core_type      { Pcoerce (Some $2, $4) }
+  | COLONGREATER core_type                      { Pcoerce (None, $2) }
   | COLON error                                 { syntax_error() }
   | COLONGREATER error                          { syntax_error() }
 ;

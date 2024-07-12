@@ -278,11 +278,12 @@ let make_method loc cl_num expr =
   let pat =
     Pat.alias ~loc (Pat.var ~loc (mkid "self-*")) (mkid ("self-" ^ cl_num))
   in
-  Jane_syntax.N_ary_functions.expr_of ~loc:expr.pexp_loc
-    ([ { pparam_desc = Pparam_val (Nolabel, None, pat);
-         pparam_loc = pat.ppat_loc;
-       }
-     ], None, Pfunction_body expr)
+  Exp.function_ ~loc:expr.pexp_loc
+    [ { pparam_desc = Pparam_val (Nolabel, None, pat);
+        pparam_loc = pat.ppat_loc;
+      }
+    ]
+    None (Pfunction_body expr)
 
 (*******************************)
 
