@@ -1371,8 +1371,6 @@ module Type = struct
 
   let () = Types.set_jkind_equal equal
 
-  let equate = equate_or_equal ~allow_mutation:true
-
   (* Not all jkind history reasons are created equal. Some are more helpful than others.
       This function encodes that information.
 
@@ -1406,40 +1404,12 @@ module Type = struct
           rhs_history = rhs.history
         }
 
-  let has_intersection t1 t2 =
-    Option.is_some (Jkind_desc.intersection t1.jkind t2.jkind)
-
-  let intersection_or_error ~reason t1 t2 =
-    match Jkind_desc.intersection t1.jkind t2.jkind with
-    | None -> Error (Violation.of_ (No_intersection (t1, t2)))
-    | Some jkind ->
-      Ok
-        { jkind;
-          history = combine_histories reason t1 t2;
-          has_warned = t1.has_warned || t2.has_warned
-        }
-
   (* this is hammered on; it must be fast! *)
   let check_sub sub super = Jkind_desc.sub sub.jkind super.jkind
-
-  let sub sub super = Misc.Le_result.is_le (check_sub sub super)
-
-  let sub_or_error t1 t2 =
-    if sub t1 t2 then Ok () else Error (Violation.of_ (Not_a_subjkind (t1, t2)))
-
-  let sub_with_history sub super =
-    match check_sub sub super with
-    | Less | Equal ->
-      Ok { sub with history = combine_histories Subjkind sub super }
-    | Not_le -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
 
   let is_void_defaulting = function
     | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
     | _ -> false
-
-  (* This doesn't do any mutation because mutating a sort variable can't make it
-     any, and modal upper bounds are constant. *)
-  let is_max jkind = sub Primitive.any_dummy_jkind jkind
 
   let has_layout_any jkind =
     match jkind.jkind.layout with Any -> true | _ -> false
@@ -2088,7 +2058,7 @@ let arrow_connective_or_error ~on_args ~on_result
     ({ args = args2; result = result2 } : _ Jkind_types.arrow) =
   let args = List.map2 on_args args1 args2 in
   let result = on_result result1 result2 in
-  (* TODO jbachurski: collect all errors rather than picking first? *)
+  (* FIXME jbachurski: collect all errors rather than picking first? *)
   if List.exists Result.is_error args || Result.is_error result
   then List.find Result.is_error (result :: args)
   else
@@ -2160,10 +2130,12 @@ let sub_with_history sub super =
     match (sub, super : t * t) with
     | Type ty, Type ty' ->
       Ok (Type { ty with history = Type.combine_histories Subjkind ty ty' } : t)
-    (* TODO jbachurski: Is there a sensible way to combine histories here? *)
+    (* FIXME jbachurski: Is there a sensible way to combine histories here? *)
     | _ -> Ok sub)
   | Not_le -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
 
+(* This doesn't do any mutation because mutating a sort variable can't make it
+   any, and modal upper bounds are constant. *)
 let is_max jkind = sub (Type Type.Primitive.any_dummy_jkind) jkind
 
 let has_layout_any (jkind : t) =

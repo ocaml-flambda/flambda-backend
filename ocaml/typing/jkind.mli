@@ -336,50 +336,6 @@ module Type : sig
   (******************************)
   (* relations *)
 
-  (** This checks for equality, and sets any variables to make two jkinds
-    equal, if possible. e.g. [equate] on a var and [value] will set the
-    variable to be [value] *)
-  val equate : t -> t -> bool
-
-  (** This checks for equality, but has the invariant that it can only be called
-    when there is no need for unification; e.g. [equal] on a var and [value]
-    will crash.
-
-    CR layouts (v1.5): At the moment, this is actually the same as [equate]! *)
-  val equal : t -> t -> bool
-
-  (** Checks whether two jkinds have a non-empty intersection. Might mutate
-    sort variables. *)
-  val has_intersection : t -> t -> bool
-
-  (* TODO jbachurski: Should fallibles (Violation) be defined for Jkind.Type?
-     Are relations needed at all outside type inference, where they are general? *)
-
-  (** Finds the intersection of two jkinds, constraining sort variables to
-    create one if needed, or returns a [Violation.t] if an intersection does
-    not exist.  Can update the jkinds.  The returned jkind's history
-    consists of the provided reason followed by the history of the first
-    jkind argument.  That is, due to histories, this function is asymmetric;
-    it should be thought of as modifying the first jkind to be the
-    intersection of the two, not something that modifies the second jkind. *)
-  val intersection_or_error :
-    reason:History.interact_reason -> t -> t -> (t, Violation.t) Result.t
-
-  (** [sub t1 t2] says whether [t1] is a subjkind of [t2]. Might update
-    either [t1] or [t2] to make their layouts equal.*)
-  val sub : t -> t -> bool
-
-  (** [sub_or_error t1 t2] returns [Ok ()] iff [t1] is a subjkind of
-  of [t2]. Otherwise returns an appropriate error to report to the user. *)
-  val sub_or_error : t -> t -> (unit, Violation.t) result
-
-  (** Like [sub], but returns the subjkind with an updated history. *)
-  val sub_with_history : t -> t -> (t, Violation.t) result
-
-  (** Checks to see whether a jkind is the maximum jkind. Never does any
-    mutation. *)
-  val is_max : t -> bool
-
   (** Checks to see whether a jkind is has layout. Never does any mutation. *)
   val has_layout_any : t -> bool
 
