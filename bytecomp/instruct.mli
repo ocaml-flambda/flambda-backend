@@ -19,11 +19,11 @@ open Lambda
 
 (* Structure of compilation environments *)
 
-type closure_entry =
+type closure_entry = Debug_event.closure_entry =
   | Free_variable of int
   | Function of int
 
-type closure_env =
+type closure_env = Debug_event.closure_env =
   | Not_in_closure
   | In_closure of {
       entries: closure_entry Ident.tbl; (* Offsets of the free variables and
