@@ -71,6 +71,7 @@ let compute_variance env visited vari ty =
         if tl = [] then () else begin
           try
             let decl = Env.find_type path env in
+            let decl = Env.with_expanded_constructor_jkind decl in
             List.iter2
               (fun ty v -> compute_variance_rec (compose vari v) ty)
               tl decl.type_variance

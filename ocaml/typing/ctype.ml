@@ -2088,21 +2088,17 @@ let is_datatype_decl (k : type_decl_kind) =
   | Type_record _ | Type_variant _ | Type_open -> true
   | Type_abstract _ -> false
 
+let find_type_opt p env =
+  try Some (Env.find_type p env) with Not_found -> None
+
 let rec jkind_of_decl_unapplied env (decl : type_declaration) : higher_jkind option =
   (* FIXME jbachurski: Shouldn't we look at type_variance and type_separability here? *)
   if decl.type_arity > 0 && is_datatype_decl decl.type_kind then
     Some (Arrow
     { args = List.map (type_jkind env) decl.type_params
     ; result = decl.type_jkind })
-  (* else if (decl.type_arity = 0)
-          && Jkind.is_higher decl.type_jkind
-          && (match Option.map get_desc decl.type_manifest with
-              | Some (Tconstr (path, [], _))
-                when is_datatype_decl (Env.find_type path env).type_kind -> true
-              | Some (Tconstr (_, [], _))
-                when decl.type_arity = 0 -> true
-              | _ -> false) then
-    Some decl.type_jkind *)
+  else if decl.type_arity = 0 then
+    Some decl.type_jkind
   else None
 
 (* We assume here that [get_unboxed_type_representation] has already been
@@ -2118,16 +2114,19 @@ and estimate_type_jkind env ty =
   let open Jkind in
   match get_desc ty with
   | Tconstr(p, tys, _) -> begin
-    match (try Some (Env.find_type p env) with Not_found -> None) with
+    match find_type_opt p env with
     | Some decl -> begin
-      match jkind_of_decl_unapplied env decl with
-      | Some jkind when tys = [] -> Jkind jkind
-      | Some (Arrow { args; result }) ->
-        if args = List.map (type_jkind env) tys
-        then Jkind result
-        else failwith "bad higher kind application"
-      | Some (Type _) -> failwith "application to base kind"
-      | None -> Jkind decl.type_jkind
+      match jkind_of_decl_unapplied env decl, tys with
+      | Some jkind, [] -> Jkind jkind
+      | None, [] -> failwith "cannot assign jkind to this unapplied type constructor"
+      | Some (Arrow { args = _; result } as _k), _ ->
+        (* let subs = List.map (type_jkind env) tys in *)
+        (* if List.for_all2 Jkind.sub subs args *)
+        (* if List.length subs <> List.length args then  *)
+        Jkind result
+        (* else failwith (Format.asprintf "bad higher kind application") *)
+      | Some (Type _), _ -> failwith "application to base kind"
+      | None, _ -> Jkind decl.type_jkind
     end
     | None -> Jkind (Primitive.any ~why:(Missing_cmi p))
   end
@@ -4698,7 +4697,7 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
               | Invariant | Bivariant ->
                   moregen_list inst_nongen variance type_pairs env tl1 tl2
               | _ ->
-                match Env.find_type p1 env with
+                match Env.find_type p1 env |> Env.with_expanded_constructor_jkind with
                 | decl ->
                     moregen_param_list inst_nongen variance type_pairs env
                       decl.type_variance tl1 tl2

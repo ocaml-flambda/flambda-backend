@@ -446,7 +446,8 @@ let check_type
     | (Tconstr(_,[],_)    , _      ) -> empty
     (* Type constructor case. *)
     | (Tconstr(path,tys,_), m      ) ->
-        let msig = (Env.find_type path env).type_separability in
+        let decl = Env.with_expanded_constructor_jkind (Env.find_type path env) in
+        let msig = decl.type_separability in
         let on_param context (ty, m_param) =
           let hyps = match m_param with
             | Ind -> Hyps.guard hyps

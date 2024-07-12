@@ -139,6 +139,10 @@ val normalize_value_path: Location.t option -> t -> Path.t -> Path.t
 val normalize_modtype_path: t -> Path.t -> Path.t
 (* Normalize a module type path *)
 
+(* Expand a higher-order jkind in a type declaration by moving arrow arguments
+   into appropriate type parameter fields of the declaration *)
+val with_expanded_constructor_jkind : type_declaration -> type_declaration
+
 val reset_required_globals: unit -> unit
 val get_required_globals: unit -> Compilation_unit.t list
 val add_required_global: Path.t -> t -> unit

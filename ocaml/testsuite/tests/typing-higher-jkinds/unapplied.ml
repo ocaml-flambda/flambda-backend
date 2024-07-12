@@ -13,17 +13,14 @@ type it : value = int t
 type it' = int t
 
 [%%expect {|
-Line 1, characters 18-23:
-1 | type it : value = int t
-                      ^^^^^
-Error: The type constructor t expects 0 argument(s),
-       but is here applied to 1 argument(s)
+type it = int t
+type it' = int t
 |}]
 
 module M : sig
   type k
 end = struct
-  type k = int list
+  type k = int t
 end
 
 [%%expect {|
@@ -73,4 +70,58 @@ Error: Signature mismatch:
          type t : (value, value) => value
        The layout of the first is ((value) => value) (...??)
        But the layout of the first must be a sublayout of ((value, value) => value) (...??)
+|}]
+
+(* FIXME jbachurski: This should fail at list, not t. *)
+type s = t list
+
+[%%expect {|
+Line 1, characters 9-10:
+1 | type s = t list
+             ^
+Error: The type constructor t expects 1 argument(s),
+       but is here applied to 0 argument(s)
+|}]
+
+module type M = sig
+  val f : ('a : value => value). 'a -> 'a
+end
+
+[%%expect {|
+module type M = sig val f : ('a : ((higher))). 'a -> 'a end
+|}]
+
+type r : (value => value) => value
+
+[%%expect {|
+type r : ((value) => value) => value
+|}]
+
+type ('a : value => value) r'
+
+[%%expect {|
+type ('a : ((higher))) r'
+|}]
+
+module type M = sig
+  val g : ('a : value => value). 'a r -> 'a r
+end
+
+[%%expect{|
+module type M = sig val g : ('a : ((higher))). 'a r -> 'a r end
+|}]
+
+module type M = sig
+  type r : (value => value) => value
+  type s : value => value
+  val g : int s r -> int s r
+end
+
+[%%expect{|
+module type M =
+  sig
+    type r : ((value) => value) => value
+    type s : (value) => value
+    val g : int s r -> int s r
+  end
 |}]

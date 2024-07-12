@@ -999,7 +999,8 @@ let rec check_constraints_rec env loc visited ty =
         with Not_found ->
           raise (Error(loc, Unavailable_type_constructor path)) in
       (* Don't perform the instantiation check for unapplied constructors *)
-      if args <> [] then begin
+      if args <> [] && decl.type_arity > 0 then begin
+        let decl = Env.with_expanded_constructor_jkind decl in
         let ty' = Ctype.newconstr path (Ctype.instance_list decl.type_params) in
         (* We don't expand the error trace because that produces types that
            *already* violate the constraints -- we need to report a problem with
