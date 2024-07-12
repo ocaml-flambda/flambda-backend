@@ -22,6 +22,9 @@
     doesn't change during the execution of the compiler.
 *)
 
+(* CR aodintsov/mshinwell: merge the remaining flambda-backend changes
+   upstream *)
+
 val add_dir : hidden:bool -> string -> unit
 (** Add a directory to the end of the load path (i.e. at lowest priority.) *)
 
@@ -40,28 +43,6 @@ module Dir : sig
   val basenames : t -> string list
   (** All the files in that directory. This doesn't include files in
       sub-directories of this directory. *)
-<<<<<<< HEAD
-||||||| 121bedcfd2
-
-  val find : t -> string -> string option
-  (** [find dir fn] returns the full path to [fn] in [dir]. *)
-
-  val find_uncap : t -> string -> string option
-  (** As {!find}, but search also for uncapitalized name, i.e. if name is
-      Foo.ml, either /path/Foo.ml or /path/foo.ml may be returned. *)
-=======
-
-  val hidden : t -> bool
-  (** If the modules in this directory should not be bound in the initial
-      scope *)
-
-  val find : t -> string -> string option
-  (** [find dir fn] returns the full path to [fn] in [dir]. *)
-
-  val find_normalized : t -> string -> string option
-  (** As {!find}, but search also for uncapitalized name, i.e. if name is
-      Foo.ml, either /path/Foo.ml or /path/foo.ml may be returned. *)
->>>>>>> 5.2.0
 end
 
 type auto_include_callback =
@@ -102,16 +83,9 @@ val find : string -> string
     filename is a basename, i.e. doesn't contain a directory
     separator. *)
 
-val find_normalized : string -> string
-(** Same as [find], but search also for normalized unit name (see
-    {!Misc.normalized_unit_filename}), i.e. if name is [Foo.ml], allow
-    [/path/Foo.ml] and [/path/foo.ml] to match. *)
-
-type visibility = Visible | Hidden
-
-val find_normalized_with_visibility : string -> string * visibility
-(** Same as [find_normalized], but also reports whether the cmi was found in a
-    -I directory (Visible) or a -H directory (Hidden) *)
+val find_uncap : string -> string
+(** Same as [find], but search also for uncapitalized name, i.e.  if
+    name is Foo.ml, allow /path/Foo.ml and /path/foo.ml to match. *)
 
 type visibility = Visible | Hidden
 
