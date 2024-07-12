@@ -138,30 +138,9 @@ module Exp:
     val constant: ?loc:loc -> ?attrs:attrs -> constant -> expression
     val let_: ?loc:loc -> ?attrs:attrs -> rec_flag -> value_binding list
               -> expression -> expression
-<<<<<<< HEAD
-
-    (* We can delete these "prefer_jane_syntax" nudges once we merge
-       syntactic arity from upstream OCaml.
-    *)
-
-    val fun_: ?loc:loc -> ?attrs:attrs -> arg_label -> expression option
-              -> pattern -> expression -> expression
-    [@@alert
-      prefer_jane_syntax "Prefer Jane Syntax for constructing functions"]
-
-    val function_: ?loc:loc -> ?attrs:attrs -> case list -> expression
-    [@@alert
-      prefer_jane_syntax "Prefer Jane Syntax for constructing functions"]
-
-||||||| 121bedcfd2
-    val fun_: ?loc:loc -> ?attrs:attrs -> arg_label -> expression option
-              -> pattern -> expression -> expression
-    val function_: ?loc:loc -> ?attrs:attrs -> case list -> expression
-=======
     val function_ : ?loc:loc -> ?attrs:attrs -> function_param list
                    -> type_constraint option -> function_body
                    -> expression
->>>>>>> 5.2.0
     val apply: ?loc:loc -> ?attrs:attrs -> expression
                -> (arg_label * expression) list -> expression
     val match_: ?loc:loc -> ?attrs:attrs -> expression -> case list

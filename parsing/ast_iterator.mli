@@ -72,13 +72,9 @@ type iterator = {
   signature_item_jane_syntax: iterator -> Jane_syntax.Signature_item.t -> unit;
   structure: iterator -> structure -> unit;
   structure_item: iterator -> structure_item -> unit;
-<<<<<<< HEAD
   structure_item_jane_syntax: iterator -> Jane_syntax.Structure_item.t -> unit;
-||||||| 121bedcfd2
-=======
   toplevel_directive: iterator -> toplevel_directive -> unit;
   toplevel_phrase: iterator -> toplevel_phrase -> unit;
->>>>>>> 5.2.0
   typ: iterator -> core_type -> unit;
   typ_jane_syntax: iterator -> Jane_syntax.Core_type.t -> unit;
   typ_mode_syntax : iterator -> Jane_syntax.Mode_expr.t -> core_type -> unit;
