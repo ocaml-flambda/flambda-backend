@@ -627,7 +627,7 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbytes_set_f32 false
   | Pbytes_set_64 false
   | Pbytes_set_128 { unsafe = false; _ }
-  | Pbigstring_load_16 { unsafe = false }
+  | Pbigstring_load_16 { unsafe = false; index_kind = _ }
   | Pbigstring_load_32 { unsafe = false; mode = _; boxed = _ }
   | Pbigstring_load_f32 { unsafe = false; mode = _; boxed = _ }
   | Pbigstring_load_64 { unsafe = false; mode = _; boxed = _ }
@@ -724,7 +724,7 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbytes_set_f32 true
   | Pbytes_set_64 true
   | Pbytes_set_128 { unsafe = true; _ }
-  | Pbigstring_load_16 { unsafe = true }
+  | Pbigstring_load_16 { unsafe = true; index_kind = _ }
   | Pbigstring_load_32 { unsafe = true; mode = _; boxed = _ }
   | Pbigstring_load_f32 { unsafe = true; mode = _; boxed = _ }
   | Pbigstring_load_64 { unsafe = true; mode = _; boxed = _ }

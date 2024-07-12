@@ -651,6 +651,13 @@ CAMLprim value caml_ba_uint8_get16(value vb, value vind)
   return Val_int(res);
 }
 
+CAMLprim value caml_ba_uint8_get16_indexed_by_int64(value array, value index)
+{
+  int64_t idx = Int64_val(index);
+  if (idx != Long_val(Val_long(idx))) caml_array_bound_error();
+  return caml_ba_uint8_get16(array, Val_long(idx));
+}
+
 CAMLprim value caml_ba_uint8_get32(value vb, value vind)
 {
   uint32_t res;

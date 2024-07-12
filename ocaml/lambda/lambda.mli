@@ -239,7 +239,7 @@ type primitive =
   | Pbytes_set_128 of { unsafe : bool }
   (* load/set 16,32,64,128 bits from a
      (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t : (unsafe) *)
-  | Pbigstring_load_16 of { unsafe : bool }
+  | Pbigstring_load_16 of { unsafe : bool; index_kind : array_index_kind }
   | Pbigstring_load_32 of { unsafe : bool; mode: alloc_mode; boxed : bool }
   | Pbigstring_load_f32 of { unsafe : bool; mode: alloc_mode; boxed : bool }
   | Pbigstring_load_64 of { unsafe : bool; mode: alloc_mode; boxed : bool }

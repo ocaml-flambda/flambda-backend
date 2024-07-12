@@ -551,7 +551,10 @@ let comp_primitive stack_info p sz args =
   | Pbigarrayref(_, n, _, _) -> Kccall("caml_ba_get_" ^ Int.to_string n, n + 1)
   | Pbigarrayset(_, n, _, _) -> Kccall("caml_ba_set_" ^ Int.to_string n, n + 2)
   | Pbigarraydim(n) -> Kccall("caml_ba_dim_" ^ Int.to_string n, 1)
-  | Pbigstring_load_16(_) -> Kccall("caml_ba_uint8_get16", 2)
+  | Pbigstring_load_16{unsafe=_;index_kind=Punboxed_int_index Pint64} ->
+    Kccall("caml_ba_uint8_get16_indexed_by_int64", 2)
+  | Pbigstring_load_16{unsafe=_;index_kind=_} ->
+    Kccall("caml_ba_uint8_get16", 2)
   | Pbigstring_load_32(_) -> Kccall("caml_ba_uint8_get32", 2)
   | Pbigstring_load_f32(_) -> Kccall("caml_ba_uint8_getf32", 2)
   | Pbigstring_load_64(_) -> Kccall("caml_ba_uint8_get64", 2)

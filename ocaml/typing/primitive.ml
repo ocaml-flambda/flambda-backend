@@ -651,6 +651,16 @@ let prim_has_valid_reprs ~loc prim =
         Same_as_ocaml_repr Value;
         Same_as_ocaml_repr Value;
         Same_as_ocaml_repr Bits64]
+    | "%caml_bigstring_get16_indexed_by_int64#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits64;
+        Same_as_ocaml_repr Value]
+    | "%caml_bigstring_get16u_indexed_by_int64#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits64;
+        Same_as_ocaml_repr Value]
 
     (* CR layouts: add these when we have unboxed simd layouts *)
     (* | "%caml_bigstring_getu128#" ->

@@ -590,9 +590,17 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%caml_bytes_setu128u" ->
       Primitive ((Pbytes_set_128 {unsafe = true}), 3)
     | "%caml_bigstring_get16" ->
-      Primitive ((Pbigstring_load_16 { unsafe = false }), 2)
+      Primitive ((Pbigstring_load_16 { unsafe = false;
+        index_kind = Ptagged_int_index}), 2)
     | "%caml_bigstring_get16u" ->
-      Primitive ((Pbigstring_load_16 { unsafe = true }), 2)
+      Primitive ((Pbigstring_load_16 { unsafe = true;
+        index_kind = Ptagged_int_index}), 2)
+    | "%caml_bigstring_get16_indexed_by_int64#" ->
+      Primitive ((Pbigstring_load_16 { unsafe = false;
+        index_kind = Punboxed_int_index Pint64}), 2)
+    | "%caml_bigstring_get16u_indexed_by_int64#" ->
+      Primitive ((Pbigstring_load_16 { unsafe = true;
+        index_kind = Punboxed_int_index Pint64}), 2)
     | "%caml_bigstring_get32" ->
       Primitive ((Pbigstring_load_32 { unsafe = false; mode; boxed = true }), 2)
     | "%caml_bigstring_get32u" ->
