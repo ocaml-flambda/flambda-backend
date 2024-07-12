@@ -347,8 +347,12 @@ let rec print_out_jkind ppf = function
       | Ojkind_user_abbreviation abbrev -> fprintf ppf "%s" abbrev
       | Ojkind_user_mod (base, modes) ->
         print_jkind_with_modes ppf print_out_jkind_user base modes
-      | Ojkind_user_arrow a ->
-        print_arrow ppf print_out_jkind_user a
+      | Ojkind_user_arrow (args, result) ->
+        let format_args =
+          Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ")
+            print_out_jkind_user
+        in
+        fprintf ppf "(%a) => %a" format_args args print_out_jkind_user result
       | Ojkind_user_with _ | Ojkind_user_kind_of _ ->
         failwith "XXX unimplemented jkind syntax"
     in

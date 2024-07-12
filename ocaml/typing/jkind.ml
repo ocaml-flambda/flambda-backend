@@ -21,9 +21,6 @@ exception Unexpected_higher_jkind of string
 (******************************)
 (*** user errors ***)
 
-(* The same errors are reused for both Jkind and Jkind.Type,
-   so we define them early here. *)
-
 type const = Types.type_expr Jkind_types.Const.t
 
 module Error = struct
@@ -48,14 +45,14 @@ let printtyp_path = ref (fun _ _ -> assert false)
 
 let set_printtyp_path f = printtyp_path := f
 
+(* A *sort* is the information the middle/back ends need to be able to
+   compile a manipulation (storing, passing, etc) of a runtime value. *)
+module Sort = Jkind_types.Type.Sort
+
+type sort = Sort.t
+
 module Type = struct
   open Jkind_types.Type
-
-  (* A *sort* is the information the middle/back ends need to be able to
-     compile a manipulation (storing, passing, etc) of a runtime value. *)
-  module Sort = Jkind_types.Type.Sort
-
-  type sort = Sort.t
 
   type type_expr = Types.type_expr
 
@@ -269,7 +266,6 @@ module Type = struct
     let has_warned t = t.has_warned
   end
 
-  (* forward declare [Const.t] so we can use it for [Error.t] *)
   type const = type_expr Jkind_types.Type.Const.t
 
   module Const = struct
@@ -1358,6 +1354,8 @@ module Type = struct
        indeed just about the payload.) *)
 
     let of_ ?missing_cmi violation = { violation; missing_cmi }
+
+    let is_missing_cmi viol = Option.is_some viol.missing_cmi
   end
 
   (******************************)
@@ -1412,6 +1410,9 @@ module Type = struct
   let is_void_defaulting = function
     | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
     | _ -> false
+
+  let has_layout_any jkind =
+    match jkind.jkind.layout with Any -> true | _ -> false
 
   (*********************************)
   (* debugging *)
@@ -1616,14 +1617,6 @@ module History = struct
           result = update_reason result reason
         }
 end
-(* module Type *)
-
-(* Re-export some symbols *)
-
-type sort = Type.sort
-
-module Sort = Type.Sort
-module Externality = Type.Externality
 
 (******************************)
 (* constants *)
@@ -1631,8 +1624,6 @@ module Externality = Type.Externality
 
 module Const = struct
   type nonrec t = Types.type_expr Jkind_types.Const.t
-
-  let of_type_jkind ty : t = Type ty
 
   let rec format ppf (t : t) =
     match t with
@@ -1704,8 +1695,7 @@ module Const = struct
     | Abbreviation const ->
       Type (Type.Const.of_user_written_abbreviation ~jkind const)
     | Mod (jkind, modes) ->
-      (* jbachurski: We coerce here - in the future, the syntax should not permit
-         mod on arrows. Such expressions are not parsed currently. *)
+      (* FIXME jbachurski: What should be the interaction between [mod] and arrow kinds? *)
       let jkind =
         to_type_jkind (of_user_written_annotation_unchecked_level jkind)
       in
@@ -1866,7 +1856,7 @@ module Desc = struct
   (** The description of a jkind, used as a return type from [get]. *)
   type nonrec t =
     | Type of Type.t
-    | Arrow of t Jkind_types.Arrow.t
+    | Arrow of t Jkind_types.arrow
 end
 
 let rec default_to_value_and_get (t : t) : Const.t =
@@ -2065,8 +2055,8 @@ let equal = equate_or_equal ~allow_mutation:true
 (* Generalises union and intersection at Arrows, as they are mutually recursive when
    defining Arrow kind intersection *)
 let arrow_connective_or_error ~on_args ~on_result
-    ({ args = args1; result = result1 } : _ Jkind_types.Arrow.t)
-    ({ args = args2; result = result2 } : _ Jkind_types.Arrow.t) =
+    ({ args = args1; result = result1 } : _ Jkind_types.arrow)
+    ({ args = args2; result = result2 } : _ Jkind_types.arrow) =
   let args = List.map2 on_args args1 args2 in
   let result = on_result result1 result2 in
   (* FIXME jbachurski: collect all errors rather than picking first? *)
@@ -2150,9 +2140,7 @@ let sub_with_history sub super =
 let is_max jkind = sub (Type Type.Primitive.any_dummy_jkind) jkind
 
 let has_layout_any (jkind : t) =
-  match jkind with
-  | Type ty -> ( match ty.jkind.layout with Any -> true | _ -> false)
-  | _ -> false
+  match jkind with Type ty -> Type.has_layout_any ty | _ -> false
 
 (*********************************)
 (* debugging *)
