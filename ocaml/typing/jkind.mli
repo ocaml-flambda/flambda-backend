@@ -128,29 +128,6 @@ module Type : sig
 
     (** Is this error from a missing cmi? *)
     val is_missing_cmi : t -> bool
-
-    (* CR layouts: The [offender] arguments below are always
-       [Printtyp.type_expr], so we should either stash that in a ref (like with
-       [set_printtyp_path] below) or just move all the printing machinery
-       downstream of both [Jkinds] and [Printtyp]. *)
-
-    (* CR layouts: Having these options for printing a violation was a choice
-       made based on the needs of expedient debugging during development, but
-       probably should be rethought at some point. *)
-
-    (** Prints a violation and the thing that had an unexpected jkind
-      ([offender], which you supply an arbitrary printer for). *)
-    val report_with_offender :
-      offender:(Format.formatter -> unit) -> Format.formatter -> t -> unit
-
-    (** Like [report_with_offender], but additionally prints that the issue is
-      that a representable jkind was expected. *)
-    val report_with_offender_sort :
-      offender:(Format.formatter -> unit) -> Format.formatter -> t -> unit
-
-    (** Simpler version of [report_with_offender] for when the thing that had an
-      unexpected jkind is available as a string. *)
-    val report_with_name : name:string -> Format.formatter -> t -> unit
   end
 
   (******************************)

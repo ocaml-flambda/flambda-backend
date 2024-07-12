@@ -1338,8 +1338,6 @@ module Type = struct
   (* errors *)
 
   module Violation = struct
-    open Format
-
     type violation =
       | Not_a_subjkind of t * t
       | No_intersection of t * t
@@ -1358,78 +1356,6 @@ module Type = struct
     let of_ ?missing_cmi violation = { violation; missing_cmi }
 
     let is_missing_cmi viol = Option.is_some viol.missing_cmi
-
-    let report_general preamble pp_former former ppf t =
-      let subjkind_format verb l2 =
-        match get l2 with
-        | Var _ -> dprintf "%s representable" verb
-        | Const _ -> dprintf "%s a sublayout of %a" verb format l2
-      in
-      let l1, l2, fmt_l1, fmt_l2, missing_cmi_option =
-        match t with
-        | { violation = Not_a_subjkind (l1, l2); missing_cmi } -> (
-          let missing_cmi =
-            match missing_cmi with
-            | None -> (
-              match l1.history with
-              | Creation (Missing_cmi p) -> Some p
-              | Creation (Any_creation (Missing_cmi p)) -> Some p
-              | _ -> None)
-            | Some _ -> missing_cmi
-          in
-          match missing_cmi with
-          | None ->
-            ( l1,
-              l2,
-              dprintf "layout %a" format l1,
-              subjkind_format "is not" l2,
-              None )
-          | Some p ->
-            ( l1,
-              l2,
-              dprintf "an unknown layout",
-              subjkind_format "might not be" l2,
-              Some p ))
-        | { violation = No_intersection (l1, l2); missing_cmi } ->
-          assert (Option.is_none missing_cmi);
-          ( l1,
-            l2,
-            dprintf "layout %a" format l1,
-            dprintf "does not overlap with %a" format l2,
-            None )
-      in
-      if display_histories
-      then
-        let connective =
-          match t.violation, get l2 with
-          | Not_a_subjkind _, Const _ ->
-            dprintf "be a sublayout of %a" format l2
-          | No_intersection _, Const _ -> dprintf "overlap with %a" format l2
-          | _, Var _ -> dprintf "be representable"
-        in
-        fprintf ppf "@[<v>%a@;%a@]"
-          (format_history
-             ~intro:
-               (dprintf "The layout of %a is %a" pp_former former format l1))
-          l1
-          (format_history
-             ~intro:
-               (dprintf "But the layout of %a must %t" pp_former former
-                  connective))
-          l2
-      else
-        fprintf ppf "@[<hov 2>%s%a has %t,@ which %t.@]" preamble pp_former
-          former fmt_l1 fmt_l2;
-      report_missing_cmi ppf missing_cmi_option
-
-    let pp_t ppf x = fprintf ppf "%t" x
-
-    let report_with_offender ~offender = report_general "" pp_t offender
-
-    let report_with_offender_sort ~offender =
-      report_general "A representable layout was expected, but " pp_t offender
-
-    let report_with_name ~name = report_general "" pp_print_string name
   end
 
   (******************************)
