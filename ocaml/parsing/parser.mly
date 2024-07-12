@@ -1012,6 +1012,7 @@ let unboxed_type sloc lident tys =
 %token MINUS                  "-"
 %token MINUSDOT               "-."
 %token MINUSGREATER           "->"
+%token EQUALGREATER           "=>"
 %token MOD                    "mod"
 %token MODULE                 "module"
 %token MUTABLE                "mutable"
@@ -3863,8 +3864,18 @@ type_parameters:
       { ps }
 ;
 
-jkind:
-    jkind MOD mkrhs(LIDENT)+ { (* LIDENTs here are for modes *)
+jkind_parameters:
+    p = jkind_base
+      { [p] }
+  | LPAREN ps = separated_nonempty_llist(COMMA, jkind) RPAREN (* ( jkind+ )  *)
+      { ps }
+;
+
+jkind_base:
+    (* We don't allow jkind_base -> jkind (as in the rule below),
+       as these constructs are only valid for type jkinds. *)
+    (* LPAREN k=jkind RPAREN { k } *)
+    jkind_base MOD mkrhs(LIDENT)+ { (* LIDENTs here are for modes *)
       let mode_list =
         List.map
           (fun {txt; loc} -> Jane_syntax.Mode_expr.Const.mk txt loc)
@@ -3872,7 +3883,7 @@ jkind:
       in
       Jane_syntax.Jkind.Mod ($1, mkrhs mode_list $loc($3))
     }
-  | jkind WITH core_type {
+  | jkind_base WITH core_type {
       Jane_syntax.Jkind.With ($1, $3)
     }
   | mkrhs(ident) {
@@ -3886,6 +3897,12 @@ jkind:
       Jane_syntax.Jkind.Default
     }
 ;
+
+jkind:
+    args=jkind_parameters EQUALGREATER result=jkind {
+      Jane_syntax.Jkind.Arrow (args, result)
+    }
+  | k=jkind_base { k }
 
 jkind_annotation: (* : jkind_annotation *)
   mkrhs(jkind) { $1 }

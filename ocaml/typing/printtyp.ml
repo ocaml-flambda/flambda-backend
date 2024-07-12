@@ -1261,6 +1261,9 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
           modes.txt
       in
       Ojkind_user_mod (base, modes)
+    | Arrow (args, result) -> Ojkind_user_arrow (
+        List.map out_jkind_user_of_user_jkind args,
+        out_jkind_user_of_user_jkind result)
     | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
   in
   Ojkind_user (out_jkind_user_of_user_jkind jkind.txt)
@@ -1272,15 +1275,20 @@ let out_jkind_of_const_jkind jkind =
    Note [When to print jkind annotations] *)
 let out_jkind_option_of_jkind jkind =
   match Jkind.get jkind with
-  | Const jkind ->
-    begin match Jkind.Const.equal jkind Jkind.Const.Primitive.value.jkind with
-    | true -> None
-    | false -> Some (out_jkind_of_const_jkind jkind)
+  | Type ty -> begin
+    match Jkind.Type.get ty with
+    | Const jkind -> begin
+      match Jkind.Type.Const.equal jkind Jkind.Type.Const.Primitive.value.jkind with
+      | true -> None
+      | false -> Some (out_jkind_of_const_jkind jkind)
+      end
+    | Var v -> (* This handles (X1). *)
+      if !Clflags.verbose_types
+      then Some (Ojkind_var (Jkind.Sort.Var.name v))
+      else None
     end
-  | Var v -> (* This handles (X1). *)
-    if !Clflags.verbose_types
-    then Some (Ojkind_var (Jkind.Sort.Var.name v))
-    else None
+  (* TODO jbachurski: out jkinds for arrows *)
+  | Arrow _ -> Some (Ojkind_const { base = "((higher))"; modal_bounds = [] })
 
 let alias_nongen_row mode px ty =
     match get_desc ty with
@@ -2667,8 +2675,11 @@ let trees_of_type_expansion'
       match get_desc ty with
       | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
           let olay = match Jkind.get jkind with
-            | Const clay -> out_jkind_of_const_jkind clay
-            | Var v      -> Ojkind_var (Jkind.Sort.Var.name v)
+            | Type ty -> begin match Jkind.Type.get ty with
+              | Const clay -> out_jkind_of_const_jkind clay
+              | Var v      -> Ojkind_var (Jkind.Sort.Var.name v)
+              end
+            | Arrow _ -> Ojkind_const { base = "((higher))"; modal_bounds = [] }
           in
           Otyp_jkind_annot (out, olay)
       | _ ->
@@ -2989,8 +3000,8 @@ let explanation (type variety) intro prev env
              {[ The type int occurs inside int list -> 'a |}
         *)
     end
-  | Errortrace.Bad_jkind (t,e) ->
-      Some (dprintf "@ @[<hov>%a@]"
+| Errortrace.Bad_jkind (t,e) ->
+    Some (dprintf "@ @[<hov>%a@]"
               (Jkind.Violation.report_with_offender
                  ~offender:(fun ppf -> type_expr ppf t)) e)
   | Errortrace.Bad_jkind_sort (t,e) ->
