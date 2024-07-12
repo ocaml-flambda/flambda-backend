@@ -982,7 +982,7 @@ let default_iterator =
     modes = (fun this m ->
       let open Jane_syntax.Mode_expr in
       let iter_const sub : Const.t -> _ =
-        fun m -> iter_loc sub (m : Const.t :> _ Location.loc)
+        fun m -> iter_loc sub m
       in
       iter_loc_txt this (fun sub -> List.iter (iter_const sub)) m);
     payload =

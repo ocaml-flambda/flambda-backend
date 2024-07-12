@@ -3972,11 +3972,7 @@ end = struct
           | Jexp_tuple _ -> Not e.pexp_loc
           | Jexp_modes (Coerce (modes, exp)) ->
               if List.exists
-                  (fun m ->
-                     let {txt; _} =
-                       (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc)
-                     in
-                     txt = "local")
+                  (fun { Location.txt; _ } -> txt = "local")
                   modes.txt
               then Local e.pexp_loc
               else loop exp

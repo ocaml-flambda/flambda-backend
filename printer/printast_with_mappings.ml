@@ -410,8 +410,8 @@ and expression i ppf x =
 and jkind_annotation i ppf (jkind : jkind_annotation) =
   match jkind with
   | Default -> line i ppf "Default\n"
-  | Primitive_layout_or_abbreviation jkind ->
-      line i ppf "Primitive_layout_or_abbreviation \"%s\"\n" jkind.txt
+  | Abbreviation jkind ->
+      line i ppf "Abbreviation \"%s\"\n" jkind.txt
   | Mod (jkind, modes) ->
       line i ppf "Mod\n";
       jkind_annotation (i+1) ppf jkind;

@@ -289,8 +289,7 @@ let tyvar ppf s =
 let tyvar_loc f str = tyvar f str.txt
 let string_quot f x = pp f "`%s" x
 
-let legacy_mode f m =
-  let {txt; _} = (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
+let legacy_mode f { Location.txt; _ } =
   let s =
     match txt with
     | "local" -> "local_"
@@ -340,8 +339,7 @@ let maybe_atat_modalities f m =
     pp_print_string f " @@";
     pp_print_list space_modality f m
 
-let mode f m =
-  let {txt; _} = (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
+let mode f { Location.txt; _ } =
   pp_print_string f txt
 
 let maybe_modes_of_type c =
@@ -376,7 +374,7 @@ and type_with_label ctxt f (label, c) =
 and jkind ctxt f k = match (k : Jane_syntax.Jkind.t) with
   | Default -> pp f "_"
   | Abbreviation s ->
-    pp f "%s" (s : Jane_syntax.Jkind.Const.t :> _ loc).txt
+    pp f "%s" s.txt
   | Mod (t, { txt = mode_list }) ->
     begin match mode_list with
     | [] -> Misc.fatal_error "malformed jkind annotation"
@@ -1677,7 +1675,7 @@ and bindings ctxt f (rf,l) =
              the mode expressions are in fact identical.
           *)
           let mode_names (modes : Jane_syntax.Mode_expr.t) =
-            List.map Location.get_txt (modes.txt :> string loc list)
+            List.map Location.get_txt modes.txt
           in
           if
             List.equal String.equal

@@ -380,9 +380,7 @@ module Mode_expr = struct
 
   let empty = Location.mknoloc []
 
-  let singleton const =
-    let const' = (const : Const.t :> _ Location.loc) in
-    Location.mkloc [const] const'.loc
+  let singleton (const : _ loc) = Location.mkloc [const] const.loc
 
   let concat mode0 mode1 =
     let txt = mode0.txt @ mode1.txt in
