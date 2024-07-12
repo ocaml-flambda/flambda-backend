@@ -15,15 +15,6 @@
 
 (* Format of .cmxs files *)
 
-<<<<<<< HEAD
-||||||| 121bedcfd2
-open Misc
-
-=======
-type modname = string
-type crcs = (modname * Digest.t option) list
-
->>>>>>> 5.2.0
 (* Each .cmxs dynamically-loaded plugin contains a symbol
    "caml_plugin_header" containing the following info
    (as an externed record) *)

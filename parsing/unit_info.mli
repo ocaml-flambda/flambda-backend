@@ -21,6 +21,8 @@
 
 (** {1:modname_from_strings Module name convention and computation} *)
 
+(* CR mshinwell: Consider changing [modname] to be [Compilation_unit.t] *)
+
 type modname = string
 type filename = string
 type file_prefix = string

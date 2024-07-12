@@ -58,21 +58,17 @@ type cmt_infos = {
   cmt_sourcefile : string option;
   cmt_builddir : string;
   cmt_loadpath : Load_path.paths;
+  cmt_loadpath : Load_path.paths;
   cmt_source_digest : string option;
   cmt_initial_env : Env.t;
   cmt_imports : Import_info.t array;
   cmt_interface_digest : Digest.t option;
   cmt_use_summaries : bool;
   cmt_uid_to_decl : item_declaration Shape.Uid.Tbl.t;
+  cmt_uid_to_decl : item_declaration Shape.Uid.Tbl.t;
   cmt_impl_shape : Shape.t option; (* None for mli *)
-<<<<<<< HEAD
   cmt_ident_occurrences :
     (Longident.t Location.loc * Shape_reduce.result) array
-||||||| 121bedcfd2
-=======
-  cmt_ident_occurrences :
-    (Longident.t Location.loc * Shape_reduce.result) list
->>>>>>> 5.2.0
 }
 
 type error =
@@ -96,15 +92,8 @@ val read_cmi : string -> Cmi_format.cmi_infos_lazy
 (** [save_cmt filename modname binary_annots sourcefile initial_env cmi]
     writes a cmt(i) file.  *)
 val save_cmt :
-<<<<<<< HEAD
-  string ->  (* filename.cmt to generate *)
-  Compilation_unit.t ->  (* module name *)
-||||||| 121bedcfd2
-  string ->  (* filename.cmt to generate *)
-  string ->  (* module name *)
-=======
   Unit_info.Artifact.t ->
->>>>>>> 5.2.0
+  Compilation_unit.t ->  (* module name *)
   binary_annots ->
   Env.t -> (* initial env *)
   Cmi_format.cmi_infos_lazy option -> (* if a .cmi was generated *)
@@ -124,7 +113,6 @@ val set_saved_types : binary_part list -> unit
 val record_value_dependency:
   Types.value_description -> Types.value_description -> unit
 
-<<<<<<< HEAD
 val index_occurrences :
   binary_annots -> (Longident.t Location.loc * Shape_reduce.result) array
 
@@ -133,10 +121,6 @@ val iter_declarations
     -> f:(Shape.Uid.t -> Typedtree.item_declaration -> unit)
     -> unit
 
-||||||| 121bedcfd2
-
-=======
->>>>>>> 5.2.0
 (*
 
   val is_magic_number : string -> bool
