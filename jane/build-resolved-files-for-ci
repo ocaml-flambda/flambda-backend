@@ -41,7 +41,7 @@ dune_targets=$(
 #     echo _build/default/.ocamlbytecomp.objs/byte/$cmi.cmi
 #   done
 # )
-# 
+#
 # # ocamloptcomp mlis
 # mlis=$(
 #   { echo middle_end/{,closure,flambda}/*.mli
@@ -76,11 +76,11 @@ dune_targets=$(
 # echo "Dune targets:"
 # echo "$dune_targets"
 # dune b --workspace=duneconf/boot.ws $dune_targets
-# 
+#
 # echo "==========="
 # echo "Testing mls"
 # echo "==========="
-# 
+#
 # typing_mls=(
 #   ctype
 #   datarepr
@@ -110,7 +110,7 @@ dune_targets=$(
 #   types
 #   typetexp
 #   uniqueness_analysis)
-# 
+#
 # # ocamlcommon mls
 # mls=$(
 #   { echo driver/{compenv,compmisc,main_args}.ml
@@ -135,7 +135,7 @@ dune_targets=$(
 #     echo _build/default/.ocamlcommon.objs/native/$cmx.cmx
 #   done
 # )
-# 
+#
 # # ocamlbytecomp mls
 # mls=$(
 #   { echo driver/{errors,compile,maindriver}.ml
@@ -152,7 +152,7 @@ dune_targets=$(
 #     echo _build/default/.ocamlbytecomp.objs/native/$cmx.cmx
 #   done
 # )
-# 
+#
 # # toplevel
 # dune_targets=$(
 #   echo "$dune_targets"
@@ -167,7 +167,7 @@ dune_targets=$(
 #   done
 #   echo _build/default/toplevel/.expunge.eobjs/byte/expunge.cmt{,i}
 # )
-# 
+#
 # # ocamloptcomp mls
 # mls=$(
 #   { echo middle_end/{,closure,flambda}/*.ml
@@ -186,7 +186,7 @@ dune_targets=$(
 #     echo _build/default/.ocamloptcomp.objs/native/$cmx.cmx
 #   done
 # )
-# 
+#
 # #ocamldoc
 # ocamldoc=_build/default/ocamldoc/.odoc_lib.objs/
 # mls=$(
@@ -208,7 +208,7 @@ dune_targets=$(
 #   echo _build/default/ocamldoc/.odoc_native.eobjs/native/odoc_native.cmx
 #   echo _build/default/ocamldoc/.odoc_byte.eobjs/native/odoc_byte.cmx
 # )
-# 
+#
 # mls=$(
 #   { echo debugger/*.ml
 #   } |
@@ -224,7 +224,7 @@ dune_targets=$(
 #     echo _build/default/debugger/.ocamldebug.objs/native/$cmx.cmx
 #   done
 # )
-# 
+#
 # # tools
 # dune_targets=$(
 #   echo "$dune_targets"
@@ -243,7 +243,7 @@ dune_targets=$(
 #     echo _build/default/tools/$dir/native/$cmx.cmx
 #   done
 # )
-# 
+#
 # dune_targets=$(
 #   echo "$dune_targets"
 #   mls="dynlink dynlink_common dynlink_platform_intf dynlink_types"
@@ -252,7 +252,7 @@ dune_targets=$(
 #     echo _build/default/otherlibs/dynlink/.dynlink_internal.objs/byte/$ml.cmi
 #   done
 # )
-# 
+#
 # dune_targets="$dune_targets \
 # _build/default/otherlibs/str/.str.objs/native/str.cmx \
 # _build/default/otherlibs/str/.str.objs/byte/str.cmi \
@@ -261,7 +261,7 @@ dune_targets=$(
 # _build/default/otherlibs/systhreads/native/.threadsnat.objs/native/thread.cmx \
 # _build/default/otherlibs/systhreads/native/.threadsnat.objs/byte/thread.cmi
 # "
-# 
+#
 # # ocamltest
 # ocamltest=_build/default/ocamltest/.ocamltest_core_and_plugin.objs/byte
 # dune_targets="$dune_targets \
@@ -329,4 +329,6 @@ dune_targets=$(
 
 echo "Dune targets:"
 for target in $dune_targets; do echo $target; done
+
+export RUNTIME_DIR=runtime
 dune b --workspace=duneconf/boot.ws $dune_targets
