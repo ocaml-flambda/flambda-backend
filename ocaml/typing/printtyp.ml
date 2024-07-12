@@ -1261,7 +1261,10 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
           modes.txt
       in
       Ojkind_user_mod (base, modes)
-    | With _ | Kind_of _ | Arrow _ -> failwith "XXX unimplemented jkind syntax"
+    | Arrow (args, result) -> Ojkind_user_arrow (
+        List.map out_jkind_user_of_user_jkind args,
+        out_jkind_user_of_user_jkind result)
+    | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
   in
   Ojkind_user (out_jkind_user_of_user_jkind jkind.txt)
 
@@ -2990,8 +2993,8 @@ let explanation (type variety) intro prev env
              {[ The type int occurs inside int list -> 'a |}
         *)
     end
-  | Errortrace.Bad_jkind (t,e) ->
-      Some (dprintf "@ @[<hov>%a@]"
+| Errortrace.Bad_jkind (t,e) ->
+    Some (dprintf "@ @[<hov>%a@]"
               (Jkind.Violation.report_with_offender
                  ~offender:(fun ppf -> type_expr ppf t)) e)
   | Errortrace.Bad_jkind_sort (t,e) ->

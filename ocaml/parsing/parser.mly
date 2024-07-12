@@ -3872,7 +3872,8 @@ jkind_parameters:
 ;
 
 jkind_base:
-    (* not parsing this for now as e.g. mod doesn't seem to make sense *)
+    (* We don't allow jkind_base -> jkind (as in the rule below),
+       as these constructs are only valid for type jkinds. *)
     (* LPAREN k=jkind RPAREN { k } *)
     jkind_base MOD mkrhs(LIDENT)+ { (* LIDENTs here are for modes *)
       let mode_list =
