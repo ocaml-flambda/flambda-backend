@@ -5903,14 +5903,15 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_constraint (sarg, None, modes) ->
+      let modes = Typemode.transl_mode_annots modes in
       let expected_mode = type_expect_mode ~loc ~env ~modes expected_mode in
       let exp = type_expect env expected_mode sarg (mk_expected ty_expected ?explanation) in
       { exp with exp_loc = loc }
   | Pexp_constraint (sarg, Some sty, modes) ->
-      let mode_annots = Typemode.transl_mode_annots modes in
+      let modes = Typemode.transl_mode_annots modes in
       let (ty, extra_cty) =
         let alloc_mode =
-          Mode.Alloc.Const.Option.value mode_annots ~default:Mode.Alloc.Const.legacy
+          Mode.Alloc.Const.Option.value modes ~default:Mode.Alloc.Const.legacy
         in
         type_constraint env sty alloc_mode
       in
@@ -5928,7 +5929,7 @@ and type_expect_
         exp_attributes = arg.exp_attributes;
         exp_env = env;
         exp_extra =
-          (Texp_constraint (Some extra_cty, mode_annots),
+          (Texp_constraint (Some extra_cty, modes),
            loc,
            sexp.pexp_attributes) :: arg.exp_extra;
       }
@@ -8783,18 +8784,23 @@ and type_expect_jane_syntax
       type_tuple
         ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
 
-and type_expect_mode ~loc ~env ~modes expected_mode =
-  let modes = Typemode.transl_mode_annots modes in
-  let min = Alloc.Const.Option.value ~default:Alloc.Const.min modes |> Const.alloc_as_value in
-  let max = Alloc.Const.Option.value ~default:Alloc.Const.max modes |> Const.alloc_as_value in
-  submode ~loc ~env ~reason:Other (Value.of_const min) expected_mode;
-  let expected_mode = mode_coerce (Value.of_const max) expected_mode in
-  let expected_mode =
-    match modes.areality with
-    | Some Local -> mode_strictly_local expected_mode
-    | _ -> expected_mode
-  in
-  expected_mode
+and type_expect_mode ~loc ~env ~(modes : Alloc.Const.Option.t) expected_mode =
+  match modes = Alloc.Const.Option.none with
+  | true ->
+    (* This is not just a short-circuit, it also prevents [mode_coerce] below from
+       removing [tuple_modes] when there's no mode annotation on the tuple *)
+    expected_mode
+  | false ->
+    let min = Alloc.Const.Option.value ~default:Alloc.Const.min modes |> Const.alloc_as_value in
+    let max = Alloc.Const.Option.value ~default:Alloc.Const.max modes |> Const.alloc_as_value in
+    submode ~loc ~env ~reason:Other (Value.of_const min) expected_mode;
+    let expected_mode = mode_coerce (Value.of_const max) expected_mode in
+    let expected_mode =
+      match modes.areality with
+      | Some Local -> mode_strictly_local expected_mode
+      | _ -> expected_mode
+    in
+    expected_mode
 
 and type_n_ary_function
       ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
