@@ -725,14 +725,14 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
             List.map (fun _ -> t) decl.type_params
         | _ -> stl
       in
-      if List.length stl <> decl.type_arity then
+      if not @@ Ctype.arity_matches_decl env decl (List.length stl) then
         raise(Error(styp.ptyp_loc, env,
                     Type_arity_mismatch(lid.txt, decl.type_arity,
                                         List.length stl)));
       let args =
         List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
       in
-      let params = instance_list decl.type_params in
+      let params = if stl <> [] then instance_list (app_params_of_decl decl) else [] in
       let unify_param =
         match decl.type_manifest with
           None -> unify_var

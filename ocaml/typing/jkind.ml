@@ -170,6 +170,7 @@ module Type = struct
          [if Sort.equate s1 s2 then t1 else Any] is not sound
          and a change to the representation of sorts would be
          required to compute this accurately. Fail for now. *)
+      | Sort s1, Sort s2 when s1 = s2 -> t1
       | Sort _, Sort _ -> assert false
       | _, Any -> Any
       | Any, _ -> Any
@@ -309,7 +310,6 @@ module Type = struct
     let has_warned t = t.has_warned
   end
 
-  (* forward declare [Const.t] so we can use it for [Error.t] *)
   type const = type_expr Jkind_types.Type.Const.t
 
   module Const = struct

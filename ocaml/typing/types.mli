@@ -984,6 +984,7 @@ module AppArgs : sig
   val of_list : type_expr list -> t
   val to_list : t -> type_expr list
 
+  val length : t -> int
   val map : (type_expr -> type_expr) -> t -> t
   val iter : (type_expr -> unit) -> t -> unit
   (* TODO jbachurski: Every use of [map/iter_with_list] likely needs

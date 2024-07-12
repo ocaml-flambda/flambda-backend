@@ -95,6 +95,7 @@ val new_type_var2: ?name:string -> int -> Jkind.Type.t -> type_expr
         (* Short-hand for [newvar2], converting a [Jkind.Type.t] to [Jkind.t] *)
 val newobj: type_expr -> type_expr
 val newconstr: Path.t -> type_expr list -> type_expr
+val newapp : type_expr -> type_expr list -> type_expr
 val newmono : type_expr -> type_expr
 val none: type_expr
         (* A dummy type expression *)
@@ -119,6 +120,10 @@ val flatten_fields:
     Concrete problems have been fixed, but new bugs may appear in the
     future. (Test cases were added to typing-gadts/test.ml)
 *)
+
+val app_params_of_decl : type_declaration -> type_expr list
+val app_variance_of_decl : type_declaration -> Variance.t list
+val app_separability_of_decl : type_declaration -> Separability.t list
 
 val associate_fields:
         (string * field_kind * type_expr) list ->
@@ -541,6 +546,12 @@ val get_unboxed_type_approximation : Env.t -> type_expr -> type_expr
    just checks that all constructors have no arguments, doesn't consider
    void. *)
 val tvariant_not_immediate : row_desc -> bool
+
+val arity_matches_decl : Env.t -> type_declaration -> int -> bool
+
+(* Extract the jkind of the declared datatype constructor in an unapplied context.
+   None if not a datatype constructor (i.e. abstract type) nor alias for one. *)
+val jkind_of_decl_unapplied : Env.t -> type_declaration -> jkind option
 
 (* Cheap upper bound on jkind.  Will not expand unboxed types - call
    [type_jkind] if that's needed. *)

@@ -1225,6 +1225,10 @@ module AppArgs = struct
   let one e = Applied [e]
   let unapp = Unapplied
 
+  let length = function
+  | Unapplied -> 0
+  | Applied args -> List.length args
+
   let of_list = function
   | [] -> Unapplied
   | args -> Applied args
