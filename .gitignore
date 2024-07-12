@@ -206,17 +206,10 @@ META
 /ocamldoc/odoc_text_parser.ml
 /ocamldoc/odoc_text_parser.mli
 /ocamldoc/*.output
-<<<<<<< HEAD
 /ocamldoc/test_stdlib
 /ocamldoc/test_latex
 /ocamldoc/test
 /ocamldoc/stdlib_man
-||||||| 121bedcfd2
-/ocamldoc/test_stdlib
-/ocamldoc/test_latex
-/ocamldoc/test
-=======
->>>>>>> 5.2.0
 
 /ocamltest/ocamltest
 /ocamltest/ocamltest.opt
@@ -251,13 +244,13 @@ META
 /parsing/camlinternalMenhirLib.ml
 /parsing/camlinternalMenhirLib.mli
 
-<<<<<<< HEAD
 /runtime4/caml/jumptbl.h
 /runtime4/caml/m.h
 /runtime4/caml/s.h
 /runtime4/primitives
 /runtime4/primitives.new
 /runtime4/prims.c
+/runtime4/caml/exec.h
 /runtime4/caml/opnames.h
 /runtime4/caml/version.h
 /runtime4/ocamlrun
@@ -271,10 +264,7 @@ META
 /runtime4/domain_state32.inc
 /runtime4/domain_state64.inc
 
-||||||| 121bedcfd2
-=======
 /runtime/domain_state.inc
->>>>>>> 5.2.0
 /runtime/caml/jumptbl.h
 /runtime/caml/m.h
 /runtime/caml/s.h
