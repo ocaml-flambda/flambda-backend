@@ -17,15 +17,8 @@ open Misc
 
 (* Link .cmo files and produce a bytecode executable. *)
 
-<<<<<<< HEAD
-(* CR mshinwell: seems like this should use [CU.Name.t] *)
-module Dep : Set.OrderedType with type t = string * string
-||||||| 121bedcfd2
-module Dep : Set.OrderedType with type t = modname * modname
-=======
 module Dep : Set.OrderedType with
-  type t = Cmo_format.compunit * Cmo_format.compunit
->>>>>>> 5.2.0
+  type t = Compilation_unit.t * Compilation_unit.t
 module DepSet : Set.S with type elt = Dep.t
 
 val link : filepath list -> filepath -> unit
@@ -44,23 +37,10 @@ type error =
   | Custom_runtime
   | File_exists of filepath
   | Cannot_open_dll of filepath
-<<<<<<< HEAD
-  | Required_module_unavailable of string * Compilation_unit.t
-||||||| 121bedcfd2
-  | Required_module_unavailable of modname * modname
-=======
-  | Required_compunit_unavailable of (Cmo_format.compunit * Cmo_format.compunit)
->>>>>>> 5.2.0
+  | Required_module_unavailable of Compilation_unit.t * Compilation_unit.t
   | Camlheader of string * filepath
   | Wrong_link_order of DepSet.t
-<<<<<<< HEAD
-  (* CR mshinwell: seems like [Multiple_definition] should use [CU.t] *)
-  | Multiple_definition of string * filepath * filepath
-||||||| 121bedcfd2
-  | Multiple_definition of modname * filepath * filepath
-=======
-  | Multiple_definition of Cmo_format.compunit * filepath * filepath
->>>>>>> 5.2.0
+  | Multiple_definition of Compilation_unit.t * filepath * filepath
 
 exception Error of error
 

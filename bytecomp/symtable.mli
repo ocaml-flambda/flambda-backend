@@ -17,15 +17,6 @@
 
 open Cmo_format
 
-module Compunit : sig
-  type t = compunit
-  val name : t -> string
-  val is_packed : compunit -> bool
-  val to_ident : compunit -> Ident.t
-  module Set : Set.S with type elt = t
-  module Map : Map.S with type key = t
-end
-
 module Predef : sig
   type t = predef
   module Set : Set.S with type elt = t
@@ -34,7 +25,7 @@ end
 
 module Global : sig
   type t =
-    | Glob_compunit of compunit
+    | Glob_compunit of Compilation_unit.t
     | Glob_predef of predef
   val name: t -> string
   val description: Format.formatter -> t -> unit
@@ -67,8 +58,8 @@ val is_global_defined: Global.t -> bool
 val assign_global_value: Global.t -> Obj.t -> unit
 val get_global_position: Global.t -> int
 val check_global_initialized: (reloc_info * int) list -> unit
-val initialized_compunits: (reloc_info * int) list -> compunit list
-val required_compunits: (reloc_info * int) list -> compunit list
+val initialized_compunits: (reloc_info * int) list -> Compilation_unit.t list
+val required_compunits: (reloc_info * int) list -> Compilation_unit.t list
 
 type global_map
 

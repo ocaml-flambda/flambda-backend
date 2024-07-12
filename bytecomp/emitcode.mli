@@ -18,16 +18,8 @@
 open Cmo_format
 open Instruct
 
-<<<<<<< HEAD
-val to_file: out_channel -> Compilation_unit.t -> string ->
+val to_file: out_channel -> Compilation_unit.t -> Unit_info.Artifact.t ->
   required_globals:Compilation_unit.Set.t -> instruction list -> unit
-||||||| 121bedcfd2
-val to_file: out_channel -> string -> string ->
-  required_globals:Ident.Set.t -> instruction list -> unit
-=======
-val to_file: out_channel -> Unit_info.Artifact.t ->
-  required_globals:Ident.Set.t -> instruction list -> unit
->>>>>>> 5.2.0
         (* Arguments:
              channel on output file
              name of compilation unit implemented
