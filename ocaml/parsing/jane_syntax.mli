@@ -135,13 +135,13 @@ module Mode_expr : sig
 
     (** Represent a user-written mode constant, containing a string and its
         location *)
-    type t = private raw Location.loc
+    type t = Parsetree.mode_const_expression
 
     (** Constructs a mode constant mode *)
     val mk : string -> Location.t -> t
   end
 
-  type t = Const.t list Location.loc
+  type t = Parsetree.mode_expression
 
   (** The empty mode expression. *)
   val empty : t
@@ -198,17 +198,15 @@ module Jkind : sig
   module Const : sig
     (** Constant jkind *)
 
-    type raw = string
-
     (** Represent a user-written kind primitive/abbreviation,
         containing a string and its location *)
-    type t = private raw Location.loc
+    type t = Parsetree.jkind_const_annotation
 
     (** Constructs a jkind constant *)
     val mk : string -> Location.t -> t
   end
 
-  type t =
+  type t = Parsetree.jkind_annotation =
     | Default
     | Abbreviation of Const.t
     | Mod of t * Mode_expr.t
@@ -216,99 +214,6 @@ module Jkind : sig
     | Kind_of of Parsetree.core_type
 
   type annotation = t Location.loc
-end
-
-module N_ary_functions : sig
-  (** These types use the [P] prefix to match how they are represented in the
-      upstream compiler *)
-
-  (** See the comment on [expression]. *)
-  type function_body =
-    | Pfunction_body of Parsetree.expression
-    | Pfunction_cases of Parsetree.case list * Location.t * Parsetree.attributes
-        (** In [Pfunction_cases (_, loc, attrs)], the location extends from the
-        start of the [function] keyword to the end of the last case. The
-        compiler will only use typechecking-related attributes from [attrs],
-        e.g. enabling or disabling a warning.
-    *)
-
-  type function_param_desc =
-    | Pparam_val of
-        Asttypes.arg_label * Parsetree.expression option * Parsetree.pattern
-        (** [Pparam_val (lbl, exp0, P)] represents the parameter:
-        - [P]
-          when [lbl] is {{!Asttypes.arg_label.Nolabel}[Nolabel]}
-          and [exp0] is [None]
-        - [~l:P]
-          when [lbl] is {{!Asttypes.arg_label.Labelled}[Labelled l]}
-          and [exp0] is [None]
-        - [?l:P]
-          when [lbl] is {{!Asttypes.arg_label.Optional}[Optional l]}
-          and [exp0] is [None]
-        - [?l:(P = E0)]
-          when [lbl] is {{!Asttypes.arg_label.Optional}[Optional l]}
-          and [exp0] is [Some E0]
-
-        Note: If [E0] is provided, only
-        {{!Asttypes.arg_label.Optional}[Optional]} is allowed.
-    *)
-    | Pparam_newtype of string Asttypes.loc * Jkind.annotation option
-        (** [Pparam_newtype (x, jkind)] represents the parameter [(type x)].
-        [x] carries the location of the identifier, whereas [pparam_loc] is
-        the location of the [(type x)] as a whole.
-
-        [jkind] is the same as [Lexp_newtype]'s jkind.
-
-        Multiple parameters [(type a b c)] are represented as multiple
-        [Pparam_newtype] nodes, let's say:
-
-        {[ [ { pparam_desc = Pparam_newtype (a, _); pparam_loc = loc };
-             { pparam_desc = Pparam_newtype (b, _); pparam_loc = loc };
-             { pparam_desc = Pparam_newtype (c, _); pparam_loc = loc };
-           ]
-        ]}
-
-        Here, [loc] gives the location of [(type a b c)], but is marked as a
-        ghost location. The locations on [a], [b], [c], correspond to the
-        variables [a], [b], and [c] in the source code.
-    *)
-
-  type function_param =
-    { pparam_desc : function_param_desc;
-      pparam_loc : Location.t
-    }
-
-  type type_constraint =
-    | Pconstraint of Parsetree.core_type
-    | Pcoerce of Parsetree.core_type option * Parsetree.core_type
-
-  (** The mode annotation placed on a function let-binding when the function
-      has a type constraint on the body, e.g.
-      [let local_ f x : int -> int = ...].
-  *)
-  type function_constraint =
-    { mode_annotations : Mode_expr.t;
-      type_constraint : type_constraint
-    }
-
-  (** [([P1; ...; Pn], C, body)] represents any construct
-      involving [fun] or [function], including:
-      - [fun P1 ... Pn -> E]
-        when [body = Pfunction_body E]
-      - [fun P1 ... Pn -> function p1 -> e1 | ... | pm -> em]
-        when [body = Pfunction_cases [ p1 -> e1; ...; pm -> em ]]
-
-      [C] represents a type constraint or coercion placed immediately
-      before the arrow, e.g. [fun P1 ... Pn : t1 :> t2 -> ...]
-      when [C = Some (Pcoerce (Some t1, t2))].
-
-      A function must have parameters. [Pexp_function (params, _, body)] must
-      have non-empty [params] or a [Pfunction_cases _] body.
-  *)
-  type expression =
-    function_param list * function_constraint option * function_body
-
-  val expr_of : loc:Location.t -> expression -> Parsetree.expression
 end
 
 (** The ASTs for labeled tuples. When we merge this upstream, we'll replace
@@ -627,7 +532,6 @@ module Expression : sig
     | Jexp_comprehension of Comprehensions.expression
     | Jexp_immutable_array of Immutable_arrays.expression
     | Jexp_layout of Layouts.expression
-    | Jexp_n_ary_function of N_ary_functions.expression
     | Jexp_tuple of Labeled_tuples.expression
     | Jexp_modes of Modes.expression
 
