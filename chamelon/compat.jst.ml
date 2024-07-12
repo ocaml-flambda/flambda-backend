@@ -102,7 +102,7 @@ let texp_function_cases_identifier_defaults =
     last_arg_exp_extra = None;
     last_arg_attributes = [];
     env = Env.empty;
-    ret_type = Ctype.newvar (Jkind.Primitive.any ~why:Dummy_jkind);
+    ret_type = Ctype.newvar Jkind.Primitive.any ~why:Dummy_jkind;
   }
 
 let texp_function_param_identifier_defaults =

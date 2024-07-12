@@ -2899,7 +2899,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
       (* CR layouts v5: value restriction here to be relaxed *)
       if is_optional l then
         unify_pat (ref val_env) pat
-          (type_option (newvar (Predef.option_argument_jkind)));
+          (type_option (newvar Predef.option_argument_jkind));
       tps.tps_pattern_variables, pat
     end
       ~post:(fun (pvs, _) -> iter_pattern_variables_type generalize_structure
@@ -4077,7 +4077,7 @@ let rec approx_type env sty =
   | Ptyp_arrow (p, ({ ptyp_desc = Ptyp_poly _ } as arg_sty), sty) ->
       let p = Typetexp.transl_label p (Some arg_sty) in
       (* CR layouts v5: value requirement here to be relaxed *)
-      if is_optional p then newvar (Predef.option_argument_jkind)
+      if is_optional p then newvar Predef.option_argument_jkind
       else begin
         let arg_mode = Typetexp.get_alloc_mode arg_sty in
         let arg_ty =
@@ -4096,7 +4096,7 @@ let rec approx_type env sty =
       let p = Typetexp.transl_label p (Some arg_sty) in
       let arg =
         if is_optional p
-        then type_option (newvar (Predef.option_argument_jkind))
+        then type_option (newvar Predef.option_argument_jkind)
         else newvar (Jkind.Primitive.any ~why:Inside_of_Tarrow)
       in
       let ret = approx_type env sty in
@@ -7581,7 +7581,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
       if is_optional lbl then
         (* CR layouts v5: relax value requirement *)
         unify_exp env arg
-          (type_option(newvar (Predef.option_argument_jkind)));
+          (type_option(newvar Predef.option_argument_jkind));
       (lbl, Arg (arg, mode_arg, sort_arg))
   | Arg (Known_arg { sarg; ty_arg; ty_arg0;
                      mode_arg; wrapped_in_some; sort_arg }) ->
