@@ -1959,7 +1959,6 @@ and remove_unused_value_slots_and_shortcut_aliases_function_type
 
 and remove_unused_value_slots_and_shortcut_aliases_env_extension
     ({ equations } as env_extension) ~used_value_slots ~canonicalise =
-  let changed = ref false in
   let equations' =
     Name.Map.map_sharing
       (fun ty ->
@@ -1967,7 +1966,7 @@ and remove_unused_value_slots_and_shortcut_aliases_env_extension
           ~canonicalise)
       equations
   in
-  if !changed then { equations = equations' } else env_extension
+  if equations == equations' then env_extension else { equations = equations' }
 
 let rec project_variables_out ~to_project ~expand t =
   match t with
