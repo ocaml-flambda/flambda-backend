@@ -527,6 +527,7 @@ module Jkind = struct
     | Mod of t * Mode_expr.t
     | With of t * core_type
     | Kind_of of core_type
+    | Arrow of t list * t
 
   type annotation = t loc
 
@@ -597,6 +598,10 @@ module Jkind = struct
         t_loc.loc
     | Kind_of ty ->
       struct_item_of_list "kind_of" [struct_item_of_type ty] t_loc.loc
+    | Arrow (args, result) ->
+      struct_item_of_list "arrow"
+        (to_structure_item result :: List.map to_structure_item args)
+        t_loc.loc
 
   let rec of_structure_item item =
     let bind = Option.bind in
@@ -618,6 +623,15 @@ module Jkind = struct
       bind (struct_item_to_type item_of_ty) (fun ty -> ret loc (Kind_of ty))
     | Some ("abbrev", [item], loc) ->
       bind (Const.of_structure_item item) (fun c -> ret loc (Abbreviation c))
+    | Some ("arrow", result :: args, loc) ->
+      bind (of_structure_item result) (fun { txt = result } ->
+          let args = List.map of_structure_item args in
+          if List.for_all Option.is_some args
+          then
+            let args = List.map Option.get args in
+            let args = List.map (fun { txt } -> txt) args in
+            ret loc (Arrow (args, result))
+          else None)
     | Some _ | None -> None
 end
 
