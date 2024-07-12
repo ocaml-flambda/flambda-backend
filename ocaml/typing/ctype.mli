@@ -320,7 +320,7 @@ val all_distinct_vars: Env.t -> type_expr list -> bool
 
 type matches_result =
   | Unification_failure of Errortrace.unification_error
-  | Jkind_mismatch of { original_jkind : higher_jkind; inferred_jkind : higher_jkind
+  | Jkind_mismatch of { original_jkind : jkind; inferred_jkind : jkind
                       ; ty : type_expr }
   | All_good
 val matches: expand_error_trace:bool -> Env.t ->
@@ -537,15 +537,15 @@ val tvariant_not_immediate : row_desc -> bool
 
 (* Cheap upper bound on jkind.  Will not expand unboxed types - call
    [type_jkind] if that's needed. *)
-val estimate_type_jkind : Env.t ->  type_expr -> higher_jkind
+val estimate_type_jkind : Env.t ->  type_expr -> jkind
 
 (* Get the jkind of a type, expanding it and looking through [[@@unboxed]]
    types. *)
-val type_jkind : Env.t -> type_expr -> higher_jkind
+val type_jkind : Env.t -> type_expr -> jkind
 
 (* Get the jkind of a type, dropping any changes to types caused by
    expansion. *)
-val type_jkind_purely : Env.t -> type_expr -> higher_jkind
+val type_jkind_purely : Env.t -> type_expr -> jkind
 
 (* Find a type's sort (constraining it to be an arbitrary sort variable, if
    needed) *)

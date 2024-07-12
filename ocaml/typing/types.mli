@@ -72,7 +72,7 @@ type field_kind
 type commutable
 
 and type_desc =
-  | Tvar of { name : string option; jkind : higher_jkind }
+  | Tvar of { name : string option; jkind : jkind }
   (** [Tvar (Some "a")] ==> ['a] or ['_a]
       [Tvar None]       ==> [_] *)
 
@@ -136,7 +136,7 @@ and type_desc =
   | Tvariant of row_desc
   (** Representation of polymorphic variants, see [row_desc]. *)
 
-  | Tunivar of { name : string option; jkind : higher_jkind }
+  | Tunivar of { name : string option; jkind : jkind }
   (** Occurrence of a type variable introduced by a
       forall quantifier / [Tpoly]. *)
 
@@ -219,15 +219,15 @@ and abbrev_memo =
 
 (** Jkinds classify types. *)
 (* CR layouts v2.8: Say more here. *)
-and jkind = type_expr Jkind_types.Type.t
-and higher_jkind = type_expr Jkind_types.t
+and type_jkind = type_expr Jkind_types.Type.t
+and jkind = type_expr Jkind_types.t
 
 (* jkind depends on types defined in this file, but Jkind.Type.equal is required
    here. When jkind.ml is loaded, it calls set_jkind_equal to fill a ref to the
    function. *)
 (** INTERNAL USE ONLY
     jkind.ml should call this with the definition of Jkind.Type.equal *)
-val set_jkind_equal : (jkind -> jkind -> bool) -> unit
+val set_jkind_equal : (type_jkind -> type_jkind -> bool) -> unit
 
 val is_commu_ok: commutable -> bool
 val commu_ok: commutable
@@ -503,7 +503,7 @@ type type_declaration =
     type_arity: int;
     type_kind: type_decl_kind;
 
-    type_jkind: higher_jkind;
+    type_jkind: jkind;
     (* for an abstract decl kind or for [@@unboxed] types: this is the stored
        jkind for the type; expansion might find a type with a more precise
        jkind. See PR#10017 for motivating examples where subsitution or
@@ -556,7 +556,7 @@ and ('lbl, 'cstr) type_kind =
    case of normal projections from boxes. *)
 and tag = Ordinary of {src_index: int;  (* Unique name (per type) *)
                        runtime_tag: int}    (* The runtime tag *)
-        | Extension of Path.t * jkind array
+        | Extension of Path.t * type_jkind array
 
 and abstract_reason =
     Abstract_def
@@ -587,7 +587,7 @@ and record_representation =
   | Record_inlined of tag * variant_representation
   (* For an inlined record, we record the representation of the variant that
      contains it and the tag of the relevant constructor of that variant. *)
-  | Record_boxed of jkind array
+  | Record_boxed of type_jkind array
   | Record_float (* All fields are floats *)
   | Record_ufloat
   (* All fields are [float#]s.  Same runtime representation as [Record_float],
@@ -600,7 +600,7 @@ and record_representation =
 
 and variant_representation =
   | Variant_unboxed
-  | Variant_boxed of (constructor_representation * jkind array) array
+  | Variant_boxed of (constructor_representation * type_jkind array) array
   (* The outer array has an element for each constructor. Each inner array
      has a jkind for each argument of the corresponding constructor.
 
@@ -625,7 +625,7 @@ and label_declaration =
     ld_mutable: mutability;
     ld_modalities: Mode.Modality.Value.Const.t;
     ld_type: type_expr;
-    ld_jkind : jkind;
+    ld_jkind : type_jkind;
     ld_loc: Location.t;
     ld_attributes: Parsetree.attributes;
     ld_uid: Uid.t;
@@ -662,7 +662,7 @@ type extension_constructor =
     ext_type_path: Path.t;
     ext_type_params: type_expr list;
     ext_args: constructor_arguments;
-    ext_arg_jkinds: jkind array;
+    ext_arg_jkinds: type_jkind array;
     ext_shape: constructor_representation;
     ext_constant: bool;
     ext_ret_type: type_expr option;
@@ -827,7 +827,7 @@ type constructor_description =
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
     cstr_args: constructor_argument list; (* Type of the arguments *)
-    cstr_arg_jkinds: jkind array;       (* Jkinds of the arguments *)
+    cstr_arg_jkinds: type_jkind array;       (* Jkinds of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
     cstr_repr: variant_representation;  (* Repr of the outer variant *)
@@ -869,7 +869,7 @@ type label_description =
     lbl_mut: mutability;                (* Is this a mutable field? *)
     lbl_modalities: Mode.Modality.Value.Const.t;
                                         (* Modalities on the field *)
-    lbl_jkind : jkind;                  (* Jkind of the argument *)
+    lbl_jkind : type_jkind;                  (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in the type *)
     lbl_all: label_description array;   (* All the labels in this type *)
@@ -943,7 +943,7 @@ val set_type_desc: type_expr -> type_desc -> unit
         (* Set directly the desc field, without sharing *)
 val set_level: type_expr -> int -> unit
 val set_scope: type_expr -> int -> unit
-val set_var_jkind: type_expr -> higher_jkind -> unit
+val set_var_jkind: type_expr -> jkind -> unit
         (* May only be called on Tvars *)
 val set_name:
     (Path.t * type_expr list) option ref ->

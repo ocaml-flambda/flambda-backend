@@ -42,7 +42,7 @@
    https://github.com/goldfirere/flambda-backend/commit/d802597fbdaaa850e1ed9209a1305c5dcdf71e17
    first, which was reisenberg's attempt to do so. *)
 
-exception Unexpected_higher_jkind of string
+exception Unexpected_jkind of string
 
 module Sort : Jkind_intf.Sort with type const = Jkind_types.Type.Sort.const
 

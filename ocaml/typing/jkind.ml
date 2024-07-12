@@ -16,7 +16,7 @@ open Mode
 
 [@@@warning "+9"]
 
-exception Unexpected_higher_jkind of string
+exception Unexpected_jkind of string
 
 (******************************)
 (*** user errors ***)
@@ -1682,8 +1682,7 @@ module Const = struct
   let to_type_jkind (t : t) =
     match t with
     | Type ty -> ty
-    | Arrow _ ->
-      raise (Unexpected_higher_jkind "Coerced arrow to type jkind (const)")
+    | Arrow _ -> raise (Unexpected_jkind "Coerced arrow to type jkind (const)")
 
   module Primitive = struct
     type nonrec t =
@@ -1877,7 +1876,7 @@ let of_type_decl_default = of_type_decl_default' ~of_type_decl
 let[@inline never] to_type_jkind (t : t) =
   match t with
   | Type ty -> ty
-  | _ -> raise (Unexpected_higher_jkind "Coerced arrow to type jkind")
+  | _ -> raise (Unexpected_jkind "Coerced arrow to type jkind")
 
 (******************************)
 (* elimination and defaulting *)

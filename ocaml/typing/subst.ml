@@ -32,7 +32,7 @@ type type_replacement =
   | Type_function of { params : type_expr list; body : type_expr }
 
 type additional_action =
-  | Prepare_for_saving of (Location.t -> higher_jkind -> higher_jkind)
+  | Prepare_for_saving of (Location.t -> jkind -> jkind)
     (* The [Prepare_for_saving] function should be applied to all jkinds when
        saving; this commons them up, truncates their histories, and runs
        a check that all unconstrained variables have been defaulted to value. *)
@@ -109,7 +109,7 @@ let with_additional_action =
                 (fun (builtin, _) -> Jkind.Const.equal const (Type builtin)) builtins
             in
             begin match builtin with
-            | Some (__, jkind) -> (Type jkind : higher_jkind)
+            | Some (__, jkind) -> (Type jkind : jkind)
             | None -> Jkind.of_const const ~why:Jkind.Type.History.Imported
             end
           | None -> raise(Error (loc, Unconstrained_jkind_variable))
@@ -428,7 +428,7 @@ let constructor_declaration copy_scope s c =
   }
 
 let prepare_at_type ~prepare_jkind loc ty =
-  prepare_jkind loc (Type ty : higher_jkind) |> Jkind.to_type_jkind
+  prepare_jkind loc (Type ty : jkind) |> Jkind.to_type_jkind
 
 (* called only when additional_action is [Prepare_for_saving] *)
 let constructor_tag ~prepare_jkind loc = function

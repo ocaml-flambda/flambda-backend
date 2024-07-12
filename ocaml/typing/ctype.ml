@@ -4934,7 +4934,7 @@ let all_distinct_vars env vars =
 
 type matches_result =
   | Unification_failure of Errortrace.unification_error
-  | Jkind_mismatch of { original_jkind : higher_jkind; inferred_jkind : higher_jkind
+  | Jkind_mismatch of { original_jkind : jkind; inferred_jkind : jkind
                        ; ty : type_expr }
   | All_good
 
@@ -4979,7 +4979,7 @@ let rigidify ty =
 module No_trace = struct
   type matches_result_ =
     | Unification_failure
-    | Jkind_mismatch of { original_jkind : higher_jkind; inferred_jkind : higher_jkind
+    | Jkind_mismatch of { original_jkind : jkind; inferred_jkind : jkind
                        ; ty : type_expr }
     | All_good
 end
