@@ -32,25 +32,11 @@ m4_define([OCAML__DEVELOPMENT_VERSION], [false])
 # including the patchlevel, are mandatory.
 
 m4_define([OCAML__VERSION_MAJOR], [5])
-<<<<<<< HEAD
-m4_define([OCAML__VERSION_MINOR], [1])
-m4_define([OCAML__VERSION_PATCHLEVEL], [1])
-||||||| 121bedcfd2
-m4_define([OCAML__VERSION_MINOR], [1])
-m4_define([OCAML__VERSION_PATCHLEVEL], [0])
-=======
 m4_define([OCAML__VERSION_MINOR], [2])
 m4_define([OCAML__VERSION_PATCHLEVEL], [0])
->>>>>>> 5.2.0
 # Note that the OCAML__VERSION_EXTRA string defined below is always empty
 # for officially-released versions of OCaml.
-<<<<<<< HEAD
 m4_define([OCAML__VERSION_EXTRA], [jst])
-||||||| 121bedcfd2
-m4_define([OCAML__VERSION_EXTRA], [dev2-2023-04-11])
-=======
-m4_define([OCAML__VERSION_EXTRA], [])
->>>>>>> 5.2.0
 
 # The OCAML__VERSION_EXTRA_PREFIX macro defined below should be a
 # single character:

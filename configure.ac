@@ -185,16 +185,9 @@ AC_SUBST([oc_cppflags])
 AC_SUBST([oc_ldflags])
 AC_SUBST([oc_dll_ldflags])
 AC_SUBST([oc_exe_ldflags])
-<<<<<<< HEAD
-AC_SUBST([cclibs])
-||||||| 121bedcfd2
-AC_SUBST([bytecclibs])
-AC_SUBST([nativecclibs])
-=======
 AC_SUBST([cclibs])
 AC_SUBST([native_ldflags])
 AC_SUBST([zstd_libs])
->>>>>>> 5.2.0
 AC_SUBST([ocamlc_cflags])
 AC_SUBST([ocamlc_cppflags])
 AC_SUBST([flexdll_source_dir])
@@ -301,28 +294,19 @@ AC_CONFIG_FILES([manual/src/html_processing/src/common.ml])
 AC_CONFIG_FILES([ocamltest/ocamltest_config.ml])
 AC_CONFIG_FILES([utils/config.common.ml])
 AC_CONFIG_FILES([utils/config.generated.ml])
-<<<<<<< HEAD
 AC_CONFIG_FILES([tools/eventlog_metadata])
 AS_IF([test "x$enable_runtime5" = "xyes"],
   [ AC_CONFIG_HEADERS([runtime/caml/m.h])
     AC_CONFIG_HEADERS([runtime/caml/s.h])
+    AC_CONFIG_HEADERS([runtime/caml/exec.h])
     AC_CONFIG_HEADERS([runtime/caml/version.h])
   ],
   [ AC_CONFIG_HEADERS([runtime4/caml/m.h])
     AC_CONFIG_HEADERS([runtime4/caml/s.h])
+    AC_CONFIG_HEADERS([runtime4/caml/exec.h])
     AC_CONFIG_HEADERS([runtime4/caml/version.h])
   ]
 )
-||||||| 121bedcfd2
-AC_CONFIG_HEADERS([runtime/caml/m.h])
-AC_CONFIG_HEADERS([runtime/caml/s.h])
-AC_CONFIG_HEADERS([runtime/caml/version.h])
-=======
-AC_CONFIG_HEADERS([runtime/caml/exec.h])
-AC_CONFIG_HEADERS([runtime/caml/m.h])
-AC_CONFIG_HEADERS([runtime/caml/s.h])
-AC_CONFIG_HEADERS([runtime/caml/version.h])
->>>>>>> 5.2.0
 AC_CONFIG_FILES([compilerlibs/META])
 AC_CONFIG_FILES([otherlibs/dynlink/META])
 AC_CONFIG_FILES([otherlibs/runtime_events/META])
@@ -574,26 +558,6 @@ AC_ARG_WITH([target-sh],
     [target_launch_method="$withval"])],
   [target_launch_method=''])
 
-<<<<<<< HEAD
-||||||| 121bedcfd2
-AC_ARG_ENABLE([reserved-header-bits],
-  [AS_HELP_STRING([--enable-reserved-header-bits=BITS],
-    [reserve BITS (between 0 and 31) bits in block headers])],
-  [AS_CASE([$enable_reserved_header_bits],
-    [[[0-9]]|[[1-2]][[0-9]]|3[[0-1]]],
-      [ reserved_header_bits=$enable_reserved_header_bits],
-  [AC_MSG_ERROR([invalid argument to --enable-reserved-header-bits])])])
-
-=======
-AC_ARG_ENABLE([reserved-header-bits],
-  [AS_HELP_STRING([--enable-reserved-header-bits=BITS],
-    [reserve BITS (between 0 and 31) bits in block headers])],
-  [AS_CASE([$enable_reserved_header_bits],
-    [[[0-9]]|[[1-2]][[0-9]]|3[[0-1]]],
-      [reserved_header_bits=$enable_reserved_header_bits],
-  [AC_MSG_ERROR([invalid argument to --enable-reserved-header-bits])])])
-
->>>>>>> 5.2.0
 AC_ARG_ENABLE([stdlib-manpages],
   [AS_HELP_STRING([--disable-stdlib-manpages],
     [do not build or install the library man pages])],
@@ -908,21 +872,13 @@ AS_CASE([$ocaml_cc_vendor],
     cc_warnings=''],
   [outputobj='-o '
   warn_error_flag='-Werror'
-<<<<<<< HEAD
   cc_warnings="-Wall -Wno-pragmas -Wint-conversion -Wstrict-prototypes \
--Wold-style-definition"])
-||||||| 121bedcfd2
-  cc_warnings="-Wall -Wint-conversion -Wstrict-prototypes \
--Wold-style-definition"])
-=======
-  cc_warnings="-Wall -Wint-conversion -Wstrict-prototypes \
 -Wold-style-definition -Wundef"])
 
 # Use -Wold-style-declaration if supported
 AX_CHECK_COMPILE_FLAG([-Wold-style-declaration],
   [cc_warnings="$cc_warnings -Wold-style-declaration"], [],
   [$warn_error_flag])
->>>>>>> 5.2.0
 
 AS_CASE([$enable_warn_error],
   [no], [],
@@ -1323,19 +1279,10 @@ AS_IF([test x"$enable_shared" != "xno"],
            # Disable DT_TEXTREL warnings on Linux and BSD i386
            # See https://github.com/ocaml/ocaml/issues/9800
            [mkdll_flags='-shared -Wl,-z,notext'],
-<<<<<<< HEAD
-           [mkdll_flags='-shared'])
-       AS_CASE([$host],
-           [[*-*-openbsd7.[3-9]|*-*-openbsd[89].*]],
-           [mkdll_flags="${mkdll_flags} -Wl,--no-execute-only"])
-||||||| 121bedcfd2
-           [mkdll_flags='-shared'])
-=======
          [mkdll_flags='-shared'])
        AS_CASE([$host],
          [[*-*-openbsd7.[3-9]|*-*-openbsd[89].*]],
            [mkdll_flags="${mkdll_flags} -Wl,--no-execute-only"])
->>>>>>> 5.2.0
       oc_ldflags="$oc_ldflags -Wl,-E"
       rpath="-Wl,-rpath,"
       mksharedlibrpath="-Wl,-rpath,"
@@ -1350,17 +1297,6 @@ AS_IF([test -z "$mkmaindll"],
   [mkmaindll_exp="$mkdll_exp"
   mkmaindll="$mkdll"])
 
-<<<<<<< HEAD
-# Make sure code sections in OCaml-generated executables are readable
-# (required for marshaling of function closures)
-
-AS_CASE([$host],
-  [[*-*-openbsd7.[3-9]|*-*-openbsd[89].*]],
-    [oc_ldflags="$oc_ldflags -Wl,--no-execute-only"
-     natdynlinkopts="$natdynlinkopts -Wl,--no-execute-only"])
-
-||||||| 121bedcfd2
-=======
 # Make sure code sections in OCaml-generated executables are readable
 # (required for marshaling of function closures)
 
@@ -1377,7 +1313,6 @@ AS_CASE([$host],
      natdynlinkopts="$natdynlinkopts -Wl,-z,nobtcfi"])
 
 
->>>>>>> 5.2.0
 # Configure native dynlink
 
 natdynlink=false
@@ -1472,13 +1407,7 @@ AS_CASE([$host],
   [[powerpc64*-*-linux-musl*]],
     [has_native_backend=yes; arch=power; model=ppc64; system=linux],
   [[s390x*-*-linux*]],
-<<<<<<< HEAD
-    [has_native_backend=yes; arch=s390x; model=z10; system=elf],
-||||||| 121bedcfd2
-    [arch=s390x; model=z10; system=elf],
-=======
     [has_native_backend=yes; arch=s390x; model=z10; system=linux],
->>>>>>> 5.2.0
   # expected to match "gnueabihf" as well as "musleabihf"
   [armv6*-*-linux-*eabihf],
     [arch=arm; model=armv6; system=linux],
@@ -1552,7 +1481,11 @@ AS_CASE([$host],
     [has_native_backend=yes; arch=riscv; model=riscv64; system=linux]
 )
 
-<<<<<<< HEAD
+AS_CASE([$arch],
+  [amd64],
+    [arch_specific_SOURCES='$(intel_SOURCES)'],
+  [arch_specific_SOURCES=''])
+
 # Disabling of stack checks is only supported on amd64.
 AS_IF([test x"$enable_stack_checks" = xyes],
   [AC_DEFINE([STACK_CHECKS_ENABLED])],
@@ -1561,14 +1494,6 @@ AS_IF([test x"$enable_stack_checks" = xyes],
      AC_DEFINE([STACK_CHECKS_ENABLED])],
     [])])
 
-||||||| 121bedcfd2
-=======
-AS_CASE([$arch],
-  [amd64],
-    [arch_specific_SOURCES='$(intel_SOURCES)'],
-  [arch_specific_SOURCES=''])
-
->>>>>>> 5.2.0
 native_cflags=''
 native_cppflags="-DTARGET_${arch} -DMODEL_${model} -DSYS_${system}"
 
@@ -1643,6 +1568,16 @@ AS_CASE([$arch],
     [*-linux-musl*],
       # Alpine and other musl-based Linux distributions
       [common_cflags="-no-pie $common_cflags"])])
+
+# The major GC performs better with this flag on Intel processors
+# This is a workaround for an Intel CPU bug:
+# https://www.intel.co.uk/content/www/uk/en/support/articles/000055650/processors.html
+
+intel_jcc_bug_cflags=''
+AS_CASE([$arch],
+  [amd64],
+    [AX_CHECK_COMPILE_FLAG([-Wa,-mbranches-within-32B-boundaries],
+     [intel_jcc_bug_cflags=-Wa,-mbranches-within-32B-boundaries])])
 
 # The major GC performs better with this flag on Intel processors
 # This is a workaround for an Intel CPU bug:
@@ -2363,11 +2298,7 @@ AC_CHECK_HEADER([spawn.h],
   [AC_CHECK_FUNC([posix_spawn],
     [AC_CHECK_FUNC([posix_spawnp], [AC_DEFINE([HAS_POSIX_SPAWN])])])])
 
-<<<<<<< HEAD
-## ffs or _BitScanForward
-
-AC_CHECK_FUNC([ffs], [AC_DEFINE([HAS_FFS])])
-AC_CHECK_FUNC([_BitScanForward], [AC_DEFINE([HAS_BITSCANFORWARD])])
+AC_PATH_TOOL([PKG_CONFIG], [pkg-config], [false])
 
 ## pthread_getaffinity_np, args differ from GNU and BSD
 AC_MSG_CHECKING([arguments for pthread_getaffinity_np])
@@ -2397,37 +2328,6 @@ AC_LINK_IFELSE(
     [AC_MSG_RESULT([pthread_getaffinity_np not found])])])
 
 AC_PATH_TOOL([PKG_CONFIG], [pkg-config], [false])
-||||||| 121bedcfd2
-## ffs or _BitScanForward
-
-AC_CHECK_FUNC([ffs], [AC_DEFINE([HAS_FFS])])
-AC_CHECK_FUNC([_BitScanForward], [AC_DEFINE([HAS_BITSCANFORWARD])])
-
-## pthread_getaffinity_np, args differ from GNU and BSD
-AC_COMPILE_IFELSE(
-  [AC_LANG_PROGRAM(
-    [[#define _GNU_SOURCE
-      #include <sched.h>
-      #include <pthread.h>]],
-    [[cpu_set_t cs;
-      CPU_ZERO(&cs);
-      CPU_COUNT(&cs);
-      pthread_getaffinity_np(pthread_self(), sizeof(cs), &cs);]])],
-  [AC_DEFINE([HAS_GNU_GETAFFINITY_NP])],
-  [AC_COMPILE_IFELSE(
-    [AC_LANG_PROGRAM(
-      [[#include <pthread.h>
-        #include <pthread_np.h>
-        #include <sys/cpuset.h>]],
-      [[cpuset_t cs;
-        /* Not every BSD has CPU_ZERO and CPU_COUNT (NetBSD) */
-        CPU_ZERO(&cs);
-        CPU_COUNT(&cs);
-        pthread_getaffinity_np(pthread_self(), sizeof(cs), &cs);]])],
-    [AC_DEFINE([HAS_BSD_GETAFFINITY_NP])])])
-=======
-AC_PATH_TOOL([PKG_CONFIG], [pkg-config], [false])
->>>>>>> 5.2.0
 
 ## ZSTD compression library
 
@@ -2540,22 +2440,12 @@ AS_CASE([$arch,$system],
 ## Determine how to link with the POSIX threads library
 
 AS_CASE([$host],
-<<<<<<< HEAD
   [*-*-mingw32*],
     [PTHREAD_LIBS="-l:libpthread.a -lgcc_eh"],
   [*-pc-windows],
     [PTHREAD_LIBS="-l:libpthread.lib"],
   [*-apple-darwin*],
     [PTHREAD_LIBS="-pthread"],
-||||||| 121bedcfd2
-  [*-*-mingw32*|*-pc-windows],
-    [PTHREAD_LIBS="-l:libpthread.a"],
-=======
-  [*-*-mingw32*],
-    [PTHREAD_LIBS="-l:libpthread.a -lgcc_eh"],
-  [*-pc-windows],
-    [PTHREAD_LIBS="-l:libpthread.lib"],
->>>>>>> 5.2.0
   [AX_PTHREAD(
     [common_cflags="$common_cflags $PTHREAD_CFLAGS"
     # The two following lines add flags and libraries for pthread to the
@@ -2876,27 +2766,8 @@ ocamlc_cppflags="$common_cppflags $CPPFLAGS"
 
 AS_CASE([$host],
   [*-*-mingw32*],
-<<<<<<< HEAD
-    [cclibs="$cclibs -lversion"],
-||||||| 121bedcfd2
-    [bytecclibs="-lws2_32 -lversion -l:libpthread.a -lgcc_eh"
-    nativecclibs="-lws2_32 -lversion -l:libpthread.a -lgcc_eh"],
-=======
     [cclibs="$cclibs -lole32 -luuid -lversion"],
->>>>>>> 5.2.0
   [*-pc-windows],
-<<<<<<< HEAD
-    [# For whatever reason, flexlink includes -ladvapi32 for mingw-w64, but
-    # doesn't include advapi32.lib for MSVC
-    cclibs="$cclibs advapi32.lib version.lib"])
-
-AC_CONFIG_COMMANDS_PRE([cclibs="$cclibs $mathlib $DLLIBS $PTHREAD_LIBS"])
-||||||| 121bedcfd2
-    [bytecclibs="advapi32.lib ws2_32.lib version.lib"
-    nativecclibs="advapi32.lib ws2_32.lib version.lib"],
-  [bytecclibs="$cclibs $DLLIBS $PTHREAD_LIBS"
-  nativecclibs="$cclibs $DLLIBS $PTHREAD_LIBS"])
-=======
     [# For whatever reason, flexlink includes -ladvapi32 for mingw-w64, but
     # doesn't include advapi32.lib for MSVC
     cclibs="$cclibs ole32.lib uuid.lib advapi32.lib version.lib"])
@@ -2905,7 +2776,6 @@ AC_CONFIG_COMMANDS_PRE([cclibs="$cclibs $mathlib $DLLIBS $PTHREAD_LIBS"])
 
 AS_IF([$tsan],
   [cclibs="$cclibs -fsanitize=thread"])
->>>>>>> 5.2.0
 
 AS_IF([test x"$libdir" = x'${exec_prefix}/lib'],
   [libdir="$libdir"/ocaml])
