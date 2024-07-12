@@ -95,8 +95,8 @@
       (run cat %{input-file})))
     parser)))
  (library_flags -linkall)
-;; CR nroberts: (5.2 merge) add this back in as needed
-;; (libraries flambda2_floats)
+ ;; CR nroberts: (5.2 merge) add this back in as needed
+ ;; (libraries flambda2_floats)
  (modules_without_implementation
   annot
   value_rec_types
@@ -121,6 +121,7 @@
   terminfo
   ccomp
   warnings
+  compression
   consistbl
   strongly_connected_components
   targetint
@@ -162,7 +163,7 @@
   depend
   jane_syntax_parsing
   jane_syntax ; manual update: mli only files asttypes parsetree
-  ;; TYPING
+              ;; TYPING
   ident
   path
   jkind
