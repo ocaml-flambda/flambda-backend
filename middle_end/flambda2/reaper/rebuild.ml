@@ -183,7 +183,6 @@ let rewrite_set_of_closures bound (env : env) value_slots alloc_mode
   let slot_is_used slot =
     List.exists
       (fun bv ->
-        (* Format.eprintf "BV: %a SLOT: %a@." Bound_var.print bv Global_flow_graph.Field.print slot; *)
         match
           Hashtbl.find_opt env.uses (Code_id_or_name.var (Bound_var.var bv))
         with
@@ -191,6 +190,22 @@ let rewrite_set_of_closures bound (env : env) value_slots alloc_mode
         | Some Top -> true
         | Some (Fields f) -> Global_flow_graph.Field.Map.mem slot f)
       bound
+  in
+  let code_is_used bv =
+    (*
+    let xx =
+      Hashtbl.find_opt env.uses (Code_id_or_name.var (Bound_var.var bv))
+    in
+    Format.eprintf "BV: %a %a@." Bound_var.print bv
+      (Format.pp_print_option Dep_solver.pp_elt)
+      xx;
+  *)
+    match
+      Hashtbl.find_opt env.uses (Code_id_or_name.var (Bound_var.var bv))
+    with
+    | None | Some Bottom -> false
+    | Some Top -> true
+    | Some (Fields f) -> Global_flow_graph.Field.Map.mem Code_of_closure f
   in
   let value_slots =
     Value_slot.Map.filter
@@ -201,21 +216,31 @@ let rewrite_set_of_closures bound (env : env) value_slots alloc_mode
      Compilation_unit.dummy in *)
   let open Function_declarations in
   let function_decls =
-    Function_declarations.create
-      (Function_slot.Lmap.mapi
-         (fun slot code_id -> (* Format.eprintf "%a@." Function_slot.print slot; *)
-           match code_id with
-           | Deleted _ -> code_id
-           | Code_id code_id ->
-             if slot_is_used (Function_slot slot) || Code_metadata.stub (env.get_code_metadata code_id)
-             then Code_id code_id
-             else
-               let code_metadata = env.get_code_metadata code_id in
-               Deleted
-                 { function_slot_size =
-                     Code_metadata.function_slot_size code_metadata
-                 })
+    List.map2
+      (fun bound_var (slot, code_id) ->
+        (* Format.eprintf "%a %a@." Bound_var.print bound_var Function_slot.print *)
+        (*   slot; *)
+        let code_id =
+          match code_id with
+          | Deleted _ -> code_id
+          | Code_id code_id ->
+            if code_is_used bound_var
+            (* || Code_metadata.stub (env.get_code_metadata code_id) *)
+            then Code_id code_id
+            else
+              let code_metadata = env.get_code_metadata code_id in
+              Deleted
+                { function_slot_size =
+                    Code_metadata.function_slot_size code_metadata
+                }
+        in
+        slot, code_id)
+      bound
+      (Function_slot.Lmap.bindings
          (Function_declarations.funs_in_order function_decls))
+  in
+  let function_decls =
+    Function_declarations.create (Function_slot.Lmap.of_list function_decls)
   in
   Set_of_closures.create ~value_slots alloc_mode function_decls
 
