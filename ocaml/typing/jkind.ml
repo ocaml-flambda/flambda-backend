@@ -93,6 +93,8 @@ module Type = struct
 
   type type_expr = Types.type_expr
 
+   type type_expr = Types.type_expr
+
   (* A *layout* of a type describes the way values of that type are stored at
      runtime, including details like width, register convention, calling
      convention, etc. A layout may be *representable* or *unrepresentable*.  The
@@ -303,6 +305,7 @@ module Type = struct
     let has_warned t = t.has_warned
   end
 
+  (* forward declare [Const.t] so we can use it for [Error.t] *)
   type const = type_expr Jkind_types.Type.Const.t
 
   module Const = struct
