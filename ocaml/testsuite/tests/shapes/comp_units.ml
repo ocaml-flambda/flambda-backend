@@ -164,7 +164,7 @@ end
    {<.12>
     "M"[module] ->
       CU Stdlib . "Set"[module] . "Make"[module](
-      CU Stdlib . "Int"[module])<.10>;
+      CU Stdlib . "Int"[module])<.11>;
     };
  }
 module With_identity_constraint : sig module M : Set.S end
@@ -180,10 +180,10 @@ end
  "With_constraining_constraint"[module] ->
    {<.16>
     "M"[module] ->
-      {<.13>
+      {<.15>
        "t"[type] ->
          CU Stdlib . "Set"[module] . "Make"[module](
-         CU Stdlib . "Int"[module])<.13> . "t"[type];
+         CU Stdlib . "Int"[module])<.15> . "t"[type];
        };
     };
  }

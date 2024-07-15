@@ -943,8 +943,9 @@ and module_binding i ppf x =
   module_expr (i+1) ppf x.mb_expr
 
 and modtype_declaration i ppf = function
-  | None -> line i ppf "#abstract"
-  | Some mt -> module_type (i + 1) ppf mt
+  | Tmtd_abstract -> line i ppf "#abstract"
+  | Tmtd_underscore -> line i ppf "#underscore"
+  | Tmtd_define mt -> module_type (i + 1) ppf mt
 
 and with_constraint i ppf x =
   match x with

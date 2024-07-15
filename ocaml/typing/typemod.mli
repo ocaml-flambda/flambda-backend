@@ -162,6 +162,8 @@ type error =
       old_source_file: Misc.filepath;
     }
   | Submode_failed of Mode.Value.error
+  | Underscore_not_allowed_in_signature
+  | Cannot_infer_module_type
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

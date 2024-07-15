@@ -100,6 +100,8 @@ type error =
       old_source_file : Misc.filepath;
     }
   | Submode_failed of Mode.Value.error
+  | Underscore_not_allowed_in_signature
+  | Cannot_infer_module_type
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -1893,8 +1895,9 @@ and transl_signature env (sg : Parsetree.signature) =
         let newenv, mtd, _decl = transl_modtype_decl env pmtd in
         let info =
           let mty = match mtd.mtd_type with
-            | Some tmty -> tmty.mty_type
-            | None ->
+            | Tmtd_define tmty -> tmty.mty_type
+            | Tmtd_abstract
+            | Tmtd_underscore ->
                 (* parsetree invariant, see Ast_invariants *)
                 assert false
           in
@@ -1991,20 +1994,35 @@ and transl_signature env (sg : Parsetree.signature) =
        sg
     )
 
-and transl_modtype_decl env pmtd =
+and transl_modtype_decl ?expected_modtype_decl env pmtd =
   Builtin_attributes.warning_scope pmtd.pmtd_attributes
-    (fun () -> transl_modtype_decl_aux env pmtd)
+    (fun () -> transl_modtype_decl_aux env pmtd ?expected_modtype_decl)
 
-and transl_modtype_decl_aux env
+and transl_modtype_decl_aux ?expected_modtype_decl env
     {pmtd_name; pmtd_type; pmtd_attributes; pmtd_loc} =
-  let tmty = match pmtd_type with
-    | Pmtd_abstract -> None
-    | Pmtd_underscore -> failwith "underscore not implemented"
-    | Pmtd_define ty -> Some (transl_modtype (Env.in_signature true env) ty)
+  (* If we are typechecking a signature or a struct without an explicit signature,
+     [expected] is [None].
+
+     If we are typechecking a struct and there is a corresponding signature,
+     then [expected] is the [Some] of [Typedtree.module_type_declaration] from that
+     signature. *)
+
+  let tmty, mty = match pmtd_type with
+    | Pmtd_abstract -> Tmtd_abstract, None
+    | Pmtd_define ty ->
+      let tmty = transl_modtype (Env.in_signature true env) ty in
+      Tmtd_define tmty, Some (tmty.mty_type)
+    | Pmtd_underscore ->
+      begin match expected_modtype_decl with
+         (* TODO: Maybe we want to separate out the case where we are in a signature and
+            raise [Underscore_not_allowed_in_signature] instead *)
+        | None -> raise (Error (pmtd_loc, env, Cannot_infer_module_type))
+        | Some mtd -> Tmtd_underscore, mtd.Types.mtd_type
+      end
   in
   let decl =
     {
-     Types.mtd_type=Option.map (fun t -> t.mty_type) tmty;
+     Types.mtd_type=mty;
      mtd_attributes=pmtd_attributes;
      mtd_loc=pmtd_loc;
      mtd_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
@@ -2475,11 +2493,11 @@ let maybe_infer_modalities ~loc ~env ~md_mode ~mode =
     Mode.Modality.Value.id
   end
 
-let rec type_module ?(alias=false) sttn funct_body anchor env smod =
+let rec type_module ?(alias=false) ?expected_modtype sttn funct_body anchor env smod =
   Builtin_attributes.warning_scope smod.pmod_attributes
-    (fun () -> type_module_aux ~alias sttn funct_body anchor env smod)
+    (fun () -> type_module_aux ~alias ~expected_modtype sttn funct_body anchor env smod)
 
-and type_module_aux ~alias sttn funct_body anchor env smod =
+and type_module_aux ~alias ~expected_modtype sttn funct_body anchor env smod =
   match smod.pmod_desc with
     Pmod_ident lid ->
       let path, mode =
@@ -2519,8 +2537,20 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       in
       md, shape
   | Pmod_structure sstr ->
+      let expected_sig = match expected_modtype with
+        | None -> None
+        | Some mty ->
+          (match mty with
+          | Mty_ident _
+          | Mty_functor _
+          | Mty_alias _
+          | Mty_strengthen _ -> None
+          (* For now, we only allow module type inferrence in cases where the signature
+             is "close" to the struct (i.e. declared in the same place). *)
+          | Mty_signature sg -> Some sg)
+        in
       let (str, sg, names, shape, _finalenv) =
-        type_structure funct_body anchor env sstr in
+        type_structure funct_body anchor env sstr ?expected_sig in
       let md =
         { mod_desc = Tmod_structure str;
           mod_type = Mty_signature sg;
@@ -2574,8 +2604,11 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
   | Pmod_apply _ | Pmod_apply_unit _ ->
       type_application smod.pmod_loc sttn funct_body env smod
   | Pmod_constraint(sarg, smty) ->
-      let arg, arg_shape = type_module ~alias true funct_body anchor env sarg in
       let mty = transl_modtype env smty in
+      let arg, arg_shape =
+        type_module ~alias true funct_body anchor env sarg
+          ~expected_modtype:mty.mty_type
+      in
       let md, final_shape =
         wrap_constraint_with_shape env true arg mty.mty_type arg_shape
           (Tmodtype_explicit mty)
@@ -2823,7 +2856,7 @@ and type_open_decl_aux ?used_slot ?toplevel funct_body names env od =
     } in
     open_descr, sg, newenv
 
-and type_structure ?(toplevel = None) funct_body anchor env sstr =
+and type_structure ?(toplevel = None) ?expected_sig funct_body anchor env sstr =
   let names = Signature_names.create () in
 
   let type_str_include ~functor_ ~loc env shape_map sincl sig_acc =
@@ -2875,10 +2908,16 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
   in
 
   let type_str_item
-        env shape_map ({pstr_loc = loc; pstr_desc = desc} as item) sig_acc =
+        env subst shape_map ({pstr_loc = loc; pstr_desc = desc} as item) sig_acc =
+    (* [subst] is a running [Subst] object. For every type, module and module type we
+       have seen in the [struct] so far also present in [expected_sig], [subst] contains
+       a mapping from its Ident.t to its corresponding definition within the struct.
+       It is used for module type inferrence with the underscore syntax. *)
     let md_mode = Mode.Value.legacy in
     match Jane_syntax.Structure_item.of_ast item with
-    | Some jitem -> type_str_item_jst ~loc env shape_map jitem sig_acc
+    | Some jitem ->
+        let (tstr, sg, map, newenv) = type_str_item_jst ~loc env shape_map jitem sig_acc in
+        tstr, sg, map, newenv, subst
     | None ->
     match desc with
     | Pstr_eval (sexpr, attrs) ->
@@ -2890,7 +2929,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
             (fun () -> Typecore.type_representable_expression
                          ~why:Structure_item_expression env sexpr)
         in
-        Tstr_eval (expr, sort, attrs), [], shape_map, env
+        Tstr_eval (expr, sort, attrs), [], shape_map, env, subst
     | Pstr_value(rec_flag, sdefs) ->
         let force_toplevel =
           (* Values bound by '_' still escape in the toplevel, because
@@ -2952,14 +2991,16 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         Tstr_value(rec_flag, defs),
         List.rev items,
         shape_map,
-        newenv
+        newenv,
+        subst
     | Pstr_primitive sdesc ->
         let (desc, newenv) = Typedecl.transl_value_decl env loc sdesc in
         Signature_names.check_value names desc.val_loc desc.val_id;
         Tstr_primitive desc,
         [Sig_value(desc.val_id, desc.val_val, Exported)],
         Shape.Map.add_value shape_map desc.val_id desc.val_val.val_uid,
-        newenv
+        newenv,
+        subst
     | Pstr_type (rec_flag, sdecls) ->
         let (decls, newenv, shapes) =
           Typedecl.transl_type_decl env rec_flag sdecls
@@ -2978,10 +3019,27 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           decls
           shapes
         in
+        let newsubst = match expected_sig with
+          | None -> subst
+          | Some expected_sig ->
+              let add_to_subst subst { typ_id; typ_name; _ } =
+                let get_ident = function
+                  | Sig_type (ident, _, _, _)
+                      when (Ident.name ident) = typ_name.txt -> Some ident
+                  | _ -> None
+                in
+                match List.find_map get_ident expected_sig with
+                | None -> subst
+                | Some sig_ident ->
+                    Subst.add_type sig_ident (Pident typ_id) subst
+              in
+              List.fold_left add_to_subst subst decls
+        in
         Tstr_type (rec_flag, decls),
         items,
         shape_map,
-        enrich_type_decls anchor decls env newenv
+        enrich_type_decls anchor decls env newenv,
+        newsubst
     | Pstr_typext styext ->
         let (tyext, newenv, shapes) =
           Typedecl.transl_type_extension true env loc styext
@@ -2996,8 +3054,9 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
          map_ext
            (fun es ext -> Sig_typext(ext.ext_id, ext.ext_type, es, Exported))
            constructors,
-        shape_map,
-         newenv)
+         shape_map,
+         newenv,
+         subst)
     | Pstr_exception sext ->
         let (ext, newenv, shape) = Typedecl.transl_type_exception env sext in
         let constructor = ext.tyexn_constructor in
@@ -3011,7 +3070,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         Shape.Map.add_extcons shape_map
           constructor.ext_id
           shape,
-        newenv
+        newenv,
+        subst
     | Pstr_module {pmb_name = name; pmb_expr = smodl; pmb_attributes = attrs;
                    pmb_loc;
                   } ->
@@ -3040,32 +3100,45 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         let md_shape = Shape.set_uid_if_none md_shape md_uid in
         (*prerr_endline (Ident.unique_toplevel_name id);*)
         Mtype.lower_nongen outer_scope md.md_type;
-        let id, newenv, sg =
+        let id, newenv, sg, ident_in_expected =
           match name.txt with
-          | None -> None, env, []
+          | None -> None, env, [], None
           | Some name ->
             let id, e = Env.enter_module_declaration
               ~scope ~shape:md_shape name pres md env
             in
             Signature_names.check_module names pmb_loc id;
+            let get_ident sg = begin match sg with
+              | Sig_module (ident, _, _, _, _)
+                  when Ident.name ident = name -> Some ident
+              | _ -> None
+            end in
             Some id, e,
             [Sig_module(id, pres,
                         {md_type = modl.mod_type;
                          md_attributes = attrs;
                          md_loc = pmb_loc;
                          md_uid;
-                        }, Trec_not, Exported)]
+                        }, Trec_not, Exported)],
+            Option.join (Option.map (List.find_map get_ident) expected_sig)
         in
-        let shape_map = match id with
-          | Some id -> Shape.Map.add_module shape_map id md_shape
-          | None -> shape_map
+        let shape_map, newsubst = match id with
+          | Some id ->
+              let shape_map = Shape.Map.add_module shape_map id md_shape in
+              let newsubst = match ident_in_expected with
+                | None -> subst
+                | Some sig_id -> Subst.add_module sig_id (Pident id) subst
+              in
+              shape_map, newsubst
+          | None -> shape_map, subst
         in
         Tstr_module {mb_id=id; mb_name=name; mb_uid = md.md_uid;
                      mb_expr=modl; mb_presence=pres; mb_attributes=attrs;
                      mb_loc=pmb_loc; },
         sg,
         shape_map,
-        newenv
+        newenv,
+        newsubst
     | Pstr_recmodule sbind ->
         let sbind =
           List.map
@@ -3100,7 +3173,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                  Builtin_attributes.warning_scope attrs
                    (fun () ->
                       type_module true funct_body (anchor_recmodule id)
-                        newenv smodl
+                        newenv smodl ~expected_modtype:mty.mty_type
                    )
                in
                let mty' =
@@ -3139,6 +3212,26 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
             Shape.Map.add_module map id shape
           ) shape_map mbs
         in
+        let newsubst = match expected_sig with
+          | None -> subst
+          | Some expected_sig ->
+              let add_to_subst subst ({ mb_id; mb_name; }, _, _) =
+                match mb_id with
+                | None -> subst
+                | Some md_id ->
+                    let get_ident sig_item = match sig_item, mb_name.txt with
+                      | Sig_module (ident, _, _, _, _), Some md_name
+                          when (Ident.name ident) = md_name -> Some ident
+                      | _ -> None
+                    in
+                    begin match List.find_map get_ident expected_sig with
+                    | None -> subst
+                    | Some sig_ident ->
+                        Subst.add_module sig_ident (Pident md_id) subst
+                    end
+              in
+              List.fold_left add_to_subst subst bindings2
+        in
         Tstr_recmodule (List.map (fun (mb, _, _) -> mb) bindings2),
         map_rec (fun rs (id, mb, uid, _shape) ->
             Sig_module(id, Mp_present, {
@@ -3149,20 +3242,43 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
               }, rs, Exported))
            mbs [],
         shape_map,
-        newenv
+        newenv,
+        newsubst
     | Pstr_modtype pmtd ->
+        let expected_modtype_decl, ident_in_expected =
+          let get_modtype_decl = function
+            | Sig_modtype (ident, decl, _) ->
+              if Ident.name ident = pmtd.pmtd_name.txt then
+                Some (Subst.modtype_declaration Keep subst decl, ident)
+              else
+                None
+            | _ -> None
+          in
+          match expected_sig with
+          | None -> None, None
+          | Some sg ->
+            begin match List.find_map get_modtype_decl sg with
+              | Some (decl, ident) -> Some decl, Some ident
+              | None -> None, None
+            end
+        in
         (* check that it is non-abstract *)
-        let newenv, mtd, decl = transl_modtype_decl env pmtd in
+        let newenv, mtd, decl = transl_modtype_decl env pmtd ?expected_modtype_decl in
         Signature_names.check_modtype names pmtd.pmtd_loc mtd.mtd_id;
         let id = mtd.mtd_id in
         let map = Shape.Map.add_module_type shape_map id decl.mtd_uid in
-        Tstr_modtype mtd, [Sig_modtype (id, decl, Exported)], map, newenv
+        let newsubst = match ident_in_expected with
+          | None -> subst
+          | Some sig_id ->
+            Subst.add_modtype sig_id (Mty_ident (Pident id)) subst
+        in
+        Tstr_modtype mtd, [Sig_modtype (id, decl, Exported)], map, newenv, newsubst
     | Pstr_open sod ->
         let toplevel = Option.is_some toplevel in
         let (od, sg, newenv) =
           type_open_decl ~toplevel funct_body names env sod
         in
-        Tstr_open od, sg, shape_map, newenv
+        Tstr_open od, sg, shape_map, newenv, subst
     | Pstr_class cl ->
         let (classes, new_env) = Typeclass.class_declarations env cl in
         let shape_map = List.fold_left (fun acc cls ->
@@ -3192,7 +3308,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
               ])
              classes []),
         shape_map,
-        new_env
+        new_env,
+        subst
     | Pstr_class_type cl ->
         let (classes, new_env) = Typeclass.class_type_declarations env cl in
         let shape_map = List.fold_left (fun acc decl ->
@@ -3221,38 +3338,40 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                 ])
              classes []),
         shape_map,
-        new_env
+        new_env,
+        subst
     | Pstr_include sincl ->
-        type_str_include ~functor_:false ~loc env shape_map sincl sig_acc
+        let (tstr, sg, map, newenv) = type_str_include ~functor_:false ~loc env shape_map sincl sig_acc in
+        tstr, sg, map, newenv, subst
     | Pstr_extension (ext, _attrs) ->
         raise (Error_forward (Builtin_attributes.error_of_extension ext))
     | Pstr_attribute attr ->
         Builtin_attributes.parse_standard_implementation_attributes attr;
         Builtin_attributes.mark_alert_used attr;
-        Tstr_attribute attr, [], shape_map, env
+        Tstr_attribute attr, [], shape_map, env, subst
   in
   let toplevel_sig = Option.value toplevel ~default:[] in
-  let rec type_struct env shape_map sstr str_acc sig_acc
+  let rec type_struct env subst shape_map sstr str_acc sig_acc
             sig_acc_include_functor =
     match sstr with
     | [] ->
-      (List.rev str_acc, List.rev sig_acc, shape_map, env)
+      (List.rev str_acc, List.rev sig_acc, shape_map, env, subst)
     | pstr :: srem ->
         let previous_saved_types = Cmt_format.get_saved_types () in
-        let desc, sg, shape_map, new_env =
-          type_str_item env shape_map pstr sig_acc_include_functor
+        let desc, sg, shape_map, new_env, new_subst =
+          type_str_item env subst shape_map pstr sig_acc_include_functor
         in
         let str = { str_desc = desc; str_loc = pstr.pstr_loc; str_env = env } in
         Cmt_format.set_saved_types (Cmt_format.Partial_structure_item str
                                     :: previous_saved_types);
-        type_struct new_env shape_map srem (str :: str_acc)
+        type_struct new_env new_subst shape_map srem (str :: str_acc)
           (List.rev_append sg sig_acc)
           (List.rev_append sg sig_acc_include_functor)
   in
   let previous_saved_types = Cmt_format.get_saved_types () in
   let run () =
-    let (items, sg, shape_map, final_env) =
-      type_struct env Shape.Map.empty sstr [] [] toplevel_sig
+    let (items, sg, shape_map, final_env, _final_subst) =
+      type_struct env Subst.identity Shape.Map.empty sstr [] [] toplevel_sig
     in
     let str = { str_items = items; str_type = sg; str_final_env = final_env } in
     Cmt_format.set_saved_types
@@ -4138,6 +4257,12 @@ let report_error ~loc _env = function
         "This value is %a, but expected to be %a because it is inside a module."
         (Mode.Value.Const.print_axis ax) left
         (Mode.Value.Const.print_axis ax) right
+  | Underscore_not_allowed_in_signature ->
+    Location.errorf ~loc
+      "Inferrence of module types is not allowed within a signature."
+  | Cannot_infer_module_type ->
+    Location.errorf ~loc
+      "Cannot infer module type without a corresponding definition."
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env_error env

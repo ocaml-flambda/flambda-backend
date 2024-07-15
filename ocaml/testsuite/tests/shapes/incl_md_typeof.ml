@@ -14,7 +14,7 @@ end
 [%%expect{|
 {
  "Foo"[module] -> {<.2>
-                   "Bar"[module] -> {<.0>};
+                   "Bar"[module] -> {<.1>};
                    };
  }
 module Foo : sig module Bar : sig end end

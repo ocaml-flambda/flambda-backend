@@ -109,10 +109,15 @@ let class_infos sub f x =
    ci_attributes = sub.attributes sub x.ci_attributes;
   }
 
+let module_type_declaration_type sub = function
+  | Tmtd_abstract
+  | Tmtd_underscore as tmtd -> tmtd
+  | Tmtd_define ty -> Tmtd_define (sub.module_type sub ty)
+
 let module_type_declaration sub x =
   let mtd_loc = sub.location sub x.mtd_loc in
   let mtd_name = map_loc sub x.mtd_name in
-  let mtd_type = Option.map (sub.module_type sub) x.mtd_type in
+  let mtd_type = module_type_declaration_type sub x.mtd_type in
   let mtd_attributes = sub.attributes sub x.mtd_attributes in
   {x with mtd_loc; mtd_name; mtd_type; mtd_attributes}
 

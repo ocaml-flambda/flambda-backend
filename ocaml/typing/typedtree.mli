@@ -805,10 +805,15 @@ and module_type_declaration =
      mtd_id: Ident.t;
      mtd_name: string loc;
      mtd_uid: Uid.t;
-     mtd_type: module_type option;
+     mtd_type: module_type_declaration_type;
      mtd_attributes: attributes;
      mtd_loc: Location.t;
     }
+
+and module_type_declaration_type =
+  | Tmtd_abstract
+  | Tmtd_underscore
+  | Tmtd_define of module_type
 
 and 'a open_infos =
     {

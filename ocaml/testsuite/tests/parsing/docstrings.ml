@@ -312,10 +312,10 @@ module Manual :
     module type my_module_type  = sig val x : int end[@@ocaml.doc
                                                        " The comment for module type my_module_type. "]
   end ;;
-Line 141, characters 12-14:
-141 |     inherit cl
-                  ^^
-Error: Unbound class cl
+Line 48, characters 12-14:
+48 |     inherit cl
+                 ^^
+Error: Unbound class type cl
 |}]
 
 (***********************************************************************)
