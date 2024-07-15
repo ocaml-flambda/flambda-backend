@@ -183,6 +183,7 @@ let rewrite_set_of_closures bound (env : env) value_slots alloc_mode
   let slot_is_used slot =
     List.exists
       (fun bv ->
+        (* Format.eprintf "BV: %a SLOT: %a@." Bound_var.print bv Global_flow_graph.Field.print slot; *)
         match
           Hashtbl.find_opt env.uses (Code_id_or_name.var (Bound_var.var bv))
         with
@@ -202,12 +203,11 @@ let rewrite_set_of_closures bound (env : env) value_slots alloc_mode
   let function_decls =
     Function_declarations.create
       (Function_slot.Lmap.mapi
-         (fun _slot code_id ->
+         (fun slot code_id -> (* Format.eprintf "%a@." Function_slot.print slot; *)
            match code_id with
            | Deleted _ -> code_id
            | Code_id code_id ->
-             if (* slot_is_used (Function_slot slot) *)
-                is_code_id_used env code_id
+             if slot_is_used (Function_slot slot) || Code_metadata.stub (env.get_code_metadata code_id)
              then Code_id code_id
              else
                let code_metadata = env.get_code_metadata code_id in
@@ -217,7 +217,6 @@ let rewrite_set_of_closures bound (env : env) value_slots alloc_mode
                  })
          (Function_declarations.funs_in_order function_decls))
   in
-  (* TODO remove unused function slots as well *)
   Set_of_closures.create ~value_slots alloc_mode function_decls
 
 let rewrite_named kinds env (named : Named.t) =
@@ -226,7 +225,7 @@ let rewrite_named kinds env (named : Named.t) =
   | Prim (prim, dbg) ->
     let prim = Flambda_primitive.map_args (rewrite_simple kinds env) prim in
     Named.create_prim prim dbg
-  | Set_of_closures s -> Named.create_set_of_closures s (* TODO *)
+  | Set_of_closures s -> Named.create_set_of_closures s (* Already rewritten *)
   | Static_consts sc ->
     Named.create_static_consts (rewrite_static_const_group kinds env sc)
   | Rec_info r -> Named.create_rec_info r
