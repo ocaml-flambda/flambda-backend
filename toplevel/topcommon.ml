@@ -234,7 +234,8 @@ let read_input_default prompt buffer len =
       Buffer.add_char phrase_buffer c;
       incr i;
       if c = '\n' then raise Exit;
-    done
+    done;
+    assert false  (* CR mshinwell: can be deleted under a newer system OCaml *)
   with
   | End_of_file ->
       (!i, true)
