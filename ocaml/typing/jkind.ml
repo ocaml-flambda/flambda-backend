@@ -96,22 +96,6 @@ module Layout = struct
         | Word
         | Bits32
         | Bits64
-
-      let to_string = function
-        | Any -> "any"
-        (* CR layouts v3.0: drop [or_null]/[non_null] suffixes
-           if the layout extension level is less than alpha. *)
-        | Any_non_null -> "any_non_null"
-        | Value_or_null -> "value_or_null"
-        | Value -> "value"
-        | Void -> "void"
-        | Immediate64 -> "immediate64"
-        | Immediate -> "immediate"
-        | Float64 -> "float64"
-        | Float32 -> "float32"
-        | Word -> "word"
-        | Bits32 -> "bits32"
-        | Bits64 -> "bits64"
     end
   end
 
@@ -508,6 +492,21 @@ module Const = struct
         word;
         bits32;
         bits64 ]
+
+    (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
+    let all_non_null =
+      [ any;
+        { any_non_null with name = "any" };
+        { value_or_null with name = "value" };
+        value;
+        void;
+        immediate;
+        immediate64;
+        float64;
+        float32;
+        word;
+        bits32;
+        bits64 ]
   end
 
   module To_out_jkind_const = struct
@@ -588,20 +587,21 @@ module Const = struct
       | [out] -> Some out
       | [] -> None
 
-    let convert jkind =
+    let convert ~allow_null jkind =
       (* For each primitive jkind, we try to print the jkind in terms of it (this is
          possible if the primitive is a subjkind of it). We then choose the "simplest". The
            "simplest" is taken to mean the one with the least number of modes that need to
          follow the [mod]. *)
       let simplest =
-        Primitive.all
+        (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
+        (if allow_null then Primitive.all else Primitive.all_non_null)
         |> List.filter_map (fun base -> convert_with_base ~base jkind)
         |> select_simplest
       in
       let printable_jkind =
         match simplest with
         | Some simplest -> simplest
-        | None ->
+        | None -> (
           (* CR layouts v2.8: sometimes there is no valid way to build a jkind from a
              built-in abbreviation. For now, we just pretend that the layout name is a valid
              jkind abbreviation whose modal bounds are all max, even though this is a
@@ -619,9 +619,26 @@ module Const = struct
                 }
               jkind
           in
-          (* convert_with_base is guaranteed to succeed since the layout matches and the
-             modal bounds are all max *)
-          Option.get out_jkind_verbose
+          match out_jkind_verbose with
+          | Some out_jkind -> out_jkind
+          | None ->
+            (* If we fail, try again with nullable jkinds. *)
+            let out_jkind_verbose =
+              convert_with_base
+                ~base:
+                  { jkind =
+                      { layout = jkind.layout;
+                        modes_upper_bounds = Modes.max;
+                        externality_upper_bound = Externality.max;
+                        nullability_upper_bound = Nullability.max
+                      };
+                    name = Layout.Const.to_string jkind.layout
+                  }
+                jkind
+            in
+            (* convert_with_base is guaranteed to succeed since the layout matches and the
+                 modal bounds are all max *)
+            Option.get out_jkind_verbose)
       in
       match printable_jkind with
       | { base; modal_bounds = _ :: _ as modal_bounds } ->
@@ -631,9 +648,15 @@ module Const = struct
         Outcometree.Ojkind_const_abbreviation base
   end
 
-  let to_out_jkind_const = To_out_jkind_const.convert
+  let to_out_jkind_const jkind =
+    let allow_null = Language_extension.(is_at_least Layouts Alpha) in
+    To_out_jkind_const.convert ~allow_null jkind
 
   let format ppf jkind = to_out_jkind_const jkind |> !Oprint.out_jkind_const ppf
+
+  let format_no_hiding ppf jkind =
+    To_out_jkind_const.convert ~allow_null:true jkind
+    |> !Oprint.out_jkind_const ppf
 
   let of_attribute : Builtin_attributes.jkind_attribute -> t = function
     | Immediate -> Primitive.immediate.jkind
@@ -685,7 +708,11 @@ module Const = struct
       in
       (* CR layouts 2.8: move this to predef *)
       match name with
-      | "any" -> Primitive.any.jkind
+      (* CR layouts 3.0: remove this hack once non-null jkinds are out of alpha.
+         It is confusing, but preserves backwards compatibility for arrays. *)
+      | "any" when Language_extension.(is_at_least Layouts Alpha) ->
+        Primitive.any.jkind
+      | "any" -> Primitive.any_non_null.jkind
       | "any_non_null" -> Primitive.any_non_null.jkind
       | "value_or_null" -> Primitive.value_or_null.jkind
       | "value" -> Primitive.value.jkind
@@ -1028,21 +1055,22 @@ module Primitive = struct
       ~why:(Any_non_null_creation why)
 
   let value_v1_safety_check =
-    { jkind = Jkind_desc.Primitive.value;
-      history = Creation (Value_creation V1_safety_check);
+    { jkind = Jkind_desc.Primitive.value_or_null;
+      history = Creation (Value_or_null_creation V1_safety_check);
       has_warned = false
     }
 
   let void ~why = fresh_jkind Jkind_desc.Primitive.void ~why:(Void_creation why)
 
   let value_or_null ~why =
-    fresh_jkind Jkind_desc.Primitive.value_or_null
-      ~why:(Value_or_null_creation why)
+    match (why : History.value_or_null_creation_reason) with
+    | V1_safety_check -> value_v1_safety_check
+    | _ ->
+      fresh_jkind Jkind_desc.Primitive.value_or_null
+        ~why:(Value_or_null_creation why)
 
   let value ~(why : History.value_creation_reason) =
-    match why with
-    | V1_safety_check -> value_v1_safety_check
-    | _ -> fresh_jkind Jkind_desc.Primitive.value ~why:(Value_creation why)
+    fresh_jkind Jkind_desc.Primitive.value ~why:(Value_creation why)
 
   let immediate64 ~why =
     fresh_jkind Jkind_desc.Primitive.immediate64 ~why:(Immediate64_creation why)
@@ -1087,18 +1115,27 @@ let get_required_layouts_level (context : History.annotation_context)
   match context, legacy_layout with
   | ( _,
       ( Value | Immediate | Immediate64 | Any | Float64 | Float32 | Word
-      | Bits32 | Bits64 ) ) ->
+      | Bits32 | Bits64 | Any_non_null ) ) ->
+    (* CR layouts v3.0: we allow [Any_non_null] because, without [Alpha],
+       explicit [Any] annotations are converted to [Any_non_null] to
+       preserve compatibility with array arguments. *)
     Stable
-  | _, (Any_non_null | Value_or_null | Void) -> Alpha
+  | _, (Value_or_null | Void) -> Alpha
 
 (******************************)
 (* construction *)
 
 let of_new_sort_var ~why =
-  let jkind, sort = Jkind_desc.of_new_sort_var Non_null in
-  fresh_jkind jkind ~why:(Concrete_default_creation why), sort
+  let jkind, sort = Jkind_desc.of_new_sort_var Maybe_null in
+  fresh_jkind jkind ~why:(Concrete_creation why), sort
 
 let of_new_sort ~why = fst (of_new_sort_var ~why)
+
+let of_new_legacy_sort_var ~why =
+  let jkind, sort = Jkind_desc.of_new_sort_var Non_null in
+  fresh_jkind jkind ~why:(Concrete_legacy_creation why), sort
+
+let of_new_legacy_sort ~why = fst (of_new_legacy_sort_var ~why)
 
 (* CR layouts v2.8: remove this function *)
 let of_const ~why
@@ -1324,16 +1361,13 @@ module Format_history = struct
     let to_ordinal num = Int.to_string num ^ Misc.ordinal_suffix num in
     match arity with 1 -> "" | _ -> to_ordinal position ^ " "
 
-  let format_concrete_default_creation_reason ppf :
-      History.concrete_default_creation_reason -> unit = function
+  let format_concrete_creation_reason ppf :
+      History.concrete_creation_reason -> unit = function
     | Match -> fprintf ppf "a value of this type is matched against a pattern"
     | Constructor_declaration _ ->
       fprintf ppf "it's the type of a constructor field"
     | Label_declaration lbl ->
       fprintf ppf "it is the type of record field %s" (Ident.name lbl)
-    | Unannotated_type_parameter path ->
-      fprintf ppf "it instantiates an unannotated type parameter of %a"
-        !printtyp_path path
     | Record_projection ->
       fprintf ppf "it's the record type used in a projection"
     | Record_assignment ->
@@ -1350,8 +1384,6 @@ module Format_history = struct
     | External_result ->
       fprintf ppf "it's the type of the result of an external declaration"
     | Statement -> fprintf ppf "it's the type of a statement"
-    | Wildcard -> fprintf ppf "it's a _ in the type"
-    | Unification_var -> fprintf ppf "it's a fresh unification variable"
     | Optional_arg_default ->
       fprintf ppf "it's the type of an optional argument default"
     | Layout_poly_in_external ->
@@ -1359,6 +1391,14 @@ module Format_history = struct
         "it's the layout polymorphic type in an external declaration@ \
          ([@@layout_poly] forces all variables of layout 'any' to be@ \
          representable at call sites)"
+
+  let format_concrete_legacy_creation_reason ppf :
+      History.concrete_legacy_creation_reason -> unit = function
+    | Unannotated_type_parameter path ->
+      fprintf ppf "it instantiates an unannotated type parameter of %a"
+        !printtyp_path path
+    | Wildcard -> fprintf ppf "it's a _ in the type"
+    | Unification_var -> fprintf ppf "it's a fresh unification variable"
     | Array_element -> fprintf ppf "it's the type of an array element"
 
   let rec format_annotation_context ppf : History.annotation_context -> unit =
@@ -1386,12 +1426,12 @@ module Format_history = struct
     function
     | Missing_cmi p ->
       fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
-    | Wildcard -> format_with_notify_js ppf "there's a _ in the type"
-    | Unification_var ->
-      format_with_notify_js ppf "it's a fresh unification variable"
     | Initial_typedecl_env ->
       format_with_notify_js ppf
         "a dummy kind of any is used to check mutually recursive datatypes"
+    | Wildcard -> format_with_notify_js ppf "there's a _ in the type"
+    | Unification_var ->
+      format_with_notify_js ppf "it's a fresh unification variable"
     | Dummy_jkind ->
       format_with_notify_js ppf
         "it's assigned a dummy kind that should have been overwritten"
@@ -1400,6 +1440,9 @@ module Format_history = struct
       format_with_notify_js ppf
         "there's a call to [type_expression] via the ocaml API"
     | Inside_of_Tarrow -> fprintf ppf "argument or result of a function type"
+
+  let format_any_non_null_creation_reason ppf :
+      History.any_non_null_creation_reason -> unit = function
     | Array_type_argument ->
       fprintf ppf "it's the type argument to the array type"
 
@@ -1421,11 +1464,22 @@ module Format_history = struct
     | Separability_check ->
       fprintf ppf "the check that a type is definitely not `float`"
 
+  let format_value_or_null_creation_reason ppf :
+      History.value_or_null_creation_reason -> _ = function
+    | Tuple_element -> fprintf ppf "it's the type of a tuple element"
+    | Separability_check ->
+      fprintf ppf "the check that a type is definitely not `float`"
+    | Polymorphic_variant_field ->
+      fprintf ppf "it's the type of the field of a polymorphic variant"
+    | Structure_element ->
+      fprintf ppf "it's the type of something stored in a module structure"
+    | V1_safety_check ->
+      fprintf ppf "it has to be value for the V1 safety check"
+
   let format_value_creation_reason ppf ~layout_or_kind :
       History.value_creation_reason -> _ = function
     | Class_let_binding ->
       fprintf ppf "it's the type of a let-bound variable in a class expression"
-    | Tuple_element -> fprintf ppf "it's the type of a tuple element"
     | Probe -> format_with_notify_js ppf "it's a probe"
     | Object -> fprintf ppf "it's the type of an object"
     | Instance_variable -> fprintf ppf "it's the type of an instance variable"
@@ -1451,12 +1505,8 @@ module Format_history = struct
       format_with_notify_js ppf
         "it's an internal Tnil type (you shouldn't see this)"
     | First_class_module -> fprintf ppf "it's a first-class module type"
-    | Separability_check ->
-      fprintf ppf "the check that a type is definitely not `float`"
     | Univar ->
       fprintf ppf "it is or unifies with an unannotated universal variable"
-    | Polymorphic_variant_field ->
-      fprintf ppf "it's the type of the field of a polymorphic variant"
     | Default_type_jkind ->
       fprintf ppf "an abstract type has the value %s by default" layout_or_kind
     | Existential_type_variable ->
@@ -1469,13 +1519,9 @@ module Format_history = struct
     | Class_term_argument ->
       fprintf ppf
         "it's the type of a term-level argument to a class constructor"
-    | Structure_element ->
-      fprintf ppf "it's the type of something stored in a module structure"
     | Debug_printer_argument ->
       format_with_notify_js ppf
         "it's the type of an argument to a debugger printer function"
-    | V1_safety_check ->
-      fprintf ppf "it has to be value for the V1 safety check"
     | Captured_in_object ->
       fprintf ppf "it's the type of a variable captured in an object"
     | Recmod_fun_arg ->
@@ -1519,13 +1565,14 @@ module Format_history = struct
     | Missing_cmi p ->
       fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
     | Any_creation any -> format_any_creation_reason ppf any
-    | Any_non_null_creation _ -> .
+    | Any_non_null_creation any -> format_any_non_null_creation_reason ppf any
     | Immediate_creation immediate ->
       format_immediate_creation_reason ppf immediate
     | Immediate64_creation immediate64 ->
       format_immediate64_creation_reason ppf immediate64
     | Void_creation _ -> .
-    | Value_or_null_creation _ -> .
+    | Value_or_null_creation value ->
+      format_value_or_null_creation_reason ppf value
     | Value_creation value ->
       format_value_creation_reason ppf ~layout_or_kind value
     | Float64_creation float -> format_float64_creation_reason ppf float
@@ -1533,9 +1580,9 @@ module Format_history = struct
     | Word_creation word -> format_word_creation_reason ppf word
     | Bits32_creation bits32 -> format_bits32_creation_reason ppf bits32
     | Bits64_creation bits64 -> format_bits64_creation_reason ppf bits64
-    | Concrete_creation _ -> .
-    | Concrete_default_creation concrete ->
-      format_concrete_default_creation_reason ppf concrete
+    | Concrete_creation concrete -> format_concrete_creation_reason ppf concrete
+    | Concrete_legacy_creation concrete ->
+      format_concrete_legacy_creation_reason ppf concrete
     | Imported ->
       fprintf ppf "of %s requirements from an imported definition"
         layout_or_kind
@@ -1570,7 +1617,7 @@ module Format_history = struct
     | Creation reason -> (
       fprintf ppf "@ because %a" (format_creation_reason ~layout_or_kind) reason;
       match reason, jkind_desc with
-      | Concrete_default_creation _, Const _ ->
+      | Concrete_legacy_creation _, Const _ ->
         fprintf ppf ",@ defaulted to %s %a" layout_or_kind Desc.format
           jkind_desc
       | _ -> ())
@@ -1751,7 +1798,7 @@ let score_reason = function
   (* error_message annotated by the user should always take priority *)
   | Creation (Annotated (With_error_message _, _)) -> 1
   (* Concrete creation is quite vague, prefer more specific reasons *)
-  | Creation (Concrete_creation _ | Concrete_default_creation _) -> -1
+  | Creation (Concrete_creation _ | Concrete_legacy_creation _) -> -1
   | _ -> 0
 
 let combine_histories reason lhs rhs =
@@ -1819,15 +1866,13 @@ let has_layout_any jkind =
 module Debug_printers = struct
   open Format
 
-  let concrete_default_creation_reason ppf :
-      History.concrete_default_creation_reason -> unit = function
+  let concrete_creation_reason ppf : History.concrete_creation_reason -> unit =
+    function
     | Match -> fprintf ppf "Match"
     | Constructor_declaration idx ->
       fprintf ppf "Constructor_declaration %d" idx
     | Label_declaration lbl ->
       fprintf ppf "Label_declaration %a" Ident.print lbl
-    | Unannotated_type_parameter path ->
-      fprintf ppf "Unannotated_type_parameter %a" !printtyp_path path
     | Record_projection -> fprintf ppf "Record_projection"
     | Record_assignment -> fprintf ppf "Record_assignment"
     | Let_binding -> fprintf ppf "Let_binding"
@@ -1837,10 +1882,15 @@ module Debug_printers = struct
     | External_argument -> fprintf ppf "External_argument"
     | External_result -> fprintf ppf "External_result"
     | Statement -> fprintf ppf "Statement"
-    | Wildcard -> fprintf ppf "Wildcard"
-    | Unification_var -> fprintf ppf "Unification_var"
     | Optional_arg_default -> fprintf ppf "Optional_arg_default"
     | Layout_poly_in_external -> fprintf ppf "Layout_poly_in_external"
+
+  let concrete_legacy_creation_reason ppf :
+      History.concrete_legacy_creation_reason -> unit = function
+    | Unannotated_type_parameter path ->
+      fprintf ppf "Unannotated_type_parameter %a" !printtyp_path path
+    | Wildcard -> fprintf ppf "Wildcard"
+    | Unification_var -> fprintf ppf "Unification_var"
     | Array_element -> fprintf ppf "Array_element"
 
   let rec annotation_context ppf : History.annotation_context -> unit = function
@@ -1864,10 +1914,13 @@ module Debug_printers = struct
     | Missing_cmi p -> fprintf ppf "Missing_cmi %a" Path.print p
     | Initial_typedecl_env -> fprintf ppf "Initial_typedecl_env"
     | Dummy_jkind -> fprintf ppf "Dummy_jkind"
-    | Type_expression_call -> fprintf ppf "Type_expression_call"
-    | Inside_of_Tarrow -> fprintf ppf "Inside_of_Tarrow"
     | Wildcard -> fprintf ppf "Wildcard"
     | Unification_var -> fprintf ppf "Unification_var"
+    | Type_expression_call -> fprintf ppf "Type_expression_call"
+    | Inside_of_Tarrow -> fprintf ppf "Inside_of_Tarrow"
+
+  let any_non_null_creation_reason ppf :
+      History.any_non_null_creation_reason -> unit = function
     | Array_type_argument -> fprintf ppf "Array_type_argument"
 
   let immediate_creation_reason ppf : History.immediate_creation_reason -> _ =
@@ -1882,9 +1935,16 @@ module Debug_printers = struct
       = function
     | Separability_check -> fprintf ppf "Separability_check"
 
+  let value_or_null_creation_reason ppf :
+      History.value_or_null_creation_reason -> _ = function
+    | Tuple_element -> fprintf ppf "Tuple_element"
+    | Separability_check -> fprintf ppf "Separability_check"
+    | Polymorphic_variant_field -> fprintf ppf "Polymorphic_variant_field"
+    | Structure_element -> fprintf ppf "Structure_element"
+    | V1_safety_check -> fprintf ppf "V1_safety_check"
+
   let value_creation_reason ppf : History.value_creation_reason -> _ = function
     | Class_let_binding -> fprintf ppf "Class_let_binding"
-    | Tuple_element -> fprintf ppf "Tuple_element"
     | Probe -> fprintf ppf "Probe"
     | Object -> fprintf ppf "Object"
     | Instance_variable -> fprintf ppf "Instance_variable"
@@ -1904,18 +1964,14 @@ module Debug_printers = struct
     | Tfield -> fprintf ppf "Tfield"
     | Tnil -> fprintf ppf "Tnil"
     | First_class_module -> fprintf ppf "First_class_module"
-    | Separability_check -> fprintf ppf "Separability_check"
     | Univar -> fprintf ppf "Univar"
-    | Polymorphic_variant_field -> fprintf ppf "Polymorphic_variant_field"
     | Default_type_jkind -> fprintf ppf "Default_type_jkind"
     | Existential_type_variable -> fprintf ppf "Existential_type_variable"
     | Array_comprehension_element -> fprintf ppf "Array_comprehension_element"
     | Lazy_expression -> fprintf ppf "Lazy_expression"
     | Class_type_argument -> fprintf ppf "Class_type_argument"
     | Class_term_argument -> fprintf ppf "Class_term_argument"
-    | Structure_element -> fprintf ppf "Structure_element"
     | Debug_printer_argument -> fprintf ppf "Debug_printer_argument"
-    | V1_safety_check -> fprintf ppf "V1_safety_check"
     | Captured_in_object -> fprintf ppf "Captured_in_object"
     | Recmod_fun_arg -> fprintf ppf "Recmod_fun_arg"
     | Unknown s -> fprintf ppf "Unknown %s" s
@@ -1945,13 +2001,16 @@ module Debug_printers = struct
         loc
     | Missing_cmi p -> fprintf ppf "Missing_cmi %a" !printtyp_path p
     | Any_creation any -> fprintf ppf "Any_creation %a" any_creation_reason any
-    | Any_non_null_creation _ -> .
+    | Any_non_null_creation any ->
+      fprintf ppf "Any_non_null_creation %a" any_non_null_creation_reason any
     | Immediate_creation immediate ->
       fprintf ppf "Immediate_creation %a" immediate_creation_reason immediate
     | Immediate64_creation immediate64 ->
       fprintf ppf "Immediate64_creation %a" immediate64_creation_reason
         immediate64
-    | Value_or_null_creation _ -> .
+    | Value_or_null_creation value ->
+      fprintf ppf "Value_or_null_creation %a" value_or_null_creation_reason
+        value
     | Value_creation value ->
       fprintf ppf "Value_creation %a" value_creation_reason value
     | Void_creation _ -> .
@@ -1965,10 +2024,11 @@ module Debug_printers = struct
       fprintf ppf "Bits32_creation %a" bits32_creation_reason bits32
     | Bits64_creation bits64 ->
       fprintf ppf "Bits64_creation %a" bits64_creation_reason bits64
-    | Concrete_creation _ -> .
-    | Concrete_default_creation concrete ->
-      fprintf ppf "Concrete_default_creation %a"
-        concrete_default_creation_reason concrete
+    | Concrete_creation concrete ->
+      fprintf ppf "Concrete_creation %a" concrete_creation_reason concrete
+    | Concrete_legacy_creation concrete ->
+      fprintf ppf "Concrete_legacy_creation %a" concrete_legacy_creation_reason
+        concrete
     | Imported -> fprintf ppf "Imported"
     | Imported_type_argument { parent_path; position; arity } ->
       fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a" position
@@ -2013,7 +2073,7 @@ let report_error ~loc : Error.t -> _ = function
       "@[<v>A type declaration's layout can be given at most once.@;\
        This declaration has an layout annotation (%a) and a layout attribute \
        ([@@@@%a]).@]"
-      Const.format from_annotation Const.format from_attribute
+      Const.format_no_hiding from_annotation Const.format from_attribute
   | Insufficient_level { jkind; required_layouts_level } -> (
     let hint ppf =
       Format.fprintf ppf "You must enable -extension %s to use this feature."
@@ -2032,7 +2092,7 @@ let report_error ~loc : Error.t -> _ = function
         "@[<v>Layout %a is more experimental than allowed by the enabled \
          layouts extension.@;\
          %t@]"
-        Const.format jkind hint)
+        Const.format_no_hiding jkind hint)
 
 let () =
   Location.register_error_of_exn (function
