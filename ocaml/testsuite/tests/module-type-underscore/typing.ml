@@ -31,7 +31,7 @@ end ;;
 Line 2, characters 2-19:
 2 |   module type S = _
       ^^^^^^^^^^^^^^^^^
-Error: Inferrence of module types is not allowed within a signature.
+Error: Inference of module types is not allowed within a signature.
 |}]
 
 module M = struct
@@ -174,7 +174,7 @@ and ASet
 Line 4, characters 2-19:
 4 |   module type S = _
       ^^^^^^^^^^^^^^^^^
-Error: Inferrence of module types is not allowed within a signature.
+Error: Inference of module types is not allowed within a signature.
 |}]
 
 module M = (struct

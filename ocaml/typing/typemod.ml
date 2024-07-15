@@ -2557,7 +2557,7 @@ and type_module_aux ~alias ~expected_modtype sttn funct_body anchor env smod =
           | Mty_functor _
           | Mty_alias _
           | Mty_strengthen _ -> None
-          (* For now, we only allow module type inferrence in cases where the signature
+          (* For now, we only allow module type inference in cases where the signature
              is "close" to the struct (i.e. declared in the same place). *)
           | Mty_signature sg -> Some sg)
         in
@@ -4269,7 +4269,7 @@ let report_error ~loc _env = function
         (Mode.Value.Const.print_axis ax) right
   | Underscore_not_allowed_in_signature ->
     Location.errorf ~loc
-      "Inferrence of module types is not allowed within a signature."
+      "Inference of module types is not allowed within a signature."
   | Cannot_infer_module_type ->
     Location.errorf ~loc
       "Cannot infer module type without a corresponding definition."
