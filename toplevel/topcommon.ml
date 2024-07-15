@@ -408,10 +408,13 @@ let try_run_directive ppf dir_name pdir_arg =
 (* Overriding exception printers with toplevel-specific ones *)
 
 let loading_hint_printer ppf cu =
-  let global = Symtable.Global.Glob_compunit (Cmo_format.Compunit cu) in
+  let global = Symtable.Global.Glob_compunit cu in
   Symtable.report_error ppf (Symtable.Undefined_global global);
   let find_with_ext ext =
-    try Some (Load_path.find_normalized (cu ^ ext)) with Not_found -> None
+    let leafname =
+      (Compilation_unit.Name.to_string (Compilation_unit.name cu)) ^ ext
+    in
+    try Some (Load_path.find_uncap leafname) with Not_found -> None
   in
   fprintf ppf
     "@.Hint: @[\
@@ -441,8 +444,7 @@ let () =
   Location.register_error_of_exn
     (function
       | Symtable.Error
-        (Symtable.Undefined_global (Symtable.Global.Glob_compunit
-          (Cmo_format.Compunit cu))) ->
+        (Symtable.Undefined_global (Symtable.Global.Glob_compunit cu)) ->
           Some (Location.error_of_printer_file loading_hint_printer cu)
       | _ -> None
     )
