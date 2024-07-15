@@ -542,6 +542,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                     let shape = transl_mixed_product_shape shape in
                     Some (Const_mixed_block(runtime_tag, shape, constants))
                   else
+                    (* CR layouts v5.9: Structured constants for mixed blocks should
+                       be supported in bytecode. See symtable.ml for the difficulty.
+                    *)
                     None
               | Constructor_uniform_value ->
                   Some (Const_block(runtime_tag, constants)))
