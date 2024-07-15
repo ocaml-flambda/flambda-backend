@@ -1625,6 +1625,8 @@ end
 module Const = struct
   type nonrec t = Types.type_expr Jkind_types.Const.t
 
+  let of_type_jkind ty : t = Type ty
+
   let rec format ppf (t : t) =
     match t with
     | Type t -> Type.Const.format ppf t
