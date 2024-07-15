@@ -3025,7 +3025,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
               let add_to_subst subst { typ_id; typ_name; _ } =
                 let get_ident = function
                   | Sig_type (ident, _, _, _)
-                      when (Ident.name ident) = typ_name.txt -> Some ident
+                      when Ident.name ident = typ_name.txt -> Some ident
                   | _ -> None
                 in
                 match List.find_map get_ident expected_sig with
@@ -3221,14 +3221,14 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
                 | Some md_id ->
                     let get_ident sig_item = match sig_item, mb_name.txt with
                       | Sig_module (ident, _, _, _, _), Some md_name
-                          when (Ident.name ident) = md_name -> Some ident
+                          when Ident.name ident = md_name -> Some ident
                       | _ -> None
                     in
                     begin match List.find_map get_ident expected_sig with
-                    | None -> subst
-                    | Some sig_ident ->
-                        Subst.add_module sig_ident (Pident md_id) subst
-                    end
+                      | None -> subst
+                      | Some sig_ident ->
+                          Subst.add_module sig_ident (Pident md_id) subst
+                      end
               in
               List.fold_left add_to_subst subst bindings2
         in
@@ -3247,11 +3247,9 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
     | Pstr_modtype pmtd ->
         let expected_modtype_decl, ident_in_expected =
           let get_modtype_decl = function
-            | Sig_modtype (ident, decl, _) ->
-              if Ident.name ident = pmtd.pmtd_name.txt then
-                Some (Subst.modtype_declaration Keep subst decl, ident)
-              else
-                None
+            | Sig_modtype (ident, decl, _)
+                when Ident.name ident = pmtd.pmtd_name.txt ->
+                  Some (Subst.modtype_declaration Keep subst decl, ident)
             | _ -> None
           in
           match expected_sig with
