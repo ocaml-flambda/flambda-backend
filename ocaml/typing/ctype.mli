@@ -558,8 +558,8 @@ val type_sort :
 
 (* As [type_sort], but constrain the jkind to be non-null.
    Used for checking array elements. *)
-val type_non_null_sort :
-  why:Jkind.History.concrete_default_creation_reason ->
+val type_legacy_sort :
+  why:Jkind.History.concrete_legacy_creation_reason ->
   Env.t -> type_expr -> (Jkind.sort, Jkind.Violation.t) result
 
 (* Jkind checking. [constrain_type_jkind] will update the jkind of type

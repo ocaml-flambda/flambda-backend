@@ -311,14 +311,16 @@ val of_new_sort_var : why:History.concrete_creation_reason -> t * sort
 (** Create a fresh sort variable, packed into a jkind. *)
 val of_new_sort : why:History.concrete_creation_reason -> t
 
-(** Same as [of_new_sort_var], but the jkind is lowered to [Non_null].
+(** Same as [of_new_sort_var], but the jkind is lowered to [Non_null]
+    to mirror "legacy" OCaml values.
     Defaulting the sort variable produces exactly [value].  *)
-val of_new_default_sort_var :
-  why:History.concrete_default_creation_reason -> t * sort
+val of_new_legacy_sort_var :
+  why:History.concrete_legacy_creation_reason -> t * sort
 
-(** Same as [of_new_sort], but the jkind is lowered to [Non_null].
+(** Same as [of_new_sort], but the jkind is lowered to [Non_null]
+    to mirror "legacy" OCaml values.
     Defaulting the sort variable produces exactly [value].  *)
-val of_new_default_sort : why:History.concrete_default_creation_reason -> t
+val of_new_legacy_sort : why:History.concrete_legacy_creation_reason -> t
 
 val of_const : why:History.creation_reason -> Const.t -> t
 

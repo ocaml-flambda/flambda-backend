@@ -165,11 +165,11 @@ module History = struct
     | Optional_arg_default
     | Layout_poly_in_external
 
-  (* For sort variables that are in the "default" position
+  (* For sort variables that are in the "legacy" position
      on the jkind lattice, defaulting exactly to [value]. *)
   (* CR layouts v3: after implementing separability, [Array_element]
      should instead accept representable separable jkinds. *)
-  type concrete_default_creation_reason =
+  type concrete_legacy_creation_reason =
     | Unannotated_type_parameter of Path.t
     | Wildcard
     | Unification_var
@@ -284,7 +284,7 @@ module History = struct
     | Bits32_creation of bits32_creation_reason
     | Bits64_creation of bits64_creation_reason
     | Concrete_creation of concrete_creation_reason
-    | Concrete_default_creation of concrete_default_creation_reason
+    | Concrete_legacy_creation of concrete_legacy_creation_reason
     | Imported
     | Imported_type_argument of
         { parent_path : Path.t;

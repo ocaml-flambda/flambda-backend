@@ -1131,11 +1131,11 @@ let of_new_sort_var ~why =
 
 let of_new_sort ~why = fst (of_new_sort_var ~why)
 
-let of_new_default_sort_var ~why =
+let of_new_legacy_sort_var ~why =
   let jkind, sort = Jkind_desc.of_new_sort_var Non_null in
-  fresh_jkind jkind ~why:(Concrete_default_creation why), sort
+  fresh_jkind jkind ~why:(Concrete_legacy_creation why), sort
 
-let of_new_default_sort ~why = fst (of_new_default_sort_var ~why)
+let of_new_legacy_sort ~why = fst (of_new_legacy_sort_var ~why)
 
 (* CR layouts v2.8: remove this function *)
 let of_const ~why
@@ -1392,8 +1392,8 @@ module Format_history = struct
          ([@@layout_poly] forces all variables of layout 'any' to be@ \
          representable at call sites)"
 
-  let format_concrete_default_creation_reason ppf :
-      History.concrete_default_creation_reason -> unit = function
+  let format_concrete_legacy_creation_reason ppf :
+      History.concrete_legacy_creation_reason -> unit = function
     | Unannotated_type_parameter path ->
       fprintf ppf "it instantiates an unannotated type parameter of %a"
         !printtyp_path path
@@ -1581,8 +1581,8 @@ module Format_history = struct
     | Bits32_creation bits32 -> format_bits32_creation_reason ppf bits32
     | Bits64_creation bits64 -> format_bits64_creation_reason ppf bits64
     | Concrete_creation concrete -> format_concrete_creation_reason ppf concrete
-    | Concrete_default_creation concrete ->
-      format_concrete_default_creation_reason ppf concrete
+    | Concrete_legacy_creation concrete ->
+      format_concrete_legacy_creation_reason ppf concrete
     | Imported ->
       fprintf ppf "of %s requirements from an imported definition"
         layout_or_kind
@@ -1617,7 +1617,7 @@ module Format_history = struct
     | Creation reason -> (
       fprintf ppf "@ because %a" (format_creation_reason ~layout_or_kind) reason;
       match reason, jkind_desc with
-      | Concrete_default_creation _, Const _ ->
+      | Concrete_legacy_creation _, Const _ ->
         fprintf ppf ",@ defaulted to %s %a" layout_or_kind Desc.format
           jkind_desc
       | _ -> ())
@@ -1798,7 +1798,7 @@ let score_reason = function
   (* error_message annotated by the user should always take priority *)
   | Creation (Annotated (With_error_message _, _)) -> 1
   (* Concrete creation is quite vague, prefer more specific reasons *)
-  | Creation (Concrete_creation _ | Concrete_default_creation _) -> -1
+  | Creation (Concrete_creation _ | Concrete_legacy_creation _) -> -1
   | _ -> 0
 
 let combine_histories reason lhs rhs =
@@ -1885,8 +1885,8 @@ module Debug_printers = struct
     | Optional_arg_default -> fprintf ppf "Optional_arg_default"
     | Layout_poly_in_external -> fprintf ppf "Layout_poly_in_external"
 
-  let concrete_default_creation_reason ppf :
-      History.concrete_default_creation_reason -> unit = function
+  let concrete_legacy_creation_reason ppf :
+      History.concrete_legacy_creation_reason -> unit = function
     | Unannotated_type_parameter path ->
       fprintf ppf "Unannotated_type_parameter %a" !printtyp_path path
     | Wildcard -> fprintf ppf "Wildcard"
@@ -2026,9 +2026,9 @@ module Debug_printers = struct
       fprintf ppf "Bits64_creation %a" bits64_creation_reason bits64
     | Concrete_creation concrete ->
       fprintf ppf "Concrete_creation %a" concrete_creation_reason concrete
-    | Concrete_default_creation concrete ->
-      fprintf ppf "Concrete_default_creation %a"
-        concrete_default_creation_reason concrete
+    | Concrete_legacy_creation concrete ->
+      fprintf ppf "Concrete_legacy_creation %a" concrete_legacy_creation_reason
+        concrete
     | Imported -> fprintf ppf "Imported"
     | Imported_type_argument { parent_path; position; arity } ->
       fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a" position

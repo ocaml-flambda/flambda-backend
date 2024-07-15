@@ -2278,8 +2278,8 @@ let type_sort ~why env ty =
   | Ok _ -> Ok sort
   | Error _ as e -> e
 
-let type_non_null_sort ~why env ty =
-  let jkind, sort = Jkind.of_new_default_sort_var ~why in
+let type_legacy_sort ~why env ty =
+  let jkind, sort = Jkind.of_new_legacy_sort_var ~why in
   match constrain_type_jkind env ty jkind with
   | Ok _ -> Ok sort
   | Error _ as e -> e
