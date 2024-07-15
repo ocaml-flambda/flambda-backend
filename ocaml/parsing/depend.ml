@@ -260,10 +260,10 @@ let rec add_expr bv exp =
   | Pexp_constant _ -> add_constant
   | Pexp_let(rf, pel, e) ->
       let bv = add_bindings rf bv pel in add_expr bv e
-  | Pexp_fun (_, opte, p, e) ->
-      add_opt add_expr bv opte; add_expr (add_pattern bv p) e
-  | Pexp_function pel ->
-      add_cases bv pel
+  | Pexp_function (params, constraint_, body) ->
+      let bv = List.fold_left add_function_param bv params in
+      add_opt add_function_constraint bv constraint_;
+      add_function_body bv body
   | Pexp_apply(e, el) ->
       add_expr bv e; List.iter (fun (_,e) -> add_expr bv e) el
   | Pexp_match(e, pel) -> add_expr bv e; add_cases bv pel
@@ -336,7 +336,6 @@ and add_expr_jane_syntax bv : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension x -> add_comprehension_expr bv x
   | Jexp_immutable_array x -> add_immutable_array_expr bv x
   | Jexp_layout x -> add_layout_expr bv x
-  | Jexp_n_ary_function n_ary -> add_n_ary_function bv n_ary
   | Jexp_tuple x -> add_labeled_tuple_expr bv x
 
 and add_comprehension_expr bv : Jane_syntax.Comprehensions.expression -> _ =
@@ -382,42 +381,30 @@ and add_layout_expr bv : Jane_syntax.Layouts.expression -> _ = function
     add_jkind bv jkind;
     add_expr bv inner_expr
 
-and add_n_ary_function bv : Jane_syntax.N_ary_functions.expression -> _ =
-  fun (params, constraint_, body) ->
-    let bv = List.fold_left add_function_param bv params in
-    add_opt add_function_constraint bv constraint_;
-    add_function_body bv body
-
-and add_function_param bv : Jane_syntax.N_ary_functions.function_param -> _ =
-  fun { pparam_desc } ->
-    match pparam_desc with
-    | Pparam_val (_, opte, pat) ->
-      add_opt add_expr bv opte;
-      add_pattern bv pat
-    | Pparam_newtype _ -> bv
-
-and add_function_body bv : Jane_syntax.N_ary_functions.function_body -> _ =
-  function
-  | Pfunction_body e ->
-    add_expr bv e
-  | Pfunction_cases (cases, _, _) ->
-    add_cases bv cases
-
-and add_function_constraint bv
-    : Jane_syntax.N_ary_functions.function_constraint -> _ =
-  (* Enable warning 9 to ensure that the record pattern doesn't miss any field.
-  *)
-  fun[@ocaml.warning "+9"] { mode_annotations = _; type_constraint } ->
-    match type_constraint with
-    | Pconstraint ty ->
-      add_type bv ty
-    | Pcoerce (ty1, ty2) ->
-      add_opt add_type bv ty1;
-      add_type bv ty2
-
 and add_labeled_tuple_expr bv : Jane_syntax.Labeled_tuples.expression -> _ =
   function el -> List.iter (add_expr bv) (List.map snd el)
 
+and add_function_param bv param =
+  match param.pparam_desc with
+  | Pparam_val (_, opte, pat) ->
+      add_opt add_expr bv opte;
+      add_pattern bv pat
+  | Pparam_newtype _ -> bv
+
+and add_function_body bv body =
+  match body with
+  | Pfunction_body e ->
+      add_expr bv e
+  | Pfunction_cases (cases, _, _) ->
+      add_cases bv cases
+
+and add_function_constraint bv { mode_annotations = _; type_constraint } =
+  match type_constraint with
+  | Pconstraint ty ->
+      add_type bv ty
+  | Pcoerce (ty1, ty2) ->
+      add_opt add_type bv ty1;
+      add_type bv ty2
 and add_cases bv cases =
   List.iter (add_case bv) cases
 

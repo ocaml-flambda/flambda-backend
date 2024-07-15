@@ -660,10 +660,7 @@ module Const = struct
   let rec of_user_written_annotation_unchecked_level
       (jkind : Jane_syntax.Jkind.t) : t =
     match jkind with
-    | Abbreviation const -> (
-      let { txt = name; loc } =
-        (const : Jane_syntax.Jkind.Const.t :> _ Location.loc)
-      in
+    | Abbreviation { txt = name; loc } -> (
       (* CR layouts 2.8: move this to predef *)
       match name with
       | "any" -> Primitive.any.jkind

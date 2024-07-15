@@ -542,7 +542,6 @@ let expression sub exp =
           List.map (sub.value_binding sub) list,
           sub.expr sub exp)
     | Texp_function { params; body } ->
-        let open Jane_syntax.N_ary_functions in
         let body, constraint_ =
           match body with
           | Tfunction_body body ->
@@ -599,8 +598,7 @@ let expression sub exp =
                { pparam_desc; pparam_loc = fp.fp_loc } :: newtypes)
             params
         in
-        Jane_syntax.N_ary_functions.expr_of ~loc (params, constraint_, body)
-        |> add_jane_syntax_attributes
+        Pexp_function (params, constraint_, body)
     | Texp_apply (exp, list, _, _, _) ->
         let list = List.map (fun (arg_label, arg) -> label arg_label, arg) list in
         Pexp_apply (sub.expr sub exp,
