@@ -171,7 +171,7 @@ Line 1, characters 26-27:
 1 | let f2 (x: t_void) = A.f2 x
                               ^
 Error: This expression has type t_void but an expression was expected of type
-         ('a : value)
+         ('a : value_or_null)
        The layout of t_void is void
          because of the definition of t_void at line 2, characters 0-18.
        But the layout of t_void must be a sublayout of value

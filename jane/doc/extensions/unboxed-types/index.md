@@ -36,6 +36,14 @@ by a *type*. There is a small fixed set of layouts:
 * `any` is a layout that is the superlayout of all other layouts.  It doesn't correspond
   to a specific runtime representation. More information [below](#the-any-layout).
 
+* `value_or_null` is a superlayout of `value` including normal OCaml values
+  and null pointers. Unless `-extension-universe alpha` is set, it is displayed
+  as `value` and can't be used in jkind annotations.
+* `any_non_null` is a sublayout of `any` forbidding null pointers. Unless
+  `-extension-universe alpha` is set, it is displayed as `any`.
+  Additionally, `any` jkind annotations are interpreted as `any_non_null` for
+  backwards compatibility for definitions using arrays.
+
 Over time, we'll be adding more layouts here.
 
 # Layout annotation
@@ -353,7 +361,7 @@ orders:
 
   * Records
   * Constructors
-  
+
 Unboxed numbers can't be put in these structures:
 
   * Constructors with inline record fields
@@ -361,11 +369,11 @@ Unboxed numbers can't be put in these structures:
   * Extensible variant constructors
   * Top-level fields of modules
   * Tuples
-  
+
 There aren't fundamental issues with the structures that lack support. They will
 just take some work to implement.
 
-Here's an example of a record with an unboxed field. We call such a record 
+Here's an example of a record with an unboxed field. We call such a record
 a "mixed record".
 
 ```ocaml
@@ -429,7 +437,7 @@ These operations aren't supported:
   * polymorphic comparison and equality
   * polymorphic hash
   * marshaling
-  
+
 These operations raise an exception at runtime, similar to how polymorphic
 comparison raises when called on a function.
 
@@ -453,7 +461,7 @@ scanned by the garbage collector.
 [^can-or-must]: "Can-or-must" is a bit of a mouthful, but it captures the right nuance. Pointer values *must* be scanned, unboxed number fields *must* be skipped, and immediate values *can* be scanned or skipped.
 
 The ordering constraint on structure fields is a reflection of the same
-ordering restriction in the runtime representation. 
+ordering restriction in the runtime representation.
 
 ## C bindings for mixed blocks
 

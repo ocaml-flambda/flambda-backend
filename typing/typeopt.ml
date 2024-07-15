@@ -99,13 +99,15 @@ let maybe_pointer_type env ty =
 
 let maybe_pointer exp = maybe_pointer_type exp.exp_env exp.exp_type
 
-(* CR layouts v2.8: Calling [type_sort] in [typeopt] is not ideal and
-   this function should be removed at some point. To do that, there
+(* CR layouts v2.8: Calling [type_legacy_sort] in [typeopt] is not ideal
+   and this function should be removed at some point. To do that, there
    needs to be a way to store sort vars on [Tconstr]s. That means
    either introducing a [Tpoly_constr], allow type parameters with
    sort info, or do something else. *)
-let type_sort ~why env loc ty =
-  match Ctype.type_sort ~why env ty with
+(* CR layouts v3.0: have a better error message
+   for nullable jkinds.*)
+let type_legacy_sort ~why env loc ty =
+  match Ctype.type_legacy_sort ~why env ty with
   | Ok sort -> sort
   | Error err -> raise (Error (loc, Not_a_sort (ty, err)))
 
@@ -172,7 +174,7 @@ let array_type_kind ~elt_sort env loc ty =
         match elt_sort with
         | Some s -> s
         | None ->
-          type_sort ~why:Array_element env loc elt_ty
+          type_legacy_sort ~why:Array_element env loc elt_ty
       in
       begin match classify env loc elt_ty elt_sort with
       | Any -> if Config.flat_float_array then Pgenarray else Paddrarray
@@ -345,13 +347,13 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
 
        This should be understood, but for now the simple fall back thing is
        sufficient.  *)
-    match Ctype.check_type_jkind env scty (Jkind.Primitive.value ~why:V1_safety_check)
+    match Ctype.check_type_jkind env scty (Jkind.Primitive.value_or_null ~why:V1_safety_check)
     with
     | Ok _ -> ()
     | Error _ ->
       match
         Ctype.(check_type_jkind env
-                 (correct_levels ty) (Jkind.Primitive.value ~why:V1_safety_check))
+                 (correct_levels ty) (Jkind.Primitive.value_or_null ~why:V1_safety_check))
       with
       | Ok _ -> ()
       | Error violation ->

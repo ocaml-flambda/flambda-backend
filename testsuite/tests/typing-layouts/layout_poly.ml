@@ -550,8 +550,7 @@ Error: This expression has type ('a : float64)
        But the layout of int64# must be a sublayout of float64
          because it's the layout polymorphic type in an external declaration
          ([@layout_poly] forces all variables of layout 'any' to be
-         representable at call sites),
-         defaulted to layout float64.
+         representable at call sites).
 |}]
 (* CR layouts v2.9: the default part is not quite correct *)
 

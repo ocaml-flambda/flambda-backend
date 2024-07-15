@@ -2907,7 +2907,7 @@ let transl_value_decl env loc valdecl =
   in
   (* CR layouts v5: relax this to check for representability. *)
   begin match Ctype.constrain_type_jkind env cty.ctyp_type
-                (Jkind.Primitive.value ~why:Structure_element) with
+                (Jkind.Primitive.value_or_null ~why:Structure_element) with
   | Ok () -> ()
   | Error err ->
     raise(Error(cty.ctyp_loc, Non_value_in_sig(err,valdecl.pval_name.txt,cty.ctyp_type)))
