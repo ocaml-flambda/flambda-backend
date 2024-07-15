@@ -31,22 +31,17 @@
    * It is very easy to search for and replace when we have a better name.
 *)
 
-(* The externality mode. This tracks whether or not an expression is external
-   to the type checker; something external to the type checker can be skipped
-   during garbage collection.
-
-   This will eventually be incorporated into the mode
-   solver, but it is defined here because we do not yet track externalities
-   on expressions, just in jkinds. *)
-(* CR externals: Move to mode.ml. But see
-   https://github.com/goldfirere/flambda-backend/commit/d802597fbdaaa850e1ed9209a1305c5dcdf71e17
-   first, which was reisenberg's attempt to do so. *)
-
-module Sort : Jkind_intf.Sort with type const = Jkind_types.Type.Sort.const
-
-type sort = Sort.t
-
 module Type : sig
+  (* The externality mode. This tracks whether or not an expression is external
+     to the type checker; something external to the type checker can be skipped
+     during garbage collection.
+
+     This will eventually be incorporated into the mode
+     solver, but it is defined here because we do not yet track externalities
+     on expressions, just in jkinds. *)
+  (* CR externals: Move to mode.ml. But see
+     https://github.com/goldfirere/flambda-backend/commit/d802597fbdaaa850e1ed9209a1305c5dcdf71e17
+     first, which was reisenberg's attempt to do so. *)
   module Externality : sig
     type t = Jkind_types.Type.Externality.t =
       | External (* not managed by the garbage collector *)
@@ -57,6 +52,10 @@ module Type : sig
 
     val print : Format.formatter -> t -> unit
   end
+
+  module Sort : Jkind_intf.Sort with type const = Jkind_types.Type.Sort.const
+
+  type sort = Sort.t
 
   (* The layout of a type describes its memory layout. A layout is either the
      indeterminate [Any] or a sort, which is a concrete memory layout. *)
@@ -88,8 +87,8 @@ module Type : sig
   end
 
   (** A Jkind.Type.t is a full description of the runtime representation of values
-    of a given type. It includes sorts, but also the abstract top jkind
-    [Any] and subjkinds of other sorts, such as [Immediate]. *)
+      of a given type. It includes sorts, but also the abstract top jkind
+      [Any] and subjkinds of other sorts, such as [Immediate]. *)
   type t = Types.type_expr Jkind_types.Type.t
 
   module History : sig
@@ -123,9 +122,6 @@ module Type : sig
     (** Set [?missing_cmi] to mark [t] as having arisen from a missing cmi *)
 
     val of_ : ?missing_cmi:Path.t -> violation -> t
-
-    (** Is this error from a missing cmi? *)
-    val is_missing_cmi : t -> bool
   end
 
   (******************************)
@@ -162,8 +158,8 @@ module Type : sig
         }
 
       (** This jkind is the top of the jkind lattice. All types have jkind [any].
-    But we cannot compile run-time manipulations of values of types with jkind
-    [any]. *)
+      But we cannot compile run-time manipulations of values of types with jkind
+      [any]. *)
       val any : t
 
       (** Value of types of this jkind are not retained at all at runtime *)
@@ -173,30 +169,30 @@ module Type : sig
       val value : t
 
       (** Values of types of this jkind are immediate on 64-bit platforms; on other
-    platforms, we know nothing other than that it's a value. *)
+      platforms, we know nothing other than that it's a value. *)
       val immediate64 : t
 
       (** We know for sure that values of types of this jkind are always immediate *)
       val immediate : t
 
       (** This is the jkind of unboxed 64-bit floats.  They have sort
-    Float64. Mode-crosses. *)
+      Float64. Mode-crosses. *)
       val float64 : t
 
       (** This is the jkind of unboxed 32-bit floats.  They have sort
-    Float32. Mode-crosses. *)
+      Float32. Mode-crosses. *)
       val float32 : t
 
       (** This is the jkind of unboxed native-sized integers. They have sort
-    Word. Does not mode-cross. *)
+      Word. Does not mode-cross. *)
       val word : t
 
       (** This is the jkind of unboxed 32-bit integers. They have sort Bits32. Does
-    not mode-cross. *)
+      not mode-cross. *)
       val bits32 : t
 
       (** This is the jkind of unboxed 64-bit integers. They have sort Bits64. Does
-    not mode-cross. *)
+      not mode-cross. *)
       val bits64 : t
 
       (** A list of all primitive jkinds *)
@@ -214,8 +210,8 @@ module Type : sig
 
   module Primitive : sig
     (** This jkind is the top of the jkind lattice. All types have jkind [any].
-    But we cannot compile run-time manipulations of values of types with jkind
-    [any]. *)
+      But we cannot compile run-time manipulations of values of types with jkind
+      [any]. *)
     val any : why:History.any_creation_reason -> t
 
     (** Value of types of this jkind are not retained at all at runtime *)
@@ -225,30 +221,30 @@ module Type : sig
     val value : why:History.value_creation_reason -> t
 
     (** Values of types of this jkind are immediate on 64-bit platforms; on other
-    platforms, we know nothing other than that it's a value. *)
+      platforms, we know nothing other than that it's a value. *)
     val immediate64 : why:History.immediate64_creation_reason -> t
 
     (** We know for sure that values of types of this jkind are always immediate *)
     val immediate : why:History.immediate_creation_reason -> t
 
     (** This is the jkind of unboxed 64-bit floats.  They have sort
-    Float64. Mode-crosses. *)
+      Float64. Mode-crosses. *)
     val float64 : why:History.float64_creation_reason -> t
 
     (** This is the jkind of unboxed 32-bit floats.  They have sort
-    Float32. Mode-crosses. *)
+      Float32. Mode-crosses. *)
     val float32 : why:History.float32_creation_reason -> t
 
     (** This is the jkind of unboxed native-sized integers. They have sort
-    Word. Does not mode-cross. *)
+      Word. Does not mode-cross. *)
     val word : why:History.word_creation_reason -> t
 
     (** This is the jkind of unboxed 32-bit integers. They have sort Bits32. Does
-    not mode-cross. *)
+      not mode-cross. *)
     val bits32 : why:History.bits32_creation_reason -> t
 
     (** This is the jkind of unboxed 64-bit integers. They have sort Bits64. Does
-    not mode-cross. *)
+      not mode-cross. *)
     val bits64 : why:History.bits64_creation_reason -> t
   end
 
@@ -259,7 +255,7 @@ module Type : sig
   (* construction *)
 
   (** Create a fresh sort variable, packed into a jkind, returning both
-    the resulting kind and the sort. *)
+      the resulting kind and the sort. *)
   val of_new_sort_var : why:History.concrete_jkind_reason -> t * sort
 
   (** Create a fresh sort variable, packed into a jkind. *)
@@ -268,11 +264,11 @@ module Type : sig
   val of_const : why:History.creation_reason -> Const.t -> t
 
   (** Choose an appropriate jkind for a boxed record type, given whether
-    all of its fields are [void]. *)
+      all of its fields are [void]. *)
   val for_boxed_record : all_void:bool -> t
 
   (** Choose an appropriate jkind for a boxed variant type, given whether
-    all of the fields of all of its constructors are [void]. *)
+      all of the fields of all of its constructors are [void]. *)
   val for_boxed_variant : all_voids:bool -> t
 
   (******************************)
@@ -285,27 +281,27 @@ module Type : sig
       | Var of Sort.var
   end
 
-  (** Extract the [const] from a [Jkind.Type.t], looking through unified
-    sort variables. Returns [Var] if the final, non-variable jkind has not
-    yet been determined. *)
+  (** Extract the [const] from a [Jkind.t], looking through unified
+      sort variables. Returns [Var] if the final, non-variable jkind has not
+      yet been determined. *)
   val get : t -> Desc.t
 
   (** [default_to_value_and_get] extracts the jkind as a `const`.  If it's a sort
-    variable, it is set to [value] first. *)
+      variable, it is set to [value] first. *)
   val default_to_value_and_get : t -> Const.t
 
   (** [default_to_value t] is [ignore (default_to_value_and_get t)] *)
   val default_to_value : t -> unit
 
   (** [is_void t] is [Void = default_to_value_and_get t].  In particular, it will
-    default the jkind to value if needed to make this false. *)
+      default the jkind to value if needed to make this false. *)
   val is_void_defaulting : t -> bool
   (* CR layouts v5: When we have proper support for void, we'll want to change
      these three functions to default to void - it's the most efficient thing
      when we have a choice. *)
 
   (** Gets the layout of a jkind; returns [None] if the layout is still unknown.
-    Never does mutation. *)
+      Never does mutation. *)
   val get_layout : t -> Layout.Const.t option
 
   (** Gets the maximum modes for types of this jkind. *)
@@ -315,7 +311,7 @@ module Type : sig
   val get_externality_upper_bound : t -> Externality.t
 
   (** Computes a jkind that is the same as the input but with an updated maximum
-    mode for the externality axis *)
+      mode for the externality axis *)
   val set_externality_upper_bound : t -> Externality.t -> t
 
   (*********************************)
@@ -324,18 +320,12 @@ module Type : sig
   val format : Format.formatter -> t -> unit
 
   (** Format the history of this jkind: what interactions it has had and why
-    it is the jkind that it is. Might be a no-op: see [display_histories]
-    in the implementation of the [Jkind] module.
+      it is the jkind that it is. Might be a no-op: see [display_histories]
+      in the implementation of the [Jkind] module.
 
-    The [intro] is something like "The jkind of t is". *)
+      The [intro] is something like "The jkind of t is". *)
   val format_history :
     intro:(Format.formatter -> unit) -> Format.formatter -> t -> unit
-
-  (******************************)
-  (* relations *)
-
-  (** Checks to see whether a jkind is has layout. Never does any mutation. *)
-  val has_layout_any : t -> bool
 
   (*********************************)
   (* debugging *)
@@ -344,6 +334,13 @@ module Type : sig
     val t : Format.formatter -> t -> unit
   end
 end
+
+(* Re-export some symbols *)
+
+type sort = Type.sort
+
+module Sort = Type.Sort
+module Externality = Type.Externality
 
 (** A Jkind.t is a type representing general, higher-order kinds. Its special
     case is a zeroth-order kind of runtime-representable types (Jkind.Type.t). *)
