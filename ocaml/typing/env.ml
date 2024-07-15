@@ -2793,10 +2793,10 @@ let add_language_extension_types env =
     | false -> env
   in
   lazy
-    (env
+    Language_extension.(env
     |> add SIMD () Predef.add_simd_extension_types
-    |> add Small_numbers () Predef.add_small_number_extension_types
-    |> add Layouts Language_extension.Alpha Predef.add_or_null)
+    |> add Small_numbers Stable Predef.add_small_number_extension_types
+    |> add Layouts Alpha Predef.add_or_null)
 
 (* Some predefined types are part of language extensions, and we don't want to
    make them available in the initial environment if those extensions are not
