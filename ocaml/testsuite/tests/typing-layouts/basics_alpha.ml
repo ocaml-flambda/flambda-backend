@@ -202,7 +202,7 @@ Line 1, characters 27-33:
 Error: This type signature for x is not a value type.
        The layout of type t_void is void
          because of the definition of t_void at line 6, characters 0-19.
-       But the layout of type t_void must be a sublayout of value_or_null
+       But the layout of type t_void must be a sublayout of value
          because it's the type of something stored in a module structure.
 |}];;
 (* CR layouts v5: the test above should be made to work *)
@@ -218,7 +218,7 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value_or_null
+       But the layout of t_void must be a sublayout of value
          because it has to be value for the V1 safety check.
 |}];;
 
@@ -387,7 +387,7 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of 'a is void
          because of the definition of void5 at line 1, characters 0-37.
-       But the layout of 'a must be a sublayout of value_or_null
+       But the layout of 'a must be a sublayout of value
          because it has to be value for the V1 safety check.
 |}];;
 
@@ -511,7 +511,7 @@ Line 2, characters 40-46:
 Error: Polymorphic variant constructor argument types must have layout value.
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value_or_null
+       But the layout of t_void must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}];;
 
@@ -560,7 +560,8 @@ Error: The type constraints are not consistent.
        The layout of void_unboxed_record is void
          because of the definition of t_void at line 6, characters 0-19.
        But the layout of void_unboxed_record must be a sublayout of value
-         because it instantiates an unannotated type parameter of t, defaulted to layout value.
+         because it instantiates an unannotated type parameter of t,
+         defaulted to layout value.
 |}];;
 
 module type S8_5 = sig
@@ -573,7 +574,7 @@ Line 2, characters 17-23:
 Error: Polymorphic variant constructor argument types must have layout value.
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value_or_null
+       But the layout of t_void must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}]
 
@@ -591,7 +592,7 @@ Line 2, characters 20-26:
 Error: Tuple element types must have layout value.
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value_or_null
+       But the layout of t_void must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
 
@@ -605,7 +606,7 @@ Line 2, characters 31-50:
 Error: Tuple element types must have layout value.
        The layout of void_unboxed_record is void
          because of the definition of t_void at line 6, characters 0-19.
-       But the layout of void_unboxed_record must be a sublayout of value_or_null
+       But the layout of void_unboxed_record must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
 
@@ -625,7 +626,7 @@ Error: This expression has type void_unboxed_record
        but an expression was expected of type ('a : value_or_null)
        The layout of void_unboxed_record is void
          because of the definition of t_void at line 6, characters 0-19.
-       But the layout of void_unboxed_record must be a sublayout of value_or_null
+       But the layout of void_unboxed_record must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
 
@@ -674,7 +675,8 @@ Error: The type constraints are not consistent.
        The layout of void_unboxed_record is void
          because of the definition of t_void at line 6, characters 0-19.
        But the layout of void_unboxed_record must be a sublayout of value
-         because it instantiates an unannotated type parameter of t, defaulted to layout value.
+         because it instantiates an unannotated type parameter of t,
+         defaulted to layout value.
 |}];;
 
 module type S9_7 = sig
@@ -687,7 +689,7 @@ Line 2, characters 16-22:
 Error: Tuple element types must have layout value.
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value_or_null
+       But the layout of t_void must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
 
@@ -706,7 +708,7 @@ Error: This expression has type t_void but an expression was expected of type
          ('a : value_or_null)
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value_or_null
+       But the layout of t_void must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
 
@@ -1173,7 +1175,7 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value_or_null
+       But the layout of t_void must be a sublayout of value
          because it has to be value for the V1 safety check.
 |}];;
 
@@ -1319,7 +1321,7 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of 'a is void
          because of the definition of r at line 3, characters 0-40.
-       But the layout of 'a must be a sublayout of value_or_null
+       But the layout of 'a must be a sublayout of value
          because it has to be value for the V1 safety check.
 |}];;
 
@@ -1649,7 +1651,7 @@ Error: This pattern matches values of type t_void
          ('a : value_or_null)
        The layout of t_void is void
          because of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value_or_null
+       But the layout of t_void must be a sublayout of value
          because it's the type of a tuple element.
 |}]
 
@@ -1676,7 +1678,7 @@ Error: This pattern matches values of type t_float64
          ('a : value_or_null)
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 5, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value_or_null
+       But the layout of t_float64 must be a sublayout of value
          because it's the type of a tuple element.
 |}]
 
@@ -1751,7 +1753,7 @@ Error: This type ('a : value_or_null) should be an instance of type
        The layout of 'a is void
          because of the annotation on 'a in the declaration of the type
                                       poly_var.
-       But the layout of 'a must overlap with value_or_null
+       But the layout of 'a must overlap with value
          because it's the type of a tuple element.
 |}]
 
@@ -1773,7 +1775,7 @@ Error: This expression has type t_void but an expression was expected of type
          ('a : value_or_null)
        The layout of t_void is void
          because of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value_or_null
+       But the layout of t_void must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}]
 
@@ -1788,7 +1790,7 @@ Line 1, characters 17-22:
 Error: This type signature for foo33 is not a value type.
        The layout of type t_any is any
          because of the definition of t_any at line 1, characters 0-18.
-       But the layout of type t_any must be a sublayout of value_or_null
+       But the layout of type t_any must be a sublayout of value
          because it's the type of something stored in a module structure.
 |}]
 

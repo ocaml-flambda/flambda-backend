@@ -264,10 +264,10 @@ Error: Signature mismatch:
        is not included in
          val f : ('a : value_or_null). 'a -> 'a
        The type 'a -> 'a is not compatible with the type 'b -> 'b
-       The layout of 'a is value_or_null, because
-         of the definition of f at line 2, characters 2-41.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of f at line 4, characters 6-7.
+       The kind of 'a is value_or_null
+         because of the definition of f at line 2, characters 2-41.
+       But the kind of 'a must be a subkind of value
+         because of the definition of f at line 4, characters 6-7.
 |}]
 
 (* CR layouts v3.0: this should work. *)
@@ -293,10 +293,10 @@ Error: Signature mismatch:
        is not included in
          val f : ('a : value_or_null). 'a -> 'a
        The type 'a -> 'a is not compatible with the type 'b -> 'b
-       The layout of 'a is value_or_null, because
-         of the definition of f at line 2, characters 2-41.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of f at line 4, characters 6-7.
+       The kind of 'a is value_or_null
+         because of the definition of f at line 2, characters 2-41.
+       But the kind of 'a must be a subkind of value
+         because of the definition of f at line 4, characters 6-7.
 |}]
 
 (* CR layouts v3.0: annotations on non-rigid type variables are upper bounds.

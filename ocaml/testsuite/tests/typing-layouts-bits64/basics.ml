@@ -190,10 +190,11 @@ Line 1, characters 31-33:
 1 | type ('a : bits64, 'b) t4_7 = ('a as 'b) -> ('b * 'b);;
                                    ^^
 Error: This type ('b : value) should be an instance of type ('a : bits64)
-       The layout of 'a is bits64, because
-         of the annotation on 'a in the declaration of the type t4_7.
-       But the layout of 'a must overlap with value, because
-         it instantiates an unannotated type parameter of t4_7, defaulted to layout value.
+       The layout of 'a is bits64
+         because of the annotation on 'a in the declaration of the type t4_7.
+       But the layout of 'a must overlap with value
+         because it instantiates an unannotated type parameter of t4_7,
+         defaulted to layout value.
 |}]
 
 (****************************************************)

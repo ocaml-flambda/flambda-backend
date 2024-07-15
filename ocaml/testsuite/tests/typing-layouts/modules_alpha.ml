@@ -524,10 +524,10 @@ Line 1, characters 28-33:
 1 | module type S = sig val x : t_any end
                                 ^^^^^
 Error: This type signature for x is not a value type.
-       The layout of type t_any is any, because
-         of the definition of t_any at line 1, characters 0-18.
-       But the layout of type t_any must be a sublayout of value_or_null, because
-         it's the type of something stored in a module structure.
+       The layout of type t_any is any
+         because of the definition of t_any at line 1, characters 0-18.
+       But the layout of type t_any must be a sublayout of value
+         because it's the type of something stored in a module structure.
 |}]
 
 (****************************************************************)

@@ -760,10 +760,11 @@ Line 2, characters 54-68:
                                                           ^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
        Type ('a : value) is not compatible with type t_float64
-       The layout of t_float64 is float64, because
-         of the definition of t_float64 at line 4, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value, because
-         it instantiates an unannotated type parameter of t, defaulted to layout value.
+       The layout of t_float64 is float64
+         because of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value
+         because it instantiates an unannotated type parameter of t,
+         defaulted to layout value.
 |}];;
 
 module type S8_5f = sig
@@ -856,10 +857,11 @@ Line 2, characters 34-48:
                                       ^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
        Type ('a : value) is not compatible with type t_float64
-       The layout of t_float64 is float64, because
-         of the definition of t_float64 at line 4, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value, because
-         it instantiates an unannotated type parameter of t, defaulted to layout value.
+       The layout of t_float64 is float64
+         because of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value
+         because it instantiates an unannotated type parameter of t,
+         defaulted to layout value.
 |}];;
 
 module type S9_7f = sig

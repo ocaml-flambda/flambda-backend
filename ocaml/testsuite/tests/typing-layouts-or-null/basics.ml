@@ -57,7 +57,7 @@ Line 2, characters 10-24:
 Error: This type signature for x is not a value type.
        The layout of type t_any_non_null is any
          because of the definition of t_any_non_null at line 2, characters 0-34.
-       But the layout of type t_any_non_null must be a sublayout of value_or_null
+       But the layout of type t_any_non_null must be a sublayout of value
          because it's the type of something stored in a module structure.
 |}]
 
