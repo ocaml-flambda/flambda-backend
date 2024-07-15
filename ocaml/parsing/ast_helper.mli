@@ -359,7 +359,7 @@ module Ms:
 module Mtd:
   sig
     val mk: ?loc:loc -> ?attrs:attrs -> ?docs:docs -> ?text:text ->
-      ?typ:module_type -> str -> module_type_declaration
+      str -> module_type_declaration_type -> module_type_declaration
   end
 
 (** Module bindings *)

@@ -776,9 +776,13 @@ let package_type sub pack =
 let module_type_declaration sub mtd =
   let loc = sub.location sub mtd.mtd_loc in
   let attrs = sub.attributes sub mtd.mtd_attributes in
+  let typ = match mtd.mtd_type with
+    | None -> Pmtd_abstract
+    | Some ty -> Pmtd_define (sub.module_type sub ty)
+  in
   Mtd.mk ~loc ~attrs
-    ?typ:(Option.map (sub.module_type sub) mtd.mtd_type)
     (map_loc sub mtd.mtd_name)
+    typ
 
 let signature sub sg =
   List.map (sub.signature_item sub) sg.sig_items

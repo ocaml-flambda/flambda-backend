@@ -582,8 +582,8 @@ and add_sig_item (bv, m) item =
       (bv', m')
   | Psig_modtype x | Psig_modtypesubst x->
       begin match x.pmtd_type with
-        None -> ()
-      | Some mty -> add_modtype bv mty
+      | Pmtd_abstract | Pmtd_underscore -> ()
+      | Pmtd_define mty -> add_modtype bv mty
       end;
       (bv, m)
   | Psig_open od ->
@@ -741,8 +741,8 @@ and add_struct_item (bv, m) item : _ String.Map.t * _ String.Map.t =
       (bv', m)
   | Pstr_modtype x ->
       begin match x.pmtd_type with
-        None -> ()
-      | Some mty -> add_modtype bv mty
+      | Pmtd_abstract | Pmtd_underscore -> ()
+      | Pmtd_define mty -> add_modtype bv mty
       end;
       (bv, m)
   | Pstr_open od ->

@@ -37,6 +37,10 @@ let empty_type loc = err loc "Type declarations cannot be empty."
 let complex_id loc = err loc "Functor application not allowed here."
 let module_type_substitution_missing_rhs loc =
   err loc "Module type substitution with no right hand side"
+
+let module_type_substitution_underscore_rhs loc =
+  err loc "Module type substitution with underscore as the right hand side"
+
 let empty_comprehension loc = err loc "Comprehension with no clauses"
 let no_val_params loc = err loc "Functions must have a value parameter."
 
@@ -226,8 +230,12 @@ let iterator =
     let loc = sg.psig_loc in
     match sg.psig_desc with
     | Psig_type (_, []) -> empty_type loc
-    | Psig_modtypesubst {pmtd_type=None; _ } ->
-        module_type_substitution_missing_rhs loc
+    | Psig_modtypesubst {pmtd_type; _ } ->
+      begin match pmtd_type with
+      | Pmtd_abstract -> module_type_substitution_missing_rhs loc
+      | Pmtd_underscore -> module_type_substitution_underscore_rhs loc
+      | Pmtd_define _ -> ()
+      end
     | _ -> ()
   in
   let row_field self field =

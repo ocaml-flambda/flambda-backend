@@ -623,4 +623,10 @@ class virtual to_text =
             (if with_def_syntax then " = " else "") s
           in
           [ Code code ]
+
+      | Module_type_underscore ->
+          let code = Printf.sprintf "%s_"
+            (if with_def_syntax then " = " else "")
+          in
+          [ Code code ]
   end

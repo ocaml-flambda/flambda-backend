@@ -1173,8 +1173,13 @@ and approx_sig env ssg =
           approx_sig env srem
 
 and approx_modtype_info env sinfo =
+  let mtd_type = match sinfo.pmtd_type with
+    | Pmtd_underscore -> failwith "underscore not implemented"
+    | Pmtd_abstract -> None
+    | Pmtd_define ty -> Some (approx_modtype env ty)
+  in
   {
-   mtd_type = Option.map (approx_modtype env) sinfo.pmtd_type;
+   mtd_type;
    mtd_attributes = sinfo.pmtd_attributes;
    mtd_loc = sinfo.pmtd_loc;
    mtd_uid = Uid.internal_not_actually_unique;
@@ -1992,8 +1997,10 @@ and transl_modtype_decl env pmtd =
 
 and transl_modtype_decl_aux env
     {pmtd_name; pmtd_type; pmtd_attributes; pmtd_loc} =
-  let tmty =
-    Option.map (transl_modtype (Env.in_signature true env)) pmtd_type
+  let tmty = match pmtd_type with
+    | Pmtd_abstract -> None
+    | Pmtd_underscore -> failwith "underscore not implemented"
+    | Pmtd_define ty -> Some (transl_modtype (Env.in_signature true env) ty)
   in
   let decl =
     {

@@ -19,6 +19,10 @@ module type s = sig
  [%%missing_rhs]
 end;;
 
+module type s = sig
+  [%%underscore_as_rhs]
+end;;
+
 let f ([%lt_empty_open_pat]) = ();;
 let f ([%lt_short_closed_pat]) = ();;
 

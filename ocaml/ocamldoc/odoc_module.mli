@@ -79,6 +79,7 @@ and module_type_kind =
   | Module_type_alias of module_type_alias
   | Module_type_with of module_type_kind * string
   | Module_type_typeof of string
+  | Module_type_underscore
 and t_module_type = {
   mt_name : Name.t;
   mutable mt_info : Odoc_types.info option;

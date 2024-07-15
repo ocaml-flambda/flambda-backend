@@ -1891,14 +1891,20 @@ module_type_declaration:
   ext = ext
   attrs1 = attributes
   id = mkrhs(ident)
-  typ = preceded(EQUAL, module_type)?
+  typ = module_type_declaration_type
   attrs2 = post_item_attributes
   {
     let attrs = attrs1 @ attrs2 in
     let loc = make_loc $sloc in
     let docs = symbol_docs $sloc in
-    Mtd.mk id ?typ ~attrs ~loc ~docs, ext
+    Mtd.mk id typ ~attrs ~loc ~docs, ext
   }
+;
+
+module_type_declaration_type:
+  | (* empty *)         { Pmtd_abstract }
+  | EQUAL module_type   { Pmtd_define $2 }
+  | EQUAL UNDERSCORE    { Pmtd_underscore }
 ;
 
 (* -------------------------------------------------------------------------- *)
@@ -2181,7 +2187,7 @@ module_type_subst:
     let attrs = attrs1 @ attrs2 in
     let loc = make_loc $sloc in
     let docs = symbol_docs $sloc in
-    Mtd.mk id ~typ ~attrs ~loc ~docs, ext
+    Mtd.mk id (Pmtd_define typ) ~attrs ~loc ~docs, ext
   }
 
 
