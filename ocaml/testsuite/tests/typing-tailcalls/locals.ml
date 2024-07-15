@@ -53,6 +53,25 @@ Error: This value escapes its region.
   because it is an argument in a tail call.
 |}]
 
+let explicit_tail () =
+  let local_ str = "hello" in
+  f str [@tail]
+[%%expect {|
+Line 3, characters 4-7:
+3 |   f str [@tail]
+        ^^^
+Error: This value escapes its region.
+  Hint: This argument cannot be local,
+  because it is an argument in a tail call.
+|}]
+
+let implicit_tail_overriden_by_nontail () =
+  let local_ str = "hello" in
+  f str [@nontail]
+[%%expect {|
+val implicit_tail_overriden_by_nontail : unit -> unit = <fun>
+|}]
+
 module rec List : sig
   val map : local_ ('a -> 'b) -> 'a list -> 'b list
 end = List

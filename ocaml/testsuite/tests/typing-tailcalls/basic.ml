@@ -1,6 +1,8 @@
 (* TEST
- flags = "-dtypedtree -dsel";
- native;
+ flags = "-dtypedtree -dsel -c";
+ setup-ocamlopt.opt-build-env;
+ ocamlopt.opt;
+ check-ocamlopt.opt-output;
 *)
 
 let [@inline never] f str = print_endline str
