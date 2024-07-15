@@ -67,7 +67,7 @@ module Make_Fixpoint (G : Graph) = struct
         (fun edge acc -> Node.Set.add (G.target edge) acc)
         Node.Set.empty
 
-    let ensure_domain acc s =
+    let complete_domain acc s =
       Node.Set.fold
         (fun x acc ->
           if Node.Map.mem x acc then acc else Node.Map.add x Node.Set.empty acc)
@@ -77,7 +77,7 @@ module Make_Fixpoint (G : Graph) = struct
       G.fold_nodes graph
         (fun n acc ->
           let deps = depset graph n in
-          let acc = ensure_domain acc deps in
+          let acc = complete_domain acc deps in
           (* For nodes which are already as [top], the fixpoint is already
              reached. We can safely ignore the dependency and process these
              nodes at the beginning, cutting some cycles. *)
@@ -189,26 +189,13 @@ module Make_Fixpoint (G : Graph) = struct
       SCC.connected_components_sorted_from_roots_to_leaf
         (Make_SCC.from_graph graph state)
     in
-    if Sys.getenv_opt "SHOWCOMP" <> None
-    then (
-      Format.eprintf "ncomps: %d, max size: %d@." (Array.length components)
-        (Array.fold_left
-           (fun m -> function
-             | SCC.No_loop _ -> m
-             | SCC.Has_loop l -> max m (List.length l))
-           0 components);
-      Array.iter
-        (function
-          | SCC.No_loop id -> Format.eprintf "%a@ " Node.print id
-          | SCC.Has_loop l ->
-            Format.eprintf "[%a]@ " (Format.pp_print_list Node.print) l)
-        components;
-      Format.eprintf "@.");
     Array.iter
       (fun component -> fixpoint_component graph state component)
       components
 
   let check_fixpoint (graph : G.graph) (roots : Node.Set.t) (state : G.state) =
+    (* Checks that the given state is a post-fixpoint for propagation, and
+       that all roots are set to [Top]. *)
     Node.Set.iter
       (fun root -> assert (G.less_equal state G.top (G.get state root)))
       roots;
@@ -428,22 +415,11 @@ end
 module Solver = Make_Fixpoint (Graph)
 
 let fixpoint (graph_new : Global_flow_graph.graph) =
-  let result_topo = Hashtbl.create 17 in
+  let result = Hashtbl.create 17 in
   let uses =
     graph_new.Global_flow_graph.used |> Hashtbl.to_seq_keys |> List.of_seq
     |> Code_id_or_name.Set.of_list
   in
-  Solver.fixpoint_topo graph_new uses result_topo;
-  Solver.check_fixpoint graph_new uses result_topo;
-  (* Hashtbl.iter (fun k _ -> if not (Hashtbl.mem result_topo k) then
-     Format.eprintf "NOT BOTTOM: %a@." Code_id_or_name.print k; ) _result; *)
-  if Sys.getenv_opt "TOTO" <> None
-  then Format.eprintf "RESULT: %a@." pp_result result_topo;
-  (* if Sys.getenv_opt "TOTO" <> None then ( Format.eprintf "TOPO:@.%a@.@."
-     pp_result result_topo; Format.eprintf "NORMAL:@.%a@.@." pp_result result);
-     if not (Dep_solver_safe.equal_result result_topo result) then begin
-     Format.printf "NOT EQUAL:@.%a@.XXX@.%a@.END@.XXXXXXX@.DIFF:@." pp_result
-     result_topo pp_result result; Dep_solver_safe.print_diff result
-     result_topo; assert false end; assert (Dep_solver_safe.equal_result
-     result_topo result); *)
-  result_topo
+  Solver.fixpoint_topo graph_new uses result;
+  Solver.check_fixpoint graph_new uses result;
+  result
