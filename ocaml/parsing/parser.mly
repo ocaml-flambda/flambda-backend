@@ -789,7 +789,7 @@ let mkfunction ~loc ~attrs params body_constraint body =
           wrap_exp_attrs
             ~loc
             (mkghost_newtype_function_body newtypes body_constraint body_exp
-                ~loc)
+               ~loc)
             attrs
     end
 
