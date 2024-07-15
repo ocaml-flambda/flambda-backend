@@ -1411,9 +1411,6 @@ module Type = struct
     | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
     | _ -> false
 
-  let has_layout_any jkind =
-    match jkind.jkind.layout with Any -> true | _ -> false
-
   (*********************************)
   (* debugging *)
 
@@ -2140,7 +2137,9 @@ let sub_with_history sub super =
 let is_max jkind = sub (Type Type.Primitive.any_dummy_jkind) jkind
 
 let has_layout_any (jkind : t) =
-  match jkind with Type ty -> Type.has_layout_any ty | _ -> false
+  match jkind with
+  | Type ty -> ( match ty.jkind.layout with Any -> true | _ -> false)
+  | _ -> false
 
 (*********************************)
 (* debugging *)

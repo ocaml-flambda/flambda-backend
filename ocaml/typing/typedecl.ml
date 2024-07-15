@@ -2685,10 +2685,9 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
     *)
     (* FIXME jbachurski: Is this the way this unwrapping should happen?
        Is assigning arrows a sort temporarily okay? *)
-    | Tvar { jkind = Type jkind }
-                 when is_layout_poly
-                      && Jkind.Type.has_layout_any jkind
-                      && get_level ty = Btype.generic_level -> Poly
+    | Tvar { jkind } when is_layout_poly
+                       && Jkind.has_layout_any jkind
+                       && get_level ty = Btype.generic_level -> Poly
     | _ ->
       let sort =
         type_sort_external ~is_layout_poly ~why env core_type.ptyp_loc ty
