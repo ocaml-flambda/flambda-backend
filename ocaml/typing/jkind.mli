@@ -333,12 +333,6 @@ module Type : sig
   val format_history :
     intro:(Format.formatter -> unit) -> Format.formatter -> t -> unit
 
-  (******************************)
-  (* relations *)
-
-  (** Checks to see whether a jkind is has layout. Never does any mutation. *)
-  val has_layout_any : t -> bool
-
   (*********************************)
   (* debugging *)
 
