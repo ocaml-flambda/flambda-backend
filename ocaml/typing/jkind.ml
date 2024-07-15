@@ -45,16 +45,16 @@ let printtyp_path = ref (fun _ _ -> assert false)
 
 let set_printtyp_path f = printtyp_path := f
 
-(* A *sort* is the information the middle/back ends need to be able to
-   compile a manipulation (storing, passing, etc) of a runtime value. *)
-module Sort = Jkind_types.Type.Sort
-
-type sort = Sort.t
-
 module Type = struct
   open Jkind_types.Type
 
   type type_expr = Types.type_expr
+
+  (* A *sort* is the information the middle/back ends need to be able to
+   compile a manipulation (storing, passing, etc) of a runtime value. *)
+   module Sort = Jkind_types.Type.Sort
+
+   type sort = Sort.t
 
   (* A *layout* of a type describes the way values of that type are stored at
      runtime, including details like width, register convention, calling
@@ -1354,8 +1354,6 @@ module Type = struct
        indeed just about the payload.) *)
 
     let of_ ?missing_cmi violation = { violation; missing_cmi }
-
-    let is_missing_cmi viol = Option.is_some viol.missing_cmi
   end
 
   (******************************)
@@ -1613,7 +1611,15 @@ module History = struct
         { args = List.map (fun t' -> update_reason t' reason) args;
           result = update_reason result reason
         }
-end
+end (* module Type *)
+
+(* Re-export some symbols *)
+
+type sort = Type.sort
+
+module Sort = Type.Sort
+module Externality = Type.Externality
+
 
 (******************************)
 (* constants *)
