@@ -100,7 +100,6 @@ type error =
       old_source_file : Misc.filepath;
     }
   | Submode_failed of Mode.Value.error
-  | Underscore_not_allowed_in_signature
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -4118,9 +4117,6 @@ let report_error ~loc _env = function
         "This value is %a, but expected to be %a because it is inside a module."
         (Mode.Value.Const.print_axis ax) left
         (Mode.Value.Const.print_axis ax) right
-  | Underscore_not_allowed_in_signature ->
-      Location.errorf ~loc
-        "Inferrence of module types is not allowed within a signature."
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env_error env

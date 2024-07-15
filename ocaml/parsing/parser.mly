@@ -1887,18 +1887,18 @@ include_maybe_functor:
 
 (* A module type declaration. *)
 module_type_declaration:
-  | MODULE TYPE
-    ext = ext
-    attrs1 = attributes
-    id = mkrhs(ident)
-    typ = module_type_declaration_type
-    attrs2 = post_item_attributes
-    {
-      let attrs = attrs1 @ attrs2 in
-      let loc = make_loc $sloc in
-      let docs = symbol_docs $sloc in
-      Mtd.mk id typ ~attrs ~loc ~docs, ext
-    }
+  MODULE TYPE
+  ext = ext
+  attrs1 = attributes
+  id = mkrhs(ident)
+  typ = module_type_declaration_type
+  attrs2 = post_item_attributes
+  {
+    let attrs = attrs1 @ attrs2 in
+    let loc = make_loc $sloc in
+    let docs = symbol_docs $sloc in
+    Mtd.mk id typ ~attrs ~loc ~docs, ext
+  }
 ;
 
 module_type_declaration_type:
