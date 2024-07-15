@@ -304,3 +304,60 @@ Line 6, characters 12-15:
                 ^^^
 Error: The value M.x is nonportable, so cannot be used inside a closure that is portable.
 |}]
+
+(* Modalities on primitives are supported. They are simpler than real values,
+   because primitives have the same parsetree in [sig] and [struct]. In
+   particular, both contain [val_modalities] already, so we just do a simple
+   sub-modality check. *)
+module M : sig
+  external length : string -> int @@ portable = "%string_length"
+end = struct
+  external length : string -> int = "%string_length"
+end
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   external length : string -> int = "%string_length"
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig external length : string -> int = "%string_length" end
+       is not included in
+         sig
+           external length : string -> int @@ portable = "%string_length"
+         end
+       Values do not match:
+         external length : string -> int = "%string_length"
+       is not included in
+         external length : string -> int @@ portable = "%string_length"
+       The second is portable and the first is not.
+|}]
+
+module M : sig
+  external length : string -> int @@ portable = "%string_length"
+end = struct
+  external length : string -> int @@ portable = "%string_length"
+end
+
+let _ = portable_use M.length
+[%%expect{|
+module M :
+  sig external length : string -> int @@ portable = "%string_length" end
+- : unit = ()
+|}]
+
+(* weakening to non-portable *)
+module M : sig
+  external length : string -> int = "%string_length"
+end = struct
+  external length : string -> int @@ portable = "%string_length"
+end
+
+let _ = portable_use M.length
+[%%expect{|
+module M : sig external length : string -> int = "%string_length" end
+Line 7, characters 21-29:
+7 | let _ = portable_use M.length
+                         ^^^^^^^^
+Error: This value is nonportable but expected to be portable.
+|}]

@@ -135,7 +135,6 @@ type error =
   | Local_not_enabled
   | Unexpected_layout_any_in_primitive of string
   | Useless_layout_poly
-  | Modality_on_primitive
   | Zero_alloc_attr_unsupported of Builtin_attributes.zero_alloc_attribute
   | Zero_alloc_attr_non_function
   | Zero_alloc_attr_bad_user_arity
@@ -2900,6 +2899,12 @@ let error_if_containing_unexpected_jkind prim env cty ty =
 (* Translate a value declaration *)
 let transl_value_decl env loc valdecl =
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
+  let modalities =
+    valdecl.pval_modalities
+    |> Typemode.transl_modalities ~maturity:Alpha
+        ~has_mutable_implied_modalities:false
+    |> Mode.Modality.Value.of_const
+  in
   (* CR layouts v5: relax this to check for representability. *)
   begin match Ctype.constrain_type_jkind env cty.ctyp_type
                 (Jkind.Primitive.value ~why:Structure_element) with
@@ -2911,12 +2916,6 @@ let transl_value_decl env loc valdecl =
   let v =
   match valdecl.pval_prim with
     [] when Env.is_in_signature env ->
-      let modalities =
-        valdecl.pval_modalities
-        |> Typemode.transl_modalities ~maturity:Alpha
-            ~has_mutable_implied_modalities:false
-        |> Mode.Modality.Value.of_const
-      in
       let default_arity =
         let rec count_arrows n ty =
           match get_desc ty with
@@ -2949,11 +2948,6 @@ let transl_value_decl env loc valdecl =
   | [] ->
       raise (Error(valdecl.pval_loc, Val_in_structure))
   | _ ->
-      let modalities =
-        match valdecl.pval_modalities with
-        | [] -> Mode.Modality.Value.id
-        | m :: _ -> raise (Error(m.loc, Modality_on_primitive))
-      in
       let global_repr =
         match
           get_native_repr_attribute valdecl.pval_attributes ~global_repr:None
@@ -3748,9 +3742,6 @@ let report_error ppf = function
         "@[[@@layout_poly] on this external declaration has no@ \
            effect. Consider removing it or adding a type@ \
            variable for it to operate on.@]"
-  | Modality_on_primitive ->
-      fprintf ppf
-        "@[Modality on primitive is not supported yet.@]"
   | Zero_alloc_attr_unsupported ca ->
       let variety = match ca with
         | Default_zero_alloc  | Check _ -> assert false
