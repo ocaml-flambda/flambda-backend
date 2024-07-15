@@ -1254,20 +1254,20 @@ let add_type_to_preparation = prepare_type
 let print_labels = ref true
 
 let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
-  let rec out_jkind_user_of_user_jkind : Jane_syntax.Jkind.t -> out_jkind_user = function
-    | Default -> Ojkind_user_default
-    | Abbreviation abbrev -> Ojkind_user_abbreviation (abbrev :> string Location.loc).txt
+  let rec out_jkind_const_of_user_jkind : Jane_syntax.Jkind.t -> out_jkind_const = function
+    | Default -> Ojkind_const_default
+    | Abbreviation abbrev -> Ojkind_const_abbreviation (abbrev :> string Location.loc).txt
     | Mod (base, modes) ->
-      let base = out_jkind_user_of_user_jkind base in
+      let base = out_jkind_const_of_user_jkind base in
       let modes =
         List.map
           (fun mode -> (mode : Jane_syntax.Mode_expr.Const.t :> string Location.loc).txt)
           modes.txt
       in
-      Ojkind_user_mod (base, modes)
+      Ojkind_const_mod (base, modes)
     | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
   in
-  Ojkind_user (out_jkind_user_of_user_jkind jkind.txt)
+  Ojkind_const (out_jkind_const_of_user_jkind jkind.txt)
 
 let out_jkind_of_const_jkind jkind =
   Ojkind_const (Jkind.Const.to_out_jkind_const jkind)
