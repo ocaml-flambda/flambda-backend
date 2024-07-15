@@ -11,18 +11,18 @@
                   Pexp_ident "never" (basic.ml[8,119+13]..[8,119+18])
             ]
         pattern (basic.ml[8,119+20]..basic.ml[8,119+21])
-          Tpat_var "f/269"
-          value_mode global,many,nonportable;join(shared,contended)(modevar#1[shared,uncontended .. unique,uncontended])
+          Tpat_var "f/268"
+          value_mode global,many,shared
         expression (basic.ml[8,119+22]..basic.ml[8,119+45]) ghost
           Texp_function
           region true
-          alloc_mode global,many,nonportable;id(modevar#3[shared,contended .. unique,uncontended])
+          alloc_mode global,many,shared
           [
             Nolabel
             Param_pat
               pattern (basic.ml[8,119+22]..basic.ml[8,119+25])
-                Tpat_var "str/271"
-                value_mode global,many,nonportable;shared,uncontended
+                Tpat_var "str/270"
+                value_mode global,many,shared
           ]
           Tfunction_body
             expression (basic.ml[8,119+28]..basic.ml[8,119+45])
@@ -35,12 +35,12 @@
                 <arg>
                   Nolabel
                   expression (basic.ml[8,119+42]..basic.ml[8,119+45])
-                    Texp_ident "str/271"
+                    Texp_ident "str/270"
               ]
     ]
   structure_item (basic.ml[10,166+0]..basic.ml[12,196+3])
     Tstr_module
-    M/273
+    M/272
       module_expr (basic.ml[10,166+11]..basic.ml[12,196+3])
         Tmod_structure
         [
@@ -49,10 +49,10 @@
             [
               <def>
                 pattern (basic.ml[11,184+6]..basic.ml[11,184+7])
-                  Tpat_var "f/272"
-                  value_mode global,many,nonportable;shared,uncontended
+                  Tpat_var "f/271"
+                  value_mode global,many,shared
                 expression (basic.ml[11,184+10]..basic.ml[11,184+11])
-                  Texp_ident "f/269"
+                  Texp_ident "f/268"
             ]
         ]
   structure_item (basic.ml[14,201+0]..basic.ml[16,238+13])
@@ -60,12 +60,12 @@
     [
       <def>
         pattern (basic.ml[14,201+4]..basic.ml[14,201+18])
-          Tpat_var "should_be_tail/274"
-          value_mode global,many,nonportable;join(shared,contended)(modevar#f[shared,uncontended .. unique,uncontended])
+          Tpat_var "should_be_tail/273"
+          value_mode global,many,shared
         expression (basic.ml[14,201+19]..basic.ml[16,238+13]) ghost
           Texp_function
           region true
-          alloc_mode global,many,nonportable;id(modevar#11[shared,contended .. unique,uncontended])
+          alloc_mode global,many,shared
           [
             Nolabel
             Param_pat
@@ -82,7 +82,7 @@
                 apply_mode Default
                 locality_mode global
                 expression (basic.ml[15,225+2]..basic.ml[15,225+3])
-                  Texp_ident "f/269"
+                  Texp_ident "f/268"
                 [
                   <arg>
                     Nolabel
@@ -95,7 +95,7 @@
                 apply_mode Tail
                 locality_mode global
                 expression (basic.ml[16,238+2]..basic.ml[16,238+3])
-                  Texp_ident "f/269"
+                  Texp_ident "f/268"
                 [
                   <arg>
                     Nolabel
@@ -108,12 +108,12 @@
     [
       <def>
         pattern (basic.ml[18,253+4]..basic.ml[18,253+21])
-          Tpat_var "shouldn't_be_tail/277"
-          value_mode global,many,nonportable;join(shared,contended)(modevar#1f[shared,uncontended .. unique,uncontended])
+          Tpat_var "shouldn't_be_tail/276"
+          value_mode global,many,shared
         expression (basic.ml[18,253+22]..basic.ml[20,293+15]) ghost
           Texp_function
           region true
-          alloc_mode global,many,nonportable;id(modevar#21[shared,contended .. unique,uncontended])
+          alloc_mode global,many,shared
           [
             Nolabel
             Param_pat
@@ -130,7 +130,7 @@
                 apply_mode Default
                 locality_mode global
                 expression (basic.ml[19,280+2]..basic.ml[19,280+3])
-                  Texp_ident "f/269"
+                  Texp_ident "f/268"
                 [
                   <arg>
                     Nolabel
@@ -143,7 +143,7 @@
                 apply_mode Nontail
                 locality_mode global
                 expression (basic.ml[20,293+2]..basic.ml[20,293+5])
-                  Texp_ident "M/273.f"
+                  Texp_ident "M/272.f"
                 [
                   <arg>
                     Nolabel
@@ -157,16 +157,16 @@
 camlBasic__f_0_3_code(R:I/0[%rax]) {basic.ml:8,22-45}
   str:V/61 := R:I/0[%rax]
   I/62 := 72057594037927935
-  I/63 := int  mut[str:V/61 + -8]{basic.ml:8,28-45;stdlib.ml:498,2-24;stdlib.ml:375,30-47}
+  I/63 := int  mut[str:V/61 + -8]{basic.ml:8,28-45;stdlib.ml:497,2-24;stdlib.ml:374,30-47}
   I/64 := I/63
-  I/64 := I/64 & I/62{basic.ml:8,28-45;stdlib.ml:498,2-24;stdlib.ml:375,30-47}
+  I/64 := I/64 & I/62{basic.ml:8,28-45;stdlib.ml:497,2-24;stdlib.ml:374,30-47}
   I/65 := I/64
-  I/65 := I/65 >>u 10{basic.ml:8,28-45;stdlib.ml:498,2-24;stdlib.ml:375,30-47}
-  tmp:I/66 := I/65  * 8 + -1{basic.ml:8,28-45;stdlib.ml:498,2-24;stdlib.ml:375,30-47}
-  I/67 := unsigned int8  mut[str:V/61 + tmp:I/66]{basic.ml:8,28-45;stdlib.ml:498,2-24;stdlib.ml:375,30-47}
+  I/65 := I/65 >>u 10{basic.ml:8,28-45;stdlib.ml:497,2-24;stdlib.ml:374,30-47}
+  tmp:I/66 := I/65  * 8 + -1{basic.ml:8,28-45;stdlib.ml:497,2-24;stdlib.ml:374,30-47}
+  I/67 := unsigned int8  mut[str:V/61 + tmp:I/66]{basic.ml:8,28-45;stdlib.ml:497,2-24;stdlib.ml:374,30-47}
   I/68 := tmp:I/66
-  I/68 := I/68 - I/67{basic.ml:8,28-45;stdlib.ml:498,2-24;stdlib.ml:375,30-47}
-  I/69 := I/68  * 2 + 1{basic.ml:8,28-45;stdlib.ml:498,2-24;stdlib.ml:375,30-47}
+  I/68 := I/68 - I/67{basic.ml:8,28-45;stdlib.ml:497,2-24;stdlib.ml:374,30-47}
+  I/69 := I/68  * 2 + 1{basic.ml:8,28-45;stdlib.ml:497,2-24;stdlib.ml:374,30-47}
   I/70 := 1
   I/71 := "camlStdlib__print_endline_137"
   V/72 := val [I/71 + 16]{basic.ml:8,28-45}
@@ -174,19 +174,19 @@ camlBasic__f_0_3_code(R:I/0[%rax]) {basic.ml:8,22-45}
   R:I/3[%rsi] := str:V/61
   R:I/4[%rdx] := I/70
   R:I/5[%rcx] := I/69
-  R:I/0[%rax] := extcall "caml_ml_output" R:I/2[%rdi] R:I/3[%rsi] R:I/4[%rdx] R:I/5[%rcx]{basic.ml:8,28-45;stdlib.ml:498,2-24;stdlib.ml:375,2-47}
+  R:I/0[%rax] := extcall "caml_ml_output" R:I/2[%rdi] R:I/3[%rsi] R:I/4[%rdx] R:I/5[%rcx]{basic.ml:8,28-45;stdlib.ml:497,2-24;stdlib.ml:374,2-47}
   param:V/73 := R:I/0[%rax]
   I/74 := 21
   I/75 := "camlStdlib__print_endline_137"
   V/76 := val [I/75 + 16]{basic.ml:8,28-45}
   R:I/2[%rdi] := V/76
   R:I/3[%rsi] := I/74
-  R:I/0[%rax] := extcall "caml_ml_output_char" R:I/2[%rdi] R:I/3[%rsi]{basic.ml:8,28-45;stdlib.ml:498,26-49}
+  R:I/0[%rax] := extcall "caml_ml_output_char" R:I/2[%rdi] R:I/3[%rsi]{basic.ml:8,28-45;stdlib.ml:497,26-49}
   param:V/77 := R:I/0[%rax]
   I/78 := "camlStdlib__print_endline_137"
   V/79 := val [I/78 + 16]{basic.ml:8,28-45}
   R:I/2[%rdi] := V/79
-  R:I/0[%rax] := extcall "caml_ml_flush" R:I/2[%rdi]{basic.ml:8,28-45;stdlib.ml:498,51-63}
+  R:I/0[%rax] := extcall "caml_ml_flush" R:I/2[%rdi]{basic.ml:8,28-45;stdlib.ml:497,51-63}
   V/80 := R:I/0[%rax]
   R:I/0[%rax] := V/80
   return R:I/0[%rax]
