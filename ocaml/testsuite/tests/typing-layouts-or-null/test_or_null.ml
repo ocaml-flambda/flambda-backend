@@ -121,6 +121,20 @@ Error: This expression has type 'a t = 'a or_null
          because of the definition of t at lines 1-3, characters 0-14.
 |}]
 
+let should_also_fail = This Null
+
+[%%expect{|
+Line 1, characters 28-32:
+1 | let should_also_fail = This Null
+                                ^^^^
+Error: This expression has type 'a t = 'a or_null
+       but an expression was expected of type ('b : value)
+       The kind of 'a t is value_or_null
+         because it is the primitive value_or_null type or_null.
+       But the kind of 'a t must be a subkind of value
+         because of the definition of t at lines 1-3, characters 0-14.
+|}]
+
 let mk' n = `Foo (This n)
 
 [%%expect{|
@@ -177,6 +191,66 @@ let should_fail = [| Null; This 5 |]
 [%%expect{|
 Line 1, characters 21-25:
 1 | let should_fail = [| Null; This 5 |]
+                         ^^^^
+Error: This expression has type 'a t = 'a or_null
+       but an expression was expected of type ('b : value)
+       The kind of 'a t is value_or_null
+         because it is the primitive value_or_null type or_null.
+       But the kind of 'a t must be a subkind of value
+         because it's the type of an array element,
+         defaulted to kind value.
+|}]
+
+type should_fail = float or_null array
+
+[%%expect{|
+Line 1, characters 19-32:
+1 | type should_fail = float or_null array
+                       ^^^^^^^^^^^^^
+Error: This type float or_null should be an instance of type
+         ('a : any_non_null)
+       The kind of float or_null is value_or_null
+         because it is the primitive value_or_null type or_null.
+       But the kind of float or_null must be a subkind of any_non_null
+         because it's the type argument to the array type.
+|}]
+
+(* CR layouts v3.0: this should eventually work but
+   [list] only accepts values now. *)
+let null_list = [ Null; This 5 ]
+
+[%%expect{|
+Line 1, characters 18-22:
+1 | let null_list = [ Null; This 5 ]
+                      ^^^^
+Error: This expression has type 'a t = 'a or_null
+       but an expression was expected of type ('b : value)
+       The kind of 'a t is value_or_null
+         because it is the primitive value_or_null type or_null.
+       But the kind of 'a t must be a subkind of value
+         because the type argument of list has kind value.
+|}]
+
+type null_list = float or_null list
+
+[%%expect{|
+Line 1, characters 17-30:
+1 | type null_list = float or_null list
+                     ^^^^^^^^^^^^^
+Error: This type float or_null should be an instance of type ('a : value)
+       The kind of float or_null is value_or_null
+         because it is the primitive value_or_null type or_null.
+       But the kind of float or_null must be a subkind of value
+         because the type argument of list has kind value.
+|}]
+
+(* Immutable arrays should work the same as mutable: *)
+
+let should_fail = [: Null; This 5 :]
+
+[%%expect{|
+Line 1, characters 21-25:
+1 | let should_fail = [: Null; This 5 :]
                          ^^^^
 Error: This expression has type 'a t = 'a or_null
        but an expression was expected of type ('b : value)
