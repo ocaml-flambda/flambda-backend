@@ -20,7 +20,6 @@
 #include <string.h>
 #include "caml/alloc.h"
 #include "caml/backtrace_prim.h"
-#include "caml/bigarray.h"
 #include "caml/codefrag.h"
 #include "caml/config.h"
 #include "caml/debugger.h"
@@ -121,16 +120,28 @@ CAMLprim value caml_reify_bytecode(value ls_prog,
   CAMLparam3(ls_prog, debuginfo, digest_opt);
   CAMLlocal3(clos, bytecode, retval);
   code_t prog;
-  asize_t len; /* in bytes */
+  asize_t len, off; /* in bytes */
   enum digest_status digest_kind;
   unsigned char * digest;
-  int fragnum;
+  int fragnum, i;
 
-  len = caml_ba_byte_size(Caml_ba_array_val(ls_prog));
-
+  /* ls_prog is a bytes array (= LongString.t) */
+  len = 0;
+  for (i = 0; i < Wosize_val(ls_prog); i++) {
+    value s = Field(ls_prog, i);
+    len += caml_string_length(s);
+  }
   prog = caml_stat_alloc(len + sizeof(opcode_t) * 2 /* for 'RETURN 1' */);
 
-  memcpy(prog, Caml_ba_data_val(ls_prog), len);
+  off = 0;
+  for (i = 0; i < Wosize_val(ls_prog); i++) {
+    size_t s_len;
+    value s = Field(ls_prog, i);
+    s_len = caml_string_length(s);
+    memcpy((char*)prog + off, Bytes_val(s), s_len);
+    off += s_len;
+  }
+
 #ifdef ARCH_BIG_ENDIAN
   caml_fixup_endianness(prog, len);
 #endif

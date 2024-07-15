@@ -3021,6 +3021,7 @@ bytecomp/symtable.cmx : \
 >>>>>>> 5.2.0
     bytecomp/symtable.cmi
 bytecomp/symtable.cmi : \
+    utils/misc.cmi \
     lambda/lambda.cmi \
     utils/import_info.cmi \
     typing/ident.cmi \
