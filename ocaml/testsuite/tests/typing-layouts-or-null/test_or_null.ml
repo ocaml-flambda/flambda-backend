@@ -274,3 +274,34 @@ Error: This type float or_null should be an instance of type
        But the kind of float or_null must be a subkind of any_non_null
          because it's the type argument to the array type.
 |}]
+
+(* CR layouts v3: object fields should accept null, but it's low priority. *)
+type object_with_null = < x : int or_null; .. >
+
+[%%expect{|
+Line 1, characters 26-42:
+1 | type object_with_null = < x : int or_null; .. >
+                              ^^^^^^^^^^^^^^^^
+Error: Object field types must have layout value.
+       The kind of int or_null is value_or_null
+         because it is the primitive value_or_null type or_null.
+       But the kind of int or_null must be a subkind of value
+         because it's the type of an object field.
+|}]
+
+(* CR layouts v3: instance variables should accept null, but it's low priority. *)
+class a_with_null =
+  object
+    val x = Null
+  end
+
+[%%expect{|
+Line 3, characters 8-9:
+3 |     val x = Null
+            ^
+Error: Variables bound in a class must have layout value.
+       The kind of x is value_or_null
+         because it is the primitive value_or_null type or_null.
+       But the kind of x must be a subkind of value
+         because it's the type of a class field.
+|}]
