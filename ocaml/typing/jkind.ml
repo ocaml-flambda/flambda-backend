@@ -15,8 +15,6 @@
 open Mode
 open Jkind_types.Type
 
-exception Unexpected_higher_jkind of string
-
 [@@@warning "+9"]
 
 module Type = struct
