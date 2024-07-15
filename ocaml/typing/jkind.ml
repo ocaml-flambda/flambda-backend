@@ -21,6 +21,9 @@ exception Unexpected_higher_jkind of string
 (******************************)
 (*** user errors ***)
 
+(* The same errors are reused for both Jkind and Jkind.Type,
+   so we define them early here. *)
+
 type const = Types.type_expr Jkind_types.Const.t
 
 module Error = struct
@@ -45,14 +48,14 @@ let printtyp_path = ref (fun _ _ -> assert false)
 
 let set_printtyp_path f = printtyp_path := f
 
-(* A *sort* is the information the middle/back ends need to be able to
-   compile a manipulation (storing, passing, etc) of a runtime value. *)
-module Sort = Jkind_types.Type.Sort
-
-type sort = Sort.t
-
 module Type = struct
   open Jkind_types.Type
+
+  (* A *sort* is the information the middle/back ends need to be able to
+     compile a manipulation (storing, passing, etc) of a runtime value. *)
+  module Sort = Jkind_types.Type.Sort
+
+  type sort = Sort.t
 
   type type_expr = Types.type_expr
 
@@ -266,6 +269,7 @@ module Type = struct
     let has_warned t = t.has_warned
   end
 
+  (* forward declare [Const.t] so we can use it for [Error.t] *)
   type const = type_expr Jkind_types.Type.Const.t
 
   module Const = struct
@@ -2157,9 +2161,6 @@ module Debug_printers = struct
 
   (*** formatting user errors ***)
   let report_error ~loc : Error.t -> _ = function
-    | Arrow_not_implemented ->
-      Location.errorf ~loc
-        "Arrow jkind (=>) syntax parsed, but annotations are not implemented"
     | Unknown_jkind jkind ->
       Location.errorf ~loc
         (* CR layouts v2.9: use the context to produce a better error message.
