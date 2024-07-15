@@ -113,7 +113,7 @@ let[@inline never] lazy_ f =
      As a result of the less-tco project, if there were no [@tail] annotation
      above, the call to Lazy.force would not be TCO'd. For some reason,
      the stacktrace without TCO differs between the native and bytecode compiler
-     (the bytecode compiler reports an unknown location for one stack frome).
+     (the bytecode compiler reports an unknown location for one stack frame).
      To prevent a diff between the two compilers, our workaround is to force TCO
      by using the [@tail] annotation. *)
 
