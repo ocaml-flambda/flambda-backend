@@ -881,6 +881,8 @@ let typ sub x =
         Ttyp_tuple (List.map (fun (label, t) -> label, sub.typ sub t) list)
     | Ttyp_constr (path, lid, list) ->
         Ttyp_constr (path, map_loc sub lid, List.map (sub.typ sub) list)
+    | Ttyp_app (ct, list) ->
+        Ttyp_app (sub.typ sub ct, List.map (sub.typ sub) list)
     | Ttyp_object (list, closed) ->
         Ttyp_object ((List.map (sub.object_field sub) list), closed)
     | Ttyp_class (path, lid, list) ->
