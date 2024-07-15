@@ -16,6 +16,7 @@
 [@@@ocaml.warning "+a-18-40-42-48"]
 
 type file = string
+type counters = (string * int) list
 
 external time_include_children: bool -> float = "caml_sys_time_include_children"
 let cpu_time () = time_include_children true
@@ -27,6 +28,7 @@ module Measure = struct
     time : float;
     allocated_words : float;
     top_heap_words : int;
+    counters : counters;
   }
   let create () =
     let stat = Gc.quick_stat () in
@@ -34,8 +36,9 @@ module Measure = struct
       time = cpu_time ();
       allocated_words = stat.minor_words +. stat.major_words;
       top_heap_words = stat.top_heap_words;
+      counters = [];
     }
-  let zero = { time = 0.; allocated_words = 0.; top_heap_words = 0 }
+  let zero = { time = 0.; allocated_words = 0.; top_heap_words = 0; counters = [] }
 end
 
 module Measure_diff = struct
@@ -45,12 +48,14 @@ module Measure_diff = struct
     duration : float;
     allocated_words : float;
     top_heap_words_increase : int;
+    counters : counters;
   }
   let zero () = {
     timestamp = timestamp ();
     duration = 0.;
     allocated_words = 0.;
     top_heap_words_increase = 0;
+    counters = [];
   }
   let accumulate t (m1 : Measure.t) (m2 : Measure.t) = {
     timestamp = t.timestamp;
@@ -59,6 +64,7 @@ module Measure_diff = struct
       t.allocated_words +. (m2.allocated_words -. m1.allocated_words);
     top_heap_words_increase =
       t.top_heap_words_increase + (m2.top_heap_words - m1.top_heap_words);
+    counters = m2.counters @ t.counters;
   }
   let of_diff m1 m2 =
     accumulate (zero ()) m1 m2
@@ -169,6 +175,19 @@ let memory_word_display =
     in
     { to_string; worth_displaying }
 
+let counter_display counters  =
+  let non_zero_counts = List.filter (fun (_, count) -> count > 0) counters in
+  let to_string ~max:_ ~width:_ =
+    non_zero_counts
+    |> List.map (fun (counter_name, counter_count) -> Printf.sprintf "%s = %s" counter_name (string_of_int counter_count))
+    |> String.concat "; "
+    |> Printf.sprintf "[%s]"
+  in
+  let worth_displaying ~max:_ =
+    non_zero_counts <> []
+  in
+  0., { to_string; worth_displaying }
+
 let profile_list (E table) =
   let l = Hashtbl.fold (fun k d l -> (k, d) :: l) table [] in
   List.sort (fun (_, (p1, _)) (_, (p2, _)) ->
@@ -184,12 +203,13 @@ let compute_other_category (E table : hierarchy) (total : Measure_diff.t) =
       allocated_words = p1.allocated_words -. p2.allocated_words;
       top_heap_words_increase =
         p1.top_heap_words_increase - p2.top_heap_words_increase;
+      counters = (p1.counters);
     }
   ) table;
   !r
 
 type row = R of string * (float * display) list * row list
-type column = [ `Time | `Alloc | `Top_heap | `Abs_top_heap ]
+type column = [ `Time | `Alloc | `Top_heap | `Abs_top_heap | `Counters]
 
 let rec rows_of_hierarchy ~nesting make_row name measure_diff hierarchy env =
   let rows =
@@ -248,6 +268,7 @@ let rows_of_hierarchy hierarchy measure_diff initial_measure columns timings_pre
         | `Abs_top_heap ->
           make (float_of_int top_heap_words)
            ~f:(memory_word_display ~previous:(float_of_int prev_top_heap_words))
+        | `Counters -> counter_display p.counters
       ) columns,
       top_heap_words
   in
@@ -320,6 +341,7 @@ let column_mapping = [
   "alloc", `Alloc;
   "top-heap", `Top_heap;
   "absolute-top-heap", `Abs_top_heap;
+  "counters", `Counters;
 ]
 
 let column_names = List.map fst column_mapping

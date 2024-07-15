@@ -156,7 +156,7 @@ let dump_combine = ref false            (* -dcombine *)
 let debug_ocaml = ref false             (* -debug-ocaml *)
 let default_timings_precision  = 3
 let timings_precision = ref default_timings_precision (* -dtimings-precision *)
-let profile_columns : Profile.column list ref = ref [] (* -dprofile/-dtimings *)
+let profile_columns : Profile.column list ref = ref [] (* -dprofile/-dtimings/-dcounters *)
 
 let native_code = ref false             (* set to true under ocamlopt *)
 

@@ -527,6 +527,10 @@ let mk_dtimings_precision f =
       Clflags.default_timings_precision
 ;;
 
+let mk_dcounters f =
+  "-dcounters", Arg.Unit f, " Print counter information for each pass";
+;;
+
 let mk_dprofile f =
   "-dprofile", Arg.Unit f, Profile.options_doc
 
@@ -1030,6 +1034,7 @@ module type Compiler_options = sig
   val _match_context_rows : int -> unit
   val _dtimings : unit -> unit
   val _dtimings_precision : int -> unit
+  val _dcounters : unit -> unit
   val _dprofile : unit -> unit
   val _dump_into_file : unit -> unit
   val _dump_dir : string -> unit
@@ -1303,6 +1308,7 @@ struct
     mk_dcamlprimc F._dcamlprimc;
     mk_dtimings F._dtimings;
     mk_dtimings_precision F._dtimings_precision;
+    mk_dcounters F._dcounters;
     mk_dprofile F._dprofile;
     mk_dump_into_file F._dump_into_file;
     mk_dump_dir F._dump_dir;
@@ -1569,6 +1575,7 @@ struct
     mk_dstartup F._dstartup;
     mk_dtimings F._dtimings;
     mk_dtimings_precision F._dtimings_precision;
+    mk_dcounters F._dcounters;
     mk_dprofile F._dprofile;
     mk_dump_into_file F._dump_into_file;
     mk_dump_dir F._dump_dir;
@@ -2012,6 +2019,7 @@ module Default = struct
     let _dprofile () = profile_columns := Profile.all_columns
     let _dtimings () = profile_columns := [`Time]
     let _dtimings_precision n = timings_precision := n
+    let _dcounters () = profile_columns := [`Counters]
     let _dump_into_file = set dump_into_file
     let _dump_dir s = dump_dir := Some s
     let _for_pack s = for_package := (Some (String.capitalize_ascii s))

@@ -74,6 +74,7 @@ let main() =
      "-dscheduling", Arg.Set dump_scheduling, "";
      "-dlinear", Arg.Set dump_linear, "";
      "-dtimings", Arg.Unit (fun () -> profile_columns := [ `Time ]), "";
+     "-dcounters", Arg.Unit (fun () -> profile_columns := [ `Counters ]), "";
     ] compile_file usage
 
 let () =
