@@ -1891,30 +1891,20 @@ module_type_declaration:
     ext = ext
     attrs1 = attributes
     id = mkrhs(ident)
-    typ = preceded(EQUAL, module_type)?
+    typ = module_type_declaration_type
     attrs2 = post_item_attributes
     {
       let attrs = attrs1 @ attrs2 in
       let loc = make_loc $sloc in
       let docs = symbol_docs $sloc in
-      let pmtd_typ = match typ with
-        | None -> Pmtd_abstract
-        | Some t -> Pmtd_define t
-      in
-      Mtd.mk id pmtd_typ ~attrs ~loc ~docs, ext
+      Mtd.mk id typ ~attrs ~loc ~docs, ext
     }
-  | MODULE TYPE
-    ext = ext
-    attrs1 = attributes
-    id = mkrhs(ident)
-    EQUAL UNDERSCORE
-    attrs2 = post_item_attributes
-    {
-      let attrs = attrs1 @ attrs2 in
-      let loc = make_loc $sloc in
-      let docs = symbol_docs $sloc in
-      Mtd.mk id Pmtd_underscore ~attrs ~loc ~docs, ext
-    }
+;
+
+module_type_declaration_type:
+  | (* empty *)         { Pmtd_abstract }
+  | EQUAL module_type   { Pmtd_define $2 }
+  | EQUAL UNDERSCORE    { Pmtd_underscore }
 ;
 
 (* -------------------------------------------------------------------------- *)

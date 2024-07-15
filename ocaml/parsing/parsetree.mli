@@ -930,7 +930,7 @@ and module_type_declaration =
      when {{!module_type_declaration.pmtd_type}[pmtd_type]} is [Pmtd_define MT].
    - [S] for abstract module type declaration,
      when {{!module_type_declaration.pmtd_type}[pmtd_type]} is [Pmtd_abstract].
-   - [S = _] for inferring module type from definition in the signature,
+   - [S = _] for inferring module type,
      when {{!module_type_declaration.pmtd_type}[pmtd_type]} is [Pmtd_underscore].
 *)
 

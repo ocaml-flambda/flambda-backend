@@ -1468,7 +1468,8 @@ and signature_item ctxt f x : unit =
       pp f "@[<hov2>module@ type@ %s%a@]%a"
         s.txt
         (fun f md -> match md with
-           | Pmtd_abstract | Pmtd_underscore -> ()
+           | Pmtd_abstract -> ()
+           | Pmtd_underscore -> pp f "@ =@ _"
            | Pmtd_define mt ->
                pp_print_space f () ;
                pp f "@ =@ %a" (module_type ctxt) mt
@@ -1766,7 +1767,8 @@ and structure_item ctxt f x =
       pp f "@[<hov2>module@ type@ %s%a@]%a"
         s.txt
         (fun f md -> match md with
-           | Pmtd_abstract | Pmtd_underscore -> ()
+           | Pmtd_abstract -> ()
+           | Pmtd_underscore -> pp f "@ =@ _"
            | Pmtd_define mt ->
                pp_print_space f () ;
                pp f "@ =@ %a" (module_type ctxt) mt

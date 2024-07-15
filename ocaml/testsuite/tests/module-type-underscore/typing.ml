@@ -84,8 +84,6 @@ and ASet
   = Set.Make(A)
 
 [%%expect{|
-Line 4, characters 2-19:
-4 |   module type S = _
-      ^^^^^^^^^^^^^^^^^
-Error: Inferrence of module types is not allowed within a signature.
+Uncaught exception: Failure("underscore not implemented")
+
 |}]
