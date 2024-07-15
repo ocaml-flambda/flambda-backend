@@ -88,79 +88,71 @@ let check_alloc_fields = function
 let make_block ~dbg kind alloc_mode args =
   check_alloc_fields args;
   let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
-  match (kind : P.Block_kind.t) with
-  | Values (tag, _) -> C.make_alloc ~mode dbg (Tag.Scannable.to_int tag) args
-  | Naked_floats ->
-    C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
-  | Mixed (tag, shape) ->
-    C.make_mixed_alloc ~mode dbg (Tag.Scannable.to_int tag)
-      (K.Mixed_block_shape.to_lambda shape)
-      args
+  let allocator, tag =
+    match (kind : P.Block_kind.t) with
+    | Values (tag, _) -> C.make_alloc, Tag.Scannable.to_tag tag
+    | Naked_floats -> C.make_float_alloc, Tag.double_array_tag
+    | Mixed (tag, shape) ->
+      let value_prefix_size = K.Mixed_block_shape.value_prefix_size shape in
+      let flat_suffix =
+        Array.map
+          (fun (flat_elt : K.Flat_suffix_element.t) : C.Flat_suffix_element.t ->
+            match flat_elt with
+            | Tagged_immediate -> Tagged_immediate
+            | Naked_float -> Naked_float
+            | Naked_float32 -> Naked_float32
+            | Naked_int32 -> Naked_int32
+            | Naked_int64 | Naked_nativeint -> Naked_int64_or_nativeint)
+          (K.Mixed_block_shape.flat_suffix shape)
+      in
+      ( C.make_mixed_alloc ~value_prefix_size ~flat_suffix,
+        Tag.Scannable.to_tag tag )
+  in
+  allocator ~mode dbg ~tag:(Tag.to_int tag) args
 
 let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     ~block ~index =
   let mutability = Mutability.to_asttypes mutability in
-  match kind with
-  | Mixed { field_kind = Value_prefix Any_value; _ }
-  | Values { field_kind = Any_value; _ } ->
-    C.get_field_computed Pointer mutability ~block ~index dbg
-  | Mixed { field_kind = Value_prefix Immediate; _ }
-  | Values { field_kind = Immediate; _ } ->
-    C.get_field_computed Immediate mutability ~block ~index dbg
-  | Naked_floats _ -> C.unboxed_float_array_ref block index dbg
-  | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
-    match field_kind with
-    | Value ->
-      (* The flat suffix cannot store scannable values, so this must be an
-         immediate *)
-      C.get_field_computed Immediate mutability ~block ~index dbg
-    | Naked_number Naked_float ->
-      (* CR layouts v5.1: We should use the mutability here to generate better
-         code if the load is immutable. *)
-      C.unboxed_float_array_ref block index dbg
-    | Naked_number Naked_float32 ->
-      C.get_field_unboxed_float32 mutability ~block ~index dbg
-    | Naked_number Naked_int32 ->
-      C.get_field_unboxed_int32 mutability ~block ~index dbg
-    | Naked_number (Naked_int64 | Naked_nativeint) ->
-      C.get_field_unboxed_int64_or_nativeint mutability ~block ~index dbg
-    | Naked_number Naked_vec128 ->
-      Misc.fatal_error "Naked_vec128 not supported in mixed blocks"
-    | Naked_number Naked_immediate | Region | Rec_info ->
-      Misc.fatal_errorf "Unexpected kind in mixed block field: %a" K.print
-        field_kind)
+  let load_func =
+    match kind with
+    | Mixed { field_kind = Value_prefix Any_value; _ }
+    | Values { field_kind = Any_value; _ } ->
+      C.get_field_computed Pointer
+    | Mixed { field_kind = Value_prefix Immediate; _ }
+    | Values { field_kind = Immediate; _ } ->
+      C.get_field_computed Immediate
+    | Naked_floats _ -> C.unboxed_float_array_ref
+    | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
+      match field_kind with
+      | Tagged_immediate -> C.get_field_computed Immediate
+      | Naked_float -> C.unboxed_float_array_ref
+      | Naked_float32 -> C.get_field_unboxed_float32
+      | Naked_int32 -> C.get_field_unboxed_int32
+      | Naked_int64 | Naked_nativeint -> C.get_field_unboxed_int64_or_nativeint)
+  in
+  load_func mutability ~block ~index dbg
 
 let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     ~block ~index ~new_value =
   let init_or_assign = P.Init_or_assign.to_lambda init in
-  let expr =
+  let set_func =
     match kind with
     | Mixed { field_kind = Value_prefix Any_value; _ }
     | Values { field_kind = Any_value; _ } ->
-      C.setfield_computed Pointer init_or_assign block index new_value dbg
+      C.setfield_computed Pointer init_or_assign
     | Mixed { field_kind = Value_prefix Immediate; _ }
     | Values { field_kind = Immediate; _ } ->
-      C.setfield_computed Immediate init_or_assign block index new_value dbg
-    | Naked_floats _ -> C.float_array_set block index new_value dbg
+      C.setfield_computed Immediate init_or_assign
+    | Naked_floats _ -> C.float_array_set
     | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
       match field_kind with
-      | Value ->
-        (* See comment in [block_load] about assuming [Immediate] *)
-        C.setfield_computed Immediate init_or_assign block index new_value dbg
-      | Naked_number Naked_float -> C.float_array_set block index new_value dbg
-      | Naked_number Naked_float32 ->
-        C.setfield_unboxed_float32 block index new_value dbg
-      | Naked_number Naked_int32 ->
-        C.setfield_unboxed_int32 block index new_value dbg
-      | Naked_number (Naked_int64 | Naked_nativeint) ->
-        C.setfield_unboxed_int64_or_nativeint block index new_value dbg
-      | Naked_number Naked_vec128 ->
-        Misc.fatal_error "Naked_vec128 not supported in mixed blocks"
-      | Naked_number Naked_immediate | Region | Rec_info ->
-        Misc.fatal_errorf "Unexpected kind in mixed block field: %a" K.print
-          field_kind)
+      | Tagged_immediate -> C.setfield_computed Immediate init_or_assign
+      | Naked_float -> C.float_array_set
+      | Naked_float32 -> C.setfield_unboxed_float32
+      | Naked_int32 -> C.setfield_unboxed_int32
+      | Naked_int64 | Naked_nativeint -> C.setfield_unboxed_int64_or_nativeint)
   in
-  C.return_unit dbg expr
+  C.return_unit dbg (set_func block index new_value dbg)
 
 (* Array creation and access. For these functions, [index] is a tagged
    integer. *)
@@ -169,9 +161,9 @@ let make_array ~dbg kind alloc_mode args =
   check_alloc_fields args;
   let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
   match (kind : P.Array_kind.t) with
-  | Immediates | Values -> C.make_alloc ~mode dbg 0 args
+  | Immediates | Values -> C.make_alloc ~mode dbg ~tag:0 args
   | Naked_floats ->
-    C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
+    C.make_float_alloc ~mode dbg ~tag:(Tag.to_int Tag.double_array_tag) args
   | Naked_float32s -> C.allocate_unboxed_float32_array ~elements:args mode dbg
   | Naked_int32s -> C.allocate_unboxed_int32_array ~elements:args mode dbg
   | Naked_int64s -> C.allocate_unboxed_int64_array ~elements:args mode dbg
@@ -218,12 +210,14 @@ let array_set_128 ~dbg ~element_width_log2 ~has_custom_ops arr index new_value =
 
 let array_load ~dbg (kind : P.Array_kind.t)
     (accessor_width : P.array_accessor_width) ~arr ~index =
+  (* CR mshinwell: refactor this function in the same way as [block_load] *)
   match kind, accessor_width with
   | Immediates, Scalar -> C.int_array_ref arr index dbg
   | (Naked_int64s | Naked_nativeints), Scalar ->
     C.unboxed_int64_or_nativeint_array_ref arr index dbg
   | Values, Scalar -> C.addr_array_ref arr index dbg
-  | Naked_floats, Scalar -> C.unboxed_float_array_ref arr index dbg
+  | Naked_floats, Scalar ->
+    C.unboxed_float_array_ref Mutable ~block:arr ~index dbg
   | Naked_float32s, Scalar -> C.unboxed_float32_array_ref arr index dbg
   | Naked_int32s, Scalar -> C.unboxed_int32_array_ref arr index dbg
   | (Immediates | Naked_floats), Vec128 ->
@@ -236,6 +230,7 @@ let array_load ~dbg (kind : P.Array_kind.t)
     Misc.fatal_error "Attempted to load a SIMD vector from a value array."
 
 let addr_array_store init ~arr ~index ~new_value dbg =
+  (* CR mshinwell: refactor this function in the same way as [block_load] *)
   match (init : P.Init_or_assign.t) with
   | Assignment Heap -> C.addr_array_set_heap arr index new_value dbg
   | Assignment Local -> C.addr_array_set_local arr index new_value dbg
@@ -243,6 +238,7 @@ let addr_array_store init ~arr ~index ~new_value dbg =
 
 let array_set ~dbg (kind : P.Array_set_kind.t)
     (accessor_width : P.array_accessor_width) ~arr ~index ~new_value =
+  (* CR mshinwell: refactor this function in the same way as [block_load] *)
   let expr =
     match kind, accessor_width with
     | Immediates, Scalar -> C.int_array_set arr index new_value dbg

@@ -33,9 +33,10 @@ module Block_kind = struct
 
   let to_shape t : _ * K.Block_shape.t =
     match t with
-    | Values (tag, _) -> Tag.Scannable.to_tag tag, Value_only
+    | Values (tag, _) -> Tag.Scannable.to_tag tag, Scannable Value_only
     | Naked_floats -> Tag.double_array_tag, Float_record
-    | Mixed (tag, fields) -> Tag.Scannable.to_tag tag, Mixed_record fields
+    | Mixed (tag, fields) ->
+      Tag.Scannable.to_tag tag, Scannable (Mixed_record fields)
 
   let [@ocamlformat "disable"] print ppf t =
    match t with
@@ -359,7 +360,7 @@ end
 module Mixed_block_access_field_kind = struct
   type t =
     | Value_prefix of Block_access_field_kind.t
-    | Flat_suffix of K.t
+    | Flat_suffix of K.Flat_suffix_element.t
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
@@ -374,20 +375,20 @@ module Mixed_block_access_field_kind = struct
           "@[<hov 1>(Flat_suffix \
            @[<hov 1>(flat_element@ %a)@]\
            )@]"
-          K.print flat_element
+          K.Flat_suffix_element.print flat_element
 
   let compare t1 t2 =
     match t1, t2 with
     | Value_prefix field_kind1, Value_prefix field_kind2 ->
       Block_access_field_kind.compare field_kind1 field_kind2
     | Flat_suffix element_kind1, Flat_suffix element_kind2 ->
-      K.compare element_kind1 element_kind2
+      K.Flat_suffix_element.compare element_kind1 element_kind2
     | Value_prefix _, Flat_suffix _ -> -1
     | Flat_suffix _, Value_prefix _ -> 1
 
   let to_element_kind = function
     | Value_prefix _ -> K.value
-    | Flat_suffix kind -> kind
+    | Flat_suffix kind -> K.Flat_suffix_element.kind kind
 end
 
 module Block_access_kind = struct
@@ -451,13 +452,13 @@ module Block_access_kind = struct
       K.With_subkind.tagged_immediate
     | Naked_floats _ -> K.With_subkind.naked_float
     | Mixed { field_kind = Flat_suffix field_kind; _ } ->
-      K.With_subkind.anything field_kind
+      K.Flat_suffix_element.to_kind_with_subkind field_kind
 
   let to_block_shape t : K.Block_shape.t =
     match t with
-    | Values _ -> Value_only
+    | Values _ -> Scannable Value_only
     | Naked_floats _ -> Float_record
-    | Mixed { shape; _ } -> Mixed_record shape
+    | Mixed { shape; _ } -> Scannable (Mixed_record shape)
 
   let element_kind_for_set = element_kind_for_load
 

@@ -2654,9 +2654,10 @@ module Row_like_for_blocks = struct
           let field_kind = kind ty in
           let shape_kind =
             match (shape : K.Block_shape.t) with
-            | Value_only -> K.value
+            | Scannable Value_only -> K.value
+            | Scannable (Mixed_record kinds) ->
+              (K.Mixed_block_shape.field_kinds kinds).(i)
             | Float_record -> K.naked_float
-            | Mixed_record kinds -> (K.Mixed_block_shape.field_kinds kinds).(i)
           in
           if not (Flambda_kind.equal field_kind shape_kind)
           then
@@ -2678,11 +2679,11 @@ module Row_like_for_blocks = struct
       match tag with
       | Unknown -> (
         match shape with
-        | Value_only | Mixed_record _ -> Unknown
+        | Scannable (Value_only | Mixed_record _) -> Unknown
         | Float_record -> Known Tag.double_array_tag)
       | Known tag -> (
         match shape with
-        | Value_only | Mixed_record _ -> (
+        | Scannable (Value_only | Mixed_record _) -> (
           match Tag.Scannable.of_tag tag with
           | Some _ -> Known tag
           | None ->
@@ -2755,7 +2756,7 @@ module Row_like_for_blocks = struct
             | Unknown ->
               any_unknown := true;
               (* result doesn't matter as it is unused *)
-              Targetint_31_63.zero, K.Block_shape.Value_only
+              Targetint_31_63.zero, K.Block_shape.Scannable Value_only
             | Known { index = { domain; shape }; _ } -> (
               match domain with
               | Known size -> size, shape

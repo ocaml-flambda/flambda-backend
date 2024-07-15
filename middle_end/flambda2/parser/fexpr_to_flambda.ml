@@ -274,7 +274,7 @@ let rec subkind : Fexpr.subkind -> Flambda_kind.With_subkind.Subkind.t =
       non_consts
       |> List.map (fun (tag, sk) ->
              ( tag_scannable tag,
-               ( Flambda_kind.Block_shape.Value_only,
+               ( Flambda_kind.Block_shape.Scannable Value_only,
                  List.map value_kind_with_subkind sk ) ))
       |> Tag.Scannable.Map.of_list
     in
@@ -345,15 +345,19 @@ let rec simple env (s : Fexpr.simple) : Simple.t =
   | Symbol sym -> Simple.symbol (get_symbol env sym)
   | Coerce (s, co) -> Simple.apply_coercion_exn (simple env s) (coercion env co)
 
-let field_of_block env (v : Fexpr.field_of_block) : Field_of_static_block.t =
-  match v with
-  | Symbol s -> Symbol (get_symbol env s)
-  | Tagged_immediate i ->
-    let i = Targetint_32_64.of_string i in
-    Tagged_immediate (Targetint_31_63.of_targetint i)
-  | Dynamically_computed var ->
-    let var = find_var env var in
-    Dynamically_computed (var, Debuginfo.none)
+let field_of_block env (v : Fexpr.field_of_block) =
+  let simple =
+    match v with
+    | Symbol s -> Simple.symbol (get_symbol env s)
+    | Tagged_immediate i ->
+      let i = Targetint_32_64.of_string i in
+      Simple.const
+        (Reg_width_const.tagged_immediate (Targetint_31_63.of_targetint i))
+    | Dynamically_computed var ->
+      let var = find_var env var in
+      Simple.var var
+  in
+  Simple.With_debuginfo.create simple Debuginfo.none
 
 let or_variable f env (ov : _ Fexpr.or_variable) : _ Or_variable.t =
   match ov with
@@ -776,7 +780,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         | Block { tag; mutability; elements = args } ->
           let tag = tag_scannable tag in
           static_const
-            (SC.block tag mutability (List.map (field_of_block env) args))
+            (SC.block tag mutability Value_only
+               (List.map (field_of_block env) args))
         | Boxed_float32 f ->
           static_const (SC.boxed_float32 (or_variable float32 env f))
         | Boxed_float f ->

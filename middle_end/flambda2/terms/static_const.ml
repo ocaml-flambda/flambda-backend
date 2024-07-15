@@ -18,7 +18,11 @@ let fprintf = Format.fprintf
 
 type t =
   | Set_of_closures of Set_of_closures.t
-  | Block of Tag.Scannable.t * Mutability.t * Field_of_static_block.t list
+  | Block of
+      Tag.Scannable.t
+      * Mutability.t
+      * Flambda_kind.Scannable_block_shape.t
+      * Simple.With_debuginfo.t list
   | Boxed_float32 of Numeric_types.Float32_by_bit_pattern.t Or_variable.t
   | Boxed_float of Numeric_types.Float_by_bit_pattern.t Or_variable.t
   | Boxed_int32 of Int32.t Or_variable.t
@@ -34,14 +38,14 @@ type t =
   | Immutable_int32_array of Int32.t Or_variable.t list
   | Immutable_int64_array of Int64.t Or_variable.t list
   | Immutable_nativeint_array of Targetint_32_64.t Or_variable.t list
-  | Immutable_value_array of Field_of_static_block.t list
+  | Immutable_value_array of Simple.With_debuginfo.t list
   | Empty_array of Empty_array_kind.t
   | Mutable_string of { initial_value : string }
   | Immutable_string of string
 
 let set_of_closures set = Set_of_closures set
 
-let block tag mutability fields = Block (tag, mutability, fields)
+let block tag mutability shape fields = Block (tag, mutability, shape, fields)
 
 let boxed_float32 or_var = Boxed_float32 or_var
 
@@ -93,6 +97,15 @@ let mutable_string ~initial_value = Mutable_string { initial_value }
 
 let immutable_string str = Immutable_string str
 
+let add_mutability_prefix (mut : Mutability.t) ~suffix =
+  let prefix =
+    match mut with
+    | Immutable -> "Immutable_"
+    | Immutable_unique -> "Unique_"
+    | Mutable -> "Mutable_"
+  in
+  prefix ^ suffix
+
 let [@ocamlformat "disable"] print ppf t =
   match t with
   | Set_of_closures set ->
@@ -100,17 +113,15 @@ let [@ocamlformat "disable"] print ppf t =
       Flambda_colours.static_part
       Flambda_colours.pop
       Set_of_closures.print set
-  | Block (tag, mut, fields) ->
-    fprintf ppf "@[<hov 1>(%t%sblock%t@ (tag %a)@ (%a))@]"
+  | Block (tag, mut, shape, fields) ->
+    fprintf ppf "@[<hov 1>(%t%s%t@ (tag %a)@ (shape %a)@ (%a))@]"
       Flambda_colours.static_part
-      (match mut with
-        | Immutable -> "Immutable_"
-        | Immutable_unique -> "Unique_"
-        | Mutable -> "Mutable_")
+      (add_mutability_prefix mut ~suffix:"block")
       Flambda_colours.pop
       Tag.Scannable.print tag
+      Flambda_kind.Scannable_block_shape.print shape
       (Format.pp_print_list ~pp_sep:Format.pp_print_space
-        Field_of_static_block.print) fields
+        Simple.With_debuginfo.print) fields
   | Boxed_float32 or_var ->
     fprintf ppf "@[<hov 1>(%tBoxed_float32%t@ %a)@]"
       Flambda_colours.static_part
@@ -194,7 +205,7 @@ let [@ocamlformat "disable"] print ppf t =
       Flambda_colours.static_part
       Flambda_colours.pop
       (Format.pp_print_list ~pp_sep:Format.pp_print_space
-        Field_of_static_block.print) fields
+        Simple.With_debuginfo.print) fields
   | Empty_array array_kind ->
     fprintf ppf "%tEmpty_array(%a)%t"
       Flambda_colours.static_part
@@ -220,7 +231,8 @@ include Container_types.Make (struct
     match t1, t2 with
     | Set_of_closures set1, Set_of_closures set2 ->
       Set_of_closures.compare set1 set2
-    | Block (tag1, mut1, fields1), Block (tag2, mut2, fields2) ->
+    | Block (tag1, mut1, shape1, fields1), Block (tag2, mut2, shape2, fields2)
+      ->
       let c = Tag.Scannable.compare tag1 tag2 in
       if c <> 0
       then c
@@ -229,7 +241,12 @@ include Container_types.Make (struct
         if c <> 0
         then c
         else
-          Misc.Stdlib.List.compare Field_of_static_block.compare fields1 fields2
+          let c = Flambda_kind.Scannable_block_shape.compare shape1 shape2 in
+          if c <> 0
+          then c
+          else
+            Misc.Stdlib.List.compare Simple.With_debuginfo.compare fields1
+              fields2
     | Boxed_float32 or_var1, Boxed_float32 or_var2 ->
       Or_variable.compare Numeric_types.Float32_by_bit_pattern.compare or_var1
         or_var2
@@ -270,7 +287,7 @@ include Container_types.Make (struct
         (Or_variable.compare Targetint_32_64.compare)
         fields1 fields2
     | Immutable_value_array fields1, Immutable_value_array fields2 ->
-      Misc.Stdlib.List.compare Field_of_static_block.compare fields1 fields2
+      Misc.Stdlib.List.compare Simple.With_debuginfo.compare fields1 fields2
     | Empty_array array_kind1, Empty_array array_kind2 ->
       Empty_array_kind.compare array_kind1 array_kind2
     | ( Mutable_string { initial_value = s1 },
@@ -310,7 +327,7 @@ include Container_types.Make (struct
     | Empty_array _, _ -> -1
     | _, Empty_array _ -> 1
     | Mutable_string _, _ -> -1
-    | Immutable_string _, Mutable_string _ -> 1
+    | _, Mutable_string _ -> 1
 
   let equal t1 t2 = compare t1 t2 = 0
 
@@ -320,7 +337,7 @@ end)
 let free_names_of_fields fields =
   List.fold_left
     (fun fvs field ->
-      Name_occurrences.union fvs (Field_of_static_block.free_names field))
+      Name_occurrences.union fvs (Simple.With_debuginfo.free_names field))
     Name_occurrences.empty fields
 
 let free_names t =
@@ -334,7 +351,7 @@ let free_names t =
   in
   match t with
   | Set_of_closures set -> Set_of_closures.free_names set
-  | Block (_tag, _mut, fields) -> free_names_of_fields fields
+  | Block (_tag, _mut, _shape, fields) -> free_names_of_fields fields
   | Boxed_float32 or_var -> Or_variable.free_names or_var
   | Boxed_float or_var -> Or_variable.free_names or_var
   | Boxed_int32 or_var -> Or_variable.free_names or_var
@@ -369,13 +386,13 @@ let apply_renaming t renaming =
     | Set_of_closures set ->
       let set' = Set_of_closures.apply_renaming set renaming in
       if set == set' then t else Set_of_closures set'
-    | Block (tag, mut, fields) ->
+    | Block (tag, mut, shape, fields) ->
       let fields' =
         Misc.Stdlib.List.map_sharing
-          (fun field -> Field_of_static_block.apply_renaming field renaming)
+          (fun field -> Simple.With_debuginfo.apply_renaming field renaming)
           fields
       in
-      if fields' == fields then t else Block (tag, mut, fields')
+      if fields' == fields then t else Block (tag, mut, shape, fields')
     | Boxed_float32 or_var ->
       let or_var' = Or_variable.apply_renaming or_var renaming in
       if or_var == or_var' then t else Boxed_float32 or_var'
@@ -416,16 +433,16 @@ let apply_renaming t renaming =
     | Immutable_value_array fields ->
       let fields' =
         Misc.Stdlib.List.map_sharing
-          (fun field -> Field_of_static_block.apply_renaming field renaming)
+          (fun field -> Simple.With_debuginfo.apply_renaming field renaming)
           fields
       in
-      if fields' == fields then t else Immutable_value_array fields'
+      if fields == fields' then t else Immutable_value_array fields'
     | Empty_array _ as res -> res
 
 let ids_for_export_fields fields =
   List.fold_left
     (fun ids field ->
-      Ids_for_export.union ids (Field_of_static_block.ids_for_export field))
+      Ids_for_export.union ids (Simple.With_debuginfo.ids_for_export field))
     Ids_for_export.empty fields
 
 let ids_for_export_number_array_fields fields =
@@ -439,7 +456,7 @@ let ids_for_export_number_array_fields fields =
 let ids_for_export t =
   match t with
   | Set_of_closures set -> Set_of_closures.ids_for_export set
-  | Block (_tag, _mut, fields) -> ids_for_export_fields fields
+  | Block (_tag, _mut, _shape, fields) -> ids_for_export_fields fields
   | Boxed_float (Var (var, _dbg))
   | Boxed_float32 (Var (var, _dbg))
   | Boxed_int32 (Var (var, _dbg))
@@ -492,14 +509,14 @@ let is_fully_static t = free_names t |> Name_occurrences.no_variables
 
 let can_share0 t =
   match t with
-  | Block (_, Immutable, _)
+  | Block (_, Immutable, _, _)
   | Set_of_closures _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
   | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | Immutable_float_block _
   | Immutable_float_array _ | Immutable_float32_array _ | Immutable_string _
   | Empty_array _ | Immutable_int32_array _ | Immutable_int64_array _
   | Immutable_nativeint_array _ | Immutable_value_array _ ->
     true
-  | Block (_, (Mutable | Immutable_unique), _) | Mutable_string _ -> false
+  | Block (_, (Mutable | Immutable_unique), _, _) | Mutable_string _ -> false
 
 let can_share t = can_share0 t && is_fully_static t
 

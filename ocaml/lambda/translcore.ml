@@ -532,37 +532,38 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       | Ordinary _, Variant_unboxed ->
           (match ll with [v] -> v | _ -> assert false)
       | Ordinary {runtime_tag}, Variant_boxed _ ->
-          let const_block =
-            match cstr.cstr_shape with
-            | Constructor_mixed _ ->
-                (* CR layouts v5.1: We should support structured constants for
-                   blocks containing unboxed float literals.
-                *)
-                None
-            | Constructor_uniform_value -> (
-                match List.map extract_constant ll with
-                | exception Not_constant -> None
-                | constant ->
-                    Some (Lconst(Const_block(runtime_tag, constant))))
-          in
-          begin match const_block with
-          | Some const_block -> const_block
-          | None ->
-            let alloc_mode = transl_alloc_mode_r (Option.get alloc_mode) in
-            let makeblock =
+          let constant =
+            match List.map extract_constant ll with
+            | exception Not_constant -> None
+            | constants -> (
               match cstr.cstr_shape with
-              | Constructor_uniform_value ->
-                  let shape =
-                    List.map (fun (e, sort) ->
-                        Lambda.must_be_value (layout_exp sort e))
-                      args_with_sorts
-                  in
-                  Pmakeblock(runtime_tag, Immutable, Some shape, alloc_mode)
               | Constructor_mixed shape ->
-                  let shape = Lambda.transl_mixed_product_shape shape in
-                  Pmakemixedblock(runtime_tag, Immutable, shape, alloc_mode)
-            in
-            Lprim (makeblock, ll, of_location ~scopes e.exp_loc)
+                  if !Clflags.native_code then
+                    let shape = transl_mixed_product_shape shape in
+                    Some (Const_mixed_block(runtime_tag, shape, constants))
+                  else
+                    None
+              | Constructor_uniform_value ->
+                  Some (Const_block(runtime_tag, constants)))
+          in
+          begin match constant with
+          | Some constant -> Lconst constant
+          | None ->
+              let alloc_mode = transl_alloc_mode_r (Option.get alloc_mode) in
+              let makeblock =
+                match cstr.cstr_shape with
+                | Constructor_uniform_value ->
+                    let shape =
+                      List.map (fun (e, sort) ->
+                          Lambda.must_be_value (layout_exp sort e))
+                        args_with_sorts
+                    in
+                    Pmakeblock(runtime_tag, Immutable, Some shape, alloc_mode)
+                | Constructor_mixed shape ->
+                    let shape = Lambda.transl_mixed_product_shape shape in
+                    Pmakemixedblock(runtime_tag, Immutable, shape, alloc_mode)
+              in
+              Lprim (makeblock, ll, of_location ~scopes e.exp_loc)
           end
       | Extension (path, _), Variant_extensible ->
           let lam = transl_extension_path
@@ -1866,8 +1867,17 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
             Lconst(match cl with [v] -> v | _ -> assert false)
         | Record_float ->
             Lconst(Const_float_block(List.map extract_float cl))
+        | Record_mixed shape ->
+            if !Clflags.native_code then
+              let shape = transl_mixed_product_shape shape in
+              Lconst(Const_mixed_block(0, shape, cl))
+            else
+              (* CR layouts v5.9: Structured constants for mixed blocks should
+                 be supported in bytecode. See symtable.ml for the difficulty.
+              *)
+              raise Not_constant
         | Record_inlined (_, Constructor_mixed _, Variant_boxed _)
-        | Record_ufloat | Record_mixed _ ->
+        | Record_ufloat ->
             (* CR layouts v5.1: We should support structured constants for
                blocks containing unboxed float literals.
             *)
