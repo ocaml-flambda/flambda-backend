@@ -7,31 +7,31 @@
      empty_cases_returning_float64/273 =
        (function {nlocal = 0} param/275 : unboxed_float
          (raise
-           (makeblock 0 (getpredef Match_failure/32!!) [0: "test.ml" 29 50])))
+           (makeblock 0 (getpredef Match_failure/33!!) [0: "test.ml" 29 50])))
      empty_cases_accepting_string/276 =
        (function {nlocal = 0} param/278
          (raise
-           (makeblock 0 (getpredef Match_failure/32!!) [0: "test.ml" 30 50])))
+           (makeblock 0 (getpredef Match_failure/33!!) [0: "test.ml" 30 50])))
      empty_cases_accepting_float64/279 =
        (function {nlocal = 0} param/281[unboxed_float]
          (raise
-           (makeblock 0 (getpredef Match_failure/32!!) [0: "test.ml" 31 50])))
+           (makeblock 0 (getpredef Match_failure/33!!) [0: "test.ml" 31 50])))
      non_empty_cases_returning_string/282 =
        (function {nlocal = 0} param/284
          (raise
-           (makeblock 0 (getpredef Assert_failure/42!!) [0: "test.ml" 32 68])))
+           (makeblock 0 (getpredef Assert_failure/43!!) [0: "test.ml" 32 68])))
      non_empty_cases_returning_float64/285 =
        (function {nlocal = 0} param/287 : unboxed_float
          (raise
-           (makeblock 0 (getpredef Assert_failure/42!!) [0: "test.ml" 33 68])))
+           (makeblock 0 (getpredef Assert_failure/43!!) [0: "test.ml" 33 68])))
      non_empty_cases_accepting_string/288 =
        (function {nlocal = 0} param/290
          (raise
-           (makeblock 0 (getpredef Assert_failure/42!!) [0: "test.ml" 34 68])))
+           (makeblock 0 (getpredef Assert_failure/43!!) [0: "test.ml" 34 68])))
      non_empty_cases_accepting_float64/291 =
        (function {nlocal = 0} param/293[unboxed_float]
          (raise
-           (makeblock 0 (getpredef Assert_failure/42!!) [0: "test.ml" 35 68]))))
+           (makeblock 0 (getpredef Assert_failure/43!!) [0: "test.ml" 35 68]))))
     (makeblock 0 empty_cases_returning_string/270
       empty_cases_returning_float64/273 empty_cases_accepting_string/276
       empty_cases_accepting_float64/279 non_empty_cases_returning_string/282

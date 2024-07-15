@@ -101,10 +101,10 @@ Line 1, characters 14-25:
 1 | type nested = int or_null or_null
                   ^^^^^^^^^^^
 Error: This type int or_null should be an instance of type ('a : value)
-       The layout of int or_null is value_or_null, because
-         it is the primitive value_or_null type or_null.
-       But the layout of int or_null must be a sublayout of value, because
-         the type argument of or_null has layout value.
+       The kind of int or_null is value_or_null
+         because it is the primitive value_or_null type or_null.
+       But the kind of int or_null must be a subkind of value
+         because the type argument of or_null has kind value.
 |}]
 
 let should_fail = This (This 5)
@@ -115,10 +115,10 @@ Line 1, characters 23-31:
                            ^^^^^^^^
 Error: This expression has type 'a t = 'a or_null
        but an expression was expected of type ('b : value)
-       The layout of 'a t is value_or_null, because
-         it is the primitive value_or_null type or_null.
-       But the layout of 'a t must be a sublayout of value, because
-         of the definition of t at lines 1-3, characters 0-14.
+       The kind of 'a t is value_or_null
+         because it is the primitive value_or_null type or_null.
+       But the kind of 'a t must be a subkind of value
+         because of the definition of t at lines 1-3, characters 0-14.
 |}]
 
 let mk' n = `Foo (This n)
@@ -180,10 +180,11 @@ Line 1, characters 21-25:
                          ^^^^
 Error: This expression has type 'a t = 'a or_null
        but an expression was expected of type ('b : value)
-       The layout of 'a t is value_or_null, because
-         it is the primitive value_or_null type or_null.
-       But the layout of 'a t must be a sublayout of value, because
-         it's the type of an array element, defaulted to layout value.
+       The kind of 'a t is value_or_null
+         because it is the primitive value_or_null type or_null.
+       But the kind of 'a t must be a subkind of value
+         because it's the type of an array element,
+         defaulted to kind value.
 |}]
 
 type should_fail = float or_null array
@@ -194,8 +195,8 @@ Line 1, characters 19-32:
                        ^^^^^^^^^^^^^
 Error: This type float or_null should be an instance of type
          ('a : any_non_null)
-       The layout of float or_null is value_or_null, because
-         it is the primitive value_or_null type or_null.
-       But the layout of float or_null must be a sublayout of any_non_null, because
-         it's the type argument to the array type.
+       The kind of float or_null is value_or_null
+         because it is the primitive value_or_null type or_null.
+       But the kind of float or_null must be a subkind of any_non_null
+         because it's the type argument to the array type.
 |}]
