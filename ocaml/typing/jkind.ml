@@ -635,7 +635,8 @@ module Type = struct
         in
         List.fold_left meet_mode base parsed_modes
       | Arrow _ ->
-        failwith "Arrow jkind (=>) syntax parsed, but annotations are not implemented"
+        failwith
+          "Arrow jkind (=>) syntax parsed, but annotations are not implemented"
       | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
 
     module Sort = Sort.Const
