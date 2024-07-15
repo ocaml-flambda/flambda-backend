@@ -96,24 +96,6 @@ module Layout = struct
         | Word
         | Bits32
         | Bits64
-
-      let to_string ~hide_null t =
-        match t with
-        | Any -> "any"
-        (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
-        | Any_non_null when hide_null -> "any"
-        | Any_non_null -> "any_non_null"
-        | Value_or_null when hide_null -> "value"
-        | Value_or_null -> "value_or_null"
-        | Value -> "value"
-        | Void -> "void"
-        | Immediate64 -> "immediate64"
-        | Immediate -> "immediate"
-        | Float64 -> "float64"
-        | Float32 -> "float32"
-        | Word -> "word"
-        | Bits32 -> "bits32"
-        | Bits64 -> "bits64"
     end
   end
 
@@ -605,15 +587,14 @@ module Const = struct
       | [out] -> Some out
       | [] -> None
 
-    let convert jkind =
+    let convert ~allow_null jkind =
       (* For each primitive jkind, we try to print the jkind in terms of it (this is
          possible if the primitive is a subjkind of it). We then choose the "simplest". The
            "simplest" is taken to mean the one with the least number of modes that need to
          follow the [mod]. *)
       let simplest =
-        (if Language_extension.(is_at_least Layouts Alpha)
-        then Primitive.all
-        else Primitive.all_non_null)
+        (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
+        (if allow_null then Primitive.all else Primitive.all_non_null)
         |> List.filter_map (fun base -> convert_with_base ~base jkind)
         |> select_simplest
       in
@@ -639,24 +620,24 @@ module Const = struct
               jkind
           in
           match out_jkind_verbose with
-        | Some out_jkind -> out_jkind
-        | None ->
-          (* If we fail, try again with nullable jkinds. *)
-          let out_jkind_verbose =
-            convert_with_base
-              ~base:
-                { jkind =
-                    { layout = jkind.layout;
-                      modes_upper_bounds = Modes.max;
-                      externality_upper_bound = Externality.max;
-                      nullability_upper_bound = Nullability.max
-                    };
-                  name = Layout.Const.to_string jkind.layout
-                }
-              jkind
-          in
-          (* convert_with_base is guaranteed to succeed since the layout matches and the
-               modal bounds are all max *)
+          | Some out_jkind -> out_jkind
+          | None ->
+            (* If we fail, try again with nullable jkinds. *)
+            let out_jkind_verbose =
+              convert_with_base
+                ~base:
+                  { jkind =
+                      { layout = jkind.layout;
+                        modes_upper_bounds = Modes.max;
+                        externality_upper_bound = Externality.max;
+                        nullability_upper_bound = Nullability.max
+                      };
+                    name = Layout.Const.to_string jkind.layout
+                  }
+                jkind
+            in
+            (* convert_with_base is guaranteed to succeed since the layout matches and the
+                 modal bounds are all max *)
             Option.get out_jkind_verbose)
       in
       match printable_jkind with
@@ -667,9 +648,15 @@ module Const = struct
         Outcometree.Ojkind_const_abbreviation base
   end
 
-  let to_out_jkind_const = To_out_jkind_const.convert
+  let to_out_jkind_const jkind =
+    let allow_null = Language_extension.(is_at_least Layouts Alpha) in
+    To_out_jkind_const.convert ~allow_null jkind
 
   let format ppf jkind = to_out_jkind_const jkind |> !Oprint.out_jkind_const ppf
+
+  let format_no_hiding ppf jkind =
+    To_out_jkind_const.convert ~allow_null:true jkind
+    |> !Oprint.out_jkind_const ppf
 
   let of_attribute : Builtin_attributes.jkind_attribute -> t = function
     | Immediate -> Primitive.immediate.jkind
