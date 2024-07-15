@@ -21,6 +21,7 @@
 *)
 
 type file = string
+type granularity = File_level | Function_level
 
 val reset : unit -> unit
 (** erase all recorded profile information *)

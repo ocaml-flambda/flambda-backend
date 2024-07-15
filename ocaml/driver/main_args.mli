@@ -142,6 +142,7 @@ module type Compiler_options = sig
   val _dtimings_precision : int -> unit
   val _dcounters : unit -> unit
   val _dprofile : unit -> unit
+  val _dfunc_level : unit -> unit
   val _dump_into_file : unit -> unit
   val _dump_dir : string -> unit
 

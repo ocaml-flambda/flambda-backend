@@ -16,6 +16,7 @@
 [@@@ocaml.warning "+a-18-40-42-48"]
 
 type file = string
+type granularity = File_level | Function_level
 type counters = (string * int) list
 
 external time_include_children: bool -> float = "caml_sys_time_include_children"
