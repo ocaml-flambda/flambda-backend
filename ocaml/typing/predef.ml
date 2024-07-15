@@ -479,7 +479,14 @@ let add_or_null add_type env =
   env
   |> add_type1 ident_or_null
   ~variance:Variance.covariant
-  ~separability:Separability.Sep
+  ~separability:Separability.Ind
+  (* CR layouts v3: [or_null] is separable only if the argument type
+     is non-float. The current separability system can't track that.
+     We also want to allow [float or_null] despite it being non-separable.
+
+     For now, we mark the type argument as [Separability.Ind] to permit
+     the most argument types, and forbid arrays from accepting [or_null]s.
+     In the future, we will track separability in the jkind system. *)
   ~kind:(fun tvar ->
     variant [cstr ident_null []; cstr ident_this [unrestricted tvar]]
       [| Constructor_uniform_value, [| |];

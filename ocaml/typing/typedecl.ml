@@ -1623,9 +1623,13 @@ let update_decl_jkind env dpath decl =
       type_jkind
   in
 
-  (* Do not override the jkind if the manifest jkind is available. This is
-     necessary to support types like ['a or_null], which have a non-standard
-     jkind. [check_coherence] will update the jkind to match the manifest. *)
+  (* If the type manifest jkind is available, we roll back to
+     the previous [decl.type_jkind] from the annotation, delaying
+     computing the final jkind until [check_coherence].
+
+     This is necessary to support types like ['a or_null], which have a
+     non-standard jkind for their [type_kind]. When jkind-from-kind
+     and jkind-from-manifest conflict, we want to pick the one from manifest. *)
   let new_decl, new_jkind =
     match decl.type_manifest with
     | None -> inferred_decl, inferred_jkind
