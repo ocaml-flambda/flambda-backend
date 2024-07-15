@@ -1254,18 +1254,18 @@ let add_type_to_preparation = prepare_type
 let print_labels = ref true
 
 let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
-  let rec out_jkind_user_of_user_jkind : Jane_syntax.Jkind.t -> out_jkind_user = function
-    | Default -> Ojkind_user_default
-    | Abbreviation abbrev -> Ojkind_user_abbreviation (abbrev :> string Location.loc).txt
+  let rec out_jkind_const_of_user_jkind : Jane_syntax.Jkind.t -> out_jkind_const = function
+    | Default -> Ojkind_const_default
+    | Abbreviation abbrev -> Ojkind_const_abbreviation (abbrev :> string Location.loc).txt
     | Mod (base, modes) ->
-      let base = out_jkind_user_of_user_jkind base in
+      let base = out_jkind_const_of_user_jkind base in
       let modes =
         List.map (fun {txt = (Parsetree.Mode s); _} -> s) modes
       in
-      Ojkind_user_mod (base, modes)
+      Ojkind_const_mod (base, modes)
     | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
   in
-  Ojkind_user (out_jkind_user_of_user_jkind jkind.txt)
+  Ojkind_const (out_jkind_const_of_user_jkind jkind.txt)
 
 let out_jkind_of_const_jkind jkind =
   Ojkind_const (Jkind.Const.to_out_jkind_const jkind)
@@ -1275,7 +1275,12 @@ let out_jkind_of_const_jkind jkind =
 let out_jkind_option_of_jkind jkind =
   match Jkind.get jkind with
   | Const jkind ->
-    begin match Jkind.Const.equal jkind Jkind.Const.Primitive.value.jkind with
+    let is_value = Jkind.Const.equal jkind Jkind.Const.Primitive.value.jkind
+      (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
+      || (not Language_extension.(is_at_least Layouts Alpha)
+          && Jkind.Const.equal jkind Jkind.Const.Primitive.value_or_null.jkind)
+    in
+    begin match is_value with
     | true -> None
     | false -> Some (out_jkind_of_const_jkind jkind)
     end

@@ -340,7 +340,7 @@ let destroyed_at_oper = function
       [| reg_d7 |]            (* d7 / s7 destroyed *)
   | _ -> [||]
 
-let destroyed_at_raise () = all_phys_regs
+let destroyed_at_raise = all_phys_regs
 
 let destroyed_at_reloadretaddr = [| |]
 

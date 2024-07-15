@@ -17,6 +17,7 @@ type ('a : value_or_null) id_value_or_null = 'a
 type 'a should_not_accept_or_null = 'a id_value_or_null
 
 type should_not_work = t_value_or_null should_not_accept_or_null
+type should_not_work = t_value_or_null should_not_accept_or_null
 
 [%%expect{|
 type 'a should_not_accept_or_null = 'a id_value_or_null
@@ -24,27 +25,18 @@ Line 3, characters 23-38:
 3 | type should_not_work = t_value_or_null should_not_accept_or_null
                            ^^^^^^^^^^^^^^^
 Error: This type t_value_or_null should be an instance of type ('a : value)
-       The layout of t_value_or_null is value_or_null, because
-         of the definition of t_value_or_null at line 1, characters 0-36.
-       But the layout of t_value_or_null must be a sublayout of value, because
-         of the definition of should_not_accept_or_null at line 1, characters 0-55.
+       The kind of t_value_or_null is value_or_null
+         because of the definition of t_value_or_null at line 1, characters 0-36.
+       But the kind of t_value_or_null must be a subkind of value
+         because of the definition of should_not_accept_or_null at line 1, characters 0-55.
 |}]
 
-(* CR layouts v3.0: [value_or_null] types should be accepted for
-   function arguments and results. *)
+(* [value_or_null] is accepted for function arguments and results. *)
 
 let should_work (x : t_value_or_null) = x
 
 [%%expect{|
-Line 1, characters 16-37:
-1 | let should_work (x : t_value_or_null) = x
-                    ^^^^^^^^^^^^^^^^^^^^^
-Error: This pattern matches values of type t_value_or_null
-       but a pattern was expected which matches values of type ('a : value)
-       The layout of t_value_or_null is value_or_null, because
-         of the definition of t_value_or_null at line 1, characters 0-36.
-       But the layout of t_value_or_null must be a sublayout of value, because
-         we must know concretely how to pass a function argument, defaulted to layout value.
+val should_work : t_value_or_null -> t_value_or_null = <fun>
 |}]
 
 (* Type variables in function definitions default to [value]. *)
@@ -72,10 +64,10 @@ Error: Signature mismatch:
        is not included in
          val should_not_work : ('a : value_or_null). 'a -> unit
        The type 'a -> unit is not compatible with the type 'b -> unit
-       The layout of 'a is value_or_null, because
-         of the definition of should_not_work at line 6, characters 2-57.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of should_not_work at line 2, characters 2-34.
+       The kind of 'a is value_or_null
+         because of the definition of should_not_work at line 6, characters 2-57.
+       But the kind of 'a must be a subkind of value
+         because of the definition of should_not_work at line 2, characters 2-34.
 |}]
 
 (* Type parameters default to [value] for fully abstract types *)
@@ -113,10 +105,10 @@ Line 4, characters 12-27:
 4 |   type t2 = t_value_or_null t
                 ^^^^^^^^^^^^^^^
 Error: This type t_value_or_null should be an instance of type ('a : value)
-       The layout of t_value_or_null is value_or_null, because
-         of the definition of t_value_or_null at line 1, characters 0-36.
-       But the layout of t_value_or_null must be a sublayout of value, because
-         of the definition of t at line 2, characters 2-16.
+       The kind of t_value_or_null is value_or_null
+         because of the definition of t_value_or_null at line 1, characters 0-36.
+       But the kind of t_value_or_null must be a subkind of value
+         because of the definition of t at line 2, characters 2-16.
 |}]
 
 (* CR layouts v3.0: the sublayout check should accept this for backwards
@@ -160,10 +152,10 @@ Line 4, characters 12-27:
 4 |   type t2 = t_value_or_null t
                 ^^^^^^^^^^^^^^^
 Error: This type t_value_or_null should be an instance of type ('a : value)
-       The layout of t_value_or_null is value_or_null, because
-         of the definition of t_value_or_null at line 1, characters 0-36.
-       But the layout of t_value_or_null must be a sublayout of value, because
-         of the definition of t at line 2, characters 2-25.
+       The kind of t_value_or_null is value_or_null
+         because of the definition of t_value_or_null at line 1, characters 0-36.
+       But the kind of t_value_or_null must be a subkind of value
+         because of the definition of t at line 2, characters 2-25.
 |}]
 
 (* Rigid type variables default to [value]. *)
@@ -189,10 +181,10 @@ Error: Signature mismatch:
        is not included in
          val f : ('a : value_or_null). 'a -> 'a
        The type 'a -> 'a is not compatible with the type 'b -> 'b
-       The layout of 'a is value_or_null, because
-         of the definition of f at line 2, characters 2-40.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of f at line 4, characters 8-28.
+       The kind of 'a is value_or_null
+         because of the definition of f at line 2, characters 2-40.
+       But the kind of 'a must be a subkind of value
+         because of the definition of f at line 4, characters 8-28.
 |}]
 
 module M : sig
@@ -216,10 +208,10 @@ Error: Signature mismatch:
        is not included in
          val f : ('a : value_or_null). 'a -> 'a
        The type 'a -> 'a is not compatible with the type 'b -> 'b
-       The layout of 'a is value_or_null, because
-         of the definition of f at line 2, characters 2-40.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of f at line 4, characters 6-7.
+       The kind of 'a is value_or_null
+         because of the definition of f at line 2, characters 2-40.
+       But the kind of 'a must be a subkind of value
+         because of the definition of f at line 4, characters 6-7.
 |}]
 
 
@@ -244,24 +236,23 @@ Error: Signature mismatch:
        is not included in
          val f : ('a : value_or_null). 'a -> 'a
        The type 'a -> 'a is not compatible with the type 'b -> 'b
-       The layout of 'a is value_or_null, because
-         of the definition of f at line 2, characters 2-41.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of f at line 4, characters 6-7.
+       The kind of 'a is value_or_null
+         because of the definition of f at line 2, characters 2-41.
+       But the kind of 'a must be a subkind of value
+         because of the definition of f at line 4, characters 6-7.
 |}]
 
-(* CR layouts v3.0: this should work. *)
 
 module M : sig
-  val f : ('a : value_or_null). 'a -> 'a
+  val f : ('a : value_or_null) . 'a -> 'a
 end = struct
-  let f x = x
+  let f : type a. a -> a = fun x -> x
 end
 
 [%%expect{|
 Lines 3-5, characters 6-3:
 3 | ......struct
-4 |   let f x = x
+4 |   let f : type a. a -> a = fun x -> x
 5 | end
 Error: Signature mismatch:
        Modules do not match:
@@ -273,10 +264,39 @@ Error: Signature mismatch:
        is not included in
          val f : ('a : value_or_null). 'a -> 'a
        The type 'a -> 'a is not compatible with the type 'b -> 'b
-       The layout of 'a is value_or_null, because
-         of the definition of f at line 2, characters 2-40.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of f at line 4, characters 8-13.
+       The kind of 'a is value_or_null
+         because of the definition of f at line 2, characters 2-41.
+       But the kind of 'a must be a subkind of value
+         because of the definition of f at line 4, characters 6-7.
+|}]
+
+(* CR layouts v3.0: this should work. *)
+
+module M : sig
+  val f : ('a : value_or_null) . 'a -> 'a
+end = struct
+  let f : type a. a -> a = fun x -> x
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   let f : type a. a -> a = fun x -> x
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a end
+       is not included in
+         sig val f : ('a : value_or_null). 'a -> 'a end
+       Values do not match:
+         val f : 'a -> 'a
+       is not included in
+         val f : ('a : value_or_null). 'a -> 'a
+       The type 'a -> 'a is not compatible with the type 'b -> 'b
+       The kind of 'a is value_or_null
+         because of the definition of f at line 2, characters 2-41.
+       But the kind of 'a must be a subkind of value
+         because of the definition of f at line 4, characters 6-7.
 |}]
 
 (* CR layouts v3.0: annotations on non-rigid type variables are upper bounds.
@@ -343,10 +363,10 @@ Line 1, characters 14-35:
 1 | type fails = (t_value_or_null dummy) constrained
                   ^^^^^^^^^^^^^^^^^^^^^
 Error: This type t_value_or_null dummy should be an instance of type 'a dummy
-       The layout of t_value_or_null is value_or_null, because
-         of the definition of t_value_or_null at line 1, characters 0-36.
-       But the layout of t_value_or_null must be a sublayout of value, because
-         of the definition of constrained at line 1, characters 0-49.
+       The kind of t_value_or_null is value_or_null
+         because of the definition of t_value_or_null at line 1, characters 0-36.
+       But the kind of t_value_or_null must be a subkind of value
+         because of the definition of constrained at line 1, characters 0-49.
 |}]
 
 type succeeds = (int dummy) constrained
@@ -372,8 +392,8 @@ Line 1, characters 14-35:
 1 | type fails = (t_value_or_null dummy) constrained'
                   ^^^^^^^^^^^^^^^^^^^^^
 Error: This type t_value_or_null dummy should be an instance of type 'a dummy
-       The layout of t_value_or_null is value_or_null, because
-         of the definition of t_value_or_null at line 1, characters 0-36.
-       But the layout of t_value_or_null must be a sublayout of value, because
-         of the definition of constrained' at lines 1-2, characters 0-44.
+       The kind of t_value_or_null is value_or_null
+         because of the definition of t_value_or_null at line 1, characters 0-36.
+       But the kind of t_value_or_null must be a subkind of value
+         because of the definition of constrained' at lines 1-2, characters 0-44.
 |}]

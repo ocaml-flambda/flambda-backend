@@ -42,9 +42,6 @@ val trap_notes : bool ref
 val arch_check_symbols : bool ref
 val command_line_options : (string * Arg.spec * string) list
 
-val assert_simd_enabled : unit -> unit
-val assert_float32_enabled : unit -> unit
-
 (* Specific operations for the AMD64 processor *)
 
 type sym_global = Global | Local

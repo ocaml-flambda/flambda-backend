@@ -904,6 +904,9 @@ and expression ?(jane_syntax_parens = false) ctxt f x =
         begin match params, constraint_ with
           (* Omit [fun] if there are no params. *)
           | [], None ->
+              (* If function cases are a direct body of a function,
+                 the function node should be wrapped in parens so
+                 it doesn't become part of the enclosing function. *)
               let should_paren =
                 match body with
                 | Pfunction_cases _ -> ctxt.functionrhs

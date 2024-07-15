@@ -297,12 +297,12 @@ module Env = struct
           Variable.Map.add var approx t.value_approximations
       }
 
-  let add_block_approximation t var tag approxs alloc_mode =
+  let add_block_approximation t var tag shape approxs alloc_mode =
     if Array.for_all Value_approximation.is_unknown approxs
     then t
     else
       add_var_approximation t var
-        (Block_approximation (tag, approxs, alloc_mode))
+        (Block_approximation (tag, shape, approxs, alloc_mode))
 
   let find_var_approximation t var =
     try Variable.Map.find var t.value_approximations
@@ -396,15 +396,16 @@ module Acc = struct
               "Closure_conversion: approximation loader returned a Symbol \
                approximation (%a) for symbol %a"
               Symbol.print sym Symbol.print symbol
-          | Value_unknown | Value_int _ | Closure_approximation _
+          | Value_unknown | Value_const _ | Closure_approximation _
           | Block_approximation _ ->
             ());
         let rec filter_inlinable approx =
           match (approx : Env.value_approximation) with
-          | Value_unknown | Value_symbol _ | Value_int _ -> approx
-          | Block_approximation (tag, approxs, alloc_mode) ->
+          | Value_unknown | Value_symbol _ | Value_const _ -> approx
+          | Block_approximation (tag, shape, approxs, alloc_mode) ->
             let approxs = Array.map filter_inlinable approxs in
-            Value_approximation.Block_approximation (tag, approxs, alloc_mode)
+            Value_approximation.Block_approximation
+              (tag, shape, approxs, alloc_mode)
           | Closure_approximation
               { code_id;
                 function_slot;
@@ -485,24 +486,30 @@ module Acc = struct
     let declared_symbols = (symbol, constant) :: t.declared_symbols in
     let approx : _ Value_approximation.t =
       match (constant : Static_const.t) with
-      | Block (tag, mut, fields) ->
+      | Block (tag, mut, shape, fields) ->
         if not (Mutability.is_mutable mut)
         then
-          let approx_of_field :
-              Field_of_static_block.t -> _ Value_approximation.t = function
-            | Symbol sym -> Value_symbol sym
-            | Tagged_immediate i -> Value_int i
-            | Dynamically_computed _ -> Value_unknown
+          let approx_of_field simple_with_dbg =
+            let module VA = Value_approximation in
+            Simple.pattern_match'
+              (Simple.With_debuginfo.simple simple_with_dbg)
+              ~var:(fun _var ~coercion:_ -> VA.Value_unknown)
+              ~symbol:(fun symbol ~coercion:_ -> VA.Value_symbol symbol)
+              ~const:(fun cst -> VA.Value_const cst)
           in
           let fields = List.map approx_of_field fields |> Array.of_list in
-          Block_approximation (tag, fields, Alloc_mode.For_types.unknown ())
+          Block_approximation
+            (tag, shape, fields, Alloc_mode.For_types.unknown ())
         else Value_unknown
       | Set_of_closures _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
       | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
-      | Immutable_float_block _ | Immutable_float_array _
-      | Immutable_float32_array _ | Immutable_value_array _ | Empty_array _
-      | Immutable_int32_array _ | Immutable_int64_array _
-      | Immutable_nativeint_array _ | Mutable_string _ | Immutable_string _ ->
+      | Immutable_float_block _
+      (* For immutable float blocks, we can statically allocate them in classic
+         mode, but they are not currently provided with approximations. *)
+      | Immutable_float_array _ | Immutable_float32_array _
+      | Immutable_value_array _ | Empty_array _ | Immutable_int32_array _
+      | Immutable_int64_array _ | Immutable_nativeint_array _ | Mutable_string _
+      | Immutable_string _ ->
         Value_unknown
     in
     let symbol_approximations =
@@ -534,7 +541,7 @@ module Acc = struct
       Misc.fatal_errorf "Symbol %a approximated to symbol %a" Symbol.print
         symbol Symbol.print s
     | Value_unknown | Closure_approximation _ | Block_approximation _
-    | Value_int _ ->
+    | Value_const _ ->
       (* We need all defined symbols to be present in [symbol_approximations],
          even when their approximation is [Value_unknown] *)
       { t with

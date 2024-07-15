@@ -465,10 +465,11 @@ Error: Layout mismatch in final type declaration consistency check.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         The layout of 'a is float64, because
-           of the definition of t_float64_id at line 1, characters 0-37.
-         But the layout of 'a must overlap with value, because
-           it instantiates an unannotated type parameter of t_cstr1, defaulted to layout value.
+         The layout of 'a is float64
+           because of the definition of t_float64_id at line 1, characters 0-37.
+         But the layout of 'a must overlap with value
+           because it instantiates an unannotated type parameter of t_cstr1,
+           defaulted to layout value.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}];;
