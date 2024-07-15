@@ -31,7 +31,7 @@ end ;;
 Line 2, characters 2-19:
 2 |   module type S = _
       ^^^^^^^^^^^^^^^^^
-Error: Cannot infer module type without a corresponding definition.
+Error: Inferrence of module types is not allowed within a signature.
 |}]
 
 module M = struct
@@ -373,6 +373,55 @@ module M :
     module type S1 = sig type t val foo : t -> unit end
     module type S2 = sig type t val bar : unit -> t end
   end
+|}]
+
+module M : sig
+  module type A = module type of
+    struct
+      module type B = sig type t end
+    end
+end = struct
+  module type A = _
+end
+
+[%%expect {|
+module M : sig module type A = sig module type B = sig type t end end end
+|}]
+
+module M : sig
+  module type A = module type of (
+    struct
+      module type B = _
+    end : sig
+      module type B = sig type t end
+    end)
+end = struct
+  module type A = _
+end
+
+[%%expect {|
+module M : sig module type A = sig module type B = sig type t end end end
+|}]
+
+module M1: sig
+  module type S = sig
+    type t
+  end
+end = struct
+  module type S = _
+end
+
+module M2 = struct
+  include M1
+
+  module M3 : S = struct
+    type t = int
+  end
+end
+
+[%%expect {|
+module M1 : sig module type S = sig type t end end
+module M2 : sig module type S = M1.S module M3 : S end
 |}]
 
 module M : sig

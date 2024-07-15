@@ -106,6 +106,19 @@ type error =
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
 
+(** When calling [transl_modtype_decl], there are three possibilities for its
+    [expected_modtype_decl]:
+    - [From_signature]: we are checking a signature.
+    - [No_expected]: we are checking a struct, but we don't have information about
+       its expected signature.
+    - [Expected _]: we are checking a struct, and we do have information about its
+       expected signature (where "expected signature" is used for inferring module types
+       when we see a [module type S = _]). *)
+type expected_modtype_decl =
+  | From_signature
+  | No_expected
+  | Expected of modtype_declaration
+
 open Typedtree
 
 let rec path_concat head p =
@@ -1886,13 +1899,13 @@ and transl_signature env (sg : Parsetree.signature) =
         sig_items,
         newenv
     | Psig_modtype pmtd ->
-        let newenv, mtd, decl = transl_modtype_decl ~expected_modtype_decl:None env pmtd in
+        let newenv, mtd, decl = transl_modtype_decl ~expected_modtype_decl:From_signature env pmtd in
         Signature_names.check_modtype names pmtd.pmtd_loc mtd.mtd_id;
         mksig (Tsig_modtype mtd) env loc,
         [Sig_modtype (mtd.mtd_id, decl, Exported)],
         newenv
     | Psig_modtypesubst pmtd ->
-        let newenv, mtd, _decl = transl_modtype_decl ~expected_modtype_decl:None env pmtd in
+        let newenv, mtd, _decl = transl_modtype_decl ~expected_modtype_decl:From_signature env pmtd in
         let info =
           let mty = match mtd.mtd_type with
             | Tmtd_define tmty -> tmty.mty_type
@@ -2014,10 +2027,9 @@ and transl_modtype_decl_aux ~expected_modtype_decl env
       Tmtd_define tmty, Some (tmty.mty_type)
     | Pmtd_underscore ->
       begin match expected_modtype_decl with
-         (* TODO: Maybe we want to separate out the case where we are in a signature and
-            raise [Underscore_not_allowed_in_signature] instead *)
-        | None -> raise (Error (pmtd_loc, env, Cannot_infer_module_type))
-        | Some mtd -> Tmtd_underscore, mtd.Types.mtd_type
+        | From_signature -> raise (Error (pmtd_loc, env, Underscore_not_allowed_in_signature))
+        | No_expected -> raise (Error (pmtd_loc, env, Cannot_infer_module_type))
+        | Expected mtd -> Tmtd_underscore, mtd.Types.mtd_type
       end
   in
   let decl =
@@ -3253,11 +3265,11 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             | _ -> None
           in
           match expected_sig with
-          | None -> None, None
+          | None -> No_expected, None
           | Some sg ->
             begin match List.find_map get_modtype_decl sg with
-              | Some (decl, ident) -> Some decl, Some ident
-              | None -> None, None
+              | Some (decl, ident) -> Expected decl, Some ident
+              | None -> No_expected, None
             end
         in
         (* check that it is non-abstract *)
