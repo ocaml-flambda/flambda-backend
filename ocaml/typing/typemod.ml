@@ -1886,13 +1886,13 @@ and transl_signature env (sg : Parsetree.signature) =
         sig_items,
         newenv
     | Psig_modtype pmtd ->
-        let newenv, mtd, decl = transl_modtype_decl env pmtd in
+        let newenv, mtd, decl = transl_modtype_decl ~expected_modtype_decl:None env pmtd in
         Signature_names.check_modtype names pmtd.pmtd_loc mtd.mtd_id;
         mksig (Tsig_modtype mtd) env loc,
         [Sig_modtype (mtd.mtd_id, decl, Exported)],
         newenv
     | Psig_modtypesubst pmtd ->
-        let newenv, mtd, _decl = transl_modtype_decl env pmtd in
+        let newenv, mtd, _decl = transl_modtype_decl ~expected_modtype_decl:None env pmtd in
         let info =
           let mty = match mtd.mtd_type with
             | Tmtd_define tmty -> tmty.mty_type
@@ -1994,11 +1994,11 @@ and transl_signature env (sg : Parsetree.signature) =
        sg
     )
 
-and transl_modtype_decl ?expected_modtype_decl env pmtd =
+and transl_modtype_decl ~expected_modtype_decl env pmtd =
   Builtin_attributes.warning_scope pmtd.pmtd_attributes
-    (fun () -> transl_modtype_decl_aux env pmtd ?expected_modtype_decl)
+    (fun () -> transl_modtype_decl_aux env pmtd ~expected_modtype_decl)
 
-and transl_modtype_decl_aux ?expected_modtype_decl env
+and transl_modtype_decl_aux ~expected_modtype_decl env
     {pmtd_name; pmtd_type; pmtd_attributes; pmtd_loc} =
   (* If we are typechecking a signature or a struct without an explicit signature,
      [expected] is [None].
@@ -2493,7 +2493,7 @@ let maybe_infer_modalities ~loc ~env ~md_mode ~mode =
     Mode.Modality.Value.id
   end
 
-let rec type_module ?(alias=false) ?expected_modtype sttn funct_body anchor env smod =
+let rec type_module ?(alias=false) ~expected_modtype sttn funct_body anchor env smod =
   Builtin_attributes.warning_scope smod.pmod_attributes
     (fun () -> type_module_aux ~alias ~expected_modtype sttn funct_body anchor env smod)
 
@@ -2550,7 +2550,7 @@ and type_module_aux ~alias ~expected_modtype sttn funct_body anchor env smod =
           | Mty_signature sg -> Some sg)
         in
       let (str, sg, names, shape, _finalenv) =
-        type_structure funct_body anchor env sstr ?expected_sig in
+        type_structure funct_body anchor env sstr ~expected_sig in
       let md =
         { mod_desc = Tmod_structure str;
           mod_type = Mty_signature sg;
@@ -2594,7 +2594,7 @@ and type_module_aux ~alias ~expected_modtype sttn funct_body anchor env smod =
       in
       let newenv = Env.add_escape_lock Module newenv in
       let newenv = Env.add_share_lock Module newenv in
-      let body, body_shape = type_module true funct_body None newenv sbody in
+      let body, body_shape = type_module ~expected_modtype:None true funct_body None newenv sbody in
       { mod_desc = Tmod_functor(t_arg, body);
         mod_type = Mty_functor(ty_arg, body.mod_type);
         mod_env = env;
@@ -2607,7 +2607,7 @@ and type_module_aux ~alias ~expected_modtype sttn funct_body anchor env smod =
       let mty = transl_modtype env smty in
       let arg, arg_shape =
         type_module ~alias true funct_body anchor env sarg
-          ~expected_modtype:mty.mty_type
+          ~expected_modtype:(Some mty.mty_type)
       in
       let md, final_shape =
         wrap_constraint_with_shape env true arg mty.mty_type arg_shape
@@ -2657,7 +2657,7 @@ and type_application loc strengthen funct_body env smod =
   let rec extract_application funct_body env sargs smod =
     match smod.pmod_desc with
     | Pmod_apply(f, sarg) ->
-        let arg, shape = type_module true funct_body None env sarg in
+        let arg, shape = type_module ~expected_modtype:None true funct_body None env sarg in
         let summary = {
           loc = smod.pmod_loc;
           attributes = smod.pmod_attributes;
@@ -2687,7 +2687,7 @@ and type_application loc strengthen funct_body env smod =
       | Some { path = Some _ } -> true
     in
     let strengthen = strengthen && List.for_all has_path args in
-    type_module strengthen funct_body None env sfunct
+    type_module ~expected_modtype:None strengthen funct_body None env sfunct
   in
   List.fold_left (type_one_application ~ctx:(loc, funct, args) funct_body env)
     (funct, funct_shape) args
@@ -2821,7 +2821,7 @@ and type_open_decl_aux ?used_slot ?toplevel funct_body names env od =
     } in
     open_descr, [], newenv
   | _ ->
-    let md, mod_shape = type_module true funct_body None env od.popen_expr in
+    let md, mod_shape = type_module ~expected_modtype:None true funct_body None env od.popen_expr in
     let scope = Ctype.create_scope () in
     let sg, newenv =
       Env.enter_signature ~scope ~mod_shape
@@ -2856,14 +2856,14 @@ and type_open_decl_aux ?used_slot ?toplevel funct_body names env od =
     } in
     open_descr, sg, newenv
 
-and type_structure ?(toplevel = None) ?expected_sig funct_body anchor env sstr =
+and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
   let names = Signature_names.create () in
 
   let type_str_include ~functor_ ~loc env shape_map sincl sig_acc =
     let smodl = sincl.pincl_mod in
     let modl, modl_shape =
       Builtin_attributes.warning_scope sincl.pincl_attributes
-        (fun () -> type_module true funct_body None env smodl)
+        (fun () -> type_module ~expected_modtype:None true funct_body None env smodl)
     in
     let scope = Ctype.create_scope () in
     let incl_kind, sg =
@@ -3080,7 +3080,7 @@ and type_structure ?(toplevel = None) ?expected_sig funct_body anchor env sstr =
         let modl, md_shape =
           Builtin_attributes.warning_scope attrs
             (fun () ->
-               type_module ~alias:true true funct_body
+               type_module ~expected_modtype:None ~alias:true true funct_body
                  (anchor_submodule name.txt anchor) env smodl
             )
         in
@@ -3173,7 +3173,7 @@ and type_structure ?(toplevel = None) ?expected_sig funct_body anchor env sstr =
                  Builtin_attributes.warning_scope attrs
                    (fun () ->
                       type_module true funct_body (anchor_recmodule id)
-                        newenv smodl ~expected_modtype:mty.mty_type
+                        newenv smodl ~expected_modtype:(Some mty.mty_type)
                    )
                in
                let mty' =
@@ -3263,7 +3263,7 @@ and type_structure ?(toplevel = None) ?expected_sig funct_body anchor env sstr =
             end
         in
         (* check that it is non-abstract *)
-        let newenv, mtd, decl = transl_modtype_decl env pmtd ?expected_modtype_decl in
+        let newenv, mtd, decl = transl_modtype_decl env pmtd ~expected_modtype_decl in
         Signature_names.check_modtype names pmtd.pmtd_loc mtd.mtd_id;
         let id = mtd.mtd_id in
         let map = Shape.Map.add_module_type shape_map id decl.mtd_uid in
@@ -3399,7 +3399,7 @@ let type_toplevel_phrase env sig_acc s =
   Env.reset_probes ();
   Typecore.reset_allocations ();
   let (str, sg, to_remove_from_sg, shape, env) =
-    type_structure ~toplevel:(Some sig_acc) false None env s in
+    type_structure ~toplevel:(Some sig_acc) ~expected_sig:None false None env s in
   remove_mode_and_jkind_variables env sg;
   remove_mode_and_jkind_variables_for_toplevel str;
   Typecore.optimise_allocations ();
@@ -3441,7 +3441,7 @@ let type_module_type_of env smod =
             mod_attributes = smod.pmod_attributes;
             mod_loc = smod.pmod_loc }
     | _ ->
-        let me, _shape = type_module env smod in
+        let me, _shape = type_module ~expected_modtype:None env smod in
         me
   in
   let mty = Mtype.scrape_for_type_of ~remove_aliases env tmty.mod_type in
@@ -3501,7 +3501,7 @@ let type_package env m p fl =
     Typetexp.TyVarEnv.with_local_scope begin fun () ->
       (* type the module and create a scope in a raised level *)
       Ctype.with_local_level begin fun () ->
-        let modl, _mod_shape = type_module env m in
+        let modl, _mod_shape = type_module ~expected_modtype:None env m in
         let scope = Ctype.create_scope () in
         modl, scope
       end
@@ -3572,7 +3572,7 @@ let type_open_descr ?used_slot env od =
   type_open_descr ?used_slot ?toplevel:None env od
 
 let () =
-  Typecore.type_module := type_module_alias;
+  Typecore.type_module := type_module_alias ~expected_modtype:None;
   Typetexp.transl_modtype_longident := transl_modtype_longident;
   Typetexp.transl_modtype := transl_modtype;
   Typecore.type_open := type_open_ ?toplevel:None;
@@ -3671,7 +3671,7 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
       register_params !Clflags.parameters;
       let (str, sg, names, shape, finalenv) =
         Profile.record_call "infer" (fun () ->
-          type_structure initial_env ast) in
+          type_structure ~expected_sig:None initial_env ast) in
       let uid = Uid.of_compilation_unit_id modulename in
       let shape = Shape.set_uid_if_none shape uid in
       if !Clflags.binary_annotations_cms then

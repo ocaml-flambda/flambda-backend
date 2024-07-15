@@ -29,8 +29,10 @@ module Signature_names : sig
 end
 
 val type_module:
+        expected_modtype:Types.module_type option ->
         Env.t -> Parsetree.module_expr -> Typedtree.module_expr * Shape.t
 val type_structure:
+  expected_sig:Types.signature option ->
   Env.t -> Parsetree.structure ->
   Typedtree.structure * Types.signature * Signature_names.t * Shape.t *
   Env.t
