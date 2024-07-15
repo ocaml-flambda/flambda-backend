@@ -3714,15 +3714,19 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
       if !Clflags.as_parameter then
         error Cannot_compile_implementation_as_parameter;
       register_params !Clflags.parameters;
-      let (str, sg, names, shape, finalenv) =
-        Profile.record_call "infer" (fun () ->
-          type_structure ~expected_sig:None initial_env ast) in
-      let uid = Uid.of_compilation_unit_id modulename in
-      let shape = Shape.set_uid_if_none shape uid in
-      if !Clflags.binary_annotations_cms then
-        cms_register_toplevel_struct_attributes ~sourcefile ~uid ast;
-      let simple_sg = Signature_names.simplify finalenv names sg in
+      let process_structure expected_sig =
+        let (str, sg, names, shape, finalenv) =
+          Profile.record_call "infer" (fun () ->
+            type_structure ~expected_sig initial_env ast) in
+        let uid = Uid.of_compilation_unit_id modulename in
+        let shape = Shape.set_uid_if_none shape uid in
+        if !Clflags.binary_annotations_cms then
+          cms_register_toplevel_struct_attributes ~sourcefile ~uid ast;
+        let simple_sg = Signature_names.simplify finalenv names sg in
+        (str, sg, simple_sg, shape, finalenv)
+      in
       if !Clflags.print_types then begin
+        let (str, sg, simple_sg, shape, finalenv) = process_structure None in
         remove_mode_and_jkind_variables finalenv sg;
         let simple_sg =
           (* Printing [.mli] from [.ml], we zap to identity modality for legacy
@@ -3775,6 +3779,7 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
             error (Inconsistent_argument_types
                      { new_arg_type = arg_type; old_source_file = intf_file;
                        old_arg_type = arg_type_from_cmi });
+          let (str, sg, _, shape, _) = process_structure (Some dclsig) in
           let coercion, shape =
             Profile.record_call "check_sig" (fun () ->
               Includemod.compunit initial_env ~mark:Mark_positive
@@ -3812,6 +3817,7 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
             argument_interface;
           }
         end else begin
+          let (str, sg, simple_sg, shape, finalenv) = process_structure None in
           Location.prerr_warning (Location.in_file sourcefile)
             Warnings.Missing_mli;
           let coercion, shape =
