@@ -251,14 +251,21 @@ let boxed_integer_mark name bi m =
 let print_boxed_integer name ppf bi m =
   fprintf ppf "%s" (boxed_integer_mark name bi m);;
 
+let print_boxed_integer_comp name ppf bi m signed =
+  fprintf ppf "%s%s"
+    (if signed then "" else "_unsigned")
+    (boxed_integer_mark name bi m);;
+
 let unboxed_integer_mark name bi m =
   match bi with
   | Pnativeint -> Printf.sprintf "Nativeint_u.%s%s" name (alloc_kind m)
   | Pint32 -> Printf.sprintf "Int32_u.%s%s" name (alloc_kind m)
   | Pint64 -> Printf.sprintf "Int64_u.%s%s" name (alloc_kind m)
 
-let print_unboxed_integer name ppf bi m =
-  fprintf ppf "%s" (unboxed_integer_mark name bi m);;
+let print_unboxed_integer_comp name ppf bi m signed =
+  fprintf ppf "%s%s"
+    (if signed then "" else "_unsigned")
+    (unboxed_integer_mark name bi m);;
 
 let boxed_float_mark name bf m =
   match bf with
@@ -531,10 +538,15 @@ let primitive ppf = function
   | Plslint -> fprintf ppf "lsl"
   | Plsrint -> fprintf ppf "lsr"
   | Pasrint -> fprintf ppf "asr"
-  | Pintcomp(cmp) -> integer_comparison ppf cmp
-  | Pcompare_ints -> fprintf ppf "compare_ints"
+  | Pintcomp { comp; signed } ->
+    integer_comparison ppf comp;
+    if not signed then fprintf ppf "_unsigned"
+  | Pcompare_ints { signed } ->
+    fprintf ppf "compare_ints%s" (if signed then "" else "_unsigned")
   | Pcompare_floats bf -> fprintf ppf "compare_floats %s" (boxed_float_name bf)
-  | Pcompare_bints bi -> fprintf ppf "compare_bints %s" (boxed_integer_name bi)
+  | Pcompare_bints { size = bi; signed } ->
+    fprintf ppf "compare_bints%s %s" (if signed then "" else "_unsigned")
+      (boxed_integer_name bi)
   | Poffsetint n -> fprintf ppf "%i+" n
   | Poffsetref n -> fprintf ppf "+:=%i"n
   | Pfloatoffloat32 m -> print_boxed_float "float_of_float32" ppf Pfloat32 m
@@ -621,18 +633,30 @@ let primitive ppf = function
   | Plslbint (bi,m) -> print_boxed_integer "lsl" ppf bi m
   | Plsrbint (bi,m) -> print_boxed_integer "lsr" ppf bi m
   | Pasrbint (bi,m) -> print_boxed_integer "asr" ppf bi m
-  | Pbintcomp(bi, Ceq) -> print_boxed_integer "==" ppf bi alloc_heap
-  | Pbintcomp(bi, Cne) -> print_boxed_integer "!=" ppf bi alloc_heap
-  | Pbintcomp(bi, Clt) -> print_boxed_integer "<" ppf bi alloc_heap
-  | Pbintcomp(bi, Cgt) -> print_boxed_integer ">" ppf bi alloc_heap
-  | Pbintcomp(bi, Cle) -> print_boxed_integer "<=" ppf bi alloc_heap
-  | Pbintcomp(bi, Cge) -> print_boxed_integer ">=" ppf bi alloc_heap
-  | Punboxed_int_comp(bi, Ceq) -> print_unboxed_integer "==" ppf bi alloc_heap
-  | Punboxed_int_comp(bi, Cne) -> print_unboxed_integer "!=" ppf bi alloc_heap
-  | Punboxed_int_comp(bi, Clt) -> print_unboxed_integer "<" ppf bi alloc_heap
-  | Punboxed_int_comp(bi, Cgt) -> print_unboxed_integer ">" ppf bi alloc_heap
-  | Punboxed_int_comp(bi, Cle) -> print_unboxed_integer "<=" ppf bi alloc_heap
-  | Punboxed_int_comp(bi, Cge) -> print_unboxed_integer ">=" ppf bi alloc_heap
+  | Pbintcomp { size = bi; signed; comp = Ceq } ->
+    print_boxed_integer_comp "==" ppf bi alloc_heap signed
+  | Pbintcomp { size = bi; signed; comp = Cne } ->
+    print_boxed_integer_comp "!=" ppf bi alloc_heap signed
+  | Pbintcomp { size = bi; signed; comp = Clt } ->
+    print_boxed_integer_comp "<" ppf bi alloc_heap signed
+  | Pbintcomp { size = bi; signed; comp = Cgt } ->
+    print_boxed_integer_comp ">" ppf bi alloc_heap signed
+  | Pbintcomp { size = bi; signed; comp = Cle } ->
+    print_boxed_integer_comp "<=" ppf bi alloc_heap signed
+  | Pbintcomp { size = bi; signed; comp = Cge } ->
+    print_boxed_integer_comp ">=" ppf bi alloc_heap signed
+  | Punboxed_int_comp { size = bi; signed; comp = Ceq } ->
+    print_unboxed_integer_comp "==" ppf bi alloc_heap signed
+  | Punboxed_int_comp { size = bi; signed; comp = Cne } ->
+    print_unboxed_integer_comp "!=" ppf bi alloc_heap signed
+  | Punboxed_int_comp { size = bi; signed; comp = Clt } ->
+    print_unboxed_integer_comp "<" ppf bi alloc_heap signed
+  | Punboxed_int_comp { size = bi; signed; comp = Cgt } ->
+    print_unboxed_integer_comp ">" ppf bi alloc_heap  signed
+  | Punboxed_int_comp { size = bi; signed; comp = Cle } ->
+    print_unboxed_integer_comp "<=" ppf bi alloc_heap signed
+  | Punboxed_int_comp { size = bi; signed; comp = Cge } ->
+    print_unboxed_integer_comp ">=" ppf bi alloc_heap signed
   | Pbigarrayref(unsafe, _n, kind, layout) ->
       print_bigarray "get" unsafe kind ppf layout
   | Pbigarrayset(unsafe, _n, kind, layout) ->
@@ -846,7 +870,7 @@ let name_of_primitive = function
   | Plsrint -> "Plsrint"
   | Pasrint -> "Pasrint"
   | Pintcomp _ -> "Pintcomp"
-  | Pcompare_ints -> "Pcompare_ints"
+  | Pcompare_ints _ -> "Pcompare_ints"
   | Pcompare_floats _ -> "Pcompare_floats"
   | Pcompare_bints _ -> "Pcompare"
   | Poffsetint _ -> "Poffsetint"

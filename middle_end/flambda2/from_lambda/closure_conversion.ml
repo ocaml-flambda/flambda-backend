@@ -911,7 +911,7 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pufloatfield _ | Psetufloatfield _ | Psequand | Psequor | Pnot | Pnegint
       | Pmixedfield _ | Psetmixedfield _ | Paddint | Psubint | Pmulint
       | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
-      | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats _
+      | Pasrint | Pintcomp _ | Pcompare_ints _ | Pcompare_floats _
       | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat _
       | Pfloatofint (_, _)
       | Pfloatoffloat32 _ | Pfloat32offloat _

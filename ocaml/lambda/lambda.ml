@@ -178,10 +178,10 @@ type primitive =
   | Pdivint of is_safe | Pmodint of is_safe
   | Pandint | Porint | Pxorint
   | Plslint | Plsrint | Pasrint
-  | Pintcomp of integer_comparison
-  | Pcompare_ints
+  | Pintcomp of { comp : integer_comparison; signed : bool }
+  | Pcompare_ints of { signed : bool }
   | Pcompare_floats of boxed_float
-  | Pcompare_bints of boxed_integer
+  | Pcompare_bints of { size : boxed_integer ; signed : bool }
   | Poffsetint of int
   | Poffsetref of int
   (* Float operations *)
@@ -229,8 +229,10 @@ type primitive =
   | Plslbint of boxed_integer * alloc_mode
   | Plsrbint of boxed_integer * alloc_mode
   | Pasrbint of boxed_integer * alloc_mode
-  | Pbintcomp of boxed_integer * integer_comparison
-  | Punboxed_int_comp of unboxed_integer * integer_comparison
+  | Pbintcomp of { size : boxed_integer; comp : integer_comparison;
+                   signed : bool }
+  | Punboxed_int_comp of { size : unboxed_integer; comp : integer_comparison;
+                           signed : bool }
   (* Operations on Bigarrays: (unsafe, #dimensions, kind, layout) *)
   | Pbigarrayref of bool * int * bigarray_kind * bigarray_layout
   | Pbigarrayset of bool * int * bigarray_kind * bigarray_layout
@@ -1715,7 +1717,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pandint | Porint | Pxorint
   | Plslint | Plsrint | Pasrint
   | Pintcomp _
-  | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+  | Pcompare_ints _ | Pcompare_floats _ | Pcompare_bints _
   | Poffsetint _
   | Poffsetref _ -> None
   | Pintoffloat _ -> None
@@ -1917,7 +1919,7 @@ let primitive_result_layout (p : primitive) =
   | Pandint | Porint | Pxorint
   | Plslint | Plsrint | Pasrint
   | Pintcomp _
-  | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+  | Pcompare_ints _ | Pcompare_floats _ | Pcompare_bints _
   | Poffsetint _ | Pintoffloat _
   | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
   | Pstringlength | Pstringrefu | Pstringrefs

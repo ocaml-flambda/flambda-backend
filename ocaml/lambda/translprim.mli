@@ -64,6 +64,7 @@ type error =
   | Unknown_builtin_primitive of string
   | Wrong_arity_builtin_primitive of string
   | Invalid_floatarray_glb
+  | Unsigned_primitive_not_supported of string
 
 exception Error of Location.t * error
 
