@@ -59,7 +59,9 @@ module Password : sig
 
 end
 
-  (** Mutual exclusion primtives for controlling uncontended access to a capsule. *)
+  (** Mutual exclusion primtives for controlling uncontended access to a capsule.
+
+      Requires OCaml 5 runtime. *)
 module Mutex : sig
 
     type 'k t

@@ -1,6 +1,9 @@
 (* TEST
  include stdlib_alpha;
  flags = "-extension-universe alpha";
+ runtime5;
+ { bytecode; }
+ { native; }
 *)
 
 module Capsule = Stdlib_alpha.Capsule
