@@ -4506,9 +4506,6 @@ atomic_type:
         { Ptyp_var $2 }
     | UNDERSCORE
         { Ptyp_any }
-    | a = atomic_type
-      v = mktyp(QUOTE ident { Ptyp_var $2 })
-        { Ptyp_app (v, [a]) }
     | tys = actual_type_parameters
       tid = mkrhs(type_unboxed_longident)
         { unboxed_type $loc(tid) tid.txt tys }
