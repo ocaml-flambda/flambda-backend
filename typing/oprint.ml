@@ -352,28 +352,38 @@ let pr_var = Pprintast.tyvar
 let ty_var ~non_gen ppf s =
   pr_var ppf (if non_gen then "_" ^ s else s)
 
-let print_jkind_with_modes ppf print_jkind base modes =
-  fprintf ppf "%a mod @[%a@]" print_jkind base
-          (print_list (fun ppf -> fprintf ppf "%s") (fun ppf -> fprintf ppf "@ "))
-          modes
+let rec print_out_jkind_const ppf (ojkind : Outcometree.out_jkind_const) =
+  match ojkind with
+  | Ojkind_const_default -> fprintf ppf "_"
+  | Ojkind_const_abbreviation abbrev -> fprintf ppf "%s" abbrev
+  | Ojkind_const_mod (base, modes) ->
+    fprintf ppf "%a mod @[%a@]" print_out_jkind_const base
+      (pp_print_list
+          ~pp_sep:(fun ppf () -> fprintf ppf "@ ")
+          (fun ppf -> fprintf ppf "%s"))
+      modes
+  | Ojkind_const_with _ | Ojkind_const_kind_of _ ->
+    failwith "XXX unimplemented jkind syntax"
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 let print_out_jkind ppf = function
   | Ojkind_const { base; modal_bounds=[] } ->
     fprintf ppf "%s" base
   | Ojkind_const { base; modal_bounds=_::_ as modal_bounds } ->
     print_jkind_with_modes ppf (fun ppf -> fprintf ppf "%s") base modal_bounds
+||||||| 2572783060
+let print_out_jkind ppf = function
+  | Ojkind_const { base; modal_bounds=[] } ->
+    fprintf ppf "%s" base
+  | Ojkind_const { base; modal_bounds=_::_ as modal_bounds } ->
+    print_jkind_with_modes ppf (fun ppf -> fprintf ppf "%s") base modal_bounds
+=======
+let print_out_jkind ppf ojkind =
+  match ojkind with
+>>>>>>> ocaml-jst/flambda-patches
   | Ojkind_var v -> fprintf ppf "%s" v
-  | Ojkind_user jkind ->
-    let rec print_out_jkind_user ppf = function
-      | Ojkind_user_default -> fprintf ppf "_"
-      | Ojkind_user_abbreviation abbrev -> fprintf ppf "%s" abbrev
-      | Ojkind_user_mod (base, modes) ->
-        print_jkind_with_modes ppf print_out_jkind_user base modes
-      | Ojkind_user_with _ | Ojkind_user_kind_of _ ->
-        failwith "XXX unimplemented jkind syntax"
-    in
-    print_out_jkind_user ppf jkind
+  | Ojkind_const jkind -> print_out_jkind_const ppf jkind
 
 let print_out_jkind_annot ppf = function
   | None -> ()
@@ -684,6 +694,10 @@ and print_out_label ppf (name, mut, arg) =
 let out_label = ref print_out_label
 
 let out_modality = ref print_out_modality
+
+let out_jkind_const = ref print_out_jkind_const
+
+let out_jkind = ref print_out_jkind
 
 let out_type = ref print_out_type
 

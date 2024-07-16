@@ -1,6 +1,8 @@
 <<<<<<< HEAD
 (* TEST
  runtime5;
+ { bytecode; }
+ { native; }
 *)
 ||||||| 121bedcfd2
 (* TEST

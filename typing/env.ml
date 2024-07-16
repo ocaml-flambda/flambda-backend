@@ -1071,6 +1071,14 @@ let import_crcs ~source crcs =
   Persistent_env.import_crcs !persistent_env ~source crcs
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+||||||| 2572783060
+=======
+let runtime_parameters () = Persistent_env.runtime_parameters !persistent_env
+
+let parameters () = Persistent_env.parameters !persistent_env
+
+>>>>>>> ocaml-jst/flambda-patches
 let read_pers_mod modname filename ~add_binding =
   Persistent_env.read !persistent_env read_sign_of_cmi modname filename
     ~add_binding
@@ -2817,6 +2825,7 @@ let read_signature modname filename ~add_binding =
   let mty = read_pers_mod modname filename ~add_binding in
   Subst.Lazy.force_signature mty
 
+<<<<<<< HEAD
 let register_parameter_import import =
   Persistent_env.register_parameter_import !persistent_env import
 ||||||| 121bedcfd2
@@ -2834,6 +2843,13 @@ let read_signature u =
   | Mty_signature sg -> sg
   | Mty_ident _ | Mty_functor _ | Mty_alias _ -> assert false
 >>>>>>> 5.2.0
+||||||| 2572783060
+let register_parameter_import import =
+  Persistent_env.register_parameter_import !persistent_env import
+=======
+let register_parameter modname =
+  Persistent_env.register_parameter !persistent_env modname
+>>>>>>> ocaml-jst/flambda-patches
 
 
 let unit_name_of_filename fn =

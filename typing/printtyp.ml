@@ -41,7 +41,7 @@ module Style = Misc.Style
    [type 'a t : <<this one>> = ...].
 
    We print the jkind when it cannot be inferred from the rest of what is
-   printed. Specifically, we print the user-written jkind in both of these
+   printed. Specifically, we print the user-written jkind in any of these
    cases:
 
    (C1.1) The type declaration is abstract and has no manifest (i.e.,
@@ -54,6 +54,10 @@ module Style = Misc.Style
    (C1.2) The type is [@@unboxed]. If an [@@unboxed] type is recursive, it can
    be impossible to deduce the jkind.  We thus defer to the user in determining
    whether to print the jkind annotation.
+
+   (* CR layouts v2.8: remove this case *)
+   (C1.3) The type has illegal mode crossings. In this case, the jkind is overridden by
+   the user rather than being inferred from the definition.
 
    Case (C2). The jkind on a type parameter to a type, like
    [type ('a : <<this one>>) t = ...].
@@ -1417,20 +1421,20 @@ let add_type_to_preparation = prepare_type
 let print_labels = ref true
 
 let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
-  let rec out_jkind_user_of_user_jkind : Jane_syntax.Jkind.t -> out_jkind_user = function
-    | Default -> Ojkind_user_default
-    | Abbreviation abbrev -> Ojkind_user_abbreviation (abbrev :> string Location.loc).txt
+  let rec out_jkind_const_of_user_jkind : Jane_syntax.Jkind.t -> out_jkind_const = function
+    | Default -> Ojkind_const_default
+    | Abbreviation abbrev -> Ojkind_const_abbreviation (abbrev :> string Location.loc).txt
     | Mod (base, modes) ->
-      let base = out_jkind_user_of_user_jkind base in
+      let base = out_jkind_const_of_user_jkind base in
       let modes =
         List.map
           (fun mode -> (mode : Jane_syntax.Mode_expr.Const.t :> string Location.loc).txt)
           modes.txt
       in
-      Ojkind_user_mod (base, modes)
+      Ojkind_const_mod (base, modes)
     | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
   in
-  Ojkind_user (out_jkind_user_of_user_jkind jkind.txt)
+  Ojkind_const (out_jkind_const_of_user_jkind jkind.txt)
 
 let out_jkind_of_const_jkind jkind =
   Ojkind_const (Jkind.Const.to_out_jkind_const jkind)
@@ -1440,7 +1444,12 @@ let out_jkind_of_const_jkind jkind =
 let out_jkind_option_of_jkind jkind =
   match Jkind.get jkind with
   | Const jkind ->
-    begin match Jkind.Const.equal jkind Jkind.Const.Primitive.value.jkind with
+    let is_value = Jkind.Const.equal jkind Jkind.Const.Primitive.value.jkind
+      (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
+      || (not Language_extension.(is_at_least Layouts Alpha)
+          && Jkind.Const.equal jkind Jkind.Const.Primitive.value_or_null.jkind)
+    in
+    begin match is_value with
     | true -> None
     | false -> Some (out_jkind_of_const_jkind jkind)
     end
@@ -2069,11 +2078,12 @@ let tree_of_type_decl id decl =
   in
   (* The algorithm for setting [lay] here is described as Case (C1) in
      Note [When to print jkind annotations] *)
-  let jkind_annotation = match ty, unboxed with
-    | (Otyp_abstract, _) | (_, true) ->
+  let jkind_annotation = match ty, unboxed, decl.type_has_illegal_crossings with
+    | (Otyp_abstract, _, _) | (_, true, _) | (_, _, true) ->
         (* The two cases of (C1) from the Note correspond to Otyp_abstract.
            Anything but the default must be user-written, so we print the
            user-written annotation. *)
+        (* type_has_illegal_crossings corresponds to C1.3 *)
         decl.type_jkind_annotation
     | _ -> None (* other cases have no jkind annotation *)
   in
@@ -2261,7 +2271,7 @@ let tree_of_value_description id decl =
     count 0 decl.val_type
   in
   let attrs =
-    match decl.val_zero_alloc with
+    match Zero_alloc.get decl.val_zero_alloc with
     | Default_zero_alloc | Ignore_assert_all -> []
     | Check { strict; opt; arity; _ } ->
       [{ oattr_name =
@@ -2560,6 +2570,7 @@ let dummy =
     type_attributes = [];
     type_unboxed_default = false;
     type_uid = Uid.internal_not_actually_unique;
+    type_has_illegal_crossings = false;
   }
 
 (** we hide items being defined from short-path to avoid shortening

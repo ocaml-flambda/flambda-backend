@@ -135,6 +135,14 @@ function record_unexp() {
     record_skip();
 }
 
+/=> predicate.*is not satisfied/ {
+    record_skip();
+}
+
+/=> predicate.*is satisfied/ {
+    record_pass();
+}
+
 /=> n\/a/ {
     record_na();
 }

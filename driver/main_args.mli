@@ -34,6 +34,7 @@ module type Common_options = sig
   val _extension : string -> unit
   val _no_extension : string -> unit
   val _extension_universe : string -> unit
+  val _allow_illegal_crossing : unit -> unit
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit
@@ -119,6 +120,7 @@ module type Compiler_options = sig
   val _output_obj : unit -> unit
   val _output_complete_obj : unit -> unit
   val _pack : unit -> unit
+  val _parameter : string -> unit
   val _plugin : string -> unit
   val _pp : string -> unit
   val _principal : unit -> unit

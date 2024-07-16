@@ -52,6 +52,16 @@ module Externality : sig
   val print : Format.formatter -> t -> unit
 end
 
+module Nullability : sig
+  type t = Jkind_types.Nullability.t =
+    | Non_null (* proven to not have NULL values *)
+    | Maybe_null (* may have NULL values *)
+
+  val le : t -> t -> bool
+
+  val print : Format.formatter -> t -> unit
+end
+
 module Sort : Jkind_intf.Sort with type const = Jkind_types.Sort.const
 
 type sort = Sort.t
@@ -70,6 +80,8 @@ module Layout : sig
     module Legacy : sig
       type t = Jkind_types.Layout.Const.Legacy.t =
         | Any
+        | Any_non_null
+        | Value_or_null
         | Value
         | Void
         | Immediate64
@@ -79,8 +91,6 @@ module Layout : sig
         | Word
         | Bits32
         | Bits64
-
-      val to_string : t -> string
     end
   end
 end
@@ -187,8 +197,14 @@ module Const : sig
     [any]. *)
     val any : t
 
+    (** [any], except for null pointers. *)
+    val any_non_null : t
+
     (** Value of types of this jkind are not retained at all at runtime *)
     val void : t
+
+    (** This is the jkind of normal ocaml values or null pointers *)
+    val value_or_null : t
 
     (** This is the jkind of normal ocaml values *)
     val value : t
@@ -239,8 +255,12 @@ module Primitive : sig
     [any]. *)
   val any : why:History.any_creation_reason -> t
 
+  val any_non_null : why:History.any_non_null_creation_reason -> t
+
   (** Value of types of this jkind are not retained at all at runtime *)
   val void : why:History.void_creation_reason -> t
+
+  val value_or_null : why:History.value_or_null_creation_reason -> t
 
   (** This is the jkind of normal ocaml values *)
   val value : why:History.value_creation_reason -> t
@@ -276,15 +296,31 @@ end
 (** Take an existing [t] and add an ability to mode-cross along all the axes. *)
 val add_mode_crossing : t -> t
 
+(** Take an existing [t] and add an ability to mode-cross along the portability and
+    contention axes, if [from] crosses the respective axes. Return the new jkind,
+    along with a boolean of whether illegal crossing was added *)
+val add_portability_and_contention_crossing : from:t -> t -> t * bool
+
 (******************************)
 (* construction *)
 
 (** Create a fresh sort variable, packed into a jkind, returning both
     the resulting kind and the sort. *)
-val of_new_sort_var : why:History.concrete_jkind_reason -> t * sort
+val of_new_sort_var : why:History.concrete_creation_reason -> t * sort
 
 (** Create a fresh sort variable, packed into a jkind. *)
-val of_new_sort : why:History.concrete_jkind_reason -> t
+val of_new_sort : why:History.concrete_creation_reason -> t
+
+(** Same as [of_new_sort_var], but the jkind is lowered to [Non_null]
+    to mirror "legacy" OCaml values.
+    Defaulting the sort variable produces exactly [value].  *)
+val of_new_legacy_sort_var :
+  why:History.concrete_legacy_creation_reason -> t * sort
+
+(** Same as [of_new_sort], but the jkind is lowered to [Non_null]
+    to mirror "legacy" OCaml values.
+    Defaulting the sort variable produces exactly [value].  *)
+val of_new_legacy_sort : why:History.concrete_legacy_creation_reason -> t
 
 val of_const : why:History.creation_reason -> Const.t -> t
 

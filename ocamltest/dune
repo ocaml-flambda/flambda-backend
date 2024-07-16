@@ -33,8 +33,28 @@
  (modes byte)
  (wrapped false)
  (flags
+<<<<<<< HEAD
   (:standard -nostdlib))
  (libraries ocamlcommon stdlib unix)
+||||||| 2572783060
+  (:standard -linkall))
+ (libraries
+  ocamlcommon
+  (select
+   ocamltest_unix.ml
+   from
+   (unix -> ocamltest_unix.real.ml)
+   (-> ocamltest_unix.dummy.ml)))
+=======
+  (:standard -linkall -w +a-40-41-42-44-70))
+ (libraries
+  ocamlcommon
+  (select
+   ocamltest_unix.ml
+   from
+   (unix -> ocamltest_unix.real.ml)
+   (-> ocamltest_unix.dummy.ml)))
+>>>>>>> ocaml-jst/flambda-patches
  (modules
   (:standard \ options main ocamltest_unix_dummy ocamltest_unix_real))
  (foreign_stubs
@@ -56,7 +76,11 @@
  (name main)
  (modes byte)
  (flags
-  (:standard -cclib "-I../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
+  (:standard
+   -w
+   +a-40-41-42-44-70
+   -cclib
+   "-I../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
  (modules options main)
  (libraries ocamltest_core_and_plugin))
 

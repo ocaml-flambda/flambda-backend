@@ -1548,11 +1548,40 @@ let transl_implementation_set_fields compilation_unit (str, restr) =
     compilation_unit;
     required_globals = required_globals ~flambda:true code }
 
-let transl_implementation compilation_unit impl ~style =
+let transl_implementation0 compilation_unit impl ~style =
   match style with
   | Plain_block -> transl_implementation_plain_block compilation_unit impl
   | Set_global_to_block -> transl_implementation_set_global compilation_unit impl
   | Set_individual_fields -> transl_implementation_set_fields compilation_unit impl
+
+let stub_out_runtime_parameters compilation_unit code =
+  let runtime_parameters = Env.runtime_parameters () in
+  match runtime_parameters with
+  | [] -> code
+  | _ ->
+      (* Raise [Invalid_argument "-parameter not yet implemented"] at top level. This
+         makes the module unusable (which is to say, safe) but well-formed so that
+         compilation goes through. *)
+    let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
+    let loc = of_location ~scopes Location.none in
+    let slot =
+      transl_extension_path
+        loc
+        (Lazy.force Env.initial)
+        Predef.path_invalid_argument
+    in
+    let message =
+      Lconst (Const_base (Const_string("-parameter not yet implemented",
+                                       Location.none, None)))
+    in
+    Lprim (Praise Raise_regular,
+           [Lprim(Pmakeblock(0, Immutable, None, alloc_heap), [ slot; message ], loc)],
+           loc)
+
+let transl_implementation compilation_unit impl ~style =
+  let program = transl_implementation0 compilation_unit impl ~style in
+  let code = stub_out_runtime_parameters compilation_unit program.code in
+  { program with code }
 
 (* Compile a toplevel phrase *)
 

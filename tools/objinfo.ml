@@ -63,6 +63,14 @@ let print_line name =
   printf "\t%s\n" name
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+||||||| 2572783060
+=======
+let print_global_as_name_line glob =
+  (* Type will change soon for parameterised libraries *)
+  printf "\t%a\n" Compilation_unit.Name.output glob
+
+>>>>>>> ocaml-jst/flambda-patches
 let print_required_global id =
   printf "\t%a\n" Compilation_unit.output id
 ||||||| 121bedcfd2
@@ -111,7 +119,13 @@ let print_cma_infos (lib : Cmo_format.library) =
   List.iter print_cmo_infos lib.lib_units
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 let print_cmi_infos name crcs kind =
+||||||| 2572783060
+let print_cmi_infos name crcs kind =
+=======
+let print_cmi_infos name crcs kind params =
+>>>>>>> ocaml-jst/flambda-patches
   if not !quiet then begin
     let open Cmi_format in
     printf "Unit name: %a\n" Compilation_unit.Name.output name;
@@ -121,6 +135,8 @@ let print_cmi_infos name crcs kind =
       | Parameter -> true
     in
     printf "Is parameter: %s\n" (if is_param then "YES" else "no");
+    print_string "Parameters:\n";
+    List.iter print_global_as_name_line params;
     printf "Interfaces imported:\n";
     Array.iter print_intf_import crcs
   end
@@ -519,7 +535,7 @@ let dump_obj_by_kind filename ic obj_kind =
          | None -> ()
          | Some cmi ->
             print_cmi_infos cmi.Cmi_format.cmi_name cmi.Cmi_format.cmi_crcs
-              cmi.Cmi_format.cmi_kind
+              cmi.Cmi_format.cmi_kind cmi.Cmi_format.cmi_params
        end;
        begin match cmt with
          | None -> ()

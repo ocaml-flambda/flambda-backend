@@ -1162,7 +1162,7 @@ let add_pattern_variables ?check ?check_as env pv =
        Env.add_value ?check ~mode:pv_mode pv_id
          {val_type = pv_type; val_kind = Val_reg; Types.val_loc = pv_loc;
           val_attributes = pv_attributes; val_modalities = Modality.Value.id;
-          val_zero_alloc = Builtin_attributes.Default_zero_alloc;
+          val_zero_alloc = Zero_alloc.default;
           val_uid = pv_uid
          } env
     )
@@ -1673,7 +1673,7 @@ let solve_Ppat_tuple ~refine ~alloc_mode loc env args expected_ty =
       (fun (label, p) mode ->
         ( label,
           p,
-          newgenvar (Jkind.Primitive.value ~why:Tuple_element),
+          newgenvar (Jkind.Primitive.value_or_null ~why:Tuple_element),
           simple_pat_mode mode ))
       args arg_modes
   in
@@ -1910,7 +1910,7 @@ let solve_Ppat_array ~refine loc env mutability expected_ty =
     if Types.is_mutable mutability then Predef.type_array
     else Predef.type_iarray
   in
-  let jkind, arg_sort = Jkind.of_new_sort_var ~why:Array_element in
+  let jkind, arg_sort = Jkind.of_new_legacy_sort_var ~why:Array_element in
   let ty_elt = newgenvar jkind in
   let expected_ty = generic_instance expected_ty in
 <<<<<<< HEAD
@@ -1982,7 +1982,7 @@ let solve_Ppat_variant ~refine loc env tag no_arg expected_ty =
   let arg_type =
     if no_arg
     then []
-    else [newgenvar (Jkind.Primitive.value ~why:Polymorphic_variant_field)]
+    else [newgenvar (Jkind.Primitive.value_or_null ~why:Polymorphic_variant_field)]
   in
   let fields = [tag, rf_either ~no_arg arg_type ~matched:true] in
   let make_row more =
@@ -3794,7 +3794,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
             { val_type = pv_type
             ; val_kind = Val_reg
             ; val_attributes = pv_attributes
-            ; val_zero_alloc = Builtin_attributes.Default_zero_alloc
+            ; val_zero_alloc = Zero_alloc.default
             ; val_modalities = Modality.Value.id
             ; val_loc = pv_loc
             ; val_uid = pv_uid
@@ -3806,7 +3806,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
             { val_type = pv_type
             ; val_kind = Val_ivar (Immutable, cl_num)
             ; val_attributes = pv_attributes
-            ; val_zero_alloc = Builtin_attributes.Default_zero_alloc
+            ; val_zero_alloc = Zero_alloc.default
             ; val_modalities = Modality.Value.id
             ; val_loc = pv_loc
             ; val_uid = pv_uid
@@ -5418,7 +5418,7 @@ and type_approx_aux_jane_syntax
 
 and type_tuple_approx (env: Env.t) loc ty_expected l =
   let labeled_tys = List.map
-    (fun (label, _) -> label, newvar (Jkind.Primitive.value ~why:Tuple_element)) l
+    (fun (label, _) -> label, newvar (Jkind.Primitive.value_or_null ~why:Tuple_element)) l
   in
   let ty = newty (Ttuple labeled_tys) in
   begin try unify env ty ty_expected with Unify err ->
@@ -5917,6 +5917,18 @@ let check_apply_prim_type prim typ =
       end
   | _ -> false
 
+(* The explanation is suppressed if the location is ghost (e.g. the construct is
+   in ppx-generated code), unless the explanation originates from the
+   [@error_message] attribute, which a ppx may reasonably have inserted itself
+   to get a better error message.
+*)
+let should_show_explanation ~explanation ~loc =
+  if not loc.Location.loc_ghost then true
+  else
+    match explanation with
+    | Error_message_attr _ -> true
+    | _ -> false
+
 (* Merge explanation to type clash error *)
 
 let with_explanation explanation f =
@@ -5925,7 +5937,7 @@ let with_explanation explanation f =
   | Some explanation ->
       try f ()
       with Error (loc', env', Expr_type_clash(err', None, exp'))
-        when not loc'.Location.loc_ghost ->
+        when should_show_explanation ~loc:loc' ~explanation ->
         let err = Expr_type_clash(err', Some explanation, exp') in
         raise (Error (loc', env', err))
 
@@ -6313,7 +6325,7 @@ let pat_modes ~force_toplevel rec_mode_var (attrs, spat) =
   in
   attrs, pat_mode, exp_mode, spat
 
-let add_check_attribute expr attributes =
+let add_zero_alloc_attribute expr attributes =
   let open Builtin_attributes in
   let to_string : zero_alloc_attribute -> string = function
     | Check { strict; loc = _} ->
@@ -6334,55 +6346,20 @@ let add_check_attribute expr attributes =
     in
     begin match za with
     | Default_zero_alloc -> expr
-    | (Ignore_assert_all | Check _ | Assume _) as check ->
-      begin match fn.zero_alloc with
+    | Ignore_assert_all | Check _ | Assume _ ->
+      begin match Zero_alloc.get fn.zero_alloc with
       | Default_zero_alloc -> ()
       | Ignore_assert_all | Assume _ | Check _ ->
         Location.prerr_warning expr.exp_loc
-          (Warnings.Duplicated_attribute (to_string fn.zero_alloc));
+          (Warnings.Duplicated_attribute (to_string za));
       end;
-      let exp_desc = Texp_function { fn with zero_alloc = check } in
+      (* Here, we may be throwing away a zero_alloc variable. There's no need
+         to set it, because it can't have gotten anywhere else yet. *)
+      let zero_alloc = Zero_alloc.create_const za in
+      let exp_desc = Texp_function { fn with zero_alloc } in
       { expr with exp_desc }
     end
   | _ -> expr
-
-let zero_alloc_of_application ~num_args attrs funct =
-  let zero_alloc =
-    Builtin_attributes.get_zero_alloc_attribute ~in_signature:false
-      ~default_arity:num_args attrs
-  in
-  let zero_alloc =
-    match zero_alloc with
-    | Assume _ | Ignore_assert_all | Check _ ->
-      (* The user wrote a zero_alloc attribute on the application - keep it.
-         (Note that `ignore` and `check` aren't really allowed here, and will be
-         rejected by the call to `Builtin_attributes.assume_zero_alloc` below.)
-       *)
-      zero_alloc
-    | Default_zero_alloc ->
-      (* We assume the call is zero_alloc if the function is known to be
-         zero_alloc. If the function is zero_alloc opt, then we need to be sure
-         that the opt checks were run to license this assumption. We judge
-         whether the opt checks were run based on the argument to the
-         [-zero-alloc-check] command line flag. *)
-      let use_opt =
-        match !Clflags.zero_alloc_check with
-        | Check_default | No_check -> false
-        | Check_all | Check_opt_only -> true
-      in
-      match funct.exp_desc with
-      | Texp_ident (_, _, { val_zero_alloc = (Check c); _ }, _, _)
-        when c.arity = num_args && (use_opt || not c.opt) ->
-        Builtin_attributes.Assume {
-          strict = c.strict;
-          never_returns_normally = false;
-          never_raises = false;
-          arity = c.arity;
-          loc = c.loc
-        }
-      | _ -> Builtin_attributes.Default_zero_alloc
-  in
-  Builtin_attributes.assume_zero_alloc ~is_check_allowed:false zero_alloc
 
 let rec type_exp ?recarg env expected_mode sexp =
 ||||||| 121bedcfd2
@@ -6930,14 +6907,15 @@ and type_expect_
       let (args, ty_res, ap_mode, pm) =
         type_application env loc expected_mode pm funct funct_mode sargs rt
       in
-      let assume_zero_alloc =
-        zero_alloc_of_application ~num_args:(List.length args)
-          sfunct.pexp_attributes funct
+      let zero_alloc =
+        Builtin_attributes.get_zero_alloc_attribute ~in_signature:false
+          ~default_arity:(List.length args) sfunct.pexp_attributes
+        |> Builtin_attributes.zero_alloc_attribute_only_assume_allowed
       in
 
       rue {
         exp_desc = Texp_apply(funct, args, pm.apply_position, ap_mode,
-                              assume_zero_alloc);
+                              zero_alloc);
         exp_loc = loc; exp_extra = [];
         exp_type = ty_res;
         exp_attributes = sexp.pexp_attributes;
@@ -7047,7 +7025,7 @@ and type_expect_
         | None -> None
         | Some sarg ->
             let ty_expected =
-              newvar (Jkind.Primitive.value ~why:Polymorphic_variant_field)
+              newvar (Jkind.Primitive.value_or_null ~why:Polymorphic_variant_field)
             in
             let alloc_mode, argument_mode = register_allocation expected_mode in
             let arg =
@@ -7132,7 +7110,7 @@ and type_expect_
         if List.exists
             (fun (_, {lbl_repres; _}, _) ->
               match lbl_repres with
-              | Record_unboxed | Record_inlined (_, Variant_unboxed) -> false
+              | Record_unboxed | Record_inlined (_, _, Variant_unboxed) -> false
               | _ -> true)
             lbl_a_list then
           let alloc_mode, argument_mode = register_allocation expected_mode in
@@ -7961,7 +7939,7 @@ and type_expect_
         | [] -> spat_acc, ty_acc, ty_acc_sort
         | { pbop_pat = spat; _} :: rest ->
             (* CR layouts v5: eliminate value requirement *)
-            let ty = newvar (Jkind.Primitive.value ~why:Tuple_element) in
+            let ty = newvar (Jkind.Primitive.value_or_null ~why:Tuple_element) in
             let loc = Location.ghostify slet.pbop_op.loc in
             let spat_acc = Ast_helper.Pat.tuple ~loc [spat_acc; spat] in
             let ty_acc = newty (Ttuple [None, ty_acc; None, ty]) in
@@ -7980,7 +7958,7 @@ and type_expect_
               | [] ->
                 Jkind.of_new_sort_var ~why:Function_argument
               (* CR layouts v5: eliminate value requirement for tuple elements *)
-              | _ -> Jkind.Primitive.value ~why:Tuple_element, Jkind.Sort.value
+              | _ -> Jkind.Primitive.value_or_null ~why:Tuple_element, Jkind.Sort.value
             in
             loop slet.pbop_pat (newvar initial_jkind) initial_sort sands
           in
@@ -9636,7 +9614,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         let desc =
           { val_type = ty; val_kind = Val_reg;
             val_attributes = [];
-            val_zero_alloc = Builtin_attributes.Default_zero_alloc;
+            val_zero_alloc = Zero_alloc.default;
             val_modalities = Modality.Value.id;
             val_loc = Location.none;
             val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
@@ -9693,7 +9671,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
               |> Value.proj (Comonadic Areality)
               |> regional_to_global
               |> Locality.disallow_right,
-              Zero_alloc_utils.Assume_info.none)}
+              None)}
         in
         let cases = [ case eta_pat e ] in
         let cases_loc = { texp.exp_loc with loc_ghost = true } in
@@ -9714,7 +9692,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
               ret_sort;
               alloc_mode;
               region = false;
-              zero_alloc = Default_zero_alloc
+              zero_alloc = Zero_alloc.default
             }
         }
 ||||||| 121bedcfd2
@@ -9846,7 +9824,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
           let arg = type_option_none env (instance ty_arg) Location.none in
           (lbl, Arg (arg, Mode.Value.legacy, sort_arg))
       | Position _ ->
-          let arg = src_pos (Location.ghostify app_loc) [] env in
+          let arg = src_pos (Location.ghostify funct.exp_loc) [] env in
           (lbl, Arg (arg, Mode.Value.legacy, sort_arg))
       | Labelled _ | Nolabel -> assert false)
   | Omitted _ as arg -> (lbl, arg)
@@ -9952,7 +9930,7 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
   (* CR layouts v5: non-values in tuples *)
   let labeled_subtypes =
     List.map (fun (label, _) -> label,
-                                newgenvar (Jkind.Primitive.value ~why:Tuple_element))
+                                newgenvar (Jkind.Primitive.value_or_null ~why:Tuple_element))
     sexpl
   in
   let to_unify = newgenty (Ttuple labeled_subtypes) in
@@ -10967,7 +10945,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
       (fun (s, ((_,p,_), (e, _))) pvb ->
         (* We check for [zero_alloc] attributes written on the [let] and move
            them to the function. *)
-        let e = add_check_attribute e pvb.pvb_attributes in
+        let e = add_zero_alloc_attribute e pvb.pvb_attributes in
         (* vb_rec_kind will be computed later for recursive bindings *)
         {vb_pat=p; vb_expr=e; vb_sort = s; vb_attributes=pvb.pvb_attributes;
          vb_loc=pvb.pvb_loc; vb_rec_kind = Dynamic;
@@ -11221,7 +11199,7 @@ and type_generic_array
   in
   check_construct_mutability ~loc ~env mutability argument_mode;
   let argument_mode = mode_modality modalities argument_mode in
-  let jkind, elt_sort = Jkind.of_new_sort_var ~why:Array_element in
+  let jkind, elt_sort = Jkind.of_new_legacy_sort_var ~why:Array_element in
   let ty = newgenvar jkind in
   let to_unify = type_ ty in
   with_explanation explanation (fun () ->
@@ -11389,6 +11367,12 @@ and type_n_ary_function
     let zero_alloc =
       Builtin_attributes.get_zero_alloc_attribute ~in_signature:false
         ~default_arity:syntactic_arity attributes
+    in
+    let zero_alloc =
+      match zero_alloc with
+      | Default_zero_alloc -> Zero_alloc.create_var loc syntactic_arity
+      | (Check _ | Assume _ | Ignore_assert_all) ->
+        Zero_alloc.create_const zero_alloc
     in
     re
       { exp_desc =

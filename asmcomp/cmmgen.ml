@@ -1097,11 +1097,19 @@ and transl_prim_1 env p arg dbg =
       box_int dbg Pnativeint m (get_header (transl env arg) dbg)
   | Pperform ->
 <<<<<<< HEAD
+<<<<<<< HEAD
       Misc.fatal_error "Effects-related primitives not yet supported"
       (* CR mshinwell: use [Runtimetags] once available
+||||||| 2572783060
+      Misc.fatal_error "Effects-related primitives not yet supported"
+      (* CR mshinwell: use [Runtimetags] once available
+=======
+>>>>>>> ocaml-jst/flambda-patches
       let cont =
-        make_alloc dbg cont_tag [int_const dbg 0] ~mode:Lambda.alloc_heap
+        make_alloc dbg Runtimetags.cont_tag [int_const dbg 0]
+          ~mode:Lambda.alloc_heap
       in
+<<<<<<< HEAD
       (* CR mshinwell: Rc_normal may be wrong, but this code is unlikely
          to be in production by then *)
       Cop(Capply (typ_val, Rc_normal),
@@ -1114,9 +1122,17 @@ and transl_prim_1 env p arg dbg =
       in
       Cop(Capply typ_val,
 >>>>>>> 5.2.0
+||||||| 2572783060
+      (* CR mshinwell: Rc_normal may be wrong, but this code is unlikely
+         to be in production by then *)
+      Cop(Capply (typ_val, Rc_normal),
+=======
+      (* Rc_normal means "allow tailcalls".  Preventing them here by using
+         Rc_nontail improves backtraces of paused fibers. *)
+      Cop(Capply (typ_val, Rc_nontail),
+>>>>>>> ocaml-jst/flambda-patches
        [Cconst_symbol ("caml_perform", dbg); transl env arg; cont],
        dbg)
-      *)
   | Pdls_get ->
       Cop(Cdls_get, [transl env arg], dbg)
   | Patomic_load {immediate_or_pointer = Immediate} ->
@@ -1416,14 +1432,14 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   (* Effects *)
 <<<<<<< HEAD
   | Presume ->
-      Misc.fatal_error "Effects-related primitives not yet supported"
-      (*
-      (* CR mshinwell: Rc_normal may be wrong, but this code is unlikely
-         to be in production by then *)
+      (* Rc_normal is required here, because there are some usages of effects
+         with repeated resumes, and these should consume O(1) stack space by
+         tail-calling caml_resume. *)
       Cop (Capply (typ_val, Rc_normal),
            [Cconst_symbol ("caml_resume", dbg);
            transl env arg1; transl env arg2; transl env arg3],
            dbg)
+<<<<<<< HEAD
       *)
 ||||||| 121bedcfd2
   | Presume ->
@@ -1435,26 +1451,25 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
 =======
 
 >>>>>>> 5.2.0
+||||||| 2572783060
+      *)
+=======
+>>>>>>> ocaml-jst/flambda-patches
   | Prunstack ->
-      Misc.fatal_error "Effects-related primitives not yet supported"
-      (*
-      (* CR mshinwell: Rc_normal may be wrong, but this code is unlikely
-         to be in production by then *)
-      Cop (Capply (typ_val, Rc_normal),
+      (* Rc_normal is fine here but unlikely to ever be a tail call (usages
+         of this primitive shouldn't be generated in tail position), so
+         we use Rc_nontail for clarity. *)
+      Cop (Capply (typ_val, Rc_nontail),
            [Cconst_symbol ("caml_runstack", dbg);
            transl env arg1; transl env arg2; transl env arg3],
            dbg)
-      *)
   | Preperform ->
-      Misc.fatal_error "Effects-related primitives not yet supported"
-      (*
-      (* CR mshinwell: Rc_normal may be wrong, but this code is unlikely
-         to be in production by then *)
+      (* Rc_normal is required here, this is used in tail position and should
+         tail call. *)
       Cop (Capply (typ_val, Rc_normal),
            [Cconst_symbol ("caml_reperform", dbg);
            transl env arg1; transl env arg2; transl env arg3],
            dbg)
-      *)
 
   | Pperform | Pdls_get | Presume
   | Patomic_exchange | Patomic_fetch_add | Patomic_load _

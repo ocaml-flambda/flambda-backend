@@ -532,6 +532,10 @@ type type_declaration =
     type_unboxed_default: bool;
     (* true if the unboxed-ness of this type was chosen by a compiler flag *)
     type_uid: Uid.t;
+    type_has_illegal_crossings: bool;
+    (* true iff the type definition has illegal crossings of the portability and
+       contention axes *)
+    (* CR layouts v2.8: remove type_has_illegal_crossings *)
   }
 
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
@@ -598,9 +602,10 @@ and type_origin =
 >>>>>>> 5.2.0
 and record_representation =
   | Record_unboxed
-  | Record_inlined of tag * variant_representation
+  | Record_inlined of tag * constructor_representation * variant_representation
   (* For an inlined record, we record the representation of the variant that
-     contains it and the tag of the relevant constructor of that variant. *)
+     contains it and the tag/representation of the relevant constructor of that
+     variant. *)
   | Record_boxed of jkind array
   | Record_float (* All fields are floats *)
   | Record_ufloat
@@ -618,9 +623,11 @@ and variant_representation =
   (* The outer array has an element for each constructor. Each inner array
      has a jkind for each argument of the corresponding constructor.
 
-     A constructor with a boxed inlined record constructor has a length-1 inner
-     array. Its single element is the jkind of the record itself. (It doesn't
-     have a jkind for each field.)
+     A constructor with an inlined record argument has a length-1 inner array.
+     Its single element is the jkind of the record itself. (It doesn't have a
+     jkind for each field.) However, the constructor representation is about the
+     fields of the record, not the record itself; that is, it will be
+     [Constructor_mixed] if the inlined record has any unboxed fields.
   *)
   | Variant_extensible
 
@@ -761,7 +768,7 @@ module type Wrapped = sig
       val_modalities: Mode.Modality.Value.t;      (* Modalities on the value *)
       val_kind: value_kind;
       val_loc: Location.t;
-      val_zero_alloc: Builtin_attributes.zero_alloc_attribute;
+      val_zero_alloc: Zero_alloc.t;
       val_attributes: Parsetree.attributes;
       val_uid: Uid.t;
     }

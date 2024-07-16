@@ -127,17 +127,21 @@ let join_result summary result =
   let open Result in
   match result.status, summary with
   | Fail, _
-  | _, Some_failure -> Some_failure
-  | Skip, All_skipped -> All_skipped
-  | _ -> No_failure
+  | (Pass | Skip | Predicate _), Some_failure -> Some_failure
+  | (Skip | Predicate false), All_skipped -> All_skipped
+  | Pass, All_skipped -> No_failure
+  | Predicate true, All_skipped -> No_failure
+  | (Pass | Skip | Predicate _), No_failure -> No_failure
 
 let join_summaries sa sb =
   match sa, sb with
-  | Some_failure, _
-  | _, Some_failure -> Some_failure
+  | Some_failure, (No_failure | Some_failure | All_skipped)
+  | (No_failure | All_skipped), Some_failure -> Some_failure
   | All_skipped, All_skipped -> All_skipped
-  | _ -> No_failure
+  | No_failure, (No_failure | All_skipped)
+  | All_skipped, No_failure -> No_failure
 
+<<<<<<< HEAD
 let rec run_test_tree log common_prefix behavior env summ ast =
   match ast with
   | Ast (Environment_statement s :: stmts, subs) ->
@@ -179,6 +183,65 @@ let rec run_test_tree log common_prefix behavior env summ ast =
   | Ast ([], subs) ->
     List.fold_left join_summaries summ
       (List.map (run_test_tree log common_prefix behavior env All_skipped) subs)
+||||||| 2572783060
+let rec run_test log common_prefix path behavior = function
+  Node (testenvspec, test, env_modifiers, subtrees) ->
+  Printf.printf "%s %s (%s) %!" common_prefix path test.Tests.test_name;
+  let (msg, children_behavior, result) = match behavior with
+    | Skip_all_tests -> "=> n/a", Skip_all_tests, Result.skip
+    | Run env ->
+      let testenv0 = interpret_environment_statements env testenvspec in
+      let testenv = List.fold_left apply_modifiers testenv0 env_modifiers in
+      let (result, newenv) = Tests.run log testenv test in
+      let msg = Result.string_of_result result in
+      let children_behavior =
+        if Result.is_pass result then Run newenv else Skip_all_tests in
+      (msg, children_behavior, result) in
+  Printf.printf "%s\n%!" msg;
+  join_result
+    (run_test_trees log common_prefix path children_behavior subtrees) result
+
+and run_test_trees log common_prefix path behavior trees =
+  List.fold_left join_summaries All_skipped
+    (List.mapi (run_test_i log common_prefix path behavior) trees)
+
+and run_test_i log common_prefix path behavior i test_tree =
+  let path_prefix = if path="" then "" else path ^ "." in
+  let new_path = Printf.sprintf "%s%d" path_prefix (i+1) in
+  run_test log common_prefix new_path behavior test_tree
+=======
+let rec run_test log common_prefix path behavior = function
+  Node (testenvspec, test, env_modifiers, subtrees) ->
+  let skip_all =
+    match behavior with
+    | Skip_all_tests -> true
+    | Run _ -> false
+  in
+  if not skip_all then
+    Printf.printf "%s %s (%s) %!" common_prefix path test.Tests.test_name;
+  let (msg, children_behavior, result) = match behavior with
+    | Skip_all_tests -> "", Skip_all_tests, Result.skip
+    | Run env ->
+      let testenv0 = interpret_environment_statements env testenvspec in
+      let testenv = List.fold_left apply_modifiers testenv0 env_modifiers in
+      let (result, newenv) = Tests.run log testenv test in
+      let msg = Result.string_of_result result in
+      let children_behavior =
+        if Result.is_pass result then Run newenv else Skip_all_tests in
+      (msg, children_behavior, result) in
+  if not skip_all then Printf.printf "%s\n%!" msg;
+  join_result
+    (run_test_trees log common_prefix path children_behavior subtrees) result
+
+and run_test_trees log common_prefix path behavior trees =
+  List.fold_left join_summaries All_skipped
+    (List.mapi (run_test_i log common_prefix path behavior) trees)
+
+and run_test_i log common_prefix path behavior i test_tree =
+  let path_prefix = if path="" then "" else path ^ "." in
+  let new_path = Printf.sprintf "%s%d" path_prefix (i+1) in
+  run_test log common_prefix new_path behavior test_tree
+>>>>>>> ocaml-jst/flambda-patches
 
 let get_test_source_directory test_dirname =
   if (Filename.is_relative test_dirname) then

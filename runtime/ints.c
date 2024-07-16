@@ -855,3 +855,24 @@ CAMLprim value caml_nativeint_of_string(value s)
 {
   return caml_copy_nativeint(caml_nativeint_of_string_unboxed(s));
 }
+
+CAMLprim value caml_reinterpret_tagged_int63_as_unboxed_int64(value i)
+{
+  // This should only be called on 64-bit targets.
+  // This stub is only used for bytecode, so in fact the "unboxed_int64"
+  // is to be boxed.
+  CAMLassert(sizeof(value) == 8);
+  CAMLassert(Is_long(i));
+  return caml_copy_int64((int64_t) i);
+}
+
+CAMLprim value caml_reinterpret_unboxed_int64_as_tagged_int63(value i)
+{
+  // This should only be called on 64-bit targets.
+  // This stub is only used for bytecode, so in fact the "unboxed_int64"
+  // is boxed.
+  CAMLassert(sizeof(value) == 8);
+  CAMLassert(Is_block(i));
+  CAMLassert(Tag_val(i) == Custom_tag);
+  return (value) (Int64_val(i) | 1L);
+}

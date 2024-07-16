@@ -4,8 +4,20 @@
    runtime4;
    skip;
  }{
+   reason="this runtime_events test is currently broken, to be fixed later";
+   skip;
+ }
+*)
+
+(* Header to start from when this test gets fixed:
+ {
+   runtime4;
+   skip;
+ }{
    include runtime_events;
    runtime5;
+   { bytecode; }
+   { native; }
  }
 ||||||| 121bedcfd2
 include runtime_events
@@ -13,6 +25,7 @@ include runtime_events
  include runtime_events;
 >>>>>>> 5.2.0
 *)
+<<<<<<< HEAD
 
 (* Tests that:
  * - the runtime events subsystem works, logging events and passing
@@ -21,6 +34,10 @@ include runtime_events
  * - major and minor collections happen at expected frequencies.
  *)
 
+||||||| 2572783060
+=======
+
+>>>>>>> ocaml-jst/flambda-patches
 open Runtime_events
 
 (* Record whether we have seen an EV_RING_START lifecycle event. *)

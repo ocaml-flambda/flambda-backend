@@ -43,7 +43,7 @@ Line 3, characters 4-14:
 3 |     b : float;
         ^^^^^^^^^^
 Error: Expected all flat fields after non-value field, a,
-        but found boxed field, b.
+       but found boxed field, b.
 |}];;
 
 (* [float] appearing as a non-flat field in the value prefix. *)
@@ -70,7 +70,7 @@ Line 4, characters 4-14:
 4 |     c : float;
         ^^^^^^^^^^
 Error: Expected all flat fields after non-value field, b,
-        but found boxed field, c.
+       but found boxed field, c.
 |}];;
 
 (* String can't appear in the flat suffix *)
@@ -84,7 +84,7 @@ Line 3, characters 4-15:
 3 |     b : string;
         ^^^^^^^^^^^
 Error: Expected all flat fields after non-value field, a,
-        but found boxed field, b.
+       but found boxed field, b.
 |}];;
 
 (* [f3] can be flat because all other fields are float/float#,
@@ -112,7 +112,7 @@ Line 4, characters 4-16:
 4 |     f3 : string;
         ^^^^^^^^^^^^
 Error: Expected all flat fields after non-value field, f1,
-        but found boxed field, f3.
+       but found boxed field, f3.
 |}];;
 
 (* The int [c] can appear in the flat suffix. *)
@@ -206,10 +206,11 @@ Error: Layout mismatch in final type declaration consistency check.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         The layout of 'a is float64, because
-           of the definition of t_float64_id at line 1, characters 0-37.
-         But the layout of 'a must overlap with value, because
-           it instantiates an unannotated type parameter of t, defaulted to layout value.
+         The layout of 'a is float64
+           because of the definition of t_float64_id at line 1, characters 0-37.
+         But the layout of 'a must overlap with value
+           because it instantiates an unannotated type parameter of t,
+           defaulted to layout value.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}];;

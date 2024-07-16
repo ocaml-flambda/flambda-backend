@@ -1029,9 +1029,54 @@ CAMLexport int caml_c_thread_register(void)
   /* Set a thread info block */
   caml_thread_t th = thread_alloc_and_add();
   /* If it fails, we release the lock and return an error. */
+<<<<<<< HEAD
   if (th == NULL) goto out_err;
   thread_init_current(th);
   /* We can now allocate the thread descriptor on the major heap */
+||||||| 2572783060
+  if (th == NULL) {
+    thread_lock_release(Dom_c_threads);
+    return 0;
+  }
+  /* Add thread info block to the list of threads */
+  if (Active_thread == NULL) {
+    th->next = th;
+    th->prev = th;
+    Active_thread = th;
+  } else {
+    th->next = Active_thread->next;
+    th->prev = Active_thread;
+    Active_thread->next->prev = th;
+    Active_thread->next = th;
+  }
+  /* Associate the thread descriptor with the thread */
+  st_tls_set(caml_thread_key, (void *) th);
+  /* Allocate the thread descriptor on the heap */
+=======
+  if (th == NULL) {
+    thread_lock_release(Dom_c_threads);
+    return 0;
+  }
+  /* Add thread info block to the list of threads */
+  if (Active_thread == NULL) {
+    th->next = th;
+    th->prev = th;
+    Active_thread = th;
+  } else {
+    th->next = Active_thread->next;
+    th->prev = Active_thread;
+    Active_thread->next->prev = th;
+    Active_thread->next = th;
+  }
+  /* Associate the thread descriptor with the thread */
+  st_tls_set(caml_thread_key, (void *) th);
+
+  /* Prepare Caml_state for allocation etc., so its various members correspond
+     to those for the newly-registered thread */
+  restore_runtime_state(th);
+
+  /* Allocate the thread descriptor on the heap */
+>>>>>>> ocaml-jst/flambda-patches
   th->descr = caml_thread_new_descriptor(Val_unit);  /* no closure */
 
 <<<<<<< HEAD
@@ -1039,6 +1084,9 @@ CAMLexport int caml_c_thread_register(void)
     st_retcode err = start_tick_thread();
     sync_check_error(err, "caml_register_c_thread");
   }
+
+  /* Save any modifications to Caml_state back to the thread descriptor */
+  save_runtime_state();
 
   /* Release the master lock */
   thread_lock_release(Dom_c_threads);

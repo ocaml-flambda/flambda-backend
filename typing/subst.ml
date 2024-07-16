@@ -507,8 +507,9 @@ let variant_representation ~prepare_jkind loc = function
 (* called only when additional_action is [Prepare_for_saving] *)
 let record_representation ~prepare_jkind loc = function
   | Record_unboxed -> Record_unboxed
-  | Record_inlined (tag, variant_rep) ->
+  | Record_inlined (tag, constructor_rep, variant_rep) ->
     Record_inlined (constructor_tag ~prepare_jkind loc tag,
+                    constructor_rep,
                     variant_representation ~prepare_jkind loc variant_rep)
   | Record_boxed lays ->
       Record_boxed (Array.map (prepare_jkind loc) lays)
@@ -563,6 +564,7 @@ let type_declaration' copy_scope s decl =
     type_attributes = attrs s decl.type_attributes;
     type_unboxed_default = decl.type_unboxed_default;
     type_uid = decl.type_uid;
+    type_has_illegal_crossings = decl.type_has_illegal_crossings;
   }
 
 let type_declaration s decl =
@@ -807,7 +809,17 @@ let rec subst_lazy_value_description s descr =
     val_modalities = descr.val_modalities;
     val_kind = descr.val_kind;
     val_loc = loc s descr.val_loc;
-    val_zero_alloc = descr.val_zero_alloc;
+    val_zero_alloc =
+      (* When saving a cmi file, we replace zero_alloc variables with constants.
+         This is necessary because users of the library can't change the
+         zero_alloc check that was done on functions in it, and safe because all
+         type inference is done by the time we write the cmi file (and anyway
+         additional inference steps could only cause the funtion to get checked
+         more strictly than the signature indicates, which is sound). *)
+     (match s.additional_action with
+      | Prepare_for_saving _ ->
+        Zero_alloc.create_const (Zero_alloc.get descr.val_zero_alloc)
+      | _ -> descr.val_zero_alloc);
     val_attributes = attrs s descr.val_attributes;
     val_uid = descr.val_uid;
   }

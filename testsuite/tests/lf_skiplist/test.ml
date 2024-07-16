@@ -2,11 +2,17 @@
 <<<<<<< HEAD
  modules = "stubs.c";
  runtime5;
+<<<<<<< HEAD
 ||||||| 121bedcfd2
    modules = "stubs.c"
 =======
  modules = "stubs.c";
 >>>>>>> 5.2.0
+||||||| 2572783060
+=======
+ { bytecode; }
+ { native; }
+>>>>>>> ocaml-jst/flambda-patches
 *)
 
 external test_skiplist_serial : unit -> unit = "test_skiplist_serial"

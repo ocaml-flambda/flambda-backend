@@ -144,7 +144,9 @@ COMPILERLIBS_SOURCES=\
   typing/shape.ml \
   typing/jkind_types.ml \
   typing/primitive.ml \
+  typing/zero_alloc.ml \
   typing/types.ml \
+  typing/oprint.ml \
   typing/jkind.ml \
   typing/typedtree.ml \
   typing/btype.ml \

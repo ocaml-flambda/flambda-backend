@@ -112,18 +112,15 @@ type out_ret_mode =
   (** The ret type is arrow, and need to print parens around the arrow, with
       modes annotating. *)
 
-(** Represents a user-written jkind annotation *)
-type out_jkind_user =
-  | Ojkind_user_default
-  | Ojkind_user_abbreviation of string
-  | Ojkind_user_mod of out_jkind_user * string list
-  | Ojkind_user_with of out_jkind_user * out_type
-  | Ojkind_user_kind_of of out_type
-
-and out_jkind_const = { base : string; modal_bounds : string list }
+(** Represents a constant jkind *)
+type out_jkind_const =
+  | Ojkind_const_default
+  | Ojkind_const_abbreviation of string
+  | Ojkind_const_mod of out_jkind_const * string list
+  | Ojkind_const_with of out_jkind_const * out_type
+  | Ojkind_const_kind_of of out_type
 
 and out_jkind =
-  | Ojkind_user of out_jkind_user
   | Ojkind_const of out_jkind_const
   | Ojkind_var of string
 

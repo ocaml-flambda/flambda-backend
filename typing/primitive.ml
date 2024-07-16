@@ -699,17 +699,32 @@ let prim_has_valid_reprs ~loc prim =
     | "%unbox_int64" ->
       exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Bits64]
 
+    | "%reinterpret_tagged_int63_as_unboxed_int64" ->
+      exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Bits64]
+    | "%reinterpret_unboxed_int64_as_tagged_int63" ->
+      exactly [Same_as_ocaml_repr Bits64; Same_as_ocaml_repr Value]
+
     (* Bigstring primitives *)
     | "%caml_bigstring_get32#" ->
       exactly [
         Same_as_ocaml_repr Value;
         Same_as_ocaml_repr Value;
         Same_as_ocaml_repr Bits32]
+    | "%caml_bigstring_getf32#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Float32]
     | "%caml_bigstring_get32u#" ->
       exactly [
         Same_as_ocaml_repr Value;
         Same_as_ocaml_repr Value;
         Same_as_ocaml_repr Bits32]
+    | "%caml_bigstring_getf32u#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Float32]
     | "%caml_bigstring_get64#" ->
       exactly [
         Same_as_ocaml_repr Value;
@@ -733,11 +748,23 @@ let prim_has_valid_reprs ~loc prim =
         Same_as_ocaml_repr Value;
         Same_as_ocaml_repr Bits32;
         Same_as_ocaml_repr Value]
+    | "%caml_bigstring_setf32#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Float32;
+        Same_as_ocaml_repr Value]
     | "%caml_bigstring_set32u#" ->
       exactly [
         Same_as_ocaml_repr Value;
         Same_as_ocaml_repr Value;
         Same_as_ocaml_repr Bits32;
+        Same_as_ocaml_repr Value]
+    | "%caml_bigstring_setf32u#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Float32;
         Same_as_ocaml_repr Value]
     | "%caml_bigstring_set64#" ->
       exactly [

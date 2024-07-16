@@ -518,6 +518,7 @@ val save_signature_with_imports:
            file name, imported units with their CRCs. *)
 
 (* Register a module as a parameter to this unit. *)
+<<<<<<< HEAD
 val register_parameter_import: Compilation_unit.Name.t -> unit
 ||||||| 121bedcfd2
   alerts:alerts -> signature -> modname -> filepath -> crcs
@@ -530,6 +531,11 @@ val register_parameter_import: Compilation_unit.Name.t -> unit
         (* Arguments: signature, module name, file name,
            imported units with their CRCs. *)
 >>>>>>> 5.2.0
+||||||| 2572783060
+val register_parameter_import: Compilation_unit.Name.t -> unit
+=======
+val register_parameter: Compilation_unit.Name.t -> unit
+>>>>>>> ocaml-jst/flambda-patches
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: Compilation_unit.Name.t -> Digest.t
@@ -539,6 +545,14 @@ val imports: unit -> Import_info.t list
 
 (* may raise Persistent_env.Consistbl.Inconsistency *)
 val import_crcs: source:string -> Import_info.t array -> unit
+
+(* Return the set of imports represented as runtime parameters (see
+   [Persistent_env.runtime_parameters] for details) *)
+val runtime_parameters: unit -> (Compilation_unit.Name.t * Ident.t) list
+
+(* Return the list of parameters specified for the current unit, in
+   alphabetical order *)
+val parameters: unit -> Compilation_unit.Name.t list
 
 (* [is_imported_opaque md] returns true if [md] is an opaque imported module *)
 val is_imported_opaque: Compilation_unit.Name.t -> bool

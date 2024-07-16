@@ -1,10 +1,4 @@
-(* TEST
- {
-   flambda;
- }{
-   native;
- }
-*)
+(* TEST *)
 
 let do_something () =
   Printf.printf "Hello world\n%!"; Ok ()

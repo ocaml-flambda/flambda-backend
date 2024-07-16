@@ -280,7 +280,7 @@ and expression_desc =
         ret_sort : Jkind.sort;
         alloc_mode : Mode.Alloc.r;
         (* Mode at which the closure is allocated *)
-        zero_alloc : Builtin_attributes.zero_alloc_attribute
+        zero_alloc : Zero_alloc.t;
         (* zero-alloc attributes *)
       }
       (** fun P0 P1 -> function p1 -> e1 | p2 -> e2  (body = Tfunction_cases _)
@@ -294,6 +294,7 @@ and expression_desc =
       *)
   | Texp_apply of
       expression * (arg_label * apply_arg) list * apply_position *
+<<<<<<< HEAD
         Mode.Locality.l * Zero_alloc_utils.Assume_info.t
 ||||||| 121bedcfd2
   | Texp_function of { arg_label : arg_label; param : Ident.t;
@@ -323,6 +324,11 @@ and expression_desc =
     *)
   | Texp_apply of expression * (arg_label * expression option) list
 >>>>>>> 5.2.0
+||||||| 2572783060
+        Mode.Locality.l * Zero_alloc_utils.Assume_info.t
+=======
+        Mode.Locality.l * Zero_alloc.assume option
+>>>>>>> ocaml-jst/flambda-patches
         (** E0 ~l1:E1 ... ~ln:En
 
             The expression can be Omitted if the expression is abstracted over
@@ -338,10 +344,8 @@ and expression_desc =
                          (Labelled "y", Some (Texp_constant Const_int 3))
                         ])
 
-            The [Zero_alloc_utils.Assume_info.t] records the optional
-            [@zero_alloc assume] attribute that may appear on applications.  If
-            that attribute is absent, it is [Assume_info.none].
-          *)
+            The [Zero_alloc.assume option] records the optional [@zero_alloc
+            assume] attribute that may appear on applications. *)
   | Texp_match of expression * Jkind.sort * computation case list * partial
         (** match E0 with
             | P1 -> E1
@@ -1278,6 +1282,7 @@ val let_bound_idents_full:
 val let_bound_idents_with_modes_sorts_and_checks:
   value_binding list
   -> (Ident.t * (Location.t * Mode.Value.l * Jkind.sort) list
+<<<<<<< HEAD
               * Builtin_attributes.zero_alloc_attribute) list
 ||||||| 121bedcfd2
     value_binding list -> (Ident.t * string loc * Types.type_expr) list
@@ -1285,6 +1290,11 @@ val let_bound_idents_with_modes_sorts_and_checks:
     value_binding list ->
     (Ident.t * string loc * Types.type_expr * Types.Uid.t) list
 >>>>>>> 5.2.0
+||||||| 2572783060
+              * Builtin_attributes.zero_alloc_attribute) list
+=======
+              * Zero_alloc.t) list
+>>>>>>> ocaml-jst/flambda-patches
 
 (** Alpha conversion of patterns *)
 val alpha_pat:

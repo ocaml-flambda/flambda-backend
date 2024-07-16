@@ -239,6 +239,7 @@ let mk_add_type add_type type_ident ?manifest
      type_attributes = [];
      type_unboxed_default = false;
      type_uid = Uid.of_predef_id type_ident;
+     type_has_illegal_crossings = false;
     }
   in
   add_type type_ident decl env
@@ -285,6 +286,7 @@ let build_initial_env add_type add_extension empty_env =
        type_attributes = [];
        type_unboxed_default = false;
        type_uid = Uid.of_predef_id type_ident;
+       type_has_illegal_crossings = false;
       }
     in
     add_type type_ident decl env
@@ -340,7 +342,7 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type1 ident_array
        ~variance:Variance.full
        ~separability:Separability.Ind
-       ~param_jkind:(Jkind.Primitive.any ~why:Array_type_argument)
+       ~param_jkind:(Jkind.Primitive.any_non_null ~why:Array_type_argument)
   |> add_type1 ident_iarray
        ~variance:Variance.covariant
        ~separability:Separability.Ind
