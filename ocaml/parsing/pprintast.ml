@@ -289,6 +289,7 @@ let tyvar ppf s =
 let tyvar_loc f str = tyvar f str.txt
 let string_quot f x = pp f "`%s" x
 
+(* legacy modes and modalities *)
 let legacy_mode f m =
   let Mode txt = m.txt in
   let s =
@@ -310,10 +311,6 @@ let optional_legacy_modes f m =
     legacy_modes f m;
     pp_print_space f ()
 
-let space_modality f {txt = Modality m; _} =
-  pp_print_string f " ";
-  pp_print_string f m
-
 let legacy_modality f m =
   let {txt; _} = (m : modality Location.loc) in
   let s =
@@ -333,13 +330,7 @@ let optional_legacy_modalities f m =
     legacy_modalities f m;
     pp_print_space f ()
 
-let maybe_atat_modalities f m =
-  match m with
-  | [] -> ()
-  | _ :: _ ->
-    pp_print_string f " @@";
-    pp_print_list space_modality f m
-
+(* new mode and modality syntax *)
 let mode f m =
   let {txt = Mode txt; _} = m in
   pp_print_string f txt
@@ -357,6 +348,22 @@ let optional_atat_modes f m =
   | [] -> ()
   | m -> pp f " %@%@ %a" modes m
 
+let maybe_type_atat_modes pty ctxt f (c, m) =
+  pp f "%a%a" (pty ctxt) c optional_atat_modes m
+
+let modality f m =
+  let {txt = Modality txt; _} = m in
+  pp_print_string f txt
+
+let modalities f m =
+  pp_print_list ~pp_sep:(fun f () -> pp f " ") modality f m
+
+let optional_atat_modalities f m =
+  match m with
+  | [] -> ()
+  | m -> pp f " %@%@ %a" modalities m
+
+(* helpers for printing both legacy/new mode syntax *)
 let split_out_legacy_modes =
   List.partition (fun m ->
     let Mode txt = m.txt in
@@ -369,14 +376,21 @@ let maybe_legacy_modes_type_at_modes pty ctxt f (c, m) =
   let legacy, m = split_out_legacy_modes m in
   pp f "%a%a%a" optional_legacy_modes legacy (pty ctxt) c optional_at_modes m
 
-let maybe_type_atat_modes pty ctxt f (c, m) =
-  pp f "%a%a" (pty ctxt) c optional_atat_modes m
+
+let split_out_legacy_modalities =
+  List.partition (fun m ->
+    let Modality txt = m.txt in
+    match txt with
+    | "global" -> true
+    | _ -> false
+  )
 
 let modalities_type pty ctxt f pca =
-  match pca.pca_modalities with
-  | [] -> pty ctxt f pca.pca_type
-  | m ->
-    pp f "%a %a" legacy_modalities m (pty ctxt) pca.pca_type
+  let legacy, m = split_out_legacy_modalities pca.pca_modalities in
+  pp f "%a%a%a"
+    optional_legacy_modalities legacy
+    (pty ctxt) pca.pca_type
+    optional_atat_modalities m
 
 (* c ['a,'b] *)
 let rec class_params_def ctxt f =  function
@@ -1154,7 +1168,7 @@ and value_description ctxt f x =
   (* note: value_description has an attribute field,
            but they're already printed by the callers this method *)
   pp f "@[<hov2>%a%a%a@]" (core_type ctxt) x.pval_type
-    maybe_atat_modalities x.pval_modalities
+    optional_atat_modalities x.pval_modalities
     (fun f x ->
        if x.pval_prim <> []
        then pp f "@ =@ %a" (list constant_string) x.pval_prim
@@ -1949,11 +1963,13 @@ and type_def_list ctxt f (rf, exported, l) =
 
 and record_declaration ctxt f lbls =
   let type_record_field f pld =
-    pp f "@[<2>%a%a%s:@;%a@;%a@]"
+    let legacy, m = split_out_legacy_modalities pld.pld_modalities in
+    pp f "@[<2>%a%a%s:@;%a%a@;%a@]"
       mutable_flag pld.pld_mutable
-      optional_legacy_modalities pld.pld_modalities
+      optional_legacy_modalities legacy
       pld.pld_name.txt
       (core_type ctxt) pld.pld_type
+      optional_atat_modalities m
       (attributes ctxt) pld.pld_attributes
   in
   pp f "{@\n%a}"

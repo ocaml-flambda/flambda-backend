@@ -1,16 +1,20 @@
 ##### All extensions enabled
 --------------------------------
 
-modality_record: struct type t = {
-                          global_ x: string ;
-                          global_ y: int } end
+modality_record:
+  struct
+    type t =
+      {
+      global_ x: string @@ shared portable ;
+      global_ y: int @@ portable }
+  end
 
 modality_cstrarg:
   struct
     type t =
-      | Foo of global_ string * global_ string 
+      | Foo of global_ string @@ portable * global_ string @@ shared 
     type u =
-      | Foo: global_ string * global_ string -> u 
+      | Foo: global_ string @@ shared portable * global_ string -> u 
   end
 
 modality_val: sig val t : string -> local_ string @@ foo bar end
@@ -107,16 +111,20 @@ mode: global
 ##### Extensions disallowed
 --------------------------------
 
-modality_record: struct type t = {
-                          global_ x: string ;
-                          global_ y: int } end
+modality_record:
+  struct
+    type t =
+      {
+      global_ x: string @@ shared portable ;
+      global_ y: int @@ portable }
+  end
 
 modality_cstrarg:
   struct
     type t =
-      | Foo of global_ string * global_ string 
+      | Foo of global_ string @@ portable * global_ string @@ shared 
     type u =
-      | Foo: global_ string * global_ string -> u 
+      | Foo: global_ string @@ shared portable * global_ string -> u 
   end
 
 modality_val: sig val t : string -> local_ string @@ foo bar end
