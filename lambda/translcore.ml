@@ -119,7 +119,6 @@ let extract_float = function
     Const_base(Const_float f) -> f
   | _ -> fatal_error "Translcore.extract_float"
 
-<<<<<<< HEAD
 let transl_apply_position position =
   match position with
   | Default -> Rc_normal
@@ -222,77 +221,6 @@ let curried_function_kind
     loop params ~return_mode ~alloc_mode ~running_count:0
       ~found_local_already:false
 
-||||||| 121bedcfd2
-(* Push the default values under the functional abstractions *)
-
-let wrap_bindings bindings exp =
-  List.fold_left
-    (fun exp binds ->
-      {exp with exp_desc = Texp_let(Nonrecursive, binds, exp)})
-    exp bindings
-
-let rec trivial_pat pat =
-  match pat.pat_desc with
-    Tpat_var _
-  | Tpat_any -> true
-  | Tpat_alias (p, _, _) ->
-      trivial_pat p
-  | Tpat_construct (_, cd, [], _) ->
-      not cd.cstr_generalized && cd.cstr_consts = 1 && cd.cstr_nonconsts = 0
-  | Tpat_tuple patl ->
-      List.for_all trivial_pat patl
-  | _ -> false
-
-let rec push_defaults loc bindings use_lhs cases partial =
-  match cases with
-    [{c_lhs=pat; c_guard=None;
-      c_rhs={exp_desc = Texp_function { arg_label; param; cases; partial; } }
-        as exp}] when bindings = [] || trivial_pat pat ->
-      let cases = push_defaults exp.exp_loc bindings false cases partial in
-      [{c_lhs=pat; c_guard=None;
-        c_rhs={exp with exp_desc = Texp_function { arg_label; param; cases;
-          partial; }}}]
-  | [{c_lhs=pat; c_guard=None;
-      c_rhs={exp_attributes=[{Parsetree.attr_name = {txt="#default"};_}];
-             exp_desc = Texp_let
-               (Nonrecursive, binds,
-                ({exp_desc = Texp_function _} as e2))}}] ->
-      push_defaults loc (binds :: bindings) true
-                   [{c_lhs=pat;c_guard=None;c_rhs=e2}]
-                   partial
-  | [{c_lhs=pat; c_guard=None; c_rhs=exp} as case]
-    when use_lhs || trivial_pat pat && exp.exp_desc <> Texp_unreachable ->
-      [{case with c_rhs = wrap_bindings bindings exp}]
-  | {c_lhs=pat; c_rhs=exp; c_guard=_} :: _ when bindings <> [] ->
-      let param = Typecore.name_cases "param" cases in
-      let desc =
-        {val_type = pat.pat_type; val_kind = Val_reg;
-         val_attributes = []; Types.val_loc = Location.none;
-         val_uid = Types.Uid.internal_not_actually_unique; }
-      in
-      let env = Env.add_value param desc exp.exp_env in
-      let name = Ident.name param in
-      let exp =
-        let cases =
-          let pure_case ({c_lhs; _} as case) =
-            {case with c_lhs = as_computation_pattern c_lhs} in
-          List.map pure_case cases in
-        { exp with exp_loc = loc; exp_env = env; exp_desc =
-          Texp_match
-            ({exp with exp_type = pat.pat_type; exp_env = env; exp_desc =
-              Texp_ident
-                (Path.Pident param, mknoloc (Longident.Lident name), desc)},
-             cases, partial) }
-      in
-      [{c_lhs = {pat with pat_desc = Tpat_var (param, mknoloc name)};
-        c_guard = None; c_rhs= wrap_bindings bindings exp}]
-  | _ ->
-      cases
-
-let push_defaults loc = push_defaults loc [] false
-
-=======
->>>>>>> 5.2.0
 (* Insertion of debugging events *)
 
 let event_before ~scopes exp lam =
@@ -332,7 +260,6 @@ let assert_failed loc ~scopes exp =
                Const_base(Const_int line);
                Const_base(Const_int char)]))], loc))], loc)
 
-<<<<<<< HEAD
 type fusable_function =
   { params : function_param list
   ; body : function_body
@@ -385,60 +312,13 @@ let fuse_method_arity (parent : fusable_function) : fusable_function =
         region = method_.region;
       }
   | _ -> parent
-||||||| 121bedcfd2
-let rec cut n l =
-  if n = 0 then ([],l) else
-  match l with [] -> failwith "Translcore.cut"
-  | a::l -> let (l1,l2) = cut (n-1) l in (a::l1,l2)
-=======
-(* In cases where we're careful to preserve syntactic arity, we disable
-   the arity fusion attempted by simplif.ml *)
-let function_attribute_disallowing_arity_fusion =
-  { default_function_attribute with may_fuse_arity = false }
-
-let rec cut n l =
-  if n = 0 then ([],l) else
-  match l with [] -> failwith "Translcore.cut"
-  | a::l -> let (l1,l2) = cut (n-1) l in (a::l1,l2)
->>>>>>> 5.2.0
-
-(* [fuse_method_arity] is what ensures that a n-ary method is compiled as a
-   (n+1)-ary function, where the first parameter is self. It fuses together the
-   self and method parameters.
-
-   Input:  fun self -> fun method_param_1 ... method_param_n -> body
-   Output: fun self method_param_1 ... method_param_n -> body
-
-   It detects whether the AST is a method by the presence of [Texp_poly] on the
-   inner function. This is only ever added to methods.
-*)
-let fuse_method_arity parent_params parent_body =
-  match parent_body with
-  | Tfunction_body
-      { exp_desc = Texp_function (method_params, method_body);
-        exp_extra;
-      }
-      when
-        List.exists
-          (function (Texp_poly _, _, _) -> true | _ -> false)
-          exp_extra
-    -> parent_params @ method_params, method_body
-  | _ -> parent_params, parent_body
 
 (* Translation of expressions *)
 
 let rec iter_exn_names f pat =
   match pat.pat_desc with
-<<<<<<< HEAD
   | Tpat_var (id, _, _, _) -> f id
   | Tpat_alias (p, id, _, _, _) ->
-||||||| 121bedcfd2
-  | Tpat_var (id, _) -> f id
-  | Tpat_alias (p, id, _) ->
-=======
-  | Tpat_var (id, _, _) -> f id
-  | Tpat_alias (p, id, _, _) ->
->>>>>>> 5.2.0
       f id;
       iter_exn_names f p
   | _ -> ()
@@ -480,14 +360,7 @@ let rec transl_exp ~scopes sort e =
    parsed as a let-bound Pexp_function node [let f = fun x -> ...].
    We give it f's scope.
 *)
-<<<<<<< HEAD
 and transl_exp1 ~scopes ~in_new_scope sort e =
-||||||| 121bedcfd2
-and transl_exp1 ~scopes ~in_new_scope e =
-  List.iter (Translattribute.check_attribute e) e.exp_attributes;
-=======
-and transl_exp1 ~scopes ~in_new_scope e =
->>>>>>> 5.2.0
   let eval_once =
     (* Whether classes for immediate objects must be cached *)
     match e.exp_desc with
@@ -504,7 +377,6 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         e.exp_env e.exp_type path desc kind
   | Texp_constant cst -> Lconst (Const_base cst)
   | Texp_let(rec_flag, pat_expr_list, body) ->
-<<<<<<< HEAD
       let return_layout = layout_exp sort body in
       transl_let ~scopes ~return_layout rec_flag pat_expr_list
         (event_before ~scopes body (transl_exp ~scopes sort body))
@@ -529,39 +401,6 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           in
           (x, arg_sort) :: arg_exps, extra_args
         | _, ((_, Omitted _) :: _) -> assert false
-||||||| 121bedcfd2
-      transl_let ~scopes rec_flag pat_expr_list
-        (event_before ~scopes body (transl_exp ~scopes body))
-  | Texp_function { arg_label = _; param; cases; partial; } ->
-      let scopes =
-        if in_new_scope then scopes
-        else enter_anonymous_function ~scopes
-      in
-      transl_function ~scopes e param cases partial
-  | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p});
-                exp_type = prim_type } as funct, oargs)
-    when List.length oargs >= p.prim_arity
-    && List.for_all (fun (_, arg) -> arg <> None) oargs ->
-      let argl, extra_args = cut p.prim_arity oargs in
-      let arg_exps =
-         List.map (function _, Some x -> x | _ -> assert false) argl
-=======
-      transl_let ~scopes rec_flag pat_expr_list
-        (event_before ~scopes body (transl_exp ~scopes body))
-  | Texp_function (params, body) ->
-      let scopes =
-        if in_new_scope then scopes
-        else enter_anonymous_function ~scopes
-      in
-      transl_function ~scopes e params body
-  | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p});
-                exp_type = prim_type } as funct, oargs)
-    when List.length oargs >= p.prim_arity
-    && List.for_all (fun (_, arg) -> arg <> None) oargs ->
-      let argl, extra_args = cut p.prim_arity oargs in
-      let arg_exps =
-         List.map (function _, Some x -> x | _ -> assert false) argl
->>>>>>> 5.2.0
       in
       let arg_exps, extra_args = cut_args p.prim_native_repr_args oargs in
       let args = transl_list ~scopes arg_exps in
@@ -582,37 +421,18 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       in
       if extra_args = [] then lam
       else begin
-<<<<<<< HEAD
         let tailcall = Translattribute.get_tailcall_attribute funct in
         let inlined = Translattribute.get_inlined_attribute funct in
         let specialised = Translattribute.get_specialised_attribute funct in
         let position = transl_apply_position pos in
         let mode = transl_locality_mode_l ap_mode in
         let result_layout = layout_exp sort e in
-||||||| 121bedcfd2
-        let tailcall, funct =
-          Translattribute.get_tailcall_attribute funct
-        in
-        let inlined, funct =
-          Translattribute.get_and_remove_inlined_attribute funct
-        in
-        let specialised, funct =
-          Translattribute.get_and_remove_specialised_attribute funct
-        in
-        let e = { e with exp_desc = Texp_apply(funct, oargs) } in
-=======
-        let tailcall = Translattribute.get_tailcall_attribute funct in
-        let inlined = Translattribute.get_inlined_attribute funct in
-        let specialised = Translattribute.get_specialised_attribute funct in
-        let e = { e with exp_desc = Texp_apply(funct, oargs) } in
->>>>>>> 5.2.0
         event_after ~scopes e
           (transl_apply ~scopes ~tailcall ~inlined ~specialised
              ~assume_zero_alloc
              ~position ~mode
              ~result_layout lam extra_args (of_location ~scopes e.exp_loc))
       end
-<<<<<<< HEAD
   | Texp_apply(funct, oargs, position, ap_mode, assume_zero_alloc)
     ->
       let tailcall = Translattribute.get_tailcall_attribute funct in
@@ -621,25 +441,6 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let result_layout = layout_exp sort e in
       let position = transl_apply_position position in
       let mode = transl_locality_mode_l ap_mode in
-||||||| 121bedcfd2
-  | Texp_apply(funct, oargs) ->
-      let tailcall, funct =
-        Translattribute.get_tailcall_attribute funct
-      in
-      let inlined, funct =
-        Translattribute.get_and_remove_inlined_attribute funct
-      in
-      let specialised, funct =
-        Translattribute.get_and_remove_specialised_attribute funct
-      in
-      let e = { e with exp_desc = Texp_apply(funct, oargs) } in
-=======
-  | Texp_apply(funct, oargs) ->
-      let tailcall = Translattribute.get_tailcall_attribute funct in
-      let inlined = Translattribute.get_inlined_attribute funct in
-      let specialised = Translattribute.get_specialised_attribute funct in
-      let e = { e with exp_desc = Texp_apply(funct, oargs) } in
->>>>>>> 5.2.0
       event_after ~scopes e
         (transl_apply ~scopes ~tailcall ~inlined ~specialised
            ~assume_zero_alloc
@@ -1122,7 +923,6 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       | `Identifier `Other ->
          transl_exp ~scopes Jkind.Sort.for_lazy_body e
       | `Other ->
-<<<<<<< HEAD
          (* other cases compile to a lazy block holding a function.  The
             typechecker enforces that e has jkind value.  *)
          let scopes = enter_lazy ~scopes in
@@ -1132,24 +932,11 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                                        attributes = Lambda.default_param_attribute;
                                        mode = alloc_heap}]
                             ~return:Lambda.layout_lazy_contents
-                            ~attr:function_attribute_disallowing_arity_fusion
-||||||| 121bedcfd2
-         (* other cases compile to a lazy block holding a function *)
-         let fn = lfunction ~kind:Curried
-                            ~params:[Ident.create_local "param", Pgenval]
-                            ~return:Pgenval
-                            ~attr:default_function_attribute
-=======
-         (* other cases compile to a lazy block holding a function *)
-         let fn = lfunction ~kind:Curried
-                            ~params:[Ident.create_local "param", Pgenval]
-                            ~return:Pgenval
                             (* The translation of [e] may be a function, in
                                which case disallowing arity fusion gives a very
                                small performance improvement.
                             *)
                             ~attr:function_attribute_disallowing_arity_fusion
->>>>>>> 5.2.0
                             ~loc:(of_location ~scopes e.exp_loc)
                             ~mode:alloc_heap
                             ~ret_mode:alloc_heap
@@ -1454,56 +1241,27 @@ and transl_apply ~scopes
           ap_probe=None;
         }
   in
-<<<<<<< HEAD
-  let rec build_apply lam args loc pos ap_mode = function
-    | Omitted { mode_closure; mode_arg; mode_ret; sort_arg } :: l ->
-        assert (pos = Rc_normal);
-||||||| 121bedcfd2
-  let rec build_apply lam args = function
-      (None, optional) :: l ->
-=======
   (* Build a function application.
      Particular care is required for out-of-order partial applications.
      The following code guarantees that:
      * arguments are evaluated right-to-left according to their order in
        the type of the function, before the function is called;
-     * side-effects occurring after receiving a non-optional parameter
+     * side-effects occurring after receiving a parameter
        will occur exactly when all the arguments up to this parameter
-       have been received;
-     * side-effects occurring after receiving an optional parameter
-       will occur at the latest when all the arguments up to the first
-       non-optional parameter that follows it have been received.
+       have been received.
   *)
-  let rec build_apply lam args = function
-      (None, optional) :: l ->
+  let rec build_apply lam args loc pos ap_mode = function
+    | Omitted { mode_closure; mode_arg; mode_ret; sort_arg } :: l ->
         (* Out-of-order partial application; we will need to build a closure *)
->>>>>>> 5.2.0
+        assert (pos = Rc_normal);
         let defs = ref [] in
         let protect name (lam, layout) =
           match lam with
             Lvar _ | Lconst _ -> (lam, layout)
           | _ ->
               let id = Ident.create_local name in
-<<<<<<< HEAD
               defs := (id, layout, lam) :: !defs;
               (Lvar id, layout)
-||||||| 121bedcfd2
-              defs := (id, lam) :: !defs;
-              Lvar id
-        in
-        let args, args' =
-          if List.for_all (fun (_,opt) -> opt) args then [], args
-          else args, []
-=======
-              defs := (id, lam) :: !defs;
-              Lvar id
-        in
-        (* If all arguments in [args] were optional, delay their application
-           until after this one is received *)
-        let args, args' =
-          if List.for_all (fun (_,opt) -> opt) args then [], args
-          else args, []
->>>>>>> 5.2.0
         in
         let lam =
           if args = [] then
@@ -1511,21 +1269,10 @@ and transl_apply ~scopes
           else
             lapply lam (List.rev args) loc pos ap_mode layout_function
         in
-<<<<<<< HEAD
-        let handle, _ = protect "func" (lam, layout_function) in
-||||||| 121bedcfd2
-        let handle = protect "func" lam in
-=======
         (* Evaluate the function, applied to the arguments in [args] *)
-        let handle = protect "func" lam in
-        (* Evaluate the arguments whose applications was delayed;
-           if we already passed here this is a no-op. *)
-        let args' =
-          List.map (fun (arg, opt) -> protect "arg" arg, opt) args'
-        in
+        let handle, _ = protect "func" (lam, layout_function) in
         (* Evaluate the remaining arguments;
            if we already passed here this is a no-op. *)
->>>>>>> 5.2.0
         let l =
           List.map
             (fun arg ->
@@ -1537,7 +1284,6 @@ and transl_apply ~scopes
         let id_arg = Ident.create_local "param" in
         (* Process remaining arguments and build closure *)
         let body =
-<<<<<<< HEAD
           let loc = map_scopes enter_partial_or_eta_wrapper loc in
           let mode = transl_alloc_mode_r mode_closure in
           let arg_mode = transl_alloc_mode_l mode_arg in
@@ -1563,57 +1309,14 @@ and transl_apply ~scopes
           lfunction ~kind:(Curried {nlocal}) ~params
                     ~return:result_layout ~body ~mode ~ret_mode ~region
                     ~attr:{ default_stub_attribute with may_fuse_arity = false } ~loc
-||||||| 121bedcfd2
-          match build_apply handle ((Lvar id_arg, optional)::args') l with
-            Lfunction{kind = Curried; params = ids; return;
-                      body = lam; attr; loc}
-               when List.length ids < Lambda.max_arity () ->
-              lfunction ~kind:Curried
-                        ~params:((id_arg, Pgenval)::ids)
-                        ~return
-                        ~body:lam ~attr
-                        ~loc
-          | lam ->
-              lfunction ~kind:Curried ~params:[id_arg, Pgenval]
-                        ~return:Pgenval ~body:lam
-                        ~attr:default_stub_attribute ~loc
-=======
-          match build_apply handle ((Lvar id_arg, optional)::args') l with
-            Lfunction{kind = Curried; params = ids; return; body; attr; loc}
-            when List.length ids < Lambda.max_arity () ->
-              lfunction ~kind:Curried ~params:((id_arg, Pgenval)::ids)
-                        ~return ~body ~attr ~loc
-          | body ->
-              lfunction ~kind:Curried ~params:[id_arg, Pgenval]
-                        ~return:Pgenval ~body
-                        ~attr:default_stub_attribute ~loc
->>>>>>> 5.2.0
         in
-<<<<<<< HEAD
+        (* Wrap "protected" definitions, starting from the left,
+           so that evaluation is right-to-left. *)
         List.fold_right
           (fun (id, layout, lam) body -> Llet(Strict, layout, id, lam, body))
           !defs body
     | Arg (arg, _) :: l -> build_apply lam (arg :: args) loc pos ap_mode l
     | [] -> lapply lam (List.rev args) loc pos ap_mode result_layout
-||||||| 121bedcfd2
-        List.fold_left
-          (fun body (id, lam) -> Llet(Strict, Pgenval, id, lam, body))
-          body !defs
-    | (Some arg, optional) :: l ->
-        build_apply lam ((arg, optional) :: args) l
-    | [] ->
-        lapply lam (List.rev_map fst args)
-=======
-        (* Wrap "protected" definitions, starting from the left,
-           so that evaluation is right-to-left. *)
-        List.fold_right
-          (fun (id, lam) body -> Llet(Strict, Pgenval, id, lam, body))
-          !defs body
-    | (Some arg, optional) :: l ->
-        build_apply lam ((arg, optional) :: args) l
-    | [] ->
-        lapply lam (List.rev_map fst args)
->>>>>>> 5.2.0
   in
   let args =
     List.map
@@ -1644,7 +1347,6 @@ and transl_function_without_attributes
     | Tfunction_cases cases ->
         layout cases.fc_env cases.fc_loc return_sort cases.fc_ret_type
 
-<<<<<<< HEAD
   in
   match
     transl_tupled_function ~scopes loc params body
@@ -1654,52 +1356,7 @@ and transl_function_without_attributes
   | None ->
       transl_curried_function ~scopes loc repr params body
         ~return_sort ~return_mode ~return_layout ~mode ~region
-||||||| 121bedcfd2
-and transl_curried_function
-      ~scopes loc return
-      repr partial (param:Ident.t) cases =
-  let max_arity = Lambda.max_arity () in
-  let rec loop ~scopes loc return ~arity partial (param:Ident.t) cases =
-    match cases with
-      [{c_lhs=pat; c_guard=None;
-        c_rhs={exp_desc =
-                 Texp_function
-                   { arg_label = _; param = param'; cases = cases';
-                     partial = partial'; }; exp_env; exp_type;exp_loc}}]
-      when arity <  max_arity ->
-      if  Parmatch.inactive ~partial pat
-      then
-        let kind = value_kind pat.pat_env pat.pat_type in
-        let return_kind = function_return_value_kind exp_env exp_type in
-        let ((_, params, return), body) =
-          loop ~scopes exp_loc return_kind ~arity:(arity + 1)
-            partial' param' cases'
-        in
-        ((Curried, (param, kind) :: params, return),
-         Matching.for_function ~scopes loc None (Lvar param)
-           [pat, body] partial)
-      else begin
-        begin match partial with
-        | Total ->
-          Location.prerr_warning pat.pat_loc
-            Match_on_mutable_state_prevent_uncurry
-        | Partial -> ()
-        end;
-        transl_tupled_function ~scopes ~arity
-          loc return repr partial param cases
-      end
-    | cases ->
-      transl_tupled_function ~scopes ~arity
-        loc return repr partial param cases
-  in
-  loop ~scopes loc return ~arity:1 partial param cases
-=======
-(* There are two cases in function translation:
-    - [Tupled]. It takes a tupled argument, and we can flatten it.
-    - [Curried]. It takes each argument individually.
->>>>>>> 5.2.0
 
-<<<<<<< HEAD
 and transl_tupled_function
       ~scopes ~return_sort ~return_mode ~return_layout ~mode ~region loc params body
   =
@@ -1727,48 +1384,6 @@ and transl_tupled_function
     when is_alloc_heap mode
       && is_alloc_heap (transl_alloc_mode_l arg_mode)
       && !Clflags.native_code
-||||||| 121bedcfd2
-and transl_tupled_function
-      ~scopes ~arity loc return
-      repr partial (param:Ident.t) cases =
-  match cases with
-  | {c_lhs={pat_desc = Tpat_tuple pl}} :: _
-    when !Clflags.native_code
-      && arity = 1
-=======
-   We first try treating the function as taking a flattened tupled argument (in
-   [trans_tupled_function]) and, if that doesn't work, we fall back to treating
-   the function as taking each argument individually (in
-   [trans_curried_function]).
-*)
-and transl_function_without_attributes ~scopes loc repr params body =
-  let return =
-    match body with
-    | Tfunction_body body ->
-        value_kind body.exp_env body.exp_type
-    | Tfunction_cases { cases = { c_rhs } :: _ } ->
-        value_kind c_rhs.exp_env c_rhs.exp_type
-    | Tfunction_cases { cases = [] } ->
-        (* With Camlp4/ppx, a pattern matching might be empty *)
-        Pgenval
-  in
-  transl_tupled_function ~scopes loc return repr params body
-
-and transl_tupled_function ~scopes loc return repr params body =
-  (* Cases are eligible for flattening if they belong to the only param. *)
-  let eligible_cases =
-    match params, body with
-    | [], Tfunction_cases { cases; partial } ->
-        Some (cases, partial)
-    | [ { fp_kind = Tparam_pat pat; fp_partial } ], Tfunction_body body ->
-        let case = { c_lhs = pat; c_guard = None; c_rhs = body } in
-        Some ([ case ], fp_partial)
-    | _ -> None
-  in
-  match eligible_cases with
-  | Some (({ c_lhs = { pat_desc = Tpat_tuple pl } } :: _) as cases, partial)
-    when !Clflags.native_code
->>>>>>> 5.2.0
       && List.length pl <= (Lambda.max_arity ()) ->
       begin try
         let arg_layout = layout_pat arg_sort arg_pat in
@@ -1779,7 +1394,6 @@ and transl_tupled_function ~scopes loc return repr params body =
               (Matching.flatten_pattern size c_lhs, c_guard, c_rhs))
             cases in
         let kinds =
-<<<<<<< HEAD
           match arg_layout with
           | Pvalue (Pvariant { consts = [];
                                non_consts = [0, Constructor_uniform kinds] }) ->
@@ -1790,39 +1404,6 @@ and transl_tupled_function ~scopes loc return repr params body =
               Misc.fatal_error
                 "Translcore.transl_tupled_function: \
                  Argument should be a tuple, but couldn't get the kinds"
-||||||| 121bedcfd2
-          (* All the patterns might not share the same types. We must take the
-             union of the patterns types *)
-          match pats_expr_list with
-          | [] -> assert false
-          | (pats, _, _) :: cases ->
-              let first_case_kinds =
-                List.map (fun pat -> value_kind pat.pat_env pat.pat_type) pats
-              in
-              List.fold_left
-                (fun kinds (pats, _, _) ->
-                   List.map2 (fun kind pat ->
-                       value_kind_union kind
-                         (value_kind pat.pat_env pat.pat_type))
-                     kinds pats)
-                first_case_kinds cases
-=======
-          (* All the patterns might not share the same types. We must take the
-             union of the patterns types *)
-          match pats_expr_list with
-          | [] -> assert false
-          | (pats, _, _) :: cases ->
-              let first_case_kinds =
-                List.map (fun pat -> value_kind pat.pat_env pat.pat_type) pats
-              in
-              List.fold_left
-                (fun kinds (pats, _, _) ->
-                  List.map2 (fun kind pat ->
-                    value_kind_union kind
-                      (value_kind pat.pat_env pat.pat_type))
-                    kinds pats)
-                first_case_kinds cases
->>>>>>> 5.2.0
         in
         let tparams =
           List.map (fun kind -> {
@@ -1832,7 +1413,6 @@ and transl_tupled_function ~scopes loc return repr params body =
                 mode = alloc_heap
               }) kinds
         in
-<<<<<<< HEAD
         let params = List.map (fun p -> p.name) tparams in
         let body =
           Matching.for_tupled_function ~scopes ~return_layout loc params
@@ -1842,31 +1422,9 @@ and transl_tupled_function ~scopes loc return repr params body =
         Some
           ((Tupled, tparams, return_layout, region, return_mode), body)
     with Matching.Cannot_flatten -> None
-||||||| 121bedcfd2
-        let params = List.map fst tparams in
-        ((Tupled, tparams, return),
-         Matching.for_tupled_function ~scopes loc params
-           (transl_tupled_cases ~scopes pats_expr_list) partial)
-    with Matching.Cannot_flatten ->
-      transl_function0 ~scopes loc return repr partial param cases
-=======
-        let params = List.map fst tparams in
-        ((Tupled, tparams, return),
-         Matching.for_tupled_function ~scopes loc params
-           (transl_tupled_cases ~scopes pats_expr_list) partial)
-    with Matching.Cannot_flatten ->
-      transl_curried_function ~scopes loc return repr params body
->>>>>>> 5.2.0
       end
-<<<<<<< HEAD
   | _ -> None
-||||||| 121bedcfd2
-  | _ -> transl_function0 ~scopes loc return repr partial param cases
-=======
-  | _ -> transl_curried_function ~scopes loc return repr params body
->>>>>>> 5.2.0
 
-<<<<<<< HEAD
 and transl_curried_function ~scopes loc repr params body
     ~return_sort ~return_layout ~return_mode ~region ~mode
   =
@@ -1977,106 +1535,7 @@ and transl_curried_function ~scopes loc repr params body
              of params.
           *)
         }
-||||||| 121bedcfd2
-and transl_function0
-      ~scopes loc return
-      repr partial (param:Ident.t) cases =
-    let kind =
-      match cases with
-      | [] ->
-        (* With Camlp4, a pattern matching might be empty *)
-        Pgenval
-      | {c_lhs=pat} :: other_cases ->
-        (* All the patterns might not share the same types. We must take the
-           union of the patterns types *)
-        List.fold_left (fun k {c_lhs=pat} ->
-          Typeopt.value_kind_union k
-            (value_kind pat.pat_env pat.pat_type))
-          (value_kind pat.pat_env pat.pat_type) other_cases
-    in
-    ((Curried, [param, kind], return),
-     Matching.for_function ~scopes loc repr (Lvar param)
-       (transl_cases ~scopes cases) partial)
-=======
-and transl_curried_function ~scopes loc return repr params body =
-  let cases_param, body =
-    match body with
-    | Tfunction_body body ->
-        None, event_before ~scopes body (transl_exp ~scopes body)
-    | Tfunction_cases { cases; partial; param; loc = cases_loc } ->
-        let kind =
-          match cases with
-          | [] ->
-            (* With Camlp4/ppx, a pattern matching might be empty *)
-            Pgenval
-          | {c_lhs=pat} :: other_cases ->
-            (* All the patterns might not share the same types. We must take the
-              union of the patterns types *)
-            List.fold_left (fun k {c_lhs=pat} ->
-              Typeopt.value_kind_union k
-                (value_kind pat.pat_env pat.pat_type))
-              (value_kind pat.pat_env pat.pat_type) other_cases
-        in
-        let body =
-          Matching.for_function ~scopes cases_loc repr (Lvar param)
-            (transl_cases ~scopes cases) partial
-        in
-        Some (param, kind), body
-  in
-  let body, params =
-    List.fold_right (fun fp (body, params) ->
-      let param = fp.fp_param in
-      let param_loc = fp.fp_loc in
-      match fp.fp_kind with
-      | Tparam_pat pat ->
-          let kind = value_kind pat.pat_env pat.pat_type in
-          let body =
-            Matching.for_function ~scopes param_loc None (Lvar param)
-              [ pat, body ]
-              fp.fp_partial
-          in
-          body, (param, kind) :: params
-      | Tparam_optional_default (pat, default_arg) ->
-          let default_arg =
-            event_before ~scopes default_arg (transl_exp ~scopes default_arg)
-          in
-          let body =
-            Matching.for_optional_arg_default
-              ~scopes param_loc pat body ~default_arg ~param
-          in
-          (* The optional param is Pgenval as it's an option. *)
-          body, (param, Pgenval) :: params)
-    params
-    (body, Option.to_list cases_param)
-  in
-  (* chunk params according to Lambda.max_arity. If Lambda.max_arity = n and
-     N>n, then the translation of an N-ary typedtree function is an n-ary lambda
-     function returning the translation of an (N-n)-ary typedtree function.
-  *)
-  let params, return, body =
-    match Misc.Stdlib.List.chunks_of (Lambda.max_arity ()) params with
-    | [] ->
-        Misc.fatal_error "attempted to translate a function with zero arguments"
-    | first_chunk :: rest_of_chunks ->
-      let body, return =
-        List.fold_right
-          (fun chunk (body, return) ->
-            let attr = function_attribute_disallowing_arity_fusion in
-            let loc = of_location ~scopes loc in
-            let body =
-              lfunction ~kind:Curried ~params:chunk ~return ~body ~attr ~loc
-            in
-            (* we return Pgenval (for a function) after the rightmost chunk. *)
-            body, Pgenval)
-          rest_of_chunks
-          (body, return)
-      in
-      first_chunk, return, body
-  in
-  ((Curried, params, return), body)
->>>>>>> 5.2.0
 
-<<<<<<< HEAD
       (* Meant to be used with a [fold_right]. The returned [acc] is in
          respect to the enclosing chunk.
       *)
@@ -2163,16 +1622,8 @@ and transl_function ~in_new_scope ~scopes e params body
          (See the chunking code in [transl_curried_function].)
   *)
   let ((kind, params, return, region, ret_mode), body) =
-||||||| 121bedcfd2
-and transl_function ~scopes e param cases partial =
-  let ((kind, params, return), body) =
-=======
-and transl_function ~scopes e params body =
-  let ((kind, params, return), body) =
->>>>>>> 5.2.0
     event_function ~scopes e
       (function repr ->
-<<<<<<< HEAD
          transl_function_without_attributes
            ~mode ~return_sort ~return_mode
            ~scopes e.exp_loc repr ~region params body)
@@ -2194,22 +1645,7 @@ and transl_function ~scopes e params body =
   in
   let attr =
     { function_attribute_disallowing_arity_fusion with zero_alloc }
-||||||| 121bedcfd2
-         let pl = push_defaults e.exp_loc cases partial in
-         let return_kind = function_return_value_kind e.exp_env e.exp_type in
-         transl_curried_function ~scopes e.exp_loc return_kind
-           repr partial param pl)
-=======
-         let params, body = fuse_method_arity params body in
-         transl_function_without_attributes ~scopes e.exp_loc repr params body)
->>>>>>> 5.2.0
   in
-<<<<<<< HEAD
-||||||| 121bedcfd2
-  let attr = default_function_attribute in
-=======
-  let attr = function_attribute_disallowing_arity_fusion in
->>>>>>> 5.2.0
   let loc = of_location ~scopes e.exp_loc in
   let body = if region then maybe_region_layout return body else body in
   let lam = lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region in
@@ -2251,7 +1687,6 @@ and transl_let ~scopes ~return_layout ?(add_regions=false) ?(in_structure=false)
       let rec transl = function
         [] ->
           fun body -> body
-<<<<<<< HEAD
       | {vb_pat=pat; vb_expr=expr; vb_sort=sort; vb_rec_kind=_; vb_attributes; vb_loc}
         :: rem ->
           let lam =
@@ -2260,16 +1695,6 @@ and transl_let ~scopes ~return_layout ?(add_regions=false) ?(in_structure=false)
           let lam =
             if add_regions then maybe_region_exp sort expr lam else lam
           in
-||||||| 121bedcfd2
-      | {vb_pat=pat; vb_expr=expr; vb_attributes=attr; vb_loc} :: rem ->
-          let lam = transl_bound_exp ~scopes ~in_structure pat expr in
-          let lam = Translattribute.add_function_attributes lam vb_loc attr in
-=======
-      | {vb_pat=pat; vb_expr=expr; vb_rec_kind=_; vb_attributes=attr; vb_loc}
-        :: rem ->
-          let lam = transl_bound_exp ~scopes ~in_structure pat expr in
-          let lam = Translattribute.add_function_attributes lam vb_loc attr in
->>>>>>> 5.2.0
           let mk_body = transl rem in
           fun body ->
             Matching.for_let ~scopes ~arg_sort:sort ~return_layout pat.pat_loc
@@ -2280,46 +1705,19 @@ and transl_let ~scopes ~return_layout ?(add_regions=false) ?(in_structure=false)
       let idlist =
         List.map
           (fun {vb_pat=pat} -> match pat.pat_desc with
-<<<<<<< HEAD
               Tpat_var (id,_,_,_) -> id
-||||||| 121bedcfd2
-              Tpat_var (id,_) -> id
-            | Tpat_alias ({pat_desc=Tpat_any}, id,_) -> id
-=======
-              Tpat_var (id,_,_) -> id
-            | Tpat_alias ({pat_desc=Tpat_any}, id,_,_) -> id
->>>>>>> 5.2.0
             | _ -> assert false)
         pat_expr_list in
-<<<<<<< HEAD
       let transl_case
             {vb_expr=expr; vb_sort; vb_attributes; vb_rec_kind = rkind;
              vb_loc; vb_pat} id =
         let def =
           transl_bound_exp ~scopes ~in_structure vb_pat vb_sort expr vb_loc vb_attributes
-||||||| 121bedcfd2
-      let transl_case {vb_expr=expr; vb_attributes; vb_loc; vb_pat} id =
-        let lam = transl_bound_exp ~scopes ~in_structure vb_pat expr in
-        let lam =
-          Translattribute.add_function_attributes lam vb_loc vb_attributes
-=======
-      let transl_case {vb_expr=expr; vb_attributes; vb_rec_kind = rkind;
-                       vb_loc; vb_pat} id =
-        let def = transl_bound_exp ~scopes ~in_structure vb_pat expr in
-        let def =
-          Translattribute.add_function_attributes def vb_loc vb_attributes
->>>>>>> 5.2.0
         in
-<<<<<<< HEAD
         let def =
           if add_regions then maybe_region_exp vb_sort expr def else def
         in
         ( id, rkind, def ) in
-||||||| 121bedcfd2
-        (id, lam) in
-=======
-        ( id, rkind, def ) in
->>>>>>> 5.2.0
       let lam_bds = List.map2 transl_case pat_expr_list idlist in
       fun body -> Value_rec_compiler.compile_letrec lam_bds body
 
@@ -2544,25 +1942,11 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
         in
         (* Simplif doesn't like it if binders are not uniq, so we make sure to
            use different names in the value and the exception branches. *)
-<<<<<<< HEAD
         let ids_full = Typedtree.pat_bound_idents_full arg_sort pv in
         let ids = List.map (fun (id, _, _, _, _) -> id) ids_full in
-||||||| 121bedcfd2
-        let ids_full = Typedtree.pat_bound_idents_full pv in
-        let ids = List.map (fun (id, _, _) -> id) ids_full in
-=======
-        let ids_full = Typedtree.pat_bound_idents_full pv in
-        let ids = List.map (fun (id, _, _, _) -> id) ids_full in
->>>>>>> 5.2.0
         let ids_kinds =
-<<<<<<< HEAD
           List.map (fun (id, {Location.loc; _}, ty, _, s) ->
             id, Typeopt.layout pv.pat_env loc s ty)
-||||||| 121bedcfd2
-          List.map (fun (id, _, ty) -> id, Typeopt.value_kind pv.pat_env ty)
-=======
-          List.map (fun (id, _, ty, _) -> id, Typeopt.value_kind pv.pat_env ty)
->>>>>>> 5.2.0
             ids_full
         in
         let vids = List.map Ident.rename ids in
@@ -2701,18 +2085,10 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
       (transl_exp ~scopes let_.bop_exp_sort let_.bop_exp) ands
   in
   let func =
-<<<<<<< HEAD
     let return_mode = alloc_heap (* XXX fixme: use result of is_function_type *) in
     let (kind, params, return, _region, ret_mode), body =
-||||||| 121bedcfd2
-    let return_kind = value_kind case.c_rhs.exp_env case.c_rhs.exp_type in
-    let (kind, params, return), body =
-=======
-    let (kind, params, return), body =
->>>>>>> 5.2.0
       event_function ~scopes case.c_rhs
         (function repr ->
-<<<<<<< HEAD
            let loc = case.c_rhs.exp_loc in
            let ghost_loc = { loc with loc_ghost = true } in
            transl_function_without_attributes ~scopes ~region:true
@@ -2725,17 +2101,6 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
                   fc_arg_sort = param_sort; fc_env = env;
                   fc_ret_type = case.c_rhs.exp_type;
                 }))
-||||||| 121bedcfd2
-           transl_curried_function ~scopes case.c_rhs.exp_loc return_kind
-             repr partial param [case])
-=======
-           let loc = case.c_rhs.exp_loc in
-           let ghost_loc = { loc with loc_ghost = true } in
-           transl_function_without_attributes ~scopes loc repr []
-             (Tfunction_cases
-                { cases = [case]; param; partial; loc = ghost_loc;
-                  exp_extra = None; attributes = []; }))
->>>>>>> 5.2.0
     in
     let attr = function_attribute_disallowing_arity_fusion in
     let loc = of_location ~scopes case.c_rhs.exp_loc in

@@ -104,7 +104,6 @@ exception Error of Location.t * error
 
 let dbg = false
 
-<<<<<<< HEAD
 let jkind_layout_default_to_value_and_check_not_void loc jkind =
   let const = Jkind.default_to_value_and_get jkind in
   let layout = Jkind.Const.get_layout const in
@@ -113,8 +112,6 @@ let jkind_layout_default_to_value_and_check_not_void loc jkind =
   | _ -> ()
 ;;
 
-||||||| 121bedcfd2
-=======
 let debugf fmt =
   if dbg
   then Format.eprintf fmt
@@ -124,7 +121,6 @@ let pp_partial ppf = function
   | Total -> Format.fprintf ppf "Total"
   | Partial -> Format.fprintf ppf "Partial"
 
->>>>>>> 5.2.0
 (*
    Compatibility predicate that considers potential rebindings of constructors
    of an extension type.
@@ -230,16 +226,8 @@ end = struct
     | Tpat_any
     | Tpat_var _ ->
         p
-<<<<<<< HEAD
     | Tpat_alias (q, id, s, uid, mode) ->
         { p with pat_desc = Tpat_alias (simpl_under_orpat q, id, s, uid, mode) }
-||||||| 121bedcfd2
-    | Tpat_alias (q, id, s) ->
-        { p with pat_desc = Tpat_alias (simpl_under_orpat q, id, s) }
-=======
-    | Tpat_alias (q, id, s, uid) ->
-        { p with pat_desc = Tpat_alias (simpl_under_orpat q, id, s, uid) }
->>>>>>> 5.2.0
     | Tpat_or (p1, p2, o) ->
         let p1, p2 = (simpl_under_orpat p1, simpl_under_orpat p2) in
         if le_pat p1 p2 then
@@ -262,17 +250,9 @@ end = struct
       in
       match p.pat_desc with
       | `Any -> stop p `Any
-<<<<<<< HEAD
       | `Var (id, s, uid, mode) ->
         continue p (`Alias (Patterns.omega, id, s, uid, mode))
       | `Alias (p, id, _, _, _) ->
-||||||| 121bedcfd2
-      | `Var (id, s) -> continue p (`Alias (Patterns.omega, id, s))
-      | `Alias (p, id, _) ->
-=======
-      | `Var (id, s, uid) -> continue p (`Alias (Patterns.omega, id, s, uid))
-      | `Alias (p, id, _, _) ->
->>>>>>> 5.2.0
           aux
             ( (General.view p, patl),
               bind_alias p id ~arg ~arg_sort ~action )
@@ -368,24 +348,10 @@ end = struct
       match p.pat_desc with
       | `Or (p1, p2, _) ->
           split_explode p1 aliases (split_explode p2 aliases rem)
-<<<<<<< HEAD
       | `Alias (p, id, _, _, _) -> split_explode p (id :: aliases) rem
       | `Var (id, str, uid, mode) ->
-||||||| 121bedcfd2
-      | `Alias (p, id, _) -> split_explode p (id :: aliases) rem
-      | `Var (id, str) ->
-=======
-      | `Alias (p, id, _, _) -> split_explode p (id :: aliases) rem
-      | `Var (id, str, uid) ->
->>>>>>> 5.2.0
           explode
-<<<<<<< HEAD
             { p with pat_desc = `Alias (Patterns.omega, id, str, uid, mode) }
-||||||| 121bedcfd2
-            { p with pat_desc = `Alias (Patterns.omega, id, str) }
-=======
-            { p with pat_desc = `Alias (Patterns.omega, id, str, uid) }
->>>>>>> 5.2.0
             aliases rem
       | #view as view ->
           (* We are doing two things here:
@@ -636,13 +602,7 @@ end = struct
           match p.pat_desc with
           | `Or (p1, p2, _) ->
               filter_rec ((left, p1, right) :: (left, p2, right) :: rem)
-<<<<<<< HEAD
           | `Alias (p, _, _, _, _) -> filter_rec ((left, p, right) :: rem)
-||||||| 121bedcfd2
-          | `Alias (p, _, _) -> filter_rec ((left, p, right) :: rem)
-=======
-          | `Alias (p, _, _, _) -> filter_rec ((left, p, right) :: rem)
->>>>>>> 5.2.0
           | `Var _ -> filter_rec ((left, Patterns.omega, right) :: rem)
           | #Simple.view as view -> (
               let p = { p with pat_desc = view } in
@@ -692,13 +652,7 @@ let rec flatten_pat_line size p k =
   | Tpat_tuple args -> (List.map snd args) :: k
   | Tpat_or (p1, p2, _) ->
       flatten_pat_line size p1 (flatten_pat_line size p2 k)
-<<<<<<< HEAD
   | Tpat_alias (p, _, _, _, _) ->
-||||||| 121bedcfd2
-  | Tpat_alias (p, _, _) ->
-=======
-  | Tpat_alias (p, _, _, _) ->
->>>>>>> 5.2.0
       (* Note: we are only called from flatten_matrix,
          which is itself only ever used in places
          where variables do not matter (default environments,
@@ -776,13 +730,7 @@ end = struct
       | (p, ps) :: rem -> (
           let p = General.view p in
           match p.pat_desc with
-<<<<<<< HEAD
           | `Alias (p, _, _, _, _) -> filter_rec ((p, ps) :: rem)
-||||||| 121bedcfd2
-          | `Alias (p, _, _) -> filter_rec ((p, ps) :: rem)
-=======
-          | `Alias (p, _, _, _) -> filter_rec ((p, ps) :: rem)
->>>>>>> 5.2.0
           | `Var _ -> filter_rec ((Patterns.omega, ps) :: rem)
           | `Or (p1, p2, _) -> filter_rec_or p1 p2 ps rem
           | #Simple.view as view -> (
@@ -1329,13 +1277,7 @@ let rec omega_like p =
   | Tpat_any
   | Tpat_var _ ->
       true
-<<<<<<< HEAD
   | Tpat_alias (p, _, _, _, _) -> omega_like p
-||||||| 121bedcfd2
-  | Tpat_alias (p, _, _) -> omega_like p
-=======
-  | Tpat_alias (p, _, _, _) -> omega_like p
->>>>>>> 5.2.0
   | Tpat_or (p1, p2, _) -> omega_like p1 || omega_like p2
   | _ -> false
 
@@ -1728,22 +1670,10 @@ and precompile_or ~arg ~arg_sort (cls : Simple.clause list) ors args def k =
             let patbound_action_vars =
               (* variables bound in the or-pattern
                  that are used in the orpm actions *)
-<<<<<<< HEAD
               Typedtree.pat_bound_idents_full arg_sort orp
               |> List.filter (fun (id, _, _, _, _) -> Ident.Set.mem id pm_fv)
               |> List.map (fun (id, _, ty, _, id_sort) ->
                      (id, Typeopt.layout orp.pat_env orp.pat_loc id_sort ty))
-||||||| 121bedcfd2
-              Typedtree.pat_bound_idents_full orp
-              |> List.filter (fun (id, _, _) -> Ident.Set.mem id pm_fv)
-              |> List.map (fun (id, _, ty) ->
-                     (id, Typeopt.value_kind orp.pat_env ty))
-=======
-              Typedtree.pat_bound_idents_full orp
-              |> List.filter (fun (id, _, _, _) -> Ident.Set.mem id pm_fv)
-              |> List.map (fun (id, _, ty, _) ->
-                     (id, Typeopt.value_kind orp.pat_env ty))
->>>>>>> 5.2.0
             in
             let or_num = next_raise_count () in
             let new_patl = Patterns.omega_list patl in
@@ -3154,7 +3084,6 @@ let split_variant_cases (tag_lambda_list : ((int * bool) * lambda) list) =
   in
   (sort_int_lambda_list const, sort_int_lambda_list nonconst)
 
-<<<<<<< HEAD
 let split_extension_cases tag_lambda_list =
   List.partition_map
     (fun ({cstr_constant; cstr_tag}, act) ->
@@ -3177,20 +3106,6 @@ let transl_match_on_option value_kind arg loc ~if_some ~if_none =
     Lifthenelse(arg, if_some, if_none, value_kind)
 
 let combine_constructor value_kind loc arg pat_env cstr partial ctx def
-||||||| 121bedcfd2
-let combine_constructor loc arg pat_env cstr partial ctx def
-=======
-let transl_match_on_option arg loc ~if_some ~if_none =
-  (* Keeping the Pisint test would make the bytecode
-     slightly worse, but it lets the native compiler generate
-     better code -- see #10681. *)
-  if !Clflags.native_code then
-    Lifthenelse(Lprim (Pisint, [ arg ], loc), if_none, if_some)
-  else
-    Lifthenelse(arg, if_some, if_none)
-
-let combine_constructor loc arg pat_env cstr partial ctx def
->>>>>>> 5.2.0
     (descr_lambda_list, total1, pats) =
   match cstr.cstr_tag with
   | Extension _ ->
@@ -3280,28 +3195,10 @@ let combine_constructor loc arg pat_env cstr partial ctx def
             match
               (cstr.cstr_consts, cstr.cstr_nonconsts, consts, nonconsts)
             with
-<<<<<<< HEAD
             | 1, 1, [ (0, act1) ], [ (0, act2) ]
               when not (Clflags.is_flambda2 ()) ->
                 transl_match_on_option value_kind arg loc
                   ~if_none:act1 ~if_some:act2
-||||||| 121bedcfd2
-            | 1, 1, [ (0, act1) ], [ (0, act2) ] ->
-                (* This case is very frequent, it corresponds to
-                   options and lists. *)
-                (* Keeping the Pisint test would make the bytecode
-                   slightly worse, but it lets the native compiler generate
-                   better code -- see #10681. *)
-                if !Clflags.native_code then
-                  Lifthenelse(Lprim (Pisint, [ arg ], loc), act1, act2)
-                else
-                  Lifthenelse(arg, act2, act1)
-=======
-            | 1, 1, [ (0, act1) ], [ (0, act2) ] ->
-                (* This case is very frequent, it corresponds to
-                   options and lists. *)
-                transl_match_on_option arg loc ~if_none:act1 ~if_some:act2
->>>>>>> 5.2.0
             | n, 0, _, [] ->
                 (* The matched type defines constant constructors only.
                    (typically the constant cases are dense, so
@@ -3524,19 +3421,13 @@ let compile_orhandlers value_kind compile_fun lambda1 total1 ctx to_catch =
         let ctx = Context.select_columns mat ctx in
         match compile_fun ctx pm with
         | exception Unused ->
-<<<<<<< HEAD
+          if rem <> [] then separate_debug_output ();
           (* Whilst the handler is [lambda_unit] it is actually unused and only added
              to produce well-formed code. In reality this expression returns a
              [value_kind]. *)
           do_rec
             (Lstaticcatch (r, (i, vars), lambda_unit, Same_region, value_kind))
             total_r rem
-||||||| 121bedcfd2
-          do_rec (Lstaticcatch (r, (i, vars), lambda_unit)) total_r rem
-=======
-          if rem <> [] then separate_debug_output ();
-          do_rec (Lstaticcatch (r, (i, vars), lambda_unit)) total_r rem
->>>>>>> 5.2.0
         | handler_i, total_i ->
           if rem <> [] then separate_debug_output ();
           begin match raw_action r with
@@ -3625,16 +3516,8 @@ let comp_exit ctx m =
   | Some ((i, _), _) -> (Lstaticraise (i, []), Jumps.singleton i ctx)
   | None -> fatal_error "Matching.comp_exit"
 
-<<<<<<< HEAD
-let rec comp_match_handlers value_kind comp_fun partial ctx first_match next_matchs =
-  match next_matchs with
-||||||| 121bedcfd2
-let rec comp_match_handlers comp_fun partial ctx first_match next_matchs =
-  match next_matchs with
-=======
-let rec comp_match_handlers comp_fun partial ctx first_match next_matches =
+let rec comp_match_handlers layout comp_fun partial ctx first_match next_matches =
   match next_matches with
->>>>>>> 5.2.0
   | [] -> comp_fun partial ctx first_match
   | (_, second_match) :: next_next_matches -> (
       let rec c_rec body jumps_body = function
@@ -3652,62 +3535,27 @@ let rec comp_match_handlers comp_fun partial ctx first_match next_matches =
               match comp_fun partial ctx_i pm_i with
               | lambda_i, jumps_i ->
                 c_rec
-<<<<<<< HEAD
-                  (Lstaticcatch (body, (i, []), li, Same_region, value_kind))
-                  (Jumps.union total_i total_rem)
-||||||| 121bedcfd2
-                  (Lstaticcatch (body, (i, []), li))
-                  (Jumps.union total_i total_rem)
-=======
-                  (Lstaticcatch (body, (i, []), lambda_i))
+                  (Lstaticcatch (body, (i, []), lambda_i, Same_region, layout))
                   (Jumps.union jumps_i jumps_rem)
->>>>>>> 5.2.0
                   rem
               | exception Unused ->
-<<<<<<< HEAD
-                  (* Whilst the handler is [lambda_unit] it is actually unused and only added
-                     to produce well-formed code. In reality this expression returns a
-                     [value_kind]. *)
+                  (* Whilst the handler is [lambda_unit] it is actually unused
+                     and only added to produce well-formed code. In reality this
+                     expression returns a [layout]. *)
                   c_rec
                   (Lstaticcatch
-                     (body, (i, []), lambda_unit, Same_region, value_kind))
-                  total_rem rem
-||||||| 121bedcfd2
-                c_rec
-                  (Lstaticcatch (body, (i, []), lambda_unit))
-                  total_rem rem
-=======
-                c_rec
-                  (Lstaticcatch (body, (i, []), lambda_unit))
+                     (body, (i, []), lambda_unit, Same_region, layout))
                   jumps_rem rem
->>>>>>> 5.2.0
             end
           )
       in
       match comp_fun Partial ctx first_match with
-<<<<<<< HEAD
-      | first_lam, total ->
-        c_rec first_lam total rem
-      | exception Unused -> (
-        match next_matchs with
-        | [] -> raise Unused
-        | (_, x) :: xs -> comp_match_handlers value_kind comp_fun partial ctx x xs
-      )
-||||||| 121bedcfd2
-      | first_lam, total ->
-        c_rec first_lam total rem
-      | exception Unused -> (
-        match next_matchs with
-        | [] -> raise Unused
-        | (_, x) :: xs -> comp_match_handlers comp_fun partial ctx x xs
-      )
-=======
       | first_lam, jumps ->
         c_rec first_lam jumps next_matches
       | exception Unused ->
         separate_debug_output ();
-        comp_match_handlers comp_fun partial ctx second_match next_next_matches
->>>>>>> 5.2.0
+        comp_match_handlers layout comp_fun partial ctx second_match
+          next_next_matches
     )
 
 (* To find reasonable names for variables *)
@@ -3715,16 +3563,8 @@ let rec comp_match_handlers comp_fun partial ctx first_match next_matches =
 let rec name_pattern default = function
   | ((pat, _), _) :: rem -> (
       match pat.pat_desc with
-<<<<<<< HEAD
       | Tpat_var (id, _, _, _) -> id
       | Tpat_alias (_, id, _, _, _) -> id
-||||||| 121bedcfd2
-      | Tpat_var (id, _) -> id
-      | Tpat_alias (_, id, _) -> id
-=======
-      | Tpat_var (id, _, _) -> id
-      | Tpat_alias (_, id, _, _) -> id
->>>>>>> 5.2.0
       | _ -> name_pattern default rem
     )
   | _ -> Ident.create_local default
@@ -3751,27 +3591,11 @@ let rec compile_match ~scopes value_kind repr partial ctx
     (m : initial_clause pattern_matching) =
   match m.cases with
   | ([], action) :: rem ->
-<<<<<<< HEAD
-      if is_guarded action then
-        let lambda, total =
-          compile_match ~scopes value_kind None partial ctx { m with cases = rem }
-        in
-        (event_branch repr (patch_guarded lambda action), total)
-      else
-        (event_branch repr action, Jumps.empty)
-||||||| 121bedcfd2
-      if is_guarded action then
-        let lambda, total =
-          compile_match ~scopes None partial ctx { m with cases = rem }
-        in
-        (event_branch repr (patch_guarded lambda action), total)
-      else
-        (event_branch repr action, Jumps.empty)
-=======
       let res =
         if is_guarded action then
           let lambda, total =
-            compile_match ~scopes None partial ctx { m with cases = rem }
+            compile_match ~scopes value_kind None partial ctx
+              { m with cases = rem }
           in
           (event_branch repr (patch_guarded lambda action), total)
         else
@@ -3780,7 +3604,6 @@ let rec compile_match ~scopes value_kind repr partial ctx
       debugf "empty matrix%t"
         (fun ppf -> if is_guarded action then Format.fprintf ppf " (guarded)");
       res
->>>>>>> 5.2.0
   | nonempty_cases ->
       compile_match_nonempty ~scopes value_kind repr partial ctx
         { m with cases = map_on_rows Non_empty_row.of_initial nonempty_cases }
@@ -3830,34 +3653,7 @@ and combine_handlers ~scopes value_kind repr partial ctx (v, str, arg_layout, ar
   (bind_check str v arg_layout arg lam, total)
 
 (* verbose version of do_compile_matching, for debug *)
-<<<<<<< HEAD
 and do_compile_matching_pr ~scopes value_kind repr partial ctx x =
-  Format.eprintf "COMPILE: %s\nMATCH\n"
-    ( match partial with
-    | Partial -> "Partial"
-    | Total -> "Total"
-    );
-  pretty_precompiled x;
-  Format.eprintf "CTX\n";
-  Context.eprintf ctx;
-  let ((_, jumps) as r) = do_compile_matching ~scopes value_kind repr partial ctx x in
-  Format.eprintf "JUMPS\n";
-  Jumps.eprintf jumps;
-||||||| 121bedcfd2
-and do_compile_matching_pr ~scopes repr partial ctx x =
-  Format.eprintf "COMPILE: %s\nMATCH\n"
-    ( match partial with
-    | Partial -> "Partial"
-    | Total -> "Total"
-    );
-  pretty_precompiled x;
-  Format.eprintf "CTX\n";
-  Context.eprintf ctx;
-  let ((_, jumps) as r) = do_compile_matching ~scopes repr partial ctx x in
-  Format.eprintf "JUMPS\n";
-  Jumps.eprintf jumps;
-=======
-and do_compile_matching_pr ~scopes repr partial ctx x =
   debugf
     "@[<v>MATCH %a\
      @,%a"
@@ -3867,7 +3663,7 @@ and do_compile_matching_pr ~scopes repr partial ctx x =
     Context.pp ctx;
   debugf "@,@[<v 2>COMPILE:@,";
   let ((_, jumps) as r) =
-    try do_compile_matching ~scopes repr partial ctx x with
+    try do_compile_matching ~scopes value_kind repr partial ctx x with
     | exn ->
         debugf "EXN (%s)@]@]" (Printexc.to_string exn);
         raise exn
@@ -3879,7 +3675,6 @@ and do_compile_matching_pr ~scopes repr partial ctx x =
     debugf "@,@[<v 2>JUMPS:@,%a@]"
       Jumps.pp jumps;
   debugf "@]";
->>>>>>> 5.2.0
   r
 
 and do_compile_matching ~scopes value_kind repr partial ctx pmh =
@@ -4091,19 +3886,14 @@ let check_total ~scopes value_kind loc ~failer total lambda i =
                   failure_handler ~scopes loc ~failer (),
                   Same_region, value_kind)
 
-<<<<<<< HEAD
-let toplevel_handler ~scopes ~return_layout loc ~failer partial args cases compile_fun =
-||||||| 121bedcfd2
-let toplevel_handler ~scopes loc ~failer partial args cases compile_fun =
-=======
-let toplevel_handler ~scopes loc ~failer partial args cases compile_fun =
+let toplevel_handler ~scopes ~return_layout loc ~failer partial args cases
+    compile_fun =
   let compile_fun partial pm =
     debugf "@[<v>MATCHING@,";
     let result = compile_fun partial pm in
     debugf "@]@.";
     result
   in
->>>>>>> 5.2.0
   match partial with
   | Total when not !Clflags.safer_matching ->
       let default = Default_environment.empty in
@@ -4304,16 +4094,8 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
       (* This eliminates a useless variable (and stack slot in bytecode)
          for "let _ = ...". See #6865. *)
       Lsequence (param, body)
-<<<<<<< HEAD
-  | Tpat_var (id, _, _, _) ->
-      (* fast path, and keep track of simple bindings to unboxable numbers *)
-      let k = Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type in
-||||||| 121bedcfd2
-  | Tpat_var (id, _) ->
-      (* fast path, and keep track of simple bindings to unboxable numbers *)
-      let k = Typeopt.value_kind pat.pat_env pat.pat_type in
-=======
-  | Tpat_var (id, _, _) | Tpat_alias ({ pat_desc = Tpat_any }, id, _, _) ->
+  | Tpat_var (id, _, _, _)
+  | Tpat_alias ({ pat_desc = Tpat_any }, id, _, _, _) ->
       (* Fast path, and keep track of simple bindings to unboxable numbers.
 
          Note: the (Tpat_alias (Tpat_any, id)) case needs to be
@@ -4321,8 +4103,7 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
          of this shape in presence of type constraints -- see the
          non-polymorphic Ppat_constraint case in type_pat_aux.
       *)
-      let k = Typeopt.value_kind pat.pat_env pat.pat_type in
->>>>>>> 5.2.0
+      let k = Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type in
       Llet (Strict, k, id, param, body)
   | _ ->
       let opt = ref false in
@@ -4330,23 +4111,11 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
       let catch_ids = pat_bound_idents_full arg_sort pat in
       let ids_with_kinds =
         List.map
-<<<<<<< HEAD
           (fun (id, _, typ, _, sort) ->
              (id, Typeopt.layout pat.pat_env pat.pat_loc sort typ))
-||||||| 121bedcfd2
-          (fun (id, _, typ) -> (id, Typeopt.value_kind pat.pat_env typ))
-=======
-          (fun (id, _, typ, _) -> (id, Typeopt.value_kind pat.pat_env typ))
->>>>>>> 5.2.0
           catch_ids
       in
-<<<<<<< HEAD
       let ids = List.map (fun (id, _, _, _, _) -> id) catch_ids in
-||||||| 121bedcfd2
-      let ids = List.map (fun (id, _, _) -> id) catch_ids in
-=======
-      let ids = List.map (fun (id, _, _, _) -> id) catch_ids in
->>>>>>> 5.2.0
       let bind =
         map_return (assign_pat ~scopes return_layout opt nraise ids loc pat
                       arg_sort)
@@ -4519,7 +4288,6 @@ let for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list parti
     List.map (fun (v, sort, layout, _) -> (Lvar v, sort, layout)) v_paraml
   in
   List.fold_right bind_opt v_paraml
-<<<<<<< HEAD
     (do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list
        partial)
 
@@ -4570,22 +4338,3 @@ let () =
       | _ ->
         None
     )
-||||||| 121bedcfd2
-    (do_for_multiple_match ~scopes loc paraml pat_act_list partial)
-=======
-    (do_for_multiple_match ~scopes loc paraml pat_act_list partial)
-
-let for_optional_arg_default ~scopes loc pat ~default_arg ~param body =
-  let supplied_or_default =
-    transl_match_on_option
-      (Lvar param)
-      Loc_unknown
-      ~if_none:default_arg
-      ~if_some:
-        (Lprim
-           (Pfield (0, Pointer, Immutable),
-            [ Lvar param ],
-            Loc_unknown))
-  in
-  for_let ~scopes loc supplied_or_default pat body
->>>>>>> 5.2.0
