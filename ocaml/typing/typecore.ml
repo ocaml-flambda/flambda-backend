@@ -799,8 +799,6 @@ let mode_cross_left env ty mode =
   let mode =
     if not (is_principal ty) then mode else
     let jkind = type_jkind_purely env ty in
-    (* FIXME jbachurski: What should happen for higher jkinds here?
-       Analogous question for other uses of to_type_jkind in this file. *)
     let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind jkind) in
     let upper_bounds = Const.alloc_as_value upper_bounds in
     Value.meet_const upper_bounds mode
