@@ -20,7 +20,6 @@
 type direct_to_cmm =
   ppf_dump:Format.formatter
   -> prefixname:string
-  -> filename:string
   -> Lambda.program
   -> Cmm.phrase list
 
@@ -33,7 +32,7 @@ val compile_implementation
    : (module Compiler_owee.Unix_intf.S)
   -> ?toplevel:(string -> bool)
   -> pipeline:pipeline
-  -> filename:string
+  -> sourcefile:string option
   -> prefixname:string
   -> ppf_dump:Format.formatter
   -> Lambda.program
